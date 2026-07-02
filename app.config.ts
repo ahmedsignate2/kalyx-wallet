@@ -23,6 +23,11 @@ const config: ExpoConfig = {
   },
   plugins: ['expo-router', 'expo-secure-store', 'expo-local-authentication'],
   experiments: { typedRoutes: true },
+  extra: {
+    eas: {
+      projectId: '763060a0-07a9-4056-b50e-5b8d6f2a0e0c',
+    },
+  },
 };
 
 export default config;
