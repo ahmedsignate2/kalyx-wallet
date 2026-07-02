@@ -22,7 +22,8 @@ rapides). Ajoute la couche mobile :
 
 ```bash
 npx expo install expo expo-router expo-secure-store expo-local-authentication \
-  expo-linear-gradient expo-clipboard expo-status-bar react-native react react-dom
+  expo-linear-gradient expo-clipboard expo-status-bar expo-screen-capture \
+  react-native-qrcode-svg react-native-svg react-native react react-dom
 npm install zustand
 ```
 
@@ -61,20 +62,29 @@ Puis `npx expo start` pour le rechargement à chaud.
 
 ## 4. Ce qui marche / ce qui est encore stubbé
 
-| Écran | État |
-|-------|------|
-| Onboarding (créer / importer) | Fonctionnel : génère/valide une seed BIP-39 via le moteur testé |
-| Sauvegarde de seed | Affichage des 12 mots + confirmation (protection anti-capture à brancher) |
-| Stockage | Seed dans SecureStore (Keychain/Keystore). **TODO** : couche AES + PIN |
+| Écran / brique | État |
+|----------------|------|
+| Onboarding (créer / importer) | Fonctionnel : seed BIP-39 via le moteur testé |
+| Sauvegarde de seed | 12 mots + **anti-capture d'écran** (expo-screen-capture) |
+| Vérification de backup | **Fonctionnelle** via `createBackupChallenge` (moteur testé) |
+| Code PIN | **Fait** : choix + confirmation, politique de robustesse (moteur testé) |
+| Chiffrement de la seed | **Fait** : AES-256-GCM, clé dérivée du PIN via scrypt (moteur testé) |
+| Biométrie | **Fait** : déverrouillage Face ID / empreinte (expo-local-authentication) |
+| Anti-brute-force | **Fait** : verrouillage progressif après 5 échecs (moteur testé) |
+| Déverrouillage | Écran unlock : biométrie auto + PIN de secours |
 | Accueil | Adresse + solde réel via RPC Sepolia (pull-to-refresh) |
-| Recevoir | Adresse + copie. **TODO** : QR code |
-| Envoyer | Validation + confirmation + **signature/broadcast réels** (nécessite des ETH de test) |
-| Verrouillage PIN / biométrie | **TODO** (prochaine étape sécurité) |
+| Recevoir | Adresse + **QR code** + copie |
+| Envoyer | Validation + confirmation + **signature/broadcast réels** (PIN requis pour signer) |
 
-## 5. Prochaines étapes UI/sécurité
+### Détail sécurité (device)
+- La seed est chiffrée (AES-GCM + PIN) dans un **coffre** stocké dans SecureStore (Keychain/Keystore).
+- Une copie optionnelle protégée par la **biométrie de l'OS** permet le déverrouillage rapide.
+- L'adresse **publique** est stockée à part pour afficher le solde même verrouillé.
+- La seed/clé n'est **jamais** dans le state global : elle est déchiffrée à la volée, uniquement le temps de signer.
 
-1. Écran de déverrouillage (PIN + biométrie via `expo-local-authentication`) + auto-lock.
-2. Couche AES-GCM au-dessus de SecureStore (clé dérivée du PIN).
-3. Protection anti-capture d'écran sur `backup` (expo-screen-capture).
-4. QR code sur `receive` (react-native-qrcode-svg).
-5. Écran de vérification de seed (le moteur `createBackupChallenge` est déjà prêt et testé).
+## 5. Ce qui reste (durcissement)
+
+1. **Persister les compteurs anti-brute-force** hors mémoire (survivre au redémarrage de l'app).
+2. **Auto-lock** au passage en arrière-plan + écran de garde (blur) dans l'app switcher.
+3. **Détection root/jailbreak** (roadmap phase 5).
+4. **Wallet caché** (2e PIN) — cf. `docs/07-DIFFERENCIATION.md`.

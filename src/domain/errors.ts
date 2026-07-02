@@ -11,7 +11,10 @@ export type WalletErrorCode =
   | 'AMOUNT_TOO_SMALL'
   | 'INSUFFICIENT_FUNDS'
   | 'INVALID_MNEMONIC'
-  | 'MNEMONIC_VERIFICATION_FAILED';
+  | 'MNEMONIC_VERIFICATION_FAILED'
+  | 'INVALID_PIN'
+  | 'WRONG_PIN'
+  | 'VAULT_CORRUPTED';
 
 export class WalletError extends Error {
   readonly code: WalletErrorCode;

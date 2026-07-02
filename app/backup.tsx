@@ -1,19 +1,25 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, ScrollView, Platform } from 'react-native';
 import { router } from 'expo-router';
+import * as ScreenCapture from 'expo-screen-capture';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { colors, radii, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 
 /**
  * Affiche la phrase de récupération.
- * NOTE SÉCURITÉ : sur cet écran, activer la protection anti-capture d'écran
- * (FLAG_SECURE Android / masquage iOS) — à brancher avec expo-screen-capture.
+ * SÉCURITÉ : capture d'écran bloquée pendant l'affichage de la seed
+ * (FLAG_SECURE Android ; sur iOS, expo-screen-capture notifie/masque).
  */
 export default function Backup() {
   const draft = useWallet((s) => s.draftMnemonic);
-  const confirmDraft = useWallet((s) => s.confirmDraft);
-  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    ScreenCapture.preventScreenCaptureAsync('seed').catch(() => {});
+    return () => {
+      ScreenCapture.allowScreenCaptureAsync('seed').catch(() => {});
+    };
+  }, []);
 
   if (!draft) {
     return (
@@ -26,23 +32,14 @@ export default function Backup() {
 
   const words = draft.split(' ');
 
-  const onConfirm = async () => {
-    setSaving(true);
-    try {
-      await confirmDraft();
-      router.replace('/home');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ gap: spacing(2) }}>
         <Title>Ta phrase de récupération</Title>
         <Muted>
-          Écris ces 12 mots dans l'ordre, sur papier. Ne les prends pas en photo, ne
-          les copie pas dans le cloud. C'est la seule façon de restaurer ton wallet.
+          Écris ces {words.length} mots dans l'ordre, sur papier. Ne les prends pas en
+          photo, ne les copie pas dans le cloud. C'est la seule façon de restaurer ton
+          wallet {Platform.OS === 'android' ? '(capture d\'écran bloquée)' : ''}.
         </Muted>
         <Card>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
@@ -67,11 +64,7 @@ export default function Backup() {
           </View>
         </Card>
       </ScrollView>
-      <Button
-        label={saving ? 'Enregistrement…' : "J'ai noté ma phrase"}
-        loading={saving}
-        onPress={onConfirm}
-      />
+      <Button label="J'ai noté ma phrase" onPress={() => router.push('/verify')} />
     </Screen>
   );
 }

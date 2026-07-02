@@ -41,8 +41,10 @@ Le cœur cryptographique est implémenté et **testé dès le départ** (une ré
 | `src/domain/chains/types.ts` | Interface plugin `ChainAdapter` (multi-chaînes) | — |
 | `src/domain/chains/EvmChainAdapter.ts` | Adapter EVM : dérivation, transfert, signature, broadcast | ✅ 6 |
 | `src/domain/chains/registry.ts` + `configs.ts` | Registre + réseaux (Ethereum, BNB, Polygon, Sepolia) | ✅ 4 |
+| `src/security/vault.ts` | Coffre chiffré AES-256-GCM, clé dérivée du PIN (scrypt) | ✅ 7 |
+| `src/security/pin.ts` | Politique de PIN + verrouillage anti-brute-force | ✅ 7 |
 
-**38 tests, typage strict OK.**
+**54 tests, typage strict OK.**
 
 ### Architecture multi-chaînes (plugins)
 Chaque réseau est branché via l'interface `ChainAdapter`. Un seul `EvmChainAdapter` paramétré couvre **tous** les réseaux EVM (même clé, même adresse — seul le RPC/chainId change) : ajouter Base / Arbitrum / Avalanche = **une entrée de config**. Ajouter Bitcoin ou Solana = **un nouvel adapter**, sans toucher au reste du wallet. Les tests s'appuient sur des **vecteurs de référence connus** (phrase `abandon…about` → adresse `0x9858…da94`) et sur un **contrôle croisé** entre `@scure` et `ethers` : deux implémentations indépendantes doivent produire la même adresse. Conformité BIP-39/44 prouvée.
