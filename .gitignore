@@ -1,0 +1,21 @@
+node_modules/
+dist/
+coverage/
+*.log
+
+# Secrets / config locale — ne JAMAIS committer
+.env
+.env.*
+!.env.example
+
+# Expo / RN (à venir)
+.expo/
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+
+# OS
+.DS_Store

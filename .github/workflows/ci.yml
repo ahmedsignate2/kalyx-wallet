@@ -1,0 +1,46 @@
+name: CI
+
+# Exécute typecheck + tests à chaque push et chaque PR.
+# Objectif : 100 % des tests au vert avant toute fusion (voir branch protection).
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: Typecheck & tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install (clean, reproductible)
+        run: npm ci
+
+      - name: Typecheck (strict)
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test -- --ci --runInBand
+
+  # Garde-fou anti-fuite de secret : échoue si un console.log de seed/clé
+  # est introduit dans le code source.
+  secret-log-guard:
+    name: Anti-log de secret
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Interdire les logs de seed / clé privée
+        run: |
+          if grep -rniE "console\.(log|debug|info|warn|error)\s*\(.*(mnemonic|seed|privatekey|private_key|secret)" src; then
+            echo "::error::Log potentiel d'un secret détecté dans src/."
+            exit 1
+          fi
+          echo "OK : aucun log de secret détecté."
