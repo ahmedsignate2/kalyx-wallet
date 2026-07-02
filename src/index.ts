@@ -44,6 +44,24 @@ export {
   type ChallengeAnswer,
 } from './domain/wallet/backupChallenge';
 
+// Sécurité : coffre chiffré + politique de PIN
+export {
+  encryptSecret,
+  decryptSecret,
+  serializeVault,
+  deserializeVault,
+  type EncryptedVault,
+} from './security/vault';
+export {
+  checkPin,
+  assertValidPin,
+  lockRemainingMs,
+  isLockedOut,
+  PIN_MIN,
+  PIN_MAX,
+  type PinCheck,
+} from './security/pin';
+
 // Chaînes (plugins)
 export { getAdapter, listChains, hasChain } from './domain/chains/registry';
 export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, SEPOLIA } from './domain/chains/configs';

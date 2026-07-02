@@ -1,36 +1,66 @@
 /**
- * Stockage sécurisé du mnémonique.
+ * Persistance locale du wallet (device).
  *
- * expo-secure-store s'appuie sur le Keychain (iOS) / Keystore (Android) :
- * le secret est chiffré au niveau matériel. On y accède derrière la biométrie
- * / le code de l'appareil.
+ * Trois éléments distincts :
+ *  1. Le COFFRE chiffré (AES+PIN) — le secret réel. Dans SecureStore.
+ *  2. L'adresse publique — non sensible, pour afficher le solde même verrouillé.
+ *  3. (Optionnel) une copie de la seed protégée par la BIOMÉTRIE de l'OS, pour
+ *     un déverrouillage rapide. L'OS exige l'authentification avant de la rendre.
  *
- * DURCISSEMENT PRÉVU (roadmap phase 1/5, cf. SECURITY.md) : ajouter une couche
- * AES-GCM applicative avec une clé dérivée d'un PIN choisi par l'utilisateur,
- * pour ne pas dépendre uniquement du secure storage OS. Marqué TODO ci-dessous.
+ * La seed en clair n'est JAMAIS écrite en dehors de ces stockages chiffrés,
+ * jamais loggée, jamais mise dans le state global.
  */
 import * as SecureStore from 'expo-secure-store';
+import { serializeVault, deserializeVault, type EncryptedVault } from '../src';
 
-const MNEMONIC_KEY = 'nova.wallet.mnemonic';
+const K_VAULT = 'nova.vault'; // coffre AES+PIN
+const K_ADDRESS = 'nova.address'; // adresse publique (non sensible)
+const K_BIO_SEED = 'nova.bioSeed'; // seed protégée biométrie (optionnel)
 
-const options: SecureStore.SecureStoreOptions = {
+const base: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-  // requireAuthentication: true, // à activer avec un écran de secours PIN
 };
 
-export async function saveMnemonic(mnemonic: string): Promise<void> {
-  // TODO(sécurité): chiffrer en AES-GCM avec une clé dérivée du PIN avant stockage.
-  await SecureStore.setItemAsync(MNEMONIC_KEY, mnemonic, options);
+const bioGated: SecureStore.SecureStoreOptions = {
+  ...base,
+  requireAuthentication: true, // l'OS impose biométrie/code avant lecture
+};
+
+export async function saveVault(vault: EncryptedVault): Promise<void> {
+  await SecureStore.setItemAsync(K_VAULT, serializeVault(vault), base);
 }
 
-export async function loadMnemonic(): Promise<string | null> {
-  return SecureStore.getItemAsync(MNEMONIC_KEY, options);
+export async function loadVault(): Promise<EncryptedVault | null> {
+  const raw = await SecureStore.getItemAsync(K_VAULT, base);
+  return raw ? deserializeVault(raw) : null;
 }
 
-export async function hasMnemonic(): Promise<boolean> {
-  return (await SecureStore.getItemAsync(MNEMONIC_KEY, options)) != null;
+export async function hasVault(): Promise<boolean> {
+  return (await SecureStore.getItemAsync(K_VAULT, base)) != null;
 }
 
-export async function wipeMnemonic(): Promise<void> {
-  await SecureStore.deleteItemAsync(MNEMONIC_KEY, options);
+export async function savePublicAddress(address: string): Promise<void> {
+  await SecureStore.setItemAsync(K_ADDRESS, address, base);
+}
+
+export async function loadPublicAddress(): Promise<string | null> {
+  return SecureStore.getItemAsync(K_ADDRESS, base);
+}
+
+/** Active le déverrouillage biométrique en stockant la seed gated par l'OS. */
+export async function enableBiometricSeed(mnemonic: string): Promise<void> {
+  await SecureStore.setItemAsync(K_BIO_SEED, mnemonic, bioGated);
+}
+
+/** Lit la seed via biométrie (l'OS prompt). Renvoie null si non configurée. */
+export async function readBiometricSeed(): Promise<string | null> {
+  return SecureStore.getItemAsync(K_BIO_SEED, bioGated);
+}
+
+export async function wipeAll(): Promise<void> {
+  await Promise.all([
+    SecureStore.deleteItemAsync(K_VAULT, base),
+    SecureStore.deleteItemAsync(K_ADDRESS, base),
+    SecureStore.deleteItemAsync(K_BIO_SEED, bioGated),
+  ]);
 }

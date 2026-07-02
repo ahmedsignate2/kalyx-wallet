@@ -7,32 +7,32 @@ import { useWallet, DEFAULT_CHAIN } from '../lib/walletStore';
 import { getAdapter, isWalletError, SEPOLIA } from '../src';
 
 export default function Send() {
-  const sendNative = useWallet((s) => s.sendNative);
+  const signAndSend = useWallet((s) => s.signAndSend);
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');
+  const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const validateOffline = (): boolean => {
+  const onReview = () => {
     setError(null);
     try {
       // Validation hors-ligne immédiate (adresse EIP-55 + montant).
       getAdapter(DEFAULT_CHAIN).buildTransfer({ to, amount });
-      return true;
     } catch (e) {
       setError(isWalletError(e) ? e.message : 'Saisie invalide');
-      return false;
+      return;
     }
-  };
-
-  const onReview = () => {
-    if (!validateOffline()) return;
+    if (pin.length < 6) {
+      setError('Entre ton PIN pour signer.');
+      return;
+    }
     Alert.alert(
-      'Confirmer l\'envoi',
+      "Confirmer l'envoi",
       `Réseau : ${SEPOLIA.name}\nMontant : ${amount} ${SEPOLIA.nativeSymbol}\nÀ : ${to}`,
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Envoyer', style: 'default', onPress: submit },
+        { text: 'Envoyer', onPress: submit },
       ],
     );
   };
@@ -41,12 +41,19 @@ export default function Send() {
     setBusy(true);
     setError(null);
     try {
-      const hash = await sendNative(to, amount);
+      const hash = await signAndSend(to, amount, { pin });
+      setPin('');
       Alert.alert('Transaction envoyée', hash, [
         { text: 'OK', onPress: () => router.replace('/home') },
       ]);
     } catch (e) {
-      setError(isWalletError(e) ? e.message : 'Échec de l\'envoi (solde/réseau ?)');
+      setError(
+        isWalletError(e) && e.code === 'WRONG_PIN'
+          ? 'PIN incorrect.'
+          : isWalletError(e)
+            ? e.message
+            : "Échec de l'envoi (solde/réseau ?).",
+      );
     } finally {
       setBusy(false);
     }
@@ -79,6 +86,18 @@ export default function Send() {
           placeholderTextColor={colors.textMuted}
           keyboardType="decimal-pad"
           style={{ color: colors.text, fontSize: 22, paddingVertical: spacing(1) }}
+        />
+      </Card>
+
+      <Card>
+        <Text style={typography.muted}>PIN (pour signer)</Text>
+        <TextInput
+          value={pin}
+          onChangeText={setPin}
+          keyboardType="number-pad"
+          secureTextEntry
+          maxLength={12}
+          style={{ color: colors.text, fontSize: 22, letterSpacing: 6, paddingVertical: spacing(1) }}
         />
       </Card>
 
