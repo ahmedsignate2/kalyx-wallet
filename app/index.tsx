@@ -4,15 +4,18 @@ import { router } from 'expo-router';
 import { useWallet } from '../lib/walletStore';
 import { colors } from '../ui/theme';
 
-/** Écran de démarrage : redirige selon l'existence d'un wallet. */
+/** Écran de démarrage : redirige selon l'état (wallet ? verrouillé ?). */
 export default function Index() {
   const ready = useWallet((s) => s.ready);
   const hasWallet = useWallet((s) => s.hasWallet);
+  const isUnlocked = useWallet((s) => s.isUnlocked);
 
   useEffect(() => {
     if (!ready) return;
-    router.replace(hasWallet ? '/home' : '/welcome');
-  }, [ready, hasWallet]);
+    if (!hasWallet) router.replace('/welcome');
+    else if (!isUnlocked) router.replace('/unlock');
+    else router.replace('/home');
+  }, [ready, hasWallet, isUnlocked]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center' }}>

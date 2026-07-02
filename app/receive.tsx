@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, Alert } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import QRCode from 'react-native-qrcode-svg';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { colors, spacing, typography } from '../ui/theme';
-import { useWallet, DEFAULT_CHAIN } from '../lib/walletStore';
+import { useWallet } from '../lib/walletStore';
 import { SEPOLIA } from '../src';
 
 export default function Receive() {
@@ -14,20 +15,11 @@ export default function Receive() {
     <Screen>
       <Title>Recevoir</Title>
       <Muted>Adresse {SEPOLIA.name} — partage-la pour recevoir des fonds.</Muted>
-      <Card>
-        {/* TODO: QR code (react-native-qrcode-svg) — placeholder pour l'instant. */}
-        <View
-          style={{
-            aspectRatio: 1,
-            backgroundColor: colors.bgElevated,
-            borderRadius: 16,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Muted>QR code à venir</Muted>
+      <Card style={{ alignItems: 'center' }}>
+        <View style={{ backgroundColor: '#fff', padding: spacing(2), borderRadius: 16 }}>
+          <QRCode value={account.address} size={200} />
         </View>
-        <Text selectable style={[typography.mono, { marginTop: spacing(1.5) }]}>
+        <Text selectable style={[typography.mono, { marginTop: spacing(2), textAlign: 'center' }]}>
           {account.address}
         </Text>
       </Card>
