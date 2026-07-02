@@ -12,7 +12,7 @@
  */
 import { gcm } from '@noble/ciphers/aes';
 import { scryptAsync } from '@noble/hashes/scrypt';
-import { utf8ToBytes, bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { utf8ToBytes, bytesToUtf8, bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { getRandomBytes } from '../crypto/random';
 import { WalletError } from '../domain/errors';
 
@@ -77,7 +77,8 @@ export async function decryptSecret(
   const key = await deriveKey(pin, hexToBytes(vault.salt), vault);
   try {
     const pt = gcm(key, hexToBytes(vault.nonce)).decrypt(hexToBytes(vault.ct));
-    return new TextDecoder().decode(pt);
+    // bytesToUtf8 (lib auditée) au lieu de TextDecoder, absent sur Hermes/Android.
+    return bytesToUtf8(pt);
   } catch {
     // GCM échoue si PIN faux OU données altérées : on ne distingue pas.
     throw new WalletError('WRONG_PIN', 'PIN incorrect');
