@@ -1,0 +1,44 @@
+/**
+ * Registre des adapters de chaînes.
+ *
+ * Point d'entrée unique pour obtenir l'adapter d'un réseau. Le reste du wallet
+ * ne connaît que l'interface `ChainAdapter`, jamais l'implémentation concrète —
+ * c'est ce qui rend l'ajout d'une chaîne indolore.
+ */
+import type { ChainAdapter, ChainConfig } from './types';
+import { EvmChainAdapter } from './EvmChainAdapter';
+import { ALL_CHAINS } from './configs';
+
+/** Fabrique l'adapter correspondant à la famille de la config. */
+function createAdapter(config: ChainConfig): ChainAdapter {
+  switch (config.family) {
+    case 'evm':
+      return new EvmChainAdapter(config);
+    // case 'bitcoin': return new BitcoinChainAdapter(config); // phase 3
+    // case 'solana':  return new SolanaChainAdapter(config);  // phase 4
+    default:
+      throw new Error(`Famille de chaîne non supportée: ${config.family}`);
+  }
+}
+
+// Adapters instanciés une fois, indexés par id de config.
+const adapters = new Map<string, ChainAdapter>(
+  ALL_CHAINS.map((c) => [c.id, createAdapter(c)]),
+);
+
+export function getAdapter(chainId: string): ChainAdapter {
+  const adapter = adapters.get(chainId);
+  if (!adapter) {
+    throw new Error(`Chaîne inconnue: ${chainId}`);
+  }
+  return adapter;
+}
+
+export function listChains(opts?: { includeTestnets?: boolean }): ChainConfig[] {
+  const includeTestnets = opts?.includeTestnets ?? true;
+  return ALL_CHAINS.filter((c) => includeTestnets || !c.testnet);
+}
+
+export function hasChain(chainId: string): boolean {
+  return adapters.has(chainId);
+}
