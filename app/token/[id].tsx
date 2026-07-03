@@ -153,10 +153,10 @@ export default function TokenDetail() {
 
           {/* Actions */}
           <View style={{ flexDirection: 'row', gap: spacing(2), paddingHorizontal: spacing(1) }}>
-            <CircleAction icon="＋" label={t('buy')} onPress={() => Alert.alert(t('soon'))} />
-            <CircleAction icon="↑" label={t('send')} disabled={chain?.family === 'bitcoin'} onPress={() => goSendReceive('/send')} />
-            <CircleAction icon="↓" label={t('receive')} onPress={() => goSendReceive('/receive')} />
-            <CircleAction icon="⇄" label={t('convert')} onPress={() => Alert.alert(t('soon'))} />
+            <CircleAction icon="buy" label={t('buy')} onPress={() => Alert.alert(t('soon'))} />
+            <CircleAction icon="send" label={t('send')} disabled={chain?.family === 'bitcoin'} onPress={() => goSendReceive('/send')} />
+            <CircleAction icon="receive" label={t('receive')} onPress={() => goSendReceive('/receive')} />
+            <CircleAction icon="convert" label={t('convert')} onPress={() => Alert.alert(t('soon'))} />
           </View>
 
           {/* Description */}

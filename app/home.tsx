@@ -19,6 +19,7 @@ import {
   MarketRow,
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
+import { Icon } from '../ui/icon';
 import { colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
@@ -145,19 +146,20 @@ export default function Home() {
           </Text>
         </View>
         <View style={{ flexDirection: 'row', gap: spacing(1) }}>
-          <IconButton icon="🔍" onPress={() => Alert.alert(t('soon'))} />
-          <IconButton icon="🔔" onPress={() => Alert.alert(t('soon'))} badge />
-          <IconButton icon="☰" onPress={() => router.push('/menu')} />
+          <IconButton icon="search" onPress={() => Alert.alert(t('soon'))} />
+          <IconButton icon="bell" onPress={() => Alert.alert(t('soon'))} badge />
+          <IconButton icon="menu" onPress={() => router.push('/menu')} />
         </View>
       </View>
 
       {/* Valeur totale */}
       <GlassCard glow>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Pressable onPress={() => setHidden((h) => !h)}>
-            <Text style={typography.muted}>
-              {t('totalValue')} {hidden ? '🙈' : '👁'}
-            </Text>
+          <Pressable onPress={() => setHidden((h) => !h)} hitSlop={8}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={typography.muted}>{t('totalValue')}</Text>
+              <Icon name={hidden ? 'eyeOff' : 'eye'} size={16} color={colors.textMuted} />
+            </View>
           </Pressable>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(0.75) }}>
             {chain.testnet ? <Badge label="TESTNET" /> : null}
@@ -187,10 +189,10 @@ export default function Home() {
         {error ? <Text style={{ color: colors.danger, marginTop: 4 }}>{error}</Text> : null}
 
         <View style={{ flexDirection: 'row', gap: spacing(2), marginTop: spacing(2.5), paddingHorizontal: spacing(1) }}>
-          <CircleAction icon="＋" label={t('buy')} onPress={() => Alert.alert(t('soon'))} />
-          <CircleAction icon="↑" label={t('send')} disabled={!canSend} onPress={() => router.push('/send')} />
-          <CircleAction icon="↓" label={t('receive')} onPress={() => router.push('/receive')} />
-          <CircleAction icon="⇄" label={t('convert')} onPress={() => Alert.alert(t('soon'))} />
+          <CircleAction icon="buy" label={t('buy')} onPress={() => Alert.alert(t('soon'))} />
+          <CircleAction icon="send" label={t('send')} disabled={!canSend} onPress={() => router.push('/send')} />
+          <CircleAction icon="receive" label={t('receive')} onPress={() => router.push('/receive')} />
+          <CircleAction icon="convert" label={t('convert')} onPress={() => Alert.alert(t('soon'))} />
         </View>
       </GlassCard>
 

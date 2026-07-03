@@ -10,6 +10,7 @@ import {
   SegmentedTabs,
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
+import { Icon } from '../ui/icon';
 import { colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
@@ -160,8 +161,8 @@ export default function WalletScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={typography.title}>{t('navWallet')}</Text>
-        <Pressable onPress={() => setHidden((h) => !h)}>
-          <Text style={{ fontSize: 20 }}>{hidden ? '🙈' : '👁'}</Text>
+        <Pressable onPress={() => setHidden((h) => !h)} hitSlop={10}>
+          <Icon name={hidden ? 'eyeOff' : 'eye'} size={22} color={colors.textMuted} />
         </Pressable>
       </View>
 
@@ -262,7 +263,7 @@ export default function WalletScreen() {
       ) : (
         <GlassCard>
           <View style={{ alignItems: 'center', paddingVertical: spacing(4), gap: spacing(1) }}>
-            <Text style={{ fontSize: 34 }}>{tab === 'nft' ? '🖼️' : tab === 'defi' ? '🏦' : '🌱'}</Text>
+            <Icon name={tab === 'nft' ? 'nft' : tab === 'defi' ? 'defi' : 'staking'} size={34} color={colors.textMuted} />
             <Text style={typography.bodyStrong}>
               {tab === 'nft' ? 'NFT & Collectibles' : tab === 'defi' ? 'Positions DeFi' : 'Staking'}
             </Text>
