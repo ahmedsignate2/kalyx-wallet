@@ -18,8 +18,8 @@ import type { ChainConfig } from './types';
  * Renseigne ta clé ici (ou via EXPO_PUBLIC_ETHERSCAN_KEY) pour activer l'historique.
  */
 export const ETHERSCAN_V2_API = 'https://api.etherscan.io/v2/api';
-export const EXPLORER_API_KEY =
-  (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_ETHERSCAN_KEY) || '';
+// Expo inline `process.env.EXPO_PUBLIC_*` au build. Vide côté tests (Node) -> [].
+export const EXPLORER_API_KEY: string = process.env.EXPO_PUBLIC_ETHERSCAN_KEY ?? '';
 
 export const ETHEREUM: ChainConfig = {
   id: 'ethereum',
@@ -28,7 +28,13 @@ export const ETHEREUM: ChainConfig = {
   evmChainId: 1,
   nativeSymbol: 'ETH',
   nativeDecimals: 18,
-  rpcUrls: ['https://eth.llamarpc.com', 'https://cloudflare-eth.com'],
+  // eth.llamarpc.com retiré (down 521). Endpoints vérifiés répondant à eth_chainId=0x1.
+  rpcUrls: [
+    'https://ethereum-rpc.publicnode.com',
+    'https://eth.drpc.org',
+    'https://1rpc.io/eth',
+    'https://cloudflare-eth.com',
+  ],
   explorerUrl: 'https://etherscan.io',
 };
 
@@ -39,7 +45,12 @@ export const BNB: ChainConfig = {
   evmChainId: 56,
   nativeSymbol: 'BNB',
   nativeDecimals: 18,
-  rpcUrls: ['https://bsc-dataseed.binance.org'],
+  rpcUrls: [
+    'https://bsc-rpc.publicnode.com',
+    'https://bsc.drpc.org',
+    'https://1rpc.io/bnb',
+    'https://bsc-dataseed.binance.org',
+  ],
   explorerUrl: 'https://bscscan.com',
 };
 
@@ -50,7 +61,12 @@ export const POLYGON: ChainConfig = {
   evmChainId: 137,
   nativeSymbol: 'POL',
   nativeDecimals: 18,
-  rpcUrls: ['https://polygon-rpc.com'],
+  // polygon-rpc.com retiré (clé désactivée). Endpoints vérifiés (chainId 0x89).
+  rpcUrls: [
+    'https://polygon-bor-rpc.publicnode.com',
+    'https://polygon.drpc.org',
+    'https://1rpc.io/matic',
+  ],
   explorerUrl: 'https://polygonscan.com',
 };
 
@@ -61,7 +77,12 @@ export const BASE: ChainConfig = {
   evmChainId: 8453,
   nativeSymbol: 'ETH',
   nativeDecimals: 18,
-  rpcUrls: ['https://mainnet.base.org', 'https://base.llamarpc.com'],
+  // base.llamarpc.com retiré (down 521). Endpoints vérifiés (chainId 0x2105).
+  rpcUrls: [
+    'https://base-rpc.publicnode.com',
+    'https://base.drpc.org',
+    'https://mainnet.base.org',
+  ],
   explorerUrl: 'https://basescan.org',
 };
 

@@ -82,6 +82,23 @@ Puis `npx expo start` pour le rechargement à chaud.
 - L'adresse **publique** est stockée à part pour afficher le solde même verrouillé.
 - La seed/clé n'est **jamais** dans le state global : elle est déchiffrée à la volée, uniquement le temps de signer.
 
+## 4bis. Activer l'historique des transactions (clé Etherscan)
+
+L'historient utilise l'API Etherscan V2 (une seule clé pour toutes les chaînes EVM).
+
+1. `cp .env.example .env`
+2. Édite `.env` et colle ta clé :
+   ```
+   EXPO_PUBLIC_ETHERSCAN_KEY=TA_CLE_ICI
+   ```
+   (`.env` est gitignoré — ta clé n'est jamais committée.)
+3. Relance le serveur en vidant le cache pour que la variable soit prise en compte :
+   ```bash
+   npx expo start -c
+   ```
+
+Sans clé, l'écran Historique reste simplement vide (aucun blocage).
+
 ## 5. Ce qui reste (durcissement)
 
 1. **Persister les compteurs anti-brute-force** hors mémoire (survivre au redémarrage de l'app).
