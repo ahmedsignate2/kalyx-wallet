@@ -14,7 +14,12 @@ function shorten(addr: string) {
 export default function Home() {
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
+  const accounts = useWallet((s) => s.accounts);
+  const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
   const chain = getAdapter(activeChain).config;
+  const canSend = chain.family !== 'bitcoin';
+  const activeLabel =
+    accounts.find((a) => a.index === activeAccountIndex)?.label ?? 'Compte';
 
   const [balance, setBalance] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -55,25 +60,22 @@ export default function Home() {
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />
         }
       >
-        {/* Sélecteur de réseau */}
-        <Pressable onPress={() => router.push('/networks')}>
-          <View
-            style={{
-              alignSelf: 'flex-start',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              backgroundColor: colors.bgElevated,
-              borderRadius: radii.pill,
-              paddingVertical: spacing(0.75),
-              paddingHorizontal: spacing(1.5),
-            }}
-          >
-            <Text style={{ color: colors.text }}>{chain.name}</Text>
-            {chain.testnet ? <Text style={{ color: colors.warning }}>· testnet</Text> : null}
-            <Text style={{ color: colors.textMuted }}>▾</Text>
-          </View>
-        </Pressable>
+        {/* Sélecteurs compte + réseau */}
+        <View style={{ flexDirection: 'row', gap: spacing(1), flexWrap: 'wrap' }}>
+          <Pressable onPress={() => router.push('/accounts')}>
+            <View style={chipStyle}>
+              <Text style={{ color: colors.text }}>{activeLabel}</Text>
+              <Text style={{ color: colors.textMuted }}>▾</Text>
+            </View>
+          </Pressable>
+          <Pressable onPress={() => router.push('/networks')}>
+            <View style={chipStyle}>
+              <Text style={{ color: colors.text }}>{chain.name}</Text>
+              {chain.testnet ? <Text style={{ color: colors.warning }}>· testnet</Text> : null}
+              <Text style={{ color: colors.textMuted }}>▾</Text>
+            </View>
+          </Pressable>
+        </View>
 
         <Card>
           <Muted>Solde</Muted>
@@ -103,12 +105,29 @@ export default function Home() {
             <Button label="Recevoir" variant="ghost" onPress={() => router.push('/receive')} />
           </View>
           <View style={{ flex: 1 }}>
-            <Button label="Envoyer" onPress={() => router.push('/send')} />
+            <Button
+              label={canSend ? 'Envoyer' : 'Envoi bientôt'}
+              disabled={!canSend}
+              onPress={() => router.push('/send')}
+            />
           </View>
         </View>
+        {!canSend ? (
+          <Muted>L'envoi de Bitcoin arrive prochainement. Réception disponible.</Muted>
+        ) : null}
 
         <Button label="Historique" variant="ghost" onPress={() => router.push('/history')} />
       </ScrollView>
     </Screen>
   );
 }
+
+const chipStyle = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  gap: 6,
+  backgroundColor: colors.bgElevated,
+  borderRadius: radii.pill,
+  paddingVertical: spacing(0.75),
+  paddingHorizontal: spacing(1.5),
+};

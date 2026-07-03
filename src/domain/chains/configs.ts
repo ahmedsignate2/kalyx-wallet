@@ -105,5 +105,17 @@ export const SEPOLIA: ChainConfig = {
   testnet: true,
 };
 
+/** Bitcoin mainnet (SegWit natif). Réception uniquement pour l'instant. */
+export const BITCOIN: ChainConfig = {
+  id: 'bitcoin',
+  name: 'Bitcoin',
+  family: 'bitcoin',
+  nativeSymbol: 'BTC',
+  nativeDecimals: 8,
+  // APIs REST (pas du JSON-RPC) : mempool.space puis blockstream en fallback.
+  rpcUrls: ['https://mempool.space/api', 'https://blockstream.info/api'],
+  explorerUrl: 'https://mempool.space',
+};
+
 // Ordre d'affichage dans le sélecteur : testnet en tête (réseau par défaut).
-export const ALL_CHAINS: ChainConfig[] = [SEPOLIA, ETHEREUM, POLYGON, BNB, BASE];
+export const ALL_CHAINS: ChainConfig[] = [SEPOLIA, ETHEREUM, POLYGON, BNB, BASE, BITCOIN];
