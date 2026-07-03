@@ -47,6 +47,8 @@ interface WalletState {
   hasWallet: boolean;
   isUnlocked: boolean;
   account: Account | null; // adresse publique uniquement
+  /** Réseau EVM actif (même adresse partout, seul le RPC change). */
+  activeChain: string;
   draftMnemonic: string | null;
   failedAttempts: number;
   lastFailedAt: number;
@@ -58,6 +60,7 @@ interface WalletState {
   confirmDraft: (pin: string, opts?: { enableBiometric?: boolean }) => Promise<void>;
   unlockWithPin: (pin: string) => Promise<void>;
   unlockWithBiometrics: () => Promise<void>;
+  setActiveChain: (chainId: string) => void;
   lock: () => void;
   signAndSend: (to: string, amount: string, unlock: Unlock) => Promise<string>;
   reset: () => Promise<void>;
@@ -103,6 +106,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   hasWallet: false,
   isUnlocked: false,
   account: null,
+  activeChain: DEFAULT_CHAIN,
   draftMnemonic: null,
   failedAttempts: 0,
   lastFailedAt: 0,
@@ -158,6 +162,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     set({ account: deriveAccount(mnemonic), isUnlocked: true });
   },
 
+  setActiveChain: (chainId) => set({ activeChain: chainId }),
+
   lock: () => set({ isUnlocked: false }),
 
   signAndSend: async (to, amount, unlock) => {
@@ -168,7 +174,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     const mnemonic = await revealMnemonic(unlock);
     const seed = mnemonicToSeedSync(mnemonic);
     const signer = deriveEvmAccount(seed, account.index);
-    const adapter = getAdapter(DEFAULT_CHAIN);
+    const adapter = getAdapter(get().activeChain);
 
     const unsigned = await adapter.prepareTransfer(account.address, { to, amount });
     const raw = await adapter.signTransaction(unsigned, signer.privateKey);

@@ -32,6 +32,7 @@ export {
   parseAmount,
   assertSufficientFunds,
   formatAmount,
+  formatBalance,
   type ParsedAmount,
 } from './domain/validation/amount';
 
@@ -64,12 +65,13 @@ export {
 
 // Chaînes (plugins)
 export { getAdapter, listChains, hasChain } from './domain/chains/registry';
-export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, SEPOLIA } from './domain/chains/configs';
+export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA } from './domain/chains/configs';
 export type {
   ChainAdapter,
   ChainConfig,
   Account,
   Balance,
+  TxSummary,
   TransferParams,
   TransferIntent,
   UnsignedTx,

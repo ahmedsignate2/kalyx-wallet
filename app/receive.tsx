@@ -5,16 +5,20 @@ import QRCode from 'react-native-qrcode-svg';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { SEPOLIA } from '../src';
+import { getAdapter } from '../src';
 
 export default function Receive() {
   const account = useWallet((s) => s.account);
+  const activeChain = useWallet((s) => s.activeChain);
+  const chain = getAdapter(activeChain).config;
   if (!account) return null;
 
   return (
     <Screen>
       <Title>Recevoir</Title>
-      <Muted>Adresse {SEPOLIA.name} — partage-la pour recevoir des fonds.</Muted>
+      <Muted>
+        Adresse {chain.name} — même adresse sur tous les réseaux EVM.
+      </Muted>
       <Card style={{ alignItems: 'center' }}>
         <View style={{ backgroundColor: '#fff', padding: spacing(2), borderRadius: 16 }}>
           <QRCode value={account.address} size={200} />
