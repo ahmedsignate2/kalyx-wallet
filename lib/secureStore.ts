@@ -16,6 +16,7 @@ import { serializeVault, deserializeVault, type EncryptedVault } from '../src';
 const K_VAULT = 'nova.vault'; // coffre AES+PIN
 const K_ACCOUNTS = 'nova.accounts'; // comptes publics (adresses, non sensible)
 const K_BIO_SEED = 'nova.bioSeed'; // seed protégée biométrie (optionnel)
+const K_SETTINGS = 'nova.settings'; // préférences (non sensible)
 
 /** Compte = index HD + adresses publiques par famille (aucune donnée sensible). */
 export interface StoredAccount {
@@ -64,6 +65,26 @@ export async function loadAccounts(): Promise<StoredAccount[] | null> {
 /** Active le déverrouillage biométrique en stockant la seed gated par l'OS. */
 export async function enableBiometricSeed(mnemonic: string): Promise<void> {
   await SecureStore.setItemAsync(K_BIO_SEED, mnemonic, bioGated);
+}
+
+/** Désactive le déverrouillage biométrique (supprime la seed gated). */
+export async function disableBiometricSeed(): Promise<void> {
+  await SecureStore.deleteItemAsync(K_BIO_SEED, bioGated);
+}
+
+/** Préférences non sensibles (nom, langue, devise…). */
+export async function saveSettings(obj: Record<string, unknown>): Promise<void> {
+  await SecureStore.setItemAsync(K_SETTINGS, JSON.stringify(obj), base);
+}
+
+export async function loadSettings(): Promise<Record<string, unknown> | null> {
+  const raw = await SecureStore.getItemAsync(K_SETTINGS, base);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
 /** Lit la seed via biométrie (l'OS prompt). Renvoie null si non configurée. */
