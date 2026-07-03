@@ -146,7 +146,7 @@ export default function Home() {
           </Text>
         </View>
         <View style={{ flexDirection: 'row', gap: spacing(1) }}>
-          <IconButton icon="search" onPress={() => Alert.alert(t('soon'))} />
+          <IconButton icon="search" onPress={() => router.push('/market')} />
           <IconButton icon="bell" onPress={() => Alert.alert(t('soon'))} badge />
           <IconButton icon="menu" onPress={() => router.push('/menu')} />
         </View>

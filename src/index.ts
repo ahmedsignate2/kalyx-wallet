@@ -77,6 +77,8 @@ export {
   getCoinDetail,
   getMarketChart,
   getTokenPrices,
+  searchCoins,
+  parseSearchCoins,
   parseSimplePrices,
   parseMarkets,
   parseCoinDetail,
@@ -89,6 +91,7 @@ export {
   type MarketOrder,
   type CoinDetail,
   type ChartPeriod,
+  type SearchCoin,
 } from './domain/prices/coingecko';
 
 // Tokens ERC-20 (Alchemy)

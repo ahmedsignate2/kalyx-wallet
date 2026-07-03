@@ -85,6 +85,44 @@ export function parseMarkets(json: unknown): MarketCoin[] {
     }));
 }
 
+export interface SearchCoin {
+  id: string;
+  name: string;
+  symbol: string;
+  thumb: string;
+  rank: number | null;
+}
+
+export function parseSearchCoins(json: unknown): SearchCoin[] {
+  const list = (json as { coins?: { id?: string; name?: string; symbol?: string; thumb?: string; large?: string; market_cap_rank?: number }[] })?.coins;
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((c) => c && typeof c.id === 'string')
+    .map((c) => ({
+      id: c.id!,
+      name: c.name ?? c.id!,
+      symbol: (c.symbol ?? '').toUpperCase(),
+      thumb: c.thumb ?? c.large ?? '',
+      rank: typeof c.market_cap_rank === 'number' ? c.market_cap_rank : null,
+    }));
+}
+
+/** Recherche de cryptos par nom/symbole (toutes, pas seulement le top). */
+export async function searchCoins(query: string): Promise<SearchCoin[]> {
+  const q = query.trim();
+  if (!q) return [];
+  try {
+    const res = await withTimeout(
+      fetch(url(`/search?query=${encodeURIComponent(q)}`)),
+      TIMEOUT,
+      () => new Error('timeout'),
+    );
+    return parseSearchCoins(await res.json()).slice(0, 25);
+  } catch {
+    return [];
+  }
+}
+
 /** Nettoie une description HTML CoinGecko et la tronque. */
 function cleanDescription(html: string, max = 400): string {
   const text = (html || '')
