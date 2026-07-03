@@ -8,6 +8,7 @@ import {
   ListRow,
   Avatar,
   SegmentedTabs,
+  SkeletonRow
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
 import { Icon } from '../ui/icon';
@@ -216,7 +217,7 @@ export default function WalletScreen() {
           <SearchBar value={query} onChangeText={setQuery} placeholder="Rechercher un actif…" />
           <GlassCard>
             {loading && !assets ? (
-              <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>…</Text>
+              [0, 1, 2, 3].map((i) => <SkeletonRow key={i} divider={i > 0} />)
             ) : (
               filtered.map((a, i) => (
                 <ListRow

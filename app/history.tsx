@@ -1,12 +1,25 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, Linking, Pressable } from 'react-native';
-import { Screen, Card, Title, Muted } from '../ui/components';
-import { colors, spacing, typography } from '../ui/theme';
+import { View, Text, ScrollView, RefreshControl, Linking } from 'react-native';
+import { Screen, Title, Muted } from '../ui/components';
+import { GlassCard, PressableScale, SkeletonRow } from '../ui/premium';
+import { Icon } from '../ui/icon';
+import { colors, radii, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { getAdapter, formatBalance, type TxSummary } from '../src';
 
 function shortHash(h: string) {
   return `${h.slice(0, 10)}…${h.slice(-6)}`;
+}
+
+/** Date relative simple (auj., hier, jj/mm). */
+function relDate(ts: number): string {
+  if (!ts) return '';
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const days = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  if (days <= 0 && now.getDate() === d.getDate()) return "Aujourd'hui";
+  if (days <= 1) return 'Hier';
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 }
 
 export default function History() {
@@ -35,51 +48,48 @@ export default function History() {
     <Screen>
       <Title>Historique · {chain.name}</Title>
       <ScrollView
-        contentContainerStyle={{ gap: spacing(1.5), paddingTop: spacing(1) }}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />
-        }
+        contentContainerStyle={{ gap: spacing(1.25), paddingTop: spacing(1) }}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />}
       >
         {txs == null ? (
-          <Muted>Chargement…</Muted>
+          <GlassCard>{[0, 1, 2, 3].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>
         ) : txs.length === 0 ? (
-          <Card>
-            <Muted>
-              Aucune transaction à afficher. L'historique nécessite une clé d'API explorer
-              (variable EXPO_PUBLIC_ETHERSCAN_KEY) ; sans elle, il reste vide sans bloquer
-              le reste de l'app.
-            </Muted>
-          </Card>
+          <GlassCard>
+            <View style={{ alignItems: 'center', paddingVertical: spacing(3), gap: spacing(1) }}>
+              <Icon name="history" size={32} color={colors.textMuted} />
+              <Text style={typography.bodyStrong}>Aucune transaction</Text>
+              <Muted>Sur ce réseau, pour ce compte. Nécessite une clé Etherscan pour l’EVM.</Muted>
+            </View>
+          </GlassCard>
         ) : (
           txs.map((tx) => {
-            const sign = tx.direction === 'in' ? '+' : tx.direction === 'out' ? '−' : '';
-            const color =
-              tx.status === 'failed'
-                ? colors.danger
-                : tx.direction === 'in'
-                  ? colors.success
-                  : colors.text;
+            const inbound = tx.direction === 'in';
+            const failed = tx.status === 'failed';
+            const sign = inbound ? '+' : tx.direction === 'out' ? '−' : '';
+            const amountColor = failed ? colors.danger : inbound ? colors.up : colors.text;
+            const iconColor = inbound ? colors.up : colors.textMuted;
             return (
-              <Pressable
+              <PressableScale
                 key={tx.hash}
-                onPress={() =>
-                  chain.explorerUrl && Linking.openURL(`${chain.explorerUrl}/tx/${tx.hash}`)
-                }
+                onPress={() => chain.explorerUrl && Linking.openURL(`${chain.explorerUrl}/tx/${tx.hash}`)}
               >
-                <Card style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={typography.body}>
-                      {tx.direction === 'in' ? 'Reçu' : tx.direction === 'out' ? 'Envoyé' : 'Interne'}
-                      {tx.status === 'failed' ? ' (échoué)' : ''}
-                    </Text>
-                    <Muted>{shortHash(tx.hash)}</Muted>
+                <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+                  <View style={{ width: 42, height: 42, borderRadius: radii.pill, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name={inbound ? 'receive' : 'send'} size={20} color={iconColor} />
                   </View>
-                  <Text style={{ color, fontVariant: ['tabular-nums'] }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={typography.bodyStrong}>
+                      {inbound ? 'Reçu' : tx.direction === 'out' ? 'Envoyé' : 'Interne'}
+                      {failed ? ' · échoué' : ''}
+                    </Text>
+                    <Muted>{relDate(tx.timestamp)} · {shortHash(tx.hash)}</Muted>
+                  </View>
+                  <Text style={{ color: amountColor, fontWeight: '600', fontVariant: ['tabular-nums'] }}>
                     {sign}
                     {formatBalance(tx.value, chain.nativeDecimals, 6)} {chain.nativeSymbol}
                   </Text>
-                </Card>
-              </Pressable>
+                </GlassCard>
+              </PressableScale>
             );
           })
         )}

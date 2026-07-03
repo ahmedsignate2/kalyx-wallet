@@ -9,6 +9,7 @@ import {
   MarketRow,
   ListRow,
   Avatar,
+  SkeletonRow
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
 import { colors, spacing, typography } from '../ui/theme';
@@ -104,7 +105,7 @@ export default function Market() {
           <SegmentedTabs items={tabs} active={tab} onChange={setTab} />
           <GlassCard>
             {base.length === 0 ? (
-              <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>…</Text>
+              [0, 1, 2, 3, 4].map((i) => <SkeletonRow key={i} divider={i > 0} />)
             ) : (
               base.map((m, i) => (
                 <MarketRow
