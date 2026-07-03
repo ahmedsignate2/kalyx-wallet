@@ -74,12 +74,19 @@ export {
 export {
   getPrices,
   getMarkets,
+  getCoinDetail,
+  getMarketChart,
   parseSimplePrices,
   parseMarkets,
+  parseCoinDetail,
+  parseMarketChart,
   sortMarkets,
+  CHART_PERIODS,
   type CoinPrice,
   type MarketCoin,
   type MarketOrder,
+  type CoinDetail,
+  type ChartPeriod,
 } from './domain/prices/coingecko';
 
 // Chaînes (plugins)

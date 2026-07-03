@@ -1,4 +1,10 @@
-import { parseSimplePrices, parseMarkets, sortMarkets } from './coingecko';
+import {
+  parseSimplePrices,
+  parseMarkets,
+  sortMarkets,
+  parseCoinDetail,
+  parseMarketChart,
+} from './coingecko';
 
 describe('parseSimplePrices', () => {
   const json = {
@@ -54,5 +60,42 @@ describe('sortMarkets', () => {
   });
   it('top garde l’ordre market cap', () => {
     expect(sortMarkets(coins, 'top').map((c) => c.id)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('parseCoinDetail', () => {
+  const json = {
+    id: 'ethereum',
+    symbol: 'eth',
+    name: 'Ethereum',
+    image: { large: 'http://img/large.png', small: 'http://img/small.png' },
+    market_data: {
+      current_price: { eur: 1487.95, usd: 1600 },
+      price_change_percentage_24h: 4.55,
+      market_cap: { eur: 180000000000 },
+    },
+    description: { en: 'Ethereum is a <a href="x">decentralized</a> platform.\nSmart contracts.', fr: 'Ethereum est une plateforme décentralisée.' },
+  };
+  it('extrait prix, variation, market cap, image', () => {
+    const d = parseCoinDetail(json, 'eur')!;
+    expect(d).toMatchObject({ id: 'ethereum', symbol: 'ETH', price: 1487.95, change24h: 4.55, marketCap: 180000000000, image: 'http://img/large.png' });
+  });
+  it('nettoie le HTML de la description et respecte la langue', () => {
+    expect(parseCoinDetail(json, 'eur', 'en')!.description).toBe('Ethereum is a decentralized platform. Smart contracts.');
+    expect(parseCoinDetail(json, 'eur', 'fr')!.description).toBe('Ethereum est une plateforme décentralisée.');
+  });
+  it('renvoie null sur entrée invalide', () => {
+    expect(parseCoinDetail(null, 'eur')).toBeNull();
+    expect(parseCoinDetail({}, 'eur')).toBeNull();
+  });
+});
+
+describe('parseMarketChart', () => {
+  it('extrait la série de prix', () => {
+    expect(parseMarketChart({ prices: [[1, 100], [2, 110], [3, 105]] })).toEqual([100, 110, 105]);
+  });
+  it('robuste sur entrée vide', () => {
+    expect(parseMarketChart({})).toEqual([]);
+    expect(parseMarketChart(null)).toEqual([]);
   });
 });

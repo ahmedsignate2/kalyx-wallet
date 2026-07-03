@@ -238,6 +238,7 @@ export default function Home() {
                 price={`${money(m.price, m.price >= 100 ? 0 : 2)} ${fiatSymbol(fiat)}`}
                 change={m.change24h}
                 spark={m.sparkline}
+                onPress={() => router.push(`/token/${m.id}`)}
               />
             ))
           )}
