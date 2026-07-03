@@ -185,6 +185,34 @@ export async function getMarketChart(id: string, vs = 'eur', days = '7'): Promis
   }
 }
 
+/** Prix de tokens ERC-20 par contrat : { contractLowercase: price }. */
+export function parseTokenPrices(json: unknown, vs: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!json || typeof json !== 'object') return out;
+  for (const [addr, v] of Object.entries(json as Record<string, Record<string, number>>)) {
+    if (v && typeof v[vs] === 'number') out[addr.toLowerCase()] = v[vs];
+  }
+  return out;
+}
+
+export async function getTokenPrices(
+  platform: string,
+  contracts: string[],
+  vs = 'eur',
+): Promise<Record<string, number>> {
+  if (contracts.length === 0) return {};
+  try {
+    const res = await withTimeout(
+      fetch(url(`/simple/token_price/${platform}?contract_addresses=${contracts.join(',')}&vs_currencies=${vs}`)),
+      TIMEOUT,
+      () => new Error('timeout'),
+    );
+    return parseTokenPrices(await res.json(), vs);
+  } catch {
+    return {};
+  }
+}
+
 export async function getMarkets(vs = 'eur', perPage = 20): Promise<MarketCoin[]> {
   try {
     const res = await withTimeout(
