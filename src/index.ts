@@ -109,8 +109,21 @@ export {
 // NFT (Alchemy)
 export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
 
+// Swap / Bridge (LI.FI)
+export {
+  getSwapQuote,
+  parseSwapQuote,
+  NATIVE_TOKEN,
+  NOVA_FEE,
+  NOVA_INTEGRATOR,
+  type SwapQuote,
+  type QuoteParams,
+  type SwapTxRequest,
+} from './domain/swap/lifi';
+
 // Chaînes (plugins)
 export { getAdapter, listChains, hasChain } from './domain/chains/registry';
+export { EvmChainAdapter, type RawTxRequest } from './domain/chains/EvmChainAdapter';
 export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BITCOIN } from './domain/chains/configs';
 export type {
   ChainAdapter,
