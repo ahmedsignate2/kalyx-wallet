@@ -53,6 +53,17 @@ export default function Menu() {
         </GlassCard>
       </Pressable>
 
+      {/* Wallets */}
+      <GlassCard>
+        <ListRow left={<Ico e="💼" />} title="Mes wallets" subtitle="Gérer plusieurs portefeuilles" right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico e="📥" />} title="Importer un wallet" right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico e="✨" />} title="Créer un wallet" right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico e="🔒" />} title="Ledger" right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico e="🔐" />} title="Trezor" right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico e="🔗" />} title="WalletConnect" right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico e="🌐" />} title="dApps" right={soonChip} onPress={soon} />
+      </GlassCard>
+
       {/* Mode d'interface (différenciateur Nova) */}
       <GlassCard>
         <Text style={typography.muted}>{t('uiMode')}</Text>

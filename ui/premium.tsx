@@ -68,6 +68,13 @@ export function GlassCard({
           style={StyleSheet.absoluteFill}
         />
       ) : null}
+      {/* Reflet supérieur (glassmorphism) */}
+      <LinearGradient
+        colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)'] as unknown as string[]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 48 }}
+      />
       <View>{children}</View>
     </View>
   );
