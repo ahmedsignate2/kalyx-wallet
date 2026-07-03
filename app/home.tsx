@@ -136,10 +136,17 @@ export default function Home() {
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing(0.5) }}>
-          <Text style={[typography.hero, { flexShrink: 1 }]} numberOfLines={1}>
-            {heroValue}
-          </Text>
-          <Sparkline data={HERO_SPARK} color={colors.accent} width={96} height={44} />
+          <View style={{ flex: 1, marginRight: spacing(1) }}>
+            <Text
+              style={typography.hero}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.5}
+            >
+              {heroValue}
+            </Text>
+          </View>
+          <Sparkline data={HERO_SPARK} color={colors.accent} width={84} height={40} />
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 4 }}>
