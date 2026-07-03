@@ -14,6 +14,7 @@ import { Icon } from '../ui/icon';
 import { colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
+import { useCustomTokens } from '../lib/customTokensStore';
 import {
   getAdapter,
   listChains,
@@ -22,6 +23,7 @@ import {
   getPrices,
   getMarkets,
   getErc20Tokens,
+  getCustomTokens,
   getTokenPrices,
   getNfts,
   type ChainConfig,
@@ -61,6 +63,7 @@ export default function WalletScreen() {
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
   const activeChain = useWallet((s) => s.activeChain);
   const { fiat } = useSettings();
+  const customList = useCustomTokens((s) => s.byChain[activeChain] ?? []);
   const account = accounts.find((a) => a.index === activeAccountIndex) ?? accounts[0];
 
   const [assets, setAssets] = useState<Asset[] | null>(null);
@@ -103,7 +106,11 @@ export default function WalletScreen() {
       // Tokens ERC-20 du réseau actif (Alchemy) — lecture seule.
       const chainCfg = getAdapter(activeChain).config;
       if (chainCfg.family === 'evm' && chainCfg.coingeckoPlatform) {
-        const erc20 = await getErc20Tokens(chainCfg, account.evmAddress);
+        const detected = await getErc20Tokens(chainCfg, account.evmAddress);
+        const detectedSet = new Set(detected.map((tk) => tk.contract.toLowerCase()));
+        const extra = customList.filter((c) => !detectedSet.has(c.toLowerCase()));
+        const custom = extra.length ? await getCustomTokens(chainCfg, account.evmAddress, extra) : [];
+        const erc20 = [...detected, ...custom];
         const tokenPrices = await getTokenPrices(
           chainCfg.coingeckoPlatform,
           erc20.map((tk) => tk.contract),
@@ -131,7 +138,7 @@ export default function WalletScreen() {
     } finally {
       setLoading(false);
     }
-  }, [account, fiat, activeChain]);
+  }, [account, fiat, activeChain, customList]);
 
   useEffect(() => {
     load();
@@ -263,12 +270,14 @@ export default function WalletScreen() {
             </>
           ) : null}
 
-          <Pressable
-            onPress={() => Alert.alert(t('soon'), 'Ajout de tokens ERC-20/SPL à venir.')}
-            style={{ alignItems: 'center', paddingVertical: spacing(1.75), borderWidth: 1, borderColor: colors.glassBorder, borderRadius: 22, borderStyle: 'dashed' }}
-          >
-            <Text style={{ color: colors.accent, fontWeight: '600' }}>＋ Ajouter un token</Text>
-          </Pressable>
+          {getAdapter(activeChain).config.family === 'evm' ? (
+            <Pressable
+              onPress={() => router.push('/add-token')}
+              style={{ alignItems: 'center', paddingVertical: spacing(1.75), borderWidth: 1, borderColor: colors.glassBorder, borderRadius: 22, borderStyle: 'dashed' }}
+            >
+              <Text style={{ color: colors.accent, fontWeight: '600' }}>＋ Ajouter un token</Text>
+            </Pressable>
+          ) : null}
         </>
       ) : tab === 'history' ? (
         <GlassCard>

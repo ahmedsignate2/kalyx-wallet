@@ -17,6 +17,7 @@ const K_VAULT = 'nova.vault'; // coffre AES+PIN
 const K_ACCOUNTS = 'nova.accounts'; // comptes publics (adresses, non sensible)
 const K_BIO_SEED = 'nova.bioSeed'; // seed protégée biométrie (optionnel)
 const K_SETTINGS = 'nova.settings'; // préférences (non sensible)
+const K_CUSTOM_TOKENS = 'nova.customTokens'; // tokens ajoutés par contrat (non sensible)
 
 /** Compte = index HD + adresses publiques par famille (aucune donnée sensible). */
 export interface StoredAccount {
@@ -84,6 +85,21 @@ export async function loadSettings(): Promise<Record<string, unknown> | null> {
     return JSON.parse(raw) as Record<string, unknown>;
   } catch {
     return null;
+  }
+}
+
+/** Tokens ajoutés manuellement, par chaîne : { chainId: [contract, …] }. */
+export async function saveCustomTokens(map: Record<string, string[]>): Promise<void> {
+  await SecureStore.setItemAsync(K_CUSTOM_TOKENS, JSON.stringify(map), base);
+}
+
+export async function loadCustomTokens(): Promise<Record<string, string[]>> {
+  const raw = await SecureStore.getItemAsync(K_CUSTOM_TOKENS, base);
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as Record<string, string[]>;
+  } catch {
+    return {};
   }
 }
 
