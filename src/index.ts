@@ -101,6 +101,9 @@ export {
   type TokenMeta,
 } from './domain/tokens/alchemyTokens';
 
+// NFT (Alchemy)
+export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
+
 // Chaînes (plugins)
 export { getAdapter, listChains, hasChain } from './domain/chains/registry';
 export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BITCOIN } from './domain/chains/configs';
