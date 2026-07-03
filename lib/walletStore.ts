@@ -36,6 +36,7 @@ import {
   saveAccounts,
   loadAccounts,
   enableBiometricSeed,
+  disableBiometricSeed,
   readBiometricSeed,
   wipeAll,
   type StoredAccount,
@@ -69,6 +70,10 @@ interface WalletState {
   addAccount: (unlock: Unlock, label?: string) => Promise<void>;
   lock: () => void;
   signAndSend: (to: string, amount: string, unlock: Unlock) => Promise<string>;
+  changePin: (oldPin: string, newPin: string) => Promise<void>;
+  revealPhrase: (unlock: Unlock) => Promise<string>;
+  enableBiometric: (pin: string) => Promise<void>;
+  disableBiometric: () => Promise<void>;
   reset: () => Promise<void>;
 }
 
@@ -228,6 +233,23 @@ export const useWallet = create<WalletState>((set, get) => ({
     const unsigned = await adapter.prepareTransfer(account.address, { to, amount });
     const raw = await adapter.signTransaction(unsigned, signer.privateKey);
     return adapter.broadcast(raw);
+  },
+
+  changePin: async (oldPin, newPin) => {
+    assertValidPin(newPin);
+    const mnemonic = await revealMnemonic({ pin: oldPin }); // lève WRONG_PIN si faux
+    await saveVault(await encryptSecret(mnemonic, newPin));
+  },
+
+  revealPhrase: async (unlock) => revealMnemonic(unlock),
+
+  enableBiometric: async (pin) => {
+    const mnemonic = await revealMnemonic({ pin });
+    await enableBiometricSeed(mnemonic);
+  },
+
+  disableBiometric: async () => {
+    await disableBiometricSeed();
   },
 
   reset: async () => {
