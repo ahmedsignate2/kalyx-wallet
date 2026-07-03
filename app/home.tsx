@@ -6,8 +6,10 @@ import {
   PremiumScreen,
   GlassCard,
   Chip,
+  Badge,
   IconButton,
-  ActionTile,
+  CircleAction,
+  SearchBar,
   SectionHeader,
   GradientAvatar,
   Avatar,
@@ -66,6 +68,7 @@ export default function Home() {
   const [hidden, setHidden] = useState(false);
   const [markets, setMarkets] = useState<MarketCoin[]>([]);
   const [marketTab, setMarketTab] = useState('favorites');
+  const [marketQuery, setMarketQuery] = useState('');
 
   const refresh = useCallback(async () => {
     if (!account) return;
@@ -110,7 +113,8 @@ export default function Home() {
   const heroValue = hidden ? '••••••' : loading ? '…' : hasFiat ? `${money(fiatValue)} ${fiatSymbol(fiat)}` : nativeStr;
   const change = price?.change24h ?? null;
 
-  const displayedMarkets =
+  const q = marketQuery.trim().toLowerCase();
+  const baseMarkets =
     marketTab === 'top'
       ? markets.slice(0, 12)
       : marketTab === 'gainers'
@@ -118,6 +122,9 @@ export default function Home() {
         : marketTab === 'losers'
           ? sortMarkets(markets, 'losers').slice(0, 10)
           : markets.slice(0, 6); // favoris = top 6
+  const displayedMarkets = q
+    ? markets.filter((m) => m.name.toLowerCase().includes(q) || m.symbol.toLowerCase().includes(q))
+    : baseMarkets;
 
   const marketTabs = [
     { key: 'favorites', label: t('favorites') },
@@ -135,7 +142,7 @@ export default function Home() {
           items={[
             { key: 'home', icon: '🏠', label: t('navHome'), onPress: () => {} },
             { key: 'market', icon: '📊', label: t('navMarket'), onPress: () => Alert.alert(t('soon')) },
-            { key: 'wallet', icon: '👛', label: t('navWallet'), onPress: () => router.push('/accounts') },
+            { key: 'wallet', icon: '👛', label: t('navWallet'), onPress: () => router.push('/wallet') },
             { key: 'more', icon: '⚙️', label: t('navMore'), onPress: () => router.push('/settings') },
           ]}
         />
@@ -165,11 +172,10 @@ export default function Home() {
               {t('totalValue')} {hidden ? '🙈' : '👁'}
             </Text>
           </Pressable>
-          <Chip
-            label={chain.testnet ? `${chain.name} · ${t('testnet')}` : chain.name}
-            tone={chain.testnet ? 'warning' : 'neutral'}
-            onPress={() => router.push('/networks')}
-          />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(0.75) }}>
+            {chain.testnet ? <Badge label="TESTNET" /> : null}
+            <Chip label={chain.name} onPress={() => router.push('/networks')} />
+          </View>
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing(0.5) }}>
@@ -193,11 +199,11 @@ export default function Home() {
         </View>
         {error ? <Text style={{ color: colors.danger, marginTop: 4 }}>{error}</Text> : null}
 
-        <View style={{ flexDirection: 'row', gap: spacing(1), marginTop: spacing(2) }}>
-          <ActionTile icon="＋" label={t('buy')} onPress={() => Alert.alert(t('soon'))} />
-          <ActionTile icon="↑" label={t('send')} disabled={!canSend} onPress={() => router.push('/send')} />
-          <ActionTile icon="↓" label={t('receive')} onPress={() => router.push('/receive')} />
-          <ActionTile icon="⇄" label={t('convert')} onPress={() => Alert.alert(t('soon'))} />
+        <View style={{ flexDirection: 'row', gap: spacing(2), marginTop: spacing(2.5), paddingHorizontal: spacing(1) }}>
+          <CircleAction icon="＋" label={t('buy')} onPress={() => Alert.alert(t('soon'))} />
+          <CircleAction icon="↑" label={t('send')} disabled={!canSend} onPress={() => router.push('/send')} />
+          <CircleAction icon="↓" label={t('receive')} onPress={() => router.push('/receive')} />
+          <CircleAction icon="⇄" label={t('convert')} onPress={() => Alert.alert(t('soon'))} />
         </View>
       </GlassCard>
 
@@ -227,7 +233,8 @@ export default function Home() {
       {/* Marché (réel) */}
       <View style={{ gap: spacing(1.5) }}>
         <SectionHeader title={t('market')} actionLabel={t('viewAll')} onAction={() => Alert.alert(t('soon'))} />
-        <SegmentedTabs items={marketTabs} active={marketTab} onChange={setMarketTab} />
+        <SearchBar value={marketQuery} onChangeText={setMarketQuery} placeholder="Rechercher une crypto…" />
+        {q ? null : <SegmentedTabs items={marketTabs} active={marketTab} onChange={setMarketTab} />}
         <GlassCard>
           {displayedMarkets.length === 0 ? (
             <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>…</Text>
