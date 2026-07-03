@@ -26,8 +26,11 @@ import {
   assertValidPin,
   lockRemainingMs,
   isWalletError,
+  EvmChainAdapter,
+  NATIVE_TOKEN,
   type Account,
   type MnemonicStrength,
+  type SwapQuote,
 } from '../src';
 import {
   saveVault,
@@ -71,6 +74,8 @@ interface WalletState {
   renameAccount: (index: number, label: string) => void;
   lock: () => void;
   signAndSend: (to: string, amount: string, unlock: Unlock) => Promise<string>;
+  /** Exécute un swap/bridge LI.FI (approbation ERC-20 si besoin, puis swap). */
+  executeSwap: (quote: SwapQuote, unlock: Unlock) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   revealPhrase: (unlock: Unlock) => Promise<string>;
   enableBiometric: (pin: string) => Promise<void>;
@@ -242,6 +247,36 @@ export const useWallet = create<WalletState>((set, get) => ({
     const unsigned = await adapter.prepareTransfer(account.address, { to, amount });
     const raw = await adapter.signTransaction(unsigned, signer.privateKey);
     return adapter.broadcast(raw);
+  },
+
+  executeSwap: async (quote, unlock) => {
+    const { account, activeChain } = get();
+    if (!account) throw new Error('Aucun compte');
+    const adapter = getAdapter(activeChain);
+    if (!(adapter instanceof EvmChainAdapter)) throw new Error('Swap indisponible sur ce réseau');
+
+    // Clé révélée transitoirement, jamais mise dans le state.
+    const mnemonic = await revealMnemonic(unlock);
+    const seed = mnemonicToSeedSync(mnemonic);
+    const signer = deriveEvmAccount(seed, account.index);
+
+    // 1) Approbation ERC-20 si on part d'un token (pas du natif).
+    const fromAddr = quote.fromToken.address.toLowerCase();
+    if (fromAddr !== NATIVE_TOKEN.toLowerCase() && quote.approvalAddress) {
+      const allowance = await adapter.getAllowance(quote.fromToken.address, account.address, quote.approvalAddress);
+      if (allowance < quote.fromAmount) {
+        const approveData = adapter.buildApproveData(quote.approvalAddress, quote.fromAmount);
+        const approveHash = await adapter.sendContractTx(
+          { to: quote.fromToken.address, data: approveData, chainId: quote.tx.chainId },
+          account.address,
+          signer.privateKey,
+        );
+        await adapter.waitForTx(approveHash); // attendre la confirmation avant le swap
+      }
+    }
+
+    // 2) Swap (transaction fournie par LI.FI).
+    return adapter.sendContractTx(quote.tx, account.address, signer.privateKey);
   },
 
   changePin: async (oldPin, newPin) => {
