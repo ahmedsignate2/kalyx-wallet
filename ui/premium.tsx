@@ -14,6 +14,7 @@ import {
   StyleSheet,
   ViewStyle,
   StyleProp,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -229,21 +230,21 @@ export function Sparkline({
 }
 
 export function SegmentedTabs({
-  tabs,
+  items,
   active,
   onChange,
 }: {
-  tabs: string[];
+  items: { key: string; label: string }[];
   active: string;
-  onChange: (t: string) => void;
+  onChange: (key: string) => void;
 }) {
   return (
     <View style={styles.segWrap}>
-      {tabs.map((t) => {
-        const on = t === active;
+      {items.map((it) => {
+        const on = it.key === active;
         return (
-          <Pressable key={t} onPress={() => onChange(t)} style={[styles.segItem, on ? styles.segItemActive : null]}>
-            <Text style={{ color: on ? '#fff' : colors.textMuted, fontWeight: '600', fontSize: 13 }}>{t}</Text>
+          <Pressable key={it.key} onPress={() => onChange(it.key)} style={[styles.segItem, on ? styles.segItemActive : null]}>
+            <Text style={{ color: on ? '#fff' : colors.textMuted, fontWeight: '600', fontSize: 13 }}>{it.label}</Text>
           </Pressable>
         );
       })}
@@ -254,6 +255,7 @@ export function SegmentedTabs({
 export function MarketRow({
   icon,
   color,
+  imageUri,
   name,
   symbol,
   price,
@@ -263,6 +265,7 @@ export function MarketRow({
 }: {
   icon: string;
   color: string;
+  imageUri?: string;
   name: string;
   symbol: string;
   price: string;
@@ -274,7 +277,11 @@ export function MarketRow({
   const c = up ? colors.up : colors.down;
   return (
     <View style={[styles.listItem, divider ? styles.divider : null]}>
-      <Avatar label={icon} color={color} />
+      {imageUri ? (
+        <Image source={{ uri: imageUri }} style={{ width: 42, height: 42, borderRadius: 21 }} />
+      ) : (
+        <Avatar label={icon} color={color} />
+      )}
       <View style={{ width: 88 }}>
         <Text style={typography.bodyStrong}>{name}</Text>
         <Text style={typography.muted}>{symbol}</Text>
