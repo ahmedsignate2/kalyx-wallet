@@ -17,8 +17,8 @@ import {
   Sparkline,
   SegmentedTabs,
   MarketRow,
-  BottomNav,
 } from '../ui/premium';
+import { AppTabBar } from '../ui/tabs';
 import { colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
@@ -134,20 +134,7 @@ export default function Home() {
   ];
 
   return (
-    <PremiumScreen
-      footer={
-        <BottomNav
-          active="home"
-          center={{ icon: '↕', label: t('navExchange'), onPress: () => router.push('/settings') }}
-          items={[
-            { key: 'home', icon: '🏠', label: t('navHome'), onPress: () => {} },
-            { key: 'market', icon: '📊', label: t('navMarket'), onPress: () => Alert.alert(t('soon')) },
-            { key: 'wallet', icon: '👛', label: t('navWallet'), onPress: () => router.push('/wallet') },
-            { key: 'more', icon: '⚙️', label: t('navMore'), onPress: () => router.push('/settings') },
-          ]}
-        />
-      }
-    >
+    <PremiumScreen footer={<AppTabBar active="home" />}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -160,7 +147,7 @@ export default function Home() {
         <View style={{ flexDirection: 'row', gap: spacing(1) }}>
           <IconButton icon="🔍" onPress={() => Alert.alert(t('soon'))} />
           <IconButton icon="🔔" onPress={() => Alert.alert(t('soon'))} badge />
-          <IconButton icon="⚙️" onPress={() => router.push('/settings')} />
+          <IconButton icon="☰" onPress={() => router.push('/menu')} />
         </View>
       </View>
 
