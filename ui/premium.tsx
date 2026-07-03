@@ -15,6 +15,7 @@ import {
   ViewStyle,
   StyleProp,
   Image,
+  TextInput as RNTextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -123,6 +124,66 @@ export function ActionTile({
         <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600', marginTop: 6 }}>{label}</Text>
       </View>
     </Pressable>
+  );
+}
+
+/** Bouton d'action circulaire compact (style Revolut) + libellé dessous. */
+export function CircleAction({
+  icon,
+  label,
+  onPress,
+  disabled,
+}: {
+  icon: string;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [{ alignItems: 'center', gap: 8, flex: 1, opacity: disabled ? 0.4 : pressed ? 0.6 : 1 }]}
+    >
+      <View style={styles.circleAction}>
+        <Text style={{ fontSize: 20, color: colors.text }}>{icon}</Text>
+      </View>
+      <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '600' }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Petit badge (ex. TESTNET). */
+export function Badge({ label, tone = 'warning' }: { label: string; tone?: 'warning' | 'accent' }) {
+  const c = tone === 'accent' ? colors.accent : colors.warning;
+  return (
+    <View style={{ backgroundColor: c + '22', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+      <Text style={{ color: c, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>{label}</Text>
+    </View>
+  );
+}
+
+/** Barre de recherche (glass). */
+export function SearchBar({
+  value,
+  onChangeText,
+  placeholder,
+}: {
+  value: string;
+  onChangeText: (t: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <View style={styles.search}>
+      <Text style={{ fontSize: 16 }}>🔍</Text>
+      <RNTextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        style={{ flex: 1, color: colors.text, fontSize: 15, paddingVertical: 0 }}
+      />
+    </View>
   );
 }
 
@@ -401,6 +462,27 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     paddingVertical: spacing(1.5),
     alignItems: 'center',
+  },
+  circleAction: {
+    width: 50,
+    height: 50,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.glassStrong,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.25),
   },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   avatar: {

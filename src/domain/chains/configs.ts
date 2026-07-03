@@ -93,7 +93,7 @@ export const BASE: ChainConfig = {
 /** Testnet Ethereum — réseau de dev par défaut du MVP (zéro risque). */
 export const SEPOLIA: ChainConfig = {
   id: 'sepolia',
-  name: 'Sepolia (testnet)',
+  name: 'Sepolia',
   family: 'evm',
   evmChainId: 11155111,
   nativeSymbol: 'ETH',

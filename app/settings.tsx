@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Switch, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, Switch, Alert } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
-import { Screen, Card, Title, Muted, Button } from '../ui/components';
-import { ListRow, Chip } from '../ui/premium';
+import { PremiumScreen, GlassCard, ListRow, Chip, SectionHeader } from '../ui/premium';
 import { colors, spacing, typography } from '../ui/theme';
 import { useSettings, useT, FIATS } from '../lib/settingsStore';
 import { LANGUAGES } from '../lib/i18n';
 import { useWallet } from '../lib/walletStore';
 import { isBiometricAvailable } from '../lib/biometrics';
+
+function Icon({ e }: { e: string }) {
+  return <Text style={{ fontSize: 20, width: 28, textAlign: 'center' }}>{e}</Text>;
+}
+const chevron = <Text style={{ color: '#5B6577', fontSize: 20 }}>›</Text>;
 
 export default function Settings() {
   const t = useT();
@@ -28,16 +32,15 @@ export default function Settings() {
   }, []);
 
   const langName = LANGUAGES.find((l) => l.code === language)?.name ?? language;
+  const soon = () => Alert.alert(t('soon'));
 
   const onToggleBio = async (on: boolean) => {
-    if (on) {
-      setPinForBio(''); // ouvre la saisie du PIN
-    } else {
+    if (on) setPinForBio('');
+    else {
       await disableBiometric();
       setBiometricEnabled(false);
     }
   };
-
   const confirmEnableBio = async () => {
     try {
       await enableBiometric(pin);
@@ -45,100 +48,99 @@ export default function Settings() {
       setPinForBio(null);
       setPin('');
     } catch {
-      Alert.alert('PIN incorrect', 'Impossible d’activer la biométrie.');
+      Alert.alert('PIN incorrect');
     }
   };
-
   const onReset = () => {
-    Alert.alert(
-      t('resetWallet'),
-      'Cette action supprime le wallet de cet appareil. Assure-toi d’avoir ta phrase de récupération.',
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('resetWallet'),
-          style: 'destructive',
-          onPress: async () => {
-            await reset();
-            router.replace('/welcome');
-          },
+    Alert.alert(t('resetWallet'), 'Assure-toi d’avoir ta phrase de récupération.', [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('resetWallet'),
+        style: 'destructive',
+        onPress: async () => {
+          await reset();
+          router.replace('/welcome');
         },
-      ],
-    );
+      },
+    ]);
   };
 
   return (
-    <Screen>
-      <ScrollView contentContainerStyle={{ gap: spacing(2), paddingBottom: spacing(4) }}>
-        <Title>{t('settings')}</Title>
+    <PremiumScreen>
+      <Text style={typography.title}>{t('settings')}</Text>
 
-        {/* Profil */}
-        <Card>
-          <Muted>{t('profile')}</Muted>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            onBlur={() => setProfileName(name.trim())}
-            placeholder={t('yourName')}
-            placeholderTextColor={colors.textMuted}
-            style={{ color: colors.text, fontSize: 18, paddingVertical: spacing(1) }}
-          />
-          <Button label={t('save')} onPress={() => setProfileName(name.trim())} />
-        </Card>
-
-        {/* Préférences */}
-        <Card>
-          <ListRow
-            title={t('language')}
-            subtitle={langName}
-            onPress={() => router.push('/language')}
-            right={<Text style={{ color: colors.textFaint, fontSize: 20 }}>›</Text>}
-          />
-          <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5) }}>
-            <Muted>{t('currency')}</Muted>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
-              {FIATS.map((f) => (
-                <Chip key={f.code} label={`${f.symbol} ${f.code.toUpperCase()}`} tone={f.code === fiat ? 'accent' : 'neutral'} onPress={() => setFiat(f.code)} />
-              ))}
-            </View>
+      {/* Profil */}
+      <GlassCard>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+          <Icon e="👤" />
+          <View style={{ flex: 1 }}>
+            <Text style={typography.muted}>{t('profile')}</Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              onBlur={() => setProfileName(name.trim())}
+              onSubmitEditing={() => setProfileName(name.trim())}
+              placeholder={t('yourName')}
+              placeholderTextColor={colors.textMuted}
+              style={{ color: colors.text, fontSize: 18, paddingVertical: 4 }}
+            />
           </View>
-        </Card>
+        </View>
+      </GlassCard>
 
-        {/* Sécurité */}
-        <Card>
-          <Muted>{t('security')}</Muted>
-          {bioAvailable ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* Préférences */}
+      <GlassCard>
+        <ListRow left={<Icon e="🌍" />} title={t('language')} subtitle={langName} right={chevron} onPress={() => router.push('/language')} />
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(0.5) }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+            <Icon e="💱" />
+            <Text style={typography.body}>{t('currency')}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
+            {FIATS.map((f) => (
+              <Chip key={f.code} label={`${f.symbol} ${f.code.toUpperCase()}`} tone={f.code === fiat ? 'accent' : 'neutral'} onPress={() => setFiat(f.code)} />
+            ))}
+          </View>
+        </View>
+        <ListRow divider left={<Icon e="🎨" />} title="Apparence" subtitle="Sombre" right={<Chip label={t('soon')} />} onPress={soon} />
+      </GlassCard>
+
+      {/* Sécurité */}
+      <GlassCard>
+        {bioAvailable ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+              <Icon e="🔐" />
               <Text style={typography.body}>{t('biometrics')}</Text>
-              <Switch value={biometricEnabled} onValueChange={onToggleBio} />
             </View>
-          ) : null}
-          {pinForBio !== null ? (
-            <View style={{ gap: spacing(1) }}>
-              <TextInput
-                value={pin}
-                onChangeText={setPin}
-                keyboardType="number-pad"
-                secureTextEntry
-                placeholder="PIN"
-                placeholderTextColor={colors.textMuted}
-                style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }}
-              />
-              <Button label="Activer la biométrie" onPress={confirmEnableBio} />
-            </View>
-          ) : null}
-          <ListRow divider title={t('changePin')} onPress={() => router.push('/change-pin')} right={<Text style={{ color: colors.textFaint, fontSize: 20 }}>›</Text>} />
-          <ListRow divider title={t('revealPhrase')} onPress={() => router.push('/reveal-phrase')} right={<Text style={{ color: colors.textFaint, fontSize: 20 }}>›</Text>} />
-        </Card>
+            <Switch value={biometricEnabled} onValueChange={onToggleBio} />
+          </View>
+        ) : null}
+        {pinForBio !== null ? (
+          <View style={{ gap: spacing(1), marginTop: spacing(1) }}>
+            <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry placeholder="PIN" placeholderTextColor={colors.textMuted} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
+            <Chip label="Activer" tone="accent" onPress={confirmEnableBio} />
+          </View>
+        ) : null}
+        <ListRow divider left={<Icon e="🔑" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
+        <ListRow divider left={<Icon e="📜" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
+      </GlassCard>
 
-        {/* À propos */}
-        <Card>
-          <ListRow title={t('about')} subtitle={`Nova Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} />
-        </Card>
+      {/* Réseau & à venir */}
+      <GlassCard>
+        <ListRow left={<Icon e="🌐" />} title="Réseau" subtitle="Choisir le réseau actif" right={chevron} onPress={() => router.push('/networks')} />
+        <ListRow divider left={<Icon e="🔔" />} title="Notifications" right={<Chip label={t('soon')} />} onPress={soon} />
+        <ListRow divider left={<Icon e="💳" />} title="Achat crypto" right={<Chip label={t('soon')} />} onPress={soon} />
+      </GlassCard>
 
-        <Button label={t('resetWallet')} variant="ghost" onPress={onReset} />
-        <Text style={{ color: colors.danger, textAlign: 'center', fontSize: 12 }}>Zone sensible</Text>
-      </ScrollView>
-    </Screen>
+      {/* À propos */}
+      <GlassCard>
+        <ListRow left={<Icon e="ℹ️" />} title={t('about')} subtitle={`Nova Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} />
+      </GlassCard>
+
+      <SectionHeader title="" />
+      <ListRow left={<Icon e="⚠️" />} title={t('resetWallet')} onPress={onReset} right={<Text style={{ color: colors.danger }}>›</Text>} />
+      <View style={{ height: spacing(2) }} />
+    </PremiumScreen>
   );
 }
