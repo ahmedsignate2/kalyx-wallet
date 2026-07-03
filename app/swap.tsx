@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Alert, Pressable } from 'react-native';
-import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { Chip } from '../ui/premium';
-import { colors, spacing, typography } from '../ui/theme';
+import { Stack } from 'expo-router';
+import { PremiumScreen, GlassCard, Chip } from '../ui/premium';
+import { Button } from '../ui/components';
+import { Icon } from '../ui/icon';
+import { colors, radii, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import {
@@ -22,7 +24,6 @@ interface Tok {
   decimals: number;
 }
 
-// Tokens courants par réseau (natif + stablecoins).
 const TOKENS: Record<string, Tok[]> = {
   ethereum: [
     { symbol: 'ETH', address: NATIVE_TOKEN, decimals: 18 },
@@ -56,7 +57,7 @@ export default function Swap() {
   const tokens = TOKENS[activeChain] ?? [];
   const available = chain.family === 'evm' && !chain.testnet && tokens.length > 0 && !!chain.evmChainId;
 
-  const [from, setFrom] = useState(0); // index dans tokens
+  const [from, setFrom] = useState(0);
   const [to, setTo] = useState(1);
   const [amount, setAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
@@ -65,24 +66,37 @@ export default function Swap() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  const reset = () => {
+    setQuote(null);
+    setError(null);
+  };
+
   if (!available || !account) {
     return (
-      <Screen>
-        <Title>{t('navExchange')}</Title>
-        <Muted>
-          Le swap est disponible sur les réseaux EVM mainnet (Ethereum, Polygon, Base, BNB).
-          Change de réseau depuis l’accueil.
-        </Muted>
-      </Screen>
+      <PremiumScreen>
+        <Stack.Screen options={{ headerShown: true, title: t('navExchange') }} />
+        <GlassCard>
+          <Text style={typography.bodyStrong}>Swap indisponible ici</Text>
+          <Text style={[typography.muted, { marginTop: spacing(1) }]}>
+            Le swap fonctionne sur les réseaux EVM mainnet (Ethereum, Polygon, Base, BNB).
+            Change de réseau depuis l’accueil.
+          </Text>
+        </GlassCard>
+      </PremiumScreen>
     );
   }
 
   const fromTok = tokens[from];
   const toTok = tokens[to];
 
+  const flip = () => {
+    setFrom(to);
+    setTo(from);
+    reset();
+  };
+
   const onQuote = async () => {
-    setError(null);
-    setQuote(null);
+    reset();
     if (from === to) {
       setError('Choisis deux tokens différents.');
       return;
@@ -104,7 +118,7 @@ export default function Swap() {
         fromAmount: raw,
         fromAddress: account.address,
       });
-      if (!q) setError('Aucune route trouvée (LI.FI). Réessaie ou change de montant.');
+      if (!q) setError('Aucune route trouvée. Change le montant ou les tokens.');
       else setQuote(q);
     } finally {
       setLoading(false);
@@ -124,8 +138,7 @@ export default function Swap() {
       `Tu envoies : ${amount} ${fromTok.symbol}\n` +
         `Tu reçois ≈ ${recv} ${toTok.symbol}\n` +
         `Minimum garanti : ${min} ${toTok.symbol}\n` +
-        `Via : ${quote.toolName}\n` +
-        `Frais Nova : ${(Number(NOVA_FEE) * 100).toFixed(1)}%\n` +
+        `Via : ${quote.toolName} · frais Nova ${(Number(NOVA_FEE) * 100).toFixed(1)}%\n` +
         `Réseau : ${chain.name}`,
       [
         { text: t('cancel'), style: 'cancel' },
@@ -142,7 +155,8 @@ export default function Swap() {
       const hash = await executeSwap(quote, { pin });
       setPin('');
       setQuote(null);
-      Alert.alert('Swap envoyé', hash, [{ text: 'OK' }]);
+      setAmount('');
+      Alert.alert('Swap envoyé ✅', hash, [{ text: 'OK' }]);
     } catch (e) {
       setError(
         isWalletError(e) && e.code === 'WRONG_PIN'
@@ -156,57 +170,86 @@ export default function Swap() {
     }
   };
 
-  const pickRow = (label: string, selected: number, onPick: (i: number) => void) => (
-    <Card>
-      <Text style={typography.muted}>{label}</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
-        {tokens.map((tk, i) => (
-          <Chip key={tk.symbol} label={tk.symbol} tone={i === selected ? 'accent' : 'neutral'} onPress={() => { onPick(i); setQuote(null); }} />
-        ))}
-      </View>
-    </Card>
+  const tokenChips = (selected: number, onPick: (i: number) => void) => (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
+      {tokens.map((tk, i) => (
+        <Chip key={tk.symbol} label={tk.symbol} tone={i === selected ? 'accent' : 'neutral'} onPress={() => { onPick(i); reset(); }} />
+      ))}
+    </View>
   );
 
   return (
-    <Screen>
-      <Title>{t('navExchange')}</Title>
-      <Muted>Swap sur {chain.name} · via LI.FI (agrégateur DEX).</Muted>
+    <PremiumScreen>
+      <Stack.Screen options={{ headerShown: true, title: t('navExchange') }} />
+      <Text style={typography.muted}>Swap sur {chain.name} · agrégateur LI.FI</Text>
 
-      {pickRow('De', from, setFrom)}
-      <Card>
-        <Text style={typography.muted}>Montant ({fromTok.symbol})</Text>
+      {/* De */}
+      <GlassCard glow>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={typography.muted}>De</Text>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>{fromTok.symbol}</Text>
+        </View>
         <TextInput
           value={amount}
-          onChangeText={(v) => { setAmount(v); setQuote(null); }}
+          onChangeText={(v) => { setAmount(v); reset(); }}
           keyboardType="decimal-pad"
           placeholder="0.0"
           placeholderTextColor={colors.textMuted}
-          style={{ color: colors.text, fontSize: 22, paddingVertical: spacing(1) }}
+          style={{ color: colors.text, fontSize: 32, fontWeight: '800', paddingVertical: spacing(0.5) }}
         />
-      </Card>
-      {pickRow('Vers', to, setTo)}
+        {tokenChips(from, setFrom)}
+      </GlassCard>
 
+      {/* Bouton d'inversion */}
+      <View style={{ alignItems: 'center', marginVertical: -spacing(1.5), zIndex: 2 }}>
+        <Pressable onPress={flip}>
+          <View style={{ width: 44, height: 44, borderRadius: radii.pill, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.glassBorder, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="convert" size={20} color={colors.accent} />
+          </View>
+        </Pressable>
+      </View>
+
+      {/* Vers */}
+      <GlassCard>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={typography.muted}>Vers (estimé)</Text>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>{toTok.symbol}</Text>
+        </View>
+        <Text style={{ color: quote ? colors.text : colors.textMuted, fontSize: 32, fontWeight: '800', paddingVertical: spacing(0.5) }}>
+          {quote ? formatBalance(quote.toAmount, quote.toToken.decimals, 6) : '—'}
+        </Text>
+        {tokenChips(to, setTo)}
+      </GlassCard>
+
+      {/* Détails du devis */}
       {quote ? (
-        <Card>
-          <Text style={typography.bodyStrong}>
-            ≈ {formatBalance(quote.toAmount, quote.toToken.decimals, 6)} {toTok.symbol}
-          </Text>
-          <Muted>Min : {formatBalance(quote.toAmountMin, quote.toToken.decimals, 6)} {toTok.symbol} · via {quote.toolName}</Muted>
-          <Card style={{ backgroundColor: colors.bgElevated, marginTop: spacing(1) }}>
+        <GlassCard>
+          <Row label="Minimum reçu" value={`${formatBalance(quote.toAmountMin, quote.toToken.decimals, 6)} ${toTok.symbol}`} />
+          <Row label="Via" value={quote.toolName} />
+          <Row label="Frais Nova" value={`${(Number(NOVA_FEE) * 100).toFixed(1)} %`} />
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, marginTop: spacing(1), paddingTop: spacing(1) }}>
             <Text style={typography.muted}>PIN (pour signer)</Text>
-            <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
-          </Card>
-        </Card>
+            <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} style={{ color: colors.text, fontSize: 22, letterSpacing: 6 }} />
+          </View>
+        </GlassCard>
       ) : null}
 
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
 
-      <View style={{ flex: 1 }} />
       {quote ? (
         <Button label={busy ? 'Échange…' : 'Échanger'} loading={busy} onPress={onSwap} />
       ) : (
         <Button label={loading ? 'Recherche de route…' : 'Obtenir un devis'} loading={loading} onPress={onQuote} />
       )}
-    </Screen>
+    </PremiumScreen>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+      <Text style={typography.muted}>{label}</Text>
+      <Text style={{ color: colors.text, fontWeight: '600' }}>{value}</Text>
+    </View>
   );
 }

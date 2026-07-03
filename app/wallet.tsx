@@ -63,7 +63,10 @@ export default function WalletScreen() {
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
   const activeChain = useWallet((s) => s.activeChain);
   const { fiat } = useSettings();
-  const customList = useCustomTokens((s) => s.byChain[activeChain] ?? []);
+  // NB : ne pas renvoyer `?? []` directement du sélecteur (nouvelle réf à chaque
+  // rendu -> boucle infinie zustand). On sélectionne l'objet stable puis on dérive.
+  const customByChain = useCustomTokens((s) => s.byChain);
+  const customList = useMemo(() => customByChain[activeChain] ?? [], [customByChain, activeChain]);
   const account = accounts.find((a) => a.index === activeAccountIndex) ?? accounts[0];
 
   const [assets, setAssets] = useState<Asset[] | null>(null);
