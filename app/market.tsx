@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Alert } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import {
   PremiumScreen,
   GlassCard,
@@ -72,6 +72,7 @@ export default function Market() {
               price={`${money(m.price, m.price >= 100 ? 0 : 2)} ${fiatSymbol(fiat)}`}
               change={m.change24h}
               spark={m.sparkline}
+              onPress={() => router.push(`/token/${m.id}`)}
             />
           ))
         )}

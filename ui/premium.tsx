@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Polyline } from 'react-native-svg';
+import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 import { colors, gradients, radii, spacing, typography, shadow } from './theme';
 
 export function PremiumScreen({
@@ -297,6 +297,47 @@ export function Sparkline({
   );
 }
 
+/** Graphique de prix (courbe + aire dégradée) — react-native-svg. */
+export function PriceChart({
+  data,
+  color,
+  width,
+  height = 190,
+}: {
+  data: number[];
+  color: string;
+  width: number;
+  height?: number;
+}) {
+  if (data.length < 2) return <View style={{ width, height }} />;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const pad = 6;
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * (width - pad * 2) + pad;
+    const y = height - pad - ((v - min) / range) * (height - pad * 2);
+    return [x, y] as const;
+  });
+  const line = pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  const area =
+    `M ${pts[0][0].toFixed(1)},${height} ` +
+    pts.map((p) => `L ${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ') +
+    ` L ${pts[pts.length - 1][0].toFixed(1)},${height} Z`;
+  return (
+    <Svg width={width} height={height}>
+      <Defs>
+        <SvgLinearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={color} stopOpacity="0.25" />
+          <Stop offset="1" stopColor={color} stopOpacity="0" />
+        </SvgLinearGradient>
+      </Defs>
+      <Path d={area} fill="url(#chartGrad)" />
+      <Polyline points={line} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 export function SegmentedTabs({
   items,
   active,
@@ -330,6 +371,7 @@ export function MarketRow({
   change,
   spark,
   divider,
+  onPress,
 }: {
   icon: string;
   color: string;
@@ -340,11 +382,16 @@ export function MarketRow({
   change: number;
   spark: number[];
   divider?: boolean;
+  onPress?: () => void;
 }) {
   const up = change >= 0;
   const c = up ? colors.up : colors.down;
   return (
-    <View style={[styles.listItem, divider ? styles.divider : null]}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={[styles.listItem, divider ? styles.divider : null]}
+    >
       {imageUri ? (
         <Image source={{ uri: imageUri }} style={{ width: 42, height: 42, borderRadius: 21 }} />
       ) : (
@@ -364,7 +411,7 @@ export function MarketRow({
           {change.toFixed(2)}%
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
