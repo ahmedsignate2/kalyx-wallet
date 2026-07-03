@@ -34,6 +34,27 @@ export interface MarketCoin {
 
 export type MarketOrder = 'top' | 'gainers' | 'losers';
 
+export interface CoinDetail {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  price: number;
+  change24h: number;
+  marketCap: number;
+  description: string;
+}
+
+/** Périodes de graphique et jours CoinGecko correspondants. */
+export const CHART_PERIODS = [
+  { key: '24h', label: '24h', days: '1' },
+  { key: '7j', label: '7j', days: '7' },
+  { key: '30j', label: '30j', days: '30' },
+  { key: '1an', label: '1an', days: '365' },
+  { key: 'all', label: 'ALL', days: 'max' },
+] as const;
+export type ChartPeriod = (typeof CHART_PERIODS)[number]['key'];
+
 // ---- Parseurs purs (testés) ----
 
 export function parseSimplePrices(json: unknown, vs: string): Record<string, CoinPrice> {
@@ -64,6 +85,49 @@ export function parseMarkets(json: unknown): MarketCoin[] {
     }));
 }
 
+/** Nettoie une description HTML CoinGecko et la tronque. */
+function cleanDescription(html: string, max = 400): string {
+  const text = (html || '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\r?\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
+}
+
+export function parseCoinDetail(json: unknown, vs: string, lang = 'en'): CoinDetail | null {
+  const c = json as {
+    id?: string;
+    symbol?: string;
+    name?: string;
+    image?: { large?: string; small?: string };
+    market_data?: {
+      current_price?: Record<string, number>;
+      price_change_percentage_24h?: number;
+      market_cap?: Record<string, number>;
+    };
+    description?: Record<string, string>;
+  };
+  if (!c || typeof c.id !== 'string') return null;
+  return {
+    id: c.id,
+    symbol: (c.symbol ?? '').toUpperCase(),
+    name: c.name ?? c.id,
+    image: c.image?.large ?? c.image?.small ?? '',
+    price: c.market_data?.current_price?.[vs] ?? 0,
+    change24h: c.market_data?.price_change_percentage_24h ?? 0,
+    marketCap: c.market_data?.market_cap?.[vs] ?? 0,
+    description: cleanDescription(c.description?.[lang] || c.description?.en || ''),
+  };
+}
+
+/** Extrait la série de prix d'une réponse market_chart ([[ts, price], …]). */
+export function parseMarketChart(json: unknown): number[] {
+  const prices = (json as { prices?: [number, number][] })?.prices;
+  if (!Array.isArray(prices)) return [];
+  return prices.map((p) => Number(p?.[1]) || 0);
+}
+
 /** Tri des marchés selon l'onglet (Top / Gagnants / Perdants). */
 export function sortMarkets(coins: MarketCoin[], order: MarketOrder): MarketCoin[] {
   if (order === 'gainers') return [...coins].sort((a, b) => b.change24h - a.change24h);
@@ -88,6 +152,36 @@ export async function getPrices(ids: string[], vs = 'eur'): Promise<Record<strin
     return parseSimplePrices(await res.json(), vs);
   } catch {
     return {};
+  }
+}
+
+export async function getCoinDetail(id: string, vs = 'eur', lang = 'en'): Promise<CoinDetail | null> {
+  try {
+    const res = await withTimeout(
+      fetch(
+        url(
+          `/coins/${id}?localization=true&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`,
+        ),
+      ),
+      TIMEOUT,
+      () => new Error('timeout'),
+    );
+    return parseCoinDetail(await res.json(), vs, lang);
+  } catch {
+    return null;
+  }
+}
+
+export async function getMarketChart(id: string, vs = 'eur', days = '7'): Promise<number[]> {
+  try {
+    const res = await withTimeout(
+      fetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${days}`)),
+      TIMEOUT,
+      () => new Error('timeout'),
+    );
+    return parseMarketChart(await res.json());
+  } catch {
+    return [];
   }
 }
 

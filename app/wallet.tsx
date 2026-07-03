@@ -150,7 +150,7 @@ export default function WalletScreen() {
                   }
                   title={a.chain.name}
                   subtitle={hidden ? '••••' : `${formatBalance(a.raw, a.chain.nativeDecimals, 6)} ${a.chain.nativeSymbol}`}
-                  onPress={() => Alert.alert(t('soon'), 'Fiche détaillée du token à venir.')}
+                  onPress={() => a.chain.coingeckoId && router.push(`/token/${a.chain.coingeckoId}`)}
                   right={
                     <Text style={{ color: colors.text, fontWeight: '600' }}>
                       {hidden ? '••••' : `${money(a.fiat)} ${fiatSymbol(fiat)}`}
