@@ -23,7 +23,9 @@ import {
   getMarkets,
   getErc20Tokens,
   getTokenPrices,
+  getNfts,
   type ChainConfig,
+  type NftItem,
 } from '../src';
 
 function money(value: number, decimals = 2): string {
@@ -63,6 +65,8 @@ export default function WalletScreen() {
 
   const [assets, setAssets] = useState<Asset[] | null>(null);
   const [tokens, setTokens] = useState<TokenAsset[]>([]);
+  const [nfts, setNfts] = useState<NftItem[] | null>(null);
+  const [loadingNfts, setLoadingNfts] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [query, setQuery] = useState('');
@@ -132,6 +136,21 @@ export default function WalletScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // NFT du réseau actif (chargés à l'ouverture de l'onglet NFT).
+  useEffect(() => {
+    if (tab !== 'nft' || !account) return;
+    const cfg = getAdapter(activeChain).config;
+    if (cfg.family !== 'evm') {
+      setNfts([]);
+      return;
+    }
+    setLoadingNfts(true);
+    getNfts(cfg, account.evmAddress)
+      .then(setNfts)
+      .catch(() => setNfts([]))
+      .finally(() => setLoadingNfts(false));
+  }, [tab, activeChain, account]);
 
   const total = useMemo(
     () => (assets ?? []).reduce((s, a) => s + a.fiat, 0) + tokens.reduce((s, tk) => s + tk.fiat, 0),
@@ -260,13 +279,42 @@ export default function WalletScreen() {
             onPress={() => router.push('/history')}
           />
         </GlassCard>
+      ) : tab === 'nft' ? (
+        loadingNfts && nfts === null ? (
+          <GlassCard>
+            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>Chargement des NFT…</Text>
+          </GlassCard>
+        ) : nfts && nfts.length > 0 ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.25) }}>
+            {nfts.map((n) => (
+              <Pressable
+                key={`${n.contract}-${n.tokenId}`}
+                style={{ width: '48%' }}
+                onPress={() => Alert.alert(n.name, n.collection || '')}
+              >
+                <Image
+                  source={{ uri: n.image }}
+                  style={{ width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: colors.glassStrong }}
+                />
+                <Text numberOfLines={1} style={[typography.bodyStrong, { marginTop: 6 }]}>{n.name}</Text>
+                {n.collection ? <Text numberOfLines={1} style={typography.muted}>{n.collection}</Text> : null}
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <GlassCard>
+            <View style={{ alignItems: 'center', paddingVertical: spacing(4), gap: spacing(1) }}>
+              <Icon name="nft" size={34} color={colors.textMuted} />
+              <Text style={typography.bodyStrong}>Aucun NFT sur {getAdapter(activeChain).config.name}</Text>
+              <Text style={typography.muted}>Tes NFT apparaîtront ici (Alchemy).</Text>
+            </View>
+          </GlassCard>
+        )
       ) : (
         <GlassCard>
           <View style={{ alignItems: 'center', paddingVertical: spacing(4), gap: spacing(1) }}>
-            <Icon name={tab === 'nft' ? 'nft' : tab === 'defi' ? 'defi' : 'staking'} size={34} color={colors.textMuted} />
-            <Text style={typography.bodyStrong}>
-              {tab === 'nft' ? 'NFT & Collectibles' : tab === 'defi' ? 'Positions DeFi' : 'Staking'}
-            </Text>
+            <Icon name={tab === 'defi' ? 'defi' : 'staking'} size={34} color={colors.textMuted} />
+            <Text style={typography.bodyStrong}>{tab === 'defi' ? 'Positions DeFi' : 'Staking'}</Text>
             <Text style={typography.muted}>{t('soon')}</Text>
           </View>
         </GlassCard>
