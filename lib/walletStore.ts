@@ -48,6 +48,8 @@ import {
 export const DEFAULT_CHAIN = 'sepolia';
 
 export type Unlock = { pin: string } | { biometric: true };
+/** Étapes d'un swap (pour l'UI de progression). */
+export type SwapStatus = 'approving' | 'approvalWait' | 'swapping' | 'confirming';
 
 interface WalletState {
   ready: boolean;
@@ -75,7 +77,7 @@ interface WalletState {
   lock: () => void;
   signAndSend: (to: string, amount: string, unlock: Unlock) => Promise<string>;
   /** Exécute un swap/bridge LI.FI (approbation ERC-20 si besoin, puis swap). */
-  executeSwap: (quote: SwapQuote, unlock: Unlock) => Promise<string>;
+  executeSwap: (quote: SwapQuote, unlock: Unlock, onStatus?: (s: SwapStatus) => void) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   revealPhrase: (unlock: Unlock) => Promise<string>;
   enableBiometric: (pin: string) => Promise<void>;
@@ -249,7 +251,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     return adapter.broadcast(raw);
   },
 
-  executeSwap: async (quote, unlock) => {
+  executeSwap: async (quote, unlock, onStatus) => {
     const { account, activeChain } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(activeChain);
@@ -265,18 +267,29 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (fromAddr !== NATIVE_TOKEN.toLowerCase() && quote.approvalAddress) {
       const allowance = await adapter.getAllowance(quote.fromToken.address, account.address, quote.approvalAddress);
       if (allowance < quote.fromAmount) {
+        onStatus?.('approving');
         const approveData = adapter.buildApproveData(quote.approvalAddress, quote.fromAmount);
         const approveHash = await adapter.sendContractTx(
           { to: quote.fromToken.address, data: approveData, chainId: quote.tx.chainId },
           account.address,
           signer.privateKey,
         );
+        onStatus?.('approvalWait');
         await adapter.waitForTx(approveHash); // attendre la confirmation avant le swap
       }
     }
 
     // 2) Swap (transaction fournie par LI.FI).
-    return adapter.sendContractTx(quote.tx, account.address, signer.privateKey);
+    onStatus?.('swapping');
+    const hash = await adapter.sendContractTx(quote.tx, account.address, signer.privateKey);
+    // 3) Attendre la confirmation (best-effort — le hash reste valide même en cas de timeout).
+    onStatus?.('confirming');
+    try {
+      await adapter.waitForTx(hash);
+    } catch {
+      /* le swap est diffusé ; on renvoie le hash quand même */
+    }
+    return hash;
   },
 
   changePin: async (oldPin, newPin) => {

@@ -195,6 +195,28 @@ export function SearchBar({
   );
 }
 
+/** Encadré d'erreur/avertissement avec icône. */
+export function ErrorBox({ message, tone = 'danger' }: { message: string; tone?: 'danger' | 'warning' }) {
+  const c = tone === 'warning' ? colors.warning : colors.danger;
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing(1),
+        backgroundColor: c + '18',
+        borderWidth: 1,
+        borderColor: c + '55',
+        borderRadius: radii.md,
+        padding: spacing(1.5),
+      }}
+    >
+      <Icon name="warning" size={18} color={c} />
+      <Text style={{ color: colors.text, flex: 1, fontSize: 14 }}>{message}</Text>
+    </View>
+  );
+}
+
 export function SectionHeader({
   title,
   actionLabel,

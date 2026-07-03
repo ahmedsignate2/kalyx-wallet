@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { friendlyTxError } from '../lib/txError';
 import { getAdapter, isWalletError } from '../src';
 
 export default function Send() {
@@ -49,13 +50,7 @@ export default function Send() {
         { text: 'OK', onPress: () => router.replace('/home') },
       ]);
     } catch (e) {
-      setError(
-        isWalletError(e) && e.code === 'WRONG_PIN'
-          ? 'PIN incorrect.'
-          : isWalletError(e)
-            ? e.message
-            : "Échec de l'envoi (solde/réseau ?).",
-      );
+      setError(friendlyTxError(e));
     } finally {
       setBusy(false);
     }
