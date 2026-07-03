@@ -24,6 +24,8 @@ export interface ChainConfig {
   rpcUrls: string[];
   explorerUrl?: string;
   testnet?: boolean;
+  /** Id CoinGecko de la monnaie native (pour le prix fiat). Absent = testnet. */
+  coingeckoId?: string;
 }
 
 /** Données publiques d'un compte — jamais de clé privée ici. */

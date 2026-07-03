@@ -36,6 +36,7 @@ export const ETHEREUM: ChainConfig = {
     'https://cloudflare-eth.com',
   ],
   explorerUrl: 'https://etherscan.io',
+  coingeckoId: 'ethereum',
 };
 
 export const BNB: ChainConfig = {
@@ -52,6 +53,7 @@ export const BNB: ChainConfig = {
     'https://bsc-dataseed.binance.org',
   ],
   explorerUrl: 'https://bscscan.com',
+  coingeckoId: 'binancecoin',
 };
 
 export const POLYGON: ChainConfig = {
@@ -68,6 +70,7 @@ export const POLYGON: ChainConfig = {
     'https://1rpc.io/matic',
   ],
   explorerUrl: 'https://polygonscan.com',
+  coingeckoId: 'matic-network',
 };
 
 export const BASE: ChainConfig = {
@@ -84,6 +87,7 @@ export const BASE: ChainConfig = {
     'https://mainnet.base.org',
   ],
   explorerUrl: 'https://basescan.org',
+  coingeckoId: 'ethereum',
 };
 
 /** Testnet Ethereum — réseau de dev par défaut du MVP (zéro risque). */
@@ -115,6 +119,7 @@ export const BITCOIN: ChainConfig = {
   // APIs REST (pas du JSON-RPC) : mempool.space puis blockstream en fallback.
   rpcUrls: ['https://mempool.space/api', 'https://blockstream.info/api'],
   explorerUrl: 'https://mempool.space',
+  coingeckoId: 'bitcoin',
 };
 
 // Ordre d'affichage dans le sélecteur : testnet en tête (réseau par défaut).
