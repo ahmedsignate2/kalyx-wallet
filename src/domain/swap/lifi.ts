@@ -45,6 +45,17 @@ export interface SwapQuote {
   /** Adresse à approuver (spender) si on part d'un ERC-20 ; null pour natif. */
   approvalAddress: string | null;
   toolName: string;
+  /** Frais réseau (gas) estimés en USD. */
+  gasCostUsd: number;
+  /** Frais (LI.FI + intégrateur) en USD. */
+  feeCostUsd: number;
+  /** Durée d'exécution estimée (secondes). */
+  durationSec: number;
+  /** Valeurs USD d'entrée/sortie (pour l'impact prix). */
+  fromAmountUsd: number;
+  toAmountUsd: number;
+  /** Slippage appliqué (fraction, ex. 0.005). */
+  slippage: number;
   tx: SwapTxRequest;
 }
 
@@ -69,8 +80,18 @@ function tokenOf(o: unknown): SwapTokenInfo {
 /** Parse un devis LI.FI (pur, testé). Renvoie null si incomplet. */
 export function parseSwapQuote(json: unknown): SwapQuote | null {
   const q = json as {
-    estimate?: { fromAmount?: string; toAmount?: string; toAmountMin?: string; approvalAddress?: string };
-    action?: { fromToken?: unknown; toToken?: unknown };
+    estimate?: {
+      fromAmount?: string;
+      toAmount?: string;
+      toAmountMin?: string;
+      approvalAddress?: string;
+      executionDuration?: number;
+      fromAmountUSD?: string;
+      toAmountUSD?: string;
+      gasCosts?: { amountUSD?: string }[];
+      feeCosts?: { amountUSD?: string }[];
+    };
+    action?: { fromToken?: unknown; toToken?: unknown; slippage?: number };
     transactionRequest?: { to?: string; data?: string; value?: string; chainId?: number; gasLimit?: string; gasPrice?: string };
     toolDetails?: { name?: string };
     tool?: string;
@@ -80,6 +101,8 @@ export function parseSwapQuote(json: unknown): SwapQuote | null {
   if (!tr?.to || !tr?.data || typeof tr.chainId !== 'number' || !est) return null;
 
   const approval = est.approvalAddress && est.approvalAddress !== '' ? est.approvalAddress : null;
+  const sumUsd = (arr?: { amountUSD?: string }[]) =>
+    (arr ?? []).reduce((s, c) => s + (Number(c.amountUSD) || 0), 0);
   return {
     fromAmount: big(est.fromAmount),
     toAmount: big(est.toAmount),
@@ -88,6 +111,12 @@ export function parseSwapQuote(json: unknown): SwapQuote | null {
     toToken: tokenOf(q.action?.toToken),
     approvalAddress: approval,
     toolName: q.toolDetails?.name ?? q.tool ?? 'LI.FI',
+    gasCostUsd: sumUsd(est.gasCosts),
+    feeCostUsd: sumUsd(est.feeCosts),
+    durationSec: Number(est.executionDuration) || 0,
+    fromAmountUsd: Number(est.fromAmountUSD) || 0,
+    toAmountUsd: Number(est.toAmountUSD) || 0,
+    slippage: typeof q.action?.slippage === 'number' ? q.action.slippage : Number(DEFAULT_SLIPPAGE),
     tx: {
       to: tr.to,
       data: tr.data,
