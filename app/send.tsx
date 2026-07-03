@@ -3,11 +3,13 @@ import { View, Text, TextInput, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { colors, spacing, typography } from '../ui/theme';
-import { useWallet, DEFAULT_CHAIN } from '../lib/walletStore';
-import { getAdapter, isWalletError, SEPOLIA } from '../src';
+import { useWallet } from '../lib/walletStore';
+import { getAdapter, isWalletError } from '../src';
 
 export default function Send() {
   const signAndSend = useWallet((s) => s.signAndSend);
+  const activeChain = useWallet((s) => s.activeChain);
+  const chain = getAdapter(activeChain).config;
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');
   const [pin, setPin] = useState('');
@@ -18,7 +20,7 @@ export default function Send() {
     setError(null);
     try {
       // Validation hors-ligne immédiate (adresse EIP-55 + montant).
-      getAdapter(DEFAULT_CHAIN).buildTransfer({ to, amount });
+      getAdapter(activeChain).buildTransfer({ to, amount });
     } catch (e) {
       setError(isWalletError(e) ? e.message : 'Saisie invalide');
       return;
@@ -29,7 +31,7 @@ export default function Send() {
     }
     Alert.alert(
       "Confirmer l'envoi",
-      `Réseau : ${SEPOLIA.name}\nMontant : ${amount} ${SEPOLIA.nativeSymbol}\nÀ : ${to}`,
+      `Réseau : ${chain.name}\nMontant : ${amount} ${chain.nativeSymbol}\nÀ : ${to}`,
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Envoyer', onPress: submit },
@@ -62,7 +64,10 @@ export default function Send() {
   return (
     <Screen>
       <Title>Envoyer</Title>
-      <Muted>Transfert natif sur {SEPOLIA.name} (testnet).</Muted>
+      <Muted>
+        Transfert natif sur {chain.name}
+        {chain.testnet ? ' (testnet)' : ' — fonds réels'}.
+      </Muted>
 
       <Card>
         <Text style={typography.muted}>Adresse du destinataire</Text>
@@ -78,7 +83,7 @@ export default function Send() {
       </Card>
 
       <Card>
-        <Text style={typography.muted}>Montant ({SEPOLIA.nativeSymbol})</Text>
+        <Text style={typography.muted}>Montant ({chain.nativeSymbol})</Text>
         <TextInput
           value={amount}
           onChangeText={setAmount}

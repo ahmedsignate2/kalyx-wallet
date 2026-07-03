@@ -11,6 +11,16 @@
  */
 import type { ChainConfig } from './types';
 
+/**
+ * API explorer unifiée Etherscan V2 : un seul endpoint pour toutes les chaînes
+ * EVM (on passe `chainid`). La clé est optionnelle : sans clé, l'historique
+ * dégrade proprement en liste vide (voir EvmChainAdapter.getHistory).
+ * Renseigne ta clé ici (ou via EXPO_PUBLIC_ETHERSCAN_KEY) pour activer l'historique.
+ */
+export const ETHERSCAN_V2_API = 'https://api.etherscan.io/v2/api';
+export const EXPLORER_API_KEY =
+  (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_ETHERSCAN_KEY) || '';
+
 export const ETHEREUM: ChainConfig = {
   id: 'ethereum',
   name: 'Ethereum',
@@ -44,6 +54,17 @@ export const POLYGON: ChainConfig = {
   explorerUrl: 'https://polygonscan.com',
 };
 
+export const BASE: ChainConfig = {
+  id: 'base',
+  name: 'Base',
+  family: 'evm',
+  evmChainId: 8453,
+  nativeSymbol: 'ETH',
+  nativeDecimals: 18,
+  rpcUrls: ['https://mainnet.base.org', 'https://base.llamarpc.com'],
+  explorerUrl: 'https://basescan.org',
+};
+
 /** Testnet Ethereum — réseau de dev par défaut du MVP (zéro risque). */
 export const SEPOLIA: ChainConfig = {
   id: 'sepolia',
@@ -63,4 +84,5 @@ export const SEPOLIA: ChainConfig = {
   testnet: true,
 };
 
-export const ALL_CHAINS: ChainConfig[] = [ETHEREUM, BNB, POLYGON, SEPOLIA];
+// Ordre d'affichage dans le sélecteur : testnet en tête (réseau par défaut).
+export const ALL_CHAINS: ChainConfig[] = [SEPOLIA, ETHEREUM, POLYGON, BNB, BASE];

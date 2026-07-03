@@ -40,6 +40,16 @@ export interface Balance {
   symbol: string;
 }
 
+export interface TxSummary {
+  hash: string;
+  from: string;
+  to: string;
+  value: bigint; // plus petite unité (wei)
+  timestamp: number; // unix (secondes)
+  direction: 'in' | 'out' | 'self';
+  status: 'success' | 'failed';
+}
+
 export interface TransferParams {
   to: string;
   /** Montant en chaîne décimale saisi par l'utilisateur ("0.5"). */
@@ -69,6 +79,9 @@ export interface ChainAdapter {
 
   /** Solde natif (réseau). */
   getBalance(address: string): Promise<Balance>;
+
+  /** Historique des transfers natifs (réseau). Liste vide si indispo. */
+  getHistory(address: string): Promise<TxSummary[]>;
 
   /** Construit + valide une intention de transfert (hors-ligne). */
   buildTransfer(params: TransferParams): TransferIntent;

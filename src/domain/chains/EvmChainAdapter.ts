@@ -21,11 +21,14 @@ import type {
   TransferParams,
   UnsignedTx,
 } from './types';
+import type { TxSummary } from './types';
 import { deriveEvmAccount } from '../../crypto/hd';
 import { normalizeEvmAddress } from '../validation/address';
 import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
-import { tryInOrder } from './net';
+import { tryInOrder, withTimeout } from './net';
+import { parseTxList } from './etherscan';
+import { ETHERSCAN_V2_API, EXPLORER_API_KEY } from './configs';
 
 // Limite de gas d'un transfert natif simple (pas d'appel de contrat).
 const NATIVE_TRANSFER_GAS = 21_000n;
@@ -74,6 +77,22 @@ export class EvmChainAdapter implements ChainAdapter {
       decimals: this.config.nativeDecimals,
       symbol: this.config.nativeSymbol,
     };
+  }
+
+  async getHistory(address: string): Promise<TxSummary[]> {
+    const owner = normalizeEvmAddress(address);
+    try {
+      const url =
+        `${ETHERSCAN_V2_API}?chainid=${this.config.evmChainId}` +
+        `&module=account&action=txlist&address=${owner}` +
+        `&startblock=0&endblock=99999999&page=1&offset=25&sort=desc` +
+        (EXPLORER_API_KEY ? `&apikey=${EXPLORER_API_KEY}` : '');
+      const res = await withTimeout(fetch(url), RPC_TIMEOUT_MS, () => new Error('timeout'));
+      return parseTxList(await res.json(), owner);
+    } catch {
+      // Historique = confort : ne jamais bloquer ni faire échouer l'app.
+      return [];
+    }
   }
 
   buildTransfer(params: TransferParams): TransferIntent {

@@ -2,6 +2,7 @@ import {
   parseAmount,
   assertSufficientFunds,
   formatAmount,
+  formatBalance,
 } from './amount';
 import { isWalletError, WalletError } from '../errors';
 
@@ -65,6 +66,22 @@ describe('validation des montants', () => {
   it('formatAmount est l’inverse de parseAmount', () => {
     const parsed = parseAmount('12.34', ETH);
     expect(formatAmount(parsed.raw, ETH)).toBe('12.34');
+  });
+
+  it('formatBalance tronque à 6 décimales sans arrondir', () => {
+    // 1.234567891 ETH -> tronqué (pas arrondi) à 1.234567
+    expect(formatBalance(1234567891234567891n, ETH, 6)).toBe('1.234567');
+    expect(formatBalance(10n ** 18n, ETH)).toBe('1');
+    expect(formatBalance(5n * 10n ** 17n, ETH)).toBe('0.5');
+    expect(formatBalance(0n, ETH)).toBe('0');
+  });
+
+  it('formatBalance retire les zéros de fin et gère la poussière', () => {
+    expect(formatBalance(1500000000000000000n, ETH, 6)).toBe('1.5'); // pas 1.500000
+    // 1 wei : non nul mais sous le seuil d'affichage
+    expect(formatBalance(1n, ETH, 6)).toBe('<0.000001');
+    // respecte un maxDecimals différent
+    expect(formatBalance(1234567891234567891n, ETH, 4)).toBe('1.2345');
   });
 
   it('WalletError est bien une instance repérable', () => {

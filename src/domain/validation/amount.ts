@@ -73,7 +73,21 @@ export function assertSufficientFunds(params: {
   }
 }
 
-/** Formate un bigint on-chain en chaîne lisible. */
+/** Formate un bigint on-chain en chaîne lisible (précision complète). */
 export function formatAmount(raw: bigint, decimals: number): string {
   return formatUnits(raw, decimals);
+}
+
+/**
+ * Formate un solde pour l'affichage : tronqué à `maxDecimals` (jamais arrondi,
+ * pour ne pas afficher plus que ce qu'on possède), zéros de fin retirés.
+ * Un solde non nul mais sous le seuil affiche « <0.000001 » plutôt que « 0 ».
+ */
+export function formatBalance(raw: bigint, decimals: number, maxDecimals = 6): string {
+  const [intPart, fracRaw = ''] = formatUnits(raw, decimals).split('.');
+  const frac = fracRaw.slice(0, Math.max(0, maxDecimals)).replace(/0+$/, '');
+  if (frac) return `${intPart}.${frac}`;
+  if (intPart !== '0') return intPart;
+  if (raw > 0n) return `<0.${'0'.repeat(Math.max(0, maxDecimals - 1))}1`;
+  return '0';
 }
