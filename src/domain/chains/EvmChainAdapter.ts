@@ -11,6 +11,7 @@ import {
   Wallet,
   Transaction,
   FetchRequest,
+  Interface,
 } from 'ethers';
 import type {
   Account,
@@ -143,4 +144,98 @@ export class EvmChainAdapter implements ChainAdapter {
     const res = await this.call((p) => p.broadcastTransaction(rawSignedTx));
     return res.hash ?? parsed.hash!;
   }
+
+  // --- Support des transactions de contrat (swap/approbation ERC-20) ---
+
+  /** Allowance ERC-20 (combien `spender` peut dépenser des tokens de `owner`). */
+  async getAllowance(token: string, owner: string, spender: string): Promise<bigint> {
+    const data = ERC20.encodeFunctionData('allowance', [owner, spender]);
+    const result = await this.call((p) => p.call({ to: token, data }));
+    try {
+      return BigInt(result);
+    } catch {
+      return 0n;
+    }
+  }
+
+  /** Data d'un `approve(spender, amount)` ERC-20. */
+  buildApproveData(spender: string, amount: bigint): string {
+    return ERC20.encodeFunctionData('approve', [spender, amount]);
+  }
+
+  /**
+   * Signe et diffuse une transaction quelconque (vers un contrat, avec data).
+   * Utilisée pour l'approbation et le swap LI.FI. Remplit nonce/gaz au besoin.
+   */
+  async sendContractTx(req: RawTxRequest, from: string, privateKey: string): Promise<string> {
+    const wallet = new Wallet(privateKey);
+    const needFee = !req.gasPrice && !req.maxFeePerGas;
+    const [nonce, feeData] = await Promise.all([
+      this.call((p) => p.getTransactionCount(from, 'pending')),
+      needFee ? this.call((p) => p.getFeeData()) : Promise.resolve(null),
+    ]);
+
+    let gasLimit = req.gasLimit;
+    if (!gasLimit) {
+      const est = await this.call((p) =>
+        p.estimateGas({ from, to: req.to, data: req.data ?? '0x', value: req.value ?? 0n }),
+      );
+      gasLimit = (est * 12n) / 10n; // +20 % de marge
+    }
+
+    const common = {
+      to: req.to,
+      data: req.data ?? '0x',
+      value: req.value ?? 0n,
+      nonce,
+      gasLimit,
+      chainId: req.chainId,
+    };
+
+    let txReq;
+    if (req.gasPrice) {
+      txReq = { ...common, type: 0 as const, gasPrice: req.gasPrice };
+    } else if (req.maxFeePerGas) {
+      txReq = {
+        ...common,
+        type: 2 as const,
+        maxFeePerGas: req.maxFeePerGas,
+        maxPriorityFeePerGas: req.maxPriorityFeePerGas ?? req.maxFeePerGas,
+      };
+    } else if (feeData?.maxFeePerGas) {
+      txReq = {
+        ...common,
+        type: 2 as const,
+        maxFeePerGas: feeData.maxFeePerGas,
+        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? feeData.maxFeePerGas,
+      };
+    } else {
+      txReq = { ...common, type: 0 as const, gasPrice: feeData?.gasPrice ?? 0n };
+    }
+
+    const raw = await wallet.signTransaction(txReq);
+    const res = await this.call((p) => p.broadcastTransaction(raw));
+    return res.hash;
+  }
+
+  /** Attend la confirmation d'une transaction (1 bloc). */
+  async waitForTx(hash: string): Promise<void> {
+    await this.call((p) => p.waitForTransaction(hash, 1, 120_000));
+  }
 }
+
+export interface RawTxRequest {
+  to: string;
+  data?: string;
+  value?: bigint;
+  chainId: number;
+  gasLimit?: bigint;
+  gasPrice?: bigint;
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
+}
+
+const ERC20 = new Interface([
+  'function approve(address spender, uint256 amount) returns (bool)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+]);
