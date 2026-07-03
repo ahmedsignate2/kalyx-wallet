@@ -21,6 +21,16 @@ export const ETHERSCAN_V2_API = 'https://api.etherscan.io/v2/api';
 // Expo inline `process.env.EXPO_PUBLIC_*` au build. Vide côté tests (Node) -> [].
 export const EXPLORER_API_KEY: string = process.env.EXPO_PUBLIC_ETHERSCAN_KEY ?? '';
 
+/**
+ * Alchemy : RPC dédié (fiable) pour les chaînes EVM. Si la clé est présente,
+ * on met l'endpoint Alchemy EN TÊTE des RPC (les publics restent en fallback).
+ * Alchemy fait aussi soldes ERC-20, NFT et historique — utilisé plus tard.
+ */
+const ALCHEMY_KEY: string = process.env.EXPO_PUBLIC_ALCHEMY_KEY ?? '';
+function withAlchemy(slug: string, fallbacks: string[]): string[] {
+  return ALCHEMY_KEY ? [`https://${slug}.g.alchemy.com/v2/${ALCHEMY_KEY}`, ...fallbacks] : fallbacks;
+}
+
 export const ETHEREUM: ChainConfig = {
   id: 'ethereum',
   name: 'Ethereum',
@@ -29,12 +39,12 @@ export const ETHEREUM: ChainConfig = {
   nativeSymbol: 'ETH',
   nativeDecimals: 18,
   // eth.llamarpc.com retiré (down 521). Endpoints vérifiés répondant à eth_chainId=0x1.
-  rpcUrls: [
+  rpcUrls: withAlchemy('eth-mainnet', [
     'https://ethereum-rpc.publicnode.com',
     'https://eth.drpc.org',
     'https://1rpc.io/eth',
     'https://cloudflare-eth.com',
-  ],
+  ]),
   explorerUrl: 'https://etherscan.io',
   coingeckoId: 'ethereum',
 };
@@ -46,12 +56,12 @@ export const BNB: ChainConfig = {
   evmChainId: 56,
   nativeSymbol: 'BNB',
   nativeDecimals: 18,
-  rpcUrls: [
+  rpcUrls: withAlchemy('bnb-mainnet', [
     'https://bsc-rpc.publicnode.com',
     'https://bsc.drpc.org',
     'https://1rpc.io/bnb',
     'https://bsc-dataseed.binance.org',
-  ],
+  ]),
   explorerUrl: 'https://bscscan.com',
   coingeckoId: 'binancecoin',
 };
@@ -64,11 +74,11 @@ export const POLYGON: ChainConfig = {
   nativeSymbol: 'POL',
   nativeDecimals: 18,
   // polygon-rpc.com retiré (clé désactivée). Endpoints vérifiés (chainId 0x89).
-  rpcUrls: [
+  rpcUrls: withAlchemy('polygon-mainnet', [
     'https://polygon-bor-rpc.publicnode.com',
     'https://polygon.drpc.org',
     'https://1rpc.io/matic',
-  ],
+  ]),
   explorerUrl: 'https://polygonscan.com',
   coingeckoId: 'matic-network',
 };
@@ -81,11 +91,11 @@ export const BASE: ChainConfig = {
   nativeSymbol: 'ETH',
   nativeDecimals: 18,
   // base.llamarpc.com retiré (down 521). Endpoints vérifiés (chainId 0x2105).
-  rpcUrls: [
+  rpcUrls: withAlchemy('base-mainnet', [
     'https://base-rpc.publicnode.com',
     'https://base.drpc.org',
     'https://mainnet.base.org',
-  ],
+  ]),
   explorerUrl: 'https://basescan.org',
   coingeckoId: 'ethereum',
 };
@@ -100,11 +110,11 @@ export const SEPOLIA: ChainConfig = {
   nativeDecimals: 18,
   // Ordre = priorité du fallback. rpc.sepolia.org retiré (renvoyait 404).
   // Ces 3 endpoints publics répondent (chainId 0xaa36a7). En prod : Alchemy/Infura.
-  rpcUrls: [
+  rpcUrls: withAlchemy('eth-sepolia', [
     'https://ethereum-sepolia-rpc.publicnode.com',
     'https://sepolia.drpc.org',
     'https://1rpc.io/sepolia',
-  ],
+  ]),
   explorerUrl: 'https://sepolia.etherscan.io',
   testnet: true,
 };
