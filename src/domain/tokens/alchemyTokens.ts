@@ -83,6 +83,68 @@ async function post(url: string, body: unknown): Promise<unknown> {
   return res.json();
 }
 
+/** Métadonnées d'un contrat ERC-20 (pour valider un token ajouté manuellement). */
+export async function getTokenMetadata(chain: ChainConfig, contract: string): Promise<TokenMeta | null> {
+  const url = alchemyUrlOf(chain);
+  if (!url) return null;
+  try {
+    return parseTokenMetadata(
+      await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenMetadata', params: [contract] }),
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** Soldes de contrats précis (custom) : garde même les soldes nuls, pas de filtre spam. */
+export async function getCustomTokens(
+  chain: ChainConfig,
+  address: string,
+  contracts: string[],
+): Promise<Erc20Token[]> {
+  const url = alchemyUrlOf(chain);
+  if (!url || contracts.length === 0) return [];
+  try {
+    const balJson = (await post(url, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'alchemy_getTokenBalances',
+      params: [address, contracts],
+    })) as { result?: { tokenBalances?: { contractAddress?: string; tokenBalance?: string }[] } };
+    const balMap = new Map<string, bigint>();
+    for (const b of balJson?.result?.tokenBalances ?? []) {
+      if (!b?.contractAddress) continue;
+      let raw = 0n;
+      try {
+        raw = BigInt(b.tokenBalance || '0x0');
+      } catch {
+        raw = 0n;
+      }
+      balMap.set(b.contractAddress.toLowerCase(), raw);
+    }
+
+    const batch = contracts.map((c, i) => ({
+      jsonrpc: '2.0',
+      id: i,
+      method: 'alchemy_getTokenMetadata',
+      params: [c],
+    }));
+    const metaJson = await post(url, batch);
+    const metaById = new Map<number, TokenMeta | null>();
+    if (Array.isArray(metaJson)) for (const m of metaJson as { id: number }[]) metaById.set(m.id, parseTokenMetadata(m));
+
+    const out: Erc20Token[] = [];
+    contracts.forEach((c, i) => {
+      const meta = metaById.get(i);
+      if (!meta || !meta.symbol) return;
+      out.push({ contract: c, name: meta.name, symbol: meta.symbol, decimals: meta.decimals, logo: meta.logo, raw: balMap.get(c.toLowerCase()) ?? 0n });
+    });
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 /** Liste les tokens ERC-20 détenus (non-spam) d'une adresse sur une chaîne. */
 export async function getErc20Tokens(chain: ChainConfig, address: string): Promise<Erc20Token[]> {
   const url = alchemyUrlOf(chain);
