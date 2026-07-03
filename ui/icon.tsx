@@ -1,0 +1,79 @@
+/**
+ * Icônes cohérentes (Ionicons, style outline « fintech »), via un jeu de noms
+ * sémantiques Nova → on peut changer de set plus tard sans toucher les écrans.
+ * @expo/vector-icons = polices JS bundlées (aucun module natif, aucun rebuild).
+ */
+import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from './theme';
+
+export type IconName =
+  | 'home' | 'market' | 'wallet' | 'menu' | 'exchange'
+  | 'search' | 'bell' | 'buy' | 'send' | 'receive' | 'convert'
+  | 'profile' | 'accounts' | 'wallets' | 'networks' | 'dapps' | 'contacts'
+  | 'language' | 'currency' | 'appearance' | 'notifications' | 'security'
+  | 'pin' | 'phrase' | 'developer' | 'extensions' | 'support' | 'faq' | 'about'
+  | 'reset' | 'walletconnect' | 'ledger' | 'trezor' | 'import' | 'create'
+  | 'eye' | 'eyeOff' | 'chevron' | 'add' | 'history' | 'nft' | 'defi' | 'staking'
+  | 'warning' | 'refresh' | 'gift';
+
+const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
+  home: 'home-outline',
+  market: 'stats-chart-outline',
+  wallet: 'wallet-outline',
+  menu: 'menu-outline',
+  exchange: 'swap-horizontal-outline',
+  search: 'search-outline',
+  bell: 'notifications-outline',
+  buy: 'add-circle-outline',
+  send: 'arrow-up-outline',
+  receive: 'arrow-down-outline',
+  convert: 'swap-vertical-outline',
+  profile: 'person-outline',
+  accounts: 'people-outline',
+  wallets: 'briefcase-outline',
+  networks: 'git-network-outline',
+  dapps: 'globe-outline',
+  contacts: 'book-outline',
+  language: 'language-outline',
+  currency: 'cash-outline',
+  appearance: 'color-palette-outline',
+  notifications: 'notifications-outline',
+  security: 'shield-checkmark-outline',
+  pin: 'keypad-outline',
+  phrase: 'document-text-outline',
+  developer: 'construct-outline',
+  extensions: 'extension-puzzle-outline',
+  support: 'help-buoy-outline',
+  faq: 'help-circle-outline',
+  about: 'information-circle-outline',
+  reset: 'trash-outline',
+  walletconnect: 'link-outline',
+  ledger: 'hardware-chip-outline',
+  trezor: 'hardware-chip-outline',
+  import: 'download-outline',
+  create: 'sparkles-outline',
+  eye: 'eye-outline',
+  eyeOff: 'eye-off-outline',
+  chevron: 'chevron-forward',
+  add: 'add',
+  history: 'time-outline',
+  nft: 'image-outline',
+  defi: 'pie-chart-outline',
+  staking: 'leaf-outline',
+  warning: 'warning-outline',
+  refresh: 'refresh-outline',
+  gift: 'gift-outline',
+};
+
+export function Icon({
+  name,
+  size = 20,
+  color = colors.text,
+}: {
+  name: IconName;
+  size?: number;
+  color?: string;
+}) {
+  return <Ionicons name={MAP[name]} size={size} color={color} />;
+}

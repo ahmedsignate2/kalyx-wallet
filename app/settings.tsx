@@ -3,16 +3,21 @@ import { View, Text, TextInput, Switch, Alert } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { PremiumScreen, GlassCard, ListRow, Chip, SectionHeader } from '../ui/premium';
+import { Icon, type IconName } from '../ui/icon';
 import { colors, spacing, typography } from '../ui/theme';
 import { useSettings, useT, FIATS } from '../lib/settingsStore';
 import { LANGUAGES } from '../lib/i18n';
 import { useWallet } from '../lib/walletStore';
 import { isBiometricAvailable } from '../lib/biometrics';
 
-function Icon({ e }: { e: string }) {
-  return <Text style={{ fontSize: 20, width: 28, textAlign: 'center' }}>{e}</Text>;
+function Ico({ n }: { n: IconName }) {
+  return (
+    <View style={{ width: 28, alignItems: 'center' }}>
+      <Icon name={n} size={20} color={colors.textMuted} />
+    </View>
+  );
 }
-const chevron = <Text style={{ color: '#5B6577', fontSize: 20 }}>›</Text>;
+const chevron = <Icon name="chevron" size={18} color={colors.textFaint} />;
 
 export default function Settings() {
   const t = useT();
@@ -72,7 +77,7 @@ export default function Settings() {
       {/* Profil */}
       <GlassCard>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-          <Icon e="👤" />
+          <Ico n="profile" />
           <View style={{ flex: 1 }}>
             <Text style={typography.muted}>{t('profile')}</Text>
             <TextInput
@@ -90,10 +95,10 @@ export default function Settings() {
 
       {/* Préférences */}
       <GlassCard>
-        <ListRow left={<Icon e="🌍" />} title={t('language')} subtitle={langName} right={chevron} onPress={() => router.push('/language')} />
+        <ListRow left={<Ico n="language" />} title={t('language')} subtitle={langName} right={chevron} onPress={() => router.push('/language')} />
         <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(0.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            <Icon e="💱" />
+            <Ico n="currency" />
             <Text style={typography.body}>{t('currency')}</Text>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
@@ -102,7 +107,7 @@ export default function Settings() {
             ))}
           </View>
         </View>
-        <ListRow divider left={<Icon e="🎨" />} title="Apparence" subtitle="Sombre" right={<Chip label={t('soon')} />} onPress={soon} />
+        <ListRow divider left={<Ico n="appearance" />} title="Apparence" subtitle="Sombre" right={<Chip label={t('soon')} />} onPress={soon} />
       </GlassCard>
 
       {/* Sécurité */}
@@ -110,7 +115,7 @@ export default function Settings() {
         {bioAvailable ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-              <Icon e="🔐" />
+              <Ico n="security" />
               <Text style={typography.body}>{t('biometrics')}</Text>
             </View>
             <Switch value={biometricEnabled} onValueChange={onToggleBio} />
@@ -122,24 +127,24 @@ export default function Settings() {
             <Chip label="Activer" tone="accent" onPress={confirmEnableBio} />
           </View>
         ) : null}
-        <ListRow divider left={<Icon e="🔑" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
-        <ListRow divider left={<Icon e="📜" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
+        <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
+        <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
       </GlassCard>
 
       {/* Réseau & à venir */}
       <GlassCard>
-        <ListRow left={<Icon e="🌐" />} title="Réseau" subtitle="Choisir le réseau actif" right={chevron} onPress={() => router.push('/networks')} />
-        <ListRow divider left={<Icon e="🔔" />} title="Notifications" right={<Chip label={t('soon')} />} onPress={soon} />
-        <ListRow divider left={<Icon e="💳" />} title="Achat crypto" right={<Chip label={t('soon')} />} onPress={soon} />
+        <ListRow left={<Ico n="networks" />} title="Réseau" subtitle="Choisir le réseau actif" right={chevron} onPress={() => router.push('/networks')} />
+        <ListRow divider left={<Ico n="notifications" />} title="Notifications" right={<Chip label={t('soon')} />} onPress={soon} />
+        <ListRow divider left={<Ico n="buy" />} title="Achat crypto" right={<Chip label={t('soon')} />} onPress={soon} />
       </GlassCard>
 
       {/* À propos */}
       <GlassCard>
-        <ListRow left={<Icon e="ℹ️" />} title={t('about')} subtitle={`Nova Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} />
+        <ListRow left={<Ico n="about" />} title={t('about')} subtitle={`Nova Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} />
       </GlassCard>
 
       <SectionHeader title="" />
-      <ListRow left={<Icon e="⚠️" />} title={t('resetWallet')} onPress={onReset} right={<Text style={{ color: colors.danger }}>›</Text>} />
+      <ListRow left={<Ico n="reset" />} title={t('resetWallet')} onPress={onReset} right={<Text style={{ color: colors.danger }}>›</Text>} />
       <View style={{ height: spacing(2) }} />
     </PremiumScreen>
   );

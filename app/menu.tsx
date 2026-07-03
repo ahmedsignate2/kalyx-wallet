@@ -2,23 +2,21 @@ import React from 'react';
 import { View, Text, Alert, Pressable } from 'react-native';
 import { router, Stack } from 'expo-router';
 import Constants from 'expo-constants';
-import {
-  PremiumScreen,
-  GlassCard,
-  ListRow,
-  Chip,
-  SegmentedTabs,
-  GradientAvatar,
-} from '../ui/premium';
+import { PremiumScreen, GlassCard, ListRow, Chip, SegmentedTabs, GradientAvatar } from '../ui/premium';
+import { Icon, type IconName } from '../ui/icon';
 import { AppTabBar } from '../ui/tabs';
 import { colors, spacing, typography } from '../ui/theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { useWallet } from '../lib/walletStore';
 
-function Ico({ e }: { e: string }) {
-  return <Text style={{ fontSize: 18, width: 26, textAlign: 'center' }}>{e}</Text>;
+function Ico({ n }: { n: IconName }) {
+  return (
+    <View style={{ width: 30, alignItems: 'center' }}>
+      <Icon name={n} size={20} color={colors.textMuted} />
+    </View>
+  );
 }
-const chev = <Text style={{ color: colors.textFaint, fontSize: 20 }}>›</Text>;
+const chev = <Icon name="chevron" size={18} color={colors.textFaint} />;
 
 export default function Menu() {
   const t = useT();
@@ -55,13 +53,13 @@ export default function Menu() {
 
       {/* Wallets */}
       <GlassCard>
-        <ListRow left={<Ico e="💼" />} title="Mes wallets" subtitle="Gérer plusieurs portefeuilles" right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico e="📥" />} title="Importer un wallet" right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico e="✨" />} title="Créer un wallet" right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico e="🔒" />} title="Ledger" right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico e="🔐" />} title="Trezor" right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico e="🔗" />} title="WalletConnect" right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico e="🌐" />} title="dApps" right={soonChip} onPress={soon} />
+        <ListRow left={<Ico n="wallets" />} title="Mes wallets" subtitle="Gérer plusieurs portefeuilles" right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="import" />} title="Importer un wallet" right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="create" />} title="Créer un wallet" right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="ledger" />} title="Ledger" right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="trezor" />} title="Trezor" right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="walletconnect" />} title="WalletConnect" right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="dapps" />} title="dApps" right={soonChip} onPress={soon} />
       </GlassCard>
 
       {/* Mode d'interface (différenciateur Nova) */}
@@ -84,43 +82,43 @@ export default function Menu() {
 
       {/* Compte & réseaux */}
       <GlassCard>
-        <ListRow left={<Ico e="💳" />} title={t('accounts')} right={chev} onPress={() => router.push('/accounts')} />
-        <ListRow divider left={<Ico e="🌐" />} title={t('networks')} right={chev} onPress={() => router.push('/networks')} />
-        <ListRow divider left={<Ico e="🔗" />} title={t('connectedApps')} right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico e="📒" />} title={t('contacts')} right={soonChip} onPress={soon} />
+        <ListRow left={<Ico n="accounts" />} title={t('accounts')} right={chev} onPress={() => router.push('/accounts')} />
+        <ListRow divider left={<Ico n="networks" />} title={t('networks')} right={chev} onPress={() => router.push('/networks')} />
+        <ListRow divider left={<Ico n="walletconnect" />} title={t('connectedApps')} right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="contacts" />} title={t('contacts')} right={soonChip} onPress={soon} />
       </GlassCard>
 
       {/* Préférences */}
       <GlassCard>
-        <ListRow left={<Ico e="🌍" />} title={t('language')} right={chev} onPress={() => router.push('/language')} />
-        <ListRow divider left={<Ico e="💱" />} title={t('currency')} right={chev} onPress={() => router.push('/settings')} />
-        <ListRow divider left={<Ico e="🎨" />} title={t('appearance')} right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico e="🔔" />} title={t('notifications')} right={soonChip} onPress={soon} />
+        <ListRow left={<Ico n="language" />} title={t('language')} right={chev} onPress={() => router.push('/language')} />
+        <ListRow divider left={<Ico n="currency" />} title={t('currency')} right={chev} onPress={() => router.push('/settings')} />
+        <ListRow divider left={<Ico n="appearance" />} title={t('appearance')} right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="notifications" />} title={t('notifications')} right={soonChip} onPress={soon} />
       </GlassCard>
 
       {/* Sécurité */}
       <GlassCard>
-        <ListRow left={<Ico e="🔐" />} title={t('security')} right={chev} onPress={() => router.push('/settings')} />
-        <ListRow divider left={<Ico e="🔑" />} title={t('changePin')} right={chev} onPress={() => router.push('/change-pin')} />
-        <ListRow divider left={<Ico e="📜" />} title={t('revealPhrase')} right={chev} onPress={() => router.push('/reveal-phrase')} />
+        <ListRow left={<Ico n="security" />} title={t('security')} right={chev} onPress={() => router.push('/settings')} />
+        <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chev} onPress={() => router.push('/change-pin')} />
+        <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chev} onPress={() => router.push('/reveal-phrase')} />
       </GlassCard>
 
       {/* Avancé (mode expert) */}
       {expert ? (
         <GlassCard>
-          <ListRow left={<Ico e="🛠️" />} title={t('developer')} subtitle="RPC custom, logs, signatures" right={soonChip} onPress={soon} />
-          <ListRow divider left={<Ico e="🧩" />} title={t('extensions')} right={soonChip} onPress={soon} />
+          <ListRow left={<Ico n="developer" />} title={t('developer')} subtitle="RPC custom, logs, signatures" right={soonChip} onPress={soon} />
+          <ListRow divider left={<Ico n="extensions" />} title={t('extensions')} right={soonChip} onPress={soon} />
         </GlassCard>
       ) : null}
 
       {/* Aide */}
       <GlassCard>
-        <ListRow left={<Ico e="💬" />} title={t('support')} right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico e="❓" />} title={t('faq')} right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico e="ℹ️" />} title={t('about')} subtitle={`Nova · v${Constants.expoConfig?.version ?? '0.0.1'}`} />
+        <ListRow left={<Ico n="support" />} title={t('support')} right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="faq" />} title={t('faq')} right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="about" />} title={t('about')} subtitle={`Nova · v${Constants.expoConfig?.version ?? '0.0.1'}`} />
       </GlassCard>
 
-      <ListRow left={<Ico e="⚠️" />} title={t('resetWallet')} right={<Text style={{ color: colors.danger }}>›</Text>} onPress={onReset} />
+      <ListRow left={<Ico n="reset" />} title={t('resetWallet')} right={<Icon name="chevron" size={18} color={colors.danger} />} onPress={onReset} />
     </PremiumScreen>
   );
 }
