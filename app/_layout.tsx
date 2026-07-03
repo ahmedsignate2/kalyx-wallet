@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useWallet } from '../lib/walletStore';
 import { useSettings } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
+import { useContacts } from '../lib/contactsStore';
 import { RootErrorBoundary, ErrorScreen } from '../ui/ErrorBoundary';
 import { colors } from '../ui/theme';
 
@@ -21,6 +22,7 @@ export default function RootLayout() {
   const bootstrap = useWallet((s) => s.bootstrap);
   const loadSettings = useSettings((s) => s.load);
   const loadCustomTokens = useCustomTokens((s) => s.load);
+  const loadContacts = useContacts((s) => s.load);
 
   useEffect(() => {
     console.log('[Nova] _layout: démarrage bootstrap');
@@ -34,12 +36,13 @@ export default function RootLayout() {
       try {
         await loadSettings();
         await loadCustomTokens();
+        await loadContacts();
         console.log('[Nova] loadSettings OK');
       } catch (e) {
         console.error('[Nova] loadSettings a échoué :', e);
       }
     })();
-  }, [bootstrap, loadSettings, loadCustomTokens]);
+  }, [bootstrap, loadSettings, loadCustomTokens, loadContacts]);
 
   return (
     <RootErrorBoundary>

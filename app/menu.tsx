@@ -53,13 +53,9 @@ export default function Menu() {
 
       {/* Wallets */}
       <GlassCard>
-        <ListRow left={<Ico n="wallets" />} title="Mes wallets" subtitle="Gérer plusieurs portefeuilles" right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico n="import" />} title="Importer un wallet" right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico n="create" />} title="Créer un wallet" right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico n="ledger" />} title="Ledger" right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico n="trezor" />} title="Trezor" right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico n="walletconnect" />} title="WalletConnect" right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico n="dapps" />} title="dApps" right={soonChip} onPress={soon} />
+        <ListRow left={<Ico n="wallets" />} title="Mes portefeuilles" subtitle="Gérer plusieurs portefeuilles" right={chev} onPress={() => router.push('/wallets')} />
+        <ListRow divider left={<Ico n="import" />} title="Importer un portefeuille" right={chev} onPress={() => router.push('/import-wallet')} />
+        <ListRow divider left={<Ico n="create" />} title="Créer un portefeuille" right={chev} onPress={() => router.push('/create-wallet')} />
       </GlassCard>
 
       {/* Mode d'interface (différenciateur Nova) */}
@@ -85,7 +81,7 @@ export default function Menu() {
         <ListRow left={<Ico n="accounts" />} title={t('accounts')} right={chev} onPress={() => router.push('/accounts')} />
         <ListRow divider left={<Ico n="networks" />} title={t('networks')} right={chev} onPress={() => router.push('/networks')} />
         <ListRow divider left={<Ico n="walletconnect" />} title={t('connectedApps')} right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico n="contacts" />} title={t('contacts')} right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="contacts" />} title={t('contacts')} right={chev} onPress={() => router.push('/contacts')} />
       </GlassCard>
 
       {/* Préférences */}

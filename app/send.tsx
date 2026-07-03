@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Alert } from 'react-native';
-import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TextInput, Alert, Pressable } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -11,7 +11,12 @@ export default function Send() {
   const signAndSend = useWallet((s) => s.signAndSend);
   const activeChain = useWallet((s) => s.activeChain);
   const chain = getAdapter(activeChain).config;
+  const { to: toParam } = useLocalSearchParams<{ to?: string }>();
   const [to, setTo] = useState('');
+
+  useEffect(() => {
+    if (toParam) setTo(String(toParam));
+  }, [toParam]);
   const [amount, setAmount] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +70,12 @@ export default function Send() {
       </Muted>
 
       <Card>
-        <Text style={typography.muted}>Adresse du destinataire</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={typography.muted}>Adresse du destinataire</Text>
+          <Pressable onPress={() => router.push('/contacts?pick=1')} hitSlop={8}>
+            <Text style={{ color: colors.accent, fontWeight: '600' }}>Carnet</Text>
+          </Pressable>
+        </View>
         <TextInput
           value={to}
           onChangeText={setTo}
