@@ -70,6 +70,18 @@ export {
   type PinCheck,
 } from './security/pin';
 
+// Prix de marché (CoinGecko)
+export {
+  getPrices,
+  getMarkets,
+  parseSimplePrices,
+  parseMarkets,
+  sortMarkets,
+  type CoinPrice,
+  type MarketCoin,
+  type MarketOrder,
+} from './domain/prices/coingecko';
+
 // Chaînes (plugins)
 export { getAdapter, listChains, hasChain } from './domain/chains/registry';
 export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BITCOIN } from './domain/chains/configs';
