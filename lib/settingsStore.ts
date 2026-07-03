@@ -16,26 +16,33 @@ export const FIATS = [
   { code: 'aud', symbol: 'A$', name: 'Australian Dollar' },
 ] as const;
 
+export type UiMode = 'beginner' | 'expert';
+
 interface SettingsState {
   loaded: boolean;
   profileName: string;
   language: Lang;
   fiat: string;
   biometricEnabled: boolean;
+  uiMode: UiMode;
 
   load: () => Promise<void>;
   setProfileName: (name: string) => void;
   setLanguage: (lang: Lang) => void;
   setFiat: (fiat: string) => void;
   setBiometricEnabled: (on: boolean) => void;
+  setUiMode: (mode: UiMode) => void;
 }
 
-function persist(s: Pick<SettingsState, 'profileName' | 'language' | 'fiat' | 'biometricEnabled'>) {
+function persist(
+  s: Pick<SettingsState, 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode'>,
+) {
   void saveSettings({
     profileName: s.profileName,
     language: s.language,
     fiat: s.fiat,
     biometricEnabled: s.biometricEnabled,
+    uiMode: s.uiMode,
   });
 }
 
@@ -45,6 +52,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   language: 'fr',
   fiat: 'eur',
   biometricEnabled: false,
+  uiMode: 'beginner',
 
   load: async () => {
     const s = await loadSettings();
@@ -54,6 +62,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       language: (s?.language as Lang) ?? 'fr',
       fiat: (s?.fiat as string) ?? 'eur',
       biometricEnabled: (s?.biometricEnabled as boolean) ?? false,
+      uiMode: (s?.uiMode as UiMode) ?? 'beginner',
     });
   },
 
@@ -72,6 +81,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setBiometricEnabled: (biometricEnabled) => {
     set({ biometricEnabled });
     persist({ ...get(), biometricEnabled });
+  },
+  setUiMode: (uiMode) => {
+    set({ uiMode });
+    persist({ ...get(), uiMode });
   },
 }));
 

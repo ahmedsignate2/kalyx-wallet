@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, Alert } from 'react-native';
-import { router } from 'expo-router';
+import { Stack } from 'expo-router';
 import {
   PremiumScreen,
   GlassCard,
@@ -9,6 +9,7 @@ import {
   Avatar,
   SectionHeader,
 } from '../ui/premium';
+import { AppTabBar } from '../ui/tabs';
 import { colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
@@ -81,7 +82,8 @@ export default function WalletScreen() {
   );
 
   return (
-    <PremiumScreen>
+    <PremiumScreen footer={<AppTabBar active="wallet" />}>
+      <Stack.Screen options={{ headerShown: false }} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={typography.title}>{t('navWallet')}</Text>
         <Pressable onPress={() => setHidden((h) => !h)}>
