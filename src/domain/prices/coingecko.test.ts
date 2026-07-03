@@ -4,6 +4,7 @@ import {
   sortMarkets,
   parseCoinDetail,
   parseMarketChart,
+  parseSearchCoins,
 } from './coingecko';
 
 describe('parseSimplePrices', () => {
@@ -97,5 +98,23 @@ describe('parseMarketChart', () => {
   it('robuste sur entrée vide', () => {
     expect(parseMarketChart({})).toEqual([]);
     expect(parseMarketChart(null)).toEqual([]);
+  });
+});
+
+describe('parseSearchCoins', () => {
+  it('normalise les résultats de recherche', () => {
+    const json = {
+      coins: [
+        { id: 'ethereum', name: 'Ethereum', symbol: 'eth', thumb: 'http://t', market_cap_rank: 2 },
+        { id: 'optimism', name: 'Optimism', symbol: 'op', large: 'http://l' },
+      ],
+    };
+    const r = parseSearchCoins(json);
+    expect(r[0]).toEqual({ id: 'ethereum', name: 'Ethereum', symbol: 'ETH', thumb: 'http://t', rank: 2 });
+    expect(r[1]).toMatchObject({ id: 'optimism', symbol: 'OP', thumb: 'http://l', rank: null });
+  });
+  it('robuste sur entrée vide', () => {
+    expect(parseSearchCoins(null)).toEqual([]);
+    expect(parseSearchCoins({})).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Alert } from 'react-native';
+import { View, Text, Image, Pressable } from 'react-native';
 import { Stack, router } from 'expo-router';
 import {
   PremiumScreen,
@@ -7,11 +7,13 @@ import {
   SearchBar,
   SegmentedTabs,
   MarketRow,
+  ListRow,
+  Avatar,
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
-import { spacing, typography } from '../ui/theme';
+import { colors, spacing, typography } from '../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
-import { getMarkets, sortMarkets, type MarketCoin } from '../src';
+import { getMarkets, sortMarkets, searchCoins, type MarketCoin, type SearchCoin } from '../src';
 
 function money(v: number, d = 2) {
   const [i, dec] = v.toFixed(d).split('.');
@@ -25,12 +27,30 @@ export default function Market() {
   const [coins, setCoins] = useState<MarketCoin[]>([]);
   const [tab, setTab] = useState('favorites');
   const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchCoin[]>([]);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     getMarkets(fiat, 50).then(setCoins).catch(() => setCoins([]));
   }, [fiat]);
 
-  const q = query.trim().toLowerCase();
+  // Recherche globale (toutes les cryptos) via CoinGecko, avec debounce.
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const id = setTimeout(async () => {
+      setResults(await searchCoins(q));
+      setSearching(false);
+    }, 300);
+    return () => clearTimeout(id);
+  }, [query]);
+
+  const searchMode = query.trim().length > 0;
   const base =
     tab === 'top'
       ? coins
@@ -39,9 +59,6 @@ export default function Market() {
         : tab === 'losers'
           ? sortMarkets(coins, 'losers')
           : coins.slice(0, 10);
-  const list = q
-    ? coins.filter((c) => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q))
-    : base;
 
   const tabs = [
     { key: 'favorites', label: t('favorites') },
@@ -55,34 +72,60 @@ export default function Market() {
       <Stack.Screen options={{ headerShown: false }} />
       <Text style={typography.title}>{t('market')}</Text>
       <SearchBar value={query} onChangeText={setQuery} placeholder={t('searchCrypto')} />
-      {q ? null : <SegmentedTabs items={tabs} active={tab} onChange={setTab} />}
-      <GlassCard>
-        {list.length === 0 ? (
-          <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>…</Text>
-        ) : (
-          list.map((m, i) => (
-            <MarketRow
-              key={m.id}
-              divider={i > 0}
-              icon={m.symbol.slice(0, 1)}
-              color="#232A36"
-              imageUri={m.image}
-              name={m.name}
-              symbol={m.symbol}
-              price={`${money(m.price, m.price >= 100 ? 0 : 2)} ${fiatSymbol(fiat)}`}
-              change={m.change24h}
-              spark={m.sparkline}
-              onPress={() => router.push(`/token/${m.id}`)}
-            />
-          ))
-        )}
-      </GlassCard>
-      <Text
-        style={[typography.muted, { textAlign: 'center' }]}
-        onPress={() => Alert.alert(t('soon'), 'Fiche détaillée + résumé IA du projet à venir.')}
-      >
-        Prix en temps réel · résumé IA bientôt
-      </Text>
+
+      {searchMode ? (
+        <GlassCard>
+          {searching && results.length === 0 ? (
+            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>Recherche…</Text>
+          ) : results.length === 0 ? (
+            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>Aucun résultat.</Text>
+          ) : (
+            results.map((c, i) => (
+              <ListRow
+                key={c.id}
+                divider={i > 0}
+                left={
+                  c.thumb ? (
+                    <Image source={{ uri: c.thumb }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+                  ) : (
+                    <Avatar label={c.symbol.slice(0, 1)} color={colors.glassStrong} />
+                  )
+                }
+                title={c.name}
+                subtitle={c.symbol}
+                right={c.rank ? <Text style={typography.muted}>#{c.rank}</Text> : undefined}
+                onPress={() => router.push(`/token/${c.id}`)}
+              />
+            ))
+          )}
+        </GlassCard>
+      ) : (
+        <>
+          <SegmentedTabs items={tabs} active={tab} onChange={setTab} />
+          <GlassCard>
+            {base.length === 0 ? (
+              <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>…</Text>
+            ) : (
+              base.map((m, i) => (
+                <MarketRow
+                  key={m.id}
+                  divider={i > 0}
+                  icon={m.symbol.slice(0, 1)}
+                  color="#232A36"
+                  imageUri={m.image}
+                  name={m.name}
+                  symbol={m.symbol}
+                  price={`${money(m.price, m.price >= 100 ? 0 : 2)} ${fiatSymbol(fiat)}`}
+                  change={m.change24h}
+                  spark={m.sparkline}
+                  onPress={() => router.push(`/token/${m.id}`)}
+                />
+              ))
+            )}
+          </GlassCard>
+          <Text style={[typography.muted, { textAlign: 'center' }]}>Prix en temps réel · CoinGecko</Text>
+        </>
+      )}
     </PremiumScreen>
   );
 }
