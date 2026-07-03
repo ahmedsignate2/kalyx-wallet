@@ -15,7 +15,8 @@ export type WalletErrorCode =
   | 'INVALID_PIN'
   | 'WRONG_PIN'
   | 'VAULT_CORRUPTED'
-  | 'RPC_UNAVAILABLE';
+  | 'RPC_UNAVAILABLE'
+  | 'NOT_SUPPORTED';
 
 export class WalletError extends Error {
   readonly code: WalletErrorCode;

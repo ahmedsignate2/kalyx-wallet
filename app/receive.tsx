@@ -17,7 +17,9 @@ export default function Receive() {
     <Screen>
       <Title>Recevoir</Title>
       <Muted>
-        Adresse {chain.name} — même adresse sur tous les réseaux EVM.
+        {chain.family === 'bitcoin'
+          ? `Adresse Bitcoin (${chain.name}) — n'envoie que du BTC ici.`
+          : 'Adresse EVM — la même sur Ethereum, Polygon, BNB, Base…'}
       </Muted>
       <Card style={{ alignItems: 'center' }}>
         <View style={{ backgroundColor: '#fff', padding: spacing(2), borderRadius: 16 }}>

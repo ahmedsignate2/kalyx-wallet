@@ -14,8 +14,16 @@ import * as SecureStore from 'expo-secure-store';
 import { serializeVault, deserializeVault, type EncryptedVault } from '../src';
 
 const K_VAULT = 'nova.vault'; // coffre AES+PIN
-const K_ADDRESS = 'nova.address'; // adresse publique (non sensible)
+const K_ACCOUNTS = 'nova.accounts'; // comptes publics (adresses, non sensible)
 const K_BIO_SEED = 'nova.bioSeed'; // seed protégée biométrie (optionnel)
+
+/** Compte = index HD + adresses publiques par famille (aucune donnée sensible). */
+export interface StoredAccount {
+  index: number;
+  label: string;
+  evmAddress: string;
+  btcAddress: string;
+}
 
 const base: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
@@ -39,12 +47,18 @@ export async function hasVault(): Promise<boolean> {
   return (await SecureStore.getItemAsync(K_VAULT, base)) != null;
 }
 
-export async function savePublicAddress(address: string): Promise<void> {
-  await SecureStore.setItemAsync(K_ADDRESS, address, base);
+export async function saveAccounts(accounts: StoredAccount[]): Promise<void> {
+  await SecureStore.setItemAsync(K_ACCOUNTS, JSON.stringify(accounts), base);
 }
 
-export async function loadPublicAddress(): Promise<string | null> {
-  return SecureStore.getItemAsync(K_ADDRESS, base);
+export async function loadAccounts(): Promise<StoredAccount[] | null> {
+  const raw = await SecureStore.getItemAsync(K_ACCOUNTS, base);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as StoredAccount[];
+  } catch {
+    return null;
+  }
 }
 
 /** Active le déverrouillage biométrique en stockant la seed gated par l'OS. */
@@ -60,7 +74,7 @@ export async function readBiometricSeed(): Promise<string | null> {
 export async function wipeAll(): Promise<void> {
   await Promise.all([
     SecureStore.deleteItemAsync(K_VAULT, base),
-    SecureStore.deleteItemAsync(K_ADDRESS, base),
+    SecureStore.deleteItemAsync(K_ACCOUNTS, base),
     SecureStore.deleteItemAsync(K_BIO_SEED, bioGated),
   ]);
 }

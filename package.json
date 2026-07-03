@@ -16,6 +16,7 @@
     "@noble/hashes": "^1.5.0",
     "@scure/bip32": "^1.5.0",
     "@scure/bip39": "^1.4.0",
+    "@scure/btc-signer": "^2.2.0",
     "ethers": "^6.13.0",
     "expo": "^57.0.1",
     "expo-clipboard": "^57.0.0",

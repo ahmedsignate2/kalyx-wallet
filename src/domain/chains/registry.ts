@@ -7,6 +7,7 @@
  */
 import type { ChainAdapter, ChainConfig } from './types';
 import { EvmChainAdapter } from './EvmChainAdapter';
+import { BitcoinChainAdapter } from './BitcoinChainAdapter';
 import { ALL_CHAINS } from './configs';
 
 /** Fabrique l'adapter correspondant à la famille de la config. */
@@ -14,7 +15,8 @@ function createAdapter(config: ChainConfig): ChainAdapter {
   switch (config.family) {
     case 'evm':
       return new EvmChainAdapter(config);
-    // case 'bitcoin': return new BitcoinChainAdapter(config); // phase 3
+    case 'bitcoin':
+      return new BitcoinChainAdapter(config);
     // case 'solana':  return new SolanaChainAdapter(config);  // phase 4
     default:
       throw new Error(`Famille de chaîne non supportée: ${config.family}`);
