@@ -16,6 +16,7 @@ export {
   type MnemonicStrength,
 } from './crypto/mnemonic';
 export { deriveEvmAccount, evmPath, type EvmAccount } from './crypto/hd';
+export { deriveBtcAccount, btcPath, type BtcAccount } from './crypto/btc';
 export { getRandomBytes } from './crypto/random';
 
 // Erreurs typées
@@ -28,6 +29,12 @@ export {
   isValidEvmAddress,
   type AddressCheck,
 } from './domain/validation/address';
+export {
+  checkBtcAddress,
+  isValidBtcAddress,
+  assertValidBtcAddress,
+  type BtcAddressCheck,
+} from './domain/validation/btcAddress';
 export {
   parseAmount,
   assertSufficientFunds,
@@ -65,7 +72,7 @@ export {
 
 // Chaînes (plugins)
 export { getAdapter, listChains, hasChain } from './domain/chains/registry';
-export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA } from './domain/chains/configs';
+export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BITCOIN } from './domain/chains/configs';
 export type {
   ChainAdapter,
   ChainConfig,

@@ -46,8 +46,12 @@ Le cœur cryptographique est implémenté et **testé dès le départ** (une ré
 | `src/domain/chains/net.ts` | Timeout + fallback multi-RPC (`tryInOrder`) | ✅ 6 |
 | `src/domain/chains/etherscan.ts` | Parseur d'historique de transactions | ✅ 4 |
 | `formatBalance` (amount.ts) | Solde tronqué 4-6 décimales, poussière `<0.000001` | ✅ 2 |
+| `src/crypto/btc.ts` + `validation/btcAddress.ts` | Dérivation BIP-84 (bc1…) + validation bech32 | ✅ 5 |
+| `src/domain/chains/BitcoinChainAdapter.ts` | Bitcoin : adresse, solde, réception (envoi = NOT_SUPPORTED) | ✅ 4 |
 
-**66 tests, typage strict OK.** Réseaux EVM : Sepolia (défaut), Ethereum, Polygon, BNB, Base — sélectionnables dans l'app (même adresse partout).
+**75 tests, typage strict OK.**
+Réseaux : Sepolia (défaut), Ethereum, Polygon, BNB, Base (EVM, même adresse) + **Bitcoin** (réception seulement).
+Multi-comptes : plusieurs comptes dérivés de la même seed, chacun avec ses adresses EVM et BTC.
 
 ### Architecture multi-chaînes (plugins)
 Chaque réseau est branché via l'interface `ChainAdapter`. Un seul `EvmChainAdapter` paramétré couvre **tous** les réseaux EVM (même clé, même adresse — seul le RPC/chainId change) : ajouter Base / Arbitrum / Avalanche = **une entrée de config**. Ajouter Bitcoin ou Solana = **un nouvel adapter**, sans toucher au reste du wallet. Les tests s'appuient sur des **vecteurs de référence connus** (phrase `abandon…about` → adresse `0x9858…da94`) et sur un **contrôle croisé** entre `@scure` et `ethers` : deux implémentations indépendantes doivent produire la même adresse. Conformité BIP-39/44 prouvée.
