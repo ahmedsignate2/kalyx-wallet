@@ -7,7 +7,9 @@ import { useWallet } from '../lib/walletStore';
 import { useSettings } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
 import { useContacts } from '../lib/contactsStore';
+import { useWalletConnect } from '../lib/walletconnect';
 import { RootErrorBoundary, ErrorScreen } from '../ui/ErrorBoundary';
+import { WalletConnectHost } from '../ui/WalletConnectHost';
 import { colors } from '../ui/theme';
 
 console.log('[Nova] _layout.tsx chargé');
@@ -23,6 +25,7 @@ export default function RootLayout() {
   const loadSettings = useSettings((s) => s.load);
   const loadCustomTokens = useCustomTokens((s) => s.load);
   const loadContacts = useContacts((s) => s.load);
+  const initWalletConnect = useWalletConnect((s) => s.init);
 
   useEffect(() => {
     console.log('[Nova] _layout: démarrage bootstrap');
@@ -41,8 +44,13 @@ export default function RootLayout() {
       } catch (e) {
         console.error('[Nova] loadSettings a échoué :', e);
       }
+      try {
+        await initWalletConnect();
+      } catch (e) {
+        console.error('[Nova] WalletConnect init a échoué :', e);
+      }
     })();
-  }, [bootstrap, loadSettings, loadCustomTokens, loadContacts]);
+  }, [bootstrap, loadSettings, loadCustomTokens, loadContacts, initWalletConnect]);
 
   return (
     <RootErrorBoundary>
@@ -59,6 +67,7 @@ export default function RootLayout() {
             animationDuration: 220,
           }}
         />
+        <WalletConnectHost />
       </SafeAreaProvider>
     </RootErrorBoundary>
   );

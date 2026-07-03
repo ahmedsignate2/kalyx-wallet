@@ -12,6 +12,7 @@
  * MULTI-COMPTES : au sein d'un wallet, plusieurs comptes par index HD.
  */
 import { create } from 'zustand';
+import { Wallet, getBytes, isHexString } from 'ethers';
 import {
   generateMnemonic,
   validateMnemonic,
@@ -31,6 +32,7 @@ import {
   type Account,
   type MnemonicStrength,
   type SwapQuote,
+  type RawTxRequest,
 } from '../src';
 import {
   saveVault,
@@ -87,6 +89,10 @@ interface WalletState {
   lock: () => void;
   signAndSend: (to: string, amount: string, unlock: Unlock) => Promise<string>;
   executeSwap: (quote: SwapQuote, unlock: Unlock, onStatus?: (s: SwapStatus) => void) => Promise<string>;
+  // Signature pour WalletConnect (requêtes dApp)
+  signMessage: (unlock: Unlock, message: string) => Promise<string>;
+  signTypedData: (unlock: Unlock, typedData: { domain: unknown; types: Record<string, unknown>; message: unknown }) => Promise<string>;
+  sendRawTxOn: (unlock: Unlock, chainId: string, req: RawTxRequest) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   revealPhrase: (unlock: Unlock) => Promise<string>;
   enableBiometric: (pin: string) => Promise<void>;
@@ -346,6 +352,38 @@ export const useWallet = create<WalletState>((set, get) => ({
       /* diffusé ; on renvoie le hash */
     }
     return hash;
+  },
+
+  signMessage: async (unlock, message) => {
+    const { account, activeWalletId } = get();
+    if (!account) throw new Error('Aucun compte');
+    const m = await revealMnemonic(activeWalletId, unlock);
+    const pk = deriveEvmAccount(mnemonicToSeedSync(m), account.index).privateKey;
+    const data = isHexString(message) ? getBytes(message) : message;
+    return new Wallet(pk).signMessage(data);
+  },
+
+  signTypedData: async (unlock, typedData) => {
+    const { account, activeWalletId } = get();
+    if (!account) throw new Error('Aucun compte');
+    const m = await revealMnemonic(activeWalletId, unlock);
+    const pk = deriveEvmAccount(mnemonicToSeedSync(m), account.index).privateKey;
+    const { EIP712Domain: _drop, ...types } = (typedData.types ?? {}) as Record<string, unknown>;
+    return new Wallet(pk).signTypedData(
+      typedData.domain as never,
+      types as never,
+      typedData.message as never,
+    );
+  },
+
+  sendRawTxOn: async (unlock, chainId, req) => {
+    const { account, activeWalletId } = get();
+    if (!account) throw new Error('Aucun compte');
+    const adapter = getAdapter(chainId);
+    if (!(adapter instanceof EvmChainAdapter)) throw new Error('Chaîne non supportée');
+    const m = await revealMnemonic(activeWalletId, unlock);
+    const pk = deriveEvmAccount(mnemonicToSeedSync(m), account.index).privateKey;
+    return adapter.sendContractTx(req, account.address, pk);
   },
 
   changePin: async (oldPin, newPin) => {
