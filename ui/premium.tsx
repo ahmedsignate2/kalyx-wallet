@@ -1,7 +1,9 @@
 /**
  * Composants UI premium V2 (glassmorphism, dark bleuté, accents violet/bleu).
- * Purement présentationnels — aucune logique crypto. Réutilisables sur tous les
- * écrans. Les icônes utilisent des emoji en attendant un set d'icônes dédié.
+ * Purement présentationnels — aucune logique crypto. Calés sur la maquette de
+ * référence (carte solde à dégradé + sparkline, tuiles d'action, listes en
+ * cartes, bottom nav à bouton central). Icônes : emoji/glyphes en attendant un
+ * set dédié.
  */
 import React from 'react';
 import {
@@ -15,9 +17,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Polyline } from 'react-native-svg';
 import { colors, gradients, radii, spacing, typography, shadow } from './theme';
 
-/** Fond dégradé plein écran + zone scrollable + padding safe-area. */
 export function PremiumScreen({
   children,
   footer,
@@ -28,12 +30,12 @@ export function PremiumScreen({
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
-      <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={gradients.screen as unknown as string[]} style={StyleSheet.absoluteFill} />
       <ScrollView
         contentContainerStyle={{
-          paddingTop: insets.top + spacing(1),
+          paddingTop: insets.top + spacing(1.5),
           paddingHorizontal: spacing(2.5),
-          paddingBottom: insets.bottom + spacing(12),
+          paddingBottom: insets.bottom + spacing(13),
           gap: spacing(2.5),
         }}
         showsVerticalScrollIndicator={false}
@@ -90,50 +92,34 @@ export function Chip({
   );
 }
 
-/** Bouton d'action circulaire (glass) + libellé dessous. */
-export function ActionButton({
+export function IconButton({ icon, onPress, badge }: { icon: string; onPress?: () => void; badge?: boolean }) {
+  return (
+    <Pressable onPress={onPress}>
+      <View style={styles.iconBtn}>
+        <Text style={{ fontSize: 17 }}>{icon}</Text>
+        {badge ? <View style={styles.badge} /> : null}
+      </View>
+    </Pressable>
+  );
+}
+
+/** Tuile d'action rectangulaire (glass) : icône + libellé. */
+export function ActionTile({
   icon,
   label,
   onPress,
   disabled,
-  primary,
 }: {
   icon: string;
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  primary?: boolean;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [{ alignItems: 'center', gap: 8, opacity: disabled ? 0.4 : pressed ? 0.7 : 1, flex: 1 }]}
-    >
-      {primary ? (
-        <LinearGradient
-          colors={gradients.accent as unknown as string[]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.actionCircle}
-        >
-          <Text style={{ fontSize: 22 }}>{icon}</Text>
-        </LinearGradient>
-      ) : (
-        <View style={[styles.actionCircle, styles.actionGlass]}>
-          <Text style={{ fontSize: 22 }}>{icon}</Text>
-        </View>
-      )}
-      <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>{label}</Text>
-    </Pressable>
-  );
-}
-
-export function IconButton({ icon, onPress }: { icon: string; onPress?: () => void }) {
-  return (
-    <Pressable onPress={onPress}>
-      <View style={styles.iconBtn}>
-        <Text style={{ fontSize: 18 }}>{icon}</Text>
+    <Pressable onPress={onPress} disabled={disabled} style={{ flex: 1 }}>
+      <View style={[styles.tile, disabled ? { opacity: 0.4 } : null]}>
+        <Text style={{ fontSize: 20, color: colors.text }}>{icon}</Text>
+        <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600', marginTop: 6 }}>{label}</Text>
       </View>
     </Pressable>
   );
@@ -162,66 +148,145 @@ export function SectionHeader({
 
 export function Avatar({ label, color = colors.accent }: { label: string; color?: string }) {
   return (
-    <View style={[styles.avatar, { backgroundColor: color + '33', borderColor: color + '55' }]}>
-      <Text style={{ fontSize: 18 }}>{label}</Text>
+    <View style={[styles.avatar, { backgroundColor: color }]}>
+      <Text style={{ fontSize: 18, color: '#fff' }}>{label}</Text>
     </View>
   );
 }
 
-export function AccountRow({
-  icon,
+export function GradientAvatar({ label }: { label: string }) {
+  return (
+    <LinearGradient
+      colors={gradients.accent as unknown as string[]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.avatar}
+    >
+      <Text style={{ fontSize: 18, color: '#fff' }}>{label}</Text>
+    </LinearGradient>
+  );
+}
+
+/** Ligne de liste générique (transparente, à placer dans une GlassCard). */
+export function ListRow({
+  left,
   title,
   subtitle,
   right,
-  active,
   onPress,
+  divider,
 }: {
-  icon: string;
+  left?: React.ReactNode;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   right?: React.ReactNode;
-  active?: boolean;
   onPress?: () => void;
+  divider?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress}>
-      <View style={[styles.listRow, active ? { borderColor: colors.accent } : null]}>
-        <Avatar label={icon} />
+    <Pressable onPress={onPress} disabled={!onPress}>
+      <View style={[styles.listItem, divider ? styles.divider : null]}>
+        {left}
         <View style={{ flex: 1 }}>
           <Text style={typography.bodyStrong}>{title}</Text>
-          <Text style={typography.muted}>{subtitle}</Text>
+          {subtitle ? <Text style={typography.muted}>{subtitle}</Text> : null}
         </View>
-        {right ?? <Text style={{ color: colors.textFaint, fontSize: 20 }}>›</Text>}
+        {right}
       </View>
     </Pressable>
   );
 }
 
+/** Mini-graphe (react-native-svg). */
+export function Sparkline({
+  data,
+  color,
+  width = 88,
+  height = 34,
+}: {
+  data: number[];
+  color: string;
+  width?: number;
+  height?: number;
+}) {
+  if (data.length < 2) return <View style={{ width, height }} />;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const pad = 3;
+  const points = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * (width - pad * 2) + pad;
+      const y = height - pad - ((v - min) / range) * (height - pad * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+  return (
+    <Svg width={width} height={height}>
+      <Polyline points={points} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+export function SegmentedTabs({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: string[];
+  active: string;
+  onChange: (t: string) => void;
+}) {
+  return (
+    <View style={styles.segWrap}>
+      {tabs.map((t) => {
+        const on = t === active;
+        return (
+          <Pressable key={t} onPress={() => onChange(t)} style={[styles.segItem, on ? styles.segItemActive : null]}>
+            <Text style={{ color: on ? '#fff' : colors.textMuted, fontWeight: '600', fontSize: 13 }}>{t}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function MarketRow({
   icon,
+  color,
   name,
   symbol,
   price,
   change,
+  spark,
+  divider,
 }: {
   icon: string;
+  color: string;
   name: string;
   symbol: string;
   price: string;
   change: number;
+  spark: number[];
+  divider?: boolean;
 }) {
   const up = change >= 0;
+  const c = up ? colors.up : colors.down;
   return (
-    <View style={styles.listRow}>
-      <Avatar label={icon} color={up ? colors.up : colors.down} />
-      <View style={{ flex: 1 }}>
+    <View style={[styles.listItem, divider ? styles.divider : null]}>
+      <Avatar label={icon} color={color} />
+      <View style={{ width: 88 }}>
         <Text style={typography.bodyStrong}>{name}</Text>
         <Text style={typography.muted}>{symbol}</Text>
       </View>
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <Sparkline data={spark} color={c} />
+      </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={{ color: colors.text, fontWeight: '600' }}>{price}</Text>
-        <Text style={{ color: up ? colors.up : colors.down, fontSize: 13 }}>
-          {up ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
+        <Text style={{ color: c, fontSize: 13 }}>
+          {up ? '+' : ''}
+          {change.toFixed(2)}%
         </Text>
       </View>
     </View>
@@ -235,23 +300,50 @@ export interface NavItem {
   onPress: () => void;
 }
 
-export function BottomNav({ items, active }: { items: NavItem[]; active: string }) {
+/** Bottom nav : 4 items + bouton central surélevé (FAB). */
+export function BottomNav({
+  items,
+  active,
+  center,
+}: {
+  items: NavItem[];
+  active: string;
+  center: { icon: string; label: string; onPress: () => void };
+}) {
   const insets = useSafeAreaInsets();
+  const left = items.slice(0, 2);
+  const right = items.slice(2, 4);
+  const renderItem = (it: NavItem) => {
+    const on = it.key === active;
+    return (
+      <Pressable key={it.key} onPress={it.onPress} style={{ flex: 1, alignItems: 'center', gap: 3 }}>
+        <Text style={{ fontSize: 18, opacity: on ? 1 : 0.5 }}>{it.icon}</Text>
+        <Text style={{ fontSize: 11, color: on ? colors.accent : colors.textFaint, fontWeight: '600' }}>
+          {it.label}
+        </Text>
+      </Pressable>
+    );
+  };
   return (
     <View style={[styles.navWrap, { paddingBottom: insets.bottom || spacing(1.5) }]}>
       <View style={styles.navBar}>
-        {items.map((it) => {
-          const on = it.key === active;
-          return (
-            <Pressable key={it.key} onPress={it.onPress} style={{ flex: 1, alignItems: 'center', gap: 2 }}>
-              <Text style={{ fontSize: 20, opacity: on ? 1 : 0.55 }}>{it.icon}</Text>
-              <Text style={{ fontSize: 11, color: on ? colors.accent : colors.textFaint, fontWeight: '600' }}>
-                {it.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+        {left.map(renderItem)}
+        <View style={{ width: 64 }} />
+        {right.map(renderItem)}
       </View>
+      <Pressable onPress={center.onPress} style={styles.fabWrap}>
+        <LinearGradient
+          colors={gradients.accent as unknown as string[]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fab}
+        >
+          <Text style={{ fontSize: 22, color: '#fff' }}>{center.icon}</Text>
+        </LinearGradient>
+        <Text style={{ fontSize: 11, color: colors.accent, fontWeight: '600', marginTop: 2 }}>
+          {center.label}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -262,7 +354,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: colors.glassBorder,
-    padding: spacing(2.5),
+    padding: spacing(2.25),
     overflow: 'hidden',
   },
   chip: {
@@ -276,63 +368,94 @@ const styles = StyleSheet.create({
     paddingVertical: spacing(0.75),
     paddingHorizontal: spacing(1.5),
   },
-  actionCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionGlass: {
-    backgroundColor: colors.glassStrong,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
   iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  avatar: {
     width: 44,
     height: 44,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1.5),
     backgroundColor: colors.glass,
     borderWidth: 1,
     borderColor: colors.glassBorder,
-    borderRadius: radii.lg,
-    padding: spacing(1.75),
   },
+  badge: {
+    position: 'absolute',
+    top: 9,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.accent,
+  },
+  tile: {
+    backgroundColor: colors.glassStrong,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    borderRadius: radii.lg,
+    paddingVertical: spacing(1.5),
+    alignItems: 'center',
+  },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    paddingVertical: spacing(1.5),
+  },
+  divider: { borderTopWidth: 1, borderTopColor: colors.glassBorder },
+  segWrap: {
+    flexDirection: 'row',
+    backgroundColor: colors.glass,
+    borderRadius: radii.pill,
+    padding: 4,
+    gap: 4,
+  },
+  segItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing(1),
+    borderRadius: radii.pill,
+  },
+  segItemActive: { backgroundColor: colors.accent },
   navWrap: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: spacing(2.5),
+    paddingHorizontal: spacing(2),
     paddingTop: spacing(1),
+    alignItems: 'center',
   },
   navBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(18,23,34,0.92)',
+    alignItems: 'center',
+    width: '100%',
+    backgroundColor: 'rgba(16,20,30,0.94)',
     borderWidth: 1,
     borderColor: colors.glassBorder,
     borderRadius: radii.xl,
     paddingVertical: spacing(1.25),
     paddingHorizontal: spacing(1),
+    ...shadow.card,
+  },
+  fabWrap: {
+    position: 'absolute',
+    top: -14,
+    alignItems: 'center',
+  },
+  fab: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
     ...shadow.card,
   },
 });
