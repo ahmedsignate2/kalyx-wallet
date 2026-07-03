@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Alert, Pressable } from 'react-native';
+import { View, Text, TextInput, Alert, Pressable, Image } from 'react-native';
 import { Stack } from 'expo-router';
-import { PremiumScreen, GlassCard, Chip } from '../ui/premium';
+import { PremiumScreen, GlassCard } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { colors, radii, spacing, typography } from '../ui/theme';
@@ -47,6 +47,41 @@ const TOKENS: Record<string, Tok[]> = {
   ],
 };
 
+const TW_CHAIN: Record<string, string> = { ethereum: 'ethereum', polygon: 'polygon', bnb: 'smartchain', base: 'base' };
+const TW_NATIVE: Record<string, string> = { ethereum: 'ethereum', polygon: 'polygon', bnb: 'smartchain', base: 'ethereum' };
+const TW = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains';
+
+function logoFor(novaChain: string, tok: Tok): string {
+  if (tok.address === NATIVE_TOKEN) return `${TW}/${TW_NATIVE[novaChain]}/info/logo.png`;
+  return `${TW}/${TW_CHAIN[novaChain]}/assets/${tok.address}/logo.png`;
+}
+
+function TokenPill({ chainId, tok, selected, onPress }: { chainId: string; tok: Tok; selected: boolean; onPress: () => void }) {
+  const [err, setErr] = useState(false);
+  return (
+    <Pressable onPress={onPress}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          borderRadius: radii.pill,
+          paddingVertical: spacing(0.75),
+          paddingHorizontal: spacing(1.5),
+          backgroundColor: selected ? colors.accent : colors.glass,
+          borderWidth: 1,
+          borderColor: selected ? colors.accent : colors.glassBorder,
+        }}
+      >
+        {!err ? (
+          <Image source={{ uri: logoFor(chainId, tok) }} style={{ width: 18, height: 18, borderRadius: 9 }} onError={() => setErr(true)} />
+        ) : null}
+        <Text style={{ color: selected ? '#fff' : colors.text, fontWeight: '700' }}>{tok.symbol}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 export default function Swap() {
   const t = useT();
   const activeChain = useWallet((s) => s.activeChain);
@@ -61,6 +96,7 @@ export default function Swap() {
   const [to, setTo] = useState(1);
   const [amount, setAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pin, setPin] = useState('');
@@ -68,6 +104,7 @@ export default function Swap() {
 
   const reset = () => {
     setQuote(null);
+    setConfirming(false);
     setError(null);
   };
 
@@ -78,8 +115,7 @@ export default function Swap() {
         <GlassCard>
           <Text style={typography.bodyStrong}>Swap indisponible ici</Text>
           <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-            Le swap fonctionne sur les réseaux EVM mainnet (Ethereum, Polygon, Base, BNB).
-            Change de réseau depuis l’accueil.
+            Le swap fonctionne sur Ethereum, Polygon, Base et BNB. Change de réseau depuis l’accueil.
           </Text>
         </GlassCard>
       </PremiumScreen>
@@ -125,7 +161,7 @@ export default function Swap() {
     }
   };
 
-  const onSwap = () => {
+  const confirm = () => {
     if (!quote) return;
     if (pin.length < 6) {
       setError('Entre ton PIN pour signer.');
@@ -135,11 +171,7 @@ export default function Swap() {
     const min = formatBalance(quote.toAmountMin, quote.toToken.decimals, 6);
     Alert.alert(
       'Confirmer le swap',
-      `Tu envoies : ${amount} ${fromTok.symbol}\n` +
-        `Tu reçois ≈ ${recv} ${toTok.symbol}\n` +
-        `Minimum garanti : ${min} ${toTok.symbol}\n` +
-        `Via : ${quote.toolName} · frais Nova ${(Number(NOVA_FEE) * 100).toFixed(1)}%\n` +
-        `Réseau : ${chain.name}`,
+      `Tu envoies : ${amount} ${fromTok.symbol}\nTu reçois ≈ ${recv} ${toTok.symbol}\nMinimum : ${min} ${toTok.symbol}\nRéseau : ${chain.name}`,
       [
         { text: t('cancel'), style: 'cancel' },
         { text: 'Échanger', onPress: submit },
@@ -154,7 +186,7 @@ export default function Swap() {
     try {
       const hash = await executeSwap(quote, { pin });
       setPin('');
-      setQuote(null);
+      reset();
       setAmount('');
       Alert.alert('Swap envoyé ✅', hash, [{ text: 'OK' }]);
     } catch (e) {
@@ -170,24 +202,17 @@ export default function Swap() {
     }
   };
 
-  const tokenChips = (selected: number, onPick: (i: number) => void) => (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
-      {tokens.map((tk, i) => (
-        <Chip key={tk.symbol} label={tk.symbol} tone={i === selected ? 'accent' : 'neutral'} onPress={() => { onPick(i); reset(); }} />
-      ))}
-    </View>
-  );
+  const impact =
+    quote && quote.fromAmountUsd > 0 ? ((quote.toAmountUsd - quote.fromAmountUsd) / quote.fromAmountUsd) * 100 : null;
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: t('navExchange') }} />
-      <Text style={typography.muted}>Swap sur {chain.name} · agrégateur LI.FI</Text>
+      <Stack.Screen options={{ headerShown: true, title: chain.name }} />
 
       {/* De */}
       <GlassCard glow>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>De</Text>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>{fromTok.symbol}</Text>
         </View>
         <TextInput
           value={amount}
@@ -197,59 +222,74 @@ export default function Swap() {
           placeholderTextColor={colors.textMuted}
           style={{ color: colors.text, fontSize: 32, fontWeight: '800', paddingVertical: spacing(0.5) }}
         />
-        {tokenChips(from, setFrom)}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
+          {tokens.map((tk, i) => (
+            <TokenPill key={tk.symbol} chainId={activeChain} tok={tk} selected={i === from} onPress={() => { setFrom(i); reset(); }} />
+          ))}
+        </View>
       </GlassCard>
 
-      {/* Bouton d'inversion */}
-      <View style={{ alignItems: 'center', marginVertical: -spacing(1.5), zIndex: 2 }}>
-        <Pressable onPress={flip}>
-          <View style={{ width: 44, height: 44, borderRadius: radii.pill, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.glassBorder, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="convert" size={20} color={colors.accent} />
-          </View>
+      {/* Bouton d'inversion (halo au toucher) */}
+      <View style={{ alignItems: 'center', marginVertical: -spacing(1.75), zIndex: 2 }}>
+        <Pressable onPress={flip} style={({ pressed }) => [
+          { width: 52, height: 52, borderRadius: radii.pill, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: pressed ? colors.accent : colors.glassBorder, alignItems: 'center', justifyContent: 'center' },
+          pressed ? { shadowColor: colors.accent, shadowOpacity: 0.7, shadowRadius: 14, elevation: 10 } : null,
+        ]}>
+          <Icon name="convert" size={22} color={colors.accent} />
         </Pressable>
       </View>
 
       {/* Vers */}
       <GlassCard>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={typography.muted}>Vers (estimé)</Text>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>{toTok.symbol}</Text>
-        </View>
+        <Text style={typography.muted}>Vers (estimé)</Text>
         <Text style={{ color: quote ? colors.text : colors.textMuted, fontSize: 32, fontWeight: '800', paddingVertical: spacing(0.5) }}>
           {quote ? formatBalance(quote.toAmount, quote.toToken.decimals, 6) : '—'}
         </Text>
-        {tokenChips(to, setTo)}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
+          {tokens.map((tk, i) => (
+            <TokenPill key={tk.symbol} chainId={activeChain} tok={tk} selected={i === to} onPress={() => { setTo(i); reset(); }} />
+          ))}
+        </View>
       </GlassCard>
 
       {/* Détails du devis */}
       {quote ? (
         <GlassCard>
+          <Row label="Route" value={quote.toolName} />
           <Row label="Minimum reçu" value={`${formatBalance(quote.toAmountMin, quote.toToken.decimals, 6)} ${toTok.symbol}`} />
-          <Row label="Via" value={quote.toolName} />
+          {quote.gasCostUsd > 0 ? <Row label="Frais réseau" value={`≈ $${quote.gasCostUsd.toFixed(2)}`} /> : null}
           <Row label="Frais Nova" value={`${(Number(NOVA_FEE) * 100).toFixed(1)} %`} />
-          <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, marginTop: spacing(1), paddingTop: spacing(1) }}>
-            <Text style={typography.muted}>PIN (pour signer)</Text>
-            <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} style={{ color: colors.text, fontSize: 22, letterSpacing: 6 }} />
-          </View>
+          {impact != null ? <Row label="Impact prix" value={`${impact.toFixed(2)} %`} color={impact < -1 ? colors.down : colors.textMuted} /> : null}
+          <Row label="Slippage" value={`${(quote.slippage * 100).toFixed(1)} %`} />
+          {quote.durationSec > 0 ? <Row label="Temps estimé" value={`≈ ${quote.durationSec}s`} /> : null}
+
+          {confirming ? (
+            <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, marginTop: spacing(1), paddingTop: spacing(1) }}>
+              <Text style={typography.muted}>PIN (pour signer)</Text>
+              <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} autoFocus style={{ color: colors.text, fontSize: 22, letterSpacing: 6 }} />
+            </View>
+          ) : null}
         </GlassCard>
       ) : null}
 
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
 
-      {quote ? (
-        <Button label={busy ? 'Échange…' : 'Échanger'} loading={busy} onPress={onSwap} />
-      ) : (
+      {!quote ? (
         <Button label={loading ? 'Recherche de route…' : 'Obtenir un devis'} loading={loading} onPress={onQuote} />
+      ) : !confirming ? (
+        <Button label="Échanger" onPress={() => setConfirming(true)} />
+      ) : (
+        <Button label={busy ? 'Signature…' : 'Confirmer le swap'} loading={busy} onPress={confirm} />
       )}
     </PremiumScreen>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
       <Text style={typography.muted}>{label}</Text>
-      <Text style={{ color: colors.text, fontWeight: '600' }}>{value}</Text>
+      <Text style={{ color: color ?? colors.text, fontWeight: '600' }}>{value}</Text>
     </View>
   );
 }

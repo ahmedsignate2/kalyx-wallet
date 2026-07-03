@@ -11,6 +11,11 @@ describe('parseSwapQuote', () => {
       toAmount: '3450000000',
       toAmountMin: '3400000000',
       approvalAddress: '',
+      executionDuration: 30,
+      fromAmountUSD: '3450',
+      toAmountUSD: '3440',
+      gasCosts: [{ amountUSD: '2.5' }],
+      feeCosts: [{ amountUSD: '10.3' }],
     },
     transactionRequest: {
       to: '0xRouter',
@@ -35,6 +40,15 @@ describe('parseSwapQuote', () => {
     expect(q.tx.value).toBe(10n ** 18n);
     expect(q.tx.gasLimit).toBe(250000n);
     expect(q.toolName).toBe('1inch');
+  });
+
+  it('extrait les détails avancés (gas, frais, durée, valeurs USD)', () => {
+    const q = parseSwapQuote(json)!;
+    expect(q.gasCostUsd).toBeCloseTo(2.5);
+    expect(q.feeCostUsd).toBeCloseTo(10.3);
+    expect(q.durationSec).toBe(30);
+    expect(q.fromAmountUsd).toBe(3450);
+    expect(q.toAmountUsd).toBe(3440);
   });
 
   it('renseigne approvalAddress pour un ERC-20', () => {
