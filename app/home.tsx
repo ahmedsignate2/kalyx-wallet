@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Screen, Card, Button, Muted } from '../ui/components';
 import { colors, spacing, typography } from '../ui/theme';
 import { useWallet, DEFAULT_CHAIN } from '../lib/walletStore';
-import { getAdapter, formatAmount, SEPOLIA } from '../src';
+import { getAdapter, formatAmount, isWalletError, SEPOLIA } from '../src';
 
 function shorten(addr: string) {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
@@ -24,8 +24,8 @@ export default function Home() {
     try {
       const b = await getAdapter(DEFAULT_CHAIN).getBalance(account.address);
       setBalance(formatAmount(b.raw, b.decimals));
-    } catch {
-      setError('Réseau indisponible. Réessaie.');
+    } catch (e) {
+      setError(isWalletError(e) ? e.message : 'Réseau indisponible. Réessaie.');
     } finally {
       setLoading(false);
     }
@@ -65,6 +65,11 @@ export default function Home() {
           >
             <Text style={[typography.muted, { marginTop: spacing(1) }]}>
               {shorten(account.address)} · copier
+            </Text>
+          </Pressable>
+          <Pressable onPress={refresh} disabled={loading} style={{ marginTop: spacing(1) }}>
+            <Text style={{ color: colors.accent }}>
+              {loading ? 'Actualisation…' : '↻ Rafraîchir le solde'}
             </Text>
           </Pressable>
         </Card>

@@ -14,7 +14,8 @@ export type WalletErrorCode =
   | 'MNEMONIC_VERIFICATION_FAILED'
   | 'INVALID_PIN'
   | 'WRONG_PIN'
-  | 'VAULT_CORRUPTED';
+  | 'VAULT_CORRUPTED'
+  | 'RPC_UNAVAILABLE';
 
 export class WalletError extends Error {
   readonly code: WalletErrorCode;
