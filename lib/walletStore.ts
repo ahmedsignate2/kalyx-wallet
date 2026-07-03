@@ -68,6 +68,7 @@ interface WalletState {
   setActiveChain: (chainId: string) => void;
   setActiveAccount: (index: number) => void;
   addAccount: (unlock: Unlock, label?: string) => Promise<void>;
+  renameAccount: (index: number, label: string) => void;
   lock: () => void;
   signAndSend: (to: string, amount: string, unlock: Unlock) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
@@ -153,7 +154,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!m) throw new Error('Aucun mnémonique de brouillon');
     assertValidPin(pin);
     const vault = await encryptSecret(m, pin);
-    const accounts = [deriveStoredAccount(m, 0, 'Compte 1')];
+    const accounts = [deriveStoredAccount(m, 0, 'Compte principal')];
     await saveVault(vault);
     await saveAccounts(accounts);
     if (opts?.enableBiometric) await enableBiometricSeed(m);
@@ -216,6 +217,14 @@ export const useWallet = create<WalletState>((set, get) => ({
       activeAccountIndex: nextIndex,
       account: toAccount(updated, nextIndex, get().activeChain),
     });
+  },
+
+  renameAccount: (index, label) => {
+    const name = label.trim();
+    if (!name) return;
+    const accounts = get().accounts.map((a) => (a.index === index ? { ...a, label: name } : a));
+    void saveAccounts(accounts);
+    set({ accounts, account: toAccount(accounts, get().activeAccountIndex, get().activeChain) });
   },
 
   lock: () => set({ isUnlocked: false }),
