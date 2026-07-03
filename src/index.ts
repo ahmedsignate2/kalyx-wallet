@@ -76,10 +76,12 @@ export {
   getMarkets,
   getCoinDetail,
   getMarketChart,
+  getTokenPrices,
   parseSimplePrices,
   parseMarkets,
   parseCoinDetail,
   parseMarketChart,
+  parseTokenPrices,
   sortMarkets,
   CHART_PERIODS,
   type CoinPrice,
@@ -88,6 +90,16 @@ export {
   type CoinDetail,
   type ChartPeriod,
 } from './domain/prices/coingecko';
+
+// Tokens ERC-20 (Alchemy)
+export {
+  getErc20Tokens,
+  isSpamToken,
+  parseTokenBalances,
+  parseTokenMetadata,
+  type Erc20Token,
+  type TokenMeta,
+} from './domain/tokens/alchemyTokens';
 
 // Chaînes (plugins)
 export { getAdapter, listChains, hasChain } from './domain/chains/registry';

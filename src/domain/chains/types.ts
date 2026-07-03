@@ -26,6 +26,8 @@ export interface ChainConfig {
   testnet?: boolean;
   /** Id CoinGecko de la monnaie native (pour le prix fiat). Absent = testnet. */
   coingeckoId?: string;
+  /** Plateforme CoinGecko (pour le prix des tokens ERC-20 par contrat). */
+  coingeckoPlatform?: string;
 }
 
 /** Données publiques d'un compte — jamais de clé privée ici. */

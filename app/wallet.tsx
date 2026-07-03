@@ -20,6 +20,8 @@ import {
   formatAmount,
   getPrices,
   getMarkets,
+  getErc20Tokens,
+  getTokenPrices,
   type ChainConfig,
 } from '../src';
 
@@ -37,16 +39,29 @@ interface Asset {
   logo?: string;
 }
 
+interface TokenAsset {
+  contract: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  raw: bigint;
+  logo?: string;
+  fiat: number;
+  hasPrice: boolean;
+}
+
 const VALUE_CHAINS = listChains({ includeTestnets: false }).filter((c) => c.coingeckoId);
 
 export default function WalletScreen() {
   const t = useT();
   const accounts = useWallet((s) => s.accounts);
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
+  const activeChain = useWallet((s) => s.activeChain);
   const { fiat } = useSettings();
   const account = accounts.find((a) => a.index === activeAccountIndex) ?? accounts[0];
 
   const [assets, setAssets] = useState<Asset[] | null>(null);
+  const [tokens, setTokens] = useState<TokenAsset[]>([]);
   const [loading, setLoading] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [query, setQuery] = useState('');
@@ -79,16 +94,52 @@ export default function WalletScreen() {
         }),
       );
       setAssets(results);
+
+      // Tokens ERC-20 du réseau actif (Alchemy) — lecture seule.
+      const chainCfg = getAdapter(activeChain).config;
+      if (chainCfg.family === 'evm' && chainCfg.coingeckoPlatform) {
+        const erc20 = await getErc20Tokens(chainCfg, account.evmAddress);
+        const tokenPrices = await getTokenPrices(
+          chainCfg.coingeckoPlatform,
+          erc20.map((tk) => tk.contract),
+          fiat,
+        );
+        const tokenAssets: TokenAsset[] = erc20.map((tk) => {
+          const price = tokenPrices[tk.contract.toLowerCase()] ?? 0;
+          return {
+            contract: tk.contract,
+            name: tk.name,
+            symbol: tk.symbol,
+            decimals: tk.decimals,
+            raw: tk.raw,
+            logo: tk.logo,
+            hasPrice: price > 0,
+            fiat: Number(formatAmount(tk.raw, tk.decimals)) * price,
+          };
+        });
+        // Tri : valorisés d'abord, par valeur décroissante.
+        tokenAssets.sort((a, b) => b.fiat - a.fiat);
+        setTokens(tokenAssets);
+      } else {
+        setTokens([]);
+      }
     } finally {
       setLoading(false);
     }
-  }, [account, fiat]);
+  }, [account, fiat, activeChain]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const total = useMemo(() => (assets ?? []).reduce((s, a) => s + a.fiat, 0), [assets]);
+  const total = useMemo(
+    () => (assets ?? []).reduce((s, a) => s + a.fiat, 0) + tokens.reduce((s, tk) => s + tk.fiat, 0),
+    [assets, tokens],
+  );
+  const q = query.trim().toLowerCase();
+  const filteredTokens = tokens.filter(
+    (tk) => !q || tk.name.toLowerCase().includes(q) || tk.symbol.toLowerCase().includes(q),
+  );
   const filtered = (assets ?? []).filter(
     (a) =>
       !query.trim() ||
@@ -160,6 +211,38 @@ export default function WalletScreen() {
               ))
             )}
           </GlassCard>
+
+          {/* Tokens ERC-20 du réseau actif */}
+          {filteredTokens.length > 0 ? (
+            <>
+              <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>
+                Tokens · {getAdapter(activeChain).config.name}
+              </Text>
+              <GlassCard>
+                {filteredTokens.map((tk, i) => (
+                  <ListRow
+                    key={tk.contract}
+                    divider={i > 0}
+                    left={
+                      tk.logo ? (
+                        <Image source={{ uri: tk.logo }} style={{ width: 42, height: 42, borderRadius: 21 }} />
+                      ) : (
+                        <Avatar label={tk.symbol.slice(0, 1)} color={colors.glassStrong} />
+                      )
+                    }
+                    title={tk.name}
+                    subtitle={hidden ? '••••' : `${formatBalance(tk.raw, tk.decimals, 6)} ${tk.symbol}`}
+                    right={
+                      <Text style={{ color: colors.text, fontWeight: '600' }}>
+                        {hidden ? '••••' : tk.hasPrice ? `${money(tk.fiat)} ${fiatSymbol(fiat)}` : '—'}
+                      </Text>
+                    }
+                  />
+                ))}
+              </GlassCard>
+            </>
+          ) : null}
+
           <Pressable
             onPress={() => Alert.alert(t('soon'), 'Ajout de tokens ERC-20/SPL à venir.')}
             style={{ alignItems: 'center', paddingVertical: spacing(1.75), borderWidth: 1, borderColor: colors.glassBorder, borderRadius: 22, borderStyle: 'dashed' }}

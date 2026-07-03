@@ -47,6 +47,7 @@ export const ETHEREUM: ChainConfig = {
   ]),
   explorerUrl: 'https://etherscan.io',
   coingeckoId: 'ethereum',
+  coingeckoPlatform: 'ethereum',
 };
 
 export const BNB: ChainConfig = {
@@ -64,6 +65,7 @@ export const BNB: ChainConfig = {
   ]),
   explorerUrl: 'https://bscscan.com',
   coingeckoId: 'binancecoin',
+  coingeckoPlatform: 'binance-smart-chain',
 };
 
 export const POLYGON: ChainConfig = {
@@ -81,6 +83,7 @@ export const POLYGON: ChainConfig = {
   ]),
   explorerUrl: 'https://polygonscan.com',
   coingeckoId: 'matic-network',
+  coingeckoPlatform: 'polygon-pos',
 };
 
 export const BASE: ChainConfig = {
@@ -98,6 +101,7 @@ export const BASE: ChainConfig = {
   ]),
   explorerUrl: 'https://basescan.org',
   coingeckoId: 'ethereum',
+  coingeckoPlatform: 'base',
 };
 
 /** Testnet Ethereum — réseau de dev par défaut du MVP (zéro risque). */
