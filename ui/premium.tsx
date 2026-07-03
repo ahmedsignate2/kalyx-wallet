@@ -5,7 +5,7 @@
  * cartes, bottom nav à bouton central). Icônes : emoji/glyphes en attendant un
  * set dédié.
  */
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   ViewStyle,
   StyleProp,
   Image,
+  Animated,
   TextInput as RNTextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -46,6 +47,75 @@ export function PremiumScreen({
         {children}
       </ScrollView>
       {footer}
+    </View>
+  );
+}
+
+/** Wrapper tactile : léger scale au toucher (feedback premium). */
+export function PressableScale({
+  children,
+  onPress,
+  disabled,
+  scaleTo = 0.97,
+  style,
+}: {
+  children: React.ReactNode;
+  onPress?: () => void;
+  disabled?: boolean;
+  scaleTo?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const animate = (to: number) =>
+    Animated.spring(scale, { toValue: to, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || !onPress}
+      onPressIn={() => animate(scaleTo)}
+      onPressOut={() => animate(1)}
+    >
+      <Animated.View style={[{ transform: [{ scale }] }, style]}>{children}</Animated.View>
+    </Pressable>
+  );
+}
+
+/** Bloc « squelette » animé (pulsation) pour les états de chargement. */
+export function Skeleton({
+  width,
+  height = 16,
+  radius = 8,
+  style,
+}: {
+  width: number | `${number}%`;
+  height?: number;
+  radius?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const opacity = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 750, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.4, duration: 750, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return <Animated.View style={[{ width, height, borderRadius: radius, backgroundColor: colors.glassStrong, opacity }, style]} />;
+}
+
+/** Ligne squelette (avatar + 2 lignes + valeur) pour listes en chargement. */
+export function SkeletonRow({ divider }: { divider?: boolean }) {
+  return (
+    <View style={[styles.listItem, divider ? styles.divider : null]}>
+      <Skeleton width={42} height={42} radius={21} />
+      <View style={{ flex: 1, gap: 6 }}>
+        <Skeleton width="55%" height={14} />
+        <Skeleton width="35%" height={11} />
+      </View>
+      <Skeleton width={56} height={14} />
     </View>
   );
 }
@@ -275,18 +345,17 @@ export function ListRow({
   onPress?: () => void;
   divider?: boolean;
 }) {
-  return (
-    <Pressable onPress={onPress} disabled={!onPress}>
-      <View style={[styles.listItem, divider ? styles.divider : null]}>
-        {left}
-        <View style={{ flex: 1 }}>
-          <Text style={typography.bodyStrong}>{title}</Text>
-          {subtitle ? <Text style={typography.muted}>{subtitle}</Text> : null}
-        </View>
-        {right}
+  const content = (
+    <View style={[styles.listItem, divider ? styles.divider : null]}>
+      {left}
+      <View style={{ flex: 1 }}>
+        <Text style={typography.bodyStrong}>{title}</Text>
+        {subtitle ? <Text style={typography.muted}>{subtitle}</Text> : null}
       </View>
-    </Pressable>
+      {right}
+    </View>
   );
+  return onPress ? <PressableScale onPress={onPress}>{content}</PressableScale> : content;
 }
 
 /** Mini-graphe (react-native-svg). */
@@ -409,12 +478,8 @@ export function MarketRow({
 }) {
   const up = change >= 0;
   const c = up ? colors.up : colors.down;
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      style={[styles.listItem, divider ? styles.divider : null]}
-    >
+  const content = (
+    <View style={[styles.listItem, divider ? styles.divider : null]}>
       {imageUri ? (
         <Image source={{ uri: imageUri }} style={{ width: 42, height: 42, borderRadius: 21 }} />
       ) : (
@@ -434,8 +499,9 @@ export function MarketRow({
           {change.toFixed(2)}%
         </Text>
       </View>
-    </Pressable>
+    </View>
   );
+  return onPress ? <PressableScale onPress={onPress}>{content}</PressableScale> : content;
 }
 
 export interface NavItem {

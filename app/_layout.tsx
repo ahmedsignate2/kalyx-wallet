@@ -55,6 +55,8 @@ export default function RootLayout() {
             headerShadowVisible: false,
             contentStyle: { backgroundColor: colors.bgDeep },
             headerTitle: '',
+            animation: 'slide_from_right',
+            animationDuration: 220,
           }}
         />
       </SafeAreaProvider>

@@ -17,6 +17,8 @@ import {
   Sparkline,
   SegmentedTabs,
   MarketRow,
+  Skeleton,
+  SkeletonRow,
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
 import { Icon } from '../ui/icon';
@@ -169,9 +171,13 @@ export default function Home() {
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing(0.5) }}>
           <View style={{ flex: 1, marginRight: spacing(1) }}>
-            <Text style={typography.hero} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
-              {heroValue}
-            </Text>
+            {loading && !hidden ? (
+              <Skeleton width="70%" height={38} radius={10} style={{ marginVertical: spacing(0.5) }} />
+            ) : (
+              <Text style={typography.hero} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+                {heroValue}
+              </Text>
+            )}
           </View>
           <Sparkline data={HERO_SPARK} color={change != null && change < 0 ? colors.down : colors.accent} width={84} height={40} />
         </View>
@@ -226,7 +232,7 @@ export default function Home() {
         {q ? null : <SegmentedTabs items={marketTabs} active={marketTab} onChange={setMarketTab} />}
         <GlassCard>
           {displayedMarkets.length === 0 ? (
-            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>…</Text>
+            [0, 1, 2, 3].map((i) => <SkeletonRow key={i} divider={i > 0} />)
           ) : (
             displayedMarkets.map((m, i) => (
               <MarketRow
