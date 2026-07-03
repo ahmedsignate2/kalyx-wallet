@@ -38,7 +38,7 @@ export const accentGradient = [colors.accent, colors.accentAlt] as const;
 export const gradients = {
   screen: ['#0E1220', '#0A0C14', '#07090F'] as const,
   accent: ['#7C5CFF', '#4AA8FF'] as const,
-  card: ['rgba(124,92,255,0.18)', 'rgba(74,168,255,0.10)'] as const,
+  card: ['rgba(124,92,255,0.34)', 'rgba(74,168,255,0.12)', 'rgba(7,9,15,0)'] as const,
   violet: ['#8E6BFF', '#6A4DFF'] as const,
 } as const;
 
@@ -61,9 +61,9 @@ export const typography = {
 export const shadow = {
   card: {
     shadowColor: '#000',
-    shadowOpacity: 0.35,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
+    shadowOpacity: 0.45,
+    shadowRadius: 32,
+    shadowOffset: { width: 0, height: 16 },
+    elevation: 12,
   },
 } as const;
