@@ -5,11 +5,11 @@
  *  - Ni la seed, ni la clé privée ne sont JAMAIS dans ce state.
  *  - Seules des données publiques (adresses) y vivent.
  *  - La seed n'est déchiffrée du coffre qu'à la volée, pour dériver/signer.
- *  - `draftMnemonic` : exception transitoire, uniquement pendant l'onboarding.
  *
- * MULTI-COMPTES : une seule seed dérive plusieurs comptes par index HD. Chaque
- * compte porte SES adresses par famille (EVM 0x… et Bitcoin bc1…) : l'adresse
- * EVM est la même sur tous les réseaux EVM, Bitcoin a la sienne.
+ * MULTI-WALLET : plusieurs portefeuilles (seeds indépendantes), chacun avec son
+ * coffre chiffré et ses comptes. Le wallet 'primary' garde les clés historiques
+ * (aucune migration destructive). Un seul PIN d'app chiffre tous les coffres.
+ * MULTI-COMPTES : au sein d'un wallet, plusieurs comptes par index HD.
  */
 import { create } from 'zustand';
 import {
@@ -41,24 +41,28 @@ import {
   enableBiometricSeed,
   disableBiometricSeed,
   readBiometricSeed,
+  saveWalletsList,
+  loadWalletsList,
+  wipeWallet,
   wipeAll,
   type StoredAccount,
+  type WalletMeta,
 } from './secureStore';
 
 export const DEFAULT_CHAIN = 'sepolia';
 
 export type Unlock = { pin: string } | { biometric: true };
-/** Étapes d'un swap (pour l'UI de progression). */
 export type SwapStatus = 'approving' | 'approvalWait' | 'swapping' | 'confirming';
 
 interface WalletState {
   ready: boolean;
   hasWallet: boolean;
   isUnlocked: boolean;
+  wallets: WalletMeta[];
+  activeWalletId: string;
   accounts: StoredAccount[];
   activeAccountIndex: number;
   activeChain: string;
-  /** Compte affiché : adresse du compte actif pour le réseau actif. */
   account: Account | null;
   draftMnemonic: string | null;
   failedAttempts: number;
@@ -74,9 +78,14 @@ interface WalletState {
   setActiveAccount: (index: number) => void;
   addAccount: (unlock: Unlock, label?: string) => Promise<void>;
   renameAccount: (index: number, label: string) => void;
+  // Multi-wallet
+  createWallet: (pin: string, label?: string) => Promise<string>; // renvoie la phrase à sauvegarder
+  importWallet: (mnemonic: string, pin: string, label?: string) => Promise<void>;
+  setActiveWallet: (id: string) => Promise<void>;
+  renameWallet: (id: string, label: string) => Promise<void>;
+  removeWallet: (id: string) => Promise<void>;
   lock: () => void;
   signAndSend: (to: string, amount: string, unlock: Unlock) => Promise<string>;
-  /** Exécute un swap/bridge LI.FI (approbation ERC-20 si besoin, puis swap). */
   executeSwap: (quote: SwapQuote, unlock: Unlock, onStatus?: (s: SwapStatus) => void) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   revealPhrase: (unlock: Unlock) => Promise<string>;
@@ -85,7 +94,6 @@ interface WalletState {
   reset: () => Promise<void>;
 }
 
-/** Dérive les adresses publiques (toutes familles) d'un index de compte. */
 function deriveStoredAccount(mnemonic: string, index: number, label: string): StoredAccount {
   const seed = mnemonicToSeedSync(mnemonic);
   return {
@@ -96,12 +104,7 @@ function deriveStoredAccount(mnemonic: string, index: number, label: string): St
   };
 }
 
-/** Construit le compte affiché pour (compte actif, réseau actif). */
-function toAccount(
-  accounts: StoredAccount[],
-  activeIndex: number,
-  chainId: string,
-): Account | null {
+function toAccount(accounts: StoredAccount[], activeIndex: number, chainId: string): Account | null {
   const a = accounts.find((x) => x.index === activeIndex) ?? accounts[0];
   if (!a) return null;
   const isBtc = getAdapter(chainId).config.family === 'bitcoin';
@@ -113,21 +116,28 @@ function toAccount(
   };
 }
 
-async function revealMnemonic(unlock: Unlock): Promise<string> {
+/** Révèle la seed du wallet `id` (biométrie ou PIN), de façon transitoire. */
+async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
   if ('biometric' in unlock) {
-    const m = await readBiometricSeed();
+    const m = await readBiometricSeed(id);
     if (!m) throw new Error('Biométrie non configurée');
     return m;
   }
-  const vault = await loadVault();
+  const vault = await loadVault(id);
   if (!vault) throw new Error('Aucun coffre');
   return decryptSecret(vault, unlock.pin);
+}
+
+function newWalletId(): string {
+  return `w${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`;
 }
 
 export const useWallet = create<WalletState>((set, get) => ({
   ready: false,
   hasWallet: false,
   isUnlocked: false,
+  wallets: [],
+  activeWalletId: 'primary',
   accounts: [],
   activeAccountIndex: 0,
   activeChain: DEFAULT_CHAIN,
@@ -137,12 +147,20 @@ export const useWallet = create<WalletState>((set, get) => ({
   lastFailedAt: 0,
 
   bootstrap: async () => {
-    const exists = await hasVault();
-    const accounts = (exists ? await loadAccounts() : null) ?? [];
+    let wallets = await loadWalletsList();
+    // Migration douce : un ancien wallet unique devient 'primary' (clés inchangées).
+    if (wallets.length === 0 && (await hasVault('primary'))) {
+      wallets = [{ id: 'primary', label: 'Portefeuille principal' }];
+      await saveWalletsList(wallets);
+    }
+    const activeWalletId = wallets[0]?.id ?? 'primary';
+    const accounts = wallets.length ? (await loadAccounts(activeWalletId)) ?? [] : [];
     set({
       ready: true,
-      hasWallet: exists && accounts.length > 0,
+      hasWallet: wallets.length > 0 && accounts.length > 0,
       isUnlocked: false,
+      wallets,
+      activeWalletId,
       accounts,
       activeAccountIndex: 0,
       account: toAccount(accounts, 0, get().activeChain),
@@ -160,12 +178,16 @@ export const useWallet = create<WalletState>((set, get) => ({
     const m = get().draftMnemonic;
     if (!m) throw new Error('Aucun mnémonique de brouillon');
     assertValidPin(pin);
-    const vault = await encryptSecret(m, pin);
+    const id = 'primary';
     const accounts = [deriveStoredAccount(m, 0, 'Compte principal')];
-    await saveVault(vault);
-    await saveAccounts(accounts);
-    if (opts?.enableBiometric) await enableBiometricSeed(m);
+    await saveVault(id, await encryptSecret(m, pin));
+    await saveAccounts(id, accounts);
+    if (opts?.enableBiometric) await enableBiometricSeed(id, m);
+    const wallets: WalletMeta[] = [{ id, label: 'Portefeuille principal' }];
+    await saveWalletsList(wallets);
     set({
+      wallets,
+      activeWalletId: id,
       accounts,
       activeAccountIndex: 0,
       account: toAccount(accounts, 0, get().activeChain),
@@ -176,12 +198,12 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   unlockWithPin: async (pin) => {
-    const { failedAttempts, lastFailedAt } = get();
+    const { failedAttempts, lastFailedAt, activeWalletId } = get();
     if (lockRemainingMs(failedAttempts, lastFailedAt, Date.now()) > 0) {
       throw new Error('Trop de tentatives. Réessaie plus tard.');
     }
     try {
-      await revealMnemonic({ pin }); // valide le PIN (lève WRONG_PIN sinon)
+      await revealMnemonic(activeWalletId, { pin });
       set({ isUnlocked: true, failedAttempts: 0, lastFailedAt: 0 });
     } catch (e) {
       if (isWalletError(e) && e.code === 'WRONG_PIN') {
@@ -192,77 +214,113 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   unlockWithBiometrics: async () => {
-    await revealMnemonic({ biometric: true });
+    await revealMnemonic(get().activeWalletId, { biometric: true });
     set({ isUnlocked: true });
   },
 
   setActiveChain: (chainId) =>
-    set({
-      activeChain: chainId,
-      account: toAccount(get().accounts, get().activeAccountIndex, chainId),
-    }),
+    set({ activeChain: chainId, account: toAccount(get().accounts, get().activeAccountIndex, chainId) }),
 
   setActiveAccount: (index) =>
-    set({
-      activeAccountIndex: index,
-      account: toAccount(get().accounts, index, get().activeChain),
-    }),
+    set({ activeAccountIndex: index, account: toAccount(get().accounts, index, get().activeChain) }),
 
   addAccount: async (unlock, label) => {
-    const mnemonic = await revealMnemonic(unlock);
+    const { activeWalletId } = get();
+    const mnemonic = await revealMnemonic(activeWalletId, unlock);
     const accounts = get().accounts;
     const nextIndex = accounts.reduce((max, a) => Math.max(max, a.index), -1) + 1;
-    const created = deriveStoredAccount(
-      mnemonic,
-      nextIndex,
-      label?.trim() || `Compte ${nextIndex + 1}`,
-    );
+    const created = deriveStoredAccount(mnemonic, nextIndex, label?.trim() || `Compte ${nextIndex + 1}`);
     const updated = [...accounts, created];
-    await saveAccounts(updated);
-    set({
-      accounts: updated,
-      activeAccountIndex: nextIndex,
-      account: toAccount(updated, nextIndex, get().activeChain),
-    });
+    await saveAccounts(activeWalletId, updated);
+    set({ accounts: updated, activeAccountIndex: nextIndex, account: toAccount(updated, nextIndex, get().activeChain) });
   },
 
   renameAccount: (index, label) => {
     const name = label.trim();
     if (!name) return;
     const accounts = get().accounts.map((a) => (a.index === index ? { ...a, label: name } : a));
-    void saveAccounts(accounts);
+    void saveAccounts(get().activeWalletId, accounts);
     set({ accounts, account: toAccount(accounts, get().activeAccountIndex, get().activeChain) });
+  },
+
+  createWallet: async (pin, label) => {
+    // Vérifie le PIN (cohérence : un seul PIN d'app) via le wallet actif.
+    await revealMnemonic(get().activeWalletId, { pin });
+    const m = generateMnemonic(128);
+    const id = newWalletId();
+    const accounts = [deriveStoredAccount(m, 0, 'Compte principal')];
+    await saveVault(id, await encryptSecret(m, pin));
+    await saveAccounts(id, accounts);
+    const wallets = [...get().wallets, { id, label: label?.trim() || `Portefeuille ${get().wallets.length + 1}` }];
+    await saveWalletsList(wallets);
+    set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
+    return m; // à afficher pour sauvegarde
+  },
+
+  importWallet: async (mnemonic, pin, label) => {
+    if (!validateMnemonic(mnemonic)) throw new Error('Phrase de récupération invalide');
+    await revealMnemonic(get().activeWalletId, { pin }); // vérifie le PIN
+    const m = mnemonic.trim();
+    const id = newWalletId();
+    const accounts = [deriveStoredAccount(m, 0, 'Compte principal')];
+    await saveVault(id, await encryptSecret(m, pin));
+    await saveAccounts(id, accounts);
+    const wallets = [...get().wallets, { id, label: label?.trim() || `Portefeuille importé ${get().wallets.length + 1}` }];
+    await saveWalletsList(wallets);
+    set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
+  },
+
+  setActiveWallet: async (id) => {
+    const accounts = (await loadAccounts(id)) ?? [];
+    set({ activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
+  },
+
+  renameWallet: async (id, label) => {
+    const name = label.trim();
+    if (!name) return;
+    const wallets = get().wallets.map((w) => (w.id === id ? { ...w, label: name } : w));
+    await saveWalletsList(wallets);
+    set({ wallets });
+  },
+
+  removeWallet: async (id) => {
+    const wallets = get().wallets.filter((w) => w.id !== id);
+    if (wallets.length === 0) throw new Error('Impossible de supprimer le dernier portefeuille.');
+    await wipeWallet(id);
+    await saveWalletsList(wallets);
+    if (get().activeWalletId === id) {
+      const nextId = wallets[0].id;
+      const accounts = (await loadAccounts(nextId)) ?? [];
+      set({ wallets, activeWalletId: nextId, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
+    } else {
+      set({ wallets });
+    }
   },
 
   lock: () => set({ isUnlocked: false }),
 
   signAndSend: async (to, amount, unlock) => {
-    const { account, activeChain } = get();
+    const { account, activeChain, activeWalletId } = get();
     if (!account) throw new Error('Aucun compte');
-
-    // Seed révélée transitoirement, jamais mise dans le state.
-    const mnemonic = await revealMnemonic(unlock);
+    const mnemonic = await revealMnemonic(activeWalletId, unlock);
     const seed = mnemonicToSeedSync(mnemonic);
     const signer = deriveEvmAccount(seed, account.index);
     const adapter = getAdapter(activeChain);
-
     const unsigned = await adapter.prepareTransfer(account.address, { to, amount });
     const raw = await adapter.signTransaction(unsigned, signer.privateKey);
     return adapter.broadcast(raw);
   },
 
   executeSwap: async (quote, unlock, onStatus) => {
-    const { account, activeChain } = get();
+    const { account, activeChain, activeWalletId } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(activeChain);
     if (!(adapter instanceof EvmChainAdapter)) throw new Error('Swap indisponible sur ce réseau');
 
-    // Clé révélée transitoirement, jamais mise dans le state.
-    const mnemonic = await revealMnemonic(unlock);
+    const mnemonic = await revealMnemonic(activeWalletId, unlock);
     const seed = mnemonicToSeedSync(mnemonic);
     const signer = deriveEvmAccount(seed, account.index);
 
-    // 1) Approbation ERC-20 si on part d'un token (pas du natif).
     const fromAddr = quote.fromToken.address.toLowerCase();
     if (fromAddr !== NATIVE_TOKEN.toLowerCase() && quote.approvalAddress) {
       const allowance = await adapter.getAllowance(quote.fromToken.address, account.address, quote.approvalAddress);
@@ -275,45 +333,51 @@ export const useWallet = create<WalletState>((set, get) => ({
           signer.privateKey,
         );
         onStatus?.('approvalWait');
-        await adapter.waitForTx(approveHash); // attendre la confirmation avant le swap
+        await adapter.waitForTx(approveHash);
       }
     }
 
-    // 2) Swap (transaction fournie par LI.FI).
     onStatus?.('swapping');
     const hash = await adapter.sendContractTx(quote.tx, account.address, signer.privateKey);
-    // 3) Attendre la confirmation (best-effort — le hash reste valide même en cas de timeout).
     onStatus?.('confirming');
     try {
       await adapter.waitForTx(hash);
     } catch {
-      /* le swap est diffusé ; on renvoie le hash quand même */
+      /* diffusé ; on renvoie le hash */
     }
     return hash;
   },
 
   changePin: async (oldPin, newPin) => {
     assertValidPin(newPin);
-    const mnemonic = await revealMnemonic({ pin: oldPin }); // lève WRONG_PIN si faux
-    await saveVault(await encryptSecret(mnemonic, newPin));
+    // Re-chiffre TOUS les coffres avec le nouveau PIN (le 1er vérifie l'ancien).
+    for (const w of get().wallets) {
+      const vault = await loadVault(w.id);
+      if (!vault) continue;
+      const m = await decryptSecret(vault, oldPin); // lève WRONG_PIN si faux
+      await saveVault(w.id, await encryptSecret(m, newPin));
+    }
   },
 
-  revealPhrase: async (unlock) => revealMnemonic(unlock),
+  revealPhrase: async (unlock) => revealMnemonic(get().activeWalletId, unlock),
 
   enableBiometric: async (pin) => {
-    const mnemonic = await revealMnemonic({ pin });
-    await enableBiometricSeed(mnemonic);
+    const id = get().activeWalletId;
+    const mnemonic = await revealMnemonic(id, { pin });
+    await enableBiometricSeed(id, mnemonic);
   },
 
   disableBiometric: async () => {
-    await disableBiometricSeed();
+    await disableBiometricSeed(get().activeWalletId);
   },
 
   reset: async () => {
-    await wipeAll();
+    await wipeAll(get().wallets);
     set({
       hasWallet: false,
       isUnlocked: false,
+      wallets: [],
+      activeWalletId: 'primary',
       accounts: [],
       activeAccountIndex: 0,
       account: null,

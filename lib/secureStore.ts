@@ -13,11 +13,19 @@
 import * as SecureStore from 'expo-secure-store';
 import { serializeVault, deserializeVault, type EncryptedVault } from '../src';
 
-const K_VAULT = 'nova.vault'; // coffre AES+PIN
-const K_ACCOUNTS = 'nova.accounts'; // comptes publics (adresses, non sensible)
-const K_BIO_SEED = 'nova.bioSeed'; // seed protégée biométrie (optionnel)
 const K_SETTINGS = 'nova.settings'; // préférences (non sensible)
 const K_CUSTOM_TOKENS = 'nova.customTokens'; // tokens ajoutés par contrat (non sensible)
+const K_WALLETS = 'nova.wallets'; // liste des portefeuilles [{id,label}]
+const K_CONTACTS = 'nova.contacts'; // carnet d'adresses (non sensible)
+
+/**
+ * Clés PAR portefeuille. Le wallet 'primary' garde les clés HISTORIQUES
+ * (nova.vault / nova.accounts / nova.bioSeed) → aucune migration destructive :
+ * le portefeuille existant reste intact. Les autres wallets sont suffixés.
+ */
+const vaultKey = (id: string) => (id === 'primary' ? 'nova.vault' : `nova.vault.${id}`);
+const accountsKey = (id: string) => (id === 'primary' ? 'nova.accounts' : `nova.accounts.${id}`);
+const bioKey = (id: string) => (id === 'primary' ? 'nova.bioSeed' : `nova.bioSeed.${id}`);
 
 /** Compte = index HD + adresses publiques par famille (aucune donnée sensible). */
 export interface StoredAccount {
@@ -25,6 +33,11 @@ export interface StoredAccount {
   label: string;
   evmAddress: string;
   btcAddress: string;
+}
+
+export interface WalletMeta {
+  id: string;
+  label: string;
 }
 
 const base: SecureStore.SecureStoreOptions = {
@@ -36,25 +49,25 @@ const bioGated: SecureStore.SecureStoreOptions = {
   requireAuthentication: true, // l'OS impose biométrie/code avant lecture
 };
 
-export async function saveVault(vault: EncryptedVault): Promise<void> {
-  await SecureStore.setItemAsync(K_VAULT, serializeVault(vault), base);
+export async function saveVault(id: string, vault: EncryptedVault): Promise<void> {
+  await SecureStore.setItemAsync(vaultKey(id), serializeVault(vault), base);
 }
 
-export async function loadVault(): Promise<EncryptedVault | null> {
-  const raw = await SecureStore.getItemAsync(K_VAULT, base);
+export async function loadVault(id: string): Promise<EncryptedVault | null> {
+  const raw = await SecureStore.getItemAsync(vaultKey(id), base);
   return raw ? deserializeVault(raw) : null;
 }
 
-export async function hasVault(): Promise<boolean> {
-  return (await SecureStore.getItemAsync(K_VAULT, base)) != null;
+export async function hasVault(id: string): Promise<boolean> {
+  return (await SecureStore.getItemAsync(vaultKey(id), base)) != null;
 }
 
-export async function saveAccounts(accounts: StoredAccount[]): Promise<void> {
-  await SecureStore.setItemAsync(K_ACCOUNTS, JSON.stringify(accounts), base);
+export async function saveAccounts(id: string, accounts: StoredAccount[]): Promise<void> {
+  await SecureStore.setItemAsync(accountsKey(id), JSON.stringify(accounts), base);
 }
 
-export async function loadAccounts(): Promise<StoredAccount[] | null> {
-  const raw = await SecureStore.getItemAsync(K_ACCOUNTS, base);
+export async function loadAccounts(id: string): Promise<StoredAccount[] | null> {
+  const raw = await SecureStore.getItemAsync(accountsKey(id), base);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as StoredAccount[];
@@ -63,14 +76,36 @@ export async function loadAccounts(): Promise<StoredAccount[] | null> {
   }
 }
 
-/** Active le déverrouillage biométrique en stockant la seed gated par l'OS. */
-export async function enableBiometricSeed(mnemonic: string): Promise<void> {
-  await SecureStore.setItemAsync(K_BIO_SEED, mnemonic, bioGated);
+export async function enableBiometricSeed(id: string, mnemonic: string): Promise<void> {
+  await SecureStore.setItemAsync(bioKey(id), mnemonic, bioGated);
 }
 
-/** Désactive le déverrouillage biométrique (supprime la seed gated). */
-export async function disableBiometricSeed(): Promise<void> {
-  await SecureStore.deleteItemAsync(K_BIO_SEED, bioGated);
+export async function disableBiometricSeed(id: string): Promise<void> {
+  await SecureStore.deleteItemAsync(bioKey(id), bioGated);
+}
+
+/** Liste des portefeuilles (non sensible). */
+export async function saveWalletsList(list: WalletMeta[]): Promise<void> {
+  await SecureStore.setItemAsync(K_WALLETS, JSON.stringify(list), base);
+}
+
+export async function loadWalletsList(): Promise<WalletMeta[]> {
+  const raw = await SecureStore.getItemAsync(K_WALLETS, base);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as WalletMeta[];
+  } catch {
+    return [];
+  }
+}
+
+/** Carnet d'adresses. */
+export async function saveContacts(list: unknown): Promise<void> {
+  await SecureStore.setItemAsync(K_CONTACTS, JSON.stringify(list), base);
+}
+
+export async function loadContactsRaw(): Promise<string | null> {
+  return SecureStore.getItemAsync(K_CONTACTS, base);
 }
 
 /** Préférences non sensibles (nom, langue, devise…). */
@@ -104,14 +139,24 @@ export async function loadCustomTokens(): Promise<Record<string, string[]>> {
 }
 
 /** Lit la seed via biométrie (l'OS prompt). Renvoie null si non configurée. */
-export async function readBiometricSeed(): Promise<string | null> {
-  return SecureStore.getItemAsync(K_BIO_SEED, bioGated);
+export async function readBiometricSeed(id: string): Promise<string | null> {
+  return SecureStore.getItemAsync(bioKey(id), bioGated);
 }
 
-export async function wipeAll(): Promise<void> {
+/** Supprime un portefeuille précis (coffre + comptes + biométrie). */
+export async function wipeWallet(id: string): Promise<void> {
   await Promise.all([
-    SecureStore.deleteItemAsync(K_VAULT, base),
-    SecureStore.deleteItemAsync(K_ACCOUNTS, base),
-    SecureStore.deleteItemAsync(K_BIO_SEED, bioGated),
+    SecureStore.deleteItemAsync(vaultKey(id), base),
+    SecureStore.deleteItemAsync(accountsKey(id), base),
+    SecureStore.deleteItemAsync(bioKey(id), bioGated),
+  ]);
+}
+
+/** Réinitialisation totale (tous les portefeuilles + la liste). */
+export async function wipeAll(list: WalletMeta[]): Promise<void> {
+  await Promise.all([
+    ...list.map((w) => wipeWallet(w.id)),
+    wipeWallet('primary'),
+    SecureStore.deleteItemAsync(K_WALLETS, base),
   ]);
 }
