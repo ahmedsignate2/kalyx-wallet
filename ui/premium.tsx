@@ -21,6 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 import { colors, gradients, radii, spacing, typography, shadow } from './theme';
+import { Icon, type IconName } from './icon';
 
 export function PremiumScreen({
   children,
@@ -101,11 +102,11 @@ export function Chip({
   );
 }
 
-export function IconButton({ icon, onPress, badge }: { icon: string; onPress?: () => void; badge?: boolean }) {
+export function IconButton({ icon, onPress, badge }: { icon: IconName; onPress?: () => void; badge?: boolean }) {
   return (
     <Pressable onPress={onPress}>
       <View style={styles.iconBtn}>
-        <Text style={{ fontSize: 17 }}>{icon}</Text>
+        <Icon name={icon} size={19} color={colors.text} />
         {badge ? <View style={styles.badge} /> : null}
       </View>
     </Pressable>
@@ -141,7 +142,7 @@ export function CircleAction({
   onPress,
   disabled,
 }: {
-  icon: string;
+  icon: IconName;
   label: string;
   onPress: () => void;
   disabled?: boolean;
@@ -153,7 +154,7 @@ export function CircleAction({
       style={({ pressed }) => [{ alignItems: 'center', gap: 8, flex: 1, opacity: disabled ? 0.4 : pressed ? 0.6 : 1 }]}
     >
       <View style={styles.circleAction}>
-        <Text style={{ fontSize: 20, color: colors.text }}>{icon}</Text>
+        <Icon name={icon} size={22} color={colors.text} />
       </View>
       <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '600' }}>{label}</Text>
     </Pressable>
@@ -182,7 +183,7 @@ export function SearchBar({
 }) {
   return (
     <View style={styles.search}>
-      <Text style={{ fontSize: 16 }}>🔍</Text>
+      <Icon name="search" size={18} color={colors.textMuted} />
       <RNTextInput
         value={value}
         onChangeText={onChangeText}
@@ -417,7 +418,7 @@ export function MarketRow({
 
 export interface NavItem {
   key: string;
-  icon: string;
+  icon: IconName;
   label: string;
   onPress: () => void;
 }
@@ -430,7 +431,7 @@ export function BottomNav({
 }: {
   items: NavItem[];
   active: string;
-  center: { icon: string; label: string; onPress: () => void };
+  center: { icon: IconName; label: string; onPress: () => void };
 }) {
   const insets = useSafeAreaInsets();
   const left = items.slice(0, 2);
@@ -439,7 +440,7 @@ export function BottomNav({
     const on = it.key === active;
     return (
       <Pressable key={it.key} onPress={it.onPress} style={{ flex: 1, alignItems: 'center', gap: 3 }}>
-        <Text style={{ fontSize: 18, opacity: on ? 1 : 0.5 }}>{it.icon}</Text>
+        <Icon name={it.icon} size={22} color={on ? colors.accent : colors.textFaint} />
         <Text style={{ fontSize: 11, color: on ? colors.accent : colors.textFaint, fontWeight: '600' }}>
           {it.label}
         </Text>
@@ -460,7 +461,7 @@ export function BottomNav({
           end={{ x: 1, y: 1 }}
           style={styles.fab}
         >
-          <Text style={{ fontSize: 22, color: '#fff' }}>{center.icon}</Text>
+          <Icon name={center.icon} size={24} color="#fff" />
         </LinearGradient>
         <Text style={{ fontSize: 11, color: colors.accent, fontWeight: '600', marginTop: 2 }}>
           {center.label}

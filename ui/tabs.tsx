@@ -15,12 +15,12 @@ export function AppTabBar({ active }: { active: MainTab }) {
   return (
     <BottomNav
       active={active}
-      center={{ icon: '↕', label: t('navExchange'), onPress: () => router.push('/swap') }}
+      center={{ icon: 'exchange', label: t('navExchange'), onPress: () => router.push('/swap') }}
       items={[
-        { key: 'home', icon: '🏠', label: t('navHome'), onPress: () => router.replace('/home') },
-        { key: 'market', icon: '📊', label: t('navMarket'), onPress: () => router.replace('/market') },
-        { key: 'wallet', icon: '👛', label: t('navWallet'), onPress: () => router.replace('/wallet') },
-        { key: 'menu', icon: '☰', label: t('menu'), onPress: () => router.replace('/menu') },
+        { key: 'home', icon: 'home', label: t('navHome'), onPress: () => router.replace('/home') },
+        { key: 'market', icon: 'market', label: t('navMarket'), onPress: () => router.replace('/market') },
+        { key: 'wallet', icon: 'wallet', label: t('navWallet'), onPress: () => router.replace('/wallet') },
+        { key: 'menu', icon: 'menu', label: t('menu'), onPress: () => router.replace('/menu') },
       ]}
     />
   );
