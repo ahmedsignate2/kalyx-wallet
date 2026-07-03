@@ -25,13 +25,17 @@ import { deriveEvmAccount } from '../../crypto/hd';
 import { normalizeEvmAddress } from '../validation/address';
 import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
+import { tryInOrder } from './net';
 
 // Limite de gas d'un transfert natif simple (pas d'appel de contrat).
 const NATIVE_TRANSFER_GAS = 21_000n;
 
+// Délai max par RPC avant de passer au suivant.
+const RPC_TIMEOUT_MS = 8_000;
+
 export class EvmChainAdapter implements ChainAdapter {
   readonly config: ChainConfig;
-  private provider?: JsonRpcProvider;
+  private providers?: JsonRpcProvider[];
 
   constructor(config: ChainConfig) {
     if (config.family !== 'evm' || config.evmChainId === undefined) {
@@ -40,14 +44,21 @@ export class EvmChainAdapter implements ChainAdapter {
     this.config = config;
   }
 
-  private getProvider(): JsonRpcProvider {
-    if (!this.provider) {
-      const req = new FetchRequest(this.config.rpcUrls[0]);
-      this.provider = new JsonRpcProvider(req, this.config.evmChainId, {
-        staticNetwork: true,
+  /** Un provider par URL RPC (créés une fois). */
+  private getProviders(): JsonRpcProvider[] {
+    if (!this.providers) {
+      this.providers = this.config.rpcUrls.map((url) => {
+        const req = new FetchRequest(url);
+        req.timeout = RPC_TIMEOUT_MS;
+        return new JsonRpcProvider(req, this.config.evmChainId, { staticNetwork: true });
       });
     }
-    return this.provider;
+    return this.providers;
+  }
+
+  /** Exécute `op` en essayant chaque RPC dans l'ordre (timeout + fallback). */
+  private call<T>(op: (provider: JsonRpcProvider) => Promise<T>): Promise<T> {
+    return tryInOrder(this.getProviders(), op, { timeoutMs: RPC_TIMEOUT_MS });
   }
 
   deriveAccount(seed: Uint8Array, index = 0): Account {
@@ -56,7 +67,8 @@ export class EvmChainAdapter implements ChainAdapter {
   }
 
   async getBalance(address: string): Promise<Balance> {
-    const raw = await this.getProvider().getBalance(normalizeEvmAddress(address));
+    const addr = normalizeEvmAddress(address);
+    const raw = await this.call((p) => p.getBalance(addr));
     return {
       raw,
       decimals: this.config.nativeDecimals,
@@ -72,12 +84,11 @@ export class EvmChainAdapter implements ChainAdapter {
 
   async prepareTransfer(from: string, params: TransferParams): Promise<UnsignedTx> {
     const intent = this.buildTransfer(params);
-    const provider = this.getProvider();
     const sender = normalizeEvmAddress(from);
 
     const [nonce, fee] = await Promise.all([
-      provider.getTransactionCount(sender, 'pending'),
-      provider.getFeeData(),
+      this.call((p) => p.getTransactionCount(sender, 'pending')),
+      this.call((p) => p.getFeeData()),
     ]);
 
     if (fee.maxFeePerGas == null || fee.maxPriorityFeePerGas == null) {
@@ -110,7 +121,7 @@ export class EvmChainAdapter implements ChainAdapter {
 
   async broadcast(rawSignedTx: string): Promise<string> {
     const parsed = Transaction.from(rawSignedTx);
-    const res = await this.getProvider().broadcastTransaction(rawSignedTx);
+    const res = await this.call((p) => p.broadcastTransaction(rawSignedTx));
     return res.hash ?? parsed.hash!;
   }
 }
