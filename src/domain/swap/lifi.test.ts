@@ -14,7 +14,7 @@ describe('parseSwapQuote', () => {
       executionDuration: 30,
       fromAmountUSD: '3450',
       toAmountUSD: '3440',
-      gasCosts: [{ amountUSD: '2.5' }],
+      gasCosts: [{ amountUSD: '2.5', amount: '120000000000000', token: { symbol: 'eth', decimals: 18 } }],
       feeCosts: [{ amountUSD: '10.3' }],
     },
     transactionRequest: {
@@ -45,6 +45,8 @@ describe('parseSwapQuote', () => {
   it('extrait les détails avancés (gas, frais, durée, valeurs USD)', () => {
     const q = parseSwapQuote(json)!;
     expect(q.gasCostUsd).toBeCloseTo(2.5);
+    expect(q.gasCostNative).toBe(120000000000000n);
+    expect(q.gasToken?.symbol).toBe('ETH');
     expect(q.feeCostUsd).toBeCloseTo(10.3);
     expect(q.durationSec).toBe(30);
     expect(q.fromAmountUsd).toBe(3450);

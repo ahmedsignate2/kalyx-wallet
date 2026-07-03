@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Alert, Pressable, Image } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, TextInput, Alert, Pressable, Image, Animated, Vibration, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
-import { PremiumScreen, GlassCard } from '../ui/premium';
+import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { colors, radii, spacing, typography } from '../ui/theme';
-import { useWallet } from '../lib/walletStore';
+import { useWallet, type SwapStatus } from '../lib/walletStore';
+import { friendlyTxError } from '../lib/txError';
 import { useT } from '../lib/settingsStore';
 import {
   getAdapter,
@@ -45,6 +46,13 @@ const TOKENS: Record<string, Tok[]> = {
     { symbol: 'USDT', address: '0x55d398326f99059fF775485246999027B3197955', decimals: 18 },
     { symbol: 'USDC', address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', decimals: 18 },
   ],
+};
+
+const STATUS_LABEL: Record<SwapStatus, string> = {
+  approving: 'Approbation du token…',
+  approvalWait: 'Attente de l’approbation…',
+  swapping: 'Envoi du swap…',
+  confirming: 'Confirmation sur la blockchain…',
 };
 
 const TW_CHAIN: Record<string, string> = { ethereum: 'ethereum', polygon: 'polygon', bnb: 'smartchain', base: 'base' };
@@ -101,6 +109,18 @@ export default function Swap() {
   const [busy, setBusy] = useState(false);
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState<string | null>(null);
+  const shakeX = useRef(new Animated.Value(0)).current;
+
+  const shakePin = () => {
+    Vibration.vibrate(80);
+    Animated.sequence([
+      Animated.timing(shakeX, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: 6, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  };
 
   const reset = () => {
     setQuote(null);
@@ -183,22 +203,22 @@ export default function Swap() {
     if (!quote) return;
     setBusy(true);
     setError(null);
+    setStep('Préparation…');
     try {
-      const hash = await executeSwap(quote, { pin });
+      const hash = await executeSwap(quote, { pin }, (s) => setStep(STATUS_LABEL[s]));
       setPin('');
       reset();
       setAmount('');
       Alert.alert('Swap envoyé ✅', hash, [{ text: 'OK' }]);
     } catch (e) {
-      setError(
-        isWalletError(e) && e.code === 'WRONG_PIN'
-          ? 'PIN incorrect.'
-          : e instanceof Error
-            ? e.message
-            : 'Échec du swap.',
-      );
+      if (isWalletError(e) && e.code === 'WRONG_PIN') {
+        shakePin();
+        setPin('');
+      }
+      setError(friendlyTxError(e));
     } finally {
       setBusy(false);
+      setStep(null);
     }
   };
 
@@ -255,9 +275,16 @@ export default function Swap() {
       {/* Détails du devis */}
       {quote ? (
         <GlassCard>
-          <Row label="Route" value={quote.toolName} />
+          <Row label="Route" value={`LI.FI → ${quote.toolName}`} />
           <Row label="Minimum reçu" value={`${formatBalance(quote.toAmountMin, quote.toToken.decimals, 6)} ${toTok.symbol}`} />
-          {quote.gasCostUsd > 0 ? <Row label="Frais réseau" value={`≈ $${quote.gasCostUsd.toFixed(2)}`} /> : null}
+          {quote.gasCostNative > 0n && quote.gasToken ? (
+            <Row
+              label="Frais réseau"
+              value={`≈ ${formatBalance(quote.gasCostNative, quote.gasToken.decimals, 6)} ${quote.gasToken.symbol}${quote.gasCostUsd > 0 ? ` ($${quote.gasCostUsd.toFixed(2)})` : ''}`}
+            />
+          ) : quote.gasCostUsd > 0 ? (
+            <Row label="Frais réseau" value={`≈ $${quote.gasCostUsd.toFixed(2)}`} />
+          ) : null}
           <Row label="Frais Nova" value={`${(Number(NOVA_FEE) * 100).toFixed(1)} %`} />
           {impact != null ? <Row label="Impact prix" value={`${impact.toFixed(2)} %`} color={impact < -1 ? colors.down : colors.textMuted} /> : null}
           <Row label="Slippage" value={`${(quote.slippage * 100).toFixed(1)} %`} />
@@ -266,20 +293,27 @@ export default function Swap() {
           {confirming ? (
             <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, marginTop: spacing(1), paddingTop: spacing(1) }}>
               <Text style={typography.muted}>PIN (pour signer)</Text>
-              <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} autoFocus style={{ color: colors.text, fontSize: 22, letterSpacing: 6 }} />
+              <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
+                <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} autoFocus editable={!busy} style={{ color: colors.text, fontSize: 22, letterSpacing: 6 }} />
+              </Animated.View>
             </View>
           ) : null}
         </GlassCard>
       ) : null}
 
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? <ErrorBox message={error} /> : null}
 
-      {!quote ? (
+      {busy && step ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'center', paddingVertical: spacing(1) }}>
+          <ActivityIndicator color={colors.accent} />
+          <Text style={{ color: colors.text }}>{step}</Text>
+        </View>
+      ) : !quote ? (
         <Button label={loading ? 'Recherche de route…' : 'Obtenir un devis'} loading={loading} onPress={onQuote} />
       ) : !confirming ? (
         <Button label="Échanger" onPress={() => setConfirming(true)} />
       ) : (
-        <Button label={busy ? 'Signature…' : 'Confirmer le swap'} loading={busy} onPress={confirm} />
+        <Button label="Confirmer le swap" onPress={confirm} />
       )}
     </PremiumScreen>
   );

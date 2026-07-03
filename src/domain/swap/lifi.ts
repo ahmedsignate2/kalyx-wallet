@@ -47,6 +47,9 @@ export interface SwapQuote {
   toolName: string;
   /** Frais réseau (gas) estimés en USD. */
   gasCostUsd: number;
+  /** Frais réseau en token natif (plus petite unité) + infos du token. */
+  gasCostNative: bigint;
+  gasToken: SwapTokenInfo | null;
   /** Frais (LI.FI + intégrateur) en USD. */
   feeCostUsd: number;
   /** Durée d'exécution estimée (secondes). */
@@ -88,7 +91,7 @@ export function parseSwapQuote(json: unknown): SwapQuote | null {
       executionDuration?: number;
       fromAmountUSD?: string;
       toAmountUSD?: string;
-      gasCosts?: { amountUSD?: string }[];
+      gasCosts?: { amountUSD?: string; amount?: string; token?: unknown }[];
       feeCosts?: { amountUSD?: string }[];
     };
     action?: { fromToken?: unknown; toToken?: unknown; slippage?: number };
@@ -112,6 +115,8 @@ export function parseSwapQuote(json: unknown): SwapQuote | null {
     approvalAddress: approval,
     toolName: q.toolDetails?.name ?? q.tool ?? 'LI.FI',
     gasCostUsd: sumUsd(est.gasCosts),
+    gasCostNative: (est.gasCosts ?? []).reduce((s, c) => s + big(c.amount), 0n),
+    gasToken: est.gasCosts?.[0]?.token ? tokenOf(est.gasCosts[0].token) : null,
     feeCostUsd: sumUsd(est.feeCosts),
     durationSec: Number(est.executionDuration) || 0,
     fromAmountUsd: Number(est.fromAmountUSD) || 0,
