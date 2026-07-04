@@ -83,11 +83,17 @@ bottom nav 5 onglets + FAB, ErrorBoundary.
 
 - ✅ ~~Activité inline sur l'accueil~~ (fait 2026-07-04) : 4 dernières tx réelles
   (reçu/envoyé, date relative, montant signé, échec), skeleton + état vide.
+- ✅ ~~Écran de succès animé~~ (fait 2026-07-04) : `ui/SuccessModal.tsx` (cercle pop +
+  coche dessinée + vibration, hash + lien explorer) — branché sur Envoi et Swap.
+- ✅ ~~Fiche NFT~~ (fait 2026-07-04) : `ui/NftDetailModal.tsx` au tap dans la galerie
+  (image, collection, contrat/tokenId copiables, explorer). Icône `copy` ajoutée.
+- ✅ ~~Boutons « Bientôt »~~ (fait 2026-07-04) : Convert → /swap, « Tout voir » marché
+  → /market, Buy grisé-tappable (prop `dimmed` de CircleAction), faux badge cloche retiré.
 
-**Cap UI « battre MetaMask/Phantom » — priorités restantes (décidé 2026-07-04) :**
-1. Écran de succès de transaction animé (check + haptique) ; empty states illustrés.
-2. Galerie NFT dédiée (le moteur existe, Phantom est la référence à battre).
-3. Boutons « Bientôt » (Buy/Convert/cloche) : brancher ou griser proprement.
+**→ Cap UI « battre MetaMask/Phantom » (2026-07-04) : TOUT EST LIVRÉ.**
+Reste côté visuel : vérif sur device du mode clair + des nouveautés (aucun rendu
+n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
+(icône/splash/captures). Ensuite retour aux gros morceaux (§ ci-dessous).
 
 ### Gros morceaux (rebuild / partenaires)
 - **Notifications** (locales `expo-notifications` + push via backend/Alchemy Notify) — rebuild.
