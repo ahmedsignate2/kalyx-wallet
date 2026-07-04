@@ -3,6 +3,7 @@ import { View, Text, TextInput, Alert, Pressable, Image, Animated, Vibration, Ac
 import { Stack } from 'expo-router';
 import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
+import { SuccessModal } from '../ui/SuccessModal';
 import { Icon } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet, type SwapStatus } from '../lib/walletStore';
@@ -112,6 +113,8 @@ export default function Swap() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<string | null>(null);
+  // Succès : hash + résumé (capturés avant reset) pour l'écran animé.
+  const [success, setSuccess] = useState<{ hash: string; summary: string } | null>(null);
   const shakeX = useRef(new Animated.Value(0)).current;
 
   const shakePin = () => {
@@ -208,10 +211,12 @@ export default function Swap() {
     setStep('Préparation…');
     try {
       const hash = await executeSwap(quote, { pin }, (s) => setStep(STATUS_LABEL[s]));
+      // Résumé capturé AVANT reset() (qui efface quote/amount).
+      const summary = `${amount} ${fromTok.symbol} → ≈ ${formatBalance(quote.toAmount, quote.toToken.decimals, 6)} ${toTok.symbol}`;
       setPin('');
       reset();
       setAmount('');
-      Alert.alert('Swap envoyé ✅', hash, [{ text: 'OK' }]);
+      setSuccess({ hash, summary });
     } catch (e) {
       if (isWalletError(e) && e.code === 'WRONG_PIN') {
         shakePin();
@@ -317,6 +322,15 @@ export default function Swap() {
       ) : (
         <Button label="Confirmer le swap" onPress={confirm} />
       )}
+
+      <SuccessModal
+        visible={success != null}
+        title="Swap envoyé"
+        message={success?.summary}
+        hash={success?.hash}
+        explorerUrl={chain.explorerUrl}
+        onClose={() => setSuccess(null)}
+      />
     </PremiumScreen>
   );
 }
