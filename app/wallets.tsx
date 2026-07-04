@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { toast } from '../lib/toast';
 
 export default function Wallets() {
   const { colors, typography } = useTheme();
@@ -18,7 +19,7 @@ export default function Wallets() {
 
   const onRemove = (id: string, label: string) => {
     if (wallets.length <= 1) {
-      Alert.alert('Impossible', 'Tu ne peux pas supprimer ton dernier portefeuille.');
+      toast.warning('Impossible', 'Tu ne peux pas supprimer ton dernier portefeuille.');
       return;
     }
     Alert.alert(
