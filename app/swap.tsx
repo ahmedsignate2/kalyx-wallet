@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { SuccessModal } from '../ui/SuccessModal';
+import { notify } from '../lib/notifications';
 import { Icon } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet, type SwapStatus } from '../lib/walletStore';
@@ -217,6 +218,7 @@ export default function Swap() {
       reset();
       setAmount('');
       setSuccess({ hash, summary });
+      void notify('Swap envoyé ✅', summary);
     } catch (e) {
       if (isWalletError(e) && e.code === 'WRONG_PIN') {
         shakePin();

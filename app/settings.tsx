@@ -9,6 +9,7 @@ import { useSettings, useT, FIATS } from '../lib/settingsStore';
 import { LANGUAGES } from '../lib/i18n';
 import { useWallet } from '../lib/walletStore';
 import { isBiometricAvailable } from '../lib/biometrics';
+import { ensureNotifPermission, notificationsAvailable, notify } from '../lib/notifications';
 
 function Ico({ n }: { n: IconName }) {
   const { colors } = useTheme();
@@ -30,13 +31,27 @@ export default function Settings() {
   const reset = useWallet((s) => s.reset);
 
   const [name, setName] = useState(profileName);
+  const [notifOn, setNotifOn] = useState(false);
   const [bioAvailable, setBioAvailable] = useState(false);
   const [pinForBio, setPinForBio] = useState<string | null>(null);
   const [pin, setPin] = useState('');
 
   useEffect(() => {
     isBiometricAvailable().then(setBioAvailable).catch(() => setBioAvailable(false));
+    notificationsAvailable().then(setNotifOn).catch(() => setNotifOn(false));
   }, []);
+
+  const onToggleNotif = async (on: boolean) => {
+    if (!on) {
+      // Pas de désactivation programmatique côté OS : on informe l'utilisateur.
+      Alert.alert('Notifications', 'Pour couper les notifications, désactive-les pour Nova dans les réglages du téléphone.');
+      return;
+    }
+    const ok = await ensureNotifPermission();
+    setNotifOn(ok);
+    if (ok) void notify('Notifications activées', 'Tu seras prévenu de tes transactions.');
+    else Alert.alert('Notifications', 'Permission refusée, ou disponible seulement après un rebuild de l’app.');
+  };
 
   const langName = LANGUAGES.find((l) => l.code === language)?.name ?? language;
   const soon = () => Alert.alert(t('soon'));
@@ -153,7 +168,18 @@ export default function Settings() {
       {/* Réseau & à venir */}
       <GlassCard>
         <ListRow left={<Ico n="networks" />} title="Réseau" subtitle="Choisir le réseau actif" right={chevron} onPress={() => router.push('/networks')} />
-        <ListRow divider left={<Ico n="notifications" />} title="Notifications" right={<Chip label={t('soon')} />} onPress={soon} />
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
+              <Ico n="notifications" />
+              <View style={{ flex: 1 }}>
+                <Text style={typography.body}>Notifications</Text>
+                <Text style={typography.muted}>Alertes de transaction</Text>
+              </View>
+            </View>
+            <Switch value={notifOn} onValueChange={onToggleNotif} />
+          </View>
+        </View>
         <ListRow divider left={<Ico n="buy" />} title="Achat crypto" right={<Chip label={t('soon')} />} onPress={soon} />
       </GlassCard>
 

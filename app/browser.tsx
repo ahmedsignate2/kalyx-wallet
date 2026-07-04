@@ -12,9 +12,9 @@
  * react-native-webview est un module natif : chargé en require() dynamique,
  * l'écran affiche un message clair tant que le dev build n'a pas été rebuildé.
  */
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { GlassCard, ErrorBox, PressableScale } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
@@ -93,6 +93,15 @@ export default function Browser() {
 
   const injected = useMemo(() => buildInjectedProvider(chainIdHex), [chainIdHex]);
   const origin = url ? originOf(url) : '';
+
+  // Deep-link interne : /browser?url=https://… (CTA Staking/DeFi, etc.)
+  const { url: urlParam } = useLocalSearchParams<{ url?: string }>();
+  useEffect(() => {
+    if (urlParam && /^https:\/\//i.test(String(urlParam))) {
+      setUrl(String(urlParam));
+      setInput(String(urlParam));
+    }
+  }, [urlParam]);
 
   const go = (raw: string) => {
     const t = raw.trim();
