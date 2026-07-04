@@ -1,19 +1,23 @@
-import React, { useEffect } from 'react';
-import { View, Text, ScrollView, Platform } from 'react-native';
-import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, Platform, Pressable, StyleSheet } from 'react-native';
+import { router, Stack } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
-import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { radii, spacing, useTheme } from '../ui/theme';
+import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
+import { Button } from '../ui/components';
+import { Icon } from '../ui/icon';
+import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 
 /**
  * Affiche la phrase de récupération.
  * SÉCURITÉ : capture d'écran bloquée pendant l'affichage de la seed
- * (FLAG_SECURE Android ; sur iOS, expo-screen-capture notifie/masque).
+ * (FLAG_SECURE Android ; sur iOS, expo-screen-capture notifie/masque). La seed
+ * reste FLOUTÉE jusqu'à ce que l'utilisateur appuie (évite les regards).
  */
 export default function Backup() {
   const { colors, typography } = useTheme();
   const draft = useWallet((s) => s.draftMnemonic);
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     ScreenCapture.preventScreenCaptureAsync('seed').catch(() => {});
@@ -24,25 +28,44 @@ export default function Backup() {
 
   if (!draft) {
     return (
-      <Screen>
-        <Muted>Aucune phrase à afficher. Reviens à l'accueil.</Muted>
-        <Button label="Retour" variant="ghost" onPress={() => router.replace('/welcome')} />
-      </Screen>
+      <PremiumScreen>
+        <Stack.Screen options={{ headerShown: true, title: 'Sauvegarde' }} />
+        <GlassCard>
+          <Text style={typography.bodyStrong}>Aucune phrase à afficher.</Text>
+          <Text onPress={() => router.replace('/welcome')} style={{ color: colors.accent, fontFamily: fonts.semibold, marginTop: spacing(1) }}>
+            Revenir à l'accueil
+          </Text>
+        </GlassCard>
+      </PremiumScreen>
     );
   }
 
   const words = draft.split(' ');
 
   return (
-    <Screen>
-      <ScrollView contentContainerStyle={{ gap: spacing(2) }}>
-        <Title>Ta phrase de récupération</Title>
-        <Muted>
-          Écris ces {words.length} mots dans l'ordre, sur papier. Ne les prends pas en
-          photo, ne les copie pas dans le cloud. C'est la seule façon de restaurer ton
-          wallet {Platform.OS === 'android' ? '(capture d\'écran bloquée)' : ''}.
-        </Muted>
-        <Card>
+    <PremiumScreen>
+      <Stack.Screen options={{ headerShown: true, title: 'Sauvegarde' }} />
+
+      <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
+        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="phrase" size={26} color={colors.accent} />
+        </View>
+        <Text style={typography.title}>Ta phrase de récupération</Text>
+        <Text style={[typography.muted, { textAlign: 'center' }]}>
+          {words.length} mots dans l'ordre. C'est la SEULE façon de restaurer ton wallet.
+        </Text>
+      </View>
+
+      <ErrorBox
+        tone="warning"
+        message={`Écris-les sur papier. Ne les prends pas en photo, ne les colle pas dans le cloud.${
+          Platform.OS === 'android' ? ' (Capture d’écran bloquée ici.)' : ''
+        }`}
+      />
+
+      {/* Grille des mots + voile « appuie pour révéler » */}
+      <GlassCard>
+        <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
             {words.map((w, i) => (
               <View
@@ -51,21 +74,33 @@ export default function Backup() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   backgroundColor: colors.bgElevated,
-                  borderRadius: radii.sm,
+                  borderWidth: 1,
+                  borderColor: colors.glassBorder,
+                  borderRadius: radii.md,
                   paddingVertical: spacing(1),
                   paddingHorizontal: spacing(1.5),
-                  minWidth: '30%',
+                  width: '31%',
                   gap: 6,
                 }}
               >
-                <Text style={[typography.muted, { width: 20 }]}>{i + 1}</Text>
-                <Text style={typography.body}>{w}</Text>
+                <Text style={{ color: colors.textFaint, fontSize: 12, fontFamily: fonts.semibold, width: 18 }}>{i + 1}</Text>
+                <Text style={{ color: colors.text, fontFamily: fonts.medium }} numberOfLines={1}>{w}</Text>
               </View>
             ))}
           </View>
-        </Card>
-      </ScrollView>
+        </ScrollView>
+
+        {!revealed ? (
+          <Pressable onPress={() => setRevealed(true)} style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card + 'F2', borderRadius: radii.xl, gap: spacing(1) }]}>
+            <Icon name="eye" size={28} color={colors.accent} />
+            <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>Appuie pour révéler</Text>
+            <Text style={typography.muted}>Assure-toi que personne ne regarde</Text>
+          </Pressable>
+        ) : null}
+      </GlassCard>
+
       <Button label="J'ai noté ma phrase" onPress={() => router.push('/verify')} />
-    </Screen>
+      <View style={{ height: spacing(1) }} />
+    </PremiumScreen>
   );
 }
