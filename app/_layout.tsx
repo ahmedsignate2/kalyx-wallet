@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +18,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { RootErrorBoundary, ErrorScreen } from '../ui/ErrorBoundary';
 import { WalletConnectHost } from '../ui/WalletConnectHost';
+import { Splash } from '../ui/Splash';
 import { useTheme } from '../ui/theme';
 
 console.log('[Nova] _layout.tsx chargé');
@@ -30,6 +31,8 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 export default function RootLayout() {
   const { mode, colors } = useTheme();
+  // Splash animé (lion + vibration) au lancement.
+  const [showSplash, setShowSplash] = useState(true);
   // Typo custom du design system (Inter). On attend le chargement avant de
   // rendre, sinon RN plante sur une fontFamily inconnue.
   const [fontsLoaded] = useFonts({
@@ -89,6 +92,7 @@ export default function RootLayout() {
           }}
         />
         <WalletConnectHost />
+        {showSplash ? <Splash onFinish={() => setShowSplash(false)} /> : null}
       </SafeAreaProvider>
     </RootErrorBoundary>
   );

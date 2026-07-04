@@ -2,11 +2,12 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button } from '../ui/components';
-import { spacing, useTheme } from '../ui/theme';
+import { NovaLogo } from '../ui/NovaLogo';
+import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 
 export default function Welcome() {
-  const { typography } = useTheme();
+  const { colors, typography } = useTheme();
   const newDraft = useWallet((s) => s.newDraft);
 
   const onCreate = () => {
@@ -17,7 +18,10 @@ export default function Welcome() {
   return (
     <Screen>
       <View style={{ flex: 1, justifyContent: 'center', gap: spacing(2) }}>
-        <Text style={typography.display}>Nova</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+          <NovaLogo size={56} />
+          <Text style={[typography.display, { fontFamily: fonts.extrabold }]}>Nova</Text>
+        </View>
         <Text style={[typography.muted, { fontSize: 16 }]}>
           Le wallet qui te protège et que tu comprends.
         </Text>
