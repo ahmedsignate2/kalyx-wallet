@@ -19,6 +19,20 @@ const PROJECT_ID = process.env.EXPO_PUBLIC_WALLETCONNECT_ID || '';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let sdkUtils: { buildApprovedNamespaces: (a: any) => any; getSdkError: (k: string) => any } | null = null;
 
+// Filtre (une seule fois) les warnings WC bénins du heartbeat : « Missing or
+// invalid. Record was recently deleted - proposal ». Idempotent car init()
+// peut être relancé après un échec.
+let consoleFiltered = false;
+function silenceBenignWcLogs() {
+  if (consoleFiltered) return;
+  consoleFiltered = true;
+  for (const level of ['warn', 'error'] as const) {
+    const orig = console[level].bind(console);
+    console[level] = (...args: unknown[]) =>
+      String(args[0]).includes('Record was recently deleted') ? undefined : orig(...args);
+  }
+}
+
 interface EvmChain {
   caip: string;
   novaId: string;
@@ -67,13 +81,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
 
   init: async () => {
     if (!PROJECT_ID || get().wallet) return;
-    // Silence les warnings bénins du heartbeat WC (nettoyage de propositions
-    // expirées : « Missing or invalid. Record was recently deleted - proposal »).
-    for (const level of ['warn', 'error'] as const) {
-      const orig = console[level].bind(console);
-      console[level] = (...args: unknown[]) =>
-        String(args[0]).includes('Record was recently deleted') ? undefined : orig(...args);
-    }
+    silenceBenignWcLogs();
     // Chargement dynamique : n'exécute le code natif qu'ici.
     await import('@walletconnect/react-native-compat');
     const [{ Core }, { Web3Wallet }, utils] = await Promise.all([

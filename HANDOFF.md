@@ -137,10 +137,13 @@ sinon elles ne sont PAS embarquées dans l'APK/dev-build.
 9. **`Requiring unknown module "NNNN"`** au chargement de WalletConnect = **lazy bundling
    Metro** : en dev, Expo découpe chaque `await import(...)` en bundles séparés dont les
    IDs de modules se désynchronisent du bundle principal (symptôme : IDs réclamés juste
-   au-dessus du nombre de modules d'index.js). Solution : **`EXPO_NO_METRO_LAZY=1`**
-   (intégré au script `npm start`) → tout dans un seul bundle cohérent. Les `import()`
-   dynamiques restent dans le code (toujours utiles si modules natifs absents).
-   Dev only : en build release, tout est de toute façon dans un seul bundle.
+   au-dessus du nombre de modules d'index.js). Solution : **`EXPO_NO_METRO_LAZY=1`**,
+   posé **dans `metro.config.js`** (`process.env.EXPO_NO_METRO_LAZY = '1'`) car @expo/cli
+   lit cette var **à la volée** à chaque requête de bundle → marche avec `npx expo start`
+   comme `npm start` (l'avoir seulement dans le script npm ne suffit PAS si on lance
+   `npx expo start`). Tout dans un seul bundle cohérent. Les `import()` dynamiques restent
+   dans le code (utiles si modules natifs absents). Dev only. **Après ce changement,
+   relancer avec `--clear` une fois.**
 
 ---
 
