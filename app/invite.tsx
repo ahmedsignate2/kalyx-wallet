@@ -1,7 +1,8 @@
 /**
- * Inviter des amis : code de parrainage dérivé de l'adresse du compte (stable,
- * sans backend), partage natif + copie. Le programme de récompenses n'existe
- * pas encore — le texte est HONNÊTE là-dessus (pas de fausse promesse de gains).
+ * Inviter des amis : partage simple de Nova (message + lien), via le partage
+ * natif. PAS de programme de parrainage ni de récompense — juste faire découvrir
+ * l'app. On n'affiche donc aucun « code de parrainage » (ce serait un mécanisme
+ * factice sans backend d'attribution).
  */
 import React from 'react';
 import { View, Text, Pressable, Share, Alert } from 'react-native';
@@ -9,35 +10,32 @@ import { Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { PremiumScreen, GlassCard } from '../ui/premium';
 import { Button } from '../ui/components';
-import { Icon } from '../ui/icon';
-import { fonts, radii, spacing, useTheme } from '../ui/theme';
-import { useWallet } from '../lib/walletStore';
+import { Icon, type IconName } from '../ui/icon';
+import { fonts, spacing, useTheme } from '../ui/theme';
 
-/** Code court, stable et lisible dérivé de l'adresse (majuscules hex, 8 car.). */
-function referralCode(address?: string): string {
-  if (!address) return 'NOVA';
-  const hex = address.replace(/^0x/i, '').toUpperCase();
-  return `NOVA-${hex.slice(0, 4)}${hex.slice(-4)}`;
-}
+const INVITE_LINK = 'https://nova.wallet'; // site public (à publier)
+const SHARE_MESSAGE = `Rejoins-moi sur Nova Wallet 🚀\n\nUn wallet crypto non-custodial, simple et vraiment premium : tes clés restent chez toi, swap intégré, dApps, NFT.\n\n${INVITE_LINK}`;
 
-const INVITE_LINK = 'https://nova.wallet/invite'; // page marketing (à publier)
+const REASONS: { icon: IconName; text: string }[] = [
+  { icon: 'security', text: 'Non-custodial : les clés restent sur le téléphone' },
+  { icon: 'exchange', text: 'Swap & bridge intégrés' },
+  { icon: 'dapps', text: 'Navigateur dApps + WalletConnect' },
+  { icon: 'nft', text: 'Tokens, NFT et historique réels' },
+];
 
 export default function Invite() {
   const { colors, typography } = useTheme();
-  const account = useWallet((s) => s.account);
-  const code = referralCode(account?.address);
-  const message = `Rejoins-moi sur Nova Wallet 🚀 — un wallet crypto non-custodial, simple et premium.\n\nMon code : ${code}\n${INVITE_LINK}`;
 
   const onShare = async () => {
     try {
-      await Share.share({ message });
+      await Share.share({ message: SHARE_MESSAGE });
     } catch {
       // annulé par l'utilisateur — rien à faire
     }
   };
-  const copy = async (value: string, label: string) => {
-    await Clipboard.setStringAsync(value);
-    Alert.alert('Copié', `${label} copié dans le presse-papier.`);
+  const copyLink = async () => {
+    await Clipboard.setStringAsync(INVITE_LINK);
+    Alert.alert('Copié', 'Le lien a été copié dans le presse-papier.');
   };
 
   return (
@@ -50,48 +48,18 @@ export default function Invite() {
           <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="gift" size={30} color={colors.accent} />
           </View>
-          <Text style={[typography.title, { textAlign: 'center' }]}>Partage Nova</Text>
+          <Text style={[typography.title, { textAlign: 'center' }]}>Fais découvrir Nova</Text>
           <Text style={[typography.muted, { textAlign: 'center' }]}>
-            Fais découvrir Nova à tes amis. Un programme de récompenses arrive — ton code est déjà prêt.
+            Partage l'app avec tes amis — simplement, parce qu'elle est bien.
           </Text>
         </View>
       </GlassCard>
 
-      {/* Code de parrainage */}
+      {/* Pourquoi ils vont aimer */}
       <GlassCard>
-        <Text style={typography.muted}>Ton code de parrainage</Text>
-        <Pressable onPress={() => copy(code, 'Ton code')} style={{ marginTop: spacing(1) }}>
+        {REASONS.map((r, i) => (
           <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderWidth: 1,
-              borderColor: colors.glassBorder,
-              borderStyle: 'dashed',
-              borderRadius: radii.md,
-              paddingVertical: spacing(1.5),
-              paddingHorizontal: spacing(2),
-            }}
-          >
-            <Text style={{ color: colors.text, fontSize: 20, fontFamily: fonts.bold, letterSpacing: 1 }}>{code}</Text>
-            <Icon name="copy" size={18} tone="muted" />
-          </View>
-        </Pressable>
-        <Pressable onPress={() => copy(INVITE_LINK, 'Le lien')} style={{ marginTop: spacing(1.25) }}>
-          <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Copier le lien d'invitation</Text>
-        </Pressable>
-      </GlassCard>
-
-      {/* Étapes */}
-      <GlassCard>
-        {[
-          { n: '1', text: 'Partage ton code ou ton lien' },
-          { n: '2', text: 'Ton ami installe Nova et crée son wallet' },
-          { n: '3', text: 'Vous serez éligibles aux futures récompenses' },
-        ].map((s, i) => (
-          <View
-            key={s.n}
+            key={r.text}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -101,16 +69,20 @@ export default function Invite() {
               borderTopColor: colors.glassBorder,
             }}
           >
-            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: colors.accent, fontFamily: fonts.bold }}>{s.n}</Text>
+            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={r.icon} size={17} color={colors.accent} />
             </View>
-            <Text style={[typography.body, { flex: 1 }]}>{s.text}</Text>
+            <Text style={[typography.body, { flex: 1 }]}>{r.text}</Text>
           </View>
         ))}
       </GlassCard>
 
+      <Pressable onPress={copyLink} style={{ alignSelf: 'center' }}>
+        <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Copier le lien</Text>
+      </Pressable>
+
       <View style={{ flex: 1 }} />
-      <Button label="Partager mon invitation" onPress={onShare} />
+      <Button label="Partager Nova" onPress={onShare} />
       <View style={{ height: spacing(2) }} />
     </PremiumScreen>
   );
