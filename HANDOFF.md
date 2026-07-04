@@ -72,13 +72,20 @@ bottom nav 5 onglets + FAB, ErrorBoundary.
   Portefeuille. Palette catégorielle FIXE `#7C5CFF #3390EC #1FA96E #C9831C #B85F8F`
   validée daltonisme/contraste (skill dataviz) — ne pas cycler d'autres couleurs.
 
+- ✅ ~~Apparence (thème clair/sombre)~~ (fait 2026-07-04) : `useTheme()` partout,
+  palettes dans `ui/theme.ts` (thèmes construits une fois, refs stables), préférence
+  `themePref` persistée (Réglages → Apparence : Système/Sombre/Clair), StatusBar suit.
+  **Règles :** plus AUCUN import statique `colors/typography/gradients/shadow` (le
+  typecheck le garantit) ; dans `ui/`, StyleSheet par thème via cache par mode ;
+  `Icon` a `tone="muted"|"faint"` pour les helpers module-level ; l'écran de crash
+  (`ErrorBoundary`) reste volontairement en couleurs codées en dur.
+  ⚠️ Vérif visuelle sur device encore à faire (les 29 écrans en mode clair).
+
 **Cap UI « battre MetaMask/Phantom » — priorités restantes (décidé 2026-07-04) :**
-1. **Apparence** (thème clair/sombre) — gros refactor : l'app utilise `colors` statique de
-  `ui/theme.ts` partout ; il faut un `useColors()` + adapter les écrans (StyleSheet dynamiques).
-2. Activité inline sur l'accueil (3-4 dernières tx, la section est vide aujourd'hui).
-3. Écran de succès de transaction animé (check + haptique) ; empty states illustrés.
-4. Galerie NFT dédiée (le moteur existe, Phantom est la référence à battre).
-5. Boutons « Bientôt » (Buy/Convert/cloche) : brancher ou griser proprement.
+1. Activité inline sur l'accueil (3-4 dernières tx, la section est vide aujourd'hui).
+2. Écran de succès de transaction animé (check + haptique) ; empty states illustrés.
+3. Galerie NFT dédiée (le moteur existe, Phantom est la référence à battre).
+4. Boutons « Bientôt » (Buy/Convert/cloche) : brancher ou griser proprement.
 
 ### Gros morceaux (rebuild / partenaires)
 - **Notifications** (locales `expo-notifications` + push via backend/Alchemy Notify) — rebuild.
