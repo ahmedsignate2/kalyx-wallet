@@ -55,12 +55,14 @@ bottom nav 5 onglets + FAB, ErrorBoundary.
 ## 3. Ce qui RESTE / à AMÉLIORER
 
 ### Finitions rapides (sans rebuild)
-- **Fenêtre de signature WalletConnect à enrichir** : décoder le **SIWE** en texte lisible,
-  afficher **logo + nom du site**, 🌐 Site / 👛 Adresse / ⛓️ Réseau / ✍️ Action, boutons Signer/Refuser.
+- ✅ ~~Fenêtre de signature WalletConnect enrichie~~ (fait 2026-07-04) : SIWE décodé +
+  anti-phishing (domaine SIWE ≠ site → alerte), logo/nom dApp, résumé Site/Adresse/Réseau/Action,
+  résumé EIP-712 (Permit…) et tx (vers/montant/données), détails techniques repliables.
+  Moteur : `src/domain/wc/message.ts` (hexToText, parseSiwe, siweDomainMismatch,
+  summarizeTypedData — 13 tests). UI : `ui/WalletConnectHost.tsx`.
+- ✅ ~~Warnings WC~~ : `Record was recently deleted` filtrés dans `walletconnect.ts::init()`.
 - **Apparence** (thème clair/sombre) — gros refactor : l'app utilise `colors` statique de
   `ui/theme.ts` partout ; il faut un `useColors()` + adapter les écrans (StyleSheet dynamiques).
-- Silencer les 2 warnings WC `Missing or invalid. Record was recently deleted - proposal`
-  (bénins : nettoyage de propositions expirées par le heartbeat WC).
 
 ### Gros morceaux (rebuild / partenaires)
 - **Notifications** (locales `expo-notifications` + push via backend/Alchemy Notify) — rebuild.
@@ -166,6 +168,7 @@ sinon elles ne sont PAS embarquées dans l'APK/dev-build.
 ---
 
 ## 9. Prochaine étape recommandée
-Enrichir la **fenêtre de signature WalletConnect** (décoder SIWE + logo/nom/réseau/action) —
-pur UI, gros gain « produit fini », **sans rebuild**. Puis Apparence (thème), puis les gros
-morceaux (notifs, Ledger, fiat) selon priorité produit. **Audit sécurité avant tout vrai fonds.**
+**Apparence (thème clair/sombre)** — refactor `useColors()` + écrans, sans rebuild. Puis les
+gros morceaux (notifs, Ledger, fiat) selon priorité produit. La fenêtre de signature WC
+enrichie (SIWE + anti-phishing) est faite mais **à tester sur device** (reconnexion à une
+dApp type OpenSea). **Audit sécurité avant tout vrai fonds.**
