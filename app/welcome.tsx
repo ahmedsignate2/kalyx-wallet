@@ -1,14 +1,46 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, Animated, Easing, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
-import { Screen, Card, Button } from '../ui/components';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button } from '../ui/components';
 import { NovaLogo } from '../ui/NovaLogo';
+import { Icon, type IconName } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 
+const PROPS: { icon: IconName; title: string; sub: string }[] = [
+  { icon: 'security', title: 'Non-custodial', sub: 'Tes clés restent sur ce téléphone. Personne d’autre.' },
+  { icon: 'exchange', title: 'Swap & dApps', sub: 'Échange, bridge et applis décentralisées intégrés.' },
+  { icon: 'nft', title: 'Tokens & NFT', sub: 'Ton portefeuille complet, prix réels et historique.' },
+];
+
+/** Petit bloc qui apparaît en fondu+montée avec un délai (effet staggeré). */
+function Reveal({ delay, children, style }: { delay: number; children: React.ReactNode; style?: object }) {
+  const op = useRef(new Animated.Value(0)).current;
+  const y = useRef(new Animated.Value(16)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(op, { toValue: 1, duration: 420, delay, useNativeDriver: true }),
+      Animated.timing(y, { toValue: 0, duration: 460, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+  }, [op, y, delay]);
+  return <Animated.View style={[{ opacity: op, transform: [{ translateY: y }] }, style]}>{children}</Animated.View>;
+}
+
 export default function Welcome() {
-  const { colors, typography } = useTheme();
+  const { colors, gradients } = useTheme();
+  const insets = useSafeAreaInsets();
   const newDraft = useWallet((s) => s.newDraft);
+  const logoScale = useRef(new Animated.Value(0.7)).current;
+  const logoOp = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(logoScale, { toValue: 1, useNativeDriver: true, speed: 9, bounciness: 10 }),
+      Animated.timing(logoOp, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, [logoScale, logoOp]);
 
   const onCreate = () => {
     newDraft(128); // 12 mots
@@ -16,27 +48,47 @@ export default function Welcome() {
   };
 
   return (
-    <Screen>
-      <View style={{ flex: 1, justifyContent: 'center', gap: spacing(2) }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-          <NovaLogo size={56} />
-          <Text style={[typography.display, { fontFamily: fonts.extrabold }]}>Nova</Text>
+    <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
+      <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
+      <View style={{ flex: 1, paddingTop: insets.top + spacing(6), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3) }}>
+        {/* Marque */}
+        <View style={{ alignItems: 'center', gap: spacing(1.5) }}>
+          <Animated.View style={{ opacity: logoOp, transform: [{ scale: logoScale }] }}>
+            <NovaLogo size={88} />
+          </Animated.View>
+          <Reveal delay={220}>
+            <Text style={{ color: colors.text, fontSize: 34, fontFamily: fonts.extrabold, letterSpacing: 1, textAlign: 'center' }}>Nova</Text>
+          </Reveal>
+          <Reveal delay={300}>
+            <Text style={{ color: colors.textMuted, fontSize: 16, textAlign: 'center', maxWidth: 300 }}>
+              Le wallet qui te protège et que tu comprends.
+            </Text>
+          </Reveal>
         </View>
-        <Text style={[typography.muted, { fontSize: 16 }]}>
-          Le wallet qui te protège et que tu comprends.
-        </Text>
-        <Card style={{ marginTop: spacing(2) }}>
-          <Text style={typography.body}>Tes cryptos, tes clés.</Text>
-          <Text style={typography.muted}>
-            Non-custodial : personne d'autre que toi n'a accès à tes fonds. Tes clés
-            ne quittent jamais ce téléphone.
-          </Text>
-        </Card>
+
+        {/* Arguments */}
+        <View style={{ flex: 1, justifyContent: 'center', gap: spacing(1.5) }}>
+          {PROPS.map((p, i) => (
+            <Reveal key={p.title} delay={420 + i * 110}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.75), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: 20, padding: spacing(1.75) }}>
+                <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name={p.icon} size={22} color={colors.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontSize: 16, fontFamily: fonts.semibold }}>{p.title}</Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 1 }}>{p.sub}</Text>
+                </View>
+              </View>
+            </Reveal>
+          ))}
+        </View>
+
+        {/* Actions */}
+        <Reveal delay={800} style={{ gap: spacing(1.5) }}>
+          <Button label="Créer un wallet" onPress={onCreate} />
+          <Button label="J'ai déjà une phrase" variant="ghost" onPress={() => router.push('/import')} />
+        </Reveal>
       </View>
-      <View style={{ gap: spacing(1.5) }}>
-        <Button label="Créer un wallet" onPress={onCreate} />
-        <Button label="J'ai déjà une phrase" variant="ghost" onPress={() => router.push('/import')} />
-      </View>
-    </Screen>
+    </View>
   );
 }
