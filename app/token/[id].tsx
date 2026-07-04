@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Alert, Image, useWindowDimensions } from 'react-native';
+import { View, Text, Alert, Image, Pressable, useWindowDimensions } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import {
   PremiumScreen,
@@ -8,6 +8,7 @@ import {
   CircleAction,
 } from '../../ui/premium';
 import { InteractiveChart } from '../../ui/InteractiveChart';
+import { Icon } from '../../ui/icon';
 import { fonts, spacing, useTheme } from '../../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { useWallet } from '../../lib/walletStore';
@@ -48,7 +49,9 @@ export default function TokenDetail() {
   const { colors, typography } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useT();
-  const { fiat, language } = useSettings();
+  const { fiat, language, favorites } = useSettings();
+  const toggleFavorite = useSettings((s) => s.toggleFavorite);
+  const isFav = !!id && favorites.includes(id);
   const setActiveChain = useWallet((s) => s.setActiveChain);
 
   const [detail, setDetail] = useState<CoinDetail | null>(null);
@@ -120,17 +123,20 @@ export default function TokenDetail() {
         </GlassCard>
       ) : (
         <>
-          {/* En-tête token */}
+          {/* En-tête token + épingler en favori */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
             {detail?.image ? (
               <Image source={{ uri: detail.image }} style={{ width: 48, height: 48, borderRadius: 24 }} />
             ) : (
               <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.glassStrong }} />
             )}
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={typography.section}>{detail?.name ?? (loadingDetail ? '…' : id)}</Text>
               <Text style={typography.muted}>{detail?.symbol ?? ''}</Text>
             </View>
+            <Pressable onPress={() => id && toggleFavorite(id)} hitSlop={10}>
+              <Icon name={isFav ? 'starFilled' : 'star'} size={24} color={isFav ? colors.warning : colors.textMuted} />
+            </Pressable>
           </View>
 
           {/* Prix + variation + market cap */}
