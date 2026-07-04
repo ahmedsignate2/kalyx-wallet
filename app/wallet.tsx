@@ -30,8 +30,10 @@ import {
   getCustomTokens,
   getTokenPrices,
   getNfts,
+  classifyToken,
   type ChainConfig,
   type NftItem,
+  type DefiPosition,
 } from '../src';
 
 function money(value: number, decimals = 2): string {
@@ -57,6 +59,8 @@ interface TokenAsset {
   logo?: string;
   fiat: number;
   hasPrice: boolean;
+  /** Position DeFi/staking détectée (Lido, Aave…) — null = token normal. */
+  defi: DefiPosition | null;
 }
 
 const VALUE_CHAINS = listChains({ includeTestnets: false }).filter((c) => c.coingeckoId);
@@ -136,6 +140,7 @@ export default function WalletScreen() {
             logo: tk.logo,
             hasPrice: price > 0,
             fiat: Number(formatAmount(tk.raw, tk.decimals)) * price,
+            defi: classifyToken(activeChain, tk.contract, tk.name, tk.symbol),
           };
         });
         // Tri : valorisés d'abord, par valeur décroissante.
@@ -182,6 +187,9 @@ export default function WalletScreen() {
       ]),
     [assets, tokens],
   );
+  // Positions détectées (parmi les ERC-20 détenus), par onglet.
+  const stakingPositions = useMemo(() => tokens.filter((tk) => tk.defi?.kind === 'staking'), [tokens]);
+  const defiPositions = useMemo(() => tokens.filter((tk) => tk.defi?.kind === 'defi'), [tokens]);
 
   const q = query.trim().toLowerCase();
   const filteredTokens = tokens.filter(
@@ -355,15 +363,73 @@ export default function WalletScreen() {
             </View>
           </GlassCard>
         )
-      ) : (
-        <GlassCard>
-          <View style={{ alignItems: 'center', paddingVertical: spacing(4), gap: spacing(1) }}>
-            <Icon name={tab === 'defi' ? 'defi' : 'staking'} size={34} color={colors.textMuted} />
-            <Text style={typography.bodyStrong}>{tab === 'defi' ? 'Positions DeFi' : 'Staking'}</Text>
-            <Text style={typography.muted}>{t('soon')}</Text>
-          </View>
-        </GlassCard>
-      )}
+      ) : tab === 'defi' || tab === 'staking' ? (
+        (() => {
+          const positions = tab === 'defi' ? defiPositions : stakingPositions;
+          const isStaking = tab === 'staking';
+          if (loading && !assets) {
+            return <GlassCard>{[0, 1].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>;
+          }
+          if (positions.length > 0) {
+            const sum = positions.reduce((s, p) => s + p.fiat, 0);
+            return (
+              <>
+                <GlassCard>
+                  <Text style={typography.muted}>{isStaking ? 'Total staké' : 'Total DeFi'} · {getAdapter(activeChain).config.name}</Text>
+                  <Text style={[typography.title, { marginTop: 2 }]}>
+                    {hidden ? '••••' : `${money(sum)} ${fiatSymbol(fiat)}`}
+                  </Text>
+                </GlassCard>
+                <GlassCard>
+                  {positions.map((p, i) => (
+                    <ListRow
+                      key={p.contract}
+                      divider={i > 0}
+                      left={
+                        p.logo ? (
+                          <Image source={{ uri: p.logo }} style={{ width: 42, height: 42, borderRadius: 21 }} />
+                        ) : (
+                          <Avatar label={p.symbol.slice(0, 1)} color={colors.glassStrong} />
+                        )
+                      }
+                      title={p.name}
+                      subtitle={`${p.defi?.protocol ?? ''} · ${hidden ? '••••' : `${formatBalance(p.raw, p.decimals, 6)} ${p.symbol}`}`}
+                      right={
+                        <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>
+                          {hidden ? '••••' : p.hasPrice ? `${money(p.fiat)} ${fiatSymbol(fiat)}` : '—'}
+                        </Text>
+                      }
+                      onPress={() => router.push({ pathname: '/browser', params: { url: isStaking ? 'https://stake.lido.fi' : 'https://app.aave.com' } })}
+                    />
+                  ))}
+                </GlassCard>
+              </>
+            );
+          }
+          // État vide : CTA vers le navigateur dApps (le vrai point d'entrée).
+          return (
+            <GlassCard>
+              <View style={{ alignItems: 'center', paddingVertical: spacing(3), gap: spacing(1) }}>
+                <Icon name={isStaking ? 'staking' : 'defi'} size={34} color={colors.textMuted} />
+                <Text style={typography.bodyStrong}>{isStaking ? 'Aucune position de staking' : 'Aucune position DeFi'}</Text>
+                <Text style={[typography.muted, { textAlign: 'center' }]}>
+                  {isStaking
+                    ? 'Mets ton ETH au travail via un protocole de staking liquide (stETH, rETH…).'
+                    : 'Prête, emprunte ou fournis de la liquidité sur les protocoles DeFi.'}
+                </Text>
+                <Pressable
+                  onPress={() => router.push({ pathname: '/browser', params: { url: isStaking ? 'https://stake.lido.fi' : 'https://app.aave.com' } })}
+                  style={{ marginTop: spacing(0.5), backgroundColor: colors.accent, borderRadius: 999, paddingVertical: spacing(1.25), paddingHorizontal: spacing(2.5) }}
+                >
+                  <Text style={{ color: '#fff', fontFamily: fonts.semibold }}>
+                    {isStaking ? 'Ouvrir Lido ↗' : 'Ouvrir Aave ↗'}
+                  </Text>
+                </Pressable>
+              </View>
+            </GlassCard>
+          );
+        })()
+      ) : null}
 
       <NftDetailModal nft={openNft} explorerUrl={getAdapter(activeChain).config.explorerUrl} onClose={() => setOpenNft(null)} />
     </PremiumScreen>
