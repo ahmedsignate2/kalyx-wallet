@@ -66,7 +66,8 @@ export default function Home() {
   const setActiveAccount = useWallet((s) => s.setActiveAccount);
   const { profileName, fiat, favorites } = useSettings();
   const chain = getAdapter(activeChain).config;
-  const canSend = chain.family !== 'bitcoin';
+  // Envoi désormais supporté sur EVM ET Bitcoin.
+  const canSend = chain.family === 'evm' || chain.family === 'bitcoin';
 
   const [raw, setRaw] = useState<bigint | null>(null);
   const [price, setPrice] = useState<{ price: number; change24h: number } | null>(null);
