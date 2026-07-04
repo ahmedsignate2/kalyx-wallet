@@ -103,6 +103,22 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
 (icône/splash/captures). Prochain gros cap discuté : **navigateur dApps intégré**
 (WebView + injection EIP-1193 — prévu v2, voir §3 gros morceaux) ; Ledger/Trezor.
 
+### Marque & onboarding (2026-07-04)
+- ✅ **Le lion est l'emblème de Nova** : `ui/NovaLogo.tsx` (SVG géométrique,
+  crinière dégradée). Utilisé dans splash, déverrouillage, welcome. ⚠️ C'est le
+  logo AFFICHÉ (SVG) ; l'**icône du store** (`assets/*.png`, `app.config.ts` n'en
+  déclare pas encore) reste à générer depuis ce dessin (asset raster séparé).
+- ✅ **Splash animé** `ui/Splash.tsx` (lion + vibration à l'ouverture, façon
+  Phantom), monté dans `_layout` par-dessus tout.
+- ✅ **Déverrouillage repensé** `app/unlock.tsx` + `ui/PinPad.tsx` (points animés,
+  pavé numérique haptique, secousse à l'erreur, bouton biométrie). PinPad
+  RÉUTILISABLE → à brancher sur set-pin/change-pin (encore en TextInput brut).
+- ✅ **FIX double empreinte** : le déverrouillage appelait `authenticate()` PUIS
+  lisait un secret SecureStore `requireAuthentication` (= 2 prompts). L'appel
+  explicite est retiré ; la lecture gated EST le prompt unique. Ne PAS le
+  réintroduire. `userInterfaceStyle: 'automatic'` déjà posé.
+- Reste onboarding : passe d'anim sur backup/verify/import ; empty states illustrés.
+
 ### Gros morceaux (rebuild / partenaires)
 - ✅ ~~Navigateur Web3 intégré~~ (code fait 2026-07-04, **actif après rebuild**) :
   `app/browser.tsx` + `lib/dappProvider.ts`. EIP-1193 + EIP-6963, connexion par
