@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, ScrollView } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { fonts, spacing, useTheme } from '../ui/theme';
@@ -67,12 +67,16 @@ export default function WalletConnectScreen() {
       </Card>
       <Button label={busy ? 'Connexion…' : 'Connecter'} loading={busy || !ready} onPress={onConnect} />
 
-      <View style={{ marginTop: spacing(2), gap: spacing(1) }}>
-        <Text style={typography.section}>dApps connectées</Text>
+      <Text style={[typography.section, { marginTop: spacing(2) }]}>dApps connectées</Text>
+      <ScrollView
+        style={{ flex: 1, marginTop: spacing(1) }}
+        contentContainerStyle={{ gap: spacing(1), paddingBottom: spacing(4) }}
+        showsVerticalScrollIndicator={false}
+      >
         {sessions.length === 0 ? (
           <Muted>Aucune connexion active.</Muted>
         ) : (
-          sessions.map((s, i) => (
+          sessions.map((s) => (
             <Card key={s.topic} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
                 <Text style={typography.body}>{s.name}</Text>
@@ -82,7 +86,7 @@ export default function WalletConnectScreen() {
             </Card>
           ))
         )}
-      </View>
+      </ScrollView>
     </Screen>
   );
 }
