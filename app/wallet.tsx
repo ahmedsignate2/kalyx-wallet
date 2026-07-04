@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, Alert, Image } from 'react-native';
+import { View, Text, Pressable, Image } from 'react-native';
 import { router, Stack } from 'expo-router';
 import {
   PremiumScreen,
@@ -12,6 +12,7 @@ import {
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
 import { AllocationDonut, foldSlices } from '../ui/AllocationDonut';
+import { NftDetailModal } from '../ui/NftDetailModal';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -75,6 +76,7 @@ export default function WalletScreen() {
   const [assets, setAssets] = useState<Asset[] | null>(null);
   const [tokens, setTokens] = useState<TokenAsset[]>([]);
   const [nfts, setNfts] = useState<NftItem[] | null>(null);
+  const [openNft, setOpenNft] = useState<NftItem | null>(null);
   const [loadingNfts, setLoadingNfts] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -327,7 +329,7 @@ export default function WalletScreen() {
               <Pressable
                 key={`${n.contract}-${n.tokenId}`}
                 style={{ width: '48%' }}
-                onPress={() => Alert.alert(n.name, n.collection || '')}
+                onPress={() => setOpenNft(n)}
               >
                 <Image
                   source={{ uri: n.image }}
@@ -356,6 +358,8 @@ export default function WalletScreen() {
           </View>
         </GlassCard>
       )}
+
+      <NftDetailModal nft={openNft} explorerUrl={getAdapter(activeChain).config.explorerUrl} onClose={() => setOpenNft(null)} />
     </PremiumScreen>
   );
 }
