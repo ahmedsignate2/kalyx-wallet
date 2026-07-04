@@ -35,6 +35,7 @@ import {
   sortMarkets,
   getMarketChartPoints,
   type MarketCoin,
+  type TxSummary,
 } from '../src';
 
 function greetingKey() {
@@ -43,6 +44,16 @@ function greetingKey() {
 }
 function shorten(a: string) {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
+}
+/** Date relative simple (auj., hier, jj mois). */
+function relDate(ts: number): string {
+  if (!ts) return '';
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const days = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  if (days <= 0 && now.getDate() === d.getDate()) return "Aujourd'hui";
+  if (days <= 1) return 'Hier';
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 }
 /** Formatage montant à la française : espaces milliers, 2 décimales. */
 function money(value: number, decimals = 2): string {
@@ -75,6 +86,8 @@ export default function Home() {
   const [spark, setSpark] = useState<number[]>([]);
   const [marketTab, setMarketTab] = useState('favorites');
   const [marketQuery, setMarketQuery] = useState('');
+  // Dernières transactions du compte (null = chargement).
+  const [recent, setRecent] = useState<TxSummary[] | null>(null);
 
   const refresh = useCallback(async () => {
     if (!account) return;
@@ -123,6 +136,20 @@ export default function Home() {
       alive = false;
     };
   }, [chain.coingeckoId, fiat]);
+
+  // Activité récente (4 dernières tx) — même source que l'écran Historique.
+  useEffect(() => {
+    let alive = true;
+    setRecent(null);
+    if (!account) return;
+    getAdapter(activeChain)
+      .getHistory(account.address)
+      .then((txs) => alive && setRecent(txs.slice(0, 4)))
+      .catch(() => alive && setRecent([]));
+    return () => {
+      alive = false;
+    };
+  }, [account, activeChain]);
 
   if (!account) {
     return (
@@ -282,7 +309,45 @@ export default function Home() {
         </GlassCard>
       </View>
 
-      <SectionHeader title={t('activity')} actionLabel={t('viewHistory')} onAction={() => router.push('/history')} />
+      {/* Activité récente (réelle) */}
+      <View style={{ gap: spacing(1.5) }}>
+        <SectionHeader title={t('activity')} actionLabel={t('viewHistory')} onAction={() => router.push('/history')} />
+        <GlassCard>
+          {recent == null ? (
+            [0, 1, 2].map((i) => <SkeletonRow key={i} divider={i > 0} />)
+          ) : recent.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: spacing(2), gap: spacing(0.75) }}>
+              <Icon name="history" size={26} color={colors.textMuted} />
+              <Text style={typography.muted}>Aucune activité récente sur {chain.name}.</Text>
+            </View>
+          ) : (
+            recent.map((tx, i) => {
+              const inbound = tx.direction === 'in';
+              const failed = tx.status === 'failed';
+              return (
+                <ListRow
+                  key={tx.hash}
+                  divider={i > 0}
+                  left={
+                    <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon name={inbound ? 'receive' : 'send'} size={19} color={inbound ? colors.up : colors.textMuted} />
+                    </View>
+                  }
+                  title={`${inbound ? 'Reçu' : tx.direction === 'out' ? 'Envoyé' : 'Interne'}${failed ? ' · échoué' : ''}`}
+                  subtitle={relDate(tx.timestamp)}
+                  onPress={() => router.push('/history')}
+                  right={
+                    <Text style={{ color: failed ? colors.danger : inbound ? colors.up : colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }}>
+                      {inbound ? '+' : tx.direction === 'out' ? '−' : ''}
+                      {formatBalance(tx.value, chain.nativeDecimals, 6)} {chain.nativeSymbol}
+                    </Text>
+                  }
+                />
+              );
+            })
+          )}
+        </GlassCard>
+      </View>
     </PremiumScreen>
   );
 }
