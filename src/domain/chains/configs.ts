@@ -104,6 +104,60 @@ export const BASE: ChainConfig = {
   coingeckoPlatform: 'base',
 };
 
+export const ARBITRUM: ChainConfig = {
+  id: 'arbitrum',
+  name: 'Arbitrum',
+  family: 'evm',
+  evmChainId: 42161,
+  nativeSymbol: 'ETH',
+  nativeDecimals: 18,
+  rpcUrls: withAlchemy('arb-mainnet', [
+    'https://arbitrum-one-rpc.publicnode.com',
+    'https://arbitrum.drpc.org',
+    'https://1rpc.io/arb',
+    'https://arb1.arbitrum.io/rpc',
+  ]),
+  explorerUrl: 'https://arbiscan.io',
+  coingeckoId: 'ethereum', // le natif est de l'ETH
+  coingeckoPlatform: 'arbitrum-one',
+};
+
+export const OPTIMISM: ChainConfig = {
+  id: 'optimism',
+  name: 'Optimism',
+  family: 'evm',
+  evmChainId: 10,
+  nativeSymbol: 'ETH',
+  nativeDecimals: 18,
+  rpcUrls: withAlchemy('opt-mainnet', [
+    'https://optimism-rpc.publicnode.com',
+    'https://optimism.drpc.org',
+    'https://1rpc.io/op',
+    'https://mainnet.optimism.io',
+  ]),
+  explorerUrl: 'https://optimistic.etherscan.io',
+  coingeckoId: 'ethereum', // le natif est de l'ETH
+  coingeckoPlatform: 'optimistic-ethereum',
+};
+
+export const AVALANCHE: ChainConfig = {
+  id: 'avalanche',
+  name: 'Avalanche',
+  family: 'evm',
+  evmChainId: 43114,
+  nativeSymbol: 'AVAX',
+  nativeDecimals: 18,
+  rpcUrls: withAlchemy('avax-mainnet', [
+    'https://avalanche-c-chain-rpc.publicnode.com',
+    'https://avalanche.drpc.org',
+    'https://1rpc.io/avax/c',
+    'https://api.avax.network/ext/bc/C/rpc',
+  ]),
+  explorerUrl: 'https://snowtrace.io',
+  coingeckoId: 'avalanche-2',
+  coingeckoPlatform: 'avalanche',
+};
+
 /** Testnet Ethereum — réseau de dev par défaut du MVP (zéro risque). */
 export const SEPOLIA: ChainConfig = {
   id: 'sepolia',
@@ -137,4 +191,14 @@ export const BITCOIN: ChainConfig = {
 };
 
 // Ordre d'affichage dans le sélecteur : testnet en tête (réseau par défaut).
-export const ALL_CHAINS: ChainConfig[] = [SEPOLIA, ETHEREUM, POLYGON, BNB, BASE, BITCOIN];
+export const ALL_CHAINS: ChainConfig[] = [
+  SEPOLIA,
+  ETHEREUM,
+  POLYGON,
+  BNB,
+  BASE,
+  ARBITRUM,
+  OPTIMISM,
+  AVALANCHE,
+  BITCOIN,
+];
