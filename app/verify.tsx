@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, Pressable, Alert } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { toast } from '../lib/toast';
 import { createBackupChallenge, verifyBackupChallenge } from '../src';
 
 /**
@@ -35,7 +36,7 @@ export default function Verify() {
     if (verifyBackupChallenge(draft, list)) {
       router.push('/set-pin');
     } else {
-      Alert.alert('Presque', 'Un mot ne correspond pas. Vérifie ta phrase notée.');
+      toast.error('Presque', 'Un mot ne correspond pas. Vérifie ta phrase notée.');
       setAnswers({});
     }
   };
