@@ -30,12 +30,11 @@ export default function Unlock() {
   const [bioAvailable, setBioAvailable] = useState(false);
   const [errSignal, setErrSignal] = useState(0);
   const screenOp = useRef(new Animated.Value(1)).current;
-  // Le bouton « Déverrouiller » (mode longueur inconnue) apparaît en fondu à ≥ 6.
-  const btnOp = useRef(new Animated.Value(0)).current;
 
   const lockedMs = lockRemainingMs(failedAttempts, lastFailedAt, Date.now());
   const locked = lockedMs > 0;
   const known = pinLength >= 6 ? pinLength : undefined; // option 3 si connue
+  const complete = known ? pin.length === known : pin.length >= 6;
 
   // Déverrouillage fluide : léger fondu de sortie avant de basculer sur l'accueil.
   const goHome = useCallback(() => {
@@ -87,66 +86,59 @@ export default function Unlock() {
     if (busy || locked) return;
     setError(null);
     setPin(v);
-    // Mode longueur inconnue : fait apparaître le bouton à 6 chiffres.
-    if (!known) Animated.timing(btnOp, { toValue: v.length >= 6 ? 1 : 0, duration: 200, useNativeDriver: true }).start();
   };
 
   const title = profileName ? `Bon retour, ${profileName}` : 'Déverrouiller Nova';
   const subtitle = locked
-    ? `Trop de tentatives. Réessaie dans ${Math.ceil(lockedMs / 1000)} s`
+    ? `Trop de tentatives · réessaie dans ${Math.ceil(lockedMs / 1000)} s`
     : error ?? 'Entre ton code pour continuer';
 
   return (
     <Animated.View style={{ flex: 1, backgroundColor: colors.bgDeep, opacity: screenOp }}>
       <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
-      <View style={{ flex: 1, paddingTop: insets.top + spacing(4), paddingBottom: insets.bottom + spacing(3), alignItems: 'center', justifyContent: 'space-between' }}>
-        {/* Logo + titre */}
-        <View style={{ alignItems: 'center', gap: spacing(2) }}>
-          <NovaLogo size={88} />
-          <View style={{ alignItems: 'center', gap: 4 }}>
-            <Text style={{ color: colors.text, fontSize: 23, fontFamily: fonts.bold }}>{title}</Text>
-            <Text style={{ color: error && !locked ? colors.danger : colors.textMuted, fontSize: 15 }}>{subtitle}</Text>
-          </View>
+      <View style={{ flex: 1, paddingTop: insets.top + spacing(3), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3), alignItems: 'center' }}>
+        {/* En-tête compact : logo, titre, sous-titre, biométrie */}
+        <View style={{ alignItems: 'center', gap: spacing(1.25) }}>
+          <NovaLogo size={58} />
+          <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
+          <Text style={{ color: error && !locked ? colors.danger : colors.textMuted, fontSize: 14, textAlign: 'center' }}>{subtitle}</Text>
+          {bioAvailable ? (
+            <Pressable
+              onPress={tryBiometrics}
+              disabled={busy || locked}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing(0.5), paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}
+            >
+              <Icon name="security" size={18} color={colors.accent} />
+              <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>Biométrie</Text>
+            </Pressable>
+          ) : null}
         </View>
 
-        {/* Bouton biométrie (visible = l'utilisateur sait qu'il peut l'utiliser) */}
-        {bioAvailable ? (
-          <Pressable
-            onPress={tryBiometrics}
+        {/* Espace flexible : pousse le clavier vers le bas sans l'étirer */}
+        <View style={{ flex: 1, minHeight: spacing(2) }} />
+
+        {/* Ronds + clavier + validation, groupés en bas */}
+        <View style={{ alignItems: 'center', gap: spacing(2) }}>
+          <PinPad
+            value={pin}
+            onChange={onChange}
             disabled={busy || locked}
-            style={({ pressed }) => ({ alignItems: 'center', gap: 6, opacity: pressed ? 0.6 : 1 })}
-          >
-            <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="security" size={26} color={colors.accent} />
-            </View>
-            <Text style={{ color: colors.accent, fontSize: 12, fontFamily: fonts.semibold }}>Déverrouiller avec la biométrie</Text>
-          </Pressable>
-        ) : (
-          <View />
-        )}
-
-        {/* Pavé PIN */}
-        <PinPad
-          value={pin}
-          onChange={onChange}
-          disabled={busy || locked}
-          errorSignal={errSignal}
-          expectedLength={known}
-          onComplete={submit}
-        />
-
-        {/* Bouton de validation : uniquement en mode longueur inconnue */}
-        {known ? (
-          <View style={{ height: 22 }} />
-        ) : (
-          <Animated.View style={{ opacity: btnOp }}>
-            <Pressable onPress={() => submit(pin)} disabled={pin.length < 6 || busy || locked} hitSlop={8}>
-              <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>
-                {busy ? 'Vérification…' : 'Déverrouiller'}
-              </Text>
-            </Pressable>
-          </Animated.View>
-        )}
+            errorSignal={errSignal}
+            expectedLength={known}
+            onComplete={submit}
+          />
+          {/* Bouton visible uniquement quand le PIN est complet (auto-validation
+              en mode longueur connue ; ici c'est le filet de sécurité). */}
+          <View style={{ height: 24, justifyContent: 'center' }}>
+            {complete ? (
+              <Pressable onPress={() => submit(pin)} disabled={busy || locked} hitSlop={8}>
+                <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>
+                  {busy ? 'Vérification…' : 'Déverrouiller'}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
       </View>
     </Animated.View>
   );

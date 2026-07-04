@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { fonts, radii, spacing, useTheme } from './theme';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+const KEY = 72; // taille d'une touche (compact : clavier visible sans scroll)
 
 export function PinPad({
   value,
@@ -40,7 +41,7 @@ export function PinPad({
   /** Élément en bas à gauche du pavé (rarement utilisé — bio est au-dessus). */
   bottomLeft?: React.ReactNode;
 }) {
-  const { colors, gradients } = useTheme();
+  const { colors } = useTheme();
   const shake = useRef(new Animated.Value(0)).current;
   const cap = expectedLength ? Math.min(expectedLength, maxLength) : maxLength;
 
@@ -73,30 +74,34 @@ export function PinPad({
 
   // Nb de ronds : exact si connu, sinon progressif (min 1 dès la 1ʳᵉ frappe).
   const dotCount = expectedLength ?? Math.max(1, Math.min(cap, value.length));
+  // Ronds adaptatifs : plus petits/serrés quand le code est long (ne prennent
+  // pas toute la largeur ; 12 ronds tiennent sous le clavier).
+  const dotSize = dotCount <= 6 ? 15 : dotCount <= 9 ? 13 : 11;
+  const dotGap = dotCount <= 6 ? 14 : dotCount <= 9 ? 11 : 9;
 
   return (
-    <View style={{ alignItems: 'center', gap: spacing(4) }}>
+    <View style={{ alignItems: 'center', gap: spacing(3) }}>
       {/* Ronds */}
-      <Animated.View style={{ flexDirection: 'row', gap: spacing(1.75), transform: [{ translateX: shake }], minHeight: 20 }}>
+      <Animated.View style={{ flexDirection: 'row', gap: dotGap, transform: [{ translateX: shake }], minHeight: 18 }}>
         {Array.from({ length: dotCount }).map((_, i) => (
-          <Dot key={i} filled={i < value.length} />
+          <Dot key={i} filled={i < value.length} size={dotSize} />
         ))}
       </Animated.View>
 
-      {/* Pavé numérique */}
-      <View style={{ width: 300, flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.75), justifyContent: 'center' }}>
+      {/* Pavé numérique (3 colonnes ; ⌫ aligné sous le 0) */}
+      <View style={{ width: KEY * 3 + spacing(1.5) * 2, flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5), justifyContent: 'center' }}>
         {KEYS.map((k) => (
-          <Key key={k} label={k} onPress={() => press(k)} disabled={disabled} gradient={gradients.accent} />
+          <Key key={k} label={k} onPress={() => press(k)} disabled={disabled} />
         ))}
-        <View style={{ width: 78, height: 78, alignItems: 'center', justifyContent: 'center' }}>{bottomLeft}</View>
-        <Key label="0" onPress={() => press('0')} disabled={disabled} gradient={gradients.accent} />
+        <View style={{ width: KEY, height: KEY, alignItems: 'center', justifyContent: 'center' }}>{bottomLeft}</View>
+        <Key label="0" onPress={() => press('0')} disabled={disabled} />
         <Pressable
           onPress={back}
           disabled={disabled || !value.length}
           hitSlop={6}
-          style={({ pressed }) => ({ width: 78, height: 78, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : value.length ? 1 : 0.3 })}
+          style={({ pressed }) => ({ width: KEY, height: KEY, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : value.length ? 1 : 0.3 })}
         >
-          <Text style={{ color: colors.text, fontSize: 32 }}>⌫</Text>
+          <Text style={{ color: colors.text, fontSize: 30 }}>⌫</Text>
         </Pressable>
       </View>
     </View>
@@ -104,22 +109,23 @@ export function PinPad({
 }
 
 /** Rond du PIN : « pop » (scale) au remplissage. */
-function Dot({ filled }: { filled: boolean }) {
+function Dot({ filled, size }: { filled: boolean; size: number }) {
   const { colors } = useTheme();
   const s = useRef(new Animated.Value(filled ? 1 : 0)).current;
   useEffect(() => {
     Animated.spring(s, { toValue: filled ? 1 : 0, useNativeDriver: true, speed: 20, bounciness: 14 }).start();
   }, [filled, s]);
   const scale = s.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] });
+  const r = size / 2;
   return (
-    <View style={{ width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, borderColor: colors.glassBorder, alignItems: 'center', justifyContent: 'center' }}>
-      <Animated.View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: colors.accent, opacity: s, transform: [{ scale }] }} />
+    <View style={{ width: size, height: size, borderRadius: r, borderWidth: 1.5, borderColor: colors.glassBorder, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View style={{ width: size, height: size, borderRadius: r, backgroundColor: colors.accent, opacity: s, transform: [{ scale }] }} />
     </View>
   );
 }
 
 /** Touche du pavé : léger relief (dégradé de surface + ombre douce). */
-function Key({ label, onPress, disabled, gradient }: { label: string; onPress: () => void; disabled?: boolean; gradient: readonly [string, string, ...string[]] }) {
+function Key({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
   const { colors, mode, shadow } = useTheme();
   // Surface légèrement dégradée pour le volume (plus clair en haut).
   const surface: readonly [string, string] =
@@ -128,7 +134,7 @@ function Key({ label, onPress, disabled, gradient }: { label: string; onPress: (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => ({ width: 78, height: 78, borderRadius: radii.pill, transform: [{ scale: pressed ? 0.94 : 1 }] })}
+      style={({ pressed }) => ({ width: KEY, height: KEY, borderRadius: radii.pill, transform: [{ scale: pressed ? 0.94 : 1 }] })}
     >
       <LinearGradient
         colors={surface}
@@ -136,8 +142,8 @@ function Key({ label, onPress, disabled, gradient }: { label: string; onPress: (
         end={{ x: 0, y: 1 }}
         style={[
           {
-            width: 78,
-            height: 78,
+            width: KEY,
+            height: KEY,
             borderRadius: radii.pill,
             alignItems: 'center',
             justifyContent: 'center',
