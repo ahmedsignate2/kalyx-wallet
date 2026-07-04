@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Alert } from 'react-native';
+import { View, Text, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWalletConnect } from '../lib/walletconnect';
+import { toast } from '../lib/toast';
 
 export default function WalletConnectScreen() {
   const { colors, typography } = useTheme();
@@ -30,7 +31,7 @@ export default function WalletConnectScreen() {
 
   const onConnect = async () => {
     if (!uri.trim().startsWith('wc:')) {
-      Alert.alert('URI invalide', 'Colle un lien WalletConnect qui commence par « wc: ».');
+      toast.error('URI invalide', 'Colle un lien WalletConnect qui commence par « wc: ».');
       return;
     }
     setBusy(true);
@@ -40,9 +41,9 @@ export default function WalletConnectScreen() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (/expired/i.test(msg)) {
-        Alert.alert('Lien expiré', 'Ce lien WalletConnect a expiré (ils ne durent que quelques minutes). Régénère un nouveau QR / lien sur le site, puis recolle-le tout de suite.');
+        toast.error('Lien expiré', 'Ce lien a expiré. Régénère un QR / lien sur le site puis recolle-le tout de suite.');
       } else {
-        Alert.alert('Connexion impossible', 'Le lien n’a pas pu être utilisé. Régénère-le sur le site et réessaie.');
+        toast.error('Connexion impossible', 'Le lien n’a pas pu être utilisé. Régénère-le et réessaie.');
       }
       setUri('');
     } finally {

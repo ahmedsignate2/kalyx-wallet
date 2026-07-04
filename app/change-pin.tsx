@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Alert } from 'react-native';
+import { View, Text, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings } from '../lib/settingsStore';
+import { toast } from '../lib/toast';
 import { checkPin, isWalletError } from '../src';
 
 export default function ChangePin() {
@@ -44,9 +45,8 @@ export default function ChangePin() {
     try {
       await changePin(oldPin, newPin);
       useSettings.getState().setPinLength(newPin.length); // ronds exacts au déverrouillage
-      Alert.alert('PIN modifié', 'Ton nouveau code est actif.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      toast.success('PIN modifié', 'Ton nouveau code est actif.');
+      router.back();
     } catch (e) {
       setError(isWalletError(e) && e.code === 'WRONG_PIN' ? 'Ancien PIN incorrect.' : 'Échec.');
     } finally {
