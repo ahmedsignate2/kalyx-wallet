@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, TextInput } from 'react-native';
+import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
 import { useContacts } from '../lib/contactsStore';
@@ -29,12 +30,18 @@ export default function Contacts() {
     else setForm({ id, name, address });
   };
 
+  const insets = useSafeAreaInsets();
   return (
     <Screen>
       <Title>Contacts</Title>
       <Muted>{pickMode ? 'Choisis un destinataire.' : 'Ton carnet d’adresses local.'}</Muted>
 
-      <View style={{ gap: spacing(1.5), marginTop: spacing(1) }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ gap: spacing(1.5), paddingTop: spacing(1), paddingBottom: insets.bottom + spacing(6) }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {contacts.length === 0 ? <Muted>Aucun contact pour l’instant.</Muted> : null}
         {contacts.map((c) => (
           <Pressable key={c.id} onPress={() => onTap(c.address, c.id, c.name)}>
@@ -53,7 +60,6 @@ export default function Contacts() {
             </Card>
           </Pressable>
         ))}
-      </View>
 
       {form ? (
         <Card style={{ marginTop: spacing(1), gap: spacing(1) }}>
@@ -71,6 +77,7 @@ export default function Contacts() {
           <Text style={{ color: colors.accent }}>＋ Ajouter un contact</Text>
         </Pressable>
       )}
+      </ScrollView>
     </Screen>
   );
 }
