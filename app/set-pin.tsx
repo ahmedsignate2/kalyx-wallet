@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useSettings } from '../lib/settingsStore';
 import { checkPin, PIN_MIN } from '../src';
 import { isBiometricAvailable } from '../lib/biometrics';
 
@@ -41,6 +42,7 @@ export default function SetPin() {
     setBusy(true);
     try {
       await confirmDraft(pin, { enableBiometric: useBio });
+      useSettings.getState().setPinLength(pin.length); // ronds exacts au déverrouillage
       router.replace('/home');
     } catch {
       setError('Impossible de sécuriser le wallet.');
