@@ -42,6 +42,13 @@ async function deriveKey(
     r: params.r,
     p: params.p,
     dkLen: DEFAULT_KDF.dkLen,
+    // scrypt rend la main tous les `asyncTick` ms pour ne pas figer l'UI. Le
+    // défaut (10 ms) provoque des dizaines de reprises, chacune COÛTEUSE sur
+    // Hermes/RN → l'essentiel de la latence de déverrouillage vient de là (pas
+    // du calcul). On monte à 120 ms : bien moins de reprises, donc bien plus
+    // rapide, tout en gardant l'UI fluide (blocage ≤ 120 ms par salve). AUCUN
+    // impact sécurité : N/r/p sont inchangés.
+    asyncTick: 120,
   });
 }
 
