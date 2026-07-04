@@ -90,10 +90,18 @@ bottom nav 5 onglets + FAB, ErrorBoundary.
 - ✅ ~~Boutons « Bientôt »~~ (fait 2026-07-04) : Convert → /swap, « Tout voir » marché
   → /market, Buy grisé-tappable (prop `dimmed` de CircleAction), faux badge cloche retiré.
 
+- ✅ ~~Retours de review externe~~ (fait 2026-07-04) : `ui/TxRow.tsx` partagé
+  (logo crypto + pastille direction, statut Confirmée/Échouée, heure exacte,
+  contre-valeur fiat au cours ACTUEL — pas historique, rate-limit), détail de tx
+  au tap (adresses copiables + explorer), `ui/CountUp.tsx` (solde animé accueil +
+  portefeuille), favoris épinglables (★ fiche token, persisté dans settings,
+  onglet Favoris réel). Pas de statut « En attente » : Etherscan = tx minées only.
+
 **→ Cap UI « battre MetaMask/Phantom » (2026-07-04) : TOUT EST LIVRÉ.**
 Reste côté visuel : vérif sur device du mode clair + des nouveautés (aucun rendu
 n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
-(icône/splash/captures). Ensuite retour aux gros morceaux (§ ci-dessous).
+(icône/splash/captures). Prochain gros cap discuté : **navigateur dApps intégré**
+(WebView + injection EIP-1193 — prévu v2, voir §3 gros morceaux) ; Ledger/Trezor.
 
 ### Gros morceaux (rebuild / partenaires)
 - **Notifications** (locales `expo-notifications` + push via backend/Alchemy Notify) — rebuild.
