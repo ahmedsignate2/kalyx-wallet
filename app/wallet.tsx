@@ -12,7 +12,7 @@ import {
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
 import { Icon } from '../ui/icon';
-import { colors, spacing, typography } from '../ui/theme';
+import { fonts, colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
@@ -204,7 +204,7 @@ export default function WalletScreen() {
           {hidden ? '••••••' : loading && !assets ? '…' : `${money(total)} ${fiatSymbol(fiat)}`}
         </Text>
         <Pressable onPress={load} disabled={loading} style={{ marginTop: spacing(1) }}>
-          <Text style={{ color: colors.accent, fontWeight: '600' }}>
+          <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>
             {loading ? 'Actualisation…' : '↻ Actualiser'}
           </Text>
         </Pressable>
@@ -234,7 +234,7 @@ export default function WalletScreen() {
                   subtitle={hidden ? '••••' : `${formatBalance(a.raw, a.chain.nativeDecimals, 6)} ${a.chain.nativeSymbol}`}
                   onPress={() => a.chain.coingeckoId && router.push(`/token/${a.chain.coingeckoId}`)}
                   right={
-                    <Text style={{ color: colors.text, fontWeight: '600' }}>
+                    <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>
                       {hidden ? '••••' : `${money(a.fiat)} ${fiatSymbol(fiat)}`}
                     </Text>
                   }
@@ -264,7 +264,7 @@ export default function WalletScreen() {
                     title={tk.name}
                     subtitle={hidden ? '••••' : `${formatBalance(tk.raw, tk.decimals, 6)} ${tk.symbol}`}
                     right={
-                      <Text style={{ color: colors.text, fontWeight: '600' }}>
+                      <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>
                         {hidden ? '••••' : tk.hasPrice ? `${money(tk.fiat)} ${fiatSymbol(fiat)}` : '—'}
                       </Text>
                     }
@@ -279,7 +279,7 @@ export default function WalletScreen() {
               onPress={() => router.push('/add-token')}
               style={{ alignItems: 'center', paddingVertical: spacing(1.75), borderWidth: 1, borderColor: colors.glassBorder, borderRadius: 22, borderStyle: 'dashed' }}
             >
-              <Text style={{ color: colors.accent, fontWeight: '600' }}>＋ Ajouter un token</Text>
+              <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>＋ Ajouter un token</Text>
             </Pressable>
           ) : null}
         </>

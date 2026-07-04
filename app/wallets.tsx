@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, TextInput, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, spacing, typography } from '../ui/theme';
+import { fonts, colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 
 export default function Wallets() {
@@ -51,7 +51,7 @@ export default function Wallets() {
               <Card style={{ borderColor: active ? colors.accent : colors.cardBorder, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
                   <Text style={typography.body}>{w.label}</Text>
-                  {active ? <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '600' }}>Actif ✓</Text> : null}
+                  {active ? <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>Actif ✓</Text> : null}
                 </View>
                 <Pressable onPress={() => { setEditing(w.id); setEditLabel(w.label); }} hitSlop={10}>
                   <Text style={{ fontSize: 16, marginRight: spacing(1.5) }}>✏️</Text>

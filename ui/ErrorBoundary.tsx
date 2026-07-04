@@ -5,6 +5,7 @@
  */
 import React from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
+import { fonts } from './theme';
 
 interface Props {
   children: React.ReactNode;
@@ -42,7 +43,7 @@ export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => 
       style={{ flex: 1, backgroundColor: '#07090F' }}
       contentContainerStyle={{ padding: 24, paddingTop: 72 }}
     >
-      <Text style={{ color: '#FF5C5C', fontSize: 22, fontWeight: '800', marginBottom: 12 }}>
+      <Text style={{ color: '#FF5C5C', fontSize: 22, fontFamily: fonts.extrabold, marginBottom: 12 }}>
         Nova a rencontré une erreur
       </Text>
       <Text style={{ color: '#F5F7FA', fontSize: 15, marginBottom: 16 }}>
@@ -60,7 +61,7 @@ export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => 
             marginBottom: 20,
           }}
         >
-          <Text style={{ color: '#fff', fontWeight: '700' }}>Réessayer</Text>
+          <Text style={{ color: '#fff', fontFamily: fonts.bold }}>Réessayer</Text>
         </Pressable>
       ) : null}
       {__DEV__ && error?.stack ? (

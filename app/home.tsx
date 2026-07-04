@@ -22,7 +22,7 @@ import {
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
 import { Icon } from '../ui/icon';
-import { colors, spacing, typography } from '../ui/theme';
+import { fonts, colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import {
@@ -143,7 +143,7 @@ export default function Home() {
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View>
           <Text style={typography.muted}>{t(greetingKey())}</Text>
-          <Text style={{ fontSize: 28, fontWeight: '800', color: colors.text }}>
+          <Text style={{ fontSize: 28, fontFamily: fonts.extrabold, color: colors.text }}>
             {profileName ? `${profileName} 👋` : '👋'}
           </Text>
         </View>
@@ -185,7 +185,7 @@ export default function Home() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 4 }}>
           {change != null ? (
             <View style={{ backgroundColor: change >= 0 ? 'rgba(61,220,151,0.15)' : 'rgba(255,107,107,0.15)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
-              <Text style={{ color: change >= 0 ? colors.up : colors.down, fontWeight: '600', fontSize: 13 }}>
+              <Text style={{ color: change >= 0 ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13 }}>
                 {change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
               </Text>
             </View>
@@ -215,7 +215,7 @@ export default function Home() {
             onPress={() => setActiveAccount(a.index)}
             right={
               a.index === activeAccountIndex ? (
-                <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '600' }}>{t('active')} ✓</Text>
+                <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>{t('active')} ✓</Text>
               ) : (
                 <Text style={{ color: colors.textMuted, fontSize: 13 }}>EVM · BTC</Text>
               )

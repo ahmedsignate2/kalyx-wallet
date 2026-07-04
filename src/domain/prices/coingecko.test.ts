@@ -4,6 +4,7 @@ import {
   sortMarkets,
   parseCoinDetail,
   parseMarketChart,
+  parseMarketChartPoints,
   parseSearchCoins,
 } from './coingecko';
 
@@ -98,6 +99,20 @@ describe('parseMarketChart', () => {
   it('robuste sur entrée vide', () => {
     expect(parseMarketChart({})).toEqual([]);
     expect(parseMarketChart(null)).toEqual([]);
+  });
+});
+
+describe('parseMarketChartPoints', () => {
+  it('extrait les points horodatés', () => {
+    expect(parseMarketChartPoints({ prices: [[1000, 100], [2000, 110]] })).toEqual([
+      { t: 1000, v: 100 },
+      { t: 2000, v: 110 },
+    ]);
+  });
+  it('ignore les timestamps invalides et robuste sur entrée vide', () => {
+    expect(parseMarketChartPoints({ prices: [[0, 5], ['x', 6], [3000, 7]] })).toEqual([{ t: 3000, v: 7 }]);
+    expect(parseMarketChartPoints({})).toEqual([]);
+    expect(parseMarketChartPoints(null)).toEqual([]);
   });
 });
 

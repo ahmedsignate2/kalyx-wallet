@@ -166,6 +166,22 @@ export function parseMarketChart(json: unknown): number[] {
   return prices.map((p) => Number(p?.[1]) || 0);
 }
 
+/** Point horodaté d'un graphique (scrub interactif : prix + date sous le doigt). */
+export interface ChartPoint {
+  /** Timestamp (millisecondes). */
+  t: number;
+  /** Prix dans la devise demandée. */
+  v: number;
+}
+
+export function parseMarketChartPoints(json: unknown): ChartPoint[] {
+  const prices = (json as { prices?: [number, number][] })?.prices;
+  if (!Array.isArray(prices)) return [];
+  return prices
+    .map((p) => ({ t: Number(p?.[0]) || 0, v: Number(p?.[1]) || 0 }))
+    .filter((p) => p.t > 0);
+}
+
 /** Tri des marchés selon l'onglet (Top / Gagnants / Perdants). */
 export function sortMarkets(coins: MarketCoin[], order: MarketOrder): MarketCoin[] {
   if (order === 'gainers') return [...coins].sort((a, b) => b.change24h - a.change24h);
@@ -218,6 +234,20 @@ export async function getMarketChart(id: string, vs = 'eur', days = '7'): Promis
       () => new Error('timeout'),
     );
     return parseMarketChart(await res.json());
+  } catch {
+    return [];
+  }
+}
+
+/** Comme getMarketChart mais avec les timestamps (graphique scrubable). */
+export async function getMarketChartPoints(id: string, vs = 'eur', days = '7'): Promise<ChartPoint[]> {
+  try {
+    const res = await withTimeout(
+      fetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${days}`)),
+      TIMEOUT,
+      () => new Error('timeout'),
+    );
+    return parseMarketChartPoints(await res.json());
   } catch {
     return [];
   }
