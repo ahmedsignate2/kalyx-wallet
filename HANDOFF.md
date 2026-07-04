@@ -183,7 +183,15 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   rebuild, avec un Nano physique pour tester. **Trezor** : pas de BLE — passe par
   OTG/USB ou Trezor Connect (plus tard).
 - **Achat/Vente fiat** (MoonPay/Transak/Ramp) — partenaire régulé + KYC.
-- **Envoi Bitcoin** (UTXO) — `@scure/btc-signer` déjà installé, à câbler.
+- ✅ ~~Envoi Bitcoin~~ (fait 2026-07-04, P2WPKH/SegWit) : `src/domain/chains/btcTx.ts`
+  (helpers purs sélection UTXO + frais, 6 tests) + `BitcoinChainAdapter.sendBitcoin`
+  (UTXO + fee mempool.space, @scure/btc-signer en IMPORT DYNAMIQUE car ESM pur
+  incompatible Jest top-level) + `walletStore.signAndSend` branché par famille.
+  ⚠️ **JAMAIS testé sur device** : valider au rebuild avec un PETIT montant réel
+  (une dérivation/signature fausse = fonds perdus). Historique BTC toujours [].
+- Chaînes EVM ajoutées : Arbitrum, Optimism, Avalanche (complètes d'office).
+- **Solana** : reporté APRÈS le rebuild (adapter ed25519/base58 dédié, risque
+  fonds si dérivation ratée → à faire vector-testé, réception d'abord).
 - Nouvelles chaînes : Solana, Tron, XRP, Sui, Arbitrum, Optimism, Avalanche (via ChainAdapter).
 - **Carte virtuelle** Visa/MC (Immersve/Baanx/Gnosis Pay) — régulé.
 
