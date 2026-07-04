@@ -134,15 +134,20 @@ sinon elles ne sont PAS embarquées dans l'APK/dev-build.
    `$CLAUDE_JOB_DIR/tmp/npmcacheN`) et réessayer.
 8. Warnings WC `Record was recently deleted - proposal` = **bénins** (nettoyage heartbeat).
    (Filtrés depuis 2026-07-04 dans `walletconnect.ts::init()`.)
-9. **`Requiring unknown module "NNNN"`** après ajout de nouveaux fichiers = bundle/cache
-   Metro **désynchronisé** (surtout avec les imports dynamiques WC). Solution : redémarrer
-   Metro avec `npx expo start --localhost --clear` puis recharger l'app — pas juste `r`.
+9. **`Requiring unknown module "NNNN"`** au chargement de WalletConnect = **lazy bundling
+   Metro** : en dev, Expo découpe chaque `await import(...)` en bundles séparés dont les
+   IDs de modules se désynchronisent du bundle principal (symptôme : IDs réclamés juste
+   au-dessus du nombre de modules d'index.js). Solution : **`EXPO_NO_METRO_LAZY=1`**
+   (intégré au script `npm start`) → tout dans un seul bundle cohérent. Les `import()`
+   dynamiques restent dans le code (toujours utiles si modules natifs absents).
+   Dev only : en build release, tout est de toute façon dans un seul bundle.
 
 ---
 
 ## 7. Workflow de dev
 
-- **Metro (téléphone = Termux, même appareil)** : `npx expo start --localhost --clear`.
+- **Metro (téléphone = Termux, même appareil)** : **`npm start`** (= `EXPO_NO_METRO_LAZY=1
+  expo start --dev-client --localhost`). Ajouter `-- --clear` après un ajout de fichiers.
   Le `--localhost` évite l'IP LAN (marche en 4G, sans data, loopback). PAS `--tunnel`
   (lent, consomme). Recharger = `r`.
 - **Reload vs Rebuild** : changement JS → juste `r`. Nouveau **module natif** (async-storage,
