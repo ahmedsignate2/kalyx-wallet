@@ -35,6 +35,23 @@ export function p2wpkhAddress(publicKey: Uint8Array): string {
   return bech32.encode('bc', [0, ...bech32.toWords(hash160)]);
 }
 
+export interface BtcSigner {
+  /** Clé privée (32 octets) — transite en mémoire pour signer, jamais stockée. */
+  privateKey: Uint8Array;
+  /** Clé publique compressée (33 octets). */
+  publicKey: Uint8Array;
+  address: string;
+}
+
+/** Dérive la clé de SIGNATURE Bitcoin #index (pour l'envoi). */
+export function deriveBtcSigner(seed: Uint8Array, index = 0): BtcSigner {
+  const node = HDKey.fromMasterSeed(seed).derive(btcPath(index));
+  if (!node.privateKey || !node.publicKey) {
+    throw new Error('Dérivation BTC impossible : clé privée absente');
+  }
+  return { privateKey: node.privateKey, publicKey: node.publicKey, address: p2wpkhAddress(node.publicKey) };
+}
+
 /** Dérive le compte Bitcoin #index à partir d'une seed BIP-39. */
 export function deriveBtcAccount(seed: Uint8Array, index = 0): BtcAccount {
   const path = btcPath(index);

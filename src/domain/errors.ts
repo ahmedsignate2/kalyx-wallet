@@ -16,6 +16,7 @@ export type WalletErrorCode =
   | 'WRONG_PIN'
   | 'VAULT_CORRUPTED'
   | 'RPC_UNAVAILABLE'
+  | 'BROADCAST_FAILED'
   | 'NOT_SUPPORTED';
 
 export class WalletError extends Error {
