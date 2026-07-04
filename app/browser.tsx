@@ -21,7 +21,7 @@ import { Icon } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { toast } from '../lib/toast';
-import { loadRecents, pushRecent, type RecentDapp } from '../lib/recentDapps';
+import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../lib/recentDapps';
 import {
   buildInjectedProvider,
   parseDappMessage,
@@ -66,6 +66,16 @@ const SUGGESTED: Dapp[] = [
   { name: 'PancakeSwap', url: 'https://pancakeswap.finance', domain: 'pancakeswap.finance', emoji: '🥞', color: '#1FC7D4' },
   { name: 'Lido', url: 'https://stake.lido.fi', domain: 'lido.fi', emoji: '🌀', color: '#00A3FF' },
   { name: 'ENS', url: 'https://app.ens.domains', domain: 'ens.domains', emoji: '🏷️', color: '#5298FF' },
+];
+
+/** Collections NFT en vue (curatées, liens OpenSea) — tuiles emoji colorées. */
+const COLLECTIONS: Dapp[] = [
+  { name: 'Pudgy Penguins', url: 'https://opensea.io/collection/pudgypenguins', domain: '', emoji: '🐧', color: '#7CC6F0' },
+  { name: 'Bored Apes', url: 'https://opensea.io/collection/boredapeyachtclub', domain: '', emoji: '🐵', color: '#E0A43B' },
+  { name: 'Azuki', url: 'https://opensea.io/collection/azuki', domain: '', emoji: '⛩️', color: '#E85D75' },
+  { name: 'Milady', url: 'https://opensea.io/collection/milady', domain: '', emoji: '🌸', color: '#F0A9C8' },
+  { name: 'Moonbirds', url: 'https://opensea.io/collection/proof-moonbirds', domain: '', emoji: '🦉', color: '#6C5CE7' },
+  { name: 'CloneX', url: 'https://opensea.io/collection/clonex', domain: '', emoji: '🧬', color: '#3AA0A0' },
 ];
 
 /** Logo d'un site (favicon HD via DuckDuckGo ; repli emoji/lettre au besoin). */
@@ -117,20 +127,37 @@ export default function Browser() {
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Derniers sites visités (persistés).
+  // Derniers sites visités + favoris (persistés).
   const [recents, setRecents] = useState<RecentDapp[]>([]);
+  const [favorites, setFavorites] = useState<RecentDapp[]>([]);
   const recentsRef = useRef<RecentDapp[]>([]);
+  const favRef = useRef<RecentDapp[]>([]);
   const lastHost = useRef<string>('');
   const applyRecents = (list: RecentDapp[]) => {
     recentsRef.current = list;
     setRecents(list);
   };
+  const applyFav = (list: RecentDapp[]) => {
+    favRef.current = list;
+    setFavorites(list);
+  };
   useEffect(() => {
     loadRecents().then(applyRecents);
+    loadFavorites().then(applyFav);
   }, []);
 
   const injected = useMemo(() => buildInjectedProvider(chainIdHex), [chainIdHex]);
   const origin = url ? originOf(url) : '';
+
+  const isFav = !!origin && favorites.some((f) => f.host === origin);
+  const toggleCurrentFav = () => {
+    if (!origin) return;
+    Vibration.vibrate(10);
+    toggleFavorite({ url: url ?? `https://${origin}`, host: origin, title: pageTitle || origin }, favRef.current).then((next) => {
+      applyFav(next);
+      toast.success(next.some((f) => f.host === origin) ? 'Ajouté aux favoris' : 'Retiré des favoris', origin);
+    });
+  };
 
   // Vibration à l'apparition d'une demande (connexion / signature / tx).
   useEffect(() => {
@@ -371,9 +398,14 @@ export default function Browser() {
             style={{ flex: 1, color: colors.text, fontSize: 14, paddingVertical: spacing(1) }}
           />
           {url ? (
-            <Pressable onPress={() => webref.current && (webref.current as unknown as { reload: () => void }).reload()} hitSlop={8}>
-              <Icon name="refresh" size={16} tone="muted" />
-            </Pressable>
+            <>
+              <Pressable onPress={toggleCurrentFav} hitSlop={8}>
+                <Icon name={isFav ? 'starFilled' : 'star'} size={17} color={isFav ? colors.warning : colors.textMuted} />
+              </Pressable>
+              <Pressable onPress={() => webref.current && (webref.current as unknown as { reload: () => void }).reload()} hitSlop={8}>
+                <Icon name="refresh" size={16} tone="muted" />
+              </Pressable>
+            </>
           ) : null}
         </View>
       </View>
@@ -412,6 +444,23 @@ export default function Browser() {
             <Text style={typography.muted}>Chaque action sensible demandera ton PIN.</Text>
           </View>
 
+          {/* Favoris (sites épinglés via l'étoile de la barre d'adresse) */}
+          {favorites.length > 0 ? (
+            <View style={{ gap: spacing(1.25) }}>
+              <Text style={typography.section}>Favoris</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
+                {favorites.map((f) => (
+                  <PressableScale key={f.host} onPress={() => go(f.url, f.title)} style={{ width: '30%' }}>
+                    <GlassCard style={{ alignItems: 'center', paddingVertical: spacing(2), paddingHorizontal: spacing(0.5), gap: 8 }}>
+                      <Favicon host={f.host} size={44} color={colors.glassStrong} label={f.host.slice(0, 1).toUpperCase()} />
+                      <Text style={[typography.bodyStrong, { fontSize: 12.5 }]} numberOfLines={1}>{f.title}</Text>
+                    </GlassCard>
+                  </PressableScale>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
           <View style={{ gap: spacing(1.25) }}>
             <Text style={typography.section}>Sites populaires</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
@@ -421,9 +470,24 @@ export default function Browser() {
             </View>
           </View>
 
+          {/* Collections NFT en vue (curatées) */}
+          <View style={{ gap: spacing(1.25) }}>
+            <Text style={typography.section}>Collections tendance</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
+              {COLLECTIONS.map((d) => (
+                <DappTile key={d.url} dapp={d} onPress={() => go(d.url, d.name)} />
+              ))}
+            </View>
+          </View>
+
           {recents.length > 0 ? (
             <View style={{ gap: spacing(1) }}>
-              <Text style={typography.section}>Récents</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={typography.section}>Historique</Text>
+                <Pressable onPress={() => { clearRecents(); applyRecents([]); }} hitSlop={8}>
+                  <Text style={{ color: colors.textMuted, fontSize: 13 }}>Effacer</Text>
+                </Pressable>
+              </View>
               <GlassCard>
                 {recents.map((r, i) => (
                   <Pressable
