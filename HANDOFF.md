@@ -110,8 +110,11 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   Les Alert de FEEDBACK sont convertis ; les Alert de CONFIRMATION (boutons :
   envoi, swap, reset, suppression wallet) restent volontairement natifs.
   → Pour tout nouveau retour non bloquant, utiliser `toast`, PAS `Alert.alert`.
-- Prochaines priorités UI décidées (ordre) : onboarding premium → révocation
-  d'approbations / noms ENS partout.
+- ✅ **Onboarding premium** (2026-07-04) : `welcome` (hero animé lion + stagger),
+  `backup` (voile « appuie pour révéler » + avertissement + grille glass),
+  `verify` (cartes glass + coche verte), `import` (bouton Coller + compteur).
+  ⚠️ `set-pin` reste en TextInput brut → à passer sur PinPad (2 étapes) plus tard.
+- Prochaine priorité UI décidée : **révocation d'approbations** puis noms ENS partout.
 
 ### Marque & onboarding (2026-07-04)
 - ✅ **Le lion est l'emblème de Nova** : `ui/NovaLogo.tsx` (SVG géométrique,
