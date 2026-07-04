@@ -17,7 +17,7 @@ const PROJECT_ID = process.env.EXPO_PUBLIC_WALLETCONNECT_ID || '';
 
 // Utilitaires SDK chargés à l'init (import dynamique).
 /* eslint-disable @typescript-eslint/no-explicit-any */
-let sdkUtils: { buildApprovedNamespaces: (a: any) => any; getSdkError: (k: string) => any } | null = null;
+let sdkUtils: { buildApprovedNamespaces: (a: any) => any; getSdkError: (k: any) => any } | null = null;
 
 // Filtre (une seule fois) les logs WC internes bénins : nettoyage de
 // propositions/sessions expirées par le heartbeat (aucune action utilisateur
@@ -113,7 +113,9 @@ export const useWalletConnect = create<WcState>((set, get) => ({
 
     const core = new Core({ projectId: PROJECT_ID });
     const w = (await Web3Wallet.init({
-      core,
+      // Deux versions de @walletconnect/types coexistent dans node_modules
+      // (core vs web3wallet) : structurellement identiques, cast nécessaire.
+      core: core as any,
       metadata: { name: 'Nova Wallet', description: 'Wallet crypto non-custodial', url: 'https://nova.wallet', icons: [] },
     })) as IWeb3Wallet;
 
@@ -157,7 +159,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       throw new Error('Cette dApp ne demande aucun réseau compatible (EVM).');
     }
     try {
-      await wallet.approveSession({ id: proposal.id, namespaces });
+      await wallet.approveSession({ id: proposal.id, namespaces: namespaces as any });
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       if (/expired|deleted|record/i.test(detail)) {
