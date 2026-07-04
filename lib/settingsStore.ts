@@ -30,6 +30,12 @@ interface SettingsState {
   themePref: ThemePref;
   /** Cryptos épinglées (ids CoinGecko) — onglet Favoris de l'accueil. */
   favorites: string[];
+  /**
+   * Longueur du PIN (6–12), pour afficher le bon nombre de ronds au
+   * déverrouillage. 0 = inconnue (anciens wallets) → affichage progressif.
+   * NB : n'expose QUE la longueur, jamais le PIN ; le coffre reste chiffré.
+   */
+  pinLength: number;
 
   load: () => Promise<void>;
   setProfileName: (name: string) => void;
@@ -39,12 +45,13 @@ interface SettingsState {
   setUiMode: (mode: UiMode) => void;
   setThemePref: (pref: ThemePref) => void;
   toggleFavorite: (coinId: string) => void;
+  setPinLength: (n: number) => void;
 }
 
 function persist(
   s: Pick<
     SettingsState,
-    'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites'
+    'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength'
   >,
 ) {
   void saveSettings({
@@ -55,6 +62,7 @@ function persist(
     uiMode: s.uiMode,
     themePref: s.themePref,
     favorites: s.favorites,
+    pinLength: s.pinLength,
   });
 }
 
@@ -67,6 +75,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   uiMode: 'beginner',
   themePref: 'system',
   favorites: [],
+  pinLength: 0,
 
   load: async () => {
     const s = await loadSettings();
@@ -79,6 +88,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       uiMode: (s?.uiMode as UiMode) ?? 'beginner',
       themePref: (s?.themePref as ThemePref) ?? 'system',
       favorites: Array.isArray(s?.favorites) ? (s.favorites as string[]) : [],
+      pinLength: typeof s?.pinLength === 'number' ? (s.pinLength as number) : 0,
     });
   },
 
@@ -111,6 +121,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     const favorites = cur.includes(coinId) ? cur.filter((id) => id !== coinId) : [...cur, coinId];
     set({ favorites });
     persist({ ...get(), favorites });
+  },
+  setPinLength: (pinLength) => {
+    if (pinLength === get().pinLength) return;
+    set({ pinLength });
+    persist({ ...get(), pinLength });
   },
 }));
 

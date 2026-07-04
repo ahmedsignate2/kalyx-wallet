@@ -3,6 +3,7 @@ import { View, Text, TextInput, Switch, Alert } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { PremiumScreen, GlassCard, ListRow, Chip, SectionHeader } from '../ui/premium';
+import { PinPromptModal } from '../ui/PinPromptModal';
 import { Icon, type IconName } from '../ui/icon';
 import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT, FIATS } from '../lib/settingsStore';
@@ -30,11 +31,14 @@ export default function Settings() {
   const disableBiometric = useWallet((s) => s.disableBiometric);
   const reset = useWallet((s) => s.reset);
 
+  const pinLength = useSettings((s) => s.pinLength);
   const [name, setName] = useState(profileName);
   const [notifOn, setNotifOn] = useState(false);
   const [bioAvailable, setBioAvailable] = useState(false);
-  const [pinForBio, setPinForBio] = useState<string | null>(null);
-  const [pin, setPin] = useState('');
+  // Pop-up de saisie du PIN pour activer la biométrie.
+  const [askPin, setAskPin] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+  const [bioErr, setBioErr] = useState(0);
 
   useEffect(() => {
     isBiometricAvailable().then(setBioAvailable).catch(() => setBioAvailable(false));
@@ -57,20 +61,22 @@ export default function Settings() {
   const soon = () => Alert.alert(t('soon'));
 
   const onToggleBio = async (on: boolean) => {
-    if (on) setPinForBio('');
+    if (on) setAskPin(true);
     else {
       await disableBiometric();
       setBiometricEnabled(false);
     }
   };
-  const confirmEnableBio = async () => {
+  const confirmEnableBio = async (pin: string) => {
+    setBioBusy(true);
     try {
       await enableBiometric(pin);
       setBiometricEnabled(true);
-      setPinForBio(null);
-      setPin('');
+      setAskPin(false);
     } catch {
-      Alert.alert('PIN incorrect');
+      setBioErr((n) => n + 1); // PIN refusé → secousse dans le pop-up
+    } finally {
+      setBioBusy(false);
     }
   };
   const onReset = () => {
@@ -155,12 +161,6 @@ export default function Settings() {
             <Switch value={biometricEnabled} onValueChange={onToggleBio} />
           </View>
         ) : null}
-        {pinForBio !== null ? (
-          <View style={{ gap: spacing(1), marginTop: spacing(1) }}>
-            <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry placeholder="PIN" placeholderTextColor={colors.textMuted} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
-            <Chip label="Activer" tone="accent" onPress={confirmEnableBio} />
-          </View>
-        ) : null}
         <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
         <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
       </GlassCard>
@@ -191,6 +191,17 @@ export default function Settings() {
       <SectionHeader title="" />
       <ListRow left={<Ico n="reset" />} title={t('resetWallet')} onPress={onReset} right={<Text style={{ color: colors.danger }}>›</Text>} />
       <View style={{ height: spacing(2) }} />
+
+      <PinPromptModal
+        visible={askPin}
+        title="Confirme ton code"
+        subtitle="Entre ton PIN pour activer le déverrouillage biométrique."
+        expectedLength={pinLength >= 6 ? pinLength : undefined}
+        busy={bioBusy}
+        errorSignal={bioErr}
+        onSubmit={confirmEnableBio}
+        onCancel={() => setAskPin(false)}
+      />
     </PremiumScreen>
   );
 }
