@@ -85,6 +85,7 @@ export default function Menu() {
         <ListRow divider left={<Ico n="networks" />} title={t('networks')} right={chev} onPress={() => router.push('/networks')} />
         <ListRow divider left={<Ico n="dapps" />} title="Navigateur dApps" subtitle="Uniswap, OpenSea… dans Nova" right={chev} onPress={() => router.push('/browser')} />
         <ListRow divider left={<Ico n="walletconnect" />} title="WalletConnect" subtitle={t('connectedApps')} right={chev} onPress={() => router.push('/walletconnect')} />
+        <ListRow divider left={<Ico n="security" />} title="Approbations" subtitle="Révoquer les autorisations de dépense" right={chev} onPress={() => router.push('/approvals')} />
         <ListRow divider left={<Ico n="contacts" />} title={t('contacts')} right={chev} onPress={() => router.push('/contacts')} />
       </GlassCard>
 
