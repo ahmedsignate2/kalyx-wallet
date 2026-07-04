@@ -19,17 +19,37 @@ const PROJECT_ID = process.env.EXPO_PUBLIC_WALLETCONNECT_ID || '';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let sdkUtils: { buildApprovedNamespaces: (a: any) => any; getSdkError: (k: string) => any } | null = null;
 
-// Filtre (une seule fois) les warnings WC bénins du heartbeat : « Missing or
-// invalid. Record was recently deleted - proposal ». Idempotent car init()
-// peut être relancé après un échec.
+// Filtre (une seule fois) les logs WC internes bénins : nettoyage de
+// propositions/sessions expirées par le heartbeat (aucune action utilisateur
+// requise), et expiration d'URI de pairing (déjà remontée proprement à l'UI
+// via un Alert dans l'écran WalletConnect). Ces messages sont émis en
+// console.error par le SDK (pino) et déclencheraient sinon l'overlay rouge RN.
+// Idempotent : init() peut être relancé après un échec.
+const BENIGN_WC_LOGS = [
+  'Record was recently deleted',
+  'No matching key',
+  'pair() URI has expired',
+  'Expired. pair()',
+];
 let consoleFiltered = false;
 function silenceBenignWcLogs() {
   if (consoleFiltered) return;
   consoleFiltered = true;
+  const isBenign = (args: unknown[]) => {
+    let joined = '';
+    for (const a of args) {
+      try {
+        joined += typeof a === 'string' ? a : JSON.stringify(a);
+      } catch {
+        joined += String(a);
+      }
+      joined += ' ';
+    }
+    return BENIGN_WC_LOGS.some((p) => joined.includes(p));
+  };
   for (const level of ['warn', 'error'] as const) {
     const orig = console[level].bind(console);
-    console[level] = (...args: unknown[]) =>
-      String(args[0]).includes('Record was recently deleted') ? undefined : orig(...args);
+    console[level] = (...args: unknown[]) => (isBenign(args) ? undefined : orig(...args));
   }
 }
 
