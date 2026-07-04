@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Alert, Image, Pressable, useWindowDimensions } from 'react-native';
+import { View, Text, Image, Pressable, useWindowDimensions } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import {
   PremiumScreen,
@@ -11,6 +11,7 @@ import { InteractiveChart } from '../../ui/InteractiveChart';
 import { Icon } from '../../ui/icon';
 import { fonts, spacing, useTheme } from '../../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
+import { toast } from '../../lib/toast';
 import { useWallet } from '../../lib/walletStore';
 import {
   getCoinDetail,
@@ -105,7 +106,7 @@ export default function TokenDetail() {
       setActiveChain(chain.id);
       router.push(route);
     } else {
-      Alert.alert(t('soon'), 'Cet actif n’est pas encore un réseau géré par Nova.');
+      toast.info(t('soon'), 'Cet actif n’est pas encore un réseau géré par Nova.');
     }
   };
 
@@ -191,10 +192,10 @@ export default function TokenDetail() {
 
           {/* Actions */}
           <View style={{ flexDirection: 'row', gap: spacing(2), paddingHorizontal: spacing(1) }}>
-            <CircleAction icon="buy" label={t('buy')} onPress={() => Alert.alert(t('soon'))} />
+            <CircleAction icon="buy" label={t('buy')} onPress={() => toast.info(t('soon'))} />
             <CircleAction icon="send" label={t('send')} disabled={chain?.family === 'bitcoin'} onPress={() => goSendReceive('/send')} />
             <CircleAction icon="receive" label={t('receive')} onPress={() => goSendReceive('/receive')} />
-            <CircleAction icon="convert" label={t('convert')} onPress={() => Alert.alert(t('soon'))} />
+            <CircleAction icon="convert" label={t('convert')} onPress={() => toast.info(t('soon'))} />
           </View>
 
           {/* Description */}

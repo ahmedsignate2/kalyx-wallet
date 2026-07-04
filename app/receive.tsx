@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, Alert } from 'react-native';
+import { View, Text } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { toast } from '../lib/toast';
 import { getAdapter } from '../src';
 
 export default function Receive() {
@@ -35,7 +36,7 @@ export default function Receive() {
         label="Copier l'adresse"
         onPress={async () => {
           await Clipboard.setStringAsync(account.address);
-          Alert.alert('Copié', 'Adresse copiée.');
+          toast.success('Copié', 'Adresse copiée.');
         }}
       />
     </Screen>

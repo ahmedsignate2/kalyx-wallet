@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Alert, Pressable } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { router, Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import {
@@ -27,6 +27,7 @@ import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
+import { toast } from '../lib/toast';
 import {
   getAdapter,
   formatBalance,
@@ -198,7 +199,7 @@ export default function Home() {
         <View style={{ flexDirection: 'row', gap: spacing(1) }}>
           <IconButton icon="search" onPress={() => router.push('/market')} />
           {/* Pas de faux badge : il reviendra avec les vraies notifications. */}
-          <IconButton icon="bell" onPress={() => Alert.alert('Notifications', 'Bientôt disponible — notifications de transactions et alertes de prix.')} />
+          <IconButton icon="bell" onPress={() => toast.info('Notifications', 'Bientôt : alertes de transactions et de prix.')} />
           <IconButton icon="menu" onPress={() => router.push('/menu')} />
         </View>
       </View>
@@ -251,7 +252,7 @@ export default function Home() {
 
         <View style={{ flexDirection: 'row', gap: spacing(2), marginTop: spacing(2.5), paddingHorizontal: spacing(1) }}>
           {/* Achat fiat : pas encore de partenaire (MoonPay/Ramp) → grisé, honnête. */}
-          <CircleAction icon="buy" label={t('buy')} dimmed onPress={() => Alert.alert('Achat crypto', 'Bientôt disponible (partenaire régulé en cours).')} />
+          <CircleAction icon="buy" label={t('buy')} dimmed onPress={() => toast.info('Achat crypto', 'Bientôt (partenaire régulé en cours).')} />
           <CircleAction icon="send" label={t('send')} disabled={!canSend} onPress={() => router.push('/send')} />
           <CircleAction icon="receive" label={t('receive')} onPress={() => router.push('/receive')} />
           <CircleAction icon="convert" label={t('convert')} onPress={() => router.push('/swap')} />
