@@ -5,7 +5,7 @@
   "description": "Wallet crypto non-custodial mobile (React Native/Expo) — cœur crypto testé.",
   "main": "index.js",
   "scripts": {
-    "start": "expo start --dev-client",
+    "start": "EXPO_NO_METRO_LAZY=1 expo start --dev-client --localhost",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "test": "jest",
