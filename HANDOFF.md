@@ -15,7 +15,9 @@ Deux couches strictement séparées :
   L'app n'importe QUE depuis `../src`. **103 tests jest** (vecteurs de référence +
   cross-check @scure/ethers). Testé via `npm test`.
 - **`app/` (écrans expo-router)**, **`lib/` (stores zustand, logique app)**,
-  **`ui/` (design system)** = la couche APP. Non testée par jest, mais typecheckée.
+  **`ui/` (design system)** = la couche APP. Non testée par jest, mais typecheckée
+  (⚠️ vraiment couverte depuis 2026-07-04 : le `include` du tsconfig omettait
+  app/lib/ui — 15 erreurs corrigées à cette occasion, ne pas retirer du include).
 
 **Invariants sécurité (voir SECURITY.md) :** ni seed ni clé privée dans le state ;
 seed déchiffrée du coffre **à la volée** pour signer puis jetée ; jamais loggée ;
@@ -61,8 +63,22 @@ bottom nav 5 onglets + FAB, ErrorBoundary.
   Moteur : `src/domain/wc/message.ts` (hexToText, parseSiwe, siweDomainMismatch,
   summarizeTypedData — 13 tests). UI : `ui/WalletConnectHost.tsx`.
 - ✅ ~~Warnings WC~~ : `Record was recently deleted` filtrés dans `walletconnect.ts::init()`.
-- **Apparence** (thème clair/sombre) — gros refactor : l'app utilise `colors` statique de
+- ✅ ~~Graphique de prix interactif~~ (fait 2026-07-04) : `ui/InteractiveChart.tsx`
+  (scrub façon Revolut : crosshair, haptique, prix/date sous le doigt) + police Inter
+  chargée dans `_layout` (`fontFamily` par graisse, plus de `fontWeight`).
+- ✅ ~~Vraie courbe portefeuille (accueil)~~ (fait 2026-07-04) : la sparkline du hero
+  était factice ; désormais courbe 24h réelle + P&L en devise dans le badge.
+- ✅ ~~Donut de répartition~~ (fait 2026-07-04) : `ui/AllocationDonut.tsx` sur l'écran
+  Portefeuille. Palette catégorielle FIXE `#7C5CFF #3390EC #1FA96E #C9831C #B85F8F`
+  validée daltonisme/contraste (skill dataviz) — ne pas cycler d'autres couleurs.
+
+**Cap UI « battre MetaMask/Phantom » — priorités restantes (décidé 2026-07-04) :**
+1. **Apparence** (thème clair/sombre) — gros refactor : l'app utilise `colors` statique de
   `ui/theme.ts` partout ; il faut un `useColors()` + adapter les écrans (StyleSheet dynamiques).
+2. Activité inline sur l'accueil (3-4 dernières tx, la section est vide aujourd'hui).
+3. Écran de succès de transaction animé (check + haptique) ; empty states illustrés.
+4. Galerie NFT dédiée (le moteur existe, Phantom est la référence à battre).
+5. Boutons « Bientôt » (Buy/Convert/cloche) : brancher ou griser proprement.
 
 ### Gros morceaux (rebuild / partenaires)
 - **Notifications** (locales `expo-notifications` + push via backend/Alchemy Notify) — rebuild.
