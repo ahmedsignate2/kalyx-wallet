@@ -2,11 +2,12 @@ import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Title, Muted } from '../ui/components';
-import { colors, radii, spacing, typography } from '../ui/theme';
+import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { listChains } from '../src';
 
 export default function Networks() {
+  const { colors, typography } = useTheme();
   const activeChain = useWallet((s) => s.activeChain);
   const setActiveChain = useWallet((s) => s.setActiveChain);
 

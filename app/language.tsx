@@ -2,11 +2,12 @@ import React from 'react';
 import { Text, ScrollView, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Title } from '../ui/components';
-import { colors, spacing, typography } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { LANGUAGES } from '../lib/i18n';
 
 export default function Language() {
+  const { colors, typography } = useTheme();
   const t = useT();
   const language = useSettings((s) => s.language);
   const setLanguage = useSettings((s) => s.setLanguage);

@@ -2,10 +2,11 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button } from '../ui/components';
-import { colors, typography, spacing } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 
 export default function Welcome() {
+  const { typography } = useTheme();
   const newDraft = useWallet((s) => s.newDraft);
 
   const onCreate = () => {

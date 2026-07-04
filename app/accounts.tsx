@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, radii, spacing, typography } from '../ui/theme';
+import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 
 function shorten(a: string) {
@@ -13,6 +13,7 @@ function shorten(a: string) {
 const SUGGESTIONS = ['Compte Trading', 'Compte DeFi', 'Épargne', 'Compte 2'];
 
 export default function Accounts() {
+  const { colors, typography } = useTheme();
   const accounts = useWallet((s) => s.accounts);
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
   const setActiveAccount = useWallet((s) => s.setActiveAccount);

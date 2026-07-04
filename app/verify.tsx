@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, radii, spacing, typography } from '../ui/theme';
+import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { createBackupChallenge, verifyBackupChallenge } from '../src';
 
@@ -11,6 +11,7 @@ import { createBackupChallenge, verifyBackupChallenge } from '../src';
  * quelques mots aux bonnes positions (logique fournie par le moteur testé).
  */
 export default function Verify() {
+  const { colors, typography } = useTheme();
   const draft = useWallet((s) => s.draftMnemonic);
   const challenge = useMemo(
     () => (draft ? createBackupChallenge(draft, { count: 3, optionsPerWord: 4 }) : []),

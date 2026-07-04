@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, spacing, typography } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { lockRemainingMs } from '../src';
 import { isBiometricAvailable, authenticate } from '../lib/biometrics';
 
 export default function Unlock() {
+  const { colors } = useTheme();
   const unlockWithPin = useWallet((s) => s.unlockWithPin);
   const unlockWithBiometrics = useWallet((s) => s.unlockWithBiometrics);
   const failedAttempts = useWallet((s) => s.failedAttempts);

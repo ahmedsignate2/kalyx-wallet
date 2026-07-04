@@ -12,7 +12,7 @@ import {
   SkeletonRow
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
-import { colors, spacing, typography } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { getMarkets, sortMarkets, searchCoins, type MarketCoin, type SearchCoin } from '../src';
 
@@ -23,6 +23,7 @@ function money(v: number, d = 2) {
 }
 
 export default function Market() {
+  const { colors, typography } = useTheme();
   const t = useT();
   const { fiat } = useSettings();
   const [coins, setCoins] = useState<MarketCoin[]>([]);

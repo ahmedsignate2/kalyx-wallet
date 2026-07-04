@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Switch } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, spacing, typography } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { checkPin, PIN_MIN } from '../src';
 import { isBiometricAvailable } from '../lib/biometrics';
 
 export default function SetPin() {
+  const { colors, typography } = useTheme();
   const confirmDraft = useWallet((s) => s.confirmDraft);
   const [pin, setPin] = useState('');
   const [confirm, setConfirm] = useState('');

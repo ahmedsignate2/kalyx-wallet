@@ -4,24 +4,26 @@ import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { PremiumScreen, GlassCard, ListRow, Chip, SectionHeader } from '../ui/premium';
 import { Icon, type IconName } from '../ui/icon';
-import { colors, spacing, typography } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT, FIATS } from '../lib/settingsStore';
 import { LANGUAGES } from '../lib/i18n';
 import { useWallet } from '../lib/walletStore';
 import { isBiometricAvailable } from '../lib/biometrics';
 
 function Ico({ n }: { n: IconName }) {
+  const { colors } = useTheme();
   return (
     <View style={{ width: 28, alignItems: 'center' }}>
-      <Icon name={n} size={20} color={colors.textMuted} />
+      <Icon name={n} size={20} tone="muted" />
     </View>
   );
 }
-const chevron = <Icon name="chevron" size={18} color={colors.textFaint} />;
+const chevron = <Icon name="chevron" size={18} tone="faint" />;
 
 export default function Settings() {
+  const { colors, typography } = useTheme();
   const t = useT();
-  const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled } =
+  const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled, themePref, setThemePref } =
     useSettings();
   const enableBiometric = useWallet((s) => s.enableBiometric);
   const disableBiometric = useWallet((s) => s.disableBiometric);
@@ -107,7 +109,24 @@ export default function Settings() {
             ))}
           </View>
         </View>
-        <ListRow divider left={<Ico n="appearance" />} title="Apparence" subtitle="Sombre" right={<Chip label={t('soon')} />} onPress={soon} />
+        {/* Apparence : Système / Sombre / Clair */}
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+            <Ico n="appearance" />
+            <Text style={typography.body}>Apparence</Text>
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
+            {(
+              [
+                { key: 'system', label: '⚙ Système' },
+                { key: 'dark', label: '🌙 Sombre' },
+                { key: 'light', label: '☀️ Clair' },
+              ] as const
+            ).map((o) => (
+              <Chip key={o.key} label={o.label} tone={themePref === o.key ? 'accent' : 'neutral'} onPress={() => setThemePref(o.key)} />
+            ))}
+          </View>
+        </View>
       </GlassCard>
 
       {/* Sécurité */}

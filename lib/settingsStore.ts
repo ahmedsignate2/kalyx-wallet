@@ -17,6 +17,8 @@ export const FIATS = [
 ] as const;
 
 export type UiMode = 'beginner' | 'expert';
+/** Apparence : suivre l'OS, ou forcer sombre/clair. */
+export type ThemePref = 'system' | 'dark' | 'light';
 
 interface SettingsState {
   loaded: boolean;
@@ -25,6 +27,7 @@ interface SettingsState {
   fiat: string;
   biometricEnabled: boolean;
   uiMode: UiMode;
+  themePref: ThemePref;
 
   load: () => Promise<void>;
   setProfileName: (name: string) => void;
@@ -32,10 +35,11 @@ interface SettingsState {
   setFiat: (fiat: string) => void;
   setBiometricEnabled: (on: boolean) => void;
   setUiMode: (mode: UiMode) => void;
+  setThemePref: (pref: ThemePref) => void;
 }
 
 function persist(
-  s: Pick<SettingsState, 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode'>,
+  s: Pick<SettingsState, 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref'>,
 ) {
   void saveSettings({
     profileName: s.profileName,
@@ -43,6 +47,7 @@ function persist(
     fiat: s.fiat,
     biometricEnabled: s.biometricEnabled,
     uiMode: s.uiMode,
+    themePref: s.themePref,
   });
 }
 
@@ -53,6 +58,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   fiat: 'eur',
   biometricEnabled: false,
   uiMode: 'beginner',
+  themePref: 'system',
 
   load: async () => {
     const s = await loadSettings();
@@ -63,6 +69,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       fiat: (s?.fiat as string) ?? 'eur',
       biometricEnabled: (s?.biometricEnabled as boolean) ?? false,
       uiMode: (s?.uiMode as UiMode) ?? 'beginner',
+      themePref: (s?.themePref as ThemePref) ?? 'system',
     });
   },
 
@@ -85,6 +92,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setUiMode: (uiMode) => {
     set({ uiMode });
     persist({ ...get(), uiMode });
+  },
+  setThemePref: (themePref) => {
+    set({ themePref });
+    persist({ ...get(), themePref });
   },
 }));
 

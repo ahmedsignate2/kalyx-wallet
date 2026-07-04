@@ -38,6 +38,8 @@ export class RootErrorBoundary extends React.Component<Props, State> {
 }
 
 export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => void }) {
+  // Couleurs volontairement EN DUR (pas de useTheme) : l'écran de crash doit
+  // s'afficher même si le système de thème/le store est la cause du crash.
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: '#07090F' }}
