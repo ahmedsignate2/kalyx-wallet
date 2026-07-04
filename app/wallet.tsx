@@ -11,6 +11,7 @@ import {
   SkeletonRow
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
+import { AllocationDonut, foldSlices } from '../ui/AllocationDonut';
 import { Icon } from '../ui/icon';
 import { fonts, colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -167,6 +168,17 @@ export default function WalletScreen() {
     () => (assets ?? []).reduce((s, a) => s + a.fiat, 0) + tokens.reduce((s, tk) => s + tk.fiat, 0),
     [assets, tokens],
   );
+  // Répartition du portefeuille : natifs (toutes chaînes) + tokens valorisés,
+  // repliés en 4 tranches + « Autres » (ordre = couleur, stable).
+  const allocation = useMemo(
+    () =>
+      foldSlices([
+        ...(assets ?? []).map((a) => ({ label: a.chain.nativeSymbol, value: a.fiat })),
+        ...tokens.filter((tk) => tk.hasPrice).map((tk) => ({ label: tk.symbol, value: tk.fiat })),
+      ]),
+    [assets, tokens],
+  );
+
   const q = query.trim().toLowerCase();
   const filteredTokens = tokens.filter(
     (tk) => !q || tk.name.toLowerCase().includes(q) || tk.symbol.toLowerCase().includes(q),
@@ -214,6 +226,17 @@ export default function WalletScreen() {
 
       {tab === 'crypto' ? (
         <>
+          {allocation.length > 1 ? (
+            <GlassCard>
+              <Text style={[typography.muted, { marginBottom: spacing(1.5) }]}>Répartition</Text>
+              <AllocationDonut
+                slices={allocation}
+                centerTitle="Total"
+                centerValue={hidden ? '••••' : `${money(total, 0)} ${fiatSymbol(fiat)}`}
+                formatValue={hidden ? undefined : (v) => `${money(v, 0)} ${fiatSymbol(fiat)}`}
+              />
+            </GlassCard>
+          ) : null}
           <SearchBar value={query} onChangeText={setQuery} placeholder="Rechercher un actif…" />
           <GlassCard>
             {loading && !assets ? (
