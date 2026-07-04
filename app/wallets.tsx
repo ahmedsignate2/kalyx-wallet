@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, TextInput, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { fonts, colors, spacing, typography } from '../ui/theme';
+import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 
 export default function Wallets() {
+  const { colors, typography } = useTheme();
   const wallets = useWallet((s) => s.wallets);
   const activeWalletId = useWallet((s) => s.activeWalletId);
   const setActiveWallet = useWallet((s) => s.setActiveWallet);

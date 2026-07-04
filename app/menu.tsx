@@ -5,20 +5,22 @@ import Constants from 'expo-constants';
 import { PremiumScreen, GlassCard, ListRow, Chip, SegmentedTabs, GradientAvatar } from '../ui/premium';
 import { Icon, type IconName } from '../ui/icon';
 import { AppTabBar } from '../ui/tabs';
-import { colors, spacing, typography } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { useWallet } from '../lib/walletStore';
 
 function Ico({ n }: { n: IconName }) {
+  const { colors } = useTheme();
   return (
     <View style={{ width: 30, alignItems: 'center' }}>
-      <Icon name={n} size={20} color={colors.textMuted} />
+      <Icon name={n} size={20} tone="muted" />
     </View>
   );
 }
-const chev = <Icon name="chevron" size={18} color={colors.textFaint} />;
+const chev = <Icon name="chevron" size={18} tone="faint" />;
 
 export default function Menu() {
+  const { colors, typography } = useTheme();
   const t = useT();
   const { profileName, uiMode, setUiMode } = useSettings();
   const reset = useWallet((s) => s.reset);
@@ -88,7 +90,7 @@ export default function Menu() {
       <GlassCard>
         <ListRow left={<Ico n="language" />} title={t('language')} right={chev} onPress={() => router.push('/language')} />
         <ListRow divider left={<Ico n="currency" />} title={t('currency')} right={chev} onPress={() => router.push('/settings')} />
-        <ListRow divider left={<Ico n="appearance" />} title={t('appearance')} right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="appearance" />} title={t('appearance')} right={chev} onPress={() => router.push('/settings')} />
         <ListRow divider left={<Ico n="notifications" />} title={t('notifications')} right={soonChip} onPress={soon} />
       </GlassCard>
 

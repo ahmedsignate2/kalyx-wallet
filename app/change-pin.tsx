@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, spacing, typography } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { checkPin, isWalletError } from '../src';
 
 export default function ChangePin() {
+  const { colors, typography } = useTheme();
   const changePin = useWallet((s) => s.changePin);
   const [oldPin, setOldPin] = useState('');
   const [newPin, setNewPin] = useState('');

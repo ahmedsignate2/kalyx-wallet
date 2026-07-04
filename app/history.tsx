@@ -3,7 +3,7 @@ import { View, Text, ScrollView, RefreshControl, Linking } from 'react-native';
 import { Screen, Title, Muted } from '../ui/components';
 import { GlassCard, PressableScale, SkeletonRow } from '../ui/premium';
 import { Icon } from '../ui/icon';
-import { fonts, colors, radii, spacing, typography } from '../ui/theme';
+import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { getAdapter, formatBalance, type TxSummary } from '../src';
 
@@ -23,6 +23,7 @@ function relDate(ts: number): string {
 }
 
 export default function History() {
+  const { colors, typography } = useTheme();
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
   const chain = getAdapter(activeChain).config;

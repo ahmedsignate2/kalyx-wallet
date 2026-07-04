@@ -3,11 +3,12 @@ import { View, Text, Alert } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, spacing, typography } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { getAdapter } from '../src';
 
 export default function Receive() {
+  const { typography } = useTheme();
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
   const chain = getAdapter(activeChain).config;

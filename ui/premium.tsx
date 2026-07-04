@@ -1,9 +1,8 @@
 /**
- * Composants UI premium V2 (glassmorphism, dark bleuté, accents violet/bleu).
- * Purement présentationnels — aucune logique crypto. Calés sur la maquette de
- * référence (carte solde à dégradé + sparkline, tuiles d'action, listes en
- * cartes, bottom nav à bouton central). Icônes : emoji/glyphes en attendant un
- * set dédié.
+ * Composants UI premium V2 (glassmorphism, accents violet/bleu). Purement
+ * présentationnels — aucune logique crypto. Thémés clair/sombre : chaque
+ * composant lit le thème via useTheme() ; les StyleSheet sont créées une fois
+ * par mode (cache) pour rester aussi performantes qu'en statique.
  */
 import React, { useEffect, useRef } from 'react';
 import {
@@ -21,8 +20,16 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
-import { fonts, colors, gradients, radii, spacing, typography, shadow } from './theme';
+import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
 import { Icon, type IconName } from './icon';
+
+/* Styles dépendant du thème : créés une fois par mode puis réutilisés. */
+const stylesCache: Partial<Record<ThemeMode, ReturnType<typeof createStyles>>> = {};
+function useThemeStyles() {
+  const theme = useTheme();
+  const styles = (stylesCache[theme.mode] ??= createStyles(theme));
+  return { theme, styles };
+}
 
 export function PremiumScreen({
   children,
@@ -32,9 +39,10 @@ export function PremiumScreen({
   footer?: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const { theme } = useThemeStyles();
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
-      <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
+    <View style={{ flex: 1, backgroundColor: theme.colors.bgDeep }}>
+      <LinearGradient colors={theme.gradients.screen} style={StyleSheet.absoluteFill} />
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + spacing(1.5),
@@ -92,6 +100,7 @@ export function Skeleton({
   radius?: number;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { theme } = useThemeStyles();
   const opacity = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -103,11 +112,16 @@ export function Skeleton({
     loop.start();
     return () => loop.stop();
   }, [opacity]);
-  return <Animated.View style={[{ width, height, borderRadius: radius, backgroundColor: colors.glassStrong, opacity }, style]} />;
+  return (
+    <Animated.View
+      style={[{ width, height, borderRadius: radius, backgroundColor: theme.colors.glassStrong, opacity }, style]}
+    />
+  );
 }
 
 /** Ligne squelette (avatar + 2 lignes + valeur) pour listes en chargement. */
 export function SkeletonRow({ divider }: { divider?: boolean }) {
+  const { styles } = useThemeStyles();
   return (
     <View style={[styles.listItem, divider ? styles.divider : null]}>
       <Skeleton width={42} height={42} radius={21} />
@@ -129,11 +143,12 @@ export function GlassCard({
   style?: StyleProp<ViewStyle>;
   glow?: boolean;
 }) {
+  const { theme, styles } = useThemeStyles();
   return (
-    <View style={[styles.glass, shadow.card, style]}>
+    <View style={[styles.glass, theme.shadow.card, style]}>
       {glow ? (
         <LinearGradient
-          colors={gradients.card}
+          colors={theme.gradients.card}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -141,7 +156,7 @@ export function GlassCard({
       ) : null}
       {/* Reflet supérieur (glassmorphism) */}
       <LinearGradient
-        colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)'] as const}
+        colors={theme.gradients.sheen}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 48 }}
@@ -160,6 +175,8 @@ export function Chip({
   onPress?: () => void;
   tone?: 'neutral' | 'accent' | 'warning';
 }) {
+  const { theme, styles } = useThemeStyles();
+  const { colors } = theme;
   const color =
     tone === 'accent' ? colors.accent : tone === 'warning' ? colors.warning : colors.text;
   return (
@@ -173,10 +190,11 @@ export function Chip({
 }
 
 export function IconButton({ icon, onPress, badge }: { icon: IconName; onPress?: () => void; badge?: boolean }) {
+  const { theme, styles } = useThemeStyles();
   return (
     <Pressable onPress={onPress}>
       <View style={styles.iconBtn}>
-        <Icon name={icon} size={19} color={colors.text} />
+        <Icon name={icon} size={19} color={theme.colors.text} />
         {badge ? <View style={styles.badge} /> : null}
       </View>
     </Pressable>
@@ -195,6 +213,8 @@ export function ActionTile({
   onPress: () => void;
   disabled?: boolean;
 }) {
+  const { theme, styles } = useThemeStyles();
+  const { colors } = theme;
   return (
     <Pressable onPress={onPress} disabled={disabled} style={{ flex: 1 }}>
       <View style={[styles.tile, disabled ? { opacity: 0.4 } : null]}>
@@ -217,6 +237,7 @@ export function CircleAction({
   onPress: () => void;
   disabled?: boolean;
 }) {
+  const { theme, styles } = useThemeStyles();
   return (
     <Pressable
       onPress={onPress}
@@ -224,16 +245,17 @@ export function CircleAction({
       style={({ pressed }) => [{ alignItems: 'center', gap: 8, flex: 1, opacity: disabled ? 0.4 : pressed ? 0.6 : 1 }]}
     >
       <View style={styles.circleAction}>
-        <Icon name={icon} size={22} color={colors.text} />
+        <Icon name={icon} size={22} color={theme.colors.text} />
       </View>
-      <Text style={{ color: colors.textMuted, fontSize: 12, fontFamily: fonts.semibold }}>{label}</Text>
+      <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontFamily: fonts.semibold }}>{label}</Text>
     </Pressable>
   );
 }
 
 /** Petit badge (ex. TESTNET). */
 export function Badge({ label, tone = 'warning' }: { label: string; tone?: 'warning' | 'accent' }) {
-  const c = tone === 'accent' ? colors.accent : colors.warning;
+  const { theme } = useThemeStyles();
+  const c = tone === 'accent' ? theme.colors.accent : theme.colors.warning;
   return (
     <View style={{ backgroundColor: c + '22', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
       <Text style={{ color: c, fontSize: 10, fontFamily: fonts.extrabold, letterSpacing: 0.5 }}>{label}</Text>
@@ -251,6 +273,8 @@ export function SearchBar({
   onChangeText: (t: string) => void;
   placeholder: string;
 }) {
+  const { theme, styles } = useThemeStyles();
+  const { colors } = theme;
   return (
     <View style={styles.search}>
       <Icon name="search" size={18} color={colors.textMuted} />
@@ -267,7 +291,8 @@ export function SearchBar({
 
 /** Encadré d'erreur/avertissement avec icône. */
 export function ErrorBox({ message, tone = 'danger' }: { message: string; tone?: 'danger' | 'warning' }) {
-  const c = tone === 'warning' ? colors.warning : colors.danger;
+  const { theme } = useThemeStyles();
+  const c = tone === 'warning' ? theme.colors.warning : theme.colors.danger;
   return (
     <View
       style={{
@@ -282,7 +307,7 @@ export function ErrorBox({ message, tone = 'danger' }: { message: string; tone?:
       }}
     >
       <Icon name="warning" size={18} color={c} />
-      <Text style={{ color: colors.text, flex: 1, fontSize: 14 }}>{message}</Text>
+      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 14 }}>{message}</Text>
     </View>
   );
 }
@@ -296,30 +321,37 @@ export function SectionHeader({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const { theme, styles } = useThemeStyles();
   return (
     <View style={styles.rowBetween}>
-      <Text style={typography.section}>{title}</Text>
+      <Text style={theme.typography.section}>{title}</Text>
       {actionLabel && onAction ? (
         <Pressable onPress={onAction}>
-          <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{actionLabel}</Text>
+          <Text style={{ color: theme.colors.accent, fontFamily: fonts.semibold }}>{actionLabel}</Text>
         </Pressable>
       ) : null}
     </View>
   );
 }
 
-export function Avatar({ label, color = colors.accent }: { label: string; color?: string }) {
+export function Avatar({ label, color }: { label: string; color?: string }) {
+  const { theme, styles } = useThemeStyles();
+  // Fond accent (par défaut) → glyphe blanc ; fond « verre » fourni par
+  // l'appelant → glyphe couleur texte (lisible dans les deux thèmes).
+  const bg = color ?? theme.colors.accent;
+  const fg = color ? theme.colors.text : '#fff';
   return (
-    <View style={[styles.avatar, { backgroundColor: color }]}>
-      <Text style={{ fontSize: 18, color: '#fff' }}>{label}</Text>
+    <View style={[styles.avatar, { backgroundColor: bg }]}>
+      <Text style={{ fontSize: 18, color: fg }}>{label}</Text>
     </View>
   );
 }
 
 export function GradientAvatar({ label }: { label: string }) {
+  const { theme, styles } = useThemeStyles();
   return (
     <LinearGradient
-      colors={gradients.accent}
+      colors={theme.gradients.accent}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.avatar}
@@ -345,12 +377,13 @@ export function ListRow({
   onPress?: () => void;
   divider?: boolean;
 }) {
+  const { theme, styles } = useThemeStyles();
   const content = (
     <View style={[styles.listItem, divider ? styles.divider : null]}>
       {left}
       <View style={{ flex: 1 }}>
-        <Text style={typography.bodyStrong}>{title}</Text>
-        {subtitle ? <Text style={typography.muted}>{subtitle}</Text> : null}
+        <Text style={theme.typography.bodyStrong}>{title}</Text>
+        {subtitle ? <Text style={theme.typography.muted}>{subtitle}</Text> : null}
       </View>
       {right}
     </View>
@@ -439,13 +472,16 @@ export function SegmentedTabs({
   active: string;
   onChange: (key: string) => void;
 }) {
+  const { theme, styles } = useThemeStyles();
   return (
     <View style={styles.segWrap}>
       {items.map((it) => {
         const on = it.key === active;
         return (
           <Pressable key={it.key} onPress={() => onChange(it.key)} style={[styles.segItem, on ? styles.segItemActive : null]}>
-            <Text style={{ color: on ? '#fff' : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>{it.label}</Text>
+            <Text style={{ color: on ? '#fff' : theme.colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>
+              {it.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -476,8 +512,9 @@ export function MarketRow({
   divider?: boolean;
   onPress?: () => void;
 }) {
+  const { theme, styles } = useThemeStyles();
   const up = change >= 0;
-  const c = up ? colors.up : colors.down;
+  const c = up ? theme.colors.up : theme.colors.down;
   const content = (
     <View style={[styles.listItem, divider ? styles.divider : null]}>
       {imageUri ? (
@@ -486,14 +523,14 @@ export function MarketRow({
         <Avatar label={icon} color={color} />
       )}
       <View style={{ width: 88 }}>
-        <Text style={typography.bodyStrong}>{name}</Text>
-        <Text style={typography.muted}>{symbol}</Text>
+        <Text style={theme.typography.bodyStrong}>{name}</Text>
+        <Text style={theme.typography.muted}>{symbol}</Text>
       </View>
       <View style={{ flex: 1, alignItems: 'center' }}>
         <Sparkline data={spark} color={c} />
       </View>
       <View style={{ alignItems: 'flex-end' }}>
-        <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{price}</Text>
+        <Text style={{ color: theme.colors.text, fontFamily: fonts.semibold }}>{price}</Text>
         <Text style={{ color: c, fontSize: 13 }}>
           {up ? '+' : ''}
           {change.toFixed(2)}%
@@ -522,6 +559,8 @@ export function BottomNav({
   center: { icon: IconName; label: string; onPress: () => void };
 }) {
   const insets = useSafeAreaInsets();
+  const { theme, styles } = useThemeStyles();
+  const { colors } = theme;
   const left = items.slice(0, 2);
   const right = items.slice(2, 4);
   const renderItem = (it: NavItem) => {
@@ -544,7 +583,7 @@ export function BottomNav({
       </View>
       <Pressable onPress={center.onPress} style={styles.fabWrap}>
         <LinearGradient
-          colors={gradients.accent}
+          colors={theme.gradients.accent}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.fab}
@@ -559,135 +598,137 @@ export function BottomNav({
   );
 }
 
-const styles = StyleSheet.create({
-  glass: {
-    backgroundColor: colors.glass,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    padding: spacing(2.25),
-    overflow: 'hidden',
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: radii.pill,
-    paddingVertical: spacing(0.75),
-    paddingHorizontal: spacing(1.5),
-  },
-  iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  badge: {
-    position: 'absolute',
-    top: 9,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.accent,
-  },
-  tile: {
-    backgroundColor: colors.glassStrong,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: radii.lg,
-    paddingVertical: spacing(1.5),
-    alignItems: 'center',
-  },
-  circleAction: {
-    width: 50,
-    height: 50,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.glassStrong,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.25),
-  },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1.5),
-    paddingVertical: spacing(1.5),
-  },
-  divider: { borderTopWidth: 1, borderTopColor: colors.glassBorder },
-  segWrap: {
-    flexDirection: 'row',
-    backgroundColor: colors.glass,
-    borderRadius: radii.pill,
-    padding: 4,
-    gap: 4,
-  },
-  segItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing(1),
-    borderRadius: radii.pill,
-  },
-  segItemActive: { backgroundColor: colors.accent },
-  navWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: spacing(2),
-    paddingTop: spacing(1),
-    alignItems: 'center',
-  },
-  navBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    backgroundColor: 'rgba(16,20,30,0.94)',
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: radii.xl,
-    paddingVertical: spacing(1.25),
-    paddingHorizontal: spacing(1),
-    ...shadow.card,
-  },
-  fabWrap: {
-    position: 'absolute',
-    top: -14,
-    alignItems: 'center',
-  },
-  fab: {
-    width: 56,
-    height: 56,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.card,
-  },
-});
+function createStyles({ mode, colors, shadow }: Theme) {
+  return StyleSheet.create({
+    glass: {
+      backgroundColor: mode === 'dark' ? colors.glass : colors.card,
+      borderRadius: radii.xl,
+      borderWidth: 1,
+      borderColor: mode === 'dark' ? colors.glassBorder : colors.cardBorder,
+      padding: spacing(2.25),
+      overflow: 'hidden',
+    },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: colors.glass,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+      borderRadius: radii.pill,
+      paddingVertical: spacing(0.75),
+      paddingHorizontal: spacing(1.5),
+    },
+    iconBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.glass,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+    },
+    badge: {
+      position: 'absolute',
+      top: 9,
+      right: 10,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.accent,
+    },
+    tile: {
+      backgroundColor: colors.glassStrong,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+      borderRadius: radii.lg,
+      paddingVertical: spacing(1.5),
+      alignItems: 'center',
+    },
+    circleAction: {
+      width: 50,
+      height: 50,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.glassStrong,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+    },
+    search: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing(1),
+      backgroundColor: mode === 'dark' ? colors.glass : colors.card,
+      borderWidth: 1,
+      borderColor: mode === 'dark' ? colors.glassBorder : colors.cardBorder,
+      borderRadius: radii.pill,
+      paddingHorizontal: spacing(2),
+      paddingVertical: spacing(1.25),
+    },
+    rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    avatar: {
+      width: 42,
+      height: 42,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    listItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing(1.5),
+      paddingVertical: spacing(1.5),
+    },
+    divider: { borderTopWidth: 1, borderTopColor: colors.glassBorder },
+    segWrap: {
+      flexDirection: 'row',
+      backgroundColor: colors.glass,
+      borderRadius: radii.pill,
+      padding: 4,
+      gap: 4,
+    },
+    segItem: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: spacing(1),
+      borderRadius: radii.pill,
+    },
+    segItemActive: { backgroundColor: colors.accent },
+    navWrap: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingHorizontal: spacing(2),
+      paddingTop: spacing(1),
+      alignItems: 'center',
+    },
+    navBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      width: '100%',
+      backgroundColor: mode === 'dark' ? 'rgba(16,20,30,0.94)' : 'rgba(255,255,255,0.96)',
+      borderWidth: 1,
+      borderColor: mode === 'dark' ? colors.glassBorder : colors.cardBorder,
+      borderRadius: radii.xl,
+      paddingVertical: spacing(1.25),
+      paddingHorizontal: spacing(1),
+      ...shadow.card,
+    },
+    fabWrap: {
+      position: 'absolute',
+      top: -14,
+      alignItems: 'center',
+    },
+    fab: {
+      width: 56,
+      height: 56,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...shadow.card,
+    },
+  });
+}

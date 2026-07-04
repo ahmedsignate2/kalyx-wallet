@@ -10,7 +10,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { PanResponder, Vibration, View } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient as SvgLinearGradient, Path, Polyline, Stop } from 'react-native-svg';
-import { colors } from './theme';
+import { useTheme } from './theme';
 import type { ChartPoint } from '../src';
 
 const PAD = 6;
@@ -29,6 +29,7 @@ export function InteractiveChart({
   /** Appelé avec le point sous le doigt pendant le scrub, puis null au relâchement. */
   onScrub?: (p: ChartPoint | null) => void;
 }) {
+  const { colors } = useTheme();
   const [scrubIdx, setScrubIdx] = useState<number | null>(null);
   // Refs pour que le PanResponder (créé une fois) voie toujours les données à jour.
   const pointsRef = useRef(points);

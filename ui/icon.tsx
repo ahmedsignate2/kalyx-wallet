@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from './theme';
+import { useTheme } from './theme';
 
 export type IconName =
   | 'home' | 'market' | 'wallet' | 'menu' | 'exchange'
@@ -69,11 +69,16 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
 export function Icon({
   name,
   size = 20,
-  color = colors.text,
+  color,
+  tone = 'text',
 }: {
   name: IconName;
   size?: number;
+  /** Couleur explicite ; sinon `tone` est résolu sur le thème actif. */
   color?: string;
+  tone?: 'text' | 'muted' | 'faint';
 }) {
-  return <Ionicons name={MAP[name]} size={size} color={color} />;
+  const { colors } = useTheme();
+  const toneColor = tone === 'muted' ? colors.textMuted : tone === 'faint' ? colors.textFaint : colors.text;
+  return <Ionicons name={MAP[name]} size={size} color={color ?? toneColor} />;
 }

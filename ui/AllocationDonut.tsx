@@ -12,7 +12,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { fonts, colors, spacing, typography } from './theme';
+import { fonts, spacing, useTheme } from './theme';
 
 /** Ordre fixe — validé par scripts/validate_palette.js (mode sombre). */
 export const ALLOCATION_COLORS = ['#7C5CFF', '#3390EC', '#1FA96E', '#C9831C', '#B85F8F'] as const;
@@ -57,6 +57,7 @@ export function AllocationDonut({
   /** Formate la valeur d'une ligne de légende ; absent = valeur masquée. */
   formatValue?: (v: number) => string;
 }) {
+  const { colors, typography } = useTheme();
   const total = slices.reduce((s, x) => s + x.value, 0);
   if (total <= 0 || slices.length === 0) return null;
 

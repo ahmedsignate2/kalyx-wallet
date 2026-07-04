@@ -14,7 +14,7 @@ import { Modal, View, Text, TextInput, Pressable, ScrollView, Image } from 'reac
 import { GlassCard, ErrorBox, GradientAvatar } from './premium';
 import { Button } from './components';
 import { Icon, type IconName } from './icon';
-import { colors, radii, spacing, typography } from './theme';
+import { radii, spacing, useTheme } from './theme';
 import { useWalletConnect } from '../lib/walletconnect';
 import { useWallet } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
@@ -35,6 +35,7 @@ function hostOf(url: string) {
 }
 
 function Overlay({ children }: { children: React.ReactNode }) {
+  const { colors } = useTheme();
   return (
     <Modal transparent animationType="fade">
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
@@ -48,6 +49,7 @@ function Overlay({ children }: { children: React.ReactNode }) {
 
 /** En-tête dApp : logo (ou avatar), nom, domaine. */
 function DappHeader({ name, url, icon }: { name: string; url: string; icon?: string }) {
+  const { colors, typography } = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
       {icon ? (
@@ -65,6 +67,7 @@ function DappHeader({ name, url, icon }: { name: string; url: string; icon?: str
 
 /** Ligne icône + label + valeur du résumé de demande. */
 function InfoRow({ icon, label, value, divider }: { icon: IconName; label: string; value: string; divider?: boolean }) {
+  const { colors, typography } = useTheme();
   return (
     <View
       style={{
@@ -86,6 +89,7 @@ function InfoRow({ icon, label, value, divider }: { icon: IconName; label: strin
 }
 
 export function WalletConnectHost() {
+  const { colors, typography } = useTheme();
   const proposal = useWalletConnect((s) => s.proposal);
   const request = useWalletConnect((s) => s.request);
   const sessions = useWalletConnect((s) => s.sessions);

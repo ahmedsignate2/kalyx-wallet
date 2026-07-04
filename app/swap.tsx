@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
-import { fonts, colors, radii, spacing, typography } from '../ui/theme';
+import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet, type SwapStatus } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
 import { useT } from '../lib/settingsStore';
@@ -65,6 +65,7 @@ function logoFor(novaChain: string, tok: Tok): string {
 }
 
 function TokenPill({ chainId, tok, selected, onPress }: { chainId: string; tok: Tok; selected: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
   const [err, setErr] = useState(false);
   return (
     <Pressable onPress={onPress}>
@@ -91,6 +92,7 @@ function TokenPill({ chainId, tok, selected, onPress }: { chainId: string; tok: 
 }
 
 export default function Swap() {
+  const { colors, typography } = useTheme();
   const t = useT();
   const activeChain = useWallet((s) => s.activeChain);
   const account = useWallet((s) => s.account);
@@ -320,6 +322,7 @@ export default function Swap() {
 }
 
 function Row({ label, value, color }: { label: string; value: string; color?: string }) {
+  const { colors, typography } = useTheme();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
       <Text style={typography.muted}>{label}</Text>

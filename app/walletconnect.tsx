@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Alert } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { fonts, colors, spacing, typography } from '../ui/theme';
+import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWalletConnect } from '../lib/walletconnect';
 
 export default function WalletConnectScreen() {
+  const { colors, typography } = useTheme();
   const configured = useWalletConnect((s) => s.configured);
   const ready = useWalletConnect((s) => s.ready);
   const sessions = useWalletConnect((s) => s.sessions);

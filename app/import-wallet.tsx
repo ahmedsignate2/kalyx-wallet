@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, spacing, typography } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
 import { validateMnemonic } from '../src';
 
 export default function ImportWallet() {
+  const { colors, typography } = useTheme();
   const importWallet = useWallet((s) => s.importWallet);
   const [text, setText] = useState('');
   const [label, setLabel] = useState('');
