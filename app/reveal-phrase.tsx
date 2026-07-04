@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, ScrollView } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { radii, spacing, useTheme } from '../ui/theme';
@@ -40,6 +40,7 @@ export default function RevealPhrase() {
       <Screen>
         <Title>Ta phrase de récupération</Title>
         <Muted>Ne la partage avec personne. Capture d’écran bloquée.</Muted>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
         <Card>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
             {words.map((w, i) => (
@@ -62,6 +63,7 @@ export default function RevealPhrase() {
             ))}
           </View>
         </Card>
+        </ScrollView>
       </Screen>
     );
   }
