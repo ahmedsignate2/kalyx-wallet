@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useSettings } from '../lib/settingsStore';
 import { checkPin, isWalletError } from '../src';
 
 export default function ChangePin() {
@@ -42,6 +43,7 @@ export default function ChangePin() {
     setBusy(true);
     try {
       await changePin(oldPin, newPin);
+      useSettings.getState().setPinLength(newPin.length); // ronds exacts au déverrouillage
       Alert.alert('PIN modifié', 'Ton nouveau code est actif.', [
         { text: 'OK', onPress: () => router.back() },
       ]);

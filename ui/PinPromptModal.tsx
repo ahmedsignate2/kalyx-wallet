@@ -1,0 +1,89 @@
+/**
+ * Pop-up de saisie du PIN (bottom-sheet) : lion, titre, PinPad. Utilisé quand
+ * une action sensible demande le code (ex. activer la biométrie) — remplace un
+ * champ inline peu visible. Gère sa propre saisie ; le parent vérifie le PIN et
+ * signale une erreur via `errorSignal` (secousse + reset).
+ */
+import React, { useEffect, useState } from 'react';
+import { Modal, Pressable, Text, View } from 'react-native';
+import { NovaLogo } from './NovaLogo';
+import { PinPad } from './PinPad';
+import { fonts, radii, spacing, useTheme } from './theme';
+
+export function PinPromptModal({
+  visible,
+  title,
+  subtitle,
+  expectedLength,
+  busy,
+  errorSignal,
+  onSubmit,
+  onCancel,
+}: {
+  visible: boolean;
+  title: string;
+  subtitle?: string;
+  /** Longueur connue du PIN → ronds exacts + auto-validation. */
+  expectedLength?: number;
+  busy?: boolean;
+  /** Incrémenter pour signaler un PIN refusé (secousse + reset). */
+  errorSignal?: number;
+  onSubmit: (pin: string) => void;
+  onCancel: () => void;
+}) {
+  const { colors, typography } = useTheme();
+  const [pin, setPin] = useState('');
+
+  // Reset à l'ouverture et à chaque erreur signalée.
+  useEffect(() => {
+    setPin('');
+  }, [visible, errorSignal]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal transparent animationType="slide" onRequestClose={onCancel}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+        <View
+          style={{
+            backgroundColor: colors.bgDeep,
+            borderTopLeftRadius: radii.xl,
+            borderTopRightRadius: radii.xl,
+            paddingTop: spacing(3),
+            paddingBottom: spacing(4),
+            alignItems: 'center',
+            gap: spacing(2.5),
+          }}
+        >
+          <NovaLogo size={56} />
+          <View style={{ alignItems: 'center', gap: 4, paddingHorizontal: spacing(3) }}>
+            <Text style={[typography.title, { textAlign: 'center' }]}>{title}</Text>
+            {subtitle ? <Text style={[typography.muted, { textAlign: 'center' }]}>{subtitle}</Text> : null}
+          </View>
+
+          <PinPad
+            value={pin}
+            onChange={setPin}
+            disabled={busy}
+            expectedLength={expectedLength}
+            errorSignal={errorSignal}
+            onComplete={onSubmit}
+          />
+
+          {/* En mode longueur inconnue : valider à ≥ 6 ; sinon auto-validation. */}
+          {expectedLength ? null : (
+            <Pressable onPress={() => pin.length >= 6 && onSubmit(pin)} disabled={pin.length < 6 || busy} hitSlop={8}>
+              <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold, opacity: pin.length < 6 || busy ? 0.35 : 1 }}>
+                {busy ? 'Vérification…' : 'Valider'}
+              </Text>
+            </Pressable>
+          )}
+
+          <Pressable onPress={onCancel} disabled={busy} hitSlop={8}>
+            <Text style={{ color: colors.textMuted, fontSize: 15 }}>Annuler</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
