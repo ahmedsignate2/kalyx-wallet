@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
@@ -47,6 +47,7 @@ export default function CreateWallet() {
       <Screen>
         <Title>Sauvegarde ta phrase</Title>
         <Muted>Écris ces {phrase.length} mots dans l’ordre. C’est la seule façon de restaurer ce portefeuille. Capture d’écran bloquée.</Muted>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(2) }} showsVerticalScrollIndicator={false}>
         <Card>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
             {phrase.map((w, i) => (
@@ -57,7 +58,7 @@ export default function CreateWallet() {
             ))}
           </View>
         </Card>
-        <View style={{ flex: 1 }} />
+        </ScrollView>
         <Button label="J’ai noté, terminer" onPress={() => router.replace('/home')} />
       </Screen>
     );
