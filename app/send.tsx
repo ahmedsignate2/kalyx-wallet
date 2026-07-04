@@ -3,6 +3,7 @@ import { View, Text, TextInput, Alert, Pressable } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { SuccessModal } from '../ui/SuccessModal';
+import { notify } from '../lib/notifications';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
@@ -55,7 +56,9 @@ export default function Send() {
     try {
       const hash = await signAndSend(to, amount, { pin });
       setPin('');
-      setSuccess({ hash, summary: `${amount} ${chain.nativeSymbol} envoyés à ${to.slice(0, 8)}…${to.slice(-6)}` });
+      const summary = `${amount} ${chain.nativeSymbol} envoyés à ${to.slice(0, 8)}…${to.slice(-6)}`;
+      setSuccess({ hash, summary });
+      void notify('Transaction envoyée ✅', summary);
     } catch (e) {
       setError(friendlyTxError(e));
     } finally {

@@ -110,6 +110,11 @@ export default function Menu() {
         </GlassCard>
       ) : null}
 
+      {/* Inviter des amis */}
+      <GlassCard>
+        <ListRow left={<Ico n="gift" />} title="Inviter des amis" subtitle="Partage ton code Nova" right={chev} onPress={() => router.push('/invite')} />
+      </GlassCard>
+
       {/* Aide */}
       <GlassCard>
         <ListRow left={<Ico n="support" />} title={t('support')} right={soonChip} onPress={soon} />
