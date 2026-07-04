@@ -121,6 +121,16 @@ export {
   type SwapTxRequest,
 } from './domain/swap/lifi';
 
+// WalletConnect : décodage lisible des demandes de signature
+export {
+  hexToText,
+  parseSiwe,
+  siweDomainMismatch,
+  summarizeTypedData,
+  type SiweMessage,
+  type TypedDataSummary,
+} from './domain/wc/message';
+
 // Chaînes (plugins)
 export { getAdapter, listChains, hasChain } from './domain/chains/registry';
 export { EvmChainAdapter, type RawTxRequest } from './domain/chains/EvmChainAdapter';
