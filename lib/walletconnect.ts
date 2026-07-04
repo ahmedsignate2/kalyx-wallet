@@ -67,6 +67,13 @@ export const useWalletConnect = create<WcState>((set, get) => ({
 
   init: async () => {
     if (!PROJECT_ID || get().wallet) return;
+    // Silence les warnings bénins du heartbeat WC (nettoyage de propositions
+    // expirées : « Missing or invalid. Record was recently deleted - proposal »).
+    for (const level of ['warn', 'error'] as const) {
+      const orig = console[level].bind(console);
+      console[level] = (...args: unknown[]) =>
+        String(args[0]).includes('Record was recently deleted') ? undefined : orig(...args);
+    }
     // Chargement dynamique : n'exécute le code natif qu'ici.
     await import('@walletconnect/react-native-compat');
     const [{ Core }, { Web3Wallet }, utils] = await Promise.all([
