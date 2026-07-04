@@ -36,8 +36,14 @@ export default function WalletConnectScreen() {
     try {
       await pair(uri);
       setUri('');
-    } catch {
-      Alert.alert('Échec', 'Connexion impossible. Le lien a peut-être expiré, réessaie.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/expired/i.test(msg)) {
+        Alert.alert('Lien expiré', 'Ce lien WalletConnect a expiré (ils ne durent que quelques minutes). Régénère un nouveau QR / lien sur le site, puis recolle-le tout de suite.');
+      } else {
+        Alert.alert('Connexion impossible', 'Le lien n’a pas pu être utilisé. Régénère-le sur le site et réessaie.');
+      }
+      setUri('');
     } finally {
       setBusy(false);
     }
