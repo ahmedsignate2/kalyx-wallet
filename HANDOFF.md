@@ -133,6 +133,10 @@ sinon elles ne sont PAS embarquées dans l'APK/dev-build.
 7. **Cache npm sur PRoot** : `rename` échoue → utiliser `--cache <dossier neuf>` (ex.
    `$CLAUDE_JOB_DIR/tmp/npmcacheN`) et réessayer.
 8. Warnings WC `Record was recently deleted - proposal` = **bénins** (nettoyage heartbeat).
+   (Filtrés depuis 2026-07-04 dans `walletconnect.ts::init()`.)
+9. **`Requiring unknown module "NNNN"`** après ajout de nouveaux fichiers = bundle/cache
+   Metro **désynchronisé** (surtout avec les imports dynamiques WC). Solution : redémarrer
+   Metro avec `npx expo start --localhost --clear` puis recharger l'app — pas juste `r`.
 
 ---
 
