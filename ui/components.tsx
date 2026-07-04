@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, radii, spacing, typography, accentGradient } from './theme';
+import { fonts, colors, radii, spacing, typography, accentGradient } from './theme';
 
 export function Screen({ children }: { children: React.ReactNode }) {
   return (
@@ -60,7 +60,7 @@ export function Button({
     >
       {isPrimary ? (
         <LinearGradient
-          colors={accentGradient as unknown as string[]}
+          colors={accentGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.btn}
@@ -100,5 +100,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3),
   },
   btnGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.cardBorder },
-  btnLabel: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnLabel: { color: '#fff', fontSize: 16, fontFamily: fonts.bold },
 });

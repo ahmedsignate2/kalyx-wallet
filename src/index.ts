@@ -76,6 +76,8 @@ export {
   getMarkets,
   getCoinDetail,
   getMarketChart,
+  getMarketChartPoints,
+  parseMarketChartPoints,
   getTokenPrices,
   searchCoins,
   parseSearchCoins,
@@ -91,6 +93,7 @@ export {
   type MarketOrder,
   type CoinDetail,
   type ChartPeriod,
+  type ChartPoint,
   type SearchCoin,
 } from './domain/prices/coingecko';
 

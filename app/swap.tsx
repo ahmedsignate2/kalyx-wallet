@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
-import { colors, radii, spacing, typography } from '../ui/theme';
+import { fonts, colors, radii, spacing, typography } from '../ui/theme';
 import { useWallet, type SwapStatus } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
 import { useT } from '../lib/settingsStore';
@@ -84,7 +84,7 @@ function TokenPill({ chainId, tok, selected, onPress }: { chainId: string; tok: 
         {!err ? (
           <Image source={{ uri: logoFor(chainId, tok) }} style={{ width: 18, height: 18, borderRadius: 9 }} onError={() => setErr(true)} />
         ) : null}
-        <Text style={{ color: selected ? '#fff' : colors.text, fontWeight: '700' }}>{tok.symbol}</Text>
+        <Text style={{ color: selected ? '#fff' : colors.text, fontFamily: fonts.bold }}>{tok.symbol}</Text>
       </View>
     </Pressable>
   );
@@ -240,7 +240,7 @@ export default function Swap() {
           keyboardType="decimal-pad"
           placeholder="0.0"
           placeholderTextColor={colors.textMuted}
-          style={{ color: colors.text, fontSize: 32, fontWeight: '800', paddingVertical: spacing(0.5) }}
+          style={{ color: colors.text, fontSize: 32, fontFamily: fonts.extrabold, paddingVertical: spacing(0.5) }}
         />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
           {tokens.map((tk, i) => (
@@ -262,7 +262,7 @@ export default function Swap() {
       {/* Vers */}
       <GlassCard>
         <Text style={typography.muted}>Vers (estimé)</Text>
-        <Text style={{ color: quote ? colors.text : colors.textMuted, fontSize: 32, fontWeight: '800', paddingVertical: spacing(0.5) }}>
+        <Text style={{ color: quote ? colors.text : colors.textMuted, fontSize: 32, fontFamily: fonts.extrabold, paddingVertical: spacing(0.5) }}>
           {quote ? formatBalance(quote.toAmount, quote.toToken.decimals, 6) : '—'}
         </Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
@@ -323,7 +323,7 @@ function Row({ label, value, color }: { label: string; value: string; color?: st
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
       <Text style={typography.muted}>{label}</Text>
-      <Text style={{ color: color ?? colors.text, fontWeight: '600' }}>{value}</Text>
+      <Text style={{ color: color ?? colors.text, fontFamily: fonts.semibold }}>{value}</Text>
     </View>
   );
 }

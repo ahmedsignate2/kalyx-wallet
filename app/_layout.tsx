@@ -8,6 +8,14 @@ import { useSettings } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
 import { useContacts } from '../lib/contactsStore';
 import { useWalletConnect } from '../lib/walletconnect';
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+} from '@expo-google-fonts/inter';
 import { RootErrorBoundary, ErrorScreen } from '../ui/ErrorBoundary';
 import { WalletConnectHost } from '../ui/WalletConnectHost';
 import { colors } from '../ui/theme';
@@ -21,6 +29,15 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 }
 
 export default function RootLayout() {
+  // Typo custom du design system (Inter). On attend le chargement avant de
+  // rendre, sinon RN plante sur une fontFamily inconnue.
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+  });
   const bootstrap = useWallet((s) => s.bootstrap);
   const loadSettings = useSettings((s) => s.load);
   const loadCustomTokens = useCustomTokens((s) => s.load);
@@ -51,6 +68,8 @@ export default function RootLayout() {
       }
     })();
   }, [bootstrap, loadSettings, loadCustomTokens, loadContacts, initWalletConnect]);
+
+  if (!fontsLoaded) return null;
 
   return (
     <RootErrorBoundary>

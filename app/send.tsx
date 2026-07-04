@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Alert, Pressable } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, spacing, typography } from '../ui/theme';
+import { fonts, colors, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
 import { getAdapter, isWalletError } from '../src';
@@ -73,7 +73,7 @@ export default function Send() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>Adresse du destinataire</Text>
           <Pressable onPress={() => router.push('/contacts?pick=1')} hitSlop={8}>
-            <Text style={{ color: colors.accent, fontWeight: '600' }}>Carnet</Text>
+            <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Carnet</Text>
           </Pressable>
         </View>
         <TextInput

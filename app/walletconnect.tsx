@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Alert } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, spacing, typography } from '../ui/theme';
+import { fonts, colors, spacing, typography } from '../ui/theme';
 import { useWalletConnect } from '../lib/walletconnect';
 
 export default function WalletConnectScreen() {
@@ -59,7 +59,7 @@ export default function WalletConnectScreen() {
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>Lien WalletConnect</Text>
-          <Text onPress={onPaste} style={{ color: colors.accent, fontWeight: '600' }}>Coller</Text>
+          <Text onPress={onPaste} style={{ color: colors.accent, fontFamily: fonts.semibold }}>Coller</Text>
         </View>
         <TextInput value={uri} onChangeText={setUri} placeholder="wc:…" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} style={{ color: colors.text, fontSize: 14, paddingVertical: spacing(1) }} />
       </Card>
@@ -76,7 +76,7 @@ export default function WalletConnectScreen() {
                 <Text style={typography.body}>{s.name}</Text>
                 <Muted>{s.url}</Muted>
               </View>
-              <Text onPress={() => disconnect(s.topic)} style={{ color: colors.danger, fontWeight: '600' }}>Déconnecter</Text>
+              <Text onPress={() => disconnect(s.topic)} style={{ color: colors.danger, fontFamily: fonts.semibold }}>Déconnecter</Text>
             </Card>
           ))
         )}
