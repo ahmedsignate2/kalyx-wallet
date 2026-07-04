@@ -19,6 +19,7 @@ import {
   mnemonicToSeedSync,
   deriveEvmAccount,
   deriveBtcAccount,
+  deriveBtcSigner,
   evmPath,
   btcPath,
   getAdapter,
@@ -28,6 +29,7 @@ import {
   lockRemainingMs,
   isWalletError,
   EvmChainAdapter,
+  BitcoinChainAdapter,
   NATIVE_TOKEN,
   type Account,
   type MnemonicStrength,
@@ -310,8 +312,18 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!account) throw new Error('Aucun compte');
     const mnemonic = await revealMnemonic(activeWalletId, unlock);
     const seed = mnemonicToSeedSync(mnemonic);
-    const signer = deriveEvmAccount(seed, account.index);
     const adapter = getAdapter(activeChain);
+
+    // Bitcoin = modèle UTXO : chemin d'envoi dédié (clé + tx différentes).
+    if (adapter instanceof BitcoinChainAdapter) {
+      const btcSigner = deriveBtcSigner(seed, account.index);
+      return adapter.sendBitcoin(account.address, to, amount, {
+        privateKey: btcSigner.privateKey,
+        publicKey: btcSigner.publicKey,
+      });
+    }
+
+    const signer = deriveEvmAccount(seed, account.index);
     const unsigned = await adapter.prepareTransfer(account.address, { to, amount });
     const raw = await adapter.signTransaction(unsigned, signer.privateKey);
     return adapter.broadcast(raw);

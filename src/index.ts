@@ -16,7 +16,8 @@ export {
   type MnemonicStrength,
 } from './crypto/mnemonic';
 export { deriveEvmAccount, evmPath, type EvmAccount } from './crypto/hd';
-export { deriveBtcAccount, btcPath, type BtcAccount } from './crypto/btc';
+export { deriveBtcAccount, deriveBtcSigner, btcPath, type BtcAccount, type BtcSigner } from './crypto/btc';
+export { BitcoinChainAdapter } from './domain/chains/BitcoinChainAdapter';
 export { getRandomBytes } from './crypto/random';
 
 // Erreurs typées
