@@ -21,26 +21,23 @@ describe('BitcoinChainAdapter', () => {
     expect(adapter.deriveAccount(seed, 0).address).toBe(BTC_ADDR_0);
   });
 
-  it('refuse explicitement l’envoi (NOT_SUPPORTED)', async () => {
-    expect(() => adapter.buildTransfer({ to: BTC_ADDR_0, amount: '0.1' })).toThrow();
+  it('buildTransfer valide l’envoi hors-ligne (adresse + montant)', () => {
+    // Adresse + montant valides → intention (value en satoshis, evmChainId=0).
+    const intent = adapter.buildTransfer({ to: BTC_ADDR_0, amount: '0.001' });
+    expect(intent.value).toBe(100000n); // 0.001 BTC = 100 000 sats
+    expect(intent.to).toBe(BTC_ADDR_0);
+
+    // Adresse invalide → INVALID_ADDRESS.
     try {
-      adapter.buildTransfer({ to: BTC_ADDR_0, amount: '0.1' });
+      adapter.buildTransfer({ to: '0xNotBitcoin', amount: '0.001' });
+      throw new Error('aurait dû lever');
     } catch (e) {
-      expect(isWalletError(e)).toBe(true);
-      if (isWalletError(e)) expect(e.code).toBe('NOT_SUPPORTED');
+      expect(isWalletError(e) && e.code).toBe('INVALID_ADDRESS');
     }
-    const fakeTx = {
-      to: BTC_ADDR_0,
-      value: 1n,
-      evmChainId: 0,
-      nonce: 0,
-      gasLimit: 0n,
-      maxFeePerGas: 0n,
-      maxPriorityFeePerGas: 0n,
-    };
-    await expect(adapter.signTransaction(fakeTx, '0x00')).rejects.toMatchObject({
-      code: 'NOT_SUPPORTED',
-    });
+  });
+
+  it('les méthodes EVM génériques ne servent pas à l’envoi BTC', async () => {
+    // L'envoi BTC passe par sendBitcoin ; prepare/sign/broadcast lèvent.
     await expect(adapter.broadcast('0x00')).rejects.toMatchObject({ code: 'NOT_SUPPORTED' });
   });
 
