@@ -104,9 +104,20 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
 (WebView + injection EIP-1193 — prévu v2, voir §3 gros morceaux) ; Ledger/Trezor.
 
 ### Gros morceaux (rebuild / partenaires)
+- ✅ ~~Navigateur Web3 intégré~~ (code fait 2026-07-04, **actif après rebuild**) :
+  `app/browser.tsx` + `lib/dappProvider.ts`. EIP-1193 + EIP-6963, connexion par
+  origine https, signatures décodées + PIN, RPC lecture seule en liste blanche.
+  Entrée : Menu → Navigateur dApps. ⚠️ À TESTER après rebuild (Uniswap : connect,
+  switch réseau, quote ; OpenSea : SIWE).
+- **⚠️ REBUILD REQUIS** (un seul, couvre tout) : `eas build --profile development`
+  → active WebView (navigateur), BLE (Ledger), `userInterfaceStyle: automatic`
+  (sinon thème « Système » figé sombre). Deps + permissions déjà en place.
+- **Ledger** : deps installées (`react-native-ble-plx`, `@ledgerhq/react-native-hw-transport-ble`,
+  `hw-app-eth`), plugin + permissions configurés. Le câblage (scan BLE, appairage,
+  compte matériel dans walletStore, signature déléguée) reste à faire APRÈS le
+  rebuild, avec un Nano physique pour tester. **Trezor** : pas de BLE — passe par
+  OTG/USB ou Trezor Connect (plus tard).
 - **Notifications** (locales `expo-notifications` + push via backend/Alchemy Notify) — rebuild.
-- **Ledger/Trezor** (natif + Bluetooth) — rebuild.
-- **Navigateur Web3 intégré** (WebView + injection EIP-1193) → **v2** (complexe).
 - **Achat/Vente fiat** (MoonPay/Transak/Ramp) — partenaire régulé + KYC.
 - **Envoi Bitcoin** (UTXO) — `@scure/btc-signer` déjà installé, à câbler.
 - **Staking**, positions **DeFi**.
