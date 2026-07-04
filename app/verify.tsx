@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { router } from 'expo-router';
-import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { radii, spacing, useTheme } from '../ui/theme';
+import { router, Stack } from 'expo-router';
+import { PremiumScreen, GlassCard } from '../ui/premium';
+import { Button } from '../ui/components';
+import { Icon } from '../ui/icon';
+import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { toast } from '../lib/toast';
 import { createBackupChallenge, verifyBackupChallenge } from '../src';
@@ -22,10 +24,15 @@ export default function Verify() {
 
   if (!draft) {
     return (
-      <Screen>
-        <Muted>Session expirée. Recommence l'onboarding.</Muted>
-        <Button label="Retour" variant="ghost" onPress={() => router.replace('/welcome')} />
-      </Screen>
+      <PremiumScreen>
+        <Stack.Screen options={{ headerShown: true, title: 'Vérification' }} />
+        <GlassCard>
+          <Text style={typography.bodyStrong}>Session expirée.</Text>
+          <Text onPress={() => router.replace('/welcome')} style={{ color: colors.accent, fontFamily: fonts.semibold, marginTop: spacing(1) }}>
+            Recommencer
+          </Text>
+        </GlassCard>
+      </PremiumScreen>
     );
   }
 
@@ -42,37 +49,54 @@ export default function Verify() {
   };
 
   return (
-    <Screen>
-      <Title>Vérifie ta sauvegarde</Title>
-      <Muted>Sélectionne le bon mot pour chaque position.</Muted>
-      <View style={{ gap: spacing(2), marginTop: spacing(1) }}>
-        {challenge.map((c) => (
-          <Card key={c.position}>
-            <Text style={typography.muted}>Mot n°{c.position}</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
-              {c.options.map((opt) => {
-                const selected = answers[c.position] === opt;
-                return (
-                  <Pressable
-                    key={opt}
-                    onPress={() => setAnswers((a) => ({ ...a, [c.position]: opt }))}
-                    style={{
-                      paddingVertical: spacing(1),
-                      paddingHorizontal: spacing(2),
-                      borderRadius: radii.pill,
-                      backgroundColor: selected ? colors.accent : colors.bgElevated,
-                    }}
-                  >
-                    <Text style={{ color: colors.text }}>{opt}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </Card>
-        ))}
+    <PremiumScreen>
+      <Stack.Screen options={{ headerShown: true, title: 'Vérification' }} />
+
+      <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
+        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="check" size={26} color={colors.accent} />
+        </View>
+        <Text style={typography.title}>Vérifie ta sauvegarde</Text>
+        <Text style={[typography.muted, { textAlign: 'center' }]}>Sélectionne le bon mot pour chaque position.</Text>
       </View>
-      <View style={{ flex: 1 }} />
+
+      <View style={{ gap: spacing(1.5) }}>
+        {challenge.map((c) => {
+          const answered = !!answers[c.position];
+          return (
+            <GlassCard key={c.position}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing(1) }}>
+                <Text style={typography.muted}>Mot n°{c.position}</Text>
+                {answered ? <Icon name="check" size={15} color={colors.up} /> : null}
+              </View>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
+                {c.options.map((opt) => {
+                  const selected = answers[c.position] === opt;
+                  return (
+                    <Pressable
+                      key={opt}
+                      onPress={() => setAnswers((a) => ({ ...a, [c.position]: opt }))}
+                      style={{
+                        paddingVertical: spacing(1),
+                        paddingHorizontal: spacing(2),
+                        borderRadius: radii.pill,
+                        backgroundColor: selected ? colors.accent : colors.bgElevated,
+                        borderWidth: 1,
+                        borderColor: selected ? colors.accent : colors.glassBorder,
+                      }}
+                    >
+                      <Text style={{ color: selected ? '#fff' : colors.text, fontFamily: selected ? fonts.semibold : fonts.regular }}>{opt}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </GlassCard>
+          );
+        })}
+      </View>
+
       <Button label="Valider" disabled={!allAnswered} onPress={onValidate} />
-    </Screen>
+      <View style={{ height: spacing(1) }} />
+    </PremiumScreen>
   );
 }
