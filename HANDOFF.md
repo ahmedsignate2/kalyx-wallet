@@ -103,6 +103,16 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
 (icône/splash/captures). Prochain gros cap discuté : **navigateur dApps intégré**
 (WebView + injection EIP-1193 — prévu v2, voir §3 gros morceaux) ; Ledger/Trezor.
 
+### Ressenti / feedback (2026-07-04)
+- ✅ **Toasts maison** `lib/toast.ts` + `ui/ToastHost.tsx` (bandeau animé, icône/
+  couleur par type, vibration, auto-dismiss) montés dans `_layout`. Usage :
+  `import { toast } from '../lib/toast'; toast.success('Titre','détail')`.
+  Les Alert de FEEDBACK sont convertis ; les Alert de CONFIRMATION (boutons :
+  envoi, swap, reset, suppression wallet) restent volontairement natifs.
+  → Pour tout nouveau retour non bloquant, utiliser `toast`, PAS `Alert.alert`.
+- Prochaines priorités UI décidées (ordre) : onboarding premium → révocation
+  d'approbations / noms ENS partout.
+
 ### Marque & onboarding (2026-07-04)
 - ✅ **Le lion est l'emblème de Nova** : `ui/NovaLogo.tsx` (SVG géométrique,
   crinière dégradée). Utilisé dans splash, déverrouillage, welcome. ⚠️ C'est le
