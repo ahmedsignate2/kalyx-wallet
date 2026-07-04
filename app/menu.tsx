@@ -8,6 +8,7 @@ import { AppTabBar } from '../ui/tabs';
 import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { useWallet } from '../lib/walletStore';
+import { toast } from '../lib/toast';
 
 function Ico({ n }: { n: IconName }) {
   const { colors } = useTheme();
@@ -25,7 +26,7 @@ export default function Menu() {
   const { profileName, uiMode, setUiMode } = useSettings();
   const reset = useWallet((s) => s.reset);
   const expert = uiMode === 'expert';
-  const soon = () => Alert.alert(t('soon'));
+  const soon = () => toast.info(t('soon'));
   const soonChip = <Chip label={t('soon')} />;
 
   const onReset = () =>

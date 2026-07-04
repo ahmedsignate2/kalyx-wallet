@@ -11,6 +11,7 @@ import { LANGUAGES } from '../lib/i18n';
 import { useWallet } from '../lib/walletStore';
 import { isBiometricAvailable } from '../lib/biometrics';
 import { ensureNotifPermission, notificationsAvailable, notify } from '../lib/notifications';
+import { toast } from '../lib/toast';
 
 function Ico({ n }: { n: IconName }) {
   const { colors } = useTheme();
@@ -48,17 +49,17 @@ export default function Settings() {
   const onToggleNotif = async (on: boolean) => {
     if (!on) {
       // Pas de désactivation programmatique côté OS : on informe l'utilisateur.
-      Alert.alert('Notifications', 'Pour couper les notifications, désactive-les pour Nova dans les réglages du téléphone.');
+      toast.info('Notifications', 'Désactive-les pour Nova dans les réglages du téléphone.');
       return;
     }
     const ok = await ensureNotifPermission();
     setNotifOn(ok);
     if (ok) void notify('Notifications activées', 'Tu seras prévenu de tes transactions.');
-    else Alert.alert('Notifications', 'Permission refusée, ou disponible seulement après un rebuild de l’app.');
+    else toast.warning('Notifications', 'Permission refusée (ou disponible après un rebuild).');
   };
 
   const langName = LANGUAGES.find((l) => l.code === language)?.name ?? language;
-  const soon = () => Alert.alert(t('soon'));
+  const soon = () => toast.info(t('soon'));
 
   const onToggleBio = async (on: boolean) => {
     if (on) setAskPin(true);
