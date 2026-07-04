@@ -106,18 +106,38 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     const address = useWallet.getState().account?.address;
     if (!address) throw new Error('Aucun compte actif');
     const chains = evmChains();
-    const namespaces = sdkUtils.buildApprovedNamespaces({
-      proposal: proposal.params,
-      supportedNamespaces: {
-        eip155: {
-          chains: chains.map((c) => c.caip),
-          methods: WC_METHODS,
-          events: ['chainChanged', 'accountsChanged'],
-          accounts: chains.map((c) => `${c.caip}:${address}`),
+    let namespaces: Record<string, unknown>;
+    try {
+      namespaces = sdkUtils.buildApprovedNamespaces({
+        proposal: proposal.params,
+        supportedNamespaces: {
+          eip155: {
+            chains: chains.map((c) => c.caip),
+            methods: WC_METHODS,
+            events: ['chainChanged', 'accountsChanged'],
+            accounts: chains.map((c) => `${c.caip}:${address}`),
+          },
         },
-      },
-    });
-    await wallet.approveSession({ id: proposal.id, namespaces });
+      });
+    } catch (e) {
+      // buildApprovedNamespaces jette si la dApp EXIGE un réseau/une méthode
+      // hors de notre liste (ex. Solana). Message clair plutôt que silence.
+      const detail = e instanceof Error ? e.message : String(e);
+      throw new Error(`Cette dApp demande un réseau ou une méthode non supportés par Nova. (${detail.slice(0, 120)})`);
+    }
+    if (!namespaces || Object.keys(namespaces).length === 0) {
+      throw new Error('Cette dApp ne demande aucun réseau compatible (EVM).');
+    }
+    try {
+      await wallet.approveSession({ id: proposal.id, namespaces });
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      if (/expired|deleted|record/i.test(detail)) {
+        // On laisse la fenêtre ouverte pour afficher l'erreur ; « Refuser » la fermera.
+        throw new Error('La demande de connexion a expiré. Relance la connexion depuis la dApp.');
+      }
+      throw new Error(`Connexion refusée par WalletConnect : ${detail.slice(0, 140)}`);
+    }
     set({ proposal: null });
     get().refresh();
   },

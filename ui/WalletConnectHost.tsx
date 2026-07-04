@@ -98,6 +98,7 @@ export function WalletConnectHost() {
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [propError, setPropError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
 
   // Décodage lisible de la requête (mémoïsé : parsing hex/SIWE/EIP-712).
@@ -157,9 +158,28 @@ export function WalletConnectHost() {
             <Text style={typography.muted}>✗ Ne peut RIEN déplacer sans ta signature + PIN</Text>
           </View>
         </GlassCard>
+        {propError ? <ErrorBox message={propError} /> : null}
         <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
-          <View style={{ flex: 1 }}><Button label="Refuser" variant="ghost" onPress={() => rejectProposal()} /></View>
-          <View style={{ flex: 1 }}><Button label="Connecter" onPress={() => approveProposal().catch(() => {})} /></View>
+          <View style={{ flex: 1 }}>
+            <Button label="Refuser" variant="ghost" onPress={() => { setPropError(null); rejectProposal().catch(() => {}); }} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Button
+              label={busy ? 'Connexion…' : 'Connecter'}
+              loading={busy}
+              onPress={async () => {
+                setBusy(true);
+                setPropError(null);
+                try {
+                  await approveProposal();
+                } catch (e) {
+                  setPropError(e instanceof Error ? e.message : 'Connexion impossible.');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+          </View>
         </View>
       </Overlay>
     );
