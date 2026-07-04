@@ -115,6 +115,17 @@ export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
 // DeFi / Staking — classification des tokens détenus
 export { classifyToken, type DefiKind, type DefiPosition } from './domain/defi/registry';
 
+// Approbations ERC-20 (révocation façon revoke.cash)
+export {
+  APPROVAL_TOPIC,
+  addressTopic,
+  addressFromTopic,
+  spendersFromLogs,
+  isUnlimited,
+  revokeCalldata,
+  type ApprovalItem,
+} from './domain/approvals/approvals';
+
 // Swap / Bridge (LI.FI)
 export {
   getSwapQuote,
