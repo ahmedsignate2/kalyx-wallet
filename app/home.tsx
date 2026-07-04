@@ -33,10 +33,9 @@ import {
   getPrices,
   getMarkets,
   sortMarkets,
+  getMarketChartPoints,
   type MarketCoin,
 } from '../src';
-
-const HERO_SPARK = [3, 4, 3.5, 5, 4.6, 6, 5.4, 7, 6.6, 8.2, 7.8, 9.4];
 
 function greetingKey() {
   const h = new Date().getHours();
@@ -70,6 +69,9 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
   const [markets, setMarkets] = useState<MarketCoin[]>([]);
+  // Courbe de prix 24h du natif (la valeur du portefeuille = solde × prix,
+  // la forme de la courbe est donc celle du prix). Vide = pas de sparkline.
+  const [spark, setSpark] = useState<number[]>([]);
   const [marketTab, setMarketTab] = useState('favorites');
   const [marketQuery, setMarketQuery] = useState('');
 
@@ -101,6 +103,26 @@ export default function Home() {
     getMarkets(fiat, 20).then(setMarkets).catch(() => setMarkets([]));
   }, [fiat]);
 
+  // Vraie courbe 24h (remplace l'ancienne sparkline factice).
+  useEffect(() => {
+    let alive = true;
+    if (!chain.coingeckoId) {
+      setSpark([]);
+      return;
+    }
+    getMarketChartPoints(chain.coingeckoId, fiat, '1')
+      .then((pts) => {
+        if (!alive) return;
+        // ~40 points suffisent pour une sparkline de 84 px.
+        const step = Math.max(1, Math.floor(pts.length / 40));
+        setSpark(pts.filter((_, i) => i % step === 0 || i === pts.length - 1).map((p) => p.v));
+      })
+      .catch(() => alive && setSpark([]));
+    return () => {
+      alive = false;
+    };
+  }, [chain.coingeckoId, fiat]);
+
   if (!account) {
     return (
       <PremiumScreen>
@@ -115,6 +137,9 @@ export default function Home() {
   const fiatValue = hasFiat ? Number(formatAmount(raw!, chain.nativeDecimals)) * price!.price : 0;
   const heroValue = hidden ? '••••••' : loading ? '…' : hasFiat ? `${money(fiatValue)} ${fiatSymbol(fiat)}` : nativeStr;
   const change = price?.change24h ?? null;
+  // P&L 24h en devise : valeur_actuelle − valeur_il_y_a_24h (solde constant).
+  const pnl24h =
+    hasFiat && change != null && change > -100 ? fiatValue - fiatValue / (1 + change / 100) : null;
 
   const q = marketQuery.trim().toLowerCase();
   const baseMarkets =
@@ -179,14 +204,17 @@ export default function Home() {
               </Text>
             )}
           </View>
-          <Sparkline data={HERO_SPARK} color={change != null && change < 0 ? colors.down : colors.accent} width={84} height={40} />
+          {spark.length > 1 ? (
+            <Sparkline data={spark} color={change != null && change < 0 ? colors.down : colors.up} width={84} height={40} />
+          ) : null}
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 4 }}>
           {change != null ? (
             <View style={{ backgroundColor: change >= 0 ? 'rgba(61,220,151,0.15)' : 'rgba(255,107,107,0.15)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
-              <Text style={{ color: change >= 0 ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13 }}>
+              <Text style={{ color: change >= 0 ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13, fontVariant: ['tabular-nums'] }}>
                 {change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
+                {pnl24h != null && !hidden ? `  ${pnl24h >= 0 ? '+' : '−'}${money(Math.abs(pnl24h))} ${fiatSymbol(fiat)}` : ''}
               </Text>
             </View>
           ) : null}
