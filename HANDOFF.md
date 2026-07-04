@@ -117,7 +117,19 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   lisait un secret SecureStore `requireAuthentication` (= 2 prompts). L'appel
   explicite est retiré ; la lecture gated EST le prompt unique. Ne PAS le
   réintroduire. `userInterfaceStyle: 'automatic'` déjà posé.
-- Reste onboarding : passe d'anim sur backup/verify/import ; empty states illustrés.
+- ✅ **Écran de code peaufiné** (retours UX 2026-07-04) : « Bon retour {nom} »,
+  bouton biométrie visible au-dessus du pavé, ronds 16px animés (pop), touches en
+  relief, ⌫ agrandi, bouton grisé→fondu, **fondu de sortie 240ms** au succès.
+  **Option 3 ronds** : `settings.pinLength` mémorise la LONGUEUR du PIN (posée à
+  create/change/unlock réussi) → nb de ronds exact + auto-validation. N'expose que
+  la longueur (petit compromis assumé), jamais le PIN.
+- ✅ **Pop-up PIN** `ui/PinPromptModal.tsx` (lion + PinPad) : activer la biométrie
+  dans Réglages passe par ce beau modal (avant : champ inline peu visible).
+- ✅ **FIX CRASH** : `expo-notifications` absent (avant rebuild) plantait l'app
+  (`ExpoPushTokenManager`). `lib/notifications.ts` teste la présence native via
+  `requireOptionalNativeModule` AVANT d'importer. NE PAS réimporter en dur.
+- Reste onboarding : passe d'anim sur backup/verify/import ; empty states illustrés ;
+  brancher PinPad sur set-pin/change-pin (encore en TextInput) ; icône store PNG.
 
 ### Gros morceaux (rebuild / partenaires)
 - ✅ ~~Navigateur Web3 intégré~~ (code fait 2026-07-04, **actif après rebuild**) :
