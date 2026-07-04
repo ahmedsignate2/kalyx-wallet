@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, TextInput } from 'react-native';
+import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -48,12 +49,19 @@ export default function Accounts() {
     }
   };
 
+  const insets = useSafeAreaInsets();
   return (
     <Screen>
       <Title>Comptes</Title>
       <Muted>Tous dérivés de ta même phrase de récupération.</Muted>
 
-      <View style={{ gap: spacing(1.5), marginTop: spacing(1) }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + spacing(6), paddingTop: spacing(1) }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+      <View style={{ gap: spacing(1.5) }}>
         {accounts.map((a) => {
           const active = a.index === activeAccountIndex;
           if (editing === a.index) {
@@ -142,6 +150,7 @@ export default function Accounts() {
           <Text style={{ color: colors.accent }}>＋ Ajouter un compte</Text>
         </Pressable>
       )}
+      </ScrollView>
     </Screen>
   );
 }
