@@ -114,7 +114,16 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   `backup` (voile « appuie pour révéler » + avertissement + grille glass),
   `verify` (cartes glass + coche verte), `import` (bouton Coller + compteur).
   ⚠️ `set-pin` reste en TextInput brut → à passer sur PinPad (2 étapes) plus tard.
-- Prochaine priorité UI décidée : **révocation d'approbations** puis noms ENS partout.
+- ✅ **Révocation d'approbations** (2026-07-04, façon revoke.cash) :
+  `src/domain/approvals/approvals.ts` (helpers purs, 6 tests) +
+  `EvmChainAdapter.getApprovals(owner, tokens)` (logs Approval → allowance) +
+  `app/approvals.tsx` (Menu → Approbations, révoque via pop-up PIN + toast).
+  ⚠️ **Limite v1** : ne couvre que les tokens DÉTENUS (getLogs address-filtré, pas
+  d'indexeur). Les approbations sur tokens à solde nul ne sont pas listées.
+  À TESTER après rebuild : le getLogs full-range peut buter sur les limites RPC
+  Alchemy → prévoir un fallback par plages si besoin.
+- Prochaine priorité UI décidée : **noms ENS + avatars partout** (envoi/historique/
+  contacts) ; puis finir `set-pin` au PinPad.
 
 ### Marque & onboarding (2026-07-04)
 - ✅ **Le lion est l'emblème de Nova** : `ui/NovaLogo.tsx` (SVG géométrique,
