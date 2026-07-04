@@ -1,35 +1,27 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, Linking } from 'react-native';
+import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { Screen, Title, Muted } from '../ui/components';
-import { GlassCard, PressableScale, SkeletonRow } from '../ui/premium';
+import { GlassCard, SkeletonRow } from '../ui/premium';
+import { TxRow } from '../ui/TxRow';
 import { Icon } from '../ui/icon';
-import { fonts, radii, spacing, useTheme } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { getAdapter, formatBalance, type TxSummary } from '../src';
-
-function shortHash(h: string) {
-  return `${h.slice(0, 10)}…${h.slice(-6)}`;
-}
-
-/** Date relative simple (auj., hier, jj/mm). */
-function relDate(ts: number): string {
-  if (!ts) return '';
-  const d = new Date(ts * 1000);
-  const now = new Date();
-  const days = Math.floor((now.getTime() - d.getTime()) / 86400000);
-  if (days <= 0 && now.getDate() === d.getDate()) return "Aujourd'hui";
-  if (days <= 1) return 'Hier';
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
-}
+import { useSettings, fiatSymbol } from '../lib/settingsStore';
+import { getAdapter, getCoinDetail, type TxSummary } from '../src';
 
 export default function History() {
   const { colors, typography } = useTheme();
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
+  const { fiat } = useSettings();
   const chain = getAdapter(activeChain).config;
 
   const [txs, setTxs] = useState<TxSummary[] | null>(null);
   const [loading, setLoading] = useState(false);
+  // Logo + prix actuel du natif (contre-valeur des lignes).
+  const [coin, setCoin] = useState<{ image: string; price: number } | null>(null);
+  // Hash de la tx dépliée (détail adresses + explorateur).
+  const [openHash, setOpenHash] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!account) return;
@@ -45,11 +37,23 @@ export default function History() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    let alive = true;
+    setCoin(null);
+    if (!chain.coingeckoId) return;
+    getCoinDetail(chain.coingeckoId, fiat)
+      .then((d) => alive && d && setCoin({ image: d.image, price: d.price }))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [chain.coingeckoId, fiat]);
+
   return (
     <Screen>
       <Title>Historique · {chain.name}</Title>
       <ScrollView
-        contentContainerStyle={{ gap: spacing(1.25), paddingTop: spacing(1) }}
+        contentContainerStyle={{ paddingTop: spacing(1) }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />}
       >
         {txs == null ? (
@@ -63,37 +67,25 @@ export default function History() {
             </View>
           </GlassCard>
         ) : (
-          txs.map((tx) => {
-            const inbound = tx.direction === 'in';
-            const failed = tx.status === 'failed';
-            const sign = inbound ? '+' : tx.direction === 'out' ? '−' : '';
-            const amountColor = failed ? colors.danger : inbound ? colors.up : colors.text;
-            const iconColor = inbound ? colors.up : colors.textMuted;
-            return (
-              <PressableScale
+          <GlassCard>
+            {txs.map((tx, i) => (
+              <TxRow
                 key={tx.hash}
-                onPress={() => chain.explorerUrl && Linking.openURL(`${chain.explorerUrl}/tx/${tx.hash}`)}
-              >
-                <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-                  <View style={{ width: 42, height: 42, borderRadius: radii.pill, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name={inbound ? 'receive' : 'send'} size={20} color={iconColor} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={typography.bodyStrong}>
-                      {inbound ? 'Reçu' : tx.direction === 'out' ? 'Envoyé' : 'Interne'}
-                      {failed ? ' · échoué' : ''}
-                    </Text>
-                    <Muted>{relDate(tx.timestamp)} · {shortHash(tx.hash)}</Muted>
-                  </View>
-                  <Text style={{ color: amountColor, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }}>
-                    {sign}
-                    {formatBalance(tx.value, chain.nativeDecimals, 6)} {chain.nativeSymbol}
-                  </Text>
-                </GlassCard>
-              </PressableScale>
-            );
-          })
+                tx={tx}
+                divider={i > 0}
+                symbol={chain.nativeSymbol}
+                decimals={chain.nativeDecimals}
+                logoUri={coin?.image}
+                price={coin?.price}
+                fiatSymbol={fiatSymbol(fiat)}
+                expanded={openHash === tx.hash}
+                explorerUrl={chain.explorerUrl}
+                onPress={() => setOpenHash((h) => (h === tx.hash ? null : tx.hash))}
+              />
+            ))}
+          </GlassCard>
         )}
+        <View style={{ height: spacing(3) }} />
       </ScrollView>
     </Screen>
   );

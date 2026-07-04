@@ -21,6 +21,8 @@ import {
   SkeletonRow,
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
+import { TxRow } from '../ui/TxRow';
+import { CountUp } from '../ui/CountUp';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -45,16 +47,6 @@ function greetingKey() {
 function shorten(a: string) {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
-/** Date relative simple (auj., hier, jj mois). */
-function relDate(ts: number): string {
-  if (!ts) return '';
-  const d = new Date(ts * 1000);
-  const now = new Date();
-  const days = Math.floor((now.getTime() - d.getTime()) / 86400000);
-  if (days <= 0 && now.getDate() === d.getDate()) return "Aujourd'hui";
-  if (days <= 1) return 'Hier';
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
-}
 /** Formatage montant à la française : espaces milliers, 2 décimales. */
 function money(value: number, decimals = 2): string {
   const s = value.toFixed(decimals);
@@ -71,7 +63,7 @@ export default function Home() {
   const accounts = useWallet((s) => s.accounts);
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
   const setActiveAccount = useWallet((s) => s.setActiveAccount);
-  const { profileName, fiat } = useSettings();
+  const { profileName, fiat, favorites } = useSettings();
   const chain = getAdapter(activeChain).config;
   const canSend = chain.family !== 'bitcoin';
 
@@ -170,6 +162,7 @@ export default function Home() {
     hasFiat && change != null && change > -100 ? fiatValue - fiatValue / (1 + change / 100) : null;
 
   const q = marketQuery.trim().toLowerCase();
+  const pinned = markets.filter((m) => favorites.includes(m.id));
   const baseMarkets =
     marketTab === 'top'
       ? markets.slice(0, 12)
@@ -177,7 +170,9 @@ export default function Home() {
         ? sortMarkets(markets, 'gainers').slice(0, 10)
         : marketTab === 'losers'
           ? sortMarkets(markets, 'losers').slice(0, 10)
-          : markets.slice(0, 6); // favoris = top 6
+          : pinned.length > 0
+            ? pinned // favoris épinglés (★ sur la fiche token)
+            : markets.slice(0, 6); // aucun favori → top 6
   const displayedMarkets = q
     ? markets.filter((m) => m.name.toLowerCase().includes(q) || m.symbol.toLowerCase().includes(q))
     : baseMarkets;
@@ -227,6 +222,9 @@ export default function Home() {
           <View style={{ flex: 1, marginRight: spacing(1) }}>
             {loading && !hidden ? (
               <Skeleton width="70%" height={38} radius={10} style={{ marginVertical: spacing(0.5) }} />
+            ) : hasFiat && !hidden ? (
+              /* Solde animé : compte jusqu'à la valeur (signature premium). */
+              <CountUp value={fiatValue} format={(v) => `${money(v)} ${fiatSymbol(fiat)}`} style={typography.hero} />
             ) : (
               <Text style={typography.hero} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
                 {heroValue}
@@ -323,30 +321,19 @@ export default function Home() {
               <Text style={typography.muted}>Aucune activité récente sur {chain.name}.</Text>
             </View>
           ) : (
-            recent.map((tx, i) => {
-              const inbound = tx.direction === 'in';
-              const failed = tx.status === 'failed';
-              return (
-                <ListRow
-                  key={tx.hash}
-                  divider={i > 0}
-                  left={
-                    <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon name={inbound ? 'receive' : 'send'} size={19} color={inbound ? colors.up : colors.textMuted} />
-                    </View>
-                  }
-                  title={`${inbound ? 'Reçu' : tx.direction === 'out' ? 'Envoyé' : 'Interne'}${failed ? ' · échoué' : ''}`}
-                  subtitle={relDate(tx.timestamp)}
-                  onPress={() => router.push('/history')}
-                  right={
-                    <Text style={{ color: failed ? colors.danger : inbound ? colors.up : colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }}>
-                      {inbound ? '+' : tx.direction === 'out' ? '−' : ''}
-                      {formatBalance(tx.value, chain.nativeDecimals, 6)} {chain.nativeSymbol}
-                    </Text>
-                  }
-                />
-              );
-            })
+            recent.map((tx, i) => (
+              <TxRow
+                key={tx.hash}
+                tx={tx}
+                divider={i > 0}
+                symbol={chain.nativeSymbol}
+                decimals={chain.nativeDecimals}
+                logoUri={markets.find((m) => m.id === chain.coingeckoId)?.image}
+                price={price?.price}
+                fiatSymbol={fiatSymbol(fiat)}
+                onPress={() => router.push('/history')}
+              />
+            ))
           )}
         </GlassCard>
       </View>
