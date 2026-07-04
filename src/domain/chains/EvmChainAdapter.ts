@@ -24,6 +24,7 @@ import type {
 } from './types';
 import type { TxSummary } from './types';
 import { deriveEvmAccount } from '../../crypto/hd';
+import { APPROVAL_TOPIC, addressTopic, spendersFromLogs, type ApprovalItem } from '../approvals/approvals';
 import { normalizeEvmAddress } from '../validation/address';
 import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
@@ -221,6 +222,50 @@ export class EvmChainAdapter implements ChainAdapter {
   /** Attend la confirmation d'une transaction (1 bloc). */
   async waitForTx(hash: string): Promise<void> {
     await this.call((p) => p.waitForTransaction(hash, 1, 120_000));
+  }
+
+  /**
+   * Approbations ERC-20 ACTIVES pour `owner`, parmi les `tokens` fournis (ceux
+   * détenus, via getErc20Tokens). Pour chaque token : logs Approval de cet
+   * owner → spenders uniques → allowance actuelle ; on ne garde que > 0.
+   *
+   * NB : couvre les tokens DÉTENUS (les seuls qui peuvent être vidés). Une
+   * couverture exhaustive (tokens à solde nul) demanderait un indexeur.
+   */
+  async getApprovals(
+    owner: string,
+    tokens: { contract: string; symbol: string; decimals: number; logo?: string }[],
+  ): Promise<ApprovalItem[]> {
+    const addr = normalizeEvmAddress(owner);
+    const ownerT = addressTopic(addr);
+    const results: ApprovalItem[] = [];
+
+    await Promise.all(
+      tokens.map(async (tk) => {
+        try {
+          const logs = await this.call((p) =>
+            p.getLogs({ address: tk.contract, topics: [APPROVAL_TOPIC, ownerT], fromBlock: 0, toBlock: 'latest' }),
+          );
+          const spenders = spendersFromLogs(logs).slice(0, 20); // borne de sûreté
+          for (const spender of spenders) {
+            try {
+              const data = ERC20.encodeFunctionData('allowance', [addr, spender]);
+              const ret = await this.call((p) => p.call({ to: tk.contract, data }));
+              const allowance = ERC20.decodeFunctionResult('allowance', ret)[0] as bigint;
+              if (allowance > 0n) {
+                results.push({ token: tk.contract, symbol: tk.symbol, decimals: tk.decimals, logo: tk.logo, spender, allowance });
+              }
+            } catch {
+              /* spender ignoré (appel échoué) */
+            }
+          }
+        } catch {
+          /* token ignoré (limite de plage getLogs du RPC, etc.) */
+        }
+      }),
+    );
+    // Illimitées d'abord, puis par montant décroissant.
+    return results.sort((a, b) => (b.allowance > a.allowance ? 1 : b.allowance < a.allowance ? -1 : 0));
   }
 }
 
