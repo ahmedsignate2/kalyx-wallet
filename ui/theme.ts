@@ -4,6 +4,8 @@
  * typography, accentGradient) restent inchangés pour ne rien casser ; les
  * nouveautés V2 sont ajoutées en dessous.
  */
+import type { TextStyle } from 'react-native';
+
 export const colors = {
   // Fonds
   bg: '#0B0E14',
@@ -46,15 +48,34 @@ export const radii = { sm: 10, md: 16, lg: 22, xl: 28, pill: 999 } as const;
 
 export const spacing = (n: number) => n * 8;
 
+/**
+ * Typo custom (Inter, chargée dans app/_layout.tsx via useFonts).
+ * Sur Android, une fontFamily custom ignore fontWeight : on choisit donc le
+ * fichier de graisse directement. `tabular-nums` = chiffres à largeur fixe
+ * (les montants ne « sautent » pas quand ils changent — signature fintech).
+ */
+export const fonts = {
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semibold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+  extrabold: 'Inter_800ExtraBold',
+} as const;
+
+// Typé TextStyle['fontVariant'] (mutable) pour rester assignable aux styles RN.
+const tnum: NonNullable<TextStyle['fontVariant']> = ['tabular-nums'];
+
 export const typography = {
-  hero: { fontSize: 40, fontWeight: '800' as const, color: colors.text, letterSpacing: -0.5 },
-  display: { fontSize: 34, fontWeight: '700' as const, color: colors.text },
-  title: { fontSize: 22, fontWeight: '700' as const, color: colors.text },
-  section: { fontSize: 18, fontWeight: '700' as const, color: colors.text },
-  body: { fontSize: 16, fontWeight: '400' as const, color: colors.text },
-  bodyStrong: { fontSize: 16, fontWeight: '600' as const, color: colors.text },
-  muted: { fontSize: 14, fontWeight: '400' as const, color: colors.textMuted },
-  mono: { fontSize: 14, fontVariant: ['tabular-nums'] as const, color: colors.text },
+  hero: { fontSize: 40, fontFamily: fonts.extrabold, color: colors.text, letterSpacing: -1, fontVariant: tnum },
+  display: { fontSize: 34, fontFamily: fonts.bold, color: colors.text, letterSpacing: -0.6, fontVariant: tnum },
+  title: { fontSize: 22, fontFamily: fonts.bold, color: colors.text, letterSpacing: -0.3 },
+  section: { fontSize: 18, fontFamily: fonts.bold, color: colors.text, letterSpacing: -0.2 },
+  body: { fontSize: 16, fontFamily: fonts.regular, color: colors.text },
+  bodyStrong: { fontSize: 16, fontFamily: fonts.semibold, color: colors.text },
+  muted: { fontSize: 14, fontFamily: fonts.regular, color: colors.textMuted },
+  mono: { fontSize: 14, fontFamily: fonts.medium, fontVariant: tnum, color: colors.text },
+  /** Montants (listes, cartes) : semibold + chiffres tabulaires. */
+  money: { fontSize: 16, fontFamily: fonts.semibold, fontVariant: tnum, color: colors.text },
 } as const;
 
 /** Ombres douces (élévation premium). */

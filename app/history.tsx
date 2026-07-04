@@ -3,7 +3,7 @@ import { View, Text, ScrollView, RefreshControl, Linking } from 'react-native';
 import { Screen, Title, Muted } from '../ui/components';
 import { GlassCard, PressableScale, SkeletonRow } from '../ui/premium';
 import { Icon } from '../ui/icon';
-import { colors, radii, spacing, typography } from '../ui/theme';
+import { fonts, colors, radii, spacing, typography } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { getAdapter, formatBalance, type TxSummary } from '../src';
 
@@ -84,7 +84,7 @@ export default function History() {
                     </Text>
                     <Muted>{relDate(tx.timestamp)} · {shortHash(tx.hash)}</Muted>
                   </View>
-                  <Text style={{ color: amountColor, fontWeight: '600', fontVariant: ['tabular-nums'] }}>
+                  <Text style={{ color: amountColor, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }}>
                     {sign}
                     {formatBalance(tx.value, chain.nativeDecimals, 6)} {chain.nativeSymbol}
                   </Text>

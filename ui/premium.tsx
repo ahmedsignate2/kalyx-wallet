@@ -21,7 +21,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
-import { colors, gradients, radii, spacing, typography, shadow } from './theme';
+import { fonts, colors, gradients, radii, spacing, typography, shadow } from './theme';
 import { Icon, type IconName } from './icon';
 
 export function PremiumScreen({
@@ -34,7 +34,7 @@ export function PremiumScreen({
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
-      <LinearGradient colors={gradients.screen as unknown as string[]} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + spacing(1.5),
@@ -133,7 +133,7 @@ export function GlassCard({
     <View style={[styles.glass, shadow.card, style]}>
       {glow ? (
         <LinearGradient
-          colors={gradients.card as unknown as string[]}
+          colors={gradients.card}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -141,7 +141,7 @@ export function GlassCard({
       ) : null}
       {/* Reflet supérieur (glassmorphism) */}
       <LinearGradient
-        colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)'] as unknown as string[]}
+        colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)'] as const}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 48 }}
@@ -165,7 +165,7 @@ export function Chip({
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
       <View style={styles.chip}>
-        <Text style={{ color, fontWeight: '600' }}>{label}</Text>
+        <Text style={{ color, fontFamily: fonts.semibold }}>{label}</Text>
         {onPress ? <Text style={{ color: colors.textMuted }}>▾</Text> : null}
       </View>
     </Pressable>
@@ -199,7 +199,7 @@ export function ActionTile({
     <Pressable onPress={onPress} disabled={disabled} style={{ flex: 1 }}>
       <View style={[styles.tile, disabled ? { opacity: 0.4 } : null]}>
         <Text style={{ fontSize: 20, color: colors.text }}>{icon}</Text>
-        <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600', marginTop: 6 }}>{label}</Text>
+        <Text style={{ color: colors.text, fontSize: 13, fontFamily: fonts.semibold, marginTop: 6 }}>{label}</Text>
       </View>
     </Pressable>
   );
@@ -226,7 +226,7 @@ export function CircleAction({
       <View style={styles.circleAction}>
         <Icon name={icon} size={22} color={colors.text} />
       </View>
-      <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '600' }}>{label}</Text>
+      <Text style={{ color: colors.textMuted, fontSize: 12, fontFamily: fonts.semibold }}>{label}</Text>
     </Pressable>
   );
 }
@@ -236,7 +236,7 @@ export function Badge({ label, tone = 'warning' }: { label: string; tone?: 'warn
   const c = tone === 'accent' ? colors.accent : colors.warning;
   return (
     <View style={{ backgroundColor: c + '22', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-      <Text style={{ color: c, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>{label}</Text>
+      <Text style={{ color: c, fontSize: 10, fontFamily: fonts.extrabold, letterSpacing: 0.5 }}>{label}</Text>
     </View>
   );
 }
@@ -301,7 +301,7 @@ export function SectionHeader({
       <Text style={typography.section}>{title}</Text>
       {actionLabel && onAction ? (
         <Pressable onPress={onAction}>
-          <Text style={{ color: colors.accent, fontWeight: '600' }}>{actionLabel}</Text>
+          <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{actionLabel}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -319,7 +319,7 @@ export function Avatar({ label, color = colors.accent }: { label: string; color?
 export function GradientAvatar({ label }: { label: string }) {
   return (
     <LinearGradient
-      colors={gradients.accent as unknown as string[]}
+      colors={gradients.accent}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.avatar}
@@ -445,7 +445,7 @@ export function SegmentedTabs({
         const on = it.key === active;
         return (
           <Pressable key={it.key} onPress={() => onChange(it.key)} style={[styles.segItem, on ? styles.segItemActive : null]}>
-            <Text style={{ color: on ? '#fff' : colors.textMuted, fontWeight: '600', fontSize: 13 }}>{it.label}</Text>
+            <Text style={{ color: on ? '#fff' : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>{it.label}</Text>
           </Pressable>
         );
       })}
@@ -493,7 +493,7 @@ export function MarketRow({
         <Sparkline data={spark} color={c} />
       </View>
       <View style={{ alignItems: 'flex-end' }}>
-        <Text style={{ color: colors.text, fontWeight: '600' }}>{price}</Text>
+        <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{price}</Text>
         <Text style={{ color: c, fontSize: 13 }}>
           {up ? '+' : ''}
           {change.toFixed(2)}%
@@ -529,7 +529,7 @@ export function BottomNav({
     return (
       <Pressable key={it.key} onPress={it.onPress} style={{ flex: 1, alignItems: 'center', gap: 3 }}>
         <Icon name={it.icon} size={22} color={on ? colors.accent : colors.textFaint} />
-        <Text style={{ fontSize: 11, color: on ? colors.accent : colors.textFaint, fontWeight: '600' }}>
+        <Text style={{ fontSize: 11, color: on ? colors.accent : colors.textFaint, fontFamily: fonts.semibold }}>
           {it.label}
         </Text>
       </Pressable>
@@ -544,14 +544,14 @@ export function BottomNav({
       </View>
       <Pressable onPress={center.onPress} style={styles.fabWrap}>
         <LinearGradient
-          colors={gradients.accent as unknown as string[]}
+          colors={gradients.accent}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.fab}
         >
           <Icon name={center.icon} size={24} color="#fff" />
         </LinearGradient>
-        <Text style={{ fontSize: 11, color: colors.accent, fontWeight: '600', marginTop: 2 }}>
+        <Text style={{ fontSize: 11, color: colors.accent, fontFamily: fonts.semibold, marginTop: 2 }}>
           {center.label}
         </Text>
       </Pressable>
