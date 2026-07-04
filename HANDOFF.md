@@ -103,6 +103,13 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
 (icône/splash/captures). Prochain gros cap discuté : **navigateur dApps intégré**
 (WebView + injection EIP-1193 — prévu v2, voir §3 gros morceaux) ; Ledger/Trezor.
 
+### UX listes (2026-07-04)
+- ✅ **Tous les écrans-listes sont défilables** (bug trouvé : la liste Réseaux
+  débordait après l'ajout de 3 chaînes). Réseaux (+ recherche > 6 réseaux +
+  auto-scroll vers l'actif), Comptes, Portefeuilles, Contacts, reveal-phrase,
+  create-wallet, WalletConnect. Padding bas = safe-area + marge. **Règle : tout
+  nouvel écran-liste doit être dans un ScrollView/FlatList avec padding bas.**
+
 ### Ressenti / feedback (2026-07-04)
 - ✅ **Toasts maison** `lib/toast.ts` + `ui/ToastHost.tsx` (bandeau animé, icône/
   couleur par type, vibration, auto-dismiss) montés dans `_layout`. Usage :
