@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Alert, Pressable } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
+import { SuccessModal } from '../ui/SuccessModal';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
@@ -22,6 +23,8 @@ export default function Send() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Succès : hash + résumé de ce qui vient d'être envoyé (pour l'écran animé).
+  const [success, setSuccess] = useState<{ hash: string; summary: string } | null>(null);
 
   const onReview = () => {
     setError(null);
@@ -52,9 +55,7 @@ export default function Send() {
     try {
       const hash = await signAndSend(to, amount, { pin });
       setPin('');
-      Alert.alert('Transaction envoyée', hash, [
-        { text: 'OK', onPress: () => router.replace('/home') },
-      ]);
+      setSuccess({ hash, summary: `${amount} ${chain.nativeSymbol} envoyés à ${to.slice(0, 8)}…${to.slice(-6)}` });
     } catch (e) {
       setError(friendlyTxError(e));
     } finally {
@@ -116,6 +117,18 @@ export default function Send() {
 
       <View style={{ flex: 1 }} />
       <Button label={busy ? 'Envoi…' : 'Vérifier et envoyer'} loading={busy} onPress={onReview} />
+
+      <SuccessModal
+        visible={success != null}
+        title="Transaction envoyée"
+        message={success?.summary}
+        hash={success?.hash}
+        explorerUrl={chain.explorerUrl}
+        onClose={() => {
+          setSuccess(null);
+          router.replace('/home');
+        }}
+      />
     </Screen>
   );
 }
