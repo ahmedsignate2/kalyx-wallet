@@ -231,18 +231,21 @@ export function CircleAction({
   label,
   onPress,
   disabled,
+  dimmed,
 }: {
   icon: IconName;
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  /** Grisé mais tappable (ex. fonctionnalité « bientôt » qui s'explique au tap). */
+  dimmed?: boolean;
 }) {
   const { theme, styles } = useThemeStyles();
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [{ alignItems: 'center', gap: 8, flex: 1, opacity: disabled ? 0.4 : pressed ? 0.6 : 1 }]}
+      style={({ pressed }) => [{ alignItems: 'center', gap: 8, flex: 1, opacity: disabled || dimmed ? 0.4 : pressed ? 0.6 : 1 }]}
     >
       <View style={styles.circleAction}>
         <Icon name={icon} size={22} color={theme.colors.text} />

@@ -202,7 +202,8 @@ export default function Home() {
         </View>
         <View style={{ flexDirection: 'row', gap: spacing(1) }}>
           <IconButton icon="search" onPress={() => router.push('/market')} />
-          <IconButton icon="bell" onPress={() => Alert.alert(t('soon'))} badge />
+          {/* Pas de faux badge : il reviendra avec les vraies notifications. */}
+          <IconButton icon="bell" onPress={() => Alert.alert('Notifications', 'Bientôt disponible — notifications de transactions et alertes de prix.')} />
           <IconButton icon="menu" onPress={() => router.push('/menu')} />
         </View>
       </View>
@@ -251,10 +252,11 @@ export default function Home() {
         {error ? <Text style={{ color: colors.danger, marginTop: 4 }}>{error}</Text> : null}
 
         <View style={{ flexDirection: 'row', gap: spacing(2), marginTop: spacing(2.5), paddingHorizontal: spacing(1) }}>
-          <CircleAction icon="buy" label={t('buy')} onPress={() => Alert.alert(t('soon'))} />
+          {/* Achat fiat : pas encore de partenaire (MoonPay/Ramp) → grisé, honnête. */}
+          <CircleAction icon="buy" label={t('buy')} dimmed onPress={() => Alert.alert('Achat crypto', 'Bientôt disponible (partenaire régulé en cours).')} />
           <CircleAction icon="send" label={t('send')} disabled={!canSend} onPress={() => router.push('/send')} />
           <CircleAction icon="receive" label={t('receive')} onPress={() => router.push('/receive')} />
-          <CircleAction icon="convert" label={t('convert')} onPress={() => Alert.alert(t('soon'))} />
+          <CircleAction icon="convert" label={t('convert')} onPress={() => router.push('/swap')} />
         </View>
       </GlassCard>
 
@@ -283,7 +285,7 @@ export default function Home() {
 
       {/* Marché (réel) */}
       <View style={{ gap: spacing(1.5) }}>
-        <SectionHeader title={t('market')} actionLabel={t('viewAll')} onAction={() => Alert.alert(t('soon'))} />
+        <SectionHeader title={t('market')} actionLabel={t('viewAll')} onAction={() => router.push('/market')} />
         <SearchBar value={marketQuery} onChangeText={setMarketQuery} placeholder="Rechercher une crypto…" />
         {q ? null : <SegmentedTabs items={marketTabs} active={marketTab} onChange={setMarketTab} />}
         <GlassCard>
