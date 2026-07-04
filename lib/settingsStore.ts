@@ -28,6 +28,8 @@ interface SettingsState {
   biometricEnabled: boolean;
   uiMode: UiMode;
   themePref: ThemePref;
+  /** Cryptos épinglées (ids CoinGecko) — onglet Favoris de l'accueil. */
+  favorites: string[];
 
   load: () => Promise<void>;
   setProfileName: (name: string) => void;
@@ -36,10 +38,14 @@ interface SettingsState {
   setBiometricEnabled: (on: boolean) => void;
   setUiMode: (mode: UiMode) => void;
   setThemePref: (pref: ThemePref) => void;
+  toggleFavorite: (coinId: string) => void;
 }
 
 function persist(
-  s: Pick<SettingsState, 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref'>,
+  s: Pick<
+    SettingsState,
+    'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites'
+  >,
 ) {
   void saveSettings({
     profileName: s.profileName,
@@ -48,6 +54,7 @@ function persist(
     biometricEnabled: s.biometricEnabled,
     uiMode: s.uiMode,
     themePref: s.themePref,
+    favorites: s.favorites,
   });
 }
 
@@ -59,6 +66,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   biometricEnabled: false,
   uiMode: 'beginner',
   themePref: 'system',
+  favorites: [],
 
   load: async () => {
     const s = await loadSettings();
@@ -70,6 +78,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       biometricEnabled: (s?.biometricEnabled as boolean) ?? false,
       uiMode: (s?.uiMode as UiMode) ?? 'beginner',
       themePref: (s?.themePref as ThemePref) ?? 'system',
+      favorites: Array.isArray(s?.favorites) ? (s.favorites as string[]) : [],
     });
   },
 
@@ -96,6 +105,12 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setThemePref: (themePref) => {
     set({ themePref });
     persist({ ...get(), themePref });
+  },
+  toggleFavorite: (coinId) => {
+    const cur = get().favorites;
+    const favorites = cur.includes(coinId) ? cur.filter((id) => id !== coinId) : [...cur, coinId];
+    set({ favorites });
+    persist({ ...get(), favorites });
   },
 }));
 

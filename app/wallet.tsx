@@ -13,6 +13,7 @@ import {
 import { AppTabBar } from '../ui/tabs';
 import { AllocationDonut, foldSlices } from '../ui/AllocationDonut';
 import { NftDetailModal } from '../ui/NftDetailModal';
+import { CountUp } from '../ui/CountUp';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -215,9 +216,14 @@ export default function WalletScreen() {
         <Text style={typography.muted}>
           {t('totalValue')} · {account?.label ?? ''}
         </Text>
-        <Text style={typography.hero} numberOfLines={1} adjustsFontSizeToFit>
-          {hidden ? '••••••' : loading && !assets ? '…' : `${money(total)} ${fiatSymbol(fiat)}`}
-        </Text>
+        {hidden || (loading && !assets) ? (
+          <Text style={typography.hero} numberOfLines={1} adjustsFontSizeToFit>
+            {hidden ? '••••••' : '…'}
+          </Text>
+        ) : (
+          /* Solde animé : compte jusqu'à la valeur totale. */
+          <CountUp value={total} format={(v) => `${money(v)} ${fiatSymbol(fiat)}`} style={typography.hero} />
+        )}
         <Pressable onPress={load} disabled={loading} style={{ marginTop: spacing(1) }}>
           <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>
             {loading ? 'Actualisation…' : '↻ Actualiser'}
