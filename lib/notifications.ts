@@ -12,9 +12,31 @@ type NotifModule = typeof import('expo-notifications');
 let mod: NotifModule | null = null;
 let loaded = false;
 
+/**
+ * Vrai seulement si le module natif est embarqué (après un dev build EAS).
+ * On teste sa PRÉSENCE sans importer expo-notifications : son évaluation
+ * accède à `ExpoPushTokenManager` et LÈVE si absent — et cette erreur, émise
+ * hors de notre chaîne de promesse, échappe au try/catch (crash observé).
+ */
+function nativeNotificationsPresent(): boolean {
+  try {
+    // require synchrone et sûr : expo-modules-core est toujours présent.
+    const core = require('expo-modules-core') as {
+      requireOptionalNativeModule?: (name: string) => unknown;
+    };
+    return core.requireOptionalNativeModule?.('ExpoPushTokenManager') != null;
+  } catch {
+    return false;
+  }
+}
+
 async function getModule(): Promise<NotifModule | null> {
   if (loaded) return mod;
   loaded = true;
+  if (!nativeNotificationsPresent()) {
+    mod = null; // pas rebuildé : on n'importe même pas (éviterait un crash)
+    return null;
+  }
   try {
     mod = await import('expo-notifications');
     // Affiche la bannière même app au premier plan (feedback immédiat).
