@@ -18,6 +18,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { RootErrorBoundary, ErrorScreen } from '../ui/ErrorBoundary';
 import { WalletConnectHost } from '../ui/WalletConnectHost';
+import { ToastHost } from '../ui/ToastHost';
 import { Splash } from '../ui/Splash';
 import { useTheme } from '../ui/theme';
 
@@ -92,6 +93,7 @@ export default function RootLayout() {
           }}
         />
         <WalletConnectHost />
+        <ToastHost />
         {showSplash ? <Splash onFinish={() => setShowSplash(false)} /> : null}
       </SafeAreaProvider>
     </RootErrorBoundary>

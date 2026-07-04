@@ -15,7 +15,8 @@ export type IconName =
   | 'pin' | 'phrase' | 'developer' | 'extensions' | 'support' | 'faq' | 'about'
   | 'reset' | 'walletconnect' | 'ledger' | 'trezor' | 'import' | 'create'
   | 'eye' | 'eyeOff' | 'chevron' | 'add' | 'history' | 'nft' | 'defi' | 'staking'
-  | 'warning' | 'refresh' | 'gift' | 'copy' | 'star' | 'starFilled';
+  | 'warning' | 'refresh' | 'gift' | 'copy' | 'star' | 'starFilled'
+  | 'check' | 'info' | 'close';
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   home: 'home-outline',
@@ -67,6 +68,9 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   copy: 'copy-outline',
   star: 'star-outline',
   starFilled: 'star',
+  check: 'checkmark-circle',
+  info: 'information-circle',
+  close: 'close',
 };
 
 export function Icon({

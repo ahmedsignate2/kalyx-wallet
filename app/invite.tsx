@@ -5,13 +5,14 @@
  * factice sans backend d'attribution).
  */
 import React from 'react';
-import { View, Text, Pressable, Share, Alert } from 'react-native';
+import { View, Text, Pressable, Share } from 'react-native';
 import { Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { PremiumScreen, GlassCard } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon, type IconName } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
+import { toast } from '../lib/toast';
 
 const INVITE_LINK = 'https://nova.wallet'; // site public (à publier)
 const SHARE_MESSAGE = `Rejoins-moi sur Nova Wallet 🚀\n\nUn wallet crypto non-custodial, simple et vraiment premium : tes clés restent chez toi, swap intégré, dApps, NFT.\n\n${INVITE_LINK}`;
@@ -35,7 +36,7 @@ export default function Invite() {
   };
   const copyLink = async () => {
     await Clipboard.setStringAsync(INVITE_LINK);
-    Alert.alert('Copié', 'Le lien a été copié dans le presse-papier.');
+    toast.success('Copié', 'Le lien est dans le presse-papier.');
   };
 
   return (
