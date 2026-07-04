@@ -109,18 +109,31 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   origine https, signatures décodées + PIN, RPC lecture seule en liste blanche.
   Entrée : Menu → Navigateur dApps. ⚠️ À TESTER après rebuild (Uniswap : connect,
   switch réseau, quote ; OpenSea : SIWE).
-- **⚠️ REBUILD REQUIS** (un seul, couvre tout) : `eas build --profile development`
-  → active WebView (navigateur), BLE (Ledger), `userInterfaceStyle: automatic`
-  (sinon thème « Système » figé sombre). Deps + permissions déjà en place.
+- **⚠️ REBUILD REQUIS** (un seul, couvre TOUT le natif ajouté) :
+  `eas build --profile development` → active WebView (navigateur), BLE (Ledger),
+  **expo-notifications**, et `userInterfaceStyle: automatic` (sinon thème
+  « Système » figé sombre). Deps + permissions déjà en place. **Ne pas oublier de
+  déclarer les EXPO_PUBLIC_* côté EAS** (cf. §4). Après rebuild, TESTER : mode
+  clair (29 écrans), navigateur (Uniswap connect/switch/quote, OpenSea SIWE),
+  notif de tx, onglets DeFi/Staking avec un compte qui détient du stETH/aToken.
+- ✅ ~~DeFi / Staking (v1)~~ (fait 2026-07-04) : `src/domain/defi/registry.ts`
+  classe les ERC-20 détenus (stETH/wstETH/rETH/cbETH/sDAI/stMATIC + heuristiques
+  Aave/Compound/Lido/Rocket Pool, 5 tests). `wallet.tsx` : onglets DeFi/Staking
+  listent les positions (total, protocole, valeur) ; vide → CTA navigateur dApps
+  (`/browser?url=…`). **v2 = APR, unstake in-app, plus de protocoles.**
+- ✅ ~~Notifications locales~~ (code fait 2026-07-04, actif après rebuild) :
+  `lib/notifications.ts` (import dynamique, no-op avant rebuild), notif de tx
+  réussie (send+swap), interrupteur Réglages. **Push (Alchemy Notify) = plus tard.**
+- ✅ ~~Inviter des amis~~ (fait 2026-07-04) : `app/invite.tsx` (code parrain dérivé
+  de l'adresse, Share natif, texte honnête « récompenses à venir »). **Programme de
+  récompenses réel = besoin backend + attribution → plus tard.**
 - **Ledger** : deps installées (`react-native-ble-plx`, `@ledgerhq/react-native-hw-transport-ble`,
   `hw-app-eth`), plugin + permissions configurés. Le câblage (scan BLE, appairage,
   compte matériel dans walletStore, signature déléguée) reste à faire APRÈS le
   rebuild, avec un Nano physique pour tester. **Trezor** : pas de BLE — passe par
   OTG/USB ou Trezor Connect (plus tard).
-- **Notifications** (locales `expo-notifications` + push via backend/Alchemy Notify) — rebuild.
 - **Achat/Vente fiat** (MoonPay/Transak/Ramp) — partenaire régulé + KYC.
 - **Envoi Bitcoin** (UTXO) — `@scure/btc-signer` déjà installé, à câbler.
-- **Staking**, positions **DeFi**.
 - Nouvelles chaînes : Solana, Tron, XRP, Sui, Arbitrum, Optimism, Avalanche (via ChainAdapter).
 - **Carte virtuelle** Visa/MC (Immersve/Baanx/Gnosis Pay) — régulé.
 
