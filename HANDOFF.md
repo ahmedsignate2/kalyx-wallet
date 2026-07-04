@@ -81,11 +81,13 @@ bottom nav 5 onglets + FAB, ErrorBoundary.
   (`ErrorBoundary`) reste volontairement en couleurs codées en dur.
   ⚠️ Vérif visuelle sur device encore à faire (les 29 écrans en mode clair).
 
+- ✅ ~~Activité inline sur l'accueil~~ (fait 2026-07-04) : 4 dernières tx réelles
+  (reçu/envoyé, date relative, montant signé, échec), skeleton + état vide.
+
 **Cap UI « battre MetaMask/Phantom » — priorités restantes (décidé 2026-07-04) :**
-1. Activité inline sur l'accueil (3-4 dernières tx, la section est vide aujourd'hui).
-2. Écran de succès de transaction animé (check + haptique) ; empty states illustrés.
-3. Galerie NFT dédiée (le moteur existe, Phantom est la référence à battre).
-4. Boutons « Bientôt » (Buy/Convert/cloche) : brancher ou griser proprement.
+1. Écran de succès de transaction animé (check + haptique) ; empty states illustrés.
+2. Galerie NFT dédiée (le moteur existe, Phantom est la référence à battre).
+3. Boutons « Bientôt » (Buy/Convert/cloche) : brancher ou griser proprement.
 
 ### Gros morceaux (rebuild / partenaires)
 - **Notifications** (locales `expo-notifications` + push via backend/Alchemy Notify) — rebuild.
