@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Alert, Pressable } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { fonts, colors, spacing, typography } from '../ui/theme';
+import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
 import { getAdapter, isWalletError } from '../src';
 
 export default function Send() {
+  const { colors, typography } = useTheme();
   const signAndSend = useWallet((s) => s.signAndSend);
   const activeChain = useWallet((s) => s.activeChain);
   const chain = getAdapter(activeChain).config;

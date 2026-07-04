@@ -18,7 +18,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { RootErrorBoundary, ErrorScreen } from '../ui/ErrorBoundary';
 import { WalletConnectHost } from '../ui/WalletConnectHost';
-import { colors } from '../ui/theme';
+import { useTheme } from '../ui/theme';
 
 console.log('[Nova] _layout.tsx chargé');
 
@@ -29,6 +29,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 }
 
 export default function RootLayout() {
+  const { mode, colors } = useTheme();
   // Typo custom du design system (Inter). On attend le chargement avant de
   // rendre, sinon RN plante sur une fontFamily inconnue.
   const [fontsLoaded] = useFonts({
@@ -74,7 +75,8 @@ export default function RootLayout() {
   return (
     <RootErrorBoundary>
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        {/* Icônes de statut claires sur thème sombre, et inversement. */}
+        <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
         <Stack
           screenOptions={{
             headerStyle: { backgroundColor: colors.bgDeep },

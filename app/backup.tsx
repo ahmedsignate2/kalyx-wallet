@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Platform } from 'react-native';
 import { router } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, radii, spacing, typography } from '../ui/theme';
+import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 
 /**
@@ -12,6 +12,7 @@ import { useWallet } from '../lib/walletStore';
  * (FLAG_SECURE Android ; sur iOS, expo-screen-capture notifie/masque).
  */
 export default function Backup() {
+  const { colors, typography } = useTheme();
   const draft = useWallet((s) => s.draftMnemonic);
 
   useEffect(() => {

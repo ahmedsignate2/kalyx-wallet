@@ -3,11 +3,12 @@ import { View, Text, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, radii, spacing, typography } from '../ui/theme';
+import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
 
 export default function CreateWallet() {
+  const { colors, typography } = useTheme();
   const createWallet = useWallet((s) => s.createWallet);
   const [label, setLabel] = useState('');
   const [pin, setPin] = useState('');

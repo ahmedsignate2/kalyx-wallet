@@ -22,7 +22,7 @@ import {
 } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
 import { Icon } from '../ui/icon';
-import { fonts, colors, spacing, typography } from '../ui/theme';
+import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import {
@@ -53,6 +53,7 @@ function money(value: number, decimals = 2): string {
 }
 
 export default function Home() {
+  const { colors, typography } = useTheme();
   const t = useT();
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);

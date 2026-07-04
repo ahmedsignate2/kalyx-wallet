@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, radii, spacing, typography } from '../ui/theme';
+import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { isWalletError } from '../src';
 
 export default function RevealPhrase() {
+  const { colors, typography } = useTheme();
   const revealPhrase = useWallet((s) => s.revealPhrase);
   const [pin, setPin] = useState('');
   const [words, setWords] = useState<string[] | null>(null);

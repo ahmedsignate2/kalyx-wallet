@@ -13,7 +13,7 @@ import {
 import { AppTabBar } from '../ui/tabs';
 import { AllocationDonut, foldSlices } from '../ui/AllocationDonut';
 import { Icon } from '../ui/icon';
-import { fonts, colors, spacing, typography } from '../ui/theme';
+import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
@@ -60,6 +60,7 @@ interface TokenAsset {
 const VALUE_CHAINS = listChains({ includeTestnets: false }).filter((c) => c.coingeckoId);
 
 export default function WalletScreen() {
+  const { colors, typography } = useTheme();
   const t = useT();
   const accounts = useWallet((s) => s.accounts);
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);

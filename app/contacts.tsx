@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, TextInput } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { colors, spacing, typography } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useContacts } from '../lib/contactsStore';
 
 function shorten(a: string) {
@@ -10,6 +10,7 @@ function shorten(a: string) {
 }
 
 export default function Contacts() {
+  const { colors, typography } = useTheme();
   const { pick } = useLocalSearchParams<{ pick?: string }>();
   const pickMode = pick === '1';
   const { contacts, add, update, remove } = useContacts();

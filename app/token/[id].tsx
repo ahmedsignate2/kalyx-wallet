@@ -8,7 +8,7 @@ import {
   CircleAction,
 } from '../../ui/premium';
 import { InteractiveChart } from '../../ui/InteractiveChart';
-import { fonts, colors, spacing, typography } from '../../ui/theme';
+import { fonts, spacing, useTheme } from '../../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { useWallet } from '../../lib/walletStore';
 import {
@@ -45,6 +45,7 @@ function formatScrubDate(ts: number, period: string): string {
 }
 
 export default function TokenDetail() {
+  const { colors, typography } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useT();
   const { fiat, language } = useSettings();
