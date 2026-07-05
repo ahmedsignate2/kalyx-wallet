@@ -26,7 +26,7 @@ const chevron = <Icon name="chevron" size={18} tone="faint" />;
 export default function Settings() {
   const { colors, typography } = useTheme();
   const t = useT();
-  const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled, themePref, setThemePref } =
+  const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled, themePref, setThemePref, notifTx, notifPrice, setNotifPref } =
     useSettings();
   const enableBiometric = useWallet((s) => s.enableBiometric);
   const disableBiometric = useWallet((s) => s.disableBiometric);
@@ -179,6 +179,17 @@ export default function Settings() {
               </View>
             </View>
             <Switch value={notifOn} onValueChange={onToggleNotif} />
+          </View>
+          {/* Catégories */}
+          <View style={{ marginTop: spacing(1.25), gap: spacing(0.5), paddingLeft: spacing(4) }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={typography.body}>Transactions</Text>
+              <Switch value={notifTx} onValueChange={(v) => setNotifPref('notifTx', v)} />
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={typography.body}>Alertes de prix</Text>
+              <Switch value={notifPrice} onValueChange={(v) => setNotifPref('notifPrice', v)} />
+            </View>
           </View>
         </View>
         <ListRow divider left={<Ico n="buy" />} title="Achat crypto" right={<Chip label={t('soon')} />} onPress={soon} />

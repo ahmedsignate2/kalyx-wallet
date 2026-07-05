@@ -28,6 +28,7 @@ import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
+import { useNotifCenter, unreadCount } from '../lib/notificationCenter';
 import {
   getAdapter,
   formatBalance,
@@ -65,6 +66,7 @@ export default function Home() {
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
   const setActiveAccount = useWallet((s) => s.setActiveAccount);
   const { profileName, fiat, favorites } = useSettings();
+  const unreadNotifs = useNotifCenter((s) => unreadCount(s.items));
   const chain = getAdapter(activeChain).config;
   // Envoi désormais supporté sur EVM ET Bitcoin.
   const canSend = chain.family === 'evm' || chain.family === 'bitcoin';
@@ -200,7 +202,7 @@ export default function Home() {
         <View style={{ flexDirection: 'row', gap: spacing(1) }}>
           <IconButton icon="search" onPress={() => router.push('/market')} />
           {/* Pas de faux badge : il reviendra avec les vraies notifications. */}
-          <IconButton icon="bell" onPress={() => toast.info('Notifications', 'Bientôt : alertes de transactions et de prix.')} />
+          <IconButton icon="bell" badge={unreadNotifs > 0} onPress={() => router.push('/notifications')} />
           <IconButton icon="menu" onPress={() => router.push('/menu')} />
         </View>
       </View>
