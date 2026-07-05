@@ -20,6 +20,7 @@ import { deriveSolanaAccount, isValidSolanaAddress } from '../../crypto/solana';
 import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
 import { tryInOrder, withTimeout } from './net';
+import { buildTransferMessage, signAndSerialize } from './solTx';
 
 const API_TIMEOUT_MS = 12_000;
 
@@ -93,5 +94,34 @@ export class SolanaChainAdapter implements ChainAdapter {
   }
   async broadcast(): Promise<string> {
     throw new WalletError('NOT_SUPPORTED', 'Utiliser sendSolana pour l’envoi Solana');
+  }
+
+  /**
+   * ENVOI SOL natif : récupère un blockhash récent, construit + signe la
+   * transaction (transfert System Program), la diffuse en base64. Renvoie la
+   * signature (= identifiant de tx Solana). La clé transite, n'est jamais stockée.
+   */
+  async sendSolana(
+    from: string,
+    to: string,
+    amount: string,
+    signer: { secretKey: Uint8Array; publicKey: Uint8Array },
+  ): Promise<string> {
+    if (!isValidSolanaAddress(to)) throw new WalletError('INVALID_ADDRESS', 'Adresse destinataire invalide');
+    const lamports = parseAmount(amount, this.config.nativeDecimals).raw;
+    if (lamports <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant invalide');
+
+    const latest = await this.rpc<{ value?: { blockhash?: string } }>('getLatestBlockhash', [
+      { commitment: 'finalized' },
+    ]);
+    const blockhash = latest?.value?.blockhash;
+    if (!blockhash) throw new WalletError('RPC_UNAVAILABLE', 'Blockhash Solana indisponible');
+
+    const message = buildTransferMessage({ from, to, lamports, recentBlockhash: blockhash });
+    const wireTx = signAndSerialize(message, signer.secretKey);
+
+    const sig = await this.rpc<string>('sendTransaction', [wireTx, { encoding: 'base64' }]);
+    if (!sig) throw new WalletError('BROADCAST_FAILED', 'Diffusion refusée par le réseau Solana');
+    return sig;
   }
 }
