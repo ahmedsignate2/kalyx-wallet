@@ -39,7 +39,10 @@ import {
   parseSiwe,
   siweDomainMismatch,
   summarizeTypedData,
+  assessAddress,
+  isPhishingSite,
   type RawTxRequest,
+  type RiskAssessment,
 } from '../src';
 
 // WebView = module natif : require dynamique pour ne pas crasher avant rebuild.
@@ -225,6 +228,9 @@ export default function Browser() {
   const [menu, setMenu] = useState(false);
   const [rememberSite, setRememberSite] = useState(false); // case « se souvenir » (connexion)
   const [showAllHistory, setShowAllHistory] = useState(false);
+  // Analyse de sécurité GoPlus de la demande en cours.
+  const [risk, setRisk] = useState<RiskAssessment | 'loading' | null>(null);
+  const [phishSite, setPhishSite] = useState(false);
   const [netSheet, setNetSheet] = useState(false); // sélecteur de réseau (badge)
 
   // Récents + favoris (persistés).
@@ -263,9 +269,22 @@ export default function Browser() {
   const injected = useMemo(() => buildInjectedProvider(chainIdHex), [chainIdHex]);
   const isFav = !!origin && favorites.some((f) => f.host === origin);
 
-  // Vibration à l'apparition d'une demande.
+  // Vibration + analyse GoPlus à l'apparition d'une demande.
   useEffect(() => {
-    if (pending) Vibration.vibrate(pending.kind === 'tx' ? [0, 30, 60, 30] : 12);
+    setRisk(null);
+    setPhishSite(false);
+    if (!pending) return;
+    Vibration.vibrate(pending.kind === 'tx' ? [0, 30, 60, 30] : 12);
+    const cid = chain.evmChainId ?? 1;
+    if (pending.kind === 'tx' && pending.to) {
+      setRisk('loading');
+      assessAddress(cid, pending.to).then(setRisk).catch(() => setRisk(null));
+    } else if (pending.kind === 'typedData' && pending.summary?.verifyingContract) {
+      setRisk('loading');
+      assessAddress(cid, pending.summary.verifyingContract).then(setRisk).catch(() => setRisk(null));
+    } else if (pending.kind === 'connect') {
+      isPhishingSite(`https://${pending.origin}`).then(setPhishSite).catch(() => {});
+    }
   }, [pending?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Deep-link interne : /browser?url=https://…
@@ -277,8 +296,10 @@ export default function Browser() {
 
   /** Navigue l'onglet actif vers une URL (+ historique). */
   const go = (raw: string, title?: string) => {
-    const u = normalizeUrl(raw);
-    if (!u) return;
+    const t = raw.trim();
+    if (!t) return;
+    // Omnibox façon Chrome : URL si ça ressemble à un domaine, sinon Google.
+    const u = normalizeUrl(t) ?? `https://www.google.com/search?q=${encodeURIComponent(t)}`;
     updateTab(activeRef.current, { url: u, input: u });
     const host = originOf(u);
     pushRecent({ url: u, host, title: title || host }, recentsRef.current).then(applyRecents);
@@ -604,7 +625,7 @@ export default function Browser() {
             value={activeTab?.input ?? ''}
             onChangeText={(v) => updateTab(activeId, { input: v })}
             onSubmitEditing={() => go(activeTab?.input ?? '')}
-            placeholder="Rechercher ou saisir une URL"
+            placeholder="Rechercher sur Google ou saisir une URL"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
@@ -798,6 +819,35 @@ export default function Browser() {
                   </View>
                 </View>
               </GlassCard>
+
+              {/* Analyse de sécurité GoPlus */}
+              {phishSite ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.danger + '1E', borderWidth: 1, borderColor: colors.danger + '66', borderRadius: radii.md, padding: spacing(1.5) }}>
+                  <Icon name="warning" size={18} color={colors.danger} />
+                  <Text style={{ color: colors.text, flex: 1, fontSize: 13 }}>🚨 GoPlus signale ce site comme du phishing. Ne connecte pas.</Text>
+                </View>
+              ) : null}
+              {risk === 'loading' ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+                  <Icon name="security" size={15} color={colors.textMuted} />
+                  <Text style={typography.muted}>Analyse de sécurité (GoPlus)…</Text>
+                </View>
+              ) : risk && risk.level === 'danger' ? (
+                <View style={{ backgroundColor: colors.danger + '1E', borderWidth: 1, borderColor: colors.danger + '66', borderRadius: radii.md, padding: spacing(1.5), gap: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+                    <Icon name="warning" size={18} color={colors.danger} />
+                    <Text style={{ color: colors.danger, fontFamily: fonts.bold, flex: 1 }}>Risque détecté (GoPlus)</Text>
+                  </View>
+                  {risk.reasons.map((r) => (
+                    <Text key={r} style={{ color: colors.text, fontSize: 13 }}>• {r}</Text>
+                  ))}
+                </View>
+              ) : risk && risk.level === 'ok' ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+                  <Icon name="check" size={15} color={colors.up} />
+                  <Text style={{ color: colors.up, fontSize: 13, fontFamily: fonts.semibold }}>Aucun risque connu (GoPlus)</Text>
+                </View>
+              ) : null}
 
               {pending.kind === 'connect' ? (
                 <GlassCard>
