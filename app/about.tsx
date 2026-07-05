@@ -43,8 +43,8 @@ export default function About() {
 
       <GlassCard>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing(0.75) }}>
-          <Text style={typography.muted}>Développé par</Text>
-          <Text style={typography.bodyStrong}>Malin Inc.</Text>
+          <Text style={typography.muted}>Éditeur</Text>
+          <Text style={typography.bodyStrong}>Société Malin</Text>
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing(0.75), borderTopWidth: 1, borderTopColor: colors.glassBorder }}>
           <Text style={typography.muted}>Type</Text>
@@ -63,7 +63,7 @@ export default function About() {
       <View style={{ flex: 1 }} />
       <Button label="Contacter le support" onPress={contact} />
       <Text style={[typography.muted, { textAlign: 'center', fontSize: 12, marginTop: spacing(1.5) }]}>
-        © 2026 Malin Inc. Tous droits réservés.
+        © 2026 Malin. Tous droits réservés.
       </Text>
       <View style={{ height: spacing(2) }} />
     </PremiumScreen>
