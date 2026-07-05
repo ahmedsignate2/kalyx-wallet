@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, Image } from 'react-native';
+import { View, Text, Pressable, Image, Alert } from 'react-native';
 import { router, Stack } from 'expo-router';
 import {
   PremiumScreen,
@@ -295,14 +295,21 @@ export default function WalletScreen() {
                     key={tk.contract}
                     divider={i > 0}
                     onPress={() =>
-                      router.push({
-                        pathname: '/send',
-                        params: {
-                          contract: tk.contract,
-                          symbol: tk.symbol,
-                          decimals: String(tk.decimals),
+                      Alert.alert(tk.symbol, tk.name, [
+                        {
+                          text: 'Envoyer',
+                          onPress: () =>
+                            router.push({
+                              pathname: '/send',
+                              params: { contract: tk.contract, symbol: tk.symbol, decimals: String(tk.decimals) },
+                            }),
                         },
-                      })
+                        {
+                          text: 'Échanger',
+                          onPress: () => router.push({ pathname: '/swap', params: { contract: tk.contract } }),
+                        },
+                        { text: 'Annuler', style: 'cancel' },
+                      ])
                     }
                     left={
                       tk.logo ? (
