@@ -294,6 +294,16 @@ export default function WalletScreen() {
                   <ListRow
                     key={tk.contract}
                     divider={i > 0}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/send',
+                        params: {
+                          contract: tk.contract,
+                          symbol: tk.symbol,
+                          decimals: String(tk.decimals),
+                        },
+                      })
+                    }
                     left={
                       tk.logo ? (
                         <Image source={{ uri: tk.logo }} style={{ width: 42, height: 42, borderRadius: 21 }} />
