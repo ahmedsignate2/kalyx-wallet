@@ -291,6 +291,7 @@ export const SOLANA: ChainConfig = {
   rpcUrls: ['https://api.mainnet-beta.solana.com', 'https://rpc.ankr.com/solana'],
   explorerUrl: 'https://solscan.io',
   coingeckoId: 'solana',
+  coingeckoPlatform: 'solana', // prix des tokens SPL par mint
 };
 
 // Ordre d'affichage dans le sélecteur : testnet en tête (réseau par défaut).

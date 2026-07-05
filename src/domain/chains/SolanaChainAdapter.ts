@@ -22,6 +22,8 @@ import { WalletError } from '../errors';
 import { tryInOrder, withTimeout } from './net';
 import { buildTransferMessage, signAndSerialize } from './solTx';
 import { parseSolanaTx, type SolTxResponse } from './solHistory';
+import { parseTokenAccounts, SPL_TOKEN_PROGRAM, type SplToken } from '../tokens/splTokens';
+import { buildSplTransferMessage } from './solSpl';
 
 const API_TIMEOUT_MS = 12_000;
 
@@ -90,6 +92,17 @@ export class SolanaChainAdapter implements ChainAdapter {
       .filter((x): x is TxSummary => x !== null);
   }
 
+  /** Tokens SPL détenus par l'adresse (solde + mint), triés par solde. */
+  async getSplTokens(address: string): Promise<SplToken[]> {
+    if (!isValidSolanaAddress(address)) return [];
+    const res = await this.rpc<{ value?: unknown[] }>('getTokenAccountsByOwner', [
+      address,
+      { programId: SPL_TOKEN_PROGRAM },
+      { encoding: 'jsonParsed' },
+    ]);
+    return parseTokenAccounts((res?.value ?? []) as never);
+  }
+
   /** Validation HORS-LIGNE d'un envoi SOL : adresse base58 valide + montant > 0. */
   buildTransfer(params: TransferParams): TransferIntent {
     if (!isValidSolanaAddress(params.to)) {
@@ -133,6 +146,36 @@ export class SolanaChainAdapter implements ChainAdapter {
     if (!blockhash) throw new WalletError('RPC_UNAVAILABLE', 'Blockhash Solana indisponible');
 
     const message = buildTransferMessage({ from, to, lamports, recentBlockhash: blockhash });
+    const wireTx = signAndSerialize(message, signer.secretKey);
+
+    const sig = await this.rpc<string>('sendTransaction', [wireTx, { encoding: 'base64' }]);
+    if (!sig) throw new WalletError('BROADCAST_FAILED', 'Diffusion refusée par le réseau Solana');
+    return sig;
+  }
+
+  /**
+   * ENVOI d'un token SPL : crée l'ATA du destinataire si besoin (idempotent)
+   * puis transfère `amount` (unités brutes du token). Renvoie la signature.
+   */
+  async sendSplToken(
+    from: string,
+    to: string,
+    amount: bigint,
+    mint: string,
+    decimals: number,
+    signer: { secretKey: Uint8Array; publicKey: Uint8Array },
+  ): Promise<string> {
+    if (!isValidSolanaAddress(to)) throw new WalletError('INVALID_ADDRESS', 'Adresse destinataire invalide');
+    if (!isValidSolanaAddress(mint)) throw new WalletError('INVALID_ADDRESS', 'Mint invalide');
+    if (amount <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant invalide');
+
+    const latest = await this.rpc<{ value?: { blockhash?: string } }>('getLatestBlockhash', [
+      { commitment: 'finalized' },
+    ]);
+    const blockhash = latest?.value?.blockhash;
+    if (!blockhash) throw new WalletError('RPC_UNAVAILABLE', 'Blockhash Solana indisponible');
+
+    const message = buildSplTransferMessage({ from, to, mint, amount, decimals, recentBlockhash: blockhash });
     const wireTx = signAndSerialize(message, signer.secretKey);
 
     const sig = await this.rpc<string>('sendTransaction', [wireTx, { encoding: 'base64' }]);

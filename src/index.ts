@@ -119,6 +119,12 @@ export {
   type TokenMeta,
 } from './domain/tokens/alchemyTokens';
 export { erc20TransferData } from './domain/tokens/transfer';
+export {
+  parseTokenAccounts,
+  KNOWN_MINTS,
+  SPL_TOKEN_PROGRAM,
+  type SplToken,
+} from './domain/tokens/splTokens';
 
 // NFT (Alchemy)
 export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
