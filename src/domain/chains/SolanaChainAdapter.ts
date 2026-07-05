@@ -1,10 +1,10 @@
 /**
  * Adapter Solana (mainnet-beta, adresses base58 ed25519).
  *
- * PÉRIMÈTRE ACTUEL : réception — dérivation d'adresse, validation, solde.
- * L'ENVOI passe par `sendSolana` (modèle de compte + transaction ed25519 propre
- * à Solana, très différent d'EVM) ; les méthodes génériques EVM lèvent
- * NOT_SUPPORTED. L'historique n'est pas encore branché (retourne []).
+ * Périmètre : dérivation d'adresse, solde, historique, tokens SPL, et envoi
+ * (SOL natif via `sendSolana`, tokens SPL via `sendSplToken`). L'envoi Solana
+ * repose sur un modèle de compte + transaction ed25519 propre à Solana ; les
+ * méthodes génériques EVM (prepare/sign/broadcast) lèvent donc NOT_SUPPORTED.
  */
 import type {
   Account,
