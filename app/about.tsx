@@ -33,7 +33,12 @@ export default function About() {
       <View style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(2) }}>
         <NovaLogo size={84} />
         <Text style={{ color: colors.text, fontSize: 26, fontFamily: 'Inter_800ExtraBold', letterSpacing: 0.5 }}>Nova Wallet</Text>
-        <Text style={typography.muted}>Version v{version}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={typography.muted}>Version v{version}</Text>
+          <View style={{ backgroundColor: colors.warning + '22', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+            <Text style={{ color: colors.warning, fontSize: 10, fontFamily: 'Inter_800ExtraBold', letterSpacing: 0.5 }}>BÊTA</Text>
+          </View>
+        </View>
       </View>
 
       <GlassCard>
@@ -50,6 +55,8 @@ export default function About() {
       {/* Liens */}
       <GlassCard>
         <ListRow left={<Icon name="faq" size={20} color={colors.textMuted} />} title="FAQ" right={<Icon name="chevron" size={18} tone="faint" />} onPress={() => router.push('/faq')} />
+        <ListRow divider left={<Icon name="security" size={20} color={colors.textMuted} />} title="Politique de confidentialité" right={<Icon name="chevron" size={18} tone="faint" />} onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })} />
+        <ListRow divider left={<Icon name="phrase" size={20} color={colors.textMuted} />} title="Conditions d'utilisation" right={<Icon name="chevron" size={18} tone="faint" />} onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })} />
         <ListRow divider left={<Icon name="support" size={20} color={colors.textMuted} />} title="Contacter le support" subtitle="Par e-mail" right={<Icon name="chevron" size={18} tone="faint" />} onPress={contact} />
       </GlassCard>
 
