@@ -19,6 +19,14 @@ Deux couches strictement séparées :
   (⚠️ vraiment couverte depuis 2026-07-04 : le `include` du tsconfig omettait
   app/lib/ui — 15 erreurs corrigées à cette occasion, ne pas retirer du include).
 
+**Biométrie partout (2026-07-05) :** toute action sensible (envoi, swap, WalletConnect
+connexion+signature, navigateur dApps, révéler la phrase, approbations) passe par
+`ui/ConfirmUnlock.tsx` : biométrie AUTO à l'ouverture (si activée) → repli PIN. Le
+moteur `revealMnemonic` accepte `{biometric:true}` (lecture SecureStore gated = prompt
+unique) ; `walletStore.verifyUnlock` vérifie l'identité sans exposer la seed. Le pont
+WC/dApp (`approveProposal`/`approveRequest`, `dappProvider`) accepte un `Unlock`.
+⚠️ Piège : jamais `authenticate()` + lecture gated (double prompt) — le prompt EST la lecture.
+
 **Invariants sécurité (voir SECURITY.md) :** ni seed ni clé privée dans le state ;
 seed déchiffrée du coffre **à la volée** pour signer puis jetée ; jamais loggée ;
 jamais sur le réseau. Le seul écart transitoire : `draftMnemonic` pendant l'onboarding.
