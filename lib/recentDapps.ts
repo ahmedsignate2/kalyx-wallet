@@ -6,13 +6,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = 'nova.recentDapps';
 const FAV_KEY = 'nova.favDapps';
-const MAX = 8;
+const MAX = 50;
 const FAV_MAX = 24;
 
 export interface RecentDapp {
   url: string;
   host: string;
   title: string;
+  lastVisitedAt?: number;
 }
 
 export async function loadRecents(): Promise<RecentDapp[]> {
@@ -28,7 +29,8 @@ export async function loadRecents(): Promise<RecentDapp[]> {
 /** Ajoute une visite en tête (dédupliquée par hôte), persiste, renvoie la liste. */
 export async function pushRecent(entry: RecentDapp, existing: RecentDapp[]): Promise<RecentDapp[]> {
   if (!entry.host) return existing;
-  const next = [entry, ...existing.filter((r) => r.host !== entry.host)].slice(0, MAX);
+  const stamped = { ...entry, lastVisitedAt: Date.now() };
+  const next = [stamped, ...existing.filter((r) => r.host !== entry.host)].slice(0, MAX);
   try {
     await AsyncStorage.setItem(KEY, JSON.stringify(next));
   } catch {
