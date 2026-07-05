@@ -162,22 +162,42 @@ export function WalletConnectHost() {
             <Text style={typography.muted}>✗ Ne peut RIEN déplacer sans ta signature + PIN</Text>
           </View>
         </GlassCard>
+
+        {/* PIN exigé dès la connexion (parité avec le navigateur dApps intégré). */}
+        <GlassCard>
+          <Text style={typography.muted}>PIN (pour confirmer la connexion)</Text>
+          <TextInput
+            value={pin}
+            onChangeText={setPin}
+            keyboardType="number-pad"
+            secureTextEntry
+            maxLength={12}
+            editable={!busy}
+            style={{ color: colors.text, fontSize: 20, letterSpacing: 6, paddingVertical: spacing(1) }}
+          />
+        </GlassCard>
+
         {propError ? <ErrorBox message={propError} /> : null}
         <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
           <View style={{ flex: 1 }}>
-            <Button label="Refuser" variant="ghost" onPress={() => { setPropError(null); rejectProposal().catch(() => {}); }} />
+            <Button label="Refuser" variant="ghost" onPress={() => { setPin(''); setPropError(null); rejectProposal().catch(() => {}); }} />
           </View>
           <View style={{ flex: 1 }}>
             <Button
               label={busy ? 'Connexion…' : 'Connecter'}
               loading={busy}
               onPress={async () => {
+                if (pin.length < 6) {
+                  setPropError('Entre ton PIN pour confirmer la connexion.');
+                  return;
+                }
                 setBusy(true);
                 setPropError(null);
                 try {
-                  await approveProposal();
+                  await approveProposal(pin);
+                  setPin('');
                 } catch (e) {
-                  setPropError(e instanceof Error ? e.message : 'Connexion impossible.');
+                  setPropError(e instanceof Error ? friendlyTxError(e) : 'Connexion impossible.');
                 } finally {
                   setBusy(false);
                 }
