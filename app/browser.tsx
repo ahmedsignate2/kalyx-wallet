@@ -19,6 +19,8 @@ import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { toast } from '../lib/toast';
 import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../lib/recentDapps';
+import { useDappActivity } from '../lib/dappActivity';
+import { saveTabs, loadTabs } from '../lib/browserTabs';
 import {
   buildInjectedProvider,
   parseDappMessage,
@@ -189,10 +191,25 @@ export default function Browser() {
     favRef.current = list;
     setFavorites(list);
   };
+  const loadActivity = useDappActivity((s) => s.load);
   useEffect(() => {
     loadRecents().then(applyRecents);
     loadFavorites().then(applyFav);
-  }, []);
+    loadActivity();
+    // Restaure les onglets ouverts de la session précédente.
+    loadTabs().then((saved) => {
+      if (!saved) return;
+      const restored: Tab[] = saved.tabs.map((t) => ({ id: t.id, url: t.url, input: t.url ?? '', title: t.title, canBack: false, canFwd: false }));
+      setTabs(restored);
+      setActiveId(restored.some((t) => t.id === saved.activeId) ? saved.activeId : restored[0].id);
+    });
+  }, [loadActivity]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persiste les onglets (débounce pour coalescer les frappes dans l'URL).
+  useEffect(() => {
+    const h = setTimeout(() => saveTabs(tabs.map((t) => ({ id: t.id, url: t.url, title: t.title })), activeId), 500);
+    return () => clearTimeout(h);
+  }, [tabs, activeId]);
 
   const injected = useMemo(() => buildInjectedProvider(chainIdHex), [chainIdHex]);
   const isFav = !!origin && favorites.some((f) => f.host === origin);
@@ -337,20 +354,35 @@ export default function Browser() {
   const approve = async () => {
     if (!pending || !account) return;
     setError(null);
+    // PIN OBLIGATOIRE pour TOUTE action, y compris la connexion (sécurité).
+    if (pin.length < 6) {
+      setError('Entre ton PIN pour confirmer.');
+      return;
+    }
+    const activity = useDappActivity.getState();
+
     if (pending.kind === 'connect') {
+      setBusy(true);
+      try {
+        await useWallet.getState().verifyPin(pin); // lève si PIN faux
+      } catch {
+        setError('PIN incorrect');
+        setBusy(false);
+        return;
+      }
       connected.current.add(pending.origin);
       respond(pending.tabId, pending.id, [account.address]);
       inject(pending.tabId, emitJs('accountsChanged', [account.address]));
       inject(pending.tabId, emitJs('connect', { chainId: chainIdHex }));
+      activity.addConnection({ host: pending.origin, url: `https://${pending.origin}`, title: activeTab?.title || pending.origin });
       Vibration.vibrate(14);
       toast.success('Connexion réussie', pending.origin);
       setPending(null);
+      setPin('');
+      setBusy(false);
       return;
     }
-    if (pin.length < 6) {
-      setError('Entre ton PIN pour signer.');
-      return;
-    }
+
     setBusy(true);
     try {
       const w = useWallet.getState();
@@ -359,6 +391,7 @@ export default function Browser() {
       else if (pending.kind === 'typedData') result = await w.signTypedData({ pin }, pending.data as Parameters<typeof w.signTypedData>[1]);
       else result = await w.sendRawTxOn({ pin }, activeChain, pending.raw);
       respond(pending.tabId, pending.id, result);
+      activity.addSignature({ host: pending.origin, kind: pending.kind === 'tx' ? 'tx' : pending.kind === 'typedData' ? 'typedData' : 'sign' });
       Vibration.vibrate(14);
       toast.success(pending.kind === 'tx' ? 'Transaction envoyée' : 'Signature envoyée', pending.origin);
       setPending(null);
@@ -635,6 +668,7 @@ export default function Browser() {
                   <Text style={typography.muted}>✓ Peut voir ton adresse publique et tes soldes</Text>
                   <Text style={typography.muted}>✓ Peut te proposer des transactions à signer</Text>
                   <Text style={typography.muted}>✗ Ne peut RIEN déplacer sans ta signature + PIN</Text>
+                  <Text style={[typography.muted, { marginTop: spacing(1) }]}>🔒 Ton PIN est requis pour connecter ce site.</Text>
                 </GlassCard>
               ) : pending.kind === 'sign' ? (
                 <GlassCard>
@@ -680,12 +714,10 @@ export default function Browser() {
                 </GlassCard>
               )}
 
-              {pending.kind !== 'connect' ? (
-                <GlassCard>
-                  <Text style={typography.muted}>PIN</Text>
-                  <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} editable={!busy} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
-                </GlassCard>
-              ) : null}
+              <GlassCard>
+                <Text style={typography.muted}>PIN</Text>
+                <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} editable={!busy} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
+              </GlassCard>
 
               {error ? <ErrorBox message={error} /> : null}
               <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
