@@ -9,7 +9,9 @@ const config: ExpoConfig = {
   // 'automatic' : requis pour que le thème « Système » suive l'OS (useColorScheme).
   userInterfaceStyle: 'automatic',
   backgroundColor: '#0B0E14',
+  icon: './assets/icon.png',
   splash: {
+    image: './assets/splash.png',
     backgroundColor: '#0B0E14',
     resizeMode: 'contain',
   },
@@ -26,6 +28,10 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'com.nova.wallet',
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundColor: '#0B0E14',
+    },
     // La protection anti-capture d'écran sur les écrans sensibles se branche
     // au niveau natif / via expo-screen-capture (cf. app/backup.tsx).
     permissions: ['android.permission.BLUETOOTH_SCAN', 'android.permission.BLUETOOTH_CONNECT'],
