@@ -31,6 +31,7 @@ import {
   getTokenPrices,
   getNfts,
   classifyToken,
+  SolanaChainAdapter,
   type ChainConfig,
   type NftItem,
   type DefiPosition,
@@ -61,6 +62,8 @@ interface TokenAsset {
   hasPrice: boolean;
   /** Position DeFi/staking détectée (Lido, Aave…) — null = token normal. */
   defi: DefiPosition | null;
+  /** Présent = token SPL (Solana) ; l'envoi passe par le mint, pas un contrat EVM. */
+  mint?: string;
 }
 
 const VALUE_CHAINS = listChains({ includeTestnets: false }).filter((c) => c.coingeckoId);
@@ -151,6 +154,30 @@ export default function WalletScreen() {
         // Tri : valorisés d'abord, par valeur décroissante.
         tokenAssets.sort((a, b) => b.fiat - a.fiat);
         setTokens(tokenAssets);
+      } else if (chainCfg.family === 'solana' && account.solAddress) {
+        // Tokens SPL du réseau Solana.
+        const adapter = getAdapter(activeChain);
+        const spl = adapter instanceof SolanaChainAdapter ? await adapter.getSplTokens(account.solAddress) : [];
+        const splPrices = spl.length
+          ? await getTokenPrices('solana', spl.map((tk) => tk.mint), fiat)
+          : {};
+        const splAssets: TokenAsset[] = spl.map((tk) => {
+          const price = splPrices[tk.mint.toLowerCase()] ?? 0;
+          return {
+            contract: tk.mint,
+            mint: tk.mint,
+            name: tk.name,
+            symbol: tk.symbol,
+            decimals: tk.decimals,
+            raw: tk.raw,
+            logo: tk.logo,
+            hasPrice: price > 0,
+            fiat: Number(formatAmount(tk.raw, tk.decimals)) * price,
+            defi: null,
+          };
+        });
+        splAssets.sort((a, b) => b.fiat - a.fiat);
+        setTokens(splAssets);
       } else {
         setTokens([]);
       }
@@ -288,7 +315,7 @@ export default function WalletScreen() {
             )}
           </GlassCard>
 
-          {/* Tokens ERC-20 du réseau actif */}
+          {/* Tokens du réseau actif (ERC-20 sur EVM, SPL sur Solana) */}
           {filteredTokens.length > 0 ? (
             <>
               <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>
@@ -300,21 +327,37 @@ export default function WalletScreen() {
                     key={tk.contract}
                     divider={i > 0}
                     onPress={() =>
-                      Alert.alert(tk.symbol, tk.name, [
-                        {
-                          text: 'Envoyer',
-                          onPress: () =>
-                            router.push({
-                              pathname: '/send',
-                              params: { contract: tk.contract, symbol: tk.symbol, decimals: String(tk.decimals) },
-                            }),
-                        },
-                        {
-                          text: 'Échanger',
-                          onPress: () => router.push({ pathname: '/swap', params: { contract: tk.contract } }),
-                        },
-                        { text: 'Annuler', style: 'cancel' },
-                      ])
+                      Alert.alert(
+                        tk.symbol,
+                        tk.name,
+                        tk.mint
+                          ? [
+                              {
+                                text: 'Envoyer',
+                                onPress: () =>
+                                  router.push({
+                                    pathname: '/send',
+                                    params: { mint: tk.mint, symbol: tk.symbol, decimals: String(tk.decimals) },
+                                  }),
+                              },
+                              { text: 'Annuler', style: 'cancel' },
+                            ]
+                          : [
+                              {
+                                text: 'Envoyer',
+                                onPress: () =>
+                                  router.push({
+                                    pathname: '/send',
+                                    params: { contract: tk.contract, symbol: tk.symbol, decimals: String(tk.decimals) },
+                                  }),
+                              },
+                              {
+                                text: 'Échanger',
+                                onPress: () => router.push({ pathname: '/swap', params: { contract: tk.contract } }),
+                              },
+                              { text: 'Annuler', style: 'cancel' },
+                            ],
+                      )
                     }
                     left={
                       tk.logo ? (

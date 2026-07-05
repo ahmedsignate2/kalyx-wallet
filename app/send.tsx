@@ -8,24 +8,24 @@ import { watchConfirmation } from '../lib/txWatch';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
-import { getAdapter, isWalletError, isValidEvmAddress, parseAmount } from '../src';
+import { getAdapter, isWalletError, isValidEvmAddress, isValidSolanaAddress, parseAmount } from '../src';
 
 export default function Send() {
   const { colors, typography } = useTheme();
   const signAndSend = useWallet((s) => s.signAndSend);
   const sendToken = useWallet((s) => s.sendToken);
+  const sendSolToken = useWallet((s) => s.sendSolToken);
   const activeChain = useWallet((s) => s.activeChain);
   const chain = getAdapter(activeChain).config;
-  const params = useLocalSearchParams<{ to?: string; contract?: string; symbol?: string; decimals?: string }>();
+  const params = useLocalSearchParams<{ to?: string; contract?: string; mint?: string; symbol?: string; decimals?: string }>();
   const toParam = params.to;
-  // Si un contrat est passé en paramètre, on envoie ce token ERC-20 ; sinon, natif.
+  const decimals = params.decimals != null ? Number(params.decimals) : 18;
+  // 3 modes : token SPL (mint), token ERC-20 (contract), ou natif.
   const token = params.contract
-    ? {
-        contract: String(params.contract),
-        symbol: params.symbol ? String(params.symbol) : 'TOKEN',
-        decimals: params.decimals != null ? Number(params.decimals) : 18,
-      }
-    : null;
+    ? { kind: 'erc20' as const, contract: String(params.contract), symbol: String(params.symbol ?? 'TOKEN'), decimals }
+    : params.mint
+      ? { kind: 'spl' as const, mint: String(params.mint), symbol: String(params.symbol ?? 'TOKEN'), decimals }
+      : null;
   const symbol = token ? token.symbol : chain.nativeSymbol;
   const [to, setTo] = useState('');
 
@@ -43,7 +43,10 @@ export default function Send() {
     setError(null);
     try {
       // Validation hors-ligne immédiate (adresse + montant).
-      if (token) {
+      if (token?.kind === 'spl') {
+        if (!isValidSolanaAddress(to)) throw new Error('Adresse Solana du destinataire invalide.');
+        parseAmount(amount, token.decimals);
+      } else if (token?.kind === 'erc20') {
         if (!isValidEvmAddress(to)) throw new Error('Adresse du destinataire invalide.');
         parseAmount(amount, token.decimals); // lève si le montant est mal formé
       } else {
@@ -71,9 +74,12 @@ export default function Send() {
     setBusy(true);
     setError(null);
     try {
-      const hash = token
-        ? await sendToken(to, amount, { contract: token.contract, decimals: token.decimals }, { pin })
-        : await signAndSend(to, amount, { pin });
+      const hash =
+        token?.kind === 'spl'
+          ? await sendSolToken(to, amount, { mint: token.mint, decimals: token.decimals }, { pin })
+          : token?.kind === 'erc20'
+            ? await sendToken(to, amount, { contract: token.contract, decimals: token.decimals }, { pin })
+            : await signAndSend(to, amount, { pin });
       setPin('');
       const summary = `${amount} ${symbol} envoyés à ${to.slice(0, 8)}…${to.slice(-6)}`;
       setSuccess({ hash, summary });
