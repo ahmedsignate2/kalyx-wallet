@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import {
@@ -119,6 +120,18 @@ export default function Home() {
     if (isDeviceCompromised()) {
       toast.warning('Appareil non sécurisé', 'Root/jailbreak détecté — évite d’y garder des sommes importantes.');
     }
+  }, []);
+
+  // Avertissement Bêta, une seule fois.
+  useEffect(() => {
+    AsyncStorage.getItem('nova.betaSeen').then((seen) => {
+      if (seen) return;
+      Alert.alert(
+        'Nova est en bêta 🧪',
+        'L’application est en cours de test. N’y conserve pas de sommes importantes et privilégie de petits montants ou les réseaux de test. Tes clés restent chez toi.',
+        [{ text: 'J’ai compris', onPress: () => AsyncStorage.setItem('nova.betaSeen', '1') }],
+      );
+    });
   }, []);
 
   // Vraie courbe 24h (remplace l'ancienne sparkline factice).
