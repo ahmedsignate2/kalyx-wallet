@@ -221,6 +221,7 @@ export default function Home() {
           </Text>
         </View>
         <View style={{ flexDirection: 'row', gap: spacing(1) }}>
+          <IconButton icon="scan" onPress={() => router.push('/scan')} />
           <IconButton icon="search" onPress={() => router.push('/market')} />
           {/* Pas de faux badge : il reviendra avec les vraies notifications. */}
           <IconButton icon="bell" badge={unreadNotifs > 0} onPress={() => router.push('/notifications')} />
