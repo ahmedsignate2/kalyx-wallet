@@ -1,20 +1,17 @@
 /**
- * Navigateur dApps intégré : WebView + window.ethereum injecté (EIP-1193).
+ * Navigateur dApps intégré — style Chrome : multi-onglets, barre d'outils en bas
+ * (retour / avancer / accueil / onglets / menu), sélecteur d'onglets, favoris,
+ * historique. WebView + window.ethereum injecté (EIP-1193).
  *
- * SÉCURITÉ (mêmes règles que WalletConnect) :
- * - la page web ne voit JAMAIS de clé ni de seed — elle poste des requêtes,
- *   Nova répond après approbation native ;
- * - connexion par ORIGINE (https uniquement), jamais automatique ;
- * - toute signature/transaction = fenêtre native avec décodage lisible
- *   (SIWE, EIP-712, tx) + PIN obligatoire ;
- * - requêtes de signature d'une origine non connectée → rejet automatique.
+ * SÉCURITÉ (inchangée) : la page ne voit JAMAIS de clé ; connexion par ORIGINE
+ * (https), signatures décodées + PIN, origine non connectée → rejet.
  *
- * react-native-webview est un module natif : chargé en require() dynamique,
- * l'écran affiche un message clair tant que le dev build n'a pas été rebuildé.
+ * react-native-webview est natif : require dynamique (message clair sans rebuild).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView } from 'react-native';
+import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard, ErrorBox, PressableScale } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
@@ -50,6 +47,14 @@ try {
 } catch {
   WebViewComp = null;
 }
+
+/** Ref minimale d'une WebView (méthodes qu'on pilote). */
+type WV = {
+  injectJavaScript: (js: string) => void;
+  goBack: () => void;
+  goForward: () => void;
+  reload: () => void;
+};
 
 /** dApps suggérées (page d'accueil). `domain` sert au logo (favicon HD). */
 interface Dapp {
@@ -96,43 +101,79 @@ const NETWORK_COLOR: Record<string, string> = {
   bitcoin: '#F7931A',
 };
 
-/** Demande en attente d'approbation utilisateur. */
+/** Un onglet du navigateur. `url: null` = page d'accueil de l'onglet. */
+interface Tab {
+  id: string;
+  url: string | null;
+  input: string;
+  title: string;
+  canBack: boolean;
+  canFwd: boolean;
+}
+let tabSeq = 0;
+function mkTab(url: string | null = null): Tab {
+  return { id: `t${Date.now().toString(36)}${(tabSeq++).toString(36)}`, url, input: url ?? '', title: '', canBack: false, canFwd: false };
+}
+
+/** Demande en attente d'approbation (rattachée à l'onglet émetteur). */
 type Pending =
-  | { kind: 'connect'; id: number; origin: string }
-  | { kind: 'sign'; id: number; origin: string; text: string | null; siwe: ReturnType<typeof parseSiwe>; hex: string }
-  | { kind: 'typedData'; id: number; origin: string; summary: ReturnType<typeof summarizeTypedData>; data: unknown }
-  | { kind: 'tx'; id: number; origin: string; to?: string; value: bigint; dataBytes: number; raw: RawTxRequest };
+  | { kind: 'connect'; tabId: string; id: number; origin: string }
+  | { kind: 'sign'; tabId: string; id: number; origin: string; text: string | null; siwe: ReturnType<typeof parseSiwe>; hex: string }
+  | { kind: 'typedData'; tabId: string; id: number; origin: string; summary: ReturnType<typeof summarizeTypedData>; data: unknown }
+  | { kind: 'tx'; tabId: string; id: number; origin: string; to?: string; value: bigint; dataBytes: number; raw: RawTxRequest };
 
 function originOf(url: string): string {
   const m = url.match(/^https:\/\/([^/]+)/i);
   return m ? m[1].toLowerCase() : '';
 }
+function normalizeUrl(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+  return /^https:\/\//i.test(t) ? t : /^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(t) ? `https://${t}` : null;
+}
 
 export default function Browser() {
   const { colors, typography } = useTheme();
+  const insets = useSafeAreaInsets();
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const chain = getAdapter(activeChain).config;
   const chainIdHex = '0x' + (chain.evmChainId ?? 1).toString(16);
 
-  const webref = useRef<{ injectJavaScript: (js: string) => void } | null>(null);
-  const [input, setInput] = useState('');
-  const [url, setUrl] = useState<string | null>(null);
-  const [pageTitle, setPageTitle] = useState('');
-  const [canGoBack, setCanGoBack] = useState(false);
-  // Origines connectées (durée de vie : session du navigateur).
+  // Onglets (avec ref pour les handlers) + WebView refs par onglet.
+  const [tabs, setTabsState] = useState<Tab[]>(() => [mkTab()]);
+  const [activeId, setActiveIdState] = useState<string>(() => tabs[0].id);
+  const tabsRef = useRef(tabs);
+  const activeRef = useRef(activeId);
+  const setTabs = (u: Tab[] | ((p: Tab[]) => Tab[])) => {
+    const next = typeof u === 'function' ? (u as (p: Tab[]) => Tab[])(tabsRef.current) : u;
+    tabsRef.current = next;
+    setTabsState(next);
+  };
+  const setActiveId = (id: string) => {
+    activeRef.current = id;
+    setActiveIdState(id);
+  };
+  const webrefs = useRef<Map<string, WV>>(new Map());
+  const updateTab = (id: string, patch: Partial<Tab>) => setTabs((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+
+  const activeTab = tabs.find((t) => t.id === activeId) ?? tabs[0];
+  const origin = activeTab?.url ? originOf(activeTab.url) : '';
+
   const connected = useRef<Set<string>>(new Set());
   const [pending, setPending] = useState<Pending | null>(null);
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Derniers sites visités + favoris (persistés).
+  const [switcher, setSwitcher] = useState(false);
+  const [menu, setMenu] = useState(false);
+
+  // Récents + favoris (persistés).
   const [recents, setRecents] = useState<RecentDapp[]>([]);
   const [favorites, setFavorites] = useState<RecentDapp[]>([]);
   const recentsRef = useRef<RecentDapp[]>([]);
   const favRef = useRef<RecentDapp[]>([]);
-  const lastHost = useRef<string>('');
   const applyRecents = (list: RecentDapp[]) => {
     recentsRef.current = list;
     setRecents(list);
@@ -147,106 +188,121 @@ export default function Browser() {
   }, []);
 
   const injected = useMemo(() => buildInjectedProvider(chainIdHex), [chainIdHex]);
-  const origin = url ? originOf(url) : '';
-
   const isFav = !!origin && favorites.some((f) => f.host === origin);
+
+  // Vibration à l'apparition d'une demande.
+  useEffect(() => {
+    if (pending) Vibration.vibrate(pending.kind === 'tx' ? [0, 30, 60, 30] : 12);
+  }, [pending?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Deep-link interne : /browser?url=https://…
+  const { url: urlParam } = useLocalSearchParams<{ url?: string }>();
+  useEffect(() => {
+    const u = urlParam ? normalizeUrl(String(urlParam)) : null;
+    if (u) updateTab(activeRef.current, { url: u, input: u });
+  }, [urlParam]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Navigue l'onglet actif vers une URL (+ historique). */
+  const go = (raw: string, title?: string) => {
+    const u = normalizeUrl(raw);
+    if (!u) return;
+    updateTab(activeRef.current, { url: u, input: u });
+    const host = originOf(u);
+    pushRecent({ url: u, host, title: title || host }, recentsRef.current).then(applyRecents);
+    setSwitcher(false);
+  };
+
+  // --- Gestion des onglets ---
+  const newTab = () => {
+    const t = mkTab();
+    setTabs((ts) => [...ts, t]);
+    setActiveId(t.id);
+    setSwitcher(false);
+  };
+  const closeTab = (id: string) => {
+    webrefs.current.delete(id);
+    const prev = tabsRef.current;
+    const idx = prev.findIndex((t) => t.id === id);
+    const next = prev.filter((t) => t.id !== id);
+    if (next.length === 0) {
+      const home = mkTab();
+      setTabs([home]);
+      setActiveId(home.id);
+      return;
+    }
+    setTabs(next);
+    if (id === activeRef.current) setActiveId(next[Math.min(idx, next.length - 1)].id);
+  };
+  const goHome = () => updateTab(activeRef.current, { url: null, input: '' });
+
   const toggleCurrentFav = () => {
     if (!origin) return;
     Vibration.vibrate(10);
-    toggleFavorite({ url: url ?? `https://${origin}`, host: origin, title: pageTitle || origin }, favRef.current).then((next) => {
+    toggleFavorite({ url: activeTab.url ?? `https://${origin}`, host: origin, title: activeTab.title || origin }, favRef.current).then((next) => {
       applyFav(next);
       toast.success(next.some((f) => f.host === origin) ? 'Ajouté aux favoris' : 'Retiré des favoris', origin);
     });
   };
 
-  // Vibration à l'apparition d'une demande (connexion / signature / tx).
-  useEffect(() => {
-    if (pending) Vibration.vibrate(pending.kind === 'tx' ? [0, 30, 60, 30] : 12);
-  }, [pending?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Deep-link interne : /browser?url=https://… (CTA Staking/DeFi, etc.)
-  const { url: urlParam } = useLocalSearchParams<{ url?: string }>();
-  useEffect(() => {
-    if (urlParam && /^https:\/\//i.test(String(urlParam))) {
-      setUrl(String(urlParam));
-      setInput(String(urlParam));
-    }
-  }, [urlParam]);
-
-  const go = (raw: string, title?: string) => {
-    const t = raw.trim();
-    if (!t) return;
-    // https uniquement (pas de http clair pour un wallet).
-    const u = /^https:\/\//i.test(t) ? t : /^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(t) ? `https://${t}` : null;
-    if (!u) return;
-    setUrl(u);
-    setInput(u);
-    const host = originOf(u);
-    lastHost.current = host;
-    pushRecent({ url: u, host, title: title || host }, recentsRef.current).then(applyRecents);
-  };
-
-  const respond = useCallback((id: number, result: unknown, err?: { code: number; message: string }) => {
-    webref.current?.injectJavaScript(respondJs(id, result, err));
-  }, []);
-
+  // --- Pont EIP-1193 (routé vers l'onglet émetteur) ---
+  const inject = useCallback((tabId: string, js: string) => webrefs.current.get(tabId)?.injectJavaScript(js), []);
+  const respond = useCallback(
+    (tabId: string, id: number, result: unknown, err?: { code: number; message: string }) => inject(tabId, respondJs(id, result, err)),
+    [inject],
+  );
   const reject = useCallback(
-    (id: number, code = 4001, message = 'Refusé par l’utilisateur') => respond(id, null, { code, message }),
+    (tabId: string, id: number, code = 4001, message = 'Refusé par l’utilisateur') => respond(tabId, id, null, { code, message }),
     [respond],
   );
 
-  /** Traite une requête EIP-1193 venant de la page. */
   const onDappRequest = useCallback(
-    async (req: DappRequest, reqOrigin: string) => {
+    async (req: DappRequest, reqOrigin: string, tabId: string) => {
       const { id, method, params } = req;
       const addr = account?.address;
       const isConnected = connected.current.has(reqOrigin);
 
       try {
-        if (method === 'eth_chainId') return respond(id, chainIdHex);
-        if (method === 'net_version') return respond(id, String(chain.evmChainId ?? 1));
-        if (method === 'eth_accounts') return respond(id, isConnected && addr ? [addr] : []);
-        if (method === 'wallet_getPermissions')
-          return respond(id, isConnected ? [{ parentCapability: 'eth_accounts' }] : []);
+        if (method === 'eth_chainId') return respond(tabId, id, chainIdHex);
+        if (method === 'net_version') return respond(tabId, id, String(chain.evmChainId ?? 1));
+        if (method === 'eth_accounts') return respond(tabId, id, isConnected && addr ? [addr] : []);
+        if (method === 'wallet_getPermissions') return respond(tabId, id, isConnected ? [{ parentCapability: 'eth_accounts' }] : []);
 
         if (method === 'eth_requestAccounts' || method === 'wallet_requestPermissions') {
           if (isConnected && addr) {
-            return respond(id, method === 'eth_requestAccounts' ? [addr] : [{ parentCapability: 'eth_accounts' }]);
+            return respond(tabId, id, method === 'eth_requestAccounts' ? [addr] : [{ parentCapability: 'eth_accounts' }]);
           }
-          setPending({ kind: 'connect', id, origin: reqOrigin });
+          setPending({ kind: 'connect', tabId, id, origin: reqOrigin });
           return;
         }
 
         if (method === 'wallet_switchEthereumChain' || method === 'wallet_addEthereumChain') {
           const want = Number((params[0] as { chainId?: string })?.chainId ?? '0x0');
           const target = listChains().find((c) => c.family === 'evm' && c.evmChainId === want);
-          if (!target) return respond(id, null, { code: 4902, message: 'Réseau non supporté par Nova' });
+          if (!target) return respond(tabId, id, null, { code: 4902, message: 'Réseau non supporté par Nova' });
           setActiveChain(target.id);
-          respond(id, null);
-          webref.current?.injectJavaScript(emitJs('chainChanged', '0x' + want.toString(16)));
+          respond(tabId, id, null);
+          inject(tabId, emitJs('chainChanged', '0x' + want.toString(16)));
           return;
         }
 
-        // Signatures : origine connectée obligatoire.
         const isSigning =
           method === 'personal_sign' || method === 'eth_sign' || method.startsWith('eth_signTypedData') || method === 'eth_sendTransaction';
         if (isSigning) {
-          if (!isConnected || !addr) return respond(id, null, { code: 4100, message: 'Non connecté' });
+          if (!isConnected || !addr) return respond(tabId, id, null, { code: 4100, message: 'Non connecté' });
           if (method === 'personal_sign' || method === 'eth_sign') {
             const hex = String(method === 'personal_sign' ? params[0] : params[1] ?? '');
             const text = hexToText(hex) ?? (hex.startsWith('0x') ? null : hex);
-            setPending({ kind: 'sign', id, origin: reqOrigin, hex, text, siwe: text ? parseSiwe(text) : null });
+            setPending({ kind: 'sign', tabId, id, origin: reqOrigin, hex, text, siwe: text ? parseSiwe(text) : null });
             return;
           }
           if (method.startsWith('eth_signTypedData')) {
             const rawData = params[1];
             const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-            setPending({ kind: 'typedData', id, origin: reqOrigin, data, summary: summarizeTypedData(data) });
+            setPending({ kind: 'typedData', tabId, id, origin: reqOrigin, data, summary: summarizeTypedData(data) });
             return;
           }
-          // eth_sendTransaction
           const tx = (params[0] ?? {}) as { to?: string; value?: string; data?: string; gas?: string };
-          if (!tx.to) return respond(id, null, { code: 4200, message: 'Déploiement de contrat non supporté' });
+          if (!tx.to) return respond(tabId, id, null, { code: 4200, message: 'Déploiement de contrat non supporté' });
           const raw: RawTxRequest = {
             to: tx.to,
             data: tx.data ?? '0x',
@@ -254,41 +310,31 @@ export default function Browser() {
             chainId: chain.evmChainId!,
             gasLimit: tx.gas ? BigInt(tx.gas) : undefined,
           };
-          setPending({
-            kind: 'tx',
-            id,
-            origin: reqOrigin,
-            to: tx.to,
-            value: raw.value ?? 0n,
-            dataBytes: typeof tx.data === 'string' ? Math.max(0, (tx.data.length - 2) / 2) : 0,
-            raw,
-          });
+          setPending({ kind: 'tx', tabId, id, origin: reqOrigin, to: tx.to, value: raw.value ?? 0n, dataBytes: typeof tx.data === 'string' ? Math.max(0, (tx.data.length - 2) / 2) : 0, raw });
           return;
         }
 
-        // Lecture seule : relayée au RPC du réseau actif (liste blanche).
         if (READONLY_METHODS.has(method)) {
           const result = await rpcProxy(chain.rpcUrls, method, params);
-          return respond(id, result);
+          return respond(tabId, id, result);
         }
 
-        respond(id, null, { code: -32601, message: `Méthode non supportée : ${method}` });
+        respond(tabId, id, null, { code: -32601, message: `Méthode non supportée : ${method}` });
       } catch (e) {
-        respond(id, null, { code: -32603, message: e instanceof Error ? e.message.slice(0, 160) : 'Erreur interne' });
+        respond(tabId, id, null, { code: -32603, message: e instanceof Error ? e.message.slice(0, 160) : 'Erreur interne' });
       }
     },
-    [account?.address, chain, chainIdHex, respond, setActiveChain],
+    [account?.address, chain, chainIdHex, respond, inject, setActiveChain],
   );
 
-  /** Approbation de la demande en attente (PIN si signature). */
   const approve = async () => {
     if (!pending || !account) return;
     setError(null);
     if (pending.kind === 'connect') {
       connected.current.add(pending.origin);
-      respond(pending.id, [account.address]);
-      webref.current?.injectJavaScript(emitJs('accountsChanged', [account.address]));
-      webref.current?.injectJavaScript(emitJs('connect', { chainId: chainIdHex }));
+      respond(pending.tabId, pending.id, [account.address]);
+      inject(pending.tabId, emitJs('accountsChanged', [account.address]));
+      inject(pending.tabId, emitJs('connect', { chainId: chainIdHex }));
       Vibration.vibrate(14);
       toast.success('Connexion réussie', pending.origin);
       setPending(null);
@@ -303,10 +349,9 @@ export default function Browser() {
       const w = useWallet.getState();
       let result: string;
       if (pending.kind === 'sign') result = await w.signMessage({ pin }, pending.hex);
-      else if (pending.kind === 'typedData')
-        result = await w.signTypedData({ pin }, pending.data as Parameters<typeof w.signTypedData>[1]);
+      else if (pending.kind === 'typedData') result = await w.signTypedData({ pin }, pending.data as Parameters<typeof w.signTypedData>[1]);
       else result = await w.sendRawTxOn({ pin }, activeChain, pending.raw);
-      respond(pending.id, result);
+      respond(pending.tabId, pending.id, result);
       Vibration.vibrate(14);
       toast.success(pending.kind === 'tx' ? 'Transaction envoyée' : 'Signature envoyée', pending.origin);
       setPending(null);
@@ -319,7 +364,7 @@ export default function Browser() {
   };
 
   const deny = () => {
-    if (pending) reject(pending.id);
+    if (pending) reject(pending.tabId, pending.id);
     setPending(null);
     setPin('');
     setError(null);
@@ -334,43 +379,21 @@ export default function Browser() {
         <GlassCard>
           <Text style={typography.bodyStrong}>Navigateur indisponible</Text>
           <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-            Le module natif react-native-webview n’est pas dans ce build. Refais un dev build
-            (eas build --profile development) puis relance l’app.
+            Le module natif react-native-webview n’est pas dans ce build. Refais un dev build puis relance l’app.
           </Text>
         </GlassCard>
       </View>
     );
   }
 
+  const WebViewAny = WebViewComp as React.ComponentType<Record<string, unknown>>;
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Barre d'adresse */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingHorizontal: spacing(1.5), paddingTop: spacing(6), paddingBottom: spacing(1) }}>
-        <Pressable
-          onPress={() => {
-            if (canGoBack) webref.current && (webref.current as unknown as { goBack: () => void }).goBack();
-            else setUrl(null);
-          }}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            width: 38,
-            height: 38,
-            borderRadius: 19,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: colors.glass,
-            borderWidth: 1,
-            borderColor: colors.glassBorder,
-            transform: [{ scale: pressed ? 0.92 : 1 }],
-          })}
-        >
-          {/* chevron pointant à gauche (retour) */}
-          <View style={{ transform: [{ rotate: '180deg' }] }}>
-            <Icon name="chevron" size={20} color={colors.text} />
-          </View>
-        </Pressable>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingHorizontal: spacing(1.5), paddingTop: insets.top + spacing(1), paddingBottom: spacing(1) }}>
         <View
           style={{
             flex: 1,
@@ -386,10 +409,10 @@ export default function Browser() {
         >
           <Icon name="security" size={14} color={origin && connected.current.has(origin) ? colors.up : colors.textMuted} />
           <TextInput
-            value={input}
-            onChangeText={setInput}
-            onSubmitEditing={() => go(input)}
-            placeholder="dApp ou URL (https)…"
+            value={activeTab?.input ?? ''}
+            onChangeText={(v) => updateTab(activeId, { input: v })}
+            onSubmitEditing={() => go(activeTab?.input ?? '')}
+            placeholder="Rechercher ou saisir une URL"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
@@ -397,12 +420,12 @@ export default function Browser() {
             returnKeyType="go"
             style={{ flex: 1, color: colors.text, fontSize: 14, paddingVertical: spacing(1) }}
           />
-          {url ? (
+          {activeTab?.url ? (
             <>
               <Pressable onPress={toggleCurrentFav} hitSlop={8}>
                 <Icon name={isFav ? 'starFilled' : 'star'} size={17} color={isFav ? colors.warning : colors.textMuted} />
               </Pressable>
-              <Pressable onPress={() => webref.current && (webref.current as unknown as { reload: () => void }).reload()} hitSlop={8}>
+              <Pressable onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.reload()} hitSlop={8}>
                 <Icon name="refresh" size={16} tone="muted" />
               </Pressable>
             </>
@@ -410,104 +433,170 @@ export default function Browser() {
         </View>
       </View>
 
-      {url ? (
-        <WebViewComp
-          ref={webref}
-          source={{ uri: url }}
-          originWhitelist={['https://*']}
-          injectedJavaScriptBeforeContentLoaded={injected}
-          onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
-            const req = parseDappMessage(e.nativeEvent.data);
-            if (req) onDappRequest(req, originOf(e.nativeEvent.url ?? url));
-          }}
-          onNavigationStateChange={(nav: { url: string; title?: string; canGoBack: boolean }) => {
-            setInput(nav.url);
-            setPageTitle(nav.title ?? '');
-            setCanGoBack(nav.canGoBack);
-            // Met à jour le titre réel du récent (une écriture par changement).
-            const host = originOf(nav.url);
-            const top = recentsRef.current[0];
-            if (host && nav.title && !(top && top.host === host && top.title === nav.title)) {
-              lastHost.current = host;
-              pushRecent({ url: nav.url, host, title: nav.title }, recentsRef.current).then(applyRecents);
-            }
-          }}
-          allowsBackForwardNavigationGestures
-          setSupportMultipleWindows={false}
-          style={{ flex: 1, backgroundColor: colors.bgDeep }}
-        />
-      ) : (
-        /* Page d'accueil : populaires + récents */
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing(2.5), gap: spacing(2.5), paddingBottom: spacing(6) }} showsVerticalScrollIndicator={false}>
-          <View style={{ gap: 4 }}>
-            <Text style={typography.title}>Navigateur dApps</Text>
-            <Text style={typography.muted}>Chaque action sensible demandera ton PIN.</Text>
-          </View>
+      {/* Corps : les WebViews (une par onglet, actif visible) + accueil */}
+      <View style={{ flex: 1 }}>
+        {tabs.map((t) =>
+          t.url ? (
+            <WebViewAny
+              key={t.id}
+              ref={(r: WV | null) => {
+                if (r) webrefs.current.set(t.id, r);
+                else webrefs.current.delete(t.id);
+              }}
+              source={{ uri: t.url }}
+              originWhitelist={['https://*']}
+              injectedJavaScriptBeforeContentLoaded={injected}
+              onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
+                const req = parseDappMessage(e.nativeEvent.data);
+                if (req) onDappRequest(req, originOf(e.nativeEvent.url ?? t.url ?? ''), t.id);
+              }}
+              onNavigationStateChange={(nav: { url: string; title?: string; canGoBack: boolean; canGoForward: boolean }) => {
+                updateTab(t.id, { input: nav.url, url: nav.url, title: nav.title ?? '', canBack: nav.canGoBack, canFwd: nav.canGoForward });
+                const host = originOf(nav.url);
+                const top = recentsRef.current[0];
+                if (host && nav.title && !(top && top.host === host && top.title === nav.title)) {
+                  pushRecent({ url: nav.url, host, title: nav.title }, recentsRef.current).then(applyRecents);
+                }
+              }}
+              allowsBackForwardNavigationGestures
+              setSupportMultipleWindows={false}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bgDeep, display: t.id === activeId ? 'flex' : 'none' }}
+            />
+          ) : null,
+        )}
 
-          {/* Favoris (sites épinglés via l'étoile de la barre d'adresse) */}
-          {favorites.length > 0 ? (
+        {activeTab?.url == null ? (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing(2.5), gap: spacing(2.5), paddingBottom: spacing(6) }} showsVerticalScrollIndicator={false}>
+            <View style={{ gap: 4 }}>
+              <Text style={typography.title}>Navigateur dApps</Text>
+              <Text style={typography.muted}>Chaque action sensible demandera ton PIN.</Text>
+            </View>
+
+            {favorites.length > 0 ? (
+              <View style={{ gap: spacing(1.25) }}>
+                <Text style={typography.section}>Favoris</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
+                  {favorites.map((f) => (
+                    <PressableScale key={f.host} onPress={() => go(f.url, f.title)} style={{ width: '30%' }}>
+                      <GlassCard style={{ alignItems: 'center', paddingVertical: spacing(2), paddingHorizontal: spacing(0.5), gap: 8 }}>
+                        <Favicon host={f.host} size={44} color={colors.glassStrong} label={f.host.slice(0, 1).toUpperCase()} />
+                        <Text style={[typography.bodyStrong, { fontSize: 12.5 }]} numberOfLines={1}>{f.title}</Text>
+                      </GlassCard>
+                    </PressableScale>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
             <View style={{ gap: spacing(1.25) }}>
-              <Text style={typography.section}>Favoris</Text>
+              <Text style={typography.section}>Sites populaires</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
-                {favorites.map((f) => (
-                  <PressableScale key={f.host} onPress={() => go(f.url, f.title)} style={{ width: '30%' }}>
-                    <GlassCard style={{ alignItems: 'center', paddingVertical: spacing(2), paddingHorizontal: spacing(0.5), gap: 8 }}>
-                      <Favicon host={f.host} size={44} color={colors.glassStrong} label={f.host.slice(0, 1).toUpperCase()} />
-                      <Text style={[typography.bodyStrong, { fontSize: 12.5 }]} numberOfLines={1}>{f.title}</Text>
-                    </GlassCard>
-                  </PressableScale>
+                {SUGGESTED.map((d) => (
+                  <DappTile key={d.url} dapp={d} onPress={() => go(d.url, d.name)} />
                 ))}
               </View>
             </View>
-          ) : null}
 
-          <View style={{ gap: spacing(1.25) }}>
-            <Text style={typography.section}>Sites populaires</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
-              {SUGGESTED.map((d) => (
-                <DappTile key={d.url} dapp={d} onPress={() => go(d.url, d.name)} />
-              ))}
-            </View>
-          </View>
-
-          {/* Collections NFT en vue (curatées) */}
-          <View style={{ gap: spacing(1.25) }}>
-            <Text style={typography.section}>Collections tendance</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
-              {COLLECTIONS.map((d) => (
-                <DappTile key={d.url} dapp={d} onPress={() => go(d.url, d.name)} />
-              ))}
-            </View>
-          </View>
-
-          {recents.length > 0 ? (
-            <View style={{ gap: spacing(1) }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={typography.section}>Historique</Text>
-                <Pressable onPress={() => { clearRecents(); applyRecents([]); }} hitSlop={8}>
-                  <Text style={{ color: colors.textMuted, fontSize: 13 }}>Effacer</Text>
-                </Pressable>
+            <View style={{ gap: spacing(1.25) }}>
+              <Text style={typography.section}>Collections tendance</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
+                {COLLECTIONS.map((d) => (
+                  <DappTile key={d.url} dapp={d} onPress={() => go(d.url, d.name)} />
+                ))}
               </View>
-              <GlassCard>
-                {recents.map((r, i) => (
-                  <Pressable
-                    key={r.host}
-                    onPress={() => go(r.url, r.title)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}
-                  >
-                    <Favicon host={r.host} size={30} color={colors.glassStrong} label={r.host.slice(0, 1).toUpperCase()} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={typography.bodyStrong} numberOfLines={1}>{r.title}</Text>
-                      <Text style={typography.muted} numberOfLines={1}>{r.host}</Text>
-                    </View>
-                    <Icon name="chevron" size={16} tone="faint" />
+            </View>
+
+            {recents.length > 0 ? (
+              <View style={{ gap: spacing(1) }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={typography.section}>Historique</Text>
+                  <Pressable onPress={() => { clearRecents(); applyRecents([]); }} hitSlop={8}>
+                    <Text style={{ color: colors.textMuted, fontSize: 13 }}>Effacer</Text>
                   </Pressable>
-                ))}
+                </View>
+                <GlassCard>
+                  {recents.map((r, i) => (
+                    <Pressable key={r.host} onPress={() => go(r.url, r.title)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
+                      <Favicon host={r.host} size={30} color={colors.glassStrong} label={r.host.slice(0, 1).toUpperCase()} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={typography.bodyStrong} numberOfLines={1}>{r.title}</Text>
+                        <Text style={typography.muted} numberOfLines={1}>{r.host}</Text>
+                      </View>
+                      <Icon name="chevron" size={16} tone="faint" />
+                    </Pressable>
+                  ))}
+                </GlassCard>
+              </View>
+            ) : null}
+          </ScrollView>
+        ) : null}
+      </View>
+
+      {/* Barre d'outils bas façon Chrome : retour / avancer / accueil / onglets / menu */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: spacing(1), paddingTop: spacing(1), paddingBottom: insets.bottom || spacing(1), borderTopWidth: 1, borderTopColor: colors.glassBorder, backgroundColor: colors.bg }}>
+        <ToolBtn icon="chevron" flip disabled={!activeTab?.canBack} onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.goBack()} />
+        <ToolBtn icon="forward" disabled={!activeTab?.canFwd} onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.goForward()} />
+        <ToolBtn icon="home" onPress={goHome} />
+        {/* Compteur d'onglets (carré) → sélecteur */}
+        <Pressable onPress={() => setSwitcher(true)} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, alignItems: 'center', justifyContent: 'center' })}>
+          <View style={{ width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: colors.text, fontSize: 12, fontFamily: fonts.bold }}>{tabs.length}</Text>
+          </View>
+        </Pressable>
+        <ToolBtn icon="more" onPress={() => setMenu(true)} />
+      </View>
+
+      {/* Sélecteur d'onglets */}
+      <Modal visible={switcher} transparent animationType="slide" onRequestClose={() => setSwitcher(false)}>
+        <View style={{ flex: 1, backgroundColor: colors.bgDeep, paddingTop: insets.top + spacing(1) }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing(2.5), paddingVertical: spacing(1.5) }}>
+            <Text style={typography.title}>Onglets ({tabs.length})</Text>
+            <Pressable onPress={() => setSwitcher(false)} hitSlop={8}>
+              <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>OK</Text>
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5), padding: spacing(2.5), paddingTop: 0 }}>
+            {tabs.map((t) => {
+              const host = t.url ? originOf(t.url) : '';
+              return (
+                <Pressable key={t.id} onPress={() => { setActiveId(t.id); setSwitcher(false); }} style={{ width: '47%' }}>
+                  <GlassCard style={{ gap: spacing(1), borderColor: t.id === activeId ? colors.accent : colors.glassBorder, borderWidth: t.id === activeId ? 1.5 : 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+                      {host ? <Favicon host={host} size={22} color={colors.glassStrong} label={host.slice(0, 1).toUpperCase()} /> : <Icon name="home" size={20} color={colors.textMuted} />}
+                      <Text style={[typography.bodyStrong, { flex: 1, fontSize: 13 }]} numberOfLines={1}>{t.title || (host || 'Accueil')}</Text>
+                      <Pressable onPress={() => closeTab(t.id)} hitSlop={8}>
+                        <Icon name="close" size={16} tone="muted" />
+                      </Pressable>
+                    </View>
+                    <Text style={typography.muted} numberOfLines={1}>{host || 'Nouvel onglet'}</Text>
+                  </GlassCard>
+                </Pressable>
+              );
+            })}
+            <Pressable onPress={newTab} style={{ width: '47%' }}>
+              <GlassCard style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: spacing(3), gap: 6, borderStyle: 'dashed' }}>
+                <Icon name="add" size={26} color={colors.accent} />
+                <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Nouvel onglet</Text>
               </GlassCard>
-            </View>
-          ) : null}
-        </ScrollView>
-      )}
+            </Pressable>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Menu (⋮) façon Chrome */}
+      <Modal visible={menu} transparent animationType="slide" onRequestClose={() => setMenu(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} onPress={() => setMenu(false)}>
+          <Pressable style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2), paddingBottom: insets.bottom + spacing(2) }}>
+            <MenuRow icon="add" label="Nouvel onglet" onPress={() => { setMenu(false); newTab(); }} />
+            {activeTab?.url ? <MenuRow icon="refresh" label="Actualiser" onPress={() => { setMenu(false); (webrefs.current.get(activeId) as WV | undefined)?.reload(); }} /> : null}
+            {activeTab?.url ? <MenuRow icon={isFav ? 'starFilled' : 'star'} label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'} onPress={() => { setMenu(false); toggleCurrentFav(); }} /> : null}
+            {activeTab?.url ? <MenuRow icon="share" label="Partager" onPress={() => { setMenu(false); Share.share({ message: activeTab.url! }).catch(() => {}); }} /> : null}
+            <MenuRow icon="home" label="Page d'accueil" onPress={() => { setMenu(false); goHome(); }} />
+            <MenuRow icon="close" label="Fermer l'onglet" onPress={() => { setMenu(false); closeTab(activeId); }} />
+            <MenuRow icon="history" label="Effacer l'historique" onPress={() => { setMenu(false); clearRecents(); applyRecents([]); toast.info('Historique effacé'); }} />
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Fenêtre d'approbation (connexion / signature / transaction) */}
       {pending ? (
@@ -515,19 +604,14 @@ export default function Browser() {
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
             <View style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
               <Text style={typography.title}>
-                {pending.kind === 'connect'
-                  ? 'Connexion au site'
-                  : pending.kind === 'tx'
-                    ? 'Transaction demandée'
-                    : 'Signature demandée'}
+                {pending.kind === 'connect' ? 'Connexion au site' : pending.kind === 'tx' ? 'Transaction demandée' : 'Signature demandée'}
               </Text>
 
-              {/* En-tête site : logo + titre + pastille réseau colorée */}
               <GlassCard>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
                   <Favicon host={pending.origin} size={44} color={colors.glassStrong} label={pending.origin.slice(0, 1).toUpperCase()} />
                   <View style={{ flex: 1 }}>
-                    <Text style={typography.bodyStrong} numberOfLines={1}>{pageTitle || pending.origin}</Text>
+                    <Text style={typography.bodyStrong} numberOfLines={1}>{activeTab?.title || pending.origin}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                       <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: NETWORK_COLOR[chain.id] ?? colors.accent }} />
                       <Text style={typography.muted}>{pending.origin} · {chain.name}</Text>
@@ -551,9 +635,7 @@ export default function Browser() {
                         <ErrorBox message={`⚠️ Le message dit venir de « ${pending.siwe.domain} » mais tu es sur « ${pending.origin} ». Risque de phishing — refuse.`} />
                       ) : (
                         <>
-                          <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>
-                            Prouve seulement que tu possèdes cette adresse.
-                          </Text>
+                          <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>Prouve seulement que tu possèdes cette adresse.</Text>
                           <FreeSignature />
                         </>
                       )}
@@ -573,22 +655,16 @@ export default function Browser() {
                   <Text style={typography.bodyStrong}>{pending.summary?.name ?? 'Données structurées'}</Text>
                   {pending.summary?.primaryType ? <Text style={typography.muted}>Type : {pending.summary.primaryType}</Text> : null}
                   <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-                    {pending.summary?.primaryType === 'Permit'
-                      ? '⚠️ Un « Permit » autorise un contrat à dépenser tes tokens. Vérifie le site.'
-                      : 'Vérifie le contenu avant de signer.'}
+                    {pending.summary?.primaryType === 'Permit' ? '⚠️ Un « Permit » autorise un contrat à dépenser tes tokens. Vérifie le site.' : 'Vérifie le contenu avant de signer.'}
                   </Text>
                   <FreeSignature />
                 </GlassCard>
               ) : (
                 <GlassCard>
                   {pending.to ? (
-                    <Text style={typography.muted}>
-                      Vers : <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{pending.to.slice(0, 10)}…{pending.to.slice(-8)}</Text>
-                    </Text>
+                    <Text style={typography.muted}>Vers : <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{pending.to.slice(0, 10)}…{pending.to.slice(-8)}</Text></Text>
                   ) : null}
-                  <Text style={typography.muted}>
-                    Montant : <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{formatBalance(pending.value, chain.nativeDecimals)} {chain.nativeSymbol}</Text>
-                  </Text>
+                  <Text style={typography.muted}>Montant : <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{formatBalance(pending.value, chain.nativeDecimals)} {chain.nativeSymbol}</Text></Text>
                   {pending.dataBytes > 0 ? <Text style={typography.muted}>Données : {pending.dataBytes} octets (appel de contrat)</Text> : null}
                   <Text style={[typography.muted, { marginTop: spacing(1) }]}>⚠️ Vérifie bien : ceci peut déplacer des fonds.</Text>
                 </GlassCard>
@@ -603,22 +679,37 @@ export default function Browser() {
 
               {error ? <ErrorBox message={error} /> : null}
               <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
-                <View style={{ flex: 1 }}>
-                  <Button label="Refuser" variant="ghost" onPress={deny} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Button
-                    label={busy ? 'Signature…' : pending.kind === 'connect' ? 'Connecter' : 'Signer'}
-                    loading={busy}
-                    onPress={approve}
-                  />
-                </View>
+                <View style={{ flex: 1 }}><Button label="Refuser" variant="ghost" onPress={deny} /></View>
+                <View style={{ flex: 1 }}><Button label={busy ? 'Signature…' : pending.kind === 'connect' ? 'Connecter' : 'Signer'} loading={busy} onPress={approve} /></View>
               </View>
             </View>
           </View>
         </Modal>
       ) : null}
     </View>
+  );
+}
+
+/** Bouton de la barre d'outils (icône, désactivable, chevron « flip » = retour). */
+function ToolBtn({ icon, onPress, disabled, flip }: { icon: Parameters<typeof Icon>[0]['name']; onPress: () => void; disabled?: boolean; flip?: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable onPress={onPress} disabled={disabled} hitSlop={6} style={({ pressed }) => ({ padding: spacing(1), opacity: disabled ? 0.3 : pressed ? 0.5 : 1 })}>
+      <View style={flip ? { transform: [{ rotate: '180deg' }] } : undefined}>
+        <Icon name={icon} size={24} color={colors.text} />
+      </View>
+    </Pressable>
+  );
+}
+
+/** Ligne du menu (⋮). */
+function MenuRow({ icon, label, onPress }: { icon: Parameters<typeof Icon>[0]['name']; label: string; onPress: () => void }) {
+  const { colors, typography } = useTheme();
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1.75), paddingVertical: spacing(1.5), paddingHorizontal: spacing(1), opacity: pressed ? 0.6 : 1 })}>
+      <Icon name={icon} size={20} color={colors.text} />
+      <Text style={typography.body}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -634,13 +725,7 @@ function Favicon({ host, size, color, label, emoji }: { host: string; size: numb
       </View>
     );
   }
-  return (
-    <Image
-      source={{ uri: faviconUrl(host) }}
-      onError={() => setFailed(true)}
-      style={{ width: size, height: size, borderRadius: r, backgroundColor: '#fff' }}
-    />
-  );
+  return <Image source={{ uri: faviconUrl(host) }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: r, backgroundColor: '#fff' }} />;
 }
 
 /** Tuile d'un site populaire : logo + nom. */
