@@ -83,9 +83,12 @@ const COLLECTIONS: Dapp[] = [
   { name: 'CloneX', url: 'https://opensea.io/collection/clonex', domain: '', emoji: '🧬', color: '#3AA0A0' },
 ];
 
-/** Logo d'un site (favicon HD via DuckDuckGo ; repli emoji/lettre au besoin). */
+/**
+ * Logo d'un site : favicon PNG HD via Google (fiable et CARRÉ sous RN, contrairement
+ * aux .ico DuckDuckGo qui s'affichaient étirés). Repli emoji/lettre au besoin.
+ */
 function faviconUrl(host: string): string {
-  return `https://icons.duckduckgo.com/ip3/${host}.ico`;
+  return `https://www.google.com/s2/favicons?domain=${host}&sz=128`;
 }
 
 /** Couleur de marque du réseau (pastille dans la popup de connexion). */
@@ -478,8 +481,8 @@ export default function Browser() {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
                   {favorites.map((f) => (
                     <PressableScale key={f.host} onPress={() => go(f.url, f.title)} style={{ width: '30%' }}>
-                      <GlassCard style={{ alignItems: 'center', paddingVertical: spacing(2), paddingHorizontal: spacing(0.5), gap: 8 }}>
-                        <Favicon host={f.host} size={44} color={colors.glassStrong} label={f.host.slice(0, 1).toUpperCase()} />
+                      <GlassCard style={{ alignItems: 'center', paddingVertical: spacing(1.5), paddingHorizontal: spacing(0.5), gap: 8, borderRadius: radii.lg }}>
+                        <Favicon host={f.host} size={52} color={colors.glassStrong} label={f.host.slice(0, 1).toUpperCase()} />
                         <Text style={[typography.bodyStrong, { fontSize: 12.5 }]} numberOfLines={1}>{f.title}</Text>
                       </GlassCard>
                     </PressableScale>
@@ -509,7 +512,10 @@ export default function Browser() {
             {recents.length > 0 ? (
               <View style={{ gap: spacing(1) }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={typography.section}>Historique</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Icon name="history" size={18} color={colors.textMuted} />
+                    <Text style={typography.section}>Historique</Text>
+                  </View>
                   <Pressable onPress={() => { clearRecents(); applyRecents([]); }} hitSlop={8}>
                     <Text style={{ color: colors.textMuted, fontSize: 13 }}>Effacer</Text>
                   </Pressable>
@@ -713,28 +719,41 @@ function MenuRow({ icon, label, onPress }: { icon: Parameters<typeof Icon>[0]['n
   );
 }
 
-/** Logo d'un site : favicon HD, repli sur une pastille (emoji/lettre) si échec. */
+/**
+ * Logo d'un site : carré à COINS ARRONDIS (pas un cercle), logo centré sans
+ * déformation (resizeMode contain), fond clair. Repli pastille (emoji/lettre)
+ * sur la couleur de marque si le favicon échoue — façon Phantom/Rabby.
+ */
 function Favicon({ host, size, color, label, emoji }: { host: string; size: number; color: string; label?: string; emoji?: string }) {
   const { colors } = useTheme();
   const [failed, setFailed] = useState(false);
-  const r = size / 2;
+  const radius = Math.round(size * 0.28); // carré arrondi, pas un cercle
   if (failed || !host) {
     return (
-      <View style={{ width: size, height: size, borderRadius: r, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontSize: size * 0.5, color: colors.text }}>{emoji ?? label ?? '◈'}</Text>
       </View>
     );
   }
-  return <Image source={{ uri: faviconUrl(host) }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: r, backgroundColor: '#fff' }} />;
+  return (
+    <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <Image
+        source={{ uri: faviconUrl(host) }}
+        onError={() => setFailed(true)}
+        resizeMode="contain"
+        style={{ width: size * 0.72, height: size * 0.72 }}
+      />
+    </View>
+  );
 }
 
-/** Tuile d'un site populaire : logo + nom. */
+/** Tuile d'un site populaire : logo carré + nom (forme carrée, pas capsule). */
 function DappTile({ dapp, onPress }: { dapp: Dapp; onPress: () => void }) {
   const { typography } = useTheme();
   return (
     <PressableScale onPress={onPress} style={{ width: '30%' }}>
-      <GlassCard style={{ alignItems: 'center', paddingVertical: spacing(2), paddingHorizontal: spacing(0.5), gap: 8 }}>
-        <Favicon host={dapp.domain} size={44} color={dapp.color} emoji={dapp.emoji} />
+      <GlassCard style={{ alignItems: 'center', paddingVertical: spacing(1.5), paddingHorizontal: spacing(0.5), gap: 8, borderRadius: radii.lg }}>
+        <Favicon host={dapp.domain} size={52} color={dapp.color} emoji={dapp.emoji} />
         <Text style={[typography.bodyStrong, { fontSize: 12.5 }]} numberOfLines={1}>{dapp.name}</Text>
       </GlassCard>
     </PressableScale>
