@@ -36,6 +36,9 @@ interface SettingsState {
    * NB : n'expose QUE la longueur, jamais le PIN ; le coffre reste chiffré.
    */
   pinLength: number;
+  /** Catégories de notifications activées. */
+  notifTx: boolean;
+  notifPrice: boolean;
 
   load: () => Promise<void>;
   setProfileName: (name: string) => void;
@@ -46,12 +49,13 @@ interface SettingsState {
   setThemePref: (pref: ThemePref) => void;
   toggleFavorite: (coinId: string) => void;
   setPinLength: (n: number) => void;
+  setNotifPref: (key: 'notifTx' | 'notifPrice', on: boolean) => void;
 }
 
 function persist(
   s: Pick<
     SettingsState,
-    'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength'
+    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice'
   >,
 ) {
   void saveSettings({
@@ -63,6 +67,8 @@ function persist(
     themePref: s.themePref,
     favorites: s.favorites,
     pinLength: s.pinLength,
+    notifTx: s.notifTx,
+    notifPrice: s.notifPrice,
   });
 }
 
@@ -76,6 +82,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
   themePref: 'system',
   favorites: [],
   pinLength: 0,
+  notifTx: true,
+  notifPrice: true,
 
   load: async () => {
     const s = await loadSettings();
@@ -89,6 +97,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
       themePref: (s?.themePref as ThemePref) ?? 'system',
       favorites: Array.isArray(s?.favorites) ? (s.favorites as string[]) : [],
       pinLength: typeof s?.pinLength === 'number' ? (s.pinLength as number) : 0,
+      notifTx: s?.notifTx !== false,
+      notifPrice: s?.notifPrice !== false,
     });
   },
 
@@ -126,6 +136,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
     if (pinLength === get().pinLength) return;
     set({ pinLength });
     persist({ ...get(), pinLength });
+  },
+  setNotifPref: (key, on) => {
+    set({ [key]: on } as Pick<SettingsState, 'notifTx' | 'notifPrice'>);
+    persist({ ...get(), [key]: on });
   },
 }));
 
