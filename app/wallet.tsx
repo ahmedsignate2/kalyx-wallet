@@ -14,6 +14,7 @@ import { AppTabBar } from '../ui/tabs';
 import { AllocationDonut, foldSlices } from '../ui/AllocationDonut';
 import { NftDetailModal } from '../ui/NftDetailModal';
 import { CountUp } from '../ui/CountUp';
+import { FadeInUp } from '../ui/FadeInUp';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -292,25 +293,26 @@ export default function WalletScreen() {
               [0, 1, 2, 3].map((i) => <SkeletonRow key={i} divider={i > 0} />)
             ) : (
               filtered.map((a, i) => (
-                <ListRow
-                  key={a.chain.id}
-                  divider={i > 0}
-                  left={
-                    a.logo ? (
-                      <Image source={{ uri: a.logo }} style={{ width: 42, height: 42, borderRadius: 21 }} />
-                    ) : (
-                      <Avatar label={a.chain.nativeSymbol.slice(0, 1)} color={colors.glassStrong} />
-                    )
-                  }
-                  title={a.chain.name}
-                  subtitle={hidden ? '••••' : `${formatBalance(a.raw, a.chain.nativeDecimals, 6)} ${a.chain.nativeSymbol}`}
-                  onPress={() => a.chain.coingeckoId && router.push(`/token/${a.chain.coingeckoId}`)}
-                  right={
-                    <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>
-                      {hidden ? '••••' : `${money(a.fiat)} ${fiatSymbol(fiat)}`}
-                    </Text>
-                  }
-                />
+                <FadeInUp key={a.chain.id} delay={i * 55}>
+                  <ListRow
+                    divider={i > 0}
+                    left={
+                      a.logo ? (
+                        <Image source={{ uri: a.logo }} style={{ width: 42, height: 42, borderRadius: 21 }} />
+                      ) : (
+                        <Avatar label={a.chain.nativeSymbol.slice(0, 1)} color={colors.glassStrong} />
+                      )
+                    }
+                    title={a.chain.name}
+                    subtitle={hidden ? '••••' : `${formatBalance(a.raw, a.chain.nativeDecimals, 6)} ${a.chain.nativeSymbol}`}
+                    onPress={() => a.chain.coingeckoId && router.push(`/token/${a.chain.coingeckoId}`)}
+                    right={
+                      <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>
+                        {hidden ? '••••' : `${money(a.fiat)} ${fiatSymbol(fiat)}`}
+                      </Text>
+                    }
+                  />
+                </FadeInUp>
               ))
             )}
           </GlassCard>
@@ -323,8 +325,8 @@ export default function WalletScreen() {
               </Text>
               <GlassCard>
                 {filteredTokens.map((tk, i) => (
+                  <FadeInUp key={tk.contract} delay={i * 55}>
                   <ListRow
-                    key={tk.contract}
                     divider={i > 0}
                     onPress={() =>
                       Alert.alert(
@@ -374,6 +376,7 @@ export default function WalletScreen() {
                       </Text>
                     }
                   />
+                  </FadeInUp>
                 ))}
               </GlassCard>
             </>
