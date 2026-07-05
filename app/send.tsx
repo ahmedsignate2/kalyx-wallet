@@ -3,6 +3,7 @@ import { View, Text, TextInput, Alert, Pressable } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { SuccessModal } from '../ui/SuccessModal';
+import { Icon } from '../ui/icon';
 import { notifyAndLog } from '../lib/notificationCenter';
 import { watchConfirmation } from '../lib/txWatch';
 import { fonts, spacing, useTheme } from '../ui/theme';
@@ -17,8 +18,9 @@ export default function Send() {
   const sendSolToken = useWallet((s) => s.sendSolToken);
   const activeChain = useWallet((s) => s.activeChain);
   const chain = getAdapter(activeChain).config;
-  const params = useLocalSearchParams<{ to?: string; contract?: string; mint?: string; symbol?: string; decimals?: string }>();
+  const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; symbol?: string; decimals?: string }>();
   const toParam = params.to;
+  const amountParam = params.amount;
   const decimals = params.decimals != null ? Number(params.decimals) : 18;
   // 3 modes : token SPL (mint), token ERC-20 (contract), ou natif.
   const token = params.contract
@@ -33,6 +35,9 @@ export default function Send() {
     if (toParam) setTo(String(toParam));
   }, [toParam]);
   const [amount, setAmount] = useState('');
+  useEffect(() => {
+    if (amountParam) setAmount(String(amountParam));
+  }, [amountParam]);
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -103,9 +108,15 @@ export default function Send() {
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>Adresse du destinataire</Text>
-          <Pressable onPress={() => router.push('/contacts?pick=1')} hitSlop={8}>
-            <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Carnet</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
+            <Pressable onPress={() => router.push('/scan')} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="scan" size={16} color={colors.accent} />
+              <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Scanner</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push('/contacts?pick=1')} hitSlop={8}>
+              <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Carnet</Text>
+            </Pressable>
+          </View>
         </View>
         <TextInput
           value={to}

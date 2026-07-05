@@ -636,6 +636,9 @@ export default function Browser() {
             returnKeyType="go"
             style={{ flex: 1, color: colors.text, fontSize: 14, paddingVertical: spacing(1) }}
           />
+          <Pressable onPress={() => router.push('/scan')} hitSlop={8}>
+            <Icon name="scan" size={16} color={colors.textMuted} />
+          </Pressable>
           {activeTab?.url ? (
             <>
               <Pressable onPress={toggleCurrentFav} hitSlop={8}>
