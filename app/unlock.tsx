@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NovaLogo } from '../ui/NovaLogo';
@@ -95,6 +95,8 @@ export default function Unlock() {
 
   return (
     <Animated.View style={{ flex: 1, backgroundColor: colors.bgDeep, opacity: screenOp }}>
+      {/* Plein écran : pas de barre d'en-tête vide. */}
+      <Stack.Screen options={{ headerShown: false }} />
       <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
       <View style={{ flex: 1, paddingTop: insets.top + spacing(3), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3), alignItems: 'center' }}>
         {/* En-tête compact : logo, titre, sous-titre, biométrie */}
