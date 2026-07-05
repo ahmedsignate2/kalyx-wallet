@@ -19,9 +19,33 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
+import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient, RadialGradient, Rect } from 'react-native-svg';
+import { Dimensions } from 'react-native';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
 import { Icon, type IconName } from './icon';
+
+const PREMIUM_W = Dimensions.get('window').width;
+
+/** Halo violet doux et statique en haut d'écran (lumière d'ambiance premium). */
+function TopGlow() {
+  const { theme } = useThemeStyles();
+  const w = PREMIUM_W * 1.5;
+  const h = 360;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: -70, left: (PREMIUM_W - w) / 2, width: w, height: h }}>
+      <Svg width={w} height={h}>
+        <Defs>
+          <RadialGradient id="premium-topglow" cx="50%" cy="35%" rx="50%" ry="50%">
+            <Stop offset="0" stopColor={theme.colors.violet} stopOpacity={0.26} />
+            <Stop offset="0.55" stopColor={theme.colors.blue} stopOpacity={0.08} />
+            <Stop offset="1" stopColor={theme.colors.blue} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect x="0" y="0" width={w} height={h} fill="url(#premium-topglow)" />
+      </Svg>
+    </View>
+  );
+}
 
 /* Styles dépendant du thème : créés une fois par mode puis réutilisés. */
 const stylesCache: Partial<Record<ThemeMode, ReturnType<typeof createStyles>>> = {};
@@ -43,6 +67,7 @@ export function PremiumScreen({
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bgDeep }}>
       <LinearGradient colors={theme.gradients.screen} style={StyleSheet.absoluteFill} />
+      <TopGlow />
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + spacing(1.5),
