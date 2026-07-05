@@ -9,7 +9,7 @@
  * react-native-webview est natif : require dynamique (message clair sans rebuild).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share } from 'react-native';
+import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share, useWindowDimensions } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard, ErrorBox } from '../ui/premium';
@@ -138,6 +138,10 @@ function normalizeUrl(raw: string): string | null {
 export default function Browser() {
   const { colors, typography } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: screenW } = useWindowDimensions();
+  // 3 colonnes : largeur = (écran − marges − 2 gaps) / 3 (min 88 sur petit écran).
+  const GAP = 12;
+  const tileW = Math.max(88, Math.floor((screenW - spacing(2.5) * 2 - GAP * 2) / 3));
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
   const setActiveChain = useWallet((s) => s.setActiveChain);
@@ -391,6 +395,71 @@ export default function Browser() {
 
   const WebViewAny = WebViewComp as React.ComponentType<Record<string, unknown>>;
 
+  /** Écran d'accueil dApps (grille 3 colonnes) — rendu par chaque onglet vide. */
+  const renderHome = () => (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing(2.5), gap: spacing(2.5), paddingBottom: spacing(6) }} showsVerticalScrollIndicator={false}>
+      <View style={{ gap: 4 }}>
+        <Text style={typography.title}>Navigateur dApps</Text>
+        <Text style={typography.muted}>Chaque action sensible demandera ton PIN.</Text>
+      </View>
+
+      {favorites.length > 0 ? (
+        <View style={{ gap: spacing(1.25) }}>
+          <Text style={typography.section}>Favoris</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: GAP, rowGap: 16 }}>
+            {favorites.map((f) => (
+              <Tile key={f.host} width={tileW} host={f.host} name={f.title || f.host} color={colors.glassStrong} onPress={() => go(f.url, f.title)} />
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      <View style={{ gap: spacing(1.25) }}>
+        <Text style={typography.section}>Sites populaires</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: GAP, rowGap: 16 }}>
+          {SUGGESTED.map((d) => (
+            <Tile key={d.url} width={tileW} host={d.domain} name={d.name} color={d.color} emoji={d.emoji} onPress={() => go(d.url, d.name)} />
+          ))}
+        </View>
+      </View>
+
+      <View style={{ gap: spacing(1.25) }}>
+        <Text style={typography.section}>Collections tendance</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: GAP, rowGap: 16 }}>
+          {COLLECTIONS.map((d) => (
+            <Tile key={d.url} width={tileW} host={d.domain} name={d.name} color={d.color} emoji={d.emoji} onPress={() => go(d.url, d.name)} />
+          ))}
+        </View>
+      </View>
+
+      {recents.length > 0 ? (
+        <View style={{ gap: spacing(1) }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Icon name="history" size={18} color={colors.textMuted} />
+              <Text style={typography.section}>Historique</Text>
+            </View>
+            <Pressable onPress={() => { clearRecents(); applyRecents([]); }} hitSlop={8}>
+              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Effacer</Text>
+            </Pressable>
+          </View>
+          <GlassCard>
+            {recents.slice(0, 15).map((r, i) => (
+              <Pressable key={r.host} onPress={() => go(r.url, r.title)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
+                <Favicon host={r.host} size={30} color={colors.glassStrong} label={r.host.slice(0, 1).toUpperCase()} />
+                <View style={{ flex: 1 }}>
+                  <Text style={typography.bodyStrong} numberOfLines={1}>{r.title}</Text>
+                  <Text style={typography.muted} numberOfLines={1}>{r.host}</Text>
+                </View>
+                <Icon name="chevron" size={16} tone="faint" />
+              </Pressable>
+            ))}
+          </GlassCard>
+        </View>
+      ) : null}
+    </ScrollView>
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -436,101 +505,41 @@ export default function Browser() {
         </View>
       </View>
 
-      {/* Corps : les WebViews (une par onglet, actif visible) + accueil */}
+      {/* Corps : un conteneur plein écran PAR onglet (layout identique), l'actif
+          visible. Chaque onglet montre soit sa WebView, soit l'accueil dApps. */}
       <View style={{ flex: 1 }}>
-        {tabs.map((t) =>
-          t.url ? (
-            <WebViewAny
-              key={t.id}
-              ref={(r: WV | null) => {
-                if (r) webrefs.current.set(t.id, r);
-                else webrefs.current.delete(t.id);
-              }}
-              source={{ uri: t.url }}
-              originWhitelist={['https://*']}
-              injectedJavaScriptBeforeContentLoaded={injected}
-              onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
-                const req = parseDappMessage(e.nativeEvent.data);
-                if (req) onDappRequest(req, originOf(e.nativeEvent.url ?? t.url ?? ''), t.id);
-              }}
-              onNavigationStateChange={(nav: { url: string; title?: string; canGoBack: boolean; canGoForward: boolean }) => {
-                updateTab(t.id, { input: nav.url, url: nav.url, title: nav.title ?? '', canBack: nav.canGoBack, canFwd: nav.canGoForward });
-                const host = originOf(nav.url);
-                const top = recentsRef.current[0];
-                if (host && nav.title && !(top && top.host === host && top.title === nav.title)) {
-                  pushRecent({ url: nav.url, host, title: nav.title }, recentsRef.current).then(applyRecents);
-                }
-              }}
-              allowsBackForwardNavigationGestures
-              setSupportMultipleWindows={false}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bgDeep, display: t.id === activeId ? 'flex' : 'none' }}
-            />
-          ) : null,
-        )}
-
-        {activeTab?.url == null ? (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing(2.5), gap: spacing(2.5), paddingBottom: spacing(6) }} showsVerticalScrollIndicator={false}>
-            <View style={{ gap: 4 }}>
-              <Text style={typography.title}>Navigateur dApps</Text>
-              <Text style={typography.muted}>Chaque action sensible demandera ton PIN.</Text>
-            </View>
-
-            {favorites.length > 0 ? (
-              <View style={{ gap: spacing(1.25) }}>
-                <Text style={typography.section}>Favoris</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 18 }}>
-                  {favorites.map((f) => (
-                    <Tile key={f.host} host={f.host} name={f.title || f.host} color={colors.glassStrong} onPress={() => go(f.url, f.title)} />
-                  ))}
-                </View>
-              </View>
-            ) : null}
-
-            <View style={{ gap: spacing(1.25) }}>
-              <Text style={typography.section}>Sites populaires</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 18 }}>
-                {SUGGESTED.map((d) => (
-                  <Tile key={d.url} host={d.domain} name={d.name} color={d.color} emoji={d.emoji} onPress={() => go(d.url, d.name)} />
-                ))}
-              </View>
-            </View>
-
-            <View style={{ gap: spacing(1.25) }}>
-              <Text style={typography.section}>Collections tendance</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 18 }}>
-                {COLLECTIONS.map((d) => (
-                  <Tile key={d.url} host={d.domain} name={d.name} color={d.color} emoji={d.emoji} onPress={() => go(d.url, d.name)} />
-                ))}
-              </View>
-            </View>
-
-            {recents.length > 0 ? (
-              <View style={{ gap: spacing(1) }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Icon name="history" size={18} color={colors.textMuted} />
-                    <Text style={typography.section}>Historique</Text>
-                  </View>
-                  <Pressable onPress={() => { clearRecents(); applyRecents([]); }} hitSlop={8}>
-                    <Text style={{ color: colors.textMuted, fontSize: 13 }}>Effacer</Text>
-                  </Pressable>
-                </View>
-                <GlassCard>
-                  {recents.map((r, i) => (
-                    <Pressable key={r.host} onPress={() => go(r.url, r.title)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
-                      <Favicon host={r.host} size={30} color={colors.glassStrong} label={r.host.slice(0, 1).toUpperCase()} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={typography.bodyStrong} numberOfLines={1}>{r.title}</Text>
-                        <Text style={typography.muted} numberOfLines={1}>{r.host}</Text>
-                      </View>
-                      <Icon name="chevron" size={16} tone="faint" />
-                    </Pressable>
-                  ))}
-                </GlassCard>
-              </View>
-            ) : null}
-          </ScrollView>
-        ) : null}
+        {tabs.map((t) => (
+          <View key={t.id} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: t.id === activeId ? 'flex' : 'none' }}>
+            {t.url ? (
+              <WebViewAny
+                ref={(r: WV | null) => {
+                  if (r) webrefs.current.set(t.id, r);
+                  else webrefs.current.delete(t.id);
+                }}
+                source={{ uri: t.url }}
+                originWhitelist={['https://*']}
+                injectedJavaScriptBeforeContentLoaded={injected}
+                onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
+                  const req = parseDappMessage(e.nativeEvent.data);
+                  if (req) onDappRequest(req, originOf(e.nativeEvent.url ?? t.url ?? ''), t.id);
+                }}
+                onNavigationStateChange={(nav: { url: string; title?: string; canGoBack: boolean; canGoForward: boolean }) => {
+                  updateTab(t.id, { input: nav.url, url: nav.url, title: nav.title ?? '', canBack: nav.canGoBack, canFwd: nav.canGoForward });
+                  const host = originOf(nav.url);
+                  const top = recentsRef.current[0];
+                  if (host && nav.title && !(top && top.host === host && top.title === nav.title)) {
+                    pushRecent({ url: nav.url, host, title: nav.title }, recentsRef.current).then(applyRecents);
+                  }
+                }}
+                allowsBackForwardNavigationGestures
+                setSupportMultipleWindows={false}
+                style={{ flex: 1, backgroundColor: colors.bgDeep }}
+              />
+            ) : (
+              renderHome()
+            )}
+          </View>
+        ))}
       </View>
 
       {/* Barre d'outils bas façon Chrome : retour / avancer / accueil / onglets / menu */}
@@ -748,12 +757,12 @@ function Favicon({ host, size, color, label, emoji }: { host: string; size: numb
  * Tuile carrée d'un raccourci (site / collection / favori) : conteneur à
  * dimensions FIXES (96×108) → le logo n'est jamais étiré en capsule.
  */
-function Tile({ host, name, color, emoji, onPress }: { host: string; name: string; color: string; emoji?: string; onPress: () => void }) {
+function Tile({ host, name, color, emoji, width, onPress }: { host: string; name: string; color: string; emoji?: string; width: number; onPress: () => void }) {
   const { colors } = useTheme();
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ width: 96, minHeight: 108, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}>
+    <Pressable onPress={onPress} style={({ pressed }) => ({ width, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}>
       <Favicon host={host} size={56} color={color} emoji={emoji} label={name.slice(0, 1).toUpperCase()} />
-      <Text numberOfLines={1} style={{ marginTop: 8, color: colors.text, fontSize: 13, fontFamily: fonts.semibold, textAlign: 'center', maxWidth: 88 }}>
+      <Text numberOfLines={1} style={{ marginTop: 8, color: colors.text, fontSize: 13, fontFamily: fonts.semibold, textAlign: 'center', maxWidth: width }}>
         {name}
       </Text>
     </Pressable>
