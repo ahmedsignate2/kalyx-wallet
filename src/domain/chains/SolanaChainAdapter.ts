@@ -21,6 +21,7 @@ import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
 import { tryInOrder, withTimeout } from './net';
 import { buildTransferMessage, signAndSerialize } from './solTx';
+import { parseSolanaTx, type SolTxResponse } from './solHistory';
 
 const API_TIMEOUT_MS = 12_000;
 
@@ -70,9 +71,23 @@ export class SolanaChainAdapter implements ChainAdapter {
     };
   }
 
-  async getHistory(): Promise<TxSummary[]> {
-    // Réception seulement pour l'instant : historique Solana branché plus tard.
-    return [];
+  async getHistory(address: string): Promise<TxSummary[]> {
+    if (!isValidSolanaAddress(address)) return [];
+    // 1) Dernières signatures de l'adresse.
+    const sigs = await this.rpc<Array<{ signature: string }>>('getSignaturesForAddress', [address, { limit: 15 }]);
+    if (!Array.isArray(sigs) || sigs.length === 0) return [];
+    // 2) Détail de chaque tx (jsonParsed) → TxSummary via le parseur pur.
+    const txs = await Promise.all(
+      sigs.map((s) =>
+        this.rpc<SolTxResponse>('getTransaction', [
+          s.signature,
+          { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 },
+        ]).catch(() => null),
+      ),
+    );
+    return txs
+      .map((tx) => (tx ? parseSolanaTx(address, tx) : null))
+      .filter((x): x is TxSummary => x !== null);
   }
 
   /** Validation HORS-LIGNE d'un envoi SOL : adresse base58 valide + montant > 0. */
