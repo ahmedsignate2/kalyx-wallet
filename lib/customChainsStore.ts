@@ -5,7 +5,7 @@
  */
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { registerChain, unregisterChain, type ChainConfig } from '../src';
+import { registerChain, unregisterChain, serializeNetworks, parseNetworksBackup, type ChainConfig } from '../src';
 
 const KEY = 'nova.customChains';
 
@@ -37,6 +37,10 @@ interface CustomChainsState {
   load: () => Promise<void>;
   add: (input: CustomChainInput) => { ok: boolean; error?: string };
   remove: (id: string) => void;
+  /** Sérialise les réseaux perso pour sauvegarde (partage/fichier). */
+  exportBackup: () => string;
+  /** Restaure des réseaux depuis une sauvegarde ; dédupe avec l'existant. */
+  importBackup: (text: string) => { ok: boolean; added: number; skipped: number; error?: string };
 }
 
 function persist(chains: ChainConfig[]) {
@@ -75,5 +79,19 @@ export const useCustomChains = create<CustomChainsState>((set, get) => ({
     const chains = get().chains.filter((c) => c.id !== id);
     set({ chains });
     persist(chains);
+  },
+
+  exportBackup: () => serializeNetworks(get().chains),
+
+  importBackup: (text) => {
+    const { chains: incoming, error } = parseNetworksBackup(text);
+    if (error) return { ok: false, added: 0, skipped: 0, error };
+    const existing = new Set(get().chains.map((c) => c.id));
+    const toAdd = incoming.filter((c) => !existing.has(c.id));
+    toAdd.forEach((c) => registerChain(c)); // actifs immédiatement dans le registre
+    const chains = [...get().chains, ...toAdd];
+    set({ chains });
+    persist(chains);
+    return { ok: true, added: toAdd.length, skipped: incoming.length - toAdd.length };
   },
 }));
