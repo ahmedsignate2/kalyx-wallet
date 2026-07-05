@@ -12,7 +12,7 @@ Deux couches strictement séparées :
 
 - **`src/` = le MOTEUR** (pur TypeScript, **testé**, aucune dépendance UI). Crypto,
   dérivation, chaînes, prix, swap, tokens, NFT. Exporté via le **barrel `src/index.ts`**.
-  L'app n'importe QUE depuis `../src`. **235 tests jest** (vecteurs de référence +
+  L'app n'importe QUE depuis `../src`. **244 tests jest** (vecteurs de référence +
   cross-check @scure/ethers). Testé via `npm test`.
 - **`app/` (écrans expo-router)**, **`lib/` (stores zustand, logique app)**,
   **`ui/` (design system)** = la couche APP. Non testée par jest, mais typecheckée
@@ -127,7 +127,7 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
 - ✅ **Onboarding premium** (2026-07-04) : `welcome` (hero animé lion + stagger),
   `backup` (voile « appuie pour révéler » + avertissement + grille glass),
   `verify` (cartes glass + coche verte), `import` (bouton Coller + compteur).
-  ⚠️ `set-pin` reste en TextInput brut → à passer sur PinPad (2 étapes) plus tard.
+  ✅ `set-pin` et `change-pin` sont désormais sur **PinPad** (fait 2026-07-05, cf. §3).
 - ✅ **Révocation d'approbations** (2026-07-04, façon revoke.cash) :
   `src/domain/approvals/approvals.ts` (helpers purs, 6 tests) +
   `EvmChainAdapter.getApprovals(owner, tokens)` (logs Approval → allowance) +
@@ -141,7 +141,16 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   vérif live). Câblé : **envoi** (saisir `vitalik.eth` → résout l'adresse, débruité,
   ✓ sous le champ, confirmation nom+adresse, adresse résolue signée) ; **historique**
   (`ui/TxRow.tsx`) et **contacts** via le hook `lib/useEns.ts` (`useEnsName`/`useEnsAvatar`).
-- Prochaine priorité UI : finir `set-pin`/`change-pin` au **PinPad** (encore TextInput brut).
+- ✅ ~~`set-pin`/`change-pin` au PinPad~~ (fait 2026-07-05) : flux multi-étapes sur le
+  PinPad premium (set-pin : créer → confirmer ; change-pin : ancien → nouveau →
+  confirmer, WRONG_PIN renvoie à l'étape 1). Plus AUCUN écran PIN en TextInput brut.
+- ✅ ~~Sauvegarde des réseaux perso~~ (fait 2026-07-05) : un réseau EVM custom n'est
+  pas dérivable de la seed → export/import portable (Développeur → Réseaux perso :
+  « Sauvegarder » via Share, « Restaurer » depuis le presse-papier). Moteur pur
+  `src/domain/chains/customNetworks.ts` (enveloppe versionnée, validation EVM, dédup ;
+  9 tests) + `customChainsStore.exportBackup/importBackup`. Données non sensibles (pas
+  de chiffrement). Survit à une réinstallation (les fonds restent on-chain).
+- Prochaine priorité UI : passe d'anim onboarding backup/verify/import ; icône store PNG.
 
 ### Marque & onboarding (2026-07-04)
 - ✅ **Le lion est l'emblème de Nova** : `ui/NovaLogo.tsx` (SVG géométrique,
@@ -152,7 +161,7 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   Phantom), monté dans `_layout` par-dessus tout.
 - ✅ **Déverrouillage repensé** `app/unlock.tsx` + `ui/PinPad.tsx` (points animés,
   pavé numérique haptique, secousse à l'erreur, bouton biométrie). PinPad
-  RÉUTILISABLE → à brancher sur set-pin/change-pin (encore en TextInput brut).
+  RÉUTILISABLE → branché sur unlock, set-pin ET change-pin (2026-07-05).
 - ✅ **FIX double empreinte** : le déverrouillage appelait `authenticate()` PUIS
   lisait un secret SecureStore `requireAuthentication` (= 2 prompts). L'appel
   explicite est retiré ; la lecture gated EST le prompt unique. Ne PAS le
@@ -169,7 +178,7 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   (`ExpoPushTokenManager`). `lib/notifications.ts` teste la présence native via
   `requireOptionalNativeModule` AVANT d'importer. NE PAS réimporter en dur.
 - Reste onboarding : passe d'anim sur backup/verify/import ; empty states illustrés ;
-  brancher PinPad sur set-pin/change-pin (encore en TextInput) ; icône store PNG.
+  icône store PNG.
 
 ### Gros morceaux (rebuild / partenaires)
 - ✅ ~~Navigateur Web3 intégré~~ (code fait 2026-07-04, **actif après rebuild**) :
