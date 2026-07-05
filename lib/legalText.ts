@@ -2,11 +2,11 @@
  * Textes légaux (source unique) : rendus dans l'écran Légal in-app ET recopiés
  * dans PRIVACY.md / TERMS.md pour hébergement (URL requise par le Play Store).
  *
- * ⚠️ BROUILLONS à faire relire : remplace [ÉDITEUR], [CONTACT], [PAYS] et fais
- * valider par un juriste avant une mise en production réelle avec de vrais fonds.
+ * ⚠️ BROUILLONS à faire relire : remplace [PAYS] et fais valider par un juriste
+ * avant une mise en production réelle avec de vrais fonds.
  */
 export const LEGAL_UPDATED = '5 juillet 2026';
-export const LEGAL_PUBLISHER = '[ÉDITEUR — ton nom ou « Malin »]';
+export const LEGAL_PUBLISHER = 'Malin Inc.';
 export const LEGAL_CONTACT = 'amsssr400@gmail.com';
 
 export interface LegalSection {
