@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, TextInput, Alert, Pressable, Image, Animated, Vibration, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Alert, Pressable, Image, Animated, Vibration, ActivityIndicator, ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
 import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
@@ -134,6 +134,7 @@ export default function Swap() {
 
   const [from, setFrom] = useState(0);
   const [to, setTo] = useState(1);
+  const [toChain, setToChain] = useState(activeChain); // chaîne de destination (bridge)
   const [amount, setAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -169,7 +170,7 @@ export default function Swap() {
         <GlassCard>
           <Text style={typography.bodyStrong}>Swap indisponible ici</Text>
           <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-            Le swap fonctionne sur Ethereum, Polygon, Base et BNB. Change de réseau depuis l’accueil.
+            Le swap/bridge fonctionne sur les réseaux EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast). Change de réseau depuis l’accueil.
           </Text>
         </GlassCard>
       </PremiumScreen>
@@ -177,17 +178,27 @@ export default function Swap() {
   }
 
   const fromTok = tokens[from];
-  const toTok = tokens[to];
+  const toTokens = TOKENS[toChain] ?? [];
+  const toTok = toTokens[to] ?? toTokens[0];
+  const isBridge = toChain !== activeChain;
+  const toChainCfg = getAdapter(toChain).config;
+  const bridgeChains = Object.keys(TOKENS);
 
   const flip = () => {
+    if (isBridge) return; // l'inversion n'a de sens qu'à chaîne égale
     setFrom(to);
     setTo(from);
+    reset();
+  };
+  const pickToChain = (id: string) => {
+    setToChain(id);
+    setTo(0);
     reset();
   };
 
   const onQuote = async () => {
     reset();
-    if (from === to) {
+    if (!isBridge && fromTok.address === toTok.address) {
       setError('Choisis deux tokens différents.');
       return;
     }
@@ -202,7 +213,7 @@ export default function Swap() {
     try {
       const q = await getSwapQuote({
         fromChainId: chain.evmChainId!,
-        toChainId: chain.evmChainId!,
+        toChainId: toChainCfg.evmChainId!,
         fromToken: fromTok.address,
         toToken: toTok.address,
         fromAmount: raw,
@@ -224,11 +235,11 @@ export default function Swap() {
     const recv = formatBalance(quote.toAmount, quote.toToken.decimals, 6);
     const min = formatBalance(quote.toAmountMin, quote.toToken.decimals, 6);
     Alert.alert(
-      'Confirmer le swap',
-      `Tu envoies : ${amount} ${fromTok.symbol}\nTu reçois ≈ ${recv} ${toTok.symbol}\nMinimum : ${min} ${toTok.symbol}\nRéseau : ${chain.name}`,
+      isBridge ? 'Confirmer le bridge' : 'Confirmer le swap',
+      `Tu envoies : ${amount} ${fromTok.symbol} (${chain.name})\nTu reçois ≈ ${recv} ${toTok.symbol} (${toChainCfg.name})\nMinimum : ${min} ${toTok.symbol}${isBridge ? '\n\n⏳ Un bridge peut prendre quelques minutes.' : ''}`,
       [
         { text: t('cancel'), style: 'cancel' },
-        { text: 'Échanger', onPress: submit },
+        { text: isBridge ? 'Bridger' : 'Échanger', onPress: submit },
       ],
     );
   };
@@ -265,7 +276,7 @@ export default function Swap() {
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: chain.name }} />
+      <Stack.Screen options={{ headerShown: true, title: 'Échanger & Bridge' }} />
 
       {/* De */}
       <GlassCard glow>
@@ -289,23 +300,38 @@ export default function Swap() {
 
       {/* Bouton d'inversion (halo au toucher) */}
       <View style={{ alignItems: 'center', marginVertical: -spacing(1.75), zIndex: 2 }}>
-        <Pressable onPress={flip} style={({ pressed }) => [
-          { width: 52, height: 52, borderRadius: radii.pill, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: pressed ? colors.accent : colors.glassBorder, alignItems: 'center', justifyContent: 'center' },
+        <Pressable onPress={flip} disabled={isBridge} style={({ pressed }) => [
+          { width: 52, height: 52, borderRadius: radii.pill, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: pressed ? colors.accent : colors.glassBorder, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.4 : 1 },
           pressed ? { shadowColor: colors.accent, shadowOpacity: 0.7, shadowRadius: 14, elevation: 10 } : null,
         ]}>
-          <Icon name="convert" size={22} color={colors.accent} />
+          <Icon name={isBridge ? 'convert' : 'convert'} size={22} color={colors.accent} />
         </Pressable>
       </View>
 
       {/* Vers */}
       <GlassCard>
-        <Text style={typography.muted}>Vers (estimé)</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={typography.muted}>Vers (estimé)</Text>
+          {isBridge ? <Text style={{ color: colors.accent, fontSize: 12, fontFamily: fonts.semibold }}>🌉 Bridge</Text> : null}
+        </View>
         <Text style={{ color: quote ? colors.text : colors.textMuted, fontSize: 32, fontFamily: fonts.extrabold, paddingVertical: spacing(0.5) }}>
           {quote ? formatBalance(quote.toAmount, quote.toToken.decimals, 6) : '—'}
         </Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
-          {tokens.map((tk, i) => (
-            <TokenPill key={tk.symbol} chainId={activeChain} tok={tk} selected={i === to} onPress={() => { setTo(i); reset(); }} />
+        {/* Chaîne de destination */}
+        <Text style={[typography.muted, { fontSize: 12, marginTop: 4 }]}>Réseau de destination</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(1), paddingVertical: spacing(1) }}>
+          {bridgeChains.map((id) => {
+            const on = id === toChain;
+            return (
+              <Pressable key={id} onPress={() => pickToChain(id)} style={{ paddingVertical: spacing(0.75), paddingHorizontal: spacing(1.5), borderRadius: radii.pill, backgroundColor: on ? colors.accent : colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}>
+                <Text style={{ color: on ? '#fff' : colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{getAdapter(id).config.name}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(0.5) }}>
+          {toTokens.map((tk, i) => (
+            <TokenPill key={tk.symbol} chainId={toChain} tok={tk} selected={i === to} onPress={() => { setTo(i); reset(); }} />
           ))}
         </View>
       </GlassCard>
