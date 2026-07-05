@@ -26,7 +26,7 @@ const chevron = <Icon name="chevron" size={18} tone="faint" />;
 export default function Settings() {
   const { colors, typography } = useTheme();
   const t = useT();
-  const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled, themePref, setThemePref, notifTx, notifPrice, setNotifPref } =
+  const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled, themePref, setThemePref, notifTx, notifPrice, setNotifPref, autoLockMinutes, setAutoLock } =
     useSettings();
   const enableBiometric = useWallet((s) => s.enableBiometric);
   const disableBiometric = useWallet((s) => s.disableBiometric);
@@ -162,6 +162,28 @@ export default function Settings() {
             <Switch value={biometricEnabled} onValueChange={onToggleBio} />
           </View>
         ) : null}
+        {/* Verrouillage automatique */}
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+            <Ico n="security" />
+            <View style={{ flex: 1 }}>
+              <Text style={typography.body}>Verrouillage auto</Text>
+              <Text style={typography.muted}>Reverrouille après un temps en arrière-plan.</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
+            {([
+              { label: 'Immédiat', m: 0 },
+              { label: '1 min', m: 1 },
+              { label: '3 min', m: 3 },
+              { label: '5 min', m: 5 },
+              { label: '15 min', m: 15 },
+              { label: 'Jamais', m: -1 },
+            ] as const).map((o) => (
+              <Chip key={o.m} label={o.label} tone={autoLockMinutes === o.m ? 'accent' : 'neutral'} onPress={() => setAutoLock(o.m)} />
+            ))}
+          </View>
+        </View>
         <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
         <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
       </GlassCard>
