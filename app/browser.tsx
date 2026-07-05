@@ -12,7 +12,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GlassCard, ErrorBox, PressableScale } from '../ui/premium';
+import { GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
@@ -478,14 +478,9 @@ export default function Browser() {
             {favorites.length > 0 ? (
               <View style={{ gap: spacing(1.25) }}>
                 <Text style={typography.section}>Favoris</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 18 }}>
                   {favorites.map((f) => (
-                    <PressableScale key={f.host} onPress={() => go(f.url, f.title)} style={{ width: '30%' }}>
-                      <GlassCard style={{ alignItems: 'center', paddingVertical: spacing(1.5), paddingHorizontal: spacing(0.5), gap: 8, borderRadius: radii.lg }}>
-                        <Favicon host={f.host} size={52} color={colors.glassStrong} label={f.host.slice(0, 1).toUpperCase()} />
-                        <Text style={[typography.bodyStrong, { fontSize: 12.5 }]} numberOfLines={1}>{f.title}</Text>
-                      </GlassCard>
-                    </PressableScale>
+                    <Tile key={f.host} host={f.host} name={f.title || f.host} color={colors.glassStrong} onPress={() => go(f.url, f.title)} />
                   ))}
                 </View>
               </View>
@@ -493,18 +488,18 @@ export default function Browser() {
 
             <View style={{ gap: spacing(1.25) }}>
               <Text style={typography.section}>Sites populaires</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 18 }}>
                 {SUGGESTED.map((d) => (
-                  <DappTile key={d.url} dapp={d} onPress={() => go(d.url, d.name)} />
+                  <Tile key={d.url} host={d.domain} name={d.name} color={d.color} emoji={d.emoji} onPress={() => go(d.url, d.name)} />
                 ))}
               </View>
             </View>
 
             <View style={{ gap: spacing(1.25) }}>
               <Text style={typography.section}>Collections tendance</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 18 }}>
                 {COLLECTIONS.map((d) => (
-                  <DappTile key={d.url} dapp={d} onPress={() => go(d.url, d.name)} />
+                  <Tile key={d.url} host={d.domain} name={d.name} color={d.color} emoji={d.emoji} onPress={() => go(d.url, d.name)} />
                 ))}
               </View>
             </View>
@@ -727,7 +722,9 @@ function MenuRow({ icon, label, onPress }: { icon: Parameters<typeof Icon>[0]['n
 function Favicon({ host, size, color, label, emoji }: { host: string; size: number; color: string; label?: string; emoji?: string }) {
   const { colors } = useTheme();
   const [failed, setFailed] = useState(false);
-  const radius = Math.round(size * 0.28); // carré arrondi, pas un cercle
+  // Carré à coins arrondis (radius ~ 32 %) — jamais un cercle ni une capsule.
+  const radius = Math.round(size * 0.32);
+  const imgSize = Math.round(size * 0.71); // logo centré, marge autour
   if (failed || !host) {
     return (
       <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
@@ -741,22 +738,25 @@ function Favicon({ host, size, color, label, emoji }: { host: string; size: numb
         source={{ uri: faviconUrl(host) }}
         onError={() => setFailed(true)}
         resizeMode="contain"
-        style={{ width: size * 0.72, height: size * 0.72 }}
+        style={{ width: imgSize, height: imgSize }}
       />
     </View>
   );
 }
 
-/** Tuile d'un site populaire : logo carré + nom (forme carrée, pas capsule). */
-function DappTile({ dapp, onPress }: { dapp: Dapp; onPress: () => void }) {
-  const { typography } = useTheme();
+/**
+ * Tuile carrée d'un raccourci (site / collection / favori) : conteneur à
+ * dimensions FIXES (96×108) → le logo n'est jamais étiré en capsule.
+ */
+function Tile({ host, name, color, emoji, onPress }: { host: string; name: string; color: string; emoji?: string; onPress: () => void }) {
+  const { colors } = useTheme();
   return (
-    <PressableScale onPress={onPress} style={{ width: '30%' }}>
-      <GlassCard style={{ alignItems: 'center', paddingVertical: spacing(1.5), paddingHorizontal: spacing(0.5), gap: 8, borderRadius: radii.lg }}>
-        <Favicon host={dapp.domain} size={52} color={dapp.color} emoji={dapp.emoji} />
-        <Text style={[typography.bodyStrong, { fontSize: 12.5 }]} numberOfLines={1}>{dapp.name}</Text>
-      </GlassCard>
-    </PressableScale>
+    <Pressable onPress={onPress} style={({ pressed }) => ({ width: 96, minHeight: 108, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}>
+      <Favicon host={host} size={56} color={color} emoji={emoji} label={name.slice(0, 1).toUpperCase()} />
+      <Text numberOfLines={1} style={{ marginTop: 8, color: colors.text, fontSize: 13, fontFamily: fonts.semibold, textAlign: 'center', maxWidth: 88 }}>
+        {name}
+      </Text>
+    </Pressable>
   );
 }
 
