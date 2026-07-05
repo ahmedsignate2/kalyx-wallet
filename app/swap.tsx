@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Alert, Pressable, Image, Animated, Vibration, ActivityIndicator, ScrollView } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { SuccessModal } from '../ui/SuccessModal';
@@ -13,6 +13,7 @@ import { friendlyTxError } from '../lib/txError';
 import { useT } from '../lib/settingsStore';
 import {
   getAdapter,
+  getErc20Tokens,
   getSwapQuote,
   parseAmount,
   formatBalance,
@@ -26,6 +27,7 @@ interface Tok {
   symbol: string;
   address: string;
   decimals: number;
+  logo?: string; // logo direct (tokens détenus via Alchemy) ; sinon dérivé de TrustWallet
 }
 
 const TOKENS: Record<string, Tok[]> = {
@@ -90,6 +92,7 @@ const TW_NATIVE: Record<string, string> = { ethereum: 'ethereum', polygon: 'poly
 const TW = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains';
 
 function logoFor(novaChain: string, tok: Tok): string {
+  if (tok.logo) return tok.logo; // logo fourni par Alchemy pour les tokens détenus
   if (tok.address === NATIVE_TOKEN) return `${TW}/${TW_NATIVE[novaChain]}/info/logo.png`;
   return `${TW}/${TW_CHAIN[novaChain]}/assets/${tok.address}/logo.png`;
 }
@@ -145,7 +148,41 @@ export default function Swap() {
   const [step, setStep] = useState<string | null>(null);
   // Succès : hash + résumé (capturés avant reset) pour l'écran animé.
   const [success, setSuccess] = useState<{ hash: string; summary: string } | null>(null);
+  const [held, setHeld] = useState<Tok[]>([]);
+  const params = useLocalSearchParams<{ contract?: string }>();
   const shakeX = useRef(new Animated.Value(0)).current;
+
+  // Tokens réellement détenus sur la chaîne active → swappables même hors liste curée.
+  useEffect(() => {
+    let cancelled = false;
+    setHeld([]);
+    if (chain.family !== 'evm' || !account?.address) return;
+    getErc20Tokens(chain, account.address)
+      .then((detected) => {
+        if (!cancelled)
+          setHeld(detected.map((tk) => ({ symbol: tk.symbol, address: tk.contract, decimals: tk.decimals, logo: tk.logo })));
+      })
+      .catch(() => {
+        if (!cancelled) setHeld([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChain, account?.address]);
+
+  // Liste source = tokens curés + tokens détenus non déjà listés (dédupliqués par adresse).
+  const curated = TOKENS[activeChain] ?? [];
+  const curatedAddrs = new Set(curated.map((tk) => tk.address.toLowerCase()));
+  const fromTokens = [...curated, ...held.filter((tk) => !curatedAddrs.has(tk.address.toLowerCase()))];
+
+  // Pré-sélection si on arrive depuis le portefeuille avec un token précis.
+  useEffect(() => {
+    if (!params.contract) return;
+    const idx = fromTokens.findIndex((tk) => tk.address.toLowerCase() === String(params.contract).toLowerCase());
+    if (idx >= 0) setFrom(idx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.contract, fromTokens.length]);
 
   const shakePin = () => {
     Vibration.vibrate(80);
@@ -177,7 +214,7 @@ export default function Swap() {
     );
   }
 
-  const fromTok = tokens[from];
+  const fromTok = fromTokens[from] ?? fromTokens[0];
   const toTokens = TOKENS[toChain] ?? [];
   const toTok = toTokens[to] ?? toTokens[0];
   const isBridge = toChain !== activeChain;
@@ -292,8 +329,8 @@ export default function Swap() {
           style={{ color: colors.text, fontSize: 32, fontFamily: fonts.extrabold, paddingVertical: spacing(0.5) }}
         />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
-          {tokens.map((tk, i) => (
-            <TokenPill key={tk.symbol} chainId={activeChain} tok={tk} selected={i === from} onPress={() => { setFrom(i); reset(); }} />
+          {fromTokens.map((tk, i) => (
+            <TokenPill key={`${tk.address}-${tk.symbol}`} chainId={activeChain} tok={tk} selected={i === from} onPress={() => { setFrom(i); reset(); }} />
           ))}
         </View>
       </GlassCard>
