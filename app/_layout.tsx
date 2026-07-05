@@ -7,6 +7,7 @@ import { useWallet } from '../lib/walletStore';
 import { useSettings } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
 import { useContacts } from '../lib/contactsStore';
+import { useNotifCenter } from '../lib/notificationCenter';
 import { useWalletConnect } from '../lib/walletconnect';
 import {
   useFonts,
@@ -47,6 +48,7 @@ export default function RootLayout() {
   const loadSettings = useSettings((s) => s.load);
   const loadCustomTokens = useCustomTokens((s) => s.load);
   const loadContacts = useContacts((s) => s.load);
+  const loadNotifs = useNotifCenter((s) => s.load);
   const initWalletConnect = useWalletConnect((s) => s.init);
 
   useEffect(() => {
@@ -62,6 +64,7 @@ export default function RootLayout() {
         await loadSettings();
         await loadCustomTokens();
         await loadContacts();
+        await loadNotifs();
         console.log('[Nova] loadSettings OK');
       } catch (e) {
         console.error('[Nova] loadSettings a échoué :', e);
@@ -72,7 +75,7 @@ export default function RootLayout() {
         console.error('[Nova] WalletConnect init a échoué :', e);
       }
     })();
-  }, [bootstrap, loadSettings, loadCustomTokens, loadContacts, initWalletConnect]);
+  }, [bootstrap, loadSettings, loadCustomTokens, loadContacts, loadNotifs, initWalletConnect]);
 
   if (!fontsLoaded) return null;
 

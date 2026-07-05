@@ -4,7 +4,8 @@ import { Stack } from 'expo-router';
 import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { SuccessModal } from '../ui/SuccessModal';
-import { notify } from '../lib/notifications';
+import { notifyAndLog } from '../lib/notificationCenter';
+import { watchConfirmation } from '../lib/txWatch';
 import { Icon } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet, type SwapStatus } from '../lib/walletStore';
@@ -218,7 +219,8 @@ export default function Swap() {
       reset();
       setAmount('');
       setSuccess({ hash, summary });
-      void notify('Swap envoyé ✅', summary);
+      notifyAndLog('tx', 'Swap envoyé', summary);
+      void watchConfirmation(activeChain, hash, summary); // notif à la confirmation
     } catch (e) {
       if (isWalletError(e) && e.code === 'WRONG_PIN') {
         shakePin();
