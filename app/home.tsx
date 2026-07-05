@@ -24,6 +24,7 @@ import {
 import { AppTabBar } from '../ui/tabs';
 import { TxRow } from '../ui/TxRow';
 import { CountUp } from '../ui/CountUp';
+import { FadeInUp } from '../ui/FadeInUp';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -317,19 +318,20 @@ export default function Home() {
             [0, 1, 2, 3].map((i) => <SkeletonRow key={i} divider={i > 0} />)
           ) : (
             displayedMarkets.map((m, i) => (
-              <MarketRow
-                key={m.id}
-                divider={i > 0}
-                icon={m.symbol.slice(0, 1)}
-                color={colors.glassStrong}
-                imageUri={m.image}
-                name={m.name}
-                symbol={m.symbol}
-                price={`${money(m.price, m.price >= 100 ? 0 : 2)} ${fiatSymbol(fiat)}`}
-                change={m.change24h}
-                spark={m.sparkline}
-                onPress={() => router.push(`/token/${m.id}`)}
-              />
+              <FadeInUp key={m.id} delay={Math.min(i, 8) * 45}>
+                <MarketRow
+                  divider={i > 0}
+                  icon={m.symbol.slice(0, 1)}
+                  color={colors.glassStrong}
+                  imageUri={m.image}
+                  name={m.name}
+                  symbol={m.symbol}
+                  price={`${money(m.price, m.price >= 100 ? 0 : 2)} ${fiatSymbol(fiat)}`}
+                  change={m.change24h}
+                  spark={m.sparkline}
+                  onPress={() => router.push(`/token/${m.id}`)}
+                />
+              </FadeInUp>
             ))
           )}
         </GlassCard>
