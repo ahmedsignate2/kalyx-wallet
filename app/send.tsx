@@ -9,7 +9,7 @@ import { watchConfirmation } from '../lib/txWatch';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
-import { getAdapter, isWalletError, isValidEvmAddress, isValidSolanaAddress, parseAmount } from '../src';
+import { getAdapter, isWalletError, isValidEvmAddress, isValidSolanaAddress, parseAmount, looksLikeEnsName, resolveEnsName } from '../src';
 
 export default function Send() {
   const { colors, typography } = useTheme();
@@ -44,18 +44,52 @@ export default function Send() {
   // Succès : hash + résumé de ce qui vient d'être envoyé (pour l'écran animé).
   const [success, setSuccess] = useState<{ hash: string; summary: string } | null>(null);
 
+  // Résolution ENS (mainnet, EVM uniquement) : `vitalik.eth` → adresse.
+  const isEvm = chain.family === 'evm';
+  const isEnsInput = isEvm && looksLikeEnsName(to);
+  const [ens, setEns] = useState<{ status: 'idle' | 'resolving' | 'found' | 'notfound'; address: string | null }>({ status: 'idle', address: null });
+  useEffect(() => {
+    if (!isEnsInput) {
+      setEns({ status: 'idle', address: null });
+      return;
+    }
+    let cancelled = false;
+    setEns({ status: 'resolving', address: null });
+    const name = to.trim();
+    const timer = setTimeout(() => {
+      resolveEnsName(name)
+        .then((addr) => {
+          if (cancelled) return;
+          setEns(addr ? { status: 'found', address: addr } : { status: 'notfound', address: null });
+        })
+        .catch(() => !cancelled && setEns({ status: 'notfound', address: null }));
+    }, 400); // débruitage : on attend une pause de frappe
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [to, isEnsInput]);
+
+  // Adresse réellement utilisée : l'adresse résolue si la saisie est un nom ENS.
+  const recipient = isEnsInput ? ens.address ?? '' : to.trim();
+
   const onReview = () => {
     setError(null);
+    // Si la saisie est un nom ENS, il faut une adresse résolue avant de continuer.
+    if (isEnsInput && !ens.address) {
+      setError(ens.status === 'resolving' ? 'Résolution du nom ENS en cours…' : 'Nom ENS introuvable.');
+      return;
+    }
     try {
       // Validation hors-ligne immédiate (adresse + montant).
       if (token?.kind === 'spl') {
-        if (!isValidSolanaAddress(to)) throw new Error('Adresse Solana du destinataire invalide.');
+        if (!isValidSolanaAddress(recipient)) throw new Error('Adresse Solana du destinataire invalide.');
         parseAmount(amount, token.decimals);
       } else if (token?.kind === 'erc20') {
-        if (!isValidEvmAddress(to)) throw new Error('Adresse du destinataire invalide.');
+        if (!isValidEvmAddress(recipient)) throw new Error('Adresse du destinataire invalide.');
         parseAmount(amount, token.decimals); // lève si le montant est mal formé
       } else {
-        getAdapter(activeChain).buildTransfer({ to, amount });
+        getAdapter(activeChain).buildTransfer({ to: recipient, amount });
       }
     } catch (e) {
       setError(isWalletError(e) ? e.message : e instanceof Error ? e.message : 'Saisie invalide');
@@ -65,9 +99,11 @@ export default function Send() {
       setError('Entre ton PIN pour signer.');
       return;
     }
+    // Sur un envoi ENS, on montre le nom ET l'adresse résolue (anti-erreur).
+    const toLine = isEnsInput ? `À : ${to.trim()}\n(${recipient})` : `À : ${recipient}`;
     Alert.alert(
       "Confirmer l'envoi",
-      `Réseau : ${chain.name}\nMontant : ${amount} ${symbol}\nÀ : ${to}`,
+      `Réseau : ${chain.name}\nMontant : ${amount} ${symbol}\n${toLine}`,
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Envoyer', onPress: submit },
@@ -81,12 +117,14 @@ export default function Send() {
     try {
       const hash =
         token?.kind === 'spl'
-          ? await sendSolToken(to, amount, { mint: token.mint, decimals: token.decimals }, { pin })
+          ? await sendSolToken(recipient, amount, { mint: token.mint, decimals: token.decimals }, { pin })
           : token?.kind === 'erc20'
-            ? await sendToken(to, amount, { contract: token.contract, decimals: token.decimals }, { pin })
-            : await signAndSend(to, amount, { pin });
+            ? await sendToken(recipient, amount, { contract: token.contract, decimals: token.decimals }, { pin })
+            : await signAndSend(recipient, amount, { pin });
       setPin('');
-      const summary = `${amount} ${symbol} envoyés à ${to.slice(0, 8)}…${to.slice(-6)}`;
+      // Résumé : on privilégie le nom ENS s'il y en a un, sinon l'adresse tronquée.
+      const dest = isEnsInput ? to.trim() : `${recipient.slice(0, 8)}…${recipient.slice(-6)}`;
+      const summary = `${amount} ${symbol} envoyés à ${dest}`;
       setSuccess({ hash, summary });
       notifyAndLog('tx', 'Transaction envoyée', summary);
       void watchConfirmation(activeChain, hash, summary); // notif à la confirmation
@@ -127,6 +165,22 @@ export default function Send() {
           autoCorrect={false}
           style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }}
         />
+        {isEnsInput ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(0.5) }}>
+            {ens.status === 'resolving' ? (
+              <Text style={{ color: colors.textMuted, fontFamily: fonts.medium }}>Résolution ENS…</Text>
+            ) : ens.status === 'found' && ens.address ? (
+              <>
+                <Icon name="check" size={14} color={colors.success} />
+                <Text style={{ color: colors.success, fontFamily: fonts.semibold }}>
+                  {ens.address.slice(0, 10)}…{ens.address.slice(-8)}
+                </Text>
+              </>
+            ) : ens.status === 'notfound' ? (
+              <Text style={{ color: colors.danger, fontFamily: fonts.medium }}>Nom ENS introuvable</Text>
+            ) : null}
+          </View>
+        ) : null}
       </Card>
 
       <Card>
