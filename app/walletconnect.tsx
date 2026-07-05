@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWalletConnect } from '../lib/walletconnect';
+import { useDappActivity, type SigKind } from '../lib/dappActivity';
 import { toast } from '../lib/toast';
+
+const SIG_LABEL: Record<SigKind, string> = { sign: 'Signature de message', typedData: 'Signature de données', tx: 'Transaction' };
+function ago(ts: number): string {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return "à l'instant";
+  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
+  return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+}
 
 export default function WalletConnectScreen() {
   const { colors, typography } = useTheme();
@@ -13,6 +23,12 @@ export default function WalletConnectScreen() {
   const sessions = useWalletConnect((s) => s.sessions);
   const pair = useWalletConnect((s) => s.pair);
   const disconnect = useWalletConnect((s) => s.disconnect);
+
+  const connections = useDappActivity((s) => s.connections);
+  const signatures = useDappActivity((s) => s.signatures);
+  const removeConnection = useDappActivity((s) => s.removeConnection);
+  const loadActivity = useDappActivity((s) => s.load);
+  useEffect(() => { loadActivity(); }, [loadActivity]);
 
   const [uri, setUri] = useState('');
   const [busy, setBusy] = useState(false);
@@ -67,14 +83,14 @@ export default function WalletConnectScreen() {
       </Card>
       <Button label={busy ? 'Connexion…' : 'Connecter'} loading={busy || !ready} onPress={onConnect} />
 
-      <Text style={[typography.section, { marginTop: spacing(2) }]}>dApps connectées</Text>
       <ScrollView
         style={{ flex: 1, marginTop: spacing(1) }}
         contentContainerStyle={{ gap: spacing(1), paddingBottom: spacing(4) }}
         showsVerticalScrollIndicator={false}
       >
+        <Text style={[typography.section, { marginTop: spacing(1) }]}>Sessions WalletConnect</Text>
         {sessions.length === 0 ? (
-          <Muted>Aucune connexion active.</Muted>
+          <Muted>Aucune session WalletConnect active.</Muted>
         ) : (
           sessions.map((s) => (
             <Card key={s.topic} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -86,6 +102,40 @@ export default function WalletConnectScreen() {
             </Card>
           ))
         )}
+
+        {/* dApps connectées via le navigateur intégré */}
+        <Text style={[typography.section, { marginTop: spacing(2) }]}>dApps du navigateur</Text>
+        {connections.length === 0 ? (
+          <Muted>Aucune dApp connectée dans le navigateur.</Muted>
+        ) : (
+          connections.map((c) => (
+            <Card key={c.host} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={typography.body} numberOfLines={1}>{c.title || c.host}</Text>
+                <Muted>{c.host} · {ago(c.at)}</Muted>
+              </View>
+              <Text onPress={() => removeConnection(c.host)} style={{ color: colors.danger, fontFamily: fonts.semibold }}>Oublier</Text>
+            </Card>
+          ))
+        )}
+
+        {/* Journal des signatures/transactions (navigateur) */}
+        {signatures.length > 0 ? (
+          <>
+            <Text style={[typography.section, { marginTop: spacing(2) }]}>Signatures récentes</Text>
+            <Card style={{ gap: 0 }}>
+              {signatures.slice(0, 20).map((s, i) => (
+                <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.cardBorder }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={typography.body} numberOfLines={1}>{SIG_LABEL[s.kind]}</Text>
+                    <Muted>{s.host}</Muted>
+                  </View>
+                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>{ago(s.at)}</Text>
+                </View>
+              ))}
+            </Card>
+          </>
+        ) : null}
       </ScrollView>
     </Screen>
   );
