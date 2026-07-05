@@ -3,11 +3,24 @@ import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme } from '../ui/theme';
 import { useContacts } from '../lib/contactsStore';
+import { useEnsName } from '../lib/useEns';
 
 function shorten(a: string) {
   return a.length > 18 ? `${a.slice(0, 10)}…${a.slice(-6)}` : a;
+}
+
+/** Sous-titre d'un contact : nom ENS (si l'adresse en a un) + adresse tronquée. */
+function ContactSub({ address }: { address: string }) {
+  const { colors } = useTheme();
+  const ensName = useEnsName(address);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+      {ensName ? <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}>{ensName}</Text> : null}
+      <Muted>{shorten(address)}</Muted>
+    </View>
+  );
 }
 
 export default function Contacts() {
@@ -48,7 +61,7 @@ export default function Contacts() {
             <Card style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flex: 1 }}>
                 <Text style={typography.body}>{c.name}</Text>
-                <Muted>{shorten(c.address)}</Muted>
+                <ContactSub address={c.address} />
               </View>
               {!pickMode ? (
                 <Pressable onPress={() => remove(c.id)} hitSlop={10}>

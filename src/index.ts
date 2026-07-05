@@ -142,6 +142,15 @@ export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
 // DeFi / Staking — classification des tokens détenus
 export { classifyToken, type DefiKind, type DefiPosition } from './domain/defi/registry';
 
+// ENS — résolution de noms Ethereum (forward / reverse / avatar)
+export {
+  looksLikeEnsName,
+  resolveEnsName,
+  lookupEnsName,
+  resolveEnsAvatar,
+  type EnsProvider,
+} from './domain/ens/ens';
+
 // GoPlus Security — détection de risques avant signature
 export {
   assessAddress,
