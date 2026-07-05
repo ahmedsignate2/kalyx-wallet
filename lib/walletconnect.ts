@@ -83,7 +83,7 @@ interface WcState {
 
   init: () => Promise<void>;
   pair: (uri: string) => Promise<void>;
-  approveProposal: () => Promise<void>;
+  approveProposal: (pin: string) => Promise<void>;
   rejectProposal: () => Promise<void>;
   approveRequest: (pin: string) => Promise<void>;
   rejectRequest: () => Promise<void>;
@@ -130,11 +130,14 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     await get().wallet?.pair({ uri: uri.trim() });
   },
 
-  approveProposal: async () => {
+  approveProposal: async (pin) => {
     const { wallet, proposal } = get();
     if (!wallet || !proposal || !sdkUtils) return;
     const address = useWallet.getState().account?.address;
     if (!address) throw new Error('Aucun compte actif');
+    // Exige le PIN dès la connexion (parité avec le navigateur dApps intégré).
+    // Lève WRONG_PIN si incorrect → l'UI affiche l'erreur, aucune session ouverte.
+    await useWallet.getState().verifyPin(pin);
     const chains = evmChains();
     let namespaces: Record<string, unknown>;
     try {
