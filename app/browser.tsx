@@ -18,7 +18,7 @@ import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { NovaLogo } from '../ui/NovaLogo';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
-import { useWallet } from '../lib/walletStore';
+import { useWallet, type Unlock } from '../lib/walletStore';
 import { useSettings } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../lib/recentDapps';
@@ -43,6 +43,7 @@ import {
   summarizeTypedData,
   assessAddress,
   isPhishingSite,
+  isWalletError,
   type RawTxRequest,
   type RiskAssessment,
 } from '../src';
@@ -198,6 +199,7 @@ export default function Browser() {
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
   const setActiveChain = useWallet((s) => s.setActiveChain);
+  const biometricEnabled = useSettings((s) => s.biometricEnabled);
   const chain = getAdapter(activeChain).config;
   const chainIdHex = '0x' + (chain.evmChainId ?? 1).toString(16);
 
@@ -433,59 +435,64 @@ export default function Browser() {
     [account?.address, chain, chainIdHex, respond, inject, setActiveChain],
   );
 
-  const approve = async () => {
+  // Exécute l'action (connexion/signature/tx) avec biométrie OU PIN. LÈVE en cas
+  // d'échec (le prompt biométrique annulé lève → repli PIN géré par les appelants).
+  const perform = async (unlock: Unlock) => {
     if (!pending || !account) return;
     setError(null);
-    // PIN OBLIGATOIRE pour TOUTE action, y compris la connexion (sécurité).
-    if (pin.length < 6) {
-      setError('Entre ton PIN pour confirmer.');
-      return;
-    }
     const activity = useDappActivity.getState();
-
-    if (pending.kind === 'connect') {
-      setBusy(true);
-      try {
-        await useWallet.getState().verifyPin(pin); // lève si PIN faux
-      } catch {
-        setError('PIN incorrect');
-        setBusy(false);
-        return;
+    setBusy(true);
+    try {
+      if (pending.kind === 'connect') {
+        await useWallet.getState().verifyUnlock(unlock); // lève si refusé
+        connected.current.add(pending.origin);
+        respond(pending.tabId, pending.id, [account.address]);
+        inject(pending.tabId, emitJs('accountsChanged', [account.address]));
+        inject(pending.tabId, emitJs('connect', { chainId: chainIdHex }));
+        activity.addConnection({ host: pending.origin, url: `https://${pending.origin}`, title: activeTab?.title || pending.origin });
+        if (rememberSite) activity.remember(pending.origin); // reconnexion sans PIN ensuite
+        Vibration.vibrate(14);
+        toast.success('Connexion réussie', pending.origin);
+      } else {
+        const w = useWallet.getState();
+        let result: string;
+        if (pending.kind === 'sign') result = await w.signMessage(unlock, pending.hex);
+        else if (pending.kind === 'typedData') result = await w.signTypedData(unlock, pending.data as Parameters<typeof w.signTypedData>[1]);
+        else result = await w.sendRawTxOn(unlock, activeChain, pending.raw);
+        respond(pending.tabId, pending.id, result);
+        activity.addSignature({ host: pending.origin, kind: pending.kind === 'tx' ? 'tx' : pending.kind === 'typedData' ? 'typedData' : 'sign' });
+        Vibration.vibrate(14);
+        toast.success(pending.kind === 'tx' ? 'Transaction envoyée' : 'Signature envoyée', pending.origin);
       }
-      connected.current.add(pending.origin);
-      respond(pending.tabId, pending.id, [account.address]);
-      inject(pending.tabId, emitJs('accountsChanged', [account.address]));
-      inject(pending.tabId, emitJs('connect', { chainId: chainIdHex }));
-      activity.addConnection({ host: pending.origin, url: `https://${pending.origin}`, title: activeTab?.title || pending.origin });
-      if (rememberSite) activity.remember(pending.origin); // reconnexion sans PIN ensuite
-      Vibration.vibrate(14);
-      toast.success('Connexion réussie', pending.origin);
       setPending(null);
       setPin('');
       setRememberSite(false);
-      setBusy(false);
-      return;
-    }
-
-    setBusy(true);
-    try {
-      const w = useWallet.getState();
-      let result: string;
-      if (pending.kind === 'sign') result = await w.signMessage({ pin }, pending.hex);
-      else if (pending.kind === 'typedData') result = await w.signTypedData({ pin }, pending.data as Parameters<typeof w.signTypedData>[1]);
-      else result = await w.sendRawTxOn({ pin }, activeChain, pending.raw);
-      respond(pending.tabId, pending.id, result);
-      activity.addSignature({ host: pending.origin, kind: pending.kind === 'tx' ? 'tx' : pending.kind === 'typedData' ? 'typedData' : 'sign' });
-      Vibration.vibrate(14);
-      toast.success(pending.kind === 'tx' ? 'Transaction envoyée' : 'Signature envoyée', pending.origin);
-      setPending(null);
-      setPin('');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Signature impossible.');
     } finally {
       setBusy(false);
     }
   };
+
+  // Validation par PIN (repli) : gère l'erreur à l'écran plutôt que de lever.
+  const submitPin = async () => {
+    if (pin.length < 6) {
+      setError('Entre ton PIN pour confirmer.');
+      return;
+    }
+    try {
+      await perform({ pin });
+    } catch (e) {
+      setError(isWalletError(e) && e.code === 'WRONG_PIN' ? 'PIN incorrect' : e instanceof Error ? e.message : 'Action impossible.');
+    }
+  };
+
+  // Biométrie AUTO à l'ouverture d'une demande (si activée) ; annulation = PIN.
+  useEffect(() => {
+    if (!pending || !biometricEnabled) return;
+    void perform({ biometric: true }).catch(() => {
+      /* annulée / non configurée → l'utilisateur saisit son PIN */
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending?.id]);
 
   const deny = () => {
     if (pending) reject(pending.tabId, pending.id);
@@ -921,14 +928,25 @@ export default function Browser() {
               )}
 
               <GlassCard>
-                <Text style={typography.muted}>PIN</Text>
+                <Text style={typography.muted}>PIN{biometricEnabled ? ' (ou biométrie ci-dessous)' : ''}</Text>
                 <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} editable={!busy} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
+                {biometricEnabled ? (
+                  <Pressable
+                    onPress={() => { void perform({ biometric: true }).catch(() => {}); }}
+                    disabled={busy}
+                    hitSlop={8}
+                    style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 8, marginTop: spacing(1), paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
+                  >
+                    <Icon name="security" size={16} color={colors.accent} />
+                    <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>Utiliser la biométrie</Text>
+                  </Pressable>
+                ) : null}
               </GlassCard>
 
               {error ? <ErrorBox message={error} /> : null}
               <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
                 <View style={{ flex: 1 }}><Button label="Refuser" variant="ghost" onPress={deny} /></View>
-                <View style={{ flex: 1 }}><Button label={busy ? 'Signature…' : pending.kind === 'connect' ? 'Connecter' : 'Signer'} loading={busy} onPress={approve} /></View>
+                <View style={{ flex: 1 }}><Button label={busy ? 'Signature…' : pending.kind === 'connect' ? 'Connecter' : 'Signer'} loading={busy} onPress={submitPin} /></View>
               </View>
             </View>
           </View>
