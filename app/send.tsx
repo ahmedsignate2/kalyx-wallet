@@ -104,7 +104,7 @@ export default function Send() {
         <TextInput
           value={to}
           onChangeText={setTo}
-          placeholder={chain.family === 'bitcoin' ? 'bc1…' : '0x…'}
+          placeholder={chain.family === 'bitcoin' ? 'bc1…' : chain.family === 'solana' ? 'Adresse Solana…' : '0x…'}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="none"
           autoCorrect={false}
