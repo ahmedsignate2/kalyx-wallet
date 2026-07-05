@@ -94,7 +94,7 @@ export default function Menu() {
         <ListRow left={<Ico n="language" />} title={t('language')} right={chev} onPress={() => router.push('/language')} />
         <ListRow divider left={<Ico n="currency" />} title={t('currency')} right={chev} onPress={() => router.push('/settings')} />
         <ListRow divider left={<Ico n="appearance" />} title={t('appearance')} right={chev} onPress={() => router.push('/settings')} />
-        <ListRow divider left={<Ico n="notifications" />} title={t('notifications')} right={soonChip} onPress={soon} />
+        <ListRow divider left={<Ico n="notifications" />} title={t('notifications')} right={chev} onPress={() => router.push('/notifications')} />
       </GlassCard>
 
       {/* Sécurité */}
