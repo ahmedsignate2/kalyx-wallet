@@ -4,7 +4,8 @@ import { router, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../ui/components';
-import { NovaLogo } from '../ui/NovaLogo';
+import { ShineLogo } from '../ui/ShineLogo';
+import { AuroraBackground } from '../ui/AuroraBackground';
 import { Icon, type IconName } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -32,15 +33,6 @@ export default function Welcome() {
   const { colors, gradients } = useTheme();
   const insets = useSafeAreaInsets();
   const newDraft = useWallet((s) => s.newDraft);
-  const logoScale = useRef(new Animated.Value(0.7)).current;
-  const logoOp = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(logoScale, { toValue: 1, useNativeDriver: true, speed: 9, bounciness: 10 }),
-      Animated.timing(logoOp, { toValue: 1, duration: 400, useNativeDriver: true }),
-    ]).start();
-  }, [logoScale, logoOp]);
 
   const onCreate = () => {
     newDraft(128); // 12 mots
@@ -52,12 +44,11 @@ export default function Welcome() {
       {/* Écran plein écran : pas de barre d'en-tête vide (comme home/menu/…). */}
       <Stack.Screen options={{ headerShown: false }} />
       <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
+      <AuroraBackground />
       <View style={{ flex: 1, paddingTop: insets.top + spacing(2.5), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3) }}>
         {/* Marque */}
         <View style={{ alignItems: 'center', gap: spacing(1.5) }}>
-          <Animated.View style={{ opacity: logoOp, transform: [{ scale: logoScale }] }}>
-            <NovaLogo size={88} />
-          </Animated.View>
+          <ShineLogo size={88} />
           <Reveal delay={220}>
             <Text style={{ color: colors.text, fontSize: 34, fontFamily: fonts.extrabold, letterSpacing: 1, textAlign: 'center' }}>Nova</Text>
           </Reveal>
