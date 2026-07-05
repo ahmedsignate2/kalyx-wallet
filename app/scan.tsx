@@ -13,7 +13,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, Easing, StyleSheet, Dimensions } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
@@ -31,8 +30,18 @@ import {
   type QrResult,
 } from '../src';
 
-// Le module natif ExpoCamera n'existe qu'après rebuild. Sinon → repli.
-const CAMERA_OK = !!requireOptionalNativeModule('ExpoCamera');
+// expo-camera est un MODULE NATIF : présent seulement après un rebuild EAS.
+// On le charge de façon paresseuse ET gardée — un import statique planterait
+// tout l'app au chargement si le natif est absent (ExpoCamera introuvable).
+let cameraMod: typeof import('expo-camera') | null = null;
+if (requireOptionalNativeModule('ExpoCamera')) {
+  try {
+    cameraMod = require('expo-camera');
+  } catch {
+    cameraMod = null;
+  }
+}
+const CAMERA_OK = !!cameraMod;
 
 export default function Scan() {
   return (
@@ -86,6 +95,8 @@ function useQrAction() {
 }
 
 function Scanner() {
+  // cameraMod est garanti non-null ici (Scanner n'est rendu que si CAMERA_OK).
+  const { CameraView, useCameraPermissions } = cameraMod!;
   const { colors } = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   const [result, setResult] = useState<QrResult | null>(null);
