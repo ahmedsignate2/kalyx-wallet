@@ -15,6 +15,7 @@ import * as Clipboard from 'expo-clipboard';
 import { PressableScale } from './premium';
 import { Icon } from './icon';
 import { fonts, spacing, useTheme } from './theme';
+import { useEnsName } from '../lib/useEns';
 import { formatBalance, formatAmount, type TxSummary } from '../src';
 
 function shortAddr(a: string) {
@@ -161,9 +162,10 @@ export function TxRow({
   );
 }
 
-/** Adresse raccourcie, copiable au tap. */
+/** Adresse raccourcie, copiable au tap. Affiche le nom ENS s'il existe. */
 function AddrLine({ label, addr }: { label: string; addr: string }) {
   const { colors, typography } = useTheme();
+  const ensName = useEnsName(addr);
   if (!addr) return null;
   return (
     <Pressable
@@ -171,7 +173,12 @@ function AddrLine({ label, addr }: { label: string; addr: string }) {
       style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}
     >
       <Text style={[typography.muted, { width: 24, fontSize: 13 }]}>{label}</Text>
-      <Text style={{ color: colors.text, fontSize: 13, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>
+      {ensName ? (
+        <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }} numberOfLines={1}>
+          {ensName}
+        </Text>
+      ) : null}
+      <Text style={{ color: ensName ? colors.textMuted : colors.text, fontSize: 13, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>
         {shortAddr(addr)}
       </Text>
       <Icon name="copy" size={13} tone="muted" />
