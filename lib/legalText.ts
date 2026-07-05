@@ -2,11 +2,12 @@
  * Textes légaux (source unique) : rendus dans l'écran Légal in-app ET recopiés
  * dans PRIVACY.md / TERMS.md pour hébergement (URL requise par le Play Store).
  *
- * ⚠️ BROUILLONS à faire relire : remplace [PAYS] et fais valider par un juriste
- * avant une mise en production réelle avec de vrais fonds.
+ * ⚠️ BROUILLONS à faire relire par un juriste avant une mise en production
+ * réelle avec de vrais fonds.
  */
 export const LEGAL_UPDATED = '5 juillet 2026';
-export const LEGAL_PUBLISHER = 'Malin Inc.';
+export const LEGAL_PUBLISHER = 'la société Malin';
+export const LEGAL_COUNTRY = 'France';
 export const LEGAL_CONTACT = 'amsssr400@gmail.com';
 
 export interface LegalSection {
@@ -80,10 +81,10 @@ export const TERMS: LegalSection[] = [
   },
   {
     title: '6. Pas de conseil financier',
-    body: `Nova ne fournit aucun conseil en investissement. Tu es responsable du respect des lois et obligations fiscales de ton pays ([PAYS]).`,
+    body: `Nova ne fournit aucun conseil en investissement. Tu es responsable du respect des lois et obligations fiscales de ton pays de résidence.`,
   },
   {
     title: '7. Modifications & droit applicable',
-    body: `Ces conditions peuvent être modifiées. Le droit applicable est celui de [PAYS]. Pour toute question : ${LEGAL_CONTACT}.`,
+    body: `Ces conditions peuvent être modifiées. Le droit applicable est le droit ${LEGAL_COUNTRY === 'France' ? 'français' : `de ${LEGAL_COUNTRY}`}. Pour toute question : ${LEGAL_CONTACT}.`,
   },
 ];
