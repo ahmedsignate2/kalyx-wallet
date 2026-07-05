@@ -8,14 +8,25 @@ import { watchConfirmation } from '../lib/txWatch';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
-import { getAdapter, isWalletError } from '../src';
+import { getAdapter, isWalletError, isValidEvmAddress, parseAmount } from '../src';
 
 export default function Send() {
   const { colors, typography } = useTheme();
   const signAndSend = useWallet((s) => s.signAndSend);
+  const sendToken = useWallet((s) => s.sendToken);
   const activeChain = useWallet((s) => s.activeChain);
   const chain = getAdapter(activeChain).config;
-  const { to: toParam } = useLocalSearchParams<{ to?: string }>();
+  const params = useLocalSearchParams<{ to?: string; contract?: string; symbol?: string; decimals?: string }>();
+  const toParam = params.to;
+  // Si un contrat est passé en paramètre, on envoie ce token ERC-20 ; sinon, natif.
+  const token = params.contract
+    ? {
+        contract: String(params.contract),
+        symbol: params.symbol ? String(params.symbol) : 'TOKEN',
+        decimals: params.decimals != null ? Number(params.decimals) : 18,
+      }
+    : null;
+  const symbol = token ? token.symbol : chain.nativeSymbol;
   const [to, setTo] = useState('');
 
   useEffect(() => {
@@ -31,10 +42,15 @@ export default function Send() {
   const onReview = () => {
     setError(null);
     try {
-      // Validation hors-ligne immédiate (adresse EIP-55 + montant).
-      getAdapter(activeChain).buildTransfer({ to, amount });
+      // Validation hors-ligne immédiate (adresse + montant).
+      if (token) {
+        if (!isValidEvmAddress(to)) throw new Error('Adresse du destinataire invalide.');
+        parseAmount(amount, token.decimals); // lève si le montant est mal formé
+      } else {
+        getAdapter(activeChain).buildTransfer({ to, amount });
+      }
     } catch (e) {
-      setError(isWalletError(e) ? e.message : 'Saisie invalide');
+      setError(isWalletError(e) ? e.message : e instanceof Error ? e.message : 'Saisie invalide');
       return;
     }
     if (pin.length < 6) {
@@ -43,7 +59,7 @@ export default function Send() {
     }
     Alert.alert(
       "Confirmer l'envoi",
-      `Réseau : ${chain.name}\nMontant : ${amount} ${chain.nativeSymbol}\nÀ : ${to}`,
+      `Réseau : ${chain.name}\nMontant : ${amount} ${symbol}\nÀ : ${to}`,
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Envoyer', onPress: submit },
@@ -55,9 +71,11 @@ export default function Send() {
     setBusy(true);
     setError(null);
     try {
-      const hash = await signAndSend(to, amount, { pin });
+      const hash = token
+        ? await sendToken(to, amount, { contract: token.contract, decimals: token.decimals }, { pin })
+        : await signAndSend(to, amount, { pin });
       setPin('');
-      const summary = `${amount} ${chain.nativeSymbol} envoyés à ${to.slice(0, 8)}…${to.slice(-6)}`;
+      const summary = `${amount} ${symbol} envoyés à ${to.slice(0, 8)}…${to.slice(-6)}`;
       setSuccess({ hash, summary });
       notifyAndLog('tx', 'Transaction envoyée', summary);
       void watchConfirmation(activeChain, hash, summary); // notif à la confirmation
@@ -70,9 +88,9 @@ export default function Send() {
 
   return (
     <Screen>
-      <Title>Envoyer</Title>
+      <Title>Envoyer {token ? token.symbol : ''}</Title>
       <Muted>
-        Transfert natif sur {chain.name}
+        {token ? `Transfert du token ${token.symbol}` : 'Transfert natif'} sur {chain.name}
         {chain.testnet ? ' (testnet)' : ' — fonds réels'}.
       </Muted>
 
@@ -95,7 +113,7 @@ export default function Send() {
       </Card>
 
       <Card>
-        <Text style={typography.muted}>Montant ({chain.nativeSymbol})</Text>
+        <Text style={typography.muted}>Montant ({symbol})</Text>
         <TextInput
           value={amount}
           onChangeText={setAmount}
