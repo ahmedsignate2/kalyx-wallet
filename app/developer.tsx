@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, Share } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Stack } from 'expo-router';
 import Constants from 'expo-constants';
 import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
@@ -24,6 +25,8 @@ export default function Developer() {
   const chains = useCustomChains((s) => s.chains);
   const addChain = useCustomChains((s) => s.add);
   const removeChain = useCustomChains((s) => s.remove);
+  const exportBackup = useCustomChains((s) => s.exportBackup);
+  const importBackup = useCustomChains((s) => s.importBackup);
   const clearNotifs = useNotifCenter((s) => s.clear);
 
   const [form, setForm] = useState<CustomChainInput>({ name: '', evmChainId: 0, nativeSymbol: '', rpcUrl: '', explorerUrl: '' });
@@ -37,6 +40,24 @@ export default function Developer() {
     toast.success('Réseau ajouté', form.name);
     setForm({ name: '', evmChainId: 0, nativeSymbol: '', rpcUrl: '', explorerUrl: '' });
     setChainIdStr('');
+  };
+
+  // Sauvegarde portable : partage la liste des réseaux perso (JSON, non sensible).
+  const onExport = async () => {
+    if (chains.length === 0) { toast.info('Aucun réseau à sauvegarder'); return; }
+    try {
+      await Share.share({ message: exportBackup() });
+    } catch { /* partage annulé */ }
+  };
+
+  // Restauration : lit la sauvegarde collée dans le presse-papier.
+  const onImport = async () => {
+    const text = await Clipboard.getStringAsync().catch(() => '');
+    if (!text?.trim()) { toast.info('Presse-papier vide', 'Copie d’abord ta sauvegarde de réseaux.'); return; }
+    const res = importBackup(text);
+    if (!res.ok) { toast.error('Restauration impossible', res.error); return; }
+    if (res.added === 0) { toast.info('Rien à restaurer', 'Ces réseaux sont déjà présents.'); return; }
+    toast.success(`${res.added} réseau${res.added > 1 ? 'x' : ''} restauré${res.added > 1 ? 's' : ''}`, res.skipped ? `${res.skipped} déjà présent${res.skipped > 1 ? 's' : ''}` : undefined);
   };
 
   const input = (v: string, on: (t: string) => void, ph: string, kbd?: 'default' | 'number-pad' | 'url') => (
@@ -105,6 +126,26 @@ export default function Developer() {
             {error ? <ErrorBox message={error} /> : null}
             <Button label="Ajouter le réseau" onPress={onAdd} />
           </GlassCard>
+
+          {/* Sauvegarde portable des réseaux (survit à une réinstallation) */}
+          <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>
+            Tes réseaux perso ne sont pas liés à ta phrase secrète. Sauvegarde-les
+            pour les retrouver après une réinstallation (les fonds restent on-chain).
+          </Text>
+          <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
+            <Pressable onPress={onExport} style={{ flex: 1 }}>
+              <GlassCard style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1) }}>
+                <Icon name="share" size={17} color={colors.accent} />
+                <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Sauvegarder</Text>
+              </GlassCard>
+            </Pressable>
+            <Pressable onPress={onImport} style={{ flex: 1 }}>
+              <GlassCard style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1) }}>
+                <Icon name="copy" size={17} color={colors.accent} />
+                <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Restaurer</Text>
+              </GlassCard>
+            </Pressable>
+          </View>
         </View>
 
         {/* Maintenance */}
