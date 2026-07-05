@@ -23,6 +23,7 @@ import { tryInOrder, withTimeout } from './net';
 import { buildTransferMessage, signAndSerialize } from './solTx';
 import { parseSolanaTx, type SolTxResponse } from './solHistory';
 import { parseTokenAccounts, SPL_TOKEN_PROGRAM, type SplToken } from '../tokens/splTokens';
+import { fetchSplMetadata } from '../tokens/splMetadata';
 import { buildSplTransferMessage } from './solSpl';
 
 const API_TIMEOUT_MS = 12_000;
@@ -100,7 +101,15 @@ export class SolanaChainAdapter implements ChainAdapter {
       { programId: SPL_TOKEN_PROGRAM },
       { encoding: 'jsonParsed' },
     ]);
-    return parseTokenAccounts((res?.value ?? []) as never);
+    const tokens = parseTokenAccounts((res?.value ?? []) as never);
+    // Enrichit les mints hors table curée (nom/symbole/logo réels via Jupiter).
+    // Best-effort : si le réseau échoue, les tokens gardent leur mint tronqué.
+    const meta = await fetchSplMetadata(tokens.map((t) => t.mint));
+    if (Object.keys(meta).length === 0) return tokens;
+    return tokens.map((t) => {
+      const m = meta[t.mint];
+      return m ? { ...t, symbol: m.symbol, name: m.name, logo: t.logo ?? m.logo } : t;
+    });
   }
 
   /** Validation HORS-LIGNE d'un envoi SOL : adresse base58 valide + montant > 0. */
