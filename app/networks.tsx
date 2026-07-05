@@ -6,6 +6,7 @@ import { Screen, Card, Title, Muted } from '../ui/components';
 import { SearchBar } from '../ui/premium';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useSettings } from '../lib/settingsStore';
 import { listChains } from '../src';
 
 export default function Networks() {
@@ -14,7 +15,8 @@ export default function Networks() {
   const activeChain = useWallet((s) => s.activeChain);
   const setActiveChain = useWallet((s) => s.setActiveChain);
 
-  const all = useMemo(() => listChains(), []);
+  const showTestnets = useSettings((s) => s.showTestnets);
+  const all = useMemo(() => listChains({ includeTestnets: showTestnets }), [showTestnets]);
   const [query, setQuery] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const scrolledOnce = useRef(false);

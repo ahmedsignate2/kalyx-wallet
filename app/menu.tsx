@@ -107,8 +107,8 @@ export default function Menu() {
       {/* Avancé (mode expert) */}
       {expert ? (
         <GlassCard>
-          <ListRow left={<Ico n="developer" />} title={t('developer')} subtitle="RPC custom, logs, signatures" right={soonChip} onPress={soon} />
-          <ListRow divider left={<Ico n="extensions" />} title={t('extensions')} right={soonChip} onPress={soon} />
+          <ListRow left={<Ico n="developer" />} title={t('developer')} subtitle="RPC custom, réseaux, services" right={chev} onPress={() => router.push('/developer')} />
+          <ListRow divider left={<Ico n="extensions" />} title={t('extensions')} subtitle="Modules & fonctions" right={chev} onPress={() => router.push('/extensions')} />
         </GlassCard>
       ) : null}
 

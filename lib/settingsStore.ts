@@ -39,6 +39,9 @@ interface SettingsState {
   /** Catégories de notifications activées. */
   notifTx: boolean;
   notifPrice: boolean;
+  /** Modules / fonctions (écran Extensions). */
+  securityScan: boolean; // analyse GoPlus avant signature
+  showTestnets: boolean; // réseaux de test dans le sélecteur
 
   load: () => Promise<void>;
   setProfileName: (name: string) => void;
@@ -50,12 +53,13 @@ interface SettingsState {
   toggleFavorite: (coinId: string) => void;
   setPinLength: (n: number) => void;
   setNotifPref: (key: 'notifTx' | 'notifPrice', on: boolean) => void;
+  setFlag: (key: 'securityScan' | 'showTestnets', on: boolean) => void;
 }
 
 function persist(
   s: Pick<
     SettingsState,
-    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice'
+    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets'
   >,
 ) {
   void saveSettings({
@@ -69,6 +73,8 @@ function persist(
     pinLength: s.pinLength,
     notifTx: s.notifTx,
     notifPrice: s.notifPrice,
+    securityScan: s.securityScan,
+    showTestnets: s.showTestnets,
   });
 }
 
@@ -84,6 +90,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
   pinLength: 0,
   notifTx: true,
   notifPrice: true,
+  securityScan: true,
+  showTestnets: true,
 
   load: async () => {
     const s = await loadSettings();
@@ -99,6 +107,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
       pinLength: typeof s?.pinLength === 'number' ? (s.pinLength as number) : 0,
       notifTx: s?.notifTx !== false,
       notifPrice: s?.notifPrice !== false,
+      securityScan: s?.securityScan !== false,
+      showTestnets: s?.showTestnets !== false,
     });
   },
 
@@ -139,6 +149,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
   },
   setNotifPref: (key, on) => {
     set({ [key]: on } as Pick<SettingsState, 'notifTx' | 'notifPrice'>);
+    persist({ ...get(), [key]: on });
+  },
+  setFlag: (key, on) => {
+    set({ [key]: on } as Pick<SettingsState, 'securityScan' | 'showTestnets'>);
     persist({ ...get(), [key]: on });
   },
 }));
