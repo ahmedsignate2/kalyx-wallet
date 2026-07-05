@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerChain, unregisterChain, serializeNetworks, parseNetworksBackup, type ChainConfig } from '../src';
+import { useWallet, DEFAULT_CHAIN } from './walletStore';
 
 const KEY = 'nova.customChains';
 
@@ -75,6 +76,10 @@ export const useCustomChains = create<CustomChainsState>((set, get) => ({
   },
 
   remove: (id) => {
+    // Si on retire le réseau ACTIF, basculer AVANT sur un réseau sûr : sinon
+    // getAdapter(activeChain) lèverait « Chaîne inconnue » partout (crash en boucle).
+    const w = useWallet.getState();
+    if (w.activeChain === id) w.setActiveChain(DEFAULT_CHAIN);
     unregisterChain(id);
     const chains = get().chains.filter((c) => c.id !== id);
     set({ chains });
