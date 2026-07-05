@@ -162,7 +162,7 @@ export {
 } from './domain/wc/message';
 
 // Chaînes (plugins)
-export { getAdapter, listChains, hasChain } from './domain/chains/registry';
+export { getAdapter, listChains, hasChain, registerChain, unregisterChain } from './domain/chains/registry';
 export { EvmChainAdapter, type RawTxRequest } from './domain/chains/EvmChainAdapter';
 export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BITCOIN } from './domain/chains/configs';
 export type {
