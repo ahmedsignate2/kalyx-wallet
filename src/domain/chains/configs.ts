@@ -288,6 +288,68 @@ export const MONAD_TESTNET: ChainConfig = {
   testnet: true,
 };
 
+// --- Lot supplémentaire de chaînes EVM (RPC publics) ---
+export const SONIC: ChainConfig = {
+  id: 'sonic', name: 'Sonic', family: 'evm', evmChainId: 146, nativeSymbol: 'S', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.soniclabs.com'], explorerUrl: 'https://sonicscan.org', coingeckoId: 'sonic-3',
+};
+export const CRONOS: ChainConfig = {
+  id: 'cronos', name: 'Cronos', family: 'evm', evmChainId: 25, nativeSymbol: 'CRO', nativeDecimals: 18,
+  rpcUrls: ['https://evm.cronos.org', 'https://cronos-evm-rpc.publicnode.com'], explorerUrl: 'https://cronoscan.com', coingeckoId: 'crypto-com-chain',
+};
+export const MOONBEAM: ChainConfig = {
+  id: 'moonbeam', name: 'Moonbeam', family: 'evm', evmChainId: 1284, nativeSymbol: 'GLMR', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.api.moonbeam.network', 'https://moonbeam-rpc.publicnode.com'], explorerUrl: 'https://moonscan.io', coingeckoId: 'moonbeam',
+};
+export const METIS: ChainConfig = {
+  id: 'metis', name: 'Metis', family: 'evm', evmChainId: 1088, nativeSymbol: 'METIS', nativeDecimals: 18,
+  rpcUrls: ['https://andromeda.metis.io/?owner=1088', 'https://metis-rpc.publicnode.com'], explorerUrl: 'https://explorer.metis.io', coingeckoId: 'metis-token',
+};
+export const POLYGON_ZKEVM: ChainConfig = {
+  id: 'polygon-zkevm', name: 'Polygon zkEVM', family: 'evm', evmChainId: 1101, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://zkevm-rpc.com', 'https://polygon-zkevm.drpc.org'], explorerUrl: 'https://zkevm.polygonscan.com', coingeckoId: 'ethereum',
+};
+export const MODE: ChainConfig = {
+  id: 'mode', name: 'Mode', family: 'evm', evmChainId: 34443, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://mainnet.mode.network', 'https://mode.drpc.org'], explorerUrl: 'https://explorer.mode.network', coingeckoId: 'ethereum',
+};
+export const MANTA: ChainConfig = {
+  id: 'manta', name: 'Manta Pacific', family: 'evm', evmChainId: 169, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://pacific-rpc.manta.network/http'], explorerUrl: 'https://pacific-explorer.manta.network', coingeckoId: 'ethereum',
+};
+export const OPBNB: ChainConfig = {
+  id: 'opbnb', name: 'opBNB', family: 'evm', evmChainId: 204, nativeSymbol: 'BNB', nativeDecimals: 18,
+  rpcUrls: ['https://opbnb-mainnet-rpc.bnbchain.org', 'https://opbnb-rpc.publicnode.com'], explorerUrl: 'https://opbnbscan.com', coingeckoId: 'binancecoin',
+};
+export const TAIKO: ChainConfig = {
+  id: 'taiko', name: 'Taiko', family: 'evm', evmChainId: 167000, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.mainnet.taiko.xyz', 'https://taiko.drpc.org'], explorerUrl: 'https://taikoscan.io', coingeckoId: 'ethereum',
+};
+export const UNICHAIN: ChainConfig = {
+  id: 'unichain', name: 'Unichain', family: 'evm', evmChainId: 130, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://mainnet.unichain.org', 'https://unichain.drpc.org'], explorerUrl: 'https://uniscan.xyz', coingeckoId: 'ethereum',
+};
+export const WORLDCHAIN: ChainConfig = {
+  id: 'worldchain', name: 'World Chain', family: 'evm', evmChainId: 480, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://worldchain-mainnet.gateway.tenderly.co', 'https://worldchain.drpc.org'], explorerUrl: 'https://worldscan.org', coingeckoId: 'ethereum',
+};
+export const SEI: ChainConfig = {
+  id: 'sei', name: 'Sei', family: 'evm', evmChainId: 1329, nativeSymbol: 'SEI', nativeDecimals: 18,
+  rpcUrls: ['https://evm-rpc.sei-apis.com', 'https://sei-evm-rpc.publicnode.com'], explorerUrl: 'https://seitrace.com', coingeckoId: 'sei-network',
+};
+export const FLARE: ChainConfig = {
+  id: 'flare', name: 'Flare', family: 'evm', evmChainId: 14, nativeSymbol: 'FLR', nativeDecimals: 18,
+  rpcUrls: ['https://flare-api.flare.network/ext/C/rpc', 'https://flare-rpc.publicnode.com'], explorerUrl: 'https://flarescan.com', coingeckoId: 'flare-networks',
+};
+export const KAVA: ChainConfig = {
+  id: 'kava', name: 'Kava', family: 'evm', evmChainId: 2222, nativeSymbol: 'KAVA', nativeDecimals: 18,
+  rpcUrls: ['https://evm.kava.io', 'https://kava-evm-rpc.publicnode.com'], explorerUrl: 'https://kavascan.com', coingeckoId: 'kava',
+};
+export const AURORA: ChainConfig = {
+  id: 'aurora', name: 'Aurora', family: 'evm', evmChainId: 1313161554, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://mainnet.aurora.dev'], explorerUrl: 'https://explorer.aurora.dev', coingeckoId: 'ethereum',
+};
+
 /** Testnet Ethereum — réseau de dev par défaut du MVP (zéro risque). */
 export const SEPOLIA: ChainConfig = {
   id: 'sepolia',
@@ -352,6 +414,21 @@ export const ALL_CHAINS: ChainConfig[] = [
   CELO,
   BERACHAIN,
   HYPEREVM,
+  SONIC,
+  CRONOS,
+  MOONBEAM,
+  METIS,
+  POLYGON_ZKEVM,
+  MODE,
+  MANTA,
+  OPBNB,
+  TAIKO,
+  UNICHAIN,
+  WORLDCHAIN,
+  SEI,
+  FLARE,
+  KAVA,
+  AURORA,
   MONAD_TESTNET,
   BITCOIN,
   SOLANA,
