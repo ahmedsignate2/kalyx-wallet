@@ -249,6 +249,45 @@ export const CELO: ChainConfig = {
   coingeckoPlatform: 'celo',
 };
 
+// --- Nouvelles chaînes EVM (RPC publics ; dégradation gracieuse si prix indispo) ---
+
+export const BERACHAIN: ChainConfig = {
+  id: 'berachain',
+  name: 'Berachain',
+  family: 'evm',
+  evmChainId: 80094,
+  nativeSymbol: 'BERA',
+  nativeDecimals: 18,
+  rpcUrls: ['https://rpc.berachain.com', 'https://berachain-rpc.publicnode.com'],
+  explorerUrl: 'https://berascan.com',
+  coingeckoId: 'berachain-bera',
+  coingeckoPlatform: 'berachain',
+};
+
+export const HYPEREVM: ChainConfig = {
+  id: 'hyperevm',
+  name: 'Hyperliquid',
+  family: 'evm',
+  evmChainId: 999,
+  nativeSymbol: 'HYPE',
+  nativeDecimals: 18,
+  rpcUrls: ['https://rpc.hyperliquid.xyz/evm'],
+  explorerUrl: 'https://hyperevmscan.io',
+  coingeckoId: 'hyperliquid',
+};
+
+export const MONAD_TESTNET: ChainConfig = {
+  id: 'monad-testnet',
+  name: 'Monad Testnet',
+  family: 'evm',
+  evmChainId: 10143,
+  nativeSymbol: 'MON',
+  nativeDecimals: 18,
+  rpcUrls: ['https://testnet-rpc.monad.xyz'],
+  explorerUrl: 'https://testnet.monadexplorer.com',
+  testnet: true,
+};
+
 /** Testnet Ethereum — réseau de dev par défaut du MVP (zéro risque). */
 export const SEPOLIA: ChainConfig = {
   id: 'sepolia',
@@ -311,6 +350,9 @@ export const ALL_CHAINS: ChainConfig[] = [
   GNOSIS,
   MANTLE,
   CELO,
+  BERACHAIN,
+  HYPEREVM,
+  MONAD_TESTNET,
   BITCOIN,
   SOLANA,
 ];
