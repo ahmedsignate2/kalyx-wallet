@@ -12,10 +12,15 @@ coverage/
 # Expo / RN (à venir)
 .expo/
 *.keystore
+*.jks
 *.p8
 *.p12
 *.mobileprovision
 google-services.json
+
+# Credentials EAS (clé de signature + mots de passe) — JAMAIS committer
+credentials.json
+credentials/
 GoogleService-Info.plist
 
 # OS
