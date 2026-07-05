@@ -20,8 +20,10 @@ import {
   deriveEvmAccount,
   deriveBtcAccount,
   deriveBtcSigner,
+  deriveSolanaAccount,
   evmPath,
   btcPath,
+  solPath,
   getAdapter,
   decryptSecret,
   encryptSecret,
@@ -117,19 +119,36 @@ function deriveStoredAccount(mnemonic: string, index: number, label: string): St
     label,
     evmAddress: deriveEvmAccount(seed, index).address,
     btcAddress: deriveBtcAccount(seed, index).address,
+    solAddress: deriveSolanaAccount(seed, index).address,
   };
 }
 
 function toAccount(accounts: StoredAccount[], activeIndex: number, chainId: string): Account | null {
   const a = accounts.find((x) => x.index === activeIndex) ?? accounts[0];
   if (!a) return null;
-  const isBtc = getAdapter(chainId).config.family === 'bitcoin';
-  return {
-    chain: chainId,
-    address: isBtc ? a.btcAddress : a.evmAddress,
-    index: a.index,
-    path: isBtc ? btcPath(a.index) : evmPath(a.index),
-  };
+  const family = getAdapter(chainId).config.family;
+  const address = family === 'bitcoin' ? a.btcAddress : family === 'solana' ? a.solAddress ?? '' : a.evmAddress;
+  const path = family === 'bitcoin' ? btcPath(a.index) : family === 'solana' ? solPath(a.index) : evmPath(a.index);
+  return { chain: chainId, address, index: a.index, path };
+}
+
+/**
+ * Rétro-compat : les comptes créés avant l'ajout de Solana n'ont pas de
+ * `solAddress`. On les complète dès qu'on dispose de la seed (au déverrouillage),
+ * puis on persiste. Sans effet si tout est déjà rempli.
+ */
+async function backfillSolAddresses(
+  walletId: string,
+  mnemonic: string,
+  accounts: StoredAccount[],
+): Promise<StoredAccount[]> {
+  if (accounts.length === 0 || accounts.every((a) => a.solAddress)) return accounts;
+  const seed = mnemonicToSeedSync(mnemonic);
+  const updated = accounts.map((a) =>
+    a.solAddress ? a : { ...a, solAddress: deriveSolanaAccount(seed, a.index).address },
+  );
+  await saveAccounts(walletId, updated);
+  return updated;
 }
 
 /** Révèle la seed du wallet `id` (biométrie ou PIN), de façon transitoire. */
@@ -223,8 +242,15 @@ export const useWallet = create<WalletState>((set, get) => ({
       throw new Error('Trop de tentatives. Réessaie plus tard.');
     }
     try {
-      await revealMnemonic(activeWalletId, { pin });
-      set({ isUnlocked: true, failedAttempts: 0, lastFailedAt: 0 });
+      const mnemonic = await revealMnemonic(activeWalletId, { pin });
+      const accounts = await backfillSolAddresses(activeWalletId, mnemonic, get().accounts);
+      set({
+        isUnlocked: true,
+        failedAttempts: 0,
+        lastFailedAt: 0,
+        accounts,
+        account: toAccount(accounts, get().activeAccountIndex, get().activeChain),
+      });
       void saveLockState(0, 0); // réinitialise le compteur persistant
     } catch (e) {
       if (isWalletError(e) && e.code === 'WRONG_PIN') {
@@ -238,8 +264,14 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   unlockWithBiometrics: async () => {
-    await revealMnemonic(get().activeWalletId, { biometric: true });
-    set({ isUnlocked: true });
+    const { activeWalletId } = get();
+    const mnemonic = await revealMnemonic(activeWalletId, { biometric: true });
+    const accounts = await backfillSolAddresses(activeWalletId, mnemonic, get().accounts);
+    set({
+      isUnlocked: true,
+      accounts,
+      account: toAccount(accounts, get().activeAccountIndex, get().activeChain),
+    });
   },
 
   verifyPin: async (pin) => {
