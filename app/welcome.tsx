@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, Easing, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../ui/components';
@@ -49,8 +49,10 @@ export default function Welcome() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
+      {/* Écran plein écran : pas de barre d'en-tête vide (comme home/menu/…). */}
+      <Stack.Screen options={{ headerShown: false }} />
       <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
-      <View style={{ flex: 1, paddingTop: insets.top + spacing(6), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3) }}>
+      <View style={{ flex: 1, paddingTop: insets.top + spacing(2.5), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3) }}>
         {/* Marque */}
         <View style={{ alignItems: 'center', gap: spacing(1.5) }}>
           <Animated.View style={{ opacity: logoOp, transform: [{ scale: logoScale }] }}>
@@ -67,7 +69,7 @@ export default function Welcome() {
         </View>
 
         {/* Arguments */}
-        <View style={{ flex: 1, justifyContent: 'center', gap: spacing(1.5) }}>
+        <View style={{ flex: 1, justifyContent: 'center', gap: spacing(1.5), marginTop: spacing(2) }}>
           {PROPS.map((p, i) => (
             <Reveal key={p.title} delay={420 + i * 110}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.75), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: 20, padding: spacing(1.75) }}>
