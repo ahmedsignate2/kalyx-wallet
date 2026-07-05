@@ -22,6 +22,7 @@ import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
 import { tryInOrder, withTimeout } from './net';
 import { selectUtxos, type Utxo } from './btcTx';
+import { parseBtcTx, type BtcTxResponse } from './btcHistory';
 
 const API_TIMEOUT_MS = 8_000;
 
@@ -81,9 +82,13 @@ export class BitcoinChainAdapter implements ChainAdapter {
     };
   }
 
-  async getHistory(): Promise<TxSummary[]> {
-    // Réception seulement pour l'instant : historique BTC branché plus tard.
-    return [];
+  async getHistory(address: string): Promise<TxSummary[]> {
+    if (!isValidBtcAddress(address)) return [];
+    const txs = (await this.fetchJson(`/address/${address}/txs`)) as BtcTxResponse[];
+    if (!Array.isArray(txs)) return [];
+    return txs
+      .map((tx) => parseBtcTx(address, tx))
+      .filter((x): x is TxSummary => x !== null);
   }
 
   /**
