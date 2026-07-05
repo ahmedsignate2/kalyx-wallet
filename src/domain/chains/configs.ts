@@ -412,6 +412,68 @@ export const ROOTSTOCK: ChainConfig = {
   rpcUrls: ['https://public-node.rsk.co'], explorerUrl: 'https://explorer.rsk.co',
 };
 
+// --- Lot 3 de chaînes EVM (RPC + prix CoinGecko vérifiés 2026-07-05) ---
+export const RONIN: ChainConfig = {
+  id: 'ronin', name: 'Ronin', family: 'evm', evmChainId: 2020, nativeSymbol: 'RON', nativeDecimals: 18,
+  rpcUrls: ['https://api.roninchain.com/rpc'], explorerUrl: 'https://app.roninchain.com', coingeckoId: 'ronin', coingeckoPlatform: 'ronin',
+};
+export const APECHAIN: ChainConfig = {
+  id: 'apechain', name: 'ApeChain', family: 'evm', evmChainId: 33139, nativeSymbol: 'APE', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.apechain.com/http', 'https://apechain.drpc.org'], explorerUrl: 'https://apescan.io', coingeckoId: 'apecoin',
+};
+export const CORE: ChainConfig = {
+  id: 'core', name: 'Core', family: 'evm', evmChainId: 1116, nativeSymbol: 'CORE', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.coredao.org'], explorerUrl: 'https://scan.coredao.org', coingeckoId: 'coredaoorg',
+};
+export const ZETACHAIN: ChainConfig = {
+  id: 'zetachain', name: 'ZetaChain', family: 'evm', evmChainId: 7000, nativeSymbol: 'ZETA', nativeDecimals: 18,
+  rpcUrls: ['https://zetachain-evm.blockpi.network/v1/rpc/public', 'https://zeta-chain.drpc.org'], explorerUrl: 'https://zetascan.com', coingeckoId: 'zetachain',
+};
+export const ETHERLINK: ChainConfig = {
+  id: 'etherlink', name: 'Etherlink', family: 'evm', evmChainId: 42793, nativeSymbol: 'XTZ', nativeDecimals: 18,
+  rpcUrls: ['https://node.mainnet.etherlink.com'], explorerUrl: 'https://explorer.etherlink.com', coingeckoId: 'tezos',
+};
+export const STORY: ChainConfig = {
+  id: 'story', name: 'Story', family: 'evm', evmChainId: 1514, nativeSymbol: 'IP', nativeDecimals: 18,
+  rpcUrls: ['https://mainnet.storyrpc.io'], explorerUrl: 'https://www.storyscan.io', coingeckoId: 'story-2',
+};
+export const ZIRCUIT: ChainConfig = {
+  id: 'zircuit', name: 'Zircuit', family: 'evm', evmChainId: 48900, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://mainnet.zircuit.com'], explorerUrl: 'https://explorer.zircuit.com', coingeckoId: 'ethereum',
+};
+export const PLUME: ChainConfig = {
+  id: 'plume', name: 'Plume', family: 'evm', evmChainId: 98866, nativeSymbol: 'PLUME', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.plume.org'], explorerUrl: 'https://explorer.plume.org', coingeckoId: 'plume',
+};
+export const MORPH: ChainConfig = {
+  id: 'morph', name: 'Morph', family: 'evm', evmChainId: 2818, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.morphl2.io'], explorerUrl: 'https://explorer.morphl2.io', coingeckoId: 'ethereum',
+};
+export const SWELL: ChainConfig = {
+  id: 'swell', name: 'Swellchain', family: 'evm', evmChainId: 1923, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.ankr.com/swell', 'https://swell-mainnet.alt.technology'], explorerUrl: 'https://explorer.swellnetwork.io', coingeckoId: 'ethereum',
+};
+export const SUPERSEED: ChainConfig = {
+  id: 'superseed', name: 'Superseed', family: 'evm', evmChainId: 5330, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://mainnet.superseed.xyz'], explorerUrl: 'https://explorer.superseed.xyz', coingeckoId: 'ethereum',
+};
+export const HEMI: ChainConfig = {
+  id: 'hemi', name: 'Hemi', family: 'evm', evmChainId: 43111, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.hemi.network/rpc'], explorerUrl: 'https://explorer.hemi.xyz', coingeckoId: 'ethereum',
+};
+export const BITLAYER: ChainConfig = {
+  id: 'bitlayer', name: 'Bitlayer', family: 'evm', evmChainId: 200901, nativeSymbol: 'BTC', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.bitlayer.org', 'https://rpc-bitlayer.rockx.com'], explorerUrl: 'https://www.btrscan.com', coingeckoId: 'bitcoin',
+};
+export const MERLIN: ChainConfig = {
+  id: 'merlin', name: 'Merlin', family: 'evm', evmChainId: 4200, nativeSymbol: 'BTC', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.merlinchain.io', 'https://merlin.drpc.org'], explorerUrl: 'https://scan.merlinchain.io', coingeckoId: 'bitcoin',
+};
+export const DEGEN: ChainConfig = {
+  id: 'degen', name: 'Degen', family: 'evm', evmChainId: 666666666, nativeSymbol: 'DEGEN', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.degen.tips'], explorerUrl: 'https://explorer.degen.tips', coingeckoId: 'degen-base',
+};
+
 /** Testnet Ethereum — réseau de dev par défaut du MVP (zéro risque). */
 export const SEPOLIA: ChainConfig = {
   id: 'sepolia',
@@ -506,6 +568,21 @@ export const ALL_CHAINS: ChainConfig[] = [
   KAIA,
   GRAVITY,
   ROOTSTOCK,
+  RONIN,
+  APECHAIN,
+  CORE,
+  ZETACHAIN,
+  ETHERLINK,
+  STORY,
+  ZIRCUIT,
+  PLUME,
+  MORPH,
+  SWELL,
+  SUPERSEED,
+  HEMI,
+  BITLAYER,
+  MERLIN,
+  DEGEN,
   MONAD_TESTNET,
   BITCOIN,
   SOLANA,

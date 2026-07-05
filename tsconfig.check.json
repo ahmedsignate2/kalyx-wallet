@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "types": [] },
+  "include": ["app", "lib", "ui", "src", "expo-env.d.ts"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+}
