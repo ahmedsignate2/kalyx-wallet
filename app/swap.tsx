@@ -1,15 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Alert, Pressable, Image, Animated, Vibration, ActivityIndicator, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TextInput, Pressable, Image, ScrollView } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { SuccessModal } from '../ui/SuccessModal';
+import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { notifyAndLog } from '../lib/notificationCenter';
 import { watchConfirmation } from '../lib/txWatch';
 import { Icon } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
-import { useWallet, type SwapStatus } from '../lib/walletStore';
-import { friendlyTxError } from '../lib/txError';
+import { useWallet, type SwapStatus, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import {
   getAdapter,
@@ -142,15 +142,12 @@ export default function Swap() {
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<string | null>(null);
   // Succès : hash + résumé (capturés avant reset) pour l'écran animé.
   const [success, setSuccess] = useState<{ hash: string; summary: string } | null>(null);
   const [held, setHeld] = useState<Tok[]>([]);
   const params = useLocalSearchParams<{ contract?: string }>();
-  const shakeX = useRef(new Animated.Value(0)).current;
 
   // Tokens réellement détenus sur la chaîne active → swappables même hors liste curée.
   useEffect(() => {
@@ -183,16 +180,6 @@ export default function Swap() {
     if (idx >= 0) setFrom(idx);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.contract, fromTokens.length]);
-
-  const shakePin = () => {
-    Vibration.vibrate(80);
-    Animated.sequence([
-      Animated.timing(shakeX, { toValue: 10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: -10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: 6, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: 0, duration: 50, useNativeDriver: true }),
-    ]).start();
-  };
 
   const reset = () => {
     setQuote(null);
@@ -263,47 +250,20 @@ export default function Swap() {
     }
   };
 
-  const confirm = () => {
+  // Exécuté par ConfirmUnlock (biométrie ou PIN). LÈVE en cas d'échec.
+  const perform = async (unlock: Unlock) => {
     if (!quote) return;
-    if (pin.length < 6) {
-      setError('Entre ton PIN pour signer.');
-      return;
-    }
-    const recv = formatBalance(quote.toAmount, quote.toToken.decimals, 6);
-    const min = formatBalance(quote.toAmountMin, quote.toToken.decimals, 6);
-    Alert.alert(
-      isBridge ? 'Confirmer le bridge' : 'Confirmer le swap',
-      `Tu envoies : ${amount} ${fromTok.symbol} (${chain.name})\nTu reçois ≈ ${recv} ${toTok.symbol} (${toChainCfg.name})\nMinimum : ${min} ${toTok.symbol}${isBridge ? '\n\n⏳ Un bridge peut prendre quelques minutes.' : ''}`,
-      [
-        { text: t('cancel'), style: 'cancel' },
-        { text: isBridge ? 'Bridger' : 'Échanger', onPress: submit },
-      ],
-    );
-  };
-
-  const submit = async () => {
-    if (!quote) return;
-    setBusy(true);
-    setError(null);
     setStep('Préparation…');
     try {
-      const hash = await executeSwap(quote, { pin }, (s) => setStep(STATUS_LABEL[s]));
+      const hash = await executeSwap(quote, unlock, (s) => setStep(STATUS_LABEL[s]));
       // Résumé capturé AVANT reset() (qui efface quote/amount).
       const summary = `${amount} ${fromTok.symbol} → ≈ ${formatBalance(quote.toAmount, quote.toToken.decimals, 6)} ${toTok.symbol}`;
-      setPin('');
       reset();
       setAmount('');
       setSuccess({ hash, summary });
       notifyAndLog('tx', 'Swap envoyé', summary);
       void watchConfirmation(activeChain, hash, summary); // notif à la confirmation
-    } catch (e) {
-      if (isWalletError(e) && e.code === 'WRONG_PIN') {
-        shakePin();
-        setPin('');
-      }
-      setError(friendlyTxError(e));
     } finally {
-      setBusy(false);
       setStep(null);
     }
   };
@@ -390,32 +350,26 @@ export default function Swap() {
           {impact != null ? <Row label="Impact prix" value={`${impact.toFixed(2)} %`} color={impact < -1 ? colors.down : colors.textMuted} /> : null}
           <Row label="Slippage" value={`${(quote.slippage * 100).toFixed(1)} %`} />
           {quote.durationSec > 0 ? <Row label="Temps estimé" value={`≈ ${quote.durationSec}s`} /> : null}
-
-          {confirming ? (
-            <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, marginTop: spacing(1), paddingTop: spacing(1) }}>
-              <Text style={typography.muted}>PIN (pour signer)</Text>
-              <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
-                <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} autoFocus editable={!busy} style={{ color: colors.text, fontSize: 22, letterSpacing: 6 }} />
-              </Animated.View>
-            </View>
-          ) : null}
         </GlassCard>
       ) : null}
 
       {error ? <ErrorBox message={error} /> : null}
 
-      {busy && step ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'center', paddingVertical: spacing(1) }}>
-          <ActivityIndicator color={colors.accent} />
-          <Text style={{ color: colors.text }}>{step}</Text>
-        </View>
-      ) : !quote ? (
+      {!quote ? (
         <Button label={loading ? 'Recherche de route…' : 'Obtenir un devis'} loading={loading} onPress={onQuote} />
-      ) : !confirming ? (
-        <Button label="Échanger" onPress={() => setConfirming(true)} />
       ) : (
-        <Button label="Confirmer le swap" onPress={confirm} />
+        <Button label={isBridge ? 'Bridger' : 'Échanger'} onPress={() => setConfirming(true)} />
       )}
+
+      <ConfirmUnlock
+        visible={confirming}
+        title={isBridge ? 'Confirmer le bridge' : 'Confirmer le swap'}
+        subtitle={quote ? `${amount} ${fromTok.symbol} → ≈ ${formatBalance(quote.toAmount, quote.toToken.decimals, 6)} ${toTok.symbol}` : undefined}
+        statusText={step}
+        perform={perform}
+        onDone={() => setConfirming(false)}
+        onCancel={() => setConfirming(false)}
+      />
 
       <SuccessModal
         visible={success != null}

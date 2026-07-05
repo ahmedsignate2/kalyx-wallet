@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, ScrollView } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
+import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { radii, spacing, useTheme } from '../ui/theme';
-import { useWallet } from '../lib/walletStore';
-import { isWalletError } from '../src';
+import { useWallet, type Unlock } from '../lib/walletStore';
 
 export default function RevealPhrase() {
   const { colors, typography } = useTheme();
   const revealPhrase = useWallet((s) => s.revealPhrase);
-  const [pin, setPin] = useState('');
+  const [confirming, setConfirming] = useState(false);
   const [words, setWords] = useState<string[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     ScreenCapture.preventScreenCaptureAsync('reveal').catch(() => {});
@@ -21,18 +19,10 @@ export default function RevealPhrase() {
     };
   }, []);
 
-  const onReveal = async () => {
-    setError(null);
-    setBusy(true);
-    try {
-      const m = await revealPhrase({ pin });
-      setWords(m.split(' '));
-      setPin('');
-    } catch (e) {
-      setError(isWalletError(e) && e.code === 'WRONG_PIN' ? 'PIN incorrect.' : 'Échec.');
-    } finally {
-      setBusy(false);
-    }
+  // Révèle via biométrie ou PIN (ConfirmUnlock) ; LÈVE pour laisser la feuille gérer.
+  const perform = async (unlock: Unlock) => {
+    const m = await revealPhrase(unlock);
+    setWords(m.split(' '));
   };
 
   if (words) {
@@ -71,22 +61,18 @@ export default function RevealPhrase() {
   return (
     <Screen>
       <Title>Afficher la phrase</Title>
-      <Muted>Confirme ton PIN pour révéler ta phrase de récupération.</Muted>
-      <Card>
-        <TextInput
-          value={pin}
-          onChangeText={setPin}
-          keyboardType="number-pad"
-          secureTextEntry
-          maxLength={12}
-          placeholder="PIN"
-          placeholderTextColor={colors.textMuted}
-          style={{ color: colors.text, fontSize: 22, letterSpacing: 6, paddingVertical: spacing(1) }}
-        />
-      </Card>
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      <Muted>Confirme ton identité pour révéler ta phrase de récupération.</Muted>
       <View style={{ flex: 1 }} />
-      <Button label={busy ? '…' : 'Afficher'} loading={busy} onPress={onReveal} />
+      <Button label="Afficher" onPress={() => setConfirming(true)} />
+
+      <ConfirmUnlock
+        visible={confirming}
+        title="Révéler la phrase secrète"
+        subtitle="Personne d'autre ne doit la voir."
+        perform={perform}
+        onDone={() => setConfirming(false)}
+        onCancel={() => setConfirming(false)}
+      />
     </Screen>
   );
 }
