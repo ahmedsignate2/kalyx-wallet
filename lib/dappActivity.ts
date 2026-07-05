@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CONN_KEY = 'nova.dappConnections';
 const SIG_KEY = 'nova.dappSignatures';
+const REMEMBER_KEY = 'nova.dappRemembered';
 const SIG_MAX = 50;
 
 export interface DappConnection {
@@ -28,28 +29,46 @@ export interface SigEntry {
 interface DappActivityState {
   connections: DappConnection[];
   signatures: SigEntry[];
+  /** Hôtes « de confiance » : reconnexion sans re-demander le PIN. */
+  remembered: string[];
   load: () => Promise<void>;
   addConnection: (c: Omit<DappConnection, 'at'>) => void;
   removeConnection: (host: string) => void;
   addSignature: (s: Omit<SigEntry, 'at'>) => void;
+  remember: (host: string) => void;
+  isRemembered: (host: string) => boolean;
   clear: () => void;
 }
 
 export const useDappActivity = create<DappActivityState>((set, get) => ({
   connections: [],
   signatures: [],
+  remembered: [],
 
   load: async () => {
     try {
-      const [c, s] = await Promise.all([AsyncStorage.getItem(CONN_KEY), AsyncStorage.getItem(SIG_KEY)]);
+      const [c, s, r] = await Promise.all([
+        AsyncStorage.getItem(CONN_KEY),
+        AsyncStorage.getItem(SIG_KEY),
+        AsyncStorage.getItem(REMEMBER_KEY),
+      ]);
       set({
         connections: c ? (JSON.parse(c) as DappConnection[]) : [],
         signatures: s ? (JSON.parse(s) as SigEntry[]) : [],
+        remembered: r ? (JSON.parse(r) as string[]) : [],
       });
     } catch {
       /* silencieux */
     }
   },
+
+  remember: (host) => {
+    if (!host || get().remembered.includes(host)) return;
+    const remembered = [...get().remembered, host];
+    set({ remembered });
+    void AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify(remembered)).catch(() => {});
+  },
+  isRemembered: (host) => get().remembered.includes(host),
 
   addConnection: (c) => {
     if (!c.host) return;
@@ -60,8 +79,10 @@ export const useDappActivity = create<DappActivityState>((set, get) => ({
 
   removeConnection: (host) => {
     const connections = get().connections.filter((x) => x.host !== host);
-    set({ connections });
+    const remembered = get().remembered.filter((h) => h !== host);
+    set({ connections, remembered });
     void AsyncStorage.setItem(CONN_KEY, JSON.stringify(connections)).catch(() => {});
+    void AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify(remembered)).catch(() => {});
   },
 
   addSignature: (s) => {
@@ -72,7 +93,7 @@ export const useDappActivity = create<DappActivityState>((set, get) => ({
   },
 
   clear: () => {
-    set({ connections: [], signatures: [] });
-    void AsyncStorage.multiRemove([CONN_KEY, SIG_KEY]).catch(() => {});
+    set({ connections: [], signatures: [], remembered: [] });
+    void AsyncStorage.multiRemove([CONN_KEY, SIG_KEY, REMEMBER_KEY]).catch(() => {});
   },
 }));
