@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
+import { NovaLogo } from '../ui/NovaLogo';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings } from '../lib/settingsStore';
@@ -517,6 +518,11 @@ export default function Browser() {
 
   /** Écran d'accueil dApps (grille 3 colonnes) — rendu par chaque onglet vide. */
   const renderHome = () => (
+   <View style={{ flex: 1 }}>
+    {/* Logo Nova en filigrane discret, en fond de l'accueil du navigateur. */}
+    <View pointerEvents="none" style={{ position: 'absolute', top: spacing(6), left: 0, right: 0, alignItems: 'center', opacity: 0.05 }}>
+      <NovaLogo size={280} />
+    </View>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing(2.5), gap: spacing(2.5), paddingBottom: spacing(6) }} showsVerticalScrollIndicator={false}>
       <View style={{ gap: 4 }}>
         <Text style={typography.title}>Navigateur dApps</Text>
@@ -585,6 +591,7 @@ export default function Browser() {
         </View>
       ) : null}
     </ScrollView>
+   </View>
   );
 
   return (
