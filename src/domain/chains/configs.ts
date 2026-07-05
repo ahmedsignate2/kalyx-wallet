@@ -158,6 +158,97 @@ export const AVALANCHE: ChainConfig = {
   coingeckoPlatform: 'avalanche',
 };
 
+export const LINEA: ChainConfig = {
+  id: 'linea',
+  name: 'Linea',
+  family: 'evm',
+  evmChainId: 59144,
+  nativeSymbol: 'ETH',
+  nativeDecimals: 18,
+  rpcUrls: withAlchemy('linea-mainnet', ['https://linea-rpc.publicnode.com', 'https://linea.drpc.org', 'https://rpc.linea.build']),
+  explorerUrl: 'https://lineascan.build',
+  coingeckoId: 'ethereum',
+  coingeckoPlatform: 'linea',
+};
+
+export const SCROLL: ChainConfig = {
+  id: 'scroll',
+  name: 'Scroll',
+  family: 'evm',
+  evmChainId: 534352,
+  nativeSymbol: 'ETH',
+  nativeDecimals: 18,
+  rpcUrls: withAlchemy('scroll-mainnet', ['https://scroll-rpc.publicnode.com', 'https://scroll.drpc.org', 'https://rpc.scroll.io']),
+  explorerUrl: 'https://scrollscan.com',
+  coingeckoId: 'ethereum',
+  coingeckoPlatform: 'scroll',
+};
+
+export const BLAST: ChainConfig = {
+  id: 'blast',
+  name: 'Blast',
+  family: 'evm',
+  evmChainId: 81457,
+  nativeSymbol: 'ETH',
+  nativeDecimals: 18,
+  rpcUrls: withAlchemy('blast-mainnet', ['https://blast-rpc.publicnode.com', 'https://blast.drpc.org', 'https://rpc.blast.io']),
+  explorerUrl: 'https://blastscan.io',
+  coingeckoId: 'ethereum',
+  coingeckoPlatform: 'blast',
+};
+
+export const ZKSYNC: ChainConfig = {
+  id: 'zksync',
+  name: 'zkSync Era',
+  family: 'evm',
+  evmChainId: 324,
+  nativeSymbol: 'ETH',
+  nativeDecimals: 18,
+  rpcUrls: withAlchemy('zksync-mainnet', ['https://mainnet.era.zksync.io', 'https://zksync.drpc.org', 'https://1rpc.io/zksync2-era']),
+  explorerUrl: 'https://explorer.zksync.io',
+  coingeckoId: 'ethereum',
+  coingeckoPlatform: 'zksync',
+};
+
+export const GNOSIS: ChainConfig = {
+  id: 'gnosis',
+  name: 'Gnosis',
+  family: 'evm',
+  evmChainId: 100,
+  nativeSymbol: 'xDAI',
+  nativeDecimals: 18,
+  rpcUrls: withAlchemy('gnosis-mainnet', ['https://gnosis-rpc.publicnode.com', 'https://gnosis.drpc.org', 'https://rpc.gnosischain.com']),
+  explorerUrl: 'https://gnosisscan.io',
+  coingeckoId: 'xdai',
+  coingeckoPlatform: 'xdai',
+};
+
+export const MANTLE: ChainConfig = {
+  id: 'mantle',
+  name: 'Mantle',
+  family: 'evm',
+  evmChainId: 5000,
+  nativeSymbol: 'MNT',
+  nativeDecimals: 18,
+  rpcUrls: withAlchemy('mantle-mainnet', ['https://mantle-rpc.publicnode.com', 'https://mantle.drpc.org', 'https://rpc.mantle.xyz']),
+  explorerUrl: 'https://mantlescan.xyz',
+  coingeckoId: 'mantle',
+  coingeckoPlatform: 'mantle',
+};
+
+export const CELO: ChainConfig = {
+  id: 'celo',
+  name: 'Celo',
+  family: 'evm',
+  evmChainId: 42220,
+  nativeSymbol: 'CELO',
+  nativeDecimals: 18,
+  rpcUrls: withAlchemy('celo-mainnet', ['https://celo-rpc.publicnode.com', 'https://celo.drpc.org', 'https://forno.celo.org']),
+  explorerUrl: 'https://celoscan.io',
+  coingeckoId: 'celo',
+  coingeckoPlatform: 'celo',
+};
+
 /** Testnet Ethereum — réseau de dev par défaut du MVP (zéro risque). */
 export const SEPOLIA: ChainConfig = {
   id: 'sepolia',
@@ -200,5 +291,12 @@ export const ALL_CHAINS: ChainConfig[] = [
   ARBITRUM,
   OPTIMISM,
   AVALANCHE,
+  LINEA,
+  SCROLL,
+  BLAST,
+  ZKSYNC,
+  GNOSIS,
+  MANTLE,
+  CELO,
   BITCOIN,
 ];
