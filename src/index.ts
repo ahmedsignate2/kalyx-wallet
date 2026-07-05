@@ -200,6 +200,8 @@ export {
 export { getAdapter, listChains, hasChain, registerChain, unregisterChain } from './domain/chains/registry';
 export { EvmChainAdapter, type RawTxRequest } from './domain/chains/EvmChainAdapter';
 export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BITCOIN, SOLANA } from './domain/chains/configs';
+// Sauvegarde portable des réseaux EVM personnalisés (export/import)
+export { serializeNetworks, parseNetworksBackup, NETWORKS_BACKUP_VERSION } from './domain/chains/customNetworks';
 export type {
   ChainAdapter,
   ChainConfig,
