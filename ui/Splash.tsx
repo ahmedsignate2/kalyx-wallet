@@ -138,22 +138,45 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
           </Animated.View>
         </View>
 
-        {/* Wordmark « NOVA » : police de marque + halo lumineux */}
-        <Animated.Text
-          style={{
-            opacity: wordOp,
-            transform: [{ translateY: wordY }],
-            color: colors.text,
-            fontSize: 40,
-            fontFamily: fonts.brandStrong,
-            letterSpacing: 8,
-            textShadowColor: colors.accent,
-            textShadowOffset: { width: 0, height: 0 },
-            textShadowRadius: 18,
-          }}
-        >
-          NOVA
-        </Animated.Text>
+        {/* Wordmark « NOVA » : police de marque + halo lumineux + barre de lumière */}
+        <View style={{ alignItems: 'center', gap: 12 }}>
+          <Animated.Text
+            style={{
+              opacity: wordOp,
+              transform: [{ translateY: wordY }],
+              color: colors.text,
+              fontSize: 40,
+              fontFamily: fonts.brandStrong,
+              letterSpacing: 8,
+              textShadowColor: colors.accent,
+              textShadowOffset: { width: 0, height: 0 },
+              textShadowRadius: 18,
+            }}
+          >
+            NOVA
+          </Animated.Text>
+          {/* Trait lumineux qui s'ouvre sous le mot (frames 8/9 du storyboard). */}
+          <Animated.View
+            style={{
+              opacity: wordOp,
+              transform: [{ scaleX: wordOp.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] }) }],
+              width: 150,
+              height: 2,
+              borderRadius: 2,
+              shadowColor: colors.accent,
+              shadowOpacity: 0.9,
+              shadowRadius: 8,
+              elevation: 6,
+            }}
+          >
+            <LinearGradient
+              colors={['transparent', colors.violet, colors.blue, 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ flex: 1, borderRadius: 2 }}
+            />
+          </Animated.View>
+        </View>
       </View>
     </Animated.View>
   );
