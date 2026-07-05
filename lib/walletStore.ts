@@ -21,6 +21,7 @@ import {
   deriveBtcAccount,
   deriveBtcSigner,
   deriveSolanaAccount,
+  deriveSolanaSigner,
   evmPath,
   btcPath,
   solPath,
@@ -32,6 +33,7 @@ import {
   isWalletError,
   EvmChainAdapter,
   BitcoinChainAdapter,
+  SolanaChainAdapter,
   NATIVE_TOKEN,
   parseAmount,
   erc20TransferData,
@@ -373,6 +375,15 @@ export const useWallet = create<WalletState>((set, get) => ({
       return adapter.sendBitcoin(account.address, to, amount, {
         privateKey: btcSigner.privateKey,
         publicKey: btcSigner.publicKey,
+      });
+    }
+
+    // Solana = comptes ed25519 : transaction et signature propres.
+    if (adapter instanceof SolanaChainAdapter) {
+      const solSigner = deriveSolanaSigner(seed, account.index);
+      return adapter.sendSolana(account.address, to, amount, {
+        secretKey: solSigner.secretKey,
+        publicKey: solSigner.publicKey,
       });
     }
 
