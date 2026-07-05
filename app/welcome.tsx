@@ -50,7 +50,7 @@ export default function Welcome() {
         <View style={{ alignItems: 'center', gap: spacing(1.5) }}>
           <ShineLogo size={88} />
           <Reveal delay={220}>
-            <Text style={{ color: colors.text, fontSize: 34, fontFamily: fonts.extrabold, letterSpacing: 1, textAlign: 'center' }}>Nova</Text>
+            <Text style={{ color: colors.text, fontSize: 40, fontFamily: fonts.brandStrong, letterSpacing: 3, textAlign: 'center', textShadowColor: colors.accent, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 16 }}>Nova</Text>
           </Reveal>
           <Reveal delay={300}>
             <Text style={{ color: colors.textMuted, fontSize: 16, textAlign: 'center', maxWidth: 300 }}>
