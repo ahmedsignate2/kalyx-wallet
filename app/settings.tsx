@@ -197,7 +197,7 @@ export default function Settings() {
 
       {/* À propos */}
       <GlassCard>
-        <ListRow left={<Ico n="about" />} title={t('about')} subtitle={`Nova Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} />
+        <ListRow left={<Ico n="about" />} title={t('about')} subtitle={`Nova Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chevron} onPress={() => router.push('/about')} />
       </GlassCard>
 
       <SectionHeader title="" />
