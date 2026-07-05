@@ -17,7 +17,16 @@ export {
 } from './crypto/mnemonic';
 export { deriveEvmAccount, evmPath, type EvmAccount } from './crypto/hd';
 export { deriveBtcAccount, deriveBtcSigner, btcPath, type BtcAccount, type BtcSigner } from './crypto/btc';
+export {
+  deriveSolanaAccount,
+  deriveSolanaSigner,
+  isValidSolanaAddress,
+  solPath,
+  type SolAccount,
+  type SolSigner,
+} from './crypto/solana';
 export { BitcoinChainAdapter } from './domain/chains/BitcoinChainAdapter';
+export { SolanaChainAdapter } from './domain/chains/SolanaChainAdapter';
 export { getRandomBytes } from './crypto/random';
 
 // Erreurs typées
@@ -165,7 +174,7 @@ export {
 // Chaînes (plugins)
 export { getAdapter, listChains, hasChain, registerChain, unregisterChain } from './domain/chains/registry';
 export { EvmChainAdapter, type RawTxRequest } from './domain/chains/EvmChainAdapter';
-export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BITCOIN } from './domain/chains/configs';
+export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BITCOIN, SOLANA } from './domain/chains/configs';
 export type {
   ChainAdapter,
   ChainConfig,

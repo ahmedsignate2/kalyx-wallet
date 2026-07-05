@@ -34,6 +34,8 @@ export interface StoredAccount {
   label: string;
   evmAddress: string;
   btcAddress: string;
+  /** Adresse Solana (base58). Optionnel : absent des comptes créés avant l'ajout de Solana. */
+  solAddress?: string;
 }
 
 export interface WalletMeta {
