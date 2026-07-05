@@ -1,7 +1,7 @@
 # Nova Wallet — Sauvegarde de contexte (HANDOFF)
 
 > Document de reprise. Résume l'état du projet, ce qui reste, les décisions et
-> **les pièges déjà rencontrés** (à ne pas redécouvrir). Mis à jour : 2026-07-04.
+> **les pièges déjà rencontrés** (à ne pas redécouvrir). Mis à jour : 2026-07-05.
 > Wallet crypto **non-custodial** mobile, React Native / Expo (SDK 57), TypeScript.
 
 ---
@@ -12,7 +12,7 @@ Deux couches strictement séparées :
 
 - **`src/` = le MOTEUR** (pur TypeScript, **testé**, aucune dépendance UI). Crypto,
   dérivation, chaînes, prix, swap, tokens, NFT. Exporté via le **barrel `src/index.ts`**.
-  L'app n'importe QUE depuis `../src`. **103 tests jest** (vecteurs de référence +
+  L'app n'importe QUE depuis `../src`. **235 tests jest** (vecteurs de référence +
   cross-check @scure/ethers). Testé via `npm test`.
 - **`app/` (écrans expo-router)**, **`lib/` (stores zustand, logique app)**,
   **`ui/` (design system)** = la couche APP. Non testée par jest, mais typecheckée
@@ -39,8 +39,15 @@ jamais sur le réseau. Le seul écart transitoire : `draftMnemonic` pendant l'on
 biométrie, anti-brute-force, anti-capture seed, **multi-wallet** (créer/importer/gérer),
 multi-comptes, changer PIN, révéler phrase, reset.
 
-**Chaînes :** EVM (Ethereum, Polygon, BNB, Base, Sepolia — RPC Alchemy + fallbacks),
-Bitcoin (réception, `bc1`). Envoi/réception EVM, réception BTC.
+**Chaînes :** **65 réseaux** au catalogue (`configs.ts` + `ALL_CHAINS`) — 62 EVM
+mainnet (RPC publics sondés eth_chainId), Sepolia + Monad (testnets), Bitcoin, Solana.
+Ajouter un EVM = 1 entrée (adapter auto via `registry.ts`). Garde d'intégrité dans
+`registry.test.ts` (id + evmChainId uniques, RPC https). Envoi/réception EVM, BTC, Solana.
+**Solana COMPLET** : dérivation SLIP-0010 ed25519 (vector-testée, compat Phantom
+`m/44'/501'/0'/0'`), solde, historique, tokens SPL (+ noms/logos réels via l'API
+Jupiter v2, repli table curée `KNOWN_MINTS`), envoi SOL natif + SPL (ATA idempotent +
+TransferChecked). Tout câblé jusqu'à l'UI (send/receive/wallet). ⚠️ jamais testé sur
+device avec de vrais fonds → valider un PETIT montant au rebuild.
 
 **Données réelles (CoinGecko/Alchemy/Etherscan) :** prix, marché, fiche token (24h→ALL),
 recherche globale, tokens ERC-20 + ajout custom + anti-spam, NFT, historique EVM, valeur totale fiat.
@@ -129,8 +136,12 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   d'indexeur). Les approbations sur tokens à solde nul ne sont pas listées.
   À TESTER après rebuild : le getLogs full-range peut buter sur les limites RPC
   Alchemy → prévoir un fallback par plages si besoin.
-- Prochaine priorité UI décidée : **noms ENS + avatars partout** (envoi/historique/
-  contacts) ; puis finir `set-pin` au PinPad.
+- ✅ ~~Noms ENS + avatars partout~~ (fait 2026-07-05) : moteur `src/domain/ens/ens.ts`
+  (ethers v6, provider mainnet dédié, cache TTL 5 min, dégradation → null ; 11 tests +
+  vérif live). Câblé : **envoi** (saisir `vitalik.eth` → résout l'adresse, débruité,
+  ✓ sous le champ, confirmation nom+adresse, adresse résolue signée) ; **historique**
+  (`ui/TxRow.tsx`) et **contacts** via le hook `lib/useEns.ts` (`useEnsName`/`useEnsAvatar`).
+- Prochaine priorité UI : finir `set-pin`/`change-pin` au **PinPad** (encore TextInput brut).
 
 ### Marque & onboarding (2026-07-04)
 - ✅ **Le lion est l'emblème de Nova** : `ui/NovaLogo.tsx` (SVG géométrique,
@@ -197,9 +208,9 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   ⚠️ **JAMAIS testé sur device** : valider au rebuild avec un PETIT montant réel
   (une dérivation/signature fausse = fonds perdus). Historique BTC toujours [].
 - Chaînes EVM ajoutées : Arbitrum, Optimism, Avalanche (complètes d'office).
-- **Solana** : reporté APRÈS le rebuild (adapter ed25519/base58 dédié, risque
-  fonds si dérivation ratée → à faire vector-testé, réception d'abord).
-- Nouvelles chaînes : Solana, Tron, XRP, Sui, Arbitrum, Optimism, Avalanche (via ChainAdapter).
+- ✅ ~~Solana~~ (fait) : adapter ed25519/base58 complet, vector-testé (voir §2). Reste
+  device-only : valider envoi SOL + SPL avec un PETIT montant réel au rebuild.
+- Nouvelles chaînes restantes : Tron, XRP, Sui, Aptos, Near… (adapters dédiés par famille).
 - **Carte virtuelle** Visa/MC (Immersve/Baanx/Gnosis Pay) — régulé.
 
 ### Durcissement avant lancement
@@ -286,12 +297,9 @@ sinon elles ne sont PAS embarquées dans l'APK/dev-build.
   `eas build --profile development --platform android` (Termux, pas d'Android Studio).
 - **Vérif avant commit** :
   - `npm test` (jest, moteur) — doit rester **vert (103)**.
-  - Typecheck app+lib+ui (react-native types) via un tsconfig temporaire :
-    ```
-    { "extends": "./tsconfig.json", "compilerOptions": { "noEmit": true, "types": [] },
-      "include": ["app","lib","ui","src","expo-env.d.ts"] }
-    ```
-    puis `npx tsc -p tsconfig.check.json | grep 'error TS' | grep -v tsconfig`.
+  - Typecheck app+lib+ui : **`tsconfig.check.json` est versionné** (racine ; exclut les
+    `*.test.ts` pour éviter le bruit des globals jest). Lancer :
+    `npx tsc -p tsconfig.check.json | grep 'error TS' | grep -v tsconfig` (vide = OK).
 - **Diagnostic crash** : `ErrorBoundary` (ui/ErrorBoundary.tsx) affiche l'erreur à l'écran ;
   logs `[Nova]` dans le **terminal Metro** (pas logcat) via `index.js` (ErrorUtils global).
 - **Build APK autonome (usage réel hors Metro)** : `eas build --profile preview --platform android`.
