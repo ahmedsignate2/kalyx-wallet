@@ -15,7 +15,7 @@ const TIMEOUT = 20_000;
 
 /** Frais intégrateur Nova. */
 export const NOVA_INTEGRATOR = 'nova';
-export const NOVA_FEE = '0.003'; // 0,3 %
+export const NOVA_FEE = '0.03'; // 3 %
 export const DEFAULT_SLIPPAGE = '0.005'; // 0,5 %
 /** Adresse « token natif » côté LI.FI. */
 export const NATIVE_TOKEN = '0x0000000000000000000000000000000000000000';

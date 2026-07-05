@@ -65,6 +65,6 @@ describe('parseSwapQuote', () => {
 
   it('constantes de frais intégrateur', () => {
     expect(NOVA_INTEGRATOR).toBe('nova');
-    expect(NOVA_FEE).toBe('0.003');
+    expect(NOVA_FEE).toBe('0.03'); // 3 %
   });
 });
