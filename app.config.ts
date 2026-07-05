@@ -34,7 +34,11 @@ const config: ExpoConfig = {
     },
     // La protection anti-capture d'écran sur les écrans sensibles se branche
     // au niveau natif / via expo-screen-capture (cf. app/backup.tsx).
-    permissions: ['android.permission.BLUETOOTH_SCAN', 'android.permission.BLUETOOTH_CONNECT'],
+    permissions: [
+      'android.permission.BLUETOOTH_SCAN',
+      'android.permission.BLUETOOTH_CONNECT',
+      'android.permission.CAMERA',
+    ],
     // Deep links système : « wc: » (WalletConnect) ouvre Nova (au prochain rebuild).
     intentFilters: [
       {
@@ -49,6 +53,14 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-secure-store',
     'expo-local-authentication',
+    // Scanner QR (adresses + WalletConnect) — actif au prochain rebuild EAS.
+    [
+      'expo-camera',
+      {
+        cameraPermission:
+          'Nova utilise la caméra pour scanner les QR codes : adresses de paiement et connexions WalletConnect.',
+      },
+    ],
     // Ledger BLE (react-native-ble-plx) — actif au prochain rebuild EAS.
     ['react-native-ble-plx', { isBackgroundEnabled: false }],
   ],
