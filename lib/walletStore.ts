@@ -26,6 +26,7 @@ import {
   btcPath,
   solPath,
   getAdapter,
+  hasChain,
   decryptSecret,
   encryptSecret,
   assertValidPin,
@@ -290,8 +291,12 @@ export const useWallet = create<WalletState>((set, get) => ({
     await revealMnemonic(get().activeWalletId, unlock);
   },
 
-  setActiveChain: (chainId) =>
-    set({ activeChain: chainId, account: toAccount(get().accounts, get().activeAccountIndex, chainId) }),
+  setActiveChain: (chainId) => {
+    // Garde-fou : un id inconnu (réseau perso supprimé) retomberait en crash via
+    // getAdapter. On bascule alors sur le réseau par défaut, toujours valide.
+    const safe = hasChain(chainId) ? chainId : DEFAULT_CHAIN;
+    set({ activeChain: safe, account: toAccount(get().accounts, get().activeAccountIndex, safe) });
+  },
 
   setActiveAccount: (index) =>
     set({ activeAccountIndex: index, account: toAccount(get().accounts, index, get().activeChain) }),
