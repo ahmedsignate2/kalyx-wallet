@@ -30,7 +30,9 @@ const config: ExpoConfig = {
     package: 'com.nova.wallet',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#0B0E14',
+      // Fond dégradé de marque (violet→bleu) plutôt qu'une couleur plate.
+      backgroundImage: './assets/adaptive-bg.png',
+      backgroundColor: '#0B0E14', // repli si l'image n'est pas prise en compte
     },
     // La protection anti-capture d'écran sur les écrans sensibles se branche
     // au niveau natif / via expo-screen-capture (cf. app/backup.tsx).
