@@ -9,7 +9,7 @@
  * La signature est déléguée au walletStore (la clé reste isolée).
  */
 import { create } from 'zustand';
-import { useWallet } from './walletStore';
+import { useWallet, type Unlock } from './walletStore';
 import { listChains, type RawTxRequest } from '../src';
 import type { IWeb3Wallet } from '@walletconnect/web3wallet';
 
@@ -83,9 +83,9 @@ interface WcState {
 
   init: () => Promise<void>;
   pair: (uri: string) => Promise<void>;
-  approveProposal: (pin: string) => Promise<void>;
+  approveProposal: (unlock: Unlock) => Promise<void>;
   rejectProposal: () => Promise<void>;
-  approveRequest: (pin: string) => Promise<void>;
+  approveRequest: (unlock: Unlock) => Promise<void>;
   rejectRequest: () => Promise<void>;
   disconnect: (topic: string) => Promise<void>;
   refresh: () => void;
@@ -130,14 +130,14 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     await get().wallet?.pair({ uri: uri.trim() });
   },
 
-  approveProposal: async (pin) => {
+  approveProposal: async (unlock) => {
     const { wallet, proposal } = get();
     if (!wallet || !proposal || !sdkUtils) return;
     const address = useWallet.getState().account?.address;
     if (!address) throw new Error('Aucun compte actif');
-    // Exige le PIN dès la connexion (parité avec le navigateur dApps intégré).
-    // Lève WRONG_PIN si incorrect → l'UI affiche l'erreur, aucune session ouverte.
-    await useWallet.getState().verifyPin(pin);
+    // Exige l'identité dès la connexion (parité avec le navigateur dApps intégré).
+    // Biométrie ou PIN ; lève si refusée → l'UI affiche l'erreur, aucune session.
+    await useWallet.getState().verifyUnlock(unlock);
     const chains = evmChains();
     let namespaces: Record<string, unknown>;
     try {
@@ -183,7 +183,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     set({ proposal: null });
   },
 
-  approveRequest: async (pin) => {
+  approveRequest: async (unlock) => {
     const { wallet, request } = get();
     if (!wallet || !request) return;
     const { topic, params, id } = request;
@@ -193,11 +193,11 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     const w = useWallet.getState();
 
     let result: string;
-    if (method === 'personal_sign') result = await w.signMessage({ pin }, p[0]);
-    else if (method === 'eth_sign') result = await w.signMessage({ pin }, p[1]);
+    if (method === 'personal_sign') result = await w.signMessage(unlock, p[0]);
+    else if (method === 'eth_sign') result = await w.signMessage(unlock, p[1]);
     else if (method.startsWith('eth_signTypedData')) {
       const data = typeof p[1] === 'string' ? JSON.parse(p[1]) : p[1];
-      result = await w.signTypedData({ pin }, data);
+      result = await w.signTypedData(unlock, data);
     } else if (method === 'eth_sendTransaction') {
       if (!chain) throw new Error('Réseau de la requête non supporté');
       const tx = p[0];
@@ -208,7 +208,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         chainId: chain.evmChainId,
         gasLimit: tx.gas ? BigInt(tx.gas) : undefined,
       };
-      result = await w.sendRawTxOn({ pin }, chain.novaId, req);
+      result = await w.sendRawTxOn(unlock, chain.novaId, req);
     } else {
       throw new Error(`Méthode non supportée : ${method}`);
     }
