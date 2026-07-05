@@ -1,10 +1,10 @@
 /**
  * Adapter Bitcoin (mainnet, SegWit natif bc1...).
  *
- * PÉRIMÈTRE ACTUEL : réception uniquement — dérivation d'adresse, validation,
- * solde, historique. L'ENVOI n'est PAS encore supporté (Bitcoin est un modèle
- * UTXO, très différent des comptes EVM : il mérite son propre chantier).
- * Les méthodes d'envoi lèvent donc NOT_SUPPORTED de façon explicite.
+ * Périmètre : dérivation d'adresse, validation, solde, historique, et envoi
+ * via `sendBitcoin` (modèle UTXO : sélection d'UTXO + signature + diffusion).
+ * Les méthodes génériques EVM (prepare/sign/broadcast) lèvent NOT_SUPPORTED
+ * car l'envoi BTC passe par son chemin dédié.
  */
 import type {
   Account,
