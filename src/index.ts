@@ -116,6 +116,18 @@ export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
 // DeFi / Staking — classification des tokens détenus
 export { classifyToken, type DefiKind, type DefiPosition } from './domain/defi/registry';
 
+// GoPlus Security — détection de risques avant signature
+export {
+  assessAddress,
+  assessToken,
+  isPhishingSite,
+  parseAddressSecurity,
+  parseTokenSecurity,
+  parsePhishingSite,
+  type RiskAssessment,
+  type RiskLevel,
+} from './domain/security/goplus';
+
 // Approbations ERC-20 (révocation façon revoke.cash)
 export {
   APPROVAL_TOPIC,
