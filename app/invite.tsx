@@ -13,9 +13,11 @@ import { Button } from '../ui/components';
 import { Icon, type IconName } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { toast } from '../lib/toast';
+import { PLAY_STORE_URL } from '../lib/appLinks';
 
-const INVITE_LINK = 'https://nova.wallet'; // site public (à publier)
-const SHARE_MESSAGE = `Rejoins-moi sur Nova Wallet 🚀\n\nUn wallet crypto non-custodial, simple et vraiment premium : tes clés restent chez toi, swap intégré, dApps, NFT.\n\n${INVITE_LINK}`;
+// Lien Play Store : ouvre le store pour installer, ou « Ouvrir » si déjà installée.
+const INVITE_LINK = PLAY_STORE_URL;
+const SHARE_MESSAGE = `Rejoins-moi sur Nova Wallet 🚀\n\nUn wallet crypto non-custodial, simple et vraiment premium : tes clés restent chez toi, swap intégré, dApps, NFT.\n\nTélécharge Nova : ${INVITE_LINK}`;
 
 const REASONS: { icon: IconName; text: string }[] = [
   { icon: 'security', text: 'Non-custodial : les clés restent sur le téléphone' },
