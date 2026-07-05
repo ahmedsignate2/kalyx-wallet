@@ -29,6 +29,7 @@ import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { useNotifCenter, unreadCount } from '../lib/notificationCenter';
+import { isDeviceCompromised } from '../lib/deviceSecurity';
 import {
   getAdapter,
   formatBalance,
@@ -112,6 +113,13 @@ export default function Home() {
   useEffect(() => {
     getMarkets(fiat, 20).then(setMarkets).catch(() => setMarkets([]));
   }, [fiat]);
+
+  // Avertissement unique si l'appareil est rooté/jailbreaké (stockage moins sûr).
+  useEffect(() => {
+    if (isDeviceCompromised()) {
+      toast.warning('Appareil non sécurisé', 'Root/jailbreak détecté — évite d’y garder des sommes importantes.');
+    }
+  }, []);
 
   // Vraie courbe 24h (remplace l'ancienne sparkline factice).
   useEffect(() => {

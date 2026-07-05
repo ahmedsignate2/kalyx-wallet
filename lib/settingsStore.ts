@@ -44,6 +44,8 @@ interface SettingsState {
   showTestnets: boolean; // réseaux de test dans le sélecteur
   /** Verrouillage auto (minutes en arrière-plan) : 0 = immédiat, -1 = jamais. */
   autoLockMinutes: number;
+  /** Écran de garde : masque le contenu dans le sélecteur d'apps récentes. */
+  privacyGuard: boolean;
 
   load: () => Promise<void>;
   setProfileName: (name: string) => void;
@@ -57,12 +59,13 @@ interface SettingsState {
   setNotifPref: (key: 'notifTx' | 'notifPrice', on: boolean) => void;
   setFlag: (key: 'securityScan' | 'showTestnets', on: boolean) => void;
   setAutoLock: (minutes: number) => void;
+  setPrivacyGuard: (on: boolean) => void;
 }
 
 function persist(
   s: Pick<
     SettingsState,
-    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes'
+    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard'
   >,
 ) {
   void saveSettings({
@@ -79,6 +82,7 @@ function persist(
     securityScan: s.securityScan,
     showTestnets: s.showTestnets,
     autoLockMinutes: s.autoLockMinutes,
+    privacyGuard: s.privacyGuard,
   });
 }
 
@@ -97,6 +101,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   securityScan: true,
   showTestnets: true,
   autoLockMinutes: 3,
+  privacyGuard: true,
 
   load: async () => {
     const s = await loadSettings();
@@ -115,6 +120,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       securityScan: s?.securityScan !== false,
       showTestnets: s?.showTestnets !== false,
       autoLockMinutes: typeof s?.autoLockMinutes === 'number' ? (s.autoLockMinutes as number) : 3,
+      privacyGuard: s?.privacyGuard !== false,
     });
   },
 
@@ -164,6 +170,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setAutoLock: (autoLockMinutes) => {
     set({ autoLockMinutes });
     persist({ ...get(), autoLockMinutes });
+  },
+  setPrivacyGuard: (privacyGuard) => {
+    set({ privacyGuard });
+    persist({ ...get(), privacyGuard });
   },
 }));
 

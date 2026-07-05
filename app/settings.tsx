@@ -26,7 +26,7 @@ const chevron = <Icon name="chevron" size={18} tone="faint" />;
 export default function Settings() {
   const { colors, typography } = useTheme();
   const t = useT();
-  const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled, themePref, setThemePref, notifTx, notifPrice, setNotifPref, autoLockMinutes, setAutoLock } =
+  const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled, themePref, setThemePref, notifTx, notifPrice, setNotifPref, autoLockMinutes, setAutoLock, privacyGuard, setPrivacyGuard } =
     useSettings();
   const enableBiometric = useWallet((s) => s.enableBiometric);
   const disableBiometric = useWallet((s) => s.disableBiometric);
@@ -183,6 +183,15 @@ export default function Settings() {
               <Chip key={o.m} label={o.label} tone={autoLockMinutes === o.m ? 'accent' : 'neutral'} onPress={() => setAutoLock(o.m)} />
             ))}
           </View>
+        </View>
+        {/* Écran de garde */}
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+          <Ico n="eye" />
+          <View style={{ flex: 1 }}>
+            <Text style={typography.body}>Écran de garde</Text>
+            <Text style={typography.muted}>Masque le contenu dans les apps récentes.</Text>
+          </View>
+          <Switch value={privacyGuard} onValueChange={setPrivacyGuard} />
         </View>
         <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
         <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
