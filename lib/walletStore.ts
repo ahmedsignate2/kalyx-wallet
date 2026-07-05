@@ -88,6 +88,8 @@ interface WalletState {
   unlockWithBiometrics: () => Promise<void>;
   /** Vérifie le PIN (déchiffre le coffre à la volée) ; lève WRONG_PIN si faux. */
   verifyPin: (pin: string) => Promise<void>;
+  /** Vérifie l'identité (PIN ou biométrie) sans exposer la seed. */
+  verifyUnlock: (unlock: Unlock) => Promise<void>;
   setActiveChain: (chainId: string) => void;
   setActiveAccount: (index: number) => void;
   addAccount: (unlock: Unlock, label?: string) => Promise<void>;
@@ -281,6 +283,11 @@ export const useWallet = create<WalletState>((set, get) => ({
   verifyPin: async (pin) => {
     // Déchiffre le coffre à la volée : réussit = PIN correct, sinon WRONG_PIN.
     await revealMnemonic(get().activeWalletId, { pin });
+  },
+
+  verifyUnlock: async (unlock) => {
+    // Biométrie (lecture gated) ou PIN : réussit = identité prouvée, seed jetée.
+    await revealMnemonic(get().activeWalletId, unlock);
   },
 
   setActiveChain: (chainId) =>

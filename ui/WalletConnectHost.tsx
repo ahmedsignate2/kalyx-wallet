@@ -10,14 +10,14 @@
  * Les données brutes restent accessibles via « Détails techniques ».
  */
 import React, { useMemo, useState } from 'react';
-import { Modal, View, Text, TextInput, Pressable, ScrollView, Image } from 'react-native';
+import { Modal, View, Text, Pressable, ScrollView, Image } from 'react-native';
 import { GlassCard, ErrorBox, GradientAvatar } from './premium';
 import { Button } from './components';
+import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon, type IconName } from './icon';
 import { radii, spacing, useTheme } from './theme';
 import { useWalletConnect } from '../lib/walletconnect';
-import { useWallet } from '../lib/walletStore';
-import { friendlyTxError } from '../lib/txError';
+import { useWallet, type Unlock } from '../lib/walletStore';
 import {
   hexToText,
   parseSiwe,
@@ -99,10 +99,7 @@ export function WalletConnectHost() {
   const rejectRequest = useWalletConnect((s) => s.rejectRequest);
   const account = useWallet((s) => s.account);
 
-  const [pin, setPin] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [propError, setPropError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
 
   // Décodage lisible de la requête (mémoïsé : parsing hex/SIWE/EIP-712).
@@ -163,48 +160,24 @@ export function WalletConnectHost() {
           </View>
         </GlassCard>
 
-        {/* PIN exigé dès la connexion (parité avec le navigateur dApps intégré). */}
-        <GlassCard>
-          <Text style={typography.muted}>PIN (pour confirmer la connexion)</Text>
-          <TextInput
-            value={pin}
-            onChangeText={setPin}
-            keyboardType="number-pad"
-            secureTextEntry
-            maxLength={12}
-            editable={!busy}
-            style={{ color: colors.text, fontSize: 20, letterSpacing: 6, paddingVertical: spacing(1) }}
-          />
-        </GlassCard>
-
-        {propError ? <ErrorBox message={propError} /> : null}
+        <Text style={typography.muted}>La connexion demande ta confirmation (biométrie ou PIN).</Text>
         <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
           <View style={{ flex: 1 }}>
-            <Button label="Refuser" variant="ghost" onPress={() => { setPin(''); setPropError(null); rejectProposal().catch(() => {}); }} />
+            <Button label="Refuser" variant="ghost" onPress={() => { setConfirming(false); rejectProposal().catch(() => {}); }} />
           </View>
           <View style={{ flex: 1 }}>
-            <Button
-              label={busy ? 'Connexion…' : 'Connecter'}
-              loading={busy}
-              onPress={async () => {
-                if (pin.length < 6) {
-                  setPropError('Entre ton PIN pour confirmer la connexion.');
-                  return;
-                }
-                setBusy(true);
-                setPropError(null);
-                try {
-                  await approveProposal(pin);
-                  setPin('');
-                } catch (e) {
-                  setPropError(e instanceof Error ? friendlyTxError(e) : 'Connexion impossible.');
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            />
+            <Button label="Connecter" onPress={() => setConfirming(true)} />
           </View>
         </View>
+
+        <ConfirmUnlock
+          visible={confirming}
+          title="Confirmer la connexion"
+          subtitle={meta.name ?? 'dApp'}
+          perform={(unlock) => approveProposal(unlock)}
+          onDone={() => setConfirming(false)}
+          onCancel={() => setConfirming(false)}
+        />
       </Overlay>
     );
   }
@@ -213,26 +186,12 @@ export function WalletConnectHost() {
     const { kind, siwe, typed, tx, chain, peer, action, phishing } = info;
     const isTx = kind === 'tx';
     const title = kind === 'siwe' ? 'Demande de connexion' : isTx ? 'Transaction demandée' : 'Signature demandée';
-    const submit = async () => {
-      if (pin.length < 6) {
-        setError('Entre ton PIN pour signer.');
-        return;
-      }
-      setBusy(true);
-      setError(null);
-      try {
-        await approveRequest(pin);
-        setPin('');
-        setShowRaw(false);
-      } catch (e) {
-        setError(friendlyTxError(e));
-      } finally {
-        setBusy(false);
-      }
+    const perform = async (unlock: Unlock) => {
+      await approveRequest(unlock);
+      setShowRaw(false);
     };
     const reject = () => {
-      setPin('');
-      setError(null);
+      setConfirming(false);
       setShowRaw(false);
       rejectRequest().catch(() => {});
     };
@@ -312,20 +271,23 @@ export function WalletConnectHost() {
               </Text>
             </ScrollView>
           ) : null}
-
-          <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, marginTop: spacing(1), paddingTop: spacing(1) }}>
-            <Text style={typography.muted}>PIN</Text>
-            <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} editable={!busy} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
-          </View>
         </GlassCard>
 
-        {error ? <ErrorBox message={error} /> : null}
         <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
           <View style={{ flex: 1 }}><Button label="Refuser" variant="ghost" onPress={reject} /></View>
           <View style={{ flex: 1 }}>
-            <Button label={busy ? 'Signature…' : kind === 'siwe' ? 'Se connecter' : 'Signer'} loading={busy} onPress={submit} />
+            <Button label={kind === 'siwe' ? 'Se connecter' : 'Signer'} onPress={() => setConfirming(true)} />
           </View>
         </View>
+
+        <ConfirmUnlock
+          visible={confirming}
+          title={kind === 'siwe' ? 'Confirmer la connexion' : isTx ? "Confirmer la transaction" : 'Confirmer la signature'}
+          subtitle={peer?.name ?? action}
+          perform={perform}
+          onDone={() => setConfirming(false)}
+          onCancel={() => setConfirming(false)}
+        />
       </Overlay>
     );
   }

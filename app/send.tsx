@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Alert, Pressable } from 'react-native';
+import { View, Text, TextInput, Pressable } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { SuccessModal } from '../ui/SuccessModal';
+import { ConfirmUnlock } from '../ui/ConfirmUnlock';
+import type { Unlock } from '../lib/walletStore';
 import { Icon } from '../ui/icon';
 import { notifyAndLog } from '../lib/notificationCenter';
 import { watchConfirmation } from '../lib/txWatch';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { friendlyTxError } from '../lib/txError';
 import { getAdapter, isWalletError, isValidEvmAddress, isValidSolanaAddress, parseAmount, looksLikeEnsName, resolveEnsName } from '../src';
 
 export default function Send() {
@@ -38,9 +39,8 @@ export default function Send() {
   useEffect(() => {
     if (amountParam) setAmount(String(amountParam));
   }, [amountParam]);
-  const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false); // feuille ConfirmUnlock ouverte
   // Succès : hash + résumé de ce qui vient d'être envoyé (pour l'écran animé).
   const [success, setSuccess] = useState<{ hash: string; summary: string } | null>(null);
 
@@ -95,44 +95,25 @@ export default function Send() {
       setError(isWalletError(e) ? e.message : e instanceof Error ? e.message : 'Saisie invalide');
       return;
     }
-    if (pin.length < 6) {
-      setError('Entre ton PIN pour signer.');
-      return;
-    }
-    // Sur un envoi ENS, on montre le nom ET l'adresse résolue (anti-erreur).
-    const toLine = isEnsInput ? `À : ${to.trim()}\n(${recipient})` : `À : ${recipient}`;
-    Alert.alert(
-      "Confirmer l'envoi",
-      `Réseau : ${chain.name}\nMontant : ${amount} ${symbol}\n${toLine}`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Envoyer', onPress: submit },
-      ],
-    );
+    // Validation OK → feuille de confirmation (biométrie auto ou PIN).
+    setConfirming(true);
   };
 
-  const submit = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const hash =
-        token?.kind === 'spl'
-          ? await sendSolToken(recipient, amount, { mint: token.mint, decimals: token.decimals }, { pin })
-          : token?.kind === 'erc20'
-            ? await sendToken(recipient, amount, { contract: token.contract, decimals: token.decimals }, { pin })
-            : await signAndSend(recipient, amount, { pin });
-      setPin('');
-      // Résumé : on privilégie le nom ENS s'il y en a un, sinon l'adresse tronquée.
-      const dest = isEnsInput ? to.trim() : `${recipient.slice(0, 8)}…${recipient.slice(-6)}`;
-      const summary = `${amount} ${symbol} envoyés à ${dest}`;
-      setSuccess({ hash, summary });
-      notifyAndLog('tx', 'Transaction envoyée', summary);
-      void watchConfirmation(activeChain, hash, summary); // notif à la confirmation
-    } catch (e) {
-      setError(friendlyTxError(e));
-    } finally {
-      setBusy(false);
-    }
+  // Exécuté par ConfirmUnlock avec le déverrouillage choisi (biométrie ou PIN).
+  // LÈVE en cas d'échec pour que la feuille gère (WRONG_PIN → réessai).
+  const perform = async (unlock: Unlock) => {
+    const hash =
+      token?.kind === 'spl'
+        ? await sendSolToken(recipient, amount, { mint: token.mint, decimals: token.decimals }, unlock)
+        : token?.kind === 'erc20'
+          ? await sendToken(recipient, amount, { contract: token.contract, decimals: token.decimals }, unlock)
+          : await signAndSend(recipient, amount, unlock);
+    // Résumé : on privilégie le nom ENS s'il y en a un, sinon l'adresse tronquée.
+    const dest = isEnsInput ? to.trim() : `${recipient.slice(0, 8)}…${recipient.slice(-6)}`;
+    const summary = `${amount} ${symbol} envoyés à ${dest}`;
+    setSuccess({ hash, summary });
+    notifyAndLog('tx', 'Transaction envoyée', summary);
+    void watchConfirmation(activeChain, hash, summary); // notif à la confirmation
   };
 
   return (
@@ -195,22 +176,19 @@ export default function Send() {
         />
       </Card>
 
-      <Card>
-        <Text style={typography.muted}>PIN (pour signer)</Text>
-        <TextInput
-          value={pin}
-          onChangeText={setPin}
-          keyboardType="number-pad"
-          secureTextEntry
-          maxLength={12}
-          style={{ color: colors.text, fontSize: 22, letterSpacing: 6, paddingVertical: spacing(1) }}
-        />
-      </Card>
-
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
 
       <View style={{ flex: 1 }} />
-      <Button label={busy ? 'Envoi…' : 'Vérifier et envoyer'} loading={busy} onPress={onReview} />
+      <Button label="Vérifier et envoyer" onPress={onReview} />
+
+      <ConfirmUnlock
+        visible={confirming}
+        title="Confirmer l'envoi"
+        subtitle={`${amount} ${symbol} · ${chain.name}\nÀ ${isEnsInput ? `${to.trim()} (${recipient.slice(0, 8)}…${recipient.slice(-6)})` : `${recipient.slice(0, 10)}…${recipient.slice(-8)}`}`}
+        perform={perform}
+        onDone={() => setConfirming(false)}
+        onCancel={() => setConfirming(false)}
+      />
 
       <SuccessModal
         visible={success != null}
