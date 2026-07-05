@@ -49,6 +49,33 @@ const TOKENS: Record<string, Tok[]> = {
     { symbol: 'USDT', address: '0x55d398326f99059fF775485246999027B3197955', decimals: 18 },
     { symbol: 'USDC', address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', decimals: 18 },
   ],
+  arbitrum: [
+    { symbol: 'ETH', address: NATIVE_TOKEN, decimals: 18 },
+    { symbol: 'USDC', address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6 },
+    { symbol: 'USDT', address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', decimals: 6 },
+  ],
+  optimism: [
+    { symbol: 'ETH', address: NATIVE_TOKEN, decimals: 18 },
+    { symbol: 'USDC', address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', decimals: 6 },
+    { symbol: 'USDT', address: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58', decimals: 6 },
+  ],
+  avalanche: [
+    { symbol: 'AVAX', address: NATIVE_TOKEN, decimals: 18 },
+    { symbol: 'USDC', address: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E', decimals: 6 },
+    { symbol: 'USDT', address: '0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7', decimals: 6 },
+  ],
+  linea: [
+    { symbol: 'ETH', address: NATIVE_TOKEN, decimals: 18 },
+    { symbol: 'USDC', address: '0x176211869cA2b568f2A7D4EE941E073a821EE1ff', decimals: 6 },
+  ],
+  scroll: [
+    { symbol: 'ETH', address: NATIVE_TOKEN, decimals: 18 },
+    { symbol: 'USDC', address: '0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4', decimals: 6 },
+  ],
+  blast: [
+    { symbol: 'ETH', address: NATIVE_TOKEN, decimals: 18 },
+    { symbol: 'USDB', address: '0x4300000000000000000000000000000000000003', decimals: 18 },
+  ],
 };
 
 const STATUS_LABEL: Record<SwapStatus, string> = {
@@ -58,8 +85,8 @@ const STATUS_LABEL: Record<SwapStatus, string> = {
   confirming: 'Confirmation sur la blockchain…',
 };
 
-const TW_CHAIN: Record<string, string> = { ethereum: 'ethereum', polygon: 'polygon', bnb: 'smartchain', base: 'base' };
-const TW_NATIVE: Record<string, string> = { ethereum: 'ethereum', polygon: 'polygon', bnb: 'smartchain', base: 'ethereum' };
+const TW_CHAIN: Record<string, string> = { ethereum: 'ethereum', polygon: 'polygon', bnb: 'smartchain', base: 'base', arbitrum: 'arbitrum', optimism: 'optimism', avalanche: 'avalanchec', linea: 'linea', scroll: 'scroll', blast: 'blast' };
+const TW_NATIVE: Record<string, string> = { ethereum: 'ethereum', polygon: 'polygon', bnb: 'smartchain', base: 'ethereum', arbitrum: 'ethereum', optimism: 'ethereum', avalanche: 'avalanchec', linea: 'ethereum', scroll: 'ethereum', blast: 'ethereum' };
 const TW = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains';
 
 function logoFor(novaChain: string, tok: Tok): string {
