@@ -109,6 +109,7 @@ export {
   type Erc20Token,
   type TokenMeta,
 } from './domain/tokens/alchemyTokens';
+export { erc20TransferData } from './domain/tokens/transfer';
 
 // NFT (Alchemy)
 export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
