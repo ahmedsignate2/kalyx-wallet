@@ -2,13 +2,12 @@ import React from 'react';
 import { View, Text, Alert, Pressable } from 'react-native';
 import { router, Stack } from 'expo-router';
 import Constants from 'expo-constants';
-import { PremiumScreen, GlassCard, ListRow, Chip, SegmentedTabs, GradientAvatar } from '../ui/premium';
+import { PremiumScreen, GlassCard, ListRow, SegmentedTabs, GradientAvatar } from '../ui/premium';
 import { Icon, type IconName } from '../ui/icon';
 import { AppTabBar } from '../ui/tabs';
 import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { useWallet } from '../lib/walletStore';
-import { toast } from '../lib/toast';
 
 function Ico({ n }: { n: IconName }) {
   const { colors } = useTheme();
@@ -26,8 +25,6 @@ export default function Menu() {
   const { profileName, uiMode, setUiMode } = useSettings();
   const reset = useWallet((s) => s.reset);
   const expert = uiMode === 'expert';
-  const soon = () => toast.info(t('soon'));
-  const soonChip = <Chip label={t('soon')} />;
 
   const onReset = () =>
     Alert.alert(t('resetWallet'), 'Assure-toi d’avoir ta phrase de récupération.', [
@@ -119,9 +116,8 @@ export default function Menu() {
 
       {/* Aide */}
       <GlassCard>
-        <ListRow left={<Ico n="support" />} title={t('support')} right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico n="faq" />} title={t('faq')} right={soonChip} onPress={soon} />
-        <ListRow divider left={<Ico n="about" />} title={t('about')} subtitle={`Nova · v${Constants.expoConfig?.version ?? '0.0.1'}`} />
+        <ListRow left={<Ico n="faq" />} title={t('faq')} right={chev} onPress={() => router.push('/faq')} />
+        <ListRow divider left={<Ico n="about" />} title={t('about')} subtitle={`Nova · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chev} onPress={() => router.push('/about')} />
       </GlassCard>
 
       <ListRow left={<Ico n="reset" />} title={t('resetWallet')} right={<Icon name="chevron" size={18} color={colors.danger} />} onPress={onReset} />
