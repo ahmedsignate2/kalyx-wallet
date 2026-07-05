@@ -350,6 +350,68 @@ export const AURORA: ChainConfig = {
   rpcUrls: ['https://mainnet.aurora.dev'], explorerUrl: 'https://explorer.aurora.dev', coingeckoId: 'ethereum',
 };
 
+// --- Encore un lot de chaînes EVM ---
+export const FANTOM: ChainConfig = {
+  id: 'fantom', name: 'Fantom', family: 'evm', evmChainId: 250, nativeSymbol: 'FTM', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.ftm.tools', 'https://fantom-rpc.publicnode.com'], explorerUrl: 'https://ftmscan.com', coingeckoId: 'fantom',
+};
+export const FRAXTAL: ChainConfig = {
+  id: 'fraxtal', name: 'Fraxtal', family: 'evm', evmChainId: 252, nativeSymbol: 'frxETH', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.frax.com'], explorerUrl: 'https://fraxscan.com', coingeckoId: 'frax-ether',
+};
+export const INK: ChainConfig = {
+  id: 'ink', name: 'Ink', family: 'evm', evmChainId: 57073, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://rpc-gel.inkonchain.com'], explorerUrl: 'https://explorer.inkonchain.com', coingeckoId: 'ethereum',
+};
+export const SONEIUM: ChainConfig = {
+  id: 'soneium', name: 'Soneium', family: 'evm', evmChainId: 1868, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.soneium.org'], explorerUrl: 'https://soneium.blockscout.com', coingeckoId: 'ethereum',
+};
+export const ABSTRACT: ChainConfig = {
+  id: 'abstract', name: 'Abstract', family: 'evm', evmChainId: 2741, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://api.mainnet.abs.xyz'], explorerUrl: 'https://abscan.org', coingeckoId: 'ethereum',
+};
+export const ZORA: ChainConfig = {
+  id: 'zora', name: 'Zora', family: 'evm', evmChainId: 7777777, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.zora.energy'], explorerUrl: 'https://explorer.zora.energy', coingeckoId: 'ethereum',
+};
+export const LISK: ChainConfig = {
+  id: 'lisk', name: 'Lisk', family: 'evm', evmChainId: 1135, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.api.lisk.com'], explorerUrl: 'https://blockscout.lisk.com', coingeckoId: 'ethereum',
+};
+export const BOBA: ChainConfig = {
+  id: 'boba', name: 'Boba Network', family: 'evm', evmChainId: 288, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://mainnet.boba.network'], explorerUrl: 'https://bobascan.com', coingeckoId: 'ethereum',
+};
+export const BOB: ChainConfig = {
+  id: 'bob', name: 'BOB', family: 'evm', evmChainId: 60808, nativeSymbol: 'ETH', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.gobob.xyz'], explorerUrl: 'https://explorer.gobob.xyz', coingeckoId: 'ethereum',
+};
+export const IMMUTABLE: ChainConfig = {
+  id: 'immutable', name: 'Immutable zkEVM', family: 'evm', evmChainId: 13371, nativeSymbol: 'IMX', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.immutable.com'], explorerUrl: 'https://explorer.immutable.com', coingeckoId: 'immutable-x',
+};
+export const ASTAR: ChainConfig = {
+  id: 'astar', name: 'Astar', family: 'evm', evmChainId: 592, nativeSymbol: 'ASTR', nativeDecimals: 18,
+  rpcUrls: ['https://evm.astar.network', 'https://astar-rpc.publicnode.com'], explorerUrl: 'https://astar.blockscout.com', coingeckoId: 'astar',
+};
+export const FUSE: ChainConfig = {
+  id: 'fuse', name: 'Fuse', family: 'evm', evmChainId: 122, nativeSymbol: 'FUSE', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.fuse.io'], explorerUrl: 'https://explorer.fuse.io', coingeckoId: 'fuse-network-token',
+};
+export const KAIA: ChainConfig = {
+  id: 'kaia', name: 'Kaia', family: 'evm', evmChainId: 8217, nativeSymbol: 'KAIA', nativeDecimals: 18,
+  rpcUrls: ['https://public-en.node.kaia.io', 'https://klaytn.drpc.org'], explorerUrl: 'https://kaiascan.io', coingeckoId: 'kaia',
+};
+export const GRAVITY: ChainConfig = {
+  id: 'gravity', name: 'Gravity', family: 'evm', evmChainId: 1625, nativeSymbol: 'G', nativeDecimals: 18,
+  rpcUrls: ['https://rpc.gravity.xyz'], explorerUrl: 'https://explorer.gravity.xyz',
+};
+export const ROOTSTOCK: ChainConfig = {
+  id: 'rootstock', name: 'Rootstock', family: 'evm', evmChainId: 30, nativeSymbol: 'RBTC', nativeDecimals: 18,
+  rpcUrls: ['https://public-node.rsk.co'], explorerUrl: 'https://explorer.rsk.co',
+};
+
 /** Testnet Ethereum — réseau de dev par défaut du MVP (zéro risque). */
 export const SEPOLIA: ChainConfig = {
   id: 'sepolia',
@@ -429,6 +491,21 @@ export const ALL_CHAINS: ChainConfig[] = [
   FLARE,
   KAVA,
   AURORA,
+  FANTOM,
+  FRAXTAL,
+  INK,
+  SONEIUM,
+  ABSTRACT,
+  ZORA,
+  LISK,
+  BOBA,
+  BOB,
+  IMMUTABLE,
+  ASTAR,
+  FUSE,
+  KAIA,
+  GRAVITY,
+  ROOTSTOCK,
   MONAD_TESTNET,
   BITCOIN,
   SOLANA,
