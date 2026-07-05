@@ -42,6 +42,8 @@ interface SettingsState {
   /** Modules / fonctions (écran Extensions). */
   securityScan: boolean; // analyse GoPlus avant signature
   showTestnets: boolean; // réseaux de test dans le sélecteur
+  /** Verrouillage auto (minutes en arrière-plan) : 0 = immédiat, -1 = jamais. */
+  autoLockMinutes: number;
 
   load: () => Promise<void>;
   setProfileName: (name: string) => void;
@@ -54,12 +56,13 @@ interface SettingsState {
   setPinLength: (n: number) => void;
   setNotifPref: (key: 'notifTx' | 'notifPrice', on: boolean) => void;
   setFlag: (key: 'securityScan' | 'showTestnets', on: boolean) => void;
+  setAutoLock: (minutes: number) => void;
 }
 
 function persist(
   s: Pick<
     SettingsState,
-    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets'
+    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes'
   >,
 ) {
   void saveSettings({
@@ -75,6 +78,7 @@ function persist(
     notifPrice: s.notifPrice,
     securityScan: s.securityScan,
     showTestnets: s.showTestnets,
+    autoLockMinutes: s.autoLockMinutes,
   });
 }
 
@@ -92,6 +96,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   notifPrice: true,
   securityScan: true,
   showTestnets: true,
+  autoLockMinutes: 3,
 
   load: async () => {
     const s = await loadSettings();
@@ -109,6 +114,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       notifPrice: s?.notifPrice !== false,
       securityScan: s?.securityScan !== false,
       showTestnets: s?.showTestnets !== false,
+      autoLockMinutes: typeof s?.autoLockMinutes === 'number' ? (s.autoLockMinutes as number) : 3,
     });
   },
 
@@ -154,6 +160,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setFlag: (key, on) => {
     set({ [key]: on } as Pick<SettingsState, 'securityScan' | 'showTestnets'>);
     persist({ ...get(), [key]: on });
+  },
+  setAutoLock: (autoLockMinutes) => {
+    set({ autoLockMinutes });
+    persist({ ...get(), autoLockMinutes });
   },
 }));
 
