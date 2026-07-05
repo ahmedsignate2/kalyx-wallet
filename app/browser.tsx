@@ -11,6 +11,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share, useWindowDimensions } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
@@ -131,6 +132,51 @@ function originOf(url: string): string {
   const m = url.match(/^https:\/\/([^/]+)/i);
   return m ? m[1].toLowerCase() : '';
 }
+
+/** Domaines dApp reconnus « sûrs » (racine). Base de l'indicateur vérifié. */
+const KNOWN_SAFE = new Set<string>([
+  'uniswap.org', 'opensea.io', 'aave.com', 'pancakeswap.finance', 'lido.fi', 'ens.domains',
+  'app.uniswap.org', 'app.aave.com', 'stake.lido.fi', 'app.ens.domains',
+  'coingecko.com', 'etherscan.io', 'polygon.technology', '1inch.io', 'curve.fi',
+  'sushi.com', 'compound.finance', 'makerdao.com', 'rarible.com', 'blur.io', 'zapper.xyz',
+]);
+const SAFE_ROOTS = ['uniswap', 'opensea', 'aave', 'pancakeswap', 'lido', 'ens', 'curve', '1inch', 'compound', 'blur', 'rarible'];
+
+function rootDomain(host: string): string {
+  const parts = host.split('.');
+  return parts.length > 2 ? parts.slice(-2).join('.') : host;
+}
+/** Distance d'édition ≤ 1 (typosquat « unniswap.org »). */
+function nearlyEqual(a: string, b: string): boolean {
+  if (a === b) return false;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, diff = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++diff > 1) return false;
+    if (a.length > b.length) i++;
+    else if (a.length < b.length) j++;
+    else { i++; j++; }
+  }
+  return true;
+}
+
+type SecLevel = 'safe' | 'suspicious' | 'unknown';
+/** Heuristique anti-phishing locale (sans API) : vérifié / suspect / inconnu. */
+function siteSecurity(host: string): SecLevel {
+  if (!host) return 'unknown';
+  const root = rootDomain(host);
+  if (KNOWN_SAFE.has(host) || KNOWN_SAFE.has(root)) return 'safe';
+  // Typosquat : ressemble à un domaine sûr sans en être un.
+  for (const safe of KNOWN_SAFE) {
+    if (nearlyEqual(root, safe) || nearlyEqual(host, safe)) return 'suspicious';
+  }
+  // Contient un nom de marque connu mais n'est pas son domaine (ex. uniswap-airdrop.com).
+  for (const brand of SAFE_ROOTS) {
+    if ((host.includes(brand) || host.includes(brand.replace(/[^a-z]/g, ''))) && !KNOWN_SAFE.has(root)) return 'suspicious';
+  }
+  return 'unknown';
+}
 function normalizeUrl(raw: string): string | null {
   const t = raw.trim();
   if (!t) return null;
@@ -179,6 +225,7 @@ export default function Browser() {
   const [menu, setMenu] = useState(false);
   const [rememberSite, setRememberSite] = useState(false); // case « se souvenir » (connexion)
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [netSheet, setNetSheet] = useState(false); // sélecteur de réseau (badge)
 
   // Récents + favoris (persistés).
   const [recents, setRecents] = useState<RecentDapp[]>([]);
@@ -441,6 +488,9 @@ export default function Browser() {
 
   const WebViewAny = WebViewComp as React.ComponentType<Record<string, unknown>>;
 
+  const sec = siteSecurity(origin);
+  const secColor = sec === 'safe' ? colors.up : sec === 'suspicious' ? colors.danger : colors.textMuted;
+
   /** Écran d'accueil dApps (grille 3 colonnes) — rendu par chaque onglet vide. */
   const renderHome = () => (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing(2.5), gap: spacing(2.5), paddingBottom: spacing(6) }} showsVerticalScrollIndicator={false}>
@@ -520,12 +570,13 @@ export default function Browser() {
       {/* Barre d'adresse + badge réseau */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingHorizontal: spacing(1.5), paddingTop: insets.top + spacing(1), paddingBottom: spacing(1) }}>
         <Pressable
-          onPress={() => router.push('/networks')}
+          onPress={() => setNetSheet(true)}
           hitSlop={6}
           style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1), paddingVertical: spacing(0.85), opacity: pressed ? 0.6 : 1 })}
         >
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: NETWORK_COLOR[chain.id] ?? colors.accent }} />
           <Text style={{ color: colors.text, fontSize: 12, fontFamily: fonts.semibold }}>{chain.nativeSymbol}</Text>
+          <Icon name="chevron" size={12} tone="muted" />
         </Pressable>
         <View
           style={{
@@ -540,7 +591,15 @@ export default function Browser() {
             paddingHorizontal: spacing(1.5),
           }}
         >
-          <Icon name="security" size={14} color={origin && connected.current.has(origin) ? colors.up : colors.textMuted} />
+          {/* Favicon du site + indicateur de sécurité (vert vérifié / rouge suspect) */}
+          {activeTab?.url ? (
+            <Favicon host={origin} size={18} color={colors.glassStrong} label={origin.slice(0, 1).toUpperCase()} />
+          ) : (
+            <Icon name="search" size={14} tone="muted" />
+          )}
+          {activeTab?.url ? (
+            <Icon name={sec === 'suspicious' ? 'warning' : 'security'} size={13} color={secColor} />
+          ) : null}
           <TextInput
             value={activeTab?.input ?? ''}
             onChangeText={(v) => updateTab(activeId, { input: v })}
@@ -565,6 +624,14 @@ export default function Browser() {
           ) : null}
         </View>
       </View>
+
+      {/* Bandeau anti-phishing : le domaine imite peut-être une marque connue */}
+      {sec === 'suspicious' && activeTab?.url ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginHorizontal: spacing(1.5), marginBottom: spacing(1), backgroundColor: colors.danger + '1E', borderWidth: 1, borderColor: colors.danger + '66', borderRadius: radii.md, paddingVertical: spacing(1), paddingHorizontal: spacing(1.5) }}>
+          <Icon name="warning" size={16} color={colors.danger} />
+          <Text style={{ color: colors.text, flex: 1, fontSize: 12.5 }}>⚠ Ce domaine ressemble à une marque connue sans en être le site officiel. Ne signe rien.</Text>
+        </View>
+      ) : null}
 
       {/* Corps : un conteneur plein écran PAR onglet (layout identique), l'actif
           visible. Chaque onglet montre soit sa WebView, soit l'accueil dApps. */}
@@ -665,6 +732,47 @@ export default function Browser() {
             <MenuRow icon="home" label="Page d'accueil" onPress={() => { setMenu(false); goHome(); }} />
             <MenuRow icon="close" label="Fermer l'onglet" onPress={() => { setMenu(false); closeTab(activeId); }} />
             <MenuRow icon="history" label="Effacer l'historique" onPress={() => { setMenu(false); clearRecents(); applyRecents([]); toast.info('Historique effacé'); }} />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Sélecteur de réseau (badge) + adresse du wallet */}
+      <Modal visible={netSheet} transparent animationType="slide" onRequestClose={() => setNetSheet(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} onPress={() => setNetSheet(false)}>
+          <Pressable style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: insets.bottom + spacing(2), gap: spacing(1.5) }}>
+            <Text style={typography.title}>Réseau</Text>
+            {account ? (
+              <Pressable
+                onPress={() => { Clipboard.setStringAsync(account.address); toast.success('Adresse copiée'); }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, padding: spacing(1.25) }}
+              >
+                <Icon name="wallet" size={16} color={colors.textMuted} />
+                <Text style={{ color: colors.text, flex: 1, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>
+                  {account.address.slice(0, 8)}…{account.address.slice(-6)}
+                </Text>
+                <Icon name="copy" size={15} tone="muted" />
+              </Pressable>
+            ) : null}
+            <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ gap: spacing(0.5) }} showsVerticalScrollIndicator={false}>
+              {listChains().filter((c) => c.family === 'evm').map((c) => {
+                const on = c.id === activeChain;
+                return (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => {
+                      setActiveChain(c.id);
+                      if (activeTab?.url) inject(activeId, emitJs('chainChanged', '0x' + (c.evmChainId ?? 1).toString(16)));
+                      setNetSheet(false);
+                    }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1.25), paddingHorizontal: spacing(1) }}
+                  >
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: NETWORK_COLOR[c.id] ?? colors.accent }} />
+                    <Text style={[typography.body, { flex: 1, color: on ? colors.accent : colors.text }]}>{c.name}</Text>
+                    {on ? <Icon name="check" size={16} color={colors.accent} /> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
