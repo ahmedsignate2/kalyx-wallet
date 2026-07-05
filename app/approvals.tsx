@@ -3,11 +3,10 @@ import { View, Text, Image, Pressable, ScrollView, RefreshControl } from 'react-
 import { Stack } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { PremiumScreen, GlassCard, SkeletonRow, Avatar } from '../ui/premium';
-import { PinPromptModal } from '../ui/PinPromptModal';
+import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
-import { useWallet } from '../lib/walletStore';
-import { useSettings } from '../lib/settingsStore';
+import { useWallet, type Unlock } from '../lib/walletStore';
 import { toast } from '../lib/toast';
 import {
   getAdapter,
@@ -28,16 +27,13 @@ export default function Approvals() {
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
   const sendRawTxOn = useWallet((s) => s.sendRawTxOn);
-  const pinLength = useSettings((s) => s.pinLength);
   const chain = getAdapter(activeChain).config;
   const isEvm = chain.family === 'evm';
 
   const [items, setItems] = useState<ApprovalItem[] | null>(null);
   const [loading, setLoading] = useState(false);
-  // Approbation en cours de révocation (attente du PIN).
+  // Approbation en cours de révocation (attente de confirmation biométrie/PIN).
   const [target, setTarget] = useState<ApprovalItem | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [pinErr, setPinErr] = useState(0);
 
   const load = useCallback(async () => {
     if (!account || !isEvm) {
@@ -66,25 +62,18 @@ export default function Approvals() {
     load();
   }, [load]);
 
-  const revoke = async (pin: string) => {
+  // Exécuté par ConfirmUnlock (biométrie ou PIN) ; LÈVE pour laisser la feuille gérer.
+  const perform = async (unlock: Unlock) => {
     if (!target) return;
-    setBusy(true);
-    try {
-      await sendRawTxOn(
-        { pin },
-        activeChain,
-        { to: target.token, data: revokeCalldata(target.spender), value: 0n, chainId: chain.evmChainId! },
-      );
-      toast.success('Révocation envoyée', `${target.symbol} · ${shorten(target.spender)}`);
-      // Retire l'entrée localement (la tx est en cours de minage).
-      setItems((cur) => (cur ?? []).filter((x) => !(x.token === target.token && x.spender === target.spender)));
-      setTarget(null);
-    } catch (e) {
-      setPinErr((n) => n + 1);
-      toast.error('Échec', e instanceof Error ? e.message.slice(0, 80) : 'Révocation impossible.');
-    } finally {
-      setBusy(false);
-    }
+    await sendRawTxOn(
+      unlock,
+      activeChain,
+      { to: target.token, data: revokeCalldata(target.spender), value: 0n, chainId: chain.evmChainId! },
+    );
+    toast.success('Révocation envoyée', `${target.symbol} · ${shorten(target.spender)}`);
+    // Retire l'entrée localement (la tx est en cours de minage).
+    setItems((cur) => (cur ?? []).filter((x) => !(x.token === target.token && x.spender === target.spender)));
+    setTarget(null);
   };
 
   return (
@@ -151,7 +140,7 @@ export default function Approvals() {
                     </View>
                   </View>
                   <Pressable
-                    onPress={() => { setPinErr(0); setTarget(it); }}
+                    onPress={() => setTarget(it)}
                     style={{ marginTop: spacing(1.5), alignItems: 'center', paddingVertical: spacing(1.25), borderRadius: radii.pill, borderWidth: 1, borderColor: colors.danger + '66' }}
                   >
                     <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>Révoquer</Text>
@@ -169,14 +158,12 @@ export default function Approvals() {
         </ScrollView>
       )}
 
-      <PinPromptModal
+      <ConfirmUnlock
         visible={target != null}
         title="Confirmer la révocation"
         subtitle={target ? `Retirer l’autorisation de ${shorten(target.spender)} sur ${target.symbol}.` : undefined}
-        expectedLength={pinLength >= 6 ? pinLength : undefined}
-        busy={busy}
-        errorSignal={pinErr}
-        onSubmit={revoke}
+        perform={perform}
+        onDone={() => setTarget(null)}
         onCancel={() => setTarget(null)}
       />
     </PremiumScreen>
