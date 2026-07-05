@@ -20,6 +20,8 @@ const config: ExpoConfig = {
       // Ledger Nano X en Bluetooth (transport @ledgerhq BLE).
       NSBluetoothAlwaysUsageDescription:
         'Nova utilise le Bluetooth pour se connecter à un portefeuille matériel Ledger.',
+      // Deep links : Nova gère aussi le schéma WalletConnect « wc: » et « ethereum: ».
+      CFBundleURLTypes: [{ CFBundleURLSchemes: ['novawallet', 'wc', 'ethereum'] }],
     },
   },
   android: {
@@ -27,6 +29,15 @@ const config: ExpoConfig = {
     // La protection anti-capture d'écran sur les écrans sensibles se branche
     // au niveau natif / via expo-screen-capture (cf. app/backup.tsx).
     permissions: ['android.permission.BLUETOOTH_SCAN', 'android.permission.BLUETOOTH_CONNECT'],
+    // Deep links système : « wc: » (WalletConnect) ouvre Nova (au prochain rebuild).
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: false,
+        data: [{ scheme: 'wc' }, { scheme: 'ethereum' }],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+    ],
   },
   plugins: [
     'expo-router',

@@ -14,6 +14,7 @@ import * as SecureStore from 'expo-secure-store';
 import { serializeVault, deserializeVault, type EncryptedVault } from '../src';
 
 const K_SETTINGS = 'nova.settings'; // préférences (non sensible)
+const K_LOCKSTATE = 'nova.lockState'; // anti-brute-force (persistant, résiste au redémarrage)
 const K_CUSTOM_TOKENS = 'nova.customTokens'; // tokens ajoutés par contrat (non sensible)
 const K_WALLETS = 'nova.wallets'; // liste des portefeuilles [{id,label}]
 const K_CONTACTS = 'nova.contacts'; // carnet d'adresses (non sensible)
@@ -111,6 +112,25 @@ export async function loadContactsRaw(): Promise<string | null> {
 /** Préférences non sensibles (nom, langue, devise…). */
 export async function saveSettings(obj: Record<string, unknown>): Promise<void> {
   await SecureStore.setItemAsync(K_SETTINGS, JSON.stringify(obj), base);
+}
+
+/**
+ * Compteur anti-brute-force PERSISTANT : survit au redémarrage de l'app, pour
+ * qu'on ne puisse pas contourner le verrouillage temporaire en la relançant.
+ */
+export async function saveLockState(failedAttempts: number, lastFailedAt: number): Promise<void> {
+  await SecureStore.setItemAsync(K_LOCKSTATE, JSON.stringify({ failedAttempts, lastFailedAt }), base);
+}
+
+export async function loadLockState(): Promise<{ failedAttempts: number; lastFailedAt: number }> {
+  try {
+    const raw = await SecureStore.getItemAsync(K_LOCKSTATE, base);
+    if (!raw) return { failedAttempts: 0, lastFailedAt: 0 };
+    const s = JSON.parse(raw) as { failedAttempts?: number; lastFailedAt?: number };
+    return { failedAttempts: Number(s.failedAttempts) || 0, lastFailedAt: Number(s.lastFailedAt) || 0 };
+  } catch {
+    return { failedAttempts: 0, lastFailedAt: 0 };
+  }
 }
 
 export async function loadSettings(): Promise<Record<string, unknown> | null> {
