@@ -281,6 +281,18 @@ export const BITCOIN: ChainConfig = {
   coingeckoId: 'bitcoin',
 };
 
+export const SOLANA: ChainConfig = {
+  id: 'solana',
+  name: 'Solana',
+  family: 'solana',
+  nativeSymbol: 'SOL',
+  nativeDecimals: 9, // 1 SOL = 1e9 lamports
+  // JSON-RPC mainnet-beta : endpoint public officiel (limité), repli Ankr public.
+  rpcUrls: ['https://api.mainnet-beta.solana.com', 'https://rpc.ankr.com/solana'],
+  explorerUrl: 'https://solscan.io',
+  coingeckoId: 'solana',
+};
+
 // Ordre d'affichage dans le sélecteur : testnet en tête (réseau par défaut).
 export const ALL_CHAINS: ChainConfig[] = [
   SEPOLIA,
@@ -299,4 +311,5 @@ export const ALL_CHAINS: ChainConfig[] = [
   MANTLE,
   CELO,
   BITCOIN,
+  SOLANA,
 ];
