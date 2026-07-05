@@ -47,6 +47,8 @@ import {
   readBiometricSeed,
   saveWalletsList,
   loadWalletsList,
+  saveLockState,
+  loadLockState,
   wipeWallet,
   wipeAll,
   type StoredAccount,
@@ -165,6 +167,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
     const activeWalletId = wallets[0]?.id ?? 'primary';
     const accounts = wallets.length ? (await loadAccounts(activeWalletId)) ?? [] : [];
+    // Compteur anti-brute-force persistant : recharge le verrouillage temporaire.
+    const lock = await loadLockState();
     set({
       ready: true,
       hasWallet: wallets.length > 0 && accounts.length > 0,
@@ -174,6 +178,8 @@ export const useWallet = create<WalletState>((set, get) => ({
       accounts,
       activeAccountIndex: 0,
       account: toAccount(accounts, 0, get().activeChain),
+      failedAttempts: lock.failedAttempts,
+      lastFailedAt: lock.lastFailedAt,
     });
   },
 
@@ -215,9 +221,13 @@ export const useWallet = create<WalletState>((set, get) => ({
     try {
       await revealMnemonic(activeWalletId, { pin });
       set({ isUnlocked: true, failedAttempts: 0, lastFailedAt: 0 });
+      void saveLockState(0, 0); // réinitialise le compteur persistant
     } catch (e) {
       if (isWalletError(e) && e.code === 'WRONG_PIN') {
-        set({ failedAttempts: get().failedAttempts + 1, lastFailedAt: Date.now() });
+        const failedAttempts = get().failedAttempts + 1;
+        const lastFailedAt = Date.now();
+        set({ failedAttempts, lastFailedAt });
+        void saveLockState(failedAttempts, lastFailedAt); // survit au redémarrage
       }
       throw e;
     }

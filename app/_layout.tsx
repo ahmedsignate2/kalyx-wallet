@@ -22,6 +22,8 @@ import { RootErrorBoundary, ErrorScreen } from '../ui/ErrorBoundary';
 import { WalletConnectHost } from '../ui/WalletConnectHost';
 import { ToastHost } from '../ui/ToastHost';
 import { AutoLock } from '../ui/AutoLock';
+import { PrivacyScreen } from '../ui/PrivacyScreen';
+import { DeepLinks } from '../ui/DeepLinks';
 import { Splash } from '../ui/Splash';
 import { useTheme } from '../ui/theme';
 
@@ -102,6 +104,8 @@ export default function RootLayout() {
         <WalletConnectHost />
         <ToastHost />
         <AutoLock />
+        <PrivacyScreen />
+        <DeepLinks />
         {showSplash ? <Splash onFinish={() => setShowSplash(false)} /> : null}
       </SafeAreaProvider>
     </RootErrorBoundary>
