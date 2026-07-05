@@ -126,6 +126,16 @@ export {
   type SplToken,
 } from './domain/tokens/splTokens';
 
+// QR — analyse du contenu scanné (adresses, URIs de paiement, wc:, URL)
+export { parseQr, type QrResult } from './domain/qr/parse';
+export {
+  qrTargetFamily,
+  novaChainIdForEvm,
+  describeQr,
+  type QrFamily,
+  type QrDescription,
+} from './domain/qr/route';
+
 // NFT (Alchemy)
 export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
 
