@@ -28,6 +28,23 @@ const adapters = new Map<string, ChainAdapter>(
   ALL_CHAINS.map((c) => [c.id, createAdapter(c)]),
 );
 
+// Chaînes personnalisées ajoutées à l'exécution (mode développeur, RPC custom).
+const customChains: ChainConfig[] = [];
+
+/** Enregistre une chaîne personnalisée (EVM). Idempotent par id. */
+export function registerChain(config: ChainConfig): void {
+  if (adapters.has(config.id)) return;
+  adapters.set(config.id, createAdapter(config));
+  customChains.push(config);
+}
+
+/** Retire une chaîne personnalisée. */
+export function unregisterChain(id: string): void {
+  adapters.delete(id);
+  const i = customChains.findIndex((c) => c.id === id);
+  if (i >= 0) customChains.splice(i, 1);
+}
+
 export function getAdapter(chainId: string): ChainAdapter {
   const adapter = adapters.get(chainId);
   if (!adapter) {
@@ -38,7 +55,7 @@ export function getAdapter(chainId: string): ChainAdapter {
 
 export function listChains(opts?: { includeTestnets?: boolean }): ChainConfig[] {
   const includeTestnets = opts?.includeTestnets ?? true;
-  return ALL_CHAINS.filter((c) => includeTestnets || !c.testnet);
+  return [...ALL_CHAINS, ...customChains].filter((c) => includeTestnets || !c.testnet);
 }
 
 export function hasChain(chainId: string): boolean {
