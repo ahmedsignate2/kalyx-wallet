@@ -32,6 +32,9 @@ export const fonts = {
   semibold: 'Inter_600SemiBold',
   bold: 'Inter_700Bold',
   extrabold: 'Inter_800ExtraBold',
+  // Police de MARQUE (Outfit) : géométrique, premium — pour le wordmark « Nova ».
+  brand: 'Outfit_700Bold',
+  brandStrong: 'Outfit_800ExtraBold',
 } as const;
 
 // Typé TextStyle['fontVariant'] (mutable) pour rester assignable aux styles RN.
