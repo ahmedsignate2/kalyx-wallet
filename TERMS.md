@@ -3,9 +3,9 @@
 _Dernière mise à jour : 5 juillet 2026_
 
 > ⚠️ Brouillon à compléter et faire relire par un juriste avant publication.
-> Remplace `[ÉDITEUR]`, `[CONTACT]`, `[PAYS]`. À héberger à une URL publique.
+> Remplace `[PAYS]` (ton pays). À héberger à une URL publique.
 
-Éditeur : **[ÉDITEUR — ton nom ou « Malin »]** · Contact : **amsssr400@gmail.com**
+Éditeur : **Malin Inc.** · Contact : **amsssr400@gmail.com**
 
 ## 1. Version bêta
 Nova Wallet est actuellement en phase de test (bêta). Le logiciel peut contenir des bugs. **N'y conserve pas de sommes importantes** et privilégie les réseaux de test ou de petits montants tant que la version stable et l'audit de sécurité ne sont pas publiés.

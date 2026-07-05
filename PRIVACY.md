@@ -3,10 +3,10 @@
 _Dernière mise à jour : 5 juillet 2026_
 
 > ⚠️ Brouillon à compléter et faire relire par un juriste avant publication.
-> Remplace `[ÉDITEUR]`, `[CONTACT]`, `[PAYS]`. À héberger à une URL publique
+> Remplace `[PAYS]` (ton pays). À héberger à une URL publique
 > (requis par le Google Play Store).
 
-Éditeur : **[ÉDITEUR — ton nom ou « Malin »]** · Contact : **amsssr400@gmail.com**
+Éditeur : **Malin Inc.** · Contact : **amsssr400@gmail.com**
 
 ## 1. Le principe : non-custodial
 Nova Wallet est un portefeuille non-custodial. Tes clés privées et ta phrase de récupération sont générées et stockées **uniquement sur ton téléphone**, chiffrées. Elles ne sont jamais envoyées à l'éditeur ni à aucun serveur. Nous n'avons aucun accès à tes fonds ni à ta phrase.
