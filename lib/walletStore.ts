@@ -31,6 +31,8 @@ import {
   EvmChainAdapter,
   BitcoinChainAdapter,
   NATIVE_TOKEN,
+  parseAmount,
+  erc20TransferData,
   type Account,
   type MnemonicStrength,
   type SwapQuote,
@@ -99,6 +101,8 @@ interface WalletState {
   signMessage: (unlock: Unlock, message: string) => Promise<string>;
   signTypedData: (unlock: Unlock, typedData: { domain: unknown; types: Record<string, unknown>; message: unknown }) => Promise<string>;
   sendRawTxOn: (unlock: Unlock, chainId: string, req: RawTxRequest) => Promise<string>;
+  /** Envoie un token ERC-20 détenu (transfer) sur le réseau actif. */
+  sendToken: (to: string, amount: string, token: { contract: string; decimals: number }, unlock: Unlock) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   revealPhrase: (unlock: Unlock) => Promise<string>;
   enableBiometric: (pin: string) => Promise<void>;
@@ -413,6 +417,21 @@ export const useWallet = create<WalletState>((set, get) => ({
     const m = await revealMnemonic(activeWalletId, unlock);
     const pk = deriveEvmAccount(mnemonicToSeedSync(m), account.index).privateKey;
     return adapter.sendContractTx(req, account.address, pk);
+  },
+
+  sendToken: async (to, amount, token, unlock) => {
+    const { account, activeChain } = get();
+    if (!account) throw new Error('Aucun compte');
+    const cfg = getAdapter(activeChain).config;
+    if (cfg.family !== 'evm' || !cfg.evmChainId) throw new Error('Envoi de token non supporté sur ce réseau');
+    const raw = parseAmount(amount, token.decimals).raw; // lève si montant invalide
+    const req: RawTxRequest = {
+      to: token.contract,
+      data: erc20TransferData(to, raw), // lève si adresse destinataire invalide
+      value: 0n,
+      chainId: cfg.evmChainId,
+    };
+    return get().sendRawTxOn(unlock, activeChain, req);
   },
 
   changePin: async (oldPin, newPin) => {
