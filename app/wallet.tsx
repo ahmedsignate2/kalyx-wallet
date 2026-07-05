@@ -97,7 +97,12 @@ export default function WalletScreen() {
       const logos = new Map(markets.map((m) => [m.id, m.image]));
       const results = await Promise.all(
         VALUE_CHAINS.map(async (chain) => {
-          const address = chain.family === 'bitcoin' ? account.btcAddress : account.evmAddress;
+          const address =
+            chain.family === 'bitcoin'
+              ? account.btcAddress
+              : chain.family === 'solana'
+                ? account.solAddress ?? ''
+                : account.evmAddress;
           let raw = 0n;
           try {
             raw = (await getAdapter(chain.id).getBalance(address)).raw;
