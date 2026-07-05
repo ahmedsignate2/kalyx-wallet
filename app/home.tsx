@@ -70,8 +70,8 @@ export default function Home() {
   const { profileName, fiat, favorites } = useSettings();
   const unreadNotifs = useNotifCenter((s) => unreadCount(s.items));
   const chain = getAdapter(activeChain).config;
-  // Envoi désormais supporté sur EVM ET Bitcoin.
-  const canSend = chain.family === 'evm' || chain.family === 'bitcoin';
+  // Envoi supporté sur EVM, Bitcoin et Solana.
+  const canSend = chain.family === 'evm' || chain.family === 'bitcoin' || chain.family === 'solana';
 
   const [raw, setRaw] = useState<bigint | null>(null);
   const [price, setPrice] = useState<{ price: number; change24h: number } | null>(null);
