@@ -10,7 +10,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share, useWindowDimensions } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
@@ -70,7 +70,7 @@ const SUGGESTED: Dapp[] = [
   { name: 'Uniswap', url: 'https://app.uniswap.org', domain: 'uniswap.org', emoji: '🦄', color: '#FF007A' },
   { name: 'OpenSea', url: 'https://opensea.io', domain: 'opensea.io', emoji: '🌊', color: '#2081E2' },
   { name: 'Aave', url: 'https://app.aave.com', domain: 'aave.com', emoji: '👻', color: '#B6509E' },
-  { name: 'PancakeSwap', url: 'https://pancakeswap.finance', domain: 'pancakeswap.finance', emoji: '🥞', color: '#1FC7D4' },
+  { name: 'Pancake', url: 'https://pancakeswap.finance', domain: 'pancakeswap.finance', emoji: '🥞', color: '#1FC7D4' },
   { name: 'Lido', url: 'https://stake.lido.fi', domain: 'lido.fi', emoji: '🌀', color: '#00A3FF' },
   { name: 'ENS', url: 'https://app.ens.domains', domain: 'ens.domains', emoji: '🏷️', color: '#5298FF' },
 ];
@@ -177,6 +177,8 @@ export default function Browser() {
   const [error, setError] = useState<string | null>(null);
   const [switcher, setSwitcher] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [rememberSite, setRememberSite] = useState(false); // case « se souvenir » (connexion)
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   // Récents + favoris (persistés).
   const [recents, setRecents] = useState<RecentDapp[]>([]);
@@ -295,6 +297,14 @@ export default function Browser() {
           if (isConnected && addr) {
             return respond(tabId, id, method === 'eth_requestAccounts' ? [addr] : [{ parentCapability: 'eth_accounts' }]);
           }
+          // Site « de confiance » (case « se souvenir ») → reconnexion SILENCIEUSE.
+          if (addr && useDappActivity.getState().isRemembered(reqOrigin)) {
+            connected.current.add(reqOrigin);
+            inject(tabId, emitJs('accountsChanged', [addr]));
+            inject(tabId, emitJs('connect', { chainId: chainIdHex }));
+            useDappActivity.getState().addConnection({ host: reqOrigin, url: `https://${reqOrigin}`, title: reqOrigin });
+            return respond(tabId, id, method === 'eth_requestAccounts' ? [addr] : [{ parentCapability: 'eth_accounts' }]);
+          }
           setPending({ kind: 'connect', tabId, id, origin: reqOrigin });
           return;
         }
@@ -375,10 +385,12 @@ export default function Browser() {
       inject(pending.tabId, emitJs('accountsChanged', [account.address]));
       inject(pending.tabId, emitJs('connect', { chainId: chainIdHex }));
       activity.addConnection({ host: pending.origin, url: `https://${pending.origin}`, title: activeTab?.title || pending.origin });
+      if (rememberSite) activity.remember(pending.origin); // reconnexion sans PIN ensuite
       Vibration.vibrate(14);
       toast.success('Connexion réussie', pending.origin);
       setPending(null);
       setPin('');
+      setRememberSite(false);
       setBusy(false);
       return;
     }
@@ -408,6 +420,7 @@ export default function Browser() {
     setPending(null);
     setPin('');
     setError(null);
+    setRememberSite(false);
   };
 
   // ------------------------------------------------------------------ UI
@@ -477,7 +490,7 @@ export default function Browser() {
             </Pressable>
           </View>
           <GlassCard>
-            {recents.slice(0, 15).map((r, i) => (
+            {recents.slice(0, showAllHistory ? 50 : 5).map((r, i) => (
               <Pressable key={r.host} onPress={() => go(r.url, r.title)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
                 <Favicon host={r.host} size={30} color={colors.glassStrong} label={r.host.slice(0, 1).toUpperCase()} />
                 <View style={{ flex: 1 }}>
@@ -488,6 +501,13 @@ export default function Browser() {
               </Pressable>
             ))}
           </GlassCard>
+          {recents.length > 5 ? (
+            <Pressable onPress={() => setShowAllHistory((v) => !v)} hitSlop={8} style={{ alignSelf: 'center', paddingVertical: spacing(0.5) }}>
+              <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}>
+                {showAllHistory ? 'Réduire' : `Voir tout (${recents.length})`}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
     </ScrollView>
@@ -497,8 +517,16 @@ export default function Browser() {
     <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Barre d'adresse */}
+      {/* Barre d'adresse + badge réseau */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingHorizontal: spacing(1.5), paddingTop: insets.top + spacing(1), paddingBottom: spacing(1) }}>
+        <Pressable
+          onPress={() => router.push('/networks')}
+          hitSlop={6}
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1), paddingVertical: spacing(0.85), opacity: pressed ? 0.6 : 1 })}
+        >
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: NETWORK_COLOR[chain.id] ?? colors.accent }} />
+          <Text style={{ color: colors.text, fontSize: 12, fontFamily: fonts.semibold }}>{chain.nativeSymbol}</Text>
+        </Pressable>
         <View
           style={{
             flex: 1,
@@ -669,6 +697,13 @@ export default function Browser() {
                   <Text style={typography.muted}>✓ Peut te proposer des transactions à signer</Text>
                   <Text style={typography.muted}>✗ Ne peut RIEN déplacer sans ta signature + PIN</Text>
                   <Text style={[typography.muted, { marginTop: spacing(1) }]}>🔒 Ton PIN est requis pour connecter ce site.</Text>
+                  {/* Se souvenir : reconnexion sans PIN les prochaines fois */}
+                  <Pressable onPress={() => setRememberSite((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: spacing(1.25) }}>
+                    <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: rememberSite ? colors.accent : colors.glassBorder, backgroundColor: rememberSite ? colors.accent : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                      {rememberSite ? <Icon name="check" size={14} color="#fff" /> : null}
+                    </View>
+                    <Text style={{ color: colors.text, flex: 1, fontSize: 14 }}>Se souvenir de ce site (reconnexion sans PIN)</Text>
+                  </Pressable>
                 </GlassCard>
               ) : pending.kind === 'sign' ? (
                 <GlassCard>
@@ -792,9 +827,13 @@ function Favicon({ host, size, color, label, emoji }: { host: string; size: numb
 function Tile({ host, name, color, emoji, width, onPress }: { host: string; name: string; color: string; emoji?: string; width: number; onPress: () => void }) {
   const { colors } = useTheme();
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ width, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}>
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => Vibration.vibrate(6)}
+      style={({ pressed }) => ({ width, alignItems: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}
+    >
       <Favicon host={host} size={56} color={color} emoji={emoji} label={name.slice(0, 1).toUpperCase()} />
-      <Text numberOfLines={1} style={{ marginTop: 8, color: colors.text, fontSize: 13, fontFamily: fonts.semibold, textAlign: 'center', maxWidth: width }}>
+      <Text numberOfLines={1} style={{ marginTop: 8, color: colors.text, fontSize: 12, fontFamily: fonts.semibold, textAlign: 'center', maxWidth: width }}>
         {name}
       </Text>
     </Pressable>
