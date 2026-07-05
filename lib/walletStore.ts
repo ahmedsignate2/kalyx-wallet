@@ -107,6 +107,8 @@ interface WalletState {
   sendRawTxOn: (unlock: Unlock, chainId: string, req: RawTxRequest) => Promise<string>;
   /** Envoie un token ERC-20 détenu (transfer) sur le réseau actif. */
   sendToken: (to: string, amount: string, token: { contract: string; decimals: number }, unlock: Unlock) => Promise<string>;
+  /** Envoie un token SPL détenu (Solana) : crée l'ATA si besoin puis transfère. */
+  sendSolToken: (to: string, amount: string, token: { mint: string; decimals: number }, unlock: Unlock) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   revealPhrase: (unlock: Unlock) => Promise<string>;
   enableBiometric: (pin: string) => Promise<void>;
@@ -475,6 +477,20 @@ export const useWallet = create<WalletState>((set, get) => ({
       chainId: cfg.evmChainId,
     };
     return get().sendRawTxOn(unlock, activeChain, req);
+  },
+
+  sendSolToken: async (to, amount, token, unlock) => {
+    const { account, activeChain, activeWalletId } = get();
+    if (!account) throw new Error('Aucun compte');
+    const adapter = getAdapter(activeChain);
+    if (!(adapter instanceof SolanaChainAdapter)) throw new Error('Token SPL : réseau Solana requis');
+    const raw = parseAmount(amount, token.decimals).raw; // lève si montant invalide
+    const m = await revealMnemonic(activeWalletId, unlock);
+    const signer = deriveSolanaSigner(mnemonicToSeedSync(m), account.index);
+    return adapter.sendSplToken(account.address, to, raw, token.mint, token.decimals, {
+      secretKey: signer.secretKey,
+      publicKey: signer.publicKey,
+    });
   },
 
   changePin: async (oldPin, newPin) => {
