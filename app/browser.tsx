@@ -18,6 +18,7 @@ import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useSettings } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../lib/recentDapps';
 import { useDappActivity } from '../lib/dappActivity';
@@ -275,6 +276,8 @@ export default function Browser() {
     setPhishSite(false);
     if (!pending) return;
     Vibration.vibrate(pending.kind === 'tx' ? [0, 30, 60, 30] : 12);
+    // Module « Analyse de sécurité » désactivable (écran Extensions).
+    if (!useSettings.getState().securityScan) return;
     const cid = chain.evmChainId ?? 1;
     if (pending.kind === 'tx' && pending.to) {
       setRisk('loading');
