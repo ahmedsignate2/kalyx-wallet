@@ -67,6 +67,12 @@ const config: ExpoConfig = {
     ['react-native-ble-plx', { isBackgroundEnabled: false }],
   ],
   experiments: { typedRoutes: true },
+  updates: {
+    url: 'https://u.expo.dev/763060a0-07a9-4056-b50e-5b8d6f2a0e0c',
+  },
+  runtimeVersion: {
+    policy: 'appVersion',
+  },
   extra: {
     eas: {
       projectId: '763060a0-07a9-4056-b50e-5b8d6f2a0e0c',
