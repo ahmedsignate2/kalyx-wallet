@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, Pressable } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, Image, Pressable, RefreshControl } from 'react-native';
 import { Stack, router } from 'expo-router';
 import {
   PremiumScreen,
@@ -36,6 +36,19 @@ export default function Market() {
     getMarkets(fiat, 50).then(setCoins).catch(() => setCoins([]));
   }, [fiat]);
 
+  // Balayer vers le bas pour rafraîchir le marché.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      setCoins(await getMarkets(fiat, 50));
+    } catch {
+      /* ignore */
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fiat]);
+
   // Recherche globale (toutes les cryptos) via CoinGecko, avec debounce.
   useEffect(() => {
     const q = query.trim();
@@ -70,7 +83,10 @@ export default function Market() {
   ];
 
   return (
-    <PremiumScreen footer={<AppTabBar active="market" />}>
+    <PremiumScreen
+      footer={<AppTabBar active="market" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+    >
       <Stack.Screen options={{ headerShown: false }} />
       <Text style={typography.title}>{t('market')}</Text>
       <SearchBar value={query} onChangeText={setQuery} placeholder={t('searchCrypto')} />

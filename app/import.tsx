@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable } from 'react-native';
 import { router, Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
@@ -30,6 +31,9 @@ export default function Import() {
       return;
     }
     setImportedDraft(text.trim());
+    // Rappel post-onboarding : proposer de restaurer les réseaux perso (le
+    // presse-papier contient encore la SEED ici, d'où un rappel différé à l'accueil).
+    void AsyncStorage.setItem('nova.promptRestoreNetworks', '1').catch(() => {});
     router.push('/set-pin'); // même flux de sécurisation que la création
   };
 
