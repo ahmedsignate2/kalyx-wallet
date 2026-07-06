@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, Image, Alert } from 'react-native';
+import { View, Text, Pressable, Image, Alert, RefreshControl } from 'react-native';
 import { router, Stack } from 'expo-router';
 import {
   PremiumScreen,
@@ -191,6 +191,17 @@ export default function WalletScreen() {
     load();
   }, [load]);
 
+  // Balayer vers le bas pour rafraîchir les soldes/tokens.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load]);
+
   // NFT du réseau actif (chargés à l'ouverture de l'onglet NFT).
   useEffect(() => {
     if (tab !== 'nft' || !account) return;
@@ -244,7 +255,10 @@ export default function WalletScreen() {
   ];
 
   return (
-    <PremiumScreen footer={<AppTabBar active="wallet" />}>
+    <PremiumScreen
+      footer={<AppTabBar active="wallet" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+    >
       <Stack.Screen options={{ headerShown: false }} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={typography.title}>{t('navWallet')}</Text>
