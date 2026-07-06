@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable, Alert } from 'react-native';
+import { View, Text, Pressable, Alert, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -116,6 +116,20 @@ export default function Home() {
     getMarkets(fiat, 20).then(setMarkets).catch(() => setMarkets([]));
   }, [fiat]);
 
+  // Balayer vers le bas pour rafraîchir : soldes/prix + marché.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        refresh(),
+        getMarkets(fiat, 20).then(setMarkets).catch(() => {}),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refresh, fiat]);
+
   // Avertissement unique si l'appareil est rooté/jailbreaké (stockage moins sûr).
   useEffect(() => {
     if (isDeviceCompromised()) {
@@ -123,17 +137,39 @@ export default function Home() {
     }
   }, []);
 
-  // Avertissement Bêta, une seule fois.
-  useEffect(() => {
-    AsyncStorage.getItem('nova.betaSeen').then((seen) => {
-      if (seen) return;
+  // Après un import de phrase : rappeler de restaurer ses réseaux perso (une
+  // sauvegarde Nova .json n'est pas dérivable de la seed). Différé à l'accueil
+  // (le presse-papier contenait la seed au moment de l'import).
+  const maybePromptRestoreNetworks = useCallback(() => {
+    AsyncStorage.getItem('nova.promptRestoreNetworks').then((v) => {
+      if (!v) return;
+      AsyncStorage.removeItem('nova.promptRestoreNetworks');
       Alert.alert(
-        'Nova est en bêta 🧪',
-        'L’application est en cours de test. N’y conserve pas de sommes importantes et privilégie de petits montants ou les réseaux de test. Tes clés restent chez toi.',
-        [{ text: 'J’ai compris', onPress: () => AsyncStorage.setItem('nova.betaSeen', '1') }],
+        'Des réseaux personnalisés ?',
+        'Si tu avais ajouté des réseaux (RPC) et gardé une sauvegarde Nova, restaure-la pour les retrouver. Tes fonds y sont toujours, il suffit de redonner le réseau à Nova.',
+        [
+          { text: 'Plus tard', style: 'cancel' },
+          { text: 'Restaurer', onPress: () => router.push('/developer') },
+        ],
       );
     });
   }, []);
+
+  // Avertissement Bêta (une fois), puis enchaîne le rappel de restauration —
+  // jamais deux Alert simultanées (télescopage Android).
+  useEffect(() => {
+    AsyncStorage.getItem('nova.betaSeen').then((seen) => {
+      if (seen) {
+        maybePromptRestoreNetworks();
+        return;
+      }
+      Alert.alert(
+        'Nova est en bêta 🧪',
+        'L’application est en cours de test. N’y conserve pas de sommes importantes et privilégie de petits montants ou les réseaux de test. Tes clés restent chez toi.',
+        [{ text: 'J’ai compris', onPress: () => { AsyncStorage.setItem('nova.betaSeen', '1'); maybePromptRestoreNetworks(); } }],
+      );
+    });
+  }, [maybePromptRestoreNetworks]);
 
   // Vraie courbe 24h (remplace l'ancienne sparkline factice).
   useEffect(() => {
@@ -211,7 +247,10 @@ export default function Home() {
   ];
 
   return (
-    <PremiumScreen footer={<AppTabBar active="home" />}>
+    <PremiumScreen
+      footer={<AppTabBar active="home" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+    >
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
