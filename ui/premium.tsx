@@ -58,9 +58,12 @@ function useThemeStyles() {
 export function PremiumScreen({
   children,
   footer,
+  refreshControl,
 }: {
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /** Élément <RefreshControl> pour le « balayer vers le bas pour rafraîchir ». */
+  refreshControl?: React.ComponentProps<typeof ScrollView>['refreshControl'];
 }) {
   const insets = useSafeAreaInsets();
   const { theme } = useThemeStyles();
@@ -76,6 +79,7 @@ export function PremiumScreen({
           gap: spacing(2.5),
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
       >
         {children}
       </ScrollView>
