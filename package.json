@@ -19,7 +19,7 @@
     "@ledgerhq/react-native-hw-transport-ble": "^6.41.0",
     "@noble/ciphers": "^1.0.0",
     "@noble/hashes": "^1.5.0",
-    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-async-storage/async-storage": "1.24.0",
     "@scure/bip32": "^1.5.0",
     "@scure/bip39": "^1.4.0",
     "@scure/btc-signer": "^2.2.0",
