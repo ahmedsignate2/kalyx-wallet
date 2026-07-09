@@ -121,6 +121,8 @@ export {
 export { erc20TransferData } from './domain/tokens/transfer';
 // Décodage local d'une transaction avant signature (mini-simulation)
 export { decodeTx, isRiskyTx, type DecodedTx } from './domain/tx/decodeTx';
+// Alertes de prix (logique de déclenchement)
+export { alertTriggered, type PriceAlert } from './domain/alerts/priceAlerts';
 // Sauvegarde chiffrée de la seed (cloud backup)
 export { createBackup, restoreBackup, BACKUP_VERSION, type BackupEnvelope } from './domain/backup/cloudBackup';
 export {
