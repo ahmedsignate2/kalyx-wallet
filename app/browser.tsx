@@ -198,6 +198,7 @@ export default function Browser() {
   const [tabs, setTabsState] = useState<Tab[]>(() => [mkTab()]);
   const [activeId, setActiveIdState] = useState<string>(() => tabs[0].id);
   const [progress, setProgress] = useState(0); // progression de chargement de l'onglet actif
+  const addressRef = useRef<TextInput>(null); // focus depuis la recherche de l'accueil
   useEffect(() => {
     setProgress(0); // au changement d'onglet, on masque la barre (pas de progression live)
   }, [activeId]);
@@ -529,9 +530,24 @@ export default function Browser() {
       <NovaLogo size={280} />
     </View>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing(2.5), gap: spacing(2.5), paddingBottom: spacing(6) }} showsVerticalScrollIndicator={false}>
-      <View style={{ gap: 4 }}>
-        <Text style={typography.title}>Navigateur dApps</Text>
-        <Text style={typography.muted}>Chaque action sensible demandera ton PIN.</Text>
+      {/* Hero façon new-tab : titre + grande barre de recherche qui focus la barre d'adresse. */}
+      <View style={{ alignItems: 'center', gap: spacing(1.5), marginTop: spacing(2), marginBottom: spacing(0.5) }}>
+        <Text style={{ color: colors.text, fontSize: 26, fontFamily: fonts.extrabold, letterSpacing: 0.3 }}>Explorer le Web3</Text>
+        <Text style={[typography.muted, { textAlign: 'center' }]}>Connecte-toi aux dApps · chaque signature demande ton PIN</Text>
+        <Pressable
+          onPress={() => addressRef.current?.focus()}
+          style={({ pressed }) => ({
+            flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), alignSelf: 'stretch',
+            backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder,
+            borderRadius: radii.pill, paddingHorizontal: spacing(2), paddingVertical: spacing(1.5),
+            marginTop: spacing(1), opacity: pressed ? 0.8 : 1,
+            shadowColor: colors.accent, shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 4,
+          })}
+        >
+          <Icon name="search" size={18} color={colors.accent} />
+          <Text style={{ color: colors.textMuted, fontSize: 15, flex: 1 }}>Rechercher ou saisir une URL</Text>
+          <Icon name="scan" size={18} color={colors.textMuted} />
+        </Pressable>
       </View>
 
       {favorites.length > 0 ? (
@@ -637,6 +653,7 @@ export default function Browser() {
             <Icon name={sec === 'suspicious' ? 'warning' : 'security'} size={13} color={secColor} />
           ) : null}
           <TextInput
+            ref={addressRef}
             value={activeTab?.input ?? ''}
             onChangeText={(v) => updateTab(activeId, { input: v })}
             onSubmitEditing={() => go(activeTab?.input ?? '')}
@@ -1049,15 +1066,16 @@ function Favicon({ host, size, color, label, emoji }: { host: string; size: numb
   // Carré à coins arrondis (radius ~ 32 %) — jamais un cercle ni une capsule.
   const radius = Math.round(size * 0.32);
   const imgSize = Math.round(size * 0.71); // logo centré, marge autour
+  const shadow = { shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 5 } as const;
   if (failed || !host) {
     return (
-      <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: color, alignItems: 'center', justifyContent: 'center', ...shadow }}>
         <Text style={{ fontSize: size * 0.5, color: colors.text }}>{emoji ?? label ?? '◈'}</Text>
       </View>
     );
   }
   return (
-    <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+    <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...shadow }}>
       <Image
         source={{ uri: faviconUrl(host) }}
         onError={() => setFailed(true)}
