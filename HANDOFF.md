@@ -261,6 +261,12 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   background→lock selon `autoLockMinutes`, 0=immédiat ; `ui/PrivacyScreen.tsx` = FLAG_SECURE
   hors premier plan + voile). Réglages : Sécurité → Verrouillage auto / Écran de garde.
 - ✅ ~~compteurs anti-brute-force persistés~~ : FAIT (`saveLockState`/`loadLockState`, cf. §2).
+- ✅ ~~Simulation/décodage de transaction~~ (2026-07-09) : `src/domain/tx/decodeTx.ts`
+  (`decodeTx`/`isRiskyTx`, 7 tests) décode LOCALEMENT une tx avant signature — transfert,
+  `approve` (détection ILLIMITÉ), `setApprovalForAll` (accès à TOUS les NFT), natif. Pas
+  d'API payante (Alchemy `simulateAssetChanges` = gated). UI : `ui/TxPreview.tsx` (résout
+  symbole/décimales du token, montants lisibles, bannière rouge si risqué) branché dans
+  `app/browser.tsx` et `ui/WalletConnectHost.tsx` (fenêtres d'approbation de tx).
 - ✅ ~~EIP-712 lisible~~ (2026-07-09) : `summarizeTypedData` extrait désormais les champs
   sensibles du message (spender, token, montant avec détection **Illimité**, échéance
   **Sans expiration**) — Permit ERC-2612 ET Permit2 (imbriqué). Affiché en rouge si dangereux
