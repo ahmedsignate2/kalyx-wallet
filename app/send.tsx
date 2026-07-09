@@ -10,7 +10,7 @@ import { notifyAndLog } from '../lib/notificationCenter';
 import { watchConfirmation } from '../lib/txWatch';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { getAdapter, isWalletError, isValidEvmAddress, isValidSolanaAddress, parseAmount, looksLikeEnsName, resolveEnsName } from '../src';
+import { getAdapter, isWalletError, isValidEvmAddress, isValidSolanaAddress, parseAmount, formatBalance, getCustomTokens, looksLikeEnsName, resolveEnsName } from '../src';
 
 export default function Send() {
   const { colors, typography } = useTheme();
@@ -18,6 +18,7 @@ export default function Send() {
   const sendToken = useWallet((s) => s.sendToken);
   const sendSolToken = useWallet((s) => s.sendSolToken);
   const activeChain = useWallet((s) => s.activeChain);
+  const account = useWallet((s) => s.account);
   const chain = getAdapter(activeChain).config;
   const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; symbol?: string; decimals?: string }>();
   const toParam = params.to;
@@ -73,8 +74,48 @@ export default function Send() {
   // Adresse réellement utilisée : l'adresse résolue si la saisie est un nom ENS.
   const recipient = isEnsInput ? ens.address ?? '' : to.trim();
 
+  // Solde disponible de l'actif envoyé (natif ou ERC-20) : affiché + vérifié en amont.
+  // SPL non couvert ici (undefined) → on garde le repli via l'échec on-chain.
+  const [balance, setBalance] = useState<bigint | null>(null);
+  useEffect(() => {
+    if (!account) return;
+    let cancelled = false;
+    setBalance(null);
+    const fetchBal = async (): Promise<bigint | null> => {
+      if (token?.kind === 'spl') return null;
+      // account.address = déjà l'adresse de la famille du réseau actif.
+      if (token?.kind === 'erc20') {
+        const [t] = await getCustomTokens(chain, account.address, [token.contract]);
+        return t ? t.raw : null;
+      }
+      return (await getAdapter(activeChain).getBalance(account.address)).raw;
+    };
+    fetchBal()
+      .then((b) => !cancelled && setBalance(b))
+      .catch(() => !cancelled && setBalance(null));
+    return () => {
+      cancelled = true;
+    };
+    // chain est dérivé de activeChain (réf stable via l'adapter caché) → pas dans les deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account, activeChain, token?.kind, token?.contract]);
+
+  // Montant saisi dépasse-t-il le solde connu ? (natif/ERC-20 uniquement)
+  const overBalance = (() => {
+    if (balance == null || !amount) return false;
+    try {
+      return parseAmount(amount, token?.decimals ?? chain.nativeDecimals).raw > balance;
+    } catch {
+      return false; // montant mal formé : géré par la validation d'onReview
+    }
+  })();
+
   const onReview = () => {
     setError(null);
+    if (overBalance) {
+      setError(`Solde insuffisant. Tu possèdes ${formatBalance(balance!, token?.decimals ?? chain.nativeDecimals, 6)} ${symbol}.`);
+      return;
+    }
     // Si la saisie est un nom ENS, il faut une adresse résolue avant de continuer.
     if (isEnsInput && !ens.address) {
       setError(ens.status === 'resolving' ? 'Résolution du nom ENS en cours…' : 'Nom ENS introuvable.');
@@ -165,14 +206,28 @@ export default function Send() {
       </Card>
 
       <Card>
-        <Text style={typography.muted}>Montant ({symbol})</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={typography.muted}>Montant ({symbol})</Text>
+          {balance != null ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+              <Text style={{ color: overBalance ? colors.danger : colors.textMuted, fontSize: 13 }}>
+                Solde : {formatBalance(balance, token?.decimals ?? chain.nativeDecimals, 6)} {symbol}
+              </Text>
+              {token?.kind === 'erc20' ? (
+                <Pressable onPress={() => setAmount(formatBalance(balance, token.decimals, token.decimals))} hitSlop={6}>
+                  <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}>Max</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
         <TextInput
           value={amount}
           onChangeText={setAmount}
           placeholder="0.0"
           placeholderTextColor={colors.textMuted}
           keyboardType="decimal-pad"
-          style={{ color: colors.text, fontSize: 22, paddingVertical: spacing(1) }}
+          style={{ color: overBalance ? colors.danger : colors.text, fontSize: 22, paddingVertical: spacing(1) }}
         />
       </Card>
 
