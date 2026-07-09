@@ -12,6 +12,9 @@ import {
   Animated,
   Dimensions,
   Easing,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -52,11 +55,33 @@ function useThemeStyles() {
   return { theme, styles };
 }
 
-export function Screen({ children }: { children: React.ReactNode }) {
+/**
+ * Écran de base, CLAVIER-AWARE : le contenu remonte au-dessus du clavier.
+ * - défaut : contenu fixe (pour les écrans qui gèrent DÉJÀ leur propre défilement —
+ *   ScrollView/FlatList —, afin d'éviter un double défilement qui casserait tout).
+ * - `scroll` : ajoute une ScrollView (KAV + ScrollView) pour les écrans-FORMULAIRES
+ *   plats (montant, adresse, mot de passe…) → le champ actif reste visible et on défile.
+ *   `flexGrow:1` sur le contentContainer garde les spacers `flex:1` (bouton en bas).
+ */
+export function Screen({ children, scroll }: { children: React.ReactNode; scroll?: boolean }) {
   const { styles } = useThemeStyles();
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.screenInner}>{children}</View>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {scroll ? (
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.screenScroll}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
+          >
+            {children}
+          </ScrollView>
+        ) : (
+          <View style={styles.screenInner}>{children}</View>
+        )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -129,6 +154,9 @@ function createStyles({ colors }: Theme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
     screenInner: { flex: 1, padding: spacing(3), gap: spacing(2) },
+    // contentContainer du ScrollView (mode `scroll`) : flexGrow garde les spacers
+    // `flex:1` fonctionnels ; marge basse pour respirer au-dessus du clavier.
+    screenScroll: { flexGrow: 1, padding: spacing(3), paddingBottom: spacing(5), gap: spacing(2) },
     card: {
       backgroundColor: colors.card,
       borderRadius: radii.lg,
