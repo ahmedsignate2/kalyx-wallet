@@ -326,6 +326,11 @@ sinon elles ne sont PAS embarquées dans l'APK/dev-build.
    détecte ce cas (result pas un tableau) et bascule sur `ChainConfig.explorerApi` (repli
    Blockscout, même format txlist — Base: base.blockscout.com/api, Optimism:
    explorer.optimism.io/api). Ajouter le repli d'une chaîne = renseigner `explorerApi`.
+9f. **Solde natif à 0 si tous les RPC d'une chaîne sont morts** — un getBalance qui
+   échoue retombe silencieusement sur `raw=0` (wallet.tsx), affichant un faux solde nul.
+   Sonde live 2026-07-09 des 63 réseaux mainnet : seul **Fantom** échouait (rpc.ftm.tools
+   = 403 clé désactivée, publicnode mort) → RPC remplacés (fantom.drpc.org, rpc.fantom.network,
+   1rpc.io/ftm). 0/63 échec ensuite. ⚠️ Re-sonder périodiquement : les RPC publics tombent.
 9. **`Requiring unknown module "NNNN"`** au chargement de WalletConnect = **lazy bundling
    Metro** : en dev, Expo découpe chaque `await import(...)` en bundles séparés dont les
    IDs de modules se désynchronisent du bundle principal (symptôme : IDs réclamés juste
