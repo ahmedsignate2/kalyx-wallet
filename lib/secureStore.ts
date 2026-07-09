@@ -41,6 +41,12 @@ export interface StoredAccount {
 export interface WalletMeta {
   id: string;
   label: string;
+  /**
+   * Origine du coffre. `'seed'` (défaut, rétro-compat) = mnémonique BIP-39,
+   * dérivation HD multi-comptes. `'privateKey'` = clé privée EVM importée :
+   * un seul compte, pas de dérivation HD, EVM uniquement (ni phrase, ni BTC/Solana).
+   */
+  type?: 'seed' | 'privateKey';
 }
 
 const base: SecureStore.SecureStoreOptions = {

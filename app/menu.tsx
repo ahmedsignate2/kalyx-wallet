@@ -99,6 +99,7 @@ export default function Menu() {
         <ListRow left={<Ico n="security" />} title={t('security')} right={chev} onPress={() => router.push('/settings')} />
         <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chev} onPress={() => router.push('/change-pin')} />
         <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chev} onPress={() => router.push('/reveal-phrase')} />
+        <ListRow divider left={<Ico n="copy" />} title={t('revealPrivateKey')} right={chev} onPress={() => router.push('/reveal-private-key')} />
       </GlassCard>
 
       {/* Avancé (mode expert) */}
