@@ -22,10 +22,17 @@ Deux couches strictement séparées :
 **Biométrie partout (2026-07-05) :** toute action sensible (envoi, swap, WalletConnect
 connexion+signature, navigateur dApps, révéler la phrase, approbations) passe par
 `ui/ConfirmUnlock.tsx` : biométrie AUTO à l'ouverture (si activée) → repli PIN. Le
-moteur `revealMnemonic` accepte `{biometric:true}` (lecture SecureStore gated = prompt
-unique) ; `walletStore.verifyUnlock` vérifie l'identité sans exposer la seed. Le pont
-WC/dApp (`approveProposal`/`approveRequest`, `dappProvider`) accepte un `Unlock`.
-⚠️ Piège : jamais `authenticate()` + lecture gated (double prompt) — le prompt EST la lecture.
+moteur `revealMnemonic` accepte `{biometric:true}` ; `walletStore.verifyUnlock` vérifie
+l'identité sans exposer la seed. Le pont WC/dApp accepte un `Unlock`.
+⚠️ **CHANGÉ 2026-07-09** : le secret biométrique n'est PLUS gated par le keystore
+(`requireAuthentication`) — cette clé ne survivait pas aux nouveaux builds → biométrie
+« cassée » alors que le PIN marchait. Nouveau schéma : `revealMnemonic` fait UN prompt
+via `expo-local-authentication.authenticate()` PUIS lit le secret **non-gated**
+(`secureStore` options `base`). Toujours 1 seul prompt (jamais `authenticate()` + lecture
+gated). Migration douce : `healBiometric(pin)` ré-écrit le secret non-gated au 1er
+déverrouillage PIN (appelé depuis `unlock.tsx`). Compromis : secret protégé par
+WHEN_UNLOCKED_THIS_DEVICE_ONLY + check biométrie in-app (pas keystore matériel) — assumé
+pour la fiabilité ; le PIN reste la voie forte.
 
 **Invariants sécurité (voir SECURITY.md) :** ni seed ni clé privée dans le state ;
 seed déchiffrée du coffre **à la volée** pour signer puis jetée ; jamais loggée ;
