@@ -244,8 +244,15 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
 
 ### Durcissement avant lancement
 - **Audit de sécurité externe** (obligatoire avant de vrais fonds).
-- Tests E2E sur device ; persister compteurs anti-brute-force ; auto-lock arrière-plan +
-  écran de garde ; détection root/jailbreak ; assets store (icône/splash/captures).
+- Tests E2E sur device ; détection root/jailbreak ; assets store (icône/splash/captures).
+- ✅ ~~auto-lock arrière-plan + écran de garde~~ : DÉJÀ FAIT (`ui/AutoLock.tsx` = AppState
+  background→lock selon `autoLockMinutes`, 0=immédiat ; `ui/PrivacyScreen.tsx` = FLAG_SECURE
+  hors premier plan + voile). Réglages : Sécurité → Verrouillage auto / Écran de garde.
+- ✅ ~~compteurs anti-brute-force persistés~~ : FAIT (`saveLockState`/`loadLockState`, cf. §2).
+- ✅ ~~EIP-712 lisible~~ (2026-07-09) : `summarizeTypedData` extrait désormais les champs
+  sensibles du message (spender, token, montant avec détection **Illimité**, échéance
+  **Sans expiration**) — Permit ERC-2612 ET Permit2 (imbriqué). Affiché en rouge si dangereux
+  dans `WalletConnectHost` et `app/browser.tsx`. 16 tests. Anti-drain : on voit QUI et COMBIEN.
 
 ---
 

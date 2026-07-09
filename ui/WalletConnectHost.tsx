@@ -242,9 +242,20 @@ export function WalletConnectHost() {
               <Text style={typography.bodyStrong}>{typed?.name ?? 'Données structurées'}</Text>
               {typed?.primaryType ? <Text style={typography.muted}>Type : {typed.primaryType}</Text> : null}
               {typed?.verifyingContract ? <Text style={typography.muted}>Contrat : {shorten(typed.verifyingContract)}</Text> : null}
+              {/* Champs lisibles extraits (spender, montant, échéance) — critiques pour un Permit. */}
+              {typed?.details?.map((d) => {
+                const danger = d.value.includes('⚠️');
+                const val = d.value.length > 24 && d.value.startsWith('0x') ? shorten(d.value) : d.value;
+                return (
+                  <View key={d.label} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing(1), marginTop: 2 }}>
+                    <Text style={typography.muted}>{d.label}</Text>
+                    <Text style={[typography.bodyStrong, { color: danger ? colors.danger : colors.text, flexShrink: 1, textAlign: 'right' }]}>{val}</Text>
+                  </View>
+                );
+              })}
               <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-                {typed?.primaryType === 'Permit'
-                  ? '⚠️ Un « Permit » autorise un contrat à dépenser tes tokens. Vérifie le site.'
+                {typed?.primaryType === 'Permit' || typed?.details?.length
+                  ? '⚠️ Une signature « Permit » autorise un contrat à dépenser tes tokens. Vérifie le spender et le montant ci-dessus.'
                   : 'Vérifie le contenu avant de signer.'}
               </Text>
             </>
