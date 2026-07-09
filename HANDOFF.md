@@ -203,6 +203,9 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   origine https, signatures décodées + PIN, RPC lecture seule en liste blanche.
   Entrée : Menu → Navigateur dApps. ⚠️ À TESTER après rebuild (Uniswap : connect,
   switch réseau, quote ; OpenSea : SIWE).
+  UI 2026-07-09 : barre de progression de chargement animée (`LoadBar`, onLoadProgress,
+  façon Safari/Chrome) + sélection auto de l'URL au focus (selectTextOnFocus + clear).
+  Icônes réseau réelles partout via `chainIconUrl` + `RemoteIcon` (repli lettré).
 - **⚠️ REBUILD REQUIS** (un seul, couvre TOUT le natif ajouté) :
   `eas build --profile development` → active WebView (navigateur), BLE (Ledger),
   **expo-notifications**, et `userInterfaceStyle: automatic` (sinon thème
