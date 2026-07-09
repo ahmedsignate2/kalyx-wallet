@@ -610,8 +610,8 @@ export default function Browser() {
           hitSlop={6}
           style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1), paddingVertical: spacing(0.85), opacity: pressed ? 0.6 : 1 })}
         >
-          <RemoteIcon uri={chainIconUrl(chain.id)} label={chain.nativeSymbol} size={18} />
-          <Text style={{ color: colors.text, fontSize: 12, fontFamily: fonts.semibold }}>{chain.nativeSymbol}</Text>
+          <RemoteIcon uri={chainIconUrl(chain.id)} label={chain.name} size={18} />
+          <Text style={{ color: colors.text, fontSize: 12, fontFamily: fonts.semibold, maxWidth: 74 }} numberOfLines={1}>{chain.name}</Text>
           <Icon name="chevron" size={12} tone="muted" />
         </Pressable>
         <View
@@ -816,11 +816,8 @@ export default function Browser() {
                     }}
                     style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1), paddingHorizontal: spacing(1), borderRadius: radii.md, backgroundColor: on ? colors.glass : pressed ? colors.glass : 'transparent' })}
                   >
-                    <RemoteIcon uri={chainIconUrl(c.id)} label={c.nativeSymbol} size={30} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[typography.body, { color: on ? colors.accent : colors.text, fontFamily: fonts.semibold }]}>{c.name}</Text>
-                      <Text style={{ color: colors.textMuted, fontSize: 12 }}>{c.nativeSymbol}</Text>
-                    </View>
+                    <RemoteIcon uri={chainIconUrl(c.id)} label={c.name} size={30} />
+                    <Text style={[typography.body, { flex: 1, color: on ? colors.accent : colors.text, fontFamily: fonts.semibold }]} numberOfLines={1}>{c.name}</Text>
                     {on ? <Icon name="check" size={18} color={colors.accent} /> : null}
                   </Pressable>
                 );
@@ -845,7 +842,7 @@ export default function Browser() {
                   <View style={{ flex: 1 }}>
                     <Text style={typography.bodyStrong} numberOfLines={1}>{activeTab?.title || pending.origin}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      <RemoteIcon uri={chainIconUrl(chain.id)} label={chain.nativeSymbol} size={16} />
+                      <RemoteIcon uri={chainIconUrl(chain.id)} label={chain.name} size={16} />
                       <Text style={typography.muted}>{pending.origin} · {chain.name}</Text>
                     </View>
                   </View>
