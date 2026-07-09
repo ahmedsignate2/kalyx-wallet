@@ -23,6 +23,12 @@ export interface ChainConfig {
   nativeDecimals: number;
   rpcUrls: string[];
   explorerUrl?: string;
+  /**
+   * API explorateur compatible Etherscan (txlist), en REPLI quand l'API Etherscan V2
+   * ne couvre pas ce réseau sur le plan gratuit (ex. Base, Optimism → « Free API access
+   * is not supported for this chain »). Base URL SANS query, ex. `https://base.blockscout.com/api`.
+   */
+  explorerApi?: string;
   testnet?: boolean;
   /** Id CoinGecko de la monnaie native (pour le prix fiat). Absent = testnet. */
   coingeckoId?: string;

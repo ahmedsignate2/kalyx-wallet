@@ -100,6 +100,8 @@ export const BASE: ChainConfig = {
     'https://mainnet.base.org',
   ]),
   explorerUrl: 'https://basescan.org',
+  // Etherscan V2 gratuit ne couvre pas Base → repli Blockscout (format Etherscan).
+  explorerApi: 'https://base.blockscout.com/api',
   coingeckoId: 'ethereum',
   coingeckoPlatform: 'base',
 };
@@ -136,6 +138,8 @@ export const OPTIMISM: ChainConfig = {
     'https://mainnet.optimism.io',
   ]),
   explorerUrl: 'https://optimistic.etherscan.io',
+  // Etherscan V2 gratuit ne couvre pas Optimism → repli Blockscout (format Etherscan).
+  explorerApi: 'https://explorer.optimism.io/api',
   coingeckoId: 'ethereum', // le natif est de l'ETH
   coingeckoPlatform: 'optimistic-ethereum',
 };

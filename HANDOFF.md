@@ -314,6 +314,18 @@ sinon elles ne sont PAS embarquées dans l'APK/dev-build.
    plafond, plafond appliqué APRÈS filtrage (`MAX_TOKENS=60`, métadonnées par lots de
    100). Vérifié live : 317 soldes scannés vs 40 avant. ⚠️ Ne jamais re-plafonner
    avant le filtre anti-spam.
+9d. **USDC (et blue-chips) non détectés — énumération Alchemy incomplète** — CORRIGÉ
+   2026-07-09. `alchemy_getTokenBalances(addr,'erc20')` n'énumère PAS de façon fiable
+   tous les tokens détenus : un solde USDC bien réel est absent de la liste (vérifié
+   live sur Base). Fix : `knownTokensFor(evmChainId)` (`src/domain/tokens/knownTokens.ts`,
+   adresses vérifiées via metadata) interroge USDC/USDT/DAI/WETH/… par contrat EXPLICITE,
+   fusionnés en tête (jamais évincés par le plafond). Ajouter un token connu = 1 adresse.
+9e. **Historique absent hors Ethereum/Arbitrum/Polygon** — CORRIGÉ 2026-07-09. L'API
+   Etherscan V2 gratuite ne couvre PAS toutes les chaînes : Base/Optimism renvoient
+   « Free API access is not supported for this chain » (result non-tableau). `getHistory`
+   détecte ce cas (result pas un tableau) et bascule sur `ChainConfig.explorerApi` (repli
+   Blockscout, même format txlist — Base: base.blockscout.com/api, Optimism:
+   explorer.optimism.io/api). Ajouter le repli d'une chaîne = renseigner `explorerApi`.
 9. **`Requiring unknown module "NNNN"`** au chargement de WalletConnect = **lazy bundling
    Metro** : en dev, Expo découpe chaque `await import(...)` en bundles séparés dont les
    IDs de modules se désynchronisent du bundle principal (symptôme : IDs réclamés juste
