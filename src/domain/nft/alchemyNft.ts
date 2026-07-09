@@ -17,7 +17,7 @@ export interface NftItem {
 }
 
 interface RawNft {
-  contract?: { address?: string; name?: string };
+  contract?: { address?: string; name?: string; isSpam?: boolean };
   collection?: { name?: string };
   tokenId?: string;
   name?: string;
@@ -28,6 +28,10 @@ export function parseNfts(json: unknown): NftItem[] {
   const list = (json as { ownedNfts?: RawNft[] })?.ownedNfts;
   if (!Array.isArray(list)) return [];
   return list
+    // Filtrage anti-spam CÔTÉ CLIENT : le paramètre serveur `excludeFilters[]=SPAM`
+    // est réservé au plan payant Alchemy (403 sur plan gratuit → 0 NFT affiché).
+    // Le champ `contract.isSpam` est fourni gratuitement dans `withMetadata`.
+    .filter((n) => !n?.contract?.isSpam)
     .map((n) => ({
       contract: n?.contract?.address ?? '',
       tokenId: String(n?.tokenId ?? ''),
@@ -56,7 +60,10 @@ export async function getNfts(chain: ChainConfig, address: string): Promise<NftI
   if (!base) return [];
   try {
     const res = await withTimeout(
-      fetch(`${base}/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=50&excludeFilters[]=SPAM`),
+      // Pas de `excludeFilters[]=SPAM` ni `spamConfidenceLevel` : réservés au plan
+      // payant Alchemy (403 sinon). Le spam est écarté côté client via `isSpam`
+      // (cf. parseNfts). pageSize=100 (max) pour dépasser les airdrops spam.
+      fetch(`${base}/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=100`),
       TIMEOUT,
       () => new Error('timeout'),
     );
