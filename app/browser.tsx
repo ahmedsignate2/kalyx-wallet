@@ -923,8 +923,18 @@ export default function Browser() {
                 <GlassCard>
                   <Text style={typography.bodyStrong}>{pending.summary?.name ?? 'Données structurées'}</Text>
                   {pending.summary?.primaryType ? <Text style={typography.muted}>Type : {pending.summary.primaryType}</Text> : null}
+                  {pending.summary?.details?.map((d) => {
+                    const danger = d.value.includes('⚠️');
+                    const val = d.value.length > 24 && d.value.startsWith('0x') ? `${d.value.slice(0, 8)}…${d.value.slice(-6)}` : d.value;
+                    return (
+                      <View key={d.label} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing(1), marginTop: 2 }}>
+                        <Text style={typography.muted}>{d.label}</Text>
+                        <Text style={[typography.bodyStrong, { color: danger ? colors.danger : colors.text, flexShrink: 1, textAlign: 'right' }]}>{val}</Text>
+                      </View>
+                    );
+                  })}
                   <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-                    {pending.summary?.primaryType === 'Permit' ? '⚠️ Un « Permit » autorise un contrat à dépenser tes tokens. Vérifie le site.' : 'Vérifie le contenu avant de signer.'}
+                    {pending.summary?.primaryType === 'Permit' || pending.summary?.details?.length ? '⚠️ Une signature « Permit » autorise un contrat à dépenser tes tokens. Vérifie le spender et le montant ci-dessus.' : 'Vérifie le contenu avant de signer.'}
                   </Text>
                   <FreeSignature />
                 </GlassCard>

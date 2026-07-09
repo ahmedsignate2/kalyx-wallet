@@ -111,6 +111,45 @@ describe('summarizeTypedData', () => {
     }
   });
 
+  it('extrait spender / montant / échéance d’un Permit ERC-2612', () => {
+    const s = summarizeTypedData({
+      domain: { name: 'USD Coin', chainId: 1, verifyingContract: '0xA0b8' },
+      primaryType: 'Permit',
+      message: { owner: '0xowner', spender: '0xSpender', value: '1000000', nonce: 0, deadline: 1893456000 },
+    });
+    expect(s?.details).toEqual([
+      { label: 'Autorisé (spender)', value: '0xSpender' },
+      { label: 'Montant', value: '1000000' },
+      { label: 'Échéance', value: '2030-01-01 00:00 UTC' },
+    ]);
+  });
+
+  it('signale un montant ILLIMITÉ (uint256 max) et une absence d’échéance', () => {
+    const max = (2n ** 256n - 1n).toString();
+    const s = summarizeTypedData({
+      domain: { name: 'DAI' },
+      primaryType: 'Permit',
+      message: { spender: '0xEvil', value: max, deadline: max },
+    });
+    expect(s?.details).toContainEqual({ label: 'Montant', value: 'Illimité ⚠️' });
+    expect(s?.details).toContainEqual({ label: 'Échéance', value: 'Sans expiration ⚠️' });
+  });
+
+  it('gère Permit2 (champs imbriqués sous details)', () => {
+    const s = summarizeTypedData({
+      domain: { name: 'Permit2' },
+      primaryType: 'PermitSingle',
+      message: {
+        details: { token: '0xToken', amount: '500', expiration: 1893456000 },
+        spender: '0xUniversalRouter',
+        sigDeadline: 1893456000,
+      },
+    });
+    expect(s?.details).toContainEqual({ label: 'Autorisé (spender)', value: '0xUniversalRouter' });
+    expect(s?.details).toContainEqual({ label: 'Token', value: '0xToken' });
+    expect(s?.details).toContainEqual({ label: 'Montant', value: '500' });
+  });
+
   it('retourne null si rien d’exploitable', () => {
     expect(summarizeTypedData('pas du json')).toBeNull();
     expect(summarizeTypedData({})).toBeNull();
