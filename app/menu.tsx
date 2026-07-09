@@ -110,9 +110,10 @@ export default function Menu() {
         </GlassCard>
       ) : null}
 
-      {/* Inviter des amis */}
+      {/* Inviter des amis + soutenir */}
       <GlassCard>
         <ListRow left={<Ico n="gift" />} title="Inviter des amis" subtitle="Partage ton code Nova" right={chev} onPress={() => router.push('/invite')} />
+        <ListRow divider left={<Ico n="star" />} title="Soutenez-nous" subtitle="Aide Nova à rester libre & indépendant" right={chev} onPress={() => router.push('/support')} />
       </GlassCard>
 
       {/* Aide */}
