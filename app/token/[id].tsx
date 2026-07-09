@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Image, Pressable, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Image, Pressable, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import {
   PremiumScreen,
@@ -232,7 +232,7 @@ export default function TokenDetail() {
 
       {/* Modale : créer une alerte de prix */}
       <Modal visible={alertOpen} transparent animationType="slide" onRequestClose={() => setAlertOpen(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }} onPress={() => setAlertOpen(false)}>
           <Pressable style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: spacing(2.5), gap: spacing(1.75) }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.glassBorder }} />
