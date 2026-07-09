@@ -158,7 +158,7 @@ export default function Send() {
   };
 
   return (
-    <Screen>
+    <Screen scroll>
       <Title>Envoyer {token ? token.symbol : ''}</Title>
       <Muted>
         {token ? `Transfert du token ${token.symbol}` : 'Transfert natif'} sur {chain.name}
