@@ -347,6 +347,11 @@ sinon elles ne sont PAS embarquées dans l'APK/dev-build.
    Sonde live 2026-07-09 des 63 réseaux mainnet : seul **Fantom** échouait (rpc.ftm.tools
    = 403 clé désactivée, publicnode mort) → RPC remplacés (fantom.drpc.org, rpc.fantom.network,
    1rpc.io/ftm). 0/63 échec ensuite. ⚠️ Re-sonder périodiquement : les RPC publics tombent.
+9g. **RN `<Image>` ne décode pas le WebP sur iOS** — les icônes réseau (DefiLlama)
+   sont servies en `image/webp` malgré l'extension `.jpg` → l'image échouait (surtout iOS)
+   et `RemoteIcon` retombait sur la lettre (« E » pour les L2 ETH). Fix (`chainIconUrl`,
+   `src/domain/chains/icons.ts`) : router via le proxy `wsrv.nl` (`&output=png`) qui
+   convertit en PNG (rendu fiable iOS+Android). Fallback lettré si le proxy échoue.
 9. **`Requiring unknown module "NNNN"`** au chargement de WalletConnect = **lazy bundling
    Metro** : en dev, Expo découpe chaque `await import(...)` en bundles séparés dont les
    IDs de modules se désynchronisent du bundle principal (symptôme : IDs réclamés juste

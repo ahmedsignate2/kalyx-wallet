@@ -21,9 +21,17 @@ const SLUG_OVERRIDE: Record<string, string> = {
 // Réseaux sans icône DefiLlama connue → repli lettré (évite un 404/broken image).
 const NO_ICON = new Set(['gravity', 'monad-testnet', 'sepolia']);
 
-/** URL de l'icône d'un réseau (ou undefined → cercle lettré côté UI). */
+/**
+ * URL de l'icône d'un réseau (ou undefined → cercle lettré côté UI).
+ *
+ * ⚠️ Les icônes DefiLlama sont servies en `image/webp` — que React Native `<Image>`
+ * NE DÉCODE PAS sur iOS (et de façon inégale sur Android) → l'image échouait et on
+ * retombait sur la lettre (« E » pour les L2 ETH). On les passe donc par le proxy
+ * d'images `wsrv.nl` qui les convertit en **PNG** (rendu fiable partout), redimensionné.
+ */
 export function chainIconUrl(id: string): string | undefined {
   if (NO_ICON.has(id)) return undefined;
   const slug = SLUG_OVERRIDE[id] ?? id;
-  return `https://icons.llamao.fi/icons/chains/rsz_${slug}.jpg`;
+  const src = `icons.llamao.fi/icons/chains/rsz_${slug}.jpg`;
+  return `https://wsrv.nl/?url=${encodeURIComponent(src)}&output=png&w=96&h=96&fit=cover`;
 }
