@@ -14,7 +14,6 @@ import {
   Easing,
   KeyboardAvoidingView,
   ScrollView,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -67,7 +66,7 @@ export function Screen({ children, scroll }: { children: React.ReactNode; scroll
   const { styles } = useThemeStyles();
   return (
     <SafeAreaView style={styles.screen}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         {scroll ? (
           <ScrollView
             style={{ flex: 1 }}
