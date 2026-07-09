@@ -97,24 +97,6 @@ const COLLECTIONS: Dapp[] = [
 ];
 
 /**
- * Pull-to-refresh CROSS-PLATFORM (react-native-webview ne le gère nativement que sur
- * iOS). Écoute passive : si l'utilisateur tire vers le bas alors que la page est TOUT
- * en haut, on prévient RN (message) qui recharge. Passif → ne bloque jamais le scroll ;
- * seuil de 90px → pas de faux positif. Signal préfixé pour ne pas heurter les dApps.
- */
-const PULL_REFRESH_JS = `(function(){
-  if (window.__novaPTR) return; window.__novaPTR = true;
-  var startY = 0, armed = false;
-  function top(){ return (document.scrollingElement || document.documentElement || document.body).scrollTop; }
-  window.addEventListener('touchstart', function(e){ armed = top() <= 0; startY = e.touches[0].clientY; }, {passive:true});
-  window.addEventListener('touchmove', function(e){
-    if (!armed) return;
-    if (e.touches[0].clientY - startY > 90) { armed = false; window.ReactNativeWebView && window.ReactNativeWebView.postMessage('__nova:pull-refresh'); }
-  }, {passive:true});
-  true;
-})();`;
-
-/**
  * Logo d'un site : favicon PNG HD via Google (fiable et CARRÉ sous RN, contrairement
  * aux .ico DuckDuckGo qui s'affichaient étirés). Repli emoji/lettre au besoin.
  */
@@ -768,14 +750,7 @@ export default function Browser() {
                   if (t.id === activeId) onWebScroll(e);
                 }}
                 injectedJavaScriptBeforeContentLoaded={injected}
-                injectedJavaScript={PULL_REFRESH_JS}
-                pullToRefreshEnabled
                 onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
-                  // Pull-to-refresh (signal injecté) : recharge l'onglet.
-                  if (e.nativeEvent.data === '__nova:pull-refresh') {
-                    (webrefs.current.get(t.id) as WV | undefined)?.reload();
-                    return;
-                  }
                   const req = parseDappMessage(e.nativeEvent.data);
                   if (req) onDappRequest(req, originOf(e.nativeEvent.url ?? t.url ?? ''), t.id);
                 }}
