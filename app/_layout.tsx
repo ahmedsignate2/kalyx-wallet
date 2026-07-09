@@ -24,6 +24,8 @@ import { WalletConnectHost } from '../ui/WalletConnectHost';
 import { ToastHost } from '../ui/ToastHost';
 import { AutoLock } from '../ui/AutoLock';
 import { PrivacyScreen } from '../ui/PrivacyScreen';
+import { PriceAlertWatcher } from '../ui/PriceAlertWatcher';
+import { usePriceAlerts } from '../lib/priceAlertsStore';
 import { DeepLinks } from '../ui/DeepLinks';
 import { Splash } from '../ui/Splash';
 import { useTheme } from '../ui/theme';
@@ -58,6 +60,7 @@ export default function RootLayout() {
   const loadContacts = useContacts((s) => s.load);
   const loadNotifs = useNotifCenter((s) => s.load);
   const loadCustomChains = useCustomChains((s) => s.load);
+  const loadPriceAlerts = usePriceAlerts((s) => s.load);
   const initWalletConnect = useWalletConnect((s) => s.init);
 
   useEffect(() => {
@@ -75,6 +78,7 @@ export default function RootLayout() {
         await loadContacts();
         await loadNotifs();
         await loadCustomChains();
+        await loadPriceAlerts();
         console.log('[Nova] loadSettings OK');
       } catch (e) {
         console.error('[Nova] loadSettings a échoué :', e);
@@ -85,7 +89,7 @@ export default function RootLayout() {
         console.error('[Nova] WalletConnect init a échoué :', e);
       }
     })();
-  }, [bootstrap, loadSettings, loadCustomTokens, loadContacts, loadNotifs, loadCustomChains, initWalletConnect]);
+  }, [bootstrap, loadSettings, loadCustomTokens, loadContacts, loadNotifs, loadCustomChains, loadPriceAlerts, initWalletConnect]);
 
   if (!fontsLoaded) return null;
 
@@ -109,6 +113,7 @@ export default function RootLayout() {
         <ToastHost />
         <AutoLock />
         <PrivacyScreen />
+        <PriceAlertWatcher />
         <DeepLinks />
         {showSplash ? <Splash onFinish={() => setShowSplash(false)} /> : null}
       </SafeAreaProvider>
