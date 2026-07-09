@@ -18,6 +18,7 @@ export default function Unlock() {
   const insets = useSafeAreaInsets();
   const unlockWithPin = useWallet((s) => s.unlockWithPin);
   const unlockWithBiometrics = useWallet((s) => s.unlockWithBiometrics);
+  const healBiometric = useWallet((s) => s.healBiometric);
   const failedAttempts = useWallet((s) => s.failedAttempts);
   const lastFailedAt = useWallet((s) => s.lastFailedAt);
   const biometricEnabled = useSettings((s) => s.biometricEnabled);
@@ -47,14 +48,22 @@ export default function Unlock() {
   // UNE seule demande d'empreinte : la lecture du coffre biométrique
   // (SecureStore requireAuthentication) EST déjà le prompt de l'OS. On
   // n'appelle donc PAS authenticate() en plus (c'était la double empreinte).
-  const tryBiometrics = useCallback(async () => {
-    try {
-      await unlockWithBiometrics();
-      goHome();
-    } catch {
-      /* annulé ou échec → l'utilisateur saisit son PIN */
-    }
-  }, [unlockWithBiometrics, goHome]);
+  const tryBiometrics = useCallback(
+    async (manual = false) => {
+      try {
+        await unlockWithBiometrics();
+        goHome();
+      } catch (e) {
+        // Refus/annulation → silencieux (l'utilisateur saisit son PIN).
+        // Au TAP manuel, on affiche la vraie cause (ex. « à réactiver dans Réglages »).
+        const msg = e instanceof Error ? e.message : '';
+        if (manual && !/refus|annul|cancel/i.test(msg)) {
+          setError(/configur/i.test(msg) ? 'Biométrie à réactiver dans Réglages (déverrouille au PIN).' : msg || 'Biométrie indisponible.');
+        }
+      }
+    },
+    [unlockWithBiometrics, goHome],
+  );
 
   useEffect(() => {
     (async () => {
@@ -72,6 +81,9 @@ export default function Unlock() {
       try {
         await unlockWithPin(code);
         setPinLength(code.length); // mémorise la longueur (option 3 au prochain coup)
+        // Migration douce : si la biométrie est activée mais son secret manque (ancien
+        // schéma gated illisible sur ce build), on le ré-enregistre au format fiable.
+        if (biometricEnabled) void healBiometric(code).catch(() => {});
         goHome();
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Code incorrect');
@@ -80,7 +92,7 @@ export default function Unlock() {
         setBusy(false);
       }
     },
-    [unlockWithPin, setPinLength, goHome],
+    [unlockWithPin, setPinLength, goHome, biometricEnabled, healBiometric],
   );
 
   const onChange = (v: string) => {
@@ -108,7 +120,7 @@ export default function Unlock() {
           <Text style={{ color: error && !locked ? colors.danger : colors.textMuted, fontSize: 14, textAlign: 'center' }}>{subtitle}</Text>
           {bioAvailable ? (
             <Pressable
-              onPress={tryBiometrics}
+              onPress={() => tryBiometrics(true)}
               disabled={busy || locked}
               style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing(0.5), paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}
             >
