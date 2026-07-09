@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { Screen, Card, Button, Title, Muted } from '../ui/components';
+import { Card, Button, Title, Muted } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
@@ -12,6 +13,7 @@ type Mode = 'phrase' | 'key';
 
 export default function ImportWallet() {
   const { colors, typography } = useTheme();
+  const insets = useSafeAreaInsets();
   const importWallet = useWallet((s) => s.importWallet);
   const importPrivateKey = useWallet((s) => s.importPrivateKey);
   const [mode, setMode] = useState<Mode>('phrase');
@@ -58,7 +60,20 @@ export default function ImportWallet() {
   };
 
   return (
-    <Screen>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={{
+          padding: spacing(3),
+          paddingTop: insets.top + spacing(2),
+          paddingBottom: insets.bottom + spacing(4),
+          gap: spacing(2),
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <Title>Importer un portefeuille</Title>
       <Muted>
         Ton portefeuille actuel n’est pas effacé : les portefeuilles cohabitent, tu passes de
@@ -128,8 +143,9 @@ export default function ImportWallet() {
         <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
       </Card>
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
-      <View style={{ flex: 1 }} />
+      <View style={{ height: spacing(1) }} />
       <Button label={busy ? 'Import…' : 'Importer'} loading={busy} onPress={onImport} />
-    </Screen>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
