@@ -198,21 +198,20 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   icône store PNG.
 
 ### Gros morceaux (rebuild / partenaires)
-- ✅ ~~Navigateur Web3 intégré~~ (code fait 2026-07-04, **actif après rebuild**) :
+- ✅ ~~Navigateur Web3 intégré~~ (fait 2026-07-04, **ACTIF** — rebuild fait) :
   `app/browser.tsx` + `lib/dappProvider.ts`. EIP-1193 + EIP-6963, connexion par
   origine https, signatures décodées + PIN, RPC lecture seule en liste blanche.
-  Entrée : Menu → Navigateur dApps. ⚠️ À TESTER après rebuild (Uniswap : connect,
-  switch réseau, quote ; OpenSea : SIWE).
+  Entrée : Menu → Navigateur dApps.
   UI 2026-07-09 : barre de progression de chargement animée (`LoadBar`, onLoadProgress,
   façon Safari/Chrome) + sélection auto de l'URL au focus (selectTextOnFocus + clear).
   Icônes réseau réelles partout via `chainIconUrl` + `RemoteIcon` (repli lettré).
-- **⚠️ REBUILD REQUIS** (un seul, couvre TOUT le natif ajouté) :
-  `eas build --profile development` → active WebView (navigateur), BLE (Ledger),
-  **expo-notifications**, et `userInterfaceStyle: automatic` (sinon thème
-  « Système » figé sombre). Deps + permissions déjà en place. **Ne pas oublier de
-  déclarer les EXPO_PUBLIC_* côté EAS** (cf. §4). Après rebuild, TESTER : mode
-  clair (29 écrans), navigateur (Uniswap connect/switch/quote, OpenSea SIWE),
-  notif de tx, onglets DeFi/Staking avec un compte qui détient du stETH/aToken.
+- ✅ **REBUILD DÉJÀ FAIT** (2026-07-09, confirmé par l'utilisateur) : le dev build EAS a
+  été réalisé → **WebView (navigateur), expo-notifications, `userInterfaceStyle: automatic`
+  sont ACTIFS**. ⚠️ **NE PLUS dire « il faut rebuild » / « à tester après rebuild »** pour
+  ces fonctions : c'est en place et ça marche. Un NOUVEAU rebuild n'est nécessaire QUE pour
+  un **nouveau** module natif absent du build actuel (ex. Ledger/BLE pas encore câblé). Tout
+  changement JS (moteur, écrans, config, props d'un composant natif déjà buildé comme
+  `onLoadProgress`) = simple **`r`** dans Metro, sans rebuild. Voir mémoire `nova-build-done`.
 - ✅ ~~DeFi / Staking (v1)~~ (fait 2026-07-04) : `src/domain/defi/registry.ts`
   classe les ERC-20 détenus (stETH/wstETH/rETH/cbETH/sDAI/stMATIC + heuristiques
   Aave/Compound/Lido/Rocket Pool, 5 tests). `wallet.tsx` : onglets DeFi/Staking
