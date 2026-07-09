@@ -195,6 +195,7 @@ export default function Settings() {
         </View>
         <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
         <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
+        <ListRow divider left={<Ico n="copy" />} title={t('revealPrivateKey')} right={chevron} onPress={() => router.push('/reveal-private-key')} />
       </GlassCard>
 
       {/* Réseau & à venir */}
