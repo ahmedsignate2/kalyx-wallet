@@ -42,6 +42,17 @@ describe('parseNfts', () => {
     expect(nfts[0].name).toBe('#5');
   });
 
+  it('écarte le spam via contract.isSpam (filtrage client, plan gratuit)', () => {
+    const nfts = parseNfts({
+      ownedNfts: [
+        { contract: { address: '0xSpam', name: 'Airdrop', isSpam: true }, tokenId: '1', image: { cachedUrl: 'http://i/1' } },
+        { contract: { address: '0xReal', name: 'Legit' }, tokenId: '2', image: { cachedUrl: 'http://i/2' } },
+      ],
+    });
+    expect(nfts).toHaveLength(1);
+    expect(nfts[0].contract).toBe('0xReal');
+  });
+
   it('robuste sur entrée invalide', () => {
     expect(parseNfts(null)).toEqual([]);
     expect(parseNfts({})).toEqual([]);
