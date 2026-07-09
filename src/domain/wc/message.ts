@@ -104,6 +104,65 @@ export interface TypedDataSummary {
   primaryType?: string;
   chainId?: number;
   verifyingContract?: string;
+  /**
+   * Champs LISIBLES extraits du message (spender, montant, échéance…). Essentiel
+   * pour un Permit/Permit2 : montrer QUI est autorisé et COMBIEN — sinon l'utilisateur
+   * signe à l'aveugle le vecteur de drain le plus courant.
+   */
+  details?: { label: string; value: string }[];
+}
+
+/** BigInt tolérant (décimal, 0x-hex, number) ; null si non parsable. */
+function asBigInt(v: unknown): bigint | null {
+  try {
+    if (typeof v === 'bigint') return v;
+    if (typeof v === 'number' && Number.isFinite(v)) return BigInt(Math.trunc(v));
+    if (typeof v === 'string' && v.trim()) return BigInt(v.trim());
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Au-delà de ce seuil (≈ uint160 max), aucun montant de token réaliste : c'est une
+// approbation « illimitée » (ERC-2612 = uint256 max, Permit2 = uint160 max).
+const UNLIMITED = 2n ** 160n - 2n;
+// Permit2 expiration = uint48 max ; ERC-2612 deadline sans limite = très grand.
+const NO_EXPIRY = 281474976710655n; // 2^48 - 1
+
+function fmtAmount(v: unknown): string | null {
+  const n = asBigInt(v);
+  if (n == null) return null;
+  return n >= UNLIMITED ? 'Illimité ⚠️' : n.toString();
+}
+
+function fmtDeadline(v: unknown): string | null {
+  const n = asBigInt(v);
+  if (n == null || n === 0n) return null;
+  if (n >= NO_EXPIRY) return 'Sans expiration ⚠️';
+  const ms = Number(n) * 1000;
+  const d = new Date(ms);
+  return Number.isNaN(d.getTime()) ? null : `${d.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+}
+
+/** Extrait les champs sensibles d'un message EIP-712 (Permit / Permit2 / génériques). */
+function extractDetails(message: unknown): { label: string; value: string }[] {
+  if (!message || typeof message !== 'object' || Array.isArray(message)) return [];
+  const m = message as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const nested = m.details && typeof m.details === 'object' && !Array.isArray(m.details) ? m.details : {};
+  const out: { label: string; value: string }[] = [];
+  const push = (label: string, value: string | null) => {
+    if (value != null && value !== '') out.push({ label, value });
+  };
+  const spender = m.spender ?? m.delegate ?? nested.spender;
+  if (typeof spender === 'string') push('Autorisé (spender)', spender);
+  const token = m.token ?? nested.token;
+  if (typeof token === 'string') push('Token', token);
+  const amount = m.value ?? m.amount ?? nested.amount;
+  if (amount != null) push('Montant', fmtAmount(amount));
+  const deadline = m.deadline ?? m.sigDeadline ?? m.expiration ?? nested.expiration;
+  if (deadline != null) push('Échéance', fmtDeadline(deadline));
+  return out;
 }
 
 /** Extrait les infos lisibles d'un payload eth_signTypedData (JSON ou objet). */
@@ -124,5 +183,7 @@ export function summarizeTypedData(raw: unknown): TypedDataSummary | null {
   const cid = Number(domain.chainId);
   if (Number.isFinite(cid) && cid > 0) out.chainId = cid;
   if (typeof domain.verifyingContract === 'string') out.verifyingContract = domain.verifyingContract;
-  return out.name || out.primaryType ? out : null;
+  const details = extractDetails(data.message);
+  if (details.length) out.details = details;
+  return out.name || out.primaryType || out.details ? out : null;
 }
