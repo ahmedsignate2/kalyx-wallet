@@ -17,7 +17,6 @@ import {
   Animated,
   TextInput as RNTextInput,
   KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -74,7 +73,7 @@ export function PremiumScreen({
       <LinearGradient colors={theme.gradients.screen} style={StyleSheet.absoluteFill} />
       <TopGlow />
       {/* Clavier-aware : le contenu remonte au-dessus du clavier et reste défilable. */}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView
           contentContainerStyle={{
             paddingTop: insets.top + spacing(1.5),
