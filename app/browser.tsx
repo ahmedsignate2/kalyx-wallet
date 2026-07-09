@@ -9,7 +9,7 @@
  * react-native-webview est natif : require dynamique (message clair sans rebuild).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share, useWindowDimensions, Animated } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -206,6 +206,10 @@ export default function Browser() {
   // Onglets (avec ref pour les handlers) + WebView refs par onglet.
   const [tabs, setTabsState] = useState<Tab[]>(() => [mkTab()]);
   const [activeId, setActiveIdState] = useState<string>(() => tabs[0].id);
+  const [progress, setProgress] = useState(0); // progression de chargement de l'onglet actif
+  useEffect(() => {
+    setProgress(0); // au changement d'onglet, on masque la barre (pas de progression live)
+  }, [activeId]);
   const tabsRef = useRef(tabs);
   const activeRef = useRef(activeId);
   const setTabs = (u: Tab[] | ((p: Tab[]) => Tab[])) => {
@@ -648,6 +652,8 @@ export default function Browser() {
             autoCorrect={false}
             keyboardType="url"
             returnKeyType="go"
+            selectTextOnFocus
+            clearButtonMode="while-editing"
             style={{ flex: 1, color: colors.text, fontSize: 14, paddingVertical: spacing(1) }}
           />
           <Pressable onPress={() => router.push('/scan')} hitSlop={8}>
@@ -665,6 +671,9 @@ export default function Browser() {
           ) : null}
         </View>
       </View>
+
+      {/* Barre de progression de chargement (façon Safari/Chrome) */}
+      <LoadBar progress={activeTab?.url ? progress : 0} />
 
       {/* Bandeau anti-phishing : le domaine imite peut-être une marque connue */}
       {sec === 'suspicious' && activeTab?.url ? (
@@ -687,6 +696,9 @@ export default function Browser() {
                 }}
                 source={{ uri: t.url }}
                 originWhitelist={['https://*']}
+                onLoadProgress={(e: { nativeEvent: { progress: number } }) => {
+                  if (t.id === activeId) setProgress(e.nativeEvent.progress);
+                }}
                 injectedJavaScriptBeforeContentLoaded={injected}
                 onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
                   const req = parseDappMessage(e.nativeEvent.data);
@@ -965,6 +977,42 @@ function ToolBtn({ icon, onPress, disabled, flip }: { icon: Parameters<typeof Ic
         <Icon name={icon} size={24} color={colors.text} />
       </View>
     </Pressable>
+  );
+}
+
+/**
+ * Barre de progression de chargement (façon Safari/Chrome) : trait accent fin sous
+ * la barre d'adresse. Largeur = progression (0→1), puis fondu de sortie à 100 %.
+ */
+function LoadBar({ progress }: { progress: number }) {
+  const { colors } = useTheme();
+  const width = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const done = progress >= 1 || progress <= 0;
+  useEffect(() => {
+    if (done) {
+      // Termine la barre puis la fait disparaître en fondu.
+      Animated.sequence([
+        Animated.timing(width, { toValue: 1, duration: 120, useNativeDriver: false }),
+        Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: true }),
+      ]).start(() => width.setValue(0));
+    } else {
+      opacity.setValue(1);
+      Animated.timing(width, { toValue: progress, duration: 180, useNativeDriver: false }).start();
+    }
+  }, [progress, done, width, opacity]);
+  return (
+    <View pointerEvents="none" style={{ height: 2.5, marginTop: -1, backgroundColor: 'transparent' }}>
+      <Animated.View
+        style={{
+          height: 2.5,
+          borderRadius: 2,
+          backgroundColor: colors.accent,
+          opacity,
+          width: width.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+        }}
+      />
+    </View>
   );
 }
 
