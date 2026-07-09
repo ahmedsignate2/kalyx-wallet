@@ -11,6 +11,30 @@ import { HDKey } from '@scure/bip32';
 import { bytesToHex } from '@noble/hashes/utils';
 import { computeAddress, SigningKey } from 'ethers';
 
+/**
+ * Normalise une clé privée EVM saisie : accepte avec ou sans `0x`, espaces autour,
+ * majuscules/minuscules. Renvoie une clé `0x`-hex de 64 caractères, ou lève si
+ * l'entrée n'est pas une clé secp256k1 valide (mauvaise longueur / hors intervalle).
+ */
+export function normalizeEvmPrivateKey(input: string): string {
+  const raw = input.trim().replace(/^0x/i, '');
+  if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
+    throw new Error('Clé privée invalide : 64 caractères hexadécimaux attendus (avec ou sans 0x).');
+  }
+  // SigningKey valide l'intervalle secp256k1 (rejette 0 et >= n).
+  const key = '0x' + raw.toLowerCase();
+  new SigningKey(key); // lève si hors intervalle
+  return key;
+}
+
+/** Construit un compte EVM (index 0, sans chemin HD) depuis une clé privée brute. */
+export function evmAccountFromPrivateKey(input: string): EvmAccount {
+  const privateKey = normalizeEvmPrivateKey(input);
+  const publicKey = new SigningKey(privateKey).compressedPublicKey;
+  const address = computeAddress(SigningKey.computePublicKey(privateKey, false));
+  return { index: 0, path: '', privateKey, publicKey, address };
+}
+
 export interface EvmAccount {
   index: number;
   /** Chemin de dérivation BIP-44 utilisé. */

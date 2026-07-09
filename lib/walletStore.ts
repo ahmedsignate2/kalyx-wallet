@@ -18,6 +18,8 @@ import {
   validateMnemonic,
   mnemonicToSeedSync,
   deriveEvmAccount,
+  evmAccountFromPrivateKey,
+  normalizeEvmPrivateKey,
   deriveBtcAccount,
   deriveBtcSigner,
   deriveSolanaAccount,
@@ -98,6 +100,8 @@ interface WalletState {
   // Multi-wallet
   createWallet: (pin: string, label?: string) => Promise<string>; // renvoie la phrase à sauvegarder
   importWallet: (mnemonic: string, pin: string, label?: string) => Promise<void>;
+  /** Importe un wallet depuis une clé privée EVM (un seul compte, EVM uniquement). */
+  importPrivateKey: (privateKey: string, pin: string, label?: string) => Promise<void>;
   setActiveWallet: (id: string) => Promise<void>;
   renameWallet: (id: string, label: string) => Promise<void>;
   removeWallet: (id: string) => Promise<void>;
@@ -114,6 +118,8 @@ interface WalletState {
   sendSolToken: (to: string, amount: string, token: { mint: string; decimals: number }, unlock: Unlock) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   revealPhrase: (unlock: Unlock) => Promise<string>;
+  /** Révèle la clé privée EVM d'un wallet importé par clé privée. */
+  exportPrivateKey: (unlock: Unlock) => Promise<string>;
   enableBiometric: (pin: string) => Promise<void>;
   disableBiometric: () => Promise<void>;
   reset: () => Promise<void>;
@@ -128,6 +134,33 @@ function deriveStoredAccount(mnemonic: string, index: number, label: string): St
     btcAddress: deriveBtcAccount(seed, index).address,
     solAddress: deriveSolanaAccount(seed, index).address,
   };
+}
+
+/** Compte unique (EVM) d'un wallet importé par clé privée : pas de HD, ni BTC/Solana. */
+function storedAccountFromPk(privateKey: string): StoredAccount {
+  const acct = evmAccountFromPrivateKey(privateKey);
+  return { index: 0, label: 'Compte importé', evmAddress: acct.address, btcAddress: '' };
+}
+
+function isPrivateKeyWallet(wallets: WalletMeta[], id: string): boolean {
+  return wallets.find((w) => w.id === id)?.type === 'privateKey';
+}
+
+/**
+ * Clé privée EVM prête à signer, quelle que soit l'origine du wallet actif :
+ * dérivée de la seed (wallet HD) ou clé importée telle quelle (wallet clé privée).
+ * Le secret ne vit que le temps de l'appel.
+ */
+async function revealEvmSigningKey(
+  wallets: WalletMeta[],
+  activeWalletId: string,
+  accountIndex: number,
+  unlock: Unlock,
+): Promise<string> {
+  const secret = await revealMnemonic(activeWalletId, unlock);
+  return isPrivateKeyWallet(wallets, activeWalletId)
+    ? normalizeEvmPrivateKey(secret)
+    : deriveEvmAccount(mnemonicToSeedSync(secret), accountIndex).privateKey;
 }
 
 function toAccount(accounts: StoredAccount[], activeIndex: number, chainId: string): Account | null {
@@ -249,8 +282,11 @@ export const useWallet = create<WalletState>((set, get) => ({
       throw new Error('Trop de tentatives. Réessaie plus tard.');
     }
     try {
-      const mnemonic = await revealMnemonic(activeWalletId, { pin });
-      const accounts = await backfillSolAddresses(activeWalletId, mnemonic, get().accounts);
+      const secret = await revealMnemonic(activeWalletId, { pin });
+      // Un wallet clé privée n'a pas de seed → pas de backfill Solana (EVM only).
+      const accounts = isPrivateKeyWallet(get().wallets, activeWalletId)
+        ? get().accounts
+        : await backfillSolAddresses(activeWalletId, secret, get().accounts);
       set({
         isUnlocked: true,
         failedAttempts: 0,
@@ -272,8 +308,10 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   unlockWithBiometrics: async () => {
     const { activeWalletId } = get();
-    const mnemonic = await revealMnemonic(activeWalletId, { biometric: true });
-    const accounts = await backfillSolAddresses(activeWalletId, mnemonic, get().accounts);
+    const secret = await revealMnemonic(activeWalletId, { biometric: true });
+    const accounts = isPrivateKeyWallet(get().wallets, activeWalletId)
+      ? get().accounts
+      : await backfillSolAddresses(activeWalletId, secret, get().accounts);
     set({
       isUnlocked: true,
       accounts,
@@ -303,6 +341,9 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   addAccount: async (unlock, label) => {
     const { activeWalletId } = get();
+    if (isPrivateKeyWallet(get().wallets, activeWalletId)) {
+      throw new Error('Un portefeuille importé par clé privée n’a qu’un seul compte.');
+    }
     const mnemonic = await revealMnemonic(activeWalletId, unlock);
     const accounts = get().accounts;
     const nextIndex = accounts.reduce((max, a) => Math.max(max, a.index), -1) + 1;
@@ -347,9 +388,39 @@ export const useWallet = create<WalletState>((set, get) => ({
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
   },
 
+  importPrivateKey: async (privateKey, pin, label) => {
+    // Valide/normalise la clé AVANT toute écriture (lève si invalide).
+    const key = normalizeEvmPrivateKey(privateKey);
+    await revealMnemonic(get().activeWalletId, { pin }); // vérifie le PIN (un seul PIN d'app)
+    const id = newWalletId();
+    const accounts = [storedAccountFromPk(key)];
+    await saveVault(id, await encryptSecret(key, pin));
+    await saveAccounts(id, accounts);
+    const wallets: WalletMeta[] = [
+      ...get().wallets,
+      { id, label: label?.trim() || `Clé importée ${get().wallets.length + 1}`, type: 'privateKey' },
+    ];
+    await saveWalletsList(wallets);
+    // EVM only : si le réseau actif n'est pas EVM, on bascule sur un réseau EVM valide.
+    const chain = getAdapter(get().activeChain).config.family === 'evm' ? get().activeChain : DEFAULT_CHAIN;
+    set({
+      wallets,
+      activeWalletId: id,
+      accounts,
+      activeAccountIndex: 0,
+      activeChain: chain,
+      account: toAccount(accounts, 0, chain),
+    });
+  },
+
   setActiveWallet: async (id) => {
     const accounts = (await loadAccounts(id)) ?? [];
-    set({ activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
+    // Un wallet clé privée est EVM-only : forcer un réseau EVM si besoin.
+    const chain =
+      isPrivateKeyWallet(get().wallets, id) && getAdapter(get().activeChain).config.family !== 'evm'
+        ? DEFAULT_CHAIN
+        : get().activeChain;
+    set({ activeWalletId: id, accounts, activeAccountIndex: 0, activeChain: chain, account: toAccount(accounts, 0, chain) });
   },
 
   renameWallet: async (id, label) => {
@@ -377,14 +448,15 @@ export const useWallet = create<WalletState>((set, get) => ({
   lock: () => set({ isUnlocked: false }),
 
   signAndSend: async (to, amount, unlock) => {
-    const { account, activeChain, activeWalletId } = get();
+    const { account, activeChain, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
-    const mnemonic = await revealMnemonic(activeWalletId, unlock);
-    const seed = mnemonicToSeedSync(mnemonic);
     const adapter = getAdapter(activeChain);
+    const isPk = isPrivateKeyWallet(wallets, activeWalletId);
 
     // Bitcoin = modèle UTXO : chemin d'envoi dédié (clé + tx différentes).
     if (adapter instanceof BitcoinChainAdapter) {
+      if (isPk) throw new Error('Portefeuille clé privée : Bitcoin non disponible (EVM uniquement).');
+      const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
       const btcSigner = deriveBtcSigner(seed, account.index);
       return adapter.sendBitcoin(account.address, to, amount, {
         privateKey: btcSigner.privateKey,
@@ -394,6 +466,8 @@ export const useWallet = create<WalletState>((set, get) => ({
 
     // Solana = comptes ed25519 : transaction et signature propres.
     if (adapter instanceof SolanaChainAdapter) {
+      if (isPk) throw new Error('Portefeuille clé privée : Solana non disponible (EVM uniquement).');
+      const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
       const solSigner = deriveSolanaSigner(seed, account.index);
       return adapter.sendSolana(account.address, to, amount, {
         secretKey: solSigner.secretKey,
@@ -401,21 +475,19 @@ export const useWallet = create<WalletState>((set, get) => ({
       });
     }
 
-    const signer = deriveEvmAccount(seed, account.index);
+    const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
     const unsigned = await adapter.prepareTransfer(account.address, { to, amount });
-    const raw = await adapter.signTransaction(unsigned, signer.privateKey);
+    const raw = await adapter.signTransaction(unsigned, pk);
     return adapter.broadcast(raw);
   },
 
   executeSwap: async (quote, unlock, onStatus) => {
-    const { account, activeChain, activeWalletId } = get();
+    const { account, activeChain, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(activeChain);
     if (!(adapter instanceof EvmChainAdapter)) throw new Error('Swap indisponible sur ce réseau');
 
-    const mnemonic = await revealMnemonic(activeWalletId, unlock);
-    const seed = mnemonicToSeedSync(mnemonic);
-    const signer = deriveEvmAccount(seed, account.index);
+    const signerKey = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
 
     const fromAddr = quote.fromToken.address.toLowerCase();
     if (fromAddr !== NATIVE_TOKEN.toLowerCase() && quote.approvalAddress) {
@@ -426,7 +498,7 @@ export const useWallet = create<WalletState>((set, get) => ({
         const approveHash = await adapter.sendContractTx(
           { to: quote.fromToken.address, data: approveData, chainId: quote.tx.chainId },
           account.address,
-          signer.privateKey,
+          signerKey,
         );
         onStatus?.('approvalWait');
         await adapter.waitForTx(approveHash);
@@ -434,7 +506,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
 
     onStatus?.('swapping');
-    const hash = await adapter.sendContractTx(quote.tx, account.address, signer.privateKey);
+    const hash = await adapter.sendContractTx(quote.tx, account.address, signerKey);
     onStatus?.('confirming');
     try {
       await adapter.waitForTx(hash);
@@ -445,19 +517,17 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signMessage: async (unlock, message) => {
-    const { account, activeWalletId } = get();
+    const { account, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
-    const m = await revealMnemonic(activeWalletId, unlock);
-    const pk = deriveEvmAccount(mnemonicToSeedSync(m), account.index).privateKey;
+    const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
     const data = isHexString(message) ? getBytes(message) : message;
     return new Wallet(pk).signMessage(data);
   },
 
   signTypedData: async (unlock, typedData) => {
-    const { account, activeWalletId } = get();
+    const { account, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
-    const m = await revealMnemonic(activeWalletId, unlock);
-    const pk = deriveEvmAccount(mnemonicToSeedSync(m), account.index).privateKey;
+    const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
     const { EIP712Domain: _drop, ...types } = (typedData.types ?? {}) as Record<string, unknown>;
     return new Wallet(pk).signTypedData(
       typedData.domain as never,
@@ -467,12 +537,11 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   sendRawTxOn: async (unlock, chainId, req) => {
-    const { account, activeWalletId } = get();
+    const { account, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(chainId);
     if (!(adapter instanceof EvmChainAdapter)) throw new Error('Chaîne non supportée');
-    const m = await revealMnemonic(activeWalletId, unlock);
-    const pk = deriveEvmAccount(mnemonicToSeedSync(m), account.index).privateKey;
+    const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
     return adapter.sendContractTx(req, account.address, pk);
   },
 
@@ -492,8 +561,11 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   sendSolToken: async (to, amount, token, unlock) => {
-    const { account, activeChain, activeWalletId } = get();
+    const { account, activeChain, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
+    if (isPrivateKeyWallet(wallets, activeWalletId)) {
+      throw new Error('Portefeuille clé privée : Solana non disponible (EVM uniquement).');
+    }
     const adapter = getAdapter(activeChain);
     if (!(adapter instanceof SolanaChainAdapter)) throw new Error('Token SPL : réseau Solana requis');
     const raw = parseAmount(amount, token.decimals).raw; // lève si montant invalide
@@ -516,7 +588,22 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
   },
 
-  revealPhrase: async (unlock) => revealMnemonic(get().activeWalletId, unlock),
+  revealPhrase: async (unlock) => {
+    const { activeWalletId, wallets } = get();
+    if (isPrivateKeyWallet(wallets, activeWalletId)) {
+      throw new Error('Ce portefeuille a été importé par clé privée : il n’a pas de phrase de récupération.');
+    }
+    return revealMnemonic(activeWalletId, unlock);
+  },
+
+  exportPrivateKey: async (unlock) => {
+    const { activeWalletId, wallets, account } = get();
+    if (!account) throw new Error('Aucun compte');
+    // Wallet clé privée : la clé stockée EST la clé privée. Wallet HD : dérivée du compte actif.
+    return isPrivateKeyWallet(wallets, activeWalletId)
+      ? normalizeEvmPrivateKey(await revealMnemonic(activeWalletId, unlock))
+      : deriveEvmAccount(mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock)), account.index).privateKey;
+  },
 
   enableBiometric: async (pin) => {
     const id = get().activeWalletId;
