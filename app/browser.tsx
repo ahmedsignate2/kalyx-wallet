@@ -1002,9 +1002,11 @@ function LoadBar({ progress }: { progress: number }) {
   useEffect(() => {
     if (done) {
       // Termine la barre puis la fait disparaître en fondu.
+      // width (layout) impose useNativeDriver:false ; opacity DOIT rester false aussi,
+      // sinon le nœud passe côté natif et width plante ('width not supported by native').
       Animated.sequence([
         Animated.timing(width, { toValue: 1, duration: 120, useNativeDriver: false }),
-        Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: false }),
       ]).start(() => width.setValue(0));
     } else {
       opacity.setValue(1);
