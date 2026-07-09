@@ -199,9 +199,26 @@ export default function Browser() {
   const [activeId, setActiveIdState] = useState<string>(() => tabs[0].id);
   const [progress, setProgress] = useState(0); // progression de chargement de l'onglet actif
   const addressRef = useRef<TextInput>(null); // focus depuis la recherche de l'accueil
+  // Barre d'adresse rétractable au scroll (façon Chrome/Edge mobile).
+  const [barRowH, setBarRowH] = useState(0); // hauteur mesurée de la rangée d'adresse
+  const barShown = useRef(new Animated.Value(1)).current; // 1 = visible, 0 = repliée
+  const lastScrollY = useRef(0);
+  const showBar = useCallback((to: 1 | 0) => {
+    Animated.timing(barShown, { toValue: to, duration: 200, useNativeDriver: false }).start();
+  }, [barShown]);
+  const onWebScroll = useCallback((e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const dy = y - lastScrollY.current;
+    lastScrollY.current = y;
+    if (y < 60) showBar(1); // près du haut → toujours visible
+    else if (dy > 8) showBar(0); // scroll vers le bas → replie
+    else if (dy < -8) showBar(1); // scroll vers le haut → montre
+  }, [showBar]);
   useEffect(() => {
     setProgress(0); // au changement d'onglet, on masque la barre (pas de progression live)
-  }, [activeId]);
+    barShown.setValue(1); // et on ré-affiche la barre d'adresse
+    lastScrollY.current = 0;
+  }, [activeId, barShown]);
   const tabsRef = useRef(tabs);
   const activeRef = useRef(activeId);
   const setTabs = (u: Tab[] | ((p: Tab[]) => Tab[])) => {
@@ -329,7 +346,7 @@ export default function Browser() {
     setTabs(next);
     if (id === activeRef.current) setActiveId(next[Math.min(idx, next.length - 1)].id);
   };
-  const goHome = () => updateTab(activeRef.current, { url: null, input: '' });
+  const goHome = () => { barShown.setValue(1); updateTab(activeRef.current, { url: null, input: '' }); };
 
   const toggleCurrentFav = () => {
     if (!origin) return;
@@ -619,8 +636,15 @@ export default function Browser() {
     <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Barre d'adresse + badge réseau */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingHorizontal: spacing(1.5), paddingTop: insets.top + spacing(1), paddingBottom: spacing(1) }}>
+      {/* Zone status-bar FIXE (ne se replie jamais) */}
+      <View style={{ height: insets.top, backgroundColor: colors.bgDeep }} />
+
+      {/* Barre d'adresse + badge réseau — RÉTRACTABLE au scroll (hauteur animée) */}
+      <Animated.View style={{ height: barRowH ? Animated.multiply(barShown, barRowH) : undefined, overflow: 'hidden' }}>
+      <View
+        onLayout={(e) => { if (!barRowH) setBarRowH(e.nativeEvent.layout.height); }}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingHorizontal: spacing(1.5), paddingTop: spacing(1), paddingBottom: spacing(1) }}
+      >
         <Pressable
           onPress={() => setNetSheet(true)}
           hitSlop={6}
@@ -682,6 +706,7 @@ export default function Browser() {
           ) : null}
         </View>
       </View>
+      </Animated.View>
 
       {/* Barre de progression de chargement (façon Safari/Chrome) */}
       <LoadBar progress={activeTab?.url ? progress : 0} />
@@ -709,6 +734,9 @@ export default function Browser() {
                 originWhitelist={['https://*']}
                 onLoadProgress={(e: { nativeEvent: { progress: number } }) => {
                   if (t.id === activeId) setProgress(e.nativeEvent.progress);
+                }}
+                onScroll={(e: { nativeEvent: { contentOffset: { y: number } } }) => {
+                  if (t.id === activeId) onWebScroll(e);
                 }}
                 injectedJavaScriptBeforeContentLoaded={injected}
                 onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
