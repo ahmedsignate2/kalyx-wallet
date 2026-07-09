@@ -15,7 +15,7 @@ export {
   entropyToMnemonic,
   type MnemonicStrength,
 } from './crypto/mnemonic';
-export { deriveEvmAccount, evmPath, type EvmAccount } from './crypto/hd';
+export { deriveEvmAccount, evmPath, evmAccountFromPrivateKey, normalizeEvmPrivateKey, type EvmAccount } from './crypto/hd';
 export { deriveBtcAccount, deriveBtcSigner, btcPath, type BtcAccount, type BtcSigner } from './crypto/btc';
 export {
   deriveSolanaAccount,

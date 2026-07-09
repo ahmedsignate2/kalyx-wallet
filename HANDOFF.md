@@ -46,6 +46,15 @@ jamais sur le réseau. Le seul écart transitoire : `draftMnemonic` pendant l'on
 **Sécurité/core :** BIP-39 (12/24), HD BIP-32/44/84, coffre AES-256-GCM + PIN (scrypt),
 biométrie, anti-brute-force, anti-capture seed, **multi-wallet** (créer/importer/gérer),
 multi-comptes, changer PIN, révéler phrase, reset.
+**Import par clé privée** (2026-07-09) : wallet EVM importé depuis une clé privée brute
+(`WalletMeta.type='privateKey'`, moteur `evmAccountFromPrivateKey`/`normalizeEvmPrivateKey`
+cross-checkés ethers). Un seul compte, EVM UNIQUEMENT (pas de HD, ni BTC/Solana, ni phrase).
+Coffre = la clé privée chiffrée ; toutes les voies de signature EVM passent par
+`revealEvmSigningKey` (dérive la seed OU renvoie la clé importée). Cohabite avec les wallets
+seed (ajout non destructif). `exportPrivateKey(unlock)` révèle la clé (marche aussi pour un
+compte HD). UI : `app/import-wallet.tsx` (sélecteur Phrase/Clé privée). ⚠️ Onboarding
+premier-run reste seed-only (le flux draft/backup/verify est mnémonique) — import PK =
+wallet SUPPLÉMENTAIRE (écran Portefeuilles → Importer). Flux UI à tester sur device.
 
 **Chaînes :** **65 réseaux** au catalogue (`configs.ts` + `ALL_CHAINS`) — 62 EVM
 mainnet (RPC publics sondés eth_chainId), Sepolia + Monad (testnets), Bitcoin, Solana.
@@ -290,6 +299,12 @@ sinon elles ne sont PAS embarquées dans l'APK/dev-build.
    `$CLAUDE_JOB_DIR/tmp/npmcacheN`) et réessayer.
 8. Warnings WC `Record was recently deleted - proposal` = **bénins** (nettoyage heartbeat).
    (Filtrés depuis 2026-07-04 dans `walletconnect.ts::init()`.)
+9b. **NFT jamais affichés (403 Alchemy)** — CORRIGÉ 2026-07-09. `getNfts` envoyait
+   `excludeFilters[]=SPAM` (et `spamConfidenceLevel`), **réservés au plan payant** Alchemy :
+   le plan gratuit répond **403 sur TOUTE la requête** → `getNfts` catchait → `[]`, donc
+   0 NFT quelle que soit l'adresse. Fix : retirer ces params, filtrer le spam CÔTÉ CLIENT
+   via `contract.isSpam` (fourni gratuitement dans `withMetadata`), `pageSize=100`.
+   ⚠️ Ne jamais réintroduire un param de plan payant sans repli. Vérifié en live vs API réelle.
 9. **`Requiring unknown module "NNNN"`** au chargement de WalletConnect = **lazy bundling
    Metro** : en dev, Expo découpe chaque `await import(...)` en bundles séparés dont les
    IDs de modules se désynchronisent du bundle principal (symptôme : IDs réclamés juste
