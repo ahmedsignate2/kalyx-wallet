@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Image, Pressable, useWindowDimensions } from 'react-native';
+import { View, Text, Image, Pressable, useWindowDimensions, Modal, TextInput } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import {
   PremiumScreen,
@@ -13,6 +13,7 @@ import { fonts, spacing, useTheme } from '../../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { toast } from '../../lib/toast';
 import { useWallet } from '../../lib/walletStore';
+import { usePriceAlerts } from '../../lib/priceAlertsStore';
 import {
   getCoinDetail,
   getMarketChartPoints,
@@ -63,6 +64,24 @@ export default function TokenDetail() {
   const [loadingChart, setLoadingChart] = useState(true);
   // Point sous le doigt pendant le scrub du graphique (null = pas de scrub).
   const [scrub, setScrub] = useState<ChartPoint | null>(null);
+  // Création d'alerte de prix.
+  const addAlert = usePriceAlerts((s) => s.add);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertDir, setAlertDir] = useState<'above' | 'below'>('above');
+  const [alertTarget, setAlertTarget] = useState('');
+
+  const openAlert = () => {
+    setAlertTarget(detail?.price ? String(detail.price) : '');
+    setAlertDir((detail?.change24h ?? 0) >= 0 ? 'above' : 'below');
+    setAlertOpen(true);
+  };
+  const createAlert = () => {
+    const target = Number(alertTarget.replace(',', '.'));
+    if (!id || !Number.isFinite(target) || target <= 0) { toast.error('Prix invalide', 'Entre un prix cible valide.'); return; }
+    addAlert({ coingeckoId: id, symbol: detail?.symbol || id, direction: alertDir, target });
+    setAlertOpen(false);
+    toast.success('Alerte créée', `${(detail?.symbol || id).toUpperCase()} ${alertDir === 'above' ? '≥' : '≤'} ${target} ${fiatSymbol(fiat)}`);
+  };
 
   const { width } = useWindowDimensions();
   const chartWidth = width - spacing(2.5) * 2 - spacing(2.25) * 2;
@@ -135,6 +154,9 @@ export default function TokenDetail() {
               <Text style={typography.section}>{detail?.name ?? (loadingDetail ? '…' : id)}</Text>
               <Text style={typography.muted}>{detail?.symbol ?? ''}</Text>
             </View>
+            <Pressable onPress={openAlert} hitSlop={10} style={{ marginRight: spacing(1.5) }}>
+              <Icon name="bell" size={23} color={colors.textMuted} />
+            </Pressable>
             <Pressable onPress={() => id && toggleFavorite(id)} hitSlop={10}>
               <Icon name={isFav ? 'starFilled' : 'star'} size={24} color={isFav ? colors.warning : colors.textMuted} />
             </Pressable>
@@ -207,6 +229,37 @@ export default function TokenDetail() {
           ) : null}
         </>
       )}
+
+      {/* Modale : créer une alerte de prix */}
+      <Modal visible={alertOpen} transparent animationType="slide" onRequestClose={() => setAlertOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }} onPress={() => setAlertOpen(false)}>
+          <Pressable style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: spacing(2.5), gap: spacing(1.75) }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.glassBorder }} />
+            <Text style={typography.section}>Alerte de prix · {(detail?.symbol || id || '').toUpperCase()}</Text>
+
+            <View style={{ flexDirection: 'row', gap: spacing(1) }}>
+              {(['above', 'below'] as const).map((d) => {
+                const on = alertDir === d;
+                return (
+                  <Pressable key={d} onPress={() => setAlertDir(d)} style={{ flex: 1, paddingVertical: spacing(1.25), borderRadius: 12, alignItems: 'center', backgroundColor: on ? colors.accent : colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}>
+                    <Text style={{ color: on ? '#fff' : colors.text, fontFamily: fonts.semibold }}>{d === 'above' ? '▲ Au-dessus de' : '▼ En-dessous de'}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={{ backgroundColor: colors.bgElevated, borderRadius: 14, paddingHorizontal: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+              <TextInput value={alertTarget} onChangeText={setAlertTarget} keyboardType="decimal-pad" placeholder="Prix cible" placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.text, fontSize: 20, paddingVertical: spacing(1.5) }} />
+              <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>{fiatSymbol(fiat)}</Text>
+            </View>
+
+            <Pressable onPress={createAlert} style={{ backgroundColor: colors.accent, borderRadius: 14, paddingVertical: spacing(1.5), alignItems: 'center' }}>
+              <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 16 }}>Créer l’alerte</Text>
+            </Pressable>
+            <Text style={[typography.muted, { textAlign: 'center' }]}>Vérifiée quand l’app est ouverte. Gère tes alertes dans Menu → Alertes de prix.</Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </PremiumScreen>
   );
 }
