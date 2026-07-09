@@ -1,4 +1,19 @@
 import { parseTokenBalances, parseTokenMetadata, isSpamToken, pageKeyOf } from './alchemyTokens';
+import { knownTokensFor, KNOWN_ERC20_BY_CHAIN } from './knownTokens';
+
+describe('knownTokensFor (tokens connus par chaîne)', () => {
+  it('renvoie la liste du réseau, ou vide si non couvert', () => {
+    expect(knownTokensFor(8453).length).toBeGreaterThan(0); // Base
+    expect(knownTokensFor(1)).toContain('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'); // USDC ETH
+    expect(knownTokensFor(999999)).toEqual([]);
+    expect(knownTokensFor(undefined)).toEqual([]);
+  });
+  it('toutes les adresses sont des 0x-hex de 42 caractères', () => {
+    for (const list of Object.values(KNOWN_ERC20_BY_CHAIN)) {
+      for (const addr of list) expect(addr).toMatch(/^0x[0-9a-fA-F]{40}$/);
+    }
+  });
+});
 
 describe('pageKeyOf (pagination)', () => {
   it('extrait un pageKey présent, sinon undefined', () => {
