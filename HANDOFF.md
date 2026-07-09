@@ -53,6 +53,12 @@ jamais sur le réseau. Le seul écart transitoire : `draftMnemonic` pendant l'on
 **Sécurité/core :** BIP-39 (12/24), HD BIP-32/44/84, coffre AES-256-GCM + PIN (scrypt),
 biométrie, anti-brute-force, anti-capture seed, **multi-wallet** (créer/importer/gérer),
 multi-comptes, changer PIN, révéler phrase, reset.
+**Sauvegarde chiffrée (cloud backup, 2026-07-09)** : `src/domain/backup/cloudBackup.ts`
+(`createBackup`/`restoreBackup`, réutilise `encryptSecret`/`decryptSecret` = scrypt+AES-GCM,
+4 tests). La seed est chiffrée CÔTÉ CLIENT sous un mot de passe, emballée dans une enveloppe
+JSON versionnée, partagée via `Share` natif (Drive/Files/e-mail) — rien vers un serveur.
+UI : export `app/cloud-backup.tsx` (Menu → Sauvegarde chiffrée) ; restauration = 3ᵉ mode
+« Sauvegarde » dans `app/import-wallet.tsx`. PK non concerné (pas de phrase). ⚠️ vaut le mot de passe.
 **Import par clé privée** (2026-07-09) : wallet EVM importé depuis une clé privée brute
 (`WalletMeta.type='privateKey'`, moteur `evmAccountFromPrivateKey`/`normalizeEvmPrivateKey`
 cross-checkés ethers). Un seul compte, EVM UNIQUEMENT (pas de HD, ni BTC/Solana, ni phrase).
