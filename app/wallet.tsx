@@ -7,6 +7,7 @@ import {
   SearchBar,
   ListRow,
   Avatar,
+  RemoteIcon,
   SegmentedTabs,
   SkeletonRow
 } from '../ui/premium';
@@ -23,6 +24,7 @@ import { useCustomTokens } from '../lib/customTokensStore';
 import {
   getAdapter,
   listChains,
+  chainIconUrl,
   formatBalance,
   formatAmount,
   getPrices,
@@ -310,13 +312,7 @@ export default function WalletScreen() {
                 <FadeInUp key={a.chain.id} delay={i * 55}>
                   <ListRow
                     divider={i > 0}
-                    left={
-                      a.logo ? (
-                        <Image source={{ uri: a.logo }} style={{ width: 42, height: 42, borderRadius: 21 }} />
-                      ) : (
-                        <Avatar label={a.chain.nativeSymbol.slice(0, 1)} color={colors.glassStrong} />
-                      )
-                    }
+                    left={<RemoteIcon uri={chainIconUrl(a.chain.id)} label={a.chain.nativeSymbol} />}
                     title={a.chain.name}
                     subtitle={hidden ? '••••' : `${formatBalance(a.raw, a.chain.nativeDecimals, 6)} ${a.chain.nativeSymbol}`}
                     onPress={() => a.chain.coingeckoId && router.push(`/token/${a.chain.coingeckoId}`)}
@@ -375,13 +371,7 @@ export default function WalletScreen() {
                             ],
                       )
                     }
-                    left={
-                      tk.logo ? (
-                        <Image source={{ uri: tk.logo }} style={{ width: 42, height: 42, borderRadius: 21 }} />
-                      ) : (
-                        <Avatar label={tk.symbol.slice(0, 1)} color={colors.glassStrong} />
-                      )
-                    }
+                    left={<RemoteIcon uri={tk.logo} label={tk.symbol} />}
                     title={tk.name}
                     subtitle={hidden ? '••••' : `${formatBalance(tk.raw, tk.decimals, 6)} ${tk.symbol}`}
                     right={
@@ -467,13 +457,7 @@ export default function WalletScreen() {
                     <ListRow
                       key={p.contract}
                       divider={i > 0}
-                      left={
-                        p.logo ? (
-                          <Image source={{ uri: p.logo }} style={{ width: 42, height: 42, borderRadius: 21 }} />
-                        ) : (
-                          <Avatar label={p.symbol.slice(0, 1)} color={colors.glassStrong} />
-                        )
-                      }
+                      left={<RemoteIcon uri={p.logo} label={p.symbol} />}
                       title={p.name}
                       subtitle={`${p.defi?.protocol ?? ''} · ${hidden ? '••••' : `${formatBalance(p.raw, p.decimals, 6)} ${p.symbol}`}`}
                       right={
