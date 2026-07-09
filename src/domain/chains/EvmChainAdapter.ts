@@ -83,14 +83,28 @@ export class EvmChainAdapter implements ChainAdapter {
 
   async getHistory(address: string): Promise<TxSummary[]> {
     const owner = normalizeEvmAddress(address);
+    const query =
+      `module=account&action=txlist&address=${owner}` +
+      `&startblock=0&endblock=99999999&page=1&offset=25&sort=desc`;
     try {
       const url =
-        `${ETHERSCAN_V2_API}?chainid=${this.config.evmChainId}` +
-        `&module=account&action=txlist&address=${owner}` +
-        `&startblock=0&endblock=99999999&page=1&offset=25&sort=desc` +
+        `${ETHERSCAN_V2_API}?chainid=${this.config.evmChainId}&${query}` +
         (EXPLORER_API_KEY ? `&apikey=${EXPLORER_API_KEY}` : '');
       const res = await withTimeout(fetch(url), RPC_TIMEOUT_MS, () => new Error('timeout'));
-      return parseTxList(await res.json(), owner);
+      const json = (await res.json()) as { result?: unknown };
+      // result tableau = Etherscan a servi ce réseau (même vide = 0 tx). result NON
+      // tableau = plan/réseau non couvert (« Free API access is not supported ») →
+      // on tente le repli Blockscout (même format txlist), si configuré.
+      if (Array.isArray(json?.result)) return parseTxList(json, owner);
+      if (this.config.explorerApi) {
+        const fb = await withTimeout(
+          fetch(`${this.config.explorerApi}?${query}`),
+          RPC_TIMEOUT_MS,
+          () => new Error('timeout'),
+        );
+        return parseTxList(await fb.json(), owner);
+      }
+      return [];
     } catch {
       // Historique = confort : ne jamais bloquer ni faire échouer l'app.
       return [];
