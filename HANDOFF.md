@@ -230,6 +230,12 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   Aave/Compound/Lido/Rocket Pool, 5 tests). `wallet.tsx` : onglets DeFi/Staking
   listent les positions (total, protocole, valeur) ; vide → CTA navigateur dApps
   (`/browser?url=…`). **v2 = APR, unstake in-app, plus de protocoles.**
+- ✅ ~~Alertes de prix~~ (2026-07-09) : `src/domain/alerts/priceAlerts.ts` (`alertTriggered`,
+  3 tests) + `lib/priceAlertsStore.ts` (persisté, one-shot) + `ui/PriceAlertWatcher.tsx`
+  (vérifie au montage / retour premier plan / toutes les 90 s en FOREGROUND — pas de push,
+  `notifyAndLog('price',…)`). UI : création depuis la fiche token (🔔 → modale seuil au-dessus/
+  en-dessous), liste `app/price-alerts.tsx` (Menu → Alertes de prix). ⚠️ Foreground only ;
+  push serveur = plus tard. Respecte le réglage `notifPrice`.
 - ✅ ~~Notifications locales~~ (code fait 2026-07-04, actif après rebuild) :
   `lib/notifications.ts` (import dynamique, no-op avant rebuild), notif de tx
   réussie (send+swap), interrupteur Réglages. **Push (Alchemy Notify) = plus tard.**

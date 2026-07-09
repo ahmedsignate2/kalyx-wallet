@@ -97,6 +97,7 @@ export default function Menu() {
       {/* Sécurité */}
       <GlassCard>
         <ListRow left={<Ico n="security" />} title={t('security')} right={chev} onPress={() => router.push('/settings')} />
+        <ListRow divider left={<Ico n="bell" />} title="Alertes de prix" subtitle="Sois prévenu quand un actif franchit un seuil" right={chev} onPress={() => router.push('/price-alerts')} />
         <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chev} onPress={() => router.push('/change-pin')} />
         <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chev} onPress={() => router.push('/reveal-phrase')} />
         <ListRow divider left={<Ico n="copy" />} title={t('revealPrivateKey')} right={chev} onPress={() => router.push('/reveal-private-key')} />
