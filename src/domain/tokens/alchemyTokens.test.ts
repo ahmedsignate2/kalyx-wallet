@@ -1,4 +1,14 @@
-import { parseTokenBalances, parseTokenMetadata, isSpamToken } from './alchemyTokens';
+import { parseTokenBalances, parseTokenMetadata, isSpamToken, pageKeyOf } from './alchemyTokens';
+
+describe('pageKeyOf (pagination)', () => {
+  it('extrait un pageKey présent, sinon undefined', () => {
+    expect(pageKeyOf({ result: { pageKey: '0xabc' } })).toBe('0xabc');
+    expect(pageKeyOf({ result: {} })).toBeUndefined();
+    expect(pageKeyOf({ result: { pageKey: '' } })).toBeUndefined(); // vide = fin
+    expect(pageKeyOf(null)).toBeUndefined();
+    expect(pageKeyOf({})).toBeUndefined();
+  });
+});
 
 describe('parseTokenBalances', () => {
   it('garde les soldes non nuls, hex -> bigint', () => {
