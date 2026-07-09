@@ -100,6 +100,7 @@ export default function Menu() {
         <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chev} onPress={() => router.push('/change-pin')} />
         <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chev} onPress={() => router.push('/reveal-phrase')} />
         <ListRow divider left={<Ico n="copy" />} title={t('revealPrivateKey')} right={chev} onPress={() => router.push('/reveal-private-key')} />
+        <ListRow divider left={<Ico n="share" />} title="Sauvegarde chiffrée" subtitle="Exporte ta phrase, protégée par mot de passe" right={chev} onPress={() => router.push('/cloud-backup')} />
       </GlassCard>
 
       {/* Avancé (mode expert) */}

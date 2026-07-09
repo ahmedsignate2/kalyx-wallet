@@ -119,6 +119,8 @@ export {
   type TokenMeta,
 } from './domain/tokens/alchemyTokens';
 export { erc20TransferData } from './domain/tokens/transfer';
+// Sauvegarde chiffrée de la seed (cloud backup)
+export { createBackup, restoreBackup, BACKUP_VERSION, type BackupEnvelope } from './domain/backup/cloudBackup';
 export {
   parseTokenAccounts,
   KNOWN_MINTS,
