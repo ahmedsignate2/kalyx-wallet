@@ -66,6 +66,7 @@ type WV = {
   goBack: () => void;
   goForward: () => void;
   reload: () => void;
+  stopLoading: () => void;
 };
 
 /** dApps suggérées (page d'accueil). `domain` sert au logo (favicon HD). */
@@ -203,6 +204,7 @@ export default function Browser() {
   const [barRowH, setBarRowH] = useState(0); // hauteur mesurée de la rangée d'adresse
   const barShown = useRef(new Animated.Value(1)).current; // 1 = visible, 0 = repliée
   const lastScrollY = useRef(0);
+  const tabFade = useRef(new Animated.Value(1)).current; // fondu à l'ouverture/changement d'onglet
   const showBar = useCallback((to: 1 | 0) => {
     Animated.timing(barShown, { toValue: to, duration: 200, useNativeDriver: false }).start();
   }, [barShown]);
@@ -218,7 +220,10 @@ export default function Browser() {
     setProgress(0); // au changement d'onglet, on masque la barre (pas de progression live)
     barShown.setValue(1); // et on ré-affiche la barre d'adresse
     lastScrollY.current = 0;
-  }, [activeId, barShown]);
+    // Fondu doux du contenu (façon Safari) à chaque changement d'onglet.
+    tabFade.setValue(0.4);
+    Animated.timing(tabFade, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+  }, [activeId, barShown, tabFade]);
   const tabsRef = useRef(tabs);
   const activeRef = useRef(activeId);
   const setTabs = (u: Tab[] | ((p: Tab[]) => Tab[])) => {
@@ -699,9 +704,15 @@ export default function Browser() {
               <Pressable onPress={toggleCurrentFav} hitSlop={8}>
                 <Icon name={isFav ? 'starFilled' : 'star'} size={17} color={isFav ? colors.warning : colors.textMuted} />
               </Pressable>
-              <Pressable onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.reload()} hitSlop={8}>
-                <Icon name="refresh" size={16} tone="muted" />
-              </Pressable>
+              {progress > 0 && progress < 1 ? (
+                <Pressable onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.stopLoading()} hitSlop={8}>
+                  <Icon name="close" size={17} tone="muted" />
+                </Pressable>
+              ) : (
+                <Pressable onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.reload()} hitSlop={8}>
+                  <Icon name="refresh" size={16} tone="muted" />
+                </Pressable>
+              )}
             </>
           ) : null}
         </View>
@@ -721,7 +732,7 @@ export default function Browser() {
 
       {/* Corps : un conteneur plein écran PAR onglet (layout identique), l'actif
           visible. Chaque onglet montre soit sa WebView, soit l'accueil dApps. */}
-      <View style={{ flex: 1 }}>
+      <Animated.View style={{ flex: 1, opacity: tabFade }}>
         {tabs.map((t) => (
           <View key={t.id} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: t.id === activeId ? 'flex' : 'none' }}>
             {t.url ? (
@@ -760,7 +771,7 @@ export default function Browser() {
             )}
           </View>
         ))}
-      </View>
+      </Animated.View>
 
       {/* Barre d'outils bas façon Chrome : retour / avancer / accueil / onglets / menu.
           Ombre vers le haut → effet « barre flottante » premium. */}
