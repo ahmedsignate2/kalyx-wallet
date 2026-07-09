@@ -15,6 +15,7 @@ import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard, ErrorBox, RemoteIcon } from '../ui/premium';
+import { AuroraBackground } from '../ui/AuroraBackground';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { NovaLogo } from '../ui/NovaLogo';
@@ -520,6 +521,9 @@ export default function Browser() {
   /** Écran d'accueil dApps (grille 3 colonnes) — rendu par chaque onglet vide. */
   const renderHome = () => (
    <View style={{ flex: 1 }}>
+    {/* Fond premium : dégradé d'écran + aurora animée (façon Chrome/Edge new-tab). */}
+    <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
+    <AuroraBackground intensity={0.7} />
     {/* Logo Nova en filigrane discret, en fond de l'accueil du navigateur. */}
     <View pointerEvents="none" style={{ position: 'absolute', top: spacing(6), left: 0, right: 0, alignItems: 'center', opacity: 0.05 }}>
       <NovaLogo size={280} />
