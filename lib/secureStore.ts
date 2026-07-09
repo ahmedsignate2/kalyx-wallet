@@ -185,6 +185,22 @@ export async function loadCustomTokens(): Promise<Record<string, string[]>> {
   }
 }
 
+const K_PRICE_ALERTS = 'nova.priceAlerts'; // alertes de prix (non sensible)
+
+export async function savePriceAlerts(list: unknown[]): Promise<void> {
+  await SecureStore.setItemAsync(K_PRICE_ALERTS, JSON.stringify(list), base);
+}
+
+export async function loadPriceAlerts<T>(): Promise<T[]> {
+  const raw = await SecureStore.getItemAsync(K_PRICE_ALERTS, base);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as T[];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Lit le secret biométrique (NON-gated). Le prompt biométrique est fait EN AMONT
  * par l'appelant (walletStore.revealMnemonic via expo-local-authentication).
