@@ -53,9 +53,13 @@ const base: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
 };
 
+// Ancien schéma : secret biométrique gardé par le keystore matériel
+// (requireAuthentication). PROBLÈME : cette clé keystore ne survit pas toujours à
+// un nouveau build/réinstallation → lecture qui échoue, biométrie « cassée » alors
+// que le PIN marche. On garde bioGated seulement pour NETTOYER les anciens items.
 const bioGated: SecureStore.SecureStoreOptions = {
   ...base,
-  requireAuthentication: true, // l'OS impose biométrie/code avant lecture
+  requireAuthentication: true,
 };
 
 export async function saveVault(id: string, vault: EncryptedVault): Promise<void> {
@@ -86,11 +90,26 @@ export async function loadAccounts(id: string): Promise<StoredAccount[] | null> 
 }
 
 export async function enableBiometricSeed(id: string, mnemonic: string): Promise<void> {
-  await SecureStore.setItemAsync(bioKey(id), mnemonic, bioGated);
+  // Stockage NON-gated (WHEN_UNLOCKED_THIS_DEVICE_ONLY) : survit comme le coffre PIN.
+  // L'accès est protégé par un prompt biométrique explicite (expo-local-authentication)
+  // AVANT la lecture — un seul prompt, fiable sur tous les builds. Compromis assumé :
+  // le secret n'est pas gated par le keystore matériel (voir walletStore.revealMnemonic).
+  await SecureStore.setItemAsync(bioKey(id), mnemonic, base);
 }
 
 export async function disableBiometricSeed(id: string): Promise<void> {
-  await SecureStore.deleteItemAsync(bioKey(id), bioGated);
+  await SecureStore.deleteItemAsync(bioKey(id), base).catch(() => {});
+  // Nettoie aussi un éventuel ancien item gated (migration).
+  await SecureStore.deleteItemAsync(bioKey(id), bioGated).catch(() => {});
+}
+
+/** true si un secret biométrique (nouveau schéma) est présent pour ce wallet. */
+export async function hasBiometricSeed(id: string): Promise<boolean> {
+  try {
+    return (await SecureStore.getItemAsync(bioKey(id), base)) != null;
+  } catch {
+    return false;
+  }
 }
 
 /** Liste des portefeuilles (non sensible). */
@@ -166,9 +185,17 @@ export async function loadCustomTokens(): Promise<Record<string, string[]>> {
   }
 }
 
-/** Lit la seed via biométrie (l'OS prompt). Renvoie null si non configurée. */
+/**
+ * Lit le secret biométrique (NON-gated). Le prompt biométrique est fait EN AMONT
+ * par l'appelant (walletStore.revealMnemonic via expo-local-authentication).
+ * Renvoie null si absent/illisible (jamais d'exception qui bloque l'UI).
+ */
 export async function readBiometricSeed(id: string): Promise<string | null> {
-  return SecureStore.getItemAsync(bioKey(id), bioGated);
+  try {
+    return await SecureStore.getItemAsync(bioKey(id), base);
+  } catch {
+    return null;
+  }
 }
 
 /** Supprime un portefeuille précis (coffre + comptes + biométrie). */
@@ -176,7 +203,8 @@ export async function wipeWallet(id: string): Promise<void> {
   await Promise.all([
     SecureStore.deleteItemAsync(vaultKey(id), base),
     SecureStore.deleteItemAsync(accountsKey(id), base),
-    SecureStore.deleteItemAsync(bioKey(id), bioGated),
+    SecureStore.deleteItemAsync(bioKey(id), base).catch(() => {}),
+    SecureStore.deleteItemAsync(bioKey(id), bioGated).catch(() => {}), // ancien schéma
   ]);
 }
 
