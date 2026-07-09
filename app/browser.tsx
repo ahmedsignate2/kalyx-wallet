@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard, ErrorBox, RemoteIcon } from '../ui/premium';
 import { AuroraBackground } from '../ui/AuroraBackground';
+import { TxPreview } from '../ui/TxPreview';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { NovaLogo } from '../ui/NovaLogo';
@@ -994,12 +995,7 @@ export default function Browser() {
                 </GlassCard>
               ) : (
                 <GlassCard>
-                  {pending.to ? (
-                    <Text style={typography.muted}>Vers : <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{pending.to.slice(0, 10)}…{pending.to.slice(-8)}</Text></Text>
-                  ) : null}
-                  <Text style={typography.muted}>Montant : <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{formatBalance(pending.value, chain.nativeDecimals)} {chain.nativeSymbol}</Text></Text>
-                  {pending.dataBytes > 0 ? <Text style={typography.muted}>Données : {pending.dataBytes} octets (appel de contrat)</Text> : null}
-                  <Text style={[typography.muted, { marginTop: spacing(1) }]}>⚠️ Vérifie bien : ceci peut déplacer des fonds.</Text>
+                  <TxPreview tx={pending.raw} chain={chain} />
                 </GlassCard>
               )}
 

@@ -16,6 +16,7 @@ import { Button } from './components';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon, type IconName } from './icon';
 import { radii, spacing, useTheme } from './theme';
+import { TxPreview } from './TxPreview';
 import { useWalletConnect } from '../lib/walletconnect';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import {
@@ -114,7 +115,7 @@ export function WalletConnectHost() {
     let text: string | null = null;
     let siwe = null;
     let typed = null;
-    let tx: { to?: string; value: bigint; dataBytes: number } | null = null;
+    let tx: { to?: string; value: bigint; dataBytes: number; data?: string } | null = null;
 
     if (method === 'personal_sign' || method === 'eth_sign') {
       const hex = method === 'personal_sign' ? p[0] : p[1];
@@ -130,6 +131,7 @@ export function WalletConnectHost() {
         to: typeof t.to === 'string' ? t.to : undefined,
         value: t.value ? BigInt(t.value) : 0n,
         dataBytes: typeof t.data === 'string' ? Math.max(0, (t.data.length - 2) / 2) : 0,
+        data: typeof t.data === 'string' ? t.data : undefined,
       };
       kind = 'tx';
     }
@@ -260,12 +262,15 @@ export function WalletConnectHost() {
               </Text>
             </>
           ) : isTx && tx ? (
-            <>
-              {tx.to ? <InfoRow icon="send" label="Vers" value={shorten(tx.to)} /> : null}
-              <InfoRow icon="currency" label="Montant" value={`${formatBalance(tx.value, chain?.nativeDecimals ?? 18)} ${chain?.nativeSymbol ?? ''}`} divider={!!tx.to} />
-              {tx.dataBytes > 0 ? <InfoRow icon="developer" label="Données" value={`${tx.dataBytes} octets (appel de contrat)`} divider /> : null}
-              <Text style={[typography.muted, { marginTop: spacing(1) }]}>⚠️ Vérifie bien : ceci peut déplacer des fonds.</Text>
-            </>
+            chain ? (
+              <TxPreview tx={{ to: tx.to, value: tx.value, data: tx.data }} chain={chain} />
+            ) : (
+              <>
+                {tx.to ? <InfoRow icon="send" label="Vers" value={shorten(tx.to)} /> : null}
+                <InfoRow icon="currency" label="Montant" value={`${formatBalance(tx.value, 18)} ETH`} divider={!!tx.to} />
+                <Text style={[typography.muted, { marginTop: spacing(1) }]}>⚠️ Vérifie bien : ceci peut déplacer des fonds.</Text>
+              </>
+            )
           ) : (
             <Text style={typography.muted}>Requête : {info.method}</Text>
           )}
