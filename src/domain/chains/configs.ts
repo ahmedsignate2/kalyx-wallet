@@ -357,7 +357,8 @@ export const AURORA: ChainConfig = {
 // --- Encore un lot de chaînes EVM ---
 export const FANTOM: ChainConfig = {
   id: 'fantom', name: 'Fantom', family: 'evm', evmChainId: 250, nativeSymbol: 'FTM', nativeDecimals: 18,
-  rpcUrls: ['https://rpc.ftm.tools', 'https://fantom-rpc.publicnode.com'], explorerUrl: 'https://ftmscan.com', coingeckoId: 'fantom',
+  // rpc.ftm.tools (403 clé désactivée) + publicnode (mort) remplacés — sondés 2026-07-09.
+  rpcUrls: ['https://fantom.drpc.org', 'https://rpc.fantom.network', 'https://1rpc.io/ftm'], explorerUrl: 'https://ftmscan.com', coingeckoId: 'fantom',
 };
 export const FRAXTAL: ChainConfig = {
   id: 'fraxtal', name: 'Fraxtal', family: 'evm', evmChainId: 252, nativeSymbol: 'frxETH', nativeDecimals: 18,
