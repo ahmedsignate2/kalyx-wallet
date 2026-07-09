@@ -6,7 +6,7 @@
  */
 import React, { useState } from 'react';
 import { View, Text, Pressable, Linking } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { PremiumScreen, GlassCard, RemoteIcon } from '../ui/premium';
@@ -42,7 +42,15 @@ export default function Support() {
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: 'Soutenez-nous' }} />
+      {/* En-tête masqué → le dégradé remonte jusqu'en haut (pas de bandeau noir) */}
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {/* Bouton retour intégré */}
+      <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => ({ alignSelf: 'flex-start', padding: 6, marginBottom: spacing(0.5), opacity: pressed ? 0.6 : 1 })}>
+        <View style={{ transform: [{ rotate: '180deg' }] }}>
+          <Icon name="chevron" size={26} color={colors.text} />
+        </View>
+      </Pressable>
 
       {/* Hero */}
       <View style={{ alignItems: 'center', gap: spacing(1.25), marginBottom: spacing(1) }}>
