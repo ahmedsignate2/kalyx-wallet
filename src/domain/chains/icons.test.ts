@@ -19,10 +19,14 @@ describe('chainIconUrl', () => {
     expect(chainIconUrl('gravity')).toBeUndefined();
   });
 
-  it('produit une URL https pour tous les réseaux mainnet couverts', () => {
+  it('produit une URL https (proxy PNG) pour tous les réseaux mainnet couverts', () => {
     for (const c of listChains({ includeTestnets: false })) {
       const url = chainIconUrl(c.id);
-      if (url) expect(url).toMatch(/^https:\/\/icons\.llamao\.fi\/icons\/chains\/rsz_[a-z0-9-]+\.jpg$/);
+      if (url) {
+        expect(url).toMatch(/^https:\/\/wsrv\.nl\/\?url=/);
+        expect(url).toContain('output=png'); // décodable par RN sur iOS + Android
+        expect(url).toContain('rsz_'); // pointe bien vers l'icône DefiLlama
+      }
     }
   });
 });
