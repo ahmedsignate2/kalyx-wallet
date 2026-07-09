@@ -8,6 +8,7 @@
  */
 import { withTimeout } from '../chains/net';
 import type { ChainConfig } from '../chains/types';
+import { knownTokensFor } from './knownTokens';
 
 const TIMEOUT = 10_000;
 
@@ -166,15 +167,28 @@ export async function getErc20Tokens(chain: ChainConfig, address: string): Promi
   if (!url) return []; // pas de clé Alchemy -> feature indisponible, dégrade en vide
   try {
     // 1. Soldes non nuls, paginés (borné). Type 'erc20' explicite sur chaque page.
-    const balances: { contract: string; raw: bigint }[] = [];
+    const enumerated: { contract: string; raw: bigint }[] = [];
     let pageKey: string | undefined;
     for (let page = 0; page < MAX_BALANCE_PAGES; page++) {
       const params: unknown[] = pageKey ? [address, 'erc20', { pageKey }] : [address, 'erc20'];
       const balJson = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params });
-      balances.push(...parseTokenBalances(balJson));
+      enumerated.push(...parseTokenBalances(balJson));
       pageKey = pageKeyOf(balJson);
       if (!pageKey) break;
     }
+
+    // 1b. Tokens « connus » (USDC/USDT/DAI/WETH…) interrogés EXPLICITEMENT : l'énumération
+    // 'erc20' les rate parfois (ex. USDC sur Base). Garantit qu'ils apparaissent si détenus.
+    const have = new Set(enumerated.map((b) => b.contract.toLowerCase()));
+    const knownMissing = knownTokensFor(chain.evmChainId).filter((c) => !have.has(c.toLowerCase()));
+    let known: { contract: string; raw: bigint }[] = [];
+    if (knownMissing.length) {
+      const kJson = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params: [address, knownMissing] });
+      known = parseTokenBalances(kJson); // ne garde que les soldes non nuls
+    }
+
+    // Tokens connus en tête (jamais évincés par le plafond), puis l'énumération.
+    const balances = [...known, ...enumerated];
     if (balances.length === 0) return [];
 
     // 2. Métadonnées par lots, spam filtré, plafond appliqué APRÈS filtrage.
