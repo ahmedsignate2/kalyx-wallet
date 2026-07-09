@@ -54,6 +54,7 @@ import {
   enableBiometricSeed,
   disableBiometricSeed,
   readBiometricSeed,
+  hasBiometricSeed,
   saveWalletsList,
   loadWalletsList,
   saveLockState,
@@ -63,6 +64,7 @@ import {
   type StoredAccount,
   type WalletMeta,
 } from './secureStore';
+import { authenticate } from './biometrics';
 
 export const DEFAULT_CHAIN = 'sepolia';
 
@@ -122,6 +124,8 @@ interface WalletState {
   exportPrivateKey: (unlock: Unlock) => Promise<string>;
   enableBiometric: (pin: string) => Promise<void>;
   disableBiometric: () => Promise<void>;
+  /** Ré-enregistre le secret biométrique au format non-gated s'il manque (migration douce). */
+  healBiometric: (pin: string) => Promise<void>;
   reset: () => Promise<void>;
 }
 
@@ -194,6 +198,10 @@ async function backfillSolAddresses(
 /** Révèle la seed du wallet `id` (biométrie ou PIN), de façon transitoire. */
 async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
   if ('biometric' in unlock) {
+    // Prompt biométrique explicite (fiable), PUIS lecture du secret non-gated.
+    // Un seul prompt : le secret n'est plus keystore-gated (cf. secureStore).
+    const ok = await authenticate('Déverrouiller Nova Wallet');
+    if (!ok) throw new Error('Authentification biométrique refusée');
     const m = await readBiometricSeed(id);
     if (!m) throw new Error('Biométrie non configurée');
     return m;
@@ -624,6 +632,14 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   disableBiometric: async () => {
     await disableBiometricSeed(get().activeWalletId);
+  },
+
+  healBiometric: async (pin) => {
+    const id = get().activeWalletId;
+    if (await hasBiometricSeed(id)) return; // déjà au bon format, rien à faire
+    // Ancien secret gated illisible sur ce build → on le ré-écrit non-gated via le PIN.
+    const mnemonic = await revealMnemonic(id, { pin });
+    await enableBiometricSeed(id, mnemonic);
   },
 
   reset: async () => {
