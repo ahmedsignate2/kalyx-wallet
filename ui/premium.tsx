@@ -16,6 +16,8 @@ import {
   Image,
   Animated,
   TextInput as RNTextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -71,18 +73,23 @@ export function PremiumScreen({
     <View style={{ flex: 1, backgroundColor: theme.colors.bgDeep }}>
       <LinearGradient colors={theme.gradients.screen} style={StyleSheet.absoluteFill} />
       <TopGlow />
-      <ScrollView
-        contentContainerStyle={{
-          paddingTop: insets.top + spacing(1.5),
-          paddingHorizontal: spacing(2.5),
-          paddingBottom: insets.bottom + spacing(13),
-          gap: spacing(2.5),
-        }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={refreshControl}
-      >
-        {children}
-      </ScrollView>
+      {/* Clavier-aware : le contenu remonte au-dessus du clavier et reste défilable. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={{
+            paddingTop: insets.top + spacing(1.5),
+            paddingHorizontal: spacing(2.5),
+            paddingBottom: insets.bottom + spacing(13),
+            gap: spacing(2.5),
+          }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          refreshControl={refreshControl}
+        >
+          {children}
+        </ScrollView>
+      </KeyboardAvoidingView>
       {footer}
     </View>
   );

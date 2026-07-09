@@ -47,7 +47,7 @@ export default function AddToken() {
 
   if (!isEvm) {
     return (
-      <Screen>
+      <Screen scroll>
         <Title>Ajouter un token</Title>
         <Muted>Disponible uniquement sur les réseaux EVM. Change de réseau.</Muted>
       </Screen>
@@ -55,7 +55,7 @@ export default function AddToken() {
   }
 
   return (
-    <Screen>
+    <Screen scroll>
       <Title>Ajouter un token</Title>
       <Muted>Colle l’adresse du contrat sur {chain.name}.</Muted>
       <Card>
