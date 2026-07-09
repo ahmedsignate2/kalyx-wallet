@@ -140,6 +140,16 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
 (icône/splash/captures). Prochain gros cap discuté : **navigateur dApps intégré**
 (WebView + injection EIP-1193 — prévu v2, voir §3 gros morceaux) ; Ledger/Trezor.
 
+### Clavier (2026-07-09)
+- ✅ **Écrans clavier-aware** : `Screen` et `PremiumScreen` (ui/) enveloppent le contenu
+  dans un `KeyboardAvoidingView` → le champ actif (montant, adresse, mot de passe…)
+  remonte au-dessus du clavier. `Screen` a une prop **`scroll`** : les écrans-FORMULAIRES
+  plats la passent (`<Screen scroll>`, = KAV + ScrollView, `flexGrow:1` garde les spacers) ;
+  les écrans-LISTES gardent leur propre ScrollView/FlatList (pas de double défilement).
+  Appliqué à send + add-token. **Règle : tout nouvel écran-formulaire = `<Screen scroll>`
+  (ou PremiumScreen).** ⚠️ Les MODALES bottom-sheet avec input système (ex. saisie PIN
+  navigateur) ne sont pas encore KAV — à traiter au cas par cas si gênant.
+
 ### UX listes (2026-07-04)
 - ✅ **Tous les écrans-listes sont défilables** (bug trouvé : la liste Réseaux
   débordait après l'ajout de 3 chaînes). Réseaux (+ recherche > 6 réseaux +
