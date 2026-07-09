@@ -34,6 +34,7 @@ import { useNotifCenter, unreadCount } from '../lib/notificationCenter';
 import { isDeviceCompromised } from '../lib/deviceSecurity';
 import {
   getAdapter,
+  chainIconUrl,
   formatBalance,
   formatAmount,
   isWalletError,
@@ -395,7 +396,7 @@ export default function Home() {
                 divider={i > 0}
                 symbol={chain.nativeSymbol}
                 decimals={chain.nativeDecimals}
-                logoUri={markets.find((m) => m.id === chain.coingeckoId)?.image}
+                logoUri={chainIconUrl(chain.id)}
                 price={price?.price}
                 fiatSymbol={fiatSymbol(fiat)}
                 onPress={() => router.push('/history')}

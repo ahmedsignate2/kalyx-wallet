@@ -379,6 +379,43 @@ export function Avatar({ label, color }: { label: string; color?: string }) {
   );
 }
 
+/**
+ * Icône d'actif (réseau/token) : image distante avec repli AUTO sur cercle lettré
+ * si l'URL est absente OU si le chargement échoue (404, hors-ligne, host bloqué).
+ * Évite les images cassées et les icônes ETH génériques partout.
+ */
+export function RemoteIcon({
+  uri,
+  label,
+  size = 42,
+  color,
+}: {
+  uri?: string | null;
+  label: string;
+  size?: number;
+  color?: string;
+}) {
+  const { theme } = useThemeStyles();
+  const [failed, setFailed] = React.useState(false);
+  const letter = (label || '?').slice(0, 1).toUpperCase();
+  if (!uri || failed) {
+    const bg = color ?? theme.colors.glassStrong;
+    const fg = color ? '#fff' : theme.colors.text;
+    return (
+      <View style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: bg }}>
+        <Text style={{ fontSize: size * 0.42, color: fg, fontWeight: '600' }}>{letter}</Text>
+      </View>
+    );
+  }
+  return (
+    <Image
+      source={{ uri }}
+      onError={() => setFailed(true)}
+      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: theme.colors.glass }}
+    />
+  );
+}
+
 export function GradientAvatar({ label }: { label: string }) {
   const { theme, styles } = useThemeStyles();
   return (
