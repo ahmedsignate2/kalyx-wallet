@@ -3,11 +3,11 @@ import { View, Text, Pressable, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Card, Title, Muted } from '../ui/components';
-import { SearchBar } from '../ui/premium';
+import { SearchBar, RemoteIcon } from '../ui/premium';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings } from '../lib/settingsStore';
-import { listChains } from '../src';
+import { listChains, chainIconUrl } from '../src';
 
 export default function Networks() {
   const { colors, typography } = useTheme();
@@ -78,12 +78,15 @@ export default function Networks() {
                     justifyContent: 'space-between',
                   }}
                 >
-                  <View>
-                    <Text style={typography.body}>{c.name}</Text>
-                    <Muted>
-                      {c.nativeSymbol}
-                      {c.testnet ? ' · testnet' : ' · mainnet (fonds réels)'}
-                    </Muted>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
+                    <RemoteIcon uri={chainIconUrl(c.id)} label={c.nativeSymbol} size={36} />
+                    <View>
+                      <Text style={typography.body}>{c.name}</Text>
+                      <Muted>
+                        {c.nativeSymbol}
+                        {c.testnet ? ' · testnet' : ' · mainnet (fonds réels)'}
+                      </Muted>
+                    </View>
                   </View>
                   {active ? <Text style={{ color: colors.accent, fontSize: 18 }}>✓</Text> : null}
                 </Card>
