@@ -9,11 +9,12 @@
  * react-native-webview est natif : require dynamique (message clair sans rebuild).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share, useWindowDimensions, Animated } from 'react-native';
+import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share, useWindowDimensions, Animated, StyleSheet } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GlassCard, ErrorBox } from '../ui/premium';
+import { GlassCard, ErrorBox, RemoteIcon } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { NovaLogo } from '../ui/NovaLogo';
@@ -44,6 +45,7 @@ import {
   assessAddress,
   isPhishingSite,
   isWalletError,
+  chainIconUrl,
   type RawTxRequest,
   type RiskAssessment,
 } from '../src';
@@ -100,18 +102,6 @@ function faviconUrl(host: string): string {
   return `https://www.google.com/s2/favicons?domain=${host}&sz=128`;
 }
 
-/** Couleur de marque du réseau (pastille dans la popup de connexion). */
-const NETWORK_COLOR: Record<string, string> = {
-  ethereum: '#627EEA',
-  polygon: '#8247E5',
-  bnb: '#F0B90B',
-  base: '#0052FF',
-  arbitrum: '#28A0F0',
-  optimism: '#FF0420',
-  avalanche: '#E84142',
-  sepolia: '#7C5CFF',
-  bitcoin: '#F7931A',
-};
 
 /** Un onglet du navigateur. `url: null` = page d'accueil de l'onglet. */
 interface Tab {
@@ -190,7 +180,7 @@ function normalizeUrl(raw: string): string | null {
 }
 
 export default function Browser() {
-  const { colors, typography } = useTheme();
+  const { colors, typography, gradients } = useTheme();
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
   // 3 colonnes : largeur = (écran − marges − 2 gaps) / 3 (min 88 sur petit écran).
@@ -616,7 +606,7 @@ export default function Browser() {
           hitSlop={6}
           style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1), paddingVertical: spacing(0.85), opacity: pressed ? 0.6 : 1 })}
         >
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: NETWORK_COLOR[chain.id] ?? colors.accent }} />
+          <RemoteIcon uri={chainIconUrl(chain.id)} label={chain.nativeSymbol} size={18} />
           <Text style={{ color: colors.text, fontSize: 12, fontFamily: fonts.semibold }}>{chain.nativeSymbol}</Text>
           <Icon name="chevron" size={12} tone="muted" />
         </Pressable>
@@ -725,8 +715,8 @@ export default function Browser() {
 
       {/* Barre d'outils bas façon Chrome : retour / avancer / accueil / onglets / menu */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: spacing(1), paddingTop: spacing(1), paddingBottom: insets.bottom || spacing(1), borderTopWidth: 1, borderTopColor: colors.glassBorder, backgroundColor: colors.bg }}>
-        <ToolBtn icon="chevron" flip disabled={!activeTab?.canBack} onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.goBack()} />
-        <ToolBtn icon="forward" disabled={!activeTab?.canFwd} onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.goForward()} />
+        <ToolBtn icon="chevron" flip dim={!activeTab?.canBack} onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.goBack()} />
+        <ToolBtn icon="forward" dim={!activeTab?.canFwd} onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.goForward()} />
         <ToolBtn icon="home" onPress={goHome} />
         {/* Compteur d'onglets (carré) → sélecteur */}
         <Pressable onPress={() => setSwitcher(true)} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, alignItems: 'center', justifyContent: 'center' })}>
@@ -792,7 +782,10 @@ export default function Browser() {
       {/* Sélecteur de réseau (badge) + adresse du wallet */}
       <Modal visible={netSheet} transparent animationType="slide" onRequestClose={() => setNetSheet(false)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} onPress={() => setNetSheet(false)}>
-          <Pressable style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: insets.bottom + spacing(2), gap: spacing(1.5) }}>
+          <Pressable style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: insets.bottom + spacing(2), gap: spacing(1.5), overflow: 'hidden' }}>
+            <LinearGradient colors={gradients.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            {/* Poignée de glissement (façon bottom-sheet natif) */}
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.glassBorder, marginBottom: spacing(0.5) }} />
             <Text style={typography.title}>Réseau</Text>
             {account ? (
               <Pressable
@@ -817,11 +810,14 @@ export default function Browser() {
                       if (activeTab?.url) inject(activeId, emitJs('chainChanged', '0x' + (c.evmChainId ?? 1).toString(16)));
                       setNetSheet(false);
                     }}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1.25), paddingHorizontal: spacing(1) }}
+                    style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1), paddingHorizontal: spacing(1), borderRadius: radii.md, backgroundColor: on ? colors.glass : pressed ? colors.glass : 'transparent' })}
                   >
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: NETWORK_COLOR[c.id] ?? colors.accent }} />
-                    <Text style={[typography.body, { flex: 1, color: on ? colors.accent : colors.text }]}>{c.name}</Text>
-                    {on ? <Icon name="check" size={16} color={colors.accent} /> : null}
+                    <RemoteIcon uri={chainIconUrl(c.id)} label={c.nativeSymbol} size={30} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[typography.body, { color: on ? colors.accent : colors.text, fontFamily: fonts.semibold }]}>{c.name}</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12 }}>{c.nativeSymbol}</Text>
+                    </View>
+                    {on ? <Icon name="check" size={18} color={colors.accent} /> : null}
                   </Pressable>
                 );
               })}
@@ -845,7 +841,7 @@ export default function Browser() {
                   <View style={{ flex: 1 }}>
                     <Text style={typography.bodyStrong} numberOfLines={1}>{activeTab?.title || pending.origin}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: NETWORK_COLOR[chain.id] ?? colors.accent }} />
+                      <RemoteIcon uri={chainIconUrl(chain.id)} label={chain.nativeSymbol} size={16} />
                       <Text style={typography.muted}>{pending.origin} · {chain.name}</Text>
                     </View>
                   </View>
@@ -979,10 +975,12 @@ export default function Browser() {
 }
 
 /** Bouton de la barre d'outils (icône, désactivable, chevron « flip » = retour). */
-function ToolBtn({ icon, onPress, disabled, flip }: { icon: Parameters<typeof Icon>[0]['name']; onPress: () => void; disabled?: boolean; flip?: boolean }) {
+function ToolBtn({ icon, onPress, disabled, dim, flip }: { icon: Parameters<typeof Icon>[0]['name']; onPress: () => void; disabled?: boolean; dim?: boolean; flip?: boolean }) {
   const { colors } = useTheme();
+  // `dim` = grisé visuel MAIS toujours cliquable (l'état canGoBack/Forward de la
+  // WebView peut être périmé sur les dApps SPA ; goBack/goForward reste un no-op sûr).
   return (
-    <Pressable onPress={onPress} disabled={disabled} hitSlop={6} style={({ pressed }) => ({ padding: spacing(1), opacity: disabled ? 0.3 : pressed ? 0.5 : 1 })}>
+    <Pressable onPress={onPress} disabled={disabled} hitSlop={6} style={({ pressed }) => ({ padding: spacing(1), opacity: disabled ? 0.3 : pressed ? 0.5 : dim ? 0.4 : 1 })}>
       <View style={flip ? { transform: [{ rotate: '180deg' }] } : undefined}>
         <Icon name={icon} size={24} color={colors.text} />
       </View>
