@@ -552,7 +552,7 @@ export default function Browser() {
 
       {favorites.length > 0 ? (
         <View style={{ gap: spacing(1.25) }}>
-          <Text style={typography.section}>Favoris</Text>
+          <SectionTitle>Favoris</SectionTitle>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: GAP, rowGap: 16 }}>
             {favorites.map((f) => (
               <Tile key={f.host} width={tileW} host={f.host} name={f.title || f.host} color={colors.glassStrong} onPress={() => go(f.url, f.title)} />
@@ -562,7 +562,7 @@ export default function Browser() {
       ) : null}
 
       <View style={{ gap: spacing(1.25) }}>
-        <Text style={typography.section}>Sites populaires</Text>
+        <SectionTitle>Sites populaires</SectionTitle>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: GAP, rowGap: 16 }}>
           {SUGGESTED.map((d) => (
             <Tile key={d.url} width={tileW} host={d.domain} name={d.name} color={d.color} emoji={d.emoji} onPress={() => go(d.url, d.name)} />
@@ -571,7 +571,7 @@ export default function Browser() {
       </View>
 
       <View style={{ gap: spacing(1.25) }}>
-        <Text style={typography.section}>Collections tendance</Text>
+        <SectionTitle>Collections tendance</SectionTitle>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: GAP, rowGap: 16 }}>
           {COLLECTIONS.map((d) => (
             <Tile key={d.url} width={tileW} host={d.domain} name={d.name} color={d.color} emoji={d.emoji} onPress={() => go(d.url, d.name)} />
@@ -734,15 +734,16 @@ export default function Browser() {
         ))}
       </View>
 
-      {/* Barre d'outils bas façon Chrome : retour / avancer / accueil / onglets / menu */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: spacing(1), paddingTop: spacing(1), paddingBottom: insets.bottom || spacing(1), borderTopWidth: 1, borderTopColor: colors.glassBorder, backgroundColor: colors.bg }}>
+      {/* Barre d'outils bas façon Chrome : retour / avancer / accueil / onglets / menu.
+          Ombre vers le haut → effet « barre flottante » premium. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: spacing(1), paddingTop: spacing(1), paddingBottom: insets.bottom || spacing(1), borderTopWidth: 1, borderTopColor: colors.glassBorder, backgroundColor: colors.bg, shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: -3 }, elevation: 12 }}>
         <ToolBtn icon="chevron" flip dim={!activeTab?.canBack} onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.goBack()} />
         <ToolBtn icon="forward" dim={!activeTab?.canFwd} onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.goForward()} />
         <ToolBtn icon="home" onPress={goHome} />
-        {/* Compteur d'onglets (carré) → sélecteur */}
+        {/* Compteur d'onglets (carré, accentué s'il y en a plusieurs) → sélecteur */}
         <Pressable onPress={() => setSwitcher(true)} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, alignItems: 'center', justifyContent: 'center' })}>
-          <View style={{ width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: colors.text, fontSize: 12, fontFamily: fonts.bold }}>{tabs.length}</Text>
+          <View style={{ width: 25, height: 25, borderRadius: 8, borderWidth: 2, borderColor: tabs.length > 1 ? colors.accent : colors.text, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: tabs.length > 1 ? colors.accent : colors.text, fontSize: 12, fontFamily: fonts.bold }}>{tabs.length}</Text>
           </View>
         </Pressable>
         <ToolBtn icon="more" onPress={() => setMenu(true)} />
@@ -1040,6 +1041,17 @@ function LoadBar({ progress }: { progress: number }) {
           width: width.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
         }}
       />
+    </View>
+  );
+}
+
+/** Titre de section avec petit accent vertical (accueil du navigateur). */
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  const { colors, typography } = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+      <View style={{ width: 3, height: 15, borderRadius: 2, backgroundColor: colors.accent }} />
+      <Text style={typography.section}>{children}</Text>
     </View>
   );
 }
