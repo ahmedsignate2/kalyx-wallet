@@ -207,6 +207,16 @@ function newWalletId(): string {
   return `w${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`;
 }
 
+/**
+ * Forme canonique BIP-39 d'une phrase importée : minuscules, espaces normalisés.
+ * Les wordlists BIP-39 sont TOUTES en minuscules ; la seed dérivée est identique
+ * (vérifié), mais stocker/afficher la forme canonique garantit la portabilité vers
+ * les wallets stricts (qui rejettent « Belt » avec majuscule) et un affichage propre.
+ */
+function canonicalMnemonic(m: string): string {
+  return m.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 export const useWallet = create<WalletState>((set, get) => ({
   ready: false,
   hasWallet: false,
@@ -249,8 +259,9 @@ export const useWallet = create<WalletState>((set, get) => ({
   newDraft: (strength = 128) => set({ draftMnemonic: generateMnemonic(strength) }),
 
   setImportedDraft: (mnemonic) => {
-    if (!validateMnemonic(mnemonic)) throw new Error('Phrase de récupération invalide');
-    set({ draftMnemonic: mnemonic.trim() });
+    const m = canonicalMnemonic(mnemonic);
+    if (!validateMnemonic(m)) throw new Error('Phrase de récupération invalide');
+    set({ draftMnemonic: m });
   },
 
   confirmDraft: async (pin, opts) => {
@@ -376,9 +387,9 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   importWallet: async (mnemonic, pin, label) => {
-    if (!validateMnemonic(mnemonic)) throw new Error('Phrase de récupération invalide');
+    const m = canonicalMnemonic(mnemonic);
+    if (!validateMnemonic(m)) throw new Error('Phrase de récupération invalide');
     await revealMnemonic(get().activeWalletId, { pin }); // vérifie le PIN
-    const m = mnemonic.trim();
     const id = newWalletId();
     const accounts = [deriveStoredAccount(m, 0, 'Compte principal')];
     await saveVault(id, await encryptSecret(m, pin));
