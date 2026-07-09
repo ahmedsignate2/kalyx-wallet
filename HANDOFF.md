@@ -305,6 +305,15 @@ sinon elles ne sont PAS embarquées dans l'APK/dev-build.
    0 NFT quelle que soit l'adresse. Fix : retirer ces params, filtrer le spam CÔTÉ CLIENT
    via `contract.isSpam` (fourni gratuitement dans `withMetadata`), `pageSize=100`.
    ⚠️ Ne jamais réintroduire un param de plan payant sans repli. Vérifié en live vs API réelle.
+9c. **ERC-20 légitimes masqués par le spam** — CORRIGÉ 2026-07-09. `getErc20Tokens`
+   faisait `parseTokenBalances(...).slice(0, 40)` **avant** le filtre anti-spam et
+   ignorait le `pageKey` (pas de pagination). L'ordre des soldes étant arbitraire et
+   les airdrops spam nombreux, un vrai token pouvait tomber au-delà de l'index 40 (ou
+   en page 2) → invisible, même pour un utilisateur normal. Fix : pagination bornée
+   (`MAX_BALANCE_PAGES=5`, `'erc20'` explicite + `{pageKey}`), spam filtré AVANT le
+   plafond, plafond appliqué APRÈS filtrage (`MAX_TOKENS=60`, métadonnées par lots de
+   100). Vérifié live : 317 soldes scannés vs 40 avant. ⚠️ Ne jamais re-plafonner
+   avant le filtre anti-spam.
 9. **`Requiring unknown module "NNNN"`** au chargement de WalletConnect = **lazy bundling
    Metro** : en dev, Expo découpe chaque `await import(...)` en bundles séparés dont les
    IDs de modules se désynchronisent du bundle principal (symptôme : IDs réclamés juste
