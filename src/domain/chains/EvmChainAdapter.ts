@@ -30,6 +30,7 @@ import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
 import { tryInOrder, withTimeout } from './net';
 import { parseTxList } from './etherscan';
+import { computeFeeTiers, type FeeOptions } from './gas';
 import { ETHERSCAN_V2_API, EXPLORER_API_KEY } from './configs';
 
 // Limite de gas d'un transfert natif simple (pas d'appel de contrat).
@@ -117,26 +118,33 @@ export class EvmChainAdapter implements ChainAdapter {
     return { to, value: raw, evmChainId: this.config.evmChainId! };
   }
 
-  async prepareTransfer(from: string, params: TransferParams): Promise<UnsignedTx> {
+  /** Paliers de frais Lent/Normal/Rapide pour un `gasLimit` (défaut = transfert natif). */
+  async getFeeOptions(gasLimit: bigint = NATIVE_TRANSFER_GAS): Promise<FeeOptions> {
+    const fee = await this.call((p) => p.getFeeData());
+    return computeFeeTiers(fee, gasLimit);
+  }
+
+  async prepareTransfer(
+    from: string,
+    params: TransferParams,
+    gas?: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint },
+  ): Promise<UnsignedTx> {
     const intent = this.buildTransfer(params);
     const sender = normalizeEvmAddress(from);
 
     const [nonce, fee] = await Promise.all([
       this.call((p) => p.getTransactionCount(sender, 'pending')),
-      this.call((p) => p.getFeeData()),
+      gas ? Promise.resolve(null) : this.call((p) => p.getFeeData()),
     ]);
 
-    if (fee.maxFeePerGas == null || fee.maxPriorityFeePerGas == null) {
+    // Frais choisis par l'utilisateur (palier) sinon suggestion du réseau (EIP-1559).
+    const maxFeePerGas = gas?.maxFeePerGas ?? fee?.maxFeePerGas ?? null;
+    const maxPriorityFeePerGas = gas?.maxPriorityFeePerGas ?? fee?.maxPriorityFeePerGas ?? null;
+    if (maxFeePerGas == null || maxPriorityFeePerGas == null) {
       throw new WalletError('INVALID_AMOUNT', 'Frais réseau indisponibles (EIP-1559)');
     }
 
-    return {
-      ...intent,
-      nonce,
-      gasLimit: NATIVE_TRANSFER_GAS,
-      maxFeePerGas: fee.maxFeePerGas,
-      maxPriorityFeePerGas: fee.maxPriorityFeePerGas,
-    };
+    return { ...intent, nonce, gasLimit: NATIVE_TRANSFER_GAS, maxFeePerGas, maxPriorityFeePerGas };
   }
 
   async signTransaction(tx: UnsignedTx, privateKey: string): Promise<string> {
