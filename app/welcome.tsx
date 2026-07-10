@@ -9,12 +9,7 @@ import { AuroraBackground } from '../ui/AuroraBackground';
 import { Icon, type IconName } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-
-const PROPS: { icon: IconName; title: string; sub: string }[] = [
-  { icon: 'security', title: 'Non-custodial', sub: 'Tes clés restent sur ce téléphone. Personne d’autre.' },
-  { icon: 'exchange', title: 'Swap & dApps', sub: 'Échange, bridge et applis décentralisées intégrés.' },
-  { icon: 'nft', title: 'Tokens & NFT', sub: 'Ton portefeuille complet, prix réels et historique.' },
-];
+import { useT } from '../lib/settingsStore';
 
 /** Petit bloc qui apparaît en fondu+montée avec un délai (effet staggeré). */
 function Reveal({ delay, children, style }: { delay: number; children: React.ReactNode; style?: object }) {
@@ -32,7 +27,13 @@ function Reveal({ delay, children, style }: { delay: number; children: React.Rea
 export default function Welcome() {
   const { colors, gradients } = useTheme();
   const insets = useSafeAreaInsets();
+  const t = useT();
   const newDraft = useWallet((s) => s.newDraft);
+  const PROPS: { icon: IconName; title: string; sub: string }[] = [
+    { icon: 'security', title: t('propNonCustodial'), sub: t('propNonCustodialSub') },
+    { icon: 'exchange', title: t('propSwap'), sub: t('propSwapSub') },
+    { icon: 'nft', title: t('propTokens'), sub: t('propTokensSub') },
+  ];
 
   const onCreate = () => {
     newDraft(128); // 12 mots
@@ -54,7 +55,7 @@ export default function Welcome() {
           </Reveal>
           <Reveal delay={300}>
             <Text style={{ color: colors.textMuted, fontSize: 16, textAlign: 'center', maxWidth: 300 }}>
-              Le wallet qui te protège et que tu comprends.
+              {t('tagline')}
             </Text>
           </Reveal>
         </View>
@@ -78,8 +79,8 @@ export default function Welcome() {
 
         {/* Actions */}
         <Reveal delay={800} style={{ gap: spacing(1.5) }}>
-          <Button label="Créer un wallet" onPress={onCreate} />
-          <Button label="J'ai déjà une phrase" variant="ghost" onPress={() => router.push('/import')} />
+          <Button label={t('createWalletT')} onPress={onCreate} />
+          <Button label={t('havePhrase')} variant="ghost" onPress={() => router.push('/import')} />
         </Reveal>
       </View>
     </View>
