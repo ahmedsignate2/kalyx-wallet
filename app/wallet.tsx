@@ -267,12 +267,12 @@ export default function WalletScreen() {
     const key = keyOf(tk);
     const buttons: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [
       tk.mint
-        ? { text: 'Envoyer', onPress: () => router.push({ pathname: '/send', params: { mint: tk.mint!, symbol: tk.symbol, decimals: String(tk.decimals) } }) }
-        : { text: 'Envoyer', onPress: () => router.push({ pathname: '/send', params: { contract: tk.contract, symbol: tk.symbol, decimals: String(tk.decimals) } }) },
-      ...(tk.mint ? [] : [{ text: 'Échanger', onPress: () => router.push({ pathname: '/swap', params: { contract: tk.contract } }) }]),
-      { text: pinned[key] ? 'Détacher' : 'Épingler en haut', onPress: () => togglePin(key) },
-      { text: hidden_[key] ? 'Réafficher' : 'Masquer ce token', style: 'destructive', onPress: () => toggleHidden(key) },
-      { text: 'Annuler', style: 'cancel' },
+        ? { text: t('send'), onPress: () => router.push({ pathname: '/send', params: { mint: tk.mint!, symbol: tk.symbol, decimals: String(tk.decimals) } }) }
+        : { text: t('send'), onPress: () => router.push({ pathname: '/send', params: { contract: tk.contract, symbol: tk.symbol, decimals: String(tk.decimals) } }) },
+      ...(tk.mint ? [] : [{ text: t('swap'), onPress: () => router.push({ pathname: '/swap', params: { contract: tk.contract } }) }]),
+      { text: pinned[key] ? t('unpin') : t('pinTop'), onPress: () => togglePin(key) },
+      { text: hidden_[key] ? t('showAgain') : t('hideToken'), style: 'destructive', onPress: () => toggleHidden(key) },
+      { text: t('cancel'), style: 'cancel' },
     ];
     Alert.alert(tk.symbol, tk.name, buttons);
   };
@@ -284,11 +284,11 @@ export default function WalletScreen() {
   );
 
   const tabs = [
-    { key: 'crypto', label: 'Crypto' },
-    { key: 'nft', label: 'NFT' },
-    { key: 'defi', label: 'DeFi' },
-    { key: 'staking', label: 'Staking' },
-    { key: 'history', label: 'Historique' },
+    { key: 'crypto', label: t('tabCrypto') },
+    { key: 'nft', label: t('tabNft') },
+    { key: 'defi', label: t('tabDefi') },
+    { key: 'staking', label: t('tabStaking') },
+    { key: 'history', label: t('historyTab') },
   ];
 
   return (
@@ -318,7 +318,7 @@ export default function WalletScreen() {
         )}
         <Pressable onPress={load} disabled={loading} style={{ marginTop: spacing(1) }}>
           <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>
-            {loading ? 'Actualisation…' : '↻ Actualiser'}
+            {loading ? t('refreshing') : '↻ ' + t('refresh')}
           </Text>
         </Pressable>
       </GlassCard>
@@ -329,7 +329,7 @@ export default function WalletScreen() {
         <>
           {allocation.length > 1 ? (
             <GlassCard>
-              <Text style={[typography.muted, { marginBottom: spacing(1.5) }]}>Répartition</Text>
+              <Text style={[typography.muted, { marginBottom: spacing(1.5) }]}>{t('allocation')}</Text>
               <AllocationDonut
                 slices={allocation}
                 centerTitle="Total"
@@ -338,7 +338,7 @@ export default function WalletScreen() {
               />
             </GlassCard>
           ) : null}
-          <SearchBar value={query} onChangeText={setQuery} placeholder="Rechercher un actif…" />
+          <SearchBar value={query} onChangeText={setQuery} placeholder={t("searchAsset")} />
           <GlassCard>
             {loading && !assets ? (
               [0, 1, 2, 3].map((i) => <SkeletonRow key={i} divider={i > 0} />)
@@ -371,7 +371,7 @@ export default function WalletScreen() {
           {filteredTokens.length > 0 ? (
             <>
               <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>
-                Tokens · {getAdapter(activeChain).config.name}
+                {t("tokensOn")} · {getAdapter(activeChain).config.name}
               </Text>
               <GlassCard>
                 {filteredTokens.map((tk, i) => (
@@ -406,7 +406,7 @@ export default function WalletScreen() {
               onPress={() => router.push('/add-token')}
               style={{ alignItems: 'center', paddingVertical: spacing(1.75), borderWidth: 1, borderColor: colors.glassBorder, borderRadius: 22, borderStyle: 'dashed' }}
             >
-              <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>＋ Ajouter un token</Text>
+              <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>＋ {t('addToken')}</Text>
             </Pressable>
           ) : null}
         </>
@@ -422,7 +422,7 @@ export default function WalletScreen() {
       ) : tab === 'nft' ? (
         loadingNfts && nfts === null ? (
           <GlassCard>
-            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>Chargement des NFT…</Text>
+            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>{t('nftLoading')}</Text>
           </GlassCard>
         ) : nfts && nfts.length > 0 ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.25) }}>
@@ -446,7 +446,7 @@ export default function WalletScreen() {
             <View style={{ alignItems: 'center', paddingVertical: spacing(4), gap: spacing(1) }}>
               <Icon name="nft" size={34} color={colors.textMuted} />
               <Text style={typography.bodyStrong}>Aucun NFT sur {getAdapter(activeChain).config.name}</Text>
-              <Text style={typography.muted}>Tes NFT apparaîtront ici (Alchemy).</Text>
+              <Text style={typography.muted}>{t('nftEmptyHint')}</Text>
             </View>
           </GlassCard>
         )

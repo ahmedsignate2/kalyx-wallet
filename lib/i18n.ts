@@ -98,6 +98,25 @@ const en = {
   searchCrypto: 'Search a crypto…',
   general: 'General',
   advanced: 'Advanced',
+  // — Écran Wallet —
+  tabCrypto: 'Crypto',
+  tabNft: 'NFT',
+  tabDefi: 'DeFi',
+  tabStaking: 'Staking',
+  allocation: 'Allocation',
+  searchAsset: 'Search an asset…',
+  refreshing: 'Refreshing…',
+  refresh: 'Refresh',
+  pinTop: 'Pin to top',
+  unpin: 'Unpin',
+  hideToken: 'Hide this token',
+  showAgain: 'Show again',
+  addToken: 'Add a token',
+  tokensOn: 'Tokens',
+  noStaking: 'No staking position',
+  noDefi: 'No DeFi position',
+  nftLoading: 'Loading NFTs…',
+  nftEmptyHint: 'Your NFTs will appear here.',
 };
 
 export type Key = keyof typeof en;
@@ -114,6 +133,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     settings: 'Réglages', profile: 'Profil', language: 'Langue', currency: 'Devise', security: 'Sécurité', biometrics: 'Déverrouillage biométrique', changePin: 'Changer le PIN', revealPhrase: 'Afficher la phrase de récupération', revealPrivateKey: 'Afficher la clé privée', about: 'À propos', resetWallet: 'Réinitialiser le wallet',
     soon: 'Bientôt disponible', cancel: 'Annuler', save: 'Enregistrer', name: 'Nom', yourName: 'Ton nom', testnet: 'testnet',
     menu: 'Plus', contacts: 'Contacts', connectedApps: 'dApps connectées', networks: 'Réseaux', appearance: 'Apparence', notifications: 'Notifications', developer: 'Développeur', extensions: 'Extensions', support: 'Support', faq: 'FAQ', swap: 'Échanger', bridge: 'Bridge', sell: 'Vendre', historyTab: 'Historique', beginnerMode: 'Mode débutant', expertMode: 'Mode expert', uiMode: 'Mode d’interface', searchCrypto: 'Rechercher une crypto…', general: 'Général', advanced: 'Avancé',
+    allocation: 'Répartition', searchAsset: 'Rechercher un actif…', refreshing: 'Actualisation…', refresh: 'Actualiser', pinTop: 'Épingler en haut', unpin: 'Détacher', hideToken: 'Masquer ce token', showAgain: 'Réafficher', addToken: 'Ajouter un token', tokensOn: 'Tokens', noStaking: 'Aucune position de staking', noDefi: 'Aucune position DeFi', nftLoading: 'Chargement des NFT…', nftEmptyHint: 'Tes NFT apparaîtront ici.',
   },
   es: {
     greeting_morning: 'Buenos días', greeting_afternoon: 'Hola', greeting_evening: 'Buenas noches', greeting_night: 'Buenas noches',
