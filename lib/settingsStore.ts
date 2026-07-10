@@ -99,7 +99,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   notifTx: true,
   notifPrice: true,
   securityScan: true,
-  showTestnets: true,
+  showTestnets: false, // testnets/devnets cachés par défaut (activables via Développeur)
   autoLockMinutes: 3,
   privacyGuard: true,
 
@@ -118,7 +118,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       notifTx: s?.notifTx !== false,
       notifPrice: s?.notifPrice !== false,
       securityScan: s?.securityScan !== false,
-      showTestnets: s?.showTestnets !== false,
+      showTestnets: s?.showTestnets === true, // défaut false (caché) sauf activation explicite
       autoLockMinutes: typeof s?.autoLockMinutes === 'number' ? (s.autoLockMinutes as number) : 3,
       privacyGuard: s?.privacyGuard !== false,
     });
