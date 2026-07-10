@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, Pressable, Share } from 'react-native';
 import { Screen, Title, Muted } from '../ui/components';
 import { GlassCard, SkeletonRow } from '../ui/premium';
 import { TxRow } from '../ui/TxRow';
 import { Icon } from '../ui/icon';
-import { spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, fiatSymbol } from '../lib/settingsStore';
-import { getAdapter, getCoinDetail, type TxSummary } from '../src';
+import { toast } from '../lib/toast';
+import { getAdapter, getCoinDetail, transactionsToCsv, type TxSummary } from '../src';
 
 export default function History() {
   const { colors, typography } = useTheme();
@@ -37,6 +38,21 @@ export default function History() {
     load();
   }, [load]);
 
+  const exportCsv = async () => {
+    if (!txs || txs.length === 0) return;
+    const csv = transactionsToCsv(txs, {
+      chainName: chain.name,
+      nativeSymbol: chain.nativeSymbol,
+      nativeDecimals: chain.nativeDecimals,
+      explorerUrl: chain.explorerUrl,
+    });
+    try {
+      await Share.share({ message: csv, title: `nova-historique-${chain.id}.csv` });
+    } catch {
+      toast.error('Export impossible', 'Réessaie.');
+    }
+  };
+
   useEffect(() => {
     let alive = true;
     setCoin(null);
@@ -51,7 +67,15 @@ export default function History() {
 
   return (
     <Screen>
-      <Title>Historique · {chain.name}</Title>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Title>Historique · {chain.name}</Title>
+        {txs && txs.length > 0 ? (
+          <Pressable onPress={exportCsv} hitSlop={8} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, opacity: pressed ? 0.6 : 1 })}>
+            <Icon name="share" size={16} color={colors.accent} />
+            <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}>CSV</Text>
+          </Pressable>
+        ) : null}
+      </View>
       <ScrollView
         contentContainerStyle={{ paddingTop: spacing(1) }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />}
