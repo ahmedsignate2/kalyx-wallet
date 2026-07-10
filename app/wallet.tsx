@@ -8,6 +8,7 @@ import {
   ListRow,
   Avatar,
   RemoteIcon,
+  Sparkline,
   SegmentedTabs,
   SkeletonRow
 } from '../ui/premium';
@@ -53,6 +54,7 @@ interface Asset {
   price: number;
   fiat: number;
   logo?: string;
+  spark?: number[]; // courbe 7j (depuis getMarkets, sans appel supplémentaire)
 }
 
 interface TokenAsset {
@@ -102,6 +104,7 @@ export default function WalletScreen() {
       const ids = [...new Set(VALUE_CHAINS.map((c) => c.coingeckoId!))];
       const [prices, markets] = await Promise.all([getPrices(ids, fiat), getMarkets(fiat, 60)]);
       const logos = new Map(markets.map((m) => [m.id, m.image]));
+      const sparks = new Map(markets.map((m) => [m.id, m.sparkline])); // courbe 7j (même appel)
       const results = await Promise.all(
         VALUE_CHAINS.map(async (chain) => {
           const address =
@@ -123,6 +126,7 @@ export default function WalletScreen() {
             price,
             fiat: Number(formatAmount(raw, chain.nativeDecimals)) * price,
             logo: logos.get(chain.coingeckoId!),
+            spark: sparks.get(chain.coingeckoId!),
           } as Asset;
         }),
       );
@@ -348,9 +352,14 @@ export default function WalletScreen() {
                     subtitle={hidden ? '••••' : `${formatBalance(a.raw, a.chain.nativeDecimals, 6)} ${a.chain.nativeSymbol}`}
                     onPress={() => a.chain.coingeckoId && router.push(`/token/${a.chain.coingeckoId}`)}
                     right={
-                      <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>
-                        {hidden ? '••••' : `${money(a.fiat)} ${fiatSymbol(fiat)}`}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
+                        {a.spark && a.spark.length > 1 ? (
+                          <Sparkline data={a.spark} width={56} height={26} color={a.spark[a.spark.length - 1] >= a.spark[0] ? colors.up : colors.down} />
+                        ) : null}
+                        <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>
+                          {hidden ? '••••' : `${money(a.fiat)} ${fiatSymbol(fiat)}`}
+                        </Text>
+                      </View>
                     }
                   />
                 </FadeInUp>
