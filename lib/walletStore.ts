@@ -66,7 +66,7 @@ import {
 } from './secureStore';
 import { authenticate } from './biometrics';
 
-export const DEFAULT_CHAIN = 'sepolia';
+export const DEFAULT_CHAIN = 'ethereum'; // mainnet par défaut (les testnets sont cachés/optionnels)
 
 export type Unlock = { pin: string } | { biometric: true };
 export type SwapStatus = 'approving' | 'approvalWait' | 'swapping' | 'confirming';
