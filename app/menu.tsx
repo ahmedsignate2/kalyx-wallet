@@ -27,7 +27,7 @@ export default function Menu() {
   const expert = uiMode === 'expert';
 
   const onReset = () =>
-    Alert.alert(t('resetWallet'), 'Assure-toi d’avoir ta phrase de récupération.', [
+    Alert.alert(t('resetWallet'), t('resetWarning'), [
       { text: t('cancel'), style: 'cancel' },
       { text: t('resetWallet'), style: 'destructive', onPress: async () => { await reset(); router.replace('/welcome'); } },
     ]);
@@ -43,7 +43,7 @@ export default function Menu() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
             <GradientAvatar label={(profileName || 'N').slice(0, 1).toUpperCase()} />
             <View style={{ flex: 1 }}>
-              <Text style={typography.bodyStrong}>{profileName || 'Ton profil'}</Text>
+              <Text style={typography.bodyStrong}>{profileName || t('yourProfile')}</Text>
               <Text style={typography.muted}>{t('profile')} · {t('settings')}</Text>
             </View>
             {chev}
@@ -53,9 +53,9 @@ export default function Menu() {
 
       {/* Wallets */}
       <GlassCard>
-        <ListRow left={<Ico n="wallets" />} title="Mes portefeuilles" subtitle="Gérer plusieurs portefeuilles" right={chev} onPress={() => router.push('/wallets')} />
-        <ListRow divider left={<Ico n="import" />} title="Importer un portefeuille" right={chev} onPress={() => router.push('/import-wallet')} />
-        <ListRow divider left={<Ico n="create" />} title="Créer un portefeuille" right={chev} onPress={() => router.push('/create-wallet')} />
+        <ListRow left={<Ico n="wallets" />} title={t('myWallets')} subtitle={t('myWalletsSub')} right={chev} onPress={() => router.push('/wallets')} />
+        <ListRow divider left={<Ico n="import" />} title={t('importWalletT')} right={chev} onPress={() => router.push('/import-wallet')} />
+        <ListRow divider left={<Ico n="create" />} title={t('createWalletT')} right={chev} onPress={() => router.push('/create-wallet')} />
       </GlassCard>
 
       {/* Mode d'interface (différenciateur Nova) */}
@@ -72,7 +72,7 @@ export default function Menu() {
           />
         </View>
         <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-          {expert ? 'RPC custom, outils dev et réglages avancés visibles.' : 'Interface simplifiée : l’essentiel seulement.'}
+          {expert ? t('expertModeHint') : t('beginnerModeHint')}
         </Text>
       </GlassCard>
 
@@ -80,9 +80,9 @@ export default function Menu() {
       <GlassCard>
         <ListRow left={<Ico n="accounts" />} title={t('accounts')} right={chev} onPress={() => router.push('/accounts')} />
         <ListRow divider left={<Ico n="networks" />} title={t('networks')} right={chev} onPress={() => router.push('/networks')} />
-        <ListRow divider left={<Ico n="dapps" />} title="Navigateur dApps" subtitle="Uniswap, OpenSea… dans Nova" right={chev} onPress={() => router.push('/browser')} />
+        <ListRow divider left={<Ico n="dapps" />} title={t('dappBrowser')} subtitle={t('dappBrowserSub')} right={chev} onPress={() => router.push('/browser')} />
         <ListRow divider left={<Ico n="walletconnect" />} title="WalletConnect" subtitle={t('connectedApps')} right={chev} onPress={() => router.push('/walletconnect')} />
-        <ListRow divider left={<Ico n="security" />} title="Approbations" subtitle="Révoquer les autorisations de dépense" right={chev} onPress={() => router.push('/approvals')} />
+        <ListRow divider left={<Ico n="security" />} title={t('approvals')} subtitle={t('approvalsSub')} right={chev} onPress={() => router.push('/approvals')} />
         <ListRow divider left={<Ico n="contacts" />} title={t('contacts')} right={chev} onPress={() => router.push('/contacts')} />
       </GlassCard>
 
@@ -97,25 +97,25 @@ export default function Menu() {
       {/* Sécurité */}
       <GlassCard>
         <ListRow left={<Ico n="security" />} title={t('security')} right={chev} onPress={() => router.push('/settings')} />
-        <ListRow divider left={<Ico n="bell" />} title="Alertes de prix" subtitle="Sois prévenu quand un actif franchit un seuil" right={chev} onPress={() => router.push('/price-alerts')} />
+        <ListRow divider left={<Ico n="bell" />} title={t('priceAlerts')} subtitle={t('priceAlertsSub')} right={chev} onPress={() => router.push('/price-alerts')} />
         <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chev} onPress={() => router.push('/change-pin')} />
         <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chev} onPress={() => router.push('/reveal-phrase')} />
         <ListRow divider left={<Ico n="copy" />} title={t('revealPrivateKey')} right={chev} onPress={() => router.push('/reveal-private-key')} />
-        <ListRow divider left={<Ico n="share" />} title="Sauvegarde chiffrée" subtitle="Exporte ta phrase, protégée par mot de passe" right={chev} onPress={() => router.push('/cloud-backup')} />
+        <ListRow divider left={<Ico n="share" />} title={t('encBackup')} subtitle={t('encBackupSub')} right={chev} onPress={() => router.push('/cloud-backup')} />
       </GlassCard>
 
       {/* Avancé (mode expert) */}
       {expert ? (
         <GlassCard>
-          <ListRow left={<Ico n="developer" />} title={t('developer')} subtitle="RPC custom, réseaux, services" right={chev} onPress={() => router.push('/developer')} />
-          <ListRow divider left={<Ico n="extensions" />} title={t('extensions')} subtitle="Modules & fonctions" right={chev} onPress={() => router.push('/extensions')} />
+          <ListRow left={<Ico n="developer" />} title={t('developer')} subtitle={t('developerSub')} right={chev} onPress={() => router.push('/developer')} />
+          <ListRow divider left={<Ico n="extensions" />} title={t('extensions')} subtitle={t('extensionsSub')} right={chev} onPress={() => router.push('/extensions')} />
         </GlassCard>
       ) : null}
 
       {/* Inviter des amis + soutenir */}
       <GlassCard>
-        <ListRow left={<Ico n="gift" />} title="Inviter des amis" subtitle="Partage ton code Nova" right={chev} onPress={() => router.push('/invite')} />
-        <ListRow divider left={<Ico n="star" />} title="Soutenez-nous" subtitle="Aide Nova à rester libre & indépendant" right={chev} onPress={() => router.push('/support')} />
+        <ListRow left={<Ico n="gift" />} title={t('inviteFriends')} subtitle={t('inviteFriendsSub')} right={chev} onPress={() => router.push('/invite')} />
+        <ListRow divider left={<Ico n="star" />} title={t('supportUs')} subtitle={t('supportUsSub')} right={chev} onPress={() => router.push('/support')} />
       </GlassCard>
 
       {/* Aide */}
