@@ -8,10 +8,12 @@ import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 import { validateMnemonic } from '../src';
 
 export default function Import() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const setImportedDraft = useWallet((s) => s.setImportedDraft);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +29,7 @@ export default function Import() {
   const onNext = () => {
     setError(null);
     if (!validateMnemonic(text.trim())) {
-      setError("Phrase invalide : vérifie les mots et l'ordre (12 ou 24 mots BIP-39).");
+      setError(t('invalidPhraseBip'));
       return;
     }
     setImportedDraft(text.trim());
@@ -41,22 +43,22 @@ export default function Import() {
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: 'Importer' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('importTitle') }} />
 
       <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="import" size={26} color={colors.accent} />
         </View>
-        <Text style={typography.title}>Importer un wallet</Text>
-        <Text style={[typography.muted, { textAlign: 'center' }]}>Colle ta phrase de récupération BIP-39 (12 ou 24 mots).</Text>
+        <Text style={typography.title}>{t('importWalletT')}</Text>
+        <Text style={[typography.muted, { textAlign: 'center' }]}>{t('pastePhraseHint')}</Text>
       </View>
 
       <GlassCard>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(1) }}>
-          <Text style={typography.muted}>{wordCount > 0 ? `${wordCount} mot${wordCount > 1 ? 's' : ''}` : 'Phrase de récupération'}</Text>
+          <Text style={typography.muted}>{wordCount > 0 ? `${wordCount} ${t('wordsWord')}` : t('recoveryPhrase')}</Text>
           <Pressable onPress={paste} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Icon name="copy" size={15} color={colors.accent} />
-            <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Coller</Text>
+            <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('paste')}</Text>
           </Pressable>
         </View>
         <TextInput
@@ -75,7 +77,7 @@ export default function Import() {
       {error ? <ErrorBox message={error} /> : null}
 
       <View style={{ flex: 1 }} />
-      <Button label="Continuer" onPress={onNext} />
+      <Button label={t('continueWord')} onPress={onNext} />
       <View style={{ height: spacing(1) }} />
     </PremiumScreen>
   );

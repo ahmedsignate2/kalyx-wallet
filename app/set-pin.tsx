@@ -5,7 +5,7 @@ import { Screen, Title, Muted } from '../ui/components';
 import { PinPad } from '../ui/PinPad';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { useSettings } from '../lib/settingsStore';
+import { useSettings, useT } from '../lib/settingsStore';
 import { checkPin, PIN_MIN } from '../src';
 import { isBiometricAvailable } from '../lib/biometrics';
 
@@ -18,6 +18,7 @@ import { isBiometricAvailable } from '../lib/biometrics';
  */
 export default function SetPin() {
   const { colors } = useTheme();
+  const t = useT();
   const confirmDraft = useWallet((s) => s.confirmDraft);
   const [step, setStep] = useState<'create' | 'confirm'>('create');
   const [firstPin, setFirstPin] = useState('');
@@ -43,10 +44,10 @@ export default function SetPin() {
     if (!c.ok) {
       fail(
         c.reason === 'LENGTH'
-          ? `Le PIN doit faire au moins ${PIN_MIN} chiffres.`
+          ? t('pinMinDigits').replace('{n}', String(PIN_MIN))
           : c.reason === 'NON_DIGIT'
-            ? 'Uniquement des chiffres.'
-            : 'PIN trop simple (évite 123456, 000000…).',
+            ? t('digitsOnly')
+            : t('pinTooSimple'),
       );
       return;
     }
@@ -57,7 +58,7 @@ export default function SetPin() {
 
   const onConfirm = async (val: string) => {
     if (val !== firstPin) {
-      fail('Les deux PIN ne correspondent pas. Recommence.');
+      fail(t('pinMismatch'));
       setPin('');
       setFirstPin('');
       setStep('create');
@@ -69,7 +70,7 @@ export default function SetPin() {
       useSettings.getState().setPinLength(firstPin.length); // ronds exacts au déverrouillage
       router.replace('/home');
     } catch {
-      fail('Impossible de sécuriser le wallet.');
+      fail(t('cannotSecure'));
       setBusy(false);
     }
   };
@@ -91,16 +92,14 @@ export default function SetPin() {
 
   return (
     <Screen>
-      <Title>{step === 'create' ? 'Choisis un code PIN' : 'Confirme ton PIN'}</Title>
+      <Title>{step === 'create' ? t('choosePinTitle') : t('confirmPinTitle')}</Title>
       <Muted>
-        {step === 'create'
-          ? "Il chiffre ta phrase sur cet appareil. Ne l'oublie pas."
-          : 'Saisis-le une seconde fois pour confirmer.'}
+        {step === 'create' ? t('choosePinSub') : t('confirmPinSub')}
       </Muted>
 
       {step === 'create' && bioAvailable ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing(1) }}>
-          <Muted>Déverrouillage biométrique</Muted>
+          <Muted>{t('biometricUnlock')}</Muted>
           <Switch value={useBio} onValueChange={setUseBio} />
         </View>
       ) : null}
@@ -120,11 +119,11 @@ export default function SetPin() {
         <View style={{ height: 24, justifyContent: 'center' }}>
           {step === 'create' && canContinue ? (
             <Pressable onPress={onContinue} hitSlop={8}>
-              <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>Continuer</Text>
+              <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
             </Pressable>
           ) : step === 'confirm' ? (
             <Pressable onPress={restart} hitSlop={8} disabled={busy}>
-              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>‹ Recommencer</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>‹ {t('startOver')}</Text>
             </Pressable>
           ) : null}
         </View>

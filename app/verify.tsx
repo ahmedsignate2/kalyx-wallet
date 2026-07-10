@@ -6,6 +6,7 @@ import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { createBackupChallenge, verifyBackupChallenge } from '../src';
 
@@ -15,6 +16,7 @@ import { createBackupChallenge, verifyBackupChallenge } from '../src';
  */
 export default function Verify() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const draft = useWallet((s) => s.draftMnemonic);
   const challenge = useMemo(
     () => (draft ? createBackupChallenge(draft, { count: 3, optionsPerWord: 4 }) : []),
@@ -25,11 +27,11 @@ export default function Verify() {
   if (!draft) {
     return (
       <PremiumScreen>
-        <Stack.Screen options={{ headerShown: true, title: 'Vérification' }} />
+        <Stack.Screen options={{ headerShown: true, title: t('verifyTitle') }} />
         <GlassCard>
-          <Text style={typography.bodyStrong}>Session expirée.</Text>
+          <Text style={typography.bodyStrong}>{t('sessionExpired')}</Text>
           <Text onPress={() => router.replace('/welcome')} style={{ color: colors.accent, fontFamily: fonts.semibold, marginTop: spacing(1) }}>
-            Recommencer
+            {t('startOver')}
           </Text>
         </GlassCard>
       </PremiumScreen>
@@ -43,21 +45,21 @@ export default function Verify() {
     if (verifyBackupChallenge(draft, list)) {
       router.push('/set-pin');
     } else {
-      toast.error('Presque', 'Un mot ne correspond pas. Vérifie ta phrase notée.');
+      toast.error(t('almost'), t('wordMismatch'));
       setAnswers({});
     }
   };
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: 'Vérification' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('verifyTitle') }} />
 
       <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="check" size={26} color={colors.accent} />
         </View>
-        <Text style={typography.title}>Vérifie ta sauvegarde</Text>
-        <Text style={[typography.muted, { textAlign: 'center' }]}>Sélectionne le bon mot pour chaque position.</Text>
+        <Text style={typography.title}>{t('verifyBackup')}</Text>
+        <Text style={[typography.muted, { textAlign: 'center' }]}>{t('selectRightWord')}</Text>
       </View>
 
       <View style={{ gap: spacing(1.5) }}>
@@ -66,7 +68,7 @@ export default function Verify() {
           return (
             <GlassCard key={c.position}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing(1) }}>
-                <Text style={typography.muted}>Mot n°{c.position}</Text>
+                <Text style={typography.muted}>{t('wordNo')} {c.position}</Text>
                 {answered ? <Icon name="check" size={15} color={colors.up} /> : null}
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
@@ -95,7 +97,7 @@ export default function Verify() {
         })}
       </View>
 
-      <Button label="Valider" disabled={!allAnswered} onPress={onValidate} />
+      <Button label={t('validate')} disabled={!allAnswered} onPress={onValidate} />
       <View style={{ height: spacing(1) }} />
     </PremiumScreen>
   );
