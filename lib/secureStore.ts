@@ -201,6 +201,22 @@ export async function loadPriceAlerts<T>(): Promise<T[]> {
   }
 }
 
+const K_TOKEN_PREFS = 'nova.tokenPrefs'; // tokens masqués/épinglés (non sensible)
+
+export async function saveTokenPrefs(prefs: unknown): Promise<void> {
+  await SecureStore.setItemAsync(K_TOKEN_PREFS, JSON.stringify(prefs), base);
+}
+
+export async function loadTokenPrefs<T>(fallback: T): Promise<T> {
+  const raw = await SecureStore.getItemAsync(K_TOKEN_PREFS, base);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 const K_RECENTS = 'nova.recentRecipients'; // destinataires récents (adresses publiques)
 
 export async function saveRecentRecipients(list: unknown[]): Promise<void> {
