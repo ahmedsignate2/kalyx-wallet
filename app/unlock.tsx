@@ -9,13 +9,14 @@ import { PinPad } from '../ui/PinPad';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { useSettings } from '../lib/settingsStore';
+import { useSettings, useT } from '../lib/settingsStore';
 import { lockRemainingMs } from '../src';
 import { isBiometricAvailable } from '../lib/biometrics';
 
 export default function Unlock() {
   const { colors, gradients } = useTheme();
   const insets = useSafeAreaInsets();
+  const t = useT();
   const unlockWithPin = useWallet((s) => s.unlockWithPin);
   const unlockWithBiometrics = useWallet((s) => s.unlockWithBiometrics);
   const healBiometric = useWallet((s) => s.healBiometric);
@@ -58,7 +59,7 @@ export default function Unlock() {
         // Au TAP manuel, on affiche la vraie cause (ex. « à réactiver dans Réglages »).
         const msg = e instanceof Error ? e.message : '';
         if (manual && !/refus|annul|cancel/i.test(msg)) {
-          setError(/configur/i.test(msg) ? 'Biométrie à réactiver dans Réglages (déverrouille au PIN).' : msg || 'Biométrie indisponible.');
+          setError(/configur/i.test(msg) ? t('bioReactivate') : msg || t('bioUnavailable'));
         }
       }
     },
@@ -86,7 +87,7 @@ export default function Unlock() {
         if (biometricEnabled) void healBiometric(code).catch(() => {});
         goHome();
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Code incorrect');
+        setError(e instanceof Error ? e.message : t('incorrectCode'));
         setPin('');
         setErrSignal((n) => n + 1); // secousse + vibration
         setBusy(false);
@@ -101,10 +102,10 @@ export default function Unlock() {
     setPin(v);
   };
 
-  const title = profileName ? `Bon retour, ${profileName}` : 'Déverrouiller Nova';
+  const title = profileName ? `${t('welcomeBack')}, ${profileName}` : t('unlockNova');
   const subtitle = locked
-    ? `Trop de tentatives · réessaie dans ${Math.ceil(lockedMs / 1000)} s`
-    : error ?? 'Entre ton code pour continuer';
+    ? t('tooManyAttempts').replace('{n}', String(Math.ceil(lockedMs / 1000)))
+    : error ?? t('enterCodeToContinue');
 
   return (
     <Animated.View style={{ flex: 1, backgroundColor: colors.bgDeep, opacity: screenOp }}>
@@ -125,7 +126,7 @@ export default function Unlock() {
               style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing(0.5), paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}
             >
               <Icon name="security" size={18} color={colors.accent} />
-              <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>Biométrie</Text>
+              <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>{t('biometrics')}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -149,7 +150,7 @@ export default function Unlock() {
             {complete ? (
               <Pressable onPress={() => submit(pin)} disabled={busy || locked} hitSlop={8}>
                 <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>
-                  {busy ? 'Vérification…' : 'Déverrouiller'}
+                  {busy ? t('verifying') : t('unlockBtn')}
                 </Text>
               </Pressable>
             ) : null}
