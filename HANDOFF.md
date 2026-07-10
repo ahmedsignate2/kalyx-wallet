@@ -140,6 +140,15 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
 (icône/splash/captures). Prochain gros cap discuté : **navigateur dApps intégré**
 (WebView + injection EIP-1193 — prévu v2, voir §3 gros morceaux) ; Ledger/Trezor.
 
+### Testnets séparés (2026-07-10)
+- Les **testnets/devnets sont cachés par défaut** (`settings.showTestnets = false`) et
+  **séparés du mainnet**. Activation : Menu → (mode Expert) → **Développeur** → « Activer
+  les testnets » (toggle déplacé depuis Extensions). `networks.tsx` affiche deux sections
+  distinctes (Réseaux principaux / Réseaux de test + badge « AUCUN FONDS RÉEL »). Le
+  sélecteur du navigateur respecte `showTestnets`. `DEFAULT_CHAIN` = **`ethereum`** (était
+  `sepolia`, un testnet → aurait été invisible/injoignable une fois les testnets cachés).
+  ⚠️ `listChains()` sans arg garde includeTestnets=true (résolution par chainId : scan, dApp).
+
 ### Clavier (2026-07-09)
 - ✅ **Écrans clavier-aware** : `Screen` et `PremiumScreen` (ui/) enveloppent le contenu
   dans un `KeyboardAvoidingView` → le champ actif (montant, adresse, mot de passe…)

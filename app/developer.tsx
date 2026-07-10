@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, Share } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, Share, Switch } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Stack } from 'expo-router';
 import Constants from 'expo-constants';
@@ -8,6 +8,7 @@ import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useCustomChains, type CustomChainInput } from '../lib/customChainsStore';
+import { useSettings } from '../lib/settingsStore';
 import { useNotifCenter } from '../lib/notificationCenter';
 import { toast } from '../lib/toast';
 
@@ -28,6 +29,8 @@ export default function Developer() {
   const exportBackup = useCustomChains((s) => s.exportBackup);
   const importBackup = useCustomChains((s) => s.importBackup);
   const clearNotifs = useNotifCenter((s) => s.clear);
+  const showTestnets = useSettings((s) => s.showTestnets);
+  const setFlag = useSettings((s) => s.setFlag);
 
   const [form, setForm] = useState<CustomChainInput>({ name: '', evmChainId: 0, nativeSymbol: '', rpcUrl: '', explorerUrl: '' });
   const [chainIdStr, setChainIdStr] = useState('');
@@ -83,6 +86,21 @@ export default function Developer() {
           <GlassCard>
             <Row label="Version" value={`v${Constants.expoConfig?.version ?? '0.0.1'}`} colors={colors} typography={typography} />
             <Row label="Environnement" value={__DEV__ ? 'Développement' : 'Production'} colors={colors} typography={typography} divider />
+          </GlassCard>
+        </View>
+
+        {/* Réseaux de test (séparés du mainnet) */}
+        <View style={{ gap: spacing(1) }}>
+          <Text style={typography.section}>Réseaux de test</Text>
+          <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="networks" size={20} color={showTestnets ? colors.warning : colors.textMuted} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={typography.bodyStrong}>Activer les testnets / devnets</Text>
+              <Text style={typography.muted}>Affiche Sepolia, Monad… séparés du mainnet. Pour développeurs uniquement (aucun fonds réel).</Text>
+            </View>
+            <Switch value={showTestnets} onValueChange={(v) => setFlag('showTestnets', v)} />
           </GlassCard>
         </View>
 
