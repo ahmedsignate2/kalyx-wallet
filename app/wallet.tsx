@@ -21,6 +21,7 @@ import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
+import { useTokenPrefs, tokenKey } from '../lib/tokenPrefsStore';
 import {
   getAdapter,
   listChains,
@@ -237,10 +238,40 @@ export default function WalletScreen() {
   const stakingPositions = useMemo(() => tokens.filter((tk) => tk.defi?.kind === 'staking'), [tokens]);
   const defiPositions = useMemo(() => tokens.filter((tk) => tk.defi?.kind === 'defi'), [tokens]);
 
+  const hidden_ = useTokenPrefs((s) => s.hidden);
+  const pinned = useTokenPrefs((s) => s.pinned);
+  const showHidden = useTokenPrefs((s) => s.showHidden);
+  const setShowHidden = useTokenPrefs((s) => s.setShowHidden);
+  const togglePin = useTokenPrefs((s) => s.togglePin);
+  const toggleHidden = useTokenPrefs((s) => s.toggleHidden);
+  const keyOf = (tk: TokenAsset) => tokenKey(activeChain, tk.contract);
+
   const q = query.trim().toLowerCase();
-  const filteredTokens = tokens.filter(
-    (tk) => !q || tk.name.toLowerCase().includes(q) || tk.symbol.toLowerCase().includes(q),
-  );
+  const hiddenCount = tokens.filter((tk) => hidden_[keyOf(tk)]).length;
+  const filteredTokens = useMemo(() => {
+    const list = tokens
+      .filter((tk) => !q || tk.name.toLowerCase().includes(q) || tk.symbol.toLowerCase().includes(q))
+      .filter((tk) => showHidden || !hidden_[keyOf(tk)]);
+    // Épinglés d'abord (ordre par valeur préservé dans chaque groupe).
+    const pins = list.filter((tk) => pinned[keyOf(tk)]);
+    const rest = list.filter((tk) => !pinned[keyOf(tk)]);
+    return [...pins, ...rest];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokens, q, hidden_, pinned, showHidden, activeChain]);
+
+  const openTokenMenu = (tk: TokenAsset) => {
+    const key = keyOf(tk);
+    const buttons: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [
+      tk.mint
+        ? { text: 'Envoyer', onPress: () => router.push({ pathname: '/send', params: { mint: tk.mint!, symbol: tk.symbol, decimals: String(tk.decimals) } }) }
+        : { text: 'Envoyer', onPress: () => router.push({ pathname: '/send', params: { contract: tk.contract, symbol: tk.symbol, decimals: String(tk.decimals) } }) },
+      ...(tk.mint ? [] : [{ text: 'Échanger', onPress: () => router.push({ pathname: '/swap', params: { contract: tk.contract } }) }]),
+      { text: pinned[key] ? 'Détacher' : 'Épingler en haut', onPress: () => togglePin(key) },
+      { text: hidden_[key] ? 'Réafficher' : 'Masquer ce token', style: 'destructive', onPress: () => toggleHidden(key) },
+      { text: 'Annuler', style: 'cancel' },
+    ];
+    Alert.alert(tk.symbol, tk.name, buttons);
+  };
   const filtered = (assets ?? []).filter(
     (a) =>
       !query.trim() ||
@@ -338,41 +369,9 @@ export default function WalletScreen() {
                   <FadeInUp key={tk.contract} delay={i * 55}>
                   <ListRow
                     divider={i > 0}
-                    onPress={() =>
-                      Alert.alert(
-                        tk.symbol,
-                        tk.name,
-                        tk.mint
-                          ? [
-                              {
-                                text: 'Envoyer',
-                                onPress: () =>
-                                  router.push({
-                                    pathname: '/send',
-                                    params: { mint: tk.mint, symbol: tk.symbol, decimals: String(tk.decimals) },
-                                  }),
-                              },
-                              { text: 'Annuler', style: 'cancel' },
-                            ]
-                          : [
-                              {
-                                text: 'Envoyer',
-                                onPress: () =>
-                                  router.push({
-                                    pathname: '/send',
-                                    params: { contract: tk.contract, symbol: tk.symbol, decimals: String(tk.decimals) },
-                                  }),
-                              },
-                              {
-                                text: 'Échanger',
-                                onPress: () => router.push({ pathname: '/swap', params: { contract: tk.contract } }),
-                              },
-                              { text: 'Annuler', style: 'cancel' },
-                            ],
-                      )
-                    }
+                    onPress={() => openTokenMenu(tk)}
                     left={<RemoteIcon uri={tk.logo} label={tk.symbol} />}
-                    title={tk.name}
+                    title={pinned[keyOf(tk)] ? `📌 ${tk.name}` : tk.name}
                     subtitle={hidden ? '••••' : `${formatBalance(tk.raw, tk.decimals, 6)} ${tk.symbol}`}
                     right={
                       <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>
@@ -383,6 +382,13 @@ export default function WalletScreen() {
                   </FadeInUp>
                 ))}
               </GlassCard>
+              {hiddenCount > 0 ? (
+                <Pressable onPress={() => setShowHidden(!showHidden)} hitSlop={6} style={{ alignSelf: 'center', paddingVertical: spacing(1) }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+                    {showHidden ? 'Masquer' : 'Afficher'} {hiddenCount} token{hiddenCount > 1 ? 's' : ''} masqué{hiddenCount > 1 ? 's' : ''}
+                  </Text>
+                </Pressable>
+              ) : null}
             </>
           ) : null}
 
