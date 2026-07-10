@@ -7,11 +7,13 @@ import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { getAdapter } from '../src';
 
 export default function Receive() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
   const chain = getAdapter(activeChain).config;
@@ -19,13 +21,13 @@ export default function Receive() {
 
   return (
     <Screen>
-      <Title>Recevoir</Title>
+      <Title>{t('receive')}</Title>
       <Muted>
         {chain.family === 'bitcoin'
-          ? `Adresse Bitcoin (${chain.name}) — n'envoie que du BTC ici.`
+          ? t('receiveBtcHint')
           : chain.family === 'solana'
-            ? 'Adresse Solana — pour du SOL et des tokens SPL.'
-            : 'Adresse EVM — la même sur Ethereum, Polygon, BNB, Base…'}
+            ? t('receiveSolHint')
+            : t('receiveEvmHint')}
       </Muted>
       <Card style={{ alignItems: 'center' }}>
         <View style={{ backgroundColor: '#fff', padding: spacing(2), borderRadius: 16 }}>
@@ -37,10 +39,10 @@ export default function Receive() {
       </Card>
       <View style={{ flex: 1 }} />
       <Button
-        label="Copier l'adresse"
+        label={t("copyAddress")}
         onPress={async () => {
           await Clipboard.setStringAsync(account.address);
-          toast.success('Copié', 'Adresse copiée.');
+          toast.success(t('copied'), t('addressCopied'));
         }}
       />
       <Pressable
@@ -49,7 +51,7 @@ export default function Receive() {
         hitSlop={8}
       >
         <Icon name="scan" size={18} color={colors.accent} />
-        <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Scanner une adresse pour envoyer</Text>
+        <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('scanToSend')}</Text>
       </Pressable>
     </Screen>
   );
