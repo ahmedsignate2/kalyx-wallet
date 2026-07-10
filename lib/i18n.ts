@@ -139,6 +139,10 @@ const en = {
   copyAddress: 'Copy address',
   copied: 'Copied',
   addressCopied: 'Address copied.',
+  scanToSend: 'Scan an address to send',
+  receiveEvmHint: 'EVM address — the same on Ethereum, Polygon, BNB, Base…',
+  receiveBtcHint: 'Bitcoin address — only send BTC here.',
+  receiveSolHint: 'Solana address — for SOL and SPL tokens.',
 };
 
 export type Key = keyof typeof en;
@@ -157,6 +161,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     menu: 'Plus', contacts: 'Contacts', connectedApps: 'dApps connectées', networks: 'Réseaux', appearance: 'Apparence', notifications: 'Notifications', developer: 'Développeur', extensions: 'Extensions', support: 'Support', faq: 'FAQ', swap: 'Échanger', bridge: 'Bridge', sell: 'Vendre', historyTab: 'Historique', beginnerMode: 'Mode débutant', expertMode: 'Mode expert', uiMode: 'Mode d’interface', searchCrypto: 'Rechercher une crypto…', general: 'Général', advanced: 'Avancé',
     allocation: 'Répartition', searchAsset: 'Rechercher un actif…', refreshing: 'Actualisation…', refresh: 'Actualiser', pinTop: 'Épingler en haut', unpin: 'Détacher', hideToken: 'Masquer ce token', showAgain: 'Réafficher', addToken: 'Ajouter un token', tokensOn: 'Tokens', noStaking: 'Aucune position de staking', noDefi: 'Aucune position DeFi', nftLoading: 'Chargement des NFT…', nftEmptyHint: 'Tes NFT apparaîtront ici.',
     nativeTransfer: 'Transfert natif', tokenTransfer: 'Transfert du token', recipientAddr: 'Adresse du destinataire', scan: 'Scanner', addressBook: 'Carnet', ensResolving: 'Résolution ENS…', ensNotFound: 'Nom ENS introuvable', recent: 'Récents', amount: 'Montant', networkFee: 'Frais de réseau', feeSlow: 'Lent', feeNormal: 'Normal', feeFast: 'Rapide', reviewSend: 'Vérifier et envoyer', confirmSend: 'Confirmer l’envoi', balanceLabel: 'Solde', invalidRecipient: 'Adresse du destinataire invalide', appPin: 'PIN de l’app', copyAddress: 'Copier l’adresse', copied: 'Copié', addressCopied: 'Adresse copiée.',
+    scanToSend: 'Scanner une adresse pour envoyer', receiveEvmHint: 'Adresse EVM — la même sur Ethereum, Polygon, BNB, Base…', receiveBtcHint: 'Adresse Bitcoin — n’envoie que du BTC ici.', receiveSolHint: 'Adresse Solana — pour du SOL et des tokens SPL.',
   },
   es: {
     greeting_morning: 'Buenos días', greeting_afternoon: 'Hola', greeting_evening: 'Buenas noches', greeting_night: 'Buenas noches',
