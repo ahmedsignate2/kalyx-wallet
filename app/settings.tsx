@@ -49,13 +49,13 @@ export default function Settings() {
   const onToggleNotif = async (on: boolean) => {
     if (!on) {
       // Pas de désactivation programmatique côté OS : on informe l'utilisateur.
-      toast.info('Notifications', 'Désactive-les pour Nova dans les réglages du téléphone.');
+      toast.info(t('notifications'), t('notifDisableHint'));
       return;
     }
     const ok = await ensureNotifPermission();
     setNotifOn(ok);
-    if (ok) void notify('Notifications activées', 'Tu seras prévenu de tes transactions.');
-    else toast.warning('Notifications', 'Permission refusée (ou disponible après un rebuild).');
+    if (ok) void notify(t('notifEnabledTitle'), t('notifEnabledBody'));
+    else toast.warning(t('notifications'), t('notifDenied'));
   };
 
   const langName = LANGUAGES.find((l) => l.code === language)?.name ?? language;
@@ -81,7 +81,7 @@ export default function Settings() {
     }
   };
   const onReset = () => {
-    Alert.alert(t('resetWallet'), 'Assure-toi d’avoir ta phrase de récupération.', [
+    Alert.alert(t('resetWallet'), t('resetWarning'), [
       { text: t('cancel'), style: 'cancel' },
       {
         text: t('resetWallet'),
@@ -135,14 +135,14 @@ export default function Settings() {
         <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
             <Ico n="appearance" />
-            <Text style={typography.body}>Apparence</Text>
+            <Text style={typography.body}>{t('appearance')}</Text>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
             {(
               [
-                { key: 'system', label: '⚙ Système' },
-                { key: 'dark', label: '🌙 Sombre' },
-                { key: 'light', label: '☀️ Clair' },
+                { key: 'system', label: `⚙ ${t('themeSystem')}` },
+                { key: 'dark', label: `🌙 ${t('themeDark')}` },
+                { key: 'light', label: `☀️ ${t('themeLight')}` },
               ] as const
             ).map((o) => (
               <Chip key={o.key} label={o.label} tone={themePref === o.key ? 'accent' : 'neutral'} onPress={() => setThemePref(o.key)} />
@@ -167,18 +167,18 @@ export default function Settings() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
             <Ico n="security" />
             <View style={{ flex: 1 }}>
-              <Text style={typography.body}>Verrouillage auto</Text>
-              <Text style={typography.muted}>Reverrouille après un temps en arrière-plan.</Text>
+              <Text style={typography.body}>{t('autoLock')}</Text>
+              <Text style={typography.muted}>{t('autoLockHint')}</Text>
             </View>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
             {([
-              { label: 'Immédiat', m: 0 },
+              { label: t('immediate'), m: 0 },
               { label: '1 min', m: 1 },
               { label: '3 min', m: 3 },
               { label: '5 min', m: 5 },
               { label: '15 min', m: 15 },
-              { label: 'Jamais', m: -1 },
+              { label: t('never'), m: -1 },
             ] as const).map((o) => (
               <Chip key={o.m} label={o.label} tone={autoLockMinutes === o.m ? 'accent' : 'neutral'} onPress={() => setAutoLock(o.m)} />
             ))}
@@ -188,8 +188,8 @@ export default function Settings() {
         <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
           <Ico n="eye" />
           <View style={{ flex: 1 }}>
-            <Text style={typography.body}>Écran de garde</Text>
-            <Text style={typography.muted}>Masque le contenu dans les apps récentes.</Text>
+            <Text style={typography.body}>{t('privacyScreen')}</Text>
+            <Text style={typography.muted}>{t('privacyScreenHint')}</Text>
           </View>
           <Switch value={privacyGuard} onValueChange={setPrivacyGuard} />
         </View>
@@ -200,14 +200,14 @@ export default function Settings() {
 
       {/* Réseau & à venir */}
       <GlassCard>
-        <ListRow left={<Ico n="networks" />} title="Réseau" subtitle="Choisir le réseau actif" right={chevron} onPress={() => router.push('/networks')} />
+        <ListRow left={<Ico n="networks" />} title={t('network')} subtitle={t('chooseActiveNetwork')} right={chevron} onPress={() => router.push('/networks')} />
         <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
               <Ico n="notifications" />
               <View style={{ flex: 1 }}>
-                <Text style={typography.body}>Notifications</Text>
-                <Text style={typography.muted}>Alertes de transaction</Text>
+                <Text style={typography.body}>{t('notifications')}</Text>
+                <Text style={typography.muted}>{t('txAlerts')}</Text>
               </View>
             </View>
             <Switch value={notifOn} onValueChange={onToggleNotif} />
@@ -215,16 +215,16 @@ export default function Settings() {
           {/* Catégories */}
           <View style={{ marginTop: spacing(1.25), gap: spacing(0.5), paddingLeft: spacing(4) }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={typography.body}>Transactions</Text>
+              <Text style={typography.body}>{t('transactions')}</Text>
               <Switch value={notifTx} onValueChange={(v) => setNotifPref('notifTx', v)} />
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={typography.body}>Alertes de prix</Text>
+              <Text style={typography.body}>{t('priceAlerts')}</Text>
               <Switch value={notifPrice} onValueChange={(v) => setNotifPref('notifPrice', v)} />
             </View>
           </View>
         </View>
-        <ListRow divider left={<Ico n="buy" />} title="Achat crypto" right={<Chip label={t('soon')} />} onPress={soon} />
+        <ListRow divider left={<Ico n="buy" />} title={t('buyCrypto')} right={<Chip label={t('soon')} />} onPress={soon} />
       </GlassCard>
 
       {/* À propos */}
@@ -238,8 +238,8 @@ export default function Settings() {
 
       <PinPromptModal
         visible={askPin}
-        title="Confirme ton code"
-        subtitle="Entre ton PIN pour activer le déverrouillage biométrique."
+        title={t('confirmYourPin')}
+        subtitle={t('enterPinForBio')}
         expectedLength={pinLength >= 6 ? pinLength : undefined}
         busy={bioBusy}
         errorSignal={bioErr}
