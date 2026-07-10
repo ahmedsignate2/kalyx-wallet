@@ -69,6 +69,8 @@ import { authenticate } from './biometrics';
 export const DEFAULT_CHAIN = 'ethereum'; // mainnet par défaut (les testnets sont cachés/optionnels)
 
 export type Unlock = { pin: string } | { biometric: true };
+/** Frais de gas EIP-1559 choisis par l'utilisateur (palier Lent/Normal/Rapide). */
+export type GasOverride = { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint };
 export type SwapStatus = 'approving' | 'approvalWait' | 'swapping' | 'confirming';
 
 interface WalletState {
@@ -108,14 +110,14 @@ interface WalletState {
   renameWallet: (id: string, label: string) => Promise<void>;
   removeWallet: (id: string) => Promise<void>;
   lock: () => void;
-  signAndSend: (to: string, amount: string, unlock: Unlock) => Promise<string>;
+  signAndSend: (to: string, amount: string, unlock: Unlock, gas?: GasOverride) => Promise<string>;
   executeSwap: (quote: SwapQuote, unlock: Unlock, onStatus?: (s: SwapStatus) => void) => Promise<string>;
   // Signature pour WalletConnect (requêtes dApp)
   signMessage: (unlock: Unlock, message: string) => Promise<string>;
   signTypedData: (unlock: Unlock, typedData: { domain: unknown; types: Record<string, unknown>; message: unknown }) => Promise<string>;
   sendRawTxOn: (unlock: Unlock, chainId: string, req: RawTxRequest) => Promise<string>;
   /** Envoie un token ERC-20 détenu (transfer) sur le réseau actif. */
-  sendToken: (to: string, amount: string, token: { contract: string; decimals: number }, unlock: Unlock) => Promise<string>;
+  sendToken: (to: string, amount: string, token: { contract: string; decimals: number }, unlock: Unlock, gas?: GasOverride) => Promise<string>;
   /** Envoie un token SPL détenu (Solana) : crée l'ATA si besoin puis transfère. */
   sendSolToken: (to: string, amount: string, token: { mint: string; decimals: number }, unlock: Unlock) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
@@ -466,7 +468,7 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   lock: () => set({ isUnlocked: false }),
 
-  signAndSend: async (to, amount, unlock) => {
+  signAndSend: async (to, amount, unlock, gas) => {
     const { account, activeChain, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(activeChain);
@@ -495,7 +497,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
 
     const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
-    const unsigned = await adapter.prepareTransfer(account.address, { to, amount });
+    const unsigned = await adapter.prepareTransfer(account.address, { to, amount }, gas);
     const raw = await adapter.signTransaction(unsigned, pk);
     return adapter.broadcast(raw);
   },
@@ -564,7 +566,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     return adapter.sendContractTx(req, account.address, pk);
   },
 
-  sendToken: async (to, amount, token, unlock) => {
+  sendToken: async (to, amount, token, unlock, gas) => {
     const { account, activeChain } = get();
     if (!account) throw new Error('Aucun compte');
     const cfg = getAdapter(activeChain).config;
@@ -575,6 +577,9 @@ export const useWallet = create<WalletState>((set, get) => ({
       data: erc20TransferData(to, raw), // lève si adresse destinataire invalide
       value: 0n,
       chainId: cfg.evmChainId,
+      // Palier de frais choisi par l'utilisateur (sinon sendContractTx utilise le réseau).
+      maxFeePerGas: gas?.maxFeePerGas,
+      maxPriorityFeePerGas: gas?.maxPriorityFeePerGas,
     };
     return get().sendRawTxOn(unlock, activeChain, req);
   },

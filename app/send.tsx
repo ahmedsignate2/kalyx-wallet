@@ -10,7 +10,7 @@ import { notifyAndLog } from '../lib/notificationCenter';
 import { watchConfirmation } from '../lib/txWatch';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { getAdapter, isWalletError, isValidEvmAddress, isValidSolanaAddress, parseAmount, formatBalance, getCustomTokens, looksLikeEnsName, resolveEnsName } from '../src';
+import { getAdapter, isWalletError, isValidEvmAddress, isValidSolanaAddress, parseAmount, formatBalance, getCustomTokens, looksLikeEnsName, resolveEnsName, EvmChainAdapter, type FeeOptions, type FeeSpeed } from '../src';
 
 export default function Send() {
   const { colors, typography } = useTheme();
@@ -42,6 +42,21 @@ export default function Send() {
   }, [amountParam]);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false); // feuille ConfirmUnlock ouverte
+  // Frais de gas (EVM) : paliers Lent/Normal/Rapide.
+  const [feeOptions, setFeeOptions] = useState<FeeOptions | null>(null);
+  const [speed, setSpeed] = useState<FeeSpeed>('normal');
+  useEffect(() => {
+    if (chain.family !== 'evm') { setFeeOptions(null); return; }
+    let cancelled = false;
+    const adapter = getAdapter(activeChain);
+    if (!(adapter instanceof EvmChainAdapter)) return;
+    // gasLimit indicatif : ~21k natif, ~65k pour un transfert ERC-20.
+    adapter.getFeeOptions(token?.kind === 'erc20' ? 65_000n : 21_000n)
+      .then((o) => !cancelled && setFeeOptions(o))
+      .catch(() => !cancelled && setFeeOptions(null));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChain, token?.kind]);
   // Succès : hash + résumé de ce qui vient d'être envoyé (pour l'écran animé).
   const [success, setSuccess] = useState<{ hash: string; summary: string } | null>(null);
 
@@ -143,12 +158,13 @@ export default function Send() {
   // Exécuté par ConfirmUnlock avec le déverrouillage choisi (biométrie ou PIN).
   // LÈVE en cas d'échec pour que la feuille gère (WRONG_PIN → réessai).
   const perform = async (unlock: Unlock) => {
+    const gas = feeOptions ? feeOptions[speed] : undefined; // palier de frais choisi (EVM)
     const hash =
       token?.kind === 'spl'
         ? await sendSolToken(recipient, amount, { mint: token.mint, decimals: token.decimals }, unlock)
         : token?.kind === 'erc20'
-          ? await sendToken(recipient, amount, { contract: token.contract, decimals: token.decimals }, unlock)
-          : await signAndSend(recipient, amount, unlock);
+          ? await sendToken(recipient, amount, { contract: token.contract, decimals: token.decimals }, unlock, gas)
+          : await signAndSend(recipient, amount, unlock, gas);
     // Résumé : on privilégie le nom ENS s'il y en a un, sinon l'adresse tronquée.
     const dest = isEnsInput ? to.trim() : `${recipient.slice(0, 8)}…${recipient.slice(-6)}`;
     const summary = `${amount} ${symbol} envoyés à ${dest}`;
@@ -230,6 +246,30 @@ export default function Send() {
           style={{ color: overBalance ? colors.danger : colors.text, fontSize: 22, paddingVertical: spacing(1) }}
         />
       </Card>
+
+      {/* Frais de réseau (EVM) : Lent / Normal / Rapide + coût estimé */}
+      {feeOptions ? (
+        <Card>
+          <Text style={typography.muted}>Frais de réseau</Text>
+          <View style={{ flexDirection: 'row', gap: spacing(1), marginTop: spacing(1) }}>
+            {(['slow', 'normal', 'fast'] as FeeSpeed[]).map((s) => {
+              const on = speed === s;
+              const label = s === 'slow' ? 'Lent' : s === 'normal' ? 'Normal' : 'Rapide';
+              const cost = formatBalance(feeOptions[s].costWei, chain.nativeDecimals, 6);
+              return (
+                <Pressable
+                  key={s}
+                  onPress={() => setSpeed(s)}
+                  style={{ flex: 1, paddingVertical: spacing(1), borderRadius: 12, alignItems: 'center', gap: 2, backgroundColor: on ? colors.accent : colors.bgElevated, borderWidth: 1, borderColor: on ? colors.accent : colors.cardBorder }}
+                >
+                  <Text style={{ color: on ? '#fff' : colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{label}</Text>
+                  <Text style={{ color: on ? '#fff' : colors.textMuted, fontSize: 11 }}>≈ {cost} {chain.nativeSymbol}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+      ) : null}
 
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
 
