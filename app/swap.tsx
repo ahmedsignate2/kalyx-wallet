@@ -80,12 +80,13 @@ const TOKENS: Record<string, Tok[]> = {
   ],
 };
 
-const STATUS_LABEL: Record<SwapStatus, string> = {
-  approving: 'Approbation du token…',
-  approvalWait: 'Attente de l’approbation…',
-  swapping: 'Envoi du swap…',
-  confirming: 'Confirmation sur la blockchain…',
-};
+// Clés i18n des étapes du swap (traduites à l'affichage via t()).
+const STATUS_KEY = {
+  approving: 'stApproving',
+  approvalWait: 'stApprovalWait',
+  swapping: 'stSwapping',
+  confirming: 'stConfirming',
+} as const;
 
 const TW_CHAIN: Record<string, string> = { ethereum: 'ethereum', polygon: 'polygon', bnb: 'smartchain', base: 'base', arbitrum: 'arbitrum', optimism: 'optimism', avalanche: 'avalanchec', linea: 'linea', scroll: 'scroll', blast: 'blast' };
 const TW_NATIVE: Record<string, string> = { ethereum: 'ethereum', polygon: 'polygon', bnb: 'smartchain', base: 'ethereum', arbitrum: 'ethereum', optimism: 'ethereum', avalanche: 'avalanchec', linea: 'ethereum', scroll: 'ethereum', blast: 'ethereum' };
@@ -192,7 +193,7 @@ export default function Swap() {
       <PremiumScreen>
         <Stack.Screen options={{ headerShown: true, title: t('navExchange') }} />
         <GlassCard>
-          <Text style={typography.bodyStrong}>Swap indisponible ici</Text>
+          <Text style={typography.bodyStrong}>{t('swapUnavailable')}</Text>
           <Text style={[typography.muted, { marginTop: spacing(1) }]}>
             Le swap/bridge fonctionne sur les réseaux EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast). Change de réseau depuis l’accueil.
           </Text>
@@ -223,7 +224,7 @@ export default function Swap() {
   const onQuote = async () => {
     reset();
     if (!isBridge && fromTok.address === toTok.address) {
-      setError('Choisis deux tokens différents.');
+      setError(t('swapTwoTokens'));
       return;
     }
     let raw: bigint;
@@ -243,7 +244,7 @@ export default function Swap() {
         fromAmount: raw,
         fromAddress: account.address,
       });
-      if (!q) setError('Aucune route trouvée. Change le montant ou les tokens.');
+      if (!q) setError(t('noRoute'));
       else setQuote(q);
     } finally {
       setLoading(false);
@@ -253,15 +254,15 @@ export default function Swap() {
   // Exécuté par ConfirmUnlock (biométrie ou PIN). LÈVE en cas d'échec.
   const perform = async (unlock: Unlock) => {
     if (!quote) return;
-    setStep('Préparation…');
+    setStep(t('preparing'));
     try {
-      const hash = await executeSwap(quote, unlock, (s) => setStep(STATUS_LABEL[s]));
+      const hash = await executeSwap(quote, unlock, (s) => setStep(t(STATUS_KEY[s])));
       // Résumé capturé AVANT reset() (qui efface quote/amount).
       const summary = `${amount} ${fromTok.symbol} → ≈ ${formatBalance(quote.toAmount, quote.toToken.decimals, 6)} ${toTok.symbol}`;
       reset();
       setAmount('');
       setSuccess({ hash, summary });
-      notifyAndLog('tx', 'Swap envoyé', summary);
+      notifyAndLog('tx', t('swapSent'), summary);
       void watchConfirmation(activeChain, hash, summary); // notif à la confirmation
     } finally {
       setStep(null);
@@ -273,7 +274,7 @@ export default function Swap() {
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: 'Échanger & Bridge' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('swapBridge') }} />
 
       {/* De */}
       <GlassCard glow>
@@ -308,14 +309,14 @@ export default function Swap() {
       {/* Vers */}
       <GlassCard>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={typography.muted}>Vers (estimé)</Text>
+          <Text style={typography.muted}>{t('toEstimated')}</Text>
           {isBridge ? <Text style={{ color: colors.accent, fontSize: 12, fontFamily: fonts.semibold }}>🌉 Bridge</Text> : null}
         </View>
         <Text style={{ color: quote ? colors.text : colors.textMuted, fontSize: 32, fontFamily: fonts.extrabold, paddingVertical: spacing(0.5) }}>
           {quote ? formatBalance(quote.toAmount, quote.toToken.decimals, 6) : '—'}
         </Text>
         {/* Chaîne de destination */}
-        <Text style={[typography.muted, { fontSize: 12, marginTop: 4 }]}>Réseau de destination</Text>
+        <Text style={[typography.muted, { fontSize: 12, marginTop: 4 }]}>{t('destNetwork')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(1), paddingVertical: spacing(1) }}>
           {bridgeChains.map((id) => {
             const on = id === toChain;
@@ -336,27 +337,27 @@ export default function Swap() {
       {/* Détails du devis */}
       {quote ? (
         <GlassCard>
-          <Row label="Route" value={`LI.FI → ${quote.toolName}`} />
-          <Row label="Minimum reçu" value={`${formatBalance(quote.toAmountMin, quote.toToken.decimals, 6)} ${toTok.symbol}`} />
+          <Row label={t("route")} value={`LI.FI → ${quote.toolName}`} />
+          <Row label={t("minReceived")} value={`${formatBalance(quote.toAmountMin, quote.toToken.decimals, 6)} ${toTok.symbol}`} />
           {quote.gasCostNative > 0n && quote.gasToken ? (
             <Row
-              label="Frais réseau"
+              label={t("networkFee")}
               value={`≈ ${formatBalance(quote.gasCostNative, quote.gasToken.decimals, 6)} ${quote.gasToken.symbol}${quote.gasCostUsd > 0 ? ` ($${quote.gasCostUsd.toFixed(2)})` : ''}`}
             />
           ) : quote.gasCostUsd > 0 ? (
-            <Row label="Frais réseau" value={`≈ $${quote.gasCostUsd.toFixed(2)}`} />
+            <Row label={t("networkFee")} value={`≈ $${quote.gasCostUsd.toFixed(2)}`} />
           ) : null}
-          <Row label="Frais Nova" value={`${(Number(NOVA_FEE) * 100).toFixed(1)} %`} />
-          {impact != null ? <Row label="Impact prix" value={`${impact.toFixed(2)} %`} color={impact < -1 ? colors.down : colors.textMuted} /> : null}
-          <Row label="Slippage" value={`${(quote.slippage * 100).toFixed(1)} %`} />
-          {quote.durationSec > 0 ? <Row label="Temps estimé" value={`≈ ${quote.durationSec}s`} /> : null}
+          <Row label={t("novaFee")} value={`${(Number(NOVA_FEE) * 100).toFixed(1)} %`} />
+          {impact != null ? <Row label={t("priceImpact")} value={`${impact.toFixed(2)} %`} color={impact < -1 ? colors.down : colors.textMuted} /> : null}
+          <Row label={t("slippage")} value={`${(quote.slippage * 100).toFixed(1)} %`} />
+          {quote.durationSec > 0 ? <Row label={t("estTime")} value={`≈ ${quote.durationSec}s`} /> : null}
         </GlassCard>
       ) : null}
 
       {error ? <ErrorBox message={error} /> : null}
 
       {!quote ? (
-        <Button label={loading ? 'Recherche de route…' : 'Obtenir un devis'} loading={loading} onPress={onQuote} />
+        <Button label={loading ? t('findingRoute') : 'Obtenir un devis'} loading={loading} onPress={onQuote} />
       ) : (
         <Button label={isBridge ? 'Bridger' : 'Échanger'} onPress={() => setConfirming(true)} />
       )}
