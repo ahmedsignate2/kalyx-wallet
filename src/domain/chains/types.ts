@@ -97,7 +97,12 @@ export interface ChainAdapter {
   buildTransfer(params: TransferParams): TransferIntent;
 
   /** Complète l'intention avec nonce + frais estimés (réseau). */
-  prepareTransfer(from: string, params: TransferParams): Promise<UnsignedTx>;
+  prepareTransfer(
+    from: string,
+    params: TransferParams,
+    /** Frais EIP-1559 imposés (palier utilisateur) ; sinon suggestion réseau. */
+    gas?: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint },
+  ): Promise<UnsignedTx>;
 
   /** Signe hors-ligne. `privateKey` transite, n'est jamais stockée. */
   signTransaction(tx: UnsignedTx, privateKey: string): Promise<string>;
