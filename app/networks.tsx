@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Card, Title, Muted } from '../ui/components';
 import { SearchBar, RemoteIcon } from '../ui/premium';
-import { spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings } from '../lib/settingsStore';
 import { listChains, chainIconUrl } from '../src';
@@ -25,10 +25,46 @@ export default function Networks() {
   const chains = q
     ? all.filter((c) => c.name.toLowerCase().includes(q) || c.nativeSymbol.toLowerCase().includes(q))
     : all;
+  // Séparation nette mainnet / testnet.
+  const mainnets = chains.filter((c) => !c.testnet);
+  const testnets = chains.filter((c) => c.testnet);
 
   const choose = (id: string) => {
     setActiveChain(id);
     router.back();
+  };
+
+  const renderChain = (c: (typeof chains)[number]) => {
+    const active = c.id === activeChain;
+    return (
+      <Pressable
+        key={c.id}
+        onPress={() => choose(c.id)}
+        onLayout={active ? (e) => onActiveLayout(e.nativeEvent.layout.y) : undefined}
+      >
+        <Card
+          style={{
+            borderColor: active ? colors.accent : colors.cardBorder,
+            borderWidth: active ? 1.5 : 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
+            <RemoteIcon uri={chainIconUrl(c.id)} label={c.name} size={36} />
+            <View>
+              <Text style={typography.body}>{c.name}</Text>
+              <Muted>
+                {c.nativeSymbol}
+                {c.testnet ? ' · testnet' : ' · mainnet (fonds réels)'}
+              </Muted>
+            </View>
+          </View>
+          {active ? <Text style={{ color: colors.accent, fontSize: 18 }}>✓</Text> : null}
+        </Card>
+      </Pressable>
+    );
   };
 
   // Réseau actif rendu visible à l'ouverture (scroll vers sa position, une fois).
@@ -61,38 +97,28 @@ export default function Networks() {
             <Muted>Aucun réseau ne correspond à « {query} ».</Muted>
           </Card>
         ) : (
-          chains.map((c) => {
-            const active = c.id === activeChain;
-            return (
-              <Pressable
-                key={c.id}
-                onPress={() => choose(c.id)}
-                onLayout={active ? (e) => onActiveLayout(e.nativeEvent.layout.y) : undefined}
-              >
-                <Card
-                  style={{
-                    borderColor: active ? colors.accent : colors.cardBorder,
-                    borderWidth: active ? 1.5 : 1,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
-                    <RemoteIcon uri={chainIconUrl(c.id)} label={c.nativeSymbol} size={36} />
-                    <View>
-                      <Text style={typography.body}>{c.name}</Text>
-                      <Muted>
-                        {c.nativeSymbol}
-                        {c.testnet ? ' · testnet' : ' · mainnet (fonds réels)'}
-                      </Muted>
-                    </View>
-                  </View>
-                  {active ? <Text style={{ color: colors.accent, fontSize: 18 }}>✓</Text> : null}
-                </Card>
-              </Pressable>
-            );
-          })
+          <>
+            {/* Section principale (mainnet) */}
+            {mainnets.length > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+                <View style={{ width: 3, height: 15, borderRadius: 2, backgroundColor: colors.accent }} />
+                <Text style={typography.section}>Réseaux principaux</Text>
+              </View>
+            ) : null}
+            {mainnets.map((c) => renderChain(c))}
+
+            {/* Section testnet, nettement séparée */}
+            {testnets.length > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: spacing(2) }}>
+                <View style={{ width: 3, height: 15, borderRadius: 2, backgroundColor: colors.warning }} />
+                <Text style={typography.section}>Réseaux de test</Text>
+                <View style={{ backgroundColor: colors.warning + '22', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                  <Text style={{ color: colors.warning, fontSize: 10, fontFamily: fonts.bold }}>AUCUN FONDS RÉEL</Text>
+                </View>
+              </View>
+            ) : null}
+            {testnets.map((c) => renderChain(c))}
+          </>
         )}
       </ScrollView>
     </Screen>

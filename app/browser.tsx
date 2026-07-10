@@ -193,6 +193,7 @@ export default function Browser() {
   const activeChain = useWallet((s) => s.activeChain);
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const biometricEnabled = useSettings((s) => s.biometricEnabled);
+  const showTestnets = useSettings((s) => s.showTestnets);
   const chain = getAdapter(activeChain).config;
   const chainIdHex = '0x' + (chain.evmChainId ?? 1).toString(16);
 
@@ -862,7 +863,7 @@ export default function Browser() {
               </Pressable>
             ) : null}
             <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ gap: spacing(0.5) }} showsVerticalScrollIndicator={false}>
-              {listChains().filter((c) => c.family === 'evm').map((c) => {
+              {listChains({ includeTestnets: showTestnets }).filter((c) => c.family === 'evm').map((c) => {
                 const on = c.id === activeChain;
                 return (
                   <Pressable
