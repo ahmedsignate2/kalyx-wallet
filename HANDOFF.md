@@ -272,7 +272,12 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
 
 ### Durcissement avant lancement
 - **Audit de sécurité externe** (obligatoire avant de vrais fonds).
-- Tests E2E sur device ; détection root/jailbreak ; assets store (icône/splash/captures).
+- Tests E2E sur device ; détection root/jailbreak.
+- ✅ ~~Assets store~~ (2026-07-10) : icône, splash, adaptive-icon FAITS (assets/, RGBA 1024²,
+  configurés app.config.ts). Feature graphic 1024×500 + icône Play 512² générés dans
+  `assets/store/` via `node scripts/gen-store-assets.js` (@resvg/resvg-js, devDep). Kit de
+  listing complet (textes FR/EN, plan de captures, checklist) : `STORE_LISTING.md`.
+  ⚠️ Reste à CAPTURER les 6–8 screenshots depuis l'app (device only, voir §4 du kit).
 - ✅ ~~auto-lock arrière-plan + écran de garde~~ : DÉJÀ FAIT (`ui/AutoLock.tsx` = AppState
   background→lock selon `autoLockMinutes`, 0=immédiat ; `ui/PrivacyScreen.tsx` = FLAG_SECURE
   hors premier plan + voile). Réglages : Sécurité → Verrouillage auto / Écran de garde.
