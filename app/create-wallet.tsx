@@ -5,10 +5,12 @@ import * as ScreenCapture from 'expo-screen-capture';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 
 export default function CreateWallet() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const createWallet = useWallet((s) => s.createWallet);
   const [label, setLabel] = useState('');
   const [pin, setPin] = useState('');
@@ -28,7 +30,7 @@ export default function CreateWallet() {
   const onCreate = async () => {
     setError(null);
     if (pin.length < 6) {
-      setError('Entre ton PIN d’app pour chiffrer le nouveau portefeuille.');
+      setError(t('enterAppPinEncryptNew'));
       return;
     }
     setBusy(true);
@@ -45,8 +47,8 @@ export default function CreateWallet() {
   if (phrase) {
     return (
       <Screen>
-        <Title>Sauvegarde ta phrase</Title>
-        <Muted>Écris ces {phrase.length} mots dans l’ordre. C’est la seule façon de restaurer ce portefeuille. Capture d’écran bloquée.</Muted>
+        <Title>{t('saveYourPhrase')}</Title>
+        <Muted>{t('writeWordsHint').replace('{n}', String(phrase.length))}</Muted>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(2) }} showsVerticalScrollIndicator={false}>
         <Card>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
@@ -59,26 +61,26 @@ export default function CreateWallet() {
           </View>
         </Card>
         </ScrollView>
-        <Button label="J’ai noté, terminer" onPress={() => router.replace('/home')} />
+        <Button label={t('notedFinish')} onPress={() => router.replace('/home')} />
       </Screen>
     );
   }
 
   return (
     <Screen>
-      <Title>Créer un portefeuille</Title>
-      <Muted>Une nouvelle phrase de récupération sera générée, chiffrée avec ton PIN.</Muted>
+      <Title>{t('createWalletT')}</Title>
+      <Muted>{t('newPhraseGenerated')}</Muted>
       <Card>
-        <Text style={typography.muted}>Nom (optionnel)</Text>
-        <TextInput value={label} onChangeText={setLabel} placeholder="Ex. Trading, Épargne…" placeholderTextColor={colors.textMuted} style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+        <Text style={typography.muted}>{t('nameOptional')}</Text>
+        <TextInput value={label} onChangeText={setLabel} placeholder={t('namePlaceholderCreate')} placeholderTextColor={colors.textMuted} style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
       </Card>
       <Card>
-        <Text style={typography.muted}>PIN de l’app</Text>
+        <Text style={typography.muted}>{t('appPin')}</Text>
         <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
       </Card>
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       <View style={{ flex: 1 }} />
-      <Button label={busy ? 'Création…' : 'Créer'} loading={busy} onPress={onCreate} />
+      <Button label={busy ? t('creating') : t('createAction')} loading={busy} onPress={onCreate} />
     </Screen>
   );
 }

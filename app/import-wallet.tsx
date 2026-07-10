@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { Card, Button, Title, Muted } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import { validateMnemonic, normalizeEvmPrivateKey, restoreBackup } from '../src';
 
@@ -13,6 +14,7 @@ type Mode = 'phrase' | 'key' | 'backup';
 
 export default function ImportWallet() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const insets = useSafeAreaInsets();
   const importWallet = useWallet((s) => s.importWallet);
   const importPrivateKey = useWallet((s) => s.importPrivateKey);
@@ -34,21 +36,21 @@ export default function ImportWallet() {
   const onImport = async () => {
     setError(null);
     if (pin.length < 6) {
-      setError('Entre ton PIN d’app pour chiffrer ce portefeuille.');
+      setError(t('enterAppPinEncrypt'));
       return;
     }
     setBusy(true);
     try {
       if (mode === 'phrase') {
-        if (!validateMnemonic(text)) { setError('Phrase invalide : vérifie les mots et l’ordre.'); return; }
+        if (!validateMnemonic(text)) { setError(t('invalidPhraseSimple')); return; }
         await importWallet(text, pin, label);
       } else if (mode === 'key') {
-        try { normalizeEvmPrivateKey(text); } catch { setError('Clé privée invalide : 64 caractères hexadécimaux (avec ou sans 0x).'); return; }
+        try { normalizeEvmPrivateKey(text); } catch { setError(t('invalidPrivateKey')); return; }
         await importPrivateKey(text, pin, label);
       } else {
         // Sauvegarde chiffrée : déchiffre avec le mot de passe puis importe la phrase.
         const { mnemonic, error: err } = await restoreBackup(text, pwd);
-        if (err || !mnemonic) { setError(err ?? 'Sauvegarde invalide.'); return; }
+        if (err || !mnemonic) { setError(err ?? t('invalidBackup')); return; }
         await importWallet(mnemonic, pin, label);
       }
       router.replace('/home');
@@ -74,11 +76,8 @@ export default function ImportWallet() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-      <Title>Importer un portefeuille</Title>
-      <Muted>
-        Ton portefeuille actuel n’est pas effacé : les portefeuilles cohabitent, tu passes de
-        l’un à l’autre depuis l’écran Portefeuilles.
-      </Muted>
+      <Title>{t('importWalletT')}</Title>
+      <Muted>{t('walletsCohabit')}</Muted>
 
       {/* Sélecteur Phrase / Clé privée / Sauvegarde */}
       <View style={{ flexDirection: 'row', gap: spacing(0.75), marginVertical: spacing(1) }}>
@@ -99,7 +98,7 @@ export default function ImportWallet() {
               }}
             >
               <Text style={{ color: active ? '#fff' : colors.text, fontFamily: typography.bodyStrong.fontFamily, fontSize: 13 }}>
-                {m === 'phrase' ? 'Phrase' : m === 'key' ? 'Clé privée' : 'Sauvegarde'}
+                {m === 'phrase' ? t('tabPhrase') : m === 'key' ? t('privateKeyLabel') : t('backupTitle')}
               </Text>
             </Pressable>
           );
@@ -107,21 +106,18 @@ export default function ImportWallet() {
       </View>
 
       {mode === 'phrase' ? (
-        <Muted>Colle une phrase BIP-39 (12 ou 24 mots). Elle sera chiffrée avec ton PIN.</Muted>
+        <Muted>{t('phraseModeHint')}</Muted>
       ) : mode === 'key' ? (
-        <Muted>
-          Colle une clé privée EVM (0x… ou 64 hex). Un seul compte, réseaux EVM uniquement
-          (ni Bitcoin, ni Solana, pas de phrase de récupération).
-        </Muted>
+        <Muted>{t('keyModeHint')}</Muted>
       ) : (
-        <Muted>Colle le contenu d’une sauvegarde chiffrée Nova et entre son mot de passe.</Muted>
+        <Muted>{t('backupModeHint')}</Muted>
       )}
 
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={typography.muted}>{mode === 'phrase' ? 'Phrase de récupération' : mode === 'key' ? 'Clé privée' : 'Contenu de la sauvegarde'}</Text>
+          <Text style={typography.muted}>{mode === 'phrase' ? t('recoveryPhrase') : mode === 'key' ? t('privateKeyLabel') : t('backupContent')}</Text>
           <Pressable onPress={async () => setText((await Clipboard.getStringAsync()).trim())}>
-            <Text style={{ color: colors.accent, fontFamily: typography.bodyStrong.fontFamily }}>Coller</Text>
+            <Text style={{ color: colors.accent, fontFamily: typography.bodyStrong.fontFamily }}>{t('paste')}</Text>
           </Pressable>
         </View>
         <TextInput
@@ -139,21 +135,21 @@ export default function ImportWallet() {
 
       {mode === 'backup' ? (
         <Card>
-          <Text style={typography.muted}>Mot de passe de la sauvegarde</Text>
-          <TextInput value={pwd} onChangeText={setPwd} placeholder="Mot de passe choisi à la sauvegarde" placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+          <Text style={typography.muted}>{t('backupPassword')}</Text>
+          <TextInput value={pwd} onChangeText={setPwd} placeholder={t('backupPasswordPlaceholder')} placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
         </Card>
       ) : null}
       <Card>
-        <Text style={typography.muted}>Nom (optionnel)</Text>
-        <TextInput value={label} onChangeText={setLabel} placeholder="Ex. Ledger, Ancien wallet…" placeholderTextColor={colors.textMuted} style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+        <Text style={typography.muted}>{t('nameOptional')}</Text>
+        <TextInput value={label} onChangeText={setLabel} placeholder={t('namePlaceholderImport')} placeholderTextColor={colors.textMuted} style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
       </Card>
       <Card>
-        <Text style={typography.muted}>PIN de l’app</Text>
+        <Text style={typography.muted}>{t('appPin')}</Text>
         <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
       </Card>
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       <View style={{ height: spacing(1) }} />
-      <Button label={busy ? 'Import…' : 'Importer'} loading={busy} onPress={onImport} />
+      <Button label={busy ? t('importing') : t('importAction')} loading={busy} onPress={onImport} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
