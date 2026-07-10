@@ -117,6 +117,28 @@ const en = {
   noDefi: 'No DeFi position',
   nftLoading: 'Loading NFTs…',
   nftEmptyHint: 'Your NFTs will appear here.',
+  // — Envoi / Réception —
+  nativeTransfer: 'Native transfer',
+  tokenTransfer: 'Token transfer',
+  recipientAddr: 'Recipient address',
+  scan: 'Scan',
+  addressBook: 'Address book',
+  ensResolving: 'Resolving ENS…',
+  ensNotFound: 'ENS name not found',
+  recent: 'Recent',
+  amount: 'Amount',
+  networkFee: 'Network fee',
+  feeSlow: 'Slow',
+  feeNormal: 'Normal',
+  feeFast: 'Fast',
+  reviewSend: 'Review & send',
+  confirmSend: 'Confirm send',
+  balanceLabel: 'Balance',
+  invalidRecipient: 'Invalid recipient address',
+  appPin: 'App PIN',
+  copyAddress: 'Copy address',
+  copied: 'Copied',
+  addressCopied: 'Address copied.',
 };
 
 export type Key = keyof typeof en;
@@ -134,6 +156,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     soon: 'Bientôt disponible', cancel: 'Annuler', save: 'Enregistrer', name: 'Nom', yourName: 'Ton nom', testnet: 'testnet',
     menu: 'Plus', contacts: 'Contacts', connectedApps: 'dApps connectées', networks: 'Réseaux', appearance: 'Apparence', notifications: 'Notifications', developer: 'Développeur', extensions: 'Extensions', support: 'Support', faq: 'FAQ', swap: 'Échanger', bridge: 'Bridge', sell: 'Vendre', historyTab: 'Historique', beginnerMode: 'Mode débutant', expertMode: 'Mode expert', uiMode: 'Mode d’interface', searchCrypto: 'Rechercher une crypto…', general: 'Général', advanced: 'Avancé',
     allocation: 'Répartition', searchAsset: 'Rechercher un actif…', refreshing: 'Actualisation…', refresh: 'Actualiser', pinTop: 'Épingler en haut', unpin: 'Détacher', hideToken: 'Masquer ce token', showAgain: 'Réafficher', addToken: 'Ajouter un token', tokensOn: 'Tokens', noStaking: 'Aucune position de staking', noDefi: 'Aucune position DeFi', nftLoading: 'Chargement des NFT…', nftEmptyHint: 'Tes NFT apparaîtront ici.',
+    nativeTransfer: 'Transfert natif', tokenTransfer: 'Transfert du token', recipientAddr: 'Adresse du destinataire', scan: 'Scanner', addressBook: 'Carnet', ensResolving: 'Résolution ENS…', ensNotFound: 'Nom ENS introuvable', recent: 'Récents', amount: 'Montant', networkFee: 'Frais de réseau', feeSlow: 'Lent', feeNormal: 'Normal', feeFast: 'Rapide', reviewSend: 'Vérifier et envoyer', confirmSend: 'Confirmer l’envoi', balanceLabel: 'Solde', invalidRecipient: 'Adresse du destinataire invalide', appPin: 'PIN de l’app', copyAddress: 'Copier l’adresse', copied: 'Copié', addressCopied: 'Adresse copiée.',
   },
   es: {
     greeting_morning: 'Buenos días', greeting_afternoon: 'Hola', greeting_evening: 'Buenas noches', greeting_night: 'Buenas noches',
