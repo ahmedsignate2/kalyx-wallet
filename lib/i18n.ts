@@ -123,6 +123,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: 'Actividad', viewHistory: 'Historial', navHome: 'Inicio', navMarket: 'Mercado', navExchange: 'Cambiar', navWallet: 'Cartera', navMore: 'Más',
     settings: 'Ajustes', profile: 'Perfil', language: 'Idioma', currency: 'Moneda', security: 'Seguridad', biometrics: 'Desbloqueo biométrico', changePin: 'Cambiar PIN', revealPhrase: 'Mostrar frase de recuperación', about: 'Acerca de', resetWallet: 'Restablecer cartera',
     soon: 'Próximamente', cancel: 'Cancelar', save: 'Guardar', name: 'Nombre', yourName: 'Tu nombre', testnet: 'prueba',
+    revealPrivateKey: 'Mostrar clave privada', menu: 'Más', contacts: 'Contactos', connectedApps: 'Apps conectadas', networks: 'Redes', appearance: 'Apariencia', notifications: 'Notificaciones', developer: 'Desarrollador', extensions: 'Extensiones', support: 'Soporte', faq: 'FAQ', swap: 'Intercambiar', bridge: 'Bridge', sell: 'Vender', historyTab: 'Historial', beginnerMode: 'Modo principiante', expertMode: 'Modo experto', uiMode: 'Modo de interfaz', searchCrypto: 'Buscar una cripto…', general: 'General', advanced: 'Avanzado',
   },
   pt: {
     greeting_morning: 'Bom dia', greeting_afternoon: 'Olá', greeting_evening: 'Boa noite', greeting_night: 'Boa noite',
@@ -132,6 +133,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: 'Atividade', viewHistory: 'Histórico', navHome: 'Início', navMarket: 'Mercado', navExchange: 'Trocar', navWallet: 'Carteira', navMore: 'Mais',
     settings: 'Definições', profile: 'Perfil', language: 'Idioma', currency: 'Moeda', security: 'Segurança', biometrics: 'Desbloqueio biométrico', changePin: 'Alterar PIN', revealPhrase: 'Mostrar frase de recuperação', about: 'Sobre', resetWallet: 'Repor carteira',
     soon: 'Em breve', cancel: 'Cancelar', save: 'Guardar', name: 'Nome', yourName: 'O teu nome', testnet: 'teste',
+    revealPrivateKey: 'Mostrar chave privada', menu: 'Mais', contacts: 'Contactos', connectedApps: 'Apps conectadas', networks: 'Redes', appearance: 'Aparência', notifications: 'Notificações', developer: 'Programador', extensions: 'Extensões', support: 'Suporte', faq: 'FAQ', swap: 'Trocar', bridge: 'Bridge', sell: 'Vender', historyTab: 'Histórico', beginnerMode: 'Modo iniciante', expertMode: 'Modo especialista', uiMode: 'Modo de interface', searchCrypto: 'Procurar uma cripto…', general: 'Geral', advanced: 'Avançado',
   },
   de: {
     greeting_morning: 'Guten Morgen', greeting_afternoon: 'Hallo', greeting_evening: 'Guten Abend', greeting_night: 'Gute Nacht',
@@ -141,6 +143,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: 'Aktivität', viewHistory: 'Verlauf', navHome: 'Start', navMarket: 'Markt', navExchange: 'Tauschen', navWallet: 'Wallet', navMore: 'Mehr',
     settings: 'Einstellungen', profile: 'Profil', language: 'Sprache', currency: 'Währung', security: 'Sicherheit', biometrics: 'Biometrische Entsperrung', changePin: 'PIN ändern', revealPhrase: 'Wiederherstellungsphrase anzeigen', about: 'Über', resetWallet: 'Wallet zurücksetzen',
     soon: 'Demnächst', cancel: 'Abbrechen', save: 'Speichern', name: 'Name', yourName: 'Dein Name', testnet: 'Testnetz',
+    revealPrivateKey: 'Privaten Schlüssel anzeigen', menu: 'Mehr', contacts: 'Kontakte', connectedApps: 'Verbundene Apps', networks: 'Netzwerke', appearance: 'Darstellung', notifications: 'Benachrichtigungen', developer: 'Entwickler', extensions: 'Erweiterungen', support: 'Support', faq: 'FAQ', swap: 'Tauschen', bridge: 'Bridge', sell: 'Verkaufen', historyTab: 'Verlauf', beginnerMode: 'Anfängermodus', expertMode: 'Expertenmodus', uiMode: 'Oberflächenmodus', searchCrypto: 'Krypto suchen…', general: 'Allgemein', advanced: 'Erweitert',
   },
   it: {
     greeting_morning: 'Buongiorno', greeting_afternoon: 'Ciao', greeting_evening: 'Buonasera', greeting_night: 'Buonanotte',
@@ -150,6 +153,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: 'Attività', viewHistory: 'Cronologia', navHome: 'Home', navMarket: 'Mercato', navExchange: 'Scambia', navWallet: 'Portafoglio', navMore: 'Altro',
     settings: 'Impostazioni', profile: 'Profilo', language: 'Lingua', currency: 'Valuta', security: 'Sicurezza', biometrics: 'Sblocco biometrico', changePin: 'Cambia PIN', revealPhrase: 'Mostra frase di recupero', about: 'Info', resetWallet: 'Reimposta wallet',
     soon: 'Presto', cancel: 'Annulla', save: 'Salva', name: 'Nome', yourName: 'Il tuo nome', testnet: 'testnet',
+    revealPrivateKey: 'Mostra chiave privata', menu: 'Altro', contacts: 'Contatti', connectedApps: 'App connesse', networks: 'Reti', appearance: 'Aspetto', notifications: 'Notifiche', developer: 'Sviluppatore', extensions: 'Estensioni', support: 'Supporto', faq: 'FAQ', swap: 'Scambia', bridge: 'Bridge', sell: 'Vendi', historyTab: 'Cronologia', beginnerMode: 'Modalità principiante', expertMode: 'Modalità esperto', uiMode: 'Modalità interfaccia', searchCrypto: 'Cerca una cripto…', general: 'Generale', advanced: 'Avanzate',
   },
   nl: {
     greeting_morning: 'Goedemorgen', greeting_afternoon: 'Hallo', greeting_evening: 'Goedenavond', greeting_night: 'Goedenacht',
@@ -159,6 +163,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: 'Activiteit', viewHistory: 'Geschiedenis', navHome: 'Home', navMarket: 'Markt', navExchange: 'Wisselen', navWallet: 'Portemonnee', navMore: 'Meer',
     settings: 'Instellingen', profile: 'Profiel', language: 'Taal', currency: 'Valuta', security: 'Beveiliging', biometrics: 'Biometrisch ontgrendelen', changePin: 'Pincode wijzigen', revealPhrase: 'Herstelzin tonen', about: 'Over', resetWallet: 'Wallet resetten',
     soon: 'Binnenkort', cancel: 'Annuleren', save: 'Opslaan', name: 'Naam', yourName: 'Je naam', testnet: 'testnet',
+    revealPrivateKey: 'Privésleutel tonen', menu: 'Meer', contacts: 'Contacten', connectedApps: 'Verbonden apps', networks: 'Netwerken', appearance: 'Weergave', notifications: 'Meldingen', developer: 'Ontwikkelaar', extensions: 'Extensies', support: 'Ondersteuning', faq: 'FAQ', swap: 'Wisselen', bridge: 'Bridge', sell: 'Verkopen', historyTab: 'Geschiedenis', beginnerMode: 'Beginnersmodus', expertMode: 'Expertmodus', uiMode: 'Interfacemodus', searchCrypto: 'Zoek een crypto…', general: 'Algemeen', advanced: 'Geavanceerd',
   },
   pl: {
     greeting_morning: 'Dzień dobry', greeting_afternoon: 'Cześć', greeting_evening: 'Dobry wieczór', greeting_night: 'Dobranoc',
@@ -168,6 +173,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: 'Aktywność', viewHistory: 'Historia', navHome: 'Główna', navMarket: 'Rynek', navExchange: 'Wymień', navWallet: 'Portfel', navMore: 'Więcej',
     settings: 'Ustawienia', profile: 'Profil', language: 'Język', currency: 'Waluta', security: 'Bezpieczeństwo', biometrics: 'Odblokowanie biometryczne', changePin: 'Zmień PIN', revealPhrase: 'Pokaż frazę odzyskiwania', about: 'O aplikacji', resetWallet: 'Zresetuj portfel',
     soon: 'Wkrótce', cancel: 'Anuluj', save: 'Zapisz', name: 'Imię', yourName: 'Twoje imię', testnet: 'testnet',
+    revealPrivateKey: 'Pokaż klucz prywatny', menu: 'Więcej', contacts: 'Kontakty', connectedApps: 'Połączone aplikacje', networks: 'Sieci', appearance: 'Wygląd', notifications: 'Powiadomienia', developer: 'Programista', extensions: 'Rozszerzenia', support: 'Wsparcie', faq: 'FAQ', swap: 'Wymień', bridge: 'Bridge', sell: 'Sprzedaj', historyTab: 'Historia', beginnerMode: 'Tryb początkujący', expertMode: 'Tryb eksperta', uiMode: 'Tryb interfejsu', searchCrypto: 'Szukaj krypto…', general: 'Ogólne', advanced: 'Zaawansowane',
   },
   tr: {
     greeting_morning: 'Günaydın', greeting_afternoon: 'Merhaba', greeting_evening: 'İyi akşamlar', greeting_night: 'İyi geceler',
@@ -177,6 +183,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: 'Etkinlik', viewHistory: 'Geçmiş', navHome: 'Ana sayfa', navMarket: 'Piyasa', navExchange: 'Takas', navWallet: 'Cüzdan', navMore: 'Daha fazla',
     settings: 'Ayarlar', profile: 'Profil', language: 'Dil', currency: 'Para birimi', security: 'Güvenlik', biometrics: 'Biyometrik kilit açma', changePin: 'PIN değiştir', revealPhrase: 'Kurtarma ifadesini göster', about: 'Hakkında', resetWallet: 'Cüzdanı sıfırla',
     soon: 'Yakında', cancel: 'İptal', save: 'Kaydet', name: 'İsim', yourName: 'Adınız', testnet: 'test ağı',
+    revealPrivateKey: 'Özel anahtarı göster', menu: 'Daha fazla', contacts: 'Kişiler', connectedApps: 'Bağlı uygulamalar', networks: 'Ağlar', appearance: 'Görünüm', notifications: 'Bildirimler', developer: 'Geliştirici', extensions: 'Uzantılar', support: 'Destek', faq: 'SSS', swap: 'Takas', bridge: 'Köprü', sell: 'Sat', historyTab: 'Geçmiş', beginnerMode: 'Başlangıç modu', expertMode: 'Uzman modu', uiMode: 'Arayüz modu', searchCrypto: 'Kripto ara…', general: 'Genel', advanced: 'Gelişmiş',
   },
   ru: {
     greeting_morning: 'Доброе утро', greeting_afternoon: 'Здравствуйте', greeting_evening: 'Добрый вечер', greeting_night: 'Спокойной ночи',
@@ -186,6 +193,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: 'Активность', viewHistory: 'История', navHome: 'Главная', navMarket: 'Рынок', navExchange: 'Обмен', navWallet: 'Кошелёк', navMore: 'Ещё',
     settings: 'Настройки', profile: 'Профиль', language: 'Язык', currency: 'Валюта', security: 'Безопасность', biometrics: 'Разблокировка по биометрии', changePin: 'Изменить PIN', revealPhrase: 'Показать фразу восстановления', about: 'О приложении', resetWallet: 'Сбросить кошелёк',
     soon: 'Скоро', cancel: 'Отмена', save: 'Сохранить', name: 'Имя', yourName: 'Ваше имя', testnet: 'тестовая сеть',
+    revealPrivateKey: 'Показать приватный ключ', menu: 'Ещё', contacts: 'Контакты', connectedApps: 'Подключённые приложения', networks: 'Сети', appearance: 'Оформление', notifications: 'Уведомления', developer: 'Разработчик', extensions: 'Расширения', support: 'Поддержка', faq: 'ЧаВо', swap: 'Обмен', bridge: 'Мост', sell: 'Продать', historyTab: 'История', beginnerMode: 'Режим новичка', expertMode: 'Режим эксперта', uiMode: 'Режим интерфейса', searchCrypto: 'Искать крипту…', general: 'Общие', advanced: 'Дополнительно',
   },
   ar: {
     greeting_morning: 'صباح الخير', greeting_afternoon: 'مرحبا', greeting_evening: 'مساء الخير', greeting_night: 'تصبح على خير',
@@ -195,6 +203,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: 'النشاط', viewHistory: 'السجل', navHome: 'الرئيسية', navMarket: 'السوق', navExchange: 'تبادل', navWallet: 'المحفظة', navMore: 'المزيد',
     settings: 'الإعدادات', profile: 'الملف الشخصي', language: 'اللغة', currency: 'العملة', security: 'الأمان', biometrics: 'فتح بالبصمة', changePin: 'تغيير الرمز', revealPhrase: 'إظهار عبارة الاسترداد', about: 'حول', resetWallet: 'إعادة تعيين المحفظة',
     soon: 'قريبا', cancel: 'إلغاء', save: 'حفظ', name: 'الاسم', yourName: 'اسمك', testnet: 'شبكة اختبار',
+    revealPrivateKey: 'إظهار المفتاح الخاص', menu: 'المزيد', contacts: 'جهات الاتصال', connectedApps: 'التطبيقات المتصلة', networks: 'الشبكات', appearance: 'المظهر', notifications: 'الإشعارات', developer: 'المطور', extensions: 'الإضافات', support: 'الدعم', faq: 'الأسئلة الشائعة', swap: 'تبديل', bridge: 'جسر', sell: 'بيع', historyTab: 'السجل', beginnerMode: 'وضع المبتدئ', expertMode: 'وضع الخبير', uiMode: 'وضع الواجهة', searchCrypto: 'ابحث عن عملة…', general: 'عام', advanced: 'متقدم',
   },
   hi: {
     greeting_morning: 'सुप्रभात', greeting_afternoon: 'नमस्ते', greeting_evening: 'शुभ संध्या', greeting_night: 'शुभ रात्रि',
@@ -204,6 +213,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: 'गतिविधि', viewHistory: 'इतिहास', navHome: 'होम', navMarket: 'बाज़ार', navExchange: 'बदलें', navWallet: 'वॉलेट', navMore: 'और',
     settings: 'सेटिंग्स', profile: 'प्रोफ़ाइल', language: 'भाषा', currency: 'मुद्रा', security: 'सुरक्षा', biometrics: 'बायोमेट्रिक अनलॉक', changePin: 'पिन बदलें', revealPhrase: 'रिकवरी वाक्यांश दिखाएं', about: 'बारे में', resetWallet: 'वॉलेट रीसेट करें',
     soon: 'जल्द आ रहा है', cancel: 'रद्द करें', save: 'सहेजें', name: 'नाम', yourName: 'आपका नाम', testnet: 'टेस्टनेट',
+    revealPrivateKey: 'निजी कुंजी दिखाएं', menu: 'और', contacts: 'संपर्क', connectedApps: 'कनेक्टेड ऐप्स', networks: 'नेटवर्क', appearance: 'दिखावट', notifications: 'सूचनाएं', developer: 'डेवलपर', extensions: 'एक्सटेंशन', support: 'सहायता', faq: 'सामान्य प्रश्न', swap: 'स्वैप', bridge: 'ब्रिज', sell: 'बेचें', historyTab: 'इतिहास', beginnerMode: 'शुरुआती मोड', expertMode: 'विशेषज्ञ मोड', uiMode: 'इंटरफ़ेस मोड', searchCrypto: 'क्रिप्टो खोजें…', general: 'सामान्य', advanced: 'उन्नत',
   },
   zh: {
     greeting_morning: '早上好', greeting_afternoon: '你好', greeting_evening: '晚上好', greeting_night: '晚安',
@@ -213,6 +223,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: '活动', viewHistory: '历史', navHome: '首页', navMarket: '市场', navExchange: '兑换', navWallet: '钱包', navMore: '更多',
     settings: '设置', profile: '个人资料', language: '语言', currency: '货币', security: '安全', biometrics: '生物识别解锁', changePin: '修改 PIN', revealPhrase: '显示助记词', about: '关于', resetWallet: '重置钱包',
     soon: '即将推出', cancel: '取消', save: '保存', name: '名称', yourName: '你的名字', testnet: '测试网',
+    revealPrivateKey: '显示私钥', menu: '更多', contacts: '联系人', connectedApps: '已连接应用', networks: '网络', appearance: '外观', notifications: '通知', developer: '开发者', extensions: '扩展', support: '支持', faq: '常见问题', swap: '兑换', bridge: '跨链', sell: '出售', historyTab: '历史', beginnerMode: '新手模式', expertMode: '专家模式', uiMode: '界面模式', searchCrypto: '搜索加密货币…', general: '通用', advanced: '高级',
   },
   ja: {
     greeting_morning: 'おはようございます', greeting_afternoon: 'こんにちは', greeting_evening: 'こんばんは', greeting_night: 'おやすみなさい',
@@ -222,6 +233,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: 'アクティビティ', viewHistory: '履歴', navHome: 'ホーム', navMarket: '相場', navExchange: '交換', navWallet: 'ウォレット', navMore: 'その他',
     settings: '設定', profile: 'プロフィール', language: '言語', currency: '通貨', security: 'セキュリティ', biometrics: '生体認証ロック解除', changePin: 'PINを変更', revealPhrase: '復元フレーズを表示', about: 'アプリについて', resetWallet: 'ウォレットをリセット',
     soon: '近日公開', cancel: 'キャンセル', save: '保存', name: '名前', yourName: 'あなたの名前', testnet: 'テストネット',
+    revealPrivateKey: '秘密鍵を表示', menu: 'その他', contacts: '連絡先', connectedApps: '連携アプリ', networks: 'ネットワーク', appearance: '外観', notifications: '通知', developer: '開発者', extensions: '拡張機能', support: 'サポート', faq: 'よくある質問', swap: 'スワップ', bridge: 'ブリッジ', sell: '売却', historyTab: '履歴', beginnerMode: '初心者モード', expertMode: 'エキスパートモード', uiMode: 'インターフェースモード', searchCrypto: '暗号資産を検索…', general: '一般', advanced: '詳細',
   },
   ko: {
     greeting_morning: '좋은 아침', greeting_afternoon: '안녕하세요', greeting_evening: '좋은 저녁', greeting_night: '안녕히 주무세요',
@@ -231,6 +243,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     activity: '활동', viewHistory: '기록', navHome: '홈', navMarket: '시장', navExchange: '스왑', navWallet: '지갑', navMore: '더보기',
     settings: '설정', profile: '프로필', language: '언어', currency: '통화', security: '보안', biometrics: '생체 인식 잠금 해제', changePin: 'PIN 변경', revealPhrase: '복구 문구 표시', about: '정보', resetWallet: '지갑 초기화',
     soon: '곧 제공', cancel: '취소', save: '저장', name: '이름', yourName: '이름', testnet: '테스트넷',
+    revealPrivateKey: '개인 키 표시', menu: '더보기', contacts: '연락처', connectedApps: '연결된 앱', networks: '네트워크', appearance: '화면', notifications: '알림', developer: '개발자', extensions: '확장', support: '지원', faq: 'FAQ', swap: '스왑', bridge: '브리지', sell: '판매', historyTab: '기록', beginnerMode: '초보자 모드', expertMode: '전문가 모드', uiMode: '인터페이스 모드', searchCrypto: '암호화폐 검색…', general: '일반', advanced: '고급',
   },
 };
 /* eslint-enable @typescript-eslint/naming-convention */
