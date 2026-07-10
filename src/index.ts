@@ -123,6 +123,8 @@ export { erc20TransferData } from './domain/tokens/transfer';
 export { decodeTx, isRiskyTx, type DecodedTx } from './domain/tx/decodeTx';
 // Alertes de prix (logique de déclenchement)
 export { alertTriggered, type PriceAlert } from './domain/alerts/priceAlerts';
+// Export CSV des transactions
+export { transactionsToCsv, type CsvContext } from './domain/export/txCsv';
 // Sauvegarde chiffrée de la seed (cloud backup)
 export { createBackup, restoreBackup, BACKUP_VERSION, type BackupEnvelope } from './domain/backup/cloudBackup';
 export {
