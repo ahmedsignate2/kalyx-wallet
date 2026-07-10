@@ -9,7 +9,7 @@
  * react-native-webview est natif : require dynamique (message clair sans rebuild).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share, useWindowDimensions, Animated, StyleSheet } from 'react-native';
+import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share, useWindowDimensions, Animated, StyleSheet, KeyboardAvoidingView } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -888,7 +888,7 @@ export default function Browser() {
       {/* Fenêtre d'approbation (connexion / signature / transaction) */}
       {pending ? (
         <Modal transparent animationType="slide" onRequestClose={deny}>
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+          <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} behavior="padding">
             <View style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
               <Text style={typography.title}>
                 {pending.kind === 'connect' ? 'Connexion au site' : pending.kind === 'tx' ? 'Transaction demandée' : 'Signature demandée'}
@@ -1021,7 +1021,7 @@ export default function Browser() {
                 <View style={{ flex: 1 }}><Button label={busy ? 'Signature…' : pending.kind === 'connect' ? 'Connecter' : 'Signer'} loading={busy} onPress={submitPin} /></View>
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       ) : null}
     </View>
