@@ -12,7 +12,7 @@ import { useSettings } from '../lib/settingsStore';
  */
 export default function Extensions() {
   const { colors, typography } = useTheme();
-  const { securityScan, showTestnets, uiMode, setFlag, setUiMode } = useSettings();
+  const { securityScan, uiMode, setFlag, setUiMode } = useSettings();
 
   const modules: { icon: IconName; title: string; sub: string; value: boolean; onChange: (v: boolean) => void }[] = [
     {
@@ -21,13 +21,6 @@ export default function Extensions() {
       sub: 'Vérifie les contrats et sites avant signature.',
       value: securityScan,
       onChange: (v) => setFlag('securityScan', v),
-    },
-    {
-      icon: 'networks',
-      title: 'Réseaux de test',
-      sub: 'Affiche Sepolia et les testnets dans le sélecteur.',
-      value: showTestnets,
-      onChange: (v) => setFlag('showTestnets', v),
     },
     {
       icon: 'developer',
