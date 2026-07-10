@@ -10,6 +10,7 @@ import { notifyAndLog } from '../lib/notificationCenter';
 import { watchConfirmation } from '../lib/txWatch';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useRecentRecipients, type RecipientFamily } from '../lib/recentRecipientsStore';
 import { getAdapter, isWalletError, isValidEvmAddress, isValidSolanaAddress, parseAmount, formatBalance, getCustomTokens, looksLikeEnsName, resolveEnsName, EvmChainAdapter, type FeeOptions, type FeeSpeed } from '../src';
 
 export default function Send() {
@@ -20,6 +21,9 @@ export default function Send() {
   const activeChain = useWallet((s) => s.activeChain);
   const account = useWallet((s) => s.account);
   const chain = getAdapter(activeChain).config;
+  const addRecent = useRecentRecipients((s) => s.add);
+  const allRecents = useRecentRecipients((s) => s.recents);
+  const recents = allRecents.filter((r) => r.family === chain.family);
   const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; symbol?: string; decimals?: string }>();
   const toParam = params.to;
   const amountParam = params.amount;
@@ -169,6 +173,7 @@ export default function Send() {
     const dest = isEnsInput ? to.trim() : `${recipient.slice(0, 8)}…${recipient.slice(-6)}`;
     const summary = `${amount} ${symbol} envoyés à ${dest}`;
     setSuccess({ hash, summary });
+    addRecent(recipient, chain.family as RecipientFamily); // mémorise le destinataire
     notifyAndLog('tx', 'Transaction envoyée', summary);
     void watchConfirmation(activeChain, hash, summary); // notif à la confirmation
   };
@@ -217,6 +222,25 @@ export default function Send() {
             ) : ens.status === 'notfound' ? (
               <Text style={{ color: colors.danger, fontFamily: fonts.medium }}>Nom ENS introuvable</Text>
             ) : null}
+          </View>
+        ) : null}
+
+        {/* Destinataires récents (accès rapide) — masqués dès qu'on saisit une adresse */}
+        {recents.length > 0 && to.trim().length === 0 ? (
+          <View style={{ marginTop: spacing(1.25), gap: 6 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>Récents</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {recents.slice(0, 6).map((r) => (
+                <Pressable
+                  key={r.address}
+                  onPress={() => setTo(r.address)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.cardBorder, borderRadius: 999, paddingHorizontal: spacing(1.25), paddingVertical: 6 }}
+                >
+                  <Icon name="history" size={13} color={colors.textMuted} />
+                  <Text style={{ color: colors.text, fontSize: 12, fontVariant: ['tabular-nums'] }}>{r.address.slice(0, 6)}…{r.address.slice(-4)}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
         ) : null}
       </Card>
