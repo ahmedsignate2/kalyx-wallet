@@ -10,11 +10,13 @@ import { notifyAndLog } from '../lib/notificationCenter';
 import { watchConfirmation } from '../lib/txWatch';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 import { useRecentRecipients, type RecipientFamily } from '../lib/recentRecipientsStore';
 import { getAdapter, isWalletError, isValidEvmAddress, isValidSolanaAddress, parseAmount, formatBalance, getCustomTokens, looksLikeEnsName, resolveEnsName, EvmChainAdapter, type FeeOptions, type FeeSpeed } from '../src';
 
 export default function Send() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const signAndSend = useWallet((s) => s.signAndSend);
   const sendToken = useWallet((s) => s.sendToken);
   const sendSolToken = useWallet((s) => s.sendSolToken);
@@ -180,22 +182,22 @@ export default function Send() {
 
   return (
     <Screen scroll>
-      <Title>Envoyer {token ? token.symbol : ''}</Title>
+      <Title>{t('send')} {token ? token.symbol : ''}</Title>
       <Muted>
-        {token ? `Transfert du token ${token.symbol}` : 'Transfert natif'} sur {chain.name}
+        {token ? `${t('tokenTransfer')} ${token.symbol}` : t('nativeTransfer')} · {chain.name}
         {chain.testnet ? ' (testnet)' : ' — fonds réels'}.
       </Muted>
 
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={typography.muted}>Adresse du destinataire</Text>
+          <Text style={typography.muted}>{t('recipientAddr')}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
             <Pressable onPress={() => router.push('/scan')} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Icon name="scan" size={16} color={colors.accent} />
-              <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Scanner</Text>
+              <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('scan')}</Text>
             </Pressable>
             <Pressable onPress={() => router.push('/contacts?pick=1')} hitSlop={8}>
-              <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Carnet</Text>
+              <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('addressBook')}</Text>
             </Pressable>
           </View>
         </View>
@@ -228,7 +230,7 @@ export default function Send() {
         {/* Destinataires récents (accès rapide) — masqués dès qu'on saisit une adresse */}
         {recents.length > 0 && to.trim().length === 0 ? (
           <View style={{ marginTop: spacing(1.25), gap: 6 }}>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>Récents</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t('recent')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {recents.slice(0, 6).map((r) => (
                 <Pressable
@@ -274,11 +276,11 @@ export default function Send() {
       {/* Frais de réseau (EVM) : Lent / Normal / Rapide + coût estimé */}
       {feeOptions ? (
         <Card>
-          <Text style={typography.muted}>Frais de réseau</Text>
+          <Text style={typography.muted}>{t('networkFee')}</Text>
           <View style={{ flexDirection: 'row', gap: spacing(1), marginTop: spacing(1) }}>
             {(['slow', 'normal', 'fast'] as FeeSpeed[]).map((s) => {
               const on = speed === s;
-              const label = s === 'slow' ? 'Lent' : s === 'normal' ? 'Normal' : 'Rapide';
+              const label = s === 'slow' ? t('feeSlow') : s === 'normal' ? t('feeNormal') : t('feeFast');
               const cost = formatBalance(feeOptions[s].costWei, chain.nativeDecimals, 6);
               return (
                 <Pressable
@@ -298,11 +300,11 @@ export default function Send() {
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
 
       <View style={{ flex: 1 }} />
-      <Button label="Vérifier et envoyer" onPress={onReview} />
+      <Button label={t("reviewSend")} onPress={onReview} />
 
       <ConfirmUnlock
         visible={confirming}
-        title="Confirmer l'envoi"
+        title={t('confirmSend')}
         subtitle={`${amount} ${symbol} · ${chain.name}\nÀ ${isEnsInput ? `${to.trim()} (${recipient.slice(0, 8)}…${recipient.slice(-6)})` : `${recipient.slice(0, 10)}…${recipient.slice(-8)}`}`}
         perform={perform}
         onDone={() => setConfirming(false)}
