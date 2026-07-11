@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useContacts } from '../lib/contactsStore';
+import { useT } from '../lib/settingsStore';
 import { useEnsName } from '../lib/useEns';
 
 function shorten(a: string) {
@@ -25,6 +26,7 @@ function ContactSub({ address }: { address: string }) {
 
 export default function Contacts() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const { pick } = useLocalSearchParams<{ pick?: string }>();
   const pickMode = pick === '1';
   const { contacts, add, update, remove } = useContacts();
@@ -46,8 +48,8 @@ export default function Contacts() {
   const insets = useSafeAreaInsets();
   return (
     <Screen>
-      <Title>Contacts</Title>
-      <Muted>{pickMode ? 'Choisis un destinataire.' : 'Ton carnet d’adresses local.'}</Muted>
+      <Title>{t('contacts')}</Title>
+      <Muted>{pickMode ? t('chooseRecipient') : t('localAddressBook')}</Muted>
 
       <ScrollView
         style={{ flex: 1 }}
@@ -55,7 +57,7 @@ export default function Contacts() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {contacts.length === 0 ? <Muted>Aucun contact pour l’instant.</Muted> : null}
+        {contacts.length === 0 ? <Muted>{t('noContactsYet')}</Muted> : null}
         {contacts.map((c) => (
           <Pressable key={c.id} onPress={() => onTap(c.address, c.id, c.name)}>
             <Card style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -68,7 +70,7 @@ export default function Contacts() {
                   <Text style={{ color: colors.danger, fontSize: 18 }}>✕</Text>
                 </Pressable>
               ) : (
-                <Text style={{ color: colors.accent }}>Choisir ›</Text>
+                <Text style={{ color: colors.accent }}>{t('chooseWord')} ›</Text>
               )}
             </Card>
           </Pressable>
@@ -76,18 +78,18 @@ export default function Contacts() {
 
       {form ? (
         <Card style={{ marginTop: spacing(1), gap: spacing(1) }}>
-          <Text style={typography.muted}>Nom</Text>
-          <TextInput value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholder="Ex. Alice" placeholderTextColor={colors.textMuted} style={{ color: colors.text, fontSize: 16 }} />
-          <Text style={typography.muted}>Adresse</Text>
+          <Text style={typography.muted}>{t('name')}</Text>
+          <TextInput value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholder={t('contactNameExample')} placeholderTextColor={colors.textMuted} style={{ color: colors.text, fontSize: 16 }} />
+          <Text style={typography.muted}>{t('addressLabel')}</Text>
           <TextInput value={form.address} onChangeText={(v) => setForm({ ...form, address: v })} placeholder="0x… ou bc1…" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} style={{ color: colors.text, fontSize: 15 }} />
           <View style={{ flexDirection: 'row', gap: spacing(1) }}>
-            <View style={{ flex: 1 }}><Button label="Annuler" variant="ghost" onPress={() => setForm(null)} /></View>
-            <View style={{ flex: 1 }}><Button label="Enregistrer" onPress={save} /></View>
+            <View style={{ flex: 1 }}><Button label={t('cancel')} variant="ghost" onPress={() => setForm(null)} /></View>
+            <View style={{ flex: 1 }}><Button label={t('saveAction')} onPress={save} /></View>
           </View>
         </Card>
       ) : (
         <Pressable onPress={() => setForm({ name: '', address: '' })} style={{ marginTop: spacing(1) }}>
-          <Text style={{ color: colors.accent }}>＋ Ajouter un contact</Text>
+          <Text style={{ color: colors.accent }}>{t('addContactPlus')}</Text>
         </Pressable>
       )}
       </ScrollView>
