@@ -6,12 +6,13 @@ import { TxRow } from '../ui/TxRow';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { useSettings, fiatSymbol } from '../lib/settingsStore';
+import { useSettings, fiatSymbol, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { getAdapter, getCoinDetail, transactionsToCsv, type TxSummary } from '../src';
 
 export default function History() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
   const { fiat } = useSettings();
@@ -47,9 +48,9 @@ export default function History() {
       explorerUrl: chain.explorerUrl,
     });
     try {
-      await Share.share({ message: csv, title: `nova-historique-${chain.id}.csv` });
+      await Share.share({ message: csv, title: `nova-history-${chain.id}.csv` });
     } catch {
-      toast.error('Export impossible', 'Réessaie.');
+      toast.error(t('exportFailed'), t('tryAgain'));
     }
   };
 
@@ -68,7 +69,7 @@ export default function History() {
   return (
     <Screen>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Title>Historique · {chain.name}</Title>
+        <Title>{t('historyTitle')} · {chain.name}</Title>
         {txs && txs.length > 0 ? (
           <Pressable onPress={exportCsv} hitSlop={8} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, opacity: pressed ? 0.6 : 1 })}>
             <Icon name="share" size={16} color={colors.accent} />
@@ -86,8 +87,8 @@ export default function History() {
           <GlassCard>
             <View style={{ alignItems: 'center', paddingVertical: spacing(3), gap: spacing(1) }}>
               <Icon name="history" size={32} color={colors.textMuted} />
-              <Text style={typography.bodyStrong}>Aucune transaction</Text>
-              <Muted>Sur ce réseau, pour ce compte. Nécessite une clé Etherscan pour l’EVM.</Muted>
+              <Text style={typography.bodyStrong}>{t('noTransactions')}</Text>
+              <Muted>{t('noTxHint')}</Muted>
             </View>
           </GlassCard>
         ) : (

@@ -6,18 +6,19 @@ import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWalletConnect } from '../lib/walletconnect';
 import { useDappActivity, type SigKind } from '../lib/dappActivity';
 import { toast } from '../lib/toast';
-
-const SIG_LABEL: Record<SigKind, string> = { sign: 'Signature de message', typedData: 'Signature de données', tx: 'Transaction' };
-function ago(ts: number): string {
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return "à l'instant";
-  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
-  if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
-  return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
-}
+import { useT } from '../lib/settingsStore';
 
 export default function WalletConnectScreen() {
   const { colors, typography } = useTheme();
+  const t = useT();
+  const SIG_LABEL: Record<SigKind, string> = { sign: t('sigMessage'), typedData: t('sigTypedData'), tx: t('sigTx') };
+  const ago = (ts: number): string => {
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return t('justNow');
+    if (s < 3600) return t('minsAgo').replace('{n}', String(Math.floor(s / 60)));
+    if (s < 86400) return t('hoursAgo').replace('{n}', String(Math.floor(s / 3600)));
+    return new Date(ts).toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+  };
   const configured = useWalletConnect((s) => s.configured);
   const ready = useWalletConnect((s) => s.ready);
   const sessions = useWalletConnect((s) => s.sessions);
@@ -37,17 +38,14 @@ export default function WalletConnectScreen() {
     return (
       <Screen>
         <Title>WalletConnect</Title>
-        <Muted>
-          Ajoute un project ID gratuit (cloud.reown.com) dans la variable
-          EXPO_PUBLIC_WALLETCONNECT_ID de ton .env, puis relance avec « expo start -c ».
-        </Muted>
+        <Muted>{t('wcNotConfigured')}</Muted>
       </Screen>
     );
   }
 
   const onConnect = async () => {
     if (!uri.trim().startsWith('wc:')) {
-      toast.error('URI invalide', 'Colle un lien WalletConnect qui commence par « wc: ».');
+      toast.error(t('invalidUri'), t('pasteWcLink'));
       return;
     }
     setBusy(true);
@@ -57,9 +55,9 @@ export default function WalletConnectScreen() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (/expired/i.test(msg)) {
-        toast.error('Lien expiré', 'Ce lien a expiré. Régénère un QR / lien sur le site puis recolle-le tout de suite.');
+        toast.error(t('linkExpired'), t('linkExpiredBody'));
       } else {
-        toast.error('Connexion impossible', 'Le lien n’a pas pu être utilisé. Régénère-le et réessaie.');
+        toast.error(t('connectionFailed'), t('linkUnusable'));
       }
       setUri('');
     } finally {
@@ -72,25 +70,25 @@ export default function WalletConnectScreen() {
   return (
     <Screen>
       <Title>WalletConnect</Title>
-      <Muted>Sur le site, choisis « WalletConnect », copie le lien (wc:…) et colle-le ici.</Muted>
+      <Muted>{t('wcIntro')}</Muted>
 
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={typography.muted}>Lien WalletConnect</Text>
-          <Text onPress={onPaste} style={{ color: colors.accent, fontFamily: fonts.semibold }}>Coller</Text>
+          <Text style={typography.muted}>{t('wcLink')}</Text>
+          <Text onPress={onPaste} style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('paste')}</Text>
         </View>
         <TextInput value={uri} onChangeText={setUri} placeholder="wc:…" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} style={{ color: colors.text, fontSize: 14, paddingVertical: spacing(1) }} />
       </Card>
-      <Button label={busy ? 'Connexion…' : 'Connecter'} loading={busy || !ready} onPress={onConnect} />
+      <Button label={busy ? t('connecting') : t('connect')} loading={busy || !ready} onPress={onConnect} />
 
       <ScrollView
         style={{ flex: 1, marginTop: spacing(1) }}
         contentContainerStyle={{ gap: spacing(1), paddingBottom: spacing(4) }}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[typography.section, { marginTop: spacing(1) }]}>Sessions WalletConnect</Text>
+        <Text style={[typography.section, { marginTop: spacing(1) }]}>{t('wcSessions')}</Text>
         {sessions.length === 0 ? (
-          <Muted>Aucune session WalletConnect active.</Muted>
+          <Muted>{t('noWcSessions')}</Muted>
         ) : (
           sessions.map((s) => (
             <Card key={s.topic} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -98,15 +96,15 @@ export default function WalletConnectScreen() {
                 <Text style={typography.body}>{s.name}</Text>
                 <Muted>{s.url}</Muted>
               </View>
-              <Text onPress={() => disconnect(s.topic)} style={{ color: colors.danger, fontFamily: fonts.semibold }}>Déconnecter</Text>
+              <Text onPress={() => disconnect(s.topic)} style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('disconnect')}</Text>
             </Card>
           ))
         )}
 
         {/* dApps connectées via le navigateur intégré */}
-        <Text style={[typography.section, { marginTop: spacing(2) }]}>dApps du navigateur</Text>
+        <Text style={[typography.section, { marginTop: spacing(2) }]}>{t('browserDapps')}</Text>
         {connections.length === 0 ? (
-          <Muted>Aucune dApp connectée dans le navigateur.</Muted>
+          <Muted>{t('noBrowserDapps')}</Muted>
         ) : (
           connections.map((c) => (
             <Card key={c.host} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -114,7 +112,7 @@ export default function WalletConnectScreen() {
                 <Text style={typography.body} numberOfLines={1}>{c.title || c.host}</Text>
                 <Muted>{c.host} · {ago(c.at)}</Muted>
               </View>
-              <Text onPress={() => removeConnection(c.host)} style={{ color: colors.danger, fontFamily: fonts.semibold }}>Oublier</Text>
+              <Text onPress={() => removeConnection(c.host)} style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('forget')}</Text>
             </Card>
           ))
         )}
@@ -122,7 +120,7 @@ export default function WalletConnectScreen() {
         {/* Journal des signatures/transactions (navigateur) */}
         {signatures.length > 0 ? (
           <>
-            <Text style={[typography.section, { marginTop: spacing(2) }]}>Signatures récentes</Text>
+            <Text style={[typography.section, { marginTop: spacing(2) }]}>{t('recentSignatures')}</Text>
             <Card style={{ gap: 0 }}>
               {signatures.slice(0, 20).map((s, i) => (
                 <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.cardBorder }}>
