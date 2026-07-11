@@ -351,7 +351,7 @@ export default function Home() {
       {/* Marché (réel) */}
       <View style={{ gap: spacing(1.5) }}>
         <SectionHeader title={t('market')} actionLabel={t('viewAll')} onAction={() => router.push('/market')} />
-        <SearchBar value={marketQuery} onChangeText={setMarketQuery} placeholder="Rechercher une crypto…" />
+        <SearchBar value={marketQuery} onChangeText={setMarketQuery} placeholder={t('searchCryptoPh')} />
         {q ? null : <SegmentedTabs items={marketTabs} active={marketTab} onChange={setMarketTab} />}
         <GlassCard>
           {displayedMarkets.length === 0 ? (

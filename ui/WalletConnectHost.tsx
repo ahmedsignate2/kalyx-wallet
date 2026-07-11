@@ -19,6 +19,7 @@ import { radii, spacing, useTheme } from './theme';
 import { TxPreview } from './TxPreview';
 import { useWalletConnect } from '../lib/walletconnect';
 import { useWallet, type Unlock } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 import {
   hexToText,
   parseSiwe,
@@ -91,6 +92,7 @@ function InfoRow({ icon, label, value, divider }: { icon: IconName; label: strin
 
 export function WalletConnectHost() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const proposal = useWalletConnect((s) => s.proposal);
   const request = useWalletConnect((s) => s.request);
   const sessions = useWalletConnect((s) => s.sessions);
@@ -137,44 +139,44 @@ export function WalletConnectHost() {
     }
 
     const action =
-      kind === 'siwe' ? 'Connexion (Sign-In)' :
-      kind === 'message' ? 'Signature de message' :
-      kind === 'typedData' ? `Signature ${typed?.primaryType ? `« ${typed.primaryType} »` : 'de données'}` :
-      kind === 'tx' ? 'Transaction' : method;
+      kind === 'siwe' ? t('siweAction') :
+      kind === 'message' ? t('sigMessage') :
+      kind === 'typedData' ? (typed?.primaryType ? `« ${typed.primaryType} »` : t('sigTypedData')) :
+      kind === 'tx' ? t('sigTx') : method;
 
     // Anti-phishing : le domaine déclaré dans le SIWE doit être le site connecté.
     const phishing = !!(siwe && peer?.url && siweDomainMismatch(siwe.domain, peer.url));
 
     return { method, kind, text, siwe, typed, tx, chain, peer, action, phishing };
-  }, [request, sessions]);
+  }, [request, sessions, t]);
 
   if (proposal) {
     const meta = proposal.params?.proposer?.metadata ?? {};
     return (
       <Overlay>
-        <Text style={typography.title}>Connexion dApp</Text>
+        <Text style={typography.title}>{t('dappConnection')}</Text>
         <GlassCard>
           <DappHeader name={meta.name ?? 'dApp'} url={meta.url ?? ''} icon={meta.icons?.[0]} />
           <View style={{ marginTop: spacing(1.5), gap: spacing(0.5) }}>
-            <Text style={typography.muted}>✓ Peut voir ton adresse publique et tes soldes</Text>
-            <Text style={typography.muted}>✓ Peut te proposer des transactions à signer</Text>
-            <Text style={typography.muted}>✗ Ne peut RIEN déplacer sans ta signature + PIN</Text>
+            <Text style={typography.muted}>{t('canSeeAddress')}</Text>
+            <Text style={typography.muted}>{t('canProposeTx')}</Text>
+            <Text style={typography.muted}>{t('cannotMove')}</Text>
           </View>
         </GlassCard>
 
-        <Text style={typography.muted}>La connexion demande ta confirmation (biométrie ou PIN).</Text>
+        <Text style={typography.muted}>{t('connectNeedsConfirm')}</Text>
         <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
           <View style={{ flex: 1 }}>
-            <Button label="Refuser" variant="ghost" onPress={() => { setConfirming(false); rejectProposal().catch(() => {}); }} />
+            <Button label={t('refuse')} variant="ghost" onPress={() => { setConfirming(false); rejectProposal().catch(() => {}); }} />
           </View>
           <View style={{ flex: 1 }}>
-            <Button label="Connecter" onPress={() => setConfirming(true)} />
+            <Button label={t('connect')} onPress={() => setConfirming(true)} />
           </View>
         </View>
 
         <ConfirmUnlock
           visible={confirming}
-          title="Confirmer la connexion"
+          title={t('confirmConnection')}
           subtitle={meta.name ?? 'dApp'}
           perform={(unlock) => approveProposal(unlock)}
           onDone={() => setConfirming(false)}
@@ -187,7 +189,7 @@ export function WalletConnectHost() {
   if (request && info) {
     const { kind, siwe, typed, tx, chain, peer, action, phishing } = info;
     const isTx = kind === 'tx';
-    const title = kind === 'siwe' ? 'Demande de connexion' : isTx ? 'Transaction demandée' : 'Signature demandée';
+    const title = kind === 'siwe' ? t('connectionRequest') : isTx ? t('txRequested') : t('signatureRequested');
     const perform = async (unlock: Unlock) => {
       await approveRequest(unlock);
       setShowRaw(false);
@@ -210,40 +212,40 @@ export function WalletConnectHost() {
         ) : null}
 
         {phishing ? (
-          <ErrorBox message={`⚠️ Le message dit venir de « ${siwe?.domain} » mais tu es connecté à « ${hostOf(peer?.url ?? '')} ». Risque de phishing — refuse.`} />
+          <ErrorBox message={t('siweMismatch').replace('{a}', siwe?.domain ?? '').replace('{b}', hostOf(peer?.url ?? ''))} />
         ) : null}
 
         <GlassCard>
-          {peer?.url ? <InfoRow icon="dapps" label="Site" value={hostOf(peer.url)} /> : null}
-          {account ? <InfoRow icon="wallet" label="Adresse" value={shorten(account.address)} divider={!!peer?.url} /> : null}
-          {chain ? <InfoRow icon="networks" label="Réseau" value={chain.name} divider /> : null}
-          <InfoRow icon="phrase" label="Action" value={action} divider />
+          {peer?.url ? <InfoRow icon="dapps" label={t('siteLabel')} value={hostOf(peer.url)} /> : null}
+          {account ? <InfoRow icon="wallet" label={t('addressLabel')} value={shorten(account.address)} divider={!!peer?.url} /> : null}
+          {chain ? <InfoRow icon="networks" label={t('network')} value={chain.name} divider /> : null}
+          <InfoRow icon="phrase" label={t('actionLabel')} value={action} divider />
         </GlassCard>
 
         <GlassCard>
           {kind === 'siwe' && siwe ? (
             <>
-              <Text style={typography.bodyStrong}>Se connecter à {siwe.domain}</Text>
+              <Text style={typography.bodyStrong}>{t('signInTo').replace('{domain}', siwe.domain)}</Text>
               {siwe.statement ? <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>{siwe.statement}</Text> : null}
               <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-                Signature gratuite (aucun frais) : elle prouve seulement que tu possèdes cette adresse.
+                {t('freeSigProves')}
               </Text>
             </>
           ) : kind === 'message' ? (
             <>
-              <Text style={typography.muted}>Message à signer</Text>
+              <Text style={typography.muted}>{t('messageToSign')}</Text>
               <ScrollView style={{ maxHeight: 160, marginTop: spacing(0.5) }}>
                 <Text style={[typography.bodyStrong, { fontSize: 14 }]} selectable>
-                  {info.text ?? 'Message illisible (données binaires) — prudence.'}
+                  {info.text ?? t('binaryMessage')}
                 </Text>
               </ScrollView>
-              <Text style={[typography.muted, { marginTop: spacing(1) }]}>Ne signe que si tu fais confiance au site.</Text>
+              <Text style={[typography.muted, { marginTop: spacing(1) }]}>{t('signOnlyIfTrust')}</Text>
             </>
           ) : kind === 'typedData' ? (
             <>
-              <Text style={typography.bodyStrong}>{typed?.name ?? 'Données structurées'}</Text>
-              {typed?.primaryType ? <Text style={typography.muted}>Type : {typed.primaryType}</Text> : null}
-              {typed?.verifyingContract ? <Text style={typography.muted}>Contrat : {shorten(typed.verifyingContract)}</Text> : null}
+              <Text style={typography.bodyStrong}>{typed?.name ?? t('structuredData')}</Text>
+              {typed?.primaryType ? <Text style={typography.muted}>{t('typeWord')} : {typed.primaryType}</Text> : null}
+              {typed?.verifyingContract ? <Text style={typography.muted}>{t('contractLabel')} : {shorten(typed.verifyingContract)}</Text> : null}
               {/* Champs lisibles extraits (spender, montant, échéance) — critiques pour un Permit. */}
               {typed?.details?.map((d) => {
                 const danger = d.value.includes('⚠️');
@@ -257,8 +259,8 @@ export function WalletConnectHost() {
               })}
               <Text style={[typography.muted, { marginTop: spacing(1) }]}>
                 {typed?.primaryType === 'Permit' || typed?.details?.length
-                  ? '⚠️ Une signature « Permit » autorise un contrat à dépenser tes tokens. Vérifie le spender et le montant ci-dessus.'
-                  : 'Vérifie le contenu avant de signer.'}
+                  ? t('permitWarning')
+                  : t('verifyBeforeSign')}
               </Text>
             </>
           ) : isTx && tx ? (
@@ -266,18 +268,18 @@ export function WalletConnectHost() {
               <TxPreview tx={{ to: tx.to, value: tx.value, data: tx.data }} chain={chain} />
             ) : (
               <>
-                {tx.to ? <InfoRow icon="send" label="Vers" value={shorten(tx.to)} /> : null}
-                <InfoRow icon="currency" label="Montant" value={`${formatBalance(tx.value, 18)} ETH`} divider={!!tx.to} />
-                <Text style={[typography.muted, { marginTop: spacing(1) }]}>⚠️ Vérifie bien : ceci peut déplacer des fonds.</Text>
+                {tx.to ? <InfoRow icon="send" label={t('toLabel')} value={shorten(tx.to)} /> : null}
+                <InfoRow icon="currency" label={t('amount')} value={`${formatBalance(tx.value, 18)} ETH`} divider={!!tx.to} />
+                <Text style={[typography.muted, { marginTop: spacing(1) }]}>{t('checkMovesFunds')}</Text>
               </>
             )
           ) : (
-            <Text style={typography.muted}>Requête : {info.method}</Text>
+            <Text style={typography.muted}>{t('requestLabel')} {info.method}</Text>
           )}
 
           <Pressable onPress={() => setShowRaw((v) => !v)} hitSlop={8}>
             <Text style={[typography.muted, { marginTop: spacing(1), color: colors.accent }]}>
-              {showRaw ? 'Masquer les détails techniques' : 'Détails techniques'}
+              {showRaw ? t('hideTechDetails') : t('techDetails')}
             </Text>
           </Pressable>
           {showRaw ? (
@@ -290,15 +292,15 @@ export function WalletConnectHost() {
         </GlassCard>
 
         <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
-          <View style={{ flex: 1 }}><Button label="Refuser" variant="ghost" onPress={reject} /></View>
+          <View style={{ flex: 1 }}><Button label={t('refuse')} variant="ghost" onPress={reject} /></View>
           <View style={{ flex: 1 }}>
-            <Button label={kind === 'siwe' ? 'Se connecter' : 'Signer'} onPress={() => setConfirming(true)} />
+            <Button label={kind === 'siwe' ? t('signIn') : t('sign')} onPress={() => setConfirming(true)} />
           </View>
         </View>
 
         <ConfirmUnlock
           visible={confirming}
-          title={kind === 'siwe' ? 'Confirmer la connexion' : isTx ? "Confirmer la transaction" : 'Confirmer la signature'}
+          title={kind === 'siwe' ? t('confirmConnection') : isTx ? t('confirmTx') : t('confirmSignature')}
           subtitle={peer?.name ?? action}
           perform={perform}
           onDone={() => setConfirming(false)}
