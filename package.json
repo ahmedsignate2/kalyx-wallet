@@ -9,11 +9,14 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "test": "jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "web": "expo start --web",
+    "build:web": "expo export -p web"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/outfit": "^0.4.3",
+    "@expo/metro-runtime": "~57.0.3",
     "@expo/vector-icons": "^15.0.2",
     "@ledgerhq/hw-app-eth": "^7.8.8",
     "@ledgerhq/react-native-hw-transport-ble": "^6.41.0",
@@ -50,6 +53,7 @@
     "react-native-safe-area-context": "^5.8.0",
     "react-native-screens": "^4.25.2",
     "react-native-svg": "^15.15.5",
+    "react-native-web": "^0.21.2",
     "react-native-webview": "13.16.1",
     "zustand": "^5.0.14"
   },
