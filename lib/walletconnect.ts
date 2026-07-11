@@ -8,6 +8,7 @@
  * les modules natifs, l'app ne crashe pas — WalletConnect reste simplement inactif.
  * La signature est déléguée au walletStore (la clé reste isolée).
  */
+import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { useWallet, type Unlock } from './walletStore';
 import { listChains, type RawTxRequest } from '../src';
@@ -103,7 +104,9 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     if (!PROJECT_ID || get().wallet) return;
     silenceBenignWcLogs();
     // Chargement dynamique : n'exécute le code natif qu'ici.
-    await import('@walletconnect/react-native-compat');
+    // Le polyfill react-native-compat est RN-only : sur web, le navigateur fournit
+    // déjà crypto/WebSocket, et l'importer casserait l'init WalletConnect.
+    if (Platform.OS !== 'web') await import('@walletconnect/react-native-compat');
     const [{ Core }, { Web3Wallet }, utils] = await Promise.all([
       import('@walletconnect/core'),
       import('@walletconnect/web3wallet'),
