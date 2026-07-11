@@ -5,9 +5,11 @@ import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 
 export default function RevealPhrase() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const revealPhrase = useWallet((s) => s.revealPhrase);
   const [confirming, setConfirming] = useState(false);
   const [words, setWords] = useState<string[] | null>(null);
@@ -28,8 +30,8 @@ export default function RevealPhrase() {
   if (words) {
     return (
       <Screen>
-        <Title>Ta phrase de récupération</Title>
-        <Muted>Ne la partage avec personne. Capture d’écran bloquée.</Muted>
+        <Title>{t('yourRecoveryPhrase')}</Title>
+        <Muted>{t('dontShareScreenshotBlocked')}</Muted>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
         <Card>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
@@ -60,15 +62,15 @@ export default function RevealPhrase() {
 
   return (
     <Screen>
-      <Title>Afficher la phrase</Title>
-      <Muted>Confirme ton identité pour révéler ta phrase de récupération.</Muted>
+      <Title>{t('revealPhraseTitle')}</Title>
+      <Muted>{t('confirmIdentityPhrase')}</Muted>
       <View style={{ flex: 1 }} />
-      <Button label="Afficher" onPress={() => setConfirming(true)} />
+      <Button label={t('revealAction')} onPress={() => setConfirming(true)} />
 
       <ConfirmUnlock
         visible={confirming}
-        title="Révéler la phrase secrète"
-        subtitle="Personne d'autre ne doit la voir."
+        title={t('revealSecretPhrase')}
+        subtitle={t('nobodyElseSee')}
         perform={perform}
         onDone={() => setConfirming(false)}
         onCancel={() => setConfirming(false)}
