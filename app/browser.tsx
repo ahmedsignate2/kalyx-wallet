@@ -22,7 +22,7 @@ import { Icon } from '../ui/icon';
 import { NovaLogo } from '../ui/NovaLogo';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
-import { useSettings } from '../lib/settingsStore';
+import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../lib/recentDapps';
 import { useDappActivity } from '../lib/dappActivity';
@@ -184,6 +184,7 @@ function normalizeUrl(raw: string): string | null {
 
 export default function Browser() {
   const { colors, typography, gradients } = useTheme();
+  const t = useT();
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
   // 3 colonnes : largeur = (écran − marges − 2 gaps) / 3 (min 88 sur petit écran).
@@ -360,7 +361,7 @@ export default function Browser() {
     Vibration.vibrate(10);
     toggleFavorite({ url: activeTab.url ?? `https://${origin}`, host: origin, title: activeTab.title || origin }, favRef.current).then((next) => {
       applyFav(next);
-      toast.success(next.some((f) => f.host === origin) ? 'Ajouté aux favoris' : 'Retiré des favoris', origin);
+      toast.success(next.some((f) => f.host === origin) ? t('favAdded') : t('favRemoved'), origin);
     });
   };
 
@@ -472,7 +473,7 @@ export default function Browser() {
         activity.addConnection({ host: pending.origin, url: `https://${pending.origin}`, title: activeTab?.title || pending.origin });
         if (rememberSite) activity.remember(pending.origin); // reconnexion sans PIN ensuite
         Vibration.vibrate(14);
-        toast.success('Connexion réussie', pending.origin);
+        toast.success(t('connectionSuccess'), pending.origin);
       } else {
         const w = useWallet.getState();
         let result: string;
@@ -482,7 +483,7 @@ export default function Browser() {
         respond(pending.tabId, pending.id, result);
         activity.addSignature({ host: pending.origin, kind: pending.kind === 'tx' ? 'tx' : pending.kind === 'typedData' ? 'typedData' : 'sign' });
         Vibration.vibrate(14);
-        toast.success(pending.kind === 'tx' ? 'Transaction envoyée' : 'Signature envoyée', pending.origin);
+        toast.success(pending.kind === 'tx' ? t('txSent') : t('signatureSent'), pending.origin);
       }
       setPending(null);
       setPin('');
@@ -495,13 +496,13 @@ export default function Browser() {
   // Validation par PIN (repli) : gère l'erreur à l'écran plutôt que de lever.
   const submitPin = async () => {
     if (pin.length < 6) {
-      setError('Entre ton PIN pour confirmer.');
+      setError(t('enterPinConfirm'));
       return;
     }
     try {
       await perform({ pin });
     } catch (e) {
-      setError(isWalletError(e) && e.code === 'WRONG_PIN' ? 'PIN incorrect' : e instanceof Error ? e.message : 'Action impossible.');
+      setError(isWalletError(e) && e.code === 'WRONG_PIN' ? t('pinIncorrect') : e instanceof Error ? e.message : t('actionFailed'));
     }
   };
 
@@ -527,11 +528,11 @@ export default function Browser() {
   if (!WebViewComp) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bgDeep, padding: spacing(2.5), justifyContent: 'center' }}>
-        <Stack.Screen options={{ headerShown: true, title: 'Navigateur' }} />
+        <Stack.Screen options={{ headerShown: true, title: t('browserTitle') }} />
         <GlassCard>
-          <Text style={typography.bodyStrong}>Navigateur indisponible</Text>
+          <Text style={typography.bodyStrong}>{t('browserUnavailable')}</Text>
           <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-            Le module natif react-native-webview n’est pas dans ce build. Refais un dev build puis relance l’app.
+            {t('webviewMissing')}
           </Text>
         </GlassCard>
       </View>
@@ -556,8 +557,8 @@ export default function Browser() {
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing(2.5), gap: spacing(2.5), paddingBottom: spacing(6) }} showsVerticalScrollIndicator={false}>
       {/* Hero façon new-tab : titre + grande barre de recherche qui focus la barre d'adresse. */}
       <View style={{ alignItems: 'center', gap: spacing(1.5), marginTop: spacing(2), marginBottom: spacing(0.5) }}>
-        <Text style={{ color: colors.text, fontSize: 26, fontFamily: fonts.extrabold, letterSpacing: 0.3 }}>Explorer le Web3</Text>
-        <Text style={[typography.muted, { textAlign: 'center' }]}>Connecte-toi aux dApps · chaque signature demande ton PIN</Text>
+        <Text style={{ color: colors.text, fontSize: 26, fontFamily: fonts.extrabold, letterSpacing: 0.3 }}>{t('exploreWeb3')}</Text>
+        <Text style={[typography.muted, { textAlign: 'center' }]}>{t('connectDappsHint')}</Text>
         <Pressable
           onPress={() => addressRef.current?.focus()}
           style={({ pressed }) => ({
@@ -569,14 +570,14 @@ export default function Browser() {
           })}
         >
           <Icon name="search" size={18} color={colors.accent} />
-          <Text style={{ color: colors.textMuted, fontSize: 15, flex: 1 }}>Rechercher ou saisir une URL</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 15, flex: 1 }}>{t('searchOrUrl')}</Text>
           <Icon name="scan" size={18} color={colors.textMuted} />
         </Pressable>
       </View>
 
       {favorites.length > 0 ? (
         <View style={{ gap: spacing(1.25) }}>
-          <SectionTitle>Favoris</SectionTitle>
+          <SectionTitle>{t('favorites')}</SectionTitle>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: GAP, rowGap: 16 }}>
             {favorites.map((f) => (
               <Tile key={f.host} width={tileW} host={f.host} name={f.title || f.host} color={colors.glassStrong} onPress={() => go(f.url, f.title)} />
@@ -586,7 +587,7 @@ export default function Browser() {
       ) : null}
 
       <View style={{ gap: spacing(1.25) }}>
-        <SectionTitle>Sites populaires</SectionTitle>
+        <SectionTitle>{t('popularSites')}</SectionTitle>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: GAP, rowGap: 16 }}>
           {SUGGESTED.map((d) => (
             <Tile key={d.url} width={tileW} host={d.domain} name={d.name} color={d.color} emoji={d.emoji} onPress={() => go(d.url, d.name)} />
@@ -595,7 +596,7 @@ export default function Browser() {
       </View>
 
       <View style={{ gap: spacing(1.25) }}>
-        <SectionTitle>Collections tendance</SectionTitle>
+        <SectionTitle>{t('trendingCollections')}</SectionTitle>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: GAP, rowGap: 16 }}>
           {COLLECTIONS.map((d) => (
             <Tile key={d.url} width={tileW} host={d.domain} name={d.name} color={d.color} emoji={d.emoji} onPress={() => go(d.url, d.name)} />
@@ -608,10 +609,10 @@ export default function Browser() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Icon name="history" size={18} color={colors.textMuted} />
-              <Text style={typography.section}>Historique</Text>
+              <Text style={typography.section}>{t('historyTitle')}</Text>
             </View>
             <Pressable onPress={() => { clearRecents(); applyRecents([]); }} hitSlop={8}>
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Effacer</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 13 }}>{t('clearWord')}</Text>
             </Pressable>
           </View>
           <GlassCard>
@@ -629,7 +630,7 @@ export default function Browser() {
           {recents.length > 5 ? (
             <Pressable onPress={() => setShowAllHistory((v) => !v)} hitSlop={8} style={{ alignSelf: 'center', paddingVertical: spacing(0.5) }}>
               <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}>
-                {showAllHistory ? 'Réduire' : `Voir tout (${recents.length})`}
+                {showAllHistory ? t('collapse') : `${t('viewAllWord')} (${recents.length})`}
               </Text>
             </Pressable>
           ) : null}
@@ -688,7 +689,7 @@ export default function Browser() {
             value={activeTab?.input ?? ''}
             onChangeText={(v) => updateTab(activeId, { input: v })}
             onSubmitEditing={() => go(activeTab?.input ?? '')}
-            placeholder="Rechercher sur Google ou saisir une URL"
+            placeholder={t('searchGoogleOrUrl')}
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
@@ -728,7 +729,7 @@ export default function Browser() {
       {sec === 'suspicious' && activeTab?.url ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginHorizontal: spacing(1.5), marginBottom: spacing(1), backgroundColor: colors.danger + '1E', borderWidth: 1, borderColor: colors.danger + '66', borderRadius: radii.md, paddingVertical: spacing(1), paddingHorizontal: spacing(1.5) }}>
           <Icon name="warning" size={16} color={colors.danger} />
-          <Text style={{ color: colors.text, flex: 1, fontSize: 12.5 }}>⚠ Ce domaine ressemble à une marque connue sans en être le site officiel. Ne signe rien.</Text>
+          <Text style={{ color: colors.text, flex: 1, fontSize: 12.5 }}>{t('suspiciousDomainBanner')}</Text>
         </View>
       ) : null}
 
@@ -794,25 +795,25 @@ export default function Browser() {
       <Modal visible={switcher} transparent animationType="slide" onRequestClose={() => setSwitcher(false)}>
         <View style={{ flex: 1, backgroundColor: colors.bgDeep, paddingTop: insets.top + spacing(1) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing(2.5), paddingVertical: spacing(1.5) }}>
-            <Text style={typography.title}>Onglets ({tabs.length})</Text>
+            <Text style={typography.title}>{t('tabsWord')} ({tabs.length})</Text>
             <Pressable onPress={() => setSwitcher(false)} hitSlop={8}>
               <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>OK</Text>
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5), padding: spacing(2.5), paddingTop: 0 }}>
-            {tabs.map((t) => {
-              const host = t.url ? originOf(t.url) : '';
+            {tabs.map((tb) => {
+              const host = tb.url ? originOf(tb.url) : '';
               return (
-                <Pressable key={t.id} onPress={() => { setActiveId(t.id); setSwitcher(false); }} style={{ width: '47%' }}>
-                  <GlassCard style={{ gap: spacing(1), borderColor: t.id === activeId ? colors.accent : colors.glassBorder, borderWidth: t.id === activeId ? 1.5 : 1 }}>
+                <Pressable key={tb.id} onPress={() => { setActiveId(tb.id); setSwitcher(false); }} style={{ width: '47%' }}>
+                  <GlassCard style={{ gap: spacing(1), borderColor: tb.id === activeId ? colors.accent : colors.glassBorder, borderWidth: tb.id === activeId ? 1.5 : 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
                       {host ? <Favicon host={host} size={22} color={colors.glassStrong} label={host.slice(0, 1).toUpperCase()} /> : <Icon name="home" size={20} color={colors.textMuted} />}
-                      <Text style={[typography.bodyStrong, { flex: 1, fontSize: 13 }]} numberOfLines={1}>{t.title || (host || 'Accueil')}</Text>
-                      <Pressable onPress={() => closeTab(t.id)} hitSlop={8}>
+                      <Text style={[typography.bodyStrong, { flex: 1, fontSize: 13 }]} numberOfLines={1}>{tb.title || (host || t('homeWord'))}</Text>
+                      <Pressable onPress={() => closeTab(tb.id)} hitSlop={8}>
                         <Icon name="close" size={16} tone="muted" />
                       </Pressable>
                     </View>
-                    <Text style={typography.muted} numberOfLines={1}>{host || 'Nouvel onglet'}</Text>
+                    <Text style={typography.muted} numberOfLines={1}>{host || t('newTabLabel')}</Text>
                   </GlassCard>
                 </Pressable>
               );
@@ -820,7 +821,7 @@ export default function Browser() {
             <Pressable onPress={newTab} style={{ width: '47%' }}>
               <GlassCard style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: spacing(3), gap: 6, borderStyle: 'dashed' }}>
                 <Icon name="add" size={26} color={colors.accent} />
-                <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Nouvel onglet</Text>
+                <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('newTabLabel')}</Text>
               </GlassCard>
             </Pressable>
           </ScrollView>
@@ -831,13 +832,13 @@ export default function Browser() {
       <Modal visible={menu} transparent animationType="slide" onRequestClose={() => setMenu(false)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} onPress={() => setMenu(false)}>
           <Pressable style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2), paddingBottom: insets.bottom + spacing(2) }}>
-            <MenuRow icon="add" label="Nouvel onglet" onPress={() => { setMenu(false); newTab(); }} />
-            {activeTab?.url ? <MenuRow icon="refresh" label="Actualiser" onPress={() => { setMenu(false); (webrefs.current.get(activeId) as WV | undefined)?.reload(); }} /> : null}
-            {activeTab?.url ? <MenuRow icon={isFav ? 'starFilled' : 'star'} label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'} onPress={() => { setMenu(false); toggleCurrentFav(); }} /> : null}
-            {activeTab?.url ? <MenuRow icon="share" label="Partager" onPress={() => { setMenu(false); Share.share({ message: activeTab.url! }).catch(() => {}); }} /> : null}
-            <MenuRow icon="home" label="Page d'accueil" onPress={() => { setMenu(false); goHome(); }} />
-            <MenuRow icon="close" label="Fermer l'onglet" onPress={() => { setMenu(false); closeTab(activeId); }} />
-            <MenuRow icon="history" label="Effacer l'historique" onPress={() => { setMenu(false); clearRecents(); applyRecents([]); toast.info('Historique effacé'); }} />
+            <MenuRow icon="add" label={t('newTabLabel')} onPress={() => { setMenu(false); newTab(); }} />
+            {activeTab?.url ? <MenuRow icon="refresh" label={t('refreshLabel')} onPress={() => { setMenu(false); (webrefs.current.get(activeId) as WV | undefined)?.reload(); }} /> : null}
+            {activeTab?.url ? <MenuRow icon={isFav ? 'starFilled' : 'star'} label={isFav ? t('removeFav') : t('addFav')} onPress={() => { setMenu(false); toggleCurrentFav(); }} /> : null}
+            {activeTab?.url ? <MenuRow icon="share" label={t('shareLabel')} onPress={() => { setMenu(false); Share.share({ message: activeTab.url! }).catch(() => {}); }} /> : null}
+            <MenuRow icon="home" label={t('homePage')} onPress={() => { setMenu(false); goHome(); }} />
+            <MenuRow icon="close" label={t('closeTabLabel')} onPress={() => { setMenu(false); closeTab(activeId); }} />
+            <MenuRow icon="history" label={t('clearHistory')} onPress={() => { setMenu(false); clearRecents(); applyRecents([]); toast.info(t('historyCleared')); }} />
           </Pressable>
         </Pressable>
       </Modal>
@@ -849,10 +850,10 @@ export default function Browser() {
             <LinearGradient colors={gradients.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
             {/* Poignée de glissement (façon bottom-sheet natif) */}
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.glassBorder, marginBottom: spacing(0.5) }} />
-            <Text style={typography.title}>Réseau</Text>
+            <Text style={typography.title}>{t('network')}</Text>
             {account ? (
               <Pressable
-                onPress={() => { Clipboard.setStringAsync(account.address); toast.success('Adresse copiée'); }}
+                onPress={() => { Clipboard.setStringAsync(account.address); toast.success(t('addressCopied')); }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, padding: spacing(1.25) }}
               >
                 <Icon name="wallet" size={16} color={colors.textMuted} />
@@ -892,7 +893,7 @@ export default function Browser() {
           <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} behavior="padding">
             <View style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
               <Text style={typography.title}>
-                {pending.kind === 'connect' ? 'Connexion au site' : pending.kind === 'tx' ? 'Transaction demandée' : 'Signature demandée'}
+                {pending.kind === 'connect' ? t('connectToSite') : pending.kind === 'tx' ? t('txRequested') : t('signatureRequested')}
               </Text>
 
               <GlassCard>
@@ -912,19 +913,19 @@ export default function Browser() {
               {phishSite ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.danger + '1E', borderWidth: 1, borderColor: colors.danger + '66', borderRadius: radii.md, padding: spacing(1.5) }}>
                   <Icon name="warning" size={18} color={colors.danger} />
-                  <Text style={{ color: colors.text, flex: 1, fontSize: 13 }}>🚨 GoPlus signale ce site comme du phishing. Ne connecte pas.</Text>
+                  <Text style={{ color: colors.text, flex: 1, fontSize: 13 }}>{t('phishingWarning')}</Text>
                 </View>
               ) : null}
               {risk === 'loading' ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
                   <Icon name="security" size={15} color={colors.textMuted} />
-                  <Text style={typography.muted}>Analyse de sécurité (GoPlus)…</Text>
+                  <Text style={typography.muted}>{t('securityScanning')}</Text>
                 </View>
               ) : risk && risk.level === 'danger' ? (
                 <View style={{ backgroundColor: colors.danger + '1E', borderWidth: 1, borderColor: colors.danger + '66', borderRadius: radii.md, padding: spacing(1.5), gap: 4 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
                     <Icon name="warning" size={18} color={colors.danger} />
-                    <Text style={{ color: colors.danger, fontFamily: fonts.bold, flex: 1 }}>Risque détecté (GoPlus)</Text>
+                    <Text style={{ color: colors.danger, fontFamily: fonts.bold, flex: 1 }}>{t('riskDetected')}</Text>
                   </View>
                   {risk.reasons.map((r) => (
                     <Text key={r} style={{ color: colors.text, fontSize: 13 }}>• {r}</Text>
@@ -933,43 +934,43 @@ export default function Browser() {
               ) : risk && risk.level === 'ok' ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
                   <Icon name="check" size={15} color={colors.up} />
-                  <Text style={{ color: colors.up, fontSize: 13, fontFamily: fonts.semibold }}>Aucun risque connu (GoPlus)</Text>
+                  <Text style={{ color: colors.up, fontSize: 13, fontFamily: fonts.semibold }}>{t('noKnownRisk')}</Text>
                 </View>
               ) : null}
 
               {pending.kind === 'connect' ? (
                 <GlassCard>
-                  <Text style={typography.muted}>✓ Peut voir ton adresse publique et tes soldes</Text>
-                  <Text style={typography.muted}>✓ Peut te proposer des transactions à signer</Text>
-                  <Text style={typography.muted}>✗ Ne peut RIEN déplacer sans ta signature + PIN</Text>
-                  <Text style={[typography.muted, { marginTop: spacing(1) }]}>🔒 Ton PIN est requis pour connecter ce site.</Text>
+                  <Text style={typography.muted}>{t('canSeeAddress')}</Text>
+                  <Text style={typography.muted}>{t('canProposeTx')}</Text>
+                  <Text style={typography.muted}>{t('cannotMove')}</Text>
+                  <Text style={[typography.muted, { marginTop: spacing(1) }]}>{t('pinRequiredConnect')}</Text>
                   {/* Se souvenir : reconnexion sans PIN les prochaines fois */}
                   <Pressable onPress={() => setRememberSite((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: spacing(1.25) }}>
                     <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: rememberSite ? colors.accent : colors.glassBorder, backgroundColor: rememberSite ? colors.accent : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                       {rememberSite ? <Icon name="check" size={14} color="#fff" /> : null}
                     </View>
-                    <Text style={{ color: colors.text, flex: 1, fontSize: 14 }}>Se souvenir de ce site (reconnexion sans PIN)</Text>
+                    <Text style={{ color: colors.text, flex: 1, fontSize: 14 }}>{t('rememberSite')}</Text>
                   </Pressable>
                 </GlassCard>
               ) : pending.kind === 'sign' ? (
                 <GlassCard>
                   {pending.siwe ? (
                     <>
-                      <Text style={typography.bodyStrong}>Se connecter à {pending.siwe.domain}</Text>
+                      <Text style={typography.bodyStrong}>{t('signInTo').replace('{domain}', pending.siwe.domain)}</Text>
                       {siweDomainMismatch(pending.siwe.domain, `https://${pending.origin}`) ? (
-                        <ErrorBox message={`⚠️ Le message dit venir de « ${pending.siwe.domain} » mais tu es sur « ${pending.origin} ». Risque de phishing — refuse.`} />
+                        <ErrorBox message={t('siweMismatch').replace('{a}', pending.siwe.domain).replace('{b}', pending.origin)} />
                       ) : (
                         <>
-                          <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>Prouve seulement que tu possèdes cette adresse.</Text>
+                          <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>{t('provesOwnership')}</Text>
                           <FreeSignature />
                         </>
                       )}
                     </>
                   ) : (
                     <>
-                      <Text style={typography.muted}>Message à signer</Text>
+                      <Text style={typography.muted}>{t('messageToSign')}</Text>
                       <Text style={[typography.bodyStrong, { fontSize: 14, marginTop: spacing(0.5) }]} numberOfLines={8} selectable>
-                        {pending.text ?? 'Message illisible (données binaires) — prudence.'}
+                        {pending.text ?? t('binaryMessage')}
                       </Text>
                     </>
                   )}
@@ -977,8 +978,8 @@ export default function Browser() {
                 </GlassCard>
               ) : pending.kind === 'typedData' ? (
                 <GlassCard>
-                  <Text style={typography.bodyStrong}>{pending.summary?.name ?? 'Données structurées'}</Text>
-                  {pending.summary?.primaryType ? <Text style={typography.muted}>Type : {pending.summary.primaryType}</Text> : null}
+                  <Text style={typography.bodyStrong}>{pending.summary?.name ?? t('structuredData')}</Text>
+                  {pending.summary?.primaryType ? <Text style={typography.muted}>{t('typeWord')} : {pending.summary.primaryType}</Text> : null}
                   {pending.summary?.details?.map((d) => {
                     const danger = d.value.includes('⚠️');
                     const val = d.value.length > 24 && d.value.startsWith('0x') ? `${d.value.slice(0, 8)}…${d.value.slice(-6)}` : d.value;
@@ -990,7 +991,7 @@ export default function Browser() {
                     );
                   })}
                   <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-                    {pending.summary?.primaryType === 'Permit' || pending.summary?.details?.length ? '⚠️ Une signature « Permit » autorise un contrat à dépenser tes tokens. Vérifie le spender et le montant ci-dessus.' : 'Vérifie le contenu avant de signer.'}
+                    {pending.summary?.primaryType === 'Permit' || pending.summary?.details?.length ? t('permitWarning') : t('verifyBeforeSign')}
                   </Text>
                   <FreeSignature />
                 </GlassCard>
@@ -1001,7 +1002,7 @@ export default function Browser() {
               )}
 
               <GlassCard>
-                <Text style={typography.muted}>PIN{biometricEnabled ? ' (ou biométrie ci-dessous)' : ''}</Text>
+                <Text style={typography.muted}>{t('pinLabel')}{biometricEnabled ? t('orBiometryBelow') : ''}</Text>
                 <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} editable={!busy} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
                 {biometricEnabled ? (
                   <Pressable
@@ -1011,15 +1012,15 @@ export default function Browser() {
                     style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 8, marginTop: spacing(1), paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
                   >
                     <Icon name="security" size={16} color={colors.accent} />
-                    <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>Utiliser la biométrie</Text>
+                    <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>{t('useBiometry')}</Text>
                   </Pressable>
                 ) : null}
               </GlassCard>
 
               {error ? <ErrorBox message={error} /> : null}
               <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
-                <View style={{ flex: 1 }}><Button label="Refuser" variant="ghost" onPress={deny} /></View>
-                <View style={{ flex: 1 }}><Button label={busy ? 'Signature…' : pending.kind === 'connect' ? 'Connecter' : 'Signer'} loading={busy} onPress={submitPin} /></View>
+                <View style={{ flex: 1 }}><Button label={t('refuse')} variant="ghost" onPress={deny} /></View>
+                <View style={{ flex: 1 }}><Button label={busy ? t('signing') : pending.kind === 'connect' ? t('connect') : t('sign')} loading={busy} onPress={submitPin} /></View>
               </View>
             </View>
           </KeyboardAvoidingView>
@@ -1157,10 +1158,11 @@ function Tile({ host, name, color, emoji, width, onPress }: { host: string; name
 /** Bandeau vert rassurant : signature = gratuite (aucun frais de réseau). */
 function FreeSignature() {
   const { colors } = useTheme();
+  const t = useT();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(1) }}>
       <Text style={{ fontSize: 13 }}>🔒</Text>
-      <Text style={{ color: colors.up, fontSize: 13, fontFamily: fonts.semibold }}>Cette signature est gratuite (aucun frais).</Text>
+      <Text style={{ color: colors.up, fontSize: 13, fontFamily: fonts.semibold }}>{t('freeSignature')}</Text>
     </View>
   );
 }
