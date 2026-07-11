@@ -5,16 +5,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 
 function shorten(a: string) {
   return `${a.slice(0, 8)}…${a.slice(-6)}`;
 }
 
-// Noms suggérés (style Revolut) proposés à la création.
-const SUGGESTIONS = ['Compte Trading', 'Compte DeFi', 'Épargne', 'Compte 2'];
-
 export default function Accounts() {
   const { colors, typography } = useTheme();
+  const t = useT();
+  // Noms suggérés (style Revolut) proposés à la création.
+  const SUGGESTIONS = [t('sugTrading'), t('sugDefi'), t('sugSavings'), t('sugAccount2')];
   const accounts = useWallet((s) => s.accounts);
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
   const setActiveAccount = useWallet((s) => s.setActiveAccount);
@@ -32,7 +33,7 @@ export default function Accounts() {
   const onAdd = async () => {
     setError(null);
     if (pin.length < 6) {
-      setError('Entre ton PIN.');
+      setError(t('enterYourPin'));
       return;
     }
     setBusy(true);
@@ -43,7 +44,7 @@ export default function Accounts() {
       setAdding(false);
       router.back();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Échec.');
+      setError(e instanceof Error ? e.message : t('failed'));
     } finally {
       setBusy(false);
     }
@@ -52,8 +53,8 @@ export default function Accounts() {
   const insets = useSafeAreaInsets();
   return (
     <Screen>
-      <Title>Comptes</Title>
-      <Muted>Tous dérivés de ta même phrase de récupération.</Muted>
+      <Title>{t('accounts')}</Title>
+      <Muted>{t('allDerived')}</Muted>
 
       <ScrollView
         style={{ flex: 1 }}
@@ -71,13 +72,13 @@ export default function Accounts() {
                   value={editLabel}
                   onChangeText={setEditLabel}
                   autoFocus
-                  placeholder="Nom du compte"
+                  placeholder={t('accountNamePlaceholder')}
                   placeholderTextColor={colors.textMuted}
                   style={{ color: colors.text, fontSize: 16 }}
                 />
                 <View style={{ flexDirection: 'row', gap: spacing(1) }}>
                   <Button
-                    label="Enregistrer"
+                    label={t('saveAction')}
                     onPress={() => {
                       renameAccount(a.index, editLabel);
                       setEditing(null);
@@ -119,11 +120,11 @@ export default function Accounts() {
 
       {adding ? (
         <Card style={{ marginTop: spacing(1), gap: spacing(1) }}>
-          <Text style={typography.muted}>Nom (optionnel)</Text>
+          <Text style={typography.muted}>{t('nameOptional')}</Text>
           <TextInput
             value={newLabel}
             onChangeText={setNewLabel}
-            placeholder="Compte Trading, DeFi…"
+            placeholder={t('accountNameExample')}
             placeholderTextColor={colors.textMuted}
             style={{ color: colors.text, fontSize: 16 }}
           />
@@ -134,7 +135,7 @@ export default function Accounts() {
               </Pressable>
             ))}
           </View>
-          <Text style={typography.muted}>PIN</Text>
+          <Text style={typography.muted}>{t('pinLabel')}</Text>
           <TextInput
             value={pin}
             onChangeText={setPin}
@@ -143,11 +144,11 @@ export default function Accounts() {
             style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }}
           />
           {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
-          <Button label={busy ? 'Création…' : 'Créer le compte'} loading={busy} onPress={onAdd} />
+          <Button label={busy ? t('creating') : t('createAccount')} loading={busy} onPress={onAdd} />
         </Card>
       ) : (
         <Pressable onPress={() => setAdding(true)} style={{ marginTop: spacing(1) }}>
-          <Text style={{ color: colors.accent }}>＋ Ajouter un compte</Text>
+          <Text style={{ color: colors.accent }}>{t('addAccountPlus')}</Text>
         </Pressable>
       )}
       </ScrollView>
