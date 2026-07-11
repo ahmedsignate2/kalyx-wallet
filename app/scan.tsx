@@ -19,6 +19,7 @@ import { Icon } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { toast } from '../lib/toast';
 import { useWallet } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 import { useWalletConnect } from '../lib/walletconnect';
 import {
   parseQr,
@@ -44,9 +45,10 @@ if (requireOptionalNativeModule('ExpoCamera')) {
 const CAMERA_OK = !!cameraMod;
 
 export default function Scan() {
+  const t = useT();
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: 'Scanner un QR', headerTransparent: CAMERA_OK }} />
+      <Stack.Screen options={{ headerShown: true, title: t('scanQrTitle'), headerTransparent: CAMERA_OK }} />
       {CAMERA_OK ? <Scanner /> : <PasteOnly />}
     </>
   );
@@ -56,6 +58,7 @@ export default function Scan() {
 function useQrAction() {
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const activeChain = useWallet((s) => s.activeChain);
+  const t = useT();
 
   return (r: QrResult) => {
     if (r.kind === 'walletconnect') {
@@ -68,7 +71,7 @@ function useQrAction() {
       return;
     }
     if (r.kind === 'invalid') {
-      toast.error('QR non reconnu');
+      toast.error(t('qrNotRecognized'));
       return;
     }
 
@@ -98,6 +101,7 @@ function Scanner() {
   // cameraMod est garanti non-null ici (Scanner n'est rendu que si CAMERA_OK).
   const { CameraView, useCameraPermissions } = cameraMod!;
   const { colors } = useTheme();
+  const t = useT();
   const [permission, requestPermission] = useCameraPermissions();
   const [result, setResult] = useState<QrResult | null>(null);
   const [torch, setTorch] = useState(false);
@@ -119,7 +123,7 @@ function Scanner() {
   };
   const paste = async () => {
     const text = (await Clipboard.getStringAsync()).trim();
-    if (!text) return toast.info('Presse-papiers vide');
+    if (!text) return toast.info(t('clipboardEmpty'));
     locked.current = true;
     setResult(parseQr(text));
   };
@@ -131,15 +135,15 @@ function Scanner() {
       <View style={[styles.center, { backgroundColor: colors.bg, padding: spacing(3) }]}>
         <Icon name="scan" size={48} color={colors.accent} />
         <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 18, marginTop: spacing(2), textAlign: 'center' }}>
-          Autoriser la caméra
+          {t('allowCamera')}
         </Text>
         <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: spacing(1) }}>
-          Nova en a besoin pour scanner les QR (adresses, WalletConnect). Rien n'est enregistré.
+          {t('cameraNeedReason')}
         </Text>
         <View style={{ height: spacing(3) }} />
-        <Button label="Autoriser" onPress={requestPermission} />
+        <Button label={t('allow')} onPress={requestPermission} />
         <Pressable onPress={paste} style={{ marginTop: spacing(2) }}>
-          <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Coller depuis le presse-papiers</Text>
+          <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('pasteFromClipboard')}</Text>
         </Pressable>
       </View>
     );
@@ -158,8 +162,8 @@ function Scanner() {
 
       {/* Barre d'outils bas */}
       <View style={styles.toolbar}>
-        <ToolButton icon={torch ? 'flash' : 'flashOff'} label="Torche" active={torch} onPress={() => setTorch((t) => !t)} />
-        <ToolButton icon="copy" label="Coller" onPress={paste} />
+        <ToolButton icon={torch ? 'flash' : 'flashOff'} label={t('torchLabel')} active={torch} onPress={() => setTorch((v) => !v)} />
+        <ToolButton icon="copy" label={t('paste')} onPress={paste} />
       </View>
 
       {result ? <ResultSheet result={result} onAct={act} onRescan={rescan} /> : null}
@@ -170,24 +174,25 @@ function Scanner() {
 /** Repli sans caméra (module natif absent) : coller le contenu d'un QR. */
 function PasteOnly() {
   const { colors } = useTheme();
+  const t = useT();
   const act = useQrAction();
   const [result, setResult] = useState<QrResult | null>(null);
   const paste = async () => {
     const text = (await Clipboard.getStringAsync()).trim();
-    if (!text) return toast.info('Presse-papiers vide');
+    if (!text) return toast.info(t('clipboardEmpty'));
     setResult(parseQr(text));
   };
   return (
     <View style={[styles.center, { backgroundColor: colors.bg, padding: spacing(3), flex: 1 }]}>
       <Icon name="scan" size={48} color={colors.textMuted} />
       <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 18, marginTop: spacing(2), textAlign: 'center' }}>
-        Caméra indisponible
+        {t('cameraUnavailable')}
       </Text>
       <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: spacing(1) }}>
-        Le scanner s'activera après la prochaine reconstruction de l'app. En attendant, colle le contenu d'un QR.
+        {t('scannerAfterRebuild')}
       </Text>
       <View style={{ height: spacing(3) }} />
-      <Button label="Coller depuis le presse-papiers" onPress={paste} />
+      <Button label={t('pasteFromClipboard')} onPress={paste} />
       {result ? <ResultSheet result={result} onAct={act} onRescan={() => setResult(null)} /> : null}
     </View>
   );
@@ -196,6 +201,7 @@ function PasteOnly() {
 /** Cadre de scan animé (ligne qui balaie). */
 function ScanFrame() {
   const { colors } = useTheme();
+  const t = useT();
   const size = Math.min(Dimensions.get('window').width * 0.7, 280);
   const y = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -223,7 +229,7 @@ function ScanFrame() {
         />
       </View>
       <Text style={{ color: '#fff', marginTop: spacing(2), fontFamily: fonts.semibold, opacity: 0.85 }}>
-        Vise un QR : adresse ou WalletConnect
+        {t('aimAtQr')}
       </Text>
     </View>
   );
@@ -244,6 +250,7 @@ function ToolButton({ icon, label, active, onPress }: { icon: 'flash' | 'flashOf
 /** Fiche de confirmation : montre TOUJOURS ce qui a été scanné avant d'agir. */
 function ResultSheet({ result, onAct, onRescan }: { result: QrResult; onAct: (r: QrResult) => void; onRescan: () => void }) {
   const { colors } = useTheme();
+  const t = useT();
   const d = describeQr(result);
   return (
     <View style={styles.sheetWrap}>
@@ -257,12 +264,12 @@ function ResultSheet({ result, onAct, onRescan }: { result: QrResult; onAct: (r:
         </Text>
         {d.danger && result.kind === 'url' ? (
           <Text style={{ color: colors.warning, fontSize: 12, marginTop: spacing(1) }}>
-            Vérifie l'adresse avant d'ouvrir : un site peut tenter de te piéger.
+            {t('verifyUrlWarning')}
           </Text>
         ) : null}
         <View style={{ flexDirection: 'row', gap: spacing(1.5), marginTop: spacing(2) }}>
           <Pressable onPress={onRescan} style={[styles.btnGhost, { borderColor: colors.glassBorder }]}>
-            <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>Scanner à nouveau</Text>
+            <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{t('scanAgain')}</Text>
           </Pressable>
           {d.cta ? (
             <Pressable onPress={() => onAct(result)} style={[styles.btnPrimary, { backgroundColor: colors.accent }]}>
