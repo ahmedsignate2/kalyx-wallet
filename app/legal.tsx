@@ -3,26 +3,28 @@ import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { PremiumScreen, GlassCard, SegmentedTabs } from '../ui/premium';
 import { spacing, useTheme } from '../ui/theme';
+import { useT } from '../lib/settingsStore';
 import { PRIVACY, TERMS, LEGAL_UPDATED, type LegalSection } from '../lib/legalText';
 
 export default function Legal() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const { doc } = useLocalSearchParams<{ doc?: string }>();
   const [tab, setTab] = useState(doc === 'terms' ? 'terms' : 'privacy');
   const sections: LegalSection[] = tab === 'terms' ? TERMS : PRIVACY;
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: 'Mentions légales' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('legalNotice') }} />
       <SegmentedTabs
         items={[
-          { key: 'privacy', label: 'Confidentialité' },
-          { key: 'terms', label: 'Conditions' },
+          { key: 'privacy', label: t('privacyShort') },
+          { key: 'terms', label: t('termsShort') },
         ]}
         active={tab}
         onChange={setTab}
       />
-      <Text style={[typography.muted, { fontSize: 12 }]}>Mise à jour : {LEGAL_UPDATED}</Text>
+      <Text style={[typography.muted, { fontSize: 12 }]}>{t('lastUpdated')} {LEGAL_UPDATED}</Text>
       <ScrollView contentContainerStyle={{ gap: spacing(1.5), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
         {sections.map((s) => (
           <GlassCard key={s.title} style={{ gap: spacing(0.75) }}>
