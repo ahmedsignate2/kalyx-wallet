@@ -413,8 +413,8 @@ export default function WalletScreen() {
       ) : tab === 'history' ? (
         <GlassCard>
           <ListRow
-            title="Historique des transactions"
-            subtitle="Voir l’activité on-chain de ce compte"
+            title={t('txHistoryTitle')}
+            subtitle={t('txHistorySub')}
             right={<Text style={{ color: colors.textFaint, fontSize: 20 }}>›</Text>}
             onPress={() => router.push('/history')}
           />
