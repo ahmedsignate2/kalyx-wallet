@@ -13,37 +13,37 @@ import { Button } from '../ui/components';
 import { Icon, type IconName } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { toast } from '../lib/toast';
+import { useT } from '../lib/settingsStore';
 import { PLAY_STORE_URL } from '../lib/appLinks';
 
 // Lien Play Store : ouvre le store pour installer, ou « Ouvrir » si déjà installée.
 const INVITE_LINK = PLAY_STORE_URL;
-const SHARE_MESSAGE = `Rejoins-moi sur Nova Wallet 🚀\n\nUn wallet crypto non-custodial, simple et vraiment premium : tes clés restent chez toi, swap intégré, dApps, NFT.\n\nTélécharge Nova : ${INVITE_LINK}`;
-
-const REASONS: { icon: IconName; text: string }[] = [
-  { icon: 'security', text: 'Non-custodial : les clés restent sur le téléphone' },
-  { icon: 'exchange', text: 'Swap & bridge intégrés' },
-  { icon: 'dapps', text: 'Navigateur dApps + WalletConnect' },
-  { icon: 'nft', text: 'Tokens, NFT et historique réels' },
-];
 
 export default function Invite() {
   const { colors, typography } = useTheme();
+  const t = useT();
+  const REASONS: { icon: IconName; text: string }[] = [
+    { icon: 'security', text: t('inviteReason1') },
+    { icon: 'exchange', text: t('inviteReason2') },
+    { icon: 'dapps', text: t('inviteReason3') },
+    { icon: 'nft', text: t('inviteReason4') },
+  ];
 
   const onShare = async () => {
     try {
-      await Share.share({ message: SHARE_MESSAGE });
+      await Share.share({ message: t('shareMessage').replace('{link}', INVITE_LINK) });
     } catch {
       // annulé par l'utilisateur — rien à faire
     }
   };
   const copyLink = async () => {
     await Clipboard.setStringAsync(INVITE_LINK);
-    toast.success('Copié', 'Le lien est dans le presse-papier.');
+    toast.success(t('copied'), t('linkCopied'));
   };
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: 'Inviter des amis' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('inviteFriends') }} />
 
       {/* Bandeau visuel */}
       <GlassCard glow>
@@ -51,10 +51,8 @@ export default function Invite() {
           <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="gift" size={30} color={colors.accent} />
           </View>
-          <Text style={[typography.title, { textAlign: 'center' }]}>Fais découvrir Nova</Text>
-          <Text style={[typography.muted, { textAlign: 'center' }]}>
-            Partage l'app avec tes amis — simplement, parce qu'elle est bien.
-          </Text>
+          <Text style={[typography.title, { textAlign: 'center' }]}>{t('discoverNova')}</Text>
+          <Text style={[typography.muted, { textAlign: 'center' }]}>{t('shareWithFriends')}</Text>
         </View>
       </GlassCard>
 
@@ -81,11 +79,11 @@ export default function Invite() {
       </GlassCard>
 
       <Pressable onPress={copyLink} style={{ alignSelf: 'center' }}>
-        <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Copier le lien</Text>
+        <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('copyLink')}</Text>
       </Pressable>
 
       <View style={{ flex: 1 }} />
-      <Button label="Partager Nova" onPress={onShare} />
+      <Button label={t('shareNova')} onPress={onShare} />
       <View style={{ height: spacing(2) }} />
     </PremiumScreen>
   );
