@@ -66,6 +66,13 @@ const config: ExpoConfig = {
     // Ledger BLE (react-native-ble-plx) — actif au prochain rebuild EAS.
     ['react-native-ble-plx', { isBackgroundEnabled: false }],
   ],
+  // Cible Web (react-native-web via Metro). `output: 'single'` = SPA client
+  // (le wallet est 100 % client : aucun rendu serveur, aucune clé côté serveur).
+  web: {
+    bundler: 'metro',
+    output: 'single',
+    favicon: './assets/icon.png',
+  },
   experiments: { typedRoutes: true },
   extra: {
     eas: {
