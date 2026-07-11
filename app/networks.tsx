@@ -6,11 +6,12 @@ import { Screen, Card, Title, Muted } from '../ui/components';
 import { SearchBar, RemoteIcon } from '../ui/premium';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { useSettings } from '../lib/settingsStore';
+import { useSettings, useT } from '../lib/settingsStore';
 import { listChains, chainIconUrl } from '../src';
 
 export default function Networks() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const insets = useSafeAreaInsets();
   const activeChain = useWallet((s) => s.activeChain);
   const setActiveChain = useWallet((s) => s.setActiveChain);
@@ -57,7 +58,7 @@ export default function Networks() {
               <Text style={typography.body}>{c.name}</Text>
               <Muted>
                 {c.nativeSymbol}
-                {c.testnet ? ' · testnet' : ' · mainnet (fonds réels)'}
+                {c.testnet ? ` · ${t('testnet')}` : ` · ${t('mainnetRealFunds')}`}
               </Muted>
             </View>
           </View>
@@ -76,12 +77,12 @@ export default function Networks() {
 
   return (
     <Screen>
-      <Title>Réseau</Title>
-      <Muted>Même adresse sur tous les réseaux EVM. Seul le réseau interrogé change.</Muted>
+      <Title>{t('network')}</Title>
+      <Muted>{t('sameAddressAllEvm')}</Muted>
 
       {all.length > 6 ? (
         <View style={{ marginTop: spacing(1) }}>
-          <SearchBar value={query} onChangeText={setQuery} placeholder="Rechercher un réseau…" />
+          <SearchBar value={query} onChangeText={setQuery} placeholder={t('searchNetwork')} />
         </View>
       ) : null}
 
@@ -94,7 +95,7 @@ export default function Networks() {
       >
         {chains.length === 0 ? (
           <Card>
-            <Muted>Aucun réseau ne correspond à « {query} ».</Muted>
+            <Muted>{t('noNetworkMatch').replace('{q}', query)}</Muted>
           </Card>
         ) : (
           <>
@@ -102,7 +103,7 @@ export default function Networks() {
             {mainnets.length > 0 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
                 <View style={{ width: 3, height: 15, borderRadius: 2, backgroundColor: colors.accent }} />
-                <Text style={typography.section}>Réseaux principaux</Text>
+                <Text style={typography.section}>{t('mainNetworks')}</Text>
               </View>
             ) : null}
             {mainnets.map((c) => renderChain(c))}
@@ -111,9 +112,9 @@ export default function Networks() {
             {testnets.length > 0 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: spacing(2) }}>
                 <View style={{ width: 3, height: 15, borderRadius: 2, backgroundColor: colors.warning }} />
-                <Text style={typography.section}>Réseaux de test</Text>
+                <Text style={typography.section}>{t('testNetworks')}</Text>
                 <View style={{ backgroundColor: colors.warning + '22', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                  <Text style={{ color: colors.warning, fontSize: 10, fontFamily: fonts.bold }}>AUCUN FONDS RÉEL</Text>
+                  <Text style={{ color: colors.warning, fontSize: 10, fontFamily: fonts.bold }}>{t('noRealFunds')}</Text>
                 </View>
               </View>
             ) : null}
