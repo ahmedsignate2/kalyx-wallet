@@ -13,10 +13,12 @@ import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 import { createBackup } from '../src';
 
 export default function CloudBackup() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const insets = useSafeAreaInsets();
   const revealPhrase = useWallet((s) => s.revealPhrase);
   const activeWalletId = useWallet((s) => s.activeWalletId);
@@ -31,8 +33,8 @@ export default function CloudBackup() {
 
   const onCreate = () => {
     setError(null);
-    if (pwd.length < 8) { setError('Choisis un mot de passe d’au moins 8 caractères.'); return; }
-    if (pwd !== confirm) { setError('Les deux mots de passe ne correspondent pas.'); return; }
+    if (pwd.length < 8) { setError(t('pwdMin8')); return; }
+    if (pwd !== confirm) { setError(t('pwdsMismatch')); return; }
     setConfirming(true);
   };
 
@@ -42,7 +44,7 @@ export default function CloudBackup() {
     const blob = await createBackup(mnemonic, pwd);
     await Share.share({
       message: blob,
-      title: 'Sauvegarde Nova (chiffrée)',
+      title: t('backupShareTitle'),
     });
     setDone(true);
     setPwd('');
@@ -52,62 +54,55 @@ export default function CloudBackup() {
   if (isPk) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + spacing(6), padding: spacing(3) }}>
-        <Stack.Screen options={{ headerShown: true, title: 'Sauvegarde chiffrée' }} />
-        <Title>Sauvegarde chiffrée</Title>
-        <Muted>Ce portefeuille a été importé par clé privée : il n’a pas de phrase de récupération à sauvegarder. Exporte plutôt sa clé privée (Réglages → Afficher la clé privée).</Muted>
+        <Stack.Screen options={{ headerShown: true, title: t('encBackup') }} />
+        <Title>{t('encBackup')}</Title>
+        <Muted>{t('pkNoBackup')}</Muted>
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Stack.Screen options={{ headerShown: true, title: 'Sauvegarde chiffrée' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('encBackup') }} />
       <ScrollView
         contentContainerStyle={{ padding: spacing(3), paddingBottom: insets.bottom + spacing(4), gap: spacing(2) }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Title>Sauvegarde chiffrée</Title>
-        <Muted>
-          Chiffre ta phrase de récupération avec un mot de passe, puis enregistre le fichier où
-          tu veux (Drive, Fichiers, e-mail à toi-même…). Rien n’est envoyé à Nova. Le fichier est
-          inutile sans ton mot de passe.
-        </Muted>
+        <Title>{t('encBackup')}</Title>
+        <Muted>{t('backupIntro')}</Muted>
 
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: colors.bgElevated, borderRadius: 12, padding: spacing(1.5) }}>
           <Icon name="warning" size={18} color={colors.warning} />
-          <Text style={[typography.muted, { flex: 1 }]}>
-            Choisis un mot de passe FORT et retiens-le : personne (pas même nous) ne peut le récupérer.
-            Sans lui, la sauvegarde est irrécupérable.
-          </Text>
+          <Text style={[typography.muted, { flex: 1 }]}>{t('backupPwdWarning')}</Text>
         </View>
 
         <Card>
-          <Text style={typography.muted}>Mot de passe de la sauvegarde</Text>
-          <TextInput value={pwd} onChangeText={setPwd} placeholder="Au moins 8 caractères" placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+          <Text style={typography.muted}>{t('backupPassword')}</Text>
+          <TextInput value={pwd} onChangeText={setPwd} placeholder={t('atLeast8Chars')} placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
         </Card>
         <Card>
-          <Text style={typography.muted}>Confirme le mot de passe</Text>
-          <TextInput value={confirm} onChangeText={setConfirm} placeholder="Répète le mot de passe" placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+          <Text style={typography.muted}>{t('confirmPassword')}</Text>
+          <TextInput value={confirm} onChangeText={setConfirm} placeholder={t('repeatPassword')} placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
         </Card>
 
         {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
         {done ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Icon name="check" size={18} color={colors.up} />
-            <Text style={{ color: colors.up, flex: 1 }}>Sauvegarde créée et partagée. Range-la en lieu sûr.</Text>
+            <Text style={{ color: colors.up, flex: 1 }}>{t('backupCreated')}</Text>
           </View>
         ) : null}
 
         <View style={{ height: spacing(1) }} />
-        <Button label="Créer la sauvegarde" onPress={onCreate} />
-        <Muted>Pour restaurer : Portefeuilles → Importer → Sauvegarde chiffrée.</Muted>
+        <Button label={t('createBackupBtn')} onPress={onCreate} />
+        <Muted>{t('restoreHint')}</Muted>
       </ScrollView>
 
       <ConfirmUnlock
         visible={confirming}
-        title="Sauvegarder la phrase"
-        subtitle="Confirme ton identité pour chiffrer ta phrase."
+        title={t('backupThePhrase')}
+        subtitle={t('confirmIdentityEncrypt')}
         perform={perform}
         onDone={() => setConfirming(false)}
         onCancel={() => setConfirming(false)}
