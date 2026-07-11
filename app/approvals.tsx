@@ -7,6 +7,7 @@ import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import {
   getAdapter,
@@ -24,6 +25,7 @@ function shorten(a: string) {
 
 export default function Approvals() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
   const sendRawTxOn = useWallet((s) => s.sendRawTxOn);
@@ -52,7 +54,7 @@ export default function Approvals() {
       setItems(approvals);
     } catch {
       setItems([]);
-      toast.error('Erreur', 'Impossible de charger les approbations.');
+      toast.error(t('errorTitle'), t('cannotLoadApprovals'));
     } finally {
       setLoading(false);
     }
@@ -70,7 +72,7 @@ export default function Approvals() {
       activeChain,
       { to: target.token, data: revokeCalldata(target.spender), value: 0n, chainId: chain.evmChainId! },
     );
-    toast.success('Révocation envoyée', `${target.symbol} · ${shorten(target.spender)}`);
+    toast.success(t('revokeSent'), `${target.symbol} · ${shorten(target.spender)}`);
     // Retire l'entrée localement (la tx est en cours de minage).
     setItems((cur) => (cur ?? []).filter((x) => !(x.token === target.token && x.spender === target.spender)));
     setTarget(null);
@@ -78,21 +80,21 @@ export default function Approvals() {
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: 'Approbations' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('approvals') }} />
 
       <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="security" size={26} color={colors.accent} />
         </View>
-        <Text style={typography.title}>Autorisations de dépense</Text>
+        <Text style={typography.title}>{t('spendApprovals')}</Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>
-          Les contrats que tu as autorisés à dépenser tes tokens sur {chain.name}. Révoque ce que tu n’utilises plus.
+          {t('approvalsIntro').replace('{chain}', chain.name)}
         </Text>
       </View>
 
       {!isEvm ? (
         <GlassCard>
-          <Text style={typography.muted}>Les approbations concernent les réseaux EVM. Change de réseau depuis l’accueil.</Text>
+          <Text style={typography.muted}>{t('approvalsEvmOnly')}</Text>
         </GlassCard>
       ) : (
         <ScrollView
@@ -105,9 +107,9 @@ export default function Approvals() {
             <GlassCard>
               <View style={{ alignItems: 'center', paddingVertical: spacing(3), gap: spacing(1) }}>
                 <Icon name="check" size={30} color={colors.up} />
-                <Text style={typography.bodyStrong}>Aucune approbation active</Text>
+                <Text style={typography.bodyStrong}>{t('noActiveApprovals')}</Text>
                 <Text style={[typography.muted, { textAlign: 'center' }]}>
-                  Rien à révoquer sur tes tokens détenus. C’est le bon état.
+                  {t('nothingToRevoke')}
                 </Text>
               </View>
             </GlassCard>
@@ -124,7 +126,7 @@ export default function Approvals() {
                     )}
                     <View style={{ flex: 1 }}>
                       <Text style={typography.bodyStrong}>{it.symbol}</Text>
-                      <Text style={typography.muted}>Autorisé : {shorten(it.spender)}</Text>
+                      <Text style={typography.muted}>{t('approvedTo')} {shorten(it.spender)}</Text>
                     </View>
                     <View
                       style={{
@@ -135,7 +137,7 @@ export default function Approvals() {
                       }}
                     >
                       <Text style={{ color: unlimited ? colors.danger : colors.textMuted, fontSize: 12, fontFamily: fonts.semibold }}>
-                        {unlimited ? '∞ Illimité' : `${formatBalance(it.allowance, it.decimals, 4)}`}
+                        {unlimited ? `∞ ${t('unlimitedLabel')}` : `${formatBalance(it.allowance, it.decimals, 4)}`}
                       </Text>
                     </View>
                   </View>
@@ -143,7 +145,7 @@ export default function Approvals() {
                     onPress={() => setTarget(it)}
                     style={{ marginTop: spacing(1.5), alignItems: 'center', paddingVertical: spacing(1.25), borderRadius: radii.pill, borderWidth: 1, borderColor: colors.danger + '66' }}
                   >
-                    <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>Révoquer</Text>
+                    <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('revoke')}</Text>
                   </Pressable>
                 </GlassCard>
               );
@@ -152,7 +154,7 @@ export default function Approvals() {
 
           {items && items.length > 0 && chain.explorerUrl ? (
             <Pressable onPress={() => Linking.openURL(chain.explorerUrl!)} style={{ alignSelf: 'center', paddingVertical: spacing(1) }}>
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Une révocation est une transaction (frais de réseau).</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 13 }}>{t('revokeIsTx')}</Text>
             </Pressable>
           ) : null}
         </ScrollView>
@@ -160,8 +162,8 @@ export default function Approvals() {
 
       <ConfirmUnlock
         visible={target != null}
-        title="Confirmer la révocation"
-        subtitle={target ? `Retirer l’autorisation de ${shorten(target.spender)} sur ${target.symbol}.` : undefined}
+        title={t('confirmRevoke')}
+        subtitle={target ? t('revokeSubtitle').replace('{spender}', shorten(target.spender)).replace('{symbol}', target.symbol) : undefined}
         perform={perform}
         onDone={() => setTarget(null)}
         onCancel={() => setTarget(null)}
