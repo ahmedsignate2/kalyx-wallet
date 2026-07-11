@@ -64,7 +64,7 @@ export default function Import() {
         <TextInput
           value={text}
           onChangeText={(v) => { setText(v); setError(null); }}
-          placeholder="mot1 mot2 mot3 …"
+          placeholder={t('wordExamplePh')}
           placeholderTextColor={colors.textMuted}
           multiline
           autoCapitalize="none"
