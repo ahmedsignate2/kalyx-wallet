@@ -8,6 +8,7 @@ import { NovaLogo } from '../ui/NovaLogo';
 import { Icon } from '../ui/icon';
 import { spacing, useTheme } from '../ui/theme';
 import { toast } from '../lib/toast';
+import { useT } from '../lib/settingsStore';
 
 // Destinataire du support. Volontairement NON affiché à l'écran (le bouton
 // ouvre l'app mail avec l'adresse pré-remplie, sans jamais la montrer).
@@ -15,55 +16,56 @@ const SUPPORT_EMAIL = 'amsssr400@gmail.com';
 
 export default function About() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const version = Constants.expoConfig?.version ?? '0.0.1';
 
   const contact = () => {
-    const subject = encodeURIComponent('Support Nova Wallet');
+    const subject = encodeURIComponent(t('supportEmailSubject'));
     const body = encodeURIComponent(`\n\n—\nNova Wallet v${version}`);
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`).catch(() =>
-      toast.error('Impossible d’ouvrir l’app mail'),
+      toast.error(t('cannotOpenMail')),
     );
   };
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: 'À propos' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('about') }} />
 
       {/* Identité */}
       <View style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(2) }}>
         <NovaLogo size={84} />
         <Text style={{ color: colors.text, fontSize: 26, fontFamily: 'Inter_800ExtraBold', letterSpacing: 0.5 }}>Nova Wallet</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={typography.muted}>Version v{version}</Text>
+          <Text style={typography.muted}>{t('versionWord')} v{version}</Text>
           <View style={{ backgroundColor: colors.warning + '22', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-            <Text style={{ color: colors.warning, fontSize: 10, fontFamily: 'Inter_800ExtraBold', letterSpacing: 0.5 }}>BÊTA</Text>
+            <Text style={{ color: colors.warning, fontSize: 10, fontFamily: 'Inter_800ExtraBold', letterSpacing: 0.5 }}>{t('betaTag')}</Text>
           </View>
         </View>
       </View>
 
       <GlassCard>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing(0.75) }}>
-          <Text style={typography.muted}>Éditeur</Text>
+          <Text style={typography.muted}>{t('publisher')}</Text>
           <Text style={typography.bodyStrong}>Société Malin</Text>
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing(0.75), borderTopWidth: 1, borderTopColor: colors.glassBorder }}>
-          <Text style={typography.muted}>Type</Text>
-          <Text style={typography.bodyStrong}>Non-custodial</Text>
+          <Text style={typography.muted}>{t('typeLabel')}</Text>
+          <Text style={typography.bodyStrong}>{t('propNonCustodial')}</Text>
         </View>
       </GlassCard>
 
       {/* Liens */}
       <GlassCard>
-        <ListRow left={<Icon name="faq" size={20} color={colors.textMuted} />} title="FAQ" right={<Icon name="chevron" size={18} tone="faint" />} onPress={() => router.push('/faq')} />
-        <ListRow divider left={<Icon name="security" size={20} color={colors.textMuted} />} title="Politique de confidentialité" right={<Icon name="chevron" size={18} tone="faint" />} onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })} />
-        <ListRow divider left={<Icon name="phrase" size={20} color={colors.textMuted} />} title="Conditions d'utilisation" right={<Icon name="chevron" size={18} tone="faint" />} onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })} />
-        <ListRow divider left={<Icon name="support" size={20} color={colors.textMuted} />} title="Contacter le support" subtitle="Par e-mail" right={<Icon name="chevron" size={18} tone="faint" />} onPress={contact} />
+        <ListRow left={<Icon name="faq" size={20} color={colors.textMuted} />} title={t('faq')} right={<Icon name="chevron" size={18} tone="faint" />} onPress={() => router.push('/faq')} />
+        <ListRow divider left={<Icon name="security" size={20} color={colors.textMuted} />} title={t('privacyPolicy')} right={<Icon name="chevron" size={18} tone="faint" />} onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })} />
+        <ListRow divider left={<Icon name="phrase" size={20} color={colors.textMuted} />} title={t('termsOfUse')} right={<Icon name="chevron" size={18} tone="faint" />} onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })} />
+        <ListRow divider left={<Icon name="support" size={20} color={colors.textMuted} />} title={t('contactSupport')} subtitle={t('byEmail')} right={<Icon name="chevron" size={18} tone="faint" />} onPress={contact} />
       </GlassCard>
 
       <View style={{ flex: 1 }} />
-      <Button label="Contacter le support" onPress={contact} />
+      <Button label={t('contactSupport')} onPress={contact} />
       <Text style={[typography.muted, { textAlign: 'center', fontSize: 12, marginTop: spacing(1.5) }]}>
-        © 2026 Malin. Tous droits réservés.
+        © 2026 Malin. {t('allRightsReserved')}
       </Text>
       <View style={{ height: spacing(2) }} />
     </PremiumScreen>
