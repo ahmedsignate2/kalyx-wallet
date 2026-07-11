@@ -10,6 +10,7 @@ import { GlassCard } from './premium';
 import { Button } from './components';
 import { Icon } from './icon';
 import { fonts, radii, spacing, useTheme } from './theme';
+import { useT } from '../lib/settingsStore';
 import type { NftItem } from '../src';
 
 function shorten(a: string) {
@@ -27,6 +28,7 @@ export function NftDetailModal({
   onClose: () => void;
 }) {
   const { colors, typography } = useTheme();
+  const t = useT();
   if (!nft) return null;
   const tokenIdShort = nft.tokenId.length > 12 ? `${nft.tokenId.slice(0, 10)}…` : nft.tokenId;
 
@@ -56,7 +58,7 @@ export function NftDetailModal({
 
             <GlassCard>
               <Row label="Token ID" value={tokenIdShort} onCopy={() => Clipboard.setStringAsync(nft.tokenId)} />
-              <Row divider label="Contrat" value={shorten(nft.contract)} onCopy={() => Clipboard.setStringAsync(nft.contract)} />
+              <Row divider label={t('contractLabel')} value={shorten(nft.contract)} onCopy={() => Clipboard.setStringAsync(nft.contract)} />
             </GlassCard>
 
             {explorerUrl ? (
@@ -64,11 +66,11 @@ export function NftDetailModal({
                 onPress={() => Linking.openURL(`${explorerUrl}/token/${nft.contract}?a=${nft.tokenId}`)}
                 style={{ color: colors.accent, fontFamily: fonts.semibold, textAlign: 'center' }}
               >
-                Voir sur l'explorateur ↗
+                {t('nftViewOnExplorer')}
               </Text>
             ) : null}
 
-            <Button label="Fermer" variant="ghost" onPress={onClose} />
+            <Button label={t('closeWord')} variant="ghost" onPress={onClose} />
           </ScrollView>
         </View>
       </View>
