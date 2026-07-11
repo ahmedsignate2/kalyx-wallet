@@ -9,29 +9,27 @@ import { PremiumScreen, GlassCard } from '../ui/premium';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { usePriceAlerts } from '../lib/priceAlertsStore';
-import { useSettings, fiatSymbol } from '../lib/settingsStore';
+import { useSettings, fiatSymbol, useT } from '../lib/settingsStore';
 
 export default function PriceAlerts() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const alerts = usePriceAlerts((s) => s.alerts);
   const remove = usePriceAlerts((s) => s.remove);
   const fiat = useSettings((s) => s.fiat);
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: 'Alertes de prix' }} />
-      <Text style={typography.muted}>
-        Reçois une notification quand un actif franchit un seuil. Les alertes sont vérifiées
-        quand l’app est ouverte, et disparaissent une fois déclenchées.
-      </Text>
+      <Stack.Screen options={{ headerShown: true, title: t('priceAlerts') }} />
+      <Text style={typography.muted}>{t('priceAlertsIntro')}</Text>
 
       {alerts.length === 0 ? (
         <GlassCard style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(3) }}>
           <Icon name="info" size={30} color={colors.textMuted} />
-          <Text style={typography.bodyStrong}>Aucune alerte</Text>
-          <Text style={[typography.muted, { textAlign: 'center' }]}>Ouvre la fiche d’un token et touche 🔔 pour créer une alerte.</Text>
+          <Text style={typography.bodyStrong}>{t('noAlerts')}</Text>
+          <Text style={[typography.muted, { textAlign: 'center' }]}>{t('createAlertHint')}</Text>
           <Pressable onPress={() => router.push('/market')} style={{ marginTop: spacing(1) }}>
-            <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Parcourir le marché →</Text>
+            <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('browseMarket')}</Text>
           </Pressable>
         </GlassCard>
       ) : (
@@ -44,7 +42,7 @@ export default function PriceAlerts() {
               <View style={{ flex: 1 }}>
                 <Text style={typography.bodyStrong}>{a.symbol.toUpperCase()}</Text>
                 <Text style={typography.muted}>
-                  {a.direction === 'above' ? 'Au-dessus de' : 'En-dessous de'} {a.target.toLocaleString('fr-FR')} {fiatSymbol(fiat)}
+                  {a.direction === 'above' ? t('above') : t('below')} {a.target.toLocaleString(undefined)} {fiatSymbol(fiat)}
                 </Text>
               </View>
               <Pressable onPress={() => remove(a.id)} hitSlop={8} style={{ padding: 6 }}>

@@ -14,6 +14,7 @@ import { NovaLogo } from '../ui/NovaLogo';
 import { Icon, type IconName } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { toast } from '../lib/toast';
+import { useT } from '../lib/settingsStore';
 import { chainIconUrl } from '../src';
 
 const PAYPAL_EMAIL = 'amsssr400@gmail.com';
@@ -24,20 +25,20 @@ const CRYPTO = [
   { key: 'solana', name: 'Solana', symbol: 'SOL', address: '46L3QPmk7daHeDgegZCPCTkXegotaoRpwoVpDMnxhpVP' },
 ] as const;
 
-const REASONS: { icon: IconName; title: string; text: string }[] = [
-  { icon: 'security', title: 'Non-custodial, pour de vrai', text: 'Tes clés restent chez toi. On ne touche jamais à tes fonds.' },
-  { icon: 'eyeOff', title: 'Zéro pub, zéro revente de données', text: 'On ne vend rien, on ne piste personne. Ton wallet t’appartient.' },
-  { icon: 'flash', title: 'Développé en indépendant', text: 'Une petite équipe passionnée, pas un géant. Chaque don compte.' },
-  { icon: 'developer', title: 'Où va ton don', text: 'Serveurs, clés d’API (RPC, prix, NFT), et de nouvelles fonctionnalités.' },
-];
-
 export default function Support() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const [openQr, setOpenQr] = useState<string | null>(null);
+  const REASONS: { icon: IconName; title: string; text: string }[] = [
+    { icon: 'security', title: t('supReason1Title'), text: t('supReason1Text') },
+    { icon: 'eyeOff', title: t('supReason2Title'), text: t('supReason2Text') },
+    { icon: 'flash', title: t('supReason3Title'), text: t('supReason3Text') },
+    { icon: 'developer', title: t('supReason4Title'), text: t('supReason4Text') },
+  ];
 
   const copy = async (value: string, label: string) => {
     await Clipboard.setStringAsync(value);
-    toast.success('Copié', `${label} copié dans le presse-papier.`);
+    toast.success(t('copied'), t('copiedToClipboard').replace('{label}', label));
   };
 
   return (
@@ -55,10 +56,8 @@ export default function Support() {
       {/* Hero */}
       <View style={{ alignItems: 'center', gap: spacing(1.25), marginBottom: spacing(1) }}>
         <NovaLogo size={72} />
-        <Text style={{ color: colors.text, fontSize: 24, fontFamily: fonts.extrabold, textAlign: 'center' }}>Soutiens Nova 💜</Text>
-        <Text style={[typography.muted, { textAlign: 'center' }]}>
-          Nova est gratuit et le restera. Si l’app t’est utile, un don nous aide à la faire vivre et grandir.
-        </Text>
+        <Text style={{ color: colors.text, fontSize: 24, fontFamily: fonts.extrabold, textAlign: 'center' }}>{t('supportNovaHero')} 💜</Text>
+        <Text style={[typography.muted, { textAlign: 'center' }]}>{t('supportIntro')}</Text>
       </View>
 
       {/* Pourquoi nous soutenir */}
@@ -77,25 +76,25 @@ export default function Support() {
       </GlassCard>
 
       {/* PayPal */}
-      <Text style={[typography.section, { marginTop: spacing(1) }]}>Par PayPal</Text>
-      <Pressable onPress={() => copy(PAYPAL_EMAIL, 'E-mail PayPal')}>
+      <Text style={[typography.section, { marginTop: spacing(1) }]}>{t('viaPaypal')}</Text>
+      <Pressable onPress={() => copy(PAYPAL_EMAIL, t('paypalEmailLabel'))}>
         <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
           <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#003087', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: '#fff', fontFamily: fonts.extrabold, fontSize: 18 }}>P</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={typography.bodyStrong}>{PAYPAL_EMAIL}</Text>
-            <Text style={typography.muted}>Envoie un don à cet e-mail · appuie pour copier</Text>
+            <Text style={typography.muted}>{t('sendDonationEmail')}</Text>
           </View>
           <Icon name="copy" size={18} tone="muted" />
         </GlassCard>
       </Pressable>
       <Pressable onPress={() => Linking.openURL('https://www.paypal.com/myaccount/transfer/homepage').catch(() => {})} style={{ alignSelf: 'center', paddingVertical: spacing(1) }}>
-        <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>Ouvrir PayPal ↗</Text>
+        <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('openPaypal')}</Text>
       </Pressable>
 
       {/* Crypto */}
-      <Text style={[typography.section, { marginTop: spacing(0.5) }]}>En crypto</Text>
+      <Text style={[typography.section, { marginTop: spacing(0.5) }]}>{t('inCrypto')}</Text>
       {CRYPTO.map((c) => {
         const open = openQr === c.key;
         return (
@@ -111,7 +110,7 @@ export default function Support() {
               </Pressable>
             </View>
 
-            <Pressable onPress={() => copy(c.address, `Adresse ${c.symbol}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25) }}>
+            <Pressable onPress={() => copy(c.address, `${t('addressLabel')} ${c.symbol}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25) }}>
               <Text selectable style={[typography.mono, { flex: 1, fontSize: 12.5 }]} numberOfLines={1}>{c.address}</Text>
               <Icon name="copy" size={16} color={colors.accent} />
             </Pressable>
@@ -128,7 +127,7 @@ export default function Support() {
       })}
 
       <Text style={[typography.muted, { textAlign: 'center', marginTop: spacing(1), marginBottom: spacing(2) }]}>
-        Merci du fond du cœur 🙏 — chaque contribution nous aide à rester indépendants.
+        {t('thanksHeartfelt')}
       </Text>
     </PremiumScreen>
   );
