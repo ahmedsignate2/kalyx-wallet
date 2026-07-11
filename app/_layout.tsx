@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Platform, View } from 'react-native';
 import { Stack } from 'expo-router';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -67,6 +68,17 @@ export default function RootLayout() {
   const loadTokenPrefs = useTokenPrefs((s) => s.load);
   const initWalletConnect = useWalletConnect((s) => s.init);
 
+  // Web : fond de page sombre garanti (au cas où +html.tsx ne serait pas honoré)
+  // + on empêche la bande blanche autour de la colonne centrée.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    // document n'est pas typé sans la lib DOM (tsconfig ciblé mobile) : accès gardé.
+    const doc = (globalThis as { document?: { documentElement: { style: Record<string, string> }; body: { style: Record<string, string> } } }).document;
+    if (!doc) return;
+    doc.documentElement.style.backgroundColor = colors.bgDeep;
+    doc.body.style.backgroundColor = colors.bgDeep;
+  }, [colors.bgDeep]);
+
   useEffect(() => {
     console.log('[Nova] _layout: démarrage bootstrap');
     (async () => {
@@ -99,11 +111,29 @@ export default function RootLayout() {
 
   if (!fontsLoaded) return null;
 
+  // Sur web, l'app mobile est centrée dans une colonne (façon popup d'extension)
+  // au lieu d'être collée à gauche avec une bande vide. Sur mobile : plein écran.
+  const isWeb = Platform.OS === 'web';
+  const frameStyle = isWeb
+    ? {
+        flex: 1,
+        width: '100%' as const,
+        maxWidth: 460,
+        alignSelf: 'center' as const,
+        backgroundColor: colors.bgDeep,
+        // Léger liseré + ombre pour détacher la colonne du fond sur grand écran.
+        borderLeftWidth: 1,
+        borderRightWidth: 1,
+        borderColor: colors.glassBorder,
+      }
+    : { flex: 1 };
+
   return (
     <RootErrorBoundary>
       <SafeAreaProvider>
         {/* Icônes de statut claires sur thème sombre, et inversement. */}
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+        <View style={frameStyle}>
         <Stack
           screenOptions={{
             headerStyle: { backgroundColor: colors.bgDeep },
@@ -122,6 +152,7 @@ export default function RootLayout() {
         <PriceAlertWatcher />
         <DeepLinks />
         {showSplash ? <Splash onFinish={() => setShowSplash(false)} /> : null}
+        </View>
       </SafeAreaProvider>
     </RootErrorBoundary>
   );
