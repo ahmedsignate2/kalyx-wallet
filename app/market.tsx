@@ -96,7 +96,7 @@ export default function Market() {
           {searching && results.length === 0 ? (
             <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>Recherche…</Text>
           ) : results.length === 0 ? (
-            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>Aucun résultat.</Text>
+            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>{t('noResults')}</Text>
           ) : (
             results.map((c, i) => (
               <ListRow
@@ -141,7 +141,7 @@ export default function Market() {
               ))
             )}
           </GlassCard>
-          <Text style={[typography.muted, { textAlign: 'center' }]}>Prix en temps réel · CoinGecko</Text>
+          <Text style={[typography.muted, { textAlign: 'center' }]}>{t('realTimePrices')}</Text>
         </>
       )}
     </PremiumScreen>

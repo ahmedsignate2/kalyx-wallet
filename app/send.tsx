@@ -213,7 +213,7 @@ export default function Send() {
         {isEnsInput ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(0.5) }}>
             {ens.status === 'resolving' ? (
-              <Text style={{ color: colors.textMuted, fontFamily: fonts.medium }}>Résolution ENS…</Text>
+              <Text style={{ color: colors.textMuted, fontFamily: fonts.medium }}>{t('resolvingEns')}</Text>
             ) : ens.status === 'found' && ens.address ? (
               <>
                 <Icon name="check" size={14} color={colors.success} />
@@ -313,7 +313,7 @@ export default function Send() {
 
       <SuccessModal
         visible={success != null}
-        title="Transaction envoyée"
+        title={t('txSent')}
         message={success?.summary}
         hash={success?.hash}
         explorerUrl={chain.explorerUrl}

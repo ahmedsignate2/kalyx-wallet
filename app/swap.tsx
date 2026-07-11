@@ -374,7 +374,7 @@ export default function Swap() {
 
       <SuccessModal
         visible={success != null}
-        title="Swap envoyé"
+        title={t('swapSent')}
         message={success?.summary}
         hash={success?.hash}
         explorerUrl={chain.explorerUrl}
