@@ -5,7 +5,7 @@ import { Screen, Title, Muted } from '../ui/components';
 import { PinPad } from '../ui/PinPad';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { useSettings } from '../lib/settingsStore';
+import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { checkPin, isWalletError, PIN_MIN } from '../src';
 
@@ -19,6 +19,7 @@ type Step = 'old' | 'new' | 'confirm';
 
 export default function ChangePin() {
   const { colors } = useTheme();
+  const t = useT();
   const changePin = useWallet((s) => s.changePin);
   const [step, setStep] = useState<Step>('old');
   const [oldPin, setOldPin] = useState('');
@@ -38,15 +39,15 @@ export default function ChangePin() {
   };
 
   const onOldNext = () => {
-    if (pin.length < PIN_MIN) return fail(`Au moins ${PIN_MIN} chiffres.`);
+    if (pin.length < PIN_MIN) return fail(t('atLeastNDigits').replace('{n}', String(PIN_MIN)));
     setOldPin(pin);
     setPin('');
     setStep('new');
   };
 
   const onNewNext = () => {
-    if (!checkPin(pin).ok) return fail('Nouveau PIN trop faible (min 6 chiffres, évite 123456).');
-    if (pin === oldPin) return fail('Le nouveau PIN doit différer de l’ancien.');
+    if (!checkPin(pin).ok) return fail(t('newPinWeak'));
+    if (pin === oldPin) return fail(t('newPinDiffer'));
     setNewPin(pin);
     setPin('');
     setStep('confirm');
@@ -54,7 +55,7 @@ export default function ChangePin() {
 
   const onConfirm = async (val: string) => {
     if (val !== newPin) {
-      fail('Les nouveaux PIN ne correspondent pas.');
+      fail(t('newPinsMismatch'));
       setPin('');
       setNewPin('');
       setStep('new');
@@ -64,7 +65,7 @@ export default function ChangePin() {
     try {
       await changePin(oldPin, newPin);
       useSettings.getState().setPinLength(newPin.length); // ronds exacts au déverrouillage
-      toast.success('PIN modifié', 'Ton nouveau code est actif.');
+      toast.success(t('pinChanged'), t('pinChangedBody'));
       router.back();
     } catch (e) {
       setBusy(false);
@@ -74,9 +75,9 @@ export default function ChangePin() {
         setNewPin('');
         setPin('');
         setStep('old');
-        fail('Ancien PIN incorrect.');
+        fail(t('oldPinIncorrect'));
       } else {
-        fail('Échec de la modification.');
+        fail(t('changeFailed'));
       }
     }
   };
@@ -89,13 +90,13 @@ export default function ChangePin() {
     setError(null);
   };
 
-  const title = step === 'old' ? 'Ancien PIN' : step === 'new' ? 'Nouveau PIN' : 'Confirme le nouveau PIN';
+  const title = step === 'old' ? t('oldPinTitle') : step === 'new' ? t('newPinTitle') : t('confirmNewPin');
   const hint =
     step === 'old'
-      ? 'Saisis ton code actuel.'
+      ? t('enterCurrentCode')
       : step === 'new'
-        ? 'Choisis ton nouveau code.'
-        : 'Saisis à nouveau le nouveau code.';
+        ? t('chooseNewCode')
+        : t('reenterNewCode');
   const canNext = pin.length >= PIN_MIN;
 
   return (
@@ -118,15 +119,15 @@ export default function ChangePin() {
         <View style={{ height: 24, justifyContent: 'center' }}>
           {step === 'old' && canNext ? (
             <Pressable onPress={onOldNext} hitSlop={8}>
-              <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>Continuer</Text>
+              <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
             </Pressable>
           ) : step === 'new' && canNext ? (
             <Pressable onPress={onNewNext} hitSlop={8}>
-              <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>Continuer</Text>
+              <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
             </Pressable>
           ) : step === 'confirm' ? (
             <Pressable onPress={restart} hitSlop={8} disabled={busy}>
-              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>‹ Recommencer</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>‹ {t('startOver')}</Text>
             </Pressable>
           ) : null}
         </View>

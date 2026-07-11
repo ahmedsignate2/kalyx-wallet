@@ -7,10 +7,12 @@ import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
 import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
+import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 
 export default function RevealPrivateKey() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const exportPrivateKey = useWallet((s) => s.exportPrivateKey);
   const activeWalletId = useWallet((s) => s.activeWalletId);
   const wallets = useWallet((s) => s.wallets);
@@ -33,11 +35,8 @@ export default function RevealPrivateKey() {
   if (pk) {
     return (
       <Screen>
-        <Title>Ta clé privée</Title>
-        <Muted>
-          Quiconque détient cette clé contrôle ce compte. Ne la partage jamais, ne la saisis
-          sur aucun site. Capture d’écran bloquée.
-        </Muted>
+        <Title>{t('yourPrivateKey')}</Title>
+        <Muted>{t('pkWarningBody')}</Muted>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
           <Card>
             <Text selectable style={[typography.body, { fontFamily: undefined, letterSpacing: 0.5 }]}>{pk}</Text>
@@ -45,12 +44,12 @@ export default function RevealPrivateKey() {
           <Pressable
             onPress={async () => {
               await Clipboard.setStringAsync(pk);
-              toast.success('Copié', 'Clé privée copiée. Colle-la vite et efface le presse-papier.');
+              toast.success(t('copied'), t('pkCopiedBody'));
             }}
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: spacing(1.5) }}
           >
             <Icon name="copy" size={18} color={colors.accent} />
-            <Text style={{ color: colors.accent, fontFamily: typography.bodyStrong.fontFamily }}>Copier la clé</Text>
+            <Text style={{ color: colors.accent, fontFamily: typography.bodyStrong.fontFamily }}>{t('copyKey')}</Text>
           </Pressable>
           <View
             style={{
@@ -63,10 +62,7 @@ export default function RevealPrivateKey() {
             }}
           >
             <Icon name="warning" size={18} color={colors.warning} />
-            <Text style={[typography.muted, { flex: 1 }]}>
-              Une clé privée ne protège qu’un seul compte. Ta phrase de récupération, elle,
-              restaure TOUT le portefeuille — garde-la aussi en lieu sûr.
-            </Text>
+            <Text style={[typography.muted, { flex: 1 }]}>{t('pkVsPhraseNote')}</Text>
           </View>
         </ScrollView>
       </Screen>
@@ -75,19 +71,17 @@ export default function RevealPrivateKey() {
 
   return (
     <Screen>
-      <Title>Afficher la clé privée</Title>
+      <Title>{t('revealPrivateKeyTitle')}</Title>
       <Muted>
-        {isPk
-          ? 'Ce portefeuille a été importé par clé privée. Confirme ton identité pour l’afficher.'
-          : 'Confirme ton identité pour révéler la clé privée du compte actif.'}
+        {isPk ? t('pkImportedConfirm') : t('confirmIdentityPk')}
       </Muted>
       <View style={{ flex: 1 }} />
-      <Button label="Afficher" onPress={() => setConfirming(true)} />
+      <Button label={t('revealAction')} onPress={() => setConfirming(true)} />
 
       <ConfirmUnlock
         visible={confirming}
-        title="Révéler la clé privée"
-        subtitle="Personne d'autre ne doit la voir."
+        title={t('revealPkSheet')}
+        subtitle={t('nobodyElseSee')}
         perform={perform}
         onDone={() => setConfirming(false)}
         onCancel={() => setConfirming(false)}
