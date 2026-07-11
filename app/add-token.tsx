@@ -5,10 +5,12 @@ import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useCustomTokens } from '../lib/customTokensStore';
+import { useT } from '../lib/settingsStore';
 import { getAdapter, getTokenMetadata, isValidEvmAddress, type TokenMeta } from '../src';
 
 export default function AddToken() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const activeChain = useWallet((s) => s.activeChain);
   const add = useCustomTokens((s) => s.add);
   const chain = getAdapter(activeChain).config;
@@ -24,14 +26,14 @@ export default function AddToken() {
     setError(null);
     setMeta(null);
     if (!isValidEvmAddress(contract)) {
-      setError('Adresse de contrat invalide (0x…).');
+      setError(t('invalidContract'));
       return;
     }
     setChecking(true);
     try {
       const m = await getTokenMetadata(chain, contract.trim());
       if (!m || !m.symbol) {
-        setError('Token introuvable sur ce réseau (ou clé Alchemy absente).');
+        setError(t('tokenNotFound'));
       } else {
         setMeta(m);
       }
@@ -48,16 +50,16 @@ export default function AddToken() {
   if (!isEvm) {
     return (
       <Screen scroll>
-        <Title>Ajouter un token</Title>
-        <Muted>Disponible uniquement sur les réseaux EVM. Change de réseau.</Muted>
+        <Title>{t('addToken')}</Title>
+        <Muted>{t('evmOnlyToken')}</Muted>
       </Screen>
     );
   }
 
   return (
     <Screen scroll>
-      <Title>Ajouter un token</Title>
-      <Muted>Colle l’adresse du contrat sur {chain.name}.</Muted>
+      <Title>{t('addToken')}</Title>
+      <Muted>{t('pasteContractOn').replace('{chain}', chain.name)}</Muted>
       <Card>
         <TextInput
           value={contract}
@@ -76,16 +78,16 @@ export default function AddToken() {
       {meta ? (
         <Card>
           <Text style={typography.bodyStrong}>{meta.name} ({meta.symbol})</Text>
-          <Muted>{meta.decimals} décimales</Muted>
+          <Muted>{meta.decimals} {t('decimalsWord')}</Muted>
         </Card>
       ) : null}
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
 
       <View style={{ flex: 1 }} />
       {meta ? (
-        <Button label={`Ajouter ${meta.symbol}`} onPress={onAdd} />
+        <Button label={`${t('addWord')} ${meta.symbol}`} onPress={onAdd} />
       ) : (
-        <Button label={checking ? 'Vérification…' : 'Vérifier le token'} loading={checking} onPress={onCheck} />
+        <Button label={checking ? t('verifying') : t('verifyToken')} loading={checking} onPress={onCheck} />
       )}
     </Screen>
   );
