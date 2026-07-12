@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Image, TextInput, useWindowDimensions, ActivityIndicator } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import * as Clipboard from 'expo-clipboard';
 import { NovaLogo } from '../NovaLogo';
 import { AuroraBackground } from '../AuroraBackground';
 import { Icon, type IconName } from '../icon';
@@ -66,6 +67,8 @@ export function WebDashboard() {
 
   useEffect(() => {
     init();
+    const doc = (globalThis as { document?: { title: string } }).document;
+    if (doc) doc.title = 'Nova · Tableau de bord';
   }, [init]);
 
   return (
@@ -96,6 +99,21 @@ function ConnectView() {
           Le téléphone est le coffre-fort, ce site est votre tableau de bord. Aucune clé n'est stockée ici —
           vous approuvez la connexion depuis l'app Nova avec votre PIN ou votre biométrie.
         </Text>
+
+        {!uri ? (
+          <View style={{ gap: spacing(0.75), alignSelf: 'stretch', marginTop: spacing(0.5) }}>
+            {[
+              'Aucune clé privée sur ce PC',
+              'Chaque signature validée sur votre téléphone',
+              'Lecture seule : soldes, tokens, NFT, historique',
+            ].map((line) => (
+              <View key={line} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+                <Icon name="check" size={16} color={colors.up} />
+                <Text style={[typography.muted, { flex: 1 }]}>{line}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         {uri ? (
           <View style={{ alignItems: 'center', gap: spacing(1.5), marginTop: spacing(1) }}>
@@ -431,8 +449,26 @@ function PortfolioPanel({ chain, address }: { chain: ChainConfig; address: strin
         </>
       ) : null}
 
-      <Text style={[typography.muted, { marginTop: spacing(1) }]} selectable>{address}</Text>
+      <CopyAddress address={address} />
     </Card>
+  );
+}
+
+/** Adresse copiable avec retour visuel « Copié ». */
+function CopyAddress({ address }: { address: string }) {
+  const { colors, typography } = useTheme();
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await Clipboard.setStringAsync(address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <Pressable onPress={copy} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(1.25), alignSelf: 'flex-start' }}>
+      <Text style={[typography.muted, { fontVariant: ['tabular-nums'] }]} numberOfLines={1}>{address}</Text>
+      <Icon name={copied ? 'check' : 'copy'} size={14} color={copied ? colors.up : colors.textMuted} />
+      {copied ? <Text style={{ color: colors.up, fontSize: 12, fontFamily: fonts.semibold }}>Copié</Text> : null}
+    </Pressable>
   );
 }
 

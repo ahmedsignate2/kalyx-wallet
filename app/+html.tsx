@@ -9,11 +9,15 @@ import type { PropsWithChildren } from 'react';
 
 const css = `
 html, body, #root { height: 100%; }
-body { margin: 0; background-color: #07090F; overscroll-behavior: none; }
+body { margin: 0; background-color: #07090F; overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
 #root { display: flex; }
+/* Curseur pointeur sur les éléments interactifs (react-native-web ne le met pas partout). */
+[role="button"], [role="link"], a, button, [tabindex] { cursor: pointer; }
 /* Barre de défilement discrète, cohérente avec le thème sombre. */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: #2A2F3A; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #3A4152; }
 ::-webkit-scrollbar-track { background: transparent; }
 `;
 
