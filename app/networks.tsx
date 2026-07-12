@@ -58,7 +58,8 @@ export default function Networks() {
               <Text style={typography.body}>{c.name}</Text>
               <Muted>
                 {c.nativeSymbol}
-                {c.testnet ? ` · ${t('testnet')}` : ` · ${t('mainnetRealFunds')}`}
+                {c.evmChainId ? ` · Chain ${c.evmChainId}` : ''}
+                {c.testnet ? ` · ${t('testnet')}` : ''}
               </Muted>
             </View>
           </View>
