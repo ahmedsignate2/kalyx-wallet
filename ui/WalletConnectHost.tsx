@@ -52,6 +52,23 @@ function Overlay({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Ligne d'autorisation : case à cocher + libellé. `fixed` = accordé d'office. */
+function PermRow({ on, onToggle, label, fixed }: { on: boolean; onToggle?: () => void; label: string; fixed?: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={fixed ? undefined : onToggle}
+      disabled={fixed}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(0.5) }}
+    >
+      <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: on ? colors.accent : colors.glassBorder, backgroundColor: on ? colors.accent : 'transparent', alignItems: 'center', justifyContent: 'center', opacity: fixed ? 0.7 : 1 }}>
+        {on ? <Icon name="check" size={14} color="#fff" /> : null}
+      </View>
+      <Text style={{ color: colors.text, flex: 1, fontSize: 14 }}>{label}</Text>
+    </Pressable>
+  );
+}
+
 /** Bannières de sécurité : phishing du site (GoPlus) + risque de l'adresse cible. */
 function SecBanner({ risk, phish }: { risk: RiskAssessment | 'loading' | null; phish: boolean }) {
   const { colors, typography } = useTheme();
@@ -142,6 +159,9 @@ export function WalletConnectHost() {
 
   const [confirming, setConfirming] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
+  // Autorisations granulaires accordées au site (cases à la connexion).
+  const [allowTx, setAllowTx] = useState(true);
+  const [allowSign, setAllowSign] = useState(true);
   // Analyse de sécurité GoPlus (parité avec le navigateur dApps intégré).
   const [risk, setRisk] = useState<RiskAssessment | 'loading' | null>(null);
   const [phishSite, setPhishSite] = useState(false);
@@ -220,10 +240,12 @@ export function WalletConnectHost() {
         <Text style={typography.title}>{t('dappConnection')}</Text>
         <GlassCard>
           <DappHeader name={meta.name ?? 'dApp'} url={meta.url ?? ''} icon={meta.icons?.[0]} />
-          <View style={{ marginTop: spacing(1.5), gap: spacing(0.5) }}>
-            <Text style={typography.muted}>{t('canSeeAddress')}</Text>
-            <Text style={typography.muted}>{t('canProposeTx')}</Text>
-            <Text style={typography.muted}>{t('cannotMove')}</Text>
+          <View style={{ marginTop: spacing(1.5), gap: spacing(0.25) }}>
+            <Text style={[typography.muted, { marginBottom: spacing(0.5) }]}>{t('permHeader')}</Text>
+            <PermRow on fixed label={t('permSeeLabel')} />
+            <PermRow on={allowTx} onToggle={() => setAllowTx((v) => !v)} label={t('permTxLabel')} />
+            <PermRow on={allowSign} onToggle={() => setAllowSign((v) => !v)} label={t('permSignLabel')} />
+            <Text style={[typography.muted, { marginTop: spacing(0.75) }]}>{t('cannotMove')}</Text>
           </View>
         </GlassCard>
 
@@ -242,7 +264,7 @@ export function WalletConnectHost() {
           visible={confirming}
           title={t('confirmConnection')}
           subtitle={meta.name ?? 'dApp'}
-          perform={(unlock) => approveProposal(unlock)}
+          perform={(unlock) => approveProposal(unlock, { tx: allowTx, sign: allowSign })}
           onDone={() => setConfirming(false)}
           onCancel={() => setConfirming(false)}
         />
