@@ -7,15 +7,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Image, TextInput, useWindowDimensions, ActivityIndicator } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { NovaLogo } from '../NovaLogo';
+import { AuroraBackground } from '../AuroraBackground';
 import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useWebConnect } from '../../lib/webConnect';
+import { useSettings, fiatSymbol } from '../../lib/settingsStore';
 import {
   getAdapter,
   listChains,
   getErc20Tokens,
   getNfts,
+  getMarketChart,
   formatBalance,
   chainIconUrl,
   type Erc20Token,
@@ -55,6 +59,7 @@ export function WebDashboard() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
+      <AuroraBackground intensity={0.55} />
       {status === 'connected' ? <Dashboard /> : <ConnectView />}
     </View>
   );
@@ -135,6 +140,7 @@ function Dashboard() {
   const disconnect = useWebConnect((s) => s.disconnect);
   const refresh = useWebConnect((s) => s.refresh);
   const [tab, setTab] = useState<Tab>('portfolio');
+  const [netQuery, setNetQuery] = useState('');
   const chain = useMemo(() => chainById(selected), [selected]);
   const address = useMemo(() => accounts.find((a) => a.chainId === selected)?.address ?? '', [accounts, selected]);
   // Toutes les chaînes approuvées par le wallet (EVM + Solana + Bitcoin).
@@ -164,9 +170,25 @@ function Dashboard() {
           </View>
         </View>
 
-        {/* Switch de réseau (tous les réseaux EVM approuvés par le wallet) */}
+        {/* Recherche de réseau (au-delà de ~6 réseaux, plutôt que scroller) */}
+        {netChains.length > 6 ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1.5) }}>
+            <Icon name="search" size={16} color={colors.textMuted} />
+            <TextInput
+              value={netQuery}
+              onChangeText={setNetQuery}
+              placeholder="Rechercher un réseau…"
+              placeholderTextColor={colors.textMuted}
+              style={{ flex: 1, color: colors.text, fontSize: 14, paddingVertical: spacing(1) }}
+            />
+          </View>
+        ) : null}
+
+        {/* Switch de réseau (tous les réseaux approuvés par le wallet, filtrés) */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(0.75) }}>
-          {netChains.map((c) => {
+          {netChains
+            .filter((c) => !netQuery || c.name.toLowerCase().includes(netQuery.trim().toLowerCase()))
+            .map((c) => {
             const on = c.id === selected;
             return (
               <Pressable
@@ -282,20 +304,104 @@ function useAsync<T>(fn: () => Promise<T>, deps: React.DependencyList): { data: 
   return { data, loading };
 }
 
+/** Graphique en aire (une série : valeur du portefeuille), style sparkline. */
+function AreaChart({ values, up }: { values: number[]; up: boolean }) {
+  const { colors } = useTheme();
+  const [w, setW] = useState(0);
+  const h = 130;
+  const stroke = up ? colors.up : colors.down;
+  let line = '';
+  let area = '';
+  if (w > 0 && values.length > 1) {
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const span = max - min || 1;
+    const n = values.length;
+    const X = (i: number) => (w * i) / (n - 1);
+    const Y = (v: number) => h - 8 - ((v - min) / span) * (h - 16);
+    line = values.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+    area = `${line} L${w.toFixed(1)},${h} L0,${h} Z`;
+  }
+  return (
+    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ height: h, marginTop: spacing(1) }}>
+      {w > 0 && line ? (
+        <Svg width={w} height={h}>
+          <Defs>
+            <SvgGradient id="novaGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={stroke} stopOpacity={0.28} />
+              <Stop offset="1" stopColor={stroke} stopOpacity={0} />
+            </SvgGradient>
+          </Defs>
+          <Path d={area} fill="url(#novaGrad)" />
+          <Path d={line} stroke={stroke} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      ) : null}
+    </View>
+  );
+}
+
+const PERIODS: { k: string; l: string }[] = [
+  { k: '1', l: '24 h' },
+  { k: '7', l: '7 j' },
+  { k: '30', l: '1 mois' },
+];
+function PeriodToggle({ days, onChange }: { days: string; onChange: (d: string) => void }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', gap: spacing(0.5), marginTop: spacing(1) }}>
+      {PERIODS.map((p) => {
+        const on = p.k === days;
+        return (
+          <Pressable key={p.k} onPress={() => onChange(p.k)} style={{ paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.6), borderRadius: radii.pill, backgroundColor: on ? colors.accent : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}>
+            <Text style={{ color: on ? '#fff' : colors.textMuted, fontFamily: fonts.semibold, fontSize: 12 }}>{p.l}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 function PortfolioPanel({ chain, address }: { chain: ChainConfig; address: string }) {
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
-  const { data: bal, loading } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
+  const fiat = useSettings((s) => s.fiat);
+  const [days, setDays] = useState('7');
+  const { data: bal } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
+  const { data: prices, loading } = useAsync<number[]>(
+    () => (chain.coingeckoId ? getMarketChart(chain.coingeckoId, fiat, days) : Promise.resolve([])),
+    [chain.coingeckoId, fiat, days, rev],
+  );
+  const balNum = bal ? Number(bal.raw) / 10 ** bal.decimals : 0;
+  const values = (prices ?? []).map((p) => p * balNum);
+  const cur = values.length ? values[values.length - 1] : 0;
+  const first = values.length ? values[0] : 0;
+  const pct = first > 0 ? ((cur - first) / first) * 100 : 0;
+  const up = pct >= 0;
+  const sym = fiatSymbol(fiat);
   return (
     <Card>
-      <Text style={typography.muted}>Solde {chain.name}</Text>
-      {loading ? (
-        <ActivityIndicator color={colors.accent} style={{ marginTop: spacing(1) }} />
-      ) : (
-        <Text style={{ color: colors.text, fontSize: 34, fontFamily: fonts.extrabold, marginTop: spacing(0.5) }}>
-          {bal ? formatBalance(bal.raw, bal.decimals) : '0'} {chain.nativeSymbol}
-        </Text>
-      )}
+      <Text style={typography.muted}>Valeur du portefeuille · {chain.name}</Text>
+      <Text style={{ color: colors.text, fontSize: 30, fontFamily: fonts.extrabold, marginTop: 2 }}>
+        {chain.coingeckoId && values.length
+          ? `${sym}${cur.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+          : `${bal ? formatBalance(bal.raw, bal.decimals) : '0'} ${chain.nativeSymbol}`}
+      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 2 }}>
+        <Text style={typography.muted}>{bal ? formatBalance(bal.raw, bal.decimals, 4) : '0'} {chain.nativeSymbol}</Text>
+        {chain.coingeckoId && values.length ? (
+          <Text style={{ color: up ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13 }}>{up ? '+' : ''}{pct.toFixed(2)} %</Text>
+        ) : null}
+      </View>
+      {chain.coingeckoId ? (
+        loading && !values.length ? (
+          <View style={{ height: 130, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.accent} /></View>
+        ) : values.length > 1 ? (
+          <AreaChart values={values} up={up} />
+        ) : (
+          <View style={{ height: 130, alignItems: 'center', justifyContent: 'center' }}><Text style={typography.muted}>Pas de données de prix.</Text></View>
+        )
+      ) : null}
+      {chain.coingeckoId ? <PeriodToggle days={days} onChange={setDays} /> : null}
       <Text style={[typography.muted, { marginTop: spacing(1) }]} selectable>{address}</Text>
     </Card>
   );
