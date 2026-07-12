@@ -29,6 +29,13 @@ function short(a: string) {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 }
 
+/** Montant décimal (ex. « 0.5 ») → wei (10^18), en BigInt, sans perte de précision. */
+function toWei(dec: string): bigint {
+  const [int, frac = ''] = dec.split('.');
+  const fracPadded = (frac + '0'.repeat(18)).slice(0, 18);
+  return BigInt(int || '0') * 10n ** 18n + BigInt(fracPadded || '0');
+}
+
 /** Config d'une chaîne Nova par son id (repli Ethereum). */
 function chainById(id: string | null): ChainConfig {
   const all = listChains();
@@ -372,12 +379,13 @@ function SendPanel({ chain }: { chain: ChainConfig }) {
   const onSend = async () => {
     setErr(null); setMsg(null);
     if (!/^0x[a-fA-F0-9]{40}$/.test(to.trim())) { setErr('Adresse EVM invalide (0x…).'); return; }
-    const n = parseFloat(amount);
-    if (!(n > 0)) { setErr('Montant invalide.'); return; }
+    // Accepte la virgule décimale (clavier FR) et valide le format.
+    const raw = amount.replace(',', '.').trim();
+    if (!/^\d*\.?\d+$/.test(raw) || !(parseFloat(raw) > 0)) { setErr('Montant invalide.'); return; }
     setBusy(true);
     setMsg('Validez la transaction dans l\'app Nova (PIN ou biométrie)…');
     try {
-      const wei = BigInt(Math.round(n * 1e18));
+      const wei = toWei(raw); // décimal → wei sans perte de précision (BigInt)
       const hash = await request('eth_sendTransaction', [{ to: to.trim(), value: '0x' + wei.toString(16) }]);
       setMsg(`Transaction envoyée : ${short(hash)}`);
       setTo(''); setAmount('');
