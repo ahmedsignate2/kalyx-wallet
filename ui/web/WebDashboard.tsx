@@ -125,6 +125,7 @@ function Dashboard() {
   const selected = useWebConnect((s) => s.selected);
   const setChain = useWebConnect((s) => s.setChain);
   const disconnect = useWebConnect((s) => s.disconnect);
+  const refresh = useWebConnect((s) => s.refresh);
   const [tab, setTab] = useState<Tab>('portfolio');
   const chain = useMemo(() => chainById(selected), [selected]);
   const address = useMemo(() => accounts.find((a) => a.chainId === selected)?.address ?? '', [accounts, selected]);
@@ -146,6 +147,9 @@ function Dashboard() {
               <Image source={{ uri: chainIconUrl(chain.id) }} style={{ width: 18, height: 18, borderRadius: 9 }} />
               <Text style={{ color: colors.text, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>{short(address)}</Text>
             </View>
+            <Pressable onPress={refresh} hitSlop={6} style={({ pressed }) => ({ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}>
+              <Icon name="refresh" size={18} color={colors.textMuted} />
+            </Pressable>
             <Pressable onPress={disconnect} style={({ pressed }) => ({ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.85), borderRadius: radii.pill, borderWidth: 1, borderColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}>
               <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>Déconnecter</Text>
             </Pressable>
@@ -237,7 +241,8 @@ function useAsync<T>(fn: () => Promise<T>, deps: React.DependencyList): { data: 
 
 function PortfolioPanel({ chain, address }: { chain: ChainConfig; address: string }) {
   const { colors, typography } = useTheme();
-  const { data: bal, loading } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address]);
+  const rev = useWebConnect((s) => s.rev);
+  const { data: bal, loading } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
   return (
     <Card>
       <Text style={typography.muted}>Solde {chain.name}</Text>
@@ -255,7 +260,8 @@ function PortfolioPanel({ chain, address }: { chain: ChainConfig; address: strin
 
 function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }) {
   const { colors, typography } = useTheme();
-  const { data, loading } = useAsync<Erc20Token[]>(() => getErc20Tokens(chain, address), [chain.id, address]);
+  const rev = useWebConnect((s) => s.rev);
+  const { data, loading } = useAsync<Erc20Token[]>(() => getErc20Tokens(chain, address), [chain.id, address, rev]);
   if (loading) return <Card><ActivityIndicator color={colors.accent} /></Card>;
   if (!data || data.length === 0) return <Card><Text style={typography.muted}>Aucun token détecté (clé Alchemy requise pour l'EVM).</Text></Card>;
   return (
@@ -276,7 +282,8 @@ function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }
 
 function NftsPanel({ chain, address }: { chain: ChainConfig; address: string }) {
   const { colors, typography } = useTheme();
-  const { data, loading } = useAsync<NftItem[]>(() => getNfts(chain, address), [chain.id, address]);
+  const rev = useWebConnect((s) => s.rev);
+  const { data, loading } = useAsync<NftItem[]>(() => getNfts(chain, address), [chain.id, address, rev]);
   if (loading) return <Card><ActivityIndicator color={colors.accent} /></Card>;
   if (!data || data.length === 0) return <Card><Text style={typography.muted}>Aucun NFT sur ce réseau.</Text></Card>;
   return (
@@ -296,7 +303,8 @@ function NftsPanel({ chain, address }: { chain: ChainConfig; address: string }) 
 
 function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string }) {
   const { colors, typography } = useTheme();
-  const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address]);
+  const rev = useWebConnect((s) => s.rev);
+  const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address, rev]);
   if (loading) return <Card><ActivityIndicator color={colors.accent} /></Card>;
   if (!data || data.length === 0) return <Card><Text style={typography.muted}>Aucune transaction (clé Etherscan requise pour l'EVM).</Text></Card>;
   return (

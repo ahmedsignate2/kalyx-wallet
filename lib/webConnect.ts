@@ -34,11 +34,16 @@ interface WebConnectState {
   accounts: ConnAccount[]; // toutes les chaînes approuvées par le wallet
   selected: string | null; // ID de chaîne Nova sélectionné
   error: string | null;
+  /** Compteur de révision : incrémenté à chaque event WC (ou envoi). Les panneaux
+   *  du dashboard le mettent dans leurs deps → rafraîchissement automatique. */
+  rev: number;
   init: () => Promise<void>;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   setChain: (novaChainId: string) => void;
   request: (method: string, params: unknown[]) => Promise<string>;
+  /** Force un rafraîchissement des panneaux (bouton manuel). */
+  refresh: () => void;
   reset: () => void;
 }
 
@@ -101,6 +106,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
   accounts: [],
   selected: null,
   error: null,
+  rev: 0,
 
   init: async () => {
     if (client || !PROJECT_ID) return;
@@ -121,6 +127,25 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
         set({ status: 'connected', topic: last.topic, accounts, selected: accounts[0].chainId, uri: null });
       }
     }
+
+    // Sync instantanée : réagit aux events du téléphone sans rafraîchir la page.
+    const syncFromSession = () => {
+      const { topic } = get();
+      if (!client || !topic) return;
+      try {
+        const s = client.session.get(topic);
+        const accounts = collect(s.namespaces as Record<string, { accounts?: string[] }>);
+        if (accounts.length) {
+          const sel = get().selected;
+          set({ accounts, selected: sel && accounts.some((a) => a.chainId === sel) ? sel : accounts[0].chainId });
+        }
+      } catch {
+        /* session absente : ignore */
+      }
+      set({ rev: get().rev + 1 });
+    };
+    client.on('session_event', syncFromSession); // chainChanged / accountsChanged
+    client.on('session_update', syncFromSession);
     client.on('session_delete', () => get().reset());
   },
 
@@ -169,12 +194,18 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     const { topic, selected } = get();
     if (!client || !topic || !selected) throw new Error('Non connecté');
     // La requête part vers l'app Nova, qui affiche la demande + signe avec PIN/bio.
-    return client.request<string>({
+    const res = await client.request<string>({
       topic,
       chainId: novaToCaip(selected),
       request: { method, params },
     });
+    // Après une action signée (envoi…), on rafraîchit soldes/historique.
+    set({ rev: get().rev + 1 });
+    setTimeout(() => set({ rev: get().rev + 1 }), 4000); // 2e passe (inclusion bloc)
+    return res;
   },
+
+  refresh: () => set({ rev: get().rev + 1 }),
 
   reset: () => set({ status: 'idle', uri: null, topic: null, accounts: [], selected: null, error: null }),
 }));
