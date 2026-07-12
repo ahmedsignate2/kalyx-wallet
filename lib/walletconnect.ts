@@ -95,6 +95,8 @@ interface WcState {
   approveRequest: (unlock: Unlock) => Promise<void>;
   rejectRequest: () => Promise<void>;
   disconnect: (topic: string) => Promise<void>;
+  /** Coupe TOUTES les sessions actives (ex. au verrouillage de Nova). */
+  disconnectAll: () => Promise<void>;
   refresh: () => void;
 }
 
@@ -262,6 +264,18 @@ export const useWalletConnect = create<WcState>((set, get) => ({
 
   disconnect: async (topic) => {
     if (sdkUtils) await get().wallet?.disconnectSession({ topic, reason: sdkUtils.getSdkError('USER_DISCONNECTED') });
+    get().refresh();
+  },
+
+  disconnectAll: async () => {
+    const w = get().wallet;
+    if (!w || !sdkUtils) return;
+    const active = w.getActiveSessions();
+    await Promise.all(
+      Object.values(active).map((s: any) =>
+        w.disconnectSession({ topic: s.topic, reason: sdkUtils!.getSdkError('USER_DISCONNECTED') }).catch(() => {}),
+      ),
+    );
     get().refresh();
   },
 
