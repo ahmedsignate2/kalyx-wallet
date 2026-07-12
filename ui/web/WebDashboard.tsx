@@ -426,8 +426,8 @@ function PortfolioPanel({ chain, address }: { chain: ChainConfig; address: strin
           ? `${sym}${total.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
           : `${bal ? formatBalance(bal.raw, bal.decimals) : '0'} ${chain.nativeSymbol}`}
       </Text>
-      <Text style={[typography.muted, { marginTop: 2 }]}>{bal ? formatBalance(bal.raw, bal.decimals, 4) : '0'} {chain.nativeSymbol}
-        {tokensValue ? ` + ${sym}${tokensValue.toLocaleString(undefined, { maximumFractionDigits: 2 })} de tokens` : ''}
+      <Text style={[typography.muted, { marginTop: 2 }]}>
+        {`${bal ? formatBalance(bal.raw, bal.decimals, 4) : '0'} ${chain.nativeSymbol}${tokensValue ? ` + ${sym}${tokensValue.toLocaleString(undefined, { maximumFractionDigits: 2 })} de tokens` : ''}`}
       </Text>
 
       {chain.coingeckoId ? (
@@ -545,8 +545,8 @@ function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string 
       {data.slice(0, 30).map((tx, i) => (
         <View key={tx.hash} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
           <View style={{ flex: 1 }}>
-            <Text style={typography.bodyStrong}>{tx.direction === 'in' ? 'Reçu' : 'Envoyé'}{tx.status === 'failed' ? ' · échoué' : ''}</Text>
-            <Text style={typography.muted} numberOfLines={1}>{short(tx.hash)} · {ago(tx.timestamp)}</Text>
+            <Text style={typography.bodyStrong}>{`${tx.direction === 'in' ? 'Reçu' : 'Envoyé'}${tx.status === 'failed' ? ' · échoué' : ''}`}</Text>
+            <Text style={typography.muted} numberOfLines={1}>{`${short(tx.hash)} · ${ago(tx.timestamp)}`}</Text>
           </View>
           <Text style={{ color: tx.direction === 'in' ? colors.up : colors.text, fontFamily: fonts.semibold }}>
             {tx.direction === 'in' ? '+' : '−'}{formatBalance(tx.value, chain.nativeDecimals, 4)} {chain.nativeSymbol}
