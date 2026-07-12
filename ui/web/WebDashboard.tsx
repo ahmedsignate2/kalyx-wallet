@@ -29,10 +29,10 @@ function short(a: string) {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 }
 
-/** Chaîne Nova correspondant au chainId EVM WalletConnect (défaut Ethereum). */
-function novaChainFor(evmChainId: number): ChainConfig {
+/** Config d'une chaîne Nova par son id (repli Ethereum). */
+function chainById(id: string | null): ChainConfig {
   const all = listChains();
-  return all.find((c) => c.family === 'evm' && c.evmChainId === evmChainId) ?? all.find((c) => c.id === 'ethereum')!;
+  return all.find((c) => c.id === id) ?? all.find((c) => c.id === 'ethereum')!;
 }
 
 type Tab = 'portfolio' | 'tokens' | 'nfts' | 'history' | 'send';
@@ -121,18 +121,16 @@ function Dashboard() {
   const { colors, typography } = useTheme();
   const { width } = useWindowDimensions();
   const desktop = width >= 860;
-  const address = useWebConnect((s) => s.address)!;
-  const chainId = useWebConnect((s) => s.chainId);
-  const chains = useWebConnect((s) => s.chains);
+  const accounts = useWebConnect((s) => s.accounts);
+  const selected = useWebConnect((s) => s.selected);
   const setChain = useWebConnect((s) => s.setChain);
   const disconnect = useWebConnect((s) => s.disconnect);
   const [tab, setTab] = useState<Tab>('portfolio');
-  const chain = useMemo(() => novaChainFor(chainId), [chainId]);
-  // Réseaux EVM approuvés par le wallet (repli : le réseau courant).
-  const netChains = useMemo(
-    () => (chains.length ? chains : [chainId]).map((id) => novaChainFor(id)),
-    [chains, chainId],
-  );
+  const chain = useMemo(() => chainById(selected), [selected]);
+  const address = useMemo(() => accounts.find((a) => a.chainId === selected)?.address ?? '', [accounts, selected]);
+  // Toutes les chaînes approuvées par le wallet (EVM + Solana + Bitcoin).
+  const netChains = useMemo(() => accounts.map((a) => chainById(a.chainId)), [accounts]);
+  const isEvm = chain.family === 'evm';
 
   return (
     <ScrollView contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}>
@@ -157,11 +155,11 @@ function Dashboard() {
         {/* Switch de réseau (tous les réseaux EVM approuvés par le wallet) */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(0.75) }}>
           {netChains.map((c) => {
-            const on = c.evmChainId === chainId;
+            const on = c.id === selected;
             return (
               <Pressable
                 key={c.id}
-                onPress={() => c.evmChainId && setChain(c.evmChainId)}
+                onPress={() => setChain(c.id)}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85), borderRadius: radii.pill, backgroundColor: on ? colors.glass : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
               >
                 <Image source={{ uri: chainIconUrl(c.id) }} style={{ width: 18, height: 18, borderRadius: 9 }} />
@@ -191,10 +189,10 @@ function Dashboard() {
 
           <View style={{ flex: 1, width: '100%', minWidth: 0, gap: spacing(1.5) }}>
             {tab === 'portfolio' ? <PortfolioPanel chain={chain} address={address} /> : null}
-            {tab === 'tokens' ? <TokensPanel chain={chain} address={address} /> : null}
-            {tab === 'nfts' ? <NftsPanel chain={chain} address={address} /> : null}
+            {tab === 'tokens' ? (isEvm ? <TokensPanel chain={chain} address={address} /> : <Note text={`Les tokens (ERC-20) sont propres aux réseaux EVM. Sur ${chain.name}, consulte le solde et l'historique.`} />) : null}
+            {tab === 'nfts' ? (isEvm ? <NftsPanel chain={chain} address={address} /> : <Note text={`Les NFT affichés ici concernent les réseaux EVM.`} />) : null}
             {tab === 'history' ? <HistoryPanel chain={chain} address={address} /> : null}
-            {tab === 'send' ? <SendPanel chain={chain} /> : null}
+            {tab === 'send' ? (isEvm ? <SendPanel chain={chain} /> : <Note text={`L'envoi ${chain.nativeSymbol} depuis le tableau de bord arrive bientôt. En attendant, envoie directement depuis l'app Nova.`} />) : null}
           </View>
         </View>
 
@@ -215,6 +213,11 @@ function Card({ children }: { children: React.ReactNode }) {
       {children}
     </View>
   );
+}
+
+function Note({ text }: { text: string }) {
+  const { typography } = useTheme();
+  return <Card><Text style={typography.muted}>{text}</Text></Card>;
 }
 
 function useAsync<T>(fn: () => Promise<T>, deps: React.DependencyList): { data: T | null; loading: boolean } {
