@@ -121,6 +121,7 @@ function Dashboard() {
   const { colors, typography } = useTheme();
   const { width } = useWindowDimensions();
   const desktop = width >= 860;
+  const wide = width >= 1000; // vrai layout desktop multi-zones
   const accounts = useWebConnect((s) => s.accounts);
   const selected = useWebConnect((s) => s.selected);
   const setChain = useWebConnect((s) => s.setChain);
@@ -173,7 +174,27 @@ function Dashboard() {
           })}
         </ScrollView>
 
-        {/* Corps : sidebar (desktop) ou onglets (étroit) + contenu */}
+        {/* Grand écran : vrai tableau de bord multi-zones (tout visible d'un coup). */}
+        {wide ? (
+          <View style={{ gap: spacing(2) }}>
+            <View style={{ flexDirection: 'row', gap: spacing(2), alignItems: 'flex-start' }}>
+              <Zone title="Portefeuille" style={{ flex: 1.2 }}>
+                <PortfolioPanel chain={chain} address={address} />
+                {isEvm ? <SendPanel chain={chain} /> : null}
+              </Zone>
+              <Zone title="Tokens" style={{ flex: 1.4 }}>
+                {isEvm ? <TokensPanel chain={chain} address={address} /> : <Note text={`Les tokens (ERC-20) sont propres aux réseaux EVM.`} />}
+              </Zone>
+              <Zone title="NFT" style={{ flex: 1 }}>
+                {isEvm ? <NftsPanel chain={chain} address={address} /> : <Note text={`Les NFT affichés ici concernent les réseaux EVM.`} />}
+              </Zone>
+            </View>
+            <Zone title="Activité">
+              <HistoryPanel chain={chain} address={address} />
+            </Zone>
+          </View>
+        ) : (
+        /* Écran étroit : navigation par onglets. */
         <View style={{ flexDirection: desktop ? 'row' : 'column', gap: spacing(2), alignItems: 'flex-start' }}>
           <View style={{ flexDirection: desktop ? 'column' : 'row', gap: spacing(0.5), width: desktop ? 220 : '100%', flexWrap: 'wrap' }}>
             {NAV.map((n) => {
@@ -199,6 +220,7 @@ function Dashboard() {
             {tab === 'send' ? (isEvm ? <SendPanel chain={chain} /> : <Note text={`L'envoi ${chain.nativeSymbol} depuis le tableau de bord arrive bientôt. En attendant, envoie directement depuis l'app Nova.`} />) : null}
           </View>
         </View>
+        )}
 
         <Text style={[typography.muted, { textAlign: 'center', fontSize: 12, marginTop: spacing(1) }]}>
           🔒 Ce site ne peut jamais signer seul. Chaque envoi ou signature est validé dans l'app Nova.
@@ -214,6 +236,20 @@ function Card({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
   return (
     <View style={{ backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, padding: spacing(2) }}>
+      {children}
+    </View>
+  );
+}
+
+/** Zone du tableau de bord desktop : petit titre + contenu. */
+function Zone({ title, style, children }: { title: string; style?: object; children: React.ReactNode }) {
+  const { colors, typography } = useTheme();
+  return (
+    <View style={[{ minWidth: 0, gap: spacing(1) }, style]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(0.75) }}>
+        <View style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: colors.accent }} />
+        <Text style={[typography.section, { fontSize: 13 }]}>{title}</Text>
+      </View>
       {children}
     </View>
   );
