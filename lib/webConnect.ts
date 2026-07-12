@@ -175,9 +175,10 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       const evmMethods = ['eth_sendTransaction', 'personal_sign', 'eth_signTypedData', 'eth_signTypedData_v4'];
       const evmEvents = ['chainChanged', 'accountsChanged'];
       const { uri, approval } = await client.connect({
-        // Minimal obligatoire (Ethereum) + tout le reste en optionnel : le wallet
-        // approuve les réseaux qu'il supporte (EVM + Solana + Bitcoin) sans rejeter.
-        requiredNamespaces: { eip155: { methods: evmMethods, chains: ['eip155:1'], events: evmEvents } },
+        // Obligatoire : seulement la présence d'Ethereum, AUCUNE méthode requise —
+        // ainsi l'utilisateur peut décocher des autorisations côté app (le wallet
+        // approuve un sous-ensemble de méthodes sans que la session soit rejetée).
+        requiredNamespaces: { eip155: { methods: [], chains: ['eip155:1'], events: [] } },
         optionalNamespaces: {
           eip155: { methods: evmMethods, chains: evmCaips(), events: evmEvents },
           solana: { methods: ['solana_signTransaction', 'solana_signMessage'], chains: [SOLANA_CAIP], events: ['accountsChanged'] },
