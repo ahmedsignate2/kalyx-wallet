@@ -121,10 +121,18 @@ function Dashboard() {
   const { colors, typography } = useTheme();
   const { width } = useWindowDimensions();
   const desktop = width >= 860;
-  const session = useWebConnect((s) => s.session)!;
+  const address = useWebConnect((s) => s.address)!;
+  const chainId = useWebConnect((s) => s.chainId);
+  const chains = useWebConnect((s) => s.chains);
+  const setChain = useWebConnect((s) => s.setChain);
   const disconnect = useWebConnect((s) => s.disconnect);
   const [tab, setTab] = useState<Tab>('portfolio');
-  const chain = useMemo(() => novaChainFor(session.chainId), [session.chainId]);
+  const chain = useMemo(() => novaChainFor(chainId), [chainId]);
+  // Réseaux EVM approuvés par le wallet (repli : le réseau courant).
+  const netChains = useMemo(
+    () => (chains.length ? chains : [chainId]).map((id) => novaChainFor(id)),
+    [chains, chainId],
+  );
 
   return (
     <ScrollView contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}>
@@ -138,13 +146,30 @@ function Dashboard() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85) }}>
               <Image source={{ uri: chainIconUrl(chain.id) }} style={{ width: 18, height: 18, borderRadius: 9 }} />
-              <Text style={{ color: colors.text, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>{short(session.address)}</Text>
+              <Text style={{ color: colors.text, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>{short(address)}</Text>
             </View>
             <Pressable onPress={disconnect} style={({ pressed }) => ({ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.85), borderRadius: radii.pill, borderWidth: 1, borderColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}>
               <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>Déconnecter</Text>
             </Pressable>
           </View>
         </View>
+
+        {/* Switch de réseau (tous les réseaux EVM approuvés par le wallet) */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(0.75) }}>
+          {netChains.map((c) => {
+            const on = c.evmChainId === chainId;
+            return (
+              <Pressable
+                key={c.id}
+                onPress={() => c.evmChainId && setChain(c.evmChainId)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85), borderRadius: radii.pill, backgroundColor: on ? colors.glass : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
+              >
+                <Image source={{ uri: chainIconUrl(c.id) }} style={{ width: 18, height: 18, borderRadius: 9 }} />
+                <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>{c.name}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
         {/* Corps : sidebar (desktop) ou onglets (étroit) + contenu */}
         <View style={{ flexDirection: desktop ? 'row' : 'column', gap: spacing(2), alignItems: 'flex-start' }}>
@@ -165,10 +190,10 @@ function Dashboard() {
           </View>
 
           <View style={{ flex: 1, width: '100%', minWidth: 0, gap: spacing(1.5) }}>
-            {tab === 'portfolio' ? <PortfolioPanel chain={chain} address={session.address} /> : null}
-            {tab === 'tokens' ? <TokensPanel chain={chain} address={session.address} /> : null}
-            {tab === 'nfts' ? <NftsPanel chain={chain} address={session.address} /> : null}
-            {tab === 'history' ? <HistoryPanel chain={chain} address={session.address} /> : null}
+            {tab === 'portfolio' ? <PortfolioPanel chain={chain} address={address} /> : null}
+            {tab === 'tokens' ? <TokensPanel chain={chain} address={address} /> : null}
+            {tab === 'nfts' ? <NftsPanel chain={chain} address={address} /> : null}
+            {tab === 'history' ? <HistoryPanel chain={chain} address={address} /> : null}
             {tab === 'send' ? <SendPanel chain={chain} /> : null}
           </View>
         </View>
