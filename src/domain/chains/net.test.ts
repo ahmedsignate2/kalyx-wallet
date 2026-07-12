@@ -21,14 +21,14 @@ describe('withTimeout', () => {
 });
 
 describe('tryInOrder (fallback)', () => {
-  it('renvoie le premier item qui réussit', async () => {
+  it('renvoie le premier item qui réussit (fallback sur erreur transitoire)', async () => {
     const tried: string[] = [];
     const res = await tryInOrder(
       ['a', 'b', 'c'],
       async (x) => {
         tried.push(x);
         if (x === 'b') return `ok:${x}`;
-        throw new Error('fail');
+        throw new Error('timeout'); // transitoire → on passe au suivant
       },
       { timeoutMs: 100 },
     );
@@ -45,15 +45,26 @@ describe('tryInOrder (fallback)', () => {
     expect(res).toBe('ok:rapide');
   });
 
-  it('lève RPC_UNAVAILABLE si tous échouent', async () => {
+  it('lève RPC_UNAVAILABLE si tous échouent de façon transitoire', async () => {
     try {
       await tryInOrder(['a', 'b'], async () => {
-        throw new Error('fail');
+        throw new Error('network error'); // transitoire
       }, { timeoutMs: 30 });
       throw new Error('aurait dû lever');
     } catch (e) {
       expect(isWalletError(e)).toBe(true);
       if (isWalletError(e)) expect(e.code).toBe('RPC_UNAVAILABLE');
     }
+  });
+
+  it('relance immédiatement une erreur déterministe (revert) sans essayer les autres RPC', async () => {
+    const tried: string[] = [];
+    await expect(
+      tryInOrder(['a', 'b'], async (x) => {
+        tried.push(x);
+        throw new Error('execution reverted: insufficient allowance');
+      }, { timeoutMs: 30 }),
+    ).rejects.toThrow('execution reverted');
+    expect(tried).toEqual(['a']); // pas de rotation : le 2e RPC n'est pas essayé
   });
 });
