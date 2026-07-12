@@ -9,17 +9,17 @@
  * - eth_sendTransaction → destinataire, montant natif, réseau.
  * Les données brutes restent accessibles via « Détails techniques ».
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, Image } from 'react-native';
 import { GlassCard, ErrorBox, GradientAvatar } from './premium';
 import { Button } from './components';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon, type IconName } from './icon';
-import { radii, spacing, useTheme } from './theme';
+import { fonts, radii, spacing, useTheme } from './theme';
 import { TxPreview } from './TxPreview';
 import { useWalletConnect } from '../lib/walletconnect';
 import { useWallet, type Unlock } from '../lib/walletStore';
-import { useT } from '../lib/settingsStore';
+import { useT, useSettings } from '../lib/settingsStore';
 import {
   hexToText,
   parseSiwe,
@@ -27,6 +27,9 @@ import {
   summarizeTypedData,
   formatBalance,
   listChains,
+  assessAddress,
+  isPhishingSite,
+  type RiskAssessment,
 } from '../src';
 
 function shorten(a: string) {
@@ -46,6 +49,41 @@ function Overlay({ children }: { children: React.ReactNode }) {
         </View>
       </View>
     </Modal>
+  );
+}
+
+/** Bannières de sécurité : phishing du site (GoPlus) + risque de l'adresse cible. */
+function SecBanner({ risk, phish }: { risk: RiskAssessment | 'loading' | null; phish: boolean }) {
+  const { colors, typography } = useTheme();
+  const t = useT();
+  return (
+    <>
+      {phish ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.danger + '1E', borderWidth: 1, borderColor: colors.danger + '66', borderRadius: radii.md, padding: spacing(1.5) }}>
+          <Icon name="warning" size={18} color={colors.danger} />
+          <Text style={{ color: colors.text, flex: 1, fontSize: 13 }}>{t('phishingWarning')}</Text>
+        </View>
+      ) : null}
+      {risk === 'loading' ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Icon name="security" size={15} color={colors.textMuted} />
+          <Text style={typography.muted}>{t('securityScanning')}</Text>
+        </View>
+      ) : risk && risk.level === 'danger' ? (
+        <View style={{ backgroundColor: colors.danger + '1E', borderWidth: 1, borderColor: colors.danger + '66', borderRadius: radii.md, padding: spacing(1.5), gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name="warning" size={18} color={colors.danger} />
+            <Text style={{ color: colors.danger, fontFamily: fonts.bold, flex: 1 }}>{t('riskDetected')}</Text>
+          </View>
+          {risk.reasons.map((r) => <Text key={r} style={{ color: colors.text, fontSize: 13 }}>• {r}</Text>)}
+        </View>
+      ) : risk && risk.level === 'ok' ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Icon name="check" size={15} color={colors.up} />
+          <Text style={{ color: colors.up, fontSize: 13, fontFamily: fonts.semibold }}>{t('noKnownRisk')}</Text>
+        </View>
+      ) : null}
+    </>
   );
 }
 
@@ -104,6 +142,9 @@ export function WalletConnectHost() {
 
   const [confirming, setConfirming] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
+  // Analyse de sécurité GoPlus (parité avec le navigateur dApps intégré).
+  const [risk, setRisk] = useState<RiskAssessment | 'loading' | null>(null);
+  const [phishSite, setPhishSite] = useState(false);
 
   // Décodage lisible de la requête (mémoïsé : parsing hex/SIWE/EIP-712).
   const info = useMemo(() => {
@@ -150,6 +191,28 @@ export function WalletConnectHost() {
     return { method, kind, text, siwe, typed, tx, chain, peer, action, phishing };
   }, [request, sessions, t]);
 
+  // Analyse de sécurité GoPlus (désactivable via Extensions → Analyse de sécurité).
+  useEffect(() => {
+    setRisk(null);
+    setPhishSite(false);
+    if (!useSettings.getState().securityScan) return;
+    if (proposal) {
+      const url = proposal.params?.proposer?.metadata?.url;
+      if (url) isPhishingSite(url).then(setPhishSite).catch(() => {});
+      return;
+    }
+    if (!info) return;
+    const cid = info.chain?.evmChainId ?? 1;
+    if (info.kind === 'tx' && info.tx?.to) {
+      setRisk('loading');
+      assessAddress(cid, info.tx.to).then(setRisk).catch(() => setRisk(null));
+    } else if (info.kind === 'typedData' && info.typed?.verifyingContract) {
+      setRisk('loading');
+      assessAddress(cid, info.typed.verifyingContract).then(setRisk).catch(() => setRisk(null));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request, proposal]);
+
   if (proposal) {
     const meta = proposal.params?.proposer?.metadata ?? {};
     return (
@@ -164,6 +227,7 @@ export function WalletConnectHost() {
           </View>
         </GlassCard>
 
+        <SecBanner risk={null} phish={phishSite} />
         <Text style={typography.muted}>{t('connectNeedsConfirm')}</Text>
         <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
           <View style={{ flex: 1 }}>
@@ -214,6 +278,8 @@ export function WalletConnectHost() {
         {phishing ? (
           <ErrorBox message={t('siweMismatch').replace('{a}', siwe?.domain ?? '').replace('{b}', hostOf(peer?.url ?? ''))} />
         ) : null}
+
+        <SecBanner risk={risk} phish={phishSite} />
 
         <GlassCard>
           {peer?.url ? <InfoRow icon="dapps" label={t('siteLabel')} value={hostOf(peer.url)} /> : null}
