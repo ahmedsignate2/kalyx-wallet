@@ -34,6 +34,16 @@ function short(a: string) {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 }
 
+/** Horodatage relatif court (ts en secondes). */
+function ago(ts: number): string {
+  const s = Math.floor(Date.now() / 1000 - ts);
+  if (s < 60) return 'à l’instant';
+  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
+  if (s < 86400 * 30) return `il y a ${Math.floor(s / 86400)} j`;
+  return new Date(ts * 1000).toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+}
+
 /** Montant décimal (ex. « 0.5 ») → wei (10^18), en BigInt, sans perte de précision. */
 function toWei(dec: string): bigint {
   const [int, frac = ''] = dec.split('.');
@@ -429,19 +439,38 @@ function PortfolioPanel({ chain, address }: { chain: ChainConfig; address: strin
 function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }) {
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
-  const { data, loading } = useAsync<Erc20Token[]>(() => getErc20Tokens(chain, address), [chain.id, address, rev]);
+  const fiat = useSettings((s) => s.fiat);
+  const sym = fiatSymbol(fiat);
+  const { data, loading } = useAsync<{ tokens: Erc20Token[]; prices: Record<string, number> }>(async () => {
+    const tokens = await getErc20Tokens(chain, address);
+    const prices = chain.coingeckoPlatform && tokens.length ? await getTokenPrices(chain.coingeckoPlatform, tokens.map((t) => t.contract), fiat) : {};
+    return { tokens, prices };
+  }, [chain.id, address, fiat, rev]);
   if (loading) return <Card><ActivityIndicator color={colors.accent} /></Card>;
-  if (!data || data.length === 0) return <Card><Text style={typography.muted}>Aucun token détecté (clé Alchemy requise pour l'EVM).</Text></Card>;
+  const tokens = data?.tokens ?? [];
+  if (tokens.length === 0) return <Card><Text style={typography.muted}>Aucun token détecté (clé Alchemy requise pour l'EVM).</Text></Card>;
+  const prices = data?.prices ?? {};
+  // Valeur $ par token, triés par valeur décroissante (plus gros en haut).
+  const rows = tokens
+    .map((t) => {
+      const amount = Number(t.raw) / 10 ** t.decimals;
+      const value = amount * (prices[t.contract.toLowerCase()] ?? 0);
+      return { t, value };
+    })
+    .sort((a, b) => b.value - a.value);
   return (
     <Card>
-      {data.map((t, i) => (
+      {rows.map(({ t, value }, i) => (
         <View key={t.contract} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
           {t.logo ? <Image source={{ uri: t.logo }} style={{ width: 32, height: 32, borderRadius: 16 }} /> : <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.glassStrong }} />}
           <View style={{ flex: 1 }}>
             <Text style={typography.bodyStrong}>{t.symbol}</Text>
             <Text style={typography.muted} numberOfLines={1}>{t.name}</Text>
           </View>
-          <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{formatBalance(t.raw, t.decimals, 4)}</Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{formatBalance(t.raw, t.decimals, 4)}</Text>
+            {value > 0 ? <Text style={typography.muted}>{sym}{value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text> : null}
+          </View>
         </View>
       ))}
     </Card>
@@ -480,11 +509,11 @@ function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string 
       {data.slice(0, 30).map((tx, i) => (
         <View key={tx.hash} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
           <View style={{ flex: 1 }}>
-            <Text style={typography.bodyStrong}>{tx.direction === 'in' ? 'Reçu' : 'Envoyé'}</Text>
-            <Text style={typography.muted} numberOfLines={1}>{short(tx.hash)}</Text>
+            <Text style={typography.bodyStrong}>{tx.direction === 'in' ? 'Reçu' : 'Envoyé'}{tx.status === 'failed' ? ' · échoué' : ''}</Text>
+            <Text style={typography.muted} numberOfLines={1}>{short(tx.hash)} · {ago(tx.timestamp)}</Text>
           </View>
           <Text style={{ color: tx.direction === 'in' ? colors.up : colors.text, fontFamily: fonts.semibold }}>
-            {formatBalance(tx.value, chain.nativeDecimals, 4)} {chain.nativeSymbol}
+            {tx.direction === 'in' ? '+' : '−'}{formatBalance(tx.value, chain.nativeDecimals, 4)} {chain.nativeSymbol}
           </Text>
         </View>
       ))}
