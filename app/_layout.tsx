@@ -78,6 +78,11 @@ export default function RootLayout() {
     if (!doc) return;
     doc.documentElement.style.backgroundColor = colors.bgDeep;
     doc.body.style.backgroundColor = colors.bgDeep;
+    // Empêche la traduction auto du navigateur (Google Traduction réécrit les
+    // nœuds texte et casse React : « Failed to execute removeChild »).
+    const el = doc.documentElement as unknown as { setAttribute: (k: string, v: string) => void; lang: string };
+    el.lang = 'fr';
+    el.setAttribute('translate', 'no');
   }, [colors.bgDeep]);
 
   useEffect(() => {
