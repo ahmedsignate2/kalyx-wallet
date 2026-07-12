@@ -67,6 +67,10 @@ function evmChains(): EvmChain[] {
     .map((c) => ({ caip: `eip155:${c.evmChainId}`, novaId: c.id, evmChainId: c.evmChainId! }));
 }
 
+// CAIP-2 des réseaux non-EVM (WalletConnect). Solana mainnet + Bitcoin mainnet.
+export const SOLANA_CAIP = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+export const BTC_CAIP = 'bip122:000000000019d6689c085ae165831e93';
+
 const WC_METHODS = ['eth_sendTransaction', 'personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v4'];
 
 export interface WcSession {
@@ -138,24 +142,47 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   approveProposal: async (unlock) => {
     const { wallet, proposal } = get();
     if (!wallet || !proposal || !sdkUtils) return;
-    const address = useWallet.getState().account?.address;
+    const wstate = useWallet.getState();
+    const address = wstate.account?.address;
     if (!address) throw new Error('Aucun compte actif');
     // Exige l'identité dès la connexion (parité avec le navigateur dApps intégré).
     // Biométrie ou PIN ; lève si refusée → l'UI affiche l'erreur, aucune session.
-    await useWallet.getState().verifyUnlock(unlock);
+    await wstate.verifyUnlock(unlock);
     const chains = evmChains();
+    // Adresses non-EVM du compte actif (partagées en lecture seule au dashboard).
+    const acct = wstate.accounts[wstate.activeAccountIndex];
+    const evmAddress = acct?.evmAddress || address;
+    const supportedNamespaces: Record<string, unknown> = {
+      eip155: {
+        chains: chains.map((c) => c.caip),
+        methods: WC_METHODS,
+        events: ['chainChanged', 'accountsChanged'],
+        accounts: chains.map((c) => `${c.caip}:${evmAddress}`),
+      },
+    };
+    // Solana (namespace WalletConnect « solana »).
+    if (acct?.solAddress) {
+      supportedNamespaces.solana = {
+        chains: [SOLANA_CAIP],
+        methods: ['solana_signTransaction', 'solana_signMessage'],
+        events: ['accountsChanged'],
+        accounts: [`${SOLANA_CAIP}:${acct.solAddress}`],
+      };
+    }
+    // Bitcoin (namespace « bip122 »).
+    if (acct?.btcAddress) {
+      supportedNamespaces.bip122 = {
+        chains: [BTC_CAIP],
+        methods: ['bitcoin_signMessage', 'bitcoin_sendTransfer'],
+        events: [],
+        accounts: [`${BTC_CAIP}:${acct.btcAddress}`],
+      };
+    }
     let namespaces: Record<string, unknown>;
     try {
       namespaces = sdkUtils.buildApprovedNamespaces({
         proposal: proposal.params,
-        supportedNamespaces: {
-          eip155: {
-            chains: chains.map((c) => c.caip),
-            methods: WC_METHODS,
-            events: ['chainChanged', 'accountsChanged'],
-            accounts: chains.map((c) => `${c.caip}:${address}`),
-          },
-        },
+        supportedNamespaces,
       });
     } catch (e) {
       // buildApprovedNamespaces jette si la dApp EXIGE un réseau/une méthode
