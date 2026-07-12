@@ -1,14 +1,13 @@
 /**
- * Connexion WalletConnect CÔTÉ dApp — pour le tableau de bord WEB.
+ * Connexion WalletConnect CÔTÉ dApp — tableau de bord WEB.
  *
- * Modèle : le téléphone (app Nova) est le coffre-fort ; ce site est juste une
- * fenêtre. Le site NE stocke NI seed NI clé privée. Il ouvre une session
- * WalletConnect (QR), reçoit uniquement les adresses publiques, et FORWARDE
- * toute action sensible (envoi/signature) à l'app Nova qui signe avec PIN/bio.
- * Le web ne peut jamais signer seul.
+ * Le téléphone (app Nova) est le coffre-fort ; ce site est une fenêtre. Aucun
+ * secret ici : session WalletConnect (QR), on reçoit seulement les adresses
+ * publiques, et toute action sensible est FORWARDÉE à l'app Nova qui signe
+ * (PIN/biométrie). Le web ne signe jamais seul.
  *
- * Multi-chaîne : on demande TOUS les réseaux EVM de Nova (optionalNamespaces),
- * le wallet approuve ceux qu'il supporte, et le dashboard permet d'en changer.
+ * Multi-chaîne réel : EVM (eip155), Solana (solana) et Bitcoin (bip122). On
+ * indexe tout sur l'ID de chaîne Nova (string), pas sur le chainId EVM.
  */
 import { create } from 'zustand';
 import SignClient from '@walletconnect/sign-client';
@@ -16,55 +15,91 @@ import { listChains } from '../src';
 
 const PROJECT_ID = process.env.EXPO_PUBLIC_WALLETCONNECT_ID || '';
 
+// CAIP-2 des réseaux non-EVM (mêmes valeurs que côté wallet mobile).
+const SOLANA_CAIP = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+const BTC_CAIP = 'bip122:000000000019d6689c085ae165831e93';
+
 type Status = 'idle' | 'connecting' | 'connected' | 'error';
+
+/** Un compte connecté = une chaîne Nova + son adresse publique. */
+export interface ConnAccount {
+  chainId: string; // ID de chaîne Nova (ex. 'ethereum', 'solana', 'bitcoin')
+  address: string;
+}
 
 interface WebConnectState {
   status: Status;
-  uri: string | null; // URI WalletConnect à afficher en QR
+  uri: string | null;
   topic: string | null;
-  address: string | null;
-  chains: number[]; // tous les chainId EVM approuvés par le wallet
-  chainId: number; // réseau sélectionné dans le dashboard
+  accounts: ConnAccount[]; // toutes les chaînes approuvées par le wallet
+  selected: string | null; // ID de chaîne Nova sélectionné
   error: string | null;
   init: () => Promise<void>;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  setChain: (evmChainId: number) => void;
-  /** Forwarde une requête à signer vers l'app Nova. Renvoie le résultat (hash/sig). */
+  setChain: (novaChainId: string) => void;
   request: (method: string, params: unknown[]) => Promise<string>;
   reset: () => void;
 }
 
 let client: InstanceType<typeof SignClient> | null = null;
 
-/** CAIP eip155 de tous les réseaux EVM connus de Nova. */
 function evmCaips(): string[] {
-  return listChains()
-    .filter((c) => c.family === 'evm' && c.evmChainId)
-    .map((c) => `eip155:${c.evmChainId}`);
+  return listChains().filter((c) => c.family === 'evm' && c.evmChainId).map((c) => `eip155:${c.evmChainId}`);
 }
 
-/** accounts WC (« eip155:1:0x… ») → { address, chains[] }. */
-function parseAccounts(accounts: string[]): { address: string; chains: number[] } {
-  const set = new Set<number>();
-  let address = '';
-  for (const a of accounts) {
-    const [ns, id, addr] = a.split(':');
-    if (ns === 'eip155' && id && addr) {
-      address = addr;
-      set.add(Number(id));
+/** account WC (« eip155:1:0x… », « solana:…:… », « bip122:…:… ») → chaîne Nova. */
+function wcToNova(acc: string): ConnAccount | null {
+  const p = acc.split(':');
+  const ns = p[0];
+  const addr = p[p.length - 1];
+  if (!addr) return null;
+  const all = listChains();
+  if (ns === 'eip155') {
+    const c = all.find((x) => x.family === 'evm' && x.evmChainId === Number(p[1]));
+    return c ? { chainId: c.id, address: addr } : null;
+  }
+  if (ns === 'solana') {
+    const c = all.find((x) => x.family === 'solana');
+    return c ? { chainId: c.id, address: addr } : null;
+  }
+  if (ns === 'bip122') {
+    const c = all.find((x) => x.family === 'bitcoin');
+    return c ? { chainId: c.id, address: addr } : null;
+  }
+  return null;
+}
+
+/** Rassemble les comptes de TOUS les namespaces d'une session. */
+function collect(namespaces: Record<string, { accounts?: string[] }> | undefined): ConnAccount[] {
+  const out: ConnAccount[] = [];
+  const seen = new Set<string>();
+  for (const ns of Object.values(namespaces ?? {})) {
+    for (const acc of ns.accounts ?? []) {
+      const m = wcToNova(acc);
+      if (m && !seen.has(m.chainId)) {
+        seen.add(m.chainId);
+        out.push(m);
+      }
     }
   }
-  return { address, chains: [...set].sort((a, b) => a - b) };
+  return out;
+}
+
+/** ID de chaîne Nova → CAIP WalletConnect (pour forwarder une requête). */
+function novaToCaip(novaChainId: string): string {
+  const c = listChains().find((x) => x.id === novaChainId);
+  if (c?.family === 'solana') return SOLANA_CAIP;
+  if (c?.family === 'bitcoin') return BTC_CAIP;
+  return `eip155:${c?.evmChainId ?? 1}`;
 }
 
 export const useWebConnect = create<WebConnectState>((set, get) => ({
   status: 'idle',
   uri: null,
   topic: null,
-  address: null,
-  chains: [],
-  chainId: 1,
+  accounts: [],
+  selected: null,
   error: null,
 
   init: async () => {
@@ -78,13 +113,12 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
         icons: [],
       },
     });
-    // Restaure une session existante (rechargement de page).
     const sessions = client.session.getAll();
     const last = sessions[sessions.length - 1];
     if (last) {
-      const { address, chains } = parseAccounts(last.namespaces?.eip155?.accounts ?? []);
-      if (address) {
-        set({ status: 'connected', topic: last.topic, address, chains, chainId: chains.includes(1) ? 1 : chains[0] ?? 1, uri: null });
+      const accounts = collect(last.namespaces as Record<string, { accounts?: string[] }>);
+      if (accounts.length) {
+        set({ status: 'connected', topic: last.topic, accounts, selected: accounts[0].chainId, uri: null });
       }
     }
     client.on('session_delete', () => get().reset());
@@ -99,20 +133,23 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     try {
       await get().init();
       if (!client) throw new Error('client indisponible');
-      const methods = ['eth_sendTransaction', 'personal_sign', 'eth_signTypedData', 'eth_signTypedData_v4'];
-      const events = ['chainChanged', 'accountsChanged'];
-      const caips = evmCaips();
+      const evmMethods = ['eth_sendTransaction', 'personal_sign', 'eth_signTypedData', 'eth_signTypedData_v4'];
+      const evmEvents = ['chainChanged', 'accountsChanged'];
       const { uri, approval } = await client.connect({
-        // Minimal obligatoire (Ethereum) + TOUS les réseaux EVM en optionnel :
-        // le wallet approuve ceux qu'il supporte sans rejeter la session.
-        requiredNamespaces: { eip155: { methods, chains: ['eip155:1'], events } },
-        optionalNamespaces: { eip155: { methods, chains: caips, events } },
+        // Minimal obligatoire (Ethereum) + tout le reste en optionnel : le wallet
+        // approuve les réseaux qu'il supporte (EVM + Solana + Bitcoin) sans rejeter.
+        requiredNamespaces: { eip155: { methods: evmMethods, chains: ['eip155:1'], events: evmEvents } },
+        optionalNamespaces: {
+          eip155: { methods: evmMethods, chains: evmCaips(), events: evmEvents },
+          solana: { methods: ['solana_signTransaction', 'solana_signMessage'], chains: [SOLANA_CAIP], events: ['accountsChanged'] },
+          bip122: { methods: ['bitcoin_signMessage', 'bitcoin_sendTransfer'], chains: [BTC_CAIP], events: [] },
+        },
       });
       if (uri) set({ uri });
-      const session = await approval(); // résolu quand le téléphone approuve
-      const { address, chains } = parseAccounts(session.namespaces?.eip155?.accounts ?? []);
-      if (!address) throw new Error('Aucune adresse reçue');
-      set({ status: 'connected', topic: session.topic, address, chains, chainId: chains.includes(1) ? 1 : chains[0] ?? 1, uri: null });
+      const session = await approval();
+      const accounts = collect(session.namespaces as Record<string, { accounts?: string[] }>);
+      if (!accounts.length) throw new Error('Aucune adresse reçue');
+      set({ status: 'connected', topic: session.topic, accounts, selected: accounts[0].chainId, uri: null });
     } catch (e) {
       set({ status: 'error', uri: null, error: e instanceof Error ? e.message : 'Connexion échouée' });
     }
@@ -126,18 +163,18 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     get().reset();
   },
 
-  setChain: (evmChainId) => set({ chainId: evmChainId }),
+  setChain: (novaChainId) => set({ selected: novaChainId }),
 
   request: async (method, params) => {
-    const { topic, chainId } = get();
-    if (!client || !topic) throw new Error('Non connecté');
+    const { topic, selected } = get();
+    if (!client || !topic || !selected) throw new Error('Non connecté');
     // La requête part vers l'app Nova, qui affiche la demande + signe avec PIN/bio.
     return client.request<string>({
       topic,
-      chainId: `eip155:${chainId}`,
+      chainId: novaToCaip(selected),
       request: { method, params },
     });
   },
 
-  reset: () => set({ status: 'idle', uri: null, topic: null, address: null, chains: [], chainId: 1, error: null }),
+  reset: () => set({ status: 'idle', uri: null, topic: null, accounts: [], selected: null, error: null }),
 }));
