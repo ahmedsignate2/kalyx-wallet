@@ -71,7 +71,6 @@ function evmChains(): EvmChain[] {
 export const SOLANA_CAIP = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 export const BTC_CAIP = 'bip122:000000000019d6689c085ae165831e93';
 
-const WC_METHODS = ['eth_sendTransaction', 'personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v4'];
 
 export interface WcSession {
   topic: string;
@@ -90,7 +89,10 @@ interface WcState {
 
   init: () => Promise<void>;
   pair: (uri: string) => Promise<void>;
-  approveProposal: (unlock: Unlock) => Promise<void>;
+  /** Autorisations accordées au site : `tx` (proposer des transactions),
+   *  `sign` (demander des signatures de message). La lecture (adresses/soldes)
+   *  est inhérente à la connexion. Par défaut : tout autorisé. */
+  approveProposal: (unlock: Unlock, perms?: { tx: boolean; sign: boolean }) => Promise<void>;
   rejectProposal: () => Promise<void>;
   approveRequest: (unlock: Unlock) => Promise<void>;
   rejectRequest: () => Promise<void>;
@@ -141,9 +143,18 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     await get().wallet?.pair({ uri: uri.trim() });
   },
 
-  approveProposal: async (unlock) => {
+  approveProposal: async (unlock, perms) => {
     const { wallet, proposal } = get();
     if (!wallet || !proposal || !sdkUtils) return;
+    const p = perms ?? { tx: true, sign: true };
+    // Méthodes autorisées selon les cases cochées (lecture toujours accordée via
+    // le partage des adresses ; ici on gère uniquement les actions signables).
+    const evmMethods = [
+      ...(p.tx ? ['eth_sendTransaction'] : []),
+      ...(p.sign ? ['personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v4'] : []),
+    ];
+    const solMethods = [...(p.tx ? ['solana_signTransaction'] : []), ...(p.sign ? ['solana_signMessage'] : [])];
+    const btcMethods = [...(p.tx ? ['bitcoin_sendTransfer'] : []), ...(p.sign ? ['bitcoin_signMessage'] : [])];
     const wstate = useWallet.getState();
     const address = wstate.account?.address;
     if (!address) throw new Error('Aucun compte actif');
@@ -157,7 +168,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     const supportedNamespaces: Record<string, unknown> = {
       eip155: {
         chains: chains.map((c) => c.caip),
-        methods: WC_METHODS,
+        methods: evmMethods,
         events: ['chainChanged', 'accountsChanged'],
         accounts: chains.map((c) => `${c.caip}:${evmAddress}`),
       },
@@ -166,7 +177,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     if (acct?.solAddress) {
       supportedNamespaces.solana = {
         chains: [SOLANA_CAIP],
-        methods: ['solana_signTransaction', 'solana_signMessage'],
+        methods: solMethods,
         events: ['accountsChanged'],
         accounts: [`${SOLANA_CAIP}:${acct.solAddress}`],
       };
@@ -175,7 +186,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     if (acct?.btcAddress) {
       supportedNamespaces.bip122 = {
         chains: [BTC_CAIP],
-        methods: ['bitcoin_signMessage', 'bitcoin_sendTransfer'],
+        methods: btcMethods,
         events: [],
         accounts: [`${BTC_CAIP}:${acct.btcAddress}`],
       };
