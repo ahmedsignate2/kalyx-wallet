@@ -15,6 +15,9 @@ import { listChains } from '../src';
 
 const PROJECT_ID = process.env.EXPO_PUBLIC_WALLETCONNECT_ID || '';
 
+// Session du tableau de bord : déconnexion auto après 30 min d'inactivité.
+const SESSION_TTL = 30 * 60 * 1000;
+
 // CAIP-2 des réseaux non-EVM (mêmes valeurs que côté wallet mobile).
 const SOLANA_CAIP = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 const BTC_CAIP = 'bip122:000000000019d6689c085ae165831e93';
@@ -37,6 +40,8 @@ interface WebConnectState {
   /** Compteur de révision : incrémenté à chaque event WC (ou envoi). Les panneaux
    *  du dashboard le mettent dans leurs deps → rafraîchissement automatique. */
   rev: number;
+  /** Horodatage de la dernière activité (pour l'expiration de session). */
+  lastActivity: number;
   init: () => Promise<void>;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
@@ -107,6 +112,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
   selected: null,
   error: null,
   rev: 0,
+  lastActivity: Date.now(),
 
   init: async () => {
     if (client || !PROJECT_ID) return;
@@ -142,11 +148,19 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       } catch {
         /* session absente : ignore */
       }
-      set({ rev: get().rev + 1 });
+      set({ rev: get().rev + 1, lastActivity: Date.now() });
     };
     client.on('session_event', syncFromSession); // chainChanged / accountsChanged
     client.on('session_update', syncFromSession);
     client.on('session_delete', () => get().reset());
+
+    // Expiration de session : déconnexion auto après 30 min sans activité.
+    setInterval(() => {
+      const { status, lastActivity } = get();
+      if (status === 'connected' && Date.now() - lastActivity > SESSION_TTL) {
+        void get().disconnect().finally(() => set({ error: 'Session expirée pour inactivité. Reconnecte-toi.' }));
+      }
+    }, 30_000);
   },
 
   connect: async () => {
@@ -174,7 +188,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       const session = await approval();
       const accounts = collect(session.namespaces as Record<string, { accounts?: string[] }>);
       if (!accounts.length) throw new Error('Aucune adresse reçue');
-      set({ status: 'connected', topic: session.topic, accounts, selected: accounts[0].chainId, uri: null });
+      set({ status: 'connected', topic: session.topic, accounts, selected: accounts[0].chainId, uri: null, lastActivity: Date.now() });
     } catch (e) {
       set({ status: 'error', uri: null, error: e instanceof Error ? e.message : 'Connexion échouée' });
     }
@@ -188,7 +202,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     get().reset();
   },
 
-  setChain: (novaChainId) => set({ selected: novaChainId }),
+  setChain: (novaChainId) => set({ selected: novaChainId, lastActivity: Date.now() }),
 
   request: async (method, params) => {
     const { topic, selected } = get();
@@ -200,12 +214,12 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       request: { method, params },
     });
     // Après une action signée (envoi…), on rafraîchit soldes/historique.
-    set({ rev: get().rev + 1 });
+    set({ rev: get().rev + 1, lastActivity: Date.now() });
     setTimeout(() => set({ rev: get().rev + 1 }), 4000); // 2e passe (inclusion bloc)
     return res;
   },
 
-  refresh: () => set({ rev: get().rev + 1 }),
+  refresh: () => set({ rev: get().rev + 1, lastActivity: Date.now() }),
 
   reset: () => set({ status: 'idle', uri: null, topic: null, accounts: [], selected: null, error: null }),
 }));
