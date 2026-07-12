@@ -20,6 +20,7 @@ import {
   getErc20Tokens,
   getNfts,
   getMarketChart,
+  getTokenPrices,
   formatBalance,
   chainIconUrl,
   type Erc20Token,
@@ -371,37 +372,55 @@ function PortfolioPanel({ chain, address }: { chain: ChainConfig; address: strin
     () => (chain.coingeckoId ? getMarketChart(chain.coingeckoId, fiat, days) : Promise.resolve([])),
     [chain.coingeckoId, fiat, days, rev],
   );
+  // Valeur des tokens ERC-20 détenus (prix actuels) — pour le total du portefeuille.
+  const { data: tokensValue } = useAsync<number>(async () => {
+    if (chain.family !== 'evm' || !chain.coingeckoPlatform) return 0;
+    const tokens = await getErc20Tokens(chain, address);
+    if (!tokens.length) return 0;
+    const p = await getTokenPrices(chain.coingeckoPlatform, tokens.map((t) => t.contract), fiat);
+    return tokens.reduce((s, t) => s + (Number(t.raw) / 10 ** t.decimals) * (p[t.contract.toLowerCase()] ?? 0), 0);
+  }, [chain.id, address, fiat, rev]);
+
   const balNum = bal ? Number(bal.raw) / 10 ** bal.decimals : 0;
-  const values = (prices ?? []).map((p) => p * balNum);
-  const cur = values.length ? values[values.length - 1] : 0;
+  const values = (prices ?? []).map((p) => p * balNum); // valeur du natif dans le temps
+  const cur = values.length ? values[values.length - 1] : 0; // valeur natif actuelle
   const first = values.length ? values[0] : 0;
-  const pct = first > 0 ? ((cur - first) / first) * 100 : 0;
+  const pct = first > 0 ? ((cur - first) / first) * 100 : 0; // variation du natif sur la période
   const up = pct >= 0;
   const sym = fiatSymbol(fiat);
+  const total = cur + (tokensValue ?? 0); // natif + tokens ERC-20
+
   return (
     <Card>
-      <Text style={typography.muted}>Valeur du portefeuille · {chain.name}</Text>
+      <Text style={typography.muted}>Total du portefeuille · {chain.name}</Text>
       <Text style={{ color: colors.text, fontSize: 30, fontFamily: fonts.extrabold, marginTop: 2 }}>
         {chain.coingeckoId && values.length
-          ? `${sym}${cur.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+          ? `${sym}${total.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
           : `${bal ? formatBalance(bal.raw, bal.decimals) : '0'} ${chain.nativeSymbol}`}
       </Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 2 }}>
-        <Text style={typography.muted}>{bal ? formatBalance(bal.raw, bal.decimals, 4) : '0'} {chain.nativeSymbol}</Text>
-        {chain.coingeckoId && values.length ? (
-          <Text style={{ color: up ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13 }}>{up ? '+' : ''}{pct.toFixed(2)} %</Text>
-        ) : null}
-      </View>
+      <Text style={[typography.muted, { marginTop: 2 }]}>{bal ? formatBalance(bal.raw, bal.decimals, 4) : '0'} {chain.nativeSymbol}
+        {tokensValue ? ` + ${sym}${tokensValue.toLocaleString(undefined, { maximumFractionDigits: 2 })} de tokens` : ''}
+      </Text>
+
       {chain.coingeckoId ? (
-        loading && !values.length ? (
-          <View style={{ height: 130, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.accent} /></View>
-        ) : values.length > 1 ? (
-          <AreaChart values={values} up={up} />
-        ) : (
-          <View style={{ height: 130, alignItems: 'center', justifyContent: 'center' }}><Text style={typography.muted}>Pas de données de prix.</Text></View>
-        )
+        <>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing(1.5) }}>
+            <Text style={typography.muted}>Tendance {chain.nativeSymbol}</Text>
+            {values.length ? (
+              <Text style={{ color: up ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13 }}>{up ? '+' : ''}{pct.toFixed(2)} %</Text>
+            ) : null}
+          </View>
+          {loading && !values.length ? (
+            <View style={{ height: 130, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.accent} /></View>
+          ) : values.length > 1 ? (
+            <AreaChart values={values} up={up} />
+          ) : (
+            <View style={{ height: 130, alignItems: 'center', justifyContent: 'center' }}><Text style={typography.muted}>Pas de données de prix.</Text></View>
+          )}
+          <PeriodToggle days={days} onChange={setDays} />
+        </>
       ) : null}
-      {chain.coingeckoId ? <PeriodToggle days={days} onChange={setDays} /> : null}
+
       <Text style={[typography.muted, { marginTop: spacing(1) }]} selectable>{address}</Text>
     </Card>
   );
