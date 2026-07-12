@@ -31,6 +31,8 @@ const BENIGN_WC_LOGS = [
   'No matching key',
   'pair() URI has expired',
   'Expired. pair()',
+  // Rescan d'un QR déjà appairé : WC réutilise l'appairage, aucune action requise.
+  'Pairing already exists',
 ];
 let consoleFiltered = false;
 function silenceBenignWcLogs() {
