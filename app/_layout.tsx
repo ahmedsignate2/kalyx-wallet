@@ -22,6 +22,7 @@ import {
 import { Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold } from '@expo-google-fonts/outfit';
 import { RootErrorBoundary, ErrorScreen } from '../ui/ErrorBoundary';
 import { WalletConnectHost } from '../ui/WalletConnectHost';
+import { WebDashboard } from '../ui/web/WebDashboard';
 import { ToastHost } from '../ui/ToastHost';
 import { AutoLock } from '../ui/AutoLock';
 import { PrivacyScreen } from '../ui/PrivacyScreen';
@@ -80,6 +81,9 @@ export default function RootLayout() {
   }, [colors.bgDeep]);
 
   useEffect(() => {
+    // Sur web (tableau de bord WalletConnect), pas de coffre local ni de wallet-side :
+    // on ne bootstrap pas les stores du wallet mobile.
+    if (Platform.OS === 'web') return;
     console.log('[Nova] _layout: démarrage bootstrap');
     (async () => {
       try {
@@ -111,29 +115,26 @@ export default function RootLayout() {
 
   if (!fontsLoaded) return null;
 
-  // Sur web, l'app mobile est centrée dans une colonne (façon popup d'extension)
-  // au lieu d'être collée à gauche avec une bande vide. Sur mobile : plein écran.
-  const isWeb = Platform.OS === 'web';
-  const frameStyle = isWeb
-    ? {
-        flex: 1,
-        width: '100%' as const,
-        maxWidth: 460,
-        alignSelf: 'center' as const,
-        backgroundColor: colors.bgDeep,
-        // Léger liseré + ombre pour détacher la colonne du fond sur grand écran.
-        borderLeftWidth: 1,
-        borderRightWidth: 1,
-        borderColor: colors.glassBorder,
-      }
-    : { flex: 1 };
+  // WEB = tableau de bord desktop (le téléphone est le coffre-fort, le web est
+  // une fenêtre WalletConnect en lecture seule). MOBILE = l'app wallet complète.
+  if (Platform.OS === 'web') {
+    return (
+      <RootErrorBoundary>
+        <SafeAreaProvider>
+          <StatusBar style="light" />
+          <WebDashboard />
+          <ToastHost />
+        </SafeAreaProvider>
+      </RootErrorBoundary>
+    );
+  }
 
   return (
     <RootErrorBoundary>
       <SafeAreaProvider>
         {/* Icônes de statut claires sur thème sombre, et inversement. */}
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
-        <View style={frameStyle}>
+        <View style={{ flex: 1 }}>
         <Stack
           screenOptions={{
             headerStyle: { backgroundColor: colors.bgDeep },
