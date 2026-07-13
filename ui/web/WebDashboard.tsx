@@ -176,6 +176,28 @@ function Dashboard() {
   const netChains = useMemo(() => accounts.map((a) => chainById(a.chainId)), [accounts]);
   const isEvm = chain.family === 'evm';
 
+  // Total du portefeuille (natif + tokens ERC-20) affiché en permanence.
+  const fiat = useSettings((s) => s.fiat);
+  const rev = useWebConnect((s) => s.rev);
+  const sym = fiatSymbol(fiat);
+  const { data: total } = useAsync<number | null>(async () => {
+    if (!address || !chain.coingeckoId) return null;
+    const [bal, prices] = await Promise.all([
+      getAdapter(chain.id).getBalance(address),
+      getMarketChart(chain.coingeckoId, fiat, '1'),
+    ]);
+    const px = prices.length ? prices[prices.length - 1] : 0;
+    let sum = (Number(bal.raw) / 10 ** bal.decimals) * px;
+    if (chain.family === 'evm' && chain.coingeckoPlatform) {
+      const tokens = await getErc20Tokens(chain, address);
+      if (tokens.length) {
+        const tp = await getTokenPrices(chain.coingeckoPlatform, tokens.map((t) => t.contract), fiat);
+        sum += tokens.reduce((s, t) => s + (Number(t.raw) / 10 ** t.decimals) * (tp[t.contract.toLowerCase()] ?? 0), 0);
+      }
+    }
+    return sum;
+  }, [chain.id, address, fiat, rev]);
+
   return (
     <ScrollView contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}>
       <View style={{ width: '100%', maxWidth: 1200, padding: spacing(desktop ? 3 : 2), gap: spacing(2) }}>
@@ -197,6 +219,18 @@ function Dashboard() {
               <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>Déconnecter</Text>
             </Pressable>
           </View>
+        </View>
+
+        {/* Total du portefeuille (net worth) — visible en permanence */}
+        <View style={{ marginTop: spacing(0.5) }}>
+          <Text style={typography.muted}>{`Total du portefeuille · ${chain.name}`}</Text>
+          {total == null ? (
+            <Skeleton w={180} h={34} style={{ marginTop: 4 }} />
+          ) : (
+            <Text style={{ color: colors.text, fontSize: 36, fontFamily: fonts.extrabold, marginTop: 2 }}>
+              {`${sym}${total.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+            </Text>
+          )}
         </View>
 
         {/* Recherche de réseau (au-delà de ~6 réseaux, plutôt que scroller) */}
@@ -436,15 +470,6 @@ function PortfolioPanel({ chain, address }: { chain: ChainConfig; address: strin
     () => (chain.coingeckoId ? getMarketChart(chain.coingeckoId, fiat, days) : Promise.resolve([])),
     [chain.coingeckoId, fiat, days, rev],
   );
-  // Valeur des tokens ERC-20 détenus (prix actuels) — pour le total du portefeuille.
-  const { data: tokensValue } = useAsync<number>(async () => {
-    if (chain.family !== 'evm' || !chain.coingeckoPlatform) return 0;
-    const tokens = await getErc20Tokens(chain, address);
-    if (!tokens.length) return 0;
-    const p = await getTokenPrices(chain.coingeckoPlatform, tokens.map((t) => t.contract), fiat);
-    return tokens.reduce((s, t) => s + (Number(t.raw) / 10 ** t.decimals) * (p[t.contract.toLowerCase()] ?? 0), 0);
-  }, [chain.id, address, fiat, rev]);
-
   const balNum = bal ? Number(bal.raw) / 10 ** bal.decimals : 0;
   const values = (prices ?? []).map((p) => p * balNum); // valeur du natif dans le temps
   const cur = values.length ? values[values.length - 1] : 0; // valeur natif actuelle
@@ -452,18 +477,17 @@ function PortfolioPanel({ chain, address }: { chain: ChainConfig; address: strin
   const pct = first > 0 ? ((cur - first) / first) * 100 : 0; // variation du natif sur la période
   const up = pct >= 0;
   const sym = fiatSymbol(fiat);
-  const total = cur + (tokensValue ?? 0); // natif + tokens ERC-20
 
   return (
     <Card>
-      <Text style={typography.muted}>Total du portefeuille · {chain.name}</Text>
+      <Text style={typography.muted}>{`Solde ${chain.nativeSymbol} · ${chain.name}`}</Text>
       <Text style={{ color: colors.text, fontSize: 30, fontFamily: fonts.extrabold, marginTop: 2 }}>
         {chain.coingeckoId && values.length
-          ? `${sym}${total.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+          ? `${sym}${cur.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
           : `${bal ? formatBalance(bal.raw, bal.decimals) : '0'} ${chain.nativeSymbol}`}
       </Text>
       <Text style={[typography.muted, { marginTop: 2 }]}>
-        {`${bal ? formatBalance(bal.raw, bal.decimals, 4) : '0'} ${chain.nativeSymbol}${tokensValue ? ` + ${sym}${tokensValue.toLocaleString(undefined, { maximumFractionDigits: 2 })} de tokens` : ''}`}
+        {`${bal ? formatBalance(bal.raw, bal.decimals, 4) : '0'} ${chain.nativeSymbol}`}
       </Text>
 
       {chain.coingeckoId ? (
