@@ -24,6 +24,7 @@ export default function WalletConnectScreen() {
   const sessions = useWalletConnect((s) => s.sessions);
   const pair = useWalletConnect((s) => s.pair);
   const disconnect = useWalletConnect((s) => s.disconnect);
+  const disconnectAll = useWalletConnect((s) => s.disconnectAll);
 
   const connections = useDappActivity((s) => s.connections);
   const signatures = useDappActivity((s) => s.signatures);
@@ -86,7 +87,12 @@ export default function WalletConnectScreen() {
         contentContainerStyle={{ gap: spacing(1), paddingBottom: spacing(4) }}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[typography.section, { marginTop: spacing(1) }]}>{t('wcSessions')}</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing(1) }}>
+          <Text style={typography.section}>{t('wcSessions')}</Text>
+          {sessions.length > 1 ? (
+            <Text onPress={() => disconnectAll()} style={{ color: colors.danger, fontFamily: fonts.semibold, fontSize: 13 }}>{t('disconnectAll')}</Text>
+          ) : null}
+        </View>
         {sessions.length === 0 ? (
           <Muted>{t('noWcSessions')}</Muted>
         ) : (
