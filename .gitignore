@@ -34,3 +34,4 @@ expo-env.d.ts
 # Config locale Claude Code (par machine)
 .claude/settings.local.json*
 *.txt
+.aider*
