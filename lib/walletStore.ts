@@ -466,13 +466,11 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
   },
 
-  lock: () => {
-    set({ isUnlocked: false });
-    // Sécurité : au verrouillage, on coupe les sessions WalletConnect — le
-    // tableau de bord web (et toute dApp) perd l'accès tant que Nova est verrouillé.
-    // Import dynamique pour éviter un cycle walletStore ↔ walletconnect.
-    void import('./walletconnect').then((m) => m.useWalletConnect.getState().disconnectAll()).catch(() => {});
-  },
+  // Le verrouillage NE coupe PAS les sessions WalletConnect : signer exige de
+  // toute façon le PIN/biométrie, donc garder la session est sûr — et éviter de
+  // la couper évite un désync (le web resterait « connecté » sur une session
+  // morte et les requêtes partiraient dans le vide).
+  lock: () => set({ isUnlocked: false }),
 
   signAndSend: async (to, amount, unlock, gas) => {
     const { account, activeChain, activeWalletId, wallets } = get();
