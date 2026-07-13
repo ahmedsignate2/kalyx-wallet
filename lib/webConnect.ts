@@ -153,6 +153,9 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     client.on('session_event', syncFromSession); // chainChanged / accountsChanged
     client.on('session_update', syncFromSession);
     client.on('session_delete', () => get().reset());
+    // Le téléphone a coupé la session, ou elle a expiré côté relay : on nettoie
+    // pour ne pas rester « connecté » sur une session morte (source du désync).
+    client.on('session_expire', () => get().reset());
 
     // Expiration de session : déconnexion auto après 30 min sans activité.
     setInterval(() => {
@@ -208,16 +211,47 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
   request: async (method, params) => {
     const { topic, selected } = get();
     if (!client || !topic || !selected) throw new Error('Non connecté');
+    // Garde-fou anti-« session zombie » : si le téléphone a laissé tomber la
+    // session (verrouillage ancien, relance de l'app…), le web pouvait rester
+    // « connecté » et la requête partait dans le vide. On vérifie d'abord que la
+    // session existe encore ; sinon on se réinitialise et on le dit clairement.
+    try {
+      client.session.get(topic);
+    } catch {
+      get().reset();
+      throw new Error('Session introuvable côté téléphone. Reconnecte le tableau de bord (QR).');
+    }
     // La requête part vers l'app Nova, qui affiche la demande + signe avec PIN/bio.
-    const res = await client.request<string>({
-      topic,
-      chainId: novaToCaip(selected),
-      request: { method, params },
+    // Timeout de courtoisie : si l'app ne répond pas (fermée / verrouillée / hors
+    // ligne), on rend la main avec un message utile au lieu de rester figé.
+    const REQ_TIMEOUT = 120_000;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error("Le téléphone n'a pas répondu. Ouvre l'app Nova, déverrouille-la et réessaie.")),
+        REQ_TIMEOUT,
+      );
     });
-    // Après une action signée (envoi…), on rafraîchit soldes/historique.
-    set({ rev: get().rev + 1, lastActivity: Date.now() });
-    setTimeout(() => set({ rev: get().rev + 1 }), 4000); // 2e passe (inclusion bloc)
-    return res;
+    try {
+      const res = await Promise.race([
+        client.request<string>({ topic, chainId: novaToCaip(selected), request: { method, params } }),
+        timeout,
+      ]);
+      // Après une action signée (envoi…), on rafraîchit soldes/historique.
+      set({ rev: get().rev + 1, lastActivity: Date.now() });
+      setTimeout(() => set({ rev: get().rev + 1 }), 4000); // 2e passe (inclusion bloc)
+      return res;
+    } catch (e) {
+      // La session a pu disparaître pendant l'attente : on vérifie et on nettoie.
+      try {
+        if (topic) client?.session.get(topic);
+      } catch {
+        get().reset();
+      }
+      throw e;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   },
 
   refresh: () => set({ rev: get().rev + 1, lastActivity: Date.now() }),
