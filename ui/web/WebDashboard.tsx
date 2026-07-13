@@ -4,8 +4,8 @@
  * WalletConnect (QR), on lit les adresses publiques, et on FORWARDE toute action
  * sensible à l'app qui signe. Layout desktop responsive (sidebar + contenu).
  */
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Image, TextInput, useWindowDimensions, ActivityIndicator } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, Pressable, ScrollView, Image, TextInput, useWindowDimensions, ActivityIndicator, Animated, Linking } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
@@ -238,7 +238,7 @@ function Dashboard() {
             <View style={{ flexDirection: 'row', gap: spacing(2), alignItems: 'flex-start' }}>
               <Zone title="Portefeuille" style={{ flex: 1.2 }}>
                 <PortfolioPanel chain={chain} address={address} />
-                {isEvm ? <SendPanel chain={chain} /> : null}
+                {isEvm ? <SendPanel chain={chain} address={address} /> : null}
               </Zone>
               <Zone title="Tokens" style={{ flex: 1.4 }}>
                 {isEvm ? <TokensPanel chain={chain} address={address} /> : <Note text={`Les tokens (ERC-20) sont propres aux réseaux EVM.`} />}
@@ -275,7 +275,7 @@ function Dashboard() {
             {tab === 'tokens' ? (isEvm ? <TokensPanel chain={chain} address={address} /> : <Note text={`Les tokens (ERC-20) sont propres aux réseaux EVM. Sur ${chain.name}, consulte le solde et l'historique.`} />) : null}
             {tab === 'nfts' ? (isEvm ? <NftsPanel chain={chain} address={address} /> : <Note text={`Les NFT affichés ici concernent les réseaux EVM.`} />) : null}
             {tab === 'history' ? <HistoryPanel chain={chain} address={address} /> : null}
-            {tab === 'send' ? (isEvm ? <SendPanel chain={chain} /> : <Note text={`L'envoi ${chain.nativeSymbol} depuis le tableau de bord arrive bientôt. En attendant, envoie directement depuis l'app Nova.`} />) : null}
+            {tab === 'send' ? (isEvm ? <SendPanel chain={chain} address={address} /> : <Note text={`L'envoi ${chain.nativeSymbol} depuis le tableau de bord arrive bientôt. En attendant, envoie directement depuis l'app Nova.`} />) : null}
           </View>
         </View>
         )}
@@ -316,6 +316,42 @@ function Zone({ title, style, children }: { title: string; style?: object; child
 function Note({ text }: { text: string }) {
   const { typography } = useTheme();
   return <Card><Text style={typography.muted}>{text}</Text></Card>;
+}
+
+/** Barre grise pulsée (placeholder de chargement). */
+function Skeleton({ w = '100%', h, r = 8, style }: { w?: number | string; h: number; r?: number; style?: object }) {
+  const { colors } = useTheme();
+  const op = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.85, duration: 700, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [op]);
+  return <Animated.View style={[{ width: w as number, height: h, borderRadius: r, backgroundColor: colors.glassStrong, opacity: op }, style]} />;
+}
+
+/** Lignes de chargement (icône ronde + 2 barres + valeur), pour tokens/historique. */
+function SkeletonRows({ count = 4 }: { count?: number }) {
+  const { colors } = useTheme();
+  return (
+    <Card>
+      {Array.from({ length: count }).map((_, i) => (
+        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
+          <Skeleton w={32} h={32} r={16} />
+          <View style={{ flex: 1, gap: 6 }}>
+            <Skeleton w={90} h={12} />
+            <Skeleton w={140} h={10} />
+          </View>
+          <Skeleton w={60} h={12} />
+        </View>
+      ))}
+    </Card>
+  );
 }
 
 function useAsync<T>(fn: () => Promise<T>, deps: React.DependencyList): { data: T | null; loading: boolean } {
@@ -439,7 +475,7 @@ function PortfolioPanel({ chain, address }: { chain: ChainConfig; address: strin
             ) : null}
           </View>
           {loading && !values.length ? (
-            <View style={{ height: 130, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.accent} /></View>
+            <Skeleton h={130} r={radii.md} style={{ marginTop: spacing(1) }} />
           ) : values.length > 1 ? (
             <AreaChart values={values} up={up} />
           ) : (
@@ -482,7 +518,7 @@ function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }
     const prices = chain.coingeckoPlatform && tokens.length ? await getTokenPrices(chain.coingeckoPlatform, tokens.map((t) => t.contract), fiat) : {};
     return { tokens, prices };
   }, [chain.id, address, fiat, rev]);
-  if (loading) return <Card><ActivityIndicator color={colors.accent} /></Card>;
+  if (loading) return <SkeletonRows />;
   const tokens = data?.tokens ?? [];
   if (tokens.length === 0) return <Card><Text style={typography.muted}>Aucun token détecté (clé Alchemy requise pour l'EVM).</Text></Card>;
   const prices = data?.prices ?? {};
@@ -517,18 +553,26 @@ function NftsPanel({ chain, address }: { chain: ChainConfig; address: string }) 
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const { data, loading } = useAsync<NftItem[]>(() => getNfts(chain, address), [chain.id, address, rev]);
-  if (loading) return <Card><ActivityIndicator color={colors.accent} /></Card>;
+  if (loading) return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
+      {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} w={160} h={196} r={radii.md} />)}
+    </View>
+  );
   if (!data || data.length === 0) return <Card><Text style={typography.muted}>Aucun NFT sur ce réseau.</Text></Card>;
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
       {data.map((n) => (
-        <View key={`${n.contract}-${n.tokenId}`} style={{ width: 160, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, overflow: 'hidden' }}>
+        <Pressable
+          key={`${n.contract}-${n.tokenId}`}
+          onPress={() => chain.explorerUrl && Linking.openURL(`${chain.explorerUrl}/token/${n.contract}?a=${n.tokenId}`)}
+          style={({ pressed }) => ({ width: 160, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, overflow: 'hidden', opacity: pressed ? 0.75 : 1 })}
+        >
           <Image source={{ uri: n.image }} style={{ width: '100%', height: 160, backgroundColor: colors.glassStrong }} resizeMode="cover" />
           <View style={{ padding: spacing(1) }}>
             <Text style={typography.bodyStrong} numberOfLines={1}>{n.name}</Text>
             <Text style={typography.muted} numberOfLines={1}>{n.collection}</Text>
           </View>
-        </View>
+        </Pressable>
       ))}
     </View>
   );
@@ -538,28 +582,35 @@ function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string 
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address, rev]);
-  if (loading) return <Card><ActivityIndicator color={colors.accent} /></Card>;
+  if (loading) return <SkeletonRows count={5} />;
   if (!data || data.length === 0) return <Card><Text style={typography.muted}>Aucune transaction (clé Etherscan requise pour l'EVM).</Text></Card>;
   return (
     <Card>
       {data.slice(0, 30).map((tx, i) => (
-        <View key={tx.hash} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
+        <Pressable
+          key={tx.hash}
+          onPress={() => chain.explorerUrl && Linking.openURL(`${chain.explorerUrl}/tx/${tx.hash}`)}
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}
+        >
           <View style={{ flex: 1 }}>
             <Text style={typography.bodyStrong}>{`${tx.direction === 'in' ? 'Reçu' : 'Envoyé'}${tx.status === 'failed' ? ' · échoué' : ''}`}</Text>
             <Text style={typography.muted} numberOfLines={1}>{`${short(tx.hash)} · ${ago(tx.timestamp)}`}</Text>
           </View>
           <Text style={{ color: tx.direction === 'in' ? colors.up : colors.text, fontFamily: fonts.semibold }}>
-            {tx.direction === 'in' ? '+' : '−'}{formatBalance(tx.value, chain.nativeDecimals, 4)} {chain.nativeSymbol}
+            {`${tx.direction === 'in' ? '+' : '−'}${formatBalance(tx.value, chain.nativeDecimals, 4)} ${chain.nativeSymbol}`}
           </Text>
-        </View>
+        </Pressable>
       ))}
     </Card>
   );
 }
 
-function SendPanel({ chain }: { chain: ChainConfig }) {
+function SendPanel({ chain, address }: { chain: ChainConfig; address: string }) {
   const { colors, typography } = useTheme();
   const request = useWebConnect((s) => s.request);
+  const rev = useWebConnect((s) => s.rev);
+  const { data: bal } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
+  const balStr = bal ? formatBalance(bal.raw, bal.decimals) : '0';
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
@@ -593,7 +644,12 @@ function SendPanel({ chain }: { chain: ChainConfig }) {
       <Text style={[typography.muted, { marginBottom: spacing(1) }]}>La transaction est signée dans l'app Nova — ce site ne signe jamais.</Text>
       <Text style={typography.muted}>Destinataire</Text>
       <TextInput value={to} onChangeText={setTo} placeholder="0x…" placeholderTextColor={colors.textMuted} autoCapitalize="none" style={{ color: colors.text, fontSize: 15, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), marginTop: 4, marginBottom: spacing(1) }} />
-      <Text style={typography.muted}>Montant ({chain.nativeSymbol})</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={typography.muted}>Montant ({chain.nativeSymbol})</Text>
+        <Pressable onPress={() => setAmount(balStr)} hitSlop={6}>
+          <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{`Solde ${balStr} · Max`}</Text>
+        </Pressable>
+      </View>
       <TextInput value={amount} onChangeText={setAmount} placeholder="0.0" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={{ color: colors.text, fontSize: 15, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), marginTop: 4 }} />
       <Pressable onPress={onSend} disabled={busy} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.4), opacity: pressed || busy ? 0.7 : 1 })}>
         <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{busy ? 'En attente de l\'app…' : 'Envoyer'}</Text>
