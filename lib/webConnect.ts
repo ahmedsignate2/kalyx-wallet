@@ -37,6 +37,11 @@ interface WebConnectState {
   accounts: ConnAccount[]; // toutes les chaînes approuvées par le wallet
   selected: string | null; // ID de chaîne Nova sélectionné
   error: string | null;
+  /** Métadonnées du portefeuille appairé (l'app Nova mobile), pour le panneau Sécurité. */
+  peerName: string | null;
+  peerUrl: string | null;
+  /** Horodatage (ms) de l'établissement de la session courante. */
+  connectedAt: number | null;
   /** Compteur de révision : incrémenté à chaque event WC (ou envoi). Les panneaux
    *  du dashboard le mettent dans leurs deps → rafraîchissement automatique. */
   rev: number;
@@ -111,6 +116,9 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
   accounts: [],
   selected: null,
   error: null,
+  peerName: null,
+  peerUrl: null,
+  connectedAt: null,
   rev: 0,
   lastActivity: Date.now(),
 
@@ -130,7 +138,11 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     if (last) {
       const accounts = collect(last.namespaces as Record<string, { accounts?: string[] }>);
       if (accounts.length) {
-        set({ status: 'connected', topic: last.topic, accounts, selected: accounts[0].chainId, uri: null });
+        const meta = (last.peer as { metadata?: { name?: string; url?: string } } | undefined)?.metadata;
+        set({
+          status: 'connected', topic: last.topic, accounts, selected: accounts[0].chainId, uri: null,
+          peerName: meta?.name ?? null, peerUrl: meta?.url ?? null, connectedAt: last.expiry ? last.expiry * 1000 - 7 * 24 * 3600 * 1000 : Date.now(),
+        });
       }
     }
 
@@ -192,7 +204,11 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       const session = await approval();
       const accounts = collect(session.namespaces as Record<string, { accounts?: string[] }>);
       if (!accounts.length) throw new Error('Aucune adresse reçue');
-      set({ status: 'connected', topic: session.topic, accounts, selected: accounts[0].chainId, uri: null, lastActivity: Date.now() });
+      const meta = (session.peer as { metadata?: { name?: string; url?: string } } | undefined)?.metadata;
+      set({
+        status: 'connected', topic: session.topic, accounts, selected: accounts[0].chainId, uri: null, lastActivity: Date.now(),
+        peerName: meta?.name ?? null, peerUrl: meta?.url ?? null, connectedAt: Date.now(),
+      });
     } catch (e) {
       set({ status: 'error', uri: null, error: e instanceof Error ? e.message : 'Connexion échouée' });
     }
@@ -256,5 +272,5 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
 
   refresh: () => set({ rev: get().rev + 1, lastActivity: Date.now() }),
 
-  reset: () => set({ status: 'idle', uri: null, topic: null, accounts: [], selected: null, error: null }),
+  reset: () => set({ status: 'idle', uri: null, topic: null, accounts: [], selected: null, error: null, peerName: null, peerUrl: null, connectedAt: null }),
 }));

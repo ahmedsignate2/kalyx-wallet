@@ -33,6 +33,13 @@ const BENIGN_WC_LOGS = [
   'Expired. pair()',
   // Rescan d'un QR déjà appairé : WC réutilise l'appairage, aucune action requise.
   'Pairing already exists',
+  // Appairage expiré (QR périmé) : déjà remonté à l'UI, le heartbeat nettoie.
+  'Expired. pairing topic',
+  // Messages relais chiffrés avec une clé d'une session déjà supprimée côté pair
+  // (déconnexion / reconnexion) : impossibles à déchiffrer, sans conséquence.
+  'Failed to decode message from topic',
+  'is not identifiable as a JSON-RPC request or a response',
+  'Decoded payload on topic',
 ];
 let consoleFiltered = false;
 function silenceBenignWcLogs() {
