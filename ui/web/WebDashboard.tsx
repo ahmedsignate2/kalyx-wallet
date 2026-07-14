@@ -11,7 +11,8 @@ import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-nati
 import * as Clipboard from 'expo-clipboard';
 import { NovaLogo } from '../NovaLogo';
 import { AuroraBackground } from '../AuroraBackground';
-import { Icon, type IconName } from '../icon';
+import { AllocationDonut, foldSlices } from '../AllocationDonut';
+import { Icon } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useWebConnect } from '../../lib/webConnect';
 import { useSettings, fiatSymbol } from '../../lib/settingsStore';
@@ -22,6 +23,7 @@ import {
   getNfts,
   getMarketChart,
   getTokenPrices,
+  getPrices,
   formatBalance,
   chainIconUrl,
   type Erc20Token,
@@ -57,8 +59,6 @@ function chainById(id: string | null): ChainConfig {
   const all = listChains();
   return all.find((c) => c.id === id) ?? all.find((c) => c.id === 'ethereum')!;
 }
-
-type Tab = 'portfolio' | 'tokens' | 'nfts' | 'history' | 'send';
 
 export function WebDashboard() {
   const { colors } = useTheme();
@@ -150,57 +150,109 @@ function ConnectView() {
 
 /* ------------------------------------------------------------------ Dashboard */
 
-const NAV: { key: Tab; label: string; icon: IconName }[] = [
-  { key: 'portfolio', label: 'Portefeuille', icon: 'wallet' },
-  { key: 'tokens', label: 'Tokens', icon: 'market' },
-  { key: 'nfts', label: 'NFT', icon: 'nft' },
-  { key: 'history', label: 'Historique', icon: 'history' },
-  { key: 'send', label: 'Envoyer', icon: 'send' },
-];
+/** Valeur d'une chaîne connectée (natif + tokens) pour le net worth cross-chain. */
+interface ChainWorth {
+  chain: ChainConfig;
+  address: string;
+  price: number; // prix spot de l'actif natif (fiat)
+  native: number; // valeur fiat de l'actif natif
+  tokens: number; // valeur fiat des tokens ERC-20 (EVM)
+  value: number; // native + tokens
+  change24h: number; // variation 24h de l'actif natif (%)
+}
+interface NetWorth {
+  total: number;
+  change24h: number; // variation 24h pondérée par la valeur native
+  slices: ChainWorth[];
+}
+
+/** Agrège la valeur de TOUTES les chaînes connectées (une source unique pour le
+ *  total, le donut de répartition et la watchlist). Prix natifs en un seul appel. */
+function useNetWorth(): { data: NetWorth | null; loading: boolean } {
+  const accounts = useWebConnect((s) => s.accounts);
+  const fiat = useSettings((s) => s.fiat);
+  const rev = useWebConnect((s) => s.rev);
+  const key = accounts.map((a) => `${a.chainId}:${a.address}`).join(',');
+  return useAsync<NetWorth>(async () => {
+    if (!accounts.length) return { total: 0, change24h: 0, slices: [] };
+    const entries = accounts.map((a) => ({ acc: a, chain: chainById(a.chainId) }));
+    const ids = [...new Set(entries.map((e) => e.chain.coingeckoId).filter(Boolean))] as string[];
+    const prices = await getPrices(ids, fiat); // { coingeckoId: { price, change24h } }
+    const slices = await Promise.all(
+      entries.map(async ({ acc, chain }): Promise<ChainWorth> => {
+        let native = 0;
+        let change24h = 0;
+        let tokens = 0;
+        let price = 0;
+        try {
+          const bal = await getAdapter(chain.id).getBalance(acc.address);
+          const p = chain.coingeckoId ? prices[chain.coingeckoId] : undefined;
+          price = p?.price ?? 0;
+          native = (Number(bal.raw) / 10 ** bal.decimals) * price;
+          change24h = p?.change24h ?? 0;
+        } catch {
+          /* réseau indisponible : chaîne à 0 */
+        }
+        if (chain.family === 'evm' && chain.coingeckoPlatform) {
+          try {
+            const tks = await getErc20Tokens(chain, acc.address);
+            if (tks.length) {
+              const tp = await getTokenPrices(chain.coingeckoPlatform, tks.map((t) => t.contract), fiat);
+              tokens = tks.reduce((s, t) => s + (Number(t.raw) / 10 ** t.decimals) * (tp[t.contract.toLowerCase()] ?? 0), 0);
+            }
+          } catch {
+            /* pas de clé / indispo : tokens à 0 */
+          }
+        }
+        return { chain, address: acc.address, price, native, tokens, value: native + tokens, change24h };
+      }),
+    );
+    const total = slices.reduce((s, x) => s + x.value, 0);
+    const nativeSum = slices.reduce((s, x) => s + x.native, 0);
+    const change24h = nativeSum > 0 ? slices.reduce((s, x) => s + x.change24h * x.native, 0) / nativeSum : 0;
+    return { total, change24h, slices };
+  }, [key, fiat, rev]);
+}
 
 function Dashboard() {
   const { colors, typography } = useTheme();
   const { width } = useWindowDimensions();
-  const desktop = width >= 860;
-  const wide = width >= 1000; // vrai layout desktop multi-zones
+  const wide = width >= 1180; // 3 colonnes desktop
+  const mid = width >= 760; // 2 colonnes
   const accounts = useWebConnect((s) => s.accounts);
   const selected = useWebConnect((s) => s.selected);
-  const setChain = useWebConnect((s) => s.setChain);
   const disconnect = useWebConnect((s) => s.disconnect);
   const refresh = useWebConnect((s) => s.refresh);
-  const [tab, setTab] = useState<Tab>('portfolio');
-  const [netQuery, setNetQuery] = useState('');
   const chain = useMemo(() => chainById(selected), [selected]);
   const address = useMemo(() => accounts.find((a) => a.chainId === selected)?.address ?? '', [accounts, selected]);
-  // Toutes les chaînes approuvées par le wallet (EVM + Solana + Bitcoin).
-  const netChains = useMemo(() => accounts.map((a) => chainById(a.chainId)), [accounts]);
   const isEvm = chain.family === 'evm';
+  const worth = useNetWorth();
 
-  // Total du portefeuille (natif + tokens ERC-20) affiché en permanence.
-  const fiat = useSettings((s) => s.fiat);
-  const rev = useWebConnect((s) => s.rev);
-  const sym = fiatSymbol(fiat);
-  const { data: total } = useAsync<number | null>(async () => {
-    if (!address || !chain.coingeckoId) return null;
-    const [bal, prices] = await Promise.all([
-      getAdapter(chain.id).getBalance(address),
-      getMarketChart(chain.coingeckoId, fiat, '1'),
-    ]);
-    const px = prices.length ? prices[prices.length - 1] : 0;
-    let sum = (Number(bal.raw) / 10 ** bal.decimals) * px;
-    if (chain.family === 'evm' && chain.coingeckoPlatform) {
-      const tokens = await getErc20Tokens(chain, address);
-      if (tokens.length) {
-        const tp = await getTokenPrices(chain.coingeckoPlatform, tokens.map((t) => t.contract), fiat);
-        sum += tokens.reduce((s, t) => s + (Number(t.raw) / 10 ** t.decimals) * (tp[t.contract.toLowerCase()] ?? 0), 0);
-      }
-    }
-    return sum;
-  }, [chain.id, address, fiat, rev]);
+  // Blocs réutilisés, disposés différemment selon la largeur d'écran.
+  const heroBlock = <HeroValue worth={worth} chain={chain} address={address} />;
+  const allocBlock = (
+    <Zone title="Répartition du portefeuille"><AllocationPanel worth={worth} /></Zone>
+  );
+  const tokensBlock = (
+    <Zone title="Tokens">
+      {isEvm ? <TokensPanel chain={chain} address={address} /> : <Note text={`Les tokens (ERC-20) sont propres aux réseaux EVM. Sur ${chain.name}, consulte le solde et l'historique.`} />}
+    </Zone>
+  );
+  const nftBlock = (
+    <Zone title="NFT">
+      {isEvm ? <NftsPanel chain={chain} address={address} /> : <Note text={`Les NFT affichés ici concernent les réseaux EVM.`} />}
+    </Zone>
+  );
+  const activityBlock = <Zone title="Activité"><HistoryPanel chain={chain} address={address} /></Zone>;
+  const securityBlock = <Zone title="Sécurité"><SecurityPanel /></Zone>;
+  const watchBlock = <Zone title="Watchlist"><WatchlistPanel worth={worth} /></Zone>;
+  const sendBlock = isEvm ? <Zone title={`Envoyer ${chain.nativeSymbol}`}><SendPanel chain={chain} address={address} /></Zone> : null;
+  const accountBlock = <AccountCard chain={chain} address={address} />;
+  const networksBlock = <Zone title="Réseaux"><NetworkSelector vertical={mid} /></Zone>;
 
   return (
     <ScrollView contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}>
-      <View style={{ width: '100%', maxWidth: 1200, padding: spacing(desktop ? 3 : 2), gap: spacing(2) }}>
+      <View style={{ width: '100%', maxWidth: 1440, padding: spacing(wide ? 3 : 2), gap: spacing(2) }}>
         {/* En-tête */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing(1) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
@@ -209,8 +261,8 @@ function Dashboard() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85) }}>
-              <Image source={{ uri: chainIconUrl(chain.id) }} style={{ width: 18, height: 18, borderRadius: 9 }} />
-              <Text style={{ color: colors.text, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>{short(address)}</Text>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.up }} />
+              <Text style={{ color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13 }}>Téléphone connecté</Text>
             </View>
             <Pressable onPress={refresh} hitSlop={6} style={({ pressed }) => ({ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}>
               <Icon name="refresh" size={18} color={colors.textMuted} />
@@ -221,101 +273,62 @@ function Dashboard() {
           </View>
         </View>
 
-        {/* Total du portefeuille (net worth) — visible en permanence */}
-        <View style={{ marginTop: spacing(0.5) }}>
-          <Text style={typography.muted}>{`Total du portefeuille · ${chain.name}`}</Text>
-          {total == null ? (
-            <Skeleton w={180} h={34} style={{ marginTop: 4 }} />
-          ) : (
-            <Text style={{ color: colors.text, fontSize: 36, fontFamily: fonts.extrabold, marginTop: 2 }}>
-              {`${sym}${total.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
-            </Text>
-          )}
-        </View>
-
-        {/* Recherche de réseau (au-delà de ~6 réseaux, plutôt que scroller) */}
-        {netChains.length > 6 ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1.5) }}>
-            <Icon name="search" size={16} color={colors.textMuted} />
-            <TextInput
-              value={netQuery}
-              onChangeText={setNetQuery}
-              placeholder="Rechercher un réseau…"
-              placeholderTextColor={colors.textMuted}
-              style={{ flex: 1, color: colors.text, fontSize: 14, paddingVertical: spacing(1) }}
-            />
-          </View>
-        ) : null}
-
-        {/* Switch de réseau (tous les réseaux approuvés par le wallet, filtrés) */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(0.75) }}>
-          {netChains
-            .filter((c) => !netQuery || c.name.toLowerCase().includes(netQuery.trim().toLowerCase()))
-            .map((c) => {
-            const on = c.id === selected;
-            return (
-              <Pressable
-                key={c.id}
-                onPress={() => setChain(c.id)}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85), borderRadius: radii.pill, backgroundColor: on ? colors.glass : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
-              >
-                <Image source={{ uri: chainIconUrl(c.id) }} style={{ width: 18, height: 18, borderRadius: 9 }} />
-                <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>{c.name}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        {/* Grand écran : vrai tableau de bord multi-zones (tout visible d'un coup). */}
         {wide ? (
-          <View style={{ gap: spacing(2) }}>
-            <View style={{ flexDirection: 'row', gap: spacing(2), alignItems: 'flex-start' }}>
-              <Zone title="Portefeuille" style={{ flex: 1.2 }}>
-                <PortfolioPanel chain={chain} address={address} />
-                {isEvm ? <SendPanel chain={chain} address={address} /> : null}
-              </Zone>
-              <Zone title="Tokens" style={{ flex: 1.4 }}>
-                {isEvm ? <TokensPanel chain={chain} address={address} /> : <Note text={`Les tokens (ERC-20) sont propres aux réseaux EVM.`} />}
-              </Zone>
-              <Zone title="NFT" style={{ flex: 1 }}>
-                {isEvm ? <NftsPanel chain={chain} address={address} /> : <Note text={`Les NFT affichés ici concernent les réseaux EVM.`} />}
-              </Zone>
+          /* ---- Desktop large : 3 colonnes, tout visible d'un coup ---- */
+          <View style={{ flexDirection: 'row', gap: spacing(2), alignItems: 'flex-start' }}>
+            <View style={{ width: 260, gap: spacing(2) }}>
+              {accountBlock}
+              {networksBlock}
             </View>
-            <Zone title="Activité">
-              <HistoryPanel chain={chain} address={address} />
-            </Zone>
+            <View style={{ flex: 1.7, minWidth: 0, gap: spacing(2) }}>
+              {heroBlock}
+              {allocBlock}
+              {tokensBlock}
+              {nftBlock}
+            </View>
+            <View style={{ width: 360, gap: spacing(2) }}>
+              {securityBlock}
+              {watchBlock}
+              {activityBlock}
+              {sendBlock}
+            </View>
+          </View>
+        ) : mid ? (
+          /* ---- Tablette / petit desktop : 2 colonnes ---- */
+          <View style={{ flexDirection: 'row', gap: spacing(2), alignItems: 'flex-start' }}>
+            <View style={{ flex: 1.6, minWidth: 0, gap: spacing(2) }}>
+              {heroBlock}
+              {allocBlock}
+              {tokensBlock}
+              {nftBlock}
+              {activityBlock}
+            </View>
+            <View style={{ width: 320, gap: spacing(2) }}>
+              {accountBlock}
+              {networksBlock}
+              {securityBlock}
+              {watchBlock}
+              {sendBlock}
+            </View>
           </View>
         ) : (
-        /* Écran étroit : navigation par onglets. */
-        <View style={{ flexDirection: desktop ? 'row' : 'column', gap: spacing(2), alignItems: 'flex-start' }}>
-          <View style={{ flexDirection: desktop ? 'column' : 'row', gap: spacing(0.5), width: desktop ? 220 : '100%', flexWrap: 'wrap' }}>
-            {NAV.map((n) => {
-              const active = tab === n.key;
-              return (
-                <Pressable
-                  key={n.key}
-                  onPress={() => setTab(n.key)}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1.25), paddingHorizontal: spacing(1.5), borderRadius: radii.md, backgroundColor: active ? colors.glass : 'transparent', borderWidth: 1, borderColor: active ? colors.glassBorder : 'transparent' }}
-                >
-                  <Icon name={n.icon} size={18} color={active ? colors.accent : colors.textMuted} />
-                  <Text style={{ color: active ? colors.text : colors.textMuted, fontFamily: fonts.semibold }}>{n.label}</Text>
-                </Pressable>
-              );
-            })}
+          /* ---- Mobile / étroit : une colonne empilée ---- */
+          <View style={{ gap: spacing(2) }}>
+            {accountBlock}
+            {networksBlock}
+            {heroBlock}
+            {allocBlock}
+            {securityBlock}
+            {watchBlock}
+            {tokensBlock}
+            {nftBlock}
+            {activityBlock}
+            {sendBlock}
           </View>
-
-          <View style={{ flex: 1, width: '100%', minWidth: 0, gap: spacing(1.5) }}>
-            {tab === 'portfolio' ? <PortfolioPanel chain={chain} address={address} /> : null}
-            {tab === 'tokens' ? (isEvm ? <TokensPanel chain={chain} address={address} /> : <Note text={`Les tokens (ERC-20) sont propres aux réseaux EVM. Sur ${chain.name}, consulte le solde et l'historique.`} />) : null}
-            {tab === 'nfts' ? (isEvm ? <NftsPanel chain={chain} address={address} /> : <Note text={`Les NFT affichés ici concernent les réseaux EVM.`} />) : null}
-            {tab === 'history' ? <HistoryPanel chain={chain} address={address} /> : null}
-            {tab === 'send' ? (isEvm ? <SendPanel chain={chain} address={address} /> : <Note text={`L'envoi ${chain.nativeSymbol} depuis le tableau de bord arrive bientôt. En attendant, envoie directement depuis l'app Nova.`} />) : null}
-          </View>
-        </View>
         )}
 
         <Text style={[typography.muted, { textAlign: 'center', fontSize: 12, marginTop: spacing(1) }]}>
-          🔒 Ce site ne peut jamais signer seul. Chaque envoi ou signature est validé dans l'app Nova.
+          🔒 Toutes les signatures se font sur votre téléphone Nova. Ce site n'a jamais accès à vos clés privées.
         </Text>
       </View>
     </ScrollView>
@@ -460,10 +473,25 @@ function PeriodToggle({ days, onChange }: { days: string; onChange: (d: string) 
   );
 }
 
-function PortfolioPanel({ chain, address }: { chain: ChainConfig; address: string }) {
+/** Petite tuile de statistique (label + valeur + sous-titre). */
+function Widget({ label, value, sub, valueColor }: { label: string; value: string; sub?: string; valueColor?: string }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flex: 1, minWidth: 128, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, padding: spacing(1.5) }}>
+      <Text style={{ color: colors.textMuted, fontSize: 12, fontFamily: fonts.medium }} numberOfLines={1}>{label}</Text>
+      <Text style={{ color: valueColor ?? colors.text, fontSize: 18, fontFamily: fonts.bold, marginTop: 4, fontVariant: ['tabular-nums'] }} numberOfLines={1}>{value}</Text>
+      {sub ? <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }} numberOfLines={1}>{sub}</Text> : null}
+    </View>
+  );
+}
+
+/** Bloc « héros » : valeur totale cross-chain + variation du jour + widgets +
+ *  graphique de tendance du réseau sélectionné (24 h / 7 j / 1 mois). */
+function HeroValue({ worth, chain, address }: { worth: { data: NetWorth | null }; chain: ChainConfig; address: string }) {
   const { colors, typography } = useTheme();
-  const rev = useWebConnect((s) => s.rev);
   const fiat = useSettings((s) => s.fiat);
+  const rev = useWebConnect((s) => s.rev);
+  const sym = fiatSymbol(fiat);
   const [days, setDays] = useState('7');
   const { data: bal } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
   const { data: prices, loading } = useAsync<number[]>(
@@ -471,45 +499,248 @@ function PortfolioPanel({ chain, address }: { chain: ChainConfig; address: strin
     [chain.coingeckoId, fiat, days, rev],
   );
   const balNum = bal ? Number(bal.raw) / 10 ** bal.decimals : 0;
-  const values = (prices ?? []).map((p) => p * balNum); // valeur du natif dans le temps
-  const cur = values.length ? values[values.length - 1] : 0; // valeur natif actuelle
+  const values = (prices ?? []).map((p) => p * balNum);
   const first = values.length ? values[0] : 0;
-  const pct = first > 0 ? ((cur - first) / first) * 100 : 0; // variation du natif sur la période
+  const cur = values.length ? values[values.length - 1] : 0;
+  const pct = first > 0 ? ((cur - first) / first) * 100 : 0;
   const up = pct >= 0;
-  const sym = fiatSymbol(fiat);
+  const total = worth.data?.total ?? null;
+  const today = worth.data?.change24h ?? 0;
+  const todayUp = today >= 0;
+  const slice = worth.data?.slices.find((s) => s.chain.id === chain.id);
+  const nativeChange = slice?.change24h ?? 0;
+  const price = slice?.price ?? (prices && prices.length ? prices[prices.length - 1] : 0);
 
   return (
-    <Card>
-      <Text style={typography.muted}>{`Solde ${chain.nativeSymbol} · ${chain.name}`}</Text>
-      <Text style={{ color: colors.text, fontSize: 30, fontFamily: fonts.extrabold, marginTop: 2 }}>
-        {chain.coingeckoId && values.length
-          ? `${sym}${cur.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-          : `${bal ? formatBalance(bal.raw, bal.decimals) : '0'} ${chain.nativeSymbol}`}
-      </Text>
-      <Text style={[typography.muted, { marginTop: 2 }]}>
-        {`${bal ? formatBalance(bal.raw, bal.decimals, 4) : '0'} ${chain.nativeSymbol}`}
-      </Text>
+    <View style={{ gap: spacing(2) }}>
+      <Card>
+        <Text style={typography.muted}>Valeur totale</Text>
+        {total == null ? (
+          <Skeleton w={240} h={46} style={{ marginTop: 6 }} />
+        ) : (
+          <Text style={{ color: colors.text, fontSize: 46, fontFamily: fonts.extrabold, marginTop: 2, fontVariant: ['tabular-nums'] }}>
+            {`${sym}${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          </Text>
+        )}
+        {total != null ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 6 }}>
+            <View style={{ backgroundColor: (todayUp ? colors.up : colors.down) + '22', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 3 }}>
+              <Text style={{ color: todayUp ? colors.up : colors.down, fontFamily: fonts.bold, fontSize: 13 }}>
+                {`${todayUp ? '▲ +' : '▼ −'}${Math.abs(today).toFixed(2)} %`}
+              </Text>
+            </View>
+            <Text style={typography.muted}>aujourd'hui</Text>
+          </View>
+        ) : null}
+      </Card>
+
+      <View style={{ flexDirection: 'row', gap: spacing(1.5), flexWrap: 'wrap' }}>
+        <Widget label={`Solde ${chain.nativeSymbol}`} value={`${bal ? formatBalance(bal.raw, bal.decimals, 4) : '0'}`} sub={chain.name} />
+        <Widget label={`Prix ${chain.nativeSymbol}`} value={price ? `${sym}${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'} />
+        <Widget label="Variation 24 h" value={`${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)} %`} valueColor={nativeChange >= 0 ? colors.up : colors.down} />
+      </View>
 
       {chain.coingeckoId ? (
-        <>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing(1.5) }}>
-            <Text style={typography.muted}>Tendance {chain.nativeSymbol}</Text>
+        <Card>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={typography.muted}>{`Tendance ${chain.name}`}</Text>
             {values.length ? (
               <Text style={{ color: up ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13 }}>{up ? '+' : ''}{pct.toFixed(2)} %</Text>
             ) : null}
           </View>
           {loading && !values.length ? (
-            <Skeleton h={130} r={radii.md} style={{ marginTop: spacing(1) }} />
+            <Skeleton h={150} r={radii.md} style={{ marginTop: spacing(1) }} />
           ) : values.length > 1 ? (
             <AreaChart values={values} up={up} />
           ) : (
-            <View style={{ height: 130, alignItems: 'center', justifyContent: 'center' }}><Text style={typography.muted}>Pas de données de prix.</Text></View>
+            <View style={{ height: 150, alignItems: 'center', justifyContent: 'center' }}><Text style={typography.muted}>Pas de données de prix.</Text></View>
           )}
           <PeriodToggle days={days} onChange={setDays} />
-        </>
+        </Card>
       ) : null}
+    </View>
+  );
+}
 
+/** Donut de répartition du portefeuille par réseau (natif + tokens). */
+function AllocationPanel({ worth }: { worth: { data: NetWorth | null } }) {
+  const { typography } = useTheme();
+  const fiat = useSettings((s) => s.fiat);
+  const sym = fiatSymbol(fiat);
+  if (!worth.data) return <SkeletonRows count={3} />;
+  const slices = foldSlices(worth.data.slices.map((s) => ({ label: s.chain.name, value: s.value })));
+  if (!slices.length || worth.data.total <= 0) {
+    return <Card><Text style={typography.muted}>Pas encore de valeur à répartir. Vos soldes apparaîtront ici dès qu'ils seront chargés.</Text></Card>;
+  }
+  return (
+    <Card>
+      <AllocationDonut
+        slices={slices}
+        size={152}
+        thickness={16}
+        centerTitle="Total"
+        centerValue={`${sym}${worth.data.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+        formatValue={(v) => `${sym}${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+      />
+    </Card>
+  );
+}
+
+/** Sélecteur de réseau : liste verticale (desktop) ou puces horizontales (étroit),
+ *  avec recherche au-delà de ~6 réseaux. */
+function NetworkSelector({ vertical }: { vertical: boolean }) {
+  const { colors } = useTheme();
+  const accounts = useWebConnect((s) => s.accounts);
+  const selected = useWebConnect((s) => s.selected);
+  const setChain = useWebConnect((s) => s.setChain);
+  const [q, setQ] = useState('');
+  const chains = useMemo(() => accounts.map((a) => chainById(a.chainId)), [accounts]);
+  const filtered = chains.filter((c) => !q || c.name.toLowerCase().includes(q.trim().toLowerCase()));
+  const item = (c: ChainConfig) => {
+    const on = c.id === selected;
+    return (
+      <Pressable
+        key={c.id}
+        onPress={() => setChain(c.id)}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing(1.25), paddingVertical: spacing(1), borderRadius: radii.md, backgroundColor: on ? colors.glass : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
+      >
+        <Image source={{ uri: chainIconUrl(c.id) }} style={{ width: 20, height: 20, borderRadius: 10 }} />
+        <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13, flex: vertical ? 1 : 0 }} numberOfLines={1}>{c.name}</Text>
+        {on && vertical ? <Icon name="check" size={14} color={colors.accent} /> : null}
+      </Pressable>
+    );
+  };
+  return (
+    <View style={{ gap: spacing(1) }}>
+      {chains.length > 6 ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1.25) }}>
+          <Icon name="search" size={15} color={colors.textMuted} />
+          <TextInput value={q} onChangeText={setQ} placeholder="Rechercher un réseau…" placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.text, fontSize: 13, paddingVertical: spacing(0.85) }} />
+        </View>
+      ) : null}
+      {vertical ? (
+        <View style={{ gap: spacing(0.5) }}>{filtered.map(item)}</View>
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(0.75) }}>{filtered.map(item)}</ScrollView>
+      )}
+    </View>
+  );
+}
+
+/** Carte compte : nom + réseau + adresse (copier) + QR code dépliable. */
+function AccountCard({ chain, address }: { chain: ChainConfig; address: string }) {
+  const { colors, typography } = useTheme();
+  const [showQr, setShowQr] = useState(false);
+  return (
+    <Card>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
+        <Image source={{ uri: chainIconUrl(chain.id) }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={typography.bodyStrong}>Compte principal</Text>
+          <Text style={typography.muted} numberOfLines={1}>{chain.name}</Text>
+        </View>
+        <Pressable onPress={() => setShowQr((v) => !v)} hitSlop={6} style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: showQr ? colors.accent : colors.glassBorder, opacity: pressed ? 0.6 : 1 })}>
+          <Icon name="scan" size={18} color={showQr ? colors.accent : colors.textMuted} />
+        </Pressable>
+      </View>
+      {showQr && address ? (
+        <View style={{ alignItems: 'center', marginTop: spacing(1.5), gap: spacing(1) }}>
+          <View style={{ backgroundColor: '#fff', padding: spacing(1.5), borderRadius: radii.md }}>
+            <QRCode value={address} size={168} />
+          </View>
+          <Text style={typography.muted}>{`Adresse ${chain.nativeSymbol} · ${chain.name}`}</Text>
+        </View>
+      ) : null}
       <CopyAddress address={address} />
+    </Card>
+  );
+}
+
+/** Panneau Sécurité : met en avant le modèle « le téléphone est le coffre-fort ». */
+function SecurityPanel() {
+  const { colors, typography } = useTheme();
+  const peerName = useWebConnect((s) => s.peerName);
+  const connectedAt = useWebConnect((s) => s.connectedAt);
+  const lastActivity = useWebConnect((s) => s.lastActivity);
+  const accounts = useWebConnect((s) => s.accounts);
+  const disconnect = useWebConnect((s) => s.disconnect);
+  const guarantees: { label: string; value: string }[] = [
+    { label: 'Clés privées', value: 'Jamais sur ce PC' },
+    { label: 'Signatures', value: 'Sur votre téléphone' },
+    { label: 'Ce site', value: 'Lecture seule' },
+  ];
+  return (
+    <Card>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.up + '22', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="security" size={19} color={colors.up} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={typography.bodyStrong} numberOfLines={1}>{peerName ?? 'Portefeuille Nova'}</Text>
+          <Text style={typography.muted} numberOfLines={1}>{`Coffre-fort connecté${connectedAt ? ` · ${ago(Math.floor(connectedAt / 1000))}` : ''}`}</Text>
+        </View>
+      </View>
+
+      <View style={{ gap: spacing(0.85), marginTop: spacing(1.5) }}>
+        {guarantees.map((g) => (
+          <View key={g.label} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+            <Icon name="check" size={15} color={colors.up} />
+            <Text style={[typography.muted, { flex: 1 }]}>{g.label}</Text>
+            <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12 }}>{g.value}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={{ height: 1, backgroundColor: colors.glassBorder, marginVertical: spacing(1.5) }} />
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Text style={typography.muted}>Dernière activité</Text>
+        <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12 }}>{ago(Math.floor(lastActivity / 1000))}</Text>
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing(0.5) }}>
+        <Text style={typography.muted}>Réseaux partagés</Text>
+        <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12 }}>{accounts.length}</Text>
+      </View>
+
+      <Pressable onPress={disconnect} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', borderRadius: radii.pill, paddingVertical: spacing(1.1), borderWidth: 1, borderColor: colors.danger + '66', opacity: pressed ? 0.6 : 1 })}>
+        <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>Déconnecter cet appareil</Text>
+      </Pressable>
+    </Card>
+  );
+}
+
+/** Watchlist : actifs natifs des réseaux connectés (prix + variation 24 h). */
+function WatchlistPanel({ worth }: { worth: { data: NetWorth | null } }) {
+  const { colors, typography } = useTheme();
+  const fiat = useSettings((s) => s.fiat);
+  const sym = fiatSymbol(fiat);
+  if (!worth.data) return <SkeletonRows count={3} />;
+  // Dé-duplication par coingeckoId (un seul ETH même si plusieurs réseaux EVM).
+  const seen = new Set<string>();
+  const rows = worth.data.slices.filter((s) => {
+    const id = s.chain.coingeckoId;
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return s.price > 0;
+  });
+  if (!rows.length) return <Card><Text style={typography.muted}>Watchlist indisponible (prix non chargés).</Text></Card>;
+  return (
+    <Card>
+      {rows.map((s, i) => {
+        const up = s.change24h >= 0;
+        return (
+          <View key={s.chain.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
+            <Image source={{ uri: chainIconUrl(s.chain.id) }} style={{ width: 30, height: 30, borderRadius: 15 }} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={typography.bodyStrong}>{s.chain.nativeSymbol}</Text>
+              <Text style={typography.muted} numberOfLines={1}>{s.chain.name}</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }}>{`${sym}${s.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}</Text>
+              <Text style={{ color: up ? colors.up : colors.down, fontSize: 12, fontFamily: fonts.medium }}>{`${up ? '+' : ''}${s.change24h.toFixed(2)} %`}</Text>
+            </View>
+          </View>
+        );
+      })}
     </Card>
   );
 }
