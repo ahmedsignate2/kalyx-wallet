@@ -83,6 +83,31 @@ export default function RootLayout() {
     const el = doc.documentElement as unknown as { setAttribute: (k: string, v: string) => void; lang: string };
     el.lang = 'fr';
     el.setAttribute('translate', 'no');
+    // Le CSS de +html.tsx est ignoré par l'export web (`output: 'single'`) : on
+    // l'injecte donc au runtime. Objectifs : (1) plus AUCUN débordement/scroll
+    // horizontal ni tremblement sur mobile ; (2) un repli de police universel
+    // pour que TOUT glyphe (accents, ponctuation) s'affiche même hors Inter.
+    const d2 = doc as unknown as {
+      getElementById: (id: string) => unknown;
+      createElement: (t: string) => { id: string; textContent: string };
+      head: { appendChild: (n: unknown) => void };
+    };
+    if (!d2.getElementById('nova-web-css')) {
+      const style = d2.createElement('style');
+      style.id = 'nova-web-css';
+      style.textContent = `
+        html, body { overflow-x: hidden; max-width: 100%; }
+        #root { overflow-x: hidden; max-width: 100vw; }
+        * { -webkit-tap-highlight-color: transparent; }
+        body, button, input, textarea {
+          font-family: Inter, Inter_400Regular, -apple-system, BlinkMacSystemFont,
+            "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+            "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+        }
+        img { max-width: 100%; }
+      `;
+      d2.head.appendChild(style);
+    }
   }, [colors.bgDeep]);
 
   useEffect(() => {
