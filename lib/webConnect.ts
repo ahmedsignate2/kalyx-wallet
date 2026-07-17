@@ -30,6 +30,26 @@ export interface ConnAccount {
   address: string;
 }
 
+/** Demande de signature en cours, pilotant le popup « ouvrez Nova ». */
+export interface PendingSign {
+  label: string; // ex. « Transaction à signer »
+  phase: 'await' | 'ok' | 'err';
+  detail?: string;
+}
+
+/** Libellé lisible d'une méthode WalletConnect (pour le popup de signature). */
+const METHOD_LABELS: Record<string, string> = {
+  eth_sendTransaction: 'Transaction à signer',
+  personal_sign: 'Signature de message',
+  eth_sign: 'Signature de message',
+  eth_signTypedData: 'Signature de données',
+  eth_signTypedData_v4: 'Signature de données',
+  solana_signTransaction: 'Transaction Solana à signer',
+  solana_signMessage: 'Signature de message',
+  bitcoin_sendTransfer: 'Transaction Bitcoin à signer',
+  bitcoin_signMessage: 'Signature de message',
+};
+
 interface WebConnectState {
   status: Status;
   uri: string | null;
@@ -47,6 +67,9 @@ interface WebConnectState {
   rev: number;
   /** Horodatage de la dernière activité (pour l'expiration de session). */
   lastActivity: number;
+  /** Signature en cours → pilote le popup « ouvrez Nova ». null = aucun popup. */
+  pending: PendingSign | null;
+  dismissPending: () => void;
   init: () => Promise<void>;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
@@ -121,6 +144,8 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
   connectedAt: null,
   rev: 0,
   lastActivity: Date.now(),
+  pending: null,
+  dismissPending: () => set({ pending: null }),
 
   init: async () => {
     if (client || !PROJECT_ID) return;
@@ -237,6 +262,9 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       get().reset();
       throw new Error('Session introuvable côté téléphone. Reconnecte le tableau de bord (QR).');
     }
+    // Popup « Signature requise — ouvrez Nova » tant que le téléphone n'a pas répondu.
+    const label = METHOD_LABELS[method] ?? 'Signature demandée';
+    set({ pending: { label, phase: 'await' } });
     // La requête part vers l'app Nova, qui affiche la demande + signe avec PIN/bio.
     // Timeout de courtoisie : si l'app ne répond pas (fermée / verrouillée / hors
     // ligne), on rend la main avec un message utile au lieu de rester figé.
@@ -253,9 +281,10 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
         client.request<string>({ topic, chainId: novaToCaip(selected), request: { method, params } }),
         timeout,
       ]);
-      // Après une action signée (envoi…), on rafraîchit soldes/historique.
-      set({ rev: get().rev + 1, lastActivity: Date.now() });
+      // Signé sur le téléphone : succès auto-fermant + retour au tableau de bord à jour.
+      set({ pending: { label, phase: 'ok', detail: 'Validé sur votre téléphone' }, rev: get().rev + 1, lastActivity: Date.now() });
       setTimeout(() => set({ rev: get().rev + 1 }), 4000); // 2e passe (inclusion bloc)
+      setTimeout(() => { if (get().pending?.phase === 'ok') set({ pending: null }); }, 2500);
       return res;
     } catch (e) {
       // La session a pu disparaître pendant l'attente : on vérifie et on nettoie.
@@ -264,6 +293,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       } catch {
         get().reset();
       }
+      set({ pending: { label, phase: 'err', detail: e instanceof Error ? e.message : 'Refusé ou échoué' } });
       throw e;
     } finally {
       if (timer) clearTimeout(timer);
@@ -272,5 +302,5 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
 
   refresh: () => set({ rev: get().rev + 1, lastActivity: Date.now() }),
 
-  reset: () => set({ status: 'idle', uri: null, topic: null, accounts: [], selected: null, error: null, peerName: null, peerUrl: null, connectedAt: null }),
+  reset: () => set({ status: 'idle', uri: null, topic: null, accounts: [], selected: null, error: null, peerName: null, peerUrl: null, connectedAt: null, pending: null }),
 }));

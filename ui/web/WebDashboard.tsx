@@ -75,6 +75,53 @@ export function WebDashboard() {
     <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
       <AuroraBackground intensity={0.55} />
       {status === 'connected' ? <Dashboard /> : <ConnectView />}
+      <SigningModal />
+    </View>
+  );
+}
+
+/** Popup plein écran « Signature requise — ouvrez Nova ». Piloté par `pending`
+ *  du store : s'affiche dès qu'une action est envoyée au téléphone, se referme
+ *  seul au succès (retour au tableau de bord), reste sur erreur pour explication. */
+function SigningModal() {
+  const { colors, typography } = useTheme();
+  const pending = useWebConnect((s) => s.pending);
+  const dismiss = useWebConnect((s) => s.dismissPending);
+  if (!pending) return null;
+  const { phase, label, detail } = pending;
+  const accent = phase === 'ok' ? colors.up : phase === 'err' ? colors.danger : colors.accent;
+  return (
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(4,6,12,0.72)', alignItems: 'center', justifyContent: 'center', padding: spacing(3) }}>
+      <View style={{ width: '100%', maxWidth: 380, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, padding: spacing(3), alignItems: 'center', gap: spacing(1.25) }}>
+        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: accent + '22', alignItems: 'center', justifyContent: 'center' }}>
+          {phase === 'await' ? (
+            <ActivityIndicator color={accent} />
+          ) : (
+            <Icon name={phase === 'ok' ? 'check' : 'warning'} size={28} color={accent} />
+          )}
+        </View>
+        <Text style={{ color: colors.text, fontSize: 19, fontFamily: fonts.bold, textAlign: 'center' }}>
+          {phase === 'ok' ? 'Validé' : phase === 'err' ? 'Non signé' : 'Signature requise'}
+        </Text>
+        <Text style={[typography.muted, { textAlign: 'center' }]}>
+          {phase === 'await'
+            ? `${label}. Ouvrez l'app Nova sur votre téléphone et validez avec votre PIN ou votre biométrie.`
+            : detail ?? ''}
+        </Text>
+        {phase === 'await' ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(0.5) }}>
+            <Icon name="bell" size={14} color={colors.textMuted} />
+            <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>
+              Vous pouvez aussi appuyer sur la notification Nova.
+            </Text>
+          </View>
+        ) : null}
+        {phase !== 'await' ? (
+          <Pressable onPress={dismiss} style={({ pressed }) => ({ marginTop: spacing(1), alignSelf: 'stretch', alignItems: 'center', backgroundColor: phase === 'ok' ? colors.accent : 'transparent', borderWidth: 1, borderColor: phase === 'ok' ? colors.accent : colors.glassBorder, borderRadius: radii.pill, paddingVertical: spacing(1.2), opacity: pressed ? 0.7 : 1 })}>
+            <Text style={{ color: phase === 'ok' ? '#fff' : colors.text, fontFamily: fonts.semibold }}>Fermer</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
