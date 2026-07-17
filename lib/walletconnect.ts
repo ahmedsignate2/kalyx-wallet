@@ -8,11 +8,33 @@
  * les modules natifs, l'app ne crashe pas — WalletConnect reste simplement inactif.
  * La signature est déléguée au walletStore (la clé reste isolée).
  */
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import { create } from 'zustand';
 import { useWallet, type Unlock } from './walletStore';
+import { notify } from './notifications';
 import { listChains, type RawTxRequest } from '../src';
 import type { IWeb3Wallet } from '@walletconnect/web3wallet';
+
+// Libellé lisible d'une méthode WalletConnect (pour la notification de signature).
+const METHOD_LABELS: Record<string, string> = {
+  eth_sendTransaction: 'Transaction à signer',
+  personal_sign: 'Signature de message',
+  eth_sign: 'Signature de message',
+  eth_signTypedData: 'Signature de données',
+  eth_signTypedData_v4: 'Signature de données',
+  solana_signTransaction: 'Transaction Solana à signer',
+  solana_signMessage: 'Signature de message',
+  bitcoin_sendTransfer: 'Transaction Bitcoin à signer',
+  bitcoin_signMessage: 'Signature de message',
+};
+
+/** Notifie une demande entrante (proposition/requête) quand l'app n'est PAS au
+ *  premier plan — appuyer sur la notification rouvre Nova, où la fenêtre de
+ *  signature (WalletConnectHost) s'affiche déjà pour toute demande en attente. */
+function notifyIncoming(title: string, body: string) {
+  if (AppState.currentState === 'active') return; // au 1er plan : la modale suffit
+  void notify(title, body);
+}
 
 const PROJECT_ID = process.env.EXPO_PUBLIC_WALLETCONNECT_ID || '';
 
@@ -139,8 +161,19 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       metadata: { name: 'Nova Wallet', description: 'Wallet crypto non-custodial', url: 'https://nova.wallet', icons: [] },
     })) as IWeb3Wallet;
 
-    w.on('session_proposal', (proposal: any) => set({ proposal }));
-    w.on('session_request', (request: any) => set({ request }));
+    w.on('session_proposal', (proposal: any) => {
+      set({ proposal });
+      const name = proposal?.params?.proposer?.metadata?.name;
+      notifyIncoming('Nova · Connexion demandée', name ? `${name} veut se connecter à votre portefeuille` : 'Un site veut se connecter à votre portefeuille');
+    });
+    w.on('session_request', (request: any) => {
+      set({ request });
+      const method: string = request?.params?.request?.method ?? '';
+      const topic: string | undefined = request?.topic;
+      const peer = topic ? w.getActiveSessions()?.[topic]?.peer?.metadata?.name : undefined;
+      const label = METHOD_LABELS[method] ?? 'Signature demandée';
+      notifyIncoming('Nova · Action à valider', peer ? `${label} · ${peer}` : `${label} — appuyez pour ouvrir`);
+    });
     w.on('session_delete', () => get().refresh());
     set({ wallet: w, ready: true });
     get().refresh();
