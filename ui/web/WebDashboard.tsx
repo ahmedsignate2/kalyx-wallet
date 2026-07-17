@@ -121,7 +121,7 @@ function ConnectView() {
               <QRCode value={uri} size={220} />
             </View>
             <Text style={[typography.muted, { textAlign: 'center' }]}>
-              Ouvrez Nova sur votre téléphone → onglet WalletConnect → scannez ce QR.
+              Ouvrez Nova sur votre téléphone, allez dans l'onglet WalletConnect, puis scannez ce QR.
             </Text>
           </View>
         ) : (
@@ -327,9 +327,12 @@ function Dashboard() {
           </View>
         )}
 
-        <Text style={[typography.muted, { textAlign: 'center', fontSize: 12, marginTop: spacing(1) }]}>
-          🔒 Toutes les signatures se font sur votre téléphone Nova. Ce site n'a jamais accès à vos clés privées.
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: spacing(1) }}>
+          <Icon name="security" size={13} color={colors.textMuted} />
+          <Text style={[typography.muted, { textAlign: 'center', fontSize: 12 }]}>
+            Toutes les signatures se font sur votre téléphone Nova. Ce site n'a jamais accès à vos clés privées.
+          </Text>
+        </View>
       </View>
     </ScrollView>
   );
@@ -526,7 +529,7 @@ function HeroValue({ worth, chain, address }: { worth: { data: NetWorth | null }
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 6 }}>
             <View style={{ backgroundColor: (todayUp ? colors.up : colors.down) + '22', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 3 }}>
               <Text style={{ color: todayUp ? colors.up : colors.down, fontFamily: fonts.bold, fontSize: 13 }}>
-                {`${todayUp ? '▲ +' : '▼ −'}${Math.abs(today).toFixed(2)} %`}
+                {`${todayUp ? '+' : '-'}${Math.abs(today).toFixed(2)} %`}
               </Text>
             </View>
             <Text style={typography.muted}>aujourd'hui</Text>
@@ -852,7 +855,7 @@ function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string 
             <Text style={typography.muted} numberOfLines={1}>{`${short(tx.hash)} · ${ago(tx.timestamp)}`}</Text>
           </View>
           <Text style={{ color: tx.direction === 'in' ? colors.up : colors.text, fontFamily: fonts.semibold }}>
-            {`${tx.direction === 'in' ? '+' : '−'}${formatBalance(tx.value, chain.nativeDecimals, 4)} ${chain.nativeSymbol}`}
+            {`${tx.direction === 'in' ? '+' : '-'}${formatBalance(tx.value, chain.nativeDecimals, 4)} ${chain.nativeSymbol}`}
           </Text>
         </Pressable>
       ))}
