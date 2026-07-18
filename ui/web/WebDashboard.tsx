@@ -422,8 +422,9 @@ function Skeleton({ w = '100%', h, r = 8, style }: { w?: number | string; h: num
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(op, { toValue: 0.85, duration: 700, useNativeDriver: true }),
-        Animated.timing(op, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+        // Web uniquement : le driver natif n'existe pas → false (évite un warning).
+        Animated.timing(op, { toValue: 0.85, duration: 700, useNativeDriver: false }),
+        Animated.timing(op, { toValue: 0.4, duration: 700, useNativeDriver: false }),
       ]),
     );
     loop.start();
