@@ -82,6 +82,41 @@ interface WebConnectState {
 
 let client: InstanceType<typeof SignClient> | null = null;
 
+// Le sign-client WalletConnect (pino) crache en console.error des logs internes
+// BÉNINS, surtout à chaque reconnexion du relais : restauration des souscriptions
+// et réponses tardives sans listener. Sur web (dev server + LogBox) ça inonde la
+// console / l'overlay rouge. On les filtre une seule fois, sans masquer les vraies
+// erreurs. Miroir de silenceBenignWcLogs() côté mobile (walletconnect.ts).
+const BENIGN_WEB_WC_LOGS = [
+  '"context":"core/relayer',      // souscriptions / publisher / reconnexion du relais
+  'Restore will override',         // ré-abonnement après reconnexion
+  'subscription:',                 // dump des souscriptions restaurées
+  'emitting session_request',      // réponse tardive après timeout/reconnexion…
+  'without any listeners',         // …plus aucun listener : sans conséquence
+  'Failed to decode message',      // message chiffré d'une session déjà supprimée
+];
+let webLogsFiltered = false;
+function silenceBenignWebLogs() {
+  if (webLogsFiltered) return;
+  webLogsFiltered = true;
+  const isBenign = (args: unknown[]) => {
+    let joined = '';
+    for (const a of args) {
+      try {
+        joined += typeof a === 'string' ? a : JSON.stringify(a);
+      } catch {
+        joined += String(a);
+      }
+      joined += ' ';
+    }
+    return BENIGN_WEB_WC_LOGS.some((p) => joined.includes(p));
+  };
+  for (const level of ['warn', 'error', 'log'] as const) {
+    const orig = console[level].bind(console);
+    console[level] = (...args: unknown[]) => (isBenign(args) ? undefined : orig(...args));
+  }
+}
+
 function evmCaips(): string[] {
   return listChains().filter((c) => c.family === 'evm' && c.evmChainId).map((c) => `eip155:${c.evmChainId}`);
 }
@@ -148,6 +183,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
   dismissPending: () => set({ pending: null }),
 
   init: async () => {
+    silenceBenignWebLogs();
     if (client || !PROJECT_ID) return;
     client = await SignClient.init({
       projectId: PROJECT_ID,
