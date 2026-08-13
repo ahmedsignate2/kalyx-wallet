@@ -538,3 +538,29 @@ Fonctionnalité "mode airplane" → Phase 5.
 
 **Construisons le wallet que tout le monde voudrait. 🚀**
 
+
+## Acquisition
+
+Nova Wallet is currently available for acquisition.
+
+For acquisition inquiries, commercial licensing, partnerships,
+or other business opportunities:
+
+**amsssr400@gmail.com**
+
+## Support the Project
+
+If you would like to support the continued development of Nova Wallet,
+you can make a voluntary Bitcoin contribution:
+
+**Bitcoin (BTC):**
+
+`bc1qwdqesyfzja4585f09ylvp4rc2lyqhvmvlvytx4`
+
+Every contribution helps support development, testing, infrastructure,
+documentation, and security improvements.
+
+### Security Warning
+
+Nova Wallet support will never ask you for your recovery phrase,
+private key, password, or authentication code.
