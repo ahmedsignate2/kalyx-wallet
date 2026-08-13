@@ -1,566 +1,825 @@
-# 🔐 NovaWallet – Wallet Crypto Non-Custodial Mobile
+# 🔐 Nova Wallet
 
-**Un wallet crypto mobile design, sécurisé et simple d'usage.**  
-Contrôle total de tes clés. Aucun serveur, aucun intermédiaire. Juste la beauté d'une app moderne.
+### Secure. Non-custodial. Multi-chain.
 
-> **Prêt pour la production**, fondé sur 281 tests automatisés, cryptographie auditée, couche de sécurité renforcée.
+Nova Wallet est un **wallet crypto mobile non-custodial** construit avec **React Native, Expo et TypeScript**.
 
----
+Le projet vise une expérience moderne et accessible tout en gardant une architecture où les secrets du wallet restent sous le contrôle de l'utilisateur.
 
-## 📋 Table des matières
+Nova Wallet ne dispose pas d'un **backend propriétaire de conservation** : les wallets et secrets sont gérés localement sur l'appareil. Certaines fonctionnalités utilisent néanmoins des services tiers tels que des RPC, explorers, APIs de marché, WalletConnect ou LI.FI.
 
-1. [Vision & Principes](#-vision--principes)
-2. [Fonctionnalités](#-fonctionnalités)
-3. [Architecture](#-architecture)
-4. [Installation & Setup](#-installation--setup)
-5. [Développement](#-développement)
-6. [Sécurité](#-sécurité)
-7. [Roadmap](#-roadmap)
-8. [Structure du projet](#-structure-du-projet)
-9. [Documentation](#-documentation)
-10. [FAQ](#-faq)
+> ⚠️ **Statut : développement actif**
+>
+> Nova Wallet n'a pas fait l'objet d'un audit de sécurité indépendant.
+> Le projet ne doit pas être considéré comme un produit audité ni comme une solution de conservation de fonds importants.
 
 ---
 
-## 🎯 Vision & Principes
+## 💼 Acquisition
 
-### Les 3 piliers du produit
+Nova Wallet est actuellement proposé à l'acquisition.
 
-1. **Design** – Une interface qui donne envie. Les gens ne partent pas pour un bouton manquant, mais pour manque de confiance.
-2. **Sécurité** – Prévenir les erreurs *avant* qu'elles arrivent. Détection d'arnaque avant signature = arme n°1.
-3. **Simplicité** – Un débutant doit pouvoir envoyer de la crypto sans l'impression de piloter une centrale nucléaire.
+Le repository comprend notamment le code source original de Nova Wallet, le moteur applicatif et crypto, l'application mobile, les intégrations développées pour le projet, la documentation technique et le travail de développement existant, sous réserve des licences et droits applicables aux composants tiers.
 
-### Non-négociable
-
-✅ **Non-custodial** – *Tu* as tes clés, zéro serveur.  
-✅ **Les clés privées ne quittent jamais l'appareil** – Ni seed, ni clé brute n'est envoyée sur le réseau ou loggée.  
-✅ **BIP-39 standard** – Phrases de récupération universelles (12 ou 24 mots).  
-✅ **Chiffrement local** – Keychain (iOS) / Keystore (Android) pour les secrets.  
-✅ **Tests exhaustifs** – 281 tests couvrent la cryptographie, la dérivation, la validation.
+Pour une acquisition, une licence commerciale, un partenariat ou une demande professionnelle : **amsssr400@gmail.com**
 
 ---
 
 ## ✨ Fonctionnalités
 
-### Phase 1 : MVP (Ethereum + Polygon + BNB Chain)
+### 💼 Wallet
 
-#### Onboarding & Sécurité
-- 📱 Création d'un nouveau wallet → génération seed BIP-39 (12/24 mots)
-- 🔐 Verrouillage PIN (anti-brute-force) + Biométrie (Face ID / Touch ID / empreinte)
-- 📝 Import d'un wallet existant par seed phrase
-- ⏱️ Auto-lock après inactivité
-- ✓ Sauvegarde guidée avec vérification (anti-copier-coller)
+- Création de wallet avec **BIP-39**
+- Phrases de récupération de 12 ou 24 mots
+- Import par phrase de récupération
+- Import de wallet EVM par clé privée
+- Multi-wallet
+- Multi-comptes dérivés
+- PIN et protection anti-brute-force
+- Verrouillage automatique
+- Authentification biométrique pour les opérations sensibles
+- Révélation protégée de la phrase de récupération
+- Changement de PIN
+- Réinitialisation du wallet
+- Sauvegarde chiffrée côté client
 
-#### Portefeuille & Comptes
-- 🪙 **Multi-chain** : Ethereum, Polygon, BNB Chain (même clé = même adresse)
-- 🔄 Multi-comptes : plusieurs comptes dérivés de la même seed
-- 💰 Solde total agrégé + vue par chaîne
-- 🎨 Dark mode (défaut) & light mode
-- 🌐 Multi-langue (FR/EN)
+### 🔗 Multi-chain
 
-#### Transactions
-- 📤 **Recevoir** : adresse + QR code + copy-to-clipboard
-- 💸 **Envoyer** : saisie/scan d'adresse, montant, estimation frais (gas), confirmation
-- 📊 Historique par compte + statut temps réel (pending/confirmed/failed)
-- 🏷️ Tokens ERC-20 principaux + token natif
+Nova utilise une architecture basée sur des **Chain Adapters** permettant de partager le moteur EVM entre de nombreux réseaux.
 
-#### Extras
-- 💹 Prix temps réel + variation 24h
-- 🔗 Deep linking / QR scanning
-- 💡 Détection d'arnaque avant signature
+Le catalogue actuel comprend un large ensemble de réseaux, incluant des réseaux EVM, Bitcoin, Solana et des testnets.
 
-### Phase 2–3 : Bitcoin & Solana
+Réseaux notamment pris en charge :
 
-- ₿ **Bitcoin** : dérivation BIP-84 (bc1…), réception, bientôt envoi
-- ◎ **Solana** : dérivation Ed25519, tokens SPL
-- 🔀 Swap cross-chain (via LiFi)
-- 📍 Intégration ENS (Ethereum Name Service)
+- Ethereum
+- BNB Chain
+- Polygon
+- Base
+- Arbitrum
+- Optimism
+- Avalanche
+- Linea
+- Scroll
+- zkSync Era
+- Gnosis
+- Mantle
+- Celo
+- Berachain
+- Sonic
+- Cronos
+- Moonbeam
+- Metis
+- Polygon zkEVM
+- Mode
+- Manta
+- opBNB
+- Taiko
+- Unichain
+- World Chain
+- Sei
+- Flare
+- Kava
+- Aurora
+- Fantom
+- Fraxtal
+- Ink
+- Soneium
+- Abstract
+- Zora
+- Lisk
+- Boba
+- BOB
+- Immutable
+- Astar
+- Fuse
+- Kaia
+- Gravity
+- Rootstock
+- Ronin
+- ApeChain
+- Core
+- ZetaChain
+- Etherlink
+- Story
+- Zircuit
+- Plume
+- Morph
+- Swell
+- Superseed
+- Hemi
+- Bitlayer
+- Merlin
+- Degen
+- Monad Testnet
+- Bitcoin
+- Solana
+
+Les testnets sont séparés du catalogue mainnet et masqués par défaut.
+
+### ₿ Bitcoin
+
+- Dérivation HD
+- BIP-84
+- SegWit natif
+- Validation d'adresses
+- Solde
+- Historique
+- Sélection d'UTXO
+- Construction de transactions
+- Signature
+- Diffusion des transactions
+
+### ◎ Solana
+
+- Dérivation SLIP-0010 / Ed25519
+- Dérivation compatible avec les wallets Solana courants
+- Solde SOL
+- Historique
+- Tokens SPL
+- Associated Token Accounts
+- `TransferChecked`
+- Envoi de SOL
+- Envoi de tokens SPL
 
 ---
 
-## 🏗️ Architecture
+## 💸 Transactions
+
+Selon le réseau, Nova prend en charge :
+
+- Envoi
+- Réception
+- QR codes
+- Deep links
+- Validation des adresses
+- Validation stricte des montants
+- Estimation des frais
+- Historique
+- Liens vers les explorers
+- Gestion des erreurs
+
+Les montants financiers sont manipulés avec des représentations précises, notamment `bigint`, afin d'éviter les pertes liées aux nombres flottants.
+
+---
+
+# 🛡️ Sécurité
+
+La sécurité est intégrée à l'architecture du projet.
+
+## 🔑 Gestion des secrets
+
+La seed ou la clé privée :
+
+1. est générée ou importée localement ;
+2. est protégée dans le coffre chiffré ;
+3. est déchiffrée uniquement lorsque nécessaire ;
+4. est utilisée pour l'opération cryptographique ;
+5. est conservée uniquement pendant la durée nécessaire à l'opération.
+
+Le projet ne promet pas un effacement mémoire cryptographique garanti après utilisation. JavaScript et son garbage collector ne permettent pas de garantir un effacement déterministe de la mémoire.
+
+Les secrets ne sont pas destinés à être envoyés sur le réseau ni écrits dans les logs.
+
+## 🔐 Stockage local
+
+Nova utilise `expo-secure-store` pour le stockage sécurisé local.
+
+Le coffre protégé par PIN est séparé du mécanisme biométrique. Lorsque l'authentification biométrique est activée, Nova effectue une authentification biométrique explicite avant d'accéder au secret biométrique stocké. La biométrie ne signifie donc pas que toute la seed est directement protégée par Face ID ou Touch ID.
+
+## 👆 Opérations sensibles
+
+Le déverrouillage peut être requis avant notamment :
+
+- Envoi
+- Swap
+- Signature WalletConnect
+- Connexion/signature dApps
+- Approbations
+- Révélation de la phrase de récupération
+
+## 🚨 Analyse de risques
+
+Nova contient plusieurs mécanismes de protection :
+
+- checksum EIP-55
+- validation des adresses
+- validation des montants
+- décodage local de transactions
+- détection de transactions à risque
+- analyse GoPlus
+- détection de sites de phishing
+- analyse des demandes WalletConnect
+- analyse SIWE
+- résumé des données EIP-712
+- détection jailbreak/root
+
+Ces mécanismes réduisent certains risques mais ne constituent pas une garantie de sécurité absolue.
+
+---
+
+# 🔗 WalletConnect & dApps
+
+Nova intègre WalletConnect pour les connexions et signatures avec des dApps.
+
+Les demandes peuvent être présentées avec notamment :
+
+- nom du site / dApp
+- domaine
+- adresse
+- réseau
+- action demandée
+- informations de transaction
+- données EIP-712
+- messages SIWE
+
+Le moteur contient également une vérification des incohérences de domaine SIWE afin de signaler certains scénarios potentiels de phishing.
+
+---
+
+# 🔄 Swap & Bridge
+
+Nova utilise **LI.FI** pour les opérations de swap et de bridge EVM.
+
+La configuration actuelle contient :
+
+- intégrateur : `nova`
+- commission configurée : **0,3 %**
+- slippage par défaut : **0,5 %**
+
+Si LI.FI refuse une quote avec la commission configurée, le code prévoit un fallback vers une quote sans commission.
+
+La commission de 0,3 % est présente dans la configuration du projet, mais son application effective dépend également de la configuration du compte/intégrateur LI.FI.
+
+---
+
+# 🪙 Tokens, NFT & DeFi
+
+### ERC-20
+
+- Récupération des tokens
+- Métadonnées
+- Tokens personnalisés
+- Détection de tokens spam
+- Transferts ERC-20
+
+### SPL
+
+- Tokens Solana
+- Métadonnées
+- Associated Token Accounts
+- Transferts SPL
+
+### NFT
+
+- Récupération des NFT
+- Métadonnées
+- Galerie
+- Contrat
+- Token ID
+- Lien vers l'explorer
+
+### DeFi
+
+Le moteur contient une couche de classification permettant d'identifier différentes catégories de tokens et positions DeFi.
+
+### Approbations
+
+Nova contient également des outils pour analyser et révoquer des approbations ERC-20.
+
+---
+
+# 📈 Marché & portefeuille
+
+Nova intègre des données de marché et de portefeuille pour :
+
+- prix crypto
+- variations 24h
+- graphiques historiques
+- recherche de coins
+- données de tokens
+- valeur totale du portefeuille
+- répartition des actifs
+- favoris
+- historique des transactions
+- export CSV
+
+Les intégrations de données incluent notamment CoinGecko, Alchemy et différents explorers/RPC selon le réseau.
+
+---
+
+# 💾 Sauvegarde chiffrée
+
+Nova propose une sauvegarde chiffrée côté client.
+
+```text
+Seed
+  ↓
+Mot de passe utilisateur
+  ↓
+KDF
+  ↓
+AES-256-GCM
+  ↓
+Backup JSON versionné
+  ↓
+Partage via le système natif
+```
+
+La seed est chiffrée avant le partage.
+
+Aucune seed n'est envoyée à un backend Nova.
+
+La sauvegarde peut ensuite être partagée via les mécanismes natifs disponibles sur l'appareil.
+
+⚠️ Le mot de passe de sauvegarde est indispensable pour restaurer le backup. Il doit être conservé séparément.
+
+---
+
+# 🔌 Hardware Wallet
+
+Le projet prépare l'intégration de hardware wallets, notamment Ledger via Bluetooth.
+
+Les dépendances et éléments de configuration nécessaires sont présents dans le projet.
+
+Cependant, l'intégration hardware wallet complète n'est pas considérée comme finalisée dans l'état actuel du repository.
+
+---
+
+# 📷 QR Codes & Deep Links
+
+Nova possède un moteur de parsing permettant d'identifier notamment :
+
+- adresses crypto
+- URIs de paiement
+- liens WalletConnect
+- URLs
+- liens Ethereum
+
+L'application configure également les deep links nécessaires aux usages WalletConnect et Ethereum.
+
+---
+
+# 🎨 Interface
+
+L'application utilise notamment :
+
+- React Native
+- Expo
+- Expo Router
+- TypeScript
+- Zustand
+- Expo Secure Store
+- Expo Local Authentication
+- Expo Camera
+- Expo Clipboard
+- Expo Notifications
+- React Native WebView
+- React Native SVG
+- QR Code
+- Inter / Outfit
+
+L'interface comprend notamment :
+
+- thème sombre
+- thème clair
+- thème système
+- mode Débutant / Expert
+- multi-langue
+- devises fiat
+- animations
+- skeleton loading
+- graphiques interactifs
+- toasts
+- navigation mobile
+- Error Boundary
+
+---
+
+# 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│  📱 UI (React Native Expo)                   │
-│     Écrans + Design System (Revolut-style)  │
-├─────────────────────────────────────────────┤
-│  🎛️  State (Zustand) + Requests (TanStack)  │
-│     Cache, refetch, statuts                 │
-├─────────────────────────────────────────────┤
-│  🔧 Domain / Services                        │
-│     WalletService (create/import/lock)      │
-│     KeyManager (dérivation, signature)      │  ← Seul endroit avec clés en clair
-│     ChainAdapters (EVM / BTC / SOL)         │
-│     PriceService, HistoryService            │
-├─────────────────────────────────────────────┤
-│  🔒 Sécurité                                 │
-│     SecureStorage (Keychain + AES-256-GCM) │
-│     PIN + Biometrics gate                   │
-├─────────────────────────────────────────────┤
-│  🔐 Cryptographie (libs auditées)            │
-│     @noble/*, @scure/*, ethers, …           │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────┐
+│              📱 APP / UI                   │
+│                                            │
+│  Expo Router                              │
+│  React Native                             │
+│  Screens / Components / UX                │
+└───────────────────┬──────────────────────┘
+                     │
+┌───────────────────▼──────────────────────┐
+│           🧠 APPLICATION                   │
+│                                            │
+│  Zustand Stores                           │
+│  Wallet Store                             │
+│  Settings                                 │
+│  WalletConnect                            │
+│  Contacts                                 │
+│  Secure Storage                           │
+└───────────────────┬──────────────────────┘
+                     │
+┌───────────────────▼──────────────────────┐
+│           🔐 CORE ENGINE                   │
+│                                            │
+│  BIP-39 / BIP-32 / BIP-44 / BIP-84        │
+│  EVM / Bitcoin / Solana                   │
+│  Chain Adapters                           │
+│  Validation                               │
+│  Transactions                             │
+│  Security                                 │
+│  Prices / Tokens / NFT                    │
+│  Swap / Bridge                            │
+│  WalletConnect                            │
+└──────────────────────────────────────────┘
 ```
 
-### Pattern ChainAdapter (extensible)
+`src/` constitue le moteur TypeScript du projet.
 
-Chaque chaîne implémente la même interface → ajouter Bitcoin/Solana = zéro changement au reste du wallet.
+L'application mobile utilise ce moteur via `src/index.ts`.
 
-```typescript
+Cette séparation permet notamment d'isoler :
+
+- cryptographie
+- dérivation
+- validation
+- chaînes
+- transactions
+- sécurité
+- données blockchain
+- swap
+- WalletConnect
+
+---
+
+# 🧩 Chain Adapter
+
+Les chaînes sont branchées sur une interface commune.
+
+```ts
 interface ChainAdapter {
   deriveAccount(seed: Uint8Array, index: number): Account;
   getBalance(address: string): Promise<Balance>;
   buildTransaction(params: TxParams): Promise<UnsignedTx>;
-  signTransaction(tx: UnsignedTx, privateKey: Uint8Array): Promise<SignedTx>;
+  signTransaction(
+    tx: UnsignedTx,
+    privateKey: Uint8Array
+  ): Promise<SignedTx>;
   broadcast(signedTx: SignedTx): Promise<TxHash>;
 }
 ```
 
-### Dérivation des clés (BIP-44)
-
-**Une seule seed BIP-39** dérive tous les comptes :
-
-| Chaîne | Chemin | Adresse |
-|--------|--------|---------|
-| Ethereum / Polygon / BNB | `m/44'/60'/0'/0/0` | `0x...` (identique) |
-| Bitcoin (SegWit natif) | `m/84'/0'/0'/0/0` | `bc1...` |
-| Solana | `m/44'/501'/0'/0'` | Base58 (Ed25519) |
-
-**Points clés:**
-- ETH, Polygon, BNB = **même clé, même adresse** → seul le RPC change (MVP ultra rentable)
-- Bitcoin = dérivation différente (BIP-84)
-- Solana = courbe Ed25519 (pas secp256k1)
+Pour les réseaux EVM, un même adapter peut être paramétré avec différentes configurations de réseau.
 
 ---
 
-## 🚀 Installation & Setup
+# 🔑 Dérivation
+
+**EVM**
+
+```
+m/44'/60'/0'/0/0
+```
+
+Les réseaux EVM compatibles utilisent le coin type 60.
+
+**Bitcoin**
+
+```
+m/84'/0'/0'/0/0
+```
+
+**Solana**
+
+```
+m/44'/501'/0'/0'
+```
+
+Solana utilise Ed25519 et une dérivation distincte des réseaux EVM.
+
+---
+
+# 📁 Structure du projet
+
+```
+nova-wallet/
+│
+├── app/                # Écrans Expo Router
+├── src/                # 🧠 Moteur crypto / blockchain
+│   ├── crypto/
+│   ├── domain/
+│   │   ├── chains/
+│   │   ├── wallet/
+│   │   ├── tokens/
+│   │   ├── prices/
+│   │   ├── nft/
+│   │   ├── swap/
+│   │   ├── wc/
+│   │   ├── qr/
+│   │   ├── ens/
+│   │   ├── approvals/
+│   │   ├── defi/
+│   │   └── security/
+│   └── security/
+│
+├── lib/                # Logique applicative
+├── ui/                 # Design system / composants
+├── __tests__/          # Tests
+├── docs/               # Documentation
+├── assets/             # Assets application
+│
+├── app.config.ts
+├── package.json
+├── tsconfig.json
+├── jest.config.js
+│
+├── SECURITY.md
+├── PRIVACY.md
+├── TERMS.md
+├── CONTRIBUTING.md
+├── ANDROID_GUIDE.md
+├── MOBILE_SETUP.md
+└── HANDOFF.md
+```
+
+---
+
+# 🛠️ Stack technique
+
+| Domaine | Technologie |
+|---|---|
+| Mobile | React Native |
+| Framework | Expo |
+| Navigation | Expo Router |
+| Langage | TypeScript |
+| State | Zustand |
+| EVM | ethers v6 |
+| Bitcoin | @scure/btc-signer |
+| Mnemonic | @scure/bip39 |
+| HD Wallet | @scure/bip32 |
+| Crypto | @noble/* |
+| Secure storage | expo-secure-store |
+| Biométrie | expo-local-authentication |
+| QR | expo-camera / react-native-qrcode-svg |
+| WalletConnect | WalletConnect v2 |
+| Market data | CoinGecko |
+| Blockchain data | Alchemy / explorers / RPC |
+| Security analysis | GoPlus |
+| Swap / Bridge | LI.FI |
+| Hardware wallet | Ledger BLE dependencies |
+| Tests | Jest |
+| CI | GitHub Actions |
+
+---
+
+# 🚀 Installation
 
 ### Prérequis
 
-```
-Node.js 18+
-npm / yarn
-Xcode 15+ (macOS pour iOS)
-Android Studio + NDK (pour Android)
-EAS CLI (npm install -g eas-cli)
-```
+- Node.js 20 recommandé
+- npm
+- Android Studio pour Android
+- Xcode sur macOS pour iOS
+- environnement Expo compatible
+- appareil physique recommandé pour les fonctionnalités natives
 
-### Cloner & installer
+### Cloner
 
 ```bash
-git clone https://github.com/yourusername/nova-wallet.git
+git clone https://github.com/ahmedsignate2/nova-wallet.git
 cd nova-wallet
 npm install
 ```
 
-### Configuration locale
+### Variables d'environnement
 
-Créer `.env.local` (ignoré par git) :
+Le repository fournit un `.env.example`.
 
-```env
-# Clés d'API publiques (non-sensibles)
-EXPO_PUBLIC_ETHEREUM_RPC=https://eth.llamarpc.com
-EXPO_PUBLIC_ALCHEMY_API_KEY=your_alchemy_key
-EXPO_PUBLIC_COINGECKO_API_KEY=your_cg_key
+Exemple :
 
-# Dev/staging
+```
+EXPO_PUBLIC_ALCHEMY_KEY=
+EXPO_PUBLIC_ETHERSCAN_KEY=
+EXPO_PUBLIC_LIFI_KEY=
 EXPO_PUBLIC_ENV=development
 ```
 
-⚠️ **Jamais de clés privées ou secrets dans `.env` ou le code.**
+⚠️ Ne placez jamais une seed, une clé privée, un PIN, un mot de passe ou un secret utilisateur dans le code ou dans une variable publique Expo.
 
-### Démarrage
+### ▶️ Développement
 
-#### Web (dev)
-```bash
-npm run web
-# Ouvre http://localhost:19000
-```
-
-#### iOS
-```bash
-npm run ios
-# Ou : npx expo run:ios
-```
-
-#### Android
-```bash
-npm run android
-# Ou : npx expo run:android
-```
-
-#### Start serveur Expo (dev client)
 ```bash
 npm start
-# Scanner le QR avec Expo Go (dev) ou un dev build
 ```
 
----
-
-## 🔨 Développement
-
-### Structure des fichiers
-
-```
-nova-wallet/
-├── app/                    # Écrans React Native (Expo Router file-based)
-│   ├── (auth)/            # Stack d'authentification
-│   ├── (main)/            # Onglets principaux
-│   ├── ...
-│   └── _layout.tsx        # Layout racine
-├── src/                    # Logique métier (TypeScript)
-│   ├── crypto/            # Mnémonique, dérivation HD, Bitcoin
-│   ├── domain/
-│   │   ├── chains/        # ChainAdapter, EVM, Bitcoin, Solana
-│   │   ├── validation/    # Adresses, montants
-│   │   ├── wallet/        # Gestion portefeuille
-│   │   ├── tokens/        # Métadonnées tokens
-│   │   ├── prices/        # CoinGecko
-│   │   ├── nft/           # Alchemy NFT
-│   │   ├── swap/          # LiFi swap
-│   │   └── ...
-│   ├── security/          # Vault AES, PIN, biométrie
-│   └── index.ts           # Exports publics
-├── lib/                    # Composants UI et design system
-│   ├── components/        # Boutons, inputs, cartes, etc.
-│   ├── styles/            # Tokens (couleurs, spacing, typo)
-│   └── hooks/             # useWallet, useTransaction, etc.
-├── docs/                   # Documentation complète
-│   ├── 01-CAHIER-DES-CHARGES.md
-│   ├── 02-ROADMAP.md
-│   ├── 03-ARCHITECTURE.md
-│   ├── 04-STRUCTURE-PROJET.md
-│   ├── 05-SECURITE.md
-│   ├── 06-MVP.md
-│   └── 07-DIFFERENCIATION.md
-├── __tests__/             # Tests unitaires
-├── jest.config.js
-├── tsconfig.json          # TypeScript strict
-└── package.json
-```
-
-### Scripts npm
+**Android**
 
 ```bash
-npm start              # Lance Expo dev server
-npm run android        # Build & run sur Android
-npm run ios            # Build & run sur iOS
-npm run web            # Web (dev uniquement)
-npm test               # Jest + couverture
-npm run typecheck      # TypeScript strict check
-npm run build:web      # Export web (static)
+npm run android
 ```
 
-### Tests
-
-**281 tests**, couverture crypto/domain complète.
+**iOS**
 
 ```bash
-npm test               # Lance jest
-npm test -- --coverage # Avec couverture
-npm test -- --watch    # Mode watch
+npm run ios
 ```
 
-Tests par catégorie :
+**Web**
 
 ```bash
-npm test -- crypto/          # Mnémonique, dérivation, Bitcoin
-npm test -- domain/chains/   # ChainAdapters, EVM, BTC, Solana
-npm test -- domain/validation/  # Adresses, montants
-npm test -- security/        # Vault, PIN
-npm test -- domain/backup/   # Cloud backup
+npm run web
 ```
 
-### Code quality
+**Export Web**
 
 ```bash
-npm run typecheck      # TypeScript strict (obligatoire avant PR)
+npm run build:web
 ```
-
-⚠️ **Pas de crypto sans test. Chaque feature = test avant commit.**
 
 ---
 
-## 🔒 Sécurité
+# 🧪 Tests & CI
 
-### Principes d'architecture
-
-1. **Isolation des clés** – La clé privée en clair existe uniquement le temps de signer, puis est effacée mémoire.
-2. **Pas d'export** – UI ne reçoit jamais une clé brute, seulement adresses/signatures.
-3. **Stockage chiffré** – Seed stockée en AES-256-GCM, déverrouillée via PIN (scrypt + argon2).
-4. **Validation stricte** – Adresses checksum (EIP-55), montants en `bigint`, pas de parse lossy.
-5. **Détection d'arnaque** – Check GoPlus avant signature, détection contrats risqués.
-
-### Vecteurs d'attaque mitigés
-
-| Risque | Mitigation |
-|--------|-----------|
-| Extraction clé via log | Pas d'export clé, logs filtrés en CI |
-| Tampering supply chain | Dépendances auditées, hash check, npm audit |
-| Side-channel (timing) | Libs @noble (timing-safe), pas de crypto custom |
-| Phishing adresse | Checksum EIP-55, QR validation |
-| Faux montant | Validation bigint stricte |
-| Contrat malveillant | Integration GoPlus |
-| Jailbreak / root | Jail-monkey, Secure Enclave sur iOS |
-
-Voir [`SECURITY.md`](SECURITY.md) pour la liste complète.
-
-### Politique de sécurité (responsible disclosure)
-
-Trouver une vulnérabilité ? → [`SECURITY.md`](SECURITY.md) → Ne pas poster sur GitHub, nous contacter en privé.
-
----
-
-## 🗺️ Roadmap
-
-### Phase 1 : MVP (fait ✅)
-- Wallet EVM (Ethereum + Polygon + BNB)
-- Création / import de seed
-- PIN + Biométrie
-- Envoi / réception
-- Historique
-- ~280 tests, chiffre sûr
-
-### Phase 2 : Bitcoin (Q3 2026)
-- Dérivation BIP-84 (bc1…)
-- Réception + envoi
-- UTXO management
-- Historique blockchain
-
-### Phase 3 : Solana (Q4 2026)
-- Dérivation Ed25519
-- Tokens SPL
-- Envoi / réception
-- Programme calls (voting, staking)
-
-### Phase 4 : Améliorations (2027)
-- Swap cross-chain (LiFi)
-- Staking Solana + Ethereum Lido
-- NFT galerie (Alchemy)
-- Notifications push
-- Cloud backup (iCloud / Google Drive)
-
-### Phase 5 : Goodies (Nice-to-have)
-- Portefeuille hardware (Ledger BLE)
-- WalletConnect v2
-- Brancher sur Brave Wallet
-- ENS support complet
-
----
-
-## 📚 Documentation
-
-Tous les docs sont dans `/docs` :
-
-| Doc | Contenu |
-|-----|---------|
-| **01-CAHIER-DES-CHARGES.md** | Vision, périmètre, contraintes |
-| **02-ROADMAP.md** | 5 phases, timeline, dépendances |
-| **03-ARCHITECTURE.md** | Stack, libs crypto, BIP-44, pattern adapter |
-| **04-STRUCTURE-PROJET.md** | Arbo fichiers cible |
-| **05-SECURITE.md** | Risques, mitigations, checklist deploy |
-| **06-MVP.md** | Périmètre exact Phase 1 |
-| **07-DIFFERENCIATION.md** | Features uniques vs MetaMask |
-
-**Lire avant de coder :** 01 + 03 + 05.
-
----
-
-## 💾 Stack technique complet
-
-### Frontend
-- **React Native 0.86** + **Expo 57** (dev build)
-- **Expo Router** (file-based navigation)
-- **TypeScript** (strict)
-- **Zustand** (state management)
-- **TanStack Query** (React Query) (server state)
-- **Reanimated** + **expo-linear-gradient** (design)
-
-### Native / Sécurité
-- **expo-secure-store** (Keychain / Keystore)
-- **expo-local-authentication** (biométrie)
-- **expo-camera** (QR code scan)
-- **expo-clipboard** (copy/paste)
-- **expo-screen-capture** (anti-screenshot)
-- **jail-monkey** (détection jailbreak/root)
-
-### Cryptographie
-- **@noble/hashes** (SHA-256, BLAKE2b, etc.)
-- **@noble/curves** (secp256k1, Ed25519)
-- **@noble/ciphers** (AES-GCM)
-- **@scure/bip39** (mnémonique)
-- **@scure/bip32** (dérivation HD)
-- **@scure/btc-signer** (Bitcoin)
-- **ethers v6** (EVM, RPC, signature)
-
-### Données / Réseau
-- **TanStack Query** (cache, refetch)
-- **Alchemy API** (balances, tokens, NFT)
-- **CoinGecko API** (prix, charts)
-- **Etherscan / BlockScout** (historique TX)
-- **LiFi API** (swap cross-chain)
-
-### Dev & Test
-- **jest** (unit tests)
-- **ts-jest** (TypeScript)
-- **@types/jest**
-- **@resvg/resvg-js** (SVG rasterization)
-
----
-
-## 🐛 Troubleshooting
-
-### Erreurs courantes
-
-#### "Unable to locate adb"
-```bash
-# Android
-export ANDROID_HOME=~/Library/Android/sdk
-export PATH=$PATH:$ANDROID_HOME/platform-tools
-```
-
-#### "React Native version mismatch"
-```bash
-npm install
-npx expo prebuild --clean
-```
-
-#### "Jest tests timeout"
-```bash
-# Augmenter timeout (tests crypto lourds)
-npm test -- --testTimeout=60000
-```
-
-#### "Keychain access denied" (iOS)
-```bash
-# Sur simulateur : settings > Keychain, puis réinstaller l'app
-rm -rf ~/Library/Developer/Xcode/DerivedData/*
-```
-
-#### "Private key not decrypting"
-- Vérifier le PIN correct (case-sensitive)
-- Vérifier que Secure Store n'a pas été effacé
-- Logs de debug : `DEBUG=nova:* npm start`
-
-### Logs & Debug
+Les scripts principaux sont :
 
 ```bash
-# Avec Xcode
-⌘D dans le simulateur → debug menu
+npm test
+npm run typecheck
+```
 
-# Avec Android Studio
-logcat → Filter "nova" ou "RN"
+Pour la CI :
 
-# Remote debugging (dev server)
-npm start → option "j" (ouvre dev menu)
+```bash
+npm test -- --ci --runInBand
+```
+
+GitHub Actions exécute le typecheck TypeScript et les tests Jest sur les branches principales configurées.
+
+Le workflow contient également un garde-fou recherchant certains patterns de logs susceptibles de contenir des seeds, clés privées ou autres secrets dans `src/`.
+
+Le nombre exact de tests n'est volontairement pas figé dans ce README afin d'éviter que la documentation devienne obsolète.
+
+---
+
+# 🗺️ État du projet
+
+### ✅ Présent dans le repository
+
+- [x] Wallet EVM
+- [x] Bitcoin
+- [x] Solana
+- [x] Multi-wallet
+- [x] Multi-comptes
+- [x] BIP-39 / HD derivation
+- [x] PIN
+- [x] Authentification biométrique
+- [x] Secure storage
+- [x] Envoi / réception
+- [x] Historique
+- [x] Tokens ERC-20
+- [x] Tokens SPL
+- [x] NFT
+- [x] WalletConnect
+- [x] SIWE / EIP-712 parsing
+- [x] Swap / Bridge LI.FI
+- [x] ENS
+- [x] Analyse de risques GoPlus
+- [x] Approbations ERC-20
+- [x] Sauvegarde chiffrée
+- [x] QR / deep links
+- [x] Données de marché
+- [x] Export CSV
+- [x] Réseaux personnalisés
+- [x] Testnets séparés
+
+### 🚧 À finaliser / renforcer
+
+- [ ] Validation complète des fonctionnalités natives sur appareils physiques
+- [ ] Validation du thème clair sur tous les écrans
+- [ ] Validation avec petits montants réels avant utilisation sérieuse
+- [ ] Intégration hardware wallet complète
+- [ ] Durcissement supplémentaire avant distribution publique
+- [ ] Audit de sécurité indépendant
+- [ ] Finalisation des builds et assets de store
+
+---
+
+# 📚 Documentation
+
+- ANDROID_GUIDE.md
+- MOBILE_SETUP.md
+- SECURITY.md
+- PRIVACY.md
+- TERMS.md
+- CONTRIBUTING.md
+- HANDOFF.md
+
+---
+
+# 🤝 Contribution
+
+Les suggestions, rapports de bugs, demandes de fonctionnalités et améliorations sont les bienvenus.
+
+- 💡 Suggestions : GitHub Discussions
+- 🐛 Bugs : GitHub Issues
+- 🔐 Vulnérabilités : SECURITY.md
+- 📧 Contact professionnel : amsssr400@gmail.com
+
+Avant de proposer une modification :
+
+1. Comprendre la séparation `src/` / `app/` / `lib/` / `ui/`.
+2. Lire la documentation de sécurité.
+3. Ajouter les tests nécessaires.
+4. Vérifier le typecheck.
+5. Ne jamais logger de secret.
+6. Tester les fonctionnalités natives sur appareil lorsque nécessaire.
+
+```bash
+npm run typecheck
+npm test
 ```
 
 ---
 
-## 🤝 Contributing
+# 🔒 Responsible Disclosure
 
-1. **Fork** le repo
-2. **Branch** : `git checkout -b feat/cool-feature`
-3. **Commit** : `git commit -m "feat: add cool feature"`
-   - Respecte [Conventional Commits](https://www.conventionalcommits.org/)
-4. **Test** : `npm test` (281 tests + typecheck)
-5. **Push** : `git push origin feat/cool-feature`
-6. **PR** : Décris ta change, screenshot si UI
+Les vulnérabilités de sécurité ne doivent pas être publiées dans les GitHub Issues.
 
-### Règles de contribution
-
-✅ **Pour tout changement crypto/domain :** tests obligatoires  
-✅ **TypeScript strict** – `npm run typecheck` passe  
-✅ **Pas de secrets** dans le code – env vars ou `.env.local`  
-✅ **Pas de dépendances non-auditées** – justifier en PR  
-
----
-
-## 📝 Licence
-
-MIT (à confirmer)
-
----
-
-## 👥 Team
-
-- **@ahmedsignate2** – Product, Arch, Lead Dev
-
----
-
-## 💬 FAQ
-
-### "Pourquoi pas MetaMask ?"
-MetaMask = poids lourd (40+ chaînes, 1MB extension). NovaWallet = design + sécurité + simplicité. On bats pas sur le nombre, on bats sur l'expérience.
-
-### "Est-ce qu'on peut importer depuis MetaMask ?"
-Oui ! Import via seed phrase BIP-39 (même standard). Les adresses générées seront **identiques** si tu utilises le même chemin de dérivation.
-
-### "Qu'est-ce qui se passe si j'oublie mon PIN ?"
-Il n'y a pas de "réinitialisation". Si tu as ta seed phrase, tu peux réimporter sur ce wallet ou un autre. Si tu n'as que le PIN (et pas la seed), c'est fini. **À sauvegarder en sécurité.**
-
-### "La seed est stockée où ?"
-- iOS → Keychain (chiffré par Secure Enclave)
-- Android → Keystore (chiffré par TEE ou scrypt)
-- Toutes les deux sous AES-256-GCM avec clé dérivée du PIN.
-
-### "Puis-je exporter ma seed ?"
-Oui, depuis Paramètres > Sécurité > Afficher Seed (après PIN). Attention = risque maximum. À faire une seule fois, copier sur papier, puis jamais plus.
-
-### "Qu'est-ce qu'un "multi-compte" ?"
-Une seule seed → plein d'index de dérivation (`m/44'/60'/0'/0/0`, `m/44'/60'/0'/0/1`, etc.) = plein d'adresses différentes. Pratique pour séparer les portefeuilles (trading vs épargne).
-
-### "Comment ça marche WalletConnect ?"
-Phase 5. Pour l'instant : scan QR → approuve TX sur le wallet → envoie signature. Pas de session persistante.
-
-### "Puis-je brancher un Ledger ?"
-Phase 5. Travail en cours. Pour l'instant : Ledger signer (seed localement, pas sur Ledger).
-
-### "Ça marche offline ?"
-Partiellement :
-- ✅ Voir solde = besoin Internet (requête RPC)
-- ✅ Signer TX = offline (clé locale)
-- ❌ Broadcast = besoin Internet
-
-Fonctionnalité "mode airplane" → Phase 5.
-
----
-
-## 📞 Support
-
-- **Issues** : [GitHub Issues](https://github.com/yourusername/nova-wallet/issues)
-- **Discussions** : [GitHub Discussions](https://github.com/yourusername/nova-wallet/discussions)
-- **Security** : [`SECURITY.md`](SECURITY.md)
-- **Email** : [contact info]
-
----
-
-**Construisons le wallet que tout le monde voudrait. 🚀**
-
-
-## Acquisition
-
-Nova Wallet is currently available for acquisition.
-
-For acquisition inquiries, commercial licensing, partnerships,
-or other business opportunities:
+Contact sécurité :
 
 **amsssr400@gmail.com**
 
-## Support the Project
+Ne transmettez jamais dans un rapport :
 
-If you would like to support the continued development of Nova Wallet,
-you can make a voluntary Bitcoin contribution:
+- phrase de récupération
+- clé privée
+- PIN
+- mot de passe
+- token d'authentification
+- secret API
 
-**Bitcoin (BTC):**
+Voir SECURITY.md.
 
-`bc1qwdqesyfzja4585f09ylvp4rc2lyqhvmvlvytx4`
+---
 
-Every contribution helps support development, testing, infrastructure,
-documentation, and security improvements.
+# 💙 Support the Project
 
-### Security Warning
+Si vous souhaitez soutenir le développement de Nova Wallet :
 
-Nova Wallet support will never ask you for your recovery phrase,
-private key, password, or authentication code.
+**BTC**
+```
+bc1qwdqesyfzja4585f09ylvp4rc2lyqhvmvlvytx4
+```
+
+Les contributions peuvent aider à financer :
+
+- développement
+- tests
+- infrastructure
+- documentation
+- sécurité
+- audits futurs
+
+---
+
+# ⚠️ Security Warning
+
+Nova Wallet ne vous demandera jamais :
+
+- votre phrase de récupération
+- votre clé privée
+- votre PIN
+- votre mot de passe
+- votre code d'authentification
+
+---
+
+# ⚠️ Avertissement
+
+Nova Wallet manipule des actifs numériques et des secrets cryptographiques.
+
+Le projet est en développement actif et n'a pas fait l'objet d'un audit de sécurité indépendant.
+
+N'utilisez pas Nova Wallet avec des montants que vous ne pouvez pas vous permettre de perdre.
+
+Les RPC, explorers, APIs de marché, WalletConnect, LI.FI et autres services tiers peuvent avoir leurs propres limitations, indisponibilités ou risques.
+
+---
+
+# 📄 Copyright & propriété intellectuelle
+
+Copyright © 2026 Ahmed Signate.
+
+All rights reserved.
+
+Nova Wallet, son code source original, son architecture, ses designs, sa documentation et ses assets originaux sont protégés par leurs droits respectifs.
+
+Aucune utilisation commerciale, redistribution, revente, sous-licence ou création de produit dérivé à partir des éléments propriétaires de Nova Wallet n'est autorisée sans autorisation écrite préalable du détenteur des droits.
+
+Les bibliothèques tierces, dépendances, marques, logos et autres composants externes restent soumis à leurs licences et droits respectifs.
+
+---
+
+# 🦁 Nova Wallet
+
+**Your keys. Your wallet. Your control.**
+
+Built with TypeScript, React Native, Expo and an unreasonable amount of security paranoia.
