@@ -52,6 +52,8 @@ const config: ExpoConfig = {
     ],
   },
   plugins: [
+    "expo-status-bar",
+    "expo-font",
     'expo-router',
     'expo-secure-store',
     'expo-local-authentication',
