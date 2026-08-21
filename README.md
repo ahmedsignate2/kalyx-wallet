@@ -19,6 +19,13 @@ Nova Wallet ne dispose pas d'un **backend propriétaire de conservation** : les 
 ## 📲 Télécharger l'APK
 [![Download APK](https://img.shields.io/badge/Download-APK%20v0.0.1-brightgreen)](https://github.com/ahmedsignate2/nova-wallet/releases/latest)
 
+
+## 🎬 Démo
+
+<div align="center">
+  <img src="docs/demo.gif" width="300" alt="Nova Wallet Demo" />
+</div>
+
 ## 📱 Screenshots
 
 | Bienvenue | Accueil | Marché | Swap |
