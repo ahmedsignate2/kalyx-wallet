@@ -80,7 +80,8 @@ TransferChecked). Tout câblé jusqu'à l'UI (send/receive/wallet). ✅ **SOLANA
 ENTIÈREMENT VALIDÉ sur device avec de vrais fonds** : envoi natif (2026-08-22,
 0.001 SOL), envoi SPL (2026-08-23, 0.001 USDC, ATA + TransferChecked, croisé avec
 Phantom), réception native et réception SPL (les deux confirmées, fonds bien reçus
-dans Nova). Bitcoin est lui toujours non testé avec de vrais fonds (voir plus bas).
+dans Nova). Bitcoin **également validé sur device avec de vrais fonds** (2026-08-23,
+voir §3 gros morceaux) — tous les réseaux du catalogue sont désormais testés en réel.
 
 **Données réelles (CoinGecko/Alchemy/Etherscan) :** prix, marché, fiche token (24h→ALL),
 recherche globale, tokens ERC-20 + ajout custom + anti-spam, NFT, historique EVM, valeur totale fiat.
@@ -274,8 +275,13 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   (helpers purs sélection UTXO + frais, 6 tests) + `BitcoinChainAdapter.sendBitcoin`
   (UTXO + fee mempool.space, @scure/btc-signer en IMPORT DYNAMIQUE car ESM pur
   incompatible Jest top-level) + `walletStore.signAndSend` branché par famille.
-  ⚠️ **JAMAIS testé sur device** : valider au rebuild avec un PETIT montant réel
-  (une dérivation/signature fausse = fonds perdus). Historique BTC toujours [].
+  ✅ **VALIDÉ sur device avec de vrais fonds** (2026-08-23) : réception (0.000033 BTC)
+  et deux envois confirmés on-chain. ⚠️ **Piège rencontré** : un premier essai à un
+  montant trop faible (0.0000001 BTC) a été rejeté par le réseau (`sendrawtransaction
+  RPC error: {"code":-26,"message":"dust, tx with dust output must be 0-fee"}`) — la
+  règle anti-dust Bitcoin refuse tout output sous ~546 sats (~0.0000015 BTC selon les
+  frais). Pas un bug Nova : normal, à connaître pour ne pas s'inquiéter si ça revient.
+  Historique BTC toujours [] (non câblé, pas bloquant).
 - Chaînes EVM ajoutées : Arbitrum, Optimism, Avalanche (complètes d'office).
 - ✅ ~~Solana~~ (fait) : adapter ed25519/base58 complet, vector-testé (voir §2).
   **ENTIÈREMENT validé sur device avec de vrais fonds** : envoi natif (SOL, 2026-08-22),
