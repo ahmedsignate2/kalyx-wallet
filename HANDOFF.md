@@ -76,11 +76,11 @@ Ajouter un EVM = 1 entrée (adapter auto via `registry.ts`). Garde d'intégrité
 **Solana COMPLET** : dérivation SLIP-0010 ed25519 (vector-testée, compat Phantom
 `m/44'/501'/0'/0'`), solde, historique, tokens SPL (+ noms/logos réels via l'API
 Jupiter v2, repli table curée `KNOWN_MINTS`), envoi SOL natif + SPL (ATA idempotent +
-TransferChecked). Tout câblé jusqu'à l'UI (send/receive/wallet). ✅ **validé sur device
-avec de vrais fonds** (2026-08-22) : envoi natif 0.001 SOL confirmé on-chain (hash
-visible dans l'historique, solde débité/crédité correctement des deux côtés). Reste à
-valider en réel : SPL (ATA + TransferChecked) et réception simple ; Bitcoin est
-lui toujours non testé avec de vrais fonds (voir plus bas).
+TransferChecked). Tout câblé jusqu'à l'UI (send/receive/wallet). ✅ **SOLANA
+ENTIÈREMENT VALIDÉ sur device avec de vrais fonds** : envoi natif (2026-08-22,
+0.001 SOL), envoi SPL (2026-08-23, 0.001 USDC, ATA + TransferChecked, croisé avec
+Phantom), réception native et réception SPL (les deux confirmées, fonds bien reçus
+dans Nova). Bitcoin est lui toujours non testé avec de vrais fonds (voir plus bas).
 
 **Données réelles (CoinGecko/Alchemy/Etherscan) :** prix, marché, fiche token (24h→ALL),
 recherche globale, tokens ERC-20 + ajout custom + anti-spam, NFT, historique EVM, valeur totale fiat.
@@ -278,8 +278,9 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   (une dérivation/signature fausse = fonds perdus). Historique BTC toujours [].
 - Chaînes EVM ajoutées : Arbitrum, Optimism, Avalanche (complètes d'office).
 - ✅ ~~Solana~~ (fait) : adapter ed25519/base58 complet, vector-testé (voir §2).
-  **Envoi natif validé sur device avec de vrais fonds (2026-08-22)**, 0.001 SOL,
-  confirmé on-chain. Reste device-only : valider SPL au rebuild.
+  **ENTIÈREMENT validé sur device avec de vrais fonds** : envoi natif (SOL, 2026-08-22),
+  envoi SPL (USDC, 2026-08-23, ATA + TransferChecked), réception native et SPL. Plus
+  aucun point d'attention Solana.
 - Nouvelles chaînes restantes : Tron, XRP, Sui, Aptos, Near… (adapters dédiés par famille).
 - **Carte virtuelle** Visa/MC (Immersve/Baanx/Gnosis Pay) — régulé.
 
