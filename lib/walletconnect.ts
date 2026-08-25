@@ -1,3 +1,4 @@
+import { base58, base64 } from '@scure/base';
 /**
  * WalletConnect (Reown) — Nova est le WALLET auquel les dApps se connectent.
  * Flux : coller une URI wc: → proposition de session → approbation (compte actif
@@ -13,9 +14,38 @@ import { create } from 'zustand';
 import { useWallet, type Unlock } from './walletStore';
 import { notify } from './notifications';
 import { listChains, getAdapter, type RawTxRequest } from '../src';
+import { handleSmartError } from './errorHandler';
 import type { IWeb3Wallet } from '@walletconnect/web3wallet';
 
 // Libellé lisible d'une méthode WalletConnect (pour la notification de signature).
+
+
+import { VersionedTransaction } from '@solana/web3.js';
+function extractSolanaSignature(tx: string, address: string): string {
+  try {
+    const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(tx) && tx.length % 4 === 0;
+    const bytes = isBase64 ? base64.decode(tx) : base58.decode(tx);
+    const vtx = VersionedTransaction.deserialize(bytes);
+    const idx = vtx.message.staticAccountKeys.findIndex(k => k.toBase58() === address);
+    if (idx >= 0 && vtx.signatures[idx]) {
+      return base58.encode(vtx.signatures[idx]);
+    }
+    return base58.encode(vtx.signatures[0]);
+  } catch {
+    return tx;
+  }
+}
+
+function ensureBase58(tx: string): string {
+  const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(tx) && tx.length % 4 === 0;
+  if (!isBase64) return tx;
+  try {
+    return base58.encode(base64.decode(tx));
+  } catch {
+    return tx;
+  }
+}
+
 const METHOD_LABELS: Record<string, string> = {
   eth_sendTransaction: 'Transaction à signer',
   personal_sign: 'Signature de message',
@@ -135,6 +165,8 @@ interface WcState {
   refresh: () => void;
 }
 
+let _wcInitializing = false;
+
 export const useWalletConnect = create<WcState>((set, get) => ({
   configured: PROJECT_ID.length > 0,
   ready: false,
@@ -145,8 +177,10 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   request: null,
 
   init: async () => {
-    if (!PROJECT_ID || get().wallet) return;
-    silenceBenignWcLogs();
+    if (!PROJECT_ID || get().wallet || _wcInitializing) return;
+    _wcInitializing = true;
+    try {
+      silenceBenignWcLogs();
     // Chargement dynamique : n'exécute le code natif qu'ici.
     // Le polyfill react-native-compat est RN-only : sur web, le navigateur fournit
     // déjà crypto/WebSocket, et l'importer casserait l'init WalletConnect.
@@ -172,6 +206,12 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       notifyIncoming('Nova · Connexion demandée', name ? `${name} veut se connecter à votre portefeuille` : 'Un site veut se connecter à votre portefeuille');
     });
     w.on('session_request', (request: any) => {
+      console.log('\n[WC-IN] === SESSION_REQUEST RECEIVED ===');
+      console.log('[WC-IN] ID:', request?.id);
+      console.log('[WC-IN] Topic:', request?.topic);
+      console.log('[WC-IN] Method:', request?.params?.request?.method);
+      console.log('[WC-IN] Params:', JSON.stringify(request?.params?.request?.params, null, 2));
+      console.log('[WC-IN] ==================================\n');
       const q = [...get().requestQueue, request];
       set({ requestQueue: q, request: q[0] });
       const method: string = request?.params?.request?.method ?? '';
@@ -183,6 +223,9 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     w.on('session_delete', () => get().refresh());
     set({ wallet: w, ready: true });
     get().refresh();
+    } finally {
+      _wcInitializing = false;
+    }
   },
 
   pair: async (uri) => {
@@ -282,10 +325,9 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     const method: string = params.request.method;
     const p = params.request.params;
     
-    // DEBUG: Affiche la requête brute reçue par le wallet
-    console.log('--- RAW_WC_REQUEST ---');
-    console.log(JSON.stringify({ method, p }, null, 2));
-    console.log('----------------------');
+    console.log('\n[WC-PROCESSING] === START PROCESSING ===');
+    console.log('[WC-PROCESSING] Method:', method);
+    console.log('[WC-PROCESSING] Params:', JSON.stringify(p, null, 2));
     
     const chain = evmChains().find((c) => c.caip === params.chainId);
     const w = useWallet.getState();
@@ -315,17 +357,21 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         if (!txStr && typeof pSafe === 'string') txStr = pSafe;
         if (typeof txStr !== 'string') throw new Error('Expected String');
         const res = await w.signSolanaTransaction(unlock, txStr);
-        result = { signedTransaction: res };
+        const solAddr = useWallet.getState().accounts[useWallet.getState().activeAccountIndex]?.solAddress;
+        result = { signature: extractSolanaSignature(res, solAddr || ""), transaction: ensureBase58(res) };
       } else if (method === 'solana_signAllTransactions') {
         const pSafe: any = p || {};
         let txStrArray = pSafe.transactions || pSafe[0]?.transactions || (Array.isArray(pSafe) ? pSafe : [pSafe]);
         if (!Array.isArray(txStrArray)) txStrArray = [txStrArray];
         const res = await w.signSolanaTransactions(unlock, txStrArray);
-        result = { signedTransactions: res };
+        const solAddr = useWallet.getState().accounts[useWallet.getState().activeAccountIndex]?.solAddress;
+        result = { signatures: res.map(r => extractSolanaSignature(r, solAddr || "")), transactions: res.map(ensureBase58) };
       } else if (method === 'solana_signMessage') {
         const pSafe: any = p || {};
-        let msg = pSafe.message || pSafe[0]?.message;
-        if (!msg && Array.isArray(pSafe)) msg = pSafe.filter(x => typeof x === 'string').pop();
+        let msg = pSafe.message ?? pSafe.msg ?? pSafe.signMessage;
+        if (!msg && Array.isArray(pSafe)) {
+          msg = pSafe[0]?.message ?? pSafe[0]?.msg ?? pSafe[0];
+        }
         if (!msg && typeof pSafe === 'string') msg = pSafe;
         if (typeof msg !== 'string') throw new Error('Expected String');
         const res = await w.signSolanaMessage(unlock, msg);
@@ -337,8 +383,12 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         if (!msg && Array.isArray(pSafe)) msg = pSafe.filter(x => typeof x === 'string').pop();
         if (!msg && typeof pSafe === 'string') msg = pSafe;
         if (typeof msg !== 'string') throw new Error('Expected String');
-        const sig = await w.signBitcoinMessage(unlock, msg);
-        result = { signature: sig };
+        let type = 'ecdsa';
+        if (pSafe.type === 'bip322-simple' || pSafe[0]?.type === 'bip322-simple') type = 'bip322';
+        const sigBase64 = await w.signBitcoinMessage(unlock, msg, type as 'ecdsa'|'bip322');
+        const sigHex = require('buffer').Buffer.from(sigBase64, 'base64').toString('hex');
+        console.log('\n[DEBUG-VERIFY] Sig hex length:', sigHex.length, '\n');
+        result = { signature: sigHex };
       } else if (method === 'bitcoin_signPsbt' || method === 'signPsbt') {
         const pSafe: any = p || {};
         let psbtStr = pSafe.psbt || pSafe[0]?.psbt;
@@ -392,20 +442,26 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         throw new Error(`Méthode non supportée : ${method}`);
       }
       
-      // DEBUG: Affiche le résultat brut renvoyé par le wallet
-      console.log('--- WC_RESULT ---');
-      console.log(JSON.stringify(result, null, 2));
-      console.log('-----------------');
+      console.log('\n[WC-SUCCESS] === RESPONDING WITH SUCCESS ===');
+      console.log('[WC-SUCCESS] Method:', method);
+      console.log('[WC-SUCCESS] Result payload:', JSON.stringify(result, null, 2));
+      console.log('[WC-SUCCESS] =====================================\n');
 
       await wallet.respondSessionRequest({ topic, response: { id, jsonrpc: '2.0', result } });
       const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
     } catch (e) {
+      console.error('\n[WC-ERROR] === RESPONDING WITH ERROR ===');
+      console.error('[WC-ERROR] Method:', method);
+      console.error('[WC-ERROR] Error object:', e);
+      console.error('[WC-ERROR] Error message:', e instanceof Error ? e.message : 'Unknown error');
+      console.error('[WC-ERROR] ===============================\n');
       if (wallet && sdkUtils) {
         await wallet.respondSessionRequest({
           topic,
           response: { id, jsonrpc: '2.0', error: { code: 5000, message: e instanceof Error ? e.message : 'Unknown error' } },
         });
       }
+      handleSmartError(e);
       const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
       throw e;
     }
@@ -415,6 +471,10 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     const { wallet, requestQueue } = get();
     const request = requestQueue[0];
     if (wallet && request && sdkUtils) {
+      console.log('\n[WC-REJECT] === USER REJECTED REQUEST ===');
+      console.log('[WC-REJECT] ID:', request.id);
+      console.log('[WC-REJECT] Method:', request?.params?.request?.method);
+      console.log('[WC-REJECT] =================================\n');
       await wallet.respondSessionRequest({
         topic: request.topic,
         response: { id: request.id, jsonrpc: '2.0', error: sdkUtils.getSdkError('USER_REJECTED') },

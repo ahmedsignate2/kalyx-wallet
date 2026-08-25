@@ -28,10 +28,14 @@ export default function Backup() {
     };
   }, []);
 
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: true, title: t('backupTitle') }} />
+      {(() => {
   if (!draft) {
     return (
       <PremiumScreen>
-        <Stack.Screen options={{ headerShown: true, title: t('backupTitle') }} />
+        
         <GlassCard>
           <Text style={typography.bodyStrong}>{t('noPhraseToShow')}</Text>
           <Text onPress={() => router.replace('/welcome')} style={{ color: colors.accent, fontFamily: fonts.semibold, marginTop: spacing(1) }}>
@@ -46,7 +50,7 @@ export default function Backup() {
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: t('backupTitle') }} />
+      
 
       <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
@@ -102,5 +106,8 @@ export default function Backup() {
       <Button label={t('notedPhrase')} onPress={() => router.push('/verify')} />
       <View style={{ height: spacing(1) }} />
     </PremiumScreen>
+  );
+      })()}
+    </>
   );
 }

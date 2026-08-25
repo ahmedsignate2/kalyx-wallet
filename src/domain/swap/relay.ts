@@ -14,7 +14,7 @@ export interface RelayQuoteParams {
   /** L'ID Relay de la chaîne cible */
   toChainId: string;
   fromToken: string;
-  toToken: string;
+  toToken: string; fromAddress: string;
   fromAmount: string;
   /** L'adresse de réception sur la chaîne cible (le format doit correspondre à la VM cible) */
   toAddress: string;
@@ -31,7 +31,7 @@ export async function getRelayQuote(params: RelayQuoteParams): Promise<SwapQuote
     const isDestSolana = params.toChainId === '792703809' || params.toChainId === 'solana';
     
     const body = {
-      user: params.toAddress, // recipient is used as user to get full tx
+      user: params.fromAddress, // sender address on origin chain
       originChainId: isOriginSolana ? 792703809 : Number(params.fromChainId),
       destinationChainId: isDestSolana ? 792703809 : Number(params.toChainId),
       originCurrency: params.fromToken,
