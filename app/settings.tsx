@@ -26,7 +26,7 @@ const chevron = <Icon name="chevron" size={18} tone="faint" />;
 export default function Settings() {
   const { colors, typography } = useTheme();
   const t = useT();
-  const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled, themePref, setThemePref, notifTx, notifPrice, setNotifPref, autoLockMinutes, setAutoLock, privacyGuard, setPrivacyGuard } =
+  const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled, themePref, setThemePref, notifTx, notifPrice, setNotifPref, autoLockMinutes, setAutoLockMinutes, privacyGuard, setPrivacyGuard } =
     useSettings();
   const enableBiometric = useWallet((s) => s.enableBiometric);
   const disableBiometric = useWallet((s) => s.disableBiometric);
@@ -180,7 +180,7 @@ export default function Settings() {
               { label: '15 min', m: 15 },
               { label: t('never'), m: -1 },
             ] as const).map((o) => (
-              <Chip key={o.m} label={o.label} tone={autoLockMinutes === o.m ? 'accent' : 'neutral'} onPress={() => setAutoLock(o.m)} />
+              <Chip key={o.m} label={o.label} tone={autoLockMinutes === o.m ? 'accent' : 'neutral'} onPress={() => setAutoLockMinutes(o.m)} />
             ))}
           </View>
         </View>
@@ -224,6 +224,19 @@ export default function Settings() {
             </View>
           </View>
         </View>
+
+        {/* Son */}
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
+            <Ico n="notifications" /> {/* Placeholder icon for sound */}
+            <View style={{ flex: 1 }}>
+              <Text style={typography.body}>Sons de l'application</Text>
+              <Text style={typography.muted}>Jouer un son lors des actions importantes</Text>
+            </View>
+          </View>
+          <Switch value={useSettings((s) => s.soundEnabled)} onValueChange={useSettings.getState().setSoundEnabled} />
+        </View>
+
         <ListRow divider left={<Ico n="buy" />} title={t('buyCrypto')} right={<Chip label={t('soon')} />} onPress={soon} />
       </GlassCard>
 

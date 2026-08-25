@@ -55,7 +55,7 @@ export function parseTxList(json: unknown, ownerAddress: string): TxSummary[] {
         from: r.from,
         to: r.to,
         value,
-        timestamp: Number.parseInt(r.timeStamp ?? '0', 10) || 0,
+        timestamp: Number(r.timeStamp) || 0,
         direction: directionOf(r.from, r.to, ownerAddress),
         status: failed ? ('failed' as const) : ('success' as const),
       };

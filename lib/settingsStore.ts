@@ -46,6 +46,8 @@ interface SettingsState {
   autoLockMinutes: number;
   /** Écran de garde : masque le contenu dans le sélecteur d'apps récentes. */
   privacyGuard: boolean;
+  /** Sons de l'application (triptyque succès, etc) */
+  soundEnabled: boolean;
 
   load: () => Promise<void>;
   setProfileName: (name: string) => void;
@@ -58,14 +60,15 @@ interface SettingsState {
   setPinLength: (n: number) => void;
   setNotifPref: (key: 'notifTx' | 'notifPrice', on: boolean) => void;
   setFlag: (key: 'securityScan' | 'showTestnets', on: boolean) => void;
-  setAutoLock: (minutes: number) => void;
+  setAutoLockMinutes: (min: number) => void;
   setPrivacyGuard: (on: boolean) => void;
+  setSoundEnabled: (on: boolean) => void;
 }
 
 function persist(
   s: Pick<
     SettingsState,
-    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard'
+    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled'
   >,
 ) {
   void saveSettings({
@@ -102,6 +105,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   showTestnets: false, // testnets/devnets cachés par défaut (activables via Développeur)
   autoLockMinutes: 3,
   privacyGuard: true,
+  soundEnabled: true,
 
   load: async () => {
     const s = await loadSettings();
@@ -121,7 +125,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
       showTestnets: s?.showTestnets === true, // défaut false (caché) sauf activation explicite
       autoLockMinutes: typeof s?.autoLockMinutes === 'number' ? (s.autoLockMinutes as number) : 3,
       privacyGuard: s?.privacyGuard !== false,
+      soundEnabled: s?.soundEnabled !== false,
     });
+  },
+
+  setSoundEnabled: (on) => {
+    set({ soundEnabled: on });
+    persist({ ...get(), soundEnabled: on });
   },
 
   setProfileName: (name) => {
@@ -167,9 +177,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
     set({ [key]: on } as Pick<SettingsState, 'securityScan' | 'showTestnets'>);
     persist({ ...get(), [key]: on });
   },
-  setAutoLock: (autoLockMinutes) => {
-    set({ autoLockMinutes });
-    persist({ ...get(), autoLockMinutes });
+  setAutoLockMinutes: (min) => {
+    set({ autoLockMinutes: min });
+    persist({ ...get(), autoLockMinutes: min });
   },
   setPrivacyGuard: (privacyGuard) => {
     set({ privacyGuard });
