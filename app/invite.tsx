@@ -42,8 +42,9 @@ export default function Invite() {
   };
 
   return (
-    <PremiumScreen>
+    <>
       <Stack.Screen options={{ headerShown: true, title: t('inviteFriends') }} />
+      <PremiumScreen>
 
       {/* Bandeau visuel */}
       <GlassCard glow>
@@ -86,5 +87,6 @@ export default function Invite() {
       <Button label={t('shareNova')} onPress={onShare} />
       <View style={{ height: spacing(2) }} />
     </PremiumScreen>
+    </>
   );
 }
