@@ -19,8 +19,9 @@ export default function PriceAlerts() {
   const fiat = useSettings((s) => s.fiat);
 
   return (
-    <PremiumScreen>
+    <>
       <Stack.Screen options={{ headerShown: true, title: t('priceAlerts') }} />
+      <PremiumScreen>
       <Text style={typography.muted}>{t('priceAlertsIntro')}</Text>
 
       {alerts.length === 0 ? (
@@ -53,5 +54,6 @@ export default function PriceAlerts() {
         </GlassCard>
       )}
     </PremiumScreen>
+    </>
   );
 }
