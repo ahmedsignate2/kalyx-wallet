@@ -70,6 +70,8 @@ import {
   type WalletMeta,
 } from './secureStore';
 import { authenticate } from './biometrics';
+import { VersionedTransaction, Keypair } from '@solana/web3.js';
+import * as btcLib from '@scure/btc-signer';
 
 export const DEFAULT_CHAIN = 'ethereum'; // mainnet par défaut (les testnets sont cachés/optionnels)
 
@@ -566,67 +568,20 @@ export const useWallet = create<WalletState>((set, get) => ({
 
 
   signSolanaTransaction: async (unlock, txStr) => {
-    const { account, activeWalletId, wallets } = get();
+    const { account, activeWalletId } = get();
     if (!account) throw new Error('Aucun compte');
     const secret = await revealMnemonic(activeWalletId, unlock);
     const signer = deriveSolanaSigner(mnemonicToSeedSync(secret), account.index);
 
-    if (txStr.startsWith('{') || txStr.startsWith('[')) {
-      throw new Error("L'intégration Relay (Solana -> EVM) nécessite une compilation des Address Lookup Tables non supportée par le client léger. L'échange doit être compilé côté serveur.");
-    }
-
     const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(txStr) && txStr.length % 4 === 0;
     const bytes = isBase64 ? base64.decode(txStr) : base58.decode(txStr);
 
-    let numSigs = 0;
-    let size = 0;
-    let offset = 0;
-    for (;;) {
-      const elem = bytes[offset + size];
-      numSigs |= (elem & 0x7f) << (size * 7);
-      size += 1;
-      if ((elem & 0x80) === 0) break;
-    }
-    offset += size;
+    const tx = VersionedTransaction.deserialize(bytes);
+    const keypair = Keypair.fromSecretKey(signer.secretKey);
+    tx.sign([keypair]);
 
-    const msgOffset = offset + numSigs * 64;
-    const message = bytes.slice(msgOffset);
-
-    const sig = ed25519.sign(message, signer.secretKey);
-
-    const numRequiredSignatures = message[0];
-    let acctSize = 0;
-    let numAccounts = 0;
-    for (;;) {
-      const elem = message[3 + acctSize];
-      numAccounts |= (elem & 0x7f) << (acctSize * 7);
-      acctSize += 1;
-      if ((elem & 0x80) === 0) break;
-    }
-    const acctOffset = 3 + acctSize;
-    let signerIndex = -1;
-    for (let i = 0; i < numRequiredSignatures; i++) {
-      const start = acctOffset + i * 32;
-      const acctPubkey = message.slice(start, start + 32);
-      let match = true;
-      for (let j = 0; j < 32; j++) {
-        if (acctPubkey[j] !== signer.publicKey[j]) {
-          match = false;
-          break;
-        }
-      }
-      if (match) {
-        signerIndex = i;
-        break;
-      }
-    }
-
-    if (signerIndex === -1) throw new Error("Our public key is not a signer in this transaction");
-
-    const sigOffset = offset + signerIndex * 64;
-    bytes.set(sig, sigOffset);
-
-    return isBase64 ? base64.encode(bytes) : base58.encode(bytes);
+    const serialized = tx.serialize();
+    return isBase64 ? base64.encode(serialized) : base58.encode(serialized);
   },
 
   signSolanaTransactions: async (unlock, txStrArray) => {
@@ -662,7 +617,9 @@ export const useWallet = create<WalletState>((set, get) => ({
     const secret = await revealMnemonic(activeWalletId, unlock);
     const signer = deriveBtcSigner(mnemonicToSeedSync(secret), account.index);
 
-    const MAGIC = utf8ToBytes('\x18Bitcoin Signed Message:\n');
+    const TAG = utf8ToBytes('BIP0322-signed-message');
+    const tagHash = sha256(TAG);
+    
     let msgBytes: Uint8Array;
     if (/^[0-9a-fA-F]+$/.test(message) && message.length % 2 === 0) {
       msgBytes = hex.decode(message);
@@ -674,31 +631,43 @@ export const useWallet = create<WalletState>((set, get) => ({
       }
     }
 
-    let msgLenBytes: Uint8Array;
-    if (msgBytes.length < 253) {
-      msgLenBytes = new Uint8Array([msgBytes.length]);
-    } else if (msgBytes.length <= 0xffff) {
-      msgLenBytes = new Uint8Array(3);
-      msgLenBytes[0] = 253;
-      new DataView(msgLenBytes.buffer).setUint16(1, msgBytes.length, true);
-    } else if (msgBytes.length <= 0xffffffff) {
-      msgLenBytes = new Uint8Array(5);
-      msgLenBytes[0] = 254;
-      new DataView(msgLenBytes.buffer).setUint32(1, msgBytes.length, true);
-    } else {
-      throw new Error('Message too long');
-    }
+    const messageHash = sha256(concatBytes(tagHash, tagHash, msgBytes));
+    const p2wpkh = btcLib.p2wpkh(signer.publicKey);
+    const message_script = p2wpkh.script;
 
-    const payload = concatBytes(MAGIC, msgLenBytes, msgBytes);
-    const hash = sha256(sha256(payload));
+    const toSpendTx = new btcLib.Transaction({ version: 0, allowUnknownOutputs: true });
+    toSpendTx.addOutput({
+      script: message_script,
+      amount: 0n,
+    });
+    toSpendTx.addInput({
+      txid: new Uint8Array(32),
+      index: 0xffffffff,
+      sequence: 0,
+    });
+    toSpendTx.updateInput(0, {
+      finalScriptSig: btcLib.Script.encode([btcLib.OP.OP_0, messageHash]),
+    });
 
-    const sig = secp256k1.sign(hash, signer.privateKey);
-    const header = 39 + sig.recovery;
-    const sigBytes = new Uint8Array(65);
-    sigBytes[0] = header;
-    sigBytes.set(sig.toCompactRawBytes(), 1);
+    const toSignTx = new btcLib.Transaction({ version: 0, allowUnknownOutputs: true });
+    toSignTx.addOutput({
+      script: btcLib.Script.encode([btcLib.OP.RETURN]),
+      amount: 0n,
+    });
+    toSignTx.addInput({
+      txid: hex.decode(toSpendTx.id),
+      index: 0,
+      sequence: 0,
+      witnessUtxo: { script: message_script, amount: 0n }
+    });
 
-    return base64.encode(sigBytes);
+    toSignTx.signIdx(signer.privateKey, 0);
+    toSignTx.finalize();
+
+    const input = toSignTx.getInput(0);
+    if (!input.finalScriptWitness) throw new Error('Signature failure');
+    const witnessBytes = btcLib.RawWitness.encode(input.finalScriptWitness);
+    return base64.encode(witnessBytes);
   },
 
   signBitcoinPsbt: async (unlock, psbtBase64, options) => {
