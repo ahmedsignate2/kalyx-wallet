@@ -89,14 +89,21 @@ export default function TokenDetail() {
   // Chaîne Nova correspondante (si le token est une de nos chaînes natives).
   const chain = ALL_CHAINS.find((c) => c.coingeckoId === id);
 
-  const loadDetail = useCallback(async () => {
+  const mounted = React.useRef(true);
+  useEffect(() => {
+    return () => { mounted.current = false; };
+  }, []);
+
+  const loadDetail = React.useCallback(async () => {
     if (!id) return;
     setLoadingDetail(true);
     setFailed(false);
     const d = await getCoinDetail(id, fiat, language);
-    setDetail(d);
-    setFailed(!d);
-    setLoadingDetail(false);
+    if (mounted.current) {
+      setDetail(d);
+      setFailed(!d);
+      setLoadingDetail(false);
+    }
   }, [id, fiat, language]);
 
   useEffect(() => {
@@ -130,8 +137,9 @@ export default function TokenDetail() {
   };
 
   return (
-    <PremiumScreen>
+    <>
       <Stack.Screen options={{ headerShown: true, title: detail?.name ?? '' }} />
+      <PremiumScreen>
 
       {failed ? (
         <GlassCard>
@@ -263,5 +271,6 @@ export default function TokenDetail() {
         </KeyboardAvoidingView>
       </Modal>
     </PremiumScreen>
+    </>
   );
 }

@@ -208,10 +208,14 @@ export default function Home() {
     };
   }, [account, activeChain]);
 
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      {(() => {
   if (!account) {
     return (
       <PremiumScreen>
-        <Stack.Screen options={{ headerShown: false }} />
+        
         <Text style={typography.muted}>…</Text>
       </PremiumScreen>
     );
@@ -254,7 +258,7 @@ export default function Home() {
       footer={<AppTabBar active="home" />}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
     >
-      <Stack.Screen options={{ headerShown: false }} />
+      
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View>
@@ -408,5 +412,8 @@ export default function Home() {
         </GlassCard>
       </View>
     </PremiumScreen>
+  );
+      })()}
+    </>
   );
 }

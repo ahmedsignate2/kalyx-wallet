@@ -14,8 +14,9 @@ export default function Legal() {
   const sections: LegalSection[] = tab === 'terms' ? TERMS : PRIVACY;
 
   return (
-    <PremiumScreen>
+    <>
       <Stack.Screen options={{ headerShown: true, title: t('legalNotice') }} />
+      <PremiumScreen>
       <SegmentedTabs
         items={[
           { key: 'privacy', label: t('privacyShort') },
@@ -34,5 +35,6 @@ export default function Legal() {
         ))}
       </ScrollView>
     </PremiumScreen>
+    </>
   );
 }

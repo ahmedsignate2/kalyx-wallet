@@ -79,8 +79,9 @@ export default function Approvals() {
   };
 
   return (
-    <PremiumScreen>
+    <>
       <Stack.Screen options={{ headerShown: true, title: t('approvals') }} />
+      <PremiumScreen>
 
       <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
@@ -169,5 +170,6 @@ export default function Approvals() {
         onCancel={() => setTarget(null)}
       />
     </PremiumScreen>
+    </>
   );
 }

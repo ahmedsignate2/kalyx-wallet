@@ -28,8 +28,9 @@ export default function About() {
   };
 
   return (
-    <PremiumScreen>
+    <>
       <Stack.Screen options={{ headerShown: true, title: t('about') }} />
+      <PremiumScreen>
 
       {/* Identité */}
       <View style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(2) }}>
@@ -69,5 +70,6 @@ export default function About() {
       </Text>
       <View style={{ height: spacing(2) }} />
     </PremiumScreen>
+    </>
   );
 }

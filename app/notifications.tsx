@@ -29,8 +29,9 @@ export default function Notifications() {
   }, [markAllRead]);
 
   return (
-    <PremiumScreen>
+    <>
       <Stack.Screen options={{ headerShown: true, title: t('notifications') }} />
+      <PremiumScreen>
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={typography.title}>{t('notifications')}</Text>
@@ -66,5 +67,6 @@ export default function Notifications() {
         </ScrollView>
       )}
     </PremiumScreen>
+    </>
   );
 }

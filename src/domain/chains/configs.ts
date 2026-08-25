@@ -20,6 +20,7 @@ import type { ChainConfig } from './types';
 export const ETHERSCAN_V2_API = 'https://api.etherscan.io/v2/api';
 // Expo inline `process.env.EXPO_PUBLIC_*` au build. Vide côté tests (Node) -> [].
 export const EXPLORER_API_KEY: string = process.env.EXPO_PUBLIC_ETHERSCAN_KEY ?? '';
+export const COVALENT_API_KEY: string = process.env.EXPO_PUBLIC_COVALENT_API_KEY ?? '';
 
 /**
  * Alchemy : RPC dédié (fiable) pour les chaînes EVM. Si la clé est présente,
@@ -198,7 +199,7 @@ export const SCROLL: ChainConfig = {
   nativeSymbol: 'ETH',
   nativeDecimals: 18,
   rpcUrls: withAlchemy('scroll-mainnet', ['https://scroll-rpc.publicnode.com', 'https://scroll.drpc.org', 'https://rpc.scroll.io']),
-  explorerUrl: 'https://scrollscan.com',
+  explorerUrl: 'https://scrollscan.com', explorerApi: 'https://blockscout.scroll.io/api',
   coingeckoId: 'ethereum',
   coingeckoPlatform: 'scroll',
 };
@@ -314,7 +315,7 @@ export const SONIC: ChainConfig = {
 };
 export const CRONOS: ChainConfig = {
   id: 'cronos', name: 'Cronos', family: 'evm', evmChainId: 25, nativeSymbol: 'CRO', nativeDecimals: 18,
-  rpcUrls: ['https://evm.cronos.org', 'https://cronos-evm-rpc.publicnode.com'], explorerUrl: 'https://cronoscan.com', coingeckoId: 'crypto-com-chain',
+  rpcUrls: ['https://evm.cronos.org', 'https://cronos-evm-rpc.publicnode.com'], explorerUrl: 'https://cronoscan.com', explorerApi: 'https://explorer.cronos.org/api', coingeckoId: 'crypto-com-chain',
 };
 export const MOONBEAM: ChainConfig = {
   id: 'moonbeam', name: 'Moonbeam', family: 'evm', evmChainId: 1284, nativeSymbol: 'GLMR', nativeDecimals: 18,
@@ -326,19 +327,19 @@ export const METIS: ChainConfig = {
 };
 export const POLYGON_ZKEVM: ChainConfig = {
   id: 'polygon-zkevm', name: 'Polygon zkEVM', family: 'evm', evmChainId: 1101, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://zkevm-rpc.com', 'https://polygon-zkevm.drpc.org'], explorerUrl: 'https://zkevm.polygonscan.com', coingeckoId: 'ethereum',
+  rpcUrls: ['https://zkevm-rpc.com', 'https://polygon-zkevm.drpc.org'], explorerUrl: 'https://zkevm.polygonscan.com', explorerApi: 'https://zkevm.blockscout.com/api', coingeckoId: 'ethereum',
 };
 export const MODE: ChainConfig = {
   id: 'mode', name: 'Mode', family: 'evm', evmChainId: 34443, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://mainnet.mode.network', 'https://mode.drpc.org'], explorerUrl: 'https://explorer.mode.network', coingeckoId: 'ethereum',
+  rpcUrls: ['https://mainnet.mode.network', 'https://mode.drpc.org'], explorerUrl: 'https://explorer.mode.network', explorerApi: 'https://explorer.mode.network/api', coingeckoId: 'ethereum',
 };
 export const MANTA: ChainConfig = {
   id: 'manta', name: 'Manta Pacific', family: 'evm', evmChainId: 169, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://pacific-rpc.manta.network/http'], explorerUrl: 'https://pacific-explorer.manta.network', coingeckoId: 'ethereum',
+  rpcUrls: ['https://pacific-rpc.manta.network/http'], explorerUrl: 'https://pacific-explorer.manta.network', explorerApi: 'https://pacific-explorer.manta.network/api', coingeckoId: 'ethereum',
 };
 export const OPBNB: ChainConfig = {
   id: 'opbnb', name: 'opBNB', family: 'evm', evmChainId: 204, nativeSymbol: 'BNB', nativeDecimals: 18,
-  rpcUrls: ['https://opbnb-mainnet-rpc.bnbchain.org', 'https://opbnb-rpc.publicnode.com'], explorerUrl: 'https://opbnbscan.com', coingeckoId: 'binancecoin',
+  rpcUrls: ['https://opbnb-mainnet-rpc.bnbchain.org', 'https://opbnb-rpc.publicnode.com'], explorerUrl: 'https://opbnbscan.com', explorerApi: 'https://opbnb.blockscout.com/api', coingeckoId: 'binancecoin',
 };
 export const TAIKO: ChainConfig = {
   id: 'taiko', name: 'Taiko', family: 'evm', evmChainId: 167000, nativeSymbol: 'ETH', nativeDecimals: 18,
@@ -366,7 +367,7 @@ export const KAVA: ChainConfig = {
 };
 export const AURORA: ChainConfig = {
   id: 'aurora', name: 'Aurora', family: 'evm', evmChainId: 1313161554, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://mainnet.aurora.dev'], explorerUrl: 'https://explorer.aurora.dev', coingeckoId: 'ethereum',
+  rpcUrls: ['https://mainnet.aurora.dev'], explorerUrl: 'https://explorer.aurora.dev', explorerApi: 'https://explorer.aurora.dev/api', coingeckoId: 'ethereum',
 };
 
 // --- Encore un lot de chaînes EVM ---
@@ -393,7 +394,7 @@ export const ABSTRACT: ChainConfig = {
 };
 export const ZORA: ChainConfig = {
   id: 'zora', name: 'Zora', family: 'evm', evmChainId: 7777777, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://rpc.zora.energy'], explorerUrl: 'https://explorer.zora.energy', coingeckoId: 'ethereum',
+  rpcUrls: ['https://rpc.zora.energy'], explorerUrl: 'https://explorer.zora.energy', explorerApi: 'https://explorer.zora.energy/api', coingeckoId: 'ethereum',
 };
 export const LISK: ChainConfig = {
   id: 'lisk', name: 'Lisk', family: 'evm', evmChainId: 1135, nativeSymbol: 'ETH', nativeDecimals: 18,

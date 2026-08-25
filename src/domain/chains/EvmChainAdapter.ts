@@ -28,10 +28,11 @@ import { APPROVAL_TOPIC, addressTopic, spendersFromLogs, type ApprovalItem } fro
 import { normalizeEvmAddress } from '../validation/address';
 import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
-import { tryInOrder, withTimeout } from './net';
+import { tryInOrder, withTimeout, withRetry } from './net';
 import { parseTxList } from './etherscan';
 import { computeFeeTiers, type FeeOptions } from './gas';
-import { ETHERSCAN_V2_API, EXPLORER_API_KEY } from './configs';
+import { ETHERSCAN_V2_API, EXPLORER_API_KEY, COVALENT_API_KEY } from './configs';
+import { parseCovalentTxList } from './covalent';
 
 // Limite de gas d'un transfert natif simple (pas d'appel de contrat).
 const NATIVE_TRANSFER_GAS = 21_000n;
@@ -88,14 +89,38 @@ export class EvmChainAdapter implements ChainAdapter {
       `module=account&action=txlist&address=${owner}` +
       `&startblock=0&endblock=99999999&page=1&offset=25&sort=desc`;
       
-    // 1. Tenter l'API unifiée Etherscan V2
+    // 1. Covalent Primary
+    if (COVALENT_API_KEY) {
+      try {
+        return await withRetry(async () => {
+          const url = `https://api.covalenthq.com/v1/${this.config.evmChainId}/address/${owner}/transactions_v3/page/0/?no-logs=true`;
+          const res = await withTimeout(
+            fetch(url, { headers: { Authorization: `Bearer ${COVALENT_API_KEY}` } }),
+            RPC_TIMEOUT_MS,
+            () => new Error('timeout')
+          );
+          const json = await res.json();
+          if (json && json.data && Array.isArray(json.data.items)) {
+            return parseCovalentTxList(json, owner);
+          }
+          throw new Error('Covalent invalid format');
+        }, 3, 1000);
+      } catch {
+        // Ignorer et essayer le suivant
+      }
+    }
+
+    // 1.5. Tenter l'API unifiée Etherscan V2 avec retry
     try {
-      const url =
-        `${ETHERSCAN_V2_API}?chainid=${this.config.evmChainId}&${query}` +
-        (EXPLORER_API_KEY ? `&apikey=${EXPLORER_API_KEY}` : '');
-      const res = await withTimeout(fetch(url), RPC_TIMEOUT_MS, () => new Error('timeout'));
-      const json = (await res.json()) as { result?: unknown };
-      if (Array.isArray(json?.result)) return parseTxList(json, owner);
+      return await withRetry(async () => {
+        const url =
+          `${ETHERSCAN_V2_API}?chainid=${this.config.evmChainId}&${query}` +
+          (EXPLORER_API_KEY ? `&apikey=${EXPLORER_API_KEY}` : '');
+        const res = await withTimeout(fetch(url), RPC_TIMEOUT_MS, () => new Error('timeout'));
+        const json = (await res.json()) as { result?: unknown };
+        if (Array.isArray(json?.result)) return parseTxList(json, owner);
+        throw new Error('Etherscan V2 invalid format');
+      }, 3, 1000);
     } catch {
       // Échec ou timeout (pas de clé, ou réseau non supporté), on passe aux fallbacks
     }
@@ -113,15 +138,18 @@ export class EvmChainAdapter implements ChainAdapter {
     // 3. Tenter les fallbacks un par un
     for (const apiUrl of apisToTry) {
       try {
-        const fb = await withTimeout(
-          fetch(`${apiUrl}?${query}`),
-          RPC_TIMEOUT_MS,
-          () => new Error('timeout'),
-        );
-        const fbJson = await fb.json() as { result?: unknown };
-        if (Array.isArray(fbJson?.result)) {
-          return parseTxList(fbJson, owner);
-        }
+        return await withRetry(async () => {
+          const fb = await withTimeout(
+            fetch(`${apiUrl}?${query}`),
+            RPC_TIMEOUT_MS,
+            () => new Error('timeout'),
+          );
+          const fbJson = await fb.json() as { result?: unknown };
+          if (Array.isArray(fbJson?.result)) {
+            return parseTxList(fbJson, owner);
+          }
+          throw new Error('Blockscout invalid format');
+        }, 3, 1000);
       } catch {
         // Ignorer et essayer le suivant
       }
@@ -191,6 +219,17 @@ export class EvmChainAdapter implements ChainAdapter {
   /** Allowance ERC-20 (combien `spender` peut dépenser des tokens de `owner`). */
   async getAllowance(token: string, owner: string, spender: string): Promise<bigint> {
     const data = ERC20.encodeFunctionData('allowance', [owner, spender]);
+    const result = await this.call((p) => p.call({ to: token, data }));
+    try {
+      return BigInt(result);
+    } catch {
+      return 0n;
+    }
+  }
+
+  /** Solde d'un token ERC-20 pour une adresse. */
+  async getTokenBalance(token: string, owner: string): Promise<bigint> {
+    const data = ERC20.encodeFunctionData('balanceOf', [owner]);
     const result = await this.call((p) => p.call({ to: token, data }));
     try {
       return BigInt(result);
@@ -323,4 +362,5 @@ export interface RawTxRequest {
 const ERC20 = new Interface([
   'function approve(address spender, uint256 amount) returns (bool)',
   'function allowance(address owner, address spender) view returns (uint256)',
+  'function balanceOf(address owner) view returns (uint256)',
 ]);

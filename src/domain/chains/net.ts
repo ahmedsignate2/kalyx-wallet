@@ -77,3 +77,29 @@ export async function tryInOrder<I, T>(
     'Réseau indisponible : aucun serveur n\'a répondu. Réessaie.',
   );
 }
+
+/**
+ * Réeesaie une promesse `maxRetries` fois avec un délai exponentiel.
+ * Par défaut, attend 1000ms, 2000ms, 4000ms.
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelayMs = 1000
+): Promise<T> {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (!isTransientRpcError(e)) {
+        throw e; // Fail fast for deterministic errors
+      }
+      attempt++;
+      if (attempt >= maxRetries) throw e;
+      const delay = baseDelayMs * Math.pow(2, attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  return fn(); // Should never reach here, just for TypeScript return type
+}
