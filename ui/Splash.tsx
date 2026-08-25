@@ -13,10 +13,11 @@
  * pilote toutes les particules → fluide, aucune dépendance native ajoutée.
  */
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, Dimensions, Easing, StyleSheet, Vibration, View } from 'react-native';
+import { Animated, Dimensions, Easing, StyleSheet, View, Vibration } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NovaLogo } from './NovaLogo';
 import { fonts, useTheme } from './theme';
+import { haptic } from '../lib/haptics';
 
 const { width: W } = Dimensions.get('window');
 const N = 48;
@@ -103,8 +104,8 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
       Animated.timing(screenOp, { toValue: 0, duration: 360, easing: Easing.in(Easing.quad), useNativeDriver: true }),
     ]).start(({ finished }) => finished && onFinish());
 
-    // Vibration très douce au moment où le logo se forme.
-    const t = setTimeout(() => Vibration.vibrate([0, 10, 55, 18]), 1240);
+    // Retour haptique léger quand le logo se forme (~1,2s).
+    const t = setTimeout(() => haptic.light(), 1240);
     return () => clearTimeout(t);
   }, [progress, logoIn, wordOp, wordY, sweep, screenOp, onFinish]);
 

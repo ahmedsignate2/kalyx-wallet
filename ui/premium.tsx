@@ -24,6 +24,7 @@ import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient, R
 import { Dimensions } from 'react-native';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
 import { Icon, type IconName } from './icon';
+import { haptic } from '../lib/haptics';
 
 const PREMIUM_W = Dimensions.get('window').width;
 
@@ -37,8 +38,8 @@ function TopGlow() {
       <Svg width={w} height={h}>
         <Defs>
           <RadialGradient id="premium-topglow" cx="50%" cy="35%" rx="50%" ry="50%">
-            <Stop offset="0" stopColor={theme.colors.violet} stopOpacity={0.26} />
-            <Stop offset="0.55" stopColor={theme.colors.blue} stopOpacity={0.08} />
+            <Stop offset="0" stopColor={theme.colors.violet} stopOpacity={0.14} />
+            <Stop offset="0.55" stopColor={theme.colors.blue} stopOpacity={0.04} />
             <Stop offset="1" stopColor={theme.colors.blue} stopOpacity={0} />
           </RadialGradient>
         </Defs>
@@ -115,7 +116,10 @@ export function PressableScale({
     <Pressable
       onPress={onPress}
       disabled={disabled || !onPress}
-      onPressIn={() => animate(scaleTo)}
+      onPressIn={() => {
+        haptic.selection();
+        animate(scaleTo);
+      }}
       onPressOut={() => animate(1)}
     >
       <Animated.View style={[{ transform: [{ scale }] }, style]}>{children}</Animated.View>
@@ -194,7 +198,7 @@ export function GlassCard({
         colors={theme.gradients.sheen}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 48 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 32 }}
       />
       <View>{children}</View>
     </View>
@@ -803,6 +807,8 @@ function createStyles({ mode, colors, shadow }: Theme) {
       borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.12)',
       ...shadow.card,
     },
   });

@@ -19,6 +19,10 @@ export interface ChainConfig {
   family: ChainFamily;
   /** chainId EVM (numérique) ; ignoré pour les familles non-EVM. */
   evmChainId?: number;
+  /** Clé d'identification pour l'API LI.FI (ex: "1" pour Ethereum, "SOL" pour Solana). */
+  lifiKey?: string;
+  /** Clé d'identification pour l'API Relay (souvent équivalente, ex: "1", "solana"). */
+  relayId?: string;
   nativeSymbol: string;
   nativeDecimals: number;
   rpcUrls: string[];
@@ -58,6 +62,8 @@ export interface TxSummary {
   timestamp: number; // unix (secondes)
   direction: 'in' | 'out' | 'self';
   status: 'success' | 'failed';
+  type?: string; // e.g. "SWAP", "TRANSFER", "NFT"
+  description?: string; // Texte lisible fourni par l'indexeur (ex: Helius)
 }
 
 export interface TransferParams {

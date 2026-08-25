@@ -37,8 +37,9 @@ describe('parseSwapQuote', () => {
     expect(q.toToken).toMatchObject({ symbol: 'USDC', decimals: 6 });
     expect(q.approvalAddress).toBeNull(); // natif -> pas d'approbation
     expect(q.tx).toMatchObject({ to: '0xRouter', data: '0xabcdef', chainId: 1 });
-    expect(q.tx.value).toBe(10n ** 18n);
-    expect(q.tx.gasLimit).toBe(250000n);
+    const tx = q.tx as any;
+    expect(tx.value).toBe(10n ** 18n);
+    expect(tx.gasLimit).toBe(250000n);
     expect(q.toolName).toBe('1inch');
   });
 

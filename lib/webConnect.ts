@@ -45,8 +45,11 @@ const METHOD_LABELS: Record<string, string> = {
   eth_signTypedData: 'Signature de données',
   eth_signTypedData_v4: 'Signature de données',
   solana_signTransaction: 'Transaction Solana à signer',
+  solana_signAllTransactions: 'Transactions Solana à signer',
   solana_signMessage: 'Signature de message',
   bitcoin_sendTransfer: 'Transaction Bitcoin à signer',
+  bitcoin_sendTransaction: 'Transaction Bitcoin à signer',
+  bitcoin_signPsbt: 'Transaction Bitcoin (PSBT) à signer',
   bitcoin_signMessage: 'Signature de message',
 };
 
@@ -257,8 +260,8 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
         requiredNamespaces: { eip155: { methods: [], chains: ['eip155:1'], events: [] } },
         optionalNamespaces: {
           eip155: { methods: evmMethods, chains: evmCaips(), events: evmEvents },
-          solana: { methods: ['solana_signTransaction', 'solana_signMessage'], chains: [SOLANA_CAIP], events: ['accountsChanged'] },
-          bip122: { methods: ['bitcoin_signMessage', 'bitcoin_sendTransfer'], chains: [BTC_CAIP], events: [] },
+          solana: { methods: ['solana_getAccounts', 'solana_signTransaction', 'solana_signAllTransactions', 'solana_signMessage'], chains: [SOLANA_CAIP], events: ['accountsChanged'] },
+          bip122: { methods: ['getAccountAddresses', 'getAccounts', 'signPsbt', 'signMessage', 'sendTransfer', 'sendTransaction'], chains: [BTC_CAIP], events: [] },
         },
       });
       if (uri) set({ uri });

@@ -49,7 +49,7 @@ export function ConfirmUnlock({
   const t = useT();
   const bioEnabled = useSettings((s) => s.biometricEnabled);
   const pinLength = useSettings((s) => s.pinLength);
-  const [phase, setPhase] = useState<'working' | 'pin'>('working');
+  const [phase, setPhase] = useState<'working' | 'pin' | 'error'>('working');
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [errSignal, setErrSignal] = useState(0);
@@ -67,14 +67,14 @@ export function ConfirmUnlock({
         setErrSignal((x) => x + 1);
         setError(t('incorrectCode'));
         setPhase('pin');
-      } else if (viaBio) {
+      } else if (viaBio && e instanceof Error && (e.message.includes('refusée') || e.message.includes('non configurée') || e.message.includes('cancel') || e.message.includes('Authentification'))) {
         // Biométrie annulée ou non configurée → repli silencieux sur le PIN.
         setPin('');
         setPhase('pin');
       } else {
         setPin('');
-        setError(friendlyTxError(e));
-        setPhase('pin');
+        setError(friendlyTxError(e, t));
+        setPhase('error');
       }
     }
   };
@@ -117,12 +117,22 @@ export function ConfirmUnlock({
             {subtitle ? <Text style={[typography.muted, { textAlign: 'center' }]}>{subtitle}</Text> : null}
           </View>
 
-          {working ? (
+          {phase === 'working' ? (
             <View style={{ alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(2) }}>
               <ActivityIndicator color={colors.accent} />
               <Text style={{ color: colors.textMuted, fontFamily: fonts.medium }}>
                 {statusText ?? t('authenticating')}
               </Text>
+            </View>
+          ) : phase === 'error' ? (
+            <View style={{ alignItems: 'center', gap: spacing(2), paddingVertical: spacing(2), paddingHorizontal: spacing(2) }}>
+              <Icon name="warning" size={32} color={colors.danger} />
+              <Text style={{ color: colors.danger, fontFamily: fonts.medium, textAlign: 'center', marginBottom: spacing(1) }}>
+                {error}
+              </Text>
+              <Pressable onPress={onCancel} hitSlop={8} style={{ paddingVertical: 10, paddingHorizontal: 24, borderRadius: radii.pill, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}>
+                <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.semibold }}>{t('closeWord') || 'Fermer'}</Text>
+              </Pressable>
             </View>
           ) : (
             <>
@@ -160,9 +170,11 @@ export function ConfirmUnlock({
             </>
           )}
 
-          <Pressable onPress={onCancel} disabled={working} hitSlop={8}>
-            <Text style={{ color: colors.textMuted, fontSize: 15, opacity: working ? 0.4 : 1 }}>{t('cancel')}</Text>
-          </Pressable>
+          {phase !== 'error' ? (
+            <Pressable onPress={onCancel} disabled={phase === 'working'} hitSlop={8}>
+              <Text style={{ color: colors.textMuted, fontSize: 15, opacity: phase === 'working' ? 0.4 : 1 }}>{t('cancel')}</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </Modal>

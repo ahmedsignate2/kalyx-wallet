@@ -76,6 +76,39 @@ export class SolanaChainAdapter implements ChainAdapter {
 
   async getHistory(address: string): Promise<TxSummary[]> {
     if (!isValidSolanaAddress(address)) return [];
+    
+    const HELIUS_KEY = process.env.EXPO_PUBLIC_HELIUS_KEY;
+    if (HELIUS_KEY) {
+      try {
+        const res = await withTimeout(
+          fetch(`https://api.helius.xyz/v0/addresses/${address}/transactions?api-key=${HELIUS_KEY}`),
+          API_TIMEOUT_MS,
+          () => new Error('timeout')
+        );
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json)) {
+            return json.map((tx: any) => {
+              const isOut = tx.feePayer === address || (tx.tokenTransfers && tx.tokenTransfers.some((t: any) => t.fromUserAccount === address));
+              return {
+                hash: tx.signature,
+                timestamp: tx.timestamp,
+                from: isOut ? address : tx.feePayer,
+                to: isOut ? (tx.tokenTransfers?.[0]?.toUserAccount || tx.nativeTransfers?.[0]?.toUserAccount || 'Unknown') : address,
+                value: BigInt(tx.nativeTransfers?.[0]?.amount || 0), // Basic fallback, would need more mapping for exact token value
+                status: tx.transactionError ? 'failed' : 'success',
+                direction: isOut ? 'out' : 'in',
+                type: tx.type,
+                description: tx.description
+              };
+            });
+          }
+        }
+      } catch (e) {
+        // Fallback to RPC if Helius fails
+      }
+    }
+
     // 1) Dernières signatures de l'adresse.
     const sigs = await this.rpc<Array<{ signature: string }>>('getSignaturesForAddress', [address, { limit: 15 }]);
     if (!Array.isArray(sigs) || sigs.length === 0) return [];
@@ -190,5 +223,26 @@ export class SolanaChainAdapter implements ChainAdapter {
     const sig = await this.rpc<string>('sendTransaction', [wireTx, { encoding: 'base64' }]);
     if (!sig) throw new WalletError('BROADCAST_FAILED', 'Diffusion refusée par le réseau Solana');
     return sig;
+  }
+
+  /**
+   * Simule/décode une transaction Solana avant signature via Helius.
+   * Utile pour la sécurité (WalletConnect/Browser dApp).
+   */
+  async simulateTransaction(base64Tx: string): Promise<any> {
+    const HELIUS_KEY = process.env.EXPO_PUBLIC_HELIUS_KEY;
+    if (!HELIUS_KEY) throw new WalletError('RPC_UNAVAILABLE', 'Clé Helius manquante pour la simulation');
+    
+    const res = await fetch(`https://api.helius.xyz/v0/transactions/simulate?api-key=${HELIUS_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transactions: [base64Tx],
+        commitment: 'finalized'
+      })
+    });
+    
+    if (!res.ok) throw new WalletError('RPC_UNAVAILABLE', 'Erreur lors de la simulation Helius');
+    return await res.json();
   }
 }

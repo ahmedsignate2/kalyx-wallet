@@ -74,7 +74,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     // document n'est pas typé sans la lib DOM (tsconfig ciblé mobile) : accès gardé.
-    const doc = (globalThis as { document?: { documentElement: { style: Record<string, string> }; body: { style: Record<string, string> } } }).document;
+    const doc = (globalThis as any).document;
     if (!doc) return;
     doc.documentElement.style.backgroundColor = colors.bgDeep;
     doc.body.style.backgroundColor = colors.bgDeep;

@@ -12,7 +12,7 @@ import { Platform, AppState } from 'react-native';
 import { create } from 'zustand';
 import { useWallet, type Unlock } from './walletStore';
 import { notify } from './notifications';
-import { listChains, type RawTxRequest } from '../src';
+import { listChains, getAdapter, type RawTxRequest } from '../src';
 import type { IWeb3Wallet } from '@walletconnect/web3wallet';
 
 // Libellé lisible d'une méthode WalletConnect (pour la notification de signature).
@@ -23,8 +23,11 @@ const METHOD_LABELS: Record<string, string> = {
   eth_signTypedData: 'Signature de données',
   eth_signTypedData_v4: 'Signature de données',
   solana_signTransaction: 'Transaction Solana à signer',
+  solana_signAllTransactions: 'Transactions Solana à signer',
   solana_signMessage: 'Signature de message',
   bitcoin_sendTransfer: 'Transaction Bitcoin à signer',
+  bitcoin_sendTransaction: 'Transaction Bitcoin à signer',
+  bitcoin_signPsbt: 'Transaction Bitcoin (PSBT) à signer',
   bitcoin_signMessage: 'Signature de message',
 };
 
@@ -114,6 +117,7 @@ interface WcState {
   wallet: IWeb3Wallet | null;
   sessions: WcSession[];
   proposal: any | null;
+  requestQueue: any[];
   request: any | null;
 
   init: () => Promise<void>;
@@ -137,6 +141,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   wallet: null,
   sessions: [],
   proposal: null,
+  requestQueue: [],
   request: null,
 
   init: async () => {
@@ -167,7 +172,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       notifyIncoming('Nova · Connexion demandée', name ? `${name} veut se connecter à votre portefeuille` : 'Un site veut se connecter à votre portefeuille');
     });
     w.on('session_request', (request: any) => {
-      set({ request });
+      const q = [...get().requestQueue, request];
+      set({ requestQueue: q, request: q[0] });
       const method: string = request?.params?.request?.method ?? '';
       const topic: string | undefined = request?.topic;
       const peer = topic ? w.getActiveSessions()?.[topic]?.peer?.metadata?.name : undefined;
@@ -193,8 +199,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       ...(p.tx ? ['eth_sendTransaction'] : []),
       ...(p.sign ? ['personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v4'] : []),
     ];
-    const solMethods = [...(p.tx ? ['solana_signTransaction'] : []), ...(p.sign ? ['solana_signMessage'] : [])];
-    const btcMethods = [...(p.tx ? ['bitcoin_sendTransfer'] : []), ...(p.sign ? ['bitcoin_signMessage'] : [])];
+    const solMethods = ['solana_getAccounts', ...(p.tx ? ['solana_signTransaction', 'solana_signAllTransactions'] : []), ...(p.sign ? ['solana_signMessage'] : [])];
+    const btcMethods = ['getAccountAddresses', 'getAccounts', ...(p.tx ? ['signPsbt', 'sendTransaction', 'sendTransfer'] : []), ...(p.sign ? ['signMessage'] : [])];
     const wstate = useWallet.getState();
     const address = wstate.account?.address;
     if (!address) throw new Error('Aucun compte actif');
@@ -269,48 +275,152 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   },
 
   approveRequest: async (unlock) => {
-    const { wallet, request } = get();
+    const { wallet, requestQueue } = get();
+    const request = requestQueue[0];
     if (!wallet || !request) return;
     const { topic, params, id } = request;
     const method: string = params.request.method;
     const p = params.request.params;
+    
+    // DEBUG: Affiche la requête brute reçue par le wallet
+    console.log('--- RAW_WC_REQUEST ---');
+    console.log(JSON.stringify({ method, p }, null, 2));
+    console.log('----------------------');
+    
     const chain = evmChains().find((c) => c.caip === params.chainId);
     const w = useWallet.getState();
 
-    let result: string;
-    if (method === 'personal_sign') result = await w.signMessage(unlock, p[0]);
-    else if (method === 'eth_sign') result = await w.signMessage(unlock, p[1]);
-    else if (method.startsWith('eth_signTypedData')) {
-      const data = typeof p[1] === 'string' ? JSON.parse(p[1]) : p[1];
-      result = await w.signTypedData(unlock, data);
-    } else if (method === 'eth_sendTransaction') {
-      if (!chain) throw new Error('Réseau de la requête non supporté');
-      const tx = p[0];
-      const req: RawTxRequest = {
-        to: tx.to,
-        data: tx.data ?? '0x',
-        value: tx.value ? BigInt(tx.value) : 0n,
-        chainId: chain.evmChainId,
-        gasLimit: tx.gas ? BigInt(tx.gas) : undefined,
-      };
-      result = await w.sendRawTxOn(unlock, chain.novaId, req);
-    } else {
-      throw new Error(`Méthode non supportée : ${method}`);
-    }
+    try {
+      let result: any;
+      if (method === 'personal_sign') result = await w.signMessage(unlock, p[0]);
+      else if (method === 'eth_sign') result = await w.signMessage(unlock, p[1]);
+      else if (method.startsWith('eth_signTypedData')) {
+        const data = typeof p[1] === 'string' ? JSON.parse(p[1]) : p[1];
+        result = await w.signTypedData(unlock, data);
+      } else if (method === 'eth_sendTransaction') {
+        if (!chain) throw new Error('Réseau de la requête non supporté');
+        const tx = p[0];
+        const req: RawTxRequest = {
+          to: tx.to,
+          data: tx.data ?? '0x',
+          value: tx.value ? BigInt(tx.value) : 0n,
+          chainId: chain.evmChainId,
+          gasLimit: tx.gas ? BigInt(tx.gas) : undefined,
+        };
+        result = await w.sendRawTxOn(unlock, chain.novaId, req);
+      } else if (method === 'solana_signTransaction') {
+        const pSafe: any = p || {};
+        let txStr = pSafe.transaction || pSafe[0]?.transaction;
+        if (!txStr && Array.isArray(pSafe)) txStr = pSafe.filter(x => typeof x === 'string').pop();
+        if (!txStr && typeof pSafe === 'string') txStr = pSafe;
+        if (typeof txStr !== 'string') throw new Error('Expected String');
+        const res = await w.signSolanaTransaction(unlock, txStr);
+        result = { signedTransaction: res };
+      } else if (method === 'solana_signAllTransactions') {
+        const pSafe: any = p || {};
+        let txStrArray = pSafe.transactions || pSafe[0]?.transactions || (Array.isArray(pSafe) ? pSafe : [pSafe]);
+        if (!Array.isArray(txStrArray)) txStrArray = [txStrArray];
+        const res = await w.signSolanaTransactions(unlock, txStrArray);
+        result = { signedTransactions: res };
+      } else if (method === 'solana_signMessage') {
+        const pSafe: any = p || {};
+        let msg = pSafe.message || pSafe[0]?.message;
+        if (!msg && Array.isArray(pSafe)) msg = pSafe.filter(x => typeof x === 'string').pop();
+        if (!msg && typeof pSafe === 'string') msg = pSafe;
+        if (typeof msg !== 'string') throw new Error('Expected String');
+        const res = await w.signSolanaMessage(unlock, msg);
+        const sig = typeof res === 'object' && res.signature ? res.signature : res;
+        result = { signature: sig };
+      } else if (method === 'bitcoin_signMessage' || method === 'signMessage') {
+        const pSafe: any = p || {};
+        let msg = pSafe.message || pSafe[0]?.message;
+        if (!msg && Array.isArray(pSafe)) msg = pSafe.filter(x => typeof x === 'string').pop();
+        if (!msg && typeof pSafe === 'string') msg = pSafe;
+        if (typeof msg !== 'string') throw new Error('Expected String');
+        const sig = await w.signBitcoinMessage(unlock, msg);
+        result = { signature: sig };
+      } else if (method === 'bitcoin_signPsbt' || method === 'signPsbt') {
+        const pSafe: any = p || {};
+        let psbtStr = pSafe.psbt || pSafe[0]?.psbt;
+        if (!psbtStr && Array.isArray(pSafe)) psbtStr = pSafe.filter(x => typeof x === 'string').pop();
+        if (!psbtStr && typeof pSafe === 'string') psbtStr = pSafe;
+        if (typeof psbtStr !== 'string') throw new Error('Expected String for PSBT');
+        
+        const finalize = pSafe.finalize ?? pSafe[0]?.finalize ?? true;
+        
+        // Extract inputsToSign or signInputs
+        const rawInputs = pSafe.inputsToSign || pSafe.signInputs || pSafe[0]?.inputsToSign || pSafe[0]?.signInputs;
+        let signInputs: number[] | undefined = undefined;
+        if (Array.isArray(rawInputs)) {
+          signInputs = rawInputs.flatMap((item: any) => {
+            if (typeof item === 'number') return [item];
+            if (item && typeof item.index === 'number') return [item.index];
+            if (item && Array.isArray(item.signingIndexes)) return item.signingIndexes;
+            return [];
+          });
+        }
+        
+        const resStr = await w.signBitcoinPsbt(unlock, psbtStr, { finalize, signInputs });
+        result = { psbt: resStr };
+      } else if (method === 'bitcoin_getAccounts' || method === 'getAccountAddresses' || method === 'bitcoin_getAccountAddresses') {
+        const btcModule = await import('../src/crypto/btc');
+        const mnemonicModule = await import('../src/crypto/mnemonic');
+        const activeWallet = w.wallets.find(x => x.id === w.activeWalletId);
+        if (!activeWallet || activeWallet.type === 'privateKey') throw new Error('Bitcoin accounts not available for PK wallet');
+        const secret = mnemonicModule.mnemonicToSeedSync(await w.revealPhrase(unlock));
+        const derived = btcModule.deriveBtcAccount(secret, w.account?.index || 0);
+        result = [{ address: derived.address, publicKey: derived.publicKey.replace(/^0x/, ''), purpose: 'payment' }];
+      } else if (method === 'bitcoin_sendTransaction' || method === 'sendTransfer') {
+        // Build, sign, broadcast and return txid
+        const pSafe: any = p || {};
+        const to = pSafe.recipientAddress || pSafe.recipient || pSafe.to || pSafe[0]?.recipientAddress || pSafe[0]?.recipient || pSafe[0]?.to || pSafe[0];
+        const amountStr = String(pSafe.amount || pSafe[0]?.amount || pSafe[1] || 0);
+        if (!to || typeof to !== 'string') throw new Error('Expected String for recipientAddress');
+        const adapter = getAdapter('bitcoin');
+        
+        const btcModule = await import('../src/crypto/btc');
+        const mnemonicModule = await import('../src/crypto/mnemonic');
+        const secret = mnemonicModule.mnemonicToSeedSync(await w.revealPhrase(unlock));
+        const btcSigner = btcModule.deriveBtcSigner(secret, w.account?.index || 0);
+        
+        const txid = await (adapter as any).sendBitcoin(btcSigner.address, to, amountStr, {
+          privateKey: btcSigner.privateKey,
+          publicKey: btcSigner.publicKey,
+        });
+        result = { txid };
+      } else {
+        throw new Error(`Méthode non supportée : ${method}`);
+      }
+      
+      // DEBUG: Affiche le résultat brut renvoyé par le wallet
+      console.log('--- WC_RESULT ---');
+      console.log(JSON.stringify(result, null, 2));
+      console.log('-----------------');
 
-    await wallet.respondSessionRequest({ topic, response: { id, jsonrpc: '2.0', result } });
-    set({ request: null });
+      await wallet.respondSessionRequest({ topic, response: { id, jsonrpc: '2.0', result } });
+      const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
+    } catch (e) {
+      if (wallet && sdkUtils) {
+        await wallet.respondSessionRequest({
+          topic,
+          response: { id, jsonrpc: '2.0', error: { code: 5000, message: e instanceof Error ? e.message : 'Unknown error' } },
+        });
+      }
+      const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
+      throw e;
+    }
   },
 
   rejectRequest: async () => {
-    const { wallet, request } = get();
+    const { wallet, requestQueue } = get();
+    const request = requestQueue[0];
     if (wallet && request && sdkUtils) {
       await wallet.respondSessionRequest({
         topic: request.topic,
         response: { id: request.id, jsonrpc: '2.0', error: sdkUtils.getSdkError('USER_REJECTED') },
       });
     }
-    set({ request: null });
+    const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
   },
 
   disconnect: async (topic) => {
