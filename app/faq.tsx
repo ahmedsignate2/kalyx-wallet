@@ -45,8 +45,9 @@ export default function Faq() {
   ];
 
   return (
-    <PremiumScreen>
+    <>
       <Stack.Screen options={{ headerShown: true, title: t('faq') }} />
+      <PremiumScreen>
       <ScrollView contentContainerStyle={{ gap: spacing(2), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
         {FAQ.map((section) => (
           <View key={section.title} style={{ gap: spacing(1) }}>
@@ -72,5 +73,6 @@ export default function Faq() {
         ))}
       </ScrollView>
     </PremiumScreen>
+    </>
   );
 }

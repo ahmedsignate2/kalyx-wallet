@@ -19,7 +19,7 @@ import type {
 import { deriveSolanaAccount, isValidSolanaAddress } from '../../crypto/solana';
 import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
-import { tryInOrder, withTimeout } from './net';
+import { tryInOrder, withTimeout, withRetry } from './net';
 import { buildTransferMessage, signAndSerialize } from './solTx';
 import { parseSolanaTx, type SolTxResponse } from './solHistory';
 import { parseTokenAccounts, SPL_TOKEN_PROGRAM, type SplToken } from '../tokens/splTokens';
@@ -80,30 +80,33 @@ export class SolanaChainAdapter implements ChainAdapter {
     const HELIUS_KEY = process.env.EXPO_PUBLIC_HELIUS_KEY;
     if (HELIUS_KEY) {
       try {
-        const res = await withTimeout(
-          fetch(`https://api.helius.xyz/v0/addresses/${address}/transactions?api-key=${HELIUS_KEY}`),
-          API_TIMEOUT_MS,
-          () => new Error('timeout')
-        );
-        if (res.ok) {
-          const json = await res.json();
-          if (Array.isArray(json)) {
-            return json.map((tx: any) => {
-              const isOut = tx.feePayer === address || (tx.tokenTransfers && tx.tokenTransfers.some((t: any) => t.fromUserAccount === address));
-              return {
-                hash: tx.signature,
-                timestamp: tx.timestamp,
-                from: isOut ? address : tx.feePayer,
-                to: isOut ? (tx.tokenTransfers?.[0]?.toUserAccount || tx.nativeTransfers?.[0]?.toUserAccount || 'Unknown') : address,
-                value: BigInt(tx.nativeTransfers?.[0]?.amount || 0), // Basic fallback, would need more mapping for exact token value
-                status: tx.transactionError ? 'failed' : 'success',
-                direction: isOut ? 'out' : 'in',
-                type: tx.type,
-                description: tx.description
-              };
-            });
+        return await withRetry(async () => {
+          const res = await withTimeout(
+            fetch(`https://api.helius.xyz/v0/addresses/${address}/transactions?api-key=${HELIUS_KEY}`),
+            API_TIMEOUT_MS,
+            () => new Error('timeout')
+          );
+          if (res.ok) {
+            const json = await res.json();
+            if (Array.isArray(json)) {
+              return json.map((tx: any) => {
+                const isOut = tx.feePayer === address || (tx.tokenTransfers && tx.tokenTransfers.some((t: any) => t.fromUserAccount === address));
+                return {
+                  hash: tx.signature,
+                  timestamp: tx.timestamp,
+                  from: isOut ? address : tx.feePayer,
+                  to: isOut ? (tx.tokenTransfers?.[0]?.toUserAccount || tx.nativeTransfers?.[0]?.toUserAccount || 'Unknown') : address,
+                  value: BigInt(tx.nativeTransfers?.[0]?.amount || 0), // Basic fallback, would need more mapping for exact token value
+                  status: tx.transactionError ? 'failed' : 'success',
+                  direction: isOut ? 'out' : 'in',
+                  type: tx.type,
+                  description: tx.description
+                };
+              });
+            }
           }
-        }
+          throw new Error('Helius invalid format');
+        }, 3, 1000);
       } catch (e) {
         // Fallback to RPC if Helius fails
       }

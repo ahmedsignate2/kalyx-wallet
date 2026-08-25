@@ -27,11 +27,11 @@ import {
   NOVA_FEE,
   listChains,
   type SwapQuote,
+  EvmChainAdapter,
+  SolanaChainAdapter,
 } from '../src';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { TokenPicker } from '../ui/TokenPicker';
-
-
 
 /**
  * Gas reserve to subtract from MAX when swapping native tokens.
@@ -52,7 +52,6 @@ const GAS_RESERVE: Record<string, bigint> = {
   blast: 1_000_000_000_000_000n,      // 0.001 ETH (L2)
 };
 
-
 // Clés i18n des étapes du swap (traduites à l'affichage via t()).
 const STATUS_KEY = {
   approving: 'stApproving',
@@ -61,37 +60,20 @@ const STATUS_KEY = {
   confirming: 'stConfirming',
 } as const;
 
+function isNativeTokenAddress(address?: string): boolean {
+  if (!address) return false;
+  const a = address.toLowerCase();
+  return (
+    a === '0x0000000000000000000000000000000000000000' ||
+    a === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' ||
+    a === '11111111111111111111111111111111' ||
+    a === NATIVE_TOKEN.toLowerCase()
+  );
+}
 
 function logoFor(novaChain: string, tok: Tok): string {
   if (tok.logo) return tok.logo;
   return 'https://via.placeholder.com/18'; // Fallback
-}
-
-function TokenPill({ chainId, tok, selected, onPress }: { chainId: string; tok: Tok; selected: boolean; onPress: () => void }) {
-  const { colors } = useTheme();
-  const [err, setErr] = useState(false);
-  return (
-    <Pressable onPress={onPress}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 6,
-          borderRadius: radii.pill,
-          paddingVertical: spacing(0.75),
-          paddingHorizontal: spacing(1.5),
-          backgroundColor: selected ? colors.accent : colors.glass,
-          borderWidth: 1,
-          borderColor: selected ? colors.accent : colors.glassBorder,
-        }}
-      >
-        {!err ? (
-          <Image source={{ uri: logoFor(chainId, tok) }} style={{ width: 18, height: 18, borderRadius: 9 }} onError={() => setErr(true)} />
-        ) : null}
-        <Text style={{ color: selected ? '#fff' : colors.text, fontFamily: fonts.bold }}>{tok.symbol}</Text>
-      </View>
-    </Pressable>
-  );
 }
 
 export default function Swap() {
@@ -99,7 +81,6 @@ export default function Swap() {
   const t = useT();
   const activeChain = useWallet((s) => s.activeChain);
   const account = useWallet((s) => s.account);
-  const balance = useWallet((s: any) => s.balance);
   const executeSwap = useWallet((s) => s.executeSwap);
   const chain = getAdapter(activeChain).config;
 
@@ -110,7 +91,6 @@ export default function Swap() {
   useEffect(() => {
     fetchTokens(activeChain);
   }, [activeChain, fetchTokens]);
-  const tokens = tokensByChain[activeChain] ?? [];
   const available = !chain.testnet && (chain.family === 'evm' || chain.family === 'solana');
 
   const [from, setFrom] = useState(0);
@@ -124,6 +104,9 @@ export default function Swap() {
   const [countdown, setCountdown] = useState(0);
   const countdownInterval = useRef<any>(null);
 
+  const [nativeBalance, setNativeBalance] = useState<bigint | null>(null);
+  const [selectedTokenBalance, setSelectedTokenBalance] = useState<bigint | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<string | null>(null);
@@ -131,6 +114,26 @@ export default function Swap() {
   const [success, setSuccess] = useState<{ hash: string; summary: string } | null>(null);
   const [held, setHeld] = useState<Tok[]>([]);
   const params = useLocalSearchParams<{ contract?: string }>();
+
+  // Récupère le solde natif de la chaîne active
+  useEffect(() => {
+    let cancelled = false;
+    if (!account?.address) {
+      setNativeBalance(null);
+      return;
+    }
+    getAdapter(activeChain)
+      .getBalance(account.address)
+      .then((b) => {
+        if (!cancelled) setNativeBalance(b.raw);
+      })
+      .catch(() => {
+        if (!cancelled) setNativeBalance(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeChain, account?.address]);
 
   // Tokens réellement détenus sur la chaîne active → swappables même hors liste curée.
   useEffect(() => {
@@ -153,7 +156,7 @@ export default function Swap() {
         adapter.getSplTokens(account.address)
           .then((detected: any[]) => {
             if (!cancelled)
-              setHeld(detected.map((tk) => ({ symbol: tk.symbol, address: tk.mint, decimals: tk.decimals, logo: tk.logo, balance: tk.balance })));
+              setHeld(detected.map((tk) => ({ symbol: tk.symbol, address: tk.mint, decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
           })
           .catch(() => {});
       }
@@ -196,6 +199,50 @@ export default function Swap() {
   const isBridge = toChain !== activeChain;
   const flipAnim = useRef(new Animated.Value(0)).current;
 
+  // Récupère le solde du token sélectionné s'il n'est pas natif
+  useEffect(() => {
+    let cancelled = false;
+    if (!account?.address || !fromTok) {
+      setSelectedTokenBalance(null);
+      return;
+    }
+    if (isNativeTokenAddress(fromTok.address)) {
+      setSelectedTokenBalance(null);
+      return;
+    }
+    const heldTok = held.find((t) => t.address.toLowerCase() === fromTok.address.toLowerCase());
+    if (heldTok) {
+      setSelectedTokenBalance((heldTok as any).balance ?? 0n);
+      return;
+    }
+    const adapter = getAdapter(activeChain);
+    if (adapter instanceof EvmChainAdapter) {
+      adapter
+        .getTokenBalance(fromTok.address, account.address)
+        .then((b) => {
+          if (!cancelled) setSelectedTokenBalance(b);
+        })
+        .catch(() => {
+          if (!cancelled) setSelectedTokenBalance(0n);
+        });
+    } else if (adapter instanceof SolanaChainAdapter) {
+      adapter
+        .getSplTokens(account.address)
+        .then((tokens) => {
+          if (!cancelled) {
+            const found = tokens.find((t) => t.mint.toLowerCase() === fromTok.address.toLowerCase());
+            setSelectedTokenBalance(found ? found.raw : 0n);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setSelectedTokenBalance(0n);
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [activeChain, account?.address, fromTok?.address, held]);
+
   const onFlip = () => {
     if (isBridge) return;
     haptic.heavy();
@@ -205,29 +252,34 @@ export default function Swap() {
     Animated.spring(flipAnim, { toValue: 1, useNativeDriver: true, tension: 60, friction: 5 }).start(() => flipAnim.setValue(0));
   };
 
-  const getTokenBalance = () => {
-    if (fromTok.address === NATIVE_TOKEN || fromTok.address === '11111111111111111111111111111111') {
-      return balance?.raw ?? 0n;
+  const getTokenBalance = (): bigint => {
+    if (!fromTok) return 0n;
+    if (isNativeTokenAddress(fromTok.address)) {
+      return nativeBalance ?? 0n;
     }
-    const heldTok = held.find(t => t.address.toLowerCase() === fromTok.address.toLowerCase());
+    if (selectedTokenBalance != null) {
+      return selectedTokenBalance;
+    }
+    const heldTok = held.find((t) => t.address.toLowerCase() === fromTok.address.toLowerCase());
     return heldTok ? (heldTok as any).balance ?? 0n : 0n;
   };
 
   const onMax = () => {
-    const isNativeFrom = fromTok.address === NATIVE_TOKEN || fromTok.address === '11111111111111111111111111111111';
+    if (!fromTok) return;
     const raw = getTokenBalance();
-    if (isNativeFrom) {
+    if (isNativeTokenAddress(fromTok.address)) {
       const reserve = GAS_RESERVE[activeChain] ?? 3_000_000_000_000_000n;
       const maxRaw = raw > reserve ? raw - reserve : 0n;
-      setAmount(formatAmount(maxRaw, fromTok.decimals));
+      setAmount(formatBalance(maxRaw, fromTok.decimals, fromTok.decimals));
     } else {
-      setAmount(formatAmount(raw, fromTok.decimals));
+      setAmount(formatBalance(raw, fromTok.decimals, fromTok.decimals));
     }
   };
 
   const onHalf = () => {
+    if (!fromTok) return;
     const raw = getTokenBalance();
-    setAmount(formatAmount(raw / 2n, fromTok.decimals));
+    setAmount(formatBalance(raw / 2n, fromTok.decimals, fromTok.decimals));
   };
 
   const onQuote = async () => {
@@ -237,7 +289,15 @@ export default function Swap() {
     try { raw = parseAmount(amount, fromTok.decimals).raw; } catch (e) { setError(isWalletError(e) ? e.message : t('amountInvalid')); return; }
     setLoading(true);
     try {
-      const q = await getBestQuote({ fromChainId: activeChain, toChainId: toChain, fromToken: fromTok.address, toToken: toTok.address, fromAmount: raw.toString(), fromAddress: account!.address, toAddress: account!.address });
+      const w = useWallet.getState();
+      const storedAccount = w.accounts[w.activeAccountIndex];
+      const toFamily = getAdapter(toChain).config.family;
+      let targetAddress = account!.address;
+      if (toFamily === 'solana' && storedAccount.solAddress) targetAddress = storedAccount.solAddress;
+      else if (toFamily === 'bitcoin' && storedAccount.btcAddress) targetAddress = storedAccount.btcAddress;
+      else if (toFamily === 'evm') targetAddress = storedAccount.evmAddress;
+
+      const q = await getBestQuote({ fromChainId: activeChain, toChainId: toChain, fromToken: fromTok.address, toToken: toTok.address, fromAmount: raw.toString(), fromAddress: account!.address, toAddress: targetAddress });
       if (!q) setError(t('noRoute')); else setQuote(q);
     } catch (e) { setError(friendlyTxError(e, t as any)); } finally { setLoading(false); }
     if (countdownInterval.current) clearInterval(countdownInterval.current);
@@ -294,7 +354,7 @@ export default function Swap() {
         </View>
       );
     }
-    const isNativeFrom = fromTok.address === NATIVE_TOKEN;
+    const isNativeFrom = isNativeTokenAddress(fromTok.address);
     const impact = quote && quote.fromAmountUsd > 0 ? ((quote.toAmountUsd - quote.fromAmountUsd) / quote.fromAmountUsd) * 100 : null;
 
     return (
@@ -302,7 +362,9 @@ export default function Swap() {
         <GlassCard glow>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={[typography.muted, { fontSize: 12 }]}>{t('swapFromLabel')}</Text>
-            <Text style={[typography.muted, { fontSize: 12 }]}>{'Solde'}: {formatAmount(getTokenBalance(), fromTok.decimals)}</Text>
+            <Text style={[typography.muted, { fontSize: 12 }]}>
+              {'Solde'}: {formatBalance(getTokenBalance(), fromTok.decimals, 6)} {fromTok.symbol}
+            </Text>
           </View>
           <TextInput
             style={{ color: colors.text, fontSize: 32, fontFamily: fonts.extrabold, paddingVertical: spacing(0.5) }}
@@ -333,7 +395,7 @@ export default function Swap() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
                 <View style={{ position: 'relative' }}>
                   <Image source={{ uri: logoFor(activeChain, fromTok) }} style={{ width: 24, height: 24, borderRadius: 12 }} />
-                  <Image source={{ uri: (tokensByChain[activeChain]?.find(t => t.address === NATIVE_TOKEN || t.address === '11111111111111111111111111111111')?.logo) || 'https://via.placeholder.com/18' }} style={{ position: 'absolute', bottom: -4, right: -4, width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: colors.bgDeep }} />
+                  <Image source={{ uri: (tokensByChain[activeChain]?.find(t => isNativeTokenAddress(t.address))?.logo) || 'https://via.placeholder.com/18' }} style={{ position: 'absolute', bottom: -4, right: -4, width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: colors.bgDeep }} />
                 </View>
                 <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 16 }}>{fromTok.symbol}</Text>
               </View>
@@ -372,7 +434,7 @@ export default function Swap() {
                 <View style={{ position: 'relative' }}>
                   <Image source={{ uri: logoFor(toChain, toTok) }} style={{ width: 24, height: 24, borderRadius: 12 }} />
                   {isBridge && (
-                    <Image source={{ uri: (tokensByChain[toChain]?.find(t => t.address === NATIVE_TOKEN || t.address === '11111111111111111111111111111111')?.logo) || 'https://via.placeholder.com/18' }} style={{ position: 'absolute', bottom: -4, right: -4, width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: colors.bgDeep }} />
+                    <Image source={{ uri: (tokensByChain[toChain]?.find(t => isNativeTokenAddress(t.address))?.logo) || 'https://via.placeholder.com/18' }} style={{ position: 'absolute', bottom: -4, right: -4, width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: colors.bgDeep }} />
                   )}
                 </View>
 
@@ -498,12 +560,14 @@ export default function Swap() {
   };
 
   return (
-    <PremiumScreen>
+    <>
       <Stack.Screen options={{ headerShown: true, title: t('swapBridge') }} />
+      <PremiumScreen>
       <ScrollView contentContainerStyle={{ padding: spacing(2), gap: spacing(2) }} keyboardShouldPersistTaps="handled">
         {renderContent()}
       </ScrollView>
     </PremiumScreen>
+    </>
   );
 }
 

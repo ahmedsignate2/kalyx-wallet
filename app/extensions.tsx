@@ -33,8 +33,9 @@ export default function Extensions() {
   ];
 
   return (
-    <PremiumScreen>
+    <>
       <Stack.Screen options={{ headerShown: true, title: t('extensions') }} />
+      <PremiumScreen>
       <ScrollView contentContainerStyle={{ gap: spacing(1.5), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
         <Text style={typography.muted}>{t('extensionsIntro')}</Text>
         {modules.map((m) => (
@@ -51,5 +52,6 @@ export default function Extensions() {
         ))}
       </ScrollView>
     </PremiumScreen>
+    </>
   );
 }

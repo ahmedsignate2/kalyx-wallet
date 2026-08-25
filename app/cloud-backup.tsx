@@ -51,10 +51,14 @@ export default function CloudBackup() {
     setConfirm('');
   };
 
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: true, title: t('encBackup') }} />
+      {(() => {
   if (isPk) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + spacing(6), padding: spacing(3) }}>
-        <Stack.Screen options={{ headerShown: true, title: t('encBackup') }} />
+        
         <Title>{t('encBackup')}</Title>
         <Muted>{t('pkNoBackup')}</Muted>
       </View>
@@ -63,7 +67,7 @@ export default function CloudBackup() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Stack.Screen options={{ headerShown: true, title: t('encBackup') }} />
+      
       <ScrollView
         contentContainerStyle={{ padding: spacing(3), paddingBottom: insets.bottom + spacing(4), gap: spacing(2) }}
         keyboardShouldPersistTaps="handled"
@@ -108,5 +112,8 @@ export default function CloudBackup() {
         onCancel={() => setConfirming(false)}
       />
     </KeyboardAvoidingView>
+  );
+      })()}
+    </>
   );
 }

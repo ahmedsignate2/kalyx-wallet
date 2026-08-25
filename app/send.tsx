@@ -12,6 +12,7 @@ import { fonts, spacing, useTheme } from '../ui/theme';
 import { NovaRing } from '../ui/NovaRing';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
+import { handleSmartError } from '../lib/errorHandler';
 import { useRecentRecipients, type RecipientFamily } from '../lib/recentRecipientsStore';
 import { getAdapter, isWalletError, isValidEvmAddress, isValidSolanaAddress, parseAmount, formatBalance, getCustomTokens, looksLikeEnsName, resolveEnsName, EvmChainAdapter, type FeeOptions, type FeeSpeed } from '../src';
 
@@ -165,20 +166,27 @@ export default function Send() {
   // Exécuté par ConfirmUnlock avec le déverrouillage choisi (biométrie ou PIN).
   // LÈVE en cas d'échec pour que la feuille gère (WRONG_PIN → réessai).
   const perform = async (unlock: Unlock) => {
-    const gas = feeOptions ? feeOptions[speed] : undefined; // palier de frais choisi (EVM)
-    const hash =
-      token?.kind === 'spl'
-        ? await sendSolToken(recipient, amount, { mint: token.mint, decimals: token.decimals }, unlock)
-        : token?.kind === 'erc20'
-          ? await sendToken(recipient, amount, { contract: token.contract, decimals: token.decimals }, unlock, gas)
-          : await signAndSend(recipient, amount, unlock, gas);
-    // Résumé : on privilégie le nom ENS s'il y en a un, sinon l'adresse tronquée.
-    const dest = isEnsInput ? to.trim() : `${recipient.slice(0, 8)}…${recipient.slice(-6)}`;
-    const summary = `${amount} ${symbol} envoyés à ${dest}`;
-    setSuccess({ hash, summary });
-    addRecent(recipient, chain.family as RecipientFamily); // mémorise le destinataire
-    notifyAndLog('tx', t('transferSent'), summary);
-    void watchConfirmation(activeChain, hash, summary); // notif à la confirmation
+    try {
+      const gas = feeOptions ? feeOptions[speed] : undefined; // palier de frais choisi (EVM)
+      const hash =
+        token?.kind === 'spl'
+          ? await sendSolToken(recipient, amount, { mint: token.mint, decimals: token.decimals }, unlock)
+          : token?.kind === 'erc20'
+            ? await sendToken(recipient, amount, { contract: token.contract, decimals: token.decimals }, unlock, gas)
+            : await signAndSend(recipient, amount, unlock, gas);
+      // Résumé : on privilégie le nom ENS s'il y en a un, sinon l'adresse tronquée.
+      const dest = isEnsInput ? to.trim() : `${recipient.slice(0, 8)}…${recipient.slice(-6)}`;
+      const summary = `${amount} ${symbol} envoyés à ${dest}`;
+      setSuccess({ hash, summary });
+      addRecent(recipient, chain.family as RecipientFamily); // mémorise le destinataire
+      notifyAndLog('tx', t('transferSent'), summary);
+      void watchConfirmation(activeChain, hash, summary); // notif à la confirmation
+    } catch (e) {
+      if (!(isWalletError(e) && e.code === 'WRONG_PIN')) {
+        handleSmartError(e);
+      }
+      throw e;
+    }
   };
 
   return (

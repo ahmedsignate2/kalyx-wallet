@@ -42,8 +42,9 @@ export default function Import() {
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
 
   return (
-    <PremiumScreen>
+    <>
       <Stack.Screen options={{ headerShown: true, title: t('importTitle') }} />
+      <PremiumScreen>
 
       <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
@@ -80,5 +81,6 @@ export default function Import() {
       <Button label={t('continueWord')} onPress={onNext} />
       <View style={{ height: spacing(1) }} />
     </PremiumScreen>
+    </>
   );
 }

@@ -10,7 +10,7 @@
  * Les données brutes restent accessibles via « Détails techniques ».
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, Pressable, ScrollView, Image } from 'react-native';
+import { Modal, View, Text, Pressable, ScrollView, Image, StyleSheet } from 'react-native';
 import { GlassCard, ErrorBox, GradientAvatar } from './premium';
 import { Button } from './components';
 import { ConfirmUnlock } from './ConfirmUnlock';
@@ -40,11 +40,12 @@ function hostOf(url: string) {
   return url.replace(/^[a-z]+:\/\//i, '').split('/')[0] || url;
 }
 
-function Overlay({ children }: { children: React.ReactNode }) {
+function Overlay({ children, onCancel }: { children: React.ReactNode, onCancel?: () => void }) {
   const { colors } = useTheme();
   return (
-    <Modal transparent animationType="fade">
+    <Modal transparent animationType="fade" onRequestClose={onCancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+        <Pressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onCancel} />
         <View style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
           {children}
         </View>
@@ -237,7 +238,7 @@ export function WalletConnectHost() {
   if (proposal) {
     const meta = proposal.params?.proposer?.metadata ?? {};
     return (
-      <Overlay>
+      <Overlay onCancel={() => { setConfirming(false); rejectProposal().catch(()=>{}); }}>
         <Text style={typography.title}>{t('dappConnection')}</Text>
         <GlassCard>
           <DappHeader name={meta.name ?? 'dApp'} url={meta.url ?? ''} icon={meta.icons?.[0]} />
@@ -290,7 +291,7 @@ export function WalletConnectHost() {
     const rawJson = JSON.stringify(request.params?.request?.params ?? {}, null, 2).slice(0, 1600);
 
     return (
-      <Overlay>
+      <Overlay onCancel={reject}>
         <Text style={typography.title}>{title}</Text>
 
         {peer ? (
