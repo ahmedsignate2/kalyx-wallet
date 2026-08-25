@@ -8,6 +8,7 @@
  * La signature/exécution se fait via l'adapter EVM (lecture des clés isolée).
  */
 import { withTimeout } from '../chains/net';
+import { SwapError } from './swapError';
 
 const API = 'https://li.quest/v1';
 const KEY = (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_LIFI_KEY) || '';
@@ -20,14 +21,27 @@ export const DEFAULT_SLIPPAGE = '0.005'; // 0,5 %
 /** Adresse « token natif » côté LI.FI. */
 export const NATIVE_TOKEN = '0x0000000000000000000000000000000000000000';
 
-export interface SwapTxRequest {
+export interface EvmSwapTx {
+  type: 'evm';
   to: string;
   data: string;
   value: bigint;
-  chainId: number;
+  chainId: number | string;
   gasLimit?: bigint;
   gasPrice?: bigint;
 }
+
+export interface SolanaSwapTx {
+  type: 'solana';
+  data: string; // base64 encoded transaction
+}
+
+export interface BitcoinSwapTx {
+  type: 'bitcoin';
+  data: string; // base64 encoded PSBT
+}
+
+export type SwapTxRequest = EvmSwapTx | SolanaSwapTx | BitcoinSwapTx;
 
 export interface SwapTokenInfo {
   address: string;
@@ -123,6 +137,7 @@ export function parseSwapQuote(json: unknown): SwapQuote | null {
     toAmountUsd: Number(est.toAmountUSD) || 0,
     slippage: typeof q.action?.slippage === 'number' ? q.action.slippage : Number(DEFAULT_SLIPPAGE),
     tx: {
+      type: 'evm',
       to: tr.to,
       data: tr.data,
       value: big(tr.value),
@@ -134,8 +149,8 @@ export function parseSwapQuote(json: unknown): SwapQuote | null {
 }
 
 export interface QuoteParams {
-  fromChainId: number;
-  toChainId: number;
+  fromChainId: number | string;
+  toChainId: number | string;
   fromToken: string; // adresse (NATIVE_TOKEN pour le natif)
   toToken: string;
   fromAmount: bigint; // plus petite unité
@@ -143,6 +158,7 @@ export interface QuoteParams {
 }
 
 async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQuote | null> {
+  const FEE_RECIPIENT = (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_FEE_RECIPIENT_EVM) || '';
   const qs = new URLSearchParams({
     fromChain: String(params.fromChainId),
     toChain: String(params.toChainId),
@@ -153,24 +169,74 @@ async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQu
     integrator: NOVA_INTEGRATOR,
     slippage: DEFAULT_SLIPPAGE,
   });
-  if (withFee) qs.set('fee', NOVA_FEE);
-  try {
-    const res = await withTimeout(
-      fetch(`${API}/quote?${qs.toString()}`, { headers: KEY ? { 'x-lifi-api-key': KEY } : {} }),
-      TIMEOUT,
-      () => new Error('timeout'),
-    );
-    if (!res.ok) return null;
-    return parseSwapQuote(await res.json());
-  } catch {
-    return null;
+  if (withFee) {
+    qs.set('fee', NOVA_FEE);
+    if (FEE_RECIPIENT) qs.set('feeRecipient', FEE_RECIPIENT);
+  }
+
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'User-Agent': 'NovaWallet/0.0.1',
+  };
+  if (KEY) headers['x-lifi-api-key'] = KEY;
+
+  let retries = 1;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      const res = await withTimeout(
+        fetch(`${API}/quote?${qs.toString()}`, { headers }),
+        TIMEOUT,
+        () => new Error('timeout'),
+      );
+      if (!res.ok) {
+        // Retry on transient server errors (5xx, 429 rate-limit).
+        if ((res.status >= 500 || res.status === 429) && retries > 0) {
+          retries--;
+          await new Promise((r) => setTimeout(r, 1500));
+          continue;
+        }
+        // Parse LI.FI error body for precise diagnostics.
+        const errJson = await res.json().catch(() => ({} as Record<string, unknown>));
+        const msg = (String(errJson.message ?? '')).toLowerCase();
+
+        if (msg.includes('amount is too low') || msg.includes('minimum')) {
+          const min = errJson.minAmount;
+          throw new SwapError(
+            'AMOUNT_BELOW_MINIMUM',
+            String(errJson.message ?? 'Amount too low'),
+            min ? { min: String(min) } : undefined,
+          );
+        }
+        if (msg.includes('no routes') || msg.includes('no available')) return null;
+        if (msg.includes('slippage')) {
+          throw new SwapError('SLIPPAGE_TOO_HIGH', String(errJson.message ?? 'Slippage too high'));
+        }
+        return null;
+      }
+      return parseSwapQuote(await res.json());
+    } catch (e) {
+      // Re-throw typed swap errors for the UI.
+      if (e instanceof SwapError) throw e;
+      // Retry once on timeout.
+      if (retries > 0 && e instanceof Error && e.message === 'timeout') {
+        retries--;
+        await new Promise((r) => setTimeout(r, 1500));
+        continue;
+      }
+      return null;
+    }
   }
 }
 
 /**
- * Devis avec notre fee intégrateur ; si LI.FI le refuse (config portail
- * incomplète), on réessaie sans fee pour que le swap fonctionne quand même.
+ * Devis intelligent multi-fournisseur :
+ * - Cross-chain (bridge) : Relay d'abord, LI.FI en fallback.
+ * - Same-chain (swap) : LI.FI directement (agrège les DEX).
+ * - Fee intégrateur : 0.3 % sur tous les moteurs. Si LI.FI le refuse
+ *   (config portail incomplète), retry sans fee.
  */
+// getSwapQuote a été déplacé vers index.ts (Nova Smart Router)
 export async function getSwapQuote(params: QuoteParams): Promise<SwapQuote | null> {
   return (await fetchQuote(params, true)) ?? fetchQuote(params, false);
 }

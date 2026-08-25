@@ -87,29 +87,47 @@ export class EvmChainAdapter implements ChainAdapter {
     const query =
       `module=account&action=txlist&address=${owner}` +
       `&startblock=0&endblock=99999999&page=1&offset=25&sort=desc`;
+      
+    // 1. Tenter l'API unifiée Etherscan V2
     try {
       const url =
         `${ETHERSCAN_V2_API}?chainid=${this.config.evmChainId}&${query}` +
         (EXPLORER_API_KEY ? `&apikey=${EXPLORER_API_KEY}` : '');
       const res = await withTimeout(fetch(url), RPC_TIMEOUT_MS, () => new Error('timeout'));
       const json = (await res.json()) as { result?: unknown };
-      // result tableau = Etherscan a servi ce réseau (même vide = 0 tx). result NON
-      // tableau = plan/réseau non couvert (« Free API access is not supported ») →
-      // on tente le repli Blockscout (même format txlist), si configuré.
       if (Array.isArray(json?.result)) return parseTxList(json, owner);
-      if (this.config.explorerApi) {
+    } catch {
+      // Échec ou timeout (pas de clé, ou réseau non supporté), on passe aux fallbacks
+    }
+
+    // 2. Déduire les APIs de fallback (Blockscout ou clones Etherscan)
+    const apisToTry = [];
+    if (this.config.explorerApi) {
+      apisToTry.push(this.config.explorerApi);
+    } else if (this.config.explorerUrl) {
+      apisToTry.push(`${this.config.explorerUrl}/api`);
+      const host = this.config.explorerUrl.replace(/^https?:\/\//, '');
+      apisToTry.push(`https://api.${host}/api`);
+    }
+
+    // 3. Tenter les fallbacks un par un
+    for (const apiUrl of apisToTry) {
+      try {
         const fb = await withTimeout(
-          fetch(`${this.config.explorerApi}?${query}`),
+          fetch(`${apiUrl}?${query}`),
           RPC_TIMEOUT_MS,
           () => new Error('timeout'),
         );
-        return parseTxList(await fb.json(), owner);
+        const fbJson = await fb.json() as { result?: unknown };
+        if (Array.isArray(fbJson?.result)) {
+          return parseTxList(fbJson, owner);
+        }
+      } catch {
+        // Ignorer et essayer le suivant
       }
-      return [];
-    } catch {
-      // Historique = confort : ne jamais bloquer ni faire échouer l'app.
-      return [];
     }
+
+    return [];
   }
 
   buildTransfer(params: TransferParams): TransferIntent {

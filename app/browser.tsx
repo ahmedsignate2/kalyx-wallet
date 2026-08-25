@@ -21,6 +21,9 @@ import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { NovaLogo } from '../ui/NovaLogo';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
+import { duration, easing } from '../ui/motion';
+import { haptic } from '../lib/haptics';
+import { sound } from '../lib/sound';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
@@ -305,12 +308,12 @@ export default function Browser() {
     const cid = chain.evmChainId ?? 1;
     if (pending.kind === 'tx' && pending.to) {
       setRisk('loading');
-      assessAddress(cid, pending.to).then(setRisk).catch(() => setRisk(null));
+      assessAddress(cid, pending.to).then(r => { setRisk(r); if (r?.level === 'danger') haptic.warning(); }).catch(() => setRisk(null));
     } else if (pending.kind === 'typedData' && pending.summary?.verifyingContract) {
       setRisk('loading');
-      assessAddress(cid, pending.summary.verifyingContract).then(setRisk).catch(() => setRisk(null));
+      assessAddress(cid, pending.summary.verifyingContract).then(r => { setRisk(r); if (r?.level === 'danger') haptic.warning(); }).catch(() => setRisk(null));
     } else if (pending.kind === 'connect') {
-      isPhishingSite(`https://${pending.origin}`).then(setPhishSite).catch(() => {});
+      isPhishingSite(`https://${pending.origin}`).then(r => { setPhishSite(r); if (r) haptic.warning(); }).catch(() => {});
     }
   }, [pending?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -483,7 +486,8 @@ export default function Browser() {
         respond(pending.tabId, pending.id, result);
         activity.addSignature({ host: pending.origin, kind: pending.kind === 'tx' ? 'tx' : pending.kind === 'typedData' ? 'typedData' : 'sign' });
         Vibration.vibrate(14);
-        toast.success(pending.kind === 'tx' ? t('txSent') : t('signatureSent'), pending.origin);
+        sound.success();
+        toast.success(pending.kind === 'tx' ? t('transferSent') : t('messageSigned'), pending.origin);
       }
       setPending(null);
       setPin('');
@@ -682,7 +686,7 @@ export default function Browser() {
             <Icon name="search" size={14} tone="muted" />
           )}
           {activeTab?.url ? (
-            <Icon name={sec === 'suspicious' ? 'warning' : 'security'} size={13} color={secColor} />
+            <SiteBadge sec={sec} />
           ) : null}
           <TextInput
             ref={addressRef}
@@ -801,29 +805,15 @@ export default function Browser() {
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5), padding: spacing(2.5), paddingTop: 0 }}>
-            {tabs.map((tb) => {
+            
+            {tabs.map((tb, i) => {
               const host = tb.url ? originOf(tb.url) : '';
               return (
-                <Pressable key={tb.id} onPress={() => { setActiveId(tb.id); setSwitcher(false); }} style={{ width: '47%' }}>
-                  <GlassCard style={{ gap: spacing(1), borderColor: tb.id === activeId ? colors.accent : colors.glassBorder, borderWidth: tb.id === activeId ? 1.5 : 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                      {host ? <Favicon host={host} size={22} color={colors.glassStrong} label={host.slice(0, 1).toUpperCase()} /> : <Icon name="home" size={20} color={colors.textMuted} />}
-                      <Text style={[typography.bodyStrong, { flex: 1, fontSize: 13 }]} numberOfLines={1}>{tb.title || (host || t('homeWord'))}</Text>
-                      <Pressable onPress={() => closeTab(tb.id)} hitSlop={8}>
-                        <Icon name="close" size={16} tone="muted" />
-                      </Pressable>
-                    </View>
-                    <Text style={typography.muted} numberOfLines={1}>{host || t('newTabLabel')}</Text>
-                  </GlassCard>
-                </Pressable>
+                <AnimatedTab key={tb.id} index={i} tb={tb} active={tb.id === activeId} host={host} onPress={() => { setActiveId(tb.id); setSwitcher(false); }} onClose={() => closeTab(tb.id)} />
               );
             })}
-            <Pressable onPress={newTab} style={{ width: '47%' }}>
-              <GlassCard style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: spacing(3), gap: 6, borderStyle: 'dashed' }}>
-                <Icon name="add" size={26} color={colors.accent} />
-                <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('newTabLabel')}</Text>
-              </GlassCard>
-            </Pressable>
+            <AnimatedTab index={tabs.length} isNew onPress={newTab} />
+
           </ScrollView>
         </View>
       </Modal>
@@ -1059,12 +1049,12 @@ function LoadBar({ progress }: { progress: number }) {
       // width (layout) impose useNativeDriver:false ; opacity DOIT rester false aussi,
       // sinon le nœud passe côté natif et width plante ('width not supported by native').
       Animated.sequence([
-        Animated.timing(width, { toValue: 1, duration: 120, useNativeDriver: false }),
-        Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: false }),
+        Animated.timing(width, { toValue: 1, duration: duration.base, easing: easing.out, useNativeDriver: false }),
+        Animated.timing(opacity, { toValue: 0, duration: duration.base, easing: easing.out, useNativeDriver: false }),
       ]).start(() => width.setValue(0));
     } else {
       opacity.setValue(1);
-      Animated.timing(width, { toValue: progress, duration: 180, useNativeDriver: false }).start();
+      Animated.timing(width, { toValue: progress, duration: duration.base, easing: easing.out, useNativeDriver: false }).start();
     }
   }, [progress, done, width, opacity]);
   return (
@@ -1147,7 +1137,9 @@ function Tile({ host, name, color, emoji, width, onPress }: { host: string; name
       onPressIn={() => Vibration.vibrate(6)}
       style={({ pressed }) => ({ width, alignItems: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}
     >
-      <Favicon host={host} size={56} color={color} emoji={emoji} label={name.slice(0, 1).toUpperCase()} />
+      <View style={{ padding: 4, borderRadius: Math.round(56 * 0.32) + 4, backgroundColor: colors.glass }}>
+        <Favicon host={host} size={56} color={colors.glassStrong} emoji={emoji} label={name.slice(0, 1).toUpperCase()} />
+      </View>
       <Text numberOfLines={1} style={{ marginTop: 8, color: colors.text, fontSize: 12, fontFamily: fonts.semibold, textAlign: 'center', maxWidth: width }}>
         {name}
       </Text>
@@ -1164,5 +1156,68 @@ function FreeSignature() {
       <Text style={{ fontSize: 13 }}>🔒</Text>
       <Text style={{ color: colors.up, fontSize: 13, fontFamily: fonts.semibold }}>{t('freeSignature')}</Text>
     </View>
+  );
+}
+
+
+function SiteBadge({ sec }: { sec: SecLevel }) {
+  const { colors } = useTheme();
+  
+  if (sec === 'safe') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.up + '22', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6 }}>
+        <Icon name="security" size={12} color={colors.up} />
+        <Text style={{ color: colors.up, fontSize: 11, fontWeight: '600' }}>Vérifié</Text>
+      </View>
+    );
+  }
+  if (sec === 'suspicious') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.danger + '22', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6 }}>
+        <Icon name="warning" size={12} color={colors.danger} />
+        <Text style={{ color: colors.danger, fontSize: 11, fontWeight: '600' }}>Risque</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.glass, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6 }}>
+      <Icon name="security" size={12} color={colors.textMuted} />
+      <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '600' }}>Inconnu</Text>
+    </View>
+  );
+}
+
+function AnimatedTab({ index, active, host, tb, onPress, onClose, isNew }: any) {
+  const { colors, typography } = useTheme();
+  const t = useT();
+  const anim = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    Animated.timing(anim, { toValue: 1, duration: duration.base, easing: easing.out, delay: index * 40, useNativeDriver: true }).start();
+  }, [anim, index]);
+  
+  return (
+    <Animated.View style={{ width: '47%', opacity: anim, transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }, { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+      {isNew ? (
+        <Pressable onPress={onPress}>
+          <GlassCard style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: spacing(3), gap: 6, borderStyle: 'dashed' }}>
+            <Icon name="add" size={26} color={colors.accent} />
+            <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('newTabLabel')}</Text>
+          </GlassCard>
+        </Pressable>
+      ) : (
+        <Pressable onPress={onPress}>
+          <GlassCard style={{ gap: spacing(1), borderColor: active ? colors.accent : colors.glassBorder, borderWidth: active ? 1.5 : 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+              {host ? <Favicon host={host} size={22} color={colors.glassStrong} label={host.slice(0, 1).toUpperCase()} /> : <Icon name="home" size={20} color={colors.textMuted} />}
+              <Text style={[typography.bodyStrong, { flex: 1, fontSize: 13 }]} numberOfLines={1}>{tb.title || (host || t('homeWord'))}</Text>
+              <Pressable onPress={onClose} hitSlop={8}>
+                <Icon name="close" size={16} tone="muted" />
+              </Pressable>
+            </View>
+            <Text style={typography.muted} numberOfLines={1}>{host || t('newTabLabel')}</Text>
+          </GlassCard>
+        </Pressable>
+      )}
+    </Animated.View>
   );
 }

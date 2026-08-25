@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
+import { NovaRing } from './NovaRing';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -112,7 +113,7 @@ export function Button({
   const { theme, styles } = useThemeStyles();
   const isPrimary = variant === 'primary';
   const content = loading ? (
-    <ActivityIndicator color={isPrimary ? '#fff' : theme.colors.text} />
+    <NovaRing size={24} spinning color={isPrimary ? '#fff' : theme.colors.text} />
   ) : (
     <Text style={[styles.btnLabel, !isPrimary && { color: theme.colors.text }]}>{label}</Text>
   );

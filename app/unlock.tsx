@@ -3,8 +3,6 @@ import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ShineLogo } from '../ui/ShineLogo';
-import { AuroraBackground } from '../ui/AuroraBackground';
 import { PinPad } from '../ui/PinPad';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
@@ -112,11 +110,9 @@ export default function Unlock() {
       {/* Plein écran : pas de barre d'en-tête vide. */}
       <Stack.Screen options={{ headerShown: false }} />
       <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
-      <AuroraBackground intensity={0.85} />
       <View style={{ flex: 1, paddingTop: insets.top + spacing(3), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3), alignItems: 'center' }}>
-        {/* En-tête compact : logo, titre, sous-titre, biométrie */}
+        {/* En-tête compact : titre, sous-titre, biométrie */}
         <View style={{ alignItems: 'center', gap: spacing(1.25) }}>
-          <ShineLogo size={58} />
           <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
           <Text style={{ color: error && !locked ? colors.danger : colors.textMuted, fontSize: 14, textAlign: 'center' }}>{subtitle}</Text>
           {bioAvailable ? (
