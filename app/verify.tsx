@@ -24,10 +24,14 @@ export default function Verify() {
   );
   const [answers, setAnswers] = useState<Record<number, string>>({});
 
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: true, title: t('verifyTitle') }} />
+      {(() => {
   if (!draft) {
     return (
       <PremiumScreen>
-        <Stack.Screen options={{ headerShown: true, title: t('verifyTitle') }} />
+        
         <GlassCard>
           <Text style={typography.bodyStrong}>{t('sessionExpired')}</Text>
           <Text onPress={() => router.replace('/welcome')} style={{ color: colors.accent, fontFamily: fonts.semibold, marginTop: spacing(1) }}>
@@ -52,7 +56,7 @@ export default function Verify() {
 
   return (
     <PremiumScreen>
-      <Stack.Screen options={{ headerShown: true, title: t('verifyTitle') }} />
+      
 
       <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
@@ -100,5 +104,8 @@ export default function Verify() {
       <Button label={t('validate')} disabled={!allAnswered} onPress={onValidate} />
       <View style={{ height: spacing(1) }} />
     </PremiumScreen>
+  );
+      })()}
+    </>
   );
 }

@@ -77,8 +77,9 @@ export default function Developer() {
   );
 
   return (
-    <PremiumScreen>
+    <>
       <Stack.Screen options={{ headerShown: true, title: t('developer') }} />
+      <PremiumScreen>
       <ScrollView contentContainerStyle={{ gap: spacing(2), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Infos build */}
         <View style={{ gap: spacing(1) }}>
@@ -175,6 +176,7 @@ export default function Developer() {
         </View>
       </ScrollView>
     </PremiumScreen>
+    </>
   );
 }
 

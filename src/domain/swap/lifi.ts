@@ -108,14 +108,32 @@ export function parseSwapQuote(json: unknown): SwapQuote | null {
       gasCosts?: { amountUSD?: string; amount?: string; token?: unknown }[];
       feeCosts?: { amountUSD?: string }[];
     };
-    action?: { fromToken?: unknown; toToken?: unknown; slippage?: number };
+    action?: { fromChainId?: number; fromToken?: unknown; toToken?: unknown; slippage?: number };
     transactionRequest?: { to?: string; data?: string; value?: string; chainId?: number; gasLimit?: string; gasPrice?: string };
     toolDetails?: { name?: string };
     tool?: string;
   };
   const tr = q?.transactionRequest;
   const est = q?.estimate;
-  if (!tr?.to || !tr?.data || typeof tr.chainId !== 'number' || !est) return null;
+  if (!tr?.data || !est) return null;
+
+  const isSolana = q.action?.fromChainId === 1151111081099710;
+  if (!isSolana && (!tr.to || typeof tr.chainId !== 'number')) return null;
+
+  let txReq: SwapTxRequest;
+  if (isSolana) {
+    txReq = { type: 'solana', data: tr.data };
+  } else {
+    txReq = {
+      type: 'evm',
+      to: tr.to!,
+      data: tr.data,
+      value: big(tr.value),
+      chainId: tr.chainId!,
+      gasLimit: tr.gasLimit ? big(tr.gasLimit) : undefined,
+      gasPrice: tr.gasPrice ? big(tr.gasPrice) : undefined,
+    };
+  }
 
   const approval = est.approvalAddress && est.approvalAddress !== '' ? est.approvalAddress : null;
   const sumUsd = (arr?: { amountUSD?: string }[]) =>
@@ -136,15 +154,7 @@ export function parseSwapQuote(json: unknown): SwapQuote | null {
     fromAmountUsd: Number(est.fromAmountUSD) || 0,
     toAmountUsd: Number(est.toAmountUSD) || 0,
     slippage: typeof q.action?.slippage === 'number' ? q.action.slippage : Number(DEFAULT_SLIPPAGE),
-    tx: {
-      type: 'evm',
-      to: tr.to,
-      data: tr.data,
-      value: big(tr.value),
-      chainId: tr.chainId,
-      gasLimit: tr.gasLimit ? big(tr.gasLimit) : undefined,
-      gasPrice: tr.gasPrice ? big(tr.gasPrice) : undefined,
-    },
+    tx: txReq,
   };
 }
 
@@ -154,7 +164,7 @@ export interface QuoteParams {
   fromToken: string; // adresse (NATIVE_TOKEN pour le natif)
   toToken: string;
   fromAmount: bigint; // plus petite unité
-  fromAddress: string;
+  fromAddress: string; toAddress?: string;
 }
 
 async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQuote | null> {
@@ -169,6 +179,9 @@ async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQu
     integrator: NOVA_INTEGRATOR,
     slippage: DEFAULT_SLIPPAGE,
   });
+  if (params.toAddress) {
+    qs.set('toAddress', params.toAddress);
+  }
   if (withFee) {
     qs.set('fee', NOVA_FEE);
     if (FEE_RECIPIENT) qs.set('feeRecipient', FEE_RECIPIENT);
