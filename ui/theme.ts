@@ -47,30 +47,30 @@ const tnum: NonNullable<TextStyle['fontVariant']> = ['tabular-nums'];
 
 const darkColors = {
   // Fonds
-  bg: '#0B0E14',
-  bgDeep: '#07090F', // fond le plus sombre (bas du dégradé)
-  bgElevated: '#121722',
-  card: '#151A23',
-  cardBorder: '#232A36',
+  bg: '#0A0C10',
+  bgDeep: '#050608', // fond le plus sombre (bas du dégradé)
+  bgElevated: '#12151B',
+  card: '#15181E',
+  cardBorder: '#242832',
   // Verre (glassmorphism)
-  glass: 'rgba(255,255,255,0.05)',
-  glassStrong: 'rgba(255,255,255,0.08)',
-  glassBorder: 'rgba(255,255,255,0.10)',
+  glass: 'rgba(255,255,255,0.04)',
+  glassStrong: 'rgba(255,255,255,0.07)',
+  glassBorder: 'rgba(255,255,255,0.09)',
   // Texte
-  text: '#F5F7FA',
-  textMuted: '#8A93A6',
-  textFaint: '#5B6577',
+  text: '#EFEBE2',
+  textMuted: '#8B8A82',
+  textFaint: '#5E5D55',
   // Accents
-  accent: '#7C5CFF',
-  accentAlt: '#4AA8FF',
-  violet: '#7C5CFF',
-  blue: '#4AA8FF',
+  accent: '#C9A24B',
+  accentAlt: '#DDB565',
+  violet: '#C9A24B',
+  blue: '#DDB565',
   // Sémantique
-  success: '#2ECC71',
-  danger: '#FF5C5C',
-  warning: '#FFB020',
-  up: '#3DDC97',
-  down: '#FF6B6B',
+  success: '#4A9B72',
+  danger: '#C1554A',
+  warning: '#D4943A',
+  up: '#4A9B72',
+  down: '#C1554A',
 } as const;
 
 export type ThemeColors = { [K in keyof typeof darkColors]: string };
@@ -81,26 +81,26 @@ export type ThemeColors = { [K in keyof typeof darkColors]: string };
  * (le violet/bleu de marque bruts sont trop clairs pour du texte sur blanc).
  */
 const lightColors: ThemeColors = {
-  bg: '#F4F6FB',
-  bgDeep: '#EDF0F7',
+  bg: '#F6F3EC',
+  bgDeep: '#EDE9E0',
   bgElevated: '#FFFFFF',
   card: '#FFFFFF',
-  cardBorder: '#E4E8F1',
-  glass: 'rgba(16,21,35,0.04)',
-  glassStrong: 'rgba(16,21,35,0.07)',
-  glassBorder: 'rgba(16,21,35,0.10)',
-  text: '#12151D',
-  textMuted: '#5B6577',
-  textFaint: '#9AA3B5',
-  accent: '#6A4BF4',
-  accentAlt: '#1F7AD9',
-  violet: '#6A4BF4',
-  blue: '#1F7AD9',
-  success: '#178A50',
-  danger: '#D64545',
-  warning: '#B26A00',
-  up: '#178A50',
-  down: '#D64545',
+  cardBorder: '#E0DCD3',
+  glass: 'rgba(16,14,10,0.04)',
+  glassStrong: 'rgba(16,14,10,0.07)',
+  glassBorder: 'rgba(16,14,10,0.10)',
+  text: '#1A1814',
+  textMuted: '#6B675E',
+  textFaint: '#9E9A91',
+  accent: '#A17D2F',
+  accentAlt: '#8A6B25',
+  violet: '#A17D2F',
+  blue: '#8A6B25',
+  success: '#2D7A50',
+  danger: '#A3403A',
+  warning: '#9E6E1E',
+  up: '#2D7A50',
+  down: '#A3403A',
 };
 
 /* ------------------------------------------------------------------ */
@@ -114,18 +114,18 @@ function buildTheme(mode: ThemeMode) {
   const gradients =
     mode === 'dark'
       ? {
-          screen: ['#0E1220', '#0A0C14', '#07090F'] as const,
-          accent: ['#7C5CFF', '#4AA8FF'] as const,
-          card: ['rgba(124,92,255,0.34)', 'rgba(74,168,255,0.12)', 'rgba(7,9,15,0)'] as const,
-          violet: ['#8E6BFF', '#6A4DFF'] as const,
+          screen: ['#0E1015', '#0A0C10', '#050608'] as const,
+          accent: ['#DDB565', '#B8863A'] as const,
+          card: ['rgba(201,162,75,0.20)', 'rgba(186,134,58,0.08)', 'rgba(5,6,8,0)'] as const,
+          violet: ['#DDB565', '#C9A24B'] as const,
           /** Reflet supérieur des cartes verre. */
-          sheen: ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)'] as const,
+          sheen: ['rgba(255,255,255,0.07)', 'rgba(255,255,255,0)'] as const,
         }
       : {
-          screen: ['#FAFBFE', '#F4F6FB', '#EDF0F7'] as const,
-          accent: ['#7C5CFF', '#4AA8FF'] as const, // identité de marque conservée (texte blanc dessus)
-          card: ['rgba(124,92,255,0.16)', 'rgba(74,168,255,0.07)', 'rgba(255,255,255,0)'] as const,
-          violet: ['#8E6BFF', '#6A4DFF'] as const,
+          screen: ['#FFFFFF', '#F6F3EC', '#EDE9E0'] as const,
+          accent: ['#A17D2F', '#8A6B25'] as const, // identité de marque conservée (texte blanc dessus)
+          card: ['rgba(161,125,47,0.16)', 'rgba(138,107,37,0.07)', 'rgba(255,255,255,0)'] as const,
+          violet: ['#A17D2F', '#8A6B25'] as const,
           sheen: ['rgba(255,255,255,0.85)', 'rgba(255,255,255,0)'] as const,
         };
 

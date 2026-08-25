@@ -16,14 +16,15 @@ import { PressableScale } from './premium';
 import { Icon } from './icon';
 import { fonts, spacing, useTheme } from './theme';
 import { useEnsName } from '../lib/useEns';
+import { useT } from '../lib/settingsStore';
 import { formatBalance, formatAmount, type TxSummary } from '../src';
 
 function shortAddr(a: string) {
   return a.length > 14 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a;
 }
 
-/** « Aujourd'hui · 18:49 », « Hier · 09:12 », « 02 juil. · 18:49 ». */
-export function txDate(ts: number): string {
+/** Date relative localisée : « Today · 18:49 », « Yesterday · 09:12 », « 02 Jul · 18:49 ». */
+export function txDate(ts: number, t?: (k: any) => string): string {
   if (!ts) return '';
   const d = new Date(ts * 1000);
   const now = new Date();
@@ -31,10 +32,10 @@ export function txDate(ts: number): string {
   const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   const day =
     days <= 0 && now.getDate() === d.getDate()
-      ? "Aujourd'hui"
+      ? (t ? t('txToday') : 'Today')
       : days <= 1
-        ? 'Hier'
-        : d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+        ? (t ? t('txYesterday') : 'Yesterday')
+        : d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
   return `${day} · ${hm}`;
 }
 
@@ -70,6 +71,7 @@ export function TxRow({
   explorerUrl?: string;
 }) {
   const { colors, typography } = useTheme();
+  const t = useT();
   const inbound = tx.direction === 'in';
   const failed = tx.status === 'failed';
   const dirColor = inbound ? colors.up : colors.textMuted;
@@ -111,20 +113,20 @@ export function TxRow({
             justifyContent: 'center',
           }}
         >
-          <Icon name={inbound ? 'receive' : 'send'} size={9} color={inbound ? '#fff' : colors.textMuted} />
+          <Icon name={tx.type === 'SWAP' ? 'exchange' : inbound ? 'receive' : 'send'} size={9} color={inbound ? '#fff' : colors.textMuted} />
         </View>
       </View>
 
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(0.75) }}>
-          <Text style={typography.bodyStrong}>
-            {inbound ? 'Reçu' : tx.direction === 'out' ? 'Envoyé' : 'Interne'}
+      <View style={{ flex: 1, marginRight: spacing(1) }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap', gap: spacing(0.75) }}>
+          <Text style={[typography.bodyStrong, { flexShrink: 1 }]} numberOfLines={2}>
+            {tx.description || (inbound ? t('txReceived') : tx.direction === 'out' ? t('txSent') : t('txInternal'))}
           </Text>
-          <Text style={{ fontSize: 11, fontFamily: fonts.semibold, color: failed ? colors.danger : colors.textFaint }}>
-            {failed ? '✕ Échouée' : '✓ Confirmée'}
+          <Text style={{ fontSize: 11, fontFamily: fonts.semibold, color: failed ? colors.danger : colors.textFaint, marginTop: 2 }}>
+            {failed ? `✕ ${t('txFailed')}` : `✓ ${t('txConfirmed')}`}
           </Text>
         </View>
-        <Text style={typography.muted}>{txDate(tx.timestamp)}</Text>
+        <Text style={typography.muted}>{txDate(tx.timestamp, t)}</Text>
       </View>
 
       <View style={{ alignItems: 'flex-end' }}>
@@ -146,14 +148,14 @@ export function TxRow({
       {onPress ? <PressableScale onPress={onPress}>{row}</PressableScale> : row}
       {expanded ? (
         <View style={{ paddingBottom: spacing(1.5), gap: spacing(0.75) }}>
-          <AddrLine label="De" addr={tx.from} />
-          <AddrLine label="À" addr={tx.to} />
+          <AddrLine label={t('txFrom')} addr={tx.from} />
+          <AddrLine label={t('txTo')} addr={tx.to} />
           {explorerUrl ? (
             <Text
               onPress={() => Linking.openURL(`${explorerUrl}/tx/${tx.hash}`)}
               style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}
             >
-              Voir sur l'explorateur ↗
+              {t('txViewExplorer')}
             </Text>
           ) : null}
         </View>

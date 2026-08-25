@@ -184,7 +184,7 @@ export {
 
 // Swap / Bridge (LI.FI)
 export {
-  getSwapQuote,
+  getSwapQuote as getLifiQuote,
   parseSwapQuote,
   NATIVE_TOKEN,
   NOVA_FEE,
@@ -193,6 +193,9 @@ export {
   type QuoteParams,
   type SwapTxRequest,
 } from './domain/swap/lifi';
+export { SwapError, type SwapErrorCode } from './domain/swap/swapError';
+export { getRelayQuote } from './domain/swap/relay';
+export { getBestQuote } from './domain/swap/index';
 
 // WalletConnect : décodage lisible des demandes de signature
 export {

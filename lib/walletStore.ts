@@ -11,6 +11,11 @@
  * (aucune migration destructive). Un seul PIN d'app chiffre tous les coffres.
  * MULTI-COMPTES : au sein d'un wallet, plusieurs comptes par index HD.
  */
+import { base64, base58, hex } from '@scure/base';
+import { ed25519 } from '@noble/curves/ed25519';
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { sha256 } from '@noble/hashes/sha256';
+import { concatBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { create } from 'zustand';
 import { Wallet, getBytes, isHexString } from 'ethers';
 import {
@@ -112,6 +117,13 @@ interface WalletState {
   lock: () => void;
   signAndSend: (to: string, amount: string, unlock: Unlock, gas?: GasOverride) => Promise<string>;
   executeSwap: (quote: SwapQuote, unlock: Unlock, onStatus?: (s: SwapStatus) => void) => Promise<string>;
+
+  signSolanaTransaction: (unlock: Unlock, txStr: string) => Promise<string>;
+  signSolanaTransactions: (unlock: Unlock, txStrArray: string[]) => Promise<string[]>;
+  signSolanaMessage: (unlock: Unlock, message: string) => Promise<{ signature: string }>;
+  signBitcoinMessage: (unlock: Unlock, message: string) => Promise<string>;
+  signBitcoinPsbt: (unlock: Unlock, psbtBase64: string, options?: { finalize?: boolean; signInputs?: number[] }) => Promise<string>;
+
   // Signature pour WalletConnect (requêtes dApp)
   signMessage: (unlock: Unlock, message: string) => Promise<string>;
   signTypedData: (unlock: Unlock, typedData: { domain: unknown; types: Record<string, unknown>; message: unknown }) => Promise<string>;
@@ -510,35 +522,215 @@ export const useWallet = create<WalletState>((set, get) => ({
     const { account, activeChain, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(activeChain);
-    if (!(adapter instanceof EvmChainAdapter)) throw new Error('Swap indisponible sur ce réseau');
 
-    const signerKey = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
+    if (quote.tx.type === 'evm' && adapter instanceof EvmChainAdapter) {
+      const signerKey = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
 
-    const fromAddr = quote.fromToken.address.toLowerCase();
-    if (fromAddr !== NATIVE_TOKEN.toLowerCase() && quote.approvalAddress) {
-      const allowance = await adapter.getAllowance(quote.fromToken.address, account.address, quote.approvalAddress);
-      if (allowance < quote.fromAmount) {
-        onStatus?.('approving');
-        const approveData = adapter.buildApproveData(quote.approvalAddress, quote.fromAmount);
-        const approveHash = await adapter.sendContractTx(
-          { to: quote.fromToken.address, data: approveData, chainId: quote.tx.chainId },
-          account.address,
-          signerKey,
-        );
-        onStatus?.('approvalWait');
-        await adapter.waitForTx(approveHash);
+      const fromAddr = quote.fromToken.address.toLowerCase();
+      if (fromAddr !== NATIVE_TOKEN.toLowerCase() && quote.approvalAddress) {
+        const allowance = await adapter.getAllowance(quote.fromToken.address, account.address, quote.approvalAddress);
+        if (allowance < quote.fromAmount) {
+          onStatus?.('approving');
+          const approveData = adapter.buildApproveData(quote.approvalAddress, quote.fromAmount);
+          const approveHash = await adapter.sendContractTx(
+            { to: quote.fromToken.address, data: approveData, chainId: Number(quote.tx.chainId) },
+            account.address,
+            signerKey,
+          );
+          onStatus?.('approvalWait');
+          await adapter.waitForTx(approveHash);
+        }
+      }
+
+      onStatus?.('swapping');
+      const tx = { ...quote.tx, chainId: Number(quote.tx.chainId) };
+      const hash = await adapter.sendContractTx(tx, account.address, signerKey);
+      onStatus?.('confirming');
+      try {
+        await adapter.waitForTx(hash);
+      } catch {
+        /* diffusé ; on renvoie le hash */
+      }
+      return hash;
+    } else if (quote.tx.type === 'solana' && adapter.config.family === 'solana') {
+      onStatus?.('swapping');
+      const signedTxStr = await get().signSolanaTransaction(unlock, quote.tx.data);
+      const hash = await (adapter as any).rpc('sendTransaction', [signedTxStr, { encoding: 'base64' }]);
+      if (!hash) throw new Error('Diffusion refusée par le réseau Solana');
+      onStatus?.('confirming');
+      return hash as string;
+    } else {
+      throw new Error(`Swap impossible: type de transaction (${(quote.tx as any).type}) incompatible avec le réseau actif`);
+    }
+  },
+
+
+  signSolanaTransaction: async (unlock, txStr) => {
+    const { account, activeWalletId, wallets } = get();
+    if (!account) throw new Error('Aucun compte');
+    const secret = await revealMnemonic(activeWalletId, unlock);
+    const signer = deriveSolanaSigner(mnemonicToSeedSync(secret), account.index);
+
+    if (txStr.startsWith('{') || txStr.startsWith('[')) {
+      throw new Error("L'intégration Relay (Solana -> EVM) nécessite une compilation des Address Lookup Tables non supportée par le client léger. L'échange doit être compilé côté serveur.");
+    }
+
+    const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(txStr) && txStr.length % 4 === 0;
+    const bytes = isBase64 ? base64.decode(txStr) : base58.decode(txStr);
+
+    let numSigs = 0;
+    let size = 0;
+    let offset = 0;
+    for (;;) {
+      const elem = bytes[offset + size];
+      numSigs |= (elem & 0x7f) << (size * 7);
+      size += 1;
+      if ((elem & 0x80) === 0) break;
+    }
+    offset += size;
+
+    const msgOffset = offset + numSigs * 64;
+    const message = bytes.slice(msgOffset);
+
+    const sig = ed25519.sign(message, signer.secretKey);
+
+    const numRequiredSignatures = message[0];
+    let acctSize = 0;
+    let numAccounts = 0;
+    for (;;) {
+      const elem = message[3 + acctSize];
+      numAccounts |= (elem & 0x7f) << (acctSize * 7);
+      acctSize += 1;
+      if ((elem & 0x80) === 0) break;
+    }
+    const acctOffset = 3 + acctSize;
+    let signerIndex = -1;
+    for (let i = 0; i < numRequiredSignatures; i++) {
+      const start = acctOffset + i * 32;
+      const acctPubkey = message.slice(start, start + 32);
+      let match = true;
+      for (let j = 0; j < 32; j++) {
+        if (acctPubkey[j] !== signer.publicKey[j]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) {
+        signerIndex = i;
+        break;
       }
     }
 
-    onStatus?.('swapping');
-    const hash = await adapter.sendContractTx(quote.tx, account.address, signerKey);
-    onStatus?.('confirming');
-    try {
-      await adapter.waitForTx(hash);
-    } catch {
-      /* diffusé ; on renvoie le hash */
+    if (signerIndex === -1) throw new Error("Our public key is not a signer in this transaction");
+
+    const sigOffset = offset + signerIndex * 64;
+    bytes.set(sig, sigOffset);
+
+    return isBase64 ? base64.encode(bytes) : base58.encode(bytes);
+  },
+
+  signSolanaTransactions: async (unlock, txStrArray) => {
+    const res: string[] = [];
+    for (const tx of txStrArray) {
+      res.push(await get().signSolanaTransaction(unlock, tx));
     }
-    return hash;
+    return res;
+  },
+
+  signSolanaMessage: async (unlock, message) => {
+    const { account, activeWalletId } = get();
+    if (!account) throw new Error('Aucun compte');
+    const secret = await revealMnemonic(activeWalletId, unlock);
+    const signer = deriveSolanaSigner(mnemonicToSeedSync(secret), account.index);
+    let msgBytes: Uint8Array;
+    try {
+      msgBytes = base58.decode(message);
+    } catch {
+      try {
+        msgBytes = base64.decode(message);
+      } catch {
+        msgBytes = utf8ToBytes(message);
+      }
+    }
+    const signature = ed25519.sign(msgBytes, signer.secretKey);
+    return { signature: base58.encode(signature) };
+  },
+
+  signBitcoinMessage: async (unlock, message) => {
+    const { account, activeWalletId } = get();
+    if (!account) throw new Error('Aucun compte');
+    const secret = await revealMnemonic(activeWalletId, unlock);
+    const signer = deriveBtcSigner(mnemonicToSeedSync(secret), account.index);
+
+    const MAGIC = utf8ToBytes('\x18Bitcoin Signed Message:\n');
+    let msgBytes: Uint8Array;
+    if (/^[0-9a-fA-F]+$/.test(message) && message.length % 2 === 0) {
+      msgBytes = hex.decode(message);
+    } else {
+      try {
+        msgBytes = base64.decode(message);
+      } catch {
+        msgBytes = utf8ToBytes(message);
+      }
+    }
+
+    let msgLenBytes: Uint8Array;
+    if (msgBytes.length < 253) {
+      msgLenBytes = new Uint8Array([msgBytes.length]);
+    } else if (msgBytes.length <= 0xffff) {
+      msgLenBytes = new Uint8Array(3);
+      msgLenBytes[0] = 253;
+      new DataView(msgLenBytes.buffer).setUint16(1, msgBytes.length, true);
+    } else if (msgBytes.length <= 0xffffffff) {
+      msgLenBytes = new Uint8Array(5);
+      msgLenBytes[0] = 254;
+      new DataView(msgLenBytes.buffer).setUint32(1, msgBytes.length, true);
+    } else {
+      throw new Error('Message too long');
+    }
+
+    const payload = concatBytes(MAGIC, msgLenBytes, msgBytes);
+    const hash = sha256(sha256(payload));
+
+    const sig = secp256k1.sign(hash, signer.privateKey);
+    const header = 39 + sig.recovery;
+    const sigBytes = new Uint8Array(65);
+    sigBytes[0] = header;
+    sigBytes.set(sig.toCompactRawBytes(), 1);
+
+    return base64.encode(sigBytes);
+  },
+
+  signBitcoinPsbt: async (unlock, psbtBase64, options) => {
+    const { account, activeWalletId } = get();
+    if (!account) throw new Error('Aucun compte');
+    const secret = await revealMnemonic(activeWalletId, unlock);
+    const signer = deriveBtcSigner(mnemonicToSeedSync(secret), account.index);
+
+    const btc = await import('@scure/btc-signer');
+    let psbtBytes: Uint8Array;
+    if (psbtBase64.toLowerCase().startsWith('70736274')) {
+      psbtBytes = hex.decode(psbtBase64);
+    } else {
+      psbtBytes = base64.decode(psbtBase64);
+    }
+    const tx = btc.Transaction.fromPSBT(psbtBytes);
+
+    if (options?.signInputs && options.signInputs.length > 0) {
+      for (const idx of options.signInputs) {
+        tx.signIdx(signer.privateKey, idx);
+      }
+    } else {
+      tx.sign(signer.privateKey);
+    }
+
+    if (options?.finalize) {
+      tx.finalize();
+    }
+
+    const finalBytes = tx.toPSBT();
+    const isHex = psbtBase64.toLowerCase().startsWith('70736274');
+    return isHex ? hex.encode(finalBytes) : base64.encode(finalBytes);
   },
 
   signMessage: async (unlock, message) => {
