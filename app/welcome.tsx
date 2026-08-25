@@ -45,7 +45,7 @@ export default function Welcome() {
       {/* Écran plein écran : pas de barre d'en-tête vide (comme home/menu/…). */}
       <Stack.Screen options={{ headerShown: false }} />
       <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
-      <AuroraBackground />
+      <AuroraBackground intensity={0.4} />
       <View style={{ flex: 1, paddingTop: insets.top + spacing(2.5), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3) }}>
         {/* Marque */}
         <View style={{ alignItems: 'center', gap: spacing(1.5) }}>

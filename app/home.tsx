@@ -3,6 +3,7 @@ import { View, Text, Pressable, Alert, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import { haptic } from '../lib/haptics';
 import {
   PremiumScreen,
   GlassCard,
@@ -120,6 +121,7 @@ export default function Home() {
   // Balayer vers le bas pour rafraîchir : soldes/prix + marché.
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
+    haptic.light();
     setRefreshing(true);
     try {
       await Promise.all([
@@ -386,7 +388,7 @@ export default function Home() {
           ) : recent.length === 0 ? (
             <View style={{ alignItems: 'center', paddingVertical: spacing(2), gap: spacing(0.75) }}>
               <Icon name="history" size={26} color={colors.textMuted} />
-              <Text style={typography.muted}>Aucune activité récente sur {chain.name}.</Text>
+              <Text style={typography.muted}>{t('noRecentActivity').replace('{chain}', chain.name)}</Text>
             </View>
           ) : (
             recent.map((tx, i) => (
