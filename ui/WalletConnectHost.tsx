@@ -20,6 +20,7 @@ import { TxPreview } from './TxPreview';
 import { useWalletConnect } from '../lib/walletconnect';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
+import { sound } from '../lib/sound';
 import {
   hexToText,
   parseSiwe,
@@ -278,6 +279,7 @@ export function WalletConnectHost() {
     const title = kind === 'siwe' ? t('connectionRequest') : isTx ? t('txRequested') : t('signatureRequested');
     const perform = async (unlock: Unlock) => {
       await approveRequest(unlock);
+      sound.success();
       setShowRaw(false);
     };
     const reject = () => {

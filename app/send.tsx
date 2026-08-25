@@ -9,6 +9,7 @@ import { Icon } from '../ui/icon';
 import { notifyAndLog } from '../lib/notificationCenter';
 import { watchConfirmation } from '../lib/txWatch';
 import { fonts, spacing, useTheme } from '../ui/theme';
+import { NovaRing } from '../ui/NovaRing';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { useRecentRecipients, type RecipientFamily } from '../lib/recentRecipientsStore';
@@ -176,7 +177,7 @@ export default function Send() {
     const summary = `${amount} ${symbol} envoyés à ${dest}`;
     setSuccess({ hash, summary });
     addRecent(recipient, chain.family as RecipientFamily); // mémorise le destinataire
-    notifyAndLog('tx', 'Transaction envoyée', summary);
+    notifyAndLog('tx', t('transferSent'), summary);
     void watchConfirmation(activeChain, hash, summary); // notif à la confirmation
   };
 
@@ -269,31 +270,37 @@ export default function Send() {
           placeholder="0.0"
           placeholderTextColor={colors.textMuted}
           keyboardType="decimal-pad"
-          style={{ color: overBalance ? colors.danger : colors.text, fontSize: 22, paddingVertical: spacing(1) }}
+          style={[typography.display, { color: overBalance ? colors.danger : colors.text, paddingVertical: spacing(1) }]}
         />
       </Card>
 
       {/* Frais de réseau (EVM) : Lent / Normal / Rapide + coût estimé */}
-      {feeOptions ? (
+      {chain.family === 'evm' ? (
         <Card>
           <Text style={typography.muted}>{t('networkFee')}</Text>
-          <View style={{ flexDirection: 'row', gap: spacing(1), marginTop: spacing(1) }}>
-            {(['slow', 'normal', 'fast'] as FeeSpeed[]).map((s) => {
-              const on = speed === s;
-              const label = s === 'slow' ? t('feeSlow') : s === 'normal' ? t('feeNormal') : t('feeFast');
-              const cost = formatBalance(feeOptions[s].costWei, chain.nativeDecimals, 6);
-              return (
-                <Pressable
-                  key={s}
-                  onPress={() => setSpeed(s)}
-                  style={{ flex: 1, paddingVertical: spacing(1), borderRadius: 12, alignItems: 'center', gap: 2, backgroundColor: on ? colors.accent : colors.bgElevated, borderWidth: 1, borderColor: on ? colors.accent : colors.cardBorder }}
-                >
-                  <Text style={{ color: on ? '#fff' : colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{label}</Text>
-                  <Text style={{ color: on ? '#fff' : colors.textMuted, fontSize: 11 }}>≈ {cost} {chain.nativeSymbol}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {feeOptions ? (
+            <View style={{ flexDirection: 'row', gap: spacing(1), marginTop: spacing(1) }}>
+              {(['slow', 'normal', 'fast'] as FeeSpeed[]).map((s) => {
+                const on = speed === s;
+                const label = s === 'slow' ? t('feeSlow') : s === 'normal' ? t('feeNormal') : t('feeFast');
+                const cost = formatBalance(feeOptions[s].costWei, chain.nativeDecimals, 6);
+                return (
+                  <Pressable
+                    key={s}
+                    onPress={() => setSpeed(s)}
+                    style={{ flex: 1, paddingVertical: spacing(1), borderRadius: 12, alignItems: 'center', gap: 2, backgroundColor: on ? colors.accent : colors.bgElevated, borderWidth: 1, borderColor: on ? colors.accent : colors.cardBorder }}
+                  >
+                    <Text style={{ color: on ? '#fff' : colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{label}</Text>
+                    <Text style={{ color: on ? '#fff' : colors.textMuted, fontSize: 11 }}>≈ {cost} {chain.nativeSymbol}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={{ alignItems: 'center', paddingVertical: spacing(2) }}>
+              <NovaRing size={24} spinning color={colors.accent} />
+            </View>
+          )}
         </Card>
       ) : null}
 
@@ -313,7 +320,7 @@ export default function Send() {
 
       <SuccessModal
         visible={success != null}
-        title={t('txSent')}
+        title={t('transferSent')}
         message={success?.summary}
         hash={success?.hash}
         explorerUrl={chain.explorerUrl}

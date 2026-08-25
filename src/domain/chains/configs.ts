@@ -31,11 +31,18 @@ function withAlchemy(slug: string, fallbacks: string[]): string[] {
   return ALCHEMY_KEY ? [`https://${slug}.g.alchemy.com/v2/${ALCHEMY_KEY}`, ...fallbacks] : fallbacks;
 }
 
+const HELIUS_KEY: string = process.env.EXPO_PUBLIC_HELIUS_KEY ?? '';
+function withHelius(fallbacks: string[]): string[] {
+  return HELIUS_KEY ? [`https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`, ...fallbacks] : fallbacks;
+}
+
 export const ETHEREUM: ChainConfig = {
   id: 'ethereum',
   name: 'Ethereum',
   family: 'evm',
   evmChainId: 1,
+  lifiKey: "1",
+  relayId: "1",
   nativeSymbol: 'ETH',
   nativeDecimals: 18,
   // eth.llamarpc.com retiré (down 521). Endpoints vérifiés répondant à eth_chainId=0x1.
@@ -46,6 +53,7 @@ export const ETHEREUM: ChainConfig = {
     'https://cloudflare-eth.com',
   ]),
   explorerUrl: 'https://etherscan.io',
+  explorerApi: 'https://eth.blockscout.com/api',
   coingeckoId: 'ethereum',
   coingeckoPlatform: 'ethereum',
 };
@@ -55,6 +63,8 @@ export const BNB: ChainConfig = {
   name: 'BNB Chain',
   family: 'evm',
   evmChainId: 56,
+  lifiKey: "56",
+  relayId: "56",
   nativeSymbol: 'BNB',
   nativeDecimals: 18,
   rpcUrls: withAlchemy('bnb-mainnet', [
@@ -73,6 +83,8 @@ export const POLYGON: ChainConfig = {
   name: 'Polygon',
   family: 'evm',
   evmChainId: 137,
+  lifiKey: "137",
+  relayId: "137",
   nativeSymbol: 'POL',
   nativeDecimals: 18,
   // polygon-rpc.com retiré (clé désactivée). Endpoints vérifiés (chainId 0x89).
@@ -82,6 +94,7 @@ export const POLYGON: ChainConfig = {
     'https://1rpc.io/matic',
   ]),
   explorerUrl: 'https://polygonscan.com',
+  explorerApi: 'https://polygon.blockscout.com/api',
   coingeckoId: 'matic-network',
   coingeckoPlatform: 'polygon-pos',
 };
@@ -120,6 +133,7 @@ export const ARBITRUM: ChainConfig = {
     'https://arb1.arbitrum.io/rpc',
   ]),
   explorerUrl: 'https://arbiscan.io',
+  explorerApi: 'https://arbitrum.blockscout.com/api',
   coingeckoId: 'ethereum', // le natif est de l'ETH
   coingeckoPlatform: 'arbitrum-one',
 };
@@ -158,6 +172,7 @@ export const AVALANCHE: ChainConfig = {
     'https://api.avax.network/ext/bc/C/rpc',
   ]),
   explorerUrl: 'https://snowtrace.io',
+  explorerApi: 'https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api',
   coingeckoId: 'avalanche-2',
   coingeckoPlatform: 'avalanche',
 };
@@ -515,10 +530,12 @@ export const SOLANA: ChainConfig = {
   id: 'solana',
   name: 'Solana',
   family: 'solana',
+  lifiKey: "SOL",
+  relayId: "792703809",
   nativeSymbol: 'SOL',
   nativeDecimals: 9, // 1 SOL = 1e9 lamports
   // JSON-RPC mainnet-beta : endpoint public officiel (limité), repli Ankr public.
-  rpcUrls: ['https://api.mainnet-beta.solana.com', 'https://rpc.ankr.com/solana'],
+  rpcUrls: withHelius(['https://api.mainnet-beta.solana.com', 'https://rpc.ankr.com/solana']),
   explorerUrl: 'https://solscan.io',
   coingeckoId: 'solana',
   coingeckoPlatform: 'solana', // prix des tokens SPL par mint
