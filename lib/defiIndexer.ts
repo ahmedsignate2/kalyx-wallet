@@ -1,4 +1,4 @@
-import { Tok } from "../src/domain/chains/EvmChainAdapter";
+
 
 export interface DeFiPosition {
   id: string;
@@ -10,7 +10,7 @@ export interface DeFiPosition {
   url: string;
 }
 
-export async function fetchDeFiPortfolio(address: string, chainId: string | number, tokens: Tok[]): Promise<DeFiPosition[]> {
+export async function fetchDeFiPortfolio(address: string, chainId: string | number, tokens: any[]): Promise<DeFiPosition[]> {
   // Simulate API call to Debank / Zerion
   await new Promise(r => setTimeout(r, 600));
   
