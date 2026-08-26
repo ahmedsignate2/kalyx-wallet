@@ -258,7 +258,7 @@ export default function EarnScreen() {
               <View style={{ height: 1, backgroundColor: colors.cardBorder, marginVertical: spacing(2) }} />
               
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                <Button label="Unstake / Retirer" variant="outline" onPress={() => toast.success('Ouverture de la dApp BENQI...')} />
+                <Button label="Unstake / Retirer" variant="ghost" onPress={() => toast.success('Ouverture de la dApp BENQI...')} />
               </View>
             </Card>
           ))}
