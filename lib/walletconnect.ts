@@ -205,13 +205,31 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       const name = proposal?.params?.proposer?.metadata?.name;
       notifyIncoming('Nova · Connexion demandée', name ? `${name} veut se connecter à votre portefeuille` : 'Un site veut se connecter à votre portefeuille');
     });
-    w.on('session_request', (request: any) => {
+    w.on('session_request', async (request: any) => {
       console.log('\n[WC-IN] === SESSION_REQUEST RECEIVED ===');
       console.log('[WC-IN] ID:', request?.id);
       console.log('[WC-IN] Topic:', request?.topic);
       console.log('[WC-IN] Method:', request?.params?.request?.method);
       console.log('[WC-IN] Params:', JSON.stringify(request?.params?.request?.params, null, 2));
       console.log('[WC-IN] ==================================\n');
+
+      const sessions = w.getActiveSessions();
+      if (!request?.topic || !sessions || !sessions[request.topic]) {
+        console.error('[WC-IN] Topic introuvable ou expiré:', request?.topic);
+        try {
+          await w.respondSessionRequest({
+            topic: request.topic,
+            response: {
+              id: request.id,
+              jsonrpc: '2.0',
+              error: { code: 5100, message: 'Invalid session / Session expirée' }
+            }
+          });
+        } catch (e) {
+          console.error('[WC-IN] Impossible de renvoyer l\'erreur (session morte):', e);
+        }
+        return; // Bloque la demande pour ne pas déranger l'utilisateur
+      }
       const q = [...get().requestQueue, request];
       set({ requestQueue: q, request: q[0] });
       const method: string = request?.params?.request?.method ?? '';
