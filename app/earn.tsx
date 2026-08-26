@@ -15,6 +15,7 @@ import { SuccessModal } from '../ui/SuccessModal';
 import { ethers } from 'ethers';
 import { fetchYieldOpportunities, YieldOpportunity } from '../lib/yieldService';
 import { getLifiQuote, NATIVE_TOKEN } from '../src';
+import { yieldEngine } from '../lib/yield';
 
 
 const NOVA_TREASURY_EVM = '0x0000000000000000000000000000000000000000';
@@ -38,7 +39,7 @@ const LIDO_STETH = '0xae7ab96520de3a18e5e111b5eaab095312d7fe84';
 export default function EarnScreen() {
   const { colors, typography } = useTheme();
   const walletStore = useWallet();
-  const { activeAccountIndex, accounts, activeChain, sendRawTxOn, stakeSolana } = walletStore;
+  const { activeAccountIndex, accounts, activeChain, sendRawTxOn } = walletStore;
   const account = accounts.find((a) => a.index === activeAccountIndex) || accounts[0];
   
   const [balances, setBalances] = useState<Record<string, bigint>>({});
@@ -247,59 +248,30 @@ export default function EarnScreen() {
 
   useEffect(() => {
     const loadDynamicPositions = async () => {
-      if (!account || opportunities.length === 0) return;
+      if (!account) return;
       try {
+        const positions = await yieldEngine.detectAllPositions(
+          account.evmAddress,
+          account.solAddress || undefined,
+        );
         const newStaked: Record<string, bigint> = {};
         const posList: any[] = [];
-        
-        // Optimize fetching SPL tokens once if needed
-        let splTokens: any[] = [];
-        let solanaFetched = false;
-
-        for (const opp of opportunities) {
-          let bal = 0n;
-          let decimals = (opp.underlyingAsset === 'SOL' ? 9 : (opp.underlyingAsset === 'USDC' || opp.underlyingAsset === 'USDC_SOL' ? 6 : 18));
-          let symbol = opp.project + opp.underlyingAsset;
-          
-          if (opp.yieldTokenAddress && opp.yieldTokenAddress.length > 42) {
-            // Solana SPL Token
-            if (!solanaFetched && account.solAddress) {
-               const solAdapter = getAdapter('solana') as any;
-               splTokens = await solAdapter.getSplTokens(account.solAddress).catch(() => []);
-               solanaFetched = true;
-            }
-            const t = splTokens.find((t: any) => t.mint === opp.yieldTokenAddress);
-            if (t) {
-              bal = t.raw;
-              decimals = t.decimals || 9;
-              symbol = t.symbol || opp.project;
-            }
-          } else if (opp.yieldTokenAddress) {
-            // EVM ERC20 Token
-            const isEvm = opp.underlyingAsset !== 'SOL' && opp.underlyingAsset !== 'USDC_SOL';
-            const chainId = resolveChainName(opp.chainId);
-            const adapter = getAdapter(chainId) as any;
-            bal = await adapter.getTokenBalance(opp.yieldTokenAddress, account.evmAddress).catch(()=>0n);
-          }
-          
-          if (bal > 0n) {
-             newStaked[opp.id] = bal;
-             posList.push({
-                id: opp.id,
-                name: opp.project + ' Staking',
-                symbol: symbol,
-                protocol: opp.project,
-                balance: bal,
-                decimals: decimals,
-                underlyingAsset: opp.underlyingAsset
-             });
-          }
+        for (const pos of positions) {
+          newStaked[pos.id] = pos.balance;
+          posList.push({
+            id: pos.id,
+            name: pos.protocol + ' Staking',
+            symbol: pos.symbol,
+            protocol: pos.protocol,
+            balance: pos.balance,
+            decimals: pos.decimals,
+            underlyingAsset: pos.underlyingAsset,
+          });
         }
-        
         setStaked(newStaked);
         setUserStakedPositions(posList);
       } catch (e) {
-        console.warn('[DEBUG EARN] Failed to load dynamic positions', e);
+        console.warn('[YieldEngine] Failed to detect positions', e);
       }
     };
     loadDynamicPositions();
@@ -310,72 +282,40 @@ export default function EarnScreen() {
     setLoadingQuote(true);
     
     try {
-      const isEvm = targetProtocol.underlyingAsset !== 'SOL' && targetProtocol.underlyingAsset !== 'USDC_SOL';
-      const chainId = resolveChainName(targetProtocol.chainId);
-      const adapter = getAdapter(chainId) as EvmChainAdapter;
-      
+      // Lending protocols are not yet supported (need direct ABI calls)
+      if (targetProtocol.type === 'Lending') {
+        toast.error('Non supporté', 'Le lending natif (Aave, Kamino) est en cours d\'intégration.');
+        setLoadingQuote(false);
+        return;
+      }
+
       const decimals = (targetProtocol.underlyingAsset === 'USDC' || targetProtocol.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol.underlyingAsset === 'SOL' ? 9 : 18;
       const rawAmount = parseAmount(amountStr, decimals).raw;
-      
-      let underlyingAddress = NATIVE_TOKEN;
-       if (targetProtocol.chainId === 'solana') underlyingAddress = '11111111111111111111111111111111';
-       else if (targetProtocol.underlyingAsset === 'USDC' && targetProtocol.chainId === 1) underlyingAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-      
-      
-      if (targetProtocol.type === 'Lending') {
-          // lending execution path (Aave, Kamino) - not via DEX SWAP
-          toast.error('Non supporté', 'Le lending natif (Aave, Kamino) est en cours d\'intégration (ABI requise) et ne peut pas être swappé sur un DEX.');
-          setLoadingQuote(false);
-          return;
-      }
-      
-      const quote = await getLifiQuote({
-        fromChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config.evmChainId || adapter.config.id,
-        toChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config.evmChainId || adapter.config.id,
-        fromToken: isUnstaking ? targetProtocol.yieldTokenAddress : underlyingAddress,
-        toToken: isUnstaking ? underlyingAddress : targetProtocol.yieldTokenAddress,
-        fromAmount: rawAmount,
-        fromAddress: isEvm ? account.evmAddress : account.solAddress!,
-        isEarn: !isUnstaking,
-      });
-      
-      if (!quote) throw new Error('Aucune route de yield trouvée');
+      const isSolana = targetProtocol.chainId === 'solana';
+      const fromAddress = isSolana ? account.solAddress! : account.evmAddress;
 
-      let hash = '';
-      if (isEvm && (quote.tx as any).type === 'evm') {
-        hash = await sendRawTxOn(unlock, chainId, quote.tx as any);
-        try { await (adapter as EvmChainAdapter).waitForTx(hash); } catch(e) {}
-      } else if (!isEvm && (quote.tx as any).type === 'solana') {
-        const signedTxStr = await walletStore.signSolanaTransaction(unlock, (quote.tx as any).data, true);
-        const solAdapter = getAdapter('solana') as SolanaChainAdapter;
-        // --- SIMULATION LOGS FOR DEBUGGING ---
-        const sim = await (solAdapter as any).rpc('simulateTransaction', [signedTxStr, { encoding: 'base64' }]);
-        if (sim?.value?.err && !isUnstaking) {
-            const logsStr = JSON.stringify(sim.value.logs || []);
-            const match = logsStr.match(/insufficient lamports (\d+), need (\d+)/);
-            if (match) {
-                const has = Number(match[1]);
-                const need = Number(match[2]);
-                const missing = (need - has) / 1e9;
-                throw new Error(`Solde insuffisant. Il manque ${missing.toFixed(9).replace(/0+$/, '')} SOL pour créer le compte WSOL.`);
-            }
-            if (JSON.stringify(sim.value.err).includes("InsufficientFundsForRent")) {
-                throw new Error(`Solde insuffisant pour payer l'exemption de loyer (Rent Exemption) Solana. Gardez au moins 0.0025 SOL de marge.`);
-            }
-            console.error('[Solana Sim Error]', sim.value.err);
-            console.error('[Solana Sim Logs]', logsStr);
-            throw new Error(`Erreur d'exécution du Smart Contract. Vérifiez la console.`);
-        }
-        // -------------------------------------
-        hash = await (solAdapter as any).rpc('sendTransaction', [signedTxStr, { encoding: 'base64' }]);
-        if (!hash) throw new Error('Transaction refusée');
-        await new Promise(r => setTimeout(r, 2000)); // wait for solana propagation
+      // Delegate entirely to the YieldEngine
+      const result = isUnstaking
+        ? await yieldEngine.unstake(targetProtocol.id, rawAmount, fromAddress, unlock, walletStore)
+        : await yieldEngine.stake(targetProtocol.id, rawAmount, fromAddress, unlock, walletStore);
+
+      // ONLY show success if the engine confirmed on-chain
+      if (result.success) {
+        setSuccessHash(result.hash);
+        const chainName = isSolana ? 'solana' : resolveChainName(targetProtocol.chainId);
+        try {
+          const adapter = getAdapter(chainName);
+          setExplorerUrl((adapter as any)?.config?.explorerUrl);
+        } catch { setExplorerUrl(undefined); }
+        setUnlockVisible(false);
+        setTimeout(() => setSuccessVisible(true), 400);
+        // Refresh balances and positions
+        setRefreshKey(k => k + 1);
+      } else {
+        // Transaction failed on-chain — show the real error, NEVER a fake success
+        toast.error('Transaction échouée', result.error || 'La transaction a été rejetée on-chain.');
+        setUnlockVisible(false);
       }
-      
-      setSuccessHash(hash);
-      setExplorerUrl(adapter?.config?.explorerUrl);
-      setUnlockVisible(false);
-      setTimeout(() => setSuccessVisible(true), 400);
       
     } catch (e: any) {
       toast.error('Erreur', e.message || 'La transaction a échoué');
