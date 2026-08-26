@@ -34,6 +34,7 @@ export default function EarnScreen() {
 
   
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isUnstaking, setIsUnstaking] = useState(false);
   const [inputModalVisible, setInputModalVisible] = useState(false);
   const [amountStr, setAmountStr] = useState('');
   
@@ -103,7 +104,8 @@ export default function EarnScreen() {
     return Number(formatBalance(v, decimals)).toFixed(4);
   };
 
-  const handleOpenInputModal = (protocol: any) => {
+  const handleOpenInputModal = (protocol: any, unstake: boolean = false) => {
+    setIsUnstaking(unstake);
     if (activeChain !== protocol.chainId && protocol.chainId !== 'solana') {
        walletStore.setActiveChain(protocol.chainId);
     } else if (protocol.chainId === 'solana' && activeChain !== 'solana') {
@@ -115,6 +117,14 @@ export default function EarnScreen() {
   };
 
   const applyShortcut = async (pct: number) => {
+    if (isUnstaking) {
+      if (!targetProtocol) return;
+      const bal = staked[targetProtocol.id] || 0n;
+      const decimals = (targetProtocol.underlyingAsset === 'USDC' || targetProtocol.underlyingAsset === 'USDC_SOL') ? 6 : (targetProtocol.underlyingAsset === 'SOL' ? 9 : 18);
+      let amt = Number(formatBalance(bal, decimals)) * (pct / 100);
+      setAmountStr(amt > 0 ? Number(amt.toFixed(5)).toString() : '');
+      return;
+    }
     if (!targetProtocol) return;
     const isNative = ['SOL', 'ETH', 'AVAX', 'BNB'].includes(targetProtocol.underlyingAsset);
     const bal = balances[targetProtocol.underlyingAsset] || 0n;
@@ -125,7 +135,7 @@ export default function EarnScreen() {
     if (isNative && bal > 0n) {
        setAmountStr('...'); // UX: show calculating
        try {
-           const fromToken = targetProtocol.underlyingAsset === 'ETH' ? NATIVE_TOKEN : targetProtocol.underlyingAsset === 'SOL' ? '11111111111111111111111111111111' : targetProtocol.underlyingAsset === 'USDC_SOL' ? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+           const underlyingAddress = targetProtocol.underlyingAsset === 'ETH' ? NATIVE_TOKEN : targetProtocol.underlyingAsset === 'SOL' ? '11111111111111111111111111111111' : targetProtocol.underlyingAsset === 'USDC_SOL' ? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
            const isEvm = targetProtocol.underlyingAsset !== 'SOL' && targetProtocol.underlyingAsset !== 'USDC_SOL';
       const chainId = targetProtocol.underlyingAsset === 'AVAX' ? 'avalanche' : targetProtocol.underlyingAsset === 'BNB' ? 'bnb' : !isEvm ? 'solana' : (activeChain === 'sepolia' ? 'sepolia' : 'ethereum');
            const adapter = getAdapter(chainId);
@@ -163,8 +173,8 @@ export default function EarnScreen() {
     if (!targetProtocol) return;
     const isNative = targetProtocol?.underlyingAsset === 'SOL' || targetProtocol?.underlyingAsset === 'ETH' || targetProtocol?.underlyingAsset === 'AVAX' || targetProtocol?.underlyingAsset === 'BNB';
     const estGas = ['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) ? 0.002 : targetProtocol?.underlyingAsset === 'SOL' ? 0.0025 : 0.00001;
-    const totalNeeded = Number(amountStr) + (isNative ? estGas : 0);
-    const userBal = Number(formatBalance(balances[targetProtocol?.underlyingAsset] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18));
+    const totalNeeded = isUnstaking ? Number(amountStr) : Number(amountStr) + (isNative ? estGas : 0);
+    const userBal = isUnstaking ? Number(formatBalance(staked[targetProtocol?.id] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18)) : Number(formatBalance(balances[targetProtocol?.underlyingAsset] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18));
     
     if (!amountStr || isNaN(Number(amountStr)) || Number(amountStr) <= 0) {
       toast.error('Montant invalide', 'Veuillez saisir un montant valide à staker.');
@@ -177,7 +187,7 @@ export default function EarnScreen() {
     
     // Balance check
     const balRaw = balances[targetProtocol.underlyingAsset] || 0n;
-    const userBalance = Number(formatBalance(balRaw, (targetProtocol.underlyingAsset === 'USDC' ? 6 : targetProtocol.underlyingAsset === 'SOL' ? 9 : 18)));
+    const userBalance = isUnstaking ? Number(formatBalance(staked[targetProtocol?.id] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18)) : Number(formatBalance(balRaw, (targetProtocol.underlyingAsset === 'USDC' ? 6 : targetProtocol.underlyingAsset === 'SOL' ? 9 : 18)));
     const numAmount = Number(amountStr);
     
     if (numAmount > userBalance) {
@@ -275,11 +285,11 @@ export default function EarnScreen() {
       const quote = await getLifiQuote({
         fromChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config.evmChainId || adapter.config.id,
         toChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config.evmChainId || adapter.config.id,
-        fromToken,
-        toToken: targetProtocol.yieldTokenAddress,
+        fromToken: isUnstaking ? targetProtocol.yieldTokenAddress : underlyingAddress,
+        toToken: isUnstaking ? underlyingAddress : targetProtocol.yieldTokenAddress,
         fromAmount: rawAmount,
         fromAddress: isEvm ? account.evmAddress : account.solAddress!,
-        isEarn: true,
+        isEarn: !isUnstaking,
       });
       
       if (!quote) throw new Error('Aucune route de yield trouvée');
@@ -364,16 +374,8 @@ export default function EarnScreen() {
               
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
                 <Button label="Unstake / Retirer" variant="ghost" onPress={() => {
-                  const p = (pos.protocol || '').toLowerCase();
-                  let url = 'https://app.uniswap.org';
-                  if (p.includes('jito')) url = 'https://jito.network/staking';
-                  else if (p.includes('benqi')) url = 'https://staking.benqi.fi';
-                  else if (p.includes('lido')) url = 'https://stake.lido.fi';
-                  else if (p.includes('binance') || p.includes('bnb')) url = 'https://www.bnbchain.org/en/staking';
-                  else if (p.includes('rocket')) url = 'https://stake.rocketpool.net';
-                  
-                  toast.success(`Ouverture de ${pos.protocol}...`);
-                  router.push({ pathname: '/browser', params: { url } });
+                  const opp = opportunities.find(o => o.id === pos.id);
+                  if (opp) handleOpenInputModal(opp, true);
                 }} />
               </View>
             </Card>
@@ -438,7 +440,7 @@ export default function EarnScreen() {
                  value={amountStr}
                  onChangeText={(v) => setAmountStr(v.replace(',', '.'))}
                />
-               <Text style={{ fontSize: 24, color: colors.textFaint, fontFamily: fonts.medium }}>{targetProtocol?.underlyingAsset}</Text>
+               <Text style={{ fontSize: 24, color: colors.textFaint, fontFamily: fonts.medium }}>{isUnstaking ? targetProtocol?.project : targetProtocol?.underlyingAsset}</Text>
              </View>
              
              <View style={{ flexDirection: 'row', gap: spacing(1), marginBottom: spacing(3) }}>
