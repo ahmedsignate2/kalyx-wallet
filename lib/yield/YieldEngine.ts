@@ -1,63 +1,18 @@
 /**
  * YieldEngine — The single entry point for all Stake / Unstake operations.
  *
- * The UI calls:
- *   yieldEngine.stake(adapterId, amount, address, unlock)
- *   yieldEngine.unstake(adapterId, amount, address, unlock)
- *
- * The engine:
- *   1. Resolves the right YieldAdapter by ID
- *   2. Gets a quote (stake or unstake)
- *   3. If EVM + quote.approvalAddress → sends approve tx first
- *   4. Signs and submits the transaction
- *   5. WAITS for on-chain confirmation (receipt.status / meta.err)
- *   6. Returns { hash, success, error? }
- *
- * No chain-specific if/else exists outside this file and the adapters.
+ * DYNAMIC REGISTRY: The engine fetches its protocol list from
+ * fetchYieldRegistry() at runtime. Zero hardcoded protocols exist here.
+ * Adding a new protocol = updating the registry API/fallback.
+ * Zero changes in earn.tsx, zero changes in this file.
  */
 
 import { YieldAdapter, YieldQuote, YieldPosition } from './YieldAdapter';
-import { LifiYieldAdapter, LifiYieldConfig } from './LifiYieldAdapter';
+import { LifiYieldAdapter } from './LifiYieldAdapter';
 import { getAdapter, EvmChainAdapter, SolanaChainAdapter } from '../../src';
 import { NATIVE_TOKEN } from '../../src';
+import { fetchYieldRegistry } from '../yieldService';
 import type { Unlock } from '../walletStore';
-
-// ─── PROTOCOL REGISTRY ────────────────────────────────────────────
-// Each entry creates one adapter instance. Adding a new protocol =
-// adding one entry here. Zero changes in earn.tsx.
-
-const PROTOCOL_CONFIGS: LifiYieldConfig[] = [
-  {
-    id: 'jito', protocol: 'Jito', symbol: 'JitoSOL',
-    underlyingAsset: 'SOL', chainId: 'solana', lifiChainId: 1151111081099710,
-    yieldTokenAddress: 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',
-    underlyingAddress: '11111111111111111111111111111111', decimals: 9,
-  },
-  {
-    id: 'benqi-staked-avax', protocol: 'Benqi', symbol: 'sAVAX',
-    underlyingAsset: 'AVAX', chainId: 43114, lifiChainId: 43114,
-    yieldTokenAddress: '0x2b2C81e08f1Af8835a78Bb2A90AE924ACE0eA4bE',
-    underlyingAddress: NATIVE_TOKEN, decimals: 18,
-  },
-  {
-    id: 'lido', protocol: 'Lido', symbol: 'stETH',
-    underlyingAsset: 'ETH', chainId: 1, lifiChainId: 1,
-    yieldTokenAddress: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
-    underlyingAddress: NATIVE_TOKEN, decimals: 18,
-  },
-  {
-    id: 'rocket-pool', protocol: 'Rocket Pool', symbol: 'rETH',
-    underlyingAsset: 'ETH', chainId: 1, lifiChainId: 1,
-    yieldTokenAddress: '0xae78736cd615f374d3085123a210448e74fc6393',
-    underlyingAddress: NATIVE_TOKEN, decimals: 18,
-  },
-  {
-    id: 'binance-staked-eth', protocol: 'Binance Staked BNB', symbol: 'BNBx',
-    underlyingAsset: 'BNB', chainId: 56, lifiChainId: 56,
-    yieldTokenAddress: '0x1bdd3Cf7F79cfB8EdbB955f20ad99211551BA275',
-    underlyingAddress: NATIVE_TOKEN, decimals: 18,
-  },
-];
 
 // ─── ENGINE ───────────────────────────────────────────────────────
 
@@ -78,11 +33,31 @@ export interface ExecutionResult {
 
 class YieldEngine {
   private adapters: Map<string, YieldAdapter> = new Map();
+  private initialized = false;
 
-  constructor() {
-    for (const cfg of PROTOCOL_CONFIGS) {
-      this.adapters.set(cfg.id, new LifiYieldAdapter(cfg));
+  /**
+   * Dynamically load protocol adapters from the registry API.
+   * Called lazily on first use. Safe to call multiple times.
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+    try {
+      const configs = await fetchYieldRegistry();
+      this.adapters.clear();
+      for (const cfg of configs) {
+        this.adapters.set(cfg.id, new LifiYieldAdapter(cfg));
+      }
+      this.initialized = true;
+      console.log(`[YieldEngine] Loaded ${configs.length} protocol(s) from registry`);
+    } catch (e) {
+      console.error('[YieldEngine] Failed to load registry', e);
     }
+  }
+
+  /** Force a refresh from the registry (e.g., after adding a new protocol) */
+  async refresh(): Promise<void> {
+    this.initialized = false;
+    await this.initialize();
   }
 
   /** Get all registered adapter IDs */
@@ -97,6 +72,7 @@ class YieldEngine {
 
   /** Detect all staked positions for a given wallet address */
   async detectAllPositions(evmAddress: string, solAddress?: string): Promise<YieldPosition[]> {
+    await this.initialize();
     const positions: YieldPosition[] = [];
     const promises = Array.from(this.adapters.values()).map(async (adapter) => {
       const address = adapter.chainId === 'solana' ? solAddress : evmAddress;
@@ -123,6 +99,7 @@ class YieldEngine {
     unlock: Unlock,
     walletStore: any,
   ): Promise<ExecutionResult> {
+    await this.initialize();
     const adapter = this.adapters.get(adapterId);
     if (!adapter) throw new Error(`Protocole inconnu : ${adapterId}`);
 
@@ -142,6 +119,7 @@ class YieldEngine {
     unlock: Unlock,
     walletStore: any,
   ): Promise<ExecutionResult> {
+    await this.initialize();
     const adapter = this.adapters.get(adapterId);
     if (!adapter) throw new Error(`Protocole inconnu : ${adapterId}`);
 
@@ -159,11 +137,11 @@ class YieldEngine {
     walletStore: any,
   ): Promise<ExecutionResult> {
     const isSolana = quote.chainId === 'solana';
-    const chainName = resolveAdapterName(quote.chainId);
 
     if (isSolana) {
       return this.executeSolana(quote, unlock, walletStore);
     } else {
+      const chainName = resolveAdapterName(quote.chainId);
       return this.executeEvm(quote, chainName, unlock, walletStore);
     }
   }
@@ -178,7 +156,7 @@ class YieldEngine {
   ): Promise<ExecutionResult> {
     const adapter = getAdapter(chainName) as EvmChainAdapter;
 
-    // STEP 1: Approve if needed (this is what was missing for Benqi unstake)
+    // STEP 1: Approve if needed (fixes Benqi TRANSFER_AMOUNT_EXCEEDS_ALLOWANCE)
     if (quote.approvalAddress && quote.fromToken !== NATIVE_TOKEN) {
       console.log(`[YieldEngine] Approving ${quote.fromToken} for ${quote.approvalAddress}`);
       const approveData = adapter.buildApproveData(quote.approvalAddress, quote.fromAmount);
@@ -190,7 +168,6 @@ class YieldEngine {
         chainId: (adapter as any).config.evmChainId || adapter.config.id,
       };
       const approveHash = await walletStore.sendRawTxOn(unlock, chainName, approveTx);
-      // Wait for approve to confirm before proceeding
       try { await adapter.waitForTx(approveHash); } catch (e) {
         return { hash: approveHash, success: false, error: "L'approbation a échoué. Réessayez." };
       }
@@ -205,7 +182,6 @@ class YieldEngine {
       await adapter.waitForTx(txHash);
       return { hash: txHash, success: true };
     } catch (e: any) {
-      // waitForTx threw — transaction reverted or timed out
       return { hash: txHash, success: false, error: e.message || 'Transaction échouée on-chain' };
     }
   }
@@ -233,7 +209,6 @@ class YieldEngine {
       const logsStr = JSON.stringify(sim.value.logs || []);
       const errStr = JSON.stringify(sim.value.err);
 
-      // Parse specific Solana errors into human-readable messages
       const lamportMatch = logsStr.match(/insufficient lamports (\d+), need (\d+)/);
       if (lamportMatch) {
         const missing = (Number(lamportMatch[2]) - Number(lamportMatch[1])) / 1e9;
@@ -266,8 +241,7 @@ class YieldEngine {
       return { hash: '', success: false, error: 'Transaction refusée par le RPC' };
     }
 
-    // STEP 4: Wait and verify on-chain
-    // Poll for confirmation (Solana doesn't have waitForTx like EVM)
+    // STEP 4: Wait and verify on-chain (poll for confirmation)
     let confirmed = false;
     for (let i = 0; i < 15; i++) {
       await new Promise(r => setTimeout(r, 2000));
