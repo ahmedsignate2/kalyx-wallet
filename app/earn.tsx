@@ -106,6 +106,7 @@ export default function EarnScreen() {
 
   const handleOpenInputModal = (protocol: any, unstake: boolean = false) => {
     setIsUnstaking(unstake);
+    setAmountStr('');
     if (activeChain !== protocol.chainId && protocol.chainId !== 'solana') {
        walletStore.setActiveChain(protocol.chainId);
     } else if (protocol.chainId === 'solana' && activeChain !== 'solana') {
@@ -424,7 +425,7 @@ export default function EarnScreen() {
          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
            <View style={{ backgroundColor: colors.bgElevated, padding: spacing(3), borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl }}>
              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(2) }}>
-               <Text style={typography.title}>{targetProtocol?.type === 'Lending' ? 'Déposer sur' : 'Staker sur'} {targetProtocol?.project}</Text>
+               <Text style={typography.title}>{isUnstaking ? 'Retirer de' : (targetProtocol?.type === 'Lending' ? 'Déposer sur' : 'Staker sur')} {targetProtocol?.project}</Text>
                <Pressable onPress={() => setInputModalVisible(false)}>
                  <Icon name="close" size={24} color={colors.textFaint} />
                </Pressable>
