@@ -69,45 +69,7 @@ export default function EarnScreen() {
       newBalances['BNB'] = bBal;
       newBalances['ETH_BASE'] = baBal;
       
-      // -- Fetch Liquid Staking Tokens --
-      try {
-        const avalancheChainCfg = getAdapter('avalanche').config;
-        const userTokens = await getErc20Tokens(avalancheChainCfg, account.evmAddress);
-        
-        const LIQUID_STAKING_TOKENS: Record<string, { name: string; symbol: string; protocol: string; underlyingAsset: string }> = {
-          '0x2b2c81e08f1af8835a78bb2a9caba09866032896': {
-            name: 'Avalanche Staking',
-            symbol: 'sAVAX',
-            protocol: 'BENQI Liquid Staking',
-            underlyingAsset: 'AVAX'
-          },
-          '0x2b2c81e08f1af8835a78bb2a90ae924ace0ea4be': {
-            name: 'Avalanche Staking',
-            symbol: 'sAVAX',
-            protocol: 'BENQI Liquid Staking',
-            underlyingAsset: 'AVAX'
-          }
-        };
-
-        const positions = userTokens
-          .filter(token => LIQUID_STAKING_TOKENS[token.contract.toLowerCase()] || token.symbol.toLowerCase() === 'savax')
-          .map(token => {
-            const info = LIQUID_STAKING_TOKENS[token.contract.toLowerCase()] || { name: 'Liquid Staking', protocol: 'DeFi', underlyingAsset: 'Unknown' };
-            return {
-              id: token.contract,
-              name: info.name,
-              symbol: token.symbol,
-              protocol: info.protocol,
-              balance: token.raw,
-              decimals: token.decimals,
-              underlyingAsset: info.underlyingAsset
-            };
-          });
-
-        setUserStakedPositions(positions);
-      } catch (e) {
-        console.warn('[DEBUG EARN] Failed to fetch staked tokens', e);
-      }
+      // -- The dynamic positions are now loaded in a separate effect dependent on opportunities --
 
       
       try {
@@ -234,6 +196,66 @@ export default function EarnScreen() {
   useEffect(() => {
     fetchYieldOpportunities().then(setOpportunities);
   }, []);
+
+  useEffect(() => {
+    const loadDynamicPositions = async () => {
+      if (!account || opportunities.length === 0) return;
+      try {
+        const newStaked: Record<string, bigint> = {};
+        const posList: any[] = [];
+        
+        // Optimize fetching SPL tokens once if needed
+        let splTokens: any[] = [];
+        let solanaFetched = false;
+
+        for (const opp of opportunities) {
+          let bal = 0n;
+          let decimals = (opp.underlyingAsset === 'SOL' ? 9 : (opp.underlyingAsset === 'USDC' || opp.underlyingAsset === 'USDC_SOL' ? 6 : 18));
+          let symbol = opp.project + opp.underlyingAsset;
+          
+          if (opp.yieldTokenAddress && opp.yieldTokenAddress.length > 42) {
+            // Solana SPL Token
+            if (!solanaFetched && account.solAddress) {
+               const solAdapter = getAdapter('solana') as any;
+               splTokens = await solAdapter.getSplTokens(account.solAddress).catch(() => []);
+               solanaFetched = true;
+            }
+            const t = splTokens.find((t: any) => t.mint === opp.yieldTokenAddress);
+            if (t) {
+              bal = t.raw;
+              decimals = t.decimals || 9;
+              symbol = t.symbol || opp.project;
+            }
+          } else if (opp.yieldTokenAddress) {
+            // EVM ERC20 Token
+            const isEvm = opp.underlyingAsset !== 'SOL' && opp.underlyingAsset !== 'USDC_SOL';
+            const chainId = opp.underlyingAsset === 'AVAX' ? 'avalanche' : opp.underlyingAsset === 'BNB' ? 'bnb' : !isEvm ? 'solana' : 'ethereum';
+            const adapter = getAdapter(chainId) as any;
+            bal = await adapter.getTokenBalance(opp.yieldTokenAddress, account.evmAddress).catch(()=>0n);
+          }
+          
+          if (bal > 0n) {
+             newStaked[opp.id] = bal;
+             posList.push({
+                id: opp.id,
+                name: opp.project + ' Staking',
+                symbol: symbol,
+                protocol: opp.project,
+                balance: bal,
+                decimals: decimals,
+                underlyingAsset: opp.underlyingAsset
+             });
+          }
+        }
+        
+        setStaked(newStaked);
+        setUserStakedPositions(posList);
+      } catch (e) {
+        console.warn('[DEBUG EARN] Failed to load dynamic positions', e);
+      }
+    };
+    loadDynamicPositions();
+  }, [account, opportunities]);
 
   const executeStake = async (unlock: Unlock) => {
     if (!targetProtocol) return;
