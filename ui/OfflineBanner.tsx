@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
-// @ts-ignore
-import * as Network from 'expo-network';
 import { useTheme, spacing, fonts } from './theme';
 import { Icon } from './icon';
 
@@ -10,9 +8,21 @@ export function OfflineBanner() {
   const { colors } = useTheme();
 
   useEffect(() => {
+    let Network;
+    try {
+      Network = require('expo-network');
+    } catch (e) {
+      // Native module not found (e.g., in Dev Client before rebuild)
+      return;
+    }
+
     const checkNetwork = async () => {
-      const state = await Network.getNetworkStateAsync();
-      setIsConnected(state.isConnected ?? true);
+      try {
+        const state = await Network.getNetworkStateAsync();
+        setIsConnected(state.isConnected ?? true);
+      } catch (e) {
+        // Fallback silently if native module fails
+      }
     };
     checkNetwork();
     const interval = setInterval(checkNetwork, 5000);
@@ -25,7 +35,7 @@ export function OfflineBanner() {
     <View style={{
       backgroundColor: colors.danger,
       padding: spacing(1),
-      paddingTop: spacing(5), // SafeArea substitute for top
+      paddingTop: spacing(5),
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',

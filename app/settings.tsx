@@ -101,7 +101,7 @@ export default function Settings() {
       {/* Profil */}
       <GlassCard>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-          <Ico n="profile" />
+          <Icon name="profile" />
           <View style={{ flex: 1 }}>
             <Text style={typography.muted}>{t('profile')}</Text>
             <TextInput
@@ -119,10 +119,10 @@ export default function Settings() {
 
       {/* Préférences */}
       <GlassCard>
-        <ListRow left={<Ico n="language" />} title={t('language')} subtitle={langName} right={chevron} onPress={() => router.push('/language')} />
+        <ListRow left={<Icon name="language" />} title={t('language')} subtitle={langName} right={chevron} onPress={() => router.push('/language')} />
         <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(0.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            <Ico n="currency" />
+            <Icon name="currency" />
             <Text style={typography.body}>{t('currency')}</Text>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
@@ -134,7 +134,7 @@ export default function Settings() {
         {/* Apparence : Système / Sombre / Clair */}
         <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            <Ico n="appearance" />
+            <Icon name="appearance" />
             <Text style={typography.body}>{t('appearance')}</Text>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
@@ -156,7 +156,7 @@ export default function Settings() {
         {bioAvailable ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-              <Ico n="security" />
+              <Icon name="security" />
               <Text style={typography.body}>{t('biometrics')}</Text>
             </View>
             <Switch value={biometricEnabled} onValueChange={onToggleBio} />
@@ -165,7 +165,7 @@ export default function Settings() {
         {/* Verrouillage automatique */}
         <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            <Ico n="security" />
+            <Icon name="security" />
             <View style={{ flex: 1 }}>
               <Text style={typography.body}>{t('autoLock')}</Text>
               <Text style={typography.muted}>{t('autoLockHint')}</Text>
@@ -186,26 +186,26 @@ export default function Settings() {
         </View>
         {/* Écran de garde */}
         <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-          <Ico n="eye" />
+          <Icon name="eye" />
           <View style={{ flex: 1 }}>
             <Text style={typography.body}>{t('privacyScreen')}</Text>
             <Text style={typography.muted}>{t('privacyScreenHint')}</Text>
           </View>
           <Switch value={privacyGuard} onValueChange={setPrivacyGuard} />
         </View>
-        <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
-        <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
-        <ListRow divider left={<Ico n="copy" />} title={t('revealPrivateKey')} right={chevron} onPress={() => router.push('/reveal-private-key')} />
-        <ListRow divider left={<Ico n="market" />} title="Copilote IA" subtitle="Analyse & Sécurité (BYOK)" right={chevron} onPress={() => router.push('/ai-settings')} />
+        <ListRow divider left={<Icon name="pin" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
+        <ListRow divider left={<Icon name="phrase" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
+        <ListRow divider left={<Icon name="copy" />} title={t('revealPrivateKey')} right={chevron} onPress={() => router.push('/reveal-private-key')} />
+        <ListRow divider left={<Icon name="market" />} title="Copilote IA" subtitle="Analyse & Sécurité (BYOK)" right={chevron} onPress={() => router.push('/ai-settings')} />
       </GlassCard>
 
       {/* Réseau & à venir */}
       <GlassCard>
-        <ListRow left={<Ico n="networks" />} title={t('network')} subtitle={t('chooseActiveNetwork')} right={chevron} onPress={() => router.push('/networks')} />
+        <ListRow left={<Icon name="networks" />} title={t('network')} subtitle={t('chooseActiveNetwork')} right={chevron} onPress={() => router.push('/networks')} />
         <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
-              <Ico n="notifications" />
+              <Icon name="notifications" />
               <View style={{ flex: 1 }}>
                 <Text style={typography.body}>{t('notifications')}</Text>
                 <Text style={typography.muted}>{t('txAlerts')}</Text>
@@ -229,7 +229,7 @@ export default function Settings() {
         {/* Son */}
         <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
-            <Ico n="notifications" /> {/* Placeholder icon for sound */}
+            <Icon name="notifications" />
             <View style={{ flex: 1 }}>
               <Text style={typography.body}>Sons de l'application</Text>
               <Text style={typography.muted}>Jouer un son lors des actions importantes</Text>
@@ -238,16 +238,16 @@ export default function Settings() {
           <Switch value={useSettings((s) => s.soundEnabled)} onValueChange={useSettings.getState().setSoundEnabled} />
         </View>
 
-        <ListRow divider left={<Ico n="buy" />} title={t('buyCrypto')} right={<Chip label={t('soon')} />} onPress={soon} />
+        <ListRow divider left={<Icon name="buy" />} title={t('buyCrypto')} right={<Chip label={t('soon')} />} onPress={soon} />
       </GlassCard>
 
       {/* À propos */}
       <GlassCard>
-        <ListRow left={<Ico n="about" />} title={t('about')} subtitle={`Nova Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chevron} onPress={() => router.push('/about')} />
+        <ListRow left={<Icon name="about" />} title={t('about')} subtitle={`Nova Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chevron} onPress={() => router.push('/about')} />
       </GlassCard>
 
       <SectionHeader title="" />
-      <ListRow left={<Ico n="reset" />} title={t('resetWallet')} onPress={onReset} right={<Text style={{ color: colors.danger }}>›</Text>} />
+      <ListRow left={<Icon name="reset" />} title={t('resetWallet')} onPress={onReset} right={<Text style={{ color: colors.danger }}>›</Text>} />
       <View style={{ height: spacing(2) }} />
 
       <PinPromptModal
