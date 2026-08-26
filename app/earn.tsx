@@ -238,8 +238,13 @@ export default function EarnScreen() {
       let hash = '';
       if (isEvm && (quote.tx as any).type === 'evm') {
         hash = await sendRawTxOn(unlock, chainId, quote.tx as any);
+        try { await (adapter as EvmChainAdapter).waitForTx(hash); } catch(e) {}
       } else if (!isEvm && (quote.tx as any).type === 'solana') {
-        hash = await walletStore.signSolanaTransaction(unlock, (quote.tx as any).data);
+        const signedTxStr = await walletStore.signSolanaTransaction(unlock, (quote.tx as any).data);
+        const solAdapter = getAdapter('solana') as SolanaChainAdapter;
+        hash = await (solAdapter as any).rpc('sendTransaction', [signedTxStr, { encoding: 'base64' }]);
+        if (!hash) throw new Error('Transaction refusée');
+        await new Promise(r => setTimeout(r, 2000)); // wait for solana propagation
       }
       
       setSuccessHash(hash);
