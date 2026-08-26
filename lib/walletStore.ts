@@ -582,20 +582,7 @@ export const useWallet = create<WalletState>((set, get) => ({
 
     const tx = VersionedTransaction.deserialize(bytes);
     
-    // -- FIX: Auto-refresh blockhash to prevent "Blockhash not found" due to biometric delay --
-    const adapter = getAdapter(account.chain);
-    if (adapter.config.family === 'solana') {
-      try {
-        const res = await (adapter as any).rpc('getLatestBlockhash', [{ commitment: 'finalized' }]);
-        if (res?.value?.blockhash) {
-          tx.message.recentBlockhash = res.value.blockhash;
-          console.log('[walletStore] Blockhash rafraîchi dynamiquement:', res.value.blockhash);
-        }
-      } catch (e) {
-        console.warn('[walletStore] Impossible de rafraîchir le blockhash', e);
-      }
-    }
-    // -----------------------------------------------------------------------------------------
+    
 
     const keypair = Keypair.fromSeed(signer.secretKey);
 
