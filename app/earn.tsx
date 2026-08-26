@@ -33,6 +33,7 @@ export default function EarnScreen() {
   const [userStakedPositions, setUserStakedPositions] = useState<any[]>([]);
 
   
+  const [refreshKey, setRefreshKey] = useState(0);
   const [inputModalVisible, setInputModalVisible] = useState(false);
   const [amountStr, setAmountStr] = useState('');
   
@@ -95,7 +96,7 @@ export default function EarnScreen() {
     }
   };
 
-  useEffect(() => { loadBalances(); }, [account, activeChain]);
+  useEffect(() => { loadBalances(); }, [account, activeChain, refreshKey]);
 
   const formatCrypto = (v: bigint | undefined, decimals: number) => {
     if (v === undefined) return '0.00';
@@ -195,7 +196,7 @@ export default function EarnScreen() {
 
   useEffect(() => {
     fetchYieldOpportunities().then(setOpportunities);
-  }, []);
+  }, [refreshKey]);
 
   useEffect(() => {
     const loadDynamicPositions = async () => {
@@ -255,7 +256,7 @@ export default function EarnScreen() {
       }
     };
     loadDynamicPositions();
-  }, [account, opportunities]);
+  }, [account, opportunities, refreshKey]);
 
   const executeStake = async (unlock: Unlock) => {
     if (!targetProtocol) return;
@@ -503,7 +504,7 @@ export default function EarnScreen() {
         message={`Vos ${targetProtocol?.underlyingAsset} travaillent désormais pour vous. Les récompenses seront cumulées automatiquement.`}
         hash={successHash}
         explorerUrl={explorerUrl}
-        onClose={() => setSuccessVisible(false)}
+        onClose={() => { setSuccessVisible(false); setRefreshKey(k => k + 1); }}
       />
     </Screen>
   );
