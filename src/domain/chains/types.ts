@@ -62,7 +62,9 @@ export interface TxSummary {
   timestamp: number; // unix (secondes)
   direction: 'in' | 'out' | 'self';
   status: 'success' | 'failed';
-  type?: string; // e.g. "SWAP", "TRANSFER", "NFT"
+  type?: string;
+  asset?: string;
+  decimals?: number; // e.g. "SWAP", "TRANSFER", "NFT"
   description?: string; // Texte lisible fourni par l'indexeur (ex: Helius)
 }
 

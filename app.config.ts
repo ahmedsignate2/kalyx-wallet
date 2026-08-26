@@ -27,6 +27,7 @@ const config: ExpoConfig = {
     },
   },
   android: {
+    softwareKeyboardLayoutMode: 'resize',
     package: 'com.nova.wallet',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',

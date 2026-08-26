@@ -146,6 +146,7 @@ export {
 
 // NFT (Alchemy)
 export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
+export { getSolanaNfts } from './domain/nft/solanaNft';
 
 // DeFi / Staking — classification des tokens détenus
 export { classifyToken, type DefiKind, type DefiPosition } from './domain/defi/registry';
