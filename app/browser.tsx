@@ -29,6 +29,7 @@ import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../lib/recentDapps';
 import { useDappActivity } from '../lib/dappActivity';
+import { useBrowserStore } from '../lib/browserStore';
 import { saveTabs, loadTabs } from '../lib/browserTabs';
 import {
   buildInjectedProvider,
@@ -186,6 +187,7 @@ function normalizeUrl(raw: string): string | null {
 }
 
 export default function Browser() {
+  const setBrowserContext = useBrowserStore(s => s.setBrowserContext);
   const { colors, typography, gradients } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
@@ -240,6 +242,8 @@ export default function Browser() {
   const setActiveId = (id: string) => {
     activeRef.current = id;
     setActiveIdState(id);
+    const t = tabsRef.current.find(x => x.id === id);
+    if (t) setBrowserContext({ currentUrl: t.url || '', currentTitle: t.title || '' });
   };
   const webrefs = useRef<Map<string, WV>>(new Map());
   const updateTab = (id: string, patch: Partial<Tab>) => setTabs((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -763,6 +767,7 @@ export default function Browser() {
                 }}
                 onNavigationStateChange={(nav: { url: string; title?: string; canGoBack: boolean; canGoForward: boolean }) => {
                   updateTab(t.id, { input: nav.url, url: nav.url, title: nav.title ?? '', canBack: nav.canGoBack, canFwd: nav.canGoForward });
+                  if (t.id === activeId) setBrowserContext({ currentUrl: nav.url, currentTitle: nav.title || '' });
                   const host = originOf(nav.url);
                   const top = recentsRef.current[0];
                   if (host && nav.title && !(top && top.host === host && top.title === nav.title)) {

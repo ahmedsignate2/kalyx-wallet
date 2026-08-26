@@ -196,6 +196,7 @@ export default function Settings() {
         <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
         <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
         <ListRow divider left={<Ico n="copy" />} title={t('revealPrivateKey')} right={chevron} onPress={() => router.push('/reveal-private-key')} />
+        <ListRow divider left={<Ico n="market" />} title="Copilote IA" subtitle="Analyse & Sécurité (BYOK)" right={chevron} onPress={() => router.push('/ai-settings')} />
       </GlassCard>
 
       {/* Réseau & à venir */}

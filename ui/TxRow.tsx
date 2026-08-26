@@ -132,7 +132,7 @@ export function TxRow({
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={{ color: failed ? colors.danger : inbound ? colors.up : colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }}>
           {inbound ? '+' : tx.direction === 'out' ? '−' : ''}
-          {formatBalance(tx.value, decimals, 6)} {symbol}
+          {formatBalance(tx.value, tx.decimals ?? decimals, 6)} {tx.asset ?? symbol}
         </Text>
         {fiat != null && fiatSymbol ? (
           <Text style={{ fontSize: 12, color: colors.textMuted, fontVariant: ['tabular-nums'] }}>
