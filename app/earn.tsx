@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, Modal, Pressable } from 'react-native';
+import { View, Text, ScrollView, TextInput, Modal, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Screen, Card, Title, Muted, Button } from '../ui/components';
 import { useTheme, spacing, fonts, radii } from '../ui/theme';
@@ -242,6 +242,14 @@ export default function EarnScreen() {
       } else if (!isEvm && (quote.tx as any).type === 'solana') {
         const signedTxStr = await walletStore.signSolanaTransaction(unlock, (quote.tx as any).data, true);
         const solAdapter = getAdapter('solana') as SolanaChainAdapter;
+        // --- SIMULATION LOGS FOR DEBUGGING ---
+        const sim = await (solAdapter as any).rpc('simulateTransaction', [signedTxStr, { encoding: 'base64' }]);
+        if (sim?.value?.err) {
+            console.error('[Solana Sim Error]', sim.value.err);
+            console.error('[Solana Sim Logs]', JSON.stringify(sim.value.logs, null, 2));
+            throw new Error(`Solana Simulation Failed: ${JSON.stringify(sim.value.err)}`);
+        }
+        // -------------------------------------
         hash = await (solAdapter as any).rpc('sendTransaction', [signedTxStr, { encoding: 'base64' }]);
         if (!hash) throw new Error('Transaction refusée');
         await new Promise(r => setTimeout(r, 2000)); // wait for solana propagation
@@ -319,7 +327,7 @@ export default function EarnScreen() {
               <Icon name={opp.underlyingAsset === 'SOL' ? 'staking' : 'defi'} size={24} color={opp.underlyingAsset === 'SOL' ? '#000' : '#FFF'} />
             </View>
             <View style={{ flex: 1, paddingRight: spacing(1) }}>
-              <Text style={typography.bodyStrong} numberOfLines={1}>{opp.name} ({opp.underlyingAsset})</Text>
+              <Text style={typography.bodyStrong} numberOfLines={1}>{opp.project} ({opp.underlyingAsset})</Text>
               <Text style={typography.muted} numberOfLines={1}>~{opp.apy}% APY • {opp.type}</Text>
             </View>
             <Text style={{ fontFamily: fonts.bold, color: colors.up }}>+{opp.apy}%</Text>
@@ -340,10 +348,10 @@ export default function EarnScreen() {
       <View style={{ height: spacing(12) }} />
       {/* MODAL DE SAISIE */}
       <Modal visible={inputModalVisible} transparent animationType="slide" onRequestClose={() => setInputModalVisible(false)}>
-         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
            <View style={{ backgroundColor: colors.bgElevated, padding: spacing(3), borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl }}>
              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(2) }}>
-               <Text style={typography.title}>{targetProtocol?.type === 'Lending' ? 'Déposer sur' : 'Staker sur'} {targetProtocol?.name}</Text>
+               <Text style={typography.title}>{targetProtocol?.type === 'Lending' ? 'Déposer sur' : 'Staker sur'} {targetProtocol?.project}</Text>
                <Pressable onPress={() => setInputModalVisible(false)}>
                  <Icon name="close" size={24} color={colors.textFaint} />
                </Pressable>
@@ -416,12 +424,12 @@ export default function EarnScreen() {
 
 
            </View>
-         </View>
+         </KeyboardAvoidingView>
       </Modal>
       
       <ConfirmUnlock
         visible={unlockVisible}
-        title={`Staking ${targetProtocol?.name}`}
+        title={`Staking ${targetProtocol?.project}`}
         subtitle={`Dépôt de ${amountStr} ${targetProtocol?.underlyingAsset}`}
         statusText="Exécution du smart contract en cours..."
         perform={executeStake}
