@@ -257,7 +257,7 @@ export default function WalletScreen() {
   const [opps, setOpps] = useState<any[]>([]);
   const [indexedDeFi, setIndexedDeFi] = useState<DeFiPosition[]>([]);
   useEffect(() => { fetchYieldOpportunities().then(setOpps); }, []);
-  useEffect(() => { if (account && activeChain) { fetchDeFiPortfolio(account.address, activeChain, tokens).then(setIndexedDeFi); } }, [account, activeChain, tokens]);
+  useEffect(() => { if (account && activeChain) { fetchDeFiPortfolio(account.solAddress || account.evmAddress, activeChain, tokens).then(setIndexedDeFi); } }, [account, activeChain, tokens]);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -529,7 +529,7 @@ export default function WalletScreen() {
             return <GlassCard>{[0, 1].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>;
           }
           if (positions.length > 0) {
-            const sum = positions.reduce((s, p) => s + p.fiat, 0);
+            const sum = positions.reduce((s, p: any) => s + (tab === 'defi' ? p.valueUsd : (p as any).fiat), 0);
             return (
               <>
                 <GlassCard>
@@ -541,18 +541,18 @@ export default function WalletScreen() {
                 <GlassCard>
                   {positions.map((p, i) => (
                     <ListRow
-                      key={p.contract}
+                      key={(p as any).contract}
                       divider={i > 0}
-                      left={<RemoteIcon uri={p.logo} label={p.symbol} />}
-                      title={p.name}
-                      subtitle={`${p.defi?.protocol ?? ''} · ${hidden ? '••••' : `${formatBalance(p.raw, p.decimals, 6)} ${p.symbol}`}`}
+                      left={<RemoteIcon uri={(p as any).logo} label={(p as any).symbol} />}
+                      title={(p as any).name}
+                      subtitle={`${(p as any).defi?.protocol ?? ''} · ${hidden ? '••••' : `${formatBalance((p as any).raw, (p as any).decimals, 6)} ${(p as any).symbol}`}`}
                       right={
                         <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>
-                          {hidden ? '••••' : p.hasPrice ? `${money(p.fiat)} ${fiatSymbol(fiat)}` : '—'}
+                          {hidden ? '••••' : (p as any).hasPrice ? `${money((p as any).fiat)} ${fiatSymbol(fiat)}` : '—'}
                         </Text>
                       }
                       onPress={() => {
-                        const pName = (p.defi?.protocol || p.name).toLowerCase();
+                        const pName = ((p as any).defi?.protocol || (p as any).name).toLowerCase();
                         let url = isStaking ? 'https://stake.lido.fi' : 'https://app.aave.com'; // fallback
                         
                         if (pName.includes('jito')) url = 'https://jito.network/staking';
