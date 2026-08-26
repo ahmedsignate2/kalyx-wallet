@@ -153,13 +153,21 @@ export default function EarnScreen() {
 
   const applyShortcut = (pct: number) => {
     if (!targetProtocol) return;
+    const isNative = ['SOL', 'ETH', 'AVAX', 'BNB'].includes(targetProtocol.underlyingAsset);
     const bal = balances[targetProtocol.underlyingAsset] || 0n;
-    // Keep a buffer for gas if it's the native token and MAX is used
-    let amt = Number(formatBalance(bal, (targetProtocol.underlyingAsset === 'USDC' ? 6 : targetProtocol.underlyingAsset === 'SOL' ? 9 : 18))) * (pct / 100);
-    if (pct === 100 && ['ETH', 'SOL'].includes(targetProtocol.underlyingAsset)) {
-       amt = Math.max(0, amt - (targetProtocol.underlyingAsset === 'ETH' ? 0.005 : 0.01)); // Gas buffer
+    
+    const decimals = (targetProtocol.underlyingAsset === 'USDC' || targetProtocol.underlyingAsset === 'USDC_SOL') ? 6 : (targetProtocol.underlyingAsset === 'SOL' ? 9 : 18);
+    let amt = Number(formatBalance(bal, decimals)) * (pct / 100);
+    
+    if (pct === 100 && isNative) {
+       const buffer = targetProtocol.underlyingAsset === 'ETH' ? 0.002 
+                    : targetProtocol.underlyingAsset === 'SOL' ? 0.0001 
+                    : targetProtocol.underlyingAsset === 'AVAX' ? 0.01 
+                    : targetProtocol.underlyingAsset === 'BNB' ? 0.001 : 0;
+       amt = Math.max(0, amt - buffer);
     }
-    setAmountStr(amt.toFixed(4));
+    
+    setAmountStr(amt > 0 ? Number(amt.toFixed(5)).toString() : '');
   };
 
     const validateInput = () => {
