@@ -23,6 +23,7 @@ import { useWallet } from '../lib/walletStore';
 import { usePortfolio } from '../lib/portfolioStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
+import { fetchYieldOpportunities } from '../lib/yieldService';
 import { useTokenPrefs, tokenKey } from '../lib/tokenPrefsStore';
 import {
   getAdapter,
