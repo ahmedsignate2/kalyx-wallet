@@ -16,7 +16,7 @@ export type IconName =
   | 'reset' | 'walletconnect' | 'ledger' | 'trezor' | 'import' | 'create'
   | 'eye' | 'eyeOff' | 'chevron' | 'add' | 'history' | 'nft' | 'defi' | 'staking'
   | 'warning' | 'refresh' | 'gift' | 'copy' | 'star' | 'starFilled'
-  | 'check' | 'info' | 'close' | 'more' | 'forward' | 'share' | 'scan' | 'flash' | 'flashOff';
+  | 'check' | 'info' | 'close' | 'more' | 'forward' | 'share' | 'scan' | 'flash' | 'flashOff' | 'sparkles';
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   home: 'home-outline',
@@ -77,6 +77,7 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   scan: 'scan-outline',
   flash: 'flashlight',
   flashOff: 'flashlight-outline',
+  sparkles: 'sparkles-outline',
 };
 
 export function Icon({

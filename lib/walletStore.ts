@@ -134,6 +134,7 @@ interface WalletState {
   sendToken: (to: string, amount: string, token: { contract: string; decimals: number }, unlock: Unlock, gas?: GasOverride) => Promise<string>;
   /** Envoie un token SPL détenu (Solana) : crée l'ATA si besoin puis transfère. */
   sendSolToken: (to: string, amount: string, token: { mint: string; decimals: number }, unlock: Unlock) => Promise<string>;
+  stakeSolana: (validatorPubkey: string, amount: string, unlock: Unlock) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   revealPhrase: (unlock: Unlock) => Promise<string>;
   /** Révèle la clé privée EVM d'un wallet importé par clé privée. */
@@ -521,12 +522,14 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   executeSwap: async (quote, unlock, onStatus) => {
+    console.log('[walletStore] executeSwap DÉBUT', { tool: quote.toolName, fromAmount: quote.fromAmount.toString(), txType: quote.tx.type });
     const { account, activeChain, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(activeChain);
 
     if (quote.tx.type === 'evm' && adapter instanceof EvmChainAdapter) {
       const signerKey = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
+      console.log('[walletStore] Clé EVM révélée avec succès.');
 
       const fromAddr = quote.fromToken.address.toLowerCase();
       if (fromAddr !== NATIVE_TOKEN.toLowerCase() && quote.approvalAddress) {
@@ -546,17 +549,17 @@ export const useWallet = create<WalletState>((set, get) => ({
 
       onStatus?.('swapping');
       const tx = { ...quote.tx, chainId: Number(quote.tx.chainId) };
+      console.log('[walletStore] Appel sendContractTx avec tx:', tx);
       const hash = await adapter.sendContractTx(tx, account.address, signerKey);
+      console.log('[walletStore] sendContractTx réussi, hash:', hash);
       onStatus?.('confirming');
-      try {
-        await adapter.waitForTx(hash);
-      } catch {
-        /* diffusé ; on renvoie le hash */
-      }
+      await adapter.waitForTx(hash);
       return hash;
     } else if (quote.tx.type === 'solana' && adapter.config.family === 'solana') {
       onStatus?.('swapping');
+      console.log('[walletStore] Début signature Solana transaction');
       const signedTxStr = await get().signSolanaTransaction(unlock, quote.tx.data);
+      console.log('[walletStore] Transaction Solana signée avec succès');
       const hash = await (adapter as any).rpc('sendTransaction', [signedTxStr, { encoding: 'base64' }]);
       if (!hash) throw new Error('Diffusion refusée par le réseau Solana');
       onStatus?.('confirming');
@@ -576,8 +579,26 @@ export const useWallet = create<WalletState>((set, get) => ({
     const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(txStr) && txStr.length % 4 === 0;
     const bytes = isBase64 ? base64.decode(txStr) : base58.decode(txStr);
 
+
     const tx = VersionedTransaction.deserialize(bytes);
+    
+    // -- FIX: Auto-refresh blockhash to prevent "Blockhash not found" due to biometric delay --
+    const adapter = getAdapter(account.chain);
+    if (adapter.config.family === 'solana') {
+      try {
+        const res = await (adapter as any).rpc('getLatestBlockhash', [{ commitment: 'finalized' }]);
+        if (res?.value?.blockhash) {
+          tx.message.recentBlockhash = res.value.blockhash;
+          console.log('[walletStore] Blockhash rafraîchi dynamiquement:', res.value.blockhash);
+        }
+      } catch (e) {
+        console.warn('[walletStore] Impossible de rafraîchir le blockhash', e);
+      }
+    }
+    // -----------------------------------------------------------------------------------------
+
     const keypair = Keypair.fromSeed(signer.secretKey);
+
     tx.sign([keypair]);
 
     const serialized = tx.serialize();
@@ -759,6 +780,24 @@ export const useWallet = create<WalletState>((set, get) => ({
       maxPriorityFeePerGas: gas?.maxPriorityFeePerGas,
     };
     return get().sendRawTxOn(unlock, activeChain, req);
+  },
+
+    stakeSolana: async (validatorPubkey, amount, unlock) => {
+    const { account, activeChain, activeWalletId, wallets } = get();
+    if (!account) throw new Error('Aucun compte');
+    const adapter = getAdapter(activeChain);
+    if (!(adapter instanceof SolanaChainAdapter)) throw new Error('Chaîne non supportée (Solana requise)');
+    
+    if (isPrivateKeyWallet(wallets, activeWalletId)) {
+       throw new Error('Portefeuille clé privée : Solana non disponible.');
+    }
+    const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
+    const solSigner = deriveSolanaSigner(seed, account.index);
+    
+    return adapter.sendStakeDelegation(account.address, validatorPubkey, amount, {
+      secretKey: solSigner.secretKey,
+      publicKey: solSigner.publicKey,
+    });
   },
 
   sendSolToken: async (to, amount, token, unlock) => {

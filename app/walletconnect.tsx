@@ -69,7 +69,7 @@ export default function WalletConnectScreen() {
   const onPaste = async () => setUri(await Clipboard.getStringAsync());
 
   return (
-    <Screen>
+    <Screen scroll>
       <Title>WalletConnect</Title>
       <Muted>{t('wcIntro')}</Muted>
 
@@ -82,11 +82,7 @@ export default function WalletConnectScreen() {
       </Card>
       <Button label={busy ? t('connecting') : t('connect')} loading={busy || !ready} onPress={onConnect} />
 
-      <ScrollView
-        style={{ flex: 1, marginTop: spacing(1) }}
-        contentContainerStyle={{ gap: spacing(1), paddingBottom: spacing(4) }}
-        showsVerticalScrollIndicator={false}
-      >
+
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing(1) }}>
           <Text style={typography.section}>{t('wcSessions')}</Text>
           {sessions.length > 1 ? (
@@ -140,7 +136,6 @@ export default function WalletConnectScreen() {
             </Card>
           </>
         ) : null}
-      </ScrollView>
     </Screen>
   );
 }

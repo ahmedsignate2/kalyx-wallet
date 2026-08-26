@@ -137,63 +137,64 @@ export default function History() {
         ) : null}
       </View>
 
-      {/* Barre de filtres */}
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: spacing(1), paddingVertical: spacing(1) }}
-      >
-        {filters.map((f) => {
-          const active = f.key === filter;
-          return (
-            <Pressable
-              key={f.key}
-              onPress={() => setFilter(f.key)}
-              style={{
-                paddingHorizontal: 16,
-                height: 38,
-                justifyContent: 'center',
-                alignItems: 'center',
-                borderRadius: 20,
-                minWidth: 60,
-                backgroundColor: active ? colors.accent : colors.glass,
-                borderWidth: 1,
-                borderColor: active ? colors.accent : colors.glassBorder,
-              }}
-            >
-              <Text style={{ color: active ? '#fff' : colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>
-                {f.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
-      {/* Barre de recherche */}
-      {cached.length > 5 ? (
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder={t('searchCrypto')}
-          placeholderTextColor={colors.textMuted}
-          style={{
-            backgroundColor: colors.glass,
-            borderRadius: radii.md,
-            borderWidth: 1,
-            borderColor: colors.glassBorder,
-            paddingHorizontal: spacing(1.5),
-            paddingVertical: spacing(1),
-            color: colors.text,
-            fontFamily: fonts.medium,
-            fontSize: 14,
-          }}
-        />
-      ) : null}
-
-      <ScrollView
-        contentContainerStyle={{ paddingTop: spacing(1) }}
+        contentContainerStyle={{ paddingTop: spacing(1), paddingBottom: spacing(4) }}
         refreshControl={<RefreshControl refreshing={localRefreshing} onRefresh={load} tintColor={colors.accent} />}
       >
+        {/* Barre de filtres intégrée dans le scroll */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: spacing(1), paddingVertical: spacing(1), marginBottom: spacing(1) }}
+        >
+          {filters.map((f) => {
+            const active = f.key === filter;
+            return (
+              <Pressable
+                key={f.key}
+                onPress={() => setFilter(f.key)}
+                style={{
+                  paddingHorizontal: 16,
+                  height: 38,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  borderRadius: 20,
+                  minWidth: 60,
+                  backgroundColor: active ? colors.accent : colors.glass,
+                  borderWidth: 1,
+                  borderColor: active ? colors.accent : colors.glassBorder,
+                }}
+              >
+                <Text style={{ color: active ? '#fff' : colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>
+                  {f.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {/* Barre de recherche intégrée dans le scroll */}
+        {cached.length > 5 ? (
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder={t('searchCrypto')}
+            placeholderTextColor={colors.textMuted}
+            style={{
+              backgroundColor: colors.glass,
+              borderRadius: radii.md,
+              borderWidth: 1,
+              borderColor: colors.glassBorder,
+              paddingHorizontal: spacing(1.5),
+              paddingVertical: spacing(1),
+              color: colors.text,
+              fontFamily: fonts.medium,
+              fontSize: 14,
+              marginBottom: spacing(2),
+            }}
+          />
+        ) : null}
+
         {isFirstLoad ? (
           <GlassCard>{[0, 1, 2, 3].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>
         ) : filteredTxs.length === 0 ? (
