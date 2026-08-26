@@ -13,6 +13,8 @@ import { getLifiQuote, NATIVE_TOKEN } from '../../src';
 import { getAdapter, EvmChainAdapter, SolanaChainAdapter } from '../../src';
 import { formatBalance } from '../../src/domain/validation/amount';
 
+export type QuoteProvider = 'lifi' | 'native' | 'contract';
+
 export interface LifiYieldConfig {
   id: string;
   protocol: string;
@@ -22,7 +24,13 @@ export interface LifiYieldConfig {
   lifiChainId: number;          // LI.FI chain ID (e.g. 1151111081099710 for Solana)
   yieldTokenAddress: string;    // on-chain address of yield token
   underlyingAddress: string;    // on-chain address of underlying (NATIVE_TOKEN for natives)
+  nativeToken: string;          // native gas token symbol (SOL, AVAX, ETH, BNB...)
   decimals: number;
+  // ─── Capabilities ───
+  stakeSupported: boolean;      // can the user stake into this protocol?
+  unstakeSupported: boolean;    // can the user unstake/withdraw?
+  quoteProvider: QuoteProvider; // who provides the swap route?
+  approvalRequired: boolean;    // does the EVM flow need approve() before swap?
 }
 
 /**
@@ -95,6 +103,9 @@ export class LifiYieldAdapter implements YieldAdapter {
   }
 
   async quoteStake(amount: bigint, fromAddress: string): Promise<YieldQuote> {
+    if (!this.config.stakeSupported) {
+      throw new Error(`Le staking n'est pas disponible pour ${this.config.protocol} sur ce réseau.`);
+    }
     const quote = await getLifiQuote({
       fromChainId: this.config.lifiChainId,
       toChainId: this.config.lifiChainId,
@@ -121,6 +132,9 @@ export class LifiYieldAdapter implements YieldAdapter {
   }
 
   async quoteUnstake(amount: bigint, fromAddress: string): Promise<YieldQuote> {
+    if (!this.config.unstakeSupported) {
+      throw new Error(`Le retrait n'est pas disponible pour ${this.config.protocol} sur ce réseau.`);
+    }
     const quote = await getLifiQuote({
       fromChainId: this.config.lifiChainId,
       toChainId: this.config.lifiChainId,
