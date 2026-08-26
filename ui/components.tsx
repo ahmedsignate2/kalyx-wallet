@@ -15,7 +15,8 @@ import {
   KeyboardAvoidingView,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
 import { NovaRing } from './NovaRing';
@@ -65,9 +66,11 @@ function useThemeStyles() {
  */
 export function Screen({ children, scroll }: { children: React.ReactNode; scroll?: boolean }) {
   const { styles } = useThemeStyles();
+  const insets = useSafeAreaInsets();
+  const topPadding = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : insets.top + 8;
   return (
-    <SafeAreaView style={styles.screen}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+    <View style={[styles.screen, { paddingTop: topPadding }]}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {scroll ? (
           <ScrollView
             style={{ flex: 1 }}
@@ -82,7 +85,7 @@ export function Screen({ children, scroll }: { children: React.ReactNode; scroll
           <View style={styles.screenInner}>{children}</View>
         )}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

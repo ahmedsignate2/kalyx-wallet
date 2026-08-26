@@ -13,6 +13,7 @@ import { fonts, spacing, useTheme } from '../../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { toast } from '../../lib/toast';
 import { useWallet } from '../../lib/walletStore';
+import { useAiStore } from '../../lib/aiStore';
 import { usePriceAlerts } from '../../lib/priceAlertsStore';
 import {
   getCoinDetail,
@@ -94,6 +95,8 @@ export default function TokenDetail() {
     return () => { mounted.current = false; };
   }, []);
 
+  const openChat = useAiStore((s) => s.openChat);
+  const explainToken = () => { openChat(`Explique-moi très simplement l\x27utilité et les risques du token ${detail?.symbol || id}.`); };
   const loadDetail = React.useCallback(async () => {
     if (!id) return;
     setLoadingDetail(true);
@@ -223,6 +226,7 @@ export default function TokenDetail() {
           {/* Actions */}
           <View style={{ flexDirection: 'row', gap: spacing(2), paddingHorizontal: spacing(1) }}>
             <CircleAction icon="buy" label={t('buy')} onPress={() => toast.info(t('soon'))} />
+            <CircleAction icon="sparkles" label="Expliquer" onPress={explainToken} />
             <CircleAction icon="send" label={t('send')} disabled={chain?.family === 'bitcoin'} onPress={() => goSendReceive('/send')} />
             <CircleAction icon="receive" label={t('receive')} onPress={() => goSendReceive('/receive')} />
             <CircleAction icon="convert" label={t('convert')} onPress={() => toast.info(t('soon'))} />

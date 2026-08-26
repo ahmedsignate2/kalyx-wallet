@@ -29,6 +29,7 @@ import { FadeInUp } from '../ui/FadeInUp';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { useAiStore } from '../lib/aiStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { useNotifCenter, unreadCount } from '../lib/notificationCenter';
@@ -71,6 +72,7 @@ export default function Home() {
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
   const setActiveAccount = useWallet((s) => s.setActiveAccount);
   const { profileName, fiat, favorites } = useSettings();
+  const isEnabled = useAiStore(s => s.isEnabled);
   const unreadNotifs = useNotifCenter((s) => unreadCount(s.items));
   const chain = getAdapter(activeChain).config;
   // Envoi supporté sur EVM, Bitcoin et Solana.
@@ -277,6 +279,7 @@ export default function Home() {
       </View>
 
       {/* Valeur totale */}
+      <View style={{ marginTop: 8 }} />
       <GlassCard glow>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Pressable onPress={() => setHidden((h) => !h)} hitSlop={8}>
@@ -309,6 +312,9 @@ export default function Home() {
           ) : null}
         </View>
 
+
+
+
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 4 }}>
           {change != null ? (
             <View style={{ backgroundColor: change >= 0 ? 'rgba(61,220,151,0.15)' : 'rgba(255,107,107,0.15)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
@@ -328,6 +334,7 @@ export default function Home() {
           <CircleAction icon="send" label={t('send')} disabled={!canSend} onPress={() => router.push('/send')} />
           <CircleAction icon="receive" label={t('receive')} onPress={() => router.push('/receive')} />
           <CircleAction icon="convert" label={t('convert')} onPress={() => router.push('/swap')} />
+          <CircleAction icon="staking" label="Earn" onPress={() => router.push('/earn')} />
         </View>
       </GlassCard>
 
