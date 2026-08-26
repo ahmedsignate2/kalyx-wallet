@@ -20,6 +20,7 @@ import { FadeInUp } from '../ui/FadeInUp';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { usePortfolio } from '../lib/portfolioStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
 import { useTokenPrefs, tokenKey } from '../lib/tokenPrefsStore';
@@ -35,6 +36,7 @@ import {
   getCustomTokens,
   getTokenPrices,
   getNfts,
+  getSolanaNfts,
   classifyToken,
   SolanaChainAdapter,
   type ChainConfig,
@@ -54,7 +56,8 @@ interface Asset {
   price: number;
   fiat: number;
   logo?: string;
-  spark?: number[]; // courbe 7j (depuis getMarkets, sans appel supplémentaire)
+  spark?: number[]; // courbe 7j
+  change24h?: number; // (depuis getMarkets, sans appel supplémentaire)
 }
 
 interface TokenAsset {
@@ -96,6 +99,53 @@ export default function WalletScreen() {
   const [hidden, setHidden] = useState(false);
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState('crypto');
+  const setPortfolio = usePortfolio(s => s.setPortfolio);
+
+  
+  useEffect(() => {
+    if (!assets) return;
+    let totalFiat = 0;
+    let pastFiat = 0;
+    let topGainer = { symbol: '', change: -9999 };
+    let topLoser = { symbol: '', change: 9999 };
+    
+    const activeAssets = [];
+    
+    // Process native assets
+    for (const a of assets) {
+      if (a.fiat > 0 || a.raw > 0n) {
+        totalFiat += a.fiat;
+        const bal = Number(formatAmount(a.raw, a.chain.nativeDecimals));
+        activeAssets.push(`- ${a.chain.nativeSymbol}: ${bal.toFixed(4)} (~ ${money(a.fiat)} ${fiatSymbol(fiat)})`);
+        
+        if (a.change24h !== undefined) {
+          pastFiat += a.fiat / (1 + a.change24h / 100);
+          if (a.change24h > topGainer.change) topGainer = { symbol: a.chain.nativeSymbol, change: a.change24h };
+          if (a.change24h < topLoser.change) topLoser = { symbol: a.chain.nativeSymbol, change: a.change24h };
+        } else {
+          pastFiat += a.fiat; // unknown change, assume 0
+        }
+      }
+    }
+    
+    // Process tokens (without change24h for now, assuming 0 change for pastFiat)
+    for (const t of tokens) {
+       if (t.hasPrice && t.fiat > 0) {
+          totalFiat += t.fiat;
+          pastFiat += t.fiat;
+          const bal = Number(formatBalance(t.raw, t.decimals));
+          activeAssets.push(`- ${t.symbol}: ${bal.toFixed(4)} (~ ${money(t.fiat)} ${fiatSymbol(fiat)})`);
+       } else if (t.raw > 0n) {
+          const bal = Number(formatBalance(t.raw, t.decimals));
+          activeAssets.push(`- ${t.symbol}: ${bal.toFixed(4)} (${t.name})`);
+       }
+    }
+    
+    const pnl24h = totalFiat - pastFiat;
+    const pnl24hPct = pastFiat > 0 ? (pnl24h / pastFiat) * 100 : 0;
+    
+    setPortfolio(totalFiat, activeAssets, pnl24h, pnl24hPct, topGainer.symbol, topLoser.symbol);
+  }, [assets, tokens, fiat]);
 
   const load = useCallback(async () => {
     if (!account) return;
@@ -104,7 +154,8 @@ export default function WalletScreen() {
       const ids = [...new Set(VALUE_CHAINS.map((c) => c.coingeckoId!))];
       const [prices, markets] = await Promise.all([getPrices(ids, fiat), getMarkets(fiat, 60)]);
       const logos = new Map(markets.map((m) => [m.id, m.image]));
-      const sparks = new Map(markets.map((m) => [m.id, m.sparkline])); // courbe 7j (même appel)
+      const sparks = new Map(markets.map((m) => [m.id, m.sparkline]));
+      const changes = new Map(markets.map((m) => [m.id, m.change24h])); // courbe 7j (même appel)
       const results = await Promise.all(
         VALUE_CHAINS.map(async (chain) => {
           const address =
@@ -125,7 +176,7 @@ export default function WalletScreen() {
             raw,
             price,
             fiat: Number(formatAmount(raw, chain.nativeDecimals)) * price,
-            logo: logos.get(chain.coingeckoId!),
+            logo: logos.get(chain.coingeckoId!), change24h: changes.get(chain.coingeckoId!),
             spark: sparks.get(chain.coingeckoId!),
           } as Asset;
         }),
@@ -140,6 +191,7 @@ export default function WalletScreen() {
         const extra = customList.filter((c) => !detectedSet.has(c.toLowerCase()));
         const custom = extra.length ? await getCustomTokens(chainCfg, account.evmAddress, extra) : [];
         const erc20 = [...detected, ...custom];
+        // Note: tokenPrices doesn't return change24h currently, but we use the main assets for AI P&L
         const tokenPrices = await getTokenPrices(
           chainCfg.coingeckoPlatform,
           erc20.map((tk) => tk.contract),
@@ -213,15 +265,22 @@ export default function WalletScreen() {
   useEffect(() => {
     if (tab !== 'nft' || !account) return;
     const cfg = getAdapter(activeChain).config;
-    if (cfg.family !== 'evm') {
-      setNfts([]);
-      return;
-    }
+    
     setLoadingNfts(true);
-    getNfts(cfg, account.evmAddress)
-      .then(setNfts)
-      .catch(() => setNfts([]))
-      .finally(() => setLoadingNfts(false));
+    if (cfg.family === 'evm') {
+      getNfts(cfg, account.evmAddress)
+        .then(setNfts)
+        .catch(() => setNfts([]))
+        .finally(() => setLoadingNfts(false));
+    } else if (cfg.family === 'solana') {
+      getSolanaNfts(cfg, account.solAddress || '')
+        .then(setNfts)
+        .catch(() => setNfts([]))
+        .finally(() => setLoadingNfts(false));
+    } else {
+      setNfts([]);
+      setLoadingNfts(false);
+    }
   }, [tab, activeChain, account]);
 
   const total = useMemo(
