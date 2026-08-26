@@ -144,7 +144,12 @@ export default function EarnScreen() {
     if (isNative && bal > 0n) {
        setAmountStr('...'); // UX: show calculating
        try {
-           const underlyingAddress = activeProtocol.underlyingAsset === 'ETH' ? NATIVE_TOKEN : activeProtocol.underlyingAsset === 'SOL' ? '11111111111111111111111111111111' : activeProtocol.underlyingAsset === 'USDC_SOL' ? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+           let underlyingAddress = NATIVE_TOKEN;
+       if (activeProtocol.underlyingAsset === 'SOL') underlyingAddress = '11111111111111111111111111111111';
+       else if (activeProtocol.underlyingAsset === 'USDC_SOL') underlyingAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+       else if (activeProtocol.underlyingAsset === 'USDC') underlyingAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+       else if (activeProtocol.underlyingAsset === 'AVAX') underlyingAddress = NATIVE_TOKEN;
+       else if (activeProtocol.underlyingAsset === 'BNB') underlyingAddress = NATIVE_TOKEN;
            const isEvm = activeProtocol.underlyingAsset !== 'SOL' && activeProtocol.underlyingAsset !== 'USDC_SOL';
       const chainId = activeProtocol.underlyingAsset === 'AVAX' ? 'avalanche' : activeProtocol.underlyingAsset === 'BNB' ? 'bnb' : !isEvm ? 'solana' : (activeChain === 'sepolia' ? 'sepolia' : 'ethereum');
            const adapter = getAdapter(chainId);
@@ -292,7 +297,12 @@ export default function EarnScreen() {
       const decimals = (targetProtocol.underlyingAsset === 'USDC' || targetProtocol.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol.underlyingAsset === 'SOL' ? 9 : 18;
       const rawAmount = parseAmount(amountStr, decimals).raw;
       
-      const underlyingAddress = targetProtocol.underlyingAsset === 'ETH' ? NATIVE_TOKEN : targetProtocol.underlyingAsset === 'SOL' ? '11111111111111111111111111111111' : targetProtocol.underlyingAsset === 'USDC_SOL' ? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      let underlyingAddress = NATIVE_TOKEN;
+       if (targetProtocol.underlyingAsset === 'SOL') underlyingAddress = '11111111111111111111111111111111';
+       else if (targetProtocol.underlyingAsset === 'USDC_SOL') underlyingAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+       else if (targetProtocol.underlyingAsset === 'USDC') underlyingAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+       else if (targetProtocol.underlyingAsset === 'AVAX') underlyingAddress = NATIVE_TOKEN;
+       else if (targetProtocol.underlyingAsset === 'BNB') underlyingAddress = NATIVE_TOKEN;
       
       const quote = await getLifiQuote({
         fromChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config.evmChainId || adapter.config.id,
@@ -315,7 +325,7 @@ export default function EarnScreen() {
         const solAdapter = getAdapter('solana') as SolanaChainAdapter;
         // --- SIMULATION LOGS FOR DEBUGGING ---
         const sim = await (solAdapter as any).rpc('simulateTransaction', [signedTxStr, { encoding: 'base64' }]);
-        if (sim?.value?.err) {
+        if (sim?.value?.err && !isUnstaking) {
             const logsStr = JSON.stringify(sim.value.logs || []);
             const match = logsStr.match(/insufficient lamports (\d+), need (\d+)/);
             if (match) {
