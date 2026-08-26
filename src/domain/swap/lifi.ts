@@ -16,7 +16,7 @@ const TIMEOUT = 20_000;
 
 /** Frais intégrateur Nova. */
 export const NOVA_INTEGRATOR = 'nova-wallet';
-export const NOVA_FEE = '0.003'; // 0,3 %
+export const NOVA_FEE = '0.005'; // 0,5 %
 export const DEFAULT_SLIPPAGE = '0.005'; // 0,5 %
 /** Adresse « token natif » côté LI.FI. */
 export const NATIVE_TOKEN = '0x0000000000000000000000000000000000000000';
@@ -185,11 +185,14 @@ async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQu
   }
 
   const isEarn = params.isEarn === true;
-  const EARN_FEE = '0.005'; // 0,5% pour le Staking/Earn
+  const EARN_FEE = '0'; // 0% pour le Staking/Earn
   
   if (withFee) {
-    qs.set('fee', isEarn ? EARN_FEE : NOVA_FEE);
-    if (FEE_RECIPIENT) qs.set('feeRecipient', FEE_RECIPIENT);
+    const feeToSet = isEarn ? EARN_FEE : NOVA_FEE;
+    if (feeToSet !== '0') {
+      qs.set('fee', feeToSet);
+      if (FEE_RECIPIENT) qs.set('feeRecipient', FEE_RECIPIENT);
+    }
   }
 
 
