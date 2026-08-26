@@ -93,7 +93,7 @@ export function buildAiRequestParams(
 
 export function mapAiErrorToMessage(status: number): string {
   if (status === 401 || status === 403) return 'Clé API invalide ou révoquée.';
-  if (status === 402 || status === 429) return 'Crédits épuisés ou quota atteint.';
+  if (status === 402 || status === 429) return 'Quota IA atteint. La clé API configurée a atteint sa limite. Ajoute une autre clé ou réessaie plus tard.';
   if (status === 404 || status === 400) return 'Modèle indisponible ou URL incorrecte.';
   if (status >= 500) return 'Serveur fournisseur indisponible (Erreur 500).';
   return `Erreur inconnue (${status}).`;
