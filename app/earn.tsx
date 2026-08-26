@@ -363,7 +363,18 @@ export default function EarnScreen() {
               <View style={{ height: 1, backgroundColor: colors.cardBorder, marginVertical: spacing(2) }} />
               
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                <Button label="Unstake / Retirer" variant="ghost" onPress={() => toast.success('Ouverture de la dApp BENQI...')} />
+                <Button label="Unstake / Retirer" variant="ghost" onPress={() => {
+                  const p = (pos.protocol || '').toLowerCase();
+                  let url = 'https://app.uniswap.org';
+                  if (p.includes('jito')) url = 'https://jito.network/staking';
+                  else if (p.includes('benqi')) url = 'https://staking.benqi.fi';
+                  else if (p.includes('lido')) url = 'https://stake.lido.fi';
+                  else if (p.includes('binance') || p.includes('bnb')) url = 'https://www.bnbchain.org/en/staking';
+                  else if (p.includes('rocket')) url = 'https://stake.rocketpool.net';
+                  
+                  toast.success(`Ouverture de ${pos.protocol}...`);
+                  router.push({ pathname: '/browser', params: { url } });
+                }} />
               </View>
             </Card>
           ))}
