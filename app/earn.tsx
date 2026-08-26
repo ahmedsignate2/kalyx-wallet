@@ -173,7 +173,7 @@ export default function EarnScreen() {
     const validateInput = () => {
     if (!targetProtocol) return;
     const isNative = targetProtocol?.underlyingAsset === 'SOL' || targetProtocol?.underlyingAsset === 'ETH' || targetProtocol?.underlyingAsset === 'AVAX' || targetProtocol?.underlyingAsset === 'BNB';
-    const estGas = ['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) ? 0.002 : 0.00001;
+    const estGas = ['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) ? 0.002 : targetProtocol?.underlyingAsset === 'SOL' ? 0.0025 : 0.00001;
     const totalNeeded = Number(amountStr) + (isNative ? estGas : 0);
     const userBal = Number(formatBalance(balances[targetProtocol?.underlyingAsset] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18));
     
@@ -245,9 +245,17 @@ export default function EarnScreen() {
         // --- SIMULATION LOGS FOR DEBUGGING ---
         const sim = await (solAdapter as any).rpc('simulateTransaction', [signedTxStr, { encoding: 'base64' }]);
         if (sim?.value?.err) {
+            const logsStr = JSON.stringify(sim.value.logs || []);
+            const match = logsStr.match(/insufficient lamports (\d+), need (\d+)/);
+            if (match) {
+                const has = Number(match[1]);
+                const need = Number(match[2]);
+                const missing = (need - has) / 1e9;
+                throw new Error(`Solde insuffisant. Il manque ${missing.toFixed(9).replace(/0+$/, '')} SOL pour créer le compte WSOL.`);
+            }
             console.error('[Solana Sim Error]', sim.value.err);
-            console.error('[Solana Sim Logs]', JSON.stringify(sim.value.logs, null, 2));
-            throw new Error(`Solana Simulation Failed: ${JSON.stringify(sim.value.err)}`);
+            console.error('[Solana Sim Logs]', logsStr);
+            throw new Error(`Erreur d'exécution du Smart Contract. Vérifiez la console.`);
         }
         // -------------------------------------
         hash = await (solAdapter as any).rpc('sendTransaction', [signedTxStr, { encoding: 'base64' }]);
@@ -407,7 +415,7 @@ export default function EarnScreen() {
              
              {(() => {
                const isNative = targetProtocol?.underlyingAsset === 'SOL' || targetProtocol?.underlyingAsset === 'ETH' || targetProtocol?.underlyingAsset === 'AVAX' || targetProtocol?.underlyingAsset === 'BNB';
-               const estGas = ['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) ? 0.002 : 0.00001;
+               const estGas = ['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) ? 0.002 : targetProtocol?.underlyingAsset === 'SOL' ? 0.0025 : 0.00001;
                const totalNeeded = Number(amountStr || 0) + (isNative ? estGas : 0);
                const userBal = Number(formatBalance(balances[targetProtocol?.underlyingAsset] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18));
                const isInsufficient = Number(amountStr) > 0 && totalNeeded > userBal;
