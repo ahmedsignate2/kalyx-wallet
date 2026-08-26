@@ -252,6 +252,8 @@ export default function WalletScreen() {
 
   // Balayer vers le bas pour rafraîchir les soldes/tokens.
   const [refreshing, setRefreshing] = useState(false);
+  const [opps, setOpps] = useState<any[]>([]);
+  useEffect(() => { fetchYieldOpportunities().then(setOpps); }, []);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -298,8 +300,22 @@ export default function WalletScreen() {
     [assets, tokens],
   );
   // Positions détectées (parmi les ERC-20 détenus), par onglet.
-  const stakingPositions = useMemo(() => tokens.filter((tk) => tk.defi?.kind === 'staking'), [tokens]);
-  const defiPositions = useMemo(() => tokens.filter((tk) => tk.defi?.kind === 'defi'), [tokens]);
+  const stakingPositions = useMemo(() => {
+    return tokens.filter((tk) => {
+      if (tk.defi?.kind === 'staking') return true;
+      const o = opps.find(op => op.yieldTokenAddress === tk.contract || op.yieldTokenAddress === (tk as any).mint);
+      return o !== undefined;
+    });
+  }, [tokens, opps]);
+  const defiPositions = useMemo(() => {
+    return tokens.filter((tk) => {
+      if (tk.defi?.kind === 'defi') return true;
+      const n = (tk.name || '').toLowerCase();
+      const s = (tk.symbol || '').toLowerCase();
+      // Heuristics for DeFi tokens (LPs, aTokens, cTokens, Vaults)
+      return n.includes('liquidity') || n.includes('lp token') || s.includes('lp') || n.includes('aave') || n.includes('compound') || s.startsWith('a') && s.length > 3 || s.startsWith('c') && s.length > 3;
+    });
+  }, [tokens]);
 
   const hidden_ = useTokenPrefs((s) => s.hidden);
   const pinned = useTokenPrefs((s) => s.pinned);
