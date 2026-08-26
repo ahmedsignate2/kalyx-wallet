@@ -151,23 +151,48 @@ export default function EarnScreen() {
     setInputModalVisible(true);
   };
 
-  const applyShortcut = (pct: number) => {
+  const applyShortcut = async (pct: number) => {
     if (!targetProtocol) return;
     const isNative = ['SOL', 'ETH', 'AVAX', 'BNB'].includes(targetProtocol.underlyingAsset);
     const bal = balances[targetProtocol.underlyingAsset] || 0n;
     
     const decimals = (targetProtocol.underlyingAsset === 'USDC' || targetProtocol.underlyingAsset === 'USDC_SOL') ? 6 : (targetProtocol.underlyingAsset === 'SOL' ? 9 : 18);
-    let maxBal = Number(formatBalance(bal, decimals));
+    let maxBal = bal;
     
-    if (isNative) {
-       const buffer = targetProtocol.underlyingAsset === 'ETH' ? 0.002 
-                    : targetProtocol.underlyingAsset === 'SOL' ? 0.0025 
-                    : targetProtocol.underlyingAsset === 'AVAX' ? 0.01 
-                    : targetProtocol.underlyingAsset === 'BNB' ? 0.001 : 0;
-       maxBal = Math.max(0, maxBal - buffer);
+    if (isNative && bal > 0n) {
+       setAmountStr('...'); // UX: show calculating
+       try {
+           const fromToken = targetProtocol.underlyingAsset === 'ETH' ? NATIVE_TOKEN : targetProtocol.underlyingAsset === 'SOL' ? '11111111111111111111111111111111' : targetProtocol.underlyingAsset === 'USDC_SOL' ? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+           const isEvm = targetProtocol.underlyingAsset !== 'SOL' && targetProtocol.underlyingAsset !== 'USDC_SOL';
+      const chainId = targetProtocol.underlyingAsset === 'AVAX' ? 'avalanche' : targetProtocol.underlyingAsset === 'BNB' ? 'bnb' : !isEvm ? 'solana' : (activeChain === 'sepolia' ? 'sepolia' : 'ethereum');
+           const adapter = getAdapter(chainId);
+           
+           const quote = await getLifiQuote({
+              fromChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config?.evmChainId || (adapter as any).config?.id || 1,
+              toChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config?.evmChainId || (adapter as any).config?.id || 1,
+              fromToken,
+              toToken: targetProtocol.yieldTokenAddress,
+              fromAmount: bal, // request quote for total balance
+              fromAddress: isEvm ? account.evmAddress : account.solAddress!,
+              isEarn: true,
+           });
+           
+           if (quote && quote.gasCostNative > 0n) {
+               // Add a 5% safety margin on the API gas estimate just in case
+               const safeGas = quote.gasCostNative + (quote.gasCostNative / 20n);
+               maxBal = bal > safeGas ? bal - safeGas : 0n;
+           } else {
+               // Fallback if API fails to provide gasCostNative
+               const fallbackBuffer = targetProtocol.underlyingAsset === 'ETH' ? parseAmount('0.002', 18).raw : targetProtocol.underlyingAsset === 'SOL' ? parseAmount('0.0025', 9).raw : 0n;
+               maxBal = bal > fallbackBuffer ? bal - fallbackBuffer : 0n;
+           }
+       } catch(e) {
+           const fallbackBuffer = targetProtocol.underlyingAsset === 'ETH' ? parseAmount('0.002', 18).raw : targetProtocol.underlyingAsset === 'SOL' ? parseAmount('0.0025', 9).raw : 0n;
+           maxBal = bal > fallbackBuffer ? bal - fallbackBuffer : 0n;
+       }
     }
     
-    let amt = maxBal * (pct / 100);
+    let amt = Number(formatBalance(maxBal, decimals)) * (pct / 100);
     setAmountStr(amt > 0 ? Number(amt.toFixed(5)).toString() : '');
   };
 
@@ -215,8 +240,8 @@ export default function EarnScreen() {
     setLoadingQuote(true);
     
     try {
-      const isEvm = ['ETH', 'USDC'].includes(targetProtocol.underlyingAsset);
-      const chainId = isEvm ? (activeChain === 'sepolia' ? 'sepolia' : 'ethereum') : 'solana';
+      const isEvm = targetProtocol.underlyingAsset !== 'SOL' && targetProtocol.underlyingAsset !== 'USDC_SOL';
+      const chainId = targetProtocol.underlyingAsset === 'AVAX' ? 'avalanche' : targetProtocol.underlyingAsset === 'BNB' ? 'bnb' : !isEvm ? 'solana' : (activeChain === 'sepolia' ? 'sepolia' : 'ethereum');
       const adapter = getAdapter(chainId) as EvmChainAdapter;
       
       const decimals = (targetProtocol.underlyingAsset === 'USDC' || targetProtocol.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol.underlyingAsset === 'SOL' ? 9 : 18;
