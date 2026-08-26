@@ -134,7 +134,6 @@ interface WalletState {
   sendToken: (to: string, amount: string, token: { contract: string; decimals: number }, unlock: Unlock, gas?: GasOverride) => Promise<string>;
   /** Envoie un token SPL détenu (Solana) : crée l'ATA si besoin puis transfère. */
   sendSolToken: (to: string, amount: string, token: { mint: string; decimals: number }, unlock: Unlock) => Promise<string>;
-  stakeSolana: (validatorPubkey: string, amount: string, unlock: Unlock) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   revealPhrase: (unlock: Unlock) => Promise<string>;
   /** Révèle la clé privée EVM d'un wallet importé par clé privée. */
@@ -776,24 +775,6 @@ export const useWallet = create<WalletState>((set, get) => ({
       maxPriorityFeePerGas: gas?.maxPriorityFeePerGas,
     };
     return get().sendRawTxOn(unlock, activeChain, req);
-  },
-
-    stakeSolana: async (validatorPubkey, amount, unlock) => {
-    const { account, activeChain, activeWalletId, wallets } = get();
-    if (!account) throw new Error('Aucun compte');
-    const adapter = getAdapter(activeChain);
-    if (!(adapter instanceof SolanaChainAdapter)) throw new Error('Chaîne non supportée (Solana requise)');
-    
-    if (isPrivateKeyWallet(wallets, activeWalletId)) {
-       throw new Error('Portefeuille clé privée : Solana non disponible.');
-    }
-    const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
-    const solSigner = deriveSolanaSigner(seed, account.index);
-    
-    return adapter.sendStakeDelegation(account.address, validatorPubkey, amount, {
-      secretKey: solSigner.secretKey,
-      publicKey: solSigner.publicKey,
-    });
   },
 
   sendSolToken: async (to, amount, token, unlock) => {
