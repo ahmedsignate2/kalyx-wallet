@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Platform, View, Text, TextInput, Pressable, Scrol
 import { useTheme, fonts, radii, spacing } from '../../ui/theme';
 import { useAiStore } from '../../lib/aiStore';
 import { useSettings } from '../../lib/settingsStore';
-import { buildAiRequestParams } from '../../lib/aiConfig';
+import { buildAiRequestParams, mapAiErrorToMessage } from '../../lib/aiConfig';
 import { useAiChatHistoryStore } from '../../lib/aiChatHistoryStore';
 import { useGasTracker } from '../../lib/gasTrackerStore';
 import { Icon } from '../../ui/icon';
@@ -136,9 +136,17 @@ NE JAMAIS diriger l'utilisateur vers des écrans liés à l'export de clé priv�
       }
 
       const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
-      const data = await res.json();
-      let rawReply = provider === 'anthropic' ? data.content?.[0]?.text : data.choices?.[0]?.message?.content;
-      rawReply = rawReply || 'Erreur de réponse';
+      const data = await res.json().catch(() => ({}));
+      
+      let rawReply = '';
+      if (!res.ok) {
+         const providerMsg = data?.error?.message || data?.message || '';
+         const customMsg = typeof mapAiErrorToMessage === 'function' ? mapAiErrorToMessage(res.status) : 'Erreur IA';
+         rawReply = `${customMsg}\n\n*(Provider: ${providerMsg || res.statusText || 'Erreur interne'})*`;
+      } else {
+         rawReply = provider === 'anthropic' ? data.content?.[0]?.text : data.choices?.[0]?.message?.content;
+         rawReply = rawReply || 'Erreur de réponse du modèle IA.';
+      }
       
       let cleanReply = rawReply;
       let actionToExecute = null;
