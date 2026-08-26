@@ -24,6 +24,7 @@ import { usePortfolio } from '../lib/portfolioStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
 import { fetchYieldOpportunities } from '../lib/yieldService';
+import { fetchDeFiPortfolio, DeFiPosition } from '../lib/defiIndexer';
 import { useTokenPrefs, tokenKey } from '../lib/tokenPrefsStore';
 import {
   getAdapter,
@@ -254,7 +255,9 @@ export default function WalletScreen() {
   // Balayer vers le bas pour rafraîchir les soldes/tokens.
   const [refreshing, setRefreshing] = useState(false);
   const [opps, setOpps] = useState<any[]>([]);
+  const [indexedDeFi, setIndexedDeFi] = useState<DeFiPosition[]>([]);
   useEffect(() => { fetchYieldOpportunities().then(setOpps); }, []);
+  useEffect(() => { if (account && activeChain) { fetchDeFiPortfolio(account.address, activeChain, tokens).then(setIndexedDeFi); } }, [account, activeChain, tokens]);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -308,15 +311,7 @@ export default function WalletScreen() {
       return o !== undefined;
     });
   }, [tokens, opps]);
-  const defiPositions = useMemo(() => {
-    return tokens.filter((tk) => {
-      if (tk.defi?.kind === 'defi') return true;
-      const n = (tk.name || '').toLowerCase();
-      const s = (tk.symbol || '').toLowerCase();
-      // Heuristics for DeFi tokens (LPs, aTokens, cTokens, Vaults)
-      return n.includes('liquidity') || n.includes('lp token') || s.includes('lp') || n.includes('aave') || n.includes('compound') || s.startsWith('a') && s.length > 3 || s.startsWith('c') && s.length > 3;
-    });
-  }, [tokens]);
+  const defiPositions = indexedDeFi;
 
   const hidden_ = useTokenPrefs((s) => s.hidden);
   const pinned = useTokenPrefs((s) => s.pinned);
