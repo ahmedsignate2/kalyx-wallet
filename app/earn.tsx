@@ -21,6 +21,20 @@ const NOVA_TREASURY_EVM = '0x0000000000000000000000000000000000000000';
 const NOVA_VALIDATOR_SOL = '4rT2m1GTo3jW5yF3K1xN3MZZu5q1YmFz5wR1NnUeGgTo';
 const LIDO_STETH = '0xae7ab96520de3a18e5e111b5eaab095312d7fe84';
 
+
+  const resolveChainName = (chainId: string | number) => {
+    if (chainId === 'solana') return 'solana';
+    if (chainId === 1) return 'ethereum';
+    if (chainId === 43114) return 'avalanche';
+    if (chainId === 56) return 'bnb';
+    if (chainId === 8453) return 'base';
+    if (chainId === 137) return 'polygon';
+    if (chainId === 42161) return 'arbitrum';
+    if (chainId === 10) return 'optimism';
+    if (chainId === 11155111) return 'sepolia';
+    return String(chainId);
+  };
+
 export default function EarnScreen() {
   const { colors, typography } = useTheme();
   const walletStore = useWallet();
@@ -145,16 +159,22 @@ export default function EarnScreen() {
        setAmountStr('...'); // UX: show calculating
        try {
            let underlyingAddress = NATIVE_TOKEN;
-       if (activeProtocol.underlyingAsset === 'SOL') underlyingAddress = '11111111111111111111111111111111';
-       else if (activeProtocol.underlyingAsset === 'USDC_SOL') underlyingAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-       else if (activeProtocol.underlyingAsset === 'USDC') underlyingAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-       else if (activeProtocol.underlyingAsset === 'AVAX') underlyingAddress = NATIVE_TOKEN;
-       else if (activeProtocol.underlyingAsset === 'BNB') underlyingAddress = NATIVE_TOKEN;
+       if (activeProtocol.chainId === 'solana') underlyingAddress = '11111111111111111111111111111111';
+       else if (activeProtocol.underlyingAsset === 'USDC' && activeProtocol.chainId === 1) underlyingAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+       // Add other specific stablecoins here if needed, otherwise it defaults to native token of the chain
            const isEvm = activeProtocol.underlyingAsset !== 'SOL' && activeProtocol.underlyingAsset !== 'USDC_SOL';
       const chainId = activeProtocol.underlyingAsset === 'AVAX' ? 'avalanche' : activeProtocol.underlyingAsset === 'BNB' ? 'bnb' : !isEvm ? 'solana' : (activeChain === 'sepolia' ? 'sepolia' : 'ethereum');
            const adapter = getAdapter(chainId);
            
-           const quote = await getLifiQuote({
+           
+      if (targetProtocol.type === 'Lending') {
+          // lending execution path (Aave, Kamino) - not via DEX SWAP
+          toast.error('Non supporté', 'Le lending natif (Aave, Kamino) est en cours d\'intégration (ABI requise) et ne peut pas être swappé sur un DEX.');
+          setLoadingQuote(false);
+          return;
+      }
+      
+      const quote = await getLifiQuote({
               fromChainId: (activeProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config?.evmChainId || (adapter as any).config?.id || 1,
               toChainId: (activeProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config?.evmChainId || (adapter as any).config?.id || 1,
               fromToken: underlyingAddress,
@@ -257,7 +277,7 @@ export default function EarnScreen() {
           } else if (opp.yieldTokenAddress) {
             // EVM ERC20 Token
             const isEvm = opp.underlyingAsset !== 'SOL' && opp.underlyingAsset !== 'USDC_SOL';
-            const chainId = opp.underlyingAsset === 'AVAX' ? 'avalanche' : opp.underlyingAsset === 'BNB' ? 'bnb' : !isEvm ? 'solana' : 'ethereum';
+            const chainId = resolveChainName(opp.chainId);
             const adapter = getAdapter(chainId) as any;
             bal = await adapter.getTokenBalance(opp.yieldTokenAddress, account.evmAddress).catch(()=>0n);
           }
@@ -291,18 +311,23 @@ export default function EarnScreen() {
     
     try {
       const isEvm = targetProtocol.underlyingAsset !== 'SOL' && targetProtocol.underlyingAsset !== 'USDC_SOL';
-      const chainId = targetProtocol.underlyingAsset === 'AVAX' ? 'avalanche' : targetProtocol.underlyingAsset === 'BNB' ? 'bnb' : !isEvm ? 'solana' : (activeChain === 'sepolia' ? 'sepolia' : 'ethereum');
+      const chainId = resolveChainName(targetProtocol.chainId);
       const adapter = getAdapter(chainId) as EvmChainAdapter;
       
       const decimals = (targetProtocol.underlyingAsset === 'USDC' || targetProtocol.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol.underlyingAsset === 'SOL' ? 9 : 18;
       const rawAmount = parseAmount(amountStr, decimals).raw;
       
       let underlyingAddress = NATIVE_TOKEN;
-       if (targetProtocol.underlyingAsset === 'SOL') underlyingAddress = '11111111111111111111111111111111';
-       else if (targetProtocol.underlyingAsset === 'USDC_SOL') underlyingAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-       else if (targetProtocol.underlyingAsset === 'USDC') underlyingAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-       else if (targetProtocol.underlyingAsset === 'AVAX') underlyingAddress = NATIVE_TOKEN;
-       else if (targetProtocol.underlyingAsset === 'BNB') underlyingAddress = NATIVE_TOKEN;
+       if (targetProtocol.chainId === 'solana') underlyingAddress = '11111111111111111111111111111111';
+       else if (targetProtocol.underlyingAsset === 'USDC' && targetProtocol.chainId === 1) underlyingAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      
+      
+      if (targetProtocol.type === 'Lending') {
+          // lending execution path (Aave, Kamino) - not via DEX SWAP
+          toast.error('Non supporté', 'Le lending natif (Aave, Kamino) est en cours d\'intégration (ABI requise) et ne peut pas être swappé sur un DEX.');
+          setLoadingQuote(false);
+          return;
+      }
       
       const quote = await getLifiQuote({
         fromChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config.evmChainId || adapter.config.id,
@@ -543,7 +568,7 @@ export default function EarnScreen() {
         perform={executeStake}
         onDone={() => {}}
         onCancel={() => setUnlockVisible(false)}
-        aiContext={{ to: targetProtocol?.id === "LIDO" ? LIDO_STETH : (targetProtocol?.underlyingAsset === "SOL" ? NOVA_VALIDATOR_SOL : "Contract inconnu"), value: amountStr, method: targetProtocol?.underlyingAsset === "ETH" ? "submit(address)" : "Delegate" }} 
+        aiContext={{ to: "LIFI_ROUTER", value: amountStr, method: isUnstaking ? "Unstake_Swap" : "Stake_Swap" }} 
       />
 
       <SuccessModal
