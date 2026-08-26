@@ -120,7 +120,7 @@ interface WalletState {
   signAndSend: (to: string, amount: string, unlock: Unlock, gas?: GasOverride) => Promise<string>;
   executeSwap: (quote: SwapQuote, unlock: Unlock, onStatus?: (s: SwapStatus) => void) => Promise<string>;
 
-  signSolanaTransaction: (unlock: Unlock, txStr: string) => Promise<string>;
+  signSolanaTransaction: (unlock: Unlock, txStr: string, refreshBlockhash?: boolean) => Promise<string>;
   signSolanaTransactions: (unlock: Unlock, txStrArray: string[]) => Promise<string[]>;
   signSolanaMessage: (unlock: Unlock, message: string) => Promise<{ signature: string }>;
   signBitcoinMessage: (unlock: Unlock, message: string, type?: 'ecdsa' | 'bip322') => Promise<string>;
@@ -570,7 +570,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
 
-  signSolanaTransaction: async (unlock, txStr) => {
+  signSolanaTransaction: async (unlock, txStr, refreshBlockhash = false) => {
     const { account, activeWalletId } = get();
     if (!account) throw new Error('Aucun compte');
     const secret = await revealMnemonic(activeWalletId, unlock);
@@ -579,10 +579,19 @@ export const useWallet = create<WalletState>((set, get) => ({
     const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(txStr) && txStr.length % 4 === 0;
     const bytes = isBase64 ? base64.decode(txStr) : base58.decode(txStr);
 
-
     const tx = VersionedTransaction.deserialize(bytes);
     
-    
+    if (refreshBlockhash) {
+      try {
+        const adapter = getAdapter('solana') as SolanaChainAdapter;
+        const res = await (adapter as any).rpc('getLatestBlockhash', [{ commitment: 'finalized' }]);
+        if (res?.value?.blockhash) {
+          tx.message.recentBlockhash = res.value.blockhash;
+        }
+      } catch (e) {
+        console.warn('Failed to refresh blockhash', e);
+      }
+    }
 
     const keypair = Keypair.fromSeed(signer.secretKey);
 
