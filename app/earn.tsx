@@ -164,8 +164,17 @@ export default function EarnScreen() {
 
     const validateInput = () => {
     if (!targetProtocol) return;
+    const isNative = targetProtocol?.underlyingAsset === 'SOL' || targetProtocol?.underlyingAsset === 'ETH' || targetProtocol?.underlyingAsset === 'AVAX' || targetProtocol?.underlyingAsset === 'BNB';
+    const estGas = ['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) ? 0.002 : 0.00001;
+    const totalNeeded = Number(amountStr) + (isNative ? estGas : 0);
+    const userBal = Number(formatBalance(balances[targetProtocol?.underlyingAsset] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18));
+    
     if (!amountStr || isNaN(Number(amountStr)) || Number(amountStr) <= 0) {
       toast.error('Montant invalide', 'Veuillez saisir un montant valide à staker.');
+      return;
+    }
+    if (totalNeeded > userBal) {
+      toast.error('Solde insuffisant', 'Vous n\'avez pas assez de fonds pour couvrir le montant et les frais réseau.');
       return;
     }
     
@@ -256,15 +265,13 @@ export default function EarnScreen() {
           <Text style={[typography.section, { marginBottom: spacing(2) }]}>Mes positions actives</Text>
           {userStakedPositions.map((pos) => (
             <Card key={pos.id} style={{ padding: spacing(2), marginBottom: spacing(2), borderColor: colors.accent, borderWidth: 1 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E84142', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name="staking" size={24} color="#FFF" />
-                  </View>
-                  <View>
-                    <Text style={typography.bodyStrong}>{pos.name}</Text>
-                    <Text style={typography.muted}>{pos.protocol}</Text>
-                  </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E84142', alignItems: 'center', justifyContent: 'center', marginRight: spacing(1.5) }}>
+                  <Icon name="staking" size={24} color="#FFF" />
+                </View>
+                <View style={{ flex: 1, paddingRight: spacing(1) }}>
+                  <Text style={typography.bodyStrong} numberOfLines={1}>{pos.name}</Text>
+                  <Text style={typography.muted} numberOfLines={1}>{pos.protocol}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={typography.bodyStrong}>{formatCrypto(pos.balance, pos.decimals)} {pos.symbol}</Text>
@@ -294,15 +301,13 @@ export default function EarnScreen() {
       {eligibleOpps.length === 0 && !showAll && <Text style={[typography.muted, {textAlign: 'center', marginVertical: spacing(2)}]}>Aucun actif éligible détecté dans votre portefeuille. Cliquez sur 'Tout explorer'.</Text>}
       {eligibleOpps.map((opp: any) => (
         <Card key={opp.id} style={{ padding: spacing(2), marginBottom: spacing(2) }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: opp.underlyingAsset === 'SOL' ? '#14F195' : opp.underlyingAsset === 'AVAX' ? '#E84142' : opp.underlyingAsset === 'BNB' ? '#F3BA2F' : (opp.underlyingAsset === 'USDC' || opp.underlyingAsset === 'USDC_SOL') ? '#B6509E' : '#627EEA', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={opp.underlyingAsset === 'SOL' ? 'staking' : 'defi'} size={24} color={opp.underlyingAsset === 'SOL' ? '#000' : '#FFF'} />
-              </View>
-              <View>
-                <Text style={typography.bodyStrong}>{opp.name} ({opp.underlyingAsset})</Text>
-                <Text style={typography.muted}>~{opp.apy}% APY • {opp.type}</Text>
-              </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: opp.underlyingAsset === 'SOL' ? '#14F195' : opp.underlyingAsset === 'AVAX' ? '#E84142' : opp.underlyingAsset === 'BNB' ? '#F3BA2F' : (opp.underlyingAsset === 'USDC' || opp.underlyingAsset === 'USDC_SOL') ? '#B6509E' : '#627EEA', alignItems: 'center', justifyContent: 'center', marginRight: spacing(1.5) }}>
+              <Icon name={opp.underlyingAsset === 'SOL' ? 'staking' : 'defi'} size={24} color={opp.underlyingAsset === 'SOL' ? '#000' : '#FFF'} />
+            </View>
+            <View style={{ flex: 1, paddingRight: spacing(1) }}>
+              <Text style={typography.bodyStrong} numberOfLines={1}>{opp.name} ({opp.underlyingAsset})</Text>
+              <Text style={typography.muted} numberOfLines={1}>~{opp.apy}% APY • {opp.type}</Text>
             </View>
             <Text style={{ fontFamily: fonts.bold, color: colors.up }}>+{opp.apy}%</Text>
           </View>
@@ -319,6 +324,7 @@ export default function EarnScreen() {
         </Card>
       ))}
 
+      <View style={{ height: spacing(12) }} />
       {/* MODAL DE SAISIE */}
       <Modal visible={inputModalVisible} transparent animationType="slide" onRequestClose={() => setInputModalVisible(false)}>
          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
@@ -340,7 +346,7 @@ export default function EarnScreen() {
                  value={amountStr}
                  onChangeText={(v) => setAmountStr(v.replace(',', '.'))}
                />
-               <Text style={{ fontSize: 24, color: colors.textFaint, fontFamily: fonts.medium }}>{targetProtocol?.asset}</Text>
+               <Text style={{ fontSize: 24, color: colors.textFaint, fontFamily: fonts.medium }}>{targetProtocol?.underlyingAsset}</Text>
              </View>
              
              <View style={{ flexDirection: 'row', gap: spacing(1), marginBottom: spacing(3) }}>
@@ -377,12 +383,24 @@ export default function EarnScreen() {
 
 
              
-             <View style={{ opacity: (Number(amountStr) > Number(formatBalance(balances[targetProtocol?.asset] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18))) ? 0.5 : 1 }}>
-               <Button 
-                 label={Number(amountStr) > Number(formatBalance(balances[targetProtocol?.asset] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18)) ? "Solde insuffisant" : "Valider"} 
-                 onPress={validateInput} 
-               />
-             </View>
+             
+             {(() => {
+               const isNative = targetProtocol?.underlyingAsset === 'SOL' || targetProtocol?.underlyingAsset === 'ETH' || targetProtocol?.underlyingAsset === 'AVAX' || targetProtocol?.underlyingAsset === 'BNB';
+               const estGas = ['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) ? 0.002 : 0.00001;
+               const totalNeeded = Number(amountStr || 0) + (isNative ? estGas : 0);
+               const userBal = Number(formatBalance(balances[targetProtocol?.underlyingAsset] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18));
+               const isInsufficient = Number(amountStr) > 0 && totalNeeded > userBal;
+               return (
+                 <View style={{ opacity: isInsufficient ? 0.5 : 1 }}>
+                   <Button 
+                     label={isInsufficient ? "Solde insuffisant" : "Valider"} 
+                     onPress={isInsufficient ? () => {} : validateInput} 
+                     disabled={isInsufficient}
+                   />
+                 </View>
+               );
+             })()}
+
 
            </View>
          </View>
@@ -390,19 +408,19 @@ export default function EarnScreen() {
       
       <ConfirmUnlock
         visible={unlockVisible}
-        title={`Staking \${targetProtocol?.name}`}
-        subtitle={`Dépôt de \${amountStr} \${targetProtocol?.asset}`}
+        title={`Staking ${targetProtocol?.name}`}
+        subtitle={`Dépôt de ${amountStr} ${targetProtocol?.underlyingAsset}`}
         statusText="Exécution du smart contract en cours..."
         perform={executeStake}
         onDone={() => {}}
         onCancel={() => setUnlockVisible(false)}
-        aiContext={{ to: targetProtocol?.id === "LIDO" ? LIDO_STETH : (targetProtocol?.asset === "SOL" ? NOVA_VALIDATOR_SOL : "Contract inconnu"), value: amountStr, method: targetProtocol?.asset === "ETH" ? "submit(address)" : "Delegate" }} 
+        aiContext={{ to: targetProtocol?.id === "LIDO" ? LIDO_STETH : (targetProtocol?.underlyingAsset === "SOL" ? NOVA_VALIDATOR_SOL : "Contract inconnu"), value: amountStr, method: targetProtocol?.underlyingAsset === "ETH" ? "submit(address)" : "Delegate" }} 
       />
 
       <SuccessModal
         visible={successVisible}
         title="Dépôt réussi !"
-        message={`Vos \${targetProtocol?.asset} travaillent désormais pour vous. Les récompenses seront cumulées automatiquement.`}
+        message={`Vos ${targetProtocol?.underlyingAsset} travaillent désormais pour vous. Les récompenses seront cumulées automatiquement.`}
         hash={successHash}
         explorerUrl={explorerUrl}
         onClose={() => setSuccessVisible(false)}
