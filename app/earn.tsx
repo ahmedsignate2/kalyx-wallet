@@ -157,16 +157,17 @@ export default function EarnScreen() {
     const bal = balances[targetProtocol.underlyingAsset] || 0n;
     
     const decimals = (targetProtocol.underlyingAsset === 'USDC' || targetProtocol.underlyingAsset === 'USDC_SOL') ? 6 : (targetProtocol.underlyingAsset === 'SOL' ? 9 : 18);
-    let amt = Number(formatBalance(bal, decimals)) * (pct / 100);
+    let maxBal = Number(formatBalance(bal, decimals));
     
-    if (pct === 100 && isNative) {
+    if (isNative) {
        const buffer = targetProtocol.underlyingAsset === 'ETH' ? 0.002 
-                    : targetProtocol.underlyingAsset === 'SOL' ? 0.0001 
+                    : targetProtocol.underlyingAsset === 'SOL' ? 0.0025 
                     : targetProtocol.underlyingAsset === 'AVAX' ? 0.01 
                     : targetProtocol.underlyingAsset === 'BNB' ? 0.001 : 0;
-       amt = Math.max(0, amt - buffer);
+       maxBal = Math.max(0, maxBal - buffer);
     }
     
+    let amt = maxBal * (pct / 100);
     setAmountStr(amt > 0 ? Number(amt.toFixed(5)).toString() : '');
   };
 
@@ -252,6 +253,9 @@ export default function EarnScreen() {
                 const need = Number(match[2]);
                 const missing = (need - has) / 1e9;
                 throw new Error(`Solde insuffisant. Il manque ${missing.toFixed(9).replace(/0+$/, '')} SOL pour créer le compte WSOL.`);
+            }
+            if (JSON.stringify(sim.value.err).includes("InsufficientFundsForRent")) {
+                throw new Error(`Solde insuffisant pour payer l'exemption de loyer (Rent Exemption) Solana. Gardez au moins 0.0025 SOL de marge.`);
             }
             console.error('[Solana Sim Error]', sim.value.err);
             console.error('[Solana Sim Logs]', logsStr);
