@@ -15,7 +15,7 @@ const KEY = (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_LIFI_KEY)
 const TIMEOUT = 20_000;
 
 /** Frais intégrateur Nova. */
-export const NOVA_INTEGRATOR = 'nova';
+export const NOVA_INTEGRATOR = 'nova-wallet';
 export const NOVA_FEE = '0.003'; // 0,3 %
 export const DEFAULT_SLIPPAGE = '0.005'; // 0,5 %
 /** Adresse « token natif » côté LI.FI. */
@@ -165,6 +165,7 @@ export interface QuoteParams {
   toToken: string;
   fromAmount: bigint; // plus petite unité
   fromAddress: string; toAddress?: string;
+  isEarn?: boolean;
 }
 
 async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQuote | null> {
@@ -182,10 +183,15 @@ async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQu
   if (params.toAddress) {
     qs.set('toAddress', params.toAddress);
   }
+
+  const isEarn = params.isEarn === true;
+  const EARN_FEE = '0.005'; // 0,5% pour le Staking/Earn
+  
   if (withFee) {
-    qs.set('fee', NOVA_FEE);
+    qs.set('fee', isEarn ? EARN_FEE : NOVA_FEE);
     if (FEE_RECIPIENT) qs.set('feeRecipient', FEE_RECIPIENT);
   }
+
 
   const headers: Record<string, string> = {
     'Accept': 'application/json',

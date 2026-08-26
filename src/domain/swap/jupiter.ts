@@ -8,8 +8,8 @@ const NOVA_FEE_BPS = 30; // 0.3 %
 const TIMEOUT = 15000;
 
 export async function getJupiterQuote(params: QuoteParams): Promise<SwapQuote | null> {
-  const fromMint = params.fromToken === NATIVE_TOKEN ? 'So11111111111111111111111111111111111111112' : params.fromToken;
-  const toMint = params.toToken === NATIVE_TOKEN ? 'So11111111111111111111111111111111111111112' : params.toToken;
+  const fromMint = (params.fromToken === NATIVE_TOKEN || params.fromToken === '11111111111111111111111111111111') ? 'So11111111111111111111111111111111111111112' : params.fromToken;
+  const toMint = (params.toToken === NATIVE_TOKEN || params.toToken === '11111111111111111111111111111111') ? 'So11111111111111111111111111111111111111112' : params.toToken;
 
   const url = new URL(`${JUPITER_API}/quote`);
   url.searchParams.append('inputMint', fromMint);
@@ -17,14 +17,13 @@ export async function getJupiterQuote(params: QuoteParams): Promise<SwapQuote | 
   url.searchParams.append('amount', params.fromAmount.toString());
   url.searchParams.append('slippageBps', '50'); // 0.5%
   
-  if (FEE_RECIPIENT_SOLANA) {
-    url.searchParams.append('platformFeeBps', NOVA_FEE_BPS.toString());
-  }
+  // Fee disabled temporarily for Jupiter as it requires exact ATAs for every output mint
 
   try {
     const res = await withTimeout(fetch(url.toString()), TIMEOUT, () => new Error('timeout'));
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      console.error('[Jupiter] API Error (Quote):', err);
       if (err.error?.includes('amount')) throw new SwapError('AMOUNT_BELOW_MINIMUM', err.error);
       return null;
     }
@@ -37,9 +36,7 @@ export async function getJupiterQuote(params: QuoteParams): Promise<SwapQuote | 
       userPublicKey: params.fromAddress,
       wrapAndUnwrapSol: true,
     };
-    if (FEE_RECIPIENT_SOLANA) {
-      swapBody.feeAccount = FEE_RECIPIENT_SOLANA;
-    }
+    // Fee disabled temporarily
 
     const swapRes = await withTimeout(
       fetch(`${JUPITER_API}/swap`, {
@@ -51,7 +48,11 @@ export async function getJupiterQuote(params: QuoteParams): Promise<SwapQuote | 
       () => new Error('timeout')
     );
 
-    if (!swapRes.ok) return null;
+    if (!swapRes.ok) {
+      const serr = await swapRes.json().catch(() => ({}));
+      console.error('[Jupiter] API Error (Swap):', serr);
+      return null;
+    }
     const swapData = await swapRes.json();
     if (!swapData.swapTransaction) return null;
 

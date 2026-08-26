@@ -3,8 +3,11 @@ import { Platform, View } from 'react-native';
 import { Stack } from 'expo-router';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { OfflineBanner } from '../ui/OfflineBanner';
+import { FloatingAiAssistant } from '../components/ai/FloatingAiAssistant';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useWallet } from '../lib/walletStore';
+import { useAiStore } from '../lib/aiStore';
 import { useSettings } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
 import { useContacts } from '../lib/contactsStore';
@@ -68,6 +71,7 @@ export default function RootLayout() {
   const loadRecents = useRecentRecipients((s) => s.load);
   const loadTokenPrefs = useTokenPrefs((s) => s.load);
   const initWalletConnect = useWalletConnect((s) => s.init);
+  const loadAiState = useAiStore((s) => s.loadInitialState);
 
   // Web : fond de page sombre garanti (au cas où +html.tsx ne serait pas honoré)
   // + on empêche la bande blanche autour de la colonne centrée.
@@ -131,6 +135,7 @@ export default function RootLayout() {
         await loadPriceAlerts();
         await loadRecents();
         await loadTokenPrefs();
+        await loadAiState();
         console.log('[Nova] loadSettings OK');
       } catch (e) {
         console.error('[Nova] loadSettings a échoué :', e);
@@ -141,7 +146,7 @@ export default function RootLayout() {
         console.error('[Nova] WalletConnect init a échoué :', e);
       }
     })();
-  }, [bootstrap, loadSettings, loadCustomTokens, loadContacts, loadNotifs, loadCustomChains, loadPriceAlerts, loadRecents, loadTokenPrefs, initWalletConnect]);
+  }, [bootstrap, loadSettings, loadCustomTokens, loadContacts, loadNotifs, loadCustomChains, loadPriceAlerts, loadRecents, loadTokenPrefs, initWalletConnect, loadAiState]);
 
   if (!fontsLoaded) return null;
 
@@ -154,7 +159,7 @@ export default function RootLayout() {
           <StatusBar style="light" />
           <WebDashboard />
           <ToastHost />
-        </SafeAreaProvider>
+    </SafeAreaProvider>
       </RootErrorBoundary>
     );
   }
@@ -165,6 +170,7 @@ export default function RootLayout() {
         {/* Icônes de statut claires sur thème sombre, et inversement. */}
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
         <View style={{ flex: 1 }}>
+          <OfflineBanner />
         <Stack
           screenOptions={{
             headerStyle: { backgroundColor: colors.bgDeep },
@@ -182,6 +188,7 @@ export default function RootLayout() {
         <PrivacyScreen />
         <PriceAlertWatcher />
         <DeepLinks />
+        <FloatingAiAssistant />
         {showSplash ? <Splash onFinish={() => setShowSplash(false)} /> : null}
         </View>
       </SafeAreaProvider>

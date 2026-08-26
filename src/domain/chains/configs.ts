@@ -27,7 +27,7 @@ export const COVALENT_API_KEY: string = process.env.EXPO_PUBLIC_COVALENT_API_KEY
  * on met l'endpoint Alchemy EN TÊTE des RPC (les publics restent en fallback).
  * Alchemy fait aussi soldes ERC-20, NFT et historique — utilisé plus tard.
  */
-const ALCHEMY_KEY: string = process.env.EXPO_PUBLIC_ALCHEMY_KEY ?? '';
+export const ALCHEMY_KEY: string = process.env.EXPO_PUBLIC_ALCHEMY_KEY ?? '';
 function withAlchemy(slug: string, fallbacks: string[]): string[] {
   return ALCHEMY_KEY ? [`https://${slug}.g.alchemy.com/v2/${ALCHEMY_KEY}`, ...fallbacks] : fallbacks;
 }

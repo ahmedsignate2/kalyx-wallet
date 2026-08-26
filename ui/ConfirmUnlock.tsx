@@ -24,6 +24,8 @@ import { fonts, radii, spacing, useTheme } from './theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import type { Unlock } from '../lib/walletStore';
+import { buildAiRequestParams } from "../lib/aiConfig";
+import { useAiStore } from "../lib/aiStore";
 import { isWalletError } from '../src';
 
 export function ConfirmUnlock({
@@ -34,6 +36,7 @@ export function ConfirmUnlock({
   perform,
   onDone,
   onCancel,
+  aiContext,
 }: {
   visible: boolean;
   title: string;
@@ -44,24 +47,92 @@ export function ConfirmUnlock({
   perform: (unlock: Unlock) => Promise<void>;
   onDone: () => void;
   onCancel: () => void;
+  aiContext?: { to: string; value: string; method?: string; url?: string };
 }) {
   const { colors, typography } = useTheme();
   const t = useT();
   const bioEnabled = useSettings((s) => s.biometricEnabled);
+  const { language } = useSettings();
   const pinLength = useSettings((s) => s.pinLength);
   const [phase, setPhase] = useState<'working' | 'pin' | 'error'>('working');
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [errSignal, setErrSignal] = useState(0);
 
+  const aiStore = useAiStore();
+  const [aiAnalysis, setAiAnalysis] = useState<{ riskLevel: string, explanation: string, threats: string[] } | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  useEffect(() => {
+    if (visible && aiStore.isEnabled && aiContext && !aiAnalysis && !analyzing) {
+      setAnalyzing(true);
+      (async () => {
+        console.log('[AI Audit] Lancement de l\'audit de transaction pour:', aiContext.to);
+        try {
+          const prompt = `Tu es un expert en cybersécurité Web3. Analyse cette transaction et renvoie STRICTEMENT ET UNIQUEMENT un JSON valide (sans markdown) : {"riskLevel": "SAFE" | "WARNING" | "DANGER", "explanation": "Short explanation in ${language || 'fr'}", "threats": ["Menace éventuelle"]}.
+Données:
+Cible: ${aiContext.to}
+Montant: ${aiContext.value}
+Action: ${aiContext.method || 'Transfer'}`;
+
+          const { url, headers, model } = buildAiRequestParams(aiStore.provider, aiStore.apiKey!, aiStore.customUrl, aiStore.customModel);
+          let body: any = { model, max_tokens: 250, response_format: { type: 'json_object' }, messages: [{ role: 'user', content: prompt }] };
+          if (aiStore.provider === 'anthropic') {
+            delete body.response_format; // Anthropic handle differently but let's just pass prompt as user
+            body.system = "Tu dois répondre UNIQUEMENT en JSON valide.";
+          }
+
+          console.log('[AI Audit] Requête envoyée à:', url, 'avec provider:', aiStore.provider);
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
+          
+          const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
+          clearTimeout(timeoutId);
+          const data = await res.json();
+          
+          if (res.status === 429 || data?.error?.code === 429) {
+            console.warn('[AI Audit] Quota 429 atteint, fallback neutre.');
+            setAiAnalysis({
+              riskLevel: 'MEDIUM',
+              explanation: 'Vérification IA indisponible (quota atteint). Le contrat n\'a pas pu être validé.',
+              threats: []
+            });
+            return;
+          }
+
+          console.log('[AI Audit] Réponse brute reçue:', JSON.stringify(data).substring(0, 200) + '...');
+          let txt = data.choices?.[0]?.message?.content || '{}';
+          // Clean markdown
+          txt = txt.replace(/```json/g, '').replace(/```/g, '');
+          const parsed = JSON.parse(txt);
+          console.log('[AI Audit] Résultat de l\'analyse parsé:', parsed);
+          setAiAnalysis(parsed);
+        } catch (e) {
+          if (String(e).includes('canceled') || String(e).includes('aborted') || (e as Error).name === 'AbortError') {
+            console.log('[AI Audit] Timeout atteint (2s), fallback neutre.');
+            setAiAnalysis({ riskLevel: 'MEDIUM', explanation: 'Audit rapide ignoré (timeout).', threats: [] });
+          } else {
+            console.warn('[AI Audit] Erreur silencieuse ignorée:', (e as Error).message);
+          }
+        } finally {
+          setAnalyzing(false);
+        }
+      })();
+    }
+  }, [visible, aiStore.isEnabled, aiContext]);
+
+
   const run = async (unlock: Unlock) => {
     const viaBio = 'biometric' in unlock;
     setPhase('working');
+      setAiAnalysis(null);
+      setAnalyzing(false);
     setError(null);
     try {
       await perform(unlock);
       onDone();
     } catch (e) {
+      // console.warn('[ConfirmUnlock] Perform catch:', (e as Error).message || e);
       if (isWalletError(e) && e.code === 'WRONG_PIN') {
         setPin('');
         setErrSignal((x) => x + 1);
@@ -137,7 +208,24 @@ export function ConfirmUnlock({
             </View>
           ) : (
             <>
+
+              {aiStore.isEnabled && aiContext && (
+                <View style={{ width: '90%', backgroundColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? '#3f0f15' : aiAnalysis.riskLevel === 'WARNING' ? '#3d2b0f' : '#0f291e') : '#18181b', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? '#ef4444' : aiAnalysis.riskLevel === 'WARNING' ? '#f59e0b' : '#10b981') : '#27272a', marginBottom: 8 }}>
+                  <Text style={{ color: '#fff', fontFamily: fonts.semibold, fontSize: 13, marginBottom: 4 }}>
+                    {analyzing ? 'Audit IA en cours...' : (aiAnalysis ? `Audit IA : ${aiAnalysis.riskLevel}` : 'Audit IA indéterminé')}
+                  </Text>
+                  {!analyzing && aiAnalysis && (
+                    <>
+                      <Text style={{ color: '#d4d4d8', fontSize: 12, fontFamily: fonts.medium }}>{aiAnalysis.explanation}</Text>
+                      {aiAnalysis.threats && aiAnalysis.threats.length > 0 && (
+                        <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4, fontFamily: fonts.semibold }}>⚠️ {aiAnalysis.threats.join(', ')}</Text>
+                      )}
+                    </>
+                  )}
+                </View>
+              )}
               <PinPad
+
                 value={pin}
                 onChange={(v) => {
                   setError(null);

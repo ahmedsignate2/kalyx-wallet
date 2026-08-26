@@ -15,6 +15,12 @@ import { useWalletConnect } from '../lib/walletconnect';
 /** Extrait une URI WalletConnect d'un lien (directe ou via ?uri=). */
 export function extractWcUri(url: string): string | null {
   if (url.startsWith('wc:')) return url;
+  
+  // Correction pour les liens directs WalletConnect interceptés par le scheme novawallet://
+  if (url.startsWith('novawallet://') && (url.includes('symKey=') || url.includes('relay-protocol='))) {
+     return url.replace(/^novawallet:\/\//, 'wc:');
+  }
+  
   const m = url.match(/[?&]uri=([^&]+)/);
   if (m) {
     const decoded = decodeURIComponent(m[1]);

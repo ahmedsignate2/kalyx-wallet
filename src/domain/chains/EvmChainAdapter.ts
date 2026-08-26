@@ -1,3 +1,5 @@
+import { fetchAnkrHistory } from './ankr';
+import { parseAlchemyTransfers } from './alchemy';
 /**
  * Adapter EVM (Ethereum / BNB Chain / Polygon / testnets).
  *
@@ -31,7 +33,7 @@ import { WalletError } from '../errors';
 import { tryInOrder, withTimeout, withRetry } from './net';
 import { parseTxList } from './etherscan';
 import { computeFeeTiers, type FeeOptions } from './gas';
-import { ETHERSCAN_V2_API, EXPLORER_API_KEY, COVALENT_API_KEY } from './configs';
+import { ETHERSCAN_V2_API, EXPLORER_API_KEY, COVALENT_API_KEY, ALCHEMY_KEY } from './configs';
 import { parseCovalentTxList } from './covalent';
 
 // Limite de gas d'un transfert natif simple (pas d'appel de contrat).
@@ -85,6 +87,120 @@ export class EvmChainAdapter implements ChainAdapter {
 
   async getHistory(address: string): Promise<TxSummary[]> {
     const owner = normalizeEvmAddress(address);
+
+    // 0. Alchemy (si supporté)
+    const alchemyNetworks: Record<string, string> = {
+      ethereum: 'eth-mainnet',
+      base: 'base-mainnet',
+      polygon: 'polygon-mainnet',
+      arbitrum: 'arb-mainnet',
+      optimism: 'opt-mainnet',
+    };
+    
+
+    const alchemyNet = alchemyNetworks[this.config.id];
+    if (ALCHEMY_KEY && alchemyNet) {
+      try {
+        const alchemyTxs = await withRetry(async () => {
+          const res = await withTimeout(
+            fetch(`https://${alchemyNet}.g.alchemy.com/v2/${ALCHEMY_KEY}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'alchemy_getAssetTransfers',
+                params: [{
+                  fromBlock: '0x0',
+                  toBlock: 'latest',
+                  toAddress: owner,
+                  category: ['external', 'erc20'],
+                  withMetadata: true,
+                }],
+              }),
+            }),
+            RPC_TIMEOUT_MS,
+            () => new Error('timeout')
+          );
+          const json = await res.json();
+          if (json && json.result) {
+            const received = parseAlchemyTransfers(json, owner);
+            
+            // Fetch sent transfers too
+            const resSent = await fetch(`https://${alchemyNet}.g.alchemy.com/v2/${ALCHEMY_KEY}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 2,
+                method: 'alchemy_getAssetTransfers',
+                params: [{
+                  fromBlock: '0x0',
+                  toBlock: 'latest',
+                  fromAddress: owner,
+                  category: ['external', 'erc20'],
+                  withMetadata: true,
+                }],
+              }),
+            });
+            const jsonSent = await resSent.json();
+            const sent = jsonSent && jsonSent.result ? parseAlchemyTransfers(jsonSent, owner) : [];
+            
+            const allTxs = [...received, ...sent].sort((a, b) => b.timestamp - a.timestamp);
+            const unique = [];
+            const seen = new Set();
+            for (const tx of allTxs) {
+              if (!seen.has(tx.hash)) {
+                seen.add(tx.hash);
+                unique.push(tx);
+              }
+            }
+            return unique;
+          }
+          throw new Error('Alchemy invalid format');
+        }, 2, 1000);
+        return alchemyTxs;
+      } catch (e) {
+        console.warn('Alchemy fallback:', e);
+      }
+    }
+
+    // 0.5. Ankr Advanced API (Universal Multichain Fallback)
+    const ankrNetworks: Record<string, string> = {
+      bnb: 'bsc',
+      avalanche: 'avalanche',
+      ethereum: 'eth',
+      polygon: 'polygon',
+      base: 'base',
+      arbitrum: 'arbitrum',
+      optimism: 'optimism',
+      fantom: 'fantom',
+      celo: 'celo',
+      gnosis: 'gnosis',
+      scroll: 'scroll',
+      linea: 'linea',
+      zksync: 'zksync_era',
+      'polygon-zkevm': 'polygon_zkevm',
+      moonbeam: 'moonbeam',
+      syscoin: 'syscoin',
+      flare: 'flare',
+      harmony: 'harmony',
+      blast: 'blast',
+      core: 'core',
+      xlayer: 'xlayer'
+    };
+    
+    const ankrNet = ankrNetworks[this.config.id];
+    if (ankrNet) {
+       try {
+         const ankrTxs = await fetchAnkrHistory(owner, ankrNet);
+         if (ankrTxs && ankrTxs.length > 0) return ankrTxs;
+       } catch (e) {
+         console.warn('Ankr fallback failed:', e);
+       }
+    }
+
+
     const query =
       `module=account&action=txlist&address=${owner}` +
       `&startblock=0&endblock=99999999&page=1&offset=25&sort=desc`;

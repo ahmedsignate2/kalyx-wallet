@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform, StatusBar } from 'react-native';
 import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient, RadialGradient, Rect } from 'react-native-svg';
 import { Dimensions } from 'react-native';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
@@ -31,6 +32,8 @@ const PREMIUM_W = Dimensions.get('window').width;
 /** Halo violet doux et statique en haut d'écran (lumière d'ambiance premium). */
 function TopGlow() {
   const { theme } = useThemeStyles();
+
+
   const w = PREMIUM_W * 1.5;
   const h = 360;
   return (
@@ -68,6 +71,7 @@ export function PremiumScreen({
   refreshControl?: React.ComponentProps<typeof ScrollView>['refreshControl'];
 }) {
   const insets = useSafeAreaInsets();
+  const topPadding = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : insets.top + 8;
   const { theme } = useThemeStyles();
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bgDeep }}>
@@ -77,7 +81,7 @@ export function PremiumScreen({
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView
           contentContainerStyle={{
-            paddingTop: insets.top + spacing(1.5),
+            paddingTop: topPadding,
             paddingHorizontal: spacing(2.5),
             paddingBottom: insets.bottom + spacing(13),
             gap: spacing(2.5),

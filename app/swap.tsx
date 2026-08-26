@@ -6,6 +6,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { NovaRing } from '../ui/NovaRing';
 import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
+import { BridgeTrackerModal } from '../ui/BridgeTrackerModal';
 import { SuccessModal } from '../ui/SuccessModal';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { notifyAndLog } from '../lib/notificationCenter';
@@ -111,7 +112,7 @@ export default function Swap() {
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<string | null>(null);
   // Succès : hash + résumé (capturés avant reset) pour l'écran animé.
-  const [success, setSuccess] = useState<{ hash: string; summary: string } | null>(null);
+  const [success, setSuccess] = useState<{ hash: string; summary: string; isBridge?: boolean; fromChain?: string; toChain?: string } | null>(null);
   const [held, setHeld] = useState<Tok[]>([]);
   const params = useLocalSearchParams<{ contract?: string }>();
 
@@ -287,6 +288,24 @@ export default function Swap() {
     if (!isBridge && fromTok.address === toTok.address) { setError(t('swapTwoTokens')); return; }
     let raw: bigint;
     try { raw = parseAmount(amount, fromTok.decimals).raw; } catch (e) { setError(isWalletError(e) ? e.message : t('amountInvalid')); return; }
+    if (selectedTokenBalance !== null && raw > selectedTokenBalance) {
+      setError(t('errInsufficientFunds'));
+      return;
+    }
+    
+    // Check if user has enough native SOL to pay for SPL swap fees
+    if (getAdapter(activeChain).config.family === 'solana' && fromTok.address !== '11111111111111111111111111111111') {
+      try {
+        const bal = await getAdapter(activeChain).getBalance(account!.address);
+        if (bal.raw < 5000n) {
+          setError(t('errInsufficientFunds'));
+          return;
+        }
+      } catch (e) {
+        console.warn('Failed to check SOL balance for gas', e);
+      }
+    }
+
     setLoading(true);
     try {
       const w = useWallet.getState();
@@ -299,7 +318,7 @@ export default function Swap() {
 
       const q = await getBestQuote({ fromChainId: activeChain, toChainId: toChain, fromToken: fromTok.address, toToken: toTok.address, fromAmount: raw.toString(), fromAddress: account!.address, toAddress: targetAddress });
       if (!q) setError(t('noRoute')); else setQuote(q);
-    } catch (e) { setError(friendlyTxError(e, t as any)); } finally { setLoading(false); }
+    } catch (e) { console.error('[swap.tsx] Erreur getBestQuote:', e); setError(friendlyTxError(e, t as any)); } finally { setLoading(false); }
     if (countdownInterval.current) clearInterval(countdownInterval.current);
     setCountdown(15);
     countdownInterval.current = setInterval(() => {
@@ -331,7 +350,7 @@ export default function Swap() {
       const summary = `${amount} ${fromTok.symbol} → ≈ ${formatBalance(quote.toAmount, quote.toToken.decimals, 6)} ${toTok.symbol}`;
       reset();
       setAmount('');
-      setSuccess({ hash, summary });
+      setSuccess({ hash, summary, isBridge, fromChain: activeChain, toChain: toChain });
       notifyAndLog('tx', isBridge ? t('bridgeSent') : t('swapExecuted'), summary);
       void watchConfirmation(activeChain, hash, summary);
     } finally { setStep(null); }
@@ -527,6 +546,7 @@ export default function Swap() {
           perform={onConfirm}
           onDone={() => setConfirming(false)}
           onCancel={() => setConfirming(false)}
+          aiContext={quote ? { to: quote.tx.type === 'evm' ? quote.tx.to : quote.toToken.address, value: quote.fromAmount.toString(), method: 'Swap via ' + quote.toolName } : undefined}
         />
 
         <TokenPicker
@@ -548,13 +568,24 @@ export default function Swap() {
           }}
         />
 
-        <SuccessModal
-          visible={success != null}
-          title={isBridge ? t('bridgeSent') : t('swapExecuted')}
-          hash={success?.hash}
-          message={success?.summary}
-          onClose={() => setSuccess(null)}
-        />
+        {success?.isBridge ? (
+          <BridgeTrackerModal
+            visible={success != null}
+            hash={success?.hash}
+            summary={success?.summary}
+            fromChainId={success?.fromChain}
+            toChainId={success?.toChain}
+            onClose={() => setSuccess(null)}
+          />
+        ) : (
+          <SuccessModal
+            visible={success != null}
+            title={t('swapExecuted')}
+            hash={success?.hash}
+            message={success?.summary}
+            onClose={() => setSuccess(null)}
+          />
+        )}
       </>
     );
   };

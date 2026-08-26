@@ -54,6 +54,7 @@ export async function getBestQuote(params: RouteParams): Promise<SwapQuote | nul
   };
   promises.push(query('LIFI', () => getLifiQuote(lifiArgs)));
 
+
   // 1. Intra-EVM
   if (fromChain.family === 'evm' && toChain.family === 'evm') {
     promises.push(query('0x', () => getZeroXQuote({
@@ -65,6 +66,31 @@ export async function getBestQuote(params: RouteParams): Promise<SwapQuote | nul
       fromAddress: params.fromAddress,
     })));
   }
+
+
+  // 2. Intra-Solana
+  if (fromChain.family === 'solana' && toChain.family === 'solana') {
+    promises.push(query('Jupiter', () => getJupiterQuote({
+      fromToken: params.fromToken,
+      toToken: params.toToken,
+      fromAmount: BigInt(params.fromAmount),
+      fromAddress: params.fromAddress,
+      fromChainId: params.fromChainId,
+      toChainId: params.toChainId,
+    })));
+  }
+
+  // 3. Relay (Cross-chain & Every Chain including Solana)
+  promises.push(query('Relay', () => getRelayQuote({
+    fromChainId: fromChain.relayId || (fromChain.evmChainId ? String(fromChain.evmChainId) : fromChain.id),
+    toChainId: toChain.relayId || (toChain.evmChainId ? String(toChain.evmChainId) : toChain.id),
+    fromToken: params.fromToken === '0x0000000000000000000000000000000000000000' && fromChain.family === 'solana' ? '11111111111111111111111111111111' : params.fromToken,
+    toToken: params.toToken === '0x0000000000000000000000000000000000000000' && toChain.family === 'solana' ? '11111111111111111111111111111111' : params.toToken,
+    fromAmount: params.fromAmount,
+    toAddress: params.toAddress,
+    fromAddress: params.fromAddress,
+  })));
+
   
   // 2. Intra-Solana
   if (fromChain.family === 'solana' && toChain.family === 'solana') {
