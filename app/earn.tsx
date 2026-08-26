@@ -452,7 +452,7 @@ export default function EarnScreen() {
                  value={amountStr}
                  onChangeText={(v) => setAmountStr(v.replace(',', '.'))}
                />
-               <Text style={{ fontSize: 24, color: colors.textFaint, fontFamily: fonts.medium }}>{isUnstaking ? targetProtocol?.project : targetProtocol?.underlyingAsset}</Text>
+               <Text style={{ fontSize: 24, color: colors.textFaint, fontFamily: fonts.medium }}>{isUnstaking ? (targetProtocol?.symbol === 'Jito' ? 'JitoSOL' : (targetProtocol?.symbol || targetProtocol?.project)) : targetProtocol?.underlyingAsset}</Text>
              </View>
              
              <View style={{ flexDirection: 'row', gap: spacing(1), marginBottom: spacing(3) }}>
@@ -487,26 +487,39 @@ export default function EarnScreen() {
                </View>
              )}
 
-
-             
-             
              {(() => {
-               const isNative = targetProtocol?.underlyingAsset === 'SOL' || targetProtocol?.underlyingAsset === 'ETH' || targetProtocol?.underlyingAsset === 'AVAX' || targetProtocol?.underlyingAsset === 'BNB';
-               const estGas = ['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) ? 0.002 : targetProtocol?.underlyingAsset === 'SOL' ? 0.0025 : 0.00001;
-               const totalNeeded = Number(amountStr || 0) + (isNative ? estGas : 0);
-               const userBal = Number(formatBalance(balances[targetProtocol?.underlyingAsset] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18));
-               const isInsufficient = Number(amountStr) > 0 && totalNeeded > userBal;
-               return (
-                 <View style={{ opacity: isInsufficient ? 0.5 : 1 }}>
-                   <Button 
-                     label={isInsufficient ? "Solde insuffisant" : "Valider"} 
-                     onPress={isInsufficient ? () => {} : validateInput} 
-                     disabled={isInsufficient}
-                   />
-                 </View>
-               );
-             })()}
-
+                const decimals = (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18;
+                if (isUnstaking) {
+                  // UNSTAKE MODE: compare against staked token balance (JitoSOL, sAVAX, etc.)
+                  const stakedBal = Number(formatBalance(staked[targetProtocol?.id] || 0n, decimals));
+                  const isInsufficient = Number(amountStr) > 0 && Number(amountStr) > stakedBal;
+                  return (
+                    <View style={{ opacity: isInsufficient ? 0.5 : 1 }}>
+                      <Button 
+                        label={isInsufficient ? "Solde insuffisant" : "Confirmer le retrait"} 
+                        onPress={isInsufficient ? () => {} : validateInput} 
+                        disabled={isInsufficient}
+                      />
+                    </View>
+                  );
+                } else {
+                  // STAKE MODE: compare against native/underlying balance (SOL, ETH, etc.)
+                  const isNative = targetProtocol?.underlyingAsset === 'SOL' || targetProtocol?.underlyingAsset === 'ETH' || targetProtocol?.underlyingAsset === 'AVAX' || targetProtocol?.underlyingAsset === 'BNB';
+                  const estGas = ['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) ? 0.002 : targetProtocol?.underlyingAsset === 'SOL' ? 0.0025 : 0.00001;
+                  const totalNeeded = Number(amountStr || 0) + (isNative ? estGas : 0);
+                  const userBal = Number(formatBalance(balances[targetProtocol?.underlyingAsset] || 0n, decimals));
+                  const isInsufficient = Number(amountStr) > 0 && totalNeeded > userBal;
+                  return (
+                    <View style={{ opacity: isInsufficient ? 0.5 : 1 }}>
+                      <Button 
+                        label={isInsufficient ? "Solde insuffisant" : (targetProtocol?.type === 'Lending' ? "Confirmer le dépôt" : "Confirmer le staking")} 
+                        onPress={isInsufficient ? () => {} : validateInput} 
+                        disabled={isInsufficient}
+                      />
+                    </View>
+                  );
+                }
+              })()}
 
            </View>
          </KeyboardAvoidingView>
