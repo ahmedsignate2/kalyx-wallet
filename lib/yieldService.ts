@@ -18,7 +18,6 @@ const SUPPORTED_YIELDS = [
   { id: 'jito', project: 'Jito', symbol: 'JitoSOL', underlyingAsset: 'SOL', yieldTokenAddress: 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn', type: 'Liquid Staking', chainId: 'solana' },
   { id: 'benqi-staked-avax', project: 'Benqi', symbol: 'sAVAX', underlyingAsset: 'AVAX', yieldTokenAddress: '0x2b2C81e08f1Af8835a78Bb2A90AE924ACE0eA4bE', type: 'Liquid Staking', chainId: 43114 },
   { id: 'binance-staked-eth', project: 'Binance Staked BNB', symbol: 'BNBx', underlyingAsset: 'BNB', yieldTokenAddress: '0x1bdd3Cf7F79cfB8EdbB955f20ad99211551BA275', type: 'Liquid Staking', chainId: 56 }, // Stader BNBx
-  { id: 'stargate', project: 'Stargate', symbol: 'ETH', underlyingAsset: 'ETH_BASE', yieldTokenAddress: '0x0000000000000000000000000000000000000000', type: 'Lending', chainId: 8453 }, // Just an example for Base
 ] as const;
 
 export async function fetchYieldOpportunities(): Promise<YieldOpportunity[]> {
