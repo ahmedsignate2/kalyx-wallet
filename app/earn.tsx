@@ -5,7 +5,7 @@ import { Screen, Card, Title, Muted, Button } from '../ui/components';
 import { useTheme, spacing, fonts, radii } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import type { Unlock } from '../lib/walletStore';
-import { getAdapter, ALL_CHAINS, EvmChainAdapter, SolanaChainAdapter } from '../src';
+import { getAdapter, ALL_CHAINS, EvmChainAdapter, SolanaChainAdapter, getErc20Tokens } from '../src';
 import { parseAmount, formatBalance } from '../src/domain/validation/amount';
 import { toast } from '../lib/toast';
 import { Icon } from '../ui/icon';
@@ -71,25 +71,42 @@ export default function EarnScreen() {
       
       // -- Fetch Liquid Staking Tokens --
       try {
-        const avalancheAdapter = getAdapter('avalanche') as EvmChainAdapter;
-        const savaxAddress = '0x2b2c81e08f1af8835a78bb2a9caba09866032896';
-        const savaxBal = await avalancheAdapter.getTokenBalance(savaxAddress, account.evmAddress);
+        const avalancheChainCfg = getAdapter('avalanche').config;
+        const userTokens = await getErc20Tokens(avalancheChainCfg, account.evmAddress);
         
-        const positions = [];
-        if (savaxBal > 0n) {
-          positions.push({
-            id: 'SAVAX',
+        const LIQUID_STAKING_TOKENS: Record<string, { name: string; symbol: string; protocol: string; underlyingAsset: string }> = {
+          '0x2b2c81e08f1af8835a78bb2a9caba09866032896': {
             name: 'Avalanche Staking',
             symbol: 'sAVAX',
             protocol: 'BENQI Liquid Staking',
-            balance: savaxBal,
-            decimals: 18,
             underlyingAsset: 'AVAX'
+          },
+          '0x2b2c81e08f1af8835a78bb2a90ae924ace0ea4be': {
+            name: 'Avalanche Staking',
+            symbol: 'sAVAX',
+            protocol: 'BENQI Liquid Staking',
+            underlyingAsset: 'AVAX'
+          }
+        };
+
+        const positions = userTokens
+          .filter(token => LIQUID_STAKING_TOKENS[token.contract.toLowerCase()] || token.symbol.toLowerCase() === 'savax')
+          .map(token => {
+            const info = LIQUID_STAKING_TOKENS[token.contract.toLowerCase()] || { name: 'Liquid Staking', protocol: 'DeFi', underlyingAsset: 'Unknown' };
+            return {
+              id: token.contract,
+              name: info.name,
+              symbol: token.symbol,
+              protocol: info.protocol,
+              balance: token.raw,
+              decimals: token.decimals,
+              underlyingAsset: info.underlyingAsset
+            };
           });
-        }
+
         setUserStakedPositions(positions);
       } catch (e) {
-        console.warn('Failed to fetch staked tokens', e);
+        console.warn('[DEBUG EARN] Failed to fetch staked tokens', e);
       }
 
       
