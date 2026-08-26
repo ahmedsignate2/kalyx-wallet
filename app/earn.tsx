@@ -143,7 +143,7 @@ export default function EarnScreen() {
            const quote = await getLifiQuote({
               fromChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config?.evmChainId || (adapter as any).config?.id || 1,
               toChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config?.evmChainId || (adapter as any).config?.id || 1,
-              fromToken,
+              fromToken: underlyingAddress,
               toToken: targetProtocol.yieldTokenAddress,
               fromAmount: bal, // request quote for total balance
               fromAddress: isEvm ? account.evmAddress : account.solAddress!,
@@ -280,7 +280,7 @@ export default function EarnScreen() {
       const decimals = (targetProtocol.underlyingAsset === 'USDC' || targetProtocol.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol.underlyingAsset === 'SOL' ? 9 : 18;
       const rawAmount = parseAmount(amountStr, decimals).raw;
       
-      const fromToken = targetProtocol.underlyingAsset === 'ETH' ? NATIVE_TOKEN : targetProtocol.underlyingAsset === 'SOL' ? '11111111111111111111111111111111' : targetProtocol.underlyingAsset === 'USDC_SOL' ? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const underlyingAddress = targetProtocol.underlyingAsset === 'ETH' ? NATIVE_TOKEN : targetProtocol.underlyingAsset === 'SOL' ? '11111111111111111111111111111111' : targetProtocol.underlyingAsset === 'USDC_SOL' ? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
       
       const quote = await getLifiQuote({
         fromChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config.evmChainId || adapter.config.id,
