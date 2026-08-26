@@ -117,35 +117,43 @@ export default function EarnScreen() {
     setInputModalVisible(true);
   };
 
-  const applyShortcut = async (pct: number) => {
-    if (isUnstaking) {
-      if (!targetProtocol) return;
-      const bal = staked[targetProtocol.id] || 0n;
-      const decimals = (targetProtocol.underlyingAsset === 'USDC' || targetProtocol.underlyingAsset === 'USDC_SOL') ? 6 : (targetProtocol.underlyingAsset === 'SOL' ? 9 : 18);
-      let amt = Number(formatBalance(bal, decimals)) * (pct / 100);
-      setAmountStr(amt > 0 ? Number(amt.toFixed(5)).toString() : '');
+  const applyShortcut = async (pct: number, overrideUnstake?: boolean, overrideProtocol?: any) => {
+    const activeUnstaking = overrideUnstake !== undefined ? overrideUnstake : isUnstaking;
+    const activeProtocol = overrideProtocol || targetProtocol;
+    
+    if (activeUnstaking) {
+      if (!activeProtocol) return;
+      const bal = staked[activeProtocol.id] || 0n;
+      const decimals = (activeProtocol.underlyingAsset === 'USDC' || activeProtocol.underlyingAsset === 'USDC_SOL') ? 6 : (activeProtocol.underlyingAsset === 'SOL' ? 9 : 18);
+      let amtStrVal = formatBalance(bal, decimals);
+      if (pct === 100) {
+        setAmountStr(amtStrVal);
+      } else {
+        let amt = Number(amtStrVal) * (pct / 100);
+        setAmountStr(amt > 0 ? Number(Math.floor(amt * 10000) / 10000).toString() : '');
+      }
       return;
     }
-    if (!targetProtocol) return;
-    const isNative = ['SOL', 'ETH', 'AVAX', 'BNB'].includes(targetProtocol.underlyingAsset);
-    const bal = balances[targetProtocol.underlyingAsset] || 0n;
+    if (!activeProtocol) return;
+    const isNative = ['SOL', 'ETH', 'AVAX', 'BNB'].includes(activeProtocol.underlyingAsset);
+    const bal = balances[activeProtocol.underlyingAsset] || 0n;
     
-    const decimals = (targetProtocol.underlyingAsset === 'USDC' || targetProtocol.underlyingAsset === 'USDC_SOL') ? 6 : (targetProtocol.underlyingAsset === 'SOL' ? 9 : 18);
+    const decimals = (activeProtocol.underlyingAsset === 'USDC' || activeProtocol.underlyingAsset === 'USDC_SOL') ? 6 : (activeProtocol.underlyingAsset === 'SOL' ? 9 : 18);
     let maxBal = bal;
     
     if (isNative && bal > 0n) {
        setAmountStr('...'); // UX: show calculating
        try {
-           const underlyingAddress = targetProtocol.underlyingAsset === 'ETH' ? NATIVE_TOKEN : targetProtocol.underlyingAsset === 'SOL' ? '11111111111111111111111111111111' : targetProtocol.underlyingAsset === 'USDC_SOL' ? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-           const isEvm = targetProtocol.underlyingAsset !== 'SOL' && targetProtocol.underlyingAsset !== 'USDC_SOL';
-      const chainId = targetProtocol.underlyingAsset === 'AVAX' ? 'avalanche' : targetProtocol.underlyingAsset === 'BNB' ? 'bnb' : !isEvm ? 'solana' : (activeChain === 'sepolia' ? 'sepolia' : 'ethereum');
+           const underlyingAddress = activeProtocol.underlyingAsset === 'ETH' ? NATIVE_TOKEN : activeProtocol.underlyingAsset === 'SOL' ? '11111111111111111111111111111111' : activeProtocol.underlyingAsset === 'USDC_SOL' ? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+           const isEvm = activeProtocol.underlyingAsset !== 'SOL' && activeProtocol.underlyingAsset !== 'USDC_SOL';
+      const chainId = activeProtocol.underlyingAsset === 'AVAX' ? 'avalanche' : activeProtocol.underlyingAsset === 'BNB' ? 'bnb' : !isEvm ? 'solana' : (activeChain === 'sepolia' ? 'sepolia' : 'ethereum');
            const adapter = getAdapter(chainId);
            
            const quote = await getLifiQuote({
-              fromChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config?.evmChainId || (adapter as any).config?.id || 1,
-              toChainId: (targetProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config?.evmChainId || (adapter as any).config?.id || 1,
+              fromChainId: (activeProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config?.evmChainId || (adapter as any).config?.id || 1,
+              toChainId: (activeProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config?.evmChainId || (adapter as any).config?.id || 1,
               fromToken: underlyingAddress,
-              toToken: targetProtocol.yieldTokenAddress,
+              toToken: activeProtocol.yieldTokenAddress,
               fromAmount: bal, // request quote for total balance
               fromAddress: isEvm ? account.evmAddress : account.solAddress!,
               isEarn: true,
@@ -156,18 +164,21 @@ export default function EarnScreen() {
                const safeGas = quote.gasCostNative + (quote.gasCostNative / 20n);
                maxBal = bal > safeGas ? bal - safeGas : 0n;
            } else {
-               // Fallback if API fails to provide gasCostNative
-               const fallbackBuffer = targetProtocol.underlyingAsset === 'ETH' ? parseAmount('0.002', 18).raw : targetProtocol.underlyingAsset === 'SOL' ? parseAmount('0.0025', 9).raw : 0n;
+               const fallbackBuffer = activeProtocol.underlyingAsset === 'ETH' ? parseAmount('0.002', 18).raw : activeProtocol.underlyingAsset === 'SOL' ? parseAmount('0.0025', 9).raw : 0n;
                maxBal = bal > fallbackBuffer ? bal - fallbackBuffer : 0n;
            }
        } catch(e) {
-           const fallbackBuffer = targetProtocol.underlyingAsset === 'ETH' ? parseAmount('0.002', 18).raw : targetProtocol.underlyingAsset === 'SOL' ? parseAmount('0.0025', 9).raw : 0n;
+           const fallbackBuffer = activeProtocol.underlyingAsset === 'ETH' ? parseAmount('0.002', 18).raw : activeProtocol.underlyingAsset === 'SOL' ? parseAmount('0.0025', 9).raw : 0n;
            maxBal = bal > fallbackBuffer ? bal - fallbackBuffer : 0n;
        }
     }
     
     let amt = Number(formatBalance(maxBal, decimals)) * (pct / 100);
-    setAmountStr(amt > 0 ? Number(amt.toFixed(5)).toString() : '');
+    if (pct === 100) {
+       setAmountStr(formatBalance(maxBal, decimals));
+    } else {
+       setAmountStr(amt > 0 ? Number(Math.floor(amt * 10000) / 10000).toString() : '');
+    }
   };
 
     const validateInput = () => {
@@ -192,7 +203,7 @@ export default function EarnScreen() {
     const numAmount = Number(amountStr);
     
     if (numAmount > userBalance) {
-      toast.error('Solde insuffisant', `Tu possèdes ${userBalance} ${targetProtocol.underlyingAsset}`);
+      toast.error('Solde insuffisant', `Tu possèdes ${userBalance} ${isUnstaking ? (targetProtocol.symbol || targetProtocol.project) : targetProtocol.underlyingAsset}`);
       return;
     }
 
@@ -503,8 +514,8 @@ export default function EarnScreen() {
       
       <ConfirmUnlock
         visible={unlockVisible}
-        title={`Staking ${targetProtocol?.project}`}
-        subtitle={`Dépôt de ${amountStr} ${targetProtocol?.underlyingAsset}`}
+        title={isUnstaking ? `Retrait de ${targetProtocol?.project}` : `Staking ${targetProtocol?.project}`}
+        subtitle={isUnstaking ? `Retrait de ${amountStr} ${targetProtocol?.symbol || targetProtocol?.underlyingAsset}` : `Dépôt de ${amountStr} ${targetProtocol?.underlyingAsset}`}
         statusText="Exécution du smart contract en cours..."
         perform={executeStake}
         onDone={() => {}}
