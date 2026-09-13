@@ -42,6 +42,7 @@ function fallback(adapter: ChainAdapter): GasReserve {
   const fam = adapter.config.family;
   if (fam === 'solana') return { raw: 100_000n, live: false }; // 0.0001 SOL
   if (fam === 'evm') return { raw: 10n ** BigInt(adapter.config.nativeDecimals - 4), live: false }; // 0.0001 natif
+  if (fam === 'bitcoin') return { raw: 1_500n, live: false }; // 1 500 satoshis (≈ 0.000015 BTC)
   return { raw: 0n, live: false };
 }
 
@@ -74,6 +75,9 @@ export async function estimateGasReserve(adapter: ChainAdapter): Promise<GasRese
       const res = await sol.rpc<{ prioritizationFee?: number }[]>('getRecentPrioritizationFees', [[]]);
       const fees = (res ?? []).map((x) => Number(x?.prioritizationFee ?? 0));
       return { raw: solanaReserveFromPriorityFees(fees), live: true };
+    }
+    if (adapter.config.family === 'bitcoin') {
+      return { raw: 1_500n, live: true };
     }
   } catch {
     /* RPC muet */

@@ -208,8 +208,18 @@ export default function TokenDetail() {
     if (chain) {
       setActiveChain(chain.id);
       // Depuis la page d'un token : token et chaîne connus → on saute « Quoi envoyer ».
-      if (route === '/send') router.push({ pathname: '/send', params: { chain: chain.id } });
-      else router.push(route);
+      if (route === '/send') {
+        const sendParams: Record<string, string> = { chain: chain.id };
+        if (holding) {
+          if (holding.contract) {
+            if (holding.kind === 'spl') sendParams.mint = holding.contract;
+            else sendParams.contract = holding.contract;
+          }
+          sendParams.symbol = holding.symbol;
+          sendParams.decimals = String(holding.decimals);
+        }
+        router.push({ pathname: '/send', params: sendParams });
+      } else router.push(route);
     } else {
       toast.info(t('soon'), t("soonToast"));
     }
