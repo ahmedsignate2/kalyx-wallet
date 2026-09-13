@@ -5,6 +5,7 @@ import { useDappActivity } from './dappActivity';
 import { usePortfolioStore } from './portfolio/portfolioStore';
 import { useHistoryStore } from './historyStore';
 import { getAdapter, listChains } from '../src';
+import { getRecentTechnicalLogs } from './technicalLogger';
 
 export interface CopilotWalletContext {
   activeNetwork: { id: string; name: string; chainId: number | string; isTestnet: boolean; family: 'evm' | 'solana' | 'bitcoin' };
@@ -95,8 +96,8 @@ function scan(value: unknown, path: string, allowHash = false): void {
     if (value.trim().split(/\s+/).length >= 12 && value.trim().split(/\s+/).every((word) => /^[a-z]+$/i.test(word))) throw new Error(`Copilot context rejected mnemonic-like value: ${path}`);
     return;
   }
-  if (Array.isArray(value)) { value.forEach((item, i) => scan(item, `${path}[${i}]`)); return; }
-  if (value && typeof value === 'object') Object.entries(value).forEach(([key, item]) => scan(item, `${path}.${key}`, key === 'id' && path.includes('recentActivity')));
+  if (Array.isArray(value)) { value.forEach((item, i) => scan(item, `${path}[${i}]`, allowHash)); return; }
+  if (value && typeof value === 'object') Object.entries(value).forEach(([key, item]) => scan(item, `${path}.${key}`, (key === 'id' && path.includes('recentActivity')) || key === 'l'));
 }
 
 export function serializeCopilotContext(snapshot = getCopilotContextSnapshot()): string {
@@ -127,12 +128,14 @@ export function serializeCopilotContext(snapshot = getCopilotContextSnapshot()):
       s: tx.status,
       d: tx.timestamp,
     })),
+    l: getRecentTechnicalLogs(15),
     w: {
       u: snapshot.browser.activeUrl,
       d: snapshot.browser.domain,
       p: snapshot.browser.isPhishingBlocked,
     },
   };
-  console.log('[CopilotContext] Transactions injectées:', compact.r.length);
+  scan(compact, 'compact');
+  console.log('[CopilotContext] Transactions injectées:', compact.r.length, 'Logs injectés:', compact.l.length);
   return JSON.stringify(compact);
 }
