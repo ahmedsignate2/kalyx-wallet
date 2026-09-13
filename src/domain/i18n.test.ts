@@ -93,6 +93,7 @@ describe('Newly added features localization', () => {
     'aiSupportOpenTelegramError',
     'aiSecurityBlockedSecret',
     'aiSuggestionSupport',
+    'aiSupportClarifyPrompt',
     'txTrackingTitle',
     'trackTransaction',
     'txPending',

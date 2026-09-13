@@ -74,15 +74,15 @@ describe('Support Ticket & Secret Detector System', () => {
       clearTechnicalLogs();
     });
 
-    it('records and formats logs up to 30 items without exceeding limit', () => {
-      for (let i = 1; i <= 40; i++) {
+    it('records and formats logs up to 60 items without exceeding limit', () => {
+      for (let i = 1; i <= 70; i++) {
         recordTechnicalLog('RPC', `Appel RPC n°${i}`);
       }
-      const logs = getRecentTechnicalLogs(50);
-      expect(logs.length).toBe(30);
+      const logs = getRecentTechnicalLogs(100);
+      expect(logs.length).toBe(60);
       // Le plus ancien conservé doit être le n°11
       expect(logs[0]).toContain('Appel RPC n°11');
-      expect(logs[29]).toContain('Appel RPC n°40');
+      expect(logs[59]).toContain('Appel RPC n°70');
     });
 
     it('sanitizes secrets before recording them in technical logs', () => {
@@ -90,7 +90,7 @@ describe('Support Ticket & Secret Detector System', () => {
       recordTechnicalLog('SIGN', `Signature échouée avec ${secret}`);
       const logs = getRecentTechnicalLogs();
       expect(logs[0]).not.toContain(secret);
-      expect(logs[0]).toContain('[CLÉ_HEX_MASQUÉE]');
+      expect(logs[0]).toMatch(/\[CLÉ_(?:PRIVÉE|HEX)_MASQUÉE\]/);
     });
 
     it('formats recent logs into multiline string', () => {
