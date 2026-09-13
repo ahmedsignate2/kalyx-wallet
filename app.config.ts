@@ -59,6 +59,7 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-secure-store',
     'expo-local-authentication',
+    'expo-localization',
     // Scanner QR (adresses + WalletConnect) — actif au prochain rebuild EAS.
     [
       'expo-camera',
