@@ -1,11 +1,11 @@
-# Contributing to Nova Wallet
+# Contributing to Kalyx Wallet
 
 Suggestions, bug reports, feature requests, translations, and technical
 feedback are welcome.
 
 For general suggestions or improvements:
 
-**Email:** amsssr400@gmail.com
+**Contact:** Telegram [@kalyxntw](https://t.me/kalyxntw) or X [@kalyxntw](https://x.com/kalyxntw)
 
 Please never include:
 

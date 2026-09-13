@@ -70,6 +70,7 @@ import {
   type WalletMeta,
 } from './secureStore';
 import { authenticate } from './biometrics';
+import { submitSolanaSigned } from './solanaSubmit';
 import { VersionedTransaction, Keypair } from '@solana/web3.js';
 import * as btcLib from '@scure/btc-signer';
 
@@ -216,7 +217,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
   if ('biometric' in unlock) {
     // Prompt biométrique explicite (fiable), PUIS lecture du secret non-gated.
     // Un seul prompt : le secret n'est plus keystore-gated (cf. secureStore).
-    const ok = await authenticate('Déverrouiller Nova Wallet');
+    const ok = await authenticate('Déverrouiller Kalyx Wallet');
     if (!ok) throw new Error('Authentification biométrique refusée');
     const m = await readBiometricSeed(id);
     if (!m) throw new Error('Biométrie non configurée');
@@ -521,14 +522,12 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   executeSwap: async (quote, unlock, onStatus) => {
-    console.log('[walletStore] executeSwap DÉBUT', { tool: quote.toolName, fromAmount: quote.fromAmount.toString(), txType: quote.tx.type });
     const { account, activeChain, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(activeChain);
 
     if (quote.tx.type === 'evm' && adapter instanceof EvmChainAdapter) {
       const signerKey = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
-      console.log('[walletStore] Clé EVM révélée avec succès.');
 
       const fromAddr = quote.fromToken.address.toLowerCase();
       if (fromAddr !== NATIVE_TOKEN.toLowerCase() && quote.approvalAddress) {
@@ -543,26 +542,25 @@ export const useWallet = create<WalletState>((set, get) => ({
           );
           onStatus?.('approvalWait');
           await adapter.waitForTx(approveHash);
+          // Allowance VISIBLE sur le RPC avant la tx principale (nœuds publics en retard).
+          const seen = await adapter.waitForAllowance(quote.fromToken.address, account.address, quote.approvalAddress, quote.fromAmount);
+          if (!seen) throw new Error("L'autorisation est confirmée mais pas encore visible sur le réseau. Réessaie dans quelques secondes.");
         }
       }
 
       onStatus?.('swapping');
       const tx = { ...quote.tx, chainId: Number(quote.tx.chainId) };
-      console.log('[walletStore] Appel sendContractTx avec tx:', tx);
       const hash = await adapter.sendContractTx(tx, account.address, signerKey);
-      console.log('[walletStore] sendContractTx réussi, hash:', hash);
       onStatus?.('confirming');
       await adapter.waitForTx(hash);
       return hash;
     } else if (quote.tx.type === 'solana' && adapter.config.family === 'solana') {
       onStatus?.('swapping');
-      console.log('[walletStore] Début signature Solana transaction');
-      const signedTxStr = await get().signSolanaTransaction(unlock, quote.tx.data);
-      console.log('[walletStore] Transaction Solana signée avec succès');
-      const hash = await (adapter as any).rpc('sendTransaction', [signedTxStr, { encoding: 'base64' }]);
-      if (!hash) throw new Error('Diffusion refusée par le réseau Solana');
-      onStatus?.('confirming');
-      return hash as string;
+      // Blockhash rafraîchi à la signature (un devis peut dater de >60 s), puis
+      // simulation OBLIGATOIRE → envoi → attente de confirmation : on ne dit
+      // « swap exécuté » que si Solana a confirmé.
+      const signedTxStr = await get().signSolanaTransaction(unlock, quote.tx.data, true);
+      return submitSolanaSigned(signedTxStr, (st) => onStatus?.(st === 'sending' ? 'swapping' : 'confirming'));
     } else {
       throw new Error(`Swap impossible: type de transaction (${(quote.tx as any).type}) incompatible avec le réseau actif`);
     }
@@ -751,12 +749,16 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   sendRawTxOn: async (unlock, chainId, req) => {
-    const { account, activeWalletId, wallets } = get();
+    const { account, accounts, activeAccountIndex, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(chainId);
     if (!(adapter instanceof EvmChainAdapter)) throw new Error('Chaîne non supportée');
+    // `from` = adresse EVM du compte actif (identique sur toutes les chaînes EVM),
+    // même si la chaîne ACTIVE est Solana/Bitcoin (ex. Earn sur Avalanche depuis Solana).
+    const stored = accounts.find((a) => a.index === activeAccountIndex);
+    const from = stored?.evmAddress ?? account.address;
     const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
-    return adapter.sendContractTx(req, account.address, pk);
+    return adapter.sendContractTx(req, from, pk);
   },
 
   sendToken: async (to, amount, token, unlock, gas) => {

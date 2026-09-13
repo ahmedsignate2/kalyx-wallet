@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { copilotLog } from './copilotLogger';
 
 export type AiProvider = 'deepseek' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'openrouter' | 'together' | 'huggingface' | 'custom';
+export type CopilotStatus = 'idle' | 'thinking' | 'searching_web' | 'analyzing_sources' | 'generating';
 
 interface AiState {
   isEnabled: boolean;
@@ -13,6 +15,9 @@ interface AiState {
   apiKey: string | null;
   customUrl?: string;
   customModel?: string;
+  copilotStatus: CopilotStatus;
+  currentSearchQuery: string | null;
+  setCopilotStatus: (status: CopilotStatus, query?: string | null) => void;
   
   loadInitialState: () => Promise<void>;
   setApiKey: (key: string, provider: AiProvider, customUrl?: string, customModel?: string) => Promise<void>;
@@ -25,6 +30,12 @@ export const useAiStore = create<AiState>((set) => ({
   initialPrompt: null,
   provider: 'deepseek',
   apiKey: null,
+  copilotStatus: 'idle',
+  currentSearchQuery: null,
+  setCopilotStatus: (copilotStatus, currentSearchQuery = null) => {
+    copilotLog('store', 'status.changed', { status: copilotStatus, searchQuery: currentSearchQuery });
+    set({ copilotStatus, currentSearchQuery });
+  },
 
 
   openChat: (prompt) => set({ isOpen: true, initialPrompt: prompt || null }),

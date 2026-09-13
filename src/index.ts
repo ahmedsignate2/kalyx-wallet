@@ -52,6 +52,8 @@ export {
   formatBalance,
   type ParsedAmount,
 } from './domain/validation/amount';
+// Formatage lisible (précision selon la grandeur) — LA règle d'affichage des montants
+export { formatTokenAmount, formatNumber, formatInputAmount, formatFiat, formatPercent, formatDecimalString, setNumberLocale, decimalSeparator } from './domain/validation/format';
 
 // Sauvegarde de seed
 export {
@@ -59,8 +61,7 @@ export {
   verifyBackupChallenge,
   verifyFullMnemonic,
   type WordChallenge,
-  type ChallengeAnswer,
-} from './domain/wallet/backupChallenge';
+  type ChallengeAnswer, unknownWords } from './domain/wallet/backupChallenge';
 
 // Sécurité : coffre chiffré + politique de PIN
 export {
@@ -119,13 +120,14 @@ export {
   type TokenMeta,
 } from './domain/tokens/alchemyTokens';
 export { erc20TransferData } from './domain/tokens/transfer';
+export { knownTokensFor, KNOWN_ERC20_BY_CHAIN } from './domain/tokens/knownTokens';
 // Décodage local d'une transaction avant signature (mini-simulation)
 export { decodeTx, isRiskyTx, type DecodedTx } from './domain/tx/decodeTx';
 // Alertes de prix (logique de déclenchement)
 export { alertTriggered, type PriceAlert } from './domain/alerts/priceAlerts';
 // Export CSV des transactions
 export { transactionsToCsv, type CsvContext } from './domain/export/txCsv';
-// Sauvegarde chiffrée de la seed (cloud backup)
+// Export manuel chiffré de la seed
 export { createBackup, restoreBackup, BACKUP_VERSION, type BackupEnvelope } from './domain/backup/cloudBackup';
 export {
   parseTokenAccounts,
@@ -138,7 +140,7 @@ export {
 export { parseQr, type QrResult } from './domain/qr/parse';
 export {
   qrTargetFamily,
-  novaChainIdForEvm,
+  kalyxChainIdForEvm,
   describeQr,
   type QrFamily,
   type QrDescription,
@@ -147,6 +149,25 @@ export {
 // NFT (Alchemy)
 export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
 export { getSolanaNfts } from './domain/nft/solanaNft';
+
+// Réserve de gas dynamique (swap/bridge/dépôt), estimée sur le RPC de chaque réseau
+export { estimateGasReserve, evmReserveFromFeeData, solanaReserveFromPriorityFees, SWAP_GAS_UNITS, SOL_BASE_FEE, type GasReserve } from './domain/chains/gasReserve';
+
+// Anti-empoisonnement d'adresse + formats lisibles
+export { detectPoisoning, groupAddress, shortAddress, type PoisoningMatch } from './domain/validation/poisoning';
+
+// Signature expliquée (§4.7) : simulation + explication humaine + niveau de risque
+export { simulateTx, staticSimulation, parseAlchemySimulation, type Simulation, type AssetChange } from './domain/tx/simulate';
+export { explainRequest, type SignExplanation, type SignRisk, type ExplainInput } from './domain/wc/explain';
+
+// Activité humanisée (§4.6)
+export { humanizeTx, groupByDay, type HumanTx, type HumanizeCtx, type TxGroup } from './domain/tx/humanize';
+
+// Glyphe d'adresse (étoile unique par adresse, vérification visuelle)
+export { glyphFor, starPath, GLYPH_PALETTE, type AddressGlyphSpec } from './domain/wallet/glyph';
+
+// Earn — moteur stake / lend (catalogue vérifié, encodeurs ABI, APY)
+export * from './domain/earn';
 
 // DeFi / Staking — classification des tokens détenus
 export { classifyToken, type DefiKind, type DefiPosition } from './domain/defi/registry';
@@ -188,8 +209,8 @@ export {
   getSwapQuote as getLifiQuote,
   parseSwapQuote,
   NATIVE_TOKEN,
-  NOVA_FEE,
-  NOVA_INTEGRATOR,
+  KALYX_FEE,
+  KALYX_INTEGRATOR,
   type SwapQuote,
   type QuoteParams,
   type SwapTxRequest,
@@ -213,7 +234,7 @@ export { getAdapter, listChains, hasChain, registerChain, unregisterChain } from
 export { chainIconUrl } from './domain/chains/icons';
 export { EvmChainAdapter, type RawTxRequest } from './domain/chains/EvmChainAdapter';
 export { computeFeeTiers, type FeeOptions, type FeeTier, type FeeSpeed } from './domain/chains/gas';
-export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BITCOIN, SOLANA } from './domain/chains/configs';
+export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BASE_SEPOLIA, BITCOIN, SOLANA, SOLANA_DEVNET } from './domain/chains/configs';
 // Sauvegarde portable des réseaux EVM personnalisés (export/import)
 export { serializeNetworks, parseNetworksBackup, NETWORKS_BACKUP_VERSION } from './domain/chains/customNetworks';
 export type {

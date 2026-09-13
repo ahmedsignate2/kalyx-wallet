@@ -1,3 +1,4 @@
+import { useT } from "../lib/settingsStore";
 /**
  * Pop-up de saisie du PIN (bottom-sheet) : lion, titre, PinPad. Utilisé quand
  * une action sensible demande le code (ex. activer la biométrie) — remplace un
@@ -5,8 +6,9 @@
  * signale une erreur via `errorSignal` (secousse + reset).
  */
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
-import { NovaLogo } from './NovaLogo';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KalyxLogo } from './KalyxLogo';
 import { PinPad } from './PinPad';
 import { fonts, radii, spacing, useTheme } from './theme';
 
@@ -31,7 +33,9 @@ export function PinPromptModal({
   onSubmit: (pin: string) => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const { colors, typography } = useTheme();
+  const insets = useSafeAreaInsets();
   const [pin, setPin] = useState('');
 
   // Reset à l'ouverture et à chaque erreur signalée.
@@ -44,18 +48,20 @@ export function PinPromptModal({
   return (
     <Modal transparent animationType="slide" onRequestClose={onCancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
-        <View
-          style={{
-            backgroundColor: colors.bgDeep,
-            borderTopLeftRadius: radii.xl,
-            borderTopRightRadius: radii.xl,
+        {/* Padding bas = inset système : la rangée « 0 » reste au-dessus de la barre de navigation. */}
+        <ScrollView
+          style={{ maxHeight: '92%', backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl }}
+          contentContainerStyle={{
             paddingTop: spacing(3),
-            paddingBottom: spacing(4),
+            paddingBottom: insets.bottom + spacing(3),
             alignItems: 'center',
             gap: spacing(2.5),
           }}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <NovaLogo size={56} />
+          <KalyxLogo size={56} />
           <View style={{ alignItems: 'center', gap: 4, paddingHorizontal: spacing(3) }}>
             <Text style={[typography.title, { textAlign: 'center' }]}>{title}</Text>
             {subtitle ? <Text style={[typography.muted, { textAlign: 'center' }]}>{subtitle}</Text> : null}
@@ -74,15 +80,15 @@ export function PinPromptModal({
           {expectedLength ? null : (
             <Pressable onPress={() => pin.length >= 6 && onSubmit(pin)} disabled={pin.length < 6 || busy} hitSlop={8}>
               <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold, opacity: pin.length < 6 || busy ? 0.35 : 1 }}>
-                {busy ? 'Vérification…' : 'Valider'}
+                {busy ? t("pinVerifying") : t("pinValidate")}
               </Text>
             </Pressable>
           )}
 
           <Pressable onPress={onCancel} disabled={busy} hitSlop={8}>
-            <Text style={{ color: colors.textMuted, fontSize: 15 }}>Annuler</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 15 }}>{t("cancel")}</Text>
           </Pressable>
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );

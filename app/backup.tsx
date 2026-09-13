@@ -1,25 +1,32 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Platform, Pressable, StyleSheet } from 'react-native';
-import { router, Stack } from 'expo-router';
-import * as ScreenCapture from 'expo-screen-capture';
-import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
-import { Button } from '../ui/components';
-import { Icon } from '../ui/icon';
-import { fonts, radii, spacing, useTheme } from '../ui/theme';
-import { useWallet } from '../lib/walletStore';
-import { useT } from '../lib/settingsStore';
-
+import { useT } from "../lib/settingsStore";
 /**
- * Affiche la phrase de récupération.
- * SÉCURITÉ : capture d'écran bloquée pendant l'affichage de la seed
- * (FLAG_SECURE Android ; sur iOS, expo-screen-capture notifie/masque). La seed
- * reste FLOUTÉE jusqu'à ce que l'utilisateur appuie (évite les regards).
+ * Phrase de récupération (§4.9) — 12 mots en 2 colonnes numérotées, MASQUÉS
+ * tant que le doigt n'est pas maintenu dessus. Captures bloquées (FLAG_SECURE).
+ * Pas de bouton copier. « Ces 12 mots sont ton wallet. Qui les a peut tout
+ * prendre. Kalyx ne peut pas les récupérer pour toi. »
+ * Sauter la sauvegarde = bandeau permanent sur l'accueil + point dans Sécurité.
  */
+import React, { useEffect, useState } from 'react';
+import { View, ScrollView, Pressable as RNPressable, Platform } from 'react-native';
+import { router, Stack } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ScreenCapture from 'expo-screen-capture';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Text, Button, IconButton, Surface, EmptyState } from '../ui/kit';
+import { Icon } from '../ui/icon';
+import { useTheme } from '../ui/theme';
+import { space, SCREEN_MARGIN, radius, durations } from '../ui/tokens';
+import { useWallet } from '../lib/walletStore';
+import { haptic } from '../lib/haptics';
+
 export default function Backup() {
-  const { colors, typography } = useTheme();
   const t = useT();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const draft = useWallet((s) => s.draftMnemonic);
-  const [revealed, setRevealed] = useState(false);
+  const [held, setHeld] = useState(false);
+  const [seen, setSeen] = useState(false);
+  const reveal = useSharedValue(0);
 
   useEffect(() => {
     ScreenCapture.preventScreenCaptureAsync('seed').catch(() => {});
@@ -27,87 +34,69 @@ export default function Backup() {
       ScreenCapture.allowScreenCaptureAsync('seed').catch(() => {});
     };
   }, []);
+  useEffect(() => {
+    reveal.value = withTiming(held ? 1 : 0, { duration: durations.fade });
+  }, [held, reveal]);
+  const wordsStyle = useAnimatedStyle(() => ({ opacity: reveal.value }));
+  const maskStyle = useAnimatedStyle(() => ({ opacity: 1 - reveal.value }));
 
-  return (
-    <>
-      <Stack.Screen options={{ headerShown: true, title: t('backupTitle') }} />
-      {(() => {
   if (!draft) {
     return (
-      <PremiumScreen>
-        
-        <GlassCard>
-          <Text style={typography.bodyStrong}>{t('noPhraseToShow')}</Text>
-          <Text onPress={() => router.replace('/welcome')} style={{ color: colors.accent, fontFamily: fonts.semibold, marginTop: spacing(1) }}>
-            {t('backToHome')}
-          </Text>
-        </GlassCard>
-      </PremiumScreen>
+      <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + 48, paddingHorizontal: SCREEN_MARGIN }}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <Surface><EmptyState icon="phrase" title="Session expirée" body="Recommence la création du wallet." actionLabel="Recommencer" onAction={() => router.replace('/welcome')} /></Surface>
+      </View>
     );
   }
-
   const words = draft.split(' ');
+  const half = Math.ceil(words.length / 2);
+  const cols = [words.slice(0, half), words.slice(half)];
 
   return (
-    <PremiumScreen>
-      
-
-      <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
-        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="phrase" size={26} color={colors.accent} />
-        </View>
-        <Text style={typography.title}>{t('yourRecoveryPhrase')}</Text>
-        <Text style={[typography.muted, { textAlign: 'center' }]}>
-          {words.length} {t('wordsInOrderHint')}
-        </Text>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => router.back()} />
+        <Text variant="title2" style={{ flex: 1 }}>Ta phrase de récupération</Text>
       </View>
+      <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[5], flexGrow: 1 }}>
+        <Text variant="body">Ces {words.length} mots sont ton wallet. Qui les a peut tout prendre. Kalyx ne peut pas les récupérer pour toi.</Text>
+        <Text variant="bodySecondary" tone="secondary">Écris-les sur papier, dans l'ordre. Pas de photo, pas de cloud.{Platform.OS === 'android' ? ' Les captures d’écran sont bloquées ici.' : ''}</Text>
 
-      <ErrorBox
-        tone="warning"
-        message={`${t('backupWarning')}${Platform.OS === 'android' ? t('screenshotBlocked') : ''}`}
-      />
-
-      {/* Grille des mots + voile « appuie pour révéler » */}
-      <GlassCard>
-        <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
-            {words.map((w, i) => (
-              <View
-                key={i}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: colors.bgElevated,
-                  borderWidth: 1,
-                  borderColor: colors.glassBorder,
-                  borderRadius: radii.md,
-                  paddingVertical: spacing(1),
-                  paddingHorizontal: spacing(1.5),
-                  width: '31%',
-                  gap: 6,
-                }}
-              >
-                <Text style={{ color: colors.textFaint, fontSize: 12, fontFamily: fonts.semibold, width: 18 }}>{i + 1}</Text>
-                <Text style={{ color: colors.text, fontFamily: fonts.medium }} numberOfLines={1}>{w}</Text>
+        {/* Grille masquée tant que le doigt n'est pas dessus */}
+        <RNPressable
+          onPressIn={() => { setHeld(true); setSeen(true); haptic.light(); }}
+          onPressOut={() => setHeld(false)}
+          accessibilityLabel="Maintenir pour afficher la phrase"
+        >
+          <Surface style={{ flexDirection: 'row', gap: space[3] }}>
+            {cols.map((col, c) => (
+              <View key={c} style={{ flex: 1, gap: space[2] }}>
+                {col.map((w, i) => {
+                  const n = c * half + i + 1;
+                  return (
+                    <View key={n} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], height: 40, paddingHorizontal: space[3], borderRadius: radius.input, backgroundColor: colors.surface2 }}>
+                      <Text variant="caption" tone="tertiary" tabular style={{ width: 22 }}>{n}</Text>
+                      <View style={{ flex: 1, justifyContent: 'center' }}>
+                        <Animated.View style={wordsStyle}><Text variant="body">{w}</Text></Animated.View>
+                        <Animated.View style={[{ position: 'absolute', left: 0 }, maskStyle]}><Text variant="body" tone="tertiary">••••••</Text></Animated.View>
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
             ))}
+          </Surface>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[1], marginTop: space[2] }}>
+            <Icon name={held ? 'eye' : 'eyeOff'} size={14} tone="muted" />
+            <Text variant="caption" tone="secondary">{held ? 'Relâche pour masquer' : 'Maintiens le doigt pour afficher · assure-toi que personne ne regarde'}</Text>
           </View>
-        </ScrollView>
+        </RNPressable>
 
-        {!revealed ? (
-          <Pressable onPress={() => setRevealed(true)} style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card + 'F2', borderRadius: radii.xl, gap: spacing(1) }]}>
-            <Icon name="eye" size={28} color={colors.accent} />
-            <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{t('tapToReveal')}</Text>
-            <Text style={typography.muted}>{t('makeSureNobody')}</Text>
-          </Pressable>
-        ) : null}
-      </GlassCard>
-
-      <Button label={t('notedPhrase')} onPress={() => router.push('/verify')} />
-      <View style={{ height: spacing(1) }} />
-    </PremiumScreen>
-  );
-      })()}
-    </>
+        <View style={{ flex: 1 }} />
+        <Button label="J’ai noté ma phrase" onPress={() => router.push('/verify')} disabled={!seen} />
+        <Button label={t("actionLater")} variant="ghost" onPress={() => router.push('/set-pin')} />
+      </ScrollView>
+    </View>
   );
 }

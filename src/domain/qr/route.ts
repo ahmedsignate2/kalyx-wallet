@@ -24,8 +24,8 @@ export function qrTargetFamily(result: QrResult): QrFamily | null {
   }
 }
 
-/** Id de chaîne Nova correspondant à un chainId EVM (ou null si inconnu). */
-export function novaChainIdForEvm(
+/** Id de chaîne Kalyx correspondant à un chainId EVM (ou null si inconnu). */
+export function kalyxChainIdForEvm(
   chainId: number | undefined,
   chains: { id: string; evmChainId?: number }[],
 ): string | null {

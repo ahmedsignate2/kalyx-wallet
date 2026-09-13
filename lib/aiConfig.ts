@@ -77,8 +77,8 @@ export function buildAiRequestParams(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${apiKey.trim()}`,
-    'HTTP-Referer': 'https://novawallet.app',
-    'X-Title': 'Nova Wallet Copilot',
+    'HTTP-Referer': 'https://kalyxwallet.app',
+    'X-Title': 'Kalyx Wallet Copilot',
   };
 
   // Anthropic uses x-api-key instead of Bearer

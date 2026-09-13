@@ -18,7 +18,7 @@ Issued At: 2026-07-01T16:25:24Z`;
 
 describe('hexToText', () => {
   it('décode un message hex UTF-8 (accents inclus)', () => {
-    expect(hexToText(toHex('Hello Nova'))).toBe('Hello Nova');
+    expect(hexToText(toHex('Hello Kalyx'))).toBe('Hello Kalyx');
     expect(hexToText(toHex('Signé à 100 %'))).toBe('Signé à 100 %');
   });
 

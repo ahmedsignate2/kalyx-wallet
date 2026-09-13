@@ -1,0 +1,10 @@
+{
+  "name": "Kalyx Wallet",
+  "description": "Non-custodial wallet with human-readable transaction approvals",
+  "url": "https://kalyxwallet.app",
+  "icons": [],
+  "redirect": {
+    "native": "kalyx://",
+    "universal": "https://kalyxwallet.app/walletconnect"
+  }
+}

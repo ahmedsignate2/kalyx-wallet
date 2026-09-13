@@ -1,524 +1,346 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, Modal, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+/**
+ * Écran Earn — staking liquide + prêt (Aave v3), depuis Kalyx.
+ *
+ * Données : `useEarn` (store partagé) → catalogue vérifié, APY réels, soldes,
+ * positions, prix. Actions : `EarnSheet` (devis → confirmation → exécution).
+ */
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, RefreshControl, Text, View } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { Screen, Card, Title, Muted, Button } from '../ui/components';
-import { useTheme, spacing, fonts, radii } from '../ui/theme';
-import { useWallet } from '../lib/walletStore';
-import type { Unlock } from '../lib/walletStore';
-import { getAdapter, ALL_CHAINS, EvmChainAdapter, SolanaChainAdapter, getErc20Tokens } from '../src';
-import { parseAmount, formatBalance } from '../src/domain/validation/amount';
-import { toast } from '../lib/toast';
+import { GlassCard, RemoteIcon, SkeletonRow, PressableScale } from '../ui/premium';
+import { AppTabBar } from '../ui/tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView } from 'react-native';
+import { Button } from '../ui/components';
+import { CountUp } from '../ui/CountUp';
+import { FadeInUp } from '../ui/FadeInUp';
 import { Icon } from '../ui/icon';
-import { useAiStore } from '../lib/aiStore';
-import { ConfirmUnlock } from '../ui/ConfirmUnlock';
-import { SuccessModal } from '../ui/SuccessModal';
-import { ethers } from 'ethers';
-import { fetchYieldOpportunities, YieldOpportunity } from '../lib/yieldService';
-import { getLifiQuote, NATIVE_TOKEN } from '../src';
-import { yieldEngine } from '../lib/yield';
+import { EarnSheet } from '../ui/EarnSheet';
+import { SegmentedControl } from '../ui/kit';
+import { fonts, radii, spacing, useTheme } from '../ui/theme';
+import { useWallet } from '../lib/walletStore';
+import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
+import { useEarn, selectPositions, sumPositions, priceOf, safeNum, type EarnAccount, type EarnPositionView } from '../lib/earn';
+import { EARN_CATALOG, getAdapter, chainIconUrl, formatTokenAmount, formatAmount, formatFiat, formatPercent, type EarnProtocol, type EarnAction } from '../src';
 
+type Filter = 'mine' | 'all' | 'staking' | 'lending';
 
-const NOVA_TREASURY_EVM = '0x0000000000000000000000000000000000000000';
-const NOVA_VALIDATOR_SOL = '4rT2m1GTo3jW5yF3K1xN3MZZu5q1YmFz5wR1NnUeGgTo';
-const LIDO_STETH = '0xae7ab96520de3a18e5e111b5eaab095312d7fe84';
+const money = formatFiat;
 
+function ApyBadge({ apy, size = 'md' }: { apy: number | null; size?: 'md' | 'lg' }) {
+  const { colors } = useTheme();
+  const t = useT();
+  if (apy === null) return <Text style={{ color: colors.textFaint, fontFamily: fonts.medium, fontSize: 12 }}>{t('earnApyUnavailable')}</Text>;
+  return (
+    <View style={{ backgroundColor: 'rgba(74,155,114,0.14)', paddingHorizontal: size === 'lg' ? 12 : 8, paddingVertical: size === 'lg' ? 6 : 3, borderRadius: radii.pill }}>
+      <Text style={{ color: colors.up, fontFamily: fonts.bold, fontSize: size === 'lg' ? 16 : 13, fontVariant: ['tabular-nums'] }}>{formatPercent(apy)}</Text>
+    </View>
+  );
+}
 
-  const resolveChainName = (chainId: string | number) => {
-    if (chainId === 'solana') return 'solana';
-    if (chainId === 1) return 'ethereum';
-    if (chainId === 43114) return 'avalanche';
-    if (chainId === 56) return 'bnb';
-    if (chainId === 8453) return 'base';
-    if (chainId === 137) return 'polygon';
-    if (chainId === 42161) return 'arbitrum';
-    if (chainId === 10) return 'optimism';
-    if (chainId === 11155111) return 'sepolia';
-    return String(chainId);
-  };
+function ChainTag({ chainId }: { chainId: string }) {
+  const { colors } = useTheme();
+  const cfg = getAdapter(chainId).config;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      <RemoteIcon uri={chainIconUrl(chainId)} label={cfg.name} size={14} />
+      <Text style={{ color: colors.textMuted, fontSize: 13, fontFamily: fonts.regular }}>{cfg.name}</Text>
+    </View>
+  );
+}
 
 export default function EarnScreen() {
   const { colors, typography } = useTheme();
-  const walletStore = useWallet();
-  const { activeAccountIndex, accounts, activeChain, sendRawTxOn } = walletStore;
-  const account = accounts.find((a) => a.index === activeAccountIndex) || accounts[0];
-  
-  const [balances, setBalances] = useState<Record<string, bigint>>({});
-  
-  const [staked, setStaked] = useState<Record<string, bigint>>({});
-  const [userStakedPositions, setUserStakedPositions] = useState<any[]>([]);
+  const t = useT();
+  const insets = useSafeAreaInsets();
+  const fiat = useSettings((s) => s.fiat);
+  const wallet = useWallet();
+  const earn = useEarn();
 
-  
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [isUnstaking, setIsUnstaking] = useState(false);
-  const [inputModalVisible, setInputModalVisible] = useState(false);
-  const [amountStr, setAmountStr] = useState('');
-  
-  const [unlockVisible, setUnlockVisible] = useState(false);
-  const [targetProtocol, setTargetProtocol] = useState<any>(null);
-  
-  const [successVisible, setSuccessVisible] = useState(false);
-  const [successHash, setSuccessHash] = useState<string | undefined>();
-  const [explorerUrl, setExplorerUrl] = useState<string | undefined>();
-
-  const loadBalances = async () => {
-    if (!account) return;
-    try {
-      const newBalances: Record<string, bigint> = {};
-      
-      const fetchBal = async (chainId: string) => {
-        try {
-          const adapter = getAdapter(chainId) as EvmChainAdapter;
-          const bal = await adapter.getBalance(account.evmAddress);
-          return bal.raw;
-        } catch(e) { return 0n; }
-      };
-
-      const [eBal, aBal, bBal, baBal] = await Promise.all([
-        fetchBal('ethereum'),
-        fetchBal('avalanche'),
-        fetchBal('bnb'),
-        fetchBal('base')
-      ]);
-
-      
-      newBalances['ETH'] = eBal;
-      newBalances['AVAX'] = aBal;
-      newBalances['BNB'] = bBal;
-      newBalances['ETH_BASE'] = baBal;
-      
-      // -- The dynamic positions are now loaded in a separate effect dependent on opportunities --
-
-      
-      try {
-        const ethAdapter = getAdapter('ethereum') as EvmChainAdapter;
-        const usdcBal = await ethAdapter.getTokenBalance('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', account.evmAddress);
-        newBalances['USDC'] = usdcBal;
-      } catch(e) {}
-      
-      if (account.solAddress) {
-        try {
-          const solAdapter = getAdapter('solana') as SolanaChainAdapter;
-          const solBal = await solAdapter.getBalance(account.solAddress);
-          newBalances['SOL'] = solBal.raw;
-          
-          const splTokens = await solAdapter.getSplTokens(account.solAddress);
-          const usdcSpl = splTokens.find((t: any) => t.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
-          if (usdcSpl) newBalances['USDC_SOL'] = usdcSpl.raw;
-        } catch(e) {}
-      }
-      setBalances(newBalances);
-    } catch (e) {
-      console.warn(e);
-    }
-  };
-
-  useEffect(() => { loadBalances(); }, [account, activeChain, refreshKey]);
-
-  const formatCrypto = (v: bigint | undefined, decimals: number) => {
-    if (v === undefined) return '0.00';
-    return Number(formatBalance(v, decimals)).toFixed(4);
-  };
-
-  const handleOpenInputModal = (protocol: any, unstake: boolean = false) => {
-    setIsUnstaking(unstake);
-    setAmountStr('');
-    if (activeChain !== protocol.chainId && protocol.chainId !== 'solana') {
-       walletStore.setActiveChain(protocol.chainId);
-    } else if (protocol.chainId === 'solana' && activeChain !== 'solana') {
-       walletStore.setActiveChain('solana');
-    }
-    setTargetProtocol(protocol);
-    setAmountStr('');
-    setInputModalVisible(true);
-  };
-
-  const applyShortcut = async (pct: number, overrideUnstake?: boolean, overrideProtocol?: any) => {
-    const activeUnstaking = overrideUnstake !== undefined ? overrideUnstake : isUnstaking;
-    const activeProtocol = overrideProtocol || targetProtocol;
-    
-    if (activeUnstaking) {
-      if (!activeProtocol) return;
-      const bal = staked[activeProtocol.id] || 0n;
-      const decimals = (activeProtocol.underlyingAsset === 'USDC' || activeProtocol.underlyingAsset === 'USDC_SOL') ? 6 : (activeProtocol.underlyingAsset === 'SOL' ? 9 : 18);
-      let amtStrVal = formatBalance(bal, decimals);
-      if (pct === 100) {
-        setAmountStr(amtStrVal);
-      } else {
-        let amt = Number(amtStrVal) * (pct / 100);
-        setAmountStr(amt > 0 ? Number(Math.floor(amt * 10000) / 10000).toString() : '');
-      }
-      return;
-    }
-    if (!activeProtocol) return;
-    const isNative = ['SOL', 'ETH', 'AVAX', 'BNB'].includes(activeProtocol.underlyingAsset);
-    const bal = balances[activeProtocol.underlyingAsset] || 0n;
-    
-    const decimals = (activeProtocol.underlyingAsset === 'USDC' || activeProtocol.underlyingAsset === 'USDC_SOL') ? 6 : (activeProtocol.underlyingAsset === 'SOL' ? 9 : 18);
-    let maxBal = bal;
-    
-    if (isNative && bal > 0n) {
-       setAmountStr('...'); // UX: show calculating
-       try {
-           let underlyingAddress = NATIVE_TOKEN;
-       if (activeProtocol.chainId === 'solana') underlyingAddress = '11111111111111111111111111111111';
-       else if (activeProtocol.underlyingAsset === 'USDC' && activeProtocol.chainId === 1) underlyingAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-       // Add other specific stablecoins here if needed, otherwise it defaults to native token of the chain
-           const isEvm = activeProtocol.underlyingAsset !== 'SOL' && activeProtocol.underlyingAsset !== 'USDC_SOL';
-      const chainId = activeProtocol.underlyingAsset === 'AVAX' ? 'avalanche' : activeProtocol.underlyingAsset === 'BNB' ? 'bnb' : !isEvm ? 'solana' : (activeChain === 'sepolia' ? 'sepolia' : 'ethereum');
-           const adapter = getAdapter(chainId);
-           
-           
-      if (targetProtocol.type === 'Lending') {
-          // lending execution path (Aave, Kamino) - not via DEX SWAP
-          toast.error('Non supporté', 'Le lending natif (Aave, Kamino) est en cours d\'intégration (ABI requise) et ne peut pas être swappé sur un DEX.');
-          setLoadingQuote(false);
-          return;
-      }
-      
-      const quote = await getLifiQuote({
-              fromChainId: (activeProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config?.evmChainId || (adapter as any).config?.id || 1,
-              toChainId: (activeProtocol as any).chainId === 'solana' ? 1151111081099710 : (adapter as any).config?.evmChainId || (adapter as any).config?.id || 1,
-              fromToken: underlyingAddress,
-              toToken: activeProtocol.yieldTokenAddress,
-              fromAmount: bal, // request quote for total balance
-              fromAddress: isEvm ? account.evmAddress : account.solAddress!,
-              isEarn: true,
-           });
-           
-           if (quote && quote.gasCostNative > 0n) {
-               // Add a 5% safety margin on the API gas estimate just in case
-               const safeGas = quote.gasCostNative + (quote.gasCostNative / 20n);
-               maxBal = bal > safeGas ? bal - safeGas : 0n;
-           } else {
-               const fallbackBuffer = activeProtocol.underlyingAsset === 'ETH' ? parseAmount('0.002', 18).raw : activeProtocol.underlyingAsset === 'SOL' ? parseAmount('0.0025', 9).raw : 0n;
-               maxBal = bal > fallbackBuffer ? bal - fallbackBuffer : 0n;
-           }
-       } catch(e) {
-           const fallbackBuffer = activeProtocol.underlyingAsset === 'ETH' ? parseAmount('0.002', 18).raw : activeProtocol.underlyingAsset === 'SOL' ? parseAmount('0.0025', 9).raw : 0n;
-           maxBal = bal > fallbackBuffer ? bal - fallbackBuffer : 0n;
-       }
-    }
-    
-    let amt = Number(formatBalance(maxBal, decimals)) * (pct / 100);
-    if (pct === 100) {
-       setAmountStr(formatBalance(maxBal, decimals));
-    } else {
-       setAmountStr(amt > 0 ? Number(Math.floor(amt * 10000) / 10000).toString() : '');
-    }
-  };
-
-    const validateInput = () => {
-    if (!targetProtocol) return;
-    const isNative = targetProtocol?.underlyingAsset === 'SOL' || targetProtocol?.underlyingAsset === 'ETH' || targetProtocol?.underlyingAsset === 'AVAX' || targetProtocol?.underlyingAsset === 'BNB';
-    const estGas = ['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) ? 0.002 : targetProtocol?.underlyingAsset === 'SOL' ? 0.0025 : 0.00001;
-    const totalNeeded = isUnstaking ? Number(amountStr) : Number(amountStr) + (isNative ? estGas : 0);
-    const userBal = isUnstaking ? Number(formatBalance(staked[targetProtocol?.id] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18)) : Number(formatBalance(balances[targetProtocol?.underlyingAsset] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18));
-    
-    if (!amountStr || isNaN(Number(amountStr)) || Number(amountStr) <= 0) {
-      toast.error('Montant invalide', 'Veuillez saisir un montant valide à staker.');
-      return;
-    }
-    if (totalNeeded > userBal) {
-      toast.error('Solde insuffisant', 'Vous n\'avez pas assez de fonds pour couvrir le montant et les frais réseau.');
-      return;
-    }
-    
-    // Balance check
-    const balRaw = balances[targetProtocol.underlyingAsset] || 0n;
-    const userBalance = isUnstaking ? Number(formatBalance(staked[targetProtocol?.id] || 0n, (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18)) : Number(formatBalance(balRaw, (targetProtocol.underlyingAsset === 'USDC' ? 6 : targetProtocol.underlyingAsset === 'SOL' ? 9 : 18)));
-    const numAmount = Number(amountStr);
-    
-    if (numAmount > userBalance) {
-      toast.error('Solde insuffisant', `Tu possèdes ${userBalance} ${isUnstaking ? (targetProtocol.symbol || targetProtocol.project) : targetProtocol.underlyingAsset}`);
-      return;
-    }
-
-    setInputModalVisible(false);
-    setTimeout(() => setUnlockVisible(true), 300); // Wait for modal animation to close
-  };
-
-
-  const [opportunities, setOpportunities] = useState<YieldOpportunity[]>([]);
-  const [loadingQuote, setLoadingQuote] = useState(false);
-  const [showAll, setShowAll] = useState(false);
+  const acct = useMemo<EarnAccount | null>(() => {
+    const a = wallet.accounts.find((x) => x.index === wallet.activeAccountIndex) ?? wallet.accounts[0];
+    return a ? { evmAddress: a.evmAddress, solAddress: a.solAddress } : null;
+  }, [wallet.accounts, wallet.activeAccountIndex]);
 
   useEffect(() => {
-    fetchYieldOpportunities().then(setOpportunities);
-  }, [refreshKey]);
+    if (acct) earn.refresh(acct, fiat);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acct?.evmAddress, acct?.solAddress, fiat]);
 
-  useEffect(() => {
-    const loadDynamicPositions = async () => {
-      if (!account) return;
-      try {
-        const positions = await yieldEngine.detectAllPositions(
-          account.evmAddress,
-          account.solAddress || undefined,
-        );
-        const newStaked: Record<string, bigint> = {};
-        const posList: any[] = [];
-        for (const pos of positions) {
-          newStaked[pos.id] = pos.balance;
-          posList.push({
-            id: pos.id,
-            name: pos.protocol + ' Staking',
-            symbol: pos.symbol,
-            protocol: pos.protocol,
-            balance: pos.balance,
-            decimals: pos.decimals,
-            underlyingAsset: pos.underlyingAsset,
-          });
-        }
-        setStaked(newStaked);
-        setUserStakedPositions(posList);
-      } catch (e) {
-        console.warn('[YieldEngine] Failed to detect positions', e);
-      }
-    };
-    loadDynamicPositions();
-  }, [account, opportunities, refreshKey]);
-
-  const executeStake = async (unlock: Unlock) => {
-    if (!targetProtocol) return;
-    setLoadingQuote(true);
-    
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    if (!acct) return;
+    setRefreshing(true);
     try {
-      // Lending protocols are not yet supported (need direct ABI calls)
-      if (targetProtocol.type === 'Lending') {
-        toast.error('Non supporté', 'Le lending natif (Aave, Kamino) est en cours d\'intégration.');
-        setLoadingQuote(false);
-        return;
-      }
-
-      const decimals = (targetProtocol.underlyingAsset === 'USDC' || targetProtocol.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol.underlyingAsset === 'SOL' ? 9 : 18;
-      const rawAmount = parseAmount(amountStr, decimals).raw;
-      const isSolana = targetProtocol.chainId === 'solana';
-      const fromAddress = isSolana ? account.solAddress! : account.evmAddress;
-
-      // Delegate entirely to the YieldEngine
-      const result = isUnstaking
-        ? await yieldEngine.unstake(targetProtocol.id, rawAmount, fromAddress, unlock, walletStore)
-        : await yieldEngine.stake(targetProtocol.id, rawAmount, fromAddress, unlock, walletStore);
-
-      // ONLY show success if the engine confirmed on-chain
-      if (result.success) {
-        setSuccessHash(result.hash);
-        const chainName = isSolana ? 'solana' : resolveChainName(targetProtocol.chainId);
-        try {
-          const adapter = getAdapter(chainName);
-          setExplorerUrl((adapter as any)?.config?.explorerUrl);
-        } catch { setExplorerUrl(undefined); }
-        setUnlockVisible(false);
-        setTimeout(() => setSuccessVisible(true), 400);
-        // Refresh balances and positions
-        setRefreshKey(k => k + 1);
-      } else {
-        // Transaction failed on-chain — show the real error, NEVER a fake success
-        toast.error('Transaction échouée', result.error || 'La transaction a été rejetée on-chain.');
-        setUnlockVisible(false);
-      }
-      
-    } catch (e: any) {
-      toast.error('Erreur', e.message || 'La transaction a échoué');
-      setUnlockVisible(false);
+      await earn.refresh(acct, fiat, { force: true });
     } finally {
-      setLoadingQuote(false);
+      setRefreshing(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acct, fiat]);
+
+  const positions = useMemo(() => selectPositions(earn), [earn.positions, earn.prices, earn.apys]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { total: totalFiat, yearly: yearlyFiat } = sumPositions(positions);
+
+  // Protocoles utilisables par ce compte (pas de Solana pour un wallet clé privée).
+  const catalog = useMemo(() => EARN_CATALOG.filter((p) => p.chainId !== 'solana' || !!acct?.solAddress), [acct?.solAddress]);
+  const eligible = useMemo(() => catalog.filter((p) => (earn.balances.underlying[p.id] ?? 0n) > 0n), [catalog, earn.balances]);
+
+  const [filter, setFilter] = useState<Filter | null>(null);
+  const effectiveFilter: Filter = filter ?? (earn.loadedFor && eligible.length > 0 ? 'mine' : 'all');
+  const listed = useMemo(() => {
+    const base = effectiveFilter === 'mine' ? eligible : effectiveFilter === 'all' ? catalog : catalog.filter((p) => p.kind === effectiveFilter);
+    // Tri : APY décroissant, APY inconnu en dernier.
+    return [...base].sort((a, b) => (earn.apys[b.id] ?? -1) - (earn.apys[a.id] ?? -1));
+  }, [effectiveFilter, eligible, catalog, earn.apys]);
+
+  // Feuille d'action
+  const [sheet, setSheet] = useState<{ protocol: EarnProtocol; action: EarnAction } | null>(null);
+  const open = (protocol: EarnProtocol, action: EarnAction) => setSheet({ protocol, action });
+  const onSuccess = () => {
+    if (acct) earn.refreshBalances(acct);
   };
 
-  const eligibleOpps = showAll ? opportunities : opportunities.filter(opp => {
-    const balRaw = balances[opp.underlyingAsset as keyof typeof balances] || 0n;
-    return balRaw > 0n;
-  });
+  const initialLoading = earn.loading && !earn.loadedFor;
 
+  const filters: { key: Filter; label: string }[] = [
+    { key: 'mine', label: t('earnFilterMine') },
+    { key: 'all', label: t('earnFilterAll') },
+    { key: 'staking', label: t('earnFilterStaking') },
+    { key: 'lending', label: t('earnFilterLending') },
+  ];
 
   return (
-    <Screen scroll>
-      <Stack.Screen options={{ headerShown: true, title: 'Earn & Staking' }} />
-      <Title>Faites travailler vos cryptos</Title>
-      <Muted>Générez des rendements passifs en sécurisant le réseau ou via la DeFi.</Muted>
-
-      {/* SECTION MES POSITIONS */}
-      {userStakedPositions.length > 0 && (
-        <View style={{ marginTop: spacing(3), marginBottom: spacing(1) }}>
-          <Text style={[typography.section, { marginBottom: spacing(2) }]}>Mes positions actives</Text>
-          {userStakedPositions.map((pos) => (
-            <Card key={pos.id} style={{ padding: spacing(2), marginBottom: spacing(2), borderColor: colors.accent, borderWidth: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E84142', alignItems: 'center', justifyContent: 'center', marginRight: spacing(1.5) }}>
-                  <Icon name="staking" size={24} color="#FFF" />
-                </View>
-                <View style={{ flex: 1, paddingRight: spacing(1) }}>
-                  <Text style={typography.bodyStrong} numberOfLines={1}>{pos.name}</Text>
-                  <Text style={typography.muted} numberOfLines={1}>{pos.protocol}</Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={typography.bodyStrong}>{formatCrypto(pos.balance, pos.decimals)} {pos.symbol}</Text>
-                  <Text style={[typography.muted, { color: colors.up, fontSize: 12 }]}>Actif</Text>
-                </View>
-              </View>
-              
-              <View style={{ height: 1, backgroundColor: colors.cardBorder, marginVertical: spacing(2) }} />
-              
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                <Button label="Unstake / Retirer" variant="ghost" onPress={() => {
-                  const opp = opportunities.find(o => o.id === pos.id);
-                  if (opp) handleOpenInputModal(opp, true);
-                }} />
-              </View>
-            </Card>
-          ))}
+    <>
+      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'flex-start' }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <ScrollView
+        style={{ flex: 1, width: '100%' }}
+        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 120, gap: spacing(2.5) }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textSecondary} colors={[colors.textSecondary]} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* En-tête */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), minHeight: 48 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={typography.title}>{t('earnTitle')}</Text>
+          </View>
+          <Pressable onPress={onRefresh} hitSlop={12} disabled={earn.loading}>
+            <Icon name="refresh" size={22} color={earn.loading ? colors.textFaint : colors.textMuted} />
+          </Pressable>
         </View>
-      )}
+        <Text style={[typography.muted, { marginTop: -spacing(1.5) }]}>{t('earnSubtitle')}</Text>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing(3), marginBottom: spacing(1) }}>
-        <Text style={typography.section}>Opportunités</Text>
-        <Pressable onPress={() => setShowAll(!showAll)} style={{ padding: spacing(1) }}>
-          <Text style={{ color: colors.accent, fontFamily: fonts.medium }}>
-            {showAll ? 'Mes actifs' : 'Tout explorer'}
-          </Text>
-        </Pressable>
+        {/* Hero */}
+        <GlassCard glow>
+          <Text style={typography.muted}>{t('earnTotal')}</Text>
+          {initialLoading ? (
+            <Text style={typography.hero}>…</Text>
+          ) : (
+            <CountUp value={totalFiat} format={(v) => `${money(v)} ${fiatSymbol(fiat)}`} style={typography.hero} />
+          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing(1) }}>
+            <Text style={typography.muted}>{t('earnYearly')}</Text>
+            <Text style={{ color: colors.up, fontFamily: fonts.bold, fontVariant: ['tabular-nums'] }}>
+              {initialLoading ? '…' : `+${money(yearlyFiat)} ${fiatSymbol(fiat)}`}
+            </Text>
+          </View>
+        </GlassCard>
+
+        {/* Mes positions */}
+        {initialLoading ? (
+          <GlassCard>{[0, 1].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>
+        ) : positions.length > 0 ? (
+          <View style={{ gap: spacing(1.5) }}>
+            <Text style={typography.section}>{t('earnPositions')}</Text>
+            {positions.map((pv, i) => (
+              <FadeInUp key={pv.protocol.id} delay={i * 50}>
+                <PositionCard pv={pv} fiat={fiat} onDeposit={() => open(pv.protocol, 'deposit')} onWithdraw={() => open(pv.protocol, 'withdraw')} />
+              </FadeInUp>
+            ))}
+          </View>
+        ) : null}
+
+        {/* Opportunités */}
+        <View style={{ gap: spacing(1.5) }}>
+          <Text style={typography.section}>{t('earnOpportunities')}</Text>
+          <SegmentedControl<Filter>
+            items={filters}
+            value={effectiveFilter}
+            onChange={(val) => setFilter(val)}
+          />
+
+          {initialLoading ? (
+            <GlassCard>{[0, 1, 2].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>
+          ) : listed.length === 0 ? (
+            <GlassCard>
+              <View style={{ alignItems: 'center', paddingVertical: spacing(2), gap: spacing(1.5) }}>
+                <Icon name="staking" size={32} color={colors.textMuted} />
+                <Text style={[typography.muted, { textAlign: 'center' }]}>{t('earnNoEligible')}</Text>
+                <Button label={t('earnNoEligibleCta')} variant="ghost" onPress={() => setFilter('all')} />
+              </View>
+            </GlassCard>
+          ) : (
+            listed.map((p, i) => (
+              <FadeInUp key={p.id} delay={Math.min(i, 8) * 45}>
+                <OpportunityCard
+                  p={p}
+                  apy={earn.apys[p.id] ?? null}
+                  available={earn.balances.underlying[p.id] ?? 0n}
+                  price={priceOf(earn.prices, p.underlying.coingeckoId)}
+                  fiat={fiat}
+                  onPress={() => open(p, 'deposit')}
+                />
+              </FadeInUp>
+            ))
+          )}
+        </View>
+      </ScrollView>
+      <AppTabBar active="earn" />
       </View>
 
-      {eligibleOpps.length === 0 && !showAll && <Text style={[typography.muted, {textAlign: 'center', marginVertical: spacing(2)}]}>Aucun actif éligible détecté dans votre portefeuille. Cliquez sur 'Tout explorer'.</Text>}
-      {eligibleOpps.map((opp: any) => (
-        <Card key={opp.id} style={{ padding: spacing(2), marginBottom: spacing(2) }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: opp.underlyingAsset === 'SOL' ? '#14F195' : opp.underlyingAsset === 'AVAX' ? '#E84142' : opp.underlyingAsset === 'BNB' ? '#F3BA2F' : (opp.underlyingAsset === 'USDC' || opp.underlyingAsset === 'USDC_SOL') ? '#B6509E' : '#627EEA', alignItems: 'center', justifyContent: 'center', marginRight: spacing(1.5) }}>
-              <Icon name={opp.underlyingAsset === 'SOL' ? 'staking' : 'defi'} size={24} color={opp.underlyingAsset === 'SOL' ? '#000' : '#FFF'} />
-            </View>
-            <View style={{ flex: 1, paddingRight: spacing(1) }}>
-              <Text style={typography.bodyStrong} numberOfLines={1}>{opp.project} ({opp.underlyingAsset})</Text>
-              <Text style={typography.muted} numberOfLines={1}>~{opp.apy}% APY • {opp.type}</Text>
-            </View>
-            <Text style={{ fontFamily: fonts.bold, color: colors.up }}>+{opp.apy}%</Text>
+      <EarnSheet visible={!!sheet} protocol={sheet?.protocol ?? null} action={sheet?.action ?? 'deposit'} onClose={() => setSheet(null)} onSuccess={onSuccess} />
+    </>
+  );
+}
+
+function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionView; fiat: string; onDeposit: () => void; onWithdraw: () => void }) {
+  const { colors, typography } = useTheme();
+  const t = useT();
+  const p = pv.protocol;
+  const isStaking = p.kind === 'staking';
+  const withdrawLabel = isStaking ? (t('earnUnstake') || 'Unstake') : (t('earnWithdraw') || 'Retirer');
+  const depositLabel = isStaking ? (t('earnStake') || 'Stake') : (t('earnDeposit') || 'Déposer');
+
+  return (
+    <GlassCard>
+      {/* Rangée 1 : identité (nom complet, jamais tronqué à 4 lettres) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+        <RemoteIcon uri={p.logo} label={p.name} size={42} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={typography.bodyStrong} numberOfLines={1} ellipsizeMode="tail">{p.name} · {p.receipt.symbol}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            <ChainTag chainId={p.chainId} />
+            <Text style={{ color: colors.textFaint }}>·</Text>
+            <Text style={typography.muted}>{isStaking ? t('earnStakingKind') : t('earnLendingKind')}</Text>
           </View>
-          
-          <View style={{ height: 1, backgroundColor: colors.cardBorder, marginVertical: spacing(2) }} />
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={typography.muted}>Dispo : {formatCrypto(balances[opp.underlyingAsset], ((opp.underlyingAsset === 'USDC' || opp.underlyingAsset === 'USDC_SOL') ? 6 : opp.underlyingAsset === 'SOL' ? 9 : 18))} {opp.underlyingAsset}</Text>
-              <Text style={typography.muted}>Staké : {formatCrypto(staked[opp.id], ((opp.underlyingAsset === 'USDC' || opp.underlyingAsset === 'USDC_SOL') ? 6 : opp.underlyingAsset === 'SOL' ? 9 : 18))} {opp.underlyingAsset}</Text>
+        </View>
+      </View>
+
+      {/* Rangée 2 : solde et contre-valeur */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: spacing(1.5) }}>
+        <Text style={[typography.bodyStrong, { fontVariant: ['tabular-nums'], flexShrink: 1 }]} numberOfLines={1}>
+          {formatTokenAmount(pv.balance, p.receipt.decimals)} {p.receipt.symbol}
+        </Text>
+        <Text style={[typography.muted, { fontVariant: ['tabular-nums'] }]}>{pv.fiat > 0 ? `${money(pv.fiat)} ${fiatSymbol(fiat)}` : '—'}</Text>
+      </View>
+
+      <View style={{ height: 1, backgroundColor: colors.glassBorder, marginVertical: spacing(1.5) }} />
+
+      {/* Rangée 3 : infos à gauche (peuvent rétrécir), actions à droite (jamais recouvertes) */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing(1) }}>
+        <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing(1), justifyContent: 'flex-start' }}>
+          <ApyBadge apy={pv.apy} />
+          {pv.yearlyFiat >= 0.01 ? (
+            <Text style={[typography.muted, { fontSize: 13, flexShrink: 1 }]} numberOfLines={1}>
+              +{money(pv.yearlyFiat)} {fiatSymbol(fiat)} {t('earnPerYear')}
+            </Text>
+          ) : pv.yearlyFiat > 0 ? (
+            <Text style={[typography.muted, { fontSize: 13, flexShrink: 1 }]} numberOfLines={1}>
+              {t('earnUnderCentYear').replace('{sym}', fiatSymbol(fiat))}
+            </Text>
+          ) : null}
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <Pressable
+            onPress={onWithdraw}
+            accessibilityRole="button"
+            accessibilityLabel={withdrawLabel}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              minWidth: 78,
+              height: 34,
+              paddingHorizontal: 12,
+              borderRadius: radii.pill,
+              backgroundColor: colors.glassStrong,
+              borderWidth: 1,
+              borderColor: colors.glassBorder,
+              opacity: pressed ? 0.75 : 1,
+            })}
+          >
+            <Icon name="send" size={13} color={colors.text} />
+            <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>
+              {withdrawLabel}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={onDeposit}
+            accessibilityRole="button"
+            accessibilityLabel={depositLabel}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              minWidth: 78,
+              height: 34,
+              paddingHorizontal: 14,
+              borderRadius: radii.pill,
+              backgroundColor: colors.primary,
+              opacity: pressed ? 0.75 : 1,
+            })}
+          >
+            <Icon name="add" size={13} color={colors.onPrimary} />
+            <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: 13 }}>
+              {depositLabel}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </GlassCard>
+  );
+}
+
+function OpportunityCard({ p, apy, available, price, fiat, onPress }: { p: EarnProtocol; apy: number | null; available: bigint; price: number; fiat: string; onPress: () => void }) {
+  const { colors, typography } = useTheme();
+  const t = useT();
+  const availStr = formatTokenAmount(available, p.underlying.decimals);
+  const availNum = Number(formatAmount(available, p.underlying.decimals));
+  const has = available > 0n;
+  return (
+    <PressableScale onPress={onPress}>
+      <GlassCard>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+          <RemoteIcon uri={p.logo} label={p.name} size={42} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={typography.bodyStrong} numberOfLines={2}>{p.name} · {p.underlying.symbol} → {p.receipt.symbol}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <ChainTag chainId={p.chainId} />
+              <Text style={{ color: colors.textFaint }}>·</Text>
+              <Text style={typography.muted}>{p.kind === 'staking' ? t('earnStakingKind') : t('earnLendingKind')}</Text>
             </View>
-            <Button label={opp.type === 'Lending' ? 'Déposer' : 'Staker'} onPress={() => handleOpenInputModal(opp)} />
           </View>
-        </Card>
-      ))}
-
-      <View style={{ height: spacing(12) }} />
-      {/* MODAL DE SAISIE */}
-      <Modal visible={inputModalVisible} transparent animationType="slide" onRequestClose={() => setInputModalVisible(false)}>
-         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
-           <View style={{ backgroundColor: colors.bgElevated, padding: spacing(3), borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl }}>
-             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(2) }}>
-               <Text style={typography.title}>{isUnstaking ? 'Retirer de' : (targetProtocol?.type === 'Lending' ? 'Déposer sur' : 'Staker sur')} {targetProtocol?.project}</Text>
-               <Pressable onPress={() => setInputModalVisible(false)}>
-                 <Icon name="close" size={24} color={colors.textFaint} />
-               </Pressable>
-             </View>
-             
-             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing(2) }}>
-               <TextInput
-                 autoFocus
-                 style={{ fontSize: 32, fontFamily: fonts.bold, color: colors.text, flex: 1 }}
-                 placeholder="0.00"
-                 placeholderTextColor={colors.textFaint}
-                 keyboardType="numeric"
-                 value={amountStr}
-                 onChangeText={(v) => setAmountStr(v.replace(',', '.'))}
-               />
-               <Text style={{ fontSize: 24, color: colors.textFaint, fontFamily: fonts.medium }}>{isUnstaking ? (targetProtocol?.symbol === 'Jito' ? 'JitoSOL' : (targetProtocol?.symbol || targetProtocol?.project)) : targetProtocol?.underlyingAsset}</Text>
-             </View>
-             
-             <View style={{ flexDirection: 'row', gap: spacing(1), marginBottom: spacing(3) }}>
-               <Pressable onPress={() => applyShortcut(25)} style={{ flex: 1, backgroundColor: colors.cardBorder, padding: spacing(1), borderRadius: radii.md, alignItems: 'center' }}>
-                 <Text style={{ color: colors.text }}>25%</Text>
-               </Pressable>
-               <Pressable onPress={() => applyShortcut(50)} style={{ flex: 1, backgroundColor: colors.cardBorder, padding: spacing(1), borderRadius: radii.md, alignItems: 'center' }}>
-                 <Text style={{ color: colors.text }}>50%</Text>
-               </Pressable>
-               <Pressable onPress={() => applyShortcut(100)} style={{ flex: 1, backgroundColor: colors.cardBorder, padding: spacing(1), borderRadius: radii.md, alignItems: 'center' }}>
-                 <Text style={{ color: colors.text }}>MAX</Text>
-               </Pressable>
-             </View>
-
-             
-             <Card style={{ padding: spacing(2), backgroundColor: colors.bgDeep, marginBottom: spacing(3) }}>
-               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing(1) }}>
-                 <Text style={typography.muted}>Rendement estimé (1 an)</Text>
-                 <Text style={{ color: colors.up, fontFamily: fonts.bold }}>~{targetProtocol ? (Number(amountStr || 0) * (targetProtocol.apy / 100)).toFixed(5) : 0} {targetProtocol?.underlyingAsset}</Text>
-               </View>
-               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                 <Text style={typography.muted}>Frais réseau (est.)</Text>
-                 <Text style={typography.muted}>{['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) ? '~0.002 ETH' : '~0.00001 SOL'}</Text>
-               </View>
-             </Card>
-             
-             {['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) && (Number(amountStr) < 0.05) && (
-               <View style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: spacing(2), borderRadius: radii.md, marginBottom: spacing(3) }}>
-                 <Text style={{ color: '#F59E0B', fontFamily: fonts.medium, fontSize: 13, textAlign: 'center' }}>
-                   ⚠️ Frais de réseau élevés par rapport au montant. Préférez un Layer 2 ou Solana pour économiser.
-                 </Text>
-               </View>
-             )}
-
-             {(() => {
-                const decimals = (targetProtocol?.underlyingAsset === 'USDC' || targetProtocol?.underlyingAsset === 'USDC_SOL') ? 6 : targetProtocol?.underlyingAsset === 'SOL' ? 9 : 18;
-                if (isUnstaking) {
-                  // UNSTAKE MODE: compare against staked token balance (JitoSOL, sAVAX, etc.)
-                  const stakedBal = Number(formatBalance(staked[targetProtocol?.id] || 0n, decimals));
-                  const isInsufficient = Number(amountStr) > 0 && Number(amountStr) > stakedBal;
-                  return (
-                    <View style={{ opacity: isInsufficient ? 0.5 : 1 }}>
-                      <Button 
-                        label={isInsufficient ? "Solde insuffisant" : "Confirmer le retrait"} 
-                        onPress={isInsufficient ? () => {} : validateInput} 
-                        disabled={isInsufficient}
-                      />
-                    </View>
-                  );
-                } else {
-                  // STAKE MODE: compare against native/underlying balance (SOL, ETH, etc.)
-                  const isNative = targetProtocol?.underlyingAsset === 'SOL' || targetProtocol?.underlyingAsset === 'ETH' || targetProtocol?.underlyingAsset === 'AVAX' || targetProtocol?.underlyingAsset === 'BNB';
-                  const estGas = ['ETH', 'USDC'].includes(targetProtocol?.underlyingAsset) ? 0.002 : targetProtocol?.underlyingAsset === 'SOL' ? 0.0025 : 0.00001;
-                  const totalNeeded = Number(amountStr || 0) + (isNative ? estGas : 0);
-                  const userBal = Number(formatBalance(balances[targetProtocol?.underlyingAsset] || 0n, decimals));
-                  const isInsufficient = Number(amountStr) > 0 && totalNeeded > userBal;
-                  return (
-                    <View style={{ opacity: isInsufficient ? 0.5 : 1 }}>
-                      <Button 
-                        label={isInsufficient ? "Solde insuffisant" : (targetProtocol?.type === 'Lending' ? "Confirmer le dépôt" : "Confirmer le staking")} 
-                        onPress={isInsufficient ? () => {} : validateInput} 
-                        disabled={isInsufficient}
-                      />
-                    </View>
-                  );
-                }
-              })()}
-
-           </View>
-         </KeyboardAvoidingView>
-      </Modal>
-      
-      <ConfirmUnlock
-        visible={unlockVisible}
-        title={isUnstaking ? `Retrait de ${targetProtocol?.project}` : `Staking ${targetProtocol?.project}`}
-        subtitle={isUnstaking ? `Retrait de ${amountStr} ${targetProtocol?.symbol || targetProtocol?.underlyingAsset}` : `Dépôt de ${amountStr} ${targetProtocol?.underlyingAsset}`}
-        statusText="Exécution du smart contract en cours..."
-        perform={executeStake}
-        onDone={() => {}}
-        onCancel={() => setUnlockVisible(false)}
-        aiContext={{ to: "LIFI_ROUTER", value: amountStr, method: isUnstaking ? "Unstake_Swap" : "Stake_Swap" }} 
-      />
-
-      <SuccessModal
-        visible={successVisible}
-        title="Dépôt réussi !"
-        message={`Vos ${targetProtocol?.underlyingAsset} travaillent désormais pour vous. Les récompenses seront cumulées automatiquement.`}
-        hash={successHash}
-        explorerUrl={explorerUrl}
-        onClose={() => { setSuccessVisible(false); setRefreshKey(k => k + 1); }}
-      />
-    </Screen>
+          <ApyBadge apy={apy} size="lg" />
+        </View>
+        <View style={{ height: 1, backgroundColor: colors.glassBorder, marginVertical: spacing(1.5) }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={typography.muted} numberOfLines={1}>
+            {t('earnAvailable')} :{' '}
+            <Text style={{ color: has ? colors.text : colors.textFaint, fontFamily: fonts.semibold }}>
+              {availStr} {p.underlying.symbol}
+            </Text>
+            {has && price > 0 ? <Text style={{ color: colors.textFaint }}> (≈ {money(availNum * price)} {fiatSymbol(fiat)})</Text> : null}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 14 }}>{p.kind === 'staking' ? t('earnStake') : t('earnDeposit')}</Text>
+            <Icon name="chevron" size={16} color={colors.accent} />
+          </View>
+        </View>
+      </GlassCard>
+    </PressableScale>
   );
 }

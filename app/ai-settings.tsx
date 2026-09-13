@@ -1,7 +1,9 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme, fonts, radii, spacing } from '../ui/theme';
+import { useT } from '../lib/settingsStore';
 import { PremiumScreen, GlassCard, ListRow, IconButton } from '../ui/premium';
 import { Icon } from '../ui/icon';
 import { useAiStore, AiProvider } from '../lib/aiStore';
@@ -11,6 +13,7 @@ import { Linking } from 'react-native';
 
 export default function AiSettings() {
   const { colors, typography } = useTheme();
+  const t = useT();
   const { isEnabled, provider, apiKey, setApiKey, disableAi, loadInitialState } = useAiStore();
   
   const [selectedProvider, setSelectedProvider] = useState<AiProvider>(provider);
@@ -34,10 +37,10 @@ export default function AiSettings() {
 
     if (check.success) {
       await setApiKey(inputKey, selectedProvider, customUrl, customModel);
-      Alert.alert('Succès', 'Copilote IA connecté et prêt !');
+      Alert.alert(t('success'), t('aiSuccessConnected'));
       router.back();
     } else {
-      Alert.alert('Échec de la connexion', check.error || 'Erreur inconnue.');
+      Alert.alert(t('aiConnectionFailed'), check.error || t('aiErrorInternal'));
     }
     setLoading(false);
   };
@@ -45,22 +48,23 @@ export default function AiSettings() {
   const handleDisable = async () => {
     await disableAi();
     setInputKey('');
-    Alert.alert('Désactivé', 'Le Copilote IA est désormais éteint.');
+    Alert.alert(t('aiDisabledTitle'), t('aiDisabledBody'));
   };
 
   return (
     <PremiumScreen
     >
+      <ScreenHeader />
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing(2) }}>
         <IconButton icon="chevron" onPress={() => router.back()} />
-        <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.text, marginLeft: spacing(2) }}>Copilote IA (BYOK)</Text>
+        <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.text, marginLeft: spacing(2) }}>{t('copilotByok')}</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: spacing(2), gap: spacing(2) }}>
         <Text style={[typography.body, { marginBottom: spacing(1) }]}>
-          Intégrez votre propre clé API (Bring Your Own Key) pour analyser vos transactions, détecter les smart contracts malveillants, et obtenir des audits de portefeuille sans partager vos données sensibles.
+          {t('aiByokIntro')}
         </Text>
 
-        <Text style={[typography.body, { color: colors.textMuted }]}>Fournisseur IA</Text>
+        <Text style={[typography.body, { color: colors.textMuted }]}>{t('aiProvider')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
           {(Object.keys(PROVIDER_DEFAULTS) as AiProvider[]).map((p) => (
             <Pressable
@@ -83,7 +87,7 @@ export default function AiSettings() {
           ))}
         </View>
 
-        <Text style={[typography.body, { color: colors.textMuted, marginTop: spacing(1) }]}>Clé API</Text>
+        <Text style={[typography.body, { color: colors.textMuted, marginTop: spacing(1) }]}>{t('aiApiKey')}</Text>
         <TextInput
           style={{
             backgroundColor: colors.glass,
@@ -104,13 +108,13 @@ export default function AiSettings() {
         />
         {PROVIDER_DEFAULTS[selectedProvider]?.helperUrl && (
           <Pressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[selectedProvider].helperUrl!)} style={{ alignSelf: 'flex-start', marginTop: 4 }}>
-            <Text style={[typography.body, { color: colors.accent, fontSize: 13, textDecorationLine: 'underline' }]}>Comment obtenir une clé gratuite ?</Text>
+            <Text style={[typography.body, { color: colors.accent, fontSize: 13, textDecorationLine: 'underline' }]}>{t('aiFreeKeyHelp')}</Text>
           </Pressable>
         )}
 
         {selectedProvider === 'custom' && (
           <View style={{ gap: spacing(1.5), marginTop: spacing(1) }}>
-            <Text style={[typography.body, { color: colors.textMuted }]}>URL de l'API (Compatible OpenAI)</Text>
+            <Text style={[typography.body, { color: colors.textMuted }]}>{t('aiApiUrl')}</Text>
             <TextInput
               style={{ backgroundColor: colors.glass, borderColor: colors.glassBorder, borderWidth: 1, borderRadius: radii.md, padding: spacing(1.5), color: colors.text, fontFamily: fonts.medium }}
               placeholder="Ex: https://api.together.xyz/v1/chat/completions"
@@ -119,7 +123,7 @@ export default function AiSettings() {
               onChangeText={setCustomUrl}
               autoCapitalize="none"
             />
-            <Text style={[typography.body, { color: colors.textMuted }]}>Nom du Modèle</Text>
+            <Text style={[typography.body, { color: colors.textMuted }]}>{t('aiModelName')}</Text>
             <TextInput
               style={{ backgroundColor: colors.glass, borderColor: colors.glassBorder, borderWidth: 1, borderRadius: radii.md, padding: spacing(1.5), color: colors.text, fontFamily: fonts.medium }}
               placeholder="Ex: qwen-2.5-72b ou gemini-1.5-pro"
@@ -143,7 +147,7 @@ export default function AiSettings() {
               opacity: (loading || !inputKey.trim()) ? 0.7 : 1,
             }}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 16 }}>Tester et Activer</Text>}
+            {loading ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: 16 }}>{t('aiTestAndActivate')}</Text>}
           </Pressable>
 
           {isEnabled && (
@@ -158,7 +162,7 @@ export default function AiSettings() {
                 borderColor: colors.danger,
               }}
             >
-              <Text style={{ color: colors.danger, fontFamily: fonts.bold, fontSize: 16 }}>Désactiver l'IA</Text>
+              <Text style={{ color: colors.danger, fontFamily: fonts.bold, fontSize: 16 }}>{t('aiDisable')}</Text>
             </Pressable>
           )}
         </View>
@@ -167,10 +171,10 @@ export default function AiSettings() {
           <GlassCard style={{ marginTop: spacing(3) }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginBottom: spacing(1) }}>
               <Icon name="check" size={20} color={colors.up} />
-              <Text style={{ color: colors.up, fontFamily: fonts.bold, fontSize: 16 }}>Copilote Actif</Text>
+              <Text style={{ color: colors.up, fontFamily: fonts.bold, fontSize: 16 }}>{t('aiActiveTitle')}</Text>
             </View>
             <Text style={{ color: colors.textMuted, fontSize: 13, fontFamily: fonts.medium, lineHeight: 20 }}>
-              Le pare-feu intelligent analysera désormais vos transactions Web3 en temps réel avant signature.
+              {t('aiActiveDesc')}
             </Text>
           </GlassCard>
         )}

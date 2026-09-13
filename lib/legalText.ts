@@ -8,7 +8,7 @@
 export const LEGAL_UPDATED = '5 juillet 2026';
 export const LEGAL_PUBLISHER = 'la société Malin';
 export const LEGAL_COUNTRY = 'France';
-export const LEGAL_CONTACT = 'amsssr400@gmail.com';
+export const LEGAL_CONTACT = 'Telegram @kalyxntw (t.me/kalyxntw) ou X @kalyxntw (x.com/kalyxntw)';
 
 export interface LegalSection {
   title: string;
@@ -18,7 +18,7 @@ export interface LegalSection {
 export const PRIVACY: LegalSection[] = [
   {
     title: '1. Le principe : non-custodial',
-    body: `Nova Wallet est un portefeuille non-custodial. Tes clés privées et ta phrase de récupération sont générées et stockées UNIQUEMENT sur ton téléphone, chiffrées. Elles ne sont jamais envoyées à ${LEGAL_PUBLISHER}, ni à aucun serveur. Nous n'avons aucun accès à tes fonds ni à ta phrase.`,
+    body: `Kalyx Wallet est un portefeuille non-custodial. Tes clés privées et ta phrase de récupération sont générées et stockées UNIQUEMENT sur ton téléphone, chiffrées. Elles ne sont jamais envoyées à ${LEGAL_PUBLISHER}, ni à aucun serveur. Nous n'avons aucun accès à tes fonds ni à ta phrase.`,
   },
   {
     title: '2. Ce que nous ne collectons pas',
@@ -50,7 +50,7 @@ Ces services ont leurs propres politiques de confidentialité. Le navigateur dAp
   },
   {
     title: '7. Enfants',
-    body: `Nova Wallet n'est pas destiné aux personnes de moins de 16 ans.`,
+    body: `Kalyx Wallet n'est pas destiné aux personnes de moins de 16 ans.`,
   },
   {
     title: '8. Modifications & contact',
@@ -61,11 +61,11 @@ Ces services ont leurs propres politiques de confidentialité. Le navigateur dAp
 export const TERMS: LegalSection[] = [
   {
     title: '1. Version bêta',
-    body: `Nova Wallet est actuellement en phase de test (bêta). Le logiciel peut contenir des bugs. N'y conserve pas de sommes importantes et privilégie les réseaux de test ou de petits montants tant que la version stable et l'audit de sécurité ne sont pas publiés.`,
+    body: `Kalyx Wallet est actuellement en phase de test (bêta). Le logiciel peut contenir des bugs. N'y conserve pas de sommes importantes et privilégie les réseaux de test ou de petits montants tant que la version stable et l'audit de sécurité ne sont pas publiés.`,
   },
   {
     title: '2. Tu es seul responsable de tes clés',
-    body: `Nova est non-custodial : TU es seul détenteur et responsable de ta phrase de récupération. Si tu la perds, personne — ni toi, ni l'éditeur — ne pourra restaurer l'accès à tes fonds. Ne la partage avec personne, ne la stocke pas en ligne.`,
+    body: `Kalyx est non-custodial : TU es seul détenteur et responsable de ta phrase de récupération. Si tu la perds, personne — ni toi, ni l'éditeur — ne pourra restaurer l'accès à tes fonds. Ne la partage avec personne, ne la stocke pas en ligne.`,
   },
   {
     title: '3. Risques liés aux crypto-actifs',
@@ -77,11 +77,11 @@ export const TERMS: LegalSection[] = [
   },
   {
     title: '5. Services tiers',
-    body: `Les échanges, bridges et dApps sont opérés par des tiers indépendants. Nova ne fait que faciliter l'interaction ; il n'endosse pas et ne contrôle pas ces services.`,
+    body: `Les échanges, bridges et dApps sont opérés par des tiers indépendants. Kalyx ne fait que faciliter l'interaction ; il n'endosse pas et ne contrôle pas ces services.`,
   },
   {
     title: '6. Pas de conseil financier',
-    body: `Nova ne fournit aucun conseil en investissement. Tu es responsable du respect des lois et obligations fiscales de ton pays de résidence.`,
+    body: `Kalyx ne fournit aucun conseil en investissement. Tu es responsable du respect des lois et obligations fiscales de ton pays de résidence.`,
   },
   {
     title: '7. Modifications & droit applicable',

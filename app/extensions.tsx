@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React from 'react';
 import { View, Text, Switch, ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
@@ -7,7 +8,7 @@ import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT } from '../lib/settingsStore';
 
 /**
- * Modules & fonctions : active/désactive des capacités optionnelles de Nova.
+ * Modules & fonctions : active/désactive des capacités optionnelles de Kalyx.
  * Chaque bascule agit vraiment sur l'app (pas de placeholder).
  */
 export default function Extensions() {
@@ -34,8 +35,9 @@ export default function Extensions() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: t('extensions') }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
+      <ScreenHeader title={t('extensions')} />
       <ScrollView contentContainerStyle={{ gap: spacing(1.5), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
         <Text style={typography.muted}>{t('extensionsIntro')}</Text>
         {modules.map((m) => (

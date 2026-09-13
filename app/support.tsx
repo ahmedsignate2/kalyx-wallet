@@ -1,26 +1,25 @@
 /**
- * « Soutenez-nous » : Nova est un wallet non-custodial, gratuit, sans pub ni
+ * « Soutenez-nous » : Kalyx est un wallet non-custodial, gratuit, sans pub ni
  * revente de données, développé en indépendant. Cette page explique POURQUOI
- * soutenir et propose des dons (PayPal + BTC/SOL/ETH). Aucune adresse ne quitte
+ * soutenir et propose des dons en crypto (BTC/SOL/ETH). Aucune adresse ne quitte
  * l'app : ce sont des adresses de RÉCEPTION publiques codées ici.
  */
+import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
-import { View, Text, Pressable, Linking } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { View, Text, Pressable } from 'react-native';
+import { Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { PremiumScreen, GlassCard, RemoteIcon } from '../ui/premium';
-import { NovaLogo } from '../ui/NovaLogo';
+import { KalyxLogo } from '../ui/KalyxLogo';
 import { Icon, type IconName } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { toast } from '../lib/toast';
 import { useT } from '../lib/settingsStore';
 import { chainIconUrl } from '../src';
 
-const PAYPAL_EMAIL = 'amsssr400@gmail.com';
-
 const CRYPTO = [
-  { key: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', address: 'bc1qwdqesyfzja4585f09ylvp4rc2lyqhvmvlvytx4' },
+  { key: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', address: 'bc1quv6merwsfumzu6699hhxkdlyu63kn3efhp4jzq' },
   { key: 'ethereum', name: 'Ethereum (EVM)', symbol: 'ETH', address: '0x7411b6a0b4df0f3a0bab9fe2c5d5cb47ddbdb69b' },
   { key: 'solana', name: 'Solana', symbol: 'SOL', address: '46L3QPmk7daHeDgegZCPCTkXegotaoRpwoVpDMnxhpVP' },
 ] as const;
@@ -43,20 +42,14 @@ export default function Support() {
 
   return (
     <PremiumScreen>
+      <ScreenHeader />
       {/* En-tête masqué → le dégradé remonte jusqu'en haut (pas de bandeau noir) */}
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Bouton retour intégré */}
-      <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => ({ alignSelf: 'flex-start', padding: 6, marginBottom: spacing(0.5), opacity: pressed ? 0.6 : 1 })}>
-        <View style={{ transform: [{ rotate: '180deg' }] }}>
-          <Icon name="chevron" size={26} color={colors.text} />
-        </View>
-      </Pressable>
-
       {/* Hero */}
       <View style={{ alignItems: 'center', gap: spacing(1.25), marginBottom: spacing(1) }}>
-        <NovaLogo size={72} />
-        <Text style={{ color: colors.text, fontSize: 24, fontFamily: fonts.extrabold, textAlign: 'center' }}>{t('supportNovaHero')} 💜</Text>
+        <KalyxLogo size={72} />
+        <Text style={{ color: colors.text, fontSize: 24, fontFamily: fonts.extrabold, textAlign: 'center' }}>{t('supportKalyxHero')} 💜</Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>{t('supportIntro')}</Text>
       </View>
 
@@ -75,26 +68,8 @@ export default function Support() {
         ))}
       </GlassCard>
 
-      {/* PayPal */}
-      <Text style={[typography.section, { marginTop: spacing(1) }]}>{t('viaPaypal')}</Text>
-      <Pressable onPress={() => copy(PAYPAL_EMAIL, t('paypalEmailLabel'))}>
-        <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-          <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#003087', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: '#fff', fontFamily: fonts.extrabold, fontSize: 18 }}>P</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={typography.bodyStrong}>{PAYPAL_EMAIL}</Text>
-            <Text style={typography.muted}>{t('sendDonationEmail')}</Text>
-          </View>
-          <Icon name="copy" size={18} tone="muted" />
-        </GlassCard>
-      </Pressable>
-      <Pressable onPress={() => Linking.openURL('https://www.paypal.com/myaccount/transfer/homepage').catch(() => {})} style={{ alignSelf: 'center', paddingVertical: spacing(1) }}>
-        <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('openPaypal')}</Text>
-      </Pressable>
-
       {/* Crypto */}
-      <Text style={[typography.section, { marginTop: spacing(0.5) }]}>{t('inCrypto')}</Text>
+      <Text style={[typography.section, { marginTop: spacing(1.5) }]}>{t('inCrypto')}</Text>
       {CRYPTO.map((c) => {
         const open = openQr === c.key;
         return (
@@ -110,8 +85,8 @@ export default function Support() {
               </Pressable>
             </View>
 
-            <Pressable onPress={() => copy(c.address, `${t('addressLabel')} ${c.symbol}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25) }}>
-              <Text selectable style={[typography.mono, { flex: 1, fontSize: 12.5 }]} numberOfLines={1}>{c.address}</Text>
+            <Pressable onPress={() => copy(c.address, `${t('addressLabel')} ${c.symbol}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), overflow: 'hidden' }}>
+              <Text selectable style={[typography.mono, { flex: 1, minWidth: 0, fontSize: 12.5 }]} numberOfLines={1} ellipsizeMode="middle">{c.address}</Text>
               <Icon name="copy" size={16} color={colors.accent} />
             </Pressable>
 

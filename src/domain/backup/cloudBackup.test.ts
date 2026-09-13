@@ -6,7 +6,7 @@ describe('cloudBackup', () => {
   it('round-trip : chiffre puis déchiffre avec le bon mot de passe', async () => {
     const blob = await createBackup(M, 'S3cret!!');
     const env = JSON.parse(blob);
-    expect(env.app).toBe('nova');
+    expect(env.app).toBe('kalyx');
     expect(env.kind).toBe('seed-backup');
     expect(env.version).toBe(BACKUP_VERSION);
     expect(blob).not.toContain('abandon'); // la seed n'apparaît JAMAIS en clair
@@ -22,7 +22,7 @@ describe('cloudBackup', () => {
     expect(error).toMatch(/mot de passe/i);
   });
 
-  it('rejette un fichier non-Nova / illisible', async () => {
+  it('rejette un fichier non-Kalyx / illisible', async () => {
     expect((await restoreBackup('pas du json', 'x')).error).toMatch(/illisible/i);
     expect((await restoreBackup(JSON.stringify({ app: 'autre' }), 'x')).error).toMatch(/valide/i);
   });

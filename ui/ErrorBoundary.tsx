@@ -1,3 +1,4 @@
+import { useT } from "../lib/settingsStore";
 /**
  * ErrorBoundary global : capture les erreurs de rendu React et les affiche à
  * l'écran (message + stack en dev) au lieu de laisser l'app se fermer.
@@ -23,9 +24,9 @@ export class RootErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // Visible dans logcat / la console Metro.
-    console.error('[Nova] ErrorBoundary a capturé :', error?.message);
-    if (error?.stack) console.error('[Nova] stack :', error.stack);
-    if (info?.componentStack) console.error('[Nova] componentStack :', info.componentStack);
+    console.error('[Kalyx] ErrorBoundary a capturé :', error?.message);
+    if (error?.stack) console.error('[Kalyx] stack :', error.stack);
+    if (info?.componentStack) console.error('[Kalyx] componentStack :', info.componentStack);
   }
 
   reset = () => this.setState({ error: null });
@@ -38,6 +39,7 @@ export class RootErrorBoundary extends React.Component<Props, State> {
 }
 
 export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => void }) {
+  const t = useT();
   // Couleurs volontairement EN DUR (pas de useTheme) : l'écran de crash doit
   // s'afficher même si le système de thème/le store est la cause du crash.
   return (
@@ -46,7 +48,7 @@ export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => 
       contentContainerStyle={{ padding: 24, paddingTop: 72 }}
     >
       <Text style={{ color: '#FF5C5C', fontSize: 22, fontFamily: fonts.extrabold, marginBottom: 12 }}>
-        Nova a rencontré une erreur
+        Kalyx a rencontré une erreur
       </Text>
       <Text style={{ color: '#F5F7FA', fontSize: 15, marginBottom: 16 }}>
         {error?.message || String(error)}
@@ -63,7 +65,7 @@ export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => 
             marginBottom: 20,
           }}
         >
-          <Text style={{ color: '#fff', fontFamily: fonts.bold }}>Réessayer</Text>
+          <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t("retry")}</Text>
         </Pressable>
       ) : null}
       {__DEV__ && error?.stack ? (
