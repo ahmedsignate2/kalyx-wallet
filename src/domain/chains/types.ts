@@ -98,6 +98,9 @@ export interface ChainAdapter {
   /** Solde natif (réseau). */
   getBalance(address: string): Promise<Balance>;
 
+  /** Récupère le bytecode déployé à une adresse (pour EVM). */
+  getCode?(address: string): Promise<string>;
+
   /** Historique des transfers natifs (réseau). Liste vide si indispo. */
   getHistory(address: string): Promise<TxSummary[]>;
 
