@@ -9,5 +9,25 @@
   "antiDrainerUnlimitedApproval": "Unlimited token allowance requested. All your tokens could be drained.",
   "antiDrainerNftApproval": "Approval for all NFTs requested. Your entire collection could be transferred.",
   "antiDrainerNonInteractiveContract": "Sending native funds directly to a smart contract without contract call data",
-  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger"
+  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger",
+  "transaction.action": {
+    "speedUpButton": "スピードアップ",
+    "cancelButton": "キャンセル",
+    "speedUpConfirmTitle": "トランザクションをスピードアップ",
+    "cancelConfirmTitle": "トランザクションをキャンセル",
+    "speedUpDescription": "このトランザクションをより速く処理するためにネットワーク手数料を引き上げます。",
+    "cancelDescription": "より高い手数料で自分自身に 0 を送信することで、このトランザクションをキャンセルします。",
+    "replacementSuccess": "置換トランザクションが正常に送信されました。",
+    "replacementError": "トランザクションの置換中にエラーが発生しました。"
+  },
+  "speedUpButton": "スピードアップ",
+  "cancelButton": "キャンセル",
+  "speedUpConfirmTitle": "トランザクションをスピードアップ",
+  "cancelConfirmTitle": "トランザクションをキャンセル",
+  "speedUpDescription": "このトランザクションをより速く処理するためにネットワーク手数料を引き上げます。",
+  "cancelDescription": "より高い手数料で自分自身に 0 を送信することで、このトランザクションをキャンセルします。",
+  "replacementSuccess": "置換トランザクションが正常に送信されました。",
+  "replacementError": "トランザクションの置換中にエラーが発生しました。",
+  "estimatedExtraFee": "推定追加費用（最低 +20%）",
+  "nonceLabel": "ナンス (Nonce)"
 }

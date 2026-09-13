@@ -14,6 +14,8 @@ import {
   Transaction,
   FetchRequest,
   Interface,
+  type TransactionResponse,
+  type FeeData,
 } from 'ethers';
 import type {
   Account,
@@ -98,6 +100,10 @@ export class EvmChainAdapter implements ChainAdapter {
   async getCode(address: string): Promise<string> {
     const addr = normalizeEvmAddress(address);
     return this.call((p) => p.getCode(addr), 'eth_getCode');
+  }
+
+  async getTransaction(hash: string): Promise<TransactionResponse | null> {
+    return this.call((p) => p.getTransaction(hash), 'eth_getTransactionByHash');
   }
 
   async getHistory(address: string): Promise<TxSummary[]> {
@@ -407,7 +413,7 @@ export class EvmChainAdapter implements ChainAdapter {
     const wallet = new Wallet(privateKey);
     const needFee = !req.gasPrice && !req.maxFeePerGas;
     const [nonce, feeData] = await Promise.all([
-      this.call((p) => p.getTransactionCount(from, 'pending')),
+      req.nonce != null ? Promise.resolve(req.nonce) : this.call((p) => p.getTransactionCount(from, 'pending')),
       needFee ? this.call((p) => p.getFeeData()) : Promise.resolve(null),
     ]);
 
@@ -582,6 +588,7 @@ export interface RawTxRequest {
   data?: string;
   value?: bigint;
   chainId: number;
+  nonce?: number;
   gasLimit?: bigint;
   gasPrice?: bigint;
   maxFeePerGas?: bigint;

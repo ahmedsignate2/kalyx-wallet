@@ -9,5 +9,25 @@
   "antiDrainerUnlimitedApproval": "Unlimited token allowance requested. All your tokens could be drained.",
   "antiDrainerNftApproval": "Approval for all NFTs requested. Your entire collection could be transferred.",
   "antiDrainerNonInteractiveContract": "Sending native funds directly to a smart contract without contract call data",
-  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger"
+  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger",
+  "transaction.action": {
+    "speedUpButton": "تسريع",
+    "cancelButton": "إلغاء",
+    "speedUpConfirmTitle": "تسريع المعاملة",
+    "cancelConfirmTitle": "إلغاء المعاملة",
+    "speedUpDescription": "قم بزيادة رسوم الشبكة لمعالجة هذه المعاملة بشكل أسرع.",
+    "cancelDescription": "قم بإلغاء هذه المعاملة عن طريق إرسال 0 إلى نفسك برسوم أعلى.",
+    "replacementSuccess": "تم إرسال معاملة الاستبدال بنجاح.",
+    "replacementError": "حدث خطأ أثناء استبدال المعاملة."
+  },
+  "speedUpButton": "تسريع",
+  "cancelButton": "إلغاء",
+  "speedUpConfirmTitle": "تسريع المعاملة",
+  "cancelConfirmTitle": "إلغاء المعاملة",
+  "speedUpDescription": "قم بزيادة رسوم الشبكة لمعالجة هذه المعاملة بشكل أسرع.",
+  "cancelDescription": "قم بإلغاء هذه المعاملة عن طريق إرسال 0 إلى نفسك برسوم أعلى.",
+  "replacementSuccess": "تم إرسال معاملة الاستبدال بنجاح.",
+  "replacementError": "حدث خطأ أثناء استبدال المعاملة.",
+  "estimatedExtraFee": "التكلفة الإضافية التقديرية (بحد أدنى +20%)",
+  "nonceLabel": "رقم المعاملة (Nonce)"
 }

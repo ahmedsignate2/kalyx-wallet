@@ -9,5 +9,25 @@
   "antiDrainerUnlimitedApproval": "Unlimited token allowance requested. All your tokens could be drained.",
   "antiDrainerNftApproval": "Approval for all NFTs requested. Your entire collection could be transferred.",
   "antiDrainerNonInteractiveContract": "Sending native funds directly to a smart contract without contract call data",
-  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger"
+  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger",
+  "transaction.action": {
+    "speedUpButton": "तेज़ करें",
+    "cancelButton": "रद्द करें",
+    "speedUpConfirmTitle": "लेन-देन में तेजी लाएं",
+    "cancelConfirmTitle": "लेन-देन रद्द करें",
+    "speedUpDescription": "इस लेन-देन को तेजी से संसाधित करने के लिए नेटवर्क शुल्क बढ़ाएं।",
+    "cancelDescription": "उच्च शुल्क के साथ स्वयं को 0 भेजकर इस लेन-देन को रद्द करें।",
+    "replacementSuccess": "प्रतिस्थापन लेन-देन सफलतापूर्वक भेजा गया।",
+    "replacementError": "लेन-देन बदलते समय त्रुटि हुई।"
+  },
+  "speedUpButton": "तेज़ करें",
+  "cancelButton": "रद्द करें",
+  "speedUpConfirmTitle": "लेन-देन में तेजी लाएं",
+  "cancelConfirmTitle": "लेन-देन रद्द करें",
+  "speedUpDescription": "इस लेन-देन को तेजी से संसाधित करने के लिए नेटवर्क शुल्क बढ़ाएं।",
+  "cancelDescription": "उच्च शुल्क के साथ स्वयं को 0 भेजकर इस लेन-देन को रद्द करें।",
+  "replacementSuccess": "प्रतिस्थापन लेन-देन सफलतापूर्वक भेजा गया।",
+  "replacementError": "लेन-देन बदलते समय त्रुटि हुई।",
+  "estimatedExtraFee": "अनुमानित अतिरिक्त लागत (न्यूनतम +20%)",
+  "nonceLabel": "नॉन्स (Nonce)"
 }
