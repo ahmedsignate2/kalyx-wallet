@@ -1,4 +1,4 @@
-import { detectInitialLanguage, resolveLanguage, applyRTL, isRtl } from '../../lib/i18n';
+import { detectInitialLanguage, resolveLanguage, applyRTL, isRtl, translate, type Lang, type Key } from '../../lib/i18n';
 import * as Localization from 'expo-localization';
 import { I18nManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -78,5 +78,61 @@ describe('Language detection & RTL initialization', () => {
       throw new Error("Cannot find native module 'ExpoLocalization'");
     });
     expect(() => detectInitialLanguage()).not.toThrow();
+  });
+});
+
+describe('Newly added features localization', () => {
+  const newKeys: Key[] = [
+    'aiSupportCardTitle',
+    'aiSupportCopy',
+    'aiSupportCopied',
+    'aiSupportCopiedBody',
+    'aiSupportSendTelegram',
+    'aiSupportSecretAlert',
+    'aiSupportCopyError',
+    'aiSupportOpenTelegramError',
+    'aiSecurityBlockedSecret',
+    'aiSuggestionSupport',
+    'txTrackingTitle',
+    'trackTransaction',
+    'txPending',
+    'includedInBlock',
+    'agoMinutes',
+    'mempoolProgress',
+    'estTimeRange',
+    'networkDetails',
+    'towards',
+    'errTxHashMissing',
+    'errCannotOpenBrowser',
+    'aboutApprox',
+    'notEnoughGasForFee',
+  ];
+
+  const languages: Lang[] = [
+    'fr', 'en', 'es', 'pt', 'de', 'it', 'nl', 'pl', 'tr', 'ru', 'ar', 'hi', 'zh', 'ja', 'ko',
+  ];
+
+  test('all new keys have valid non-empty translations for all 15 languages', () => {
+    for (const lang of languages) {
+      for (const key of newKeys) {
+        const text = translate(lang, key);
+        expect(text).toBeDefined();
+        expect(typeof text).toBe('string');
+        expect(text.trim().length).toBeGreaterThan(0);
+        expect(text).not.toBe(key);
+      }
+    }
+  });
+
+  test('Spanish and French distinct translations for ticket copy', () => {
+    expect(translate('fr', 'aiSupportCopy')).toBe('Copier le ticket');
+    expect(translate('es', 'aiSupportCopy')).toBe('Copiar ticket');
+    expect(translate('en', 'aiSupportCopy')).toBe('Copy ticket');
+    expect(translate('de', 'aiSupportCopy')).toBe('Ticket kopieren');
+  });
+
+  test('RTL languages return proper text', () => {
+    const arTicket = translate('ar', 'aiSupportCardTitle');
+    expect(arTicket).toBe('تذكرة الدعم');
   });
 });
