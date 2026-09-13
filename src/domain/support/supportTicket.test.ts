@@ -151,6 +151,46 @@ describe('Support Ticket & Secret Detector System', () => {
       expect(ticket).toContain('[12:00:00] [TX] Error 400');
     });
 
+    it('replaces outdated or hallucinated ID date with real current date', () => {
+      const raw = `🎫 [TICKET SUPPORT NOVA]\n• ID : KX-20250520-00124\n• Version : Kalyx v0.0.1\n• Problème : Bug`;
+      const normalized = normalizeSupportTicket(raw);
+      expect(normalized).not.toContain('KX-20250520-00124');
+      const now = new Date();
+      const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      expect(normalized).toContain(`• ID : KX-${today}-`);
+    });
+
+    it('correlates Erreur détectée when left as Non déterminée and logs have errors', () => {
+      clearTechnicalLogs();
+      recordTechnicalLog('RPC', 'RPC error on eth_getBalance: status 500', {
+        chain: 'Sepolia',
+        method: 'eth_getBalance',
+        status: 500,
+        error: 'Réseau indisponible',
+      });
+
+      const raw = `🎫 [TICKET SUPPORT NOVA]\n• ID : KX-YYYYMMDD-XXXXX\n• Version : Kalyx v0.0.1\n• Problème : Erreur d'envoi\n• Réseau : Sepolia\n• Erreur détectée : Non déterminée`;
+      const normalized = normalizeSupportTicket(raw);
+      expect(normalized).toContain('• Erreur détectée : RPC 500 (Réseau indisponible) sur eth_getBalance');
+    });
+
+    it('condenses raw JSON logs and labels background multi-chain errors', () => {
+      clearTechnicalLogs();
+      recordTechnicalLog('RPC', 'RPC error on eth_getBalance', {
+        chain: 'Swellchain',
+        method: 'eth_getBalance',
+        status: 500,
+        error: 'Réseau indisponible',
+      });
+
+      const raw = `🎫 [TICKET SUPPORT NOVA]\n• Problème : Erreur\n• Réseau : Sepolia\n• Logs récents :\n{"method":"eth_getBalance","chain":"Swellchain"}`;
+      const normalized = normalizeSupportTicket(raw);
+      expect(normalized).not.toContain('{"method"');
+      expect(normalized).toContain('[Sepolia] Aucun log d\'exécution direct enregistré pour cette chaîne.');
+      expect(normalized).toContain('(Appel global multi-chaînes d\'arrière-plan) :');
+      expect(normalized).toContain('[RPC] Swellchain: eth_getBalance -> 500 (Réseau indisponible)');
+    });
+
     it('throws when trying to open Telegram with a ticket containing secrets', async () => {
       const dangerousTicket = `🎫 [TICKET SUPPORT NOVA]\n• Seed: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about`;
       await expect(openTelegramTicket(dangerousTicket)).rejects.toThrow(

@@ -22,14 +22,16 @@ import { copilotError, copilotLog, newCopilotTraceId } from '../../lib/copilotLo
 import * as Clipboard from 'expo-clipboard';
 import { toast } from '../../lib/toast';
 import { haptic } from '../../lib/haptics';
-import { openTelegramTicket, normalizeSupportTicket, getClientEnvironmentInfo } from '../../lib/telegramSupport';
+import { openTelegramTicket, normalizeSupportTicket, getClientEnvironmentInfo, generateTicketId } from '../../lib/telegramSupport';
 import { detectSensitiveSecrets, sanitizeSecrets } from '../../lib/secretDetector';
 import { technicalLogger, getFormattedTechnicalLogs } from '../../lib/technicalLogger';
 
 function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
   const { colors } = useTheme();
   const t = useT();
-  const [normalizedTicket] = useState(() => normalizeSupportTicket(ticketContent));
+  const activeChain = useWallet((s) => s.activeChain);
+  const activeChainName = getAdapter(activeChain)?.config?.name;
+  const [normalizedTicket] = useState(() => normalizeSupportTicket(ticketContent, activeChainName));
   const [errorWarning, setErrorWarning] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -248,11 +250,15 @@ export function AiChatModal({ visible, onClose, context }: { visible: boolean, o
       : t('aiWelcomeWallet');
 
   function buildSystemPrompt(ctx: any) {
+    const currentChainConfig = getAdapter(activeChain)?.config;
+    const currentNetworkName = currentChainConfig?.name || 'Sepolia';
+
     const base = `Tu es l'assistant personnel de Kalyx Wallet.
 
 CONTEXTE UTILISATEUR :
 - Prénom : ${profileName || "l'utilisateur"}
 - Langue de l'application : ${language || 'fr'}
+- Réseau actif actuel : ${currentNetworkName}
 
 CONSIGNES DE COMMUNICATION :
 1. Réponds STRICTEMENT dans la langue de l'application (${language || 'fr'}).
@@ -287,15 +293,15 @@ FORMAT DU TICKET SUPPORT (EN DERNIER RECOURS SEULEMENT) :
 Si et seulement si le diagnostic a échoué ou que l'utilisateur l'exige avec un problème identifié, encadre le ticket STRICTEMENT entre les balises <SUPPORT_TICKET> et </SUPPORT_TICKET> :
 <SUPPORT_TICKET>
 🎫 [TICKET SUPPORT NOVA]
-• ID : KX-YYYYMMDD-XXXXX
+• ID : ${generateTicketId()}
 • Version : ${getClientEnvironmentInfo()}
 • Problème : [Résumé direct du problème en une ligne]
-• Réseau : [Nom du réseau, ex: Sepolia, Solana, Bitcoin, Ethereum]
-• Erreur détectée : [Message ou code d'erreur exact si disponible dans les logs, sinon Non déterminée]
+• Réseau : ${currentNetworkName}
+• Erreur détectée : [Message ou code d'erreur technique précis extrait des LOGS ci-dessous, ex: 'RPC 500 : Réseau indisponible' ou 'RPC 400 : Solde insuffisant'. Ne JAMAIS mettre 'Non déterminée' si les logs comportent une erreur !]
 • Montant visé : [Montant si applicable, sinon N/A]
 • Description utilisateur : "[Résumé concis des propos de l'utilisateur]"
 • Logs récents :
-[Insérer les logs d'erreurs ou logs récents pertinents issus de la section LOGS TECHNIQUES RÉCENTS ci-dessous, ou 'Aucun log récent']
+[Insérer les lignes condensées pertinentes du réseau concerné, ex: '[HH:MM:SS] [RPC] NomRéseau: méthode -> statut (erreur)', ou préciser explicitement s'il s'agit d'un appel multi-chaînes d'arrière-plan, sans JAMAIS dumper de JSON brut stringifié]
 </SUPPORT_TICKET>
 Ce tag fera automatiquement apparaître une carte interactive permettant de copier le ticket ou de l'exporter vers Telegram (@kalyxntw).
 
@@ -314,8 +320,15 @@ Exemples :
 Voici la liste des ROUTE_ID autorisés : ${APP_ROUTES_MAP.map(r => r.id + ' (' + r.description + ')').join(', ')}
 NE JAMAIS diriger l'utilisateur vers des écrans liés à l'export de clé privée, à la phrase de récupération ou au changement de PIN.
 
-LOGS TECHNIQUES RÉCENTS D'EXÉCUTION :
-${technicalLogger.getFormattedLogs(35)}
+RÈGLE DE CORRÉLATION ET FILTRAGE DES LOGS :
+1. Si l'utilisateur cible un réseau (ex: ${currentNetworkName}), associe en priorité les logs de ce réseau.
+2. Si les erreurs dans les logs proviennent d'autres réseaux lors d'un appel d'arrière-plan (ex: Swellchain, Degen, Moonbeam), précise explicitement : "(Appel global multi-chaînes d'arrière-plan)" et n'attribue pas cette erreur au réseau ciblé.
+3. Corrèle impérativement le champ "• Erreur détectée :" : si les logs d'exécution contiennent une erreur (status 500, timeout, RPC 400), indique l'erreur technique précise au lieu de "Non déterminée".
+4. Formatage condensé : dans l'aperçu du ticket, n'inclus JAMAIS de JSON brut stringifié. Utilise la ligne propre :
+   [HH:MM:SS] [RPC] Réseau: méthode -> statut (erreur)
+
+LOGS TECHNIQUES RÉCENTS D'EXÉCUTION (CONDENSÉS) :
+${technicalLogger.getCondensedLogs(35, currentNetworkName)}
 
 CONTEXTE TEMPS RÉEL (ALLOWLIST PUBLIQUE) :
 ${serializeCopilotContext()}
