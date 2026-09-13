@@ -138,6 +138,11 @@ export default function Send() {
   const [speed, setSpeed] = useState<FeeSpeed>('normal');
   const [reserve, setReserve] = useState<bigint>(0n);
   useEffect(() => {
+    if (picked) {
+      setBalance(picked.raw);
+      setPrice(picked.price);
+      if (picked.kind === 'native') setNativeBal(picked.raw);
+    }
     if (!account) return;
     let alive = true;
     const a = getAdapter(activeChain);
@@ -301,7 +306,7 @@ export default function Send() {
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (step === 0 || step === 4 || (step === 1 && presetToken) ? router.back() : setStep((s) => (s - 1) as Step))} />
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <Text variant="title2">{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : t('headerSendToken').replace('${symbol}', symbol)}</Text>
+            <Text variant="title2">{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : (t('headerSendToken').replace('${symbol}', symbol) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
             {step > 0 && chainIconUrl(chain.id) ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: 12, backgroundColor: colors.surface2 }}>
                 <Image source={{ uri: chainIconUrl(chain.id) }} style={{ width: 14, height: 14, borderRadius: 7 }} />
