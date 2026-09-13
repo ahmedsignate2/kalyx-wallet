@@ -6,7 +6,7 @@ import { PremiumScreen, GlassCard } from '../ui/premium';
 import { Icon } from '../ui/icon';
 import { spacing, fonts, useTheme } from '../ui/theme';
 import { useT, fiatSymbol, useSettings } from '../lib/settingsStore';
-import { getAdapter, formatTokenAmount, formatFiat, shortAddress } from '../src';
+import { getAdapter, formatTokenAmount, formatFiat, shortAddress, buildExplorerTxUrl } from '../src';
 import { useWallet } from '../lib/walletStore';
 import { haptic } from '../lib/haptics';
 
@@ -62,7 +62,7 @@ export default function TrackingScreen() {
     if (!hash || !explorerUrl) return;
     haptic.selection();
     // Sécurité demandée : on s'assure d'avoir l'URL correcte
-    const url = `${explorerUrl}/tx/${hash}`;
+    const url = buildExplorerTxUrl(explorerUrl, hash);
     router.push({ pathname: '/browser', params: { url } });
   };
 
