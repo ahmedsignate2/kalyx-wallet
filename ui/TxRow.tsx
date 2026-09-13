@@ -17,7 +17,7 @@ import { Icon } from './icon';
 import { fonts, spacing, useTheme } from './theme';
 import { useEnsName } from '../lib/useEns';
 import { useT } from '../lib/settingsStore';
-import { formatTokenAmount, formatAmount, type TxSummary, formatFiat } from '../src';
+import { formatTokenAmount, formatAmount, type TxSummary, formatFiat, buildExplorerTxUrl } from '../src';
 
 function shortAddr(a: string) {
   return a.length > 14 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a;
@@ -153,7 +153,7 @@ export function TxRow({
           <AddrLine label={t('txTo')} addr={tx.to} />
           {explorerUrl && tx.hash ? (
             <Text
-              onPress={() => Linking.openURL(`${explorerUrl}/tx/${tx.hash}`)}
+              onPress={() => Linking.openURL(buildExplorerTxUrl(explorerUrl, tx.hash))}
               style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}
             >
               {t('txViewExplorer')}
