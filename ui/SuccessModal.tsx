@@ -109,7 +109,16 @@ export function SuccessModal({
           ) : null}
           {hash && explorerUrl ? (
             <Text
-              onPress={() => Linking.openURL(buildExplorerTxUrl(explorerUrl, hash))}
+              onPress={async () => {
+                const url = buildExplorerTxUrl(explorerUrl, hash);
+                try {
+                  const supported = await Linking.canOpenURL(url);
+                  if (supported) await Linking.openURL(url);
+                  else await Linking.openURL(url);
+                } catch {
+                  Linking.openURL(url).catch(() => {});
+                }
+              }}
               style={{ color: colors.accent, fontFamily: fonts.semibold }}
             >
               {t('viewOnExplorer')} ↗
