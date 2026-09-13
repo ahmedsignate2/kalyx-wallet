@@ -9,5 +9,25 @@
   "antiDrainerUnlimitedApproval": "Autorisation illimitée de tokens demandée. Vos fonds pourraient être vidés.",
   "antiDrainerNftApproval": "Autorisation globale pour tous vos NFT demandée. Votre collection pourrait être volée.",
   "antiDrainerNonInteractiveContract": "Envoi direct de fonds vers un smart contract sans données d'appel",
-  "antiDrainerForceSendConfirm": "Je comprends les risques et confirme l'envoi malgré le danger"
+  "antiDrainerForceSendConfirm": "Je comprends les risques et confirme l'envoi malgré le danger",
+  "transaction.action": {
+    "speedUpButton": "Accélérer",
+    "cancelButton": "Annuler",
+    "speedUpConfirmTitle": "Accélérer la transaction",
+    "cancelConfirmTitle": "Annuler la transaction",
+    "speedUpDescription": "Augmentez les frais de réseau pour traiter cette transaction plus rapidement.",
+    "cancelDescription": "Annulez cette transaction en envoyant 0 à vous-même avec des frais plus élevés.",
+    "replacementSuccess": "Transaction de remplacement envoyée avec succès.",
+    "replacementError": "Erreur lors du remplacement de la transaction."
+  },
+  "speedUpButton": "Accélérer",
+  "cancelButton": "Annuler",
+  "speedUpConfirmTitle": "Accélérer la transaction",
+  "cancelConfirmTitle": "Annuler la transaction",
+  "speedUpDescription": "Augmentez les frais de réseau pour traiter cette transaction plus rapidement.",
+  "cancelDescription": "Annulez cette transaction en envoyant 0 à vous-même avec des frais plus élevés.",
+  "replacementSuccess": "Transaction de remplacement envoyée avec succès.",
+  "replacementError": "Erreur lors du remplacement de la transaction.",
+  "estimatedExtraFee": "Surcoût estimé (+20 % min)",
+  "nonceLabel": "Nonce"
 }
