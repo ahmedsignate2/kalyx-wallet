@@ -1,6 +1,7 @@
 import { useAiStore } from './aiStore';
 import { buildAiRequestParams } from './aiConfig';
 import { toast } from './toast';
+import { recordTechnicalLog } from './technicalLogger';
 
 /**
  * Traduit les erreurs brutes communes en messages UI en français.
@@ -9,6 +10,7 @@ import { toast } from './toast';
 export function handleSmartError(e: unknown) {
   console.error('[SmartError]', e);
   const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+  recordTechnicalLog('RPC_CLIENT_ERROR', msg);
   
   if (msg.includes('user rejected') || msg.includes('user canceled') || msg.includes('rejected by user')) {
     toast.error('Demande annulée', 'L\'action a été annulée.');
