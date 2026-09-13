@@ -32,7 +32,9 @@ import {
   getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
   formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
   estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, type FeeOptions, type FeeSpeed,
+  simulateSendTransaction, type SimulationResult,
 } from '../src';
+import { AntiDrainerBanner } from '../src/components/security/AntiDrainerBanner';
 
 type Step = 0 | 1 | 2 | 3 | 4;
 
@@ -271,6 +273,55 @@ export default function Send() {
   const [confirming, setConfirming] = useState(false);
   const [stage, setStage] = useState<TxStage>('sent');
   const [hash, setHash] = useState<string | null>(null);
+
+  // ── Anti-Drainer simulation ──
+  const [simResult, setSimResult] = useState<SimulationResult | null>(null);
+  const [isSimulating, setIsSimulating] = useState<boolean>(false);
+  const [forceSendChecked, setForceSendChecked] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (step !== 3 || !recipient) {
+      setSimResult(null);
+      setIsSimulating(false);
+      setForceSendChecked(false);
+      return;
+    }
+
+    let alive = true;
+    setIsSimulating(true);
+    setForceSendChecked(false);
+
+    const adapter = getAdapter(targetChainId);
+    const evmProvider = adapter instanceof EvmChainAdapter ? adapter : undefined;
+    const chainIdNum = chain.evmChainId ?? (typeof chain.id === 'string' && !isNaN(Number(chain.id)) ? Number(chain.id) : undefined);
+
+    simulateSendTransaction({
+      family: family as 'evm' | 'solana' | 'bitcoin',
+      from: senderAddress,
+      to: recipient,
+      amount: amountRaw,
+      tokenSymbol: symbol,
+      tokenDecimals: decimals,
+      provider: evmProvider,
+      chainId: chainIdNum,
+    })
+      .then((res) => {
+        if (alive) {
+          setSimResult(res);
+          setIsSimulating(false);
+        }
+      })
+      .catch((err) => {
+        technicalLogger.logTx('step_3_simulation_error', { error: String(err) }, true);
+        if (alive) {
+          setIsSimulating(false);
+        }
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [step, recipient, amountRaw, symbol, decimals, family, senderAddress, targetChainId, chain.evmChainId, chain.id]);
 
   const perform = async (unlock: Unlock) => {
     technicalLogger.logTx('step_3_signing_start', {
@@ -598,7 +649,42 @@ export default function Send() {
         ) : null}
         {family === 'evm' ? <Text variant="caption" tone="warning">{t("checkNetworkWarning").replace("${chain.name}", chain.name)}</Text> : null}
         {!isKnown ? <Text variant="caption" tone="warning">{t("firstTimeWarning").replace("${recipient.slice(-4)}", recipient.slice(-4))}</Text> : null}
-        <HoldButton label={t("holdToSend")} onComplete={() => setConfirming(true)} />
+        <AntiDrainerBanner loading={isSimulating} simulation={simResult} />
+        {simResult?.warningLevel === 'critical' ? (
+          <RNPressable
+            onPress={() => setForceSendChecked((v) => !v)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space[2],
+              paddingVertical: space[1],
+            }}
+          >
+            <View
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 4,
+                borderWidth: 1.5,
+                borderColor: forceSendChecked ? colors.danger : colors.border,
+                backgroundColor: forceSendChecked ? colors.danger : 'transparent',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {forceSendChecked ? <Icon name="check" size={14} color="#FFFFFF" /> : null}
+            </View>
+            <Text variant="caption" tone="danger" style={{ flex: 1 }}>
+              {t('antiDrainerForceSendConfirm')}
+            </Text>
+          </RNPressable>
+        ) : null}
+        <HoldButton
+          label={t("holdToSend")}
+          onComplete={() => setConfirming(true)}
+          disabled={isSimulating || (simResult?.warningLevel === 'critical' && !forceSendChecked)}
+          danger={simResult?.warningLevel === 'critical'}
+        />
       </Sheet>
 
       <ConfirmUnlock
