@@ -7,7 +7,7 @@
 import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { PremiumScreen, GlassCard, RemoteIcon } from '../ui/premium';
@@ -100,6 +100,24 @@ export default function Support() {
           </GlassCard>
         );
       })}
+
+      <GlassCard style={{ padding: spacing(1.5), flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing(1) }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), flex: 1 }}>
+          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="support" size={18} color={colors.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontSize: 14, fontFamily: fonts.semibold }}>{t('supportHistoryTitle')}</Text>
+            <Text style={[typography.micro, { color: colors.textSecondary }]}>{t('supportDiagnosticSubtitle')}</Text>
+          </View>
+        </View>
+        <Pressable
+          onPress={() => router.push('/support-history')}
+          style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.sm, backgroundColor: colors.accent }}
+        >
+          <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 12 }}>{t('supportHistoryDetails')}</Text>
+        </Pressable>
+      </GlassCard>
 
       <Text style={[typography.muted, { textAlign: 'center', marginTop: spacing(1), marginBottom: spacing(2) }]}>
         {t('thanksHeartfelt')}

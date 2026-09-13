@@ -61,7 +61,7 @@ export function buildSupportTicketContent(params: SupportTicketParams): string {
     recentLogs = technicalLogger.getCondensedTicketLogs(network, 5);
   }
 
-  return (
+  const ticketContent = (
     `🎫 [TICKET SUPPORT NOVA]\n` +
     `• ID : ${ticketId}\n` +
     `• Version : ${appVersion}\n` +
@@ -73,6 +73,19 @@ export function buildSupportTicketContent(params: SupportTicketParams): string {
     `• Logs récents :\n` +
     `${recentLogs}`
   );
+
+  try {
+    const { useTicketHistoryStore } = require('./ticketHistoryStore');
+    useTicketHistoryStore.getState().addTicket({
+      id: ticketId,
+      problem,
+      network,
+      detectedError,
+      content: ticketContent,
+    });
+  } catch {}
+
+  return ticketContent;
 }
 
 /**
@@ -161,6 +174,11 @@ export function normalizeSupportTicket(rawContent: string, defaultNetwork?: stri
       content += `\n• Logs récents :\n${formattedLogs}`;
     }
   }
+
+  try {
+    const { useTicketHistoryStore } = require('./ticketHistoryStore');
+    useTicketHistoryStore.getState().addTicket({ content });
+  } catch {}
 
   return content;
 }

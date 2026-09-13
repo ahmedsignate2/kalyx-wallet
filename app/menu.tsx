@@ -126,6 +126,7 @@ export default function Menu() {
       {/* Aide */}
       <GlassCard>
         <ListRow left={<Ico n="faq" />} title={t('faq')} right={chev} onPress={() => router.push('/faq')} />
+        <ListRow divider left={<Ico n="support" />} title={t('supportHistoryTitle')} subtitle={t('supportDiagnosticSubtitle')} right={chev} onPress={() => router.push('/support-history')} />
         <ListRow divider left={<Ico n="about" />} title={t('about')} subtitle={`Kalyx · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chev} onPress={() => router.push('/about')} />
       </GlassCard>
 
