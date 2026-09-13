@@ -151,7 +151,7 @@ export function TxRow({
         <View style={{ paddingBottom: spacing(1.5), gap: spacing(0.75) }}>
           <AddrLine label={t('txFrom')} addr={tx.from} />
           <AddrLine label={t('txTo')} addr={tx.to} />
-          {explorerUrl ? (
+          {explorerUrl && tx.hash ? (
             <Text
               onPress={() => Linking.openURL(`${explorerUrl}/tx/${tx.hash}`)}
               style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}
