@@ -9,5 +9,25 @@
   "antiDrainerUnlimitedApproval": "Unlimited token allowance requested. All your tokens could be drained.",
   "antiDrainerNftApproval": "Approval for all NFTs requested. Your entire collection could be transferred.",
   "antiDrainerNonInteractiveContract": "Sending native funds directly to a smart contract without contract call data",
-  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger"
+  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger",
+  "transaction.action": {
+    "speedUpButton": "Versnellen",
+    "cancelButton": "Annuleren",
+    "speedUpConfirmTitle": "Transactie versnellen",
+    "cancelConfirmTitle": "Transactie annuleren",
+    "speedUpDescription": "Verhoog de netwerkkosten om deze transactie sneller te verwerken.",
+    "cancelDescription": "Annuleer deze transactie door 0 naar uzelf te sturen met hogere kosten.",
+    "replacementSuccess": "Vervangende transactie succesvol verzonden.",
+    "replacementError": "Fout bij het vervangen van de transactie."
+  },
+  "speedUpButton": "Versnellen",
+  "cancelButton": "Annuleren",
+  "speedUpConfirmTitle": "Transactie versnellen",
+  "cancelConfirmTitle": "Transactie annuleren",
+  "speedUpDescription": "Verhoog de netwerkkosten om deze transactie sneller te verwerken.",
+  "cancelDescription": "Annuleer deze transactie door 0 naar uzelf te sturen met hogere kosten.",
+  "replacementSuccess": "Vervangende transactie succesvol verzonden.",
+  "replacementError": "Fout bij het vervangen van de transactie.",
+  "estimatedExtraFee": "Geschatte extra kosten (min. +20%)",
+  "nonceLabel": "Nonce"
 }
