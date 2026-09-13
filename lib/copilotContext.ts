@@ -140,8 +140,8 @@ export function serializeCopilotContext(snapshot = getCopilotContextSnapshot()):
   return JSON.stringify(compact);
 }
 
-export const getCopilotContextPrompt = (): string => {
-  const recentLogs = technicalLogger.getFormattedLogs(40);
+export const getCopilotContextPrompt = (targetChain?: string): string => {
+  const recentLogs = technicalLogger.getCondensedLogs(40, targetChain);
 
   return `
 Tu es Kalyx Copilot, le support technique intégré de Nova Wallet.
