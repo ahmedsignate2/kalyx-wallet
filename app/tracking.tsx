@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, Linking } from 'react-native';
-import { Stack, useLocalSearchParams, router } from 'expo-router';
+import { View, ScrollView, Linking, Alert } from 'react-native';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { ScreenHeader, Text, Button, Surface, ListRow, AddressGlyph, Skeleton, Divider } from '../ui/kit';
 import { PremiumScreen, GlassCard } from '../ui/premium';
 import { Icon } from '../ui/icon';
@@ -58,12 +58,67 @@ export default function TrackingScreen() {
     return () => clearInterval(interval);
   }, [chain?.id, hash, activeAccountIndex]);
 
-  const openExplorer = () => {
-    if (!hash || !explorerUrl) return;
+  const handleOpenExplorer = async () => {
+    if (!hash) {
+      Alert.alert("Erreur", "Hash de transaction introuvable.");
+      return;
+    }
+
     haptic.selection();
-    // Sécurité demandée : on s'assure d'avoir l'URL correcte
-    const url = buildExplorerTxUrl(explorerUrl, hash);
-    router.push({ pathname: '/browser', params: { url } });
+
+    let explorerUrl = '';
+    const networkKey = chainId || chain?.id;
+
+    // Détection propre selon le réseau
+    switch (networkKey?.toLowerCase()) {
+      case 'solana':
+      case 'solana-mainnet':
+        explorerUrl = `https://solscan.io/tx/${hash}`;
+        break;
+      case 'solana-devnet':
+        explorerUrl = `https://solscan.io/tx/${hash}?cluster=devnet`;
+        break;
+      case 'sepolia':
+        explorerUrl = `https://sepolia.etherscan.io/tx/${hash}`;
+        break;
+      case 'ethereum':
+      case 'mainnet':
+        explorerUrl = `https://etherscan.io/tx/${hash}`;
+        break;
+      case 'bitcoin':
+        explorerUrl = `https://mempool.space/tx/${hash}`;
+        break;
+      default:
+        if (chain?.explorerUrl) {
+          explorerUrl = buildExplorerTxUrl(chain.explorerUrl, hash);
+        } else {
+          explorerUrl = `https://solscan.io/tx/${hash}`;
+        }
+    }
+
+    if (!explorerUrl.startsWith('https://') && !explorerUrl.startsWith('http://')) {
+      explorerUrl = `https://${explorerUrl}`;
+    }
+
+    console.log('Tentative ouverture URL :', explorerUrl);
+
+    try {
+      const supported = await Linking.canOpenURL(explorerUrl);
+      if (supported) {
+        await Linking.openURL(explorerUrl);
+      } else {
+        // Fallback direct sans canOpenURL en cas de restrictions Android 11+
+        await Linking.openURL(explorerUrl);
+      }
+    } catch (error) {
+      console.error("Erreur ouverture explorateur:", error);
+      // Fallback direct en cas de restrictions Android 11+
+      try {
+        await Linking.openURL(explorerUrl);
+      } catch {
+        Alert.alert("Erreur", "Impossible d'ouvrir le navigateur.");
+      }
+    }
   };
 
   const isBtc = chain?.family === 'bitcoin';
@@ -144,8 +199,8 @@ export default function TrackingScreen() {
           <View style={{ gap: spacing(1.5), marginTop: spacing(1) }}>
             <Button label="Actualiser" variant="primary" onPress={() => { haptic.selection(); fetchTx(); }} loading={loading} />
             
-            {explorerUrl && hash ? (
-              <Button label={t('viewOnExplorer')} variant="secondary" onPress={openExplorer} />
+            {hash ? (
+              <Button label={t('viewOnExplorer')} variant="secondary" onPress={handleOpenExplorer} />
             ) : null}
           </View>
         </View>

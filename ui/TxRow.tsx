@@ -153,7 +153,16 @@ export function TxRow({
           <AddrLine label={t('txTo')} addr={tx.to} />
           {explorerUrl && tx.hash ? (
             <Text
-              onPress={() => Linking.openURL(buildExplorerTxUrl(explorerUrl, tx.hash))}
+              onPress={async () => {
+                const url = buildExplorerTxUrl(explorerUrl, tx.hash);
+                try {
+                  const supported = await Linking.canOpenURL(url);
+                  if (supported) await Linking.openURL(url);
+                  else await Linking.openURL(url);
+                } catch {
+                  Linking.openURL(url).catch(() => {});
+                }
+              }}
               style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}
             >
               {t('txViewExplorer')}
