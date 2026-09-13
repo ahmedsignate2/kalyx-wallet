@@ -6,10 +6,13 @@
  * la clé i18n brute (fallback anglais dans le dictionnaire).
  */
 import { isWalletError, SwapError } from '../src';
+import { recordTechnicalLog } from './technicalLogger';
 
 export type TFn = (key: any) => string;
 
 export function friendlyTxError(e: unknown, t?: TFn): string {
+  const errMsg = typeof e === 'object' && e ? (e as any)?.shortMessage || (e as any)?.message || 'Transaction error' : String(e);
+  recordTechnicalLog('TX_ERROR', errMsg, typeof e === 'object' && e ? { code: (e as any)?.code, status: (e as any)?.status } : undefined);
   console.error('[txError] Raw error interceptée:', typeof e === 'object' ? JSON.stringify(e, Object.getOwnPropertyNames(e)) : e);
   // SwapError : diagnostic précis (minimum, liquidité, slippage, gas).
   if (e instanceof SwapError) {
