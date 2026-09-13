@@ -15,6 +15,9 @@ import {
 import {
   buildSupportTicketContent,
   openTelegramTicket,
+  generateTicketId,
+  getClientEnvironmentInfo,
+  normalizeSupportTicket,
 } from '../../../lib/telegramSupport';
 
 describe('Support Ticket & Secret Detector System', () => {
@@ -102,7 +105,32 @@ describe('Support Ticket & Secret Detector System', () => {
   });
 
   describe('buildSupportTicketContent & openTelegramTicket', () => {
-    it('builds a properly formatted Nova support ticket', () => {
+    it('generates a valid ticket ID matching KX-YYYYMMDD-XXXXX pattern', () => {
+      const id = generateTicketId();
+      expect(id).toMatch(/^KX-\d{8}-\d{5}$/);
+    });
+
+    it('returns client environment info with version', () => {
+      const info = getClientEnvironmentInfo();
+      expect(info).toMatch(/^Kalyx v[0-9.]+/);
+    });
+
+    it('normalizes a support ticket by injecting ID and Version if missing', () => {
+      const raw = `🎫 [TICKET SUPPORT NOVA]\n• Problème : Erreur d'envoi\n• Réseau : Sepolia`;
+      const normalized = normalizeSupportTicket(raw);
+      expect(normalized).toMatch(/• ID : KX-\d{8}-\d{5}/);
+      expect(normalized).toContain('• Version : Kalyx v');
+      expect(normalized).toContain('• Problème : Erreur d\'envoi');
+    });
+
+    it('replaces placeholder ID with real unique ticket ID during normalization', () => {
+      const raw = `🎫 [TICKET SUPPORT NOVA]\n• ID : KX-YYYYMMDD-XXXXX\n• Version : Kalyx v0.0.1\n• Problème : Bug`;
+      const normalized = normalizeSupportTicket(raw);
+      expect(normalized).not.toContain('KX-YYYYMMDD-XXXXX');
+      expect(normalized).toMatch(/• ID : KX-\d{8}-\d{5}/);
+    });
+
+    it('builds a properly formatted Nova support ticket with ID and Version', () => {
       const ticket = buildSupportTicketContent({
         problem: 'Échec broadcast transaction',
         network: 'Sepolia',
@@ -113,6 +141,8 @@ describe('Support Ticket & Secret Detector System', () => {
       });
 
       expect(ticket).toContain('🎫 [TICKET SUPPORT NOVA]');
+      expect(ticket).toMatch(/• ID : KX-\d{8}-\d{5}/);
+      expect(ticket).toContain('• Version : Kalyx v');
       expect(ticket).toContain('• Problème : Échec broadcast transaction');
       expect(ticket).toContain('• Réseau : Sepolia');
       expect(ticket).toContain('• Erreur détectée : RPC 400 - Solde insuffisant');
