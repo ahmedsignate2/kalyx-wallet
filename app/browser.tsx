@@ -38,6 +38,7 @@ import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../lib/recentDapps';
 import { useDappActivity } from '../lib/dappActivity';
+import { technicalLogger } from '../lib/technicalLogger';
 import { useBrowserStore } from '../lib/browserStore';
 import { usePortfolioStore } from '../lib/portfolio';
 import { saveTabs, loadTabs } from '../lib/browserTabs';
@@ -303,11 +304,15 @@ export default function Browser() {
   const injected = useMemo(() => buildInjectedProvider(chainIdHex), [chainIdHex]);
   const inject = useCallback((js: string) => webref.current?.injectJavaScript(js), []);
   const respond = useCallback((id: number, result: unknown, err?: { code: number; message: string }) => inject(respondJs(id, result, err)), [inject]);
-  const reject = useCallback((id: number, code = 4001, message = t('refuse')) => respond(id, null, { code, message }), [respond, t]);
+  const reject = useCallback((id: number, code = 4001, message = t('refuse')) => {
+    technicalLogger.logDapp('request_rejected_by_user', undefined, { code, message }, true);
+    return respond(id, null, { code, message });
+  }, [respond, t]);
 
   const onDappRequest = useCallback(
     async (req: DappRequest, reqOrigin: string, tabId: string) => {
       const { id, method, params } = req;
+      technicalLogger.logDapp(`method_${method}`, reqOrigin);
       const addr = account?.address;
       const tb = tabsRef.current.find((x) => x.id === tabId);
       const isConnected = connected.current.has(reqOrigin);
@@ -560,7 +565,9 @@ export default function Browser() {
             onShouldStartLoadWithRequest={onShouldStart}
             onLoadProgress={(e: { nativeEvent: { progress: number } }) => setProgress(e.nativeEvent.progress)}
             onError={(e: { nativeEvent?: { description?: string; code?: number } }) => {
-              setWebError(e.nativeEvent?.description || `${t('networkError')}${e.nativeEvent?.code ? ` (${e.nativeEvent.code})` : ''}`);
+              const errDesc = e.nativeEvent?.description || `${t('networkError')}${e.nativeEvent?.code ? ` (${e.nativeEvent.code})` : ''}`;
+              setWebError(errDesc);
+              technicalLogger.logDapp('page_load_failed', activeTab.url || undefined, { error: errDesc, code: e.nativeEvent?.code }, true);
             }}
             onScroll={onWebScroll}
             injectedJavaScriptBeforeContentLoaded={injected}

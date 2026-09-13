@@ -1,5 +1,6 @@
 import { Linking, Platform } from 'react-native';
 import { detectSensitiveSecrets } from './secretDetector';
+import { technicalLogger } from './technicalLogger';
 
 export interface SupportTicketParams {
   ticketId?: string;
@@ -52,7 +53,12 @@ export function buildSupportTicketContent(params: SupportTicketParams): string {
   const detectedError = params.detectedError || 'Non déterminée';
   const targetAmount = params.targetAmount || 'N/A';
   const userDescription = params.userDescription || 'Demande d\'assistance via le Copilot';
-  const recentLogs = params.recentLogs || 'Aucun log technique récent';
+  let recentLogs = params.recentLogs;
+  if (!recentLogs || recentLogs === 'Aucun log technique récent') {
+    const errorLogs = technicalLogger.getErrorLogs(5);
+    const fallbackLogs = errorLogs.length > 0 ? errorLogs : technicalLogger.getRecentTechnicalLogs(5);
+    recentLogs = fallbackLogs.length > 0 ? fallbackLogs.join('\n') : 'Aucun log technique récent';
+  }
 
   return (
     `🎫 [TICKET SUPPORT NOVA]\n` +
@@ -102,6 +108,20 @@ export function normalizeSupportTicket(rawContent: string): string {
         /(🎫\s*\[TICKET SUPPORT NOVA\](?:\r?\n)?)/i,
         `$1• Version : ${clientEnv}\n`
       );
+    }
+  }
+
+  // 3. Injection automatique des logs récents s'ils sont vides ou génériques
+  if (/• Logs récents\s*:\s*(?:Aucun log récent|Aucun log technique récent|N\/A|\.\.\.)/i.test(content) || !/• Logs récents\s*:/i.test(content)) {
+    const errorLogs = technicalLogger.getErrorLogs(5);
+    const fallbackLogs = errorLogs.length > 0 ? errorLogs : technicalLogger.getRecentTechnicalLogs(5);
+    if (fallbackLogs.length > 0) {
+      const logsFormatted = fallbackLogs.join('\n');
+      if (/• Logs récents\s*:/i.test(content)) {
+        content = content.replace(/• Logs récents\s*:\s*[^\n]*(?:\r?\n[\s\S]*)?$/i, `• Logs récents :\n${logsFormatted}`);
+      } else {
+        content += `\n• Logs récents :\n${logsFormatted}`;
+      }
     }
   }
 
