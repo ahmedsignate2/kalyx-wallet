@@ -251,13 +251,14 @@ export default function Send() {
   const notEnoughGas = nativeBal != null && nativeBal < feeRaw;
   const hasEnteredAmount = parseFloat(amount || '0') > 0;
   const showNotEnoughGasWarning = hasEnteredAmount && notEnoughGas;
-  const missingFeeText = feeFiat > 0 ? `environ ${formatFiat(feeFiat)} ${sym}` : `environ ${formatAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`;
+  const approxVal = feeFiat > 0 ? `${formatFiat(feeFiat)} ${sym}` : `${formatAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`;
+  const missingFeeText = t('aboutApprox').replace('{amount}', approxVal);
 
   const setMax = () => {
     haptic.light();
     setAmountError(null);
     if (balance != null && balance > 0n && available === 0n) {
-      setAmountError(`Il te manque un peu de ${chain.nativeSymbol} pour les frais (${missingFeeText}).`);
+      setAmountError(t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText));
       setAmount('0');
     } else {
       setInFiat(false);
@@ -341,7 +342,7 @@ export default function Send() {
     setAmountError(null);
     if (amountRaw <= 0n) return setAmountError(t("errEnterAmount"));
     if (overBalance) return setAmountError(`Tu possèdes ${formatTokenAmount(balance ?? 0n, decimals)} ${symbol}${isNativeSend ? ` (frais réservés : ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol})` : ''}.`);
-    if (notEnoughGas) return setAmountError(`Il te manque un peu de ${chain.nativeSymbol} pour les frais (${missingFeeText}).`);
+    if (notEnoughGas) return setAmountError(t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText));
     try {
       if (isNativeSend) getAdapter(targetChainId).buildTransfer({ to: recipient, amount: tokenAmountStr });
     } catch (e) {
@@ -516,10 +517,10 @@ export default function Send() {
               </Text>
             </RNPressable>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              {balance == null ? <Skeleton width={160} /> : <Text variant="caption" tone="secondary" tabular>Solde : {formatTokenAmount(balance, decimals)} {symbol}</Text>}
+              {balance == null ? <Skeleton width={160} /> : <Text variant="caption" tone="secondary" tabular>{t("balanceLabel")} : {formatTokenAmount(balance, decimals)} {symbol}</Text>}
               <Chip label={t("chipMax")} onPress={setMax} />
             </View>
-            {showNotEnoughGasWarning ? <Text variant="caption" tone="warning">Il te manque un peu de {chain.nativeSymbol} pour les frais ({missingFeeText}).</Text> : null}
+            {showNotEnoughGasWarning ? <Text variant="caption" tone="warning">{t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText)}</Text> : null}
             {amountError ? <Text variant="caption" tone="danger">{amountError}</Text> : null}
             <View style={{ flex: 1 }} />
             <AmountKeypad value={amount} onChange={(v) => { setAmount(v); setAmountError(null); }} maxDecimals={inFiat ? 2 : Math.min(decimals, 8)} />
@@ -535,7 +536,7 @@ export default function Send() {
                 <AddressGlyph address={recipient} size={44} />
                 <View style={{ flex: 1 }}>
                   <Text variant="title2" tabular>{formatTokenAmount(amountRaw, decimals)} {symbol}</Text>
-                  <Text variant="caption" tone="secondary">vers {destLabel ?? shortAddress(recipient)} · {chain.name}</Text>
+                  <Text variant="caption" tone="secondary">{t('towards')} {destLabel ?? shortAddress(recipient)} · {chain.name}</Text>
                 </View>
               </View>
               <Divider />
@@ -543,7 +544,7 @@ export default function Send() {
               {stage === 'failed' ? <Text variant="caption" tone="danger">{t("txFailedMsg")}</Text> : null}
             </Surface>
             <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t("canLeaveScreenInfo")}</Text>
-            {hash ? <Button label="Suivre la transaction" variant="secondary" size="md" onPress={() => router.push({ pathname: '/tracking', params: { hash, chainId: chain.id } })} /> : null}
+            {hash ? <Button label={t('trackTransaction')} variant="secondary" size="md" onPress={() => router.push({ pathname: '/tracking', params: { hash, chainId: chain.id } })} /> : null}
             <View style={{ flex: 1 }} />
             <Button label={t("actionDone")} onPress={() => router.replace('/home')} />
           </>
