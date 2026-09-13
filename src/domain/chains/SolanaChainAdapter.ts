@@ -25,6 +25,7 @@ import { parseSolanaTx, type SolTxResponse } from './solHistory';
 import { parseTokenAccounts, SPL_TOKEN_PROGRAM, type SplToken } from '../tokens/splTokens';
 import { fetchSplMetadata } from '../tokens/splMetadata';
 import { buildSplTransferMessage } from './solSpl';
+import { technicalLogger } from '../../../lib/technicalLogger';
 
 const API_TIMEOUT_MS = 12_000;
 
@@ -45,21 +46,30 @@ export class SolanaChainAdapter implements ChainAdapter {
 
   /** Appel JSON-RPC Solana avec timeout + repli sur les RPC de secours. */
   async rpc<T = unknown>(method: string, params: unknown[]): Promise<T> {
+    const started = Date.now();
     const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method, params });
-    return tryInOrder(
-      this.config.rpcUrls,
-      async (base) => {
-        const res = await withTimeout(
-          fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }),
-          API_TIMEOUT_MS,
-          () => new Error('timeout'),
-        );
-        const json = (await res.json()) as { result?: T; error?: { message?: string } };
-        if (json.error) throw new Error(json.error.message ?? 'Erreur RPC Solana');
-        return json.result as T;
-      },
-      { timeoutMs: API_TIMEOUT_MS },
-    );
+    try {
+      const result = await tryInOrder(
+        this.config.rpcUrls,
+        async (base) => {
+          const res = await withTimeout(
+            fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }),
+            API_TIMEOUT_MS,
+            () => new Error('timeout'),
+          );
+          const json = (await res.json()) as { result?: T; error?: { message?: string } };
+          if (json.error) throw new Error(json.error.message ?? 'Erreur RPC Solana');
+          return json.result as T;
+        },
+        { timeoutMs: API_TIMEOUT_MS },
+      );
+      technicalLogger.logRpc(method, 200, undefined, { chain: this.config.name, elapsedMs: Date.now() - started });
+      return result;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      technicalLogger.logRpc(method, 500, errorMsg, { chain: this.config.name, elapsedMs: Date.now() - started });
+      throw err;
+    }
   }
 
   async getBalance(address: string): Promise<Balance> {
