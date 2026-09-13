@@ -563,7 +563,7 @@ export const SOLANA_DEVNET: ChainConfig = {
   nativeSymbol: 'SOL',
   nativeDecimals: 9,
   rpcUrls: ['https://api.devnet.solana.com'],
-  explorerUrl: 'https://explorer.solana.com/?cluster=devnet',
+  explorerUrl: 'https://solscan.io?cluster=devnet',
   testnet: true,
 };
 
@@ -642,8 +642,12 @@ export const ALL_CHAINS: ChainConfig[] = [
  * Construit l'URL complète d'une transaction sur l'explorateur,
  * en gérant correctement les query parameters (ex: Solana ?cluster=devnet).
  */
-export function buildExplorerTxUrl(explorerUrl: string, hash: string): string {
-  const cleanBase = explorerUrl.trim();
+export function buildExplorerTxUrl(explorerUrl: string | undefined, hash: string): string {
+  let cleanBase = (explorerUrl || '').trim();
+  if (!cleanBase) return '';
+  if (!cleanBase.startsWith('http://') && !cleanBase.startsWith('https://')) {
+    cleanBase = `https://${cleanBase}`;
+  }
   if (cleanBase.includes('?')) {
     const [base, query] = cleanBase.split('?');
     const b = base.endsWith('/') ? base.slice(0, -1) : base;
