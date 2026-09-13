@@ -107,6 +107,17 @@ describe('Newly added features localization', () => {
     'errCannotOpenBrowser',
     'aboutApprox',
     'notEnoughGasForFee',
+    'antiDrainerLoading',
+    'antiDrainerSafe',
+    'antiDrainerWarningTitle',
+    'antiDrainerCriticalTitle',
+    'security.simulation.maliciousAddress',
+    'maliciousAddress',
+    'antiDrainerMaliciousAddress',
+    'antiDrainerUnlimitedApproval',
+    'antiDrainerNftApproval',
+    'antiDrainerNonInteractiveContract',
+    'antiDrainerForceSendConfirm',
   ];
 
   const languages: Lang[] = [
@@ -123,6 +134,11 @@ describe('Newly added features localization', () => {
         expect(text).not.toBe(key);
       }
     }
+  });
+
+  test('malicious address warning French translation matches exact danger alert format', () => {
+    expect(translate('fr', 'security.simulation.maliciousAddress')).toBe("DANGER : L'adresse de destination est signalée comme frauduleuse (Scam/Phishing).");
+    expect(translate('fr', 'maliciousAddress')).toBe("DANGER : L'adresse de destination est signalée comme frauduleuse (Scam/Phishing).");
   });
 
   test('Spanish and French distinct translations for ticket copy', () => {

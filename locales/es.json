@@ -1,0 +1,13 @@
+{
+  "security.simulation.maliciousAddress": "PELIGRO: La dirección de destino está reportada como fraudulenta (Scam/Phishing).",
+  "maliciousAddress": "PELIGRO: La dirección de destino está reportada como fraudulenta (Scam/Phishing).",
+  "antiDrainerMaliciousAddress": "PELIGRO: La dirección de destino está reportada como fraudulenta (Scam/Phishing).",
+  "antiDrainerLoading": "Analyzing transaction security...",
+  "antiDrainerSafe": "Anti-Drainer: Transaction verified, safe to proceed",
+  "antiDrainerWarningTitle": "Security Warning",
+  "antiDrainerCriticalTitle": "Critical Security Alert: Potential Drainer Detected",
+  "antiDrainerUnlimitedApproval": "Unlimited token allowance requested. All your tokens could be drained.",
+  "antiDrainerNftApproval": "Approval for all NFTs requested. Your entire collection could be transferred.",
+  "antiDrainerNonInteractiveContract": "Sending native funds directly to a smart contract without contract call data",
+  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger"
+}
