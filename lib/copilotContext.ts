@@ -5,7 +5,7 @@ import { useDappActivity } from './dappActivity';
 import { usePortfolioStore } from './portfolio/portfolioStore';
 import { useHistoryStore } from './historyStore';
 import { getAdapter, listChains } from '../src';
-import { getRecentTechnicalLogs } from './technicalLogger';
+import { technicalLogger, getRecentTechnicalLogs } from './technicalLogger';
 
 export interface CopilotWalletContext {
   activeNetwork: { id: string; name: string; chainId: number | string; isTestnet: boolean; family: 'evm' | 'solana' | 'bitcoin' };
@@ -128,7 +128,7 @@ export function serializeCopilotContext(snapshot = getCopilotContextSnapshot()):
       s: tx.status,
       d: tx.timestamp,
     })),
-    l: getRecentTechnicalLogs(15),
+    l: getRecentTechnicalLogs(30),
     w: {
       u: snapshot.browser.activeUrl,
       d: snapshot.browser.domain,
@@ -139,3 +139,22 @@ export function serializeCopilotContext(snapshot = getCopilotContextSnapshot()):
   console.log('[CopilotContext] Transactions injectées:', compact.r.length, 'Logs injectés:', compact.l.length);
   return JSON.stringify(compact);
 }
+
+export const getCopilotContextPrompt = (): string => {
+  const recentLogs = technicalLogger.getFormattedLogs(40);
+
+  return `
+Tu es Kalyx Copilot, le support technique intégré de Nova Wallet.
+Tu as accès aux logs techniques d'exécution ci-dessous pour diagnostiquer les pannes de l'utilisateur :
+
+=== LOGS TECHNIQUES RÉCENTS ===
+${recentLogs}
+================================
+
+Consignes d'analyse :
+1. Analyse systématiquement ces logs pour identifier l'origine exacte du problème (erreur RPC, timeout, solde insuffisant, rejet réseau).
+2. Explique clairement la cause technique sans inventer de concepts inexistants.
+3. Si un ticket Telegram est demandé ou nécessaire, reporte ces logs réels dans le récapitulatif du ticket.
+4. Si les logs sont vides ou normaux, demande à l'utilisateur ce qu'il essayait de faire avant de conclure à un bug.
+`;
+};
