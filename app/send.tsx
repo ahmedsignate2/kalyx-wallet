@@ -182,7 +182,16 @@ export default function Send() {
 
   // Frais en natif (unité brute) : palier EVM choisi, sinon réserve dynamique.
   const feeRaw = feeOptions ? feeOptions[speed].costWei : reserve;
-  const feeFiat = Number(formatAmount(feeRaw, chain.nativeDecimals)) * nativePrice;
+  let feeFiat = 0;
+  if (chain.family === 'bitcoin') {
+    const feeInBtc = Number(feeRaw) / 1e8;
+    feeFiat = feeInBtc * nativePrice;
+  } else if (chain.family === 'solana') {
+    const feeInSol = Number(feeRaw) / 1e9;
+    feeFiat = feeInSol * nativePrice;
+  } else {
+    feeFiat = Number(formatAmount(feeRaw, chain.nativeDecimals)) * nativePrice;
+  }
 
   // ── Montant ──
   const amountNum = Number(amount) || 0;
@@ -197,11 +206,14 @@ export default function Send() {
   const available = balance != null ? (isNativeSend ? (balance > feeRaw ? balance - feeRaw : 0n) : balance) : 0n;
   const overBalance = balance != null && amountRaw > available;
   const notEnoughGas = nativeBal != null && nativeBal < feeRaw;
+  const hasEnteredAmount = parseFloat(amount || '0') > 0;
+  const showNotEnoughGasWarning = hasEnteredAmount && notEnoughGas;
+  const missingFeeText = feeFiat > 0 ? `environ ${formatFiat(feeFiat)} ${sym}` : `environ ${formatAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`;
 
   const setMax = () => {
     haptic.light();
     if (balance != null && balance > 0n && available === 0n) {
-      setError(t('errNotEnoughGas').replace('${chain.nativeSymbol}', chain.nativeSymbol).replace('${formatFiat(feeFiat)}', formatFiat(feeFiat)).replace('${sym}', sym));
+      setError(`Il te manque un peu de ${chain.nativeSymbol} pour les frais (${missingFeeText}).`);
       setAmount('0');
     } else {
       setInFiat(false);
@@ -284,7 +296,7 @@ export default function Send() {
     setError(null);
     if (amountRaw <= 0n) return setError(t("errEnterAmount"));
     if (overBalance) return setError(`Tu possèdes ${formatTokenAmount(balance ?? 0n, decimals)} ${symbol}${isNativeSend ? ` (frais réservés : ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol})` : ''}.`);
-    if (notEnoughGas) return setError(t('errNotEnoughGas').replace('${chain.nativeSymbol}', chain.nativeSymbol).replace('${formatFiat(feeFiat)}', formatFiat(feeFiat)).replace('${sym}', sym));
+    if (notEnoughGas) return setError(`Il te manque un peu de ${chain.nativeSymbol} pour les frais (${missingFeeText}).`);
     try {
       if (isNativeSend) getAdapter(activeChain).buildTransfer({ to: recipient, amount: tokenAmountStr });
     } catch (e) {
@@ -451,7 +463,7 @@ export default function Send() {
               {balance == null ? <Skeleton width={160} /> : <Text variant="caption" tone="secondary" tabular>Solde : {formatTokenAmount(balance, decimals)} {symbol}</Text>}
               <Chip label={t("chipMax")} onPress={setMax} />
             </View>
-            {notEnoughGas ? <Text variant="caption" tone="warning">Il te manque un peu de {chain.nativeSymbol} pour les frais (environ {formatFiat(feeFiat)} {sym}).</Text> : null}
+            {showNotEnoughGasWarning ? <Text variant="caption" tone="warning">Il te manque un peu de {chain.nativeSymbol} pour les frais ({missingFeeText}).</Text> : null}
             {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
             <View style={{ flex: 1 }} />
             <AmountKeypad value={amount} onChange={(v) => { setAmount(v); setError(null); }} maxDecimals={inFiat ? 2 : Math.min(decimals, 8)} />
