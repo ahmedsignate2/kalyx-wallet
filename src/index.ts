@@ -234,7 +234,7 @@ export { getAdapter, listChains, hasChain, registerChain, unregisterChain } from
 export { chainIconUrl } from './domain/chains/icons';
 export { EvmChainAdapter, type RawTxRequest } from './domain/chains/EvmChainAdapter';
 export { computeFeeTiers, type FeeOptions, type FeeTier, type FeeSpeed } from './domain/chains/gas';
-export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BASE_SEPOLIA, BITCOIN, SOLANA, SOLANA_DEVNET } from './domain/chains/configs';
+export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BASE_SEPOLIA, BITCOIN, SOLANA, SOLANA_DEVNET, buildExplorerTxUrl } from './domain/chains/configs';
 // Sauvegarde portable des réseaux EVM personnalisés (export/import)
 export { serializeNetworks, parseNetworksBackup, NETWORKS_BACKUP_VERSION } from './domain/chains/customNetworks';
 export type {

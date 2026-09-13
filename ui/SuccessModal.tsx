@@ -6,6 +6,7 @@ import { Button } from './components';
 import { fonts, radii, spacing, useTheme } from './theme';
 import { useT } from '../lib/settingsStore';
 import { haptic } from '../lib/haptics';
+import { buildExplorerTxUrl } from '../src';
 import { sound } from '../lib/sound';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -108,7 +109,7 @@ export function SuccessModal({
           ) : null}
           {hash && explorerUrl ? (
             <Text
-              onPress={() => Linking.openURL(`${explorerUrl}/tx/${hash}`)}
+              onPress={() => Linking.openURL(buildExplorerTxUrl(explorerUrl, hash))}
               style={{ color: colors.accent, fontFamily: fonts.semibold }}
             >
               {t('viewOnExplorer')} ↗

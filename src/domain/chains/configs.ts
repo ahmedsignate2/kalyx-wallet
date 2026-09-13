@@ -637,3 +637,19 @@ export const ALL_CHAINS: ChainConfig[] = [
   SOLANA,
   SOLANA_DEVNET,
 ];
+
+/**
+ * Construit l'URL complète d'une transaction sur l'explorateur,
+ * en gérant correctement les query parameters (ex: Solana ?cluster=devnet).
+ */
+export function buildExplorerTxUrl(explorerUrl: string, hash: string): string {
+  const cleanBase = explorerUrl.trim();
+  if (cleanBase.includes('?')) {
+    const [base, query] = cleanBase.split('?');
+    const b = base.endsWith('/') ? base.slice(0, -1) : base;
+    return `${b}/tx/${hash}?${query}`;
+  }
+  const b = cleanBase.endsWith('/') ? cleanBase.slice(0, -1) : cleanBase;
+  return `${b}/tx/${hash}`;
+}
+
