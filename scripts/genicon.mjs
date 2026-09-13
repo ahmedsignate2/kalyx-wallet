@@ -1,6 +1,6 @@
 /**
- * Génère les PNG d'icônes de Nova depuis le logo lion (SVG reconstruit d'après
- * ui/NovaLogo.tsx), avec un fond dégradé violet→bleu de marque et un lion
+ * Génère les PNG d'icônes de Kalyx depuis le logo lion (SVG reconstruit d'après
+ * ui/KalyxLogo.tsx), avec un fond dégradé violet→bleu de marque et un lion
  * agrandi pour remplir le cadre (l'ancienne icône était trop petite/plate).
  *
  * Usage : node scripts/genicon.mjs   (nécessite @resvg/resvg-js)
@@ -9,7 +9,7 @@
 import { Resvg } from '@resvg/resvg-js';
 import { writeFileSync } from 'node:fs';
 
-// --- Lion (repère centré -50..50), fidèle à ui/NovaLogo.tsx ---
+// --- Lion (repère centré -50..50), fidèle à ui/KalyxLogo.tsx ---
 function mane(count, outer, inner, width, rotate, fill) {
   const h = outer - inner;
   let rects = '';
@@ -22,10 +22,10 @@ function mane(count, outer, inner, width, rotate, fill) {
 
 function lion(faceColor = '#F3F0FF') {
   return `
-    ${mane(11, 48, 20, 15, 360 / 22, 'url(#novaManeBack)')}
-    ${mane(11, 45, 16, 17, 0, 'url(#novaMane)')}
-    <circle cx="-17" cy="-19" r="8" fill="url(#novaMane)"/>
-    <circle cx="17" cy="-19" r="8" fill="url(#novaMane)"/>
+    ${mane(11, 48, 20, 15, 360 / 22, 'url(#kalyxManeBack)')}
+    ${mane(11, 45, 16, 17, 0, 'url(#kalyxMane)')}
+    <circle cx="-17" cy="-19" r="8" fill="url(#kalyxMane)"/>
+    <circle cx="17" cy="-19" r="8" fill="url(#kalyxMane)"/>
     <circle cx="0" cy="2" r="24" fill="${faceColor}"/>
     <ellipse cx="-9" cy="-3" rx="2.6" ry="3.6" fill="#3A2E6B"/>
     <ellipse cx="9" cy="-3" rx="2.6" ry="3.6" fill="#3A2E6B"/>
@@ -36,10 +36,10 @@ function lion(faceColor = '#F3F0FF') {
 
 const DEFS = `
   <defs>
-    <linearGradient id="novaMane" x1="0" y1="-48" x2="0" y2="48" gradientUnits="userSpaceOnUse">
+    <linearGradient id="kalyxMane" x1="0" y1="-48" x2="0" y2="48" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#8E6BFF"/><stop offset="1" stop-color="#4AA8FF"/>
     </linearGradient>
-    <linearGradient id="novaManeBack" x1="0" y1="-48" x2="0" y2="48" gradientUnits="userSpaceOnUse">
+    <linearGradient id="kalyxManeBack" x1="0" y1="-48" x2="0" y2="48" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#6A4DFF"/><stop offset="1" stop-color="#3A86E0"/>
     </linearGradient>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">

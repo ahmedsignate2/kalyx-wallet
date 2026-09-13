@@ -514,6 +514,21 @@ export const SEPOLIA: ChainConfig = {
   testnet: true,
 };
 
+export const BASE_SEPOLIA: ChainConfig = {
+  id: 'base-sepolia',
+  name: 'Base Sepolia',
+  family: 'evm',
+  evmChainId: 84532,
+  nativeSymbol: 'ETH',
+  nativeDecimals: 18,
+  rpcUrls: withAlchemy('base-sepolia', [
+    'https://sepolia.base.org',
+    'https://base-sepolia-rpc.publicnode.com',
+  ]),
+  explorerUrl: 'https://sepolia.basescan.org',
+  testnet: true,
+};
+
 /** Bitcoin mainnet (SegWit natif). Réception uniquement pour l'instant. */
 export const BITCOIN: ChainConfig = {
   id: 'bitcoin',
@@ -542,9 +557,21 @@ export const SOLANA: ChainConfig = {
   coingeckoPlatform: 'solana', // prix des tokens SPL par mint
 };
 
+export const SOLANA_DEVNET: ChainConfig = {
+  id: 'solana-devnet',
+  name: 'Solana Devnet',
+  family: 'solana',
+  nativeSymbol: 'SOL',
+  nativeDecimals: 9,
+  rpcUrls: ['https://api.devnet.solana.com'],
+  explorerUrl: 'https://explorer.solana.com/?cluster=devnet',
+  testnet: true,
+};
+
 // Ordre d'affichage dans le sélecteur : testnet en tête (réseau par défaut).
 export const ALL_CHAINS: ChainConfig[] = [
   SEPOLIA,
+  BASE_SEPOLIA,
   ETHEREUM,
   POLYGON,
   BNB,
@@ -609,4 +636,5 @@ export const ALL_CHAINS: ChainConfig[] = [
   MONAD_TESTNET,
   BITCOIN,
   SOLANA,
+  SOLANA_DEVNET,
 ];

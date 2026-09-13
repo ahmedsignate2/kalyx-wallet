@@ -31,7 +31,4 @@ GoogleService-Info.plist
 
 expo-env.d.ts
 # @end expo-cli
-# Config locale Claude Code (par machine)
-.claude/settings.local.json*
 *.txt
-.aider*

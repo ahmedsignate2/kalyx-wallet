@@ -14,6 +14,10 @@ import * as SecureStore from 'expo-secure-store';
 import { kvSet, kvGet, kvDel } from './kv';
 import { serializeVault, deserializeVault, type EncryptedVault } from '../src';
 
+// ⚠️ Préfixe `nova.` CONSERVÉ après le renommage en Kalyx (2026-09-11) : ces clés
+// adressent le coffre chiffré et les comptes déjà stockés sur les appareils. Les
+// changer effacerait le wallet des installations existantes (ré-import obligatoire).
+// Identifiants internes, jamais affichés.
 const K_SETTINGS = 'nova.settings'; // préférences (non sensible)
 const K_LOCKSTATE = 'nova.lockState'; // anti-brute-force (persistant, résiste au redémarrage)
 const K_CUSTOM_TOKENS = 'nova.customTokens'; // tokens ajoutés par contrat (non sensible)

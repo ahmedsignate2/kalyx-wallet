@@ -17,6 +17,7 @@ export type WalletErrorCode =
   | 'VAULT_CORRUPTED'
   | 'RPC_UNAVAILABLE'
   | 'BROADCAST_FAILED'
+  | 'CALL_EXCEPTION'
   | 'NOT_SUPPORTED';
 
 export class WalletError extends Error {

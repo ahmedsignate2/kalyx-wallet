@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Image, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { Stack } from 'expo-router';
@@ -13,7 +14,7 @@ import {
   getAdapter,
   EvmChainAdapter,
   getErc20Tokens,
-  formatBalance,
+  formatTokenAmount,
   isUnlimited,
   revokeCalldata,
   type ApprovalItem,
@@ -80,8 +81,9 @@ export default function Approvals() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: t('approvals') }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
+      <ScreenHeader title={t('approvals')} />
 
       <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
@@ -138,7 +140,7 @@ export default function Approvals() {
                       }}
                     >
                       <Text style={{ color: unlimited ? colors.danger : colors.textMuted, fontSize: 12, fontFamily: fonts.semibold }}>
-                        {unlimited ? `∞ ${t('unlimitedLabel')}` : `${formatBalance(it.allowance, it.decimals, 4)}`}
+                        {unlimited ? `∞ ${t('unlimitedLabel')}` : `${formatTokenAmount(it.allowance, it.decimals)}`}
                       </Text>
                     </View>
                   </View>

@@ -1,11 +1,12 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Switch, Alert } from 'react-native';
+import { View, Text, TextInput, Switch, Alert, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { PremiumScreen, GlassCard, ListRow, Chip, SectionHeader } from '../ui/premium';
 import { PinPromptModal } from '../ui/PinPromptModal';
 import { Icon, type IconName } from '../ui/icon';
-import { spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme } from '../ui/theme';
 import { useSettings, useT, FIATS } from '../lib/settingsStore';
 import { LANGUAGES } from '../lib/i18n';
 import { useWallet } from '../lib/walletStore';
@@ -22,6 +23,31 @@ function Ico({ n }: { n: IconName }) {
   );
 }
 const chevron = <Icon name="chevron" size={18} tone="faint" />;
+
+function OptionButton({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing(0.75),
+        minHeight: 38,
+        paddingHorizontal: spacing(1.25),
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: selected ? colors.accent : colors.glassBorder,
+        backgroundColor: selected ? colors.accent : 'transparent',
+      }}
+    >
+      {selected ? <Icon name="checkmark" size={15} color={colors.onPrimary} /> : null}
+      <Text style={{ color: selected ? colors.onPrimary : colors.text, fontFamily: fonts.semibold }}>{label}</Text>
+    </Pressable>
+  );
+}
 
 export default function Settings() {
   const { colors, typography } = useTheme();
@@ -96,6 +122,7 @@ export default function Settings() {
 
   return (
     <PremiumScreen>
+      <ScreenHeader />
       <Text style={typography.title}>{t('settings')}</Text>
 
       {/* Profil */}
@@ -127,7 +154,7 @@ export default function Settings() {
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
             {FIATS.map((f) => (
-              <Chip key={f.code} label={`${f.symbol} ${f.code.toUpperCase()}`} tone={f.code === fiat ? 'accent' : 'neutral'} onPress={() => setFiat(f.code)} />
+              <OptionButton key={f.code} label={`${f.symbol} ${f.code.toUpperCase()}`} selected={f.code === fiat} onPress={() => setFiat(f.code)} />
             ))}
           </View>
         </View>
@@ -145,7 +172,7 @@ export default function Settings() {
                 { key: 'light', label: `☀️ ${t('themeLight')}` },
               ] as const
             ).map((o) => (
-              <Chip key={o.key} label={o.label} tone={themePref === o.key ? 'accent' : 'neutral'} onPress={() => setThemePref(o.key)} />
+              <OptionButton key={o.key} label={o.label} selected={themePref === o.key} onPress={() => setThemePref(o.key)} />
             ))}
           </View>
         </View>
@@ -180,7 +207,7 @@ export default function Settings() {
               { label: '15 min', m: 15 },
               { label: t('never'), m: -1 },
             ] as const).map((o) => (
-              <Chip key={o.m} label={o.label} tone={autoLockMinutes === o.m ? 'accent' : 'neutral'} onPress={() => setAutoLockMinutes(o.m)} />
+              <OptionButton key={o.m} label={o.label} selected={autoLockMinutes === o.m} onPress={() => setAutoLockMinutes(o.m)} />
             ))}
           </View>
         </View>
@@ -196,7 +223,7 @@ export default function Settings() {
         <ListRow divider left={<Icon name="pin" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
         <ListRow divider left={<Icon name="phrase" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
         <ListRow divider left={<Icon name="copy" />} title={t('revealPrivateKey')} right={chevron} onPress={() => router.push('/reveal-private-key')} />
-        <ListRow divider left={<Icon name="market" />} title="Copilote IA" subtitle="Analyse & Sécurité (BYOK)" right={chevron} onPress={() => router.push('/ai-settings')} />
+        <ListRow divider left={<Icon name="market" />} title={t('copilotByok')} subtitle={t('copilotByokSubtitle')} right={chevron} onPress={() => router.push('/ai-settings')} />
       </GlassCard>
 
       {/* Réseau & à venir */}
@@ -231,8 +258,8 @@ export default function Settings() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
             <Icon name="notifications" />
             <View style={{ flex: 1 }}>
-              <Text style={typography.body}>Sons de l'application</Text>
-              <Text style={typography.muted}>Jouer un son lors des actions importantes</Text>
+              <Text style={typography.body}>{t('appSounds')}</Text>
+              <Text style={typography.muted}>{t('appSoundsHint')}</Text>
             </View>
           </View>
           <Switch value={useSettings((s) => s.soundEnabled)} onValueChange={useSettings.getState().setSoundEnabled} />
@@ -243,7 +270,7 @@ export default function Settings() {
 
       {/* À propos */}
       <GlassCard>
-        <ListRow left={<Icon name="about" />} title={t('about')} subtitle={`Nova Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chevron} onPress={() => router.push('/about')} />
+        <ListRow left={<Icon name="about" />} title={t('about')} subtitle={`Kalyx Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chevron} onPress={() => router.push('/about')} />
       </GlassCard>
 
       <SectionHeader title="" />

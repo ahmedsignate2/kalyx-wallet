@@ -16,6 +16,7 @@ export interface CustomChainInput {
   nativeSymbol: string;
   rpcUrl: string;
   explorerUrl?: string;
+  testnet?: boolean;
 }
 
 /** Construit une ChainConfig EVM à partir de la saisie utilisateur. */
@@ -29,6 +30,7 @@ export function buildCustomChain(input: CustomChainInput): ChainConfig {
     nativeDecimals: 18,
     rpcUrls: [input.rpcUrl.trim()],
     explorerUrl: input.explorerUrl?.trim() || undefined,
+    testnet: input.testnet === true,
     // Pas de prix/tokens (pas de plateforme CoinGecko connue).
   };
 }

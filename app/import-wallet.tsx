@@ -1,8 +1,9 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { Card, Button, Title, Muted } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -69,14 +70,14 @@ export default function ImportWallet() {
       <ScrollView
         contentContainerStyle={{
           padding: spacing(3),
-          paddingTop: insets.top + spacing(2),
+          paddingTop: insets.top + 12,
           paddingBottom: insets.bottom + spacing(4),
           gap: spacing(2),
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-      <Title>{t('importWalletT')}</Title>
+      <ScreenHeader title={t('importWalletT')} />
       <Muted>{t('walletsCohabit')}</Muted>
 
       {/* Sélecteur Phrase / Clé privée / Sauvegarde */}
@@ -97,7 +98,7 @@ export default function ImportWallet() {
                 borderColor: active ? colors.accent : colors.cardBorder,
               }}
             >
-              <Text style={{ color: active ? '#fff' : colors.text, fontFamily: typography.bodyStrong.fontFamily, fontSize: 13 }}>
+              <Text style={{ color: active ? colors.onPrimary : colors.text, fontFamily: typography.bodyStrong.fontFamily, fontSize: 13 }}>
                 {m === 'phrase' ? t('tabPhrase') : m === 'key' ? t('privateKeyLabel') : t('backupTitle')}
               </Text>
             </Pressable>
@@ -123,7 +124,7 @@ export default function ImportWallet() {
         <TextInput
           value={text}
           onChangeText={setText}
-          placeholder={mode === 'phrase' ? 'mot1 mot2 mot3 …' : mode === 'key' ? '0x…' : '{ "app": "nova", … }'}
+          placeholder={mode === 'phrase' ? 'mot1 mot2 mot3 …' : mode === 'key' ? '0x…' : '{ "app": "kalyx", … }'}
           placeholderTextColor={colors.textMuted}
           multiline={mode !== 'key'}
           autoCapitalize="none"

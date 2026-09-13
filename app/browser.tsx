@@ -1,27 +1,36 @@
 /**
- * Navigateur dApps intégré — style Chrome : multi-onglets, barre d'outils en bas
- * (retour / avancer / accueil / onglets / menu), sélecteur d'onglets, favoris,
- * historique. WebView + window.ethereum injecté (EIP-1193).
+ * Navigateur dApps Kalyx — « le site est la star, l'interface s'efface ».
  *
- * SÉCURITÉ (inchangée) : la page ne voit JAMAIS de clé ; connexion par ORIGINE
- * (https), signatures décodées + PIN, origine non connectée → rejet.
- *
- * react-native-webview est natif : require dynamique (message clair sans rebuild).
+ *  - Barre d'adresse EN BAS (pilule 48, domaine principal en Lueur), qui se
+ *    COMPACTE au scroll vers le bas et revient au scroll vers le haut. Un tap
+ *    révèle l'URL éditable + suggestions (favoris/récents → dApps vérifiées →
+ *    moteur au choix). Appui long = copier. À droite : glyphe du compte + chaîne.
+ *  - UNE SEULE WebView montée (l'onglet actif) : les autres sont stockés en URL
+ *    + titre et rechargés quand on y revient (Android tue sinon).
+ *  - Comète de chargement, tirer pour recharger, onglets en grille (2 col.,
+ *    rayon 22), onglet privé (rien de mémorisé), onglets restaurés au démarrage.
+ *  - Le réseau SUIT le site : chaque onglet porte sa chaîne.
+ *  - Sécurité : intent:// et schémas exotiques bloqués, APK = avertissement,
+ *    popups bloquées, site dangereux = barre en Danger (seul moment où elle change),
+ *    connexion/signature via SignSheet + biométrie unifiée.
+ *  - Provider EIP-1193 injecté (window.ethereum) — plomberie inchangée.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, Text, TextInput, View, Image, Vibration, ScrollView, Share, useWindowDimensions, Animated, StyleSheet, KeyboardAvoidingView } from 'react-native';
+import { View, TextInput, Pressable as RNPressable, ScrollView, Share, Alert, Switch, Image, useWindowDimensions, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GlassCard, ErrorBox, RemoteIcon } from '../ui/premium';
-import { AuroraBackground } from '../ui/AuroraBackground';
-import { TxPreview } from '../ui/TxPreview';
-import { Button } from '../ui/components';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import { Text, Button, IconButton, Surface, Divider, ListRow, Sheet, Chip, EmptyState, AddressGlyph, Input, Pressable } from '../ui/kit';
 import { Icon } from '../ui/icon';
-import { NovaLogo } from '../ui/NovaLogo';
-import { fonts, radii, spacing, useTheme } from '../ui/theme';
-import { duration, easing } from '../ui/motion';
+import { SignSheet } from '../ui/SignSheet';
+import { ConfirmUnlock } from '../ui/ConfirmUnlock';
+import { AddressBar, splitHost } from '../ui/browser/AddressBar';
+import { RemoteIcon } from '../ui/premium';
+import { Comet } from '../ui/browser/Comet';
+import { DappTile, DappLogo, siteName } from '../ui/browser/DappTile';
+import { useTheme } from '../ui/theme';
+import { space, SCREEN_MARGIN, radius, springs } from '../ui/tokens';
 import { haptic } from '../lib/haptics';
 import { sound } from '../lib/sound';
 import { useWallet, type Unlock } from '../lib/walletStore';
@@ -30,31 +39,15 @@ import { toast } from '../lib/toast';
 import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../lib/recentDapps';
 import { useDappActivity } from '../lib/dappActivity';
 import { useBrowserStore } from '../lib/browserStore';
+import { usePortfolioStore } from '../lib/portfolio';
 import { saveTabs, loadTabs } from '../lib/browserTabs';
+import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../lib/browserPrefs';
+import { buildInjectedProvider, parseDappMessage, respondJs, emitJs, rpcProxy, READONLY_METHODS, type DappRequest } from '../lib/dappProvider';
 import {
-  buildInjectedProvider,
-  parseDappMessage,
-  respondJs,
-  emitJs,
-  rpcProxy,
-  READONLY_METHODS,
-  type DappRequest,
-} from '../lib/dappProvider';
-import {
-  getAdapter,
-  listChains,
-  formatBalance,
-  hexToText,
-  parseSiwe,
-  siweDomainMismatch,
-  summarizeTypedData,
-  assessAddress,
-  isPhishingSite,
-  isWalletError,
-  chainIconUrl,
-  type RawTxRequest,
-  type RiskAssessment,
+  getAdapter, listChains, hexToText, parseSiwe, siweDomainMismatch, summarizeTypedData, assessAddress, isPhishingSite,
+  decodeTx, simulateTx, explainRequest, getTokenMetadata, chainIconUrl, isValidEvmAddress, type RawTxRequest, type RiskAssessment, type Simulation,
 } from '../src';
+import { useHistoryStore } from '../lib/historyStore';
 
 // WebView = module natif : require dynamique pour ne pas crasher avant rebuild.
 let WebViewComp: React.ComponentType<Record<string, unknown>> | null = null;
@@ -64,174 +57,75 @@ try {
 } catch {
   WebViewComp = null;
 }
+type WV = { injectJavaScript: (js: string) => void; goBack: () => void; goForward: () => void; reload: () => void; stopLoading: () => void };
 
-/** Ref minimale d'une WebView (méthodes qu'on pilote). */
-type WV = {
-  injectJavaScript: (js: string) => void;
-  goBack: () => void;
-  goForward: () => void;
-  reload: () => void;
-  stopLoading: () => void;
-};
-
-/** dApps suggérées (page d'accueil). `domain` sert au logo (favicon HD). */
-interface Dapp {
-  name: string;
-  url: string;
-  domain: string;
-  emoji: string;
-  color: string;
-}
-const SUGGESTED: Dapp[] = [
-  { name: 'Uniswap', url: 'https://app.uniswap.org', domain: 'uniswap.org', emoji: '🦄', color: '#FF007A' },
-  { name: 'OpenSea', url: 'https://opensea.io', domain: 'opensea.io', emoji: '🌊', color: '#2081E2' },
-  { name: 'Aave', url: 'https://app.aave.com', domain: 'aave.com', emoji: '👻', color: '#B6509E' },
-  { name: 'Pancake', url: 'https://pancakeswap.finance', domain: 'pancakeswap.finance', emoji: '🥞', color: '#1FC7D4' },
-  { name: 'Lido', url: 'https://stake.lido.fi', domain: 'lido.fi', emoji: '🌀', color: '#00A3FF' },
-  { name: 'ENS', url: 'https://app.ens.domains', domain: 'ens.domains', emoji: '🏷️', color: '#5298FF' },
-];
-
-/** Collections NFT en vue (curatées, liens OpenSea) — tuiles emoji colorées. */
-const COLLECTIONS: Dapp[] = [
-  { name: 'Pudgy Penguins', url: 'https://opensea.io/collection/pudgypenguins', domain: '', emoji: '🐧', color: '#7CC6F0' },
-  { name: 'Bored Apes', url: 'https://opensea.io/collection/boredapeyachtclub', domain: '', emoji: '🐵', color: '#E0A43B' },
-  { name: 'Azuki', url: 'https://opensea.io/collection/azuki', domain: '', emoji: '⛩️', color: '#E85D75' },
-  { name: 'Milady', url: 'https://opensea.io/collection/milady', domain: '', emoji: '🌸', color: '#F0A9C8' },
-  { name: 'Moonbirds', url: 'https://opensea.io/collection/proof-moonbirds', domain: '', emoji: '🦉', color: '#6C5CE7' },
-  { name: 'CloneX', url: 'https://opensea.io/collection/clonex', domain: '', emoji: '🧬', color: '#3AA0A0' },
-];
-
-/**
- * Logo d'un site : favicon PNG HD via Google (fiable et CARRÉ sous RN, contrairement
- * aux .ico DuckDuckGo qui s'affichaient étirés). Repli emoji/lettre au besoin.
- */
-function faviconUrl(host: string): string {
-  return `https://www.google.com/s2/favicons?domain=${host}&sz=128`;
-}
-
-
-/** Un onglet du navigateur. `url: null` = page d'accueil de l'onglet. */
 interface Tab {
   id: string;
   url: string | null;
-  input: string;
   title: string;
   canBack: boolean;
   canFwd: boolean;
+  incognito: boolean;
+  chainId: string;
+  desktop: boolean;
 }
 let tabSeq = 0;
-function mkTab(url: string | null = null): Tab {
-  return { id: `t${Date.now().toString(36)}${(tabSeq++).toString(36)}`, url, input: url ?? '', title: '', canBack: false, canFwd: false };
+function mkTab(chainId: string, url: string | null = null, incognito = false): Tab {
+  return { id: `t${Date.now().toString(36)}${(tabSeq++).toString(36)}`, url, title: '', canBack: false, canFwd: false, incognito, chainId, desktop: false };
 }
 
-/** Demande en attente d'approbation (rattachée à l'onglet émetteur). */
 type Pending =
   | { kind: 'connect'; tabId: string; id: number; origin: string }
   | { kind: 'sign'; tabId: string; id: number; origin: string; text: string | null; siwe: ReturnType<typeof parseSiwe>; hex: string }
   | { kind: 'typedData'; tabId: string; id: number; origin: string; summary: ReturnType<typeof summarizeTypedData>; data: unknown }
-  | { kind: 'tx'; tabId: string; id: number; origin: string; to?: string; value: bigint; dataBytes: number; raw: RawTxRequest };
+  | { kind: 'tx'; tabId: string; id: number; origin: string; to?: string; value: bigint; raw: RawTxRequest };
 
 function originOf(url: string): string {
   const m = url.match(/^https:\/\/([^/]+)/i);
   return m ? m[1].toLowerCase() : '';
 }
-
-/** Domaines dApp reconnus « sûrs » (racine). Base de l'indicateur vérifié. */
-const KNOWN_SAFE = new Set<string>([
-  'uniswap.org', 'opensea.io', 'aave.com', 'pancakeswap.finance', 'lido.fi', 'ens.domains',
-  'app.uniswap.org', 'app.aave.com', 'stake.lido.fi', 'app.ens.domains',
-  'coingecko.com', 'etherscan.io', 'polygon.technology', '1inch.io', 'curve.fi',
-  'sushi.com', 'compound.finance', 'makerdao.com', 'rarible.com', 'blur.io', 'zapper.xyz',
-]);
-const SAFE_ROOTS = ['uniswap', 'opensea', 'aave', 'pancakeswap', 'lido', 'ens', 'curve', '1inch', 'compound', 'blur', 'rarible'];
-
-function rootDomain(host: string): string {
-  const parts = host.split('.');
-  return parts.length > 2 ? parts.slice(-2).join('.') : host;
+/** Domaines dApp reconnus (sosies → suspect). */
+const SAFE_ROOTS = ['uniswap', 'opensea', 'aave', 'pancakeswap', 'lido', 'ens', 'curve', '1inch', 'compound', 'blur', 'rarible', 'jup', 'morpho', 'magiceden', 'across', 'stargate', 'jumper', 'rocketpool', 'jito', 'eigenlayer'];
+function isLookalike(host: string): boolean {
+  const root = splitHost(host).root.split('.')[0].toLowerCase();
+  if (SAFE_ROOTS.includes(root)) return false;
+  return SAFE_ROOTS.some((r) => Math.abs(r.length - root.length) <= 1 && r !== root && (root.includes(r) || r.includes(root) || levenshtein1(r, root)));
 }
-/** Distance d'édition ≤ 1 (typosquat « unniswap.org »). */
-function nearlyEqual(a: string, b: string): boolean {
-  if (a === b) return false;
+function levenshtein1(a: string, b: string): boolean {
   if (Math.abs(a.length - b.length) > 1) return false;
   let i = 0, j = 0, diff = 0;
   while (i < a.length && j < b.length) {
     if (a[i] === b[j]) { i++; j++; continue; }
     if (++diff > 1) return false;
-    if (a.length > b.length) i++;
-    else if (a.length < b.length) j++;
-    else { i++; j++; }
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
   }
-  return true;
+  return diff + (a.length - i) + (b.length - j) <= 1;
 }
-
-type SecLevel = 'safe' | 'suspicious' | 'unknown';
-/** Heuristique anti-phishing locale (sans API) : vérifié / suspect / inconnu. */
-function siteSecurity(host: string): SecLevel {
-  if (!host) return 'unknown';
-  const root = rootDomain(host);
-  if (KNOWN_SAFE.has(host) || KNOWN_SAFE.has(root)) return 'safe';
-  // Typosquat : ressemble à un domaine sûr sans en être un.
-  for (const safe of KNOWN_SAFE) {
-    if (nearlyEqual(root, safe) || nearlyEqual(host, safe)) return 'suspicious';
-  }
-  // Contient un nom de marque connu mais n'est pas son domaine (ex. uniswap-airdrop.com).
-  for (const brand of SAFE_ROOTS) {
-    if ((host.includes(brand) || host.includes(brand.replace(/[^a-z]/g, ''))) && !KNOWN_SAFE.has(root)) return 'suspicious';
-  }
-  return 'unknown';
+function normalizeUrl(raw?: string | null): string | null {
+  if (typeof raw !== 'string') return null;
+  const s = raw.trim();
+  if (!s || /\s/.test(s)) return null;
+  if (/^https?:\/\//i.test(s)) return s.replace(/^http:\/\//i, 'https://');
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+(\/.*)?$/i.test(s)) return `https://${s}`;
+  return null;
 }
-function normalizeUrl(raw: string): string | null {
-  const t = raw.trim();
-  if (!t) return null;
-  return /^https:\/\//i.test(t) ? t : /^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(t) ? `https://${t}` : null;
-}
+const DESKTOP_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15';
 
 export default function Browser() {
-  const setBrowserContext = useBrowserStore(s => s.setBrowserContext);
-  const { colors, typography, gradients } = useTheme();
   const t = useT();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
-  // 3 colonnes : largeur = (écran − marges − 2 gaps) / 3 (min 88 sur petit écran).
-  const GAP = 12;
-  const tileW = Math.max(88, Math.floor((screenW - spacing(2.5) * 2 - GAP * 2) / 3));
+  const setBrowserContext = useBrowserStore((s) => s.setBrowserContext);
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const biometricEnabled = useSettings((s) => s.biometricEnabled);
   const showTestnets = useSettings((s) => s.showTestnets);
-  const chain = getAdapter(activeChain).config;
-  const chainIdHex = '0x' + (chain.evmChainId ?? 1).toString(16);
 
-  // Onglets (avec ref pour les handlers) + WebView refs par onglet.
-  const [tabs, setTabsState] = useState<Tab[]>(() => [mkTab()]);
+  // ── Onglets (une seule WebView montée) ──
+  const [tabs, setTabsState] = useState<Tab[]>(() => [mkTab(activeChain)]);
   const [activeId, setActiveIdState] = useState<string>(() => tabs[0].id);
-  const [progress, setProgress] = useState(0); // progression de chargement de l'onglet actif
-  const addressRef = useRef<TextInput>(null); // focus depuis la recherche de l'accueil
-  // Barre d'adresse rétractable au scroll (façon Chrome/Edge mobile).
-  const [barRowH, setBarRowH] = useState(0); // hauteur mesurée de la rangée d'adresse
-  const barShown = useRef(new Animated.Value(1)).current; // 1 = visible, 0 = repliée
-  const lastScrollY = useRef(0);
-  const tabFade = useRef(new Animated.Value(1)).current; // fondu à l'ouverture/changement d'onglet
-  const showBar = useCallback((to: 1 | 0) => {
-    Animated.timing(barShown, { toValue: to, duration: 200, useNativeDriver: false }).start();
-  }, [barShown]);
-  const onWebScroll = useCallback((e: { nativeEvent: { contentOffset: { y: number } } }) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const dy = y - lastScrollY.current;
-    lastScrollY.current = y;
-    if (y < 60) showBar(1); // près du haut → toujours visible
-    else if (dy > 8) showBar(0); // scroll vers le bas → replie
-    else if (dy < -8) showBar(1); // scroll vers le haut → montre
-  }, [showBar]);
-  useEffect(() => {
-    setProgress(0); // au changement d'onglet, on masque la barre (pas de progression live)
-    barShown.setValue(1); // et on ré-affiche la barre d'adresse
-    lastScrollY.current = 0;
-    // Fondu doux du contenu (façon Safari) à chaque changement d'onglet.
-    tabFade.setValue(0.4);
-    Animated.timing(tabFade, { toValue: 1, duration: 220, useNativeDriver: true }).start();
-  }, [activeId, barShown, tabFade]);
   const tabsRef = useRef(tabs);
   const activeRef = useRef(activeId);
   const setTabs = (u: Tab[] | ((p: Tab[]) => Tab[])) => {
@@ -242,118 +136,122 @@ export default function Browser() {
   const setActiveId = (id: string) => {
     activeRef.current = id;
     setActiveIdState(id);
-    const t = tabsRef.current.find(x => x.id === id);
-    if (t) setBrowserContext({ currentUrl: t.url || '', currentTitle: t.title || '' });
+    const tb = tabsRef.current.find((x) => x.id === id);
+    if (tb) {
+      setBrowserContext({ currentUrl: tb.url || '', currentTitle: tb.title || '' });
+      if (tb.chainId !== useWallet.getState().activeChain) setActiveChain(tb.chainId); // le réseau suit le site
+    }
   };
-  const webrefs = useRef<Map<string, WV>>(new Map());
   const updateTab = (id: string, patch: Partial<Tab>) => setTabs((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-
+  const webref = useRef<WV | null>(null);
   const activeTab = tabs.find((t) => t.id === activeId) ?? tabs[0];
   const origin = activeTab?.url ? originOf(activeTab.url) : '';
+  const chain = getAdapter(activeTab?.chainId ?? activeChain).config;
+  const chainIdHex = '0x' + (chain.evmChainId ?? 1).toString(16);
 
-  const connected = useRef<Set<string>>(new Set());
-  const [pending, setPending] = useState<Pending | null>(null);
-  const [pin, setPin] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [webError, setWebError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [input, setInput] = useState('');
   const [switcher, setSwitcher] = useState(false);
   const [menu, setMenu] = useState(false);
-  const [rememberSite, setRememberSite] = useState(false); // case « se souvenir » (connexion)
-  const [showAllHistory, setShowAllHistory] = useState(false);
-  // Analyse de sécurité GoPlus de la demande en cours.
-  const [risk, setRisk] = useState<RiskAssessment | 'loading' | null>(null);
-  const [phishSite, setPhishSite] = useState(false);
-  const [netSheet, setNetSheet] = useState(false); // sélecteur de réseau (badge)
-
-  // Récents + favoris (persistés).
+  const [connSheet, setConnSheet] = useState(false);
+  const [findSheet, setFindSheet] = useState(false);
+  const [findQ, setFindQ] = useState('');
+  const [netQ, setNetQ] = useState('');
+  const pfHoldings = usePortfolioStore((st) => st.holdings);
+  const [engine, setEngine] = useState<SearchEngine>('google');
+  const [forceDark, setForceDark] = useState(false);
+  const [category, setCategory] = useState(VERIFIED_DAPPS[0].category);
   const [recents, setRecents] = useState<RecentDapp[]>([]);
   const [favorites, setFavorites] = useState<RecentDapp[]>([]);
   const recentsRef = useRef<RecentDapp[]>([]);
   const favRef = useRef<RecentDapp[]>([]);
-  const applyRecents = (list: RecentDapp[]) => {
-    recentsRef.current = list;
-    setRecents(list);
-  };
-  const applyFav = (list: RecentDapp[]) => {
-    favRef.current = list;
-    setFavorites(list);
-  };
+  const applyRecents = (l: RecentDapp[]) => { recentsRef.current = l; setRecents(l); };
+  const applyFav = (l: RecentDapp[]) => { favRef.current = l; setFavorites(l); };
+  const [dangerHosts, setDangerHosts] = useState<Record<string, boolean>>({});
   const loadActivity = useDappActivity((s) => s.load);
+  const connections = useDappActivity((s) => s.connections);
+  const removeConnection = useDappActivity((s) => s.removeConnection);
+
+  // Compaction de la barre au scroll (0 = pleine, 1 = compacte).
+  const compact = useSharedValue(0);
+  const lastY = useRef(0);
+  const onWebScroll = useCallback((e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const dy = y - lastY.current;
+    lastY.current = y;
+    if (y < 40 || dy < -6) compact.value = withSpring(0, springs.standard);
+    else if (dy > 6) compact.value = withTiming(1, { duration: 180 });
+  }, [compact]);
+  const chromeStyle = useAnimatedStyle(() => ({ opacity: 1 - compact.value * 0.15 }));
+
   useEffect(() => {
     loadRecents().then(applyRecents);
     loadFavorites().then(applyFav);
     loadActivity();
-    // Restaure les onglets ouverts de la session précédente.
+    loadBrowserPrefs().then((p) => { setEngine(p.engine); setForceDark(p.forceDark); });
     loadTabs().then((saved) => {
-      if (!saved) return;
-      const restored: Tab[] = saved.tabs.map((t) => ({ id: t.id, url: t.url, input: t.url ?? '', title: t.title, canBack: false, canFwd: false }));
+      if (!saved || saved.tabs.length === 0) return;
+      const restored: Tab[] = saved.tabs.map((t) => ({ id: t.id, url: t.url, title: t.title, canBack: false, canFwd: false, incognito: false, chainId: t.chainId ?? activeChain, desktop: false }));
       setTabs(restored);
       setActiveId(restored.some((t) => t.id === saved.activeId) ? saved.activeId : restored[0].id);
     });
-  }, [loadActivity]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Persiste les onglets (débounce pour coalescer les frappes dans l'URL).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
-    const h = setTimeout(() => saveTabs(tabs.map((t) => ({ id: t.id, url: t.url, title: t.title })), activeId), 500);
+    const h = setTimeout(() => saveTabs(tabs.filter((t) => !t.incognito).map((t) => ({ id: t.id, url: t.url, title: t.title, chainId: t.chainId })), activeId), 500);
     return () => clearTimeout(h);
   }, [tabs, activeId]);
-
-  const injected = useMemo(() => buildInjectedProvider(chainIdHex), [chainIdHex]);
-  const isFav = !!origin && favorites.some((f) => f.host === origin);
-
-  // Vibration + analyse GoPlus à l'apparition d'une demande.
   useEffect(() => {
-    setRisk(null);
-    setPhishSite(false);
-    if (!pending) return;
-    Vibration.vibrate(pending.kind === 'tx' ? [0, 30, 60, 30] : 12);
-    // Module « Analyse de sécurité » désactivable (écran Extensions).
-    if (!useSettings.getState().securityScan) return;
-    const cid = chain.evmChainId ?? 1;
-    if (pending.kind === 'tx' && pending.to) {
-      setRisk('loading');
-      assessAddress(cid, pending.to).then(r => { setRisk(r); if (r?.level === 'danger') haptic.warning(); }).catch(() => setRisk(null));
-    } else if (pending.kind === 'typedData' && pending.summary?.verifyingContract) {
-      setRisk('loading');
-      assessAddress(cid, pending.summary.verifyingContract).then(r => { setRisk(r); if (r?.level === 'danger') haptic.warning(); }).catch(() => setRisk(null));
-    } else if (pending.kind === 'connect') {
-      isPhishingSite(`https://${pending.origin}`).then(r => { setPhishSite(r); if (r) haptic.warning(); }).catch(() => {});
-    }
-  }, [pending?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    setProgress(0);
+    setWebError(null);
+    compact.value = 0;
+    lastY.current = 0;
+  }, [activeId, compact]);
 
-  // Deep-link interne : /browser?url=https://…
+  // Deep-link : /browser?url=…
   const { url: urlParam } = useLocalSearchParams<{ url?: string }>();
   useEffect(() => {
     const u = urlParam ? normalizeUrl(String(urlParam)) : null;
-    if (u) updateTab(activeRef.current, { url: u, input: u });
-  }, [urlParam]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (u) updateTab(activeRef.current, { url: u });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlParam]);
 
-  /** Navigue l'onglet actif vers une URL (+ historique). */
-  const go = (raw: string, title?: string) => {
-    const t = raw.trim();
-    if (!t) return;
-    // Omnibox façon Chrome : URL si ça ressemble à un domaine, sinon Google.
-    const u = normalizeUrl(t) ?? `https://www.google.com/search?q=${encodeURIComponent(t)}`;
-    updateTab(activeRef.current, { url: u, input: u });
-    const host = originOf(u);
-    pushRecent({ url: u, host, title: title || host }, recentsRef.current).then(applyRecents);
+  // Site dangereux (GoPlus) — vérifié une fois par hôte.
+  useEffect(() => {
+    if (!origin || origin in dangerHosts || !useSettings.getState().securityScan) return;
+    isPhishingSite(`https://${origin}`).then((bad) => { setDangerHosts((d) => ({ ...d, [origin]: bad })); if (bad) haptic.warning(); }).catch(() => setDangerHosts((d) => ({ ...d, [origin]: false })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [origin]);
+  const danger = !!origin && (dangerHosts[origin] === true || isLookalike(origin));
+
+  // ── Navigation ──
+  const searchUrl = (q: string) => (ENGINES.find((e) => e.key === engine) ?? ENGINES[0]).url(q);
+  const go = (raw?: string | null, title?: string) => {
+    const target = (typeof raw === 'string' ? raw : '').trim();
+    if (!target) return;
+    const u = normalizeUrl(target) ?? searchUrl(target);
+    updateTab(activeRef.current, { url: u });
+    const tb = tabsRef.current.find((x) => x.id === activeRef.current);
+    if (!tb?.incognito) pushRecent({ url: u, host: originOf(u), title: title || originOf(u) }, recentsRef.current).then(applyRecents);
+    setEditing(false);
     setSwitcher(false);
+    setInput('');
   };
-
-  // --- Gestion des onglets ---
-  const newTab = () => {
-    const t = mkTab();
-    setTabs((ts) => [...ts, t]);
-    setActiveId(t.id);
+  const newTab = (incognito = false) => {
+    const tabItem = mkTab(useWallet.getState().activeChain, null, incognito);
+    setTabs((ts) => [...ts, tabItem]);
+    setActiveId(tabItem.id);
     setSwitcher(false);
+    setMenu(false);
   };
   const closeTab = (id: string) => {
-    webrefs.current.delete(id);
     const prev = tabsRef.current;
     const idx = prev.findIndex((t) => t.id === id);
     const next = prev.filter((t) => t.id !== id);
     if (next.length === 0) {
-      const home = mkTab();
+      const home = mkTab(useWallet.getState().activeChain);
       setTabs([home]);
       setActiveId(home.id);
       return;
@@ -361,70 +259,88 @@ export default function Browser() {
     setTabs(next);
     if (id === activeRef.current) setActiveId(next[Math.min(idx, next.length - 1)].id);
   };
-  const goHome = () => { barShown.setValue(1); updateTab(activeRef.current, { url: null, input: '' }); };
-
+  const goHome = () => updateTab(activeRef.current, { url: null, title: '' });
+  const isFav = !!origin && favorites.some((f) => f.host === origin);
   const toggleCurrentFav = () => {
     if (!origin) return;
-    Vibration.vibrate(10);
+    haptic.light();
     toggleFavorite({ url: activeTab.url ?? `https://${origin}`, host: origin, title: activeTab.title || origin }, favRef.current).then((next) => {
       applyFav(next);
-      toast.success(next.some((f) => f.host === origin) ? t('favAdded') : t('favRemoved'), origin);
+      toast.success(next.some((f) => f.host === origin) ? t('addedToFavorites') : t('removedFromFavorites'), origin);
     });
   };
 
-  // --- Pont EIP-1193 (routé vers l'onglet émetteur) ---
-  const inject = useCallback((tabId: string, js: string) => webrefs.current.get(tabId)?.injectJavaScript(js), []);
-  const respond = useCallback(
-    (tabId: string, id: number, result: unknown, err?: { code: number; message: string }) => inject(tabId, respondJs(id, result, err)),
-    [inject],
-  );
-  const reject = useCallback(
-    (tabId: string, id: number, code = 4001, message = 'Refusé par l’utilisateur') => respond(tabId, id, null, { code, message }),
-    [respond],
-  );
+  // ── Sécurité de navigation ──
+  const onShouldStart = useCallback((req: { url: string; navigationType?: string }) => {
+    const u = req.url;
+    if (/^https?:\/\//i.test(u) || u === 'about:blank') {
+      if (/\.apk(\?|$)/i.test(u)) {
+        Alert.alert(t('downloadBlockedTitle'), t('downloadBlockedMsg'), [{ text: t('understood') }]);
+        return false;
+      }
+      return true;
+    }
+    if (/^(intent|market|tel|sms|mailto|file|javascript):/i.test(u) || /^[a-z][a-z0-9+.-]*:\/\//i.test(u)) {
+      const scheme = u.split(':')[0];
+      Alert.alert(t('openOtherAppTitle'), t('openOtherAppMsg').replace('{scheme}', scheme), [
+        { text: t('deny'), style: 'cancel' },
+        { text: t('open'), onPress: () => Linking.openURL(u).catch(() => toast.error(t('cannotOpenLink'))) },
+      ]);
+      return false;
+    }
+    return false;
+  }, []);
+
+  // ── Pont EIP-1193 ──
+  const connected = useRef<Set<string>>(new Set());
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [sim, setSim] = useState<Simulation | 'loading' | null>(null);
+  const [signConfirm, setSignConfirm] = useState(false);
+  const [risk, setRisk] = useState<RiskAssessment | 'loading' | null>(null);
+  const [phishSite, setPhishSite] = useState(false);
+  const [rememberSite, setRememberSite] = useState(false);
+  const [connectLine, setConnectLine] = useState(0); // 0..1 : trait de lumière logo → glyphe
+  const injected = useMemo(() => buildInjectedProvider(chainIdHex), [chainIdHex]);
+  const inject = useCallback((js: string) => webref.current?.injectJavaScript(js), []);
+  const respond = useCallback((id: number, result: unknown, err?: { code: number; message: string }) => inject(respondJs(id, result, err)), [inject]);
+  const reject = useCallback((id: number, code = 4001, message = t('refuse')) => respond(id, null, { code, message }), [respond, t]);
 
   const onDappRequest = useCallback(
     async (req: DappRequest, reqOrigin: string, tabId: string) => {
       const { id, method, params } = req;
       const addr = account?.address;
+      const tb = tabsRef.current.find((x) => x.id === tabId);
       const isConnected = connected.current.has(reqOrigin);
-
       try {
-        if (method === 'eth_chainId') return respond(tabId, id, chainIdHex);
-        if (method === 'net_version') return respond(tabId, id, String(chain.evmChainId ?? 1));
-        if (method === 'eth_accounts') return respond(tabId, id, isConnected && addr ? [addr] : []);
-        if (method === 'wallet_getPermissions') return respond(tabId, id, isConnected ? [{ parentCapability: 'eth_accounts' }] : []);
-
+        if (method === 'eth_chainId') return respond(id, chainIdHex);
+        if (method === 'net_version') return respond(id, String(chain.evmChainId ?? 1));
+        if (method === 'eth_accounts') return respond(id, isConnected && addr ? [addr] : []);
+        if (method === 'wallet_getPermissions') return respond(id, isConnected ? [{ parentCapability: 'eth_accounts' }] : []);
         if (method === 'eth_requestAccounts' || method === 'wallet_requestPermissions') {
-          if (isConnected && addr) {
-            return respond(tabId, id, method === 'eth_requestAccounts' ? [addr] : [{ parentCapability: 'eth_accounts' }]);
-          }
-          // Site « de confiance » (case « se souvenir ») → reconnexion SILENCIEUSE.
-          if (addr && useDappActivity.getState().isRemembered(reqOrigin)) {
+          if (isConnected && addr) return respond(id, method === 'eth_requestAccounts' ? [addr] : [{ parentCapability: 'eth_accounts' }]);
+          if (addr && !tb?.incognito && useDappActivity.getState().isRemembered(reqOrigin)) {
             connected.current.add(reqOrigin);
-            inject(tabId, emitJs('accountsChanged', [addr]));
-            inject(tabId, emitJs('connect', { chainId: chainIdHex }));
+            inject(emitJs('accountsChanged', [addr]));
+            inject(emitJs('connect', { chainId: chainIdHex }));
             useDappActivity.getState().addConnection({ host: reqOrigin, url: `https://${reqOrigin}`, title: reqOrigin });
-            return respond(tabId, id, method === 'eth_requestAccounts' ? [addr] : [{ parentCapability: 'eth_accounts' }]);
+            return respond(id, method === 'eth_requestAccounts' ? [addr] : [{ parentCapability: 'eth_accounts' }]);
           }
           setPending({ kind: 'connect', tabId, id, origin: reqOrigin });
           return;
         }
-
         if (method === 'wallet_switchEthereumChain' || method === 'wallet_addEthereumChain') {
           const want = Number((params[0] as { chainId?: string })?.chainId ?? '0x0');
           const target = listChains().find((c) => c.family === 'evm' && c.evmChainId === want);
-          if (!target) return respond(tabId, id, null, { code: 4902, message: 'Réseau non supporté par Nova' });
+          if (!target) return respond(id, null, { code: 4902, message: t('networkNotSupported') });
+          updateTab(tabId, { chainId: target.id });
           setActiveChain(target.id);
-          respond(tabId, id, null);
-          inject(tabId, emitJs('chainChanged', '0x' + want.toString(16)));
+          respond(id, null);
+          inject(emitJs('chainChanged', '0x' + want.toString(16)));
           return;
         }
-
-        const isSigning =
-          method === 'personal_sign' || method === 'eth_sign' || method.startsWith('eth_signTypedData') || method === 'eth_sendTransaction';
+        const isSigning = method === 'personal_sign' || method === 'eth_sign' || method.startsWith('eth_signTypedData') || method === 'eth_sendTransaction';
         if (isSigning) {
-          if (!isConnected || !addr) return respond(tabId, id, null, { code: 4100, message: 'Non connecté' });
+          if (!isConnected || !addr) return respond(id, null, { code: 4100, message: t('notConnected') });
           if (method === 'personal_sign' || method === 'eth_sign') {
             const hex = String(method === 'personal_sign' ? params[0] : params[1] ?? '');
             const text = hexToText(hex) ?? (hex.startsWith('0x') ? null : hex);
@@ -438,791 +354,531 @@ export default function Browser() {
             return;
           }
           const tx = (params[0] ?? {}) as { to?: string; value?: string; data?: string; gas?: string };
-          if (!tx.to) return respond(tabId, id, null, { code: 4200, message: 'Déploiement de contrat non supporté' });
-          const raw: RawTxRequest = {
-            to: tx.to,
-            data: tx.data ?? '0x',
-            value: tx.value ? BigInt(tx.value) : 0n,
-            chainId: chain.evmChainId!,
-            gasLimit: tx.gas ? BigInt(tx.gas) : undefined,
-          };
-          setPending({ kind: 'tx', tabId, id, origin: reqOrigin, to: tx.to, value: raw.value ?? 0n, dataBytes: typeof tx.data === 'string' ? Math.max(0, (tx.data.length - 2) / 2) : 0, raw });
+          if (!tx.to || !isValidEvmAddress(tx.to)) return respond(id, null, { code: 4200, message: 'Déploiement de contrat non supporté' });
+          const raw: RawTxRequest = { to: tx.to, data: tx.data ?? '0x', value: tx.value ? BigInt(tx.value) : 0n, chainId: chain.evmChainId!, gasLimit: tx.gas ? BigInt(tx.gas) : undefined };
+          setPending({ kind: 'tx', tabId, id, origin: reqOrigin, to: tx.to, value: raw.value ?? 0n, raw });
           return;
         }
-
-        if (READONLY_METHODS.has(method)) {
-          const result = await rpcProxy(chain.rpcUrls, method, params);
-          return respond(tabId, id, result);
-        }
-
-        respond(tabId, id, null, { code: -32601, message: `Méthode non supportée : ${method}` });
+        if (READONLY_METHODS.has(method)) return respond(id, await rpcProxy(chain.rpcUrls, method, params));
+        respond(id, null, { code: -32601, message: `${t('methodNotSupported')}${method}` });
       } catch (e) {
-        respond(tabId, id, null, { code: -32603, message: e instanceof Error ? e.message.slice(0, 160) : 'Erreur interne' });
+        respond(id, null, { code: -32603, message: e instanceof Error ? e.message.slice(0, 160) : t('internalError') });
       }
     },
-    [account?.address, chain, chainIdHex, respond, inject, setActiveChain],
+    [account?.address, chain, chainIdHex, respond, inject, setActiveChain], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  // Exécute l'action (connexion/signature/tx) avec biométrie OU PIN. LÈVE en cas
-  // d'échec (le prompt biométrique annulé lève → repli PIN géré par les appelants).
-  const perform = async (unlock: Unlock) => {
-    if (!pending || !account) return;
-    setError(null);
-    const activity = useDappActivity.getState();
-    setBusy(true);
-    try {
-      if (pending.kind === 'connect') {
-        await useWallet.getState().verifyUnlock(unlock); // lève si refusé
-        connected.current.add(pending.origin);
-        respond(pending.tabId, pending.id, [account.address]);
-        inject(pending.tabId, emitJs('accountsChanged', [account.address]));
-        inject(pending.tabId, emitJs('connect', { chainId: chainIdHex }));
-        activity.addConnection({ host: pending.origin, url: `https://${pending.origin}`, title: activeTab?.title || pending.origin });
-        if (rememberSite) activity.remember(pending.origin); // reconnexion sans PIN ensuite
-        Vibration.vibrate(14);
-        toast.success(t('connectionSuccess'), pending.origin);
-      } else {
-        const w = useWallet.getState();
-        let result: string;
-        if (pending.kind === 'sign') result = await w.signMessage(unlock, pending.hex);
-        else if (pending.kind === 'typedData') result = await w.signTypedData(unlock, pending.data as Parameters<typeof w.signTypedData>[1]);
-        else result = await w.sendRawTxOn(unlock, activeChain, pending.raw);
-        respond(pending.tabId, pending.id, result);
-        activity.addSignature({ host: pending.origin, kind: pending.kind === 'tx' ? 'tx' : pending.kind === 'typedData' ? 'typedData' : 'sign' });
-        Vibration.vibrate(14);
-        sound.success();
-        toast.success(pending.kind === 'tx' ? t('transferSent') : t('messageSigned'), pending.origin);
-      }
-      setPending(null);
-      setPin('');
-      setRememberSite(false);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // Validation par PIN (repli) : gère l'erreur à l'écran plutôt que de lever.
-  const submitPin = async () => {
-    if (pin.length < 6) {
-      setError(t('enterPinConfirm'));
-      return;
-    }
-    try {
-      await perform({ pin });
-    } catch (e) {
-      setError(isWalletError(e) && e.code === 'WRONG_PIN' ? t('pinIncorrect') : e instanceof Error ? e.message : t('actionFailed'));
-    }
-  };
-
-  // Biométrie AUTO à l'ouverture d'une demande (si activée) ; annulation = PIN.
+  // Analyse GoPlus + simulation à l'apparition d'une demande.
   useEffect(() => {
-    if (!pending || !biometricEnabled) return;
-    void perform({ biometric: true }).catch(() => {
-      /* annulée / non configurée → l'utilisateur saisit son PIN */
-    });
+    setRisk(null); setPhishSite(false); setSim(null); setSignConfirm(false); setConnectLine(0);
+    if (!pending) return;
+    haptic.light();
+    if (useSettings.getState().securityScan) {
+      const cid = chain.evmChainId ?? 1;
+      if (pending.kind === 'tx' && pending.to) { setRisk('loading'); assessAddress(cid, pending.to).then((r) => { setRisk(r); if (r?.level === 'danger') haptic.warning(); }).catch(() => setRisk(null)); }
+      else if (pending.kind === 'typedData' && pending.summary?.verifyingContract) { setRisk('loading'); assessAddress(cid, pending.summary.verifyingContract).then((r) => { setRisk(r); if (r?.level === 'danger') haptic.warning(); }).catch(() => setRisk(null)); }
+      else if (pending.kind === 'connect') { isPhishingSite(`https://${pending.origin}`).then((r) => { setPhishSite(r); if (r) haptic.warning(); }).catch(() => {}); }
+    }
+    if (pending.kind === 'tx' && account) {
+      let alive = true;
+      setSim('loading');
+      (async () => {
+        const d = decodeTx({ to: pending.raw.to, value: pending.raw.value, data: pending.raw.data });
+        const meta = d.kind === 'transfer' || d.kind === 'approve' ? await getTokenMetadata(chain, d.token).catch(() => null) : null;
+        const r = await simulateTx(chain, { from: account.address, to: pending.raw.to, value: pending.raw.value, data: pending.raw.data }, meta ? { symbol: meta.symbol, decimals: meta.decimals } : undefined);
+        if (alive) setSim(r);
+      })();
+      return () => { alive = false; };
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending?.id]);
 
-  const deny = () => {
-    if (pending) reject(pending.tabId, pending.id);
+  const explanation = useMemo(() => {
+    if (!pending || pending.kind === 'connect') return null;
+    const addressRisk = risk && risk !== 'loading' ? risk : null;
+    if (pending.kind === 'sign') return explainRequest({ kind: pending.siwe ? 'siwe' : 'message', domain: pending.origin, siwe: pending.siwe, siweMismatch: !!pending.siwe && siweDomainMismatch(pending.siwe.domain, `https://${pending.origin}`), addressRisk, phishingSite: phishSite });
+    if (pending.kind === 'typedData') return explainRequest({ kind: 'typedData', domain: pending.origin, typed: pending.summary, addressRisk, phishingSite: phishSite });
+    const decoded = decodeTx({ to: pending.raw.to, value: pending.raw.value, data: pending.raw.data });
+    return explainRequest({ kind: 'tx', domain: pending.origin, decoded, simulation: sim && sim !== 'loading' ? sim : null, addressRisk, phishingSite: phishSite, nativeSymbol: chain.nativeSymbol });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, sim, risk, phishSite]);
+
+  const perform = async (unlock: Unlock) => {
+    if (!pending || !account) return;
+    const activity = useDappActivity.getState();
+    const tb = tabsRef.current.find((x) => x.id === pending.tabId);
+    if (pending.kind === 'connect') {
+      await useWallet.getState().verifyUnlock(unlock);
+      connected.current.add(pending.origin);
+      respond(pending.id, [account.address]);
+      inject(emitJs('accountsChanged', [account.address]));
+      inject(emitJs('connect', { chainId: chainIdHex }));
+      if (!tb?.incognito) {
+        activity.addConnection({ host: pending.origin, url: `https://${pending.origin}`, title: tb?.title || pending.origin });
+        if (rememberSite) activity.remember(pending.origin);
+      }
+      haptic.success();
+      // La connexion lumineuse : un trait relie le logo du site à ton glyphe (400 ms).
+      setConnectLine(1);
+      await new Promise((r) => setTimeout(r, 450));
+    } else {
+      const w = useWallet.getState();
+      let result: string;
+      if (pending.kind === 'sign') result = await w.signMessage(unlock, pending.hex);
+      else if (pending.kind === 'typedData') result = await w.signTypedData(unlock, pending.data as Parameters<typeof w.signTypedData>[1]);
+      else result = await w.sendRawTxOn(unlock, tb?.chainId ?? activeChain, pending.raw);
+      respond(pending.id, result);
+      if (pending.kind === 'tx' && tb?.chainId) {
+        const chainAddress = useWallet.getState().account?.address;
+        if (chainAddress) {
+          void useHistoryStore.getState().fetchHistory(tb.chainId, chainAddress);
+        }
+      }
+      if (!tb?.incognito) activity.addSignature({ host: pending.origin, kind: pending.kind === 'tx' ? 'tx' : pending.kind === 'typedData' ? 'typedData' : 'sign' });
+      haptic.success();
+      sound.success();
+    }
     setPending(null);
-    setPin('');
-    setError(null);
     setRememberSite(false);
   };
+  const deny = () => {
+    if (pending) reject(pending.id);
+    setPending(null);
+    setRememberSite(false);
+    setSignConfirm(false);
+  };
 
-  // ------------------------------------------------------------------ UI
+  // ── Suggestions ──
+  const q = input.trim().toLowerCase();
+  const suggestions = useMemo(() => {
+    if (!q) return [] as { host: string; title: string; url: string; kind: 'fav' | 'recent' | 'verified' }[];
+    const out: { host: string; title: string; url: string; kind: 'fav' | 'recent' | 'verified' }[] = [];
+    const seen = new Set<string>();
+    const add = (x: { host: string; title: string; url: string; kind: 'fav' | 'recent' | 'verified' }) => { if (!seen.has(x.host)) { seen.add(x.host); out.push(x); } };
+    favorites.filter((f) => f.host.includes(q) || f.title.toLowerCase().includes(q)).forEach((f) => add({ ...f, kind: 'fav' }));
+    recents.filter((r) => r.host.includes(q) || r.title.toLowerCase().includes(q)).forEach((r) => add({ ...r, kind: 'recent' }));
+    VERIFIED_DAPPS.flatMap((c) => c.items).filter((d) => d.host.includes(q) || d.name.toLowerCase().includes(q)).forEach((d) => add({ host: d.host, title: d.name, url: d.url, kind: 'verified' }));
+    return out.slice(0, 8);
+  }, [q, favorites, recents]);
 
   if (!WebViewComp) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bgDeep, padding: spacing(2.5), justifyContent: 'center' }}>
-        <Stack.Screen options={{ headerShown: true, title: t('browserTitle') }} />
-        <GlassCard>
-          <Text style={typography.bodyStrong}>{t('browserUnavailable')}</Text>
-          <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-            {t('webviewMissing')}
-          </Text>
-        </GlassCard>
+      <View style={{ flex: 1, backgroundColor: colors.bg, padding: SCREEN_MARGIN, paddingTop: insets.top + 48, justifyContent: 'center' }}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <Surface><EmptyState icon="dapps" title={t('browserUnavailableTitle')} body={t('browserUnavailableMsg')} actionLabel={t('back')} onAction={() => router.back()} /></Surface>
       </View>
     );
   }
-
   const WebViewAny = WebViewComp as React.ComponentType<Record<string, unknown>>;
+  const Highlight = ({ text }: { text: string }) => {
+    const i = q ? text.toLowerCase().indexOf(q) : -1;
+    if (i < 0) return <Text variant="body" numberOfLines={1}>{text}</Text>;
+    return <Text variant="body" tone="secondary" numberOfLines={1}>{text.slice(0, i)}<Text variant="body">{text.slice(i, i + q.length)}</Text>{text.slice(i + q.length)}</Text>;
+  };
 
-  const sec = siteSecurity(origin);
-  const secColor = sec === 'safe' ? colors.up : sec === 'suspicious' ? colors.danger : colors.textMuted;
-
-  /** Écran d'accueil dApps (grille 3 colonnes) — rendu par chaque onglet vide. */
-  const renderHome = () => (
-   <View style={{ flex: 1 }}>
-    {/* Fond premium : dégradé d'écran + aurora animée (façon Chrome/Edge new-tab). */}
-    <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
-    <AuroraBackground intensity={0.7} />
-    {/* Logo Nova en filigrane discret, en fond de l'accueil du navigateur. */}
-    <View pointerEvents="none" style={{ position: 'absolute', top: spacing(6), left: 0, right: 0, alignItems: 'center', opacity: 0.05 }}>
-      <NovaLogo size={280} />
-    </View>
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing(2.5), gap: spacing(2.5), paddingBottom: spacing(6) }} showsVerticalScrollIndicator={false}>
-      {/* Hero façon new-tab : titre + grande barre de recherche qui focus la barre d'adresse. */}
-      <View style={{ alignItems: 'center', gap: spacing(1.5), marginTop: spacing(2), marginBottom: spacing(0.5) }}>
-        <Text style={{ color: colors.text, fontSize: 26, fontFamily: fonts.extrabold, letterSpacing: 0.3 }}>{t('exploreWeb3')}</Text>
-        <Text style={[typography.muted, { textAlign: 'center' }]}>{t('connectDappsHint')}</Text>
-        <Pressable
-          onPress={() => addressRef.current?.focus()}
-          style={({ pressed }) => ({
-            flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), alignSelf: 'stretch',
-            backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder,
-            borderRadius: radii.pill, paddingHorizontal: spacing(2), paddingVertical: spacing(1.5),
-            marginTop: spacing(1), opacity: pressed ? 0.8 : 1,
-            shadowColor: colors.accent, shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 4,
-          })}
-        >
-          <Icon name="search" size={18} color={colors.accent} />
-          <Text style={{ color: colors.textMuted, fontSize: 15, flex: 1 }}>{t('searchOrUrl')}</Text>
-          <Icon name="scan" size={18} color={colors.textMuted} />
-        </Pressable>
-      </View>
-
-      {favorites.length > 0 ? (
-        <View style={{ gap: spacing(1.25) }}>
-          <SectionTitle>{t('favorites')}</SectionTitle>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: GAP, rowGap: 16 }}>
-            {favorites.map((f) => (
-              <Tile key={f.host} width={tileW} host={f.host} name={f.title || f.host} color={colors.glassStrong} onPress={() => go(f.url, f.title)} />
-            ))}
+  // ── Page nouvel onglet ──
+  const NewTabPage = () => {
+    const cat = VERIFIED_DAPPS.find((c) => c.category === category) ?? VERIFIED_DAPPS[0];
+    return (
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, padding: SCREEN_MARGIN, paddingTop: space[3], paddingBottom: space[10], gap: space[5] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {activeTab.incognito ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+            <Icon name="incognito" size={18} tone="muted" />
+            <Text variant="caption" tone="secondary">{t('privateTabMsg')}</Text>
           </View>
-        </View>
-      ) : null}
-
-      <View style={{ gap: spacing(1.25) }}>
-        <SectionTitle>{t('popularSites')}</SectionTitle>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: GAP, rowGap: 16 }}>
-          {SUGGESTED.map((d) => (
-            <Tile key={d.url} width={tileW} host={d.domain} name={d.name} color={d.color} emoji={d.emoji} onPress={() => go(d.url, d.name)} />
-          ))}
-        </View>
-      </View>
-
-      <View style={{ gap: spacing(1.25) }}>
-        <SectionTitle>{t('trendingCollections')}</SectionTitle>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: GAP, rowGap: 16 }}>
-          {COLLECTIONS.map((d) => (
-            <Tile key={d.url} width={tileW} host={d.domain} name={d.name} color={d.color} emoji={d.emoji} onPress={() => go(d.url, d.name)} />
-          ))}
-        </View>
-      </View>
-
-      {recents.length > 0 ? (
-        <View style={{ gap: spacing(1) }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Icon name="history" size={18} color={colors.textMuted} />
-              <Text style={typography.section}>{t('historyTitle')}</Text>
+        ) : null}
+        {favorites.length > 0 ? (
+          <View style={{ gap: space[3] }}>
+            <Text variant="title2">{t('favorites')}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
+              {favorites.map((f) => <DappTile key={f.host} host={f.host} label={f.title || f.host} onPress={() => go(f.url, f.title)} />)}
             </View>
-            <Pressable onPress={() => { clearRecents(); applyRecents([]); }} hitSlop={8}>
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>{t('clearWord')}</Text>
-            </Pressable>
           </View>
-          <GlassCard>
-            {recents.slice(0, showAllHistory ? 50 : 5).map((r, i) => (
-              <Pressable key={r.host} onPress={() => go(r.url, r.title)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
-                <Favicon host={r.host} size={30} color={colors.glassStrong} label={r.host.slice(0, 1).toUpperCase()} />
-                <View style={{ flex: 1 }}>
-                  <Text style={typography.bodyStrong} numberOfLines={1}>{r.title}</Text>
-                  <Text style={typography.muted} numberOfLines={1}>{r.host}</Text>
-                </View>
-                <Icon name="chevron" size={16} tone="faint" />
-              </Pressable>
-            ))}
-          </GlassCard>
-          {recents.length > 5 ? (
-            <Pressable onPress={() => setShowAllHistory((v) => !v)} hitSlop={8} style={{ alignSelf: 'center', paddingVertical: spacing(0.5) }}>
-              <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}>
-                {showAllHistory ? t('collapse') : `${t('viewAllWord')} (${recents.length})`}
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
-    </ScrollView>
-   </View>
-  );
-
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
-      <Stack.Screen options={{ headerShown: false }} />
-
-      {/* Zone status-bar FIXE (ne se replie jamais) */}
-      <View style={{ height: insets.top, backgroundColor: colors.bgDeep }} />
-
-      {/* Barre d'adresse + badge réseau — RÉTRACTABLE au scroll (hauteur animée) */}
-      <Animated.View style={{ height: barRowH ? Animated.multiply(barShown, barRowH) : undefined, overflow: 'hidden' }}>
-      <View
-        onLayout={(e) => { if (!barRowH) setBarRowH(e.nativeEvent.layout.height); }}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingHorizontal: spacing(1.5), paddingTop: spacing(1), paddingBottom: spacing(1) }}
-      >
-        <Pressable
-          onPress={() => setNetSheet(true)}
-          hitSlop={6}
-          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1), paddingVertical: spacing(0.85), opacity: pressed ? 0.6 : 1 })}
-        >
-          <RemoteIcon uri={chainIconUrl(chain.id)} label={chain.name} size={18} />
-          <Text style={{ color: colors.text, fontSize: 12, fontFamily: fonts.semibold, maxWidth: 74 }} numberOfLines={1}>{chain.name}</Text>
-          <Icon name="chevron" size={12} tone="muted" />
-        </Pressable>
-        <View
-          style={{
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing(0.75),
-            backgroundColor: colors.glass,
-            borderWidth: 1,
-            borderColor: colors.glassBorder,
-            borderRadius: radii.pill,
-            paddingHorizontal: spacing(1.5),
-          }}
-        >
-          {/* Favicon du site + indicateur de sécurité (vert vérifié / rouge suspect) */}
-          {activeTab?.url ? (
-            <Favicon host={origin} size={18} color={colors.glassStrong} label={origin.slice(0, 1).toUpperCase()} />
-          ) : (
-            <Icon name="search" size={14} tone="muted" />
-          )}
-          {activeTab?.url ? (
-            <SiteBadge sec={sec} />
-          ) : null}
-          <TextInput
-            ref={addressRef}
-            value={activeTab?.input ?? ''}
-            onChangeText={(v) => updateTab(activeId, { input: v })}
-            onSubmitEditing={() => go(activeTab?.input ?? '')}
-            placeholder={t('searchGoogleOrUrl')}
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-            returnKeyType="go"
-            selectTextOnFocus
-            clearButtonMode="while-editing"
-            style={{ flex: 1, color: colors.text, fontSize: 14, paddingVertical: spacing(1) }}
-          />
-          <Pressable onPress={() => router.push('/scan')} hitSlop={8}>
-            <Icon name="scan" size={16} color={colors.textMuted} />
-          </Pressable>
-          {activeTab?.url ? (
-            <>
-              <Pressable onPress={toggleCurrentFav} hitSlop={8}>
-                <Icon name={isFav ? 'starFilled' : 'star'} size={17} color={isFav ? colors.warning : colors.textMuted} />
-              </Pressable>
-              {progress > 0 && progress < 1 ? (
-                <Pressable onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.stopLoading()} hitSlop={8}>
-                  <Icon name="close" size={17} tone="muted" />
-                </Pressable>
-              ) : (
-                <Pressable onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.reload()} hitSlop={8}>
-                  <Icon name="refresh" size={16} tone="muted" />
-                </Pressable>
-              )}
-            </>
-          ) : null}
-        </View>
-      </View>
-      </Animated.View>
-
-      {/* Barre de progression de chargement (façon Safari/Chrome) */}
-      <LoadBar progress={activeTab?.url ? progress : 0} />
-
-      {/* Bandeau anti-phishing : le domaine imite peut-être une marque connue */}
-      {sec === 'suspicious' && activeTab?.url ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginHorizontal: spacing(1.5), marginBottom: spacing(1), backgroundColor: colors.danger + '1E', borderWidth: 1, borderColor: colors.danger + '66', borderRadius: radii.md, paddingVertical: spacing(1), paddingHorizontal: spacing(1.5) }}>
-          <Icon name="warning" size={16} color={colors.danger} />
-          <Text style={{ color: colors.text, flex: 1, fontSize: 12.5 }}>{t('suspiciousDomainBanner')}</Text>
-        </View>
-      ) : null}
-
-      {/* Corps : un conteneur plein écran PAR onglet (layout identique), l'actif
-          visible. Chaque onglet montre soit sa WebView, soit l'accueil dApps. */}
-      <Animated.View style={{ flex: 1, opacity: tabFade }}>
-        {tabs.map((t) => (
-          <View key={t.id} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: t.id === activeId ? 'flex' : 'none' }}>
-            {t.url ? (
-              <WebViewAny
-                ref={(r: WV | null) => {
-                  if (r) webrefs.current.set(t.id, r);
-                  else webrefs.current.delete(t.id);
-                }}
-                source={{ uri: t.url }}
-                originWhitelist={['https://*']}
-                onLoadProgress={(e: { nativeEvent: { progress: number } }) => {
-                  if (t.id === activeId) setProgress(e.nativeEvent.progress);
-                }}
-                onScroll={(e: { nativeEvent: { contentOffset: { y: number } } }) => {
-                  if (t.id === activeId) onWebScroll(e);
-                }}
-                injectedJavaScriptBeforeContentLoaded={injected}
-                onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
-                  const req = parseDappMessage(e.nativeEvent.data);
-                  if (req) onDappRequest(req, originOf(e.nativeEvent.url ?? t.url ?? ''), t.id);
-                }}
-                onNavigationStateChange={(nav: { url: string; title?: string; canGoBack: boolean; canGoForward: boolean }) => {
-                  updateTab(t.id, { input: nav.url, url: nav.url, title: nav.title ?? '', canBack: nav.canGoBack, canFwd: nav.canGoForward });
-                  if (t.id === activeId) setBrowserContext({ currentUrl: nav.url, currentTitle: nav.title || '' });
-                  const host = originOf(nav.url);
-                  const top = recentsRef.current[0];
-                  if (host && nav.title && !(top && top.host === host && top.title === nav.title)) {
-                    pushRecent({ url: nav.url, host, title: nav.title }, recentsRef.current).then(applyRecents);
-                  }
-                }}
-                allowsBackForwardNavigationGestures
-                setSupportMultipleWindows={false}
-                style={{ flex: 1, backgroundColor: colors.bgDeep }}
-              />
-            ) : (
-              renderHome()
-            )}
+        ) : null}
+        {recents.length > 0 && !activeTab.incognito ? (
+          <View style={{ gap: space[3] }}>
+            <Text variant="title2">{t('recents')}</Text>
+            <View>
+              {recents.slice(0, 5).map((r) => (
+                <ListRow key={r.host} style={{ paddingHorizontal: 0, minHeight: 56 }} left={<DappLogo host={r.host} size={32} />} title={siteName(r.host)} subtitle={r.host} onPress={() => go(r.url, siteName(r.host))} />
+              ))}
+            </View>
           </View>
-        ))}
-      </Animated.View>
-
-      {/* Barre d'outils bas façon Chrome : retour / avancer / accueil / onglets / menu.
-          Ombre vers le haut → effet « barre flottante » premium. */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: spacing(1), paddingTop: spacing(1), paddingBottom: insets.bottom || spacing(1), borderTopWidth: 1, borderTopColor: colors.glassBorder, backgroundColor: colors.bg, shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: -3 }, elevation: 12 }}>
-        <ToolBtn icon="chevron" flip dim={!activeTab?.canBack} onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.goBack()} />
-        <ToolBtn icon="forward" dim={!activeTab?.canFwd} onPress={() => (webrefs.current.get(activeId) as WV | undefined)?.goForward()} />
-        <ToolBtn icon="home" onPress={goHome} />
-        {/* Compteur d'onglets (carré, accentué s'il y en a plusieurs) → sélecteur */}
-        <Pressable onPress={() => setSwitcher(true)} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, alignItems: 'center', justifyContent: 'center' })}>
-          <View style={{ width: 25, height: 25, borderRadius: 8, borderWidth: 2, borderColor: tabs.length > 1 ? colors.accent : colors.text, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: tabs.length > 1 ? colors.accent : colors.text, fontSize: 12, fontFamily: fonts.bold }}>{tabs.length}</Text>
-          </View>
-        </Pressable>
-        <ToolBtn icon="more" onPress={() => setMenu(true)} />
-      </View>
-
-      {/* Sélecteur d'onglets */}
-      <Modal visible={switcher} transparent animationType="slide" onRequestClose={() => setSwitcher(false)}>
-        <View style={{ flex: 1, backgroundColor: colors.bgDeep, paddingTop: insets.top + spacing(1) }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing(2.5), paddingVertical: spacing(1.5) }}>
-            <Text style={typography.title}>{t('tabsWord')} ({tabs.length})</Text>
-            <Pressable onPress={() => setSwitcher(false)} hitSlop={8}>
-              <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>OK</Text>
-            </Pressable>
-          </View>
-          <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5), padding: spacing(2.5), paddingTop: 0 }}>
-            
-            {tabs.map((tb, i) => {
-              const host = tb.url ? originOf(tb.url) : '';
+        ) : null}
+        <View style={{ gap: space[3] }}>
+          <View style={{ flexDirection: 'row', gap: space[5] }}>
+            {VERIFIED_DAPPS.map((c) => {
+              const on = c.category === category;
               return (
-                <AnimatedTab key={tb.id} index={i} tb={tb} active={tb.id === activeId} host={host} onPress={() => { setActiveId(tb.id); setSwitcher(false); }} onClose={() => closeTab(tb.id)} />
+                <RNPressable key={c.category} onPress={() => { haptic.selection(); setCategory(c.category); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={{ paddingVertical: space[1], borderBottomWidth: 2, borderBottomColor: on ? colors.text : 'transparent' }}>
+                  <Text variant="body" tone={on ? 'primary' : 'secondary'}>{c.category}</Text>
+                </RNPressable>
               );
             })}
-            <AnimatedTab index={tabs.length} isNew onPress={newTab} />
-
-          </ScrollView>
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
+            {cat.items.map((d) => <DappTile key={d.host} host={d.host} label={d.name} onPress={() => go(d.url, d.name)} />)}
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
+            <Icon name="security" size={14} tone="muted" />
+            <Text variant="caption" tone="secondary" style={{ flex: 1, fontFamily: 'GeneralSans-Regular' }}>{t('verifiedDappsMsg')}</Text>
+          </View>
         </View>
-      </Modal>
+      </ScrollView>
+    );
+  };
 
-      {/* Menu (⋮) façon Chrome */}
-      <Modal visible={menu} transparent animationType="slide" onRequestClose={() => setMenu(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} onPress={() => setMenu(false)}>
-          <Pressable style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2), paddingBottom: insets.bottom + spacing(2) }}>
-            <MenuRow icon="add" label={t('newTabLabel')} onPress={() => { setMenu(false); newTab(); }} />
-            {activeTab?.url ? <MenuRow icon="refresh" label={t('refreshLabel')} onPress={() => { setMenu(false); (webrefs.current.get(activeId) as WV | undefined)?.reload(); }} /> : null}
-            {activeTab?.url ? <MenuRow icon={isFav ? 'starFilled' : 'star'} label={isFav ? t('removeFav') : t('addFav')} onPress={() => { setMenu(false); toggleCurrentFav(); }} /> : null}
-            {activeTab?.url ? <MenuRow icon="share" label={t('shareLabel')} onPress={() => { setMenu(false); Share.share({ message: activeTab.url! }).catch(() => {}); }} /> : null}
-            <MenuRow icon="home" label={t('homePage')} onPress={() => { setMenu(false); goHome(); }} />
-            <MenuRow icon="close" label={t('closeTabLabel')} onPress={() => { setMenu(false); closeTab(activeId); }} />
-            <MenuRow icon="history" label={t('clearHistory')} onPress={() => { setMenu(false); clearRecents(); applyRecents([]); toast.info(t('historyCleared')); }} />
-          </Pressable>
-        </Pressable>
-      </Modal>
+  const siteConn = origin ? connections.find((c) => c.host === origin) : undefined;
 
-      {/* Sélecteur de réseau (badge) + adresse du wallet */}
-      <Modal visible={netSheet} transparent animationType="slide" onRequestClose={() => setNetSheet(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} onPress={() => setNetSheet(false)}>
-          <Pressable style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: insets.bottom + spacing(2), gap: spacing(1.5), overflow: 'hidden' }}>
-            <LinearGradient colors={gradients.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-            {/* Poignée de glissement (façon bottom-sheet natif) */}
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.glassBorder, marginBottom: spacing(0.5) }} />
-            <Text style={typography.title}>{t('network')}</Text>
-            {account ? (
-              <Pressable
-                onPress={() => { Clipboard.setStringAsync(account.address); toast.success(t('addressCopied')); }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, padding: spacing(1.25) }}
-              >
-                <Icon name="wallet" size={16} color={colors.textMuted} />
-                <Text style={{ color: colors.text, flex: 1, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>
-                  {account.address.slice(0, 8)}…{account.address.slice(-6)}
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={{ height: insets.top, backgroundColor: colors.bg }} />
+      <Comet progress={activeTab.url ? progress : 0} />
+
+      {/* Contenu : UNE WebView (onglet actif) ou la page nouvel onglet */}
+      <View style={{ flex: 1 }}>
+        {activeTab.url ? (
+          webError ? (
+            <View style={{ flex: 1, justifyContent: 'center', padding: SCREEN_MARGIN }}>
+              <Surface style={{ gap: space[3], alignItems: 'center' }}>
+                <Icon name="warning" size={28} color={colors.warning} />
+                <Text variant="title2" style={{ textAlign: 'center' }}>{t('cannotOpenPage')}</Text>
+                <Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center' }}>
+                  {t('siteNotResponding')}
                 </Text>
-                <Icon name="copy" size={15} tone="muted" />
-              </Pressable>
-            ) : null}
-            <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ gap: spacing(0.5) }} showsVerticalScrollIndicator={false}>
-              {listChains({ includeTestnets: showTestnets }).filter((c) => c.family === 'evm').map((c) => {
-                const on = c.id === activeChain;
-                return (
-                  <Pressable
-                    key={c.id}
-                    onPress={() => {
-                      setActiveChain(c.id);
-                      if (activeTab?.url) inject(activeId, emitJs('chainChanged', '0x' + (c.evmChainId ?? 1).toString(16)));
-                      setNetSheet(false);
-                    }}
-                    style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1), paddingHorizontal: spacing(1), borderRadius: radii.md, backgroundColor: on ? colors.glass : pressed ? colors.glass : 'transparent' })}
-                  >
-                    <RemoteIcon uri={chainIconUrl(c.id)} label={c.name} size={30} />
-                    <Text style={[typography.body, { flex: 1, color: on ? colors.accent : colors.text, fontFamily: fonts.semibold }]} numberOfLines={1}>{c.name}</Text>
-                    {on ? <Icon name="check" size={18} color={colors.accent} /> : null}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+                <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }} numberOfLines={2}>{webError}</Text>
+                <Button label={t('retry')} icon="refresh" onPress={() => { setWebError(null); setProgress(0); }} />
+                <Button label={t('backToHome')} variant="secondary" onPress={goHome} />
+              </Surface>
+            </View>
+          ) : <WebViewAny
+            key={`${activeTab.id}:${activeTab.desktop ? 'd' : 'm'}`}
+            ref={(r: WV | null) => { webref.current = r; }}
+            source={{ uri: activeTab.url }}
+            originWhitelist={['https://*', 'about:blank']}
+            onShouldStartLoadWithRequest={onShouldStart}
+            onLoadProgress={(e: { nativeEvent: { progress: number } }) => setProgress(e.nativeEvent.progress)}
+            onError={(e: { nativeEvent?: { description?: string; code?: number } }) => {
+              setWebError(e.nativeEvent?.description || `${t('networkError')}${e.nativeEvent?.code ? ` (${e.nativeEvent.code})` : ''}`);
+            }}
+            onScroll={onWebScroll}
+            injectedJavaScriptBeforeContentLoaded={injected}
+            onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
+              const req = parseDappMessage(e.nativeEvent.data);
+              if (req) onDappRequest(req, originOf(e.nativeEvent.url ?? activeTab.url ?? ''), activeTab.id);
+            }}
+            onNavigationStateChange={(nav: { url: string; title?: string; canGoBack: boolean; canGoForward: boolean }) => {
+              updateTab(activeTab.id, { url: nav.url, title: nav.title ?? '', canBack: nav.canGoBack, canFwd: nav.canGoForward });
+              setBrowserContext({ currentUrl: nav.url, currentTitle: nav.title || '' });
+              const host = originOf(nav.url);
+              const top = recentsRef.current[0];
+              if (!activeTab.incognito && host && !(top && top.host === host)) pushRecent({ url: nav.url, host, title: siteName(host) }, recentsRef.current).then(applyRecents);
+            }}
+            allowsBackForwardNavigationGestures
+            pullToRefreshEnabled
+            setSupportMultipleWindows={false}
+            incognito={activeTab.incognito}
+            forceDarkOn={forceDark}
+            userAgent={activeTab.desktop ? DESKTOP_UA : undefined}
+            style={{ flex: 1, backgroundColor: colors.bg }}
+          />
+        ) : (
+          <NewTabPage />
+        )}
 
-      {/* Fenêtre d'approbation (connexion / signature / transaction) */}
-      {pending ? (
-        <Modal transparent animationType="slide" onRequestClose={deny}>
-          <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} behavior="padding">
-            <View style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
-              <Text style={typography.title}>
-                {pending.kind === 'connect' ? t('connectToSite') : pending.kind === 'tx' ? t('txRequested') : t('signatureRequested')}
-              </Text>
-
-              <GlassCard>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-                  <Favicon host={pending.origin} size={44} color={colors.glassStrong} label={pending.origin.slice(0, 1).toUpperCase()} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={typography.bodyStrong} numberOfLines={1}>{activeTab?.title || pending.origin}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      <RemoteIcon uri={chainIconUrl(chain.id)} label={chain.name} size={16} />
-                      <Text style={typography.muted}>{pending.origin} · {chain.name}</Text>
-                    </View>
-                  </View>
-                </View>
-              </GlassCard>
-
-              {/* Analyse de sécurité GoPlus */}
-              {phishSite ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.danger + '1E', borderWidth: 1, borderColor: colors.danger + '66', borderRadius: radii.md, padding: spacing(1.5) }}>
-                  <Icon name="warning" size={18} color={colors.danger} />
-                  <Text style={{ color: colors.text, flex: 1, fontSize: 13 }}>{t('phishingWarning')}</Text>
-                </View>
-              ) : null}
-              {risk === 'loading' ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                  <Icon name="security" size={15} color={colors.textMuted} />
-                  <Text style={typography.muted}>{t('securityScanning')}</Text>
-                </View>
-              ) : risk && risk.level === 'danger' ? (
-                <View style={{ backgroundColor: colors.danger + '1E', borderWidth: 1, borderColor: colors.danger + '66', borderRadius: radii.md, padding: spacing(1.5), gap: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                    <Icon name="warning" size={18} color={colors.danger} />
-                    <Text style={{ color: colors.danger, fontFamily: fonts.bold, flex: 1 }}>{t('riskDetected')}</Text>
-                  </View>
-                  {risk.reasons.map((r) => (
-                    <Text key={r} style={{ color: colors.text, fontSize: 13 }}>• {r}</Text>
-                  ))}
-                </View>
-              ) : risk && risk.level === 'ok' ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                  <Icon name="check" size={15} color={colors.up} />
-                  <Text style={{ color: colors.up, fontSize: 13, fontFamily: fonts.semibold }}>{t('noKnownRisk')}</Text>
-                </View>
-              ) : null}
-
-              {pending.kind === 'connect' ? (
-                <GlassCard>
-                  <Text style={typography.muted}>{t('canSeeAddress')}</Text>
-                  <Text style={typography.muted}>{t('canProposeTx')}</Text>
-                  <Text style={typography.muted}>{t('cannotMove')}</Text>
-                  <Text style={[typography.muted, { marginTop: spacing(1) }]}>{t('pinRequiredConnect')}</Text>
-                  {/* Se souvenir : reconnexion sans PIN les prochaines fois */}
-                  <Pressable onPress={() => setRememberSite((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: spacing(1.25) }}>
-                    <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: rememberSite ? colors.accent : colors.glassBorder, backgroundColor: rememberSite ? colors.accent : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                      {rememberSite ? <Icon name="check" size={14} color="#fff" /> : null}
-                    </View>
-                    <Text style={{ color: colors.text, flex: 1, fontSize: 14 }}>{t('rememberSite')}</Text>
-                  </Pressable>
-                </GlassCard>
-              ) : pending.kind === 'sign' ? (
-                <GlassCard>
-                  {pending.siwe ? (
-                    <>
-                      <Text style={typography.bodyStrong}>{t('signInTo').replace('{domain}', pending.siwe.domain)}</Text>
-                      {siweDomainMismatch(pending.siwe.domain, `https://${pending.origin}`) ? (
-                        <ErrorBox message={t('siweMismatch').replace('{a}', pending.siwe.domain).replace('{b}', pending.origin)} />
-                      ) : (
-                        <>
-                          <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>{t('provesOwnership')}</Text>
-                          <FreeSignature />
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <Text style={typography.muted}>{t('messageToSign')}</Text>
-                      <Text style={[typography.bodyStrong, { fontSize: 14, marginTop: spacing(0.5) }]} numberOfLines={8} selectable>
-                        {pending.text ?? t('binaryMessage')}
-                      </Text>
-                    </>
-                  )}
-                  <FreeSignature />
-                </GlassCard>
-              ) : pending.kind === 'typedData' ? (
-                <GlassCard>
-                  <Text style={typography.bodyStrong}>{pending.summary?.name ?? t('structuredData')}</Text>
-                  {pending.summary?.primaryType ? <Text style={typography.muted}>{t('typeWord')} : {pending.summary.primaryType}</Text> : null}
-                  {pending.summary?.details?.map((d) => {
-                    const danger = d.value.includes('⚠️');
-                    const val = d.value.length > 24 && d.value.startsWith('0x') ? `${d.value.slice(0, 8)}…${d.value.slice(-6)}` : d.value;
-                    return (
-                      <View key={d.label} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing(1), marginTop: 2 }}>
-                        <Text style={typography.muted}>{d.label}</Text>
-                        <Text style={[typography.bodyStrong, { color: danger ? colors.danger : colors.text, flexShrink: 1, textAlign: 'right' }]}>{val}</Text>
+        {/* Suggestions (mode édition) */}
+        {editing ? (
+          <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: colors.bg }}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: SCREEN_MARGIN, paddingTop: space[4], gap: space[2] }}>
+              {q ? (
+                <>
+                  {suggestions.map((s) => (
+                    <Pressable key={s.host} onPress={() => go(s.url, s.title)} noScale style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: 56 }}>
+                      <DappLogo host={s.host} size={32} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Highlight text={s.title || s.host} />
+                        <Text variant="caption" tone="tertiary" numberOfLines={1}>{s.host}</Text>
                       </View>
-                    );
-                  })}
-                  <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-                    {pending.summary?.primaryType === 'Permit' || pending.summary?.details?.length ? t('permitWarning') : t('verifyBeforeSign')}
-                  </Text>
-                  <FreeSignature />
-                </GlassCard>
+                      <Icon name={s.kind === 'fav' ? 'starFilled' : s.kind === 'verified' ? 'check' : 'history'} size={14} tone="faint" />
+                    </Pressable>
+                  ))}
+                  <ListRow left={<View style={{ width: 32, alignItems: 'center' }}><Icon name="search" size={18} tone="muted" /></View>} title={normalizeUrl(input) ? `${t('openUrl')} ${input.trim()}` : `${t('searchQuery')} « ${input.trim()} »`} subtitle={normalizeUrl(input) ? undefined : `${t('searchQuery')} ${ENGINES.find((e) => e.key === engine)?.label ?? ''}`} onPress={() => go(input)} />
+                </>
               ) : (
-                <GlassCard>
-                  <TxPreview tx={pending.raw} chain={chain} />
-                </GlassCard>
+                <>
+                  {favorites.length > 0 ? <Text variant="caption" tone="secondary">{t('favorites')}</Text> : null}
+                  {favorites.slice(0, 4).map((f) => <ListRow key={f.host} left={<DappLogo host={f.host} size={32} />} title={f.title || f.host} subtitle={f.host} onPress={() => go(f.url, f.title)} />)}
+                  {recents.length > 0 && !activeTab.incognito ? <Text variant="caption" tone="secondary" style={{ marginTop: space[2] }}>{t('recents')}</Text> : null}
+                  {(activeTab.incognito ? [] : recents.slice(0, 6)).map((r) => <ListRow key={r.host} left={<DappLogo host={r.host} size={32} />} title={r.title || r.host} subtitle={r.host} onPress={() => go(r.url, r.title)} />)}
+                </>
               )}
+            </ScrollView>
+          </View>
+        ) : null}
+      </View>
 
-              <GlassCard>
-                <Text style={typography.muted}>{t('pinLabel')}{biometricEnabled ? t('orBiometryBelow') : ''}</Text>
-                <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} editable={!busy} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
-                {biometricEnabled ? (
-                  <Pressable
-                    onPress={() => { void perform({ biometric: true }).catch(() => {}); }}
-                    disabled={busy}
-                    hitSlop={8}
-                    style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 8, marginTop: spacing(1), paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
-                  >
-                    <Icon name="security" size={16} color={colors.accent} />
-                    <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>{t('useBiometry')}</Text>
-                  </Pressable>
-                ) : null}
-              </GlassCard>
-
-              {error ? <ErrorBox message={error} /> : null}
-              <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
-                <View style={{ flex: 1 }}><Button label={t('refuse')} variant="ghost" onPress={deny} /></View>
-                <View style={{ flex: 1 }}><Button label={busy ? t('signing') : pending.kind === 'connect' ? t('connect') : t('sign')} loading={busy} onPress={submitPin} /></View>
+      {/* Chrome du bas : [←] [adresse] [onglets] [⋮] */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[2], paddingTop: space[2], paddingBottom: insets.bottom + space[2], backgroundColor: colors.bg }, chromeStyle]}>
+          {editing ? (
+            <>
+              <IconButton icon="close" label={t('cancel')} tone="ghost" onPress={() => { setEditing(false); setInput(''); }} />
+              <View style={{ flex: 1, height: 48, borderRadius: radius.round, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.textSecondary, flexDirection: 'row', alignItems: 'center', paddingHorizontal: space[4], gap: space[2] }}>
+                <Icon name="search" size={15} tone="muted" />
+                <TextInput autoFocus value={input} onChangeText={setInput} onSubmitEditing={() => go(input)} placeholder={t('searchOrEnterUrl')} placeholderTextColor={colors.textTertiary} autoCapitalize="none" autoCorrect={false} keyboardType="url" returnKeyType="go" selectTextOnFocus style={{ flex: 1, color: colors.text, fontSize: 16, fontFamily: 'GeneralSans-Medium', paddingVertical: 0 }} />
+                {input ? <RNPressable onPress={() => setInput('')} hitSlop={8}><Icon name="close" size={14} tone="muted" /></RNPressable> : null}
               </View>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
-      ) : null}
-    </View>
-  );
-}
+              <IconButton icon="scan" label={t('scanQr')} tone="ghost" onPress={() => router.push('/scan')} />
+            </>
+          ) : (
+            <>
+              <IconButton icon="caretLeft" label={t('previousPage')} tone="ghost" disabled={!activeTab.url && tabs.length === 1} onPress={() => (activeTab.canBack ? webref.current?.goBack() : activeTab.url ? goHome() : router.back())} />
+              <AddressBar
+                host={origin}
+                secure={!!activeTab.url?.startsWith('https://')}
+                danger={danger}
+                incognito={activeTab.incognito}
+                address={origin ? account?.address : undefined}
+                chainId={activeTab.chainId}
+                compact={compact}
+                loading={progress > 0 && progress < 1}
+                placeholder={t('searchOrEnterUrl')}
+                onPress={() => { compact.value = withSpring(0, springs.standard); setInput(activeTab.url ?? ''); setEditing(true); }}
+                onLongPress={() => { if (activeTab.url) { Clipboard.setStringAsync(activeTab.url); haptic.light(); toast.success(t('linkCopied'), origin); } }}
+                onAccount={() => setConnSheet(true)}
+              />
+              <RNPressable onPress={() => setSwitcher(true)} accessibilityLabel={`${tabs.length} ${t('tabs')}`} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text variant="micro" tabular>{tabs.length}</Text>
+                </View>
+              </RNPressable>
+              <IconButton icon="more" label={t('menu')} tone="ghost" onPress={() => setMenu(true)} />
+            </>
+          )}
+        </Animated.View>
+      </KeyboardAvoidingView>
 
-/** Bouton de la barre d'outils (icône, désactivable, chevron « flip » = retour). */
-function ToolBtn({ icon, onPress, disabled, dim, flip }: { icon: Parameters<typeof Icon>[0]['name']; onPress: () => void; disabled?: boolean; dim?: boolean; flip?: boolean }) {
-  const { colors } = useTheme();
-  // `dim` = grisé visuel MAIS toujours cliquable (l'état canGoBack/Forward de la
-  // WebView peut être périmé sur les dApps SPA ; goBack/goForward reste un no-op sûr).
-  return (
-    <Pressable onPress={onPress} disabled={disabled} hitSlop={6} style={({ pressed }) => ({ padding: spacing(1), opacity: disabled ? 0.3 : pressed ? 0.5 : dim ? 0.4 : 1 })}>
-      <View style={flip ? { transform: [{ rotate: '180deg' }] } : undefined}>
-        <Icon name={icon} size={24} color={colors.text} />
-      </View>
-    </Pressable>
-  );
-}
-
-/**
- * Barre de progression de chargement (façon Safari/Chrome) : trait accent fin sous
- * la barre d'adresse. Largeur = progression (0→1), puis fondu de sortie à 100 %.
- */
-function LoadBar({ progress }: { progress: number }) {
-  const { colors } = useTheme();
-  const width = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  const done = progress >= 1 || progress <= 0;
-  useEffect(() => {
-    if (done) {
-      // Termine la barre puis la fait disparaître en fondu.
-      // width (layout) impose useNativeDriver:false ; opacity DOIT rester false aussi,
-      // sinon le nœud passe côté natif et width plante ('width not supported by native').
-      Animated.sequence([
-        Animated.timing(width, { toValue: 1, duration: duration.base, easing: easing.out, useNativeDriver: false }),
-        Animated.timing(opacity, { toValue: 0, duration: duration.base, easing: easing.out, useNativeDriver: false }),
-      ]).start(() => width.setValue(0));
-    } else {
-      opacity.setValue(1);
-      Animated.timing(width, { toValue: progress, duration: duration.base, easing: easing.out, useNativeDriver: false }).start();
-    }
-  }, [progress, done, width, opacity]);
-  return (
-    <View pointerEvents="none" style={{ height: 2.5, marginTop: -1, backgroundColor: 'transparent' }}>
-      <Animated.View
-        style={{
-          height: 2.5,
-          borderRadius: 2,
-          backgroundColor: colors.accent,
-          opacity,
-          width: width.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-        }}
-      />
-    </View>
-  );
-}
-
-/** Titre de section avec petit accent vertical (accueil du navigateur). */
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  const { colors, typography } = useTheme();
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-      <View style={{ width: 3, height: 15, borderRadius: 2, backgroundColor: colors.accent }} />
-      <Text style={typography.section}>{children}</Text>
-    </View>
-  );
-}
-
-/** Ligne du menu (⋮). */
-function MenuRow({ icon, label, onPress }: { icon: Parameters<typeof Icon>[0]['name']; label: string; onPress: () => void }) {
-  const { colors, typography } = useTheme();
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1.75), paddingVertical: spacing(1.5), paddingHorizontal: spacing(1), opacity: pressed ? 0.6 : 1 })}>
-      <Icon name={icon} size={20} color={colors.text} />
-      <Text style={typography.body}>{label}</Text>
-    </Pressable>
-  );
-}
-
-/**
- * Logo d'un site : carré à COINS ARRONDIS (pas un cercle), logo centré sans
- * déformation (resizeMode contain), fond clair. Repli pastille (emoji/lettre)
- * sur la couleur de marque si le favicon échoue — façon Phantom/Rabby.
- */
-function Favicon({ host, size, color, label, emoji }: { host: string; size: number; color: string; label?: string; emoji?: string }) {
-  const { colors } = useTheme();
-  const [failed, setFailed] = useState(false);
-  // Carré à coins arrondis (radius ~ 32 %) — jamais un cercle ni une capsule.
-  const radius = Math.round(size * 0.32);
-  const imgSize = Math.round(size * 0.71); // logo centré, marge autour
-  const shadow = { shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 5 } as const;
-  if (failed || !host) {
-    return (
-      <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: color, alignItems: 'center', justifyContent: 'center', ...shadow }}>
-        <Text style={{ fontSize: size * 0.5, color: colors.text }}>{emoji ?? label ?? '◈'}</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...shadow }}>
-      <Image
-        source={{ uri: faviconUrl(host) }}
-        onError={() => setFailed(true)}
-        resizeMode="contain"
-        style={{ width: imgSize, height: imgSize }}
-      />
-    </View>
-  );
-}
-
-/**
- * Tuile carrée d'un raccourci (site / collection / favori) : conteneur à
- * dimensions FIXES (96×108) → le logo n'est jamais étiré en capsule.
- */
-function Tile({ host, name, color, emoji, width, onPress }: { host: string; name: string; color: string; emoji?: string; width: number; onPress: () => void }) {
-  const { colors } = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => Vibration.vibrate(6)}
-      style={({ pressed }) => ({ width, alignItems: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}
-    >
-      <View style={{ padding: 4, borderRadius: Math.round(56 * 0.32) + 4, backgroundColor: colors.glass }}>
-        <Favicon host={host} size={56} color={colors.glassStrong} emoji={emoji} label={name.slice(0, 1).toUpperCase()} />
-      </View>
-      <Text numberOfLines={1} style={{ marginTop: 8, color: colors.text, fontSize: 12, fontFamily: fonts.semibold, textAlign: 'center', maxWidth: width }}>
-        {name}
-      </Text>
-    </Pressable>
-  );
-}
-
-/** Bandeau vert rassurant : signature = gratuite (aucun frais de réseau). */
-function FreeSignature() {
-  const { colors } = useTheme();
-  const t = useT();
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(1) }}>
-      <Text style={{ fontSize: 13 }}>🔒</Text>
-      <Text style={{ color: colors.up, fontSize: 13, fontFamily: fonts.semibold }}>{t('freeSignature')}</Text>
-    </View>
-  );
-}
-
-
-function SiteBadge({ sec }: { sec: SecLevel }) {
-  const { colors } = useTheme();
-  
-  if (sec === 'safe') {
-    return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.up + '22', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6 }}>
-        <Icon name="security" size={12} color={colors.up} />
-        <Text style={{ color: colors.up, fontSize: 11, fontWeight: '600' }}>Vérifié</Text>
-      </View>
-    );
-  }
-  if (sec === 'suspicious') {
-    return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.danger + '22', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6 }}>
-        <Icon name="warning" size={12} color={colors.danger} />
-        <Text style={{ color: colors.danger, fontSize: 11, fontWeight: '600' }}>Risque</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.glass, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6 }}>
-      <Icon name="security" size={12} color={colors.textMuted} />
-      <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '600' }}>Inconnu</Text>
-    </View>
-  );
-}
-
-function AnimatedTab({ index, active, host, tb, onPress, onClose, isNew }: any) {
-  const { colors, typography } = useTheme();
-  const t = useT();
-  const anim = React.useRef(new Animated.Value(0)).current;
-  React.useEffect(() => {
-    Animated.timing(anim, { toValue: 1, duration: duration.base, easing: easing.out, delay: index * 40, useNativeDriver: true }).start();
-  }, [anim, index]);
-  
-  return (
-    <Animated.View style={{ width: '47%', opacity: anim, transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }, { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-      {isNew ? (
-        <Pressable onPress={onPress}>
-          <GlassCard style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: spacing(3), gap: 6, borderStyle: 'dashed' }}>
-            <Icon name="add" size={26} color={colors.accent} />
-            <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('newTabLabel')}</Text>
-          </GlassCard>
-        </Pressable>
-      ) : (
-        <Pressable onPress={onPress}>
-          <GlassCard style={{ gap: spacing(1), borderColor: active ? colors.accent : colors.glassBorder, borderWidth: active ? 1.5 : 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-              {host ? <Favicon host={host} size={22} color={colors.glassStrong} label={host.slice(0, 1).toUpperCase()} /> : <Icon name="home" size={20} color={colors.textMuted} />}
-              <Text style={[typography.bodyStrong, { flex: 1, fontSize: 13 }]} numberOfLines={1}>{tb.title || (host || t('homeWord'))}</Text>
-              <Pressable onPress={onClose} hitSlop={8}>
-                <Icon name="close" size={16} tone="muted" />
+      {/* Grille d'onglets */}
+      <Sheet visible={switcher} onClose={() => setSwitcher(false)}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text variant="title2">{t('tabs')} · {tabs.length}</Text>
+          <View style={{ flexDirection: 'row', gap: space[2] }}>
+            <Chip label={t('private')} icon="incognito" onPress={() => newTab(true)} />
+            <Chip label={t('newTab')} icon="add" onPress={() => newTab(false)} />
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
+          {tabs.map((tb) => {
+            const w = (screenW - SCREEN_MARGIN * 2 - space[3]) / 2;
+            const host = tb.url ? originOf(tb.url) : '';
+            const on = tb.id === activeId;
+            return (
+              <Pressable key={tb.id} onPress={() => { setActiveId(tb.id); setSwitcher(false); }} accessibilityLabel={tb.title || host || t('newTab')} style={{ width: w }}>
+                <View style={{ height: w * 0.75, borderRadius: radius.container, backgroundColor: tb.incognito ? colors.bg : colors.surface1, borderWidth: on ? 2 : 1, borderColor: on ? colors.text : tb.incognito ? colors.textSecondary : colors.border, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  {host ? <DappLogo host={host} size={40} /> : <Icon name={tb.incognito ? 'incognito' : 'add'} size={28} tone="faint" />}
+                  <RNPressable onPress={() => closeTab(tb.id)} hitSlop={8} accessibilityLabel={t('closeTab')} style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="close" size={14} />
+                  </RNPressable>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: space[1] }}>
+                  {host ? <DappLogo host={host} size={14} /> : null}
+                  <Text variant="caption" numberOfLines={1} style={{ flex: 1 }}>{tb.title || host || (tb.incognito ? t('privateTab') : t('newTab'))}</Text>
+                </View>
               </Pressable>
+            );
+          })}
+        </View>
+      </Sheet>
+
+      {/* Menu ⋮ — lignes directement sur le sheet (pas de carte dans le sheet) */}
+      <Sheet visible={menu} onClose={() => setMenu(false)}>
+        <View style={{ marginHorizontal: -space[5] }}>
+          {activeTab.url ? (
+            <>
+              <ListRow left={<Icon name={isFav ? 'starFilled' : 'star'} size={20} />} title={isFav ? t('removedFromFavorites') : t('addedToFavorites')} onPress={() => { setMenu(false); toggleCurrentFav(); }} />
+              <ListRow left={<Icon name="share" size={20} />} title={t('share')} onPress={() => { setMenu(false); Share.share({ message: activeTab.url! }).catch(() => {}); }} />
+              <ListRow left={<Icon name="search" size={20} />} title={t('searchInPage')} onPress={() => { setMenu(false); setFindSheet(true); }} />
+              <ListRow left={<Icon name="desktop" size={20} />} title={t('desktopVersion')} right={<Switch value={activeTab.desktop} onValueChange={(v) => updateTab(activeTab.id, { desktop: v })} />} />
+              <ListRow left={<Icon name="walletconnect" size={20} />} title={t('siteConnection')} subtitle={siteConn ? `${t('connected')} · ${chain.name}` : t('notConnected')} onPress={() => { setMenu(false); setConnSheet(true); }} />
+              <ListRow left={<Icon name="refresh" size={20} />} title={t('reload')} onPress={() => { setMenu(false); webref.current?.reload(); }} />
+              <Divider />
+            </>
+          ) : null}
+          <ListRow left={<Icon name="add" size={20} />} title={t('newTab')} onPress={() => newTab(false)} />
+          <ListRow left={<Icon name="incognito" size={20} />} title={t('privateTab')} subtitle={t('nothingRemembered')} onPress={() => newTab(true)} />
+          <ListRow left={<Icon name="appearance" size={20} />} title={t('darkSites')} right={<Switch value={forceDark} onValueChange={(v) => { setForceDark(v); saveForceDark(v); }} />} />
+          <ListRow left={<Icon name="search" size={20} />} title={t('searchEngine')} subtitle={ENGINES.find((e) => e.key === engine)?.label} onPress={() => { const i = ENGINES.findIndex((e) => e.key === engine); const n = ENGINES[(i + 1) % ENGINES.length].key; setEngine(n); saveEngine(n); }} />
+          <ListRow left={<Icon name="history" size={20} />} title={t('history')} subtitle={`${recents.length} site${recents.length > 1 ? 's' : ''}`} onPress={() => { setMenu(false); goHome(); }} />
+          <View style={{ height: space[3] }} />
+          <ListRow
+            left={<Icon name="broom" size={20} color={colors.danger} />}
+            title={t('clearData')}
+            subtitle={t('historyAndRememberedSites')}
+            style={{ minHeight: 56 }}
+            onPress={() => {
+              setMenu(false);
+              Alert.alert(`${t('clearData')} ?`, t('clearDataConfirmMsg'), [
+                { text: t('cancel'), style: 'cancel' },
+                {
+                  text: t('clearData'),
+                  style: 'destructive',
+                  onPress: () => {
+                    clearRecents();
+                    applyRecents([]);
+                    connections.forEach((c) => removeConnection(c.host));
+                    connected.current.clear();
+                    toast.success(t('dataCleared'));
+                  },
+                },
+              ]);
+            }}
+          />
+        </View>
+      </Sheet>
+
+      {/* Rechercher dans la page */}
+      <Sheet visible={findSheet} onClose={() => setFindSheet(false)}>
+        <Text variant="title2">{t('searchInPage')}</Text>
+        <Input autoFocus value={findQ} onChangeText={setFindQ} placeholder={t('textToFind')} onSubmitEditing={() => inject(`window.find(${JSON.stringify(findQ)}, false, false, true); true;`)} />
+        <View style={{ flexDirection: 'row', gap: space[2] }}>
+          <Button label={t('previous')} variant="secondary" size="md" style={{ flex: 1 }} onPress={() => inject(`window.find(${JSON.stringify(findQ)}, false, true, true); true;`)} />
+                    <Button label={t('next')} size="md" style={{ flex: 1 }} onPress={() => inject(`window.find(${JSON.stringify(findQ)}, false, false, true); true;`)} />
+        </View>
+      </Sheet>
+
+      {/* Connexion au site & réseau */}
+      <Sheet visible={connSheet} onClose={() => setConnSheet(false)}>
+        <Text variant="title2">{t('siteConnection')}</Text>
+        {origin ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], paddingVertical: space[2] }}>
+            <DappLogo host={origin} size={40} />
+            <View style={{ flex: 1 }}>
+              <Text variant="body" style={{ fontWeight: '600' }}>{activeTab.title || origin}</Text>
+              <Text variant="caption" tone="secondary">{origin} · {chain.name}</Text>
             </View>
-            <Text style={typography.muted} numberOfLines={1}>{host || t('newTabLabel')}</Text>
-          </GlassCard>
-        </Pressable>
-      )}
-    </Animated.View>
+          </View>
+        ) : null}
+
+        {siteConn ? (
+          <Button
+            label={t('disconnect')}
+            variant="destructive"
+            size="md"
+            onPress={() => {
+              if (origin) {
+                removeConnection(origin);
+                connected.current.delete(origin);
+                inject(emitJs('accountsChanged', []));
+                inject(emitJs('disconnect', {}));
+              }
+              setConnSheet(false);
+              toast.success(t('disconnected'), origin);
+            }}
+          />
+        ) : null}
+
+        <Divider />
+        <Text variant="body" style={{ fontWeight: '600' }}>{t('chooseActiveNetwork')}</Text>
+        <Input
+          value={netQ}
+          onChangeText={setNetQ}
+          placeholder={t('searchNetwork')}
+        />
+        <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false}>
+          {listChains({ includeTestnets: showTestnets })
+            .filter((c) => c.family === 'evm' && (!netQ || c.name.toLowerCase().includes(netQ.toLowerCase())))
+            .map((c) => {
+              const on = c.id === (activeTab.chainId ?? activeChain);
+              return (
+                <ListRow
+                  key={c.id}
+                  left={<RemoteIcon uri={chainIconUrl(c.id)} label={c.name} size={24} />}
+                  title={c.name}
+                  right={on ? <Icon name="check" size={20} color={colors.text} /> : null}
+                  onPress={() => {
+                    updateTab(activeTab.id, { chainId: c.id });
+                    setActiveChain(c.id);
+                    if (c.evmChainId) {
+                      inject(emitJs('chainChanged', '0x' + c.evmChainId.toString(16)));
+                    }
+                    setConnSheet(false);
+                  }}
+                />
+              );
+            })}
+        </ScrollView>
+      </Sheet>
+
+      {/* Demande de connexion EIP-1193 */}
+      <Sheet visible={!!pending && pending.kind === 'connect' && !signConfirm} onClose={deny}>
+        <View style={{ alignItems: 'center', gap: space[2], paddingVertical: space[2] }}>
+          {pending?.origin ? <DappLogo host={pending.origin} size={56} /> : null}
+          <Text variant="title2" style={{ textAlign: 'center' }}>{t('connectToSite')}</Text>
+          <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>{pending?.origin} · {chain.name}</Text>
+        </View>
+
+        {danger || phishSite ? (
+          <View style={{ backgroundColor: colors.danger, padding: space[3], borderRadius: radius.container, borderWidth: 1, borderColor: colors.danger, gap: space[1] }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+              <Icon name="warning" size={18} color={colors.text} />
+              <Text variant="body" style={{ color: colors.text, fontWeight: '600' }}>{t('riskDetected')}</Text>
+            </View>
+          </View>
+        ) : null}
+
+        <Surface style={{ padding: space[3], borderRadius: radius.container, gap: space[2] }}>
+          <Text variant="caption" tone="secondary">{t('canSeeAddress')}</Text>
+          <Text variant="caption" tone="secondary">{t('canProposeTx')}</Text>
+          <Text variant="caption" tone="secondary">{t('cannotMove')}</Text>
+          <Divider />
+          <Pressable onPress={() => setRememberSite((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+            <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: rememberSite ? colors.text : colors.border, backgroundColor: rememberSite ? colors.text : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+              {rememberSite ? <Icon name="check" size={14} color={colors.bg} /> : null}
+            </View>
+            <Text variant="body">{t('rememberSite')}</Text>
+          </Pressable>
+        </Surface>
+
+        <View style={{ flexDirection: 'row', gap: space[2], marginTop: space[2] }}>
+          <Button label={t('refuse')} variant="secondary" size="lg" style={{ flex: 1 }} onPress={deny} />
+          <Button label={t('connect')} size="lg" style={{ flex: 1 }} onPress={() => setSignConfirm(true)} />
+        </View>
+      </Sheet>
+
+      {/* Signature ou transaction */}
+      <SignSheet
+        visible={!!pending && pending.kind !== 'connect' && !signConfirm}
+        peer={pending ? { name: activeTab.title || pending.origin, url: `https://${pending.origin}` } : null}
+        verify={danger || phishSite ? { validation: 'INVALID', isScam: true } : { validation: 'VALID' }}
+        explanation={explanation}
+        simulating={sim === 'loading'}
+        network={chain.name}
+        address={account?.address}
+        raw={
+          pending?.kind === 'tx'
+            ? JSON.stringify(pending.raw, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 2)
+            : pending?.kind === 'sign'
+            ? pending.text || pending.hex
+            : pending?.kind === 'typedData'
+            ? JSON.stringify(pending.data, null, 2)
+            : undefined
+        }
+        onReject={deny}
+        onSign={() => setSignConfirm(true)}
+        signLabel={pending?.kind === 'tx' ? t('wcSignConfirm') : t('wcSign')}
+      />
+
+      {/* Confirmation par code PIN ou biométrie */}
+      <ConfirmUnlock
+        visible={signConfirm}
+        title={explanation?.title ?? (pending?.kind === 'connect' ? t('connectToSite') : pending?.kind === 'tx' ? t('confirmTx') : t('wcSign'))}
+        subtitle={explanation?.headline ?? pending?.origin}
+        perform={perform}
+        onDone={() => setSignConfirm(false)}
+        onCancel={() => setSignConfirm(false)}
+        aiContext={pending?.kind === 'tx' ? { to: pending.to ?? '', value: pending.value.toString(), method: 'eth_sendTransaction', url: `https://${pending.origin}` } : undefined}
+      />
+    </View>
   );
 }

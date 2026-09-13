@@ -1,29 +1,29 @@
-# 🔐 Nova Wallet
+# 🔐 Kalyx Wallet
 
 ### Secure. Non-custodial. Multi-chain.
 
-Nova Wallet est un **wallet crypto mobile non-custodial** construit avec **React Native, Expo et TypeScript**.
+Kalyx Wallet est un **wallet crypto mobile non-custodial** construit avec **React Native, Expo et TypeScript**.
 
 Le projet vise une expérience moderne et accessible tout en gardant une architecture où les secrets du wallet restent sous le contrôle de l'utilisateur.
 
-Nova Wallet ne dispose pas d'un **backend propriétaire de conservation** : les wallets et secrets sont gérés localement sur l'appareil. Certaines fonctionnalités utilisent néanmoins des services tiers tels que des RPC, explorers, APIs de marché, WalletConnect ou LI.FI.
+Kalyx Wallet ne dispose pas d'un **backend propriétaire de conservation** : les wallets et secrets sont gérés localement sur l'appareil. Certaines fonctionnalités utilisent néanmoins des services tiers tels que des RPC, explorers, APIs de marché, WalletConnect ou LI.FI.
 
 > ⚠️ **Statut : développement actif**
 >
-> Nova Wallet n'a pas fait l'objet d'un audit de sécurité indépendant.
+> Kalyx Wallet n'a pas fait l'objet d'un audit de sécurité indépendant.
 > Le projet ne doit pas être considéré comme un produit audité ni comme une solution de conservation de fonds importants.
 
 ---
 
 
 ## 📲 Télécharger l'APK
-[![Download APK](https://img.shields.io/badge/Download-APK%20v0.0.1-brightgreen)](https://github.com/ahmedsignate2/nova-wallet/releases/latest)
+[![Download APK](https://img.shields.io/badge/Download-APK%20v0.0.1-brightgreen)](https://github.com/ahmedsignate2/kalyx-wallet/releases/latest)
 
 
 ## 🎬 Démo
 
 <div align="center">
-  <img src="docs/demo.gif" width="300" alt="Nova Wallet Demo" />
+  <img src="docs/demo.gif" width="300" alt="Kalyx Wallet Demo" />
 </div>
 
 ## 📱 Screenshots
@@ -38,11 +38,11 @@ Nova Wallet ne dispose pas d'un **backend propriétaire de conservation** : les 
 
 ## 💼 Acquisition
 
-Nova Wallet est actuellement proposé à l'acquisition.
+Kalyx Wallet est actuellement proposé à l'acquisition.
 
-Le repository comprend notamment le code source original de Nova Wallet, le moteur applicatif et crypto, l'application mobile, les intégrations développées pour le projet, la documentation technique et le travail de développement existant, sous réserve des licences et droits applicables aux composants tiers.
+Le repository comprend notamment le code source original de Kalyx Wallet, le moteur applicatif et crypto, l'application mobile, les intégrations développées pour le projet, la documentation technique et le travail de développement existant, sous réserve des licences et droits applicables aux composants tiers.
 
-Pour une acquisition, une licence commerciale, un partenariat ou une demande professionnelle : **amsssr400@gmail.com**
+Pour une acquisition, une licence commerciale, un partenariat ou une demande professionnelle : via nos canaux officiels **Telegram [@kalyxntw](https://t.me/kalyxntw)** ou **X [@kalyxntw](https://x.com/kalyxntw)**
 
 ---
 
@@ -66,7 +66,7 @@ Pour une acquisition, une licence commerciale, un partenariat ou une demande pro
 
 ### 🔗 Multi-chain
 
-Nova utilise une architecture basée sur des **Chain Adapters** permettant de partager le moteur EVM entre de nombreux réseaux.
+Kalyx utilise une architecture basée sur des **Chain Adapters** permettant de partager le moteur EVM entre de nombreux réseaux.
 
 Le catalogue actuel comprend un large ensemble de réseaux, incluant des réseaux EVM, Bitcoin, Solana et des testnets.
 
@@ -166,7 +166,7 @@ Les testnets sont séparés du catalogue mainnet et masqués par défaut.
 
 ## 💸 Transactions
 
-Selon le réseau, Nova prend en charge :
+Selon le réseau, Kalyx prend en charge :
 
 - Envoi
 - Réception
@@ -203,9 +203,9 @@ Les secrets ne sont pas destinés à être envoyés sur le réseau ni écrits da
 
 ## 🔐 Stockage local
 
-Nova utilise `expo-secure-store` pour le stockage sécurisé local.
+Kalyx utilise `expo-secure-store` pour le stockage sécurisé local.
 
-Le coffre protégé par PIN est séparé du mécanisme biométrique. Lorsque l'authentification biométrique est activée, Nova effectue une authentification biométrique explicite avant d'accéder au secret biométrique stocké. La biométrie ne signifie donc pas que toute la seed est directement protégée par Face ID ou Touch ID.
+Le coffre protégé par PIN est séparé du mécanisme biométrique. Lorsque l'authentification biométrique est activée, Kalyx effectue une authentification biométrique explicite avant d'accéder au secret biométrique stocké. La biométrie ne signifie donc pas que toute la seed est directement protégée par Face ID ou Touch ID.
 
 ## 👆 Opérations sensibles
 
@@ -220,7 +220,7 @@ Le déverrouillage peut être requis avant notamment :
 
 ## 🚨 Analyse de risques
 
-Nova contient plusieurs mécanismes de protection :
+Kalyx contient plusieurs mécanismes de protection :
 
 - checksum EIP-55
 - validation des adresses
@@ -240,7 +240,7 @@ Ces mécanismes réduisent certains risques mais ne constituent pas une garantie
 
 # 🔗 WalletConnect & dApps
 
-Nova intègre WalletConnect pour les connexions et signatures avec des dApps.
+Kalyx intègre WalletConnect pour les connexions et signatures avec des dApps.
 
 Les demandes peuvent être présentées avec notamment :
 
@@ -259,7 +259,7 @@ Le moteur contient également une vérification des incohérences de domaine SIW
 
 # 🔄 Swap & Bridge
 
-Nova utilise **LI.FI** pour les opérations de swap et de bridge EVM.
+Kalyx utilise **LI.FI** pour les opérations de swap et de bridge EVM.
 
 La configuration actuelle contient :
 
@@ -305,13 +305,13 @@ Le moteur contient une couche de classification permettant d'identifier différe
 
 ### Approbations
 
-Nova contient également des outils pour analyser et révoquer des approbations ERC-20.
+Kalyx contient également des outils pour analyser et révoquer des approbations ERC-20.
 
 ---
 
 # 📈 Marché & portefeuille
 
-Nova intègre des données de marché et de portefeuille pour :
+Kalyx intègre des données de marché et de portefeuille pour :
 
 - prix crypto
 - variations 24h
@@ -330,7 +330,7 @@ Les intégrations de données incluent notamment CoinGecko, Alchemy et différen
 
 # 💾 Sauvegarde chiffrée
 
-Nova propose une sauvegarde chiffrée côté client.
+Kalyx propose une sauvegarde chiffrée côté client.
 
 ```text
 Seed
@@ -348,7 +348,7 @@ Partage via le système natif
 
 La seed est chiffrée avant le partage.
 
-Aucune seed n'est envoyée à un backend Nova.
+Aucune seed n'est envoyée à un backend Kalyx.
 
 La sauvegarde peut ensuite être partagée via les mécanismes natifs disponibles sur l'appareil.
 
@@ -368,7 +368,7 @@ Cependant, l'intégration hardware wallet complète n'est pas considérée comme
 
 # 📷 QR Codes & Deep Links
 
-Nova possède un moteur de parsing permettant d'identifier notamment :
+Kalyx possède un moteur de parsing permettant d'identifier notamment :
 
 - adresses crypto
 - URIs de paiement
@@ -521,7 +521,7 @@ Solana utilise Ed25519 et une dérivation distincte des réseaux EVM.
 # 📁 Structure du projet
 
 ```
-nova-wallet/
+kalyx-wallet/
 │
 ├── app/                # Écrans Expo Router
 ├── src/                # 🧠 Moteur crypto / blockchain
@@ -605,8 +605,8 @@ nova-wallet/
 ### Cloner
 
 ```bash
-git clone https://github.com/ahmedsignate2/nova-wallet.git
-cd nova-wallet
+git clone https://github.com/ahmedsignate2/kalyx-wallet.git
+cd kalyx-wallet
 npm install
 ```
 
@@ -742,7 +742,7 @@ Les suggestions, rapports de bugs, demandes de fonctionnalités et amélioration
 - 💡 Suggestions : GitHub Discussions
 - 🐛 Bugs : GitHub Issues
 - 🔐 Vulnérabilités : SECURITY.md
-- 📧 Contact professionnel : amsssr400@gmail.com
+- 💬 Contact officiel : Telegram [@kalyxntw](https://t.me/kalyxntw) · X [@kalyxntw](https://x.com/kalyxntw)
 
 Avant de proposer une modification :
 
@@ -766,7 +766,7 @@ Les vulnérabilités de sécurité ne doivent pas être publiées dans les GitHu
 
 Contact sécurité :
 
-**amsssr400@gmail.com**
+**Telegram [@kalyxntw](https://t.me/kalyxntw) · X [@kalyxntw](https://x.com/kalyxntw)**
 
 Ne transmettez jamais dans un rapport :
 
@@ -783,7 +783,7 @@ Voir SECURITY.md.
 
 # 💙 Support the Project
 
-Si vous souhaitez soutenir le développement de Nova Wallet :
+Si vous souhaitez soutenir le développement de Kalyx Wallet :
 
 **BTC**
 ```
@@ -803,7 +803,7 @@ Les contributions peuvent aider à financer :
 
 # ⚠️ Security Warning
 
-Nova Wallet ne vous demandera jamais :
+Kalyx Wallet ne vous demandera jamais :
 
 - votre phrase de récupération
 - votre clé privée
@@ -815,11 +815,11 @@ Nova Wallet ne vous demandera jamais :
 
 # ⚠️ Avertissement
 
-Nova Wallet manipule des actifs numériques et des secrets cryptographiques.
+Kalyx Wallet manipule des actifs numériques et des secrets cryptographiques.
 
 Le projet est en développement actif et n'a pas fait l'objet d'un audit de sécurité indépendant.
 
-N'utilisez pas Nova Wallet avec des montants que vous ne pouvez pas vous permettre de perdre.
+N'utilisez pas Kalyx Wallet avec des montants que vous ne pouvez pas vous permettre de perdre.
 
 Les RPC, explorers, APIs de marché, WalletConnect, LI.FI et autres services tiers peuvent avoir leurs propres limitations, indisponibilités ou risques.
 
@@ -831,15 +831,15 @@ Copyright © 2026 Ahamed Signate.
 
 All rights reserved.
 
-Nova Wallet, son code source original, son architecture, ses designs, sa documentation et ses assets originaux sont protégés par leurs droits respectifs.
+Kalyx Wallet, son code source original, son architecture, ses designs, sa documentation et ses assets originaux sont protégés par leurs droits respectifs.
 
-Aucune utilisation commerciale, redistribution, revente, sous-licence ou création de produit dérivé à partir des éléments propriétaires de Nova Wallet n'est autorisée sans autorisation écrite préalable du détenteur des droits.
+Aucune utilisation commerciale, redistribution, revente, sous-licence ou création de produit dérivé à partir des éléments propriétaires de Kalyx Wallet n'est autorisée sans autorisation écrite préalable du détenteur des droits.
 
 Les bibliothèques tierces, dépendances, marques, logos et autres composants externes restent soumis à leurs licences et droits respectifs.
 
 ---
 
-# 🦁 Nova Wallet
+# 🦁 Kalyx Wallet
 
 **Your keys. Your wallet. Your control.**
 

@@ -1,19 +1,21 @@
 import { haptic } from "../lib/haptics";
 import { sound } from "../lib/sound";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { View, Text, TextInput, Pressable, Image, ScrollView, Animated, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Pressable as RNPressable } from 'react-native';
+import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { NovaRing } from '../ui/NovaRing';
-import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
-import { Button } from '../ui/components';
-import { BridgeTrackerModal } from '../ui/BridgeTrackerModal';
+import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState } from '../ui/kit';
+import { BridgeProgress } from '../ui/BridgeProgress';
 import { SuccessModal } from '../ui/SuccessModal';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { notifyAndLog } from '../lib/notificationCenter';
 import { watchConfirmation } from '../lib/txWatch';
 import { friendlyTxError } from '../lib/txError';
 import { Icon } from '../ui/icon';
-import { fonts, radii, spacing, useTheme } from '../ui/theme';
+import { useTheme } from '../ui/theme';
+import { space, SCREEN_MARGIN, radius, springs } from '../ui/tokens';
 import { useWallet, type SwapStatus, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import {
@@ -21,12 +23,16 @@ import {
   getErc20Tokens,
   getBestQuote,
   parseAmount,
-  formatBalance,
+  formatTokenAmount,
+  formatInputAmount,
   formatAmount,
+  formatFiat,
   isWalletError,
   NATIVE_TOKEN,
-  NOVA_FEE,
+  KALYX_FEE,
   listChains,
+  estimateGasReserve,
+  type GasReserve,
   type SwapQuote,
   EvmChainAdapter,
   SolanaChainAdapter,
@@ -34,24 +40,8 @@ import {
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { TokenPicker } from '../ui/TokenPicker';
 
-/**
- * Gas reserve to subtract from MAX when swapping native tokens.
- * Prevents "insufficient funds for gas" on the final transaction.
- * Conservative estimates per chain family.
- */
-const GAS_RESERVE: Record<string, bigint> = {
-  // EVM: ~0.003 ETH/BNB/AVAX covers most swap+approve gas
-  ethereum: 3_000_000_000_000_000n,   // 0.003 ETH
-  polygon: 30_000_000_000_000_000n,   // 0.03 POL (cheap gas but higher unit)
-  base: 1_000_000_000_000_000n,       // 0.001 ETH (L2, cheap)
-  bnb: 3_000_000_000_000_000n,        // 0.003 BNB
-  arbitrum: 1_000_000_000_000_000n,   // 0.001 ETH (L2)
-  optimism: 1_000_000_000_000_000n,   // 0.001 ETH (L2)
-  avalanche: 30_000_000_000_000_000n, // 0.03 AVAX
-  linea: 1_000_000_000_000_000n,      // 0.001 ETH (L2)
-  scroll: 1_000_000_000_000_000n,     // 0.001 ETH (L2)
-  blast: 1_000_000_000_000_000n,      // 0.001 ETH (L2)
-};
+/** Durée de validité d'un devis avant auto-actualisation (s). */
+const QUOTE_TTL_S = 30;
 
 // Clés i18n des étapes du swap (traduites à l'affichage via t()).
 const STATUS_KEY = {
@@ -72,13 +62,9 @@ function isNativeTokenAddress(address?: string): boolean {
   );
 }
 
-function logoFor(novaChain: string, tok: Tok): string {
-  if (tok.logo) return tok.logo;
-  return 'https://via.placeholder.com/18'; // Fallback
-}
-
 export default function Swap() {
-  const { colors, typography } = useTheme();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const t = useT();
   const activeChain = useWallet((s) => s.activeChain);
   const account = useWallet((s) => s.account);
@@ -103,10 +89,27 @@ export default function Swap() {
   const [pickerState, setPickerState] = useState<{ visible: boolean; side: 'from' | 'to' }>({ visible: false, side: 'from' });
   const [slippage, setSlippage] = useState('0.005');
   const [countdown, setCountdown] = useState(0);
-  const countdownInterval = useRef<any>(null);
+  const [stale, setStale] = useState(false);
+  const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [nativeBalance, setNativeBalance] = useState<bigint | null>(null);
   const [selectedTokenBalance, setSelectedTokenBalance] = useState<bigint | null>(null);
+  /**
+   * Réserve de gas DYNAMIQUE (estimée sur le RPC du réseau actif) : ce qu'on
+   * garde de natif pour que la tx passe. `null` = pas encore chargée.
+   */
+  const [gasReserve, setGasReserve] = useState<GasReserve | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setGasReserve(null);
+    estimateGasReserve(getAdapter(activeChain)).then((r) => {
+      if (!cancelled) setGasReserve(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeChain]);
+  const reserveRaw = gasReserve?.raw ?? 0n;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -192,13 +195,15 @@ export default function Swap() {
     setQuote(null);
     setConfirming(false);
     setError(null);
+    setStale(false);
   };
 
   const fromTok = fromTokens[from] ?? fromTokens[0];
   const toTokens = tokensByChain[toChain] ?? [];
   const toTok = toTokens[to] ?? toTokens[0];
   const isBridge = toChain !== activeChain;
-  const flipAnim = useRef(new Animated.Value(0)).current;
+  const flip = useSharedValue(0);
+  const flipStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${flip.value * 180}deg` }] }));
 
   // Récupère le solde du token sélectionné s'il n'est pas natif
   useEffect(() => {
@@ -250,7 +255,9 @@ export default function Swap() {
     setFrom(to);
     setTo(from);
     reset();
-    Animated.spring(flipAnim, { toValue: 1, useNativeDriver: true, tension: 60, friction: 5 }).start(() => flipAnim.setValue(0));
+    stopCountdown();
+    flip.value = 0;
+    flip.value = withSpring(1, springs.snappy);
   };
 
   const getTokenBalance = (): bigint => {
@@ -265,74 +272,143 @@ export default function Swap() {
     return heldTok ? (heldTok as any).balance ?? 0n : 0n;
   };
 
-  const onMax = () => {
-    if (!fromTok) return;
+  /**
+   * Solde DISPONIBLE pour l'échange : solde brut moins la réserve de gas si
+   * le token source est la monnaie native. Les raccourcis (MAX, 50 %) et la
+   * validation travaillent sur cette valeur, jamais sur le solde brut.
+   */
+  const getAvailable = (): bigint => {
+    if (!fromTok) return 0n;
     const raw = getTokenBalance();
-    if (isNativeTokenAddress(fromTok.address)) {
-      const reserve = GAS_RESERVE[activeChain] ?? 3_000_000_000_000_000n;
-      const maxRaw = raw > reserve ? raw - reserve : 0n;
-      setAmount(formatBalance(maxRaw, fromTok.decimals, fromTok.decimals));
-    } else {
-      setAmount(formatBalance(raw, fromTok.decimals, fromTok.decimals));
-    }
+    if (!isNativeTokenAddress(fromTok.address)) return raw;
+    return raw > reserveRaw ? raw - reserveRaw : 0n;
   };
 
-  const onHalf = () => {
+  const setPercent = (pct: bigint) => {
     if (!fromTok) return;
-    const raw = getTokenBalance();
-    setAmount(formatBalance(raw / 2n, fromTok.decimals, fromTok.decimals));
+    const avail = getAvailable();
+    setAmount(avail > 0n ? formatInputAmount((avail * pct) / 100n, fromTok.decimals) : '0');
   };
+  const onMax = () => setPercent(100n);
+  const onHalf = () => setPercent(50n);
 
-  const onQuote = async () => {
-    reset();
-    if (!isBridge && fromTok.address === toTok.address) { setError(t('swapTwoTokens')); return; }
-    let raw: bigint;
-    try { raw = parseAmount(amount, fromTok.decimals).raw; } catch (e) { setError(isWalletError(e) ? e.message : t('amountInvalid')); return; }
-    if (selectedTokenBalance !== null && raw > selectedTokenBalance) {
-      setError(t('errInsufficientFunds'));
-      return;
-    }
-    
-    // Check if user has enough native SOL to pay for SPL swap fees
-    if (getAdapter(activeChain).config.family === 'solana' && fromTok.address !== '11111111111111111111111111111111') {
-      try {
-        const bal = await getAdapter(activeChain).getBalance(account!.address);
-        if (bal.raw < 5000n) {
-          setError(t('errInsufficientFunds'));
-          return;
-        }
-      } catch (e) {
-        console.warn('Failed to check SOL balance for gas', e);
-      }
-    }
-
-    setLoading(true);
-    try {
-      const w = useWallet.getState();
-      const storedAccount = w.accounts[w.activeAccountIndex];
-      const toFamily = getAdapter(toChain).config.family;
-      let targetAddress = account!.address;
-      if (toFamily === 'solana' && storedAccount.solAddress) targetAddress = storedAccount.solAddress;
-      else if (toFamily === 'bitcoin' && storedAccount.btcAddress) targetAddress = storedAccount.btcAddress;
-      else if (toFamily === 'evm') targetAddress = storedAccount.evmAddress;
-
-      const q = await getBestQuote({ fromChainId: activeChain, toChainId: toChain, fromToken: fromTok.address, toToken: toTok.address, fromAmount: raw.toString(), fromAddress: account!.address, toAddress: targetAddress });
-      if (!q) setError(t('noRoute')); else setQuote(q);
-    } catch (e) { console.error('[swap.tsx] Erreur getBestQuote:', e); setError(friendlyTxError(e, t as any)); } finally { setLoading(false); }
+  // Auto-refresh du devis : en PAUSE pendant la confirmation/exécution (sinon
+  // la fenêtre PIN se fermait au milieu de la saisie) et STOPPÉ après une erreur
+  // (sinon on spammait l'API toutes les 15 s sans route).
+  const pausedRef = useRef(false);
+  useEffect(() => {
+    pausedRef.current = confirming || step !== null;
+  }, [confirming, step]);
+  const stopCountdown = () => {
     if (countdownInterval.current) clearInterval(countdownInterval.current);
-    setCountdown(15);
+    countdownInterval.current = null;
+    setCountdown(0);
+  };
+  const startCountdown = () => {
+    stopCountdown();
+    setCountdown(QUOTE_TTL_S);
     countdownInterval.current = setInterval(() => {
-      setCountdown(c => {
+      if (pausedRef.current) return; // on gèle le compteur tant qu'on confirme
+      setCountdown((c) => {
         if (c <= 1) {
-           clearInterval(countdownInterval.current!);
-           onQuote(); // Auto-refresh
-           return 0;
+          void onQuote({ auto: true });
+          return QUOTE_TTL_S;
         }
         return c - 1;
       });
     }, 1000);
   };
-  
+
+  /** Vérifications locales AVANT tout appel réseau (messages immédiats et précis). */
+  const preflight = async (raw: bigint): Promise<string | null> => {
+    if (!isBridge && fromTok.address.toLowerCase() === toTok.address.toLowerCase()) return t('swapTwoTokens');
+    const bal = getTokenBalance();
+    // Réserve : celle du state, ou ré-estimée à la volée si pas encore chargée.
+    const reserve = gasReserve?.raw ?? (await estimateGasReserve(getAdapter(activeChain))).raw;
+    const reserveStr = `${formatTokenAmount(reserve, chain.nativeDecimals)} ${chain.nativeSymbol}`;
+    if (isNativeTokenAddress(fromTok.address)) {
+      // Deux cas distincts : pas même de quoi payer le gas / montant trop grand une fois le gas réservé.
+      if (bal < reserve) return t('errGasBelowMinimum').replace('{amount}', reserveStr);
+      if (raw > bal - reserve) return t('errAboveAvailable').replace('{amount}', reserveStr);
+    } else {
+      if (raw > bal) return t('errInsufficientFunds');
+      // Token SPL/ERC-20 : le natif du wallet doit couvrir le gas estimé.
+      try {
+        const native = nativeBalance ?? (await getAdapter(activeChain).getBalance(account!.address)).raw;
+        if (native < reserve) return t('errNeedNativeForGas').replace('{amount}', reserveStr);
+      } catch {
+        /* réseau muet : on laisse le devis trancher */
+      }
+    }
+    return null;
+  };
+
+  const onQuote = async (opts: { auto?: boolean } = {}) => {
+    if (!fromTok || !toTok || !account) return;
+    if (opts.auto && pausedRef.current) return;
+    let raw: bigint;
+    try {
+      raw = parseAmount(amount, fromTok.decimals).raw;
+    } catch (e) {
+      stopCountdown();
+      reset();
+      setError(isWalletError(e) ? e.message : t('amountInvalid'));
+      return;
+    }
+    if (!opts.auto) {
+      reset();
+      const pre = await preflight(raw);
+      if (pre) {
+        stopCountdown();
+        setError(pre);
+        return;
+      }
+      setLoading(true);
+    }
+    try {
+      const w = useWallet.getState();
+      const storedAccount = w.accounts.find((a) => a.index === w.activeAccountIndex) ?? w.accounts[0];
+      const toFamily = getAdapter(toChain).config.family;
+      let targetAddress = account.address;
+      if (toFamily === 'solana') targetAddress = storedAccount?.solAddress ?? '';
+      else if (toFamily === 'bitcoin') targetAddress = storedAccount?.btcAddress ?? '';
+      else if (toFamily === 'evm') targetAddress = storedAccount?.evmAddress ?? account.address;
+
+      const q = await getBestQuote({
+        fromChainId: activeChain,
+        toChainId: toChain,
+        fromToken: fromTok.address,
+        toToken: toTok.address,
+        fromAmount: raw.toString(),
+        fromAddress: account.address,
+        toAddress: targetAddress,
+        slippage: Number(slippage),
+        fromTokenInfo: { symbol: fromTok.symbol, decimals: fromTok.decimals, logo: fromTok.logo },
+        toTokenInfo: { symbol: toTok.symbol, decimals: toTok.decimals, logo: toTok.logo },
+      });
+      if (!q) {
+        setError(t('noRoute'));
+        stopCountdown();
+        return;
+      }
+      setError(null);
+      setStale(false);
+      setQuote(q);
+      if (!countdownInterval.current) startCountdown();
+    } catch (e) {
+      console.warn('[swap] devis impossible :', e instanceof Error ? e.message : e);
+      if (opts.auto) {
+        // Le devis affiché reste utilisable mais peut être dépassé : on le signale sans le retirer.
+        setStale(true);
+      } else {
+        setError(friendlyTxError(e, t as any));
+        stopCountdown();
+      }
+    } finally {
+      if (!opts.auto) setLoading(false);
+    }
+  };
+
   useEffect(() => {
     return () => { if (countdownInterval.current) clearInterval(countdownInterval.current); };
   }, []);
@@ -342,272 +418,204 @@ export default function Swap() {
     if (!quote) return;
     setStep(t('preparing'));
     sound.send();
-    haptic.success();
     try {
       const hash = await executeSwap(quote, unlock, (s) => setStep(t(STATUS_KEY[s])));
       haptic.success();
       sound.success();
-      const summary = `${amount} ${fromTok.symbol} → ≈ ${formatBalance(quote.toAmount, quote.toToken.decimals, 6)} ${toTok.symbol}`;
+      const summary = `${amount} ${fromTok.symbol} → ≈ ${formatTokenAmount(quote.toAmount, quote.toToken.decimals)} ${toTok.symbol}`;
+      stopCountdown();
       reset();
       setAmount('');
       setSuccess({ hash, summary, isBridge, fromChain: activeChain, toChain: toChain });
       notifyAndLog('tx', isBridge ? t('bridgeSent') : t('swapExecuted'), summary);
       void watchConfirmation(activeChain, hash, summary);
+    } catch (e) {
+      // Devis probablement invalide après un échec (prix, blockhash, nonce) : on
+      // l'invalide pour forcer un nouveau devis avant toute nouvelle tentative.
+      setStale(true);
+      throw e;
     } finally { setStep(null); }
   };
 
-  const renderContent = () => {
-    if (!available || !account) {
-      return (
-        <GlassCard>
-          <Text style={typography.bodyStrong}>{t('swapUnavailable')}</Text>
-          <Text style={[typography.muted, { marginTop: spacing(1) }]}>{t('swapUnavailableHint')}</Text>
-        </GlassCard>
-      );
-    }
-    if (!fromTok || !toTok) {
-      return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={colors.accent} />
-          <Text style={[typography.muted, { marginTop: spacing(2) }]}>{t('findingRoute') || 'Chargement...'}</Text>
-        </View>
-      );
-    }
-    const isNativeFrom = isNativeTokenAddress(fromTok.address);
-    const impact = quote && quote.fromAmountUsd > 0 ? ((quote.toAmountUsd - quote.fromAmountUsd) / quote.fromAmountUsd) * 100 : null;
+  const fromChainCfg = chain;
+  const toChainCfg = getAdapter(toChain).config;
+  const impact = quote && quote.fromAmountUsd > 0 ? ((quote.toAmountUsd - quote.fromAmountUsd) / quote.fromAmountUsd) * 100 : null;
+  const impactLevel: 'none' | 'warning' | 'danger' = impact == null ? 'none' : impact <= -10 ? 'danger' : impact <= -3 ? 'warning' : 'none';
+  const routeSentence = quote
+    ? `Via ${quote.toolName}${isBridge ? ` de ${fromChainCfg.name} vers ${toChainCfg.name}` : ` sur ${fromChainCfg.name}`}${quote.durationSec > 0 ? `, environ ${quote.durationSec < 60 ? `${quote.durationSec} secondes` : `${Math.round(quote.durationSec / 60)} min`}` : ''}.`
+    : null;
+  const [advanced, setAdvanced] = useState(false);
+  const [review, setReview] = useState(false);
 
-    return (
-      <>
-        <GlassCard glow>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={[typography.muted, { fontSize: 12 }]}>{t('swapFromLabel')}</Text>
-            <Text style={[typography.muted, { fontSize: 12 }]}>
-              {'Solde'}: {formatBalance(getTokenBalance(), fromTok.decimals, 6)} {fromTok.symbol}
-            </Text>
+  const TokenBlock = ({ label, tok, chainId, value, onPick, right, muted }: { label: string; tok: Tok | undefined; chainId: string; value: string; onPick: () => void; right?: React.ReactNode; muted?: boolean }) => (
+    <Surface level={2} style={{ gap: space[2] }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text variant="caption" tone="secondary">{label}</Text>
+        {right}
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+        <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ flex: 1, fontSize: 36, lineHeight: 42, color: muted ? colors.textSecondary : colors.text }}>{value || '0'}</Text>
+        <RNPressable onPress={onPick} accessibilityLabel={`Choisir le token ${label}`} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: 6, paddingLeft: 6, paddingRight: 10, borderRadius: radius.round, backgroundColor: pressed ? colors.surface3 : colors.surface1, borderWidth: 1, borderColor: colors.border })}>
+          {tok ? <TokenIcon symbol={tok.symbol} logo={tok.logo} seed={tok.address} size={28} /> : <Skeleton width={28} height={28} round />}
+          <View>
+            <Text variant="body">{tok?.symbol ?? '…'}</Text>
+            <Text variant="micro" tone="tertiary">{getAdapter(chainId).config.name}</Text>
           </View>
-          <TextInput
-            style={{ color: colors.text, fontSize: 32, fontFamily: fonts.extrabold, paddingVertical: spacing(0.5) }}
-            keyboardType="decimal-pad"
-            placeholder="0.0"
-            placeholderTextColor={colors.textFaint}
-            value={amount}
-            onChangeText={(v) => { setAmount(v); reset(); }}
-          />
-          <View style={{ flexDirection: 'row', gap: spacing(1), marginTop: 4 }}>
-            <Pressable onPress={() => { onMax(); reset(); }} style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: colors.glass, borderRadius: radii.sm }}>
-              <Text style={{ color: colors.accent, fontSize: 11, fontFamily: fonts.bold }}>MAX</Text>
-            </Pressable>
-            <Pressable onPress={() => { onHalf(); reset(); }} style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: colors.glass, borderRadius: radii.sm }}>
-              <Text style={{ color: colors.textMuted, fontSize: 11, fontFamily: fonts.bold }}>50%</Text>
-            </Pressable>
-          </View>
-          {isNativeFrom && amount.trim().length > 0 ? (
-            <Text style={{ fontSize: 11, color: colors.textFaint, fontFamily: fonts.medium }}>
-              {t('gasReserve')}: ≈ {formatBalance(GAS_RESERVE[activeChain] ?? 3_000_000_000_000_000n, fromTok.decimals, 6)} {fromTok.symbol}
-            </Text>
-          ) : null}
-          <View style={{ marginTop: spacing(1.5) }}>
-            <Pressable 
-              onPress={() => setPickerState({ visible: true, side: 'from' })}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.bgDeep, padding: spacing(1.25), borderRadius: radii.md, borderWidth: 1, borderColor: colors.glassBorder }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                <View style={{ position: 'relative' }}>
-                  <Image source={{ uri: logoFor(activeChain, fromTok) }} style={{ width: 24, height: 24, borderRadius: 12 }} />
-                  <Image source={{ uri: (tokensByChain[activeChain]?.find(t => isNativeTokenAddress(t.address))?.logo) || 'https://via.placeholder.com/18' }} style={{ position: 'absolute', bottom: -4, right: -4, width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: colors.bgDeep }} />
-                </View>
-                <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 16 }}>{fromTok.symbol}</Text>
-              </View>
-              <Icon name="chevron" size={16} color={colors.textMuted} />
-            </Pressable>
-          </View>
-        </GlassCard>
-
-        <View style={{ zIndex: 10, marginVertical: -14, alignSelf: 'center' }}>
-          <Animated.View style={{ transform: [{ rotate: flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-            <Pressable
-              onPress={onFlip}
-              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgDeep, borderWidth: 2, borderColor: colors.glassBorder, justifyContent: 'center', alignItems: 'center' }}
-            >
-              <Icon name="exchange" size={20} color={colors.accent} />
-            </Pressable>
-          </Animated.View>
-        </View>
-
-        <GlassCard>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={[typography.muted, { fontSize: 12 }]}>{t('toEstimated')}</Text>
-            {isBridge ? <Text style={{ color: colors.accent, fontSize: 12, fontFamily: fonts.semibold }}>🌉 {t('bridge')}</Text> : null}
-          </View>
-          <Text style={{ color: quote ? colors.text : colors.textMuted, fontSize: 32, fontFamily: fonts.extrabold, paddingVertical: spacing(0.5) }}>
-            {quote ? formatBalance(quote.toAmount, quote.toToken.decimals, 6) : '—'}
-          </Text>
-          <View style={{ marginTop: spacing(1.5) }}>
-            <Pressable 
-              onPress={() => setPickerState({ visible: true, side: 'to' })}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.bgDeep, padding: spacing(1.25), borderRadius: radii.md, borderWidth: 1, borderColor: colors.glassBorder }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                
-
-                <View style={{ position: 'relative' }}>
-                  <Image source={{ uri: logoFor(toChain, toTok) }} style={{ width: 24, height: 24, borderRadius: 12 }} />
-                  {isBridge && (
-                    <Image source={{ uri: (tokensByChain[toChain]?.find(t => isNativeTokenAddress(t.address))?.logo) || 'https://via.placeholder.com/18' }} style={{ position: 'absolute', bottom: -4, right: -4, width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: colors.bgDeep }} />
-                  )}
-                </View>
-
-
-                <View>
-                  <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 16 }}>{toTok?.symbol || 'Sélectionner'}</Text>
-                  <Text style={{ color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12 }}>{getAdapter(toChain).config.name}</Text>
-                </View>
-              </View>
-              <Icon name="chevron" size={16} color={colors.textMuted} />
-            </Pressable>
-          </View>
-        </GlassCard>
-
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing(1) }}>
-          <Text style={{ color: colors.textMuted, fontSize: 13, fontFamily: fonts.medium }}>Slippage Tolérance</Text>
-          <View style={{ flexDirection: 'row', gap: spacing(1) }}>
-            {['0.001', '0.005', '0.01'].map(v => (
-              <Pressable
-                key={v}
-                onPress={() => setSlippage(v)}
-                style={{
-                  backgroundColor: slippage === v ? colors.accent : colors.glass,
-                  paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.pill,
-                  borderWidth: 1, borderColor: slippage === v ? colors.accent : colors.glassBorder
-                }}
-              >
-                <Text style={{ color: slippage === v ? '#fff' : colors.text, fontSize: 12, fontFamily: fonts.semibold }}>{Number(v) * 100}%</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {quote ? (
-          <GlassCard>
-            
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, alignItems: 'center' }}>
-              <Text style={typography.muted}>{t("route")}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                 <Image source={{ uri: logoFor(activeChain, fromTok) }} style={{ width: 14, height: 14, borderRadius: 7 }} />
-                 <Icon name="forward" size={12} color={colors.textMuted} />
-                 <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 12 }}>{quote.toolName}</Text>
-                 <Icon name="forward" size={12} color={colors.textMuted} />
-                 <Image source={{ uri: logoFor(toChain, toTok) }} style={{ width: 14, height: 14, borderRadius: 7 }} />
-              </View>
-            </View>
-            {quote.toolName === 'Relay' && (
-              <View style={{ backgroundColor: colors.accent + '20', padding: 8, borderRadius: radii.sm, marginTop: 4, marginBottom: 8 }}>
-                <Text style={{ color: colors.accent, fontSize: 11, fontFamily: fonts.medium, textAlign: 'center' }}>
-                  🌉 Cross-chain EVM ↔ Solana via Relay
-                </Text>
-              </View>
-            )}
-
-            <Row label={t("minReceived")} value={`${formatBalance(quote.toAmountMin, quote.toToken.decimals, 6)} ${toTok.symbol}`} />
-            {quote.gasCostNative > 0n && quote.gasToken ? (
-              <Row label={t("networkFee")} value={`≈ ${formatBalance(quote.gasCostNative, quote.gasToken.decimals, 6)} ${quote.gasToken.symbol}${quote.gasCostUsd > 0 ? ` ($${quote.gasCostUsd.toFixed(2)})` : ''}`} />
-            ) : quote.gasCostUsd > 0 ? (
-              <Row label={t("networkFee")} value={`≈ $${quote.gasCostUsd.toFixed(2)}`} />
-            ) : null}
-            <Row label={t("novaFee")} value={`${(Number(NOVA_FEE) * 100).toFixed(1)} %`} />
-            {impact != null ? <Row label={t("priceImpact")} value={`${impact.toFixed(2)} %`} color={impact < -3 ? colors.danger : impact < -1 ? colors.warning : colors.up} /> : null}
-            <Row label={t("slippage")} value={`${(quote.slippage * 100).toFixed(1)} %`} />
-            {quote.durationSec > 0 ? <Row label={t("estTime")} value={`≈ ${quote.durationSec}s`} /> : null}
-          </GlassCard>
-        ) : null}
-
-        {error ? <ErrorBox message={error} /> : null}
-
-        <View style={{ marginTop: spacing(2) }}>
-          {!quote ? (
-            loading ? (
-              <View style={{ alignItems: 'center', paddingVertical: spacing(2) }}>
-                <NovaRing size={40} />
-                <Text style={{ marginTop: spacing(1), color: colors.textMuted, fontFamily: fonts.medium }}>{t('findingRoute')}</Text>
-              </View>
-            ) : (
-              <Button label={t('getQuote')} onPress={onQuote} disabled={!amount || Number(amount) <= 0 || !fromTok || !toTok} />
-            )
-          ) : (
-            <Button label={t('swapAction')} onPress={() => setConfirming(true)} variant="primary" />
-          )}
-        </View>
-
-        <ConfirmUnlock
-          visible={confirming}
-          title={isBridge ? t('bridgeConfirmTitle') : t('swapConfirmTitle')}
-          subtitle={quote ? `${amount} ${fromTok.symbol} → ≈ ${formatBalance(quote.toAmount, quote.toToken.decimals, 6)} ${toTok.symbol}` : undefined}
-          statusText={step}
-          perform={onConfirm}
-          onDone={() => setConfirming(false)}
-          onCancel={() => setConfirming(false)}
-          aiContext={quote ? { to: quote.tx.type === 'evm' ? quote.tx.to : quote.toToken.address, value: quote.fromAmount.toString(), method: 'Swap via ' + quote.toolName } : undefined}
-        />
-
-        <TokenPicker
-          visible={pickerState.visible}
-          initialChainId={pickerState.side === 'from' ? activeChain : toChain}
-          onClose={() => setPickerState(prev => ({ ...prev, visible: false }))}
-          onSelect={(token, chainId) => {
-            if (pickerState.side === 'from') {
-              const idx = fromTokens.findIndex(t => t.address.toLowerCase() === token.address.toLowerCase());
-              if (idx >= 0) setFrom(idx);
-            } else {
-              setToChain(chainId);
-              const tokensForChain = tokensByChain[chainId] ?? [];
-              const idx = tokensForChain.findIndex(t => t.address.toLowerCase() === token.address.toLowerCase());
-              if (idx >= 0) setTo(idx);
-              else setTo(Math.max(0, idx));
-            }
-            reset();
-          }}
-        />
-
-        {success?.isBridge ? (
-          <BridgeTrackerModal
-            visible={success != null}
-            hash={success?.hash}
-            summary={success?.summary}
-            fromChainId={success?.fromChain}
-            toChainId={success?.toChain}
-            onClose={() => setSuccess(null)}
-          />
-        ) : (
-          <SuccessModal
-            visible={success != null}
-            title={t('swapExecuted')}
-            hash={success?.hash}
-            message={success?.summary}
-            onClose={() => setSuccess(null)}
-          />
-        )}
-      </>
-    );
-  };
-
-  return (
-    <>
-      <Stack.Screen options={{ headerShown: true, title: t('swapBridge') }} />
-      <PremiumScreen>
-      <ScrollView contentContainerStyle={{ padding: spacing(2), gap: spacing(2) }} keyboardShouldPersistTaps="handled">
-        {renderContent()}
-      </ScrollView>
-    </PremiumScreen>
-    </>
+          <Icon name="caretDown" size={14} tone="muted" />
+        </RNPressable>
+      </View>
+    </Surface>
   );
-}
 
-function Row({ label, value, color }: { label: string; value: string; color?: string }) {
-  const { colors, typography } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
-      <Text style={typography.muted}>{label}</Text>
-      <Text style={{ color: color ?? colors.text, fontFamily: fonts.semibold }}>{value}</Text>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
+        <Text variant="title2" style={{ flex: 1 }}>{isBridge ? t('bridgeAction') : t('swapAction')}</Text>
+        {quote && countdown > 0 && !stale ? <CountdownRing progress={countdown / QUOTE_TTL_S} /> : null}
+      </View>
+
+      {!available || !account ? (
+        <View style={{ padding: SCREEN_MARGIN }}>
+          <Surface><EmptyState icon="exchange" title={t('swapUnavailable')} body={t('swapUnavailableHint')} /></Surface>
+        </View>
+      ) : !fromTok || !toTok ? (
+        <View style={{ padding: SCREEN_MARGIN, gap: space[3] }}><Skeleton height={110} /><Skeleton height={110} /></View>
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[3] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {/* Tu donnes */}
+          <TokenBlock
+            label={t("youGive")}
+            tok={fromTok}
+            chainId={activeChain}
+            value={amount}
+            onPick={() => setPickerState({ visible: true, side: 'from' })}
+            right={
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                <Text variant="caption" tone="secondary" tabular>{t('availableLabel')} : {formatTokenAmount(getAvailable(), fromTok.decimals)}</Text>
+                <Chip label={t("chipMax")} onPress={() => { onMax(); reset(); stopCountdown(); }} />
+              </View>
+            }
+          />
+
+          {/* Inversion : tourne de 180° avec le ressort Vif */}
+          <View style={{ alignItems: 'center', marginVertical: -space[4], zIndex: 2 }}>
+            <Animated.View style={flipStyle}>
+              <RNPressable onPress={onFlip} disabled={isBridge} accessibilityLabel="Inverser les tokens" style={({ pressed }) => ({ width: 40, height: 40, borderRadius: radius.round, backgroundColor: pressed ? colors.surface3 : colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.4 : 1 })}>
+                <Icon name="convert" size={18} />
+              </RNPressable>
+            </Animated.View>
+          </View>
+
+          {/* Tu reçois */}
+          <TokenBlock
+            label={t("youReceive")}
+            tok={toTok}
+            chainId={toChain}
+            value={quote ? formatTokenAmount(quote.toAmount, quote.toToken.decimals) : ''}
+            muted={!quote}
+            onPick={() => setPickerState({ visible: true, side: 'to' })}
+            right={quote && quote.toAmountUsd > 0 ? <Text variant="caption" tone="secondary" tabular>≈ {formatFiat(quote.toAmountUsd)} $</Text> : null}
+          />
+
+          {/* Route en une phrase + impact */}
+          {quote ? (
+            <View style={{ gap: space[1] }}>
+              <Text variant="caption" tone="secondary">{routeSentence}</Text>
+              {impact != null ? <Text variant="caption" tone={impactLevel === 'danger' ? 'danger' : impactLevel === 'warning' ? 'warning' : 'secondary'} tabular>{t('priceImpact').replace('{impact}', impact.toFixed(2))}</Text> : null}
+              {stale ? <Text variant="caption" tone="warning">{t('quoteStale')}</Text> : null}
+            </View>
+          ) : null}
+          {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
+          {isNativeTokenAddress(fromTok.address) ? <Text variant="micro" tone="tertiary">{t('gasReserve')} : {gasReserve ? `≈ ${formatTokenAmount(gasReserve.raw, chain.nativeDecimals)} ${chain.nativeSymbol}${gasReserve.live ? '' : ' (est.)'}` : '…'}</Text> : null}
+
+          {/* Réglage avancé replié : slippage */}
+          <RNPressable onPress={() => setAdvanced((v) => !v)} style={{ paddingVertical: space[1] }}>
+            <Text variant="caption" tone="secondary">{advanced ? t("hideAdvancedSettings") : t("advancedSettingsSlippage").replace('{slippage}', (Number(slippage) * 100).toFixed(1))}</Text>
+          </RNPressable>
+          {advanced ? (
+            <View style={{ flexDirection: 'row', gap: space[2] }}>
+              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', ',')} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
+            </View>
+          ) : null}
+
+          {/* Clavier maison + action */}
+          <AmountKeypad value={amount} onChange={(v) => { setAmount(v); reset(); stopCountdown(); }} maxDecimals={Math.min(fromTok.decimals, 8)} />
+          {!quote ? (
+            <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading} disabled={!amount || Number(amount) <= 0} />
+          ) : stale ? (
+            <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading} />
+          ) : (
+            <Button label={isBridge ? t("verifyBridgeBtn") : t("verifySwapBtn")} onPress={() => setReview(true)} />
+          )}
+        </ScrollView>
+      )}
+
+      {/* Récapitulatif */}
+      <Sheet visible={review && !confirming && !!quote && !!fromTok && !!toTok} onClose={() => setReview(false)}>
+        {quote && fromTok && toTok ? (
+          <>
+            <Text variant="title2">{isBridge ? t("verifyBridgeTitle") : t("verifySwapTitle")}</Text>
+            <Surface level={1} padded={false}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t("youGive")}</Text><Text variant="body" tone="down" tabular>− {amount} {fromTok.symbol}</Text></View>
+              <Divider />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t("youReceiveEstimated")}</Text><Text variant="body" tone="up" tabular>+ {formatTokenAmount(quote.toAmount, quote.toToken.decimals)} {toTok.symbol}</Text></View>
+              <Divider />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('minReceived')}</Text><Text variant="caption" tabular>{formatTokenAmount(quote.toAmountMin, quote.toToken.decimals)} {toTok.symbol}</Text></View>
+              <Divider />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('networkFee')}</Text><Text variant="caption" tabular>{quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : ''}{quote.gasCostUsd > 0 ? ` (≈ ${formatFiat(quote.gasCostUsd)} $)` : quote.gasCostNative > 0n ? '' : '—'}</Text></View>
+              <Divider />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{(Number(KALYX_FEE) * 100).toFixed(1).replace('.', ',')} %</Text></View>
+            </Surface>
+            <Text variant="caption" tone="secondary">{routeSentence}{t("slippageTolerance")}{(quote.slippage * 100).toFixed(1).replace('.', ',')} %.</Text>
+            {impactLevel === 'danger' ? (
+              <>
+                <Text variant="caption" tone="danger">{t("highPriceImpactWarning")}</Text>
+                <HoldButton label={t("holdToConfirm")} danger icon="exchange" onComplete={() => { setReview(false); setConfirming(true); }} />
+              </>
+            ) : (
+              <Button label={isBridge ? t('bridgeAction') : t('swapAction')} onPress={() => { haptic.medium(); setReview(false); setConfirming(true); }} />
+            )}
+          </>
+        ) : null}
+      </Sheet>
+
+      <ConfirmUnlock
+        visible={confirming}
+        title={isBridge ? t('bridgeConfirmTitle') : t('swapConfirmTitle')}
+        subtitle={quote && fromTok && toTok ? `${amount} ${fromTok.symbol} → ≈ ${formatTokenAmount(quote.toAmount, quote.toToken.decimals)} ${toTok.symbol}` : undefined}
+        statusText={step}
+        perform={onConfirm}
+        onDone={() => setConfirming(false)}
+        onCancel={() => setConfirming(false)}
+        aiContext={quote ? { to: quote.tx.type === 'evm' ? quote.tx.to : quote.toToken.address, value: quote.fromAmount.toString(), method: 'Swap via ' + quote.toolName } : undefined}
+      />
+
+      <TokenPicker
+        visible={pickerState.visible}
+        initialChainId={pickerState.side === 'from' ? activeChain : toChain}
+        onClose={() => setPickerState((prev) => ({ ...prev, visible: false }))}
+        onSelect={(token, chainId) => {
+          if (pickerState.side === 'from') {
+            const idx = fromTokens.findIndex((tk) => tk.address.toLowerCase() === token.address.toLowerCase());
+            if (idx >= 0) setFrom(idx);
+          } else {
+            setToChain(chainId);
+            const list = tokensByChain[chainId] ?? [];
+            const idx = list.findIndex((tk) => tk.address.toLowerCase() === token.address.toLowerCase());
+            setTo(Math.max(0, idx));
+          }
+          reset();
+          stopCountdown();
+        }}
+      />
+
+      {success?.isBridge ? (
+        <BridgeProgress visible={success != null} hash={success?.hash} summary={success?.summary} fromChainId={success?.fromChain} toChainId={success?.toChain} onClose={() => setSuccess(null)} />
+      ) : (
+        <SuccessModal visible={success != null} title={t("swapped")} hash={success?.hash} message={success?.summary} onClose={() => setSuccess(null)} />
+      )}
     </View>
   );
 }

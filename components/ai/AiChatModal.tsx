@@ -1,19 +1,34 @@
 import { APP_ROUTES_MAP } from '../../lib/aiAppMap';
 import React, { useState, useEffect, useRef } from 'react';
-import { KeyboardAvoidingView, Platform, View, Text, TextInput, Pressable, ScrollView, ActivityIndicator, Modal, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
-import { useTheme, fonts, radii, spacing } from '../../ui/theme';
+import { KeyboardAvoidingView, Platform, View, TextInput, Pressable, ScrollView, Modal, FlatList } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, IconButton, Skeleton, Chip } from '../../ui/kit';
+import { space, radius } from '../../ui/tokens';
+import { useTheme } from '../../ui/theme';
 import { useAiStore } from '../../lib/aiStore';
-import { useSettings } from '../../lib/settingsStore';
+import { useSettings, useT } from '../../lib/settingsStore';
 import { buildAiRequestParams, mapAiErrorToMessage } from '../../lib/aiConfig';
 import { useAiChatHistoryStore } from '../../lib/aiChatHistoryStore';
 import { useGasTracker } from '../../lib/gasTrackerStore';
 import { Icon } from '../../ui/icon';
 import { router } from 'expo-router';
+import { serializeCopilotContext } from '../../lib/copilotContext';
+import { fetchAddressTransactions } from '../../lib/explorerApi';
+import { useHistoryStore } from '../../lib/historyStore';
+import { useWallet } from '../../lib/walletStore';
+import { getAdapter } from '../../src';
+import { FETCH_WALLET_HISTORY_TOOL, WEB_SEARCH_TOOL } from '../../lib/copilotTools';
+import { copilotError, copilotLog, newCopilotTraceId } from '../../lib/copilotLogger';
 
 export function AiChatModal({ visible, onClose, context }: { visible: boolean, onClose: () => void, context: any }) {
-  const { colors, typography } = useTheme();
-  const { provider, apiKey, customUrl, customModel } = useAiStore();
+  const { colors } = useTheme();
+  const t = useT();
+  const insets = useSafeAreaInsets();
+  const { provider, apiKey, customUrl, customModel, copilotStatus, currentSearchQuery, setCopilotStatus } = useAiStore();
   const { profileName, language } = useSettings();
+  const activeChain = useWallet((s) => s.activeChain);
+  const accounts = useWallet((s) => s.accounts);
+  const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
   const { ethGas, fetchGas } = useGasTracker();
   useEffect(() => { if (visible) fetchGas(); }, [visible]);
   
@@ -26,7 +41,7 @@ export function AiChatModal({ visible, onClose, context }: { visible: boolean, o
     if (visible && initialPrompt) {
        setInput(initialPrompt);
        setTimeout(() => sendMessage(initialPrompt), 200);
-       useAiStore.getState().closeChat(); // Reset state but keep modal visible (wait we just want to clear initialPrompt)
+       useAiStore.getState().closeChat();
        useAiStore.setState({ initialPrompt: null });
     }
   }, [visible, initialPrompt]);
@@ -37,6 +52,21 @@ export function AiChatModal({ visible, onClose, context }: { visible: boolean, o
   const messages = activeSession?.messages || [];
   const scrollViewRef = useRef<ScrollView>(null);
 
+  const requestAi = async (url: string, headers: Record<string, string>, body: unknown) => {
+    const traceId = newCopilotTraceId();
+    copilotLog(traceId, 'http.start', { url, provider, model: (body as { model?: string })?.model });
+    const startedAt = Date.now();
+    let response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    copilotLog(traceId, 'http.response', { status: response.status, ok: response.ok, elapsedMs: Date.now() - startedAt });
+    if (response.status === 429) {
+      copilotLog(traceId, 'http.rate_limit.retry', { delayMs: 1500 });
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+      copilotLog(traceId, 'http.retry.response', { status: response.status, ok: response.ok, elapsedMs: Date.now() - startedAt });
+    }
+    return response;
+  };
+
   // Initialiser une nouvelle session si aucune n'est active à l'ouverture
   useEffect(() => {
     if (visible && !activeSessionId) {
@@ -44,30 +74,14 @@ export function AiChatModal({ visible, onClose, context }: { visible: boolean, o
     }
   }, [visible, activeSessionId]);
 
-  // Ajouter le greeting automatique sur une session vide
-  useEffect(() => {
-    if (visible && activeSessionId && messages.length === 0) {
-      let greeting = language?.startsWith('en') 
-        ? "I'm here! Want to check your portfolio or ask a question?"
-        : language?.startsWith('es')
-        ? "¡Estoy aquí! ¿Quieres revisar tu saldo o tienes alguna pregunta?"
-        : "Dispo ! Tu veux checker un truc sur tes soldes ou poser une question ?";
-        
-      if (context?.screen === 'browser') {
-        greeting = language?.startsWith('en') 
-          ? "You are on the dApp browser. Need a security check on this URL?" 
-          : "Tu es sur le navigateur dApp. Tu as un doute sur un protocole ou une URL ?";
-      } else if (context?.url && context.url.includes('phishing')) {
-        greeting = language?.startsWith('en') 
-          ? "⚠️ Watch out, this URL looks suspicious. Do not connect your wallet." 
-          : "⚠️ Fais gaffe, cette URL semble louche. Ne connecte pas ton wallet ici sans certitude.";
-      }
-      addMessageToActive({ sender: 'assistant', text: greeting });
-    }
-  }, [visible, activeSessionId, messages.length]);
+  // Accueil (session vide) : rendu au CENTRE, pas de bulle injectée dans l'historique.
+  const greeting =
+    context?.screen === 'browser'
+      ? t('aiWelcomeBrowser')
+      : t('aiWelcomeWallet');
 
   function buildSystemPrompt(ctx: any) {
-    const base = `Tu es l'assistant personnel de Nova Wallet.
+    const base = `Tu es l'assistant personnel de Kalyx Wallet.
 
 CONTEXTE UTILISATEUR :
 - Prénom : ${profileName || "l'utilisateur"}
@@ -93,7 +107,13 @@ Exemples :
 - "Montre mon QR code" -> <ACTION>{"type": "NAVIGATE", "target": "RECEIVE"}</ACTION>
 
 Voici la liste des ROUTE_ID autorisés : ${APP_ROUTES_MAP.map(r => r.id + ' (' + r.description + ')').join(', ')}
-NE JAMAIS diriger l'utilisateur vers des écrans liés à l'export de clé privée, à la phrase de récupération ou au changement de PIN.`;
+NE JAMAIS diriger l'utilisateur vers des écrans liés à l'export de clé privée, à la phrase de récupération ou au changement de PIN.
+
+CONTEXTE TEMPS RÉEL (ALLOWLIST PUBLIQUE) :
+${serializeCopilotContext()}
+Utilise uniquement ces données présentes. N'invente jamais un solde, une transaction ou une raison d'échec. Ce contexte ne contient volontairement aucune seed, clé privée, PIN ou secret.
+Si l'historique local est vide ou insuffisant pour répondre à une question de transaction, utilise l'outil public ${FETCH_WALLET_HISTORY_TOOL.name} avec l'adresse et le réseau concernés avant de répondre.
+Pour les cours, actualités ou informations de protocole qui peuvent changer, utilise ${WEB_SEARCH_TOOL.name} avant de répondre. N'affirme jamais qu'une recherche a été faite si l'outil n'a pas renvoyé de résultats.`;
 
     if (ctx.screen === 'browser') {
       return `${base}\n\nNAVIGATION ACTIVE (dApp) :\n- URL : ${ctx.url || 'Page vierge'}\n- Titre : ${ctx.title || 'Inconnu'}\n\nVérifie la réputation de l'URL, préviens contre le phishing et réponds aux questions sur la dApp.`;
@@ -109,14 +129,31 @@ NE JAMAIS diriger l'utilisateur vers des écrans liés à l'export de clé priv�
     if (!msgToSend || !apiKey) return;
     
     setInput('');
+    const traceId = newCopilotTraceId();
+    const startedAt = Date.now();
+    copilotLog(traceId, 'request.start', { provider, messageLength: msgToSend.length, sessionId: activeSessionId, screen: context?.screen });
     addMessageToActive({ sender: 'user', text: msgToSend });
     setLoading(true);
+    setCopilotStatus('thinking');
     
     // Scroll au bas
     setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
+      const account = accounts.find((a) => a.index === activeAccountIndex) ?? accounts[0];
+      const chain = getAdapter(activeChain).config;
+      const publicAddress = chain.family === 'solana' ? account?.solAddress : chain.family === 'bitcoin' ? account?.btcAddress : account?.evmAddress;
+      if (publicAddress && useHistoryStore.getState().getCached(activeChain, publicAddress).length === 0) {
+        setCopilotStatus('analyzing_sources', null);
+        try {
+          await fetchAddressTransactions(publicAddress, activeChain);
+          await useHistoryStore.getState().fetchHistory(activeChain, publicAddress);
+        } catch (error) {
+          console.warn('[CopilotContext] Échec de la consultation on-chain:', error instanceof Error ? error.message : 'erreur inconnue');
+        }
+      }
       const SYSTEM_PROMPT = buildSystemPrompt(context);
+      copilotLog(traceId, 'context.ready', { systemPromptChars: SYSTEM_PROMPT.length, historyMessages: messages.length });
       
       // Mapper les messages pour l'API
       let apiMessages = messages.map(m => ({ role: m.sender, content: m.text }));
@@ -133,261 +170,199 @@ NE JAMAIS diriger l'utilisateur vers des écrans liés à l'export de clé priv�
         body.system = SYSTEM_PROMPT;
         body.messages = apiMessages;
         body.max_tokens = 1000;
+      } else {
+        body.tools = [
+          { type: 'function', function: FETCH_WALLET_HISTORY_TOOL },
+          { type: 'function', function: WEB_SEARCH_TOOL },
+        ];
+        body.tool_choice = 'auto';
       }
 
-      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
-      const data = await res.json().catch(() => ({}));
+      let res = await requestAi(url, headers, body);
+      let data = await res.json().catch(() => ({}));
+      const toolCalls = data?.choices?.[0]?.message?.tool_calls;
+      if (res.ok && provider !== 'anthropic' && Array.isArray(toolCalls) && toolCalls.length > 0) {
+        copilotLog(traceId, 'tools.received', { count: toolCalls.length, names: toolCalls.map((call: { function?: { name?: string } }) => call.function?.name) });
+        const call = toolCalls[0];
+        if (call.function?.name === FETCH_WALLET_HISTORY_TOOL.name || call.function?.name === WEB_SEARCH_TOOL.name) {
+          const parsedArgs = JSON.parse(call.function.arguments || '{}') as { query?: unknown };
+          if (call.function.name === WEB_SEARCH_TOOL.name) {
+            setCopilotStatus('searching_web', typeof parsedArgs.query === 'string' ? parsedArgs.query : null);
+          } else {
+            setCopilotStatus('analyzing_sources', null);
+          }
+          copilotLog(traceId, 'tool.dispatch', { name: call.function.name, args: parsedArgs });
+          let toolResult: unknown;
+          try {
+            toolResult = await (await import('../../lib/copilotTools')).executeCopilotTool(call.function.name, parsedArgs);
+          } catch (error) {
+            copilotError(traceId, 'tool.failed', error, { name: call.function.name });
+            toolResult = { error: error instanceof Error ? error.message : 'Consultation blockchain impossible.' };
+          }
+          copilotLog(traceId, 'tool.result', { name: call.function.name, resultChars: JSON.stringify(toolResult).length });
+          body.messages = [
+            ...body.messages,
+            data.choices[0].message,
+            { role: 'tool', tool_call_id: call.id, content: JSON.stringify(toolResult) },
+          ];
+          setCopilotStatus('generating');
+          res = await requestAi(url, headers, body);
+          data = await res.json().catch(() => ({}));
+        }
+      }
       
       let rawReply = '';
       if (!res.ok) {
          const providerMsg = data?.error?.message || data?.message || '';
-         const customMsg = typeof mapAiErrorToMessage === 'function' ? mapAiErrorToMessage(res.status) : 'Erreur IA';
-         rawReply = `${customMsg}\n\n*(Provider: ${providerMsg || res.statusText || 'Erreur interne'})*`;
+         const customMsg = res.status === 429
+           ? 'Kalyx est très sollicité, réessaie dans quelques secondes.'
+           : typeof mapAiErrorToMessage === 'function' ? mapAiErrorToMessage(res.status) : 'Erreur IA';
+         rawReply = res.status === 429
+           ? customMsg
+           : `${customMsg}\n\n*(Provider: ${providerMsg || res.statusText || 'Erreur interne'})*`;
       } else {
+         setCopilotStatus('generating');
          rawReply = provider === 'anthropic' ? data.content?.[0]?.text : data.choices?.[0]?.message?.content;
          rawReply = rawReply || 'Erreur de réponse du modèle IA.';
       }
       
       let cleanReply = rawReply;
-      let actionToExecute = null;
-      const actionMatch = rawReply.match(/<ACTION>(.*?)<\/ACTION>/s);
-      if (actionMatch) {
-        cleanReply = rawReply.replace(/<ACTION>.*?<\/ACTION>/s, "").trim();
+      const actions: (() => void)[] = [];
+      const actionRegex = /<ACTION>([\s\S]*?)<\/ACTION>/gi;
+      let actionMatch: RegExpExecArray | null;
+      while ((actionMatch = actionRegex.exec(rawReply)) !== null) {
         try {
-          const action = JSON.parse(actionMatch[1]);
-          const routeConfig = APP_ROUTES_MAP.find((r) => r.id === action.target);
+          const action = JSON.parse(actionMatch[1].trim()) as { target?: string; params?: Record<string, string> };
+          const routeConfig = action.target ? APP_ROUTES_MAP.find((r) => r.id === action.target) : undefined;
           if (routeConfig) {
-            actionToExecute = () => {
+            actions.push(() => {
               onClose();
-              if (action.target === "SEND" && action.params && action.params.to) {
-                const addr = action.params.to;
-                const isEvm = /^0x[a-fA-F0-9]{40}$/.test(addr);
-                const isSol = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
-                const isDomain = addr.endsWith(".eth") || addr.endsWith(".sol");
-                if (!isEvm && !isSol && !isDomain) {
-                   delete action.params.to;
-                }
+              const params = { ...(action.params ?? {}) };
+              if (action.target === 'SEND' && params.to) {
+                const addr = params.to;
+                const valid = /^0x[a-fA-F0-9]{40}$/.test(addr) || /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr) || addr.endsWith('.eth') || addr.endsWith('.sol');
+                if (!valid) delete params.to;
               }
-              router.push({
-                pathname: routeConfig.route as any,
-                params: action.params || {}
-              });
-            };
+              router.push({ pathname: routeConfig.route as any, params });
+            });
           }
-        } catch (e) {
-          console.warn("[AI Action] Erreur parsing JSON:", e);
+        } catch (error) {
+          console.warn('[AI Action] Erreur parsing JSON:', error instanceof Error ? error.message : 'JSON invalide');
         }
       }
+      cleanReply = cleanReply.replace(actionRegex, '').replace(/\s{2,}/g, ' ').trim();
       addMessageToActive({ sender: "assistant", text: cleanReply });
-      if (actionToExecute) {
-        setTimeout(actionToExecute, 200);
-      }
+      copilotLog(traceId, 'response.complete', { responseChars: cleanReply.length, actionCount: actions.length, totalElapsedMs: Date.now() - startedAt });
+      actions.forEach((action, index) => setTimeout(action, 200 + index * 150));
     } catch (e) {
-      addMessageToActive({ sender: 'assistant', text: "Désolé, je n'ai pas pu joindre l'API." });
+      copilotError(traceId, 'request.failed', e, { totalElapsedMs: Date.now() - startedAt });
+      setCopilotStatus('idle');
+      addMessageToActive({ sender: 'assistant', text: t('aiErrorNetwork') });
     } finally {
       setLoading(false);
+      setCopilotStatus('idle');
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     }
   };
 
   if (!visible) return null;
 
-    return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'padding'} 
-          style={styles.modalContainer}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.title}>Nova Copilot</Text>
-              
-              <TouchableOpacity onPress={() => setShowHistory(!showHistory)} style={styles.iconBtn}>
-                <Icon name="history" size={18} color={showHistory ? colors.accent : "#A1A1AA"} />
-              </TouchableOpacity>
+  const SUGGESTIONS: { icon: 'defi' | 'security' | 'market'; label: string }[] = [
+    { icon: 'defi', label: t('aiSuggestionBalance') },
+    { icon: 'security', label: t('aiSuggestionSecurity') },
+    { icon: 'market', label: t('aiSuggestionPerformance') },
+  ];
 
-              <TouchableOpacity onPress={() => { createNewSession(); setShowHistory(false); }} style={styles.iconBtn}>
-                <Icon name="add" size={18} color="#A1A1AA" />
-              </TouchableOpacity>
+  return (
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={onClose} accessibilityLabel={t('aiClose')} />
+        <View style={{ height: '88%', backgroundColor: colors.surface2, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, overflow: 'hidden' }}>
+          {/* En-tête */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[3], paddingTop: space[3], paddingBottom: space[2] }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2], paddingLeft: space[2] }}>
+              <Icon name="sparkles" size={18} />
+              <Text variant="title2">{t('aiTitle')}</Text>
             </View>
-
-            <TouchableOpacity onPress={onClose}>
-              <Text style={styles.closeText}>Fermer</Text>
-            </TouchableOpacity>
+            <IconButton icon="history" label={t('aiRecentChats')} tone={showHistory ? 'surface' : 'ghost'} onPress={() => setShowHistory((v) => !v)} />
+            <IconButton icon="add" label={t('aiNewChat')} tone="ghost" onPress={() => { createNewSession(); setShowHistory(false); }} />
+            <IconButton icon="close" label={t('aiClose')} tone="ghost" onPress={onClose} />
           </View>
 
-          {/* Body */}
           {showHistory ? (
-            <View style={styles.historyContainer}>
-              <Text style={styles.historyTitle}>Discussions récentes</Text>
-              <FlatList
-                data={sessions}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.historyItem,
-                      item.id === activeSessionId && styles.historyItemActive,
-                    ]}
-                    onPress={() => {
-                      setActiveSession(item.id);
-                      setShowHistory(false);
-                    }}
-                  >
-                    <Text style={styles.historyItemText} numberOfLines={1}>
-                      {item.title}
-                    </Text>
-                    <TouchableOpacity onPress={() => deleteSession(item.id)} style={{ padding: 4 }}>
-                      <Icon name="close" size={14} color="#71717A" />
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                )}
-              />
-            </View>
+            <FlatList
+              data={sessions}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: insets.bottom + space[4] }}
+              ListHeaderComponent={<Text variant="caption" tone="secondary" style={{ marginBottom: space[2] }}>{t('aiRecentChats')}</Text>}
+              ListEmptyComponent={<Text variant="bodySecondary" tone="secondary">{t('aiNoChats')}</Text>}
+              renderItem={({ item }) => (
+                <Pressable onPress={() => { setActiveSession(item.id); setShowHistory(false); }} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', minHeight: 52, gap: space[2], borderRadius: radius.input, paddingHorizontal: space[2], backgroundColor: pressed || item.id === activeSessionId ? colors.surface3 : 'transparent' })}>
+                  <Text variant="body" numberOfLines={1} style={{ flex: 1 }}>{item.title}</Text>
+                  <Pressable onPress={() => deleteSession(item.id)} hitSlop={8} accessibilityLabel={t('aiDelete')}><Icon name="close" size={14} tone="faint" /></Pressable>
+                </Pressable>
+              )}
+            />
           ) : (
             <>
-              <ScrollView ref={scrollViewRef} style={styles.messagesList} contentContainerStyle={{ paddingVertical: 12, gap: 10 }} keyboardShouldPersistTaps="handled">
-                {messages.map((m, i) => (
-                  <View key={i} style={{
-                    alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
-                    backgroundColor: m.sender === 'user' ? colors.accent : '#27272A',
-                    padding: spacing(1.5),
-                    borderRadius: radii.md,
-                    maxWidth: '85%'
-                  }}>
-                    <Text style={{ color: '#fff', fontFamily: fonts.medium }}>{m.text}</Text>
+              {messages.length === 0 ? (
+                /* État d'accueil au centre */
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space[8], gap: space[3] }}>
+                  <View style={{ width: 64, height: 64, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="sparkles" size={28} />
                   </View>
-                ))}
-                {loading && <ActivityIndicator color={colors.accent} style={{ alignSelf: 'flex-start', margin: spacing(1) }} />}
-              </ScrollView>
-
-              <View style={styles.bottomSection}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsRow} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
-                  {['📊 Bilan rapide', '🔍 Check sécurité', '📈 Bilan P&L'].map(q => (
-                    <Pressable key={q} onPress={() => sendMessage(q)} style={{ backgroundColor: '#27272A', padding: 8, borderRadius: 16 }}>
-                      <Text style={{ color: colors.textFaint, fontSize: 12 }}>{q}</Text>
-                    </Pressable>
-                  ))}
+                  <Text variant="title2" style={{ textAlign: 'center' }}>{profileName ? t('aiGreetingName').replace('{name}', profileName) : t('aiGreeting')}</Text>
+                  <Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center' }}>{greeting}</Text>
+                  {ethGas ? <Text variant="micro" tone="tertiary">{t('aiEthGas').replace('{gas}', String(Math.round(ethGas.gwei))).replace('{usd}', ethGas.usdTransfer.toFixed(2))}</Text> : null}
+                </View>
+              ) : (
+                <ScrollView ref={scrollViewRef} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: space[4], paddingVertical: space[3], gap: space[2] }} keyboardShouldPersistTaps="handled" onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}>
+                  {messages.map((m, i) => {
+                    const mine = m.sender === 'user';
+                    return (
+                      <View key={i} style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '85%', backgroundColor: mine ? colors.primary : colors.surface1, borderWidth: mine ? 0 : 1, borderColor: colors.border, paddingHorizontal: space[3], paddingVertical: space[2], borderRadius: 18, borderBottomRightRadius: mine ? 6 : 18, borderBottomLeftRadius: mine ? 18 : 6 }}>
+                        <Text variant="bodySecondary" style={{ color: mine ? colors.onPrimary : colors.text, fontSize: 15, lineHeight: 20 }} selectable>{m.text}</Text>
+                      </View>
+                    );
+                  })}
+                  {loading ? (
+                    <View style={{ alignSelf: 'flex-start', width: '60%', gap: space[1], padding: space[3], backgroundColor: colors.surface1, borderRadius: 18, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: colors.border }}>
+                      <Text variant="caption" tone="secondary">
+                        {copilotStatus === 'searching_web' ? t('aiStatusWebSearch').replace('{query}', currentSearchQuery ?? '') : copilotStatus === 'analyzing_sources' ? t('aiStatusReadingSources') : copilotStatus === 'generating' ? t('aiStatusWriting') : t('aiStatusThinking')}
+                      </Text>
+                      <Skeleton width="100%" height={12} /><Skeleton width="70%" height={12} />
+                    </View>
+                  ) : null}
                 </ScrollView>
+              )}
 
-                <View style={styles.inputRow}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Posez une question..."
-                    placeholderTextColor={colors.textFaint}
-                    value={input}
-                    onChangeText={setInput}
-                    onSubmitEditing={() => sendMessage()}
-                  />
-                  <Pressable onPress={() => sendMessage()} style={{ backgroundColor: colors.accent, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name="send" size={18} color="#000" />
+              {/* Suggestions + saisie */}
+              <View style={{ paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: insets.bottom + space[3], gap: space[3], borderTopWidth: 1, borderTopColor: colors.border }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: space[2] }}>
+                  {SUGGESTIONS.map((sg) => <Chip key={sg.label} label={sg.label} icon={sg.icon} onPress={() => sendMessage(sg.label)} />)}
+                </ScrollView>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                  <View style={{ flex: 1, minHeight: 48, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, paddingHorizontal: space[4], justifyContent: 'center' }}>
+                    <TextInput
+                      value={input}
+                      onChangeText={setInput}
+                      onSubmitEditing={() => sendMessage()}
+                      placeholder={t('aiInputPlaceholder')}
+                      placeholderTextColor={colors.textTertiary}
+                      returnKeyType="send"
+                      multiline
+                      style={{ color: colors.text, fontSize: 15, lineHeight: 20, fontFamily: 'GeneralSans-Medium', paddingVertical: 12, maxHeight: 100 }}
+                    />
+                  </View>
+                  <Pressable onPress={() => sendMessage()} disabled={!input.trim() || loading} accessibilityLabel={t('aiSend')} style={({ pressed }) => ({ width: 48, height: 48, borderRadius: radius.round, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: !input.trim() || loading ? 0.4 : pressed ? 0.8 : 1 })}>
+                    <Icon name="send" size={20} color={colors.onPrimary} />
                   </Pressable>
                 </View>
               </View>
             </>
           )}
-        </KeyboardAvoidingView>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
-
-
-const styles = StyleSheet.create({
-  modalContainer: {
-    height: '85%',
-    overflow: 'hidden',
-    backgroundColor: '#161618',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#27272A',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  title: {
-    fontSize: 18,
-    fontFamily: fonts.bold,
-    color: '#FFF',
-  },
-  iconBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#27272A',
-  },
-  closeText: {
-    color: '#A1A1AA',
-    fontSize: 14,
-  },
-  historyContainer: {
-    flex: 1,
-    paddingTop: 16,
-    paddingHorizontal: 16,
-  },
-  historyTitle: {
-    fontSize: 14,
-    color: '#71717A',
-    marginBottom: 12,
-    fontFamily: fonts.medium,
-  },
-  historyItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: '#18181B',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  historyItemActive: {
-    borderColor: '#E5A93C',
-  },
-  historyItemText: {
-    color: '#FAFAFA',
-    fontSize: 14,
-    flex: 1,
-    marginRight: 8,
-    fontFamily: fonts.medium,
-  },
-  messagesList: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  bottomSection: {
-    paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-    paddingTop: 8,
-    gap: 8,
-  },
-  chipsRow: {
-    flexGrow: 0,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  input: {
-    flex: 1, 
-    backgroundColor: '#27272A', 
-    color: '#fff',
-    padding: 12, 
-    borderRadius: 22, 
-    fontFamily: fonts.medium
-  }
-});

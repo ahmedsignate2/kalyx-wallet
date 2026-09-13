@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React from 'react';
 import { Text, ScrollView, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
@@ -14,6 +15,7 @@ export default function Language() {
 
   return (
     <Screen>
+      <ScreenHeader />
       <Title>{t('language')}</Title>
       <ScrollView contentContainerStyle={{ gap: spacing(1), paddingVertical: spacing(1) }}>
         {LANGUAGES.map((l) => {

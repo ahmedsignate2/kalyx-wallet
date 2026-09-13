@@ -1,6 +1,7 @@
 /**
- * Barre d'onglets principale, partagée par les écrans de premier niveau
- * (Accueil, Marché, Portefeuille, Menu) + bouton central Échanger.
+ * Barre d'onglets principale — 4 onglets + bouton central Échanger :
+ * Accueil (agrégé multi-chaîne : tokens, NFT, activité) · Marché · Earn · Plus.
+ * L'ancien onglet « Portefeuille » (doublon par réseau) a été retiré (§ retours).
  * Navigation par `replace` : comportement d'onglets (pas d'empilement).
  */
 import React from 'react';
@@ -8,7 +9,7 @@ import { router } from 'expo-router';
 import { BottomNav } from './premium';
 import { useT } from '../lib/settingsStore';
 
-export type MainTab = 'home' | 'market' | 'wallet' | 'menu';
+export type MainTab = 'home' | 'market' | 'earn' | 'menu';
 
 export function AppTabBar({ active }: { active: MainTab }) {
   const t = useT();
@@ -19,7 +20,7 @@ export function AppTabBar({ active }: { active: MainTab }) {
       items={[
         { key: 'home', icon: 'home', label: t('navHome'), onPress: () => router.replace('/home') },
         { key: 'market', icon: 'market', label: t('navMarket'), onPress: () => router.replace('/market') },
-        { key: 'wallet', icon: 'wallet', label: t('navWallet'), onPress: () => router.replace('/wallet') },
+        { key: 'earn', icon: 'staking', label: 'Earn', onPress: () => router.replace('/earn') },
         { key: 'menu', icon: 'menu', label: t('menu'), onPress: () => router.replace('/menu') },
       ]}
     />

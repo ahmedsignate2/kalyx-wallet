@@ -1,4 +1,4 @@
-# Politique de confidentialité — Nova Wallet
+# Politique de confidentialité — Kalyx Wallet
 
 _Dernière mise à jour : 5 juillet 2026_
 
@@ -6,10 +6,10 @@ _Dernière mise à jour : 5 juillet 2026_
 > À héberger à une URL publique
 > (requis par le Google Play Store).
 
-Éditeur : **Malin** (société éditrice de Nova Wallet) · Contact : **amsssr400@gmail.com**
+Éditeur : **Malin** (société éditrice de Kalyx Wallet) · Contact : **Telegram [@kalyxntw](https://t.me/kalyxntw) / X [@kalyxntw](https://x.com/kalyxntw)**
 
 ## 1. Le principe : non-custodial
-Nova Wallet est un portefeuille non-custodial. Tes clés privées et ta phrase de récupération sont générées et stockées **uniquement sur ton téléphone**, chiffrées. Elles ne sont jamais envoyées à la société Malin ni à aucun serveur. Nous n'avons aucun accès à tes fonds ni à ta phrase.
+Kalyx Wallet est un portefeuille non-custodial. Tes clés privées et ta phrase de récupération sont générées et stockées **uniquement sur ton téléphone**, chiffrées. Elles ne sont jamais envoyées à la société Malin ni à aucun serveur. Nous n'avons aucun accès à tes fonds ni à ta phrase.
 
 ## 2. Ce que nous ne collectons pas
 Nous ne collectons pas : ta phrase de récupération, tes clés privées, ton code PIN, ni aucune donnée d'identification personnelle. Il n'y a pas de compte à créer. **Aucune analytique publicitaire ni pistage** n'est intégré à l'application.
@@ -37,7 +37,7 @@ Les notifications sont **locales** (générées sur l'appareil). Aucun serveur d
 La phrase est chiffrée (AES-256-GCM) sous ton PIN, dans le stockage sécurisé matériel du téléphone. Verrouillage automatique, écran de garde et anti-brute-force protègent l'accès. Aucun système n'est infaillible : garde ta phrase de récupération hors ligne.
 
 ## 7. Enfants
-Nova Wallet n'est pas destiné aux personnes de moins de 16 ans.
+Kalyx Wallet n'est pas destiné aux personnes de moins de 16 ans.
 
 ## 8. Modifications & contact
-Cette politique peut évoluer ; la date de mise à jour ci-dessus fait foi. Pour toute question : **amsssr400@gmail.com**.
+Cette politique peut évoluer ; la date de mise à jour ci-dessus fait foi. Pour toute question : via nos canaux officiels **Telegram [@kalyxntw](https://t.me/kalyxntw)** ou **X [@kalyxntw](https://x.com/kalyxntw)**.

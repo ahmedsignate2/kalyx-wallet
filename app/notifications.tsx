@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useEffect } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Stack } from 'expo-router';
@@ -30,8 +31,9 @@ export default function Notifications() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: t('notifications') }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
+      <ScreenHeader title={t('notifications')} />
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={typography.title}>{t('notifications')}</Text>
