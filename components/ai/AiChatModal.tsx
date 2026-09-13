@@ -24,7 +24,7 @@ import { toast } from '../../lib/toast';
 import { haptic } from '../../lib/haptics';
 import { openTelegramTicket, normalizeSupportTicket, getClientEnvironmentInfo } from '../../lib/telegramSupport';
 import { detectSensitiveSecrets, sanitizeSecrets } from '../../lib/secretDetector';
-import { getFormattedTechnicalLogs } from '../../lib/technicalLogger';
+import { technicalLogger, getFormattedTechnicalLogs } from '../../lib/technicalLogger';
 
 function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
   const { colors } = useTheme();
@@ -275,13 +275,16 @@ PROTOCOLE DE SUPPORT PROGRESSIF (PAS DE TICKET PRÉMATURÉ) :
 - Quand l'utilisateur signale un problème, NE DÉGAINE PAS de ticket support immédiatement !
 - Pose d'abord UNE question précise ou propose une manipulation concrète (ex: "Quelle dApp ou URL essaies-tu d'ouvrir ?", "Vérifie que l'adresse commence bien par https://").
 - Ne propose JAMAIS de générer un ticket support au tout premier message. Le ticket ne doit être proposé qu'en DERNIER RECOURS, quand le problème persiste après vérification ou s'il s'agit d'un bug bloquant avéré dans les logs techniques récents.
-- Exception : si l'utilisateur demande expressément et directement un ticket ("créer un ticket", "contacter le support").
+- RÈGLE ABSOLUE POUR LA CRÉATION DE TICKET :
+  * Ne génère JAMAIS de ticket support vide avec des mentions "Non déterminée" ou "Aucun log récent" si l'utilisateur n'a pas encore décrit son problème ou s'il n'y a pas d'erreur dans les logs récents !
+  * Si l'utilisateur demande de créer un ticket ou clique sur la suggestion sans qu'aucune erreur ne figure dans les logs récents et sans avoir expliqué son problème, NE GÉNÈRE PAS <SUPPORT_TICKET>. Réponds immédiatement : "${t('aiSupportClarifyPrompt')}"
+  * Ne génère une carte <SUPPORT_TICKET> QUE si des erreurs techniques réelles existent dans les logs récents OU après que l'utilisateur a clairement décrit le problème, l'opération ou le réseau concerné.
 
 RÈGLE DE SÉCURITÉ ABSOLUE :
 Tu ne dois JAMAIS accepter, répéter, ni inclure dans un message ou un ticket de support une clé privée, une seed phrase (mots de récupération) ou un mot de passe. Si le message de l'utilisateur contient de tels éléments, refuse formellement et avertis-le de ne JAMAIS partager ses identifiants secrets.
 
 FORMAT DU TICKET SUPPORT (EN DERNIER RECOURS SEULEMENT) :
-Si et seulement si le diagnostic a échoué ou que l'utilisateur l'exige, encadre le ticket STRICTEMENT entre les balises <SUPPORT_TICKET> et </SUPPORT_TICKET> :
+Si et seulement si le diagnostic a échoué ou que l'utilisateur l'exige avec un problème identifié, encadre le ticket STRICTEMENT entre les balises <SUPPORT_TICKET> et </SUPPORT_TICKET> :
 <SUPPORT_TICKET>
 🎫 [TICKET SUPPORT NOVA]
 • ID : KX-YYYYMMDD-XXXXX
@@ -292,7 +295,7 @@ Si et seulement si le diagnostic a échoué ou que l'utilisateur l'exige, encadr
 • Montant visé : [Montant si applicable, sinon N/A]
 • Description utilisateur : "[Résumé concis des propos de l'utilisateur]"
 • Logs récents :
-[Insérer les logs techniques récents pertinents issus de la clé 'l' du contexte ci-dessous, ou 'Aucun log récent']
+[Insérer les logs d'erreurs ou logs récents pertinents issus de la section LOGS TECHNIQUES RÉCENTS ci-dessous, ou 'Aucun log récent']
 </SUPPORT_TICKET>
 Ce tag fera automatiquement apparaître une carte interactive permettant de copier le ticket ou de l'exporter vers Telegram (@kalyxntw).
 
@@ -311,9 +314,12 @@ Exemples :
 Voici la liste des ROUTE_ID autorisés : ${APP_ROUTES_MAP.map(r => r.id + ' (' + r.description + ')').join(', ')}
 NE JAMAIS diriger l'utilisateur vers des écrans liés à l'export de clé privée, à la phrase de récupération ou au changement de PIN.
 
+LOGS TECHNIQUES RÉCENTS D'EXÉCUTION :
+${technicalLogger.getFormattedLogs(35)}
+
 CONTEXTE TEMPS RÉEL (ALLOWLIST PUBLIQUE) :
 ${serializeCopilotContext()}
-Utilise uniquement ces données présentes. N'invente jamais un solde, une transaction ou une raison d'échec. Ce contexte ne contient volontairement aucune seed, clé privée, PIN ou secret. (Dans le JSON ci-dessus, la clé 'l' contient les 15 derniers logs techniques horodatés).
+Utilise uniquement ces données présentes. N'invente jamais un solde, une transaction ou une raison d'échec. Ce contexte ne contient volontairement aucune seed, clé privée, PIN ou secret.
 Si l'historique local est vide ou insuffisant pour répondre à une question de transaction, utilise l'outil public ${FETCH_WALLET_HISTORY_TOOL.name} avec l'adresse et le réseau concernés avant de répondre.
 Pour les cours, actualités ou informations de protocole qui peuvent changer, utilise ${WEB_SEARCH_TOOL.name} avant de répondre. N'affirme jamais qu'une recherche a été faite si l'outil n'a pas renvoyé de résultats.`;
 
@@ -338,6 +344,26 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
       addMessageToActive({
         sender: 'assistant',
         text: t('aiSecurityBlockedSecret'),
+      });
+      return;
+    }
+
+    // Interception ticket support vide : si l'utilisateur clique sur la suggestion "Créer un ticket support"
+    // ou demande un ticket sans qu'il y ait d'erreur dans les logs récents et sans avoir décrit de problème,
+    // ne jamais afficher de carte vide : lui demander directement de préciser l'opération ou le réseau.
+    const isSupportAction =
+      msgToSend === t('aiSuggestionSupport') ||
+      /^(?:cr[eé]er (?:un )?ticket(?: support)?|create (?:a )?support ticket)$/i.test(msgToSend.trim());
+    const hasPriorUserDescription = messages.some(
+      (m) => m.sender === 'user' && m.text !== t('aiSuggestionSupport') && m.text.trim().length > 10
+    );
+
+    if (isSupportAction && !technicalLogger.hasErrors() && !hasPriorUserDescription) {
+      setInput('');
+      addMessageToActive({ sender: 'user', text: msgToSend });
+      addMessageToActive({
+        sender: 'assistant',
+        text: t('aiSupportClarifyPrompt'),
       });
       return;
     }

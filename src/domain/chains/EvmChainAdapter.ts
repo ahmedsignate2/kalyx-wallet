@@ -35,6 +35,7 @@ import { parseTxList } from './etherscan';
 import { computeFeeTiers, type FeeOptions } from './gas';
 import { ETHERSCAN_V2_API, EXPLORER_API_KEY, COVALENT_API_KEY, ALCHEMY_KEY } from './configs';
 import { parseCovalentTxList } from './covalent';
+import { technicalLogger } from '../../../lib/technicalLogger';
 
 // Limite de gas d'un transfert natif simple (pas d'appel de contrat).
 const NATIVE_TRANSFER_GAS = 21_000n;
@@ -66,8 +67,17 @@ export class EvmChainAdapter implements ChainAdapter {
   }
 
   /** Exécute `op` en essayant chaque RPC dans l'ordre (timeout + fallback). */
-  private call<T>(op: (provider: JsonRpcProvider) => Promise<T>): Promise<T> {
-    return tryInOrder(this.getProviders(), op, { timeoutMs: RPC_TIMEOUT_MS });
+  private async call<T>(op: (provider: JsonRpcProvider) => Promise<T>, methodName = 'eth_rpc'): Promise<T> {
+    const started = Date.now();
+    try {
+      const res = await tryInOrder(this.getProviders(), op, { timeoutMs: RPC_TIMEOUT_MS });
+      technicalLogger.logRpc(methodName, 200, undefined, { chain: this.config.name, elapsedMs: Date.now() - started });
+      return res;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      technicalLogger.logRpc(methodName, 500, errorMsg, { chain: this.config.name, elapsedMs: Date.now() - started });
+      throw err;
+    }
   }
 
   deriveAccount(seed: Uint8Array, index = 0): Account {
@@ -77,7 +87,7 @@ export class EvmChainAdapter implements ChainAdapter {
 
   async getBalance(address: string): Promise<Balance> {
     const addr = normalizeEvmAddress(address);
-    const raw = await this.call((p) => p.getBalance(addr));
+    const raw = await this.call((p) => p.getBalance(addr), 'eth_getBalance');
     return {
       raw,
       decimals: this.config.nativeDecimals,
@@ -471,14 +481,14 @@ export class EvmChainAdapter implements ChainAdapter {
     }
 
     const raw = await wallet.signTransaction(txReq);
-    const res = await this.call((p) => p.broadcastTransaction(raw));
+    const res = await this.call((p) => p.broadcastTransaction(raw), 'eth_sendRawTransaction');
     return res.hash;
   }
 
   /** L'adresse est-elle un CONTRAT (code non vide) ? Best-effort : false si RPC muet. */
   async isContract(address: string): Promise<boolean> {
     try {
-      const code = await this.call((p) => p.getCode(address));
+      const code = await this.call((p) => p.getCode(address), 'eth_getCode');
       return !!code && code !== '0x';
     } catch {
       return false;
@@ -491,7 +501,7 @@ export class EvmChainAdapter implements ChainAdapter {
    * staking liquide pour connaître le montant reçu) sans rien signer.
    */
   async callContract(to: string, data: string, opts?: { from?: string; value?: bigint }): Promise<string> {
-    return this.call((p) => p.call({ to, data, from: opts?.from, value: opts?.value }));
+    return this.call((p) => p.call({ to, data, from: opts?.from, value: opts?.value }), 'eth_call');
   }
 
   /**
@@ -504,8 +514,8 @@ export class EvmChainAdapter implements ChainAdapter {
     from: string,
   ): Promise<{ gasLimit: bigint; feeWei: bigint }> {
     const [est, fee] = await Promise.all([
-      this.call((p) => p.estimateGas({ from, to: req.to, data: req.data ?? '0x', value: req.value ?? 0n })),
-      this.call((p) => p.getFeeData()),
+      this.call((p) => p.estimateGas({ from, to: req.to, data: req.data ?? '0x', value: req.value ?? 0n }), 'eth_estimateGas'),
+      this.call((p) => p.getFeeData(), 'eth_feeHistory/feeData'),
     ]);
     const gasLimit = (est * 12n) / 10n;
     const price = fee.maxFeePerGas ?? fee.gasPrice ?? 0n;

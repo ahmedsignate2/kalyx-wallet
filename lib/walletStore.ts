@@ -50,6 +50,7 @@ import {
   type SwapQuote,
   type RawTxRequest,
 } from '../src';
+import { technicalLogger } from './technicalLogger';
 import {
   saveVault,
   loadVault,
@@ -369,6 +370,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     // Garde-fou : un id inconnu (réseau perso supprimé) retomberait en crash via
     // getAdapter. On bascule alors sur le réseau par défaut, toujours valide.
     const safe = hasChain(chainId) ? chainId : DEFAULT_CHAIN;
+    technicalLogger.logSys(`Switched active network to ${safe}`, { chainId: safe });
     set({ activeChain: safe, account: toAccount(get().accounts, get().activeAccountIndex, safe) });
   },
 

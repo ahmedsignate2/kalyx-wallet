@@ -24,6 +24,7 @@ import { useRecentRecipients, type RecipientFamily } from '../lib/recentRecipien
 import { useContacts } from '../lib/contactsStore';
 import { usePortfolioStore, splitHoldings, type Holding } from '../lib/portfolio';
 import { notifyAndLog } from '../lib/notificationCenter';
+import { technicalLogger } from '../lib/technicalLogger';
 import { friendlyTxError } from '../lib/txError';
 import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
@@ -248,8 +249,8 @@ export default function Send() {
   const fiatOfAmount = inFiat ? amountNum : amountNum * price;
   const available = balance != null ? (isNativeSend ? (balance > feeRaw ? balance - feeRaw : 0n) : balance) : 0n;
   const overBalance = balance != null && amountRaw > available;
-  const notEnoughGas = nativeBal != null && nativeBal < feeRaw;
   const hasEnteredAmount = parseFloat(amount || '0') > 0;
+  const notEnoughGas = hasEnteredAmount && nativeBal != null && nativeBal < feeRaw;
   const showNotEnoughGasWarning = hasEnteredAmount && notEnoughGas;
   const approxVal = feeFiat > 0 ? `${formatFiat(feeFiat)} ${sym}` : `${formatAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`;
   const missingFeeText = t('aboutApprox').replace('{amount}', approxVal);
@@ -258,8 +259,8 @@ export default function Send() {
     haptic.light();
     setAmountError(null);
     if (balance != null && balance > 0n && available === 0n) {
-      setAmountError(t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText));
       setAmount('0');
+      // Aucun message rouge affiché si le montant est à 0
     } else {
       setInFiat(false);
       setAmount(formatInputAmount(available, decimals));
@@ -272,6 +273,13 @@ export default function Send() {
   const [hash, setHash] = useState<string | null>(null);
 
   const perform = async (unlock: Unlock) => {
+    technicalLogger.logTx('step_3_signing_start', {
+      symbol,
+      amount: tokenAmountStr,
+      recipient,
+      chain: chain.name,
+      speed,
+    });
     try {
       const gas = feeOptions ? { maxFeePerGas: feeOptions[speed].maxFeePerGas, maxPriorityFeePerGas: feeOptions[speed].maxPriorityFeePerGas } : undefined;
       const h =
@@ -280,11 +288,13 @@ export default function Send() {
         : await wallet.signAndSend(recipient, tokenAmountStr, unlock, gas);
       setHash(h);
       setStage('sent');
+      technicalLogger.logTx('step_4_broadcast_success', { txHash: h, symbol, chain: chain.name });
       addRecent(recipient, family);
       const dest = contactName ?? (isEns ? to.trim() : shortAddress(recipient));
       notifyAndLog('tx', t("sendTitle"), t('sendSuccessMsg').replace('${formatTokenAmount(amountRaw, decimals)}', formatTokenAmount(amountRaw, decimals)).replace('${symbol}', symbol).replace('${dest}', dest));
       haptic.success();
     } catch (e) {
+      technicalLogger.logTx('step_4_broadcast_failed', { error: e instanceof Error ? e.message : String(e), chain: chain.name }, true);
       if (isWalletError(e) && e.code === 'WRONG_PIN') throw e;
       throw new Error(friendlyTxError(e));
     }
@@ -314,10 +324,12 @@ export default function Send() {
         }
         if (alive) {
           setStage('confirmed');
+          technicalLogger.logTx('step_4_confirmed', { txHash: hash, chain: chain.name });
           haptic.success();
           notifyAndLog('tx', t("sendConfirmTitle"), t('confirmSuccessMsg').replace('${formatTokenAmount(amountRaw, decimals)}', formatTokenAmount(amountRaw, decimals)).replace('${symbol}', symbol).replace('${contactName ?? shortAddress(recipient)}', contactName ?? shortAddress(recipient)));
         }
-      } catch {
+      } catch (err) {
+        technicalLogger.logTx('step_4_confirmation_failed', { txHash: hash, error: String(err), chain: chain.name }, true);
         if (alive) setStage('failed');
       }
     })();
@@ -330,10 +342,15 @@ export default function Send() {
   const goStep2 = () => {
     setAddressError(null);
     if (!recipientOk) {
+      technicalLogger.logTx('step_1_address_invalid', { input: to, isEns, chain: chain.name }, true);
       const fam = family === 'evm' ? t("errNeedEvmAddress") : family === 'solana' ? t("errNeedSolAddress") : t("errNeedBtcAddress");
       return setAddressError(isEns && ens.status === 'resolving' ? t("errResolvingEns") : isEns ? t("errEnsNotFound") : t('errNeedAddressFull').replace('${symbol}', symbol).replace('${chain.name}', chain.name).replace('${fam}', fam));
     }
-    if (poisoning) return; // bloquant, message déjà affiché
+    if (poisoning) {
+      technicalLogger.logTx('step_1_address_poisoning_blocked', { recipient, chain: chain.name }, true);
+      return; // bloquant, message déjà affiché
+    }
+    technicalLogger.logTx('step_1_address_validated', { recipient, isEns, chain: chain.name });
     haptic.light();
     setAmountError(null);
     setStep(2);
@@ -342,10 +359,18 @@ export default function Send() {
     setAmountError(null);
     if (amountRaw <= 0n) return setAmountError(t("errEnterAmount"));
     if (overBalance) return setAmountError(`Tu possèdes ${formatTokenAmount(balance ?? 0n, decimals)} ${symbol}${isNativeSend ? ` (frais réservés : ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol})` : ''}.`);
-    if (notEnoughGas) return setAmountError(t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText));
+    if (hasEnteredAmount && notEnoughGas) return setAmountError(t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText));
+    technicalLogger.logTx('step_2_fee_simulation', {
+      amount: tokenAmountStr,
+      symbol,
+      feeRaw: feeRaw.toString(),
+      available: available.toString(),
+      chain: chain.name,
+    });
     try {
       if (isNativeSend) getAdapter(targetChainId).buildTransfer({ to: recipient, amount: tokenAmountStr });
     } catch (e) {
+      technicalLogger.logTx('step_2_buildTransfer_failed', { error: isWalletError(e) ? e.message : String(e), chain: chain.name }, true);
       return setAmountError(isWalletError(e) ? e.message : t("errInvalidAmount"));
     }
     haptic.light();
@@ -520,8 +545,8 @@ export default function Send() {
               {balance == null ? <Skeleton width={160} /> : <Text variant="caption" tone="secondary" tabular>{t("balanceLabel")} : {formatTokenAmount(balance, decimals)} {symbol}</Text>}
               <Chip label={t("chipMax")} onPress={setMax} />
             </View>
-            {showNotEnoughGasWarning ? <Text variant="caption" tone="warning">{t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText)}</Text> : null}
-            {amountError ? <Text variant="caption" tone="danger">{amountError}</Text> : null}
+            {showNotEnoughGasWarning && hasEnteredAmount ? <Text variant="caption" tone="warning">{t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText)}</Text> : null}
+            {amountError && hasEnteredAmount ? <Text variant="caption" tone="danger">{amountError}</Text> : null}
             <View style={{ flex: 1 }} />
             <AmountKeypad value={amount} onChange={(v) => { setAmount(v); setAmountError(null); }} maxDecimals={inFiat ? 2 : Math.min(decimals, 8)} />
             <Button label={t("verify")} onPress={goStep3} disabled={amountRaw <= 0n} />
