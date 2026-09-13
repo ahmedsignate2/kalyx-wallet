@@ -23,6 +23,7 @@ import * as Clipboard from 'expo-clipboard';
 import { toast } from '../../lib/toast';
 import { haptic } from '../../lib/haptics';
 import { openTelegramTicket, normalizeSupportTicket, getClientEnvironmentInfo, generateTicketId } from '../../lib/telegramSupport';
+import { useTicketHistoryStore } from '../../lib/ticketHistoryStore';
 import { detectSensitiveSecrets, sanitizeSecrets } from '../../lib/secretDetector';
 import { technicalLogger, getFormattedTechnicalLogs } from '../../lib/technicalLogger';
 
@@ -35,6 +36,14 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
   const [errorWarning, setErrorWarning] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (normalizedTicket) {
+      try {
+        useTicketHistoryStore.getState().addTicket({ content: normalizedTicket });
+      } catch {}
+    }
+  }, [normalizedTicket]);
 
   const secretCheck = detectSensitiveSecrets(normalizedTicket);
 
