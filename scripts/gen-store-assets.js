@@ -35,7 +35,7 @@ const featureSvg = `<svg width="1024" height="500" viewBox="0 0 1024 500" xmlns=
   <rect width="1024" height="500" fill="url(#bg)"/>
   <rect width="1024" height="500" fill="url(#glow)"/>
   <image href="data:image/png;base64,${lion}" x="60" y="80" width="340" height="340"/>
-  <text x="430" y="215" font-family="Outfit" font-weight="800" font-size="120" fill="#F5F7FA" letter-spacing="1">Nova</text>
+  <text x="430" y="215" font-family="Outfit" font-weight="800" font-size="120" fill="#F5F7FA" letter-spacing="1">Kalyx</text>
   <text x="434" y="285" font-family="Inter" font-weight="500" font-size="36" fill="#B7BEC8">Ton wallet crypto non-custodial</text>
   <text x="434" y="345" font-family="Outfit" font-weight="600" font-size="34" fill="url(#accent)">Simple · Souverain · Premium</text>
   <text x="434" y="410" font-family="Inter" font-weight="500" font-size="26" fill="#8A93A6">Multi-chaînes · Swap · dApps · NFT · Ledger</text>

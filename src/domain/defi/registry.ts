@@ -18,7 +18,7 @@ export interface DefiPosition {
   protocol: string;
 }
 
-/** Contrats connus, par id de chaîne Nova → contrat (minuscules). */
+/** Contrats connus, par id de chaîne Kalyx → contrat (minuscules). */
 const KNOWN: Record<string, Record<string, DefiPosition>> = {
   ethereum: {
     // Staking liquide
@@ -49,7 +49,7 @@ const SYMBOL_RULES: { test: RegExp; pos: DefiPosition }[] = [
 
 /**
  * Classe un token détenu. `null` = token « normal » (onglet Crypto).
- * @param chainId id Nova de la chaîne active ('ethereum', 'polygon'…)
+ * @param chainId id Kalyx de la chaîne active ('ethereum', 'polygon'…)
  */
 export function classifyToken(
   chainId: string,

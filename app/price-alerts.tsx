@@ -2,6 +2,7 @@
  * Liste des alertes de prix. Création depuis la fiche d'un token (icône 🔔).
  * Vérifiées quand l'app est ouverte (voir ui/PriceAlertWatcher) ; one-shot.
  */
+import { ScreenHeader } from '../ui/kit';
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Stack, router } from 'expo-router';
@@ -20,8 +21,9 @@ export default function PriceAlerts() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: t('priceAlerts') }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
+      <ScreenHeader title={t('priceAlerts')} />
       <Text style={typography.muted}>{t('priceAlertsIntro')}</Text>
 
       {alerts.length === 0 ? (

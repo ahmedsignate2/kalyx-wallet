@@ -1,9 +1,10 @@
 /**
- * Sauvegarde chiffrée de la phrase (« cloud backup »). L'utilisateur choisit un
+ * Export manuel d'une sauvegarde chiffrée. L'utilisateur choisit un
  * mot de passe ; on révèle la seed (biométrie/PIN), on la chiffre CÔTÉ CLIENT et on
  * partage le fichier via le partage natif (Drive, Files, e-mail…). Rien ne part vers
- * un serveur Nova. La restauration se fait depuis Portefeuilles → Importer.
+ * un serveur Kalyx. La restauration se fait depuis Portefeuilles → Importer.
  */
+import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, KeyboardAvoidingView, Platform, Share } from 'react-native';
 import { Stack, router } from 'expo-router';
@@ -31,21 +32,36 @@ export default function CloudBackup() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  const strength = pwd.length < 8 ? { label: 'Faible', color: colors.danger } : pwd.length < 12 ? { label: 'Moyen', color: colors.warning } : /[A-Z]/.test(pwd) && /\d/.test(pwd) && /[^A-Za-z0-9]/.test(pwd) ? { label: 'Fort', color: colors.up } : { label: 'Moyen', color: colors.warning };
+  const mismatch = confirm.length > 0 && pwd !== confirm;
+  const canCreate = pwd.length >= 8 && confirm.length > 0 && !mismatch;
+
   const onCreate = () => {
     setError(null);
-    if (pwd.length < 8) { setError(t('pwdMin8')); return; }
-    if (pwd !== confirm) { setError(t('pwdsMismatch')); return; }
+    if (pwd.length < 8) { setError('Choisis au moins 8 caractères ; 12 ou plus sont recommandés.'); return; }
+    if (pwd !== confirm) { setError('Les mots de passe ne correspondent pas.'); return; }
     setConfirming(true);
   };
 
   // Révèle la seed (biométrie/PIN), chiffre, puis partage. LÈVE pour ConfirmUnlock.
   const perform = async (unlock: Unlock) => {
+    const startedAt = Date.now();
+    console.log('[KALYX-AUTH][backup] perform:start', {
+      unlockMode: 'biometric' in unlock ? 'biometric' : 'pin',
+      passwordLength: pwd.length,
+    });
     const mnemonic = await revealPhrase(unlock);
+    console.log('[KALYX-AUTH][backup] revealPhrase:resolved', { elapsedMs: Date.now() - startedAt });
     const blob = await createBackup(mnemonic, pwd);
+    console.log('[KALYX-AUTH][backup] createBackup:resolved', {
+      elapsedMs: Date.now() - startedAt,
+      blobBytes: blob.length,
+    });
     await Share.share({
       message: blob,
       title: t('backupShareTitle'),
     });
+    console.log('[KALYX-AUTH][backup] share:resolved', { elapsedMs: Date.now() - startedAt });
     setDone(true);
     setPwd('');
     setConfirm('');
@@ -53,7 +69,7 @@ export default function CloudBackup() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: t('encBackup') }} />
+      <Stack.Screen options={{ headerShown: false }} />
       {(() => {
   if (isPk) {
     return (
@@ -69,25 +85,27 @@ export default function CloudBackup() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       
       <ScrollView
-        contentContainerStyle={{ padding: spacing(3), paddingBottom: insets.bottom + spacing(4), gap: spacing(2) }}
+        contentContainerStyle={{ padding: spacing(3), paddingTop: insets.top + 12, paddingBottom: insets.bottom + spacing(4), gap: spacing(2) }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Title>{t('encBackup')}</Title>
-        <Muted>{t('backupIntro')}</Muted>
+        <ScreenHeader title={t('encBackup')} />
+        <Muted>Crée un fichier chiffré localement, puis enregistre-le toi-même où tu veux. Kalyx ne reçoit ni le fichier ni ton mot de passe.</Muted>
 
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: colors.bgElevated, borderRadius: 12, padding: spacing(1.5) }}>
           <Icon name="warning" size={18} color={colors.warning} />
-          <Text style={[typography.muted, { flex: 1 }]}>{t('backupPwdWarning')}</Text>
+          <Text style={[typography.muted, { flex: 1 }]}>Personne, pas même Kalyx, ne peut récupérer cette sauvegarde sans ton mot de passe. Garde le fichier et le mot de passe séparément.</Text>
         </View>
 
         <Card>
           <Text style={typography.muted}>{t('backupPassword')}</Text>
-          <TextInput value={pwd} onChangeText={setPwd} placeholder={t('atLeast8Chars')} placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+          <TextInput value={pwd} onChangeText={(v) => { setPwd(v); setError(null); }} placeholder="8 caractères minimum · 12 recommandés" placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+          <Text style={{ color: strength.color, fontSize: 13 }}>Robustesse : {strength.label}{pwd.length >= 8 && pwd.length < 12 ? ' · 12 caractères recommandés' : ''}</Text>
         </Card>
         <Card>
           <Text style={typography.muted}>{t('confirmPassword')}</Text>
-          <TextInput value={confirm} onChangeText={setConfirm} placeholder={t('repeatPassword')} placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+          <TextInput value={confirm} onChangeText={(v) => { setConfirm(v); setError(null); }} placeholder={t('repeatPassword')} placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+          {mismatch ? <Text style={{ color: colors.danger, fontSize: 13 }}>Les mots de passe ne correspondent pas.</Text> : null}
         </Card>
 
         {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
@@ -99,7 +117,7 @@ export default function CloudBackup() {
         ) : null}
 
         <View style={{ height: spacing(1) }} />
-        <Button label={t('createBackupBtn')} onPress={onCreate} />
+        <Button label={t('createBackupBtn')} onPress={onCreate} disabled={!canCreate} />
         <Muted>{t('restoreHint')}</Muted>
       </ScrollView>
 

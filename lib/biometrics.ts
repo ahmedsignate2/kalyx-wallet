@@ -11,11 +11,26 @@ export async function isBiometricAvailable(): Promise<boolean> {
 }
 
 /** Demande l'authentification. Renvoie true si l'utilisateur réussit. */
-export async function authenticate(reason = 'Déverrouiller Nova Wallet'): Promise<boolean> {
-  const res = await LocalAuthentication.authenticateAsync({
-    promptMessage: reason,
-    cancelLabel: 'Utiliser le PIN',
-    disableDeviceFallback: false,
-  });
-  return res.success;
+export async function authenticate(reason = 'Déverrouiller Kalyx Wallet'): Promise<boolean> {
+  const startedAt = Date.now();
+  console.log('[KALYX-AUTH][biometrics] authenticate:start', { reason });
+  try {
+    const res = await LocalAuthentication.authenticateAsync({
+      promptMessage: reason,
+      cancelLabel: 'Utiliser le PIN',
+      disableDeviceFallback: false,
+    });
+    console.log('[KALYX-AUTH][biometrics] authenticate:resolved', {
+      elapsedMs: Date.now() - startedAt,
+      success: res.success,
+      error: res.success ? null : res.error ?? null,
+    });
+    return res.success;
+  } catch (error) {
+    console.warn('[KALYX-AUTH][biometrics] authenticate:rejected', {
+      elapsedMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }

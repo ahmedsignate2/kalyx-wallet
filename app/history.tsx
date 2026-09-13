@@ -1,235 +1,167 @@
+import { useT, useSettings } from "../lib/settingsStore";
+
+const LANG_LOCALES: Record<string, string> = {
+  en: 'en-US',
+  fr: 'fr-FR',
+  es: 'es-ES',
+  pt: 'pt-BR',
+  de: 'de-DE',
+  it: 'it-IT',
+  nl: 'nl-NL',
+  pl: 'pl-PL',
+  tr: 'tr-TR',
+  ru: 'ru-RU',
+  ar: 'ar-SA',
+  hi: 'hi-IN',
+  zh: 'zh-CN',
+  ja: 'ja-JP',
+  ko: 'ko-KR',
+};
 /**
- * Écran Historique — Production Grade A+ :
- * - Hydratation INSTANTANÉE depuis le cache local (zéro skeleton si cache dispo)
- * - Fetch réseau en arrière-plan (UI jamais bloquée)
- * - Filtres : Tout / Reçus / Envoyés / Échecs
- * - Recherche par adresse ou hash
- * - Pull-to-refresh
- * - Export CSV
+ * Activité (§4.6) — tout est traduit en humain, regroupé par Aujourd'hui /
+ * Hier / date. Les échecs disent pourquoi ; les transferts spam à 0 sont
+ * masqués (réglage pour les voir). Export CSV conservé.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { NovaRing } from "../ui/NovaRing";
-import { View, Text, ScrollView, RefreshControl, Pressable, Share, TextInput } from 'react-native';
-import { Screen, Title, Muted } from '../ui/components';
-import { GlassCard, SkeletonRow, PressableScale } from '../ui/premium';
-import { TxRow } from '../ui/TxRow';
-import { Icon } from '../ui/icon';
-import { fonts, radii, spacing, useTheme } from '../ui/theme';
+import { View, ScrollView, RefreshControl, Share } from 'react-native';
+import { router, Stack } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, IconButton, Surface, Divider, Chip, Skeleton, EmptyState, ActivityRow, Pressable } from '../ui/kit';
+import { useTheme } from '../ui/theme';
+import { space, SCREEN_MARGIN } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
-import { useSettings, fiatSymbol, useT } from '../lib/settingsStore';
 import { useHistoryStore } from '../lib/historyStore';
+import { useContacts } from '../lib/contactsStore';
 import { toast } from '../lib/toast';
-import { getAdapter, getCoinDetail, transactionsToCsv, type TxSummary } from '../src';
+import { haptic } from '../lib/haptics';
+import { getAdapter, transactionsToCsv, humanizeTx, groupByDay, type TxSummary } from '../src';
 
 type Filter = 'all' | 'in' | 'out' | 'failed';
 
-const MemoTxRow = React.memo(TxRow);
-
 export default function History() {
-  const { colors, typography } = useTheme();
   const t = useT();
+  const language = useSettings((s) => s.language);
+  const locale = LANG_LOCALES[language] || 'en-US';
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const account = useWallet((s) => s.account);
+  const accounts = useWallet((s) => s.accounts);
   const activeChain = useWallet((s) => s.activeChain);
-  const { fiat } = useSettings();
   const chain = getAdapter(activeChain).config;
-
-  // History store (cache + background fetch).
+  const contacts = useContacts((s) => s.contacts);
   const getCached = useHistoryStore((s) => s.getCached);
   const fetchHistory = useHistoryStore((s) => s.fetchHistory);
   const isLoading = useHistoryStore((s) => s.isLoading);
-
-  // Logo + prix actuel du natif (contre-valeur des lignes).
-  const [coin, setCoin] = useState<{ image: string; price: number } | null>(null);
-  // Hash de la tx dépliée (détail adresses + explorateur).
-  const [openHash, setOpenHash] = useState<string | null>(null);
-  // Filtre actif.
   const [filter, setFilter] = useState<Filter>('all');
-  // Recherche.
-  const [search, setSearch] = useState('');
+  const [showSpam, setShowSpam] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Cached data (instant).
-  const cached = account ? getCached(activeChain, account.address) : [];
+  const cached: TxSummary[] = account ? getCached(activeChain, account.address) : [];
   const loading = account ? isLoading(activeChain, account.address) : false;
-  // « Premier chargement » = cache vide ET en cours de chargement.
-  const isFirstLoad = cached.length === 0 && loading;
 
-  // Lancement du fetch réseau en arrière-plan avec fallback local pour le spinner
-  const [localRefreshing, setLocalRefreshing] = useState(false);
   const load = useCallback(async () => {
     if (!account) return;
-    setLocalRefreshing(true);
-    try {
-      // Sécurité : Timeout de 1.5s max pour le spinner visuel
-      await Promise.race([
-        fetchHistory(activeChain, account.address),
-        new Promise(resolve => setTimeout(resolve, 1500))
-      ]);
-    } finally {
-      setLocalRefreshing(false);
-    }
+    await fetchHistory(activeChain, account.address).catch(() => {});
   }, [account, activeChain, fetchHistory]);
-
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
-  // Filtrage + recherche (memoized).
-  const filteredTxs = useMemo(() => {
-    let txs = cached;
-    if (filter === 'in') txs = txs.filter((tx) => tx.direction === 'in');
-    else if (filter === 'out') txs = txs.filter((tx) => tx.direction === 'out');
-    else if (filter === 'failed') txs = txs.filter((tx) => tx.status === 'failed');
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      txs = txs.filter(
-        (tx) =>
-          tx.hash.toLowerCase().includes(q) ||
-          tx.from.toLowerCase().includes(q) ||
-          tx.to.toLowerCase().includes(q),
-      );
-    }
-    return txs;
-  }, [cached, filter, search]);
+  const nameOf = useCallback(
+    (a: string) => {
+      const l = a.toLowerCase();
+      if (accounts.some((x) => x.evmAddress.toLowerCase() === l || x.solAddress?.toLowerCase() === l || x.btcAddress.toLowerCase() === l)) return 'toi';
+      return contacts.find((c) => c.address.toLowerCase() === l)?.name;
+    },
+    [accounts, contacts],
+  );
+
+  const rows = useMemo(() => {
+    const ctx = { nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals, nameOf };
+    return cached.map((tx) => ({ tx, h: humanizeTx(tx, ctx) }));
+  }, [cached, chain.nativeSymbol, chain.nativeDecimals, nameOf]);
+  const spamCount = rows.filter((r) => r.h.spam).length;
+  const filtered = rows.filter((r) => {
+    if (r.h.spam && !showSpam) return false;
+    if (filter === 'in') return r.tx.direction === 'in';
+    if (filter === 'out') return r.tx.direction === 'out';
+    if (filter === 'failed') return r.h.failed;
+    return true;
+  });
+  const groups = useMemo(
+    () => groupByDay(filtered.map((r) => ({ ...r, timestamp: r.tx.timestamp })), Date.now(), locale, { today: t('txToday'), yesterday: t('txYesterday') }),
+    [filtered, locale, t],
+  );
 
   const exportCsv = async () => {
-    if (filteredTxs.length === 0) return;
-    const csv = transactionsToCsv(filteredTxs, {
-      chainName: chain.name,
-      nativeSymbol: chain.nativeSymbol,
-      nativeDecimals: chain.nativeDecimals,
-      explorerUrl: chain.explorerUrl,
-    });
+    if (cached.length === 0) return;
+    const csv = transactionsToCsv(cached, { chainName: chain.name, nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals, explorerUrl: chain.explorerUrl });
     try {
-      await Share.share({ message: csv, title: `nova-history-${chain.id}.csv` });
+      await Share.share({ message: csv, title: `kalyx-history-${chain.id}.csv` });
     } catch {
-      toast.error(t('exportFailed'), t('tryAgain'));
+      toast.error(t("exportFailed"));
     }
   };
 
-  useEffect(() => {
-    let alive = true;
-    setCoin(null);
-    if (!chain.coingeckoId) return;
-    getCoinDetail(chain.coingeckoId, fiat)
-      .then((d) => alive && d && setCoin({ image: d.image, price: d.price }))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [chain.coingeckoId, fiat]);
-
   const filters: { key: Filter; label: string }[] = [
-    { key: 'all', label: t('filterAll') },
-    { key: 'in', label: t('filterReceived') },
-    { key: 'out', label: t('filterSent') },
-    { key: 'failed', label: t('filterFailed') },
+    { key: 'all', label: t("filterAll") },
+    { key: 'in', label: t("filterReceived") },
+    { key: 'out', label: t("filterSent") },
+    { key: 'failed', label: t("filterFailed") },
   ];
 
   return (
-    <Screen>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Title>{t('historyTitle')} · {chain.name}</Title>
-        {cached.length > 0 ? (
-          <Pressable onPress={exportCsv} hitSlop={8} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, opacity: pressed ? 0.6 : 1 })}>
-            <Icon name="share" size={16} color={colors.accent} />
-            <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}>CSV</Text>
-          </Pressable>
-        ) : null}
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
+        <View style={{ flex: 1 }}>
+          <Text variant="title2">{t("activity")}</Text>
+          <Text variant="micro" tone="tertiary">{chain.name}</Text>
+        </View>
+        <IconButton icon="share" label={t("exportCsv")} tone="ghost" onPress={exportCsv} disabled={cached.length === 0} />
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingTop: spacing(1), paddingBottom: spacing(4) }}
-        refreshControl={<RefreshControl refreshing={localRefreshing} onRefresh={load} tintColor={colors.accent} />}
+        contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[4] }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { haptic.light(); setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.textSecondary} colors={[colors.textSecondary]} />}
       >
-        {/* Barre de filtres intégrée dans le scroll */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: spacing(1), paddingVertical: spacing(1), marginBottom: spacing(1) }}
-        >
-          {filters.map((f) => {
-            const active = f.key === filter;
-            return (
-              <Pressable
-                key={f.key}
-                onPress={() => setFilter(f.key)}
-                style={{
-                  paddingHorizontal: 16,
-                  height: 38,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  borderRadius: 20,
-                  minWidth: 60,
-                  backgroundColor: active ? colors.accent : colors.glass,
-                  borderWidth: 1,
-                  borderColor: active ? colors.accent : colors.glassBorder,
-                }}
-              >
-                <Text style={{ color: active ? '#fff' : colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>
-                  {f.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        <View style={{ flexDirection: 'row', gap: space[2], flexWrap: 'wrap' }}>
+          {filters.map((f) => <Chip key={f.key} label={f.label} selected={filter === f.key} onPress={() => setFilter(f.key)} />)}
+        </View>
 
-        {/* Barre de recherche intégrée dans le scroll */}
-        {cached.length > 5 ? (
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder={t('searchCrypto')}
-            placeholderTextColor={colors.textMuted}
-            style={{
-              backgroundColor: colors.glass,
-              borderRadius: radii.md,
-              borderWidth: 1,
-              borderColor: colors.glassBorder,
-              paddingHorizontal: spacing(1.5),
-              paddingVertical: spacing(1),
-              color: colors.text,
-              fontFamily: fonts.medium,
-              fontSize: 14,
-              marginBottom: spacing(2),
-            }}
-          />
-        ) : null}
-
-        {isFirstLoad ? (
-          <GlassCard>{[0, 1, 2, 3].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>
-        ) : filteredTxs.length === 0 ? (
-          <GlassCard style={{ paddingVertical: spacing(4), alignItems: 'center', gap: spacing(2) }}>
-            <View style={{ opacity: 0.3, transform: [{ scale: 0.8 }] }}>
-              <NovaRing size={96} color={colors.textFaint} />
-            </View>
-            <View style={{ alignItems: 'center', gap: 4 }}>
-              <Text style={typography.bodyStrong}>Aucune activité</Text>
-              <Text style={[typography.muted, { textAlign: 'center' }]}>
-                {chain.family === 'evm' ? 'Votre historique apparaîtra ici après votre première transaction.' : 'Effectuez un swap ou un transfert pour voir votre activité.'}
-              </Text>
-            </View>
-          </GlassCard>
+        {loading && cached.length === 0 ? (
+          <Surface padded={false}>{[0, 1, 2, 3].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center', gap: space[2] }}><Skeleton width="65%" /><Skeleton width="35%" height={12} /></View>)}</Surface>
+        ) : groups.length === 0 ? (
+          <Surface>
+            <EmptyState icon="history" title={filter === 'all' ? t("noActivityYet") : t("nothingForFilter")} body={filter === 'all' ? `Tes transactions sur ${chain.name} apparaîtront ici. Partage ton adresse pour recevoir.` : undefined} actionLabel={filter === 'all' ? t("receive") : undefined} onAction={filter === 'all' ? () => router.push('/receive') : undefined} />
+          </Surface>
         ) : (
-          <GlassCard>
-            {filteredTxs.map((tx, i) => (
-              <MemoTxRow
-                key={tx.hash}
-                tx={tx}
-                divider={i > 0}
-                symbol={chain.nativeSymbol}
-                decimals={chain.nativeDecimals}
-                logoUri={coin?.image}
-                price={coin?.price}
-                fiatSymbol={fiatSymbol(fiat)}
-                expanded={openHash === tx.hash}
-                explorerUrl={chain.explorerUrl}
-                onPress={() => setOpenHash((h) => (h === tx.hash ? null : tx.hash))}
-              />
-            ))}
-          </GlassCard>
+          groups.map((g) => (
+            <View key={g.label} style={{ gap: space[2] }}>
+              <Text variant="caption" tone="secondary">{g.label}</Text>
+              <Surface padded={false}>
+                {g.items.map((r, i) => (
+                  <React.Fragment key={r.tx.hash + i}>
+                    <ActivityRow
+                      h={r.h}
+                      time={new Date(r.tx.timestamp * 1000).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                      onPress={chain.explorerUrl ? () => router.push({ pathname: '/browser', params: { url: `${chain.explorerUrl}/tx/${r.tx.hash}` } }) : undefined}
+                    />
+                    {i < g.items.length - 1 ? <Divider inset={68} /> : null}
+                  </React.Fragment>
+                ))}
+              </Surface>
+            </View>
+          ))
         )}
-        <View style={{ height: spacing(3) }} />
+
+        {spamCount > 0 ? (
+          <Pressable onPress={() => setShowSpam((v) => !v)} style={{ alignSelf: 'center', paddingVertical: space[2] }}>
+            <Text variant="caption" tone="secondary">{showSpam ? t("hideZeroTransfers") : `Afficher ${spamCount} transfert${spamCount > 1 ? 's' : ''} à 0 (spam probable)`}</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
-    </Screen>
+    </View>
   );
 }

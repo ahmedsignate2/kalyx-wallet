@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { router } from 'expo-router';
@@ -101,6 +102,7 @@ export default function ChangePin() {
 
   return (
     <Screen>
+      <ScreenHeader />
       <Title>{title}</Title>
       <Muted>{hint}</Muted>
 

@@ -1,111 +1,72 @@
+/** Vérification (§4.9) — retrouver 3 mots au hasard, pas les 12. Succès → `backupVerified`. */
 import React, { useMemo, useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
-import { router, Stack } from 'expo-router';
-import { PremiumScreen, GlassCard } from '../ui/premium';
-import { Button } from '../ui/components';
-import { Icon } from '../ui/icon';
-import { fonts, radii, spacing, useTheme } from '../ui/theme';
+import { View, ScrollView } from 'react-native';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Button, IconButton, Surface, Chip, EmptyState } from '../ui/kit';
+import { useTheme } from '../ui/theme';
+import { space, SCREEN_MARGIN } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
-import { useT } from '../lib/settingsStore';
+import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
+import { haptic } from '../lib/haptics';
 import { createBackupChallenge, verifyBackupChallenge } from '../src';
 
-/**
- * Confirme que l'utilisateur a bien noté sa phrase : il doit re-sélectionner
- * quelques mots aux bonnes positions (logique fournie par le moteur testé).
- */
 export default function Verify() {
-  const { colors, typography } = useTheme();
   const t = useT();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const draft = useWallet((s) => s.draftMnemonic);
-  const challenge = useMemo(
-    () => (draft ? createBackupChallenge(draft, { count: 3, optionsPerWord: 4 }) : []),
-    [draft],
-  );
+  const { then } = useLocalSearchParams<{ then?: string }>();
+  const challenge = useMemo(() => (draft ? createBackupChallenge(draft, { count: 3, optionsPerWord: 4 }) : []), [draft]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
-
-  return (
-    <>
-      <Stack.Screen options={{ headerShown: true, title: t('verifyTitle') }} />
-      {(() => {
-  if (!draft) {
-    return (
-      <PremiumScreen>
-        
-        <GlassCard>
-          <Text style={typography.bodyStrong}>{t('sessionExpired')}</Text>
-          <Text onPress={() => router.replace('/welcome')} style={{ color: colors.accent, fontFamily: fonts.semibold, marginTop: spacing(1) }}>
-            {t('startOver')}
-          </Text>
-        </GlassCard>
-      </PremiumScreen>
-    );
-  }
-
   const allAnswered = challenge.every((c) => answers[c.position]);
 
   const onValidate = () => {
+    if (!draft) return;
     const list = challenge.map((c) => ({ position: c.position, word: answers[c.position] }));
     if (verifyBackupChallenge(draft, list)) {
-      router.push('/set-pin');
+      haptic.success();
+      useSettings.getState().setBackupVerified(true);
+      if (then === 'security') {
+        // Vérification différée depuis « Révéler la phrase » : on jette le brouillon.
+        useWallet.setState({ draftMnemonic: null });
+        toast.success(t('verifyBackup'), t('notedPhrase'));
+        router.replace('/security');
+      } else {
+        router.push('/set-pin');
+      }
     } else {
-      toast.error(t('almost'), t('wordMismatch'));
+      haptic.error();
+      toast.error(t('wordMismatch'));
       setAnswers({});
     }
   };
 
   return (
-    <PremiumScreen>
-      
-
-      <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
-        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="check" size={26} color={colors.accent} />
-        </View>
-        <Text style={typography.title}>{t('verifyBackup')}</Text>
-        <Text style={[typography.muted, { textAlign: 'center' }]}>{t('selectRightWord')}</Text>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => router.back()} />
+        <Text variant="title2" style={{ flex: 1 }}>{t('verifyBackup')}</Text>
       </View>
-
-      <View style={{ gap: spacing(1.5) }}>
-        {challenge.map((c) => {
-          const answered = !!answers[c.position];
-          return (
-            <GlassCard key={c.position}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing(1) }}>
-                <Text style={typography.muted}>{t('wordNo')} {c.position}</Text>
-                {answered ? <Icon name="check" size={15} color={colors.up} /> : null}
+      {!draft ? (
+        <View style={{ padding: SCREEN_MARGIN }}><Surface><EmptyState icon="phrase" title={t('sessionExpired')} actionLabel={t('startOver')} onAction={() => router.replace('/welcome')} /></Surface></View>
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[4], flexGrow: 1 }}>
+          <Text variant="bodySecondary" tone="secondary">{t('selectRightWord')}</Text>
+          {challenge.map((c) => (
+            <Surface key={c.position} style={{ gap: space[3] }}>
+              <Text variant="caption" tone="secondary">{t('wordNo')} {c.position}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
+                {c.options.map((opt) => <Chip key={opt} label={opt} selected={answers[c.position] === opt} onPress={() => setAnswers((a) => ({ ...a, [c.position]: opt }))} />)}
               </View>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
-                {c.options.map((opt) => {
-                  const selected = answers[c.position] === opt;
-                  return (
-                    <Pressable
-                      key={opt}
-                      onPress={() => setAnswers((a) => ({ ...a, [c.position]: opt }))}
-                      style={{
-                        paddingVertical: spacing(1),
-                        paddingHorizontal: spacing(2),
-                        borderRadius: radii.pill,
-                        backgroundColor: selected ? colors.accent : colors.bgElevated,
-                        borderWidth: 1,
-                        borderColor: selected ? colors.accent : colors.glassBorder,
-                      }}
-                    >
-                      <Text style={{ color: selected ? '#fff' : colors.text, fontFamily: selected ? fonts.semibold : fonts.regular }}>{opt}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </GlassCard>
-          );
-        })}
-      </View>
-
-      <Button label={t('validate')} disabled={!allAnswered} onPress={onValidate} />
-      <View style={{ height: spacing(1) }} />
-    </PremiumScreen>
-  );
-      })()}
-    </>
+            </Surface>
+          ))}
+          <View style={{ flex: 1 }} />
+          <Button label={t("pinValidate")} onPress={onValidate} disabled={!allAnswered} />
+        </ScrollView>
+      )}
+    </View>
   );
 }

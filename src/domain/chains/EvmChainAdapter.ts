@@ -280,6 +280,12 @@ export class EvmChainAdapter implements ChainAdapter {
     return { to, value: raw, evmChainId: this.config.evmChainId! };
   }
 
+  /** Données de frais brutes du réseau (EIP-1559 ou legacy). */
+  async getFeeData(): Promise<{ maxFeePerGas: bigint | null; maxPriorityFeePerGas: bigint | null; gasPrice: bigint | null }> {
+    const fee = await this.call((p) => p.getFeeData());
+    return { maxFeePerGas: fee.maxFeePerGas, maxPriorityFeePerGas: fee.maxPriorityFeePerGas, gasPrice: fee.gasPrice };
+  }
+
   /** Paliers de frais Lent/Normal/Rapide pour un `gasLimit` (défaut = transfert natif). */
   async getFeeOptions(gasLimit: bigint = NATIVE_TRANSFER_GAS): Promise<FeeOptions> {
     const fee = await this.call((p) => p.getFeeData());
@@ -354,6 +360,25 @@ export class EvmChainAdapter implements ChainAdapter {
     }
   }
 
+  /**
+   * Attend que l'allowance `owner → spender` soit ≥ `min` sur le RPC (poll).
+   * Après un approve confirmé, un nœud public en retard d'un bloc peut encore
+   * renvoyer l'ancienne allowance → l'estimateGas de la tx suivante revert.
+   * Renvoie true si vue à temps, false sinon (l'appelant décide).
+   */
+  async waitForAllowance(token: string, owner: string, spender: string, min: bigint, timeoutMs = 30_000): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        if ((await this.getAllowance(token, owner, spender)) >= min) return true;
+      } catch {
+        /* RPC muet : on réessaie */
+      }
+      await new Promise((r) => setTimeout(r, 2_000));
+    }
+    return false;
+  }
+
   /** Data d'un `approve(spender, amount)` ERC-20. */
   buildApproveData(spender: string, amount: bigint): string {
     return ERC20.encodeFunctionData('approve', [spender, amount]);
@@ -371,12 +396,48 @@ export class EvmChainAdapter implements ChainAdapter {
       needFee ? this.call((p) => p.getFeeData()) : Promise.resolve(null),
     ]);
 
+    // SIMULATION SYSTÉMATIQUE (estimateGas) avant diffusion : une tx qui revert
+    // n'est jamais envoyée (sinon l'utilisateur paie le gas d'un échec). Si le
+    // RPC est muet (pas un revert) et qu'un gasLimit est fourni, on continue.
     let gasLimit = req.gasLimit;
-    if (!gasLimit) {
-      const est = await this.call((p) =>
-        p.estimateGas({ from, to: req.to, data: req.data ?? '0x', value: req.value ?? 0n }),
-      );
-      gasLimit = (est * 12n) / 10n; // +20 % de marge
+    const estimate = () =>
+      this.call((p) => p.estimateGas({ from, to: req.to, data: req.data ?? '0x', value: req.value ?? 0n }));
+    let lastErr: unknown;
+    // Jusqu'à 3 essais : un revert « missing revert data » juste après un approve
+    // vient souvent d'un nœud en retard (allowance pas encore visible), pas du contrat.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const est = await estimate();
+        const withMargin = (est * 12n) / 10n; // +20 % de marge
+        gasLimit = gasLimit && gasLimit > withMargin ? gasLimit : withMargin;
+        lastErr = undefined;
+        break;
+      } catch (e) {
+        lastErr = e;
+        const code = (e as { code?: string })?.code;
+        const msg = String((e as { message?: string })?.message ?? '').toLowerCase();
+        // Manque de fonds : inutile de réessayer, message clair tout de suite.
+        if (code === 'INSUFFICIENT_FUNDS' || msg.includes('insufficient funds')) {
+          throw new WalletError('INSUFFICIENT_FUNDS', `Solde en ${this.config.nativeSymbol} insuffisant pour payer les frais réseau.`);
+        }
+        const isRevert = code === 'CALL_EXCEPTION' || msg.includes('revert') || msg.includes('exceeds allowance') || msg.includes('transfer amount exceeds');
+        if (!isRevert && gasLimit) {
+          lastErr = undefined; // RPC muet, gasLimit fourni : on continue avec.
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 2_000));
+      }
+    }
+    if (lastErr) {
+      // Revert persistant. Si le provider (LI.FI/Relay) a fourni un gasLimit, il a
+      // lui-même simulé la tx : on lui fait confiance plutôt que de bloquer sur un
+      // nœud capricieux. Sinon on refuse d'envoyer une tx vouée à l'échec.
+      if (!gasLimit) {
+        throw new WalletError(
+          'CALL_EXCEPTION',
+          'La simulation a été refusée par le contrat (autorisation manquante, solde modifié ou devis expiré). Demande un nouveau devis.',
+        );
+      }
     }
 
     const common = {
@@ -412,6 +473,43 @@ export class EvmChainAdapter implements ChainAdapter {
     const raw = await wallet.signTransaction(txReq);
     const res = await this.call((p) => p.broadcastTransaction(raw));
     return res.hash;
+  }
+
+  /** L'adresse est-elle un CONTRAT (code non vide) ? Best-effort : false si RPC muet. */
+  async isContract(address: string): Promise<boolean> {
+    try {
+      const code = await this.call((p) => p.getCode(address));
+      return !!code && code !== '0x';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Lecture brute d'un contrat (`eth_call`) — renvoie le hex retourné.
+   * `from`/`value` optionnels : simuler un appel payable (ex. `submit()` d'un
+   * staking liquide pour connaître le montant reçu) sans rien signer.
+   */
+  async callContract(to: string, data: string, opts?: { from?: string; value?: bigint }): Promise<string> {
+    return this.call((p) => p.call({ to, data, from: opts?.from, value: opts?.value }));
+  }
+
+  /**
+   * Estime le coût réseau d'un appel de contrat : `gasLimit` (+20 % de marge,
+   * comme sendContractTx) et `feeWei` = gasLimit × maxFeePerGas (ou gasPrice).
+   * Lève si la simulation échoue (revert) — l'appelant décide du repli.
+   */
+  async estimateContractGas(
+    req: { to: string; data?: string; value?: bigint },
+    from: string,
+  ): Promise<{ gasLimit: bigint; feeWei: bigint }> {
+    const [est, fee] = await Promise.all([
+      this.call((p) => p.estimateGas({ from, to: req.to, data: req.data ?? '0x', value: req.value ?? 0n })),
+      this.call((p) => p.getFeeData()),
+    ]);
+    const gasLimit = (est * 12n) / 10n;
+    const price = fee.maxFeePerGas ?? fee.gasPrice ?? 0n;
+    return { gasLimit, feeWei: gasLimit * price };
   }
 
   /** Attend la confirmation d'une transaction (1 bloc). */

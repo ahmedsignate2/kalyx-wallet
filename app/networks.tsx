@@ -1,13 +1,16 @@
+import { ScreenHeader, IconButton } from '../ui/kit';
+import { ExplainSheet } from '../components/ai/ExplainSheet';
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Screen, Card, Title, Muted } from '../ui/components';
+import { Screen, Card, Muted } from '../ui/components';
 import { SearchBar, RemoteIcon } from '../ui/premium';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { listChains, chainIconUrl } from '../src';
+import { useCustomChains, type CustomChainInput } from '../lib/customChainsStore';
 
 export default function Networks() {
   const { colors, typography } = useTheme();
@@ -15,10 +18,15 @@ export default function Networks() {
   const insets = useSafeAreaInsets();
   const activeChain = useWallet((s) => s.activeChain);
   const setActiveChain = useWallet((s) => s.setActiveChain);
+  const addCustomChain = useCustomChains((s) => s.add);
 
   const showTestnets = useSettings((s) => s.showTestnets);
   const all = useMemo(() => listChains({ includeTestnets: showTestnets }), [showTestnets]);
   const [query, setQuery] = useState('');
+  const [explain, setExplain] = useState<{ name: string; id: string } | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState<CustomChainInput>({ name: '', rpcUrl: '', evmChainId: 0, nativeSymbol: '', explorerUrl: '', testnet: false });
+  const [formError, setFormError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const scrolledOnce = useRef(false);
 
@@ -33,6 +41,19 @@ export default function Networks() {
   const choose = (id: string) => {
     setActiveChain(id);
     router.back();
+  };
+
+  const saveCustomChain = () => {
+    setFormError(null);
+    const result = addCustomChain(form);
+    if (!result.ok) {
+      setFormError(result.error ?? t('errNetwork'));
+      return;
+    }
+    const id = `custom-${form.evmChainId}`;
+    setAddOpen(false);
+    setForm({ name: '', rpcUrl: '', evmChainId: 0, nativeSymbol: '', explorerUrl: '', testnet: false });
+    choose(id);
   };
 
   const renderChain = (c: (typeof chains)[number]) => {
@@ -63,7 +84,9 @@ export default function Networks() {
               </Muted>
             </View>
           </View>
-          {active ? <Text style={{ color: colors.accent, fontSize: 18 }}>✓</Text> : null}
+          {/* Expliquer ce réseau (Copilot) — sans changer de réseau. */}
+          <IconButton icon="sparkles" label={`Expliquer ${c.name}`} tone="ghost" onPress={() => setExplain({ name: c.name, id: c.id })} />
+          {active ? <Text style={{ color: colors.text, fontSize: 18 }}>✓</Text> : null}
         </Card>
       </Pressable>
     );
@@ -78,7 +101,10 @@ export default function Networks() {
 
   return (
     <Screen>
-      <Title>{t('network')}</Title>
+      <ScreenHeader
+        title={t('network')}
+        right={<IconButton icon="add" label={t("addNetwork")} tone="ghost" onPress={() => { setFormError(null); setAddOpen(true); }} />}
+      />
       <Muted>{t('sameAddressAllEvm')}</Muted>
 
       {all.length > 6 ? (
@@ -122,7 +148,55 @@ export default function Networks() {
             {testnets.map((c) => renderChain(c))}
           </>
         )}
+        <Pressable
+          onPress={() => { setFormError(null); setAddOpen(true); }}
+          style={{ minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: '#161926', alignItems: 'center', justifyContent: 'center', marginTop: spacing(2) }}
+        >
+          <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>{t("addCustomNetwork")}</Text>
+        </Pressable>
       </ScrollView>
+      <ExplainSheet visible={!!explain} onClose={() => setExplain(null)} subject={explain ? { kind: 'network', name: explain.name, logo: chainIconUrl(explain.id), seed: explain.id } : null} />
+      <Modal visible={addOpen} transparent animationType="slide" onRequestClose={() => setAddOpen(false)}>
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
+          <View style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing(2.5), gap: spacing(1.25) }}>
+            <Text style={typography.section}>{t("addNetwork")}</Text>
+            {([
+              ['name', t("networkName"), 'Arbitrum Sepolia'],
+              ['rpcUrl', t("rpcUrl"), 'https://…'],
+              ['evmChainId', 'Chain ID', '421614'],
+              ['nativeSymbol', t("currencySymbol"), 'ETH'],
+              ['explorerUrl', t("blockExplorer"), 'https://…'],
+            ] as const).map(([key, label, placeholder]) => (
+              <View key={key} style={{ gap: 4 }}>
+                <Text style={typography.muted}>{label}</Text>
+                <TextInput
+                  value={String(form[key] ?? '')}
+                  onChangeText={(value) => setForm((current) => ({ ...current, [key]: key === 'evmChainId' ? Number(value.replace(/\D/g, '')) : value }))}
+                  placeholder={placeholder}
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType={key === 'evmChainId' ? 'number-pad' : 'default'}
+                  autoCapitalize="none"
+                  style={{ color: colors.text, backgroundColor: colors.surface2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}
+                />
+              </View>
+            ))}
+            <Pressable
+              onPress={() => setForm((current) => ({ ...current, testnet: !current.testnet }))}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: form.testnet === true }}
+            >
+              <Text style={{ color: form.testnet ? colors.warning : colors.textMuted, fontSize: 18 }}>{form.testnet ? '☑' : '☐'}</Text>
+              <Text style={typography.body}>{t("testNetwork")}</Text>
+            </Pressable>
+            {formError ? <Text style={{ color: colors.danger }}>{formError}</Text> : null}
+            <View style={{ flexDirection: 'row', gap: spacing(1) }}>
+              <Pressable onPress={() => setAddOpen(false)} style={{ flex: 1, alignItems: 'center', paddingVertical: 14 }}><Text style={typography.body}>{t("cancel")}</Text></Pressable>
+              <Pressable onPress={saveCustomChain} style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.accent }}><Text style={{ color: colors.onPrimary, fontWeight: '600' }}>{t("saveNetwork")}</Text></Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </Screen>
   );
 }

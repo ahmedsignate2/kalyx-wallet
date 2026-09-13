@@ -109,3 +109,13 @@ export function verifyFullMnemonic(original: string, reentered: string): boolean
   const b = normalizeWords(reentered).join(' ');
   return a === b && validateMnemonic(b);
 }
+
+/** Mots d'une phrase saisie qui ne sont PAS dans la liste BIP-39 (validation mot par mot, §4.9). */
+export function unknownWords(phrase: string): string[] {
+  const set = new Set<string>(wordlist);
+  return phrase
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 0 && !set.has(w));
+}

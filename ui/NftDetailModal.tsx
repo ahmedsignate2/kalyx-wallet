@@ -5,6 +5,7 @@
  */
 import React from 'react';
 import { Image, Linking, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { GlassCard } from './premium';
 import { Button } from './components';
@@ -29,6 +30,7 @@ export function NftDetailModal({
 }) {
   const { colors, typography } = useTheme();
   const t = useT();
+  const insets = useSafeAreaInsets();
   if (!nft) return null;
   const tokenIdShort = nft.tokenId.length > 12 ? `${nft.tokenId.slice(0, 10)}…` : nft.tokenId;
 
@@ -41,7 +43,7 @@ export function NftDetailModal({
             borderTopLeftRadius: radii.xl,
             borderTopRightRadius: radii.xl,
             padding: spacing(2.5),
-            paddingBottom: spacing(4),
+            paddingBottom: insets.bottom + spacing(3),
             maxHeight: '92%',
           }}
         >
@@ -57,7 +59,7 @@ export function NftDetailModal({
             </View>
 
             <GlassCard>
-              <Row label="Token ID" value={tokenIdShort} onCopy={() => Clipboard.setStringAsync(nft.tokenId)} />
+              <Row label={t("txLabelTokenID")} value={tokenIdShort} onCopy={() => Clipboard.setStringAsync(nft.tokenId)} />
               <Row divider label={t('contractLabel')} value={shorten(nft.contract)} onCopy={() => Clipboard.setStringAsync(nft.contract)} />
             </GlassCard>
 

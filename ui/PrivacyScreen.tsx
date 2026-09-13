@@ -6,7 +6,7 @@
  * est capturée nativement AVANT que React ne peigne l'overlay.
  *   1. FLAG_SECURE (expo-screen-capture) activé UNIQUEMENT hors premier plan →
  *      la vignette « récents » est réellement masquée par le système.
- *   2. Voile lion + « Nova » (utile sur iOS et comme repli visuel).
+ *   2. Voile lion + « Kalyx » (utile sur iOS et comme repli visuel).
  *
  * Choix volontaire : FLAG_SECURE est RETIRÉ dès que l'app est active, donc les
  * captures d'écran restent possibles pendant l'usage normal. Activable dans
@@ -15,7 +15,7 @@
 import React, { useEffect, useState } from 'react';
 import { AppState, type AppStateStatus, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { NovaLogo } from './NovaLogo';
+import { KalyxLogo } from './KalyxLogo';
 import { fonts, useTheme } from './theme';
 import { useSettings } from '../lib/settingsStore';
 
@@ -67,8 +67,8 @@ export function PrivacyScreen() {
     <View style={[StyleSheet.absoluteFill, { zIndex: 300 }]} pointerEvents="none">
       <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-        <NovaLogo size={96} />
-        <Text style={{ color: colors.text, fontSize: 28, fontFamily: fonts.extrabold, letterSpacing: 1 }}>Nova</Text>
+        <KalyxLogo size={96} />
+        <Text style={{ color: colors.text, fontSize: 28, fontFamily: fonts.extrabold, letterSpacing: 1 }}>Kalyx</Text>
       </View>
     </View>
   );

@@ -1,3 +1,5 @@
+import { router } from 'expo-router';
+import { ScreenHeader } from '../ui/kit';
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
@@ -5,12 +7,14 @@ import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
-import { useT } from '../lib/settingsStore';
+import { useT, useSettings } from '../lib/settingsStore';
 
 export default function RevealPhrase() {
   const { colors, typography } = useTheme();
   const t = useT();
   const revealPhrase = useWallet((s) => s.revealPhrase);
+  const setImportedDraft = useWallet((s) => s.setImportedDraft);
+  const backupVerified = useSettings((s) => s.backupVerified);
   const [confirming, setConfirming] = useState(false);
   const [words, setWords] = useState<string[] | null>(null);
 
@@ -30,6 +34,7 @@ export default function RevealPhrase() {
   if (words) {
     return (
       <Screen>
+      <ScreenHeader />
         <Title>{t('yourRecoveryPhrase')}</Title>
         <Muted>{t('dontShareScreenshotBlocked')}</Muted>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
@@ -56,6 +61,16 @@ export default function RevealPhrase() {
           </View>
         </Card>
         </ScrollView>
+        {/* Vérification différée (sauvegarde sautée à l'onboarding) : 3 mots à retrouver. */}
+        {!backupVerified ? (
+          <Button
+            label={t('verifyBackup')}
+            onPress={() => {
+              setImportedDraft(words.join(' '));
+              router.push({ pathname: '/verify', params: { then: 'security' } });
+            }}
+          />
+        ) : null}
       </Screen>
     );
   }

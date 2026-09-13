@@ -1,10 +1,25 @@
 /**
- * Icônes cohérentes (Ionicons, style outline « fintech »), via un jeu de noms
- * sémantiques Nova → on peut changer de set plus tard sans toucher les écrans.
- * @expo/vector-icons = polices JS bundlées (aucun module natif, aucun rebuild).
+ * Icônes Kalyx — un seul set : Phosphor (§2.8). Graisse « regular » partout,
+ * « fill » réservé à l'onglet actif (`weight="fill"`). Zéro emoji.
+ *
+ * L'API `<Icon name="send" />` est conservée : les écrans existants n'ont rien
+ * à changer. Les 4 icônes maison (Envoyer, Recevoir, Swap, Signer) viendront
+ * remplacer `send`/`receive`/`exchange`/`sign` quand elles seront dessinées.
  */
 import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import type { Icon as PhosphorIcon, IconWeight } from 'phosphor-react-native';
+import {
+  HouseIcon, ChartLineUpIcon, WalletIcon, ListIcon, ArrowsLeftRightIcon, MagnifyingGlassIcon, BellIcon,
+  PlusCircleIcon, ArrowUpIcon, ArrowDownIcon, ArrowsDownUpIcon, UserIcon, UsersIcon, BriefcaseIcon, GraphIcon,
+  GlobeIcon, AddressBookIcon, TranslateIcon, CurrencyCircleDollarIcon, PaletteIcon, ShieldCheckIcon, DotsNineIcon,
+  FileTextIcon, WrenchIcon, PuzzlePieceIcon, LifebuoyIcon, QuestionIcon, InfoIcon, TrashIcon, LinkIcon, CpuIcon,
+  DownloadSimpleIcon, SparkleIcon, EyeIcon, EyeSlashIcon, CaretRightIcon, PlusIcon, ClockCounterClockwiseIcon,
+  ImageIcon, ChartPieSliceIcon, LeafIcon, WarningIcon, ArrowsClockwiseIcon, GiftIcon, CopyIcon, StarIcon,
+  CheckCircleIcon, XIcon, DotsThreeVerticalIcon, ArrowRightIcon, ShareNetworkIcon, ScanIcon, FlashlightIcon,
+  PenNibIcon, ArrowLeftIcon, CaretDownIcon, CheckIcon, LockIcon, WarningCircleIcon, XCircleIcon, ClockIcon,
+  DetectiveIcon, DesktopIcon, BroomIcon, SquaresFourIcon, CaretLeftIcon, LightbulbIcon,
+  XLogoIcon, TelegramLogoIcon,
+} from 'phosphor-react-native';
 import { useTheme } from './theme';
 
 export type IconName =
@@ -16,68 +31,88 @@ export type IconName =
   | 'reset' | 'walletconnect' | 'ledger' | 'trezor' | 'import' | 'create'
   | 'eye' | 'eyeOff' | 'chevron' | 'add' | 'history' | 'nft' | 'defi' | 'staking'
   | 'warning' | 'refresh' | 'gift' | 'copy' | 'star' | 'starFilled'
-  | 'check' | 'info' | 'close' | 'more' | 'forward' | 'share' | 'scan' | 'flash' | 'flashOff' | 'sparkles';
+  | 'check' | 'info' | 'close' | 'more' | 'forward' | 'share' | 'scan' | 'flash' | 'flashOff' | 'sparkles'
+  // Nouveaux (bible)
+  | 'sign' | 'back' | 'caretDown' | 'checkmark' | 'lock' | 'alert' | 'errorCircle' | 'clock'
+  | 'incognito' | 'desktop' | 'broom' | 'tabs' | 'caretLeft' | 'bulb'
+  | 'xLogo' | 'telegramLogo';
 
-const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
-  home: 'home-outline',
-  market: 'stats-chart-outline',
-  wallet: 'wallet-outline',
-  menu: 'menu-outline',
-  exchange: 'swap-horizontal-outline',
-  search: 'search-outline',
-  bell: 'notifications-outline',
-  buy: 'add-circle-outline',
-  send: 'arrow-up-outline',
-  receive: 'arrow-down-outline',
-  convert: 'swap-vertical-outline',
-  profile: 'person-outline',
-  accounts: 'people-outline',
-  wallets: 'briefcase-outline',
-  networks: 'git-network-outline',
-  dapps: 'globe-outline',
-  contacts: 'book-outline',
-  language: 'language-outline',
-  currency: 'cash-outline',
-  appearance: 'color-palette-outline',
-  notifications: 'notifications-outline',
-  security: 'shield-checkmark-outline',
-  pin: 'keypad-outline',
-  phrase: 'document-text-outline',
-  developer: 'construct-outline',
-  extensions: 'extension-puzzle-outline',
-  support: 'help-buoy-outline',
-  faq: 'help-circle-outline',
-  about: 'information-circle-outline',
-  reset: 'trash-outline',
-  walletconnect: 'link-outline',
-  ledger: 'hardware-chip-outline',
-  trezor: 'hardware-chip-outline',
-  import: 'download-outline',
-  create: 'sparkles-outline',
-  eye: 'eye-outline',
-  eyeOff: 'eye-off-outline',
-  chevron: 'chevron-forward',
-  add: 'add',
-  history: 'time-outline',
-  nft: 'image-outline',
-  defi: 'pie-chart-outline',
-  staking: 'leaf-outline',
-  warning: 'warning-outline',
-  refresh: 'refresh-outline',
-  gift: 'gift-outline',
-  copy: 'copy-outline',
-  star: 'star-outline',
-  starFilled: 'star',
-  check: 'checkmark-circle',
-  info: 'information-circle',
-  close: 'close',
-  more: 'ellipsis-vertical',
-  forward: 'arrow-forward',
-  share: 'share-social-outline',
-  scan: 'scan-outline',
-  flash: 'flashlight',
-  flashOff: 'flashlight-outline',
-  sparkles: 'sparkles-outline',
+const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
+  home: { icon: HouseIcon },
+  market: { icon: ChartLineUpIcon },
+  wallet: { icon: WalletIcon },
+  menu: { icon: ListIcon },
+  exchange: { icon: ArrowsLeftRightIcon },
+  search: { icon: MagnifyingGlassIcon },
+  bell: { icon: BellIcon },
+  buy: { icon: PlusCircleIcon },
+  send: { icon: ArrowUpIcon },
+  receive: { icon: ArrowDownIcon },
+  convert: { icon: ArrowsDownUpIcon },
+  profile: { icon: UserIcon },
+  accounts: { icon: UsersIcon },
+  wallets: { icon: BriefcaseIcon },
+  networks: { icon: GraphIcon },
+  dapps: { icon: GlobeIcon },
+  contacts: { icon: AddressBookIcon },
+  language: { icon: TranslateIcon },
+  currency: { icon: CurrencyCircleDollarIcon },
+  appearance: { icon: PaletteIcon },
+  notifications: { icon: BellIcon },
+  security: { icon: ShieldCheckIcon },
+  pin: { icon: DotsNineIcon },
+  phrase: { icon: FileTextIcon },
+  developer: { icon: WrenchIcon },
+  extensions: { icon: PuzzlePieceIcon },
+  support: { icon: LifebuoyIcon },
+  faq: { icon: QuestionIcon },
+  about: { icon: InfoIcon },
+  reset: { icon: TrashIcon },
+  walletconnect: { icon: LinkIcon },
+  ledger: { icon: CpuIcon },
+  trezor: { icon: CpuIcon },
+  import: { icon: DownloadSimpleIcon },
+  create: { icon: SparkleIcon },
+  eye: { icon: EyeIcon },
+  eyeOff: { icon: EyeSlashIcon },
+  chevron: { icon: CaretRightIcon },
+  add: { icon: PlusIcon },
+  history: { icon: ClockCounterClockwiseIcon },
+  nft: { icon: ImageIcon },
+  defi: { icon: ChartPieSliceIcon },
+  staking: { icon: LeafIcon },
+  warning: { icon: WarningIcon },
+  refresh: { icon: ArrowsClockwiseIcon },
+  gift: { icon: GiftIcon },
+  copy: { icon: CopyIcon },
+  star: { icon: StarIcon },
+  starFilled: { icon: StarIcon, weight: 'fill' },
+  check: { icon: CheckCircleIcon, weight: 'fill' },
+  info: { icon: InfoIcon, weight: 'fill' },
+  close: { icon: XIcon },
+  more: { icon: DotsThreeVerticalIcon },
+  forward: { icon: ArrowRightIcon },
+  share: { icon: ShareNetworkIcon },
+  scan: { icon: ScanIcon },
+  flash: { icon: FlashlightIcon, weight: 'fill' },
+  flashOff: { icon: FlashlightIcon },
+  sparkles: { icon: SparkleIcon },
+  sign: { icon: PenNibIcon },
+  back: { icon: ArrowLeftIcon },
+  caretDown: { icon: CaretDownIcon },
+  checkmark: { icon: CheckIcon },
+  lock: { icon: LockIcon },
+  alert: { icon: WarningCircleIcon },
+  errorCircle: { icon: XCircleIcon },
+  clock: { icon: ClockIcon },
+  incognito: { icon: DetectiveIcon },
+  desktop: { icon: DesktopIcon },
+  broom: { icon: BroomIcon },
+  tabs: { icon: SquaresFourIcon },
+  caretLeft: { icon: CaretLeftIcon },
+  bulb: { icon: LightbulbIcon },
+  xLogo: { icon: XLogoIcon },
+  telegramLogo: { icon: TelegramLogoIcon },
 };
 
 export function Icon({
@@ -85,14 +120,19 @@ export function Icon({
   size = 20,
   color,
   tone = 'text',
+  weight,
 }: {
   name: IconName;
   size?: number;
   /** Couleur explicite ; sinon `tone` est résolu sur le thème actif. */
   color?: string;
   tone?: 'text' | 'muted' | 'faint';
+  /** « fill » uniquement pour l'onglet actif (§2.8). */
+  weight?: IconWeight;
 }) {
   const { colors } = useTheme();
-  const toneColor = tone === 'muted' ? colors.textMuted : tone === 'faint' ? colors.textFaint : colors.text;
-  return <Ionicons name={MAP[name]} size={size} color={color ?? toneColor} />;
+  const toneColor = tone === 'muted' ? colors.textSecondary : tone === 'faint' ? colors.textTertiary : colors.text;
+  const entry = MAP[name];
+  const Cmp = entry.icon;
+  return <Cmp size={size} color={color ?? toneColor} weight={weight ?? entry.weight ?? 'regular'} />;
 }

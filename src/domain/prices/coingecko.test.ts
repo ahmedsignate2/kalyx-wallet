@@ -86,6 +86,12 @@ describe('parseCoinDetail', () => {
     expect(parseCoinDetail(json, 'eur', 'en')!.description).toBe('Ethereum is a decentralized platform. Smart contracts.');
     expect(parseCoinDetail(json, 'eur', 'fr')!.description).toBe('Ethereum est une plateforme décentralisée.');
   });
+  it('conserve une description longue pour Lire la suite', () => {
+    const description = `${'A'.repeat(450)} environment`;
+    const parsed = parseCoinDetail({ ...json, description: { en: description } }, 'eur', 'en')!;
+    expect(parsed.description).toBe(description);
+    expect(parsed.description.length).toBeGreaterThan(400);
+  });
   it('renvoie null sur entrée invalide', () => {
     expect(parseCoinDetail(null, 'eur')).toBeNull();
     expect(parseCoinDetail({}, 'eur')).toBeNull();

@@ -3,10 +3,10 @@
 Security vulnerabilities must NOT be publicly disclosed through
 GitHub Issues.
 
-If you discover a security vulnerability in Nova Wallet, please report
+If you discover a security vulnerability in Kalyx Wallet, please report
 it privately:
 
-**Email:** amsssr400@gmail.com
+**Contact:** Telegram [@kalyxntw](https://t.me/kalyxntw) or X [@kalyxntw](https://x.com/kalyxntw)
 
 Please include:
 
@@ -22,5 +22,5 @@ or authentication tokens in a security report.
 Please allow reasonable time for the vulnerability to be investigated
 and fixed before public disclosure.
 
-Nova Wallet has not been independently audited unless explicitly stated
+Kalyx Wallet has not been independently audited unless explicitly stated
 in the project documentation.

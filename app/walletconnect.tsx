@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -38,6 +39,7 @@ export default function WalletConnectScreen() {
   if (!configured) {
     return (
       <Screen>
+      <ScreenHeader />
         <Title>WalletConnect</Title>
         <Muted>{t('wcNotConfigured')}</Muted>
       </Screen>

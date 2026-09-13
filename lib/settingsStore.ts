@@ -3,8 +3,10 @@
  * état du déverrouillage biométrique. Persistées localement.
  */
 import { create } from 'zustand';
+import { setNumberLocale } from '../src';
 import { saveSettings, loadSettings } from './secureStore';
-import { translate, type Lang, type Key } from './i18n';
+import { translate, type Lang, type Key, detectInitialLanguage, resolveLanguage, applyRTL, isRtl, USER_LANGUAGE_KEY } from './i18n';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const FIATS = [
   { code: 'eur', symbol: '€', name: 'Euro' },
@@ -48,6 +50,8 @@ interface SettingsState {
   privacyGuard: boolean;
   /** Sons de l'application (triptyque succès, etc) */
   soundEnabled: boolean;
+  /** Phrase de récupération vérifiée (3 mots) — critère du centre de sécurité. */
+  backupVerified: boolean;
 
   load: () => Promise<void>;
   setProfileName: (name: string) => void;
@@ -63,12 +67,13 @@ interface SettingsState {
   setAutoLockMinutes: (min: number) => void;
   setPrivacyGuard: (on: boolean) => void;
   setSoundEnabled: (on: boolean) => void;
+  setBackupVerified: (on: boolean) => void;
 }
 
 function persist(
   s: Pick<
     SettingsState,
-    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled'
+    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'backupVerified'
   >,
 ) {
   void saveSettings({
@@ -86,13 +91,15 @@ function persist(
     showTestnets: s.showTestnets,
     autoLockMinutes: s.autoLockMinutes,
     privacyGuard: s.privacyGuard,
+    soundEnabled: s.soundEnabled,
+    backupVerified: s.backupVerified,
   });
 }
 
 export const useSettings = create<SettingsState>((set, get) => ({
   loaded: false,
   profileName: '',
-  language: 'fr',
+  language: detectInitialLanguage(),
   fiat: 'eur',
   biometricEnabled: false,
   uiMode: 'beginner',
@@ -106,13 +113,17 @@ export const useSettings = create<SettingsState>((set, get) => ({
   autoLockMinutes: 3,
   privacyGuard: true,
   soundEnabled: true,
+  backupVerified: false,
 
   load: async () => {
     const s = await loadSettings();
+    const stored = (s?.language as string) || (await AsyncStorage.getItem(USER_LANGUAGE_KEY).catch(() => null));
+    const language = await resolveLanguage(stored);
+    setNumberLocale(language);
     set({
       loaded: true,
       profileName: (s?.profileName as string) ?? '',
-      language: (s?.language as Lang) ?? 'fr',
+      language,
       fiat: (s?.fiat as string) ?? 'eur',
       biometricEnabled: (s?.biometricEnabled as boolean) ?? false,
       uiMode: (s?.uiMode as UiMode) ?? 'beginner',
@@ -126,6 +137,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       autoLockMinutes: typeof s?.autoLockMinutes === 'number' ? (s.autoLockMinutes as number) : 3,
       privacyGuard: s?.privacyGuard !== false,
       soundEnabled: s?.soundEnabled !== false,
+      backupVerified: s?.backupVerified === true,
     });
   },
 
@@ -133,14 +145,21 @@ export const useSettings = create<SettingsState>((set, get) => ({
     set({ soundEnabled: on });
     persist({ ...get(), soundEnabled: on });
   },
+  setBackupVerified: (on) => {
+    set({ backupVerified: on });
+    persist({ ...get(), backupVerified: on });
+  },
 
   setProfileName: (name) => {
     set({ profileName: name });
     persist({ ...get(), profileName: name });
   },
   setLanguage: (language) => {
+    setNumberLocale(language);
+    applyRTL(isRtl(language));
     set({ language });
     persist({ ...get(), language });
+    AsyncStorage.setItem(USER_LANGUAGE_KEY, language).catch(() => {});
   },
   setFiat: (fiat) => {
     set({ fiat });

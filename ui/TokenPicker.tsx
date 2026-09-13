@@ -1,3 +1,4 @@
+import { useT } from "../lib/settingsStore";
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, Image, Modal, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet } from 'react-native';
 import { fonts, radii, spacing, useTheme } from './theme';
@@ -6,7 +7,7 @@ import { Icon } from './icon';
 import { getAdapter, listChains } from '../src';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { useWallet } from '../lib/walletStore';
-import { formatAmount, formatBalance } from '../src';
+import { formatAmount, formatTokenAmount } from '../src';
 
 interface TokenPickerProps {
   visible: boolean;
@@ -16,6 +17,7 @@ interface TokenPickerProps {
 }
 
 export function TokenPicker({ visible, onClose, onSelect, initialChainId }: TokenPickerProps) {
+  const t = useT();
   const { colors, typography } = useTheme();
   const [search, setSearch] = useState('');
   const [selectedChain, setSelectedChain] = useState(initialChainId);
@@ -78,6 +80,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId }: Toke
   }, [rawTokens, search]);
 
   const renderItem = ({ item }: { item: Tok }) => {
+    const t = useT();
     const balance = heldTokens[item.address.toLowerCase()];
     return (
       <Pressable 
@@ -105,7 +108,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId }: Toke
         </View>
         {balance != null && balance > 0n ? (
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{formatBalance(balance, item.decimals, 6)}</Text>
+            <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{formatTokenAmount(balance, item.decimals)}</Text>
           </View>
         ) : null}
       </Pressable>
@@ -119,7 +122,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId }: Toke
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ height: '85%', backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' }}>
         <View style={{ padding: spacing(2), borderBottomWidth: 1, borderBottomColor: colors.glassBorder, backgroundColor: colors.bgElevated }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(1.5) }}>
-            <Text style={{ color: colors.text, fontFamily: fonts.extrabold, fontSize: 20 }}>Sélectionner un token</Text>
+            <Text style={{ color: colors.text, fontFamily: fonts.extrabold, fontSize: 20 }}>{t("tokenSelect")}</Text>
             <Pressable onPress={onClose} hitSlop={10}>
               <Icon name="close" size={24} color={colors.textMuted} />
             </Pressable>
@@ -129,7 +132,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId }: Toke
             <TextInput
               value={search}
               onChangeText={setSearch}
-              placeholder="Rechercher par nom ou adresse..."
+              placeholder={t("tokenSearchPlaceholder")}
               placeholderTextColor={colors.textMuted}
               style={{ flex: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 15, marginLeft: spacing(1) }}
               autoCapitalize="none"
@@ -164,7 +167,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId }: Toke
                     borderColor: active ? colors.accent : colors.glassBorder,
                   }}
                 >
-                  <Text style={{ color: active ? '#fff' : colors.text, fontFamily: fonts.semibold, fontSize: 14 }}>
+                  <Text style={{ color: active ? colors.onPrimary : colors.text, fontFamily: fonts.semibold, fontSize: 14 }}>
                     {item.name}
                   </Text>
                 </Pressable>
@@ -187,7 +190,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId }: Toke
             windowSize={5}
             ListEmptyComponent={
               <View style={{ padding: spacing(4), alignItems: 'center' }}>
-                <Text style={{ color: colors.textMuted, fontFamily: fonts.medium }}>Aucun token trouvé.</Text>
+                <Text style={{ color: colors.textMuted, fontFamily: fonts.medium }}>{t("tokenNoneFound")}</Text>
               </View>
             }
           />

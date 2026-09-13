@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -48,6 +49,7 @@ export default function Contacts() {
   const insets = useSafeAreaInsets();
   return (
     <Screen>
+      <ScreenHeader />
       <Title>{t('contacts')}</Title>
       <Muted>{pickMode ? t('chooseRecipient') : t('localAddressBook')}</Muted>
 

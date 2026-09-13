@@ -1,6 +1,6 @@
-# Kit de listing store — Nova Wallet
+# Kit de listing store — Kalyx Wallet
 
-Tout le nécessaire pour publier Nova sur le Google Play Store (et App Store).
+Tout le nécessaire pour publier Kalyx sur le Google Play Store (et App Store).
 Les assets graphiques sont dans `assets/store/`.
 
 ---
@@ -23,14 +23,14 @@ Les assets graphiques sont dans `assets/store/`.
 
 ## 2. Textes de la fiche (FR)
 
-**Nom de l'app :** `Nova — Wallet Crypto`
+**Nom de l'app :** `Kalyx — Wallet Crypto`
 
 **Description courte** (80 caractères max) :
 > Wallet crypto non-custodial : envoie, swap, dApps, NFT. Tes clés, tes cryptos.
 
 **Description complète :**
 
-> **Nova, ton portefeuille crypto non-custodial, simple et premium.**
+> **Kalyx, ton portefeuille crypto non-custodial, simple et premium.**
 >
 > Tes clés privées restent sur ton téléphone, chiffrées — jamais sur nos serveurs. Tu gardes le contrôle total de tes fonds.
 >
@@ -44,7 +44,7 @@ Les assets graphiques sont dans `assets/store/`.
 > Échange tes tokens au meilleur prix et passe d'une chaîne à l'autre, sans quitter l'app.
 >
 > **✦ Navigateur dApps**
-> Uniswap, OpenSea, Aave… directement dans Nova, avec WalletConnect et des signatures toujours claires (tu vois ce que tu signes).
+> Uniswap, OpenSea, Aave… directement dans Kalyx, avec WalletConnect et des signatures toujours claires (tu vois ce que tu signes).
 >
 > **✦ NFT**
 > Ta galerie ERC-721 / ERC-1155, métadonnées et collections.
@@ -55,20 +55,20 @@ Les assets graphiques sont dans `assets/store/`.
 > **✦ Suivi & alertes**
 > Cours en temps réel, graphiques, répartition du portefeuille, alertes de prix.
 >
-> **Nova ne détient jamais tes fonds.** C'est un portefeuille non-custodial : tu es seul responsable de ta phrase de récupération. Garde-la précieusement.
+> **Kalyx ne détient jamais tes fonds.** C'est un portefeuille non-custodial : tu es seul responsable de ta phrase de récupération. Garde-la précieusement.
 
 ---
 
 ## 3. Store copy (EN)
 
-**App name:** `Nova — Crypto Wallet`
+**App name:** `Kalyx — Crypto Wallet`
 
 **Short description** (80 chars max):
 > Non-custodial crypto wallet: send, swap, dApps, NFTs. Your keys, your crypto.
 
 **Full description:**
 
-> **Nova — your non-custodial crypto wallet, simple and premium.**
+> **Kalyx — your non-custodial crypto wallet, simple and premium.**
 >
 > Your private keys stay encrypted on your device — never on our servers. You keep full control of your funds.
 >
@@ -80,7 +80,7 @@ Les assets graphiques sont dans `assets/store/`.
 > **✦ Security first** — biometrics, PIN, auto-lock, encrypted backup, transaction simulation to avoid scams.
 > **✦ Tracking & alerts** — live prices, charts, portfolio allocation, price alerts.
 >
-> **Nova never holds your funds.** You alone are responsible for your recovery phrase — keep it safe.
+> **Kalyx never holds your funds.** You alone are responsible for your recovery phrase — keep it safe.
 
 ---
 
@@ -107,7 +107,7 @@ Capture **6 à 8 écrans** (téléphone, portrait, ≥ 1080×1920). Ordre consei
 - **Tags** : crypto, wallet, web3, bitcoin, ethereum, defi, nft
 - **Politique de confidentialité** (obligatoire) : héberger `PRIVACY.md` en ligne et coller l'URL.
 - **Content rating** : questionnaire IARC (app financière, pas de contenu sensible).
-- **Data safety** : Nova ne collecte pas de données perso ; clés stockées **localement**, jamais transmises (cf. `PRIVACY.md`).
+- **Data safety** : Kalyx ne collecte pas de données perso ; clés stockées **localement**, jamais transmises (cf. `PRIVACY.md`).
 - **Coordonnées** : e-mail de support.
 
 ## 6. Checklist de soumission

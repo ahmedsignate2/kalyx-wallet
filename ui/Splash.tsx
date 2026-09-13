@@ -6,7 +6,7 @@
  *   1. ~48 particules bleu/violet dispersées CONVERGENT vers le centre.
  *   2. Elles se dissolvent tandis que le logo lion se condense (petit pop).
  *   3. Une traînée lumineuse traverse l'écran.
- *   4. « NOVA » apparaît avec un halo lumineux + une vibration très douce.
+ *   4. « KALYX » apparaît avec un halo lumineux + une vibration très douce.
  *   5. Fondu de sortie → onFinish().
  *
  * 100 % Animated (transform/opacity, useNativeDriver) : un seul driver `progress`
@@ -15,7 +15,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View, Vibration } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { NovaLogo } from './NovaLogo';
+import { KalyxLogo } from './KalyxLogo';
 import { fonts, useTheme } from './theme';
 import { haptic } from '../lib/haptics';
 
@@ -89,7 +89,7 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
         Animated.timing(progress, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
         Animated.timing(sweep, { toValue: 1, duration: 1150, delay: 300, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       ]),
-      // Le logo se condense (petit pop) puis « NOVA » monte.
+      // Le logo se condense (petit pop) puis « KALYX » monte.
       Animated.parallel([
         Animated.timing(logoIn, { toValue: 1, duration: 420, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }),
         Animated.sequence([
@@ -135,11 +135,11 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
             <Particle key={i} p={p} progress={progress} />
           ))}
           <Animated.View style={{ opacity: logoOpacity, transform: [{ scale: Animated.multiply(logoScaleBase, logoPop) }] }}>
-            <NovaLogo size={128} />
+            <KalyxLogo size={128} />
           </Animated.View>
         </View>
 
-        {/* Wordmark « NOVA » : police de marque + halo lumineux + barre de lumière */}
+        {/* Wordmark « KALYX » : police de marque + halo lumineux + barre de lumière */}
         <View style={{ alignItems: 'center', gap: 12 }}>
           <Animated.Text
             style={{
@@ -154,7 +154,7 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
               textShadowRadius: 18,
             }}
           >
-            NOVA
+            KALYX
           </Animated.Text>
           {/* Trait lumineux qui s'ouvre sous le mot (frames 8/9 du storyboard). */}
           <Animated.View

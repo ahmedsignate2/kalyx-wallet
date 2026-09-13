@@ -1,6 +1,6 @@
 import { base58, base64 } from '@scure/base';
 /**
- * WalletConnect (Reown) — Nova est le WALLET auquel les dApps se connectent.
+ * WalletConnect (Reown) — Kalyx est le WALLET auquel les dApps se connectent.
  * Flux : coller une URI wc: → proposition de session → approbation (compte actif
  * exposé) → requêtes (sign / tx) confirmées avec PIN.
  *
@@ -62,7 +62,7 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 /** Notifie une demande entrante (proposition/requête) quand l'app n'est PAS au
- *  premier plan — appuyer sur la notification rouvre Nova, où la fenêtre de
+ *  premier plan — appuyer sur la notification rouvre Kalyx, où la fenêtre de
  *  signature (WalletConnectHost) s'affiche déjà pour toute demande en attente. */
 function notifyIncoming(title: string, body: string) {
   if (AppState.currentState === 'active') return; // au 1er plan : la modale suffit
@@ -113,20 +113,22 @@ function silenceBenignWcLogs() {
     return BENIGN_WC_LOGS.some((p) => joined.includes(p));
   };
   for (const level of ['warn', 'error'] as const) {
-    const orig = console[level].bind(console);
+    const fn = console[level];
+    if (typeof fn !== 'function') continue;
+    const orig = fn.bind(console);
     console[level] = (...args: unknown[]) => (isBenign(args) ? undefined : orig(...args));
   }
 }
 
 interface EvmChain {
   caip: string;
-  novaId: string;
+  kalyxId: string;
   evmChainId: number;
 }
 function evmChains(): EvmChain[] {
   return listChains()
     .filter((c) => c.family === 'evm' && c.evmChainId)
-    .map((c) => ({ caip: `eip155:${c.evmChainId}`, novaId: c.id, evmChainId: c.evmChainId! }));
+    .map((c) => ({ caip: `eip155:${c.evmChainId}`, kalyxId: c.id, evmChainId: c.evmChainId! }));
 }
 
 // CAIP-2 des réseaux non-EVM (WalletConnect). Solana mainnet + Bitcoin mainnet.
@@ -157,10 +159,11 @@ interface WcState {
    *  est inhérente à la connexion. Par défaut : tout autorisé. */
   approveProposal: (unlock: Unlock, perms?: { tx: boolean; sign: boolean }) => Promise<void>;
   rejectProposal: () => Promise<void>;
-  approveRequest: (unlock: Unlock) => Promise<void>;
+  /** `overrideData` : calldata de remplacement (ex. approve réduit au montant exact). */
+  approveRequest: (unlock: Unlock, overrideData?: string) => Promise<void>;
   rejectRequest: () => Promise<void>;
   disconnect: (topic: string) => Promise<void>;
-  /** Coupe TOUTES les sessions actives (ex. au verrouillage de Nova). */
+  /** Coupe TOUTES les sessions actives (ex. au verrouillage de Kalyx). */
   disconnectAll: () => Promise<void>;
   refresh: () => void;
 }
@@ -197,13 +200,21 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       // Deux versions de @walletconnect/types coexistent dans node_modules
       // (core vs web3wallet) : structurellement identiques, cast nécessaire.
       core: core as any,
-      metadata: { name: 'Nova Wallet', description: 'Wallet crypto non-custodial', url: 'https://nova.wallet', icons: [] },
+      // Web3Wallet est l'adaptateur wallet officiel au-dessus de SignClient :
+      // il conserve le transport/session du protocole sans exposer de clé.
+      metadata: {
+        name: 'Kalyx Wallet',
+        description: 'Wallet crypto non-custodial',
+        url: 'https://kalyxwallet.app',
+        icons: [],
+        redirect: { native: 'kalyx://', universal: 'https://kalyxwallet.app/walletconnect' },
+      },
     })) as IWeb3Wallet;
 
     w.on('session_proposal', (proposal: any) => {
       set({ proposal });
       const name = proposal?.params?.proposer?.metadata?.name;
-      notifyIncoming('Nova · Connexion demandée', name ? `${name} veut se connecter à votre portefeuille` : 'Un site veut se connecter à votre portefeuille');
+      notifyIncoming('Kalyx · Connexion demandée', name ? `${name} veut se connecter à votre portefeuille` : 'Un site veut se connecter à votre portefeuille');
     });
     w.on('session_request', async (request: any) => {
       console.log('\n[WC-IN] === SESSION_REQUEST RECEIVED ===');
@@ -236,7 +247,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       const topic: string | undefined = request?.topic;
       const peer = topic ? w.getActiveSessions()?.[topic]?.peer?.metadata?.name : undefined;
       const label = METHOD_LABELS[method] ?? 'Signature demandée';
-      notifyIncoming('Nova · Action à valider', peer ? `${label} · ${peer}` : `${label} — appuyez pour ouvrir`);
+      notifyIncoming('Kalyx · Action à valider', peer ? `${label} · ${peer}` : `${label} — appuyez pour ouvrir`);
     });
     w.on('session_delete', () => get().refresh());
     set({ wallet: w, ready: true });
@@ -247,7 +258,12 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   },
 
   pair: async (uri) => {
-    await get().wallet?.pair({ uri: uri.trim() });
+    const normalized = uri.trim();
+    if (!normalized.startsWith('wc:')) throw new Error('URI WalletConnect invalide');
+    if (!get().wallet) await get().init();
+    const wallet = get().wallet;
+    if (!wallet) throw new Error('WalletConnect n’est pas configuré');
+    await wallet.pair({ uri: normalized });
   },
 
   approveProposal: async (unlock, perms) => {
@@ -308,7 +324,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       // buildApprovedNamespaces jette si la dApp EXIGE un réseau/une méthode
       // hors de notre liste (ex. Solana). Message clair plutôt que silence.
       const detail = e instanceof Error ? e.message : String(e);
-      throw new Error(`Cette dApp demande un réseau ou une méthode non supportés par Nova. (${detail.slice(0, 120)})`);
+      throw new Error(`Cette dApp demande un réseau ou une méthode non supportés par Kalyx. (${detail.slice(0, 120)})`);
     }
     if (!namespaces || Object.keys(namespaces).length === 0) {
       throw new Error('Cette dApp ne demande aucun réseau compatible (EVM).');
@@ -335,7 +351,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     set({ proposal: null });
   },
 
-  approveRequest: async (unlock) => {
+  approveRequest: async (unlock, overrideData) => {
     const { wallet, requestQueue } = get();
     const request = requestQueue[0];
     if (!wallet || !request) return;
@@ -343,9 +359,6 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     const method: string = params.request.method;
     const p = params.request.params;
     
-    console.log('\n[WC-PROCESSING] === START PROCESSING ===');
-    console.log('[WC-PROCESSING] Method:', method);
-    console.log('[WC-PROCESSING] Params:', JSON.stringify(p, null, 2));
     
     const chain = evmChains().find((c) => c.caip === params.chainId);
     const w = useWallet.getState();
@@ -362,12 +375,12 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         const tx = p[0];
         const req: RawTxRequest = {
           to: tx.to,
-          data: tx.data ?? '0x',
+          data: overrideData ?? tx.data ?? '0x',
           value: tx.value ? BigInt(tx.value) : 0n,
           chainId: chain.evmChainId,
           gasLimit: tx.gas ? BigInt(tx.gas) : undefined,
         };
-        result = await w.sendRawTxOn(unlock, chain.novaId, req);
+        result = await w.sendRawTxOn(unlock, chain.kalyxId, req);
       } else if (method === 'solana_signTransaction') {
         const pSafe: any = p || {};
         let txStr = pSafe.transaction || pSafe[0]?.transaction;

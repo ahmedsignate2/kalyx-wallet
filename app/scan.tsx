@@ -9,6 +9,8 @@
  * Le module caméra natif n'est actif qu'après un rebuild EAS : sans lui, on
  * bascule sur un repli « coller depuis le presse-papiers » (aucun crash).
  */
+import { ScreenHeader } from '../ui/kit';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, Easing, StyleSheet, Dimensions } from 'react-native';
 import { Stack, router } from 'expo-router';
@@ -25,7 +27,7 @@ import {
   parseQr,
   describeQr,
   qrTargetFamily,
-  novaChainIdForEvm,
+  kalyxChainIdForEvm,
   getAdapter,
   listChains,
   type QrResult,
@@ -48,7 +50,7 @@ export default function Scan() {
   const t = useT();
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: t('scanQrTitle'), headerTransparent: CAMERA_OK }} />
+      <Stack.Screen options={{ headerShown: false }} />
       {CAMERA_OK ? <Scanner /> : <PasteOnly />}
     </>
   );
@@ -83,7 +85,7 @@ function useQrAction() {
     else if (fam === 'solana') chainId = 'solana';
     else if (fam === 'evm') {
       if (r.kind === 'ethereum-uri' && r.chainId) {
-        chainId = novaChainIdForEvm(r.chainId, listChains()) ?? (currentIsEvm ? activeChain : 'ethereum');
+        chainId = kalyxChainIdForEvm(r.chainId, listChains()) ?? (currentIsEvm ? activeChain : 'ethereum');
       } else {
         chainId = currentIsEvm ? activeChain : 'ethereum';
       }
@@ -101,6 +103,7 @@ function Scanner() {
   // cameraMod est garanti non-null ici (Scanner n'est rendu que si CAMERA_OK).
   const { CameraView, useCameraPermissions } = cameraMod!;
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const t = useT();
   const [permission, requestPermission] = useCameraPermissions();
   const [result, setResult] = useState<QrResult | null>(null);
@@ -151,6 +154,9 @@ function Scanner() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
+      <View style={{ position: 'absolute', top: insets.top, left: 12, right: 12, zIndex: 5 }}>
+        <ScreenHeader title={t('scanQrTitle')} />
+      </View>
       <CameraView
         style={StyleSheet.absoluteFill}
         facing="back"
@@ -174,6 +180,7 @@ function Scanner() {
 /** Repli sans caméra (module natif absent) : coller le contenu d'un QR. */
 function PasteOnly() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const t = useT();
   const act = useQrAction();
   const [result, setResult] = useState<QrResult | null>(null);
@@ -184,6 +191,9 @@ function PasteOnly() {
   };
   return (
     <View style={[styles.center, { backgroundColor: colors.bg, padding: spacing(3), flex: 1 }]}>
+      <View style={{ position: 'absolute', top: insets.top, left: 12, right: 12 }}>
+        <ScreenHeader title={t('scanQrTitle')} />
+      </View>
       <Icon name="scan" size={48} color={colors.textMuted} />
       <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 18, marginTop: spacing(2), textAlign: 'center' }}>
         {t('cameraUnavailable')}
@@ -201,6 +211,7 @@ function PasteOnly() {
 /** Cadre de scan animé (ligne qui balaie). */
 function ScanFrame() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const t = useT();
   const size = Math.min(Dimensions.get('window').width * 0.7, 280);
   const y = useRef(new Animated.Value(0)).current;
@@ -237,6 +248,7 @@ function ScanFrame() {
 
 function ToolButton({ icon, label, active, onPress }: { icon: 'flash' | 'flashOff' | 'copy'; label: string; active?: boolean; onPress: () => void }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   return (
     <Pressable onPress={onPress} style={styles.tool}>
       <View style={[styles.toolCircle, { backgroundColor: active ? colors.accent : 'rgba(255,255,255,0.12)' }]}>
@@ -250,6 +262,7 @@ function ToolButton({ icon, label, active, onPress }: { icon: 'flash' | 'flashOf
 /** Fiche de confirmation : montre TOUJOURS ce qui a été scanné avant d'agir. */
 function ResultSheet({ result, onAct, onRescan }: { result: QrResult; onAct: (r: QrResult) => void; onRescan: () => void }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const t = useT();
   const d = describeQr(result);
   return (

@@ -1,13 +1,13 @@
 /**
  * Connexion WalletConnect CÔTÉ dApp — tableau de bord WEB.
  *
- * Le téléphone (app Nova) est le coffre-fort ; ce site est une fenêtre. Aucun
+ * Le téléphone (app Kalyx) est le coffre-fort ; ce site est une fenêtre. Aucun
  * secret ici : session WalletConnect (QR), on reçoit seulement les adresses
- * publiques, et toute action sensible est FORWARDÉE à l'app Nova qui signe
+ * publiques, et toute action sensible est FORWARDÉE à l'app Kalyx qui signe
  * (PIN/biométrie). Le web ne signe jamais seul.
  *
  * Multi-chaîne réel : EVM (eip155), Solana (solana) et Bitcoin (bip122). On
- * indexe tout sur l'ID de chaîne Nova (string), pas sur le chainId EVM.
+ * indexe tout sur l'ID de chaîne Kalyx (string), pas sur le chainId EVM.
  */
 import { create } from 'zustand';
 import SignClient from '@walletconnect/sign-client';
@@ -24,13 +24,13 @@ const BTC_CAIP = 'bip122:000000000019d6689c085ae165831e93';
 
 type Status = 'idle' | 'connecting' | 'connected' | 'error';
 
-/** Un compte connecté = une chaîne Nova + son adresse publique. */
+/** Un compte connecté = une chaîne Kalyx + son adresse publique. */
 export interface ConnAccount {
-  chainId: string; // ID de chaîne Nova (ex. 'ethereum', 'solana', 'bitcoin')
+  chainId: string; // ID de chaîne Kalyx (ex. 'ethereum', 'solana', 'bitcoin')
   address: string;
 }
 
-/** Demande de signature en cours, pilotant le popup « ouvrez Nova ». */
+/** Demande de signature en cours, pilotant le popup « ouvrez Kalyx ». */
 export interface PendingSign {
   label: string; // ex. « Transaction à signer »
   phase: 'await' | 'ok' | 'err';
@@ -58,9 +58,9 @@ interface WebConnectState {
   uri: string | null;
   topic: string | null;
   accounts: ConnAccount[]; // toutes les chaînes approuvées par le wallet
-  selected: string | null; // ID de chaîne Nova sélectionné
+  selected: string | null; // ID de chaîne Kalyx sélectionné
   error: string | null;
-  /** Métadonnées du portefeuille appairé (l'app Nova mobile), pour le panneau Sécurité. */
+  /** Métadonnées du portefeuille appairé (l'app Kalyx mobile), pour le panneau Sécurité. */
   peerName: string | null;
   peerUrl: string | null;
   /** Horodatage (ms) de l'établissement de la session courante. */
@@ -70,13 +70,13 @@ interface WebConnectState {
   rev: number;
   /** Horodatage de la dernière activité (pour l'expiration de session). */
   lastActivity: number;
-  /** Signature en cours → pilote le popup « ouvrez Nova ». null = aucun popup. */
+  /** Signature en cours → pilote le popup « ouvrez Kalyx ». null = aucun popup. */
   pending: PendingSign | null;
   dismissPending: () => void;
   init: () => Promise<void>;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  setChain: (novaChainId: string) => void;
+  setChain: (kalyxChainId: string) => void;
   request: (method: string, params: unknown[]) => Promise<string>;
   /** Force un rafraîchissement des panneaux (bouton manuel). */
   refresh: () => void;
@@ -124,8 +124,8 @@ function evmCaips(): string[] {
   return listChains().filter((c) => c.family === 'evm' && c.evmChainId).map((c) => `eip155:${c.evmChainId}`);
 }
 
-/** account WC (« eip155:1:0x… », « solana:…:… », « bip122:…:… ») → chaîne Nova. */
-function wcToNova(acc: string): ConnAccount | null {
+/** account WC (« eip155:1:0x… », « solana:…:… », « bip122:…:… ») → chaîne Kalyx. */
+function wcToKalyx(acc: string): ConnAccount | null {
   const p = acc.split(':');
   const ns = p[0];
   const addr = p[p.length - 1];
@@ -152,7 +152,7 @@ function collect(namespaces: Record<string, { accounts?: string[] }> | undefined
   const seen = new Set<string>();
   for (const ns of Object.values(namespaces ?? {})) {
     for (const acc of ns.accounts ?? []) {
-      const m = wcToNova(acc);
+      const m = wcToKalyx(acc);
       if (m && !seen.has(m.chainId)) {
         seen.add(m.chainId);
         out.push(m);
@@ -162,9 +162,9 @@ function collect(namespaces: Record<string, { accounts?: string[] }> | undefined
   return out;
 }
 
-/** ID de chaîne Nova → CAIP WalletConnect (pour forwarder une requête). */
-function novaToCaip(novaChainId: string): string {
-  const c = listChains().find((x) => x.id === novaChainId);
+/** ID de chaîne Kalyx → CAIP WalletConnect (pour forwarder une requête). */
+function kalyxToCaip(kalyxChainId: string): string {
+  const c = listChains().find((x) => x.id === kalyxChainId);
   if (c?.family === 'solana') return SOLANA_CAIP;
   if (c?.family === 'bitcoin') return BTC_CAIP;
   return `eip155:${c?.evmChainId ?? 1}`;
@@ -191,8 +191,8 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     client = await SignClient.init({
       projectId: PROJECT_ID,
       metadata: {
-        name: 'Nova Wallet',
-        description: 'Tableau de bord Nova — votre portefeuille, en lecture seule',
+        name: 'Kalyx Wallet',
+        description: 'Tableau de bord Kalyx — votre portefeuille, en lecture seule',
         url: (globalThis as { location?: { origin: string } }).location?.origin ?? 'https://nova.wallet',
         icons: [],
       },
@@ -286,7 +286,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     get().reset();
   },
 
-  setChain: (novaChainId) => set({ selected: novaChainId, lastActivity: Date.now() }),
+  setChain: (kalyxChainId) => set({ selected: kalyxChainId, lastActivity: Date.now() }),
 
   request: async (method, params) => {
     const { topic, selected } = get();
@@ -301,23 +301,23 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       get().reset();
       throw new Error('Session introuvable côté téléphone. Reconnecte le tableau de bord (QR).');
     }
-    // Popup « Signature requise — ouvrez Nova » tant que le téléphone n'a pas répondu.
+    // Popup « Signature requise — ouvrez Kalyx » tant que le téléphone n'a pas répondu.
     const label = METHOD_LABELS[method] ?? 'Signature demandée';
     set({ pending: { label, phase: 'await' } });
-    // La requête part vers l'app Nova, qui affiche la demande + signe avec PIN/bio.
+    // La requête part vers l'app Kalyx, qui affiche la demande + signe avec PIN/bio.
     // Timeout de courtoisie : si l'app ne répond pas (fermée / verrouillée / hors
     // ligne), on rend la main avec un message utile au lieu de rester figé.
     const REQ_TIMEOUT = 120_000;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(
-        () => reject(new Error("Le téléphone n'a pas répondu. Ouvre l'app Nova, déverrouille-la et réessaie.")),
+        () => reject(new Error("Le téléphone n'a pas répondu. Ouvre l'app Kalyx, déverrouille-la et réessaie.")),
         REQ_TIMEOUT,
       );
     });
     try {
       const res = await Promise.race([
-        client.request<string>({ topic, chainId: novaToCaip(selected), request: { method, params } }),
+        client.request<string>({ topic, chainId: kalyxToCaip(selected), request: { method, params } }),
         timeout,
       ]);
       // Signé sur le téléphone : succès auto-fermant + retour au tableau de bord à jour.

@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
-import { NovaRing } from './NovaRing';
+import { KalyxRing } from './KalyxRing';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -68,13 +68,16 @@ export function Screen({ children, scroll }: { children: React.ReactNode; scroll
   const { styles } = useThemeStyles();
   const insets = useSafeAreaInsets();
   const topPadding = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : insets.top + 8;
+  // Bas : inset système (barre de navigation Android edge-to-edge / home
+  // indicator iOS) pour que la dernière rangée (pavé PIN, bouton) reste visible.
+  const bottom = insets.bottom;
   return (
     <View style={[styles.screen, { paddingTop: topPadding }]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {scroll ? (
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={styles.screenScroll}
+            contentContainerStyle={[styles.screenScroll, { paddingBottom: spacing(3) + bottom }]}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
             showsVerticalScrollIndicator={false}
@@ -82,7 +85,7 @@ export function Screen({ children, scroll }: { children: React.ReactNode; scroll
             {children}
           </ScrollView>
         ) : (
-          <View style={styles.screenInner}>{children}</View>
+          <View style={[styles.screenInner, { paddingBottom: spacing(3) + bottom }]}>{children}</View>
         )}
       </KeyboardAvoidingView>
     </View>
@@ -116,7 +119,7 @@ export function Button({
   const { theme, styles } = useThemeStyles();
   const isPrimary = variant === 'primary';
   const content = loading ? (
-    <NovaRing size={24} spinning color={isPrimary ? '#fff' : theme.colors.text} />
+    <KalyxRing size={24} spinning color={isPrimary ? theme.colors.onPrimary : theme.colors.text} />
   ) : (
     <Text style={[styles.btnLabel, !isPrimary && { color: theme.colors.text }]}>{label}</Text>
   );
@@ -135,7 +138,6 @@ export function Button({
           style={[styles.btn, { overflow: 'hidden' }]}
         >
           {content}
-          {!disabled && !loading ? <ButtonShimmer /> : null}
         </LinearGradient>
       ) : (
         <View style={[styles.btn, styles.btnGhost]}>{content}</View>
@@ -156,10 +158,10 @@ export function Muted({ children }: { children: React.ReactNode }) {
 function createStyles({ colors }: Theme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
-    screenInner: { flex: 1, padding: spacing(3), gap: spacing(2) },
+    screenInner: { flex: 1, padding: spacing(3), paddingTop: 4, gap: spacing(2) },
     // contentContainer du ScrollView (mode `scroll`) : flexGrow garde les spacers
     // `flex:1` fonctionnels ; marge basse pour respirer au-dessus du clavier.
-    screenScroll: { flexGrow: 1, padding: spacing(3), paddingBottom: spacing(5), gap: spacing(2) },
+    screenScroll: { flexGrow: 1, padding: spacing(3), paddingTop: 4, paddingBottom: spacing(5), gap: spacing(2) },
     card: {
       backgroundColor: colors.card,
       borderRadius: radii.lg,
@@ -176,6 +178,6 @@ function createStyles({ colors }: Theme) {
       paddingHorizontal: spacing(3),
     },
     btnGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.cardBorder },
-    btnLabel: { color: '#fff', fontSize: 16, fontFamily: fonts.bold },
+    btnLabel: { color: colors.onPrimary, fontSize: 16, fontFamily: fonts.bold },
   });
 }

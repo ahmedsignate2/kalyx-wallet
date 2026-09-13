@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import { router } from 'expo-router';
@@ -47,6 +48,7 @@ export default function CreateWallet() {
   if (phrase) {
     return (
       <Screen>
+      <ScreenHeader />
         <Title>{t('saveYourPhrase')}</Title>
         <Muted>{t('writeWordsHint').replace('{n}', String(phrase.length))}</Muted>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(2) }} showsVerticalScrollIndicator={false}>

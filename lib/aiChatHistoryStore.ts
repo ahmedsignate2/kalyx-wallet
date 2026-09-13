@@ -85,7 +85,7 @@ export const useAiChatHistoryStore = create<AiChatHistoryState>()(
         })),
     }),
     {
-      name: 'nova-ai-chat-history',
+      name: 'kalyx-ai-chat-history',
       storage: createJSONStorage(() => AsyncStorage),
     }
   )

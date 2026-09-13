@@ -12,11 +12,14 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
 import { haptic } from '../lib/haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { NovaRing } from './NovaRing';
+import { KalyxRing } from './KalyxRing';
 import { fonts, radii, spacing, useTheme } from './theme';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
-const KEY = 72; // taille d'une touche (compact : clavier visible sans scroll)
+/** Taille d'une touche et espacement : le pavé fait 4 rangées = 4×KEY + 3×GAP = 324 px. */
+export const PIN_KEY = 70;
+export const PIN_GAP = spacing(1.5);
+const KEY = PIN_KEY;
 
 export function PinPad({
   value,
@@ -28,6 +31,7 @@ export function PinPad({
   disabled,
   errorSignal,
   bottomLeft,
+  hideRing,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -42,6 +46,8 @@ export function PinPad({
   errorSignal?: number;
   /** Élément en bas à gauche du pavé (rarement utilisé — bio est au-dessus). */
   bottomLeft?: React.ReactNode;
+  /** L'écran affiche l'anneau lui-même (layout fixe : anneau au centre, pavé ancré en bas). */
+  hideRing?: boolean;
 }) {
   const { colors } = useTheme();
   const shake = useRef(new Animated.Value(0)).current;
@@ -82,14 +88,16 @@ export function PinPad({
   const dotGap = dotCount <= 6 ? 14 : dotCount <= 9 ? 11 : 9;
 
   return (
-    <View style={{ alignItems: 'center', gap: spacing(3) }}>
-      {/* Ronds */}
-      <Animated.View style={{ transform: [{ translateX: shake }], alignItems: 'center', justifyContent: 'center', marginVertical: spacing(2) }}>
-        <NovaRing progress={value.length === 0 ? 0.001 : value.length / (expectedLength || cap)} error={!!errorSignal} />
-      </Animated.View>
+    <View style={{ alignItems: 'center', gap: spacing(2) }}>
+      {/* Anneau de progression (compact : le pavé complet doit tenir sans défiler) */}
+      {hideRing ? null : (
+        <Animated.View style={{ transform: [{ translateX: shake }], alignItems: 'center', justifyContent: 'center', marginVertical: spacing(0.5) }}>
+          <KalyxRing size={104} progress={value.length === 0 ? 0.001 : value.length / (expectedLength || cap)} error={!!errorSignal} />
+        </Animated.View>
+      )}
 
       {/* Pavé numérique (3 colonnes ; ⌫ aligné sous le 0) */}
-      <View style={{ width: KEY * 3 + spacing(1.5) * 2, flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5), justifyContent: 'center' }}>
+      <View style={{ width: KEY * 3 + PIN_GAP * 2, flexDirection: 'row', flexWrap: 'wrap', gap: PIN_GAP, justifyContent: 'center' }}>
         {KEYS.map((k) => (
           <Key key={k} label={k} onPress={() => press(k)} disabled={disabled} />
         ))}

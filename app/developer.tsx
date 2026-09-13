@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, Share, Switch } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -78,8 +79,9 @@ export default function Developer() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: t('developer') }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
+      <ScreenHeader title={t('developer')} />
       <ScrollView contentContainerStyle={{ gap: spacing(2), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Infos build */}
         <View style={{ gap: spacing(1) }}>
@@ -184,7 +186,7 @@ function Row({ label, value, divider, colors, typography }: { label: string; val
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: divider ? 1 : 0, borderTopColor: colors.glassBorder }}>
       <Text style={typography.muted}>{label}</Text>
-      <Text style={{ color: colors.text, fontFamily: 'Inter_500Medium' }}>{value}</Text>
+      <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{value}</Text>
     </View>
   );
 }

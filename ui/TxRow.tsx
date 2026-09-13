@@ -17,7 +17,7 @@ import { Icon } from './icon';
 import { fonts, spacing, useTheme } from './theme';
 import { useEnsName } from '../lib/useEns';
 import { useT } from '../lib/settingsStore';
-import { formatBalance, formatAmount, type TxSummary } from '../src';
+import { formatTokenAmount, formatAmount, type TxSummary, formatFiat } from '../src';
 
 function shortAddr(a: string) {
   return a.length > 14 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a;
@@ -39,10 +39,7 @@ export function txDate(ts: number, t?: (k: any) => string): string {
   return `${day} · ${hm}`;
 }
 
-function money(v: number): string {
-  const [int, dec] = v.toFixed(2).split('.');
-  return `${int.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')},${dec}`;
-}
+const money = formatFiat;
 
 export function TxRow({
   tx,
@@ -130,11 +127,15 @@ export function TxRow({
       </View>
 
       <View style={{ alignItems: 'flex-end' }}>
-        <Text style={{ color: failed ? colors.danger : inbound ? colors.up : colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }}>
-          {inbound ? '+' : tx.direction === 'out' ? '−' : ''}
-          {formatBalance(tx.value, tx.decimals ?? decimals, 6)} {tx.asset ?? symbol}
-        </Text>
-        {fiat != null && fiatSymbol ? (
+        {tx.value > 0n ? (
+          <Text style={{ color: failed ? colors.danger : inbound ? colors.up : colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }}>
+            {inbound ? '+' : tx.direction === 'out' ? '−' : ''}
+            {formatTokenAmount(tx.value, tx.decimals ?? decimals)} {tx.asset ?? symbol}
+          </Text>
+        ) : (
+          <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>{t("txInteraction")}</Text>
+        )}
+        {fiat != null && fiatSymbol && tx.value > 0n ? (
           <Text style={{ fontSize: 12, color: colors.textMuted, fontVariant: ['tabular-nums'] }}>
             ≈ {money(fiat)} {fiatSymbol}
           </Text>

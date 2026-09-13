@@ -6,7 +6,7 @@ export const APP_ROUTES_MAP = [
   },
   {
     id: 'WALLET',
-    route: '/wallet',
+    route: '/home',
     description: 'Gestion des actifs, répartition, DeFi, staking et historique',
   },
   {

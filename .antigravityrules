@@ -1,9 +1,0 @@
-# Scope & Execution Rules
-- Work ONLY inside the current working directory. Never access, read, or modify files outside this path.
-- Autonomously execute all code edits, file creations, and builds without asking for confirmation.
-- Work completely end-to-end without stopping for intermediate feedback.
-
-# Strict Restrictions
-- NEVER run `git commit`, `git push`, `git remote`, or any network-publishing commands.
-- Keep all operations 100% strictly local.
-- No network deployments or remote uploads.
