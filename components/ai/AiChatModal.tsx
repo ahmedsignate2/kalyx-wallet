@@ -19,31 +19,57 @@ import { useWallet } from '../../lib/walletStore';
 import { getAdapter } from '../../src';
 import { FETCH_WALLET_HISTORY_TOOL, WEB_SEARCH_TOOL } from '../../lib/copilotTools';
 import { copilotError, copilotLog, newCopilotTraceId } from '../../lib/copilotLogger';
-import { openTelegramTicket } from '../../lib/telegramSupport';
+import * as Clipboard from 'expo-clipboard';
+import { toast } from '../../lib/toast';
+import { haptic } from '../../lib/haptics';
+import { openTelegramTicket, normalizeSupportTicket, getClientEnvironmentInfo } from '../../lib/telegramSupport';
 import { detectSensitiveSecrets, sanitizeSecrets } from '../../lib/secretDetector';
 import { getFormattedTechnicalLogs } from '../../lib/technicalLogger';
 
 function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
   const { colors } = useTheme();
+  const [normalizedTicket] = useState(() => normalizeSupportTicket(ticketContent));
   const [errorWarning, setErrorWarning] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const secretCheck = detectSensitiveSecrets(ticketContent);
+  const secretCheck = detectSensitiveSecrets(normalizedTicket);
+
+  const ticketIdMatch = normalizedTicket.match(/• ID\s*:\s*([^\n]+)/i);
+  const ticketId = ticketIdMatch ? ticketIdMatch[1].trim() : null;
 
   const handleExport = async () => {
     setErrorWarning(null);
-    const check = detectSensitiveSecrets(ticketContent);
+    const check = detectSensitiveSecrets(normalizedTicket);
     if (check.hasSecret) {
       setErrorWarning(check.warningMessage || 'Donnée secrète détectée dans le ticket.');
       return;
     }
     setIsOpening(true);
     try {
-      await openTelegramTicket(ticketContent);
+      await openTelegramTicket(normalizedTicket);
     } catch (e) {
       setErrorWarning(e instanceof Error ? e.message : "Erreur lors de l'ouverture de Telegram");
     } finally {
       setIsOpening(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    setErrorWarning(null);
+    const check = detectSensitiveSecrets(normalizedTicket);
+    if (check.hasSecret) {
+      setErrorWarning(check.warningMessage || 'Donnée secrète détectée dans le ticket.');
+      return;
+    }
+    try {
+      await Clipboard.setStringAsync(normalizedTicket);
+      haptic.selection();
+      setCopied(true);
+      toast.success('Ticket copié', 'Le rapport a été copié dans le presse-papier.');
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setErrorWarning("Impossible de copier le ticket dans le presse-papier.");
     }
   };
 
@@ -65,7 +91,14 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
           <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="telegramLogo" size={16} color={colors.primary} />
           </View>
-          <Text variant="body" style={{ fontWeight: '600' }}>Ticket Support Telegram</Text>
+          <View>
+            <Text variant="body" style={{ fontWeight: '600' }}>Ticket Support</Text>
+            {ticketId ? (
+              <Text variant="micro" tone="tertiary" style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>
+                {ticketId}
+              </Text>
+            ) : null}
+          </View>
         </View>
         <Chip label="@kalyxntw" />
       </View>
@@ -80,7 +113,7 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
         }}
       >
         <Text variant="caption" tone="secondary" selectable style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', fontSize: 12, lineHeight: 18 }}>
-          {ticketContent}
+          {normalizedTicket}
         </Text>
       </View>
 
@@ -104,25 +137,51 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
         </View>
       ) : null}
 
-      <Pressable
-        onPress={handleExport}
-        disabled={secretCheck.hasSecret || isOpening}
-        style={({ pressed }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: space[2],
-          height: 44,
-          borderRadius: radius.round,
-          backgroundColor: secretCheck.hasSecret ? colors.surface3 : colors.primary,
-          opacity: secretCheck.hasSecret ? 0.4 : pressed ? 0.85 : 1,
-        })}
-      >
-        <Icon name="telegramLogo" size={18} color={secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary} />
-        <Text variant="body" style={{ fontWeight: '600', color: secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary }}>
-          Exporter le ticket sur Telegram
-        </Text>
-      </Pressable>
+      <View style={{ flexDirection: 'row', gap: space[2] }}>
+        <Pressable
+          onPress={handleCopy}
+          disabled={secretCheck.hasSecret}
+          style={({ pressed }) => ({
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: space[1],
+            height: 44,
+            borderRadius: radius.round,
+            backgroundColor: colors.surface2,
+            borderWidth: 1,
+            borderColor: colors.border,
+            opacity: secretCheck.hasSecret ? 0.4 : pressed ? 0.85 : 1,
+          })}
+        >
+          <Icon name={copied ? 'checkmark' : 'copy'} size={16} color={copied ? colors.up : colors.text} />
+          <Text variant="body" style={{ fontWeight: '600', color: copied ? colors.up : colors.text, fontSize: 13 }}>
+            {copied ? 'Ticket copié' : 'Copier le ticket'}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={handleExport}
+          disabled={secretCheck.hasSecret || isOpening}
+          style={({ pressed }) => ({
+            flex: 1.2,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: space[1],
+            height: 44,
+            borderRadius: radius.round,
+            backgroundColor: secretCheck.hasSecret ? colors.surface3 : colors.primary,
+            opacity: secretCheck.hasSecret ? 0.4 : pressed ? 0.85 : 1,
+          })}
+        >
+          <Icon name="telegramLogo" size={16} color={secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary} />
+          <Text variant="body" style={{ fontWeight: '600', color: secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary, fontSize: 13 }}>
+            Envoyer sur Telegram
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -224,6 +283,8 @@ FORMAT DU TICKET SUPPORT (EN DERNIER RECOURS SEULEMENT) :
 Si et seulement si le diagnostic a échoué ou que l'utilisateur l'exige, encadre le ticket STRICTEMENT entre les balises <SUPPORT_TICKET> et </SUPPORT_TICKET> :
 <SUPPORT_TICKET>
 🎫 [TICKET SUPPORT NOVA]
+• ID : KX-YYYYMMDD-XXXXX
+• Version : ${getClientEnvironmentInfo()}
 • Problème : [Résumé direct du problème en une ligne]
 • Réseau : [Nom du réseau, ex: Sepolia, Solana, Bitcoin, Ethereum]
 • Erreur détectée : [Message ou code d'erreur exact si disponible dans les logs, sinon Non déterminée]
@@ -232,7 +293,7 @@ Si et seulement si le diagnostic a échoué ou que l'utilisateur l'exige, encadr
 • Logs récents :
 [Insérer les logs techniques récents pertinents issus de la clé 'l' du contexte ci-dessous, ou 'Aucun log récent']
 </SUPPORT_TICKET>
-Ce tag fera automatiquement apparaître une carte interactive permettant d'exporter le ticket vers Telegram (@kalyxntw).
+Ce tag fera automatiquement apparaître une carte interactive permettant de copier le ticket ou de l'exporter vers Telegram (@kalyxntw).
 
 ACTIONS AUTONOMES (INTENTS) :
 Tu peux diriger l'utilisateur dans l'application.
