@@ -9,5 +9,25 @@
   "antiDrainerUnlimitedApproval": "Unlimited token allowance requested. All your tokens could be drained.",
   "antiDrainerNftApproval": "Approval for all NFTs requested. Your entire collection could be transferred.",
   "antiDrainerNonInteractiveContract": "Sending native funds directly to a smart contract without contract call data",
-  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger"
+  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger",
+  "transaction.action": {
+    "speedUpButton": "Beschleunigen",
+    "cancelButton": "Abbrechen",
+    "speedUpConfirmTitle": "Transaktion beschleunigen",
+    "cancelConfirmTitle": "Transaktion abbrechen",
+    "speedUpDescription": "Erhöhen Sie die Netzwerkgebühren, um diese Transaktion schneller zu verarbeiten.",
+    "cancelDescription": "Brechen Sie diese Transaktion ab, indem Sie 0 an sich selbst mit höheren Gebühren senden.",
+    "replacementSuccess": "Ersatztransaktion erfolgreich gesendet.",
+    "replacementError": "Fehler beim Ersetzen der Transaktion."
+  },
+  "speedUpButton": "Beschleunigen",
+  "cancelButton": "Abbrechen",
+  "speedUpConfirmTitle": "Transaktion beschleunigen",
+  "cancelConfirmTitle": "Transaktion abbrechen",
+  "speedUpDescription": "Erhöhen Sie die Netzwerkgebühren, um diese Transaktion schneller zu verarbeiten.",
+  "cancelDescription": "Brechen Sie diese Transaktion ab, indem Sie 0 an sich selbst mit höheren Gebühren senden.",
+  "replacementSuccess": "Ersatztransaktion erfolgreich gesendet.",
+  "replacementError": "Fehler beim Ersetzen der Transaktion.",
+  "estimatedExtraFee": "Geschätzte Zusatzkosten (mind. +20%)",
+  "nonceLabel": "Nonce"
 }

@@ -7,7 +7,7 @@ export interface PublicChainTransaction {
   to: string;
   value: string;
   gasUsed: string | null;
-  status: 'success' | 'failed';
+  status: 'success' | 'failed' | 'pending';
 }
 
 /** Reads public transaction data through the chain adapter/indexer only. */

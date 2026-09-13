@@ -9,5 +9,25 @@
   "antiDrainerUnlimitedApproval": "Unlimited token allowance requested. All your tokens could be drained.",
   "antiDrainerNftApproval": "Approval for all NFTs requested. Your entire collection could be transferred.",
   "antiDrainerNonInteractiveContract": "Sending native funds directly to a smart contract without contract call data",
-  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger"
+  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger",
+  "transaction.action": {
+    "speedUpButton": "加速",
+    "cancelButton": "取消",
+    "speedUpConfirmTitle": "加速交易",
+    "cancelConfirmTitle": "取消交易",
+    "speedUpDescription": "提高网络手续费以更快处理此交易。",
+    "cancelDescription": "通过以更高的手续费向自己发送 0 来取消此交易。",
+    "replacementSuccess": "替代交易发送成功。",
+    "replacementError": "替换交易时出错。"
+  },
+  "speedUpButton": "加速",
+  "cancelButton": "取消",
+  "speedUpConfirmTitle": "加速交易",
+  "cancelConfirmTitle": "取消交易",
+  "speedUpDescription": "提高网络手续费以更快处理此交易。",
+  "cancelDescription": "通过以更高的手续费向自己发送 0 来取消此交易。",
+  "replacementSuccess": "替代交易发送成功。",
+  "replacementError": "替换交易时出错。",
+  "estimatedExtraFee": "预计额外费用（至少 +20%）",
+  "nonceLabel": "Nonce"
 }
