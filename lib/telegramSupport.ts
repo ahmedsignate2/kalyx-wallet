@@ -50,14 +50,15 @@ export function buildSupportTicketContent(params: SupportTicketParams): string {
   const appVersion = params.appVersion || getClientEnvironmentInfo();
   const problem = params.problem || 'Problème technique non résolu';
   const network = params.network || 'Non spécifié';
-  const detectedError = params.detectedError || 'Non déterminée';
+  const detectedError =
+    params.detectedError && !/^(?:Non déterminée|Inconnue|N\/A|\.\.\.)$/i.test(params.detectedError)
+      ? params.detectedError
+      : (technicalLogger.getDetectedError(network) || 'Non déterminée');
   const targetAmount = params.targetAmount || 'N/A';
   const userDescription = params.userDescription || 'Demande d\'assistance via le Copilot';
   let recentLogs = params.recentLogs;
-  if (!recentLogs || recentLogs === 'Aucun log technique récent') {
-    const errorLogs = technicalLogger.getErrorLogs(5);
-    const fallbackLogs = errorLogs.length > 0 ? errorLogs : technicalLogger.getRecentTechnicalLogs(5);
-    recentLogs = fallbackLogs.length > 0 ? fallbackLogs.join('\n') : 'Aucun log technique récent';
+  if (!recentLogs || /Aucun log technique récent|Aucun log récent|N\/A/i.test(recentLogs)) {
+    recentLogs = technicalLogger.getCondensedTicketLogs(network, 5);
   }
 
   return (
@@ -78,16 +79,27 @@ export function buildSupportTicketContent(params: SupportTicketParams): string {
  * Normalise le contenu brut d'un ticket généré par l'IA pour garantir
  * la présence d'un identifiant unique (KX-YYYYMMDD-XXXXX) et de la version client.
  */
-export function normalizeSupportTicket(rawContent: string): string {
+export function normalizeSupportTicket(rawContent: string, defaultNetwork?: string): string {
   if (!rawContent || typeof rawContent !== 'string') return '';
   let content = rawContent.trim();
   const ticketId = generateTicketId();
   const clientEnv = getClientEnvironmentInfo();
 
-  // 1. Remplacement ou injection de l'ID de ticket
-  if (/• ID\s*:\s*(?:KX-YYYYMMDD-XXXXX|\[ID\]|N\/A|\.\.\.)/i.test(content)) {
-    content = content.replace(/• ID\s*:\s*[^\n]+/i, `• ID : ${ticketId}`);
-  } else if (!/• ID\s*:/i.test(content)) {
+  // 1. Remplacement ou injection de l'ID de ticket (avec date réelle du jour)
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const todayPrefix = `KX-${yyyy}${mm}${dd}-`;
+
+  const idMatch = content.match(/• ID\s*:\s*([^\r\n]+)/i);
+  if (idMatch) {
+    const existingId = idMatch[1].trim();
+    const isTodayValid = existingId.startsWith(todayPrefix) && /^KX-\d{8}-\d{4,6}$/.test(existingId);
+    if (!isTodayValid || /YYYYMMDD|XXXXX|\[ID\]|N\/A|\.\.\./i.test(existingId)) {
+      content = content.replace(/• ID\s*:\s*[^\r\n]+/i, `• ID : ${ticketId}`);
+    }
+  } else {
     content = content.replace(
       /(🎫\s*\[TICKET SUPPORT NOVA\](?:\r?\n)?)/i,
       `$1• ID : ${ticketId}\n`
@@ -111,17 +123,42 @@ export function normalizeSupportTicket(rawContent: string): string {
     }
   }
 
-  // 3. Injection automatique des logs récents s'ils sont vides ou génériques
-  if (/• Logs récents\s*:\s*(?:Aucun log récent|Aucun log technique récent|N\/A|\.\.\.)/i.test(content) || !/• Logs récents\s*:/i.test(content)) {
-    const errorLogs = technicalLogger.getErrorLogs(5);
-    const fallbackLogs = errorLogs.length > 0 ? errorLogs : technicalLogger.getRecentTechnicalLogs(5);
-    if (fallbackLogs.length > 0) {
-      const logsFormatted = fallbackLogs.join('\n');
-      if (/• Logs récents\s*:/i.test(content)) {
-        content = content.replace(/• Logs récents\s*:\s*[^\n]*(?:\r?\n[\s\S]*)?$/i, `• Logs récents :\n${logsFormatted}`);
+  // 3. Extraction du réseau concerné pour filtrage et corrélation
+  const networkMatch = content.match(/• Réseau\s*:\s*([^\r\n]+)/i);
+  const targetNetwork = (networkMatch ? networkMatch[1].trim() : defaultNetwork) || undefined;
+
+  // 4. Corrélation de "Erreur détectée" avec les logs réels
+  const errMatch = content.match(/• Erreur détectée\s*:\s*([^\r\n]+)/i);
+  const currentErr = errMatch ? errMatch[1].trim() : '';
+  if (!currentErr || /^(?:Non déterminée|Inconnue|N\/A|Aucune|\.\.\.)$/i.test(currentErr)) {
+    const detected = technicalLogger.getDetectedError(targetNetwork);
+    if (detected) {
+      if (errMatch) {
+        content = content.replace(/• Erreur détectée\s*:\s*[^\r\n]+/i, `• Erreur détectée : ${detected}`);
       } else {
-        content += `\n• Logs récents :\n${logsFormatted}`;
+        content = content.replace(
+          /(• Réseau\s*:[^\r\n]*(?:\r?\n)?)/i,
+          `$1• Erreur détectée : ${detected}\n`
+        );
       }
+    }
+  }
+
+  // 5. Formatage condensé et filtrage des logs récents (évite le dump JSON brut et priorise le réseau)
+  const logsMatch = content.match(/• Logs récents\s*:\s*([\s\S]*)$/i);
+  const currentLogsText = logsMatch ? logsMatch[1].trim() : '';
+  const isGenericOrDump =
+    !currentLogsText ||
+    /^(?:Aucun log récent|Aucun log technique récent|N\/A|\.\.\.)$/i.test(currentLogsText) ||
+    currentLogsText.includes('{"') ||
+    currentLogsText.includes('RPC error on');
+
+  if (isGenericOrDump || !/• Logs récents\s*:/i.test(content)) {
+    const formattedLogs = technicalLogger.getCondensedTicketLogs(targetNetwork, 5);
+    if (/• Logs récents\s*:/i.test(content)) {
+      content = content.replace(/• Logs récents\s*:\s*[\s\S]*$/i, `• Logs récents :\n${formattedLogs}`);
+    } else {
+      content += `\n• Logs récents :\n${formattedLogs}`;
     }
   }
 
