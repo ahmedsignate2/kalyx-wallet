@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
@@ -15,8 +16,9 @@ export default function Legal() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: t('legalNotice') }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
+      <ScreenHeader title={t('legalNotice')} />
       <SegmentedTabs
         items={[
           { key: 'privacy', label: t('privacyShort') },

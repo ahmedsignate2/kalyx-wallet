@@ -5,6 +5,7 @@ import Constants from 'expo-constants';
 import { PremiumScreen, GlassCard, ListRow, SegmentedTabs, GradientAvatar } from '../ui/premium';
 import { Icon, type IconName } from '../ui/icon';
 import { AppTabBar } from '../ui/tabs';
+import { useAiStore } from '../lib/aiStore';
 import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { useWallet } from '../lib/walletStore';
@@ -22,6 +23,7 @@ const chev = <Icon name="chevron" size={18} tone="faint" />;
 export default function Menu() {
   const { colors, typography } = useTheme();
   const t = useT();
+  const aiEnabled = useAiStore((s) => s.isEnabled);
   const { profileName, uiMode, setUiMode } = useSettings();
   const reset = useWallet((s) => s.reset);
   const expert = uiMode === 'expert';
@@ -41,7 +43,7 @@ export default function Menu() {
       <Pressable onPress={() => router.push('/settings')}>
         <GlassCard>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            <GradientAvatar label={(profileName || 'N').slice(0, 1).toUpperCase()} />
+            <GradientAvatar label={(profileName || 'K').slice(0, 1).toUpperCase()} />
             <View style={{ flex: 1 }}>
               <Text style={typography.bodyStrong}>{profileName || t('yourProfile')}</Text>
               <Text style={typography.muted}>{t('profile')} · {t('settings')}</Text>
@@ -58,7 +60,7 @@ export default function Menu() {
         <ListRow divider left={<Ico n="create" />} title={t('createWalletT')} right={chev} onPress={() => router.push('/create-wallet')} />
       </GlassCard>
 
-      {/* Mode d'interface (différenciateur Nova) */}
+      {/* Mode d'interface (différenciateur Kalyx) */}
       <GlassCard>
         <Text style={typography.muted}>{t('uiMode')}</Text>
         <View style={{ marginTop: spacing(1) }}>
@@ -84,6 +86,8 @@ export default function Menu() {
         <ListRow divider left={<Ico n="walletconnect" />} title="WalletConnect" subtitle={t('connectedApps')} right={chev} onPress={() => router.push('/walletconnect')} />
         <ListRow divider left={<Ico n="security" />} title={t('approvals')} subtitle={t('approvalsSub')} right={chev} onPress={() => router.push('/approvals')} />
         <ListRow divider left={<Ico n="contacts" />} title={t('contacts')} right={chev} onPress={() => router.push('/contacts')} />
+        <ListRow divider left={<Ico n="history" />} title={t("activity")} subtitle={t("allTransactions")} right={chev} onPress={() => router.push('/history')} />
+        {aiEnabled ? <ListRow divider left={<Ico n="sparkles" />} title={t("assistant")} subtitle={t("assistantSubtitle")} right={chev} onPress={() => useAiStore.getState().openChat()} /> : null}
       </GlassCard>
 
       {/* Préférences */}
@@ -96,7 +100,7 @@ export default function Menu() {
 
       {/* Sécurité */}
       <GlassCard>
-        <ListRow left={<Ico n="security" />} title={t('security')} right={chev} onPress={() => router.push('/settings')} />
+        <ListRow left={<Ico n="security" />} title={t('security')} subtitle={t("securityCenter")} right={chev} onPress={() => router.push('/security')} />
         <ListRow divider left={<Ico n="bell" />} title={t('priceAlerts')} subtitle={t('priceAlertsSub')} right={chev} onPress={() => router.push('/price-alerts')} />
         <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chev} onPress={() => router.push('/change-pin')} />
         <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chev} onPress={() => router.push('/reveal-phrase')} />
@@ -112,16 +116,17 @@ export default function Menu() {
         </GlassCard>
       ) : null}
 
-      {/* Inviter des amis + soutenir */}
+      {/* Inviter des amis + soutenir + suggestions */}
       <GlassCard>
         <ListRow left={<Ico n="gift" />} title={t('inviteFriends')} subtitle={t('inviteFriendsSub')} right={chev} onPress={() => router.push('/invite')} />
         <ListRow divider left={<Ico n="star" />} title={t('supportUs')} subtitle={t('supportUsSub')} right={chev} onPress={() => router.push('/support')} />
+        <ListRow divider left={<Ico n="bulb" />} title={t('suggestFeature')} subtitle={t('suggestFeatureSub')} right={chev} onPress={() => router.push('/feature-request')} />
       </GlassCard>
 
       {/* Aide */}
       <GlassCard>
         <ListRow left={<Ico n="faq" />} title={t('faq')} right={chev} onPress={() => router.push('/faq')} />
-        <ListRow divider left={<Ico n="about" />} title={t('about')} subtitle={`Nova · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chev} onPress={() => router.push('/about')} />
+        <ListRow divider left={<Ico n="about" />} title={t('about')} subtitle={`Kalyx · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chev} onPress={() => router.push('/about')} />
       </GlassCard>
 
       <ListRow left={<Ico n="reset" />} title={t('resetWallet')} right={<Icon name="chevron" size={18} color={colors.danger} />} onPress={onReset} />

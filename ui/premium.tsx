@@ -30,28 +30,6 @@ import { haptic } from '../lib/haptics';
 const PREMIUM_W = Dimensions.get('window').width;
 
 /** Halo violet doux et statique en haut d'écran (lumière d'ambiance premium). */
-function TopGlow() {
-  const { theme } = useThemeStyles();
-
-
-  const w = PREMIUM_W * 1.5;
-  const h = 360;
-  return (
-    <View pointerEvents="none" style={{ position: 'absolute', top: -70, left: (PREMIUM_W - w) / 2, width: w, height: h }}>
-      <Svg width={w} height={h}>
-        <Defs>
-          <RadialGradient id="premium-topglow" cx="50%" cy="35%" rx="50%" ry="50%">
-            <Stop offset="0" stopColor={theme.colors.violet} stopOpacity={0.14} />
-            <Stop offset="0.55" stopColor={theme.colors.blue} stopOpacity={0.04} />
-            <Stop offset="1" stopColor={theme.colors.blue} stopOpacity={0} />
-          </RadialGradient>
-        </Defs>
-        <Rect x="0" y="0" width={w} height={h} fill="url(#premium-topglow)" />
-      </Svg>
-    </View>
-  );
-}
-
 /* Styles dépendant du thème : créés une fois par mode puis réutilisés. */
 const stylesCache: Partial<Record<ThemeMode, ReturnType<typeof createStyles>>> = {};
 function useThemeStyles() {
@@ -75,15 +53,14 @@ export function PremiumScreen({
   const { theme } = useThemeStyles();
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bgDeep }}>
-      <LinearGradient colors={theme.gradients.screen} style={StyleSheet.absoluteFill} />
-      <TopGlow />
       {/* Clavier-aware : le contenu remonte au-dessus du clavier et reste défilable. */}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={{
             paddingTop: topPadding,
             paddingHorizontal: spacing(2.5),
-            paddingBottom: insets.bottom + spacing(13),
+            paddingBottom: insets.bottom + (footer ? 120 : spacing(5)),
+            flexGrow: 1,
             gap: spacing(2.5),
           }}
           showsVerticalScrollIndicator={false}
@@ -290,10 +267,10 @@ export function CircleAction({
       disabled={disabled}
       style={({ pressed }) => [{ alignItems: 'center', gap: 8, flex: 1, opacity: disabled || dimmed ? 0.4 : pressed ? 0.6 : 1 }]}
     >
-      <View style={styles.circleAction}>
+      <View style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={icon} size={22} color={theme.colors.text} />
       </View>
-      <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontFamily: fonts.semibold }}>{label}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={{ color: theme.colors.textMuted, fontSize: 11, lineHeight: 13, fontFamily: fonts.semibold, textAlign: 'center' }}>{label}</Text>
     </Pressable>
   );
 }
@@ -385,7 +362,7 @@ export function Avatar({ label, color }: { label: string; color?: string }) {
   // Fond accent (par défaut) → glyphe blanc ; fond « verre » fourni par
   // l'appelant → glyphe couleur texte (lisible dans les deux thèmes).
   const bg = color ?? theme.colors.accent;
-  const fg = color ? theme.colors.text : '#fff';
+  const fg = color ? theme.colors.text : theme.colors.onPrimary;
   return (
     <View style={[styles.avatar, { backgroundColor: bg }]}>
       <Text style={{ fontSize: 18, color: fg }}>{label}</Text>
@@ -414,7 +391,7 @@ export function RemoteIcon({
   const letter = (label || '?').slice(0, 1).toUpperCase();
   if (!uri || failed) {
     const bg = color ?? theme.colors.glassStrong;
-    const fg = color ? '#fff' : theme.colors.text;
+    const fg = color ? theme.colors.onPrimary : theme.colors.text;
     return (
       <View style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: bg }}>
         <Text style={{ fontSize: size * 0.42, color: fg, fontWeight: '600' }}>{letter}</Text>
@@ -439,7 +416,7 @@ export function GradientAvatar({ label }: { label: string }) {
       end={{ x: 1, y: 1 }}
       style={styles.avatar}
     >
-      <Text style={{ fontSize: 18, color: '#fff' }}>{label}</Text>
+      <Text style={{ fontSize: 18, color: theme.colors.onPrimary }}>{label}</Text>
     </LinearGradient>
   );
 }
@@ -562,7 +539,7 @@ export function SegmentedTabs({
         const on = it.key === active;
         return (
           <Pressable key={it.key} onPress={() => onChange(it.key)} style={[styles.segItem, on ? styles.segItemActive : null]}>
-            <Text style={{ color: on ? '#fff' : theme.colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>
+            <Text style={{ color: on ? theme.colors.onPrimary : theme.colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>
               {it.label}
             </Text>
           </Pressable>
@@ -651,7 +628,7 @@ export function BottomNav({
     return (
       <Pressable key={it.key} onPress={it.onPress} style={{ flex: 1, alignItems: 'center', gap: 3 }}>
         <Icon name={it.icon} size={22} color={on ? colors.accent : colors.textFaint} />
-        <Text style={{ fontSize: 11, color: on ? colors.accent : colors.textFaint, fontFamily: fonts.semibold }}>
+        <Text numberOfLines={1} style={{ fontSize: 11, color: on ? colors.text : colors.textTertiary, fontFamily: fonts.semibold }}>
           {it.label}
         </Text>
       </Pressable>
@@ -671,7 +648,7 @@ export function BottomNav({
           end={{ x: 1, y: 1 }}
           style={styles.fab}
         >
-          <Icon name={center.icon} size={24} color="#fff" />
+          <Icon name={center.icon} size={24} color={colors.onPrimary} />
         </LinearGradient>
         <Text style={{ fontSize: 11, color: colors.accent, fontFamily: fonts.semibold, marginTop: 2 }}>
           {center.label}
@@ -792,7 +769,7 @@ function createStyles({ mode, colors, shadow }: Theme) {
       flexDirection: 'row',
       alignItems: 'center',
       width: '100%',
-      backgroundColor: mode === 'dark' ? 'rgba(16,20,30,0.94)' : 'rgba(255,255,255,0.96)',
+      backgroundColor: colors.surface1, // opaque (§ retours : pas de semi-transparence)
       borderWidth: 1,
       borderColor: mode === 'dark' ? colors.glassBorder : colors.cardBorder,
       borderRadius: radii.xl,

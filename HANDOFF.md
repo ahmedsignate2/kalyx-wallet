@@ -1,10 +1,90 @@
-# Nova Wallet — Sauvegarde de contexte (HANDOFF)
+# Kalyx Wallet — Sauvegarde de contexte (HANDOFF)
 
 > Document de reprise. Résume l'état du projet, ce qui reste, les décisions et
 > **les pièges déjà rencontrés** (à ne pas redécouvrir). Mis à jour : 2026-07-05.
 > Wallet crypto **non-custodial** mobile, React Native / Expo (SDK 57), TypeScript.
 
 ---
+
+## 0. RENOMMAGE + DESIGN SYSTEM (2026-09-11)
+
+- **Kalyx Wallet** remplace Nova Wallet (nom déjà pris). `app.config.ts` : name, slug
+  `kalyx-wallet`, scheme `kalyx`, `com.kalyx.wallet`. Composants `KalyxLogo`/`KalyxRing`,
+  constantes `KALYX_*`, clés i18n renommées. ⚠️ EXCEPTIONS VOLONTAIRES : clés de stockage
+  `nova.*` (changer = effacer le wallet des installations existantes) et
+  `KALYX_INTEGRATOR = 'nova-wallet'` (identifiant enregistré sur portal.li.fi pour les
+  0,3 % — à re-déclarer en `kalyx-wallet` sur le portail AVANT de changer la valeur).
+  Sauvegardes chiffrées : émises en `app:'kalyx'`, `'nova'` accepté à la restauration.
+  ⚠️ Slug EAS changé → vérifier `eas project:info` / relier le projet avant le prochain build.
+  ⚠️ Assets `assets/icon.png` / `splash.png` non régénérés (logo à refaire, Phase 0).
+- **Bible design** : `docs/DESIGN.md` (le pourquoi) + `ui/tokens.ts` (LES valeurs :
+  encre `#06070D`, lumière `#F4F6FF`, halo, General Sans, grille de 4, rayons 8/12/18/22/28,
+  ressorts Vif/Standard/Doux, haptique). `ui/theme.ts` est re-basé dessus avec une API
+  HÉRITÉE mappée (`colors.accent` = Lumière, `gradients.*` = aplats, `shadow.card` = {}) →
+  l'app entière est re-skinnée sans casser ; les écrans migrent un par un vers la nouvelle
+  API (`surface1/2/3`, `typography.balance/title1…`, `space`, `radius`). General Sans
+  embarquée (`assets/fonts`, ITF Free Font License) ; Inter/Outfit ne sont plus chargées.
+  **Kit livré (2026-09-11)** : `ui/kit/` — 16 composants sur les tokens (Reanimated 4, déjà
+  dans le build : ressorts Vif/Standard, scale 0.96, « Réduire les animations » respecté),
+  icônes **Phosphor** (`ui/icon.tsx`, même API `name=`, pure JS → pas de rebuild), glyphe
+  d'adresse (`src/domain/wallet/glyph.ts`, 4 tests, SVG), **Design Lab** `app/design-lab.tsx`
+  (7 taps sur la version dans À propos, `__DEV__` only, bascule sombre/clair).
+  ⚠️ Skia (halo respirant, particules de l'éclat, graphique) = module NATIF → rebuild EAS à
+  prévoir à l'étape Accueil ; en attendant Halo/Glyph sont en react-native-svg.
+  **Accueil livré (2026-09-11)** : `lib/portfolio/portfolioStore.ts` (Zustand, cache
+  `kalyx.portfolio.<evm>.<fiat>` dans AsyncStorage — non sensible ; `hydrate()` puis
+  `refresh()` ; RPC muet = actif absent, jamais un faux 0), `lib/portfolio/history.ts`
+  (courbe = top 4 actifs × historique CoinGecko + constante ; cache mémoire 5 min par
+  période — CoinGecko est rate-limité), `app/home.tsx` réécrit sur le kit (plus de section
+  Marché sur l'accueil : elle vit dans l'onglet Marché). L'ancien `lib/portfolioStore.ts`
+  (résumé IA) reste alimenté par le nouveau store.
+  **Envoyer / Recevoir livrés (2026-09-11)** : `src/domain/validation/poisoning.ts`
+  (`detectPoisoning` = même 4 premiers + 4 derniers, milieu différent, vs mes comptes +
+  récents + contacts ; `groupAddress`, `shortAddress` ; 5 tests), `EvmChainAdapter.isContract`.
+  Kit : `AmountKeypad`, `StepBar`, `Sheet`, `TxSteps`. `app/send.tsx` réécrit (4 étapes, tout le
+  flux passe par `HoldButton` → `ConfirmUnlock` → suivi in-app EVM/Solana ; Bitcoin = envoyée
+  seulement). `app/receive.tsx` réécrit (sélecteur de famille EVM/Solana/Bitcoin, QR + glyphe).
+  **Modal de signature livrée (2026-09-11)** : `simulateTx` (Alchemy sur les réseaux avec
+  clé, sinon statique — jamais d'hex à l'écran), `explainRequest` (pur, 9 tests : SIWE,
+  mismatch de domaine, Permit limité/illimité/sans expiration, approve, setApprovalForAll,
+  swap simulé, Verify isScam, méthode inconnue), `ui/SignSheet.tsx`. `WalletConnectHost` lit
+  `request.verifyContext.verified` (validation/isScam) et propose « Réduire au montant exact »
+  (calldata approve ré-encodé au montant que la simulation prélève ; `approveRequest(unlock,
+  overrideData)`). `app/browser.tsx` : signatures/tx passent par SignSheet + ConfirmUnlock
+  (biométrie unifiée) ; l'ancienne modale ne sert plus qu'à la connexion.
+  **Swap/Bridge sur le kit (2026-09-11)** : `app/swap.tsx` — logique inchangée (routeur,
+  préflight, réserve dynamique, auto-refresh 30 s en pause pendant la confirmation), UI refaite
+  (`TokenBlock`, `CountdownRing`, récap en `Sheet`, impact > 10 % = `HoldButton` danger,
+  slippage replié). `ui/BridgeTrackerModal.tsx` SUPPRIMÉ → `ui/BridgeProgress.tsx`.
+  **Activité + Sécurité (2026-09-11)** : `humanizeTx`/`groupByDay` (purs, testés) →
+  `ui/kit/ActivityRow`, `app/history.tsx` réécrit (filtres, spam replié, CSV). `app/security.tsx`
+  = centre de sécurité (§4.8) ; nouveau réglage persistant `backupVerified` (settingsStore,
+  posé à `true` par `app/verify.tsx` quand les 3 mots sont retrouvés).
+  **Onboarding (2026-09-11)** : welcome/backup/verify/import réécrits (voir docs/DESIGN.md §12).
+  `unknownWords()` (moteur). Sauvegarde sautée → bandeau accueil → Révéler la phrase →
+  « Vérifier ma sauvegarde » → `/verify?then=security` (le brouillon est jeté après).
+  **Retours vidéo #1 traités (2026-09-11)** — voir docs/DESIGN.md §12. ⚠️ `app/wallet.tsx`
+  SUPPRIMÉ (l'accueil agrégé le remplace ; positions Earn = onglet Earn). `Holding.verified`
+  (natif / coté / listes curées) pilote l'affichage ET l'activité (`verifiedSymbols`).
+  **Navigateur niveau Edge livré (2026-09-11)** — voir docs/DESIGN.md §12. ⚠️ Une seule
+  WebView montée : changer d'onglet RECHARGE la page (voulu : Android tuait l'app à 5 onglets).
+  `lib/browserPrefs.ts` (moteur, mode sombre forcé, dApps vérifiées par catégorie). Réseau par
+  onglet (`Tab.chainId`, persisté) : `setActiveChain` suit l'onglet actif. Onglet privé jamais
+  persisté ni mémorisé. Blocage intent:// / .apk dans `onShouldStartLoadWithRequest`.
+  **En-têtes (2026-09-11)** : le Stack racine est en `headerShown: false` — l'en-tête natif
+  VIDE (titre `''`) s'empilait au-dessus du padding barre d'état de `Screen`/`PremiumScreen`
+  → « trop d'espace vide en haut sur tous les écrans ». Chaque écran secondaire rend
+  `ui/kit/ScreenHeader` (retour + titre) en première ligne. Règle : ne JAMAIS remettre
+  `headerShown: true` sur un écran qui utilise `Screen`/`PremiumScreen`.
+  **Copilot (2026-09-11)** : `components/ai/AiChatModal.tsx` rendu refait sur le kit (bulle
+  utilisateur Lumière + texte Encre, état d'accueil centré, suggestions Phosphor, saisie
+  « Demande à Kalyx Copilot… », KAV) — la logique (sessions, prompt système, actions
+  `<ACTION>`) est inchangée. Bulle `FloatingAiAssistant` visible dès qu'une clé est
+  configurée sur accueil, marché, Earn, navigateur et fiche token (au-dessus des barres).
+  `lib/aiAsk.ts` (requête unique) + `components/ai/ExplainSheet.tsx` : bouton « Expliquer »
+  de la fiche token → sheet « Comprendre X » (3 points simples ; invite à ajouter une clé sinon).
+  Accueil : le halo est désormais entièrement dans l'écran (Android clippait au bord → trait).
+  Prochaine étape (§12) : **Finition** (§8) + Skia (rebuild) pour halo respirant / éclat / courbe.
 
 ## 1. Architecture (règle d'or)
 
@@ -80,7 +160,7 @@ TransferChecked). Tout câblé jusqu'à l'UI (send/receive/wallet). ✅ **SOLANA
 ENTIÈREMENT VALIDÉ sur device avec de vrais fonds** : envoi natif (2026-08-22,
 0.001 SOL), envoi SPL (2026-08-23, 0.001 USDC, ATA + TransferChecked, croisé avec
 Phantom), réception native et réception SPL (les deux confirmées, fonds bien reçus
-dans Nova). Bitcoin **également validé sur device avec de vrais fonds** (2026-08-23,
+dans Kalyx). Bitcoin **également validé sur device avec de vrais fonds** (2026-08-23,
 voir §3 gros morceaux) — tous les réseaux du catalogue sont désormais testés en réel.
 
 **Données réelles (CoinGecko/Alchemy/Etherscan) :** prix, marché, fiche token (24h→ALL),
@@ -206,7 +286,7 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
 - Prochaine priorité UI : passe d'anim onboarding backup/verify/import ; icône store PNG.
 
 ### Marque & onboarding (2026-07-04)
-- ✅ **Le lion est l'emblème de Nova** : `ui/NovaLogo.tsx` (SVG géométrique,
+- ✅ **Le lion est l'emblème de Kalyx** : `ui/KalyxLogo.tsx` (SVG géométrique,
   crinière dégradée). Utilisé dans splash, déverrouillage, welcome. ⚠️ C'est le
   logo AFFICHÉ (SVG) ; l'**icône du store** (`assets/*.png`, `app.config.ts` n'en
   déclare pas encore) reste à générer depuis ce dessin (asset raster séparé).
@@ -248,11 +328,95 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   un **nouveau** module natif absent du build actuel (ex. Ledger/BLE pas encore câblé). Tout
   changement JS (moteur, écrans, config, props d'un composant natif déjà buildé comme
   `onLoadProgress`) = simple **`r`** dans Metro, sans rebuild. Voir mémoire `nova-build-done`.
-- ✅ ~~DeFi / Staking (v1)~~ (fait 2026-07-04) : `src/domain/defi/registry.ts`
-  classe les ERC-20 détenus (stETH/wstETH/rETH/cbETH/sDAI/stMATIC + heuristiques
-  Aave/Compound/Lido/Rocket Pool, 5 tests). `wallet.tsx` : onglets DeFi/Staking
-  listent les positions (total, protocole, valeur) ; vide → CTA navigateur dApps
-  (`/browser?url=…`). **v2 = APR, unstake in-app, plus de protocoles.**
+- ✅ **EARN — REFONTE TOTALE (2026-09-11)** : staking liquide + prêt (lending)
+  **exécutés dans l'app**, moteur + UI réécrits de zéro (l'ancien `lib/yield/*`,
+  `yieldService.ts` et le faux `defiIndexer.ts` — qui inventait une position Kamino
+  et classait « Aave » tout token commençant par « a » — sont SUPPRIMÉS).
+  - **Moteur pur `src/domain/earn/`** (7 tests) : `catalog.ts` = LA source de vérité
+    (13 protocoles vérifiés on-chain le 2026-09-11 : Lido stETH, Rocket Pool rETH,
+    Benqi sAVAX, Jito JitoSOL, Marinade mSOL + Aave v3 USDC/USDT sur Ethereum,
+    Arbitrum, Base, Polygon, Avalanche, Optimism, BNB) ; `abi.ts` = encodeurs
+    (Lido `submit`, Benqi `submit`, Aave `supply/withdraw/getReserveData`) ;
+    `apy.ts` = DefiLlama `poolsEnriched?pool=` (≈ 2 Ko/pool, PAS `/pools` = 11 Mo).
+    Chaque protocole déclare sa route : `contract` (appel direct, 0 frais, 0 slippage :
+    Lido/Benqi dépôt, Aave dépôt+retrait) ou `lifi` (swap : rETH/Jito/mSOL, et les
+    SORTIES de stETH/sAVAX — instantanées au lieu de 1–15 jours de file native).
+    APY Aave lu **on-chain** (`currentLiquidityRate`, RAY → APY composé), repli DefiLlama.
+    Jamais d'APY inventé : indisponible = `null` = « — » à l'écran.
+  - **Couche app `lib/earn/`** : `earnEngine.ts` (soldes/positions en parallèle avec
+    cache SPL, `quote()` TOUJOURS avant signature, `execute()` = allowance → approve
+    exact → tx → attente 1 bloc ; Solana = signature (blockhash rafraîchi) →
+    **simulation obligatoire** → envoi → poll 75 s ; succès UNIQUEMENT si confirmé) ;
+    `earnStore.ts` (Zustand partagé : APY, soldes, positions, prix CoinGecko).
+  - **UI** : `app/earn.tsx` (hero total investi + gains/an, « Mes positions » avec
+    Déposer/Retirer, opportunités filtrables Mes actifs/Tout/Staking/Prêt triées par
+    APY) ; `ui/EarnSheet.tsx` (feuille saisie → APERÇU du devis réel : reçu, route,
+    gas, frais Kalyx → ConfirmUnlock → SuccessModal) ; onglets **Staking/DeFi du
+    portefeuille** branchés sur le même store (toutes chaînes, tap = Déposer/Retirer).
+  - **Frais : 0 % Kalyx sur TOUT Earn** (dépôt, retrait, contrat ou LI.FI via `isEarn`).
+    Règle wallet (décision utilisateur 2026-09-11) : les 0,3 % Kalyx n'existent QUE sur
+    Swap/Bridge — aucun autre écran ne prélève de frais.
+  - ⚠️ Pièges : `walletStore.sendRawTxOn` prend désormais `from` = `evmAddress` du
+    compte actif (plus `account.address`) → une tx Avalanche marche même si la chaîne
+    ACTIVE est Solana. `EarnSheet` n'a AUCUN hook après son `return null` (bug React
+    sinon). MAX retrait = solde exact (`isAll`), Aave reçoit `uint256.max`.
+    BNBx (Stader) retiré : plus listé sur DefiLlama, protocole en fin de vie.
+    Test LIVE opt-in : `EARN_LIVE=1 npx jest earn.live` (Aave aTokens, APY, routes LI.FI).
+  - **Reste** : test sur device avec vrais fonds (comme Solana/BTC), lending Solana
+    (Kamino/marginfi = programmes Anchor, non couvert), retrait natif Lido/Benqi
+    (file d'attente) si un jour on veut éviter le swap.
+- ✅ **SWAP / BRIDGE — ROBUSTESSE (2026-09-11)** : audit live des providers puis refonte
+  du routeur `src/domain/swap/index.ts` (15 tests + `router.live.test.ts` opt-in).
+  - **État réel des providers** (testé) : `quote-api.jup.ag/v6` MORT → Jupiter migré sur
+    `lite-api.jup.ag/swap/v1` (sans clé, compute-unit dynamique, priorité plafonnée
+    0,002 SOL) ; **0x SUPPRIMÉ** (API v1 fermée, jamais de clé, LI.FI l'agrège) ; **Relay
+    exige une clé** (`EXPO_PUBLIC_RELAY_API_KEY`, optionnelle) → ignoré sans clé, origine
+    Solana non supportée (instructions à assembler), étape `approve` désormais gérée.
+    **LI.FI = colonne vertébrale** : EVM, Solana (Jupiter), cross-VM (Mayan, Across,
+    CCTP, NearIntents, Relay…). Chaque provider est lancé UNE fois (avant : Jupiter et
+    Relay ×2), avec timeout.
+  - **Erreurs actionnables** : `SwapError` élargi (AMOUNT_ABOVE_MAXIMUM, INVALID_TOKEN,
+    INVALID_ADDRESS, RATE_LIMITED, NETWORK, QUOTE_EXPIRED, PROVIDER_UNAVAILABLE…) +
+    `pickMostRelevant` (priorité : minimum précis > token invalide > … > aucune route).
+    `parseLifiError` lit les sous-routes LI.FI (« amount too small (min ~0.0004 eth) »)
+    → « Montant trop faible : minimum ≈ 0.0004 ETH ». Tout est traduit dans
+    `lib/txError.ts` (en+fr). Adresse Solana absente (wallet clé privée) = message
+    explicite AVANT tout appel réseau.
+  - **Exécution** : Solana = blockhash rafraîchi → **simulation obligatoire** → envoi →
+    **attente de confirmation** (`lib/solanaSubmit.ts`, partagé avec Earn) — plus de
+    « Swap exécuté » sur une tx qui échoue. EVM = `sendContractTx` **simule toujours**
+    (estimateGas) avant diffusion : une tx qui revert n'est jamais envoyée (gas économisé).
+  - **UI swap.tsx** : auto-refresh (20 s) **en pause pendant la confirmation** (avant : la
+    fenêtre PIN se fermait toute seule), **stoppé après erreur** (plus de spam API),
+    devis conservé mais marqué « peut être dépassé » si l'actualisation échoue ; sélecteur
+    de slippage **enfin branché** (LI.FI, Jupiter, Relay) ; préflight local (solde, réserve
+    de gas, ≥ 0,01 SOL pour un swap SPL) avec message immédiat.
+  - Test live : `EARN_LIVE=1 npx jest router.live` (5 routes + 2 erreurs, dont cross-VM).
+  - **Réserve de gas 100 % DYNAMIQUE (2026-09-11)** : plus AUCUNE constante par chaîne
+    (65 réseaux → intenable). `src/domain/chains/gasReserve.ts` : EVM = `getFeeData` ×
+    250 k gas × 1,15 ; Solana = 5 000 lamports + p75 de `getRecentPrioritizationFees`
+    (plafonné) × 1,15. Repli 0,0001 natif SEULEMENT si le RPC est muet (flag `live`).
+    `swap.tsx` charge la réserve au changement de réseau (ligne « Réserve gas » + « Disponible »,
+    MAX/50 % sur le disponible, messages distincts solde < réserve / montant > disponible,
+    token secondaire → alerte si le natif ne couvre pas la réserve). Earn (`nativeReserve`)
+    ajoute le rent ATA (0,00204 SOL) uniquement si le compte du token reçu n'existe pas.
+    ⚠️ Le swap NE réserve PAS le rent transitoire wSOL : avec < ~0,0025 SOL, l'écran laisse
+    passer mais la simulation refusera (message clair, rien d'envoyé). Test live :
+    `EARN_LIVE=1 npx jest gasReserve.live` (7 réseaux).
+- ✅ **FORMATAGE DES MONTANTS — RÈGLE UNIQUE (2026-09-11)** : fin du « nombre de décimales
+  délirant ». `src/domain/validation/format.ts` (10 tests) : précision selon la GRANDEUR
+  (chiffres significatifs), calculée sur la chaîne décimale exacte (troncature, jamais
+  d'arrondi vers le haut, jamais de NaN).
+  - `formatTokenAmount(raw, decimals)` : ≥ 1 → max 4 décimales + milliers groupés
+    (`1 234.5678`) ; < 1 → 4 chiffres significatifs, max 8 décimales (`0.001831`,
+    `0.00003771`) ; poussière → `<0.00000001` ; `{compact:true}` → `1.23 M`.
+  - `formatInputAmount(raw, decimals)` : pour MAX / 50 % dans un champ de SAISIE — max 8
+    décimales (avant : `formatBalance(x, d, d)` injectait 18 décimales dans l'input).
+  - `formatNumber(n)` (même règle sur un nombre JS), `formatFiat(v)` (2 déc., virgule,
+    `<0,01`, remplace les 6 copies de `money()`), `formatPercent(v)` (`3.5 %`, `12 %`).
+  - **Règle** : `formatBalance` (moteur, tests) n'est PLUS utilisé dans app/ui ; tout
+    affichage de montant passe par ces helpers. Ne pas réintroduire de `toFixed(n)` sur un
+    montant de token.
 - ✅ ~~Alertes de prix~~ (2026-07-09) : `src/domain/alerts/priceAlerts.ts` (`alertTriggered`,
   3 tests) + `lib/priceAlertsStore.ts` (persisté, one-shot) + `ui/PriceAlertWatcher.tsx`
   (vérifie au montage / retour premier plan / toutes les 90 s en FOREGROUND — pas de push,
@@ -280,7 +444,7 @@ n'a été vu), pass d'animation sur l'onboarding (welcome/create), assets store
   montant trop faible (0.0000001 BTC) a été rejeté par le réseau (`sendrawtransaction
   RPC error: {"code":-26,"message":"dust, tx with dust output must be 0-fee"}`) — la
   règle anti-dust Bitcoin refuse tout output sous ~546 sats (~0.0000015 BTC selon les
-  frais). Pas un bug Nova : normal, à connaître pour ne pas s'inquiéter si ça revient.
+  frais). Pas un bug Kalyx : normal, à connaître pour ne pas s'inquiéter si ça revient.
   Historique BTC toujours [] (non câblé, pas bloquant).
 - Chaînes EVM ajoutées : Arbitrum, Optimism, Avalanche (complètes d'office).
 - ✅ ~~Solana~~ (fait) : adapter ed25519/base58 complet, vector-testé (voir §2).
@@ -365,7 +529,7 @@ sinon elles ne sont PAS embarquées dans l'APK/dev-build.
    le wallet de collecte n'est pas configuré par chaîne sur portal.li.fi. `getSwapQuote`
    réessaie **sans fee** en repli pour ne pas bloquer le swap. (Config portail = faite.)
 7. **Cache npm sur PRoot** : `rename` échoue → utiliser `--cache <dossier neuf>` (ex.
-   `$CLAUDE_JOB_DIR/tmp/npmcacheN`) et réessayer.
+   `/tmp/npmcacheN`) et réessayer.
 8. Warnings WC `Record was recently deleted - proposal` = **bénins** (nettoyage heartbeat).
    (Filtrés depuis 2026-07-04 dans `walletconnect.ts::init()`.)
 9b. **NFT jamais affichés (403 Alchemy)** — CORRIGÉ 2026-07-09. `getNfts` envoyait
@@ -433,7 +597,7 @@ sinon elles ne sont PAS embarquées dans l'APK/dev-build.
     `*.test.ts` pour éviter le bruit des globals jest). Lancer :
     `npx tsc -p tsconfig.check.json | grep 'error TS' | grep -v tsconfig` (vide = OK).
 - **Diagnostic crash** : `ErrorBoundary` (ui/ErrorBoundary.tsx) affiche l'erreur à l'écran ;
-  logs `[Nova]` dans le **terminal Metro** (pas logcat) via `index.js` (ErrorUtils global).
+  logs `[Kalyx]` dans le **terminal Metro** (pas logcat) via `index.js` (ErrorUtils global).
 - **Build APK autonome (usage réel hors Metro)** : `eas build --profile preview --platform android`.
 
 ---

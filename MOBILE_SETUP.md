@@ -1,4 +1,4 @@
-# Lancer l'app Nova Wallet (Expo)
+# Lancer l'app Kalyx Wallet (Expo)
 
 > ⚠️ **Statut honnête** : le **moteur** (`src/`) est testé et vérifié (40 tests).
 > La **couche UI Expo** (`app/`, `ui/`, `lib/`) a été **écrite mais pas encore

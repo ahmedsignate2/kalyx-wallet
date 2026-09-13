@@ -1,8 +1,8 @@
 /**
- * Liens profonds : ouvre Nova depuis l'extérieur.
- * - `wc:…` (ou `novawallet://wc?uri=…`) → appairage WalletConnect + écran WC.
- * - `novawallet://browse?url=https://…` → ouvre l'URL dans le navigateur dApps.
- * - `novawallet://<route>` est géré nativement par expo-router.
+ * Liens profonds : ouvre Kalyx depuis l'extérieur.
+ * - `wc:…` (ou `kalyx://wc?uri=…`) → appairage WalletConnect + écran WC.
+ * - `kalyx://browse?url=https://…` → ouvre l'URL dans le navigateur dApps.
+ * - `kalyx://<route>` est géré nativement par expo-router.
  *
  * Le schéma applicatif est déclaré dans app.config ; l'enregistrement système
  * de `wc:` (intent-filters) prend effet au prochain rebuild.
@@ -14,22 +14,26 @@ import { useWalletConnect } from '../lib/walletconnect';
 
 /** Extrait une URI WalletConnect d'un lien (directe ou via ?uri=). */
 export function extractWcUri(url: string): string | null {
-  if (url.startsWith('wc:')) return url;
+  if (url.startsWith('wc:')) return decodeURIComponent(url);
   
-  // Correction pour les liens directs WalletConnect interceptés par le scheme novawallet://
-  if (url.startsWith('novawallet://') && (url.includes('symKey=') || url.includes('relay-protocol='))) {
-     return url.replace(/^novawallet:\/\//, 'wc:');
+  // Correction pour les liens directs WalletConnect interceptés par le scheme kalyx://
+  if (url.startsWith('kalyx://') && (url.includes('symKey=') || url.includes('relay-protocol='))) {
+     return `wc:${url.slice('kalyx://'.length)}`;
   }
   
   const m = url.match(/[?&]uri=([^&]+)/);
   if (m) {
-    const decoded = decodeURIComponent(m[1]);
-    if (decoded.startsWith('wc:')) return decoded;
+    try {
+      const decoded = decodeURIComponent(m[1]);
+      if (decoded.startsWith('wc:')) return decoded;
+    } catch {
+      return null;
+    }
   }
   return null;
 }
 
-/** Extrait une URL https à ouvrir dans le navigateur (novawallet://browse?url=…). */
+/** Extrait une URL https à ouvrir dans le navigateur (kalyx://browse?url=…). */
 export function extractBrowseUrl(url: string): string | null {
   const m = url.match(/[?&]url=([^&]+)/);
   if (!m) return null;

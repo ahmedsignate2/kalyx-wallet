@@ -11,6 +11,8 @@ export interface PersistedTab {
   id: string;
   url: string | null;
   title: string;
+  /** Réseau EVM suivi par l'onglet (id Kalyx). */
+  chainId?: string;
 }
 
 export async function saveTabs(tabs: PersistedTab[], activeId: string): Promise<void> {

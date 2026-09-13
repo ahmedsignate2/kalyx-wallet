@@ -19,7 +19,6 @@ import type {
 import { deriveSolanaAccount, isValidSolanaAddress } from '../../crypto/solana';
 import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
-import { SystemProgram, StakeProgram, Keypair, PublicKey, Authorized, Lockup, Transaction } from '@solana/web3.js';
 import { tryInOrder, withTimeout, withRetry } from './net';
 import { buildTransferMessage, signAndSerialize } from './solTx';
 import { parseSolanaTx, type SolTxResponse } from './solHistory';
@@ -92,12 +91,20 @@ export class SolanaChainAdapter implements ChainAdapter {
             if (Array.isArray(json)) {
               return json.map((tx: any) => {
                 const isOut = tx.feePayer === address || (tx.tokenTransfers && tx.tokenTransfers.some((t: any) => t.fromUserAccount === address));
+                const nativeTransfers = Array.isArray(tx.nativeTransfers) ? tx.nativeTransfers : [];
+                const received = nativeTransfers
+                  .filter((t: any) => t.toUserAccount === address)
+                  .reduce((sum: bigint, t: any) => sum + BigInt(t.amount || 0), 0n);
+                const sent = nativeTransfers
+                  .filter((t: any) => t.fromUserAccount === address)
+                  .reduce((sum: bigint, t: any) => sum + BigInt(t.amount || 0), 0n);
+                const nativeValue = isOut ? sent : received;
                 return {
                   hash: tx.signature,
                   timestamp: tx.timestamp,
                   from: isOut ? address : tx.feePayer,
-                  to: isOut ? (tx.tokenTransfers?.[0]?.toUserAccount || tx.nativeTransfers?.[0]?.toUserAccount || 'Unknown') : address,
-                  value: BigInt(tx.nativeTransfers?.[0]?.amount || 0), // Basic fallback, would need more mapping for exact token value
+                  to: isOut ? (tx.tokenTransfers?.[0]?.toUserAccount || nativeTransfers.find((t: any) => t.toUserAccount !== address)?.toUserAccount || 'Unknown') : address,
+                  value: nativeValue,
                   status: tx.transactionError ? 'failed' : 'success',
                   direction: isOut ? 'out' : 'in',
                   type: tx.type,
@@ -175,63 +182,6 @@ export class SolanaChainAdapter implements ChainAdapter {
    * transaction (transfert System Program), la diffuse en base64. Renvoie la
    * signature (= identifiant de tx Solana). La clé transite, n'est jamais stockée.
    */
-
-  /**
-   * ENVOI STAKING SOL natif : Crée un compte de staking et délègue à un validateur
-   */
-  async sendStakeDelegation(
-    from: string,
-    validatorVotePubkey: string,
-    amount: string,
-    signer: { secretKey: Uint8Array; publicKey: Uint8Array },
-  ): Promise<string> {
-    if (!isValidSolanaAddress(validatorVotePubkey)) throw new WalletError('INVALID_ADDRESS', 'Adresse validateur invalide');
-    const lamports = parseAmount(amount, this.config.nativeDecimals).raw;
-    
-    // Convert lamports bigint to JS number for web3.js
-    const lamportsNumber = Number(lamports);
-
-    const fromPubkey = new PublicKey(from);
-    const votePubkey = new PublicKey(validatorVotePubkey);
-    
-    // Le compte de stake doit avoir sa propre paire de clés
-    const stakeAccount = Keypair.generate();
-    
-    // Instruction 1: Create Account
-    const createAccountInst = StakeProgram.createAccount({
-      fromPubkey,
-      stakePubkey: stakeAccount.publicKey,
-      authorized: new Authorized(fromPubkey, fromPubkey),
-      lamports: lamportsNumber,
-      lockup: new Lockup(0, 0, fromPubkey)
-    });
-    
-    // Instruction 2: Delegate
-    const delegateInst = StakeProgram.delegate({
-      stakePubkey: stakeAccount.publicKey,
-      authorizedPubkey: fromPubkey,
-      votePubkey,
-    });
-    
-    const latest = await this.rpc<{ value?: { blockhash?: string } }>('getLatestBlockhash', [
-      { commitment: 'finalized' },
-    ]);
-    const blockhash = latest?.value?.blockhash;
-    if (!blockhash) throw new WalletError('RPC_UNAVAILABLE', 'Blockhash Solana indisponible');
-    
-    const tx = new Transaction({ recentBlockhash: blockhash, feePayer: fromPubkey });
-    tx.add(createAccountInst, delegateInst);
-    
-    // Add signer pairs: payer + stakeAccount
-    const payerKeypair = Keypair.fromSecretKey(signer.secretKey);
-    tx.sign(payerKeypair, stakeAccount);
-    
-    const wireTx = tx.serialize().toString('base64');
-    
-    const sig = await this.rpc<string>('sendTransaction', [wireTx, { encoding: 'base64' }]);
-    if (!sig) throw new WalletError('BROADCAST_FAILED', 'Diffusion refusée par le réseau Solana');
-    return sig;
-  }
 
   async sendSolana(
     from: string,

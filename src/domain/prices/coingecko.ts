@@ -42,6 +42,10 @@ export interface CoinDetail {
   price: number;
   change24h: number;
   marketCap: number;
+  volume24h: number;
+  ath: number;
+  atl: number;
+  circulatingSupply: number;
   description: string;
 }
 
@@ -123,14 +127,14 @@ export async function searchCoins(query: string): Promise<SearchCoin[]> {
   }
 }
 
-/** Nettoie une description HTML CoinGecko et la tronque. */
-function cleanDescription(html: string, max = 400): string {
+/** Nettoie une description HTML CoinGecko sans perdre la source complète. */
+function cleanDescription(html: string): string {
   const text = (html || '')
     .replace(/<[^>]*>/g, '')
     .replace(/\r?\n+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
+  return text;
 }
 
 export function parseCoinDetail(json: unknown, vs: string, lang = 'en'): CoinDetail | null {
@@ -143,6 +147,10 @@ export function parseCoinDetail(json: unknown, vs: string, lang = 'en'): CoinDet
       current_price?: Record<string, number>;
       price_change_percentage_24h?: number;
       market_cap?: Record<string, number>;
+      total_volume?: Record<string, number>;
+      ath?: Record<string, number>;
+      atl?: Record<string, number>;
+      circulating_supply?: number;
     };
     description?: Record<string, string>;
   };
@@ -155,6 +163,10 @@ export function parseCoinDetail(json: unknown, vs: string, lang = 'en'): CoinDet
     price: c.market_data?.current_price?.[vs] ?? 0,
     change24h: c.market_data?.price_change_percentage_24h ?? 0,
     marketCap: c.market_data?.market_cap?.[vs] ?? 0,
+    volume24h: c.market_data?.total_volume?.[vs] ?? 0,
+    ath: c.market_data?.ath?.[vs] ?? 0,
+    atl: c.market_data?.atl?.[vs] ?? 0,
+    circulatingSupply: c.market_data?.circulating_supply ?? 0,
     description: cleanDescription(c.description?.[lang] || c.description?.en || ''),
   };
 }

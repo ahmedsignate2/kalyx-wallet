@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
 import { router } from 'expo-router';
@@ -53,6 +54,7 @@ export default function Accounts() {
   const insets = useSafeAreaInsets();
   return (
     <Screen>
+      <ScreenHeader />
       <Title>{t('accounts')}</Title>
       <Muted>{t('allDerived')}</Muted>
 

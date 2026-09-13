@@ -5,7 +5,7 @@
  * la seed : après une réinstallation, il faut le ressaisir. Ce module sérialise
  * les réseaux dans une enveloppe versionnée que l'utilisateur peut sauvegarder
  * (partage/fichier) puis réimporter — les fonds étaient toujours on-chain, il
- * suffit de redonner le RPC à Nova pour les revoir.
+ * suffit de redonner le RPC à Kalyx pour les revoir.
  *
  * Données NON sensibles (URLs publiques, pas de clé) : pas de chiffrement requis.
  * Logique pure et testable : la validation rejette tout ce qui n'est pas un
@@ -17,7 +17,7 @@ export const NETWORKS_BACKUP_VERSION = 1;
 
 interface NetworksBackup {
   v: number;
-  app: 'nova';
+  app: 'kalyx' | 'nova';
   kind: 'networks';
   chains: ChainConfig[];
 }
@@ -51,7 +51,7 @@ function sanitize(raw: unknown): ChainConfig | null {
 
 /** Sérialise les réseaux perso en JSON (enveloppe versionnée). */
 export function serializeNetworks(chains: ChainConfig[]): string {
-  const backup: NetworksBackup = { v: NETWORKS_BACKUP_VERSION, app: 'nova', kind: 'networks', chains };
+  const backup: NetworksBackup = { v: NETWORKS_BACKUP_VERSION, app: 'kalyx', kind: 'networks', chains };
   return JSON.stringify(backup, null, 2);
 }
 

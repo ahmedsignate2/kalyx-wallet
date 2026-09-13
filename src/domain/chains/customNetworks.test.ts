@@ -16,7 +16,7 @@ describe('serializeNetworks', () => {
   it('produit une enveloppe versionnée nova/networks', () => {
     const json = JSON.parse(serializeNetworks([MACHAIN]));
     expect(json.v).toBe(NETWORKS_BACKUP_VERSION);
-    expect(json.app).toBe('nova');
+    expect(json.app).toBe('kalyx');
     expect(json.kind).toBe('networks');
     expect(json.chains[0].evmChainId).toBe(99999);
   });

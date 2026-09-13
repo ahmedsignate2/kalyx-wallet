@@ -1,5 +1,5 @@
 /**
- * Nova — Wrapper haptique unifié.
+ * Kalyx — Wrapper haptique unifié.
  *
  * Encapsule `expo-haptics` avec :
  * 1. Un import dynamique (ne crashe pas si le module natif est absent).

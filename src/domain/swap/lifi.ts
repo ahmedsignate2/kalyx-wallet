@@ -14,9 +14,9 @@ const API = 'https://li.quest/v1';
 const KEY = (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_LIFI_KEY) || '';
 const TIMEOUT = 20_000;
 
-/** Frais intégrateur Nova. */
-export const NOVA_INTEGRATOR = 'nova-wallet';
-export const NOVA_FEE = '0.003'; // 0,3 %
+/** Frais intégrateur Kalyx. */
+export const KALYX_INTEGRATOR = 'nova-wallet'; // ⚠️ identifiant ENREGISTRÉ sur portal.li.fi (fee 0,3 %) — ne pas changer sans re-déclarer
+export const KALYX_FEE = '0.003'; // 0,3 %
 export const DEFAULT_SLIPPAGE = '0.005'; // 0,5 %
 /** Adresse « token natif » côté LI.FI. */
 export const NATIVE_TOKEN = '0x0000000000000000000000000000000000000000';
@@ -164,8 +164,72 @@ export interface QuoteParams {
   fromToken: string; // adresse (NATIVE_TOKEN pour le natif)
   toToken: string;
   fromAmount: bigint; // plus petite unité
-  fromAddress: string; toAddress?: string;
+  fromAddress: string;
+  toAddress?: string;
+  /** Tolérance de glissement (fraction, ex. 0.005 = 0,5 %). Défaut : DEFAULT_SLIPPAGE. */
+  slippage?: number;
+  /** Earn : 0 % de frais Kalyx. */
   isEarn?: boolean;
+}
+
+/**
+ * Traduit une réponse d'erreur LI.FI en SwapError précis (pur, testé).
+ *
+ * LI.FI renvoie souvent 404 « No available quotes » (code 1002) avec un détail
+ * structuré : `errors.failed[].subpaths[].message` (« amount too small (min
+ * ~0.0004 eth) ») et `errors.filteredOut[].reason` (« out of acceptable range
+ * (min: X, max: Y) »). On en extrait le minimum/maximum pour l'afficher.
+ */
+export function parseLifiError(status: number, json: unknown): SwapError {
+  const j = (json ?? {}) as {
+    message?: unknown;
+    code?: unknown;
+    minAmount?: unknown;
+    errors?: {
+      failed?: { subpaths?: Record<string, { errorType?: string; message?: string }[]> }[];
+      filteredOut?: { reason?: string }[];
+    };
+  };
+  const msg = String(j.message ?? '');
+  const lower = msg.toLowerCase();
+  const code = Number(j.code);
+
+  if (status === 429) return new SwapError('RATE_LIMITED', msg || 'Too many requests');
+  if (status >= 500) return new SwapError('PROVIDER_UNAVAILABLE', msg || `LI.FI ${status}`);
+  if (code === 1011 || lower.includes('deny list') || lower.includes('is invalid')) {
+    return new SwapError('INVALID_TOKEN', msg);
+  }
+  if (lower.includes('invalid') && lower.includes('address')) return new SwapError('INVALID_ADDRESS', msg);
+  if (lower.includes('slippage')) return new SwapError('SLIPPAGE_TOO_HIGH', msg);
+  if (lower.includes('amount is too low') || lower.includes('minimum')) {
+    return new SwapError('AMOUNT_BELOW_MINIMUM', msg, j.minAmount ? { min: String(j.minAmount) } : undefined);
+  }
+
+  // Détail des sous-routes : minimum lisible « (min ~0.0004081 eth) ».
+  const messages: string[] = [];
+  for (const f of j.errors?.failed ?? []) {
+    for (const list of Object.values(f.subpaths ?? {})) for (const sp of list) if (sp.message) messages.push(sp.message);
+  }
+  for (const f of j.errors?.filteredOut ?? []) if (f.reason) messages.push(f.reason);
+  const joined = messages.join(' | ');
+  const mMin = joined.match(/min ~?([\d.]+)\s*([a-z0-9]+)/i);
+  const tooSmall = /too small|below minimum|amount too low/i.test(joined);
+  const tooLarge = /too (large|big)|above maximum|exceeds max/i.test(joined);
+  if (tooSmall || (mMin && !tooLarge)) {
+    return new SwapError('AMOUNT_BELOW_MINIMUM', msg, mMin ? { min: mMin[1], symbol: mMin[2].toUpperCase() } : undefined);
+  }
+  if (tooLarge) {
+    const mMax = joined.match(/max ~?([\d.]+)\s*([a-z0-9]+)/i);
+    return new SwapError('AMOUNT_ABOVE_MAXIMUM', msg, mMax ? { max: mMax[1], symbol: mMax[2].toUpperCase() } : undefined);
+  }
+  if (/liquidity/i.test(joined + lower)) return new SwapError('NO_LIQUIDITY', msg);
+  return new SwapError('NO_ROUTE', msg || 'No route');
+}
+
+/** L'erreur vient-elle de la config des frais intégrateur (→ réessayer sans fee) ? */
+function isFeeConfigError(e: SwapError): boolean {
+  const m = e.message.toLowerCase();
+  return m.includes('integrator') || m.includes('fee');
 }
 
 async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQuote | null> {
@@ -177,8 +241,8 @@ async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQu
     toToken: params.toToken,
     fromAmount: params.fromAmount.toString(),
     fromAddress: params.fromAddress,
-    integrator: NOVA_INTEGRATOR,
-    slippage: DEFAULT_SLIPPAGE,
+    integrator: KALYX_INTEGRATOR,
+    slippage: String(params.slippage && params.slippage > 0 ? params.slippage : Number(DEFAULT_SLIPPAGE)),
   });
   if (params.toAddress) {
     qs.set('toAddress', params.toAddress);
@@ -188,7 +252,7 @@ async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQu
   const EARN_FEE = '0'; // 0% pour le Staking/Earn
   
   if (withFee) {
-    const feeToSet = isEarn ? EARN_FEE : NOVA_FEE;
+    const feeToSet = isEarn ? EARN_FEE : KALYX_FEE;
     if (feeToSet !== '0') {
       qs.set('fee', feeToSet);
       if (FEE_RECIPIENT) qs.set('feeRecipient', FEE_RECIPIENT);
@@ -198,7 +262,7 @@ async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQu
 
   const headers: Record<string, string> = {
     'Accept': 'application/json',
-    'User-Agent': 'NovaWallet/0.0.1',
+    'User-Agent': 'KalyxWallet/0.0.1',
   };
   if (KEY) headers['x-lifi-api-key'] = KEY;
 
@@ -218,27 +282,13 @@ async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQu
           await new Promise((r) => setTimeout(r, 1500));
           continue;
         }
-        // Parse LI.FI error body for precise diagnostics.
-        const errJson = await res.json().catch(() => ({} as Record<string, unknown>));
-        const msg = (String(errJson.message ?? '')).toLowerCase();
-
-        if (msg.includes('amount is too low') || msg.includes('minimum')) {
-          const min = errJson.minAmount;
-          throw new SwapError(
-            'AMOUNT_BELOW_MINIMUM',
-            String(errJson.message ?? 'Amount too low'),
-            min ? { min: String(min) } : undefined,
-          );
-        }
-        if (msg.includes('no routes') || msg.includes('no available')) return null;
-        if (msg.includes('slippage')) {
-          throw new SwapError('SLIPPAGE_TOO_HIGH', String(errJson.message ?? 'Slippage too high'));
-        }
-        return null;
+        const errJson = await res.json().catch(() => ({}));
+        throw parseLifiError(res.status, errJson);
       }
-      return parseSwapQuote(await res.json());
+      const parsed = parseSwapQuote(await res.json());
+      if (!parsed) throw new SwapError('PROVIDER_UNAVAILABLE', 'Réponse LI.FI incomplète');
+      return parsed;
     } catch (e) {
-      // Re-throw typed swap errors for the UI.
       if (e instanceof SwapError) throw e;
       // Retry once on timeout.
       if (retries > 0 && e instanceof Error && e.message === 'timeout') {
@@ -246,19 +296,21 @@ async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQu
         await new Promise((r) => setTimeout(r, 1500));
         continue;
       }
-      return null;
+      throw new SwapError('NETWORK', e instanceof Error ? e.message : 'network');
     }
   }
 }
 
 /**
- * Devis intelligent multi-fournisseur :
- * - Cross-chain (bridge) : Relay d'abord, LI.FI en fallback.
- * - Same-chain (swap) : LI.FI directement (agrège les DEX).
- * - Fee intégrateur : 0.3 % sur tous les moteurs. Si LI.FI le refuse
- *   (config portail incomplète), retry sans fee.
+ * Devis LI.FI. Lève un SwapError précis (jamais `null` silencieux) ; le repli
+ * SANS fee intégrateur n'est tenté que si LI.FI refuse la config des frais
+ * (portail incomplet) — pas sur un « no route », qui doublerait la latence.
  */
-// getSwapQuote a été déplacé vers index.ts (Nova Smart Router)
 export async function getSwapQuote(params: QuoteParams): Promise<SwapQuote | null> {
-  return (await fetchQuote(params, true)) ?? fetchQuote(params, false);
+  try {
+    return await fetchQuote(params, true);
+  } catch (e) {
+    if (e instanceof SwapError && isFeeConfigError(e)) return fetchQuote(params, false);
+    throw e;
+  }
 }

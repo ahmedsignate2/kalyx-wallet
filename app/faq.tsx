@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
@@ -46,8 +47,9 @@ export default function Faq() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: t('faq') }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
+      <ScreenHeader title={t('faq')} />
       <ScrollView contentContainerStyle={{ gap: spacing(2), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
         {FAQ.map((section) => (
           <View key={section.title} style={{ gap: spacing(1) }}>

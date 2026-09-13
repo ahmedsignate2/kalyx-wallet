@@ -9,14 +9,13 @@
  * - eth_sendTransaction → destinataire, montant natif, réseau.
  * Les données brutes restent accessibles via « Détails techniques ».
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, Image, StyleSheet } from 'react-native';
 import { GlassCard, ErrorBox, GradientAvatar } from './premium';
 import { Button } from './components';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon, type IconName } from './icon';
 import { fonts, radii, spacing, useTheme } from './theme';
-import { TxPreview } from './TxPreview';
 import { useWalletConnect } from '../lib/walletconnect';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
@@ -26,16 +25,19 @@ import {
   parseSiwe,
   siweDomainMismatch,
   summarizeTypedData,
-  formatBalance,
   listChains,
   assessAddress,
   isPhishingSite,
+  decodeTx,
+  simulateTx,
+  explainRequest,
+  getTokenMetadata,
   type RiskAssessment,
+  type Simulation,
 } from '../src';
+import { SignSheet } from './SignSheet';
+import { Interface } from 'ethers';
 
-function shorten(a: string) {
-  return a.length > 14 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a;
-}
 function hostOf(url: string) {
   return url.replace(/^[a-z]+:\/\//i, '').split('/')[0] || url;
 }
@@ -64,7 +66,7 @@ function PermRow({ on, onToggle, label, fixed }: { on: boolean; onToggle?: () =>
       style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(0.5) }}
     >
       <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: on ? colors.accent : colors.glassBorder, backgroundColor: on ? colors.accent : 'transparent', alignItems: 'center', justifyContent: 'center', opacity: fixed ? 0.7 : 1 }}>
-        {on ? <Icon name="check" size={14} color="#fff" /> : null}
+        {on ? <Icon name="check" size={14} color={colors.onPrimary} /> : null}
       </View>
       <Text style={{ color: colors.text, flex: 1, fontSize: 14 }}>{label}</Text>
     </Pressable>
@@ -124,29 +126,6 @@ function DappHeader({ name, url, icon }: { name: string; url: string; icon?: str
   );
 }
 
-/** Ligne icône + label + valeur du résumé de demande. */
-function InfoRow({ icon, label, value, divider }: { icon: IconName; label: string; value: string; divider?: boolean }) {
-  const { colors, typography } = useTheme();
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing(1.25),
-        paddingVertical: spacing(1),
-        borderTopWidth: divider ? 1 : 0,
-        borderTopColor: colors.glassBorder,
-      }}
-    >
-      <Icon name={icon} size={18} color={colors.textMuted} />
-      <Text style={[typography.muted, { width: 74 }]}>{label}</Text>
-      <Text style={[typography.bodyStrong, { flex: 1, fontSize: 14 }]} numberOfLines={1}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
 export function WalletConnectHost() {
   const { colors, typography } = useTheme();
   const t = useT();
@@ -160,13 +139,15 @@ export function WalletConnectHost() {
   const account = useWallet((s) => s.account);
 
   const [confirming, setConfirming] = useState(false);
-  const [showRaw, setShowRaw] = useState(false);
+  const reduceRef = useRef<string | null>(null);
   // Autorisations granulaires accordées au site (cases à la connexion).
   const [allowTx, setAllowTx] = useState(true);
   const [allowSign, setAllowSign] = useState(true);
   // Analyse de sécurité GoPlus (parité avec le navigateur dApps intégré).
   const [risk, setRisk] = useState<RiskAssessment | 'loading' | null>(null);
   const [phishSite, setPhishSite] = useState(false);
+  // Simulation de la transaction (Alchemy, repli statique) + métadonnées du token ciblé.
+  const [sim, setSim] = useState<Simulation | 'loading' | null>(null);
 
   // Décodage lisible de la requête (mémoïsé : parsing hex/SIWE/EIP-712).
   const info = useMemo(() => {
@@ -210,8 +191,29 @@ export function WalletConnectHost() {
     // Anti-phishing : le domaine déclaré dans le SIWE doit être le site connecté.
     const phishing = !!(siwe && peer?.url && siweDomainMismatch(siwe.domain, peer.url));
 
-    return { method, kind, text, siwe, typed, tx, chain, peer, action, phishing };
+    const decoded = tx ? decodeTx({ to: tx.to, value: tx.value, data: tx.data }) : null;
+    const vc = request.verifyContext?.verified ?? {};
+    const verify = { validation: vc.validation as 'VALID' | 'INVALID' | 'UNKNOWN' | undefined, isScam: !!vc.isScam };
+    return { method, kind, text, siwe, typed, tx, chain, peer, action, phishing, decoded, verify };
   }, [request, sessions, t]);
+
+  // Simulation (transactions uniquement).
+  useEffect(() => {
+    setSim(null);
+    if (!info || info.kind !== 'tx' || !info.tx || !info.chain || !account) return;
+    let alive = true;
+    setSim('loading');
+    (async () => {
+      const d = info.decoded;
+      const meta = d && (d.kind === 'transfer' || d.kind === 'approve') ? await getTokenMetadata(info.chain!, d.token).catch(() => null) : null;
+      const s = await simulateTx(info.chain!, { from: account.address, to: info.tx!.to, value: info.tx!.value, data: info.tx!.data }, meta ? { symbol: meta.symbol, decimals: meta.decimals } : undefined);
+      if (alive) setSim(s);
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request]);
 
   // Analyse de sécurité GoPlus (désactivable via Extensions → Analyse de sécurité).
   useEffect(() => {
@@ -275,129 +277,74 @@ export function WalletConnectHost() {
   }
 
   if (request && info) {
-    const { kind, siwe, typed, tx, chain, peer, action, phishing } = info;
-    const isTx = kind === 'tx';
-    const title = kind === 'siwe' ? t('connectionRequest') : isTx ? t('txRequested') : t('signatureRequested');
+    const { kind, siwe, typed, tx, chain, peer, phishing, decoded, verify } = info;
+    const simulating = sim === 'loading';
+    const simulation = sim && sim !== 'loading' ? sim : null;
+    const explanation = explainRequest({
+      kind,
+      method: info.method,
+      domain: peer?.url ? hostOf(peer.url) : undefined,
+      siwe,
+      siweMismatch: phishing,
+      typed,
+      decoded,
+      simulation,
+      verify,
+      addressRisk: risk && risk !== 'loading' ? risk : null,
+      phishingSite: phishSite,
+      nativeSymbol: chain?.nativeSymbol,
+    });
+    const rawJson = JSON.stringify(request.params?.request?.params ?? {}, null, 2).slice(0, 1600);
+
+    // « Réduire au montant exact » : approve illimité → montant issu de la simulation
+    // (ce que le routeur va prélever) ; sans simulation, on ne devine pas.
+    const reducible = decoded?.kind === 'approve' && decoded.unlimited;
+    const reducedAmount = simulation?.changes.find((c) => c.direction === 'out' && c.contract && decoded?.kind === 'approve' && c.contract.toLowerCase() === decoded.token.toLowerCase())?.rawAmount;
+    const [overrideData, setOverride] = [reduceRef.current, (v: string | null) => (reduceRef.current = v)];
+    const onReduce = () => {
+      if (!reducible || !reducedAmount || decoded?.kind !== 'approve') return;
+      const data = new Interface(['function approve(address,uint256)']).encodeFunctionData('approve', [decoded.spender, BigInt(reducedAmount)]);
+      setOverride(data);
+      setConfirming(true);
+    };
+
     const perform = async (unlock: Unlock) => {
-      await approveRequest(unlock);
+      await approveRequest(unlock, overrideData ?? undefined);
+      setOverride(null);
       sound.success();
-      setShowRaw(false);
     };
     const reject = () => {
       setConfirming(false);
-      setShowRaw(false);
+      setOverride(null);
       rejectRequest().catch(() => {});
     };
-    const rawJson = JSON.stringify(request.params?.request?.params ?? {}, null, 2).slice(0, 1600);
 
     return (
-      <Overlay onCancel={reject}>
-        <Text style={typography.title}>{title}</Text>
-
-        {peer ? (
-          <GlassCard>
-            <DappHeader name={peer.name} url={peer.url} icon={peer.icon} />
-          </GlassCard>
-        ) : null}
-
-        {phishing ? (
-          <ErrorBox message={t('siweMismatch').replace('{a}', siwe?.domain ?? '').replace('{b}', hostOf(peer?.url ?? ''))} />
-        ) : null}
-
-        <SecBanner risk={risk} phish={phishSite} />
-
-        <GlassCard>
-          {peer?.url ? <InfoRow icon="dapps" label={t('siteLabel')} value={hostOf(peer.url)} /> : null}
-          {account ? <InfoRow icon="wallet" label={t('addressLabel')} value={shorten(account.address)} divider={!!peer?.url} /> : null}
-          {chain ? <InfoRow icon="networks" label={t('network')} value={chain.name} divider /> : null}
-          <InfoRow icon="phrase" label={t('actionLabel')} value={action} divider />
-        </GlassCard>
-
-        <GlassCard>
-          {kind === 'siwe' && siwe ? (
-            <>
-              <Text style={typography.bodyStrong}>{t('signInTo').replace('{domain}', siwe.domain)}</Text>
-              {siwe.statement ? <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>{siwe.statement}</Text> : null}
-              <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-                {t('freeSigProves')}
-              </Text>
-            </>
-          ) : kind === 'message' ? (
-            <>
-              <Text style={typography.muted}>{t('messageToSign')}</Text>
-              <ScrollView style={{ maxHeight: 160, marginTop: spacing(0.5) }}>
-                <Text style={[typography.bodyStrong, { fontSize: 14 }]} selectable>
-                  {info.text ?? t('binaryMessage')}
-                </Text>
-              </ScrollView>
-              <Text style={[typography.muted, { marginTop: spacing(1) }]}>{t('signOnlyIfTrust')}</Text>
-            </>
-          ) : kind === 'typedData' ? (
-            <>
-              <Text style={typography.bodyStrong}>{typed?.name ?? t('structuredData')}</Text>
-              {typed?.primaryType ? <Text style={typography.muted}>{t('typeWord')} : {typed.primaryType}</Text> : null}
-              {typed?.verifyingContract ? <Text style={typography.muted}>{t('contractLabel')} : {shorten(typed.verifyingContract)}</Text> : null}
-              {/* Champs lisibles extraits (spender, montant, échéance) — critiques pour un Permit. */}
-              {typed?.details?.map((d) => {
-                const danger = d.value.includes('⚠️');
-                const val = d.value.length > 24 && d.value.startsWith('0x') ? shorten(d.value) : d.value;
-                return (
-                  <View key={d.label} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing(1), marginTop: 2 }}>
-                    <Text style={typography.muted}>{d.label}</Text>
-                    <Text style={[typography.bodyStrong, { color: danger ? colors.danger : colors.text, flexShrink: 1, textAlign: 'right' }]}>{val}</Text>
-                  </View>
-                );
-              })}
-              <Text style={[typography.muted, { marginTop: spacing(1) }]}>
-                {typed?.primaryType === 'Permit' || typed?.details?.length
-                  ? t('permitWarning')
-                  : t('verifyBeforeSign')}
-              </Text>
-            </>
-          ) : isTx && tx ? (
-            chain ? (
-              <TxPreview tx={{ to: tx.to, value: tx.value, data: tx.data }} chain={chain} />
-            ) : (
-              <>
-                {tx.to ? <InfoRow icon="send" label={t('toLabel')} value={shorten(tx.to)} /> : null}
-                <InfoRow icon="currency" label={t('amount')} value={`${formatBalance(tx.value, 18)} ETH`} divider={!!tx.to} />
-                <Text style={[typography.muted, { marginTop: spacing(1) }]}>{t('checkMovesFunds')}</Text>
-              </>
-            )
-          ) : (
-            <Text style={typography.muted}>{t('requestLabel')} {info.method}</Text>
-          )}
-
-          <Pressable onPress={() => setShowRaw((v) => !v)} hitSlop={8}>
-            <Text style={[typography.muted, { marginTop: spacing(1), color: colors.accent }]}>
-              {showRaw ? t('hideTechDetails') : t('techDetails')}
-            </Text>
-          </Pressable>
-          {showRaw ? (
-            <ScrollView style={{ maxHeight: 140, marginTop: spacing(0.5) }}>
-              <Text style={[typography.muted, { fontFamily: 'monospace', fontSize: 11 }]} selectable>
-                {rawJson}
-              </Text>
-            </ScrollView>
-          ) : null}
-        </GlassCard>
-
-        <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
-          <View style={{ flex: 1 }}><Button label={t('refuse')} variant="ghost" onPress={reject} /></View>
-          <View style={{ flex: 1 }}>
-            <Button label={kind === 'siwe' ? t('signIn') : t('sign')} onPress={() => setConfirming(true)} />
-          </View>
-        </View>
-
+      <>
+        <SignSheet
+          visible={!confirming}
+          peer={peer ? { name: peer.name, url: peer.url, icon: peer.icon } : null}
+          verify={verify}
+          explanation={explanation}
+          simulating={simulating}
+          network={chain?.name}
+          address={account?.address}
+          raw={rawJson}
+          onReject={reject}
+          onSign={() => setConfirming(true)}
+          onReduceApproval={reducible && reducedAmount ? onReduce : undefined}
+          signLabel={kind === 'siwe' ? t("wcSignConnect") : kind === 'tx' ? t("wcSignConfirm") : t("wcSign")}
+        />
         <ConfirmUnlock
           visible={confirming}
-          title={kind === 'siwe' ? t('confirmConnection') : isTx ? t('confirmTx') : t('confirmSignature')}
-          subtitle={peer?.name ?? action}
+          title={explanation.title}
+          subtitle={explanation.headline}
           perform={perform}
           onDone={() => setConfirming(false)}
           onCancel={() => setConfirming(false)}
+          aiContext={tx ? { to: tx.to ?? '', value: tx.value.toString(), method: info.method, url: peer?.url } : undefined}
         />
-      </Overlay>
+      </>
     );
   }
 

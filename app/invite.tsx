@@ -1,9 +1,10 @@
 /**
- * Inviter des amis : partage simple de Nova (message + lien), via le partage
+ * Inviter des amis : partage simple de Kalyx (message + lien), via le partage
  * natif. PAS de programme de parrainage ni de récompense — juste faire découvrir
  * l'app. On n'affiche donc aucun « code de parrainage » (ce serait un mécanisme
  * factice sans backend d'attribution).
  */
+import { ScreenHeader } from '../ui/kit';
 import React from 'react';
 import { View, Text, Pressable, Share } from 'react-native';
 import { Stack } from 'expo-router';
@@ -43,8 +44,9 @@ export default function Invite() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: t('inviteFriends') }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
+      <ScreenHeader title={t('inviteFriends')} />
 
       {/* Bandeau visuel */}
       <GlassCard glow>
@@ -52,7 +54,7 @@ export default function Invite() {
           <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="gift" size={30} color={colors.accent} />
           </View>
-          <Text style={[typography.title, { textAlign: 'center' }]}>{t('discoverNova')}</Text>
+          <Text style={[typography.title, { textAlign: 'center' }]}>{t('discoverKalyx')}</Text>
           <Text style={[typography.muted, { textAlign: 'center' }]}>{t('shareWithFriends')}</Text>
         </View>
       </GlassCard>
@@ -84,7 +86,7 @@ export default function Invite() {
       </Pressable>
 
       <View style={{ flex: 1 }} />
-      <Button label={t('shareNova')} onPress={onShare} />
+      <Button label={t('shareKalyx')} onPress={onShare} />
       <View style={{ height: spacing(2) }} />
     </PremiumScreen>
     </>

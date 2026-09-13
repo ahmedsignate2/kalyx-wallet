@@ -1,3 +1,4 @@
+import { useT } from "../lib/settingsStore";
 /**
  * Aperçu LISIBLE d'une transaction avant signature (mini-simulation locale).
  * Décode l'appel (transfert / approbation / setApprovalForAll / natif), résout le
@@ -11,7 +12,7 @@ import { spacing, useTheme } from './theme';
 import {
   decodeTx,
   isRiskyTx,
-  formatBalance,
+  formatTokenAmount,
   getTokenMetadata,
   type ChainConfig,
   type TokenMeta,
@@ -22,6 +23,7 @@ function short(a?: string) {
 }
 
 export function TxPreview({ tx, chain }: { tx: { to?: string; value?: bigint | string; data?: string }; chain: ChainConfig }) {
+  const t = useT();
   const { colors, typography } = useTheme();
   const decoded = decodeTx(tx);
   const risky = isRiskyTx(decoded);
@@ -40,58 +42,58 @@ export function TxPreview({ tx, chain }: { tx: { to?: string; value?: bigint | s
   }, [tokenAddr, chain]);
 
   const sym = meta?.symbol || 'tokens';
-  const amt = (raw: bigint) => (meta ? `${formatBalance(raw, meta.decimals)} ${sym}` : `${raw} (unités ${sym})`);
+  const amt = (raw: bigint) => (meta ? `${formatTokenAmount(raw, meta.decimals)} ${sym}` : `${raw} (unités ${sym})`);
 
   const rows: { label: string; value: string; danger?: boolean }[] = [];
-  let title = 'Interaction avec un contrat';
+  let title = t("txPreviewContractInteraction");
   let icon: Parameters<typeof Icon>[0]['name'] = 'developer';
 
   switch (decoded.kind) {
     case 'empty':
-      title = 'Envoi';
+      title = t("txPreviewSend");
       icon = 'send';
-      rows.push({ label: 'Vers', value: short(decoded.to) });
-      rows.push({ label: 'Montant', value: `${formatBalance(decoded.value, chain.nativeDecimals)} ${chain.nativeSymbol}` });
+      rows.push({ label: t("txLabelTo"), value: short(decoded.to) });
+      rows.push({ label: t("txLabelAmount"), value: `${formatTokenAmount(decoded.value, chain.nativeDecimals)} ${chain.nativeSymbol}` });
       break;
     case 'transfer':
-      title = 'Envoi de token';
+      title = t("txPreviewSendToken");
       icon = 'send';
-      rows.push({ label: 'Token', value: `${sym} · ${short(decoded.token)}` });
-      rows.push({ label: 'Vers', value: short(decoded.to) });
-      rows.push({ label: 'Montant', value: amt(decoded.amount) });
+      rows.push({ label: t("txLabelToken"), value: `${sym} · ${short(decoded.token)}` });
+      rows.push({ label: t("txLabelTo"), value: short(decoded.to) });
+      rows.push({ label: t("txLabelAmount"), value: amt(decoded.amount) });
       break;
     case 'transferFrom':
-      title = 'Transfert de token';
+      title = t("txPreviewTransferToken");
       icon = 'send';
-      rows.push({ label: 'De', value: short(decoded.from) });
-      rows.push({ label: 'Vers', value: short(decoded.to) });
-      rows.push({ label: 'Montant', value: amt(decoded.amount) });
+      rows.push({ label: t("txLabelFrom"), value: short(decoded.from) });
+      rows.push({ label: t("txLabelTo"), value: short(decoded.to) });
+      rows.push({ label: t("txLabelAmount"), value: amt(decoded.amount) });
       break;
     case 'approve':
-      title = 'Autorisation de dépense';
+      title = t("txPreviewApprove");
       icon = 'security';
-      rows.push({ label: 'Token', value: `${sym} · ${short(decoded.token)}` });
-      rows.push({ label: 'Autorisé (spender)', value: short(decoded.spender), danger: decoded.unlimited });
-      rows.push({ label: 'Montant', value: decoded.unlimited ? 'ILLIMITÉ ⚠️' : amt(decoded.amount), danger: decoded.unlimited });
+      rows.push({ label: t("txLabelToken"), value: `${sym} · ${short(decoded.token)}` });
+      rows.push({ label: t("txLabelSpender"), value: short(decoded.spender), danger: decoded.unlimited });
+      rows.push({ label: t("txLabelAmount"), value: decoded.unlimited ? t("txLabelUnlimited") : amt(decoded.amount), danger: decoded.unlimited });
       break;
     case 'approveAll':
-      title = decoded.approved ? 'Accès à TOUS tes NFT' : 'Révocation d’accès NFT';
+      title = decoded.approved ? t("txPreviewApproveAll") : t("txPreviewRevokeNFT");
       icon = 'warning';
-      rows.push({ label: 'Collection', value: short(decoded.collection) });
-      rows.push({ label: 'Opérateur', value: short(decoded.operator), danger: decoded.approved });
-      rows.push({ label: 'Accès', value: decoded.approved ? 'TOUS les NFT ⚠️' : 'Révoqué', danger: decoded.approved });
+      rows.push({ label: t("txLabelCollection"), value: short(decoded.collection) });
+      rows.push({ label: t("txLabelOperator"), value: short(decoded.operator), danger: decoded.approved });
+      rows.push({ label: 'Accès', value: decoded.approved ? t("txLabelAllNFTs") : t("txLabelRevoked"), danger: decoded.approved });
       break;
     case 'nftTransfer':
-      title = 'Transfert de NFT';
+      title = t("txPreviewTransferNFT");
       icon = 'nft';
-      rows.push({ label: 'Collection', value: short(decoded.collection) });
-      rows.push({ label: 'Vers', value: short(decoded.to) });
-      rows.push({ label: 'Token ID', value: `#${decoded.tokenId}` });
+      rows.push({ label: t("txLabelCollection"), value: short(decoded.collection) });
+      rows.push({ label: t("txLabelTo"), value: short(decoded.to) });
+      rows.push({ label: t("txLabelTokenID"), value: `#${decoded.tokenId}` });
       break;
     default:
-      rows.push({ label: 'Contrat', value: short(decoded.to) });
-      if (decoded.value > 0n) rows.push({ label: 'Valeur', value: `${formatBalance(decoded.value, chain.nativeDecimals)} ${chain.nativeSymbol}` });
-      rows.push({ label: 'Fonction', value: decoded.selector });
+      rows.push({ label: t("txLabelContract"), value: short(decoded.to) });
+      if (decoded.value > 0n) rows.push({ label: t("txLabelValue"), value: `${formatTokenAmount(decoded.value, chain.nativeDecimals)} ${chain.nativeSymbol}` });
+      rows.push({ label: t("txLabelFunction"), value: decoded.selector });
   }
 
   return (
@@ -111,9 +113,7 @@ export function TxPreview({ tx, chain }: { tx: { to?: string; value?: bigint | s
       {risky ? (
         <View style={{ flexDirection: 'row', gap: 8, backgroundColor: colors.danger + '1E', borderRadius: 10, padding: spacing(1.25), marginTop: spacing(0.5) }}>
           <Icon name="warning" size={16} color={colors.danger} />
-          <Text style={{ color: colors.text, flex: 1, fontSize: 12.5 }}>
-            Action à haut risque : tu donnes un accès à tes fonds/NFT. Ne continue que si tu fais TOTALEMENT confiance à ce site.
-          </Text>
+          <Text style={{ color: colors.text, flex: 1, fontSize: 12.5 }}>{t("txHighRiskWarning")}</Text>
         </View>
       ) : null}
     </View>

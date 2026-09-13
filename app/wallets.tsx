@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, Pressable, TextInput, Alert, ScrollView } from 'react-native';
 import { router } from 'expo-router';
@@ -36,6 +37,7 @@ export default function Wallets() {
 
   return (
     <Screen>
+      <ScreenHeader />
       <Title>{t('myWallets')}</Title>
       <Muted>{t('eachWalletOwnPhrase')}</Muted>
 

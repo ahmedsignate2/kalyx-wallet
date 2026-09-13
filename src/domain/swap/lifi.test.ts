@@ -1,4 +1,4 @@
-import { parseSwapQuote, NOVA_FEE, NOVA_INTEGRATOR } from './lifi';
+import { parseSwapQuote, KALYX_FEE, KALYX_INTEGRATOR } from './lifi';
 
 describe('parseSwapQuote', () => {
   const json = {
@@ -65,7 +65,7 @@ describe('parseSwapQuote', () => {
   });
 
   it('constantes de frais intégrateur', () => {
-    expect(NOVA_INTEGRATOR).toBe('nova');
-    expect(NOVA_FEE).toBe('0.003'); // 0,3 %
+    expect(KALYX_INTEGRATOR).toBe('nova-wallet'); // valeur portail LI.FI, indépendante du nom de l'app
+    expect(KALYX_FEE).toBe('0.003'); // 0,3 %
   });
 });

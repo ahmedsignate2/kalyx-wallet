@@ -15,9 +15,10 @@
  * gated (= double prompt). Le prompt unique EST la lecture gated déclenchée par
  * `perform({biometric:true})`.
  */
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, Text, View, StyleSheet } from 'react-native';
-import { NovaLogo } from './NovaLogo';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KalyxLogo } from './KalyxLogo';
 import { PinPad } from './PinPad';
 import { Icon } from './icon';
 import { fonts, radii, spacing, useTheme } from './theme';
@@ -51,6 +52,7 @@ export function ConfirmUnlock({
 }) {
   const { colors, typography } = useTheme();
   const t = useT();
+  const insets = useSafeAreaInsets();
   const bioEnabled = useSettings((s) => s.biometricEnabled);
   const { language } = useSettings();
   const pinLength = useSettings((s) => s.pinLength);
@@ -58,6 +60,7 @@ export function ConfirmUnlock({
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [errSignal, setErrSignal] = useState(0);
+  const attemptRef = useRef(0);
 
   const aiStore = useAiStore();
   const [aiAnalysis, setAiAnalysis] = useState<{ riskLevel: string, explanation: string, threats: string[] } | null>(null);
@@ -94,7 +97,7 @@ Action: ${aiContext.method || 'Transfer'}`;
             console.warn('[AI Audit] Quota 429 atteint, fallback neutre.');
             setAiAnalysis({
               riskLevel: 'MEDIUM',
-              explanation: 'Vérification IA indisponible (quota atteint). Le contrat n\'a pas pu être validé.',
+              explanation: t("aiAuditQuotaExceeded"),
               threats: []
             });
             return;
@@ -110,7 +113,7 @@ Action: ${aiContext.method || 'Transfer'}`;
         } catch (e) {
           if (String(e).includes('canceled') || String(e).includes('aborted') || (e as Error).name === 'AbortError') {
             console.log('[AI Audit] Timeout atteint (2s), fallback neutre.');
-            setAiAnalysis({ riskLevel: 'MEDIUM', explanation: 'Audit rapide ignoré (timeout).', threats: [] });
+            setAiAnalysis({ riskLevel: 'MEDIUM', explanation: t("aiAuditTimeout"), threats: [] });
           } else {
             console.warn('[AI Audit] Erreur silencieuse ignorée:', (e as Error).message);
           }
@@ -124,20 +127,80 @@ Action: ${aiContext.method || 'Transfer'}`;
 
   const run = async (unlock: Unlock) => {
     const viaBio = 'biometric' in unlock;
+    const attempt = ++attemptRef.current;
+    const startedAt = Date.now();
+    const unlockMode = viaBio ? 'biometric' : 'pin';
+    console.log('[KALYX-AUTH][ConfirmUnlock] attempt:start', { attempt, unlockMode, title });
     setPhase('working');
       setAiAnalysis(null);
       setAnalyzing(false);
     setError(null);
     try {
-      await perform(unlock);
+      if (viaBio) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const operation = perform(unlock)
+          .then(() => {
+            console.log('[KALYX-AUTH][ConfirmUnlock] perform:resolved', {
+              attempt,
+              unlockMode,
+              elapsedMs: Date.now() - startedAt,
+            });
+          })
+          .catch((error) => {
+            console.warn('[KALYX-AUTH][ConfirmUnlock] perform:rejected', {
+              attempt,
+              unlockMode,
+              elapsedMs: Date.now() - startedAt,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            throw error;
+          });
+        try {
+          await Promise.race([
+            operation,
+            new Promise<never>((_, reject) => {
+              timer = setTimeout(() => {
+                console.warn('[KALYX-AUTH][ConfirmUnlock] perform:timeout', {
+                  attempt,
+                  unlockMode,
+                  elapsedMs: Date.now() - startedAt,
+                  timeoutMs: 15_000,
+                });
+                reject(new Error(t("authBiometricExpired")));
+              }, 15_000);
+            }),
+          ]);
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
+      } else {
+        await perform(unlock);
+      }
+      if (attempt !== attemptRef.current) return;
+      console.log('[KALYX-AUTH][ConfirmUnlock] attempt:success', {
+        attempt,
+        unlockMode,
+        elapsedMs: Date.now() - startedAt,
+      });
       onDone();
     } catch (e) {
+      if (attempt !== attemptRef.current) return;
+      console.warn('[KALYX-AUTH][ConfirmUnlock] attempt:failure', {
+        attempt,
+        unlockMode,
+        elapsedMs: Date.now() - startedAt,
+        error: e instanceof Error ? e.message : String(e),
+      });
       // console.warn('[ConfirmUnlock] Perform catch:', (e as Error).message || e);
       if (isWalletError(e) && e.code === 'WRONG_PIN') {
         setPin('');
         setErrSignal((x) => x + 1);
         setError(t('incorrectCode'));
         setPhase('pin');
+      } else if (viaBio && e instanceof Error && e.message === t("authBiometricExpired")) {
+        setPin('');
+        setError(t("authBiometricTimeout"));
+        setPhase('error');
       } else if (viaBio && e instanceof Error && (e.message.includes('refusée') || e.message.includes('non configurée') || e.message.includes('cancel') || e.message.includes('Authentification'))) {
         // Biométrie annulée ou non configurée → repli silencieux sur le PIN.
         setPin('');
@@ -153,6 +216,8 @@ Action: ${aiContext.method || 'Transfer'}`;
   // À l'ouverture : biométrie auto si activée, sinon PIN d'emblée.
   useEffect(() => {
     if (!visible) return;
+    attemptRef.current += 1;
+    console.log('[KALYX-AUTH][ConfirmUnlock] visible', { title, bioEnabled });
     setPin('');
     setError(null);
     if (bioEnabled) {
@@ -163,27 +228,36 @@ Action: ${aiContext.method || 'Transfer'}`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
+  const cancel = () => {
+    attemptRef.current += 1;
+    onCancel();
+  };
+
   if (!visible) return null;
 
   const working = phase === 'working';
   const canValidateManually = !pinLength && pin.length >= 6;
 
   return (
-    <Modal transparent animationType="slide" onRequestClose={working ? undefined : onCancel}>
+    <Modal transparent animationType="slide" onRequestClose={cancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
-        <Pressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={working ? undefined : onCancel} />
-        <View
-          style={{
-            backgroundColor: colors.bgDeep,
-            borderTopLeftRadius: radii.xl,
-            borderTopRightRadius: radii.xl,
+        <Pressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={cancel} />
+        {/* Feuille : padding bas = inset système (barre de navigation Android /
+            home indicator iOS) pour que la rangée « 0 » du pavé reste visible ;
+            défilable pour ne jamais tronquer le pavé sur un petit écran. */}
+        <ScrollView
+          style={{ maxHeight: '92%', backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl }}
+          contentContainerStyle={{
             paddingTop: spacing(3),
-            paddingBottom: spacing(4),
+            paddingBottom: insets.bottom + spacing(3),
             alignItems: 'center',
             gap: spacing(2.5),
           }}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <NovaLogo size={56} />
+          <KalyxLogo size={56} />
           <View style={{ alignItems: 'center', gap: 4, paddingHorizontal: spacing(3) }}>
             <Text style={[typography.title, { textAlign: 'center' }]}>{title}</Text>
             {subtitle ? <Text style={[typography.muted, { textAlign: 'center' }]}>{subtitle}</Text> : null}
@@ -203,7 +277,7 @@ Action: ${aiContext.method || 'Transfer'}`;
                 {error}
               </Text>
               <Pressable onPress={onCancel} hitSlop={8} style={{ paddingVertical: 10, paddingHorizontal: 24, borderRadius: radii.pill, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}>
-                <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.semibold }}>{t('closeWord') || 'Fermer'}</Text>
+                <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.semibold }}>{t('closeWord') || t("aiClose")}</Text>
               </Pressable>
             </View>
           ) : (
@@ -212,7 +286,7 @@ Action: ${aiContext.method || 'Transfer'}`;
               {aiStore.isEnabled && aiContext && (
                 <View style={{ width: '90%', backgroundColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? '#3f0f15' : aiAnalysis.riskLevel === 'WARNING' ? '#3d2b0f' : '#0f291e') : '#18181b', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? '#ef4444' : aiAnalysis.riskLevel === 'WARNING' ? '#f59e0b' : '#10b981') : '#27272a', marginBottom: 8 }}>
                   <Text style={{ color: '#fff', fontFamily: fonts.semibold, fontSize: 13, marginBottom: 4 }}>
-                    {analyzing ? 'Audit IA en cours...' : (aiAnalysis ? `Audit IA : ${aiAnalysis.riskLevel}` : 'Audit IA indéterminé')}
+                    {analyzing ? t("aiAuditInProgress") : (aiAnalysis ? `Audit IA : ${aiAnalysis.riskLevel}` : t("aiAuditUndetermined"))}
                   </Text>
                   {!analyzing && aiAnalysis && (
                     <>
@@ -260,11 +334,11 @@ Action: ${aiContext.method || 'Transfer'}`;
           )}
 
           {phase !== 'error' ? (
-            <Pressable onPress={onCancel} disabled={phase === 'working'} hitSlop={8}>
-              <Text style={{ color: colors.textMuted, fontSize: 15, opacity: phase === 'working' ? 0.4 : 1 }}>{t('cancel')}</Text>
+            <Pressable onPress={cancel} hitSlop={8}>
+              <Text style={{ color: colors.textMuted, fontSize: 15 }}>{t('cancel')}</Text>
             </Pressable>
           ) : null}
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );

@@ -1,5 +1,5 @@
 /**
- * Nova — Wrapper audio unifié.
+ * Kalyx — Wrapper audio unifié.
  *
  * Joue les sons d'état (succès, envoi) via `expo-audio` (SDK 57+).
  * Respecte :
