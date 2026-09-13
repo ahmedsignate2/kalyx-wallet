@@ -465,7 +465,7 @@ export default function Send() {
               {stage === 'failed' ? <Text variant="caption" tone="danger">{t("txFailedMsg")}</Text> : null}
             </Surface>
             <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t("canLeaveScreenInfo")}</Text>
-            {chain.explorerUrl && hash ? <Button label={t("viewOnExplorer")} variant="secondary" size="md" onPress={() => router.push({ pathname: '/browser', params: { url: `${chain.explorerUrl}/tx/${hash}` } })} /> : null}
+            {hash ? <Button label="Suivre la transaction" variant="secondary" size="md" onPress={() => router.push({ pathname: '/tracking', params: { hash, chainId: chain.id } })} /> : null}
             <View style={{ flex: 1 }} />
             <Button label={t("actionDone")} onPress={() => router.replace('/home')} />
           </>
