@@ -23,7 +23,7 @@ export default function TrackingScreen() {
   
   const [loading, setLoading] = useState(true);
   const [txDetails, setTxDetails] = useState<any>(null);
-  const [timeElapsed, setTimeElapsed] = useState('0 min');
+  const [timeElapsed, setTimeElapsed] = useState('');
 
   const fetchTx = async () => {
     if (!chain || !hash) return;
@@ -41,7 +41,7 @@ export default function TrackingScreen() {
         if (tx) {
           setTxDetails(tx);
           const diffMin = Math.floor((Date.now() - tx.timestamp * 1000) / 60000);
-          setTimeElapsed(diffMin > 0 ? `${diffMin} min` : 'À l\'instant');
+          setTimeElapsed(diffMin > 0 ? t('agoMinutes').replace('{min}', String(diffMin)) : t('justNow'));
         }
       }
     } catch (e) {
@@ -60,7 +60,7 @@ export default function TrackingScreen() {
 
   const handleOpenExplorer = async () => {
     if (!hash) {
-      Alert.alert("Erreur", "Hash de transaction introuvable.");
+      Alert.alert(t('errorTitle'), t('errTxHashMissing'));
       return;
     }
 
@@ -116,7 +116,7 @@ export default function TrackingScreen() {
       try {
         await Linking.openURL(explorerUrl);
       } catch {
-        Alert.alert("Erreur", "Impossible d'ouvrir le navigateur.");
+        Alert.alert(t('errorTitle'), t('errCannotOpenBrowser'));
       }
     }
   };
@@ -129,7 +129,7 @@ export default function TrackingScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-        <ScreenHeader title="Suivi de transaction" />
+        <ScreenHeader title={t('txTrackingTitle')} />
         
         <View style={{ gap: spacing(2) }}>
           <GlassCard style={{ alignItems: 'center', paddingVertical: spacing(3) }}>
@@ -137,9 +137,9 @@ export default function TrackingScreen() {
               <Icon name={confirmed ? 'checkmark' : 'clock'} size={32} color={confirmed ? colors.bgDeep : colors.text} />
             </View>
             <Text style={[typography.title, { color: confirmed ? colors.up : colors.text }]}>
-              {confirmed ? 'Confirmée' : 'En attente'}
+              {confirmed ? t('txConfirmed') : t('txPending')}
             </Text>
-            <Text style={typography.muted}>{confirmed ? 'Inclus dans le bloc' : `Il y a ${timeElapsed}`}</Text>
+            <Text style={typography.muted}>{confirmed ? t('includedInBlock') : timeElapsed}</Text>
             
             {loading && !txDetails ? (
               <View style={{ marginTop: spacing(2), alignItems: 'center', gap: 8 }}>
@@ -153,7 +153,7 @@ export default function TrackingScreen() {
                 </Text>
                 {txDetails.to ? (
                   <Text style={[typography.muted, { marginTop: 4 }]}>
-                    Vers {shortAddress(txDetails.to)}
+                    {t('towards')} {shortAddress(txDetails.to)}
                   </Text>
                 ) : null}
               </View>
@@ -162,10 +162,10 @@ export default function TrackingScreen() {
 
           {isBtc && !confirmed ? (
             <GlassCard>
-              <Text style={typography.section}>Progression (Mempool)</Text>
+              <Text style={typography.section}>{t('mempoolProgress')}</Text>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: spacing(1) }}>
                 <Text style={typography.bodyStrong}>0 / 1 confirmation</Text>
-                <Text style={typography.muted}>Est. 10 à 25 min</Text>
+                <Text style={typography.muted}>{t('estTimeRange')}</Text>
               </View>
               <View style={{ height: 4, backgroundColor: colors.glassBorder, borderRadius: 2, overflow: 'hidden' }}>
                 <View style={{ width: '25%', height: '100%', backgroundColor: colors.accent, borderRadius: 2 }} />
@@ -174,16 +174,16 @@ export default function TrackingScreen() {
           ) : null}
 
           <GlassCard>
-            <Text style={typography.section}>Détails réseau</Text>
+            <Text style={typography.section}>{t('networkDetails')}</Text>
             
             <View style={{ gap: spacing(1.5), marginTop: spacing(1) }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={typography.muted}>Réseau</Text>
+                <Text style={typography.muted}>{t('labelNetwork')}</Text>
                 <Text style={typography.bodyStrong}>{chain?.name}</Text>
               </View>
               
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={typography.muted}>Frais réseau</Text>
+                <Text style={typography.muted}>{t('labelNetworkFee')}</Text>
                 <Text style={typography.bodyStrong}>~</Text>
               </View>
               
@@ -197,7 +197,7 @@ export default function TrackingScreen() {
           </GlassCard>
 
           <View style={{ gap: spacing(1.5), marginTop: spacing(1) }}>
-            <Button label="Actualiser" variant="primary" onPress={() => { haptic.selection(); fetchTx(); }} loading={loading} />
+            <Button label={t('refresh')} variant="primary" onPress={() => { haptic.selection(); fetchTx(); }} loading={loading} />
             
             {hash ? (
               <Button label={t('viewOnExplorer')} variant="secondary" onPress={handleOpenExplorer} />
