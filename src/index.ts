@@ -259,3 +259,16 @@ export {
   type SimulationResult,
 } from './services/security/simulationService';
 
+// EVM Transaction Replacement (Speed Up / Cancel)
+export {
+  calculateReplacementGas,
+  buildSpeedUpTx,
+  buildCancelTx,
+  fetchOriginalEvmTx,
+  executeReplacement,
+  type GasParams,
+  type CalculatedReplacementGas,
+  type OriginalEvmTx,
+} from './services/transactions/replacementService';
+
+

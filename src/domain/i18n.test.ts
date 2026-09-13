@@ -118,6 +118,16 @@ describe('Newly added features localization', () => {
     'antiDrainerNftApproval',
     'antiDrainerNonInteractiveContract',
     'antiDrainerForceSendConfirm',
+    'speedUpButton',
+    'cancelButton',
+    'speedUpConfirmTitle',
+    'cancelConfirmTitle',
+    'speedUpDescription',
+    'cancelDescription',
+    'replacementSuccess',
+    'replacementError',
+    'estimatedExtraFee',
+    'nonceLabel',
   ];
 
   const languages: Lang[] = [

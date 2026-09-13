@@ -9,5 +9,25 @@
   "antiDrainerUnlimitedApproval": "Unlimited token allowance requested. All your tokens could be drained.",
   "antiDrainerNftApproval": "Approval for all NFTs requested. Your entire collection could be transferred.",
   "antiDrainerNonInteractiveContract": "Sending native funds directly to a smart contract without contract call data",
-  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger"
+  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger",
+  "transaction.action": {
+    "speedUpButton": "가속",
+    "cancelButton": "취소",
+    "speedUpConfirmTitle": "트랜잭션 가속",
+    "cancelConfirmTitle": "트랜잭션 취소",
+    "speedUpDescription": "이 트랜잭션을 더 빠르게 처리하려면 네트워크 수수료를 늘리세요.",
+    "cancelDescription": "더 높은 수수료로 자신에게 0을 전송하여 이 트랜잭션을 취소합니다.",
+    "replacementSuccess": "대체 트랜잭션이 성공적으로 전송되었습니다.",
+    "replacementError": "트랜잭션 대체 중 오류가 발생했습니다."
+  },
+  "speedUpButton": "가속",
+  "cancelButton": "취소",
+  "speedUpConfirmTitle": "트랜잭션 가속",
+  "cancelConfirmTitle": "트랜잭션 취소",
+  "speedUpDescription": "이 트랜잭션을 더 빠르게 처리하려면 네트워크 수수료를 늘리세요.",
+  "cancelDescription": "더 높은 수수료로 자신에게 0을 전송하여 이 트랜잭션을 취소합니다.",
+  "replacementSuccess": "대체 트랜잭션이 성공적으로 전송되었습니다.",
+  "replacementError": "트랜잭션 대체 중 오류가 발생했습니다.",
+  "estimatedExtraFee": "예상 추가 비용 (최소 +20%)",
+  "nonceLabel": "난스 (Nonce)"
 }

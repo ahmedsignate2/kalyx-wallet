@@ -9,5 +9,25 @@
   "antiDrainerUnlimitedApproval": "Unlimited token allowance requested. All your tokens could be drained.",
   "antiDrainerNftApproval": "Approval for all NFTs requested. Your entire collection could be transferred.",
   "antiDrainerNonInteractiveContract": "Sending native funds directly to a smart contract without contract call data",
-  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger"
+  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger",
+  "transaction.action": {
+    "speedUpButton": "Ускорить",
+    "cancelButton": "Отменить",
+    "speedUpConfirmTitle": "Ускорить транзакцию",
+    "cancelConfirmTitle": "Отменить транзакцию",
+    "speedUpDescription": "Увеличьте комиссию сети, чтобы быстрее обработать эту транзакцию.",
+    "cancelDescription": "Отмените эту транзакцию, отправив 0 самому себе с более высокой комиссией.",
+    "replacementSuccess": "Замещающая транзакция успешно отправлена.",
+    "replacementError": "Ошибка при замене транзакции."
+  },
+  "speedUpButton": "Ускорить",
+  "cancelButton": "Отменить",
+  "speedUpConfirmTitle": "Ускорить транзакцию",
+  "cancelConfirmTitle": "Отменить транзакцию",
+  "speedUpDescription": "Увеличьте комиссию сети, чтобы быстрее обработать эту транзакцию.",
+  "cancelDescription": "Отмените эту транзакцию, отправив 0 самому себе с более высокой комиссией.",
+  "replacementSuccess": "Замещающая транзакция успешно отправлена.",
+  "replacementError": "Ошибка при замене транзакции.",
+  "estimatedExtraFee": "Ориентировочная доп. стоимость (мин. +20%)",
+  "nonceLabel": "Nonce"
 }

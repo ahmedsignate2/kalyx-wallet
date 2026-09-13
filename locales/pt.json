@@ -9,5 +9,25 @@
   "antiDrainerUnlimitedApproval": "Unlimited token allowance requested. All your tokens could be drained.",
   "antiDrainerNftApproval": "Approval for all NFTs requested. Your entire collection could be transferred.",
   "antiDrainerNonInteractiveContract": "Sending native funds directly to a smart contract without contract call data",
-  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger"
+  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger",
+  "transaction.action": {
+    "speedUpButton": "Acelerar",
+    "cancelButton": "Cancelar",
+    "speedUpConfirmTitle": "Acelerar transação",
+    "cancelConfirmTitle": "Cancelar transação",
+    "speedUpDescription": "Aumente as taxas de rede para processar esta transação mais rapidamente.",
+    "cancelDescription": "Cancele esta transação enviando 0 para si mesmo com taxas mais altas.",
+    "replacementSuccess": "Transação de substituição enviada com sucesso.",
+    "replacementError": "Erro ao substituir a transação."
+  },
+  "speedUpButton": "Acelerar",
+  "cancelButton": "Cancelar",
+  "speedUpConfirmTitle": "Acelerar transação",
+  "cancelConfirmTitle": "Cancelar transação",
+  "speedUpDescription": "Aumente as taxas de rede para processar esta transação mais rapidamente.",
+  "cancelDescription": "Cancele esta transação enviando 0 para si mesmo com taxas mais altas.",
+  "replacementSuccess": "Transação de substituição enviada com sucesso.",
+  "replacementError": "Erro ao substituir a transação.",
+  "estimatedExtraFee": "Custo adicional estimado (+20% mín)",
+  "nonceLabel": "Nonce"
 }

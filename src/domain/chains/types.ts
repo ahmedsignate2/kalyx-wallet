@@ -61,7 +61,7 @@ export interface TxSummary {
   value: bigint; // plus petite unité (wei)
   timestamp: number; // unix (secondes)
   direction: 'in' | 'out' | 'self';
-  status: 'success' | 'failed';
+  status: 'success' | 'failed' | 'pending';
   type?: string;
   asset?: string;
   decimals?: number; // e.g. "SWAP", "TRANSFER", "NFT"
@@ -100,6 +100,12 @@ export interface ChainAdapter {
 
   /** Récupère le bytecode déployé à une adresse (pour EVM). */
   getCode?(address: string): Promise<string>;
+
+  /** Récupère les détails d'une transaction par son hash (pour EVM). */
+  getTransaction?(hash: string): Promise<any>;
+
+  /** Récupère les données de frais actuelles (pour EVM). */
+  getFeeData?(): Promise<any>;
 
   /** Historique des transfers natifs (réseau). Liste vide si indispo. */
   getHistory(address: string): Promise<TxSummary[]>;
