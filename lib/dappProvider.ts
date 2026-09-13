@@ -3,7 +3,7 @@
  * - buildInjectedProvider() : le JS injecté dans la WebView qui expose
  *   window.ethereum (EIP-1193 + annonce EIP-6963 + API legacy enable/send).
  *   Chaque request() poste {id, method, params} à React Native et attend
- *   window.__novaResolve(id, result, error) en retour.
+ *   window.__kalyxResolve(id, result, error) en retour.
  * - READONLY_METHODS : méthodes JSON-RPC relayées telles quelles au RPC du
  *   réseau actif (aucune donnée sensible, aucune signature).
  * - rpcProxy() : POST JSON-RPC avec bascule sur les RPC de secours.
@@ -72,14 +72,14 @@ export function parseDappMessage(raw: string): DappRequest | null {
 
 /** JS de réponse à injecter dans la WebView (résout la promesse côté dApp). */
 export function respondJs(id: number, result: unknown, error?: { code: number; message: string }): string {
-  return `window.__novaResolve(${id}, ${error ? 'null' : JSON.stringify(result ?? null)}, ${
+  return `window.__kalyxResolve(${id}, ${error ? 'null' : JSON.stringify(result ?? null)}, ${
     error ? JSON.stringify(error) : 'null'
   }); true;`;
 }
 
 /** JS d'événement provider (accountsChanged, chainChanged, connect…). */
 export function emitJs(event: string, data: unknown): string {
-  return `window.__novaEmit && window.__novaEmit(${JSON.stringify(event)}, ${JSON.stringify(data)}); true;`;
+  return `window.__kalyxEmit && window.__kalyxEmit(${JSON.stringify(event)}, ${JSON.stringify(data)}); true;`;
 }
 
 /**
@@ -89,7 +89,7 @@ export function emitJs(event: string, data: unknown): string {
  */
 export function buildInjectedProvider(chainIdHex: string): string {
   return `(function () {
-  if (window.ethereum && window.ethereum.isNova) return;
+  if (window.ethereum && window.ethereum.isKalyx) return;
   var pending = {};
   var nextId = 1;
   var listeners = {};
@@ -97,7 +97,7 @@ export function buildInjectedProvider(chainIdHex: string): string {
     (listeners[ev] || []).slice().forEach(function (fn) { try { fn(data); } catch (e) {} });
   }
   var provider = {
-    isNova: true,
+    isKalyx: true,
     isMetaMask: true, /* compat : la plupart des dApps ne testent que ça */
     chainId: ${JSON.stringify(chainIdHex)},
     networkVersion: String(parseInt(${JSON.stringify(chainIdHex)}, 16)),
@@ -137,7 +137,7 @@ export function buildInjectedProvider(chainIdHex: string): string {
       );
     },
   };
-  window.__novaResolve = function (id, result, error) {
+  window.__kalyxResolve = function (id, result, error) {
     var p = pending[id];
     if (!p) return;
     delete pending[id];
@@ -155,7 +155,7 @@ export function buildInjectedProvider(chainIdHex: string): string {
       p.resolve(result);
     }
   };
-  window.__novaEmit = function (ev, data) {
+  window.__kalyxEmit = function (ev, data) {
     if (ev === 'chainChanged' && typeof data === 'string') {
       provider.chainId = data;
       provider.networkVersion = String(parseInt(data, 16));
@@ -168,10 +168,10 @@ export function buildInjectedProvider(chainIdHex: string): string {
   window.ethereum = provider;
   /* EIP-6963 : annonce multi-provider moderne */
   var info = {
-    uuid: 'e9f8c2a4-nova-0000-0000-000000000001',
-    name: 'Nova Wallet',
+    uuid: 'e9f8c2a4-ka1x-0000-0000-000000000001',
+    name: 'Kalyx Wallet',
     icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0iIzdDNUNGRiIvPjx0ZXh0IHg9IjE2IiB5PSIyMiIgZm9udC1zaXplPSIxNiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2ZmZiI+TjwvdGV4dD48L3N2Zz4=',
-    rdns: 'wallet.nova',
+    rdns: 'wallet.kalyx',
   };
   function announce() {
     try {

@@ -14,13 +14,9 @@ import {
 import { AppTabBar } from '../ui/tabs';
 import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
-import { getMarkets, sortMarkets, searchCoins, type MarketCoin, type SearchCoin } from '../src';
+import { getMarkets, sortMarkets, searchCoins, type MarketCoin, type SearchCoin, formatFiat } from '../src';
 
-function money(v: number, d = 2) {
-  const [i, dec] = v.toFixed(d).split('.');
-  const g = i.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  return dec ? `${g},${dec}` : g;
-}
+const money = formatFiat;
 
 export default function Market() {
   const { colors, typography } = useTheme();

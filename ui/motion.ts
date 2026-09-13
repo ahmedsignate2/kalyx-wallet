@@ -1,5 +1,5 @@
 /**
- * Nova — Tokens de mouvement (Design System).
+ * Kalyx — Tokens de mouvement (Design System).
  *
  * Ce fichier centralise TOUTES les durées, easings et configs de springs
  * utilisés dans l'app. Aucun écran ne doit inventer ses propres valeurs :
@@ -45,7 +45,7 @@ export const spring = {
    */
   snappy: { speed: 20, bounciness: 6, useNativeDriver: true },
   /**
-   * Logo, éléments hero, anneau Nova — plus de présence physique.
+   * Logo, éléments hero, anneau Kalyx — plus de présence physique.
    * Anciennement : ShineLogo speed 8/bounce 9 → unifié.
    */
   soft: { speed: 8, bounciness: 10, useNativeDriver: true },

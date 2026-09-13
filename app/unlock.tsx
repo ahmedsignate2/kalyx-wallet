@@ -100,7 +100,7 @@ export default function Unlock() {
     setPin(v);
   };
 
-  const title = profileName ? `${t('welcomeBack')}, ${profileName}` : t('unlockNova');
+  const title = profileName ? `${t('welcomeBack')}, ${profileName}` : t('unlockKalyx');
   const subtitle = locked
     ? t('tooManyAttempts').replace('{n}', String(Math.ceil(lockedMs / 1000)))
     : error ?? t('enterCodeToContinue');

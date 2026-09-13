@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { router } from 'expo-router';
@@ -50,6 +51,7 @@ export default function AddToken() {
   if (!isEvm) {
     return (
       <Screen scroll>
+      <ScreenHeader />
         <Title>{t('addToken')}</Title>
         <Muted>{t('evmOnlyToken')}</Muted>
       </Screen>

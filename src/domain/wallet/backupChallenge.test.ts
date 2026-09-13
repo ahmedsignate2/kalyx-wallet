@@ -77,3 +77,12 @@ describe('challenge de sauvegarde de seed', () => {
     expect(verifyFullMnemonic(PHRASE, reversed)).toBe(false);
   });
 });
+
+describe('unknownWords', () => {
+  const { unknownWords } = require('./backupChallenge');
+  it('signale les mots hors BIP-39', () => {
+    expect(unknownWords('abandon ability kalyx zoo')).toEqual(['kalyx']);
+    expect(unknownWords('  Abandon   ABILITY ')).toEqual([]);
+    expect(unknownWords('')).toEqual([]);
+  });
+});

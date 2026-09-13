@@ -1,4 +1,4 @@
-import { qrTargetFamily, novaChainIdForEvm, describeQr } from './route';
+import { qrTargetFamily, kalyxChainIdForEvm, describeQr } from './route';
 import type { QrResult } from './parse';
 
 const CHAINS = [
@@ -22,13 +22,13 @@ describe('qrTargetFamily', () => {
   });
 });
 
-describe('novaChainIdForEvm', () => {
+describe('kalyxChainIdForEvm', () => {
   it('résout un chainId connu', () => {
-    expect(novaChainIdForEvm(137, CHAINS)).toBe('polygon');
+    expect(kalyxChainIdForEvm(137, CHAINS)).toBe('polygon');
   });
   it('null si inconnu ou absent', () => {
-    expect(novaChainIdForEvm(999, CHAINS)).toBeNull();
-    expect(novaChainIdForEvm(undefined, CHAINS)).toBeNull();
+    expect(kalyxChainIdForEvm(999, CHAINS)).toBeNull();
+    expect(kalyxChainIdForEvm(undefined, CHAINS)).toBeNull();
   });
 });
 
