@@ -196,12 +196,17 @@ export default function Send() {
   const fiatOfAmount = inFiat ? amountNum : amountNum * price;
   const available = balance != null ? (isNativeSend ? (balance > feeRaw ? balance - feeRaw : 0n) : balance) : 0n;
   const overBalance = balance != null && amountRaw > available;
-  const notEnoughGas = !isNativeSend && nativeBal != null && nativeBal < feeRaw;
+  const notEnoughGas = nativeBal != null && nativeBal < feeRaw;
 
   const setMax = () => {
     haptic.light();
-    setInFiat(false);
-    setAmount(formatInputAmount(available, decimals));
+    if (balance != null && balance > 0n && available === 0n) {
+      setError(t('errNotEnoughGas').replace('${chain.nativeSymbol}', chain.nativeSymbol).replace('${formatFiat(feeFiat)}', formatFiat(feeFiat)).replace('${sym}', sym));
+      setAmount('0');
+    } else {
+      setInFiat(false);
+      setAmount(formatInputAmount(available, decimals));
+    }
   };
 
   // ── Étape 3 → 4 ──
@@ -443,7 +448,7 @@ export default function Send() {
               </Text>
             </RNPressable>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              {balance == null ? <Skeleton width={160} /> : <Text variant="caption" tone="secondary" tabular>Disponible : {formatTokenAmount(available, decimals)} {symbol}</Text>}
+              {balance == null ? <Skeleton width={160} /> : <Text variant="caption" tone="secondary" tabular>Solde : {formatTokenAmount(balance, decimals)} {symbol}</Text>}
               <Chip label={t("chipMax")} onPress={setMax} />
             </View>
             {notEnoughGas ? <Text variant="caption" tone="warning">Il te manque un peu de {chain.nativeSymbol} pour les frais (environ {formatFiat(feeFiat)} {sym}).</Text> : null}
