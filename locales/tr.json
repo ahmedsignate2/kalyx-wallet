@@ -9,5 +9,25 @@
   "antiDrainerUnlimitedApproval": "Unlimited token allowance requested. All your tokens could be drained.",
   "antiDrainerNftApproval": "Approval for all NFTs requested. Your entire collection could be transferred.",
   "antiDrainerNonInteractiveContract": "Sending native funds directly to a smart contract without contract call data",
-  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger"
+  "antiDrainerForceSendConfirm": "I understand the risks and confirm sending despite the danger",
+  "transaction.action": {
+    "speedUpButton": "Hızlandır",
+    "cancelButton": "İptal Et",
+    "speedUpConfirmTitle": "İşlemi hızlandır",
+    "cancelConfirmTitle": "İşlemi iptal et",
+    "speedUpDescription": "Bu işlemi daha hızlı işlemek için ağ ücretlerini artırın.",
+    "cancelDescription": "Daha yüksek ücretlerle kendinize 0 göndererek bu işlemi iptal edin.",
+    "replacementSuccess": "Değiştirme işlemi başarıyla gönderildi.",
+    "replacementError": "İşlem değiştirilirken hata oluştu."
+  },
+  "speedUpButton": "Hızlandır",
+  "cancelButton": "İptal Et",
+  "speedUpConfirmTitle": "İşlemi hızlandır",
+  "cancelConfirmTitle": "İşlemi iptal et",
+  "speedUpDescription": "Bu işlemi daha hızlı işlemek için ağ ücretlerini artırın.",
+  "cancelDescription": "Daha yüksek ücretlerle kendinize 0 göndererek bu işlemi iptal edin.",
+  "replacementSuccess": "Değiştirme işlemi başarıyla gönderildi.",
+  "replacementError": "İşlem değiştirilirken hata oluştu.",
+  "estimatedExtraFee": "Tahmini ek maliyet (min. +%20)",
+  "nonceLabel": "Nonce"
 }
