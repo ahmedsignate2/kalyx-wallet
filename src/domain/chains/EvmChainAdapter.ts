@@ -95,6 +95,11 @@ export class EvmChainAdapter implements ChainAdapter {
     };
   }
 
+  async getCode(address: string): Promise<string> {
+    const addr = normalizeEvmAddress(address);
+    return this.call((p) => p.getCode(addr), 'eth_getCode');
+  }
+
   async getHistory(address: string): Promise<TxSummary[]> {
     const owner = normalizeEvmAddress(address);
 
