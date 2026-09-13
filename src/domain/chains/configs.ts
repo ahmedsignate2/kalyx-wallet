@@ -503,11 +503,10 @@ export const SEPOLIA: ChainConfig = {
   evmChainId: 11155111,
   nativeSymbol: 'ETH',
   nativeDecimals: 18,
-  // Ordre = priorité du fallback. rpc.sepolia.org retiré (renvoyait 404).
-  // Ces 3 endpoints publics répondent (chainId 0xaa36a7). En prod : Alchemy/Infura.
+  // Ordre = priorité du fallback. drpc.org retiré (plan payant requis).
+  // Ces 2 endpoints publics répondent (chainId 0xaa36a7). En prod : Alchemy/Infura.
   rpcUrls: withAlchemy('eth-sepolia', [
     'https://ethereum-sepolia-rpc.publicnode.com',
-    'https://sepolia.drpc.org',
     'https://1rpc.io/sepolia',
   ]),
   explorerUrl: 'https://sepolia.etherscan.io',
