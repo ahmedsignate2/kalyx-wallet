@@ -74,5 +74,31 @@ describe('Technical Logger & Sanitizer', () => {
       expect(formatted).toContain('[DAPP]');
       expect(formatted).toContain('https://app.uniswap.org');
     });
+
+    test('formats condensed logs cleanly without raw stringified JSON', () => {
+      technicalLogger.logRpc('eth_getBalance', 500, 'Réseau indisponible', { chain: 'Swellchain' });
+      const condensed = technicalLogger.getCondensedLogs();
+      expect(condensed).not.toContain('{"');
+      expect(condensed).toContain('[RPC] Swellchain: eth_getBalance -> 500 (Réseau indisponible)');
+    });
+
+    test('correlates detected error for target chain and labels background calls', () => {
+      technicalLogger.logRpc('eth_getBalance', 500, 'Réseau indisponible', { chain: 'Swellchain' });
+      
+      // Si la cible est Swellchain
+      const errSwell = technicalLogger.getDetectedError('Swellchain');
+      expect(errSwell).toBe('RPC 500 (Réseau indisponible) sur eth_getBalance');
+
+      // Si la cible est Sepolia (sans erreur sur Sepolia)
+      const errSepolia = technicalLogger.getDetectedError('Sepolia');
+      expect(errSepolia).toContain('Aucune erreur sur Sepolia');
+      expect(errSepolia).toContain('Swellchain en arrière-plan');
+
+      // Ticket logs pour Sepolia
+      const ticketLogs = technicalLogger.getCondensedTicketLogs('Sepolia');
+      expect(ticketLogs).toContain('[Sepolia] Aucun log d\'exécution direct enregistré pour cette chaîne.');
+      expect(ticketLogs).toContain('(Appel global multi-chaînes d\'arrière-plan) :');
+      expect(ticketLogs).toContain('[RPC] Swellchain: eth_getBalance -> 500 (Réseau indisponible)');
+    });
   });
 });
