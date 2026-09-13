@@ -1,4 +1,4 @@
-# 📱 Lancer Nova Wallet sur Android — guide simple
+# 📱 Lancer Kalyx Wallet sur Android — guide simple
 
 > Objectif : voir l'app tourner sur ton téléphone et tester le flux complet
 > **welcome → seed → backup → PIN → home → receive/send** sur Sepolia.
@@ -97,7 +97,7 @@ sur ton téléphone.
    ```bash
    npm start -- --tunnel
    ```
-   Ouvre l'app **Nova Wallet (dev)** installée, elle se connecte au serveur
+   Ouvre l'app **Kalyx Wallet (dev)** installée, elle se connecte au serveur
    (le `--tunnel` évite les soucis de même réseau Wi-Fi).
 
 > 💡 Sur **Termux** : garde Termux pour lancer `npm start -- --tunnel`. Le build
@@ -140,7 +140,7 @@ Si tout ça marche, le rez-de-chaussée existe : on pourra monter Bitcoin. 🙂
 | « crypto.getRandomValues not supported » | `react-native-get-random-values` non installé → refais l'étape 1. |
 | Le solde ne s'affiche pas | RPC public Sepolia lent → réessaie, ou mets une clé Alchemy dans `src/domain/chains/configs.ts`. |
 | Biométrie absente | Normal sur émulateur sans empreinte configurée → utilise le PIN. |
-| Build EAS échoue | Vérifie que tu es bien loggé (`eas whoami`) et que `app.config.ts` a bien un `android.package` (c'est le cas : `com.nova.wallet`). |
+| Build EAS échoue | Vérifie que tu es bien loggé (`eas whoami`) et que `app.config.ts` a bien un `android.package` (c'est le cas : `com.kalyx.wallet`). |
 
 ---
 

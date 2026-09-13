@@ -1,3 +1,4 @@
+import { ScreenHeader } from '../ui/kit';
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
@@ -35,6 +36,7 @@ export default function RevealPrivateKey() {
   if (pk) {
     return (
       <Screen>
+      <ScreenHeader />
         <Title>{t('yourPrivateKey')}</Title>
         <Muted>{t('pkWarningBody')}</Muted>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>

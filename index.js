@@ -4,19 +4,19 @@ import './polyfills';
 
 // 2) Logs de démarrage + capture des erreurs JS non gérées (visibles via
 //    logcat / la console Metro), pour ne plus avoir de fermeture silencieuse.
-console.log('[Nova] index.js : démarrage');
+console.log('[Kalyx] index.js : démarrage');
 
 const g = globalThis;
 if (g && g.ErrorUtils && typeof g.ErrorUtils.setGlobalHandler === 'function') {
   const previous = g.ErrorUtils.getGlobalHandler ? g.ErrorUtils.getGlobalHandler() : null;
   g.ErrorUtils.setGlobalHandler((error, isFatal) => {
     console.error(
-      '[Nova] Erreur JS non gérée',
+      '[Kalyx] Erreur JS non gérée',
       isFatal ? '(FATALE)' : '',
       ':',
       error && error.message,
     );
-    if (error && error.stack) console.error('[Nova] stack :', error.stack);
+    if (error && error.stack) console.error('[Kalyx] stack :', error.stack);
     if (previous) previous(error, isFatal);
   });
 }
@@ -24,7 +24,7 @@ if (g && g.ErrorUtils && typeof g.ErrorUtils.setGlobalHandler === 'function') {
 // Capture aussi les rejets de promesses non gérés (best-effort).
 if (g && typeof g.addEventListener === 'function') {
   g.addEventListener('unhandledrejection', (e) => {
-    console.error('[Nova] Promesse rejetée non gérée :', e && (e.reason?.message || e.reason));
+    console.error('[Kalyx] Promesse rejetée non gérée :', e && (e.reason?.message || e.reason));
   });
 }
 

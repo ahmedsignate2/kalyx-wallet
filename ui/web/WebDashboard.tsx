@@ -1,6 +1,6 @@
 /**
  * Tableau de bord WEB (desktop) — « le téléphone est le coffre-fort, le web est
- * le tableau de bord ». Aucune seed / clé ici : on se connecte à l'app Nova via
+ * le tableau de bord ». Aucune seed / clé ici : on se connecte à l'app Kalyx via
  * WalletConnect (QR), on lit les adresses publiques, et on FORWARDE toute action
  * sensible à l'app qui signe. Layout desktop responsive (sidebar + contenu).
  */
@@ -9,13 +9,13 @@ import { View, Text, Pressable, ScrollView, Image, TextInput, useWindowDimension
 import QRCode from 'react-native-qrcode-svg';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
-import { NovaLogo } from '../NovaLogo';
+import { KalyxLogo } from '../KalyxLogo';
 import { AuroraBackground } from '../AuroraBackground';
 import { AllocationDonut, foldSlices } from '../AllocationDonut';
 import { Icon } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useWebConnect } from '../../lib/webConnect';
-import { useSettings, fiatSymbol } from '../../lib/settingsStore';
+import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import {
   getAdapter,
   listChains,
@@ -24,7 +24,7 @@ import {
   getMarketChart,
   getTokenPrices,
   getPrices,
-  formatBalance,
+  formatTokenAmount,
   chainIconUrl,
   type Erc20Token,
   type NftItem,
@@ -54,13 +54,14 @@ function toWei(dec: string): bigint {
   return BigInt(int || '0') * 10n ** 18n + BigInt(fracPadded || '0');
 }
 
-/** Config d'une chaîne Nova par son id (repli Ethereum). */
+/** Config d'une chaîne Kalyx par son id (repli Ethereum). */
 function chainById(id: string | null): ChainConfig {
   const all = listChains();
   return all.find((c) => c.id === id) ?? all.find((c) => c.id === 'ethereum')!;
 }
 
 export function WebDashboard() {
+  const t = useT();
   const { colors } = useTheme();
   const status = useWebConnect((s) => s.status);
   const init = useWebConnect((s) => s.init);
@@ -68,7 +69,7 @@ export function WebDashboard() {
   useEffect(() => {
     init();
     const doc = (globalThis as { document?: { title: string } }).document;
-    if (doc) doc.title = 'Nova · Tableau de bord';
+    if (doc) doc.title = 'Kalyx · Tableau de bord';
   }, [init]);
 
   return (
@@ -80,10 +81,11 @@ export function WebDashboard() {
   );
 }
 
-/** Popup plein écran « Signature requise — ouvrez Nova ». Piloté par `pending`
+/** Popup plein écran « Signature requise — ouvrez Kalyx ». Piloté par `pending`
  *  du store : s'affiche dès qu'une action est envoyée au téléphone, se referme
  *  seul au succès (retour au tableau de bord), reste sur erreur pour explication. */
 function SigningModal() {
+  const t = useT();
   const { colors, typography } = useTheme();
   const pending = useWebConnect((s) => s.pending);
   const dismiss = useWebConnect((s) => s.dismissPending);
@@ -105,20 +107,20 @@ function SigningModal() {
         </Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>
           {phase === 'await'
-            ? `${label}. Ouvrez l'app Nova sur votre téléphone et validez avec votre PIN ou votre biométrie.`
+            ? `${label}. Ouvrez l'app Kalyx sur votre téléphone et validez avec votre PIN ou votre biométrie.`
             : detail ?? ''}
         </Text>
         {phase === 'await' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(0.5) }}>
             <Icon name="bell" size={14} color={colors.textMuted} />
             <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>
-              Vous pouvez aussi appuyer sur la notification Nova.
+              Vous pouvez aussi appuyer sur la notification Kalyx.
             </Text>
           </View>
         ) : null}
         {phase !== 'await' ? (
           <Pressable onPress={dismiss} style={({ pressed }) => ({ marginTop: spacing(1), alignSelf: 'stretch', alignItems: 'center', backgroundColor: phase === 'ok' ? colors.accent : 'transparent', borderWidth: 1, borderColor: phase === 'ok' ? colors.accent : colors.glassBorder, borderRadius: radii.pill, paddingVertical: spacing(1.2), opacity: pressed ? 0.7 : 1 })}>
-            <Text style={{ color: phase === 'ok' ? '#fff' : colors.text, fontFamily: fonts.semibold }}>Fermer</Text>
+            <Text style={{ color: phase === 'ok' ? '#fff' : colors.text, fontFamily: fonts.semibold }}>{t("aiClose")}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -129,6 +131,7 @@ function SigningModal() {
 /* ------------------------------------------------------------------ Connexion */
 
 function ConnectView() {
+  const t = useT();
   const { colors, typography } = useTheme();
   const status = useWebConnect((s) => s.status);
   const uri = useWebConnect((s) => s.uri);
@@ -138,13 +141,13 @@ function ConnectView() {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing(3) }}>
       <View style={{ alignItems: 'center', gap: spacing(2), maxWidth: 420 }}>
-        <NovaLogo size={72} />
+        <KalyxLogo size={72} />
         <Text style={{ color: colors.text, fontSize: 28, fontFamily: fonts.extrabold, textAlign: 'center' }}>
-          Connecter votre portefeuille Nova
+          Connecter votre portefeuille Kalyx
         </Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>
           Le téléphone est le coffre-fort, ce site est votre tableau de bord. Aucune clé n'est stockée ici —
-          vous approuvez la connexion depuis l'app Nova avec votre PIN ou votre biométrie.
+          vous approuvez la connexion depuis l'app Kalyx avec votre PIN ou votre biométrie.
         </Text>
 
         {!uri ? (
@@ -168,7 +171,7 @@ function ConnectView() {
               <QRCode value={uri} size={220} />
             </View>
             <Text style={[typography.muted, { textAlign: 'center' }]}>
-              Ouvrez Nova sur votre téléphone, allez dans l'onglet WalletConnect, puis scannez ce QR.
+              Ouvrez Kalyx sur votre téléphone, allez dans l'onglet WalletConnect, puis scannez ce QR.
             </Text>
           </View>
         ) : (
@@ -184,7 +187,7 @@ function ConnectView() {
           >
             {status === 'connecting' ? <ActivityIndicator color="#fff" /> : <Icon name="walletconnect" size={20} color="#fff" />}
             <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 16 }}>
-              {status === 'connecting' ? 'Connexion…' : 'Connecter Nova'}
+              {status === 'connecting' ? 'Connexion…' : 'Connecter Kalyx'}
             </Text>
           </Pressable>
         )}
@@ -262,6 +265,7 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
 }
 
 function Dashboard() {
+  const t = useT();
   const { colors, typography } = useTheme();
   const { width } = useWindowDimensions();
   const wide = width >= 1180; // 3 colonnes desktop
@@ -281,17 +285,17 @@ function Dashboard() {
     <Zone title="Répartition du portefeuille"><AllocationPanel worth={worth} /></Zone>
   );
   const tokensBlock = (
-    <Zone title="Tokens">
+    <Zone title={t("tabTokens")}>
       {isEvm ? <TokensPanel chain={chain} address={address} /> : <Note text={`Les tokens (ERC-20) sont propres aux réseaux EVM. Sur ${chain.name}, consulte le solde et l'historique.`} />}
     </Zone>
   );
   const nftBlock = (
-    <Zone title="NFT">
+    <Zone title={t("tabNft")}>
       {isEvm ? <NftsPanel chain={chain} address={address} /> : <Note text={`Les NFT affichés ici concernent les réseaux EVM.`} />}
     </Zone>
   );
-  const activityBlock = <Zone title="Activité"><HistoryPanel chain={chain} address={address} /></Zone>;
-  const securityBlock = <Zone title="Sécurité"><SecurityPanel /></Zone>;
+  const activityBlock = <Zone title={t("activity")}><HistoryPanel chain={chain} address={address} /></Zone>;
+  const securityBlock = <Zone title={t("security")}><SecurityPanel /></Zone>;
   const watchBlock = <Zone title="Watchlist"><WatchlistPanel worth={worth} /></Zone>;
   const sendBlock = isEvm ? <Zone title={`Envoyer ${chain.nativeSymbol}`}><SendPanel chain={chain} address={address} /></Zone> : null;
   const accountBlock = <AccountCard chain={chain} address={address} />;
@@ -303,8 +307,8 @@ function Dashboard() {
         {/* En-tête */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing(1) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
-            <NovaLogo size={36} />
-            <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.extrabold }}>Nova · Tableau de bord</Text>
+            <KalyxLogo size={36} />
+            <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.extrabold }}>Kalyx · Tableau de bord</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85) }}>
@@ -315,7 +319,7 @@ function Dashboard() {
               <Icon name="refresh" size={18} color={colors.textMuted} />
             </Pressable>
             <Pressable onPress={disconnect} style={({ pressed }) => ({ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.85), borderRadius: radii.pill, borderWidth: 1, borderColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}>
-              <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>Déconnecter</Text>
+              <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>{t("disconnect")}</Text>
             </Pressable>
           </View>
         </View>
@@ -377,7 +381,7 @@ function Dashboard() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: spacing(1) }}>
           <Icon name="security" size={13} color={colors.textMuted} />
           <Text style={[typography.muted, { textAlign: 'center', fontSize: 12 }]}>
-            Toutes les signatures se font sur votre téléphone Nova. Ce site n'a jamais accès à vos clés privées.
+            Toutes les signatures se font sur votre téléphone Kalyx. Ce site n'a jamais accès à vos clés privées.
           </Text>
         </View>
       </View>
@@ -388,6 +392,7 @@ function Dashboard() {
 /* --------------------------------------------------------------------- Panels */
 
 function Card({ children }: { children: React.ReactNode }) {
+  const t = useT();
   const { colors } = useTheme();
   return (
     <View style={{ backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, padding: spacing(2) }}>
@@ -398,6 +403,7 @@ function Card({ children }: { children: React.ReactNode }) {
 
 /** Zone du tableau de bord desktop : petit titre + contenu. */
 function Zone({ title, style, children }: { title: string; style?: object; children: React.ReactNode }) {
+  const t = useT();
   const { colors, typography } = useTheme();
   return (
     <View style={[{ minWidth: 0, gap: spacing(1) }, style]}>
@@ -411,12 +417,14 @@ function Zone({ title, style, children }: { title: string; style?: object; child
 }
 
 function Note({ text }: { text: string }) {
+  const t = useT();
   const { typography } = useTheme();
   return <Card><Text style={typography.muted}>{text}</Text></Card>;
 }
 
 /** Barre grise pulsée (placeholder de chargement). */
 function Skeleton({ w = '100%', h, r = 8, style }: { w?: number | string; h: number; r?: number; style?: object }) {
+  const t = useT();
   const { colors } = useTheme();
   const op = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
@@ -435,6 +443,7 @@ function Skeleton({ w = '100%', h, r = 8, style }: { w?: number | string; h: num
 
 /** Lignes de chargement (icône ronde + 2 barres + valeur), pour tokens/historique. */
 function SkeletonRows({ count = 4 }: { count?: number }) {
+  const t = useT();
   const { colors } = useTheme();
   return (
     <Card>
@@ -469,6 +478,7 @@ function useAsync<T>(fn: () => Promise<T>, deps: React.DependencyList): { data: 
 
 /** Graphique en aire (une série : valeur du portefeuille), style sparkline. */
 function AreaChart({ values, up }: { values: number[]; up: boolean }) {
+  const t = useT();
   const { colors } = useTheme();
   const [w, setW] = useState(0);
   const h = 130;
@@ -490,12 +500,12 @@ function AreaChart({ values, up }: { values: number[]; up: boolean }) {
       {w > 0 && line ? (
         <Svg width={w} height={h}>
           <Defs>
-            <SvgGradient id="novaGrad" x1="0" y1="0" x2="0" y2="1">
+            <SvgGradient id="kalyxGrad" x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0" stopColor={stroke} stopOpacity={0.28} />
               <Stop offset="1" stopColor={stroke} stopOpacity={0} />
             </SvgGradient>
           </Defs>
-          <Path d={area} fill="url(#novaGrad)" />
+          <Path d={area} fill="url(#kalyxGrad)" />
           <Path d={line} stroke={stroke} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       ) : null}
@@ -509,6 +519,7 @@ const PERIODS: { k: string; l: string }[] = [
   { k: '30', l: '1 mois' },
 ];
 function PeriodToggle({ days, onChange }: { days: string; onChange: (d: string) => void }) {
+  const t = useT();
   const { colors } = useTheme();
   return (
     <View style={{ flexDirection: 'row', gap: spacing(0.5), marginTop: spacing(1) }}>
@@ -526,6 +537,7 @@ function PeriodToggle({ days, onChange }: { days: string; onChange: (d: string) 
 
 /** Petite tuile de statistique (label + valeur + sous-titre). */
 function Widget({ label, value, sub, valueColor }: { label: string; value: string; sub?: string; valueColor?: string }) {
+  const t = useT();
   const { colors } = useTheme();
   return (
     <View style={{ flex: 1, minWidth: 128, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, padding: spacing(1.5) }}>
@@ -539,6 +551,7 @@ function Widget({ label, value, sub, valueColor }: { label: string; value: strin
 /** Bloc « héros » : valeur totale cross-chain + variation du jour + widgets +
  *  graphique de tendance du réseau sélectionné (24 h / 7 j / 1 mois). */
 function HeroValue({ worth, chain, address }: { worth: { data: NetWorth | null }; chain: ChainConfig; address: string }) {
+  const t = useT();
   const { colors, typography } = useTheme();
   const fiat = useSettings((s) => s.fiat);
   const rev = useWebConnect((s) => s.rev);
@@ -580,13 +593,13 @@ function HeroValue({ worth, chain, address }: { worth: { data: NetWorth | null }
                 {`${todayUp ? '+' : '-'}${Math.abs(today).toFixed(2)} %`}
               </Text>
             </View>
-            <Text style={typography.muted}>aujourd'hui</Text>
+            <Text style={typography.muted}>{t("today")}</Text>
           </View>
         ) : null}
       </Card>
 
       <View style={{ flexDirection: 'row', gap: spacing(1.5), flexWrap: 'wrap' }}>
-        <Widget label={`Solde ${chain.nativeSymbol}`} value={`${bal ? formatBalance(bal.raw, bal.decimals, 4) : '0'}`} sub={chain.name} />
+        <Widget label={`Solde ${chain.nativeSymbol}`} value={`${bal ? formatTokenAmount(bal.raw, bal.decimals) : '0'}`} sub={chain.name} />
         <Widget label={`Prix ${chain.nativeSymbol}`} value={price ? `${sym}${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'} />
         <Widget label="Variation 24 h" value={`${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)} %`} valueColor={nativeChange >= 0 ? colors.up : colors.down} />
       </View>
@@ -615,6 +628,7 @@ function HeroValue({ worth, chain, address }: { worth: { data: NetWorth | null }
 
 /** Donut de répartition du portefeuille par réseau (natif + tokens). */
 function AllocationPanel({ worth }: { worth: { data: NetWorth | null } }) {
+  const t = useT();
   const { typography } = useTheme();
   const fiat = useSettings((s) => s.fiat);
   const sym = fiatSymbol(fiat);
@@ -640,6 +654,7 @@ function AllocationPanel({ worth }: { worth: { data: NetWorth | null } }) {
 /** Sélecteur de réseau : liste verticale (desktop) ou puces horizontales (étroit),
  *  avec recherche au-delà de ~6 réseaux. */
 function NetworkSelector({ vertical }: { vertical: boolean }) {
+  const t = useT();
   const { colors } = useTheme();
   const accounts = useWebConnect((s) => s.accounts);
   const selected = useWebConnect((s) => s.selected);
@@ -648,6 +663,7 @@ function NetworkSelector({ vertical }: { vertical: boolean }) {
   const chains = useMemo(() => accounts.map((a) => chainById(a.chainId)), [accounts]);
   const filtered = chains.filter((c) => !q || c.name.toLowerCase().includes(q.trim().toLowerCase()));
   const item = (c: ChainConfig) => {
+    const t = useT();
     const on = c.id === selected;
     return (
       <Pressable
@@ -680,6 +696,7 @@ function NetworkSelector({ vertical }: { vertical: boolean }) {
 
 /** Carte compte : nom + réseau + adresse (copier) + QR code dépliable. */
 function AccountCard({ chain, address }: { chain: ChainConfig; address: string }) {
+  const t = useT();
   const { colors, typography } = useTheme();
   const [showQr, setShowQr] = useState(false);
   return (
@@ -709,6 +726,7 @@ function AccountCard({ chain, address }: { chain: ChainConfig; address: string }
 
 /** Panneau Sécurité : met en avant le modèle « le téléphone est le coffre-fort ». */
 function SecurityPanel() {
+  const t = useT();
   const { colors, typography } = useTheme();
   const peerName = useWebConnect((s) => s.peerName);
   const connectedAt = useWebConnect((s) => s.connectedAt);
@@ -727,7 +745,7 @@ function SecurityPanel() {
           <Icon name="security" size={19} color={colors.up} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={typography.bodyStrong} numberOfLines={1}>{peerName ?? 'Portefeuille Nova'}</Text>
+          <Text style={typography.bodyStrong} numberOfLines={1}>{peerName ?? 'Portefeuille Kalyx'}</Text>
           <Text style={typography.muted} numberOfLines={1}>{`Coffre-fort connecté${connectedAt ? ` · ${ago(Math.floor(connectedAt / 1000))}` : ''}`}</Text>
         </View>
       </View>
@@ -761,6 +779,7 @@ function SecurityPanel() {
 
 /** Watchlist : actifs natifs des réseaux connectés (prix + variation 24 h). */
 function WatchlistPanel({ worth }: { worth: { data: NetWorth | null } }) {
+  const t = useT();
   const { colors, typography } = useTheme();
   const fiat = useSettings((s) => s.fiat);
   const sym = fiatSymbol(fiat);
@@ -798,6 +817,7 @@ function WatchlistPanel({ worth }: { worth: { data: NetWorth | null } }) {
 
 /** Adresse copiable avec retour visuel « Copié ». */
 function CopyAddress({ address }: { address: string }) {
+  const t = useT();
   const { colors, typography } = useTheme();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -815,6 +835,7 @@ function CopyAddress({ address }: { address: string }) {
 }
 
 function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }) {
+  const t = useT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const fiat = useSettings((s) => s.fiat);
@@ -846,7 +867,7 @@ function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }
             <Text style={typography.muted} numberOfLines={1}>{t.name}</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{formatBalance(t.raw, t.decimals, 4)}</Text>
+            <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{formatTokenAmount(t.raw, t.decimals)}</Text>
             {value > 0 ? <Text style={typography.muted}>{sym}{value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text> : null}
           </View>
         </View>
@@ -856,6 +877,7 @@ function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }
 }
 
 function NftsPanel({ chain, address }: { chain: ChainConfig; address: string }) {
+  const t = useT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const { data, loading } = useAsync<NftItem[]>(() => getNfts(chain, address), [chain.id, address, rev]);
@@ -885,6 +907,7 @@ function NftsPanel({ chain, address }: { chain: ChainConfig; address: string }) 
 }
 
 function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string }) {
+  const t = useT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address, rev]);
@@ -899,11 +922,11 @@ function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string 
           style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}
         >
           <View style={{ flex: 1 }}>
-            <Text style={typography.bodyStrong}>{`${tx.direction === 'in' ? 'Reçu' : 'Envoyé'}${tx.status === 'failed' ? ' · échoué' : ''}`}</Text>
+            <Text style={typography.bodyStrong}>{`${tx.direction === 'in' ? 'Reçu' : t("sendTitle")}${tx.status === 'failed' ? ' · échoué' : ''}`}</Text>
             <Text style={typography.muted} numberOfLines={1}>{`${short(tx.hash)} · ${ago(tx.timestamp)}`}</Text>
           </View>
           <Text style={{ color: tx.direction === 'in' ? colors.up : colors.text, fontFamily: fonts.semibold }}>
-            {`${tx.direction === 'in' ? '+' : '-'}${formatBalance(tx.value, chain.nativeDecimals, 4)} ${chain.nativeSymbol}`}
+            {`${tx.direction === 'in' ? '+' : '-'}${formatTokenAmount(tx.value, chain.nativeDecimals)} ${chain.nativeSymbol}`}
           </Text>
         </Pressable>
       ))}
@@ -912,11 +935,12 @@ function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string 
 }
 
 function SendPanel({ chain, address }: { chain: ChainConfig; address: string }) {
+  const t = useT();
   const { colors, typography } = useTheme();
   const request = useWebConnect((s) => s.request);
   const rev = useWebConnect((s) => s.rev);
   const { data: bal } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
-  const balStr = bal ? formatBalance(bal.raw, bal.decimals) : '0';
+  const balStr = bal ? formatTokenAmount(bal.raw, bal.decimals) : '0';
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
@@ -928,9 +952,9 @@ function SendPanel({ chain, address }: { chain: ChainConfig; address: string }) 
     if (!/^0x[a-fA-F0-9]{40}$/.test(to.trim())) { setErr('Adresse EVM invalide (0x…).'); return; }
     // Accepte la virgule décimale (clavier FR) et valide le format.
     const raw = amount.replace(',', '.').trim();
-    if (!/^\d*\.?\d+$/.test(raw) || !(parseFloat(raw) > 0)) { setErr('Montant invalide.'); return; }
+    if (!/^\d*\.?\d+$/.test(raw) || !(parseFloat(raw) > 0)) { setErr(t("errInvalidAmount")); return; }
     setBusy(true);
-    setMsg('Validez la transaction dans l\'app Nova (PIN ou biométrie)…');
+    setMsg('Validez la transaction dans l\'app Kalyx (PIN ou biométrie)…');
     try {
       const wei = toWei(raw); // décimal → wei sans perte de précision (BigInt)
       const hash = await request('eth_sendTransaction', [{ to: to.trim(), value: '0x' + wei.toString(16) }]);
@@ -946,9 +970,9 @@ function SendPanel({ chain, address }: { chain: ChainConfig; address: string }) 
 
   return (
     <Card>
-      <Text style={typography.bodyStrong}>Envoyer {chain.nativeSymbol}</Text>
-      <Text style={[typography.muted, { marginBottom: spacing(1) }]}>La transaction est signée dans l'app Nova — ce site ne signe jamais.</Text>
-      <Text style={typography.muted}>Destinataire</Text>
+      <Text style={typography.bodyStrong}>{t("aiSend")}{chain.nativeSymbol}</Text>
+      <Text style={[typography.muted, { marginBottom: spacing(1) }]}>La transaction est signée dans l'app Kalyx — ce site ne signe jamais.</Text>
+      <Text style={typography.muted}>{t("labelRecipient")}</Text>
       <TextInput value={to} onChangeText={setTo} placeholder="0x…" placeholderTextColor={colors.textMuted} autoCapitalize="none" style={{ color: colors.text, fontSize: 15, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), marginTop: 4, marginBottom: spacing(1) }} />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text style={typography.muted}>Montant ({chain.nativeSymbol})</Text>
@@ -958,7 +982,7 @@ function SendPanel({ chain, address }: { chain: ChainConfig; address: string }) 
       </View>
       <TextInput value={amount} onChangeText={setAmount} placeholder="0.0" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={{ color: colors.text, fontSize: 15, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), marginTop: 4 }} />
       <Pressable onPress={onSend} disabled={busy} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.4), opacity: pressed || busy ? 0.7 : 1 })}>
-        <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{busy ? 'En attente de l\'app…' : 'Envoyer'}</Text>
+        <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{busy ? 'En attente de l\'app…' : t("aiSend")}</Text>
       </Pressable>
       {msg ? <Text style={{ color: colors.accent, marginTop: spacing(1) }}>{msg}</Text> : null}
       {err ? <Text style={{ color: colors.danger, marginTop: spacing(1) }}>{err}</Text> : null}

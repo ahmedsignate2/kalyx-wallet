@@ -31,42 +31,65 @@ export interface EncryptedVault {
 // N=2^14 : bon compromis sécurité/latence sur mobile. Ajustable via les
 // paramètres stockés dans le coffre.
 const DEFAULT_KDF = { N: 1 << 14, r: 8, p: 1, dkLen: 32 };
+/** Paramètres plus coûteux pour les exports hors ligne (attaque par dictionnaire). */
+// Mesuré sur mobile : 2^17 peut ne jamais rendre la main sur certains
+// appareils. Les paramètres restent stockés dans chaque export.
+export const BACKUP_KDF = { N: 1 << 15, r: 8, p: 1, dkLen: 32 };
 
 async function deriveKey(
   pin: string,
   salt: Uint8Array,
   params: { N: number; r: number; p: number },
 ): Promise<Uint8Array> {
-  return scryptAsync(utf8ToBytes(pin.normalize('NFKC')), salt, {
+  const startedAt = Date.now();
+  console.log('[KALYX-AUTH][scrypt] start', {
     N: params.N,
     r: params.r,
     p: params.p,
-    dkLen: DEFAULT_KDF.dkLen,
-    // scrypt rend la main tous les `asyncTick` ms pour ne pas figer l'UI. Le
-    // défaut (10 ms) provoque des dizaines de reprises, chacune COÛTEUSE sur
-    // Hermes/RN → l'essentiel de la latence de déverrouillage vient de là (pas
-    // du calcul). On monte à 120 ms : bien moins de reprises, donc bien plus
-    // rapide, tout en gardant l'UI fluide (blocage ≤ 120 ms par salve). AUCUN
-    // impact sécurité : N/r/p sont inchangés.
-    asyncTick: 120,
+    asyncTickMs: 120,
   });
+  try {
+    const key = await scryptAsync(utf8ToBytes(pin.normalize('NFKC')), salt, {
+      N: params.N,
+      r: params.r,
+      p: params.p,
+      dkLen: DEFAULT_KDF.dkLen,
+      // scrypt rend la main tous les `asyncTick` ms pour ne pas figer l'UI.
+      asyncTick: 120,
+    });
+    console.log('[KALYX-AUTH][scrypt] resolved', {
+      N: params.N,
+      elapsedMs: Date.now() - startedAt,
+    });
+    return key;
+  } catch (error) {
+    console.warn('[KALYX-AUTH][scrypt] rejected', {
+      N: params.N,
+      elapsedMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 /** Chiffre un secret (seed) sous le PIN. Sel + nonce aléatoires à chaque appel. */
 export async function encryptSecret(
   plaintext: string,
   pin: string,
+  kdf: { N: number; r: number; p: number } = DEFAULT_KDF,
 ): Promise<EncryptedVault> {
+  console.log('[KALYX-AUTH][vault] encrypt:start', { kdf: { N: kdf.N, r: kdf.r, p: kdf.p } });
   const salt = getRandomBytes(16);
   const nonce = getRandomBytes(12);
-  const key = await deriveKey(pin, salt, DEFAULT_KDF);
+  const key = await deriveKey(pin, salt, kdf);
   const ct = gcm(key, nonce).encrypt(utf8ToBytes(plaintext));
+  console.log('[KALYX-AUTH][vault] encrypt:resolved', { ciphertextBytes: ct.length });
   return {
     v: 1,
     kdf: 'scrypt',
-    N: DEFAULT_KDF.N,
-    r: DEFAULT_KDF.r,
-    p: DEFAULT_KDF.p,
+    N: kdf.N,
+    r: kdf.r,
+    p: kdf.p,
     salt: bytesToHex(salt),
     nonce: bytesToHex(nonce),
     ct: bytesToHex(ct),
@@ -78,6 +101,7 @@ export async function decryptSecret(
   vault: EncryptedVault,
   pin: string,
 ): Promise<string> {
+  console.log('[KALYX-AUTH][vault] decrypt:start', { N: vault.N, r: vault.r, p: vault.p });
   if (vault.v !== 1 || vault.kdf !== 'scrypt') {
     throw new WalletError('VAULT_CORRUPTED', 'Format de coffre non supporté');
   }
@@ -85,9 +109,12 @@ export async function decryptSecret(
   try {
     const pt = gcm(key, hexToBytes(vault.nonce)).decrypt(hexToBytes(vault.ct));
     // bytesToUtf8 (lib auditée) au lieu de TextDecoder, absent sur Hermes/Android.
-    return bytesToUtf8(pt);
+    const plaintext = bytesToUtf8(pt);
+    console.log('[KALYX-AUTH][vault] decrypt:resolved');
+    return plaintext;
   } catch {
     // GCM échoue si PIN faux OU données altérées : on ne distingue pas.
+    console.warn('[KALYX-AUTH][vault] decrypt:authentication-failed');
     throw new WalletError('WRONG_PIN', 'PIN incorrect');
   }
 }
