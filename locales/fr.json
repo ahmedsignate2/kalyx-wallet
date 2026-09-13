@@ -1,0 +1,13 @@
+{
+  "security.simulation.maliciousAddress": "DANGER : L'adresse de destination est signalée comme frauduleuse (Scam/Phishing).",
+  "maliciousAddress": "DANGER : L'adresse de destination est signalée comme frauduleuse (Scam/Phishing).",
+  "antiDrainerMaliciousAddress": "DANGER : L'adresse de destination est signalée comme frauduleuse (Scam/Phishing).",
+  "antiDrainerLoading": "Analyse de sécurité de la transaction...",
+  "antiDrainerSafe": "Anti-Drainer : Transaction vérifiée, aucun risque détecté",
+  "antiDrainerWarningTitle": "Avertissement de sécurité",
+  "antiDrainerCriticalTitle": "Alerte de sécurité critique : Drainer potentiel détecté",
+  "antiDrainerUnlimitedApproval": "Autorisation illimitée de tokens demandée. Vos fonds pourraient être vidés.",
+  "antiDrainerNftApproval": "Autorisation globale pour tous vos NFT demandée. Votre collection pourrait être volée.",
+  "antiDrainerNonInteractiveContract": "Envoi direct de fonds vers un smart contract sans données d'appel",
+  "antiDrainerForceSendConfirm": "Je comprends les risques et confirme l'envoi malgré le danger"
+}

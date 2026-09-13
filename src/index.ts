@@ -248,3 +248,14 @@ export type {
   UnsignedTx,
   ChainFamily,
 } from './domain/chains/types';
+
+// Anti-Drainer Security & Simulation
+export {
+  simulateSendTransaction,
+  simulateEvmTransaction,
+  simulateSolanaTransaction,
+  checkEvmAddressReputation,
+  checkSolanaAddressReputation,
+  type SimulationResult,
+} from './services/security/simulationService';
+
