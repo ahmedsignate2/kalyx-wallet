@@ -28,6 +28,7 @@ import { getFormattedTechnicalLogs } from '../../lib/technicalLogger';
 
 function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
   const { colors } = useTheme();
+  const t = useT();
   const [normalizedTicket] = useState(() => normalizeSupportTicket(ticketContent));
   const [errorWarning, setErrorWarning] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(false);
@@ -42,14 +43,14 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
     setErrorWarning(null);
     const check = detectSensitiveSecrets(normalizedTicket);
     if (check.hasSecret) {
-      setErrorWarning(check.warningMessage || 'Donnée secrète détectée dans le ticket.');
+      setErrorWarning(check.warningMessage || t('aiSupportSecretAlert'));
       return;
     }
     setIsOpening(true);
     try {
       await openTelegramTicket(normalizedTicket);
     } catch (e) {
-      setErrorWarning(e instanceof Error ? e.message : "Erreur lors de l'ouverture de Telegram");
+      setErrorWarning(e instanceof Error ? e.message : t('aiSupportOpenTelegramError'));
     } finally {
       setIsOpening(false);
     }
@@ -59,17 +60,17 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
     setErrorWarning(null);
     const check = detectSensitiveSecrets(normalizedTicket);
     if (check.hasSecret) {
-      setErrorWarning(check.warningMessage || 'Donnée secrète détectée dans le ticket.');
+      setErrorWarning(check.warningMessage || t('aiSupportSecretAlert'));
       return;
     }
     try {
       await Clipboard.setStringAsync(normalizedTicket);
       haptic.selection();
       setCopied(true);
-      toast.success('Ticket copié', 'Le rapport a été copié dans le presse-papier.');
+      toast.success(t('aiSupportCopied'), t('aiSupportCopiedBody'));
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      setErrorWarning("Impossible de copier le ticket dans le presse-papier.");
+      setErrorWarning(t('aiSupportCopyError'));
     }
   };
 
@@ -92,7 +93,7 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
             <Icon name="telegramLogo" size={16} color={colors.primary} />
           </View>
           <View>
-            <Text variant="body" style={{ fontWeight: '600' }}>Ticket Support</Text>
+            <Text variant="body" style={{ fontWeight: '600' }}>{t('aiSupportCardTitle')}</Text>
             {ticketId ? (
               <Text variant="micro" tone="tertiary" style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>
                 {ticketId}
@@ -157,7 +158,7 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
         >
           <Icon name={copied ? 'checkmark' : 'copy'} size={16} color={copied ? colors.up : colors.text} />
           <Text variant="body" style={{ fontWeight: '600', color: copied ? colors.up : colors.text, fontSize: 13 }}>
-            {copied ? 'Ticket copié' : 'Copier le ticket'}
+            {copied ? t('aiSupportCopied') : t('aiSupportCopy')}
           </Text>
         </Pressable>
 
@@ -178,7 +179,7 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
         >
           <Icon name="telegramLogo" size={16} color={secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary} />
           <Text variant="body" style={{ fontWeight: '600', color: secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary, fontSize: 13 }}>
-            Envoyer sur Telegram
+            {t('aiSupportSendTelegram')}
           </Text>
         </Pressable>
       </View>
@@ -336,7 +337,7 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
       addMessageToActive({ sender: 'user', text: sanitizeSecrets(msgToSend) });
       addMessageToActive({
         sender: 'assistant',
-        text: '🚨 **Alerte de sécurité** : Ton message semble contenir une information hautement confidentielle (clé privée ou mots de récupération).\n\nPour ta sécurité, ce message a été intercepté localement et n\'a pas été transmis au serveur IA. Ne partage JAMAIS ta clé privée ou ta seed phrase, ni dans un chat, ni à un support.',
+        text: t('aiSecurityBlockedSecret'),
       });
       return;
     }
@@ -484,7 +485,7 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
     { icon: 'defi', label: t('aiSuggestionBalance') },
     { icon: 'security', label: t('aiSuggestionSecurity') },
     { icon: 'market', label: t('aiSuggestionPerformance') },
-    { icon: 'support', label: 'Créer un ticket support' },
+    { icon: 'support', label: t('aiSuggestionSupport') },
   ];
 
   return (
