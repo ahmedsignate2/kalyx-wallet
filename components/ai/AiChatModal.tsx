@@ -10,7 +10,7 @@ import { useSettings, useT } from '../../lib/settingsStore';
 import { buildAiRequestParams, mapAiErrorToMessage } from '../../lib/aiConfig';
 import { useAiChatHistoryStore } from '../../lib/aiChatHistoryStore';
 import { useGasTracker } from '../../lib/gasTrackerStore';
-import { Icon } from '../../ui/icon';
+import { Icon, type IconName } from '../../ui/icon';
 import { router } from 'expo-router';
 import { serializeCopilotContext } from '../../lib/copilotContext';
 import { fetchAddressTransactions } from '../../lib/explorerApi';
@@ -19,6 +19,113 @@ import { useWallet } from '../../lib/walletStore';
 import { getAdapter } from '../../src';
 import { FETCH_WALLET_HISTORY_TOOL, WEB_SEARCH_TOOL } from '../../lib/copilotTools';
 import { copilotError, copilotLog, newCopilotTraceId } from '../../lib/copilotLogger';
+import { openTelegramTicket } from '../../lib/telegramSupport';
+import { detectSensitiveSecrets, sanitizeSecrets } from '../../lib/secretDetector';
+import { getFormattedTechnicalLogs } from '../../lib/technicalLogger';
+
+function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
+  const { colors } = useTheme();
+  const [errorWarning, setErrorWarning] = useState<string | null>(null);
+  const [isOpening, setIsOpening] = useState(false);
+
+  const secretCheck = detectSensitiveSecrets(ticketContent);
+
+  const handleExport = async () => {
+    setErrorWarning(null);
+    const check = detectSensitiveSecrets(ticketContent);
+    if (check.hasSecret) {
+      setErrorWarning(check.warningMessage || 'Donnée secrète détectée dans le ticket.');
+      return;
+    }
+    setIsOpening(true);
+    try {
+      await openTelegramTicket(ticketContent);
+    } catch (e) {
+      setErrorWarning(e instanceof Error ? e.message : "Erreur lors de l'ouverture de Telegram");
+    } finally {
+      setIsOpening(false);
+    }
+  };
+
+  return (
+    <View
+      style={{
+        marginTop: space[2],
+        width: '100%',
+        backgroundColor: colors.surface1,
+        borderRadius: radius.container,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: space[3],
+        gap: space[3],
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="telegramLogo" size={16} color={colors.primary} />
+          </View>
+          <Text variant="body" style={{ fontWeight: '600' }}>Ticket Support Telegram</Text>
+        </View>
+        <Chip label="@kalyxntw" />
+      </View>
+
+      <View
+        style={{
+          backgroundColor: colors.surface2,
+          padding: space[3],
+          borderRadius: radius.input,
+          borderWidth: 1,
+          borderColor: colors.border,
+        }}
+      >
+        <Text variant="caption" tone="secondary" selectable style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', fontSize: 12, lineHeight: 18 }}>
+          {ticketContent}
+        </Text>
+      </View>
+
+      {secretCheck.hasSecret || errorWarning ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: space[2],
+            padding: space[2],
+            backgroundColor: 'rgba(255, 77, 94, 0.12)',
+            borderRadius: radius.chip,
+            borderWidth: 1,
+            borderColor: colors.danger,
+          }}
+        >
+          <Icon name="alert" size={16} color={colors.danger} />
+          <Text variant="caption" tone="danger" style={{ flex: 1 }}>
+            {errorWarning || secretCheck.warningMessage}
+          </Text>
+        </View>
+      ) : null}
+
+      <Pressable
+        onPress={handleExport}
+        disabled={secretCheck.hasSecret || isOpening}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: space[2],
+          height: 44,
+          borderRadius: radius.round,
+          backgroundColor: secretCheck.hasSecret ? colors.surface3 : colors.primary,
+          opacity: secretCheck.hasSecret ? 0.4 : pressed ? 0.85 : 1,
+        })}
+      >
+        <Icon name="telegramLogo" size={18} color={secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary} />
+        <Text variant="body" style={{ fontWeight: '600', color: secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary }}>
+          Exporter le ticket sur Telegram
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
 
 export function AiChatModal({ visible, onClose, context }: { visible: boolean, onClose: () => void, context: any }) {
   const { colors } = useTheme();
@@ -109,9 +216,29 @@ Exemples :
 Voici la liste des ROUTE_ID autorisés : ${APP_ROUTES_MAP.map(r => r.id + ' (' + r.description + ')').join(', ')}
 NE JAMAIS diriger l'utilisateur vers des écrans liés à l'export de clé privée, à la phrase de récupération ou au changement de PIN.
 
+RÈGLE DE SÉCURITÉ ABSOLUE :
+Tu ne dois JAMAIS accepter, répéter, ni inclure dans un message ou un ticket de support une clé privée, une seed phrase (mots de récupération) ou un mot de passe. Si le message de l'utilisateur contient de tels éléments, refuse formellement et avertis-le de ne JAMAIS partager ses identifiants secrets.
+
+TICKETS SUPPORT TELEGRAM :
+Si l'utilisateur rencontre un problème technique, une transaction bloquée/échouée, ou demande explicitement à créer un ticket ou contacter le support :
+1. Analyse le contexte et les logs récents pour expliquer brièvement la situation.
+2. Si le problème nécessite l'intervention de l'équipe support, génère un ticket structuré encadré STRICTEMENT par les balises <SUPPORT_TICKET> et </SUPPORT_TICKET>.
+Format obligatoire à l'intérieur des balises :
+<SUPPORT_TICKET>
+🎫 [TICKET SUPPORT NOVA]
+• Problème : [Résumé direct du problème en une ligne]
+• Réseau : [Nom du réseau, ex: Sepolia, Solana, Bitcoin, Ethereum]
+• Erreur détectée : [Message ou code d'erreur exact si disponible, sinon Non déterminée]
+• Montant visé : [Montant si applicable, sinon N/A]
+• Description utilisateur : "[Résumé concis des propos de l'utilisateur]"
+• Logs récents :
+[Insérer les logs techniques récents pertinents issus de la clé 'l' du contexte ci-dessous, ou 'Aucun log récent']
+</SUPPORT_TICKET>
+Ce tag fera automatiquement apparaître une carte interactive permettant d'exporter le ticket vers Telegram (@kalyxntw).
+
 CONTEXTE TEMPS RÉEL (ALLOWLIST PUBLIQUE) :
 ${serializeCopilotContext()}
-Utilise uniquement ces données présentes. N'invente jamais un solde, une transaction ou une raison d'échec. Ce contexte ne contient volontairement aucune seed, clé privée, PIN ou secret.
+Utilise uniquement ces données présentes. N'invente jamais un solde, une transaction ou une raison d'échec. Ce contexte ne contient volontairement aucune seed, clé privée, PIN ou secret. (Dans le JSON ci-dessus, la clé 'l' contient les 15 derniers logs techniques horodatés).
 Si l'historique local est vide ou insuffisant pour répondre à une question de transaction, utilise l'outil public ${FETCH_WALLET_HISTORY_TOOL.name} avec l'adresse et le réseau concernés avant de répondre.
 Pour les cours, actualités ou informations de protocole qui peuvent changer, utilise ${WEB_SEARCH_TOOL.name} avant de répondre. N'affirme jamais qu'une recherche a été faite si l'outil n'a pas renvoyé de résultats.`;
 
@@ -128,6 +255,18 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
     const msgToSend = userMsgOverride || input.trim();
     if (!msgToSend || !apiKey) return;
     
+    // Contrôle de sécurité client : blocage immédiat si clé privée ou seed phrase
+    const secretCheck = detectSensitiveSecrets(msgToSend);
+    if (secretCheck.hasSecret) {
+      setInput('');
+      addMessageToActive({ sender: 'user', text: sanitizeSecrets(msgToSend) });
+      addMessageToActive({
+        sender: 'assistant',
+        text: '🚨 **Alerte de sécurité** : Ton message semble contenir une information hautement confidentielle (clé privée ou mots de récupération).\n\nPour ta sécurité, ce message a été intercepté localement et n\'a pas été transmis au serveur IA. Ne partage JAMAIS ta clé privée ou ta seed phrase, ni dans un chat, ni à un support.',
+      });
+      return;
+    }
+
     setInput('');
     const traceId = newCopilotTraceId();
     const startedAt = Date.now();
@@ -250,7 +389,7 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
           console.warn('[AI Action] Erreur parsing JSON:', error instanceof Error ? error.message : 'JSON invalide');
         }
       }
-      cleanReply = cleanReply.replace(actionRegex, '').replace(/\s{2,}/g, ' ').trim();
+      cleanReply = cleanReply.replace(actionRegex, '').replace(/[^\S\r\n]{2,}/g, ' ').trim();
       addMessageToActive({ sender: "assistant", text: cleanReply });
       copilotLog(traceId, 'response.complete', { responseChars: cleanReply.length, actionCount: actions.length, totalElapsedMs: Date.now() - startedAt });
       actions.forEach((action, index) => setTimeout(action, 200 + index * 150));
@@ -267,10 +406,11 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
 
   if (!visible) return null;
 
-  const SUGGESTIONS: { icon: 'defi' | 'security' | 'market'; label: string }[] = [
+  const SUGGESTIONS: { icon: IconName; label: string }[] = [
     { icon: 'defi', label: t('aiSuggestionBalance') },
     { icon: 'security', label: t('aiSuggestionSecurity') },
     { icon: 'market', label: t('aiSuggestionPerformance') },
+    { icon: 'support', label: 'Créer un ticket support' },
   ];
 
   return (
@@ -319,9 +459,50 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
                 <ScrollView ref={scrollViewRef} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: space[4], paddingVertical: space[3], gap: space[2] }} keyboardShouldPersistTaps="handled" onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}>
                   {messages.map((m, i) => {
                     const mine = m.sender === 'user';
+                    const ticketRegex = /<SUPPORT_TICKET>([\s\S]*?)<\/SUPPORT_TICKET>/i;
+                    const ticketMatch = !mine ? m.text.match(ticketRegex) : null;
+                    const textWithoutTicket = ticketMatch ? m.text.replace(ticketRegex, '').trim() : m.text;
+
                     return (
-                      <View key={i} style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '85%', backgroundColor: mine ? colors.primary : colors.surface1, borderWidth: mine ? 0 : 1, borderColor: colors.border, paddingHorizontal: space[3], paddingVertical: space[2], borderRadius: 18, borderBottomRightRadius: mine ? 6 : 18, borderBottomLeftRadius: mine ? 18 : 6 }}>
-                        <Text variant="bodySecondary" style={{ color: mine ? colors.onPrimary : colors.text, fontSize: 15, lineHeight: 20 }} selectable>{m.text}</Text>
+                      <View
+                        key={i}
+                        style={{
+                          alignSelf: mine ? 'flex-end' : 'flex-start',
+                          maxWidth: ticketMatch ? '100%' : '85%',
+                          width: ticketMatch ? '100%' : undefined,
+                          gap: space[2],
+                        }}
+                      >
+                        {textWithoutTicket ? (
+                          <View
+                            style={{
+                              alignSelf: mine ? 'flex-end' : 'flex-start',
+                              backgroundColor: mine ? colors.primary : colors.surface1,
+                              borderWidth: mine ? 0 : 1,
+                              borderColor: colors.border,
+                              paddingHorizontal: space[3],
+                              paddingVertical: space[2],
+                              borderRadius: 18,
+                              borderBottomRightRadius: mine ? 6 : 18,
+                              borderBottomLeftRadius: mine ? 18 : 6,
+                            }}
+                          >
+                            <Text
+                              variant="bodySecondary"
+                              style={{
+                                color: mine ? colors.onPrimary : colors.text,
+                                fontSize: 15,
+                                lineHeight: 20,
+                              }}
+                              selectable
+                            >
+                              {textWithoutTicket}
+                            </Text>
+                          </View>
+                        ) : null}
+                        {ticketMatch ? (
+                          <TicketSupportCard ticketContent={ticketMatch[1].trim()} />
+                        ) : null}
                       </View>
                     );
                   })}
