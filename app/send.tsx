@@ -28,7 +28,7 @@ import { friendlyTxError } from '../lib/txError';
 import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
 import {
-  getAdapter, isWalletError, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
+  getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
   formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
   estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, type FeeOptions, type FeeSpeed,
 } from '../src';
@@ -44,11 +44,6 @@ export default function Send() {
   const sym = fiatSymbol(fiat);
   const wallet = useWallet();
   const { account, activeChain, accounts } = wallet;
-  const chain = getAdapter(activeChain).config;
-  const family = chain.family as RecipientFamily;
-  const recents = useRecentRecipients((s) => s.recents).filter((r) => r.family === family);
-  const addRecent = useRecentRecipients((s) => s.add);
-  const contacts = useContacts((s) => s.contacts);
   const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; symbol?: string; decimals?: string; chain?: string }>();
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const pf = usePortfolioStore();
@@ -60,10 +55,29 @@ export default function Send() {
   const [picked, setPicked] = useState<Holding | null>(null);
   const [search, setSearch] = useState('');
   const [environment, setEnvironment] = useState<'mainnet' | 'testnet'>('mainnet');
+
+  const targetChainId = picked?.chainId ?? (params.chain && hasChain(String(params.chain)) ? String(params.chain) : activeChain);
+  const chain = getAdapter(targetChainId).config;
+  const family = chain.family as RecipientFamily;
+
   useEffect(() => {
-    if (params.chain && params.chain !== activeChain) setActiveChain(String(params.chain));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.chain]);
+    if (targetChainId !== activeChain) {
+      setActiveChain(targetChainId);
+    }
+  }, [targetChainId, activeChain, setActiveChain]);
+
+  const activeSt = accounts.find((a) => a.index === wallet.activeAccountIndex) ?? accounts[0];
+  const senderAddress = useMemo(() => {
+    if (!activeSt) return '';
+    if (family === 'bitcoin') return activeSt.btcAddress;
+    if (family === 'solana') return activeSt.solAddress ?? '';
+    return activeSt.evmAddress;
+  }, [activeSt, family]);
+
+  const recents = useRecentRecipients((s) => s.recents).filter((r) => r.family === family);
+  const addRecent = useRecentRecipients((s) => s.add);
+  const contacts = useContacts((s) => s.contacts);
+
   const decimalsParam = params.decimals != null ? Number(params.decimals) : chain.nativeDecimals;
   const token = picked
     ? picked.kind === 'erc20' ? { kind: 'erc20' as const, contract: picked.contract!, symbol: picked.symbol, decimals: picked.decimals }
@@ -78,11 +92,31 @@ export default function Send() {
   const decimals = token ? token.decimals : chain.nativeDecimals;
   const isNativeSend = !token;
 
-  const [to, setTo] = useState(String(params.to ?? ''));
+  const cleanAddressInput = (str: string): string | null => {
+    const trimmed = (str ?? '').trim();
+    if (
+      !trimmed ||
+      trimmed.includes('Exception') ||
+      trimmed.includes('Error') ||
+      trimmed.includes('java.') ||
+      trimmed.includes('at com.') ||
+      trimmed.includes('\n') ||
+      trimmed.includes('\r') ||
+      trimmed.length > 120
+    ) {
+      return null;
+    }
+    return trimmed;
+  };
+
+  const [to, setTo] = useState(cleanAddressInput(String(params.to ?? '')) ?? '');
   const [amount, setAmount] = useState(String(params.amount ?? ''));
   // Retour du scanner / des contacts : les params changent, on les applique.
   useEffect(() => {
-    if (params.to) setTo(String(params.to));
+    if (params.to) {
+      const cleaned = cleanAddressInput(String(params.to));
+      if (cleaned) setTo(cleaned);
+    }
   }, [params.to]);
   useEffect(() => {
     if (params.amount) setAmount(String(params.amount));
@@ -96,7 +130,8 @@ export default function Send() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet.activeAccountIndex, fiat, showTestnets]);
   const [inFiat, setInFiat] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [amountError, setAmountError] = useState<string | null>(null);
 
   // ── Adresse valide selon la famille ──
   const validAddress = useCallback((a: string) => (family === 'evm' ? isValidEvmAddress(a) : family === 'solana' ? isValidSolanaAddress(a) : isValidBtcAddress(a)), [family]);
@@ -109,7 +144,12 @@ export default function Send() {
     setEns({ status: 'resolving', address: null });
     const name = to.trim();
     const timer = setTimeout(() => {
-      resolveEnsName(name).then((a) => setEns(a ? { status: 'found', address: a } : { status: 'notfound', address: null })).catch(() => setEns({ status: 'notfound', address: null }));
+      resolveEnsName(name)
+        .then((a) => {
+          const cleaned = a ? cleanAddressInput(a) : null;
+          setEns(cleaned ? { status: 'found', address: cleaned } : { status: 'notfound', address: null });
+        })
+        .catch(() => setEns({ status: 'notfound', address: null }));
     }, 400);
     return () => clearTimeout(timer);
   }, [to, isEns]);
@@ -125,9 +165,9 @@ export default function Send() {
   useEffect(() => {
     setIsContract(false);
     if (!recipientOk || family !== 'evm') return;
-    const a = getAdapter(activeChain);
+    const a = getAdapter(targetChainId);
     if (a instanceof EvmChainAdapter) a.isContract(recipient).then(setIsContract);
-  }, [recipient, recipientOk, family, activeChain]);
+  }, [recipient, recipientOk, family, targetChainId]);
 
   // ── Solde, prix, frais ──
   const [balance, setBalance] = useState<bigint | null>(null);
@@ -138,17 +178,20 @@ export default function Send() {
   const [speed, setSpeed] = useState<FeeSpeed>('normal');
   const [reserve, setReserve] = useState<bigint>(0n);
   useEffect(() => {
-    if (picked) {
-      setBalance(picked.raw);
-      setPrice(picked.price);
-      if (picked.kind === 'native') setNativeBal(picked.raw);
-    }
-    if (!account) return;
+    setBalance(picked?.raw ?? null);
+    setPrice(picked?.price ?? 0);
+    setNativeBal(picked?.kind === 'native' ? picked.raw : null);
+    setNativePrice(0);
+    setFeeOptions(null);
+    setReserve(0n);
+    setAmountError(null);
+
+    if (!senderAddress) return;
     let alive = true;
-    const a = getAdapter(activeChain);
+    const a = getAdapter(targetChainId);
     (async () => {
       const [nat, res, np] = await Promise.all([
-        a.getBalance(account.address).then((b) => b.raw).catch(() => null),
+        a.getBalance(senderAddress).then((b) => b.raw).catch(() => null),
         estimateGasReserve(a).then((r) => r.raw).catch(() => 0n),
         chain.coingeckoId ? getPrices([chain.coingeckoId], fiat).then((p) => p[chain.coingeckoId!]?.price ?? 0).catch(() => 0) : Promise.resolve(0),
       ]);
@@ -159,14 +202,14 @@ export default function Send() {
       if (!token) {
         setBalance(nat);
         setPrice(np);
-      } else if (token.kind === 'erc20') {
-        const [t] = await getCustomTokens(chain, account.address, [token.contract]).catch(() => [] as { raw: bigint }[]);
+      } else if (token.kind === 'erc20' && family === 'evm') {
+        const [t] = await getCustomTokens(chain, senderAddress, [token.contract]).catch(() => [] as { raw: bigint }[]);
         const tp = chain.coingeckoPlatform ? await getTokenPrices(chain.coingeckoPlatform, [token.contract], fiat).catch(() => ({} as Record<string, number>)) : {};
         if (!alive) return;
         setBalance(t?.raw ?? 0n);
         setPrice(tp[token.contract.toLowerCase()] ?? 0);
       } else if (token.kind === 'spl' && a instanceof SolanaChainAdapter) {
-        const list = await a.getSplTokens(account.address).catch(() => []);
+        const list = await a.getSplTokens(senderAddress).catch(() => []);
         const tp = await getTokenPrices('solana', [token.mint], fiat).catch(() => ({} as Record<string, number>));
         if (!alive) return;
         setBalance(list.find((x) => x.mint === token.mint)?.raw ?? 0n);
@@ -178,15 +221,15 @@ export default function Send() {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account?.address, activeChain, fiat, params.contract, params.mint, picked?.id]);
+  }, [senderAddress, targetChainId, fiat, params.contract, params.mint, picked?.id]);
 
   // Frais en natif (unité brute) : palier EVM choisi, sinon réserve dynamique.
   const feeRaw = feeOptions ? feeOptions[speed].costWei : reserve;
   let feeFiat = 0;
-  if (chain.family === 'bitcoin') {
+  if (family === 'bitcoin') {
     const feeInBtc = Number(feeRaw) / 1e8;
     feeFiat = feeInBtc * nativePrice;
-  } else if (chain.family === 'solana') {
+  } else if (family === 'solana') {
     const feeInSol = Number(feeRaw) / 1e9;
     feeFiat = feeInSol * nativePrice;
   } else {
@@ -212,8 +255,9 @@ export default function Send() {
 
   const setMax = () => {
     haptic.light();
+    setAmountError(null);
     if (balance != null && balance > 0n && available === 0n) {
-      setError(`Il te manque un peu de ${chain.nativeSymbol} pour les frais (${missingFeeText}).`);
+      setAmountError(`Il te manque un peu de ${chain.nativeSymbol} pour les frais (${missingFeeText}).`);
       setAmount('0');
     } else {
       setInFiat(false);
@@ -283,32 +327,42 @@ export default function Send() {
   }, [step, hash]);
 
   const goStep2 = () => {
-    setError(null);
+    setAddressError(null);
     if (!recipientOk) {
       const fam = family === 'evm' ? t("errNeedEvmAddress") : family === 'solana' ? t("errNeedSolAddress") : t("errNeedBtcAddress");
-      return setError(isEns && ens.status === 'resolving' ? t("errResolvingEns") : isEns ? t("errEnsNotFound") : t('errNeedAddressFull').replace('${symbol}', symbol).replace('${chain.name}', chain.name).replace('${fam}', fam));
+      return setAddressError(isEns && ens.status === 'resolving' ? t("errResolvingEns") : isEns ? t("errEnsNotFound") : t('errNeedAddressFull').replace('${symbol}', symbol).replace('${chain.name}', chain.name).replace('${fam}', fam));
     }
     if (poisoning) return; // bloquant, message déjà affiché
     haptic.light();
+    setAmountError(null);
     setStep(2);
   };
   const goStep3 = () => {
-    setError(null);
-    if (amountRaw <= 0n) return setError(t("errEnterAmount"));
-    if (overBalance) return setError(`Tu possèdes ${formatTokenAmount(balance ?? 0n, decimals)} ${symbol}${isNativeSend ? ` (frais réservés : ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol})` : ''}.`);
-    if (notEnoughGas) return setError(`Il te manque un peu de ${chain.nativeSymbol} pour les frais (${missingFeeText}).`);
+    setAmountError(null);
+    if (amountRaw <= 0n) return setAmountError(t("errEnterAmount"));
+    if (overBalance) return setAmountError(`Tu possèdes ${formatTokenAmount(balance ?? 0n, decimals)} ${symbol}${isNativeSend ? ` (frais réservés : ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol})` : ''}.`);
+    if (notEnoughGas) return setAmountError(`Il te manque un peu de ${chain.nativeSymbol} pour les frais (${missingFeeText}).`);
     try {
-      if (isNativeSend) getAdapter(activeChain).buildTransfer({ to: recipient, amount: tokenAmountStr });
+      if (isNativeSend) getAdapter(targetChainId).buildTransfer({ to: recipient, amount: tokenAmountStr });
     } catch (e) {
-      return setError(isWalletError(e) ? e.message : t("errInvalidAmount"));
+      return setAmountError(isWalletError(e) ? e.message : t("errInvalidAmount"));
     }
     haptic.light();
     setStep(3);
   };
 
   const paste = async () => {
-    const c = (await Clipboard.getStringAsync()).trim();
-    if (c) { setTo(c); haptic.light(); }
+    try {
+      const c = (await Clipboard.getStringAsync()).trim();
+      const cleaned = cleanAddressInput(c);
+      if (cleaned) {
+        setTo(cleaned);
+        setAddressError(null);
+        haptic.light();
+      }
+    } catch {
+      // silencieux
+    }
   };
 
   if (!account) return null;
@@ -321,7 +375,7 @@ export default function Send() {
       {/* En-tête + barre de progression */}
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN }}>
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (step === 0 || step === 4 || (step === 1 && presetToken) ? router.back() : setStep((s) => (s - 1) as Step))} />
+          <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => { setAddressError(null); setAmountError(null); (step === 0 || step === 4 || (step === 1 && presetToken) ? router.back() : setStep((s) => (s - 1) as Step)); }} />
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             <Text variant="title2">{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : (t('headerSendToken').replace('${symbol}', symbol) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
             {step > 0 && chainIconUrl(chain.id) ? (
@@ -370,6 +424,8 @@ export default function Send() {
                           setPicked(h);
                           setActiveChain(h.chainId);
                           setAmount('');
+                          setAddressError(null);
+                          setAmountError(null);
                           setStep(1);
                         }}
                       />
@@ -438,7 +494,7 @@ export default function Send() {
                 </Surface>
               </View>
             ) : null}
-            {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
+            {addressError ? <Text variant="caption" tone="danger">{addressError}</Text> : null}
             <View style={{ flex: 1 }} />
             <Button label={t("actionContinue")} onPress={goStep2} disabled={!recipientOk || !!poisoning} />
           </>
@@ -464,9 +520,9 @@ export default function Send() {
               <Chip label={t("chipMax")} onPress={setMax} />
             </View>
             {showNotEnoughGasWarning ? <Text variant="caption" tone="warning">Il te manque un peu de {chain.nativeSymbol} pour les frais ({missingFeeText}).</Text> : null}
-            {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
+            {amountError ? <Text variant="caption" tone="danger">{amountError}</Text> : null}
             <View style={{ flex: 1 }} />
-            <AmountKeypad value={amount} onChange={(v) => { setAmount(v); setError(null); }} maxDecimals={inFiat ? 2 : Math.min(decimals, 8)} />
+            <AmountKeypad value={amount} onChange={(v) => { setAmount(v); setAmountError(null); }} maxDecimals={inFiat ? 2 : Math.min(decimals, 8)} />
             <Button label={t("verify")} onPress={goStep3} disabled={amountRaw <= 0n} />
           </>
         ) : null}
