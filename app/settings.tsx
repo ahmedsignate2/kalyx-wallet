@@ -265,6 +265,18 @@ export default function Settings() {
           <Switch value={useSettings((s) => s.soundEnabled)} onValueChange={useSettings.getState().setSoundEnabled} />
         </View>
 
+        {/* Vibrations */}
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
+            <Icon name="flash" />
+            <View style={{ flex: 1 }}>
+              <Text style={typography.body}>{t('appHaptics')}</Text>
+              <Text style={typography.muted}>{t('appHapticsHint')}</Text>
+            </View>
+          </View>
+          <Switch value={useSettings((s) => s.hapticsEnabled)} onValueChange={useSettings.getState().setHapticsEnabled} />
+        </View>
+
         <ListRow divider left={<Icon name="buy" />} title={t('buyCrypto')} right={<Chip label={t('soon')} />} onPress={soon} />
       </GlassCard>
 

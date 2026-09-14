@@ -117,7 +117,7 @@ export function SignSheet({
           {explanation.reasons.map((r, i) => (
             <Text key={i} variant="caption" tone={explanation.risk === 'danger' ? 'danger' : explanation.risk === 'warning' ? 'warning' : 'secondary'}>• {r}</Text>
           ))}
-          {explanation.canReduceApproval && onReduceApproval ? <Button label="Réduire au montant exact" variant="secondary" size="sm" onPress={onReduceApproval} style={{ alignSelf: 'flex-start' }} /> : null}
+          {explanation.canReduceApproval && onReduceApproval ? <Button label={t('reduceToExact')} variant="secondary" size="sm" onPress={onReduceApproval} style={{ alignSelf: 'flex-start' }} /> : null}
         </View>
       ) : null}
 
