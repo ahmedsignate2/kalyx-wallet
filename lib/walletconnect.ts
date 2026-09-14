@@ -9,7 +9,7 @@ import { base58, base64 } from '@scure/base';
  * les modules natifs, l'app ne crashe pas — WalletConnect reste simplement inactif.
  * La signature est déléguée au walletStore (la clé reste isolée).
  */
-import { Platform, AppState } from 'react-native';
+import { Platform, AppState, Linking } from 'react-native';
 import { create } from 'zustand';
 import { useWallet, type Unlock } from './walletStore';
 import { notify } from './notifications';
@@ -125,6 +125,28 @@ interface EvmChain {
   kalyxId: string;
   evmChainId: number;
 }
+/** Après une réponse, rend la main à la dApp mobile qui a déclaré un lien de retour (recommandation WalletConnect). */
+function returnToDapp(wallet: IWeb3Wallet, topic: string): void {
+  try {
+    const r = wallet.getActiveSessions()?.[topic]?.peer?.metadata?.redirect as { native?: string; universal?: string } | undefined;
+    const url = r?.native || r?.universal;
+    if (url) Linking.openURL(url).catch(() => {});
+  } catch {
+    /* pas de lien de retour : l'utilisateur revient lui-même */
+  }
+}
+
+/** Prévient toutes les sessions EVM que le réseau actif a changé dans l'app. */
+function broadcastChainChanged(wallet: IWeb3Wallet, kalyxId: string): void {
+  const chain = evmChains().find((c) => c.kalyxId === kalyxId);
+  if (!chain) return;
+  const sessions = wallet.getActiveSessions?.() ?? {};
+  for (const s of Object.values(sessions) as any[]) {
+    if (!(s?.namespaces?.eip155?.chains ?? []).includes(chain.caip)) continue;
+    wallet.emitSessionEvent({ topic: s.topic, event: { name: 'chainChanged', data: chain.evmChainId }, chainId: chain.caip }).catch(() => {});
+  }
+}
+
 function evmChains(): EvmChain[] {
   return listChains()
     .filter((c) => c.family === 'evm' && c.evmChainId)
@@ -204,10 +226,10 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       // il conserve le transport/session du protocole sans exposer de clé.
       metadata: {
         name: 'Kalyx Wallet',
-        description: 'Wallet crypto non-custodial',
-        url: 'https://kalyxwallet.app',
-        icons: [],
-        redirect: { native: 'kalyx://', universal: 'https://kalyxwallet.app/walletconnect' },
+        description: 'Non-custodial multi-chain wallet — Bitcoin, Ethereum, Solana',
+        url: 'https://kalyxwallet.com',
+        icons: ['https://kalyxwallet.com/icon.png'],
+        redirect: { native: 'kalyx://', universal: 'https://kalyxwallet.com/wc' },
       },
     })) as IWeb3Wallet;
 
@@ -241,15 +263,38 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         }
         return; // Bloque la demande pour ne pas déranger l'utilisateur
       }
+      const method: string = request?.params?.request?.method ?? '';
+      // Changement de réseau demandé par la dApp : traité sans écran de signature.
+      if (method === 'wallet_switchEthereumChain' || method === 'wallet_addEthereumChain') {
+        const raw = request?.params?.request?.params?.[0]?.chainId;
+        const wanted = typeof raw === 'string' ? parseInt(raw, 16) : Number(raw);
+        const target = evmChains().find((c) => c.evmChainId === wanted);
+        const session = sessions[request.topic];
+        const allowed = target && (session?.namespaces?.eip155?.chains ?? []).includes(target.caip);
+        if (target && allowed) {
+          useWallet.getState().setActiveChain(target.kalyxId);
+          await w.respondSessionRequest({ topic: request.topic, response: { id: request.id, jsonrpc: '2.0', result: null } });
+          w.emitSessionEvent({ topic: request.topic, event: { name: 'chainChanged', data: target.evmChainId }, chainId: target.caip }).catch(() => {});
+        } else {
+          await w.respondSessionRequest({
+            topic: request.topic,
+            response: { id: request.id, jsonrpc: '2.0', error: { code: 4902, message: 'Unrecognized chain ID for this wallet/session.' } },
+          });
+        }
+        return;
+      }
       const q = [...get().requestQueue, request];
       set({ requestQueue: q, request: q[0] });
-      const method: string = request?.params?.request?.method ?? '';
       const topic: string | undefined = request?.topic;
       const peer = topic ? w.getActiveSessions()?.[topic]?.peer?.metadata?.name : undefined;
       const label = METHOD_LABELS[method] ?? 'Signature demandée';
       notifyIncoming('Kalyx · Action à valider', peer ? `${label} · ${peer}` : `${label} — appuyez pour ouvrir`);
     });
     w.on('session_delete', () => get().refresh());
+    // Réseau changé dans Kalyx → événement chainChanged vers les dApps connectées.
+    useWallet.subscribe((state, prev) => {
+      if (state.activeChain !== prev.activeChain) broadcastChainChanged(w, state.activeChain);
+    });
     set({ wallet: w, ready: true });
     get().refresh();
     } finally {
@@ -480,6 +525,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
 
       await wallet.respondSessionRequest({ topic, response: { id, jsonrpc: '2.0', result } });
       const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
+      if (q.length === 0) returnToDapp(wallet, topic);
     } catch (e) {
       console.error('\n[WC-ERROR] === RESPONDING WITH ERROR ===');
       console.error('[WC-ERROR] Method:', method);
@@ -512,6 +558,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       });
     }
     const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
+    if (q.length === 0) if (wallet) returnToDapp(wallet, request.topic);
   },
 
   disconnect: async (topic) => {
