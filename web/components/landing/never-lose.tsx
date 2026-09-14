@@ -20,7 +20,7 @@ export function NeverLose({ t }: { t: Dict }) {
   const [held, setHeld] = useState(false);
 
   return (
-    <section id="perdre" className="scroll-mt-16 bg-paper px-5 py-24 text-ink sm:px-8 lg:py-32">
+    <section id="perdre" className="scroll-mt-16 bg-paper px-5 py-20 text-ink sm:px-8 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-page">
         <ChapterHead
           tone="paper"
@@ -35,9 +35,9 @@ export function NeverLose({ t }: { t: Dict }) {
           lead={t.lose.lead}
         />
 
-        <div className="mt-20 grid gap-16 lg:grid-cols-[1fr_1fr] lg:gap-24">
+        <div className="mt-16 grid gap-14 lg:mt-20 lg:grid-cols-[1fr_1fr] lg:gap-24">
           {/* Le papier : maintenir pour révéler, comme dans l'app. */}
-          <div className="lg:sticky lg:top-28 lg:self-start">
+          <div className="mx-auto w-full max-w-md lg:sticky lg:top-24 lg:max-w-none lg:self-start">
             <div
               role="button"
               tabIndex={0}
@@ -56,7 +56,7 @@ export function NeverLose({ t }: { t: Dict }) {
                 {t.lose.cardLabel}
                 <span className="font-display normal-case italic tracking-normal">{t.lose.cardExample}</span>
               </p>
-              <ol className="grid grid-cols-2 gap-x-8 sm:grid-cols-3">
+              <ol className="grid grid-cols-2 gap-x-6 md:grid-cols-3 md:gap-x-8">
                 {WORDS.map((w, i) => (
                   <li key={w} className="flex items-baseline gap-2 border-b border-ink/10 py-2.5">
                     <span className="w-5 font-display text-xs text-ink/40">{i + 1}</span>
@@ -78,10 +78,10 @@ export function NeverLose({ t }: { t: Dict }) {
 
           <Stagger as="ol" className="grid gap-12" gap={0.12}>
             {t.lose.rituals.map((r, i) => (
-              <Item key={r.title} as="li" className="grid grid-cols-[3rem_1fr] gap-4">
+              <Item key={r.title} as="li" className="grid grid-cols-[2.5rem_1fr] gap-3 sm:grid-cols-[3rem_1fr] sm:gap-4">
                 <span className="font-display text-2xl text-ink/40">{String(i + 1).padStart(2, '0')}</span>
                 <div>
-                  <h3 className="font-display text-3xl leading-tight">{r.title}</h3>
+                  <h3 className="font-display text-2xl leading-tight sm:text-3xl">{r.title}</h3>
                   <p className="mt-3 text-base font-light leading-relaxed text-ink/75">{r.text}</p>
                 </div>
               </Item>

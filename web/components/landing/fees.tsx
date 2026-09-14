@@ -12,7 +12,7 @@ import type { Dict } from '../../i18n';
  */
 export function Fees({ t }: { t: Dict }) {
   return (
-    <section id="frais" className="scroll-mt-16 bg-ink-2 px-5 py-24 sm:px-8 lg:py-32">
+    <section id="frais" className="scroll-mt-16 bg-ink-2 px-5 py-20 sm:px-8 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-page">
         <ChapterHead
           numeral="IV"
@@ -28,10 +28,10 @@ export function Fees({ t }: { t: Dict }) {
 
         <Stagger as="ul" className="mt-16 divide-y divide-bone/10 border-y border-bone/10" gap={0.1}>
           {t.fees.items.map((f) => (
-            <Item key={f.label} as="li" className="grid gap-2 py-7 sm:grid-cols-[10rem_1fr] sm:gap-8 lg:grid-cols-[14rem_1fr_1fr]">
-              <span className="font-display text-5xl font-light leading-none text-paper sm:text-6xl">{f.value}</span>
-              <span className="self-center text-lg text-bone">{f.label}</span>
-              <span className="self-center text-sm font-light leading-relaxed text-mist lg:col-start-3">{f.note}</span>
+            <Item key={f.label} as="li" className="grid grid-cols-[minmax(6.5rem,auto)_1fr] items-center gap-x-5 gap-y-2 py-6 sm:grid-cols-[10rem_1fr] sm:gap-8 sm:py-7 lg:grid-cols-[14rem_1fr_1fr]">
+              <span className="font-display text-4xl font-light leading-none text-paper sm:text-6xl">{f.value}</span>
+              <span className="self-center text-base text-bone sm:text-lg">{f.label}</span>
+              <span className="col-span-2 self-center text-sm font-light leading-relaxed text-mist sm:col-span-1 sm:col-start-2 lg:col-start-3">{f.note}</span>
             </Item>
           ))}
         </Stagger>

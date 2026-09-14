@@ -19,9 +19,9 @@ function Word({ word, index, progress }: { word: string; index: number; progress
   const blur = useTransform(progress, [0.6, 0.74], [0, 6]);
   const filter = useTransform(blur, (b) => `blur(${b}px)`);
   return (
-    <motion.li style={{ opacity, y, filter }} className="flex items-baseline gap-3 border-b border-bone/10 py-3">
+    <motion.li style={{ opacity, y, filter }} className="flex items-baseline gap-3 border-b border-bone/10 py-2 sm:py-3">
       <span className="w-6 font-display text-sm text-mist/60">{String(index + 1).padStart(2, '0')}</span>
-      <span className="font-display text-2xl text-paper sm:text-3xl">{word}</span>
+      <span className="font-display text-xl text-paper sm:text-3xl">{word}</span>
     </motion.li>
   );
 }
@@ -48,15 +48,15 @@ export function Opening({ t }: { t: Dict }) {
 
   return (
     <section ref={ref} aria-label="Ouverture" className="relative h-[260vh]">
-      <div className="sticky top-0 flex h-screen items-center justify-center overflow-hidden px-5">
+      <div className="sticky top-0 flex h-svh items-center justify-center overflow-hidden px-5">
         {/* Titre d'ouverture */}
         <motion.div style={{ opacity: titleOpacity, y: titleY }} className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center">
-          <p className="font-display text-5xl font-light leading-none tracking-[-0.02em] text-paper sm:text-7xl lg:text-8xl">{t.opening.title}</p>
-          <p className="mx-auto mt-6 max-w-md text-lg font-light text-mist">{t.opening.sub}</p>
+          <p className="font-display text-[2.6rem] font-light leading-none tracking-[-0.02em] text-paper sm:text-7xl lg:text-8xl">{t.opening.title}</p>
+          <p className="mx-auto mt-5 max-w-md px-4 text-base font-light text-mist sm:text-lg">{t.opening.sub}</p>
         </motion.div>
 
         {/* Les mots */}
-        <ul className="grid w-full max-w-2xl grid-cols-2 gap-x-10 sm:grid-cols-3" aria-hidden>
+        <ul className="grid w-full max-w-2xl -translate-y-8 grid-cols-2 gap-x-6 sm:-translate-y-4 sm:grid-cols-3 sm:gap-x-10" aria-hidden>
           {WORDS.map((w, i) => (
             <Word key={w} word={w} index={i} progress={scrollYProgress} />
           ))}
@@ -65,7 +65,7 @@ export function Opening({ t }: { t: Dict }) {
         {/* Légende finale */}
         <motion.p
           style={{ opacity: captionOpacity, y: captionY }}
-          className="absolute inset-x-5 bottom-[18vh] mx-auto max-w-lg text-center text-base font-light leading-relaxed text-bone sm:text-lg"
+          className="absolute inset-x-5 bottom-[12svh] mx-auto max-w-lg text-center text-sm font-light leading-relaxed text-bone sm:bottom-[16svh] sm:text-lg"
         >
           {t.opening.caption}
         </motion.p>
