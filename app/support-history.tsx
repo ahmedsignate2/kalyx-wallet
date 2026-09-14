@@ -98,63 +98,57 @@ export default function SupportHistoryScreen() {
       <PremiumScreen>
         <ScreenHeader title={t('supportHistoryTitle')} />
 
-        <ScrollView
-          contentContainerStyle={{ gap: spacing(1.5), paddingBottom: spacing(6) }}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Action : Export Diagnostic Système */}
-          <GlassCard style={{ padding: spacing(2), gap: spacing(1) }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), flex: 1 }}>
-                <View
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 12,
-                    backgroundColor: colors.glassStrong,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Icon name="share" size={20} color={colors.accent} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.text, fontSize: 16, fontFamily: fonts.bold }}>
-                    {t('diagnosticExportButton')}
-                  </Text>
-                  <Text style={[typography.micro, { color: colors.textSecondary }]}>
-                    {t('supportDiagnosticSubtitle')}
-                  </Text>
-                </View>
-              </View>
-
-              <Pressable
-                onPress={handleExportDiagnostic}
-                disabled={isExporting}
-                style={({ pressed }) => ({
-                  backgroundColor: colors.accent,
-                  paddingHorizontal: spacing(2),
-                  paddingVertical: spacing(1),
-                  borderRadius: radii.md,
-                  opacity: pressed || isExporting ? 0.7 : 1,
-                  flexDirection: 'row',
+        {/* Action : Export Diagnostic Système */}
+        <GlassCard style={{ padding: spacing(1.75), overflow: 'hidden' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing(1.5) }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), flex: 1, minWidth: 0 }}>
+              <View
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 12,
+                  backgroundColor: colors.glassStrong,
                   alignItems: 'center',
-                  gap: spacing(0.75),
-                })}
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
               >
-                {isExporting ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Icon name="share" size={14} color="#fff" />
-                    <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 13 }}>
-                      {t('diagnosticExportButton')}
-                    </Text>
-                  </>
-                )}
-              </Pressable>
+                <Icon name="share" size={20} color={colors.accent} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.bold }} numberOfLines={1}>
+                  {t('diagnosticExportButton')}
+                </Text>
+                <Text style={[typography.micro, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {t('supportDiagnosticSubtitle')}
+                </Text>
+              </View>
             </View>
-          </GlassCard>
+
+            <Pressable
+              onPress={handleExportDiagnostic}
+              disabled={isExporting}
+              hitSlop={8}
+              style={({ pressed }) => ({
+                backgroundColor: colors.accent,
+                width: 38,
+                height: 38,
+                borderRadius: radii.md,
+                opacity: pressed || isExporting ? 0.7 : 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              })}
+              accessibilityLabel={t('diagnosticExportButton')}
+            >
+              {isExporting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Icon name="share" size={18} color="#fff" />
+              )}
+            </Pressable>
+          </View>
+        </GlassCard>
 
           {/* Liste des tickets ou État vide */}
           {tickets.length === 0 ? (
@@ -178,48 +172,65 @@ export default function SupportHistoryScreen() {
                       gap: spacing(1),
                       borderColor: isCopied ? colors.accent : colors.glassBorder,
                       borderWidth: 1,
+                      overflow: 'hidden',
                     }}
                   >
-                    {/* Header Ticket : ID + Date + Bouton Copier */}
-                    <Pressable
-                      onPress={() => handleCopyId(ticket.id)}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), flex: 1 }}>
+                    {/* Header Ticket : ID + Bouton Copier en ligne 1, Date en ligne 2 */}
+                    <View style={{ gap: 4 }}>
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: spacing(1),
+                        }}
+                      >
                         <View
                           style={{
                             paddingHorizontal: spacing(1),
                             paddingVertical: 2,
                             borderRadius: radii.sm,
                             backgroundColor: colors.glassStrong,
+                            alignSelf: 'flex-start',
                           }}
                         >
                           <Text style={{ color: colors.accent, fontFamily: fonts.bold, fontSize: 13 }}>
                             {ticket.id}
                           </Text>
                         </View>
-                        <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.regular }}>
-                          {formatTicketDate(ticket.createdAt)}
-                        </Text>
+
+                        <Pressable
+                          onPress={() => handleCopyId(ticket.id)}
+                          hitSlop={8}
+                          style={({ pressed }) => ({
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 4,
+                            paddingHorizontal: spacing(1),
+                            paddingVertical: 3,
+                            borderRadius: radii.sm,
+                            backgroundColor: colors.glassStrong,
+                            opacity: pressed ? 0.7 : 1,
+                            flexShrink: 0,
+                          })}
+                        >
+                          <Icon name={isCopied ? 'check' : 'copy'} size={14} color={isCopied ? colors.success : colors.accent} />
+                          <Text
+                            style={{
+                              color: isCopied ? colors.success : colors.accent,
+                              fontSize: 11,
+                              fontFamily: fonts.semibold,
+                            }}
+                          >
+                            {isCopied ? t('supportHistoryCopied') : t('aiSupportCopy')}
+                          </Text>
+                        </Pressable>
                       </View>
 
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(0.5) }}>
-                        <Icon name={isCopied ? 'check' : 'copy'} size={16} color={isCopied ? colors.success : colors.accent} />
-                        <Text
-                          style={{
-                            color: isCopied ? colors.success : colors.accent,
-                            fontSize: 12,
-                            fontFamily: fonts.semibold,
-                          }}
-                        >
-                          {isCopied ? t('supportHistoryCopied') : t('aiSupportCopy')}
-                        </Text>
-                      </View>
-                    </Pressable>
+                      <Text style={{ color: colors.textSecondary, fontSize: 11, fontFamily: fonts.regular }}>
+                        {formatTicketDate(ticket.createdAt)}
+                      </Text>
+                    </View>
 
                     {/* Ligne Problème */}
                     <View style={{ gap: 2 }}>
@@ -323,7 +334,6 @@ export default function SupportHistoryScreen() {
               </Pressable>
             </View>
           )}
-        </ScrollView>
       </PremiumScreen>
     </>
   );
