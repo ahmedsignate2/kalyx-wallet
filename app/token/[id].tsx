@@ -221,7 +221,7 @@ export default function TokenDetail() {
         router.push({ pathname: '/send', params: sendParams });
       } else router.push(route);
     } else {
-      toast.info(t('soon'), t("soonToast"));
+      toast.info(t('network'), t("soonToast"));
     }
   };
 
