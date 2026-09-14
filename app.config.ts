@@ -1,10 +1,22 @@
 import type { ExpoConfig } from 'expo/config';
 
+/**
+ * Sauvegarde Google Drive (lib/googleDrive.ts) : Google redirige vers le schéma
+ * « ID client inversé » du client OAuth Android/iOS. Déclaré seulement si
+ * EXPO_PUBLIC_GOOGLE_CLIENT_ID est fourni au build (cf. .env.example).
+ */
+const GOOGLE_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '').trim();
+const GOOGLE_SUFFIX = '.apps.googleusercontent.com';
+const googleScheme = GOOGLE_CLIENT_ID.endsWith(GOOGLE_SUFFIX)
+  ? `com.googleusercontent.apps.${GOOGLE_CLIENT_ID.slice(0, -GOOGLE_SUFFIX.length)}`
+  : null;
+const schemes = ['kalyx', ...(googleScheme ? [googleScheme] : [])];
+
 const config: ExpoConfig = {
   name: 'Kalyx Wallet',
   slug: 'kalyx-wallet',
   owner: 'amss86',
-  scheme: 'kalyx',
+  scheme: schemes,
   version: '0.0.1',
   orientation: 'portrait',
   // 'automatic' : requis pour que le thème « Système » suive l'OS (useColorScheme).
@@ -24,7 +36,7 @@ const config: ExpoConfig = {
       NSBluetoothAlwaysUsageDescription:
         'Kalyx utilise le Bluetooth pour se connecter à un portefeuille matériel Ledger.',
       // Deep links : Kalyx gère aussi le schéma WalletConnect « wc: » et « ethereum: ».
-      CFBundleURLTypes: [{ CFBundleURLSchemes: ['kalyx', 'wc', 'ethereum'] }],
+      CFBundleURLTypes: [{ CFBundleURLSchemes: [...schemes, 'wc', 'ethereum'] }],
     },
   },
   android: {
@@ -48,7 +60,7 @@ const config: ExpoConfig = {
       {
         action: 'VIEW',
         autoVerify: false,
-        data: [{ scheme: 'kalyx' }, { scheme: 'wc' }, { scheme: 'ethereum' }],
+        data: [...schemes.map((scheme) => ({ scheme })), { scheme: 'wc' }, { scheme: 'ethereum' }],
         category: ['BROWSABLE', 'DEFAULT'],
       },
     ],

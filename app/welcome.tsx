@@ -15,6 +15,7 @@ import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, springs, durations, radius } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
+import { isDriveConfigured } from '../lib/googleDrive';
 
 export default function Welcome() {
   const { colors } = useTheme();
@@ -88,6 +89,7 @@ export default function Welcome() {
         <Animated.View style={[{ gap: space[3] }, restStyle]}>
           <Button label={t('createWalletT')} onPress={() => { newDraft(128); router.push('/backup'); }} />
           <Button label={t('havePhrase')} variant="secondary" onPress={() => router.push('/import')} />
+          {isDriveConfigured() ? <Button label={t('driveRestore')} variant="secondary" onPress={() => router.push('/restore-drive')} /> : null}
         </Animated.View>
       </View>
     </RNPressable>
