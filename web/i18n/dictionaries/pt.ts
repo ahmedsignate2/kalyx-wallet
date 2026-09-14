@@ -64,7 +64,7 @@ const pt: Dict = {
         label: 'de pressão para enviar',
       },
       {
-        title: 'Trocar sem sair da app.',
+        title: 'Swap sem sair da app.',
         text: 'Jupiter na Solana, LI.FI e Relay nas redes EVM e entre redes. A rota é escrita numa frase e o impacto no preço é anunciado antes de confirmar.',
         value: '3',
         label: 'routers, assina você mesmo',
@@ -154,11 +154,11 @@ const pt: Dict = {
     kicker: 'Taxas, sem rodeios',
     title: 'Como o Kalyx ganha a vida.',
     titleEm: 'Numa linha.',
-    lead: 'As carteiras gratuitas escondem muitas vezes o preço na rota de uma troca. Eis a nossa, número a número, tal como está escrita no código.',
+    lead: 'As carteiras gratuitas escondem muitas vezes o preço na rota de um swap. Eis a nossa, número a número, tal como está escrita no código.',
     items: [
       { value: '0 €', label: 'para enviar, receber, guardar', note: 'Só se aplicam as taxas de rede — vão para os validadores, não para nós.' },
-      { value: '0,3 %', label: 'numa troca via LI.FI', note: 'EVM e entre redes. É a única receita do Kalyx.' },
-      { value: '0 %', label: 'numa troca Solana via Jupiter', note: 'Nenhuma comissão acrescentada à rota.' },
+      { value: '0,3 %', label: 'num swap via LI.FI', note: 'EVM e entre redes. É a única receita do Kalyx.' },
+      { value: '0 %', label: 'num swap Solana via Jupiter', note: 'Nenhuma comissão acrescentada à rota.' },
       { value: '0 %', label: 'no Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: nada retido no depósito nem no levantamento.' },
       { value: '0 €', label: 'de subscrição, para sempre', note: 'Sem versão «pro», sem funcionalidades atrás de uma portagem.' },
     ],
