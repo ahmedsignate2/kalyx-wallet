@@ -53,6 +53,8 @@ interface SettingsState {
   hapticsEnabled: boolean;
   /** ISO de la dernière sauvegarde chiffrée réussie (fichier ou Drive), null sinon. */
   encryptedBackupAt: string | null;
+  /** ISO de la dernière sauvegarde Google Drive réussie, null sinon. */
+  driveBackupAt: string | null;
   /** Phrase de récupération vérifiée (3 mots) — critère du centre de sécurité. */
   backupVerified: boolean;
 
@@ -71,14 +73,14 @@ interface SettingsState {
   setPrivacyGuard: (on: boolean) => void;
   setSoundEnabled: (on: boolean) => void;
   setHapticsEnabled: (on: boolean) => void;
-  markEncryptedBackup: () => void;
+  markEncryptedBackup: (kind?: 'file' | 'drive') => void;
   setBackupVerified: (on: boolean) => void;
 }
 
 function persist(
   s: Pick<
     SettingsState,
-    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt'
+    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt' | 'driveBackupAt'
   >,
 ) {
   void saveSettings({
@@ -99,6 +101,7 @@ function persist(
     soundEnabled: s.soundEnabled,
     hapticsEnabled: s.hapticsEnabled,
     encryptedBackupAt: s.encryptedBackupAt,
+    driveBackupAt: s.driveBackupAt,
     backupVerified: s.backupVerified,
   });
 }
@@ -122,6 +125,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   soundEnabled: true,
   hapticsEnabled: true,
   encryptedBackupAt: null,
+  driveBackupAt: null,
   backupVerified: false,
 
   load: async () => {
@@ -148,6 +152,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       soundEnabled: s?.soundEnabled !== false,
       hapticsEnabled: s?.hapticsEnabled !== false,
       encryptedBackupAt: typeof s?.encryptedBackupAt === 'string' ? s.encryptedBackupAt : null,
+      driveBackupAt: typeof s?.driveBackupAt === 'string' ? s.driveBackupAt : null,
       backupVerified: s?.backupVerified === true,
     });
   },
@@ -160,10 +165,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     set({ hapticsEnabled: on });
     persist({ ...get(), hapticsEnabled: on });
   },
-  markEncryptedBackup: () => {
-    const encryptedBackupAt = new Date().toISOString();
-    set({ encryptedBackupAt });
-    persist({ ...get(), encryptedBackupAt });
+  markEncryptedBackup: (kind = 'file') => {
+    const now = new Date().toISOString();
+    const patch = kind === 'drive' ? { encryptedBackupAt: now, driveBackupAt: now } : { encryptedBackupAt: now };
+    set(patch);
+    persist({ ...get(), ...patch });
   },
   setBackupVerified: (on) => {
     set({ backupVerified: on });
