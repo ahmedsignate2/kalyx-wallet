@@ -6,8 +6,9 @@ const columns = [
   {
     title: 'Produit',
     links: [
-      { href: '/#fonctionnalites', label: 'Fonctionnalités' },
-      { href: '/#securite', label: 'Sécurité' },
+      { href: '/#fonctionnement', label: 'Comment ça marche' },
+      { href: '/#voler', label: 'Sécurité' },
+      { href: '/#frais', label: 'Frais' },
       { href: '/#telecharger', label: 'Télécharger l’APK' },
     ],
   },
