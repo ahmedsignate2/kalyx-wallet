@@ -44,7 +44,7 @@ export default function Backup() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + 48, paddingHorizontal: SCREEN_MARGIN }}>
         <Stack.Screen options={{ headerShown: false }} />
-        <Surface><EmptyState icon="phrase" title="Session expirée" body="Recommence la création du wallet." actionLabel="Recommencer" onAction={() => router.replace('/welcome')} /></Surface>
+        <Surface><EmptyState icon="phrase" title={t('sessionExpired')} body="Recommence la création du wallet." actionLabel="Recommencer" onAction={() => router.replace('/welcome')} /></Surface>
       </View>
     );
   }
@@ -94,7 +94,7 @@ export default function Backup() {
         </RNPressable>
 
         <View style={{ flex: 1 }} />
-        <Button label="J’ai noté ma phrase" onPress={() => router.push('/verify')} disabled={!seen} />
+        <Button label={t('phraseNoted')} onPress={() => router.push('/verify')} disabled={!seen} />
         <Button label={t("actionLater")} variant="ghost" onPress={() => router.push('/set-pin')} />
       </ScrollView>
     </View>
