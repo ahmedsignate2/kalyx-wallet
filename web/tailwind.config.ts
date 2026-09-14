@@ -1,47 +1,32 @@
 import type { Config } from 'tailwindcss';
 
+/**
+ * Identité éditoriale Kalyx : encre profonde, papier chaud, un seul accent (sauge).
+ * Les valeurs sont aussi exposées en variables CSS dans app/globals.css.
+ */
 const config: Config = {
-  content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
+  content: ['./components/**/*.{ts,tsx}', './app/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        background: '#06070D',
-        surface: '#0E1019',
-        'surface-card': '#161926',
-        'surface-hover': '#202333',
-        border: 'rgba(255, 255, 255, 0.08)',
-        'border-strong': 'rgba(255, 255, 255, 0.16)',
-        primary: { DEFAULT: '#F4F6FF', hover: '#FFFFFF', light: '#F4F6FF' },
-        cyan: {
-          DEFAULT: '#06B6D4',
-          glow: '#22D3EE',
-        },
-        emerald: {
-          DEFAULT: '#10B981',
-          glow: '#34D399',
-        },
+        ink: { DEFAULT: '#080a09', 2: '#101413', 3: '#171c19' },
+        paper: '#f3efe6',
+        sage: '#8fad9a',
+        mist: '#9aa097',
+        bone: '#e8e2d4',
       },
-      backgroundImage: {
-        'hero-gradient':
-          'radial-gradient(ellipse 72% 48% at 50% -14%, rgba(139, 92, 246, 0.16), rgba(6, 7, 13, 0) 72%)',
-        'card-glow':
-          'radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.12), transparent 70%)',
-        'glass-gradient':
-          'linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01))',
+      fontFamily: {
+        sans: ['var(--font-outfit)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['var(--font-fraunces)', 'ui-serif', 'Georgia', 'serif'],
       },
-      animation: {
-        'float-slow': 'float 6s ease-in-out infinite',
-        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      maxWidth: {
+        page: '76rem',
       },
-      keyframes: {
-        float: {
-          '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
-          '50%': { transform: 'translateY(-12px) rotate(0.5deg)' },
-        },
+      boxShadow: {
+        phone: '0 28px 80px -24px rgba(0, 0, 0, 0.7)',
+      },
+      transitionTimingFunction: {
+        editorial: 'cubic-bezier(0.22, 1, 0.36, 1)',
       },
     },
   },
