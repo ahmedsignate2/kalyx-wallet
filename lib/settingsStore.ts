@@ -51,6 +51,8 @@ interface SettingsState {
   /** Sons de l'application (triptyque succès, etc) */
   soundEnabled: boolean;
   hapticsEnabled: boolean;
+  /** ISO de la dernière sauvegarde chiffrée réussie (fichier ou Drive), null sinon. */
+  encryptedBackupAt: string | null;
   /** Phrase de récupération vérifiée (3 mots) — critère du centre de sécurité. */
   backupVerified: boolean;
 
@@ -69,13 +71,14 @@ interface SettingsState {
   setPrivacyGuard: (on: boolean) => void;
   setSoundEnabled: (on: boolean) => void;
   setHapticsEnabled: (on: boolean) => void;
+  markEncryptedBackup: () => void;
   setBackupVerified: (on: boolean) => void;
 }
 
 function persist(
   s: Pick<
     SettingsState,
-    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'hapticsEnabled' | 'backupVerified'
+    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt'
   >,
 ) {
   void saveSettings({
@@ -95,6 +98,7 @@ function persist(
     privacyGuard: s.privacyGuard,
     soundEnabled: s.soundEnabled,
     hapticsEnabled: s.hapticsEnabled,
+    encryptedBackupAt: s.encryptedBackupAt,
     backupVerified: s.backupVerified,
   });
 }
@@ -117,6 +121,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   privacyGuard: true,
   soundEnabled: true,
   hapticsEnabled: true,
+  encryptedBackupAt: null,
   backupVerified: false,
 
   load: async () => {
@@ -142,6 +147,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       privacyGuard: s?.privacyGuard !== false,
       soundEnabled: s?.soundEnabled !== false,
       hapticsEnabled: s?.hapticsEnabled !== false,
+      encryptedBackupAt: typeof s?.encryptedBackupAt === 'string' ? s.encryptedBackupAt : null,
       backupVerified: s?.backupVerified === true,
     });
   },
@@ -153,6 +159,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setHapticsEnabled: (on) => {
     set({ hapticsEnabled: on });
     persist({ ...get(), hapticsEnabled: on });
+  },
+  markEncryptedBackup: () => {
+    const encryptedBackupAt = new Date().toISOString();
+    set({ encryptedBackupAt });
+    persist({ ...get(), encryptedBackupAt });
   },
   setBackupVerified: (on) => {
     set({ backupVerified: on });

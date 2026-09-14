@@ -14,7 +14,7 @@ import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
-import { useT } from '../lib/settingsStore';
+import { useT, useSettings } from '../lib/settingsStore';
 import { createBackup } from '../src';
 import { withDriveToken, isDriveConfigured, GoogleAuthError } from '../lib/googleDrive';
 import { findBackup, uploadBackup } from '../src/domain/backup/drive';
@@ -75,6 +75,7 @@ export default function CloudBackup() {
         throw e;
       }
       console.log('[KALYX-AUTH][backup] drive:uploaded', { elapsedMs: Date.now() - startedAt });
+      useSettings.getState().markEncryptedBackup();
       setDriveDone(true);
       setPwd('');
       setConfirm('');
@@ -85,6 +86,7 @@ export default function CloudBackup() {
       title: t('backupShareTitle'),
     });
     console.log('[KALYX-AUTH][backup] share:resolved', { elapsedMs: Date.now() - startedAt });
+    useSettings.getState().markEncryptedBackup();
     setDone(true);
     setPwd('');
     setConfirm('');
