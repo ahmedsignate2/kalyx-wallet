@@ -50,7 +50,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
       locale: HTML_LANG[lang].replace('-', '_'),
     },
     twitter: { card: 'summary_large_image', title: t.meta.title, description: t.meta.description, creator: '@kalyxntw' },
-    icons: { icon: '/favicon.ico' },
+    icons: { icon: '/icon.png' },
   };
 }
 
