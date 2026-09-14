@@ -1,0 +1,7 @@
+node_modules/
+.next/
+out/
+.npm-cache/
+*.log
+.DS_Store
+*.env*.local
