@@ -117,7 +117,7 @@ export default function Swap() {
   // Succès : hash + résumé (capturés avant reset) pour l'écran animé.
   const [success, setSuccess] = useState<{ hash: string; summary: string; isBridge?: boolean; fromChain?: string; toChain?: string } | null>(null);
   const [held, setHeld] = useState<Tok[]>([]);
-  const params = useLocalSearchParams<{ contract?: string }>();
+  const params = useLocalSearchParams<{ contract?: string; to?: string }>();
 
   // Récupère le solde natif de la chaîne active
   useEffect(() => {
@@ -191,6 +191,7 @@ export default function Swap() {
     }
   }, [toChain, activeChain, fetchTokens]);
 
+
   const reset = () => {
     setQuote(null);
     setConfirming(false);
@@ -201,6 +202,15 @@ export default function Swap() {
   const fromTok = fromTokens[from] ?? fromTokens[0];
   const toTokens = tokensByChain[toChain] ?? [];
   const toTok = toTokens[to] ?? toTokens[0];
+
+  // Arrivée depuis une fiche token ou le marché : le token demandé en destination.
+  useEffect(() => {
+    const sym = String(params.to ?? '').toLowerCase();
+    if (!sym) return;
+    const idx = toTokens.findIndex((tk) => tk.symbol.toLowerCase() === sym);
+    if (idx >= 0) setTo(idx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.to, toTokens.length]);
   const isBridge = toChain !== activeChain;
   const flip = useSharedValue(0);
   const flipStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${flip.value * 180}deg` }] }));
