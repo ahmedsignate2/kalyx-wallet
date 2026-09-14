@@ -1457,6 +1457,8 @@ const en = {
   "legal.privacyPolicy": "Privacy Policy",
   "legal.termsOfService": "Terms of Service",
   "legal.appVersion": "Version:",
+  legalHostingNonCustodial: "Application executed locally on user's device (Non-custodial)",
+  "legal.hostingNonCustodial": "Application executed locally on user's device (Non-custodial)",
 };
 
 export type Key = keyof typeof en;
@@ -2796,6 +2798,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "Politique de confidentialité",
     "legal.termsOfService": "Conditions Générales d'Utilisation",
     "legal.appVersion": "Version :",
+    legalHostingNonCustodial: "Application exécutée localement sur le terminal de l'utilisateur (Non-custodial)",
+    "legal.hostingNonCustodial": "Application exécutée localement sur le terminal de l'utilisateur (Non-custodial)",
   },
   es: {
     greeting_morning: "Buenos días",
@@ -4115,6 +4119,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "Política de privacidad",
     "legal.termsOfService": "Términos y Condiciones de Uso",
     "legal.appVersion": "Versión:",
+    legalHostingNonCustodial: "Aplicación ejecutada localmente en el dispositivo del usuario (Non-custodial)",
+    "legal.hostingNonCustodial": "Aplicación ejecutada localmente en el dispositivo del usuario (Non-custodial)",
   },
   pt: {
     greeting_morning: "Bom dia",
@@ -5415,6 +5421,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "Política de privacidade",
     "legal.termsOfService": "Termos Gerais de Uso",
     "legal.appVersion": "Versão:",
+    legalHostingNonCustodial: "Aplicação executada localmente no dispositivo do utilizador (Non-custodial)",
+    "legal.hostingNonCustodial": "Aplicação executada localmente no dispositivo do utilizador (Non-custodial)",
   },
   de: {
     greeting_morning: "Guten Morgen",
@@ -6732,6 +6740,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "Datenschutzrichtlinie",
     "legal.termsOfService": "Allgemeine Geschäftsbedingungen",
     "legal.appVersion": "Version:",
+    legalHostingNonCustodial: "Anwendung wird lokal auf dem Gerät des Benutzers ausgeführt (Non-custodial)",
+    "legal.hostingNonCustodial": "Anwendung wird lokal auf dem Gerät des Benutzers ausgeführt (Non-custodial)",
   },
   it: {
     greeting_morning: "Buongiorno",
@@ -7991,6 +8001,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "Informativa sulla privacy",
     "legal.termsOfService": "Condizioni Generali di Contratto",
     "legal.appVersion": "Versione:",
+    legalHostingNonCustodial: "Applicazione eseguita localmente sul dispositivo dell'utente (Non-custodial)",
+    "legal.hostingNonCustodial": "Applicazione eseguita localmente sul dispositivo dell'utente (Non-custodial)",
   },
   nl: {
     greeting_morning: "Goedemorgen",
@@ -9319,6 +9331,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "Privacybeleid",
     "legal.termsOfService": "Algemene Voorwaarden",
     "legal.appVersion": "Versie:",
+    legalHostingNonCustodial: "Applicatie lokaal uitgevoerd op het apparaat van de gebruiker (Non-custodial)",
+    "legal.hostingNonCustodial": "Applicatie lokaal uitgevoerd op het apparaat van de gebruiker (Non-custodial)",
   },
   pl: {
     greeting_morning: "Dzień dobry",
@@ -10640,6 +10654,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "Polityka prywatności",
     "legal.termsOfService": "Regulamin Świadczenia Usług",
     "legal.appVersion": "Wersja:",
+    legalHostingNonCustodial: "Aplikacja wykonywana lokalnie na urządzeniu użytkownika (Non-custodial)",
+    "legal.hostingNonCustodial": "Aplikacja wykonywana lokalnie na urządzeniu użytkownika (Non-custodial)",
   },
   tr: {
     greeting_morning: "Günaydın",
@@ -11955,6 +11971,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "Gizlilik Politikası",
     "legal.termsOfService": "Kullanım Koşulları",
     "legal.appVersion": "Sürüm:",
+    legalHostingNonCustodial: "Uygulama kullanıcının cihazında yerel olarak çalıştırılır (Non-custodial)",
+    "legal.hostingNonCustodial": "Uygulama kullanıcının cihazında yerel olarak çalıştırılır (Non-custodial)",
   },
   ru: {
     greeting_morning: "Доброе утро",
@@ -13311,6 +13329,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "Политика конфиденциальности",
     "legal.termsOfService": "Условия использования",
     "legal.appVersion": "Версия:",
+    legalHostingNonCustodial: "Приложение выполняется локально на устройстве пользователя (Non-custodial)",
+    "legal.hostingNonCustodial": "Приложение выполняется локально на устройстве пользователя (Non-custodial)",
   },
   ar: {
     greeting_morning: "صباح الخير",
@@ -14612,6 +14632,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "سياسة الخصوصية",
     "legal.termsOfService": "شروط الاستخدام العامة",
     "legal.appVersion": "الإصدار:",
+    legalHostingNonCustodial: "يتم تشغيل التطبيق محلياً على جهاز المستخدم (Non-custodial)",
+    "legal.hostingNonCustodial": "يتم تشغيل التطبيق محلياً على جهاز المستخدم (Non-custodial)",
   },
   hi: {
     greeting_morning: "सुप्रभात",
@@ -15950,6 +15972,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "गोपनीयता नीति",
     "legal.termsOfService": "सेवा की शर्तें",
     "legal.appVersion": "संस्करण:",
+    legalHostingNonCustodial: "एप्लिकेशन उपयोगकर्ता के डिवाइस पर स्थानीय रूप से निष्पादित होता है (Non-custodial)",
+    "legal.hostingNonCustodial": "एप्लिकेशन उपयोगकर्ता के डिवाइस पर स्थानीय रूप से निष्पादित होता है (Non-custodial)",
   },
   zh: {
     greeting_morning: "早上好",
@@ -17212,6 +17236,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "隐私政策",
     "legal.termsOfService": "用户服务协议",
     "legal.appVersion": "版本：",
+    legalHostingNonCustodial: "应用程序在用户设备上本地运行（Non-custodial）",
+    "legal.hostingNonCustodial": "应用程序在用户设备上本地运行（Non-custodial）",
   },
   ja: {
     greeting_morning: "おはようございます",
@@ -18540,6 +18566,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "プライバシーポリシー",
     "legal.termsOfService": "利用規約",
     "legal.appVersion": "バージョン:",
+    legalHostingNonCustodial: "アプリはユーザーの端末上でローカルに実行されます（Non-custodial）",
+    "legal.hostingNonCustodial": "アプリはユーザーの端末上でローカルに実行されます（Non-custodial）",
   },
   ko: {
     greeting_morning: "좋은 아침",
@@ -19841,6 +19869,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.privacyPolicy": "개인정보 처리방침",
     "legal.termsOfService": "서비스 이용약관",
     "legal.appVersion": "버전:",
+    legalHostingNonCustodial: "애플리케이션은 사용자의 기기에서 로컬로 실행됩니다 (Non-custodial)",
+    "legal.hostingNonCustodial": "애플리케이션은 사용자의 기기에서 로컬로 실행됩니다 (Non-custodial)",
   },
 };
 /* eslint-enable @typescript-eslint/naming-convention */

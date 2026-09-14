@@ -88,6 +88,9 @@
     "hosting": "Hosting",
     "privacyPolicy": "Informativa sulla privacy",
     "termsOfService": "Condizioni Generali di Contratto",
-    "appVersion": "Versione:"
-  }
+    "appVersion": "Versione:",
+    "hostingNonCustodial": "Applicazione eseguita localmente sul dispositivo dell'utente (Non-custodial)"
+  },
+  "legalHostingNonCustodial": "Applicazione eseguita localmente sul dispositivo dell'utente (Non-custodial)",
+  "legal.hostingNonCustodial": "Applicazione eseguita localmente sul dispositivo dell'utente (Non-custodial)"
 }

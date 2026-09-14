@@ -88,6 +88,9 @@
     "hosting": "호스팅 제공업체",
     "privacyPolicy": "개인정보 처리방침",
     "termsOfService": "서비스 이용약관",
-    "appVersion": "버전:"
-  }
+    "appVersion": "버전:",
+    "hostingNonCustodial": "애플리케이션은 사용자의 기기에서 로컬로 실행됩니다 (Non-custodial)"
+  },
+  "legalHostingNonCustodial": "애플리케이션은 사용자의 기기에서 로컬로 실행됩니다 (Non-custodial)",
+  "legal.hostingNonCustodial": "애플리케이션은 사용자의 기기에서 로컬로 실행됩니다 (Non-custodial)"
 }
