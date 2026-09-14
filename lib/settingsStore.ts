@@ -74,6 +74,8 @@ interface SettingsState {
   setSoundEnabled: (on: boolean) => void;
   setHapticsEnabled: (on: boolean) => void;
   markEncryptedBackup: (kind?: 'file' | 'drive') => void;
+  /** Date constatée sur Drive (vérification en ligne) : écrase la mémoire locale. */
+  setDriveBackupAt: (iso: string) => void;
   setBackupVerified: (on: boolean) => void;
 }
 
@@ -164,6 +166,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setHapticsEnabled: (on) => {
     set({ hapticsEnabled: on });
     persist({ ...get(), hapticsEnabled: on });
+  },
+  setDriveBackupAt: (iso) => {
+    const patch = { driveBackupAt: iso, encryptedBackupAt: get().encryptedBackupAt ?? iso };
+    set(patch);
+    persist({ ...get(), ...patch });
   },
   markEncryptedBackup: (kind = 'file') => {
     const now = new Date().toISOString();

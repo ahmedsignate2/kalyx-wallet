@@ -57,7 +57,6 @@ export function DeepLinks() {
         const f = useDriveFlow.getState();
         const lang = useSettingsStore.getState().language;
         if (f.kind === 'save' && f.status === 'done') {
-          useSettingsStore.getState().markEncryptedBackup('drive');
           toast.success(translate(lang, 'driveSaved'));
           // Si l'app a été relancée par le retour de Google, l'écran de sauvegarde n'est plus là : on y retourne.
           if (coldStart) {

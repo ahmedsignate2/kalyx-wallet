@@ -29,6 +29,7 @@ import {
   tokenRequestBody,
 } from '../src/domain/backup/oauthPkce';
 import { downloadBackup, findBackup, uploadBackup } from '../src/domain/backup/drive';
+import { useSettings } from './settingsStore';
 
 export const GOOGLE_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '').trim();
 
@@ -184,6 +185,9 @@ export const useDriveFlow = create<DriveFlowState>((set, get) => ({
           const existing = await findBackup(token);
           await uploadBackup(token, intent.blob, existing?.id ?? null);
         });
+        // Source de vérité locale (centre de sécurité, Copilot, écran de sauvegarde) : posée ICI,
+        // dès que Drive a accepté le fichier — pas dans un écran qui peut ne plus exister.
+        useSettings.getState().markEncryptedBackup('drive');
         set({ status: 'done' });
       } else if (intent.kind === 'restore') {
         const result = await withToken(parsed.code, pending.verifier, async (token) => {
@@ -197,6 +201,7 @@ export const useDriveFlow = create<DriveFlowState>((set, get) => ({
         set({ status: 'done', restoreResult: result });
       } else {
         const info = await withToken(parsed.code, pending.verifier, (token) => findBackup(token));
+        if (info?.modifiedTime) useSettings.getState().setDriveBackupAt(info.modifiedTime);
         set({ status: 'done', checkResult: info?.modifiedTime ?? null });
       }
     } catch (e) {
