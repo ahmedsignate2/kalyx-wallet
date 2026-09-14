@@ -5,13 +5,13 @@
  */
 
 export const LEGAL_CONSTANTS = {
-  COMPANY_NAME: 'Ahamed Signate (KALYX)',
+  COMPANY_NAME: 'KALYX (Entreprise individuelle de Ahamed Signate)',
   LEGAL_STATUS: 'Entrepreneur individuel',
   SIRET: process.env.EXPO_PUBLIC_SIRET || 'EN_ATTENTE_INSEE',
-  CONTACT_EMAIL: process.env.EXPO_PUBLIC_CONTACT_EMAIL || 'support@kalyx.app',
+  CONTACT_EMAIL: process.env.EXPO_PUBLIC_CONTACT_EMAIL || 'support@kalyxwallet.com',
   HOSTING_PROVIDER: process.env.EXPO_PUBLIC_HOSTING_PROVIDER || '',
-  PRIVACY_POLICY_URL: process.env.EXPO_PUBLIC_PRIVACY_URL || 'https://kalyx.app/privacy',
-  TERMS_OF_SERVICE_URL: process.env.EXPO_PUBLIC_TERMS_URL || 'https://kalyx.app/terms',
+  PRIVACY_POLICY_URL: process.env.EXPO_PUBLIC_PRIVACY_URL || 'https://kalyxwallet.com/privacy',
+  TERMS_OF_SERVICE_URL: process.env.EXPO_PUBLIC_TERMS_URL || 'https://kalyxwallet.com/terms',
   TELEGRAM_URL: 'https://t.me/kalyxntw',
   X_URL: 'https://x.com/kalyxntw',
 } as const;

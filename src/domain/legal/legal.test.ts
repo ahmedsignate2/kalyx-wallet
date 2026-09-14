@@ -30,13 +30,13 @@ import { translate, type Lang, type Key } from '../../../lib/i18n';
 
 describe('Legal & Compliance Constants', () => {
   test('defines official KALYX legal publisher details', () => {
-    expect(LEGAL_CONSTANTS.COMPANY_NAME).toBe('Ahamed Signate (KALYX)');
+    expect(LEGAL_CONSTANTS.COMPANY_NAME).toBe('KALYX (Entreprise individuelle de Ahamed Signate)');
     expect(LEGAL_CONSTANTS.LEGAL_STATUS).toBe('Entrepreneur individuel');
-    expect(LEGAL_CONSTANTS.CONTACT_EMAIL).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+    expect(LEGAL_CONSTANTS.CONTACT_EMAIL).toBe('support@kalyxwallet.com');
     expect(LEGAL_CONSTANTS.HOSTING_PROVIDER).toBeDefined();
     expect(typeof LEGAL_CONSTANTS.HOSTING_PROVIDER).toBe('string');
-    expect(LEGAL_CONSTANTS.PRIVACY_POLICY_URL).toMatch(/^https:\/\//);
-    expect(LEGAL_CONSTANTS.TERMS_OF_SERVICE_URL).toMatch(/^https:\/\//);
+    expect(LEGAL_CONSTANTS.PRIVACY_POLICY_URL).toBe('https://kalyxwallet.com/privacy');
+    expect(LEGAL_CONSTANTS.TERMS_OF_SERVICE_URL).toBe('https://kalyxwallet.com/terms');
     expect(LEGAL_CONSTANTS.TELEGRAM_URL).toBe('https://t.me/kalyxntw');
     expect(LEGAL_CONSTANTS.X_URL).toBe('https://x.com/kalyxntw');
   });
