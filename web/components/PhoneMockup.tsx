@@ -5,7 +5,7 @@ import { ArrowUpRight, ArrowDownLeft, RefreshCw, ShoppingCart, ShieldCheck, Zap,
 
 export function PhoneMockup() {
   return (
-    <div className="relative mx-auto w-[330px] max-w-full select-none perspective-[1200px] sm:w-[390px] lg:w-[440px]">
+    <div className="relative mx-auto w-[290px] max-w-full select-none perspective-[1200px] sm:w-[390px] lg:w-[440px]">
       {/* Background Ambient Glow */}
       <div className="absolute -inset-4 bg-gradient-to-tr from-primary/30 via-cyan/20 to-emerald/20 rounded-[50px] blur-3xl opacity-75 animate-pulse-slow -z-10" />
 
