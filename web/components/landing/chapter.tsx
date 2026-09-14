@@ -47,7 +47,7 @@ export function ChapterHead({
       </p>
       <Reveal
         as="h2"
-        className={`font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl lg:text-6xl ${onPaper ? 'text-ink' : 'text-paper'}`}
+        className={`font-display text-[2.1rem] font-light leading-[1.08] tracking-[-0.02em] sm:text-5xl lg:text-6xl ${onPaper ? 'text-ink' : 'text-paper'}`}
       >
         {title}
       </Reveal>
@@ -55,7 +55,7 @@ export function ChapterHead({
         <Reveal
           as="p"
           delay={0.15}
-          className={`mt-6 max-w-xl text-lg font-light leading-relaxed ${center ? 'mx-auto' : ''} ${onPaper ? 'text-ink/70' : 'text-mist'}`}
+          className={`mt-5 max-w-xl text-base font-light leading-relaxed sm:mt-6 sm:text-lg ${center ? 'mx-auto' : ''} ${onPaper ? 'text-ink/70' : 'text-mist'}`}
         >
           {lead}
         </Reveal>
@@ -95,7 +95,7 @@ export function ChapterRail({ t }: { t: Dict }) {
       />
       <nav
         aria-label={t.nav.chapters}
-        className="fixed left-6 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-3 xl:flex"
+        className="fixed left-6 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-3 2xl:flex rtl:left-auto rtl:right-6"
       >
         {CHAPTERS.map((c) => {
           const isActive = c.id === active;
