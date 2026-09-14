@@ -88,6 +88,9 @@
     "hosting": "होस्टिंग",
     "privacyPolicy": "गोपनीयता नीति",
     "termsOfService": "सेवा की शर्तें",
-    "appVersion": "संस्करण:"
-  }
+    "appVersion": "संस्करण:",
+    "hostingNonCustodial": "एप्लिकेशन उपयोगकर्ता के डिवाइस पर स्थानीय रूप से निष्पादित होता है (Non-custodial)"
+  },
+  "legalHostingNonCustodial": "एप्लिकेशन उपयोगकर्ता के डिवाइस पर स्थानीय रूप से निष्पादित होता है (Non-custodial)",
+  "legal.hostingNonCustodial": "एप्लिकेशन उपयोगकर्ता के डिवाइस पर स्थानीय रूप से निष्पादित होता है (Non-custodial)"
 }

@@ -88,6 +88,9 @@
     "hosting": "托管服务商",
     "privacyPolicy": "隐私政策",
     "termsOfService": "用户服务协议",
-    "appVersion": "版本："
-  }
+    "appVersion": "版本：",
+    "hostingNonCustodial": "应用程序在用户设备上本地运行（Non-custodial）"
+  },
+  "legalHostingNonCustodial": "应用程序在用户设备上本地运行（Non-custodial）",
+  "legal.hostingNonCustodial": "应用程序在用户设备上本地运行（Non-custodial）"
 }
