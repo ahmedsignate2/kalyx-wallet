@@ -9,6 +9,9 @@
  */
 import { useEffect } from 'react';
 import * as Linking from 'expo-linking';
+import { toast } from '../lib/toast';
+import { useSettings } from '../lib/settingsStore';
+import { translate } from '../lib/i18n';
 import { router } from 'expo-router';
 import { useWalletConnect } from '../lib/walletconnect';
 
@@ -47,7 +50,7 @@ export function DeepLinks() {
       if (!url) return;
       const wc = extractWcUri(url);
       if (wc) {
-        useWalletConnect.getState().pair(wc).catch(() => {});
+        useWalletConnect.getState().pair(wc).catch((e) => toast.error(translate(useSettings.getState().language, 'connectionFailed'), e instanceof Error ? e.message : undefined));
         router.push('/walletconnect');
         return;
       }
