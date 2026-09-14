@@ -3,70 +3,66 @@
 @tailwind utilities;
 
 :root {
-  --background: #06070D;
-  --foreground: #F8FAFC;
+  --color-ink: #080a09;
+  --color-ink-2: #101413;
+  --color-ink-3: #171c19;
+  --color-paper: #f3efe6;
+  --color-sage: #8fad9a;
+  --color-mist: #9aa097;
+  --color-bone: #e8e2d4;
+  color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Inter, 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-  overflow-x: hidden;
+html {
+  scroll-behavior: smooth;
 }
 
-/* Custom Scrollbar */
+body {
+  color: var(--color-paper);
+  background: var(--color-ink);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-sage);
+  color: var(--color-ink);
+}
+
+/* Titres Fraunces : axe optique large pour les grands corps. */
+.font-display {
+  font-variation-settings: 'opsz' 144;
+}
+
+/* Barre de défilement dans l'encre. */
 ::-webkit-scrollbar {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #06070D;
+  background: var(--color-ink);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1E293B;
+  background: var(--color-ink-3);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: var(--color-mist);
 }
 
-/* Glass effect utilities */
-.glass-panel {
-  background: rgba(14, 16, 25, 0.82);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.18);
-}
-
-.glass-panel-hover:hover {
-  background: rgba(26, 32, 48, 0.8);
-  border-color: rgba(124, 58, 237, 0.3);
-  box-shadow: 0 12px 30px -10px rgba(124, 58, 237, 0.2);
-}
-
-.glow-text {
-  text-shadow: 0 0 24px rgba(124, 58, 237, 0.35);
-}
-
-.store-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7rem;
-  min-width: 168px;
-  padding: 0.7rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 0.85rem;
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
-}
-
-.store-badge:hover {
-  transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.32);
-  background: rgba(255, 255, 255, 0.1);
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
