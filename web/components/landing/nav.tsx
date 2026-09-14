@@ -66,9 +66,9 @@ export function Nav({ t, lang }: { t: Dict; lang: Locale }) {
           <span className="font-display text-xl tracking-tight">Kalyx</span>
         </Link>
 
-        <nav className="hidden items-center gap-7 lg:flex" aria-label={t.nav.chapters}>
+        <nav className="hidden items-center gap-6 xl:flex" aria-label={t.nav.chapters}>
           {links.map((l) => (
-            <Link key={l.href} href={l.href} className="text-sm text-mist transition-colors hover:text-paper">
+            <Link key={l.href} href={l.href} className="whitespace-nowrap text-sm text-mist transition-colors hover:text-paper">
               {l.label}
             </Link>
           ))}
@@ -76,13 +76,13 @@ export function Nav({ t, lang }: { t: Dict; lang: Locale }) {
           <a
             href="/kalyx-wallet.apk"
             download
-            className="inline-flex h-10 items-center rounded-full bg-paper px-5 text-sm font-medium text-ink transition-colors hover:bg-bone"
+            className="inline-flex h-10 items-center whitespace-nowrap rounded-full bg-paper px-5 text-sm font-medium text-ink transition-colors hover:bg-bone"
           >
             {t.nav.downloadApk}
           </a>
         </nav>
 
-        <div className="flex items-center gap-2 lg:hidden">
+        <div className="flex items-center gap-1 xl:hidden">
           <LanguageSwitcher lang={lang} label={t.nav.language} />
           <button
             onClick={() => setOpen(!open)}
@@ -96,7 +96,7 @@ export function Nav({ t, lang }: { t: Dict; lang: Locale }) {
       </div>
 
       {open && (
-        <div className="border-t border-bone/10 bg-ink px-5 pb-6 pt-2 lg:hidden">
+        <div className="border-t border-bone/10 bg-ink px-5 pb-6 pt-2 xl:hidden">
           {links.map((l) => (
             <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="block py-3 text-base text-mist">
               {l.label}
