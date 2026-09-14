@@ -43,8 +43,8 @@ export function Hero({ t }: { t: Dict }) {
   return (
     <section id="prologue" ref={section} className="relative scroll-mt-16 overflow-hidden px-5 pb-16 pt-20 sm:px-8 sm:pt-28 lg:pb-28 lg:pt-32">
       <div className="mx-auto grid max-w-page items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
-        <div className="lg:text-center">
-          <motion.p {...(reduce ? {} : enter(0))} className="mb-8 flex items-center gap-3 text-xs uppercase tracking-[0.22em] text-sage lg:justify-center">
+        <div className="md:text-center">
+          <motion.p {...(reduce ? {} : enter(0))} className="mb-8 flex items-center gap-3 text-xs uppercase tracking-[0.22em] text-sage md:justify-center">
             <motion.span
               className="h-px w-8 origin-left bg-sage"
               initial={reduce ? false : { scaleX: 0 }}
@@ -82,11 +82,11 @@ export function Hero({ t }: { t: Dict }) {
             </span>
           </h1>
 
-          <motion.p {...(reduce ? {} : enter(4))} className="mt-6 max-w-md text-base font-light leading-relaxed text-mist sm:text-lg lg:mx-auto">
+          <motion.p {...(reduce ? {} : enter(4))} className="mt-6 max-w-md text-base font-light leading-relaxed text-mist sm:text-lg md:mx-auto">
             {t.hero.sub}
           </motion.p>
 
-          <motion.div {...(reduce ? {} : enter(5))} className="mt-9 flex flex-col gap-3 sm:flex-row lg:justify-center">
+          <motion.div {...(reduce ? {} : enter(5))} className="mt-9 flex flex-col gap-3 sm:flex-row md:justify-center">
             <a
               href="/kalyx-wallet.apk"
               download
@@ -104,7 +104,7 @@ export function Hero({ t }: { t: Dict }) {
             </a>
           </motion.div>
 
-          <ul className="mt-9 flex flex-wrap gap-2 lg:justify-center" aria-label={t.hero.keyPoints}>
+          <ul className="mt-9 flex flex-wrap gap-2 md:justify-center" aria-label={t.hero.keyPoints}>
             {t.hero.chips.map((c, i) => (
               <motion.li
                 key={c}
