@@ -57,25 +57,72 @@ function isTransientRpcError(e: unknown): boolean {
 export async function tryInOrder<I, T>(
   items: I[],
   op: (item: I) => Promise<T>,
-  opts: { timeoutMs: number },
+  opts: { timeoutMs: number; /** Clé de mémoire de santé (ex. l'id de chaîne) : les RPC en panne passent en dernier. */ key?: string },
 ): Promise<T> {
-  for (const item of items) {
+  const order = opts.key ? orderByHealth(opts.key, items.length) : items.map((_, i) => i);
+  for (const i of order) {
+    const item = items[i];
     try {
-      return await withTimeout(
+      const res = await withTimeout(
         op(item),
         opts.timeoutMs,
         () => new Error('timeout'),
       );
+      if (opts.key) markHealthy(opts.key, i);
+      return res;
     } catch (e) {
       // Erreur déterministe : inutile d'essayer un autre RPC, on remonte le vrai motif.
       if (!isTransientRpcError(e)) throw e;
-      // Sinon (transitoire) : on tente le RPC suivant.
+      // Sinon (transitoire) : on retient la panne et on tente le RPC suivant.
+      if (opts.key) markFailed(opts.key, i);
     }
   }
   throw new WalletError(
     'RPC_UNAVAILABLE',
     'Réseau indisponible : aucun serveur n\'a répondu. Réessaie.',
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* Mémoire de santé des RPC                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Un RPC qui vient d'échouer n'est pas réessayé en premier pendant COOLDOWN :
+ * sans ça, chaque appel attendait le timeout complet du RPC en panne avant de
+ * basculer (8 s de latence à chaque solde). Le dernier RPC qui a répondu passe
+ * en tête. Mémoire en RAM, par clé (id de chaîne).
+ */
+const RPC_COOLDOWN_MS = 60_000;
+const failedAt = new Map<string, number>();
+const lastGood = new Map<string, number>();
+
+function orderByHealth(key: string, count: number): number[] {
+  const now = Date.now();
+  const idx = Array.from({ length: count }, (_, i) => i);
+  const good = lastGood.get(key);
+  const penalty = (i: number) => {
+    const t = failedAt.get(`${key}:${i}`);
+    return t !== undefined && now - t < RPC_COOLDOWN_MS ? 1 : 0;
+  };
+  // Tri stable : d'abord les sains (dernier bon en tête), puis ceux en pénalité.
+  return idx.sort((a, b) => penalty(a) - penalty(b) || (a === good ? -1 : b === good ? 1 : a - b));
+}
+
+function markFailed(key: string, i: number): void {
+  failedAt.set(`${key}:${i}`, Date.now());
+  if (lastGood.get(key) === i) lastGood.delete(key);
+}
+
+function markHealthy(key: string, i: number): void {
+  failedAt.delete(`${key}:${i}`);
+  lastGood.set(key, i);
+}
+
+/** Tests : oublier la mémoire de santé. */
+export function resetRpcHealth(): void {
+  failedAt.clear();
+  lastGood.clear();
 }
 
 /**

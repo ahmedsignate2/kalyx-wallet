@@ -72,7 +72,7 @@ export class EvmChainAdapter implements ChainAdapter {
   private async call<T>(op: (provider: JsonRpcProvider) => Promise<T>, methodName = 'eth_rpc'): Promise<T> {
     const started = Date.now();
     try {
-      const res = await tryInOrder(this.getProviders(), op, { timeoutMs: RPC_TIMEOUT_MS });
+      const res = await tryInOrder(this.getProviders(), op, { timeoutMs: RPC_TIMEOUT_MS, key: `evm:${this.config.id}` });
       technicalLogger.logRpc(methodName, 200, undefined, { chain: this.config.name, elapsedMs: Date.now() - started });
       return res;
     } catch (err) {
