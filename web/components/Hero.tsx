@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowRight, Download, Shield, Sparkles, Smartphone } from 'lucide-react';
+import { Apple, ArrowRight, Download, Shield, Sparkles, Smartphone } from 'lucide-react';
 import { PhoneMockup } from './PhoneMockup';
 
 export function Hero() {
@@ -56,9 +56,13 @@ export function Hero() {
                 <Smartphone className="w-6 h-6 text-cyan" />
                 <span><small className="block text-[9px] uppercase tracking-wide text-slate-400">Télécharger</small><strong className="text-sm">l&apos;APK Android</strong></span>
               </a>
-              <a href="https://t.me/kalyxntw" target="_blank" rel="noopener noreferrer" className="store-badge">
+              <a href="#download" className="store-badge">
                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-black text-xs font-black">▶</span>
-                <span><small className="block text-[9px] uppercase tracking-wide text-slate-400">Rejoindre</small><strong className="text-sm">la bêta Kalyx</strong></span>
+                <span><small className="block text-[9px] uppercase tracking-wide text-slate-400">Bientôt sur</small><strong className="text-sm">Google Play</strong></span>
+              </a>
+              <a href="#download" className="store-badge">
+                <Apple className="w-6 h-6 text-white" />
+                <span><small className="block text-[9px] uppercase tracking-wide text-slate-400">Bientôt sur</small><strong className="text-sm">App Store</strong></span>
               </a>
             </div>
 
