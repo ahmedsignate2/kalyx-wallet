@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.kalyx.wallet",
+      "sha256_cert_fingerprints": [
+        "DD:CE:CC:7F:5B:1A:08:C3:4C:32:07:2B:39:04:2C:27:8F:2F:70:1F:2E:52:DE:F2:87:4D:9E:8D:C2:A8:8A:F0"
+      ]
+    }
+  }
+]
