@@ -5,12 +5,12 @@ import { ArrowUpRight, ArrowDownLeft, RefreshCw, ShoppingCart, ShieldCheck, Zap,
 
 export function PhoneMockup() {
   return (
-    <div className="relative mx-auto max-w-[340px] sm:max-w-[380px] select-none perspective-[1200px]">
+    <div className="relative mx-auto w-[330px] max-w-full select-none perspective-[1200px] sm:w-[390px] lg:w-[440px]">
       {/* Background Ambient Glow */}
       <div className="absolute -inset-4 bg-gradient-to-tr from-primary/30 via-cyan/20 to-emerald/20 rounded-[50px] blur-3xl opacity-75 animate-pulse-slow -z-10" />
 
       {/* Floating Badges */}
-      <div className="absolute -top-6 -left-6 z-20 hidden sm:flex items-center gap-2.5 px-4 py-2.5 rounded-2xl glass-panel shadow-2xl border-border animate-float-slow">
+      <div className="absolute -left-16 top-10 z-20 hidden items-center gap-2.5 rounded-2xl glass-panel px-4 py-2.5 shadow-2xl sm:flex animate-float-slow">
         <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
           <ShieldCheck className="w-5 h-5" />
         </div>
@@ -20,7 +20,7 @@ export function PhoneMockup() {
         </div>
       </div>
 
-      <div className="absolute -bottom-6 -right-6 z-20 hidden sm:flex items-center gap-2.5 px-4 py-2.5 rounded-2xl glass-panel shadow-2xl border-border animate-float-slow [animation-delay:2s]">
+      <div className="absolute -right-14 bottom-14 z-20 hidden items-center gap-2.5 rounded-2xl glass-panel px-4 py-2.5 shadow-2xl sm:flex animate-float-slow [animation-delay:2s]">
         <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
           <Zap className="w-5 h-5" />
         </div>
