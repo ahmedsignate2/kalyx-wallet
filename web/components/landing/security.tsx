@@ -1,4 +1,5 @@
 import React from 'react';
+import { Item, Reveal, Rule, Stagger } from './motion';
 
 /**
  * Acte III, sur papier : le contraste éditorial de la page.
@@ -47,29 +48,30 @@ export function Security() {
         <div className="grid gap-8 border-b border-ink/15 pb-12 lg:grid-cols-[1fr_1.2fr] lg:items-end">
           <div>
             <p className="mb-5 flex items-center gap-3 text-xs uppercase tracking-[0.22em] text-ink/60">
-              <span className="h-px w-8 bg-ink/40" />
+              <Rule className="w-8 bg-ink/40" />
               Acte III · Sécurité
             </p>
-            <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl lg:text-6xl">
+            <Reveal as="h2" className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl lg:text-6xl">
               Ce que l’application <em className="italic">fait vraiment.</em>
-            </h2>
+            </Reveal>
           </div>
-          <p className="max-w-md text-base font-light leading-relaxed text-ink/70 lg:justify-self-end">
+          <Reveal as="p" delay={0.15} className="max-w-md text-base font-light leading-relaxed text-ink/70 lg:justify-self-end">
             Dans la finance décentralisée, une erreur ne pardonne pas. Chaque point ci-dessous correspond à du code livré dans l’app — rien de prévu, rien d’enjolivé.
-          </p>
+          </Reveal>
         </div>
 
-        <ol className="grid gap-x-12 lg:grid-cols-2">
+        <Stagger as="ol" className="grid gap-x-12 lg:grid-cols-2" gap={0.1}>
           {points.map((p, i) => (
-            <li key={p.title} className="grid grid-cols-[3rem_1fr] gap-4 border-b border-ink/10 py-8">
+            <Item key={p.title} as="li" className="relative grid grid-cols-[3rem_1fr] gap-4 py-8">
+              <Rule className="absolute inset-x-0 bottom-0 bg-ink/10" delay={0.2} />
               <span className="font-display text-2xl text-ink/40">{String(i + 1).padStart(2, '0')}</span>
               <div>
                 <h3 className="font-display text-2xl leading-tight">{p.title}</h3>
                 <p className="mt-3 text-[15px] font-light leading-relaxed text-ink/75">{p.text}</p>
               </div>
-            </li>
+            </Item>
           ))}
-        </ol>
+        </Stagger>
       </div>
     </section>
   );

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowDownUp, Fingerprint, KeyRound, Layers, ShieldCheck, Unlock } from 'lucide-react';
+import { Item, Reveal, Rule, Stagger } from './motion';
 
 /*
  * Six promesses, chacune adossée au code de l'app (vérifié le 2026-09-14) :
@@ -48,30 +49,32 @@ export function Features() {
         <div className="mb-12 grid gap-6 lg:grid-cols-[1fr_1.2fr] lg:items-end">
           <div>
             <p className="mb-5 flex items-center gap-3 text-xs uppercase tracking-[0.22em] text-sage">
-              <span className="h-px w-8 bg-sage" />
+              <Rule className="w-8 bg-sage" />
               Acte II · Fonctionnalités
             </p>
-            <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] text-paper sm:text-5xl">
+            <Reveal as="h2" className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] text-paper sm:text-5xl">
               Un wallet complet, <em className="italic text-sage">sans intermédiaire.</em>
-            </h2>
+            </Reveal>
           </div>
-          <p className="max-w-md text-base font-light leading-relaxed text-mist lg:justify-self-end">
+          <Reveal as="p" delay={0.15} className="max-w-md text-base font-light leading-relaxed text-mist lg:justify-self-end">
             Tout ce qu’il faut pour détenir, envoyer et échanger, et rien qui vous demande de faire confiance à quelqu’un d’autre que vous.
-          </p>
+          </Reveal>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" gap={0.07}>
           {features.map(({ icon: Icon, title, text }) => (
-            <article
+            <Item
               key={title}
+              as="article"
+              lift
               className="group rounded-2xl border border-bone/10 bg-ink-3 p-6 transition-colors duration-300 hover:border-sage/40"
             >
-              <Icon className="h-6 w-6 text-sage" strokeWidth={1.5} />
+              <Icon className="h-6 w-6 text-sage transition-transform duration-300 ease-editorial group-hover:-translate-y-0.5" strokeWidth={1.5} />
               <h3 className="mt-7 text-lg font-medium text-paper">{title}</h3>
               <p className="mt-2 text-sm font-light leading-relaxed text-mist">{text}</p>
-            </article>
+            </Item>
           ))}
-        </div>
+        </Stagger>
       </div>
     </section>
   );
