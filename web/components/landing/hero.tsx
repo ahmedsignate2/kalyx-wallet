@@ -1,19 +1,36 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
+import { motion, useReducedMotion, useScroll, useSpring, useTransform } from 'framer-motion';
 import { ArrowDown, Download } from 'lucide-react';
 import { PhoneMock } from './phone-mock';
+import { EASE } from './motion';
 
 /* Chaque chip correspond à une fonctionnalité réellement implémentée (cf. security.tsx). */
 const chips = ['Non-custodial', 'AES-256-GCM', 'Zéro télémétrie', 'Multi-chaînes'];
 
-const MAX_TILT = 14; // degrés
+const MAX_TILT = 14; // degrés, bascule au pointeur
+
+/** Entrée en scène : chaque bloc du texte arrive 120 ms après le précédent. */
+const enter = (i: number) => ({
+  initial: { opacity: 0, y: 28 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 1, ease: EASE, delay: 0.15 + i * 0.12 },
+});
 
 export function Hero() {
+  const reduce = useReducedMotion();
+  const section = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
+  // Au défilement, le téléphone se redresse et s'élève : l'action du visiteur le fait bouger.
+  const { scrollYProgress } = useScroll({ target: section, offset: ['start start', 'end start'] });
+  const scrollRotate = useSpring(useTransform(scrollYProgress, [0, 1], [-6, 4]), { stiffness: 120, damping: 26 });
+  const scrollY = useSpring(useTransform(scrollYProgress, [0, 1], [0, -60]), { stiffness: 120, damping: 26 });
+
   function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (reduce) return;
     const r = stage.current?.getBoundingClientRect();
     if (!r) return;
     const px = (e.clientX - r.left) / r.width - 0.5;
@@ -22,66 +39,104 @@ export function Hero() {
   }
 
   return (
-    <section className="relative overflow-hidden px-5 pb-20 pt-32 sm:px-8 sm:pt-40 lg:pb-28">
+    <section ref={section} className="relative overflow-hidden px-5 pb-20 pt-32 sm:px-8 sm:pt-40 lg:pb-28">
       <div className="mx-auto grid max-w-page items-center gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
         <div>
-          <p className="mb-8 flex items-center gap-3 text-xs uppercase tracking-[0.22em] text-sage">
-            <span className="h-px w-8 bg-sage" />
+          <motion.p {...(reduce ? {} : enter(0))} className="mb-8 flex items-center gap-3 text-xs uppercase tracking-[0.22em] text-sage">
+            <motion.span
+              className="h-px w-8 origin-left bg-sage"
+              initial={reduce ? false : { scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 1, ease: EASE, delay: 0.3 }}
+            />
             Acte I · Souveraineté
-          </p>
-          <h1 className="font-display text-[2.75rem] font-light leading-[1.02] tracking-[-0.02em] text-paper sm:text-6xl lg:text-7xl">
-            La souveraineté
-            <br />
-            de vos actifs.
-            <br />
-            <em className="font-normal italic text-sage">Sans compromis.</em>
-          </h1>
-          <p className="mt-7 max-w-md text-lg font-light leading-relaxed text-mist">
-            Gérez Bitcoin, Ethereum et Solana en toute liberté. Vos clés privées ne quittent jamais votre téléphone.
-          </p>
+          </motion.p>
 
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+          <h1 className="font-display text-[2.75rem] font-light leading-[1.02] tracking-[-0.02em] text-paper sm:text-6xl lg:text-7xl">
+            {['La souveraineté', 'de vos actifs.'].map((line, i) => (
+              <span key={line} className="block overflow-hidden">
+                <motion.span
+                  className="block"
+                  initial={reduce ? false : { y: '110%' }}
+                  animate={{ y: 0 }}
+                  transition={{ duration: 1.1, ease: EASE, delay: 0.25 + i * 0.12 }}
+                >
+                  {line}
+                </motion.span>
+              </span>
+            ))}
+            <span className="block overflow-hidden">
+              <motion.em
+                className="block font-normal italic text-sage"
+                initial={reduce ? false : { y: '110%' }}
+                animate={{ y: 0 }}
+                transition={{ duration: 1.1, ease: EASE, delay: 0.49 }}
+              >
+                Sans compromis.
+              </motion.em>
+            </span>
+          </h1>
+
+          <motion.p {...(reduce ? {} : enter(4))} className="mt-7 max-w-md text-lg font-light leading-relaxed text-mist">
+            Gérez Bitcoin, Ethereum et Solana en toute liberté. Vos clés privées ne quittent jamais votre téléphone.
+          </motion.p>
+
+          <motion.div {...(reduce ? {} : enter(5))} className="mt-9 flex flex-col gap-3 sm:flex-row">
             <a
               href="/kalyx-wallet.apk"
               download
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-paper px-6 text-sm font-medium text-ink transition-colors hover:bg-bone"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-paper px-6 text-sm font-medium text-ink transition-[background-color,transform] duration-200 ease-editorial hover:bg-bone active:scale-[0.97]"
             >
               <Download className="h-4 w-4" />
               Télécharger l’APK
             </a>
             <a
               href="#securite"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-bone/20 px-6 text-sm font-medium text-paper transition-colors hover:border-bone/50"
+              className="group inline-flex h-12 items-center justify-center gap-2 rounded-full border border-bone/20 px-6 text-sm font-medium text-paper transition-colors duration-200 hover:border-bone/50"
             >
               Découvrir la sécurité
-              <ArrowDown className="h-4 w-4" />
+              <ArrowDown className="h-4 w-4 transition-transform duration-300 ease-editorial group-hover:translate-y-0.5" />
             </a>
-          </div>
+          </motion.div>
 
           <ul className="mt-9 flex flex-wrap gap-2" aria-label="Points clés">
-            {chips.map((c) => (
-              <li key={c} className="rounded-full border border-bone/10 bg-ink-2 px-3 py-1.5 text-xs text-bone/80">
+            {chips.map((c, i) => (
+              <motion.li
+                key={c}
+                {...(reduce ? {} : enter(6 + i * 0.5))}
+                className="rounded-full border border-bone/10 bg-ink-2 px-3 py-1.5 text-xs text-bone/80"
+              >
                 {c}
-              </li>
+              </motion.li>
             ))}
           </ul>
         </div>
 
-        {/* Scène 3D : le téléphone bascule vers le pointeur. */}
-        <div
+        {/* Scène 3D : le téléphone arrive, flotte, bascule vers le pointeur et se redresse au défilement. */}
+        <motion.div
           ref={stage}
           onMouseMove={onMouseMove}
           onMouseLeave={() => setTilt({ x: 0, y: 0 })}
           className="relative flex justify-center lg:justify-end"
-          style={{ perspective: '1200px' }}
+          style={{ perspective: '1200px', y: reduce ? 0 : scrollY }}
+          initial={reduce ? false : { opacity: 0, x: 40, rotateY: -18 }}
+          animate={{ opacity: 1, x: 0, rotateY: 0 }}
+          transition={{ duration: 1.4, ease: EASE, delay: 0.4 }}
         >
-          <div
-            className="transition-transform duration-200 ease-editorial motion-reduce:transition-none"
-            style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`, transformStyle: 'preserve-3d' }}
-          >
-            <PhoneMock />
-          </div>
-        </div>
+          <motion.div style={{ rotateZ: reduce ? 0 : scrollRotate, transformStyle: 'preserve-3d' }}>
+            <div
+              className="transition-transform duration-200 ease-editorial motion-reduce:transition-none"
+              style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`, transformStyle: 'preserve-3d' }}
+            >
+              <motion.div
+                animate={reduce ? undefined : { y: [0, -10, 0] }}
+                transition={{ duration: 6, ease: 'easeInOut', repeat: Infinity }}
+              >
+                <PhoneMock />
+              </motion.div>
+            </div>
+          </motion.div>
+        </motion.div>
       </div>
     </section>
   );
