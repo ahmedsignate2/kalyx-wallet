@@ -9,13 +9,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: '#0B2B26',
-        surface: '#123B34',
-        'surface-card': '#17483E',
-        'surface-hover': '#1C5548',
+        background: '#06070D',
+        surface: '#0E1019',
+        'surface-card': '#161926',
+        'surface-hover': '#202333',
         border: 'rgba(255, 255, 255, 0.08)',
         'border-strong': 'rgba(255, 255, 255, 0.16)',
-        primary: { DEFAULT: '#8B5CF6', hover: '#7C3AED', light: '#C4B5FD' },
+        primary: { DEFAULT: '#F4F6FF', hover: '#FFFFFF', light: '#F4F6FF' },
         cyan: {
           DEFAULT: '#06B6D4',
           glow: '#22D3EE',
@@ -27,7 +27,7 @@ const config: Config = {
       },
       backgroundImage: {
         'hero-gradient':
-          'radial-gradient(ellipse 80% 55% at 50% -18%, rgba(139, 92, 246, 0.22), rgba(251, 127, 110, 0.08), transparent 72%)',
+          'radial-gradient(ellipse 72% 48% at 50% -14%, rgba(139, 92, 246, 0.16), rgba(6, 7, 13, 0) 72%)',
         'card-glow':
           'radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.12), transparent 70%)',
         'glass-gradient':
