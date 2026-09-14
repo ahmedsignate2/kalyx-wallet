@@ -1,54 +1,28 @@
 import React from 'react';
 import { Fingerprint, KeyRound, Layers3 } from 'lucide-react';
 
-const features = [
-  {
-    icon: KeyRound,
-    eyebrow: '01',
-    title: 'Vos clés. Votre contrôle.',
-    description: 'Une architecture non-custodial : vos clés privées sont chiffrées et restent sur votre appareil.',
-    className: 'md:col-span-2',
-  },
-  {
-    icon: Layers3,
-    eyebrow: '02',
-    title: 'Tout au même endroit.',
-    description: 'Ethereum, Solana, Bitcoin et vos réseaux favoris dans une expérience fluide.',
-    className: '',
-  },
-  {
-    icon: Fingerprint,
-    eyebrow: '03',
-    title: 'Signez en confiance.',
-    description: 'Les transactions sont analysées avant chaque validation pour vous protéger des drainers.',
-    className: 'md:col-span-3',
-  },
+const cards = [
+  { icon: KeyRound, title: 'Vos clés, vos règles.', text: 'Une souveraineté totale, directement sur votre appareil.', color: 'bg-[#7C3AED]' },
+  { icon: Layers3, title: 'Échangez n’importe quoi.', text: 'Ethereum, Solana et Bitcoin réunis dans un seul wallet.', color: 'bg-[#F59E8B]' },
+  { icon: Fingerprint, title: 'Sécurité maximale.', text: 'Chaque transaction est analysée avant que vous ne signiez.', color: 'bg-[#B8E986]' },
 ];
 
 export function BentoGrid() {
   return (
-    <section id="features" className="relative px-6 py-24 sm:px-8 lg:px-10 lg:py-32">
+    <section id="features" className="overflow-hidden bg-[#0B2B26] px-5 py-20 sm:px-8 lg:py-28">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-12 max-w-xl">
-          <p className="mb-4 text-sm font-semibold text-cyan">Pensé pour durer</p>
-          <h2 className="text-4xl font-bold tracking-[-0.04em] text-white sm:text-5xl">Simple par nature.</h2>
+        <div className="mb-8 flex items-end justify-between px-1">
+          <h2 className="text-3xl font-black uppercase leading-none tracking-[-0.04em] text-white sm:text-5xl">Fait pour vous.</h2>
+          <span className="hidden text-xs font-medium uppercase tracking-widest text-emerald-100/50 sm:block">Glissez pour explorer</span>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {features.map(({ icon: Icon, eyebrow, title, description, className }) => (
-            <article key={eyebrow} className={`${className} group relative min-h-[250px] overflow-hidden rounded-3xl bg-white/[0.03] p-7 ring-1 ring-white/[0.08] transition hover:bg-white/[0.055]`}>
-              <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-primary/10 blur-3xl transition group-hover:bg-primary/20" />
-              <div className="relative flex h-full flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/[0.06] text-slate-200 ring-1 ring-white/[0.08]">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <span className="text-xs text-slate-600">{eyebrow}</span>
-                </div>
-                <div className="mt-12 max-w-xl">
-                  <h3 className="text-2xl font-semibold tracking-tight text-white">{title}</h3>
-                  <p className="mt-3 max-w-md text-sm leading-relaxed text-neutral-400">{description}</p>
-                </div>
+        <div className="flex snap-x gap-4 overflow-x-auto pb-5 md:grid md:grid-cols-3 md:overflow-visible">
+          {cards.map(({ icon: Icon, title, text, color }) => (
+            <article key={title} className={`min-w-[82vw] snap-start rounded-3xl ${color} p-7 text-[#10231F] md:min-w-0`}>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/10">
+                <Icon className="h-6 w-6" />
               </div>
+              <h3 className="mt-20 text-3xl font-black uppercase leading-[0.95] tracking-[-0.04em]">{title}</h3>
+              <p className="mt-4 max-w-xs text-sm font-medium leading-relaxed text-black/65">{text}</p>
             </article>
           ))}
         </div>
