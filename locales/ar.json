@@ -88,6 +88,9 @@
     "hosting": "الاستضافة",
     "privacyPolicy": "سياسة الخصوصية",
     "termsOfService": "شروط الاستخدام العامة",
-    "appVersion": "الإصدار:"
-  }
+    "appVersion": "الإصدار:",
+    "hostingNonCustodial": "يتم تشغيل التطبيق محلياً على جهاز المستخدم (Non-custodial)"
+  },
+  "legalHostingNonCustodial": "يتم تشغيل التطبيق محلياً على جهاز المستخدم (Non-custodial)",
+  "legal.hostingNonCustodial": "يتم تشغيل التطبيق محلياً على جهاز المستخدم (Non-custodial)"
 }
