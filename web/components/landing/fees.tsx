@@ -36,7 +36,7 @@ export function Fees({ t }: { t: Dict }) {
           ))}
         </Stagger>
 
-        <Reveal className="mt-12 grid gap-6 lg:grid-cols-2 lg:text-center">
+        <Reveal className="mt-12 grid gap-6 lg:grid-cols-2 md:text-center">
           <p className="text-base font-light leading-relaxed text-mist">
             {t.fees.p1a} <span className="text-bone">{t.fees.p1em}</span>
             {t.fees.p1b}

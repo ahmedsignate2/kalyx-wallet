@@ -81,11 +81,11 @@ export function HowItWorks({ t }: { t: Dict }) {
                 <div className="relative mx-auto aspect-[9/19.2] w-56 overflow-hidden rounded-[1.8rem] border border-bone/15 shadow-phone lg:hidden">
                   <Image src={s.screen} alt={s.title} fill sizes="224px" className="object-cover object-top" />
                 </div>
-                <div className="lg:text-center">
+                <div className="md:text-center">
                   <p className="font-display text-sm text-sage">{String(i + 1).padStart(2, '0')}</p>
                   <h3 className="mt-2 font-display text-[1.75rem] leading-tight text-paper sm:text-4xl">{s.title}</h3>
-                  <p className="mt-4 max-w-md text-base font-light leading-relaxed text-mist lg:mx-auto">{s.text}</p>
-                  <p className="mt-6 flex items-baseline gap-3 lg:justify-center">
+                  <p className="mt-4 max-w-md text-base font-light leading-relaxed text-mist md:mx-auto">{s.text}</p>
+                  <p className="mt-6 flex items-baseline gap-3 md:justify-center">
                     <span className="font-display text-4xl text-paper">{s.value}</span>
                     <span className="text-sm text-mist">{s.label}</span>
                   </p>
