@@ -3,21 +3,23 @@
 import React, { useEffect, useState } from 'react';
 import { motion, useReducedMotion, useScroll, useSpring } from 'framer-motion';
 import { Reveal, Rule } from './motion';
+import type { Dict } from '../../i18n';
 
 /** Les chapitres du film, dans l'ordre. `id` = ancre de section. */
 export const CHAPTERS = [
-  { id: 'prologue', numeral: '', title: 'Prologue' },
-  { id: 'fonctionnement', numeral: 'I', title: 'Comment ça marche' },
-  { id: 'perdre', numeral: 'II', title: 'Ne jamais la perdre' },
-  { id: 'voler', numeral: 'III', title: 'Ne jamais se faire voler' },
-  { id: 'frais', numeral: 'IV', title: 'Les frais, sans détour' },
-  { id: 'vision', numeral: 'V', title: 'Ce que nous voulons' },
-  { id: 'telecharger', numeral: '', title: 'Épilogue' },
+  { id: 'prologue', numeral: '', key: 'prologue' },
+  { id: 'fonctionnement', numeral: 'I', key: 'how' },
+  { id: 'perdre', numeral: 'II', key: 'lose' },
+  { id: 'voler', numeral: 'III', key: 'stolen' },
+  { id: 'frais', numeral: 'IV', key: 'fees' },
+  { id: 'vision', numeral: 'V', key: 'vision' },
+  { id: 'telecharger', numeral: '', key: 'epilogue' },
 ] as const;
 
 /** En-tête éditorial d'un chapitre : filet, numéro, titre serif, chapeau. */
 export function ChapterHead({
   numeral,
+  chapterWord,
   kicker,
   title,
   lead,
@@ -25,6 +27,7 @@ export function ChapterHead({
   align = 'left',
 }: {
   numeral: string;
+  chapterWord: string;
   kicker: string;
   title: React.ReactNode;
   lead?: string;
@@ -39,7 +42,7 @@ export function ChapterHead({
         className={`mb-6 flex items-center gap-3 text-xs uppercase tracking-[0.22em] ${center ? 'justify-center' : ''} ${onPaper ? 'text-ink/60' : 'text-sage'}`}
       >
         <Rule className={`w-8 ${onPaper ? 'bg-ink/40' : 'bg-sage'}`} />
-        {numeral ? `Chapitre ${numeral} · ${kicker}` : kicker}
+        {numeral ? `${chapterWord} ${numeral} · ${kicker}` : kicker}
         {center && <Rule className={`w-8 ${onPaper ? 'bg-ink/40' : 'bg-sage'}`} />}
       </p>
       <Reveal
@@ -65,7 +68,7 @@ export function ChapterHead({
  * Rail des chapitres (écrans larges) + fil de progression sous la nav.
  * Le chapitre actif est celui dont la section occupe le centre de l'écran.
  */
-export function ChapterRail() {
+export function ChapterRail({ t }: { t: Dict }) {
   const [active, setActive] = useState<string>(CHAPTERS[0].id);
   const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll();
@@ -91,7 +94,7 @@ export function ChapterRail() {
         style={{ scaleX: reduce ? 1 : progress }}
       />
       <nav
-        aria-label="Chapitres"
+        aria-label={t.nav.chapters}
         className="fixed left-6 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-3 xl:flex"
       >
         {CHAPTERS.map((c) => {
@@ -102,6 +105,7 @@ export function ChapterRail() {
               href={`#${c.id}`}
               className="group flex items-center gap-3 text-xs"
               aria-current={isActive ? 'true' : undefined}
+              title={t.chapters[c.key]}
             >
               <span
                 className={`h-px transition-all duration-500 ease-editorial ${isActive ? 'w-8 bg-sage' : 'w-4 bg-mist/40 group-hover:w-6'}`}

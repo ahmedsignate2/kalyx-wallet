@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChapterHead } from './chapter';
 import { Item, Stagger } from './motion';
+import type { Dict } from '../../i18n';
 
 /*
  * Vérifié dans le code :
@@ -14,25 +15,7 @@ import { Item, Stagger } from './motion';
  */
 const WORDS = ['ocean', 'planet', 'silent', 'orbit', 'north', 'garden', 'river', 'pulse', 'velvet', 'cradle', 'mirror', 'fossil'];
 
-const rituals = [
-  {
-    n: '01',
-    title: 'Écrivez-la, à la main.',
-    text: 'Au moment de la sauvegarde, les douze mots restent voilés tant que votre doigt n’est pas posé. La capture d’écran est bloquée, le copier-coller n’existe pas. Un stylo, un papier, un tiroir.',
-  },
-  {
-    n: '02',
-    title: 'Prouvez-la.',
-    text: 'Kalyx vous demande trois mots, au hasard. Tant que vous ne les avez pas retrouvés, un bandeau reste sur l’accueil. Une phrase qu’on n’a jamais relue est une phrase qu’on n’a pas.',
-  },
-  {
-    n: '03',
-    title: 'Doublez-la, chiffrée.',
-    text: 'Exportez un fichier chiffré sur l’appareil, avec un mot de passe de votre choix. Rangez-le où vous voulez — un cloud, un e-mail à vous-même. Sans le mot de passe, ce fichier ne vaut rien.',
-  },
-];
-
-export function NeverLose() {
+export function NeverLose({ t }: { t: Dict }) {
   const reduce = useReducedMotion();
   const [held, setHeld] = useState(false);
 
@@ -42,13 +25,14 @@ export function NeverLose() {
         <ChapterHead
           tone="paper"
           numeral="II"
-          kicker="Ne jamais la perdre"
+          chapterWord={t.chapters.chapter}
+          kicker={t.lose.kicker}
           title={
             <>
-              Il n’y a pas de bouton <em className="italic">« mot de passe oublié ».</em>
+              {t.lose.title} <em className="italic">{t.lose.titleEm}</em>
             </>
           }
-          lead="Personne ne peut vous rendre votre phrase — pas même nous. Alors l’application vous aide à ne pas la perdre, en trois gestes."
+          lead={t.lose.lead}
         />
 
         <div className="mt-20 grid gap-16 lg:grid-cols-[1fr_1fr] lg:gap-24">
@@ -58,7 +42,7 @@ export function NeverLose() {
               role="button"
               tabIndex={0}
               aria-pressed={held}
-              aria-label="Maintenir pour révéler les mots d’exemple"
+              aria-label={t.lose.holdAria}
               onPointerDown={() => setHeld(true)}
               onPointerUp={() => setHeld(false)}
               onPointerLeave={() => setHeld(false)}
@@ -69,8 +53,8 @@ export function NeverLose() {
               style={{ touchAction: 'none' }}
             >
               <p className="mb-6 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-ink/60">
-                Phrase de récupération
-                <span className="font-display normal-case italic tracking-normal">exemple</span>
+                {t.lose.cardLabel}
+                <span className="font-display normal-case italic tracking-normal">{t.lose.cardExample}</span>
               </p>
               <ol className="grid grid-cols-2 gap-x-8 sm:grid-cols-3">
                 {WORDS.map((w, i) => (
@@ -87,15 +71,15 @@ export function NeverLose() {
                 ))}
               </ol>
               <p className="mt-6 text-center text-sm text-ink/60">
-                {held ? 'Relâchez pour voiler.' : 'Maintenez le doigt pour révéler — comme dans l’app.'}
+                {held ? t.lose.release : t.lose.hold}
               </p>
             </div>
           </div>
 
           <Stagger as="ol" className="grid gap-12" gap={0.12}>
-            {rituals.map((r) => (
-              <Item key={r.n} as="li" className="grid grid-cols-[3rem_1fr] gap-4">
-                <span className="font-display text-2xl text-ink/40">{r.n}</span>
+            {t.lose.rituals.map((r, i) => (
+              <Item key={r.title} as="li" className="grid grid-cols-[3rem_1fr] gap-4">
+                <span className="font-display text-2xl text-ink/40">{String(i + 1).padStart(2, '0')}</span>
                 <div>
                   <h3 className="font-display text-3xl leading-tight">{r.title}</h3>
                   <p className="mt-3 text-base font-light leading-relaxed text-ink/75">{r.text}</p>
