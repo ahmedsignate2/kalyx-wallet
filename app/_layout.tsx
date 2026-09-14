@@ -40,7 +40,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 export default function RootLayout() {
   const { mode, colors } = useTheme();
-  // Splash animé (lion + vibration) au lancement.
+  // Splash animé (~1,6 s) au lancement.
   const [showSplash, setShowSplash] = useState(true);
   // Typo du design system (General Sans). On attend le chargement avant de
   // rendre, sinon RN plante sur une fontFamily inconnue.

@@ -2,11 +2,11 @@
  * Écran d'ouverture « particules », façon wallet haut de gamme (l'idée retenue
  * par l'utilisateur : sobre, techno, pas d'agressivité).
  *
- * Séquence (~2,5 s) :
+ * Séquence (~1,6 s — bible §7 : froid < 2 s) :
  *   1. ~48 particules bleu/violet dispersées CONVERGENT vers le centre.
  *   2. Elles se dissolvent tandis que le logo lion se condense (petit pop).
  *   3. Une traînée lumineuse traverse l'écran.
- *   4. « KALYX » apparaît avec un halo lumineux + une vibration très douce.
+ *   4. « KALYX » apparaît avec un halo lumineux (pas de vibration : l'haptique répond à une action, §3).
  *   5. Fondu de sortie → onFinish().
  *
  * 100 % Animated (transform/opacity, useNativeDriver) : un seul driver `progress`
@@ -17,11 +17,11 @@ import { Animated, Dimensions, Easing, StyleSheet, View, Vibration } from 'react
 import { LinearGradient } from 'expo-linear-gradient';
 import { KalyxLogo } from './KalyxLogo';
 import { fonts, useTheme } from './theme';
-import { haptic } from '../lib/haptics';
 
 const { width: W } = Dimensions.get('window');
 const N = 48;
-const PARTICLE_COLORS = ['#7C5CFF', '#4AA8FF', '#9B7BFF', '#5CC6FF'];
+// Couleurs du halo (ui/tokens.ts) : blanc, glacier, frange chaude — pas de violet (§2).
+const PARTICLE_COLORS = ['#FFFFFF', '#CFE3FF', '#FFD9B8', '#E6EEFF'];
 
 interface P {
   x0: number;
@@ -86,27 +86,24 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
   useEffect(() => {
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(progress, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(sweep, { toValue: 1, duration: 1150, delay: 300, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(progress, { toValue: 1, duration: 850, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(sweep, { toValue: 1, duration: 750, delay: 200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       ]),
       // Le logo se condense (petit pop) puis « KALYX » monte.
       Animated.parallel([
-        Animated.timing(logoIn, { toValue: 1, duration: 420, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }),
+        Animated.timing(logoIn, { toValue: 1, duration: 320, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }),
         Animated.sequence([
-          Animated.delay(140),
+          Animated.delay(80),
           Animated.parallel([
             Animated.timing(wordOp, { toValue: 1, duration: 320, useNativeDriver: true }),
             Animated.timing(wordY, { toValue: 0, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
           ]),
         ]),
       ]),
-      Animated.delay(560),
-      Animated.timing(screenOp, { toValue: 0, duration: 360, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      Animated.delay(320),
+      Animated.timing(screenOp, { toValue: 0, duration: 260, easing: Easing.in(Easing.quad), useNativeDriver: true }),
     ]).start(({ finished }) => finished && onFinish());
 
-    // Retour haptique léger quand le logo se forme (~1,2s).
-    const t = setTimeout(() => haptic.light(), 1240);
-    return () => clearTimeout(t);
   }, [progress, logoIn, wordOp, wordY, sweep, screenOp, onFinish]);
 
   // Le logo apparaît à mesure que les particules se condensent.
