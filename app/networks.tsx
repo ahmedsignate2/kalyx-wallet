@@ -150,9 +150,9 @@ export default function Networks() {
         )}
         <Pressable
           onPress={() => { setFormError(null); setAddOpen(true); }}
-          style={{ minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: '#161926', alignItems: 'center', justifyContent: 'center', marginTop: spacing(2) }}
+          style={{ minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', marginTop: spacing(2) }}
         >
-          <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>{t("addCustomNetwork")}</Text>
+          <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>{t("addCustomNetwork")}</Text>
         </Pressable>
       </ScrollView>
       <ExplainSheet visible={!!explain} onClose={() => setExplain(null)} subject={explain ? { kind: 'network', name: explain.name, logo: chainIconUrl(explain.id), seed: explain.id } : null} />

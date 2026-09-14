@@ -50,6 +50,7 @@ interface SettingsState {
   privacyGuard: boolean;
   /** Sons de l'application (triptyque succès, etc) */
   soundEnabled: boolean;
+  hapticsEnabled: boolean;
   /** Phrase de récupération vérifiée (3 mots) — critère du centre de sécurité. */
   backupVerified: boolean;
 
@@ -67,13 +68,14 @@ interface SettingsState {
   setAutoLockMinutes: (min: number) => void;
   setPrivacyGuard: (on: boolean) => void;
   setSoundEnabled: (on: boolean) => void;
+  setHapticsEnabled: (on: boolean) => void;
   setBackupVerified: (on: boolean) => void;
 }
 
 function persist(
   s: Pick<
     SettingsState,
-    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'backupVerified'
+    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'hapticsEnabled' | 'backupVerified'
   >,
 ) {
   void saveSettings({
@@ -92,6 +94,7 @@ function persist(
     autoLockMinutes: s.autoLockMinutes,
     privacyGuard: s.privacyGuard,
     soundEnabled: s.soundEnabled,
+    hapticsEnabled: s.hapticsEnabled,
     backupVerified: s.backupVerified,
   });
 }
@@ -113,6 +116,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   autoLockMinutes: 3,
   privacyGuard: true,
   soundEnabled: true,
+  hapticsEnabled: true,
   backupVerified: false,
 
   load: async () => {
@@ -137,6 +141,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       autoLockMinutes: typeof s?.autoLockMinutes === 'number' ? (s.autoLockMinutes as number) : 3,
       privacyGuard: s?.privacyGuard !== false,
       soundEnabled: s?.soundEnabled !== false,
+      hapticsEnabled: s?.hapticsEnabled !== false,
       backupVerified: s?.backupVerified === true,
     });
   },
@@ -144,6 +149,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setSoundEnabled: (on) => {
     set({ soundEnabled: on });
     persist({ ...get(), soundEnabled: on });
+  },
+  setHapticsEnabled: (on) => {
+    set({ hapticsEnabled: on });
+    persist({ ...get(), hapticsEnabled: on });
   },
   setBackupVerified: (on) => {
     set({ backupVerified: on });

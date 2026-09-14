@@ -827,7 +827,7 @@ Les RPC, explorers, APIs de marché, WalletConnect, LI.FI et autres services tie
 
 # 📄 Copyright & propriété intellectuelle
 
-Copyright © 2026 Ahamed Signate.
+Copyright © 2026 Kalyx.
 
 All rights reserved.
 

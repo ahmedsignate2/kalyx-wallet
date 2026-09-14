@@ -284,15 +284,15 @@ Action: ${aiContext.method || 'Transfer'}`;
             <>
 
               {aiStore.isEnabled && aiContext && (
-                <View style={{ width: '90%', backgroundColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? '#3f0f15' : aiAnalysis.riskLevel === 'WARNING' ? '#3d2b0f' : '#0f291e') : '#18181b', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? '#ef4444' : aiAnalysis.riskLevel === 'WARNING' ? '#f59e0b' : '#10b981') : '#27272a', marginBottom: 8 }}>
-                  <Text style={{ color: '#fff', fontFamily: fonts.semibold, fontSize: 13, marginBottom: 4 }}>
-                    {analyzing ? t("aiAuditInProgress") : (aiAnalysis ? `Audit IA : ${aiAnalysis.riskLevel}` : t("aiAuditUndetermined"))}
+                <View style={{ width: '90%', backgroundColor: colors.surface2, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? colors.danger : aiAnalysis.riskLevel === 'WARNING' ? colors.warning : colors.up) : colors.border, marginBottom: 8 }}>
+                  <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13, marginBottom: 4 }}>
+                    {analyzing ? t("aiAuditInProgress") : (aiAnalysis ? `${t('aiAuditLabel')} ${aiAnalysis.riskLevel}` : t("aiAuditUndetermined"))}
                   </Text>
                   {!analyzing && aiAnalysis && (
                     <>
-                      <Text style={{ color: '#d4d4d8', fontSize: 12, fontFamily: fonts.medium }}>{aiAnalysis.explanation}</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.medium }}>{aiAnalysis.explanation}</Text>
                       {aiAnalysis.threats && aiAnalysis.threats.length > 0 && (
-                        <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4, fontFamily: fonts.semibold }}>⚠️ {aiAnalysis.threats.join(', ')}</Text>
+                        <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4, fontFamily: fonts.semibold }}>{aiAnalysis.threats.join(', ')}</Text>
                       )}
                     </>
                   )}

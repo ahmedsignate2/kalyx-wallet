@@ -89,7 +89,7 @@ export default function Market() {
       {searchMode ? (
         <GlassCard>
           {searching && results.length === 0 ? (
-            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>Recherche…</Text>
+            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>{t('searching')}</Text>
           ) : results.length === 0 ? (
             <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>{t('noResults')}</Text>
           ) : (
