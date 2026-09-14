@@ -60,13 +60,20 @@ export default function Welcome() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={{ flex: 1, paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[5], paddingHorizontal: SCREEN_MARGIN }}>
         {/* Naissance du halo */}
-        <View style={{ height: 240, alignItems: 'center', justifyContent: 'center' }}>
-          <Animated.View style={[{ position: 'absolute' }, haloStyle]}>
-            <Halo size={360} mood="up" />
+        <View style={{ height: 260, alignItems: 'center', justifyContent: 'center' }}>
+          {/* Halo décalé vers le haut : son cœur blanc reste derrière le nom, jamais derrière le sous-titre. */}
+          <Animated.View style={[{ position: 'absolute', top: -40 }, haloStyle]}>
+            <Halo size={340} mood="up" />
           </Animated.View>
-          <Animated.View style={[{ alignItems: 'center', gap: space[2] }, nameStyle]}>
+          <Animated.View style={[{ alignItems: 'center', gap: space[3], width: '100%', paddingHorizontal: space[6] }, nameStyle]}>
             <Text variant="title1" style={{ fontSize: 40, lineHeight: 46, letterSpacing: 2 }}>Kalyx</Text>
-            <Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center', maxWidth: 300 }}>{t('tagline')}</Text>
+            <Text
+              variant="bodySecondary"
+              tone="secondary"
+              style={{ textAlign: 'center', width: '100%', maxWidth: 320, fontSize: 15, lineHeight: 22, letterSpacing: 0.2, textShadowColor: 'rgba(6,7,13,0.6)', textShadowRadius: 6 }}
+            >
+              {t('tagline')}
+            </Text>
           </Animated.View>
         </View>
 

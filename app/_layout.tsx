@@ -22,6 +22,7 @@ import { ToastHost } from '../ui/ToastHost';
 import { AutoLock } from '../ui/AutoLock';
 import { PrivacyScreen } from '../ui/PrivacyScreen';
 import { CopilotSheet } from '../ui/CopilotSheet';
+import { useDriveFlow } from '../lib/googleDrive';
 import { PriceAlertWatcher } from '../ui/PriceAlertWatcher';
 import { usePriceAlerts } from '../lib/priceAlertsStore';
 import { useRecentRecipients } from '../lib/recentRecipientsStore';
@@ -62,6 +63,7 @@ export default function RootLayout() {
   const loadTokenPrefs = useTokenPrefs((s) => s.load);
   const initWalletConnect = useWalletConnect((s) => s.init);
   const loadAiState = useAiStore((s) => s.loadInitialState);
+  const loadDriveFlow = useDriveFlow((s) => s.load);
 
   // Web : fond de page sombre garanti (au cas où +html.tsx ne serait pas honoré)
   // + on empêche la bande blanche autour de la colonne centrée.
@@ -126,6 +128,7 @@ export default function RootLayout() {
         await loadRecents();
         await loadTokenPrefs();
         await loadAiState();
+        await loadDriveFlow();
         console.log('[Kalyx] loadSettings OK');
       } catch (e) {
         console.error('[Kalyx] loadSettings a échoué :', e);

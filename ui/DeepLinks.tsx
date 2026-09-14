@@ -12,6 +12,8 @@ import * as Linking from 'expo-linking';
 import { toast } from '../lib/toast';
 import { useSettings } from '../lib/settingsStore';
 import { translate } from '../lib/i18n';
+import { useDriveFlow } from '../lib/googleDrive';
+import { useSettings as useSettingsStore } from '../lib/settingsStore';
 import { router } from 'expo-router';
 import { useWalletConnect } from '../lib/walletconnect';
 
@@ -46,8 +48,23 @@ export function extractBrowseUrl(url: string): string | null {
 
 export function DeepLinks() {
   useEffect(() => {
-    const handle = (url: string | null) => {
+    const handle = async (url: string | null) => {
       if (!url) return;
+      // Retour de Google (sauvegarde / restauration Drive) : repris ici même si
+      // l'app a été relancée. Le résultat est publié dans useDriveFlow.
+      if (await useDriveFlow.getState().handleRedirect(url)) {
+        const f = useDriveFlow.getState();
+        const lang = useSettingsStore.getState().language;
+        if (f.kind === 'save' && f.status === 'done') {
+          useSettingsStore.getState().markEncryptedBackup('drive');
+          toast.success(translate(lang, 'driveSaved'));
+        } else if (f.kind === 'restore') {
+          router.replace('/restore-drive');
+        } else if (f.status === 'error') {
+          toast.error(translate(lang, 'driveCancelled'), f.error ?? undefined);
+        }
+        return;
+      }
       const wc = extractWcUri(url);
       if (wc) {
         useWalletConnect.getState().pair(wc).catch((e) => toast.error(translate(useSettings.getState().language, 'connectionFailed'), e instanceof Error ? e.message : undefined));
