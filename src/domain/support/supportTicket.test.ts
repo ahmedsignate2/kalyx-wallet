@@ -116,7 +116,7 @@ describe('Support Ticket & Secret Detector System', () => {
     });
 
     it('normalizes a support ticket by injecting ID and Version if missing', () => {
-      const raw = `🎫 [TICKET SUPPORT NOVA]\n• Problème : Erreur d'envoi\n• Réseau : Sepolia`;
+      const raw = `🎫 [TICKET SUPPORT KALYX]\n• Problème : Erreur d'envoi\n• Réseau : Sepolia`;
       const normalized = normalizeSupportTicket(raw);
       expect(normalized).toMatch(/• ID : KX-\d{8}-\d{5}/);
       expect(normalized).toContain('• Version : Kalyx v');
@@ -124,7 +124,7 @@ describe('Support Ticket & Secret Detector System', () => {
     });
 
     it('replaces placeholder ID with real unique ticket ID during normalization', () => {
-      const raw = `🎫 [TICKET SUPPORT NOVA]\n• ID : KX-YYYYMMDD-XXXXX\n• Version : Kalyx v0.0.1\n• Problème : Bug`;
+      const raw = `🎫 [TICKET SUPPORT KALYX]\n• ID : KX-YYYYMMDD-XXXXX\n• Version : Kalyx v0.0.1\n• Problème : Bug`;
       const normalized = normalizeSupportTicket(raw);
       expect(normalized).not.toContain('KX-YYYYMMDD-XXXXX');
       expect(normalized).toMatch(/• ID : KX-\d{8}-\d{5}/);
@@ -140,7 +140,7 @@ describe('Support Ticket & Secret Detector System', () => {
         recentLogs: '[12:00:00] [TX] Error 400',
       });
 
-      expect(ticket).toContain('🎫 [TICKET SUPPORT NOVA]');
+      expect(ticket).toContain('🎫 [TICKET SUPPORT KALYX]');
       expect(ticket).toMatch(/• ID : KX-\d{8}-\d{5}/);
       expect(ticket).toContain('• Version : Kalyx v');
       expect(ticket).toContain('• Problème : Échec broadcast transaction');
@@ -152,7 +152,7 @@ describe('Support Ticket & Secret Detector System', () => {
     });
 
     it('replaces outdated or hallucinated ID date with real current date', () => {
-      const raw = `🎫 [TICKET SUPPORT NOVA]\n• ID : KX-20250520-00124\n• Version : Kalyx v0.0.1\n• Problème : Bug`;
+      const raw = `🎫 [TICKET SUPPORT KALYX]\n• ID : KX-20250520-00124\n• Version : Kalyx v0.0.1\n• Problème : Bug`;
       const normalized = normalizeSupportTicket(raw);
       expect(normalized).not.toContain('KX-20250520-00124');
       const now = new Date();
@@ -169,7 +169,7 @@ describe('Support Ticket & Secret Detector System', () => {
         error: 'Réseau indisponible',
       });
 
-      const raw = `🎫 [TICKET SUPPORT NOVA]\n• ID : KX-YYYYMMDD-XXXXX\n• Version : Kalyx v0.0.1\n• Problème : Erreur d'envoi\n• Réseau : Sepolia\n• Erreur détectée : Non déterminée`;
+      const raw = `🎫 [TICKET SUPPORT KALYX]\n• ID : KX-YYYYMMDD-XXXXX\n• Version : Kalyx v0.0.1\n• Problème : Erreur d'envoi\n• Réseau : Sepolia\n• Erreur détectée : Non déterminée`;
       const normalized = normalizeSupportTicket(raw);
       expect(normalized).toContain('• Erreur détectée : RPC 500 (Réseau indisponible) sur eth_getBalance');
     });
@@ -183,7 +183,7 @@ describe('Support Ticket & Secret Detector System', () => {
         error: 'Réseau indisponible',
       });
 
-      const raw = `🎫 [TICKET SUPPORT NOVA]\n• Problème : Erreur\n• Réseau : Sepolia\n• Logs récents :\n{"method":"eth_getBalance","chain":"Swellchain"}`;
+      const raw = `🎫 [TICKET SUPPORT KALYX]\n• Problème : Erreur\n• Réseau : Sepolia\n• Logs récents :\n{"method":"eth_getBalance","chain":"Swellchain"}`;
       const normalized = normalizeSupportTicket(raw);
       expect(normalized).not.toContain('{"method"');
       expect(normalized).toContain('[Sepolia] Aucun log d\'exécution direct enregistré pour cette chaîne.');
@@ -192,7 +192,7 @@ describe('Support Ticket & Secret Detector System', () => {
     });
 
     it('throws when trying to open Telegram with a ticket containing secrets', async () => {
-      const dangerousTicket = `🎫 [TICKET SUPPORT NOVA]\n• Seed: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about`;
+      const dangerousTicket = `🎫 [TICKET SUPPORT KALYX]\n• Seed: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about`;
       await expect(openTelegramTicket(dangerousTicket)).rejects.toThrow(
         /Attention : ton message contient une clé privée/
       );

@@ -36,9 +36,12 @@ export const PRIVACY: LegalSection[] = [
 • Alchemy — RPC, soldes, tokens, NFT
 • Etherscan — historique des transactions
 • CoinGecko — prix des cryptos
-• LI.FI — devis de swap et bridge
-• WalletConnect (Reown) — connexion aux dApps
-• GoPlus — analyse de sécurité (contrats, sites)
+• LI.FI, Relay — devis de swap et bridge (EVM) ; Jupiter — swap sur Solana
+• WalletConnect (Reown) — connexion aux dApps et vérification du domaine (Verify)
+• GoPlus — analyse de sécurité (contrats, tokens, sites)
+• Alchemy (simulation) — estimation du résultat d'une transaction demandée par une dApp
+• Google Drive — uniquement si tu choisis la sauvegarde Drive : un fichier chiffré sur l'appareil, déposé dans le dossier privé de l'app, connexion révoquée aussitôt après
+• Fournisseur d'IA de ton choix — uniquement si tu actives le Copilot avec ta propre clé : soldes, réseau et activité masquée, jamais tes adresses ni tes clés
 • Google / DuckDuckGo — logos (favicons) du navigateur
 Ces services ont leurs propres politiques de confidentialité. Le navigateur dApps intégré charge des sites tiers qui, eux aussi, appliquent leurs propres règles.`,
   },
@@ -48,7 +51,7 @@ Ces services ont leurs propres politiques de confidentialité. Le navigateur dAp
   },
   {
     title: '6. Sécurité',
-    body: `La phrase est chiffrée (AES-256-GCM) sous ton PIN, dans le stockage sécurisé matériel du téléphone. Verrouillage automatique, écran de garde et anti-brute-force protègent l'accès. Aucun système n'est infaillible : garde ta phrase de récupération hors ligne.`,
+    body: `La phrase est chiffrée en AES-256-GCM avec une clé dérivée de ton PIN (scrypt), puis rangée dans le stockage sécurisé du système (Keychain iOS / Keystore Android). Verrouillage automatique, écran de garde et anti-brute-force protègent l'accès. Aucun système n'est infaillible : garde ta phrase de récupération hors ligne.`,
   },
   {
     title: '7. Enfants',

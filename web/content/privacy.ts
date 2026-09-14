@@ -41,6 +41,8 @@ Vous pouvez à tout moment effacer l'intégralité de ces données en désinstal
 • GoPlus Security — analyse préventive des contrats, tokens et sites avant signature
 • Alchemy (simulation) — estimation du résultat d'une transaction demandée par une dApp avant signature
 • DuckDuckGo / Google Favicons — affichage des icônes de dApps dans le navigateur
+• Google Drive — uniquement si vous activez la sauvegarde Google Drive : un fichier chiffré sur votre appareil (scrypt + AES-256-GCM) est déposé dans le dossier privé de l'application ; l'accès est révoqué immédiatement après l'opération et aucun jeton n'est conservé
+• Fournisseur d'IA de votre choix (Copilot, clé personnelle) — uniquement si vous l'activez : soldes, réseau actif et activité récente masquée ; jamais vos adresses, clés ou phrase de récupération
 Chacun de ces tiers applique sa propre politique de confidentialité. Le navigateur Web3 intégré permet d'accéder à des dApps autonomes appliquant leurs propres règles d'usage.`,
   },
   {
