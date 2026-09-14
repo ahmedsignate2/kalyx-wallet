@@ -60,10 +60,16 @@ export function DeepLinks() {
           useSettingsStore.getState().markEncryptedBackup('drive');
           toast.success(translate(lang, 'driveSaved'));
           // Si l'app a été relancée par le retour de Google, l'écran de sauvegarde n'est plus là : on y retourne.
-          if (coldStart && useWallet.getState().isUnlocked) router.push('/cloud-backup');
+          if (coldStart) {
+            if (useWallet.getState().isUnlocked) router.push('/cloud-backup');
+            else useDriveFlow.getState().setReturnTo('/cloud-backup');
+          }
         } else if (f.kind === 'save' && f.status === 'error') {
           toast.error(translate(lang, 'driveCancelled'), f.error ?? undefined);
-          if (coldStart && useWallet.getState().isUnlocked) router.push('/cloud-backup');
+          if (coldStart) {
+            if (useWallet.getState().isUnlocked) router.push('/cloud-backup');
+            else useDriveFlow.getState().setReturnTo('/cloud-backup');
+          }
         } else if (f.kind === 'restore') {
           router.replace('/restore-drive');
         } else if (f.status === 'error') {

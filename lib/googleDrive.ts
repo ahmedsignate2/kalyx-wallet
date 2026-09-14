@@ -114,6 +114,9 @@ export interface RestoreResult {
 }
 
 interface DriveFlowState {
+  /** Écran à ouvrir après déverrouillage (app relancée par le retour de Google, wallet verrouillé). */
+  returnTo: '/cloud-backup' | null;
+  setReturnTo: (r: '/cloud-backup' | null) => void;
   status: DriveStatus;
   kind: DriveIntent['kind'] | null;
   error: string | null;
@@ -131,6 +134,8 @@ interface DriveFlowState {
 }
 
 export const useDriveFlow = create<DriveFlowState>((set, get) => ({
+  returnTo: null,
+  setReturnTo: (returnTo) => set({ returnTo }),
   status: 'idle',
   kind: null,
   error: null,
