@@ -50,6 +50,7 @@ export default function SecurityCenter() {
   const sendRawTxOn = useWallet((s) => s.sendRawTxOn);
   const chain = getAdapter(activeChain).config;
   const backupVerified = useSettings((s) => s.backupVerified);
+  const encryptedBackupDone = useSettings((s) => s.encryptedBackupAt !== null);
   const biometric = useSettings((s) => s.biometricEnabled);
   const autoLock = useSettings((s) => s.autoLockMinutes);
   const sessions = useWalletConnect((s) => s.sessions);
@@ -86,7 +87,7 @@ export default function SecurityCenter() {
     }
   };
 
-  const checks = useMemo(() => [backupVerified, biometric, autoLock > 0 && autoLock <= 15, (approvals ?? []).every((a) => !isUnlimited(a.allowance)), sessions.length <= 3], [backupVerified, biometric, autoLock, approvals, sessions.length]);
+  const checks = useMemo(() => [backupVerified, encryptedBackupDone, biometric, autoLock > 0 && autoLock <= 15, (approvals ?? []).every((a) => !isUnlimited(a.allowance)), sessions.length <= 3], [backupVerified, encryptedBackupDone, biometric, autoLock, approvals, sessions.length]);
   const score = checks.filter(Boolean).length;
 
   return (
@@ -104,6 +105,8 @@ export default function SecurityCenter() {
 
         <Surface padded={false}>
           <Check ok={backupVerified} icon="phrase" title={t("recoveryPhraseVerified")} body={backupVerified ? t("recoveryPhraseVerifiedMsg") : t("recoveryPhraseNotVerifiedMsg")} actionLabel={t("verify")} onAction={() => router.push('/reveal-phrase')} />
+          <Divider inset={68} />
+          <Check ok={encryptedBackupDone} icon="share" title={t('encBackup')} body={encryptedBackupDone ? t('encBackupDoneMsg') : t('encBackupTodoMsg')} actionLabel={t('createBackupBtn')} onAction={() => router.push('/cloud-backup')} />
           <Divider inset={68} />
           <Check ok={biometric} icon="security" title={t("biometricsEnabled")} body={biometric ? t("biometricsEnabledMsg") : t("biometricsDisabledMsg")} actionLabel={t("enable")} onAction={() => router.push('/settings')} />
           <Divider inset={68} />

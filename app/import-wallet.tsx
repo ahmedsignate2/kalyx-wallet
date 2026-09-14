@@ -10,6 +10,7 @@ import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import { validateMnemonic, normalizeEvmPrivateKey, restoreBackup } from '../src';
+import { isDriveConfigured } from '../lib/googleDrive';
 
 type Mode = 'phrase' | 'key' | 'backup';
 
@@ -111,7 +112,10 @@ export default function ImportWallet() {
       ) : mode === 'key' ? (
         <Muted>{t('keyModeHint')}</Muted>
       ) : (
-        <Muted>{t('backupModeHint')}</Muted>
+        <>
+          <Muted>{t('backupModeHint')}</Muted>
+          {isDriveConfigured() ? <Button label={t('driveRestore')} variant="ghost" onPress={() => router.push('/restore-drive')} /> : null}
+        </>
       )}
 
       <Card>
