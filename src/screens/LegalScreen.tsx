@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import { View, Text, Pressable, Linking, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import { ScreenHeader } from '../../ui/kit';
 import { PremiumScreen, GlassCard, ListRow } from '../../ui/premium';
@@ -11,6 +10,15 @@ import { spacing, useTheme, fonts } from '../../ui/theme';
 import { useT } from '../../lib/settingsStore';
 import { LEGAL_CONSTANTS } from '../constants/legal';
 
+function getApplicationModule(): any {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('expo-application');
+  } catch {
+    return null;
+  }
+}
+
 export interface LegalScreenProps {
   onBack?: () => void;
 }
@@ -19,6 +27,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
   const { colors, typography } = useTheme();
   const t = useT();
 
+  const Application = getApplicationModule();
   const appVersion =
     Application?.nativeApplicationVersion ?? Constants.expoConfig?.version ?? '1.0.0';
 

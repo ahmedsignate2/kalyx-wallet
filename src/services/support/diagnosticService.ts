@@ -1,11 +1,56 @@
 import { Platform } from 'react-native';
-import * as Application from 'expo-application';
-import * as Device from 'expo-device';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
-import * as Clipboard from 'expo-clipboard';
 import { listChains } from '../../domain/chains/registry';
 import { detectSensitiveSecrets, sanitizeSecrets } from '../../../lib/secretDetector';
+
+function getDeviceModule(): any {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('expo-device');
+  } catch {
+    return null;
+  }
+}
+
+function getApplicationModule(): any {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('expo-application');
+  } catch {
+    return null;
+  }
+}
+
+function getFileSystemModule(): any {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('expo-file-system/legacy');
+  } catch {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      return require('expo-file-system');
+    } catch {
+      return null;
+    }
+  }
+}
+
+function getSharingModule(): any {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('expo-sharing');
+  } catch {
+    return null;
+  }
+}
+
+function getClipboardModule(): any {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('expo-clipboard');
+  } catch {
+    return null;
+  }
+}
 
 export interface RpcNodeStatus {
   chainId: string;
@@ -151,6 +196,9 @@ export async function testRpcEndpoint(
  * Aucune donnée sensible (clé privée, seed, IP) n'est collectée.
  */
 export async function collectDiagnosticData(): Promise<DiagnosticData> {
+  const Application = getApplicationModule();
+  const Device = getDeviceModule();
+
   let appVersion = '0.0.1';
   let buildVersion = '1';
 
@@ -245,6 +293,10 @@ export async function collectDiagnosticData(): Promise<DiagnosticData> {
  * avec un repli automatique sur le presse-papier si le partage n'est pas disponible.
  */
 export async function exportDiagnosticReport(): Promise<DiagnosticExportResult> {
+  const FileSystem = getFileSystemModule();
+  const Sharing = getSharingModule();
+  const Clipboard = getClipboardModule();
+
   try {
     const data = await collectDiagnosticData();
     let jsonString = JSON.stringify(data, null, 2);
@@ -258,17 +310,19 @@ export async function exportDiagnosticReport(): Promise<DiagnosticExportResult> 
     // Vérifier la disponibilité d'expo-sharing
     let canShare = false;
     try {
-      canShare = await Sharing.isAvailableAsync();
+      if (Sharing && typeof Sharing.isAvailableAsync === 'function') {
+        canShare = await Sharing.isAvailableAsync();
+      }
     } catch {
       canShare = false;
     }
 
     const docDir = FileSystem?.documentDirectory || FileSystem?.cacheDirectory;
 
-    if (canShare && docDir) {
+    if (canShare && docDir && FileSystem?.writeAsStringAsync) {
       const fileUri = `${docDir}nova_diagnostic.json`;
       await FileSystem.writeAsStringAsync(fileUri, jsonString, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: FileSystem.EncodingType?.UTF8 ?? 'utf8',
       });
 
       await Sharing.shareAsync(fileUri, {
@@ -284,7 +338,9 @@ export async function exportDiagnosticReport(): Promise<DiagnosticExportResult> 
       };
     } else {
       // Fallback presse-papier
-      await Clipboard.setStringAsync(jsonString);
+      if (Clipboard && typeof Clipboard.setStringAsync === 'function') {
+        await Clipboard.setStringAsync(jsonString);
+      }
       return {
         success: true,
         method: 'clipboard',
@@ -299,7 +355,9 @@ export async function exportDiagnosticReport(): Promise<DiagnosticExportResult> 
         os: Platform.OS,
         error: err?.message,
       };
-      await Clipboard.setStringAsync(JSON.stringify(basicInfo, null, 2));
+      if (Clipboard && typeof Clipboard.setStringAsync === 'function') {
+        await Clipboard.setStringAsync(JSON.stringify(basicInfo, null, 2));
+      }
       return {
         success: true,
         method: 'clipboard',
