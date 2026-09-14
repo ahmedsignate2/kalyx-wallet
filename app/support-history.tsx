@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
-import * as Clipboard from 'expo-clipboard';
 import { ScreenHeader } from '../ui/kit';
 import { PremiumScreen, GlassCard } from '../ui/premium';
 import { Icon } from '../ui/icon';
@@ -11,6 +10,15 @@ import { toast } from '../lib/toast';
 import { haptic } from '../lib/haptics';
 import { useTicketHistoryStore, type StoredTicket } from '../lib/ticketHistoryStore';
 import { exportDiagnosticReport } from '../src/services/support/diagnosticService';
+
+function getClipboard(): any {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('expo-clipboard');
+  } catch {
+    return null;
+  }
+}
 
 export default function SupportHistoryScreen() {
   const { colors, typography } = useTheme();
@@ -25,7 +33,10 @@ export default function SupportHistoryScreen() {
 
   const handleCopyId = async (id: string) => {
     try {
-      await Clipboard.setStringAsync(id);
+      const Clipboard = getClipboard();
+      if (Clipboard && typeof Clipboard.setStringAsync === 'function') {
+        await Clipboard.setStringAsync(id);
+      }
       haptic.selection();
       setCopiedTicketId(id);
       toast.success(t('supportHistoryCopied'), id);
