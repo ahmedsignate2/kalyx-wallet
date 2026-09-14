@@ -22,7 +22,7 @@ export function HowItWorks({ t }: { t: Dict }) {
   const steps = t.how.steps.map((s, i) => ({ ...s, screen: SCREENS[i] }));
 
   return (
-    <section id="fonctionnement" className="scroll-mt-16 bg-ink px-5 py-24 sm:px-8 lg:py-32">
+    <section id="fonctionnement" className="scroll-mt-16 bg-ink px-5 py-20 sm:px-8 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-page">
         <ChapterHead
           numeral="I"
@@ -36,11 +36,11 @@ export function HowItWorks({ t }: { t: Dict }) {
           lead={t.how.lead}
         />
 
-        <div className="mt-20 grid gap-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-24">
+        <div className="mt-16 grid gap-16 lg:mt-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
           {/* Le téléphone reste à l'écran ; son écran change avec le texte lu. */}
           <div className="hidden lg:block">
-            <div className="sticky top-28">
-              <div className="relative mx-auto w-80">
+            <div className="sticky top-24">
+              <div className="relative mx-auto w-60 xl:w-72 2xl:w-80">
                 <div className="relative aspect-[9/19.2] rounded-[2.6rem] border border-bone/15 bg-ink-3 p-[6px] shadow-phone">
                   <div className="absolute left-1/2 top-3 z-20 h-[22px] w-[88px] -translate-x-1/2 rounded-full bg-ink" />
                   <div className="relative h-full w-full overflow-hidden rounded-[2.2rem] bg-ink-2">
@@ -53,7 +53,7 @@ export function HowItWorks({ t }: { t: Dict }) {
                         exit={reduce ? undefined : { opacity: 0 }}
                         transition={{ duration: 0.7, ease: EASE }}
                       >
-                        <Image src={steps[active].screen} alt="" fill sizes="320px" className="object-cover object-top" />
+                        <Image src={steps[active].screen} alt="" fill sizes="(min-width: 1536px) 320px, (min-width: 1280px) 288px, 240px" className="object-cover object-top" />
                       </motion.div>
                     </AnimatePresence>
                   </div>
@@ -65,7 +65,7 @@ export function HowItWorks({ t }: { t: Dict }) {
             </div>
           </div>
 
-          <ol className="space-y-24 lg:space-y-[40vh] lg:py-[20vh]">
+          <ol className="space-y-20 lg:space-y-[36vh] lg:py-[14vh]">
             {steps.map((s, i) => (
               <motion.li
                 key={s.title}
@@ -83,7 +83,7 @@ export function HowItWorks({ t }: { t: Dict }) {
                 </div>
                 <div>
                   <p className="font-display text-sm text-sage">{String(i + 1).padStart(2, '0')}</p>
-                  <h3 className="mt-2 font-display text-3xl leading-tight text-paper sm:text-4xl">{s.title}</h3>
+                  <h3 className="mt-2 font-display text-[1.75rem] leading-tight text-paper sm:text-4xl">{s.title}</h3>
                   <p className="mt-4 max-w-md text-base font-light leading-relaxed text-mist">{s.text}</p>
                   <p className="mt-6 flex items-baseline gap-3">
                     <span className="font-display text-4xl text-paper">{s.value}</span>

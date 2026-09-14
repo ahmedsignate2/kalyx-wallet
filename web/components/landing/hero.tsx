@@ -41,8 +41,8 @@ export function Hero({ t }: { t: Dict }) {
   }
 
   return (
-    <section id="prologue" ref={section} className="relative scroll-mt-16 overflow-hidden px-5 pb-20 pt-24 sm:px-8 sm:pt-32 lg:pb-28">
-      <div className="mx-auto grid max-w-page items-center gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
+    <section id="prologue" ref={section} className="relative scroll-mt-16 overflow-hidden px-5 pb-16 pt-20 sm:px-8 sm:pt-28 lg:pb-28 lg:pt-32">
+      <div className="mx-auto grid max-w-page items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
         <div>
           <motion.p {...(reduce ? {} : enter(0))} className="mb-8 flex items-center gap-3 text-xs uppercase tracking-[0.22em] text-sage">
             <motion.span
@@ -55,7 +55,7 @@ export function Hero({ t }: { t: Dict }) {
             {t.hero.kicker}
           </motion.p>
 
-          <h1 className="font-display text-[2.75rem] font-light leading-[1.02] tracking-[-0.02em] text-paper sm:text-6xl lg:text-7xl">
+          <h1 className="font-display text-[2.5rem] font-light leading-[1.04] tracking-[-0.02em] text-paper sm:text-6xl lg:text-7xl">
             {[t.hero.line1, t.hero.line2].map((line, i) => (
               <span key={line} className="block overflow-hidden">
                 <motion.span
@@ -82,7 +82,7 @@ export function Hero({ t }: { t: Dict }) {
             </span>
           </h1>
 
-          <motion.p {...(reduce ? {} : enter(4))} className="mt-7 max-w-md text-lg font-light leading-relaxed text-mist">
+          <motion.p {...(reduce ? {} : enter(4))} className="mt-6 max-w-md text-base font-light leading-relaxed text-mist sm:text-lg">
             {t.hero.sub}
           </motion.p>
 
@@ -122,7 +122,7 @@ export function Hero({ t }: { t: Dict }) {
           ref={stage}
           onMouseMove={onMouseMove}
           onMouseLeave={() => setTilt({ x: 0, y: 0 })}
-          className="relative flex justify-center lg:justify-end"
+          className="relative flex justify-center py-4 lg:justify-end lg:py-0"
           style={{ perspective: '1200px', y: reduce ? 0 : scrollY }}
           initial={reduce ? false : { opacity: 0, x: 40, rotateY: -18 }}
           whileInView={{ opacity: 1, x: 0, rotateY: 0 }}

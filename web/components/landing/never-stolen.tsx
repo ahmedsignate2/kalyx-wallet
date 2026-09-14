@@ -24,7 +24,7 @@ function Address({ head, mid, tail, danger }: { head: string; mid: string; tail:
 export function NeverStolen({ t }: { t: Dict }) {
   const s = t.stolen;
   return (
-    <section id="voler" className="scroll-mt-16 bg-ink px-5 py-24 sm:px-8 lg:py-32">
+    <section id="voler" className="scroll-mt-16 bg-ink px-5 py-20 sm:px-8 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-page">
         <ChapterHead
           numeral="III"
@@ -38,7 +38,7 @@ export function NeverStolen({ t }: { t: Dict }) {
           lead={s.lead}
         />
 
-        <Stagger className="mt-20 grid gap-6 lg:grid-cols-3" gap={0.12}>
+        <Stagger className="mt-16 grid gap-5 md:grid-cols-2 lg:mt-20 lg:grid-cols-3" gap={0.12}>
           {/* Scène 1 — le sosie */}
           <Item as="article" className="flex flex-col rounded-[2rem] bg-ink-2 p-7 sm:p-8">
             <p className="font-display text-sm text-sage">{s.scene} 1 · {s.s1.kicker}</p>
