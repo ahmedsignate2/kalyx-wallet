@@ -85,7 +85,6 @@ export default function Settings() {
   };
 
   const langName = LANGUAGES.find((l) => l.code === language)?.name ?? language;
-  const soon = () => toast.info(t('soon'));
 
   const onToggleBio = async (on: boolean) => {
     if (on) setAskPin(true);
@@ -277,7 +276,6 @@ export default function Settings() {
           <Switch value={useSettings((s) => s.hapticsEnabled)} onValueChange={useSettings.getState().setHapticsEnabled} />
         </View>
 
-        <ListRow divider left={<Icon name="buy" />} title={t('buyCrypto')} right={<Chip label={t('soon')} />} onPress={soon} />
       </GlassCard>
 
       {/* À propos */}
