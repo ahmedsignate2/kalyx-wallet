@@ -60,33 +60,33 @@ export default function Welcome() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={{ flex: 1, paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[5], paddingHorizontal: SCREEN_MARGIN }}>
         {/* Naissance du halo */}
-        <View style={{ height: 260, alignItems: 'center', justifyContent: 'center' }}>
-          {/* Halo décalé vers le haut : son cœur blanc reste derrière le nom, jamais derrière le sous-titre. */}
-          <Animated.View style={[{ position: 'absolute', top: -40 }, haloStyle]}>
-            <Halo size={340} mood="up" />
+        {/* En-tête : hauteur libre (le sous-titre peut prendre 2 lignes), halo derrière le nom seulement. */}
+        <View style={{ minHeight: 280, alignItems: 'center', justifyContent: 'center', paddingVertical: space[6] }}>
+          <Animated.View style={[{ position: 'absolute', top: -60 }, haloStyle]} pointerEvents="none">
+            <Halo size={320} mood="up" />
           </Animated.View>
-          <Animated.View style={[{ alignItems: 'center', gap: space[3], width: '100%', paddingHorizontal: space[6] }, nameStyle]}>
-            <Text variant="title1" style={{ fontSize: 40, lineHeight: 46, letterSpacing: 2 }}>Kalyx</Text>
+          <Animated.View style={[{ alignItems: 'center', width: '100%', paddingHorizontal: space[6] }, nameStyle]}>
+            <Text variant="title1" style={{ fontSize: 40, lineHeight: 48, letterSpacing: 2, textAlign: 'center' }}>Kalyx</Text>
             <Text
               variant="bodySecondary"
               tone="secondary"
-              style={{ textAlign: 'center', width: '100%', maxWidth: 320, fontSize: 15, lineHeight: 22, letterSpacing: 0.2, textShadowColor: 'rgba(6,7,13,0.6)', textShadowRadius: 6 }}
+              style={{ marginTop: space[4], textAlign: 'center', width: '100%', maxWidth: 300, fontSize: 15, lineHeight: 23, letterSpacing: 0.2 }}
             >
               {t('tagline')}
             </Text>
           </Animated.View>
         </View>
 
-        <Animated.View style={[{ flex: 1, justifyContent: 'center', gap: space[3] }, restStyle]}>
+        <Animated.View style={[{ flex: 1, justifyContent: 'center', gap: space[3], marginTop: space[2] }, restStyle]}>
           <Surface padded={false}>
             {PROPS.map((p, i) => (
               <View key={p.title} style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[4], borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
                 <View style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
                   <Icon name={p.icon} size={20} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, gap: space[1] }}>
                   <Text variant="body">{p.title}</Text>
-                  <Text variant="caption" tone="secondary">{p.sub}</Text>
+                  <Text variant="caption" tone="secondary" style={{ lineHeight: 18 }}>{p.sub}</Text>
                 </View>
               </View>
             ))}
