@@ -28,7 +28,21 @@ function formatAmount(raw: bigint, decimals: number): string {
   return `${negative ? '-' : ''}${digits.slice(0, split)}.${digits.slice(split)}`.replace(/\.?0+$/, '');
 }
 
-/** Builds an explicit public-data allowlist. Never reads secure storage or signing state. */
+/**
+ * Masque une adresse ou un hash : 6 premiers + 4 derniers caractères. Assez pour que
+ * le Copilot en parle (« vers 0x7a3F…9c2E »), pas assez pour identifier le compte.
+ */
+export function maskId(value: string): string {
+  if (!value) return '';
+  return value.length <= 12 ? value : `${value.slice(0, 6)}…${value.slice(-4)}`;
+}
+
+/**
+ * Builds an explicit public-data allowlist. Never reads secure storage or signing state.
+ * Règle de confidentialité : les ADRESSES du compte ne quittent jamais l'appareil
+ * (elles relient l'identité de l'utilisateur à ses avoirs). Le snapshot les garde
+ * pour les outils locaux ; `serializeCopilotContext` ne les envoie pas.
+ */
 export function getCopilotContextSnapshot(): CopilotWalletContext {
   const wallet = useWallet.getState();
   const settings = useSettings.getState();
@@ -66,7 +80,7 @@ export function getCopilotContextSnapshot(): CopilotWalletContext {
           isTestnet: network.testnet === true,
           actionType: tx.type === 'swap' ? 'swap' : tx.direction === 'in' ? 'receive' : tx.direction === 'out' ? 'send' : 'contract_interaction',
           summary: tx.description || `${tx.direction === 'in' ? '+' : '-'}${formatAmount(tx.value, tx.decimals ?? network.nativeDecimals)} ${tx.asset || network.nativeSymbol}`,
-          counterpartyOrDapp: tx.to,
+          counterpartyOrDapp: maskId(tx.to),
           gasFeePaid: null,
           status: tx.status,
           failureReason: tx.status === 'failed' ? (tx.description || 'Transaction échouée') : null,
@@ -85,7 +99,8 @@ export function getCopilotContextSnapshot(): CopilotWalletContext {
         failureReason: null,
       })),
     ].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 20),
-    browser: { activeUrl: browser.currentUrl || null, domain: domainOf(browser.currentUrl), isPhishingBlocked: false },
+    // Seul le domaine est retenu : une URL complète peut contenir des jetons de session.
+    browser: { activeUrl: null, domain: domainOf(browser.currentUrl), isPhishingBlocked: false },
   };
 }
 
@@ -111,7 +126,7 @@ export function serializeCopilotContext(snapshot = getCopilotContextSnapshot()):
       family: snapshot.activeNetwork.family,
     },
     e: snapshot.environment,
-    a: snapshot.addresses,
+    // Pas d'adresses : voir la règle de confidentialité ci-dessus.
     b: snapshot.balances
       .filter((balance) => Number(balance.amount) > 0)
       .map((balance) => ({
@@ -122,7 +137,7 @@ export function serializeCopilotContext(snapshot = getCopilotContextSnapshot()):
         t: balance.isTestnet,
       })),
     r: snapshot.recentActivity.slice(0, 5).map((tx) => ({
-      h: tx.id.slice(0, 10),
+      h: maskId(tx.id),
       t: tx.actionType,
       v: tx.summary,
       s: tx.status,
@@ -144,7 +159,7 @@ export const getCopilotContextPrompt = (targetChain?: string): string => {
   const recentLogs = technicalLogger.getCondensedLogs(40, targetChain);
 
   return `
-Tu es Kalyx Copilot, le support technique intégré de Nova Wallet.
+Tu es Kalyx Copilot, le support technique intégré de Kalyx Wallet. Tu ne connais ni les adresses, ni les clés, ni la phrase de récupération de l'utilisateur : ne les demande jamais.
 Tu as accès aux logs techniques d'exécution ci-dessous pour diagnostiquer les pannes de l'utilisateur :
 
 === LOGS TECHNIQUES RÉCENTS ===

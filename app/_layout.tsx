@@ -21,6 +21,7 @@ import { WebDashboard } from '../ui/web/WebDashboard';
 import { ToastHost } from '../ui/ToastHost';
 import { AutoLock } from '../ui/AutoLock';
 import { PrivacyScreen } from '../ui/PrivacyScreen';
+import { CopilotSheet } from '../ui/CopilotSheet';
 import { PriceAlertWatcher } from '../ui/PriceAlertWatcher';
 import { usePriceAlerts } from '../lib/priceAlertsStore';
 import { useRecentRecipients } from '../lib/recentRecipientsStore';
@@ -176,6 +177,7 @@ export default function RootLayout() {
         <ToastHost />
         <AutoLock />
         <PrivacyScreen />
+        <CopilotSheet />
         <PriceAlertWatcher />
         <DeepLinks />
         <FloatingAiAssistant />
