@@ -64,7 +64,7 @@ export class BitcoinChainAdapter implements ChainAdapter {
         );
         return res.json();
       },
-      { timeoutMs: API_TIMEOUT_MS },
+      { timeoutMs: API_TIMEOUT_MS, key: `btc:${this.config.id}` },
     );
   }
 
@@ -186,7 +186,7 @@ export class BitcoinChainAdapter implements ChainAdapter {
         }
         return text;
       },
-      { timeoutMs: API_TIMEOUT_MS },
+      { timeoutMs: API_TIMEOUT_MS, key: `btc:${this.config.id}` },
     );
   }
 }

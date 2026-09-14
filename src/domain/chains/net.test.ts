@@ -68,3 +68,20 @@ describe('tryInOrder (fallback)', () => {
     expect(tried).toEqual(['a']); // pas de rotation : le 2e RPC n'est pas essayé
   });
 });
+
+describe('tryInOrder (mémoire de santé)', () => {
+  it('met en tête le dernier RPC qui a répondu et évite celui en panne', async () => {
+    const { resetRpcHealth } = await import('./net');
+    resetRpcHealth();
+    const calls: string[] = [];
+    const op = async (u: string) => {
+      calls.push(u);
+      if (u === 'a') throw new Error('timeout');
+      return u;
+    };
+    expect(await tryInOrder(['a', 'b'], op, { timeoutMs: 100, key: 'k' })).toBe('b');
+    // Deuxième appel : « a » est en pénalité, « b » est tenté en premier.
+    expect(await tryInOrder(['a', 'b'], op, { timeoutMs: 100, key: 'k' })).toBe('b');
+    expect(calls).toEqual(['a', 'b', 'b']);
+  });
+});

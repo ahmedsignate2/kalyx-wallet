@@ -61,7 +61,7 @@ export class SolanaChainAdapter implements ChainAdapter {
           if (json.error) throw new Error(json.error.message ?? 'Erreur RPC Solana');
           return json.result as T;
         },
-        { timeoutMs: API_TIMEOUT_MS },
+        { timeoutMs: API_TIMEOUT_MS, key: `sol:${this.config.id}` },
       );
       technicalLogger.logRpc(method, 200, undefined, { chain: this.config.name, elapsedMs: Date.now() - started });
       return result;
