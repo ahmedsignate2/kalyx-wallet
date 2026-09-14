@@ -43,7 +43,7 @@ export function Vision({ t }: { t: Dict }) {
           }
         />
 
-        <div ref={ref} className="mt-12 max-w-4xl space-y-6 sm:mt-16 sm:space-y-8">
+        <div ref={ref} className="mt-12 max-w-4xl space-y-6 sm:mt-16 sm:space-y-8 lg:mx-auto lg:text-center">
           {LINES.map((l, i) =>
             reduce ? (
               <p key={l} className="font-display text-2xl font-light leading-snug sm:text-3xl lg:text-[2.6rem] lg:leading-[1.2]">
@@ -55,7 +55,7 @@ export function Vision({ t }: { t: Dict }) {
           )}
         </div>
 
-        <Reveal className="mt-16 grid grid-cols-2 gap-6 border-t border-ink/15 pt-8 sm:mt-20 sm:grid-cols-4 sm:gap-8 sm:pt-10">
+        <Reveal className="mt-16 grid grid-cols-2 gap-6 border-t border-ink/15 pt-8 sm:mt-20 sm:grid-cols-4 sm:gap-8 sm:pt-10 lg:text-center">
           {['63', '15', '65', '0'].map((v, i) => ({ v, l: t.vision.stats[i] })).map((s) => (
             <div key={s.l}>
               <p className="font-display text-4xl font-light leading-none sm:text-5xl">{s.v}</p>

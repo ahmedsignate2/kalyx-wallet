@@ -35,15 +35,17 @@ export function ChapterHead({
   align?: 'left' | 'center';
 }) {
   const onPaper = tone === 'paper';
+  // `center` : centré partout ; sinon à gauche sur mobile, centré dès lg (ordinateur).
   const center = align === 'center';
+  const ruleColor = onPaper ? 'bg-ink/40' : 'bg-sage';
   return (
-    <div className={`${center ? 'mx-auto text-center' : ''} max-w-3xl`}>
+    <div className={`max-w-3xl ${center ? 'mx-auto text-center' : 'lg:mx-auto lg:text-center'}`}>
       <p
-        className={`mb-6 flex items-center gap-3 text-xs uppercase tracking-[0.22em] ${center ? 'justify-center' : ''} ${onPaper ? 'text-ink/60' : 'text-sage'}`}
+        className={`mb-6 flex items-center gap-3 text-xs uppercase tracking-[0.22em] ${center ? 'justify-center' : 'lg:justify-center'} ${onPaper ? 'text-ink/60' : 'text-sage'}`}
       >
-        <Rule className={`w-8 ${onPaper ? 'bg-ink/40' : 'bg-sage'}`} />
+        <Rule className={`w-8 ${ruleColor}`} />
         {numeral ? `${chapterWord} ${numeral} · ${kicker}` : kicker}
-        {center && <Rule className={`w-8 ${onPaper ? 'bg-ink/40' : 'bg-sage'}`} />}
+        <Rule className={`w-8 ${ruleColor} ${center ? '' : 'hidden lg:block'}`} />
       </p>
       <Reveal
         as="h2"
@@ -55,7 +57,7 @@ export function ChapterHead({
         <Reveal
           as="p"
           delay={0.15}
-          className={`mt-5 max-w-xl text-base font-light leading-relaxed sm:mt-6 sm:text-lg ${center ? 'mx-auto' : ''} ${onPaper ? 'text-ink/70' : 'text-mist'}`}
+          className={`mt-5 max-w-xl text-base font-light leading-relaxed sm:mt-6 sm:text-lg ${center ? 'mx-auto' : 'lg:mx-auto'} ${onPaper ? 'text-ink/70' : 'text-mist'}`}
         >
           {lead}
         </Reveal>
