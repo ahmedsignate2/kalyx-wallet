@@ -64,7 +64,7 @@ function useQrAction() {
 
   return (r: QrResult) => {
     if (r.kind === 'walletconnect') {
-      useWalletConnect.getState().pair(r.uri).catch(() => {});
+      useWalletConnect.getState().pair(r.uri).catch((e) => toast.error(t('connectionFailed'), e instanceof Error ? e.message : undefined));
       router.replace('/walletconnect');
       return;
     }
