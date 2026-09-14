@@ -3,6 +3,7 @@
 import React, { useRef } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
+import type { Dict } from '../../i18n';
 
 /**
  * Ouverture du film. Une phrase de récupération (12 mots BIP-39, exemple) apparaît
@@ -25,7 +26,7 @@ function Word({ word, index, progress }: { word: string; index: number; progress
   );
 }
 
-export function Opening() {
+export function Opening({ t }: { t: Dict }) {
   const reduce = useReducedMotion();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
@@ -39,10 +40,8 @@ export function Opening() {
   if (reduce) {
     return (
       <section className="px-5 pt-32 sm:px-8">
-        <p className="mx-auto max-w-3xl text-center font-display text-4xl font-light text-paper">Douze mots.</p>
-        <p className="mx-auto mt-4 max-w-md text-center font-light text-mist">
-          C’est tout ce qui vous sépare de votre argent. Et tout ce qui vous en protège.
-        </p>
+        <p className="mx-auto max-w-3xl text-center font-display text-4xl font-light text-paper">{t.opening.title}</p>
+        <p className="mx-auto mt-4 max-w-md text-center font-light text-mist">{t.opening.sub}</p>
       </section>
     );
   }
@@ -52,10 +51,8 @@ export function Opening() {
       <div className="sticky top-0 flex h-screen items-center justify-center overflow-hidden px-5">
         {/* Titre d'ouverture */}
         <motion.div style={{ opacity: titleOpacity, y: titleY }} className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center">
-          <p className="font-display text-5xl font-light leading-none tracking-[-0.02em] text-paper sm:text-7xl lg:text-8xl">Douze mots.</p>
-          <p className="mx-auto mt-6 max-w-md text-lg font-light text-mist">
-            C’est tout ce qui vous sépare de votre argent. Et tout ce qui vous en protège.
-          </p>
+          <p className="font-display text-5xl font-light leading-none tracking-[-0.02em] text-paper sm:text-7xl lg:text-8xl">{t.opening.title}</p>
+          <p className="mx-auto mt-6 max-w-md text-lg font-light text-mist">{t.opening.sub}</p>
         </motion.div>
 
         {/* Les mots */}
@@ -70,12 +67,11 @@ export function Opening() {
           style={{ opacity: captionOpacity, y: captionY }}
           className="absolute inset-x-5 bottom-[18vh] mx-auto max-w-lg text-center text-base font-light leading-relaxed text-bone sm:text-lg"
         >
-          Dans Kalyx, ils restent voilés tant que votre doigt n’est pas posé dessus. Personne ne les lit par-dessus votre épaule —
-          pas même une capture d’écran.
+          {t.opening.caption}
         </motion.p>
 
         <motion.p style={{ opacity: cueOpacity }} className="absolute bottom-8 flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-mist/70">
-          Faites défiler <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
+          {t.opening.cue} <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
         </motion.p>
       </div>
     </section>
