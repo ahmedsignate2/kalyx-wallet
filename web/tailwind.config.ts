@@ -9,7 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: '#07080B',
+        background: '#0B0E14',
         surface: '#0F1219',
         'surface-card': '#161B26',
         'surface-hover': '#1F2636',
@@ -31,7 +31,7 @@ const config: Config = {
       },
       backgroundImage: {
         'hero-gradient':
-          'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124, 58, 237, 0.25), rgba(6, 182, 212, 0.1), transparent)',
+          'radial-gradient(ellipse 75% 55% at 50% -20%, rgba(124, 58, 237, 0.18), rgba(6, 182, 212, 0.06), transparent)',
         'card-glow':
           'radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.12), transparent 70%)',
         'glass-gradient':

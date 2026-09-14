@@ -31,7 +31,7 @@ export function PhoneMockup() {
       </div>
 
       {/* Outer Phone Frame */}
-      <div className="relative rounded-[44px] p-3.5 bg-gradient-to-b from-slate-700/60 via-slate-800/40 to-slate-900/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_40px_rgba(124,58,237,0.2)] border border-slate-600/50 backdrop-blur-2xl">
+      <div className="relative rotate-[4deg] rounded-[44px] p-3.5 bg-gradient-to-b from-slate-600/70 via-slate-800/60 to-slate-950 shadow-[25px_35px_70px_-15px_rgba(0,0,0,0.9),0_0_50px_rgba(124,58,237,0.18)] border border-white/20 backdrop-blur-2xl transition-transform duration-500 hover:rotate-0">
         {/* Inner Screen */}
         <div className="relative rounded-[36px] overflow-hidden bg-[#07090E] border border-white/5 p-5 text-slate-100 flex flex-col gap-4">
           {/* Status Bar / Dynamic Island */}
