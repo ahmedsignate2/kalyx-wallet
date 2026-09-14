@@ -82,11 +82,9 @@ export function Footer() {
           </div>
 
           {/* Navigation Links */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200 mb-4">
-              Produit
-            </h4>
-            <ul className="space-y-2.5 text-sm">
+          <details className="border-b border-white/10 pb-4 lg:border-0 lg:pb-0" open>
+            <summary className="cursor-pointer list-none text-xs font-bold uppercase tracking-wider text-slate-200 lg:mb-4">Produit</summary>
+            <ul className="mt-4 space-y-2.5 text-sm lg:mt-0">
               <li>
                 <a href="#features" className="text-slate-400 hover:text-white transition-colors">
                   Fonctionnalités
@@ -108,14 +106,12 @@ export function Footer() {
                 </a>
               </li>
             </ul>
-          </div>
+          </details>
 
           {/* Legal Links */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200 mb-4">
-              Légal & Conformité
-            </h4>
-            <ul className="space-y-2.5 text-sm">
+          <details className="border-b border-white/10 pb-4 lg:border-0 lg:pb-0">
+            <summary className="cursor-pointer list-none text-xs font-bold uppercase tracking-wider text-slate-200 lg:mb-4">Légal &amp; Conformité</summary>
+            <ul className="mt-4 space-y-2.5 text-sm lg:mt-0">
               <li>
                 <Link href="/privacy" className="text-slate-400 hover:text-white transition-colors">
                   Politique de Confidentialité
@@ -132,14 +128,12 @@ export function Footer() {
                 </Link>
               </li>
             </ul>
-          </div>
+          </details>
 
           {/* Support */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200 mb-4">
-              Assistance
-            </h4>
-            <ul className="space-y-2.5 text-sm">
+          <details className="border-b border-white/10 pb-4 lg:border-0 lg:pb-0">
+            <summary className="cursor-pointer list-none text-xs font-bold uppercase tracking-wider text-slate-200 lg:mb-4">Assistance</summary>
+            <ul className="mt-4 space-y-2.5 text-sm lg:mt-0">
               <li>
                 <a 
                   href="mailto:support@kalyxwallet.com"
@@ -167,7 +161,7 @@ export function Footer() {
                 </span>
               </li>
             </ul>
-          </div>
+          </details>
         </div>
 
         {/* Legal Mentions LCEN Bar */}
