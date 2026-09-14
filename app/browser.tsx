@@ -26,6 +26,7 @@ import { Icon } from '../ui/icon';
 import { SignSheet } from '../ui/SignSheet';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { AddressBar, splitHost } from '../ui/browser/AddressBar';
+import { AppTabBar } from '../ui/tabs';
 import { RemoteIcon } from '../ui/premium';
 import { Comet } from '../ui/browser/Comet';
 import { DappTile, DappLogo, siteName } from '../ui/browser/DappTile';
@@ -627,7 +628,7 @@ export default function Browser() {
 
       {/* Chrome du bas : [←] [adresse] [onglets] [⋮] */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[2], paddingTop: space[2], paddingBottom: insets.bottom + space[2], backgroundColor: colors.bg }, chromeStyle]}>
+        <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[2], paddingTop: space[2], paddingBottom: !activeTab.url && !editing ? insets.bottom + 84 : insets.bottom + space[2], backgroundColor: colors.bg }, chromeStyle]}>
           {editing ? (
             <>
               <IconButton icon="close" label={t('cancel')} tone="ghost" onPress={() => { setEditing(false); setInput(''); }} />
@@ -665,6 +666,8 @@ export default function Browser() {
           )}
         </Animated.View>
       </KeyboardAvoidingView>
+      {/* Onglet principal « Explorer » : barre de navigation sur la page nouvel onglet. */}
+      {!activeTab.url && !editing ? <AppTabBar active="browser" /> : null}
 
       {/* Grille d'onglets */}
       <Sheet visible={switcher} onClose={() => setSwitcher(false)}>

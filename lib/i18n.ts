@@ -113,6 +113,12 @@ export const LANGUAGES: LangMeta[] = [
 ];
 
 const en = {
+  navExplore: "Explore",
+  trending: "Trending",
+  seeAllMarket: "See the whole market",
+  tokensAll: "All",
+  myTokens: "My tokens",
+  top100: "Top 100",
   // --- Sauvegarde Google Drive (coffre passif, zéro-connaissance) ---
   driveSave: "Save to Google Drive",
   driveSaving: "Encrypting and sending…",
@@ -1488,6 +1494,12 @@ export type Key = keyof typeof en;
 const dict: Record<Lang, Partial<Record<Key, string>>> = {
   en,
   fr: {
+    navExplore: "Explorer",
+    trending: "Tendances",
+    seeAllMarket: "Voir tout le marché",
+    tokensAll: "Tous",
+    myTokens: "Mes jetons",
+    top100: "Top 100",
     // --- Sauvegarde Google Drive (coffre passif, zéro-connaissance) ---
     driveSave: "Sauvegarder sur Google Drive",
     driveSaving: "Chiffrement et envoi…",
@@ -2844,6 +2856,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Application exécutée localement sur le terminal de l'utilisateur (Non-custodial)",
   },
   es: {
+    navExplore: "Explorar",
+    trending: "Tendencias",
+    seeAllMarket: "Ver todo el mercado",
+    tokensAll: "Todos",
+    myTokens: "Mis tokens",
+    top100: "Top 100",
     // --- Sauvegarde Google Drive ---
     driveSave: "Guardar en Google Drive",
     driveSaving: "Cifrando y enviando…",
@@ -4186,6 +4204,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Aplicación ejecutada localmente en el dispositivo del usuario (Non-custodial)",
   },
   pt: {
+    navExplore: "Explorar",
+    trending: "Tendências",
+    seeAllMarket: "Ver todo o mercado",
+    tokensAll: "Todos",
+    myTokens: "Os meus tokens",
+    top100: "Top 100",
     // --- Sauvegarde Google Drive ---
     driveSave: "Guardar no Google Drive",
     driveSaving: "A cifrar e enviar…",
@@ -5509,6 +5533,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Aplicação executada localmente no dispositivo do utilizador (Non-custodial)",
   },
   de: {
+    navExplore: "Entdecken",
+    trending: "Trends",
+    seeAllMarket: "Gesamten Markt ansehen",
+    tokensAll: "Alle",
+    myTokens: "Meine Token",
+    top100: "Top 100",
     // --- Sauvegarde Google Drive ---
     driveSave: "In Google Drive sichern",
     driveSaving: "Verschlüsseln und senden…",
@@ -6849,6 +6879,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Anwendung wird lokal auf dem Gerät des Benutzers ausgeführt (Non-custodial)",
   },
   it: {
+    navExplore: "Esplora",
+    trending: "Tendenze",
+    seeAllMarket: "Vedi tutto il mercato",
+    tokensAll: "Tutti",
+    myTokens: "I miei token",
+    top100: "Top 100",
     // --- Sauvegarde Google Drive ---
     driveSave: "Salva su Google Drive",
     driveSaving: "Cifratura e invio…",
@@ -8131,6 +8167,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Applicazione eseguita localmente sul dispositivo dell'utente (Non-custodial)",
   },
   nl: {
+    navExplore: "Verkennen",
+    trending: "Trending",
+    seeAllMarket: "Hele markt bekijken",
+    tokensAll: "Alle",
+    myTokens: "Mijn tokens",
+    top100: "Top 100",
     // --- Sauvegarde Google Drive ---
     driveSave: "Opslaan in Google Drive",
     driveSaving: "Versleutelen en verzenden…",
@@ -9482,6 +9524,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Applicatie lokaal uitgevoerd op het apparaat van de gebruiker (Non-custodial)",
   },
   pl: {
+    navExplore: "Odkrywaj",
+    trending: "Na topie",
+    seeAllMarket: "Zobacz cały rynek",
+    tokensAll: "Wszystkie",
+    myTokens: "Moje tokeny",
+    top100: "Top 100",
     // --- Sauvegarde Google Drive ---
     driveSave: "Zapisz na Dysku Google",
     driveSaving: "Szyfrowanie i wysyłanie…",
@@ -10826,6 +10874,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Aplikacja wykonywana lokalnie na urządzeniu użytkownika (Non-custodial)",
   },
   tr: {
+    navExplore: "Keşfet",
+    trending: "Trendler",
+    seeAllMarket: "Tüm piyasayı gör",
+    tokensAll: "Tümü",
+    myTokens: "Tokenlarım",
+    top100: "İlk 100",
     // --- Sauvegarde Google Drive ---
     driveSave: "Google Drive’a kaydet",
     driveSaving: "Şifreleniyor ve gönderiliyor…",
@@ -12164,6 +12218,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Uygulama kullanıcının cihazında yerel olarak çalıştırılır (Non-custodial)",
   },
   ru: {
+    navExplore: "Обзор",
+    trending: "В тренде",
+    seeAllMarket: "Весь рынок",
+    tokensAll: "Все",
+    myTokens: "Мои токены",
+    top100: "Топ‑100",
     // --- Sauvegarde Google Drive ---
     driveSave: "Сохранить в Google Диск",
     driveSaving: "Шифрование и отправка…",
@@ -13543,6 +13603,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Приложение выполняется локально на устройстве пользователя (Non-custodial)",
   },
   ar: {
+    navExplore: "استكشف",
+    trending: "الرائجة",
+    seeAllMarket: "عرض السوق بالكامل",
+    tokensAll: "الكل",
+    myTokens: "رموزي",
+    top100: "أفضل 100",
     // --- Sauvegarde Google Drive ---
     driveSave: "الحفظ في Google Drive",
     driveSaving: "جارٍ التشفير والإرسال…",
@@ -14867,6 +14933,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "يتم تشغيل التطبيق محلياً على جهاز المستخدم (Non-custodial)",
   },
   hi: {
+    navExplore: "एक्सप्लोर",
+    trending: "ट्रेंडिंग",
+    seeAllMarket: "पूरा बाज़ार देखें",
+    tokensAll: "सभी",
+    myTokens: "मेरे टोकन",
+    top100: "टॉप 100",
     // --- Sauvegarde Google Drive ---
     driveSave: "Google Drive में सहेजें",
     driveSaving: "एन्क्रिप्ट करके भेजा जा रहा है…",
@@ -16228,6 +16300,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "एप्लिकेशन उपयोगकर्ता के डिवाइस पर स्थानीय रूप से निष्पादित होता है (Non-custodial)",
   },
   zh: {
+    navExplore: "探索",
+    trending: "热门",
+    seeAllMarket: "查看整个市场",
+    tokensAll: "全部",
+    myTokens: "我的代币",
+    top100: "前 100",
     // --- Sauvegarde Google Drive ---
     driveSave: "保存到 Google Drive",
     driveSaving: "正在加密并上传…",
@@ -17513,6 +17591,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "应用程序在用户设备上本地运行（Non-custodial）",
   },
   ja: {
+    navExplore: "探索",
+    trending: "トレンド",
+    seeAllMarket: "市場全体を見る",
+    tokensAll: "すべて",
+    myTokens: "保有トークン",
+    top100: "トップ100",
     // --- Sauvegarde Google Drive ---
     driveSave: "Google ドライブに保存",
     driveSaving: "暗号化して送信中…",
@@ -18864,6 +18948,12 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "アプリはユーザーの端末上でローカルに実行されます（Non-custodial）",
   },
   ko: {
+    navExplore: "탐색",
+    trending: "트렌드",
+    seeAllMarket: "전체 시장 보기",
+    tokensAll: "전체",
+    myTokens: "내 토큰",
+    top100: "상위 100",
     // --- Sauvegarde Google Drive ---
     driveSave: "Google 드라이브에 저장",
     driveSaving: "암호화 및 전송 중…",
