@@ -31,7 +31,7 @@ const config: Config = {
       },
       backgroundImage: {
         'hero-gradient':
-          'radial-gradient(ellipse 75% 55% at 50% -20%, rgba(124, 58, 237, 0.18), rgba(6, 182, 212, 0.06), transparent)',
+          'radial-gradient(ellipse 70% 48% at 50% -12%, rgba(124, 58, 237, 0.14), rgba(6, 182, 212, 0.045), transparent 72%)',
         'card-glow':
           'radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.12), transparent 70%)',
         'glass-gradient':
