@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, Text, Pressable, Linking, ScrollView } from 'react-native';
+import { View, Text, Pressable, Linking } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { ScreenHeader } from '../../ui/kit';
@@ -79,199 +79,211 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
         onBack={onBack ? onBack : () => router.back()}
       />
 
-      <ScrollView
-        contentContainerStyle={{ gap: spacing(1.5), paddingBottom: spacing(4) }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Identité de l'application */}
-        <View style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1.5) }}>
-          <KalyxLogo size={80} />
-          <Text
+      {/* Identité de l'application */}
+      <View style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1) }}>
+        <KalyxLogo size={80} />
+        <Text
+          style={{
+            color: colors.text,
+            fontSize: 24,
+            fontFamily: fonts.bold,
+            letterSpacing: 0.5,
+          }}
+        >
+          Kalyx Wallet
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Pressable
+            onPress={onVersionTap}
+            hitSlop={8}
+            accessibilityLabel={`${t('legalAppVersion')} ${appVersion}`}
+          >
+            <Text style={typography.muted}>
+              {t('legalAppVersion')} v{appVersion}
+            </Text>
+          </Pressable>
+          <View
             style={{
-              color: colors.text,
-              fontSize: 24,
-              fontFamily: fonts.bold,
-              letterSpacing: 0.5,
+              backgroundColor: colors.warning + '22',
+              borderRadius: 6,
+              paddingHorizontal: 7,
+              paddingVertical: 2,
             }}
           >
-            Kalyx Wallet
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Pressable
-              onPress={onVersionTap}
-              hitSlop={8}
-              accessibilityLabel={`${t('legalAppVersion')} ${appVersion}`}
-            >
-              <Text style={typography.muted}>
-                {t('legalAppVersion')} v{appVersion}
-              </Text>
-            </Pressable>
-            <View
+            <Text
               style={{
-                backgroundColor: colors.warning + '22',
-                borderRadius: 6,
-                paddingHorizontal: 7,
-                paddingVertical: 2,
+                color: colors.warning,
+                fontSize: 10,
+                fontFamily: fonts.bold,
+                letterSpacing: 0.5,
               }}
             >
-              <Text
-                style={{
-                  color: colors.warning,
-                  fontSize: 10,
-                  fontFamily: fonts.bold,
-                  letterSpacing: 0.5,
-                }}
-              >
-                {t('betaTag')}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Section 1 : Éditeur de l'application */}
-        <GlassCard style={{ gap: spacing(1) }}>
-          <Text
-            style={[
-              typography.caption,
-              { color: colors.primary, fontFamily: fonts.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.6 },
-            ]}
-          >
-            {t('legalPublisher')}
-          </Text>
-
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingVertical: spacing(0.5),
-            }}
-          >
-            <Text style={typography.muted}>{t('legalCompanyNameLabel')}</Text>
-            <Text style={typography.bodyStrong}>{LEGAL_CONSTANTS.COMPANY_NAME}</Text>
-          </View>
-
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingVertical: spacing(0.5),
-              borderTopWidth: 1,
-              borderTopColor: colors.glassBorder,
-            }}
-          >
-            <Text style={typography.muted}>{t('legalStatusLabel')}</Text>
-            <Text style={typography.bodyStrong}>{t('legalStatusIndividual')}</Text>
-          </View>
-
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingVertical: spacing(0.5),
-              borderTopWidth: 1,
-              borderTopColor: colors.glassBorder,
-            }}
-          >
-            <Text style={typography.muted}>{t('legalSiretLabel')}</Text>
-            <Text style={[typography.bodyStrong, { maxWidth: '60%', textAlign: 'right' }]}>
-              {siretDisplay}
+              {t('betaTag')}
             </Text>
           </View>
+        </View>
+      </View>
 
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingVertical: spacing(0.5),
-              borderTopWidth: 1,
-              borderTopColor: colors.glassBorder,
-            }}
-          >
-            <Text style={typography.muted}>{t('legalContactLabel')}</Text>
-            <Pressable onPress={openEmail} hitSlop={6} accessibilityRole="link">
-              <Text
-                style={[
-                  typography.bodyStrong,
-                  { color: colors.primary, textDecorationLine: 'underline' },
-                ]}
-              >
-                {LEGAL_CONSTANTS.CONTACT_EMAIL}
-              </Text>
-            </Pressable>
+      {/* Section 1 : Éditeur de l'application */}
+      <GlassCard style={{ gap: spacing(1.25), overflow: 'hidden' }}>
+        <Text
+          style={[
+            typography.caption,
+            { color: colors.primary, fontFamily: fonts.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.6 },
+          ]}
+        >
+          {t('legalPublisher')}
+        </Text>
+
+        {/* Raison sociale / Marque */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            paddingVertical: spacing(0.5),
+            gap: spacing(1),
+          }}
+        >
+          <Text style={[typography.muted, { flexShrink: 0 }]}>{t('legalCompanyNameLabel')}</Text>
+          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+            <Text style={[typography.bodyStrong, { textAlign: 'right', flexWrap: 'wrap', flexShrink: 1 }]}>
+              KALYX
+            </Text>
+            <Text style={[typography.micro, { color: colors.textSecondary, textAlign: 'right', marginTop: 2, flexWrap: 'wrap', flexShrink: 1 }]}>
+              Entrepreneur individuel : Ahamed Signate
+            </Text>
           </View>
-        </GlassCard>
+        </View>
 
-        {/* Section 2 : Hébergement */}
-        <GlassCard style={{ gap: spacing(0.75) }}>
-          <Text
-            style={[
-              typography.caption,
-              { color: colors.primary, fontFamily: fonts.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.6 },
-            ]}
-          >
-            {t('legalHosting')}
-          </Text>
-          <Text style={[typography.body, { color: colors.text, lineHeight: 20 }]}>
-            {hostingDisplay}
-          </Text>
-        </GlassCard>
-
-        {/* Section 3 : Documents & Liens réglementaires */}
-        <GlassCard>
-          <ListRow
-            left={<Icon name="security" size={20} color={colors.textMuted} />}
-            title={t('legalPrivacyPolicy')}
-            right={<Icon name="chevron" size={18} tone="faint" />}
-            onPress={openPrivacy}
-          />
-          <ListRow
-            divider
-            left={<Icon name="phrase" size={20} color={colors.textMuted} />}
-            title={t('legalTermsOfService')}
-            right={<Icon name="chevron" size={18} tone="faint" />}
-            onPress={openTerms}
-          />
-          <ListRow
-            divider
-            left={<Icon name="faq" size={20} color={colors.textMuted} />}
-            title={t('faq')}
-            right={<Icon name="chevron" size={18} tone="faint" />}
-            onPress={() => router.push('/faq')}
-          />
-          <ListRow
-            divider
-            left={<Icon name="telegramLogo" size={20} color={colors.textMuted} />}
-            title={t('joinTelegram')}
-            subtitle="t.me/kalyxntw"
-            right={<Icon name="chevron" size={18} tone="faint" />}
-            onPress={openTelegram}
-          />
-          <ListRow
-            divider
-            left={<Icon name="xLogo" size={20} color={colors.textMuted} />}
-            title={t('followOnX')}
-            subtitle="@kalyxntw"
-            right={<Icon name="chevron" size={18} tone="faint" />}
-            onPress={openX}
-          />
-        </GlassCard>
-
-        {/* Footer & Mentions Droits réservés */}
-        <View style={{ paddingVertical: spacing(1), alignItems: 'center' }}>
-          <Text
-            style={[
-              typography.muted,
-              { textAlign: 'center', fontSize: 12, lineHeight: 18 },
-            ]}
-          >
-            © 2026 {LEGAL_CONSTANTS.COMPANY_NAME}. {t('legalRightsReserved')}
+        {/* Statut juridique */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingVertical: spacing(0.5),
+            borderTopWidth: 1,
+            borderTopColor: colors.glassBorder,
+            gap: spacing(1),
+          }}
+        >
+          <Text style={[typography.muted, { flexShrink: 0 }]}>{t('legalStatusLabel')}</Text>
+          <Text style={[typography.bodyStrong, { flex: 1, textAlign: 'right', flexWrap: 'wrap', flexShrink: 1 }]}>
+            {t('legalStatusIndividual')}
           </Text>
         </View>
-      </ScrollView>
+
+        {/* SIRET */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingVertical: spacing(0.5),
+            borderTopWidth: 1,
+            borderTopColor: colors.glassBorder,
+            gap: spacing(1),
+          }}
+        >
+          <Text style={[typography.muted, { flexShrink: 0 }]}>{t('legalSiretLabel')}</Text>
+          <Text style={[typography.bodyStrong, { flex: 1, textAlign: 'right', flexWrap: 'wrap', flexShrink: 1 }]}>
+            {siretDisplay}
+          </Text>
+        </View>
+
+        {/* Contact */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingVertical: spacing(0.5),
+            borderTopWidth: 1,
+            borderTopColor: colors.glassBorder,
+            gap: spacing(1),
+          }}
+        >
+          <Text style={[typography.muted, { flexShrink: 0 }]}>{t('legalContactLabel')}</Text>
+          <Pressable onPress={openEmail} hitSlop={6} accessibilityRole="link" style={{ flex: 1, alignItems: 'flex-end' }}>
+            <Text
+              style={[
+                typography.bodyStrong,
+                { color: colors.primary, textDecorationLine: 'underline', textAlign: 'right', flexWrap: 'wrap', flexShrink: 1 },
+              ]}
+            >
+              {LEGAL_CONSTANTS.CONTACT_EMAIL}
+            </Text>
+          </Pressable>
+        </View>
+      </GlassCard>
+
+      {/* Section 2 : Hébergement */}
+      <GlassCard style={{ gap: spacing(0.75), overflow: 'hidden' }}>
+        <Text
+          style={[
+            typography.caption,
+            { color: colors.primary, fontFamily: fonts.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.6 },
+          ]}
+        >
+          {t('legalHosting')}
+        </Text>
+        <Text style={[typography.body, { color: colors.text, lineHeight: 20, flexWrap: 'wrap' }]}>
+          {hostingDisplay}
+        </Text>
+      </GlassCard>
+
+      {/* Section 3 : Documents & Liens réglementaires */}
+      <GlassCard style={{ overflow: 'hidden' }}>
+        <ListRow
+          left={<Icon name="security" size={20} color={colors.textMuted} />}
+          title={t('legalPrivacyPolicy')}
+          right={<Icon name="chevron" size={18} tone="faint" />}
+          onPress={openPrivacy}
+        />
+        <ListRow
+          divider
+          left={<Icon name="phrase" size={20} color={colors.textMuted} />}
+          title={t('legalTermsOfService')}
+          right={<Icon name="chevron" size={18} tone="faint" />}
+          onPress={openTerms}
+        />
+        <ListRow
+          divider
+          left={<Icon name="faq" size={20} color={colors.textMuted} />}
+          title={t('faq')}
+          right={<Icon name="chevron" size={18} tone="faint" />}
+          onPress={() => router.push('/faq')}
+        />
+        <ListRow
+          divider
+          left={<Icon name="telegramLogo" size={20} color={colors.textMuted} />}
+          title={t('joinTelegram')}
+          subtitle="t.me/kalyxntw"
+          right={<Icon name="chevron" size={18} tone="faint" />}
+          onPress={openTelegram}
+        />
+        <ListRow
+          divider
+          left={<Icon name="xLogo" size={20} color={colors.textMuted} />}
+          title={t('followOnX')}
+          subtitle="@kalyxntw"
+          right={<Icon name="chevron" size={18} tone="faint" />}
+          onPress={openX}
+        />
+      </GlassCard>
+
+      {/* Footer & Mentions Droits réservés */}
+      <View style={{ paddingVertical: spacing(1), alignItems: 'center' }}>
+        <Text
+          style={[
+            typography.muted,
+            { textAlign: 'center', fontSize: 12, lineHeight: 18, flexWrap: 'wrap' },
+          ]}
+        >
+          © 2026 {LEGAL_CONSTANTS.COMPANY_NAME}. {t('legalRightsReserved')}
+        </Text>
+      </View>
     </PremiumScreen>
   );
 }
