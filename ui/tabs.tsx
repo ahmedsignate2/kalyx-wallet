@@ -19,7 +19,7 @@ export function AppTabBar({ active }: { active: MainTab }) {
       center={{ icon: 'exchange', label: t('navExchange'), onPress: () => router.push('/swap') }}
       items={[
         { key: 'home', icon: 'home', label: t('navHome'), onPress: () => router.replace('/home') },
-        { key: 'browser', icon: 'dapps', label: t('navExplore'), onPress: () => router.replace('/browser') },
+        { key: 'browser', icon: 'dapps', label: t('navExplore'), onPress: () => router.replace({ pathname: '/browser', params: { tab: '1' } }) },
         { key: 'earn', icon: 'staking', label: 'Earn', onPress: () => router.replace('/earn') },
         { key: 'menu', icon: 'menu', label: t('menu'), onPress: () => router.replace('/menu') },
       ]}
