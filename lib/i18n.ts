@@ -113,6 +113,8 @@ export const LANGUAGES: LangMeta[] = [
 ];
 
 const en = {
+  encBackupDoneMsg: "An encrypted backup exists (file or Google Drive).",
+  encBackupTodoMsg: "No encrypted backup yet. It restores your wallet if this phone is lost.",
   aiAuditLabel: "AI audit:",
   appHaptics: "Haptic feedback",
   appHapticsHint: "Vibrate on taps, confirmations and alerts",
@@ -1522,6 +1524,8 @@ export type Key = keyof typeof en;
 const dict: Record<Lang, Partial<Record<Key, string>>> = {
   en,
   fr: {
+    encBackupDoneMsg: "Une sauvegarde chiffrée existe (fichier ou Google Drive).",
+    encBackupTodoMsg: "Aucune sauvegarde chiffrée. Elle restaure ton portefeuille si ce téléphone est perdu.",
     aiAuditLabel: "Audit IA :",
     appHaptics: "Retours haptiques",
     appHapticsHint: "Vibrer sur les appuis, confirmations et alertes",
@@ -2912,6 +2916,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Application exécutée localement sur le terminal de l'utilisateur (Non-custodial)",
   },
   es: {
+    encBackupDoneMsg: "Existe una copia cifrada (archivo o Google Drive).",
+    encBackupTodoMsg: "Sin copia cifrada aún. Restaura tu monedero si pierdes este teléfono.",
     aiAuditLabel: "Auditoría IA:",
     appHaptics: "Respuesta háptica",
     appHapticsHint: "Vibrar en toques, confirmaciones y alertas",
@@ -4288,6 +4294,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Aplicación ejecutada localmente en el dispositivo del usuario (Non-custodial)",
   },
   pt: {
+    encBackupDoneMsg: "Existe uma cópia cifrada (ficheiro ou Google Drive).",
+    encBackupTodoMsg: "Ainda sem cópia cifrada. Restaura a sua carteira se perder este telemóvel.",
     aiAuditLabel: "Auditoria IA:",
     appHaptics: "Resposta háptica",
     appHapticsHint: "Vibrar em toques, confirmações e alertas",
@@ -5645,6 +5653,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Aplicação executada localmente no dispositivo do utilizador (Non-custodial)",
   },
   de: {
+    encBackupDoneMsg: "Ein verschlüsseltes Backup existiert (Datei oder Google Drive).",
+    encBackupTodoMsg: "Noch kein verschlüsseltes Backup. Es stellt deine Wallet wieder her, wenn dieses Handy verloren geht.",
     aiAuditLabel: "KI-Prüfung:",
     appHaptics: "Haptisches Feedback",
     appHapticsHint: "Bei Tipps, Bestätigungen und Warnungen vibrieren",
@@ -7019,6 +7029,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Anwendung wird lokal auf dem Gerät des Benutzers ausgeführt (Non-custodial)",
   },
   it: {
+    encBackupDoneMsg: "Esiste un backup cifrato (file o Google Drive).",
+    encBackupTodoMsg: "Nessun backup cifrato. Ripristina il wallet se perdi questo telefono.",
     aiAuditLabel: "Audit IA:",
     appHaptics: "Feedback aptico",
     appHapticsHint: "Vibra su tocchi, conferme e avvisi",
@@ -8335,6 +8347,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Applicazione eseguita localmente sul dispositivo dell'utente (Non-custodial)",
   },
   nl: {
+    encBackupDoneMsg: "Er bestaat een versleutelde back-up (bestand of Google Drive).",
+    encBackupTodoMsg: "Nog geen versleutelde back-up. Die herstelt je wallet als deze telefoon verloren gaat.",
     aiAuditLabel: "AI-audit:",
     appHaptics: "Haptische feedback",
     appHapticsHint: "Trillen bij tikken, bevestigingen en meldingen",
@@ -9720,6 +9734,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Applicatie lokaal uitgevoerd op het apparaat van de gebruiker (Non-custodial)",
   },
   pl: {
+    encBackupDoneMsg: "Istnieje zaszyfrowana kopia (plik lub Dysk Google).",
+    encBackupTodoMsg: "Brak zaszyfrowanej kopii. Przywraca portfel, jeśli zgubisz ten telefon.",
     aiAuditLabel: "Audyt AI:",
     appHaptics: "Wibracje",
     appHapticsHint: "Wibruj przy dotknięciach, potwierdzeniach i alertach",
@@ -11098,6 +11114,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Aplikacja wykonywana lokalnie na urządzeniu użytkownika (Non-custodial)",
   },
   tr: {
+    encBackupDoneMsg: "Şifreli bir yedek var (dosya veya Google Drive).",
+    encBackupTodoMsg: "Henüz şifreli yedek yok. Bu telefon kaybolursa cüzdanınızı geri yükler.",
     aiAuditLabel: "Yapay zekâ denetimi:",
     appHaptics: "Dokunsal geri bildirim",
     appHapticsHint: "Dokunma, onay ve uyarılarda titreşim",
@@ -12470,6 +12488,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Uygulama kullanıcının cihazında yerel olarak çalıştırılır (Non-custodial)",
   },
   ru: {
+    encBackupDoneMsg: "Зашифрованная копия существует (файл или Google Диск).",
+    encBackupTodoMsg: "Зашифрованной копии пока нет. Она восстановит кошелёк, если телефон будет утерян.",
     aiAuditLabel: "ИИ-аудит:",
     appHaptics: "Виброотклик",
     appHapticsHint: "Вибрация при нажатиях, подтверждениях и предупреждениях",
@@ -13883,6 +13903,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Приложение выполняется локально на устройстве пользователя (Non-custodial)",
   },
   ar: {
+    encBackupDoneMsg: "توجد نسخة احتياطية مشفّرة (ملف أو Google Drive).",
+    encBackupTodoMsg: "لا توجد نسخة مشفّرة بعد. تستعيد محفظتك إذا فُقد هذا الهاتف.",
     aiAuditLabel: "تدقيق الذكاء الاصطناعي:",
     appHaptics: "الاستجابة اللمسية",
     appHapticsHint: "اهتزاز عند النقر والتأكيد والتنبيهات",
@@ -15241,6 +15263,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "يتم تشغيل التطبيق محلياً على جهاز المستخدم (Non-custodial)",
   },
   hi: {
+    encBackupDoneMsg: "एक एन्क्रिप्टेड बैकअप मौजूद है (फ़ाइल या Google Drive)।",
+    encBackupTodoMsg: "अभी कोई एन्क्रिप्टेड बैकअप नहीं। यह फ़ोन खोने पर वॉलेट बहाल करता है।",
     aiAuditLabel: "AI ऑडिट:",
     appHaptics: "हैप्टिक फ़ीडबैक",
     appHapticsHint: "टैप, पुष्टि और चेतावनी पर कंपन",
@@ -16636,6 +16660,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "एप्लिकेशन उपयोगकर्ता के डिवाइस पर स्थानीय रूप से निष्पादित होता है (Non-custodial)",
   },
   zh: {
+    encBackupDoneMsg: "已有加密备份（文件或 Google Drive）。",
+    encBackupTodoMsg: "尚无加密备份。若丢失此手机，它可恢复您的钱包。",
     aiAuditLabel: "AI 审计：",
     appHaptics: "触感反馈",
     appHapticsHint: "点按、确认和提醒时震动",
@@ -17955,6 +17981,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "应用程序在用户设备上本地运行（Non-custodial）",
   },
   ja: {
+    encBackupDoneMsg: "暗号化バックアップがあります（ファイルまたは Google ドライブ）。",
+    encBackupTodoMsg: "暗号化バックアップがまだありません。このスマホを失ったときにウォレットを復元します。",
     aiAuditLabel: "AI 監査：",
     appHaptics: "触覚フィードバック",
     appHapticsHint: "タップ・確認・警告時に振動",
@@ -19340,6 +19368,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "アプリはユーザーの端末上でローカルに実行されます（Non-custodial）",
   },
   ko: {
+    encBackupDoneMsg: "암호화된 백업이 있습니다 (파일 또는 Google 드라이브).",
+    encBackupTodoMsg: "아직 암호화된 백업이 없습니다. 이 휴대폰을 잃어버려도 지갑을 복원할 수 있습니다.",
     aiAuditLabel: "AI 감사:",
     appHaptics: "햅틱 피드백",
     appHapticsHint: "탭, 확인, 알림 시 진동",
