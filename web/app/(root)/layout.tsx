@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     canonical: `${SITE}/`,
     languages: { ...Object.fromEntries(LOCALES.map((l) => [HTML_LANG[l], `${SITE}/${l}/`])), 'x-default': `${SITE}/` },
   },
-  icons: { icon: '/favicon.ico' },
+  icons: { icon: '/icon.png' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
