@@ -64,7 +64,7 @@ const es: Dict = {
         label: 'de pulsación para enviar',
       },
       {
-        title: 'Intercambiar sin salir de la app.',
+        title: 'Swap sin salir de la app.',
         text: 'Jupiter en Solana, LI.FI y Relay en cadenas EVM y entre cadenas. La ruta se escribe en una frase y el impacto en el precio se anuncia antes de confirmar.',
         value: '3',
         label: 'enrutadores, firmas tú mismo',
@@ -154,11 +154,11 @@ const es: Dict = {
     kicker: 'Comisiones, sin rodeos',
     title: 'Cómo se gana la vida Kalyx.',
     titleEm: 'En una línea.',
-    lead: 'Los monederos gratuitos suelen esconder su precio en la ruta de un intercambio. Aquí está el nuestro, cifra por cifra, tal como está escrito en el código.',
+    lead: 'Los monederos gratuitos suelen esconder su precio en la ruta de un swap. Aquí está el nuestro, cifra por cifra, tal como está escrito en el código.',
     items: [
       { value: '0 €', label: 'por enviar, recibir, guardar', note: 'Solo se aplican las comisiones de red: van a los validadores, no a nosotros.' },
-      { value: '0,3 %', label: 'en un intercambio vía LI.FI', note: 'EVM y entre cadenas. Es el único ingreso de Kalyx.' },
-      { value: '0 %', label: 'en un intercambio en Solana vía Jupiter', note: 'Ninguna comisión añadida a la ruta.' },
+      { value: '0,3 %', label: 'en un swap vía LI.FI', note: 'EVM y entre cadenas. Es el único ingreso de Kalyx.' },
+      { value: '0 %', label: 'en un swap en Solana vía Jupiter', note: 'Ninguna comisión añadida a la ruta.' },
       { value: '0 %', label: 'en Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: nada retenido al depositar ni al retirar.' },
       { value: '0 €', label: 'de suscripción, para siempre', note: 'Sin versión «pro», sin funciones tras un peaje.' },
     ],

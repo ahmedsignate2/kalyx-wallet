@@ -64,7 +64,7 @@ const de: Dict = {
         label: 'Halten zum Senden',
       },
       {
-        title: 'Tauschen, ohne die App zu verlassen.',
+        title: 'Swap, ohne die App zu verlassen.',
         text: 'Jupiter auf Solana, LI.FI und Relay auf EVM-Chains und chainübergreifend. Die Route steht in einem Satz, die Preisauswirkung wird vor der Bestätigung genannt.',
         value: '3',
         label: 'Router, du signierst selbst',
@@ -154,11 +154,11 @@ const de: Dict = {
     kicker: 'Gebühren, ohne Umwege',
     title: 'Wovon Kalyx lebt.',
     titleEm: 'In einer Zeile.',
-    lead: 'Kostenlose Wallets verstecken ihren Preis oft in der Route eines Tauschs. Hier ist unserer, Zahl für Zahl, so wie er im Code steht.',
+    lead: 'Kostenlose Wallets verstecken ihren Preis oft in der Route eines Swaps. Hier ist unserer, Zahl für Zahl, so wie er im Code steht.',
     items: [
       { value: '0 €', label: 'fürs Senden, Empfangen, Halten', note: 'Nur Netzwerkgebühren fallen an — sie gehen an die Validatoren, nicht an uns.' },
-      { value: '0,3 %', label: 'auf einen Tausch über LI.FI', note: 'EVM und chainübergreifend. Das ist die einzige Einnahme von Kalyx.' },
-      { value: '0 %', label: 'auf einen Solana-Tausch über Jupiter', note: 'Keine Provision auf der Route.' },
+      { value: '0,3 %', label: 'auf einen Swap über LI.FI', note: 'EVM und chainübergreifend. Das ist die einzige Einnahme von Kalyx.' },
+      { value: '0 %', label: 'auf einen Solana-Swap über Jupiter', note: 'Keine Provision auf der Route.' },
       { value: '0 %', label: 'auf Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: nichts einbehalten, weder bei Einzahlung noch bei Abhebung.' },
       { value: '0 €', label: 'Abo, für immer', note: 'Keine „Pro“-Version, keine Funktion hinter einer Schranke.' },
     ],

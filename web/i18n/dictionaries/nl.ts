@@ -64,7 +64,7 @@ const nl: Dict = {
         label: 'vasthouden om te versturen',
       },
       {
-        title: 'Wisselen zonder de app te verlaten.',
+        title: 'Swap zonder de app te verlaten.',
         text: 'Jupiter op Solana, LI.FI en Relay op EVM-chains en tussen chains. De route staat in één zin, de prijsimpact wordt vóór bevestiging gemeld.',
         value: '3',
         label: 'routers, je tekent zelf',

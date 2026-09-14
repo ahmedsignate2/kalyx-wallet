@@ -64,7 +64,7 @@ const it: Dict = {
         label: 'di pressione per inviare',
       },
       {
-        title: 'Scambiare senza uscire dall’app.',
+        title: 'Swap senza uscire dall’app.',
         text: 'Jupiter su Solana, LI.FI e Relay sulle chain EVM e tra chain diverse. La rotta è scritta in una frase, l’impatto sul prezzo è annunciato prima di confermare.',
         value: '3',
         label: 'router, firmi tu stesso',
@@ -154,11 +154,11 @@ const it: Dict = {
     kicker: 'Commissioni, senza giri di parole',
     title: 'Come Kalyx si guadagna da vivere.',
     titleEm: 'In una riga.',
-    lead: 'I wallet gratuiti nascondono spesso il prezzo nella rotta di uno scambio. Ecco il nostro, cifra per cifra, così com’è scritto nel codice.',
+    lead: 'I wallet gratuiti nascondono spesso il prezzo nella rotta di uno swap. Ecco il nostro, cifra per cifra, così com’è scritto nel codice.',
     items: [
       { value: '0 €', label: 'per inviare, ricevere, detenere', note: 'Si applicano solo le commissioni di rete — vanno ai validatori, non a noi.' },
-      { value: '0,3 %', label: 'su uno scambio via LI.FI', note: 'EVM e tra chain. È l’unica entrata di Kalyx.' },
-      { value: '0 %', label: 'su uno scambio Solana via Jupiter', note: 'Nessuna commissione aggiunta alla rotta.' },
+      { value: '0,3 %', label: 'su uno swap via LI.FI', note: 'EVM e tra chain. È l’unica entrata di Kalyx.' },
+      { value: '0 %', label: 'su uno swap Solana via Jupiter', note: 'Nessuna commissione aggiunta alla rotta.' },
       { value: '0 %', label: 'su Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: nulla trattenuto al deposito né al prelievo.' },
       { value: '0 €', label: 'di abbonamento, per sempre', note: 'Nessuna versione «pro», nessuna funzione dietro un pedaggio.' },
     ],
