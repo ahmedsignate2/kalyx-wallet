@@ -175,6 +175,8 @@ describe('Newly added features localization', () => {
     'legal.privacyPolicy',
     'legal.termsOfService',
     'legal.appVersion',
+    'legalHostingNonCustodial',
+    'legal.hostingNonCustodial',
   ];
 
   const languages: Lang[] = [

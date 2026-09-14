@@ -88,6 +88,9 @@
     "hosting": "Hosting",
     "privacyPolicy": "Privacybeleid",
     "termsOfService": "Algemene Voorwaarden",
-    "appVersion": "Versie:"
-  }
+    "appVersion": "Versie:",
+    "hostingNonCustodial": "Applicatie lokaal uitgevoerd op het apparaat van de gebruiker (Non-custodial)"
+  },
+  "legalHostingNonCustodial": "Applicatie lokaal uitgevoerd op het apparaat van de gebruiker (Non-custodial)",
+  "legal.hostingNonCustodial": "Applicatie lokaal uitgevoerd op het apparaat van de gebruiker (Non-custodial)"
 }

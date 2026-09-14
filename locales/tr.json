@@ -88,6 +88,9 @@
     "hosting": "Barındırma (Hosting)",
     "privacyPolicy": "Gizlilik Politikası",
     "termsOfService": "Kullanım Koşulları",
-    "appVersion": "Sürüm:"
-  }
+    "appVersion": "Sürüm:",
+    "hostingNonCustodial": "Uygulama kullanıcının cihazında yerel olarak çalıştırılır (Non-custodial)"
+  },
+  "legalHostingNonCustodial": "Uygulama kullanıcının cihazında yerel olarak çalıştırılır (Non-custodial)",
+  "legal.hostingNonCustodial": "Uygulama kullanıcının cihazında yerel olarak çalıştırılır (Non-custodial)"
 }

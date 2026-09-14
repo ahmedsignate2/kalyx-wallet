@@ -9,8 +9,7 @@ export const LEGAL_CONSTANTS = {
   LEGAL_STATUS: 'Entrepreneur individuel',
   SIRET: process.env.EXPO_PUBLIC_SIRET || 'EN_ATTENTE_INSEE',
   CONTACT_EMAIL: process.env.EXPO_PUBLIC_CONTACT_EMAIL || 'support@kalyx.app',
-  HOSTING_PROVIDER:
-    process.env.EXPO_PUBLIC_HOSTING_PROVIDER || 'Vercel Inc. (API & Services) / Cloudflare',
+  HOSTING_PROVIDER: process.env.EXPO_PUBLIC_HOSTING_PROVIDER || '',
   PRIVACY_POLICY_URL: process.env.EXPO_PUBLIC_PRIVACY_URL || 'https://kalyx.app/privacy',
   TERMS_OF_SERVICE_URL: process.env.EXPO_PUBLIC_TERMS_URL || 'https://kalyx.app/terms',
   TELEGRAM_URL: 'https://t.me/kalyxntw',
