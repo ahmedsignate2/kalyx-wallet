@@ -14,6 +14,15 @@ export interface CopilotWalletContext {
   balances: Array<{ network: string; tokenSymbol: string; tokenName: string; amount: string; fiatValueEur: number; isTestnet: boolean }>;
   recentActivity: Array<{ id: string; timestamp: string; network: string; isTestnet: boolean; actionType: string; summary: string; counterpartyOrDapp: string; gasFeePaid: string | null; status: string; failureReason: string | null }>;
   browser: { activeUrl: string | null; domain: string | null; isPhishingBlocked: boolean };
+  /** État de sécurité (booléens et dates uniquement — rien de secret). */
+  security: {
+    phraseVerified: boolean;
+    encryptedBackupAt: string | null;
+    driveBackupAt: string | null;
+    biometrics: boolean;
+    autoLockMinutes: number;
+    privacyGuard: boolean;
+  };
 }
 
 function domainOf(url: string): string | null {
@@ -101,6 +110,14 @@ export function getCopilotContextSnapshot(): CopilotWalletContext {
     ].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 20),
     // Seul le domaine est retenu : une URL complète peut contenir des jetons de session.
     browser: { activeUrl: null, domain: domainOf(browser.currentUrl), isPhishingBlocked: false },
+    security: {
+      phraseVerified: settings.backupVerified === true,
+      encryptedBackupAt: settings.encryptedBackupAt ?? null,
+      driveBackupAt: settings.driveBackupAt ?? null,
+      biometrics: settings.biometricEnabled === true,
+      autoLockMinutes: Number(settings.autoLockMinutes ?? 0),
+      privacyGuard: settings.privacyGuard === true,
+    },
   };
 }
 
@@ -149,6 +166,8 @@ export function serializeCopilotContext(snapshot = getCopilotContextSnapshot()):
       d: snapshot.browser.domain,
       p: snapshot.browser.isPhishingBlocked,
     },
+    // sec : phraseVerified, encryptedBackupAt (fichier ou Drive), driveBackupAt, biometrics, autoLockMinutes, privacyGuard
+    sec: snapshot.security,
   };
   scan(compact, 'compact');
   console.log('[CopilotContext] Transactions injectées:', compact.r.length, 'Logs injectés:', compact.l.length);
