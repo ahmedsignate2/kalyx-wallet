@@ -6,15 +6,17 @@ import { ArrowDown, Download } from 'lucide-react';
 import { PhoneMock } from './phone-mock';
 import { EASE } from './motion';
 
-/* Chaque chip correspond à une fonctionnalité réellement implémentée (cf. security.tsx). */
+/* Chaque chip correspond à une fonctionnalité réellement implémentée (cf. never-stolen.tsx). */
 const chips = ['Non-custodial', 'AES-256-GCM', 'Zéro télémétrie', 'Multi-chaînes'];
 
 const MAX_TILT = 14; // degrés, bascule au pointeur
 
 /** Entrée en scène : chaque bloc du texte arrive 120 ms après le précédent. */
+const once = { once: true, margin: '0px 0px -10% 0px' } as const;
 const enter = (i: number) => ({
   initial: { opacity: 0, y: 28 },
-  animate: { opacity: 1, y: 0 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: once,
   transition: { duration: 1, ease: EASE, delay: 0.15 + i * 0.12 },
 });
 
@@ -39,17 +41,18 @@ export function Hero() {
   }
 
   return (
-    <section ref={section} className="relative overflow-hidden px-5 pb-20 pt-32 sm:px-8 sm:pt-40 lg:pb-28">
+    <section id="prologue" ref={section} className="relative scroll-mt-16 overflow-hidden px-5 pb-20 pt-24 sm:px-8 sm:pt-32 lg:pb-28">
       <div className="mx-auto grid max-w-page items-center gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
         <div>
           <motion.p {...(reduce ? {} : enter(0))} className="mb-8 flex items-center gap-3 text-xs uppercase tracking-[0.22em] text-sage">
             <motion.span
               className="h-px w-8 origin-left bg-sage"
               initial={reduce ? false : { scaleX: 0 }}
-              animate={{ scaleX: 1 }}
+              whileInView={{ scaleX: 1 }}
+              viewport={once}
               transition={{ duration: 1, ease: EASE, delay: 0.3 }}
             />
-            Acte I · Souveraineté
+            Prologue · Souveraineté
           </motion.p>
 
           <h1 className="font-display text-[2.75rem] font-light leading-[1.02] tracking-[-0.02em] text-paper sm:text-6xl lg:text-7xl">
@@ -58,7 +61,8 @@ export function Hero() {
                 <motion.span
                   className="block"
                   initial={reduce ? false : { y: '110%' }}
-                  animate={{ y: 0 }}
+                  whileInView={{ y: 0 }}
+                  viewport={once}
                   transition={{ duration: 1.1, ease: EASE, delay: 0.25 + i * 0.12 }}
                 >
                   {line}
@@ -69,7 +73,8 @@ export function Hero() {
               <motion.em
                 className="block font-normal italic text-sage"
                 initial={reduce ? false : { y: '110%' }}
-                animate={{ y: 0 }}
+                whileInView={{ y: 0 }}
+                viewport={once}
                 transition={{ duration: 1.1, ease: EASE, delay: 0.49 }}
               >
                 Sans compromis.
@@ -91,7 +96,7 @@ export function Hero() {
               Télécharger l’APK
             </a>
             <a
-              href="#securite"
+              href="#voler"
               className="group inline-flex h-12 items-center justify-center gap-2 rounded-full border border-bone/20 px-6 text-sm font-medium text-paper transition-colors duration-200 hover:border-bone/50"
             >
               Découvrir la sécurité
@@ -120,7 +125,8 @@ export function Hero() {
           className="relative flex justify-center lg:justify-end"
           style={{ perspective: '1200px', y: reduce ? 0 : scrollY }}
           initial={reduce ? false : { opacity: 0, x: 40, rotateY: -18 }}
-          animate={{ opacity: 1, x: 0, rotateY: 0 }}
+          whileInView={{ opacity: 1, x: 0, rotateY: 0 }}
+          viewport={once}
           transition={{ duration: 1.4, ease: EASE, delay: 0.4 }}
         >
           <motion.div style={{ rotateZ: reduce ? 0 : scrollRotate, transformStyle: 'preserve-3d' }}>

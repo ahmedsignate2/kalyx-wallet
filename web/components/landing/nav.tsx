@@ -8,9 +8,10 @@ import { EASE } from './motion';
 import { Mark } from './mark';
 
 const links = [
-  { href: '/#fonctionnalites', label: 'Fonctionnalités' },
-  { href: '/#securite', label: 'Sécurité' },
-  { href: '/privacy', label: 'Confidentialité' },
+  { href: '/#fonctionnement', label: 'Comment ça marche' },
+  { href: '/#voler', label: 'Sécurité' },
+  { href: '/#frais', label: 'Frais' },
+  { href: '/#vision', label: 'Vision' },
 ];
 
 export function Nav() {
