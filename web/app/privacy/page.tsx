@@ -1,8 +1,6 @@
 import React from 'react';
-import Link from 'next/link';
-import { Navbar } from '../../components/Navbar';
-import { Footer } from '../../components/Footer';
-import { Shield, ArrowLeft, Mail, FileText, Calendar, Building, Globe } from 'lucide-react';
+import { Shield } from 'lucide-react';
+import { LegalPage } from '../../components/legal-page';
 
 export const metadata = {
   title: 'Politique de Confidentialité — Kalyx Wallet',
@@ -47,7 +45,8 @@ Vous pouvez à tout moment effacer l'intégralité de ces données en désinstal
 • CoinGecko — cotation et flux de prix du marché
 • LI.FI — calcul des devis de swap et de bridge multi-chaînes
 • WalletConnect (Reown) — relais de messages cryptés avec les applications décentralisées (dApps)
-• GoPlus Security & Helius — analyse préventive de sécurité des contrats et détection d'adresses malveillantes
+• GoPlus Security — analyse préventive des contrats, tokens et sites avant signature
+• Alchemy (simulation) — estimation du résultat d'une transaction demandée par une dApp avant signature
 • DuckDuckGo / Google Favicons — affichage des icônes de dApps dans le navigateur
 Chacun de ces tiers applique sa propre politique de confidentialité. Le navigateur Web3 intégré permet d'accéder à des dApps autonomes appliquant leurs propres règles d'usage.`,
     },
@@ -59,7 +58,7 @@ Chacun de ces tiers applique sa propre politique de confidentialité. Le navigat
     {
       id: 'securite',
       title: '6. Mesures de sécurité cryptographiques',
-      body: `La phrase de récupération est chiffrée selon le standard militaire AES-256-GCM sous votre code PIN et stockée dans l'enclave sécurisée matérielle (iOS Keychain / Android Keystore).
+      body: `La phrase de récupération est chiffrée en AES-256-GCM avec une clé dérivée de votre code PIN (scrypt), puis stockée dans le stockage sécurisé du système (Keychain iOS / Keystore Android).
 L'application dispose d'un verrouillage automatique dès la mise en veille, d'un écran de garde anti-capture d'écran et d'un ralentisseur anti brute-force sur le code PIN.
 Bien que ces défenses soient à l'état de l'art, aucun système informatique n'est inviolable : il est impératif de conserver votre phrase de récupération écrite sur papier hors ligne.`,
     },
@@ -87,108 +86,14 @@ Bien que ces défenses soient à l'état de l'art, aucun système informatique n
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-slate-100 selection:bg-primary/30 selection:text-white">
-      <Navbar />
-
-      <main className="flex-1 pt-32 pb-24 relative">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Breadcrumb / Back */}
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white mb-8 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Retour à l&apos;accueil</span>
-          </Link>
-
-          {/* Header Card */}
-          <div className="rounded-3xl glass-panel p-8 sm:p-10 border-border mb-12 relative overflow-hidden">
-            <div className="w-12 h-12 rounded-2xl bg-primary/20 text-primary-light flex items-center justify-center mb-6 border border-primary/30">
-              <Shield className="w-6 h-6" />
-            </div>
-
-            <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight mb-4">
-              Politique de Confidentialité
-            </h1>
-
-            <p className="text-slate-300 text-base leading-relaxed mb-6">
-              Chez Kalyx, votre vie privée n&apos;est pas une option, c&apos;est le fondement de notre architecture. Découvrez comment nous protégeons vos données en refusant catégoriquement de les collecter.
-            </p>
-
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 border-t border-border pt-6">
-              <div className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-cyan" />
-                <span>Dernière mise à jour : 5 juillet 2026</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Building className="w-4 h-4 text-primary-light" />
-                <span>KALYX (Ahamed Signate)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Globe className="w-4 h-4 text-emerald-400" />
-                <span>Droit Français & RGPD</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Table of contents */}
-          <div className="rounded-2xl glass-panel p-6 mb-12 border-border/80">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300 mb-3">
-              Sommaire
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              {sections.map((sec) => (
-                <a
-                  key={sec.id}
-                  href={`#${sec.id}`}
-                  className="text-slate-400 hover:text-cyan transition-colors py-1 truncate"
-                >
-                  {sec.title}
-                </a>
-              ))}
-            </div>
-          </div>
-
-          {/* Content sections */}
-          <div className="space-y-8">
-            {sections.map((sec) => (
-              <div
-                key={sec.id}
-                id={sec.id}
-                className="rounded-2xl glass-panel p-7 sm:p-8 border-border scroll-mt-28"
-              >
-                <h3 className="text-xl font-bold text-white mb-4">
-                  {sec.title}
-                </h3>
-                <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-line space-y-2">
-                  {sec.body}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Contact Support Box */}
-          <div className="mt-12 rounded-3xl glass-panel p-8 border-primary/30 flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div>
-              <h4 className="text-lg font-bold text-white mb-1">
-                Une question sur la gestion de vos données ?
-              </h4>
-              <p className="text-slate-400 text-sm">
-                Notre équipe est à votre disposition pour toute demande relative à la sécurité ou à la conformité.
-              </p>
-            </div>
-            <a
-              href="mailto:support@kalyxwallet.com"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-surface-hover hover:bg-surface-card border border-border text-white text-sm font-semibold transition-colors"
-            >
-              <Mail className="w-4 h-4 text-cyan" />
-              <span>support@kalyxwallet.com</span>
-            </a>
-          </div>
-        </div>
-      </main>
-
-      <Footer />
-    </div>
+    <LegalPage
+      icon={Shield}
+      title="Politique de confidentialité"
+      intro="Chez Kalyx, votre vie privée n’est pas une option : c’est le fondement de l’architecture. Voici comment nous protégeons vos données, en refusant de les collecter."
+      meta={['Mise à jour : 5 juillet 2026', 'Kalyx (Ahamed Signate)', 'Droit français et RGPD']}
+      sections={sections}
+      contactTitle="Une question sur vos données ?"
+      contactText="Écrivez-nous pour toute demande relative à la sécurité ou à la conformité."
+    />
   );
 }

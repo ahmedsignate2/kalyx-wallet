@@ -1,5 +1,23 @@
 import type { Metadata } from 'next';
+import { Fraunces, Outfit } from 'next/font/google';
 import './globals.css';
+
+/** Outfit pour le texte, Fraunces (serif à caractère) pour les titres. */
+const outfit = Outfit({
+  subsets: ['latin'],
+  weight: 'variable',
+  variable: '--font-outfit',
+  display: 'swap',
+});
+
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  weight: 'variable',
+  style: ['normal', 'italic'],
+  axes: ['opsz'],
+  variable: '--font-fraunces',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://kalyxwallet.com'),
@@ -44,8 +62,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className="dark scroll-smooth">
-      <body className="min-h-screen bg-background text-slate-100 antialiased selection:bg-primary/30 selection:text-white">
+    <html lang="fr" className={`${outfit.variable} ${fraunces.variable}`}>
+      <body className="min-h-screen bg-ink font-sans text-paper">
         {children}
       </body>
     </html>
