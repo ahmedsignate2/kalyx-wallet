@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --background: #030712;
+  --background: #0B2B26;
   --foreground: #F8FAFC;
 }
 
@@ -14,7 +14,7 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Inter, 'Plus Jakarta Sans', Arial, Helvetica, sans-serif;
+  font-family: Inter, 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   overflow-x: hidden;
 }
 
@@ -23,7 +23,7 @@ body {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #030712;
+  background: #0B2B26;
 }
 ::-webkit-scrollbar-thumb {
   background: #1E293B;
@@ -35,10 +35,10 @@ body {
 
 /* Glass effect utilities */
 .glass-panel {
-  background: rgba(22, 27, 38, 0.58);
+  background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.18);
 }
 
