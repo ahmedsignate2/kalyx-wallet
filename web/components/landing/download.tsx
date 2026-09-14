@@ -8,14 +8,14 @@ export function Download() {
       <div className="mx-auto max-w-page text-center">
         <p className="mb-6 flex items-center justify-center gap-3 text-xs uppercase tracking-[0.22em] text-sage">
           <Rule className="w-8 bg-sage" />
-          Acte IV · Télécharger
+          Épilogue
           <Rule className="w-8 bg-sage" />
         </p>
         <Reveal as="h2" className="mx-auto max-w-3xl font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] text-paper sm:text-6xl">
-          Vos clés. Votre téléphone. <em className="italic text-sage">Rien d’autre.</em>
+          L’histoire continue <em className="italic text-sage">sur votre téléphone.</em>
         </Reveal>
         <Reveal as="p" delay={0.15} className="mx-auto mt-6 max-w-md text-base font-light leading-relaxed text-mist">
-          Kalyx est gratuit, sans compte et sans abonnement. Créez un portefeuille en moins d’une minute.
+          Douze mots, un PIN, et tout ce que vous venez de lire. Kalyx est gratuit, sans compte et sans abonnement.
         </Reveal>
         <Reveal delay={0.3} className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <a
