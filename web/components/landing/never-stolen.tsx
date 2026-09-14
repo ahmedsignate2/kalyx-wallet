@@ -103,8 +103,8 @@ export function NeverStolen({ t }: { t: Dict }) {
           </Item>
         </Stagger>
 
-        <Reveal className="mt-14 border-t border-bone/10 pt-8">
-          <p className="max-w-3xl font-display text-2xl leading-snug text-paper sm:text-3xl">
+        <Reveal className="mt-14 border-t border-bone/10 pt-8 lg:text-center">
+          <p className="max-w-3xl font-display text-2xl leading-snug text-paper sm:text-3xl lg:mx-auto">
             {s.footer1} <em className="italic text-sage">{s.footerEm}</em>
             {s.footer2}
           </p>
