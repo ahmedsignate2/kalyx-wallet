@@ -113,6 +113,9 @@ export const LANGUAGES: LangMeta[] = [
 ];
 
 const en = {
+  backupOneLiner: "Your keys are encrypted with your password before anything is saved. Kalyx never has access to them.",
+  backupNoneCloud: "No cloud backup.",
+  exportLocalFile: "Export a local file",
   backupStatusTitle: "Your backups",
   backupLastFile: "Last encrypted file:",
   backupNeverFile: "No encrypted file created yet.",
@@ -1531,6 +1534,9 @@ export type Key = keyof typeof en;
 const dict: Record<Lang, Partial<Record<Key, string>>> = {
   en,
   fr: {
+    backupOneLiner: "Tes clés sont chiffrées avec ton mot de passe avant d’être sauvegardées. Kalyx n’y a jamais accès.",
+    backupNoneCloud: "Aucune sauvegarde cloud.",
+    exportLocalFile: "Exporter un fichier local",
     backupStatusTitle: "Tes sauvegardes",
     backupLastFile: "Dernier fichier chiffré :",
     backupNeverFile: "Aucun fichier chiffré créé pour l’instant.",
@@ -2930,6 +2936,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Application exécutée localement sur le terminal de l'utilisateur (Non-custodial)",
   },
   es: {
+    backupOneLiner: "Tus claves se cifran con tu contraseña antes de guardarse. Kalyx nunca tiene acceso a ellas.",
+    backupNoneCloud: "Sin copia en la nube.",
+    exportLocalFile: "Exportar un archivo local",
     backupStatusTitle: "Tus copias",
     backupLastFile: "Último archivo cifrado:",
     backupNeverFile: "Aún no se ha creado ningún archivo cifrado.",
@@ -4315,6 +4324,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Aplicación ejecutada localmente en el dispositivo del usuario (Non-custodial)",
   },
   pt: {
+    backupOneLiner: "As suas chaves são cifradas com a sua palavra-passe antes de serem guardadas. O Kalyx nunca lhes tem acesso.",
+    backupNoneCloud: "Sem cópia na nuvem.",
+    exportLocalFile: "Exportar um ficheiro local",
     backupStatusTitle: "As suas cópias",
     backupLastFile: "Último ficheiro cifrado:",
     backupNeverFile: "Ainda não foi criado nenhum ficheiro cifrado.",
@@ -5681,6 +5693,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Aplicação executada localmente no dispositivo do utilizador (Non-custodial)",
   },
   de: {
+    backupOneLiner: "Deine Schlüssel werden mit deinem Passwort verschlüsselt, bevor etwas gespeichert wird. Kalyx hat nie Zugriff darauf.",
+    backupNoneCloud: "Kein Cloud-Backup.",
+    exportLocalFile: "Lokale Datei exportieren",
     backupStatusTitle: "Deine Backups",
     backupLastFile: "Letzte verschlüsselte Datei:",
     backupNeverFile: "Noch keine verschlüsselte Datei erstellt.",
@@ -7064,6 +7079,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Anwendung wird lokal auf dem Gerät des Benutzers ausgeführt (Non-custodial)",
   },
   it: {
+    backupOneLiner: "Le tue chiavi sono cifrate con la tua password prima di essere salvate. Kalyx non vi ha mai accesso.",
+    backupNoneCloud: "Nessun backup cloud.",
+    exportLocalFile: "Esporta un file locale",
     backupStatusTitle: "I tuoi backup",
     backupLastFile: "Ultimo file cifrato:",
     backupNeverFile: "Nessun file cifrato creato finora.",
@@ -8389,6 +8407,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Applicazione eseguita localmente sul dispositivo dell'utente (Non-custodial)",
   },
   nl: {
+    backupOneLiner: "Je sleutels worden met je wachtwoord versleuteld voordat er iets wordt opgeslagen. Kalyx heeft er nooit toegang toe.",
+    backupNoneCloud: "Geen cloudback-up.",
+    exportLocalFile: "Lokaal bestand exporteren",
     backupStatusTitle: "Je back-ups",
     backupLastFile: "Laatste versleuteld bestand:",
     backupNeverFile: "Nog geen versleuteld bestand gemaakt.",
@@ -9783,6 +9804,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Applicatie lokaal uitgevoerd op het apparaat van de gebruiker (Non-custodial)",
   },
   pl: {
+    backupOneLiner: "Twoje klucze są szyfrowane Twoim hasłem, zanim cokolwiek zostanie zapisane. Kalyx nigdy nie ma do nich dostępu.",
+    backupNoneCloud: "Brak kopii w chmurze.",
+    exportLocalFile: "Eksportuj plik lokalny",
     backupStatusTitle: "Twoje kopie",
     backupLastFile: "Ostatni zaszyfrowany plik:",
     backupNeverFile: "Nie utworzono jeszcze zaszyfrowanego pliku.",
@@ -11170,6 +11194,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Aplikacja wykonywana lokalnie na urządzeniu użytkownika (Non-custodial)",
   },
   tr: {
+    backupOneLiner: "Anahtarlarınız kaydedilmeden önce parolanızla şifrelenir. Kalyx onlara asla erişemez.",
+    backupNoneCloud: "Bulut yedeği yok.",
+    exportLocalFile: "Yerel dosya dışa aktar",
     backupStatusTitle: "Yedekleriniz",
     backupLastFile: "Son şifreli dosya:",
     backupNeverFile: "Henüz şifreli dosya oluşturulmadı.",
@@ -12551,6 +12578,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Uygulama kullanıcının cihazında yerel olarak çalıştırılır (Non-custodial)",
   },
   ru: {
+    backupOneLiner: "Ваши ключи шифруются вашим паролем до сохранения. Kalyx никогда не имеет к ним доступа.",
+    backupNoneCloud: "Облачной копии нет.",
+    exportLocalFile: "Экспортировать локальный файл",
     backupStatusTitle: "Ваши копии",
     backupLastFile: "Последний зашифрованный файл:",
     backupNeverFile: "Зашифрованный файл ещё не создан.",
@@ -13973,6 +14003,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "Приложение выполняется локально на устройстве пользователя (Non-custodial)",
   },
   ar: {
+    backupOneLiner: "تُشفَّر مفاتيحك بكلمة مرورك قبل حفظ أي شيء. لا يصل إليها Kalyx أبدًا.",
+    backupNoneCloud: "لا توجد نسخة سحابية.",
+    exportLocalFile: "تصدير ملف محلي",
     backupStatusTitle: "نسخك الاحتياطية",
     backupLastFile: "آخر ملف مشفّر:",
     backupNeverFile: "لم يُنشأ أي ملف مشفّر بعد.",
@@ -15340,6 +15373,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "يتم تشغيل التطبيق محلياً على جهاز المستخدم (Non-custodial)",
   },
   hi: {
+    backupOneLiner: "कुछ भी सहेजने से पहले आपकी कुंजियाँ आपके पासवर्ड से एन्क्रिप्ट होती हैं। Kalyx की उन तक कभी पहुँच नहीं होती।",
+    backupNoneCloud: "कोई क्लाउड बैकअप नहीं।",
+    exportLocalFile: "स्थानीय फ़ाइल निर्यात करें",
     backupStatusTitle: "आपके बैकअप",
     backupLastFile: "अंतिम एन्क्रिप्टेड फ़ाइल:",
     backupNeverFile: "अभी तक कोई एन्क्रिप्टेड फ़ाइल नहीं बनी।",
@@ -16744,6 +16780,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "एप्लिकेशन उपयोगकर्ता के डिवाइस पर स्थानीय रूप से निष्पादित होता है (Non-custodial)",
   },
   zh: {
+    backupOneLiner: "在保存任何内容之前，您的密钥会先用您的密码加密。Kalyx 永远无法访问它们。",
+    backupNoneCloud: "没有云备份。",
+    exportLocalFile: "导出本地文件",
     backupStatusTitle: "您的备份",
     backupLastFile: "最近的加密文件：",
     backupNeverFile: "尚未创建加密文件。",
@@ -18072,6 +18111,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "应用程序在用户设备上本地运行（Non-custodial）",
   },
   ja: {
+    backupOneLiner: "鍵は保存される前にあなたのパスワードで暗号化されます。Kalyx がアクセスすることはありません。",
+    backupNoneCloud: "クラウドバックアップはありません。",
+    exportLocalFile: "ローカルファイルを書き出す",
     backupStatusTitle: "バックアップ",
     backupLastFile: "最新の暗号化ファイル：",
     backupNeverFile: "暗号化ファイルはまだ作成されていません。",
@@ -19466,6 +19508,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     "legal.hostingNonCustodial": "アプリはユーザーの端末上でローカルに実行されます（Non-custodial）",
   },
   ko: {
+    backupOneLiner: "키는 저장되기 전에 비밀번호로 암호화됩니다. Kalyx는 절대 접근할 수 없습니다.",
+    backupNoneCloud: "클라우드 백업이 없습니다.",
+    exportLocalFile: "로컬 파일 내보내기",
     backupStatusTitle: "내 백업",
     backupLastFile: "마지막 암호화 파일:",
     backupNeverFile: "아직 암호화 파일을 만들지 않았습니다.",
