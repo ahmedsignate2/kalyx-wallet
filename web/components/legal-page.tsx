@@ -4,6 +4,7 @@ import { ArrowLeft, Mail } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Nav } from './landing/nav';
 import { Footer } from './landing/footer';
+import type { Dict, Locale } from '../i18n';
 
 export interface LegalSection {
   id: string;
@@ -13,6 +14,8 @@ export interface LegalSection {
 
 /** Enveloppe commune des pages légales, sur papier : les textes restent dans chaque page. */
 export function LegalPage({
+  t,
+  lang,
   icon: Icon,
   title,
   intro,
@@ -21,6 +24,8 @@ export function LegalPage({
   contactTitle,
   contactText,
 }: {
+  t: Dict;
+  lang: Locale;
   icon: LucideIcon;
   title: string;
   intro: string;
@@ -31,12 +36,12 @@ export function LegalPage({
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-paper text-ink">
-      <Nav />
+      <Nav t={t} lang={lang} />
       <main className="flex-1 px-5 pb-24 pt-28 sm:px-8 sm:pt-32">
         <div className="mx-auto max-w-3xl">
-          <Link href="/" className="mb-10 inline-flex items-center gap-2 text-sm text-ink/60 transition-colors hover:text-ink">
-            <ArrowLeft className="h-4 w-4" />
-            Retour à l’accueil
+          <Link href={`/${lang}/`} className="mb-10 inline-flex items-center gap-2 text-sm text-ink/60 transition-colors hover:text-ink">
+            <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
+            {t.legal.back}
           </Link>
 
           <header className="border-b border-ink/15 pb-10">
@@ -50,8 +55,10 @@ export function LegalPage({
             </p>
           </header>
 
-          <nav aria-label="Sommaire" className="my-10 border-b border-ink/15 pb-10">
-            <h2 className="mb-4 text-xs uppercase tracking-[0.18em] text-ink/50">Sommaire</h2>
+          {lang !== 'fr' && <p className="mt-6 rounded-xl border border-ink/15 bg-bone px-4 py-3 text-sm text-ink/70">{t.legal.notice}</p>}
+
+          <nav aria-label={t.legal.toc} className="my-10 border-b border-ink/15 pb-10">
+            <h2 className="mb-4 text-xs uppercase tracking-[0.18em] text-ink/50">{t.legal.toc}</h2>
             <ol className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
               {sections.map((sec) => (
                 <li key={sec.id}>
@@ -63,7 +70,7 @@ export function LegalPage({
             </ol>
           </nav>
 
-          <div className="space-y-12">
+          <div className="space-y-12" lang="fr" dir="ltr">
             {sections.map((sec) => (
               <section key={sec.id} id={sec.id} className="scroll-mt-24">
                 <h3 className="mb-4 font-display text-2xl leading-tight">{sec.title}</h3>
@@ -87,7 +94,7 @@ export function LegalPage({
           </div>
         </div>
       </main>
-      <Footer />
+      <Footer t={t} lang={lang} />
     </div>
   );
 }
