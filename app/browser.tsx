@@ -213,7 +213,9 @@ export default function Browser() {
   }, [activeId, compact]);
 
   // Deep-link : /browser?url=…
-  const { url: urlParam } = useLocalSearchParams<{ url?: string }>();
+  const { url: urlParam, tab: tabParam } = useLocalSearchParams<{ url?: string; tab?: string }>();
+  // Barre de navigation principale seulement si on vient de l'onglet Explorer (pas du Menu ni d'un lien).
+  const asMainTab = tabParam === '1';
   useEffect(() => {
     const u = urlParam ? normalizeUrl(String(urlParam)) : null;
     if (u) updateTab(activeRef.current, { url: u });
@@ -628,7 +630,7 @@ export default function Browser() {
 
       {/* Chrome du bas : [←] [adresse] [onglets] [⋮] */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[2], paddingTop: space[2], paddingBottom: !activeTab.url && !editing ? insets.bottom + 84 : insets.bottom + space[2], backgroundColor: colors.bg }, chromeStyle]}>
+        <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[2], paddingTop: space[2], paddingBottom: asMainTab && !activeTab.url && !editing ? insets.bottom + 84 : insets.bottom + space[2], backgroundColor: colors.bg }, chromeStyle]}>
           {editing ? (
             <>
               <IconButton icon="close" label={t('cancel')} tone="ghost" onPress={() => { setEditing(false); setInput(''); }} />
@@ -667,7 +669,7 @@ export default function Browser() {
         </Animated.View>
       </KeyboardAvoidingView>
       {/* Onglet principal « Explorer » : barre de navigation sur la page nouvel onglet. */}
-      {!activeTab.url && !editing ? <AppTabBar active="browser" /> : null}
+      {asMainTab && !activeTab.url && !editing ? <AppTabBar active="browser" /> : null}
 
       {/* Grille d'onglets */}
       <Sheet visible={switcher} onClose={() => setSwitcher(false)}>
