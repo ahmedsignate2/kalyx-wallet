@@ -1,17 +1,19 @@
 import { fetchAddressTransactions, type PublicChainTransaction } from './explorerApi';
 import { searchWeb, type WebSearchResult } from './webSearch';
 import { copilotLog, copilotError } from './copilotLogger';
+import { useWallet } from './walletStore';
+import { getAdapter } from '../src';
+import { maskId } from './copilotContext';
 
 export const FETCH_WALLET_HISTORY_TOOL = {
   name: 'fetch_wallet_history',
-  description: "Récupère les dernières transactions publiques d'une adresse sur un réseau.",
+  description: "Récupère les dernières transactions publiques du wallet de l'utilisateur sur un réseau. L'adresse est résolue localement : ne la demande jamais.",
   parameters: {
     type: 'object',
     properties: {
-      address: { type: 'string', description: 'Adresse publique EVM, Solana ou Bitcoin.' },
-      network: { type: 'string', description: 'Identifiant du réseau Kalyx.' },
+      network: { type: 'string', description: 'Identifiant du réseau Kalyx (ex. ethereum, solana, bitcoin).' },
     },
-    required: ['address', 'network'],
+    required: ['network'],
   },
 } as const;
 
@@ -44,14 +46,26 @@ export async function executeCopilotTool(name: string, args: unknown): Promise<P
     }
   }
   if (name !== FETCH_WALLET_HISTORY_TOOL.name) throw new Error('Outil Copilot inconnu.');
-  const input = args as { address?: unknown; network?: unknown };
-  if (typeof input.address !== 'string' || typeof input.network !== 'string') {
+  const input = args as { network?: unknown };
+  if (typeof input.network !== 'string') {
     throw new Error('Paramètres de consultation blockchain invalides.');
   }
+  // Adresse du compte actif, résolue ici : le modèle ne la reçoit jamais en clair.
+  const wallet = useWallet.getState();
+  const account = wallet.accounts.find((a) => a.index === wallet.activeAccountIndex) ?? wallet.accounts[0];
+  const family = getAdapter(input.network).config.family;
+  const address = family === 'solana' ? account?.solAddress : family === 'bitcoin' ? account?.btcAddress : account?.evmAddress;
+  if (!address) throw new Error('Aucun compte actif pour ce réseau.');
   try {
-    const result = await fetchAddressTransactions(input.address, input.network);
-    copilotLog(traceId, 'tool.complete', { name, network: input.network, resultCount: result.length });
-    return result;
+    const result = await fetchAddressTransactions(address, input.network);
+    // Contreparties et hashs masqués avant de remonter au modèle.
+    const masked = result.map((tx) => {
+      const out = { ...tx } as Record<string, unknown>;
+      for (const k of ['hash', 'from', 'to', 'txHash', 'address', 'counterparty']) if (typeof out[k] === 'string') out[k] = maskId(out[k] as string);
+      return out as unknown as PublicChainTransaction;
+    });
+    copilotLog(traceId, 'tool.complete', { name, network: input.network, resultCount: masked.length });
+    return masked;
   } catch (error) {
     copilotError(traceId, 'tool.error', error, { name, network: input.network });
     throw error;
