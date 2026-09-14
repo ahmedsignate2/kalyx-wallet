@@ -1,5 +1,18 @@
 import type { Metadata } from 'next';
+import localFont from 'next/font/local';
 import './globals.css';
+
+/** General Sans — la seule famille du site (bible §2), servie en local. */
+const generalSans = localFont({
+  src: [
+    { path: './fonts/GeneralSans-Regular.ttf', weight: '400', style: 'normal' },
+    { path: './fonts/GeneralSans-Medium.ttf', weight: '500', style: 'normal' },
+    { path: './fonts/GeneralSans-Semibold.ttf', weight: '600', style: 'normal' },
+    { path: './fonts/GeneralSans-Bold.ttf', weight: '700', style: 'normal' },
+  ],
+  variable: '--font-general-sans',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://kalyxwallet.com'),
@@ -38,14 +51,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" className="dark scroll-smooth">
-      <body className="min-h-screen bg-background text-slate-100 antialiased selection:bg-primary/30 selection:text-white">
+    <html lang="fr" className={`dark ${generalSans.variable}`}>
+      <body className="min-h-screen bg-encre font-sans text-lueur selection:bg-lumiere/25 selection:text-lueur">
         {children}
       </body>
     </html>

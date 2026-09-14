@@ -1,29 +1,49 @@
 import React from 'react';
-import { Fingerprint, KeyRound, Layers3 } from 'lucide-react';
+import { KeyRound, Layers3, ScanSearch } from 'lucide-react';
+import { Reveal } from './Reveal';
 
+/* Chaque promesse correspond à une fonctionnalité livrée dans l'app (cf. docs/DESIGN.md §12). */
 const cards = [
-  { icon: KeyRound, title: 'Vos clés, vos règles.', text: 'Une souveraineté totale, directement sur votre appareil.' },
-  { icon: Layers3, title: 'Échangez n’importe quoi.', text: 'Ethereum, Solana et Bitcoin réunis dans un seul wallet.' },
-  { icon: Fingerprint, title: 'Sécurité maximale.', text: 'Chaque transaction est analysée avant que vous ne signiez.' },
+  {
+    icon: KeyRound,
+    title: 'Tes clés, tes règles.',
+    text: 'Ta phrase de récupération ne quitte jamais ton téléphone. Pas de compte, pas de serveur Kalyx.',
+  },
+  {
+    icon: Layers3,
+    title: 'Toutes tes chaînes, un seul wallet.',
+    text: 'Ethereum et ses L2, Solana, Bitcoin : un solde agrégé, un swap intégré, une seule app.',
+  },
+  {
+    icon: ScanSearch,
+    title: 'Tu sais ce que tu signes.',
+    text: 'Chaque demande d’une dApp est traduite en une phrase : qui demande, ce qui va se passer, le niveau de risque.',
+  },
 ];
 
 export function BentoGrid() {
   return (
-    <section id="features" className="overflow-hidden bg-[#06070D] px-5 py-20 sm:px-8 lg:py-28">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex items-end justify-between px-1">
-          <h2 className="text-3xl font-semibold leading-none tracking-[-0.04em] text-white sm:text-5xl">Fait pour vous.</h2>
-          <span className="hidden text-xs font-medium uppercase tracking-widest text-emerald-100/50 sm:block">Glissez pour explorer</span>
-        </div>
-        <div className="flex snap-x gap-4 overflow-x-auto pb-5 md:grid md:grid-cols-3 md:overflow-visible">
-          {cards.map(({ icon: Icon, title, text }) => (
-            <article key={title} className={`min-w-[82vw] snap-start rounded-3xl bg-[#0E1019] p-7 text-white ring-1 ring-white/[0.08] md:min-w-0`}>
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/10">
-                <Icon className="h-6 w-6" />
-              </div>
-              <h3 className="mt-20 text-3xl font-semibold leading-[0.95] tracking-[-0.04em]">{title}</h3>
-              <p className="mt-4 max-w-xs text-sm font-normal leading-relaxed text-neutral-400">{text}</p>
-            </article>
+    <section id="features" data-halo="features" className="scroll-mt-16 px-5 py-20 sm:px-8 lg:py-28">
+      <div className="mx-auto max-w-page">
+        <Reveal className="mb-8 flex items-end justify-between">
+          <h2 className="text-3xl font-semibold leading-none tracking-[-0.03em] text-lueur sm:text-5xl">
+            Fait pour toi.
+          </h2>
+          <span className="hidden text-sm text-cendre sm:block md:hidden">Glisse pour explorer</span>
+        </Reveal>
+        <div className="-mx-5 flex snap-x gap-4 overflow-x-auto px-5 pb-5 sm:-mx-8 sm:px-8 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0">
+          {cards.map(({ icon: Icon, title, text }, i) => (
+            <Reveal key={title} delay={i * 0.08} className="flex min-w-[82vw] snap-start md:min-w-0">
+              <article className="w-full rounded-container bg-nuit p-7 ring-1 ring-trait transition-colors duration-150 hover:bg-orbite">
+                <div className="flex h-12 w-12 items-center justify-center rounded-input bg-orbite text-lueur">
+                  <Icon className="h-6 w-6" strokeWidth={1.75} />
+                </div>
+                <h3 className="mt-16 text-2xl font-semibold leading-tight tracking-[-0.02em] text-lueur sm:text-3xl">
+                  {title}
+                </h3>
+                <p className="mt-4 max-w-xs text-base leading-relaxed text-brume">{text}</p>
+              </article>
+            </Reveal>
           ))}
         </div>
       </div>

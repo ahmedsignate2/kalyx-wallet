@@ -1,47 +1,64 @@
 import type { Config } from 'tailwindcss';
 
+/**
+ * KALYX — tokens du site, dérivés de `ui/tokens.ts` (source de vérité, thème sombre).
+ * Noms de la bible design (docs/DESIGN.md §2). Si une valeur n'est pas ici, on
+ * l'ajoute ici avant de l'utiliser dans un composant : aucun hex en dur.
+ *
+ * Règles : une seule chose brille (le halo) · aucun dégradé décoratif · pas de
+ * violet, bleu roi, orange, vert acide · aucun label en majuscules.
+ * Ombre : tolérée UNIQUEMENT pour mettre en scène le mockup (objet physique),
+ * teintée Encre + halo — jamais un `shadow-xl` gris par défaut.
+ */
 const config: Config = {
-  content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
+  content: ['./components/**/*.{ts,tsx}', './app/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        background: '#06070D',
-        surface: '#0E1019',
-        'surface-card': '#161926',
-        'surface-hover': '#202333',
-        border: 'rgba(255, 255, 255, 0.08)',
-        'border-strong': 'rgba(255, 255, 255, 0.16)',
-        primary: { DEFAULT: '#F4F6FF', hover: '#FFFFFF', light: '#F4F6FF' },
-        cyan: {
-          DEFAULT: '#06B6D4',
-          glow: '#22D3EE',
-        },
-        emerald: {
-          DEFAULT: '#10B981',
-          glow: '#34D399',
-        },
+        encre: '#06070D', // fond
+        nuit: '#0E1019', // conteneurs
+        orbite: '#161926', // cartes, inputs
+        crepuscule: '#1F2333', // hover, pressé
+        trait: 'rgba(255, 255, 255, 0.07)', // bordures
+        lueur: '#F2F4FA', // texte principal
+        brume: '#9499AB', // texte secondaire
+        cendre: '#5D6275', // texte tertiaire
+        lumiere: '#F4F6FF', // bouton principal
+        up: '#3CD98A',
+        down: '#FF6363',
+        warning: '#FFB547',
+        danger: '#FF4D5E',
       },
-      backgroundImage: {
-        'hero-gradient':
-          'radial-gradient(ellipse 72% 48% at 50% -14%, rgba(139, 92, 246, 0.16), rgba(6, 7, 13, 0) 72%)',
-        'card-glow':
-          'radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.12), transparent 70%)',
-        'glass-gradient':
-          'linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01))',
+      fontFamily: {
+        sans: ['var(--font-general-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
-      animation: {
-        'float-slow': 'float 6s ease-in-out infinite',
-        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      borderRadius: {
+        chip: '8px',
+        input: '12px',
+        button: '18px',
+        container: '22px',
+        sheet: '28px',
+      },
+      maxWidth: {
+        page: '72rem',
+      },
+      boxShadow: {
+        // Ombre du mockup : Encre profonde + lueur froide du halo (§ ombres ci-dessus).
+        mockup: '0 40px 90px -30px rgba(3, 6, 20, 0.75), 0 0 80px -24px rgba(207, 227, 255, 0.14)',
+      },
+      transitionTimingFunction: {
+        // Équivalent CSS du ressort « Doux » (26/120) : sortie longue, sans rebond.
+        doux: 'cubic-bezier(0.22, 1, 0.36, 1)',
       },
       keyframes: {
-        float: {
-          '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
-          '50%': { transform: 'translateY(-12px) rotate(0.5deg)' },
+        // Respiration du halo (durations.haloBreath = 6 s).
+        breathe: {
+          '0%, 100%': { transform: 'scale(1)', opacity: '0.85' },
+          '50%': { transform: 'scale(1.06)', opacity: '1' },
         },
+      },
+      animation: {
+        breathe: 'breathe 6s ease-in-out infinite',
       },
     },
   },
