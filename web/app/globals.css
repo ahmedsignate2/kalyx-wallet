@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --background: #0B2B26;
+  --background: #06070D;
   --foreground: #F8FAFC;
 }
 
@@ -23,7 +23,7 @@ body {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0B2B26;
+  background: #06070D;
 }
 ::-webkit-scrollbar-thumb {
   background: #1E293B;
@@ -35,7 +35,7 @@ body {
 
 /* Glass effect utilities */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(14, 16, 25, 0.82);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.12);
