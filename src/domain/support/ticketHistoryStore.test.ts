@@ -26,7 +26,7 @@ describe('Ticket History Store & Interception System', () => {
 
   describe('parseTicketContent', () => {
     it('correctly parses structured fields from ticket content', () => {
-      const content = `🎫 [TICKET SUPPORT NOVA]\n• ID : KX-20260914-12345\n• Version : Kalyx v0.0.1\n• Problème : Échec de signature\n• Réseau : Sepolia\n• Erreur détectée : RPC timeout\n• Montant visé : 0.5 ETH\n• Logs récents :\n[RPC] eth_sendRawTransaction`;
+      const content = `🎫 [TICKET SUPPORT KALYX]\n• ID : KX-20260914-12345\n• Version : Kalyx v0.0.1\n• Problème : Échec de signature\n• Réseau : Sepolia\n• Erreur détectée : RPC timeout\n• Montant visé : 0.5 ETH\n• Logs récents :\n[RPC] eth_sendRawTransaction`;
       const parsed = parseTicketContent(content);
 
       expect(parsed.id).toBe('KX-20260914-12345');
@@ -136,7 +136,7 @@ describe('Ticket History Store & Interception System', () => {
     });
 
     it('intercepts and saves ticket normalized via normalizeSupportTicket', () => {
-      const raw = `🎫 [TICKET SUPPORT NOVA]\n• ID : KX-20260914-88888\n• Version : Kalyx v0.0.1\n• Problème : Erreur swap\n• Réseau : Polygon\n• Erreur détectée : Insufficient output`;
+      const raw = `🎫 [TICKET SUPPORT KALYX]\n• ID : KX-20260914-88888\n• Version : Kalyx v0.0.1\n• Problème : Erreur swap\n• Réseau : Polygon\n• Erreur détectée : Insufficient output`;
       const normalized = normalizeSupportTicket(raw);
 
       expect(normalized).toContain('KX-20260914-88888');

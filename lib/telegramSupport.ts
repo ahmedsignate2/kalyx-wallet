@@ -43,7 +43,7 @@ export function getClientEnvironmentInfo(): string {
 }
 
 /**
- * Construit un contenu de ticket formaté selon le modèle standard du support Nova/Kalyx.
+ * Construit un contenu de ticket formaté selon le modèle standard du support Kalyx.
  */
 export function buildSupportTicketContent(params: SupportTicketParams): string {
   const ticketId = params.ticketId || generateTicketId();
@@ -62,7 +62,7 @@ export function buildSupportTicketContent(params: SupportTicketParams): string {
   }
 
   const ticketContent = (
-    `🎫 [TICKET SUPPORT NOVA]\n` +
+    `🎫 [TICKET SUPPORT KALYX]\n` +
     `• ID : ${ticketId}\n` +
     `• Version : ${appVersion}\n` +
     `• Problème : ${problem}\n` +
@@ -114,7 +114,7 @@ export function normalizeSupportTicket(rawContent: string, defaultNetwork?: stri
     }
   } else {
     content = content.replace(
-      /(🎫\s*\[TICKET SUPPORT NOVA\](?:\r?\n)?)/i,
+      /(🎫\s*\[TICKET SUPPORT KALYX\](?:\r?\n)?)/i,
       `$1• ID : ${ticketId}\n`
     );
   }
@@ -130,7 +130,7 @@ export function normalizeSupportTicket(rawContent: string, defaultNetwork?: stri
       );
     } else {
       content = content.replace(
-        /(🎫\s*\[TICKET SUPPORT NOVA\](?:\r?\n)?)/i,
+        /(🎫\s*\[TICKET SUPPORT KALYX\](?:\r?\n)?)/i,
         `$1• Version : ${clientEnv}\n`
       );
     }
