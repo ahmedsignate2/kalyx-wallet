@@ -36,14 +36,14 @@ export default function CloudBackup() {
   const [target, setTarget] = useState<'share' | 'drive'>('share');
   const [driveDone, setDriveDone] = useState(false);
 
-  const strength = pwd.length < 8 ? { label: 'Faible', color: colors.danger } : pwd.length < 12 ? { label: 'Moyen', color: colors.warning } : /[A-Z]/.test(pwd) && /\d/.test(pwd) && /[^A-Za-z0-9]/.test(pwd) ? { label: 'Fort', color: colors.up } : { label: 'Moyen', color: colors.warning };
+  const strength = pwd.length < 8 ? { label: t('strengthWeak'), color: colors.danger } : pwd.length < 12 ? { label: t('strengthMedium'), color: colors.warning } : /[A-Z]/.test(pwd) && /\d/.test(pwd) && /[^A-Za-z0-9]/.test(pwd) ? { label: t('strengthStrong'), color: colors.up } : { label: t('strengthMedium'), color: colors.warning };
   const mismatch = confirm.length > 0 && pwd !== confirm;
   const canCreate = pwd.length >= 8 && confirm.length > 0 && !mismatch;
 
   const onCreate = (to: 'share' | 'drive' = 'share') => {
     setError(null);
-    if (pwd.length < 8) { setError('Choisis au moins 8 caractères ; 12 ou plus sont recommandés.'); return; }
-    if (pwd !== confirm) { setError('Les mots de passe ne correspondent pas.'); return; }
+    if (pwd.length < 8) { setError(t('pwdTooShort')); return; }
+    if (pwd !== confirm) { setError(t('pwdMismatch')); return; }
     setTarget(to);
     setConfirming(true);
   };
@@ -113,22 +113,22 @@ export default function CloudBackup() {
         showsVerticalScrollIndicator={false}
       >
         <ScreenHeader title={t('encBackup')} />
-        <Muted>Crée un fichier chiffré localement, puis enregistre-le toi-même où tu veux. Kalyx ne reçoit ni le fichier ni ton mot de passe.</Muted>
+        <Muted>{t('backupLocalIntro')}</Muted>
 
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: colors.bgElevated, borderRadius: 12, padding: spacing(1.5) }}>
           <Icon name="warning" size={18} color={colors.warning} />
-          <Text style={[typography.muted, { flex: 1 }]}>Personne, pas même Kalyx, ne peut récupérer cette sauvegarde sans ton mot de passe. Garde le fichier et le mot de passe séparément.</Text>
+          <Text style={[typography.muted, { flex: 1 }]}>{t('backupNoRecovery')}</Text>
         </View>
 
         <Card>
           <Text style={typography.muted}>{t('backupPassword')}</Text>
-          <TextInput value={pwd} onChangeText={(v) => { setPwd(v); setError(null); }} placeholder="8 caractères minimum · 12 recommandés" placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
-          <Text style={{ color: strength.color, fontSize: 13 }}>Robustesse : {strength.label}{pwd.length >= 8 && pwd.length < 12 ? ' · 12 caractères recommandés' : ''}</Text>
+          <TextInput value={pwd} onChangeText={(v) => { setPwd(v); setError(null); }} placeholder={t('pwdPlaceholder')} placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+          <Text style={{ color: strength.color, fontSize: 13 }}>{t('pwdStrength')} {strength.label}{pwd.length >= 8 && pwd.length < 12 ? ` · ${t('pwdRecommend12')}` : ''}</Text>
         </Card>
         <Card>
           <Text style={typography.muted}>{t('confirmPassword')}</Text>
           <TextInput value={confirm} onChangeText={(v) => { setConfirm(v); setError(null); }} placeholder={t('repeatPassword')} placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
-          {mismatch ? <Text style={{ color: colors.danger, fontSize: 13 }}>Les mots de passe ne correspondent pas.</Text> : null}
+          {mismatch ? <Text style={{ color: colors.danger, fontSize: 13 }}>{t('pwdMismatch')}</Text> : null}
         </Card>
 
         {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}

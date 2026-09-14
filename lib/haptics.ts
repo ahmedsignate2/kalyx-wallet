@@ -3,7 +3,7 @@
  *
  * Encapsule `expo-haptics` avec :
  * 1. Un import dynamique (ne crashe pas si le module natif est absent).
- * 2. Le respect d'un futur réglage "désactiver les retours haptiques".
+ * 2. Le respect du réglage « Retours haptiques » (Réglages → Son et vibrations).
  * 3. Le respect de `AccessibilityInfo.isReduceMotionEnabled` du système.
  *
  * Utilisation :
@@ -53,6 +53,13 @@ function noop() { /* no-op quand haptique indisponible ou désactivé */ }
 
 async function run(fn: (h: typeof import('expo-haptics')) => Promise<void>) {
   if (reduceMotion) return;
+  try {
+    // Import différé : settingsStore importe aussi des modules qui utilisent haptic.
+    const { useSettings } = require('./settingsStore') as typeof import('./settingsStore');
+    if (!useSettings.getState().hapticsEnabled) return;
+  } catch {
+    /* store indisponible (tests) : haptique active */
+  }
   const h = Haptics ?? await load();
   if (!h) return;
   try { await fn(h); } catch { /* silencieux */ }
