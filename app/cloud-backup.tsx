@@ -16,6 +16,8 @@ import { spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { createBackup } from '../src';
+import { withDriveToken, isDriveConfigured, GoogleAuthError } from '../lib/googleDrive';
+import { findBackup, uploadBackup } from '../src/domain/backup/drive';
 
 export default function CloudBackup() {
   const { colors, typography } = useTheme();
@@ -31,15 +33,18 @@ export default function CloudBackup() {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [target, setTarget] = useState<'share' | 'drive'>('share');
+  const [driveDone, setDriveDone] = useState(false);
 
   const strength = pwd.length < 8 ? { label: 'Faible', color: colors.danger } : pwd.length < 12 ? { label: 'Moyen', color: colors.warning } : /[A-Z]/.test(pwd) && /\d/.test(pwd) && /[^A-Za-z0-9]/.test(pwd) ? { label: 'Fort', color: colors.up } : { label: 'Moyen', color: colors.warning };
   const mismatch = confirm.length > 0 && pwd !== confirm;
   const canCreate = pwd.length >= 8 && confirm.length > 0 && !mismatch;
 
-  const onCreate = () => {
+  const onCreate = (to: 'share' | 'drive' = 'share') => {
     setError(null);
     if (pwd.length < 8) { setError('Choisis au moins 8 caractères ; 12 ou plus sont recommandés.'); return; }
     if (pwd !== confirm) { setError('Les mots de passe ne correspondent pas.'); return; }
+    setTarget(to);
     setConfirming(true);
   };
 
@@ -57,6 +62,24 @@ export default function CloudBackup() {
       elapsedMs: Date.now() - startedAt,
       blobBytes: blob.length,
     });
+    if (target === 'drive') {
+      // Coffre passif : une connexion Google éphémère, deux requêtes (trouver, envoyer), jeton révoqué.
+      try {
+        await withDriveToken(async (token) => {
+          const existing = await findBackup(token);
+          await uploadBackup(token, blob, existing?.id ?? null);
+        });
+      } catch (e) {
+        if (e instanceof GoogleAuthError && e.code === 'not_configured') throw new Error(t('driveNotConfigured'));
+        if (e instanceof GoogleAuthError && e.code !== 'exchange_failed') throw new Error(t('driveCancelled'));
+        throw e;
+      }
+      console.log('[KALYX-AUTH][backup] drive:uploaded', { elapsedMs: Date.now() - startedAt });
+      setDriveDone(true);
+      setPwd('');
+      setConfirm('');
+      return;
+    }
     await Share.share({
       message: blob,
       title: t('backupShareTitle'),
@@ -116,8 +139,21 @@ export default function CloudBackup() {
           </View>
         ) : null}
 
+        {driveDone ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name="check" size={18} color={colors.up} />
+            <Text style={{ color: colors.up, flex: 1 }}>{t('driveSaved')}</Text>
+          </View>
+        ) : null}
+
         <View style={{ height: spacing(1) }} />
-        <Button label={t('createBackupBtn')} onPress={onCreate} disabled={!canCreate} />
+        <Button label={t('createBackupBtn')} onPress={() => onCreate('share')} disabled={!canCreate} />
+        {isDriveConfigured() ? (
+          <>
+            <Button label={t('driveSave')} variant="ghost" onPress={() => onCreate('drive')} disabled={!canCreate} />
+            <Muted>{t('driveExplain')}</Muted>
+          </>
+        ) : null}
         <Muted>{t('restoreHint')}</Muted>
       </ScrollView>
 
