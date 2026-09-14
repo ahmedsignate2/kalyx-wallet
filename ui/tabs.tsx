@@ -1,5 +1,5 @@
 /**
- * Barre d'onglets principale — 4 onglets + bouton central Échanger :
+ * Barre d'onglets principale — 4 onglets + bouton central Swap :
  * Accueil (agrégé multi-chaîne : tokens, NFT, activité) · Marché · Earn · Plus.
  * L'ancien onglet « Portefeuille » (doublon par réseau) a été retiré (§ retours).
  * Navigation par `replace` : comportement d'onglets (pas d'empilement).

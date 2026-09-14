@@ -67,7 +67,7 @@ const fr = {
         label: 'de maintien pour envoyer',
       },
       {
-        title: 'Échanger sans quitter l’app.',
+        title: 'Swap sans quitter l’app.',
         text: 'Jupiter sur Solana, LI.FI et Relay sur les chaînes EVM et d’une chaîne à l’autre. La route est écrite en une phrase, l’impact sur le prix est annoncé avant de confirmer.',
         value: '3',
         label: 'routeurs, vous signez vous-même',
@@ -157,11 +157,11 @@ const fr = {
     kicker: 'Les frais, sans détour',
     title: 'Comment Kalyx gagne sa vie.',
     titleEm: 'En une ligne.',
-    lead: 'Les wallets gratuits ont souvent un prix caché dans la route d’un échange. Voici le nôtre, chiffre par chiffre, tel qu’il est écrit dans le code.',
+    lead: 'Les wallets gratuits ont souvent un prix caché dans la route d’un swap. Voici le nôtre, chiffre par chiffre, tel qu’il est écrit dans le code.',
     items: [
       { value: '0 €', label: 'pour envoyer, recevoir, détenir', note: 'Seuls les frais du réseau s’appliquent — ils vont aux validateurs, pas à nous.' },
-      { value: '0,3 %', label: 'sur un échange via LI.FI', note: 'EVM et d’une chaîne à l’autre. C’est la seule rémunération de Kalyx.' },
-      { value: '0 %', label: 'sur un échange Solana via Jupiter', note: 'Aucune commission ajoutée à la route.' },
+      { value: '0,3 %', label: 'sur un swap via LI.FI', note: 'EVM et d’une chaîne à l’autre. C’est la seule rémunération de Kalyx.' },
+      { value: '0 %', label: 'sur un swap Solana via Jupiter', note: 'Aucune commission ajoutée à la route.' },
       { value: '0 %', label: 'sur Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade : rien prélevé au dépôt ni au retrait.' },
       { value: '0 €', label: 'd’abonnement, pour toujours', note: 'Pas de version « pro », pas de fonctionnalité derrière un péage.' },
     ],
