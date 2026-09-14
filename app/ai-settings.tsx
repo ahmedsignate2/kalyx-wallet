@@ -33,16 +33,20 @@ export default function AiSettings() {
 
   const handleSaveAndActivate = async () => {
     setLoading(true);
-    const check = await validateAiKey(selectedProvider, inputKey, customUrl, customModel);
-
-    if (check.success) {
-      await setApiKey(inputKey, selectedProvider, customUrl, customModel);
-      Alert.alert(t('success'), t('aiSuccessConnected'));
-      router.back();
-    } else {
-      Alert.alert(t('aiConnectionFailed'), check.error || t('aiErrorInternal'));
+    try {
+      const check = await validateAiKey(selectedProvider, inputKey, customUrl, customModel);
+      if (check.success) {
+        await setApiKey(inputKey, selectedProvider, customUrl, customModel);
+        Alert.alert(t('success'), t('aiSuccessConnected'));
+        router.back();
+      } else {
+        Alert.alert(t('aiConnectionFailed'), check.error || t('aiErrorInternal'));
+      }
+    } catch (e) {
+      Alert.alert(t('aiConnectionFailed'), e instanceof Error ? e.message : t('aiErrorInternal'));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleDisable = async () => {
