@@ -5,9 +5,9 @@ import { motion, useReducedMotion, useScroll, useSpring, useTransform } from 'fr
 import { ArrowDown, Download } from 'lucide-react';
 import { PhoneMock } from './phone-mock';
 import { EASE } from './motion';
+import type { Dict } from '../../i18n';
 
-/* Chaque chip correspond à une fonctionnalité réellement implémentée (cf. never-stolen.tsx). */
-const chips = ['Non-custodial', 'AES-256-GCM', 'Zéro télémétrie', 'Multi-chaînes'];
+/* Chaque chip (t.hero.chips) correspond à une fonctionnalité réellement implémentée (cf. never-stolen.tsx). */
 
 const MAX_TILT = 14; // degrés, bascule au pointeur
 
@@ -20,7 +20,7 @@ const enter = (i: number) => ({
   transition: { duration: 1, ease: EASE, delay: 0.15 + i * 0.12 },
 });
 
-export function Hero() {
+export function Hero({ t }: { t: Dict }) {
   const reduce = useReducedMotion();
   const section = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -52,11 +52,11 @@ export function Hero() {
               viewport={once}
               transition={{ duration: 1, ease: EASE, delay: 0.3 }}
             />
-            Prologue · Souveraineté
+            {t.hero.kicker}
           </motion.p>
 
           <h1 className="font-display text-[2.75rem] font-light leading-[1.02] tracking-[-0.02em] text-paper sm:text-6xl lg:text-7xl">
-            {['La souveraineté', 'de vos actifs.'].map((line, i) => (
+            {[t.hero.line1, t.hero.line2].map((line, i) => (
               <span key={line} className="block overflow-hidden">
                 <motion.span
                   className="block"
@@ -77,13 +77,13 @@ export function Hero() {
                 viewport={once}
                 transition={{ duration: 1.1, ease: EASE, delay: 0.49 }}
               >
-                Sans compromis.
+                {t.hero.line3}
               </motion.em>
             </span>
           </h1>
 
           <motion.p {...(reduce ? {} : enter(4))} className="mt-7 max-w-md text-lg font-light leading-relaxed text-mist">
-            Gérez Bitcoin, Ethereum et Solana en toute liberté. Vos clés privées ne quittent jamais votre téléphone.
+            {t.hero.sub}
           </motion.p>
 
           <motion.div {...(reduce ? {} : enter(5))} className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -93,19 +93,19 @@ export function Hero() {
               className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-paper px-6 text-sm font-medium text-ink transition-[background-color,transform] duration-200 ease-editorial hover:bg-bone active:scale-[0.97]"
             >
               <Download className="h-4 w-4" />
-              Télécharger l’APK
+              {t.hero.cta}
             </a>
             <a
               href="#voler"
               className="group inline-flex h-12 items-center justify-center gap-2 rounded-full border border-bone/20 px-6 text-sm font-medium text-paper transition-colors duration-200 hover:border-bone/50"
             >
-              Découvrir la sécurité
+              {t.hero.ctaSecondary}
               <ArrowDown className="h-4 w-4 transition-transform duration-300 ease-editorial group-hover:translate-y-0.5" />
             </a>
           </motion.div>
 
-          <ul className="mt-9 flex flex-wrap gap-2" aria-label="Points clés">
-            {chips.map((c, i) => (
+          <ul className="mt-9 flex flex-wrap gap-2" aria-label={t.hero.keyPoints}>
+            {t.hero.chips.map((c, i) => (
               <motion.li
                 key={c}
                 {...(reduce ? {} : enter(6 + i * 0.5))}
@@ -138,7 +138,7 @@ export function Hero() {
                 animate={reduce ? undefined : { y: [0, -10, 0] }}
                 transition={{ duration: 6, ease: 'easeInOut', repeat: Infinity }}
               >
-                <PhoneMock />
+                <PhoneMock alt={t.hero.screenshotAlt} />
               </motion.div>
             </div>
           </motion.div>
