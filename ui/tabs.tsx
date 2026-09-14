@@ -9,7 +9,7 @@ import { router } from 'expo-router';
 import { BottomNav } from './premium';
 import { useT } from '../lib/settingsStore';
 
-export type MainTab = 'home' | 'market' | 'earn' | 'menu';
+export type MainTab = 'home' | 'browser' | 'earn' | 'menu';
 
 export function AppTabBar({ active }: { active: MainTab }) {
   const t = useT();
@@ -19,7 +19,7 @@ export function AppTabBar({ active }: { active: MainTab }) {
       center={{ icon: 'exchange', label: t('navExchange'), onPress: () => router.push('/swap') }}
       items={[
         { key: 'home', icon: 'home', label: t('navHome'), onPress: () => router.replace('/home') },
-        { key: 'market', icon: 'market', label: t('navMarket'), onPress: () => router.replace('/market') },
+        { key: 'browser', icon: 'dapps', label: t('navExplore'), onPress: () => router.replace('/browser') },
         { key: 'earn', icon: 'staking', label: 'Earn', onPress: () => router.replace('/earn') },
         { key: 'menu', icon: 'menu', label: t('menu'), onPress: () => router.replace('/menu') },
       ]}

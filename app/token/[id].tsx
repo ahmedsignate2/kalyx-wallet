@@ -340,7 +340,7 @@ export default function TokenDetail() {
           <View style={{ flexDirection: 'row', gap: spacing(2), paddingHorizontal: spacing(1) }}>
             <CircleAction icon="send" label={t('send')} disabled={chain?.family === 'bitcoin'} onPress={() => goSendReceive('/send')} />
             <CircleAction icon="receive" label={t('receive')} onPress={() => goSendReceive('/receive')} />
-            <CircleAction icon="convert" label="Swap" onPress={() => toast.info(t('soon'))} />
+            <CircleAction icon="convert" label="Swap" onPress={() => router.push({ pathname: '/swap', params: { to: detail?.symbol ?? '' } })} />
           </View>
           {/* Description */}
           {activity !== null ? (

@@ -11,7 +11,7 @@ import {
   Avatar,
   SkeletonRow
 } from '../ui/premium';
-import { AppTabBar } from '../ui/tabs';
+import { ScreenHeader } from '../ui/kit';
 import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { getMarkets, sortMarkets, searchCoins, type MarketCoin, type SearchCoin, formatFiat } from '../src';
@@ -80,11 +80,10 @@ export default function Market() {
 
   return (
     <PremiumScreen
-      footer={<AppTabBar active="market" />}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
     >
       <Stack.Screen options={{ headerShown: false }} />
-      <Text style={typography.title}>{t('market')}</Text>
+      <ScreenHeader title={t('market')} fallback="/home" />
       <SearchBar value={query} onChangeText={setQuery} placeholder={t('searchCrypto')} />
 
       {searchMode ? (
