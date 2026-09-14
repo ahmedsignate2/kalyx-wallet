@@ -2456,7 +2456,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     loadingChart: "Chargement du graphique…",
     noChartData: "Pas de données de graphique.",
     yourBalance: "Ton solde",
-    soonToast: "Cet actif n’est pas encore un réseau géré par Kalyx.",
+    soonToast: "Cet actif n’est pas sur un réseau géré par Kalyx.",
     tokenActivityTitle: "Activité de ce token",
     activityUnavailable: "Activité indisponible pour le moment.",
     noTxFound: "Aucune transaction trouvée pour cet actif.",
