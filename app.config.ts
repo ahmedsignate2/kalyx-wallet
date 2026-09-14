@@ -31,6 +31,9 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.kalyx.wallet',
+    // Universal Link WalletConnect : https://kalyxwallet.com/wc?uri=… (fichier
+    // apple-app-site-association servi par le site, cf. web/public/.well-known).
+    associatedDomains: ['applinks:kalyxwallet.com'],
     infoPlist: {
       // Ledger Nano X en Bluetooth (transport @ledgerhq BLE).
       NSBluetoothAlwaysUsageDescription:
@@ -61,6 +64,14 @@ const config: ExpoConfig = {
         action: 'VIEW',
         autoVerify: false,
         data: [...schemes.map((scheme) => ({ scheme })), { scheme: 'wc' }, { scheme: 'ethereum' }],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+      // App Link WalletConnect (Universal Link) : vérifié via
+      // https://kalyxwallet.com/.well-known/assetlinks.json (empreinte SHA-256 du keystore).
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [{ scheme: 'https', host: 'kalyxwallet.com', pathPrefix: '/wc' }],
         category: ['BROWSABLE', 'DEFAULT'],
       },
     ],
