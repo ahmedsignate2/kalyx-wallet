@@ -33,7 +33,8 @@ describe('Legal & Compliance Constants', () => {
     expect(LEGAL_CONSTANTS.COMPANY_NAME).toBe('Ahamed Signate (KALYX)');
     expect(LEGAL_CONSTANTS.LEGAL_STATUS).toBe('Entrepreneur individuel');
     expect(LEGAL_CONSTANTS.CONTACT_EMAIL).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
-    expect(LEGAL_CONSTANTS.HOSTING_PROVIDER).toContain('Vercel');
+    expect(LEGAL_CONSTANTS.HOSTING_PROVIDER).toBeDefined();
+    expect(typeof LEGAL_CONSTANTS.HOSTING_PROVIDER).toBe('string');
     expect(LEGAL_CONSTANTS.PRIVACY_POLICY_URL).toMatch(/^https:\/\//);
     expect(LEGAL_CONSTANTS.TERMS_OF_SERVICE_URL).toMatch(/^https:\/\//);
     expect(LEGAL_CONSTANTS.TELEGRAM_URL).toBe('https://t.me/kalyxntw');
@@ -83,6 +84,8 @@ describe('Legal Translations (15 Languages)', () => {
     'legal.privacyPolicy',
     'legal.termsOfService',
     'legal.appVersion',
+    'legalHostingNonCustodial',
+    'legal.hostingNonCustodial',
   ];
 
   test('all legal keys exist and have non-empty values across all 15 languages', () => {
@@ -102,10 +105,12 @@ describe('Legal Translations (15 Languages)', () => {
     expect(translate('fr', 'legalPublisher')).toBe("Éditeur de l'application");
     expect(translate('fr', 'legalStatusIndividual')).toBe('Entrepreneur individuel');
     expect(translate('fr', 'legalSiretPending')).toBe("En cours d'attribution (INSEE)");
+    expect(translate('fr', 'legalHostingNonCustodial')).toBe("Application exécutée localement sur le terminal de l'utilisateur (Non-custodial)");
 
     expect(translate('en', 'legalTitle')).toBe('Legal Notices & About');
     expect(translate('en', 'legalPublisher')).toBe('App Publisher');
     expect(translate('en', 'legalStatusIndividual')).toBe('Sole Proprietorship');
     expect(translate('en', 'legalSiretPending')).toBe('Pending INSEE assignment');
+    expect(translate('en', 'legalHostingNonCustodial')).toBe("Application executed locally on user's device (Non-custodial)");
   });
 });

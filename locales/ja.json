@@ -88,6 +88,9 @@
     "hosting": "ホスティング",
     "privacyPolicy": "プライバシーポリシー",
     "termsOfService": "利用規約",
-    "appVersion": "バージョン:"
-  }
+    "appVersion": "バージョン:",
+    "hostingNonCustodial": "アプリはユーザーの端末上でローカルに実行されます（Non-custodial）"
+  },
+  "legalHostingNonCustodial": "アプリはユーザーの端末上でローカルに実行されます（Non-custodial）",
+  "legal.hostingNonCustodial": "アプリはユーザーの端末上でローカルに実行されます（Non-custodial）"
 }

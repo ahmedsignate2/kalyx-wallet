@@ -27,6 +27,11 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
       ? LEGAL_CONSTANTS.SIRET
       : t('legalSiretPending');
 
+  const hostingDisplay =
+    LEGAL_CONSTANTS.HOSTING_PROVIDER && LEGAL_CONSTANTS.HOSTING_PROVIDER.trim().length > 0
+      ? LEGAL_CONSTANTS.HOSTING_PROVIDER
+      : t('legalHostingNonCustodial');
+
   const openEmail = () => {
     Linking.openURL(`mailto:${LEGAL_CONSTANTS.CONTACT_EMAIL}`).catch(() => {});
   };
@@ -202,7 +207,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
             {t('legalHosting')}
           </Text>
           <Text style={[typography.body, { color: colors.text, lineHeight: 20 }]}>
-            {LEGAL_CONSTANTS.HOSTING_PROVIDER}
+            {hostingDisplay}
           </Text>
         </GlassCard>
 

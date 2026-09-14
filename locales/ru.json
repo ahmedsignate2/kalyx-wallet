@@ -88,6 +88,9 @@
     "hosting": "Хостинг",
     "privacyPolicy": "Политика конфиденциальности",
     "termsOfService": "Условия использования",
-    "appVersion": "Версия:"
-  }
+    "appVersion": "Версия:",
+    "hostingNonCustodial": "Приложение выполняется локально на устройстве пользователя (Non-custodial)"
+  },
+  "legalHostingNonCustodial": "Приложение выполняется локально на устройстве пользователя (Non-custodial)",
+  "legal.hostingNonCustodial": "Приложение выполняется локально на устройстве пользователя (Non-custodial)"
 }
