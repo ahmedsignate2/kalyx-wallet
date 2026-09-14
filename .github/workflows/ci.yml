@@ -7,6 +7,8 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  # Lancement manuel (onglet Actions ou `gh workflow run CI`).
+  workflow_dispatch:
 
 jobs:
   test:
