@@ -64,7 +64,7 @@ const tr: Dict = {
         label: 'göndermek için basılı tutma',
       },
       {
-        title: 'Uygulamadan çıkmadan takas.',
+        title: 'Uygulamadan çıkmadan swap.',
         text: 'Solana’da Jupiter, EVM zincirlerinde ve zincirler arasında LI.FI ile Relay. Rota tek cümleyle yazılır, fiyat etkisi onaylamadan önce bildirilir.',
         value: '3',
         label: 'yönlendirici, kendiniz imzalarsınız',
@@ -154,11 +154,11 @@ const tr: Dict = {
     kicker: 'Ücretler, dolambaçsız',
     title: 'Kalyx geçimini nasıl sağlar.',
     titleEm: 'Tek satırda.',
-    lead: 'Ücretsiz cüzdanlar bedelini çoğu zaman bir takasın rotasında gizler. İşte bizimki, rakam rakam, kodda yazıldığı gibi.',
+    lead: 'Ücretsiz cüzdanlar bedelini çoğu zaman bir swap rotasında gizler. İşte bizimki, rakam rakam, kodda yazıldığı gibi.',
     items: [
       { value: '0 €', label: 'göndermek, almak, tutmak için', note: 'Yalnızca ağ ücretleri uygulanır — doğrulayıcılara gider, bize değil.' },
-      { value: '%0,3', label: 'LI.FI üzerinden takasta', note: 'EVM ve zincirler arası. Kalyx’in tek geliri budur.' },
-      { value: '%0', label: 'Jupiter üzerinden Solana takasında', note: 'Rotaya eklenen komisyon yok.' },
+      { value: '%0,3', label: 'LI.FI üzerinden swap’ta', note: 'EVM ve zincirler arası. Kalyx’in tek geliri budur.' },
+      { value: '%0', label: 'Jupiter üzerinden Solana swap’ında', note: 'Rotaya eklenen komisyon yok.' },
       { value: '%0', label: 'Earn’de', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: yatırırken ya da çekerken hiçbir kesinti yok.' },
       { value: '0 €', label: 'abonelik, sonsuza dek', note: '“Pro” sürüm yok, paralı duvar arkasında özellik yok.' },
     ],

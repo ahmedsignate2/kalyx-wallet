@@ -64,7 +64,7 @@ const pl: Dict = {
         label: 'przytrzymania, by wysłać',
       },
       {
-        title: 'Wymiana bez wychodzenia z aplikacji.',
+        title: 'Swap bez wychodzenia z aplikacji.',
         text: 'Jupiter na Solanie, LI.FI i Relay na sieciach EVM i między sieciami. Trasa opisana jednym zdaniem, wpływ na cenę podany przed potwierdzeniem.',
         value: '3',
         label: 'routery, podpisujesz sam',
@@ -154,11 +154,11 @@ const pl: Dict = {
     kicker: 'Opłaty, bez owijania',
     title: 'Z czego żyje Kalyx.',
     titleEm: 'W jednej linijce.',
-    lead: 'Darmowe portfele często ukrywają cenę w trasie wymiany. Oto nasza, liczba po liczbie, tak jak zapisano ją w kodzie.',
+    lead: 'Darmowe portfele często ukrywają cenę w trasie swapu. Oto nasza, liczba po liczbie, tak jak zapisano ją w kodzie.',
     items: [
       { value: '0 €', label: 'za wysyłanie, odbieranie, przechowywanie', note: 'Obowiązują tylko opłaty sieciowe — trafiają do walidatorów, nie do nas.' },
-      { value: '0,3 %', label: 'za wymianę przez LI.FI', note: 'EVM i między sieciami. To jedyny przychód Kalyx.' },
-      { value: '0 %', label: 'za wymianę na Solanie przez Jupiter', note: 'Żadnej prowizji dodanej do trasy.' },
+      { value: '0,3 %', label: 'za swap przez LI.FI', note: 'EVM i między sieciami. To jedyny przychód Kalyx.' },
+      { value: '0 %', label: 'za swap na Solanie przez Jupiter', note: 'Żadnej prowizji dodanej do trasy.' },
       { value: '0 %', label: 'w Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: nic nie pobieramy przy wpłacie ani wypłacie.' },
       { value: '0 €', label: 'abonamentu, na zawsze', note: 'Bez wersji „pro”, bez funkcji za bramką.' },
     ],
