@@ -3,6 +3,10 @@ node_modules/
 dist/
 coverage/
 *.log
+.next/
+out/
+web/.next/
+web/out/
 
 # Secrets / config locale — ne JAMAIS committer
 .env
