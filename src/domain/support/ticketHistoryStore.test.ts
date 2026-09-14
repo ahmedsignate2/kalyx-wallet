@@ -136,13 +136,16 @@ describe('Ticket History Store & Interception System', () => {
     });
 
     it('intercepts and saves ticket normalized via normalizeSupportTicket', () => {
-      const raw = `🎫 [TICKET SUPPORT KALYX]\n• ID : KX-20260914-88888\n• Version : Kalyx v0.0.1\n• Problème : Erreur swap\n• Réseau : Polygon\n• Erreur détectée : Insufficient output`;
+      // L'ID n'est conservé que s'il date d'aujourd'hui : on le construit dynamiquement.
+      const d = new Date();
+      const todayId = `KX-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-88888`;
+      const raw = `🎫 [TICKET SUPPORT KALYX]\n• ID : ${todayId}\n• Version : Kalyx v0.0.1\n• Problème : Erreur swap\n• Réseau : Polygon\n• Erreur détectée : Insufficient output`;
       const normalized = normalizeSupportTicket(raw);
 
-      expect(normalized).toContain('KX-20260914-88888');
+      expect(normalized).toContain(todayId);
       const stored = useTicketHistoryStore.getState().tickets;
-      expect(stored.some((t) => t.id === 'KX-20260914-88888')).toBe(true);
-      const found = stored.find((t) => t.id === 'KX-20260914-88888');
+      expect(stored.some((t) => t.id === todayId)).toBe(true);
+      const found = stored.find((t) => t.id === todayId);
       expect(found?.problem).toBe('Erreur swap');
       expect(found?.network).toBe('Polygon');
     });

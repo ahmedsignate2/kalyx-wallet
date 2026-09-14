@@ -6,7 +6,7 @@
  */
 import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, KeyboardAvoidingView, Platform, Share } from 'react-native';
+import { View, Text, TextInput, ScrollView, KeyboardAvoidingView, Platform, Share, ActivityIndicator } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Button, Title, Muted } from '../ui/components';
@@ -16,8 +16,7 @@ import { spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
 import { createBackup } from '../src';
-import { withDriveToken, isDriveConfigured, GoogleAuthError } from '../lib/googleDrive';
-import { findBackup, uploadBackup } from '../src/domain/backup/drive';
+import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
 
 export default function CloudBackup() {
   const { colors, typography } = useTheme();
@@ -34,7 +33,15 @@ export default function CloudBackup() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [target, setTarget] = useState<'share' | 'drive'>('share');
-  const [driveDone, setDriveDone] = useState(false);
+  const flow = useDriveFlow();
+  const language = useSettings((s) => s.language);
+  const encryptedBackupAt = useSettings((s) => s.encryptedBackupAt);
+  const driveBackupAt = useSettings((s) => s.driveBackupAt);
+  const driveDone = flow.kind === 'save' && flow.status === 'done';
+  const driveBusy = flow.kind === 'save' && (flow.status === 'auth' || flow.status === 'working');
+  const driveError = flow.kind === 'save' && flow.status === 'error' ? (flow.error === 'not_configured' ? t('driveNotConfigured') : flow.error === 'denied' || flow.error === 'timeout' ? t('driveCancelled') : flow.error) : null;
+  const checkBusy = flow.kind === 'check' && (flow.status === 'auth' || flow.status === 'working');
+  const dateLabel = (iso: string) => new Date(iso).toLocaleString(language, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   const strength = pwd.length < 8 ? { label: t('strengthWeak'), color: colors.danger } : pwd.length < 12 ? { label: t('strengthMedium'), color: colors.warning } : /[A-Z]/.test(pwd) && /\d/.test(pwd) && /[^A-Za-z0-9]/.test(pwd) ? { label: t('strengthStrong'), color: colors.up } : { label: t('strengthMedium'), color: colors.warning };
   const mismatch = confirm.length > 0 && pwd !== confirm;
@@ -63,22 +70,11 @@ export default function CloudBackup() {
       blobBytes: blob.length,
     });
     if (target === 'drive') {
-      // Coffre passif : une connexion Google éphémère, deux requêtes (trouver, envoyer), jeton révoqué.
-      try {
-        await withDriveToken(async (token) => {
-          const existing = await findBackup(token);
-          await uploadBackup(token, blob, existing?.id ?? null);
-        });
-      } catch (e) {
-        if (e instanceof GoogleAuthError && e.code === 'not_configured') throw new Error(t('driveNotConfigured'));
-        if (e instanceof GoogleAuthError && e.code !== 'exchange_failed') throw new Error(t('driveCancelled'));
-        throw e;
-      }
-      console.log('[KALYX-AUTH][backup] drive:uploaded', { elapsedMs: Date.now() - startedAt });
-      useSettings.getState().markEncryptedBackup();
-      setDriveDone(true);
+      // La confirmation biométrique s'arrête ici (elle a un délai de 15 s) : l'aller-retour
+      // Google est confié au flux persistant, qui survit même à un redémarrage de l'app.
       setPwd('');
       setConfirm('');
+      void flow.start({ kind: 'save', blob });
       return;
     }
     await Share.share({
@@ -141,12 +137,36 @@ export default function CloudBackup() {
           </View>
         ) : null}
 
-        {driveDone ? (
+        {driveBusy ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <ActivityIndicator color={colors.text} />
+            <Text style={[typography.muted, { flex: 1 }]}>{flow.status === 'auth' ? t('driveConnect') : t('driveSaving')}</Text>
+          </View>
+        ) : null}
+        {driveDone ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.bgElevated, borderRadius: 12, padding: spacing(1.5) }}>
             <Icon name="check" size={18} color={colors.up} />
             <Text style={{ color: colors.up, flex: 1 }}>{t('driveSaved')}</Text>
           </View>
         ) : null}
+        {driveError ? <Text style={{ color: colors.danger }}>{driveError}</Text> : null}
+
+        {/* Historique : l'utilisateur peut vérifier un autre jour qu'il a bien sauvegardé. */}
+        <Card>
+          <Text style={typography.muted}>{t('backupStatusTitle')}</Text>
+          <Text style={typography.body}>{encryptedBackupAt ? `${t('backupLastFile')} ${dateLabel(encryptedBackupAt)}` : t('backupNeverFile')}</Text>
+          {isDriveConfigured() ? (
+            <>
+              <Text style={typography.body}>{driveBackupAt ? `${t('backupLastDrive')} ${dateLabel(driveBackupAt)}` : t('backupNeverDrive')}</Text>
+              {flow.kind === 'check' && flow.status === 'done' ? (
+                <Text style={{ color: flow.checkResult ? colors.up : colors.warning }}>
+                  {flow.checkResult ? `${t('driveCheckFound')} ${dateLabel(flow.checkResult)}` : t('driveNone')}
+                </Text>
+              ) : null}
+              <Button label={checkBusy ? t('driveSearching') : t('driveCheck')} variant="ghost" onPress={() => flow.start({ kind: 'check' })} disabled={checkBusy} />
+            </>
+          ) : null}
+        </Card>
 
         <View style={{ height: spacing(1) }} />
         <Button label={t('createBackupBtn')} onPress={() => onCreate('share')} disabled={!canCreate} />
