@@ -5,10 +5,12 @@
  * ⚠️ BROUILLONS à faire relire par un juriste avant une mise en production
  * réelle avec de vrais fonds.
  */
+import { LEGAL_CONSTANTS } from '../src/constants/legal';
+
 export const LEGAL_UPDATED = '5 juillet 2026';
-export const LEGAL_PUBLISHER = 'la société Malin';
+export const LEGAL_PUBLISHER = LEGAL_CONSTANTS.COMPANY_NAME;
 export const LEGAL_COUNTRY = 'France';
-export const LEGAL_CONTACT = 'Telegram @kalyxntw (t.me/kalyxntw) ou X @kalyxntw (x.com/kalyxntw)';
+export const LEGAL_CONTACT = `${LEGAL_CONSTANTS.CONTACT_EMAIL} ou Telegram @kalyxntw (${LEGAL_CONSTANTS.TELEGRAM_URL})`;
 
 export interface LegalSection {
   title: string;
