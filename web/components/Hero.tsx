@@ -7,12 +7,12 @@ import { PhoneMockup } from './PhoneMockup';
 export function Hero() {
   return (
     <section className="relative overflow-hidden bg-hero-gradient px-5 pb-0 pt-28 sm:px-8 sm:pt-36 lg:pt-40">
-      <div className="pointer-events-none absolute left-1/2 top-16 h-80 w-80 -translate-x-1/2 rounded-full bg-purple-600/20 blur-3xl" />
+      <div className="pointer-events-none absolute left-1/2 top-16 h-80 w-80 -translate-x-1/2 rounded-full bg-violet-500/15 blur-3xl" />
       <div className="relative z-10 mx-auto max-w-5xl text-center">
         <div className="mb-6 inline-flex rounded-full border border-white/15 bg-black/15 px-4 py-1.5 text-[11px] font-medium text-emerald-50">
           Kalyx 2.0 <span className="mx-2 text-emerald-200/40">•</span> Multi-Chain Non-Custodial
         </div>
-        <h1 className="mx-auto max-w-4xl text-5xl font-black uppercase leading-[0.92] tracking-[-0.045em] text-white sm:text-7xl lg:text-[7rem]">
+        <h1 className="mx-auto max-w-4xl text-4xl font-semibold leading-[1.05] tracking-[-0.03em] text-white sm:text-6xl lg:text-7xl">
           Là où vit votre crypto
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-sm text-emerald-100/70 sm:text-base">
