@@ -1,0 +1,57 @@
+# Codemagic — compile l'APK Android SANS la file d'attente EAS.
+#
+# `eas build --local` récupère le keystore et les credentials depuis EAS (mêmes
+# empreintes SHA-1 / SHA-256 que les builds cloud → App Links et ID client Google
+# restent valides), puis compile ici. Plan gratuit Codemagic : 500 min/mois.
+#
+# À créer dans Codemagic → App settings → Environment variables (groupe `kalyx`) :
+#   EXPO_TOKEN                     jeton d'accès Expo (expo.dev → Account → Access tokens)
+#   EXPO_PUBLIC_ALCHEMY_KEY        … et les autres clés de .env.example utilisées par l'app
+#   EXPO_PUBLIC_ETHERSCAN_KEY
+#   EXPO_PUBLIC_COINGECKO_KEY
+#   EXPO_PUBLIC_LIFI_KEY
+#   EXPO_PUBLIC_WALLETCONNECT_ID
+#   EXPO_PUBLIC_RELAY_API_KEY
+#   EXPO_PUBLIC_HELIUS_KEY
+# (EXPO_PUBLIC_GOOGLE_CLIENT_ID vient déjà du profil dans eas.json.)
+workflows:
+  android-apk:
+    name: Android APK (eas build --local)
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      groups:
+        - kalyx
+      node: 20
+      java: 17
+      vars:
+        EAS_PROFILE: development # ou "production" pour l'AAB Play Store
+        EAS_NO_VCS: "1"
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/.gradle/caches
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Dépendances
+        script: npm ci
+      - name: Typecheck + tests (la CI que GitHub ne lance plus)
+        script: |
+          npm run typecheck
+          npm test -- --ci --runInBand
+      - name: EAS CLI
+        script: npm install -g eas-cli
+      - name: Build local avec les credentials EAS
+        script: |
+          mkdir -p build
+          if [ "$EAS_PROFILE" = "production" ]; then OUT=build/kalyx-wallet.aab; else OUT=build/kalyx-wallet.apk; fi
+          eas build --local --platform android --profile "$EAS_PROFILE" --non-interactive --output "$OUT"
+    artifacts:
+      - build/*.apk
+      - build/*.aab
