@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinPad } from '../ui/PinPad';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
+import { useDriveFlow } from '../lib/googleDrive';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { lockRemainingMs } from '../src';
@@ -40,6 +41,14 @@ export default function Unlock() {
   // Déverrouillage fluide : léger fondu de sortie avant de basculer sur l'accueil.
   const goHome = useCallback(() => {
     Animated.timing(screenOp, { toValue: 0, duration: 240, useNativeDriver: true }).start(() => {
+      // Retour de Google pendant que l'app était verrouillée : on rouvre l'écran de sauvegarde.
+      const back = useDriveFlow.getState().returnTo;
+      if (back) {
+        useDriveFlow.getState().setReturnTo(null);
+        router.replace('/home');
+        router.push(back);
+        return;
+      }
       router.replace('/home');
     });
   }, [screenOp]);
