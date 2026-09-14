@@ -7,7 +7,12 @@ import { Icon } from './icon';
 import { getAdapter, listChains } from '../src';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { useWallet } from '../lib/walletStore';
-import { formatAmount, formatTokenAmount } from '../src';
+import { formatAmount, formatTokenAmount, sortMarkets, type MarketCoin } from '../src';
+import { useSettings } from '../lib/settingsStore';
+import { loadMarkets } from './MarketPanel';
+
+/** Onglets du sélecteur : mes jetons (soldes > 0), tendances (hausses du jour), top 100 (capitalisation). */
+type PickerTab = 'all' | 'mine' | 'trending' | 'top';
 
 interface TokenPickerProps {
   visible: boolean;
@@ -21,6 +26,20 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId }: Toke
   const { colors, typography } = useTheme();
   const [search, setSearch] = useState('');
   const [selectedChain, setSelectedChain] = useState(initialChainId);
+  const [tab, setTab] = useState<PickerTab>('all');
+  const [market, setMarket] = useState<MarketCoin[]>([]);
+  const fiat = useSettings((s) => s.fiat);
+
+  // Données de marché (cache partagé avec l'accueil) : variation 24 h + ordre des onglets.
+  useEffect(() => {
+    if (!visible) return;
+    loadMarkets(fiat).then(setMarket).catch(() => {});
+  }, [visible, fiat]);
+  const marketBySymbol = useMemo(() => {
+    const m = new Map<string, MarketCoin>();
+    for (const c of market) if (!m.has(c.symbol.toLowerCase())) m.set(c.symbol.toLowerCase(), c);
+    return m;
+  }, [market]);
   const [heldTokens, setHeldTokens] = useState<Record<string, bigint>>({});
 
   const fetchTokens = useTokenStore(s => s.fetchTokens);
@@ -71,17 +90,36 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId }: Toke
 
   const filteredTokens = useMemo(() => {
     const q = search.toLowerCase();
-    if (!q) return rawTokens;
-    return rawTokens.filter(t => 
-      t.symbol.toLowerCase().includes(q) || 
-      t.name?.toLowerCase().includes(q) || 
-      t.address.toLowerCase().includes(q)
-    );
-  }, [rawTokens, search]);
+    let list = rawTokens;
+    if (q) {
+      list = list.filter(t =>
+        t.symbol.toLowerCase().includes(q) ||
+        t.name?.toLowerCase().includes(q) ||
+        t.address.toLowerCase().includes(q)
+      );
+    } else if (tab === 'mine') {
+      list = list.filter(t => (heldTokens[t.address.toLowerCase()] ?? 0n) > 0n);
+    } else if (tab === 'trending' || tab === 'top') {
+      // Seuls les jetons ÉCHANGEABLES sur cette chaîne, dans l'ordre du marché.
+      const ordered = tab === 'trending' ? sortMarkets(market, 'gainers') : market;
+      const rank = new Map(ordered.map((c, i) => [c.symbol.toLowerCase(), i]));
+      list = list
+        .filter(t => rank.has(t.symbol.toLowerCase()))
+        .sort((a, b) => (rank.get(a.symbol.toLowerCase()) ?? 0) - (rank.get(b.symbol.toLowerCase()) ?? 0));
+    }
+    return list;
+  }, [rawTokens, search, tab, heldTokens, market]);
+
+  const tabs: { key: PickerTab; label: string }[] = [
+    { key: 'all', label: t('tokensAll') },
+    { key: 'mine', label: t('myTokens') },
+    { key: 'trending', label: t('trending') },
+    { key: 'top', label: t('top100') },
+  ];
 
   const renderItem = ({ item }: { item: Tok }) => {
-    const t = useT();
     const balance = heldTokens[item.address.toLowerCase()];
+    const mk = marketBySymbol.get(item.symbol.toLowerCase());
     return (
       <Pressable 
         style={({ pressed }) => ({
@@ -106,11 +144,16 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId }: Toke
           <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 16 }}>{item.symbol}</Text>
           <Text style={{ color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12 }}>{item.name || item.symbol}</Text>
         </View>
-        {balance != null && balance > 0n ? (
-          <View style={{ alignItems: 'flex-end' }}>
+        <View style={{ alignItems: 'flex-end' }}>
+          {balance != null && balance > 0n ? (
             <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{formatTokenAmount(balance, item.decimals)}</Text>
-          </View>
-        ) : null}
+          ) : null}
+          {mk ? (
+            <Text style={{ color: mk.change24h >= 0 ? colors.up : colors.down, fontFamily: fonts.medium, fontSize: 12 }}>
+              {mk.change24h >= 0 ? '+' : ''}{mk.change24h.toFixed(1)} % · 24 h
+            </Text>
+          ) : null}
+        </View>
       </Pressable>
     );
   };
@@ -175,6 +218,23 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId }: Toke
             }}
           />
         </View>
+
+        {!search ? (
+          <View style={{ flexDirection: 'row', paddingHorizontal: spacing(2), paddingVertical: spacing(1), gap: spacing(1), borderBottomWidth: 1, borderBottomColor: colors.glassBorder }}>
+            {tabs.map((it) => {
+              const active = it.key === tab;
+              return (
+                <Pressable
+                  key={it.key}
+                  onPress={() => { haptic.selection(); setTab(it.key); }}
+                  style={{ paddingVertical: spacing(0.75), paddingHorizontal: spacing(1.25), borderRadius: radii.pill, backgroundColor: active ? colors.glassStrong : 'transparent' }}
+                >
+                  <Text style={{ color: active ? colors.text : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>{it.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
 
         {isLoading ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
