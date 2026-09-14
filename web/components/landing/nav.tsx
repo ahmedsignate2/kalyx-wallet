@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { EASE } from './motion';
 import { Mark } from './mark';
 
 const links = [
@@ -13,9 +15,15 @@ const links = [
 
 export function Nav() {
   const [open, setOpen] = useState(false);
+  const reduce = useReducedMotion();
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-bone/10 bg-ink/70 backdrop-blur-xl">
+    <motion.header
+      initial={reduce ? false : { y: -24, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.9, ease: EASE }}
+      className="fixed inset-x-0 top-0 z-50 border-b border-bone/10 bg-ink/70 backdrop-blur-xl"
+    >
       <div className="mx-auto flex h-16 max-w-page items-center justify-between px-5 sm:px-8">
         <Link href="/" className="flex items-center gap-2.5 text-paper">
           <Mark size={22} className="text-sage" />
@@ -64,6 +72,6 @@ export function Nav() {
           </a>
         </div>
       )}
-    </header>
+    </motion.header>
   );
 }
