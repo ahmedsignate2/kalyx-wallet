@@ -222,7 +222,8 @@ export function explainRequest(input: ExplainInput): SignExplanation {
     if (!s) {
       return { title: 'Transaction Solana', headline: `${site} te demande de signer une transaction Solana que Kalyx n’a pas pu lire.`, detail: 'Par prudence, refuse si tu n’es pas à l’origine de cette action.', lose: [], receive: [], risk: worst(risk, 'warning'), reasons: [...reasons, 'Transaction illisible.'], holdToSign: risk === 'danger', canReduceApproval: false };
     }
-    if (s.feePayerMismatch) { risk = worst(risk, 'warning'); reasons.push('Les frais sont payés par un autre compte (sponsorisé par la dApp, ou compte tiers) : vérifie que l’action est bien la tienne.'); }
+    // Frais payés par un autre compte (relayer de la dApp, ex. swaps sponsorisés Jupiter) : information, pas alerte — tu signes quand même en tant que cosignataire.
+    const sponsored = s.feePayerMismatch ? ` Frais réseau payés par la dApp (${short(s.feePayer)}), pas par toi.` : '';
     const where = s.dapp ? ` via ${s.dapp}` : '';
     const headline =
       s.action === 'swap' ? `Tu vas échanger des tokens${where}.`
@@ -231,10 +232,10 @@ export function explainRequest(input: ExplainInput): SignExplanation {
       : s.action === 'transfer' ? 'Tu vas envoyer des tokens.'
       : `${site} te demande de signer une interaction avec un programme Solana${s.known.length ? ` (${s.known.join(', ')})` : ''}.`;
     const detail = s.action === 'swap'
-      ? `${s.instructions} instruction${s.instructions > 1 ? 's' : ''}${s.version === 0 ? ', transaction v0' : ''}. Signe seulement si c’est bien ton échange lancé sur ${site}.`
+      ? `${s.instructions} instruction${s.instructions > 1 ? 's' : ''}${s.version === 0 ? ', transaction v0' : ''}.${sponsored} Signe seulement si c’est bien ton échange lancé sur ${site}.`
       : s.action === 'contract'
-        ? 'Programme non reconnu par Kalyx : vérifie que tu es bien à l’origine de cette action.'
-        : `${s.instructions} instruction${s.instructions > 1 ? 's' : ''}${s.version === 0 ? ', transaction v0' : ''}.`;
+        ? `Programme non reconnu par Kalyx : vérifie que tu es bien à l’origine de cette action.${sponsored}`
+        : `${s.instructions} instruction${s.instructions > 1 ? 's' : ''}${s.version === 0 ? ', transaction v0' : ''}.${sponsored}`;
     if (s.action === 'contract') risk = worst(risk, 'warning');
     return { title: s.action === 'swap' ? 'Swap' : 'Transaction Solana', headline, detail, lose: [], receive: [], risk, reasons, holdToSign: risk === 'danger', canReduceApproval: false };
   }

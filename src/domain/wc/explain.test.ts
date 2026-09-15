@@ -101,7 +101,10 @@ describe('Permit2 et Solana (régressions)', () => {
     expect(e.headline).toContain('via Jupiter v6');
     expect(e.risk).toBe('none');
     const bad = explainRequest({ kind: 'solanaTx', domain: 'jup.ag', solana: { version: 0, programs: [], known: [], dapp: null, action: 'contract', instructions: 1, feePayer: 'y', lookupTables: 0, feePayerMismatch: true } });
-    expect(bad.risk).toBe('warning');
+    expect(bad.risk).toBe('warning'); // programme inconnu
+    const sponsored = explainRequest({ kind: 'solanaTx', domain: 'jup.ag', solana: { version: 0, programs: [], known: ['Jupiter v6'], dapp: 'Jupiter v6', action: 'swap', instructions: 4, feePayer: '7rhxnLV8C77o6d8oz26AgK8x8m5ePsdeRawjqvojbjnQ', lookupTables: 2, feePayerMismatch: true } });
+    expect(sponsored.risk).toBe('none');
+    expect(sponsored.detail).toContain('payés par la dApp');
   });
 });
 
