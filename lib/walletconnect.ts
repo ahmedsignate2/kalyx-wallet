@@ -136,6 +136,18 @@ interface EvmChain {
   kalyxId: string;
   evmChainId: number;
 }
+/** Message d'erreur lisible, quelle que soit la forme de l'erreur (Error, { message }, objet, chaîne). */
+function errorText(e: unknown): string {
+  if (e instanceof Error) return typeof e.message === 'string' ? e.message : errorText(e.message);
+  if (typeof e === 'string') return e;
+  if (e && typeof e === 'object') {
+    const m = (e as { message?: unknown; reason?: unknown; error?: unknown }).message ?? (e as { reason?: unknown }).reason ?? (e as { error?: unknown }).error;
+    if (m !== undefined && m !== e) return errorText(m);
+    try { return JSON.stringify(e); } catch { return String(e); }
+  }
+  return String(e);
+}
+
 /** Après une réponse, rend la main à la dApp mobile qui a déclaré un lien de retour (recommandation WalletConnect). */
 function returnToDapp(wallet: IWeb3Wallet, topic: string): void {
   try {
@@ -578,7 +590,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       if (wallet && sdkUtils) {
         await wallet.respondSessionRequest({
           topic,
-          response: { id, jsonrpc: '2.0', error: { code: 5000, message: e instanceof Error ? e.message : 'Unknown error' } },
+          response: { id, jsonrpc: '2.0', error: { code: 5000, message: errorText(e) } },
         });
       }
       handleSmartError(e);

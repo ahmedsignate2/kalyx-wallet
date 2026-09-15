@@ -226,8 +226,10 @@ export function WalletConnectHost() {
       // Jupiter & co envoient des transactions v0 (Address Lookup Tables) : décodées et décrites.
       const raw = method === 'solana_signAllTransactions' ? p0?.transactions?.[0] ?? (Array.isArray(p0) ? p0[0] : undefined) : p0?.transaction ?? (typeof p0 === 'string' ? p0 : undefined);
       const w = useWallet.getState();
-      const solAddr = (w.accounts.find((a) => a.index === w.activeAccountIndex) ?? w.accounts[0])?.solAddress;
-      solana = typeof raw === 'string' ? describeSolanaTransaction(raw, solAddr) : null;
+      const mine = new Set<string>([...w.accounts.map((a) => a.solAddress), p0?.pubkey].filter((x): x is string => typeof x === 'string' && x.length > 0));
+      solana = typeof raw === 'string' ? describeSolanaTransaction(raw) : null;
+      // Payeur des frais ≠ un de nos comptes : sponsorisé par la dApp ou compte tiers → simple avertissement.
+      if (solana && mine.size > 0) solana = { ...solana, feePayerMismatch: !mine.has(solana.feePayer) };
       kind = 'solanaTx';
     }
 
@@ -405,7 +407,7 @@ export function WalletConnectHost() {
           onReject={reject}
           onSign={() => setConfirming(true)}
           onReduceApproval={reducible && reducedAmount ? onReduce : undefined}
-          signLabel={kind === 'siwe' ? t("wcSignConnect") : kind === 'tx' ? t("wcSignConfirm") : t("wcSign")}
+          signLabel={kind === 'siwe' ? t("wcSignConnect") : kind === 'tx' || kind === 'btcTransfer' || kind === 'btcPsbt' ? t("wcSignConfirm") : kind === 'btcAccounts' ? t('allow') : t("wcSign")}
         />
         <ConfirmUnlock
           visible={confirming}
