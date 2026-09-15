@@ -17,7 +17,7 @@ const config: ExpoConfig = {
   slug: 'kalyx-wallet',
   owner: 'amss86',
   scheme: schemes,
-  version: '0.0.1',
+  version: '0.1.0',
   orientation: 'portrait',
   // 'automatic' : requis pour que le thème « Système » suive l'OS (useColorScheme).
   userInterfaceStyle: 'automatic',
