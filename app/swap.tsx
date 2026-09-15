@@ -67,6 +67,9 @@ export default function Swap() {
   const insets = useSafeAreaInsets();
   const t = useT();
   const activeChain = useWallet((s) => s.activeChain);
+  const setActiveChain = useWallet((s) => s.setActiveChain);
+  // Jeton « Tu donnes » choisi sur un AUTRE réseau : on bascule, puis on le sélectionne dès que sa liste est là.
+  const pendingFrom = useRef<{ chainId: string; address: string } | null>(null);
   const account = useWallet((s) => s.account);
   const executeSwap = useWallet((s) => s.executeSwap);
   const chain = getAdapter(activeChain).config;
@@ -176,6 +179,18 @@ export default function Swap() {
   const curated = tokensByChain[activeChain] ?? [];
   const curatedAddrs = new Set(curated.map((tk) => tk.address.toLowerCase()));
   const fromTokens = [...curated, ...held.filter((tk) => !curatedAddrs.has(tk.address.toLowerCase()))];
+
+  // Réseau changé depuis le sélecteur : sélectionner le jeton demandé quand sa liste est chargée.
+  useEffect(() => {
+    const p = pendingFrom.current;
+    if (!p || p.chainId !== activeChain) return;
+    const idx = fromTokens.findIndex((tk) => tk.address.toLowerCase() === p.address.toLowerCase());
+    if (idx >= 0) {
+      setFrom(idx);
+      pendingFrom.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChain, fromTokens.length]);
 
   // Pré-sélection si on arrive depuis le portefeuille avec un token précis.
   useEffect(() => {
@@ -608,8 +623,16 @@ export default function Swap() {
         onClose={() => setPickerState((prev) => ({ ...prev, visible: false }))}
         onSelect={(token, chainId) => {
           if (pickerState.side === 'from') {
-            const idx = fromTokens.findIndex((tk) => tk.address.toLowerCase() === token.address.toLowerCase());
-            if (idx >= 0) setFrom(idx);
+            if (chainId !== activeChain) {
+              pendingFrom.current = { chainId, address: token.address };
+              setActiveChain(chainId);
+              setToChain(chainId);
+              setFrom(0);
+              setTo(1);
+            } else {
+              const idx = fromTokens.findIndex((tk) => tk.address.toLowerCase() === token.address.toLowerCase());
+              if (idx >= 0) setFrom(idx);
+            }
           } else {
             setToChain(chainId);
             const list = tokensByChain[chainId] ?? [];
