@@ -169,9 +169,11 @@ export class BitcoinChainAdapter implements ChainAdapter {
 
     tx.sign(signer.privateKey);
     tx.finalize();
-    const hex = tx.hex;
+    return this.broadcastHex(tx.hex);
+  }
 
-    // Diffusion : POST du hex brut (mempool.space / blockstream), renvoie le txid.
+  /** Diffusion d'une transaction signée (hex brut) : POST mempool.space / blockstream, renvoie le txid. */
+  async broadcastHex(hex: string): Promise<string> {
     return tryInOrder(
       this.config.rpcUrls,
       async (base) => {
