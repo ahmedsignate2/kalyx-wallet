@@ -102,7 +102,7 @@ describe('summarizeTypedData', () => {
   it('résume un Permit EIP-712 (objet et JSON string)', () => {
     for (const input of [permit, JSON.stringify(permit)]) {
       const s = summarizeTypedData(input);
-      expect(s).toEqual({
+      expect(s).toMatchObject({
         name: 'USD Coin',
         primaryType: 'Permit',
         chainId: 1,

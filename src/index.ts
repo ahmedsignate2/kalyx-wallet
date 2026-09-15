@@ -159,6 +159,7 @@ export { detectPoisoning, groupAddress, shortAddress, type PoisoningMatch } from
 // Signature expliquée (§4.7) : simulation + explication humaine + niveau de risque
 export { simulateTx, staticSimulation, parseAlchemySimulation, type Simulation, type AssetChange } from './domain/tx/simulate';
 export { explainRequest, type SignExplanation, type SignRisk, type ExplainInput } from './domain/wc/explain';
+export { describeSolanaTransaction, KNOWN_SOLANA_PROGRAMS, type SolanaTxDescription } from './domain/wc/solanaTx';
 
 // Activité humanisée (§4.6)
 export { humanizeTx, groupByDay, type HumanTx, type HumanizeCtx, type TxGroup } from './domain/tx/humanize';
