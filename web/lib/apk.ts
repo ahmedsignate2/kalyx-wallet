@@ -4,4 +4,4 @@
  */
 /** Par défaut : l'asset « kalyx-wallet.apk » de la dernière GitHub Release (aucune limite de taille d'hébergeur). */
 export const APK_URL =
-  process.env.NEXT_PUBLIC_APK_URL?.trim() || 'https://github.com/gadget00522/Nova-mise-a-jour/releases/latest/download/kalyx-wallet.apk';
+  process.env.NEXT_PUBLIC_APK_URL?.trim() || 'https://github.com/ahmedsignate2/nova-wallet-release/releases/latest/download/kalyx-wallet.apk';
