@@ -6,6 +6,7 @@ import { ArrowDown, Download } from 'lucide-react';
 import { PhoneMock } from './phone-mock';
 import { EASE } from './motion';
 import type { Dict } from '../../i18n';
+import { APK_URL } from '../../lib/apk';
 
 /* Chaque chip (t.hero.chips) correspond à une fonctionnalité réellement implémentée (cf. never-stolen.tsx). */
 
@@ -88,7 +89,7 @@ export function Hero({ t }: { t: Dict }) {
 
           <motion.div {...(reduce ? {} : enter(5))} className="mt-9 flex flex-col gap-3 sm:flex-row md:justify-center">
             <a
-              href="/kalyx-wallet.apk"
+              href={APK_URL}
               download
               className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-paper px-6 text-sm font-medium text-ink transition-[background-color,transform] duration-200 ease-editorial hover:bg-bone active:scale-[0.97]"
             >
