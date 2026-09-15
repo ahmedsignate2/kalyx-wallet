@@ -222,7 +222,7 @@ export function explainRequest(input: ExplainInput): SignExplanation {
     if (!s) {
       return { title: 'Transaction Solana', headline: `${site} te demande de signer une transaction Solana que Kalyx n’a pas pu lire.`, detail: 'Par prudence, refuse si tu n’es pas à l’origine de cette action.', lose: [], receive: [], risk: worst(risk, 'warning'), reasons: [...reasons, 'Transaction illisible.'], holdToSign: risk === 'danger', canReduceApproval: false };
     }
-    if (s.feePayerMismatch) { risk = 'danger'; reasons.push('Le payeur des frais n’est pas ton compte : cette transaction ne t’appartient pas.'); }
+    if (s.feePayerMismatch) { risk = worst(risk, 'warning'); reasons.push('Les frais sont payés par un autre compte (sponsorisé par la dApp, ou compte tiers) : vérifie que l’action est bien la tienne.'); }
     const where = s.dapp ? ` via ${s.dapp}` : '';
     const headline =
       s.action === 'swap' ? `Tu vas échanger des tokens${where}.`
