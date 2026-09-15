@@ -8,6 +8,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { EASE } from './motion';
 import { Mark } from './mark';
 import { LOCALES, LOCALE_NAMES, STORAGE_KEY, type Dict, type Locale } from '../../i18n';
+import { APK_URL } from '../../lib/apk';
 
 /** Sélecteur de langue : mémorise le choix, puis ouvre la même page dans l'autre langue. */
 function LanguageSwitcher({ lang, label, className = '' }: { lang: Locale; label: string; className?: string }) {
@@ -74,7 +75,7 @@ export function Nav({ t, lang }: { t: Dict; lang: Locale }) {
           ))}
           <LanguageSwitcher lang={lang} label={t.nav.language} />
           <a
-            href="/kalyx-wallet.apk"
+            href={APK_URL}
             download
             className="inline-flex h-10 items-center whitespace-nowrap rounded-full bg-paper px-5 text-sm font-medium text-ink transition-colors hover:bg-bone"
           >
@@ -103,7 +104,7 @@ export function Nav({ t, lang }: { t: Dict; lang: Locale }) {
             </Link>
           ))}
           <a
-            href="/kalyx-wallet.apk"
+            href={APK_URL}
             download
             onClick={() => setOpen(false)}
             className="mt-3 flex h-12 items-center justify-center rounded-full bg-paper text-base font-medium text-ink"

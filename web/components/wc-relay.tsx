@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { APK_URL } from '../lib/apk';
 
 /** Relais deep link : ouvre kalyx://wc?uri=… ; après 1,5 s sans bascule, propose l'APK. */
 export function WcRelay() {
@@ -25,7 +26,7 @@ export function WcRelay() {
         </a>
       )}
       {fallback && (
-        <a href="/kalyx-wallet.apk" download className="text-sm text-mist underline underline-offset-4 hover:text-paper">
+        <a href={APK_URL} download className="text-sm text-mist underline underline-offset-4 hover:text-paper">
           Télécharger Kalyx pour Android
         </a>
       )}

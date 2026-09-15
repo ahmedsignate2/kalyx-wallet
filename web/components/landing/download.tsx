@@ -2,6 +2,7 @@ import React from 'react';
 import { Download as DownloadIcon, Send } from 'lucide-react';
 import { Reveal, Rule } from './motion';
 import type { Dict } from '../../i18n';
+import { APK_URL } from '../../lib/apk';
 
 export function Download({ t }: { t: Dict }) {
   return (
@@ -20,7 +21,7 @@ export function Download({ t }: { t: Dict }) {
         </Reveal>
         <Reveal delay={0.3} className="mx-auto mt-10 flex w-full max-w-sm flex-col items-stretch justify-center gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
           <a
-            href="/kalyx-wallet.apk"
+            href={APK_URL}
             download
             className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-paper px-7 text-sm font-medium text-ink transition-[background-color,transform] duration-200 ease-editorial hover:bg-bone active:scale-[0.97]"
           >
