@@ -110,6 +110,14 @@ export interface TypedDataSummary {
    * signe à l'aveugle le vecteur de drain le plus courant.
    */
   details?: { label: string; value: string }[];
+  /** Adresse du token concerné (Permit2 : message.details.token ; Permit EIP-2612 : verifyingContract). */
+  token?: string;
+  /** Montant brut (entier, en unités du token) si présent. */
+  amountRaw?: string;
+  /** Vrai si le montant est « illimité » (≥ 2^160 − 2, type(uint160).max de Permit2 inclus). */
+  unlimited?: boolean;
+  /** Vrai pour une signature Permit2 (domaine « Permit2 » ou PermitSingle/PermitBatch/PermitTransferFrom). */
+  permit2?: boolean;
 }
 
 /** BigInt tolérant (décimal, 0x-hex, number) ; null si non parsable. */
@@ -185,5 +193,17 @@ export function summarizeTypedData(raw: unknown): TypedDataSummary | null {
   if (typeof domain.verifyingContract === 'string') out.verifyingContract = domain.verifyingContract;
   const details = extractDetails(data.message);
   if (details.length) out.details = details;
+  // Token concerné : jamais domain.name (pour Permit2, ce serait « Permit2 » !).
+  const m = (data.message ?? {}) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const nested = m.details && typeof m.details === 'object' && !Array.isArray(m.details) ? m.details : {};
+  const primary = String(out.primaryType ?? '');
+  out.permit2 = domain.name === 'Permit2' || /^Permit(Single|Batch|TransferFrom|WitnessTransferFrom)$/.test(primary);
+  const token = m.token ?? nested.token ?? (primary === 'Permit' && !out.permit2 ? domain.verifyingContract : undefined);
+  if (typeof token === 'string') out.token = token;
+  const amount = asBigInt(m.value ?? m.amount ?? nested.amount);
+  if (amount != null) {
+    out.amountRaw = amount.toString();
+    out.unlimited = amount >= UNLIMITED;
+  }
   return out.name || out.primaryType || out.details ? out : null;
 }
