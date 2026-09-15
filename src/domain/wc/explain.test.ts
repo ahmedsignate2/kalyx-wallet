@@ -104,3 +104,27 @@ describe('Permit2 et Solana (régressions)', () => {
     expect(bad.risk).toBe('danger');
   });
 });
+
+describe('Bitcoin et messages (WalletConnect)', () => {
+  it('lecture d’adresses : aucun risque, pas de maintien', () => {
+    const e = explainRequest({ kind: 'btcAccounts', domain: 'app.test' });
+    expect(e.title).toBe('Lecture');
+    expect(e.risk).toBe('none');
+    expect(e.holdToSign).toBe(false);
+  });
+  it('transfert : montant en BTC et destinataire court', () => {
+    const e = explainRequest({ kind: 'btcTransfer', domain: 'app.test', btc: { to: 'bc1quc8glxvajh0c4ghv4htftk202ldx5h0u42hfyy', sats: 150000n } });
+    expect(e.headline).toMatch(/0[.,]0015 BTC/);
+    expect(e.lose[0]).toMatch(/0[.,]0015 BTC/);
+    expect(e.risk).toBe('warning');
+  });
+  it('PSBT : entrées et diffusion', () => {
+    const e = explainRequest({ kind: 'btcPsbt', domain: 'app.test', btc: { inputs: 2, broadcast: true } });
+    expect(e.headline).toContain('2 entrées');
+    expect(e.reasons.join(' ')).toContain('diffusée immédiatement');
+  });
+  it('message : aperçu du texte décodé', () => {
+    const e = explainRequest({ kind: 'message', domain: 'app.test', messageText: 'This is a message to be signed for BIP122' });
+    expect(e.detail).toContain('This is a message to be signed for BIP122');
+  });
+});

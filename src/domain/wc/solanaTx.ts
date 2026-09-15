@@ -79,14 +79,14 @@ class Reader {
   }
 }
 
-function decodeBytes(input: string | Uint8Array): Uint8Array {
-  if (input instanceof Uint8Array) return input;
+/** Candidats d'octets : base64 puis base58 (une chaîne base58 peut ressembler à du base64 valide). */
+function byteCandidates(input: string | Uint8Array): Uint8Array[] {
+  if (input instanceof Uint8Array) return [input];
   const s = input.trim();
-  try {
-    return base64.decode(s);
-  } catch {
-    return base58.decode(s);
-  }
+  const out: Uint8Array[] = [];
+  try { out.push(base64.decode(s)); } catch { /* pas du base64 */ }
+  try { out.push(base58.decode(s)); } catch { /* pas du base58 */ }
+  return out;
 }
 
 /** Décode le MESSAGE (sans les signatures). */
@@ -126,12 +126,19 @@ export function parseSolanaMessage(bytes: Uint8Array): { version: 'legacy' | 0; 
 
 /** Décrit une transaction sérialisée (signatures + message). Jamais ne lève : null si illisible. */
 export function describeSolanaTransaction(input: string | Uint8Array, expectedFeePayer?: string): SolanaTxDescription | null {
+  for (const bytes of byteCandidates(input)) {
+    const d = describeBytes(bytes, expectedFeePayer);
+    if (d) return d;
+  }
+  return null;
+}
+
+function describeBytes(bytes: Uint8Array, expectedFeePayer?: string): SolanaTxDescription | null {
   try {
-    const bytes = decodeBytes(input);
     const r = new Reader(bytes);
     const nSig = r.compact();
     r.bytes(nSig * 64);
-    const msg = parseSolanaMessage(bytes.subarray(bytes.length - (bytes.length - (nSig * 64 + compactLen(nSig)))));
+    const msg = parseSolanaMessage(bytes.subarray(nSig * 64 + compactLen(nSig)));
     const programs: string[] = [];
     for (const idx of msg.programIndexes) {
       const pid = msg.keys[idx];
