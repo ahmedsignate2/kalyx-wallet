@@ -15,12 +15,14 @@ import { useWallet, type Unlock } from './walletStore';
 import { notify } from './notifications';
 import { listChains, getAdapter, type RawTxRequest } from '../src';
 import { handleSmartError } from './errorHandler';
+import { submitSolanaSigned } from './solanaSubmit';
 import type { IWeb3Wallet } from '@walletconnect/web3wallet';
 
 // Libellé lisible d'une méthode WalletConnect (pour la notification de signature).
 
 
 import { VersionedTransaction } from '@solana/web3.js';
+import { Transaction as BtcTransaction } from '@scure/btc-signer';
 function extractSolanaSignature(tx: string, address: string): string {
   try {
     const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(tx) && tx.length % 4 === 0;
@@ -36,15 +38,24 @@ function extractSolanaSignature(tx: string, address: string): string {
   }
 }
 
-function ensureBase58(tx: string): string {
+/** Spec WalletConnect Solana : `transaction` (signée, sérialisée) est renvoyée en BASE64. */
+function ensureBase64(tx: string): string {
   const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(tx) && tx.length % 4 === 0;
-  if (!isBase64) return tx;
+  if (isBase64) return tx;
   try {
-    return base58.encode(base64.decode(tx));
+    return base64.encode(base58.decode(tx));
   } catch {
     return tx;
   }
 }
+
+/** Méthodes qui exigent une décision de l'utilisateur ; tout le reste est répondu automatiquement. */
+const SIGNING_METHODS = new Set([
+  'personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v3', 'eth_signTypedData_v4', 'eth_sendTransaction', 'eth_signTransaction',
+  'solana_signTransaction', 'solana_signAllTransactions', 'solana_signMessage', 'solana_signAndSendTransaction',
+  'bitcoin_signMessage', 'signMessage', 'bitcoin_signPsbt', 'signPsbt', 'bitcoin_sendTransaction', 'sendTransfer', 'bitcoin_sendTransfer',
+  'bitcoin_getAccounts', 'getAccountAddresses', 'bitcoin_getAccountAddresses', 'getAccounts',
+]);
 
 const METHOD_LABELS: Record<string, string> = {
   eth_sendTransaction: 'Transaction à signer',
@@ -283,6 +294,21 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         }
         return;
       }
+      if (!SIGNING_METHODS.has(method)) {
+        // Lecture / capacités : réponse immédiate, sans écran. Inconnue : erreur JSON-RPC standard.
+        const acct = useWallet.getState().accounts[useWallet.getState().activeAccountIndex];
+        const evmAddress = acct?.evmAddress ?? useWallet.getState().account?.address;
+        const caip: string = request?.params?.chainId ?? '';
+        const evmId = caip.startsWith('eip155:') ? Number(caip.slice(7)) : undefined;
+        let response: any;
+        if (method === 'eth_accounts' || method === 'eth_requestAccounts') response = { result: evmAddress ? [evmAddress] : [] };
+        else if (method === 'eth_chainId') response = { result: evmId ? `0x${evmId.toString(16)}` : '0x1' };
+        else if (method === 'wallet_getCapabilities' || method === 'wallet_getPermissions' || method === 'wallet_requestPermissions') response = { result: {} };
+        else if (method === 'solana_getAccounts' || method === 'solana_requestAccounts') response = { result: acct?.solAddress ? [{ pubkey: acct.solAddress }] : [] };
+        else response = { error: { code: -32601, message: `Method not supported: ${method}` } };
+        await w.respondSessionRequest({ topic: request.topic, response: { id: request.id, jsonrpc: '2.0', ...response } }).catch(() => {});
+        return;
+      }
       const q = [...get().requestQueue, request];
       set({ requestQueue: q, request: q[0] });
       const topic: string | undefined = request?.topic;
@@ -318,10 +344,11 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     // Méthodes autorisées selon les cases cochées (lecture toujours accordée via
     // le partage des adresses ; ici on gère uniquement les actions signables).
     const evmMethods = [
+      'eth_accounts', 'eth_requestAccounts', 'eth_chainId', 'wallet_switchEthereumChain', 'wallet_addEthereumChain', 'wallet_getCapabilities',
       ...(p.tx ? ['eth_sendTransaction'] : []),
-      ...(p.sign ? ['personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v4'] : []),
+      ...(p.sign ? ['personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v3', 'eth_signTypedData_v4'] : []),
     ];
-    const solMethods = ['solana_getAccounts', ...(p.tx ? ['solana_signTransaction', 'solana_signAllTransactions'] : []), ...(p.sign ? ['solana_signMessage'] : [])];
+    const solMethods = ['solana_getAccounts', ...(p.tx ? ['solana_signTransaction', 'solana_signAllTransactions', 'solana_signAndSendTransaction'] : []), ...(p.sign ? ['solana_signMessage'] : [])];
     const btcMethods = ['getAccountAddresses', 'getAccounts', ...(p.tx ? ['signPsbt', 'sendTransaction', 'sendTransfer'] : []), ...(p.sign ? ['signMessage'] : [])];
     const wstate = useWallet.getState();
     const address = wstate.account?.address;
@@ -434,14 +461,22 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         if (typeof txStr !== 'string') throw new Error('Expected String');
         const res = await w.signSolanaTransaction(unlock, txStr);
         const solAddr = useWallet.getState().accounts[useWallet.getState().activeAccountIndex]?.solAddress;
-        result = { signature: extractSolanaSignature(res, solAddr || ""), transaction: ensureBase58(res) };
+        result = { signature: extractSolanaSignature(res, solAddr || ''), transaction: ensureBase64(res) };
+      } else if (method === 'solana_signAndSendTransaction') {
+        // Signe puis diffuse : la dApp attend { signature } (base58 de la transaction envoyée).
+        const pSafe: any = p || {};
+        const txStr = pSafe.transaction ?? pSafe[0]?.transaction ?? (typeof pSafe === 'string' ? pSafe : undefined);
+        if (typeof txStr !== 'string') throw new Error('Expected String');
+        const signed = await w.signSolanaTransaction(unlock, txStr);
+        const sig = await submitSolanaSigned(ensureBase64(signed));
+        result = { signature: sig };
       } else if (method === 'solana_signAllTransactions') {
         const pSafe: any = p || {};
         let txStrArray = pSafe.transactions || pSafe[0]?.transactions || (Array.isArray(pSafe) ? pSafe : [pSafe]);
         if (!Array.isArray(txStrArray)) txStrArray = [txStrArray];
         const res = await w.signSolanaTransactions(unlock, txStrArray);
         const solAddr = useWallet.getState().accounts[useWallet.getState().activeAccountIndex]?.solAddress;
-        result = { signatures: res.map(r => extractSolanaSignature(r, solAddr || "")), transactions: res.map(ensureBase58) };
+        result = { signatures: res.map(r => extractSolanaSignature(r, solAddr || '')), transactions: res.map(ensureBase64) };
       } else if (method === 'solana_signMessage') {
         const pSafe: any = p || {};
         let msg = pSafe.message ?? pSafe.msg ?? pSafe.signMessage;
@@ -459,12 +494,12 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         if (!msg && Array.isArray(pSafe)) msg = pSafe.filter(x => typeof x === 'string').pop();
         if (!msg && typeof pSafe === 'string') msg = pSafe;
         if (typeof msg !== 'string') throw new Error('Expected String');
-        let type = 'ecdsa';
-        if (pSafe.type === 'bip322-simple' || pSafe[0]?.type === 'bip322-simple') type = 'bip322';
-        const sigBase64 = await w.signBitcoinMessage(unlock, msg, type as 'ecdsa'|'bip322');
-        const sigHex = require('buffer').Buffer.from(sigBase64, 'base64').toString('hex');
-        console.log('\n[DEBUG-VERIFY] Sig hex length:', sigHex.length, '\n');
-        result = { signature: sigHex };
+        const proto = String(pSafe.protocol ?? pSafe[0]?.protocol ?? pSafe.type ?? pSafe[0]?.type ?? 'ecdsa').toLowerCase();
+        const type: 'ecdsa' | 'bip322' = proto.startsWith('bip322') ? 'bip322' : 'ecdsa';
+        const sigBase64 = await w.signBitcoinMessage(unlock, msg, type);
+        const btcAddr = w.accounts[w.activeAccountIndex]?.btcAddress ?? pSafe.address ?? pSafe[0]?.address;
+        // Spec Reown : signature en base64 + adresse signataire.
+        result = { signature: sigBase64, address: btcAddr };
       } else if (method === 'bitcoin_signPsbt' || method === 'signPsbt') {
         const pSafe: any = p || {};
         let psbtStr = pSafe.psbt || pSafe[0]?.psbt;
@@ -486,8 +521,16 @@ export const useWalletConnect = create<WcState>((set, get) => ({
           });
         }
         
-        const resStr = await w.signBitcoinPsbt(unlock, psbtStr, { finalize, signInputs });
-        result = { psbt: resStr };
+        const broadcast = pSafe.broadcast === true || pSafe[0]?.broadcast === true;
+        const resStr = await w.signBitcoinPsbt(unlock, psbtStr, { finalize: finalize || broadcast, signInputs });
+        let txid: string | undefined;
+        if (broadcast) {
+          const isHex = resStr.toLowerCase().startsWith('70736274');
+          const bytes = isHex ? Buffer.from(resStr, 'hex') : base64.decode(resStr);
+          const signed = BtcTransaction.fromPSBT(bytes);
+          txid = await (getAdapter('bitcoin') as any).broadcastHex(signed.hex);
+        }
+        result = txid ? { psbt: resStr, txid } : { psbt: resStr };
       } else if (method === 'bitcoin_getAccounts' || method === 'getAccountAddresses' || method === 'bitcoin_getAccountAddresses') {
         const btcModule = await import('../src/crypto/btc');
         const mnemonicModule = await import('../src/crypto/mnemonic');
@@ -495,7 +538,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         if (!activeWallet || activeWallet.type === 'privateKey') throw new Error('Bitcoin accounts not available for PK wallet');
         const secret = mnemonicModule.mnemonicToSeedSync(await w.revealPhrase(unlock));
         const derived = btcModule.deriveBtcAccount(secret, w.account?.index || 0);
-        result = [{ address: derived.address, publicKey: derived.publicKey.replace(/^0x/, ''), purpose: 'payment' }];
+        result = [{ address: derived.address, publicKey: derived.publicKey.replace(/^0x/, ''), path: `m/84'/0'/0'/0/${w.account?.index || 0}`, intention: 'payment', purpose: 'payment' }];
       } else if (method === 'bitcoin_sendTransaction' || method === 'sendTransfer') {
         // Build, sign, broadcast and return txid
         const pSafe: any = p || {};
