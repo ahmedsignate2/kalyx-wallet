@@ -63,3 +63,44 @@ describe('explainRequest', () => {
     expect(e.detail).toContain('refuse');
   });
 });
+
+describe('Permit2 et Solana (régressions)', () => {
+  it('Permit2 : nomme le vrai token, jamais « Permit2 »', () => {
+    const typed = {
+      name: 'Permit2',
+      primaryType: 'PermitSingle',
+      chainId: 56,
+      token: '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+      amountRaw: (2n ** 160n - 1n).toString(),
+      unlimited: true,
+      permit2: true,
+      details: [
+        { label: 'Autorisé (spender)', value: '0x8b84bd1b8dbc1c9f0d1e6b0000000000000001e6b' },
+        { label: 'Token', value: '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d' },
+        { label: 'Montant', value: 'Illimité ⚠️' },
+      ],
+    };
+    const withSymbol = explainRequest({ kind: 'typedData', domain: 'app.uniswap.org', typed, tokenSymbol: 'USDC', tokenDecimals: 18 });
+    expect(withSymbol.headline).toContain('un montant illimité de tes USDC (via Permit2)');
+    expect(withSymbol.headline).not.toContain('tes Permit2');
+    expect(withSymbol.risk).toBe('danger');
+    const noSymbol = explainRequest({ kind: 'typedData', domain: 'app.uniswap.org', typed });
+    expect(noSymbol.headline).not.toContain('tes Permit2');
+    expect(noSymbol.headline).toContain('(via Permit2)');
+  });
+
+  it('Permit EIP-2612 classique : le nom du domaine est bien le token', () => {
+    const typed = { name: 'USD Coin', primaryType: 'Permit', token: '0xA0b8...', amountRaw: '1000000', unlimited: false, permit2: false, details: [{ label: 'Autorisé (spender)', value: '0xspender' }] };
+    const e = explainRequest({ kind: 'typedData', domain: 'x.io', typed, tokenDecimals: 6 });
+    expect(e.headline).toContain('jusqu’à 1 tes USD Coin');
+  });
+
+  it('Solana : un swap Jupiter est expliqué comme un swap', () => {
+    const e = explainRequest({ kind: 'solanaTx', method: 'solana_signTransaction', domain: 'jup.ag', solana: { version: 0, programs: [], known: ['Jupiter v6', 'Compute Budget'], dapp: 'Jupiter v6', action: 'swap', instructions: 4, feePayer: 'x', lookupTables: 2, feePayerMismatch: false } });
+    expect(e.title).toBe('Swap');
+    expect(e.headline).toContain('via Jupiter v6');
+    expect(e.risk).toBe('none');
+    const bad = explainRequest({ kind: 'solanaTx', domain: 'jup.ag', solana: { version: 0, programs: [], known: [], dapp: null, action: 'contract', instructions: 1, feePayer: 'y', lookupTables: 0, feePayerMismatch: true } });
+    expect(bad.risk).toBe('danger');
+  });
+});
