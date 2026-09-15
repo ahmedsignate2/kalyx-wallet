@@ -16,6 +16,7 @@ import { Button } from './components';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon, type IconName } from './icon';
 import { fonts, radii, spacing, useTheme } from './theme';
+import { useTokenStore } from '../lib/tokenStore';
 import { useWalletConnect } from '../lib/walletconnect';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
@@ -31,6 +32,7 @@ import {
   decodeTx,
   simulateTx,
   explainRequest,
+  describeSolanaTransaction,
   getTokenMetadata,
   type RiskAssessment,
   type Simulation,
@@ -148,6 +150,8 @@ export function WalletConnectHost() {
   const [phishSite, setPhishSite] = useState(false);
   // Simulation de la transaction (Alchemy, repli statique) + métadonnées du token ciblé.
   const [sim, setSim] = useState<Simulation | 'loading' | null>(null);
+  // Token d'un Permit/Permit2 : symbole + décimales (registre local, puis métadonnées ERC-20).
+  const [permitToken, setPermitToken] = useState<{ symbol: string; decimals: number } | null>(null);
 
   // Décodage lisible de la requête (mémoïsé : parsing hex/SIWE/EIP-712).
   const info = useMemo(() => {
@@ -157,7 +161,8 @@ export function WalletConnectHost() {
     const chain = listChains().find((c) => c.family === 'evm' && `eip155:${c.evmChainId}` === request.params?.chainId);
     const peer = sessions.find((s) => s.topic === request.topic);
 
-    let kind: 'siwe' | 'message' | 'typedData' | 'tx' | 'other' = 'other';
+    let kind: 'siwe' | 'message' | 'typedData' | 'tx' | 'solanaTx' | 'other' = 'other';
+    let solana: ReturnType<typeof describeSolanaTransaction> = null;
     let text: string | null = null;
     let siwe = null;
     let typed = null;
@@ -180,13 +185,21 @@ export function WalletConnectHost() {
         data: typeof t.data === 'string' ? t.data : undefined,
       };
       kind = 'tx';
+    } else if (method === 'solana_signTransaction' || method === 'solana_signAllTransactions') {
+      // Jupiter & co envoient des transactions v0 (Address Lookup Tables) : décodées et décrites.
+      const raw = method === 'solana_signAllTransactions' ? p[0]?.transactions?.[0] ?? p[0]?.[0] : p[0]?.transaction ?? p[0];
+      const w = useWallet.getState();
+      const solAddr = (w.accounts.find((a) => a.index === w.activeAccountIndex) ?? w.accounts[0])?.solAddress;
+      solana = typeof raw === 'string' ? describeSolanaTransaction(raw, solAddr) : null;
+      kind = 'solanaTx';
     }
 
     const action =
       kind === 'siwe' ? t('siweAction') :
       kind === 'message' ? t('sigMessage') :
       kind === 'typedData' ? (typed?.primaryType ? `« ${typed.primaryType} »` : t('sigTypedData')) :
-      kind === 'tx' ? t('sigTx') : method;
+      kind === 'tx' ? t('sigTx') :
+      kind === 'solanaTx' ? (solana?.action === 'swap' ? 'Swap' : t('sigTx')) : method;
 
     // Anti-phishing : le domaine déclaré dans le SIWE doit être le site connecté.
     const phishing = !!(siwe && peer?.url && siweDomainMismatch(siwe.domain, peer.url));
@@ -194,7 +207,7 @@ export function WalletConnectHost() {
     const decoded = tx ? decodeTx({ to: tx.to, value: tx.value, data: tx.data }) : null;
     const vc = request.verifyContext?.verified ?? {};
     const verify = { validation: vc.validation as 'VALID' | 'INVALID' | 'UNKNOWN' | undefined, isScam: !!vc.isScam };
-    return { method, kind, text, siwe, typed, tx, chain, peer, action, phishing, decoded, verify };
+    return { method, kind, text, siwe, typed, tx, chain, peer, action, phishing, decoded, verify, solana };
   }, [request, sessions, t]);
 
   // Simulation (transactions uniquement).
@@ -212,6 +225,21 @@ export function WalletConnectHost() {
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request]);
+
+  // Token d'un Permit / Permit2 : symbole et décimales, pour ne jamais afficher « tes Permit2 ».
+  useEffect(() => {
+    setPermitToken(null);
+    const addr = info?.typed?.token;
+    if (!info || info.kind !== 'typedData' || !addr) return;
+    const chain = listChains().find((c) => c.family === 'evm' && c.evmChainId === info.typed?.chainId) ?? info.chain;
+    if (!chain) return;
+    const local = (useTokenStore.getState().tokensByChain[chain.id] ?? []).find((tk) => tk.address.toLowerCase() === addr.toLowerCase());
+    if (local) { setPermitToken({ symbol: local.symbol, decimals: local.decimals }); return; }
+    let alive = true;
+    getTokenMetadata(chain, addr).then((m) => { if (alive && m) setPermitToken({ symbol: m.symbol, decimals: m.decimals }); }).catch(() => {});
+    return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request]);
 
@@ -287,6 +315,9 @@ export function WalletConnectHost() {
       siwe,
       siweMismatch: phishing,
       typed,
+      tokenSymbol: permitToken?.symbol ?? null,
+      tokenDecimals: permitToken?.decimals ?? null,
+      solana: info.solana,
       decoded,
       simulation,
       verify,

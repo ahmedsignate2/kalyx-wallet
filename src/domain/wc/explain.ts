@@ -13,6 +13,7 @@ import { formatUnits } from 'ethers';
 import type { SiweMessage, TypedDataSummary } from './message';
 import type { Simulation, AssetChange } from '../tx/simulate';
 import type { DecodedTx } from '../tx/decodeTx';
+import type { SolanaTxDescription } from './solanaTx';
 
 export type SignRisk = 'none' | 'warning' | 'danger';
 
@@ -34,12 +35,17 @@ export interface SignExplanation {
 }
 
 export interface ExplainInput {
-  kind: 'siwe' | 'message' | 'typedData' | 'tx' | 'other';
+  kind: 'siwe' | 'message' | 'typedData' | 'tx' | 'solanaTx' | 'other';
   method?: string;
   domain?: string; // hôte du site connecté
   siwe?: SiweMessage | null;
   siweMismatch?: boolean;
   typed?: TypedDataSummary | null;
+  /** Symbole et décimales du token d'un Permit/Permit2, résolus par l'appelant (registre local ou métadonnées ERC-20). */
+  tokenSymbol?: string | null;
+  tokenDecimals?: number | null;
+  /** Transaction Solana décrite (solana_signTransaction). */
+  solana?: SolanaTxDescription | null;
   decoded?: DecodedTx | null;
   simulation?: Simulation | null;
   /** Vérification WalletConnect Verify : VALID / INVALID / UNKNOWN, isScam. */
@@ -103,8 +109,23 @@ export function explainRequest(input: ExplainInput): SignExplanation {
   if (input.kind === 'typedData') {
     const t = input.typed;
     const spender = t?.details?.find((d) => /spender|autoris/i.test(d.label))?.value;
-    const amount = t?.details?.find((d) => /montant|amount/i.test(d.label))?.value;
-    const unlimited = !!amount && /illimit/i.test(amount);
+    const unlimited = t?.unlimited === true || !!t?.details?.find((d) => /montant|amount/i.test(d.label) && /illimit/i.test(d.value));
+    // Montant lisible : formaté avec les décimales si on les connaît, sinon brut.
+    let amount: string | undefined;
+    if (!unlimited && t?.amountRaw) {
+      try {
+        amount = input.tokenDecimals != null ? formatDecimalString(formatUnits(BigInt(t.amountRaw), input.tokenDecimals)) : t.amountRaw;
+      } catch {
+        amount = t.amountRaw;
+      }
+    }
+    // Le token : symbole résolu > nom du domaine pour un Permit EIP-2612 (le domaine EST le token) > adresse courte. Jamais « Permit2 ».
+    const tokenLabel = input.tokenSymbol
+      ? input.tokenSymbol
+      : t?.token
+        ? t.permit2 || /permit2/i.test(t?.name ?? '') ? short(t.token) : (t?.name ?? short(t.token))
+        : t?.name && !/permit2/i.test(t.name) ? t.name : 'tokens';
+    const via = t?.permit2 ? ' (via Permit2)' : '';
     const noExpiry = !!t?.details?.find((d) => /échéance|deadline/i.test(d.label) && /sans expiration/i.test(d.value));
     const isPermit = /permit/i.test(t?.primaryType ?? '') || !!spender;
     if (isPermit) {
@@ -114,7 +135,7 @@ export function explainRequest(input: ExplainInput): SignExplanation {
       if (!unlimited && !noExpiry) reasons.push('Une signature Permit autorise un tiers à dépenser tes tokens, sans frais maintenant.');
       return {
         title: 'Autorisation',
-        headline: `Cette signature autorise ${spender ? short(spender) : site} à dépenser ${unlimited ? 'un montant illimité de' : amount ? `jusqu’à ${amount}` : ''} ${t?.name ? `tes ${t.name}` : 'tes tokens'}.`.replace(/\s+/g, ' '),
+        headline: `Cette signature autorise ${spender ? short(spender) : site} à dépenser ${unlimited ? 'un montant illimité de' : amount ? `jusqu’à ${amount}` : ''} tes ${tokenLabel}${via}.`.replace(/\s+/g, ' '),
         detail: 'Aucun frais maintenant, mais c’est comme donner une clé : le bénéficiaire pourra déplacer ces tokens plus tard.',
         lose: [], receive: [], risk, reasons, holdToSign: risk === 'danger', canReduceApproval,
       };
@@ -159,6 +180,29 @@ export function explainRequest(input: ExplainInput): SignExplanation {
     }
     const sim_err = sim?.error ? ` (simulation impossible : ${sim.error})` : '';
     return { title: 'Transaction', headline: `${site} te demande d’exécuter une action sur un contrat${d?.kind === 'contract' && d.to ? ` (${short(d.to)})` : ''}.`, detail: `Aucun mouvement de fonds détecté par la simulation${sim_err}. Vérifie le site avant de confirmer.`, lose, receive, risk, reasons, holdToSign: risk === 'danger', canReduceApproval };
+  }
+
+  // ── Transaction Solana (legacy ou v0) ──
+  if (input.kind === 'solanaTx') {
+    const s = input.solana;
+    if (!s) {
+      return { title: 'Transaction Solana', headline: `${site} te demande de signer une transaction Solana que Kalyx n’a pas pu lire.`, detail: 'Par prudence, refuse si tu n’es pas à l’origine de cette action.', lose: [], receive: [], risk: worst(risk, 'warning'), reasons: [...reasons, 'Transaction illisible.'], holdToSign: risk === 'danger', canReduceApproval: false };
+    }
+    if (s.feePayerMismatch) { risk = 'danger'; reasons.push('Le payeur des frais n’est pas ton compte : cette transaction ne t’appartient pas.'); }
+    const where = s.dapp ? ` via ${s.dapp}` : '';
+    const headline =
+      s.action === 'swap' ? `Tu vas échanger des tokens${where}.`
+      : s.action === 'staking' ? `Tu vas déposer ou retirer du staking${where}.`
+      : s.action === 'nft' ? `Tu vas signer une opération NFT${where}.`
+      : s.action === 'transfer' ? 'Tu vas envoyer des tokens.'
+      : `${site} te demande de signer une interaction avec un programme Solana${s.known.length ? ` (${s.known.join(', ')})` : ''}.`;
+    const detail = s.action === 'swap'
+      ? `${s.instructions} instruction${s.instructions > 1 ? 's' : ''}${s.version === 0 ? ', transaction v0' : ''}. Signe seulement si c’est bien ton échange lancé sur ${site}.`
+      : s.action === 'contract'
+        ? 'Programme non reconnu par Kalyx : vérifie que tu es bien à l’origine de cette action.'
+        : `${s.instructions} instruction${s.instructions > 1 ? 's' : ''}${s.version === 0 ? ', transaction v0' : ''}.`;
+    if (s.action === 'contract') risk = worst(risk, 'warning');
+    return { title: s.action === 'swap' ? 'Swap' : 'Transaction Solana', headline, detail, lose: [], receive: [], risk, reasons, holdToSign: risk === 'danger', canReduceApproval: false };
   }
 
   return { title: 'Demande', headline: `${site} envoie une demande (${input.method ?? '?'}) que Kalyx ne sait pas encore expliquer.`, detail: 'Par prudence, refuse.', lose: [], receive: [], risk: worst(risk, 'warning'), reasons: [...reasons, 'Méthode inconnue.'], holdToSign: risk === 'danger', canReduceApproval: false };

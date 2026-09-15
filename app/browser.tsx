@@ -35,6 +35,7 @@ import { space, SCREEN_MARGIN, radius, springs } from '../ui/tokens';
 import { haptic } from '../lib/haptics';
 import { sound } from '../lib/sound';
 import { useWallet, type Unlock } from '../lib/walletStore';
+import { useTokenStore } from '../lib/tokenStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../lib/recentDapps';
@@ -299,6 +300,8 @@ export default function Browser() {
   const connected = useRef<Set<string>>(new Set());
   const [pending, setPending] = useState<Pending | null>(null);
   const [sim, setSim] = useState<Simulation | 'loading' | null>(null);
+  // Token d'un Permit / Permit2 (symbole + décimales) : registre local puis métadonnées ERC-20.
+  const [permitToken, setPermitToken] = useState<{ symbol: string; decimals: number } | null>(null);
   const [signConfirm, setSignConfirm] = useState(false);
   const [risk, setRisk] = useState<RiskAssessment | 'loading' | null>(null);
   const [phishSite, setPhishSite] = useState(false);
@@ -378,8 +381,15 @@ export default function Browser() {
 
   // Analyse GoPlus + simulation à l'apparition d'une demande.
   useEffect(() => {
-    setRisk(null); setPhishSite(false); setSim(null); setSignConfirm(false); setConnectLine(0);
+    setRisk(null); setPhishSite(false); setSim(null); setSignConfirm(false); setConnectLine(0); setPermitToken(null);
     if (!pending) return;
+    if (pending.kind === 'typedData' && pending.summary?.token) {
+      const addr = pending.summary.token;
+      const tChain = listChains().find((c) => c.family === 'evm' && c.evmChainId === pending.summary?.chainId) ?? chain;
+      const local = (useTokenStore.getState().tokensByChain[tChain.id] ?? []).find((tk) => tk.address.toLowerCase() === addr.toLowerCase());
+      if (local) setPermitToken({ symbol: local.symbol, decimals: local.decimals });
+      else getTokenMetadata(tChain, addr).then((m) => { if (m) setPermitToken({ symbol: m.symbol, decimals: m.decimals }); }).catch(() => {});
+    }
     haptic.light();
     if (useSettings.getState().securityScan) {
       const cid = chain.evmChainId ?? 1;
@@ -405,11 +415,11 @@ export default function Browser() {
     if (!pending || pending.kind === 'connect') return null;
     const addressRisk = risk && risk !== 'loading' ? risk : null;
     if (pending.kind === 'sign') return explainRequest({ kind: pending.siwe ? 'siwe' : 'message', domain: pending.origin, siwe: pending.siwe, siweMismatch: !!pending.siwe && siweDomainMismatch(pending.siwe.domain, `https://${pending.origin}`), addressRisk, phishingSite: phishSite });
-    if (pending.kind === 'typedData') return explainRequest({ kind: 'typedData', domain: pending.origin, typed: pending.summary, addressRisk, phishingSite: phishSite });
+    if (pending.kind === 'typedData') return explainRequest({ kind: 'typedData', domain: pending.origin, typed: pending.summary, tokenSymbol: permitToken?.symbol ?? null, tokenDecimals: permitToken?.decimals ?? null, addressRisk, phishingSite: phishSite });
     const decoded = decodeTx({ to: pending.raw.to, value: pending.raw.value, data: pending.raw.data });
     return explainRequest({ kind: 'tx', domain: pending.origin, decoded, simulation: sim && sim !== 'loading' ? sim : null, addressRisk, phishingSite: phishSite, nativeSymbol: chain.nativeSymbol });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending, sim, risk, phishSite]);
+  }, [pending, sim, risk, phishSite, permitToken]);
 
   const perform = async (unlock: Unlock) => {
     if (!pending || !account) return;
