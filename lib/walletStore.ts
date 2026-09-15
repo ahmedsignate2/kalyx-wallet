@@ -72,6 +72,10 @@ import {
 } from './secureStore';
 import { authenticate } from './biometrics';
 import { submitSolanaSigned } from './solanaSubmit';
+import { kvGet, kvSet } from './kv';
+
+/** Réseau actif mémorisé entre deux lancements (non sensible). */
+const K_ACTIVE_CHAIN = 'kalyx.activeChain';
 import { VersionedTransaction, Keypair } from '@solana/web3.js';
 import * as btcLib from '@scure/btc-signer';
 
@@ -268,6 +272,9 @@ export const useWallet = create<WalletState>((set, get) => ({
     const accounts = wallets.length ? (await loadAccounts(activeWalletId)) ?? [] : [];
     // Compteur anti-brute-force persistant : recharge le verrouillage temporaire.
     const lock = await loadLockState();
+    // Réseau actif du dernier lancement (sinon réseau par défaut).
+    const savedChain = await kvGet(K_ACTIVE_CHAIN).catch(() => null);
+    const activeChain = savedChain && hasChain(savedChain) ? savedChain : get().activeChain;
     set({
       ready: true,
       hasWallet: wallets.length > 0 && accounts.length > 0,
@@ -276,7 +283,8 @@ export const useWallet = create<WalletState>((set, get) => ({
       activeWalletId,
       accounts,
       activeAccountIndex: 0,
-      account: toAccount(accounts, 0, get().activeChain),
+      activeChain,
+      account: toAccount(accounts, 0, activeChain),
       failedAttempts: lock.failedAttempts,
       lastFailedAt: lock.lastFailedAt,
     });
@@ -372,6 +380,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     const safe = hasChain(chainId) ? chainId : DEFAULT_CHAIN;
     technicalLogger.logSys(`Switched active network to ${safe}`, { chainId: safe });
     set({ activeChain: safe, account: toAccount(get().accounts, get().activeAccountIndex, safe) });
+    kvSet(K_ACTIVE_CHAIN, safe).catch(() => {});
   },
 
   setActiveAccount: (index) =>

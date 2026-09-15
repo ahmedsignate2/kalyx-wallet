@@ -927,7 +927,7 @@ const en = {
   swapFromLabel: "From",
   amountInvalid: "Invalid amount",
   swapUnavailableHint:
-    "Swap/bridge is available on EVM networks (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast). Switch network from the home screen.",
+    "Swap and bridge are available on EVM networks (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) and Solana. Choose the network in the token picker or from the home screen.",
   gasReserve: "Network fee reserve",
   // — Success modal —
   done: "Done",
@@ -2322,7 +2322,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "De",
     amountInvalid: "Montant invalide",
     swapUnavailableHint:
-      "Le swap/bridge fonctionne sur les réseaux EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast). Change de réseau depuis l’accueil.",
+      "Le swap et le bridge sont disponibles sur les réseaux EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) et Solana. Choisis le réseau dans le sélecteur de jetons ou depuis l’accueil.",
     gasReserve: "Réserve frais réseau",
     done: "Terminé",
     viewOnExplorer: "Voir sur l'explorateur",
@@ -3723,7 +3723,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "De",
     amountInvalid: "Importe inválido",
     swapUnavailableHint:
-      "El swap/bridge está disponible en redes EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast). Cambia de red desde el inicio.",
+      "El swap y el bridge están disponibles en redes EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) y Solana. Elige la red en el selector de tokens o desde el inicio.",
     gasReserve: "Reserva para comisiones de red",
     done: "Hecho",
     viewOnExplorer: "Ver en el explorador",
@@ -5109,7 +5109,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "De",
     amountInvalid: "Valor inválido",
     swapUnavailableHint:
-      "O swap/bridge está disponível em redes EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast). Troque de rede na tela inicial.",
+      "Swap e bridge estão disponíveis nas redes EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) e Solana. Escolha a rede no seletor de tokens ou a partir do início.",
     gasReserve: "Reserva para taxas de rede",
     done: "Concluído",
     viewOnExplorer: "Ver no explorador",
@@ -6498,7 +6498,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "Aus",
     amountInvalid: "Ungültiger Betrag",
     swapUnavailableHint:
-      "Swap/Bridge ist in EVM-Netzwerken verfügbar (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast). Wechseln Sie vom Startbildschirm aus zum Netzwerk.",
+      "Swap und Bridge sind auf EVM-Netzwerken (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) und Solana verfügbar. Wähle das Netzwerk im Token-Auswahlfenster oder auf der Startseite.",
     gasReserve: "Netzwerkgebühr-Reserve",
     done: "Erledigt",
     viewOnExplorer: "Im Explorer ansehen",
@@ -7873,7 +7873,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "Da",
     amountInvalid: "Importo non valido",
     swapUnavailableHint:
-      "Lo scambio/ponte è disponibile sulle reti EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast). Cambia rete dalla schermata principale.",
+      "Swap e bridge sono disponibili sulle reti EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) e Solana. Scegli la rete nel selettore di token o dalla home.",
     gasReserve: "Riserva per commissioni di rete",
     done: "Fatto",
     viewOnExplorer: "Vedi sull'explorer",
@@ -9197,7 +9197,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "Van",
     amountInvalid: "Ongeldig bedrag",
     swapUnavailableHint:
-      "Swap/bridge is beschikbaar op EVM-netwerken (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast). Wissel van netwerk vanaf het startscherm.",
+      "Swap en bridge zijn beschikbaar op EVM-netwerken (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) en Solana. Kies het netwerk in de tokenkiezer of vanaf het startscherm.",
     gasReserve: "Reservering netwerkkosten",
     done: "Klaar",
     viewOnExplorer: "Bekijk op de verkenner",
@@ -10588,7 +10588,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "Od",
     amountInvalid: "Nieprawidłowa kwota",
     swapUnavailableHint:
-      "Swap/bridge jest dostępny w sieciach EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast). Zmień sieć z ekranu głównego.",
+      "Swap i bridge są dostępne w sieciach EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) oraz Solana. Wybierz sieć w selektorze tokenów lub z ekranu głównego.",
     gasReserve: "Rezerwa na opłaty sieciowe",
     done: "Gotowe",
     viewOnExplorer: "Zobacz w eksploratorze",
@@ -11974,7 +11974,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "Dan",
     amountInvalid: "Geçersiz miktar",
     swapUnavailableHint:
-      "Swap/köprü, EVM ağlarında (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) kullanılabilir. Ana ekrandan ağı değiştirin.",
+      "Swap ve bridge, EVM ağlarında (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) ve Solana’da kullanılabilir. Ağı token seçicisinden veya ana ekrandan seçin.",
     gasReserve: "Ağ ücreti rezervi",
     done: "Tamamlandı",
     viewOnExplorer: "Explorer'da Görüntüle",
@@ -13369,7 +13369,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "От",
     amountInvalid: "Неверная сумма",
     swapUnavailableHint:
-      "Функция обмена/моста доступна в сетях EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast). Смените сеть с главного экрана.",
+      "Swap и bridge доступны в сетях EVM (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) и Solana. Выберите сеть в списке токенов или на главном экране.",
     gasReserve: "Резерв на комиссию сети",
     done: "Готово",
     viewOnExplorer: "Посмотреть в обозревателе",
@@ -14763,7 +14763,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "من",
     amountInvalid: "مبلغ غير صالح",
     swapUnavailableHint:
-      "التحويل/الجسر متاح على شبكات EVM (إيثيريوم، BNB، بوليغون، Base، Arbitrum، Optimism، Avalanche، Linea، Scroll، Blast). غيّر الشبكة من الشاشة الرئيسية.",
+      "يتوفر Swap وBridge على شبكات EVM (Ethereum وBNB وPolygon وBase وArbitrum وOptimism وAvalanche وLinea وScroll وBlast) وSolana. اختر الشبكة من محدد الرموز أو من الشاشة الرئيسية.",
     gasReserve: "احتياطي رسوم الشبكة",
     done: "تم",
     viewOnExplorer: "عرض على المستكشف",
@@ -16158,7 +16158,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "से",
     amountInvalid: "अमान्य राशि",
     swapUnavailableHint:
-      "स्वैप/ब्रिज EVM नेटवर्क्स (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) पर उपलब्ध है। होम स्क्रीन से नेटवर्क बदलें।",
+      "Swap और bridge EVM नेटवर्क (Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast) और Solana पर उपलब्ध हैं। नेटवर्क टोकन चयनकर्ता या होम स्क्रीन से चुनें।",
     gasReserve: "नेटवर्क शुल्क रिज़र्व",
     done: "समाप्त",
     viewOnExplorer: "एक्सप्लोरर पर देखें",
@@ -17529,7 +17529,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "从",
     amountInvalid: "无效金额",
     swapUnavailableHint:
-      "Swap/bridge 在 EVM 网络上可用（Ethereum、BNB、Polygon、Base、Arbitrum、Optimism、Avalanche、Linea、Scroll、Blast）。请在主页切换网络。",
+      "Swap 与 Bridge 可用于 EVM 网络（Ethereum、BNB、Polygon、Base、Arbitrum、Optimism、Avalanche、Linea、Scroll、Blast）及 Solana。请在代币选择器或首页中选择网络。",
     gasReserve: "网络费用预留",
     done: "完成",
     viewOnExplorer: "在区块链浏览器上查看",
@@ -18898,7 +18898,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "から",
     amountInvalid: "無効な金額",
     swapUnavailableHint:
-      "スワップ/ブリッジはEVMネットワーク（Ethereum、BNB、Polygon、Base、Arbitrum、Optimism、Avalanche、Linea、Scroll、Blast）で利用可能です。ホーム画面からネットワークを切り替えてください。",
+      "Swap と Bridge は EVM ネットワーク（Ethereum、BNB、Polygon、Base、Arbitrum、Optimism、Avalanche、Linea、Scroll、Blast）と Solana で利用できます。ネットワークはトークン選択画面かホーム画面で選べます。",
     gasReserve: "ネットワーク手数料の予備",
     done: "完了",
     viewOnExplorer: "エクスプローラーで表示",
@@ -20276,7 +20276,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     swapFromLabel: "에서",
     amountInvalid: "잘못된 금액",
     swapUnavailableHint:
-      "스왑/브리지는 EVM 네트워크(Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast)에서 사용할 수 있습니다. 홈 화면에서 네트워크를 전환하세요.",
+      "Swap과 Bridge는 EVM 네트워크(Ethereum, BNB, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast)와 Solana에서 사용할 수 있습니다. 토큰 선택기나 홈 화면에서 네트워크를 선택하세요.",
     gasReserve: "네트워크 수수료 예비",
     done: "완료",
     viewOnExplorer: "탐색기에서 보기",

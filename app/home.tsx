@@ -20,7 +20,7 @@ import { NftDetailModal } from '../ui/NftDetailModal';
 import { InteractiveChart } from '../ui/InteractiveChart';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN } from '../ui/tokens';
+import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AddressGlyph, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../ui/kit';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
@@ -269,6 +269,16 @@ export default function Home() {
             <AddressGlyph address={stored.evmAddress} size={32} />
             <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0 }}>{stored.label}</Text>
             <Icon name="caretDown" size={14} tone="muted" />
+          </KPressable>
+          {/* Réseau actif (Envoyer / Swap / dApps) : un tap ouvre le sélecteur. */}
+          <KPressable
+            onPress={() => router.push('/networks')}
+            accessibilityLabel={`${t('network')} : ${getAdapter(activeChain).config.name}`}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingHorizontal: space[2], borderRadius: radius.round, backgroundColor: colors.surface2, maxWidth: 150 }}
+          >
+            {chainIconUrl(activeChain) ? <Image source={{ uri: chainIconUrl(activeChain) }} style={{ width: 16, height: 16, borderRadius: 8 }} /> : null}
+            <Text variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>{getAdapter(activeChain).config.name}</Text>
+            <Icon name="caretDown" size={12} tone="muted" />
           </KPressable>
           <View>
             <IconButton icon="bell" label={t("labelNotifications")} tone="ghost" onPress={() => router.push('/notifications')} />
