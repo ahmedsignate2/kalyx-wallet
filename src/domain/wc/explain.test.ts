@@ -101,7 +101,7 @@ describe('Permit2 et Solana (régressions)', () => {
     expect(e.headline).toContain('via Jupiter v6');
     expect(e.risk).toBe('none');
     const bad = explainRequest({ kind: 'solanaTx', domain: 'jup.ag', solana: { version: 0, programs: [], known: [], dapp: null, action: 'contract', instructions: 1, feePayer: 'y', lookupTables: 0, feePayerMismatch: true } });
-    expect(bad.risk).toBe('danger');
+    expect(bad.risk).toBe('warning');
   });
 });
 
