@@ -35,7 +35,7 @@ export interface SignExplanation {
 }
 
 export interface ExplainInput {
-  kind: 'siwe' | 'message' | 'typedData' | 'tx' | 'solanaTx' | 'other';
+  kind: 'siwe' | 'message' | 'typedData' | 'tx' | 'solanaTx' | 'btcAccounts' | 'btcTransfer' | 'btcPsbt' | 'other';
   method?: string;
   domain?: string; // hôte du site connecté
   siwe?: SiweMessage | null;
@@ -46,6 +46,10 @@ export interface ExplainInput {
   tokenDecimals?: number | null;
   /** Transaction Solana décrite (solana_signTransaction). */
   solana?: SolanaTxDescription | null;
+  /** Détails Bitcoin : transfert (destinataire, satoshis) ou PSBT (entrées, diffusion). */
+  btc?: { to?: string; sats?: bigint; inputs?: number; broadcast?: boolean } | null;
+  /** Texte du message à signer (déjà décodé), pour l'afficher. */
+  messageText?: string | null;
   decoded?: DecodedTx | null;
   simulation?: Simulation | null;
   /** Vérification WalletConnect Verify : VALID / INVALID / UNKNOWN, isScam. */
@@ -97,10 +101,12 @@ export function explainRequest(input: ExplainInput): SignExplanation {
 
   // ── Message libre ──
   if (input.kind === 'message') {
+    const txt = input.messageText?.trim();
+    const preview = txt ? (txt.length > 160 ? `${txt.slice(0, 157)}…` : txt) : null;
     return {
       title: 'Signature',
       headline: `${site} te demande de signer un message.`,
-      detail: 'Aucun frais, mais ne signe que si tu fais confiance au site : une signature peut valoir engagement.',
+      detail: preview ? `« ${preview} » — aucun frais, mais ne signe que si tu fais confiance au site.` : 'Aucun frais, mais ne signe que si tu fais confiance au site : une signature peut valoir engagement.',
       lose: [], receive: [], risk, reasons, holdToSign: risk === 'danger', canReduceApproval: false,
     };
   }
@@ -180,6 +186,34 @@ export function explainRequest(input: ExplainInput): SignExplanation {
     }
     const sim_err = sim?.error ? ` (simulation impossible : ${sim.error})` : '';
     return { title: 'Transaction', headline: `${site} te demande d’exécuter une action sur un contrat${d?.kind === 'contract' && d.to ? ` (${short(d.to)})` : ''}.`, detail: `Aucun mouvement de fonds détecté par la simulation${sim_err}. Vérifie le site avant de confirmer.`, lose, receive, risk, reasons, holdToSign: risk === 'danger', canReduceApproval };
+  }
+
+  // ── Bitcoin ──
+  if (input.kind === 'btcAccounts') {
+    return { title: 'Lecture', headline: `${site} demande à consulter tes adresses Bitcoin.`, detail: 'Aucune signature, aucun frais : le site verra ton adresse de réception, comme n’importe qui sur la blockchain.', lose: [], receive: [], risk, reasons, holdToSign: false, canReduceApproval: false };
+  }
+  if (input.kind === 'btcTransfer') {
+    const b = input.btc;
+    const btc = b?.sats != null ? formatDecimalString(formatUnits(b.sats, 8)) : null;
+    if (risk === 'none') risk = 'warning';
+    reasons.push('Un envoi Bitcoin confirmé est irréversible.');
+    return {
+      title: 'Envoi Bitcoin',
+      headline: btc ? `Tu vas envoyer ${btc} BTC${b?.to ? ` à ${short(b.to)}` : ''}.` : `${site} te demande d’envoyer des bitcoins${b?.to ? ` à ${short(b.to)}` : ''}.`,
+      detail: 'Vérifie le destinataire : une fois confirmée, personne ne peut annuler.',
+      lose: btc ? [`${btc} BTC`] : [], receive: [], risk, reasons, holdToSign: risk === 'danger', canReduceApproval: false,
+    };
+  }
+  if (input.kind === 'btcPsbt') {
+    const b = input.btc;
+    if (risk === 'none') risk = 'warning';
+    reasons.push(b?.broadcast ? 'La transaction sera diffusée immédiatement après ta signature.' : 'Une PSBT signée peut être diffusée plus tard par le site.');
+    return {
+      title: 'Transaction Bitcoin',
+      headline: `${site} te demande de signer une transaction Bitcoin (PSBT${b?.inputs ? `, ${b.inputs} entrée${b.inputs > 1 ? 's' : ''} à signer` : ''}).`,
+      detail: 'Kalyx ne peut pas simuler une PSBT : signe seulement si tu as lancé cette opération toi-même.',
+      lose: [], receive: [], risk, reasons, holdToSign: risk === 'danger', canReduceApproval: false,
+    };
   }
 
   // ── Transaction Solana (legacy ou v0) ──

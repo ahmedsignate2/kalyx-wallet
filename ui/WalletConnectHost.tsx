@@ -9,6 +9,7 @@
  * - eth_sendTransaction → destinataire, montant natif, réseau.
  * Les données brutes restent accessibles via « Détails techniques ».
  */
+import { base58 } from '@scure/base';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, Image, StyleSheet } from 'react-native';
 import { GlassCard, ErrorBox, GradientAvatar } from './premium';
@@ -128,6 +129,20 @@ function DappHeader({ name, url, icon }: { name: string; url: string; icon?: str
   );
 }
 
+/** Texte d'un message à signer : base58 (Solana), hex 0x (EVM) ou texte brut. Jamais ne lève. */
+function decodeMessageText(raw: string, base58First: boolean): string {
+  if (!raw) return '';
+  try {
+    if (base58First) {
+      const bytes = base58.decode(raw);
+      const txt = new TextDecoder().decode(bytes);
+      if (/^[\x20-\x7E\u00A0-\uFFFF\s]*$/.test(txt)) return txt;
+    }
+  } catch { /* pas du base58 */ }
+  if (raw.startsWith('0x')) return hexToText(raw) ?? raw;
+  return raw;
+}
+
 export function WalletConnectHost() {
   const { colors, typography } = useTheme();
   const t = useT();
@@ -161,7 +176,11 @@ export function WalletConnectHost() {
     const chain = listChains().find((c) => c.family === 'evm' && `eip155:${c.evmChainId}` === request.params?.chainId);
     const peer = sessions.find((s) => s.topic === request.topic);
 
-    let kind: 'siwe' | 'message' | 'typedData' | 'tx' | 'solanaTx' | 'other' = 'other';
+    let kind: 'siwe' | 'message' | 'typedData' | 'tx' | 'solanaTx' | 'btcAccounts' | 'btcTransfer' | 'btcPsbt' | 'other' = 'other';
+    let btc: { to?: string; sats?: bigint; inputs?: number; broadcast?: boolean } | null = null;
+    let messageText: string | null = null;
+    // Les dApps envoient les paramètres soit en tableau ([{…}]), soit en objet ({…}).
+    const p0: any = Array.isArray(p) ? p[0] : p; // eslint-disable-line @typescript-eslint/no-explicit-any
     let solana: ReturnType<typeof describeSolanaTransaction> = null;
     let text: string | null = null;
     let siwe = null;
@@ -173,6 +192,24 @@ export function WalletConnectHost() {
       text = typeof hex === 'string' ? (hexToText(hex) ?? (hex.startsWith('0x') ? null : hex)) : null;
       siwe = text ? parseSiwe(text) : null;
       kind = siwe ? 'siwe' : 'message';
+      messageText = text;
+    } else if (method === 'solana_signMessage' || method === 'bitcoin_signMessage' || method === 'signMessage') {
+      // Solana : message en base58 (spec) ; Bitcoin : texte UTF-8.
+      const raw = p0?.message ?? p0?.msg ?? (typeof p0 === 'string' ? p0 : '');
+      messageText = decodeMessageText(String(raw ?? ''), method === 'solana_signMessage');
+      kind = 'message';
+    } else if (method === 'getAccountAddresses' || method === 'bitcoin_getAccountAddresses' || method === 'bitcoin_getAccounts' || method === 'getAccounts') {
+      kind = 'btcAccounts';
+    } else if (method === 'sendTransfer' || method === 'bitcoin_sendTransfer' || method === 'bitcoin_sendTransaction') {
+      const to = p0?.recipientAddress ?? p0?.recipient ?? p0?.to;
+      let sats: bigint | undefined;
+      try { sats = p0?.amount != null ? BigInt(String(p0.amount)) : undefined; } catch { sats = undefined; }
+      btc = { to: typeof to === 'string' ? to : undefined, sats };
+      kind = 'btcTransfer';
+    } else if (method === 'signPsbt' || method === 'bitcoin_signPsbt') {
+      const inputs = Array.isArray(p0?.signInputs) ? p0.signInputs.length : Array.isArray(p0?.inputsToSign) ? p0.inputsToSign.length : undefined;
+      btc = { inputs, broadcast: p0?.broadcast === true };
+      kind = 'btcPsbt';
     } else if (method.startsWith('eth_signTypedData')) {
       typed = summarizeTypedData(p[1]);
       kind = 'typedData';
@@ -187,7 +224,7 @@ export function WalletConnectHost() {
       kind = 'tx';
     } else if (method === 'solana_signTransaction' || method === 'solana_signAllTransactions') {
       // Jupiter & co envoient des transactions v0 (Address Lookup Tables) : décodées et décrites.
-      const raw = method === 'solana_signAllTransactions' ? p[0]?.transactions?.[0] ?? p[0]?.[0] : p[0]?.transaction ?? p[0];
+      const raw = method === 'solana_signAllTransactions' ? p0?.transactions?.[0] ?? (Array.isArray(p0) ? p0[0] : undefined) : p0?.transaction ?? (typeof p0 === 'string' ? p0 : undefined);
       const w = useWallet.getState();
       const solAddr = (w.accounts.find((a) => a.index === w.activeAccountIndex) ?? w.accounts[0])?.solAddress;
       solana = typeof raw === 'string' ? describeSolanaTransaction(raw, solAddr) : null;
@@ -199,7 +236,9 @@ export function WalletConnectHost() {
       kind === 'message' ? t('sigMessage') :
       kind === 'typedData' ? (typed?.primaryType ? `« ${typed.primaryType} »` : t('sigTypedData')) :
       kind === 'tx' ? t('sigTx') :
-      kind === 'solanaTx' ? (solana?.action === 'swap' ? 'Swap' : t('sigTx')) : method;
+      kind === 'solanaTx' ? (solana?.action === 'swap' ? 'Swap' : t('sigTx')) :
+      kind === 'btcTransfer' || kind === 'btcPsbt' ? t('sigTx') :
+      kind === 'btcAccounts' ? t('receive') : method;
 
     // Anti-phishing : le domaine déclaré dans le SIWE doit être le site connecté.
     const phishing = !!(siwe && peer?.url && siweDomainMismatch(siwe.domain, peer.url));
@@ -207,7 +246,7 @@ export function WalletConnectHost() {
     const decoded = tx ? decodeTx({ to: tx.to, value: tx.value, data: tx.data }) : null;
     const vc = request.verifyContext?.verified ?? {};
     const verify = { validation: vc.validation as 'VALID' | 'INVALID' | 'UNKNOWN' | undefined, isScam: !!vc.isScam };
-    return { method, kind, text, siwe, typed, tx, chain, peer, action, phishing, decoded, verify, solana };
+    return { method, kind, text, siwe, typed, tx, chain, peer, action, phishing, decoded, verify, solana, btc, messageText };
   }, [request, sessions, t]);
 
   // Simulation (transactions uniquement).
@@ -318,6 +357,8 @@ export function WalletConnectHost() {
       tokenSymbol: permitToken?.symbol ?? null,
       tokenDecimals: permitToken?.decimals ?? null,
       solana: info.solana,
+      btc: info.btc,
+      messageText: info.messageText,
       decoded,
       simulation,
       verify,

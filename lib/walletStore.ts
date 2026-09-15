@@ -633,16 +633,9 @@ export const useWallet = create<WalletState>((set, get) => ({
     const secret = await revealMnemonic(activeWalletId, unlock);
     const signer = deriveBtcSigner(mnemonicToSeedSync(secret), account.index);
 
-    let msgBytes: Uint8Array;
-    if (/^[0-9a-fA-F]+$/.test(message) && message.length % 2 === 0) {
-      msgBytes = hex.decode(message);
-    } else {
-      try {
-        msgBytes = base64.decode(message);
-      } catch {
-        msgBytes = utf8ToBytes(message);
-      }
-    }
+    // Spec WalletConnect Bitcoin : `message` est du TEXTE (UTF-8). Aucune heuristique
+    // hex/base64 : « test » ou « hello » sont des messages, pas des encodages.
+    const msgBytes: Uint8Array = utf8ToBytes(message);
 
     if (type === 'ecdsa') {
       const MAGIC = utf8ToBytes('\x18Bitcoin Signed Message:\n');
