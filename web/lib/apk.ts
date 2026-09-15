@@ -1,7 +1,7 @@
 /**
- * Lien de téléchargement de l'APK. Par défaut, le fichier est servi par le site
- * (`web/public/kalyx-wallet.apk`) ; sur un hébergeur qui limite la taille des
- * fichiers (Cloudflare Pages : 25 Mo, Vercel : 100 Mo), pointer vers une
- * GitHub Release : NEXT_PUBLIC_APK_URL=https://github.com/<user>/<repo>/releases/latest/download/kalyx-wallet.apk
+ * Lien de téléchargement de l'APK : GitHub Release par défaut (l'asset doit
+ * s'appeler exactement `kalyx-wallet.apk`). Surcharge possible via NEXT_PUBLIC_APK_URL.
  */
-export const APK_URL = process.env.NEXT_PUBLIC_APK_URL?.trim() || '/kalyx-wallet.apk';
+/** Par défaut : l'asset « kalyx-wallet.apk » de la dernière GitHub Release (aucune limite de taille d'hébergeur). */
+export const APK_URL =
+  process.env.NEXT_PUBLIC_APK_URL?.trim() || 'https://github.com/gadget00522/Nova-mise-a-jour/releases/latest/download/kalyx-wallet.apk';
