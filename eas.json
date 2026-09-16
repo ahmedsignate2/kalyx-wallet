@@ -33,6 +33,12 @@
       "env": {
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "800218617528-bhm4gfbcggo3bvisgnebf4djj7d8r9jg.apps.googleusercontent.com"
       }
+    },
+    "production-apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
