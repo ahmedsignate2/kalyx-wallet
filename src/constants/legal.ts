@@ -16,8 +16,6 @@ export const LEGAL_CONSTANTS = {
   PRIVACY_POLICY_URL: process.env.EXPO_PUBLIC_PRIVACY_URL || 'https://kalyxwallet.com/privacy',
   TERMS_OF_SERVICE_URL: process.env.EXPO_PUBLIC_TERMS_URL || 'https://kalyxwallet.com/terms',
   WEBSITE_URL: process.env.EXPO_PUBLIC_WEBSITE_URL || 'https://kalyxwallet.com',
-  // Dépôt public des releases APK (voir web/lib/apk.ts pour le même dépôt côté site).
-  GITHUB_REPO: process.env.EXPO_PUBLIC_GITHUB_REPO || 'ahmedsignate2/nova-wallet-release',
   GITHUB_URL: process.env.EXPO_PUBLIC_GITHUB_URL || 'https://github.com/ahmedsignate2/nova-wallet-release',
   TELEGRAM_URL: 'https://t.me/kalyxntw',
   X_URL: 'https://x.com/kalyxntw',
