@@ -33,7 +33,7 @@ export function Vision({ t }: { t: Dict }) {
       <div className="mx-auto max-w-page">
         <ChapterHead
           tone="paper"
-          numeral="V"
+          numeral="VI"
           chapterWord={t.chapters.chapter}
           kicker={t.vision.kicker}
           title={

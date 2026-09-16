@@ -11,8 +11,9 @@ export const CHAPTERS = [
   { id: 'fonctionnement', numeral: 'I', key: 'how' },
   { id: 'perdre', numeral: 'II', key: 'lose' },
   { id: 'voler', numeral: 'III', key: 'stolen' },
-  { id: 'frais', numeral: 'IV', key: 'fees' },
-  { id: 'vision', numeral: 'V', key: 'vision' },
+  { id: 'copilote', numeral: 'IV', key: 'ai' },
+  { id: 'frais', numeral: 'V', key: 'fees' },
+  { id: 'vision', numeral: 'VI', key: 'vision' },
   { id: 'telecharger', numeral: '', key: 'epilogue' },
 ] as const;
 
