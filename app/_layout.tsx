@@ -24,6 +24,7 @@ import { PrivacyScreen } from '../ui/PrivacyScreen';
 import { CopilotSheet } from '../ui/CopilotSheet';
 import { useDriveFlow } from '../lib/googleDrive';
 import { PriceAlertWatcher } from '../ui/PriceAlertWatcher';
+import { UpdateChecker } from '../ui/UpdateChecker';
 import { usePriceAlerts } from '../lib/priceAlertsStore';
 import { useRecentRecipients } from '../lib/recentRecipientsStore';
 import { useTokenPrefs } from '../lib/tokenPrefsStore';
@@ -182,6 +183,7 @@ export default function RootLayout() {
         <PrivacyScreen />
         <CopilotSheet />
         <PriceAlertWatcher />
+        <UpdateChecker />
         <DeepLinks />
         <FloatingAiAssistant />
         {showSplash ? <Splash onFinish={() => setShowSplash(false)} /> : null}
