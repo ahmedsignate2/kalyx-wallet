@@ -52,12 +52,13 @@ const config: ExpoConfig = {
       backgroundColor: '#06070D', // repli si l'image n'est pas prise en compte
     },
     // La protection anti-capture d'écran sur les écrans sensibles se branche
-    // au niveau natif / via expo-screen-capture (cf. app/backup.tsx).
-    permissions: [
-      'android.permission.BLUETOOTH_SCAN',
-      'android.permission.BLUETOOTH_CONNECT',
-      'android.permission.CAMERA',
-    ],
+    // au niveau natif / via expo-screen-capture (cf. app/backup.tsx), sans
+    // permission manifeste.
+    // Pas de bloc `permissions` ici : CAMERA (expo-camera) et BLUETOOTH_SCAN/
+    // CONNECT (react-native-ble-plx, cf. plugins) sont déjà déclarées — avec
+    // leur rationale/flags corrects — par leurs plugins respectifs. Les
+    // redéclarer ici doublonnait BLUETOOTH_SCAN SANS `neverForLocation`,
+    // risquant d'annuler ce flag dans le manifeste fusionné.
     // Deep links système : « wc: » (WalletConnect) ouvre Kalyx (au prochain rebuild).
     intentFilters: [
       {
@@ -92,7 +93,16 @@ const config: ExpoConfig = {
       },
     ],
     // Ledger BLE (react-native-ble-plx) — actif au prochain rebuild EAS.
-    ['react-native-ble-plx', { isBackgroundEnabled: false }],
+    // `neverForLocation: true` : le scan Bluetooth sert UNIQUEMENT à trouver un
+    // Ledger, jamais à géolocaliser. Sans ce flag, le plugin ajoute
+    // ACCESS_FINE/COARSE_LOCATION (sans plafond de SDK) — contraire à la
+    // politique « zéro télémétrie » de Kalyx et signalé par les revues stores
+    // (Google Play en particulier) comme une permission de localisation
+    // injustifiée. Avec le flag, la permission est limitée à Android ≤ 11 et
+    // BLUETOOTH_SCAN porte `usesPermissionFlags="neverForLocation"`.
+    ['react-native-ble-plx', { isBackgroundEnabled: false, neverForLocation: true }],
+    // Durcissement Android : voir plugins/withAndroidNoBackup.js.
+    './plugins/withAndroidNoBackup.js',
   ],
   // Cible Web (react-native-web via Metro). `output: 'single'` = SPA client
   // (le wallet est 100 % client : aucun rendu serveur, aucune clé côté serveur).
