@@ -84,6 +84,10 @@ const config: ExpoConfig = {
     'expo-secure-store',
     'expo-local-authentication',
     'expo-localization',
+    // Bloque tout trafic HTTP en clair au niveau OS (déjà le comportement par
+    // défaut depuis Android 9/API 28, rendu explicite ici) : tous les RPC et
+    // API (marché, backend) doivent être en https:// ou wss://.
+    ['expo-build-properties', { android: { usesCleartextTraffic: false } }],
     // Scanner QR (adresses + WalletConnect) — actif au prochain rebuild EAS.
     [
       'expo-camera',
