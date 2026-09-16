@@ -10,9 +10,9 @@ export const LEGAL_CONSTANTS = {
   SIRET: process.env.EXPO_PUBLIC_SIRET || '130 046 865 00015',
   APE_CODE: process.env.EXPO_PUBLIC_APE_CODE || '62.01Z',
   CONTACT_EMAIL: process.env.EXPO_PUBLIC_CONTACT_EMAIL || 'support@kalyxwallet.com',
-  HOSTING_PROVIDER:
-    process.env.EXPO_PUBLIC_HOSTING_PROVIDER ||
-    'Cloudflare, Inc. — 101 Townsend St, San Francisco, CA 94107, USA — Tél : +1 (888) 993-5273',
+  // L'application n'a pas d'hébergeur : elle tourne en local sur l'appareil (voir legalHostingNonCustodial).
+  // Cloudflare héberge uniquement le site web kalyxwallet.com (cf. web/content/mentions.ts).
+  HOSTING_PROVIDER: process.env.EXPO_PUBLIC_HOSTING_PROVIDER || '',
   PRIVACY_POLICY_URL: process.env.EXPO_PUBLIC_PRIVACY_URL || 'https://kalyxwallet.com/privacy',
   TERMS_OF_SERVICE_URL: process.env.EXPO_PUBLIC_TERMS_URL || 'https://kalyxwallet.com/terms',
   WEBSITE_URL: process.env.EXPO_PUBLIC_WEBSITE_URL || 'https://kalyxwallet.com',
