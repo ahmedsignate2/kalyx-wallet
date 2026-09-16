@@ -240,8 +240,14 @@ export async function getCoinDetail(id: string, vs = 'eur', lang = 'en'): Promis
       TIMEOUT,
       () => new Error('timeout'),
     );
-    return parseCoinDetail(await res.json(), vs, lang);
-  } catch {
+    const json = await res.json();
+    if (!res.ok) {
+      // Retiré du bundle de prod par babel-plugin-transform-remove-console — diagnostic dev uniquement.
+      console.warn('[coingecko] getCoinDetail HTTP', res.status, id, json);
+    }
+    return parseCoinDetail(json, vs, lang);
+  } catch (e) {
+    console.warn('[coingecko] getCoinDetail failed', id, e);
     return null;
   }
 }
@@ -312,8 +318,11 @@ export async function getMarkets(vs = 'eur', perPage = 20): Promise<MarketCoin[]
       TIMEOUT,
       () => new Error('timeout'),
     );
-    return parseMarkets(await res.json());
-  } catch {
+    const json = await res.json();
+    if (!res.ok) console.warn('[coingecko] getMarkets HTTP', res.status, json);
+    return parseMarkets(json);
+  } catch (e) {
+    console.warn('[coingecko] getMarkets failed', e);
     return [];
   }
 }
