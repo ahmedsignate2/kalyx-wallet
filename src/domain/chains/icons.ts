@@ -19,7 +19,7 @@ const SLUG_OVERRIDE: Record<string, string> = {
 };
 
 // Réseaux sans icône DefiLlama connue → repli lettré (évite un 404/broken image).
-const NO_ICON = new Set(['gravity', 'monad-testnet', 'sepolia']);
+const NO_ICON = new Set(['gravity', 'monad-testnet', 'sepolia', 'memecore']);
 
 /**
  * URL de l'icône d'un réseau (ou undefined → cercle lettré côté UI).

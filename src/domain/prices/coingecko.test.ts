@@ -96,6 +96,13 @@ describe('parseCoinDetail', () => {
     expect(parseCoinDetail(null, 'eur')).toBeNull();
     expect(parseCoinDetail({}, 'eur')).toBeNull();
   });
+  it('extrait les plateformes (contrat par chaîne), en ignorant les entrées vides', () => {
+    const withPlatforms = { ...json, platforms: { 'sei-v2': '0xabc', '': '', ethereum: '  ' } };
+    expect(parseCoinDetail(withPlatforms, 'eur')!.platforms).toEqual({ 'sei-v2': '0xabc' });
+  });
+  it('platforms est un objet vide quand absent', () => {
+    expect(parseCoinDetail(json, 'eur')!.platforms).toEqual({});
+  });
 });
 
 describe('parseMarketChart', () => {
