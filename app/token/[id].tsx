@@ -106,10 +106,21 @@ export default function TokenDetail() {
   const holding = portfolio.holdings.find((h) =>
     h.id === id || h.coingeckoId === id || h.contract?.toLowerCase() === id?.toLowerCase(),
   );
+  // Repli marché : un token pas encore détenu n'a pas de `holding.chainId`, mais
+  // CoinGecko donne ses contrats par plateforme (`detail.platforms`). On matche
+  // contre `coingeckoPlatform` de nos 60+ chaînes EVM configurées, pour ne plus
+  // tomber sur « Marché multi-réseaux » (et bloquer Envoyer/Swap) alors que le
+  // réseau est en fait déjà supporté par Kalyx.
+  const marketChain = ALL_CHAINS.find(
+    (c) => c.family === 'evm' && c.coingeckoPlatform != null && !!detail?.platforms[c.coingeckoPlatform],
+  );
+  const marketContract = marketChain?.coingeckoPlatform ? detail?.platforms[marketChain.coingeckoPlatform] : undefined;
+
   const chain = (chainParam ? ALL_CHAINS.find((c) => c.id === chainParam) : undefined)
     ?? (holding ? ALL_CHAINS.find((c) => c.id === holding.chainId) : undefined)
     ?? (id === 'bitcoin' ? ALL_CHAINS.find((c) => c.id === 'bitcoin') : undefined)
-    ?? ALL_CHAINS.find((c) => c.coingeckoId === id && c.family !== 'evm');
+    ?? ALL_CHAINS.find((c) => c.coingeckoId === id && c.family !== 'evm')
+    ?? marketChain;
 
   const mounted = React.useRef(true);
   useEffect(() => {
@@ -174,13 +185,16 @@ export default function TokenDetail() {
       })
       .catch(() => alive && (setActivityError(true), setActivity([])));
     const held = portfolio.holdings.find((h) => h.coingeckoId === id && h.contract && chain.family === 'evm');
-    if (held?.contract && chain.evmChainId) {
-      assessToken(chain.evmChainId, held.contract).then((r) => alive && setRisk(r)).catch(() => {});
+    // Pas de position détenue, mais le contrat est connu via la plateforme CoinGecko
+    // du marché (`marketContract`) : on peut quand même afficher l'analyse de sécurité.
+    const contractToAssess = held?.contract ?? marketContract;
+    if (contractToAssess && chain.evmChainId) {
+      assessToken(chain.evmChainId, contractToAssess).then((r) => alive && setRisk(r)).catch(() => {});
     } else {
       setRisk(null);
     }
     return () => { alive = false; };
-  }, [chain?.id, accounts, activeAccountIndex, detail?.symbol, holding?.contract, holding?.kind, holding?.symbol]);
+  }, [chain?.id, accounts, activeAccountIndex, detail?.symbol, holding?.contract, holding?.kind, holding?.symbol, marketContract]);
 
   // La couleur reflète toujours la variation affichée (24 h), jamais une
   // tendance d'une période différente du sélecteur.
