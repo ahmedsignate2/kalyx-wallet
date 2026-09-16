@@ -50,6 +50,7 @@ export function Nav({ t, lang }: { t: Dict; lang: Locale }) {
   const links = [
     { href: `/${lang}/#fonctionnement`, label: t.nav.how },
     { href: `/${lang}/#voler`, label: t.nav.security },
+    { href: `/${lang}/#copilote`, label: t.nav.ai },
     { href: `/${lang}/#frais`, label: t.nav.fees },
     { href: `/${lang}/#vision`, label: t.nav.vision },
   ];
