@@ -15,7 +15,7 @@ export function Fees({ t }: { t: Dict }) {
     <section id="frais" className="scroll-mt-16 bg-ink-2 px-5 py-20 sm:px-8 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-page">
         <ChapterHead
-          numeral="IV"
+          numeral="V"
           chapterWord={t.chapters.chapter}
           kicker={t.fees.kicker}
           title={
