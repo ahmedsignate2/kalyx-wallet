@@ -53,6 +53,14 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
     Linking.openURL(LEGAL_CONSTANTS.X_URL).catch(() => {});
   };
 
+  const openWebsite = () => {
+    Linking.openURL(LEGAL_CONSTANTS.WEBSITE_URL).catch(() => {});
+  };
+
+  const openGithub = () => {
+    Linking.openURL(LEGAL_CONSTANTS.GITHUB_URL).catch(() => {});
+  };
+
   const openPrivacy = () => {
     router.push({ pathname: '/legal', params: { doc: 'privacy' } });
   };
@@ -216,6 +224,24 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
             </Text>
           </Pressable>
         </View>
+
+        {/* Type d'application */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingVertical: spacing(0.5),
+            borderTopWidth: 1,
+            borderTopColor: colors.glassBorder,
+            gap: spacing(1),
+          }}
+        >
+          <Text style={[typography.muted, { flexShrink: 0 }]}>{t('legalAppType')}</Text>
+          <Text style={[typography.bodyStrong, { flex: 1, textAlign: 'right', flexWrap: 'wrap', flexShrink: 1 }]}>
+            {t('legalAppTypeValue')}
+          </Text>
+        </View>
       </GlassCard>
 
       {/* Section 2 : Hébergement */}
@@ -254,6 +280,21 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
           title={t('faq')}
           right={<Icon name="chevron" size={18} tone="faint" />}
           onPress={() => router.push('/faq')}
+        />
+        <ListRow
+          divider
+          left={<Icon name="dapps" size={20} color={colors.textMuted} />}
+          title={t('legalWebsite')}
+          subtitle="kalyxwallet.com"
+          right={<Icon name="chevron" size={18} tone="faint" />}
+          onPress={openWebsite}
+        />
+        <ListRow
+          divider
+          left={<Icon name="githubLogo" size={20} color={colors.textMuted} />}
+          title={t('legalGithub')}
+          right={<Icon name="chevron" size={18} tone="faint" />}
+          onPress={openGithub}
         />
         <ListRow
           divider

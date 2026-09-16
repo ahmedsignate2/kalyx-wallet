@@ -24,21 +24,28 @@ export function Reveal({
   delay = 0,
   className = '',
   as = 'div',
+  style,
 }: {
   children: React.ReactNode;
   delay?: number;
   className?: string;
   as?: 'div' | 'p' | 'li' | 'h2' | 'article';
+  style?: React.CSSProperties;
 }) {
   const reduce = useReducedMotion();
   const Tag = motion[as];
   if (reduce) {
     const Plain = as;
-    return <Plain className={className}>{children}</Plain>;
+    return (
+      <Plain className={className} style={style}>
+        {children}
+      </Plain>
+    );
   }
   return (
     <Tag
       className={className}
+      style={style}
       initial="hidden"
       whileInView="show"
       viewport={viewport}

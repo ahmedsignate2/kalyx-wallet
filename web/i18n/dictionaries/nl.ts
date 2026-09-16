@@ -47,6 +47,10 @@ const nl: Dict = {
     keyPoints: 'Kernpunten',
     screenshotAlt: 'Startscherm van Kalyx Wallet: totaalsaldo, waardegrafiek en Bitcoin-, Ethereum- en Solana-tokens',
   },
+  networks: {
+    label: 'Ondersteunde netwerken',
+    walletconnect: 'Interoperabel met WalletConnect (Reown)',
+  },
   how: {
     kicker: 'Hoe het werkt',
     title: 'Een wallet,',
@@ -236,6 +240,10 @@ const nl: Dict = {
     termsIntro: 'Lees deze voorwaarden aandachtig voordat je Kalyx Wallet gebruikt. Ze bepalen het kader voor verantwoord gebruik en de bijzonderheden van het non-custodial model.',
     termsMeta: ['Herzien: 5 juli 2026', 'Bètaversie', 'Non-custodial model'],
     termsContact: 'Verduidelijking nodig?',
+    mentionsTitle: 'Wettelijke vermeldingen',
+    mentionsIntro: 'Overeenkomstig artikel 6 van de Franse wet nr. 2004-575 van 21 juni 2004 voor vertrouwen in de digitale economie (LCEN), hier de identiteit van de uitgever van deze site en van de hostingprovider.',
+    mentionsMeta: ['Bijgewerkt: 16 september 2026', 'Kalyx', 'LCEN — Uitgever & hosting'],
+    mentionsContact: 'Een vraag over de uitgever of de hosting?',
     contactText: 'Schrijf ons met elke vraag over beveiliging, naleving of de voorwaarden.',
   },
   redirect: {

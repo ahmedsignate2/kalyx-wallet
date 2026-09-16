@@ -50,10 +50,11 @@ Vous demeurez seul responsable du respect des obligations légales, réglementai
   {
     id: 'editeur',
     title: '8. Mentions légales & Coordonnées',
-    body: `Éditeur : KALYX (Entreprise individuelle de Ahamed Signate)
+    body: `Éditeur : KALYX (Ahamed Signate)
 Statut légal : Entrepreneur individuel
-SIRET : En cours d'attribution INSEE
+SIREN : 130 046 865 — Code APE : 62.01Z
 Contact assistance & conformité : support@kalyxwallet.com
-Canal officiel Telegram : https://t.me/kalyxntw`,
+Canal officiel Telegram : https://t.me/kalyxntw
+Le détail complet de ces mentions (éditeur, hébergeur) figure sur la page dédiée « Mentions légales ».`,
   },
 ];

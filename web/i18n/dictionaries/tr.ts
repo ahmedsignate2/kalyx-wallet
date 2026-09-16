@@ -47,6 +47,10 @@ const tr: Dict = {
     keyPoints: 'Öne çıkanlar',
     screenshotAlt: 'Kalyx Wallet ana ekranı: toplam bakiye, değer grafiği ve Bitcoin, Ethereum, Solana tokenları',
   },
+  networks: {
+    label: 'Desteklenen ağlar',
+    walletconnect: 'WalletConnect (Reown) ile birlikte çalışabilir',
+  },
   how: {
     kicker: 'Nasıl çalışır',
     title: 'Bir cüzdan,',
@@ -236,6 +240,10 @@ const tr: Dict = {
     termsIntro: 'Kalyx Wallet’ı kullanmadan önce bu koşulları dikkatle okuyun. Sorumlu kullanım çerçevesini ve saklama gerektirmeyen modelin özelliklerini tanımlar.',
     termsMeta: ['Revizyon: 5 Temmuz 2026', 'Beta sürümü', 'Saklama gerektirmeyen model'],
     termsContact: 'Açıklama mı gerekiyor?',
+    mentionsTitle: 'Yasal bildirim',
+    mentionsIntro: 'Dijital ekonomiye güven için 21 Haziran 2004 tarihli ve 2004-575 sayılı Fransız kanununun 6. maddesi (LCEN) uyarınca, bu sitenin yayıncısının ve barındırma sağlayıcısının kimliği aşağıdadır.',
+    mentionsMeta: ['Güncelleme: 16 Eylül 2026', 'Kalyx', 'LCEN — Yayıncı ve barındırma'],
+    mentionsContact: 'Yayıncı veya barındırma hakkında bir sorunuz mu var?',
     contactText: 'Güvenlik, uyum veya koşullarla ilgili her soru için bize yazın.',
   },
   redirect: {
