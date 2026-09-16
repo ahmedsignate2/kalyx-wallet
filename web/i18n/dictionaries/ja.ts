@@ -47,6 +47,10 @@ const ja: Dict = {
     keyPoints: '要点',
     screenshotAlt: 'Kalyx Wallet のホーム画面：合計残高、価値のグラフ、Bitcoin・Ethereum・Solana のトークン',
   },
+  networks: {
+    label: '対応ネットワーク',
+    walletconnect: 'WalletConnect（Reown）と相互運用可能',
+  },
   how: {
     kicker: '仕組み',
     title: 'ウォレットであって、',
@@ -236,6 +240,10 @@ const ja: Dict = {
     termsIntro: 'Kalyx Wallet を使用する前に、この規約をよくお読みください。責任ある利用の枠組みと、ノンカストディアルモデルの特性を定めています。',
     termsMeta: ['改訂：2026 年 7 月 5 日', 'ベータ版', 'ノンカストディアルモデル'],
     termsContact: 'ご不明な点は？',
+    mentionsTitle: '法的表示',
+    mentionsIntro: 'デジタル経済における信頼のための2004年6月21日付フランス法第2004-575号（LCEN）第6条に基づき、本サイトの発行者およびホスティング事業者の情報を以下に示します。',
+    mentionsMeta: ['更新日：2026年9月16日', 'Kalyx', 'LCEN — 発行者とホスティング'],
+    mentionsContact: '発行者やホスティングについてのご質問は？',
     contactText: 'セキュリティ、コンプライアンス、規約に関するご質問はお気軽にお寄せください。',
   },
   redirect: {
