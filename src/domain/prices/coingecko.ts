@@ -47,6 +47,8 @@ export interface CoinDetail {
   atl: number;
   circulatingSupply: number;
   description: string;
+  /** Contrats par plateforme CoinGecko (ex. { 'sei-v2': '0x…' }) — vide pour les natifs sans contrat. */
+  platforms: Record<string, string>;
 }
 
 /** Périodes de graphique et jours CoinGecko correspondants. */
@@ -153,8 +155,13 @@ export function parseCoinDetail(json: unknown, vs: string, lang = 'en'): CoinDet
       circulating_supply?: number;
     };
     description?: Record<string, string>;
+    platforms?: Record<string, string>;
   };
   if (!c || typeof c.id !== 'string') return null;
+  const platforms: Record<string, string> = {};
+  for (const [platform, contract] of Object.entries(c.platforms ?? {})) {
+    if (platform && typeof contract === 'string' && contract.trim()) platforms[platform] = contract.trim();
+  }
   return {
     id: c.id,
     symbol: (c.symbol ?? '').toUpperCase(),
@@ -168,6 +175,7 @@ export function parseCoinDetail(json: unknown, vs: string, lang = 'en'): CoinDet
     atl: c.market_data?.atl?.[vs] ?? 0,
     circulatingSupply: c.market_data?.circulating_supply ?? 0,
     description: cleanDescription(c.description?.[lang] || c.description?.en || ''),
+    platforms,
   };
 }
 
