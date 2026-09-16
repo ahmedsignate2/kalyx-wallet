@@ -19,7 +19,7 @@ export function Footer({ t, lang }: { t: Dict; lang: Locale }) {
       links: [
         { href: `/${lang}/privacy/`, label: t.footer.privacy },
         { href: `/${lang}/terms/`, label: t.footer.terms },
-        { href: `/${lang}/privacy/#hosting`, label: t.footer.mentions },
+        { href: `/${lang}/mentions/`, label: t.footer.mentions },
       ],
     },
     {

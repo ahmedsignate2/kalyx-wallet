@@ -47,6 +47,10 @@ const ko: Dict = {
     keyPoints: '핵심 포인트',
     screenshotAlt: 'Kalyx Wallet 홈: 합산 잔액, 가치 그래프, Bitcoin·Ethereum·Solana 토큰',
   },
+  networks: {
+    label: '지원 네트워크',
+    walletconnect: 'WalletConnect(Reown)와 상호운용 가능',
+  },
   how: {
     kicker: '작동 방식',
     title: '지갑이지,',
@@ -236,6 +240,10 @@ const ko: Dict = {
     termsIntro: 'Kalyx Wallet을 사용하기 전에 이 약관을 주의 깊게 읽어주세요. 책임 있는 사용의 틀과 논커스터디얼 모델의 특성을 정의합니다.',
     termsMeta: ['개정: 2026년 7월 5일', '베타 버전', '논커스터디얼 모델'],
     termsContact: '설명이 필요하신가요?',
+    mentionsTitle: '법적 고지',
+    mentionsIntro: '디지털 경제에 대한 신뢰를 위한 2004년 6월 21일자 프랑스 법률 제2004-575호(LCEN) 제6조에 따라, 본 사이트 발행인과 호스팅 제공업체의 정보를 아래에 안내합니다.',
+    mentionsMeta: ['업데이트: 2026년 9월 16일', 'Kalyx', 'LCEN — 발행인 및 호스팅'],
+    mentionsContact: '발행인이나 호스팅에 대해 궁금한 점이 있나요?',
     contactText: '보안, 규정 준수, 약관에 관한 모든 질문을 보내주세요.',
   },
   redirect: {

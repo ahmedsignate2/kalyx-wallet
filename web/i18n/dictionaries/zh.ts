@@ -46,6 +46,10 @@ const zh: Dict = {
     keyPoints: '要点',
     screenshotAlt: 'Kalyx Wallet 首页：汇总余额、价值曲线以及 Bitcoin、Ethereum、Solana 代币',
   },
+  networks: {
+    label: '支持的网络',
+    walletconnect: '与 WalletConnect（Reown）互操作',
+  },
   how: {
     kicker: '运作方式',
     title: '是钱包，',
@@ -235,6 +239,10 @@ const zh: Dict = {
     termsIntro: '使用 Kalyx Wallet 前请仔细阅读这些条款。它们界定了负责任使用的框架以及非托管模式的特性。',
     termsMeta: ['修订：2026 年 7 月 5 日', '测试版', '非托管模式'],
     termsContact: '需要说明？',
+    mentionsTitle: '法律声明',
+    mentionsIntro: '根据2004年6月21日法国第2004-575号《数字经济信任法》（LCEN）第6条，以下是本网站发布者及其托管服务商的身份信息。',
+    mentionsMeta: ['更新时间：2026年9月16日', 'Kalyx', 'LCEN — 发布者与托管'],
+    mentionsContact: '关于发布者或托管有疑问？',
     contactText: '关于安全、合规或条款的任何问题，欢迎来信。',
   },
   redirect: {

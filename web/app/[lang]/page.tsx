@@ -4,6 +4,7 @@ import { Nav } from '../../components/landing/nav';
 import { ChapterRail } from '../../components/landing/chapter';
 import { Opening } from '../../components/landing/opening';
 import { Hero } from '../../components/landing/hero';
+import { Networks } from '../../components/landing/networks';
 import { HowItWorks } from '../../components/landing/how-it-works';
 import { NeverLose } from '../../components/landing/never-lose';
 import { NeverStolen } from '../../components/landing/never-stolen';
@@ -26,6 +27,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
       <main>
         <Opening t={t} />
         <Hero t={t} />
+        <Networks t={t} />
         <HowItWorks t={t} />
         <NeverLose t={t} />
         <NeverStolen t={t} />

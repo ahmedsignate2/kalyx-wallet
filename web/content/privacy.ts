@@ -66,12 +66,13 @@ Bien que ces défenses soient à l'état de l'art, aucun système informatique n
     id: 'hosting',
     title: '8. Mentions légales & Hébergement (LCEN)',
     body: `Conformément à l'article 6 de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique (LCEN) :
-• Éditeur : KALYX (Entreprise individuelle de Ahamed Signate)
+• Éditeur : KALYX (Ahamed Signate)
 • Statut : Entrepreneur individuel
-• SIRET : En cours d'attribution INSEE
-• Siège social : France
+• SIREN : 130 046 865 — Code APE : 62.01Z
 • Courriel de contact : support@kalyxwallet.com
-• Hébergement de l'application : Application mobile non-custodial exécutée localement sur l'appareil de l'utilisateur, ne nécessitant aucun serveur central de stockage de clés ou de base de données d'utilisateurs.`,
+• Hébergement du site kalyxwallet.com : Cloudflare, Inc. — 101 Townsend St, San Francisco, CA 94107, USA
+• Hébergement de l'application : application mobile non-custodial exécutée localement sur l'appareil de l'utilisateur, ne nécessitant aucun serveur central de stockage de clés ou de base de données d'utilisateurs.
+Le détail complet de ces mentions figure sur la page dédiée « Mentions légales ».`,
   },
   {
     id: 'contact',
