@@ -47,6 +47,10 @@ const pl: Dict = {
     keyPoints: 'Najważniejsze',
     screenshotAlt: 'Ekran główny Kalyx Wallet: łączne saldo, wykres wartości oraz tokeny Bitcoin, Ethereum i Solana',
   },
+  networks: {
+    label: 'Obsługiwane sieci',
+    walletconnect: 'Interoperacyjność z WalletConnect (Reown)',
+  },
   how: {
     kicker: 'Jak to działa',
     title: 'Portfel,',
@@ -236,6 +240,10 @@ const pl: Dict = {
     termsIntro: 'Przeczytaj uważnie te warunki przed użyciem Kalyx Wallet. Określają ramy odpowiedzialnego korzystania i specyfikę modelu niepowierniczego.',
     termsMeta: ['Rewizja: 5 lipca 2026', 'Wersja beta', 'Model niepowierniczy'],
     termsContact: 'Potrzebujesz wyjaśnień?',
+    mentionsTitle: 'Nota prawna',
+    mentionsIntro: 'Zgodnie z artykułem 6 francuskiej ustawy nr 2004-575 z 21 czerwca 2004 r. o zaufaniu do gospodarki cyfrowej (LCEN), oto tożsamość wydawcy tej strony i jej dostawcy hostingu.',
+    mentionsMeta: ['Aktualizacja: 16 września 2026', 'Kalyx', 'LCEN — Wydawca i hosting'],
+    mentionsContact: 'Masz pytanie dotyczące wydawcy lub hostingu?',
     contactText: 'Napisz do nas w każdej sprawie dotyczącej bezpieczeństwa, zgodności lub warunków.',
   },
   redirect: {

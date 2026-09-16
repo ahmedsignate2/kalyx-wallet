@@ -47,6 +47,10 @@ const en: Dict = {
     keyPoints: 'Key points',
     screenshotAlt: 'Kalyx Wallet home: aggregated balance, value chart and Bitcoin, Ethereum and Solana tokens',
   },
+  networks: {
+    label: 'Supported networks',
+    walletconnect: 'Interoperable with WalletConnect (Reown)',
+  },
   how: {
     kicker: 'How it works',
     title: 'A wallet,',
@@ -236,6 +240,10 @@ const en: Dict = {
     termsIntro: 'Read these terms carefully before using Kalyx Wallet. They define the framework of responsible use and the specifics of the non-custodial model.',
     termsMeta: ['Revised: 5 July 2026', 'Beta version', 'Non-custodial model'],
     termsContact: 'Need clarification?',
+    mentionsTitle: 'Legal notice',
+    mentionsIntro: 'Under Article 6 of French law n° 2004-575 of 21 June 2004 for confidence in the digital economy (LCEN), here is the identity of this site’s publisher and its host.',
+    mentionsMeta: ['Updated: 16 September 2026', 'Kalyx', 'LCEN — Publisher & host'],
+    mentionsContact: 'A question about the publisher or hosting?',
     contactText: 'Write to us with any question about security, compliance or the terms.',
   },
   redirect: {

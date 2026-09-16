@@ -7,11 +7,16 @@
 export const LEGAL_CONSTANTS = {
   COMPANY_NAME: 'KALYX (Entreprise individuelle de Ahamed Signate)',
   LEGAL_STATUS: 'Entrepreneur individuel',
-  SIRET: process.env.EXPO_PUBLIC_SIRET || 'EN_ATTENTE_INSEE',
+  SIRET: process.env.EXPO_PUBLIC_SIRET || '130 046 865 00015',
+  APE_CODE: process.env.EXPO_PUBLIC_APE_CODE || '62.01Z',
   CONTACT_EMAIL: process.env.EXPO_PUBLIC_CONTACT_EMAIL || 'support@kalyxwallet.com',
-  HOSTING_PROVIDER: process.env.EXPO_PUBLIC_HOSTING_PROVIDER || '',
+  HOSTING_PROVIDER:
+    process.env.EXPO_PUBLIC_HOSTING_PROVIDER ||
+    'Cloudflare, Inc. — 101 Townsend St, San Francisco, CA 94107, USA — Tél : +1 (888) 993-5273',
   PRIVACY_POLICY_URL: process.env.EXPO_PUBLIC_PRIVACY_URL || 'https://kalyxwallet.com/privacy',
   TERMS_OF_SERVICE_URL: process.env.EXPO_PUBLIC_TERMS_URL || 'https://kalyxwallet.com/terms',
+  WEBSITE_URL: process.env.EXPO_PUBLIC_WEBSITE_URL || 'https://kalyxwallet.com',
+  GITHUB_URL: process.env.EXPO_PUBLIC_GITHUB_URL || 'https://github.com/ahmedsignate2/nova-wallet-release',
   TELEGRAM_URL: 'https://t.me/kalyxntw',
   X_URL: 'https://x.com/kalyxntw',
 } as const;
