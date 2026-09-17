@@ -17,6 +17,9 @@ describe('chainIconUrl', () => {
     expect(chainIconUrl('sepolia')).toBeUndefined();
     expect(chainIconUrl('monad-testnet')).toBeUndefined();
     expect(chainIconUrl('gravity')).toBeUndefined();
+    expect(chainIconUrl('memecore')).toBeUndefined();
+    expect(chainIconUrl('base-sepolia')).toBeUndefined();
+    expect(chainIconUrl('solana-devnet')).toBeUndefined();
   });
 
   it('produit une URL https (proxy PNG) pour tous les réseaux mainnet couverts', () => {
