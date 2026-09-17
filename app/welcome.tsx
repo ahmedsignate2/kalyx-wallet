@@ -5,7 +5,7 @@
  * « Réduire les animations » : tout est visible immédiatement.
  */
 import React, { useEffect, useState } from 'react';
-import { View, Pressable as RNPressable } from 'react-native';
+import { View, ScrollView, Pressable as RNPressable } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
@@ -62,7 +62,19 @@ export default function Welcome() {
   return (
     <RNPressable onPress={ready ? undefined : skip} style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={{ flex: 1, paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[5], paddingHorizontal: SCREEN_MARGIN }}>
+      {/*
+        ScrollView plutôt qu'une simple View flex:1 : la carte des arguments
+        (flex:1 pour se centrer verticalement) a un enfant (Surface) qui, lui,
+        NE rétrécit PAS (flexShrink par défaut = 0 dans Yoga/RN, contrairement
+        au web). Sur un écran bas ou dès que le contenu du dessous s'allonge
+        (ex. le bloc CGU), la carte peut donc déborder par-dessus les boutons
+        au lieu de rétrécir — d'où le chevauchement. Le ScrollView + flexGrow:1
+        garde le rendu centré quand tout tient, et fait défiler proprement sinon.
+      */}
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[5], paddingHorizontal: SCREEN_MARGIN }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Naissance du halo */}
         {/* En-tête : hauteur libre (le sous-titre peut prendre 2 lignes), halo derrière le nom seulement. */}
         <View style={{ minHeight: 280, alignItems: 'center', justifyContent: 'center', paddingVertical: space[6] }}>
@@ -119,7 +131,7 @@ export default function Welcome() {
           <Button label={t('havePhrase')} variant="secondary" disabled={!agreed} onPress={() => router.push('/import')} />
           {isDriveConfigured() ? <Button label={t('driveRestore')} variant="secondary" disabled={!agreed} onPress={() => router.push('/restore-drive')} /> : null}
         </Animated.View>
-      </View>
+      </ScrollView>
     </RNPressable>
   );
 }
