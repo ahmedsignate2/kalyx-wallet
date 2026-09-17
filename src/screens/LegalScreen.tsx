@@ -9,6 +9,7 @@ import { Icon } from '../../ui/icon';
 import { spacing, useTheme, fonts } from '../../ui/theme';
 import { useT } from '../../lib/settingsStore';
 import { LEGAL_CONSTANTS } from '../constants/legal';
+import { IS_BETA } from '../../lib/appStage';
 
 function getApplicationModule(): any {
   try {
@@ -110,25 +111,27 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
               {t('legalAppVersion')} v{appVersion}
             </Text>
           </Pressable>
-          <View
-            style={{
-              backgroundColor: colors.warning + '22',
-              borderRadius: 6,
-              paddingHorizontal: 7,
-              paddingVertical: 2,
-            }}
-          >
-            <Text
+          {IS_BETA ? (
+            <View
               style={{
-                color: colors.warning,
-                fontSize: 10,
-                fontFamily: fonts.bold,
-                letterSpacing: 0.5,
+                backgroundColor: colors.warning + '22',
+                borderRadius: 6,
+                paddingHorizontal: 7,
+                paddingVertical: 2,
               }}
             >
-              {t('betaTag')}
-            </Text>
-          </View>
+              <Text
+                style={{
+                  color: colors.warning,
+                  fontSize: 10,
+                  fontFamily: fonts.bold,
+                  letterSpacing: 0.5,
+                }}
+              >
+                {t('betaTag')}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
 

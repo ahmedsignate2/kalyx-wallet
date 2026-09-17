@@ -30,6 +30,7 @@ import { useContacts } from '../lib/contactsStore';
 import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
 import { isDeviceCompromised } from '../lib/deviceSecurity';
+import { IS_BETA } from '../lib/appStage';
 import { getAdapter, listChains, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type TxSummary, type ChartPoint, type NftItem } from '../src';
 
 const HIDE_KEY = 'kalyx.hideBalance';
@@ -203,7 +204,7 @@ export default function Home() {
             { text: t("actionRestore"), onPress: () => router.push('/developer') },
           ]);
         });
-      if (seen) return void next();
+      if (seen || !IS_BETA) return void next();
       Alert.alert(t("betaTitle"), t("betaDesc"), [
         { text: t("actionUnderstood"), onPress: () => { AsyncStorage.setItem('nova.betaSeen', '1'); void next(); } },
       ]);
