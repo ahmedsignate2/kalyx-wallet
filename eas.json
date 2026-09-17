@@ -31,7 +31,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "800218617528-bhm4gfbcggo3bvisgnebf4djj7d8r9jg.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "800218617528-bhm4gfbcggo3bvisgnebf4djj7d8r9jg.apps.googleusercontent.com",
+        "EXPO_PUBLIC_APP_STAGE": "stable"
       }
     },
     "production-apk": {
