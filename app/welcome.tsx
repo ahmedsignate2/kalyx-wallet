@@ -77,7 +77,7 @@ export default function Welcome() {
       >
         {/* Naissance du halo */}
         {/* En-tête : hauteur libre (le sous-titre peut prendre 2 lignes), halo derrière le nom seulement. */}
-        <View style={{ minHeight: 280, alignItems: 'center', justifyContent: 'center', paddingVertical: space[6] }}>
+        <View style={{ minHeight: 220, alignItems: 'center', justifyContent: 'center', paddingVertical: space[3] }}>
           <Animated.View style={[{ position: 'absolute', top: -60 }, haloStyle]} pointerEvents="none">
             <Halo size={320} mood="up" />
           </Animated.View>
@@ -93,10 +93,18 @@ export default function Welcome() {
           </Animated.View>
         </View>
 
-        <Animated.View style={[{ flex: 1, justifyContent: 'center', gap: space[3], marginTop: space[2] }, restStyle]}>
+        {/*
+          PAS de flex:1 ici : à l'intérieur d'un ScrollView, un enfant flex:1
+          a une taille mal définie (rien à "remplir", le contenu détermine la
+          hauteur) — RN peut alors croire que tout tient dans le viewport et
+          désactiver le scroll, alors que le contenu déborde quand même
+          visuellement. D'où le bug précédent (bouton du bas hors champ,
+          écran non scrollable). Un simple marginVertical suffit ici.
+        */}
+        <Animated.View style={[{ gap: space[3], marginVertical: space[5] }, restStyle]}>
           <Surface padded={false}>
             {PROPS.map((p, i) => (
-              <View key={p.title} style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[4], borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
+              <View key={p.title} style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[3], borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
                 <View style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
                   <Icon name={p.icon} size={20} />
                 </View>
