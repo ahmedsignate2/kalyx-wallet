@@ -1,0 +1,80 @@
+name: EAS Build & Release
+
+# Construit un APK signé via EAS (preview ou production-apk) et le publie
+# directement sur le dépôt public de releases (ahmedsignate2/nova-wallet-release).
+# L'app ne référence jamais un store précis en dur (cf. lib/appLinks.ts) : le
+# site et le bouton "Partager" utilisent toujours kalyxwallet.com/download,
+# qui télécharge l'asset `kalyx-wallet.apk` de la dernière release NON
+# pré-publiée — d'où `prerelease: true` pour les builds preview, afin qu'ils
+# n'écrasent jamais la dernière version stable vue par le grand public.
+#
+# Secrets requis (Settings > Secrets and variables > Actions, sur CE dépôt) :
+#  - EXPO_TOKEN : jeton d'accès Expo (expo.dev > Account settings > Access tokens),
+#    pour lancer `eas build` sous ton compte depuis la CI.
+#  - RELEASE_REPO_TOKEN : Personal Access Token GitHub (fine-grained, droit
+#    "Contents: Read and write" sur ahmedsignate2/nova-wallet-release) —
+#    le GITHUB_TOKEN par défaut ne peut PAS publier sur un autre dépôt.
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Profil EAS à construire'
+        required: true
+        type: choice
+        options:
+          - preview
+          - production-apk
+        default: preview
+
+jobs:
+  build-and-release:
+    name: Build ${{ inputs.profile }} et publication
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install (clean, reproductible)
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v9
+        with:
+          eas-version: latest
+          packager: npm
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build sur EAS (${{ inputs.profile }})
+        run: eas build --profile ${{ inputs.profile }} --platform android --non-interactive --wait --json > eas-build.json
+
+      - name: Résout la version de ce profil (app.config.ts)
+        id: meta
+        env:
+          EAS_BUILD_PROFILE: ${{ inputs.profile }}
+        run: |
+          VERSION=$(npx expo config --json | jq -r '.version')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Récupère l'URL de l'APK construit
+        id: artifact
+        run: |
+          URL=$(jq -r '.[0].artifacts.buildUrl' eas-build.json)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Télécharge l'APK
+        run: curl -fL "${{ steps.artifact.outputs.url }}" -o kalyx-wallet.apk
+
+      - name: Publie la release sur le dépôt public
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: ahmedsignate2/nova-wallet-release
+          token: ${{ secrets.RELEASE_REPO_TOKEN }}
+          tag_name: v${{ steps.meta.outputs.version }}-${{ inputs.profile }}-${{ github.run_number }}
+          name: Kalyx Wallet v${{ steps.meta.outputs.version }} (${{ inputs.profile }})
+          prerelease: ${{ inputs.profile == 'preview' }}
+          files: kalyx-wallet.apk
