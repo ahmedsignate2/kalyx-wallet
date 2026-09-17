@@ -209,33 +209,72 @@ export function sortMarkets(coins: MarketCoin[], order: MarketOrder): MarketCoin
   return coins; // 'top' = déjà par market cap
 }
 
+// ---- Cache mémoire (TTL) ----
+//
+// Sans clé, CoinGecko limite le débit par IP (~429 « Rate Limit »), et sur un
+// réseau mobile l'IP est partagée par des milliers d'abonnés de l'opérateur :
+// le quota est souvent déjà saturé avant même le premier appel de l'app. Un
+// cache mémoire à courte durée de vie évite de refaire un appel réseau à
+// chaque ouverture d'écran/re-render pour la MÊME donnée, et en cas de 429
+// on sert la dernière valeur connue (même expirée) plutôt qu'un écran vide.
+const CACHE_TTL_MS = 45_000;
+const cache = new Map<string, { value: unknown; ts: number }>();
+
+function cacheGet<T>(key: string): T | undefined {
+  const hit = cache.get(key);
+  return hit && Date.now() - hit.ts < CACHE_TTL_MS ? (hit.value as T) : undefined;
+}
+function cacheGetStale<T>(key: string): T | undefined {
+  return cache.get(key)?.value as T | undefined;
+}
+function cacheSet<T>(key: string, value: T): void {
+  cache.set(key, { value, ts: Date.now() });
+}
+
 // ---- Fetch réseau (dégrade en vide) ----
 
 function url(path: string): string {
   return `${API}${path}${path.includes('?') ? '&' : '?'}${KEY ? `x_cg_demo_api_key=${KEY}` : ''}`;
 }
 
+/** En-tête recommandé par CoinGecko pour une clé Demo (en plus du paramètre d'URL, gardé pour compat). */
+function headers(): Record<string, string> {
+  return KEY ? { 'x-cg-demo-api-key': KEY } : {};
+}
+
 export async function getPrices(ids: string[], vs = 'eur'): Promise<Record<string, CoinPrice>> {
   if (ids.length === 0) return {};
+  const key = `prices:${vs}:${[...ids].sort().join(',')}`;
+  const cached = cacheGet<Record<string, CoinPrice>>(key);
+  if (cached) return cached;
   try {
     const res = await withTimeout(
-      fetch(url(`/simple/price?ids=${ids.join(',')}&vs_currencies=${vs}&include_24hr_change=true`)),
+      fetch(url(`/simple/price?ids=${ids.join(',')}&vs_currencies=${vs}&include_24hr_change=true`), { headers: headers() }),
       TIMEOUT,
       () => new Error('timeout'),
     );
-    return parseSimplePrices(await res.json(), vs);
-  } catch {
-    return {};
+    const json = await res.json();
+    if (!res.ok) console.warn('[coingecko] getPrices HTTP', res.status, json);
+    const parsed = parseSimplePrices(json, vs);
+    if (Object.keys(parsed).length > 0) cacheSet(key, parsed);
+    return Object.keys(parsed).length > 0 ? parsed : cacheGetStale(key) ?? {};
+  } catch (e) {
+    console.warn('[coingecko] getPrices failed', e);
+    return cacheGetStale(key) ?? {};
   }
 }
 
 export async function getCoinDetail(id: string, vs = 'eur', lang = 'en'): Promise<CoinDetail | null> {
+  const key = `detail:${id}:${vs}:${lang}`;
+  const cached = cacheGet<CoinDetail>(key);
+  if (cached) return cached;
   try {
     const res = await withTimeout(
       fetch(
         url(
           `/coins/${id}?localization=true&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`,
         ),
+        { headers: headers() },
       ),
       TIMEOUT,
       () => new Error('timeout'),
@@ -245,17 +284,19 @@ export async function getCoinDetail(id: string, vs = 'eur', lang = 'en'): Promis
       // Retiré du bundle de prod par babel-plugin-transform-remove-console — diagnostic dev uniquement.
       console.warn('[coingecko] getCoinDetail HTTP', res.status, id, json);
     }
-    return parseCoinDetail(json, vs, lang);
+    const parsed = parseCoinDetail(json, vs, lang);
+    if (parsed) cacheSet(key, parsed);
+    return parsed ?? cacheGetStale<CoinDetail>(key) ?? null;
   } catch (e) {
     console.warn('[coingecko] getCoinDetail failed', id, e);
-    return null;
+    return cacheGetStale<CoinDetail>(key) ?? null;
   }
 }
 
 export async function getMarketChart(id: string, vs = 'eur', days = '7'): Promise<number[]> {
   try {
     const res = await withTimeout(
-      fetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${days}`)),
+      fetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${days}`), { headers: headers() }),
       TIMEOUT,
       () => new Error('timeout'),
     );
@@ -267,15 +308,23 @@ export async function getMarketChart(id: string, vs = 'eur', days = '7'): Promis
 
 /** Comme getMarketChart mais avec les timestamps (graphique scrubable). */
 export async function getMarketChartPoints(id: string, vs = 'eur', days = '7'): Promise<ChartPoint[]> {
+  const key = `chart:${id}:${vs}:${days}`;
+  const cached = cacheGet<ChartPoint[]>(key);
+  if (cached) return cached;
   try {
     const res = await withTimeout(
-      fetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${days}`)),
+      fetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${days}`), { headers: headers() }),
       TIMEOUT,
       () => new Error('timeout'),
     );
-    return parseMarketChartPoints(await res.json());
-  } catch {
-    return [];
+    const json = await res.json();
+    if (!res.ok) console.warn('[coingecko] getMarketChartPoints HTTP', res.status, id, json);
+    const parsed = parseMarketChartPoints(json);
+    if (parsed.length > 0) cacheSet(key, parsed);
+    return parsed.length > 0 ? parsed : cacheGetStale(key) ?? [];
+  } catch (e) {
+    console.warn('[coingecko] getMarketChartPoints failed', id, e);
+    return cacheGetStale(key) ?? [];
   }
 }
 
@@ -295,34 +344,47 @@ export async function getTokenPrices(
   vs = 'eur',
 ): Promise<Record<string, number>> {
   if (contracts.length === 0) return {};
+  const key = `tokenPrices:${platform}:${vs}:${[...contracts].map((c) => c.toLowerCase()).sort().join(',')}`;
+  const cached = cacheGet<Record<string, number>>(key);
+  if (cached) return cached;
   try {
     const res = await withTimeout(
-      fetch(url(`/simple/token_price/${platform}?contract_addresses=${contracts.join(',')}&vs_currencies=${vs}`)),
+      fetch(url(`/simple/token_price/${platform}?contract_addresses=${contracts.join(',')}&vs_currencies=${vs}`), {
+        headers: headers(),
+      }),
       TIMEOUT,
       () => new Error('timeout'),
     );
-    return parseTokenPrices(await res.json(), vs);
+    const parsed = parseTokenPrices(await res.json(), vs);
+    if (Object.keys(parsed).length > 0) cacheSet(key, parsed);
+    return Object.keys(parsed).length > 0 ? parsed : cacheGetStale(key) ?? {};
   } catch {
-    return {};
+    return cacheGetStale(key) ?? {};
   }
 }
 
 export async function getMarkets(vs = 'eur', perPage = 20): Promise<MarketCoin[]> {
+  const key = `markets:${vs}:${perPage}`;
+  const cached = cacheGet<MarketCoin[]>(key);
+  if (cached) return cached;
   try {
     const res = await withTimeout(
       fetch(
         url(
           `/coins/markets?vs_currency=${vs}&order=market_cap_desc&per_page=${perPage}&page=1&sparkline=true&price_change_percentage=24h`,
         ),
+        { headers: headers() },
       ),
       TIMEOUT,
       () => new Error('timeout'),
     );
     const json = await res.json();
     if (!res.ok) console.warn('[coingecko] getMarkets HTTP', res.status, json);
-    return parseMarkets(json);
+    const parsed = parseMarkets(json);
+    if (parsed.length > 0) cacheSet(key, parsed);
+    return parsed.length > 0 ? parsed : cacheGetStale(key) ?? [];
   } catch (e) {
     console.warn('[coingecko] getMarkets failed', e);
-    return [];
+    return cacheGetStale(key) ?? [];
   }
 }
