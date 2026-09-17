@@ -12,12 +12,23 @@ const googleScheme = GOOGLE_CLIENT_ID.endsWith(GOOGLE_SUFFIX)
   : null;
 const schemes = ['kalyx', ...(googleScheme ? [googleScheme] : [])];
 
+/**
+ * Version par profil de build : `EAS_BUILD_PROFILE` est fourni par EAS
+ * pendant `eas build` (et par le workflow GitHub Actions, cf.
+ * .github/workflows/eas-build-release.yml) — jamais présent en dehors d'un
+ * build, donc `expo start` en local reste en 0.1.0 par défaut.
+ * `production` et `production-apk` (Galaxy Store) → 1.0.0 ; le reste
+ * (development, preview) → 0.1.0, réservé aux testeurs.
+ */
+const BUILD_PROFILE = process.env.EAS_BUILD_PROFILE ?? '';
+const APP_VERSION = BUILD_PROFILE.startsWith('production') ? '1.0.0' : '0.1.0';
+
 const config: ExpoConfig = {
   name: 'Kalyx Wallet',
   slug: 'kalyx-wallet',
   owner: 'amss86',
   scheme: schemes,
-  version: '0.1.0',
+  version: APP_VERSION,
   orientation: 'portrait',
   // 'automatic' : requis pour que le thème « Système » suive l'OS (useColorScheme).
   userInterfaceStyle: 'automatic',
