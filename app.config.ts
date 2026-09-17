@@ -88,6 +88,11 @@ const config: ExpoConfig = {
     // défaut depuis Android 9/API 28, rendu explicite ici) : tous les RPC et
     // API (marché, backend) doivent être en https:// ou wss://.
     ['expo-build-properties', { android: { usesCleartextTraffic: false } }],
+    // Icône de notification Android : silhouette blanche (le mark Kalyx, cf.
+    // ui/KalyxLogo.tsx) sur fond transparent — Android ignore les couleurs
+    // et ne garde que le canal alpha pour la barre de statut ; sans ça,
+    // l'icône par défaut (le logo en couleur) s'affichait en carré blanc plein.
+    ['expo-notifications', { icon: './assets/notification-icon.png', color: '#DDB565' }],
     // Scanner QR (adresses + WalletConnect) — actif au prochain rebuild EAS.
     [
       'expo-camera',
