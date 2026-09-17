@@ -15,10 +15,11 @@ import { Icon, type IconName } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { toast } from '../lib/toast';
 import { useT } from '../lib/settingsStore';
-import { PLAY_STORE_URL } from '../lib/appLinks';
+import { DOWNLOAD_URL } from '../lib/appLinks';
 
-// Lien Play Store : ouvre le store pour installer, ou « Ouvrir » si déjà installée.
-const INVITE_LINK = PLAY_STORE_URL;
+// Lien évolutif (jamais un store précis en dur) : kalyxwallet.com/download
+// détecte l'appareil et redirige vers le bon store, cf. web/lib/stores.ts.
+const INVITE_LINK = DOWNLOAD_URL;
 
 export default function Invite() {
   const { colors, typography } = useTheme();
