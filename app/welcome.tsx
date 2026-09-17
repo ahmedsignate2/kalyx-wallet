@@ -9,7 +9,7 @@ import { View, Pressable as RNPressable } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
-import { Text, Button, Halo, Surface } from '../ui/kit';
+import { Text, Button, Halo, Surface, Pressable } from '../ui/kit';
 import { Icon, type IconName } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, springs, durations, radius } from '../ui/tokens';
@@ -24,6 +24,10 @@ export default function Welcome() {
   const reduced = useReducedMotion();
   const newDraft = useWallet((s) => s.newDraft);
   const [ready, setReady] = useState(false);
+  // Acceptation explicite des CGU/Politique de confidentialité, requise avant
+  // de créer/importer un wallet — protection juridique (clause de non-garde,
+  // fourniture « en l'état », irréversibilité) : voir lib/legalText.ts.
+  const [agreed, setAgreed] = useState(false);
 
   const halo = useSharedValue(0);
   const name = useSharedValue(0);
@@ -94,9 +98,26 @@ export default function Welcome() {
         </Animated.View>
 
         <Animated.View style={[{ gap: space[3] }, restStyle]}>
-          <Button label={t('createWalletT')} onPress={() => { newDraft(128); router.push('/backup'); }} />
-          <Button label={t('havePhrase')} variant="secondary" onPress={() => router.push('/import')} />
-          {isDriveConfigured() ? <Button label={t('driveRestore')} variant="secondary" onPress={() => router.push('/restore-drive')} /> : null}
+          <Pressable
+            onPress={() => setAgreed((v) => !v)}
+            style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: agreed }}
+          >
+            <Text style={{ fontSize: 18, lineHeight: 20, color: agreed ? colors.primary : colors.textSecondary }}>{agreed ? '☑' : '☐'}</Text>
+            <Text variant="caption" tone="secondary" style={{ flex: 1, lineHeight: 18 }}>{t('legalConsentLabel')}</Text>
+          </Pressable>
+          <View style={{ flexDirection: 'row', gap: space[4], marginTop: -space[2] }}>
+            <Pressable onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}>
+              <Text variant="caption" style={{ color: colors.primary, textDecorationLine: 'underline' }}>{t('legalTermsOfService')}</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}>
+              <Text variant="caption" style={{ color: colors.primary, textDecorationLine: 'underline' }}>{t('legalPrivacyPolicy')}</Text>
+            </Pressable>
+          </View>
+          <Button label={t('createWalletT')} disabled={!agreed} onPress={() => { newDraft(128); router.push('/backup'); }} />
+          <Button label={t('havePhrase')} variant="secondary" disabled={!agreed} onPress={() => router.push('/import')} />
+          {isDriveConfigured() ? <Button label={t('driveRestore')} variant="secondary" disabled={!agreed} onPress={() => router.push('/restore-drive')} /> : null}
         </Animated.View>
       </View>
     </RNPressable>
