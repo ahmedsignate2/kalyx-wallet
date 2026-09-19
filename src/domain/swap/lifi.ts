@@ -73,6 +73,14 @@ export interface SwapQuote {
   toAmountUsd: number;
   /** Slippage appliqué (fraction, ex. 0.005). */
   slippage: number;
+  /**
+   * Fraction du fee intégrateur Kalyx RÉELLEMENT inclus dans ce devis (0 si
+   * absent). Diffère de la constante `KALYX_FEE` selon le fournisseur retenu
+   * par `getBestQuote` : LI.FI l'applique quand `EXPO_PUBLIC_FEE_RECIPIENT_EVM`
+   * est configuré, Jupiter (intra-Solana) et Relay ne l'appliquent jamais
+   * aujourd'hui. Sert à ne jamais afficher un pourcentage de frais faux.
+   */
+  kalyxFeeApplied?: number;
   tx: SwapTxRequest;
 }
 
@@ -250,13 +258,11 @@ async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQu
 
   const isEarn = params.isEarn === true;
   const EARN_FEE = '0'; // 0% pour le Staking/Earn
-  
-  if (withFee) {
-    const feeToSet = isEarn ? EARN_FEE : KALYX_FEE;
-    if (feeToSet !== '0') {
-      qs.set('fee', feeToSet);
-      if (FEE_RECIPIENT) qs.set('feeRecipient', FEE_RECIPIENT);
-    }
+  const feeToSet = isEarn ? EARN_FEE : KALYX_FEE;
+  const feeRequested = withFee && feeToSet !== '0';
+  if (feeRequested) {
+    qs.set('fee', feeToSet);
+    if (FEE_RECIPIENT) qs.set('feeRecipient', FEE_RECIPIENT);
   }
 
 
@@ -287,6 +293,9 @@ async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQu
       }
       const parsed = parseSwapQuote(await res.json());
       if (!parsed) throw new SwapError('PROVIDER_UNAVAILABLE', 'Réponse LI.FI incomplète');
+      // Si on arrive ici avec feeRequested, LI.FI a accepté la config (sinon
+      // il aurait renvoyé une erreur "integrator"/"fee" interceptée plus bas).
+      parsed.kalyxFeeApplied = feeRequested ? Number(feeToSet) : 0;
       return parsed;
     } catch (e) {
       if (e instanceof SwapError) throw e;

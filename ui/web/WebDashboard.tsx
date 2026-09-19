@@ -31,7 +31,6 @@ import {
   getBestQuote,
   parseAmount,
   NATIVE_TOKEN,
-  KALYX_FEE,
   type Erc20Token,
   type NftItem,
   type Balance,
@@ -1367,7 +1366,7 @@ function SwapPanel({ chain, address }: { chain: ChainConfig; address: string }) 
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={typography.muted}>Frais Kalyx</Text>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{`${(Number(KALYX_FEE) * 100).toFixed(2)} %`}</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{`${((quote.kalyxFeeApplied ?? 0) * 100).toFixed(2)} %`}</Text>
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={typography.muted}>Fournisseur</Text>
