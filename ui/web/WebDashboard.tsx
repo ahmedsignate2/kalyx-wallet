@@ -767,7 +767,7 @@ function NetworkSelector({ vertical }: { vertical: boolean }) {
       {chains.length > 6 ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1.25) }}>
           <Icon name="search" size={15} color={colors.textMuted} />
-          <TextInput value={q} onChangeText={setQ} placeholder="Rechercher un réseau…" placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.text, fontSize: 13, paddingVertical: spacing(0.85) }} />
+          <TextInput value={q} onChangeText={setQ} placeholder="Rechercher un réseau…" placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 13, paddingVertical: spacing(0.85) }} />
         </View>
       ) : null}
       {vertical ? (
