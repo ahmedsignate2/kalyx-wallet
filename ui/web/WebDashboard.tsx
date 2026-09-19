@@ -405,8 +405,18 @@ function Dashboard() {
   const [tab, setTab] = useState<MobileTab>('home');
   const [sheet, setSheet] = useState<ActionSheetKind | null>(null);
 
-  // Blocs réutilisés, disposés différemment selon la largeur d'écran.
-  const heroBlock = <HeroValue worth={worth} chain={chain} address={address} />;
+  // Blocs réutilisés, disposés différemment selon la largeur d'écran. Le
+  // détail (data + calculs) est partagé via useHeroData : sur mobile, les 3
+  // présentations (solde / widgets / tendance) sont réordonnées autour des
+  // actions rapides sans dupliquer les appels réseau.
+  const heroData = useHeroData({ worth, chain, address });
+  const heroBlock = (
+    <View style={{ gap: spacing(2) }}>
+      <HeroTotalCard data={heroData} />
+      <HeroWidgetsRow data={heroData} chain={chain} />
+      <HeroTrendCard data={heroData} chain={chain} />
+    </View>
+  );
   const allocBlock = (
     <Zone title="Répartition du portefeuille" collapsible={narrow}><AllocationPanel worth={worth} /></Zone>
   );
@@ -426,7 +436,7 @@ function Dashboard() {
   const sendBlock = isEvm ? <Zone title={`Envoyer ${chain.nativeSymbol}`}><SendPanel chain={chain} address={address} /></Zone> : null;
   const swapBlock = isEvm ? <Zone title={t("swap")}><SwapPanel chain={chain} address={address} /></Zone> : null;
   const accountBlock = <AccountCard chain={chain} address={address} />;
-  const networksBlock = <Zone title="Réseaux"><NetworkSelector vertical={mid} /></Zone>;
+  const networksBlock = <Zone title="Réseaux"><NetworkSelector vertical /></Zone>;
   const settingsBlock = <Zone title={t("settings")} collapsible={narrow}><SettingsPanel /></Zone>;
 
   const scrollContent = (
@@ -498,15 +508,20 @@ function Dashboard() {
           /* ---- Mobile / étroit : onglets, un seul contenu à la fois ---- */
           <View style={{ gap: spacing(2) }}>
             {tab === 'home' ? (
+              /* Ordre demandé : compte → solde → actions au pouce → tendance
+               * → détails secondaires (widgets, répartition, watchlist) en
+               * bas, repliables. Le sélecteur de réseau (moins fréquent que
+               * Recevoir/Envoyer/Swap) est dans l'onglet Réglages. */
               <>
                 {accountBlock}
-                {networksBlock}
-                {heroBlock}
+                <HeroTotalCard data={heroData} />
                 <View style={{ flexDirection: 'row', gap: spacing(1.25) }}>
                   <QuickAction icon="receive" label={t("receive")} onPress={() => setSheet('receive')} />
                   {isEvm ? <QuickAction icon="send" label={t("send")} onPress={() => setSheet('send')} /> : null}
                   {isEvm ? <QuickAction icon="exchange" label={t("swapAction")} onPress={() => setSheet('swap')} /> : null}
                 </View>
+                <HeroTrendCard data={heroData} chain={chain} />
+                <HeroWidgetsRow data={heroData} chain={chain} />
                 {allocBlock}
                 {watchBlock}
               </>
@@ -519,6 +534,7 @@ function Dashboard() {
               activityBlock
             ) : (
               <>
+                {networksBlock}
                 {securityBlock}
                 {settingsBlock}
               </>
@@ -734,9 +750,10 @@ function Widget({ label, value, sub, valueColor }: { label: string; value: strin
 
 /** Bloc « héros » : valeur totale cross-chain + variation du jour + widgets +
  *  graphique de tendance du réseau sélectionné (24 h / 7 j / 1 mois). */
-function HeroValue({ worth, chain, address }: { worth: { data: NetWorth | null }; chain: ChainConfig; address: string }) {
-  const t = useT();
-  const { colors, typography } = useTheme();
+/** Données + calculs du bloc « héros », partagés par les 3 présentations
+ *  (carte solde, ligne de widgets, carte tendance) — un seul jeu d'appels
+ *  réseau, peu importe l'ordre dans lequel on les affiche à l'écran. */
+function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null }; chain: ChainConfig; address: string }) {
   const fiat = useSettings((s) => s.fiat);
   const rev = useWebConnect((s) => s.rev);
   const sym = fiatSymbol(fiat);
@@ -758,57 +775,77 @@ function HeroValue({ worth, chain, address }: { worth: { data: NetWorth | null }
   const slice = worth.data?.slices.find((s) => s.chain.id === chain.id);
   const nativeChange = slice?.change24h ?? 0;
   const price = slice?.price ?? (prices && prices.length ? prices[prices.length - 1] : 0);
+  return { sym, days, setDays, bal, prices, loading, values, pct, up, total, today, todayUp, nativeChange, price };
+}
+type HeroData = ReturnType<typeof useHeroData>;
 
+/** Carte « Valeur totale » + variation du jour. */
+function HeroTotalCard({ data }: { data: HeroData }) {
+  const t = useT();
+  const { colors, typography } = useTheme();
+  const { sym, total, today, todayUp } = data;
   return (
-    <View style={{ gap: spacing(2) }}>
-      <Card>
-        <Text style={typography.muted}>Valeur totale</Text>
-        {total == null ? (
-          <Skeleton w={240} h={46} style={{ marginTop: 6 }} />
-        ) : (
-          <Text style={{ color: colors.text, fontSize: 46, fontFamily: fonts.extrabold, marginTop: 2, fontVariant: ['tabular-nums'] }}>
-            {`${sym}${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          </Text>
-        )}
-        {total != null ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 6 }}>
-            <View style={{ backgroundColor: (todayUp ? colors.up : colors.down) + '22', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 3 }}>
-              <Text style={{ color: todayUp ? colors.up : colors.down, fontFamily: fonts.bold, fontSize: 13 }}>
-                {`${todayUp ? '+' : '-'}${Math.abs(today).toFixed(2)} %`}
-              </Text>
-            </View>
-            <Text style={typography.muted}>{t("today")}</Text>
+    <Card>
+      <Text style={typography.muted}>Valeur totale</Text>
+      {total == null ? (
+        <Skeleton w={240} h={46} style={{ marginTop: 6 }} />
+      ) : (
+        <Text style={{ color: colors.text, fontSize: 46, fontFamily: fonts.extrabold, marginTop: 2, fontVariant: ['tabular-nums'] }}>
+          {`${sym}${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+        </Text>
+      )}
+      {total != null ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 6 }}>
+          <View style={{ backgroundColor: (todayUp ? colors.up : colors.down) + '22', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 3 }}>
+            <Text style={{ color: todayUp ? colors.up : colors.down, fontFamily: fonts.bold, fontSize: 13 }}>
+              {`${todayUp ? '+' : '-'}${Math.abs(today).toFixed(2)} %`}
+            </Text>
           </View>
-        ) : null}
-      </Card>
-
-      <View style={{ flexDirection: 'row', gap: spacing(1.5), flexWrap: 'wrap' }}>
-        <Widget label={`Solde ${chain.nativeSymbol}`} value={`${bal ? formatTokenAmount(bal.raw, bal.decimals) : '0'}`} sub={chain.name} />
-        <Widget label={`Prix ${chain.nativeSymbol}`} value={price ? `${sym}${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'} />
-        <Widget label="Variation 24 h" value={`${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)} %`} valueColor={nativeChange >= 0 ? colors.up : colors.down} />
-      </View>
-
-      {chain.coingeckoId ? (
-        <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={typography.muted}>{`Tendance ${chain.name}`}</Text>
-            {values.length ? (
-              <Text style={{ color: up ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13 }}>{up ? '+' : ''}{pct.toFixed(2)} %</Text>
-            ) : null}
-          </View>
-          {loading && !values.length ? (
-            <Skeleton h={150} r={radii.md} style={{ marginTop: spacing(1) }} />
-          ) : values.length > 1 ? (
-            <AreaChart values={values} up={up} />
-          ) : (
-            <View style={{ height: 150, alignItems: 'center', justifyContent: 'center' }}><Text style={typography.muted}>Pas de données de prix.</Text></View>
-          )}
-          <PeriodToggle days={days} onChange={setDays} />
-        </Card>
+          <Text style={typography.muted}>{t("today")}</Text>
+        </View>
       ) : null}
+    </Card>
+  );
+}
+
+/** Ligne de widgets (solde natif, prix, variation 24 h) — détail secondaire. */
+function HeroWidgetsRow({ data, chain }: { data: HeroData; chain: ChainConfig }) {
+  const { colors } = useTheme();
+  const { sym, bal, price, nativeChange } = data;
+  return (
+    <View style={{ flexDirection: 'row', gap: spacing(1.5), flexWrap: 'wrap' }}>
+      <Widget label={`Solde ${chain.nativeSymbol}`} value={`${bal ? formatTokenAmount(bal.raw, bal.decimals) : '0'}`} sub={chain.name} />
+      <Widget label={`Prix ${chain.nativeSymbol}`} value={price ? `${sym}${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'} />
+      <Widget label="Variation 24 h" value={`${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)} %`} valueColor={nativeChange >= 0 ? colors.up : colors.down} />
     </View>
   );
 }
+
+/** Carte « Tendance » (graphique + sélecteur de période). */
+function HeroTrendCard({ data, chain }: { data: HeroData; chain: ChainConfig }) {
+  const { colors, typography } = useTheme();
+  const { days, setDays, values, up, pct, loading } = data;
+  if (!chain.coingeckoId) return null;
+  return (
+    <Card>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={typography.muted}>{`Tendance ${chain.name}`}</Text>
+        {values.length ? (
+          <Text style={{ color: up ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13 }}>{up ? '+' : ''}{pct.toFixed(2)} %</Text>
+        ) : null}
+      </View>
+      {loading && !values.length ? (
+        <Skeleton h={150} r={radii.md} style={{ marginTop: spacing(1) }} />
+      ) : values.length > 1 ? (
+        <AreaChart values={values} up={up} />
+      ) : (
+        <View style={{ height: 150, alignItems: 'center', justifyContent: 'center' }}><Text style={typography.muted}>Pas de données de prix.</Text></View>
+      )}
+      <PeriodToggle days={days} onChange={setDays} />
+    </Card>
+  );
+}
+
 
 /** Donut de répartition du portefeuille par réseau (natif + tokens). */
 function AllocationPanel({ worth }: { worth: { data: NetWorth | null } }) {
