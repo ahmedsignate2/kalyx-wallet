@@ -12,7 +12,7 @@ import * as Clipboard from 'expo-clipboard';
 import { KalyxLogo } from '../KalyxLogo';
 import { AuroraBackground } from '../AuroraBackground';
 import { AllocationDonut, foldSlices } from '../AllocationDonut';
-import { Icon } from '../icon';
+import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useWebConnect } from '../../lib/webConnect';
 import { useSettings, useT, fiatSymbol, FIATS } from '../../lib/settingsStore';
@@ -324,6 +324,65 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
   }, [key, fiat, rev]);
 }
 
+type MobileTab = 'home' | 'wallet' | 'activity' | 'settings';
+type ActionSheetKind = 'send' | 'receive' | 'swap';
+
+/** Barre d'onglets mobile (téléphone uniquement) : évite d'empiler toutes les
+ *  sections sur une seule page — chaque onglet ne montre que son contenu. */
+function MobileTabBar({ tab, onChange }: { tab: MobileTab; onChange: (t: MobileTab) => void }) {
+  const t = useT();
+  const { colors } = useTheme();
+  const items: { key: MobileTab; icon: IconName; label: string }[] = [
+    { key: 'home', icon: 'home', label: t("navHome") },
+    { key: 'wallet', icon: 'wallet', label: t("navWallet") },
+    { key: 'activity', icon: 'history', label: t("activity") },
+    { key: 'settings', icon: 'menu', label: t("settings") },
+  ];
+  return (
+    <View style={{ flexDirection: 'row', backgroundColor: colors.bgElevated, borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingBottom: spacing(0.5) }}>
+      {items.map((it) => {
+        const on = it.key === tab;
+        return (
+          <Pressable key={it.key} onPress={() => onChange(it.key)} style={{ flex: 1, alignItems: 'center', gap: 3, paddingVertical: spacing(1) }}>
+            <Icon name={it.icon} size={20} color={on ? colors.accent : colors.textMuted} weight={on ? 'fill' : 'regular'} />
+            <Text style={{ color: on ? colors.accent : colors.textMuted, fontFamily: fonts.medium, fontSize: 11 }} numberOfLines={1}>{it.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Bouton d'action rapide (Recevoir/Envoyer/Swap) de l'onglet Accueil. */
+function QuickAction({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => ({ flex: 1, alignItems: 'center', gap: spacing(0.75), paddingVertical: spacing(1.5), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, opacity: pressed ? 0.7 : 1 })}>
+      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={19} color={colors.onPrimary} />
+      </View>
+      <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Feuille plein écran (Envoyer/Recevoir/Swap) — remplace tout l'écran sur
+ *  mobile plutôt que d'empiler ces panneaux dans le flux, avec un retour. */
+function ActionSheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bgDeep, zIndex: 20 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), padding: spacing(2), borderBottomWidth: 1, borderBottomColor: colors.glassBorder }}>
+        <Pressable onPress={onClose} hitSlop={8} style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.glass }}>
+          <Icon name="back" size={16} color={colors.text} />
+        </Pressable>
+        <Text style={{ color: colors.text, fontSize: 17, fontFamily: fonts.bold }}>{title}</Text>
+      </View>
+      <ScrollView contentContainerStyle={{ padding: spacing(2), gap: spacing(2) }}>{children}</ScrollView>
+    </View>
+  );
+}
+
 function Dashboard() {
   const t = useT();
   const { colors, typography } = useTheme();
@@ -338,10 +397,13 @@ function Dashboard() {
   const address = useMemo(() => accounts.find((a) => a.chainId === selected)?.address ?? '', [accounts, selected]);
   const isEvm = chain.family === 'evm';
   const worth = useNetWorth();
-  // Sur téléphone (1 colonne), les sections secondaires démarrent repliées
-  // pour raccourcir la page — le contenu essentiel (solde, tokens, réseau,
-  // envoyer/swap) reste visible d'entrée.
+  // Sur téléphone (1 colonne), une barre d'onglets (Accueil/Portefeuille/
+  // Activité/Réglages) remplace l'empilement de toutes les sections sur une
+  // seule page ; Envoyer/Recevoir/Swap deviennent des feuilles plein écran
+  // ouvertes depuis les actions rapides de l'Accueil.
   const narrow = !wide && !mid;
+  const [tab, setTab] = useState<MobileTab>('home');
+  const [sheet, setSheet] = useState<ActionSheetKind | null>(null);
 
   // Blocs réutilisés, disposés différemment selon la largeur d'écran.
   const heroBlock = <HeroValue worth={worth} chain={chain} address={address} />;
@@ -367,8 +429,8 @@ function Dashboard() {
   const networksBlock = <Zone title="Réseaux"><NetworkSelector vertical={mid} /></Zone>;
   const settingsBlock = <Zone title={t("settings")} collapsible={narrow}><SettingsPanel /></Zone>;
 
-  return (
-    <ScrollView contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}>
+  const scrollContent = (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}>
       <View style={{ width: '100%', maxWidth: 1440, padding: spacing(wide ? 3 : 2), gap: spacing(2) }}>
         {/* En-tête */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing(1) }}>
@@ -433,20 +495,34 @@ function Dashboard() {
             </View>
           </View>
         ) : (
-          /* ---- Mobile / étroit : une colonne empilée ---- */
+          /* ---- Mobile / étroit : onglets, un seul contenu à la fois ---- */
           <View style={{ gap: spacing(2) }}>
-            {accountBlock}
-            {networksBlock}
-            {heroBlock}
-            {allocBlock}
-            {securityBlock}
-            {watchBlock}
-            {tokensBlock}
-            {nftBlock}
-            {activityBlock}
-            {sendBlock}
-            {swapBlock}
-            {settingsBlock}
+            {tab === 'home' ? (
+              <>
+                {accountBlock}
+                {networksBlock}
+                {heroBlock}
+                <View style={{ flexDirection: 'row', gap: spacing(1.25) }}>
+                  <QuickAction icon="receive" label={t("receive")} onPress={() => setSheet('receive')} />
+                  {isEvm ? <QuickAction icon="send" label={t("send")} onPress={() => setSheet('send')} /> : null}
+                  {isEvm ? <QuickAction icon="exchange" label={t("swapAction")} onPress={() => setSheet('swap')} /> : null}
+                </View>
+                {allocBlock}
+                {watchBlock}
+              </>
+            ) : tab === 'wallet' ? (
+              <>
+                {tokensBlock}
+                {nftBlock}
+              </>
+            ) : tab === 'activity' ? (
+              activityBlock
+            ) : (
+              <>
+                {securityBlock}
+                {settingsBlock}
+              </>
+            )}
           </View>
         )}
 
@@ -458,6 +534,28 @@ function Dashboard() {
         </View>
       </View>
     </ScrollView>
+  );
+
+  return (
+    <View style={{ flex: 1 }}>
+      {scrollContent}
+      {narrow ? <MobileTabBar tab={tab} onChange={setTab} /> : null}
+      {narrow && sheet === 'receive' ? (
+        <ActionSheet title={t("receive")} onClose={() => setSheet(null)}>
+          <AccountCard chain={chain} address={address} defaultQr />
+        </ActionSheet>
+      ) : null}
+      {narrow && sheet === 'send' ? (
+        <ActionSheet title={t("send")} onClose={() => setSheet(null)}>
+          {isEvm ? <SendPanel chain={chain} address={address} /> : <Note text="L'envoi n'est pas encore disponible sur ce réseau depuis le web." />}
+        </ActionSheet>
+      ) : null}
+      {narrow && sheet === 'swap' ? (
+        <ActionSheet title={t("swapAction")} onClose={() => setSheet(null)}>
+          {isEvm ? <SwapPanel chain={chain} address={address} /> : <Note text="Le swap n'est disponible que sur les réseaux EVM." />}
+        </ActionSheet>
+      ) : null}
+    </View>
   );
 }
 
@@ -780,10 +878,10 @@ function NetworkSelector({ vertical }: { vertical: boolean }) {
 }
 
 /** Carte compte : nom + réseau + adresse (copier) + QR code dépliable. */
-function AccountCard({ chain, address }: { chain: ChainConfig; address: string }) {
+function AccountCard({ chain, address, defaultQr }: { chain: ChainConfig; address: string; defaultQr?: boolean }) {
   const t = useT();
   const { colors, typography } = useTheme();
-  const [showQr, setShowQr] = useState(false);
+  const [showQr, setShowQr] = useState(!!defaultQr);
   return (
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
