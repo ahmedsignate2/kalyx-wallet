@@ -9,7 +9,8 @@
  */
 import { withTimeout } from '../chains/net';
 import { SwapError } from './swapError';
-import { type SwapQuote, type QuoteParams, NATIVE_TOKEN } from './lifi';
+import { type SwapQuote, type QuoteParams, NATIVE_TOKEN, KALYX_FEE } from './lifi';
+import { getAssociatedTokenAddress } from '../../crypto/solPda';
 
 const JUPITER_API = 'https://lite-api.jup.ag/swap/v1';
 const TIMEOUT = 15_000;
@@ -18,6 +19,33 @@ const SOL_NATIVE = '11111111111111111111111111111111';
 
 function toMint(addr: string): string {
   return addr === NATIVE_TOKEN || addr === SOL_NATIVE ? WSOL : addr;
+}
+
+/**
+ * Fee intégrateur Kalyx sur Solana : depuis janvier 2025, l'API Swap de Jupiter
+ * n'exige plus de Referral Program — il suffit de passer `platformFeeBps` au
+ * devis et un `feeAccount` (compte de token, pas une adresse wallet) au swap
+ * (https://developers.jup.ag/docs/swap/v1/add-fees-to-swap). En ExactIn (notre
+ * seul mode), ce compte doit correspondre au mint d'ENTRÉE ou de SORTIE — on ne
+ * prélève donc que quand SOL/wSOL est l'un des deux côtés (cas majoritaire),
+ * via l'ATA wSOL de EXPO_PUBLIC_FEE_RECIPIENT_SOLANA.
+ * ⚠️ Ce compte doit être INITIALISÉ on-chain au préalable (Jupiter l'exige) —
+ * sinon la transaction de swap échoue à la soumission. Une simple adresse
+ * wallet qui n'a jamais détenu de wSOL n'a pas cet ATA par défaut.
+ */
+const FEE_RECIPIENT_SOLANA = (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_FEE_RECIPIENT_SOLANA) || '';
+const JUPITER_FEE_BPS = Math.round(Number(KALYX_FEE) * 10_000); // 0.003 → 30 bps
+let cachedFeeAccount: string | null = null;
+function feeAccountFor(fromMint: string, toMint_: string): string | null {
+  if (!FEE_RECIPIENT_SOLANA || (fromMint !== WSOL && toMint_ !== WSOL)) return null;
+  if (!cachedFeeAccount) {
+    try {
+      cachedFeeAccount = getAssociatedTokenAddress(WSOL, FEE_RECIPIENT_SOLANA);
+    } catch {
+      return null; // adresse de repli mal formée : on ne bloque jamais un swap pour ça
+    }
+  }
+  return cachedFeeAccount;
 }
 
 /** Traduit une erreur Jupiter (pur). */
@@ -35,17 +63,23 @@ export function parseJupiterError(status: number, json: unknown): SwapError {
 
 export async function getJupiterQuote(params: QuoteParams): Promise<SwapQuote | null> {
   const slippageBps = Math.round((params.slippage && params.slippage > 0 ? params.slippage : 0.005) * 10_000);
+  const inputMint = toMint(params.fromToken);
+  const outputMint = toMint(params.toToken);
+  const feeAccount = params.isEarn ? null : feeAccountFor(inputMint, outputMint);
   const url = new URL(`${JUPITER_API}/quote`);
-  url.searchParams.set('inputMint', toMint(params.fromToken));
-  url.searchParams.set('outputMint', toMint(params.toToken));
+  url.searchParams.set('inputMint', inputMint);
+  url.searchParams.set('outputMint', outputMint);
   url.searchParams.set('amount', params.fromAmount.toString());
   url.searchParams.set('slippageBps', String(slippageBps));
+  if (feeAccount) url.searchParams.set('platformFeeBps', String(JUPITER_FEE_BPS));
 
   try {
     const res = await withTimeout(fetch(url.toString()), TIMEOUT, () => new Error('timeout'));
     if (!res.ok) throw parseJupiterError(res.status, await res.json().catch(() => ({})));
     const data = await res.json();
     if (!data?.outAmount) throw new SwapError('NO_ROUTE', 'Jupiter: devis vide');
+    // Le fee n'est réellement appliqué que si Jupiter le confirme dans sa réponse.
+    const appliedFeeBps = feeAccount ? Number(data.platformFee?.feeBps ?? 0) : 0;
 
     const swapRes = await withTimeout(
       fetch(`${JUPITER_API}/swap`, {
@@ -57,6 +91,7 @@ export async function getJupiterQuote(params: QuoteParams): Promise<SwapQuote | 
           wrapAndUnwrapSol: true,
           dynamicComputeUnitLimit: true,
           prioritizationFeeLamports: { priorityLevelWithMaxLamports: { maxLamports: 2_000_000, priorityLevel: 'high' } },
+          ...(appliedFeeBps > 0 && feeAccount ? { feeAccount } : {}),
         }),
       }),
       TIMEOUT,
@@ -88,6 +123,7 @@ export async function getJupiterQuote(params: QuoteParams): Promise<SwapQuote | 
       toAmountUsd: 0,
       slippage: slippageBps / 10_000,
       tx: { type: 'solana', data: swapData.swapTransaction },
+      kalyxFeeApplied: appliedFeeBps > 0 ? appliedFeeBps / 10_000 : 0,
     };
   } catch (e) {
     if (e instanceof SwapError) throw e;
