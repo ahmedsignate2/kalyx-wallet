@@ -43,6 +43,25 @@ function short(a: string) {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 }
 
+/** Icône de réseau avec repli AUTO sur cercle lettré : chainIconUrl() renvoie
+ *  volontairement `undefined` pour certains réseaux (doc : « → cercle lettré
+ *  côté UI ») et l'icône distante peut aussi échouer au chargement (404,
+ *  host bloqué) — un <Image> nu sans repli laissait une case vide. */
+function ChainAvatar({ chain, size = 20 }: { chain: ChainConfig; size?: number }) {
+  const { colors } = useTheme();
+  const [failed, setFailed] = useState(false);
+  const uri = chainIconUrl(chain.id);
+  if (!uri || failed) {
+    const letter = (chain.nativeSymbol || chain.name || '?').slice(0, 1).toUpperCase();
+    return (
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: size * 0.42, color: colors.text, fontFamily: fonts.bold }}>{letter}</Text>
+      </View>
+    );
+  }
+  return <Image source={{ uri }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.glass }} />;
+}
+
 /** Horodatage relatif court (ts en secondes). */
 function ago(ts: number): string {
   const s = Math.floor(Date.now() / 1000 - ts);
@@ -391,7 +410,6 @@ function Dashboard() {
   const mid = width >= 760; // 2 colonnes
   const accounts = useWebConnect((s) => s.accounts);
   const selected = useWebConnect((s) => s.selected);
-  const disconnect = useWebConnect((s) => s.disconnect);
   const refresh = useWebConnect((s) => s.refresh);
   const chain = useMemo(() => chainById(selected), [selected]);
   const address = useMemo(() => accounts.find((a) => a.chainId === selected)?.address ?? '', [accounts, selected]);
@@ -455,9 +473,6 @@ function Dashboard() {
             </View>
             <Pressable onPress={refresh} hitSlop={6} style={({ pressed }) => ({ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}>
               <Icon name="refresh" size={18} color={colors.textMuted} />
-            </Pressable>
-            <Pressable onPress={disconnect} style={({ pressed }) => ({ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.85), borderRadius: radii.pill, borderWidth: 1, borderColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}>
-              <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>{t("disconnect")}</Text>
             </Pressable>
           </View>
         </View>
@@ -542,12 +557,14 @@ function Dashboard() {
           </View>
         )}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: spacing(1) }}>
-          <Icon name="security" size={13} color={colors.textMuted} />
-          <Text style={[typography.muted, { textAlign: 'center', fontSize: 12 }]}>
-            Toutes les signatures se font sur votre téléphone Kalyx. Ce site n'a jamais accès à vos clés privées.
-          </Text>
-        </View>
+        {narrow ? null : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: spacing(1) }}>
+            <Icon name="security" size={13} color={colors.textMuted} />
+            <Text style={[typography.muted, { textAlign: 'center', fontSize: 12 }]}>
+              Toutes les signatures se font sur votre téléphone Kalyx. Ce site n'a jamais accès à vos clés privées.
+            </Text>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -555,6 +572,14 @@ function Dashboard() {
   return (
     <View style={{ flex: 1 }}>
       {scrollContent}
+      {narrow ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing(0.75), backgroundColor: colors.bgElevated, borderTopWidth: 1, borderTopColor: colors.glassBorder }}>
+          <Icon name="security" size={12} color={colors.textMuted} />
+          <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 11 }}>
+            Signatures faites sur ton téléphone Kalyx uniquement.
+          </Text>
+        </View>
+      ) : null}
       {narrow ? <MobileTabBar tab={tab} onChange={setTab} /> : null}
       {narrow && sheet === 'receive' ? (
         <ActionSheet title={t("receive")} onClose={() => setSheet(null)}>
@@ -620,6 +645,22 @@ function Note({ text }: { text: string }) {
   const t = useT();
   const { typography } = useTheme();
   return <Card><Text style={typography.muted}>{text}</Text></Card>;
+}
+
+/** État vide soigné (icône + titre + sous-titre), centré — jamais de détail
+ *  technique (clé API manquante, etc.) exposé à l'utilisateur. Remplit aussi
+ *  l'espace d'un onglet court au lieu d'un petit encart en haut d'un grand vide. */
+function EmptyState({ icon, title, subtitle }: { icon: IconName; title: string; subtitle: string }) {
+  const { colors, typography } = useTheme();
+  return (
+    <View style={{ alignItems: 'center', justifyContent: 'center', gap: spacing(1), paddingVertical: spacing(6), minHeight: 220 }}>
+      <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.glass, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={24} color={colors.textMuted} />
+      </View>
+      <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 15 }}>{title}</Text>
+      <Text style={[typography.muted, { textAlign: 'center', maxWidth: 260 }]}>{subtitle}</Text>
+    </View>
+  );
 }
 
 /** Barre grise pulsée (placeholder de chargement). */
@@ -763,8 +804,11 @@ function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null
     () => (chain.coingeckoId ? getMarketChart(chain.coingeckoId, fiat, days) : Promise.resolve([])),
     [chain.coingeckoId, fiat, days, rev],
   );
-  const balNum = bal ? Number(bal.raw) / 10 ** bal.decimals : 0;
-  const values = (prices ?? []).map((p) => p * balNum);
+  // Prix brut de l'actif natif (pas la valeur du portefeuille) : avec un petit
+  // solde, « valeur = prix × solde » restait plate à ~0 quel que soit le
+  // marché — le prix, lui, bouge réellement et correspond à ce qu'annonce le
+  // titre « Tendance <réseau> ».
+  const values = prices ?? [];
   const first = values.length ? values[0] : 0;
   const cur = values.length ? values[values.length - 1] : 0;
   const pct = first > 0 ? ((cur - first) / first) * 100 : 0;
@@ -814,7 +858,7 @@ function HeroWidgetsRow({ data, chain }: { data: HeroData; chain: ChainConfig })
   const { sym, bal, price, nativeChange } = data;
   return (
     <View style={{ flexDirection: 'row', gap: spacing(1.5), flexWrap: 'wrap' }}>
-      <Widget label={`Solde ${chain.nativeSymbol}`} value={`${bal ? formatTokenAmount(bal.raw, bal.decimals) : '0'}`} sub={chain.name} />
+      <Widget label={`Solde ${chain.nativeSymbol}`} value={`${bal ? formatTokenAmount(bal.raw, bal.decimals) : '0'}`} />
       <Widget label={`Prix ${chain.nativeSymbol}`} value={price ? `${sym}${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'} />
       <Widget label="Variation 24 h" value={`${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)} %`} valueColor={nativeChange >= 0 ? colors.up : colors.down} />
     </View>
@@ -891,7 +935,7 @@ function NetworkSelector({ vertical }: { vertical: boolean }) {
         onPress={() => setChain(c.id)}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing(1.25), paddingVertical: spacing(1), borderRadius: radii.md, backgroundColor: colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
       >
-        <Image source={{ uri: chainIconUrl(c.id) }} style={{ width: 20, height: 20, borderRadius: 10 }} />
+        <ChainAvatar chain={c} size={20} />
         <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13, flex: vertical ? 1 : 0 }} numberOfLines={1}>{c.name}</Text>
         {on && vertical ? <Icon name="check" size={14} color={colors.accent} /> : null}
       </Pressable>
@@ -922,7 +966,7 @@ function AccountCard({ chain, address, defaultQr }: { chain: ChainConfig; addres
   return (
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
-        <Image source={{ uri: chainIconUrl(chain.id) }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+        <ChainAvatar chain={chain} size={40} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={typography.bodyStrong}>Compte principal</Text>
           <Text style={typography.muted} numberOfLines={1}>{chain.name}</Text>
@@ -1103,7 +1147,7 @@ function WatchlistPanel({ worth }: { worth: { data: NetWorth | null } }) {
         const up = s.change24h >= 0;
         return (
           <View key={s.chain.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
-            <Image source={{ uri: chainIconUrl(s.chain.id) }} style={{ width: 30, height: 30, borderRadius: 15 }} />
+            <ChainAvatar chain={s.chain} size={30} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={typography.bodyStrong}>{s.chain.nativeSymbol}</Text>
               <Text style={typography.muted} numberOfLines={1}>{s.chain.name}</Text>
@@ -1152,7 +1196,7 @@ function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }
   }, [chain.id, address, fiat, rev]);
   if (loading) return <SkeletonRows />;
   const tokens = data?.tokens ?? [];
-  if (tokens.length === 0) return <Card><Text style={typography.muted}>Aucun token détecté (clé Alchemy requise pour l'EVM).</Text></Card>;
+  if (tokens.length === 0) return <EmptyState icon="wallet" title="Aucun token" subtitle="Les tokens de ce réseau apparaîtront ici dès qu'ils seront détectés." />;
   const prices = data?.prices ?? {};
   // Valeur $ par token, triés par valeur décroissante (plus gros en haut).
   const rows = tokens
@@ -1305,7 +1349,7 @@ function NftsPanel({ chain, address }: { chain: ChainConfig; address: string }) 
       {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} w={160} h={196} r={radii.md} />)}
     </View>
   );
-  if (!data || data.length === 0) return <Card><Text style={typography.muted}>Aucun NFT sur ce réseau.</Text></Card>;
+  if (!data || data.length === 0) return <EmptyState icon="nft" title="Aucun NFT" subtitle="Les NFT de ce réseau apparaîtront ici dès qu'ils seront détectés." />;
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
       {data.map((n) => (
@@ -1331,7 +1375,7 @@ function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string 
   const rev = useWebConnect((s) => s.rev);
   const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address, rev]);
   if (loading) return <SkeletonRows count={5} />;
-  if (!data || data.length === 0) return <Card><Text style={typography.muted}>Aucune transaction (clé Etherscan requise pour l'EVM).</Text></Card>;
+  if (!data || data.length === 0) return <EmptyState icon="history" title="Aucune activité" subtitle="Tes transactions récentes s'afficheront ici." />;
   return (
     <Card>
       {data.slice(0, 30).map((tx, i) => (
