@@ -31,12 +31,14 @@ import {
   getBestQuote,
   parseAmount,
   NATIVE_TOKEN,
+  humanizeTx,
   type Erc20Token,
   type NftItem,
   type Balance,
   type TxSummary,
   type ChainConfig,
   type SwapQuote,
+  type HumanTx,
 } from '../../src';
 
 function short(a: string) {
@@ -372,11 +374,27 @@ function MobileTabBar({ tab, onChange }: { tab: MobileTab; onChange: (t: MobileT
   );
 }
 
-/** Bouton d'action rapide (Recevoir/Envoyer/Swap) de l'onglet Accueil. */
-function QuickAction({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+/** Puce compacte « réseau actuel », ouvre le sélecteur en feuille plutôt que
+ *  d'afficher les N réseaux connectés en dur dans le flux des Réglages. */
+function CurrentNetworkChip({ chain, onPress }: { chain: ChainConfig; onPress: () => void }) {
   const { colors } = useTheme();
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ flex: 1, alignItems: 'center', gap: spacing(0.75), paddingVertical: spacing(1.5), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, opacity: pressed ? 0.7 : 1 })}>
+    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, padding: spacing(1.5), opacity: pressed ? 0.7 : 1 })}>
+      <ChainAvatar chain={chain} size={32} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ color: colors.textMuted, fontSize: 12 }}>Réseau actuel</Text>
+        <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 15 }} numberOfLines={1}>{chain.name}</Text>
+      </View>
+      <Icon name="chevron" size={16} color={colors.textMuted} />
+    </Pressable>
+  );
+}
+
+/** Bouton d'action rapide (Recevoir/Envoyer/Swap) de l'onglet Accueil. */
+function QuickAction({ icon, label, onPress, grow = true }: { icon: IconName; label: string; onPress: () => void; grow?: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => ({ flex: grow ? 1 : undefined, width: grow ? undefined : 110, alignItems: 'center', gap: spacing(0.75), paddingVertical: spacing(1.5), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, opacity: pressed ? 0.7 : 1 })}>
       <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={icon} size={19} color={colors.onPrimary} />
       </View>
@@ -422,6 +440,7 @@ function Dashboard() {
   const narrow = !wide && !mid;
   const [tab, setTab] = useState<MobileTab>('home');
   const [sheet, setSheet] = useState<ActionSheetKind | null>(null);
+  const [networkSheet, setNetworkSheet] = useState(false);
 
   // Blocs réutilisés, disposés différemment selon la largeur d'écran. Le
   // détail (data + calculs) est partagé via useHeroData : sur mobile, les 3
@@ -440,7 +459,14 @@ function Dashboard() {
   );
   const tokensBlock = (
     <Zone title={t("tabTokens")}>
-      {isEvm ? <TokensPanel chain={chain} address={address} /> : <Note text={`Les tokens (ERC-20) sont propres aux réseaux EVM. Sur ${chain.name}, consulte le solde et l'historique.`} />}
+      {isEvm ? (
+        <TokensPanel chain={chain} address={address} />
+      ) : (
+        <>
+          <NativeBalanceCard chain={chain} address={address} />
+          <Note text={`Les jetons ${chain.family === 'solana' ? 'SPL' : ''} de ${chain.name} arriveront bientôt ici — en attendant, ton solde ${chain.nativeSymbol} est à jour ci-dessus.`} />
+        </>
+      )}
     </Zone>
   );
   const nftBlock = (
@@ -530,8 +556,8 @@ function Dashboard() {
               <>
                 {accountBlock}
                 <HeroTotalCard data={heroData} />
-                <View style={{ flexDirection: 'row', gap: spacing(1.25) }}>
-                  <QuickAction icon="receive" label={t("receive")} onPress={() => setSheet('receive')} />
+                <View style={{ flexDirection: 'row', gap: spacing(1.25), justifyContent: isEvm ? undefined : 'center' }}>
+                  <QuickAction icon="receive" label={t("receive")} onPress={() => setSheet('receive')} grow={isEvm} />
                   {isEvm ? <QuickAction icon="send" label={t("send")} onPress={() => setSheet('send')} /> : null}
                   {isEvm ? <QuickAction icon="exchange" label={t("swapAction")} onPress={() => setSheet('swap')} /> : null}
                 </View>
@@ -549,7 +575,7 @@ function Dashboard() {
               activityBlock
             ) : (
               <>
-                {networksBlock}
+                <CurrentNetworkChip chain={chain} onPress={() => setNetworkSheet(true)} />
                 {securityBlock}
                 {settingsBlock}
               </>
@@ -594,6 +620,11 @@ function Dashboard() {
       {narrow && sheet === 'swap' ? (
         <ActionSheet title={t("swapAction")} onClose={() => setSheet(null)}>
           {isEvm ? <SwapPanel chain={chain} address={address} /> : <Note text="Le swap n'est disponible que sur les réseaux EVM." />}
+        </ActionSheet>
+      ) : null}
+      {narrow && networkSheet ? (
+        <ActionSheet title="Réseaux" onClose={() => setNetworkSheet(false)}>
+          <NetworkSelector vertical onSelected={() => setNetworkSheet(false)} />
         </ActionSheet>
       ) : null}
     </View>
@@ -918,7 +949,7 @@ function AllocationPanel({ worth }: { worth: { data: NetWorth | null } }) {
 
 /** Sélecteur de réseau : liste verticale (desktop) ou puces horizontales (étroit),
  *  avec recherche au-delà de ~6 réseaux. */
-function NetworkSelector({ vertical }: { vertical: boolean }) {
+function NetworkSelector({ vertical, onSelected }: { vertical: boolean; onSelected?: () => void }) {
   const t = useT();
   const { colors } = useTheme();
   const accounts = useWebConnect((s) => s.accounts);
@@ -932,7 +963,7 @@ function NetworkSelector({ vertical }: { vertical: boolean }) {
     return (
       <Pressable
         key={c.id}
-        onPress={() => setChain(c.id)}
+        onPress={() => { setChain(c.id); onSelected?.(); }}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing(1.25), paddingVertical: spacing(1), borderRadius: radii.md, backgroundColor: colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
       >
         <ChainAvatar chain={c} size={20} />
@@ -1182,6 +1213,36 @@ function CopyAddress({ address }: { address: string }) {
   );
 }
 
+/** Solde natif (SOL, BTC…) affiché dans l'onglet Portefeuille pour les
+ *  réseaux non-EVM, où la liste de tokens (SPL, etc.) n'est pas encore
+ *  câblée — vaut mieux un vrai solde que « propre aux réseaux EVM ». */
+function NativeBalanceCard({ chain, address }: { chain: ChainConfig; address: string }) {
+  const { colors, typography } = useTheme();
+  const fiat = useSettings((s) => s.fiat);
+  const rev = useWebConnect((s) => s.rev);
+  const sym = fiatSymbol(fiat);
+  const { data: bal, loading } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
+  const { data: prices } = useAsync<Record<string, { price: number; change24h: number }>>(
+    () => (chain.coingeckoId ? getPrices([chain.coingeckoId], fiat) : Promise.resolve({})),
+    [chain.coingeckoId, fiat, rev],
+  );
+  if (loading) return <SkeletonRows count={1} />;
+  const price = chain.coingeckoId ? prices?.[chain.coingeckoId]?.price : undefined;
+  const amount = bal ? Number(bal.raw) / 10 ** bal.decimals : 0;
+  return (
+    <Card>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
+        <ChainAvatar chain={chain} size={36} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={typography.bodyStrong}>{bal ? formatTokenAmount(bal.raw, bal.decimals) : '0'} {chain.nativeSymbol}</Text>
+          <Text style={typography.muted} numberOfLines={1}>{chain.name}</Text>
+        </View>
+        {price ? <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{`${sym}${(amount * price).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}</Text> : null}
+      </View>
+    </Card>
+  );
+}
+
 function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }) {
   const t = useT();
   const { typography } = useTheme();
@@ -1369,28 +1430,39 @@ function NftsPanel({ chain, address }: { chain: ChainConfig; address: string }) 
   );
 }
 
+function toneColor(tone: HumanTx['tone'], colors: ReturnType<typeof useTheme>['colors']): string {
+  return tone === 'up' ? colors.up : tone === 'down' ? colors.text : tone === 'danger' ? colors.danger : colors.textMuted;
+}
+
+/** Historique humanisé (humanizeTx, partagé avec l'app) : « Interaction avec
+ *  X » pour les appels de contrat au lieu d'un montant « +0 SOL » trompeur,
+ *  et les transferts entrants à 0 (poussière/airdrop spam) sont masqués. */
 function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string }) {
   const t = useT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address, rev]);
   if (loading) return <SkeletonRows count={5} />;
-  if (!data || data.length === 0) return <EmptyState icon="history" title="Aucune activité" subtitle="Tes transactions récentes s'afficheront ici." />;
+  const rows = (data ?? [])
+    .map((tx) => ({ tx, h: humanizeTx(tx, { nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals }) }))
+    .filter(({ h }) => !h.spam);
+  if (!rows.length) return <EmptyState icon="history" title="Aucune activité" subtitle="Tes transactions récentes s'afficheront ici." />;
   return (
     <Card>
-      {data.slice(0, 30).map((tx, i) => (
+      {rows.slice(0, 30).map(({ tx, h }, i) => (
         <Pressable
           key={tx.hash}
           onPress={() => chain.explorerUrl && Linking.openURL(`${chain.explorerUrl}/tx/${tx.hash}`)}
-          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}
         >
-          <View style={{ flex: 1 }}>
-            <Text style={typography.bodyStrong}>{`${tx.direction === 'in' ? 'Reçu' : t("sendTitle")}${tx.status === 'failed' ? ' · échoué' : ''}`}</Text>
-            <Text style={typography.muted} numberOfLines={1}>{`${short(tx.hash)} · ${ago(tx.timestamp)}`}</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={h.icon} size={16} color={colors.textMuted} />
           </View>
-          <Text style={{ color: tx.direction === 'in' ? colors.up : colors.text, fontFamily: fonts.semibold }}>
-            {`${tx.direction === 'in' ? '+' : '-'}${formatTokenAmount(tx.value, chain.nativeDecimals)} ${chain.nativeSymbol}`}
-          </Text>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={typography.bodyStrong} numberOfLines={1}>{`${h.title}${h.failed ? ' · échoué' : ''}`}</Text>
+            <Text style={typography.muted} numberOfLines={1}>{h.subtitle ?? `${short(tx.hash)} · ${ago(tx.timestamp)}`}</Text>
+          </View>
+          {h.amount ? <Text style={{ color: toneColor(h.tone, colors), fontFamily: fonts.semibold }} numberOfLines={1}>{h.amount}</Text> : null}
         </Pressable>
       ))}
     </Card>
