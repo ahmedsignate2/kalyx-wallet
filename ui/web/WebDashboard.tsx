@@ -144,7 +144,7 @@ function SigningModal() {
         ) : null}
         {phase !== 'await' ? (
           <Pressable onPress={dismiss} style={({ pressed }) => ({ marginTop: spacing(1), alignSelf: 'stretch', alignItems: 'center', backgroundColor: phase === 'ok' ? colors.accent : 'transparent', borderWidth: 1, borderColor: phase === 'ok' ? colors.accent : colors.glassBorder, borderRadius: radii.pill, paddingVertical: spacing(1.2), opacity: pressed ? 0.7 : 1 })}>
-            <Text style={{ color: phase === 'ok' ? '#fff' : colors.text, fontFamily: fonts.semibold }}>{t("aiClose")}</Text>
+            <Text style={{ color: phase === 'ok' ? colors.onPrimary : colors.text, fontFamily: fonts.semibold }}>{t("aiClose")}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -218,8 +218,8 @@ function ConnectView() {
               opacity: pressed || status === 'connecting' ? 0.7 : 1, marginTop: spacing(1),
             })}
           >
-            {status === 'connecting' ? <ActivityIndicator color="#fff" /> : <Icon name="walletconnect" size={20} color="#fff" />}
-            <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 16 }}>
+            {status === 'connecting' ? <ActivityIndicator color={colors.onPrimary} /> : <Icon name="walletconnect" size={20} color={colors.onPrimary} />}
+            <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: 16 }}>
               {status === 'connecting' ? 'Connexion…' : 'Connecter Kalyx'}
             </Text>
           </Pressable>
@@ -613,7 +613,7 @@ function PeriodToggle({ days, onChange }: { days: string; onChange: (d: string) 
         const on = p.k === days;
         return (
           <Pressable key={p.k} onPress={() => onChange(p.k)} style={{ paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.6), borderRadius: radii.pill, backgroundColor: on ? colors.accent : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}>
-            <Text style={{ color: on ? '#fff' : colors.textMuted, fontFamily: fonts.semibold, fontSize: 12 }}>{p.l}</Text>
+            <Text style={{ color: on ? colors.onPrimary : colors.textMuted, fontFamily: fonts.semibold, fontSize: 12 }}>{p.l}</Text>
           </Pressable>
         );
       })}
@@ -1150,7 +1150,7 @@ function TokenRow({
           </View>
           <TextInput value={amount} onChangeText={setAmount} placeholder="0.0" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={{ color: colors.text, fontSize: 14, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1) }} />
           <Pressable onPress={onSend} disabled={busy} style={({ pressed }) => ({ alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.2), opacity: pressed || busy ? 0.7 : 1 })}>
-            <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{busy ? 'En attente de l\'app…' : t("aiSend")}</Text>
+            <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{busy ? 'En attente de l\'app…' : t("aiSend")}</Text>
           </Pressable>
           {msg ? <Text style={{ color: colors.accent }}>{msg}</Text> : null}
           {err ? <Text style={{ color: colors.danger }}>{err}</Text> : null}
@@ -1429,7 +1429,7 @@ function SwapPanel({ chain, address }: { chain: ChainConfig; address: string }) 
       ) : null}
 
       <Pressable onPress={onSwap} disabled={!quote || busy || quoting} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.4), opacity: pressed || busy || !quote || quoting ? 0.6 : 1 })}>
-        <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{busy ? (step ?? 'En attente de l\'app…') : t("swapAction")}</Text>
+        <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{busy ? (step ?? 'En attente de l\'app…') : t("swapAction")}</Text>
       </Pressable>
       {msg ? <Text style={{ color: colors.accent, marginTop: spacing(1) }}>{msg}</Text> : null}
       {err ? <Text style={{ color: colors.danger, marginTop: spacing(1) }}>{err}</Text> : null}
@@ -1521,7 +1521,7 @@ function SendPanel({ chain, address }: { chain: ChainConfig; address: string }) 
       </View>
       <TextInput value={amount} onChangeText={setAmount} placeholder="0.0" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={{ color: colors.text, fontSize: 15, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), marginTop: 4 }} />
       <Pressable onPress={onSend} disabled={busy} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.4), opacity: pressed || busy ? 0.7 : 1 })}>
-        <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{busy ? 'En attente de l\'app…' : t("aiSend")}</Text>
+        <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{busy ? 'En attente de l\'app…' : t("aiSend")}</Text>
       </Pressable>
       {msg ? <Text style={{ color: colors.accent, marginTop: spacing(1) }}>{msg}</Text> : null}
       {err ? <Text style={{ color: colors.danger, marginTop: spacing(1) }}>{err}</Text> : null}
