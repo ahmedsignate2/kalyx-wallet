@@ -197,6 +197,15 @@ function ConnectView() {
             <Text style={[typography.muted, { textAlign: 'center' }]}>
               Ouvrez Kalyx sur votre téléphone, allez dans l'onglet WalletConnect, puis scannez ce QR.
             </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), width: '100%' }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.glassBorder }} />
+              <Text style={{ color: colors.textMuted, fontSize: 12 }}>ou</Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.glassBorder }} />
+            </View>
+            <CopyUriButton uri={uri} />
+            <Text style={[typography.muted, { textAlign: 'center', fontSize: 12 }]}>
+              Collez ce lien dans Kalyx → WalletConnect → Coller, si le scan n'est pas pratique.
+            </Text>
           </View>
         ) : (
           <Pressable
@@ -219,6 +228,33 @@ function ConnectView() {
         {error ? <Text style={{ color: colors.danger, textAlign: 'center' }}>{error}</Text> : null}
       </View>
     </View>
+  );
+}
+
+/** Copie le lien wc: — alternative au scan QR (même flux que « Coller » sur
+ *  l'écran WalletConnect de l'app mobile). */
+function CopyUriButton({ uri }: { uri: string }) {
+  const { colors } = useTheme();
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await Clipboard.setStringAsync(uri);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <Pressable
+      onPress={copy}
+      style={({ pressed }) => ({
+        flexDirection: 'row', alignItems: 'center', gap: spacing(1),
+        borderRadius: radii.pill, borderWidth: 1, borderColor: copied ? colors.up : colors.glassBorder,
+        paddingVertical: spacing(1), paddingHorizontal: spacing(2.5), opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <Icon name={copied ? 'check' : 'copy'} size={16} color={copied ? colors.up : colors.textMuted} />
+      <Text style={{ color: copied ? colors.up : colors.text, fontFamily: fonts.semibold, fontSize: 14 }}>
+        {copied ? 'Lien copié' : 'Copier le lien de connexion'}
+      </Text>
+    </Pressable>
   );
 }
 
