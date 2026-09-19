@@ -15,7 +15,9 @@ import { AllocationDonut, foldSlices } from '../AllocationDonut';
 import { Icon } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useWebConnect } from '../../lib/webConnect';
-import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
+import { useSettings, useT, fiatSymbol, FIATS } from '../../lib/settingsStore';
+import { useContacts } from '../../lib/contactsStore';
+import { LANGUAGES } from '../../lib/i18n';
 import {
   getAdapter,
   listChains,
@@ -26,11 +28,16 @@ import {
   getPrices,
   formatTokenAmount,
   chainIconUrl,
+  getBestQuote,
+  parseAmount,
+  NATIVE_TOKEN,
+  KALYX_FEE,
   type Erc20Token,
   type NftItem,
   type Balance,
   type TxSummary,
   type ChainConfig,
+  type SwapQuote,
 } from '../../src';
 
 function short(a: string) {
@@ -47,11 +54,29 @@ function ago(ts: number): string {
   return new Date(ts * 1000).toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
 }
 
-/** Montant décimal (ex. « 0.5 ») → wei (10^18), en BigInt, sans perte de précision. */
-function toWei(dec: string): bigint {
+/** Montant décimal (ex. « 0.5 ») → unité brute (10^decimals), en BigInt, sans perte de précision. */
+function toRaw(dec: string, decimals: number): bigint {
   const [int, frac = ''] = dec.split('.');
-  const fracPadded = (frac + '0'.repeat(18)).slice(0, 18);
-  return BigInt(int || '0') * 10n ** 18n + BigInt(fracPadded || '0');
+  const fracPadded = (frac + '0'.repeat(decimals)).slice(0, decimals);
+  return BigInt(int || '0') * 10n ** BigInt(decimals) + BigInt(fracPadded || '0');
+}
+function toWei(dec: string): bigint {
+  return toRaw(dec, 18);
+}
+
+/** Encode un appel ERC-20 `transfer(address,uint256)` (sélecteur 0xa9059cbb). */
+function encodeErc20Transfer(to: string, raw: bigint): string {
+  const addr = to.trim().toLowerCase().replace(/^0x/, '').padStart(64, '0');
+  const amount = raw.toString(16).padStart(64, '0');
+  return `0xa9059cbb${addr}${amount}`;
+}
+
+/** Encode un appel ERC-20 `approve(address,uint256)` (sélecteur 0x095ea7b3) —
+ *  nécessaire avant un swap qui part d'un token (jamais du natif). */
+function encodeErc20Approve(spender: string, raw: bigint): string {
+  const addr = spender.trim().toLowerCase().replace(/^0x/, '').padStart(64, '0');
+  const amount = raw.toString(16).padStart(64, '0');
+  return `0x095ea7b3${addr}${amount}`;
 }
 
 /** Config d'une chaîne Kalyx par son id (repli Ethereum). */
@@ -298,8 +323,10 @@ function Dashboard() {
   const securityBlock = <Zone title={t("security")}><SecurityPanel /></Zone>;
   const watchBlock = <Zone title="Watchlist"><WatchlistPanel worth={worth} /></Zone>;
   const sendBlock = isEvm ? <Zone title={`Envoyer ${chain.nativeSymbol}`}><SendPanel chain={chain} address={address} /></Zone> : null;
+  const swapBlock = isEvm ? <Zone title={t("swap")}><SwapPanel chain={chain} address={address} /></Zone> : null;
   const accountBlock = <AccountCard chain={chain} address={address} />;
   const networksBlock = <Zone title="Réseaux"><NetworkSelector vertical={mid} /></Zone>;
+  const settingsBlock = <Zone title={t("settings")}><SettingsPanel /></Zone>;
 
   return (
     <ScrollView contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}>
@@ -330,6 +357,7 @@ function Dashboard() {
             <View style={{ width: 260, gap: spacing(2) }}>
               {accountBlock}
               {networksBlock}
+              {settingsBlock}
             </View>
             <View style={{ flex: 1.7, minWidth: 0, gap: spacing(2) }}>
               {heroBlock}
@@ -342,6 +370,7 @@ function Dashboard() {
               {watchBlock}
               {activityBlock}
               {sendBlock}
+              {swapBlock}
             </View>
           </View>
         ) : mid ? (
@@ -360,6 +389,8 @@ function Dashboard() {
               {securityBlock}
               {watchBlock}
               {sendBlock}
+              {swapBlock}
+              {settingsBlock}
             </View>
           </View>
         ) : (
@@ -375,6 +406,8 @@ function Dashboard() {
             {nftBlock}
             {activityBlock}
             {sendBlock}
+            {swapBlock}
+            {settingsBlock}
           </View>
         )}
 
@@ -777,6 +810,90 @@ function SecurityPanel() {
   );
 }
 
+/** Réglages du tableau de bord : langue et devise d'affichage. Même store
+ *  (lib/settingsStore.ts) que l'app mobile — un changement ici ne modifie que
+ *  ce navigateur (persistance locale), jamais le téléphone. */
+function SettingsPanel() {
+  const t = useT();
+  const { colors, typography } = useTheme();
+  const language = useSettings((s) => s.language);
+  const setLanguage = useSettings((s) => s.setLanguage);
+  const fiat = useSettings((s) => s.fiat);
+  const setFiat = useSettings((s) => s.setFiat);
+  const [open, setOpen] = useState<'lang' | 'fiat' | null>(null);
+  const curLang = LANGUAGES.find((l) => l.code === language) ?? LANGUAGES[0];
+  const curFiat = FIATS.find((f) => f.code === fiat) ?? FIATS[0];
+
+  const row = (opts: {
+    icon: 'language' | 'currency';
+    label: string;
+    value: string;
+    section: 'lang' | 'fiat';
+  }) => (
+    <Pressable
+      onPress={() => setOpen(open === opts.section ? null : opts.section)}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(0.75) }}
+    >
+      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={opts.icon} size={18} color={colors.textMuted} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={typography.muted}>{opts.label}</Text>
+        <Text style={typography.bodyStrong} numberOfLines={1}>{opts.value}</Text>
+      </View>
+      <View style={{ transform: [{ rotate: open === opts.section ? '180deg' : '0deg' }] }}>
+        <Icon name="caretDown" size={14} color={colors.textMuted} />
+      </View>
+    </Pressable>
+  );
+
+  return (
+    <Card>
+      {row({ icon: 'language', label: 'Langue', value: `${curLang.flag} ${curLang.name}`, section: 'lang' })}
+      {open === 'lang' ? (
+        <View style={{ gap: spacing(0.5), marginTop: spacing(0.5), marginBottom: spacing(1) }}>
+          {LANGUAGES.map((l) => {
+            const on = l.code === language;
+            return (
+              <Pressable
+                key={l.code}
+                onPress={() => { setLanguage(l.code); setOpen(null); }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85), borderRadius: radii.md, backgroundColor: on ? colors.glass : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
+              >
+                <Text style={{ fontSize: 16 }}>{l.flag}</Text>
+                <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.medium, fontSize: 13, flex: 1 }}>{l.name}</Text>
+                {on ? <Icon name="check" size={14} color={colors.accent} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
+      <View style={{ height: 1, backgroundColor: colors.glassBorder }} />
+
+      {row({ icon: 'currency', label: 'Devise', value: `${curFiat.symbol} ${curFiat.name}`, section: 'fiat' })}
+      {open === 'fiat' ? (
+        <View style={{ gap: spacing(0.5), marginTop: spacing(0.5) }}>
+          {FIATS.map((f) => {
+            const on = f.code === fiat;
+            return (
+              <Pressable
+                key={f.code}
+                onPress={() => { setFiat(f.code); setOpen(null); }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85), borderRadius: radii.md, backgroundColor: on ? colors.glass : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
+              >
+                <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 14, width: 34 }}>{f.symbol}</Text>
+                <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.medium, fontSize: 13, flex: 1 }}>{f.name}</Text>
+                {on ? <Icon name="check" size={14} color={colors.accent} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
 /** Watchlist : actifs natifs des réseaux connectés (prix + variation 24 h). */
 function WatchlistPanel({ worth }: { worth: { data: NetWorth | null } }) {
   const t = useT();
@@ -836,13 +953,14 @@ function CopyAddress({ address }: { address: string }) {
 
 function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }) {
   const t = useT();
-  const { colors, typography } = useTheme();
+  const { typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const fiat = useSettings((s) => s.fiat);
   const sym = fiatSymbol(fiat);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const { data, loading } = useAsync<{ tokens: Erc20Token[]; prices: Record<string, number> }>(async () => {
     const tokens = await getErc20Tokens(chain, address);
-    const prices = chain.coingeckoPlatform && tokens.length ? await getTokenPrices(chain.coingeckoPlatform, tokens.map((t) => t.contract), fiat) : {};
+    const prices = chain.coingeckoPlatform && tokens.length ? await getTokenPrices(chain.coingeckoPlatform, tokens.map((tk) => tk.contract), fiat) : {};
     return { tokens, prices };
   }, [chain.id, address, fiat, rev]);
   if (loading) return <SkeletonRows />;
@@ -851,28 +969,142 @@ function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }
   const prices = data?.prices ?? {};
   // Valeur $ par token, triés par valeur décroissante (plus gros en haut).
   const rows = tokens
-    .map((t) => {
-      const amount = Number(t.raw) / 10 ** t.decimals;
-      const value = amount * (prices[t.contract.toLowerCase()] ?? 0);
-      return { t, value };
+    .map((tk) => {
+      const amount = Number(tk.raw) / 10 ** tk.decimals;
+      const value = amount * (prices[tk.contract.toLowerCase()] ?? 0);
+      return { tk, value };
     })
     .sort((a, b) => b.value - a.value);
   return (
     <Card>
-      {rows.map(({ t, value }, i) => (
-        <View key={t.contract} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
-          {t.logo ? <Image source={{ uri: t.logo }} style={{ width: 32, height: 32, borderRadius: 16 }} /> : <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.glassStrong }} />}
-          <View style={{ flex: 1 }}>
-            <Text style={typography.bodyStrong}>{t.symbol}</Text>
-            <Text style={typography.muted} numberOfLines={1}>{t.name}</Text>
-          </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{formatTokenAmount(t.raw, t.decimals)}</Text>
-            {value > 0 ? <Text style={typography.muted}>{sym}{value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text> : null}
-          </View>
-        </View>
+      {rows.map(({ tk, value }, i) => (
+        <TokenRow
+          key={tk.contract}
+          token={tk}
+          value={value}
+          sym={sym}
+          chain={chain}
+          divider={i > 0}
+          expanded={expanded === tk.contract}
+          onToggle={() => setExpanded((cur) => (cur === tk.contract ? null : tk.contract))}
+        />
       ))}
     </Card>
+  );
+}
+
+/** Ligne d'un token ERC-20 : dépliable pour révéler le contrat et un envoi
+ *  dédié (encode `transfer(address,uint256)`, signé côté téléphone). */
+function TokenRow({
+  token, value, sym, chain, divider, expanded, onToggle,
+}: {
+  token: Erc20Token; value: number; sym: string; chain: ChainConfig; divider: boolean; expanded: boolean; onToggle: () => void;
+}) {
+  const t = useT();
+  const { colors, typography } = useTheme();
+  const request = useWebConnect((s) => s.request);
+  const contacts = useContacts((s) => s.contacts);
+  const [to, setTo] = useState('');
+  const [amount, setAmount] = useState('');
+  const [showContacts, setShowContacts] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const balStr = formatTokenAmount(token.raw, token.decimals);
+  const matchedContact = contacts.find((c) => c.address.toLowerCase() === to.trim().toLowerCase());
+
+  const onSend = async () => {
+    setErr(null); setMsg(null);
+    if (!/^0x[a-fA-F0-9]{40}$/.test(to.trim())) { setErr('Adresse EVM invalide (0x…).'); return; }
+    const raw = amount.replace(',', '.').trim();
+    if (!/^\d*\.?\d+$/.test(raw) || !(parseFloat(raw) > 0)) { setErr(t("errInvalidAmount")); return; }
+    setBusy(true);
+    setMsg('Validez la transaction dans l\'app Kalyx (PIN ou biométrie)…');
+    try {
+      const raw2 = toRaw(raw, token.decimals);
+      const data = encodeErc20Transfer(to.trim(), raw2);
+      const hash = await request('eth_sendTransaction', [{ to: token.contract, value: '0x0', data }]);
+      setMsg(`Transaction envoyée : ${short(hash)}`);
+      setTo(''); setAmount('');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Refusé ou échoué.');
+      setMsg(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <View style={{ borderTopWidth: divider ? 1 : 0, borderTopColor: colors.glassBorder }}>
+      <Pressable onPress={onToggle} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25) }}>
+        {token.logo ? <Image source={{ uri: token.logo }} style={{ width: 32, height: 32, borderRadius: 16 }} /> : <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.glassStrong }} />}
+        <View style={{ flex: 1 }}>
+          <Text style={typography.bodyStrong}>{token.symbol}</Text>
+          <Text style={typography.muted} numberOfLines={1}>{token.name}</Text>
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{balStr}</Text>
+          {value > 0 ? <Text style={typography.muted}>{sym}{value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text> : null}
+        </View>
+      </Pressable>
+
+      {expanded ? (
+        <View style={{ paddingBottom: spacing(1.5), gap: spacing(1) }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1) }}>
+            <Text style={[typography.muted, { flex: 1 }]} numberOfLines={1}>{short(token.contract)}</Text>
+            <Pressable onPress={() => Clipboard.setStringAsync(token.contract)} hitSlop={6} style={{ marginRight: spacing(1) }}>
+              <Icon name="copy" size={14} color={colors.textMuted} />
+            </Pressable>
+            {chain.explorerUrl ? (
+              <Pressable onPress={() => Linking.openURL(`${chain.explorerUrl}/token/${token.contract}`)} hitSlop={6}>
+                <Icon name="forward" size={14} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={typography.muted}>{t("aiSend")}{token.symbol}</Text>
+            {contacts.length ? (
+              <Pressable onPress={() => setShowContacts((v) => !v)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Icon name="contacts" size={13} color={colors.accent} />
+                <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{t("addressBook")}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          {showContacts && contacts.length ? (
+            <View style={{ backgroundColor: colors.bgElevated, borderRadius: radii.md, borderWidth: 1, borderColor: colors.glassBorder, overflow: 'hidden' }}>
+              <ScrollView style={{ maxHeight: 160 }}>
+                {contacts.map((c) => (
+                  <Pressable key={c.id} onPress={() => { setTo(c.address); setShowContacts(false); }} style={({ pressed }) => ({ paddingHorizontal: spacing(1.25), paddingVertical: spacing(1), backgroundColor: pressed ? colors.glass : 'transparent' })}>
+                    <Text style={typography.bodyStrong} numberOfLines={1}>{c.name}</Text>
+                    <Text style={typography.muted} numberOfLines={1}>{short(c.address)}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+          <TextInput value={to} onChangeText={setTo} placeholder="0x…" placeholderTextColor={colors.textMuted} autoCapitalize="none" style={{ color: colors.text, fontSize: 14, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1) }} />
+          {matchedContact ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -spacing(0.5) }}>
+              <Icon name="check" size={12} color={colors.up} />
+              <Text style={{ color: colors.up, fontSize: 12, fontFamily: fonts.medium }}>{matchedContact.name}</Text>
+            </View>
+          ) : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={typography.muted}>{`Montant (${token.symbol})`}</Text>
+            <Pressable onPress={() => setAmount(balStr)} hitSlop={6}>
+              <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{`Solde ${balStr} · Max`}</Text>
+            </Pressable>
+          </View>
+          <TextInput value={amount} onChangeText={setAmount} placeholder="0.0" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={{ color: colors.text, fontSize: 14, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1) }} />
+          <Pressable onPress={onSend} disabled={busy} style={({ pressed }) => ({ alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.2), opacity: pressed || busy ? 0.7 : 1 })}>
+            <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{busy ? 'En attente de l\'app…' : t("aiSend")}</Text>
+          </Pressable>
+          {msg ? <Text style={{ color: colors.accent }}>{msg}</Text> : null}
+          {err ? <Text style={{ color: colors.danger }}>{err}</Text> : null}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -934,11 +1166,231 @@ function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string 
   );
 }
 
+interface TokenOption { address: string; symbol: string; decimals: number; logo?: string }
+
+/** Sélecteur de token (natif + tokens détenus) pour le panneau Swap : bouton +
+ *  liste dépliable, dans le style de SettingsPanel/AccountCard. */
+function TokenPickerRow({
+  label, options, selected, onSelect, open, onToggle,
+}: {
+  label: string; options: TokenOption[]; selected: TokenOption | null; onSelect: (o: TokenOption) => void; open: boolean; onToggle: () => void;
+}) {
+  const { colors, typography } = useTheme();
+  return (
+    <View>
+      <Pressable onPress={onToggle} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(0.5) }}>
+        <Text style={typography.muted}>{label}</Text>
+        <View style={{ flex: 1 }} />
+        {selected ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {selected.logo ? <Image source={{ uri: selected.logo }} style={{ width: 20, height: 20, borderRadius: 10 }} /> : null}
+            <Text style={{ color: colors.text, fontFamily: fonts.bold }}>{selected.symbol || short(selected.address)}</Text>
+          </View>
+        ) : (
+          <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}>Choisir</Text>
+        )}
+        <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
+          <Icon name="caretDown" size={13} color={colors.textMuted} />
+        </View>
+      </Pressable>
+      {open ? (
+        <View style={{ marginTop: spacing(0.5), marginBottom: spacing(0.5), backgroundColor: colors.bgElevated, borderRadius: radii.md, borderWidth: 1, borderColor: colors.glassBorder, overflow: 'hidden' }}>
+          <ScrollView style={{ maxHeight: 200 }}>
+            {options.map((o) => {
+              const on = selected?.address === o.address;
+              return (
+                <Pressable key={o.address} onPress={() => onSelect(o)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing(1.25), paddingVertical: spacing(1), backgroundColor: pressed || on ? colors.glass : 'transparent' })}>
+                  {o.logo ? <Image source={{ uri: o.logo }} style={{ width: 22, height: 22, borderRadius: 11 }} /> : <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.glassStrong }} />}
+                  <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.medium, fontSize: 13, flex: 1 }} numberOfLines={1}>{o.symbol || short(o.address)}</Text>
+                  {on ? <Icon name="check" size={13} color={colors.accent} /> : null}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** Swap intra-réseau (LI.FI, même agrégateur que l'app) : devis lu ici, mais
+ *  approbation + transaction toujours forwardées et signées sur le téléphone.
+ *  Limité aux tokens EVM du réseau sélectionné (pas de bridge cross-chain ici). */
+function SwapPanel({ chain, address }: { chain: ChainConfig; address: string }) {
+  const t = useT();
+  const { colors, typography } = useTheme();
+  const request = useWebConnect((s) => s.request);
+  const rev = useWebConnect((s) => s.rev);
+  const fiat = useSettings((s) => s.fiat);
+  const sym = fiatSymbol(fiat);
+  const { data: tokenData } = useAsync<Erc20Token[]>(() => getErc20Tokens(chain, address), [chain.id, address, rev]);
+  const { data: nativeBal } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
+  const heldTokens = tokenData ?? [];
+  const nativeOption: TokenOption = { address: NATIVE_TOKEN, symbol: chain.nativeSymbol, decimals: chain.nativeDecimals };
+  const options: TokenOption[] = [nativeOption, ...heldTokens.map((tk) => ({ address: tk.contract, symbol: tk.symbol, decimals: tk.decimals, logo: tk.logo }))];
+
+  const [fromAddr, setFromAddr] = useState(NATIVE_TOKEN);
+  const [toAddr, setToAddr] = useState<string | null>(null);
+  const [toCustom, setToCustom] = useState('');
+  const [showCustom, setShowCustom] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [picker, setPicker] = useState<'from' | 'to' | null>(null);
+  const [quote, setQuote] = useState<SwapQuote | null>(null);
+  const [quoteErr, setQuoteErr] = useState<string | null>(null);
+  const [quoting, setQuoting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const fromOpt = options.find((o) => o.address === fromAddr) ?? nativeOption;
+  const toOpt = options.find((o) => o.address === toAddr) ?? null;
+  const customValid = /^0x[a-fA-F0-9]{40}$/.test(toCustom.trim());
+  const toEffective = toOpt?.address ?? (customValid ? toCustom.trim() : null);
+
+  const fromBalRaw = fromOpt.address === NATIVE_TOKEN
+    ? (nativeBal?.raw ?? 0n)
+    : (heldTokens.find((tk) => tk.contract.toLowerCase() === fromOpt.address.toLowerCase())?.raw ?? 0n);
+  const fromBalStr = formatTokenAmount(fromBalRaw, fromOpt.decimals);
+
+  // Devis LI.FI (même agrégateur que l'app) avec anti-rebond : on attend une
+  // pause de saisie avant d'interroger, pour ne pas spammer l'API à chaque frappe.
+  useEffect(() => {
+    setQuote(null); setQuoteErr(null);
+    const raw = amount.replace(',', '.').trim();
+    if (!toEffective || toEffective.toLowerCase() === fromOpt.address.toLowerCase() || !/^\d*\.?\d+$/.test(raw) || !(parseFloat(raw) > 0)) return;
+    setQuoting(true);
+    const id = setTimeout(() => {
+      (async () => {
+        try {
+          const parsed = parseAmount(raw, fromOpt.decimals);
+          const q = await getBestQuote({
+            fromChainId: chain.id,
+            toChainId: chain.id,
+            fromToken: fromOpt.address,
+            toToken: toEffective,
+            fromAmount: parsed.raw.toString(),
+            fromAddress: address,
+            toAddress: address,
+            slippage: 0.005,
+          });
+          setQuote(q);
+        } catch (e) {
+          setQuoteErr(e instanceof Error ? e.message : 'Aucune route trouvée.');
+        } finally {
+          setQuoting(false);
+        }
+      })();
+    }, 600);
+    return () => clearTimeout(id);
+  }, [fromOpt.address, toEffective, amount, chain.id, address, rev]);
+
+  const onFlip = () => {
+    if (!toEffective) return;
+    const prevFrom = fromOpt.address;
+    setFromAddr(toEffective);
+    if (options.some((o) => o.address === prevFrom)) { setToAddr(prevFrom); setToCustom(''); }
+    else { setToAddr(null); setToCustom(prevFrom); setShowCustom(true); }
+    setAmount(''); setQuote(null); setMsg(null); setErr(null);
+  };
+
+  const onSwap = async () => {
+    if (!quote || quote.tx.type !== 'evm') return;
+    setErr(null); setMsg(null); setBusy(true);
+    try {
+      if (quote.approvalAddress) {
+        setStep('Approbation du token dans l\'app Kalyx…');
+        const data = encodeErc20Approve(quote.approvalAddress, quote.fromAmount);
+        await request('eth_sendTransaction', [{ to: fromOpt.address, value: '0x0', data }]);
+      }
+      setStep('Validez l\'échange dans l\'app Kalyx…');
+      const tx = quote.tx;
+      const hash = await request('eth_sendTransaction', [{ to: tx.to, value: '0x' + tx.value.toString(16), data: tx.data }]);
+      setMsg(`Échange envoyé : ${short(hash)}`);
+      setAmount(''); setQuote(null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Refusé ou échoué.');
+    } finally {
+      setBusy(false);
+      setStep(null);
+    }
+  };
+
+  if (!chain.evmChainId) {
+    return <Note text={`Le swap n'est disponible que sur les réseaux EVM pris en charge par Kalyx.`} />;
+  }
+
+  return (
+    <Card>
+      <TokenPickerRow label="Tu donnes" options={options} selected={fromOpt} open={picker === 'from'} onToggle={() => setPicker(picker === 'from' ? null : 'from')} onSelect={(o) => { setFromAddr(o.address); setPicker(null); setQuote(null); }} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -4 }}>
+        <Pressable onPress={() => setAmount(fromBalStr)} hitSlop={6}>
+          <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{`Solde ${fromBalStr} · Max`}</Text>
+        </Pressable>
+      </View>
+      <TextInput value={amount} onChangeText={setAmount} placeholder="0.0" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={{ color: colors.text, fontSize: 15, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), marginTop: 4, marginBottom: spacing(1) }} />
+
+      <View style={{ alignItems: 'center', marginVertical: -spacing(0.5) }}>
+        <Pressable onPress={onFlip} hitSlop={6} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.glassBorder }}>
+          <Icon name="convert" size={15} color={colors.textMuted} />
+        </Pressable>
+      </View>
+
+      <View style={{ marginTop: spacing(1) }}>
+        <TokenPickerRow label="Tu reçois" options={options} selected={toOpt} open={picker === 'to'} onToggle={() => setPicker(picker === 'to' ? null : 'to')} onSelect={(o) => { setToAddr(o.address); setShowCustom(false); setToCustom(''); setPicker(null); }} />
+        <Pressable onPress={() => setShowCustom((v) => !v)} hitSlop={6}>
+          <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12, marginTop: 2 }}>{showCustom ? 'Choisir dans la liste' : 'Autre token (adresse de contrat)'}</Text>
+        </Pressable>
+        {showCustom ? (
+          <TextInput
+            value={toCustom}
+            onChangeText={(v) => { setToCustom(v); setToAddr(null); }}
+            placeholder="0x…"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="none"
+            style={{ color: colors.text, fontSize: 14, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1), marginTop: spacing(0.5) }}
+          />
+        ) : null}
+      </View>
+
+      {quoting ? <Text style={[typography.muted, { marginTop: spacing(1) }]}>Recherche du meilleur prix…</Text> : null}
+      {quoteErr ? <Text style={{ color: colors.danger, marginTop: spacing(1) }}>{quoteErr}</Text> : null}
+      {quote && quote.tx.type === 'evm' ? (
+        <View style={{ marginTop: spacing(1.25), gap: spacing(0.6) }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={typography.muted}>Tu reçois au moins</Text>
+            <Text style={{ color: colors.text, fontFamily: fonts.bold }}>{`${formatTokenAmount(quote.toAmountMin, quote.toToken.decimals)} ${quote.toToken.symbol}`}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={typography.muted}>Frais réseau estimés</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{`≈ ${sym}${quote.gasCostUsd.toFixed(2)}`}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={typography.muted}>Frais Kalyx</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{`${(Number(KALYX_FEE) * 100).toFixed(2)} %`}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={typography.muted}>Fournisseur</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{quote.toolName}</Text>
+          </View>
+        </View>
+      ) : null}
+
+      <Pressable onPress={onSwap} disabled={!quote || busy || quoting} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.4), opacity: pressed || busy || !quote || quoting ? 0.6 : 1 })}>
+        <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{busy ? (step ?? 'En attente de l\'app…') : t("swapAction")}</Text>
+      </Pressable>
+      {msg ? <Text style={{ color: colors.accent, marginTop: spacing(1) }}>{msg}</Text> : null}
+      {err ? <Text style={{ color: colors.danger, marginTop: spacing(1) }}>{err}</Text> : null}
+    </Card>
+  );
+}
+
 function SendPanel({ chain, address }: { chain: ChainConfig; address: string }) {
   const t = useT();
   const { colors, typography } = useTheme();
   const request = useWebConnect((s) => s.request);
   const rev = useWebConnect((s) => s.rev);
+  const contacts = useContacts((s) => s.contacts);
   const { data: bal } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
   const balStr = bal ? formatTokenAmount(bal.raw, bal.decimals) : '0';
   const [to, setTo] = useState('');
@@ -946,6 +1398,8 @@ function SendPanel({ chain, address }: { chain: ChainConfig; address: string }) 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [showContacts, setShowContacts] = useState(false);
+  const matchedContact = contacts.find((c) => c.address.toLowerCase() === to.trim().toLowerCase());
 
   const onSend = async () => {
     setErr(null); setMsg(null);
@@ -972,8 +1426,41 @@ function SendPanel({ chain, address }: { chain: ChainConfig; address: string }) 
     <Card>
       <Text style={typography.bodyStrong}>{t("aiSend")}{chain.nativeSymbol}</Text>
       <Text style={[typography.muted, { marginBottom: spacing(1) }]}>La transaction est signée dans l'app Kalyx — ce site ne signe jamais.</Text>
-      <Text style={typography.muted}>{t("labelRecipient")}</Text>
-      <TextInput value={to} onChangeText={setTo} placeholder="0x…" placeholderTextColor={colors.textMuted} autoCapitalize="none" style={{ color: colors.text, fontSize: 15, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), marginTop: 4, marginBottom: spacing(1) }} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={typography.muted}>{t("labelRecipient")}</Text>
+        {contacts.length ? (
+          <Pressable onPress={() => setShowContacts((v) => !v)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Icon name="contacts" size={14} color={colors.accent} />
+            <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{t("addressBook")}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {showContacts && contacts.length ? (
+        <View style={{ marginTop: 4, marginBottom: spacing(1), backgroundColor: colors.bgElevated, borderRadius: radii.md, borderWidth: 1, borderColor: colors.glassBorder, overflow: 'hidden' }}>
+          <ScrollView style={{ maxHeight: 180 }}>
+            {contacts.map((c) => (
+              <Pressable
+                key={c.id}
+                onPress={() => { setTo(c.address); setShowContacts(false); }}
+                style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingHorizontal: spacing(1.25), paddingVertical: spacing(1), backgroundColor: pressed ? colors.glass : 'transparent' })}
+              >
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={typography.bodyStrong} numberOfLines={1}>{c.name}</Text>
+                  <Text style={typography.muted} numberOfLines={1}>{short(c.address)}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+      <TextInput value={to} onChangeText={setTo} placeholder="0x…" placeholderTextColor={colors.textMuted} autoCapitalize="none" style={{ color: colors.text, fontSize: 15, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), marginTop: 4 }} />
+      {matchedContact ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+          <Icon name="check" size={12} color={colors.up} />
+          <Text style={{ color: colors.up, fontSize: 12, fontFamily: fonts.medium }}>{matchedContact.name}</Text>
+        </View>
+      ) : null}
+      <View style={{ height: spacing(1) }} />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text style={typography.muted}>Montant ({chain.nativeSymbol})</Text>
         <Pressable onPress={() => setAmount(balStr)} hitSlop={6}>

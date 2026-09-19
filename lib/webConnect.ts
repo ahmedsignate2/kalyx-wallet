@@ -15,6 +15,16 @@ import { listChains } from '../src';
 
 const PROJECT_ID = process.env.EXPO_PUBLIC_WALLETCONNECT_ID || '';
 
+/**
+ * URL publique du tableau de bord web (app.kalyxwallet.com) : affichée par
+ * l'app Kalyx sur le téléphone lors de l'approbation de la connexion. En repli
+ * (build hors navigateur), on force la même URL plutôt que `location.origin`
+ * pour ne jamais afficher un domaine de dev/preview à l'utilisateur.
+ */
+const DASHBOARD_URL = 'https://app.kalyxwallet.com';
+/** Icône servie par le site principal (chemin stable, indépendant du hash de build du dashboard). */
+const DASHBOARD_ICON = 'https://kalyxwallet.com/icon.png';
+
 // Session du tableau de bord : déconnexion auto après 30 min d'inactivité.
 const SESSION_TTL = 30 * 60 * 1000;
 
@@ -193,8 +203,8 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       metadata: {
         name: 'Kalyx Wallet',
         description: 'Tableau de bord Kalyx — votre portefeuille, en lecture seule',
-        url: (globalThis as { location?: { origin: string } }).location?.origin ?? 'https://nova.wallet',
-        icons: [],
+        url: DASHBOARD_URL,
+        icons: [DASHBOARD_ICON],
       },
     });
     const sessions = client.session.getAll();
