@@ -731,7 +731,6 @@ function NetworkSelector({ vertical }: { vertical: boolean }) {
   const chains = useMemo(() => accounts.map((a) => chainById(a.chainId)), [accounts]);
   const filtered = chains.filter((c) => !q || c.name.toLowerCase().includes(q.trim().toLowerCase()));
   const item = (c: ChainConfig) => {
-    const t = useT();
     const on = c.id === selected;
     return (
       <Pressable
