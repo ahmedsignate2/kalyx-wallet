@@ -338,11 +338,15 @@ function Dashboard() {
   const address = useMemo(() => accounts.find((a) => a.chainId === selected)?.address ?? '', [accounts, selected]);
   const isEvm = chain.family === 'evm';
   const worth = useNetWorth();
+  // Sur téléphone (1 colonne), les sections secondaires démarrent repliées
+  // pour raccourcir la page — le contenu essentiel (solde, tokens, réseau,
+  // envoyer/swap) reste visible d'entrée.
+  const narrow = !wide && !mid;
 
   // Blocs réutilisés, disposés différemment selon la largeur d'écran.
   const heroBlock = <HeroValue worth={worth} chain={chain} address={address} />;
   const allocBlock = (
-    <Zone title="Répartition du portefeuille"><AllocationPanel worth={worth} /></Zone>
+    <Zone title="Répartition du portefeuille" collapsible={narrow}><AllocationPanel worth={worth} /></Zone>
   );
   const tokensBlock = (
     <Zone title={t("tabTokens")}>
@@ -350,18 +354,18 @@ function Dashboard() {
     </Zone>
   );
   const nftBlock = (
-    <Zone title={t("tabNft")}>
+    <Zone title={t("tabNft")} collapsible={narrow}>
       {isEvm ? <NftsPanel chain={chain} address={address} /> : <Note text={`Les NFT affichés ici concernent les réseaux EVM.`} />}
     </Zone>
   );
-  const activityBlock = <Zone title={t("activity")}><HistoryPanel chain={chain} address={address} /></Zone>;
+  const activityBlock = <Zone title={t("activity")} collapsible={narrow}><HistoryPanel chain={chain} address={address} /></Zone>;
   const securityBlock = <Zone title={t("security")}><SecurityPanel /></Zone>;
-  const watchBlock = <Zone title="Watchlist"><WatchlistPanel worth={worth} /></Zone>;
+  const watchBlock = <Zone title="Watchlist" collapsible={narrow}><WatchlistPanel worth={worth} /></Zone>;
   const sendBlock = isEvm ? <Zone title={`Envoyer ${chain.nativeSymbol}`}><SendPanel chain={chain} address={address} /></Zone> : null;
   const swapBlock = isEvm ? <Zone title={t("swap")}><SwapPanel chain={chain} address={address} /></Zone> : null;
   const accountBlock = <AccountCard chain={chain} address={address} />;
   const networksBlock = <Zone title="Réseaux"><NetworkSelector vertical={mid} /></Zone>;
-  const settingsBlock = <Zone title={t("settings")}><SettingsPanel /></Zone>;
+  const settingsBlock = <Zone title={t("settings")} collapsible={narrow}><SettingsPanel /></Zone>;
 
   return (
     <ScrollView contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}>
@@ -470,16 +474,30 @@ function Card({ children }: { children: React.ReactNode }) {
 }
 
 /** Zone du tableau de bord desktop : petit titre + contenu. */
-function Zone({ title, style, children }: { title: string; style?: object; children: React.ReactNode }) {
+/** `collapsible` : replie la section derrière son titre (repliée par défaut).
+ *  Utilisé uniquement en mobile étroit, pour raccourcir la page sans toucher
+ *  à la navigation — les sections secondaires (NFT, activité, watchlist…)
+ *  n'ont pas besoin d'être visibles d'entrée sur un écran de téléphone. */
+function Zone({ title, style, collapsible, children }: { title: string; style?: object; collapsible?: boolean; children: React.ReactNode }) {
   const t = useT();
   const { colors, typography } = useTheme();
+  const [open, setOpen] = useState(!collapsible);
+  const Header = collapsible ? Pressable : View;
   return (
     <View style={[{ minWidth: 0, gap: spacing(1) }, style]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(0.75) }}>
+      <Header
+        {...(collapsible ? { onPress: () => setOpen((v) => !v) } : {})}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(0.75) }}
+      >
         <View style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: colors.accent }} />
-        <Text style={[typography.section, { fontSize: 13 }]}>{title}</Text>
-      </View>
-      {children}
+        <Text style={[typography.section, { fontSize: 13, flex: 1 }]}>{title}</Text>
+        {collapsible ? (
+          <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
+            <Icon name="caretDown" size={14} color={colors.textMuted} />
+          </View>
+        ) : null}
+      </Header>
+      {open ? children : null}
     </View>
   );
 }
