@@ -1,0 +1,22 @@
+{
+  "name": "kalyx-telegram-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bot Telegram Kalyx — point d'entrée vers la Mini App, prix, gas, scan anti-arnaque, alertes. Ne touche jamais aux clés.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit -p .",
+    "db:init": "wrangler d1 execute kalyx-bot --remote --file=./schema.sql",
+    "setup": "bash scripts/setup.sh"
+  },
+  "dependencies": {
+    "grammy": "^1.32.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250204.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^3.100.0"
+  }
+}
