@@ -12,7 +12,7 @@
  *             ici (simulation → envoi → confirmation, comme l'app).
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { View, ScrollView, Pressable as RNPressable, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Pressable as RNPressable } from 'react-native';
 import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState } from '../kit';
 import { SuccessModal } from '../SuccessModal';
 import { TokenPicker } from '../TokenPicker';
@@ -30,6 +30,7 @@ import {
 } from '../../src';
 import { encodeErc20Approve, hexQuantity } from './evmEncode';
 import { useWebT } from './webI18n';
+import { KalyxSpinner } from './motion';
 import { addressForChain, chainOf } from './webAccounts';
 
 const QUOTE_TTL_S = 30;
@@ -453,7 +454,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       {/* Exécution en cours : statut (le téléphone signe, ce site diffuse/attend) */}
       <Sheet visible={confirming} onClose={() => undefined} dismissable={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], paddingVertical: space[2] }}>
-          <ActivityIndicator color={colors.text} />
+          <KalyxSpinner size={24} />
           <View style={{ flex: 1 }}>
             <Text variant="body">{step ?? t('preparing')}</Text>
             <Text variant="caption" tone="secondary">{tw('approveWhenAsked')}</Text>
