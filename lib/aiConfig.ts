@@ -77,9 +77,19 @@ export function buildAiRequestParams(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${apiKey.trim()}`,
-    'HTTP-Referer': 'https://kalyxwallet.app',
-    'X-Title': 'Kalyx Wallet Copilot',
   };
+
+  // HTTP-Referer/X-Title sont des en-têtes propres à OpenRouter (attribution
+  // app pour leur classement) — les envoyer aux autres fournisseurs ne sert à
+  // rien et casse Gemini sur le web : son endpoint OpenAI-compat REJETTE le
+  // preflight CORS dès qu'un en-tête personnalisé non reconnu est demandé
+  // (403 sur l'OPTIONS, vérifié), ce qui bloque toute la requête avant même
+  // qu'elle parte (React Native n'a pas ce souci, d'où le bug invisible côté
+  // app mobile jusqu'ici).
+  if (provider === 'openrouter') {
+    headers['HTTP-Referer'] = 'https://kalyxwallet.app';
+    headers['X-Title'] = 'Kalyx Wallet Copilot';
+  }
 
   // Anthropic uses x-api-key instead of Bearer
   if (provider === 'anthropic') {
@@ -91,10 +101,27 @@ export function buildAiRequestParams(
   return { url, headers, model };
 }
 
-export function mapAiErrorToMessage(status: number): string {
-  if (status === 401 || status === 403) return 'Clé API invalide ou révoquée.';
-  if (status === 402 || status === 429) return 'Quota IA atteint. La clé API configurée a atteint sa limite. Ajoute une autre clé ou réessaie plus tard.';
-  if (status === 404 || status === 400) return 'Modèle indisponible ou URL incorrecte.';
-  if (status >= 500) return 'Serveur fournisseur indisponible (Erreur 500).';
-  return `Erreur inconnue (${status}).`;
+/** `detail` : message d'erreur renvoyé par le fournisseur lui-même (JSON de la
+ *  réponse), quand on l'a — bien plus précis que le seau générique par code
+ *  HTTP (ex. « modèle non disponible sur ce palier gratuit » plutôt qu'un
+ *  vague « modèle indisponible »). Toujours ajouté entre parenthèses s'il existe. */
+export function mapAiErrorToMessage(status: number, detail?: string): string {
+  const base = (() => {
+    if (status === 401 || status === 403) return 'Clé API invalide ou révoquée.';
+    if (status === 402 || status === 429) return 'Quota IA atteint. La clé API configurée a atteint sa limite. Ajoute une autre clé ou réessaie plus tard.';
+    if (status === 404 || status === 400) return 'Modèle indisponible ou URL incorrecte.';
+    if (status >= 500) return 'Serveur fournisseur indisponible (Erreur 500).';
+    return `Erreur inconnue (${status}).`;
+  })();
+  return detail ? `${base} (${detail})` : base;
+}
+
+/** Extrait le message d'erreur d'une réponse JSON de fournisseur IA — les
+ *  formats varient (OpenAI/Groq/DeepSeek : error.message ; Gemini : error.message
+ *  aussi mais parfois un tableau ; Anthropic : error.message). */
+export function extractProviderErrorDetail(body: unknown): string | undefined {
+  if (!body || typeof body !== 'object') return undefined;
+  const b = body as { error?: { message?: string } | string; message?: string };
+  const raw = typeof b.error === 'string' ? b.error : b.error?.message ?? b.message;
+  return typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 200) : undefined;
 }

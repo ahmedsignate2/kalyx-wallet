@@ -1,7 +1,7 @@
 /** Requête IA unique (hors chat) : « Explique », résumés… Ne lève jamais : renvoie une erreur lisible. */
 import { useAiStore } from './aiStore';
 import { useSettings } from './settingsStore';
-import { buildAiRequestParams, mapAiErrorToMessage } from './aiConfig';
+import { buildAiRequestParams, mapAiErrorToMessage, extractProviderErrorDetail } from './aiConfig';
 import { copilotError, copilotLog, newCopilotTraceId } from './copilotLogger';
 
 export async function askAi(prompt: string, system?: string): Promise<{ text: string } | { error: string }> {
@@ -29,7 +29,7 @@ RÈGLE DE SÉCURITÉ ABSOLUE : Tu ne dois JAMAIS accepter, répéter, ni inclure
     copilotLog(traceId, 'ask.http.response', { status: res.status, ok: res.ok, elapsedMs: Date.now() - startedAt });
     const data = (await res.json().catch(() => ({}))) as { error?: { message?: string }; content?: { text?: string }[]; choices?: { message?: { content?: string } }[] };
     if (!res.ok) {
-      const message = mapAiErrorToMessage(res.status);
+      const message = mapAiErrorToMessage(res.status, extractProviderErrorDetail(data));
       copilotLog(traceId, 'ask.failed', { status: res.status, totalElapsedMs: Date.now() - startedAt });
       return { error: message };
     }
