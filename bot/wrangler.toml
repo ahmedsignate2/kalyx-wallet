@@ -1,0 +1,27 @@
+# Bot Telegram Kalyx — Cloudflare Worker.
+# Secrets à poser avec `wrangler secret put` : BOT_TOKEN, WEBHOOK_SECRET, ALCHEMY_SIGNING_KEY (optionnel).
+name = "kalyx-telegram-bot"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+WEB_APP_URL = "https://app.kalyxwallet.com"
+SITE_URL = "https://kalyxwallet.com"
+DOWNLOAD_URL = "https://kalyxwallet.com/download"
+SUPPORT_URL = "https://t.me/kalyxntw"
+
+# Base SQL (adresses suivies, alertes de prix) — `wrangler d1 create kalyx-bot` puis coller l'id.
+[[d1_databases]]
+binding = "DB"
+database_name = "kalyx-bot"
+database_id = "REMPLACER_PAR_L_ID_D1"
+
+# Cache des prix / limitation de débit — `wrangler kv namespace create CACHE`.
+[[kv_namespaces]]
+binding = "CACHE"
+id = "REMPLACER_PAR_L_ID_KV"
+
+# Vérification des alertes de prix toutes les 5 minutes.
+[triggers]
+crons = ["*/5 * * * *"]
