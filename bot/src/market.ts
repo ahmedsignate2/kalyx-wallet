@@ -96,6 +96,6 @@ export async function getGas(env: Env): Promise<{ evm: GasRow[]; solanaPriority:
     solanaPriority = null;
   }
   const out = { evm, solanaPriority };
-  await env.CACHE.put('gas', JSON.stringify(out), { expirationTtl: 30 });
+  await env.CACHE.put('gas', JSON.stringify(out), { expirationTtl: 60 });
   return out;
 }
