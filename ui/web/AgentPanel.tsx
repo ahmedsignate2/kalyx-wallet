@@ -31,8 +31,8 @@ const PROVIDER_LABELS: Record<AiProvider, string> = {
 };
 const PROVIDERS = Object.keys(PROVIDER_DEFAULTS) as AiProvider[];
 
-/** Or de marque Kalyx (déjà utilisé pour l'icône de notification, app.config.ts). */
-const GOLD = '#DDB565';
+/** Laiton/or de marque Kalyx — même valeur que ui/web/WebDashboard.tsx. */
+const GOLD = '#C89B5C';
 
 const SUGGESTIONS: { title: string; description: string; prompt: string; icon: IconName; color: string }[] = [
   { title: 'Audit du portefeuille', description: 'Vérifie les permissions et contrats suspects', prompt: 'Analyse le niveau de risque de mon portefeuille et détecte les anomalies.', icon: 'security', color: GOLD },
