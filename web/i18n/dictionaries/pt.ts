@@ -13,6 +13,7 @@ const pt: Dict = {
     fees: 'Taxas',
     vision: 'Visão',
     downloadApk: 'Transferir o APK',
+    webApp: 'Abrir a app web',
     openMenu: 'Abrir o menu',
     closeMenu: 'Fechar o menu',
     language: 'Idioma',

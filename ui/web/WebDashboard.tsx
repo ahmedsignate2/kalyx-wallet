@@ -261,6 +261,7 @@ function SigningModal() {
 function ConnectView() {
   const t = useT();
   const tw = useWebT();
+  const [installOpen, setInstallOpen] = useState(false);
   const { colors, typography } = useTheme();
   const status = useWebConnect((s) => s.status);
   const uri = useWebConnect((s) => s.uri);
@@ -331,8 +332,58 @@ function ConnectView() {
         )}
 
         {error ? <Text style={{ color: colors.danger, textAlign: 'center' }}>{error}</Text> : null}
+
+        <Pressable onPress={() => setInstallOpen(true)} hitSlop={8} style={({ pressed }) => ({ marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: 6, opacity: pressed ? 0.6 : 1 })}>
+          <Icon name="import" size={14} color={GOLD} />
+          <Text style={{ color: GOLD, fontFamily: fonts.semibold, fontSize: 13, textDecorationLine: 'underline' }}>{tw('noAppYet')}</Text>
+        </Pressable>
       </View>
+
+      <InstallSheet visible={installOpen} onClose={() => setInstallOpen(false)} />
     </View>
+  );
+}
+
+/** Lien unique et évolutif : détecte l'appareil et sert l'APK signé de la dernière
+ *  release (ou le store adapté). Le même que le bouton « Partager » de l'app. */
+const DOWNLOAD_URL = 'https://kalyxwallet.com/download';
+
+/** « Pas encore l'app ? » — pourquoi le téléphone est indispensable, les trois
+ *  étapes, et le bouton vers la dernière version. */
+function InstallSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const tw = useWebT();
+  const { colors, typography } = useTheme();
+  const steps = [tw('installStep1'), tw('installStep2'), tw('installStep3')];
+  const open = () => {
+    const w = (globalThis as { open?: (u: string, target?: string, features?: string) => unknown }).open;
+    w?.(DOWNLOAD_URL, '_blank', 'noopener,noreferrer');
+  };
+  return (
+    <Sheet visible={visible} onClose={onClose}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: GOLD + '1F', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="security" size={22} color={GOLD} />
+        </View>
+        <KText variant="title2" style={{ flex: 1 }}>{tw('installTitle')}</KText>
+      </View>
+      <KText variant="bodySecondary" tone="secondary">{tw('installWhy')}</KText>
+      <KText variant="caption" tone="secondary" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>{tw('installStepsTitle')}</KText>
+      <Surface padded={false}>
+        {steps.map((st, i) => (
+          <React.Fragment key={i}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing(1.5), padding: spacing(1.5) }}>
+              <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#171310', fontFamily: fonts.bold, fontSize: 13 }}>{i + 1}</Text>
+              </View>
+              <Text style={[typography.body, { flex: 1, color: colors.text }]}>{st}</Text>
+            </View>
+            {i < steps.length - 1 ? <Divider inset={16} /> : null}
+          </React.Fragment>
+        ))}
+      </Surface>
+      <Button label={tw('installCta')} icon="import" onPress={open} />
+      <KText variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{tw('installNote')}</KText>
+    </Sheet>
   );
 }
 

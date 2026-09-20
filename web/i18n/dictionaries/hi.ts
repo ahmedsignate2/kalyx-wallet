@@ -13,6 +13,7 @@ const hi: Dict = {
     fees: 'शुल्क',
     vision: 'दृष्टि',
     downloadApk: 'APK डाउनलोड करें',
+    webApp: 'वेब ऐप खोलें',
     openMenu: 'मेनू खोलें',
     closeMenu: 'मेनू बंद करें',
     language: 'भाषा',

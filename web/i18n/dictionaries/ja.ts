@@ -13,6 +13,7 @@ const ja: Dict = {
     fees: '手数料',
     vision: 'ビジョン',
     downloadApk: 'APK をダウンロード',
+    webApp: 'ウェブアプリを開く',
     openMenu: 'メニューを開く',
     closeMenu: 'メニューを閉じる',
     language: '言語',

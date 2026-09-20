@@ -12,6 +12,15 @@ import { useSettings } from '../../lib/settingsStore';
 import type { Lang } from '../../lib/i18n';
 
 const en = {
+  noAppYet: 'Don\'t have the Kalyx app yet?',
+  installTitle: 'Why the phone app?',
+  installWhy: 'Kalyx is non-custodial: your keys are created and stay on your phone, encrypted with your PIN. This website never sees them — it only shows your balances and forwards each signature to the phone, where you approve it. Without the app, there is nothing to connect.',
+  installStepsTitle: 'Three steps',
+  installStep1: 'Install Kalyx on your phone (Android now, iOS coming).',
+  installStep2: 'Create or import your wallet and choose a PIN — write your recovery phrase down offline.',
+  installStep3: 'Come back here, open WalletConnect in Kalyx and scan the QR code shown on this page.',
+  installCta: 'Install the latest version of Kalyx',
+  installNote: 'Signed APK from the official Kalyx release — always check the address bar: kalyxwallet.com.',
   newChat: 'New chat',
   chatHistory: 'Conversations',
   noChats: 'No conversation yet.',
@@ -197,6 +206,15 @@ export type WebKey = keyof typeof en;
 type Dict = Record<WebKey, string>;
 
 const fr: Dict = {
+  noAppYet: 'Tu n\'as pas encore l\'app Kalyx ?',
+  installTitle: 'Pourquoi l\'app sur le téléphone ?',
+  installWhy: 'Kalyx est non-custodial : tes clés sont créées et restent sur ton téléphone, chiffrées avec ton PIN. Ce site ne les voit jamais — il affiche seulement tes soldes et transmet chaque signature au téléphone, où tu la valides. Sans l\'app, il n\'y a rien à connecter.',
+  installStepsTitle: 'Trois étapes',
+  installStep1: 'Installe Kalyx sur ton téléphone (Android maintenant, iOS bientôt).',
+  installStep2: 'Crée ou importe ton portefeuille et choisis un PIN — note ta phrase de récupération hors ligne.',
+  installStep3: 'Reviens ici, ouvre WalletConnect dans Kalyx et scanne le QR affiché sur cette page.',
+  installCta: 'Installer la dernière version de Kalyx',
+  installNote: 'APK signé depuis la release officielle Kalyx — vérifie toujours la barre d\'adresse : kalyxwallet.com.',
   newChat: 'Nouvelle discussion',
   chatHistory: 'Conversations',
   noChats: 'Aucune conversation pour l\'instant.',
@@ -368,6 +386,15 @@ const fr: Dict = {
 };
 
 const es: Dict = {
+  noAppYet: '¿Aún no tienes la app Kalyx?',
+  installTitle: '¿Por qué la app en el teléfono?',
+  installWhy: 'Kalyx es no custodial: tus claves se crean y se quedan en tu teléfono, cifradas con tu PIN. Este sitio nunca las ve: solo muestra tus saldos y reenvía cada firma al teléfono, donde la apruebas. Sin la app no hay nada que conectar.',
+  installStepsTitle: 'Tres pasos',
+  installStep1: 'Instala Kalyx en tu teléfono (Android ahora, iOS próximamente).',
+  installStep2: 'Crea o importa tu cartera y elige un PIN; anota tu frase de recuperación sin conexión.',
+  installStep3: 'Vuelve aquí, abre WalletConnect en Kalyx y escanea el QR de esta página.',
+  installCta: 'Instalar la última versión de Kalyx',
+  installNote: 'APK firmado desde la release oficial de Kalyx; comprueba siempre la barra de direcciones: kalyxwallet.com.',
   newChat: 'Nueva conversación',
   chatHistory: 'Conversaciones',
   noChats: 'Aún no hay conversaciones.',
@@ -539,6 +566,15 @@ const es: Dict = {
 };
 
 const pt: Dict = {
+  noAppYet: 'Ainda não tem a app Kalyx?',
+  installTitle: 'Porquê a app no telemóvel?',
+  installWhy: 'O Kalyx é non-custodial: as suas chaves são criadas e ficam no telemóvel, cifradas com o PIN. Este site nunca as vê — só mostra saldos e envia cada assinatura ao telemóvel, onde a aprova. Sem a app, não há nada a ligar.',
+  installStepsTitle: 'Três passos',
+  installStep1: 'Instale o Kalyx no telemóvel (Android agora, iOS em breve).',
+  installStep2: 'Crie ou importe a carteira e escolha um PIN — anote a frase de recuperação offline.',
+  installStep3: 'Volte aqui, abra o WalletConnect no Kalyx e leia o QR desta página.',
+  installCta: 'Instalar a última versão do Kalyx',
+  installNote: 'APK assinado da release oficial Kalyx — verifique sempre a barra de endereço: kalyxwallet.com.',
   newChat: 'Nova conversa',
   chatHistory: 'Conversas',
   noChats: 'Ainda sem conversas.',
@@ -710,6 +746,15 @@ const pt: Dict = {
 };
 
 const de: Dict = {
+  noAppYet: 'Noch keine Kalyx-App?',
+  installTitle: 'Warum die App auf dem Telefon?',
+  installWhy: 'Kalyx ist non-custodial: Deine Schlüssel entstehen und bleiben auf deinem Telefon, mit deiner PIN verschlüsselt. Diese Seite sieht sie nie — sie zeigt nur Guthaben an und leitet jede Signatur ans Telefon weiter, wo du sie bestätigst. Ohne App gibt es nichts zu verbinden.',
+  installStepsTitle: 'Drei Schritte',
+  installStep1: 'Installiere Kalyx auf deinem Telefon (Android jetzt, iOS bald).',
+  installStep2: 'Erstelle oder importiere deine Wallet und wähle eine PIN — notiere die Wiederherstellungsphrase offline.',
+  installStep3: 'Komm hierher zurück, öffne WalletConnect in Kalyx und scanne den QR-Code dieser Seite.',
+  installCta: 'Neueste Kalyx-Version installieren',
+  installNote: 'Signierte APK aus dem offiziellen Kalyx-Release — prüfe immer die Adressleiste: kalyxwallet.com.',
   newChat: 'Neuer Chat',
   chatHistory: 'Unterhaltungen',
   noChats: 'Noch keine Unterhaltung.',
@@ -881,6 +926,15 @@ const de: Dict = {
 };
 
 const it: Dict = {
+  noAppYet: 'Non hai ancora l’app Kalyx?',
+  installTitle: 'Perché l’app sul telefono?',
+  installWhy: 'Kalyx è non-custodial: le tue chiavi nascono e restano sul telefono, cifrate con il PIN. Questo sito non le vede mai — mostra solo i saldi e inoltra ogni firma al telefono, dove la approvi. Senza l’app non c’è nulla da collegare.',
+  installStepsTitle: 'Tre passi',
+  installStep1: 'Installa Kalyx sul telefono (Android ora, iOS in arrivo).',
+  installStep2: 'Crea o importa il wallet e scegli un PIN — annota la frase di recupero offline.',
+  installStep3: 'Torna qui, apri WalletConnect in Kalyx e scansiona il QR di questa pagina.',
+  installCta: 'Installa l’ultima versione di Kalyx',
+  installNote: 'APK firmato dalla release ufficiale Kalyx — controlla sempre la barra degli indirizzi: kalyxwallet.com.',
   newChat: 'Nuova chat',
   chatHistory: 'Conversazioni',
   noChats: 'Nessuna conversazione.',
@@ -1052,6 +1106,15 @@ const it: Dict = {
 };
 
 const nl: Dict = {
+  noAppYet: 'Nog geen Kalyx-app?',
+  installTitle: 'Waarom de app op je telefoon?',
+  installWhy: 'Kalyx is non-custodial: je sleutels worden op je telefoon gemaakt en blijven daar, versleuteld met je pincode. Deze site ziet ze nooit — hij toont alleen saldi en stuurt elke handtekening door naar de telefoon, waar je ze goedkeurt. Zonder app is er niets te verbinden.',
+  installStepsTitle: 'Drie stappen',
+  installStep1: 'Installeer Kalyx op je telefoon (Android nu, iOS binnenkort).',
+  installStep2: 'Maak of importeer je wallet en kies een pincode — noteer je herstelzin offline.',
+  installStep3: 'Kom hier terug, open WalletConnect in Kalyx en scan de QR-code op deze pagina.',
+  installCta: 'Nieuwste versie van Kalyx installeren',
+  installNote: 'Ondertekende APK uit de officiële Kalyx-release — controleer altijd de adresbalk: kalyxwallet.com.',
   newChat: 'Nieuwe chat',
   chatHistory: 'Gesprekken',
   noChats: 'Nog geen gesprek.',
@@ -1223,6 +1286,15 @@ const nl: Dict = {
 };
 
 const pl: Dict = {
+  noAppYet: 'Nie masz jeszcze aplikacji Kalyx?',
+  installTitle: 'Dlaczego aplikacja na telefonie?',
+  installWhy: 'Kalyx jest non-custodial: klucze powstają i zostają na telefonie, zaszyfrowane PIN-em. Ta strona nigdy ich nie widzi — pokazuje tylko salda i przekazuje każdy podpis do telefonu, gdzie go zatwierdzasz. Bez aplikacji nie ma czego połączyć.',
+  installStepsTitle: 'Trzy kroki',
+  installStep1: 'Zainstaluj Kalyx na telefonie (Android teraz, iOS wkrótce).',
+  installStep2: 'Utwórz lub zaimportuj portfel i ustaw PIN — zapisz frazę odzyskiwania offline.',
+  installStep3: 'Wróć tutaj, otwórz WalletConnect w Kalyx i zeskanuj kod QR z tej strony.',
+  installCta: 'Zainstaluj najnowszą wersję Kalyx',
+  installNote: 'Podpisany APK z oficjalnego wydania Kalyx — zawsze sprawdzaj pasek adresu: kalyxwallet.com.',
   newChat: 'Nowa rozmowa',
   chatHistory: 'Rozmowy',
   noChats: 'Brak rozmów.',
@@ -1394,6 +1466,15 @@ const pl: Dict = {
 };
 
 const tr: Dict = {
+  noAppYet: 'Henüz Kalyx uygulaman yok mu?',
+  installTitle: 'Neden telefonda uygulama?',
+  installWhy: 'Kalyx non-custodial: anahtarların telefonunda oluşturulur ve orada kalır, PIN ile şifrelenir. Bu site onları hiç görmez — yalnızca bakiyelerini gösterir ve her imzayı onayladığın telefona iletir. Uygulama olmadan bağlanacak bir şey yok.',
+  installStepsTitle: 'Üç adım',
+  installStep1: 'Kalyx’i telefonuna kur (Android şimdi, iOS yakında).',
+  installStep2: 'Cüzdanını oluştur veya içe aktar, bir PIN seç — kurtarma ifadeni çevrimdışı not et.',
+  installStep3: 'Buraya dön, Kalyx’te WalletConnect’i aç ve bu sayfadaki QR kodu tara.',
+  installCta: 'Kalyx’in son sürümünü kur',
+  installNote: 'Resmi Kalyx sürümünden imzalı APK — adres çubuğunu her zaman kontrol et: kalyxwallet.com.',
   newChat: 'Yeni sohbet',
   chatHistory: 'Sohbetler',
   noChats: 'Henüz sohbet yok.',
@@ -1565,6 +1646,15 @@ const tr: Dict = {
 };
 
 const ru: Dict = {
+  noAppYet: 'Ещё нет приложения Kalyx?',
+  installTitle: 'Зачем приложение на телефоне?',
+  installWhy: 'Kalyx — некастодиальный кошелёк: ключи создаются и остаются на телефоне, зашифрованные PIN-кодом. Этот сайт их никогда не видит — он показывает балансы и передаёт каждую подпись на телефон, где вы её подтверждаете. Без приложения подключать нечего.',
+  installStepsTitle: 'Три шага',
+  installStep1: 'Установите Kalyx на телефон (Android сейчас, iOS скоро).',
+  installStep2: 'Создайте или импортируйте кошелёк и задайте PIN — запишите фразу восстановления офлайн.',
+  installStep3: 'Вернитесь сюда, откройте WalletConnect в Kalyx и отсканируйте QR-код с этой страницы.',
+  installCta: 'Установить последнюю версию Kalyx',
+  installNote: 'Подписанный APK из официального релиза Kalyx — всегда проверяйте адресную строку: kalyxwallet.com.',
   newChat: 'Новый чат',
   chatHistory: 'Беседы',
   noChats: 'Бесед пока нет.',
@@ -1736,6 +1826,15 @@ const ru: Dict = {
 };
 
 const ar: Dict = {
+  noAppYet: 'ليس لديك تطبيق Kalyx بعد؟',
+  installTitle: 'لماذا التطبيق على الهاتف؟',
+  installWhy: 'Kalyx غير وصائي: تُنشأ مفاتيحك وتبقى على هاتفك مشفّرة برمز PIN. هذا الموقع لا يراها أبدًا — يعرض أرصدتك فقط ويرسل كل توقيع إلى الهاتف حيث توافق عليه. بدون التطبيق لا شيء يمكن ربطه.',
+  installStepsTitle: 'ثلاث خطوات',
+  installStep1: 'ثبّت Kalyx على هاتفك (Android الآن، iOS قريبًا).',
+  installStep2: 'أنشئ محفظتك أو استوردها واختر رمز PIN — دوّن عبارة الاسترداد دون اتصال.',
+  installStep3: 'عد إلى هنا، افتح WalletConnect في Kalyx وامسح رمز QR الظاهر في هذه الصفحة.',
+  installCta: 'تثبيت أحدث إصدار من Kalyx',
+  installNote: 'ملف APK موقّع من الإصدار الرسمي لـ Kalyx — تحقّق دائمًا من شريط العنوان: kalyxwallet.com.',
   newChat: 'محادثة جديدة',
   chatHistory: 'المحادثات',
   noChats: 'لا محادثات بعد.',
@@ -1907,6 +2006,15 @@ const ar: Dict = {
 };
 
 const hi: Dict = {
+  noAppYet: 'अभी Kalyx ऐप नहीं है?',
+  installTitle: 'फ़ोन पर ऐप क्यों?',
+  installWhy: 'Kalyx नॉन-कस्टोडियल है: आपकी कुंजियाँ फ़ोन पर बनती हैं और वहीं रहती हैं, PIN से एन्क्रिप्टेड। यह साइट उन्हें कभी नहीं देखती — केवल बैलेंस दिखाती है और हर हस्ताक्षर फ़ोन को भेजती है, जहाँ आप उसे स्वीकृत करते हैं। ऐप के बिना कनेक्ट करने को कुछ नहीं।',
+  installStepsTitle: 'तीन चरण',
+  installStep1: 'फ़ोन पर Kalyx इंस्टॉल करें (Android अभी, iOS जल्द)।',
+  installStep2: 'वॉलेट बनाएँ या इम्पोर्ट करें और PIN चुनें — रिकवरी वाक्य ऑफ़लाइन लिख लें।',
+  installStep3: 'यहाँ वापस आएँ, Kalyx में WalletConnect खोलें और इस पेज का QR स्कैन करें।',
+  installCta: 'Kalyx का नवीनतम संस्करण इंस्टॉल करें',
+  installNote: 'आधिकारिक Kalyx रिलीज़ से साइन किया APK — पता बार हमेशा जाँचें: kalyxwallet.com।',
   newChat: 'नई चैट',
   chatHistory: 'बातचीत',
   noChats: 'अभी कोई बातचीत नहीं।',
@@ -2078,6 +2186,15 @@ const hi: Dict = {
 };
 
 const zh: Dict = {
+  noAppYet: '还没有 Kalyx 应用？',
+  installTitle: '为什么需要手机应用？',
+  installWhy: 'Kalyx 是非托管钱包：密钥在你的手机上生成并保存，用 PIN 加密。本网站永远看不到它们——只显示余额，并把每次签名转给手机由你批准。没有应用，就没有可连接的对象。',
+  installStepsTitle: '三步',
+  installStep1: '在手机上安装 Kalyx（Android 现已可用，iOS 即将推出）。',
+  installStep2: '创建或导入钱包并设置 PIN——离线抄写助记词。',
+  installStep3: '回到这里，在 Kalyx 中打开 WalletConnect，扫描本页二维码。',
+  installCta: '安装最新版 Kalyx',
+  installNote: '来自 Kalyx 官方发布的签名 APK——请始终核对地址栏：kalyxwallet.com。',
   newChat: '新对话',
   chatHistory: '对话记录',
   noChats: '还没有对话。',
@@ -2249,6 +2366,15 @@ const zh: Dict = {
 };
 
 const ja: Dict = {
+  noAppYet: 'Kalyx アプリをまだお持ちでない？',
+  installTitle: 'なぜスマートフォンのアプリが必要？',
+  installWhy: 'Kalyx はノンカストディアルです。鍵はスマートフォン上で作られ、PIN で暗号化されてそこに留まります。このサイトは鍵を一切見ません。残高を表示し、各署名をスマートフォンに転送して、あなたが承認するだけです。アプリがなければ接続するものがありません。',
+  installStepsTitle: '3 ステップ',
+  installStep1: 'スマートフォンに Kalyx をインストール（Android は今、iOS は近日）。',
+  installStep2: 'ウォレットを作成またはインポートし、PIN を設定。リカバリーフレーズはオフラインで書き留めてください。',
+  installStep3: 'ここに戻り、Kalyx で WalletConnect を開いてこのページの QR をスキャン。',
+  installCta: 'Kalyx の最新版をインストール',
+  installNote: 'Kalyx 公式リリースの署名済み APK — アドレスバーを必ず確認：kalyxwallet.com',
   newChat: '新しいチャット',
   chatHistory: '会話',
   noChats: 'まだ会話がありません。',
@@ -2420,6 +2546,15 @@ const ja: Dict = {
 };
 
 const ko: Dict = {
+  noAppYet: '아직 Kalyx 앱이 없나요?',
+  installTitle: '왜 휴대폰 앱이 필요한가요?',
+  installWhy: 'Kalyx는 논커스터디얼입니다. 키는 휴대폰에서 생성되어 PIN으로 암호화된 채 그곳에만 남습니다. 이 사이트는 키를 절대 보지 않으며, 잔액을 보여주고 각 서명을 휴대폰으로 전달해 당신이 승인하게 합니다. 앱이 없으면 연결할 것이 없습니다.',
+  installStepsTitle: '3단계',
+  installStep1: '휴대폰에 Kalyx를 설치하세요 (Android 지금, iOS 곧).',
+  installStep2: '지갑을 만들거나 가져오고 PIN을 설정하세요 — 복구 문구는 오프라인에 적어 두세요.',
+  installStep3: '여기로 돌아와 Kalyx에서 WalletConnect를 열고 이 페이지의 QR을 스캔하세요.',
+  installCta: '최신 Kalyx 설치',
+  installNote: '공식 Kalyx 릴리스의 서명된 APK — 주소창을 항상 확인하세요: kalyxwallet.com.',
   newChat: '새 대화',
   chatHistory: '대화 목록',
   noChats: '아직 대화가 없습니다.',

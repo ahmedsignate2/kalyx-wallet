@@ -13,6 +13,7 @@ const ko: Dict = {
     fees: '수수료',
     vision: '비전',
     downloadApk: 'APK 다운로드',
+    webApp: '웹 앱 열기',
     openMenu: '메뉴 열기',
     closeMenu: '메뉴 닫기',
     language: '언어',
