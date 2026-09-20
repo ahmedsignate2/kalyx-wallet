@@ -261,7 +261,12 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     try {
       await get().init();
       if (!client) throw new Error('client indisponible');
-      const evmMethods = ['eth_sendTransaction', 'personal_sign', 'eth_signTypedData', 'eth_signTypedData_v4'];
+      // MOINDRE PRIVILÈGE : le tableau de bord ne demande QUE ce qu'il utilise
+      // (envoyer / swap). Pas de personal_sign, pas de signTypedData, pas de
+      // signMessage, pas de PSBT : même un script hostile exécuté sur cette
+      // origine ne pourrait pas demander au téléphone de signer un message
+      // arbitraire (login frauduleux, permit ERC-2612, listing NFT…).
+      const evmMethods = ['eth_sendTransaction'];
       const evmEvents = ['chainChanged', 'accountsChanged'];
       const { uri, approval } = await client.connect({
         // Obligatoire : seulement la présence d'Ethereum, AUCUNE méthode requise —
@@ -270,8 +275,8 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
         requiredNamespaces: { eip155: { methods: [], chains: ['eip155:1'], events: [] } },
         optionalNamespaces: {
           eip155: { methods: evmMethods, chains: evmCaips(), events: evmEvents },
-          solana: { methods: ['solana_getAccounts', 'solana_signTransaction', 'solana_signAllTransactions', 'solana_signMessage'], chains: [SOLANA_CAIP], events: ['accountsChanged'] },
-          bip122: { methods: ['getAccountAddresses', 'getAccounts', 'signPsbt', 'signMessage', 'sendTransfer', 'sendTransaction'], chains: [BTC_CAIP], events: [] },
+          solana: { methods: ['solana_getAccounts', 'solana_signTransaction'], chains: [SOLANA_CAIP], events: ['accountsChanged'] },
+          bip122: { methods: ['getAccountAddresses', 'getAccounts', 'sendTransfer'], chains: [BTC_CAIP], events: [] },
         },
       });
       if (uri) set({ uri });

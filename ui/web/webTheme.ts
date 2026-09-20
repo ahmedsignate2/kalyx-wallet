@@ -33,13 +33,14 @@ export const WEB_FONTS = {
   mono: 'ui-monospace, SFMono-Regular, Menlo, monospace',
 } as const;
 
-const GOOGLE_FONTS_HREF =
-  'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap';
+/** Feuille @font-face auto-hébergée (public/fonts) : aucune requête vers Google
+ *  Fonts — pas de tiers dans le chemin critique, pas d'IP visiteur transmise,
+ *  et compatible avec une CSP stricte (`font-src 'self'`). */
+const FONTS_HREF = '/fonts/fonts.css';
 
-/** Injecte une seule fois la feuille Google Fonts dans <head>. No-op hors web. */
+/** Injecte une seule fois la feuille de polices dans <head>. No-op hors web. */
 export function useWebFonts() {
   useEffect(() => {
-    // Pas de lib DOM dans le tsconfig (ciblé mobile) : forme minimale typée à la main.
     type MinimalDoc = {
       querySelector: (sel: string) => unknown;
       createElement: (tag: string) => { rel: string; href: string; setAttribute: (k: string, v: string) => void };
@@ -49,7 +50,7 @@ export function useWebFonts() {
     if (!doc || doc.querySelector('link[data-kalyx-fonts]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = GOOGLE_FONTS_HREF;
+    link.href = FONTS_HREF;
     link.setAttribute('data-kalyx-fonts', '1');
     doc.head.appendChild(link);
   }, []);

@@ -191,3 +191,16 @@ export function useIdle(timeoutMs: number, enabled: boolean): boolean {
   }, [timeoutMs, enabled, idle]);
   return idle;
 }
+
+/** Passe à true à chaque fois que l'onglet part en arrière-plan (puis false au retour). */
+export function useTabHidden(): boolean {
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    const doc = (globalThis as { document?: { hidden?: boolean; addEventListener?: (t: string, cb: () => void) => void; removeEventListener?: (t: string, cb: () => void) => void } }).document;
+    if (!doc?.addEventListener) return;
+    const on = () => setHidden(!!doc.hidden);
+    doc.addEventListener('visibilitychange', on);
+    return () => doc.removeEventListener?.('visibilitychange', on);
+  }, []);
+  return hidden;
+}
