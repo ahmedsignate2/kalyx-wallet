@@ -9,26 +9,27 @@
  * qui a un repli localStorage sur le web) — jamais envoyée à Kalyx.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, Linking, ActivityIndicator } from 'react-native';
 import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useAiStore, type AiProvider } from '../../lib/aiStore';
 import { useAiChatHistoryStore } from '../../lib/aiChatHistoryStore';
 import { askAi } from '../../lib/aiAsk';
 import { validateAiKey } from '../../lib/aiValidator';
+import { PROVIDER_DEFAULTS } from '../../lib/aiConfig';
 import { serializeCopilotContext } from '../../lib/copilotContext';
 import { useT, useSettings } from '../../lib/settingsStore';
 import { toast } from '../../lib/toast';
 import { useWebCopilotContext } from './webCopilotContext';
 import type { ChainConfig } from '../../src';
 
-const PROVIDERS: { key: AiProvider; label: string }[] = [
-  { key: 'deepseek', label: 'DeepSeek' },
-  { key: 'openai', label: 'OpenAI' },
-  { key: 'anthropic', label: 'Anthropic' },
-  { key: 'gemini', label: 'Gemini' },
-  { key: 'groq', label: 'Groq' },
-];
+/** Même liste que app/ai-settings.tsx (tous les fournisseurs de aiConfig.ts,
+ *  « custom » compris — pas une sélection restreinte). */
+const PROVIDER_LABELS: Record<AiProvider, string> = {
+  deepseek: 'DeepSeek', openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Gemini', groq: 'Groq',
+  openrouter: 'OpenRouter', together: 'Together', huggingface: 'HuggingFace', custom: 'Autre (custom)',
+};
+const PROVIDERS = Object.keys(PROVIDER_DEFAULTS) as AiProvider[];
 
 function buildWebSystem(lang: string, context: string): string {
   return `Tu es Kalyx Copilot, l'assistant intégré de Kalyx Wallet, un wallet crypto 100 % non-custodial.
@@ -56,6 +57,8 @@ function AgentSetup() {
   const [provider, setProvider] = useState<AiProvider>('deepseek');
   const [key, setKey] = useState('');
   const [showKey, setShowKey] = useState(false);
+  const [customUrl, setCustomUrl] = useState('');
+  const [customModel, setCustomModel] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -63,14 +66,20 @@ function AgentSetup() {
     if (!key.trim()) return;
     setBusy(true);
     setErr(null);
-    const r = await validateAiKey(provider, key.trim());
-    if (!r.success) {
-      setErr(r.error ?? 'Clé invalide.');
-      setBusy(false);
-      return;
+    try {
+      const r = await validateAiKey(provider, key.trim(), customUrl.trim() || undefined, customModel.trim() || undefined);
+      if (!r.success) {
+        setErr(r.error ?? 'Clé invalide.');
+        setBusy(false);
+        return;
+      }
+      await setApiKey(key.trim(), provider, customUrl.trim() || undefined, customModel.trim() || undefined);
+      toast.success('Agent Kalyx activé !');
+    } catch (e) {
+      // Filet de sécurité : ne devrait plus se produire (voir fix lib/aiStore.ts),
+      // mais évite un bouton bloqué indéfiniment si un autre cas imprévu surgit.
+      setErr(e instanceof Error ? e.message : 'Erreur inattendue.');
     }
-    await setApiKey(key.trim(), provider);
-    toast.success('Agent Kalyx activé !');
     setBusy(false);
   };
 
@@ -84,16 +93,16 @@ function AgentSetup() {
         Analyse tes soldes, ton activité et le marché. Ta clé API reste sur cet appareil — jamais envoyée à Kalyx.
       </Text>
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(0.75), justifyContent: 'center', marginTop: spacing(1) }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ width: '100%', maxWidth: 400 }} contentContainerStyle={{ flexDirection: 'row', gap: spacing(0.75), justifyContent: 'center', marginTop: spacing(1), paddingHorizontal: spacing(1) }}>
         {PROVIDERS.map((p) => {
-          const on = p.key === provider;
+          const on = p === provider;
           return (
-            <Pressable key={p.key} onPress={() => setProvider(p.key)} style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.pill, backgroundColor: on ? colors.accent : colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}>
-              <Text style={{ color: on ? colors.onPrimary : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>{p.label}</Text>
+            <Pressable key={p} onPress={() => setProvider(p)} style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.pill, backgroundColor: on ? colors.accent : colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}>
+              <Text style={{ color: on ? colors.onPrimary : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }} numberOfLines={1}>{PROVIDER_LABELS[p]}</Text>
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       <View style={{ width: '100%', maxWidth: 340, flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, paddingHorizontal: spacing(1.25), marginTop: spacing(1) }}>
         <TextInput
@@ -109,6 +118,32 @@ function AgentSetup() {
           <Icon name={showKey ? 'eyeOff' : 'eye'} size={17} color={colors.textMuted} />
         </Pressable>
       </View>
+      {PROVIDER_DEFAULTS[provider]?.helperUrl ? (
+        <Pressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[provider].helperUrl!)}>
+          <Text style={{ color: colors.accent, fontSize: 12, textDecorationLine: 'underline' }}>Obtenir une clé gratuite</Text>
+        </Pressable>
+      ) : null}
+
+      {provider === 'custom' ? (
+        <View style={{ width: '100%', maxWidth: 340, gap: spacing(1) }}>
+          <TextInput
+            value={customUrl}
+            onChangeText={setCustomUrl}
+            placeholder="URL API (ex. https://api.together.xyz/v1/chat/completions)"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="none"
+            style={{ color: colors.text, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
+          />
+          <TextInput
+            value={customModel}
+            onChangeText={setCustomModel}
+            placeholder="Nom du modèle (ex. qwen-2.5-72b)"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="none"
+            style={{ color: colors.text, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
+          />
+        </View>
+      ) : null}
       {err ? <Text style={{ color: colors.danger, fontSize: 12, textAlign: 'center' }}>{err}</Text> : null}
 
       <Pressable onPress={onSave} disabled={busy || !key.trim()} style={({ pressed }) => ({ width: '100%', maxWidth: 340, marginTop: spacing(1), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.3), opacity: pressed || busy || !key.trim() ? 0.7 : 1 })}>
