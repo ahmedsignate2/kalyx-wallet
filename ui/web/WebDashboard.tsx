@@ -20,6 +20,7 @@ import { WEB_FONTS, useWebFonts, useWebPalette } from './webTheme';
 import { toRaw, toWei, encodeErc20Transfer, encodeErc20Approve } from './evmEncode';
 import { ReceiveScreen } from './ReceiveScreen';
 import { SendFlow } from './SendFlow';
+import { SwapScreen } from './SwapScreen';
 import { MobileHeader, NetworkPill, ActionRow, PeriodChips, SegmentTabs, MobileEmptyState, FloatingDock, DOCK_CLEARANCE } from './MobileChrome';
 import { useAiStore } from '../../lib/aiStore';
 import { AllocationDonut, foldSlices } from '../AllocationDonut';
@@ -664,12 +665,8 @@ function Dashboard() {
         />
       ) : null}
       {narrow && sheet === 'receive' ? <ReceiveScreen chain={chain} onClose={() => setSheet(null)} /> : null}
-      {narrow && sheet === 'send' ? <SendFlow chain={chain} address={address} onClose={() => setSheet(null)} onReceive={() => setSheet('receive')} /> : null}
-      {narrow && sheet === 'swap' ? (
-        <ActionSheet title={t("swapAction")} onClose={() => setSheet(null)}>
-          {isEvm ? <SwapPanel chain={chain} address={address} /> : <Note text="Le swap n'est disponible que sur les réseaux EVM." />}
-        </ActionSheet>
-      ) : null}
+      {narrow && sheet === 'send' ? <SendFlow chain={chain} onClose={() => setSheet(null)} onReceive={() => setSheet('receive')} /> : null}
+      {narrow && sheet === 'swap' ? <SwapScreen chain={chain} onClose={() => setSheet(null)} /> : null}
       {narrow && networkSheet ? (
         <ActionSheet title="Réseaux" onClose={() => setNetworkSheet(false)}>
           <NetworkSelector vertical onSelected={() => setNetworkSheet(false)} />
