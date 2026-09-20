@@ -43,6 +43,7 @@ import { buildTransferMessage, encodeLength } from '../../src/domain/chains/solT
 import { buildSplTransferMessage } from '../../src/domain/chains/solSpl';
 import { AntiDrainerBanner } from '../../src/components/security/AntiDrainerBanner';
 import { encodeErc20Transfer, hexQuantity } from './evmEncode';
+import { useWebT } from './webI18n';
 import { addressForChain, chainOf, useWebPortfolioAccount } from './webAccounts';
 
 type Step = 0 | 1 | 2 | 3 | 4;
@@ -63,6 +64,7 @@ function pick<T>(o: unknown, keys: string[]): T | undefined {
 
 export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: ChainConfig; onClose: () => void; onReceive: () => void }) {
   const t = useT();
+  const tw = useWebT();
   const { colors, typography } = useTheme();
   const fiat = useSettings((s) => s.fiat);
   const showTestnets = useSettings((s) => s.showTestnets);
@@ -239,19 +241,19 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
       const sol = getAdapter(chain.id) as SolanaChainAdapter;
       const latest = await sol.rpc<{ value?: { blockhash?: string } }>('getLatestBlockhash', [{ commitment: 'finalized' }]);
       const recentBlockhash = latest?.value?.blockhash;
-      if (!recentBlockhash) throw new Error('Blockhash Solana indisponible');
+      if (!recentBlockhash) throw new Error(tw('blockhashUnavailable'));
       const message = token
         ? buildSplTransferMessage({ from: senderAddress, to: recipient, mint: token.contract, amount: amountRaw, decimals: token.decimals, recentBlockhash })
         : buildTransferMessage({ from: senderAddress, to: recipient, lamports: amountRaw, recentBlockhash });
       const res: unknown = await request('solana_signTransaction', [{ transaction: unsignedSolanaTx(message) }]);
       const signed = pick<string>(res, ['transaction']) ?? (typeof res === 'string' ? res : undefined);
-      if (!signed) throw new Error('Le téléphone n\'a pas renvoyé la transaction signée.');
+      if (!signed) throw new Error(tw('phoneNoSignedTx'));
       // Simulation + diffusion + attente de confirmation : même chemin que l'app.
       return submitSolanaSigned(signed);
     }
     const res: unknown = await request('sendTransfer', [{ recipientAddress: recipient, amount: tokenAmountStr }]);
     const txid = pick<string>(res, ['txid']) ?? (typeof res === 'string' ? res : undefined);
-    if (!txid) throw new Error('Le téléphone n\'a pas renvoyé l\'identifiant de transaction.');
+    if (!txid) throw new Error(tw('phoneNoTxid'));
     return txid;
   };
 
@@ -269,7 +271,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
       toast.success(t('sendTitle'), `${formatTokenAmount(amountRaw, decimals)} ${symbol}`);
       pf.refresh(pfAccount!, fiat, { includeTestnets: showTestnets, force: true }).catch(() => {});
     } catch (e) {
-      setSendError(e instanceof Error ? e.message : 'Refusé ou échoué.');
+      setSendError(e instanceof Error ? e.message : tw('rejectedOrFailed'));
       setStep(3);
     } finally {
       setConfirming(false);
@@ -308,7 +310,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
   const goStep3 = () => {
     setAmountError(null);
     if (amountRaw <= 0n) return setAmountError(t('errEnterAmount'));
-    if (overBalance) return setAmountError(`Tu possèdes ${formatTokenAmount(balance ?? 0n, decimals)} ${symbol}${isNativeSend ? ` (frais réservés : ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol})` : ''}.`);
+    if (overBalance) return setAmountError(tw('youOwn', { balance: formatTokenAmount(balance ?? 0n, decimals), symbol, reserve: isNativeSend ? tw('feesReserved', { fee: `${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}` }) : '' }));
     if (notEnoughGas) return setAmountError(t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText));
     setSendError(null);
     setStep(3);
@@ -367,7 +369,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
         {/* ── 0. Quoi envoyer (agrégé multi-chaîne) ── */}
         {step === 0 ? (
           <>
-            <Input placeholder="usdc, arbitrum…" value={search} onChangeText={setSearch} autoCapitalize="none" />
+            <Input placeholder={tw('searchAssetPlaceholder')} value={search} onChangeText={setSearch} autoCapitalize="none" />
             {pf.loading && pf.holdings.length === 0 ? (
               <Surface padded={false}>{[0, 1, 2].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center', gap: space[2] }}><Skeleton width="55%" /><Skeleton width="30%" height={12} /></View>)}</Surface>
             ) : list.length === 0 ? (
@@ -519,13 +521,13 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
                   <ActivityIndicator color={colors.text} />
                   <Text variant="bodySecondary" tone="secondary" style={{ flex: 1 }}>
-                    {family === 'solana' ? 'Signature dans l\'app Kalyx, puis diffusion et confirmation Solana…' : 'Valide la transaction dans l\'app Kalyx (PIN ou biométrie)…'}
+                    {family === 'solana' ? tw('awaitSolana') : tw('awaitPhoneSign')}
                   </Text>
                 </View>
               )}
             </Surface>
             {hash ? <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t('canLeaveScreenInfo')}</Text> : null}
-            {explorerTx ? <Button label={t('trackTransaction')} variant="secondary" size="md" onPress={() => { const w = (globalThis as { open?: (u: string, target?: string) => unknown }).open; w?.(explorerTx, '_blank'); }} /> : null}
+            {explorerTx ? <Button label={t('trackTransaction')} variant="secondary" size="md" onPress={() => { const w = (globalThis as { open?: (u: string, target?: string, features?: string) => unknown }).open; w?.(explorerTx, '_blank', 'noopener,noreferrer'); }} /> : null}
             <View style={{ flex: 1 }} />
             {hash ? <Button label={t('actionDone')} onPress={onClose} /> : null}
           </>
@@ -542,7 +544,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
           <Divider inset={16} />
           <ListRow title={t('labelNetwork')} right={<Text variant="body">{chain.name}</Text>} />
           <Divider inset={16} />
-          <ListRow title={t('labelNetworkFee')} subtitle={`Estimation · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? `environ ${formatFiat(feeFiat)} ${sym}` : '—'}</Text>} />
+          <ListRow title={t('labelNetworkFee')} subtitle={`${tw('feeEstimate')} · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? `environ ${formatFiat(feeFiat)} ${sym}` : '—'}</Text>} />
         </Surface>
         {afterBalance != null ? (
           <Text variant="bodySecondary" tone="secondary">{t('balanceUpdatePreview').replace('${symbol}', symbol).replace('${formatTokenAmount(balance!, decimals)}', formatTokenAmount(balance!, decimals)).replace('${formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals)}', formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals))}</Text>
@@ -559,7 +561,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
           </RNPressable>
         ) : null}
         {sendError ? <Text variant="caption" tone="danger">{sendError}</Text> : null}
-        <Text variant="caption" tone="tertiary">La signature se fait sur ton téléphone Kalyx — ce site n'a jamais accès à tes clés.</Text>
+        <Text variant="caption" tone="tertiary">{tw('signOnPhoneNote')}</Text>
         <HoldButton
           label={t('holdToSend')}
           onComplete={perform}

@@ -13,6 +13,7 @@ import Svg, { Polyline } from 'react-native-svg';
 import { Icon } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useT, useSettings, fiatSymbol } from '../../lib/settingsStore';
+import { useWebT } from './webI18n';
 import { getMarkets, sortMarkets, searchCoins, formatFiat, type MarketCoin, type SearchCoin, type MarketOrder } from '../../src';
 
 /** Icône distante avec repli lettré (même principe que ChainAvatar, mais
@@ -45,14 +46,14 @@ function MiniSparkline({ values, up, width = 64, height = 28 }: { values: number
   );
 }
 
-const TABS: { key: MarketOrder; label: string }[] = [
-  { key: 'top', label: 'Top' },
-  { key: 'gainers', label: 'Hausses' },
-  { key: 'losers', label: 'Baisses' },
-];
-
 export function MarketPanel() {
   const t = useT();
+  const tw = useWebT();
+  const TABS: { key: MarketOrder; label: string }[] = [
+    { key: 'top', label: tw('marketTop') },
+    { key: 'gainers', label: t('gainers') },
+    { key: 'losers', label: t('losers') },
+  ];
   const { colors, typography } = useTheme();
   const fiat = useSettings((s) => s.fiat);
   const sym = fiatSymbol(fiat);
@@ -86,7 +87,7 @@ export function MarketPanel() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Rechercher une crypto ou un token…"
+          placeholder={tw('marketSearchPlaceholder')}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="none"
           style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 14, paddingVertical: spacing(1) }}
@@ -96,9 +97,9 @@ export function MarketPanel() {
       {searchMode ? (
         <View style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg }}>
           {searching && results.length === 0 ? (
-            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>Recherche…</Text>
+            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>{t('searching')}</Text>
           ) : results.length === 0 ? (
-            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>Aucun résultat.</Text>
+            <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>{tw('noResults')}</Text>
           ) : (
             results.slice(0, 20).map((c, i) => (
               <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), padding: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
@@ -127,7 +128,7 @@ export function MarketPanel() {
 
           <View style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg }}>
             {rows.length === 0 ? (
-              <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(3) }]}>Chargement du marché…</Text>
+              <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(3) }]}>{tw('marketLoading')}</Text>
             ) : (
               rows.map((m, i) => {
                 const up = m.change24h >= 0;
@@ -152,7 +153,7 @@ export function MarketPanel() {
               })
             )}
           </View>
-          <Text style={[typography.muted, { textAlign: 'center', fontSize: 12 }]}>Cours en direct via CoinGecko.</Text>
+          <Text style={[typography.muted, { textAlign: 'center', fontSize: 12 }]}>{tw('marketSource')}</Text>
         </>
       )}
     </View>
