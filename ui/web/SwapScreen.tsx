@@ -29,6 +29,7 @@ import {
   NATIVE_TOKEN, estimateGasReserve, type GasReserve, type SwapQuote, EvmChainAdapter, SolanaChainAdapter, type ChainConfig,
 } from '../../src';
 import { encodeErc20Approve, hexQuantity } from './evmEncode';
+import { useWebT } from './webI18n';
 import { addressForChain, chainOf } from './webAccounts';
 
 const QUOTE_TTL_S = 30;
@@ -51,6 +52,7 @@ function pick<T>(o: unknown, keys: string[]): T | undefined {
 export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfig; onClose: () => void }) {
   const { colors } = useTheme();
   const t = useT();
+  const tw = useWebT();
   const request = useWebConnect((s) => s.request);
   const setSessionChain = useWebConnect((s) => s.setChain);
   const accounts = useWebConnect((s) => s.accounts);
@@ -274,7 +276,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
           setStep(t('stApprovalWait'));
           await adapter.waitForTx(approveHash);
           const seen = await adapter.waitForAllowance(q.fromToken.address, address, q.approvalAddress, q.fromAmount);
-          if (!seen) throw new Error("L'autorisation est confirmée mais pas encore visible sur le réseau. Réessaie dans quelques secondes.");
+          if (!seen) throw new Error(tw('allowanceNotVisible'));
         }
       }
       setStep(t('stSwapping'));
@@ -287,10 +289,10 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       setStep(t('stSwapping'));
       const res: unknown = await request('solana_signTransaction', [{ transaction: q.tx.data }]);
       const signed = pick<string>(res, ['transaction']) ?? (typeof res === 'string' ? res : undefined);
-      if (!signed) throw new Error('Le téléphone n\'a pas renvoyé la transaction signée.');
+      if (!signed) throw new Error(tw('phoneNoSignedTx'));
       return submitSolanaSigned(signed, (st) => setStep(t(st === 'sending' ? 'stSwapping' : 'stConfirming')));
     }
-    throw new Error(`Swap impossible : type de transaction (${q.tx.type}) incompatible avec le réseau actif`);
+    throw new Error(tw('swapIncompatible', { type: q.tx.type }));
   };
 
   const onConfirm = async () => {
@@ -315,7 +317,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
   const impact = quote && quote.fromAmountUsd > 0 ? ((quote.toAmountUsd - quote.fromAmountUsd) / quote.fromAmountUsd) * 100 : null;
   const impactLevel: 'none' | 'warning' | 'danger' = impact == null ? 'none' : impact <= -10 ? 'danger' : impact <= -3 ? 'warning' : 'none';
   const routeSentence = quote
-    ? `Via ${quote.toolName}${isBridge ? ` de ${chain.name} vers ${toChainCfg.name}` : ` sur ${chain.name}`}${quote.durationSec > 0 ? `, environ ${quote.durationSec < 60 ? `${quote.durationSec} secondes` : `${Math.round(quote.durationSec / 60)} min`}` : ''}.`
+    ? `Via ${quote.toolName}${isBridge ? tw('routeBridge', { from: chain.name, to: toChainCfg.name }) : tw('routeOn', { chain: chain.name })}${quote.durationSec > 0 ? tw('routeAbout', { d: quote.durationSec < 60 ? tw('secondsUnit', { n: quote.durationSec }) : tw('minutesUnit', { n: Math.round(quote.durationSec / 60) }) }) : ''}.`
     : null;
   const [advanced, setAdvanced] = useState(false);
   const [review, setReview] = useState(false);
@@ -328,7 +330,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
         <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ flex: 1, fontSize: 36, lineHeight: 42, color: muted ? colors.textSecondary : colors.text }}>{value || '0'}</Text>
-        <RNPressable onPress={onPick} accessibilityLabel={`Choisir le token ${label}`} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: 6, paddingLeft: 6, paddingRight: 10, borderRadius: radius.round, backgroundColor: pressed ? colors.surface3 : colors.surface1, borderWidth: 1, borderColor: colors.border })}>
+        <RNPressable onPress={onPick} accessibilityLabel={tw('chooseToken', { label })} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: 6, paddingLeft: 6, paddingRight: 10, borderRadius: radius.round, backgroundColor: pressed ? colors.surface3 : colors.surface1, borderWidth: 1, borderColor: colors.border })}>
           {tok ? <TokenIcon symbol={tok.symbol} logo={tok.logo} seed={tok.address} size={28} /> : <Skeleton width={28} height={28} round />}
           <View>
             <Text variant="body">{tok?.symbol ?? '…'}</Text>
@@ -372,7 +374,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
 
           <View style={{ alignItems: 'center', marginVertical: -space[4], zIndex: 2 }}>
             <View style={{ transform: [{ rotate: flipped ? '180deg' : '0deg' }] }}>
-              <RNPressable onPress={onFlip} disabled={isBridge} accessibilityLabel="Inverser les tokens" style={({ pressed }) => ({ width: 40, height: 40, borderRadius: radius.round, backgroundColor: pressed ? colors.surface3 : colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.4 : 1 })}>
+              <RNPressable onPress={onFlip} disabled={isBridge} accessibilityLabel={tw('flipTokens')} style={({ pressed }) => ({ width: 40, height: 40, borderRadius: radius.round, backgroundColor: pressed ? colors.surface3 : colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.4 : 1 })}>
                 <Icon name="convert" size={18} />
               </RNPressable>
             </View>
@@ -435,7 +437,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', ',')} %</Text></View>
             </Surface>
             <Text variant="caption" tone="secondary">{routeSentence}{t('slippageTolerance')}{(quote.slippage * 100).toFixed(1).replace('.', ',')} %.</Text>
-            <Text variant="caption" tone="tertiary">La signature se fait sur ton téléphone Kalyx — ce site n'a jamais accès à tes clés.</Text>
+            <Text variant="caption" tone="tertiary">{tw('signOnPhoneNote')}</Text>
             {impactLevel === 'danger' ? (
               <>
                 <Text variant="caption" tone="danger">{t('highPriceImpactWarning')}</Text>
@@ -454,7 +456,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
           <ActivityIndicator color={colors.text} />
           <View style={{ flex: 1 }}>
             <Text variant="body">{step ?? t('preparing')}</Text>
-            <Text variant="caption" tone="secondary">Valide dans l'app Kalyx quand elle te le demande.</Text>
+            <Text variant="caption" tone="secondary">{tw('approveWhenAsked')}</Text>
           </View>
         </View>
       </Sheet>
