@@ -18,7 +18,7 @@ import {
   CheckCircleIcon, XIcon, DotsThreeVerticalIcon, ArrowRightIcon, ShareNetworkIcon, ScanIcon, FlashlightIcon,
   PenNibIcon, ArrowLeftIcon, CaretDownIcon, CheckIcon, LockIcon, WarningCircleIcon, XCircleIcon, ClockIcon,
   DetectiveIcon, DesktopIcon, BroomIcon, SquaresFourIcon, CaretLeftIcon, LightbulbIcon,
-  XLogoIcon, TelegramLogoIcon, GithubLogoIcon,
+  XLogoIcon, TelegramLogoIcon, GithubLogoIcon, GearSixIcon,
 } from 'phosphor-react-native';
 import { useTheme } from './theme';
 
@@ -35,7 +35,7 @@ export type IconName =
   // Nouveaux (bible)
   | 'sign' | 'back' | 'caretDown' | 'checkmark' | 'lock' | 'alert' | 'errorCircle' | 'clock'
   | 'incognito' | 'desktop' | 'broom' | 'tabs' | 'caretLeft' | 'bulb'
-  | 'xLogo' | 'telegramLogo' | 'githubLogo';
+  | 'xLogo' | 'telegramLogo' | 'githubLogo' | 'gear';
 
 const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   home: { icon: HouseIcon },
@@ -114,6 +114,7 @@ const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   xLogo: { icon: XLogoIcon },
   telegramLogo: { icon: TelegramLogoIcon },
   githubLogo: { icon: GithubLogoIcon },
+  gear: { icon: GearSixIcon },
 };
 
 export function Icon({

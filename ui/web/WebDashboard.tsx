@@ -397,7 +397,7 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
   }, [key, fiat, rev]);
 }
 
-type MobileTab = 'home' | 'market' | 'wallet' | 'activity' | 'agent' | 'settings';
+type MobileTab = 'home' | 'market' | 'agent' | 'settings';
 type ActionSheetKind = 'send' | 'receive' | 'swap';
 
 /** Barre d'onglets mobile (téléphone uniquement) : évite d'empiler toutes les
@@ -408,10 +408,8 @@ function MobileTabBar({ tab, onChange }: { tab: MobileTab; onChange: (t: MobileT
   const items: { key: MobileTab; icon: IconName; label: string }[] = [
     { key: 'home', icon: 'home', label: t("navHome") },
     { key: 'market', icon: 'market', label: t("navMarket") },
-    { key: 'wallet', icon: 'wallet', label: t("navWallet") },
-    { key: 'activity', icon: 'history', label: t("activity") },
     { key: 'agent', icon: 'sparkles', label: 'Agent' },
-    { key: 'settings', icon: 'menu', label: t("settings") },
+    { key: 'settings', icon: 'gear', label: t("settings") },
   ];
   return (
     <View style={{ flexDirection: 'row', backgroundColor: colors.bgElevated, borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingBottom: spacing(0.5) }}>
@@ -630,10 +628,10 @@ function Dashboard() {
           /* ---- Mobile / étroit : onglets, un seul contenu à la fois ---- */
           <View style={{ gap: spacing(2) }}>
             {tab === 'home' ? (
-              /* Ordre demandé : compte → solde → actions au pouce → tendance
-               * → détails secondaires (widgets, répartition, watchlist) en
-               * bas, repliables. Le sélecteur de réseau (moins fréquent que
-               * Recevoir/Envoyer/Swap) est dans l'onglet Réglages. */
+              /* 4 onglets nets (Accueil/Market/Agent/Réglages) : Portefeuille
+               * et Activité n'existent plus comme onglets séparés — leur
+               * contenu vit ici, sous les actions rapides (tokens) et en bas,
+               * repliable (NFT/répartition/watchlist/historique). */
               <>
                 <HeroTotalCard data={heroData} chain={chain} address={address} />
                 <View style={{ flexDirection: 'row', gap: spacing(1.25), justifyContent: isEvm ? undefined : 'center' }}>
@@ -641,20 +639,16 @@ function Dashboard() {
                   {isEvm ? <QuickAction icon="send" label={t("send")} onPress={() => setSheet('send')} /> : null}
                   {isEvm ? <QuickAction icon="exchange" label={t("swapAction")} onPress={() => setSheet('swap')} /> : null}
                 </View>
+                {tokensBlock}
                 <HeroTrendCard data={heroData} chain={chain} />
                 <HeroWidgetsRow data={heroData} chain={chain} />
+                {nftBlock}
                 {allocBlock}
                 {watchBlock}
+                {activityBlock}
               </>
             ) : tab === 'market' ? (
               marketBlock
-            ) : tab === 'wallet' ? (
-              <>
-                {tokensBlock}
-                {nftBlock}
-              </>
-            ) : tab === 'activity' ? (
-              activityBlock
             ) : tab === 'agent' ? (
               agentBlock
             ) : (
