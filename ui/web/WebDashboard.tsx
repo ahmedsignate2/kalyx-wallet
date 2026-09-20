@@ -4,7 +4,7 @@
  * WalletConnect (QR), on lit les adresses publiques, et on FORWARDE toute action
  * sensible à l'app qui signe. Layout desktop responsive (sidebar + contenu).
  */
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, RefreshControl, Image, TextInput, useWindowDimensions, ActivityIndicator, Animated, Easing, Linking } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import Svg, { Rect, Defs, LinearGradient as SvgGradient, RadialGradient, Stop } from 'react-native-svg';
@@ -14,15 +14,20 @@ import { AuroraBackground } from '../AuroraBackground';
 import { InteractiveChart } from '../InteractiveChart';
 import { useTelegramBiometric } from './telegramBiometric';
 import { useAsync } from './useAsync';
-import { AgentPanel } from './AgentPanel';
+import { AgentPanel, AgentSetup, PROVIDER_LABELS } from './AgentPanel';
 import { MarketPanel } from './MarketPanel';
 import { WEB_FONTS, useWebFonts, useWebPalette } from './webTheme';
-import { toRaw, toWei, encodeErc20Transfer, encodeErc20Approve } from './evmEncode';
+import { useWebT } from './webI18n';
+import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useIdle, tgHaptic } from './platform';
+import { toRaw, encodeErc20Transfer } from './evmEncode';
+import { useTokenLogo } from './tokenLogos';
+import { FadeInUp, CrossFade, useCountUp, Breathing } from './motion';
 import { ReceiveScreen } from './ReceiveScreen';
 import { SendFlow } from './SendFlow';
 import { SwapScreen } from './SwapScreen';
 import { MobileHeader, NetworkPill, ActionRow, PeriodChips, SegmentTabs, MobileEmptyState, FloatingDock, DOCK_CLEARANCE } from './MobileChrome';
 import { useAiStore } from '../../lib/aiStore';
+import { PROVIDER_DEFAULTS } from '../../lib/aiConfig';
 import { AllocationDonut, foldSlices } from '../AllocationDonut';
 import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
@@ -42,16 +47,12 @@ import {
   getPrices,
   formatTokenAmount,
   chainIconUrl,
-  getBestQuote,
-  parseAmount,
-  NATIVE_TOKEN,
   humanizeTx,
   type Erc20Token,
   type NftItem,
   type Balance,
   type TxSummary,
   type ChainConfig,
-  type SwapQuote,
   type ChartPoint,
   type HumanTx,
 } from '../../src';
@@ -87,8 +88,10 @@ function hashColor(seed: string): string {
 
 /** Avatar de token sans logo officiel : 2 lettres sur fond coloré unique
  *  (dérivé de l'adresse du contrat) plutôt qu'un cercle gris vide anonyme. */
-function TokenAvatar({ uri, label, seed, size = 32 }: { uri?: string; label: string; seed: string; size?: number }) {
+function TokenAvatar({ uri: primary, label, seed, size = 32, chainId }: { uri?: string; label: string; seed: string; size?: number; chainId?: string }) {
   const [failed, setFailed] = useState(false);
+  // Repli sur la liste curée LI.FI du réseau quand la source principale n'a pas de logo.
+  const uri = useTokenLogo(chainId ?? '', chainId ? seed : undefined, primary);
   if (!uri || failed) {
     return (
       <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: hashColor(seed), alignItems: 'center', justifyContent: 'center' }}>
@@ -146,7 +149,20 @@ export function WebDashboard() {
   const { width } = useWindowDimensions();
   const narrow = width < 760;
   const P = useWebPalette();
+  const tw = useWebT();
   useWebFonts();
+  const language = useSettings((s) => s.language);
+  const platform = useWebPlatform();
+  const tgApp = useTelegramSetup(P.bg);
+  const disconnect = useWebConnect((s) => s.disconnect);
+  // Web classique : session coupée après 30 min sans interaction (PC partagé,
+  // onglet oublié). Dans Telegram, l'app gère elle-même le cycle de vie.
+  const idle = useIdle(30 * 60_000, platform === 'web' && status === 'connected');
+  useEffect(() => {
+    if (!idle) return;
+    disconnect().catch(() => {});
+    toast.info(tw('sessionIdleClosed'));
+  }, [idle, disconnect, tw]);
 
   useEffect(() => {
     init();
@@ -158,18 +174,30 @@ export function WebDashboard() {
     loadContacts();
     loadRecents();
     loadAiState();
-    const doc = (globalThis as { document?: { title: string } }).document;
-    if (doc) doc.title = 'Kalyx · Tableau de bord';
   }, [init, loadAiState, loadSettings, loadContacts, loadRecents]);
+
+  // Titre + <html lang/dir> suivent la langue (détectée depuis le navigateur au
+  // premier lancement, ou choisie en Réglages) : accessibilité, césure, arabe RTL.
+  useEffect(() => {
+    const doc = (globalThis as { document?: { title: string; documentElement?: { lang: string; dir: string } } }).document;
+    if (!doc) return;
+    doc.title = tw('docTitle');
+    if (doc.documentElement) {
+      doc.documentElement.lang = language;
+      doc.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    }
+  }, [tw, language]);
 
   return (
     // Mobile : fond uni de la maquette (#0B0C0E), pas d'aurora — le halo
     // laiton derrière le solde est le seul effet lumineux de l'écran.
-    <View style={{ flex: 1, backgroundColor: narrow ? P.bg : colors.bgDeep }}>
-      {narrow ? null : <AuroraBackground intensity={0.55} />}
-      {status === 'connected' ? <Dashboard /> : <ConnectView />}
-      <SigningModal />
-    </View>
+    <TelegramAppContext.Provider value={tgApp}>
+      <View style={{ flex: 1, backgroundColor: narrow ? P.bg : colors.bgDeep }}>
+        {narrow ? null : <AuroraBackground intensity={0.55} />}
+        {status === 'connected' ? <Dashboard /> : <ConnectView />}
+        <SigningModal />
+      </View>
+    </TelegramAppContext.Provider>
   );
 }
 
@@ -178,6 +206,7 @@ export function WebDashboard() {
  *  seul au succès (retour au tableau de bord), reste sur erreur pour explication. */
 function SigningModal() {
   const t = useT();
+  const tw = useWebT();
   const { colors, typography } = useTheme();
   const pending = useWebConnect((s) => s.pending);
   const dismiss = useWebConnect((s) => s.dismissPending);
@@ -195,18 +224,18 @@ function SigningModal() {
           )}
         </View>
         <Text style={{ color: colors.text, fontSize: 19, fontFamily: fonts.bold, textAlign: 'center' }}>
-          {phase === 'ok' ? 'Validé' : phase === 'err' ? 'Non signé' : 'Signature requise'}
+          {phase === 'ok' ? tw('signApproved') : phase === 'err' ? tw('signRejected') : tw('signRequired')}
         </Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>
           {phase === 'await'
-            ? `${label}. Ouvrez l'app Kalyx sur votre téléphone et validez avec votre PIN ou votre biométrie.`
+            ? tw('signAwaitBody', { label })
             : detail ?? ''}
         </Text>
         {phase === 'await' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(0.5) }}>
             <Icon name="bell" size={14} color={colors.textMuted} />
             <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>
-              Vous pouvez aussi appuyer sur la notification Kalyx.
+              {tw('signNotifHint')}
             </Text>
           </View>
         ) : null}
@@ -224,6 +253,7 @@ function SigningModal() {
 
 function ConnectView() {
   const t = useT();
+  const tw = useWebT();
   const { colors, typography } = useTheme();
   const status = useWebConnect((s) => s.status);
   const uri = useWebConnect((s) => s.uri);
@@ -235,19 +265,18 @@ function ConnectView() {
       <View style={{ alignItems: 'center', gap: spacing(2), maxWidth: 420 }}>
         <KalyxLogo size={72} />
         <Text style={{ color: colors.text, fontSize: 28, fontFamily: fonts.extrabold, textAlign: 'center' }}>
-          Connecter votre portefeuille Kalyx
+          {tw('connectTitle')}
         </Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>
-          Le téléphone est le coffre-fort, ce site est votre tableau de bord. Aucune clé n'est stockée ici —
-          vous approuvez la connexion depuis l'app Kalyx avec votre PIN ou votre biométrie.
+          {tw('connectBody')}
         </Text>
 
         {!uri ? (
           <View style={{ gap: spacing(0.75), alignSelf: 'stretch', marginTop: spacing(0.5) }}>
             {[
-              'Aucune clé privée sur ce PC',
-              'Chaque signature validée sur votre téléphone',
-              'Lecture seule : soldes, tokens, NFT, historique',
+              tw('guaranteeNoKeys'),
+              tw('guaranteeSign'),
+              tw('guaranteeReadOnly'),
             ].map((line) => (
               <View key={line} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
                 <Icon name="check" size={16} color={colors.up} />
@@ -263,16 +292,16 @@ function ConnectView() {
               <QRCode value={uri} size={220} />
             </View>
             <Text style={[typography.muted, { textAlign: 'center' }]}>
-              Ouvrez Kalyx sur votre téléphone, allez dans l'onglet WalletConnect, puis scannez ce QR.
+              {tw('scanHint')}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), width: '100%' }}>
               <View style={{ flex: 1, height: 1, backgroundColor: colors.glassBorder }} />
-              <Text style={{ color: colors.textMuted, fontSize: 12 }}>ou</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 12 }}>{tw('or')}</Text>
               <View style={{ flex: 1, height: 1, backgroundColor: colors.glassBorder }} />
             </View>
             <CopyUriButton uri={uri} />
             <Text style={[typography.muted, { textAlign: 'center', fontSize: 12 }]}>
-              Collez ce lien dans Kalyx → WalletConnect → Coller, si le scan n'est pas pratique.
+              {tw('pasteHint')}
             </Text>
           </View>
         ) : (
@@ -289,7 +318,7 @@ function ConnectView() {
           >
             {status === 'connecting' ? <ActivityIndicator color={colors.onPrimary} /> : <Icon name="walletconnect" size={20} color={colors.onPrimary} />}
             <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: 16 }}>
-              {status === 'connecting' ? 'Connexion…' : 'Connecter Kalyx'}
+              {status === 'connecting' ? t('connecting') : tw('connectKalyx')}
             </Text>
           </Pressable>
         )}
@@ -304,11 +333,12 @@ function ConnectView() {
  *  l'écran WalletConnect de l'app mobile). */
 function CopyUriButton({ uri }: { uri: string }) {
   const { colors } = useTheme();
+  const tw = useWebT();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await Clipboard.setStringAsync(uri);
     setCopied(true);
-    toast.success('Lien copié !');
+    toast.success(tw('linkCopied'));
     setTimeout(() => setCopied(false), 1500);
   };
   return (
@@ -322,7 +352,7 @@ function CopyUriButton({ uri }: { uri: string }) {
     >
       <Icon name={copied ? 'check' : 'copy'} size={16} color={copied ? colors.up : colors.textMuted} />
       <Text style={{ color: copied ? colors.up : colors.text, fontFamily: fonts.semibold, fontSize: 14 }}>
-        {copied ? 'Lien copié' : 'Copier le lien de connexion'}
+        {copied ? tw('linkCopied') : tw('copyConnectLink')}
       </Text>
     </Pressable>
   );
@@ -401,6 +431,7 @@ type ActionSheetKind = 'send' | 'receive' | 'swap';
  *  d'afficher les N réseaux connectés en dur dans le flux des Réglages. */
 function CurrentNetworkChip({ chain, onPress, compact }: { chain: ChainConfig; onPress: () => void; compact?: boolean }) {
   const { colors } = useTheme();
+  const tw = useWebT();
   if (compact) {
     // Pill discrète pour l'en-tête : juste le réseau, pas de libellé "Réseau
     // actuel" ni de sous-titre — l'utilisateur sait déjà ce qu'il regarde.
@@ -416,7 +447,7 @@ function CurrentNetworkChip({ chain, onPress, compact }: { chain: ChainConfig; o
     <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg, padding: spacing(1.5), opacity: pressed ? 0.7 : 1 })}>
       <ChainAvatar chain={chain} size={32} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ color: colors.textMuted, fontSize: 12 }}>Réseau actuel</Text>
+        <Text style={{ color: colors.textMuted, fontSize: 12 }}>{tw('currentNetwork')}</Text>
         <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 15 }} numberOfLines={1}>{chain.name}</Text>
       </View>
       <Icon name="chevron" size={16} color={colors.textMuted} />
@@ -441,8 +472,23 @@ function ActionSheet({ title, onClose, children }: { title: string; onClose: () 
   );
 }
 
+/** Héberge un parcours plein écran : tel quel sur mobile ; sur desktop, colonne
+ *  centrée (largeur téléphone) sur un voile, clic à côté pour fermer. */
+function FlowHost({ narrow, onDismiss, children }: { narrow: boolean; onDismiss: () => void; children: React.ReactNode }) {
+  if (narrow) return <>{children}</>;
+  return (
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, alignItems: 'center', justifyContent: 'center', padding: spacing(3) }}>
+      <Pressable onPress={onDismiss} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' }} />
+      <View style={{ width: '100%', maxWidth: 480, flex: 1, maxHeight: 860, borderRadius: radii.xl, overflow: 'hidden' }}>
+        {children}
+      </View>
+    </View>
+  );
+}
+
 function Dashboard() {
   const t = useT();
+  const tw = useWebT();
   const { colors, typography } = useTheme();
   const { width } = useWindowDimensions();
   const wide = width >= 1180; // 3 colonnes desktop
@@ -468,21 +514,38 @@ function Dashboard() {
   const [tab, setTab] = useState<MobileTab>('home');
   const [sheet, setSheet] = useState<ActionSheetKind | null>(null);
   const [networkSheet, setNetworkSheet] = useState(false);
+  // Telegram : le bouton Retour natif ferme la feuille ouverte (sinon il
+  // fermerait la mini-app entière).
+  const tgApp = useTelegramApp();
+  const closeOverlay = useCallback(() => { setSheet(null); setNetworkSheet(false); }, []);
+  useTelegramBackButton(tgApp, !!sheet || networkSheet, closeOverlay);
+  const openSheet = (k: ActionSheetKind) => { tgHaptic(tgApp, 'light'); setSheet(k); };
 
   // Blocs réutilisés, disposés différemment selon la largeur d'écran. Le
   // détail (data + calculs) est partagé via useHeroData : sur mobile, les 3
   // présentations (solde / widgets / tendance) sont réordonnées autour des
   // actions rapides sans dupliquer les appels réseau.
   const heroData = useHeroData({ worth, chain, address });
+  // Desktop : les mêmes parcours plein écran que le mobile (Recevoir / Envoyer /
+  // Swap), ouverts dans une colonne centrée — plus de formulaires inline.
+  const actionsBlock = (
+    <ActionRow
+      onReceive={() => openSheet('receive')}
+      onSend={() => openSheet('send')}
+      onSwap={() => openSheet('swap')}
+      labels={{ receive: t("receive"), send: t("send"), swap: t("swapAction") }}
+    />
+  );
   const heroBlock = (
     <View style={{ gap: spacing(2) }}>
       <HeroTotalCard data={heroData} chain={chain} address={address} />
+      {actionsBlock}
       <HeroWidgetsRow data={heroData} chain={chain} />
       <HeroTrendCard data={heroData} chain={chain} />
     </View>
   );
   const allocBlock = (
-    <Zone title="Répartition du portefeuille" collapsible={narrow}><AllocationPanel worth={worth} /></Zone>
+    <Zone title={t("allocation")} collapsible={narrow}><AllocationPanel worth={worth} /></Zone>
   );
   const tokensBlock = (
     <Zone title={t("tabTokens")}>
@@ -491,27 +554,25 @@ function Dashboard() {
       ) : (
         <>
           <NativeBalanceCard chain={chain} address={address} />
-          <Note text={`Les jetons ${chain.family === 'solana' ? 'SPL' : ''} de ${chain.name} arriveront bientôt ici — en attendant, ton solde ${chain.nativeSymbol} est à jour ci-dessus.`} />
+          <Note text={tw('tokensComingSoon', { chain: chain.name, symbol: chain.nativeSymbol })} />
         </>
       )}
     </Zone>
   );
   const nftBlock = (
     <Zone title={t("tabNft")} collapsible={narrow}>
-      {isEvm ? <NftsPanel chain={chain} address={address} /> : <Note text={`Les NFT affichés ici concernent les réseaux EVM.`} />}
+      {isEvm ? <NftsPanel chain={chain} address={address} /> : <Note text={tw('nftEvmOnly')} />}
     </Zone>
   );
   const activityBlock = <Zone title={t("activity")} collapsible={narrow}><HistoryPanel chain={chain} address={address} /></Zone>;
   const securityBlock = <Zone title={t("security")}><SecurityPanel /></Zone>;
-  const watchBlock = <Zone title="Watchlist" collapsible={narrow}><WatchlistPanel worth={worth} /></Zone>;
-  const sendBlock = isEvm ? <Zone title={`Envoyer ${chain.nativeSymbol}`}><SendPanel chain={chain} address={address} /></Zone> : null;
-  const swapBlock = isEvm ? <Zone title={t("swap")}><SwapPanel chain={chain} address={address} /></Zone> : null;
+  const watchBlock = <Zone title={tw('watchlist')} collapsible={narrow}><WatchlistPanel worth={worth} /></Zone>;
   const accountBlock = <AccountCard chain={chain} address={address} />;
-  const networksBlock = <Zone title="Réseaux"><NetworkSelector vertical /></Zone>;
+  const networksBlock = <Zone title={t("networks")}><NetworkSelector vertical /></Zone>;
   // Sur mobile ces blocs SONT l'onglet : jamais repliés (sinon l'onglet
   // Marché s'ouvrait sur un simple titre à déplier).
   const settingsBlock = <Zone title={t("settings")}><SettingsPanel /></Zone>;
-  const agentBlock = <Zone title="Agent"><AgentPanel chain={chain} address={address} worth={worth} /></Zone>;
+  const agentBlock = <Zone title={tw('agentTab')}><AgentPanel chain={chain} address={address} worth={worth} /></Zone>;
   const marketBlock = <Zone title={t("navMarket")}><MarketPanel /></Zone>;
 
   // En-tête compact : un titre "Kalyx • Tableau de bord" en gros au centre
@@ -523,7 +584,7 @@ function Dashboard() {
     // Mobile (maquette) : avatar-logo 36 px + « Kalyx / Portefeuille sécurisé »
     // à gauche, rafraîchir à droite ; la pilule réseau a sa propre ligne.
     <>
-      <MobileHeader onRefresh={refresh} subtitle="Portefeuille sécurisé" />
+      <MobileHeader onRefresh={refresh} subtitle={tw('securedWallet')} />
       <NetworkPill avatar={<ChainAvatar chain={chain} size={14} />} name={chain.name} onPress={() => setNetworkSheet(true)} />
     </>
   ) : (
@@ -582,8 +643,6 @@ function Dashboard() {
               {securityBlock}
               {watchBlock}
               {activityBlock}
-              {sendBlock}
-              {swapBlock}
               {agentBlock}
               {marketBlock}
             </View>
@@ -603,30 +662,30 @@ function Dashboard() {
               {networksBlock}
               {securityBlock}
               {watchBlock}
-              {sendBlock}
-              {swapBlock}
-              {agentBlock}
+                            {agentBlock}
               {marketBlock}
               {settingsBlock}
             </View>
           </View>
         ) : (
           /* ---- Mobile / étroit : onglets, un seul contenu à la fois ---- */
-          <View style={{ gap: tab === 'home' ? 26 : spacing(2) }}>
+          <CrossFade id={tab} style={{ gap: tab === 'home' ? 26 : spacing(2) }}>
             {tab === 'home' ? (
               /* Accueil maquette : un seul flux continu (pas de cartes
                * empilées) — solde avec halo → période + tendance → 3 actions
-               * → onglets Tokens / NFT / Activité. */
+               * → onglets Tokens / NFT / Activité. Entrée en cascade. */
               <>
-                <MobileHero data={heroData} chain={chain} address={address} />
-                <MobileTrend data={heroData} chain={chain} />
-                <ActionRow
-                  onReceive={() => setSheet('receive')}
-                  onSend={() => setSheet('send')}
-                  onSwap={() => setSheet('swap')}
-                  labels={{ receive: t("receive"), send: t("send"), swap: t("swapAction") }}
-                />
-                <MobileAssets data={heroData} chain={chain} address={address} onReceive={() => setSheet('receive')} />
+                <FadeInUp delay={0}><MobileHero data={heroData} chain={chain} address={address} /></FadeInUp>
+                <FadeInUp delay={80}><MobileTrend data={heroData} chain={chain} /></FadeInUp>
+                <FadeInUp delay={160}>
+                  <ActionRow
+                    onReceive={() => openSheet('receive')}
+                    onSend={() => openSheet('send')}
+                    onSwap={() => openSheet('swap')}
+                    labels={{ receive: t("receive"), send: t("send"), swap: t("swapAction") }}
+                  />
+                </FadeInUp>
+                <FadeInUp delay={240}><MobileAssets data={heroData} chain={chain} address={address} onReceive={() => openSheet('receive')} /></FadeInUp>
               </>
             ) : tab === 'market' ? (
               marketBlock
@@ -638,7 +697,7 @@ function Dashboard() {
                 {settingsBlock}
               </>
             )}
-          </View>
+          </CrossFade>
         )}
 
         {narrow ? null : (
@@ -660,15 +719,19 @@ function Dashboard() {
         <FloatingDock
           tab={tab}
           onChange={setTab}
-          onSwapPress={() => setSheet('swap')}
-          labels={{ home: t("navHome"), market: t("navMarket"), agent: 'Agent', settings: t("settings") }}
+          onSwapPress={() => openSheet('swap')}
+          labels={{ home: t("navHome"), market: t("navMarket"), agent: tw('agentTab'), settings: t("settings") }}
         />
       ) : null}
-      {narrow && sheet === 'receive' ? <ReceiveScreen chain={chain} onClose={() => setSheet(null)} /> : null}
-      {narrow && sheet === 'send' ? <SendFlow chain={chain} onClose={() => setSheet(null)} onReceive={() => setSheet('receive')} /> : null}
-      {narrow && sheet === 'swap' ? <SwapScreen chain={chain} onClose={() => setSheet(null)} /> : null}
+      {sheet ? (
+        <FlowHost narrow={narrow} onDismiss={() => setSheet(null)}>
+          {sheet === 'receive' ? <ReceiveScreen chain={chain} onClose={() => setSheet(null)} /> : null}
+          {sheet === 'send' ? <SendFlow chain={chain} onClose={() => setSheet(null)} onReceive={() => setSheet('receive')} /> : null}
+          {sheet === 'swap' ? <SwapScreen chain={chain} onClose={() => setSheet(null)} /> : null}
+        </FlowHost>
+      ) : null}
       {narrow && networkSheet ? (
-        <ActionSheet title="Réseaux" onClose={() => setNetworkSheet(false)}>
+        <ActionSheet title={t("networks")} onClose={() => setNetworkSheet(false)}>
           <NetworkSelector vertical onSelected={() => setNetworkSheet(false)} />
         </ActionSheet>
       ) : null}
@@ -805,16 +868,21 @@ function SkeletonRows({ count = 4, flat }: { count?: number; flat?: boolean }) {
 
 
 
-const PERIODS: { k: string; l: string }[] = [
-  { k: '1', l: '24 h' },
-  { k: '7', l: '7 j' },
-  { k: '30', l: '1 m' },
-  { k: '365', l: '1 a' },
-  { k: 'max', l: 'Tout' },
+const PERIOD_KEYS: { k: string; l: 'periodDay' | 'periodWeek' | 'periodMonth' | 'periodYear' | 'periodAll' }[] = [
+  { k: '1', l: 'periodDay' },
+  { k: '7', l: 'periodWeek' },
+  { k: '30', l: 'periodMonth' },
+  { k: '365', l: 'periodYear' },
+  { k: 'max', l: 'periodAll' },
 ];
+function usePeriods(): { k: string; l: string }[] {
+  const tw = useWebT();
+  return PERIOD_KEYS.map((p) => ({ k: p.k, l: tw(p.l) }));
+}
 function PeriodToggle({ days, onChange }: { days: string; onChange: (d: string) => void }) {
   const t = useT();
   const { colors } = useTheme();
+  const PERIODS = usePeriods();
   return (
     <View style={{ flexDirection: 'row', gap: spacing(0.5), marginTop: spacing(1) }}>
       {PERIODS.map((p) => {
@@ -891,6 +959,7 @@ type HeroData = ReturnType<typeof useHeroData>;
  *  à l'identité visuelle Kalyx existante plutôt que copié telle quelle. */
 function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainConfig; address: string }) {
   const t = useT();
+  const tw = useWebT();
   const { colors, typography } = useTheme();
   const fiat = useSettings((s) => s.fiat);
   const { total, today, todayUp } = data;
@@ -904,7 +973,7 @@ function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainC
   const onToggleHidden = () => {
     if (tg.available) {
       if (tg.unlocked) tg.lock();
-      else tg.unlock('Affiche ton solde Kalyx');
+      else tg.unlock(tw('showBalancePrompt'));
     } else {
       setHidden((v) => !v);
     }
@@ -912,7 +981,7 @@ function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainC
   const copyAddress = async () => {
     await Clipboard.setStringAsync(address);
     setCopied(true);
-    toast.success('Adresse copiée !');
+    toast.success(t('addressCopied'));
     setTimeout(() => setCopied(false), 1500);
   };
   return (
@@ -938,7 +1007,7 @@ function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainC
           <View style={{ flex: 1 }} />
           {tg.available ? <Icon name={tg.biometricType === 'face' ? 'security' : 'lock'} size={15} color={colors.textMuted} /> : null}
         </View>
-        <Text style={[typography.muted, { marginTop: spacing(1.5) }]}>Valeur totale</Text>
+        <Text style={[typography.muted, { marginTop: spacing(1.5) }]}>{t('totalValue')}</Text>
         {total == null ? (
           <Skeleton w={200} h={44} style={{ marginTop: 6 }} />
         ) : (
@@ -968,7 +1037,7 @@ function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainC
          * l'utilisateur a justement besoin d'être rassuré. */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(1) }}>
           <Icon name="security" size={12} color={GOLD} />
-          <Text style={{ color: colors.textMuted, fontSize: 11 }}>Signatures vérifiées sur ton téléphone Kalyx</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 11 }}>{tw('trustLine')}</Text>
         </View>
       </View>
     </View>
@@ -978,12 +1047,13 @@ function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainC
 /** Ligne de widgets (solde natif, prix, variation 24 h) — détail secondaire. */
 function HeroWidgetsRow({ data, chain }: { data: HeroData; chain: ChainConfig }) {
   const { colors } = useTheme();
+  const tw = useWebT();
   const { sym, bal, price, nativeChange } = data;
   return (
     <View style={{ flexDirection: 'row', gap: spacing(1.5), flexWrap: 'wrap' }}>
-      <Widget label={`Solde ${chain.nativeSymbol}`} value={`${bal ? formatTokenAmount(bal.raw, bal.decimals) : '0'}`} />
-      <Widget label={`Prix ${chain.nativeSymbol}`} value={price ? `${sym}${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'} />
-      <Widget label="Variation 24 h" value={`${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)} %`} valueColor={nativeChange >= 0 ? colors.up : colors.down} />
+      <Widget label={tw('balanceOf', { symbol: chain.nativeSymbol })} value={`${bal ? formatTokenAmount(bal.raw, bal.decimals) : '0'}`} />
+      <Widget label={tw('priceOf', { symbol: chain.nativeSymbol })} value={price ? `${sym}${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'} />
+      <Widget label={tw('change24h')} value={`${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)} %`} valueColor={nativeChange >= 0 ? colors.up : colors.down} />
     </View>
   );
 }
@@ -1000,6 +1070,7 @@ function formatScrubDate(ts: number, days: string): string {
 
 function HeroTrendCard({ data, chain }: { data: HeroData; chain: ChainConfig }) {
   const { colors, typography } = useTheme();
+  const tw = useWebT();
   const { days, setDays, values, points, up, pct, loading, sym } = data;
   const [scrub, setScrub] = useState<ChartPoint | null>(null);
   const [w, setW] = useState(0);
@@ -1007,7 +1078,7 @@ function HeroTrendCard({ data, chain }: { data: HeroData; chain: ChainConfig }) 
   return (
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={typography.muted}>{`Tendance ${chain.name}`}</Text>
+        <Text style={typography.muted}>{tw('trendOf', { name: chain.name })}</Text>
         {scrub ? (
           <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 13 }} numberOfLines={1}>
             {`${sym}${scrub.v.toLocaleString(undefined, { maximumFractionDigits: 2 })} · ${formatScrubDate(scrub.t, days)}`}
@@ -1023,7 +1094,7 @@ function HeroTrendCard({ data, chain }: { data: HeroData; chain: ChainConfig }) 
           {w > 0 ? <InteractiveChart points={points!} color={up ? colors.up : colors.down} width={w} height={150} onScrub={setScrub} /> : null}
         </View>
       ) : (
-        <View style={{ height: 150, alignItems: 'center', justifyContent: 'center' }}><Text style={typography.muted}>Pas de données de prix.</Text></View>
+        <View style={{ height: 150, alignItems: 'center', justifyContent: 'center' }}><Text style={typography.muted}>{tw('noPriceData')}</Text></View>
       )}
       <PeriodToggle days={days} onChange={setDays} />
     </Card>
@@ -1051,6 +1122,8 @@ function formatFiatParts(amount: number, fiat: string): { number: string; symbol
  *  du libellé (biométrie Telegram quand disponible — affichage seulement). */
 function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConfig; address: string }) {
   const P = useWebPalette();
+  const t = useT();
+  const tw = useWebT();
   const fiat = useSettings((s) => s.fiat);
   const { total, today, todayUp } = data;
   const [hidden, setHidden] = useState(false);
@@ -1060,7 +1133,7 @@ function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConf
   const onToggleHidden = () => {
     if (tg.available) {
       if (tg.unlocked) tg.lock();
-      else tg.unlock('Affiche ton solde Kalyx');
+      else tg.unlock(tw('showBalancePrompt'));
     } else {
       setHidden((v) => !v);
     }
@@ -1068,17 +1141,19 @@ function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConf
   const copyAddress = async () => {
     await Clipboard.setStringAsync(address);
     setCopied(true);
-    toast.success('Adresse copiée !');
+    toast.success(t('addressCopied'));
     setTimeout(() => setCopied(false), 1500);
   };
-  const parts = total != null ? formatFiatParts(total, fiat) : null;
+  // Le montant « compte » vers sa nouvelle valeur au lieu de sauter.
+  const shownTotal = useCountUp(total);
+  const parts = shownTotal != null ? formatFiatParts(shownTotal, fiat) : null;
   // change24h est un % : on en déduit la variation absolue du jour.
   const absChange = total != null ? total - total / (1 + today / 100) : 0;
   const changeColor = todayUp ? P.up : P.down;
   return (
     <View style={{ position: 'relative', paddingTop: 6 }}>
-      <View pointerEvents="none" style={{ position: 'absolute', width: 220, height: 220, left: '50%', top: -50, marginLeft: -110 }}>
-        <Svg width={220} height={220} viewBox="0 0 220 220">
+      <Breathing style={{ position: 'absolute', width: 220, height: 220, left: '50%', top: -50, marginLeft: -110 }}>
+        <Svg width={220} height={220} viewBox="0 0 220 220" pointerEvents="none">
           <Defs>
             <RadialGradient id="mobileHeroGlow" cx="50%" cy="50%" r="50%">
               <Stop offset="0" stopColor={P.accent} stopOpacity={0.16} />
@@ -1088,10 +1163,10 @@ function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConf
           </Defs>
           <Rect x="0" y="0" width="220" height="220" fill="url(#mobileHeroGlow)" />
         </Svg>
-      </View>
+      </Breathing>
       <View style={{ gap: 8, alignItems: 'flex-start' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.muted }}>Valeur totale</Text>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.muted }}>{t('totalValue')}</Text>
           <Pressable onPress={onToggleHidden} hitSlop={8}>
             <Icon name={isHidden ? 'eyeOff' : tg.available ? (tg.biometricType === 'face' ? 'security' : 'lock') : 'eye'} size={14} color={P.faint} />
           </Pressable>
@@ -1110,7 +1185,7 @@ function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConf
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name={todayUp ? 'send' : 'receive'} size={12} color={changeColor} weight="bold" />
             <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '500', fontSize: 13, color: changeColor }}>
-              {`${todayUp ? '+' : '-'}${formatFiatAmount(Math.abs(absChange), fiat)} · ${todayUp ? '+' : '-'}${Math.abs(today).toFixed(2)} % aujourd'hui`}
+              {`${todayUp ? '+' : '-'}${formatFiatAmount(Math.abs(absChange), fiat)} · ${todayUp ? '+' : '-'}${Math.abs(today).toFixed(2)} % ${t('today')}`}
             </Text>
           </View>
         ) : null}
@@ -1125,7 +1200,7 @@ function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConf
           ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="security" size={14} color={P.accent} />
-            <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted }}>Signatures vérifiées sur ton Kalyx</Text>
+            <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted }}>{tw('trustLine')}</Text>
           </View>
         </View>
       </View>
@@ -1137,6 +1212,8 @@ function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConf
  *  « Prix de l'ETH · 2 245,01 € · -2,45 % · 24 h » séparée par un trait. */
 function MobileTrend({ data, chain }: { data: HeroData; chain: ChainConfig }) {
   const P = useWebPalette();
+  const tw = useWebT();
+  const PERIODS = usePeriods();
   const fiat = useSettings((s) => s.fiat);
   const { days, setDays, values, points, up, pct, loading, price, nativeChange } = data;
   const [scrub, setScrub] = useState<ChartPoint | null>(null);
@@ -1164,7 +1241,7 @@ function MobileTrend({ data, chain }: { data: HeroData; chain: ChainConfig }) {
         </View>
       ) : (
         <View style={{ height: 130, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.muted }}>Pas de données de prix.</Text>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.muted }}>{tw('noPriceData')}</Text>
         </View>
       )}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: P.divider }}>
@@ -1172,7 +1249,7 @@ function MobileTrend({ data, chain }: { data: HeroData; chain: ChainConfig }) {
           <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: P.surfaceHi, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             <ChainAvatar chain={chain} size={14} />
           </View>
-          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.text2 }}>{`Prix de l'${chain.nativeSymbol}`}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.text2 }}>{tw('priceOf', { symbol: chain.nativeSymbol })}</Text>
         </View>
         <View style={{ alignItems: 'flex-end', gap: 2 }}>
           <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 14, color: P.text, fontVariant: ['tabular-nums'] }}>{price ? formatFiatAmount(price, fiat) : '—'}</Text>
@@ -1188,6 +1265,7 @@ type AssetTab = 'tokens' | 'nft' | 'activity';
 /** Onglets soulignés Tokens / NFT / Activité + contenu à plat (pas de carte). */
 function MobileAssets({ data, chain, address, onReceive }: { data: HeroData; chain: ChainConfig; address: string; onReceive: () => void }) {
   const t = useT();
+  const tw = useWebT();
   const [tab, setTab] = useState<AssetTab>('tokens');
   const isEvm = chain.family === 'evm';
   const tabs: { k: AssetTab; l: string }[] = [
@@ -1201,7 +1279,7 @@ function MobileAssets({ data, chain, address, onReceive }: { data: HeroData; cha
       {tab === 'tokens' ? (
         <MobileTokenList data={data} chain={chain} address={address} onReceive={onReceive} />
       ) : tab === 'nft' ? (
-        isEvm ? <NftsPanel chain={chain} address={address} flat /> : <MobileEmptyState icon="nft" title="Aucun NFT" subtitle="Les NFT affichés ici concernent les réseaux EVM." />
+        isEvm ? <NftsPanel chain={chain} address={address} flat /> : <MobileEmptyState icon="nft" title={tw('noNft')} subtitle={tw('nftEvmOnly')} />
       ) : (
         <HistoryPanel chain={chain} address={address} flat />
       )}
@@ -1230,6 +1308,7 @@ function MobileAssetRow({ avatar, title, subtitle, amount, value, divider, onPre
 /** Actif natif en première ligne (données déjà chargées par useHeroData —
  *  aucun appel réseau en plus), puis les tokens ERC-20 vérifiés. */
 function MobileTokenList({ data, chain, address, onReceive }: { data: HeroData; chain: ChainConfig; address: string; onReceive: () => void }) {
+  const tw = useWebT();
   const fiat = useSettings((s) => s.fiat);
   const rev = useWebConnect((s) => s.rev);
   const isEvm = chain.family === 'evm';
@@ -1255,9 +1334,9 @@ function MobileTokenList({ data, chain, address, onReceive }: { data: HeroData; 
     return (
       <MobileEmptyState
         icon="wallet"
-        title="Aucun token pour l'instant"
-        subtitle={`Les tokens détectés sur ${chain.name} s'affichent automatiquement ici dès leur réception.`}
-        action={{ label: 'Recevoir des fonds', onPress: onReceive }}
+        title={tw('noTokensYet')}
+        subtitle={tw('noTokensBody', { chain: chain.name })}
+        action={{ label: tw('receiveFunds'), onPress: onReceive }}
       />
     );
   }
@@ -1294,13 +1373,14 @@ function MobileTokenList({ data, chain, address, onReceive }: { data: HeroData; 
 /** Donut de répartition du portefeuille par réseau (natif + tokens). */
 function AllocationPanel({ worth }: { worth: { data: NetWorth | null } }) {
   const t = useT();
+  const tw = useWebT();
   const { typography } = useTheme();
   const fiat = useSettings((s) => s.fiat);
   const sym = fiatSymbol(fiat);
   if (!worth.data) return <SkeletonRows count={3} />;
   const slices = foldSlices(worth.data.slices.map((s) => ({ label: s.chain.name, value: s.value })));
   if (!slices.length || worth.data.total <= 0) {
-    return <Card><Text style={typography.muted}>Pas encore de valeur à répartir. Vos soldes apparaîtront ici dès qu'ils seront chargés.</Text></Card>;
+    return <Card><Text style={typography.muted}>{tw('allocationEmpty')}</Text></Card>;
   }
   return (
     <Card>
@@ -1308,7 +1388,7 @@ function AllocationPanel({ worth }: { worth: { data: NetWorth | null } }) {
         slices={slices}
         size={152}
         thickness={16}
-        centerTitle="Total"
+        centerTitle={tw('total')}
         centerValue={`${sym}${worth.data.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
         formatValue={(v) => `${sym}${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
       />
@@ -1346,7 +1426,7 @@ function NetworkSelector({ vertical, onSelected }: { vertical: boolean; onSelect
       {chains.length > 6 ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1.25) }}>
           <Icon name="search" size={15} color={colors.textMuted} />
-          <TextInput value={q} onChangeText={setQ} placeholder="Rechercher un réseau…" placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 13, paddingVertical: spacing(0.85) }} />
+          <TextInput value={q} onChangeText={setQ} placeholder={t("searchNetwork")} placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 13, paddingVertical: spacing(0.85) }} />
         </View>
       ) : null}
       {vertical ? (
@@ -1361,6 +1441,7 @@ function NetworkSelector({ vertical, onSelected }: { vertical: boolean; onSelect
 /** Carte compte : nom + réseau + adresse (copier) + QR code dépliable. */
 function AccountCard({ chain, address, defaultQr }: { chain: ChainConfig; address: string; defaultQr?: boolean }) {
   const t = useT();
+  const tw = useWebT();
   const { colors, typography } = useTheme();
   const [showQr, setShowQr] = useState(!!defaultQr);
   return (
@@ -1368,7 +1449,7 @@ function AccountCard({ chain, address, defaultQr }: { chain: ChainConfig; addres
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
         <ChainAvatar chain={chain} size={40} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={typography.bodyStrong}>Compte principal</Text>
+          <Text style={typography.bodyStrong}>{tw('mainAccount')}</Text>
           <Text style={typography.muted} numberOfLines={1}>{chain.name}</Text>
         </View>
         <Pressable onPress={() => setShowQr((v) => !v)} hitSlop={6} style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: showQr ? colors.accent : colors.glassBorder, opacity: pressed ? 0.6 : 1 })}>
@@ -1380,7 +1461,7 @@ function AccountCard({ chain, address, defaultQr }: { chain: ChainConfig; addres
           <View style={{ backgroundColor: '#fff', padding: spacing(1.5), borderRadius: radii.md }}>
             <QRCode value={address} size={168} />
           </View>
-          <Text style={typography.muted}>{`Adresse ${chain.nativeSymbol} · ${chain.name}`}</Text>
+          <Text style={typography.muted}>{tw('addressOf', { symbol: chain.nativeSymbol, chain: chain.name })}</Text>
         </View>
       ) : null}
       <CopyAddress address={address} />
@@ -1391,6 +1472,7 @@ function AccountCard({ chain, address, defaultQr }: { chain: ChainConfig; addres
 /** Panneau Sécurité : met en avant le modèle « le téléphone est le coffre-fort ». */
 function SecurityPanel() {
   const t = useT();
+  const tw = useWebT();
   const { colors, typography } = useTheme();
   const peerName = useWebConnect((s) => s.peerName);
   const connectedAt = useWebConnect((s) => s.connectedAt);
@@ -1398,9 +1480,9 @@ function SecurityPanel() {
   const accounts = useWebConnect((s) => s.accounts);
   const disconnect = useWebConnect((s) => s.disconnect);
   const guarantees: { label: string; value: string }[] = [
-    { label: 'Clés privées', value: 'Jamais sur ce PC' },
-    { label: 'Signatures', value: 'Sur votre téléphone' },
-    { label: 'Ce site', value: 'Lecture seule' },
+    { label: tw('privateKeys'), value: tw('neverOnDevice') },
+    { label: tw('signatures'), value: tw('onYourPhone') },
+    { label: tw('thisSite'), value: tw('readOnly') },
   ];
   return (
     <Card>
@@ -1409,8 +1491,8 @@ function SecurityPanel() {
           <Icon name="security" size={19} color={colors.up} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={typography.bodyStrong} numberOfLines={1}>{peerName ?? 'Portefeuille Kalyx'}</Text>
-          <Text style={typography.muted} numberOfLines={1}>{`Coffre-fort connecté${connectedAt ? ` · ${ago(Math.floor(connectedAt / 1000))}` : ''}`}</Text>
+          <Text style={typography.bodyStrong} numberOfLines={1}>{peerName ?? tw('kalyxWallet')}</Text>
+          <Text style={typography.muted} numberOfLines={1}>{`${tw('vaultConnected')}${connectedAt ? ` · ${ago(Math.floor(connectedAt / 1000))}` : ''}`}</Text>
         </View>
       </View>
 
@@ -1426,16 +1508,16 @@ function SecurityPanel() {
 
       <View style={{ height: 1, backgroundColor: colors.glassBorder, marginVertical: spacing(1.5) }} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={typography.muted}>Dernière activité</Text>
+        <Text style={typography.muted}>{tw('lastActivity')}</Text>
         <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12 }}>{ago(Math.floor(lastActivity / 1000))}</Text>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing(0.5) }}>
-        <Text style={typography.muted}>Réseaux partagés</Text>
+        <Text style={typography.muted}>{tw('sharedNetworks')}</Text>
         <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12 }}>{accounts.length}</Text>
       </View>
 
       <Pressable onPress={disconnect} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', borderRadius: radii.pill, paddingVertical: spacing(1.1), borderWidth: 1, borderColor: colors.danger + '66', opacity: pressed ? 0.6 : 1 })}>
-        <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>Déconnecter cet appareil</Text>
+        <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>{tw('disconnectDevice')}</Text>
       </Pressable>
     </Card>
   );
@@ -1446,23 +1528,30 @@ function SecurityPanel() {
  *  ce navigateur (persistance locale), jamais le téléphone. */
 function SettingsPanel() {
   const t = useT();
+  const tw = useWebT();
   const { colors, typography } = useTheme();
   const language = useSettings((s) => s.language);
   const setLanguage = useSettings((s) => s.setLanguage);
   const fiat = useSettings((s) => s.fiat);
   const setFiat = useSettings((s) => s.setFiat);
-  const [open, setOpen] = useState<'lang' | 'fiat' | null>(null);
+  const themePref = useSettings((s) => s.themePref);
+  const setThemePref = useSettings((s) => s.setThemePref);
+  const aiEnabled = useAiStore((s) => s.isEnabled);
+  const aiProvider = useAiStore((s) => s.provider);
+  const aiModel = useAiStore((s) => s.customModel);
+  const disableAi = useAiStore((s) => s.disableAi);
+  const platform = useWebPlatform();
+  const [open, setOpen] = useState<'lang' | 'fiat' | 'theme' | 'ai' | null>(null);
+  const [aiEdit, setAiEdit] = useState(false);
+  useEffect(() => { setAiEdit(false); }, [aiEnabled]);
   const curLang = LANGUAGES.find((l) => l.code === language) ?? LANGUAGES[0];
   const curFiat = FIATS.find((f) => f.code === fiat) ?? FIATS[0];
+  const themeLabel = themePref === 'dark' ? tw('themeDark') : themePref === 'light' ? tw('themeLight') : tw('themeSystem');
+  const aiValue = aiEnabled ? tw('aiConfigured', { provider: PROVIDER_LABELS[aiProvider], model: aiModel || PROVIDER_DEFAULTS[aiProvider]?.model || '' }) : tw('aiNotConfigured');
 
-  const row = (opts: {
-    icon: 'language' | 'currency';
-    label: string;
-    value: string;
-    section: 'lang' | 'fiat';
-  }) => (
+  const row = (opts: { icon: IconName; label: string; value: string; section: 'lang' | 'fiat' | 'theme' | 'ai' }) => (
     <Pressable
-      onPress={() => setOpen(open === opts.section ? null : opts.section)}
+      onPress={() => { setOpen(open === opts.section ? null : opts.section); setAiEdit(false); }}
       style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(0.75) }}
     >
       <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
@@ -1477,50 +1566,74 @@ function SettingsPanel() {
       </View>
     </Pressable>
   );
+  const option = (on: boolean, onPress: () => void, left: React.ReactNode, label: string, key: string) => (
+    <Pressable
+      key={key}
+      onPress={onPress}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85), borderRadius: radii.md, backgroundColor: on ? colors.glass : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
+    >
+      {left}
+      <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.medium, fontSize: 13, flex: 1 }}>{label}</Text>
+      {on ? <Icon name="check" size={14} color={colors.accent} /> : null}
+    </Pressable>
+  );
+  const divider = <View style={{ height: 1, backgroundColor: colors.glassBorder }} />;
 
   return (
     <Card>
-      {row({ icon: 'language', label: 'Langue', value: `${curLang.flag} ${curLang.name}`, section: 'lang' })}
+      {row({ icon: 'language', label: tw('language'), value: `${curLang.flag} ${curLang.name}`, section: 'lang' })}
       {open === 'lang' ? (
         <View style={{ gap: spacing(0.5), marginTop: spacing(0.5), marginBottom: spacing(1) }}>
-          {LANGUAGES.map((l) => {
-            const on = l.code === language;
-            return (
-              <Pressable
-                key={l.code}
-                onPress={() => { setLanguage(l.code); setOpen(null); }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85), borderRadius: radii.md, backgroundColor: on ? colors.glass : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
-              >
-                <Text style={{ fontSize: 16 }}>{l.flag}</Text>
-                <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.medium, fontSize: 13, flex: 1 }}>{l.name}</Text>
-                {on ? <Icon name="check" size={14} color={colors.accent} /> : null}
-              </Pressable>
-            );
-          })}
+          {LANGUAGES.map((l) => option(l.code === language, () => { setLanguage(l.code); setOpen(null); }, <Text style={{ fontSize: 16 }}>{l.flag}</Text>, l.name, l.code))}
         </View>
       ) : null}
+      {divider}
 
-      <View style={{ height: 1, backgroundColor: colors.glassBorder }} />
-
-      {row({ icon: 'currency', label: 'Devise', value: `${curFiat.symbol} ${curFiat.name}`, section: 'fiat' })}
+      {row({ icon: 'currency', label: tw('currency'), value: `${curFiat.symbol} ${curFiat.name}`, section: 'fiat' })}
       {open === 'fiat' ? (
-        <View style={{ gap: spacing(0.5), marginTop: spacing(0.5) }}>
-          {FIATS.map((f) => {
-            const on = f.code === fiat;
-            return (
-              <Pressable
-                key={f.code}
-                onPress={() => { setFiat(f.code); setOpen(null); }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85), borderRadius: radii.md, backgroundColor: on ? colors.glass : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
-              >
-                <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 14, width: 34 }}>{f.symbol}</Text>
-                <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.medium, fontSize: 13, flex: 1 }}>{f.name}</Text>
-                {on ? <Icon name="check" size={14} color={colors.accent} /> : null}
-              </Pressable>
-            );
-          })}
+        <View style={{ gap: spacing(0.5), marginTop: spacing(0.5), marginBottom: spacing(1) }}>
+          {FIATS.map((f) => option(f.code === fiat, () => { setFiat(f.code); setOpen(null); }, <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 14, width: 34 }}>{f.symbol}</Text>, f.name, f.code))}
         </View>
       ) : null}
+      {divider}
+
+      {row({ icon: 'appearance', label: tw('appearance'), value: themeLabel, section: 'theme' })}
+      {open === 'theme' ? (
+        <View style={{ gap: spacing(0.5), marginTop: spacing(0.5), marginBottom: spacing(1) }}>
+          {([['system', tw('themeSystem')], ['dark', tw('themeDark')], ['light', tw('themeLight')]] as const).map(([k, label]) =>
+            option(themePref === k, () => { setThemePref(k); setOpen(null); }, <Icon name={k === 'light' ? 'eye' : k === 'dark' ? 'eyeOff' : 'desktop'} size={16} color={colors.textMuted} />, label, k))}
+        </View>
+      ) : null}
+      {divider}
+
+      {row({ icon: 'sparkles', label: tw('aiAgent'), value: aiValue, section: 'ai' })}
+      {open === 'ai' ? (
+        <View style={{ gap: spacing(1), marginTop: spacing(0.5), marginBottom: spacing(1) }}>
+          {!aiEnabled || aiEdit ? (
+            <AgentSetup />
+          ) : (
+            <View style={{ flexDirection: 'row', gap: spacing(1) }}>
+              <Pressable onPress={() => setAiEdit(true)} style={({ pressed }) => ({ flex: 1, alignItems: 'center', borderRadius: radii.pill, paddingVertical: spacing(1.1), borderWidth: 1, borderColor: colors.glassBorder, backgroundColor: colors.glass, opacity: pressed ? 0.6 : 1 })}>
+                <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{tw('aiChangeKey')}</Text>
+              </Pressable>
+              <Pressable onPress={() => { disableAi(); toast.info(tw('aiDisabled')); }} style={({ pressed }) => ({ flex: 1, alignItems: 'center', borderRadius: radii.pill, paddingVertical: spacing(1.1), borderWidth: 1, borderColor: colors.danger + '66', opacity: pressed ? 0.6 : 1 })}>
+                <Text style={{ color: colors.danger, fontFamily: fonts.semibold, fontSize: 13 }}>{tw('aiDisable')}</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      ) : null}
+      {divider}
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(0.75) }}>
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={platform === 'telegram' ? 'telegramLogo' : 'security'} size={18} color={colors.textMuted} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={typography.muted}>{platform === 'telegram' ? tw('telegramMode') : tw('webMode')}</Text>
+          <Text style={[typography.bodyStrong, { fontSize: 13 }]}>{platform === 'telegram' ? tw('telegramModeOn') : tw('webModeBody')}</Text>
+        </View>
+      </View>
     </Card>
   );
 }
@@ -1528,6 +1641,7 @@ function SettingsPanel() {
 /** Watchlist : actifs natifs des réseaux connectés (prix + variation 24 h). */
 function WatchlistPanel({ worth }: { worth: { data: NetWorth | null } }) {
   const t = useT();
+  const tw = useWebT();
   const { colors, typography } = useTheme();
   const fiat = useSettings((s) => s.fiat);
   if (!worth.data) return <SkeletonRows count={3} />;
@@ -1539,7 +1653,7 @@ function WatchlistPanel({ worth }: { worth: { data: NetWorth | null } }) {
     seen.add(id);
     return s.price > 0;
   });
-  if (!rows.length) return <Card><Text style={typography.muted}>Watchlist indisponible (prix non chargés).</Text></Card>;
+  if (!rows.length) return <Card><Text style={typography.muted}>{tw('watchlistUnavailable')}</Text></Card>;
   return (
     <Card>
       {rows.map((s, i) => {
@@ -1572,14 +1686,14 @@ function CopyAddress({ address }: { address: string }) {
   const copy = async () => {
     await Clipboard.setStringAsync(address);
     setCopied(true);
-    toast.success('Adresse copiée !');
+    toast.success(t('addressCopied'));
     setTimeout(() => setCopied(false), 1500);
   };
   return (
     <Pressable onPress={copy} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(1.25), alignSelf: 'flex-start' }}>
       <Text style={[typography.muted, { fontVariant: ['tabular-nums'] }]} numberOfLines={1}>{address}</Text>
       <Icon name={copied ? 'check' : 'copy'} size={14} color={copied ? colors.up : colors.textMuted} />
-      {copied ? <Text style={{ color: colors.up, fontSize: 12, fontFamily: fonts.semibold }}>Copié</Text> : null}
+      {copied ? <Text style={{ color: colors.up, fontSize: 12, fontFamily: fonts.semibold }}>{t('copied')}</Text> : null}
     </Pressable>
   );
 }
@@ -1616,6 +1730,7 @@ function NativeBalanceCard({ chain, address }: { chain: ChainConfig; address: st
 
 function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }) {
   const t = useT();
+  const tw = useWebT();
   const { typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const fiat = useSettings((s) => s.fiat);
@@ -1628,7 +1743,7 @@ function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }
   }, [chain.id, address, fiat, rev]);
   if (loading) return <SkeletonRows />;
   const tokens = data?.tokens ?? [];
-  if (tokens.length === 0) return <EmptyState icon="wallet" title="Aucun token" subtitle="Les tokens de ce réseau apparaîtront ici dès qu'ils seront détectés." />;
+  if (tokens.length === 0) return <EmptyState icon="wallet" title={tw('noTokens')} subtitle={tw('noTokensChainBody')} />;
   const prices = data?.prices ?? {};
   // Valeur $ par token, triés par valeur décroissante (plus gros en haut).
   const withValue = tokens
@@ -1648,7 +1763,7 @@ function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }
     <View style={{ gap: spacing(1) }}>
       <Card>
         {verified.length === 0 ? (
-          <Text style={typography.muted}>Aucun token vérifié détecté.</Text>
+          <Text style={typography.muted}>{tw('noVerifiedTokens')}</Text>
         ) : (
           verified.map(({ tk, value }, i) => (
             <TokenRow
@@ -1678,6 +1793,7 @@ function UnverifiedTokensAccordion({
   rows: { tk: Erc20Token; value: number }[]; sym: string; chain: ChainConfig; expanded: string | null; onToggle: (id: string | null) => void;
 }) {
   const { colors, typography } = useTheme();
+  const tw = useWebT();
   const [open, setOpen] = useState(false);
   return (
     <View>
@@ -1685,7 +1801,7 @@ function UnverifiedTokensAccordion({
         <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
           <Icon name="caretDown" size={13} color={colors.textFaint} />
         </View>
-        <Text style={[typography.muted, { fontSize: 12 }]}>{`Tokens non vérifiés (${rows.length})`}</Text>
+        <Text style={[typography.muted, { fontSize: 12 }]}>{tw('unverifiedTokens', { n: rows.length })}</Text>
       </Pressable>
       {open ? (
         <Card>
@@ -1715,6 +1831,7 @@ function TokenRow({
   token: Erc20Token; value: number; sym: string; chain: ChainConfig; divider: boolean; expanded: boolean; onToggle: () => void;
 }) {
   const t = useT();
+  const tw = useWebT();
   const { colors, typography } = useTheme();
   const request = useWebConnect((s) => s.request);
   const contacts = useContacts((s) => s.contacts);
@@ -1729,19 +1846,19 @@ function TokenRow({
 
   const onSend = async () => {
     setErr(null); setMsg(null);
-    if (!/^0x[a-fA-F0-9]{40}$/.test(to.trim())) { setErr('Adresse EVM invalide (0x…).'); return; }
+    if (!/^0x[a-fA-F0-9]{40}$/.test(to.trim())) { setErr(tw('invalidEvmAddress')); return; }
     const raw = amount.replace(',', '.').trim();
     if (!/^\d*\.?\d+$/.test(raw) || !(parseFloat(raw) > 0)) { setErr(t("errInvalidAmount")); return; }
     setBusy(true);
-    setMsg('Validez la transaction dans l\'app Kalyx (PIN ou biométrie)…');
+    setMsg(tw('approveInApp'));
     try {
       const raw2 = toRaw(raw, token.decimals);
       const data = encodeErc20Transfer(to.trim(), raw2);
       const hash = await request('eth_sendTransaction', [{ to: token.contract, value: '0x0', data }]);
-      setMsg(`Transaction envoyée : ${short(hash)}`);
+      setMsg(tw('txSent', { hash: short(hash) }));
       setTo(''); setAmount('');
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Refusé ou échoué.');
+      setErr(e instanceof Error ? e.message : tw('rejectedOrFailed'));
       setMsg(null);
     } finally {
       setBusy(false);
@@ -1751,7 +1868,7 @@ function TokenRow({
   return (
     <View style={{ borderTopWidth: divider ? 1 : 0, borderTopColor: colors.glassBorder }}>
       <Pressable onPress={onToggle} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25) }}>
-        <TokenAvatar uri={token.logo} label={token.symbol} seed={token.contract} size={32} />
+        <TokenAvatar uri={token.logo} label={token.symbol} seed={token.contract} size={32} chainId={chain.id} />
         <View style={{ flex: 1 }}>
           <Text style={typography.bodyStrong}>{token.symbol}</Text>
           <Text style={typography.muted} numberOfLines={1}>{token.name}</Text>
@@ -1766,7 +1883,7 @@ function TokenRow({
         <View style={{ paddingBottom: spacing(1.5), gap: spacing(1) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1) }}>
             <Text style={[typography.muted, { flex: 1 }]} numberOfLines={1}>{short(token.contract)}</Text>
-            <Pressable onPress={() => { Clipboard.setStringAsync(token.contract); toast.success('Adresse du contrat copiée !'); }} hitSlop={6} style={{ marginRight: spacing(1) }}>
+            <Pressable onPress={() => { Clipboard.setStringAsync(token.contract); toast.success(tw('contractCopied')); }} hitSlop={6} style={{ marginRight: spacing(1) }}>
               <Icon name="copy" size={14} color={colors.textMuted} />
             </Pressable>
             {chain.explorerUrl ? (
@@ -1805,14 +1922,14 @@ function TokenRow({
             </View>
           ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={typography.muted}>{`Montant (${token.symbol})`}</Text>
+            <Text style={typography.muted}>{tw('amountOf', { symbol: token.symbol })}</Text>
             <Pressable onPress={() => setAmount(balStr)} hitSlop={6}>
-              <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{`Solde ${balStr} · Max`}</Text>
+              <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{tw('balanceMax', { balance: balStr })}</Text>
             </Pressable>
           </View>
           <TextInput value={amount} onChangeText={setAmount} placeholder="0.0" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={{ color: colors.text, fontSize: 14, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1) }} />
           <Pressable onPress={onSend} disabled={busy} style={({ pressed }) => ({ alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.2), opacity: pressed || busy ? 0.7 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
-            <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{busy ? 'En attente de l\'app…' : t("aiSend")}</Text>
+            <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{busy ? tw('waitingApp') : t("aiSend")}</Text>
           </Pressable>
           {msg ? <Text style={{ color: colors.accent }}>{msg}</Text> : null}
           {err ? <Text style={{ color: colors.danger }}>{err}</Text> : null}
@@ -1824,6 +1941,7 @@ function TokenRow({
 
 function NftsPanel({ chain, address, flat }: { chain: ChainConfig; address: string; flat?: boolean }) {
   const t = useT();
+  const tw = useWebT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const { data, loading } = useAsync<NftItem[]>(() => getNfts(chain, address), [chain.id, address, rev]);
@@ -1833,7 +1951,7 @@ function NftsPanel({ chain, address, flat }: { chain: ChainConfig; address: stri
     </View>
   );
   if (!data || data.length === 0) {
-    const empty = { title: 'Aucun NFT', subtitle: `Les NFT détectés sur ${chain.name} apparaîtront ici automatiquement.` };
+    const empty = { title: tw('noNft'), subtitle: tw('noNftBody', { chain: chain.name }) };
     return flat ? <MobileEmptyState icon="nft" {...empty} /> : <EmptyState icon="nft" {...empty} />;
   }
   const isRawAddress = (s: string) => /^0x[a-fA-F0-9]{20,}$/.test(s || '');
@@ -1868,6 +1986,7 @@ function toneColor(tone: HumanTx['tone'], colors: ReturnType<typeof useTheme>['c
  *  et les transferts entrants à 0 (poussière/airdrop spam) sont masqués. */
 function HistoryPanel({ chain, address, flat }: { chain: ChainConfig; address: string; flat?: boolean }) {
   const t = useT();
+  const tw = useWebT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address, rev]);
@@ -1876,7 +1995,7 @@ function HistoryPanel({ chain, address, flat }: { chain: ChainConfig; address: s
     .map((tx) => ({ tx, h: humanizeTx(tx, { nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals }) }))
     .filter(({ h }) => !h.spam);
   if (!rows.length) {
-    const empty = { title: 'Aucune activité', subtitle: 'Tes transactions récentes s\'afficheront ici.' };
+    const empty = { title: tw('noActivity'), subtitle: tw('noActivityBody') };
     return flat ? <MobileEmptyState icon="history" {...empty} /> : <EmptyState icon="history" {...empty} />;
   }
   const Wrap = flat ? View : Card;
@@ -1899,316 +2018,5 @@ function HistoryPanel({ chain, address, flat }: { chain: ChainConfig; address: s
         </Pressable>
       ))}
     </Wrap>
-  );
-}
-
-interface TokenOption { address: string; symbol: string; decimals: number; logo?: string }
-
-/** Sélecteur de token (natif + tokens détenus) pour le panneau Swap : bouton +
- *  liste dépliable, dans le style de SettingsPanel/AccountCard. */
-function TokenPickerRow({
-  label, options, selected, onSelect, open, onToggle,
-}: {
-  label: string; options: TokenOption[]; selected: TokenOption | null; onSelect: (o: TokenOption) => void; open: boolean; onToggle: () => void;
-}) {
-  const { colors, typography } = useTheme();
-  return (
-    <View>
-      <Pressable onPress={onToggle} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(0.5) }}>
-        <Text style={typography.muted}>{label}</Text>
-        <View style={{ flex: 1 }} />
-        {selected ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {selected.logo ? <Image source={{ uri: selected.logo }} style={{ width: 20, height: 20, borderRadius: 10 }} /> : null}
-            <Text style={{ color: colors.text, fontFamily: fonts.bold }}>{selected.symbol || short(selected.address)}</Text>
-          </View>
-        ) : (
-          <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}>Choisir</Text>
-        )}
-        <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
-          <Icon name="caretDown" size={13} color={colors.textMuted} />
-        </View>
-      </Pressable>
-      {open ? (
-        <View style={{ marginTop: spacing(0.5), marginBottom: spacing(0.5), backgroundColor: colors.bgElevated, borderRadius: radii.md, borderWidth: 1, borderColor: colors.glassBorder, overflow: 'hidden' }}>
-          <ScrollView style={{ maxHeight: 200 }}>
-            {options.map((o) => {
-              const on = selected?.address === o.address;
-              return (
-                <Pressable key={o.address} onPress={() => onSelect(o)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing(1.25), paddingVertical: spacing(1), backgroundColor: pressed || on ? colors.glass : 'transparent' })}>
-                  {o.logo ? <Image source={{ uri: o.logo }} style={{ width: 22, height: 22, borderRadius: 11 }} /> : <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.glassStrong }} />}
-                  <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.medium, fontSize: 13, flex: 1 }} numberOfLines={1}>{o.symbol || short(o.address)}</Text>
-                  {on ? <Icon name="check" size={13} color={colors.accent} /> : null}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-/** Swap intra-réseau (LI.FI, même agrégateur que l'app) : devis lu ici, mais
- *  approbation + transaction toujours forwardées et signées sur le téléphone.
- *  Limité aux tokens EVM du réseau sélectionné (pas de bridge cross-chain ici). */
-function SwapPanel({ chain, address }: { chain: ChainConfig; address: string }) {
-  const t = useT();
-  const { colors, typography } = useTheme();
-  const request = useWebConnect((s) => s.request);
-  const rev = useWebConnect((s) => s.rev);
-  const fiat = useSettings((s) => s.fiat);
-  const sym = fiatSymbol(fiat);
-  const { data: tokenData } = useAsync<Erc20Token[]>(() => getErc20Tokens(chain, address), [chain.id, address, rev]);
-  const { data: nativeBal } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
-  const heldTokens = tokenData ?? [];
-  const nativeOption: TokenOption = { address: NATIVE_TOKEN, symbol: chain.nativeSymbol, decimals: chain.nativeDecimals };
-  const options: TokenOption[] = [nativeOption, ...heldTokens.map((tk) => ({ address: tk.contract, symbol: tk.symbol, decimals: tk.decimals, logo: tk.logo }))];
-
-  const [fromAddr, setFromAddr] = useState(NATIVE_TOKEN);
-  const [toAddr, setToAddr] = useState<string | null>(null);
-  const [toCustom, setToCustom] = useState('');
-  const [showCustom, setShowCustom] = useState(false);
-  const [amount, setAmount] = useState('');
-  const [picker, setPicker] = useState<'from' | 'to' | null>(null);
-  const [quote, setQuote] = useState<SwapQuote | null>(null);
-  const [quoteErr, setQuoteErr] = useState<string | null>(null);
-  const [quoting, setQuoting] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [step, setStep] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-
-  const fromOpt = options.find((o) => o.address === fromAddr) ?? nativeOption;
-  const toOpt = options.find((o) => o.address === toAddr) ?? null;
-  const customValid = /^0x[a-fA-F0-9]{40}$/.test(toCustom.trim());
-  const toEffective = toOpt?.address ?? (customValid ? toCustom.trim() : null);
-
-  const fromBalRaw = fromOpt.address === NATIVE_TOKEN
-    ? (nativeBal?.raw ?? 0n)
-    : (heldTokens.find((tk) => tk.contract.toLowerCase() === fromOpt.address.toLowerCase())?.raw ?? 0n);
-  const fromBalStr = formatTokenAmount(fromBalRaw, fromOpt.decimals);
-
-  // Devis LI.FI (même agrégateur que l'app) avec anti-rebond : on attend une
-  // pause de saisie avant d'interroger, pour ne pas spammer l'API à chaque frappe.
-  useEffect(() => {
-    setQuote(null); setQuoteErr(null);
-    const raw = amount.replace(',', '.').trim();
-    if (!toEffective || toEffective.toLowerCase() === fromOpt.address.toLowerCase() || !/^\d*\.?\d+$/.test(raw) || !(parseFloat(raw) > 0)) return;
-    setQuoting(true);
-    const id = setTimeout(() => {
-      (async () => {
-        try {
-          const parsed = parseAmount(raw, fromOpt.decimals);
-          const q = await getBestQuote({
-            fromChainId: chain.id,
-            toChainId: chain.id,
-            fromToken: fromOpt.address,
-            toToken: toEffective,
-            fromAmount: parsed.raw.toString(),
-            fromAddress: address,
-            toAddress: address,
-            slippage: 0.005,
-          });
-          setQuote(q);
-        } catch (e) {
-          setQuoteErr(e instanceof Error ? e.message : 'Aucune route trouvée.');
-        } finally {
-          setQuoting(false);
-        }
-      })();
-    }, 600);
-    return () => clearTimeout(id);
-  }, [fromOpt.address, toEffective, amount, chain.id, address, rev]);
-
-  const onFlip = () => {
-    if (!toEffective) return;
-    const prevFrom = fromOpt.address;
-    setFromAddr(toEffective);
-    if (options.some((o) => o.address === prevFrom)) { setToAddr(prevFrom); setToCustom(''); }
-    else { setToAddr(null); setToCustom(prevFrom); setShowCustom(true); }
-    setAmount(''); setQuote(null); setMsg(null); setErr(null);
-  };
-
-  const onSwap = async () => {
-    if (!quote || quote.tx.type !== 'evm') return;
-    setErr(null); setMsg(null); setBusy(true);
-    try {
-      if (quote.approvalAddress) {
-        setStep('Approbation du token dans l\'app Kalyx…');
-        const data = encodeErc20Approve(quote.approvalAddress, quote.fromAmount);
-        await request('eth_sendTransaction', [{ to: fromOpt.address, value: '0x0', data }]);
-      }
-      setStep('Validez l\'échange dans l\'app Kalyx…');
-      const tx = quote.tx;
-      const hash = await request('eth_sendTransaction', [{ to: tx.to, value: '0x' + tx.value.toString(16), data: tx.data }]);
-      setMsg(`Échange envoyé : ${short(hash)}`);
-      setAmount(''); setQuote(null);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Refusé ou échoué.');
-    } finally {
-      setBusy(false);
-      setStep(null);
-    }
-  };
-
-  if (!chain.evmChainId) {
-    return <Note text={`Le swap n'est disponible que sur les réseaux EVM pris en charge par Kalyx.`} />;
-  }
-
-  return (
-    <Card>
-      <TokenPickerRow label="Tu donnes" options={options} selected={fromOpt} open={picker === 'from'} onToggle={() => setPicker(picker === 'from' ? null : 'from')} onSelect={(o) => { setFromAddr(o.address); setPicker(null); setQuote(null); }} />
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -4 }}>
-        <Pressable onPress={() => setAmount(fromBalStr)} hitSlop={6}>
-          <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{`Solde ${fromBalStr} · Max`}</Text>
-        </Pressable>
-      </View>
-      <TextInput value={amount} onChangeText={setAmount} placeholder="0.0" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={{ color: colors.text, fontSize: 15, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), marginTop: 4, marginBottom: spacing(1) }} />
-
-      <View style={{ alignItems: 'center', marginVertical: -spacing(0.5) }}>
-        <Pressable onPress={onFlip} hitSlop={6} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.glassBorder }}>
-          <Icon name="convert" size={15} color={colors.textMuted} />
-        </Pressable>
-      </View>
-
-      <View style={{ marginTop: spacing(1) }}>
-        <TokenPickerRow label="Tu reçois" options={options} selected={toOpt} open={picker === 'to'} onToggle={() => setPicker(picker === 'to' ? null : 'to')} onSelect={(o) => { setToAddr(o.address); setShowCustom(false); setToCustom(''); setPicker(null); }} />
-        <Pressable onPress={() => setShowCustom((v) => !v)} hitSlop={6}>
-          <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12, marginTop: 2 }}>{showCustom ? 'Choisir dans la liste' : 'Autre token (adresse de contrat)'}</Text>
-        </Pressable>
-        {showCustom ? (
-          <TextInput
-            value={toCustom}
-            onChangeText={(v) => { setToCustom(v); setToAddr(null); }}
-            placeholder="0x…"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            style={{ color: colors.text, fontSize: 14, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1), marginTop: spacing(0.5) }}
-          />
-        ) : null}
-      </View>
-
-      {quoting ? <Text style={[typography.muted, { marginTop: spacing(1) }]}>Recherche du meilleur prix…</Text> : null}
-      {quoteErr ? <Text style={{ color: colors.danger, marginTop: spacing(1) }}>{quoteErr}</Text> : null}
-      {quote && quote.tx.type === 'evm' ? (
-        <View style={{ marginTop: spacing(1.25), gap: spacing(0.6) }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={typography.muted}>Tu reçois au moins</Text>
-            <Text style={{ color: colors.text, fontFamily: fonts.bold }}>{`${formatTokenAmount(quote.toAmountMin, quote.toToken.decimals)} ${quote.toToken.symbol}`}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={typography.muted}>Frais réseau estimés</Text>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{`≈ ${sym}${quote.gasCostUsd.toFixed(2)}`}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={typography.muted}>Frais Kalyx</Text>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{`${((quote.kalyxFeeApplied ?? 0) * 100).toFixed(2)} %`}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={typography.muted}>Fournisseur</Text>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{quote.toolName}</Text>
-          </View>
-        </View>
-      ) : null}
-
-      <Pressable onPress={onSwap} disabled={!quote || busy || quoting} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.4), opacity: pressed || busy || !quote || quoting ? 0.6 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
-        <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{busy ? (step ?? 'En attente de l\'app…') : t("swapAction")}</Text>
-      </Pressable>
-      {msg ? <Text style={{ color: colors.accent, marginTop: spacing(1) }}>{msg}</Text> : null}
-      {err ? <Text style={{ color: colors.danger, marginTop: spacing(1) }}>{err}</Text> : null}
-    </Card>
-  );
-}
-
-function SendPanel({ chain, address }: { chain: ChainConfig; address: string }) {
-  const t = useT();
-  const { colors, typography } = useTheme();
-  const request = useWebConnect((s) => s.request);
-  const rev = useWebConnect((s) => s.rev);
-  const contacts = useContacts((s) => s.contacts);
-  const { data: bal } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
-  const balStr = bal ? formatTokenAmount(bal.raw, bal.decimals) : '0';
-  const [to, setTo] = useState('');
-  const [amount, setAmount] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [showContacts, setShowContacts] = useState(false);
-  const matchedContact = contacts.find((c) => c.address.toLowerCase() === to.trim().toLowerCase());
-
-  const onSend = async () => {
-    setErr(null); setMsg(null);
-    if (!/^0x[a-fA-F0-9]{40}$/.test(to.trim())) { setErr('Adresse EVM invalide (0x…).'); return; }
-    // Accepte la virgule décimale (clavier FR) et valide le format.
-    const raw = amount.replace(',', '.').trim();
-    if (!/^\d*\.?\d+$/.test(raw) || !(parseFloat(raw) > 0)) { setErr(t("errInvalidAmount")); return; }
-    setBusy(true);
-    setMsg('Validez la transaction dans l\'app Kalyx (PIN ou biométrie)…');
-    try {
-      const wei = toWei(raw); // décimal → wei sans perte de précision (BigInt)
-      const hash = await request('eth_sendTransaction', [{ to: to.trim(), value: '0x' + wei.toString(16) }]);
-      setMsg(`Transaction envoyée : ${short(hash)}`);
-      setTo(''); setAmount('');
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Refusé ou échoué.');
-      setMsg(null);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Card>
-      <Text style={typography.bodyStrong}>{t("aiSend")}{chain.nativeSymbol}</Text>
-      <Text style={[typography.muted, { marginBottom: spacing(1) }]}>La transaction est signée dans l'app Kalyx — ce site ne signe jamais.</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={typography.muted}>{t("labelRecipient")}</Text>
-        {contacts.length ? (
-          <Pressable onPress={() => setShowContacts((v) => !v)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Icon name="contacts" size={14} color={colors.accent} />
-            <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{t("addressBook")}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-      {showContacts && contacts.length ? (
-        <View style={{ marginTop: 4, marginBottom: spacing(1), backgroundColor: colors.bgElevated, borderRadius: radii.md, borderWidth: 1, borderColor: colors.glassBorder, overflow: 'hidden' }}>
-          <ScrollView style={{ maxHeight: 180 }}>
-            {contacts.map((c) => (
-              <Pressable
-                key={c.id}
-                onPress={() => { setTo(c.address); setShowContacts(false); }}
-                style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingHorizontal: spacing(1.25), paddingVertical: spacing(1), backgroundColor: pressed ? colors.glass : 'transparent' })}
-              >
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={typography.bodyStrong} numberOfLines={1}>{c.name}</Text>
-                  <Text style={typography.muted} numberOfLines={1}>{short(c.address)}</Text>
-                </View>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      ) : null}
-      <TextInput value={to} onChangeText={setTo} placeholder="0x…" placeholderTextColor={colors.textMuted} autoCapitalize="none" style={{ color: colors.text, fontSize: 15, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), marginTop: 4 }} />
-      {matchedContact ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-          <Icon name="check" size={12} color={colors.up} />
-          <Text style={{ color: colors.up, fontSize: 12, fontFamily: fonts.medium }}>{matchedContact.name}</Text>
-        </View>
-      ) : null}
-      <View style={{ height: spacing(1) }} />
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={typography.muted}>Montant ({chain.nativeSymbol})</Text>
-        <Pressable onPress={() => setAmount(balStr)} hitSlop={6}>
-          <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{`Solde ${balStr} · Max`}</Text>
-        </Pressable>
-      </View>
-      <TextInput value={amount} onChangeText={setAmount} placeholder="0.0" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={{ color: colors.text, fontSize: 15, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), marginTop: 4 }} />
-      <Pressable onPress={onSend} disabled={busy} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.4), opacity: pressed || busy ? 0.7 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
-        <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{busy ? 'En attente de l\'app…' : t("aiSend")}</Text>
-      </Pressable>
-      {msg ? <Text style={{ color: colors.accent, marginTop: spacing(1) }}>{msg}</Text> : null}
-      {err ? <Text style={{ color: colors.danger, marginTop: spacing(1) }}>{err}</Text> : null}
-    </Card>
   );
 }

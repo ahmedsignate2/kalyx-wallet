@@ -162,7 +162,8 @@ export function FloatingDock({ tab, onChange, onSwapPress, labels }: { tab: Dock
             width: 52, height: 52, borderRadius: 26, marginTop: -30,
             backgroundColor: P.accent, borderWidth: 3, borderColor: P.bg,
             alignItems: 'center', justifyContent: 'center',
-            shadowColor: '#000', shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
+            // Ombre portée + léger halo laiton : le bouton « flotte » au-dessus du dock.
+            shadowColor: pressed ? '#000' : P.accent, shadowOpacity: pressed ? 0.45 : 0.35, shadowRadius: pressed ? 16 : 14, shadowOffset: { width: 0, height: 6 },
             opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.96 : 1 }],
           })}
         >

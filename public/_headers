@@ -1,0 +1,17 @@
+# En-têtes de sécurité servis par Cloudflare Pages pour le tableau de bord web.
+# Le site ne stocke jamais de clé privée ; ces en-têtes ferment le reste :
+# clickjacking (sauf embarquement par Telegram, nécessaire à la mini-app),
+# sniffing MIME, fuite de referrer vers les explorateurs/RPC, capteurs.
+#
+# La CSP complète est d'abord en Report-Only : à vérifier dans la console du
+# navigateur (aucune violation) avant de la passer en Content-Security-Policy.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+  Content-Security-Policy: frame-ancestors 'self' https://web.telegram.org https://*.telegram.org; object-src 'none'; base-uri 'self'; form-action 'none'
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' https://telegram.org; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data: blob:; connect-src 'self' https: wss:; worker-src 'self' blob:; frame-src https://verify.walletconnect.com https://verify.walletconnect.org; frame-ancestors 'self' https://web.telegram.org https://*.telegram.org; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests
