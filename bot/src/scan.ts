@@ -9,7 +9,10 @@ const EVM_CHAINS: { id: string; name: string }[] = [
   { id: '42161', name: 'Arbitrum' }, { id: '137', name: 'Polygon' }, { id: '10', name: 'Optimism' }, { id: '43114', name: 'Avalanche' },
 ];
 
-export type ScanOutcome = ScanResult | 'not_token' | null;
+export type ScanOutcome = ScanResult | AddressResult | 'not_token' | null;
+
+/** Réputation d'une adresse de wallet (GoPlus address_security). */
+export interface AddressResult { kind: 'address'; flags: string[] } // clés de addrFlags
 
 export interface ScanResult {
   chain: string;
@@ -52,7 +55,22 @@ export async function scanToken(address: string): Promise<ScanOutcome> {
         /* chaîne suivante */
       }
     }
-    return null;
+    // Pas un token connu : réputation de l'adresse (wallet ou contrat non-token).
+    try {
+      const res = await fetchJson<{ result?: Record<string, string> }>(`${GOPLUS}/address_security/${a}?chain_id=1`, undefined, 6000);
+      const r = res.result;
+      if (!r) return null;
+      const MAP: [string, string][] = [
+        ['phishing_activities', 'phishing'], ['blacklist_doubt', 'blacklist'], ['sanctioned', 'sanctioned'], ['cybercrime', 'cybercrime'],
+        ['money_laundering', 'laundering'], ['stealing_attack', 'stealing'], ['blackmail_activities', 'blackmail'], ['darkweb_transactions', 'darkweb'],
+        ['fake_kyc', 'fakeKyc'], ['honeypot_related_address', 'honeypotRelated'], ['mixer', 'mixer'], ['malicious_mining_activities', 'mining'],
+      ];
+      const flags = MAP.filter(([k]) => r[k] === '1').map(([, v]) => v);
+      if (Number(r.number_of_malicious_contracts_created ?? '0') > 0) flags.push('maliciousContracts');
+      return { kind: 'address', flags };
+    } catch {
+      return null;
+    }
   }
   if (isSolana(address)) {
     try {

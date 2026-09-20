@@ -105,12 +105,15 @@ export function createBot(env: Env): Bot<Ctx> {
 
   bot.command('scan', async (ctx) => {
     const a = ctx.match.trim();
+    // Hash de transaction (EVM 32 octets hex, Solana signature base58 ~88 car.) : pas une adresse.
+    if (/^0x[a-fA-F0-9]{64}$/.test(a) || /^[1-9A-HJ-NP-Za-km-z]{80,90}$/.test(a)) return ctx.reply(t(ctx).scanIsTxHash, HTML);
     if (!a || !familyOf(a) || familyOf(a) === 'bitcoin') return ctx.reply(t(ctx).scanUsage, HTML);
     if (ctx.from && (await rateLimited(env, `scan:${ctx.from.id}`, 5, 60))) return ctx.reply(t(ctx).rateLimited);
     await ctx.reply(t(ctx).scanRunning);
     const r = await scanToken(a).catch(() => null);
     if (r === 'not_token') return ctx.reply(t(ctx).scanNotToken, HTML);
     if (!r) return ctx.reply(t(ctx).scanNoData, HTML);
+    if ('kind' in r) return ctx.reply(t(ctx).addressReport(r.flags.map((f) => t(ctx).addrFlags[f] ?? f)), HTML);
     const flags = r.flags.map((f) => t(ctx).scanFlags[f] ?? f);
     await ctx.reply(t(ctx).scanReport({ ...r, chain: esc(r.chain), flags }), HTML);
   });
