@@ -4,6 +4,7 @@ import { View, Text, TextInput, Pressable, Image, Modal, FlatList, KeyboardAvoid
 import { fonts, radii, spacing, useTheme } from './theme';
 import { haptic } from '../lib/haptics';
 import { Icon } from './icon';
+import { TokenIcon } from './kit/TokenIcon';
 import { getAdapter, listChains } from '../src';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { useWallet } from '../lib/walletStore';
@@ -141,10 +142,9 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
           onClose();
         }}
       >
-        <Image 
-          source={{ uri: item.logo || 'https://via.placeholder.com/32' }} 
-          style={{ width: 32, height: 32, borderRadius: 16, marginRight: spacing(1.5) }} 
-        />
+        <View style={{ marginRight: spacing(1.5) }}>
+          <TokenIcon symbol={item.symbol} logo={item.logo} seed={item.address} size={32} />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 16 }}>{item.symbol}</Text>
           <Text style={{ color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12 }}>{item.name || item.symbol}</Text>

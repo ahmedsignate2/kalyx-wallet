@@ -20,24 +20,25 @@ import { PROVIDER_DEFAULTS } from '../../lib/aiConfig';
 import { serializeCopilotContext } from '../../lib/copilotContext';
 import { useT, useSettings } from '../../lib/settingsStore';
 import { toast } from '../../lib/toast';
+import { useWebT, type WebKey } from './webI18n';
 import { useWebCopilotContext } from './webCopilotContext';
 import type { ChainConfig } from '../../src';
 
 /** Même liste que app/ai-settings.tsx (tous les fournisseurs de aiConfig.ts,
  *  « custom » compris — pas une sélection restreinte). */
-const PROVIDER_LABELS: Record<AiProvider, string> = {
+export const PROVIDER_LABELS: Record<AiProvider, string> = {
   deepseek: 'DeepSeek', openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Gemini', groq: 'Groq',
-  openrouter: 'OpenRouter', together: 'Together', huggingface: 'HuggingFace', custom: 'Autre (custom)',
+  openrouter: 'OpenRouter', together: 'Together', huggingface: 'HuggingFace', custom: 'Custom',
 };
 const PROVIDERS = Object.keys(PROVIDER_DEFAULTS) as AiProvider[];
 
 /** Laiton/or de marque Kalyx — même valeur que ui/web/WebDashboard.tsx. */
 const GOLD = '#C89B5C';
 
-const SUGGESTIONS: { title: string; description: string; prompt: string; icon: IconName; color: string }[] = [
-  { title: 'Audit du portefeuille', description: 'Vérifie les permissions et contrats suspects', prompt: 'Analyse le niveau de risque de mon portefeuille et détecte les anomalies.', icon: 'security', color: GOLD },
-  { title: 'Résumé des performances', description: 'Synthèse de tes gains et pertes récents', prompt: 'Fais un résumé complet de la répartition de mes tokens et de mes performances.', icon: 'market', color: '#4EA1FF' },
-  { title: 'Frais du réseau', description: 'Comprendre ce que tu paies et pourquoi', prompt: 'Explique les frais de ce réseau et comment les réduire.', icon: 'defi', color: '#3CD98A' },
+const SUGGESTIONS: { title: WebKey; description: WebKey; prompt: WebKey; icon: IconName; color: string }[] = [
+  { title: 'sugAuditTitle', description: 'sugAuditDesc', prompt: 'sugAuditPrompt', icon: 'security', color: GOLD },
+  { title: 'sugPerfTitle', description: 'sugPerfDesc', prompt: 'sugPerfPrompt', icon: 'market', color: '#4EA1FF' },
+  { title: 'sugFeesTitle', description: 'sugFeesDesc', prompt: 'sugFeesPrompt', icon: 'defi', color: '#3CD98A' },
 ];
 
 function buildWebSystem(lang: string, context: string): string {
@@ -60,14 +61,23 @@ CE QUE FAIT KALYX (faits, n'invente rien d'autre) :
 }
 
 /** Écran de configuration BYOK (aucune clé enregistrée). */
-function AgentSetup() {
+export function AgentSetup() {
   const { colors, typography } = useTheme();
+  const tw = useWebT();
   const setApiKey = useAiStore((s) => s.setApiKey);
-  const [provider, setProvider] = useState<AiProvider>('deepseek');
+  // Sélecteurs scalaires (zustand v5 : un objet neuf à chaque appel boucle).
+  const curProvider = useAiStore((s) => s.provider);
+  const curUrl = useAiStore((s) => s.customUrl);
+  const curModel = useAiStore((s) => s.customModel);
+  const curEnabled = useAiStore((s) => s.isEnabled);
+  const current = { provider: curProvider, customUrl: curUrl, customModel: curModel, isEnabled: curEnabled };
+  // Pré-rempli avec la config actuelle quand on vient « changer la clé » (la clé
+  // elle-même n'est jamais réaffichée).
+  const [provider, setProvider] = useState<AiProvider>(current.isEnabled ? current.provider : 'deepseek');
   const [key, setKey] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [customUrl, setCustomUrl] = useState('');
-  const [customModel, setCustomModel] = useState('');
+  const [customUrl, setCustomUrl] = useState(current.isEnabled ? current.customUrl ?? '' : '');
+  const [customModel, setCustomModel] = useState(current.isEnabled ? current.customModel ?? '' : '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -78,16 +88,16 @@ function AgentSetup() {
     try {
       const r = await validateAiKey(provider, key.trim(), customUrl.trim() || undefined, customModel.trim() || undefined);
       if (!r.success) {
-        setErr(r.error ?? 'Clé invalide.');
+        setErr(r.error ?? tw('invalidKey'));
         setBusy(false);
         return;
       }
       await setApiKey(key.trim(), provider, customUrl.trim() || undefined, customModel.trim() || undefined);
-      toast.success('Agent Kalyx activé !');
+      toast.success(tw('agentEnabled'));
     } catch (e) {
       // Filet de sécurité : ne devrait plus se produire (voir fix lib/aiStore.ts),
       // mais évite un bouton bloqué indéfiniment si un autre cas imprévu surgit.
-      setErr(e instanceof Error ? e.message : 'Erreur inattendue.');
+      setErr(e instanceof Error ? e.message : tw('unexpectedError'));
     }
     setBusy(false);
   };
@@ -97,9 +107,9 @@ function AgentSetup() {
       <View style={{ width: 64, height: 64, borderRadius: radii.lg, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center' }}>
         <Icon name="sparkles" size={30} color={GOLD} />
       </View>
-      <Text style={{ color: colors.text, fontSize: 19, fontFamily: fonts.bold, textAlign: 'center' }}>Active ton Agent Kalyx</Text>
+      <Text style={{ color: colors.text, fontSize: 19, fontFamily: fonts.bold, textAlign: 'center' }}>{tw('activateAgent')}</Text>
       <Text style={[typography.muted, { textAlign: 'center', maxWidth: 320 }]}>
-        Analyse tes soldes, ton activité et le marché. Ta clé API reste sur cet appareil — jamais envoyée à Kalyx.
+        {tw('activateAgentBody')}
       </Text>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ width: '100%', maxWidth: 400 }} contentContainerStyle={{ flexDirection: 'row', gap: spacing(0.75), justifyContent: 'center', marginTop: spacing(1), paddingHorizontal: spacing(1) }}>
@@ -107,7 +117,7 @@ function AgentSetup() {
           const on = p === provider;
           return (
             <Pressable key={p} onPress={() => setProvider(p)} style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.pill, backgroundColor: on ? colors.accent : colors.text + '08', borderWidth: 1, borderColor: on ? colors.accent : colors.text + '12' }}>
-              <Text style={{ color: on ? colors.onPrimary : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }} numberOfLines={1}>{PROVIDER_LABELS[p]}</Text>
+              <Text style={{ color: on ? colors.onPrimary : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }} numberOfLines={1}>{p === 'custom' ? tw('providerOther') : PROVIDER_LABELS[p]}</Text>
             </Pressable>
           );
         })}
@@ -135,7 +145,7 @@ function AgentSetup() {
       </View>
       {PROVIDER_DEFAULTS[provider]?.helperUrl ? (
         <Pressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[provider].helperUrl!)}>
-          <Text style={{ color: colors.accent, fontSize: 12, textDecorationLine: 'underline' }}>Obtenir une clé gratuite</Text>
+          <Text style={{ color: colors.accent, fontSize: 12, textDecorationLine: 'underline' }}>{tw('getFreeKey')}</Text>
         </Pressable>
       ) : null}
 
@@ -144,7 +154,7 @@ function AgentSetup() {
           <TextInput
             value={customUrl}
             onChangeText={setCustomUrl}
-            placeholder="URL API (ex. https://api.together.xyz/v1/chat/completions)"
+            placeholder={tw('apiUrlPlaceholder')}
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
@@ -156,7 +166,7 @@ function AgentSetup() {
         <TextInput
           value={customModel}
           onChangeText={setCustomModel}
-          placeholder={provider === 'custom' ? 'Nom du modèle (ex. qwen-2.5-72b)' : `Modèle (optionnel, ex. ${PROVIDER_DEFAULTS[provider]?.model ?? ''})`}
+          placeholder={provider === 'custom' ? tw('modelNamePlaceholder') : tw('modelOptional', { model: PROVIDER_DEFAULTS[provider]?.model ?? '' })}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="none"
           style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
@@ -165,7 +175,7 @@ function AgentSetup() {
       {err ? <Text style={{ color: colors.danger, fontSize: 12, textAlign: 'center' }}>{err}</Text> : null}
 
       <Pressable onPress={onSave} disabled={busy || !key.trim()} style={({ pressed }) => ({ width: '100%', maxWidth: 340, marginTop: spacing(1), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.3), opacity: pressed || busy || !key.trim() ? 0.7 : 1 })}>
-        {busy ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>Enregistrer et activer</Text>}
+        {busy ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{tw('saveAndEnable')}</Text>}
       </Pressable>
     </View>
   );
@@ -174,6 +184,7 @@ function AgentSetup() {
 /** Interface de discussion (clé déjà enregistrée). */
 function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: string; worth: { data: { total: number; slices: { chain: ChainConfig; address: string; native: number; tokens: number; value: number; price: number; change24h: number }[] } | null } }) {
   const { colors, typography } = useTheme();
+  const tw = useWebT();
   const language = useSettings((s) => s.language);
   const disableAi = useAiStore((s) => s.disableAi);
   const provider = useAiStore((s) => s.provider);
@@ -199,7 +210,7 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     addMessageToActive({ sender: 'user', text: q });
     setBusy(true);
     const transcript = [...messages.slice(-8), { sender: 'user', text: q }]
-      .map((m) => `${m.sender === 'user' ? 'Utilisateur' : 'Copilot'} : ${m.text}`)
+      .map((m) => `${m.sender === 'user' ? tw('you') : tw('copilot')} : ${m.text}`)
       .join('\n');
     let ctx = '{}';
     try {
@@ -235,19 +246,19 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
             <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center', marginBottom: spacing(1) }}>
               <Icon name="sparkles" size={22} color={GOLD} />
             </View>
-            <Text style={{ color: colors.text, fontSize: 17, fontFamily: fonts.bold, marginBottom: 3 }}>Kalyx Intelligence</Text>
+            <Text style={{ color: colors.text, fontSize: 17, fontFamily: fonts.bold, marginBottom: 3 }}>{tw('kalyxIntelligence')}</Text>
             <Text style={[typography.muted, { textAlign: 'center', maxWidth: 280, marginBottom: spacing(1.25), fontSize: 13 }]}>
-              Analyse tes actifs et repère les tendances on-chain, à partir de ce qui est connecté ici.
+              {tw('kalyxIntelligenceBody')}
             </Text>
             <View style={{ width: '100%', gap: spacing(0.75) }}>
               {SUGGESTIONS.map((s) => (
-                <Pressable key={s.title} onPress={() => send(s.prompt)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'flex-start', gap: spacing(1), padding: spacing(1.25), borderRadius: radii.lg, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: pressed ? GOLD + '55' : colors.text + '12' })}>
+                <Pressable key={s.title} onPress={() => send(tw(s.prompt))} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'flex-start', gap: spacing(1), padding: spacing(1.25), borderRadius: radii.lg, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: pressed ? GOLD + '55' : colors.text + '12' })}>
                   <View style={{ width: 30, height: 30, borderRadius: radii.md, backgroundColor: s.color + '1A', alignItems: 'center', justifyContent: 'center' }}>
                     <Icon name={s.icon} size={15} color={s.color} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{s.title}</Text>
-                    <Text style={[typography.muted, { fontSize: 11, marginTop: 1 }]}>{s.description}</Text>
+                    <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{tw(s.title)}</Text>
+                    <Text style={[typography.muted, { fontSize: 11, marginTop: 1 }]}>{tw(s.description)}</Text>
                   </View>
                 </Pressable>
               ))}
@@ -282,7 +293,7 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
             value={input}
             onChangeText={setInput}
             onSubmitEditing={() => send(input)}
-            placeholder="Pose une question à l'Agent…"
+            placeholder={tw('askAgentPlaceholder')}
             placeholderTextColor={colors.textMuted}
             style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', paddingHorizontal: spacing(1.75), paddingVertical: spacing(1.1), fontSize: 14 }}
           />
