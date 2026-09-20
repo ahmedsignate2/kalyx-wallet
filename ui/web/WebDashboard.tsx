@@ -4,10 +4,10 @@
  * WalletConnect (QR), on lit les adresses publiques, et on FORWARDE toute action
  * sensible à l'app qui signe. Layout desktop responsive (sidebar + contenu).
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Image, TextInput, useWindowDimensions, ActivityIndicator, Animated, Linking } from 'react-native';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { View, Text, Pressable, ScrollView, Image, TextInput, useWindowDimensions, ActivityIndicator, Animated, Easing, Linking } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Rect, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
 import { KalyxLogo } from '../KalyxLogo';
 import { AuroraBackground } from '../AuroraBackground';
@@ -15,6 +15,7 @@ import { AllocationDonut, foldSlices } from '../AllocationDonut';
 import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useWebConnect } from '../../lib/webConnect';
+import { toast } from '../../lib/toast';
 import { useSettings, useT, fiatSymbol, FIATS } from '../../lib/settingsStore';
 import { useContacts } from '../../lib/contactsStore';
 import { LANGUAGES } from '../../lib/i18n';
@@ -237,6 +238,7 @@ function ConnectView() {
               backgroundColor: colors.accent, borderRadius: radii.pill,
               paddingVertical: spacing(1.5), paddingHorizontal: spacing(3),
               opacity: pressed || status === 'connecting' ? 0.7 : 1, marginTop: spacing(1),
+              transform: [{ scale: pressed ? 0.96 : 1 }],
             })}
           >
             {status === 'connecting' ? <ActivityIndicator color={colors.onPrimary} /> : <Icon name="walletconnect" size={20} color={colors.onPrimary} />}
@@ -260,6 +262,7 @@ function CopyUriButton({ uri }: { uri: string }) {
   const copy = async () => {
     await Clipboard.setStringAsync(uri);
     setCopied(true);
+    toast.success('Lien copié !');
     setTimeout(() => setCopied(false), 1500);
   };
   return (
@@ -394,7 +397,7 @@ function CurrentNetworkChip({ chain, onPress }: { chain: ChainConfig; onPress: (
 function QuickAction({ icon, label, onPress, grow = true }: { icon: IconName; label: string; onPress: () => void; grow?: boolean }) {
   const { colors } = useTheme();
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ flex: grow ? 1 : undefined, width: grow ? undefined : 110, alignItems: 'center', gap: spacing(0.75), paddingVertical: spacing(1.5), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, opacity: pressed ? 0.7 : 1 })}>
+    <Pressable onPress={onPress} style={({ pressed }) => ({ flex: grow ? 1 : undefined, width: grow ? undefined : 110, alignItems: 'center', gap: spacing(0.75), paddingVertical: spacing(1.5), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
       <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={icon} size={19} color={colors.onPrimary} />
       </View>
@@ -695,22 +698,41 @@ function EmptyState({ icon, title, subtitle }: { icon: IconName; title: string; 
 }
 
 /** Barre grise pulsée (placeholder de chargement). */
+/** Effet « shimmer » (bande de lumière qui balaie) plutôt qu'un simple pouls
+ *  d'opacité — plus fluide, façon skeleton des apps fintech modernes. */
 function Skeleton({ w = '100%', h, r = 8, style }: { w?: number | string; h: number; r?: number; style?: object }) {
   const t = useT();
   const { colors } = useTheme();
-  const op = useRef(new Animated.Value(0.4)).current;
+  const gradId = `shimmer-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const [width, setWidth] = useState(0);
+  const x = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.sequence([
-        // Web uniquement : le driver natif n'existe pas → false (évite un warning).
-        Animated.timing(op, { toValue: 0.85, duration: 700, useNativeDriver: false }),
-        Animated.timing(op, { toValue: 0.4, duration: 700, useNativeDriver: false }),
-      ]),
+      Animated.timing(x, { toValue: 1, duration: 1100, easing: Easing.linear, useNativeDriver: false }),
     );
     loop.start();
     return () => loop.stop();
-  }, [op]);
-  return <Animated.View style={[{ width: w as number, height: h, borderRadius: r, backgroundColor: colors.glassStrong, opacity: op }, style]} />;
+  }, [x]);
+  const band = Math.max(width * 0.5, 40);
+  const translateX = x.interpolate({ inputRange: [0, 1], outputRange: [-band, width] });
+  return (
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={[{ width: w as number, height: h, borderRadius: r, backgroundColor: colors.glassStrong, overflow: 'hidden' }, style]}>
+      {width > 0 ? (
+        <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, width: band, transform: [{ translateX }] }}>
+          <Svg width={band} height={h}>
+            <Defs>
+              <SvgGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor={colors.text} stopOpacity={0} />
+                <Stop offset="0.5" stopColor={colors.text} stopOpacity={0.14} />
+                <Stop offset="1" stopColor={colors.text} stopOpacity={0} />
+              </SvgGradient>
+            </Defs>
+            <Rect width={band} height={h} fill={`url(#${gradId})`} />
+          </Svg>
+        </Animated.View>
+      ) : null}
+    </View>
+  );
 }
 
 /** Lignes de chargement (icône ronde + 2 barres + valeur), pour tokens/historique. */
@@ -859,15 +881,18 @@ function HeroTotalCard({ data }: { data: HeroData }) {
   const t = useT();
   const { colors, typography } = useTheme();
   const { sym, total, today, todayUp } = data;
+  const [hidden, setHidden] = useState(false);
   return (
     <Card>
       <Text style={typography.muted}>Valeur totale</Text>
       {total == null ? (
         <Skeleton w={240} h={46} style={{ marginTop: 6 }} />
       ) : (
-        <Text style={{ color: colors.text, fontSize: 46, fontFamily: fonts.extrabold, marginTop: 2, fontVariant: ['tabular-nums'] }}>
-          {`${sym}${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-        </Text>
+        <Pressable onPress={() => setHidden((v) => !v)} hitSlop={6} style={{ alignSelf: 'flex-start' }}>
+          <Text style={{ color: colors.text, fontSize: 46, fontFamily: fonts.extrabold, marginTop: 2, fontVariant: ['tabular-nums'] }}>
+            {hidden ? '••••••' : `${sym}${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          </Text>
+        </Pressable>
       )}
       {total != null ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 6 }}>
@@ -1202,6 +1227,7 @@ function CopyAddress({ address }: { address: string }) {
   const copy = async () => {
     await Clipboard.setStringAsync(address);
     setCopied(true);
+    toast.success('Adresse copiée !');
     setTimeout(() => setCopied(false), 1500);
   };
   return (
@@ -1344,7 +1370,7 @@ function TokenRow({
         <View style={{ paddingBottom: spacing(1.5), gap: spacing(1) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1) }}>
             <Text style={[typography.muted, { flex: 1 }]} numberOfLines={1}>{short(token.contract)}</Text>
-            <Pressable onPress={() => Clipboard.setStringAsync(token.contract)} hitSlop={6} style={{ marginRight: spacing(1) }}>
+            <Pressable onPress={() => { Clipboard.setStringAsync(token.contract); toast.success('Adresse du contrat copiée !'); }} hitSlop={6} style={{ marginRight: spacing(1) }}>
               <Icon name="copy" size={14} color={colors.textMuted} />
             </Pressable>
             {chain.explorerUrl ? (
@@ -1389,7 +1415,7 @@ function TokenRow({
             </Pressable>
           </View>
           <TextInput value={amount} onChangeText={setAmount} placeholder="0.0" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={{ color: colors.text, fontSize: 14, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1) }} />
-          <Pressable onPress={onSend} disabled={busy} style={({ pressed }) => ({ alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.2), opacity: pressed || busy ? 0.7 : 1 })}>
+          <Pressable onPress={onSend} disabled={busy} style={({ pressed }) => ({ alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.2), opacity: pressed || busy ? 0.7 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
             <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{busy ? 'En attente de l\'app…' : t("aiSend")}</Text>
           </Pressable>
           {msg ? <Text style={{ color: colors.accent }}>{msg}</Text> : null}
@@ -1679,7 +1705,7 @@ function SwapPanel({ chain, address }: { chain: ChainConfig; address: string }) 
         </View>
       ) : null}
 
-      <Pressable onPress={onSwap} disabled={!quote || busy || quoting} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.4), opacity: pressed || busy || !quote || quoting ? 0.6 : 1 })}>
+      <Pressable onPress={onSwap} disabled={!quote || busy || quoting} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.4), opacity: pressed || busy || !quote || quoting ? 0.6 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
         <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{busy ? (step ?? 'En attente de l\'app…') : t("swapAction")}</Text>
       </Pressable>
       {msg ? <Text style={{ color: colors.accent, marginTop: spacing(1) }}>{msg}</Text> : null}
@@ -1771,7 +1797,7 @@ function SendPanel({ chain, address }: { chain: ChainConfig; address: string }) 
         </Pressable>
       </View>
       <TextInput value={amount} onChangeText={setAmount} placeholder="0.0" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={{ color: colors.text, fontSize: 15, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), marginTop: 4 }} />
-      <Pressable onPress={onSend} disabled={busy} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.4), opacity: pressed || busy ? 0.7 : 1 })}>
+      <Pressable onPress={onSend} disabled={busy} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.4), opacity: pressed || busy ? 0.7 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
         <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{busy ? 'En attente de l\'app…' : t("aiSend")}</Text>
       </Pressable>
       {msg ? <Text style={{ color: colors.accent, marginTop: spacing(1) }}>{msg}</Text> : null}
