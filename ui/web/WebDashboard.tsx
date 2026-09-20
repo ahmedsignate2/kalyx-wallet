@@ -12,6 +12,7 @@ import * as Clipboard from 'expo-clipboard';
 import { KalyxLogo } from '../KalyxLogo';
 import { AuroraBackground } from '../AuroraBackground';
 import { InteractiveChart } from '../InteractiveChart';
+import { useTelegramBiometric } from './telegramBiometric';
 import { AllocationDonut, foldSlices } from '../AllocationDonut';
 import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
@@ -861,6 +862,19 @@ function HeroTotalCard({ data }: { data: HeroData }) {
   const { colors, typography } = useTheme();
   const { sym, total, today, todayUp } = data;
   const [hidden, setHidden] = useState(false);
+  const tg = useTelegramBiometric();
+  // Dans Telegram avec biométrie dispo : masqué par défaut, révélé par
+  // empreinte/Face ID (via Telegram). Sinon : simple bascule au tap, comme
+  // avant — jamais de secret réel derrière ce verrou, juste l'affichage.
+  const isHidden = tg.available ? !tg.unlocked : hidden;
+  const onToggleHidden = () => {
+    if (tg.available) {
+      if (tg.unlocked) tg.lock();
+      else tg.unlock('Affiche ton solde Kalyx');
+    } else {
+      setHidden((v) => !v);
+    }
+  };
   return (
     <View style={{ borderRadius: radii.lg, borderWidth: 1, borderColor: colors.glassBorder, backgroundColor: colors.glass, overflow: 'hidden' }}>
       <Svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -877,10 +891,11 @@ function HeroTotalCard({ data }: { data: HeroData }) {
       {total == null ? (
         <Skeleton w={240} h={46} style={{ marginTop: 6 }} />
       ) : (
-        <Pressable onPress={() => setHidden((v) => !v)} hitSlop={6} style={{ alignSelf: 'flex-start' }}>
+        <Pressable onPress={onToggleHidden} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' }}>
           <Text style={{ color: colors.text, fontSize: 46, fontFamily: fonts.extrabold, marginTop: 2, fontVariant: ['tabular-nums'] }}>
-            {hidden ? '••••••' : `${sym}${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            {isHidden ? '••••••' : `${sym}${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           </Text>
+          {tg.available ? <Icon name={tg.biometricType === 'face' ? 'security' : 'lock'} size={16} color={colors.textMuted} /> : null}
         </Pressable>
       )}
       {total != null ? (
