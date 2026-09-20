@@ -47,7 +47,9 @@ export async function fetchJson<T>(url: string, init?: RequestInit, timeoutMs = 
   const ctl = new AbortController();
   const id = setTimeout(() => ctl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { ...init, signal: ctl.signal, headers: { accept: 'application/json', ...(init?.headers ?? {}) } });
+    // User-Agent explicite : plusieurs API publiques (CoinGecko, GoPlus) rejettent
+    // ou limitent les requêtes anonymes venant des IP de datacenter.
+    const res = await fetch(url, { ...init, signal: ctl.signal, headers: { accept: 'application/json', 'user-agent': 'KalyxBot/1.0 (+https://kalyxwallet.com)', ...(init?.headers ?? {}) } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as T;
   } finally {
