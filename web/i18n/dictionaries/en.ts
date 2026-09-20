@@ -13,6 +13,7 @@ const en: Dict = {
     fees: 'Fees',
     vision: 'Vision',
     downloadApk: 'Download the APK',
+    webApp: 'Open the web app',
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
     language: 'Language',

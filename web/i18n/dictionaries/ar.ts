@@ -13,6 +13,7 @@ const ar: Dict = {
     fees: 'الرسوم',
     vision: 'الرؤية',
     downloadApk: 'تنزيل ملف APK',
+    webApp: 'افتح تطبيق الويب',
     openMenu: 'فتح القائمة',
     closeMenu: 'إغلاق القائمة',
     language: 'اللغة',

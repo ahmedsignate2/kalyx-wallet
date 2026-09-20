@@ -13,6 +13,7 @@ const es: Dict = {
     fees: 'Comisiones',
     vision: 'Visión',
     downloadApk: 'Descargar el APK',
+    webApp: 'Abrir la app web',
     openMenu: 'Abrir el menú',
     closeMenu: 'Cerrar el menú',
     language: 'Idioma',

@@ -9,6 +9,7 @@ import { EASE } from './motion';
 import { Mark } from './mark';
 import { LOCALES, LOCALE_NAMES, STORAGE_KEY, type Dict, type Locale } from '../../i18n';
 import { APK_URL } from '../../lib/apk';
+import { WEB_APP_URL } from '../../lib/links';
 
 /** Sélecteur de langue : mémorise le choix, puis ouvre la même page dans l'autre langue. */
 function LanguageSwitcher({ lang, label, className = '' }: { lang: Locale; label: string; className?: string }) {
@@ -76,6 +77,14 @@ export function Nav({ t, lang }: { t: Dict; lang: Locale }) {
           ))}
           <LanguageSwitcher lang={lang} label={t.nav.language} />
           <a
+            href={WEB_APP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-10 items-center whitespace-nowrap rounded-full border border-bone/25 px-5 text-sm font-medium text-paper transition-colors hover:border-bone/60"
+          >
+            {t.nav.webApp}
+          </a>
+          <a
             href={APK_URL}
             download
             className="inline-flex h-10 items-center whitespace-nowrap rounded-full bg-paper px-5 text-sm font-medium text-ink transition-colors hover:bg-bone"
@@ -104,6 +113,15 @@ export function Nav({ t, lang }: { t: Dict; lang: Locale }) {
               {l.label}
             </Link>
           ))}
+          <a
+            href={WEB_APP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
+            className="mt-3 flex h-12 items-center justify-center rounded-full border border-bone/25 text-base font-medium text-paper"
+          >
+            {t.nav.webApp}
+          </a>
           <a
             href={APK_URL}
             download

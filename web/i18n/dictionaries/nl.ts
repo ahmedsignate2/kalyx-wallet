@@ -13,6 +13,7 @@ const nl: Dict = {
     fees: 'Kosten',
     vision: 'Visie',
     downloadApk: 'APK downloaden',
+    webApp: 'Web-app openen',
     openMenu: 'Menu openen',
     closeMenu: 'Menu sluiten',
     language: 'Taal',
