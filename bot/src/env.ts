@@ -2,8 +2,6 @@ export interface Env {
   BOT_TOKEN: string;
   /** Valeur passée à setWebhook(secret_token) : chaque requête Telegram doit la porter. */
   WEBHOOK_SECRET: string;
-  /** Clé de signature du webhook Alchemy (Notify → « Signing key »). Optionnel : sans elle, la route /webhooks/alchemy est fermée. */
-  ALCHEMY_SIGNING_KEY?: string;
   WEB_APP_URL: string;
   SITE_URL: string;
   DOWNLOAD_URL: string;

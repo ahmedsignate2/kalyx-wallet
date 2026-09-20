@@ -2,12 +2,11 @@
  * Bot Telegram Kalyx — Cloudflare Worker.
  *
  *  POST /telegram          webhook Telegram (secret_token vérifié)
- *  POST /webhooks/alchemy  activité on-chain (HMAC vérifié) → alertes de suivi
  *  GET  /health            supervision
  *  cron (toutes les 5 min)  alertes de prix
  *
- * Le Worker ne détient que : le jeton du bot, la clé de signature Alchemy, et en
- * base des identifiants Telegram + des adresses PUBLIQUES. Aucune clé de wallet,
+ * Le Worker ne détient que : le jeton du bot, et en base des identifiants
+ * Telegram + leurs alertes de prix. Aucune clé de wallet,
  * jamais — même compromis, il ne peut rien signer.
  */
 import { Bot, webhookCallback } from 'grammy';
@@ -16,8 +15,7 @@ import type { Env } from './env';
 import { esc } from './env';
 import { strings } from './i18n';
 import { fmtFiat, getPrices } from './market';
-import { markAlertTriggered, openAlerts, pruneSeen, userLang } from './store';
-import { handleAlchemy } from './webhooks';
+import { markAlertTriggered, openAlerts, userLang } from './store';
 
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -50,10 +48,6 @@ export default {
       return webhookCallback(bot, 'cloudflare-mod', { timeoutMilliseconds: 25_000 })(request);
     }
 
-    if (url.pathname === '/webhooks/alchemy' && request.method === 'POST') {
-      return handleAlchemy(request, env);
-    }
-
     return new Response('Not found', { status: 404, headers: SECURITY_HEADERS });
   },
 
@@ -79,7 +73,6 @@ export default {
           /* bot bloqué par l'utilisateur */
         }
       }
-      await pruneSeen(env).catch(() => {});
     })());
   },
 };
