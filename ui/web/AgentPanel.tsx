@@ -124,8 +124,8 @@ function AgentSetup() {
         </Pressable>
       ) : null}
 
-      {provider === 'custom' ? (
-        <View style={{ width: '100%', maxWidth: 340, gap: spacing(1) }}>
+      <View style={{ width: '100%', maxWidth: 340, gap: spacing(1) }}>
+        {provider === 'custom' ? (
           <TextInput
             value={customUrl}
             onChangeText={setCustomUrl}
@@ -134,16 +134,19 @@ function AgentSetup() {
             autoCapitalize="none"
             style={{ color: colors.text, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
           />
-          <TextInput
-            value={customModel}
-            onChangeText={setCustomModel}
-            placeholder="Nom du modèle (ex. qwen-2.5-72b)"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            style={{ color: colors.text, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
-          />
-        </View>
-      ) : null}
+        ) : null}
+        {/* L'accès aux modèles varie par compte, pas juste par fournisseur
+         * (ex. Groq peut refuser un modèle sur un compte et l'accepter sur un
+         * autre) — remplaçable sur n'importe quel fournisseur, pas juste "custom". */}
+        <TextInput
+          value={customModel}
+          onChangeText={setCustomModel}
+          placeholder={provider === 'custom' ? 'Nom du modèle (ex. qwen-2.5-72b)' : `Modèle (optionnel, ex. ${PROVIDER_DEFAULTS[provider]?.model ?? ''})`}
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="none"
+          style={{ color: colors.text, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
+        />
+      </View>
       {err ? <Text style={{ color: colors.danger, fontSize: 12, textAlign: 'center' }}>{err}</Text> : null}
 
       <Pressable onPress={onSave} disabled={busy || !key.trim()} style={({ pressed }) => ({ width: '100%', maxWidth: 340, marginTop: spacing(1), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.3), opacity: pressed || busy || !key.trim() ? 0.7 : 1 })}>
