@@ -461,7 +461,7 @@ function Dashboard() {
   const heroData = useHeroData({ worth, chain, address });
   const heroBlock = (
     <View style={{ gap: spacing(2) }}>
-      <HeroTotalCard data={heroData} />
+      <HeroTotalCard data={heroData} chain={chain} address={address} />
       <HeroWidgetsRow data={heroData} chain={chain} />
       <HeroTrendCard data={heroData} chain={chain} />
     </View>
@@ -570,8 +570,7 @@ function Dashboard() {
                * bas, repliables. Le sélecteur de réseau (moins fréquent que
                * Recevoir/Envoyer/Swap) est dans l'onglet Réglages. */
               <>
-                {accountBlock}
-                <HeroTotalCard data={heroData} />
+                <HeroTotalCard data={heroData} chain={chain} address={address} />
                 <View style={{ flexDirection: 'row', gap: spacing(1.25), justifyContent: isEvm ? undefined : 'center' }}>
                   <QuickAction icon="receive" label={t("receive")} onPress={() => setSheet('receive')} grow={isEvm} />
                   {isEvm ? <QuickAction icon="send" label={t("send")} onPress={() => setSheet('send')} /> : null}
@@ -857,11 +856,17 @@ function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null
 type HeroData = ReturnType<typeof useHeroData>;
 
 /** Carte « Valeur totale » + variation du jour. */
-function HeroTotalCard({ data }: { data: HeroData }) {
+/** Carte « héros » façon carte bancaire : coins très arrondis, dégradé
+ *  discret (couleurs du thème — pas de violet/ambre hors charte, cf. tokens.ts
+ *  « Plus de doré/violet »), œil masquer/révéler en haut à gauche, montant
+ *  centré, pastille d'adresse cliquable en bas. Inspiré de Gram Wallet, adapté
+ *  à l'identité visuelle Kalyx existante plutôt que copié telle quelle. */
+function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainConfig; address: string }) {
   const t = useT();
   const { colors, typography } = useTheme();
   const { sym, total, today, todayUp } = data;
   const [hidden, setHidden] = useState(false);
+  const [copied, setCopied] = useState(false);
   const tg = useTelegramBiometric();
   // Dans Telegram avec biométrie dispo : masqué par défaut, révélé par
   // empreinte/Face ID (via Telegram). Sinon : simple bascule au tap, comme
@@ -875,39 +880,62 @@ function HeroTotalCard({ data }: { data: HeroData }) {
       setHidden((v) => !v);
     }
   };
+  const copyAddress = async () => {
+    await Clipboard.setStringAsync(address);
+    setCopied(true);
+    toast.success('Adresse copiée !');
+    setTimeout(() => setCopied(false), 1500);
+  };
   return (
-    <View style={{ borderRadius: radii.lg, borderWidth: 1, borderColor: colors.glassBorder, backgroundColor: colors.glass, overflow: 'hidden' }}>
+    <View style={{ borderRadius: radii.xl, borderWidth: 1, borderColor: colors.glassBorder, backgroundColor: colors.glass, overflow: 'hidden' }}>
       <Svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} viewBox="0 0 100 100" preserveAspectRatio="none">
         <Defs>
+          <SvgGradient id="heroCardGrad" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={colors.accent} stopOpacity={0.1} />
+            <Stop offset="0.5" stopColor={colors.accent} stopOpacity={0.03} />
+            <Stop offset="1" stopColor={colors.accent} stopOpacity={0} />
+          </SvgGradient>
           <RadialGradient id="heroGlow" cx="88%" cy="6%" r="75%">
             <Stop offset="0" stopColor={colors.accent} stopOpacity={0.16} />
             <Stop offset="1" stopColor={colors.accent} stopOpacity={0} />
           </RadialGradient>
         </Defs>
+        <Rect x="0" y="0" width="100" height="100" fill="url(#heroCardGrad)" />
         <Rect x="0" y="0" width="100" height="100" fill="url(#heroGlow)" />
       </Svg>
-      <View style={{ padding: spacing(2) }}>
-        <Text style={typography.muted}>Valeur totale</Text>
-      {total == null ? (
-        <Skeleton w={240} h={46} style={{ marginTop: 6 }} />
-      ) : (
-        <Pressable onPress={onToggleHidden} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' }}>
-          <Text style={{ color: colors.text, fontSize: 46, fontFamily: fonts.extrabold, marginTop: 2, fontVariant: ['tabular-nums'] }}>
+      <View style={{ padding: spacing(2.5), alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+          <Pressable onPress={onToggleHidden} hitSlop={8} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={isHidden ? 'eyeOff' : 'eye'} size={16} color={colors.textMuted} />
+          </Pressable>
+          <View style={{ flex: 1 }} />
+          {tg.available ? <Icon name={tg.biometricType === 'face' ? 'security' : 'lock'} size={15} color={colors.textMuted} /> : null}
+        </View>
+        <Text style={[typography.muted, { marginTop: spacing(1.5) }]}>Valeur totale</Text>
+        {total == null ? (
+          <Skeleton w={200} h={44} style={{ marginTop: 6 }} />
+        ) : (
+          <Text style={{ color: colors.text, fontSize: 42, fontFamily: fonts.extrabold, marginTop: 4, fontVariant: ['tabular-nums'] }}>
             {isHidden ? '••••••' : `${sym}${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           </Text>
-          {tg.available ? <Icon name={tg.biometricType === 'face' ? 'security' : 'lock'} size={16} color={colors.textMuted} /> : null}
-        </Pressable>
-      )}
-      {total != null ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 6 }}>
-          <View style={{ backgroundColor: (todayUp ? colors.up : colors.down) + '22', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 3 }}>
-            <Text style={{ color: todayUp ? colors.up : colors.down, fontFamily: fonts.bold, fontSize: 13 }}>
-              {`${todayUp ? '+' : '-'}${Math.abs(today).toFixed(2)} %`}
-            </Text>
+        )}
+        {total != null ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 8 }}>
+            <View style={{ backgroundColor: (todayUp ? colors.up : colors.down) + '22', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 3 }}>
+              <Text style={{ color: todayUp ? colors.up : colors.down, fontFamily: fonts.bold, fontSize: 13 }}>
+                {`${todayUp ? '+' : '-'}${Math.abs(today).toFixed(2)} %`}
+              </Text>
+            </View>
+            <Text style={typography.muted}>{t("today")}</Text>
           </View>
-          <Text style={typography.muted}>{t("today")}</Text>
-        </View>
-      ) : null}
+        ) : null}
+        {address ? (
+          <Pressable onPress={copyAddress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(2), backgroundColor: colors.bgDeep + '88', borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingVertical: 6, paddingHorizontal: 12, opacity: pressed ? 0.7 : 1 })}>
+            <ChainAvatar chain={chain} size={16} />
+            <Text style={{ color: colors.textMuted, fontSize: 12, fontVariant: ['tabular-nums'] }}>{short(address)}</Text>
+            <Icon name={copied ? 'check' : 'copy'} size={12} color={copied ? colors.up : colors.textFaint} />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
