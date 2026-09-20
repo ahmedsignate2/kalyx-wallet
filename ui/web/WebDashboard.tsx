@@ -53,8 +53,10 @@ function short(a: string) {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 }
 
-/** Or de marque Kalyx (déjà utilisé pour l'icône de notification, app.config.ts). */
-const GOLD = '#DDB565';
+/** Laiton/or de marque Kalyx — évoque la clé matérielle. Valeur validée après
+ *  essai dans une maquette dédiée (proche mais distincte du doré de l'icône
+ *  de notification, app.config.ts, qui reste utilisé tel quel côté app). */
+const GOLD = '#C89B5C';
 
 /** Formate un montant en devise à la française pour l'euro (« 1,83 € », le
  *  symbole APRÈS avec une espace insécable) — Intl.NumberFormat gère aussi
@@ -402,26 +404,46 @@ type ActionSheetKind = 'send' | 'receive' | 'swap';
 
 /** Barre d'onglets mobile (téléphone uniquement) : évite d'empiler toutes les
  *  sections sur une seule page — chaque onglet ne montre que son contenu. */
-function MobileTabBar({ tab, onChange }: { tab: MobileTab; onChange: (t: MobileTab) => void }) {
+/** Dock avec un bouton Swap surélevé au centre (action la plus fréquente
+ *  après consulter son solde) — pattern Phantom/Gram plutôt que 5 icônes
+ *  identiques alignées. */
+function MobileTabBar({ tab, onChange, onSwapPress }: { tab: MobileTab; onChange: (t: MobileTab) => void; onSwapPress: () => void }) {
   const t = useT();
   const { colors } = useTheme();
-  const items: { key: MobileTab; icon: IconName; label: string }[] = [
+  const left: { key: MobileTab; icon: IconName; label: string }[] = [
     { key: 'home', icon: 'home', label: t("navHome") },
     { key: 'market', icon: 'market', label: t("navMarket") },
+  ];
+  const right: { key: MobileTab; icon: IconName; label: string }[] = [
     { key: 'agent', icon: 'sparkles', label: 'Agent' },
     { key: 'settings', icon: 'gear', label: t("settings") },
   ];
+  const item = (it: { key: MobileTab; icon: IconName; label: string }) => {
+    const on = it.key === tab;
+    return (
+      <Pressable key={it.key} onPress={() => onChange(it.key)} style={{ flex: 1, alignItems: 'center', gap: 3, paddingVertical: spacing(1) }}>
+        <Icon name={it.icon} size={20} color={on ? GOLD : colors.textMuted} weight={on ? 'fill' : 'regular'} />
+        <Text style={{ color: on ? GOLD : colors.textMuted, fontFamily: fonts.medium, fontSize: 11 }} numberOfLines={1}>{it.label}</Text>
+      </Pressable>
+    );
+  };
   return (
-    <View style={{ flexDirection: 'row', backgroundColor: colors.bgElevated, borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingBottom: spacing(0.5) }}>
-      {items.map((it) => {
-        const on = it.key === tab;
-        return (
-          <Pressable key={it.key} onPress={() => onChange(it.key)} style={{ flex: 1, alignItems: 'center', gap: 3, paddingVertical: spacing(1) }}>
-            <Icon name={it.icon} size={20} color={on ? colors.accent : colors.textMuted} weight={on ? 'fill' : 'regular'} />
-            <Text style={{ color: on ? colors.accent : colors.textMuted, fontFamily: fonts.medium, fontSize: 11 }} numberOfLines={1}>{it.label}</Text>
-          </Pressable>
-        );
-      })}
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', backgroundColor: colors.bgElevated, borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingBottom: spacing(0.5) }}>
+      {left.map(item)}
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <Pressable
+          onPress={onSwapPress}
+          style={({ pressed }) => ({
+            width: 50, height: 50, borderRadius: 25, marginTop: -22,
+            backgroundColor: GOLD, borderWidth: 3, borderColor: colors.bgDeep,
+            alignItems: 'center', justifyContent: 'center',
+            opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.96 : 1 }],
+          })}
+        >
+          <Icon name="exchange" size={20} color="#171310" />
+        </Pressable>
+      </View>
+      {right.map(item)}
     </View>
   );
 }
@@ -700,7 +722,7 @@ function Dashboard() {
           </Text>
         </View>
       ) : null}
-      {narrow ? <MobileTabBar tab={tab} onChange={setTab} /> : null}
+      {narrow ? <MobileTabBar tab={tab} onChange={setTab} onSwapPress={() => setSheet('swap')} /> : null}
       {narrow && sheet === 'receive' ? (
         <ActionSheet title={t("receive")} onClose={() => setSheet(null)}>
           <AccountCard chain={chain} address={address} defaultQr />
@@ -897,7 +919,11 @@ function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null
   const fiat = useSettings((s) => s.fiat);
   const rev = useWebConnect((s) => s.rev);
   const sym = fiatSymbol(fiat);
-  const [days, setDays] = useState('7');
+  // '1' (24h) par défaut, pas '7' : la carte "Valeur totale" affiche toujours
+  // la variation du JOUR — si "Tendance" démarrait sur 7 jours, les deux
+  // pourcentages semblaient se contredire (ex. +4,6 % vs -2,4 %) alors que ce
+  // sont juste deux périodes différentes. Même période par défaut partout.
+  const [days, setDays] = useState('1');
   const { data: bal } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
   // Points horodatés (pas juste les prix) : le graphique est scrubable au
   // doigt/à la souris (InteractiveChart, déjà utilisé et testé côté app
@@ -1005,6 +1031,13 @@ function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainC
             <Icon name={copied ? 'check' : 'copy'} size={12} color={copied ? colors.up : colors.textFaint} />
           </Pressable>
         ) : null}
+        {/* Argument de confiance principal du produit — placé ici (juste sous
+         * l'adresse) plutôt que perdu tout en bas de la page, à l'endroit où
+         * l'utilisateur a justement besoin d'être rassuré. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(1) }}>
+          <Icon name="security" size={12} color={GOLD} />
+          <Text style={{ color: colors.textMuted, fontSize: 11 }}>Signatures vérifiées sur ton téléphone Kalyx</Text>
+        </View>
       </View>
     </View>
   );
