@@ -5,7 +5,7 @@ import { esc, familyOf, rateLimited, type Env } from './env';
 import { LANGS, LANG_LABEL, strings, toLang, type Lang } from './i18n';
 import { fmtCompact, fmtFiat, getGas, getPrice, resolveCoinId } from './market';
 import { scanToken } from './scan';
-import { addAlert, addWatched, listAlerts, listWatched, removeWatched, upsertUser, userLangOrNull } from './store';
+import { addAlert, listAlerts, upsertUser, userLangOrNull } from './store';
 
 const HTML = { parse_mode: 'HTML' as const, link_preview_options: { is_disabled: true } };
 
@@ -113,33 +113,6 @@ export function createBot(env: Env): Bot<Ctx> {
     if (!r) return ctx.reply(t(ctx).scanNoData, HTML);
     const flags = r.flags.map((f) => t(ctx).scanFlags[f] ?? f);
     await ctx.reply(t(ctx).scanReport({ ...r, chain: esc(r.chain), flags }), HTML);
-  });
-
-  bot.command('watch', async (ctx) => {
-    if (!ctx.from) return;
-    const [addr, ...rest] = ctx.match.trim().split(/\s+/);
-    if (!addr) {
-      const rows = await listWatched(env, ctx.from.id);
-      return ctx.reply(rows.length ? t(ctx).watchList(rows.map((r) => ({ address: esc(r.address), label: r.label ? esc(r.label) : null }))) : t(ctx).watchNone, HTML);
-    }
-    const fam = familyOf(addr);
-    if (!fam) return ctx.reply(t(ctx).watchInvalid, HTML);
-    const normalized = fam === 'evm' ? addr.toLowerCase() : addr;
-    const label = rest.join(' ').slice(0, 24) || null;
-    await upsertUser(env, ctx.from.id, lang(ctx)).catch(() => {});
-    const res = await addWatched(env, ctx.from.id, fam, normalized, label);
-    if (res === 'limit') return ctx.reply(t(ctx).watchLimit, HTML);
-    if (res === 'exists') return ctx.reply(t(ctx).watchExists, HTML);
-    await ctx.reply(t(ctx).watchAdded(esc(normalized), label ? esc(label) : ''), HTML);
-  });
-
-  bot.command('unwatch', async (ctx) => {
-    if (!ctx.from) return;
-    const addr = ctx.match.trim();
-    if (!addr) return ctx.reply(t(ctx).unwatchUsage, HTML);
-    const fam = familyOf(addr);
-    const ok = await removeWatched(env, ctx.from.id, fam === 'evm' ? addr.toLowerCase() : addr);
-    await ctx.reply(ok ? t(ctx).unwatched : t(ctx).watchInvalid, HTML);
   });
 
   bot.command('alert', async (ctx) => {

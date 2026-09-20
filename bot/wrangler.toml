@@ -1,5 +1,5 @@
 # Bot Telegram Kalyx — Cloudflare Worker.
-# Secrets à poser avec `wrangler secret put` : BOT_TOKEN, WEBHOOK_SECRET, ALCHEMY_SIGNING_KEY (optionnel).
+# Secrets à poser avec `wrangler secret put` : BOT_TOKEN, WEBHOOK_SECRET.
 name = "kalyx-telegram-bot"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
