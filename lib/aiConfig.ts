@@ -68,10 +68,14 @@ export function buildAiRequestParams(
   let url = PROVIDER_DEFAULTS[provider]?.url || PROVIDER_DEFAULTS.custom.url;
   let model = PROVIDER_DEFAULTS[provider]?.model || PROVIDER_DEFAULTS.custom.model;
 
-  if (provider === 'custom') {
-    if (customUrl) url = sanitizeEndpointUrl(customUrl);
-    if (customModel) model = customModel.trim();
-  }
+  if (provider === 'custom' && customUrl) url = sanitizeEndpointUrl(customUrl);
+  // L'accès aux modèles varie par COMPTE, pas seulement par fournisseur (ex.
+  // un modèle Groq gratuit peut être refusé sur un compte et accepté sur un
+  // autre : "does not exist or you do not have access to it" constaté en
+  // test). On laisse donc remplacer le modèle par défaut sur N'IMPORTE QUEL
+  // fournisseur, pas juste "custom" — l'URL/l'auth restent celles du
+  // fournisseur choisi, seul le nom du modèle change.
+  if (customModel) model = customModel.trim();
 
   // Gemini model auto-fix
   if ((provider === 'gemini' || url.includes('generative')) && !model.startsWith('models/')) {
