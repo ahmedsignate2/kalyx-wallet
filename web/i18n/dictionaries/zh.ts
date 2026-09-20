@@ -12,6 +12,7 @@ const zh: Dict = {
     fees: '费用',
     vision: '愿景',
     downloadApk: '下载 APK',
+    webApp: '打开网页版',
     openMenu: '打开菜单',
     closeMenu: '关闭菜单',
     language: '语言',

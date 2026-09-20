@@ -13,6 +13,7 @@ const ru: Dict = {
     fees: 'Комиссии',
     vision: 'Видение',
     downloadApk: 'Скачать APK',
+    webApp: 'Открыть веб-версию',
     openMenu: 'Открыть меню',
     closeMenu: 'Закрыть меню',
     language: 'Язык',
