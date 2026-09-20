@@ -53,6 +53,43 @@ function short(a: string) {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 }
 
+/** Or de marque Kalyx (déjà utilisé pour l'icône de notification, app.config.ts). */
+const GOLD = '#DDB565';
+
+/** Formate un montant en devise à la française pour l'euro (« 1,83 € », le
+ *  symbole APRÈS avec une espace insécable) — Intl.NumberFormat gère aussi
+ *  correctement les autres devises (symbole avant pour $, £…). */
+function formatFiatAmount(amount: number, fiat: string): string {
+  try {
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+  } catch {
+    return `${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${fiat.toUpperCase()}`;
+  }
+}
+
+/** Couleur déterministe (HSL) dérivée d'une chaîne — même adresse de contrat
+ *  → toujours la même couleur, différente d'un token à l'autre (au lieu du
+ *  même cercle gris vide pour tous les tokens sans logo). */
+function hashColor(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return `hsl(${h % 360}, 55%, 45%)`;
+}
+
+/** Avatar de token sans logo officiel : 2 lettres sur fond coloré unique
+ *  (dérivé de l'adresse du contrat) plutôt qu'un cercle gris vide anonyme. */
+function TokenAvatar({ uri, label, seed, size = 32 }: { uri?: string; label: string; seed: string; size?: number }) {
+  const [failed, setFailed] = useState(false);
+  if (!uri || failed) {
+    return (
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: hashColor(seed), alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: size * 0.36, color: '#fff', fontFamily: fonts.bold }}>{(label || '?').slice(0, 2).toUpperCase()}</Text>
+      </View>
+    );
+  }
+  return <Image source={{ uri }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+}
+
 /** Icône de réseau avec repli AUTO sur cercle lettré : chainIconUrl() renvoie
  *  volontairement `undefined` pour certains réseaux (doc : « → cercle lettré
  *  côté UI ») et l'icône distante peut aussi échouer au chargement (404,
@@ -408,14 +445,17 @@ function CurrentNetworkChip({ chain, onPress }: { chain: ChainConfig; onPress: (
 }
 
 /** Bouton d'action rapide (Recevoir/Envoyer/Swap) de l'onglet Accueil. */
+/** Cercle compact (icône + libellé), pas une carte rectangulaire individuelle
+ *  — l'ergonomie universelle des wallets/apps fintech (Phantom, Revolut…)
+ *  pour Recevoir/Envoyer/Swap, plutôt que 3 boîtes géantes empilées. */
 function QuickAction({ icon, label, onPress, grow = true }: { icon: IconName; label: string; onPress: () => void; grow?: boolean }) {
   const { colors } = useTheme();
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ flex: grow ? 1 : undefined, width: grow ? undefined : 110, alignItems: 'center', gap: spacing(0.75), paddingVertical: spacing(1.5), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
-      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name={icon} size={19} color={colors.onPrimary} />
+    <Pressable onPress={onPress} style={({ pressed }) => ({ flex: grow ? 1 : undefined, width: grow ? undefined : 84, alignItems: 'center', gap: spacing(0.6), opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
+      <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={22} color={colors.onPrimary} />
       </View>
-      <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{label}</Text>
+      <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 12 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -669,11 +709,16 @@ function Dashboard() {
 
 /* --------------------------------------------------------------------- Panels */
 
+/** Style « verre » (fond très légèrement teinté + bordure fine) plutôt qu'un
+ *  aplat gris à bordure épaisse — donne de la profondeur par calques au lieu
+ *  d'empiler des boîtes dures. `colors.text` sert de base : quasi-blanc en
+ *  thème sombre → un voile blanc à 3 % ; quasi-noir en clair → un voile noir
+ *  à 3 % — s'adapte aux deux thèmes sans dupliquer la logique. */
 function Card({ children }: { children: React.ReactNode }) {
   const t = useT();
   const { colors } = useTheme();
   return (
-    <View style={{ backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, padding: spacing(2) }}>
+    <View style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg, padding: spacing(2) }}>
       {children}
     </View>
   );
@@ -695,8 +740,8 @@ function Zone({ title, style, collapsible, children }: { title: string; style?: 
         {...(collapsible ? { onPress: () => setOpen((v) => !v) } : {})}
         style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(0.75) }}
       >
-        <View style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: colors.accent }} />
-        <Text style={[typography.section, { fontSize: 13, flex: 1 }]}>{title}</Text>
+        <View style={{ width: 3, height: 12, borderRadius: 2, backgroundColor: GOLD }} />
+        <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase', flex: 1 }}>{title}</Text>
         {collapsible ? (
           <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
             <Icon name="caretDown" size={14} color={colors.textMuted} />
@@ -871,7 +916,8 @@ type HeroData = ReturnType<typeof useHeroData>;
 function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainConfig; address: string }) {
   const t = useT();
   const { colors, typography } = useTheme();
-  const { sym, total, today, todayUp } = data;
+  const fiat = useSettings((s) => s.fiat);
+  const { total, today, todayUp } = data;
   const [hidden, setHidden] = useState(false);
   const [copied, setCopied] = useState(false);
   const tg = useTelegramBiometric();
@@ -894,26 +940,24 @@ function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainC
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <View style={{ borderRadius: radii.xl, borderWidth: 1, borderColor: colors.glassBorder, backgroundColor: colors.glass, overflow: 'hidden' }}>
+    // Bordure fine + halo doré diffus (identité Kalyx, ambre/or — cf. GOLD)
+    // au lieu d'un bloc noir plat : la lueur amber/orange en haut donne du
+    // relief sans dépendre d'un vrai blur (non supporté nativement en RN).
+    <View style={{ borderRadius: radii.xl, borderWidth: 1, borderColor: colors.text + '10', backgroundColor: colors.text + '06', overflow: 'hidden' }}>
       <Svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} viewBox="0 0 100 100" preserveAspectRatio="none">
         <Defs>
-          <SvgGradient id="heroCardGrad" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={colors.accent} stopOpacity={0.1} />
-            <Stop offset="0.5" stopColor={colors.accent} stopOpacity={0.03} />
-            <Stop offset="1" stopColor={colors.accent} stopOpacity={0} />
-          </SvgGradient>
-          <RadialGradient id="heroGlow" cx="88%" cy="6%" r="75%">
-            <Stop offset="0" stopColor={colors.accent} stopOpacity={0.16} />
-            <Stop offset="1" stopColor={colors.accent} stopOpacity={0} />
+          <RadialGradient id="heroGlow" cx="50%" cy="0%" r="85%">
+            <Stop offset="0" stopColor={GOLD} stopOpacity={0.15} />
+            <Stop offset="0.7" stopColor={GOLD} stopOpacity={0.03} />
+            <Stop offset="1" stopColor={GOLD} stopOpacity={0} />
           </RadialGradient>
         </Defs>
-        <Rect x="0" y="0" width="100" height="100" fill="url(#heroCardGrad)" />
         <Rect x="0" y="0" width="100" height="100" fill="url(#heroGlow)" />
       </Svg>
       <View style={{ padding: spacing(2.5), alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-          <Pressable onPress={onToggleHidden} hitSlop={8} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={isHidden ? 'eyeOff' : 'eye'} size={16} color={colors.textMuted} />
+          <Pressable onPress={onToggleHidden} hitSlop={8} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.text + '08', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={isHidden ? 'eyeOff' : 'eye'} size={15} color={colors.textMuted} />
           </Pressable>
           <View style={{ flex: 1 }} />
           {tg.available ? <Icon name={tg.biometricType === 'face' ? 'security' : 'lock'} size={15} color={colors.textMuted} /> : null}
@@ -923,7 +967,7 @@ function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainC
           <Skeleton w={200} h={44} style={{ marginTop: 6 }} />
         ) : (
           <Text style={{ color: colors.text, fontSize: 42, fontFamily: fonts.extrabold, marginTop: 4, fontVariant: ['tabular-nums'] }}>
-            {isHidden ? '••••••' : `${sym}${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            {isHidden ? '••••••' : formatFiatAmount(total, fiat)}
           </Text>
         )}
         {total != null ? (
@@ -937,7 +981,7 @@ function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainC
           </View>
         ) : null}
         {address ? (
-          <Pressable onPress={copyAddress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(2), backgroundColor: colors.bgDeep + '88', borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingVertical: 6, paddingHorizontal: 12, opacity: pressed ? 0.7 : 1 })}>
+          <Pressable onPress={copyAddress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing(2), backgroundColor: colors.bgDeep + '88', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.pill, paddingVertical: 7, paddingLeft: 12, paddingRight: 14, opacity: pressed ? 0.7 : 1 })}>
             <ChainAvatar chain={chain} size={16} />
             <Text style={{ color: colors.textMuted, fontSize: 12, fontVariant: ['tabular-nums'] }}>{short(address)}</Text>
             <Icon name={copied ? 'check' : 'copy'} size={12} color={copied ? colors.up : colors.textFaint} />
@@ -1243,7 +1287,6 @@ function WatchlistPanel({ worth }: { worth: { data: NetWorth | null } }) {
   const t = useT();
   const { colors, typography } = useTheme();
   const fiat = useSettings((s) => s.fiat);
-  const sym = fiatSymbol(fiat);
   if (!worth.data) return <SkeletonRows count={3} />;
   // Dé-duplication par coingeckoId (un seul ETH même si plusieurs réseaux EVM).
   const seen = new Set<string>();
@@ -1265,9 +1308,11 @@ function WatchlistPanel({ worth }: { worth: { data: NetWorth | null } }) {
               <Text style={typography.bodyStrong}>{s.chain.nativeSymbol}</Text>
               <Text style={typography.muted} numberOfLines={1}>{s.chain.name}</Text>
             </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }}>{`${sym}${s.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}</Text>
-              <Text style={{ color: up ? colors.up : colors.down, fontSize: 12, fontFamily: fonts.medium }}>{`${up ? '+' : ''}${s.change24h.toFixed(2)} %`}</Text>
+            <View style={{ alignItems: 'flex-end', gap: 3 }}>
+              <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }}>{formatFiatAmount(s.price, fiat)}</Text>
+              <View style={{ backgroundColor: (up ? colors.up : colors.down) + '1A', borderRadius: radii.sm, paddingHorizontal: 6, paddingVertical: 1 }}>
+                <Text style={{ color: up ? colors.up : colors.down, fontSize: 11, fontFamily: fonts.semibold }}>{`${up ? '+' : ''}${s.change24h.toFixed(2)} %`}</Text>
+              </View>
             </View>
           </View>
         );
@@ -1343,28 +1388,79 @@ function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }
   if (tokens.length === 0) return <EmptyState icon="wallet" title="Aucun token" subtitle="Les tokens de ce réseau apparaîtront ici dès qu'ils seront détectés." />;
   const prices = data?.prices ?? {};
   // Valeur $ par token, triés par valeur décroissante (plus gros en haut).
-  const rows = tokens
+  const withValue = tokens
     .map((tk) => {
       const amount = Number(tk.raw) / 10 ** tk.decimals;
       const value = amount * (prices[tk.contract.toLowerCase()] ?? 0);
       return { tk, value };
     })
     .sort((a, b) => b.value - a.value);
+  // Un token SANS logo officiel ET sans valorisation connue est presque
+  // toujours un airdrop spam (le RPC renvoie tous les soldes ERC-20 sans
+  // filtre) — relégué par défaut dans un accordéon fermé plutôt que de
+  // polluer la liste principale de cercles gris vides.
+  const verified = withValue.filter(({ tk, value }) => tk.logo || value > 0);
+  const unverified = withValue.filter(({ tk, value }) => !tk.logo && value <= 0);
   return (
-    <Card>
-      {rows.map(({ tk, value }, i) => (
-        <TokenRow
-          key={tk.contract}
-          token={tk}
-          value={value}
-          sym={sym}
-          chain={chain}
-          divider={i > 0}
-          expanded={expanded === tk.contract}
-          onToggle={() => setExpanded((cur) => (cur === tk.contract ? null : tk.contract))}
-        />
-      ))}
-    </Card>
+    <View style={{ gap: spacing(1) }}>
+      <Card>
+        {verified.length === 0 ? (
+          <Text style={typography.muted}>Aucun token vérifié détecté.</Text>
+        ) : (
+          verified.map(({ tk, value }, i) => (
+            <TokenRow
+              key={tk.contract}
+              token={tk}
+              value={value}
+              sym={sym}
+              chain={chain}
+              divider={i > 0}
+              expanded={expanded === tk.contract}
+              onToggle={() => setExpanded((cur) => (cur === tk.contract ? null : tk.contract))}
+            />
+          ))
+        )}
+      </Card>
+      {unverified.length > 0 ? (
+        <UnverifiedTokensAccordion rows={unverified} sym={sym} chain={chain} expanded={expanded} onToggle={setExpanded} />
+      ) : null}
+    </View>
+  );
+}
+
+/** Accordéon fermé par défaut — les tokens sans logo ni valeur (spam probable). */
+function UnverifiedTokensAccordion({
+  rows, sym, chain, expanded, onToggle,
+}: {
+  rows: { tk: Erc20Token; value: number }[]; sym: string; chain: ChainConfig; expanded: string | null; onToggle: (id: string | null) => void;
+}) {
+  const { colors, typography } = useTheme();
+  const [open, setOpen] = useState(false);
+  return (
+    <View>
+      <Pressable onPress={() => setOpen((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(0.75), paddingVertical: spacing(0.75) }}>
+        <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
+          <Icon name="caretDown" size={13} color={colors.textFaint} />
+        </View>
+        <Text style={[typography.muted, { fontSize: 12 }]}>{`Tokens non vérifiés (${rows.length})`}</Text>
+      </Pressable>
+      {open ? (
+        <Card>
+          {rows.map(({ tk, value }, i) => (
+            <TokenRow
+              key={tk.contract}
+              token={tk}
+              value={value}
+              sym={sym}
+              chain={chain}
+              divider={i > 0}
+              expanded={expanded === tk.contract}
+              onToggle={() => onToggle(expanded === tk.contract ? null : tk.contract)}
+            />
+          ))}
+        </Card>
+      ) : null}
+    </View>
   );
 }
 
@@ -1412,7 +1508,7 @@ function TokenRow({
   return (
     <View style={{ borderTopWidth: divider ? 1 : 0, borderTopColor: colors.glassBorder }}>
       <Pressable onPress={onToggle} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25) }}>
-        {token.logo ? <Image source={{ uri: token.logo }} style={{ width: 32, height: 32, borderRadius: 16 }} /> : <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.glassStrong }} />}
+        <TokenAvatar uri={token.logo} label={token.symbol} seed={token.contract} size={32} />
         <View style={{ flex: 1 }}>
           <Text style={typography.bodyStrong}>{token.symbol}</Text>
           <Text style={typography.muted} numberOfLines={1}>{token.name}</Text>
@@ -1494,18 +1590,22 @@ function NftsPanel({ chain, address }: { chain: ChainConfig; address: string }) 
     </View>
   );
   if (!data || data.length === 0) return <EmptyState icon="nft" title="Aucun NFT" subtitle="Les NFT de ce réseau apparaîtront ici dès qu'ils seront détectés." />;
+  const isRawAddress = (s: string) => /^0x[a-fA-F0-9]{20,}$/.test(s || '');
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
       {data.map((n) => (
         <Pressable
           key={`${n.contract}-${n.tokenId}`}
           onPress={() => chain.explorerUrl && Linking.openURL(`${chain.explorerUrl}/token/${n.contract}?a=${n.tokenId}`)}
-          style={({ pressed }) => ({ width: 160, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, overflow: 'hidden', opacity: pressed ? 0.75 : 1 })}
+          // Largeur en % (pas fixe) : garantit une vraie grille à 2 colonnes
+          // même sur un écran étroit — un width fixe de 160 px ne laissait
+          // tenir qu'UNE carte par ligne sur mobile (bannières pleine largeur).
+          style={({ pressed }) => ({ width: '47%', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, overflow: 'hidden', opacity: pressed ? 0.75 : 1 })}
         >
-          <Image source={{ uri: n.image }} style={{ width: '100%', height: 160, backgroundColor: colors.glassStrong }} resizeMode="cover" />
+          <Image source={{ uri: n.image }} style={{ width: '100%', aspectRatio: 1, backgroundColor: colors.glassStrong }} resizeMode="cover" />
           <View style={{ padding: spacing(1) }}>
-            <Text style={typography.bodyStrong} numberOfLines={1}>{n.name}</Text>
-            <Text style={typography.muted} numberOfLines={1}>{n.collection}</Text>
+            <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12 }} numberOfLines={1}>{n.name}</Text>
+            {n.collection && !isRawAddress(n.collection) ? <Text style={typography.muted} numberOfLines={1}>{n.collection}</Text> : null}
           </View>
         </Pressable>
       ))}
