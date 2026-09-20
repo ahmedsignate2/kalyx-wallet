@@ -9,9 +9,12 @@ export async function upsertUser(env: Env, telegramId: number, lang: string): Pr
     .bind(telegramId, lang).run();
 }
 
-export async function userLang(env: Env, telegramId: number): Promise<string> {
+export async function userLangOrNull(env: Env, telegramId: number): Promise<string | null> {
   const r = await env.DB.prepare('SELECT lang FROM users WHERE telegram_id = ?').bind(telegramId).first<{ lang: string }>();
-  return r?.lang ?? 'en';
+  return r?.lang ?? null;
+}
+export async function userLang(env: Env, telegramId: number): Promise<string> {
+  return (await userLangOrNull(env, telegramId)) ?? 'en';
 }
 
 export async function listWatched(env: Env, telegramId: number): Promise<TrackedWallet[]> {

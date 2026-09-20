@@ -24,6 +24,7 @@ curl -sS -X POST "$API/setMyCommands" -H 'content-type: application/json' -d '{"
  {"command":"watch","description":"Follow an address — /watch 0x… label"},
  {"command":"alert","description":"Price alert — /alert eth 3000"},
  {"command":"site","description":"Official site and Android app"},
+ {"command":"lang","description":"Change language"},
  {"command":"help","description":"How Kalyx keeps your keys safe"}
 ]}'
 echo
@@ -37,6 +38,7 @@ curl -sS -X POST "$API/setMyCommands" -H 'content-type: application/json' -d '{"
  {"command":"watch","description":"Suivre une adresse — /watch 0x… libellé"},
  {"command":"alert","description":"Alerte de prix — /alert eth 3000"},
  {"command":"site","description":"Site officiel et app Android"},
+ {"command":"lang","description":"Changer de langue"},
  {"command":"help","description":"Comment Kalyx protège tes clés"}
 ]}'
 echo

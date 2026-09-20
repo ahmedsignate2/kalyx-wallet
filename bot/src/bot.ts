@@ -1,22 +1,37 @@
 /** Commandes du bot. Aucune ne manipule de clé : lancer la Mini App, lire des
  *  données publiques (prix, gas, sécurité d'un token), poser des alertes. */
-import { Bot, InlineKeyboard, type Context } from 'grammy';
+import { Bot, InlineKeyboard, type Context, type NextFunction } from 'grammy';
 import { esc, familyOf, rateLimited, type Env } from './env';
-import { langOf, strings } from './i18n';
+import { LANGS, LANG_LABEL, strings, toLang, type Lang } from './i18n';
 import { fmtCompact, fmtFiat, getGas, getPrice, resolveCoinId } from './market';
 import { scanToken } from './scan';
-import { addAlert, addWatched, listAlerts, listWatched, removeWatched, upsertUser } from './store';
+import { addAlert, addWatched, listAlerts, listWatched, removeWatched, upsertUser, userLangOrNull } from './store';
 
 const HTML = { parse_mode: 'HTML' as const, link_preview_options: { is_disabled: true } };
 
-export function createBot(env: Env): Bot {
-  const bot = new Bot(env.BOT_TOKEN);
-  const t = (ctx: Context) => strings(ctx.from?.language_code);
-  const lang = (ctx: Context) => langOf(ctx.from?.language_code);
+type Ctx = Context & { lang: Lang };
 
-  // Une seule commande privée à la fois par utilisateur, 20 / minute max.
-  bot.use(async (ctx, next) => {
+/** Clavier de choix de langue : 15 langues, 3 par ligne. */
+function languageKeyboard(): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  LANGS.forEach((l, i) => {
+    kb.text(LANG_LABEL[l], `lang:${l}`);
+    if (i % 3 === 2) kb.row();
+  });
+  return kb;
+}
+
+export function createBot(env: Env): Bot<Ctx> {
+  const bot = new Bot<Ctx>(env.BOT_TOKEN);
+  const t = (ctx: Ctx) => strings(ctx.lang);
+  const lang = (ctx: Ctx) => ctx.lang;
+
+  // Langue : préférence mémorisée (D1) > language_code Telegram > anglais.
+  // Puis limitation de débit : 20 mises à jour / minute / utilisateur.
+  bot.use(async (ctx: Ctx, next: NextFunction) => {
     const id = ctx.from?.id;
+    const stored = id ? await userLangOrNull(env, id).catch(() => null) : null;
+    ctx.lang = toLang(stored ?? ctx.from?.language_code);
     if (id && (await rateLimited(env, String(id), 20, 60))) {
       await ctx.reply(t(ctx).rateLimited);
       return;
@@ -24,13 +39,38 @@ export function createBot(env: Env): Bot {
     await next();
   });
 
-  const appKeyboard = (ctx: Context) => new InlineKeyboard()
-    .webApp(t(ctx).openApp, env.WEB_APP_URL).row()
-    .url(t(ctx).installApp, env.DOWNLOAD_URL);
+  // Choix de langue (boutons du /start ou de /lang) : enregistré, puis accueil dans cette langue.
+  bot.callbackQuery(/^lang:([a-z]{2})$/, async (ctx) => {
+    const chosen = toLang(ctx.match[1]);
+    if (ctx.from) await upsertUser(env, ctx.from.id, chosen).catch(() => {});
+    ctx.lang = chosen;
+    await ctx.answerCallbackQuery({ text: t(ctx).languageSet });
+    await ctx.editMessageText(t(ctx).welcome(esc(ctx.from?.first_name ?? '')), { ...HTML, reply_markup: appKeyboard(ctx) }).catch(async () => {
+      await ctx.reply(t(ctx).welcome(esc(ctx.from?.first_name ?? '')), { ...HTML, reply_markup: appKeyboard(ctx) });
+    });
+  });
 
+  const appKeyboard = (ctx: Ctx) => new InlineKeyboard()
+    .webApp(t(ctx).openApp, env.WEB_APP_URL).row()
+    .url(t(ctx).installApp, env.DOWNLOAD_URL).row()
+    .text(t(ctx).changeLanguage, 'lang:menu');
+
+  // Premier /start : on demande la langue. Utilisateur déjà connu : accueil direct.
   bot.command('start', async (ctx) => {
-    if (ctx.from) await upsertUser(env, ctx.from.id, lang(ctx)).catch(() => {});
-    await ctx.reply(t(ctx).start(esc(ctx.from?.first_name ?? '')), { ...HTML, reply_markup: appKeyboard(ctx) });
+    const known = ctx.from ? await userLangOrNull(env, ctx.from.id).catch(() => null) : null;
+    if (!known) {
+      await ctx.reply(`🌐 ${strings('en').chooseLanguage} · ${strings('fr').chooseLanguage} · ${strings('es').chooseLanguage}`, { reply_markup: languageKeyboard() });
+      return;
+    }
+    await ctx.reply(t(ctx).welcome(esc(ctx.from?.first_name ?? '')), { ...HTML, reply_markup: appKeyboard(ctx) });
+  });
+
+  bot.command(['lang', 'language'], async (ctx) => {
+    await ctx.reply(`🌐 ${t(ctx).chooseLanguage}`, { reply_markup: languageKeyboard() });
+  });
+  bot.callbackQuery('lang:menu', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await ctx.reply(`🌐 ${t(ctx).chooseLanguage}`, { reply_markup: languageKeyboard() });
   });
 
   bot.command(['app', 'wallet'], async (ctx) => {
