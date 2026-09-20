@@ -38,7 +38,7 @@ export async function rateLimited(env: Env, key: string, max: number, windowSec:
   const k = `rl:${key}:${Math.floor(Date.now() / 1000 / windowSec)}`;
   const cur = Number((await env.CACHE.get(k)) ?? '0');
   if (cur >= max) return true;
-  await env.CACHE.put(k, String(cur + 1), { expirationTtl: windowSec + 5 });
+  await env.CACHE.put(k, String(cur + 1), { expirationTtl: Math.max(60, windowSec + 5) });
   return false;
 }
 
