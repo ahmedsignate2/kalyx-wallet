@@ -22,6 +22,7 @@ import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, u
 import { toRaw, encodeErc20Transfer } from './evmEncode';
 import { useTokenLogo } from './tokenLogos';
 import { FadeInUp, CrossFade, useCountUp, Breathing } from './motion';
+import { Text as KText, Button, Sheet, Surface, ListRow, Divider } from '../kit';
 import { ReceiveScreen } from './ReceiveScreen';
 import { SendFlow } from './SendFlow';
 import { SwapScreen } from './SwapScreen';
@@ -122,13 +123,19 @@ function ChainAvatar({ chain, size = 20 }: { chain: ChainConfig; size?: number }
 }
 
 /** Horodatage relatif court (ts en secondes). */
-function ago(ts: number): string {
+/** « il y a 3 min » dans la langue de l'utilisateur (Intl.RelativeTimeFormat). */
+function ago(ts: number, lang = 'fr'): string {
   const s = Math.floor(Date.now() / 1000 - ts);
-  if (s < 60) return 'à l’instant';
-  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
-  if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
-  if (s < 86400 * 30) return `il y a ${Math.floor(s / 86400)} j`;
-  return new Date(ts * 1000).toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+  try {
+    const rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+    if (s < 60) return rtf.format(0, 'second');
+    if (s < 3600) return rtf.format(-Math.floor(s / 60), 'minute');
+    if (s < 86400) return rtf.format(-Math.floor(s / 3600), 'hour');
+    if (s < 86400 * 30) return rtf.format(-Math.floor(s / 86400), 'day');
+  } catch {
+    /* Intl indisponible : date courte */
+  }
+  return new Date(ts * 1000).toLocaleDateString(lang, { day: '2-digit', month: 'short' });
 }
 
 /** Config d'une chaîne Kalyx par son id (repli Ethereum). */
@@ -1288,13 +1295,15 @@ function MobileAssets({ data, chain, address, onReceive }: { data: HeroData; cha
   return (
     <View style={{ gap: 14 }}>
       <SegmentTabs tabs={tabs} value={tab} onChange={setTab} />
-      {tab === 'tokens' ? (
-        <MobileTokenList data={data} chain={chain} address={address} onReceive={onReceive} />
-      ) : tab === 'nft' ? (
-        isEvm ? <NftsPanel chain={chain} address={address} flat /> : <MobileEmptyState icon="nft" title={tw('noNft')} subtitle={tw('nftEvmOnly')} />
-      ) : (
-        <HistoryPanel chain={chain} address={address} flat />
-      )}
+      <CrossFade id={tab}>
+        {tab === 'tokens' ? (
+          <MobileTokenList data={data} chain={chain} address={address} onReceive={onReceive} />
+        ) : tab === 'nft' ? (
+          isEvm ? <NftsPanel chain={chain} address={address} flat /> : <MobileEmptyState icon="nft" title={tw('noNft')} subtitle={tw('nftEvmOnly')} />
+        ) : (
+          <HistoryPanel chain={chain} address={address} flat />
+        )}
+      </CrossFade>
     </View>
   );
 }
@@ -1366,16 +1375,17 @@ function MobileTokenList({ data, chain, address, onReceive }: { data: HeroData; 
         />
       ) : null}
       {rows.map(({ tk, value }, i) => (
-        <TokenRow
-          key={tk.contract}
-          token={tk}
-          value={value}
-          sym={sym}
-          chain={chain}
-          divider={hasNative || i > 0}
-          expanded={expanded === tk.contract}
-          onToggle={() => setExpanded((cur) => (cur === tk.contract ? null : tk.contract))}
-        />
+        <FadeInUp key={tk.contract} delay={Math.min(i + 1, 8) * 45} distance={8}>
+          <TokenRow
+            token={tk}
+            value={value}
+            sym={sym}
+            chain={chain}
+            divider={hasNative || i > 0}
+            expanded={expanded === tk.contract}
+            onToggle={() => setExpanded((cur) => (cur === tk.contract ? null : tk.contract))}
+          />
+        </FadeInUp>
       ))}
       {loading ? <View style={{ paddingTop: 12 }}><Skeleton h={12} w={140} /></View> : null}
     </View>
@@ -1485,6 +1495,7 @@ function AccountCard({ chain, address, defaultQr }: { chain: ChainConfig; addres
 function SecurityPanel() {
   const t = useT();
   const tw = useWebT();
+  const language = useSettings((s) => s.language);
   const { colors, typography } = useTheme();
   const peerName = useWebConnect((s) => s.peerName);
   const connectedAt = useWebConnect((s) => s.connectedAt);
@@ -1504,7 +1515,7 @@ function SecurityPanel() {
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={typography.bodyStrong} numberOfLines={1}>{peerName ?? tw('kalyxWallet')}</Text>
-          <Text style={typography.muted} numberOfLines={1}>{`${tw('vaultConnected')}${connectedAt ? ` · ${ago(Math.floor(connectedAt / 1000))}` : ''}`}</Text>
+          <Text style={typography.muted} numberOfLines={1}>{`${tw('vaultConnected')}${connectedAt ? ` · ${ago(Math.floor(connectedAt / 1000), language)}` : ''}`}</Text>
         </View>
       </View>
 
@@ -1521,7 +1532,7 @@ function SecurityPanel() {
       <View style={{ height: 1, backgroundColor: colors.glassBorder, marginVertical: spacing(1.5) }} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={typography.muted}>{tw('lastActivity')}</Text>
-        <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12 }}>{ago(Math.floor(lastActivity / 1000))}</Text>
+        <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12 }}>{ago(Math.floor(lastActivity / 1000), language)}</Text>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing(0.5) }}>
         <Text style={typography.muted}>{tw('sharedNetworks')}</Text>
@@ -1993,15 +2004,38 @@ function toneColor(tone: HumanTx['tone'], colors: ReturnType<typeof useTheme>['c
   return tone === 'up' ? colors.up : tone === 'down' ? colors.text : tone === 'danger' ? colors.danger : colors.textMuted;
 }
 
-/** Historique humanisé (humanizeTx, partagé avec l'app) : « Interaction avec
- *  X » pour les appels de contrat au lieu d'un montant « +0 SOL » trompeur,
- *  et les transferts entrants à 0 (poussière/airdrop spam) sont masqués. */
+type TxFilter = 'all' | 'in' | 'out' | 'swap' | 'other';
+
+/** Libellé de jour : Aujourd'hui / Hier / date locale. */
+function dayLabel(ts: number, today: string, yesterday: string): string {
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (sameDay(d, now)) return today;
+  const y = new Date(now); y.setDate(now.getDate() - 1);
+  if (sameDay(d, y)) return yesterday;
+  return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
+}
+
+function txKind(tx: TxSummary, h: HumanTx): TxFilter {
+  if (h.icon === 'exchange' || tx.type === 'swap' || String(tx.type ?? '').toUpperCase() === 'SWAP') return 'swap';
+  if (tx.direction === 'in') return 'in';
+  if (tx.direction === 'out' && (h.icon === 'send' || h.icon === 'receive')) return 'out';
+  return 'other';
+}
+
+/** Historique humanisé (humanizeTx, partagé avec l'app) : groupé par jour,
+ *  filtres Reçus / Envoyés / Swaps, détail en feuille (hash, adresses, explorateur),
+ *  pagination « Voir plus ». Les transferts entrants à 0 (spam) sont masqués. */
 function HistoryPanel({ chain, address, flat }: { chain: ChainConfig; address: string; flat?: boolean }) {
   const t = useT();
   const tw = useWebT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address, rev]);
+  const [filter, setFilter] = useState<TxFilter>('all');
+  const [limit, setLimit] = useState(15);
+  const [detail, setDetail] = useState<{ tx: TxSummary; h: HumanTx } | null>(null);
   if (loading) return <SkeletonRows count={5} flat={flat} />;
   const rows = (data ?? [])
     .map((tx) => ({ tx, h: humanizeTx(tx, { nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals }) }))
@@ -2010,25 +2044,98 @@ function HistoryPanel({ chain, address, flat }: { chain: ChainConfig; address: s
     const empty = { title: tw('noActivity'), subtitle: tw('noActivityBody') };
     return flat ? <MobileEmptyState icon="history" {...empty} /> : <EmptyState icon="history" {...empty} />;
   }
+  const filtered = filter === 'all' ? rows : rows.filter(({ tx, h }) => txKind(tx, h) === filter);
+  const shown = filtered.slice(0, limit);
+  const groups: { label: string; items: typeof shown }[] = [];
+  for (const r of shown) {
+    const label = dayLabel(r.tx.timestamp, tw('todayLabel'), tw('yesterday'));
+    const g = groups[groups.length - 1];
+    if (g && g.label === label) g.items.push(r); else groups.push({ label, items: [r] });
+  }
+  const filters: { k: TxFilter; l: string }[] = [
+    { k: 'all', l: tw('filterAll') }, { k: 'in', l: tw('filterReceived') }, { k: 'out', l: tw('filterSent') }, { k: 'swap', l: tw('filterSwaps') },
+  ];
+  const iconBg = (tone: HumanTx['tone']) => (tone === 'up' ? colors.up : tone === 'danger' ? colors.danger : colors.text) + '14';
   const Wrap = flat ? View : Card;
+  const status = (tx: TxSummary) => (tx.status === 'failed' ? tw('txFailed') : tx.status === 'pending' ? tw('txPending') : tw('txSuccess'));
+  const explorerTx = detail && chain.explorerUrl ? `${chain.explorerUrl}/tx/${detail.tx.hash}` : null;
+  const copy = async (v: string, msg: string) => { await Clipboard.setStringAsync(v); toast.success(msg); };
+
   return (
-    <Wrap>
-      {rows.slice(0, 30).map(({ tx, h }, i) => (
-        <Pressable
-          key={tx.hash}
-          onPress={() => chain.explorerUrl && Linking.openURL(`${chain.explorerUrl}/tx/${tx.hash}`)}
-          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}
-        >
-          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={h.icon} size={16} color={colors.textMuted} />
+    <View style={{ gap: spacing(1.25) }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+        {filters.map((f) => {
+          const on = f.k === filter;
+          return (
+            <Pressable key={f.k} onPress={() => { setFilter(f.k); setLimit(15); }} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: radii.pill, backgroundColor: on ? colors.text + '14' : 'transparent', borderWidth: 1, borderColor: on ? colors.text + '22' : colors.text + '10' }}>
+              <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: on ? fonts.semibold : fonts.medium, fontSize: 12 }}>{f.l}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      {filtered.length === 0 ? <Text style={[typography.muted, { paddingVertical: spacing(2), textAlign: 'center' }]}>{tw('noMatch')}</Text> : null}
+      <Wrap>
+        {groups.map((g, gi) => (
+          <View key={g.label}>
+            <Text style={{ color: colors.textFaint, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', paddingTop: gi > 0 ? spacing(1.5) : 0, paddingBottom: spacing(0.5) }}>{g.label}</Text>
+            {g.items.map(({ tx, h }, i) => (
+              <FadeInUp key={tx.hash} delay={Math.min(i, 8) * 40} distance={8}>
+                <Pressable
+                  onPress={() => setDetail({ tx, h })}
+                  style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}
+                >
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: iconBg(h.tone), alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name={h.failed ? 'errorCircle' : h.icon} size={17} color={h.failed ? colors.danger : toneColor(h.tone, colors)} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={typography.bodyStrong} numberOfLines={1}>{h.title}</Text>
+                    <Text style={typography.muted} numberOfLines={1}>{h.subtitle ?? short(tx.hash)} · {new Date(tx.timestamp * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    {h.amount ? <Text style={{ color: toneColor(h.tone, colors), fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }} numberOfLines={1}>{h.amount}</Text> : null}
+                    {h.fiat ? <Text style={[typography.muted, { fontSize: 12 }]} numberOfLines={1}>{h.fiat}</Text> : null}
+                  </View>
+                </Pressable>
+              </FadeInUp>
+            ))}
           </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={typography.bodyStrong} numberOfLines={1}>{`${h.title}${h.failed ? ' · échoué' : ''}`}</Text>
-            <Text style={typography.muted} numberOfLines={1}>{h.subtitle ?? `${short(tx.hash)} · ${ago(tx.timestamp)}`}</Text>
-          </View>
-          {h.amount ? <Text style={{ color: toneColor(h.tone, colors), fontFamily: fonts.semibold }} numberOfLines={1}>{h.amount}</Text> : null}
+        ))}
+      </Wrap>
+      {filtered.length > limit ? (
+        <Pressable onPress={() => setLimit((l) => l + 15)} style={({ pressed }) => ({ alignSelf: 'center', paddingVertical: spacing(1), paddingHorizontal: spacing(2), borderRadius: radii.pill, borderWidth: 1, borderColor: colors.text + '14', opacity: pressed ? 0.6 : 1 })}>
+          <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{tw('showMore')}</Text>
         </Pressable>
-      ))}
-    </Wrap>
+      ) : null}
+
+      <Sheet visible={!!detail} onClose={() => setDetail(null)}>
+        {detail ? (
+          <>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: iconBg(detail.h.tone), alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={detail.h.failed ? 'errorCircle' : detail.h.icon} size={20} color={detail.h.failed ? colors.danger : toneColor(detail.h.tone, colors)} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <KText variant="title2">{detail.h.title}</KText>
+                {detail.h.amount ? <KText variant="body" tabular style={{ color: toneColor(detail.h.tone, colors) }}>{detail.h.amount}{detail.h.fiat ? `  ·  ${detail.h.fiat}` : ''}</KText> : null}
+              </View>
+            </View>
+            <Surface padded={false}>
+              <ListRow title={tw('txStatus')} right={<KText variant="body" tone={detail.tx.status === 'failed' ? 'danger' : detail.tx.status === 'pending' ? 'warning' : 'up'}>{status(detail.tx)}</KText>} />
+              <Divider inset={16} />
+              <ListRow title={tw('txDate')} right={<KText variant="body">{new Date(detail.tx.timestamp * 1000).toLocaleString()}</KText>} />
+              <Divider inset={16} />
+              <ListRow title={t('labelNetwork')} right={<KText variant="body">{chain.name}</KText>} />
+              <Divider inset={16} />
+              <ListRow title={tw('txFrom')} subtitle={short(detail.tx.from)} onPress={() => copy(detail.tx.from, t('addressCopied'))} right={<Icon name="copy" size={14} color={colors.textMuted} />} />
+              <Divider inset={16} />
+              <ListRow title={tw('txTo')} subtitle={short(detail.tx.to)} onPress={() => copy(detail.tx.to, t('addressCopied'))} right={<Icon name="copy" size={14} color={colors.textMuted} />} />
+              <Divider inset={16} />
+              <ListRow title={tw('txHash')} subtitle={short(detail.tx.hash)} onPress={() => copy(detail.tx.hash, tw('hashCopied'))} right={<Icon name="copy" size={14} color={colors.textMuted} />} />
+            </Surface>
+            {explorerTx ? <Button label={tw('openExplorer')} variant="secondary" size="md" onPress={() => { const w = (globalThis as { open?: (u: string, target?: string, features?: string) => unknown }).open; w?.(explorerTx, '_blank', 'noopener,noreferrer'); }} /> : null}
+          </>
+        ) : null}
+      </Sheet>
+    </View>
   );
 }

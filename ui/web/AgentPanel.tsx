@@ -9,7 +9,11 @@
  * qui a un repli localStorage sur le web) — jamais envoyée à Kalyx.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, Linking, ActivityIndicator, Animated, Easing } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Text as KText, Button, Sheet, Surface, ListRow, Divider } from '../kit';
+import { FadeInUp, Breathing } from './motion';
+import { WEB_FONTS } from './webTheme';
 import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useAiStore, type AiProvider } from '../../lib/aiStore';
@@ -181,6 +185,87 @@ export function AgentSetup() {
   );
 }
 
+/* --------------------------------------------------------- Rendu des messages */
+
+/** Markdown minimal des réponses : **gras**, `code`, puces « - » / « • » / « * ». */
+function RichText({ text, color, bold, mono }: { text: string; color: string; bold: string; mono: string }) {
+  const lines = text.split('\n');
+  return (
+    <View style={{ gap: 2 }}>
+      {lines.map((line, i) => {
+        const bullet = /^\s*[-•*]\s+/.test(line);
+        const body = bullet ? line.replace(/^\s*[-•*]\s+/, '') : line;
+        const parts = body.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
+        return (
+          <View key={i} style={{ flexDirection: 'row', paddingLeft: bullet ? 4 : 0 }}>
+            {bullet ? <Text style={{ color: GOLD, fontSize: 14, lineHeight: 20, marginRight: 6 }}>•</Text> : null}
+            <Text style={{ color, fontSize: 14, lineHeight: 20, flexShrink: 1 }}>
+              {parts.map((p, j) => {
+                if (p.startsWith('**') && p.endsWith('**')) return <Text key={j} style={{ fontFamily: bold }}>{p.slice(2, -2)}</Text>;
+                if (p.startsWith('`') && p.endsWith('`')) return <Text key={j} style={{ fontFamily: mono, fontSize: 13 }}>{p.slice(1, -1)}</Text>;
+                return <Text key={j}>{p}</Text>;
+              })}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Trois points qui ondulent pendant que le modèle répond. */
+function TypingDots({ color }: { color: string }) {
+  const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
+  useEffect(() => {
+    const anims = dots.map((v, i) => Animated.loop(Animated.sequence([
+      Animated.delay(i * 140),
+      Animated.timing(v, { toValue: 1, duration: 320, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+      Animated.timing(v, { toValue: 0, duration: 320, easing: Easing.in(Easing.quad), useNativeDriver: false }),
+      Animated.delay(420 - i * 140),
+    ])));
+    anims.forEach((a) => a.start());
+    return () => anims.forEach((a) => a.stop());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center', height: 20 }}>
+      {dots.map((v, i) => (
+        <Animated.View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color, opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }), transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }] }} />
+      ))}
+    </View>
+  );
+}
+
+function MessageBubble({ m, onCopy }: { m: { id: string; sender: 'user' | 'assistant'; text: string }; onCopy: (t: string) => void }) {
+  const { colors } = useTheme();
+  const tw = useWebT();
+  const user = m.sender === 'user';
+  return (
+    <FadeInUp distance={10} duration={320}>
+      <View style={{ flexDirection: 'row', gap: 8, maxWidth: '88%', alignSelf: user ? 'flex-end' : 'flex-start' }}>
+        {!user ? (
+          <View style={{ width: 22, height: 22, borderRadius: radii.sm, backgroundColor: GOLD + '22', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+            <Icon name="sparkles" size={11} color={GOLD} />
+          </View>
+        ) : null}
+        <View style={{ flexShrink: 1 }}>
+          <View style={{ backgroundColor: user ? colors.accent : colors.text + '08', borderWidth: user ? 0 : 1, borderColor: colors.text + '12', borderRadius: radii.lg, padding: spacing(1.25) }}>
+            {user
+              ? <Text style={{ color: colors.onPrimary, fontSize: 14, lineHeight: 20 }}>{m.text}</Text>
+              : <RichText text={m.text} color={colors.text} bold={fonts.bold} mono={WEB_FONTS.mono} />}
+          </View>
+          {!user ? (
+            <Pressable onPress={() => onCopy(m.text)} hitSlop={6} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 6, opacity: pressed ? 0.5 : 1 })}>
+              <Icon name="copy" size={11} color={colors.textFaint} />
+              <Text style={{ color: colors.textFaint, fontSize: 11 }}>{tw('copyAnswer')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+    </FadeInUp>
+  );
+}
+
 /** Interface de discussion (clé déjà enregistrée). */
 function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: string; worth: { data: { total: number; slices: { chain: ChainConfig; address: string; native: number; tokens: number; value: number; price: number; change24h: number }[] } | null } }) {
   const { colors, typography } = useTheme();
@@ -191,9 +276,14 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
   const sessions = useAiChatHistoryStore((s) => s.sessions);
   const activeSessionId = useAiChatHistoryStore((s) => s.activeSessionId);
   const addMessageToActive = useAiChatHistoryStore((s) => s.addMessageToActive);
+  const createNewSession = useAiChatHistoryStore((s) => s.createNewSession);
+  const setActiveSession = useAiChatHistoryStore((s) => s.setActiveSession);
+  const deleteSession = useAiChatHistoryStore((s) => s.deleteSession);
   const messages = sessions.find((s) => s.id === activeSessionId)?.messages ?? [];
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const context = useWebCopilotContext(chain, address, worth);
 
@@ -201,7 +291,6 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     const id = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
     return () => clearTimeout(id);
   }, [messages.length, busy]);
-
 
   const send = async (text: string) => {
     const q = text.trim();
@@ -223,68 +312,78 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     addMessageToActive({ sender: 'assistant', text: 'text' in r ? r.text : `⚠ ${r.error}` });
   };
 
+  const copyAnswer = async (text: string) => {
+    await Clipboard.setStringAsync(text);
+    toast.success(tw('copiedAnswer'));
+  };
+
+  const iconBtn = (name: IconName, onPress: () => void, label: string) => (
+    <Pressable key={name} onPress={onPress} hitSlop={8} accessibilityLabel={label} style={({ pressed }) => ({ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', opacity: pressed ? 0.6 : 1 })}>
+      <Icon name={name} size={14} color={colors.textMuted} />
+    </Pressable>
+  );
+
   return (
-    // flex:1 plutôt qu'une hauteur fixe/vh : le parent (WebDashboard, onglet
-    // Agent) est maintenant un vrai conteneur flex NON scrollable dimensionné
-    // exactement à l'espace dispo entre l'en-tête et la barre d'onglets — un
-    // View flex:1 s'y cale correctement, contrairement à l'intérieur d'un
-    // ScrollView où flex:1/vh ne représentent rien de fiable (c'était la
-    // vraie cause de la barre de saisie poussée sous la nav du bas).
+    // flex:1 : le parent (onglet Agent) est un conteneur flex non scrollable
+    // dimensionné à l'espace disponible — le chat gère son propre scroll.
     <View style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing(0.75) }}>
         <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: radii.pill, backgroundColor: GOLD + '1A', borderWidth: 1, borderColor: GOLD + '33' }}>
           <Text style={{ color: GOLD, fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.5 }}>{`BETA · BYOK · ${provider.toUpperCase()}`}</Text>
         </View>
-        <Pressable onPress={disableAi} hitSlop={8} style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12' }}>
-          <Icon name="developer" size={14} color={colors.textMuted} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          {iconBtn('add', () => createNewSession(), tw('newChat'))}
+          {iconBtn('history', () => setHistoryOpen(true), tw('chatHistory'))}
+          {iconBtn('gear', () => setSettingsOpen(true), tw('agentSettings'))}
+        </View>
       </View>
 
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: spacing(1.5), gap: spacing(1) }}>
         {messages.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingHorizontal: spacing(1), paddingTop: spacing(0.5) }}>
-            <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center', marginBottom: spacing(1) }}>
-              <Icon name="sparkles" size={22} color={GOLD} />
-            </View>
-            <Text style={{ color: colors.text, fontSize: 17, fontFamily: fonts.bold, marginBottom: 3 }}>{tw('kalyxIntelligence')}</Text>
-            <Text style={[typography.muted, { textAlign: 'center', maxWidth: 280, marginBottom: spacing(1.25), fontSize: 13 }]}>
-              {tw('kalyxIntelligenceBody')}
-            </Text>
-            <View style={{ width: '100%', gap: spacing(0.75) }}>
-              {SUGGESTIONS.map((s) => (
-                <Pressable key={s.title} onPress={() => send(tw(s.prompt))} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'flex-start', gap: spacing(1), padding: spacing(1.25), borderRadius: radii.lg, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: pressed ? GOLD + '55' : colors.text + '12' })}>
-                  <View style={{ width: 30, height: 30, borderRadius: radii.md, backgroundColor: s.color + '1A', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name={s.icon} size={15} color={s.color} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{tw(s.title)}</Text>
-                    <Text style={[typography.muted, { fontSize: 11, marginTop: 1 }]}>{tw(s.description)}</Text>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        ) : (
-          messages.map((m) => (
-            <View key={m.id} style={{ flexDirection: 'row', gap: 8, maxWidth: '88%', alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start' }}>
-              {m.sender === 'assistant' ? (
-                <View style={{ width: 22, height: 22, borderRadius: radii.sm, backgroundColor: GOLD + '22', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
-                  <Icon name="sparkles" size={11} color={GOLD} />
+          <FadeInUp>
+            <View style={{ alignItems: 'center', paddingHorizontal: spacing(1), paddingTop: spacing(0.5) }}>
+              <Breathing>
+                <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center', marginBottom: spacing(1) }}>
+                  <Icon name="sparkles" size={22} color={GOLD} />
                 </View>
-              ) : null}
-              <View
-                style={{
-                  backgroundColor: m.sender === 'user' ? colors.accent : colors.text + '08',
-                  borderWidth: m.sender === 'user' ? 0 : 1, borderColor: colors.text + '12',
-                  borderRadius: radii.lg, padding: spacing(1.25), flexShrink: 1,
-                }}
-              >
-                <Text style={{ color: m.sender === 'user' ? colors.onPrimary : colors.text, fontSize: 14, lineHeight: 20 }}>{m.text}</Text>
+              </Breathing>
+              <Text style={{ color: colors.text, fontSize: 17, fontFamily: fonts.bold, marginBottom: 3 }}>{tw('kalyxIntelligence')}</Text>
+              <Text style={[typography.muted, { textAlign: 'center', maxWidth: 280, marginBottom: spacing(1.25), fontSize: 13 }]}>
+                {tw('kalyxIntelligenceBody')}
+              </Text>
+              <View style={{ width: '100%', gap: spacing(0.75) }}>
+                {SUGGESTIONS.map((s, i) => (
+                  <FadeInUp key={s.title} delay={120 + i * 70}>
+                    <Pressable onPress={() => send(tw(s.prompt))} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'flex-start', gap: spacing(1), padding: spacing(1.25), borderRadius: radii.lg, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: pressed ? GOLD + '55' : colors.text + '12', transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+                      <View style={{ width: 30, height: 30, borderRadius: radii.md, backgroundColor: s.color + '1A', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon name={s.icon} size={15} color={s.color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{tw(s.title)}</Text>
+                        <Text style={[typography.muted, { fontSize: 11, marginTop: 1 }]}>{tw(s.description)}</Text>
+                      </View>
+                      <Icon name="chevron" size={14} color={colors.textFaint} />
+                    </Pressable>
+                  </FadeInUp>
+                ))}
               </View>
             </View>
-          ))
+          </FadeInUp>
+        ) : (
+          messages.map((m) => <MessageBubble key={m.id} m={m} onCopy={copyAnswer} />)
         )}
-        {busy ? <ActivityIndicator color={colors.textMuted} style={{ alignSelf: 'flex-start' }} /> : null}
+        {busy ? (
+          <FadeInUp distance={6} duration={200}>
+            <View style={{ flexDirection: 'row', gap: 8, alignSelf: 'flex-start', alignItems: 'center' }}>
+              <View style={{ width: 22, height: 22, borderRadius: radii.sm, backgroundColor: GOLD + '22', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="sparkles" size={11} color={GOLD} />
+              </View>
+              <View style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg, paddingHorizontal: spacing(1.5), paddingVertical: spacing(1) }}>
+                <TypingDots color={colors.textMuted} />
+              </View>
+            </View>
+          </FadeInUp>
+        ) : null}
       </ScrollView>
 
       <View style={{ paddingTop: spacing(1) }}>
@@ -297,11 +396,43 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
             placeholderTextColor={colors.textMuted}
             style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', paddingHorizontal: spacing(1.75), paddingVertical: spacing(1.1), fontSize: 14 }}
           />
-          <Pressable onPress={() => send(input)} disabled={busy || !input.trim()} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 4, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', opacity: busy || !input.trim() ? 0.4 : 1 }}>
-            <Icon name="forward" size={15} color={colors.onPrimary} />
+          <Pressable onPress={() => send(input)} disabled={busy || !input.trim()} style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, marginRight: 4, backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center', opacity: busy || !input.trim() ? 0.4 : 1, transform: [{ scale: pressed ? 0.92 : 1 }] })}>
+            <Icon name="forward" size={15} color="#171310" />
           </Pressable>
         </View>
       </View>
+
+      {/* Conversations passées */}
+      <Sheet visible={historyOpen} onClose={() => setHistoryOpen(false)}>
+        <KText variant="title2">{tw('chatHistory')}</KText>
+        {sessions.length === 0 ? <KText variant="bodySecondary" tone="secondary">{tw('noChats')}</KText> : (
+          <Surface padded={false}>
+            {sessions.map((sess, i) => (
+              <React.Fragment key={sess.id}>
+                <ListRow
+                  title={sess.title}
+                  subtitle={new Date(sess.updatedAt).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  onPress={() => { setActiveSession(sess.id); setHistoryOpen(false); }}
+                  right={
+                    <Pressable onPress={() => deleteSession(sess.id)} hitSlop={8} accessibilityLabel={tw('deleteChat')} style={{ padding: 6 }}>
+                      <Icon name="reset" size={16} color={sess.id === activeSessionId ? colors.danger : colors.textFaint} />
+                    </Pressable>
+                  }
+                />
+                {i < sessions.length - 1 ? <Divider inset={16} /> : null}
+              </React.Fragment>
+            ))}
+          </Surface>
+        )}
+        <Button label={tw('newChat')} variant="secondary" size="md" onPress={() => { createNewSession(); setHistoryOpen(false); }} />
+      </Sheet>
+
+      {/* Réglages de l'agent : changer la clé/le modèle ou désactiver */}
+      <Sheet visible={settingsOpen} onClose={() => setSettingsOpen(false)}>
+        <KText variant="title2">{tw('agentSettings')}</KText>
+        <AgentSetup />
+        <Button label={tw('aiDisable')} variant="destructive" size="md" onPress={() => { setSettingsOpen(false); disableAi(); toast.info(tw('aiDisabled')); }} />
+      </Sheet>
     </View>
   );
 }
