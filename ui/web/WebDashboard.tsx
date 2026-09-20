@@ -430,10 +430,21 @@ function MobileTabBar({ tab, onChange }: { tab: MobileTab; onChange: (t: MobileT
 
 /** Puce compacte « réseau actuel », ouvre le sélecteur en feuille plutôt que
  *  d'afficher les N réseaux connectés en dur dans le flux des Réglages. */
-function CurrentNetworkChip({ chain, onPress }: { chain: ChainConfig; onPress: () => void }) {
+function CurrentNetworkChip({ chain, onPress, compact }: { chain: ChainConfig; onPress: () => void; compact?: boolean }) {
   const { colors } = useTheme();
+  if (compact) {
+    // Pill discrète pour l'en-tête : juste le réseau, pas de libellé "Réseau
+    // actuel" ni de sous-titre — l'utilisateur sait déjà ce qu'il regarde.
+    return (
+      <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.pill, paddingVertical: 6, paddingHorizontal: 10, opacity: pressed ? 0.7 : 1 })}>
+        <ChainAvatar chain={chain} size={16} />
+        <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 12 }} numberOfLines={1}>{chain.name}</Text>
+        <Icon name="chevron" size={11} color={colors.textMuted} />
+      </Pressable>
+    );
+  }
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, padding: spacing(1.5), opacity: pressed ? 0.7 : 1 })}>
+    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg, padding: spacing(1.5), opacity: pressed ? 0.7 : 1 })}>
       <ChainAvatar chain={chain} size={32} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={{ color: colors.textMuted, fontSize: 12 }}>Réseau actuel</Text>
@@ -444,7 +455,6 @@ function CurrentNetworkChip({ chain, onPress }: { chain: ChainConfig; onPress: (
   );
 }
 
-/** Bouton d'action rapide (Recevoir/Envoyer/Swap) de l'onglet Accueil. */
 /** Cercle compact (icône + libellé), pas une carte rectangulaire individuelle
  *  — l'ergonomie universelle des wallets/apps fintech (Phantom, Revolut…)
  *  pour Recevoir/Envoyer/Swap, plutôt que 3 boîtes géantes empilées. */
@@ -555,21 +565,19 @@ function Dashboard() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={colors.text} colors={[colors.text]} />}
     >
       <View style={{ width: '100%', maxWidth: 1440, padding: spacing(wide ? 3 : 2), gap: spacing(2) }}>
-        {/* En-tête */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing(1) }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
-            <KalyxLogo size={36} />
-            <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.extrabold }}>Kalyx · Tableau de bord</Text>
+        {/* En-tête compact : un titre "Kalyx • Tableau de bord" en gros au
+         * centre faisait "panneau d'admin" — l'utilisateur sait déjà où il
+         * est. Logo + pastille de connexion (gauche), réseau (centre),
+         * rafraîchir (droite) — une seule ligne, ~50 px de moins en hauteur. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing(1) }}>
+          <View>
+            <KalyxLogo size={30} />
+            <View style={{ position: 'absolute', right: -2, bottom: -2, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.up, borderWidth: 2, borderColor: colors.bgDeep }} />
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85) }}>
-              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.up }} />
-              <Text style={{ color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13 }}>Téléphone connecté</Text>
-            </View>
-            <Pressable onPress={refresh} hitSlop={6} style={({ pressed }) => ({ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}>
-              <Icon name="refresh" size={18} color={colors.textMuted} />
-            </Pressable>
-          </View>
+          <CurrentNetworkChip chain={chain} onPress={() => setNetworkSheet(true)} compact />
+          <Pressable onPress={refresh} hitSlop={6} style={({ pressed }) => ({ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', opacity: pressed ? 0.6 : 1 })}>
+            <Icon name="refresh" size={16} color={colors.textMuted} />
+          </Pressable>
         </View>
 
         {wide ? (
@@ -651,7 +659,6 @@ function Dashboard() {
               agentBlock
             ) : (
               <>
-                <CurrentNetworkChip chain={chain} onPress={() => setNetworkSheet(true)} />
                 {securityBlock}
                 {settingsBlock}
               </>
