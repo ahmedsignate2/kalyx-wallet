@@ -19,6 +19,15 @@ interface NetWorthLike {
   } | null;
 }
 
+/** Texte issu de la chaîne (noms de tokens/contrats, libellés) : peut contenir
+ *  une tentative d'injection de prompt (« ignore les instructions… ») ou des
+ *  caractères de contrôle. On nettoie et on tronque avant de l'envoyer au modèle. */
+function safeText(v: string | null | undefined, max = 80): string {
+  if (!v) return '';
+  // eslint-disable-next-line no-control-regex
+  return v.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202E\u2066-\u2069]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
 export function useWebCopilotContext(chain: ChainConfig, address: string, worth: NetWorthLike): CopilotWalletContext {
   const { data: history } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address]);
 
@@ -42,7 +51,7 @@ export function useWebCopilotContext(chain: ChainConfig, address: string, worth:
         network: chain.name,
         isTestnet: chain.testnet === true,
         actionType: tx.type === 'swap' ? 'swap' : tx.direction === 'in' ? 'receive' : tx.direction === 'out' ? 'send' : 'contract_interaction',
-        summary: h.title,
+        summary: safeText(h.title),
         counterpartyOrDapp: maskId(tx.to),
         gasFeePaid: null,
         status: tx.status,
