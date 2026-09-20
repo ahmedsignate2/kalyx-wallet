@@ -1,7 +1,8 @@
 /**
  * Envoyer (web) — même parcours que l'app (app/send.tsx, §4.3), quatre étapes
  * et barre de progression :
- *  0. Quoi envoyer : actifs détenus sur le réseau courant (natif + ERC-20).
+ *  0. Quoi envoyer : TOUS les actifs détenus, tous réseaux (portefeuille
+ *     agrégé partagé avec l'app, spam exclu), le réseau découle du choix.
  *  1. Destinataire : coller, contacts, ENS, récents ; glyphe, EMPOISONNEMENT
  *     (bloquant), adresse jamais utilisée (douce), contrat.
  *  2. Montant : clavier maison, bascule devise/token, Max moins les frais.
@@ -10,12 +11,17 @@
  *
  * Différence fondamentale avec l'app : ce site ne signe JAMAIS. Le « maintenir »
  * envoie la demande au téléphone via WalletConnect ; PIN/biométrie et signature
- * se font dans Kalyx. Les frais réseau affichés sont une estimation — c'est le
- * téléphone qui les fixe au moment de signer.
+ * se font dans Kalyx :
+ *  - EVM     : eth_sendTransaction (natif ou transfer ERC-20).
+ *  - Solana  : la transaction (SOL ou SPL) est construite ici NON signée, le
+ *              téléphone la signe (solana_signTransaction), ce site la diffuse.
+ *  - Bitcoin : sendTransfer — le téléphone construit, signe et diffuse.
+ * Les frais réseau affichés sont une estimation — c'est le téléphone qui les fixe.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, Pressable as RNPressable, Image, ActivityIndicator, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { base64 } from '@scure/base';
 import { Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, type TxStage } from '../kit';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
@@ -24,75 +30,65 @@ import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { useRecentRecipients, type RecipientFamily } from '../../lib/recentRecipientsStore';
 import { useContacts } from '../../lib/contactsStore';
 import { useWebConnect } from '../../lib/webConnect';
+import { usePortfolioStore, splitHoldings, type Holding } from '../../lib/portfolio';
+import { submitSolanaSigned } from '../../lib/solanaSubmit';
 import { toast } from '../../lib/toast';
 import {
-  getAdapter, isValidEvmAddress, parseAmount, formatTokenAmount, formatInputAmount, formatAmount, formatFiat,
-  getErc20Tokens, getPrices, getTokenPrices, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
-  estimateGasReserve, chainIconUrl, EvmChainAdapter, type FeeOptions, simulateSendTransaction, type SimulationResult,
+  getAdapter, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount, formatAmount, formatFiat,
+  getPrices, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
+  estimateGasReserve, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, type FeeOptions, simulateSendTransaction, type SimulationResult,
   type ChainConfig,
 } from '../../src';
+import { buildTransferMessage, encodeLength } from '../../src/domain/chains/solTx';
+import { buildSplTransferMessage } from '../../src/domain/chains/solSpl';
 import { AntiDrainerBanner } from '../../src/components/security/AntiDrainerBanner';
-import { useAsync } from './useAsync';
 import { encodeErc20Transfer, hexQuantity } from './evmEncode';
+import { addressForChain, chainOf, useWebPortfolioAccount } from './webAccounts';
 
 type Step = 0 | 1 | 2 | 3 | 4;
 
-interface Holding {
-  id: string;
-  kind: 'native' | 'erc20';
-  symbol: string;
-  name: string;
-  decimals: number;
-  raw: bigint;
-  contract?: string;
-  logo?: string;
-  price: number;
-  fiat: number;
+/** Transaction Solana « legacy » NON signée : 1 signature vide + message. */
+function unsignedSolanaTx(message: Uint8Array): string {
+  return base64.encode(Uint8Array.from([...encodeLength(1), ...new Array<number>(64).fill(0), ...message]));
 }
 
-export function SendFlow({ chain, address: senderAddress, onClose, onReceive }: { chain: ChainConfig; address: string; onClose: () => void; onReceive: () => void }) {
+function pick<T>(o: unknown, keys: string[]): T | undefined {
+  if (!o || typeof o !== 'object') return undefined;
+  for (const k of keys) {
+    const v = (o as Record<string, unknown>)[k];
+    if (v != null) return v as T;
+  }
+  return undefined;
+}
+
+export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: ChainConfig; onClose: () => void; onReceive: () => void }) {
   const t = useT();
   const { colors, typography } = useTheme();
   const fiat = useSettings((s) => s.fiat);
+  const showTestnets = useSettings((s) => s.showTestnets);
   const sym = fiatSymbol(fiat);
   const request = useWebConnect((s) => s.request);
+  const setChain = useWebConnect((s) => s.setChain);
   const accounts = useWebConnect((s) => s.accounts);
-  const rev = useWebConnect((s) => s.rev);
-  const family = chain.family as RecipientFamily;
-  const isEvm = family === 'evm';
 
   const [step, setStep] = useState<Step>(0);
   const [picked, setPicked] = useState<Holding | null>(null);
   const [search, setSearch] = useState('');
 
-  // ── 0. Actifs détenus sur ce réseau (natif + ERC-20 valorisés) ──
-  const { data: holdings, loading: holdingsLoading } = useAsync<Holding[]>(async () => {
-    const adapter = getAdapter(chain.id);
-    const [bal, prices, tokens] = await Promise.all([
-      adapter.getBalance(senderAddress),
-      chain.coingeckoId ? getPrices([chain.coingeckoId], fiat).catch(() => ({} as Record<string, { price: number }>)) : Promise.resolve({} as Record<string, { price: number }>),
-      isEvm ? getErc20Tokens(chain, senderAddress).catch(() => []) : Promise.resolve([]),
-    ]);
-    const tokenPrices = isEvm && chain.coingeckoPlatform && tokens.length
-      ? await getTokenPrices(chain.coingeckoPlatform, tokens.map((tk) => tk.contract), fiat).catch(() => ({} as Record<string, number>))
-      : {};
-    const nativePrice = chain.coingeckoId ? prices[chain.coingeckoId]?.price ?? 0 : 0;
-    const nativeAmt = Number(bal.raw) / 10 ** bal.decimals;
-    const list: Holding[] = [{
-      id: `native:${chain.id}`, kind: 'native', symbol: chain.nativeSymbol, name: chain.name, decimals: bal.decimals, raw: bal.raw,
-      price: nativePrice, fiat: nativeAmt * nativePrice,
-    }];
-    for (const tk of tokens) {
-      const p = tokenPrices[tk.contract.toLowerCase()] ?? 0;
-      const amt = Number(tk.raw) / 10 ** tk.decimals;
-      // Même règle que la liste Tokens : sans logo ni valeur = airdrop spam probable.
-      if (!tk.logo && p <= 0) continue;
-      list.push({ id: `erc20:${tk.contract}`, kind: 'erc20', symbol: tk.symbol, name: tk.name, decimals: tk.decimals, raw: tk.raw, contract: tk.contract, logo: tk.logo, price: p, fiat: amt * p });
-    }
-    return list.sort((a, b) => b.fiat - a.fiat);
-  }, [chain.id, senderAddress, fiat, rev, isEvm]);
+  // ── 0. Portefeuille agrégé (même store que l'app : tous réseaux, spam exclu) ──
+  const pf = usePortfolioStore();
+  const pfAccount = useWebPortfolioAccount();
+  useEffect(() => {
+    if (!pfAccount) return;
+    pf.hydrate(pfAccount, fiat).then(() => pf.refresh(pfAccount, fiat, { includeTestnets: showTestnets, force: true }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pfAccount, fiat, showTestnets]);
 
-  const token = picked?.kind === 'erc20' ? { contract: picked.contract!, symbol: picked.symbol, decimals: picked.decimals } : null;
+  const chain = (picked ? chainOf(picked.chainId) : undefined) ?? initialChain;
+  const family = chain.family as RecipientFamily;
+  const senderAddress = useMemo(() => addressForChain(accounts, chain.id), [accounts, chain.id]);
+
+  const token = picked && picked.kind !== 'native' ? { kind: picked.kind, contract: picked.contract!, symbol: picked.symbol, decimals: picked.decimals } : null;
   const symbol = picked?.symbol ?? chain.nativeSymbol;
   const decimals = picked?.decimals ?? chain.nativeDecimals;
   const isNativeSend = !token;
@@ -114,10 +110,10 @@ export function SendFlow({ chain, address: senderAddress, onClose, onReceive }: 
     return trimmed;
   };
 
-  const validAddress = useCallback((a: string) => isEvm && isValidEvmAddress(a), [isEvm]);
+  const validAddress = useCallback((a: string) => (family === 'evm' ? isValidEvmAddress(a) : family === 'solana' ? isValidSolanaAddress(a) : isValidBtcAddress(a)), [family]);
 
-  // ── ENS ──
-  const isEns = isEvm && looksLikeEnsName(to.trim());
+  // ── ENS (EVM seulement) ──
+  const isEns = family === 'evm' && looksLikeEnsName(to.trim());
   const [ens, setEns] = useState<{ status: 'idle' | 'resolving' | 'found' | 'notfound'; address: string | null }>({ status: 'idle', address: null });
   useEffect(() => {
     if (!isEns) return setEns({ status: 'idle', address: null });
@@ -141,30 +137,36 @@ export function SendFlow({ chain, address: senderAddress, onClose, onReceive }: 
   const [isContract, setIsContract] = useState(false);
   useEffect(() => {
     setIsContract(false);
-    if (!recipientOk) return;
+    if (!recipientOk || family !== 'evm') return;
     const a = getAdapter(chain.id);
     if (a instanceof EvmChainAdapter) a.isContract(recipient).then(setIsContract).catch(() => {});
-  }, [recipient, recipientOk, chain.id]);
+  }, [recipient, recipientOk, family, chain.id]);
 
   // ── Solde, prix, frais (estimation — le téléphone fixe les frais réels) ──
   const balance = picked?.raw ?? null;
   const price = picked?.price ?? 0;
-  const nativeHolding = holdings?.find((h) => h.kind === 'native') ?? null;
-  const nativeBal = nativeHolding?.raw ?? null;
-  const nativePrice = nativeHolding?.price ?? 0;
+  const nativeHolding = pf.holdings.find((h) => h.kind === 'native' && h.chainId === chain.id) ?? null;
+  const [nativeBal, setNativeBal] = useState<bigint | null>(null);
+  const [nativePrice, setNativePrice] = useState(0);
   const [feeOptions, setFeeOptions] = useState<FeeOptions | null>(null);
   const [reserve, setReserve] = useState<bigint>(0n);
   useEffect(() => {
     setFeeOptions(null);
     setReserve(0n);
-    if (!picked) return;
+    setNativeBal(nativeHolding?.raw ?? null);
+    setNativePrice(nativeHolding?.price ?? 0);
+    if (!picked || !senderAddress) return;
     let alive = true;
     const a = getAdapter(chain.id);
+    a.getBalance(senderAddress).then((b) => alive && setNativeBal(b.raw)).catch(() => {});
+    if (!nativeHolding?.price && chain.coingeckoId) {
+      getPrices([chain.coingeckoId], fiat).then((p) => alive && setNativePrice(p[chain.coingeckoId!]?.price ?? 0)).catch(() => {});
+    }
     estimateGasReserve(a).then((r) => alive && setReserve(r.raw)).catch(() => {});
     if (a instanceof EvmChainAdapter) a.getFeeOptions(token ? 65_000n : undefined).then((f) => alive && setFeeOptions(f)).catch(() => {});
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picked?.id, chain.id]);
+  }, [picked?.id, chain.id, senderAddress, fiat]);
   const feeRaw = feeOptions ? feeOptions.normal.costWei : reserve;
   const feeFiat = Number(formatAmount(feeRaw, chain.nativeDecimals)) * nativePrice;
 
@@ -215,13 +217,43 @@ export function SendFlow({ chain, address: senderAddress, onClose, onReceive }: 
     setForceSendChecked(false);
     const adapter = getAdapter(chain.id);
     simulateSendTransaction({
-      family: 'evm', from: senderAddress, to: recipient, amount: amountRaw, tokenSymbol: symbol, tokenDecimals: decimals,
+      family, from: senderAddress, to: recipient, amount: amountRaw, tokenSymbol: symbol, tokenDecimals: decimals,
       provider: adapter instanceof EvmChainAdapter ? adapter : undefined, chainId: chain.evmChainId,
     })
       .then((res) => { if (alive) { setSimResult(res); setIsSimulating(false); } })
       .catch(() => { if (alive) setIsSimulating(false); });
     return () => { alive = false; };
-  }, [step, recipient, amountRaw, symbol, decimals, senderAddress, chain.id, chain.evmChainId]);
+  }, [step, recipient, amountRaw, symbol, decimals, family, senderAddress, chain.id, chain.evmChainId]);
+
+  /** Envoie la demande de signature au téléphone selon la famille ; renvoie le hash/signature/txid. */
+  const sendViaPhone = async (): Promise<string> => {
+    // `request` cible la chaîne sélectionnée dans la session : on l'aligne sur celle de l'actif.
+    setChain(chain.id);
+    if (family === 'evm') {
+      const tx = token
+        ? { from: senderAddress, to: token.contract, value: '0x0', data: encodeErc20Transfer(recipient, amountRaw) }
+        : { from: senderAddress, to: recipient, value: hexQuantity(amountRaw) };
+      return request('eth_sendTransaction', [tx]);
+    }
+    if (family === 'solana') {
+      const sol = getAdapter(chain.id) as SolanaChainAdapter;
+      const latest = await sol.rpc<{ value?: { blockhash?: string } }>('getLatestBlockhash', [{ commitment: 'finalized' }]);
+      const recentBlockhash = latest?.value?.blockhash;
+      if (!recentBlockhash) throw new Error('Blockhash Solana indisponible');
+      const message = token
+        ? buildSplTransferMessage({ from: senderAddress, to: recipient, mint: token.contract, amount: amountRaw, decimals: token.decimals, recentBlockhash })
+        : buildTransferMessage({ from: senderAddress, to: recipient, lamports: amountRaw, recentBlockhash });
+      const res: unknown = await request('solana_signTransaction', [{ transaction: unsignedSolanaTx(message) }]);
+      const signed = pick<string>(res, ['transaction']) ?? (typeof res === 'string' ? res : undefined);
+      if (!signed) throw new Error('Le téléphone n\'a pas renvoyé la transaction signée.');
+      // Simulation + diffusion + attente de confirmation : même chemin que l'app.
+      return submitSolanaSigned(signed);
+    }
+    const res: unknown = await request('sendTransfer', [{ recipientAddress: recipient, amount: tokenAmountStr }]);
+    const txid = pick<string>(res, ['txid']) ?? (typeof res === 'string' ? res : undefined);
+    if (!txid) throw new Error('Le téléphone n\'a pas renvoyé l\'identifiant de transaction.');
+    return txid;
+  };
 
   const perform = async () => {
     setConfirming(true);
@@ -229,14 +261,13 @@ export function SendFlow({ chain, address: senderAddress, onClose, onReceive }: 
     setHash(null);
     setStep(4);
     try {
-      const tx = token
-        ? { from: senderAddress, to: token.contract, value: '0x0', data: encodeErc20Transfer(recipient, amountRaw) }
-        : { from: senderAddress, to: recipient, value: hexQuantity(amountRaw) };
-      const h = await request('eth_sendTransaction', [tx]);
+      const h = await sendViaPhone();
       setHash(h);
-      setStage('sent');
+      // Solana : submitSolanaSigned ne résout qu'une fois confirmé ; Bitcoin : pas de suivi in-app (v1).
+      setStage(family === 'solana' ? 'confirmed' : 'sent');
       addRecent(recipient, family);
       toast.success(t('sendTitle'), `${formatTokenAmount(amountRaw, decimals)} ${symbol}`);
+      pf.refresh(pfAccount!, fiat, { includeTestnets: showTestnets, force: true }).catch(() => {});
     } catch (e) {
       setSendError(e instanceof Error ? e.message : 'Refusé ou échoué.');
       setStep(3);
@@ -245,9 +276,9 @@ export function SendFlow({ chain, address: senderAddress, onClose, onReceive }: 
     }
   };
 
-  // Suivi : 1 bloc EVM.
+  // Suivi EVM : 1 bloc.
   useEffect(() => {
-    if (step !== 4 || !hash) return;
+    if (step !== 4 || !hash || family !== 'evm') return;
     let alive = true;
     const a = getAdapter(chain.id);
     (async () => {
@@ -262,12 +293,13 @@ export function SendFlow({ chain, address: senderAddress, onClose, onReceive }: 
       }
     })();
     return () => { alive = false; };
-  }, [step, hash, chain.id]);
+  }, [step, hash, chain.id, family]);
 
   const goStep2 = () => {
     setAddressError(null);
     if (!recipientOk) {
-      return setAddressError(isEns && ens.status === 'resolving' ? t('errResolvingEns') : isEns ? t('errEnsNotFound') : t('errNeedAddressFull').replace('${symbol}', symbol).replace('${chain.name}', chain.name).replace('${fam}', t('errNeedEvmAddress')));
+      const fam = family === 'evm' ? t('errNeedEvmAddress') : family === 'solana' ? t('errNeedSolAddress') : t('errNeedBtcAddress');
+      return setAddressError(isEns && ens.status === 'resolving' ? t('errResolvingEns') : isEns ? t('errEnsNotFound') : t('errNeedAddressFull').replace('${symbol}', symbol).replace('${chain.name}', chain.name).replace('${fam}', fam));
     }
     if (poisoning) return;
     setAmountError(null);
@@ -294,13 +326,22 @@ export function SendFlow({ chain, address: senderAddress, onClose, onReceive }: 
   const back = () => {
     setAddressError(null); setAmountError(null);
     if (step === 0 || step === 4) return onClose();
+    if (step === 1) { setPicked(null); setTo(''); }
     setStep((s) => (s - 1) as Step);
   };
 
   const destLabel = contactName ?? (isEns ? to.trim() : null);
   const afterBalance = balance != null ? balance - amountRaw - (isNativeSend ? feeRaw : 0n) : null;
+  const explorerTx = hash && chain.explorerUrl ? `${chain.explorerUrl}/tx/${hash}` : null;
+
+  // Étape 0 : vérifiés uniquement (main + petits soldes), jamais les « masqués » (spam).
+  const { main, small } = splitHoldings(pf.holdings);
   const q = search.trim().toLowerCase();
-  const list = (holdings ?? []).filter((h) => h.raw > 0n && (!q || h.symbol.toLowerCase().includes(q) || h.name.toLowerCase().includes(q)));
+  const list = [...main, ...small].filter((h) => {
+    const c = chainOf(h.chainId);
+    return h.raw > 0n && !!c && !!c.testnet === showTestnets && !!addressForChain(accounts, h.chainId) &&
+      (!q || h.symbol.toLowerCase().includes(q) || h.name.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
+  });
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg, zIndex: 20 }}>
@@ -323,37 +364,33 @@ export function SendFlow({ chain, address: senderAddress, onClose, onReceive }: 
       </View>
 
       <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: space[6], gap: space[5], flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-        {/* ── 0. Quoi envoyer ── */}
+        {/* ── 0. Quoi envoyer (agrégé multi-chaîne) ── */}
         {step === 0 ? (
-          !isEvm ? (
-            <Surface><EmptyState icon="send" title="Envoi indisponible sur ce réseau" body={`Depuis le web, l'envoi n'est possible que sur les réseaux EVM pour l'instant. Utilise l'app Kalyx pour envoyer du ${chain.nativeSymbol}.`} actionLabel={t('receive')} onAction={onReceive} /></Surface>
-          ) : (
-            <>
-              <Input placeholder="usdc, eth…" value={search} onChangeText={setSearch} autoCapitalize="none" />
-              {holdingsLoading && !holdings ? (
-                <Surface padded={false}>{[0, 1, 2].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center', gap: space[2] }}><Skeleton width="55%" /><Skeleton width="30%" height={12} /></View>)}</Surface>
-              ) : list.length === 0 ? (
-                <Surface><EmptyState icon="send" title={q ? t('emptySearchTitle') : t('emptySendTitle')} body={q ? undefined : t('emptySendBody')} actionLabel={q ? undefined : t('receive')} onAction={q ? undefined : onReceive} /></Surface>
-              ) : (
-                <Surface padded={false}>
-                  {list.map((h, i) => (
-                    <React.Fragment key={h.id}>
-                      <TokenRow
-                        symbol={h.symbol}
-                        name={`${h.symbol} sur ${chain.name}`}
-                        logo={h.kind === 'native' ? chainIconUrl(chain.id) : h.logo}
-                        address={h.contract ?? chain.id}
-                        balance={`${formatTokenAmount(h.raw, h.decimals)} ${h.symbol}`}
-                        fiat={h.price > 0 ? `${formatFiat(h.fiat)} ${sym}` : undefined}
-                        onPress={() => { setPicked(h); setAmount(''); setAddressError(null); setAmountError(null); setStep(1); }}
-                      />
-                      {i < list.length - 1 ? <Divider inset={68} /> : null}
-                    </React.Fragment>
-                  ))}
-                </Surface>
-              )}
-            </>
-          )
+          <>
+            <Input placeholder="usdc, arbitrum…" value={search} onChangeText={setSearch} autoCapitalize="none" />
+            {pf.loading && pf.holdings.length === 0 ? (
+              <Surface padded={false}>{[0, 1, 2].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center', gap: space[2] }}><Skeleton width="55%" /><Skeleton width="30%" height={12} /></View>)}</Surface>
+            ) : list.length === 0 ? (
+              <Surface><EmptyState icon="send" title={q ? t('emptySearchTitle') : t('emptySendTitle')} body={q ? undefined : t('emptySendBody')} actionLabel={q ? undefined : t('receive')} onAction={q ? undefined : onReceive} /></Surface>
+            ) : (
+              <Surface padded={false}>
+                {list.map((h, i) => (
+                  <React.Fragment key={h.id}>
+                    <TokenRow
+                      symbol={h.symbol}
+                      name={`${h.symbol} sur ${chainOf(h.chainId)?.name ?? h.chainId}`}
+                      logo={h.kind === 'native' ? chainIconUrl(h.chainId) : h.logo}
+                      address={h.contract ?? h.chainId}
+                      balance={`${formatTokenAmount(h.raw, h.decimals)} ${h.symbol}`}
+                      fiat={h.price > 0 ? `${formatFiat(h.fiat)} ${sym}` : undefined}
+                      onPress={() => { setPicked(h); setAmount(''); setTo(''); setAddressError(null); setAmountError(null); setStep(1); }}
+                    />
+                    {i < list.length - 1 ? <Divider inset={68} /> : null}
+                  </React.Fragment>
+                ))}
+              </Surface>
+            )}
+          </>
         ) : null}
 
         {/* ── 1. Destinataire ── */}
@@ -481,12 +518,14 @@ export function SendFlow({ chain, address: senderAddress, onClose, onReceive }: 
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
                   <ActivityIndicator color={colors.text} />
-                  <Text variant="bodySecondary" tone="secondary" style={{ flex: 1 }}>Valide la transaction dans l'app Kalyx (PIN ou biométrie)…</Text>
+                  <Text variant="bodySecondary" tone="secondary" style={{ flex: 1 }}>
+                    {family === 'solana' ? 'Signature dans l\'app Kalyx, puis diffusion et confirmation Solana…' : 'Valide la transaction dans l\'app Kalyx (PIN ou biométrie)…'}
+                  </Text>
                 </View>
               )}
             </Surface>
             {hash ? <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t('canLeaveScreenInfo')}</Text> : null}
-            {hash && chain.explorerUrl ? <Button label={t('trackTransaction')} variant="secondary" size="md" onPress={() => { const w = (globalThis as { open?: (u: string, target?: string) => unknown }).open; w?.(`${chain.explorerUrl}/tx/${hash}`, '_blank'); }} /> : null}
+            {explorerTx ? <Button label={t('trackTransaction')} variant="secondary" size="md" onPress={() => { const w = (globalThis as { open?: (u: string, target?: string) => unknown }).open; w?.(explorerTx, '_blank'); }} /> : null}
             <View style={{ flex: 1 }} />
             {hash ? <Button label={t('actionDone')} onPress={onClose} /> : null}
           </>
@@ -508,7 +547,7 @@ export function SendFlow({ chain, address: senderAddress, onClose, onReceive }: 
         {afterBalance != null ? (
           <Text variant="bodySecondary" tone="secondary">{t('balanceUpdatePreview').replace('${symbol}', symbol).replace('${formatTokenAmount(balance!, decimals)}', formatTokenAmount(balance!, decimals)).replace('${formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals)}', formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals))}</Text>
         ) : null}
-        <Text variant="caption" tone="warning">{t('checkNetworkWarning').replace('${chain.name}', chain.name)}</Text>
+        {family === 'evm' ? <Text variant="caption" tone="warning">{t('checkNetworkWarning').replace('${chain.name}', chain.name)}</Text> : null}
         {!isKnown ? <Text variant="caption" tone="warning">{t('firstTimeWarning').replace('${recipient.slice(-4)}', recipient.slice(-4))}</Text> : null}
         <AntiDrainerBanner loading={isSimulating} simulation={simResult} />
         {simResult?.warningLevel === 'critical' ? (

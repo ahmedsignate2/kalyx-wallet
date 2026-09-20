@@ -19,9 +19,12 @@ interface TokenPickerProps {
   onClose: () => void;
   onSelect: (token: Tok, chainId: string) => void;
   initialChainId: string;
+  /** Adresse dont on affiche les soldes ; par défaut le compte actif du wallet
+   *  (le tableau de bord web, sans wallet local, passe l'adresse de la session). */
+  address?: string;
 }
 
-export function TokenPicker({ visible, onClose, onSelect, initialChainId }: TokenPickerProps) {
+export function TokenPicker({ visible, onClose, onSelect, initialChainId, address }: TokenPickerProps) {
   const t = useT();
   const { colors, typography } = useTheme();
   const [search, setSearch] = useState('');
@@ -45,7 +48,9 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId }: Toke
   const fetchTokens = useTokenStore(s => s.fetchTokens);
   const tokensByChain = useTokenStore(s => s.tokensByChain);
   const loading = useTokenStore(s => s.loading);
-  const account = useWallet(s => s.account);
+  const walletAccount = useWallet(s => s.account);
+  const accountAddress = address ?? walletAccount?.address;
+  const account = useMemo(() => (accountAddress ? { address: accountAddress } : undefined), [accountAddress]);
 
   const chains = useMemo(() => listChains({ includeTestnets: false }).filter(c => c.family === 'evm' || c.family === 'solana'), []);
 
