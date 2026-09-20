@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
+import { kvGet, kvSet, kvDel } from './kv';
 import { copilotLog } from './copilotLogger';
 
 export type AiProvider = 'deepseek' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'openrouter' | 'together' | 'huggingface' | 'custom';
@@ -43,10 +43,10 @@ export const useAiStore = create<AiState>((set) => ({
 
   loadInitialState: async () => {
     try {
-      const storedKey = await SecureStore.getItemAsync('ai_api_key');
-      const storedProvider = (await SecureStore.getItemAsync('ai_provider')) as AiProvider | null;
-      const customUrl = await SecureStore.getItemAsync('ai_custom_url');
-      const customModel = await SecureStore.getItemAsync('ai_custom_model');
+      const storedKey = await kvGet('ai_api_key');
+      const storedProvider = (await kvGet('ai_provider')) as AiProvider | null;
+      const customUrl = await kvGet('ai_custom_url');
+      const customModel = await kvGet('ai_custom_model');
       if (storedKey) {
         set({ isEnabled: true, apiKey: storedKey, provider: storedProvider ?? 'deepseek', customUrl: customUrl || undefined, customModel: customModel || undefined });
       }
@@ -56,16 +56,16 @@ export const useAiStore = create<AiState>((set) => ({
   },
 
   setApiKey: async (key, provider, customUrl, customModel) => {
-    await SecureStore.setItemAsync('ai_api_key', key);
-    await SecureStore.setItemAsync('ai_provider', provider);
-    if (customUrl) await SecureStore.setItemAsync('ai_custom_url', customUrl); else await SecureStore.deleteItemAsync('ai_custom_url');
-    if (customModel) await SecureStore.setItemAsync('ai_custom_model', customModel); else await SecureStore.deleteItemAsync('ai_custom_model');
+    await kvSet('ai_api_key', key);
+    await kvSet('ai_provider', provider);
+    if (customUrl) await kvSet('ai_custom_url', customUrl); else await kvDel('ai_custom_url');
+    if (customModel) await kvSet('ai_custom_model', customModel); else await kvDel('ai_custom_model');
     set({ apiKey: key, provider, customUrl, customModel, isEnabled: true });
   },
 
   disableAi: async () => {
-    await SecureStore.deleteItemAsync('ai_api_key');
-    await SecureStore.deleteItemAsync('ai_provider');
+    await kvDel('ai_api_key');
+    await kvDel('ai_provider');
     set({ apiKey: null, isEnabled: false });
   },
 }));
