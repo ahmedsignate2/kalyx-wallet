@@ -23,7 +23,11 @@ export const PROVIDER_DEFAULTS: Record<string, { url: string; model: string; hel
   },
   groq: {
     url: 'https://api.groq.com/openai/v1/chat/completions',
-    model: 'llama-3.3-70b-versatile',
+    // llama-3.3-70b-versatile est parfois restreint selon le palier du compte
+    // (« does not exist or you do not have access to it » constaté en test) —
+    // 3.1-8b-instant est le modèle le plus universellement accessible (gratuit
+    // et payant) sur Groq à ce jour.
+    model: 'llama-3.1-8b-instant',
     helperUrl: 'https://console.groq.com/keys',
   },
   openrouter: {
@@ -120,8 +124,11 @@ export function mapAiErrorToMessage(status: number, detail?: string): string {
  *  formats varient (OpenAI/Groq/DeepSeek : error.message ; Gemini : error.message
  *  aussi mais parfois un tableau ; Anthropic : error.message). */
 export function extractProviderErrorDetail(body: unknown): string | undefined {
-  if (!body || typeof body !== 'object') return undefined;
-  const b = body as { error?: { message?: string } | string; message?: string };
+  // Gemini renvoie son erreur dans un TABLEAU ([{error:{...}}]), les autres
+  // fournisseurs dans un objet direct ({error:{...}}) — on gère les deux.
+  const single = Array.isArray(body) ? body[0] : body;
+  if (!single || typeof single !== 'object') return undefined;
+  const b = single as { error?: { message?: string } | string; message?: string };
   const raw = typeof b.error === 'string' ? b.error : b.error?.message ?? b.message;
   return typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 200) : undefined;
 }
