@@ -81,7 +81,7 @@ export function MarketPanel() {
 
   return (
     <View style={{ gap: spacing(1.5) }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1.25) }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.pill, paddingHorizontal: spacing(1.25) }}>
         <Icon name="search" size={15} color={colors.textMuted} />
         <TextInput
           value={query}
@@ -94,7 +94,7 @@ export function MarketPanel() {
       </View>
 
       {searchMode ? (
-        <View style={{ backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg }}>
+        <View style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg }}>
           {searching && results.length === 0 ? (
             <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>Recherche…</Text>
           ) : results.length === 0 ? (
@@ -125,7 +125,7 @@ export function MarketPanel() {
             })}
           </View>
 
-          <View style={{ backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg }}>
+          <View style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg }}>
             {rows.length === 0 ? (
               <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(3) }]}>Chargement du marché…</Text>
             ) : (

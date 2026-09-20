@@ -31,6 +31,15 @@ const PROVIDER_LABELS: Record<AiProvider, string> = {
 };
 const PROVIDERS = Object.keys(PROVIDER_DEFAULTS) as AiProvider[];
 
+/** Or de marque Kalyx (déjà utilisé pour l'icône de notification, app.config.ts). */
+const GOLD = '#DDB565';
+
+const SUGGESTIONS: { title: string; description: string; prompt: string; icon: IconName; color: string }[] = [
+  { title: 'Audit du portefeuille', description: 'Vérifie les permissions et contrats suspects', prompt: 'Analyse le niveau de risque de mon portefeuille et détecte les anomalies.', icon: 'security', color: GOLD },
+  { title: 'Résumé des performances', description: 'Synthèse de tes gains et pertes récents', prompt: 'Fais un résumé complet de la répartition de mes tokens et de mes performances.', icon: 'market', color: '#4EA1FF' },
+  { title: 'Frais du réseau', description: 'Comprendre ce que tu paies et pourquoi', prompt: 'Explique les frais de ce réseau et comment les réduire.', icon: 'defi', color: '#3CD98A' },
+];
+
 function buildWebSystem(lang: string, context: string): string {
   return `Tu es Kalyx Copilot, l'assistant intégré de Kalyx Wallet, un wallet crypto 100 % non-custodial.
 Réponds dans la langue « ${lang} », en tutoyant, simple, direct, sobre, sans emoji, sans conseil d'investissement. 2 à 5 phrases, sauf explication technique demandée.
@@ -85,8 +94,8 @@ function AgentSetup() {
 
   return (
     <View style={{ alignItems: 'center', paddingVertical: spacing(4), paddingHorizontal: spacing(2), gap: spacing(1.5) }}>
-      <View style={{ width: 64, height: 64, borderRadius: radii.lg, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name="sparkles" size={30} color={colors.text} />
+      <View style={{ width: 64, height: 64, borderRadius: radii.lg, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="sparkles" size={30} color={GOLD} />
       </View>
       <Text style={{ color: colors.text, fontSize: 19, fontFamily: fonts.bold, textAlign: 'center' }}>Active ton Agent Kalyx</Text>
       <Text style={[typography.muted, { textAlign: 'center', maxWidth: 320 }]}>
@@ -97,14 +106,14 @@ function AgentSetup() {
         {PROVIDERS.map((p) => {
           const on = p === provider;
           return (
-            <Pressable key={p} onPress={() => setProvider(p)} style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.pill, backgroundColor: on ? colors.accent : colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}>
+            <Pressable key={p} onPress={() => setProvider(p)} style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.pill, backgroundColor: on ? colors.accent : colors.text + '08', borderWidth: 1, borderColor: on ? colors.accent : colors.text + '12' }}>
               <Text style={{ color: on ? colors.onPrimary : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }} numberOfLines={1}>{PROVIDER_LABELS[p]}</Text>
             </Pressable>
           );
         })}
       </ScrollView>
 
-      <View style={{ width: '100%', maxWidth: 340, flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, paddingHorizontal: spacing(1.25), marginTop: spacing(1) }}>
+      <View style={{ width: '100%', maxWidth: 340, flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, paddingHorizontal: spacing(1.25), marginTop: spacing(1) }}>
         <TextInput
           value={key}
           onChangeText={setKey}
@@ -112,6 +121,12 @@ function AgentSetup() {
           placeholderTextColor={colors.textMuted}
           secureTextEntry={!showKey}
           autoCapitalize="none"
+          autoComplete="off"
+          autoCorrect={false}
+          // Empêche Chrome de proposer d'"Enregistrer le mot de passe" sur ce
+          // champ (ce n'est pas un mot de passe de compte, juste une clé API
+          // BYOK stockée localement) — le bandeau recouvrait le clavier mobile.
+          textContentType="oneTimeCode"
           style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 14, paddingVertical: spacing(1.25) }}
         />
         <Pressable onPress={() => setShowKey((v) => !v)} hitSlop={6}>
@@ -132,7 +147,7 @@ function AgentSetup() {
             placeholder="URL API (ex. https://api.together.xyz/v1/chat/completions)"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
-            style={{ color: colors.text, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
+            style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
           />
         ) : null}
         {/* L'accès aux modèles varie par compte, pas juste par fournisseur
@@ -144,7 +159,7 @@ function AgentSetup() {
           placeholder={provider === 'custom' ? 'Nom du modèle (ex. qwen-2.5-72b)' : `Modèle (optionnel, ex. ${PROVIDER_DEFAULTS[provider]?.model ?? ''})`}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="none"
-          style={{ color: colors.text, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
+          style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
         />
       </View>
       {err ? <Text style={{ color: colors.danger, fontSize: 12, textAlign: 'center' }}>{err}</Text> : null}
@@ -176,11 +191,6 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     return () => clearTimeout(id);
   }, [messages.length, busy]);
 
-  const suggestions = [
-    'Analyse la répartition de mon portefeuille',
-    'Explique les frais de ce réseau',
-    'Vérifie si mon activité récente semble suspecte',
-  ];
 
   const send = async (text: string) => {
     const q = text.trim();
@@ -203,62 +213,79 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
   };
 
   return (
-    <View style={{ height: 560, maxHeight: '80vh' as unknown as number }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing(1), borderBottomWidth: 1, borderBottomColor: colors.glassBorder }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Icon name="sparkles" size={16} color={colors.text} />
-          <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 14 }}>Agent Kalyx</Text>
-          <Text style={[typography.muted, { fontSize: 11 }]}>{`· ${provider}`}</Text>
+    // dvh (dynamic viewport height) plutôt que vh : sur mobile web, vh ne
+    // rétrécit pas quand le clavier virtuel s'ouvre — le clavier écrasait la
+    // zone de chat et le bandeau "Enregistrer le mot de passe" de Chrome
+    // s'affichait par-dessus. dvh s'adapte automatiquement.
+    <View style={{ height: 560, maxHeight: '80dvh' as unknown as number }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing(1) }}>
+        <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: radii.pill, backgroundColor: GOLD + '1A', borderWidth: 1, borderColor: GOLD + '33' }}>
+          <Text style={{ color: GOLD, fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.5 }}>{`BETA · BYOK · ${provider.toUpperCase()}`}</Text>
         </View>
-        <Pressable onPress={disableAi} hitSlop={6}>
-          <Text style={{ color: colors.textMuted, fontSize: 12 }}>Changer la clé</Text>
+        <Pressable onPress={disableAi} hitSlop={8} style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12' }}>
+          <Icon name="developer" size={14} color={colors.textMuted} />
         </Pressable>
       </View>
 
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: spacing(1.5), gap: spacing(1) }}>
         {messages.length === 0 ? (
-          <View style={{ flex: 1, minHeight: 200, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={[typography.muted, { textAlign: 'center' }]}>Pose une question sur ton portefeuille ou le marché.</Text>
+          <View style={{ flex: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing(1) }}>
+            <View style={{ width: 60, height: 60, borderRadius: radii.lg, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center', marginBottom: spacing(1.5) }}>
+              <Icon name="sparkles" size={26} color={GOLD} />
+            </View>
+            <Text style={{ color: colors.text, fontSize: 18, fontFamily: fonts.bold, marginBottom: 4 }}>Kalyx Intelligence</Text>
+            <Text style={[typography.muted, { textAlign: 'center', maxWidth: 280, marginBottom: spacing(2) }]}>
+              Analyse tes actifs et repère les tendances on-chain, à partir de ce qui est connecté ici.
+            </Text>
+            <View style={{ width: '100%', gap: spacing(0.75) }}>
+              {SUGGESTIONS.map((s) => (
+                <Pressable key={s.title} onPress={() => send(s.prompt)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'flex-start', gap: spacing(1), padding: spacing(1.25), borderRadius: radii.lg, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: pressed ? GOLD + '55' : colors.text + '12' })}>
+                  <View style={{ width: 30, height: 30, borderRadius: radii.md, backgroundColor: s.color + '1A', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name={s.icon} size={15} color={s.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{s.title}</Text>
+                    <Text style={[typography.muted, { fontSize: 11, marginTop: 1 }]}>{s.description}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
           </View>
         ) : (
           messages.map((m) => (
-            <View
-              key={m.id}
-              style={{
-                maxWidth: '85%', alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
-                backgroundColor: m.sender === 'user' ? colors.accent : colors.glass,
-                borderWidth: m.sender === 'user' ? 0 : 1, borderColor: colors.glassBorder,
-                borderRadius: radii.lg, padding: spacing(1.25),
-              }}
-            >
-              <Text style={{ color: m.sender === 'user' ? colors.onPrimary : colors.text, fontSize: 14, lineHeight: 20 }}>{m.text}</Text>
+            <View key={m.id} style={{ flexDirection: 'row', gap: 8, maxWidth: '88%', alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start' }}>
+              {m.sender === 'assistant' ? (
+                <View style={{ width: 22, height: 22, borderRadius: radii.sm, backgroundColor: GOLD + '22', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+                  <Icon name="sparkles" size={11} color={GOLD} />
+                </View>
+              ) : null}
+              <View
+                style={{
+                  backgroundColor: m.sender === 'user' ? colors.accent : colors.text + '08',
+                  borderWidth: m.sender === 'user' ? 0 : 1, borderColor: colors.text + '12',
+                  borderRadius: radii.lg, padding: spacing(1.25), flexShrink: 1,
+                }}
+              >
+                <Text style={{ color: m.sender === 'user' ? colors.onPrimary : colors.text, fontSize: 14, lineHeight: 20 }}>{m.text}</Text>
+              </View>
             </View>
           ))
         )}
         {busy ? <ActivityIndicator color={colors.textMuted} style={{ alignSelf: 'flex-start' }} /> : null}
       </ScrollView>
 
-      <View style={{ gap: spacing(1) }}>
-        {messages.length === 0 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(0.75) }}>
-            {suggestions.map((s) => (
-              <Pressable key={s} onPress={() => send(s)} style={{ paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.75), borderRadius: radii.pill, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }} numberOfLines={1}>{s}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        ) : null}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+      <View style={{ paddingTop: spacing(1) }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.pill }}>
           <TextInput
             value={input}
             onChangeText={setInput}
             onSubmitEditing={() => send(input)}
-            placeholder="Pose ta question…"
+            placeholder="Pose une question à l'Agent…"
             placeholderTextColor={colors.textMuted}
-            style={{ flex: 1, color: colors.text, backgroundColor: colors.bgElevated, borderRadius: radii.pill, paddingHorizontal: spacing(1.5), paddingVertical: spacing(1.1), fontSize: 14 }}
+            style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', paddingHorizontal: spacing(1.75), paddingVertical: spacing(1.1), fontSize: 14 }}
           />
-          <Pressable onPress={() => send(input)} disabled={busy || !input.trim()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', opacity: busy || !input.trim() ? 0.5 : 1 }}>
-            <Icon name="forward" size={16} color={colors.onPrimary} />
+          <Pressable onPress={() => send(input)} disabled={busy || !input.trim()} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 4, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', opacity: busy || !input.trim() ? 0.4 : 1 }}>
+            <Icon name="forward" size={15} color={colors.onPrimary} />
           </Pressable>
         </View>
       </View>
