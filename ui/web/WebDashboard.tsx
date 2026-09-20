@@ -15,6 +15,7 @@ import { InteractiveChart } from '../InteractiveChart';
 import { useTelegramBiometric } from './telegramBiometric';
 import { useAsync } from './useAsync';
 import { AgentPanel } from './AgentPanel';
+import { MarketPanel } from './MarketPanel';
 import { useAiStore } from '../../lib/aiStore';
 import { AllocationDonut, foldSlices } from '../AllocationDonut';
 import { Icon, type IconName } from '../icon';
@@ -359,7 +360,7 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
   }, [key, fiat, rev]);
 }
 
-type MobileTab = 'home' | 'wallet' | 'activity' | 'agent' | 'settings';
+type MobileTab = 'home' | 'market' | 'wallet' | 'activity' | 'agent' | 'settings';
 type ActionSheetKind = 'send' | 'receive' | 'swap';
 
 /** Barre d'onglets mobile (téléphone uniquement) : évite d'empiler toutes les
@@ -369,6 +370,7 @@ function MobileTabBar({ tab, onChange }: { tab: MobileTab; onChange: (t: MobileT
   const { colors } = useTheme();
   const items: { key: MobileTab; icon: IconName; label: string }[] = [
     { key: 'home', icon: 'home', label: t("navHome") },
+    { key: 'market', icon: 'market', label: t("navMarket") },
     { key: 'wallet', icon: 'wallet', label: t("navWallet") },
     { key: 'activity', icon: 'history', label: t("activity") },
     { key: 'agent', icon: 'sparkles', label: 'Agent' },
@@ -504,6 +506,7 @@ function Dashboard() {
   const networksBlock = <Zone title="Réseaux"><NetworkSelector vertical /></Zone>;
   const settingsBlock = <Zone title={t("settings")} collapsible={narrow}><SettingsPanel /></Zone>;
   const agentBlock = <Zone title="Agent" collapsible={narrow}><AgentPanel chain={chain} address={address} worth={worth} /></Zone>;
+  const marketBlock = <Zone title={t("navMarket")} collapsible={narrow}><MarketPanel /></Zone>;
 
   const scrollContent = (
     <ScrollView
@@ -550,6 +553,7 @@ function Dashboard() {
               {sendBlock}
               {swapBlock}
               {agentBlock}
+              {marketBlock}
             </View>
           </View>
         ) : mid ? (
@@ -570,6 +574,7 @@ function Dashboard() {
               {sendBlock}
               {swapBlock}
               {agentBlock}
+              {marketBlock}
               {settingsBlock}
             </View>
           </View>
@@ -593,6 +598,8 @@ function Dashboard() {
                 {allocBlock}
                 {watchBlock}
               </>
+            ) : tab === 'market' ? (
+              marketBlock
             ) : tab === 'wallet' ? (
               <>
                 {tokensBlock}
