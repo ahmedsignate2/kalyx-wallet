@@ -12,7 +12,7 @@ API="https://api.telegram.org/bot${BOT_TOKEN}"
 echo "→ setWebhook"
 curl -sS -X POST "$API/setWebhook" \
   -H 'content-type: application/json' \
-  -d "{\"url\":\"${WORKER_URL}/telegram\",\"secret_token\":\"${WEBHOOK_SECRET}\",\"allowed_updates\":[\"message\"],\"drop_pending_updates\":true}"
+  -d "{\"url\":\"${WORKER_URL}/telegram\",\"secret_token\":\"${WEBHOOK_SECRET}\",\"allowed_updates\":[\"message\",\"callback_query\"],\"drop_pending_updates\":true}"
 echo
 
 echo "→ setMyCommands (défaut = anglais)"
