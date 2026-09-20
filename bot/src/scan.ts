@@ -9,6 +9,8 @@ const EVM_CHAINS: { id: string; name: string }[] = [
   { id: '42161', name: 'Arbitrum' }, { id: '137', name: 'Polygon' }, { id: '10', name: 'Optimism' }, { id: '43114', name: 'Avalanche' },
 ];
 
+export type ScanOutcome = ScanResult | 'not_token' | null;
+
 export interface ScanResult {
   chain: string;
   honeypot: boolean;
@@ -37,7 +39,7 @@ function parse(chain: string, r: GoPlusToken): ScanResult {
   return { chain, honeypot: on('is_honeypot'), buyTax: pct(r.buy_tax), sellTax: pct(r.sell_tax), openSource: on('is_open_source'), flags };
 }
 
-export async function scanToken(address: string): Promise<ScanResult | null> {
+export async function scanToken(address: string): Promise<ScanOutcome> {
   if (isEvm(address)) {
     const a = address.toLowerCase();
     // Première chaîne où le token existe.
@@ -54,7 +56,9 @@ export async function scanToken(address: string): Promise<ScanResult | null> {
   }
   if (isSolana(address)) {
     try {
-      const res = await fetchJson<{ result?: Record<string, GoPlusToken> }>(`${GOPLUS}/solana/token_security?contract_addresses=${address}`, undefined, 6000);
+      const res = await fetchJson<{ code?: number; result?: Record<string, GoPlusToken> | null }>(`${GOPLUS}/solana/token_security?contract_addresses=${address}`, undefined, 6000);
+      // 7012 = « Not fungible spl token address » : c'est un wallet ou un NFT, pas un token.
+      if (res.code === 7012) return 'not_token';
       const r = res.result?.[address];
       if (!r) return null;
       // Le schéma Solana diffère : on mappe ce qui existe.
