@@ -145,9 +145,12 @@ export function FloatingDock({ tab, onChange, onSwapPress, labels }: { tab: Dock
   const item = (key: DockTab, icon: IconName) => {
     const on = key === tab;
     return (
-      <Pressable key={key} onPress={() => onChange(key)} style={{ alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 8, minWidth: 56 }}>
-        <Icon name={icon} size={20} color={on ? P.text : P.muted} weight={on ? 'fill' : 'regular'} />
-        <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '500', fontSize: 10, color: on ? P.text : P.muted }} numberOfLines={1}>{labels[key]}</Text>
+      <Pressable key={key} onPress={() => onChange(key)} style={({ pressed }) => ({ alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 8, minWidth: 56, opacity: pressed ? 0.6 : 1, transform: [{ scale: pressed ? 0.94 : 1 }] })}>
+        <View style={{ transform: [{ scale: on ? 1.08 : 1 }] }}>
+          <Icon name={icon} size={20} color={on ? P.text : P.muted} weight={on ? 'fill' : 'regular'} />
+        </View>
+        <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: on ? '600' : '500', fontSize: 10, color: on ? P.text : P.muted }} numberOfLines={1}>{labels[key]}</Text>
+        <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: on ? P.accent : 'transparent', marginTop: -2 }} />
       </Pressable>
     );
   };
