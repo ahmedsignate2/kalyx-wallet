@@ -13,6 +13,9 @@ import { KalyxLogo } from '../KalyxLogo';
 import { AuroraBackground } from '../AuroraBackground';
 import { InteractiveChart } from '../InteractiveChart';
 import { useTelegramBiometric } from './telegramBiometric';
+import { useAsync } from './useAsync';
+import { AgentPanel } from './AgentPanel';
+import { useAiStore } from '../../lib/aiStore';
 import { AllocationDonut, foldSlices } from '../AllocationDonut';
 import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
@@ -114,12 +117,17 @@ export function WebDashboard() {
   const { colors } = useTheme();
   const status = useWebConnect((s) => s.status);
   const init = useWebConnect((s) => s.init);
+  const loadAiState = useAiStore((s) => s.loadInitialState);
 
   useEffect(() => {
     init();
+    // app/_layout.tsx saute tout le bootstrap natif sur web (pas de coffre
+    // local ici) — mais l'état IA (clé BYOK persistée) doit quand même être
+    // rechargé, sinon l'onglet Agent oublie la clé à chaque rafraîchissement.
+    loadAiState();
     const doc = (globalThis as { document?: { title: string } }).document;
     if (doc) doc.title = 'Kalyx · Tableau de bord';
-  }, [init]);
+  }, [init, loadAiState]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
@@ -351,7 +359,7 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
   }, [key, fiat, rev]);
 }
 
-type MobileTab = 'home' | 'wallet' | 'activity' | 'settings';
+type MobileTab = 'home' | 'wallet' | 'activity' | 'agent' | 'settings';
 type ActionSheetKind = 'send' | 'receive' | 'swap';
 
 /** Barre d'onglets mobile (téléphone uniquement) : évite d'empiler toutes les
@@ -363,6 +371,7 @@ function MobileTabBar({ tab, onChange }: { tab: MobileTab; onChange: (t: MobileT
     { key: 'home', icon: 'home', label: t("navHome") },
     { key: 'wallet', icon: 'wallet', label: t("navWallet") },
     { key: 'activity', icon: 'history', label: t("activity") },
+    { key: 'agent', icon: 'sparkles', label: 'Agent' },
     { key: 'settings', icon: 'menu', label: t("settings") },
   ];
   return (
@@ -494,6 +503,7 @@ function Dashboard() {
   const accountBlock = <AccountCard chain={chain} address={address} />;
   const networksBlock = <Zone title="Réseaux"><NetworkSelector vertical /></Zone>;
   const settingsBlock = <Zone title={t("settings")} collapsible={narrow}><SettingsPanel /></Zone>;
+  const agentBlock = <Zone title="Agent" collapsible={narrow}><AgentPanel chain={chain} address={address} worth={worth} /></Zone>;
 
   const scrollContent = (
     <ScrollView
@@ -539,6 +549,7 @@ function Dashboard() {
               {activityBlock}
               {sendBlock}
               {swapBlock}
+              {agentBlock}
             </View>
           </View>
         ) : mid ? (
@@ -558,6 +569,7 @@ function Dashboard() {
               {watchBlock}
               {sendBlock}
               {swapBlock}
+              {agentBlock}
               {settingsBlock}
             </View>
           </View>
@@ -588,6 +600,8 @@ function Dashboard() {
               </>
             ) : tab === 'activity' ? (
               activityBlock
+            ) : tab === 'agent' ? (
+              agentBlock
             ) : (
               <>
                 <CurrentNetworkChip chain={chain} onPress={() => setNetworkSheet(true)} />
@@ -767,20 +781,6 @@ function SkeletonRows({ count = 4 }: { count?: number }) {
   );
 }
 
-function useAsync<T>(fn: () => Promise<T>, deps: React.DependencyList): { data: T | null; loading: boolean } {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    let alive = true;
-    setLoading(true);
-    fn()
-      .then((d) => { if (alive) { setData(d); setLoading(false); } })
-      .catch(() => { if (alive) { setData(null); setLoading(false); } });
-    return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  return { data, loading };
-}
 
 
 const PERIODS: { k: string; l: string }[] = [
