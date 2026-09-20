@@ -5,12 +5,13 @@
  * sensible à l'app qui signe. Layout desktop responsive (sidebar + contenu).
  */
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Image, TextInput, useWindowDimensions, ActivityIndicator, Animated, Easing, Linking } from 'react-native';
+import { View, Text, Pressable, ScrollView, RefreshControl, Image, TextInput, useWindowDimensions, ActivityIndicator, Animated, Easing, Linking } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import Svg, { Path, Rect, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, { Rect, Defs, LinearGradient as SvgGradient, RadialGradient, Stop } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
 import { KalyxLogo } from '../KalyxLogo';
 import { AuroraBackground } from '../AuroraBackground';
+import { InteractiveChart } from '../InteractiveChart';
 import { AllocationDonut, foldSlices } from '../AllocationDonut';
 import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
@@ -24,7 +25,7 @@ import {
   listChains,
   getErc20Tokens,
   getNfts,
-  getMarketChart,
+  getMarketChartPoints,
   getTokenPrices,
   getPrices,
   formatTokenAmount,
@@ -39,6 +40,7 @@ import {
   type TxSummary,
   type ChainConfig,
   type SwapQuote,
+  type ChartPoint,
   type HumanTx,
 } from '../../src';
 
@@ -432,6 +434,12 @@ function Dashboard() {
   const accounts = useWebConnect((s) => s.accounts);
   const selected = useWebConnect((s) => s.selected);
   const refresh = useWebConnect((s) => s.refresh);
+  const [refreshing, setRefreshing] = useState(false);
+  const onPullRefresh = () => {
+    setRefreshing(true);
+    refresh();
+    setTimeout(() => setRefreshing(false), 700);
+  };
   const chain = useMemo(() => chainById(selected), [selected]);
   const address = useMemo(() => accounts.find((a) => a.chainId === selected)?.address ?? '', [accounts, selected]);
   const isEvm = chain.family === 'evm';
@@ -487,7 +495,11 @@ function Dashboard() {
   const settingsBlock = <Zone title={t("settings")} collapsible={narrow}><SettingsPanel /></Zone>;
 
   const scrollContent = (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}>
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={colors.text} colors={[colors.text]} />}
+    >
       <View style={{ width: '100%', maxWidth: 1440, padding: spacing(wide ? 3 : 2), gap: spacing(2) }}>
         {/* En-tête */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing(1) }}>
@@ -770,42 +782,6 @@ function useAsync<T>(fn: () => Promise<T>, deps: React.DependencyList): { data: 
   return { data, loading };
 }
 
-/** Graphique en aire (une série : valeur du portefeuille), style sparkline. */
-function AreaChart({ values, up }: { values: number[]; up: boolean }) {
-  const t = useT();
-  const { colors } = useTheme();
-  const [w, setW] = useState(0);
-  const h = 130;
-  const stroke = up ? colors.up : colors.down;
-  let line = '';
-  let area = '';
-  if (w > 0 && values.length > 1) {
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const span = max - min || 1;
-    const n = values.length;
-    const X = (i: number) => (w * i) / (n - 1);
-    const Y = (v: number) => h - 8 - ((v - min) / span) * (h - 16);
-    line = values.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
-    area = `${line} L${w.toFixed(1)},${h} L0,${h} Z`;
-  }
-  return (
-    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ height: h, marginTop: spacing(1) }}>
-      {w > 0 && line ? (
-        <Svg width={w} height={h}>
-          <Defs>
-            <SvgGradient id="kalyxGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={stroke} stopOpacity={0.28} />
-              <Stop offset="1" stopColor={stroke} stopOpacity={0} />
-            </SvgGradient>
-          </Defs>
-          <Path d={area} fill="url(#kalyxGrad)" />
-          <Path d={line} stroke={stroke} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        </Svg>
-      ) : null}
-    </View>
-  );
-}
 
 const PERIODS: { k: string; l: string }[] = [
   { k: '1', l: '24 h' },
@@ -853,15 +829,18 @@ function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null
   const sym = fiatSymbol(fiat);
   const [days, setDays] = useState('7');
   const { data: bal } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
-  const { data: prices, loading } = useAsync<number[]>(
-    () => (chain.coingeckoId ? getMarketChart(chain.coingeckoId, fiat, days) : Promise.resolve([])),
+  // Points horodatés (pas juste les prix) : le graphique est scrubable au
+  // doigt/à la souris (InteractiveChart, déjà utilisé et testé côté app
+  // mobile sur l'écran token) et affiche prix + heure exacts sous le curseur.
+  const { data: points, loading } = useAsync<ChartPoint[]>(
+    () => (chain.coingeckoId ? getMarketChartPoints(chain.coingeckoId, fiat, days) : Promise.resolve([])),
     [chain.coingeckoId, fiat, days, rev],
   );
   // Prix brut de l'actif natif (pas la valeur du portefeuille) : avec un petit
   // solde, « valeur = prix × solde » restait plate à ~0 quel que soit le
   // marché — le prix, lui, bouge réellement et correspond à ce qu'annonce le
   // titre « Tendance <réseau> ».
-  const values = prices ?? [];
+  const values = (points ?? []).map((p) => p.v);
   const first = values.length ? values[0] : 0;
   const cur = values.length ? values[values.length - 1] : 0;
   const pct = first > 0 ? ((cur - first) / first) * 100 : 0;
@@ -871,8 +850,8 @@ function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null
   const todayUp = today >= 0;
   const slice = worth.data?.slices.find((s) => s.chain.id === chain.id);
   const nativeChange = slice?.change24h ?? 0;
-  const price = slice?.price ?? (prices && prices.length ? prices[prices.length - 1] : 0);
-  return { sym, days, setDays, bal, prices, loading, values, pct, up, total, today, todayUp, nativeChange, price };
+  const price = slice?.price ?? (values.length ? values[values.length - 1] : 0);
+  return { sym, days, setDays, bal, points, loading, values, pct, up, total, today, todayUp, nativeChange, price };
 }
 type HeroData = ReturnType<typeof useHeroData>;
 
@@ -883,8 +862,18 @@ function HeroTotalCard({ data }: { data: HeroData }) {
   const { sym, total, today, todayUp } = data;
   const [hidden, setHidden] = useState(false);
   return (
-    <Card>
-      <Text style={typography.muted}>Valeur totale</Text>
+    <View style={{ borderRadius: radii.lg, borderWidth: 1, borderColor: colors.glassBorder, backgroundColor: colors.glass, overflow: 'hidden' }}>
+      <Svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} viewBox="0 0 100 100" preserveAspectRatio="none">
+        <Defs>
+          <RadialGradient id="heroGlow" cx="88%" cy="6%" r="75%">
+            <Stop offset="0" stopColor={colors.accent} stopOpacity={0.16} />
+            <Stop offset="1" stopColor={colors.accent} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100" height="100" fill="url(#heroGlow)" />
+      </Svg>
+      <View style={{ padding: spacing(2) }}>
+        <Text style={typography.muted}>Valeur totale</Text>
       {total == null ? (
         <Skeleton w={240} h={46} style={{ marginTop: 6 }} />
       ) : (
@@ -904,7 +893,8 @@ function HeroTotalCard({ data }: { data: HeroData }) {
           <Text style={typography.muted}>{t("today")}</Text>
         </View>
       ) : null}
-    </Card>
+      </View>
+    </View>
   );
 }
 
@@ -922,22 +912,39 @@ function HeroWidgetsRow({ data, chain }: { data: HeroData; chain: ChainConfig })
 }
 
 /** Carte « Tendance » (graphique + sélecteur de période). */
+/** Date du point scrubbé — heure pour la période 24 h, date sinon (même
+ *  convention que l'écran token de l'app mobile). */
+function formatScrubDate(ts: number, days: string): string {
+  const d = new Date(ts);
+  return days === '1'
+    ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+}
+
 function HeroTrendCard({ data, chain }: { data: HeroData; chain: ChainConfig }) {
   const { colors, typography } = useTheme();
-  const { days, setDays, values, up, pct, loading } = data;
+  const { days, setDays, values, points, up, pct, loading, sym } = data;
+  const [scrub, setScrub] = useState<ChartPoint | null>(null);
+  const [w, setW] = useState(0);
   if (!chain.coingeckoId) return null;
   return (
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text style={typography.muted}>{`Tendance ${chain.name}`}</Text>
-        {values.length ? (
+        {scrub ? (
+          <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 13 }} numberOfLines={1}>
+            {`${sym}${scrub.v.toLocaleString(undefined, { maximumFractionDigits: 2 })} · ${formatScrubDate(scrub.t, days)}`}
+          </Text>
+        ) : values.length ? (
           <Text style={{ color: up ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13 }}>{up ? '+' : ''}{pct.toFixed(2)} %</Text>
         ) : null}
       </View>
       {loading && !values.length ? (
         <Skeleton h={150} r={radii.md} style={{ marginTop: spacing(1) }} />
-      ) : values.length > 1 ? (
-        <AreaChart values={values} up={up} />
+      ) : (points?.length ?? 0) > 1 ? (
+        <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ marginTop: spacing(1) }}>
+          {w > 0 ? <InteractiveChart points={points!} color={up ? colors.up : colors.down} width={w} height={150} onScrub={setScrub} /> : null}
+        </View>
       ) : (
         <View style={{ height: 150, alignItems: 'center', justifyContent: 'center' }}><Text style={typography.muted}>Pas de données de prix.</Text></View>
       )}
