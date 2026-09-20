@@ -109,6 +109,7 @@ export function createBot(env: Env): Bot<Ctx> {
     if (ctx.from && (await rateLimited(env, `scan:${ctx.from.id}`, 5, 60))) return ctx.reply(t(ctx).rateLimited);
     await ctx.reply(t(ctx).scanRunning);
     const r = await scanToken(a).catch(() => null);
+    if (r === 'not_token') return ctx.reply(t(ctx).scanNotToken, HTML);
     if (!r) return ctx.reply(t(ctx).scanNoData, HTML);
     const flags = r.flags.map((f) => t(ctx).scanFlags[f] ?? f);
     await ctx.reply(t(ctx).scanReport({ ...r, chain: esc(r.chain), flags }), HTML);
