@@ -16,6 +16,8 @@ import { useTelegramBiometric } from './telegramBiometric';
 import { useAsync } from './useAsync';
 import { AgentPanel } from './AgentPanel';
 import { MarketPanel } from './MarketPanel';
+import { WEB_FONTS, useWebFonts, useWebPalette } from './webTheme';
+import { MobileHeader, NetworkPill, ActionRow, PeriodChips, SegmentTabs, MobileEmptyState, FloatingDock, DOCK_CLEARANCE } from './MobileChrome';
 import { useAiStore } from '../../lib/aiStore';
 import { AllocationDonut, foldSlices } from '../AllocationDonut';
 import { Icon, type IconName } from '../icon';
@@ -158,6 +160,10 @@ export function WebDashboard() {
   const status = useWebConnect((s) => s.status);
   const init = useWebConnect((s) => s.init);
   const loadAiState = useAiStore((s) => s.loadInitialState);
+  const { width } = useWindowDimensions();
+  const narrow = width < 760;
+  const P = useWebPalette();
+  useWebFonts();
 
   useEffect(() => {
     init();
@@ -170,8 +176,10 @@ export function WebDashboard() {
   }, [init, loadAiState]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
-      <AuroraBackground intensity={0.55} />
+    // Mobile : fond uni de la maquette (#0B0C0E), pas d'aurora — le halo
+    // laiton derrière le solde est le seul effet lumineux de l'écran.
+    <View style={{ flex: 1, backgroundColor: narrow ? P.bg : colors.bgDeep }}>
+      {narrow ? null : <AuroraBackground intensity={0.55} />}
       {status === 'connected' ? <Dashboard /> : <ConnectView />}
       <SigningModal />
     </View>
@@ -402,52 +410,6 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
 type MobileTab = 'home' | 'market' | 'agent' | 'settings';
 type ActionSheetKind = 'send' | 'receive' | 'swap';
 
-/** Barre d'onglets mobile (téléphone uniquement) : évite d'empiler toutes les
- *  sections sur une seule page — chaque onglet ne montre que son contenu. */
-/** Dock avec un bouton Swap surélevé au centre (action la plus fréquente
- *  après consulter son solde) — pattern Phantom/Gram plutôt que 5 icônes
- *  identiques alignées. */
-function MobileTabBar({ tab, onChange, onSwapPress }: { tab: MobileTab; onChange: (t: MobileTab) => void; onSwapPress: () => void }) {
-  const t = useT();
-  const { colors } = useTheme();
-  const left: { key: MobileTab; icon: IconName; label: string }[] = [
-    { key: 'home', icon: 'home', label: t("navHome") },
-    { key: 'market', icon: 'market', label: t("navMarket") },
-  ];
-  const right: { key: MobileTab; icon: IconName; label: string }[] = [
-    { key: 'agent', icon: 'sparkles', label: 'Agent' },
-    { key: 'settings', icon: 'gear', label: t("settings") },
-  ];
-  const item = (it: { key: MobileTab; icon: IconName; label: string }) => {
-    const on = it.key === tab;
-    return (
-      <Pressable key={it.key} onPress={() => onChange(it.key)} style={{ flex: 1, alignItems: 'center', gap: 3, paddingVertical: spacing(1) }}>
-        <Icon name={it.icon} size={20} color={on ? GOLD : colors.textMuted} weight={on ? 'fill' : 'regular'} />
-        <Text style={{ color: on ? GOLD : colors.textMuted, fontFamily: fonts.medium, fontSize: 11 }} numberOfLines={1}>{it.label}</Text>
-      </Pressable>
-    );
-  };
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', backgroundColor: colors.bgElevated, borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingBottom: spacing(0.5) }}>
-      {left.map(item)}
-      <View style={{ flex: 1, alignItems: 'center' }}>
-        <Pressable
-          onPress={onSwapPress}
-          style={({ pressed }) => ({
-            width: 50, height: 50, borderRadius: 25, marginTop: -22,
-            backgroundColor: GOLD, borderWidth: 3, borderColor: colors.bgDeep,
-            alignItems: 'center', justifyContent: 'center',
-            opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.96 : 1 }],
-          })}
-        >
-          <Icon name="exchange" size={20} color="#171310" />
-        </Pressable>
-      </View>
-      {right.map(item)}
-    </View>
-  );
-}
-
 /** Puce compacte « réseau actuel », ouvre le sélecteur en feuille plutôt que
  *  d'afficher les N réseaux connectés en dur dans le flux des Réglages. */
 function CurrentNetworkChip({ chain, onPress, compact }: { chain: ChainConfig; onPress: () => void; compact?: boolean }) {
@@ -471,21 +433,6 @@ function CurrentNetworkChip({ chain, onPress, compact }: { chain: ChainConfig; o
         <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 15 }} numberOfLines={1}>{chain.name}</Text>
       </View>
       <Icon name="chevron" size={16} color={colors.textMuted} />
-    </Pressable>
-  );
-}
-
-/** Cercle compact (icône + libellé), pas une carte rectangulaire individuelle
- *  — l'ergonomie universelle des wallets/apps fintech (Phantom, Revolut…)
- *  pour Recevoir/Envoyer/Swap, plutôt que 3 boîtes géantes empilées. */
-function QuickAction({ icon, label, onPress, grow = true }: { icon: IconName; label: string; onPress: () => void; grow?: boolean }) {
-  const { colors } = useTheme();
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ flex: grow ? 1 : undefined, width: grow ? undefined : 84, alignItems: 'center', gap: spacing(0.6), opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
-      <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name={icon} size={22} color={colors.onPrimary} />
-      </View>
-      <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 12 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -574,16 +521,25 @@ function Dashboard() {
   const swapBlock = isEvm ? <Zone title={t("swap")}><SwapPanel chain={chain} address={address} /></Zone> : null;
   const accountBlock = <AccountCard chain={chain} address={address} />;
   const networksBlock = <Zone title="Réseaux"><NetworkSelector vertical /></Zone>;
-  const settingsBlock = <Zone title={t("settings")} collapsible={narrow}><SettingsPanel /></Zone>;
-  const agentBlock = <Zone title="Agent" collapsible={narrow}><AgentPanel chain={chain} address={address} worth={worth} /></Zone>;
-  const marketBlock = <Zone title={t("navMarket")} collapsible={narrow}><MarketPanel /></Zone>;
+  // Sur mobile ces blocs SONT l'onglet : jamais repliés (sinon l'onglet
+  // Marché s'ouvrait sur un simple titre à déplier).
+  const settingsBlock = <Zone title={t("settings")}><SettingsPanel /></Zone>;
+  const agentBlock = <Zone title="Agent"><AgentPanel chain={chain} address={address} worth={worth} /></Zone>;
+  const marketBlock = <Zone title={t("navMarket")}><MarketPanel /></Zone>;
 
   // En-tête compact : un titre "Kalyx • Tableau de bord" en gros au centre
   // faisait "panneau d'admin" — l'utilisateur sait déjà où il est. Logo +
   // pastille de connexion (gauche), réseau (centre), rafraîchir (droite) —
   // une seule ligne. Extrait car réutilisé aussi par l'onglet Agent (qui a
   // besoin de son propre en-tête HORS du ScrollView, voir plus bas).
-  const headerRow = (
+  const headerRow = narrow ? (
+    // Mobile (maquette) : avatar-logo 36 px + « Kalyx / Portefeuille sécurisé »
+    // à gauche, rafraîchir à droite ; la pilule réseau a sa propre ligne.
+    <>
+      <MobileHeader onRefresh={refresh} subtitle="Portefeuille sécurisé" />
+      <NetworkPill avatar={<ChainAvatar chain={chain} size={14} />} name={chain.name} onPress={() => setNetworkSheet(true)} />
+    </>
+  ) : (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing(1) }}>
       <View>
         <KalyxLogo size={30} />
@@ -603,7 +559,7 @@ function Dashboard() {
   const isAgentTab = narrow && tab === 'agent';
 
   const scrollContent = isAgentTab ? (
-    <View style={{ flex: 1, padding: spacing(2), paddingBottom: 0, gap: spacing(1.5) }}>
+    <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 22, paddingBottom: DOCK_CLEARANCE - 20, gap: spacing(1.5) }}>
       {headerRow}
       <View style={{ flex: 1 }}>
         <AgentPanel chain={chain} address={address} worth={worth} />
@@ -615,7 +571,10 @@ function Dashboard() {
       contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={colors.text} colors={[colors.text]} />}
     >
-      <View style={{ width: '100%', maxWidth: 1440, padding: spacing(wide ? 3 : 2), gap: spacing(2) }}>
+      <View style={narrow
+        ? { width: '100%', maxWidth: 430, paddingHorizontal: 20, paddingTop: 22, paddingBottom: DOCK_CLEARANCE, gap: 26 }
+        : { width: '100%', maxWidth: 1440, padding: spacing(wide ? 3 : 2), gap: spacing(2) }}
+      >
         {headerRow}
 
         {wide ? (
@@ -666,25 +625,21 @@ function Dashboard() {
           </View>
         ) : (
           /* ---- Mobile / étroit : onglets, un seul contenu à la fois ---- */
-          <View style={{ gap: spacing(2) }}>
+          <View style={{ gap: tab === 'home' ? 26 : spacing(2) }}>
             {tab === 'home' ? (
-              /* Ordre : solde → actions → tendance (avec filtres 24h/7j/1m)
-               * → tokens, immédiatement visibles. Répartition et Watchlist
-               * retirées de l'Accueil (aucune valeur avec 1-2 cryptos, et les
-               * cours de marché vivent désormais dans l'onglet Marché) — NFT
-               * et historique restent en bas, repliables. */
+              /* Accueil maquette : un seul flux continu (pas de cartes
+               * empilées) — solde avec halo → période + tendance → 3 actions
+               * → onglets Tokens / NFT / Activité. */
               <>
-                <HeroTotalCard data={heroData} chain={chain} address={address} />
-                <View style={{ flexDirection: 'row', gap: spacing(1.25), justifyContent: isEvm ? undefined : 'center' }}>
-                  <QuickAction icon="receive" label={t("receive")} onPress={() => setSheet('receive')} grow={isEvm} />
-                  {isEvm ? <QuickAction icon="send" label={t("send")} onPress={() => setSheet('send')} /> : null}
-                  {isEvm ? <QuickAction icon="exchange" label={t("swapAction")} onPress={() => setSheet('swap')} /> : null}
-                </View>
-                <HeroTrendCard data={heroData} chain={chain} />
-                {tokensBlock}
-                <HeroWidgetsRow data={heroData} chain={chain} />
-                {nftBlock}
-                {activityBlock}
+                <MobileHero data={heroData} chain={chain} address={address} />
+                <MobileTrend data={heroData} chain={chain} />
+                <ActionRow
+                  onReceive={() => setSheet('receive')}
+                  onSend={() => setSheet('send')}
+                  onSwap={() => setSheet('swap')}
+                  labels={{ receive: t("receive"), send: t("send"), swap: t("swapAction") }}
+                />
+                <MobileAssets data={heroData} chain={chain} address={address} onReceive={() => setSheet('receive')} />
               </>
             ) : tab === 'market' ? (
               marketBlock
@@ -715,14 +670,13 @@ function Dashboard() {
     <View style={{ flex: 1 }}>
       {scrollContent}
       {narrow ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing(0.75), backgroundColor: colors.bgElevated, borderTopWidth: 1, borderTopColor: colors.glassBorder }}>
-          <Icon name="security" size={12} color={colors.textMuted} />
-          <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 11 }}>
-            Signatures faites sur ton téléphone Kalyx uniquement.
-          </Text>
-        </View>
+        <FloatingDock
+          tab={tab}
+          onChange={setTab}
+          onSwapPress={() => setSheet('swap')}
+          labels={{ home: t("navHome"), market: t("navMarket"), agent: 'Agent', settings: t("settings") }}
+        />
       ) : null}
-      {narrow ? <MobileTabBar tab={tab} onChange={setTab} onSwapPress={() => setSheet('swap')} /> : null}
       {narrow && sheet === 'receive' ? (
         <ActionSheet title={t("receive")} onClose={() => setSheet(null)}>
           <AccountCard chain={chain} address={address} defaultQr />
@@ -854,11 +808,12 @@ function Skeleton({ w = '100%', h, r = 8, style }: { w?: number | string; h: num
 }
 
 /** Lignes de chargement (icône ronde + 2 barres + valeur), pour tokens/historique. */
-function SkeletonRows({ count = 4 }: { count?: number }) {
+function SkeletonRows({ count = 4, flat }: { count?: number; flat?: boolean }) {
   const t = useT();
   const { colors } = useTheme();
+  const Wrap = flat ? View : Card;
   return (
-    <Card>
+    <Wrap>
       {Array.from({ length: count }).map((_, i) => (
         <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
           <Skeleton w={32} h={32} r={16} />
@@ -869,7 +824,7 @@ function SkeletonRows({ count = 4 }: { count?: number }) {
           <Skeleton w={60} h={12} />
         </View>
       ))}
-    </Card>
+    </Wrap>
   );
 }
 
@@ -878,7 +833,9 @@ function SkeletonRows({ count = 4 }: { count?: number }) {
 const PERIODS: { k: string; l: string }[] = [
   { k: '1', l: '24 h' },
   { k: '7', l: '7 j' },
-  { k: '30', l: '1 mois' },
+  { k: '30', l: '1 m' },
+  { k: '365', l: '1 a' },
+  { k: 'max', l: 'Tout' },
 ];
 function PeriodToggle({ days, onChange }: { days: string; onChange: (d: string) => void }) {
   const t = useT();
@@ -1061,9 +1018,9 @@ function HeroWidgetsRow({ data, chain }: { data: HeroData; chain: ChainConfig })
  *  convention que l'écran token de l'app mobile). */
 function formatScrubDate(ts: number, days: string): string {
   const d = new Date(ts);
-  return days === '1'
-    ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+  if (days === '1') return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  if (days === '365' || days === 'max') return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
 }
 
 function HeroTrendCard({ data, chain }: { data: HeroData; chain: ChainConfig }) {
@@ -1098,6 +1055,266 @@ function HeroTrendCard({ data, chain }: { data: HeroData; chain: ChainConfig }) 
   );
 }
 
+
+/* ------------------------------------------------- Accueil mobile (maquette) */
+
+/** « 1,84 » + « € » séparés pour afficher le symbole plus petit et grisé. */
+function formatFiatParts(amount: number, fiat: string): { number: string; symbol: string } {
+  try {
+    const parts = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).formatToParts(amount);
+    const symbol = parts.filter((p) => p.type === 'currency').map((p) => p.value).join('');
+    const number = parts.filter((p) => p.type !== 'currency' && p.type !== 'literal').map((p) => p.value).join('');
+    return { number: number || amount.toFixed(2), symbol: symbol || fiatSymbol(fiat) };
+  } catch {
+    return { number: amount.toFixed(2), symbol: fiatSymbol(fiat) };
+  }
+}
+
+/** Solde sans carte : halo laiton diffus derrière le montant, libellé, montant
+ *  44 px (Space Grotesk) + symbole 22 px grisé, variation absolue + % du jour,
+ *  pilule d'adresse mono, ligne de confiance. Œil masquer/révéler à droite
+ *  du libellé (biométrie Telegram quand disponible — affichage seulement). */
+function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConfig; address: string }) {
+  const P = useWebPalette();
+  const fiat = useSettings((s) => s.fiat);
+  const { total, today, todayUp } = data;
+  const [hidden, setHidden] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const tg = useTelegramBiometric();
+  const isHidden = tg.available ? !tg.unlocked : hidden;
+  const onToggleHidden = () => {
+    if (tg.available) {
+      if (tg.unlocked) tg.lock();
+      else tg.unlock('Affiche ton solde Kalyx');
+    } else {
+      setHidden((v) => !v);
+    }
+  };
+  const copyAddress = async () => {
+    await Clipboard.setStringAsync(address);
+    setCopied(true);
+    toast.success('Adresse copiée !');
+    setTimeout(() => setCopied(false), 1500);
+  };
+  const parts = total != null ? formatFiatParts(total, fiat) : null;
+  // change24h est un % : on en déduit la variation absolue du jour.
+  const absChange = total != null ? total - total / (1 + today / 100) : 0;
+  const changeColor = todayUp ? P.up : P.down;
+  return (
+    <View style={{ position: 'relative', paddingTop: 6 }}>
+      <View pointerEvents="none" style={{ position: 'absolute', width: 220, height: 220, left: '50%', top: -50, marginLeft: -110 }}>
+        <Svg width={220} height={220} viewBox="0 0 220 220">
+          <Defs>
+            <RadialGradient id="mobileHeroGlow" cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor={P.accent} stopOpacity={0.16} />
+              <Stop offset="0.55" stopColor={P.accent} stopOpacity={0.07} />
+              <Stop offset="1" stopColor={P.accent} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Rect x="0" y="0" width="220" height="220" fill="url(#mobileHeroGlow)" />
+        </Svg>
+      </View>
+      <View style={{ gap: 8, alignItems: 'flex-start' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.muted }}>Valeur totale</Text>
+          <Pressable onPress={onToggleHidden} hitSlop={8}>
+            <Icon name={isHidden ? 'eyeOff' : tg.available ? (tg.biometricType === 'face' ? 'security' : 'lock') : 'eye'} size={14} color={P.faint} />
+          </Pressable>
+        </View>
+        {parts == null ? (
+          <Skeleton w={180} h={48} />
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+            <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '700', fontSize: 44, lineHeight: 50, color: P.text, letterSpacing: -0.44, fontVariant: ['tabular-nums'] }}>
+              {isHidden ? '••••' : parts.number}
+            </Text>
+            <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 22, color: P.muted }}>{parts.symbol}</Text>
+          </View>
+        )}
+        {parts != null && !isHidden ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name={todayUp ? 'send' : 'receive'} size={12} color={changeColor} weight="bold" />
+            <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '500', fontSize: 13, color: changeColor }}>
+              {`${todayUp ? '+' : '-'}${formatFiatAmount(Math.abs(absChange), fiat)} · ${todayUp ? '+' : '-'}${Math.abs(today).toFixed(2)} % aujourd'hui`}
+            </Text>
+          </View>
+        ) : null}
+        <View style={{ gap: 10, marginTop: 10 }}>
+          {address ? (
+            <View style={{ flexDirection: 'row' }}>
+              <Pressable onPress={copyAddress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 10, opacity: pressed ? 0.7 : 1 })}>
+                <Text style={{ fontFamily: WEB_FONTS.mono, fontSize: 12, color: P.muted }}>{short(address)}</Text>
+                <Icon name={copied ? 'check' : 'copy'} size={14} color={copied ? P.up : P.muted} />
+              </Pressable>
+            </View>
+          ) : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name="security" size={14} color={P.accent} />
+            <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted }}>Signatures vérifiées sur ton Kalyx</Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** Tendance sans carte : chips de période, graphique scrubable, puis ligne
+ *  « Prix de l'ETH · 2 245,01 € · -2,45 % · 24 h » séparée par un trait. */
+function MobileTrend({ data, chain }: { data: HeroData; chain: ChainConfig }) {
+  const P = useWebPalette();
+  const fiat = useSettings((s) => s.fiat);
+  const { days, setDays, values, points, up, pct, loading, price, nativeChange } = data;
+  const [scrub, setScrub] = useState<ChartPoint | null>(null);
+  const [w, setW] = useState(0);
+  if (!chain.coingeckoId) return null;
+  const lineColor = up ? P.up : P.down;
+  const changeColor = nativeChange >= 0 ? P.up : P.down;
+  return (
+    <View style={{ gap: 14 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <PeriodChips options={PERIODS} value={days} onChange={setDays} />
+        {scrub ? (
+          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 12, color: P.text }} numberOfLines={1}>
+            {`${formatFiatAmount(scrub.v, fiat)} · ${formatScrubDate(scrub.t, days)}`}
+          </Text>
+        ) : values.length ? (
+          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 12, color: lineColor }}>{`${up ? '+' : ''}${pct.toFixed(2)} %`}</Text>
+        ) : null}
+      </View>
+      {loading && !values.length ? (
+        <Skeleton h={130} r={12} />
+      ) : (points?.length ?? 0) > 1 ? (
+        <View onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+          {w > 0 ? <InteractiveChart points={points!} color={lineColor} width={w} height={130} onScrub={setScrub} /> : null}
+        </View>
+      ) : (
+        <View style={{ height: 130, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.muted }}>Pas de données de prix.</Text>
+        </View>
+      )}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: P.divider }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: P.surfaceHi, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <ChainAvatar chain={chain} size={14} />
+          </View>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.text2 }}>{`Prix de l'${chain.nativeSymbol}`}</Text>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 2 }}>
+          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 14, color: P.text, fontVariant: ['tabular-nums'] }}>{price ? formatFiatAmount(price, fiat) : '—'}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: changeColor }}>{`${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)} % · 24 h`}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+type AssetTab = 'tokens' | 'nft' | 'activity';
+
+/** Onglets soulignés Tokens / NFT / Activité + contenu à plat (pas de carte). */
+function MobileAssets({ data, chain, address, onReceive }: { data: HeroData; chain: ChainConfig; address: string; onReceive: () => void }) {
+  const t = useT();
+  const [tab, setTab] = useState<AssetTab>('tokens');
+  const isEvm = chain.family === 'evm';
+  const tabs: { k: AssetTab; l: string }[] = [
+    { k: 'tokens', l: t("tabTokens") },
+    { k: 'nft', l: t("tabNft") },
+    { k: 'activity', l: t("activity") },
+  ];
+  return (
+    <View style={{ gap: 14 }}>
+      <SegmentTabs tabs={tabs} value={tab} onChange={setTab} />
+      {tab === 'tokens' ? (
+        <MobileTokenList data={data} chain={chain} address={address} onReceive={onReceive} />
+      ) : tab === 'nft' ? (
+        isEvm ? <NftsPanel chain={chain} address={address} flat /> : <MobileEmptyState icon="nft" title="Aucun NFT" subtitle="Les NFT affichés ici concernent les réseaux EVM." />
+      ) : (
+        <HistoryPanel chain={chain} address={address} flat />
+      )}
+    </View>
+  );
+}
+
+/** Ligne d'actif à plat (avatar 36, symbole + nom, montant + valeur fiat). */
+function MobileAssetRow({ avatar, title, subtitle, amount, value, divider, onPress }: { avatar: React.ReactNode; title: string; subtitle: string; amount: string; value?: string; divider: boolean; onPress?: () => void }) {
+  const P = useWebPalette();
+  return (
+    <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: divider ? 1 : 0, borderTopColor: P.divider, opacity: pressed ? 0.7 : 1 })}>
+      {avatar}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '600', fontSize: 14, color: P.text }} numberOfLines={1}>{title}</Text>
+        <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted }} numberOfLines={1}>{subtitle}</Text>
+      </View>
+      <View style={{ alignItems: 'flex-end', gap: 2 }}>
+        <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 14, color: P.text, fontVariant: ['tabular-nums'] }} numberOfLines={1}>{amount}</Text>
+        {value ? <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted }} numberOfLines={1}>{value}</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
+
+/** Actif natif en première ligne (données déjà chargées par useHeroData —
+ *  aucun appel réseau en plus), puis les tokens ERC-20 vérifiés. */
+function MobileTokenList({ data, chain, address, onReceive }: { data: HeroData; chain: ChainConfig; address: string; onReceive: () => void }) {
+  const fiat = useSettings((s) => s.fiat);
+  const rev = useWebConnect((s) => s.rev);
+  const isEvm = chain.family === 'evm';
+  const { bal, price } = data;
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const { data: erc, loading } = useAsync<{ tokens: Erc20Token[]; prices: Record<string, number> }>(async () => {
+    if (!isEvm) return { tokens: [], prices: {} };
+    const tokens = await getErc20Tokens(chain, address);
+    const prices = chain.coingeckoPlatform && tokens.length ? await getTokenPrices(chain.coingeckoPlatform, tokens.map((tk) => tk.contract), fiat) : {};
+    return { tokens, prices };
+  }, [chain.id, address, fiat, rev, isEvm]);
+
+  const nativeAmount = bal ? Number(bal.raw) / 10 ** bal.decimals : 0;
+  const hasNative = bal != null && bal.raw !== 0n;
+  const prices = erc?.prices ?? {};
+  const rows = (erc?.tokens ?? [])
+    .map((tk) => ({ tk, value: (Number(tk.raw) / 10 ** tk.decimals) * (prices[tk.contract.toLowerCase()] ?? 0) }))
+    .filter(({ tk, value }) => tk.logo || value > 0)
+    .sort((a, b) => b.value - a.value);
+
+  if (bal == null && loading) return <SkeletonRows flat count={3} />;
+  if (!hasNative && rows.length === 0) {
+    return (
+      <MobileEmptyState
+        icon="wallet"
+        title="Aucun token pour l'instant"
+        subtitle={`Les tokens détectés sur ${chain.name} s'affichent automatiquement ici dès leur réception.`}
+        action={{ label: 'Recevoir des fonds', onPress: onReceive }}
+      />
+    );
+  }
+  const sym = fiatSymbol(fiat);
+  return (
+    <View>
+      {hasNative ? (
+        <MobileAssetRow
+          avatar={<ChainAvatar chain={chain} size={36} />}
+          title={chain.nativeSymbol}
+          subtitle={chain.name}
+          amount={`${formatTokenAmount(bal!.raw, bal!.decimals)} ${chain.nativeSymbol}`}
+          value={price ? formatFiatAmount(nativeAmount * price, fiat) : undefined}
+          divider={false}
+        />
+      ) : null}
+      {rows.map(({ tk, value }, i) => (
+        <TokenRow
+          key={tk.contract}
+          token={tk}
+          value={value}
+          sym={sym}
+          chain={chain}
+          divider={hasNative || i > 0}
+          expanded={expanded === tk.contract}
+          onToggle={() => setExpanded((cur) => (cur === tk.contract ? null : tk.contract))}
+        />
+      ))}
+      {loading ? <View style={{ paddingTop: 12 }}><Skeleton h={12} w={140} /></View> : null}
+    </View>
+  );
+}
 
 /** Donut de répartition du portefeuille par réseau (natif + tokens). */
 function AllocationPanel({ worth }: { worth: { data: NetWorth | null } }) {
@@ -1630,17 +1847,20 @@ function TokenRow({
   );
 }
 
-function NftsPanel({ chain, address }: { chain: ChainConfig; address: string }) {
+function NftsPanel({ chain, address, flat }: { chain: ChainConfig; address: string; flat?: boolean }) {
   const t = useT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const { data, loading } = useAsync<NftItem[]>(() => getNfts(chain, address), [chain.id, address, rev]);
   if (loading) return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
-      {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} w={160} h={196} r={radii.md} />)}
+      {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} w="47%" h={196} r={radii.md} />)}
     </View>
   );
-  if (!data || data.length === 0) return <EmptyState icon="nft" title="Aucun NFT" subtitle="Les NFT de ce réseau apparaîtront ici dès qu'ils seront détectés." />;
+  if (!data || data.length === 0) {
+    const empty = { title: 'Aucun NFT', subtitle: `Les NFT détectés sur ${chain.name} apparaîtront ici automatiquement.` };
+    return flat ? <MobileEmptyState icon="nft" {...empty} /> : <EmptyState icon="nft" {...empty} />;
+  }
   const isRawAddress = (s: string) => /^0x[a-fA-F0-9]{20,}$/.test(s || '');
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
@@ -1671,18 +1891,22 @@ function toneColor(tone: HumanTx['tone'], colors: ReturnType<typeof useTheme>['c
 /** Historique humanisé (humanizeTx, partagé avec l'app) : « Interaction avec
  *  X » pour les appels de contrat au lieu d'un montant « +0 SOL » trompeur,
  *  et les transferts entrants à 0 (poussière/airdrop spam) sont masqués. */
-function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string }) {
+function HistoryPanel({ chain, address, flat }: { chain: ChainConfig; address: string; flat?: boolean }) {
   const t = useT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address, rev]);
-  if (loading) return <SkeletonRows count={5} />;
+  if (loading) return <SkeletonRows count={5} flat={flat} />;
   const rows = (data ?? [])
     .map((tx) => ({ tx, h: humanizeTx(tx, { nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals }) }))
     .filter(({ h }) => !h.spam);
-  if (!rows.length) return <EmptyState icon="history" title="Aucune activité" subtitle="Tes transactions récentes s'afficheront ici." />;
+  if (!rows.length) {
+    const empty = { title: 'Aucune activité', subtitle: 'Tes transactions récentes s\'afficheront ici.' };
+    return flat ? <MobileEmptyState icon="history" {...empty} /> : <EmptyState icon="history" {...empty} />;
+  }
+  const Wrap = flat ? View : Card;
   return (
-    <Card>
+    <Wrap>
       {rows.slice(0, 30).map(({ tx, h }, i) => (
         <Pressable
           key={tx.hash}
@@ -1699,7 +1923,7 @@ function HistoryPanel({ chain, address }: { chain: ChainConfig; address: string 
           {h.amount ? <Text style={{ color: toneColor(h.tone, colors), fontFamily: fonts.semibold }} numberOfLines={1}>{h.amount}</Text> : null}
         </Pressable>
       ))}
-    </Card>
+    </Wrap>
   );
 }
 
