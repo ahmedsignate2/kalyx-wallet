@@ -213,12 +213,14 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
   };
 
   return (
-    // dvh (dynamic viewport height) plutôt que vh : sur mobile web, vh ne
-    // rétrécit pas quand le clavier virtuel s'ouvre — le clavier écrasait la
-    // zone de chat et le bandeau "Enregistrer le mot de passe" de Chrome
-    // s'affichait par-dessus. dvh s'adapte automatiquement.
-    <View style={{ height: 560, maxHeight: '80dvh' as unknown as number }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing(1) }}>
+    // flex:1 plutôt qu'une hauteur fixe/vh : le parent (WebDashboard, onglet
+    // Agent) est maintenant un vrai conteneur flex NON scrollable dimensionné
+    // exactement à l'espace dispo entre l'en-tête et la barre d'onglets — un
+    // View flex:1 s'y cale correctement, contrairement à l'intérieur d'un
+    // ScrollView où flex:1/vh ne représentent rien de fiable (c'était la
+    // vraie cause de la barre de saisie poussée sous la nav du bas).
+    <View style={{ flex: 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing(0.75) }}>
         <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: radii.pill, backgroundColor: GOLD + '1A', borderWidth: 1, borderColor: GOLD + '33' }}>
           <Text style={{ color: GOLD, fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.5 }}>{`BETA · BYOK · ${provider.toUpperCase()}`}</Text>
         </View>
@@ -229,12 +231,12 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
 
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: spacing(1.5), gap: spacing(1) }}>
         {messages.length === 0 ? (
-          <View style={{ flex: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing(1) }}>
-            <View style={{ width: 60, height: 60, borderRadius: radii.lg, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center', marginBottom: spacing(1.5) }}>
-              <Icon name="sparkles" size={26} color={GOLD} />
+          <View style={{ alignItems: 'center', paddingHorizontal: spacing(1), paddingTop: spacing(0.5) }}>
+            <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center', marginBottom: spacing(1) }}>
+              <Icon name="sparkles" size={22} color={GOLD} />
             </View>
-            <Text style={{ color: colors.text, fontSize: 18, fontFamily: fonts.bold, marginBottom: 4 }}>Kalyx Intelligence</Text>
-            <Text style={[typography.muted, { textAlign: 'center', maxWidth: 280, marginBottom: spacing(2) }]}>
+            <Text style={{ color: colors.text, fontSize: 17, fontFamily: fonts.bold, marginBottom: 3 }}>Kalyx Intelligence</Text>
+            <Text style={[typography.muted, { textAlign: 'center', maxWidth: 280, marginBottom: spacing(1.25), fontSize: 13 }]}>
               Analyse tes actifs et repère les tendances on-chain, à partir de ce qui est connecté ici.
             </Text>
             <View style={{ width: '100%', gap: spacing(0.75) }}>
@@ -295,5 +297,13 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
 
 export function AgentPanel({ chain, address, worth }: { chain: ChainConfig; address: string; worth: { data: { total: number; slices: { chain: ChainConfig; address: string; native: number; tokens: number; value: number; price: number; change24h: number }[] } | null } }) {
   const isEnabled = useAiStore((s) => s.isEnabled);
-  return isEnabled ? <AgentChat chain={chain} address={address} worth={worth} /> : <AgentSetup />;
+  if (isEnabled) return <AgentChat chain={chain} address={address} worth={worth} />;
+  // AgentChat gère son propre scroll interne et attend un parent flex:1 non
+  // scrollable ; AgentSetup (formulaire, pas de scroll interne) a besoin
+  // l'inverse — d'un ScrollView pour ne jamais déborder sur un petit écran.
+  return (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
+      <AgentSetup />
+    </ScrollView>
+  );
 }
