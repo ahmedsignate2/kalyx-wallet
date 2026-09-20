@@ -1,6 +1,6 @@
 
 import type { AiProvider } from './aiStore';
-import { buildAiRequestParams, mapAiErrorToMessage } from './aiConfig';
+import { buildAiRequestParams, mapAiErrorToMessage, extractProviderErrorDetail } from './aiConfig';
 
 export interface ValidationResult { success: boolean; error?: string; }
 
@@ -29,9 +29,15 @@ export async function validateAiKey(
     const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
 
     if (!res.ok) {
-      const errBody = await res.text().catch(() => '');
-      console.error('[AI Validator] Échec de la validation. HTTP', res.status, 'Body:', errBody);
-      return { success: false, error: mapAiErrorToMessage(res.status) };
+      const errText = await res.text().catch(() => '');
+      console.error('[AI Validator] Échec de la validation. HTTP', res.status, 'Body:', errText);
+      let detail: string | undefined;
+      try {
+        detail = extractProviderErrorDetail(JSON.parse(errText));
+      } catch {
+        /* corps non-JSON (page d'erreur HTML, etc.) : pas de détail à afficher */
+      }
+      return { success: false, error: mapAiErrorToMessage(res.status, detail) };
     }
 
     console.log('[AI Validator] Test ping réussi avec succès (200 OK)');
