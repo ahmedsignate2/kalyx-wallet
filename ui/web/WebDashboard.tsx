@@ -5,7 +5,7 @@
  * sensible à l'app qui signe. Layout desktop responsive (sidebar + contenu).
  */
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, RefreshControl, Image, TextInput, useWindowDimensions, ActivityIndicator, Animated, Easing, Linking } from 'react-native';
+import { View, Text, Pressable, ScrollView, RefreshControl, Image, TextInput, useWindowDimensions, Animated, Easing, Linking } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import Svg, { Rect, Defs, LinearGradient as SvgGradient, RadialGradient, Stop } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
@@ -13,6 +13,7 @@ import { KalyxLogo } from '../KalyxLogo';
 import { AuroraBackground } from '../AuroraBackground';
 import { InteractiveChart } from '../InteractiveChart';
 import { useTelegramBiometric } from './telegramBiometric';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAsync } from './useAsync';
 import { AgentPanel, AgentSetup, PROVIDER_LABELS } from './AgentPanel';
 import { MarketPanel } from './MarketPanel';
@@ -21,7 +22,7 @@ import { useWebT } from './webI18n';
 import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useIdle, useTabHidden, tgHaptic } from './platform';
 import { toRaw, encodeErc20Transfer } from './evmEncode';
 import { useTokenLogo } from './tokenLogos';
-import { FadeInUp, CrossFade, useCountUp, Breathing } from './motion';
+import { FadeInUp, CrossFade, useCountUp, Pop, KalyxSpinner, KalyxSuccessPulse } from './motion';
 import { Text as KText, Button, Sheet, Surface, ListRow, Divider } from '../kit';
 import { ReceiveScreen } from './ReceiveScreen';
 import { SendFlow } from './SendFlow';
@@ -225,9 +226,11 @@ function SigningModal() {
       <View style={{ width: '100%', maxWidth: 380, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, padding: spacing(3), alignItems: 'center', gap: spacing(1.25) }}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: accent + '22', alignItems: 'center', justifyContent: 'center' }}>
           {phase === 'await' ? (
-            <ActivityIndicator color={accent} />
+            <KalyxSpinner size={30} />
+          ) : phase === 'ok' ? (
+            <KalyxSuccessPulse size={56} ringColor={accent} />
           ) : (
-            <Icon name={phase === 'ok' ? 'check' : 'warning'} size={28} color={accent} />
+            <Icon name="warning" size={28} color={accent} />
           )}
         </View>
         <Text style={{ color: colors.text, fontSize: 19, fontFamily: fonts.bold, textAlign: 'center' }}>
@@ -324,7 +327,7 @@ function ConnectView() {
               transform: [{ scale: pressed ? 0.96 : 1 }],
             })}
           >
-            {status === 'connecting' ? <ActivityIndicator color={colors.onPrimary} /> : <Icon name="walletconnect" size={20} color={colors.onPrimary} />}
+            {status === 'connecting' ? <KalyxSpinner size={20} /> : <Icon name="walletconnect" size={20} color={colors.onPrimary} />}
             <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: 16 }}>
               {status === 'connecting' ? t('connecting') : tw('connectKalyx')}
             </Text>
@@ -569,6 +572,7 @@ function Dashboard() {
   // seule page ; Envoyer/Recevoir/Swap deviennent des feuilles plein écran
   // ouvertes depuis les actions rapides de l'Accueil.
   const narrow = !wide && !mid;
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<MobileTab>('home');
   const [sheet, setSheet] = useState<ActionSheetKind | null>(null);
   const [networkSheet, setNetworkSheet] = useState(false);
@@ -642,7 +646,7 @@ function Dashboard() {
     // Mobile (maquette) : avatar-logo 36 px + « Kalyx / Portefeuille sécurisé »
     // à gauche, rafraîchir à droite ; la pilule réseau a sa propre ligne.
     <>
-      <MobileHeader onRefresh={refresh} subtitle={tw('securedWallet')} />
+      <MobileHeader onRefresh={onPullRefresh} refreshing={refreshing} subtitle={tw('securedWallet')} />
       <NetworkPill avatar={<ChainAvatar chain={chain} size={14} />} name={chain.name} onPress={() => setNetworkSheet(true)} />
     </>
   ) : (
@@ -665,7 +669,10 @@ function Dashboard() {
   const isAgentTab = narrow && tab === 'agent';
 
   const scrollContent = isAgentTab ? (
-    <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 22, paddingBottom: DOCK_CLEARANCE - 20, gap: spacing(1.5) }}>
+    // Zone de saisie + dock : le dock est ancré à 18 px du bas et mesure ~70 px ;
+    // on réserve DOCK_CLEARANCE (110) + la zone de gestes du téléphone pour
+    // garder ≥ 20 px d'air entre la barre de saisie et le dock.
+    <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 22, paddingBottom: DOCK_CLEARANCE + insets.bottom, gap: 20 }}>
       {headerRow}
       <View style={{ flex: 1 }}>
         <AgentPanel chain={chain} address={address} worth={worth} />
@@ -731,19 +738,17 @@ function Dashboard() {
             {tab === 'home' ? (
               /* Accueil maquette : un seul flux continu (pas de cartes
                * empilées) — solde avec halo → période + tendance → 3 actions
-               * → onglets Tokens / NFT / Activité. Entrée en cascade. */
+               * → onglets Tokens / NFT / Activité. */
               <>
-                <FadeInUp delay={0}><MobileHero data={heroData} chain={chain} address={address} /></FadeInUp>
-                <FadeInUp delay={80}><MobileTrend data={heroData} chain={chain} /></FadeInUp>
-                <FadeInUp delay={160}>
-                  <ActionRow
-                    onReceive={() => openSheet('receive')}
-                    onSend={() => openSheet('send')}
-                    onSwap={() => openSheet('swap')}
-                    labels={{ receive: t("receive"), send: t("send"), swap: t("swapAction") }}
-                  />
-                </FadeInUp>
-                <FadeInUp delay={240}><MobileAssets data={heroData} chain={chain} address={address} onReceive={() => openSheet('receive')} /></FadeInUp>
+                <MobileHero data={heroData} chain={chain} address={address} />
+                <MobileTrend data={heroData} chain={chain} />
+                <ActionRow
+                  onReceive={() => openSheet('receive')}
+                  onSend={() => openSheet('send')}
+                  onSwap={() => openSheet('swap')}
+                  labels={{ receive: t("receive"), send: t("send"), swap: t("swapAction") }}
+                />
+                <MobileAssets data={heroData} chain={chain} address={address} onReceive={() => openSheet('receive')} />
               </>
             ) : tab === 'market' ? (
               marketBlock
@@ -1222,7 +1227,7 @@ function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConf
   const changeColor = todayUp ? P.up : P.down;
   return (
     <View style={{ position: 'relative', paddingTop: 6 }}>
-      <Breathing style={{ position: 'absolute', width: 220, height: 220, left: '50%', top: -50, marginLeft: -110 }}>
+      <View pointerEvents="none" style={{ position: 'absolute', width: 220, height: 220, left: '50%', top: -50, marginLeft: -110 }}>
         <Svg width={220} height={220} viewBox="0 0 220 220" pointerEvents="none">
           <Defs>
             <RadialGradient id="mobileHeroGlow" cx="50%" cy="50%" r="50%">
@@ -1233,7 +1238,7 @@ function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConf
           </Defs>
           <Rect x="0" y="0" width="220" height="220" fill="url(#mobileHeroGlow)" />
         </Svg>
-      </Breathing>
+      </View>
       <View style={{ gap: 8, alignItems: 'flex-start' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.muted }}>{t('totalValue')}</Text>
@@ -1264,7 +1269,7 @@ function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConf
             <View style={{ flexDirection: 'row' }}>
               <Pressable onPress={copyAddress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 10, opacity: pressed ? 0.7 : 1 })}>
                 <Text style={{ fontFamily: WEB_FONTS.mono, fontSize: 12, color: P.muted }}>{short(address)}</Text>
-                <Icon name={copied ? 'check' : 'copy'} size={14} color={copied ? P.up : P.muted} />
+                <Pop trigger={copied}><Icon name={copied ? 'check' : 'copy'} size={14} color={copied ? P.up : P.muted} /></Pop>
               </Pressable>
             </View>
           ) : null}
@@ -1426,7 +1431,7 @@ function MobileTokenList({ data, chain, address, onReceive }: { data: HeroData; 
         />
       ) : null}
       {rows.map(({ tk, value }, i) => (
-        <FadeInUp key={tk.contract} delay={Math.min(i + 1, 8) * 45} distance={8}>
+        <View key={tk.contract}>
           <TokenRow
             token={tk}
             value={value}
@@ -1436,7 +1441,7 @@ function MobileTokenList({ data, chain, address, onReceive }: { data: HeroData; 
             expanded={expanded === tk.contract}
             onToggle={() => setExpanded((cur) => (cur === tk.contract ? null : tk.contract))}
           />
-        </FadeInUp>
+        </View>
       ))}
       {loading ? <View style={{ paddingTop: 12 }}><Skeleton h={12} w={140} /></View> : null}
     </View>
@@ -1708,6 +1713,23 @@ function SettingsPanel() {
           <Text style={[typography.bodyStrong, { fontSize: 13 }]}>{platform === 'telegram' ? tw('telegramModeOn') : tw('webModeBody')}</Text>
         </View>
       </View>
+      {divider}
+
+      {/* Textes légaux : mêmes pages que le site vitrine, dans la langue active. */}
+      <Text style={{ color: colors.textFaint, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', paddingTop: spacing(1.25), paddingBottom: spacing(0.5) }}>{tw('legalSection')}</Text>
+      {([['terms', tw('termsOfUse'), 'phrase'], ['privacy', tw('privacyPolicy'), 'security'], ['mentions', tw('legalNotice'), 'about']] as const).map(([slug, label, icon]) => (
+        <Pressable
+          key={slug}
+          onPress={() => { const w = (globalThis as { open?: (u: string, target?: string, features?: string) => unknown }).open; w?.(`https://kalyxwallet.com/${language}/${slug}/`, '_blank', 'noopener,noreferrer'); }}
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(0.85), opacity: pressed ? 0.6 : 1 })}
+        >
+          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={icon} size={17} color={colors.textMuted} />
+          </View>
+          <Text style={[typography.bodyStrong, { flex: 1, fontSize: 14 }]}>{label}</Text>
+          <Icon name="forward" size={14} color={colors.textFaint} />
+        </Pressable>
+      ))}
     </Card>
   );
 }
@@ -1766,7 +1788,7 @@ function CopyAddress({ address }: { address: string }) {
   return (
     <Pressable onPress={copy} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(1.25), alignSelf: 'flex-start' }}>
       <Text style={[typography.muted, { fontVariant: ['tabular-nums'] }]} numberOfLines={1}>{address}</Text>
-      <Icon name={copied ? 'check' : 'copy'} size={14} color={copied ? colors.up : colors.textMuted} />
+      <Pop trigger={copied}><Icon name={copied ? 'check' : 'copy'} size={14} color={copied ? colors.up : colors.textMuted} /></Pop>
       {copied ? <Text style={{ color: colors.up, fontSize: 12, fontFamily: fonts.semibold }}>{t('copied')}</Text> : null}
     </Pressable>
   );
@@ -2130,7 +2152,7 @@ function HistoryPanel({ chain, address, flat }: { chain: ChainConfig; address: s
           <View key={g.label}>
             <Text style={{ color: colors.textFaint, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', paddingTop: gi > 0 ? spacing(1.5) : 0, paddingBottom: spacing(0.5) }}>{g.label}</Text>
             {g.items.map(({ tx, h }, i) => (
-              <FadeInUp key={tx.hash} delay={Math.min(i, 8) * 40} distance={8}>
+              <View key={tx.hash}>
                 <Pressable
                   onPress={() => setDetail({ tx, h })}
                   style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}
@@ -2147,7 +2169,7 @@ function HistoryPanel({ chain, address, flat }: { chain: ChainConfig; address: s
                     {h.fiat ? <Text style={[typography.muted, { fontSize: 12 }]} numberOfLines={1}>{h.fiat}</Text> : null}
                   </View>
                 </Pressable>
-              </FadeInUp>
+              </View>
             ))}
           </View>
         ))}

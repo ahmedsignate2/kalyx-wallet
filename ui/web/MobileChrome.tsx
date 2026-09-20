@@ -4,15 +4,16 @@
  * présentationnels, pilotés par props, aux valeurs exactes de la maquette
  * validée (cf. webTheme.ts). Aucune donnée réseau ici.
  */
-import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, Animated } from 'react-native';
+import { KalyxSpinner } from './motion';
 import { KalyxLogo } from '../KalyxLogo';
 import { Icon, type IconName } from '../icon';
 import { WEB_FONTS, useWebPalette } from './webTheme';
 
 /* ------------------------------------------------------------------ En-tête */
 
-export function MobileHeader({ onRefresh, subtitle }: { onRefresh: () => void; subtitle: string }) {
+export function MobileHeader({ onRefresh, subtitle, refreshing }: { onRefresh: () => void; subtitle: string; refreshing?: boolean }) {
   const P = useWebPalette();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -26,8 +27,8 @@ export function MobileHeader({ onRefresh, subtitle }: { onRefresh: () => void; s
           <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 11, color: P.muted, lineHeight: 13 }}>{subtitle}</Text>
         </View>
       </View>
-      <Pressable onPress={onRefresh} hitSlop={6} style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
-        <Icon name="refresh" size={18} color={P.muted} />
+      <Pressable onPress={onRefresh} disabled={refreshing} hitSlop={6} style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
+        {refreshing ? <KalyxSpinner size={18} /> : <Icon name="refresh" size={18} color={P.muted} />}
       </Pressable>
     </View>
   );
@@ -99,16 +100,41 @@ export function PeriodChips<T extends string>({ options, value, onChange }: { op
 
 export function SegmentTabs<T extends string>({ tabs, value, onChange }: { tabs: { k: T; l: string }[]; value: T; onChange: (k: T) => void }) {
   const P = useWebPalette();
+  // Soulignement qui GLISSE vers l'onglet actif (translateX + largeur animés)
+  // au lieu de sauter — mesure de chaque onglet au layout.
+  const [layouts, setLayouts] = useState<Record<string, { x: number; w: number }>>({});
+  const x = useRef(new Animated.Value(0)).current;
+  const w = useRef(new Animated.Value(0)).current;
+  const placed = useRef(false);
+  useEffect(() => {
+    const l = layouts[value];
+    if (!l) return;
+    if (!placed.current) { x.setValue(l.x); w.setValue(l.w); placed.current = true; return; }
+    Animated.parallel([
+      Animated.spring(x, { toValue: l.x, speed: 22, bounciness: 4, useNativeDriver: false }),
+      Animated.spring(w, { toValue: l.w, speed: 22, bounciness: 4, useNativeDriver: false }),
+    ]).start();
+  }, [layouts, value, x, w]);
   return (
-    <View style={{ flexDirection: 'row', gap: 22, borderBottomWidth: 1, borderBottomColor: P.divider }}>
-      {tabs.map((tb) => {
-        const on = tb.k === value;
-        return (
-          <Pressable key={tb.k} onPress={() => onChange(tb.k)} style={{ paddingBottom: 10, marginBottom: -1, borderBottomWidth: 2, borderBottomColor: on ? P.accent : 'transparent' }}>
-            <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: on ? '600' : '500', fontSize: 14, color: on ? P.text : P.muted }}>{tb.l}</Text>
-          </Pressable>
-        );
-      })}
+    <View style={{ borderBottomWidth: 1, borderBottomColor: P.divider }}>
+      <View style={{ flexDirection: 'row', gap: 22 }}>
+        {tabs.map((tb) => {
+          const on = tb.k === value;
+          return (
+            <Pressable
+              key={tb.k}
+              onPress={() => onChange(tb.k)}
+              onLayout={(e) => { const { x: lx, width } = e.nativeEvent.layout; setLayouts((cur) => (cur[tb.k]?.x === lx && cur[tb.k]?.w === width ? cur : { ...cur, [tb.k]: { x: lx, w: width } })); }}
+              style={{ paddingBottom: 10 }}
+            >
+              <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: on ? '600' : '500', fontSize: 14, color: on ? P.text : P.muted }}>{tb.l}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {placed.current || layouts[value] ? (
+        <Animated.View pointerEvents="none" style={{ position: 'absolute', bottom: -1, left: 0, height: 2, backgroundColor: P.accent, width: w, transform: [{ translateX: x }] }} />
+      ) : null}
     </View>
   );
 }

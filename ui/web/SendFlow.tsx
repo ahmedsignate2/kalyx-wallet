@@ -19,7 +19,7 @@
  * Les frais réseau affichés sont une estimation — c'est le téléphone qui les fixe.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, Pressable as RNPressable, Image, ActivityIndicator, TextInput } from 'react-native';
+import { View, ScrollView, Pressable as RNPressable, Image, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { base64 } from '@scure/base';
 import { Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, type TxStage } from '../kit';
@@ -44,6 +44,7 @@ import { buildSplTransferMessage } from '../../src/domain/chains/solSpl';
 import { AntiDrainerBanner } from '../../src/components/security/AntiDrainerBanner';
 import { encodeErc20Transfer, hexQuantity } from './evmEncode';
 import { useWebT } from './webI18n';
+import { KalyxSpinner } from './motion';
 import { addressForChain, chainOf, useWebPortfolioAccount } from './webAccounts';
 
 type Step = 0 | 1 | 2 | 3 | 4;
@@ -519,7 +520,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
                 </>
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-                  <ActivityIndicator color={colors.text} />
+                  <KalyxSpinner size={24} />
                   <Text variant="bodySecondary" tone="secondary" style={{ flex: 1 }}>
                     {family === 'solana' ? tw('awaitSolana') : tw('awaitPhoneSign')}
                   </Text>
