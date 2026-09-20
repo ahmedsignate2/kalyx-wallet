@@ -17,6 +17,9 @@ import { useAsync } from './useAsync';
 import { AgentPanel } from './AgentPanel';
 import { MarketPanel } from './MarketPanel';
 import { WEB_FONTS, useWebFonts, useWebPalette } from './webTheme';
+import { toRaw, toWei, encodeErc20Transfer, encodeErc20Approve } from './evmEncode';
+import { ReceiveScreen } from './ReceiveScreen';
+import { SendFlow } from './SendFlow';
 import { MobileHeader, NetworkPill, ActionRow, PeriodChips, SegmentTabs, MobileEmptyState, FloatingDock, DOCK_CLEARANCE } from './MobileChrome';
 import { useAiStore } from '../../lib/aiStore';
 import { AllocationDonut, foldSlices } from '../AllocationDonut';
@@ -26,6 +29,7 @@ import { useWebConnect } from '../../lib/webConnect';
 import { toast } from '../../lib/toast';
 import { useSettings, useT, fiatSymbol, FIATS } from '../../lib/settingsStore';
 import { useContacts } from '../../lib/contactsStore';
+import { useRecentRecipients } from '../../lib/recentRecipientsStore';
 import { LANGUAGES } from '../../lib/i18n';
 import {
   getAdapter,
@@ -123,31 +127,6 @@ function ago(ts: number): string {
   return new Date(ts * 1000).toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
 }
 
-/** Montant décimal (ex. « 0.5 ») → unité brute (10^decimals), en BigInt, sans perte de précision. */
-function toRaw(dec: string, decimals: number): bigint {
-  const [int, frac = ''] = dec.split('.');
-  const fracPadded = (frac + '0'.repeat(decimals)).slice(0, decimals);
-  return BigInt(int || '0') * 10n ** BigInt(decimals) + BigInt(fracPadded || '0');
-}
-function toWei(dec: string): bigint {
-  return toRaw(dec, 18);
-}
-
-/** Encode un appel ERC-20 `transfer(address,uint256)` (sélecteur 0xa9059cbb). */
-function encodeErc20Transfer(to: string, raw: bigint): string {
-  const addr = to.trim().toLowerCase().replace(/^0x/, '').padStart(64, '0');
-  const amount = raw.toString(16).padStart(64, '0');
-  return `0xa9059cbb${addr}${amount}`;
-}
-
-/** Encode un appel ERC-20 `approve(address,uint256)` (sélecteur 0x095ea7b3) —
- *  nécessaire avant un swap qui part d'un token (jamais du natif). */
-function encodeErc20Approve(spender: string, raw: bigint): string {
-  const addr = spender.trim().toLowerCase().replace(/^0x/, '').padStart(64, '0');
-  const amount = raw.toString(16).padStart(64, '0');
-  return `0x095ea7b3${addr}${amount}`;
-}
-
 /** Config d'une chaîne Kalyx par son id (repli Ethereum). */
 function chainById(id: string | null): ChainConfig {
   const all = listChains();
@@ -160,6 +139,9 @@ export function WebDashboard() {
   const status = useWebConnect((s) => s.status);
   const init = useWebConnect((s) => s.init);
   const loadAiState = useAiStore((s) => s.loadInitialState);
+  const loadSettings = useSettings((s) => s.load);
+  const loadContacts = useContacts((s) => s.load);
+  const loadRecents = useRecentRecipients((s) => s.load);
   const { width } = useWindowDimensions();
   const narrow = width < 760;
   const P = useWebPalette();
@@ -168,12 +150,16 @@ export function WebDashboard() {
   useEffect(() => {
     init();
     // app/_layout.tsx saute tout le bootstrap natif sur web (pas de coffre
-    // local ici) — mais l'état IA (clé BYOK persistée) doit quand même être
-    // rechargé, sinon l'onglet Agent oublie la clé à chaque rafraîchissement.
+    // local ici) — mais les préférences (devise, langue, thème), les contacts,
+    // les destinataires récents et l'état IA (clé BYOK) sont persistés en kv et
+    // doivent être rechargés, sinon tout est oublié à chaque rafraîchissement.
+    loadSettings();
+    loadContacts();
+    loadRecents();
     loadAiState();
     const doc = (globalThis as { document?: { title: string } }).document;
     if (doc) doc.title = 'Kalyx · Tableau de bord';
-  }, [init, loadAiState]);
+  }, [init, loadAiState, loadSettings, loadContacts, loadRecents]);
 
   return (
     // Mobile : fond uni de la maquette (#0B0C0E), pas d'aurora — le halo
@@ -198,7 +184,7 @@ function SigningModal() {
   const { phase, label, detail } = pending;
   const accent = phase === 'ok' ? colors.up : phase === 'err' ? colors.danger : colors.accent;
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(4,6,12,0.72)', alignItems: 'center', justifyContent: 'center', padding: spacing(3) }}>
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, backgroundColor: 'rgba(4,6,12,0.72)', alignItems: 'center', justifyContent: 'center', padding: spacing(3) }}>
       <View style={{ width: '100%', maxWidth: 380, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, padding: spacing(3), alignItems: 'center', gap: spacing(1.25) }}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: accent + '22', alignItems: 'center', justifyContent: 'center' }}>
           {phase === 'await' ? (
@@ -677,16 +663,8 @@ function Dashboard() {
           labels={{ home: t("navHome"), market: t("navMarket"), agent: 'Agent', settings: t("settings") }}
         />
       ) : null}
-      {narrow && sheet === 'receive' ? (
-        <ActionSheet title={t("receive")} onClose={() => setSheet(null)}>
-          <AccountCard chain={chain} address={address} defaultQr />
-        </ActionSheet>
-      ) : null}
-      {narrow && sheet === 'send' ? (
-        <ActionSheet title={t("send")} onClose={() => setSheet(null)}>
-          {isEvm ? <SendPanel chain={chain} address={address} /> : <Note text="L'envoi n'est pas encore disponible sur ce réseau depuis le web." />}
-        </ActionSheet>
-      ) : null}
+      {narrow && sheet === 'receive' ? <ReceiveScreen chain={chain} onClose={() => setSheet(null)} /> : null}
+      {narrow && sheet === 'send' ? <SendFlow chain={chain} address={address} onClose={() => setSheet(null)} onReceive={() => setSheet('receive')} /> : null}
       {narrow && sheet === 'swap' ? (
         <ActionSheet title={t("swapAction")} onClose={() => setSheet(null)}>
           {isEvm ? <SwapPanel chain={chain} address={address} /> : <Note text="Le swap n'est disponible que sur les réseaux EVM." />}
