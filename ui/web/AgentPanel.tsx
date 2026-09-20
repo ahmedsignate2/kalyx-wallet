@@ -9,10 +9,10 @@
  * qui a un repli localStorage sur le web) — jamais envoyée à Kalyx.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, Linking, ActivityIndicator, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, Linking, Animated, Easing } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Text as KText, Button, Sheet, Surface, ListRow, Divider } from '../kit';
-import { FadeInUp, Breathing } from './motion';
+import { FadeInUp, KalyxSpinner, useTypewriter } from './motion';
 import { WEB_FONTS } from './webTheme';
 import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
@@ -179,7 +179,7 @@ export function AgentSetup() {
       {err ? <Text style={{ color: colors.danger, fontSize: 12, textAlign: 'center' }}>{err}</Text> : null}
 
       <Pressable onPress={onSave} disabled={busy || !key.trim()} style={({ pressed }) => ({ width: '100%', maxWidth: 340, marginTop: spacing(1), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.3), opacity: pressed || busy || !key.trim() ? 0.7 : 1 })}>
-        {busy ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{tw('saveAndEnable')}</Text>}
+        {busy ? <KalyxSpinner size={20} /> : <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{tw('saveAndEnable')}</Text>}
       </Pressable>
     </View>
   );
@@ -236,12 +236,14 @@ function TypingDots({ color }: { color: string }) {
   );
 }
 
-function MessageBubble({ m, onCopy }: { m: { id: string; sender: 'user' | 'assistant'; text: string }; onCopy: (t: string) => void }) {
+function MessageBubble({ m, onCopy, live, tight, first }: { m: { id: string; sender: 'user' | 'assistant'; text: string }; onCopy: (t: string) => void; live?: boolean; tight?: boolean; first?: boolean }) {
   const { colors } = useTheme();
   const tw = useWebT();
   const user = m.sender === 'user';
+  // Dernière réponse : révélée progressivement, comme une conversation.
+  const shown = useTypewriter(m.text, !!live && !user);
   return (
-    <FadeInUp distance={10} duration={320}>
+    <FadeInUp distance={10} duration={320} style={{ marginTop: first ? 0 : tight ? 8 : 16 }}>
       <View style={{ flexDirection: 'row', gap: 8, maxWidth: '88%', alignSelf: user ? 'flex-end' : 'flex-start' }}>
         {!user ? (
           <View style={{ width: 22, height: 22, borderRadius: radii.sm, backgroundColor: GOLD + '22', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
@@ -249,10 +251,10 @@ function MessageBubble({ m, onCopy }: { m: { id: string; sender: 'user' | 'assis
           </View>
         ) : null}
         <View style={{ flexShrink: 1 }}>
-          <View style={{ backgroundColor: user ? colors.accent : colors.text + '08', borderWidth: user ? 0 : 1, borderColor: colors.text + '12', borderRadius: radii.lg, padding: spacing(1.25) }}>
+          <View style={{ backgroundColor: user ? colors.accent : colors.text + '08', borderWidth: user ? 0 : 1, borderColor: colors.text + '12', borderRadius: radii.lg, paddingVertical: 12, paddingHorizontal: 16 }}>
             {user
               ? <Text style={{ color: colors.onPrimary, fontSize: 14, lineHeight: 20 }}>{m.text}</Text>
-              : <RichText text={m.text} color={colors.text} bold={fonts.bold} mono={WEB_FONTS.mono} />}
+              : <RichText text={shown} color={colors.text} bold={fonts.bold} mono={WEB_FONTS.mono} />}
           </View>
           {!user ? (
             <Pressable onPress={() => onCopy(m.text)} hitSlop={6} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 6, opacity: pressed ? 0.5 : 1 })}>
@@ -285,6 +287,7 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
   const [historyOpen, setHistoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const lastAnswerAt = useRef(0);
   const context = useWebCopilotContext(chain, address, worth);
 
   useEffect(() => {
@@ -309,6 +312,7 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     }
     const r = await askAi(transcript, buildWebSystem(language, ctx));
     setBusy(false);
+    lastAnswerAt.current = Date.now();
     addMessageToActive({ sender: 'assistant', text: 'text' in r ? r.text : `⚠ ${r.error}` });
   };
 
@@ -327,7 +331,7 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     // flex:1 : le parent (onglet Agent) est un conteneur flex non scrollable
     // dimensionné à l'espace disponible — le chat gère son propre scroll.
     <View style={{ flex: 1 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing(0.75) }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: radii.pill, backgroundColor: GOLD + '1A', borderWidth: 1, borderColor: GOLD + '33' }}>
           <Text style={{ color: GOLD, fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.5 }}>{`BETA · BYOK · ${provider.toUpperCase()}`}</Text>
         </View>
@@ -338,22 +342,22 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
         </View>
       </View>
 
-      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: spacing(1.5), gap: spacing(1) }}>
+      {/* Hiérarchie des espaces : 24 px entre le badge et la conversation, 16 px
+          entre deux auteurs, 8 px entre deux messages du même auteur (MessageBubble). */}
+      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 24, paddingBottom: 12 }}>
         {messages.length === 0 ? (
           <FadeInUp>
             <View style={{ alignItems: 'center', paddingHorizontal: spacing(1), paddingTop: spacing(0.5) }}>
-              <Breathing>
-                <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center', marginBottom: spacing(1) }}>
-                  <Icon name="sparkles" size={22} color={GOLD} />
-                </View>
-              </Breathing>
+              <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center', marginBottom: spacing(1) }}>
+                <Icon name="sparkles" size={22} color={GOLD} />
+              </View>
               <Text style={{ color: colors.text, fontSize: 17, fontFamily: fonts.bold, marginBottom: 3 }}>{tw('kalyxIntelligence')}</Text>
               <Text style={[typography.muted, { textAlign: 'center', maxWidth: 280, marginBottom: spacing(1.25), fontSize: 13 }]}>
                 {tw('kalyxIntelligenceBody')}
               </Text>
               <View style={{ width: '100%', gap: spacing(0.75) }}>
-                {SUGGESTIONS.map((s, i) => (
-                  <FadeInUp key={s.title} delay={120 + i * 70}>
+                {SUGGESTIONS.map((s) => (
+                  <View key={s.title}>
                     <Pressable onPress={() => send(tw(s.prompt))} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'flex-start', gap: spacing(1), padding: spacing(1.25), borderRadius: radii.lg, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: pressed ? GOLD + '55' : colors.text + '12', transform: [{ scale: pressed ? 0.98 : 1 }] })}>
                       <View style={{ width: 30, height: 30, borderRadius: radii.md, backgroundColor: s.color + '1A', alignItems: 'center', justifyContent: 'center' }}>
                         <Icon name={s.icon} size={15} color={s.color} />
@@ -364,16 +368,25 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
                       </View>
                       <Icon name="chevron" size={14} color={colors.textFaint} />
                     </Pressable>
-                  </FadeInUp>
+                  </View>
                 ))}
               </View>
             </View>
           </FadeInUp>
         ) : (
-          messages.map((m) => <MessageBubble key={m.id} m={m} onCopy={copyAnswer} />)
+          messages.map((m, i) => (
+            <MessageBubble
+              key={m.id}
+              m={m}
+              onCopy={copyAnswer}
+              live={i === messages.length - 1 && m.sender === 'assistant' && Date.now() - lastAnswerAt.current < 4000}
+              tight={i > 0 && messages[i - 1].sender === m.sender}
+              first={i === 0}
+            />
+          ))
         )}
         {busy ? (
-          <FadeInUp distance={6} duration={200}>
+          <FadeInUp distance={6} duration={200} style={{ marginTop: 16 }}>
             <View style={{ flexDirection: 'row', gap: 8, alignSelf: 'flex-start', alignItems: 'center' }}>
               <View style={{ width: 22, height: 22, borderRadius: radii.sm, backgroundColor: GOLD + '22', alignItems: 'center', justifyContent: 'center' }}>
                 <Icon name="sparkles" size={11} color={GOLD} />
@@ -386,7 +399,7 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
         ) : null}
       </ScrollView>
 
-      <View style={{ paddingTop: spacing(1) }}>
+      <View style={{ paddingTop: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.pill }}>
           <TextInput
             value={input}

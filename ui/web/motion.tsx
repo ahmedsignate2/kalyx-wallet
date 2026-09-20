@@ -5,7 +5,8 @@
  * `prefers-reduced-motion` (durée 0).
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, View, type StyleProp, type ViewStyle } from 'react-native';
+import { KalyxLogo } from '../KalyxLogo';
 
 function reducedMotion(): boolean {
   try {
@@ -96,4 +97,79 @@ export function usePressScale() {
   const onPressIn = () => Animated.spring(v, { toValue: 0.97, useNativeDriver: false, speed: 40, bounciness: 0 }).start();
   const onPressOut = () => Animated.spring(v, { toValue: 1, useNativeDriver: false, speed: 20, bounciness: 8 }).start();
   return { style: { transform: [{ scale: v }] } as const, onPressIn, onPressOut };
+}
+
+/** Chargement : le logo Kalyx tourne lentement — remplace tout spinner générique. */
+export function KalyxSpinner({ size = 22, style }: { size?: number; style?: StyleProp<ViewStyle> }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reducedMotion()) return;
+    const loop = Animated.loop(Animated.timing(v, { toValue: 1, duration: 1400, easing: Easing.linear, useNativeDriver: false }));
+    loop.start();
+    return () => loop.stop();
+  }, [v]);
+  const rotate = v.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  return (
+    <Animated.View accessibilityRole="progressbar" style={[{ width: size, height: size, transform: [{ rotate }] }, style]}>
+      <KalyxLogo size={size} />
+    </Animated.View>
+  );
+}
+
+/** Le logo s'« allume » une fois (scale 1 → 1.18 → 1, anneau vert qui s'estompe) :
+ *  confirmation qu'une signature a été validée sur le téléphone. */
+export function KalyxSuccessPulse({ size = 56, ringColor }: { size?: number; ringColor: string }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reducedMotion()) { v.setValue(1); return; }
+    const anim = Animated.timing(v, { toValue: 1, duration: 700, easing: EASE_OUT, useNativeDriver: false });
+    anim.start();
+    return () => anim.stop();
+  }, [v]);
+  const scale = v.interpolate({ inputRange: [0, 0.45, 1], outputRange: [0.8, 1.18, 1] });
+  const ringScale = v.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.7] });
+  const ringOpacity = v.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.6, 0] });
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View pointerEvents="none" style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2, borderWidth: 2, borderColor: ringColor, opacity: ringOpacity, transform: [{ scale: ringScale }] }} />
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <KalyxLogo size={size * 0.72} />
+      </Animated.View>
+    </View>
+  );
+}
+
+/** Petit « pop » (scale 1 → 1.3 → 1, 220 ms) déclenché à chaque changement de `trigger`
+ *  — confirme un tap (ex. icône Copier qui devient une coche). */
+export function Pop({ trigger, children }: { trigger: unknown; children: React.ReactNode }) {
+  const v = useRef(new Animated.Value(1)).current;
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    if (reducedMotion()) return;
+    v.setValue(1);
+    Animated.sequence([
+      Animated.timing(v, { toValue: 1.3, duration: 110, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+      Animated.spring(v, { toValue: 1, speed: 30, bounciness: 10, useNativeDriver: false }),
+    ]).start();
+  }, [trigger, v]);
+  return <Animated.View style={{ transform: [{ scale: v }] }}>{children}</Animated.View>;
+}
+
+/** Texte révélé progressivement (≈ 40 caractères / 100 ms) — pour la réponse
+ *  de l'agent qui arrive, comme une conversation ; `active=false` → texte entier. */
+export function useTypewriter(text: string, active: boolean): string {
+  const [n, setN] = useState(active && !reducedMotion() ? 0 : text.length);
+  useEffect(() => {
+    if (!active || reducedMotion()) { setN(text.length); return; }
+    setN(0);
+    let i = 0;
+    const id = setInterval(() => {
+      i = Math.min(text.length, i + 4);
+      setN(i);
+      if (i >= text.length) clearInterval(id);
+    }, 12);
+    return () => clearInterval(id);
+  }, [text, active]);
+  return text.slice(0, n);
 }

@@ -14,7 +14,7 @@ import { Icon } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useT, useSettings, fiatSymbol } from '../../lib/settingsStore';
 import { useWebT } from './webI18n';
-import { FadeInUp, CrossFade } from './motion';
+import { CrossFade } from './motion';
 import { getMarkets, sortMarkets, searchCoins, formatFiat, type MarketCoin, type SearchCoin, type MarketOrder } from '../../src';
 
 /** Icône distante avec repli lettré (même principe que ChainAvatar, mais
@@ -134,8 +134,7 @@ export function MarketPanel() {
               rows.map((m, i) => {
                 const up = m.change24h >= 0;
                 return (
-                  <FadeInUp key={m.id} delay={Math.min(i, 10) * 35} distance={8}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), padding: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
+                  <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), padding: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
                     <CoinAvatar uri={m.image} label={m.symbol} size={34} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={typography.bodyStrong} numberOfLines={1}>{m.name}</Text>
@@ -151,7 +150,6 @@ export function MarketPanel() {
                       </Text>
                     </View>
                   </View>
-                  </FadeInUp>
                 );
               })
             )}

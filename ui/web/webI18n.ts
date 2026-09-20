@@ -12,6 +12,10 @@ import { useSettings } from '../../lib/settingsStore';
 import type { Lang } from '../../lib/i18n';
 
 const en = {
+  legalSection: 'About',
+  termsOfUse: 'Terms of use',
+  privacyPolicy: 'Privacy policy',
+  legalNotice: 'Legal notice',
   noAppYet: 'Don\'t have the Kalyx app yet?',
   installTitle: 'Why the phone app?',
   installWhy: 'Kalyx is non-custodial: your keys are created and stay on your phone, encrypted with your PIN. This website never sees them — it only shows your balances and forwards each signature to the phone, where you approve it. Without the app, there is nothing to connect.',
@@ -206,6 +210,10 @@ export type WebKey = keyof typeof en;
 type Dict = Record<WebKey, string>;
 
 const fr: Dict = {
+  legalSection: 'À propos',
+  termsOfUse: 'Conditions d\'utilisation',
+  privacyPolicy: 'Politique de confidentialité',
+  legalNotice: 'Mentions légales',
   noAppYet: 'Tu n\'as pas encore l\'app Kalyx ?',
   installTitle: 'Pourquoi l\'app sur le téléphone ?',
   installWhy: 'Kalyx est non-custodial : tes clés sont créées et restent sur ton téléphone, chiffrées avec ton PIN. Ce site ne les voit jamais — il affiche seulement tes soldes et transmet chaque signature au téléphone, où tu la valides. Sans l\'app, il n\'y a rien à connecter.',
@@ -386,6 +394,10 @@ const fr: Dict = {
 };
 
 const es: Dict = {
+  legalSection: 'Acerca de',
+  termsOfUse: 'Condiciones de uso',
+  privacyPolicy: 'Política de privacidad',
+  legalNotice: 'Aviso legal',
   noAppYet: '¿Aún no tienes la app Kalyx?',
   installTitle: '¿Por qué la app en el teléfono?',
   installWhy: 'Kalyx es no custodial: tus claves se crean y se quedan en tu teléfono, cifradas con tu PIN. Este sitio nunca las ve: solo muestra tus saldos y reenvía cada firma al teléfono, donde la apruebas. Sin la app no hay nada que conectar.',
@@ -566,6 +578,10 @@ const es: Dict = {
 };
 
 const pt: Dict = {
+  legalSection: 'Sobre',
+  termsOfUse: 'Termos de utilização',
+  privacyPolicy: 'Política de privacidade',
+  legalNotice: 'Menções legais',
   noAppYet: 'Ainda não tem a app Kalyx?',
   installTitle: 'Porquê a app no telemóvel?',
   installWhy: 'O Kalyx é non-custodial: as suas chaves são criadas e ficam no telemóvel, cifradas com o PIN. Este site nunca as vê — só mostra saldos e envia cada assinatura ao telemóvel, onde a aprova. Sem a app, não há nada a ligar.',
@@ -746,6 +762,10 @@ const pt: Dict = {
 };
 
 const de: Dict = {
+  legalSection: 'Über',
+  termsOfUse: 'Nutzungsbedingungen',
+  privacyPolicy: 'Datenschutzerklärung',
+  legalNotice: 'Impressum',
   noAppYet: 'Noch keine Kalyx-App?',
   installTitle: 'Warum die App auf dem Telefon?',
   installWhy: 'Kalyx ist non-custodial: Deine Schlüssel entstehen und bleiben auf deinem Telefon, mit deiner PIN verschlüsselt. Diese Seite sieht sie nie — sie zeigt nur Guthaben an und leitet jede Signatur ans Telefon weiter, wo du sie bestätigst. Ohne App gibt es nichts zu verbinden.',
@@ -926,6 +946,10 @@ const de: Dict = {
 };
 
 const it: Dict = {
+  legalSection: 'Informazioni',
+  termsOfUse: 'Condizioni d\'uso',
+  privacyPolicy: 'Informativa sulla privacy',
+  legalNotice: 'Note legali',
   noAppYet: 'Non hai ancora l’app Kalyx?',
   installTitle: 'Perché l’app sul telefono?',
   installWhy: 'Kalyx è non-custodial: le tue chiavi nascono e restano sul telefono, cifrate con il PIN. Questo sito non le vede mai — mostra solo i saldi e inoltra ogni firma al telefono, dove la approvi. Senza l’app non c’è nulla da collegare.',
@@ -1106,6 +1130,10 @@ const it: Dict = {
 };
 
 const nl: Dict = {
+  legalSection: 'Over',
+  termsOfUse: 'Gebruiksvoorwaarden',
+  privacyPolicy: 'Privacybeleid',
+  legalNotice: 'Juridische vermeldingen',
   noAppYet: 'Nog geen Kalyx-app?',
   installTitle: 'Waarom de app op je telefoon?',
   installWhy: 'Kalyx is non-custodial: je sleutels worden op je telefoon gemaakt en blijven daar, versleuteld met je pincode. Deze site ziet ze nooit — hij toont alleen saldi en stuurt elke handtekening door naar de telefoon, waar je ze goedkeurt. Zonder app is er niets te verbinden.',
@@ -1286,6 +1314,10 @@ const nl: Dict = {
 };
 
 const pl: Dict = {
+  legalSection: 'Informacje',
+  termsOfUse: 'Regulamin',
+  privacyPolicy: 'Polityka prywatności',
+  legalNotice: 'Nota prawna',
   noAppYet: 'Nie masz jeszcze aplikacji Kalyx?',
   installTitle: 'Dlaczego aplikacja na telefonie?',
   installWhy: 'Kalyx jest non-custodial: klucze powstają i zostają na telefonie, zaszyfrowane PIN-em. Ta strona nigdy ich nie widzi — pokazuje tylko salda i przekazuje każdy podpis do telefonu, gdzie go zatwierdzasz. Bez aplikacji nie ma czego połączyć.',
@@ -1466,6 +1498,10 @@ const pl: Dict = {
 };
 
 const tr: Dict = {
+  legalSection: 'Hakkında',
+  termsOfUse: 'Kullanım koşulları',
+  privacyPolicy: 'Gizlilik politikası',
+  legalNotice: 'Yasal bildirim',
   noAppYet: 'Henüz Kalyx uygulaman yok mu?',
   installTitle: 'Neden telefonda uygulama?',
   installWhy: 'Kalyx non-custodial: anahtarların telefonunda oluşturulur ve orada kalır, PIN ile şifrelenir. Bu site onları hiç görmez — yalnızca bakiyelerini gösterir ve her imzayı onayladığın telefona iletir. Uygulama olmadan bağlanacak bir şey yok.',
@@ -1646,6 +1682,10 @@ const tr: Dict = {
 };
 
 const ru: Dict = {
+  legalSection: 'О приложении',
+  termsOfUse: 'Условия использования',
+  privacyPolicy: 'Политика конфиденциальности',
+  legalNotice: 'Юридическая информация',
   noAppYet: 'Ещё нет приложения Kalyx?',
   installTitle: 'Зачем приложение на телефоне?',
   installWhy: 'Kalyx — некастодиальный кошелёк: ключи создаются и остаются на телефоне, зашифрованные PIN-кодом. Этот сайт их никогда не видит — он показывает балансы и передаёт каждую подпись на телефон, где вы её подтверждаете. Без приложения подключать нечего.',
@@ -1826,6 +1866,10 @@ const ru: Dict = {
 };
 
 const ar: Dict = {
+  legalSection: 'حول',
+  termsOfUse: 'شروط الاستخدام',
+  privacyPolicy: 'سياسة الخصوصية',
+  legalNotice: 'الإشعارات القانونية',
   noAppYet: 'ليس لديك تطبيق Kalyx بعد؟',
   installTitle: 'لماذا التطبيق على الهاتف؟',
   installWhy: 'Kalyx غير وصائي: تُنشأ مفاتيحك وتبقى على هاتفك مشفّرة برمز PIN. هذا الموقع لا يراها أبدًا — يعرض أرصدتك فقط ويرسل كل توقيع إلى الهاتف حيث توافق عليه. بدون التطبيق لا شيء يمكن ربطه.',
@@ -2006,6 +2050,10 @@ const ar: Dict = {
 };
 
 const hi: Dict = {
+  legalSection: 'जानकारी',
+  termsOfUse: 'उपयोग की शर्तें',
+  privacyPolicy: 'गोपनीयता नीति',
+  legalNotice: 'कानूनी सूचना',
   noAppYet: 'अभी Kalyx ऐप नहीं है?',
   installTitle: 'फ़ोन पर ऐप क्यों?',
   installWhy: 'Kalyx नॉन-कस्टोडियल है: आपकी कुंजियाँ फ़ोन पर बनती हैं और वहीं रहती हैं, PIN से एन्क्रिप्टेड। यह साइट उन्हें कभी नहीं देखती — केवल बैलेंस दिखाती है और हर हस्ताक्षर फ़ोन को भेजती है, जहाँ आप उसे स्वीकृत करते हैं। ऐप के बिना कनेक्ट करने को कुछ नहीं।',
@@ -2186,6 +2234,10 @@ const hi: Dict = {
 };
 
 const zh: Dict = {
+  legalSection: '关于',
+  termsOfUse: '使用条款',
+  privacyPolicy: '隐私政策',
+  legalNotice: '法律声明',
   noAppYet: '还没有 Kalyx 应用？',
   installTitle: '为什么需要手机应用？',
   installWhy: 'Kalyx 是非托管钱包：密钥在你的手机上生成并保存，用 PIN 加密。本网站永远看不到它们——只显示余额，并把每次签名转给手机由你批准。没有应用，就没有可连接的对象。',
@@ -2366,6 +2418,10 @@ const zh: Dict = {
 };
 
 const ja: Dict = {
+  legalSection: '情報',
+  termsOfUse: '利用規約',
+  privacyPolicy: 'プライバシーポリシー',
+  legalNotice: '法的表記',
   noAppYet: 'Kalyx アプリをまだお持ちでない？',
   installTitle: 'なぜスマートフォンのアプリが必要？',
   installWhy: 'Kalyx はノンカストディアルです。鍵はスマートフォン上で作られ、PIN で暗号化されてそこに留まります。このサイトは鍵を一切見ません。残高を表示し、各署名をスマートフォンに転送して、あなたが承認するだけです。アプリがなければ接続するものがありません。',
@@ -2546,6 +2602,10 @@ const ja: Dict = {
 };
 
 const ko: Dict = {
+  legalSection: '정보',
+  termsOfUse: '이용 약관',
+  privacyPolicy: '개인정보 처리방침',
+  legalNotice: '법적 고지',
   noAppYet: '아직 Kalyx 앱이 없나요?',
   installTitle: '왜 휴대폰 앱이 필요한가요?',
   installWhy: 'Kalyx는 논커스터디얼입니다. 키는 휴대폰에서 생성되어 PIN으로 암호화된 채 그곳에만 남습니다. 이 사이트는 키를 절대 보지 않으며, 잔액을 보여주고 각 서명을 휴대폰으로 전달해 당신이 승인하게 합니다. 앱이 없으면 연결할 것이 없습니다.',
