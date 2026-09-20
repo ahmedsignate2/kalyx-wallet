@@ -15,6 +15,7 @@ const fr = {
     fees: 'Frais',
     vision: 'Vision',
     downloadApk: 'Télécharger l’APK',
+    webApp: 'Ouvrir l’app web',
     openMenu: 'Ouvrir le menu',
     closeMenu: 'Fermer le menu',
     language: 'Langue',

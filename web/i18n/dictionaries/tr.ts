@@ -13,6 +13,7 @@ const tr: Dict = {
     fees: 'Ücretler',
     vision: 'Vizyon',
     downloadApk: 'APK’yı indir',
+    webApp: 'Web uygulamasını aç',
     openMenu: 'Menüyü aç',
     closeMenu: 'Menüyü kapat',
     language: 'Dil',

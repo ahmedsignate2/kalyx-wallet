@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Mark } from './mark';
 import type { Dict, Locale } from '../../i18n';
+import { WEB_APP_URL } from '../../lib/links';
 
 export function Footer({ t, lang }: { t: Dict; lang: Locale }) {
   const columns = [
@@ -12,6 +13,7 @@ export function Footer({ t, lang }: { t: Dict; lang: Locale }) {
         { href: `/${lang}/#voler`, label: t.nav.security },
         { href: `/${lang}/#frais`, label: t.nav.fees },
         { href: `/${lang}/#telecharger`, label: t.nav.downloadApk },
+        { href: WEB_APP_URL, label: t.nav.webApp, external: true },
       ],
     },
     {
