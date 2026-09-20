@@ -556,27 +556,45 @@ function Dashboard() {
   const agentBlock = <Zone title="Agent" collapsible={narrow}><AgentPanel chain={chain} address={address} worth={worth} /></Zone>;
   const marketBlock = <Zone title={t("navMarket")} collapsible={narrow}><MarketPanel /></Zone>;
 
-  const scrollContent = (
+  // En-tête compact : un titre "Kalyx • Tableau de bord" en gros au centre
+  // faisait "panneau d'admin" — l'utilisateur sait déjà où il est. Logo +
+  // pastille de connexion (gauche), réseau (centre), rafraîchir (droite) —
+  // une seule ligne. Extrait car réutilisé aussi par l'onglet Agent (qui a
+  // besoin de son propre en-tête HORS du ScrollView, voir plus bas).
+  const headerRow = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing(1) }}>
+      <View>
+        <KalyxLogo size={30} />
+        <View style={{ position: 'absolute', right: -2, bottom: -2, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.up, borderWidth: 2, borderColor: colors.bgDeep }} />
+      </View>
+      <CurrentNetworkChip chain={chain} onPress={() => setNetworkSheet(true)} compact />
+      <Pressable onPress={refresh} hitSlop={6} style={({ pressed }) => ({ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', opacity: pressed ? 0.6 : 1 })}>
+        <Icon name="refresh" size={16} color={colors.textMuted} />
+      </Pressable>
+    </View>
+  );
+
+  // L'onglet Agent a besoin d'un vrai conteneur flex NON scrollable (le chat
+  // gère son propre scroll interne) — à l'intérieur du ScrollView normal,
+  // flex:1/dvh ne représentent rien de fiable et poussaient la barre de
+  // saisie sous la nav du bas. Court-circuite le ScrollView pour ce cas.
+  const isAgentTab = narrow && tab === 'agent';
+
+  const scrollContent = isAgentTab ? (
+    <View style={{ flex: 1, padding: spacing(2), paddingBottom: 0, gap: spacing(1.5) }}>
+      {headerRow}
+      <View style={{ flex: 1 }}>
+        <AgentPanel chain={chain} address={address} worth={worth} />
+      </View>
+    </View>
+  ) : (
     <ScrollView
       style={{ flex: 1 }}
       contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={colors.text} colors={[colors.text]} />}
     >
       <View style={{ width: '100%', maxWidth: 1440, padding: spacing(wide ? 3 : 2), gap: spacing(2) }}>
-        {/* En-tête compact : un titre "Kalyx • Tableau de bord" en gros au
-         * centre faisait "panneau d'admin" — l'utilisateur sait déjà où il
-         * est. Logo + pastille de connexion (gauche), réseau (centre),
-         * rafraîchir (droite) — une seule ligne, ~50 px de moins en hauteur. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing(1) }}>
-          <View>
-            <KalyxLogo size={30} />
-            <View style={{ position: 'absolute', right: -2, bottom: -2, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.up, borderWidth: 2, borderColor: colors.bgDeep }} />
-          </View>
-          <CurrentNetworkChip chain={chain} onPress={() => setNetworkSheet(true)} compact />
-          <Pressable onPress={refresh} hitSlop={6} style={({ pressed }) => ({ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', opacity: pressed ? 0.6 : 1 })}>
-            <Icon name="refresh" size={16} color={colors.textMuted} />
-          </Pressable>
-        </View>
+        {headerRow}
 
         {wide ? (
           /* ---- Desktop large : 3 colonnes, tout visible d'un coup ---- */
@@ -628,10 +646,11 @@ function Dashboard() {
           /* ---- Mobile / étroit : onglets, un seul contenu à la fois ---- */
           <View style={{ gap: spacing(2) }}>
             {tab === 'home' ? (
-              /* 4 onglets nets (Accueil/Market/Agent/Réglages) : Portefeuille
-               * et Activité n'existent plus comme onglets séparés — leur
-               * contenu vit ici, sous les actions rapides (tokens) et en bas,
-               * repliable (NFT/répartition/watchlist/historique). */
+              /* Ordre : solde → actions → tendance (avec filtres 24h/7j/1m)
+               * → tokens, immédiatement visibles. Répartition et Watchlist
+               * retirées de l'Accueil (aucune valeur avec 1-2 cryptos, et les
+               * cours de marché vivent désormais dans l'onglet Marché) — NFT
+               * et historique restent en bas, repliables. */
               <>
                 <HeroTotalCard data={heroData} chain={chain} address={address} />
                 <View style={{ flexDirection: 'row', gap: spacing(1.25), justifyContent: isEvm ? undefined : 'center' }}>
@@ -639,12 +658,10 @@ function Dashboard() {
                   {isEvm ? <QuickAction icon="send" label={t("send")} onPress={() => setSheet('send')} /> : null}
                   {isEvm ? <QuickAction icon="exchange" label={t("swapAction")} onPress={() => setSheet('swap')} /> : null}
                 </View>
-                {tokensBlock}
                 <HeroTrendCard data={heroData} chain={chain} />
+                {tokensBlock}
                 <HeroWidgetsRow data={heroData} chain={chain} />
                 {nftBlock}
-                {allocBlock}
-                {watchBlock}
                 {activityBlock}
               </>
             ) : tab === 'market' ? (
