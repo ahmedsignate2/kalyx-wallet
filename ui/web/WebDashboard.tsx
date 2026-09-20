@@ -18,7 +18,7 @@ import { AgentPanel, AgentSetup, PROVIDER_LABELS } from './AgentPanel';
 import { MarketPanel } from './MarketPanel';
 import { WEB_FONTS, useWebFonts, useWebPalette } from './webTheme';
 import { useWebT } from './webI18n';
-import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useIdle, tgHaptic } from './platform';
+import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useIdle, useTabHidden, tgHaptic } from './platform';
 import { toRaw, encodeErc20Transfer } from './evmEncode';
 import { useTokenLogo } from './tokenLogos';
 import { FadeInUp, CrossFade, useCountUp, Breathing } from './motion';
@@ -966,6 +966,12 @@ function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainC
   const [hidden, setHidden] = useState(false);
   const [copied, setCopied] = useState(false);
   const tg = useTelegramBiometric();
+  // Confidentialité : le solde se masque seul après 2 min sans interaction ou
+  // quand l'onglet passe en arrière-plan (écran partagé, PC laissé ouvert) ;
+  // un tap sur l'œil le révèle à nouveau.
+  const idle = useIdle(120_000, true);
+  const tabHidden = useTabHidden();
+  useEffect(() => { if (idle || tabHidden) setHidden(true); }, [idle, tabHidden]);
   // Dans Telegram avec biométrie dispo : masqué par défaut, révélé par
   // empreinte/Face ID (via Telegram). Sinon : simple bascule au tap, comme
   // avant — jamais de secret réel derrière ce verrou, juste l'affichage.
@@ -1129,6 +1135,12 @@ function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConf
   const [hidden, setHidden] = useState(false);
   const [copied, setCopied] = useState(false);
   const tg = useTelegramBiometric();
+  // Confidentialité : le solde se masque seul après 2 min sans interaction ou
+  // quand l'onglet passe en arrière-plan (écran partagé, PC laissé ouvert) ;
+  // un tap sur l'œil le révèle à nouveau.
+  const idle = useIdle(120_000, true);
+  const tabHidden = useTabHidden();
+  useEffect(() => { if (idle || tabHidden) setHidden(true); }, [idle, tabHidden]);
   const isHidden = tg.available ? !tg.unlocked : hidden;
   const onToggleHidden = () => {
     if (tg.available) {
