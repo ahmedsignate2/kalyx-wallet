@@ -8,7 +8,8 @@ se fait dans la Mini App, signée sur le téléphone.
 ## Commandes
 | Commande | Rôle |
 |---|---|
-| `/start` | Accueil + bouton Mini App + installer l'app |
+| `/start` | Premier lancement : choix de la langue (15 langues, boutons) puis accueil + bouton Mini App + installer l'app |
+| `/lang` | Changer de langue (mémorisée en D1) |
 | `/app` (`/wallet`) | Ouvre `app.kalyxwallet.com` dans Telegram (bouton `web_app`) |
 | `/site` (`/web`) | Site officiel, téléchargement Android, support |
 | `/price eth` | Cours CoinGecko (cache 60 s) |
@@ -18,7 +19,7 @@ se fait dans la Mini App, signée sur le téléphone.
 | `/alert eth 3000` · `/alerts` | Alerte de prix (cron 5 min) |
 | `/help` | Modèle non-custodial, ce que le bot ne demande jamais |
 
-Réponses en français ou en anglais selon la langue Telegram de l'utilisateur.
+Réponses dans les 15 langues de l'app (fr, en, es, pt, de, it, nl, pl, tr, ru, ar, hi, zh, ja, ko) : langue choisie au `/start`, sinon celle de Telegram, sinon anglais.
 
 ## Sécurité
 - Webhook Telegram authentifié par `X-Telegram-Bot-Api-Secret-Token` (comparaison à temps constant).
