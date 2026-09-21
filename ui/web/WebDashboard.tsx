@@ -265,6 +265,21 @@ function ConnectView() {
   const t = useT();
   const tw = useWebT();
   const [installOpen, setInstallOpen] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  // Téléphone/tablette : l'app Kalyx est probablement sur CET appareil.
+  const isPhone = /android|iphone|ipad|ipod|mobile/i.test((globalThis as { navigator?: { userAgent?: string } }).navigator?.userAgent ?? '');
+  // 1) deep link kalyx://wc?uri=… : l'app s'ouvre, CET onglet reste ouvert et
+  //    reçoit l'approbation WalletConnect. 2) Si rien ne s'est passé après 1,5 s
+  //    (app absente), on ouvre la page relais kalyxwallet.com/wc dans un nouvel
+  //    onglet — elle propose l'installation — sans perdre le tableau de bord.
+  const openInKalyx = (wcUri: string) => {
+    const g = globalThis as { location?: { href: string }; document?: { hidden?: boolean }; open?: (u: string, target?: string, f?: string) => unknown };
+    const encoded = encodeURIComponent(wcUri);
+    if (g.location) g.location.href = `kalyx://wc?uri=${encoded}`;
+    setTimeout(() => {
+      if (!g.document?.hidden) g.open?.(`https://kalyxwallet.com/wc?uri=${encoded}`, '_blank', 'noopener,noreferrer');
+    }, 1500);
+  };
   const { colors, typography } = useTheme();
   const status = useWebConnect((s) => s.status);
   const uri = useWebConnect((s) => s.uri);
@@ -298,13 +313,35 @@ function ConnectView() {
         ) : null}
 
         {uri ? (
-          <View style={{ alignItems: 'center', gap: spacing(1.5), marginTop: spacing(1) }}>
-            <View style={{ backgroundColor: '#fff', padding: spacing(2), borderRadius: radii.lg }}>
-              <QRCode value={uri} size={220} />
-            </View>
-            <Text style={[typography.muted, { textAlign: 'center' }]}>
-              {tw('scanHint')}
-            </Text>
+          <View style={{ alignItems: 'center', gap: spacing(1.5), marginTop: spacing(1), width: '100%' }}>
+            {/* Sur téléphone, on ne peut pas scanner son propre écran : le lien
+                universel ouvre directement l'app Kalyx installée (ou propose de
+                l'installer). Le QR reste disponible pour un autre appareil. */}
+            {isPhone ? (
+              <>
+                <Pressable
+                  onPress={() => openInKalyx(uri)}
+                  style={({ pressed }) => ({ alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1), backgroundColor: GOLD, borderRadius: radii.pill, paddingVertical: spacing(1.5), opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] })}
+                >
+                  <Icon name="walletconnect" size={20} color="#171310" />
+                  <Text style={{ color: '#171310', fontFamily: fonts.bold, fontSize: 16 }}>{tw('openInKalyx')}</Text>
+                </Pressable>
+                <Text style={[typography.muted, { textAlign: 'center', fontSize: 13 }]}>{tw('sameDeviceHint')}</Text>
+                <Pressable onPress={() => setShowQr((v) => !v)} hitSlop={8}>
+                  <Text style={{ color: colors.textMuted, fontSize: 12, textDecorationLine: 'underline' }}>{showQr ? tw('hideQr') : tw('showQr')}</Text>
+                </Pressable>
+              </>
+            ) : null}
+            {!isPhone || showQr ? (
+              <>
+                <View style={{ backgroundColor: '#fff', padding: spacing(2), borderRadius: radii.lg }}>
+                  <QRCode value={uri} size={220} />
+                </View>
+                <Text style={[typography.muted, { textAlign: 'center' }]}>
+                  {isPhone ? tw('otherDeviceHint') : tw('scanHint')}
+                </Text>
+              </>
+            ) : null}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), width: '100%' }}>
               <View style={{ flex: 1, height: 1, backgroundColor: colors.glassBorder }} />
               <Text style={{ color: colors.textMuted, fontSize: 12 }}>{tw('or')}</Text>
