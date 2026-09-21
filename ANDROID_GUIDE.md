@@ -22,7 +22,7 @@
 
 ## 1. Installer les dépendances (une seule fois)
 
-Depuis `/root/crypto-wallet` :
+Depuis le dossier du projet :
 
 ```bash
 npm install
