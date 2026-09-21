@@ -213,6 +213,8 @@ const ko: Dict = {
     cta: 'Android APK 다운로드',
     telegram: 'Telegram에서 팔로우',
     note: 'iOS와 브라우저 확장 프로그램은 곧 출시됩니다.',
+    verify: '파일 검증: 모든 릴리스는 SHA-256 체크섬을 공개하며 동일한 키로 서명됩니다.',
+    verifyLink: '릴리스 보기',
   },
   footer: {
     desc: '논커스터디얼 멀티체인 지갑. 키는 당신의 휴대폰에, 모든 서명은 주기 전에 설명됩니다.',
@@ -228,6 +230,10 @@ const ko: Dict = {
     hostingText: '사용자 기기에서 로컬로 실행되는 논커스터디얼 앱, 키를 보관하는 서버 없음.',
     rights: '© 2026 Kalyx. All rights reserved.',
     tagline: '금융 자기주권을 위해 만들어졌습니다.',
+    transparency: '투명성',
+    source: '소스 코드',
+    releases: '릴리스 및 SHA-256 체크섬',
+    security: '취약점 신고',
   },
   legal: {
     back: '홈으로 돌아가기',

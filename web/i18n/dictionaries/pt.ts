@@ -213,6 +213,8 @@ const pt: Dict = {
     cta: 'Transferir o APK Android',
     telegram: 'Seguir no Telegram',
     note: 'iOS e extensão de navegador em breve.',
+    verify: 'Verifique o ficheiro: cada versão publica a sua soma SHA-256 e é assinada com a mesma chave.',
+    verifyLink: 'Ver versões',
   },
   footer: {
     desc: 'Carteira não custodial multichain. As suas chaves no seu telemóvel, cada assinatura explicada antes de ser dada.',
@@ -228,6 +230,10 @@ const pt: Dict = {
     hostingText: 'aplicação não custodial executada localmente no dispositivo do utilizador, sem servidor de guarda de chaves.',
     rights: '© 2026 Kalyx. Todos os direitos reservados.',
     tagline: 'Concebido para a autossoberania financeira.',
+    transparency: 'Transparência',
+    source: 'Código-fonte',
+    releases: 'Versões e somas SHA-256',
+    security: 'Comunicar uma vulnerabilidade',
   },
   legal: {
     back: 'Voltar ao início',

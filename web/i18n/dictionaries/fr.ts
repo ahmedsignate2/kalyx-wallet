@@ -216,6 +216,8 @@ const fr = {
     cta: 'Télécharger l’APK Android',
     telegram: 'Suivre sur Telegram',
     note: 'iOS et extension navigateur à venir.',
+    verify: 'Vérifiez le fichier : chaque version publie son empreinte SHA-256 et est signée avec la même clé.',
+    verifyLink: 'Voir les releases',
   },
   footer: {
     desc: 'Portefeuille non-custodial multi-chaînes. Vos clés sur votre téléphone, chaque signature expliquée avant d’être donnée.',
@@ -231,6 +233,10 @@ const fr = {
     hostingText: 'application non-custodial exécutée en local sur l’appareil de l’utilisateur, sans serveur de détention de clés.',
     rights: '© 2026 Kalyx. Tous droits réservés.',
     tagline: 'Conçu pour l’auto-souveraineté financière.',
+    transparency: 'Transparence',
+    source: 'Code source',
+    releases: 'Releases & empreintes SHA-256',
+    security: 'Signaler une faille',
   },
   legal: {
     back: 'Retour à l’accueil',

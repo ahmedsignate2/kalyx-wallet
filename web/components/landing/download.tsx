@@ -3,6 +3,7 @@ import { Download as DownloadIcon, Send } from 'lucide-react';
 import { Reveal, Rule } from './motion';
 import type { Dict } from '../../i18n';
 import { APK_URL } from '../../lib/apk';
+import { RELEASES_URL, SOURCE_URL } from '../../lib/links';
 
 export function Download({ t }: { t: Dict }) {
   return (
@@ -39,6 +40,16 @@ export function Download({ t }: { t: Dict }) {
           </a>
         </Reveal>
         <p className="mt-5 text-xs text-mist/70">{t.download.note}</p>
+        <p className="mx-auto mt-4 max-w-md text-xs leading-relaxed text-mist/70">
+          {t.download.verify}{' '}
+          <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-paper">
+            {t.download.verifyLink}
+          </a>
+          {' · '}
+          <a href={SOURCE_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-paper">
+            {t.footer.source}
+          </a>
+        </p>
       </div>
     </section>
   );

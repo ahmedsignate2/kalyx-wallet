@@ -213,6 +213,8 @@ const it: Dict = {
     cta: 'Scarica l’APK Android',
     telegram: 'Segui su Telegram',
     note: 'iOS ed estensione per browser in arrivo.',
+    verify: 'Verifica il file: ogni versione pubblica il proprio checksum SHA-256 ed è firmata con la stessa chiave.',
+    verifyLink: 'Vedi le release',
   },
   footer: {
     desc: 'Wallet non-custodial multi-chain. Le tue chiavi sul tuo telefono, ogni firma spiegata prima di essere concessa.',
@@ -228,6 +230,10 @@ const it: Dict = {
     hostingText: 'applicazione non-custodial eseguita localmente sul dispositivo dell’utente, senza server che custodisca chiavi.',
     rights: '© 2026 Kalyx. Tutti i diritti riservati.',
     tagline: 'Pensato per l’autosovranità finanziaria.',
+    transparency: 'Trasparenza',
+    source: 'Codice sorgente',
+    releases: 'Release e checksum SHA-256',
+    security: 'Segnalare una vulnerabilità',
   },
   legal: {
     back: 'Torna alla home',

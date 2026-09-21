@@ -213,6 +213,8 @@ const es: Dict = {
     cta: 'Descargar el APK para Android',
     telegram: 'Seguir en Telegram',
     note: 'iOS y extensión de navegador, próximamente.',
+    verify: 'Verifica el archivo: cada versión publica su suma SHA-256 y está firmada con la misma clave.',
+    verifyLink: 'Ver versiones',
   },
   footer: {
     desc: 'Monedero no custodial multicadena. Tus claves en tu teléfono, cada firma explicada antes de concederla.',
@@ -228,6 +230,10 @@ const es: Dict = {
     hostingText: 'aplicación no custodial ejecutada localmente en el dispositivo del usuario, sin servidor que guarde claves.',
     rights: '© 2026 Kalyx. Todos los derechos reservados.',
     tagline: 'Diseñado para la autosoberanía financiera.',
+    transparency: 'Transparencia',
+    source: 'Código fuente',
+    releases: 'Versiones y sumas SHA-256',
+    security: 'Reportar una vulnerabilidad',
   },
   legal: {
     back: 'Volver al inicio',

@@ -213,6 +213,8 @@ const ja: Dict = {
     cta: 'Android 版 APK をダウンロード',
     telegram: 'Telegram でフォロー',
     note: 'iOS とブラウザ拡張は近日公開。',
+    verify: 'ファイルを検証：各リリースは SHA-256 チェックサムを公開し、同じ鍵で署名されています。',
+    verifyLink: 'リリースを見る',
   },
   footer: {
     desc: 'ノンカストディアルのマルチチェーンウォレット。鍵はあなたのスマホに、すべての署名は与える前に説明されます。',
@@ -228,6 +230,10 @@ const ja: Dict = {
     hostingText: '利用者の端末上でローカルに動作するノンカストディアルのアプリ。鍵を保持するサーバーはありません。',
     rights: '© 2026 Kalyx. All rights reserved.',
     tagline: '金融の自己主権のために。',
+    transparency: '透明性',
+    source: 'ソースコード',
+    releases: 'リリースと SHA-256 チェックサム',
+    security: '脆弱性を報告',
   },
   legal: {
     back: 'ホームへ戻る',

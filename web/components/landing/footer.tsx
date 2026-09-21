@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Mark } from './mark';
 import type { Dict, Locale } from '../../i18n';
-import { WEB_APP_URL } from '../../lib/links';
+import { WEB_APP_URL, SOURCE_URL, RELEASES_URL, SECURITY_URL } from '../../lib/links';
 
 export function Footer({ t, lang }: { t: Dict; lang: Locale }) {
   const columns = [
@@ -14,6 +14,14 @@ export function Footer({ t, lang }: { t: Dict; lang: Locale }) {
         { href: `/${lang}/#frais`, label: t.nav.fees },
         { href: `/${lang}/#telecharger`, label: t.nav.downloadApk },
         { href: WEB_APP_URL, label: t.nav.webApp, external: true },
+      ],
+    },
+    {
+      title: t.footer.transparency,
+      links: [
+        { href: SOURCE_URL, label: t.footer.source, external: true },
+        { href: RELEASES_URL, label: t.footer.releases, external: true },
+        { href: SECURITY_URL, label: t.footer.security, external: true },
       ],
     },
     {
@@ -37,7 +45,7 @@ export function Footer({ t, lang }: { t: Dict; lang: Locale }) {
   return (
     <footer className="border-t border-bone/10 bg-ink-2 px-5 pb-10 pt-16 sm:px-8">
       <div className="mx-auto max-w-page">
-        <div className="grid grid-cols-1 gap-10 border-b border-bone/10 pb-12 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-10 border-b border-bone/10 pb-12 md:grid-cols-2 lg:grid-cols-6">
           <div className="space-y-5 lg:col-span-2">
             <Link href={`/${lang}/`} className="flex items-center gap-2.5 text-paper">
               <Mark size={22} className="text-sage" />
