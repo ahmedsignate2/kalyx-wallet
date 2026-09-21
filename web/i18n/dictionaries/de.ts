@@ -213,6 +213,8 @@ const de: Dict = {
     cta: 'Android-APK herunterladen',
     telegram: 'Auf Telegram folgen',
     note: 'iOS und Browser-Erweiterung folgen.',
+    verify: 'Datei prüfen: Jede Version veröffentlicht ihre SHA-256-Prüfsumme und ist mit demselben Schlüssel signiert.',
+    verifyLink: 'Releases ansehen',
   },
   footer: {
     desc: 'Non-custodial Multi-Chain-Wallet. Deine Schlüssel auf deinem Handy, jede Signatur erklärt, bevor sie gegeben wird.',
@@ -228,6 +230,10 @@ const de: Dict = {
     hostingText: 'Non-custodial-App, lokal auf dem Gerät des Nutzers ausgeführt, ohne Server, der Schlüssel hält.',
     rights: '© 2026 Kalyx. Alle Rechte vorbehalten.',
     tagline: 'Gebaut für finanzielle Selbstsouveränität.',
+    transparency: 'Transparenz',
+    source: 'Quellcode',
+    releases: 'Releases & SHA-256-Prüfsummen',
+    security: 'Sicherheitslücke melden',
   },
   legal: {
     back: 'Zurück zur Startseite',

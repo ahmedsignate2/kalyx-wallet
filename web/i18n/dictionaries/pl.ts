@@ -213,6 +213,8 @@ const pl: Dict = {
     cta: 'Pobierz APK na Androida',
     telegram: 'Obserwuj na Telegramie',
     note: 'iOS i rozszerzenie przeglądarki wkrótce.',
+    verify: 'Sprawdź plik: każde wydanie publikuje sumę SHA-256 i jest podpisane tym samym kluczem.',
+    verifyLink: 'Zobacz wydania',
   },
   footer: {
     desc: 'Niepowierniczy portfel wielołańcuchowy. Twoje klucze w Twoim telefonie, każdy podpis wyjaśniony przed udzieleniem.',
@@ -228,6 +230,10 @@ const pl: Dict = {
     hostingText: 'aplikacja niepowiernicza działająca lokalnie na urządzeniu użytkownika, bez serwera przechowującego klucze.',
     rights: '© 2026 Kalyx. Wszelkie prawa zastrzeżone.',
     tagline: 'Stworzony dla finansowej samosuwerenności.',
+    transparency: 'Przejrzystość',
+    source: 'Kod źródłowy',
+    releases: 'Wydania i sumy SHA-256',
+    security: 'Zgłoś lukę',
   },
   legal: {
     back: 'Powrót na stronę główną',

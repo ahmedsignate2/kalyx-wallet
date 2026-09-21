@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { STORES, DIRECT_APK_URL, type StoreEntry } from '../lib/stores';
+import { RELEASE_LATEST_URL, SOURCE_URL } from '../lib/links';
 
 type Status = 'detecting' | 'redirecting' | 'manual';
 
@@ -70,6 +71,13 @@ export function DownloadRelay() {
       {isDirectApk && status === 'manual' && (
         <p className="max-w-xs text-xs text-mist/70">Ton appareil n’a pas encore de store Kalyx détecté — voici l’APK direct en attendant.</p>
       )}
+
+      <p className="max-w-sm text-xs leading-relaxed text-mist/60">
+        Vérifie le fichier : l’empreinte SHA-256 et le certificat de signature sont publiés avec chaque version sur{' '}
+        <a href={RELEASE_LATEST_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-paper">GitHub Releases</a>
+        {' · '}
+        <a href={SOURCE_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-paper">code source</a>.
+      </p>
     </div>
   );
 }
