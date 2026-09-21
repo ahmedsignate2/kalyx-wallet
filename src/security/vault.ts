@@ -41,35 +41,14 @@ async function deriveKey(
   salt: Uint8Array,
   params: { N: number; r: number; p: number },
 ): Promise<Uint8Array> {
-  const startedAt = Date.now();
-  console.log('[KALYX-AUTH][scrypt] start', {
+  return scryptAsync(utf8ToBytes(pin.normalize('NFKC')), salt, {
     N: params.N,
     r: params.r,
     p: params.p,
-    asyncTickMs: 120,
+    dkLen: DEFAULT_KDF.dkLen,
+    // scrypt rend la main tous les `asyncTick` ms pour ne pas figer l'UI.
+    asyncTick: 120,
   });
-  try {
-    const key = await scryptAsync(utf8ToBytes(pin.normalize('NFKC')), salt, {
-      N: params.N,
-      r: params.r,
-      p: params.p,
-      dkLen: DEFAULT_KDF.dkLen,
-      // scrypt rend la main tous les `asyncTick` ms pour ne pas figer l'UI.
-      asyncTick: 120,
-    });
-    console.log('[KALYX-AUTH][scrypt] resolved', {
-      N: params.N,
-      elapsedMs: Date.now() - startedAt,
-    });
-    return key;
-  } catch (error) {
-    console.warn('[KALYX-AUTH][scrypt] rejected', {
-      N: params.N,
-      elapsedMs: Date.now() - startedAt,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw error;
-  }
 }
 
 /** Chiffre un secret (seed) sous le PIN. Sel + nonce aléatoires à chaque appel. */
@@ -78,12 +57,10 @@ export async function encryptSecret(
   pin: string,
   kdf: { N: number; r: number; p: number } = DEFAULT_KDF,
 ): Promise<EncryptedVault> {
-  console.log('[KALYX-AUTH][vault] encrypt:start', { kdf: { N: kdf.N, r: kdf.r, p: kdf.p } });
   const salt = getRandomBytes(16);
   const nonce = getRandomBytes(12);
   const key = await deriveKey(pin, salt, kdf);
   const ct = gcm(key, nonce).encrypt(utf8ToBytes(plaintext));
-  console.log('[KALYX-AUTH][vault] encrypt:resolved', { ciphertextBytes: ct.length });
   return {
     v: 1,
     kdf: 'scrypt',
@@ -101,7 +78,6 @@ export async function decryptSecret(
   vault: EncryptedVault,
   pin: string,
 ): Promise<string> {
-  console.log('[KALYX-AUTH][vault] decrypt:start', { N: vault.N, r: vault.r, p: vault.p });
   if (vault.v !== 1 || vault.kdf !== 'scrypt') {
     throw new WalletError('VAULT_CORRUPTED', 'Format de coffre non supporté');
   }
@@ -109,12 +85,9 @@ export async function decryptSecret(
   try {
     const pt = gcm(key, hexToBytes(vault.nonce)).decrypt(hexToBytes(vault.ct));
     // bytesToUtf8 (lib auditée) au lieu de TextDecoder, absent sur Hermes/Android.
-    const plaintext = bytesToUtf8(pt);
-    console.log('[KALYX-AUTH][vault] decrypt:resolved');
-    return plaintext;
+    return bytesToUtf8(pt);
   } catch {
     // GCM échoue si PIN faux OU données altérées : on ne distingue pas.
-    console.warn('[KALYX-AUTH][vault] decrypt:authentication-failed');
     throw new WalletError('WRONG_PIN', 'PIN incorrect');
   }
 }
