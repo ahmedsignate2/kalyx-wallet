@@ -69,6 +69,15 @@ jobs:
       - name: Télécharge l'APK
         run: curl -fL "${{ steps.artifact.outputs.url }}" -o kalyx-wallet.apk
 
+      # Empreinte publiée avec l'APK : l'utilisateur peut vérifier le fichier
+      # téléchargé (`sha256sum -c kalyx-wallet.apk.sha256`) et le corps de la
+      # release l'affiche en clair.
+      - name: Empreinte SHA-256
+        id: sha
+        run: |
+          sha256sum kalyx-wallet.apk | tee kalyx-wallet.apk.sha256
+          echo "sum=$(cut -d' ' -f1 kalyx-wallet.apk.sha256)" >> "$GITHUB_OUTPUT"
+
       - name: Publie la release sur le dépôt public
         uses: softprops/action-gh-release@v2
         with:
@@ -77,4 +86,10 @@ jobs:
           tag_name: v${{ steps.meta.outputs.version }}-${{ inputs.profile }}-${{ github.run_number }}
           name: Kalyx Wallet v${{ steps.meta.outputs.version }} (${{ inputs.profile }})
           prerelease: ${{ inputs.profile == 'preview' }}
-          files: kalyx-wallet.apk
+          body: |
+            **SHA-256** `kalyx-wallet.apk` : `${{ steps.sha.outputs.sum }}`
+
+            Vérification : `sha256sum -c kalyx-wallet.apk.sha256`
+          files: |
+            kalyx-wallet.apk
+            kalyx-wallet.apk.sha256

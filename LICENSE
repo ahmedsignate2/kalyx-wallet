@@ -1,6 +1,39 @@
-Commercial License
+Kalyx Wallet — Proprietary License (source-available)
 
-Copyright (c) 2026 Ahamed Signate. All rights reserved.
+Copyright (c) 2026 KALYX (Ahamed Signate). All rights reserved.
 
-This source code is licensed for single commercial use per purchase.
-Redistribution, resale, or sublicensing of the unmodified source code is strictly prohibited.
+1. Grant. The source code in this repository is made available for READING,
+   SECURITY REVIEW and EVALUATION only. No license is granted to use, copy,
+   modify, merge, publish, distribute, sublicense, sell, or create derivative
+   works of the Software, in whole or in part, except as stated below.
+
+2. Permitted without a separate agreement.
+   a. Viewing, cloning and building the Software locally for personal,
+      non-commercial evaluation and security research.
+   b. Reporting vulnerabilities as described in SECURITY.md.
+   c. Quoting short excerpts for review, commentary or education, with
+      attribution.
+
+3. Not permitted without prior written authorization from the copyright holder:
+   commercial use, redistribution (source or binary), resale, sublicensing,
+   publishing forks, rebranding, and use of the name "Kalyx", the logo or the
+   visual identity.
+
+4. Commercial licensing and acquisition. The project is offered for acquisition
+   or under a commercial license (single or exclusive). Terms are defined in a
+   written agreement between the parties. Contact: Telegram @kalyxntw,
+   X @kalyxntw, or support@kalyxwallet.com.
+
+5. Third-party components remain under their own licenses (see package.json
+   and node_modules/*/LICENSE). This license applies only to original Kalyx
+   code, designs, documentation and assets.
+
+6. No warranty. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO
+   EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY ARISING FROM THE USE OF THE SOFTWARE, INCLUDING LOSS OF DIGITAL
+   ASSETS. The Software has not been independently audited.
+
+7. Termination. Any breach of this license terminates the rights granted in
+   section 2 automatically.
