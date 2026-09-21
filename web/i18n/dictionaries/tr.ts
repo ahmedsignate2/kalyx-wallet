@@ -213,6 +213,8 @@ const tr: Dict = {
     cta: 'Android APK’yı indir',
     telegram: 'Telegram’da takip edin',
     note: 'iOS ve tarayıcı uzantısı yakında.',
+    verify: 'Dosyayı doğrula: her sürüm SHA-256 özetini yayınlar ve aynı anahtarla imzalanır.',
+    verifyLink: 'Sürümleri gör',
   },
   footer: {
     desc: 'Saklama gerektirmeyen, çok zincirli cüzdan. Anahtarlarınız telefonunuzda, her imza verilmeden önce açıklanır.',
@@ -228,6 +230,10 @@ const tr: Dict = {
     hostingText: 'kullanıcının cihazında yerel olarak çalışan, anahtar tutan sunucusu olmayan saklama gerektirmeyen uygulama.',
     rights: '© 2026 Kalyx. Tüm hakları saklıdır.',
     tagline: 'Finansal öz-egemenlik için tasarlandı.',
+    transparency: 'Şeffaflık',
+    source: 'Kaynak kodu',
+    releases: 'Sürümler ve SHA-256 özetleri',
+    security: 'Güvenlik açığı bildir',
   },
   legal: {
     back: 'Ana sayfaya dön',

@@ -212,6 +212,8 @@ const zh: Dict = {
     cta: '下载 Android APK',
     telegram: '在 Telegram 关注',
     note: 'iOS 与浏览器扩展即将推出。',
+    verify: '验证文件：每个版本都会发布其 SHA-256 校验和，并使用同一密钥签名。',
+    verifyLink: '查看版本',
   },
   footer: {
     desc: '非托管多链钱包。密钥在你的手机上，每一次签名都在授予前解释清楚。',
@@ -227,6 +229,10 @@ const zh: Dict = {
     hostingText: '在用户设备上本地运行的非托管应用，没有任何保管密钥的服务器。',
     rights: '© 2026 Kalyx. 保留所有权利。',
     tagline: '为金融自主权而生。',
+    transparency: '透明度',
+    source: '源代码',
+    releases: '版本与 SHA-256 校验和',
+    security: '报告安全漏洞',
   },
   legal: {
     back: '返回首页',
