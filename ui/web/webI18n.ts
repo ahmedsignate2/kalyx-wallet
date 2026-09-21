@@ -12,6 +12,11 @@ import { useSettings } from '../../lib/settingsStore';
 import type { Lang } from '../../lib/i18n';
 
 const en = {
+  openInKalyx: 'Open in Kalyx',
+  sameDeviceHint: 'Kalyx is on this phone? Tap the button: the app opens and asks you to approve the connection — no scanning needed.',
+  otherDeviceHint: 'From another device: scan this QR code with Kalyx (WalletConnect tab).',
+  showQr: 'Show the QR code instead',
+  hideQr: 'Hide the QR code',
   legalSection: 'About',
   termsOfUse: 'Terms of use',
   privacyPolicy: 'Privacy policy',
@@ -210,6 +215,11 @@ export type WebKey = keyof typeof en;
 type Dict = Record<WebKey, string>;
 
 const fr: Dict = {
+  openInKalyx: 'Ouvrir dans Kalyx',
+  sameDeviceHint: 'Kalyx est sur ce téléphone ? Appuie sur le bouton : l\'app s\'ouvre et te demande de valider la connexion — rien à scanner.',
+  otherDeviceHint: 'Depuis un autre appareil : scanne ce QR avec Kalyx (onglet WalletConnect).',
+  showQr: 'Afficher plutôt le QR',
+  hideQr: 'Masquer le QR',
   legalSection: 'À propos',
   termsOfUse: 'Conditions d\'utilisation',
   privacyPolicy: 'Politique de confidentialité',
@@ -394,6 +404,11 @@ const fr: Dict = {
 };
 
 const es: Dict = {
+  openInKalyx: 'Abrir en Kalyx',
+  sameDeviceHint: '¿Kalyx está en este teléfono? Toca el botón: la app se abre y te pide aprobar la conexión, sin escanear nada.',
+  otherDeviceHint: 'Desde otro dispositivo: escanea este QR con Kalyx (pestaña WalletConnect).',
+  showQr: 'Mostrar el QR en su lugar',
+  hideQr: 'Ocultar el QR',
   legalSection: 'Acerca de',
   termsOfUse: 'Condiciones de uso',
   privacyPolicy: 'Política de privacidad',
@@ -578,6 +593,11 @@ const es: Dict = {
 };
 
 const pt: Dict = {
+  openInKalyx: 'Abrir no Kalyx',
+  sameDeviceHint: 'O Kalyx está neste telemóvel? Toca no botão: a app abre e pede-te para aprovar a ligação — nada a ler.',
+  otherDeviceHint: 'A partir de outro dispositivo: lê este QR com o Kalyx (separador WalletConnect).',
+  showQr: 'Mostrar o QR em vez disso',
+  hideQr: 'Ocultar o QR',
   legalSection: 'Sobre',
   termsOfUse: 'Termos de utilização',
   privacyPolicy: 'Política de privacidade',
@@ -762,6 +782,11 @@ const pt: Dict = {
 };
 
 const de: Dict = {
+  openInKalyx: 'In Kalyx öffnen',
+  sameDeviceHint: 'Kalyx ist auf diesem Telefon? Tippe auf den Button: Die App öffnet sich und bittet dich, die Verbindung zu bestätigen — kein Scannen nötig.',
+  otherDeviceHint: 'Von einem anderen Gerät: scanne diesen QR-Code mit Kalyx (Tab WalletConnect).',
+  showQr: 'Stattdessen QR-Code anzeigen',
+  hideQr: 'QR-Code ausblenden',
   legalSection: 'Über',
   termsOfUse: 'Nutzungsbedingungen',
   privacyPolicy: 'Datenschutzerklärung',
@@ -946,6 +971,11 @@ const de: Dict = {
 };
 
 const it: Dict = {
+  openInKalyx: 'Apri in Kalyx',
+  sameDeviceHint: 'Kalyx è su questo telefono? Tocca il pulsante: l\'app si apre e ti chiede di approvare la connessione — niente da scansionare.',
+  otherDeviceHint: 'Da un altro dispositivo: scansiona questo QR con Kalyx (scheda WalletConnect).',
+  showQr: 'Mostra invece il QR',
+  hideQr: 'Nascondi il QR',
   legalSection: 'Informazioni',
   termsOfUse: 'Condizioni d\'uso',
   privacyPolicy: 'Informativa sulla privacy',
@@ -1130,6 +1160,11 @@ const it: Dict = {
 };
 
 const nl: Dict = {
+  openInKalyx: 'Openen in Kalyx',
+  sameDeviceHint: 'Staat Kalyx op deze telefoon? Tik op de knop: de app opent en vraagt je de verbinding goed te keuren — niets te scannen.',
+  otherDeviceHint: 'Vanaf een ander apparaat: scan deze QR-code met Kalyx (tabblad WalletConnect).',
+  showQr: 'Toch de QR-code tonen',
+  hideQr: 'QR-code verbergen',
   legalSection: 'Over',
   termsOfUse: 'Gebruiksvoorwaarden',
   privacyPolicy: 'Privacybeleid',
@@ -1314,6 +1349,11 @@ const nl: Dict = {
 };
 
 const pl: Dict = {
+  openInKalyx: 'Otwórz w Kalyx',
+  sameDeviceHint: 'Kalyx jest na tym telefonie? Dotknij przycisku: aplikacja się otworzy i poprosi o zatwierdzenie połączenia — bez skanowania.',
+  otherDeviceHint: 'Z innego urządzenia: zeskanuj ten kod QR w Kalyx (karta WalletConnect).',
+  showQr: 'Pokaż zamiast tego kod QR',
+  hideQr: 'Ukryj kod QR',
   legalSection: 'Informacje',
   termsOfUse: 'Regulamin',
   privacyPolicy: 'Polityka prywatności',
@@ -1498,6 +1538,11 @@ const pl: Dict = {
 };
 
 const tr: Dict = {
+  openInKalyx: 'Kalyx\'te aç',
+  sameDeviceHint: 'Kalyx bu telefonda mı? Düğmeye dokun: uygulama açılır ve bağlantıyı onaylamanı ister — tarama gerekmez.',
+  otherDeviceHint: 'Başka bir cihazdan: bu QR kodu Kalyx ile tara (WalletConnect sekmesi).',
+  showQr: 'Bunun yerine QR kodu göster',
+  hideQr: 'QR kodu gizle',
   legalSection: 'Hakkında',
   termsOfUse: 'Kullanım koşulları',
   privacyPolicy: 'Gizlilik politikası',
@@ -1682,6 +1727,11 @@ const tr: Dict = {
 };
 
 const ru: Dict = {
+  openInKalyx: 'Открыть в Kalyx',
+  sameDeviceHint: 'Kalyx на этом телефоне? Нажмите кнопку: приложение откроется и попросит подтвердить подключение — сканировать ничего не нужно.',
+  otherDeviceHint: 'С другого устройства: отсканируйте этот QR-код в Kalyx (вкладка WalletConnect).',
+  showQr: 'Показать QR-код',
+  hideQr: 'Скрыть QR-код',
   legalSection: 'О приложении',
   termsOfUse: 'Условия использования',
   privacyPolicy: 'Политика конфиденциальности',
@@ -1866,6 +1916,11 @@ const ru: Dict = {
 };
 
 const ar: Dict = {
+  openInKalyx: 'افتح في Kalyx',
+  sameDeviceHint: 'Kalyx على هذا الهاتف؟ اضغط الزر: يفتح التطبيق ويطلب منك الموافقة على الاتصال — بلا مسح.',
+  otherDeviceHint: 'من جهاز آخر: امسح رمز QR هذا بتطبيق Kalyx (تبويب WalletConnect).',
+  showQr: 'عرض رمز QR بدلًا من ذلك',
+  hideQr: 'إخفاء رمز QR',
   legalSection: 'حول',
   termsOfUse: 'شروط الاستخدام',
   privacyPolicy: 'سياسة الخصوصية',
@@ -2050,6 +2105,11 @@ const ar: Dict = {
 };
 
 const hi: Dict = {
+  openInKalyx: 'Kalyx में खोलें',
+  sameDeviceHint: 'Kalyx इसी फ़ोन पर है? बटन दबाएँ: ऐप खुलेगा और कनेक्शन स्वीकृत करने को कहेगा — स्कैन की ज़रूरत नहीं।',
+  otherDeviceHint: 'दूसरे डिवाइस से: यह QR Kalyx से स्कैन करें (WalletConnect टैब)।',
+  showQr: 'इसके बजाय QR दिखाएँ',
+  hideQr: 'QR छिपाएँ',
   legalSection: 'जानकारी',
   termsOfUse: 'उपयोग की शर्तें',
   privacyPolicy: 'गोपनीयता नीति',
@@ -2234,6 +2294,11 @@ const hi: Dict = {
 };
 
 const zh: Dict = {
+  openInKalyx: '在 Kalyx 中打开',
+  sameDeviceHint: 'Kalyx 就在这台手机上？点按按钮：应用会打开并请你批准连接——无需扫码。',
+  otherDeviceHint: '从其他设备：用 Kalyx（WalletConnect 标签页）扫描此二维码。',
+  showQr: '改为显示二维码',
+  hideQr: '隐藏二维码',
   legalSection: '关于',
   termsOfUse: '使用条款',
   privacyPolicy: '隐私政策',
@@ -2418,6 +2483,11 @@ const zh: Dict = {
 };
 
 const ja: Dict = {
+  openInKalyx: 'Kalyx で開く',
+  sameDeviceHint: 'このスマートフォンに Kalyx がありますか？ボタンをタップするとアプリが開き、接続の承認を求めます。スキャンは不要です。',
+  otherDeviceHint: '別の端末から：この QR コードを Kalyx（WalletConnect タブ）でスキャンしてください。',
+  showQr: '代わりに QR コードを表示',
+  hideQr: 'QR コードを隠す',
   legalSection: '情報',
   termsOfUse: '利用規約',
   privacyPolicy: 'プライバシーポリシー',
@@ -2602,6 +2672,11 @@ const ja: Dict = {
 };
 
 const ko: Dict = {
+  openInKalyx: 'Kalyx에서 열기',
+  sameDeviceHint: '이 휴대폰에 Kalyx가 있나요? 버튼을 누르면 앱이 열리고 연결 승인을 요청합니다 — 스캔 필요 없음.',
+  otherDeviceHint: '다른 기기에서: 이 QR 코드를 Kalyx(WalletConnect 탭)로 스캔하세요.',
+  showQr: '대신 QR 코드 표시',
+  hideQr: 'QR 코드 숨기기',
   legalSection: '정보',
   termsOfUse: '이용 약관',
   privacyPolicy: '개인정보 처리방침',
