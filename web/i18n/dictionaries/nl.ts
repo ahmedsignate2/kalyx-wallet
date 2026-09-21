@@ -213,6 +213,8 @@ const nl: Dict = {
     cta: 'Android-APK downloaden',
     telegram: 'Volg op Telegram',
     note: 'iOS en browserextensie volgen.',
+    verify: 'Controleer het bestand: elke versie publiceert zijn SHA-256-checksum en is met dezelfde sleutel ondertekend.',
+    verifyLink: 'Releases bekijken',
   },
   footer: {
     desc: 'Non-custodial multi-chain wallet. Je sleutels op je telefoon, elke handtekening uitgelegd vóór ze wordt gegeven.',
@@ -228,6 +230,10 @@ const nl: Dict = {
     hostingText: 'non-custodial applicatie die lokaal op het toestel van de gebruiker draait, zonder server die sleutels bewaart.',
     rights: '© 2026 Kalyx. Alle rechten voorbehouden.',
     tagline: 'Gebouwd voor financiële zelfsoevereiniteit.',
+    transparency: 'Transparantie',
+    source: 'Broncode',
+    releases: 'Releases & SHA-256-checksums',
+    security: 'Kwetsbaarheid melden',
   },
   legal: {
     back: 'Terug naar start',
