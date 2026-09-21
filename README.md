@@ -2,6 +2,13 @@
 
 ### Secure. Non-custodial. Multi-chain.
 
+[![CI](https://github.com/ahmedsignate2/kalyx-wallet/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmedsignate2/kalyx-wallet/actions/workflows/ci.yml)
+![Non-custodial](https://img.shields.io/badge/keys-non--custodial-2ea44f)
+![No independent audit](https://img.shields.io/badge/security%20audit-none%20yet-orange)
+![Solo developer](https://img.shields.io/badge/team-solo%20developer-blue)
+[![License: proprietary, source-available](https://img.shields.io/badge/license-proprietary%20%C2%B7%20source--available-lightgrey)](LICENSE)
+[![Security policy](https://img.shields.io/badge/security-policy-critical)](SECURITY.md)
+
 Kalyx Wallet est un **wallet crypto mobile non-custodial** construit avec **React Native, Expo et TypeScript**.
 
 Le projet vise une expérience moderne et accessible tout en gardant une architecture où les secrets du wallet restent sous le contrôle de l'utilisateur.
@@ -16,8 +23,47 @@ Kalyx Wallet ne dispose pas d'un **backend propriétaire de conservation** : les
 ---
 
 
+## 🛡️ Sécurité en un coup d'œil
+
+| | |
+|---|---|
+| **Où sont les clés** | Générées et stockées sur le téléphone uniquement (Keystore/Keychain), chiffrées AES-256-GCM sous une clé dérivée du PIN par scrypt. Jamais sur un serveur, jamais sur le web. |
+| **Serveur Kalyx** | Aucun. Pas de compte, pas de session distante, pas de télémétrie. |
+| **Signatures** | Chaque signature est expliquée en clair et validée sur le téléphone (PIN/biométrie). Le tableau de bord web ne fait que lire et relayer (WalletConnect). |
+| **Avant chaque envoi** | Détection d'empoisonnement d'adresse, simulation de la transaction, analyse GoPlus des contrats. |
+| **Audit indépendant** | **Aucun à ce jour.** Projet développé et maintenu par une seule personne. N'y placez pas de montants que vous ne pouvez pas perdre. |
+| **Signaler une faille** | Voir [SECURITY.md](SECURITY.md) — Telegram [@kalyxntw](https://t.me/kalyxntw) · support@kalyxwallet.com. Jamais via les Issues publiques. |
+| **Licence** | Propriétaire, code source consultable ([LICENSE](LICENSE)). Acquisition / licence commerciale possibles. |
+
+## 💸 Frais — transparence
+
+| Opération | Frais Kalyx | Détail |
+|---|---|---|
+| Envoyer / recevoir | **0 %** | Uniquement les frais du réseau. |
+| Swap et bridge EVM (LI.FI) | **0,3 %** | Appliqués **seulement** si `EXPO_PUBLIC_FEE_RECIPIENT_EVM` est configuré au build. Si LI.FI refuse la commission, repli automatique sur une route **sans** commission. |
+| Swap Solana (Jupiter) | **0,3 %** | Appliqués seulement si `EXPO_PUBLIC_FEE_RECIPIENT_SOLANA` est configuré et que SOL/wSOL est d'un côté de l'échange. |
+| Earn / staking | **0 %** | Aucune commission Kalyx. |
+
+Aucune adresse de perception n'est codée en dur : elle vient des variables d'environnement au moment du build (`.env.example`). Le récapitulatif de swap affiche toujours le pourcentage **réellement** inclus dans le devis (`kalyxFeeApplied`), jamais une constante.
+
+## ⚠️ Limites connues
+
+- Pas d'audit de sécurité indépendant (voir ci-dessus).
+- Android uniquement (APK signé) ; iOS et extension navigateur à venir.
+- Tableau de bord web : pas de swap au départ de Bitcoin (EVM et Solana seulement) ; le suivi de confirmation Bitcoin n'est pas affiché en direct.
+- Certaines fonctions dépendent de services tiers gratuits (RPC publics, CoinGecko, GoPlus) qui peuvent être indisponibles ou limités.
+- Intégration hardware wallet (Ledger) non finalisée.
+
 ## 📲 Télécharger l'APK
-[![Download APK](https://img.shields.io/badge/Download-APK%20v0.0.1-brightgreen)](https://github.com/ahmedsignate2/kalyx-wallet/releases/latest)
+[![Download APK](https://img.shields.io/badge/Download-APK-brightgreen)](https://github.com/ahmedsignate2/nova-wallet-release/releases/latest)
+
+Chaque release publie l'APK **et** son empreinte `kalyx-wallet.apk.sha256`. Vérifiez le fichier téléchargé avant de l'installer :
+
+```bash
+sha256sum -c kalyx-wallet.apk.sha256
+```
+
+Le lien neutre [kalyxwallet.com/download](https://kalyxwallet.com/download) redirige toujours vers la dernière version. Tableau de bord web (lecture seule + signatures relayées au téléphone) : [app.kalyxwallet.com](https://app.kalyxwallet.com).
 
 
 ## 🎬 Démo
@@ -263,13 +309,12 @@ Kalyx utilise **LI.FI** pour les opérations de swap et de bridge EVM.
 
 La configuration actuelle contient :
 
-- intégrateur : `nova`
-- commission configurée : **0,3 %**
+- intégrateur LI.FI : `nova-wallet` (identifiant historique enregistré sur portal.li.fi)
+- commission Kalyx : **0,3 %**, appliquée uniquement si `EXPO_PUBLIC_FEE_RECIPIENT_EVM` est défini au build
 - slippage par défaut : **0,5 %**
+- Solana : Jupiter, même commission de 0,3 % via `EXPO_PUBLIC_FEE_RECIPIENT_SOLANA` (SOL/wSOL d'un côté de l'échange)
 
-Si LI.FI refuse une quote avec la commission configurée, le code prévoit un fallback vers une quote sans commission.
-
-La commission de 0,3 % est présente dans la configuration du projet, mais son application effective dépend également de la configuration du compte/intégrateur LI.FI.
+Si LI.FI refuse une quote avec la commission configurée, le code bascule automatiquement sur une quote **sans** commission. Le récapitulatif affiche le pourcentage réellement inclus dans le devis retenu (`kalyxFeeApplied`). Voir la section « Frais — transparence » en tête de README.
 
 ---
 
@@ -672,7 +717,7 @@ Pour la CI :
 npm test -- --ci --runInBand
 ```
 
-GitHub Actions exécute le typecheck TypeScript et les tests Jest sur les branches principales configurées.
+GitHub Actions ([workflow CI](.github/workflows/ci.yml), badge en tête de README) exécute le typecheck TypeScript strict et les tests Jest à chaque push et pull request sur `main` et `develop`.
 
 Le workflow contient également un garde-fou recherchant certains patterns de logs susceptibles de contenir des seeds, clés privées ou autres secrets dans `src/`.
 
@@ -825,17 +870,23 @@ Les RPC, explorers, APIs de marché, WalletConnect, LI.FI et autres services tie
 
 ---
 
-# 📄 Copyright & propriété intellectuelle
+# 📄 Licence
 
-Copyright © 2026 Kalyx.
+Kalyx Wallet est sous **licence propriétaire, code source consultable** ([LICENSE](LICENSE)) :
 
-All rights reserved.
+- lecture, clonage, build local et recherche en sécurité : **autorisés** ;
+- usage commercial, redistribution, revente, forks publics, réutilisation de la marque : **interdits** sans accord écrit ;
+- **acquisition** du projet ou **licence commerciale** (simple ou exclusive) : possibles, conditions définies par contrat — Telegram [@kalyxntw](https://t.me/kalyxntw), X [@kalyxntw](https://x.com/kalyxntw), support@kalyxwallet.com.
 
-Kalyx Wallet, son code source original, son architecture, ses designs, sa documentation et ses assets originaux sont protégés par leurs droits respectifs.
+Les bibliothèques tierces restent soumises à leurs propres licences.
 
-Aucune utilisation commerciale, redistribution, revente, sous-licence ou création de produit dérivé à partir des éléments propriétaires de Kalyx Wallet n'est autorisée sans autorisation écrite préalable du détenteur des droits.
+---
 
-Les bibliothèques tierces, dépendances, marques, logos et autres composants externes restent soumis à leurs licences et droits respectifs.
+# 👤 À propos du développeur
+
+Kalyx Wallet est conçu, développé et maintenu par **un développeur indépendant** (KALYX, entreprise individuelle, France). Pas d'équipe, pas de levée de fonds, pas de serveur : le projet vit de ses utilisateurs et du soin apporté au code.
+
+Ouvert à une **acquisition**, un **partenariat** ou une **licence commerciale** — voir la section Licence.
 
 ---
 
