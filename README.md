@@ -55,7 +55,7 @@ Aucune adresse de perception n'est codée en dur : elle vient des variables d'en
 - Intégration hardware wallet (Ledger) non finalisée.
 
 ## 📲 Télécharger l'APK
-[![Download APK](https://img.shields.io/badge/Download-APK-brightgreen)](https://github.com/ahmedsignate2/nova-wallet-release/releases/latest)
+[![Download APK](https://img.shields.io/badge/Download-APK-brightgreen)](https://github.com/ahmedsignate2/kalyx-wallet-release/releases/latest)
 
 Chaque release publie l'APK **et** son empreinte `kalyx-wallet.apk.sha256`. Vérifiez le fichier téléchargé avant de l'installer :
 
@@ -63,7 +63,7 @@ Chaque release publie l'APK **et** son empreinte `kalyx-wallet.apk.sha256`. Vér
 sha256sum -c kalyx-wallet.apk.sha256
 ```
 
-Le lien neutre [kalyxwallet.com/download](https://kalyxwallet.com/download) redirige toujours vers la dernière version. Tableau de bord web (lecture seule + signatures relayées au téléphone) : [app.kalyxwallet.com](https://app.kalyxwallet.com).
+Les APK sont publiés sur le dépôt de distribution **[kalyx-wallet-release](https://github.com/ahmedsignate2/kalyx-wallet-release)** (empreinte SHA-256 et certificat de signature documentés dans son README). Le lien neutre [kalyxwallet.com/download](https://kalyxwallet.com/download) redirige toujours vers la dernière version. Tableau de bord web (lecture seule + signatures relayées au téléphone) : [app.kalyxwallet.com](https://app.kalyxwallet.com).
 
 
 ## 🎬 Démo

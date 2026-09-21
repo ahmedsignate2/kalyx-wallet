@@ -1,7 +1,7 @@
 name: EAS Build & Release
 
 # Construit un APK signé via EAS (preview ou production-apk) et le publie
-# directement sur le dépôt public de releases (ahmedsignate2/nova-wallet-release).
+# directement sur le dépôt public de releases (ahmedsignate2/kalyx-wallet-release).
 # L'app ne référence jamais un store précis en dur (cf. lib/appLinks.ts) : le
 # site et le bouton "Partager" utilisent toujours kalyxwallet.com/download,
 # qui télécharge l'asset `kalyx-wallet.apk` de la dernière release NON
@@ -12,7 +12,7 @@ name: EAS Build & Release
 #  - EXPO_TOKEN : jeton d'accès Expo (expo.dev > Account settings > Access tokens),
 #    pour lancer `eas build` sous ton compte depuis la CI.
 #  - RELEASE_REPO_TOKEN : Personal Access Token GitHub (fine-grained, droit
-#    "Contents: Read and write" sur ahmedsignate2/nova-wallet-release) —
+#    "Contents: Read and write" sur ahmedsignate2/kalyx-wallet-release) —
 #    le GITHUB_TOKEN par défaut ne peut PAS publier sur un autre dépôt.
 on:
   workflow_dispatch:
@@ -81,7 +81,7 @@ jobs:
       - name: Publie la release sur le dépôt public
         uses: softprops/action-gh-release@v2
         with:
-          repository: ahmedsignate2/nova-wallet-release
+          repository: ahmedsignate2/kalyx-wallet-release
           token: ${{ secrets.RELEASE_REPO_TOKEN }}
           tag_name: v${{ steps.meta.outputs.version }}-${{ inputs.profile }}-${{ github.run_number }}
           name: Kalyx Wallet v${{ steps.meta.outputs.version }} (${{ inputs.profile }})
