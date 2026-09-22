@@ -1,21 +1,57 @@
 /**
- * Bienvenue (§4.9) — LE seul moment orchestré de l'app : le halo naît d'un
- * point et s'ouvre (ressort Doux), le nom apparaît. 1,5 s max, passable d'un
- * tap. Puis « Créer un wallet » / « J'ai déjà un wallet ».
- * « Réduire les animations » : tout est visible immédiatement.
+ * Bienvenue (§4.9) — le premier contact, et le seul écran orchestré de l'app.
+ *
+ * Mise en scène (doctrine ui/tokens.ts) : le halo naît d'un point, le LOGO
+ * s'allume dedans, le nom puis la baseline montent, les trois arguments
+ * arrivent en décalé (seule cascade autorisée : liste courte et figée, au
+ * premier affichage uniquement), enfin les actions. ~900 ms au total, et
+ * surtout NON BLOQUANT : chaque élément est touchable dès qu'il est visible.
+ *
+ * Consentement : la case reste obligatoire (protection juridique — clause de
+ * non-garde, fourniture « en l'état », irréversibilité, cf. lib/legalText.ts),
+ * mais les boutons ne sont plus grisés. Toucher « Créer un wallet » sans avoir
+ * coché fait trembler la case : on montre ce qui manque au lieu d'offrir un
+ * écran mort au tout premier contact.
  */
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, Pressable as RNPressable } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
-import { Text, Button, Halo, Surface, Pressable } from '../ui/kit';
+import { Text, Button, Halo, Pressable, Checkbox } from '../ui/kit';
+import { KalyxLogo } from '../ui/KalyxLogo';
 import { Icon, type IconName } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, springs, durations, radius } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
+import { haptic } from '../lib/haptics';
 import { isDriveConfigured } from '../lib/googleDrive';
+
+/** Rythme de l'entrée, en millisecondes depuis l'ouverture de l'écran. */
+const BEAT = { logo: 0, name: 200, props: 380, actions: 560 } as const;
+
+/** Un argument, avec son propre décalage d'entrée. */
+function Argument({ icon, title, sub, delay, reduced }: { icon: IconName; title: string; sub: string; delay: number; reduced: boolean }) {
+  const { colors } = useTheme();
+  const v = useSharedValue(reduced ? 1 : 0);
+  useEffect(() => {
+    if (reduced) { v.value = 1; return; }
+    v.value = withDelay(delay, withSpring(1, springs.standard));
+  }, [v, delay, reduced]);
+  const style = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ translateY: (1 - v.value) * 14 }] }));
+  return (
+    <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[3] }, style]}>
+      <View style={{ width: 38, height: 38, borderRadius: radius.round, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={19} />
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="body">{title}</Text>
+        <Text variant="caption" tone="secondary" style={{ lineHeight: 18 }}>{sub}</Text>
+      </View>
+    </Animated.View>
+  );
+}
 
 export default function Welcome() {
   const { colors } = useTheme();
@@ -23,35 +59,29 @@ export default function Welcome() {
   const t = useT();
   const reduced = useReducedMotion();
   const newDraft = useWallet((s) => s.newDraft);
-  const [ready, setReady] = useState(false);
-  // Acceptation explicite des CGU/Politique de confidentialité, requise avant
-  // de créer/importer un wallet — protection juridique (clause de non-garde,
-  // fourniture « en l'état », irréversibilité) : voir lib/legalText.ts.
   const [agreed, setAgreed] = useState(false);
+  /** Incrémenté pour faire trembler la case quand on tente d'avancer sans elle. */
+  const [nudge, setNudge] = useState(0);
 
-  const halo = useSharedValue(0);
-  const name = useSharedValue(0);
-  const rest = useSharedValue(0);
+  const logo = useSharedValue(reduced ? 1 : 0);
+  const name = useSharedValue(reduced ? 1 : 0);
+  const actions = useSharedValue(reduced ? 1 : 0);
+
   useEffect(() => {
-    if (reduced) {
-      halo.value = 1; name.value = 1; rest.value = 1;
-      setReady(true);
-      return;
-    }
-    halo.value = withSpring(1, springs.gentle);
-    name.value = withDelay(500, withTiming(1, { duration: 500 }));
-    rest.value = withDelay(1000, withTiming(1, { duration: durations.fade * 2 }));
-    const id = setTimeout(() => setReady(true), 1500);
-    return () => clearTimeout(id);
-  }, [halo, name, rest, reduced]);
-  const skip = () => {
-    halo.value = 1; name.value = 1; rest.value = 1;
-    setReady(true);
-  };
+    if (reduced) return;
+    logo.value = withDelay(BEAT.logo, withSpring(1, springs.gentle));
+    name.value = withDelay(BEAT.name, withSpring(1, springs.standard));
+    actions.value = withDelay(BEAT.actions, withSpring(1, springs.standard));
+  }, [logo, name, actions, reduced]);
 
-  const haloStyle = useAnimatedStyle(() => ({ transform: [{ scale: 0.02 + halo.value * 0.98 }], opacity: Math.min(1, halo.value * 1.4) }));
-  const nameStyle = useAnimatedStyle(() => ({ opacity: name.value, transform: [{ translateY: (1 - name.value) * 8 }] }));
-  const restStyle = useAnimatedStyle(() => ({ opacity: rest.value }));
+  /** Tap n'importe où : on saute la mise en scène (elle ne bloquait déjà rien). */
+  const skip = () => { logo.value = 1; name.value = 1; actions.value = 1; };
+
+  // Le halo s'ouvre d'un point ; le logo apparaît dedans, légèrement en retard.
+  const haloStyle = useAnimatedStyle(() => ({ transform: [{ scale: 0.04 + logo.value * 0.96 }], opacity: Math.min(1, logo.value * 1.5) }));
+  const logoStyle = useAnimatedStyle(() => ({ opacity: logo.value, transform: [{ scale: 0.7 + logo.value * 0.3 }] }));
+  const nameStyle = useAnimatedStyle(() => ({ opacity: name.value, transform: [{ translateY: (1 - name.value) * 10 }] }));
+  const actionsStyle = useAnimatedStyle(() => ({ opacity: actions.value, transform: [{ translateY: (1 - actions.value) * 12 }] }));
 
   const PROPS: { icon: IconName; title: string; sub: string }[] = [
     { icon: 'security', title: t('propNonCustodial'), sub: t('propNonCustodialSub') },
@@ -59,85 +89,75 @@ export default function Welcome() {
     { icon: 'nft', title: t('propTokens'), sub: t('propTokensSub') },
   ];
 
+  /** Garde le consentement obligatoire, sans jamais présenter un bouton mort. */
+  const guarded = (go: () => void) => () => {
+    if (!agreed) { haptic.warning(); setNudge((n) => n + 1); return; }
+    go();
+  };
+
   return (
-    <RNPressable onPress={ready ? undefined : skip} style={{ flex: 1, backgroundColor: colors.bg }}>
+    <RNPressable onPress={skip} style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
       {/*
-        ScrollView plutôt qu'une simple View flex:1 : la carte des arguments
-        (flex:1 pour se centrer verticalement) a un enfant (Surface) qui, lui,
-        NE rétrécit PAS (flexShrink par défaut = 0 dans Yoga/RN, contrairement
-        au web). Sur un écran bas ou dès que le contenu du dessous s'allonge
-        (ex. le bloc CGU), la carte peut donc déborder par-dessus les boutons
-        au lieu de rétrécir — d'où le chevauchement. Le ScrollView + flexGrow:1
-        garde le rendu centré quand tout tient, et fait défiler proprement sinon.
+        ScrollView + flexGrow:1 : centré quand tout tient, défilant sinon (petit
+        écran, texte légal long, langue verbeuse). Une View flex:1 laissait la
+        carte déborder par-dessus les boutons, car un enfant ne rétrécit pas par
+        défaut dans Yoga, contrairement au web.
       */}
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[5], paddingHorizontal: SCREEN_MARGIN }}
+        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + space[5], paddingBottom: insets.bottom + space[5], paddingHorizontal: SCREEN_MARGIN }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Naissance du halo */}
-        {/* En-tête : hauteur libre (le sous-titre peut prendre 2 lignes), halo derrière le nom seulement. */}
-        <View style={{ minHeight: 220, alignItems: 'center', justifyContent: 'center', paddingVertical: space[3] }}>
-          <Animated.View style={[{ position: 'absolute', top: -60 }, haloStyle]} pointerEvents="none">
-            <Halo size={320} mood="up" />
+        {/* Naissance du halo + logo : le moment de marque. */}
+        <View style={{ minHeight: 230, alignItems: 'center', justifyContent: 'center' }}>
+          <Animated.View style={[{ position: 'absolute' }, haloStyle]} pointerEvents="none">
+            <Halo size={340} mood="up" />
           </Animated.View>
-          <Animated.View style={[{ alignItems: 'center', width: '100%', paddingHorizontal: space[6] }, nameStyle]}>
-            <Text variant="title1" style={{ fontSize: 40, lineHeight: 48, letterSpacing: 2, textAlign: 'center' }}>Kalyx</Text>
+          <Animated.View style={logoStyle}>
+            <KalyxLogo size={76} />
+          </Animated.View>
+          <Animated.View style={[{ alignItems: 'center', width: '100%', marginTop: space[4] }, nameStyle]}>
+            <Text variant="title1" style={{ fontSize: 38, lineHeight: 44, letterSpacing: 1.5 }}>Kalyx</Text>
             <Text
               variant="bodySecondary"
               tone="secondary"
-              style={{ marginTop: space[4], textAlign: 'center', width: '100%', maxWidth: 300, fontSize: 15, lineHeight: 23, letterSpacing: 0.2 }}
+              style={{ marginTop: space[3], textAlign: 'center', maxWidth: 300, fontSize: 15, lineHeight: 23 }}
             >
               {t('tagline')}
             </Text>
           </Animated.View>
         </View>
 
-        {/*
-          PAS de flex:1 ici : à l'intérieur d'un ScrollView, un enfant flex:1
-          a une taille mal définie (rien à "remplir", le contenu détermine la
-          hauteur) — RN peut alors croire que tout tient dans le viewport et
-          désactiver le scroll, alors que le contenu déborde quand même
-          visuellement. D'où le bug précédent (bouton du bas hors champ,
-          écran non scrollable). Un simple marginVertical suffit ici.
-        */}
-        <Animated.View style={[{ gap: space[3], marginVertical: space[5] }, restStyle]}>
-          <Surface padded={false}>
-            {PROPS.map((p, i) => (
-              <View key={p.title} style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[3], borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
-                <View style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name={p.icon} size={20} />
-                </View>
-                <View style={{ flex: 1, gap: space[1] }}>
-                  <Text variant="body">{p.title}</Text>
-                  <Text variant="caption" tone="secondary" style={{ lineHeight: 18 }}>{p.sub}</Text>
-                </View>
-              </View>
-            ))}
-          </Surface>
-        </Animated.View>
+        {/* Arguments : plus de carte bordée — de l'air, et une entrée décalée. */}
+        <View style={{ gap: space[4], marginVertical: space[6] }}>
+          {PROPS.map((p, i) => (
+            <Argument key={p.title} {...p} delay={BEAT.props + i * 70} reduced={reduced} />
+          ))}
+        </View>
 
-        <Animated.View style={[{ gap: space[3] }, restStyle]}>
-          <Pressable
-            onPress={() => setAgreed((v) => !v)}
-            style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: agreed }}
-          >
-            <Text style={{ fontSize: 18, lineHeight: 20, color: agreed ? colors.primary : colors.textSecondary }}>{agreed ? '☑' : '☐'}</Text>
-            <Text variant="caption" tone="secondary" style={{ flex: 1, lineHeight: 18 }}>{t('legalConsentLabel')}</Text>
-          </Pressable>
-          <View style={{ flexDirection: 'row', gap: space[4], marginTop: -space[2] }}>
-            <Pressable onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}>
+        <Animated.View style={[{ gap: space[3] }, actionsStyle]}>
+          <Checkbox
+            checked={agreed}
+            onChange={setAgreed}
+            shake={nudge}
+            label={<Text variant="caption" tone="secondary" style={{ lineHeight: 18 }}>{t('legalConsentLabel')}</Text>}
+          />
+          <View style={{ flexDirection: 'row', gap: space[4], marginLeft: 34 }}>
+            <Pressable onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })} noScale hitSlop={8}>
               <Text variant="caption" style={{ color: colors.primary, textDecorationLine: 'underline' }}>{t('legalTermsOfService')}</Text>
             </Pressable>
-            <Pressable onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}>
+            <Pressable onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })} noScale hitSlop={8}>
               <Text variant="caption" style={{ color: colors.primary, textDecorationLine: 'underline' }}>{t('legalPrivacyPolicy')}</Text>
             </Pressable>
           </View>
-          <Button label={t('createWalletT')} disabled={!agreed} onPress={() => { newDraft(128); router.push('/backup'); }} />
-          <Button label={t('havePhrase')} variant="secondary" disabled={!agreed} onPress={() => router.push('/import')} />
-          {isDriveConfigured() ? <Button label={t('driveRestore')} variant="secondary" disabled={!agreed} onPress={() => router.push('/restore-drive')} /> : null}
+
+          <Button label={t('createWalletT')} onPress={guarded(() => { newDraft(128); router.push('/backup'); })} style={{ marginTop: space[2] }} />
+          <Button label={t('havePhrase')} variant="secondary" onPress={guarded(() => router.push('/import'))} />
+          {isDriveConfigured() ? (
+            <Pressable onPress={guarded(() => router.push('/restore-drive'))} noScale hitSlop={8} style={{ alignItems: 'center', paddingVertical: space[2] }}>
+              <Text variant="caption" style={{ color: colors.textSecondary }}>{t('driveRestore')}</Text>
+            </Pressable>
+          ) : null}
         </Animated.View>
       </ScrollView>
     </RNPressable>
