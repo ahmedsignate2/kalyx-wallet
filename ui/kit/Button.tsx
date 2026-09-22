@@ -3,8 +3,10 @@
  * secondaire (Orbite, rayon 12), discret (texte seul), destructif.
  * États : normal, pressé (scale), désactivé, chargement. Zéro dégradé, zéro ombre.
  */
-import React from 'react';
-import { ActivityIndicator, View, type StyleProp, type ViewStyle } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable } from './Pressable';
 import { Text } from './Text';
 import { Icon, type IconName } from '../icon';
@@ -12,6 +14,52 @@ import { useTheme } from '../theme';
 import { radius, BUTTON_HEIGHT, space } from '../tokens';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive';
+
+/** Durée d'un cycle de brillance : un éclat court, puis une longue attente. */
+const SHEEN_CYCLE = 3800;
+const SHEEN_TRAVEL = 0.28; // part du cycle pendant laquelle la bande traverse
+const SHEEN_BAND = 110;
+
+/**
+ * Reflet qui traverse le bouton, comme la lumière sur du métal poli. Réservé à
+ * l'action principale d'un écran d'accueil ou d'accroche : sur une pile de
+ * boutons ordinaires, ça devient une guirlande.
+ *
+ * La bande est teintée en `onPrimary` (donc sombre sur un bouton clair, claire
+ * sur un bouton sombre) : un reflet blanc serait invisible sur le bouton
+ * Lumière du thème sombre.
+ */
+function Sheen({ color, radius: r }: { color: string; radius: number }) {
+  const reduced = useReducedMotion();
+  const [w, setW] = useState(0);
+  const t = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduced || !w) return;
+    t.value = withRepeat(withTiming(1, { duration: SHEEN_CYCLE, easing: Easing.linear }), -1, false);
+  }, [t, reduced, w]);
+
+  const style = useAnimatedStyle(() => {
+    const p = t.value / SHEEN_TRAVEL;
+    if (p > 1) return { opacity: 0 };
+    return {
+      opacity: 0.16,
+      transform: [{ translateX: -SHEEN_BAND + p * (w + SHEEN_BAND * 2) }, { rotate: '16deg' }],
+    };
+  });
+
+  return (
+    <View
+      pointerEvents="none"
+      onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: r, overflow: 'hidden' }}
+    >
+      <Animated.View style={[{ position: 'absolute', top: -20, bottom: -20, width: SHEEN_BAND }, style]}>
+        <LinearGradient colors={['transparent', color, 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
+      </Animated.View>
+    </View>
+  );
+}
 
 export function Button({
   label,
@@ -22,6 +70,7 @@ export function Button({
   disabled,
   size = 'lg',
   dense,
+  sheen,
   style,
   accessibilityLabel,
 }: {
@@ -34,6 +83,8 @@ export function Button({
   size?: 'lg' | 'md' | 'sm';
   /** Rangée serrée (3 boutons) : libellé 13 pt, padding réduit — jamais de troncature. */
   dense?: boolean;
+  /** Reflet qui traverse en boucle. UNE seule fois par écran, sur l'action principale. */
+  sheen?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
 }) {
@@ -72,6 +123,7 @@ export function Button({
         style,
       ]}
     >
+      {sheen && !off ? <Sheen color={fg} radius={r} /> : null}
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
