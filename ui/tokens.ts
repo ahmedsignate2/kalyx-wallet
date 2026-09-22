@@ -191,6 +191,13 @@ export const springs = {
   gentle: { damping: 26, stiffness: 120 },
   /** Réussite (coche, succès d'envoi) : léger rebond, jamais ailleurs. */
   bouncy: { damping: 12, stiffness: 260 },
+  /**
+   * Allumage d'un rayon du logo, et RIEN d'autre. Chaque rayon jaillit du
+   * noyau en dépassant légèrement sa longueur avant de se poser : c'est ce
+   * dépassement, répété seize fois en cascade, qui fait la sensation de
+   * construction. Un `withTiming` linéaire donnait un fondu, pas un jaillissement.
+   */
+  ignite: { damping: 14, stiffness: 180 },
 } as const;
 
 export const durations = {
