@@ -1,8 +1,10 @@
 /**
  * Bienvenue (§4.9) — le premier contact, et le seul écran orchestré de l'app.
  *
- * Mise en scène (doctrine ui/tokens.ts) : le halo naît d'un point autour du
- * logo (déjà allumé par le splash), le nom puis la baseline montent, les trois arguments
+ * C'est aussi l'OUVERTURE de l'app au premier lancement : aucun splash ne le
+ * précède (app/_layout.tsx), donc la séquence complète se joue ici, d'un seul
+ * tenant, en ~1,25 s — le logo s'allume et le halo naît du même point au même
+ * instant, le nom puis la baseline montent, les trois arguments
  * arrivent en décalé (seule cascade autorisée : liste courte et figée, au
  * premier affichage uniquement), enfin les actions. ~900 ms au total, et
  * surtout NON BLOQUANT : chaque élément est touchable dès qu'il est visible.
@@ -19,7 +21,7 @@ import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
 import { Text, Button, Halo, Pressable, Checkbox } from '../ui/kit';
-import { KalyxLogo } from '../ui/KalyxLogo';
+import { KalyxLogoIgnite } from '../ui/KalyxLogo';
 import { Icon, type IconName } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, springs, radius } from '../ui/tokens';
@@ -29,7 +31,9 @@ import { haptic } from '../lib/haptics';
 import { isDriveConfigured } from '../lib/googleDrive';
 
 /** Rythme de l'entrée, en millisecondes depuis l'ouverture de l'écran. */
-const BEAT = { logo: 0, name: 200, props: 380, actions: 560 } as const;
+const BEAT = { logo: 0, name: 300, tagline: 440, props: 580, actions: 880 } as const;
+/** Décalage entre deux arguments (seule cascade autorisée, cf. doctrine §2). */
+const STAGGER = 80;
 
 /** Un argument, avec son propre décalage d'entrée. */
 function Argument({ icon, title, sub, delay, reduced }: { icon: IconName; title: string; sub: string; delay: number; reduced: boolean }) {
@@ -65,6 +69,7 @@ export default function Welcome() {
 
   const logo = useSharedValue(reduced ? 1 : 0);
   const name = useSharedValue(reduced ? 1 : 0);
+  const tagline = useSharedValue(reduced ? 1 : 0);
   const actions = useSharedValue(reduced ? 1 : 0);
   /** Respiration continue du bouton principal : la seule chose qui appelle au tap. */
   const cta = useSharedValue(1);
@@ -73,15 +78,16 @@ export default function Welcome() {
     if (reduced) return;
     logo.value = withDelay(BEAT.logo, withSpring(1, springs.gentle));
     name.value = withDelay(BEAT.name, withSpring(1, springs.standard));
+    tagline.value = withDelay(BEAT.tagline, withSpring(1, springs.standard));
     actions.value = withDelay(BEAT.actions, withSpring(1, springs.standard));
     // Rainbow fait pulser son CTA en continu (1,02 ↔ 0,98). On garde l'idée
     // mais deux fois plus discrète : à cette échelle on ne la voit pas, on la
     // ressent — et elle ne concurrence pas la respiration du halo.
     cta.value = withDelay(BEAT.actions + 400, withRepeat(withTiming(1.012, { duration: 1400, easing: Easing.inOut(Easing.sin) }), -1, true));
-  }, [logo, name, actions, cta, reduced]);
+  }, [logo, name, tagline, actions, cta, reduced]);
 
   /** Tap n'importe où : on saute la mise en scène (elle ne bloquait déjà rien). */
-  const skip = () => { logo.value = 1; name.value = 1; actions.value = 1; };
+  const skip = () => { logo.value = 1; name.value = 1; tagline.value = 1; actions.value = 1; };
 
   // Le halo s'ouvre d'un point ; le logo apparaît dedans, légèrement en retard.
   const haloStyle = useAnimatedStyle(() => ({ transform: [{ scale: 0.04 + logo.value * 0.96 }], opacity: Math.min(1, logo.value * 1.5) }));
@@ -89,7 +95,8 @@ export default function Welcome() {
   // puis se pose au ressort. C'est ce dépassement qui donne la sensation de
   // matière ; un simple fondu fait plat.
   const logoStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, logo.value * 1.6), transform: [{ scale: 0.82 + logo.value * 0.18 }] }));
-  const nameStyle = useAnimatedStyle(() => ({ opacity: name.value, transform: [{ translateY: (1 - name.value) * 10 }] }));
+  const nameStyle = useAnimatedStyle(() => ({ opacity: name.value, transform: [{ translateY: (1 - name.value) * 10 }, { scale: 0.96 + name.value * 0.04 }] }));
+  const taglineStyle = useAnimatedStyle(() => ({ opacity: tagline.value, transform: [{ translateY: (1 - tagline.value) * 10 }] }));
   const actionsStyle = useAnimatedStyle(() => ({ opacity: actions.value, transform: [{ translateY: (1 - actions.value) * 12 }] }));
   const ctaStyle = useAnimatedStyle(() => ({ transform: [{ scale: cta.value }] }));
 
@@ -120,21 +127,21 @@ export default function Welcome() {
       >
         {/* Naissance du halo + logo : le moment de marque. */}
         {/*
-          Le logo arrive DÉJÀ ALLUMÉ : son allumage rayon par rayon est la
-          signature du splash, et il vient d'avoir lieu deux secondes plus tôt.
-          Le rejouer ici le banaliserait. Ce que Welcome ajoute, c'est le halo
-          qui naît d'un point et le « punch » du bloc — la marque s'installe,
-          elle ne se re-présente pas.
+          Au tout premier lancement, AUCUN splash n'a précédé cet écran (cf.
+          app/_layout.tsx) : la bienvenue EST l'ouverture de l'app. Le logo
+          s'allume donc ici, et le halo naît du même point au même instant.
         */}
         <View style={{ minHeight: 230, alignItems: 'center', justifyContent: 'center' }}>
           <Animated.View style={[{ position: 'absolute' }, haloStyle]} pointerEvents="none">
             <Halo size={340} mood="up" />
           </Animated.View>
           <Animated.View style={logoStyle}>
-            <KalyxLogo size={84} />
+            <KalyxLogoIgnite size={84} reduced={reduced} delay={60} duration={620} />
           </Animated.View>
           <Animated.View style={[{ alignItems: 'center', width: '100%', marginTop: space[4] }, nameStyle]}>
             <Text variant="title1" style={{ fontSize: 38, lineHeight: 44, letterSpacing: 1.5 }}>Kalyx</Text>
+          </Animated.View>
+          <Animated.View style={[{ alignItems: 'center', width: '100%' }, taglineStyle]}>
             <Text
               variant="bodySecondary"
               tone="secondary"
@@ -148,7 +155,7 @@ export default function Welcome() {
         {/* Arguments : plus de carte bordée — de l'air, et une entrée décalée. */}
         <View style={{ gap: space[4], marginVertical: space[6] }}>
           {PROPS.map((p, i) => (
-            <Argument key={p.title} {...p} delay={BEAT.props + i * 70} reduced={reduced} />
+            <Argument key={p.title} {...p} delay={BEAT.props + i * STAGGER} reduced={reduced} />
           ))}
         </View>
 

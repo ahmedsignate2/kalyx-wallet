@@ -33,11 +33,19 @@ export default function Index() {
     else router.replace('/home');
   }, [ready, hasWallet, isUnlocked]);
 
+  /*
+   * On ne prolonge le logo du splash QUE si un splash a effectivement joué —
+   * c'est-à-dire pour un utilisateur qui revient. Au premier lancement il n'y
+   * en a pas eu (app/_layout.tsx) et c'est l'écran de bienvenue qui allume le
+   * logo : en poser un ici, à une autre position, ferait clignoter la marque.
+   */
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{ marginBottom: SPLASH_LOGO_LIFT * 2 }}>
-        <KalyxLogo size={SPLASH_LOGO_SIZE} />
-      </View>
+      {ready && hasWallet ? (
+        <View style={{ marginBottom: SPLASH_LOGO_LIFT * 2 }}>
+          <KalyxLogo size={SPLASH_LOGO_SIZE} />
+        </View>
+      ) : null}
     </View>
   );
 }
