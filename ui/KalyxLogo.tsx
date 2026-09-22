@@ -15,7 +15,7 @@
  *    deux versions ne puissent jamais diverger.
  */
 import React, { useEffect, useId } from 'react';
-import Animated, { useAnimatedProps, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedProps, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Stop, G, Rect, Circle } from 'react-native-svg';
 import { springs, BRAND_GOLD } from './tokens';
 
@@ -68,25 +68,40 @@ export function KalyxLogo({ size = 96 }: { size?: number }) {
 }
 
 /**
- * Un rayon qui s'allume quand le balayage `progress` (0 → 1) atteint sa
- * position. Chaque rayon est son propre composant : les hooks Reanimated ne
- * peuvent pas vivre dans un `.map()`, et ça évite 16 animations concurrentes —
- * une seule valeur partagée pilote les 16 opacités.
+ * Un rayon qui JAILLIT du noyau. Chaque rayon possède son propre ressort et son
+ * propre retard : c'est la seule façon d'obtenir une construction (seize gestes
+ * enchaînés) plutôt qu'un balayage (une seule opacité qui glisse). Les hooks
+ * Reanimated ne pouvant pas vivre dans un `.map()`, chaque rayon est un
+ * composant — et ça tombe bien, c'est aussi ce qui lui donne son ressort.
+ *
+ * Le rayon pousse vers l'EXTÉRIEUR : son extrémité intérieure reste collée au
+ * noyau (y = -(INNER + longueur)) pendant que la pointe s'éloigne. L'ancienne
+ * version gardait la pointe fixe et faisait varier la hauteur : le rayon
+ * grandissait vers le centre, ce qui se lit comme un effacement, pas comme une
+ * naissance.
  */
-function IgnitingRay({ i, progress, gid }: { i: number; progress: SharedValue<number>; gid: string }) {
+function IgnitingRay({ i, gid, reduced, delay, stagger }: { i: number; gid: string; reduced: boolean; delay: number; stagger: number }) {
   const r = ray(i);
-  // Le balayage occupe les 75 premiers % de la progression ; chaque rayon
-  // s'allume sur une fenêtre de 25 %, d'où un recouvrement qui donne une
-  // traînée de lumière plutôt qu'un clignotement saccadé.
-  const start = (i / RAYS) * 0.75;
+  const v = useSharedValue(reduced ? 1 : 0);
+
+  useEffect(() => {
+    if (reduced) { v.value = 1; return; }
+    v.value = withDelay(delay + i * stagger, withSpring(1, springs.ignite));
+  }, [v, i, reduced, delay, stagger]);
+
   const animatedProps = useAnimatedProps(() => {
-    const local = Math.min(1, Math.max(0, (progress.value - start) / 0.25));
-    return { opacity: local, height: r.height * (0.55 + local * 0.45) };
+    // Le ressort dépasse 1 : on laisse le rayon déborder, c'est le « waouh ».
+    const len = Math.max(0.001, r.height * v.value);
+    return {
+      opacity: Math.min(1, v.value * 2.5),
+      height: len,
+      y: -(INNER + len),
+    };
   });
+
   return (
     <AnimatedRect
       x={-RAY_WIDTH / 2}
-      y={-r.outer}
       width={RAY_WIDTH}
       rx={RAY_WIDTH / 2}
       fill={`url(#${gid})`}
@@ -96,28 +111,26 @@ function IgnitingRay({ i, progress, gid }: { i: number; progress: SharedValue<nu
   );
 }
 
-/**
- * Logo qui s'allume. `reduced` : tout est visible immédiatement, sans balayage.
- * `onLit` n'est pas nécessaire — rien dans l'écran n'attend la fin.
- */
-export function KalyxLogoIgnite({ size = 96, reduced = false, delay = 0, duration = 820 }: { size?: number; reduced?: boolean; delay?: number; duration?: number }) {
+export function KalyxLogoIgnite({
+  size = 96, reduced = false, delay = 0, stagger = 32,
+}: {
+  size?: number;
+  reduced?: boolean;
+  delay?: number;
+  /** Retard entre deux rayons. 16 × stagger = durée du balayage. */
+  stagger?: number;
+}) {
   const gid = `kalyxGoldLit-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
-  const progress = useSharedValue(reduced ? 1 : 0);
   const core = useSharedValue(reduced ? 1 : 0);
   /** Éclosion : la marque s'ouvre au ressort en pivotant, elle ne se pose pas. */
   const bloom = useSharedValue(reduced ? 1 : 0);
 
   useEffect(() => {
-    if (reduced) { progress.value = 1; core.value = 1; bloom.value = 1; return; }
-    const id = setTimeout(() => {
-      // Balayage des rayons, puis le noyau arrive en dernier avec un rebond :
-      // la lumière converge vers le centre.
-      progress.value = withTiming(1, { duration });
-      core.value = withSpring(1, springs.bouncy);
-      bloom.value = withSpring(1, springs.gentle);
-    }, delay);
-    return () => clearTimeout(id);
-  }, [progress, core, bloom, reduced, delay, duration]);
+    if (reduced) { core.value = 1; bloom.value = 1; return; }
+    // Le noyau s'allume EN PREMIER : c'est de lui que partent les rayons.
+    core.value = withDelay(delay, withSpring(1, springs.bouncy));
+    bloom.value = withDelay(delay, withSpring(1, springs.gentle));
+  }, [core, bloom, reduced, delay]);
 
   /*
    * Le soleil s'ouvre : il part légèrement plus petit et pivoté d'un huitième
@@ -145,7 +158,7 @@ export function KalyxLogoIgnite({ size = 96, reduced = false, delay = 0, duratio
         </Defs>
         <G>
           {Array.from({ length: RAYS }).map((_, i) => (
-            <IgnitingRay key={i} i={i} progress={progress} gid={gid} />
+            <IgnitingRay key={i} i={i} gid={gid} reduced={reduced} delay={delay} stagger={stagger} />
           ))}
         </G>
         <AnimatedCircle cx={0} cy={0} fill={`url(#${gid})`} animatedProps={coreProps} />
