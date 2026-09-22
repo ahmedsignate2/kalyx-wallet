@@ -7,6 +7,7 @@ import { OfflineBanner } from '../ui/OfflineBanner';
 import { FloatingAiAssistant } from '../components/ai/FloatingAiAssistant';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useWallet } from '../lib/walletStore';
+import { useAuraBinding } from '../lib/auraBinding';
 import { useAiStore } from '../lib/aiStore';
 import { useSettings } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
@@ -41,6 +42,9 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 export default function RootLayout() {
   const { mode, colors } = useTheme();
+  // L'Aura lit les états réels de l'app (réseau, synchronisation) et pilote le
+  // halo. Monté ici, une seule fois, pour toute la durée de vie de l'app.
+  useAuraBinding();
   /*
    * Ouverture de l'app — deux chemins, un seul moment de marque dans chacun.
    *

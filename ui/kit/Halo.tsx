@@ -1,23 +1,31 @@
 /**
- * Halo — le seul dégradé de l'app (§2.2), en SVG radial, et la SEULE animation
- * ambiante autorisée (doctrine §3, cf. ui/tokens.ts). Il respire : un cycle
- * lent de `durations.haloBreath` qui fait varier l'échelle et l'opacité de
- * quelques pour cent. Assez pour que l'écran soit vivant quand on ne touche à
- * rien, assez lent pour qu'on ne le remarque jamais consciemment.
+ * Halo — le seul dégradé de l'app (§2.2), en SVG radial.
+ *
+ * Deux rôles, distingués par la prop `aura` :
+ *
+ *  - SANS `aura` : une lumière décorative qui respire lentement. C'est ce qu'il
+ *    était jusqu'ici, et ce qu'il reste sur les écrans où il n'est qu'un décor
+ *    (fiche token, Design Lab, splash).
+ *
+ *  - AVEC `aura` : il DEVIENT l'Aura, l'unique indicateur d'état de l'app
+ *    (docs/08 §3). Il ne respire plus « parce que c'est joli » : sa respiration
+ *    dit que rien ne se passe, son flux rapide dit que Kalyx travaille, son
+ *    extinction dit qu'il n'y a plus de réseau. Une seule instance à la fois
+ *    (§3.4) : accueil, déverrouillage, bienvenue, pull-to-refresh. Nulle part
+ *    ailleurs, sinon l'information n'en est plus une.
+ *
+ * Aucun écran ne pilote ce composant : il lit `lib/aura.ts`, qui reçoit les
+ * événements des stores. C'est ce découplage qui permettra de remplacer le
+ * dessin par Skia sans toucher à la sémantique.
  *
  * `mood` : hausse = plus lumineux, frange chaude ; baisse = plus faible, froid.
- *
- * Deux usages :
- *  - <Halo size /> : disque autonome (onboarding, Design Lab).
- *  - <HaloBackdrop /> : COUCHE PLEINE LARGEUR (left 0 → right 0), posée derrière
- *    le contenu de l'accueil : le dégradé est centré en haut à droite et fond dans
- *    l'Encre bien avant les bords → aucune coupure possible, quel que soit l'écran.
  */
 import React, { useEffect } from 'react';
-import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, RadialGradient, Stop, Circle, Rect } from 'react-native-svg';
 import { useTheme } from '../theme';
-import { durations } from '../tokens';
+import { durations, springs } from '../tokens';
+import { useAura, type AuraAmbient, type AuraPulse } from '../../lib/aura';
 
 function useStops(mood: 'up' | 'down' | 'flat') {
   const { halo } = useTheme();
@@ -27,32 +35,111 @@ function useStops(mood: 'up' | 'down' | 'flat') {
 }
 
 /**
- * Cycle de respiration partagé : va-et-vient 0 → 1 sur une demi-période, en
- * sinus (aucun à-coup aux extrémités). Sur le thread UI, donc insensible à la
- * charge JavaScript. Immobile si « Réduire les animations » est actif.
+ * Comportement de chaque ambiance (§3.2). `period` est la demi-période de
+ * respiration : plus elle est courte, plus le halo paraît occupé. `floor` est
+ * l'opacité de base — c'est elle qui « éteint » la veille.
  */
-function useBreath(amplitude: { scale: number; opacity: number }) {
-  const v = useSharedValue(0);
+const AMBIENT: Record<AuraAmbient, { period: number; scale: number; opacity: number; floor: number }> = {
+  /** Repos : respiration lente et nette. On ne la remarque pas, on la ressent. */
+  rest: { period: durations.haloBreath / 2, scale: 0.06, opacity: 0.12, floor: 1 },
+  /** Synchronisation : même geste, presque trois fois plus rapide. Kalyx travaille. */
+  sync: { period: 1100, scale: 0.045, opacity: 0.22, floor: 1 },
+  /** Veille : presque éteint et IMMOBILE. Le hors-ligne ne respire pas. */
+  offline: { period: 0, scale: 0, opacity: 0, floor: 0.28 },
+};
+
+/** Ce que joue chaque impulsion, par-dessus l'ambiance (§3.2). */
+const PULSE: Record<AuraPulse, { scale: number; opacity: number }> = {
+  /** Réception : expansion lumineuse — quelque chose est ARRIVÉ. */
+  receive: { scale: 0.2, opacity: 0.3 },
+  /** Succès : une seule impulsion, plus contenue. */
+  success: { scale: 0.13, opacity: 0.25 },
+  /** Erreur : micro-CONTRACTION. L'échec resserre, il ne brille pas. */
+  error: { scale: -0.09, opacity: -0.18 },
+  /** Ouverture : le halo s'ouvre depuis le centre. */
+  unlock: { scale: 0.16, opacity: 0.2 },
+};
+
+/**
+ * Cycle de respiration. Sur le thread UI, donc insensible à la charge
+ * JavaScript. `amplitude` module l'intensité pour les couches larges.
+ */
+function useAuraStyle(amplitude: number, isAura: boolean) {
+  const ambient = useAura((s) => (isAura ? s.ambient : 'rest'));
+  const event = useAura((s) => (isAura ? s.event : null));
   const reduced = useReducedMotion();
+
+  const breath = useSharedValue(0);
+  /** Opacité de base, animée pour que le passage en veille soit un fondu. */
+  const floor = useSharedValue(1);
+  const pulseScale = useSharedValue(0);
+  const pulseOpacity = useSharedValue(0);
+
+  const cfg = AMBIENT[ambient];
+
   useEffect(() => {
-    if (reduced) { v.value = 0; return; }
-    v.value = withRepeat(
-      withTiming(1, { duration: durations.haloBreath / 2, easing: Easing.inOut(Easing.sin) }),
-      -1,
-      true,
-    );
-  }, [v, reduced]);
+    floor.value = withTiming(cfg.floor, { duration: durations.themeCrossfade });
+
+    // « Réduire les animations » : chaque ambiance devient un NIVEAU FIXE (§4.4).
+    // Le halo continue de dire l'état, il cesse seulement de bouger.
+    if (reduced || cfg.period === 0) {
+      breath.value = withTiming(reduced && ambient === 'sync' ? 1 : 0, { duration: durations.fade });
+      return;
+    }
+    // On ne remet pas `breath` à 0 avant de relancer : la nouvelle boucle part
+    // de la valeur affichée, donc aucun saut au changement d'ambiance (§4.2).
+    breath.value = withRepeat(withTiming(1, { duration: cfg.period, easing: Easing.inOut(Easing.sin) }), -1, true);
+  }, [breath, floor, cfg.period, cfg.floor, ambient, reduced]);
+
+  useEffect(() => {
+    if (!event) return;
+    const p = PULSE[event.kind];
+    if (reduced) {
+      // Pas d'échelle : un bref changement d'opacité suffit à marquer le coup.
+      pulseOpacity.value = withSequence(
+        withTiming(Math.abs(p.opacity), { duration: durations.micro }),
+        withTiming(0, { duration: durations.fade }),
+      );
+      return;
+    }
+    pulseScale.value = withSequence(withSpring(p.scale, springs.bouncy), withSpring(0, springs.gentle));
+    pulseOpacity.value = withSequence(withTiming(p.opacity, { duration: durations.micro }), withTiming(0, { duration: durations.burst / 2 }));
+    // `event.seq` et non `event` : une impulsion identique qui se répète doit
+    // rejouer, un simple re-rendu ne doit pas.
+  }, [event?.seq, event?.kind, pulseScale, pulseOpacity, reduced]);
+
   return useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + v.value * amplitude.scale }],
-    opacity: 1 - amplitude.opacity + v.value * amplitude.opacity,
+    transform: [{ scale: 1 + breath.value * cfg.scale * amplitude + pulseScale.value * amplitude }],
+    opacity: Math.max(
+      0,
+      floor.value * (1 - cfg.opacity * amplitude + breath.value * cfg.opacity * amplitude) + pulseOpacity.value * amplitude,
+    ),
   }));
 }
 
-export function Halo({ size = 320, mood = 'flat', style }: { size?: number; mood?: 'up' | 'down' | 'flat'; style?: object }) {
+/** Déclare cette instance comme l'Aura visible, et la retire au démontage. */
+function useAuraPresence(isAura: boolean) {
+  useEffect(() => {
+    if (!isAura) return;
+    useAura.getState().setVisible(true);
+    return () => useAura.getState().setVisible(false);
+  }, [isAura]);
+}
+
+export function Halo({
+  size = 320, mood = 'flat', style, aura = false,
+}: {
+  size?: number;
+  mood?: 'up' | 'down' | 'flat';
+  style?: object;
+  /** Cette instance EST l'Aura : elle reflète l'état réel de l'app (§3.4). */
+  aura?: boolean;
+}) {
   const { halo, intensity, warm } = useStops(mood);
-  const breath = useBreath({ scale: 0.06, opacity: 0.12 });
+  const animated = useAuraStyle(1, aura);
+  useAuraPresence(aura);
   return (
-    <Animated.View pointerEvents="none" style={[{ width: size, height: size, opacity: halo.opacity * intensity }, style, breath]}>
+    <Animated.View pointerEvents="none" style={[{ width: size, height: size, opacity: halo.opacity * intensity }, style, animated]}>
       <Svg width={size} height={size}>
         <Defs>
           <RadialGradient id="halo" cx="50%" cy="50%" r="50%">
@@ -69,14 +156,24 @@ export function Halo({ size = 320, mood = 'flat', style }: { size?: number; mood
   );
 }
 
-/** Couche pleine largeur derrière le solde. `height` = zone couverte depuis le haut. */
-export function HaloBackdrop({ mood = 'flat', height = 380, top = 0 }: { mood?: 'up' | 'down' | 'flat'; height?: number; top?: number }) {
+/**
+ * Couche pleine largeur derrière le solde. `height` = zone couverte depuis le
+ * haut. Amplitude réduite de moitié : sur toute la largeur de l'écran, le même
+ * mouvement devient perceptible et distrait de la lecture du solde.
+ */
+export function HaloBackdrop({
+  mood = 'flat', height = 380, top = 0, aura = false,
+}: {
+  mood?: 'up' | 'down' | 'flat';
+  height?: number;
+  top?: number;
+  aura?: boolean;
+}) {
   const { halo, intensity, warm } = useStops(mood);
-  // Couche large : amplitude réduite de moitié, sinon le mouvement devient
-  // perceptible sur toute la largeur de l'écran et distrait de la lecture du solde.
-  const breath = useBreath({ scale: 0.03, opacity: 0.08 });
+  const animated = useAuraStyle(0.5, aura);
+  useAuraPresence(aura);
   return (
-    <Animated.View pointerEvents="none" style={[{ position: 'absolute', top, left: 0, right: 0, height, opacity: halo.opacity * intensity }, breath]}>
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', top, left: 0, right: 0, height, opacity: halo.opacity * intensity }, animated]}>
       <Svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
         <Defs>
           {/* Centre en haut à droite ; rayon 45 % → transparent avant tout bord. */}

@@ -257,7 +257,7 @@ export default function Home() {
       {/* Halo HORS du ScrollView (sinon Android le clippe au bord droit) — derrière le solde. */}
       {/* Entièrement DANS l'écran horizontalement : Android clippe au bord → un halo qui
           déborde y laissait une coupure verticale nette (« boîte centrale »). */}
-      {!hidden ? <Halo size={300} mood={mood} style={{ position: 'absolute', right: 0, top: insets.top - 70 }} /> : null}
+      {!hidden ? <Halo size={300} mood={mood} aura style={{ position: 'absolute', right: 0, top: insets.top - 70 }} /> : null}
       <ScrollView
         style={{ flex: 1, alignSelf: 'stretch' }}
         contentContainerStyle={{ paddingTop: insets.top + space[2], paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + 120, gap: space[6] }}

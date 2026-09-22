@@ -24,6 +24,8 @@ import {
 } from '../../src';
 import { safeNum } from '../earn/earnStore';
 import { usePortfolio as useLegacyPortfolio } from '../portfolioStore';
+import { aura } from '../aura';
+import { didReceive } from './receive';
 
 export interface Holding {
   /** `${chainId}:${contract|native}` */
@@ -227,10 +229,15 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (s.loading) return;
     if (!opts?.force && s.key === key && !s.fromCache && Date.now() - s.at < STALE_MS) return;
     set({ loading: true, error: null });
+    // `loading` suffit : l'ambiance Synchronisation en est DÉRIVÉE par
+    // lib/auraBinding.ts. Ce store n'a pas à connaître le halo, il n'émet que
+    // ce que le halo ne peut pas déduire : les événements.
+    const before = s.holdings;
     try {
       const holdings = await loadHoldings(acct, fiat, includeTestnets);
       const snap: Snapshot = { holdings, ...summarize(holdings), at: Date.now() };
       set({ ...snap, key, fromCache: false, loading: false });
+      if (didReceive(before, holdings)) aura.pulse('receive');
       AsyncStorage.setItem(key, serialize(snap)).catch(() => {});
       // Résumé pour l'assistant IA (ancien store, conservé pour compatibilité).
       useLegacyPortfolio.getState().setPortfolio(
@@ -241,6 +248,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       );
     } catch (e) {
       set({ loading: false, error: e instanceof Error ? e.message : 'Réseau indisponible' });
+      aura.pulse('error');
     }
   },
 }));
