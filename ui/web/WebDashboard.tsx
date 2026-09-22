@@ -10,7 +10,6 @@ import QRCode from 'react-native-qrcode-svg';
 import Svg, { Rect, Defs, LinearGradient as SvgGradient, RadialGradient, Stop } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
 import { KalyxLogo } from '../KalyxLogo';
-import { AuroraBackground } from '../AuroraBackground';
 import { InteractiveChart } from '../InteractiveChart';
 import { useTelegramBiometric } from './telegramBiometric';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,10 +26,10 @@ import { Text as KText, Button, Sheet, Surface, ListRow, Divider } from '../kit'
 import { ReceiveScreen } from './ReceiveScreen';
 import { SendFlow } from './SendFlow';
 import { SwapScreen } from './SwapScreen';
+import { Sidebar, TopBar, SectionTitle } from './DesktopChrome';
 import { MobileHeader, NetworkPill, ActionRow, PeriodChips, SegmentTabs, MobileEmptyState, FloatingDock, DOCK_CLEARANCE } from './MobileChrome';
 import { useAiStore } from '../../lib/aiStore';
 import { PROVIDER_DEFAULTS } from '../../lib/aiConfig';
-import { AllocationDonut, foldSlices } from '../AllocationDonut';
 import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useWebConnect } from '../../lib/webConnect';
@@ -197,11 +196,10 @@ export function WebDashboard() {
   }, [tw, language]);
 
   return (
-    // Mobile : fond uni de la maquette (#0B0C0E), pas d'aurora — le halo
-    // laiton derrière le solde est le seul effet lumineux de l'écran.
+    // Fond uni de la maquette (#0B0C0E) partout — le halo laiton derrière le
+    // solde est le seul effet lumineux de l'écran.
     <TelegramAppContext.Provider value={tgApp}>
-      <View style={{ flex: 1, backgroundColor: narrow ? P.bg : colors.bgDeep }}>
-        {narrow ? null : <AuroraBackground intensity={0.55} />}
+      <View style={{ flex: 1, backgroundColor: P.bg }}>
         {status === 'connected' ? <Dashboard /> : <ConnectView />}
         <SigningModal />
       </View>
@@ -525,33 +523,6 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
 type MobileTab = 'home' | 'market' | 'agent' | 'settings';
 type ActionSheetKind = 'send' | 'receive' | 'swap';
 
-/** Puce compacte « réseau actuel », ouvre le sélecteur en feuille plutôt que
- *  d'afficher les N réseaux connectés en dur dans le flux des Réglages. */
-function CurrentNetworkChip({ chain, onPress, compact }: { chain: ChainConfig; onPress: () => void; compact?: boolean }) {
-  const { colors } = useTheme();
-  const tw = useWebT();
-  if (compact) {
-    // Pill discrète pour l'en-tête : juste le réseau, pas de libellé "Réseau
-    // actuel" ni de sous-titre — l'utilisateur sait déjà ce qu'il regarde.
-    return (
-      <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.pill, paddingVertical: 6, paddingHorizontal: 10, opacity: pressed ? 0.7 : 1 })}>
-        <ChainAvatar chain={chain} size={16} />
-        <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 12 }} numberOfLines={1}>{chain.name}</Text>
-        <Icon name="chevron" size={11} color={colors.textMuted} />
-      </Pressable>
-    );
-  }
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg, padding: spacing(1.5), opacity: pressed ? 0.7 : 1 })}>
-      <ChainAvatar chain={chain} size={32} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ color: colors.textMuted, fontSize: 12 }}>{tw('currentNetwork')}</Text>
-        <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 15 }} numberOfLines={1}>{chain.name}</Text>
-      </View>
-      <Icon name="chevron" size={16} color={colors.textMuted} />
-    </Pressable>
-  );
-}
 
 /** Feuille plein écran (Envoyer/Recevoir/Swap) — remplace tout l'écran sur
  *  mobile plutôt que d'empiler ces panneaux dans le flux, avec un retour. */
@@ -587,10 +558,8 @@ function FlowHost({ narrow, onDismiss, children }: { narrow: boolean; onDismiss:
 function Dashboard() {
   const t = useT();
   const tw = useWebT();
-  const { colors, typography } = useTheme();
+  const { colors } = useTheme();
   const { width } = useWindowDimensions();
-  const wide = width >= 1180; // 3 colonnes desktop
-  const mid = width >= 760; // 2 colonnes
   const accounts = useWebConnect((s) => s.accounts);
   const selected = useWebConnect((s) => s.selected);
   const refresh = useWebConnect((s) => s.refresh);
@@ -602,13 +571,10 @@ function Dashboard() {
   };
   const chain = useMemo(() => chainById(selected), [selected]);
   const address = useMemo(() => accounts.find((a) => a.chainId === selected)?.address ?? '', [accounts, selected]);
-  const isEvm = chain.family === 'evm';
   const worth = useNetWorth();
-  // Sur téléphone (1 colonne), une barre d'onglets (Accueil/Portefeuille/
-  // Activité/Réglages) remplace l'empilement de toutes les sections sur une
-  // seule page ; Envoyer/Recevoir/Swap deviennent des feuilles plein écran
-  // ouvertes depuis les actions rapides de l'Accueil.
-  const narrow = !wide && !mid;
+  // Téléphone : dock + un onglet à la fois ; ordinateur : barre latérale +
+  // colonne de contenu. Envoyer / Recevoir / Swap : mêmes parcours plein écran.
+  const narrow = width < 760;
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<MobileTab>('home');
   const [sheet, setSheet] = useState<ActionSheetKind | null>(null);
@@ -620,14 +586,14 @@ function Dashboard() {
   useTelegramBackButton(tgApp, !!sheet || networkSheet, closeOverlay);
   const openSheet = (k: ActionSheetKind) => { tgHaptic(tgApp, 'light'); setSheet(k); };
 
-  // Blocs réutilisés, disposés différemment selon la largeur d'écran. Le
-  // détail (data + calculs) est partagé via useHeroData : sur mobile, les 3
-  // présentations (solde / widgets / tendance) sont réordonnées autour des
-  // actions rapides sans dupliquer les appels réseau.
   const heroData = useHeroData({ worth, chain, address });
-  // Desktop : les mêmes parcours plein écran que le mobile (Recevoir / Envoyer /
-  // Swap), ouverts dans une colonne centrée — plus de formulaires inline.
-  const actionsBlock = (
+  const peerName = useWebConnect((s) => s.peerName);
+  const lastActivity = useWebConnect((s) => s.lastActivity);
+  const disconnect = useWebConnect((s) => s.disconnect);
+  const language = useSettings((s) => s.language);
+  const P = useWebPalette();
+  const tabLabels: Record<MobileTab, string> = { home: t("navHome"), market: t("navMarket"), agent: tw('agentTab'), settings: t("settings") };
+  const actionRow = (
     <ActionRow
       onReceive={() => openSheet('receive')}
       onSend={() => openSheet('send')}
@@ -635,82 +601,36 @@ function Dashboard() {
       labels={{ receive: t("receive"), send: t("send"), swap: t("swapAction") }}
     />
   );
-  const heroBlock = (
-    <View style={{ gap: spacing(2) }}>
-      <HeroTotalCard data={heroData} chain={chain} address={address} />
-      {actionsBlock}
-      <HeroWidgetsRow data={heroData} chain={chain} />
-      <HeroTrendCard data={heroData} chain={chain} />
-    </View>
+  // Accueil : un seul flux continu (solde avec halo → période + tendance →
+  // 3 actions → onglets Tokens / NFT / Activité), identique mobile et desktop.
+  const homeFlow = (
+    <>
+      <MobileHero data={heroData} chain={chain} address={address} large={!narrow} />
+      <MobileTrend data={heroData} chain={chain} />
+      {actionRow}
+      <MobileAssets data={heroData} chain={chain} address={address} onReceive={() => openSheet('receive')} />
+    </>
   );
-  const allocBlock = (
-    <Zone title={t("allocation")} collapsible={narrow}><AllocationPanel worth={worth} /></Zone>
+  const settingsFlow = (
+    <>
+      <SecurityPanel />
+      <SettingsPanel />
+    </>
   );
-  const tokensBlock = (
-    <Zone title={t("tabTokens")}>
-      {isEvm ? (
-        <TokensPanel chain={chain} address={address} />
-      ) : (
-        <>
-          <NativeBalanceCard chain={chain} address={address} />
-          <Note text={tw('tokensComingSoon', { chain: chain.name, symbol: chain.nativeSymbol })} />
-        </>
-      )}
-    </Zone>
-  );
-  const nftBlock = (
-    <Zone title={t("tabNft")} collapsible={narrow}>
-      {isEvm ? <NftsPanel chain={chain} address={address} /> : <Note text={tw('nftEvmOnly')} />}
-    </Zone>
-  );
-  const activityBlock = <Zone title={t("activity")} collapsible={narrow}><HistoryPanel chain={chain} address={address} /></Zone>;
-  const securityBlock = <Zone title={t("security")}><SecurityPanel /></Zone>;
-  const watchBlock = <Zone title={tw('watchlist')} collapsible={narrow}><WatchlistPanel worth={worth} /></Zone>;
-  const accountBlock = <AccountCard chain={chain} address={address} />;
-  const networksBlock = <Zone title={t("networks")}><NetworkSelector vertical /></Zone>;
-  // Sur mobile ces blocs SONT l'onglet : jamais repliés (sinon l'onglet
-  // Marché s'ouvrait sur un simple titre à déplier).
-  const settingsBlock = <Zone title={t("settings")}><SettingsPanel /></Zone>;
-  const agentBlock = <Zone title={tw('agentTab')}><AgentPanel chain={chain} address={address} worth={worth} /></Zone>;
-  const marketBlock = <Zone title={t("navMarket")}><MarketPanel /></Zone>;
 
-  // En-tête compact : un titre "Kalyx • Tableau de bord" en gros au centre
-  // faisait "panneau d'admin" — l'utilisateur sait déjà où il est. Logo +
-  // pastille de connexion (gauche), réseau (centre), rafraîchir (droite) —
-  // une seule ligne. Extrait car réutilisé aussi par l'onglet Agent (qui a
-  // besoin de son propre en-tête HORS du ScrollView, voir plus bas).
-  const headerRow = narrow ? (
-    // Mobile (maquette) : avatar-logo 36 px + « Kalyx / Portefeuille sécurisé »
-    // à gauche, rafraîchir à droite ; la pilule réseau a sa propre ligne.
+  /* ------------------------------------------------------------ Mobile */
+  const mobileHeader = (
     <>
       <MobileHeader onRefresh={onPullRefresh} refreshing={refreshing} subtitle={tw('securedWallet')} />
       <NetworkPill avatar={<ChainAvatar chain={chain} size={14} />} name={chain.name} onPress={() => setNetworkSheet(true)} />
     </>
-  ) : (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing(1) }}>
-      <View>
-        <KalyxLogo size={30} />
-        <View style={{ position: 'absolute', right: -2, bottom: -2, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.up, borderWidth: 2, borderColor: colors.bgDeep }} />
-      </View>
-      <CurrentNetworkChip chain={chain} onPress={() => setNetworkSheet(true)} compact />
-      <Pressable onPress={refresh} hitSlop={6} style={({ pressed }) => ({ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', opacity: pressed ? 0.6 : 1 })}>
-        <Icon name="refresh" size={16} color={colors.textMuted} />
-      </Pressable>
-    </View>
   );
-
   // L'onglet Agent a besoin d'un vrai conteneur flex NON scrollable (le chat
-  // gère son propre scroll interne) — à l'intérieur du ScrollView normal,
-  // flex:1/dvh ne représentent rien de fiable et poussaient la barre de
-  // saisie sous la nav du bas. Court-circuite le ScrollView pour ce cas.
-  const isAgentTab = narrow && tab === 'agent';
-
-  const scrollContent = isAgentTab ? (
-    // Zone de saisie + dock : le dock est ancré à 18 px du bas et mesure ~70 px ;
-    // on réserve DOCK_CLEARANCE (110) + la zone de gestes du téléphone pour
-    // garder ≥ 20 px d'air entre la barre de saisie et le dock.
+  // gère son propre scroll interne) — dans un ScrollView, flex:1/dvh ne
+  // représentent rien de fiable et poussaient la saisie sous le dock.
+  const mobileContent = tab === 'agent' ? (
     <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 22, paddingBottom: DOCK_CLEARANCE + insets.bottom, gap: 20 }}>
-      {headerRow}
+      {mobileHeader}
       <View style={{ flex: 1 }}>
         <AgentPanel chain={chain} address={address} worth={worth} />
       </View>
@@ -721,96 +641,65 @@ function Dashboard() {
       contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={colors.text} colors={[colors.text]} />}
     >
-      <View style={narrow
-        ? { width: '100%', maxWidth: 430, paddingHorizontal: 20, paddingTop: 22, paddingBottom: DOCK_CLEARANCE, gap: 26 }
-        : { width: '100%', maxWidth: 1440, padding: spacing(wide ? 3 : 2), gap: spacing(2) }}
-      >
-        {headerRow}
-
-        {wide ? (
-          /* ---- Desktop large : 3 colonnes, tout visible d'un coup ---- */
-          <View style={{ flexDirection: 'row', gap: spacing(2), alignItems: 'flex-start' }}>
-            <View style={{ width: 260, gap: spacing(2) }}>
-              {accountBlock}
-              {networksBlock}
-              {settingsBlock}
-            </View>
-            <View style={{ flex: 1.7, minWidth: 0, gap: spacing(2) }}>
-              {heroBlock}
-              {allocBlock}
-              {tokensBlock}
-              {nftBlock}
-            </View>
-            <View style={{ width: 360, gap: spacing(2) }}>
-              {securityBlock}
-              {watchBlock}
-              {activityBlock}
-              {agentBlock}
-              {marketBlock}
-            </View>
-          </View>
-        ) : mid ? (
-          /* ---- Tablette / petit desktop : 2 colonnes ---- */
-          <View style={{ flexDirection: 'row', gap: spacing(2), alignItems: 'flex-start' }}>
-            <View style={{ flex: 1.6, minWidth: 0, gap: spacing(2) }}>
-              {heroBlock}
-              {allocBlock}
-              {tokensBlock}
-              {nftBlock}
-              {activityBlock}
-            </View>
-            <View style={{ width: 320, gap: spacing(2) }}>
-              {accountBlock}
-              {networksBlock}
-              {securityBlock}
-              {watchBlock}
-                            {agentBlock}
-              {marketBlock}
-              {settingsBlock}
-            </View>
-          </View>
-        ) : (
-          /* ---- Mobile / étroit : onglets, un seul contenu à la fois ---- */
-          <CrossFade id={tab} style={{ gap: tab === 'home' ? 26 : spacing(2) }}>
-            {tab === 'home' ? (
-              /* Accueil maquette : un seul flux continu (pas de cartes
-               * empilées) — solde avec halo → période + tendance → 3 actions
-               * → onglets Tokens / NFT / Activité. */
-              <>
-                <MobileHero data={heroData} chain={chain} address={address} />
-                <MobileTrend data={heroData} chain={chain} />
-                <ActionRow
-                  onReceive={() => openSheet('receive')}
-                  onSend={() => openSheet('send')}
-                  onSwap={() => openSheet('swap')}
-                  labels={{ receive: t("receive"), send: t("send"), swap: t("swapAction") }}
-                />
-                <MobileAssets data={heroData} chain={chain} address={address} onReceive={() => openSheet('receive')} />
-              </>
-            ) : tab === 'market' ? (
-              marketBlock
-            ) : tab === 'agent' ? (
-              agentBlock
-            ) : (
-              <>
-                {securityBlock}
-                {settingsBlock}
-              </>
-            )}
-          </CrossFade>
-        )}
-
-        {narrow ? null : (
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: spacing(1) }}>
-            <Icon name="security" size={13} color={colors.textMuted} />
-            <Text style={[typography.muted, { textAlign: 'center', fontSize: 12 }]}>
-              Toutes les signatures se font sur votre téléphone Kalyx. Ce site n'a jamais accès à vos clés privées.
-            </Text>
-          </View>
-        )}
+      <View style={{ width: '100%', maxWidth: 430, paddingHorizontal: 20, paddingTop: 22, paddingBottom: DOCK_CLEARANCE, gap: 26 }}>
+        {mobileHeader}
+        <CrossFade id={tab} style={{ gap: tab === 'home' ? 26 : spacing(2) }}>
+          {tab === 'home' ? homeFlow : tab === 'market' ? <MarketPanel /> : settingsFlow}
+        </CrossFade>
       </View>
     </ScrollView>
   );
+
+  /* ----------------------------------------------------------- Desktop */
+  // Barre latérale (rail d'icônes sous 1100 px) + colonne de contenu. Sur
+  // l'accueil, un rail Marché à droite dès 1320 px. Même système visuel que
+  // le mobile : pas de cartes empilées, hero sans carte, onglets soulignés.
+  const rail = width < 1100;
+  const showMarketRail = width >= 1320 && tab === 'home';
+  const desktopContent = (
+    <View style={{ flex: 1, minWidth: 0 }}>
+      <View style={{ flex: 1, paddingHorizontal: 36, paddingTop: 24, gap: 24 }}>
+        <TopBar title={tabLabels[tab]} trust={tw('trustLine')} onRefresh={onPullRefresh} refreshing={refreshing} />
+        {tab === 'agent' ? (
+          <View style={{ flex: 1, alignSelf: 'center', width: '100%', maxWidth: 880, paddingBottom: 24 }}>
+            <AgentPanel chain={chain} address={address} worth={worth} />
+          </View>
+        ) : (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            <CrossFade id={tab} style={{ flexDirection: 'row', gap: 40, alignItems: 'flex-start' }}>
+              <View style={{ flex: 1, minWidth: 0, maxWidth: tab === 'home' ? 760 : tab === 'settings' ? 680 : 960, gap: tab === 'home' ? 28 : 24 }}>
+                {tab === 'home' ? homeFlow : tab === 'market' ? <MarketPanel /> : settingsFlow}
+              </View>
+              {showMarketRail ? (
+                <View style={{ width: 380, gap: 14 }}>
+                  <SectionTitle>{t("navMarket")}</SectionTitle>
+                  <MarketPanel />
+                </View>
+              ) : null}
+            </CrossFade>
+          </ScrollView>
+        )}
+      </View>
+    </View>
+  );
+  const desktopShell = (
+    <View style={{ flex: 1, flexDirection: 'row', backgroundColor: P.bg }}>
+      <Sidebar
+        rail={rail}
+        tab={tab}
+        onChange={setTab}
+        labels={tabLabels}
+        subtitle={tw('securedWallet')}
+        network={{ avatar: <ChainAvatar chain={chain} size={16} />, name: chain.name }}
+        onNetwork={() => setNetworkSheet(true)}
+        status={{ title: peerName ?? tw('kalyxWallet'), detail: `${tw('lastActivity')} · ${ago(Math.floor(lastActivity / 1000), language)}`, disconnectLabel: tw('disconnectDevice') }}
+        onDisconnect={() => { disconnect().catch(() => {}); }}
+      />
+      {desktopContent}
+    </View>
+  );
+
+  const scrollContent = narrow ? mobileContent : desktopShell;
 
   return (
     <View style={{ flex: 1 }}>
@@ -830,10 +719,12 @@ function Dashboard() {
           {sheet === 'swap' ? <SwapScreen chain={chain} onClose={() => setSheet(null)} /> : null}
         </FlowHost>
       ) : null}
-      {narrow && networkSheet ? (
-        <ActionSheet title={t("networks")} onClose={() => setNetworkSheet(false)}>
-          <NetworkSelector vertical onSelected={() => setNetworkSheet(false)} />
-        </ActionSheet>
+      {networkSheet ? (
+        <FlowHost narrow={narrow} onDismiss={() => setNetworkSheet(false)}>
+          <ActionSheet title={t("networks")} onClose={() => setNetworkSheet(false)}>
+            <NetworkSelector vertical onSelected={() => setNetworkSheet(false)} />
+          </ActionSheet>
+        </FlowHost>
       ) : null}
     </View>
   );
@@ -856,40 +747,7 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Zone du tableau de bord desktop : petit titre + contenu. */
-/** `collapsible` : replie la section derrière son titre (repliée par défaut).
- *  Utilisé uniquement en mobile étroit, pour raccourcir la page sans toucher
- *  à la navigation — les sections secondaires (NFT, activité, watchlist…)
- *  n'ont pas besoin d'être visibles d'entrée sur un écran de téléphone. */
-function Zone({ title, style, collapsible, children }: { title: string; style?: object; collapsible?: boolean; children: React.ReactNode }) {
-  const t = useT();
-  const { colors, typography } = useTheme();
-  const [open, setOpen] = useState(!collapsible);
-  const Header = collapsible ? Pressable : View;
-  return (
-    <View style={[{ minWidth: 0, gap: spacing(1) }, style]}>
-      <Header
-        {...(collapsible ? { onPress: () => setOpen((v) => !v) } : {})}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(0.75) }}
-      >
-        <View style={{ width: 3, height: 12, borderRadius: 2, backgroundColor: GOLD }} />
-        <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase', flex: 1 }}>{title}</Text>
-        {collapsible ? (
-          <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
-            <Icon name="caretDown" size={14} color={colors.textMuted} />
-          </View>
-        ) : null}
-      </Header>
-      {open ? children : null}
-    </View>
-  );
-}
 
-function Note({ text }: { text: string }) {
-  const t = useT();
-  const { typography } = useTheme();
-  return <Card><Text style={typography.muted}>{text}</Text></Card>;
-}
 
 /** État vide soigné (icône + titre + sous-titre), centré — jamais de détail
  *  technique (clé API manquante, etc.) exposé à l'utilisateur. Remplit aussi
@@ -979,36 +837,7 @@ function usePeriods(): { k: string; l: string }[] {
   const tw = useWebT();
   return PERIOD_KEYS.map((p) => ({ k: p.k, l: tw(p.l) }));
 }
-function PeriodToggle({ days, onChange }: { days: string; onChange: (d: string) => void }) {
-  const t = useT();
-  const { colors } = useTheme();
-  const PERIODS = usePeriods();
-  return (
-    <View style={{ flexDirection: 'row', gap: spacing(0.5), marginTop: spacing(1) }}>
-      {PERIODS.map((p) => {
-        const on = p.k === days;
-        return (
-          <Pressable key={p.k} onPress={() => onChange(p.k)} style={{ paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.6), borderRadius: radii.pill, backgroundColor: on ? colors.accent : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}>
-            <Text style={{ color: on ? colors.onPrimary : colors.textMuted, fontFamily: fonts.semibold, fontSize: 12 }}>{p.l}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
 
-/** Petite tuile de statistique (label + valeur + sous-titre). */
-function Widget({ label, value, sub, valueColor }: { label: string; value: string; sub?: string; valueColor?: string }) {
-  const t = useT();
-  const { colors } = useTheme();
-  return (
-    <View style={{ flex: 1, minWidth: 128, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, padding: spacing(1.5) }}>
-      <Text style={{ color: colors.textMuted, fontSize: 12, fontFamily: fonts.medium }} numberOfLines={1}>{label}</Text>
-      <Text style={{ color: valueColor ?? colors.text, fontSize: 18, fontFamily: fonts.bold, marginTop: 4, fontVariant: ['tabular-nums'] }} numberOfLines={1}>{value}</Text>
-      {sub ? <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }} numberOfLines={1}>{sub}</Text> : null}
-    </View>
-  );
-}
 
 /** Bloc « héros » : valeur totale cross-chain + variation du jour + widgets +
  *  graphique de tendance du réseau sélectionné (24 h / 7 j / 1 mois). */
@@ -1051,118 +880,7 @@ function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null
 }
 type HeroData = ReturnType<typeof useHeroData>;
 
-/** Carte « Valeur totale » + variation du jour. */
-/** Carte « héros » façon carte bancaire : coins très arrondis, dégradé
- *  discret (couleurs du thème — pas de violet/ambre hors charte, cf. tokens.ts
- *  « Plus de doré/violet »), œil masquer/révéler en haut à gauche, montant
- *  centré, pastille d'adresse cliquable en bas. Inspiré de Gram Wallet, adapté
- *  à l'identité visuelle Kalyx existante plutôt que copié telle quelle. */
-function HeroTotalCard({ data, chain, address }: { data: HeroData; chain: ChainConfig; address: string }) {
-  const t = useT();
-  const tw = useWebT();
-  const { colors, typography } = useTheme();
-  const fiat = useSettings((s) => s.fiat);
-  const { total, today, todayUp } = data;
-  const [hidden, setHidden] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const tg = useTelegramBiometric();
-  // Confidentialité : le solde se masque seul après 2 min sans interaction ou
-  // quand l'onglet passe en arrière-plan (écran partagé, PC laissé ouvert) ;
-  // un tap sur l'œil le révèle à nouveau.
-  const idle = useIdle(120_000, true);
-  const tabHidden = useTabHidden();
-  useEffect(() => { if (idle || tabHidden) setHidden(true); }, [idle, tabHidden]);
-  // Dans Telegram avec biométrie dispo : masqué par défaut, révélé par
-  // empreinte/Face ID (via Telegram). Sinon : simple bascule au tap, comme
-  // avant — jamais de secret réel derrière ce verrou, juste l'affichage.
-  const isHidden = tg.available ? !tg.unlocked : hidden;
-  const onToggleHidden = () => {
-    if (tg.available) {
-      if (tg.unlocked) tg.lock();
-      else tg.unlock(tw('showBalancePrompt'));
-    } else {
-      setHidden((v) => !v);
-    }
-  };
-  const copyAddress = async () => {
-    await Clipboard.setStringAsync(address);
-    setCopied(true);
-    toast.success(t('addressCopied'));
-    setTimeout(() => setCopied(false), 1500);
-  };
-  return (
-    // Bordure fine + halo doré diffus (identité Kalyx, ambre/or — cf. GOLD)
-    // au lieu d'un bloc noir plat : la lueur amber/orange en haut donne du
-    // relief sans dépendre d'un vrai blur (non supporté nativement en RN).
-    <View style={{ borderRadius: radii.xl, borderWidth: 1, borderColor: colors.text + '10', backgroundColor: colors.text + '06', overflow: 'hidden' }}>
-      <Svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} viewBox="0 0 100 100" preserveAspectRatio="none">
-        <Defs>
-          <RadialGradient id="heroGlow" cx="50%" cy="0%" r="85%">
-            <Stop offset="0" stopColor={GOLD} stopOpacity={0.15} />
-            <Stop offset="0.7" stopColor={GOLD} stopOpacity={0.03} />
-            <Stop offset="1" stopColor={GOLD} stopOpacity={0} />
-          </RadialGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100" height="100" fill="url(#heroGlow)" />
-      </Svg>
-      <View style={{ padding: spacing(2.5), alignItems: 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-          <Pressable onPress={onToggleHidden} hitSlop={8} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.text + '08', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={isHidden ? 'eyeOff' : 'eye'} size={15} color={colors.textMuted} />
-          </Pressable>
-          <View style={{ flex: 1 }} />
-          {tg.available ? <Icon name={tg.biometricType === 'face' ? 'security' : 'lock'} size={15} color={colors.textMuted} /> : null}
-        </View>
-        <Text style={[typography.muted, { marginTop: spacing(1.5) }]}>{t('totalValue')}</Text>
-        {total == null ? (
-          <Skeleton w={200} h={44} style={{ marginTop: 6 }} />
-        ) : (
-          <Text style={{ color: colors.text, fontSize: 42, fontFamily: fonts.extrabold, marginTop: 4, fontVariant: ['tabular-nums'] }}>
-            {isHidden ? '••••••' : formatFiatAmount(total, fiat)}
-          </Text>
-        )}
-        {total != null ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: 8 }}>
-            <View style={{ backgroundColor: (todayUp ? colors.up : colors.down) + '22', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 3 }}>
-              <Text style={{ color: todayUp ? colors.up : colors.down, fontFamily: fonts.bold, fontSize: 13 }}>
-                {`${todayUp ? '+' : '-'}${Math.abs(today).toFixed(2)} %`}
-              </Text>
-            </View>
-            <Text style={typography.muted}>{t("today")}</Text>
-          </View>
-        ) : null}
-        {address ? (
-          <Pressable onPress={copyAddress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing(2), backgroundColor: colors.bgDeep + '88', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.pill, paddingVertical: 7, paddingLeft: 12, paddingRight: 14, opacity: pressed ? 0.7 : 1 })}>
-            <ChainAvatar chain={chain} size={16} />
-            <Text style={{ color: colors.textMuted, fontSize: 12, fontVariant: ['tabular-nums'] }}>{short(address)}</Text>
-            <Icon name={copied ? 'check' : 'copy'} size={12} color={copied ? colors.up : colors.textFaint} />
-          </Pressable>
-        ) : null}
-        {/* Argument de confiance principal du produit — placé ici (juste sous
-         * l'adresse) plutôt que perdu tout en bas de la page, à l'endroit où
-         * l'utilisateur a justement besoin d'être rassuré. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(1) }}>
-          <Icon name="security" size={12} color={GOLD} />
-          <Text style={{ color: colors.textMuted, fontSize: 11 }}>{tw('trustLine')}</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
 
-/** Ligne de widgets (solde natif, prix, variation 24 h) — détail secondaire. */
-function HeroWidgetsRow({ data, chain }: { data: HeroData; chain: ChainConfig }) {
-  const { colors } = useTheme();
-  const tw = useWebT();
-  const { sym, bal, price, nativeChange } = data;
-  return (
-    <View style={{ flexDirection: 'row', gap: spacing(1.5), flexWrap: 'wrap' }}>
-      <Widget label={tw('balanceOf', { symbol: chain.nativeSymbol })} value={`${bal ? formatTokenAmount(bal.raw, bal.decimals) : '0'}`} />
-      <Widget label={tw('priceOf', { symbol: chain.nativeSymbol })} value={price ? `${sym}${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'} />
-      <Widget label={tw('change24h')} value={`${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)} %`} valueColor={nativeChange >= 0 ? colors.up : colors.down} />
-    </View>
-  );
-}
 
 /** Carte « Tendance » (graphique + sélecteur de période). */
 /** Date du point scrubbé — heure pour la période 24 h, date sinon (même
@@ -1174,38 +892,6 @@ function formatScrubDate(ts: number, days: string): string {
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
 }
 
-function HeroTrendCard({ data, chain }: { data: HeroData; chain: ChainConfig }) {
-  const { colors, typography } = useTheme();
-  const tw = useWebT();
-  const { days, setDays, values, points, up, pct, loading, sym } = data;
-  const [scrub, setScrub] = useState<ChartPoint | null>(null);
-  const [w, setW] = useState(0);
-  if (!chain.coingeckoId) return null;
-  return (
-    <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={typography.muted}>{tw('trendOf', { name: chain.name })}</Text>
-        {scrub ? (
-          <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 13 }} numberOfLines={1}>
-            {`${sym}${scrub.v.toLocaleString(undefined, { maximumFractionDigits: 2 })} · ${formatScrubDate(scrub.t, days)}`}
-          </Text>
-        ) : values.length ? (
-          <Text style={{ color: up ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13 }}>{up ? '+' : ''}{pct.toFixed(2)} %</Text>
-        ) : null}
-      </View>
-      {loading && !values.length ? (
-        <Skeleton h={150} r={radii.md} style={{ marginTop: spacing(1) }} />
-      ) : (points?.length ?? 0) > 1 ? (
-        <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ marginTop: spacing(1) }}>
-          {w > 0 ? <InteractiveChart points={points!} color={up ? colors.up : colors.down} width={w} height={150} onScrub={setScrub} /> : null}
-        </View>
-      ) : (
-        <View style={{ height: 150, alignItems: 'center', justifyContent: 'center' }}><Text style={typography.muted}>{tw('noPriceData')}</Text></View>
-      )}
-      <PeriodToggle days={days} onChange={setDays} />
-    </Card>
-  );
-}
 
 
 /* ------------------------------------------------- Accueil mobile (maquette) */
@@ -1226,7 +912,7 @@ function formatFiatParts(amount: number, fiat: string): { number: string; symbol
  *  44 px (Space Grotesk) + symbole 22 px grisé, variation absolue + % du jour,
  *  pilule d'adresse mono, ligne de confiance. Œil masquer/révéler à droite
  *  du libellé (biométrie Telegram quand disponible — affichage seulement). */
-function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConfig; address: string }) {
+function MobileHero({ data, chain, address, large }: { data: HeroData; chain: ChainConfig; address: string; large?: boolean }) {
   const P = useWebPalette();
   const t = useT();
   const tw = useWebT();
@@ -1287,10 +973,10 @@ function MobileHero({ data, chain, address }: { data: HeroData; chain: ChainConf
           <Skeleton w={180} h={48} />
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-            <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '700', fontSize: 44, lineHeight: 50, color: P.text, letterSpacing: -0.44, fontVariant: ['tabular-nums'] }}>
+            <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '700', fontSize: large ? 56 : 44, lineHeight: large ? 62 : 50, color: P.text, letterSpacing: large ? -0.8 : -0.44, fontVariant: ['tabular-nums'] }}>
               {isHidden ? '••••' : parts.number}
             </Text>
-            <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 22, color: P.muted }}>{parts.symbol}</Text>
+            <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: large ? 26 : 22, color: P.muted }}>{parts.symbol}</Text>
           </View>
         )}
         {parts != null && !isHidden ? (
@@ -1485,31 +1171,6 @@ function MobileTokenList({ data, chain, address, onReceive }: { data: HeroData; 
   );
 }
 
-/** Donut de répartition du portefeuille par réseau (natif + tokens). */
-function AllocationPanel({ worth }: { worth: { data: NetWorth | null } }) {
-  const t = useT();
-  const tw = useWebT();
-  const { typography } = useTheme();
-  const fiat = useSettings((s) => s.fiat);
-  const sym = fiatSymbol(fiat);
-  if (!worth.data) return <SkeletonRows count={3} />;
-  const slices = foldSlices(worth.data.slices.map((s) => ({ label: s.chain.name, value: s.value })));
-  if (!slices.length || worth.data.total <= 0) {
-    return <Card><Text style={typography.muted}>{tw('allocationEmpty')}</Text></Card>;
-  }
-  return (
-    <Card>
-      <AllocationDonut
-        slices={slices}
-        size={152}
-        thickness={16}
-        centerTitle={tw('total')}
-        centerValue={`${sym}${worth.data.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-        formatValue={(v) => `${sym}${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-      />
-    </Card>
-  );
-}
 
 /** Sélecteur de réseau : liste verticale (desktop) ou puces horizontales (étroit),
  *  avec recherche au-delà de ~6 réseaux. */
@@ -1553,36 +1214,6 @@ function NetworkSelector({ vertical, onSelected }: { vertical: boolean; onSelect
   );
 }
 
-/** Carte compte : nom + réseau + adresse (copier) + QR code dépliable. */
-function AccountCard({ chain, address, defaultQr }: { chain: ChainConfig; address: string; defaultQr?: boolean }) {
-  const t = useT();
-  const tw = useWebT();
-  const { colors, typography } = useTheme();
-  const [showQr, setShowQr] = useState(!!defaultQr);
-  return (
-    <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
-        <ChainAvatar chain={chain} size={40} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={typography.bodyStrong}>{tw('mainAccount')}</Text>
-          <Text style={typography.muted} numberOfLines={1}>{chain.name}</Text>
-        </View>
-        <Pressable onPress={() => setShowQr((v) => !v)} hitSlop={6} style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: showQr ? colors.accent : colors.glassBorder, opacity: pressed ? 0.6 : 1 })}>
-          <Icon name="scan" size={18} color={showQr ? colors.accent : colors.textMuted} />
-        </Pressable>
-      </View>
-      {showQr && address ? (
-        <View style={{ alignItems: 'center', marginTop: spacing(1.5), gap: spacing(1) }}>
-          <View style={{ backgroundColor: '#fff', padding: spacing(1.5), borderRadius: radii.md }}>
-            <QRCode value={address} size={168} />
-          </View>
-          <Text style={typography.muted}>{tw('addressOf', { symbol: chain.nativeSymbol, chain: chain.name })}</Text>
-        </View>
-      ) : null}
-      <CopyAddress address={address} />
-    </Card>
-  );
-}
 
 /** Panneau Sécurité : met en avant le modèle « le téléphone est le coffre-fort ». */
 function SecurityPanel() {
@@ -1771,190 +1402,10 @@ function SettingsPanel() {
   );
 }
 
-/** Watchlist : actifs natifs des réseaux connectés (prix + variation 24 h). */
-function WatchlistPanel({ worth }: { worth: { data: NetWorth | null } }) {
-  const t = useT();
-  const tw = useWebT();
-  const { colors, typography } = useTheme();
-  const fiat = useSettings((s) => s.fiat);
-  if (!worth.data) return <SkeletonRows count={3} />;
-  // Dé-duplication par coingeckoId (un seul ETH même si plusieurs réseaux EVM).
-  const seen = new Set<string>();
-  const rows = worth.data.slices.filter((s) => {
-    const id = s.chain.coingeckoId;
-    if (!id || seen.has(id)) return false;
-    seen.add(id);
-    return s.price > 0;
-  });
-  if (!rows.length) return <Card><Text style={typography.muted}>{tw('watchlistUnavailable')}</Text></Card>;
-  return (
-    <Card>
-      {rows.map((s, i) => {
-        const up = s.change24h >= 0;
-        return (
-          <View key={s.chain.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
-            <ChainAvatar chain={s.chain} size={30} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={typography.bodyStrong}>{s.chain.nativeSymbol}</Text>
-              <Text style={typography.muted} numberOfLines={1}>{s.chain.name}</Text>
-            </View>
-            <View style={{ alignItems: 'flex-end', gap: 3 }}>
-              <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }}>{formatFiatAmount(s.price, fiat)}</Text>
-              <View style={{ backgroundColor: (up ? colors.up : colors.down) + '1A', borderRadius: radii.sm, paddingHorizontal: 6, paddingVertical: 1 }}>
-                <Text style={{ color: up ? colors.up : colors.down, fontSize: 11, fontFamily: fonts.semibold }}>{`${up ? '+' : ''}${s.change24h.toFixed(2)} %`}</Text>
-              </View>
-            </View>
-          </View>
-        );
-      })}
-    </Card>
-  );
-}
 
-/** Adresse copiable avec retour visuel « Copié ». */
-function CopyAddress({ address }: { address: string }) {
-  const t = useT();
-  const { colors, typography } = useTheme();
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    await Clipboard.setStringAsync(address);
-    setCopied(true);
-    toast.success(t('addressCopied'));
-    setTimeout(() => setCopied(false), 1500);
-  };
-  return (
-    <Pressable onPress={copy} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(1.25), alignSelf: 'flex-start' }}>
-      <Text style={[typography.muted, { fontVariant: ['tabular-nums'] }]} numberOfLines={1}>{address}</Text>
-      <Pop trigger={copied}><Icon name={copied ? 'check' : 'copy'} size={14} color={copied ? colors.up : colors.textMuted} /></Pop>
-      {copied ? <Text style={{ color: colors.up, fontSize: 12, fontFamily: fonts.semibold }}>{t('copied')}</Text> : null}
-    </Pressable>
-  );
-}
 
-/** Solde natif (SOL, BTC…) affiché dans l'onglet Portefeuille pour les
- *  réseaux non-EVM, où la liste de tokens (SPL, etc.) n'est pas encore
- *  câblée — vaut mieux un vrai solde que « propre aux réseaux EVM ». */
-function NativeBalanceCard({ chain, address }: { chain: ChainConfig; address: string }) {
-  const { colors, typography } = useTheme();
-  const fiat = useSettings((s) => s.fiat);
-  const rev = useWebConnect((s) => s.rev);
-  const sym = fiatSymbol(fiat);
-  const { data: bal, loading } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
-  const { data: prices } = useAsync<Record<string, { price: number; change24h: number }>>(
-    () => (chain.coingeckoId ? getPrices([chain.coingeckoId], fiat) : Promise.resolve({})),
-    [chain.coingeckoId, fiat, rev],
-  );
-  if (loading) return <SkeletonRows count={1} />;
-  const price = chain.coingeckoId ? prices?.[chain.coingeckoId]?.price : undefined;
-  const amount = bal ? Number(bal.raw) / 10 ** bal.decimals : 0;
-  return (
-    <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
-        <ChainAvatar chain={chain} size={36} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={typography.bodyStrong}>{bal ? formatTokenAmount(bal.raw, bal.decimals) : '0'} {chain.nativeSymbol}</Text>
-          <Text style={typography.muted} numberOfLines={1}>{chain.name}</Text>
-        </View>
-        {price ? <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{`${sym}${(amount * price).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}</Text> : null}
-      </View>
-    </Card>
-  );
-}
 
-function TokensPanel({ chain, address }: { chain: ChainConfig; address: string }) {
-  const t = useT();
-  const tw = useWebT();
-  const { typography } = useTheme();
-  const rev = useWebConnect((s) => s.rev);
-  const fiat = useSettings((s) => s.fiat);
-  const sym = fiatSymbol(fiat);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const { data, loading } = useAsync<{ tokens: Erc20Token[]; prices: Record<string, number> }>(async () => {
-    const tokens = await getErc20Tokens(chain, address);
-    const prices = chain.coingeckoPlatform && tokens.length ? await getTokenPrices(chain.coingeckoPlatform, tokens.map((tk) => tk.contract), fiat) : {};
-    return { tokens, prices };
-  }, [chain.id, address, fiat, rev]);
-  if (loading) return <SkeletonRows />;
-  const tokens = data?.tokens ?? [];
-  if (tokens.length === 0) return <EmptyState icon="wallet" title={tw('noTokens')} subtitle={tw('noTokensChainBody')} />;
-  const prices = data?.prices ?? {};
-  // Valeur $ par token, triés par valeur décroissante (plus gros en haut).
-  const withValue = tokens
-    .map((tk) => {
-      const amount = Number(tk.raw) / 10 ** tk.decimals;
-      const value = amount * (prices[tk.contract.toLowerCase()] ?? 0);
-      return { tk, value };
-    })
-    .sort((a, b) => b.value - a.value);
-  // Un token SANS logo officiel ET sans valorisation connue est presque
-  // toujours un airdrop spam (le RPC renvoie tous les soldes ERC-20 sans
-  // filtre) — relégué par défaut dans un accordéon fermé plutôt que de
-  // polluer la liste principale de cercles gris vides.
-  const verified = withValue.filter(({ tk, value }) => tk.logo || value > 0);
-  const unverified = withValue.filter(({ tk, value }) => !tk.logo && value <= 0);
-  return (
-    <View style={{ gap: spacing(1) }}>
-      <Card>
-        {verified.length === 0 ? (
-          <Text style={typography.muted}>{tw('noVerifiedTokens')}</Text>
-        ) : (
-          verified.map(({ tk, value }, i) => (
-            <TokenRow
-              key={tk.contract}
-              token={tk}
-              value={value}
-              sym={sym}
-              chain={chain}
-              divider={i > 0}
-              expanded={expanded === tk.contract}
-              onToggle={() => setExpanded((cur) => (cur === tk.contract ? null : tk.contract))}
-            />
-          ))
-        )}
-      </Card>
-      {unverified.length > 0 ? (
-        <UnverifiedTokensAccordion rows={unverified} sym={sym} chain={chain} expanded={expanded} onToggle={setExpanded} />
-      ) : null}
-    </View>
-  );
-}
 
-/** Accordéon fermé par défaut — les tokens sans logo ni valeur (spam probable). */
-function UnverifiedTokensAccordion({
-  rows, sym, chain, expanded, onToggle,
-}: {
-  rows: { tk: Erc20Token; value: number }[]; sym: string; chain: ChainConfig; expanded: string | null; onToggle: (id: string | null) => void;
-}) {
-  const { colors, typography } = useTheme();
-  const tw = useWebT();
-  const [open, setOpen] = useState(false);
-  return (
-    <View>
-      <Pressable onPress={() => setOpen((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(0.75), paddingVertical: spacing(0.75) }}>
-        <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
-          <Icon name="caretDown" size={13} color={colors.textFaint} />
-        </View>
-        <Text style={[typography.muted, { fontSize: 12 }]}>{tw('unverifiedTokens', { n: rows.length })}</Text>
-      </Pressable>
-      {open ? (
-        <Card>
-          {rows.map(({ tk, value }, i) => (
-            <TokenRow
-              key={tk.contract}
-              token={tk}
-              value={value}
-              sym={sym}
-              chain={chain}
-              divider={i > 0}
-              expanded={expanded === tk.contract}
-              onToggle={() => onToggle(expanded === tk.contract ? null : tk.contract)}
-            />
-          ))}
-        </Card>
-      ) : null}
-    </View>
-  );
-}
 
 /** Ligne d'un token ERC-20 : dépliable pour révéler le contrat et un envoi
  *  dédié (encode `transfer(address,uint256)`, signé côté téléphone). */
