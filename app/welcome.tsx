@@ -17,12 +17,12 @@ import React, { useEffect, useState } from 'react';
 import { View, ScrollView, Pressable as RNPressable } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
 import { Text, Button, Halo, Pressable, Checkbox } from '../ui/kit';
-import { KalyxLogo } from '../ui/KalyxLogo';
+import { KalyxLogoIgnite } from '../ui/KalyxLogo';
 import { Icon, type IconName } from '../ui/icon';
 import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, springs, durations, radius } from '../ui/tokens';
+import { space, SCREEN_MARGIN, springs, radius } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { haptic } from '../lib/haptics';
@@ -66,22 +66,32 @@ export default function Welcome() {
   const logo = useSharedValue(reduced ? 1 : 0);
   const name = useSharedValue(reduced ? 1 : 0);
   const actions = useSharedValue(reduced ? 1 : 0);
+  /** Respiration continue du bouton principal : la seule chose qui appelle au tap. */
+  const cta = useSharedValue(1);
 
   useEffect(() => {
     if (reduced) return;
     logo.value = withDelay(BEAT.logo, withSpring(1, springs.gentle));
     name.value = withDelay(BEAT.name, withSpring(1, springs.standard));
     actions.value = withDelay(BEAT.actions, withSpring(1, springs.standard));
-  }, [logo, name, actions, reduced]);
+    // Rainbow fait pulser son CTA en continu (1,02 ↔ 0,98). On garde l'idée
+    // mais deux fois plus discrète : à cette échelle on ne la voit pas, on la
+    // ressent — et elle ne concurrence pas la respiration du halo.
+    cta.value = withDelay(BEAT.actions + 400, withRepeat(withTiming(1.012, { duration: 1400, easing: Easing.inOut(Easing.sin) }), -1, true));
+  }, [logo, name, actions, cta, reduced]);
 
   /** Tap n'importe où : on saute la mise en scène (elle ne bloquait déjà rien). */
   const skip = () => { logo.value = 1; name.value = 1; actions.value = 1; };
 
   // Le halo s'ouvre d'un point ; le logo apparaît dedans, légèrement en retard.
   const haloStyle = useAnimatedStyle(() => ({ transform: [{ scale: 0.04 + logo.value * 0.96 }], opacity: Math.min(1, logo.value * 1.5) }));
-  const logoStyle = useAnimatedStyle(() => ({ opacity: logo.value, transform: [{ scale: 0.7 + logo.value * 0.3 }] }));
+  // « Punch » emprunté à Rainbow : le bloc dépasse légèrement sa taille finale
+  // puis se pose au ressort. C'est ce dépassement qui donne la sensation de
+  // matière ; un simple fondu fait plat.
+  const logoStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, logo.value * 1.6), transform: [{ scale: 0.82 + logo.value * 0.18 }] }));
   const nameStyle = useAnimatedStyle(() => ({ opacity: name.value, transform: [{ translateY: (1 - name.value) * 10 }] }));
   const actionsStyle = useAnimatedStyle(() => ({ opacity: actions.value, transform: [{ translateY: (1 - actions.value) * 12 }] }));
+  const ctaStyle = useAnimatedStyle(() => ({ transform: [{ scale: cta.value }] }));
 
   const PROPS: { icon: IconName; title: string; sub: string }[] = [
     { icon: 'security', title: t('propNonCustodial'), sub: t('propNonCustodialSub') },
@@ -114,7 +124,7 @@ export default function Welcome() {
             <Halo size={340} mood="up" />
           </Animated.View>
           <Animated.View style={logoStyle}>
-            <KalyxLogo size={76} />
+            <KalyxLogoIgnite size={84} reduced={reduced} delay={120} />
           </Animated.View>
           <Animated.View style={[{ alignItems: 'center', width: '100%', marginTop: space[4] }, nameStyle]}>
             <Text variant="title1" style={{ fontSize: 38, lineHeight: 44, letterSpacing: 1.5 }}>Kalyx</Text>
@@ -151,7 +161,9 @@ export default function Welcome() {
             </Pressable>
           </View>
 
-          <Button label={t('createWalletT')} onPress={guarded(() => { newDraft(128); router.push('/backup'); })} style={{ marginTop: space[2] }} />
+          <Animated.View style={ctaStyle}>
+            <Button label={t('createWalletT')} onPress={guarded(() => { newDraft(128); router.push('/backup'); })} style={{ marginTop: space[2] }} />
+          </Animated.View>
           <Button label={t('havePhrase')} variant="secondary" onPress={guarded(() => router.push('/import'))} />
           {isDriveConfigured() ? (
             <Pressable onPress={guarded(() => router.push('/restore-drive'))} noScale hitSlop={8} style={{ alignItems: 'center', paddingVertical: space[2] }}>
