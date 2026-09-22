@@ -9,6 +9,7 @@ export { TokenIcon } from './TokenIcon';
 export { AddressGlyph } from './AddressGlyph';
 export { AmountDisplay } from './AmountDisplay';
 export { Chip, RiskBadge, type RiskLevel } from './Chip';
+export { Checkbox } from './Checkbox';
 export { SegmentedControl } from './SegmentedControl';
 export { Input } from './Input';
 export { Skeleton } from './Skeleton';
