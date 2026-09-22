@@ -167,7 +167,7 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
             dans la marque. L'allumage démarre à 380 ms (quand les premières
             particules arrivent) et dure 620 ms.
           */}
-          <KalyxLogoIgnite size={SPLASH_LOGO_SIZE} delay={380} duration={620} />
+          <KalyxLogoIgnite size={SPLASH_LOGO_SIZE} delay={380} stagger={32} />
         </View>
 
         {/* Wordmark « KALYX » : police de marque + halo lumineux + barre de lumière */}
