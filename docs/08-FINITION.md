@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Statut | Plan validé. Audit (§21) exécuté le 22/09/2026. Implémentation non commencée. |
+| Statut | Plan validé. Audit (§21) exécuté. **Étape 1 (Aura Engine v1) livrée en partie — voir §22.** |
 | Phase | 8 — Finition (phases 0 à 7 livrées) |
 | S'appuie sur | `docs/DESIGN.md`, `ui/tokens.ts`, `ui/kit/`, `HANDOFF.md` |
 | Contexte | Développeur solo. Le séquencement vise le plus petit prochain gain, pas un planning d'équipe. |
@@ -538,7 +538,7 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 | # | Étape | Terminé quand |
 |---|---|---|
 | 0 | ~~Audit~~ | **Fait (§21)** |
-| 1 | Aura Engine v1, en repli SVG (§3) | l'accueil reflète les vrais états : sync, réception, succès, erreur, hors-ligne |
+| 1 | Aura Engine v1, en repli SVG (§3) | **partiellement livré.** Faits : moteur (`lib/aura.ts`), dérivation de l'ambiance (`lib/auraBinding.ts`), état réseau en store (`lib/networkStore.ts`), détection de réception (`lib/portfolio/receive.ts`), halo branché sur l'accueil. Manquent : impulsion Succès (aucun suivi de confirmation on-chain n'existe), ambiance « réseau chargé » (données de gas fausses), Aura sur Unlock (pas de halo sur cet écran — étape 4) |
 | 2 | Fondations transverses : états des boutons, claviers, toasts, réduire-animations (§6, §7, §12.2) | un écran pilote passe toute la checklist §20.2 |
 | 3 | **Migration des 96 boutons hors kit**, par ordre de densité | zéro `TouchableOpacity` / `Pressable` brut hors kit |
 | 4 | Unlock + Welcome (§7.2, §15) | le premier écran et le plus vu sont au niveau signature |
@@ -568,6 +568,8 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 | Congestion | seuil de `gasTrackerStore`, comportement multi-chaîne | données réelles |
 | Biométrie | timing exact entre fermeture système et impulsion | test sur device |
 | **Reflet du bouton principal** | **`sheen` (`ui/kit/Button.tsx`) est un dégradé qui balaie — §19 rejette le principe. Le garde-t-on sur Welcome ?** | **décision produit — voir §21.5** |
+| **Données de gas** | **`lib/gasTrackerStore.ts` renvoie du `Math.random()` et ces chiffres inventés sont AFFICHÉS (`components/ai/AiChatModal.tsx:579`). Branche RPC réelle ou retrait de l'affichage ?** | **décision produit — urgent** |
+| **Confirmation on-chain** | aucun suivi n'existe : l'impulsion Succès (§3.2) n'a pas de source | à construire avant l'étape 5 |
 
 ### 21.5 Contradiction ouverte entre le plan et le code poussé
 
