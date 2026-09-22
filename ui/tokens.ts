@@ -65,11 +65,40 @@ export const halo = {
     positions: [0, 0.35, 0.7, 1] as const,
     opacity: 1,
   },
+  /*
+   * En thème clair, un halo BLANC à 50 % d'opacité sur un fond #F6F7FA est
+   * rigoureusement invisible — le halo n'arrivait pas « trop tard », il
+   * n'arrivait jamais. Sur le Papier, la lueur doit être l'or de la marque :
+   * c'est le seul pigment qui se lit sur un fond presque blanc.
+   */
   light: {
-    stops: ['#FFFFFF', '#DCEBFF', 'rgba(255,205,160,0.30)', 'rgba(255,205,160,0)'] as const,
+    stops: ['rgba(221,181,101,0.62)', 'rgba(221,181,101,0.34)', 'rgba(184,134,58,0.18)', 'rgba(184,134,58,0)'] as const,
     positions: [0, 0.35, 0.7, 1] as const,
-    opacity: 0.5,
+    opacity: 1,
   },
+} as const;
+
+/**
+ * Or de la marque. Volontairement HORS palette : c'est une identité, pas une
+ * couleur d'interface — le logo est le même or sur l'Encre et sur le Papier.
+ */
+export const BRAND_GOLD = { light: '#DDB565', deep: '#B8863A' } as const;
+
+/**
+ * Particules du lancement. Elles doivent se lire SUR le fond : de la lumière
+ * qui converge sur l'Encre, de l'encre qui converge sur le Papier. Des
+ * particules blanches sur #F6F7FA ne sont pas « discrètes », elles sont
+ * absentes — c'est ce qui rendait l'ouverture muette en thème clair.
+ */
+export const splashParticles = {
+  dark: ['#FFFFFF', '#CFE3FF', '#FFD9B8', '#E6EEFF'] as const,
+  light: ['#0B0D16', '#2E3A57', '#8A6A2E', '#3F4A66'] as const,
+} as const;
+
+/** Traînée qui traverse l'écran : or clair sur l'Encre, or profond sur le Papier. */
+export const splashSweep = {
+  dark: 'rgba(221,181,101,0.55)',
+  light: 'rgba(138,106,46,0.34)',
 } as const;
 
 /* ------------------------------------------------------------------ */
