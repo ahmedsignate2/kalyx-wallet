@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -41,8 +41,29 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 export default function RootLayout() {
   const { mode, colors } = useTheme();
-  // Splash animé (~1,6 s) au lancement.
-  const [showSplash, setShowSplash] = useState(true);
+  /*
+   * Ouverture de l'app — deux chemins, un seul moment de marque dans chacun.
+   *
+   * Utilisateur qui revient : le splash joue (particules, allumage, KALYX),
+   * puis l'app apparaît dessous.
+   *
+   * TOUT PREMIER LANCEMENT : pas de splash. L'écran de bienvenue EST
+   * l'ouverture — il allume le logo, fait naître le halo, puis déroule nom,
+   * baseline, arguments et boutons d'un seul tenant. Avant, on jouait le
+   * splash PUIS la bienvenue : deux entrées de marque à la suite, la seconde
+   * annulant l'effet de la première. C'était ça, la sensation de « deux phases
+   * séparées ».
+   *
+   * On attend `ready` pour trancher (quelques images : bootstrap ne fait que
+   * lire le stockage local), en n'affichant rien d'autre que le fond du thème.
+   */
+  const storeReady = useWallet((s) => s.ready);
+  const hasWallet = useWallet((s) => s.hasWallet);
+  const [opening, setOpening] = useState<'wait' | 'splash' | 'done'>('wait');
+  useEffect(() => {
+    if (!storeReady || opening !== 'wait') return;
+    setOpening(hasWallet ? 'splash' : 'done');
+  }, [storeReady, hasWallet, opening]);
   // Typo du design system (General Sans). On attend le chargement avant de
   // rendre, sinon RN plante sur une fontFamily inconnue.
   const [fontsLoaded] = useFonts({
@@ -184,7 +205,14 @@ export default function RootLayout() {
         <PriceAlertWatcher />
         <DeepLinks />
         <FloatingAiAssistant />
-        {showSplash ? <Splash onFinish={() => setShowSplash(false)} /> : null}
+        {opening === 'wait' ? (
+          // Simple fond du thème : le temps de savoir s'il existe un wallet.
+          // Surtout pas de roue de chargement — elle ferait exactement le trou
+          // qu'on vient de supprimer.
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, zIndex: 100 }]} pointerEvents="none" />
+        ) : opening === 'splash' ? (
+          <Splash onFinish={() => setOpening('done')} />
+        ) : null}
         </View>
       </SafeAreaProvider>
     </RootErrorBoundary>
