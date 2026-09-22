@@ -15,7 +15,7 @@
  *    deux versions ne puissent jamais diverger.
  */
 import React, { useEffect, useId } from 'react';
-import Animated, { useAnimatedProps, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedProps, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withRepeat, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Stop, G, Rect, Circle } from 'react-native-svg';
 import { springs, BRAND_GOLD } from './tokens';
 
@@ -80,7 +80,7 @@ export function KalyxLogo({ size = 96 }: { size?: number }) {
  * grandissait vers le centre, ce qui se lit comme un effacement, pas comme une
  * naissance.
  */
-function IgnitingRay({ i, gid, reduced, delay, stagger }: { i: number; gid: string; reduced: boolean; delay: number; stagger: number }) {
+function IgnitingRay({ i, gid, reduced, delay, stagger, wave }: { i: number; gid: string; reduced: boolean; delay: number; stagger: number; wave: SharedValue<number> }) {
   const r = ray(i);
   const v = useSharedValue(reduced ? 1 : 0);
 
@@ -90,8 +90,16 @@ function IgnitingRay({ i, gid, reduced, delay, stagger }: { i: number; gid: stri
   }, [v, i, reduced, delay, stagger]);
 
   const animatedProps = useAnimatedProps(() => {
+    /*
+     * Onde de couronne : une SEULE valeur partagée tourne de 0 à 1 en boucle,
+     * et chaque rayon en lit sa propre phase (i / RAYS). Résultat : une vague
+     * de lumière qui fait le tour du soleil en permanence, pour le prix d'une
+     * seule animation — pas de seize. C'est ça qui fait respirer la marque,
+     * bien plus qu'une rotation.
+     */
+    const breath = 1 + 0.055 * Math.sin(2 * Math.PI * (wave.value + i / RAYS));
     // Le ressort dépasse 1 : on laisse le rayon déborder, c'est le « waouh ».
-    const len = Math.max(0.001, r.height * v.value);
+    const len = Math.max(0.001, r.height * v.value * breath);
     return {
       opacity: Math.min(1, v.value * 2.5),
       height: len,
@@ -112,18 +120,28 @@ function IgnitingRay({ i, gid, reduced, delay, stagger }: { i: number; gid: stri
 }
 
 export function KalyxLogoIgnite({
-  size = 96, reduced = false, delay = 0, stagger = 32,
+  size = 96, reduced = false, delay = 0, stagger = 32, alive = false,
 }: {
   size?: number;
   reduced?: boolean;
   delay?: number;
   /** Retard entre deux rayons. 16 × stagger = durée du balayage. */
   stagger?: number;
+  /**
+   * Une fois allumé, le soleil continue de vivre : onde de couronne, léger
+   * balancement, respiration. Réservé aux écrans où la marque EST le sujet
+   * (bienvenue) — ailleurs elle deviendrait un papillotement.
+   */
+  alive?: boolean;
 }) {
   const gid = `kalyxGoldLit-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const core = useSharedValue(reduced ? 1 : 0);
   /** Éclosion : la marque s'ouvre au ressort en pivotant, elle ne se pose pas. */
   const bloom = useSharedValue(reduced ? 1 : 0);
+  /** Onde qui fait le tour de la couronne, en continu. */
+  const wave = useSharedValue(0);
+  /** Balancement lent, en continu. */
+  const sway = useSharedValue(0);
 
   useEffect(() => {
     if (reduced) { core.value = 1; bloom.value = 1; return; }
@@ -131,6 +149,13 @@ export function KalyxLogoIgnite({
     core.value = withDelay(delay, withSpring(1, springs.bouncy));
     bloom.value = withDelay(delay, withSpring(1, springs.gentle));
   }, [core, bloom, reduced, delay]);
+
+  useEffect(() => {
+    if (!alive || reduced) { wave.value = 0; sway.value = 0; return; }
+    // Boucle NON inversée : l'onde tourne toujours dans le même sens.
+    wave.value = withRepeat(withTiming(1, { duration: 4200, easing: Easing.linear }), -1, false);
+    sway.value = withRepeat(withTiming(1, { duration: 5500, easing: Easing.inOut(Easing.sin) }), -1, true);
+  }, [alive, reduced, wave, sway]);
 
   /*
    * Le soleil s'ouvre : il part légèrement plus petit et pivoté d'un huitième
@@ -140,7 +165,15 @@ export function KalyxLogoIgnite({
    * franchement fait « chargement », pas « marque ».
    */
   const bloomStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${-11.25 * (1 - bloom.value)}deg` }, { scale: 0.86 + bloom.value * 0.14 }],
+    transform: [
+      // Éclosion, puis balancement permanent : ±7°, jamais un tour complet.
+      // Les rayons sont plus longs en haut (l'énergie monte, cf. `ray`) ; une
+      // rotation entière ferait basculer cette asymétrie vers le bas et la
+      // marque se lirait de travers. Le balancement donne la vie sans coûter
+      // l'identité. (Pour un tour complet : sway en boucle non inversée × 360.)
+      { rotate: `${-11.25 * (1 - bloom.value) + (sway.value - 0.5) * 14}deg` },
+      { scale: (0.86 + bloom.value * 0.14) * (1 + sway.value * 0.03) },
+    ],
   }));
 
   // Le noyau pousse légèrement au-delà de sa taille avant de se poser.
@@ -158,7 +191,7 @@ export function KalyxLogoIgnite({
         </Defs>
         <G>
           {Array.from({ length: RAYS }).map((_, i) => (
-            <IgnitingRay key={i} i={i} gid={gid} reduced={reduced} delay={delay} stagger={stagger} />
+            <IgnitingRay key={i} i={i} gid={gid} reduced={reduced} delay={delay} stagger={stagger} wave={wave} />
           ))}
         </G>
         <AnimatedCircle cx={0} cy={0} fill={`url(#${gid})`} animatedProps={coreProps} />
