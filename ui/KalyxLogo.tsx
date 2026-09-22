@@ -8,9 +8,11 @@
  * Deux versions :
  *  - <KalyxLogo />       : statique, partout dans l'app.
  *  - <KalyxLogoIgnite /> : les 16 rayons s'allument un par un en balayage,
- *    puis le noyau apparaît. C'est LE moment de marque de l'app (écran de
- *    bienvenue). La géométrie est partagée pour que les deux versions ne
- *    puissent jamais diverger.
+ *    puis le noyau apparaît. C'est LE moment de marque de l'app, et il a lieu
+ *    UNE SEULE fois par lancement : sur le splash. Partout ailleurs (routage,
+ *    bienvenue, réglages) le logo est déjà allumé — rejouer l'allumage toutes
+ *    les deux secondes le banaliserait. La géométrie est partagée pour que les
+ *    deux versions ne puissent jamais diverger.
  */
 import React, { useEffect, useId } from 'react';
 import Animated, { useAnimatedProps, useDerivedValue, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
@@ -98,7 +100,7 @@ function IgnitingRay({ i, progress, gid }: { i: number; progress: SharedValue<nu
  * Logo qui s'allume. `reduced` : tout est visible immédiatement, sans balayage.
  * `onLit` n'est pas nécessaire — rien dans l'écran n'attend la fin.
  */
-export function KalyxLogoIgnite({ size = 96, reduced = false, delay = 0 }: { size?: number; reduced?: boolean; delay?: number }) {
+export function KalyxLogoIgnite({ size = 96, reduced = false, delay = 0, duration = 820 }: { size?: number; reduced?: boolean; delay?: number; duration?: number }) {
   const gid = `kalyxGoldLit-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const progress = useSharedValue(reduced ? 1 : 0);
   const core = useSharedValue(reduced ? 1 : 0);
@@ -108,11 +110,11 @@ export function KalyxLogoIgnite({ size = 96, reduced = false, delay = 0 }: { siz
     const id = setTimeout(() => {
       // Balayage des rayons, puis le noyau arrive en dernier avec un rebond :
       // la lumière converge vers le centre.
-      progress.value = withTiming(1, { duration: 820 });
+      progress.value = withTiming(1, { duration });
       core.value = withSpring(1, springs.bouncy);
     }, delay);
     return () => clearTimeout(id);
-  }, [progress, core, reduced, delay]);
+  }, [progress, core, reduced, delay, duration]);
 
   // Le noyau pousse légèrement au-delà de sa taille avant de se poser.
   const coreScale = useDerivedValue(() => core.value);
