@@ -187,7 +187,7 @@ export default function Welcome() {
             <Mote x={-74} y={-52} size={5} period={7100} reduced={reduced} delay={BEAT.name} />
             <Mote x={66} y={-18} size={3.5} period={9300} reduced={reduced} delay={BEAT.tagline} />
             <Mote x={-46} y={58} size={4} period={11500} reduced={reduced} delay={BEAT.props} />
-            <KalyxLogoIgnite size={84} reduced={reduced} delay={IGNITE.delay} stagger={IGNITE.stagger} />
+            <KalyxLogoIgnite size={84} reduced={reduced} delay={IGNITE.delay} stagger={IGNITE.stagger} alive />
           </Animated.View>
           <Animated.View style={[{ alignItems: 'center', width: '100%', marginTop: space[4] }, nameStyle]}>
             <Text variant="title1" style={{ fontSize: 38, lineHeight: 44, letterSpacing: 1.5 }}>Kalyx</Text>
@@ -227,7 +227,7 @@ export default function Welcome() {
           </View>
 
           <Animated.View style={ctaStyle}>
-            <Button label={t('createWalletT')} onPress={guarded(() => { newDraft(128); router.push('/backup'); })} style={{ marginTop: space[2] }} />
+            <Button label={t('createWalletT')} onPress={guarded(() => { newDraft(128); router.push('/backup'); })} sheen style={{ marginTop: space[2] }} />
           </Animated.View>
           <Button label={t('havePhrase')} variant="secondary" onPress={guarded(() => router.push('/import'))} />
           {isDriveConfigured() ? (

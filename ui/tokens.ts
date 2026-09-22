@@ -172,7 +172,15 @@ export const BUTTON_HEIGHT = 56;
  *    apparition décalée est tolérée UNE fois, au tout premier affichage d'une
  *    liste courte et figée (les 3 arguments de Welcome) — jamais au re-render,
  *    jamais au scroll, jamais sur les tokens / l'activité / le marché.
- * 3. UNE SEULE animation ambiante par écran, et c'est le halo. Rien d'autre ne
+ * 3. UNE SEULE animation ambiante par écran, et c'est le halo.
+ *    EXCEPTION, et une seule : l'écran de BIENVENUE. C'est une vitrine, pas un
+ *    outil — l'utilisateur n'y fait rien, il décide s'il installe l'app. Rainbow
+ *    y fait flotter ses pièces, Phantom tout un univers ; un écran figé à cet
+ *    endroit précis se lit comme un produit mort. Y sont donc autorisés, et
+ *    NULLE PART ailleurs : le soleil vivant (onde de couronne + balancement),
+ *    trois éclats qui dérivent, et le reflet sur l'action principale. Dès
+ *    l'écran suivant, la règle redevient stricte : sur un écran où l'on manipule
+ *    de l'argent, une animation qui bouge toute seule est un parasite. Rien d'autre ne
  *    bouge tout seul : pas d'icône qui pulse, pas de bouton qui respire.
  * 4. Ressort plutôt que durée : `withSpring(springs.*)` par défaut,
  *    `withTiming` seulement pour un fondu pur.
