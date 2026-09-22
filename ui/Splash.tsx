@@ -2,11 +2,14 @@
  * Écran d'ouverture « particules », façon wallet haut de gamme (l'idée retenue
  * par l'utilisateur : sobre, techno, pas d'agressivité).
  *
- * Séquence (~1,25 s — bible §7 : froid < 2 s) :
+ * Séquence (~1,4 s — bible §7 : froid < 2 s). Elle ne joue QUE pour un
+ * utilisateur qui revient : au premier lancement, l'écran de bienvenue est
+ * lui-même l'ouverture (cf. app/_layout.tsx).
  *   1. ~48 particules bleu/violet dispersées CONVERGENT vers le centre.
  *   2. Elles se dissolvent tandis que les 16 rayons du logo S'ALLUMENT un par
  *      un : la lumière dispersée se rassemble dans la marque.
- *   3. Une traînée lumineuse traverse l'écran.
+ *   3. Le halo naît d'un point AU MÊME INSTANT que l'allumage, et une traînée
+ *      lumineuse traverse l'écran.
  *   4. « KALYX » apparaît avec un halo lumineux (pas de vibration : l'haptique répond à une action, §3).
  *   5. Fondu de sortie → onFinish().
  *
@@ -17,6 +20,8 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { KalyxLogoIgnite } from './KalyxLogo';
+import { Halo } from './kit/Halo';
+import { splashParticles, splashSweep, BRAND_GOLD } from './tokens';
 import { fonts, useTheme } from './theme';
 
 const { width: W } = Dimensions.get('window');
@@ -47,7 +52,7 @@ interface P {
   color: string;
 }
 
-function makeParticles(): P[] {
+function makeParticles(palette: readonly string[]): P[] {
   const arr: P[] = [];
   for (let i = 0; i < N; i++) {
     const a = Math.random() * Math.PI * 2;
@@ -60,7 +65,7 @@ function makeParticles(): P[] {
       x1: Math.cos(a2) * rIn,
       y1: Math.sin(a2) * rIn,
       size: 3 + Math.random() * 3.5,
-      color: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
+      color: palette[i % palette.length],
     });
   }
   return arr;
@@ -89,42 +94,49 @@ function Particle({ p, progress }: { p: P; progress: Animated.Value }) {
 }
 
 export function Splash({ onFinish }: { onFinish: () => void }) {
-  const { colors, gradients } = useTheme();
+  const { mode, colors, gradients } = useTheme();
   const progress = useRef(new Animated.Value(0)).current; // convergence des particules
   const logoIn = useRef(new Animated.Value(0)).current; // condensation du logo
   const wordOp = useRef(new Animated.Value(0)).current;
   const wordY = useRef(new Animated.Value(14)).current;
   const sweep = useRef(new Animated.Value(0)).current; // traînée lumineuse
   const screenOp = useRef(new Animated.Value(1)).current;
-  const particles = useMemo(makeParticles, []);
+  const particles = useMemo(() => makeParticles(splashParticles[mode]), [mode]);
 
   useEffect(() => {
     Animated.sequence([
+      // Une seule phase parallèle : tout s'enchaîne, rien ne se succède par
+      // blocs. C'est ce qui distingue une séquence d'un diaporama.
       Animated.parallel([
+        // 0 → 700 : les particules convergent vers le centre.
         Animated.timing(progress, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+        // 260 → 960 : la traînée traverse.
         Animated.timing(sweep, { toValue: 1, duration: 700, delay: 260, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ]),
-      // Le logo se condense (petit pop) puis « KALYX » monte.
-      Animated.parallel([
-        Animated.timing(logoIn, { toValue: 1, duration: 320, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }),
+        // 380 → 1000 : le HALO naît d'un point exactement quand les rayons
+        // s'allument. Le halo n'est pas le décor de l'écran suivant : il fait
+        // partie de l'allumage, c'est la chaleur que dégage la marque.
+        Animated.timing(logoIn, { toValue: 1, duration: 620, delay: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        // 560 → 1020 : « KALYX » monte. Fondu + translation + échelle, et une
+        // sortie cubique longue : le mot se dépose, il ne surgit pas.
         Animated.sequence([
-          Animated.delay(80),
+          Animated.delay(560),
           Animated.parallel([
-            Animated.timing(wordOp, { toValue: 1, duration: 320, useNativeDriver: true }),
-            Animated.timing(wordY, { toValue: 0, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+            Animated.timing(wordOp, { toValue: 1, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+            Animated.timing(wordY, { toValue: 0, duration: 460, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
           ]),
         ]),
       ]),
-      Animated.delay(200),
+      Animated.delay(100),
       Animated.timing(screenOp, { toValue: 0, duration: 260, easing: Easing.in(Easing.quad), useNativeDriver: true }),
     ]).start(({ finished }) => finished && onFinish());
-
   }, [progress, logoIn, wordOp, wordY, sweep, screenOp, onFinish]);
 
-  // Le logo grandit à mesure que les particules se condensent ; son opacité est
-  // pilotée par l'allumage des rayons lui-même, pas par un fondu.
-  const logoScaleBase = progress.interpolate({ inputRange: [0.55, 1], outputRange: [0.82, 1], extrapolate: 'clamp' });
-  const logoPop = logoIn.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] });
+  // Naissance du halo : d'un point, EN MÊME TEMPS que les rayons s'allument.
+  // Le halo n'est plus un décor de l'écran suivant, il fait partie de l'allumage.
+  const haloScale = logoIn.interpolate({ inputRange: [0, 1], outputRange: [0.15, 1] });
+  const haloOpacity = logoIn.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0.7, 1] });
+
+  const wordScale = wordOp.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
 
   const sweepX = sweep.interpolate({ inputRange: [0, 1], outputRange: [-220, W + 220] });
   const sweepOpacity = sweep.interpolate({ inputRange: [0, 0.2, 0.8, 1], outputRange: [0, 0.9, 0.9, 0] });
@@ -137,12 +149,15 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
       <Animated.View
         style={{ position: 'absolute', top: 0, bottom: 0, width: 150, opacity: sweepOpacity, transform: [{ translateX: sweepX }, { rotate: '18deg' }] }}
       >
-        <LinearGradient colors={['transparent', 'rgba(221,181,101,0.55)', 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
+        <LinearGradient colors={['transparent', splashSweep[mode], 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
       </Animated.View>
 
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: STACK_GAP }}>
         {/* Logo + particules (centrés) */}
         <View style={{ width: SPLASH_LOGO_SIZE, height: SPLASH_LOGO_SIZE, alignItems: 'center', justifyContent: 'center' }}>
+          <Animated.View style={{ position: 'absolute', opacity: haloOpacity, transform: [{ scale: haloScale }] }}>
+            <Halo size={300} mood="up" />
+          </Animated.View>
           {particles.map((p, i) => (
             <Particle key={i} p={p} progress={progress} />
           ))}
@@ -152,9 +167,7 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
             dans la marque. L'allumage démarre à 380 ms (quand les premières
             particules arrivent) et dure 620 ms.
           */}
-          <Animated.View style={{ transform: [{ scale: Animated.multiply(logoScaleBase, logoPop) }] }}>
-            <KalyxLogoIgnite size={SPLASH_LOGO_SIZE} delay={380} duration={620} />
-          </Animated.View>
+          <KalyxLogoIgnite size={SPLASH_LOGO_SIZE} delay={380} duration={620} />
         </View>
 
         {/* Wordmark « KALYX » : police de marque + halo lumineux + barre de lumière */}
@@ -162,13 +175,13 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
           <Animated.Text
             style={{
               opacity: wordOp,
-              transform: [{ translateY: wordY }],
+              transform: [{ translateY: wordY }, { scale: wordScale }],
               color: colors.text,
               fontSize: 40,
               lineHeight: WORD_LINE,
               fontFamily: fonts.brandStrong,
               letterSpacing: 8,
-              textShadowColor: colors.accent,
+              textShadowColor: BRAND_GOLD.light,
               textShadowOffset: { width: 0, height: 0 },
               textShadowRadius: 18,
             }}
@@ -183,14 +196,14 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
               width: 150,
               height: BAR_H,
               borderRadius: 2,
-              shadowColor: colors.accent,
+              shadowColor: BRAND_GOLD.light,
               shadowOpacity: 0.9,
               shadowRadius: 8,
               elevation: 6,
             }}
           >
             <LinearGradient
-              colors={['transparent', colors.violet, colors.blue, 'transparent']}
+              colors={['transparent', BRAND_GOLD.light, BRAND_GOLD.deep, 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{ flex: 1, borderRadius: 2 }}

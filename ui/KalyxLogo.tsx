@@ -15,9 +15,9 @@
  *    deux versions ne puissent jamais diverger.
  */
 import React, { useEffect, useId } from 'react';
-import Animated, { useAnimatedProps, useDerivedValue, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedProps, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Stop, G, Rect, Circle } from 'react-native-svg';
-import { springs } from './tokens';
+import { springs, BRAND_GOLD } from './tokens';
 
 const RAYS = 16;
 const INNER = 20;
@@ -41,8 +41,8 @@ export function KalyxLogo({ size = 96 }: { size?: number }) {
     <Svg width={size} height={size} viewBox="-50 -50 100 100">
       <Defs>
         <LinearGradient id={gid} x1="0" y1="-1" x2="0" y2="1">
-          <Stop offset="0" stopColor="#DDB565" />
-          <Stop offset="1" stopColor="#B8863A" />
+          <Stop offset="0" stopColor={BRAND_GOLD.light} />
+          <Stop offset="1" stopColor={BRAND_GOLD.deep} />
         </LinearGradient>
       </Defs>
       <G>
@@ -104,36 +104,52 @@ export function KalyxLogoIgnite({ size = 96, reduced = false, delay = 0, duratio
   const gid = `kalyxGoldLit-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const progress = useSharedValue(reduced ? 1 : 0);
   const core = useSharedValue(reduced ? 1 : 0);
+  /** Éclosion : la marque s'ouvre au ressort en pivotant, elle ne se pose pas. */
+  const bloom = useSharedValue(reduced ? 1 : 0);
 
   useEffect(() => {
-    if (reduced) { progress.value = 1; core.value = 1; return; }
+    if (reduced) { progress.value = 1; core.value = 1; bloom.value = 1; return; }
     const id = setTimeout(() => {
       // Balayage des rayons, puis le noyau arrive en dernier avec un rebond :
       // la lumière converge vers le centre.
       progress.value = withTiming(1, { duration });
       core.value = withSpring(1, springs.bouncy);
+      bloom.value = withSpring(1, springs.gentle);
     }, delay);
     return () => clearTimeout(id);
-  }, [progress, core, reduced, delay, duration]);
+  }, [progress, core, bloom, reduced, delay, duration]);
+
+  /*
+   * Le soleil s'ouvre : il part légèrement plus petit et pivoté d'un huitième
+   * de rayon (-11,25° = 360/16/2, soit un demi-intervalle entre deux branches),
+   * puis se cale à l'endroit au ressort. La rotation est volontairement à peine
+   * lisible : elle ne doit pas se voir, elle doit se sentir — un logo qui tourne
+   * franchement fait « chargement », pas « marque ».
+   */
+  const bloomStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${-11.25 * (1 - bloom.value)}deg` }, { scale: 0.86 + bloom.value * 0.14 }],
+  }));
 
   // Le noyau pousse légèrement au-delà de sa taille avant de se poser.
   const coreScale = useDerivedValue(() => core.value);
   const coreProps = useAnimatedProps(() => ({ r: 8 * coreScale.value, opacity: Math.min(1, coreScale.value * 1.6) }));
 
   return (
-    <Svg width={size} height={size} viewBox="-50 -50 100 100">
-      <Defs>
-        <LinearGradient id={gid} x1="0" y1="-1" x2="0" y2="1">
-          <Stop offset="0" stopColor="#DDB565" />
-          <Stop offset="1" stopColor="#B8863A" />
-        </LinearGradient>
-      </Defs>
-      <G>
-        {Array.from({ length: RAYS }).map((_, i) => (
-          <IgnitingRay key={i} i={i} progress={progress} gid={gid} />
-        ))}
-      </G>
-      <AnimatedCircle cx={0} cy={0} fill={`url(#${gid})`} animatedProps={coreProps} />
-    </Svg>
+    <Animated.View style={bloomStyle}>
+      <Svg width={size} height={size} viewBox="-50 -50 100 100">
+        <Defs>
+          <LinearGradient id={gid} x1="0" y1="-1" x2="0" y2="1">
+            <Stop offset="0" stopColor={BRAND_GOLD.light} />
+            <Stop offset="1" stopColor={BRAND_GOLD.deep} />
+          </LinearGradient>
+        </Defs>
+        <G>
+          {Array.from({ length: RAYS }).map((_, i) => (
+            <IgnitingRay key={i} i={i} progress={progress} gid={gid} />
+          ))}
+        </G>
+        <AnimatedCircle cx={0} cy={0} fill={`url(#${gid})`} animatedProps={coreProps} />
+      </Svg>
+    </Animated.View>
   );
 }
