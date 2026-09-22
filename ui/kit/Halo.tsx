@@ -1,6 +1,10 @@
 /**
- * Halo — le seul dégradé de l'app (§2.2), en SVG radial. Version STATIQUE
- * (la respiration arrive avec Skia à l'étape finition).
+ * Halo — le seul dégradé de l'app (§2.2), en SVG radial, et la SEULE animation
+ * ambiante autorisée (doctrine §3, cf. ui/tokens.ts). Il respire : un cycle
+ * lent de `durations.haloBreath` qui fait varier l'échelle et l'opacité de
+ * quelques pour cent. Assez pour que l'écran soit vivant quand on ne touche à
+ * rien, assez lent pour qu'on ne le remarque jamais consciemment.
+ *
  * `mood` : hausse = plus lumineux, frange chaude ; baisse = plus faible, froid.
  *
  * Deux usages :
@@ -9,10 +13,11 @@
  *    le contenu de l'accueil : le dégradé est centré en haut à droite et fond dans
  *    l'Encre bien avant les bords → aucune coupure possible, quel que soit l'écran.
  */
-import React from 'react';
-import { View } from 'react-native';
+import React, { useEffect } from 'react';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, RadialGradient, Stop, Circle, Rect } from 'react-native-svg';
 import { useTheme } from '../theme';
+import { durations } from '../tokens';
 
 function useStops(mood: 'up' | 'down' | 'flat') {
   const { halo } = useTheme();
@@ -21,10 +26,33 @@ function useStops(mood: 'up' | 'down' | 'flat') {
   return { halo, intensity, warm };
 }
 
+/**
+ * Cycle de respiration partagé : va-et-vient 0 → 1 sur une demi-période, en
+ * sinus (aucun à-coup aux extrémités). Sur le thread UI, donc insensible à la
+ * charge JavaScript. Immobile si « Réduire les animations » est actif.
+ */
+function useBreath(amplitude: { scale: number; opacity: number }) {
+  const v = useSharedValue(0);
+  const reduced = useReducedMotion();
+  useEffect(() => {
+    if (reduced) { v.value = 0; return; }
+    v.value = withRepeat(
+      withTiming(1, { duration: durations.haloBreath / 2, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true,
+    );
+  }, [v, reduced]);
+  return useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + v.value * amplitude.scale }],
+    opacity: 1 - amplitude.opacity + v.value * amplitude.opacity,
+  }));
+}
+
 export function Halo({ size = 320, mood = 'flat', style }: { size?: number; mood?: 'up' | 'down' | 'flat'; style?: object }) {
   const { halo, intensity, warm } = useStops(mood);
+  const breath = useBreath({ scale: 0.06, opacity: 0.12 });
   return (
-    <View pointerEvents="none" style={[{ width: size, height: size, opacity: halo.opacity * intensity }, style]}>
+    <Animated.View pointerEvents="none" style={[{ width: size, height: size, opacity: halo.opacity * intensity }, style, breath]}>
       <Svg width={size} height={size}>
         <Defs>
           <RadialGradient id="halo" cx="50%" cy="50%" r="50%">
@@ -37,15 +65,18 @@ export function Halo({ size = 320, mood = 'flat', style }: { size?: number; mood
         </Defs>
         <Circle cx={size / 2} cy={size / 2} r={size / 2} fill="url(#halo)" />
       </Svg>
-    </View>
+    </Animated.View>
   );
 }
 
 /** Couche pleine largeur derrière le solde. `height` = zone couverte depuis le haut. */
 export function HaloBackdrop({ mood = 'flat', height = 380, top = 0 }: { mood?: 'up' | 'down' | 'flat'; height?: number; top?: number }) {
   const { halo, intensity, warm } = useStops(mood);
+  // Couche large : amplitude réduite de moitié, sinon le mouvement devient
+  // perceptible sur toute la largeur de l'écran et distrait de la lecture du solde.
+  const breath = useBreath({ scale: 0.03, opacity: 0.08 });
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', top, left: 0, right: 0, height, opacity: halo.opacity * intensity }}>
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', top, left: 0, right: 0, height, opacity: halo.opacity * intensity }, breath]}>
       <Svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
         <Defs>
           {/* Centre en haut à droite ; rayon 45 % → transparent avant tout bord. */}
@@ -59,6 +90,6 @@ export function HaloBackdrop({ mood = 'flat', height = 380, top = 0 }: { mood?: 
         </Defs>
         <Rect x="0" y="0" width="100" height="100" fill="url(#haloBackdrop)" />
       </Svg>
-    </View>
+    </Animated.View>
   );
 }

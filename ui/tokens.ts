@@ -131,6 +131,28 @@ export const BUTTON_HEIGHT = 56;
 /* Mouvement — ressorts Reanimated `withSpring`                        */
 /* ------------------------------------------------------------------ */
 
+/**
+ * DOCTRINE D'ANIMATION — une seule règle, valable partout. À lire avant
+ * d'ajouter le moindre mouvement (les exceptions se discutent, ne s'inventent
+ * pas) :
+ *
+ * 1. UNE animation répond à UNE action de l'utilisateur. Si on ne peut pas
+ *    nommer le geste qu'elle confirme, elle ne doit pas exister.
+ * 2. JAMAIS de cascade (stagger) sur une liste de données. C'est la signature
+ *    d'une interface bâclée et ça donne une sensation de lag au scroll. Une
+ *    apparition décalée est tolérée UNE fois, au tout premier affichage d'une
+ *    liste courte et figée (les 3 arguments de Welcome) — jamais au re-render,
+ *    jamais au scroll, jamais sur les tokens / l'activité / le marché.
+ * 3. UNE SEULE animation ambiante par écran, et c'est le halo. Rien d'autre ne
+ *    bouge tout seul : pas d'icône qui pulse, pas de bouton qui respire.
+ * 4. Ressort plutôt que durée : `withSpring(springs.*)` par défaut,
+ *    `withTiming` seulement pour un fondu pur.
+ * 5. Rien ne bloque : l'utilisateur peut toucher un élément dès qu'il est
+ *    visible, même si son animation d'entrée n'est pas finie.
+ * 6. Chaque appui a un retour VISUEL (scale) et TACTILE (haptique légère).
+ * 7. `useReducedMotion()` est respecté à 100 % : tout reste visible et
+ *    utilisable, seul le mouvement disparaît.
+ */
 export const springs = {
   /** Appui, toggles, chips. */
   snappy: { damping: 20, stiffness: 400 },
@@ -138,6 +160,8 @@ export const springs = {
   standard: { damping: 22, stiffness: 220 },
   /** Halo, gros éléments. */
   gentle: { damping: 26, stiffness: 120 },
+  /** Réussite (coche, succès d'envoi) : léger rebond, jamais ailleurs. */
+  bouncy: { damping: 12, stiffness: 260 },
 } as const;
 
 export const durations = {
