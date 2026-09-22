@@ -1,8 +1,8 @@
 /**
  * Bienvenue (§4.9) — le premier contact, et le seul écran orchestré de l'app.
  *
- * Mise en scène (doctrine ui/tokens.ts) : le halo naît d'un point, le LOGO
- * s'allume dedans, le nom puis la baseline montent, les trois arguments
+ * Mise en scène (doctrine ui/tokens.ts) : le halo naît d'un point autour du
+ * logo (déjà allumé par le splash), le nom puis la baseline montent, les trois arguments
  * arrivent en décalé (seule cascade autorisée : liste courte et figée, au
  * premier affichage uniquement), enfin les actions. ~900 ms au total, et
  * surtout NON BLOQUANT : chaque élément est touchable dès qu'il est visible.
@@ -19,7 +19,7 @@ import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
 import { Text, Button, Halo, Pressable, Checkbox } from '../ui/kit';
-import { KalyxLogoIgnite } from '../ui/KalyxLogo';
+import { KalyxLogo } from '../ui/KalyxLogo';
 import { Icon, type IconName } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, springs, radius } from '../ui/tokens';
@@ -119,12 +119,19 @@ export default function Welcome() {
         showsVerticalScrollIndicator={false}
       >
         {/* Naissance du halo + logo : le moment de marque. */}
+        {/*
+          Le logo arrive DÉJÀ ALLUMÉ : son allumage rayon par rayon est la
+          signature du splash, et il vient d'avoir lieu deux secondes plus tôt.
+          Le rejouer ici le banaliserait. Ce que Welcome ajoute, c'est le halo
+          qui naît d'un point et le « punch » du bloc — la marque s'installe,
+          elle ne se re-présente pas.
+        */}
         <View style={{ minHeight: 230, alignItems: 'center', justifyContent: 'center' }}>
           <Animated.View style={[{ position: 'absolute' }, haloStyle]} pointerEvents="none">
             <Halo size={340} mood="up" />
           </Animated.View>
           <Animated.View style={logoStyle}>
-            <KalyxLogoIgnite size={84} reduced={reduced} delay={120} />
+            <KalyxLogo size={84} />
           </Animated.View>
           <Animated.View style={[{ alignItems: 'center', width: '100%', marginTop: space[4] }, nameStyle]}>
             <Text variant="title1" style={{ fontSize: 38, lineHeight: 44, letterSpacing: 1.5 }}>Kalyx</Text>
