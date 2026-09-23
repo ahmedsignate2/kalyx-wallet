@@ -11,7 +11,7 @@ export { AmountDisplay } from './AmountDisplay';
 export { Chip, RiskBadge, type RiskLevel } from './Chip';
 export { Checkbox } from './Checkbox';
 export { SegmentedControl } from './SegmentedControl';
-export { Input } from './Input';
+export { Input, SENSITIVE_INPUT_PROPS } from './Input';
 export { Skeleton } from './Skeleton';
 export { EmptyState } from './EmptyState';
 export { Halo, HaloBackdrop } from './Halo';

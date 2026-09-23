@@ -73,6 +73,7 @@ import {
 import { authenticate } from './biometrics';
 import { submitSolanaSigned } from './solanaSubmit';
 import { kvGet, kvSet } from './kv';
+import { aura } from './aura';
 
 /** Réseau actif mémorisé entre deux lancements (non sensible). */
 const K_ACTIVE_CHAIN = 'kalyx.activeChain';
@@ -339,6 +340,12 @@ export const useWallet = create<WalletState>((set, get) => ({
         accounts,
         account: toAccount(accounts, get().activeAccountIndex, get().activeChain),
       });
+      // Impulsion d'Ouverture (docs/08 §12) : le halo s'ouvre depuis le centre.
+      // L'Aura l'abandonne si aucun halo n'est visible — c'est le cas
+      // aujourd'hui sur l'écran de déverrouillage, qui n'en a pas encore
+      // (étape 4). L'événement est néanmoins émis ICI, à la source, parce que
+      // c'est le seul endroit qui sait qu'un déverrouillage a RÉUSSI.
+      aura.pulse('unlock');
       void saveLockState(0, 0); // réinitialise le compteur persistant
     } catch (e) {
       if (isWalletError(e) && e.code === 'WRONG_PIN') {
@@ -362,6 +369,10 @@ export const useWallet = create<WalletState>((set, get) => ({
       accounts,
       account: toAccount(accounts, get().activeAccountIndex, get().activeChain),
     });
+    // §3.5 : la fenêtre biométrique appartient au système et ne peut pas être
+    // animée. La continuité se joue au TIMING — l'impulsion part à l'instant
+    // où l'OS rend la main, sans coupure visible entre lui et Kalyx.
+    aura.pulse('unlock');
   },
 
   verifyPin: async (pin) => {
