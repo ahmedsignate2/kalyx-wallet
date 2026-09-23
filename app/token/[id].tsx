@@ -1,6 +1,6 @@
-import { ScreenHeader } from '../../ui/kit';
+import { ScreenHeader, Pressable as KPressable, Button } from '../../ui/kit';
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Image, Pressable, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text, Image, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import {
   PremiumScreen,
@@ -269,12 +269,19 @@ export default function TokenDetail() {
               <Text style={typography.section}>{displayTitle}</Text>
               <Text style={typography.muted}>{displaySymbol}</Text>
             </View>
-            <Pressable onPress={openAlert} hitSlop={10} style={{ marginRight: spacing(1.5) }}>
+            <KPressable onPress={openAlert} hitSlop={10} haptic="light" accessibilityLabel={t('actionCreateAlert')} style={{ marginRight: spacing(1.5) }}>
               <Icon name="bell" size={23} color={colors.textMuted} />
-            </Pressable>
-            <Pressable onPress={() => id && toggleFavorite(id)} hitSlop={10}>
+            </KPressable>
+            <KPressable
+              onPress={() => id && toggleFavorite(id)}
+              hitSlop={10}
+              haptic="light"
+              accessibilityRole="switch"
+              accessibilityState={{ checked: isFav }}
+              accessibilityLabel={t('favorites')}
+            >
               <Icon name={isFav ? 'starFilled' : 'star'} size={24} color={isFav ? colors.warning : colors.textMuted} />
-            </Pressable>
+            </KPressable>
           </View>
 
           {/* Prix + variation + market cap */}
@@ -394,7 +401,7 @@ export default function TokenDetail() {
             <GlassCard>
               <Text style={typography.bodyStrong}>À propos de {detail.name}</Text>
               <Text numberOfLines={aboutExpanded ? undefined : 5} style={[typography.muted, { marginTop: spacing(1), lineHeight: 20 }]}>{detail.description}</Text>
-              {detail.description.length > 320 ? <Pressable onPress={() => setAboutExpanded((v) => !v)}><Text style={{ color: colors.accent, marginTop: spacing(1), fontFamily: fonts.semibold }}>{aboutExpanded ? t("readLess") : t("readMore")}</Text></Pressable> : null}
+              {detail.description.length > 320 ? <KPressable onPress={() => setAboutExpanded((v) => !v)} hitSlop={8} accessibilityLabel={aboutExpanded ? t('readLess') : t('readMore')}><Text style={{ color: colors.accent, marginTop: spacing(1), fontFamily: fonts.semibold }}>{aboutExpanded ? t("readLess") : t("readMore")}</Text></KPressable> : null}
             </GlassCard>
           ) : null}
         </>
@@ -403,8 +410,17 @@ export default function TokenDetail() {
       {/* Modale : créer une alerte de prix */}
       <Modal visible={alertOpen} transparent animationType="slide" onRequestClose={() => setAlertOpen(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }} onPress={() => setAlertOpen(false)}>
-          <Pressable style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: spacing(2.5), gap: spacing(1.75) }}>
+        {/* Fond : cible de fermeture. Ni rebond ni vibration — ce n'est pas un
+            bouton, et une feuille qui tremble quand on la ferme fait cheap. */}
+        <KPressable
+          noScale
+          haptic="none"
+          accessibilityLabel={t('cancel')}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}
+          onPress={() => setAlertOpen(false)}
+        >
+          {/* Absorbe les taps pour qu'ils ne ferment pas la feuille. */}
+          <KPressable noScale haptic="none" style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: spacing(2.5), gap: spacing(1.75) }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.glassBorder }} />
             <Text style={typography.section}>Alerte de prix · {(detail?.symbol || id || '').toUpperCase()}</Text>
 
@@ -412,9 +428,16 @@ export default function TokenDetail() {
               {(['above', 'below'] as const).map((d) => {
                 const on = alertDir === d;
                 return (
-                  <Pressable key={d} onPress={() => setAlertDir(d)} style={{ flex: 1, paddingVertical: spacing(1.25), borderRadius: 12, alignItems: 'center', backgroundColor: on ? colors.accent : colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}>
+                  <KPressable
+                    key={d}
+                    onPress={() => setAlertDir(d)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={d === 'above' ? t('alertAbove') : t('alertBelow')}
+                    style={{ flex: 1, paddingVertical: spacing(1.25), borderRadius: 12, alignItems: 'center', backgroundColor: on ? colors.accent : colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
+                  >
                     <Text style={{ color: on ? colors.onPrimary : colors.text, fontFamily: fonts.semibold }}>{d === 'above' ? t("alertAbove") : t("alertBelow")}</Text>
-                  </Pressable>
+                  </KPressable>
                 );
               })}
             </View>
@@ -424,12 +447,10 @@ export default function TokenDetail() {
               <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>{fiatSymbol(fiat)}</Text>
             </View>
 
-            <Pressable onPress={createAlert} style={{ backgroundColor: colors.accent, borderRadius: 14, paddingVertical: spacing(1.5), alignItems: 'center' }}>
-              <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: 16 }}>{t("actionCreateAlert")}</Text>
-            </Pressable>
+            <Button label={t('actionCreateAlert')} onPress={createAlert} />
             <Text style={[typography.muted, { textAlign: 'center' }]}>{t("alertFooterText")}</Text>
-          </Pressable>
-        </Pressable>
+          </KPressable>
+        </KPressable>
         </KeyboardAvoidingView>
       </Modal>
     </PremiumScreen>
