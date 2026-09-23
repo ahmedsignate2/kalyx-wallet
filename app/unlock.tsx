@@ -1,5 +1,5 @@
 import { radius } from '../ui/tokens';
-import { Pressable as KPressable } from '../ui/kit';
+import { Pressable as KPressable, Halo } from '../ui/kit';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
 import { router, Stack } from 'expo-router';
@@ -121,6 +121,16 @@ export default function Unlock() {
       {/* Plein écran : pas de barre d'en-tête vide. */}
       <Stack.Screen options={{ headerShown: false }} />
       <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
+      {/*
+        L'AURA vit ici (docs/08 §3.4). C'était le trou laissé par l'étape 1 :
+        walletStore émet bien l'impulsion d'Ouverture au déverrouillage réussi,
+        mais aucun halo n'était monté sur cet écran, donc le moteur l'abandonnait
+        — correctement, mais l'utilisateur ne voyait rien. Le halo est derrière
+        l'anneau : au succès, il s'ouvre depuis le centre, juste avant le fondu
+        vers l'accueil. Pour la biométrie, la fenêtre appartient au système et ne
+        peut pas être animée : la continuité se joue au timing (§3.5).
+      */}
+      <Halo size={320} mood="flat" aura style={{ position: 'absolute', alignSelf: 'center', top: insets.top + 120 }} />
       <View style={{ flex: 1, paddingTop: insets.top + spacing(3), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3), alignItems: 'center' }}>
         {/* En-tête compact : titre, sous-titre, biométrie */}
         <View style={{ alignItems: 'center', gap: spacing(1.25) }}>
