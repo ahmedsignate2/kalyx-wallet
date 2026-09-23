@@ -5,6 +5,8 @@
   },
   "build": {
     "development": {
+      "channel": "development",
+      "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
       "android": {
@@ -15,6 +17,8 @@
       }
     },
     "preview": {
+      "channel": "preview",
+      "environment": "preview",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
