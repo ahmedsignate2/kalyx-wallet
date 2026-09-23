@@ -15,6 +15,7 @@ import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
+import { accountDisplayName } from '../lib/walletNames';
 import { useSettings, useT } from '../lib/settingsStore';
 import { useCustomChains } from '../lib/customChainsStore';
 import { haptic } from '../lib/haptics';
@@ -25,6 +26,7 @@ type Fam = 'evm' | 'solana' | 'bitcoin';
 
 export default function Receive() {
   const t = useT();
+  const language = useSettings((st) => st.language);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const accounts = useWallet((s) => s.accounts);
@@ -146,7 +148,7 @@ export default function Receive() {
           >
             {address}
           </Text>
-          <Text variant="caption" tone="secondary">{stored.label}</Text>
+          <Text variant="caption" tone="secondary">{accountDisplayName(stored, t)}</Text>
           {isTestnet ? <Text variant="bodySecondary" tone="warning">{t("testnetWarning")}</Text> : null}
         </Surface>
 
