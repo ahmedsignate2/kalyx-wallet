@@ -5,7 +5,7 @@
  * positions, prix. Actions : `EarnSheet` (devis → confirmation → exécution).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, Text, View } from 'react-native';
+import { RefreshControl, Text, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { GlassCard, RemoteIcon, SkeletonRow, PressableScale } from '../ui/premium';
 import { AppTabBar } from '../ui/tabs';
@@ -16,7 +16,7 @@ import { CountUp } from '../ui/CountUp';
 import { FadeInUp } from '../ui/FadeInUp';
 import { Icon } from '../ui/icon';
 import { EarnSheet } from '../ui/EarnSheet';
-import { SegmentedControl } from '../ui/kit';
+import { SegmentedControl, Pressable as KPressable } from '../ui/kit';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
@@ -125,9 +125,9 @@ export default function EarnScreen() {
           <View style={{ flex: 1 }}>
             <Text style={typography.title}>{t('earnTitle')}</Text>
           </View>
-          <Pressable onPress={onRefresh} hitSlop={12} disabled={earn.loading}>
+          <KPressable onPress={onRefresh} hitSlop={12} disabled={earn.loading}>
             <Icon name="refresh" size={22} color={earn.loading ? colors.textFaint : colors.textMuted} />
-          </Pressable>
+          </KPressable>
         </View>
         <Text style={[typography.muted, { marginTop: -spacing(1.5) }]}>{t('earnSubtitle')}</Text>
 
@@ -254,11 +254,11 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
           ) : null}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <Pressable
+          <KPressable
             onPress={onWithdraw}
             accessibilityRole="button"
             accessibilityLabel={withdrawLabel}
-            style={({ pressed }) => ({
+            style={{
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
@@ -270,20 +270,19 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
               backgroundColor: colors.glassStrong,
               borderWidth: 1,
               borderColor: colors.glassBorder,
-              opacity: pressed ? 0.75 : 1,
-            })}
+            }}
           >
             <Icon name="send" size={13} color={colors.text} />
             <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>
               {withdrawLabel}
             </Text>
-          </Pressable>
+          </KPressable>
 
-          <Pressable
+          <KPressable
             onPress={onDeposit}
             accessibilityRole="button"
             accessibilityLabel={depositLabel}
-            style={({ pressed }) => ({
+            style={{
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
@@ -293,14 +292,13 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
               paddingHorizontal: 14,
               borderRadius: radii.pill,
               backgroundColor: colors.primary,
-              opacity: pressed ? 0.75 : 1,
-            })}
+            }}
           >
             <Icon name="add" size={13} color={colors.onPrimary} />
             <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: 13 }}>
               {depositLabel}
             </Text>
-          </Pressable>
+          </KPressable>
         </View>
       </View>
     </GlassCard>

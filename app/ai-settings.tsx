@@ -1,6 +1,6 @@
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme, fonts, radii, spacing } from '../ui/theme';
 import { useT } from '../lib/settingsStore';
@@ -71,7 +71,7 @@ export default function AiSettings() {
         <Text style={[typography.body, { color: colors.textMuted }]}>{t('aiProvider')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
           {(Object.keys(PROVIDER_DEFAULTS) as AiProvider[]).map((p) => (
-            <Pressable
+            <KPressable
               key={p}
               onPress={() => setSelectedProvider(p)}
               style={{
@@ -87,7 +87,7 @@ export default function AiSettings() {
               <Text style={{ fontFamily: fonts.semibold, color: selectedProvider === p ? colors.accent : colors.text }}>
                 {p.charAt(0).toUpperCase() + p.slice(1)}
               </Text>
-            </Pressable>
+            </KPressable>
           ))}
         </View>
 
@@ -111,9 +111,9 @@ export default function AiSettings() {
           autoCorrect={false}
         />
         {PROVIDER_DEFAULTS[selectedProvider]?.helperUrl && (
-          <Pressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[selectedProvider].helperUrl!)} style={{ alignSelf: 'flex-start', marginTop: 4 }}>
+          <KPressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[selectedProvider].helperUrl!)} style={{ alignSelf: 'flex-start', marginTop: 4 }}>
             <Text style={[typography.body, { color: colors.accent, fontSize: 13, textDecorationLine: 'underline' }]}>{t('aiFreeKeyHelp')}</Text>
-          </Pressable>
+          </KPressable>
         )}
 
         {selectedProvider === 'custom' && (
@@ -140,7 +140,7 @@ export default function AiSettings() {
         )}
 
         <View style={{ marginTop: spacing(2), gap: spacing(1.5) }}>
-          <Pressable
+          <KPressable
             onPress={handleSaveAndActivate}
             disabled={loading || !inputKey.trim()}
             style={{
@@ -152,10 +152,10 @@ export default function AiSettings() {
             }}
           >
             {loading ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: 16 }}>{t('aiTestAndActivate')}</Text>}
-          </Pressable>
+          </KPressable>
 
           {isEnabled && (
-            <Pressable
+            <KPressable
               onPress={handleDisable}
               style={{
                 backgroundColor: colors.danger + '20',
@@ -167,7 +167,7 @@ export default function AiSettings() {
               }}
             >
               <Text style={{ color: colors.danger, fontFamily: fonts.bold, fontSize: 16 }}>{t('aiDisable')}</Text>
-            </Pressable>
+            </KPressable>
           )}
         </View>
 

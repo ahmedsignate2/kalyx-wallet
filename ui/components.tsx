@@ -2,22 +2,11 @@
  * Composants de base du design system (thémés clair/sombre).
  */
 import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ViewStyle,
-  ActivityIndicator,
-  Animated,
-  Dimensions,
-  Easing,
-  KeyboardAvoidingView,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, ViewStyle, ActivityIndicator, Animated, Dimensions, Easing, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Pressable as KPressable } from './kit';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
 import { KalyxRing } from './KalyxRing';
 
@@ -124,11 +113,22 @@ export function Button({
     <Text style={[styles.btnLabel, !isPrimary && { color: theme.colors.text }]}>{label}</Text>
   );
 
+  /*
+   * Ce Button hérité délègue au Pressable du kit : les écrans qui l'utilisent
+   * encore héritent ainsi de la grammaire d'appui (scale 0.96 au ressort,
+   * dépassement au relâchement, haptique « on actionne », respect de « réduire
+   * les animations ») sans devoir être migrés un par un. Le scale à 0.98 fait
+   * main et l'opacité au pressé disparaissent : une seule échelle dans l'app,
+   * et jamais d'opacité (§3.2).
+   */
   return (
-    <Pressable
+    <KPressable
       onPress={onPress}
       disabled={disabled || loading}
-      style={({ pressed }) => [{ opacity: pressed || disabled ? 0.75 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+      haptic="light"
+      overshoot
+      accessibilityLabel={label}
+      style={{ opacity: disabled ? 0.75 : 1 }}
     >
       {isPrimary ? (
         <LinearGradient
@@ -142,7 +142,7 @@ export function Button({
       ) : (
         <View style={[styles.btn, styles.btnGhost]}>{content}</View>
       )}
-    </Pressable>
+    </KPressable>
   );
 }
 
