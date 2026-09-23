@@ -1,5 +1,7 @@
+import { radius } from '../ui/tokens';
+import { Pressable as KPressable } from '../ui/kit';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
+import { View, Text, Animated, StyleSheet } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -124,15 +126,20 @@ export default function Unlock() {
         <View style={{ alignItems: 'center', gap: spacing(1.25) }}>
           <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
           <Text style={{ color: error && !locked ? colors.danger : colors.textMuted, fontSize: 14, textAlign: 'center' }}>{subtitle}</Text>
+          {/*
+            Le retour d'appui était un changement d'OPACITÉ (0.6), ce que le
+            §3.2 interdit explicitement : c'est le scale qui dit « touché ».
+          */}
           {bioAvailable ? (
-            <Pressable
+            <KPressable
               onPress={() => tryBiometrics(true)}
               disabled={busy || locked}
-              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing(0.5), paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}
+              accessibilityLabel={t('biometrics')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing(0.5), paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.round, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
             >
               <Icon name="security" size={18} color={colors.accent} />
               <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>{t('biometrics')}</Text>
-            </Pressable>
+            </KPressable>
           ) : null}
         </View>
 
@@ -153,11 +160,11 @@ export default function Unlock() {
               en mode longueur connue ; ici c'est le filet de sécurité). */}
           <View style={{ height: 24, justifyContent: 'center' }}>
             {complete ? (
-              <Pressable onPress={() => submit(pin)} disabled={busy || locked} hitSlop={8}>
+              <KPressable onPress={() => submit(pin)} disabled={busy || locked} hitSlop={8} haptic="light" accessibilityLabel={t('unlockBtn')}>
                 <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>
                   {busy ? t('verifying') : t('unlockBtn')}
                 </Text>
-              </Pressable>
+              </KPressable>
             ) : null}
           </View>
         </View>

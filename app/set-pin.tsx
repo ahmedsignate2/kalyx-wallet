@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Switch, Pressable, TouchableOpacity, Animated, Platform, StatusBar } from 'react-native';
+import { View, Text, Switch, Pressable, Animated, Platform, StatusBar } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinPad } from '../ui/PinPad';
 import { KalyxRing } from '../ui/KalyxRing';
 import { Icon } from '../ui/icon';
+import { Pressable as KPressable } from '../ui/kit';
+import { radius } from '../ui/tokens';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
@@ -120,15 +122,25 @@ export default function SetPin() {
       {/* ── HAUT : header unique (retour à gauche, langue à droite) + titre ── */}
       <View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, height: 48 }}>
-          <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/welcome'))} hitSlop={12} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.glassStrong }}>
+          <KPressable
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/welcome'))}
+            hitSlop={12}
+            accessibilityLabel={t('back')}
+            style={{ width: 40, height: 40, borderRadius: radius.round, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface2 }}
+          >
             <View style={{ transform: [{ rotate: '180deg' }] }}>
               <Icon name="chevron" size={20} color={colors.text} />
             </View>
-          </TouchableOpacity>
+          </KPressable>
           {/* Seul réglage pertinent avant la création du wallet : la langue. */}
-          <TouchableOpacity onPress={() => router.push('/language')} hitSlop={12} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.glassStrong }}>
+          <KPressable
+            onPress={() => router.push('/language')}
+            hitSlop={12}
+            accessibilityLabel={t('language')}
+            style={{ width: 40, height: 40, borderRadius: radius.round, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface2 }}
+          >
             <Icon name="language" size={20} color={colors.text} />
-          </TouchableOpacity>
+          </KPressable>
         </View>
 
         <View style={{ paddingHorizontal: 24, marginTop: 8 }}>

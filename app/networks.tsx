@@ -1,7 +1,7 @@
-import { ScreenHeader, IconButton } from '../ui/kit';
+import { ScreenHeader, IconButton, Pressable as KPressable, Button, Checkbox, Text as KText } from '../ui/kit';
 import { ExplainSheet } from '../components/ai/ExplainSheet';
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text, ScrollView, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Card, Muted } from '../ui/components';
@@ -11,6 +11,8 @@ import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { listChains, chainIconUrl } from '../src';
 import { useCustomChains, type CustomChainInput } from '../lib/customChainsStore';
+import { space, radius } from '../ui/tokens';
+import { Icon } from '../ui/icon';
 
 export default function Networks() {
   const { colors, typography } = useTheme();
@@ -59,10 +61,13 @@ export default function Networks() {
   const renderChain = (c: (typeof chains)[number]) => {
     const active = c.id === activeChain;
     return (
-      <Pressable
+      <KPressable
         key={c.id}
         onPress={() => choose(c.id)}
         onLayout={active ? (e) => onActiveLayout(e.nativeEvent.layout.y) : undefined}
+        accessibilityRole="radio"
+        accessibilityState={{ selected: active }}
+        accessibilityLabel={c.name}
       >
         <Card
           style={{
@@ -86,9 +91,10 @@ export default function Networks() {
           </View>
           {/* Expliquer ce réseau (Copilot) — sans changer de réseau. */}
           <IconButton icon="sparkles" label={`Expliquer ${c.name}`} tone="ghost" onPress={() => setExplain({ name: c.name, id: c.id })} />
-          {active ? <Text style={{ color: colors.text, fontSize: 18 }}>✓</Text> : null}
+          {/* Icône du kit : le glyphe texte « ✓ » rendait différemment selon la police. */}
+          {active ? <Icon name="check" size={18} /> : null}
         </Card>
-      </Pressable>
+      </KPressable>
     );
   };
 
@@ -148,12 +154,9 @@ export default function Networks() {
             {testnets.map((c) => renderChain(c))}
           </>
         )}
-        <Pressable
-          onPress={() => { setFormError(null); setAddOpen(true); }}
-          style={{ minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', marginTop: spacing(2) }}
-        >
-          <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>{t("addCustomNetwork")}</Text>
-        </Pressable>
+        <View style={{ marginTop: spacing(2) }}>
+          <Button label={t('addCustomNetwork')} variant="secondary" onPress={() => { setFormError(null); setAddOpen(true); }} />
+        </View>
       </ScrollView>
       <ExplainSheet visible={!!explain} onClose={() => setExplain(null)} subject={explain ? { kind: 'network', name: explain.name, logo: chainIconUrl(explain.id), seed: explain.id } : null} />
       <Modal visible={addOpen} transparent animationType="slide" onRequestClose={() => setAddOpen(false)}>
@@ -174,25 +177,24 @@ export default function Networks() {
                   onChangeText={(value) => setForm((current) => ({ ...current, [key]: key === 'evmChainId' ? Number(value.replace(/\D/g, '')) : value }))}
                   placeholder={placeholder}
                   placeholderTextColor={colors.textMuted}
-                  keyboardType={key === 'evmChainId' ? 'number-pad' : 'default'}
+                  keyboardType={key === 'evmChainId' ? 'number-pad' : key === 'rpcUrl' || key === 'explorerUrl' ? 'url' : 'default'}
                   autoCapitalize="none"
+                  autoCorrect={false}
                   style={{ color: colors.text, backgroundColor: colors.surface2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}
                 />
               </View>
             ))}
-            <Pressable
-              onPress={() => setForm((current) => ({ ...current, testnet: !current.testnet }))}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: form.testnet === true }}
-            >
-              <Text style={{ color: form.testnet ? colors.warning : colors.textMuted, fontSize: 18 }}>{form.testnet ? '☑' : '☐'}</Text>
-              <Text style={typography.body}>{t("testNetwork")}</Text>
-            </Pressable>
+            <View style={{ paddingVertical: space[1] }}>
+              <Checkbox
+                checked={form.testnet === true}
+                onChange={(next) => setForm((current) => ({ ...current, testnet: next }))}
+                label={<KText variant="body">{t('testNetwork')}</KText>}
+              />
+            </View>
             {formError ? <Text style={{ color: colors.danger }}>{formError}</Text> : null}
-            <View style={{ flexDirection: 'row', gap: spacing(1) }}>
-              <Pressable onPress={() => setAddOpen(false)} style={{ flex: 1, alignItems: 'center', paddingVertical: 14 }}><Text style={typography.body}>{t("cancel")}</Text></Pressable>
-              <Pressable onPress={saveCustomChain} style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.accent }}><Text style={{ color: colors.onPrimary, fontWeight: '600' }}>{t("saveNetwork")}</Text></Pressable>
+            <View style={{ flexDirection: 'row', gap: space[3] }}>
+              <View style={{ flex: 1 }}><Button label={t('cancel')} variant="ghost" onPress={() => setAddOpen(false)} /></View>
+              <View style={{ flex: 1 }}><Button label={t('saveNetwork')} onPress={saveCustomChain} /></View>
             </View>
           </View>
         </KeyboardAvoidingView>

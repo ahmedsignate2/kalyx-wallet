@@ -1,6 +1,7 @@
-import { ScreenHeader } from '../ui/kit';
+import { Icon } from '../ui/icon';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
-import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
+import { View, Text, TextInput, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
@@ -91,7 +92,13 @@ export default function Accounts() {
             );
           }
           return (
-            <Pressable key={a.index} onPress={() => setActiveAccount(a.index)}>
+            <KPressable
+              key={a.index}
+              onPress={() => setActiveAccount(a.index)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={a.label}
+            >
               <Card
                 style={{
                   borderColor: active ? colors.accent : colors.cardBorder,
@@ -104,18 +111,22 @@ export default function Accounts() {
                   <Text style={typography.body}>{a.label}</Text>
                   <Muted>{shorten(a.evmAddress)}</Muted>
                 </View>
-                <Pressable
+                {/* Emoji ✏️ et « ✓ » texte remplacés : interdits (§19) et sans
+                    libellé pour le lecteur d'écran. */}
+                <KPressable
                   onPress={() => {
                     setEditing(a.index);
                     setEditLabel(a.label);
                   }}
                   hitSlop={10}
+                  accessibilityLabel={t('nameOptional')}
+                  style={{ marginRight: spacing(1.5) }}
                 >
-                  <Text style={{ fontSize: 16, marginRight: spacing(1.5) }}>✏️</Text>
-                </Pressable>
-                {active ? <Text style={{ color: colors.accent, fontSize: 18 }}>✓</Text> : null}
+                  <Icon name="sign" size={18} />
+                </KPressable>
+                {active ? <Icon name="check" size={18} color={colors.accent} /> : null}
               </Card>
-            </Pressable>
+            </KPressable>
           );
         })}
       </View>
@@ -132,9 +143,9 @@ export default function Accounts() {
           />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
             {SUGGESTIONS.map((s) => (
-              <Pressable key={s} onPress={() => setNewLabel(s)}>
+              <KPressable key={s} onPress={() => setNewLabel(s)} hitSlop={8} accessibilityLabel={s}>
                 <Text style={{ color: colors.accent, fontSize: 13 }}>{s}</Text>
-              </Pressable>
+              </KPressable>
             ))}
           </View>
           <Text style={typography.muted}>{t('pinLabel')}</Text>
@@ -149,9 +160,9 @@ export default function Accounts() {
           <Button label={busy ? t('creating') : t('createAccount')} loading={busy} onPress={onAdd} />
         </Card>
       ) : (
-        <Pressable onPress={() => setAdding(true)} style={{ marginTop: spacing(1) }}>
+        <KPressable onPress={() => setAdding(true)} hitSlop={8} style={{ marginTop: spacing(1) }}>
           <Text style={{ color: colors.accent }}>{t('addAccountPlus')}</Text>
-        </Pressable>
+        </KPressable>
       )}
       </ScrollView>
     </Screen>

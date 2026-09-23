@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, TouchableOpacity, KeyboardAvoidingView, Platform, StatusBar, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, StatusBar, StyleSheet } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,7 +12,8 @@ import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { validateMnemonic, unknownWords } from '../src';
-import { Text as KText, SENSITIVE_INPUT_PROPS } from '../ui/kit';
+import { Text as KText, SENSITIVE_INPUT_PROPS, Pressable as KPressable } from '../ui/kit';
+import { radius } from '../ui/tokens';
 
 /**
  * Import d'une phrase (onboarding). LAYOUT FIXE, sans barre native ni double
@@ -65,11 +66,16 @@ export default function Import() {
       <KeyboardAvoidingView style={{ flex: 1, paddingTop: topPadding }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header unique, calé sous la barre d'état */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 48 }}>
-          <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/welcome'))} hitSlop={12} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.glassStrong }}>
+          <KPressable
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/welcome'))}
+            hitSlop={12}
+            accessibilityLabel={t('back')}
+            style={{ width: 40, height: 40, borderRadius: radius.round, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface2 }}
+          >
             <View style={{ transform: [{ rotate: '180deg' }] }}>
               <Icon name="chevron" size={20} color={colors.text} />
             </View>
-          </TouchableOpacity>
+          </KPressable>
         </View>
 
         <View style={{ flex: 1, paddingHorizontal: spacing(2.5) }}>
