@@ -125,7 +125,7 @@ export function CopilotSheet() {
     }
     const r = await askAi(transcript, buildSystem(language, context));
     setBusy(false);
-    addMessageToActive({ sender: 'assistant', text: 'text' in r ? r.text : `⚠ ${r.error}` });
+    addMessageToActive({ sender: 'assistant', text: 'text' in r ? r.text : r.error });
   }
 
   return (
