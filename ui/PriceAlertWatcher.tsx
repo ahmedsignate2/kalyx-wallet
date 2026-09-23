@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { usePriceAlerts } from '../lib/priceAlertsStore';
 import { useSettings } from '../lib/settingsStore';
+import { translate } from '../lib/i18n';
 import { notifyAndLog } from '../lib/notificationCenter';
 import { getPrices, alertTriggered } from '../src';
 
@@ -19,15 +20,24 @@ async function runCheck(): Promise<void> {
   if (alerts.length === 0) return;
   running = true;
   try {
-    const fiat = useSettings.getState().fiat;
+    const { fiat, language } = useSettings.getState();
     const ids = [...new Set(alerts.map((a) => a.coingeckoId))];
     const prices = await getPrices(ids, fiat);
     for (const a of alerts) {
       const p = prices[a.coingeckoId]?.price;
       if (p != null && alertTriggered(a, p)) {
         const arrow = a.direction === 'above' ? '≥' : '≤';
-        const body = `${a.symbol} est à ${p.toLocaleString('fr-FR', { maximumFractionDigits: 6 })} ${fiat.toUpperCase()}.`;
-        notifyAndLog('price', `🔔 ${a.symbol} ${arrow} ${a.target} ${fiat.toUpperCase()}`, body); // log + notif OS (si activé)
+        /*
+         * Trois défauts corrigés ici. Le texte était en français en dur, le
+         * nombre était formaté en 'fr-FR' pour TOUT LE MONDE (un utilisateur
+         * anglais lisait « 1 234,56 »), et le titre portait un emoji, que le
+         * §19 interdit. `translate` et non `useT` : on n'est pas dans un rendu.
+         */
+        const body = translate(language, 'priceAlertBody')
+          .replace('{symbol}', a.symbol)
+          .replace('{price}', p.toLocaleString(language, { maximumFractionDigits: 6 }))
+          .replace('{fiat}', fiat.toUpperCase());
+        notifyAndLog('price', `${a.symbol} ${arrow} ${a.target} ${fiat.toUpperCase()}`, body); // log + notif OS (si activé)
         remove(a.id); // one-shot : évite de re-notifier en boucle
       }
     }

@@ -365,7 +365,7 @@ export default function Browser() {
             return;
           }
           const tx = (params[0] ?? {}) as { to?: string; value?: string; data?: string; gas?: string };
-          if (!tx.to || !isValidEvmAddress(tx.to)) return respond(id, null, { code: 4200, message: 'Déploiement de contrat non supporté' });
+          if (!tx.to || !isValidEvmAddress(tx.to)) return respond(id, null, { code: 4200, message: 'Contract deployment is not supported' });
           const raw: RawTxRequest = { to: tx.to, data: tx.data ?? '0x', value: tx.value ? BigInt(tx.value) : 0n, chainId: chain.evmChainId!, gasLimit: tx.gas ? BigInt(tx.gas) : undefined };
           setPending({ kind: 'tx', tabId, id, origin: reqOrigin, to: tx.to, value: raw.value ?? 0n, raw });
           return;

@@ -81,7 +81,7 @@ export function TxPreview({ tx, chain }: { tx: { to?: string; value?: bigint | s
       icon = 'warning';
       rows.push({ label: t("txLabelCollection"), value: short(decoded.collection) });
       rows.push({ label: t("txLabelOperator"), value: short(decoded.operator), danger: decoded.approved });
-      rows.push({ label: 'Accès', value: decoded.approved ? t("txLabelAllNFTs") : t("txLabelRevoked"), danger: decoded.approved });
+      rows.push({ label: t("txLabelAccess"), value: decoded.approved ? t("txLabelAllNFTs") : t("txLabelRevoked"), danger: decoded.approved });
       break;
     case 'nftTransfer':
       title = t("txPreviewTransferNFT");
