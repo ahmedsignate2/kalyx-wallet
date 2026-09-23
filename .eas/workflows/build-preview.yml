@@ -1,0 +1,18 @@
+# Build de l'APK preview, à la demande uniquement.
+#
+# À ne relancer QUE si l'empreinte native change : ajout ou mise à jour d'une
+# dépendance native, changement de app.config.ts touchant le natif, nouveau
+# plugin Expo. Un changement purement JS/TS passe par une mise à jour OTA
+# (publish-preview.yml), qui est immédiate et gratuite.
+#
+#   npx eas-cli workflow:run build-preview.yml
+
+name: Build APK preview
+
+jobs:
+  build_android:
+    name: APK Android (profil preview)
+    type: build
+    params:
+      platform: android
+      profile: preview
