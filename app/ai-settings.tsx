@@ -68,7 +68,7 @@ export default function AiSettings() {
           {t('aiByokIntro')}
         </Text>
 
-        <Text style={[typography.body, { color: colors.textMuted }]}>{t('aiProvider')}</Text>
+        <Text style={[typography.body, { color: colors.textSecondary }]}>{t('aiProvider')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
           {(Object.keys(PROVIDER_DEFAULTS) as AiProvider[]).map((p) => (
             <KPressable
@@ -80,22 +80,22 @@ export default function AiSettings() {
                 paddingVertical: spacing(1.5),
                 borderRadius: radii.md,
                 borderWidth: 1,
-                borderColor: selectedProvider === p ? colors.accent : colors.glassBorder,
-                backgroundColor: selectedProvider === p ? colors.accent + '20' : colors.glass,
+                borderColor: selectedProvider === p ? colors.primary : colors.border,
+                backgroundColor: selectedProvider === p ? colors.primary + '20' : colors.surface1,
               }}
             >
-              <Text style={{ fontFamily: fonts.semibold, color: selectedProvider === p ? colors.accent : colors.text }}>
+              <Text style={{ fontFamily: fonts.semibold, color: selectedProvider === p ? colors.primary : colors.text }}>
                 {p.charAt(0).toUpperCase() + p.slice(1)}
               </Text>
             </KPressable>
           ))}
         </View>
 
-        <Text style={[typography.body, { color: colors.textMuted, marginTop: spacing(1) }]}>{t('aiApiKey')}</Text>
+        <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing(1) }]}>{t('aiApiKey')}</Text>
         <TextInput
           style={{
-            backgroundColor: colors.glass,
-            borderColor: colors.glassBorder,
+            backgroundColor: colors.surface1,
+            borderColor: colors.border,
             borderWidth: 1,
             borderRadius: radii.md,
             padding: spacing(2),
@@ -103,7 +103,7 @@ export default function AiSettings() {
             fontFamily: fonts.medium,
           }}
           placeholder="Ex: sk-..."
-          placeholderTextColor={colors.textFaint}
+          placeholderTextColor={colors.textTertiary}
           value={inputKey}
           onChangeText={setInputKey}
           secureTextEntry
@@ -112,26 +112,26 @@ export default function AiSettings() {
         />
         {PROVIDER_DEFAULTS[selectedProvider]?.helperUrl && (
           <KPressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[selectedProvider].helperUrl!)} style={{ alignSelf: 'flex-start', marginTop: 4 }}>
-            <Text style={[typography.body, { color: colors.accent, fontSize: 13, textDecorationLine: 'underline' }]}>{t('aiFreeKeyHelp')}</Text>
+            <Text style={[typography.body, { color: colors.primary, fontSize: 13, textDecorationLine: 'underline' }]}>{t('aiFreeKeyHelp')}</Text>
           </KPressable>
         )}
 
         {selectedProvider === 'custom' && (
           <View style={{ gap: spacing(1.5), marginTop: spacing(1) }}>
-            <Text style={[typography.body, { color: colors.textMuted }]}>{t('aiApiUrl')}</Text>
+            <Text style={[typography.body, { color: colors.textSecondary }]}>{t('aiApiUrl')}</Text>
             <TextInput
-              style={{ backgroundColor: colors.glass, borderColor: colors.glassBorder, borderWidth: 1, borderRadius: radii.md, padding: spacing(1.5), color: colors.text, fontFamily: fonts.medium }}
+              style={{ backgroundColor: colors.surface1, borderColor: colors.border, borderWidth: 1, borderRadius: radii.md, padding: spacing(1.5), color: colors.text, fontFamily: fonts.medium }}
               placeholder="Ex: https://api.together.xyz/v1/chat/completions"
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={colors.textTertiary}
               value={customUrl}
               onChangeText={setCustomUrl}
               autoCapitalize="none"
             />
-            <Text style={[typography.body, { color: colors.textMuted }]}>{t('aiModelName')}</Text>
+            <Text style={[typography.body, { color: colors.textSecondary }]}>{t('aiModelName')}</Text>
             <TextInput
-              style={{ backgroundColor: colors.glass, borderColor: colors.glassBorder, borderWidth: 1, borderRadius: radii.md, padding: spacing(1.5), color: colors.text, fontFamily: fonts.medium }}
+              style={{ backgroundColor: colors.surface1, borderColor: colors.border, borderWidth: 1, borderRadius: radii.md, padding: spacing(1.5), color: colors.text, fontFamily: fonts.medium }}
               placeholder="Ex: qwen-2.5-72b ou gemini-1.5-pro"
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={colors.textTertiary}
               value={customModel}
               onChangeText={setCustomModel}
               autoCapitalize="none"
@@ -144,7 +144,7 @@ export default function AiSettings() {
             onPress={handleSaveAndActivate}
             disabled={loading || !inputKey.trim()}
             style={{
-              backgroundColor: colors.accent,
+              backgroundColor: colors.primary,
               padding: spacing(2),
               borderRadius: radii.pill,
               alignItems: 'center',
@@ -177,7 +177,7 @@ export default function AiSettings() {
               <Icon name="check" size={20} color={colors.up} />
               <Text style={{ color: colors.up, fontFamily: fonts.bold, fontSize: 16 }}>{t('aiActiveTitle')}</Text>
             </View>
-            <Text style={{ color: colors.textMuted, fontSize: 13, fontFamily: fonts.medium, lineHeight: 20 }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: fonts.medium, lineHeight: 20 }}>
               {t('aiActiveDesc')}
             </Text>
           </GlassCard>

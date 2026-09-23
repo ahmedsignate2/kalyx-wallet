@@ -117,10 +117,12 @@ export default function Unlock() {
     : error ?? t('enterCodeToContinue');
 
   return (
-    <Animated.View style={{ flex: 1, backgroundColor: colors.bgDeep, opacity: screenOp }}>
+    <Animated.View style={{ flex: 1, backgroundColor: colors.bg, opacity: screenOp }}>
       {/* Plein écran : pas de barre d'en-tête vide. */}
       <Stack.Screen options={{ headerShown: false }} />
-      <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
+      {/* `gradients.screen` rend une couleur unie (flat()) : une View suffit,
+          et le §2.2 ne tolère aucun dégradé décoratif. */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
       {/*
         L'AURA vit ici (docs/08 §3.4). C'était le trou laissé par l'étape 1 :
         walletStore émet bien l'impulsion d'Ouverture au déverrouillage réussi,
@@ -135,7 +137,7 @@ export default function Unlock() {
         {/* En-tête compact : titre, sous-titre, biométrie */}
         <View style={{ alignItems: 'center', gap: spacing(1.25) }}>
           <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
-          <Text style={{ color: error && !locked ? colors.danger : colors.textMuted, fontSize: 14, textAlign: 'center' }}>{subtitle}</Text>
+          <Text style={{ color: error && !locked ? colors.danger : colors.textSecondary, fontSize: 14, textAlign: 'center' }}>{subtitle}</Text>
           {/*
             Le retour d'appui était un changement d'OPACITÉ (0.6), ce que le
             §3.2 interdit explicitement : c'est le scale qui dit « touché ».
@@ -145,10 +147,10 @@ export default function Unlock() {
               onPress={() => tryBiometrics(true)}
               disabled={busy || locked}
               accessibilityLabel={t('biometrics')}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing(0.5), paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.round, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing(0.5), paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}
             >
-              <Icon name="security" size={18} color={colors.accent} />
-              <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>{t('biometrics')}</Text>
+              <Icon name="security" size={18} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.semibold }}>{t('biometrics')}</Text>
             </KPressable>
           ) : null}
         </View>
@@ -171,7 +173,7 @@ export default function Unlock() {
           <View style={{ height: 24, justifyContent: 'center' }}>
             {complete ? (
               <KPressable onPress={() => submit(pin)} disabled={busy || locked} hitSlop={8} haptic="light" accessibilityLabel={t('unlockBtn')}>
-                <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>
+                <Text style={{ color: colors.primary, fontSize: 16, fontFamily: fonts.semibold }}>
                   {busy ? t('verifying') : t('unlockBtn')}
                 </Text>
               </KPressable>

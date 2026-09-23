@@ -46,7 +46,7 @@ export default function RevealPhrase() {
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: colors.bgElevated,
+                  backgroundColor: colors.surface2,
                   borderRadius: radii.sm,
                   paddingVertical: spacing(1),
                   paddingHorizontal: spacing(1.5),

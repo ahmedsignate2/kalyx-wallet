@@ -70,7 +70,7 @@ export default function AddToken() {
             setMeta(null);
           }}
           placeholder="0x…"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.textSecondary}
           autoCapitalize="none"
           autoCorrect={false}
           style={{ color: colors.text, fontSize: 15, paddingVertical: spacing(1) }}

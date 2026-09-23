@@ -51,7 +51,7 @@ export function PinPromptModal({
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         {/* Padding bas = inset système : la rangée « 0 » reste au-dessus de la barre de navigation. */}
         <ScrollView
-          style={{ maxHeight: '92%', backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl }}
+          style={{ maxHeight: '92%', backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl }}
           contentContainerStyle={{
             paddingTop: spacing(3),
             paddingBottom: insets.bottom + spacing(3),
@@ -96,13 +96,13 @@ export function PinPromptModal({
           <View style={{ height: 26, justifyContent: 'center' }}>
             {busy ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                <ActivityIndicator size="small" color={colors.accent} />
-                <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>{t('pinVerifying')}</Text>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={{ color: colors.textSecondary, fontSize: 15, fontFamily: fonts.medium }}>{t('pinVerifying')}</Text>
               </View>
             ) : expectedLength ? null : (
               // Longueur inconnue : validation manuelle à partir de 6 chiffres.
               <KPressable onPress={() => pin.length >= 6 && onSubmit(pin)} disabled={pin.length < 6} hitSlop={8} haptic="light" accessibilityLabel={t('pinValidate')}>
-                <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold, opacity: pin.length < 6 ? 0.35 : 1 }}>
+                <Text style={{ color: colors.primary, fontSize: 16, fontFamily: fonts.semibold, opacity: pin.length < 6 ? 0.35 : 1 }}>
                   {t('pinValidate')}
                 </Text>
               </KPressable>
@@ -110,7 +110,7 @@ export function PinPromptModal({
           </View>
 
           <KPressable onPress={onCancel} disabled={busy} hitSlop={8} accessibilityLabel={t('cancel')}>
-            <Text style={{ color: colors.textMuted, fontSize: 15, opacity: busy ? 0.4 : 1 }}>{t('cancel')}</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 15, opacity: busy ? 0.4 : 1 }}>{t('cancel')}</Text>
           </KPressable>
         </ScrollView>
       </View>

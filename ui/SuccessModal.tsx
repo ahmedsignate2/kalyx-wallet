@@ -67,7 +67,7 @@ export function SuccessModal({
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <View
           style={{
-            backgroundColor: colors.bgDeep,
+            backgroundColor: colors.bg,
             borderTopLeftRadius: radii.xl,
             borderTopRightRadius: radii.xl,
             padding: spacing(3),
@@ -88,7 +88,7 @@ export function SuccessModal({
                 <Circle cx={48} cy={48} r={28} fill={colors.up} />
                 <AnimatedPath
                   d="M36 48 l9 9 l16 -19"
-                  stroke={colors.bgDeep}
+                  stroke={colors.bg}
                   strokeWidth={5.5}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -103,7 +103,7 @@ export function SuccessModal({
           <Text style={[typography.title, { textAlign: 'center' }]}>{title}</Text>
           {message ? <Text style={[typography.muted, { textAlign: 'center' }]}>{message}</Text> : null}
           {short ? (
-            <Text style={{ color: colors.textFaint, fontSize: 13, fontVariant: ['tabular-nums'] }} selectable>
+            <Text style={{ color: colors.textTertiary, fontSize: 13, fontVariant: ['tabular-nums'] }} selectable>
               {short}
             </Text>
           ) : null}
@@ -119,7 +119,7 @@ export function SuccessModal({
                   Linking.openURL(url).catch(() => {});
                 }
               }}
-              style={{ color: colors.accent, fontFamily: fonts.semibold }}
+              style={{ color: colors.primary, fontFamily: fonts.semibold }}
             >
               {t('viewOnExplorer')} ↗
             </Text>

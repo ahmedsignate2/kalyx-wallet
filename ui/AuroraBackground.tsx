@@ -66,9 +66,9 @@ export function AuroraBackground({ intensity = 1 }: { intensity?: number }) {
   const { colors } = useTheme();
   const orbs: OrbSpec[] = [
     // L'aurora devient très sourde (or/graphite). On garde les teintes d'accent (or bruni).
-    { id: 'aurora-a', color: colors.accent, size: W * 1.1, x: -W * 0.35, y: -H * 0.12, dx: W * 0.18, dy: H * 0.06, duration: 9000, delay: 0, opacity: 0.18 * intensity },
+    { id: 'aurora-a', color: colors.primary, size: W * 1.1, x: -W * 0.35, y: -H * 0.12, dx: W * 0.18, dy: H * 0.06, duration: 9000, delay: 0, opacity: 0.18 * intensity },
     { id: 'aurora-b', color: colors.accentAlt, size: W * 0.95, x: W * 0.45, y: H * 0.1, dx: -W * 0.2, dy: H * 0.1, duration: 11000, delay: 600, opacity: 0.14 * intensity },
-    { id: 'aurora-c', color: colors.textMuted, size: W * 0.8, x: W * 0.05, y: H * 0.5, dx: W * 0.15, dy: -H * 0.08, duration: 12500, delay: 1200, opacity: 0.08 * intensity },
+    { id: 'aurora-c', color: colors.textSecondary, size: W * 0.8, x: W * 0.05, y: H * 0.5, dx: W * 0.15, dy: -H * 0.08, duration: 12500, delay: 1200, opacity: 0.08 * intensity },
   ];
   return (
     <Animated.View pointerEvents="none" style={StyleSheet.absoluteFill}>

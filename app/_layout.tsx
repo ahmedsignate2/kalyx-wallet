@@ -107,8 +107,8 @@ export default function RootLayout() {
     // document n'est pas typé sans la lib DOM (tsconfig ciblé mobile) : accès gardé.
     const doc = (globalThis as any).document;
     if (!doc) return;
-    doc.documentElement.style.backgroundColor = colors.bgDeep;
-    doc.body.style.backgroundColor = colors.bgDeep;
+    doc.documentElement.style.backgroundColor = colors.bg;
+    doc.body.style.backgroundColor = colors.bg;
     // Empêche la traduction auto du navigateur (Google Traduction réécrit les
     // nœuds texte et casse React : « Failed to execute removeChild »).
     const el = doc.documentElement as unknown as { setAttribute: (k: string, v: string) => void; lang: string };
@@ -139,7 +139,7 @@ export default function RootLayout() {
       `;
       d2.head.appendChild(style);
     }
-  }, [colors.bgDeep]);
+  }, [colors.bg]);
 
   useEffect(() => {
     // Sur web (tableau de bord WalletConnect), pas de coffre local ni de wallet-side :
@@ -202,10 +202,10 @@ export default function RootLayout() {
         <Stack
           screenOptions={{
             headerShown: false, // chaque écran dessine son en-tête (ui/kit/ScreenHeader)
-            headerStyle: { backgroundColor: colors.bgDeep },
+            headerStyle: { backgroundColor: colors.bg },
             headerTintColor: colors.text,
             headerShadowVisible: false,
-            contentStyle: { backgroundColor: colors.bgDeep },
+            contentStyle: { backgroundColor: colors.bg },
             headerTitle: '',
             animation: 'slide_from_right',
             animationDuration: 220,

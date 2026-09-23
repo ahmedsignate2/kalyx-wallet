@@ -90,7 +90,7 @@ export function AllocationDonut({
           )}
         </Svg>
         <View style={{ position: 'absolute', alignItems: 'center' }}>
-          {centerTitle ? <Text style={{ fontSize: 11, fontFamily: fonts.medium, color: colors.textMuted }}>{centerTitle}</Text> : null}
+          {centerTitle ? <Text style={{ fontSize: 11, fontFamily: fonts.medium, color: colors.textSecondary }}>{centerTitle}</Text> : null}
           {centerValue ? (
             <Text
               style={{ fontSize: 15, fontFamily: fonts.bold, color: colors.text, fontVariant: ['tabular-nums'], maxWidth: size - thickness * 2 - 12 }}
@@ -115,7 +115,7 @@ export function AllocationDonut({
               {((s.value / total) * 100).toFixed(1).replace('.', ',')} %
             </Text>
             {formatValue ? (
-              <Text style={{ fontSize: 13, fontFamily: fonts.regular, color: colors.textMuted, fontVariant: ['tabular-nums'], minWidth: 64, textAlign: 'right' }}>
+              <Text style={{ fontSize: 13, fontFamily: fonts.regular, color: colors.textSecondary, fontVariant: ['tabular-nums'], minWidth: 64, textAlign: 'right' }}>
                 {formatValue(s.value)}
               </Text>
             ) : null}

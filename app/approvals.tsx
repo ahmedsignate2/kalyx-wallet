@@ -86,8 +86,8 @@ export default function Approvals() {
       <ScreenHeader title={t('approvals')} />
 
       <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
-        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="security" size={26} color={colors.accent} />
+        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="security" size={26} color={colors.primary} />
         </View>
         <Text style={typography.title}>{t('spendApprovals')}</Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>
@@ -101,7 +101,7 @@ export default function Approvals() {
         </GlassCard>
       ) : (
         <ScrollView
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />}
           contentContainerStyle={{ gap: spacing(1.5), paddingBottom: spacing(4) }}
         >
           {items == null ? (
@@ -125,7 +125,7 @@ export default function Approvals() {
                     {it.logo ? (
                       <Image source={{ uri: it.logo }} style={{ width: 40, height: 40, borderRadius: 20 }} />
                     ) : (
-                      <Avatar label={it.symbol.slice(0, 1)} color={colors.glassStrong} />
+                      <Avatar label={it.symbol.slice(0, 1)} color={colors.surface2} />
                     )}
                     <View style={{ flex: 1 }}>
                       <Text style={typography.bodyStrong}>{it.symbol}</Text>
@@ -136,10 +136,10 @@ export default function Approvals() {
                         paddingHorizontal: 8,
                         paddingVertical: 3,
                         borderRadius: 8,
-                        backgroundColor: unlimited ? 'rgba(255,92,92,0.15)' : colors.glassStrong,
+                        backgroundColor: unlimited ? 'rgba(255,92,92,0.15)' : colors.surface2,
                       }}
                     >
-                      <Text style={{ color: unlimited ? colors.danger : colors.textMuted, fontSize: 12, fontFamily: fonts.semibold }}>
+                      <Text style={{ color: unlimited ? colors.danger : colors.textSecondary, fontSize: 12, fontFamily: fonts.semibold }}>
                         {unlimited ? `∞ ${t('unlimitedLabel')}` : `${formatTokenAmount(it.allowance, it.decimals)}`}
                       </Text>
                     </View>
@@ -157,7 +157,7 @@ export default function Approvals() {
 
           {items && items.length > 0 && chain.explorerUrl ? (
             <KPressable onPress={() => Linking.openURL(chain.explorerUrl!)} style={{ alignSelf: 'center', paddingVertical: spacing(1) }}>
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>{t('revokeIsTx')}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{t('revokeIsTx')}</Text>
             </KPressable>
           ) : null}
         </ScrollView>

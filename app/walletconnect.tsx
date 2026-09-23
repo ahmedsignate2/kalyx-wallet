@@ -78,9 +78,9 @@ export default function WalletConnectScreen() {
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>{t('wcLink')}</Text>
-          <Text onPress={onPaste} style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('paste')}</Text>
+          <Text onPress={onPaste} style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('paste')}</Text>
         </View>
-        <TextInput value={uri} onChangeText={setUri} placeholder="wc:…" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} style={{ color: colors.text, fontSize: 14, paddingVertical: spacing(1) }} />
+        <TextInput value={uri} onChangeText={setUri} placeholder="wc:…" placeholderTextColor={colors.textSecondary} autoCapitalize="none" autoCorrect={false} style={{ color: colors.text, fontSize: 14, paddingVertical: spacing(1) }} />
       </Card>
       <Button label={busy ? t('connecting') : t('connect')} loading={busy || !ready} onPress={onConnect} />
 
@@ -127,12 +127,12 @@ export default function WalletConnectScreen() {
             <Text style={[typography.section, { marginTop: spacing(2) }]}>{t('recentSignatures')}</Text>
             <Card style={{ gap: 0 }}>
               {signatures.slice(0, 20).map((s, i) => (
-                <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.cardBorder }}>
+                <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
                   <View style={{ flex: 1 }}>
                     <Text style={typography.body} numberOfLines={1}>{SIG_LABEL[s.kind]}</Text>
                     <Muted>{s.host}</Muted>
                   </View>
-                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>{ago(s.at)}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{ago(s.at)}</Text>
                 </View>
               ))}
             </Card>
