@@ -1,23 +1,17 @@
 /**
- * Composants UI premium V2 (glassmorphism, accents violet/bleu). Purement
- * présentationnels — aucune logique crypto. Thémés clair/sombre : chaque
- * composant lit le thème via useTheme() ; les StyleSheet sont créées une fois
- * par mode (cache) pour rester aussi performantes qu'en statique.
+ * Composants UI hérités. Purement présentationnels — aucune logique crypto.
+ * Thémés clair/sombre : chaque composant lit le thème via useTheme() ; les
+ * StyleSheet sont créées une fois par mode (cache).
+ *
+ * Le nom du fichier et l'ancien en-tête parlaient de « glassmorphism » et
+ * d'« accents violet/bleu » : ni l'un ni l'autre n'existe plus (§18 interdit le
+ * verre, et il n'y a qu'un seul accent). Ces composants sont en voie de
+ * remplacement par `ui/kit/` ; tout ce qui est tactile ici délègue désormais au
+ * `Pressable` du kit, pour que les écrans qui en dépendent héritent de la
+ * grammaire d'appui sans être touchés un par un.
  */
 import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  ViewStyle,
-  StyleProp,
-  Image,
-  Animated,
-  TextInput as RNTextInput,
-  KeyboardAvoidingView,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ViewStyle, StyleProp, Image, Animated, TextInput as RNTextInput, KeyboardAvoidingView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, StatusBar } from 'react-native';
@@ -25,7 +19,7 @@ import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient, R
 import { Dimensions } from 'react-native';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
 import { Icon, type IconName } from './icon';
-import { haptic } from '../lib/haptics';
+import { Pressable as KPressable } from './kit';
 
 const PREMIUM_W = Dimensions.get('window').width;
 
@@ -81,30 +75,30 @@ export function PressableScale({
   children,
   onPress,
   disabled,
-  scaleTo = 0.97,
+  scaleTo,
   style,
 }: {
   children: React.ReactNode;
   onPress?: () => void;
   disabled?: boolean;
+  /** @deprecated L'échelle d'appui est celle du kit (PRESS_SCALE), une seule dans l'app. */
   scaleTo?: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const animate = (to: number) =>
-    Animated.spring(scale, { toValue: to, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  /*
+   * Ce composant réimplémentait à la main ce que `ui/kit/Pressable` fait déjà,
+   * en moins bien : ressort sans rebond (bounciness 0), vitesse arbitraire,
+   * `useReducedMotion()` ignoré, et haptique « sélection » quelle que soit
+   * l'intention. Il devient une simple enveloppe : tous les écrans qui passent
+   * par ui/premium en héritent sans avoir à être touchés un par un.
+   *
+   * `scaleTo` est conservé pour ne casser aucun appelant, mais n'est plus lu :
+   * l'app n'a qu'une seule échelle d'appui (§3.2).
+   */
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled || !onPress}
-      onPressIn={() => {
-        haptic.selection();
-        animate(scaleTo);
-      }}
-      onPressOut={() => animate(1)}
-    >
-      <Animated.View style={[{ transform: [{ scale }] }, style]}>{children}</Animated.View>
-    </Pressable>
+    <KPressable onPress={onPress} disabled={disabled || !onPress} style={style}>
+      {children}
+    </KPressable>
   );
 }
 
@@ -200,24 +194,24 @@ export function Chip({
   const color =
     tone === 'accent' ? colors.accent : tone === 'warning' ? colors.warning : colors.text;
   return (
-    <Pressable onPress={onPress} disabled={!onPress}>
+    <KPressable onPress={onPress} disabled={!onPress} accessibilityLabel={label}>
       <View style={styles.chip}>
         <Text style={{ color, fontFamily: fonts.semibold }}>{label}</Text>
-        {onPress ? <Text style={{ color: colors.textMuted }}>▾</Text> : null}
+        {onPress ? <Icon name="caretDown" size={14} color={colors.textMuted} /> : null}
       </View>
-    </Pressable>
+    </KPressable>
   );
 }
 
 export function IconButton({ icon, onPress, badge }: { icon: IconName; onPress?: () => void; badge?: boolean }) {
   const { theme, styles } = useThemeStyles();
   return (
-    <Pressable onPress={onPress}>
+    <KPressable onPress={onPress} haptic="light" overshoot accessibilityLabel={icon}>
       <View style={styles.iconBtn}>
         <Icon name={icon} size={19} color={theme.colors.text} />
         {badge ? <View style={styles.badge} /> : null}
       </View>
-    </Pressable>
+    </KPressable>
   );
 }
 
@@ -236,12 +230,12 @@ export function ActionTile({
   const { theme, styles } = useThemeStyles();
   const { colors } = theme;
   return (
-    <Pressable onPress={onPress} disabled={disabled} style={{ flex: 1 }}>
+    <KPressable onPress={onPress} disabled={disabled} haptic="light" overshoot accessibilityLabel={label} style={{ flex: 1 }}>
       <View style={[styles.tile, disabled ? { opacity: 0.4 } : null]}>
         <Text style={{ fontSize: 20, color: colors.text }}>{icon}</Text>
         <Text style={{ color: colors.text, fontSize: 13, fontFamily: fonts.semibold, marginTop: 6 }}>{label}</Text>
       </View>
-    </Pressable>
+    </KPressable>
   );
 }
 
@@ -262,16 +256,19 @@ export function CircleAction({
 }) {
   const { theme, styles } = useThemeStyles();
   return (
-    <Pressable
+    <KPressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [{ alignItems: 'center', gap: 8, flex: 1, opacity: disabled || dimmed ? 0.4 : pressed ? 0.6 : 1 }]}
+      haptic="light"
+      overshoot
+      accessibilityLabel={label}
+      style={{ alignItems: 'center', gap: 8, flex: 1, opacity: disabled || dimmed ? 0.4 : 1 }}
     >
       <View style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={icon} size={22} color={theme.colors.text} />
       </View>
       <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={{ color: theme.colors.textMuted, fontSize: 11, lineHeight: 13, fontFamily: fonts.semibold, textAlign: 'center' }}>{label}</Text>
-    </Pressable>
+    </KPressable>
   );
 }
 
@@ -349,9 +346,9 @@ export function SectionHeader({
     <View style={styles.rowBetween}>
       <Text style={theme.typography.section}>{title}</Text>
       {actionLabel && onAction ? (
-        <Pressable onPress={onAction}>
+        <KPressable onPress={onAction} haptic="light" hitSlop={8} accessibilityLabel={actionLabel}>
           <Text style={{ color: theme.colors.accent, fontFamily: fonts.semibold }}>{actionLabel}</Text>
-        </Pressable>
+        </KPressable>
       ) : null}
     </View>
   );
@@ -538,11 +535,18 @@ export function SegmentedTabs({
       {items.map((it) => {
         const on = it.key === active;
         return (
-          <Pressable key={it.key} onPress={() => onChange(it.key)} style={[styles.segItem, on ? styles.segItemActive : null]}>
+          <KPressable
+            key={it.key}
+            onPress={() => onChange(it.key)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={it.label}
+            style={[styles.segItem, on ? styles.segItemActive : null]}
+          >
             <Text style={{ color: on ? theme.colors.onPrimary : theme.colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>
               {it.label}
             </Text>
-          </Pressable>
+          </KPressable>
         );
       })}
     </View>
@@ -626,12 +630,19 @@ export function BottomNav({
   const renderItem = (it: NavItem) => {
     const on = it.key === active;
     return (
-      <Pressable key={it.key} onPress={it.onPress} style={{ flex: 1, alignItems: 'center', gap: 3 }}>
+      <KPressable
+        key={it.key}
+        onPress={it.onPress}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: on }}
+        accessibilityLabel={it.label}
+        style={{ flex: 1, alignItems: 'center', gap: 3 }}
+      >
         <Icon name={it.icon} size={22} color={on ? colors.accent : colors.textFaint} />
         <Text numberOfLines={1} style={{ fontSize: 11, color: on ? colors.text : colors.textTertiary, fontFamily: fonts.semibold }}>
           {it.label}
         </Text>
-      </Pressable>
+      </KPressable>
     );
   };
   return (
@@ -641,7 +652,7 @@ export function BottomNav({
         <View style={{ width: 64 }} />
         {right.map(renderItem)}
       </View>
-      <Pressable onPress={center.onPress} style={styles.fabWrap}>
+      <KPressable onPress={center.onPress} haptic="light" overshoot accessibilityLabel={center.label} style={styles.fabWrap}>
         <LinearGradient
           colors={theme.gradients.accent}
           start={{ x: 0, y: 0 }}
@@ -653,7 +664,7 @@ export function BottomNav({
         <Text style={{ fontSize: 11, color: colors.accent, fontFamily: fonts.semibold, marginTop: 2 }}>
           {center.label}
         </Text>
-      </Pressable>
+      </KPressable>
     </View>
   );
 }
