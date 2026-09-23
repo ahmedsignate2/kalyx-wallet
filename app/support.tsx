@@ -4,9 +4,9 @@
  * soutenir et propose des dons en crypto (BTC/SOL/ETH). Aucune adresse ne quitte
  * l'app : ce sont des adresses de RÉCEPTION publiques codées ici.
  */
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
@@ -80,15 +80,15 @@ export default function Support() {
                 <Text style={typography.bodyStrong}>{c.name}</Text>
                 <Text style={typography.muted}>{c.symbol}</Text>
               </View>
-              <Pressable onPress={() => setOpenQr(open ? null : c.key)} hitSlop={8} style={{ padding: 6 }}>
+              <KPressable onPress={() => setOpenQr(open ? null : c.key)} hitSlop={8} style={{ padding: 6 }}>
                 <Icon name="scan" size={20} color={open ? colors.accent : colors.textMuted} />
-              </Pressable>
+              </KPressable>
             </View>
 
-            <Pressable onPress={() => copy(c.address, `${t('addressLabel')} ${c.symbol}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), overflow: 'hidden' }}>
+            <KPressable onPress={() => copy(c.address, `${t('addressLabel')} ${c.symbol}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), overflow: 'hidden' }}>
               <Text selectable style={[typography.mono, { flex: 1, minWidth: 0, fontSize: 12.5 }]} numberOfLines={1} ellipsizeMode="middle">{c.address}</Text>
               <Icon name="copy" size={16} color={colors.accent} />
-            </Pressable>
+            </KPressable>
 
             {open ? (
               <View style={{ alignItems: 'center', paddingVertical: spacing(1) }}>
@@ -111,12 +111,12 @@ export default function Support() {
             <Text style={[typography.micro, { color: colors.textSecondary }]}>{t('supportDiagnosticSubtitle')}</Text>
           </View>
         </View>
-        <Pressable
+        <KPressable
           onPress={() => router.push('/support-history')}
           style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.sm, backgroundColor: colors.accent }}
         >
           <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 12 }}>{t('supportHistoryDetails')}</Text>
-        </Pressable>
+        </KPressable>
       </GlassCard>
 
       <Text style={[typography.muted, { textAlign: 'center', marginTop: spacing(1), marginBottom: spacing(2) }]}>

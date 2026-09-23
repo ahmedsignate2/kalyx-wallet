@@ -1,6 +1,7 @@
+import { Pressable as KPressable } from './kit';
 import { useT } from "../lib/settingsStore";
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, Image, Modal, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Image, Modal, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet } from 'react-native';
 import { fonts, radii, spacing, useTheme } from './theme';
 import { haptic } from '../lib/haptics';
 import { Icon } from './icon';
@@ -127,15 +128,15 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
     const balance = heldTokens[item.address.toLowerCase()];
     const mk = marketBySymbol.get(item.symbol.toLowerCase());
     return (
-      <Pressable 
-        style={({ pressed }) => ({
+      <KPressable 
+        style={{
           flexDirection: 'row',
           alignItems: 'center',
           padding: spacing(1.5),
-          backgroundColor: pressed ? colors.glass : 'transparent',
+          backgroundColor: 'transparent',
           borderBottomWidth: 1,
           borderBottomColor: colors.glassBorder,
-        })}
+        }}
         onPress={() => {
           haptic.selection();
           onSelect(item, selectedChain);
@@ -159,21 +160,21 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
             </Text>
           ) : null}
         </View>
-      </Pressable>
+      </KPressable>
     );
   };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
-        <Pressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onClose} />
+        <KPressable noScale haptic="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onClose} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ height: '85%', backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' }}>
         <View style={{ padding: spacing(2), borderBottomWidth: 1, borderBottomColor: colors.glassBorder, backgroundColor: colors.bgElevated }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(1.5) }}>
             <Text style={{ color: colors.text, fontFamily: fonts.extrabold, fontSize: 20 }}>{t("tokenSelect")}</Text>
-            <Pressable onPress={onClose} hitSlop={10}>
+            <KPressable onPress={onClose} hitSlop={10}>
               <Icon name="close" size={24} color={colors.textMuted} />
-            </Pressable>
+            </KPressable>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgDeep, borderRadius: radii.md, paddingHorizontal: spacing(1.5), height: 44 }}>
             <Icon name="search" size={18} color={colors.textMuted} />
@@ -199,7 +200,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
             renderItem={({ item }) => {
               const active = item.id === selectedChain;
               return (
-                <Pressable
+                <KPressable
                   onPress={() => {
                     haptic.selection();
                     setSelectedChain(item.id);
@@ -218,7 +219,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
                   <Text style={{ color: active ? colors.onPrimary : colors.text, fontFamily: fonts.semibold, fontSize: 14 }}>
                     {item.name}
                   </Text>
-                </Pressable>
+                </KPressable>
               );
             }}
           />
@@ -229,13 +230,13 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
             {tabs.map((it) => {
               const active = it.key === tab;
               return (
-                <Pressable
+                <KPressable
                   key={it.key}
                   onPress={() => { haptic.selection(); setTab(it.key); }}
                   style={{ paddingVertical: spacing(0.75), paddingHorizontal: spacing(1.25), borderRadius: radii.pill, backgroundColor: active ? colors.glassStrong : 'transparent' }}
                 >
                   <Text style={{ color: active ? colors.text : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>{it.label}</Text>
-                </Pressable>
+                </KPressable>
               );
             })}
           </View>

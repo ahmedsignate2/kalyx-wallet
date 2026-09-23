@@ -1,3 +1,4 @@
+import { Pressable as KPressable } from './kit';
 /**
  * Ligne de transaction « premium », partagée entre l'Historique et l'accueil :
  * - logo de la crypto (au lieu d'une icône grise) + pastille de direction
@@ -10,7 +11,7 @@
  * - `expanded` : détail replié (adresses from/to copiables + explorateur).
  */
 import React from 'react';
-import { Image, Linking, Pressable, Text, View } from 'react-native';
+import { Image, Linking, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { PressableScale } from './premium';
 import { Icon } from './icon';
@@ -183,7 +184,7 @@ function AddrLine({ label, addr }: { label: string; addr: string }) {
   const ensName = useEnsName(addr);
   if (!addr) return null;
   return (
-    <Pressable
+    <KPressable
       onPress={() => Clipboard.setStringAsync(addr)}
       style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}
     >
@@ -197,6 +198,6 @@ function AddrLine({ label, addr }: { label: string; addr: string }) {
         {shortAddr(addr)}
       </Text>
       <Icon name="copy" size={13} tone="muted" />
-    </Pressable>
+    </KPressable>
   );
 }

@@ -1,12 +1,12 @@
 import { haptic } from "../lib/haptics";
 import { sound } from "../lib/sound";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { View, ScrollView, Pressable as RNPressable } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState } from '../ui/kit';
+import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState, Pressable as KPressable } from '../ui/kit';
 import { BridgeProgress } from '../ui/BridgeProgress';
 import { SuccessModal } from '../ui/SuccessModal';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
@@ -479,14 +479,14 @@ export default function Swap() {
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
         <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ flex: 1, fontSize: 36, lineHeight: 42, color: muted ? colors.textSecondary : colors.text }}>{value || '0'}</Text>
-        <RNPressable onPress={onPick} accessibilityLabel={`Choisir le token ${label}`} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: 6, paddingLeft: 6, paddingRight: 10, borderRadius: radius.round, backgroundColor: pressed ? colors.surface3 : colors.surface1, borderWidth: 1, borderColor: colors.border })}>
+        <KPressable onPress={onPick} accessibilityLabel={`Choisir le token ${label}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: 6, paddingLeft: 6, paddingRight: 10, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
           {tok ? <TokenIcon symbol={tok.symbol} logo={tok.logo} seed={tok.address} size={28} /> : <Skeleton width={28} height={28} round />}
           <View>
             <Text variant="body">{tok?.symbol ?? '…'}</Text>
             <Text variant="micro" tone="tertiary">{getAdapter(chainId).config.name}</Text>
           </View>
           <Icon name="caretDown" size={14} tone="muted" />
-        </RNPressable>
+        </KPressable>
       </View>
     </Surface>
   );
@@ -526,9 +526,9 @@ export default function Swap() {
           {/* Inversion : tourne de 180° avec le ressort Vif */}
           <View style={{ alignItems: 'center', marginVertical: -space[4], zIndex: 2 }}>
             <Animated.View style={flipStyle}>
-              <RNPressable onPress={onFlip} disabled={isBridge} accessibilityLabel="Inverser les tokens" style={({ pressed }) => ({ width: 40, height: 40, borderRadius: radius.round, backgroundColor: pressed ? colors.surface3 : colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.4 : 1 })}>
+              <KPressable onPress={onFlip} disabled={isBridge} accessibilityLabel="Inverser les tokens" style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.4 : 1 }}>
                 <Icon name="convert" size={18} />
-              </RNPressable>
+              </KPressable>
             </Animated.View>
           </View>
 
@@ -555,9 +555,9 @@ export default function Swap() {
           {isNativeTokenAddress(fromTok.address) ? <Text variant="micro" tone="tertiary">{t('gasReserve')} : {gasReserve ? `≈ ${formatTokenAmount(gasReserve.raw, chain.nativeDecimals)} ${chain.nativeSymbol}${gasReserve.live ? '' : ' (est.)'}` : '…'}</Text> : null}
 
           {/* Réglage avancé replié : slippage */}
-          <RNPressable onPress={() => setAdvanced((v) => !v)} style={{ paddingVertical: space[1] }}>
+          <KPressable onPress={() => setAdvanced((v) => !v)} style={{ paddingVertical: space[1] }}>
             <Text variant="caption" tone="secondary">{advanced ? t("hideAdvancedSettings") : t("advancedSettingsSlippage").replace('{slippage}', (Number(slippage) * 100).toFixed(1))}</Text>
-          </RNPressable>
+          </KPressable>
           {advanced ? (
             <View style={{ flexDirection: 'row', gap: space[2] }}>
               {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', ',')} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}

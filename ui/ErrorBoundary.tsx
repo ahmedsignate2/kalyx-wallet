@@ -1,3 +1,4 @@
+import { Pressable as KPressable } from './kit';
 import { useT } from "../lib/settingsStore";
 /**
  * ErrorBoundary global : capture les erreurs de rendu React et les affiche à
@@ -5,7 +6,7 @@ import { useT } from "../lib/settingsStore";
  * Purement UI — ne touche pas au moteur crypto.
  */
 import React from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { fonts } from './theme';
 
 interface Props {
@@ -54,7 +55,7 @@ export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => 
         {error?.message || String(error)}
       </Text>
       {onRetry ? (
-        <Pressable
+        <KPressable
           onPress={onRetry}
           style={{
             alignSelf: 'flex-start',
@@ -66,7 +67,7 @@ export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => 
           }}
         >
           <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t("retry")}</Text>
-        </Pressable>
+        </KPressable>
       ) : null}
       {__DEV__ && error?.stack ? (
         <Text selectable style={{ color: '#8A93A6', fontSize: 12, fontFamily: 'monospace' }}>

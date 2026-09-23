@@ -1,7 +1,7 @@
 import { Icon } from '../ui/icon';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
-import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
+import { View, Text, TextInput, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
@@ -62,7 +62,7 @@ export default function Contacts() {
       >
         {contacts.length === 0 ? <Muted>{t('noContactsYet')}</Muted> : null}
         {contacts.map((c) => (
-          <Pressable key={c.id} onPress={() => onTap(c.address, c.id, c.name)}>
+          <KPressable key={c.id} onPress={() => onTap(c.address, c.id, c.name)}>
             <Card style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flex: 1 }}>
                 <Text style={typography.body}>{c.name}</Text>
@@ -76,7 +76,7 @@ export default function Contacts() {
                 <Text style={{ color: colors.accent }}>{t('chooseWord')} ›</Text>
               )}
             </Card>
-          </Pressable>
+          </KPressable>
         ))}
 
       {form ? (
@@ -91,9 +91,9 @@ export default function Contacts() {
           </View>
         </Card>
       ) : (
-        <Pressable onPress={() => setForm({ name: '', address: '' })} style={{ marginTop: spacing(1) }}>
+        <KPressable onPress={() => setForm({ name: '', address: '' })} style={{ marginTop: spacing(1) }}>
           <Text style={{ color: colors.accent }}>{t('addContactPlus')}</Text>
-        </Pressable>
+        </KPressable>
       )}
       </ScrollView>
     </Screen>

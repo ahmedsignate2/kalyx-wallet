@@ -1,6 +1,6 @@
-import { ScreenHeader, SENSITIVE_INPUT_PROPS } from '../ui/kit';
+import { ScreenHeader, SENSITIVE_INPUT_PROPS, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { router, Stack } from 'expo-router';
@@ -86,7 +86,7 @@ export default function ImportWallet() {
         {(['phrase', 'key', 'backup'] as Mode[]).map((m) => {
           const active = mode === m;
           return (
-            <Pressable
+            <KPressable
               key={m}
               onPress={() => switchMode(m)}
               style={{
@@ -102,7 +102,7 @@ export default function ImportWallet() {
               <Text style={{ color: active ? colors.onPrimary : colors.text, fontFamily: typography.bodyStrong.fontFamily, fontSize: 13 }}>
                 {m === 'phrase' ? t('tabPhrase') : m === 'key' ? t('privateKeyLabel') : t('backupTitle')}
               </Text>
-            </Pressable>
+            </KPressable>
           );
         })}
       </View>
@@ -121,9 +121,9 @@ export default function ImportWallet() {
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>{mode === 'phrase' ? t('recoveryPhrase') : mode === 'key' ? t('privateKeyLabel') : t('backupContent')}</Text>
-          <Pressable onPress={async () => setText((await Clipboard.getStringAsync()).trim())}>
+          <KPressable onPress={async () => setText((await Clipboard.getStringAsync()).trim())}>
             <Text style={{ color: colors.accent, fontFamily: typography.bodyStrong.fontFamily }}>{t('paste')}</Text>
-          </Pressable>
+          </KPressable>
         </View>
         <TextInput
           value={text}

@@ -5,12 +5,12 @@
  * Le réseau se choisit ici (famille d'adresse : EVM / Solana / Bitcoin).
  */
 import React, { useMemo, useState } from 'react';
-import { View, ScrollView, Share, Image, Pressable, Modal, Platform } from 'react-native';
+import { View, ScrollView, Share, Image, Modal, Platform } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
-import { Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl } from '../ui/kit';
+import { Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl, Pressable as KPressable } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
@@ -92,7 +92,7 @@ export default function Receive() {
           onChange={setSelectedChain}
         /> : null}
         {environment === 'testnet' && selected ? (
-          <Pressable
+          <KPressable
             onPress={() => setTestnetPickerOpen(true)}
             accessibilityLabel={t('a11yTestnetSelected').replace('${selected.name}', selected.name)}
             accessibilityRole="button"
@@ -110,7 +110,7 @@ export default function Receive() {
             {chainIconUrl(selected.id) ? <Image source={{ uri: chainIconUrl(selected.id) }} style={{ width: 20, height: 20, borderRadius: 10 }} /> : null}
             <Text variant="caption">{selected.name}</Text>
             <Icon name="caretDown" size={16} tone="muted" />
-          </Pressable>
+          </KPressable>
         ) : null}
         {environment === 'mainnet' ? (
           <Text variant="caption" tone="secondary">{t("evmDescription")}</Text>
@@ -166,11 +166,11 @@ export default function Receive() {
         animationType="slide"
         onRequestClose={() => setTestnetPickerOpen(false)}
       >
-        <Pressable
+        <KPressable
           onPress={() => setTestnetPickerOpen(false)}
           style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}
         >
-          <Pressable
+          <KPressable
             onPress={() => undefined}
             style={{
               maxHeight: '75%',
@@ -188,7 +188,7 @@ export default function Receive() {
                 const selectedNetwork = network.id === selected?.id;
                 const addressType = network.family === 'solana' ? t("addressTypeSolana") : t("addressTypeEvm");
                 return (
-                  <Pressable
+                  <KPressable
                     key={network.id}
                     onPress={() => {
                       setSelectedChain(network.id);
@@ -213,12 +213,12 @@ export default function Receive() {
                       <Text variant="caption" tone="secondary">{addressType}</Text>
                     </View>
                     {selectedNetwork ? <Icon name="checkmark" size={20} color={colors.accent} /> : null}
-                  </Pressable>
+                  </KPressable>
                 );
               })}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </KPressable>
+        </KPressable>
       </Modal>
     </View>
   );

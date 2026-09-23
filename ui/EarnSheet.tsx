@@ -1,3 +1,4 @@
+import { Pressable as KPressable } from './kit';
 /**
  * EarnSheet — feuille de dépôt / retrait pour un protocole Earn.
  *
@@ -8,7 +9,7 @@
  * Réutilisée par l'écran Earn et les onglets Staking/DeFi du portefeuille.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from './components';
 import { RemoteIcon, ErrorBox } from './premium';
@@ -249,7 +250,7 @@ export function EarnSheet({
             ne redimensionne pas la fenêtre → 'height' réduit le KAV de la hauteur du
             clavier, le fond (flex: 1) se comprime et la feuille reste au-dessus. */}
         <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={onClose} />
+          <KPressable noScale haptic="none" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={onClose} />
           {/* Feuille : colonne bornée (maxHeight) ; en-tête fixe + contenu défilable
               (flexShrink) → le bouton principal n'est jamais rogné. */}
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, paddingHorizontal: spacing(2.5), paddingTop: spacing(2), paddingBottom: Math.max(insets.bottom, 16) + 12, maxHeight: '85%', flexShrink: 1 }}>
@@ -268,9 +269,9 @@ export function EarnSheet({
                   {apy !== null ? ` · ${formatPercent(apy)} ${t('earnApy')}` : ''}
                 </Text>
               </View>
-              <Pressable onPress={onClose} hitSlop={12}>
+              <KPressable onPress={onClose} hitSlop={12}>
                 <Icon name="close" size={24} color={colors.textMuted} />
-              </Pressable>
+              </KPressable>
             </View>
 
             <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
@@ -307,14 +308,14 @@ export function EarnSheet({
                     </Text>
                     <View style={{ flexDirection: 'row', gap: spacing(0.75) }}>
                       {[25, 50, 100].map((n) => (
-                        <Pressable
+                        <KPressable
                           key={n}
                           onPress={() => setPercent(n)}
                           disabled={depositable <= 0n || maxing}
-                          style={({ pressed }) => ({ paddingVertical: 6, paddingHorizontal: 10, borderRadius: radii.pill, backgroundColor: n === 100 ? colors.accent : colors.glassStrong, opacity: pressed ? 0.7 : depositable <= 0n ? 0.4 : 1 })}
+                          style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: radii.pill, backgroundColor: n === 100 ? colors.accent : colors.glassStrong, opacity: depositable <= 0n ? 0.4 : 1 }}
                         >
                           <Text style={{ fontFamily: fonts.semibold, fontSize: 12, color: n === 100 ? colors.onPrimary : colors.text }}>{n === 100 ? t('earnMax') : `${n}%`}</Text>
-                        </Pressable>
+                        </KPressable>
                       ))}
                     </View>
                   </View>
@@ -392,12 +393,12 @@ export function EarnSheet({
                   <View style={{ marginTop: spacing(3), gap: spacing(1.5) }}>
                     <Button label={isDeposit ? t('earnConfirmDeposit') : t('earnConfirmWithdraw')} disabled={gasShort} onPress={() => { haptic.medium(); setUnlockVisible(true); }} />
                     <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing(3) }}>
-                      <Pressable onPress={() => { setStep('input'); setQ(null); setError(null); }} hitSlop={8}>
+                      <KPressable onPress={() => { setStep('input'); setQ(null); setError(null); }} hitSlop={8}>
                         <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>{t('earnEditAmount')}</Text>
-                      </Pressable>
-                      <Pressable onPress={preview} hitSlop={8} disabled={quoting}>
+                      </KPressable>
+                      <KPressable onPress={preview} hitSlop={8} disabled={quoting}>
                         {quoting ? <ActivityIndicator size="small" color={colors.accent} /> : <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('earnRefreshQuote')}</Text>}
-                      </Pressable>
+                      </KPressable>
                     </View>
                   </View>
                 </>
