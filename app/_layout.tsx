@@ -8,8 +8,10 @@ import { FloatingAiAssistant } from '../components/ai/FloatingAiAssistant';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useWallet } from '../lib/walletStore';
 import { useAuraBinding } from '../lib/auraBinding';
+import { useOta } from '../lib/ota';
+import { toast } from '../lib/toast';
 import { useAiStore } from '../lib/aiStore';
-import { useSettings } from '../lib/settingsStore';
+import { useSettings, useT } from '../lib/settingsStore';
 import { useCustomTokens } from '../lib/customTokensStore';
 import { useContacts } from '../lib/contactsStore';
 import { useNotifCenter } from '../lib/notificationCenter';
@@ -42,9 +44,17 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 export default function RootLayout() {
   const { mode, colors } = useTheme();
+  const t = useT();
   // L'Aura lit les états réels de l'app (réseau, synchronisation) et pilote le
   // halo. Monté ici, une seule fois, pour toute la durée de vie de l'app.
   useAuraBinding();
+  /*
+   * Mises à jour à distance. Au lancement, un nouveau bundle est appliqué
+   * immédiatement ; s'il arrive alors que l'app est déjà ouverte, on se
+   * contente de le dire — on n'arrache pas l'écran sous les doigts de
+   * quelqu'un qui est peut-être en train d'envoyer de l'argent.
+   */
+  useOta(() => toast.info(t('otaReady')));
   /*
    * Ouverture de l'app — deux chemins, un seul moment de marque dans chacun.
    *

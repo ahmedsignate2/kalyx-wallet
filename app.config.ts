@@ -39,6 +39,34 @@ const config: ExpoConfig = {
     backgroundColor: '#06070D',
     resizeMode: 'contain',
   },
+  /*
+   * Mises à jour à distance (OTA) — permet de pousser du JS sans rebuild.
+   *
+   * `fallbackToCacheTimeout: 0` : l'app démarre IMMÉDIATEMENT sur le bundle
+   * qu'elle a déjà, et cherche la mise à jour en arrière-plan. Bloquer le
+   * lancement sur un appel réseau contredirait la doctrine (« rien ne bloque »)
+   * et rendrait l'app inutilisable hors ligne.
+   */
+  updates: {
+    url: 'https://u.expo.dev/47cb06bd-ee7d-442d-b000-05abb945b599',
+    checkAutomatically: 'ON_LOAD',
+    fallbackToCacheTimeout: 0,
+  },
+  /*
+   * EMPREINTE, et surtout PAS `appVersion`.
+   *
+   * Une OTA ne doit jamais atterrir sur un binaire incompatible : si le JS
+   * appelle un module natif absent de l'APK installé, l'app plante au lancement
+   * et l'utilisateur n'a plus que la réinstallation pour s'en sortir. La
+   * politique `fingerprint` hache le projet natif, donc une mise à jour n'est
+   * proposée qu'aux binaires réellement capables de l'exécuter.
+   *
+   * `appVersion` serait un piège ici en plus : APP_VERSION vaut '0.1.0' en
+   * preview et '1.0.0' en production (voir plus haut), et `autoIncrement` est
+   * actif sur production — chaque changement de version orphelinerait les
+   * installations existantes.
+   */
+  runtimeVersion: { policy: 'fingerprint' },
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.kalyx.wallet',
