@@ -180,7 +180,19 @@ export default function Home() {
 
   const onRefresh = useCallback(async () => {
     if (!acct) return;
-    haptic.light();
+    /*
+     * Seuil du pull-to-refresh : haptique de SÉLECTION et non `light` — le §5
+     * la classe avec les touches et les bascules, pas avec les boutons. On
+     * choisit de rafraîchir, on n'actionne pas un bouton.
+     *
+     * La suite du §10.4 est déjà portée par l'Aura, sans spinner ajouté :
+     * l'ambiance passe en Synchronisation dès que `usePortfolioStore.loading`
+     * devient vrai (lib/auraBinding.ts), et à la fin les chiffres roulent dans
+     * le sens du changement (§8) ou rien ne bouge si le solde est identique.
+     * Manque encore l'étirement du halo sous le doigt, qui demande de piloter
+     * le défilement au geste — voir §23.
+     */
+    haptic.selection();
     setRefreshing(true);
     try {
       await pf.refresh(acct, fiat, { force: true });
@@ -272,7 +284,14 @@ export default function Home() {
       <ScrollView
         style={{ flex: 1, alignSelf: 'stretch' }}
         contentContainerStyle={{ paddingTop: insets.top + space[2], paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + 120, gap: space[6] }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textSecondary} colors={[colors.textSecondary]} />}
+        refreshControl={
+          /*
+             Indicateur DISCRET : c'est l'Aura qui porte l'information de
+             synchronisation (§10.4), le spinner système n'est là que pour le
+             retour tactile du geste pendant qu'on tire.
+          */
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textTertiary} colors={[colors.textTertiary]} />
+        }
         showsVerticalScrollIndicator={false}
       >
         {/* ── En-tête : compte ▾ · recherche · réglages ── */}
