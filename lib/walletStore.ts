@@ -228,9 +228,17 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
     // Prompt biométrique explicite (fiable), PUIS lecture du secret non-gated.
     // Un seul prompt : le secret n'est plus keystore-gated (cf. secureStore).
     const ok = await authenticate('Déverrouiller Kalyx Wallet');
-    if (!ok) throw new Error('Authentification biométrique refusée');
+    /*
+     * Codes typés et non messages : l'interface testait
+     * `e.message.includes('refusée')`, donc elle matchait des chaînes
+     * FRANÇAISES. Traduire ou reformuler ces messages aurait cassé en silence
+     * le repli sur le PIN — l'utilisateur se serait retrouvé bloqué sans erreur
+     * visible. C'est précisément ce que les codes du domaine existent pour
+     * éviter (cf. src/domain/errors.ts).
+     */
+    if (!ok) throw new WalletError('BIOMETRIC_REFUSED', 'Biometric request refused');
     const m = await readBiometricSeed(id);
-    if (!m) throw new Error('Biométrie non configurée');
+    if (!m) throw new WalletError('BIOMETRIC_NOT_SET', 'No biometric vault for this wallet');
     return m;
   }
   const vault = await loadVault(id);

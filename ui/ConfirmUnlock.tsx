@@ -202,7 +202,7 @@ Action: ${aiContext.method || 'Transfer'}`;
         setPin('');
         setError(t("authBiometricTimeout"));
         setPhase('error');
-      } else if (viaBio && e instanceof Error && (e.message.includes('refusée') || e.message.includes('non configurée') || e.message.includes('cancel') || e.message.includes('Authentification'))) {
+      } else if (viaBio && isWalletError(e) && (e.code === 'BIOMETRIC_REFUSED' || e.code === 'BIOMETRIC_NOT_SET')) {
         // Biométrie annulée ou non configurée → repli silencieux sur le PIN.
         setPin('');
         setPhase('pin');

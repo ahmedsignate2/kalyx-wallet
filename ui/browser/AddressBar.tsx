@@ -57,7 +57,7 @@ export function AddressBar({
   return (
     <Animated.View style={[{ flex: 1, justifyContent: 'center' }, wrap]}>
       <Animated.View style={[{ position: 'absolute', left: 0, right: 0 }, full]}>
-        <KPressable onPress={onPress} onLongPress={onLongPress} delayLongPress={350} accessibilityRole="button" accessibilityLabel={host ? `Adresse : ${host}` : placeholder} style={{ height: 48, borderRadius: radius.round, backgroundColor: bg, borderWidth: 1, borderColor: incognito ? colors.textSecondary : danger ? colors.danger : colors.border, flexDirection: 'row', alignItems: 'center', paddingLeft: space[4], paddingRight: 6, gap: space[2] }}>
+        <KPressable onPress={onPress} onLongPress={onLongPress} delayLongPress={350} accessibilityRole="button" accessibilityLabel={host || placeholder} style={{ height: 48, borderRadius: radius.round, backgroundColor: bg, borderWidth: 1, borderColor: incognito ? colors.textSecondary : danger ? colors.danger : colors.border, flexDirection: 'row', alignItems: 'center', paddingLeft: space[4], paddingRight: 6, gap: space[2] }}>
           {host ? <Icon name={danger ? 'alert' : incognito ? 'incognito' : secure ? 'lock' : 'dapps'} size={15} color={danger ? fg : dim} /> : <Icon name="search" size={15} color={dim} />}
           <View style={{ flex: 1, minWidth: 0 }}>
             {host ? (
