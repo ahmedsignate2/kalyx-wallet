@@ -24,6 +24,7 @@ import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AddressGlyph, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../ui/kit';
 import { useWallet } from '../lib/walletStore';
+import { accountDisplayName } from '../lib/walletNames';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { useNotifCenter, unreadCount } from '../lib/notificationCenter';
 import { usePortfolioStore, splitHoldings, verifiedSymbols, portfolioHistory, loadAllNfts, PERIODS, type Period, type Holding, type ChainNft } from '../lib/portfolio';
@@ -344,7 +345,13 @@ export default function Home() {
 
       <Animated.ScrollView
         onScroll={onScroll}
-        scrollEventThrottle={16}
+        /*
+           1 et non 16 : 16 ms borne les événements à ~60 par seconde, ce qui
+           saccaderait le morphing sur un écran 120 Hz. Avec
+           `useAnimatedScrollHandler`, le gestionnaire s'exécute sur le thread UI
+           et suivre chaque image ne coûte rien au JavaScript.
+        */
+        scrollEventThrottle={1}
         style={{ flex: 1, alignSelf: 'stretch' }}
         contentContainerStyle={{ paddingTop: insets.top + space[2], paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + 120, gap: space[6] }}
         refreshControl={
@@ -361,7 +368,7 @@ export default function Home() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <KPressable onPress={() => router.push('/accounts')} accessibilityLabel={t("a11ySwitchAccount")} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2], height: 48 }}>
             <AddressGlyph address={stored.evmAddress} size={32} />
-            <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0 }}>{stored.label}</Text>
+            <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0 }}>{accountDisplayName(stored, t)}</Text>
             <Icon name="caretDown" size={14} tone="muted" />
           </KPressable>
           {/* Réseau actif (Envoyer / Swap / dApps) : un tap ouvre le sélecteur. */}
