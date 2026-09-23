@@ -10,9 +10,10 @@ import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { useT } from '../lib/settingsStore';
+import { useT, useSettings } from '../lib/settingsStore';
 import { validateMnemonic, unknownWords } from '../src';
 import { Text as KText, SENSITIVE_INPUT_PROPS, Pressable as KPressable } from '../ui/kit';
+import { PinPromptModal } from '../ui/PinPromptModal';
 import { radius } from '../ui/tokens';
 
 /**
@@ -26,8 +27,15 @@ export default function Import() {
   const t = useT();
   const insets = useSafeAreaInsets();
   const setImportedDraft = useWallet((s) => s.setImportedDraft);
+  const importWallet = useWallet((s) => s.importWallet);
+  const hasWallet = useWallet((s) => s.hasWallet);
   const [text, setText] = useState('');
+  const pinLength = useSettings((st) => st.pinLength);
   const [error, setError] = useState<string | null>(null);
+  /** Phrase en attente quand un wallet existe déjà : on l'AJOUTE via le PIN. */
+  const [pendingMnemonic, setPendingMnemonic] = useState<string | null>(null);
+  const [pinError, setPinError] = useState(0);
+  const [pinBusy, setPinBusy] = useState(false);
 
   const paste = async () => {
     const clip = await Clipboard.getStringAsync();
@@ -43,12 +51,39 @@ export default function Import() {
       setError(t('invalidPhraseBip'));
       return;
     }
-    setImportedDraft(text.trim());
     // Rappel post-onboarding : proposer de restaurer les réseaux perso (le
     // presse-papier contient encore la SEED ici, d'où un rappel différé à l'accueil).
     void AsyncStorage.setItem('nova.promptRestoreNetworks', '1').catch(() => {});
-    router.push('/set-pin'); // même flux de sécurisation que la création
+    /*
+     * CORRECTION D'UNE PERTE DE FONDS — même faute que app/restore-drive.tsx.
+     *
+     * L'écran envoyait toujours vers /set-pin, qui appelle `confirmDraft` : le
+     * flux du PREMIER lancement, qui écrase le coffre `primary` et remplace la
+     * liste des wallets. Importer une phrase alors qu'un wallet existait
+     * détruisait ce dernier, et sa phrase de récupération avec.
+     */
+    if (hasWallet) {
+      setPendingMnemonic(text.trim());
+      return;
+    }
+    setImportedDraft(text.trim());
+    router.push('/set-pin');
   };
+
+  async function addAlongside(pin: string) {
+    if (!pendingMnemonic) return;
+    setPinBusy(true);
+    try {
+      await importWallet(pendingMnemonic, pin);
+      setPendingMnemonic(null);
+      router.replace('/wallets');
+    } catch {
+      // PIN refusé : on secoue, le wallet existant n'a pas bougé.
+      setPinError((n) => n + 1);
+    } finally {
+      setPinBusy(false);
+    }
+  }
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   // Validation mot par mot en direct (§4.9) : mots hors BIP-39 signalés avant de continuer.
@@ -61,6 +96,16 @@ export default function Import() {
     <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
       {/* Barre native retirée : elle doublait le padding de barre d'état. */}
       <Stack.Screen options={{ headerShown: false }} />
+      <PinPromptModal
+        visible={!!pendingMnemonic}
+        title={t('importPinTitle')}
+        subtitle={t('importPinSub')}
+        expectedLength={pinLength}
+        busy={pinBusy}
+        errorSignal={pinError}
+        onSubmit={addAlongside}
+        onCancel={() => setPendingMnemonic(null)}
+      />
       <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
 
       <KeyboardAvoidingView style={{ flex: 1, paddingTop: topPadding }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

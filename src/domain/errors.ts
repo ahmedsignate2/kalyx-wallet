@@ -15,6 +15,8 @@ export type WalletErrorCode =
   | 'INVALID_PIN'
   | 'WRONG_PIN'
   | 'VAULT_CORRUPTED'
+  /** Tentative d'exécuter le flux de PREMIER lancement alors qu'un wallet existe. */
+  | 'WALLET_ALREADY_EXISTS'
   | 'RPC_UNAVAILABLE'
   | 'BROADCAST_FAILED'
   | 'CALL_EXCEPTION'
