@@ -17,6 +17,10 @@ export type WalletErrorCode =
   | 'VAULT_CORRUPTED'
   /** Tentative d'exécuter le flux de PREMIER lancement alors qu'un wallet existe. */
   | 'WALLET_ALREADY_EXISTS'
+  /** L'utilisateur a refusé ou annulé la demande biométrique du système. */
+  | 'BIOMETRIC_REFUSED'
+  /** Aucun coffre biométrique pour ce wallet (jamais activé, ou invalidé). */
+  | 'BIOMETRIC_NOT_SET'
   | 'RPC_UNAVAILABLE'
   | 'BROADCAST_FAILED'
   | 'CALL_EXCEPTION'

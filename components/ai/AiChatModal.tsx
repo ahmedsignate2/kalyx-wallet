@@ -487,7 +487,7 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
       } else {
          setCopilotStatus('generating');
          rawReply = provider === 'anthropic' ? data.content?.[0]?.text : data.choices?.[0]?.message?.content;
-         rawReply = rawReply || 'Erreur de réponse du modèle IA.';
+         rawReply = rawReply || t('aiConnectionFailed');
       }
       
       let cleanReply = rawReply;
