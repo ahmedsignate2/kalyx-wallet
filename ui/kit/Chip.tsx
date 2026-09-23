@@ -9,6 +9,7 @@ import { Text } from './Text';
 import { Icon, type IconName } from '../icon';
 import { useTheme } from '../theme';
 import { radius, space } from '../tokens';
+import { useT } from '../../lib/settingsStore';
 
 export function Chip({ label, selected, onPress, icon }: { label: string; selected?: boolean; onPress?: () => void; icon?: IconName }) {
   const { colors } = useTheme();
@@ -25,8 +26,11 @@ export type RiskLevel = 'none' | 'warning' | 'danger';
 
 export function RiskBadge({ level, label }: { level: RiskLevel; label?: string }) {
   const { colors } = useTheme();
+  const t = useT();
   const color = level === 'danger' ? colors.danger : level === 'warning' ? colors.warning : colors.textSecondary;
-  const text = label ?? (level === 'danger' ? 'Danger' : level === 'warning' ? 'Attention' : 'Aucun risque détecté');
+  // Libellés traduits : « Aucun risque détecté » était en dur, sur un badge de
+  // SÉCURITÉ — celui qu'il faut comprendre avant de signer.
+  const text = label ?? (level === 'danger' ? t('riskDetected') : level === 'warning' ? t('securityRisk') : t('noKnownRisk'));
   const icon: IconName = level === 'danger' ? 'errorCircle' : level === 'warning' ? 'alert' : 'checkmark';
   return (
     <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[2], height: 24, borderRadius: radius.chip, backgroundColor: colors.surface2, borderWidth: 1, borderColor: level === 'none' ? colors.border : color }}>
