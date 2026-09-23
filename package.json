@@ -58,6 +58,7 @@
     "expo-secure-store": "~57.0.1",
     "expo-sharing": "~57.0.19",
     "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.23",
     "jail-monkey": "^3.0.0",
     "phosphor-react-native": "^3.0.6",
     "react": "19.2.3",

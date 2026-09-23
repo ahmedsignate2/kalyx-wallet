@@ -1,6 +1,6 @@
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Switch, Alert, Pressable } from 'react-native';
+import { View, Text, TextInput, Switch, Alert } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { PremiumScreen, GlassCard, ListRow, Chip, SectionHeader } from '../ui/premium';
@@ -27,10 +27,11 @@ const chevron = <Icon name="chevron" size={18} tone="faint" />;
 function OptionButton({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   return (
-    <Pressable
+    <KPressable
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
+      accessibilityLabel={label}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -45,7 +46,7 @@ function OptionButton({ label, selected, onPress }: { label: string; selected: b
     >
       {selected ? <Icon name="checkmark" size={15} color={colors.onPrimary} /> : null}
       <Text style={{ color: selected ? colors.onPrimary : colors.text, fontFamily: fonts.semibold }}>{label}</Text>
-    </Pressable>
+    </KPressable>
   );
 }
 
