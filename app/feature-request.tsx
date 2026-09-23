@@ -15,7 +15,7 @@ function SocialIcon({ name }: { name: IconName }) {
         width: 40,
         height: 40,
         borderRadius: 12,
-        backgroundColor: colors.glassStrong,
+        backgroundColor: colors.surface2,
         alignItems: 'center',
         justifyContent: 'center',
       }}
@@ -52,12 +52,12 @@ export default function FeatureRequestScreen() {
                   width: 52,
                   height: 52,
                   borderRadius: 26,
-                  backgroundColor: colors.glassStrong,
+                  backgroundColor: colors.surface2,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <Icon name="bulb" size={26} color={colors.accent} />
+                <Icon name="bulb" size={26} color={colors.primary} />
               </View>
               <Text style={[typography.title, { textAlign: 'center', fontSize: 20 }]}>
                 {t('communityTitle')}

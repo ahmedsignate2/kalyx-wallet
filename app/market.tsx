@@ -80,7 +80,7 @@ export default function Market() {
 
   return (
     <PremiumScreen
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
     >
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenHeader title={t('market')} fallback="/home" />
@@ -101,7 +101,7 @@ export default function Market() {
                   c.thumb ? (
                     <Image source={{ uri: c.thumb }} style={{ width: 36, height: 36, borderRadius: 18 }} />
                   ) : (
-                    <Avatar label={c.symbol.slice(0, 1)} color={colors.glassStrong} />
+                    <Avatar label={c.symbol.slice(0, 1)} color={colors.surface2} />
                   )
                 }
                 title={c.name}

@@ -107,13 +107,13 @@ export default function SupportHistoryScreen() {
                   width: 38,
                   height: 38,
                   borderRadius: 12,
-                  backgroundColor: colors.glassStrong,
+                  backgroundColor: colors.surface2,
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
                 }}
               >
-                <Icon name="share" size={20} color={colors.accent} />
+                <Icon name="share" size={20} color={colors.primary} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.bold }} numberOfLines={1}>
@@ -130,7 +130,7 @@ export default function SupportHistoryScreen() {
               disabled={isExporting}
               hitSlop={8}
               style={{
-                backgroundColor: colors.accent,
+                backgroundColor: colors.primary,
                 width: 38,
                 height: 38,
                 borderRadius: radii.md,
@@ -170,7 +170,7 @@ export default function SupportHistoryScreen() {
                     style={{
                       padding: spacing(1.75),
                       gap: spacing(1),
-                      borderColor: isCopied ? colors.accent : colors.glassBorder,
+                      borderColor: isCopied ? colors.primary : colors.border,
                       borderWidth: 1,
                       overflow: 'hidden',
                     }}
@@ -190,11 +190,11 @@ export default function SupportHistoryScreen() {
                             paddingHorizontal: spacing(1),
                             paddingVertical: 2,
                             borderRadius: radii.sm,
-                            backgroundColor: colors.glassStrong,
+                            backgroundColor: colors.surface2,
                             alignSelf: 'flex-start',
                           }}
                         >
-                          <Text style={{ color: colors.accent, fontFamily: fonts.bold, fontSize: 13 }}>
+                          <Text style={{ color: colors.primary, fontFamily: fonts.bold, fontSize: 13 }}>
                             {ticket.id}
                           </Text>
                         </View>
@@ -209,14 +209,14 @@ export default function SupportHistoryScreen() {
                             paddingHorizontal: spacing(1),
                             paddingVertical: 3,
                             borderRadius: radii.sm,
-                            backgroundColor: colors.glassStrong,
+                            backgroundColor: colors.surface2,
                             flexShrink: 0,
                           }}
                         >
-                          <Icon name={isCopied ? 'check' : 'copy'} size={14} color={isCopied ? colors.success : colors.accent} />
+                          <Icon name={isCopied ? 'check' : 'copy'} size={14} color={isCopied ? colors.success : colors.primary} />
                           <Text
                             style={{
-                              color: isCopied ? colors.success : colors.accent,
+                              color: isCopied ? colors.success : colors.primary,
                               fontSize: 11,
                               fontFamily: fonts.semibold,
                             }}
@@ -252,7 +252,7 @@ export default function SupportHistoryScreen() {
                             paddingHorizontal: spacing(0.75),
                             paddingVertical: 1,
                             borderRadius: radii.sm,
-                            backgroundColor: colors.glassStrong,
+                            backgroundColor: colors.surface2,
                           }}
                         >
                           <Text style={{ color: colors.text, fontSize: 12, fontFamily: fonts.medium }}>
@@ -280,7 +280,7 @@ export default function SupportHistoryScreen() {
                         style={{
                           marginTop: spacing(0.5),
                           padding: spacing(1.25),
-                          backgroundColor: colors.glassStrong,
+                          backgroundColor: colors.surface2,
                           borderRadius: radii.sm,
                         }}
                       >
@@ -306,7 +306,7 @@ export default function SupportHistoryScreen() {
                         paddingVertical: 2,
                       }}
                     >
-                      <Text style={{ color: colors.accent, fontSize: 12, fontFamily: fonts.medium }}>
+                      <Text style={{ color: colors.primary, fontSize: 12, fontFamily: fonts.medium }}>
                         {isExpanded ? t('supportHistoryHideDetails') : t('supportHistoryDetails')}
                       </Text>
                     </KPressable>

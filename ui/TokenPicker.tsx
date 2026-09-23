@@ -135,7 +135,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
           padding: spacing(1.5),
           backgroundColor: 'transparent',
           borderBottomWidth: 1,
-          borderBottomColor: colors.glassBorder,
+          borderBottomColor: colors.border,
         }}
         onPress={() => {
           haptic.selection();
@@ -148,7 +148,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 16 }}>{item.symbol}</Text>
-          <Text style={{ color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12 }}>{item.name || item.symbol}</Text>
+          <Text style={{ color: colors.textSecondary, fontFamily: fonts.medium, fontSize: 12 }}>{item.name || item.symbol}</Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           {balance != null && balance > 0n ? (
@@ -168,21 +168,21 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <KPressable noScale haptic="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onClose} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ height: '85%', backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' }}>
-        <View style={{ padding: spacing(2), borderBottomWidth: 1, borderBottomColor: colors.glassBorder, backgroundColor: colors.bgElevated }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ height: '85%', backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' }}>
+        <View style={{ padding: spacing(2), borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(1.5) }}>
             <Text style={{ color: colors.text, fontFamily: fonts.extrabold, fontSize: 20 }}>{t("tokenSelect")}</Text>
             <KPressable onPress={onClose} hitSlop={10}>
-              <Icon name="close" size={24} color={colors.textMuted} />
+              <Icon name="close" size={24} color={colors.textSecondary} />
             </KPressable>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgDeep, borderRadius: radii.md, paddingHorizontal: spacing(1.5), height: 44 }}>
-            <Icon name="search" size={18} color={colors.textMuted} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bg, borderRadius: radii.md, paddingHorizontal: spacing(1.5), height: 44 }}>
+            <Icon name="search" size={18} color={colors.textSecondary} />
             <TextInput
               value={search}
               onChangeText={setSearch}
               placeholder={t("tokenSearchPlaceholder")}
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colors.textSecondary}
               style={{ flex: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 15, marginLeft: spacing(1) }}
               autoCapitalize="none"
               autoCorrect={false}
@@ -190,7 +190,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
           </View>
         </View>
 
-        <View style={{ paddingVertical: spacing(1), borderBottomWidth: 1, borderBottomColor: colors.glassBorder }}>
+        <View style={{ paddingVertical: spacing(1), borderBottomWidth: 1, borderBottomColor: colors.border }}>
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -211,9 +211,9 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
                     paddingVertical: spacing(0.75),
                     paddingHorizontal: spacing(1.25),
                     borderRadius: radii.pill,
-                    backgroundColor: active ? colors.accent : colors.glass,
+                    backgroundColor: active ? colors.primary : colors.surface1,
                     borderWidth: 1,
-                    borderColor: active ? colors.accent : colors.glassBorder,
+                    borderColor: active ? colors.primary : colors.border,
                   }}
                 >
                   <Text style={{ color: active ? colors.onPrimary : colors.text, fontFamily: fonts.semibold, fontSize: 14 }}>
@@ -226,16 +226,16 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
         </View>
 
         {!search ? (
-          <View style={{ flexDirection: 'row', paddingHorizontal: spacing(2), paddingVertical: spacing(1), gap: spacing(1), borderBottomWidth: 1, borderBottomColor: colors.glassBorder }}>
+          <View style={{ flexDirection: 'row', paddingHorizontal: spacing(2), paddingVertical: spacing(1), gap: spacing(1), borderBottomWidth: 1, borderBottomColor: colors.border }}>
             {tabs.map((it) => {
               const active = it.key === tab;
               return (
                 <KPressable
                   key={it.key}
                   onPress={() => { haptic.selection(); setTab(it.key); }}
-                  style={{ paddingVertical: spacing(0.75), paddingHorizontal: spacing(1.25), borderRadius: radii.pill, backgroundColor: active ? colors.glassStrong : 'transparent' }}
+                  style={{ paddingVertical: spacing(0.75), paddingHorizontal: spacing(1.25), borderRadius: radii.pill, backgroundColor: active ? colors.surface2 : 'transparent' }}
                 >
-                  <Text style={{ color: active ? colors.text : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>{it.label}</Text>
+                  <Text style={{ color: active ? colors.text : colors.textSecondary, fontFamily: fonts.semibold, fontSize: 13 }}>{it.label}</Text>
                 </KPressable>
               );
             })}
@@ -244,7 +244,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
 
         {isLoading ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator color={colors.accent} size="large" />
+            <ActivityIndicator color={colors.primary} size="large" />
           </View>
         ) : (
           <FlatList
@@ -256,7 +256,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
             windowSize={5}
             ListEmptyComponent={
               <View style={{ padding: spacing(4), alignItems: 'center' }}>
-                <Text style={{ color: colors.textMuted, fontFamily: fonts.medium }}>{t("tokenNoneFound")}</Text>
+                <Text style={{ color: colors.textSecondary, fontFamily: fonts.medium }}>{t("tokenNoneFound")}</Text>
               </View>
             }
           />

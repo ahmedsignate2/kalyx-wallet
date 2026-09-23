@@ -42,8 +42,8 @@ export default function Extensions() {
         <Text style={typography.muted}>{t('extensionsIntro')}</Text>
         {modules.map((m) => (
           <GlassCard key={m.title} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name={m.icon} size={20} color={m.value ? colors.accent : colors.textMuted} />
+            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={m.icon} size={20} color={m.value ? colors.primary : colors.textSecondary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={typography.bodyStrong}>{m.title}</Text>

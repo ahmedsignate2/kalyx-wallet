@@ -174,14 +174,14 @@ export default function Receive() {
             onPress={() => undefined}
             style={{
               maxHeight: '75%',
-              backgroundColor: colors.bgDeep,
+              backgroundColor: colors.bg,
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
               padding: SCREEN_MARGIN,
               gap: space[3],
             }}
           >
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.glassBorder }} />
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
             <Text variant="title2">{t("chooseTestnetTitle")}</Text>
             <ScrollView contentContainerStyle={{ gap: space[2] }}>
               {networks.map((network) => {
@@ -204,7 +204,7 @@ export default function Receive() {
                       borderRadius: 14,
                       backgroundColor: selectedNetwork ? colors.surface2 : colors.surface1,
                       borderWidth: selectedNetwork ? 1 : 0,
-                      borderColor: colors.accent,
+                      borderColor: colors.primary,
                     }}
                   >
                     {chainIconUrl(network.id) ? <Image source={{ uri: chainIconUrl(network.id) }} style={{ width: 24, height: 24, borderRadius: 12 }} /> : null}
@@ -212,7 +212,7 @@ export default function Receive() {
                       <Text variant="body">{network.name}</Text>
                       <Text variant="caption" tone="secondary">{addressType}</Text>
                     </View>
-                    {selectedNetwork ? <Icon name="checkmark" size={20} color={colors.accent} /> : null}
+                    {selectedNetwork ? <Icon name="checkmark" size={20} color={colors.primary} /> : null}
                   </KPressable>
                 );
               })}

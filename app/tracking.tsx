@@ -260,7 +260,7 @@ export default function TrackingScreen() {
               <Icon
                 name={confirmed ? 'checkmark' : 'clock'}
                 size={32}
-                color={confirmed ? colors.bgDeep : colors.text}
+                color={confirmed ? colors.bg : colors.text}
               />
             </View>
             <Text style={[typography.title, { color: confirmed ? colors.up : colors.text }]}>
@@ -312,13 +312,13 @@ export default function TrackingScreen() {
               <View
                 style={{
                   height: 4,
-                  backgroundColor: colors.glassBorder,
+                  backgroundColor: colors.border,
                   borderRadius: 2,
                   overflow: 'hidden',
                 }}
               >
                 <View
-                  style={{ width: '25%', height: '100%', backgroundColor: colors.accent, borderRadius: 2 }}
+                  style={{ width: '25%', height: '100%', backgroundColor: colors.primary, borderRadius: 2 }}
                 />
               </View>
             </GlassCard>
@@ -396,7 +396,7 @@ export default function TrackingScreen() {
 
         {calculatingGas ? (
           <View style={{ padding: spacing(3), alignItems: 'center' }}>
-            <ActivityIndicator size="small" color={colors.accent} />
+            <ActivityIndicator size="small" color={colors.primary} />
           </View>
         ) : replacementGas && preparedTx ? (
           <Surface padded={false}>

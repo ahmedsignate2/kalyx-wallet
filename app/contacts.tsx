@@ -20,7 +20,7 @@ function ContactSub({ address }: { address: string }) {
   const ensName = useEnsName(address);
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-      {ensName ? <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}>{ensName}</Text> : null}
+      {ensName ? <Text style={{ color: colors.primary, fontFamily: fonts.semibold, fontSize: 13 }}>{ensName}</Text> : null}
       <Muted>{shorten(address)}</Muted>
     </View>
   );
@@ -73,7 +73,7 @@ export default function Contacts() {
                   <Icon name="close" size={18} color={colors.danger} />
                 </KPressable>
               ) : (
-                <Text style={{ color: colors.accent }}>{t('chooseWord')} ›</Text>
+                <Text style={{ color: colors.primary }}>{t('chooseWord')} ›</Text>
               )}
             </Card>
           </KPressable>
@@ -82,9 +82,9 @@ export default function Contacts() {
       {form ? (
         <Card style={{ marginTop: spacing(1), gap: spacing(1) }}>
           <Text style={typography.muted}>{t('name')}</Text>
-          <TextInput value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholder={t('contactNameExample')} placeholderTextColor={colors.textMuted} style={{ color: colors.text, fontSize: 16 }} />
+          <TextInput value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholder={t('contactNameExample')} placeholderTextColor={colors.textSecondary} style={{ color: colors.text, fontSize: 16 }} />
           <Text style={typography.muted}>{t('addressLabel')}</Text>
-          <TextInput value={form.address} onChangeText={(v) => setForm({ ...form, address: v })} placeholder="0x… ou bc1…" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} style={{ color: colors.text, fontSize: 15 }} />
+          <TextInput value={form.address} onChangeText={(v) => setForm({ ...form, address: v })} placeholder="0x… ou bc1…" placeholderTextColor={colors.textSecondary} autoCapitalize="none" autoCorrect={false} style={{ color: colors.text, fontSize: 15 }} />
           <View style={{ flexDirection: 'row', gap: spacing(1) }}>
             <View style={{ flex: 1 }}><Button label={t('cancel')} variant="ghost" onPress={() => setForm(null)} /></View>
             <View style={{ flex: 1 }}><Button label={t('saveAction')} onPress={save} /></View>
@@ -92,7 +92,7 @@ export default function Contacts() {
         </Card>
       ) : (
         <KPressable onPress={() => setForm({ name: '', address: '' })} style={{ marginTop: spacing(1) }}>
-          <Text style={{ color: colors.accent }}>{t('addContactPlus')}</Text>
+          <Text style={{ color: colors.primary }}>{t('addContactPlus')}</Text>
         </KPressable>
       )}
       </ScrollView>

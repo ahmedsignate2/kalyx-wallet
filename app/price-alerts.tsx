@@ -28,18 +28,18 @@ export default function PriceAlerts() {
 
       {alerts.length === 0 ? (
         <GlassCard style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(3) }}>
-          <Icon name="info" size={30} color={colors.textMuted} />
+          <Icon name="info" size={30} color={colors.textSecondary} />
           <Text style={typography.bodyStrong}>{t('noAlerts')}</Text>
           <Text style={[typography.muted, { textAlign: 'center' }]}>{t('createAlertHint')}</Text>
           <KPressable onPress={() => router.push('/market')} style={{ marginTop: spacing(1) }}>
-            <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('browseMarket')}</Text>
+            <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('browseMarket')}</Text>
           </KPressable>
         </GlassCard>
       ) : (
         <GlassCard style={{ paddingVertical: spacing(0.5) }}>
           {alerts.map((a, i) => (
-            <View key={a.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.5), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+            <View key={a.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.5), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
+              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ color: a.direction === 'above' ? colors.up : colors.down, fontSize: 18, fontFamily: fonts.bold }}>{a.direction === 'above' ? '▲' : '▼'}</Text>
               </View>
               <View style={{ flex: 1 }}>

@@ -237,7 +237,7 @@ export function EarnSheet({
   const Row = ({ label, value, tone }: { label: string; value: string; tone?: 'up' | 'muted' }) => (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing(0.75) }}>
       <Text style={typography.muted}>{label}</Text>
-      <Text style={{ fontFamily: fonts.semibold, fontSize: 14, color: tone === 'up' ? colors.up : tone === 'muted' ? colors.textMuted : colors.text, fontVariant: ['tabular-nums'] }}>
+      <Text style={{ fontFamily: fonts.semibold, fontSize: 14, color: tone === 'up' ? colors.up : tone === 'muted' ? colors.textSecondary : colors.text, fontVariant: ['tabular-nums'] }}>
         {value}
       </Text>
     </View>
@@ -253,9 +253,9 @@ export function EarnSheet({
           <KPressable noScale haptic="none" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={onClose} />
           {/* Feuille : colonne bornée (maxHeight) ; en-tête fixe + contenu défilable
               (flexShrink) → le bouton principal n'est jamais rogné. */}
-          <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, paddingHorizontal: spacing(2.5), paddingTop: spacing(2), paddingBottom: Math.max(insets.bottom, 16) + 12, maxHeight: '85%', flexShrink: 1 }}>
+          <View style={{ backgroundColor: colors.surface2, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, paddingHorizontal: spacing(2.5), paddingTop: spacing(2), paddingBottom: Math.max(insets.bottom, 16) + 12, maxHeight: '85%', flexShrink: 1 }}>
             {/* Poignée */}
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.cardBorder, marginBottom: spacing(2) }} />
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing(2) }} />
 
             {/* En-tête */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), marginBottom: spacing(2.5) }}>
@@ -270,7 +270,7 @@ export function EarnSheet({
                 </Text>
               </View>
               <KPressable onPress={onClose} hitSlop={12}>
-                <Icon name="close" size={24} color={colors.textMuted} />
+                <Icon name="close" size={24} color={colors.textSecondary} />
               </KPressable>
             </View>
 
@@ -278,13 +278,13 @@ export function EarnSheet({
               {step === 'input' ? (
                 <>
                   {/* Saisie */}
-                  <View style={{ backgroundColor: colors.glass, borderColor: colors.glassBorder, borderWidth: 1, borderRadius: radii.lg, padding: spacing(2) }}>
+                  <View style={{ backgroundColor: colors.surface1, borderColor: colors.border, borderWidth: 1, borderRadius: radii.lg, padding: spacing(2) }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <TextInput
                         ref={inputRef}
                         style={{ flex: 1, fontSize: 34, fontFamily: fonts.bold, color: parseError || insufficient ? colors.danger : colors.text, padding: 0, fontVariant: ['tabular-nums'] }}
                         placeholder="0"
-                        placeholderTextColor={colors.textFaint}
+                        placeholderTextColor={colors.textTertiary}
                         keyboardType="decimal-pad"
                         value={maxing ? '…' : amountStr}
                         editable={!maxing}
@@ -294,7 +294,7 @@ export function EarnSheet({
                           setError(null);
                         }}
                       />
-                      <Text style={{ fontSize: 20, fontFamily: fonts.semibold, color: colors.textMuted, marginLeft: spacing(1) }}>{tokenIn.symbol}</Text>
+                      <Text style={{ fontSize: 20, fontFamily: fonts.semibold, color: colors.textSecondary, marginLeft: spacing(1) }}>{tokenIn.symbol}</Text>
                     </View>
                     <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>
                       {priceIn > 0 && amountNum > 0 ? `≈ ${money(inFiat)} ${fiatSymbol(fiat)}` : ' '}
@@ -312,7 +312,7 @@ export function EarnSheet({
                           key={n}
                           onPress={() => setPercent(n)}
                           disabled={depositable <= 0n || maxing}
-                          style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: radii.pill, backgroundColor: n === 100 ? colors.accent : colors.glassStrong, opacity: depositable <= 0n ? 0.4 : 1 }}
+                          style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: radii.pill, backgroundColor: n === 100 ? colors.primary : colors.surface2, opacity: depositable <= 0n ? 0.4 : 1 }}
                         >
                           <Text style={{ fontFamily: fonts.semibold, fontSize: 12, color: n === 100 ? colors.onPrimary : colors.text }}>{n === 100 ? t('earnMax') : `${n}%`}</Text>
                         </KPressable>
@@ -350,13 +350,13 @@ export function EarnSheet({
               ) : q ? (
                 <>
                   {/* Aperçu du devis */}
-                  <View style={{ backgroundColor: colors.glass, borderColor: colors.glassBorder, borderWidth: 1, borderRadius: radii.lg, padding: spacing(2) }}>
+                  <View style={{ backgroundColor: colors.surface1, borderColor: colors.border, borderWidth: 1, borderRadius: radii.lg, padding: spacing(2) }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                       <View>
                         <Text style={typography.muted}>{isDeposit ? t('earnDeposit') : t('earnWithdraw')}</Text>
-                        <Text style={typography.display}>{fmt(q.amountIn, q.tokenIn.decimals)} <Text style={{ fontSize: 20, color: colors.textMuted }}>{q.tokenIn.symbol}</Text></Text>
+                        <Text style={typography.display}>{fmt(q.amountIn, q.tokenIn.decimals)} <Text style={{ fontSize: 20, color: colors.textSecondary }}>{q.tokenIn.symbol}</Text></Text>
                       </View>
-                      <Icon name="forward" size={22} color={colors.textFaint} />
+                      <Icon name="forward" size={22} color={colors.textTertiary} />
                       <View style={{ alignItems: 'flex-end' }}>
                         <Text style={typography.muted}>{t('earnYouReceive')}</Text>
                         <Text style={[typography.section, { color: colors.up }]}>{outStr} {q.tokenOut.symbol}</Text>
@@ -382,7 +382,7 @@ export function EarnSheet({
 
                   {p.withdrawNote ? (
                     <View style={{ marginTop: spacing(1.5), flexDirection: 'row', gap: spacing(1), alignItems: 'flex-start' }}>
-                      <Icon name="info" size={16} color={colors.textFaint} />
+                      <Icon name="info" size={16} color={colors.textTertiary} />
                       <Text style={[typography.muted, { flex: 1, fontSize: 13 }]}>{p.withdrawNote}</Text>
                     </View>
                   ) : null}
@@ -394,10 +394,10 @@ export function EarnSheet({
                     <Button label={isDeposit ? t('earnConfirmDeposit') : t('earnConfirmWithdraw')} disabled={gasShort} onPress={() => { haptic.medium(); setUnlockVisible(true); }} />
                     <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing(3) }}>
                       <KPressable onPress={() => { setStep('input'); setQ(null); setError(null); }} hitSlop={8}>
-                        <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>{t('earnEditAmount')}</Text>
+                        <Text style={{ color: colors.textSecondary, fontFamily: fonts.semibold }}>{t('earnEditAmount')}</Text>
                       </KPressable>
                       <KPressable onPress={preview} hitSlop={8} disabled={quoting}>
-                        {quoting ? <ActivityIndicator size="small" color={colors.accent} /> : <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('earnRefreshQuote')}</Text>}
+                        {quoting ? <ActivityIndicator size="small" color={colors.primary} /> : <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('earnRefreshQuote')}</Text>}
                       </KPressable>
                     </View>
                   </View>

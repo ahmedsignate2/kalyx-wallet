@@ -143,7 +143,9 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: screenOp, zIndex: 100 }]} pointerEvents="none">
-      <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
+      {/* `gradients.screen` rend une couleur unie (flat()) : une View suffit,
+          et le §2.2 ne tolère aucun dégradé décoratif. */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
 
       {/* Traînée lumineuse diagonale qui traverse une fois */}
       <Animated.View

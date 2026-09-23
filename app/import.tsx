@@ -93,7 +93,7 @@ export default function Import() {
   const topPadding = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : insets.top;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Barre native retirée : elle doublait le padding de barre d'état. */}
       <Stack.Screen options={{ headerShown: false }} />
       <PinPromptModal
@@ -106,7 +106,9 @@ export default function Import() {
         onSubmit={addAlongside}
         onCancel={() => setPendingMnemonic(null)}
       />
-      <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
+      {/* `gradients.screen` rend une couleur unie (flat()) : une View suffit,
+          et le §2.2 ne tolère aucun dégradé décoratif. */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
 
       <KeyboardAvoidingView style={{ flex: 1, paddingTop: topPadding }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header unique, calé sous la barre d'état */}
@@ -126,8 +128,8 @@ export default function Import() {
         <View style={{ flex: 1, paddingHorizontal: spacing(2.5) }}>
           {/* Badge → titre → sous-titre, enchaînés sans vide */}
           <View style={{ alignItems: 'center', marginTop: 12 }}>
-            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="import" size={26} color={colors.accent} />
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="import" size={26} color={colors.primary} />
             </View>
             <Text style={[typography.title, { marginVertical: 8, textAlign: 'center' }]}>{t('importWalletT')}</Text>
             <Text style={[typography.muted, { textAlign: 'center', marginBottom: 20 }]}>{t('pastePhraseHint')}</Text>
@@ -137,15 +139,15 @@ export default function Import() {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(1) }}>
               <Text style={typography.muted}>{wordCount > 0 ? `${wordCount} ${t('wordsWord')}` : t('recoveryPhrase')}</Text>
               <KPressable onPress={paste} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Icon name="copy" size={15} color={colors.accent} />
-                <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('paste')}</Text>
+                <Icon name="copy" size={15} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('paste')}</Text>
               </KPressable>
             </View>
             <TextInput
               value={text}
               onChangeText={(v) => { setText(v); setError(null); }}
               placeholder={t('wordExamplePh')}
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colors.textSecondary}
               multiline
               // Phrase de récupération : jamais apprise par le clavier (§7.3).
               {...SENSITIVE_INPUT_PROPS}

@@ -53,7 +53,7 @@ export default function Wallets() {
           if (editing === w.id) {
             return (
               <Card key={w.id} style={{ gap: spacing(1) }}>
-                <TextInput value={editLabel} onChangeText={setEditLabel} autoFocus placeholder={t('walletNamePlaceholder')} placeholderTextColor={colors.textMuted} style={{ color: colors.text, fontSize: 16 }} />
+                <TextInput value={editLabel} onChangeText={setEditLabel} autoFocus placeholder={t('walletNamePlaceholder')} placeholderTextColor={colors.textSecondary} style={{ color: colors.text, fontSize: 16 }} />
                 <Button label={t('saveAction')} onPress={() => { renameWallet(w.id, editLabel); setEditing(null); }} />
               </Card>
             );
@@ -66,13 +66,13 @@ export default function Wallets() {
               accessibilityState={{ selected: active }}
               accessibilityLabel={w.label}
             >
-              <Card style={{ borderColor: active ? colors.accent : colors.cardBorder, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Card style={{ borderColor: active ? colors.primary : colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
                   <Text style={typography.body}>{w.label}</Text>
                   {active ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>{t('activeLabel')}</Text>
-                      <Icon name="check" size={13} color={colors.accent} />
+                      <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.semibold }}>{t('activeLabel')}</Text>
+                      <Icon name="check" size={13} color={colors.primary} />
                     </View>
                   ) : null}
                 </View>

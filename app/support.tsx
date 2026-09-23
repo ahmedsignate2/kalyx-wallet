@@ -56,9 +56,9 @@ export default function Support() {
       {/* Pourquoi nous soutenir */}
       <GlassCard>
         {REASONS.map((r, i) => (
-          <View key={r.title} style={{ flexDirection: 'row', gap: spacing(1.5), alignItems: 'flex-start', paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
-            <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name={r.icon} size={18} color={colors.accent} />
+          <View key={r.title} style={{ flexDirection: 'row', gap: spacing(1.5), alignItems: 'flex-start', paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
+            <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={r.icon} size={18} color={colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={typography.bodyStrong}>{r.title}</Text>
@@ -81,13 +81,13 @@ export default function Support() {
                 <Text style={typography.muted}>{c.symbol}</Text>
               </View>
               <KPressable onPress={() => setOpenQr(open ? null : c.key)} hitSlop={8} style={{ padding: 6 }}>
-                <Icon name="scan" size={20} color={open ? colors.accent : colors.textMuted} />
+                <Icon name="scan" size={20} color={open ? colors.primary : colors.textSecondary} />
               </KPressable>
             </View>
 
-            <KPressable onPress={() => copy(c.address, `${t('addressLabel')} ${c.symbol}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1.25), overflow: 'hidden' }}>
+            <KPressable onPress={() => copy(c.address, `${t('addressLabel')} ${c.symbol}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.surface2, borderRadius: radii.md, padding: spacing(1.25), overflow: 'hidden' }}>
               <Text selectable style={[typography.mono, { flex: 1, minWidth: 0, fontSize: 12.5 }]} numberOfLines={1} ellipsizeMode="middle">{c.address}</Text>
-              <Icon name="copy" size={16} color={colors.accent} />
+              <Icon name="copy" size={16} color={colors.primary} />
             </KPressable>
 
             {open ? (
@@ -103,8 +103,8 @@ export default function Support() {
 
       <GlassCard style={{ padding: spacing(1.5), flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing(1) }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), flex: 1 }}>
-          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="support" size={18} color={colors.accent} />
+          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="support" size={18} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: colors.text, fontSize: 14, fontFamily: fonts.semibold }}>{t('supportHistoryTitle')}</Text>
@@ -113,7 +113,7 @@ export default function Support() {
         </View>
         <KPressable
           onPress={() => router.push('/support-history')}
-          style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.sm, backgroundColor: colors.accent }}
+          style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.sm, backgroundColor: colors.primary }}
         >
           <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 12 }}>{t('supportHistoryDetails')}</Text>
         </KPressable>

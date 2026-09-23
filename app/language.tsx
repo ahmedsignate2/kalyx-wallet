@@ -34,14 +34,14 @@ export default function Language() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  borderColor: active ? colors.accent : colors.cardBorder,
+                  borderColor: active ? colors.primary : colors.border,
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
                   <Text style={{ fontSize: 22 }}>{l.flag}</Text>
                   <Text style={typography.body}>{l.name}</Text>
                 </View>
-                {active ? <Icon name="check" size={18} color={colors.accent} /> : null}
+                {active ? <Icon name="check" size={18} color={colors.primary} /> : null}
               </Card>
             </KPressable>
           );

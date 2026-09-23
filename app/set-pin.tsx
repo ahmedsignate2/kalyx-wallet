@@ -151,7 +151,7 @@ export default function SetPin() {
           <Text style={{ fontSize: 24, fontFamily: fonts.bold, color: colors.text, letterSpacing: -0.3, marginBottom: 8 }}>
             {step === 'create' ? t('choosePinTitle') : t('confirmPinTitle')}
           </Text>
-          <Text style={{ fontSize: 14, fontFamily: fonts.regular, color: colors.textMuted, marginBottom: 12 }}>
+          <Text style={{ fontSize: 14, fontFamily: fonts.regular, color: colors.textSecondary, marginBottom: 12 }}>
             {step === 'create' ? t('choosePinSub') : t('confirmPinSub')}
           </Text>
         </View>
@@ -191,16 +191,16 @@ export default function SetPin() {
         <View style={{ height: 28, justifyContent: 'center' }}>
           {busy ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-              <ActivityIndicator size="small" color={colors.accent} />
-              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>{t('creating')}</Text>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={{ color: colors.textSecondary, fontSize: 15, fontFamily: fonts.medium }}>{t('creating')}</Text>
             </View>
           ) : step === 'create' && canContinue ? (
             <KPressable onPress={onContinue} hitSlop={8} haptic="light" accessibilityLabel={t('continueWord')}>
-              <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
+              <Text style={{ color: colors.primary, fontSize: 16, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
             </KPressable>
           ) : step === 'confirm' ? (
             <KPressable onPress={restart} hitSlop={8} accessibilityLabel={t('startOver')}>
-              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>{'\u2039'} {t('startOver')}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 15, fontFamily: fonts.medium }}>{'\u2039'} {t('startOver')}</Text>
             </KPressable>
           ) : null}
         </View>

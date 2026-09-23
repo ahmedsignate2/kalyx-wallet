@@ -40,7 +40,7 @@ export function NftDetailModal({
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <View
           style={{
-            backgroundColor: colors.bgDeep,
+            backgroundColor: colors.bg,
             borderTopLeftRadius: radii.xl,
             borderTopRightRadius: radii.xl,
             padding: spacing(2.5),
@@ -51,7 +51,7 @@ export function NftDetailModal({
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: spacing(1.5) }}>
             <Image
               source={{ uri: nft.image }}
-              style={{ width: '100%', aspectRatio: 1, borderRadius: radii.lg, backgroundColor: colors.glassStrong }}
+              style={{ width: '100%', aspectRatio: 1, borderRadius: radii.lg, backgroundColor: colors.surface2 }}
               resizeMode="cover"
             />
             <View>
@@ -67,7 +67,7 @@ export function NftDetailModal({
             {explorerUrl ? (
               <Text
                 onPress={() => Linking.openURL(`${explorerUrl}/token/${nft.contract}?a=${nft.tokenId}`)}
-                style={{ color: colors.accent, fontFamily: fonts.semibold, textAlign: 'center' }}
+                style={{ color: colors.primary, fontFamily: fonts.semibold, textAlign: 'center' }}
               >
                 {t('nftViewOnExplorer')}
               </Text>
@@ -92,7 +92,7 @@ function Row({ label, value, divider, onCopy }: { label: string; value: string; 
         justifyContent: 'space-between',
         paddingVertical: spacing(1),
         borderTopWidth: divider ? 1 : 0,
-        borderTopColor: colors.glassBorder,
+        borderTopColor: colors.border,
       }}
     >
       <Text style={typography.muted}>{label}</Text>
