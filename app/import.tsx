@@ -12,7 +12,7 @@ import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { validateMnemonic, unknownWords } from '../src';
-import { Text as KText } from '../ui/kit';
+import { Text as KText, SENSITIVE_INPUT_PROPS } from '../ui/kit';
 
 /**
  * Import d'une phrase (onboarding). LAYOUT FIXE, sans barre native ni double
@@ -96,9 +96,8 @@ export default function Import() {
               placeholder={t('wordExamplePh')}
               placeholderTextColor={colors.textMuted}
               multiline
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="off"
+              // Phrase de récupération : jamais apprise par le clavier (§7.3).
+              {...SENSITIVE_INPUT_PROPS}
               style={{ minHeight: 120, color: colors.text, fontSize: 16, textAlignVertical: 'top', fontFamily: fonts.medium }}
             />
           </GlassCard>
