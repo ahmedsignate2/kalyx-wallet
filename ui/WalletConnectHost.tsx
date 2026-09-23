@@ -52,7 +52,7 @@ function Overlay({ children, onCancel }: { children: React.ReactNode, onCancel?:
     <Modal transparent animationType="fade" onRequestClose={onCancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <KPressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onCancel} />
-        <View style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
+        <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
           {children}
         </View>
       </View>
@@ -69,7 +69,7 @@ function PermRow({ on, onToggle, label, fixed }: { on: boolean; onToggle?: () =>
       disabled={fixed}
       style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(0.5) }}
     >
-      <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: on ? colors.accent : colors.glassBorder, backgroundColor: on ? colors.accent : 'transparent', alignItems: 'center', justifyContent: 'center', opacity: fixed ? 0.7 : 1 }}>
+      <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primary : 'transparent', alignItems: 'center', justifyContent: 'center', opacity: fixed ? 0.7 : 1 }}>
         {on ? <Icon name="check" size={14} color={colors.onPrimary} /> : null}
       </View>
       <Text style={{ color: colors.text, flex: 1, fontSize: 14 }}>{label}</Text>
@@ -91,7 +91,7 @@ function SecBanner({ risk, phish }: { risk: RiskAssessment | 'loading' | null; p
       ) : null}
       {risk === 'loading' ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Icon name="security" size={15} color={colors.textMuted} />
+          <Icon name="security" size={15} color={colors.textSecondary} />
           <Text style={typography.muted}>{t('securityScanning')}</Text>
         </View>
       ) : risk && risk.level === 'danger' ? (
@@ -118,7 +118,7 @@ function DappHeader({ name, url, icon }: { name: string; url: string; icon?: str
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
       {icon ? (
-        <Image source={{ uri: icon }} style={{ width: 44, height: 44, borderRadius: radii.md, backgroundColor: colors.glass }} />
+        <Image source={{ uri: icon }} style={{ width: 44, height: 44, borderRadius: radii.md, backgroundColor: colors.surface1 }} />
       ) : (
         <GradientAvatar label={(name || '?').slice(0, 1).toUpperCase()} />
       )}

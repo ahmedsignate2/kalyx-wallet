@@ -99,7 +99,7 @@ export function TxPreview({ tx, chain }: { tx: { to?: string; value?: bigint | s
   return (
     <View style={{ gap: spacing(0.75) }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-        <Icon name={icon} size={18} color={risky ? colors.danger : colors.accent} />
+        <Icon name={icon} size={18} color={risky ? colors.danger : colors.primary} />
         <Text style={[typography.bodyStrong, risky ? { color: colors.danger } : undefined]}>{title}</Text>
       </View>
       {rows.map((r, i) => (

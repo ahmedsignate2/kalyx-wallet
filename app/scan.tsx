@@ -136,17 +136,17 @@ function Scanner() {
   if (!permission.granted) {
     return (
       <View style={[styles.center, { backgroundColor: colors.bg, padding: spacing(3) }]}>
-        <Icon name="scan" size={48} color={colors.accent} />
+        <Icon name="scan" size={48} color={colors.primary} />
         <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 18, marginTop: spacing(2), textAlign: 'center' }}>
           {t('allowCamera')}
         </Text>
-        <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: spacing(1) }}>
+        <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: spacing(1) }}>
           {t('cameraNeedReason')}
         </Text>
         <View style={{ height: spacing(3) }} />
         <Button label={t('allow')} onPress={requestPermission} />
         <KPressable onPress={paste} style={{ marginTop: spacing(2) }}>
-          <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('pasteFromClipboard')}</Text>
+          <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('pasteFromClipboard')}</Text>
         </KPressable>
       </View>
     );
@@ -194,11 +194,11 @@ function PasteOnly() {
       <View style={{ position: 'absolute', top: insets.top, left: 12, right: 12 }}>
         <ScreenHeader title={t('scanQrTitle')} />
       </View>
-      <Icon name="scan" size={48} color={colors.textMuted} />
+      <Icon name="scan" size={48} color={colors.textSecondary} />
       <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 18, marginTop: spacing(2), textAlign: 'center' }}>
         {t('cameraUnavailable')}
       </Text>
-      <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: spacing(1) }}>
+      <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: spacing(1) }}>
         {t('scannerAfterRebuild')}
       </Text>
       <View style={{ height: spacing(3) }} />
@@ -227,12 +227,12 @@ function ScanFrame() {
   }, []);
   return (
     <View style={styles.overlay} pointerEvents="none">
-      <View style={{ width: size, height: size, borderRadius: radii.lg, borderWidth: 2, borderColor: colors.accent + '88', overflow: 'hidden' }}>
+      <View style={{ width: size, height: size, borderRadius: radii.lg, borderWidth: 2, borderColor: colors.primary + '88', overflow: 'hidden' }}>
         <Animated.View
           style={{
             height: 2,
-            backgroundColor: colors.accent,
-            shadowColor: colors.accent,
+            backgroundColor: colors.primary,
+            shadowColor: colors.primary,
             shadowOpacity: 0.9,
             shadowRadius: 8,
             transform: [{ translateY: y.interpolate({ inputRange: [0, 1], outputRange: [8, size - 10] }) }],
@@ -251,7 +251,7 @@ function ToolButton({ icon, label, active, onPress }: { icon: 'flash' | 'flashOf
   const insets = useSafeAreaInsets();
   return (
     <KPressable onPress={onPress} style={styles.tool}>
-      <View style={[styles.toolCircle, { backgroundColor: active ? colors.accent : 'rgba(255,255,255,0.12)' }]}>
+      <View style={[styles.toolCircle, { backgroundColor: active ? colors.primary : 'rgba(255,255,255,0.12)' }]}>
         <Icon name={icon} size={22} color="#fff" />
       </View>
       <Text style={{ color: '#fff', fontSize: 12, marginTop: 4, opacity: 0.85 }}>{label}</Text>
@@ -267,12 +267,12 @@ function ResultSheet({ result, onAct, onRescan }: { result: QrResult; onAct: (r:
   const d = describeQr(result);
   return (
     <View style={styles.sheetWrap}>
-      <View style={[styles.sheet, { backgroundColor: colors.bgElevated, borderColor: colors.glassBorder }]}>
+      <View style={[styles.sheet, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {d.danger ? <Icon name="warning" size={20} color={colors.warning} /> : <Icon name="check" size={20} color={colors.up} />}
           <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 16 }}>{d.title}</Text>
         </View>
-        <Text selectable style={{ color: colors.textMuted, marginTop: spacing(1), fontSize: 13 }}>
+        <Text selectable style={{ color: colors.textSecondary, marginTop: spacing(1), fontSize: 13 }}>
           {d.detail}
         </Text>
         {d.danger && result.kind === 'url' ? (
@@ -281,11 +281,11 @@ function ResultSheet({ result, onAct, onRescan }: { result: QrResult; onAct: (r:
           </Text>
         ) : null}
         <View style={{ flexDirection: 'row', gap: spacing(1.5), marginTop: spacing(2) }}>
-          <KPressable onPress={onRescan} style={[styles.btnGhost, { borderColor: colors.glassBorder }]}>
+          <KPressable onPress={onRescan} style={[styles.btnGhost, { borderColor: colors.border }]}>
             <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{t('scanAgain')}</Text>
           </KPressable>
           {d.cta ? (
-            <KPressable onPress={() => onAct(result)} style={[styles.btnPrimary, { backgroundColor: colors.accent }]}>
+            <KPressable onPress={() => onAct(result)} style={[styles.btnPrimary, { backgroundColor: colors.primary }]}>
               <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{d.cta}</Text>
             </KPressable>
           ) : null}

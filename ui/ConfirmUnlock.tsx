@@ -247,7 +247,7 @@ Action: ${aiContext.method || 'Transfer'}`;
             home indicator iOS) pour que la rangée « 0 » du pavé reste visible ;
             défilable pour ne jamais tronquer le pavé sur un petit écran. */}
         <ScrollView
-          style={{ maxHeight: '92%', backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl }}
+          style={{ maxHeight: '92%', backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl }}
           contentContainerStyle={{
             paddingTop: spacing(3),
             paddingBottom: insets.bottom + spacing(3),
@@ -266,8 +266,8 @@ Action: ${aiContext.method || 'Transfer'}`;
 
           {phase === 'working' ? (
             <View style={{ alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(2) }}>
-              <ActivityIndicator color={colors.accent} />
-              <Text style={{ color: colors.textMuted, fontFamily: fonts.medium }}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={{ color: colors.textSecondary, fontFamily: fonts.medium }}>
                 {statusText ?? t('authenticating')}
               </Text>
             </View>
@@ -277,7 +277,7 @@ Action: ${aiContext.method || 'Transfer'}`;
               <Text style={{ color: colors.danger, fontFamily: fonts.medium, textAlign: 'center', marginBottom: spacing(1) }}>
                 {error}
               </Text>
-              <KPressable onPress={onCancel} hitSlop={8} style={{ paddingVertical: 10, paddingHorizontal: 24, borderRadius: radii.pill, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}>
+              <KPressable onPress={onCancel} hitSlop={8} style={{ paddingVertical: 10, paddingHorizontal: 24, borderRadius: radii.pill, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
                 <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.semibold }}>{t('closeWord') || t("aiClose")}</Text>
               </KPressable>
             </View>
@@ -317,7 +317,7 @@ Action: ${aiContext.method || 'Transfer'}`;
 
               {canValidateManually ? (
                 <KPressable onPress={() => run({ pin })} hitSlop={8}>
-                  <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>{t('validate')}</Text>
+                  <Text style={{ color: colors.primary, fontSize: 16, fontFamily: fonts.semibold }}>{t('validate')}</Text>
                 </KPressable>
               ) : null}
 
@@ -325,10 +325,10 @@ Action: ${aiContext.method || 'Transfer'}`;
                 <KPressable
                   onPress={() => run({ biometric: true })}
                   hitSlop={8}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}
                 >
-                  <Icon name="security" size={18} color={colors.accent} />
-                  <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>{t('useBiometry')}</Text>
+                  <Icon name="security" size={18} color={colors.primary} />
+                  <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.semibold }}>{t('useBiometry')}</Text>
                 </KPressable>
               ) : null}
             </>
@@ -336,7 +336,7 @@ Action: ${aiContext.method || 'Transfer'}`;
 
           {phase !== 'error' ? (
             <KPressable onPress={cancel} hitSlop={8}>
-              <Text style={{ color: colors.textMuted, fontSize: 15 }}>{t('cancel')}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 15 }}>{t('cancel')}</Text>
             </KPressable>
           ) : null}
         </ScrollView>

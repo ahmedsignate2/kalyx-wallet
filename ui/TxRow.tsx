@@ -72,7 +72,7 @@ export function TxRow({
   const t = useT();
   const inbound = tx.direction === 'in';
   const failed = tx.status === 'failed';
-  const dirColor = inbound ? colors.up : colors.textMuted;
+  const dirColor = inbound ? colors.up : colors.textSecondary;
   const amount = Number(formatAmount(tx.value, decimals));
   const fiat = price && price > 0 ? amount * price : null;
 
@@ -84,15 +84,15 @@ export function TxRow({
         gap: spacing(1.5),
         paddingVertical: spacing(1.5),
         borderTopWidth: divider ? 1 : 0,
-        borderTopColor: colors.glassBorder,
+        borderTopColor: colors.border,
       }}
     >
       {/* Logo + pastille de direction */}
       <View style={{ width: 42, height: 42 }}>
         {logoUri ? (
-          <Image source={{ uri: logoUri }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.glassStrong }} />
+          <Image source={{ uri: logoUri }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface2 }} />
         ) : (
-          <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name={inbound ? 'receive' : 'send'} size={19} color={dirColor} />
           </View>
         )}
@@ -104,14 +104,14 @@ export function TxRow({
             width: 18,
             height: 18,
             borderRadius: 9,
-            backgroundColor: inbound ? colors.up : colors.bgElevated,
+            backgroundColor: inbound ? colors.up : colors.surface2,
             borderWidth: 2,
-            borderColor: colors.bgDeep,
+            borderColor: colors.bg,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Icon name={tx.type === 'SWAP' ? 'exchange' : inbound ? 'receive' : 'send'} size={9} color={inbound ? '#fff' : colors.textMuted} />
+          <Icon name={tx.type === 'SWAP' ? 'exchange' : inbound ? 'receive' : 'send'} size={9} color={inbound ? '#fff' : colors.textSecondary} />
         </View>
       </View>
 
@@ -121,8 +121,8 @@ export function TxRow({
             {tx.description || (inbound ? t('txReceived') : tx.direction === 'out' ? t('txSent') : t('txInternal'))}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
-            <Icon name={failed ? 'close' : 'check'} size={11} color={failed ? colors.danger : colors.textFaint} />
-            <Text style={{ fontSize: 11, fontFamily: fonts.semibold, color: failed ? colors.danger : colors.textFaint }}>
+            <Icon name={failed ? 'close' : 'check'} size={11} color={failed ? colors.danger : colors.textTertiary} />
+            <Text style={{ fontSize: 11, fontFamily: fonts.semibold, color: failed ? colors.danger : colors.textTertiary }}>
               {failed ? t('txFailed') : t('txConfirmed')}
             </Text>
           </View>
@@ -137,10 +137,10 @@ export function TxRow({
             {formatTokenAmount(tx.value, tx.decimals ?? decimals)} {tx.asset ?? symbol}
           </Text>
         ) : (
-          <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>{t("txInteraction")}</Text>
+          <Text style={{ color: colors.textSecondary, fontFamily: fonts.semibold }}>{t("txInteraction")}</Text>
         )}
         {fiat != null && fiatSymbol && tx.value > 0n ? (
-          <Text style={{ fontSize: 12, color: colors.textMuted, fontVariant: ['tabular-nums'] }}>
+          <Text style={{ fontSize: 12, color: colors.textSecondary, fontVariant: ['tabular-nums'] }}>
             ≈ {money(fiat)} {fiatSymbol}
           </Text>
         ) : null}
@@ -167,7 +167,7 @@ export function TxRow({
                   Linking.openURL(url).catch(() => {});
                 }
               }}
-              style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 }}
+              style={{ color: colors.primary, fontFamily: fonts.semibold, fontSize: 13 }}
             >
               {t('txViewExplorer')}
             </Text>
@@ -190,11 +190,11 @@ function AddrLine({ label, addr }: { label: string; addr: string }) {
     >
       <Text style={[typography.muted, { width: 24, fontSize: 13 }]}>{label}</Text>
       {ensName ? (
-        <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }} numberOfLines={1}>
+        <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.semibold }} numberOfLines={1}>
           {ensName}
         </Text>
       ) : null}
-      <Text style={{ color: ensName ? colors.textMuted : colors.text, fontSize: 13, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>
+      <Text style={{ color: ensName ? colors.textSecondary : colors.text, fontSize: 13, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>
         {shortAddr(addr)}
       </Text>
       <Icon name="copy" size={13} tone="muted" />

@@ -30,7 +30,7 @@ const money = formatFiat;
 function ApyBadge({ apy, size = 'md' }: { apy: number | null; size?: 'md' | 'lg' }) {
   const { colors } = useTheme();
   const t = useT();
-  if (apy === null) return <Text style={{ color: colors.textFaint, fontFamily: fonts.medium, fontSize: 12 }}>{t('earnApyUnavailable')}</Text>;
+  if (apy === null) return <Text style={{ color: colors.textTertiary, fontFamily: fonts.medium, fontSize: 12 }}>{t('earnApyUnavailable')}</Text>;
   return (
     <View style={{ backgroundColor: 'rgba(74,155,114,0.14)', paddingHorizontal: size === 'lg' ? 12 : 8, paddingVertical: size === 'lg' ? 6 : 3, borderRadius: radii.pill }}>
       <Text style={{ color: colors.up, fontFamily: fonts.bold, fontSize: size === 'lg' ? 16 : 13, fontVariant: ['tabular-nums'] }}>{formatPercent(apy)}</Text>
@@ -44,7 +44,7 @@ function ChainTag({ chainId }: { chainId: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
       <RemoteIcon uri={chainIconUrl(chainId)} label={cfg.name} size={14} />
-      <Text style={{ color: colors.textMuted, fontSize: 13, fontFamily: fonts.regular }}>{cfg.name}</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: fonts.regular }}>{cfg.name}</Text>
     </View>
   );
 }
@@ -126,7 +126,7 @@ export default function EarnScreen() {
             <Text style={typography.title}>{t('earnTitle')}</Text>
           </View>
           <KPressable onPress={onRefresh} hitSlop={12} disabled={earn.loading}>
-            <Icon name="refresh" size={22} color={earn.loading ? colors.textFaint : colors.textMuted} />
+            <Icon name="refresh" size={22} color={earn.loading ? colors.textTertiary : colors.textSecondary} />
           </KPressable>
         </View>
         <Text style={[typography.muted, { marginTop: -spacing(1.5) }]}>{t('earnSubtitle')}</Text>
@@ -175,7 +175,7 @@ export default function EarnScreen() {
           ) : listed.length === 0 ? (
             <GlassCard>
               <View style={{ alignItems: 'center', paddingVertical: spacing(2), gap: spacing(1.5) }}>
-                <Icon name="staking" size={32} color={colors.textMuted} />
+                <Icon name="staking" size={32} color={colors.textSecondary} />
                 <Text style={[typography.muted, { textAlign: 'center' }]}>{t('earnNoEligible')}</Text>
                 <Button label={t('earnNoEligibleCta')} variant="ghost" onPress={() => setFilter('all')} />
               </View>
@@ -223,7 +223,7 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
           <Text style={typography.bodyStrong} numberOfLines={1} ellipsizeMode="tail">{p.name} · {p.receipt.symbol}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
             <ChainTag chainId={p.chainId} />
-            <Text style={{ color: colors.textFaint }}>·</Text>
+            <Text style={{ color: colors.textTertiary }}>·</Text>
             <Text style={typography.muted}>{isStaking ? t('earnStakingKind') : t('earnLendingKind')}</Text>
           </View>
         </View>
@@ -237,7 +237,7 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
         <Text style={[typography.muted, { fontVariant: ['tabular-nums'] }]}>{pv.fiat > 0 ? `${money(pv.fiat)} ${fiatSymbol(fiat)}` : '—'}</Text>
       </View>
 
-      <View style={{ height: 1, backgroundColor: colors.glassBorder, marginVertical: spacing(1.5) }} />
+      <View style={{ height: 1, backgroundColor: colors.border, marginVertical: spacing(1.5) }} />
 
       {/* Rangée 3 : infos à gauche (peuvent rétrécir), actions à droite (jamais recouvertes) */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing(1) }}>
@@ -267,9 +267,9 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
               height: 34,
               paddingHorizontal: 12,
               borderRadius: radii.pill,
-              backgroundColor: colors.glassStrong,
+              backgroundColor: colors.surface2,
               borderWidth: 1,
-              borderColor: colors.glassBorder,
+              borderColor: colors.border,
             }}
           >
             <Icon name="send" size={13} color={colors.text} />
@@ -320,24 +320,24 @@ function OpportunityCard({ p, apy, available, price, fiat, onPress }: { p: EarnP
             <Text style={typography.bodyStrong} numberOfLines={2}>{p.name} · {p.underlying.symbol} → {p.receipt.symbol}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
               <ChainTag chainId={p.chainId} />
-              <Text style={{ color: colors.textFaint }}>·</Text>
+              <Text style={{ color: colors.textTertiary }}>·</Text>
               <Text style={typography.muted}>{p.kind === 'staking' ? t('earnStakingKind') : t('earnLendingKind')}</Text>
             </View>
           </View>
           <ApyBadge apy={apy} size="lg" />
         </View>
-        <View style={{ height: 1, backgroundColor: colors.glassBorder, marginVertical: spacing(1.5) }} />
+        <View style={{ height: 1, backgroundColor: colors.border, marginVertical: spacing(1.5) }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={typography.muted} numberOfLines={1}>
             {t('earnAvailable')} :{' '}
-            <Text style={{ color: has ? colors.text : colors.textFaint, fontFamily: fonts.semibold }}>
+            <Text style={{ color: has ? colors.text : colors.textTertiary, fontFamily: fonts.semibold }}>
               {availStr} {p.underlying.symbol}
             </Text>
-            {has && price > 0 ? <Text style={{ color: colors.textFaint }}> (≈ {money(availNum * price)} {fiatSymbol(fiat)})</Text> : null}
+            {has && price > 0 ? <Text style={{ color: colors.textTertiary }}> (≈ {money(availNum * price)} {fiatSymbol(fiat)})</Text> : null}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 14 }}>{p.kind === 'staking' ? t('earnStake') : t('earnDeposit')}</Text>
-            <Icon name="chevron" size={16} color={colors.accent} />
+            <Text style={{ color: colors.primary, fontFamily: fonts.semibold, fontSize: 14 }}>{p.kind === 'staking' ? t('earnStake') : t('earnDeposit')}</Text>
+            <Icon name="chevron" size={16} color={colors.primary} />
           </View>
         </View>
       </GlassCard>

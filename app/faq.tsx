@@ -59,11 +59,11 @@ export default function Faq() {
                 const id = section.title + i;
                 const expanded = open === id;
                 return (
-                  <View key={id} style={{ borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
+                  <View key={id} style={{ borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
                     <KPressable onPress={() => setOpen(expanded ? null : id)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1.5) }}>
                       <Text style={[typography.bodyStrong, { flex: 1, fontSize: 15 }]}>{qa.q}</Text>
                       <View style={{ transform: [{ rotate: expanded ? '90deg' : '0deg' }] }}>
-                        <Icon name="chevron" size={16} color={colors.textMuted} />
+                        <Icon name="chevron" size={16} color={colors.textSecondary} />
                       </View>
                     </KPressable>
                     {expanded ? <Text style={[typography.muted, { fontSize: 14, lineHeight: 20, paddingBottom: spacing(1.5) }]}>{qa.a}</Text> : null}

@@ -123,16 +123,16 @@ export default function ChangePin() {
         <View style={{ height: 24, justifyContent: 'center' }}>
           {busy ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <ActivityIndicator size="small" color={colors.accent} />
-              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>{t('verifying')}</Text>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={{ color: colors.textSecondary, fontSize: 15, fontFamily: fonts.medium }}>{t('verifying')}</Text>
             </View>
           ) : (step === 'old' || step === 'new') && canNext ? (
             <KPressable onPress={step === 'old' ? onOldNext : onNewNext} hitSlop={8} haptic="light" accessibilityLabel={t('continueWord')}>
-              <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
+              <Text style={{ color: colors.primary, fontSize: 16, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
             </KPressable>
           ) : step === 'confirm' ? (
             <KPressable onPress={restart} hitSlop={8} accessibilityLabel={t('startOver')}>
-              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>{'\u2039'} {t('startOver')}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 15, fontFamily: fonts.medium }}>{'\u2039'} {t('startOver')}</Text>
             </KPressable>
           ) : null}
         </View>

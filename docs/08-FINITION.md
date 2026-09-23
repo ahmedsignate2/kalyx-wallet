@@ -551,7 +551,7 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 | 8 | Adoption Skia (build EAS d'essai) | halo définitif, congestion, biométrie, éclat et courbe en natif |
 | 9 | Home morphing + pull-to-refresh Aura (§9, §10.4) | le solde se transforme au doigt, sans saut |
 | 10 | Navigateur dApps, Transaction Theater étendu, voix partout (§13, §14, §16) | scorecard cochée |
-| 11 | Migration d'API héritée (dette de nommage) | `grep` §21.1 ne renvoie plus rien |
+| 11 | ~~Migration d'API héritée~~ | **FAIT.** 364 références d'alias remplacées dans 49 fichiers, mécaniquement : chaque alias hérité valait exactement un token (`bgDeep`→`bg`, `glassStrong`→`surface2`, `accent`→`primary`…), donc la substitution est neutre au rendu. `shadow.card` (qui valait `{}`) supprimé, et les `LinearGradient` de `gradients.screen` remplacés par des `View` — ils rendaient une couleur unie via `flat()`, soit une couche native inutile par écran. |
 | 12 | Vérification finale | thème clair sur device, 15 langues + RTL, lecteur d'écran, Android bas de gamme, assets store régénérés |
 
 ---
