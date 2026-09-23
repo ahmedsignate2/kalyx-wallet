@@ -13,6 +13,7 @@ import { Text } from './Text';
 import { Icon, type IconName } from '../icon';
 import { useTheme } from '../theme';
 import { radius, BUTTON_HEIGHT, durations, springs, space } from '../tokens';
+import { useT } from '../../lib/settingsStore';
 import { haptic } from '../../lib/haptics';
 
 export function HoldButton({
@@ -32,6 +33,7 @@ export function HoldButton({
   danger?: boolean;
 }) {
   const { colors } = useTheme();
+  const t = useT();
   const progress = useSharedValue(0);
   const holding = useRef(false);
   const [width, setWidth] = useState(0);
@@ -74,7 +76,7 @@ export function HoldButton({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityHint="Maintiens le bouton pour confirmer"
+      accessibilityHint={t('holdToConfirm')}
       style={{ height: BUTTON_HEIGHT, borderRadius: radius.button, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', opacity: disabled ? 0.4 : 1 }}
     >
       <Layer color={colors.text} />
