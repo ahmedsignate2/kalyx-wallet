@@ -19,6 +19,7 @@ import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
 import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
+import { PinPromptModal } from '../ui/PinPromptModal';
 import { restoreBackup } from '../src';
 
 export default function RestoreDriveScreen() {
@@ -26,7 +27,9 @@ export default function RestoreDriveScreen() {
   const insets = useSafeAreaInsets();
   const t = useT();
   const language = useSettings((s) => s.language);
+  const pinLength = useSettings((s) => s.pinLength);
   const setImportedDraft = useWallet((s) => s.setImportedDraft);
+  const importWallet = useWallet((s) => s.importWallet);
   const hasWallet = useWallet((s) => s.hasWallet);
 
   const flow = useDriveFlow();
@@ -34,6 +37,13 @@ export default function RestoreDriveScreen() {
   const [pwd, setPwd] = useState('');
   const [pwdError, setPwdError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /*
+   * Phrase déchiffrée en attente quand un wallet existe DÉJÀ : on demande alors
+   * le PIN courant pour l'AJOUTER, au lieu de remplacer l'existant.
+   */
+  const [pendingMnemonic, setPendingMnemonic] = useState<string | null>(null);
+  const [pinError, setPinError] = useState(0);
+  const [pinBusy, setPinBusy] = useState(false);
 
   const configured = isDriveConfigured();
   const isRestore = flow.kind === 'restore';
@@ -61,8 +71,41 @@ export default function RestoreDriveScreen() {
     }
     setPwd('');
     flow.reset();
+    /*
+     * CORRECTION D'UNE PERTE DE FONDS.
+     *
+     * Cet écran envoyait TOUJOURS vers /set-pin, qui appelle `confirmDraft` —
+     * le flux du tout premier lancement, lequel écrit sur le coffre `primary`
+     * et REMPLACE la liste des wallets. Restaurer depuis Google après avoir
+     * créé un wallet effaçait donc le premier, avec sa phrase de récupération.
+     * Si elle n'avait pas été notée, les fonds étaient perdus définitivement.
+     *
+     * Deux chemins désormais :
+     *  - aucun wallet → /set-pin, c'est bien l'onboarding ;
+     *  - un wallet existe → on demande le PIN courant et on AJOUTE le wallet
+     *    restauré à côté, sans jamais toucher à l'existant.
+     */
+    if (hasWallet) {
+      setPendingMnemonic(r.mnemonic);
+      return;
+    }
     setImportedDraft(r.mnemonic);
-    router.push('/set-pin'); // même flux de sécurisation que l'import
+    router.push('/set-pin');
+  }
+
+  async function addAlongside(pin: string) {
+    if (!pendingMnemonic) return;
+    setPinBusy(true);
+    try {
+      await importWallet(pendingMnemonic, pin);
+      setPendingMnemonic(null);
+      router.replace('/wallets');
+    } catch {
+      // PIN refusé (ou phrase invalide) : on secoue, l'existant est intact.
+      setPinError((n) => n + 1);
+    } finally {
+      setPinBusy(false);
+    }
   }
 
   const dateLabel = (iso: string) => new Date(iso).toLocaleDateString(language, { day: 'numeric', month: 'long', year: 'numeric' });
@@ -72,6 +115,16 @@ export default function RestoreDriveScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
+      <PinPromptModal
+        visible={!!pendingMnemonic}
+        title={t('importPinTitle')}
+        subtitle={t('importPinSub')}
+        expectedLength={pinLength}
+        busy={pinBusy}
+        errorSignal={pinError}
+        onSubmit={addAlongside}
+        onCancel={() => setPendingMnemonic(null)}
+      />
       <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: SCREEN_MARGIN, paddingTop: insets.top + space[3], paddingBottom: insets.bottom + space[6], gap: space[4] }}

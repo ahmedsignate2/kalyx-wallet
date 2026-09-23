@@ -39,6 +39,7 @@ import {
   assertValidPin,
   lockRemainingMs,
   isWalletError,
+  WalletError,
   EvmChainAdapter,
   BitcoinChainAdapter,
   SolanaChainAdapter,
@@ -74,6 +75,7 @@ import { authenticate } from './biometrics';
 import { submitSolanaSigned } from './solanaSubmit';
 import { kvGet, kvSet } from './kv';
 import { aura } from './aura';
+import { useSettings } from './settingsStore';
 
 /** Réseau actif mémorisé entre deux lancements (non sensible). */
 const K_ACTIVE_CHAIN = 'kalyx.activeChain';
@@ -302,12 +304,54 @@ export const useWallet = create<WalletState>((set, get) => ({
   confirmDraft: async (pin, opts) => {
     const m = get().draftMnemonic;
     if (!m) throw new Error('Aucun mnémonique de brouillon');
+    /*
+     * GARDE-FOU CRITIQUE — perte de fonds.
+     *
+     * Cette fonction est celle du TOUT PREMIER lancement : elle écrit sur le
+     * coffre `primary` et REMPLACE la liste des wallets par une seule entrée.
+     * L'appeler alors qu'un wallet existe déjà écrase sa phrase de récupération
+     * de façon IRRÉVERSIBLE — si l'utilisateur ne l'avait pas notée, ses fonds
+     * sont perdus pour toujours.
+     *
+     * Le cas s'est produit : `app/import.tsx` et `app/restore-drive.tsx`
+     * routaient vers /set-pin sans regarder si un wallet existait. Importer
+     * depuis Google après avoir créé un wallet détruisait le premier.
+     *
+     * Les écrans corrigés passent désormais par `importWallet`, qui AJOUTE.
+     * Cette garde reste le filet : aucun chemin futur ne pourra plus détruire
+     * un coffre par simple erreur de navigation.
+     */
+    if (get().hasWallet || get().wallets.length > 0) {
+      throw new WalletError(
+        'WALLET_ALREADY_EXISTS',
+        'Un wallet existe déjà : utiliser importWallet, qui ajoute sans écraser.',
+      );
+    }
     assertValidPin(pin);
     const id = 'primary';
     const accounts = [deriveStoredAccount(m, 0, 'Compte principal')];
     await saveVault(id, await encryptSecret(m, pin));
     await saveAccounts(id, accounts);
+    /*
+     * BIOMÉTRIE : on aligne À LA FOIS le coffre et le RÉGLAGE sur le choix fait
+     * à l'écran, dans les deux sens.
+     *
+     * Bug corrigé : seul le coffre était écrit, et uniquement quand la case
+     * était cochée. Le réglage `biometricEnabled` n'était jamais touché par la
+     * création. Après une réinitialisation puis une re-création avec la case
+     * DÉCOCHÉE, le réglage restait à `true` d'une vie précédente : l'écran de
+     * déverrouillage demandait donc l'empreinte à chaque ouverture, puis
+     * échouait — le coffre biométrique ne correspondait plus au nouveau wallet —
+     * en affichant « à réactiver dans Réglages ». Symétriquement, cocher la case
+     * stockait bien la seed mais laissait le réglage à `false` : la biométrie ne
+     * était jamais proposée.
+     *
+     * C'est fait ICI et non dans l'écran : la création est le seul endroit qui
+     * sait que l'état précédent doit être oublié.
+     */
     if (opts?.enableBiometric) await enableBiometricSeed(id, m);
+    else await disableBiometricSeed(id).catch(() => {});
+    useSettings.getState().setBiometricEnabled(!!opts?.enableBiometric);
     const wallets: WalletMeta[] = [{ id, label: 'Portefeuille principal' }];
     await saveWalletsList(wallets);
     set({

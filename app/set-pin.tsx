@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Switch, Pressable, Animated, Platform, StatusBar } from 'react-native';
+import { View, Text, Switch, Animated, ActivityIndicator, Platform, StatusBar } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinPad } from '../ui/PinPad';
 import { KalyxRing } from '../ui/KalyxRing';
 import { Icon } from '../ui/icon';
 import { Pressable as KPressable } from '../ui/kit';
-import { radius } from '../ui/tokens';
+import { radius, space } from '../ui/tokens';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
@@ -178,15 +178,26 @@ export default function SetPin() {
         ) : (
           <PinPad hideRing value={pin} onChange={onChange} expectedLength={firstPin.length} onComplete={onConfirm} errorSignal={errSignal} disabled={busy} />
         )}
+        {/*
+          `busy` ne servait qu'à DÉSACTIVER le pavé : rien n'était affiché. Or
+          `confirmDraft` dérive la clé avec scrypt, volontairement lent — l'écran
+          restait figé plusieurs secondes sans le moindre signe, et on ne sait
+          pas si l'appui a été pris en compte ou si l'app a planté (§6.2).
+        */}
         <View style={{ height: 28, justifyContent: 'center' }}>
-          {step === 'create' && canContinue ? (
-            <Pressable onPress={onContinue} hitSlop={8}>
+          {busy ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+              <ActivityIndicator size="small" color={colors.accent} />
+              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>{t('creating')}</Text>
+            </View>
+          ) : step === 'create' && canContinue ? (
+            <KPressable onPress={onContinue} hitSlop={8} haptic="light" accessibilityLabel={t('continueWord')}>
               <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
-            </Pressable>
+            </KPressable>
           ) : step === 'confirm' ? (
-            <Pressable onPress={restart} hitSlop={8} disabled={busy}>
-              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>‹ {t('startOver')}</Text>
-            </Pressable>
+            <KPressable onPress={restart} hitSlop={8} accessibilityLabel={t('startOver')}>
+              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>{'\u2039'} {t('startOver')}</Text>
+            </KPressable>
           ) : null}
         </View>
       </View>

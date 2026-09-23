@@ -1,6 +1,6 @@
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Title, Muted } from '../ui/components';
 import { PinPad } from '../ui/PinPad';
@@ -118,19 +118,22 @@ export default function ChangePin() {
         ) : (
           <PinPad value={pin} onChange={onChange} errorSignal={errSignal} />
         )}
+        {/* Même correction qu'à la création : le changement de PIN rechiffre le
+            coffre (scrypt), donc l'écran se figeait sans rien dire. */}
         <View style={{ height: 24, justifyContent: 'center' }}>
-          {step === 'old' && canNext ? (
-            <Pressable onPress={onOldNext} hitSlop={8}>
+          {busy ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <ActivityIndicator size="small" color={colors.accent} />
+              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>{t('verifying')}</Text>
+            </View>
+          ) : (step === 'old' || step === 'new') && canNext ? (
+            <KPressable onPress={step === 'old' ? onOldNext : onNewNext} hitSlop={8} haptic="light" accessibilityLabel={t('continueWord')}>
               <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
-            </Pressable>
-          ) : step === 'new' && canNext ? (
-            <Pressable onPress={onNewNext} hitSlop={8}>
-              <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
-            </Pressable>
+            </KPressable>
           ) : step === 'confirm' ? (
-            <Pressable onPress={restart} hitSlop={8} disabled={busy}>
-              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>‹ {t('startOver')}</Text>
-            </Pressable>
+            <KPressable onPress={restart} hitSlop={8} accessibilityLabel={t('startOver')}>
+              <Text style={{ color: colors.textMuted, fontSize: 15, fontFamily: fonts.medium }}>{'\u2039'} {t('startOver')}</Text>
+            </KPressable>
           ) : null}
         </View>
       </View>
