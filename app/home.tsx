@@ -10,7 +10,7 @@
  * erreur (bandeau), hors ligne (OfflineBanner global).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Pressable, RefreshControl, ScrollView, Alert, Image, useWindowDimensions } from 'react-native';
+import { View, RefreshControl, ScrollView, Alert, Image, useWindowDimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -299,7 +299,7 @@ export default function Home() {
 
         {/* ── Solde (le halo est derrière, au niveau de l'écran) ── */}
         <View>
-          <Pressable onLongPress={toggleHidden} delayLongPress={350} accessibilityLabel={hidden ? t("a11yHiddenBalance") : t("a11yVisibleBalance")}>
+          <KPressable onLongPress={toggleHidden} delayLongPress={350} accessibilityLabel={hidden ? t("a11yHiddenBalance") : t("a11yVisibleBalance")}>
             {initialLoading ? (
               <Skeleton width={220} height={52} />
             ) : hidden ? (
@@ -309,7 +309,7 @@ export default function Home() {
             ) : (
               <AmountDisplay value={formatFiat(pf.total)} suffix={sym} />
             )}
-          </Pressable>
+          </KPressable>
           <View style={{ height: 22, justifyContent: 'center', marginTop: space[1] }}>
             {scrub ? (
               <Text variant="caption" tone="secondary">{fmtDate(scrub.t, period, locale)}</Text>

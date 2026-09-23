@@ -10,9 +10,9 @@ import { useT } from "../../lib/settingsStore";
  *  - Onglet privé : fond Encre, fine bordure Brume, icône Detective.
  */
 import React from 'react';
-import { View, Pressable, Image } from 'react-native';
+import { View, Image } from 'react-native';
 import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
-import { Text, AddressGlyph } from '../kit';
+import { Text, AddressGlyph, Pressable as KPressable } from '../kit';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
 import { radius, space } from '../tokens';
@@ -57,7 +57,7 @@ export function AddressBar({
   return (
     <Animated.View style={[{ flex: 1, justifyContent: 'center' }, wrap]}>
       <Animated.View style={[{ position: 'absolute', left: 0, right: 0 }, full]}>
-        <Pressable onPress={onPress} onLongPress={onLongPress} delayLongPress={350} accessibilityRole="button" accessibilityLabel={host ? `Adresse : ${host}` : placeholder} style={{ height: 48, borderRadius: radius.round, backgroundColor: bg, borderWidth: 1, borderColor: incognito ? colors.textSecondary : danger ? colors.danger : colors.border, flexDirection: 'row', alignItems: 'center', paddingLeft: space[4], paddingRight: 6, gap: space[2] }}>
+        <KPressable onPress={onPress} onLongPress={onLongPress} delayLongPress={350} accessibilityRole="button" accessibilityLabel={host ? `Adresse : ${host}` : placeholder} style={{ height: 48, borderRadius: radius.round, backgroundColor: bg, borderWidth: 1, borderColor: incognito ? colors.textSecondary : danger ? colors.danger : colors.border, flexDirection: 'row', alignItems: 'center', paddingLeft: space[4], paddingRight: 6, gap: space[2] }}>
           {host ? <Icon name={danger ? 'alert' : incognito ? 'incognito' : secure ? 'lock' : 'dapps'} size={15} color={danger ? fg : dim} /> : <Icon name="search" size={15} color={dim} />}
           <View style={{ flex: 1, minWidth: 0 }}>
             {host ? (
@@ -71,16 +71,16 @@ export function AddressBar({
           </View>
           {loading ? <Icon name="clock" size={14} color={dim} /> : null}
           {address ? (
-            <Pressable onPress={onAccount} hitSlop={8} accessibilityLabel={t("addressBarConnect")} style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
+            <KPressable onPress={onAccount} hitSlop={8} accessibilityLabel={t("addressBarConnect")} style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
               <AddressGlyph address={address} size={26} background={!danger} />
               {chainIconUrl(chainId) ? (
                 <View style={{ position: 'absolute', right: 0, bottom: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: colors.surface1, borderWidth: 1.5, borderColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                   <Image source={{ uri: chainIconUrl(chainId) }} style={{ width: 10, height: 10, borderRadius: 5, opacity: 0.9 }} />
                 </View>
               ) : null}
-            </Pressable>
+            </KPressable>
           ) : null}
-        </Pressable>
+        </KPressable>
       </Animated.View>
       <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, alignItems: 'center' }, mini]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

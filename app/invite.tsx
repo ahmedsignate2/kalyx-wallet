@@ -4,9 +4,9 @@
  * l'app. On n'affiche donc aucun « code de parrainage » (ce serait un mécanisme
  * factice sans backend d'attribution).
  */
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React from 'react';
-import { View, Text, Pressable, Share } from 'react-native';
+import { View, Text, Share } from 'react-native';
 import { Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { PremiumScreen, GlassCard } from '../ui/premium';
@@ -82,9 +82,9 @@ export default function Invite() {
         ))}
       </GlassCard>
 
-      <Pressable onPress={copyLink} style={{ alignSelf: 'center' }}>
+      <KPressable onPress={copyLink} style={{ alignSelf: 'center' }}>
         <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('copyLink')}</Text>
-      </Pressable>
+      </KPressable>
 
       <View style={{ flex: 1 }} />
       <Button label={t('shareKalyx')} onPress={onShare} />

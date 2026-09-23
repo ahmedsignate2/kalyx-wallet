@@ -1,10 +1,11 @@
+import { Pressable as KPressable } from './kit';
 /**
  * Fiche NFT (modal plein écran) : image grand format, nom, collection,
  * contrat / tokenId copiables, lien vers l'explorateur. Remplace l'Alert
  * de la galerie — c'est la fiche que Phantom montre au tap.
  */
 import React from 'react';
-import { Image, Linking, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Linking, Modal, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { GlassCard } from './premium';
@@ -83,7 +84,7 @@ export function NftDetailModal({
 function Row({ label, value, divider, onCopy }: { label: string; value: string; divider?: boolean; onCopy: () => void }) {
   const { colors, typography } = useTheme();
   return (
-    <Pressable
+    <KPressable
       onPress={onCopy}
       style={{
         flexDirection: 'row',
@@ -99,6 +100,6 @@ function Row({ label, value, divider, onCopy }: { label: string; value: string; 
         <Text style={{ color: colors.text, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>{value}</Text>
         <Icon name="copy" size={14} tone="muted" />
       </View>
-    </Pressable>
+    </KPressable>
   );
 }

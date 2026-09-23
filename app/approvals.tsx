@@ -1,6 +1,6 @@
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Image, Pressable, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, Image, ScrollView, RefreshControl } from 'react-native';
 import { Stack } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { PremiumScreen, GlassCard, SkeletonRow, Avatar } from '../ui/premium';
@@ -144,21 +144,21 @@ export default function Approvals() {
                       </Text>
                     </View>
                   </View>
-                  <Pressable
+                  <KPressable
                     onPress={() => setTarget(it)}
                     style={{ marginTop: spacing(1.5), alignItems: 'center', paddingVertical: spacing(1.25), borderRadius: radii.pill, borderWidth: 1, borderColor: colors.danger + '66' }}
                   >
                     <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('revoke')}</Text>
-                  </Pressable>
+                  </KPressable>
                 </GlassCard>
               );
             })
           )}
 
           {items && items.length > 0 && chain.explorerUrl ? (
-            <Pressable onPress={() => Linking.openURL(chain.explorerUrl!)} style={{ alignSelf: 'center', paddingVertical: spacing(1) }}>
+            <KPressable onPress={() => Linking.openURL(chain.explorerUrl!)} style={{ alignSelf: 'center', paddingVertical: spacing(1) }}>
               <Text style={{ color: colors.textMuted, fontSize: 13 }}>{t('revokeIsTx')}</Text>
-            </Pressable>
+            </KPressable>
           ) : null}
         </ScrollView>
       )}

@@ -9,10 +9,10 @@
  * Le module caméra natif n'est actif qu'après un rebuild EAS : sans lui, on
  * bascule sur un repli « coller depuis le presse-papiers » (aucun crash).
  */
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, Easing, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Animated, Easing, StyleSheet, Dimensions } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { requireOptionalNativeModule } from 'expo-modules-core';
@@ -145,9 +145,9 @@ function Scanner() {
         </Text>
         <View style={{ height: spacing(3) }} />
         <Button label={t('allow')} onPress={requestPermission} />
-        <Pressable onPress={paste} style={{ marginTop: spacing(2) }}>
+        <KPressable onPress={paste} style={{ marginTop: spacing(2) }}>
           <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('pasteFromClipboard')}</Text>
-        </Pressable>
+        </KPressable>
       </View>
     );
   }
@@ -250,12 +250,12 @@ function ToolButton({ icon, label, active, onPress }: { icon: 'flash' | 'flashOf
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   return (
-    <Pressable onPress={onPress} style={styles.tool}>
+    <KPressable onPress={onPress} style={styles.tool}>
       <View style={[styles.toolCircle, { backgroundColor: active ? colors.accent : 'rgba(255,255,255,0.12)' }]}>
         <Icon name={icon} size={22} color="#fff" />
       </View>
       <Text style={{ color: '#fff', fontSize: 12, marginTop: 4, opacity: 0.85 }}>{label}</Text>
-    </Pressable>
+    </KPressable>
   );
 }
 
@@ -281,13 +281,13 @@ function ResultSheet({ result, onAct, onRescan }: { result: QrResult; onAct: (r:
           </Text>
         ) : null}
         <View style={{ flexDirection: 'row', gap: spacing(1.5), marginTop: spacing(2) }}>
-          <Pressable onPress={onRescan} style={[styles.btnGhost, { borderColor: colors.glassBorder }]}>
+          <KPressable onPress={onRescan} style={[styles.btnGhost, { borderColor: colors.glassBorder }]}>
             <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{t('scanAgain')}</Text>
-          </Pressable>
+          </KPressable>
           {d.cta ? (
-            <Pressable onPress={() => onAct(result)} style={[styles.btnPrimary, { backgroundColor: colors.accent }]}>
+            <KPressable onPress={() => onAct(result)} style={[styles.btnPrimary, { backgroundColor: colors.accent }]}>
               <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{d.cta}</Text>
-            </Pressable>
+            </KPressable>
           ) : null}
         </View>
       </View>

@@ -9,11 +9,11 @@
  *  4. Suivi : Envoyée → Incluse → Confirmée, on peut quitter (notification).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, Pressable as RNPressable, Image } from 'react-native';
+import { View, ScrollView, Image } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage } from '../ui/kit';
+import { Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { useTheme } from '../ui/theme';
@@ -522,7 +522,7 @@ export default function Send() {
               {recipientOk ? <AddressGlyph address={recipient} size={40} /> : <View style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}><Icon name="profile" size={18} tone="faint" /></View>}
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text variant="caption" tone="secondary">{t("labelTo")}</Text>
-                <RNPressable onPress={paste} accessibilityLabel={t("a11yPasteAddress")}>
+                <KPressable onPress={paste} accessibilityLabel={t("a11yPasteAddress")}>
                   {recipientOk ? (
                     <>
                       <Text variant="body" numberOfLines={1}>{contactName ?? (isEns ? to.trim() : t("unknownAddress"))}</Text>
@@ -531,7 +531,7 @@ export default function Send() {
                   ) : (
                     <Text variant="body" numberOfLines={2} tone={to ? 'primary' : 'tertiary'}>{to || t("placeholderAddress")}</Text>
                   )}
-                </RNPressable>
+                </KPressable>
               </View>
               {to ? <IconButton icon="close" label={t("keypadErase")} tone="ghost" onPress={() => setTo('')} /> : null}
             </Surface>
@@ -584,14 +584,14 @@ export default function Send() {
               <AddressGlyph address={recipient} size={28} />
               <Text variant="caption" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>{t("labelTo")}{destLabel ?? shortAddress(recipient)}</Text>
             </View>
-            <RNPressable onPress={() => price > 0 && setInFiat((v) => !v)} accessibilityLabel={t("a11yToggleCurrency")} style={{ paddingVertical: space[4] }}>
+            <KPressable onPress={() => price > 0 && setInFiat((v) => !v)} accessibilityLabel={t("a11yToggleCurrency")} style={{ paddingVertical: space[4] }}>
               <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit tone={overBalance ? 'danger' : 'primary'}>
                 {amount || '0'} <Text variant="title2" tone="secondary">{inFiat ? sym : symbol}</Text>
               </Text>
               <Text variant="caption" tone="secondary" tabular>
                 {price > 0 ? (inFiat ? `≈ ${tokenAmountStr || '0'} ${symbol}` : `≈ ${formatFiat(fiatOfAmount)} ${sym}`) : ' '}{price > 0 ? '  ⇅' : ''}
               </Text>
-            </RNPressable>
+            </KPressable>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               {balance == null ? <Skeleton width={160} /> : <Text variant="caption" tone="secondary" tabular>{t("balanceLabel")} : {formatTokenAmount(balance, decimals)} {symbol}</Text>}
               <Chip label={t("chipMax")} onPress={setMax} />
@@ -651,7 +651,7 @@ export default function Send() {
         {!isKnown ? <Text variant="caption" tone="warning">{t("firstTimeWarning").replace("${recipient.slice(-4)}", recipient.slice(-4))}</Text> : null}
         <AntiDrainerBanner loading={isSimulating} simulation={simResult} />
         {simResult?.warningLevel === 'critical' ? (
-          <RNPressable
+          <KPressable
             onPress={() => setForceSendChecked((v) => !v)}
             style={{
               flexDirection: 'row',
@@ -677,7 +677,7 @@ export default function Send() {
             <Text variant="caption" tone="danger" style={{ flex: 1 }}>
               {t('antiDrainerForceSendConfirm')}
             </Text>
-          </RNPressable>
+          </KPressable>
         ) : null}
         <HoldButton
           label={t("holdToSend")}

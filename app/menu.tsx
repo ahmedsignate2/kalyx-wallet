@@ -1,5 +1,6 @@
+import { Pressable as KPressable } from '../ui/kit';
 import React from 'react';
-import { View, Text, Alert, Pressable } from 'react-native';
+import { View, Text, Alert } from 'react-native';
 import { router, Stack } from 'expo-router';
 import Constants from 'expo-constants';
 import { PremiumScreen, GlassCard, ListRow, SegmentedTabs, GradientAvatar } from '../ui/premium';
@@ -40,7 +41,7 @@ export default function Menu() {
       <Text style={typography.title}>{t('menu')}</Text>
 
       {/* Profil */}
-      <Pressable onPress={() => router.push('/settings')}>
+      <KPressable onPress={() => router.push('/settings')}>
         <GlassCard>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
             <GradientAvatar label={(profileName || 'K').slice(0, 1).toUpperCase()} />
@@ -51,7 +52,7 @@ export default function Menu() {
             {chev}
           </View>
         </GlassCard>
-      </Pressable>
+      </KPressable>
 
       {/* Wallets */}
       <GlassCard>

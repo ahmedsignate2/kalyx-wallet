@@ -15,6 +15,12 @@
  *
  * `expectedLength` connu → auto-validation quand c'est plein ; sinon l'appelant
  * valide via un bouton.
+ *
+ * Les deux `Pressable` de ce fichier sont VOLONTAIREMENT ceux de React Native et
+ * non ceux du kit : `Key` implémente son propre enfoncement (valeur partagée +
+ * ressort + changement de fond) et sa propre haptique de sélection. Passer par
+ * le kit superposerait un second scale au premier. C'est le cas que la doctrine
+ * prévoit explicitement pour AmountKeypad et HoldButton.
  */
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
