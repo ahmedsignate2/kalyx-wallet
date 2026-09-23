@@ -1,6 +1,7 @@
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { Icon } from '../ui/icon';
 import React, { useState } from 'react';
-import { View, Text, Pressable, TextInput, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, Alert, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { fonts, spacing, useTheme } from '../ui/theme';
@@ -58,20 +59,41 @@ export default function Wallets() {
             );
           }
           return (
-            <Pressable key={w.id} onPress={() => setActiveWallet(w.id)}>
+            <KPressable
+              key={w.id}
+              onPress={() => setActiveWallet(w.id)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={w.label}
+            >
               <Card style={{ borderColor: active ? colors.accent : colors.cardBorder, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
                   <Text style={typography.body}>{w.label}</Text>
-                  {active ? <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>{t('activeLabel')} ✓</Text> : null}
+                  {active ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>{t('activeLabel')}</Text>
+                      <Icon name="check" size={13} color={colors.accent} />
+                    </View>
+                  ) : null}
                 </View>
-                <Pressable onPress={() => { setEditing(w.id); setEditLabel(w.label); }} hitSlop={10}>
-                  <Text style={{ fontSize: 16, marginRight: spacing(1.5) }}>✏️</Text>
-                </Pressable>
-                <Pressable onPress={() => onRemove(w.id, w.label)} hitSlop={10}>
-                  <Text style={{ color: colors.danger, fontSize: 18 }}>✕</Text>
-                </Pressable>
+                {/*
+                  Ces deux actions étaient un EMOJI (✏️) et un « ✕ » texte, sans
+                  libellé pour le lecteur d'écran. L'emoji est interdit (§19), et
+                  son rendu change selon la plateforme et la police.
+                */}
+                <KPressable
+                  onPress={() => { setEditing(w.id); setEditLabel(w.label); }}
+                  hitSlop={10}
+                  accessibilityLabel={t('name')}
+                  style={{ marginRight: spacing(1.5) }}
+                >
+                  <Icon name="sign" size={18} />
+                </KPressable>
+                <KPressable onPress={() => onRemove(w.id, w.label)} hitSlop={10} accessibilityLabel={t('deleteAction')}>
+                  <Icon name="close" size={18} color={colors.danger} />
+                </KPressable>
               </Card>
-            </Pressable>
+            </KPressable>
           );
         })}
       </ScrollView>

@@ -475,7 +475,7 @@ grep -rnE "BlurView|shadowColor|elevation: *[1-9]" app/ src/ components/ ui/ --i
 | Mesure | Attendu au plan | **Réel** |
 |---|---|---|
 | Écrans sur l'API héritée | ~28 | **29** |
-| Occurrences de boutons hors kit | non chiffré | **96**, réparties sur ~30 fichiers |
+| Boutons hors kit (app mobile) | non chiffré | **111 usages JSX sur 41 fichiers**. Le premier relevé annonçait 96 : il comptait les lignes d'`import` et les `Pressable` du kit importés sous ce nom. Chiffre corrigé en ne comptant que les identifiants réellement issus de `react-native`. |
 | `BlurView` | « reliquats possibles » | **0** |
 | Ombres réelles (`shadowColor`, `elevation ≥ 1`) | non chiffré | **4 fichiers** : `ui/ToastHost.tsx`, `ui/Splash.tsx`, `app/scan.tsx`, `ui/browser/Comet.tsx` |
 | Appels directs à `expo-haptics` hors `lib/haptics` | « à vérifier » | **0** |
@@ -498,7 +498,7 @@ Dans `ui/theme.ts` : `shadow.card` vaut `{}` (no-op), `colors.glass` vaut `surfa
 
 **6 bis. Faille trouvée à l'étape 2 : les phrases de récupération pouvaient être apprises par le clavier.** `spellCheck` n'était réglé NULLE PART dans le projet (0 occurrence), et `autoCorrect={false}` ne suffit pas — sur iOS, `spellCheck` est un drapeau distinct, et c'est lui qui alimente le dictionnaire des mots appris, lequel se synchronise dans le cloud du clavier. Les deux champs de phrase (`import.tsx`, `import-wallet.tsx`) sont `multiline` et non `secureTextEntry`, donc sans protection implicite. Corrigé par `SENSITIVE_INPUT_PROPS` (kit), qui réunit les six réglages pour qu'on ne puisse plus en oublier la moitié. Les champs de mot de passe (`cloud-backup.tsx`) étaient déjà corrects : `secureTextEntry` + `textContentType="newPassword"`.
 
-**6. Le vrai gisement est ailleurs : 96 boutons hors kit.** C'est la dette qui a un effet sensible (pression, haptique, zones de tap incohérentes), et elle est massivement concentrée : `token/[id]` (8), `AiChatModal` (7), `set-pin` (7), `networks` (6), `earn` (6).
+**6. Le vrai gisement est ailleurs : 111 boutons hors kit.** C'est la dette qui a un effet sensible (pression, haptique, zones de tap incohérentes). Concentration : `ui/premium.tsx` (9), `token/[id]` (7), `AiChatModal` (6), `TokenPicker` / `EarnSheet` / `ConfirmUnlock` (5 chacun).
 
 ### 21.4 Scorecard
 
@@ -506,20 +506,20 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 
 | Priorité | Écran | API héritée | Boutons hors kit | 5 états | Haptique | Voix | Clair | RTL | A11y |
 |---|---|---|---|---|---|---|---|---|---|
-| P1 | unlock | ⬜ | 3 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
+| P1 | unlock | ⬜ | ✅ 0 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ✅ |
 | P1 | token/[id] | ⬜ | **8** | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
 | P1 | market | ⬜ | 0 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| P1 | wallets | ⬜ | 4 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| P1 | accounts | ⬜ | 5 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| P1 | networks | ⬜ | 6 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| P1 | settings | ⬜ | 2 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
+| P1 | wallets | ⬜ | ✅ 0 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ✅ |
+| P1 | accounts | ⬜ | ✅ 0 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ✅ |
+| P1 | networks | ⬜ | ✅ 0 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ✅ |
+| P1 | settings | ⬜ | ✅ 0 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ✅ |
 | P1 | welcome | ✅ | 4 (skip, justifié) | — | ✅ | ⬜ | ✅ | ⬜ | ⬜ |
 | P2 | contacts | ⬜ | 4 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
 | P2 | approvals | ⬜ | 3 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
 | P2 | walletconnect | ⬜ | 0 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
 | P2 | import / import-wallet | ⬜ | 4 + 3 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
 | P2 | earn | ⬜ | 6 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| P2 | set-pin / change-pin | ⬜ | 7 + 4 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
+| P2 | set-pin / change-pin | ⬜ | 2 + 3 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
 | P2 | receive | ⬜ | 5 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
 | P2 | scan | ⬜ | 5 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
 | P2 | browser | ✅ | 4 | ⬜ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
@@ -543,7 +543,7 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 | 0 | ~~Audit~~ | **Fait (§21)** |
 | 1 | Aura Engine v1, en repli SVG (§3) | **partiellement livré.** Faits : moteur (`lib/aura.ts`), dérivation de l'ambiance (`lib/auraBinding.ts`), état réseau en store (`lib/networkStore.ts`), détection de réception (`lib/portfolio/receive.ts`), halo branché sur l'accueil. Manquent : impulsion Succès (aucun suivi de confirmation on-chain n'existe), ambiance « réseau chargé » (données de gas fausses), Aura sur Unlock (pas de halo sur cet écran — étape 4) |
 | 2 | Fondations transverses (§6, §7, §12.2) | **en cours.** Faits : grammaire haptique Light/Selection, dépassement au relâchement, chargement sans saut de largeur, états `success` et `notYet`, file d'attente des toasts + durée proportionnelle + annonce lecteur d'écran, ombre du toast retirée, pavé de montant (séparateur selon la langue, maintien pour effacer, touche au ressort), pavé PIN (dégradé décoratif et code mort retirés), `SENSITIVE_INPUT_PROPS` appliqué aux champs de phrase. Manquent : glisser pour fermer un toast (voir §23), sheets qui suivent le clavier (§7.3), écran pilote validé sur device |
-| 3 | **Migration des 96 boutons hors kit**, par ordre de densité | zéro `TouchableOpacity` / `Pressable` brut hors kit |
+| 3 | **Migration des 111 boutons hors kit**, par ordre de densité | **en cours.** Faits : les 4 `TouchableOpacity` du projet ont disparu ; écrans P1 `networks`, `wallets`, `accounts`, `unlock`, `settings` migrés. Reste 111 usages sur 41 fichiers, concentration `ui/premium.tsx` (9), `token/[id]` (7), `AiChatModal` (6) |
 | 4 | Unlock + Welcome (§7.2, §15) | le premier écran et le plus vu sont au niveau signature |
 | 5 | États vides + chiffres vivants + réception (§8, §11) | un wallet neuf et une réception sont mis en scène de bout en bout |
 | 6 | HoldButton enrichi (§6.3) | montée en tension + alternative accessible |
