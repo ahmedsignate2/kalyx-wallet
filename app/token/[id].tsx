@@ -377,7 +377,7 @@ export default function TokenDetail() {
 
           <View>
             <Text style={typography.section}>{t("tokenDetailsTitle")}</Text>
-            <Text style={typography.muted}>{t('networkLabel').replace(/\$\{.*?\}/, chain?.name ?? 'Marché multi-réseaux')}</Text>
+            <Text style={typography.muted}>{t('networkLabel').replace(/\$\{.*?\}/, chain?.name ?? t('multiChainMarket'))}</Text>
             <Text style={typography.muted}>{t('decimalsLabel').replace(/\$\{.*?\}/, String(chain?.nativeDecimals ?? '—'))}</Text>
             {chain?.explorerUrl ? <Text style={{ color: colors.accent, marginTop: 4 }}>{t('explorerLabel').replace(/\$\{.*?\}/, chain.explorerUrl)}</Text> : null}
           </View>

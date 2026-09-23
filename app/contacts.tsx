@@ -1,4 +1,5 @@
-import { ScreenHeader } from '../ui/kit';
+import { Icon } from '../ui/icon';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -68,9 +69,9 @@ export default function Contacts() {
                 <ContactSub address={c.address} />
               </View>
               {!pickMode ? (
-                <Pressable onPress={() => remove(c.id)} hitSlop={10}>
-                  <Text style={{ color: colors.danger, fontSize: 18 }}>✕</Text>
-                </Pressable>
+                <KPressable onPress={() => remove(c.id)} hitSlop={10} accessibilityLabel={t('deleteAction')}>
+                  <Icon name="close" size={18} color={colors.danger} />
+                </KPressable>
               ) : (
                 <Text style={{ color: colors.accent }}>{t('chooseWord')} ›</Text>
               )}

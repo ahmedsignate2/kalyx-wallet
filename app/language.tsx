@@ -1,3 +1,4 @@
+import { Icon } from '../ui/icon';
 import { ScreenHeader } from '../ui/kit';
 import React from 'react';
 import { Text, ScrollView, Pressable, View } from 'react-native';
@@ -40,7 +41,7 @@ export default function Language() {
                   <Text style={{ fontSize: 22 }}>{l.flag}</Text>
                   <Text style={typography.body}>{l.name}</Text>
                 </View>
-                {active ? <Text style={{ color: colors.accent, fontSize: 18 }}>✓</Text> : null}
+                {active ? <Icon name="check" size={18} color={colors.accent} /> : null}
               </Card>
             </Pressable>
           );

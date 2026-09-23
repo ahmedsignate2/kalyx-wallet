@@ -49,7 +49,7 @@ export default function Support() {
       {/* Hero */}
       <View style={{ alignItems: 'center', gap: spacing(1.25), marginBottom: spacing(1) }}>
         <KalyxLogo size={72} />
-        <Text style={{ color: colors.text, fontSize: 24, fontFamily: fonts.extrabold, textAlign: 'center' }}>{t('supportKalyxHero')} 💜</Text>
+        <Text style={{ color: colors.text, fontSize: 24, fontFamily: fonts.extrabold, textAlign: 'center' }}>{t('supportKalyxHero')}</Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>{t('supportIntro')}</Text>
       </View>
 

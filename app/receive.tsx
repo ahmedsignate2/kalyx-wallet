@@ -54,7 +54,11 @@ export default function Receive() {
   const address = fam === 'solana' ? stored.solAddress ?? '' : fam === 'bitcoin' ? stored.btcAddress : stored.evmAddress;
   const isTestnet = selected?.testnet === true;
   const hint =
-    fam === 'evm' ? t('hintEvm').replace("${selected?.name ?? 'ce réseau'}", selected?.name ?? 'ce réseau')
+    // Regex et non littéral : chaque langue traduit le repli À L'INTÉRIEUR du
+    // repère (`'ce réseau'`, `'this network'`, `'dieses Netzwerk'`…), donc
+    // chercher la version française ne marchait qu'en français — partout
+    // ailleurs le `${…}` s'affichait tel quel.
+    fam === 'evm' ? t('hintEvm').replace(/\$\{[^}]*\}/, selected?.name ?? t('thisNetwork'))
     : fam === 'solana' ? t("hintSolana")
     : t("hintBitcoin");
   const warn =

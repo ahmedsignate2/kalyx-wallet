@@ -119,9 +119,12 @@ export function TxRow({
           <Text style={[typography.bodyStrong, { flexShrink: 1 }]} numberOfLines={2}>
             {tx.description || (inbound ? t('txReceived') : tx.direction === 'out' ? t('txSent') : t('txInternal'))}
           </Text>
-          <Text style={{ fontSize: 11, fontFamily: fonts.semibold, color: failed ? colors.danger : colors.textFaint, marginTop: 2 }}>
-            {failed ? `✕ ${t('txFailed')}` : `✓ ${t('txConfirmed')}`}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
+            <Icon name={failed ? 'close' : 'check'} size={11} color={failed ? colors.danger : colors.textFaint} />
+            <Text style={{ fontSize: 11, fontFamily: fonts.semibold, color: failed ? colors.danger : colors.textFaint }}>
+              {failed ? t('txFailed') : t('txConfirmed')}
+            </Text>
+          </View>
         </View>
         <Text style={typography.muted}>{txDate(tx.timestamp, t)}</Text>
       </View>
