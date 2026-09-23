@@ -9,7 +9,7 @@
  * puis mise à jour en silence. 5 états : chargement (skeleton), normal, vide,
  * erreur (bandeau), hors ligne (OfflineBanner global).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, RefreshControl, ScrollView, Alert, Image, useWindowDimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack } from 'expo-router';
@@ -235,6 +235,17 @@ export default function Home() {
   };
   const mood: 'up' | 'down' | 'flat' = pf.pnl24h == null ? 'flat' : pf.pnl24h >= 0 ? 'up' : 'down';
   const shownValue = scrub ? scrub.v : pf.total;
+  /*
+   * Sens du roulement des chiffres (§8) : comparé au total PRÉCÉDEMMENT AFFICHÉ,
+   * pas au pnl du jour — c'est le mouvement du nombre à l'écran qu'on illustre.
+   * Une variation de cours fait donc bien rouler le solde, mais §8 est clair :
+   * elle ne déclenche ni impulsion de l'Aura ni couleur d'alerte. Seul le sens
+   * du roulement la reflète.
+   */
+  const prevTotal = useRef(pf.total);
+  const rollDir: 'up' | 'down' | 'none' =
+    pf.total === prevTotal.current ? 'none' : pf.total > prevTotal.current ? 'up' : 'down';
+  useEffect(() => { prevTotal.current = pf.total; }, [pf.total]);
   const pnlUp = (pf.pnl24h ?? 0) >= 0;
   const chartWidth = screenW - SCREEN_MARGIN * 2;
 
@@ -307,7 +318,7 @@ export default function Home() {
             ) : scrub ? (
               <Text variant="balance" tabular>{formatFiat(shownValue)} <Text variant="title2" tone="secondary">{sym}</Text></Text>
             ) : (
-              <AmountDisplay value={formatFiat(pf.total)} suffix={sym} />
+              <AmountDisplay value={formatFiat(pf.total)} suffix={sym} direction={rollDir} />
             )}
           </KPressable>
           <View style={{ height: 22, justifyContent: 'center', marginTop: space[1] }}>
