@@ -10,7 +10,8 @@
  * erreur (bandeau), hors ligne (OfflineBanner global).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, RefreshControl, ScrollView, Alert, Image, useWindowDimensions } from 'react-native';
+import { View, RefreshControl, Alert, Image, useWindowDimensions } from 'react-native';
+import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -246,6 +247,39 @@ export default function Home() {
     },
   };
   const mood: 'up' | 'down' | 'flat' = pf.pnl24h == null ? 'flat' : pf.pnl24h >= 0 ? 'up' : 'down';
+
+  /*
+   * HOME MORPHING (docs/08 §9). Le solde ne DISPARAÎT jamais : il change de
+   * forme. Tout est interpolé sur la position de défilement, donc réversible —
+   * on remonte, il redevient grand, sans à-coup et sans seuil qui déclencherait
+   * une animation jouée toute seule (§2.7).
+   *
+   * Pas besoin de react-native-gesture-handler : `useAnimatedScrollHandler`
+   * donne la position sur le THREAD UI, ce qui suffit. Seul l'étirement du halo
+   * pendant qu'on tire (§10.4) demanderait d'intercepter le geste.
+   *
+   * Conservé même avec « réduire les animations » : le §4.4 le prévoit
+   * explicitement, puisqu'il suit le doigt et n'est pas une animation autonome.
+   */
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
+  /** Plage de morphing, en pixels de défilement. */
+  const MORPH = { from: 32, to: 132 } as const;
+  /** Solde géant : rétrécit et s'efface en montant. */
+  const bigBalanceStyle = useAnimatedStyle(() => {
+    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
+    return { opacity: 1 - p, transform: [{ scale: 1 - p * 0.22 }, { translateY: -p * 18 }] };
+  });
+  /** En-tête compact : prend le relais exactement où le grand s'efface. */
+  const compactStyle = useAnimatedStyle(() => {
+    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
+    return { opacity: p, transform: [{ translateY: (1 - p) * -8 }] };
+  });
+  /** Halo : se resserre en un POINT de lumière près du solde (§9). */
+  const haloStyle = useAnimatedStyle(() => {
+    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
+    return { opacity: 1 - p * 0.72, transform: [{ scale: 1 - p * 0.7 }] };
+  });
   const shownValue = scrub ? scrub.v : pf.total;
   /*
    * Sens du roulement des chiffres (§8) : comparé au total PRÉCÉDEMMENT AFFICHÉ,
@@ -280,8 +314,37 @@ export default function Home() {
       {/* Halo HORS du ScrollView (sinon Android le clippe au bord droit) — derrière le solde. */}
       {/* Entièrement DANS l'écran horizontalement : Android clippe au bord → un halo qui
           déborde y laissait une coupure verticale nette (« boîte centrale »). */}
-      {!hidden ? <Halo size={300} mood={mood} aura style={{ position: 'absolute', right: 0, top: insets.top - 70 }} /> : null}
-      <ScrollView
+      {!hidden ? (
+        <Animated.View style={[{ position: 'absolute', right: 0, top: insets.top - 70 }, haloStyle]} pointerEvents="none">
+          <Halo size={300} mood={mood} aura />
+        </Animated.View>
+      ) : null}
+
+      {/*
+        En-tête compact : « 12 482,91 $ · +1,5 % ». Il n'apparaît pas, il PREND
+        LE RELAIS du solde géant au même instant, de sorte que le montant reste
+        lisible en continu pendant tout le défilement.
+      */}
+      {!hidden && !initialLoading ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            { position: 'absolute', top: insets.top + space[2], left: SCREEN_MARGIN, right: SCREEN_MARGIN, zIndex: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2], height: 48 },
+            compactStyle,
+          ]}
+        >
+          <Text variant="body" tabular numberOfLines={1}>{formatFiat(pf.total)} {sym}</Text>
+          {pf.pnl24hPct != null ? (
+            <Text variant="caption" tone={pnlUp ? 'up' : 'down'} tabular>
+              {pnlUp ? '+' : '−'}{Math.abs(pf.pnl24hPct).toFixed(1).replace('.', ',')} %
+            </Text>
+          ) : null}
+        </Animated.View>
+      ) : null}
+
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         style={{ flex: 1, alignSelf: 'stretch' }}
         contentContainerStyle={{ paddingTop: insets.top + space[2], paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + 120, gap: space[6] }}
         refreshControl={
@@ -328,7 +391,7 @@ export default function Home() {
         ) : null}
 
         {/* ── Solde (le halo est derrière, au niveau de l'écran) ── */}
-        <View>
+        <Animated.View style={bigBalanceStyle}>
           <KPressable onLongPress={toggleHidden} delayLongPress={350} accessibilityLabel={hidden ? t("a11yHiddenBalance") : t("a11yVisibleBalance")}>
             {initialLoading ? (
               <Skeleton width={220} height={52} />
@@ -351,7 +414,7 @@ export default function Home() {
               <Text variant="caption" tone="tertiary">{pf.fromCache ? t("updating") : ' '}</Text>
             )}
           </View>
-        </View>
+        </Animated.View>
 
         {/* ── Graphique + périodes ── */}
         <View style={{ gap: space[3] }}>
@@ -498,7 +561,7 @@ export default function Home() {
             </>
           )}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
       {/* Fond opaque sous la barre d'état : le contenu ne passe plus « dessous » au scroll. */}
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.bg }} />
       <NftDetailModal nft={openNft as NftItem | null} explorerUrl={openNft ? getAdapter(openNft.chainId).config.explorerUrl : undefined} onClose={() => setOpenNft(null)} />
