@@ -1,0 +1,28 @@
+# Publication d'une mise à jour OTA sur le canal « preview ».
+#
+# TOUT se passe sur les serveurs EAS, jamais en local, et ce n'est pas un
+# confort : la machine de développement est en arm64 alors que le `hermesc`
+# livré par Expo n'existe qu'en x86-64 (SIGILL à l'export). Surtout, une mise à
+# jour publiée depuis le local calcule une EMPREINTE différente de celle du
+# build EAS — l'OTA ne redescend alors jamais sur le téléphone, et sans la
+# moindre erreur visible. Publier depuis la même infrastructure que le build est
+# la seule façon d'avoir des empreintes qui correspondent.
+#
+# Déclenchement automatique à chaque push sur `main`, ou à la demande :
+#   npx eas-cli workflow:run publish-preview.yml
+
+name: Publier une mise a jour preview
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish_update:
+    name: Publier sur le canal preview
+    type: update
+    environment: preview
+    params:
+      channel: preview
+      platform: android
