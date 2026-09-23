@@ -6,7 +6,8 @@ import { Text, IconButton, Skeleton, Chip } from '../../ui/kit';
 import { space, radius } from '../../ui/tokens';
 import { useTheme } from '../../ui/theme';
 import { useAiStore } from '../../lib/aiStore';
-import { useSettings, useT } from '../../lib/settingsStore';
+import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
+import { formatFiat } from '../../src/domain/validation/format';
 import { buildAiRequestParams, mapAiErrorToMessage } from '../../lib/aiConfig';
 import { useAiChatHistoryStore } from '../../lib/aiChatHistoryStore';
 import { useGasTracker } from '../../lib/gasTrackerStore';
@@ -203,12 +204,13 @@ export function AiChatModal({ visible, onClose, context }: { visible: boolean, o
   const t = useT();
   const insets = useSafeAreaInsets();
   const { provider, apiKey, customUrl, customModel, copilotStatus, currentSearchQuery, setCopilotStatus } = useAiStore();
-  const { profileName, language } = useSettings();
+  const { profileName, language, fiat } = useSettings();
   const activeChain = useWallet((s) => s.activeChain);
   const accounts = useWallet((s) => s.accounts);
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
   const { ethGas, fetchGas } = useGasTracker();
-  useEffect(() => { if (visible) fetchGas(); }, [visible]);
+  // Les frais sont exprimés dans la devise de l'utilisateur, pas en dollars.
+  useEffect(() => { if (visible) fetchGas(fiat); }, [visible, fiat]);
   
   const { sessions, activeSessionId, createNewSession, setActiveSession, addMessageToActive, deleteSession } = useAiChatHistoryStore();
   
@@ -576,7 +578,20 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
                   </View>
                   <Text variant="title2" style={{ textAlign: 'center' }}>{profileName ? t('aiGreetingName').replace('{name}', profileName) : t('aiGreeting')}</Text>
                   <Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center' }}>{greeting}</Text>
-                  {ethGas ? <Text variant="micro" tone="tertiary">{t('aiEthGas').replace('{gas}', String(Math.round(ethGas.gwei))).replace('{usd}', ethGas.usdTransfer.toFixed(2))}</Text> : null}
+                  {/*
+                    Le coût n'est affiché QUE s'il est connu : le prix de l'ETH
+                    peut manquer alors que les gwei, eux, sont mesurés. On
+                    montre alors l'information juste, sans en inventer une.
+                  */}
+                  {ethGas ? (
+                    <Text variant="micro" tone="tertiary">
+                      {ethGas.fiatTransfer == null
+                        ? t('aiEthGas').replace('{gas}', String(Math.round(ethGas.gwei)))
+                        : t('aiEthGasCost')
+                            .replace('{gas}', String(Math.round(ethGas.gwei)))
+                            .replace('{cost}', `${formatFiat(ethGas.fiatTransfer)} ${fiatSymbol(ethGas.fiat)}`)}
+                    </Text>
+                  ) : null}
                 </View>
               ) : (
                 <ScrollView ref={scrollViewRef} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: space[4], paddingVertical: space[3], gap: space[2] }} keyboardShouldPersistTaps="handled" onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}>
