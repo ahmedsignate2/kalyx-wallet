@@ -574,6 +574,7 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 | ~~Données de gas~~ | ~~`Math.random()` affiché à l'utilisateur~~ | **tranché : source réelle.** `getFeeData()` (ethers + bascule RPC) et `getPrices()` (cache + repli), dans la devise de l'utilisateur. Coût `null` quand le prix de l'ETH manque → l'affichage se tait. Branche `surge` réparée et testée. |
 | Seuils de gas | `THRESHOLDS = { low: 10, normal: 30, high: 80 }` posés sur le papier, ce que le §19 rejette | à calibrer sur données réelles |
 | **Confirmation on-chain** | aucun suivi n'existe : l'impulsion Succès (§3.2) n'a pas de source | à construire avant l'étape 5 |
+| **120 Hz** | `CADisableMinimumFrameDuration` ajouté à `ios.infoPlist` : sans lui, iOS plafonne à 60 fps même sur écran ProMotion, quoi que fasse le JavaScript. **Change l'empreinte native → exige un rebuild.** Android suit le taux de l'écran via Choreographer ; aucun réglage en workflow managé, un appareil qui plafonnerait demanderait un plugin de config. | rebuild à planifier |
 | **`react-native-gesture-handler`** | déclaré en dépendance mais importé NULLE PART, donc pas de `GestureHandlerRootView`. Bloque « glisser pour fermer » (§12.2) et le home morphing (§9) | adoption structurelle à décider — le §9 en aura besoin de toute façon |
 
 ### 21.5 Contradiction ouverte entre le plan et le code poussé

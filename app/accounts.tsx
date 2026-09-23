@@ -7,7 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { useT } from '../lib/settingsStore';
+import { accountDisplayName } from '../lib/walletNames';
+import { useT, useSettings } from '../lib/settingsStore';
 
 function shorten(a: string) {
   return `${a.slice(0, 8)}…${a.slice(-6)}`;
@@ -16,6 +17,7 @@ function shorten(a: string) {
 export default function Accounts() {
   const { colors, typography } = useTheme();
   const t = useT();
+  const language = useSettings((st) => st.language);
   // Noms suggérés (style Revolut) proposés à la création.
   const SUGGESTIONS = [t('sugTrading'), t('sugDefi'), t('sugSavings'), t('sugAccount2')];
   const accounts = useWallet((s) => s.accounts);
@@ -97,7 +99,7 @@ export default function Accounts() {
               onPress={() => setActiveAccount(a.index)}
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={a.label}
+              accessibilityLabel={accountDisplayName(a, t)}
             >
               <Card
                 style={{
@@ -108,7 +110,7 @@ export default function Accounts() {
                 }}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={typography.body}>{a.label}</Text>
+                  <Text style={typography.body}>{accountDisplayName(a, t)}</Text>
                   <Muted>{shorten(a.evmAddress)}</Muted>
                 </View>
                 {/* Emoji ✏️ et « ✓ » texte remplacés : interdits (§19) et sans
@@ -116,7 +118,7 @@ export default function Accounts() {
                 <KPressable
                   onPress={() => {
                     setEditing(a.index);
-                    setEditLabel(a.label);
+                    setEditLabel(accountDisplayName(a, t));
                   }}
                   hitSlop={10}
                   accessibilityLabel={t('nameOptional')}

@@ -75,6 +75,7 @@ import { authenticate } from './biometrics';
 import { submitSolanaSigned } from './solanaSubmit';
 import { kvGet, kvSet } from './kv';
 import { aura } from './aura';
+import { isLegacyDefaultName } from './walletNames';
 import { useSettings } from './settingsStore';
 
 /** Réseau actif mémorisé entre deux lancements (non sensible). */
@@ -170,7 +171,8 @@ function deriveStoredAccount(mnemonic: string, index: number, label: string): St
 /** Compte unique (EVM) d'un wallet importé par clé privée : pas de HD, ni BTC/Solana. */
 function storedAccountFromPk(privateKey: string): StoredAccount {
   const acct = evmAccountFromPrivateKey(privateKey);
-  return { index: 0, label: 'Compte importé', evmAddress: acct.address, btcAddress: '' };
+  // Libellé vide = nom par défaut, traduit à l'affichage (lib/walletNames.ts).
+  return { index: 0, label: '', evmAddress: acct.address, btcAddress: '' };
 }
 
 function isPrivateKeyWallet(wallets: WalletMeta[], id: string): boolean {
@@ -279,11 +281,28 @@ export const useWallet = create<WalletState>((set, get) => ({
     let wallets = await loadWalletsList();
     // Migration douce : un ancien wallet unique devient 'primary' (clés inchangées).
     if (wallets.length === 0 && (await hasVault('primary'))) {
-      wallets = [{ id: 'primary', label: 'Portefeuille principal' }];
+      wallets = [{ id: 'primary', label: '' }];
+      await saveWalletsList(wallets);
+    }
+    /*
+     * MIGRATION DES NOMS PAR DÉFAUT. Les versions précédentes écrivaient
+     * « Portefeuille principal », « Compte 2 »… en français DANS le stockage.
+     * Un utilisateur anglophone les voyait donc en français, et changer de
+     * langue n'y changeait rien puisque le texte était figé sur le disque.
+     * On vide ces libellés une fois pour toutes : vide = nom par défaut, résolu
+     * à l'affichage depuis la langue active. Un nom réellement choisi par
+     * l'utilisateur ne correspond à aucun de ces motifs et n'est pas touché.
+     */
+    if (wallets.some((w) => isLegacyDefaultName(w.label))) {
+      wallets = wallets.map((w) => (isLegacyDefaultName(w.label) ? { ...w, label: '' } : w));
       await saveWalletsList(wallets);
     }
     const activeWalletId = wallets[0]?.id ?? 'primary';
-    const accounts = wallets.length ? (await loadAccounts(activeWalletId)) ?? [] : [];
+    let accounts = wallets.length ? (await loadAccounts(activeWalletId)) ?? [] : [];
+    if (accounts.some((a) => isLegacyDefaultName(a.label))) {
+      accounts = accounts.map((a) => (isLegacyDefaultName(a.label) ? { ...a, label: '' } : a));
+      await saveAccounts(activeWalletId, accounts);
+    }
     // Compteur anti-brute-force persistant : recharge le verrouillage temporaire.
     const lock = await loadLockState();
     // Réseau actif du dernier lancement (sinon réseau par défaut).
@@ -340,7 +359,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
     assertValidPin(pin);
     const id = 'primary';
-    const accounts = [deriveStoredAccount(m, 0, 'Compte principal')];
+    const accounts = [deriveStoredAccount(m, 0, '')];
     await saveVault(id, await encryptSecret(m, pin));
     await saveAccounts(id, accounts);
     /*
@@ -363,7 +382,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (opts?.enableBiometric) await enableBiometricSeed(id, m);
     else await disableBiometricSeed(id).catch(() => {});
     useSettings.getState().setBiometricEnabled(!!opts?.enableBiometric);
-    const wallets: WalletMeta[] = [{ id, label: 'Portefeuille principal' }];
+    const wallets: WalletMeta[] = [{ id, label: '' }];
     await saveWalletsList(wallets);
     set({
       wallets,
@@ -461,7 +480,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     const mnemonic = await revealMnemonic(activeWalletId, unlock);
     const accounts = get().accounts;
     const nextIndex = accounts.reduce((max, a) => Math.max(max, a.index), -1) + 1;
-    const created = deriveStoredAccount(mnemonic, nextIndex, label?.trim() || `Compte ${nextIndex + 1}`);
+    const created = deriveStoredAccount(mnemonic, nextIndex, label?.trim() || '');
     const updated = [...accounts, created];
     await saveAccounts(activeWalletId, updated);
     set({ accounts: updated, activeAccountIndex: nextIndex, account: toAccount(updated, nextIndex, get().activeChain) });
@@ -480,10 +499,10 @@ export const useWallet = create<WalletState>((set, get) => ({
     await revealMnemonic(get().activeWalletId, { pin });
     const m = generateMnemonic(128);
     const id = newWalletId();
-    const accounts = [deriveStoredAccount(m, 0, 'Compte principal')];
+    const accounts = [deriveStoredAccount(m, 0, '')];
     await saveVault(id, await encryptSecret(m, pin));
     await saveAccounts(id, accounts);
-    const wallets = [...get().wallets, { id, label: label?.trim() || `Portefeuille ${get().wallets.length + 1}` }];
+    const wallets = [...get().wallets, { id, label: label?.trim() || '' }];
     await saveWalletsList(wallets);
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
     return m; // à afficher pour sauvegarde
@@ -494,10 +513,10 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!validateMnemonic(m)) throw new Error('Phrase de récupération invalide');
     await revealMnemonic(get().activeWalletId, { pin }); // vérifie le PIN
     const id = newWalletId();
-    const accounts = [deriveStoredAccount(m, 0, 'Compte principal')];
+    const accounts = [deriveStoredAccount(m, 0, '')];
     await saveVault(id, await encryptSecret(m, pin));
     await saveAccounts(id, accounts);
-    const wallets = [...get().wallets, { id, label: label?.trim() || `Portefeuille importé ${get().wallets.length + 1}` }];
+    const wallets = [...get().wallets, { id, label: label?.trim() || '' }];
     await saveWalletsList(wallets);
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
   },
@@ -512,7 +531,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     await saveAccounts(id, accounts);
     const wallets: WalletMeta[] = [
       ...get().wallets,
-      { id, label: label?.trim() || `Clé importée ${get().wallets.length + 1}`, type: 'privateKey' },
+      { id, label: label?.trim() || '', type: 'privateKey' },
     ];
     await saveWalletsList(wallets);
     // EVM only : si le réseau actif n'est pas EVM, on bascule sur un réseau EVM valide.

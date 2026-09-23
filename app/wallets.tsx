@@ -6,12 +6,14 @@ import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { useT } from '../lib/settingsStore';
+import { walletDisplayName } from '../lib/walletNames';
+import { useT, useSettings } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 
 export default function Wallets() {
   const { colors, typography } = useTheme();
   const t = useT();
+  const language = useSettings((st) => st.language);
   const wallets = useWallet((s) => s.wallets);
   const activeWalletId = useWallet((s) => s.activeWalletId);
   const setActiveWallet = useWallet((s) => s.setActiveWallet);
@@ -48,7 +50,7 @@ export default function Wallets() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {wallets.map((w) => {
+        {wallets.map((w, i) => {
           const active = w.id === activeWalletId;
           if (editing === w.id) {
             return (
@@ -68,7 +70,7 @@ export default function Wallets() {
             >
               <Card style={{ borderColor: active ? colors.primary : colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={typography.body}>{w.label}</Text>
+                  <Text style={typography.body}>{walletDisplayName(w, i, t)}</Text>
                   {active ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.semibold }}>{t('activeLabel')}</Text>
@@ -82,7 +84,7 @@ export default function Wallets() {
                   son rendu change selon la plateforme et la police.
                 */}
                 <KPressable
-                  onPress={() => { setEditing(w.id); setEditLabel(w.label); }}
+                  onPress={() => { setEditing(w.id); setEditLabel(walletDisplayName(w, i, t)); }}
                   hitSlop={10}
                   accessibilityLabel={t('name')}
                   style={{ marginRight: spacing(1.5) }}
