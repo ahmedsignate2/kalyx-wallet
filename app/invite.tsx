@@ -52,8 +52,8 @@ export default function Invite() {
       {/* Bandeau visuel */}
       <GlassCard glow>
         <View style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1.5) }}>
-          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="gift" size={30} color={colors.accent} />
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="gift" size={30} color={colors.primary} />
           </View>
           <Text style={[typography.title, { textAlign: 'center' }]}>{t('discoverKalyx')}</Text>
           <Text style={[typography.muted, { textAlign: 'center' }]}>{t('shareWithFriends')}</Text>
@@ -71,11 +71,11 @@ export default function Invite() {
               gap: spacing(1.5),
               paddingVertical: spacing(1.25),
               borderTopWidth: i > 0 ? 1 : 0,
-              borderTopColor: colors.glassBorder,
+              borderTopColor: colors.border,
             }}
           >
-            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name={r.icon} size={17} color={colors.accent} />
+            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={r.icon} size={17} color={colors.primary} />
             </View>
             <Text style={[typography.body, { flex: 1 }]}>{r.text}</Text>
           </View>
@@ -83,7 +83,7 @@ export default function Invite() {
       </GlassCard>
 
       <KPressable onPress={copyLink} style={{ alignSelf: 'center' }}>
-        <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('copyLink')}</Text>
+        <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('copyLink')}</Text>
       </KPressable>
 
       <View style={{ flex: 1 }} />

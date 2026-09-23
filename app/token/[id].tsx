@@ -254,7 +254,7 @@ export default function TokenDetail() {
         <GlassCard>
           <Text style={typography.bodyStrong}>{t("failedLoadTokenTitle")}</Text>
           <Text style={typography.muted}>{t("failedLoadTokenDesc")}</Text>
-          <Text onPress={loadDetail} style={{ color: colors.accent, fontFamily: fonts.bold, marginTop: spacing(1) }}>{t("actionRetry")}</Text>
+          <Text onPress={loadDetail} style={{ color: colors.primary, fontFamily: fonts.bold, marginTop: spacing(1) }}>{t("actionRetry")}</Text>
         </GlassCard>
       ) : (
         <>
@@ -263,14 +263,14 @@ export default function TokenDetail() {
             {(networkLogo || detail?.image) ? (
               <Image source={{ uri: networkLogo || detail?.image }} style={{ width: 48, height: 48, borderRadius: 24 }} />
             ) : (
-              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.glassStrong }} />
+              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface2 }} />
             )}
             <View style={{ flex: 1 }}>
               <Text style={typography.section}>{displayTitle}</Text>
               <Text style={typography.muted}>{displaySymbol}</Text>
             </View>
             <KPressable onPress={openAlert} hitSlop={10} haptic="light" accessibilityLabel={t('actionCreateAlert')} style={{ marginRight: spacing(1.5) }}>
-              <Icon name="bell" size={23} color={colors.textMuted} />
+              <Icon name="bell" size={23} color={colors.textSecondary} />
             </KPressable>
             <KPressable
               onPress={() => id && toggleFavorite(id)}
@@ -280,7 +280,7 @@ export default function TokenDetail() {
               accessibilityState={{ checked: isFav }}
               accessibilityLabel={t('favorites')}
             >
-              <Icon name={isFav ? 'starFilled' : 'star'} size={24} color={isFav ? colors.warning : colors.textMuted} />
+              <Icon name={isFav ? 'starFilled' : 'star'} size={24} color={isFav ? colors.warning : colors.textSecondary} />
             </KPressable>
           </View>
 
@@ -379,7 +379,7 @@ export default function TokenDetail() {
             <Text style={typography.section}>{t("tokenDetailsTitle")}</Text>
             <Text style={typography.muted}>{t('networkLabel').replace(/\$\{.*?\}/, chain?.name ?? t('multiChainMarket'))}</Text>
             <Text style={typography.muted}>{t('decimalsLabel').replace(/\$\{.*?\}/, String(chain?.nativeDecimals ?? '—'))}</Text>
-            {chain?.explorerUrl ? <Text style={{ color: colors.accent, marginTop: 4 }}>{t('explorerLabel').replace(/\$\{.*?\}/, chain.explorerUrl)}</Text> : null}
+            {chain?.explorerUrl ? <Text style={{ color: colors.primary, marginTop: 4 }}>{t('explorerLabel').replace(/\$\{.*?\}/, chain.explorerUrl)}</Text> : null}
           </View>
 
           {detail ? (
@@ -401,7 +401,7 @@ export default function TokenDetail() {
             <GlassCard>
               <Text style={typography.bodyStrong}>À propos de {detail.name}</Text>
               <Text numberOfLines={aboutExpanded ? undefined : 5} style={[typography.muted, { marginTop: spacing(1), lineHeight: 20 }]}>{detail.description}</Text>
-              {detail.description.length > 320 ? <KPressable onPress={() => setAboutExpanded((v) => !v)} hitSlop={8} accessibilityLabel={aboutExpanded ? t('readLess') : t('readMore')}><Text style={{ color: colors.accent, marginTop: spacing(1), fontFamily: fonts.semibold }}>{aboutExpanded ? t("readLess") : t("readMore")}</Text></KPressable> : null}
+              {detail.description.length > 320 ? <KPressable onPress={() => setAboutExpanded((v) => !v)} hitSlop={8} accessibilityLabel={aboutExpanded ? t('readLess') : t('readMore')}><Text style={{ color: colors.primary, marginTop: spacing(1), fontFamily: fonts.semibold }}>{aboutExpanded ? t("readLess") : t("readMore")}</Text></KPressable> : null}
             </GlassCard>
           ) : null}
         </>
@@ -420,8 +420,8 @@ export default function TokenDetail() {
           onPress={() => setAlertOpen(false)}
         >
           {/* Absorbe les taps pour qu'ils ne ferment pas la feuille. */}
-          <KPressable noScale haptic="none" style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: spacing(2.5), gap: spacing(1.75) }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.glassBorder }} />
+          <KPressable noScale haptic="none" style={{ backgroundColor: colors.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: spacing(2.5), gap: spacing(1.75) }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
             <Text style={typography.section}>Alerte de prix · {(detail?.symbol || id || '').toUpperCase()}</Text>
 
             <View style={{ flexDirection: 'row', gap: spacing(1) }}>
@@ -434,7 +434,7 @@ export default function TokenDetail() {
                     accessibilityRole="radio"
                     accessibilityState={{ selected: on }}
                     accessibilityLabel={d === 'above' ? t('alertAbove') : t('alertBelow')}
-                    style={{ flex: 1, paddingVertical: spacing(1.25), borderRadius: 12, alignItems: 'center', backgroundColor: on ? colors.accent : colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
+                    style={{ flex: 1, paddingVertical: spacing(1.25), borderRadius: 12, alignItems: 'center', backgroundColor: on ? colors.primary : colors.surface1, borderWidth: 1, borderColor: on ? colors.primary : colors.border }}
                   >
                     <Text style={{ color: on ? colors.onPrimary : colors.text, fontFamily: fonts.semibold }}>{d === 'above' ? t("alertAbove") : t("alertBelow")}</Text>
                   </KPressable>
@@ -442,9 +442,9 @@ export default function TokenDetail() {
               })}
             </View>
 
-            <View style={{ backgroundColor: colors.bgElevated, borderRadius: 14, paddingHorizontal: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-              <TextInput value={alertTarget} onChangeText={setAlertTarget} keyboardType="decimal-pad" placeholder={t("targetPricePlaceholder")} placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.text, fontSize: 20, paddingVertical: spacing(1.5) }} />
-              <Text style={{ color: colors.textMuted, fontFamily: fonts.semibold }}>{fiatSymbol(fiat)}</Text>
+            <View style={{ backgroundColor: colors.surface2, borderRadius: 14, paddingHorizontal: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+              <TextInput value={alertTarget} onChangeText={setAlertTarget} keyboardType="decimal-pad" placeholder={t("targetPricePlaceholder")} placeholderTextColor={colors.textSecondary} style={{ flex: 1, color: colors.text, fontSize: 20, paddingVertical: spacing(1.5) }} />
+              <Text style={{ color: colors.textSecondary, fontFamily: fonts.semibold }}>{fiatSymbol(fiat)}</Text>
             </View>
 
             <Button label={t('actionCreateAlert')} onPress={createAlert} />

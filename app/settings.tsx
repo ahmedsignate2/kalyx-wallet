@@ -40,8 +40,8 @@ function OptionButton({ label, selected, onPress, icon }: { label: string; selec
         paddingHorizontal: spacing(1.25),
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: selected ? colors.accent : colors.glassBorder,
-        backgroundColor: selected ? colors.accent : 'transparent',
+        borderColor: selected ? colors.primary : colors.border,
+        backgroundColor: selected ? colors.primary : 'transparent',
       }}
     >
       {/* Coche si sélectionné, sinon l'icône de l'option — jamais les deux, pour
@@ -143,7 +143,7 @@ export default function Settings() {
               onBlur={() => setProfileName(name.trim())}
               onSubmitEditing={() => setProfileName(name.trim())}
               placeholder={t('yourName')}
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colors.textSecondary}
               style={{ color: colors.text, fontSize: 18, paddingVertical: 4 }}
             />
           </View>
@@ -153,7 +153,7 @@ export default function Settings() {
       {/* Préférences */}
       <GlassCard>
         <ListRow left={<Icon name="language" />} title={t('language')} subtitle={langName} right={chevron} onPress={() => router.push('/language')} />
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(0.5) }}>
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(0.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
             <Icon name="currency" />
             <Text style={typography.body}>{t('currency')}</Text>
@@ -165,7 +165,7 @@ export default function Settings() {
           </View>
         </View>
         {/* Apparence : Système / Sombre / Clair */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
             <Icon name="appearance" />
             <Text style={typography.body}>{t('appearance')}</Text>
@@ -199,7 +199,7 @@ export default function Settings() {
           </View>
         ) : null}
         {/* Verrouillage automatique */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
             <Icon name="security" />
             <View style={{ flex: 1 }}>
@@ -221,7 +221,7 @@ export default function Settings() {
           </View>
         </View>
         {/* Écran de garde */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
           <Icon name="eye" />
           <View style={{ flex: 1 }}>
             <Text style={typography.body}>{t('privacyScreen')}</Text>
@@ -238,7 +238,7 @@ export default function Settings() {
       {/* Réseau & à venir */}
       <GlassCard>
         <ListRow left={<Icon name="networks" />} title={t('network')} subtitle={t('chooseActiveNetwork')} right={chevron} onPress={() => router.push('/networks')} />
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
               <Icon name="notifications" />
@@ -263,7 +263,7 @@ export default function Settings() {
         </View>
 
         {/* Son */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
             <Icon name="notifications" />
             <View style={{ flex: 1 }}>
@@ -275,7 +275,7 @@ export default function Settings() {
         </View>
 
         {/* Vibrations */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
             <Icon name="flash" />
             <View style={{ flex: 1 }}>

@@ -50,12 +50,12 @@ export default function RevealPrivateKey() {
             }}
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: spacing(1.5) }}
           >
-            <Icon name="copy" size={18} color={colors.accent} />
-            <Text style={{ color: colors.accent, fontFamily: typography.bodyStrong.fontFamily }}>{t('copyKey')}</Text>
+            <Icon name="copy" size={18} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontFamily: typography.bodyStrong.fontFamily }}>{t('copyKey')}</Text>
           </KPressable>
           <View
             style={{
-              backgroundColor: colors.bgElevated,
+              backgroundColor: colors.surface2,
               borderRadius: radii.sm,
               padding: spacing(1.5),
               flexDirection: 'row',

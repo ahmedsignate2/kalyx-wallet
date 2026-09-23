@@ -94,9 +94,9 @@ export default function ImportWallet() {
                 paddingVertical: spacing(1.25),
                 borderRadius: 12,
                 alignItems: 'center',
-                backgroundColor: active ? colors.accent : colors.card,
+                backgroundColor: active ? colors.primary : colors.surface1,
                 borderWidth: 1,
-                borderColor: active ? colors.accent : colors.cardBorder,
+                borderColor: active ? colors.primary : colors.border,
               }}
             >
               <Text style={{ color: active ? colors.onPrimary : colors.text, fontFamily: typography.bodyStrong.fontFamily, fontSize: 13 }}>
@@ -122,14 +122,14 @@ export default function ImportWallet() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>{mode === 'phrase' ? t('recoveryPhrase') : mode === 'key' ? t('privateKeyLabel') : t('backupContent')}</Text>
           <KPressable onPress={async () => setText((await Clipboard.getStringAsync()).trim())}>
-            <Text style={{ color: colors.accent, fontFamily: typography.bodyStrong.fontFamily }}>{t('paste')}</Text>
+            <Text style={{ color: colors.primary, fontFamily: typography.bodyStrong.fontFamily }}>{t('paste')}</Text>
           </KPressable>
         </View>
         <TextInput
           value={text}
           onChangeText={setText}
           placeholder={mode === 'phrase' ? 'mot1 mot2 mot3 …' : mode === 'key' ? '0x…' : '{ "app": "kalyx", … }'}
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.textSecondary}
           multiline={mode !== 'key'}
           // Phrase, clé privée ou sauvegarde chiffrée : tous des secrets (§7.3).
           {...SENSITIVE_INPUT_PROPS}
@@ -141,12 +141,12 @@ export default function ImportWallet() {
       {mode === 'backup' ? (
         <Card>
           <Text style={typography.muted}>{t('backupPassword')}</Text>
-          <TextInput value={pwd} onChangeText={setPwd} placeholder={t('backupPasswordPlaceholder')} placeholderTextColor={colors.textMuted} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+          <TextInput value={pwd} onChangeText={setPwd} placeholder={t('backupPasswordPlaceholder')} placeholderTextColor={colors.textSecondary} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
         </Card>
       ) : null}
       <Card>
         <Text style={typography.muted}>{t('nameOptional')}</Text>
-        <TextInput value={label} onChangeText={setLabel} placeholder={t('namePlaceholderImport')} placeholderTextColor={colors.textMuted} style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+        <TextInput value={label} onChangeText={setLabel} placeholder={t('namePlaceholderImport')} placeholderTextColor={colors.textSecondary} style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
       </Card>
       <Card>
         <Text style={typography.muted}>{t('appPin')}</Text>

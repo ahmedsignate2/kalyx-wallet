@@ -46,7 +46,7 @@ export function PremiumScreen({
   const topPadding = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : insets.top + 8;
   const { theme } = useThemeStyles();
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.bgDeep }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       {/* Clavier-aware : le contenu remonte au-dessus du clavier et reste défilable. */}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
@@ -128,7 +128,7 @@ export function Skeleton({
   }, [opacity]);
   return (
     <Animated.View
-      style={[{ width, height, borderRadius: radius, backgroundColor: theme.colors.glassStrong, opacity }, style]}
+      style={[{ width, height, borderRadius: radius, backgroundColor: theme.colors.surface2, opacity }, style]}
     />
   );
 }
@@ -159,7 +159,7 @@ export function GlassCard({
 }) {
   const { theme, styles } = useThemeStyles();
   return (
-    <View style={[styles.glass, theme.shadow.card, style]}>
+    <View style={[styles.glass, style]}>
       {glow ? (
         <LinearGradient
           colors={theme.gradients.card}
@@ -192,12 +192,12 @@ export function Chip({
   const { theme, styles } = useThemeStyles();
   const { colors } = theme;
   const color =
-    tone === 'accent' ? colors.accent : tone === 'warning' ? colors.warning : colors.text;
+    tone === 'accent' ? colors.primary : tone === 'warning' ? colors.warning : colors.text;
   return (
     <KPressable onPress={onPress} disabled={!onPress} accessibilityLabel={label}>
       <View style={styles.chip}>
         <Text style={{ color, fontFamily: fonts.semibold }}>{label}</Text>
-        {onPress ? <Icon name="caretDown" size={14} color={colors.textMuted} /> : null}
+        {onPress ? <Icon name="caretDown" size={14} color={colors.textSecondary} /> : null}
       </View>
     </KPressable>
   );
@@ -267,7 +267,7 @@ export function CircleAction({
       <View style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={icon} size={22} color={theme.colors.text} />
       </View>
-      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={{ color: theme.colors.textMuted, fontSize: 11, lineHeight: 13, fontFamily: fonts.semibold, textAlign: 'center' }}>{label}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={{ color: theme.colors.textSecondary, fontSize: 11, lineHeight: 13, fontFamily: fonts.semibold, textAlign: 'center' }}>{label}</Text>
     </KPressable>
   );
 }
@@ -275,7 +275,7 @@ export function CircleAction({
 /** Petit badge (ex. TESTNET). */
 export function Badge({ label, tone = 'warning' }: { label: string; tone?: 'warning' | 'accent' }) {
   const { theme } = useThemeStyles();
-  const c = tone === 'accent' ? theme.colors.accent : theme.colors.warning;
+  const c = tone === 'accent' ? theme.colors.primary : theme.colors.warning;
   return (
     <View style={{ backgroundColor: c + '22', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
       <Text style={{ color: c, fontSize: 10, fontFamily: fonts.extrabold, letterSpacing: 0.5 }}>{label}</Text>
@@ -297,12 +297,12 @@ export function SearchBar({
   const { colors } = theme;
   return (
     <View style={styles.search}>
-      <Icon name="search" size={18} color={colors.textMuted} />
+      <Icon name="search" size={18} color={colors.textSecondary} />
       <RNTextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={colors.textSecondary}
         style={{ flex: 1, color: colors.text, fontSize: 15, paddingVertical: 0 }}
       />
     </View>
@@ -347,7 +347,7 @@ export function SectionHeader({
       <Text style={theme.typography.section}>{title}</Text>
       {actionLabel && onAction ? (
         <KPressable onPress={onAction} haptic="light" hitSlop={8} accessibilityLabel={actionLabel}>
-          <Text style={{ color: theme.colors.accent, fontFamily: fonts.semibold }}>{actionLabel}</Text>
+          <Text style={{ color: theme.colors.primary, fontFamily: fonts.semibold }}>{actionLabel}</Text>
         </KPressable>
       ) : null}
     </View>
@@ -358,7 +358,7 @@ export function Avatar({ label, color }: { label: string; color?: string }) {
   const { theme, styles } = useThemeStyles();
   // Fond accent (par défaut) → glyphe blanc ; fond « verre » fourni par
   // l'appelant → glyphe couleur texte (lisible dans les deux thèmes).
-  const bg = color ?? theme.colors.accent;
+  const bg = color ?? theme.colors.primary;
   const fg = color ? theme.colors.text : theme.colors.onPrimary;
   return (
     <View style={[styles.avatar, { backgroundColor: bg }]}>
@@ -387,7 +387,7 @@ export function RemoteIcon({
   const [failed, setFailed] = React.useState(false);
   const letter = (label || '?').slice(0, 1).toUpperCase();
   if (!uri || failed) {
-    const bg = color ?? theme.colors.glassStrong;
+    const bg = color ?? theme.colors.surface2;
     const fg = color ? theme.colors.onPrimary : theme.colors.text;
     return (
       <View style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: bg }}>
@@ -399,7 +399,7 @@ export function RemoteIcon({
     <Image
       source={{ uri }}
       onError={() => setFailed(true)}
-      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: theme.colors.glass }}
+      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: theme.colors.surface1 }}
     />
   );
 }
@@ -543,7 +543,7 @@ export function SegmentedTabs({
             accessibilityLabel={it.label}
             style={[styles.segItem, on ? styles.segItemActive : null]}
           >
-            <Text style={{ color: on ? theme.colors.onPrimary : theme.colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>
+            <Text style={{ color: on ? theme.colors.onPrimary : theme.colors.textSecondary, fontFamily: fonts.semibold, fontSize: 13 }}>
               {it.label}
             </Text>
           </KPressable>
@@ -638,7 +638,7 @@ export function BottomNav({
         accessibilityLabel={it.label}
         style={{ flex: 1, alignItems: 'center', gap: 3 }}
       >
-        <Icon name={it.icon} size={22} color={on ? colors.accent : colors.textFaint} />
+        <Icon name={it.icon} size={22} color={on ? colors.primary : colors.textTertiary} />
         <Text numberOfLines={1} style={{ fontSize: 11, color: on ? colors.text : colors.textTertiary, fontFamily: fonts.semibold }}>
           {it.label}
         </Text>
@@ -661,7 +661,7 @@ export function BottomNav({
         >
           <Icon name={center.icon} size={24} color={colors.onPrimary} />
         </LinearGradient>
-        <Text style={{ fontSize: 11, color: colors.accent, fontFamily: fonts.semibold, marginTop: 2 }}>
+        <Text style={{ fontSize: 11, color: colors.primary, fontFamily: fonts.semibold, marginTop: 2 }}>
           {center.label}
         </Text>
       </KPressable>
@@ -672,10 +672,10 @@ export function BottomNav({
 function createStyles({ mode, colors, shadow }: Theme) {
   return StyleSheet.create({
     glass: {
-      backgroundColor: mode === 'dark' ? colors.glass : colors.card,
+      backgroundColor: mode === 'dark' ? colors.surface1 : colors.surface1,
       borderRadius: radii.xl,
       borderWidth: 1,
-      borderColor: mode === 'dark' ? colors.glassBorder : colors.cardBorder,
+      borderColor: mode === 'dark' ? colors.border : colors.border,
       padding: spacing(2.25),
       overflow: 'hidden',
     },
@@ -683,9 +683,9 @@ function createStyles({ mode, colors, shadow }: Theme) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      backgroundColor: colors.glass,
+      backgroundColor: colors.surface1,
       borderWidth: 1,
-      borderColor: colors.glassBorder,
+      borderColor: colors.border,
       borderRadius: radii.pill,
       paddingVertical: spacing(0.75),
       paddingHorizontal: spacing(1.5),
@@ -696,9 +696,9 @@ function createStyles({ mode, colors, shadow }: Theme) {
       borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.glass,
+      backgroundColor: colors.surface1,
       borderWidth: 1,
-      borderColor: colors.glassBorder,
+      borderColor: colors.border,
     },
     badge: {
       position: 'absolute',
@@ -707,12 +707,12 @@ function createStyles({ mode, colors, shadow }: Theme) {
       width: 8,
       height: 8,
       borderRadius: 4,
-      backgroundColor: colors.accent,
+      backgroundColor: colors.primary,
     },
     tile: {
-      backgroundColor: colors.glassStrong,
+      backgroundColor: colors.surface2,
       borderWidth: 1,
-      borderColor: colors.glassBorder,
+      borderColor: colors.border,
       borderRadius: radii.lg,
       paddingVertical: spacing(1.5),
       alignItems: 'center',
@@ -723,17 +723,17 @@ function createStyles({ mode, colors, shadow }: Theme) {
       borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.glassStrong,
+      backgroundColor: colors.surface2,
       borderWidth: 1,
-      borderColor: colors.glassBorder,
+      borderColor: colors.border,
     },
     search: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing(1),
-      backgroundColor: mode === 'dark' ? colors.glass : colors.card,
+      backgroundColor: mode === 'dark' ? colors.surface1 : colors.surface1,
       borderWidth: 1,
-      borderColor: mode === 'dark' ? colors.glassBorder : colors.cardBorder,
+      borderColor: mode === 'dark' ? colors.border : colors.border,
       borderRadius: radii.pill,
       paddingHorizontal: spacing(2),
       paddingVertical: spacing(1.25),
@@ -752,10 +752,10 @@ function createStyles({ mode, colors, shadow }: Theme) {
       gap: spacing(1.5),
       paddingVertical: spacing(1.5),
     },
-    divider: { borderTopWidth: 1, borderTopColor: colors.glassBorder },
+    divider: { borderTopWidth: 1, borderTopColor: colors.border },
     segWrap: {
       flexDirection: 'row',
-      backgroundColor: colors.glass,
+      backgroundColor: colors.surface1,
       borderRadius: radii.pill,
       padding: 4,
       gap: 4,
@@ -766,7 +766,7 @@ function createStyles({ mode, colors, shadow }: Theme) {
       paddingVertical: spacing(1),
       borderRadius: radii.pill,
     },
-    segItemActive: { backgroundColor: colors.accent },
+    segItemActive: { backgroundColor: colors.primary },
     navWrap: {
       position: 'absolute',
       left: 0,
@@ -782,11 +782,10 @@ function createStyles({ mode, colors, shadow }: Theme) {
       width: '100%',
       backgroundColor: colors.surface1, // opaque (§ retours : pas de semi-transparence)
       borderWidth: 1,
-      borderColor: mode === 'dark' ? colors.glassBorder : colors.cardBorder,
+      borderColor: mode === 'dark' ? colors.border : colors.border,
       borderRadius: radii.xl,
       paddingVertical: spacing(1.25),
       paddingHorizontal: spacing(1),
-      ...shadow.card,
     },
     fabWrap: {
       position: 'absolute',
@@ -801,7 +800,6 @@ function createStyles({ mode, colors, shadow }: Theme) {
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: 'rgba(255,255,255,0.12)',
-      ...shadow.card,
     },
   });
 }

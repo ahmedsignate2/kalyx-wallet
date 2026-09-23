@@ -118,9 +118,9 @@ export function InteractiveChart({
         ) : null}
         {scrubbing ? (
           <>
-            <Line x1={sx} y1={PAD} x2={sx} y2={height - PAD} stroke={colors.textFaint} strokeWidth={1} strokeDasharray="3 4" />
+            <Line x1={sx} y1={PAD} x2={sx} y2={height - PAD} stroke={colors.textTertiary} strokeWidth={1} strokeDasharray="3 4" />
             <Circle cx={sx} cy={sy} r={9} fill={color} fillOpacity={0.22} />
-            <Circle cx={sx} cy={sy} r={4.5} fill={color} stroke={colors.bgDeep} strokeWidth={2} />
+            <Circle cx={sx} cy={sy} r={4.5} fill={color} stroke={colors.bg} strokeWidth={2} />
           </>
         ) : null}
       </Svg>

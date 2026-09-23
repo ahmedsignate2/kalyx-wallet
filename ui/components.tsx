@@ -163,10 +163,10 @@ function createStyles({ colors }: Theme) {
     // `flex:1` fonctionnels ; marge basse pour respirer au-dessus du clavier.
     screenScroll: { flexGrow: 1, padding: spacing(3), paddingTop: 4, paddingBottom: spacing(5), gap: spacing(2) },
     card: {
-      backgroundColor: colors.card,
+      backgroundColor: colors.surface1,
       borderRadius: radii.lg,
       borderWidth: 1,
-      borderColor: colors.cardBorder,
+      borderColor: colors.border,
       padding: spacing(2.5),
       gap: spacing(1.5),
     },
@@ -177,7 +177,7 @@ function createStyles({ colors }: Theme) {
       justifyContent: 'center',
       paddingHorizontal: spacing(3),
     },
-    btnGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.cardBorder },
+    btnGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
     btnLabel: { color: colors.onPrimary, fontSize: 16, fontFamily: fonts.bold },
   });
 }

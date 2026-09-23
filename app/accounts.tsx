@@ -76,7 +76,7 @@ export default function Accounts() {
                   onChangeText={setEditLabel}
                   autoFocus
                   placeholder={t('accountNamePlaceholder')}
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textSecondary}
                   style={{ color: colors.text, fontSize: 16 }}
                 />
                 <View style={{ flexDirection: 'row', gap: spacing(1) }}>
@@ -101,7 +101,7 @@ export default function Accounts() {
             >
               <Card
                 style={{
-                  borderColor: active ? colors.accent : colors.cardBorder,
+                  borderColor: active ? colors.primary : colors.border,
                   flexDirection: 'row',
                   justifyContent: 'space-between',
                   alignItems: 'center',
@@ -124,7 +124,7 @@ export default function Accounts() {
                 >
                   <Icon name="sign" size={18} />
                 </KPressable>
-                {active ? <Icon name="check" size={18} color={colors.accent} /> : null}
+                {active ? <Icon name="check" size={18} color={colors.primary} /> : null}
               </Card>
             </KPressable>
           );
@@ -138,13 +138,13 @@ export default function Accounts() {
             value={newLabel}
             onChangeText={setNewLabel}
             placeholder={t('accountNameExample')}
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={colors.textSecondary}
             style={{ color: colors.text, fontSize: 16 }}
           />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
             {SUGGESTIONS.map((s) => (
               <KPressable key={s} onPress={() => setNewLabel(s)} hitSlop={8} accessibilityLabel={s}>
-                <Text style={{ color: colors.accent, fontSize: 13 }}>{s}</Text>
+                <Text style={{ color: colors.primary, fontSize: 13 }}>{s}</Text>
               </KPressable>
             ))}
           </View>
@@ -161,7 +161,7 @@ export default function Accounts() {
         </Card>
       ) : (
         <KPressable onPress={() => setAdding(true)} hitSlop={8} style={{ marginTop: spacing(1) }}>
-          <Text style={{ color: colors.accent }}>{t('addAccountPlus')}</Text>
+          <Text style={{ color: colors.primary }}>{t('addAccountPlus')}</Text>
         </KPressable>
       )}
       </ScrollView>

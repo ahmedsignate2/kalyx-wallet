@@ -175,7 +175,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
             alignItems: 'center',
             paddingVertical: spacing(0.5),
             borderTopWidth: 1,
-            borderTopColor: colors.glassBorder,
+            borderTopColor: colors.border,
             gap: spacing(1),
           }}
         >
@@ -193,7 +193,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
             alignItems: 'center',
             paddingVertical: spacing(0.5),
             borderTopWidth: 1,
-            borderTopColor: colors.glassBorder,
+            borderTopColor: colors.border,
             gap: spacing(1),
           }}
         >
@@ -211,7 +211,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
             alignItems: 'center',
             paddingVertical: spacing(0.5),
             borderTopWidth: 1,
-            borderTopColor: colors.glassBorder,
+            borderTopColor: colors.border,
             gap: spacing(1),
           }}
         >
@@ -236,7 +236,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
             alignItems: 'center',
             paddingVertical: spacing(0.5),
             borderTopWidth: 1,
-            borderTopColor: colors.glassBorder,
+            borderTopColor: colors.border,
             gap: spacing(1),
           }}
         >
@@ -265,28 +265,28 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
       {/* Section 3 : Documents & Liens réglementaires */}
       <GlassCard style={{ overflow: 'hidden' }}>
         <ListRow
-          left={<Icon name="security" size={20} color={colors.textMuted} />}
+          left={<Icon name="security" size={20} color={colors.textSecondary} />}
           title={t('legalPrivacyPolicy')}
           right={<Icon name="chevron" size={18} tone="faint" />}
           onPress={openPrivacy}
         />
         <ListRow
           divider
-          left={<Icon name="phrase" size={20} color={colors.textMuted} />}
+          left={<Icon name="phrase" size={20} color={colors.textSecondary} />}
           title={t('legalTermsOfService')}
           right={<Icon name="chevron" size={18} tone="faint" />}
           onPress={openTerms}
         />
         <ListRow
           divider
-          left={<Icon name="faq" size={20} color={colors.textMuted} />}
+          left={<Icon name="faq" size={20} color={colors.textSecondary} />}
           title={t('faq')}
           right={<Icon name="chevron" size={18} tone="faint" />}
           onPress={() => router.push('/faq')}
         />
         <ListRow
           divider
-          left={<Icon name="dapps" size={20} color={colors.textMuted} />}
+          left={<Icon name="dapps" size={20} color={colors.textSecondary} />}
           title={t('legalWebsite')}
           subtitle="kalyxwallet.com"
           right={<Icon name="chevron" size={18} tone="faint" />}
@@ -294,14 +294,14 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
         />
         <ListRow
           divider
-          left={<Icon name="githubLogo" size={20} color={colors.textMuted} />}
+          left={<Icon name="githubLogo" size={20} color={colors.textSecondary} />}
           title={t('legalGithub')}
           right={<Icon name="chevron" size={18} tone="faint" />}
           onPress={openGithub}
         />
         <ListRow
           divider
-          left={<Icon name="telegramLogo" size={20} color={colors.textMuted} />}
+          left={<Icon name="telegramLogo" size={20} color={colors.textSecondary} />}
           title={t('joinTelegram')}
           subtitle="t.me/kalyxntw"
           right={<Icon name="chevron" size={18} tone="faint" />}
@@ -309,7 +309,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
         />
         <ListRow
           divider
-          left={<Icon name="xLogo" size={20} color={colors.textMuted} />}
+          left={<Icon name="xLogo" size={20} color={colors.textSecondary} />}
           title={t('followOnX')}
           subtitle="@kalyxntw"
           right={<Icon name="chevron" size={18} tone="faint" />}

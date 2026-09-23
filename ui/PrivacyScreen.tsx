@@ -65,7 +65,9 @@ export function PrivacyScreen() {
 
   return (
     <View style={[StyleSheet.absoluteFill, { zIndex: 300 }]} pointerEvents="none">
-      <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
+      {/* `gradients.screen` rend une couleur unie (flat()) : une View suffit,
+          et le §2.2 ne tolère aucun dégradé décoratif. */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
         <KalyxLogo size={96} />
         <Text style={{ color: colors.text, fontSize: 28, fontFamily: fonts.extrabold, letterSpacing: 1 }}>Kalyx</Text>

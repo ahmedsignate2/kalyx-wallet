@@ -71,7 +71,7 @@ export default function Networks() {
       >
         <Card
           style={{
-            borderColor: active ? colors.accent : colors.cardBorder,
+            borderColor: active ? colors.primary : colors.border,
             borderWidth: active ? 1.5 : 1,
             flexDirection: 'row',
             alignItems: 'center',
@@ -135,7 +135,7 @@ export default function Networks() {
             {/* Section principale (mainnet) */}
             {mainnets.length > 0 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                <View style={{ width: 3, height: 15, borderRadius: 2, backgroundColor: colors.accent }} />
+                <View style={{ width: 3, height: 15, borderRadius: 2, backgroundColor: colors.primary }} />
                 <Text style={typography.section}>{t('mainNetworks')}</Text>
               </View>
             ) : null}
@@ -161,7 +161,7 @@ export default function Networks() {
       <ExplainSheet visible={!!explain} onClose={() => setExplain(null)} subject={explain ? { kind: 'network', name: explain.name, logo: chainIconUrl(explain.id), seed: explain.id } : null} />
       <Modal visible={addOpen} transparent animationType="slide" onRequestClose={() => setAddOpen(false)}>
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
-          <View style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing(2.5), gap: spacing(1.25) }}>
+          <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing(2.5), gap: spacing(1.25) }}>
             <Text style={typography.section}>{t("addNetwork")}</Text>
             {([
               ['name', t("networkName"), 'Arbitrum Sepolia'],
@@ -176,7 +176,7 @@ export default function Networks() {
                   value={String(form[key] ?? '')}
                   onChangeText={(value) => setForm((current) => ({ ...current, [key]: key === 'evmChainId' ? Number(value.replace(/\D/g, '')) : value }))}
                   placeholder={placeholder}
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textSecondary}
                   keyboardType={key === 'evmChainId' ? 'number-pad' : key === 'rpcUrl' || key === 'explorerUrl' ? 'url' : 'default'}
                   autoCapitalize="none"
                   autoCorrect={false}

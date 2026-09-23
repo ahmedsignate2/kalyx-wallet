@@ -39,7 +39,7 @@ export default function Notifications() {
         <Text style={typography.title}>{t('notifications')}</Text>
         {items.length > 0 ? (
           <KPressable onPress={clear} hitSlop={8}>
-            <Text style={{ color: colors.textMuted, fontSize: 13 }}>{t('clearAll')}</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{t('clearAll')}</Text>
           </KPressable>
         ) : null}
       </View>
@@ -47,7 +47,7 @@ export default function Notifications() {
       {items.length === 0 ? (
         <GlassCard>
           <View style={{ alignItems: 'center', paddingVertical: spacing(3), gap: spacing(1) }}>
-            <Icon name="notifications" size={30} color={colors.textMuted} />
+            <Icon name="notifications" size={30} color={colors.textSecondary} />
             <Text style={typography.bodyStrong}>{t('noNotifications')}</Text>
             <Text style={[typography.muted, { textAlign: 'center' }]}>{t('notifEmptyHint')}</Text>
           </View>
@@ -56,14 +56,14 @@ export default function Notifications() {
         <ScrollView contentContainerStyle={{ gap: spacing(1.25), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
           {items.map((n) => (
             <GlassCard key={n.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={ICON[n.type]} size={19} color={n.type === 'tx' ? colors.up : colors.accent} />
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={ICON[n.type]} size={19} color={n.type === 'tx' ? colors.up : colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={typography.bodyStrong} numberOfLines={1}>{n.title}</Text>
                 {n.body ? <Text style={typography.muted} numberOfLines={2}>{n.body}</Text> : null}
               </View>
-              <Text style={{ color: colors.textFaint, fontSize: 12 }}>{ago(n.at)}</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: 12 }}>{ago(n.at)}</Text>
             </GlassCard>
           ))}
         </ScrollView>

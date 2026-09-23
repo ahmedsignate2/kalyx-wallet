@@ -69,11 +69,11 @@ export default function Developer() {
       value={v}
       onChangeText={on}
       placeholder={ph}
-      placeholderTextColor={colors.textMuted}
+      placeholderTextColor={colors.textSecondary}
       autoCapitalize="none"
       autoCorrect={false}
       keyboardType={kbd ?? 'default'}
-      style={{ color: colors.text, fontSize: 15, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: 12, paddingHorizontal: spacing(1.5), paddingVertical: spacing(1.25) }}
+      style={{ color: colors.text, fontSize: 15, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: spacing(1.5), paddingVertical: spacing(1.25) }}
     />
   );
 
@@ -96,8 +96,8 @@ export default function Developer() {
         <View style={{ gap: spacing(1) }}>
           <Text style={typography.section}>{t('testNetworks')}</Text>
           <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="networks" size={20} color={showTestnets ? colors.warning : colors.textMuted} />
+            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="networks" size={20} color={showTestnets ? colors.warning : colors.textSecondary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={typography.bodyStrong}>{t('enableTestnets')}</Text>
@@ -112,7 +112,7 @@ export default function Developer() {
           <Text style={typography.section}>{t('configuredServices')}</Text>
           <GlassCard>
             {SERVICES.map((s, i) => (
-              <View key={s.name} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
+              <View key={s.name} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
                 <Text style={typography.body}>{s.name}</Text>
                 <Icon name={s.present ? 'check' : 'close'} size={17} color={s.present ? colors.up : colors.danger} />
               </View>
@@ -126,7 +126,7 @@ export default function Developer() {
           {chains.length > 0 ? (
             <GlassCard>
               {chains.map((c, i) => (
-                <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
+                <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
                   <View style={{ flex: 1 }}>
                     <Text style={typography.body}>{c.name}</Text>
                     <Text style={typography.muted}>{t('chainWord')} {c.evmChainId} · {c.nativeSymbol}</Text>
@@ -153,14 +153,14 @@ export default function Developer() {
           <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
             <KPressable onPress={onExport} style={{ flex: 1 }}>
               <GlassCard style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1) }}>
-                <Icon name="share" size={17} color={colors.accent} />
-                <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('backupWord')}</Text>
+                <Icon name="share" size={17} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('backupWord')}</Text>
               </GlassCard>
             </KPressable>
             <KPressable onPress={onImport} style={{ flex: 1 }}>
               <GlassCard style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1) }}>
-                <Icon name="copy" size={17} color={colors.accent} />
-                <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('restoreWord')}</Text>
+                <Icon name="copy" size={17} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('restoreWord')}</Text>
               </GlassCard>
             </KPressable>
           </View>
@@ -171,7 +171,7 @@ export default function Developer() {
           <Text style={typography.section}>{t('maintenance')}</Text>
           <KPressable onPress={() => { clearNotifs(); toast.info(t('notifCenterCleared')); }}>
             <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-              <Icon name="refresh" size={18} color={colors.textMuted} />
+              <Icon name="refresh" size={18} color={colors.textSecondary} />
               <Text style={typography.body}>{t('clearNotifCenter')}</Text>
             </GlassCard>
           </KPressable>
@@ -184,7 +184,7 @@ export default function Developer() {
 
 function Row({ label, value, divider, colors, typography }: { label: string; value: string; divider?: boolean; colors: ReturnType<typeof useTheme>['colors']; typography: ReturnType<typeof useTheme>['typography'] }) {
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: divider ? 1 : 0, borderTopColor: colors.glassBorder }}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: divider ? 1 : 0, borderTopColor: colors.border }}>
       <Text style={typography.muted}>{label}</Text>
       <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{value}</Text>
     </View>

@@ -55,7 +55,7 @@ export default function CreateWallet() {
         <Card>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
             {phrase.map((w, i) => (
-              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgElevated, borderRadius: radii.sm, paddingVertical: spacing(1), paddingHorizontal: spacing(1.5), minWidth: '30%', gap: 6 }}>
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface2, borderRadius: radii.sm, paddingVertical: spacing(1), paddingHorizontal: spacing(1.5), minWidth: '30%', gap: 6 }}>
                 <Text style={[typography.muted, { width: 20 }]}>{i + 1}</Text>
                 <Text style={typography.body}>{w}</Text>
               </View>
@@ -74,7 +74,7 @@ export default function CreateWallet() {
       <Muted>{t('newPhraseGenerated')}</Muted>
       <Card>
         <Text style={typography.muted}>{t('nameOptional')}</Text>
-        <TextInput value={label} onChangeText={setLabel} placeholder={t('namePlaceholderCreate')} placeholderTextColor={colors.textMuted} style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+        <TextInput value={label} onChangeText={setLabel} placeholder={t('namePlaceholderCreate')} placeholderTextColor={colors.textSecondary} style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
       </Card>
       <Card>
         <Text style={typography.muted}>{t('appPin')}</Text>
