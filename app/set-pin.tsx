@@ -33,6 +33,8 @@ export default function SetPin() {
   const insets = useSafeAreaInsets();
   const shake = useRef(new Animated.Value(0)).current;
   const confirmDraft = useWallet((s) => s.confirmDraft);
+  /** Brouillon venu d'un import : le texte de naissance change (§12.1). */
+  const wasImport = useWallet((s) => s.draftWasImported);
   const [step, setStep] = useState<'create' | 'confirm'>('create');
   const [firstPin, setFirstPin] = useState('');
   const [pin, setPin] = useState('');
@@ -88,7 +90,9 @@ export default function SetPin() {
     try {
       await confirmDraft(firstPin, { enableBiometric: useBio });
       useSettings.getState().setPinLength(firstPin.length); // ronds exacts au déverrouillage
-      router.replace('/home');
+      // Naissance du wallet (§12.1) avant l'accueil : c'est le moment où
+      // l'utilisateur apprend à reconnaître son glyphe.
+      router.replace({ pathname: '/wallet-born', params: wasImport ? { mode: 'import' } : {} });
     } catch {
       fail(t('cannotSecure'));
       setBusy(false);

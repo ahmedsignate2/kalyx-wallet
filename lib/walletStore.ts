@@ -100,6 +100,8 @@ interface WalletState {
   activeChain: string;
   account: Account | null;
   draftMnemonic: string | null;
+  /** Le brouillon vient-il d'un import (phrase, Drive) plutôt que d'une création ? */
+  draftWasImported: boolean;
   failedAttempts: number;
   lastFailedAt: number;
 
@@ -261,6 +263,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   activeChain: DEFAULT_CHAIN,
   account: null,
   draftMnemonic: null,
+  draftWasImported: false,
   failedAttempts: 0,
   lastFailedAt: 0,
 
@@ -293,12 +296,12 @@ export const useWallet = create<WalletState>((set, get) => ({
     });
   },
 
-  newDraft: (strength = 128) => set({ draftMnemonic: generateMnemonic(strength) }),
+  newDraft: (strength = 128) => set({ draftMnemonic: generateMnemonic(strength), draftWasImported: false }),
 
   setImportedDraft: (mnemonic) => {
     const m = canonicalMnemonic(mnemonic);
     if (!validateMnemonic(m)) throw new Error('Phrase de récupération invalide');
-    set({ draftMnemonic: m });
+    set({ draftMnemonic: m, draftWasImported: true });
   },
 
   confirmDraft: async (pin, opts) => {
@@ -363,6 +366,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       hasWallet: true,
       isUnlocked: true,
       draftMnemonic: null,
+      draftWasImported: false,
     });
   },
 
@@ -912,6 +916,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       activeAccountIndex: 0,
       account: null,
       draftMnemonic: null,
+      draftWasImported: false,
     });
   },
 }));
