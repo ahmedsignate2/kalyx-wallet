@@ -201,7 +201,7 @@ describe('Diagnostic Service', () => {
         'file:///mock-documents/nova_diagnostic.json',
         expect.objectContaining({
           mimeType: 'application/json',
-          dialogTitle: 'Nova Diagnostic Report',
+          dialogTitle: 'Kalyx Diagnostic Report',
         })
       );
     });
