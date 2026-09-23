@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Statut | Plan validé. Audit (§21) exécuté. **Étape 1 (Aura Engine v1) livrée en partie — voir §22.** |
+| Statut | Plan validé. Audit (§21) exécuté. **Étape 1 (Aura Engine v1) livrée en partie — voir §22.** Données de gas assainies, voix du bandeau hors-ligne livrée en 15 langues. |
 | Phase | 8 — Finition (phases 0 à 7 livrées) |
 | S'appuie sur | `docs/DESIGN.md`, `ui/tokens.ts`, `ui/kit/`, `HANDOFF.md` |
 | Contexte | Développeur solo. Le séquencement vise le plus petit prochain gain, pas un planning d'équipe. |
@@ -31,6 +31,7 @@ L'objectif n'est pas d'avoir plus d'effets que les autres. C'est d'avoir une **g
 4. **Les 5 états (§4) existent sur le papier**, mais seul l'état normal est vraiment soigné.
 5. **La voix chaude** ne couvre qu'une poignée de textes, sur 15 langues.
 6. **`assets/sounds` ne contient que 2 fichiers** (`send.mp3`, `success.mp3`) pour 4 familles visées.
+6 bis. ~~`gasTrackerStore` renvoie du `Math.random()`~~ — **corrigé** : frais réels via `EvmChainAdapter.getFeeData()`, prix ETH réel via `getPrices()`, dans la devise de l'utilisateur. Seuils de niveau encore à calibrer.
 7. **Welcome sur-explique** : case CGU + trois blocs de fonctionnalités, là où Phantom et Rainbow montrent sans raconter.
 8. ~~Reliquats de verre dans l'onboarding~~ — **infirmé** (§21.3).
 9. **Thème clair jamais vérifié sur device réel.** Un défaut majeur a été trouvé et corrigé depuis (halo et particules blancs sur fond blanc). Assets store non régénérés depuis le renommage Nova → Kalyx.
@@ -66,10 +67,10 @@ Le halo devient **l'unique indicateur d'état de l'app** : un seul objet vivant 
 
 **Ambiances**
 
-| Ambiance | Déclencheur réel | Comportement | Réduire les animations |
-|---|---|---|---|
-| Repos · réseau fluide | aucune tâche, `gasTrackerStore` normal | respiration lente et nette | intensité fixe |
-| Repos · réseau chargé | `gasTrackerStore` au-dessus d'un seuil | respiration plus lente, plus lourde | intensité fixe, un cran plus basse |
+| Ambiance | Déclencheur réel | Comportement | Réduire les animations | État |
+|---|---|---|---|---|
+| Repos · réseau fluide | aucune tâche | respiration lente et nette | intensité fixe | ✅ livré |
+| Repos · réseau chargé | `gasTrackerStore.level` ∈ {high, surge} | respiration plus lente, plus lourde | intensité fixe, un cran plus basse | ⬜ **débloqué** (données réelles depuis la correction du store) — reste à câbler : les frais ne sont récupérés qu'à l'ouverture de l'assistant, pas sur l'accueil, et les seuils sont à calibrer |
 | Synchronisation | refresh, transaction en attente | flux doux, plus rapide | intensité fixe + mention texte discrète |
 | Veille | hors-ligne | presque éteint, immobile | identique |
 
@@ -394,7 +395,7 @@ Zéro emoji, zéro point d'exclamation. Tutoiement en français. On dit ce qui s
 | Réseau chargé | Gas élevé | Le réseau est chargé. Attendre un peu te coûterait moins cher. |
 | Adresse suspecte | Warning: address poisoning | Cette adresse ressemble à une que tu connais, mais ce n'est pas la même. Vérifie avant d'envoyer. |
 | Refus | Rejected | Bien vu. Rien n'a été signé. |
-| Hors-ligne | No connection | Tu es hors ligne. Tes fonds sont là où tu les as laissés. |
+| Hors-ligne ✅ | No connection | Hors ligne. Tes fonds sont là où tu les as laissés. |
 | Sauvegarde | Backup completed | Ta phrase est vérifiée. Même si tu perds ce téléphone, tu ne perds pas ton wallet. |
 | Wallet vide | 0,00 $ | Ton wallet est prêt. Il attend son premier dépôt. |
 
@@ -568,7 +569,8 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 | Congestion | seuil de `gasTrackerStore`, comportement multi-chaîne | données réelles |
 | Biométrie | timing exact entre fermeture système et impulsion | test sur device |
 | **Reflet du bouton principal** | **`sheen` (`ui/kit/Button.tsx`) est un dégradé qui balaie — §19 rejette le principe. Le garde-t-on sur Welcome ?** | **décision produit — voir §21.5** |
-| **Données de gas** | **`lib/gasTrackerStore.ts` renvoie du `Math.random()` et ces chiffres inventés sont AFFICHÉS (`components/ai/AiChatModal.tsx:579`). Branche RPC réelle ou retrait de l'affichage ?** | **décision produit — urgent** |
+| ~~Données de gas~~ | ~~`Math.random()` affiché à l'utilisateur~~ | **tranché : source réelle.** `getFeeData()` (ethers + bascule RPC) et `getPrices()` (cache + repli), dans la devise de l'utilisateur. Coût `null` quand le prix de l'ETH manque → l'affichage se tait. Branche `surge` réparée et testée. |
+| Seuils de gas | `THRESHOLDS = { low: 10, normal: 30, high: 80 }` posés sur le papier, ce que le §19 rejette | à calibrer sur données réelles |
 | **Confirmation on-chain** | aucun suivi n'existe : l'impulsion Succès (§3.2) n'a pas de source | à construire avant l'étape 5 |
 
 ### 21.5 Contradiction ouverte entre le plan et le code poussé
