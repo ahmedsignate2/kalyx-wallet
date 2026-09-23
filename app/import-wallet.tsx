@@ -1,4 +1,4 @@
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, SENSITIVE_INPUT_PROPS } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -131,8 +131,8 @@ export default function ImportWallet() {
           placeholder={mode === 'phrase' ? 'mot1 mot2 mot3 …' : mode === 'key' ? '0x…' : '{ "app": "kalyx", … }'}
           placeholderTextColor={colors.textMuted}
           multiline={mode !== 'key'}
-          autoCapitalize="none"
-          autoCorrect={false}
+          // Phrase, clé privée ou sauvegarde chiffrée : tous des secrets (§7.3).
+          {...SENSITIVE_INPUT_PROPS}
           secureTextEntry={mode === 'key'}
           style={{ minHeight: mode === 'key' ? 44 : 100, color: colors.text, fontSize: mode === 'backup' ? 12 : 16, textAlignVertical: 'top' }}
         />

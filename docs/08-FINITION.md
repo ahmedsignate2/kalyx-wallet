@@ -496,6 +496,8 @@ Dans `ui/theme.ts` : `shadow.card` vaut `{}` (no-op), `colors.glass` vaut `surfa
 
 **5. Skia n'est pas une reconstruction mais une adoption.** La dépendance n'a jamais été installée. L'étape 7 change de nature : ajout de dépendance + build EAS d'essai, avec le risque de compatibilité correspondant.
 
+**6 bis. Faille trouvée à l'étape 2 : les phrases de récupération pouvaient être apprises par le clavier.** `spellCheck` n'était réglé NULLE PART dans le projet (0 occurrence), et `autoCorrect={false}` ne suffit pas — sur iOS, `spellCheck` est un drapeau distinct, et c'est lui qui alimente le dictionnaire des mots appris, lequel se synchronise dans le cloud du clavier. Les deux champs de phrase (`import.tsx`, `import-wallet.tsx`) sont `multiline` et non `secureTextEntry`, donc sans protection implicite. Corrigé par `SENSITIVE_INPUT_PROPS` (kit), qui réunit les six réglages pour qu'on ne puisse plus en oublier la moitié. Les champs de mot de passe (`cloud-backup.tsx`) étaient déjà corrects : `secureTextEntry` + `textContentType="newPassword"`.
+
 **6. Le vrai gisement est ailleurs : 96 boutons hors kit.** C'est la dette qui a un effet sensible (pression, haptique, zones de tap incohérentes), et elle est massivement concentrée : `token/[id]` (8), `AiChatModal` (7), `set-pin` (7), `networks` (6), `earn` (6).
 
 ### 21.4 Scorecard
@@ -540,7 +542,7 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 |---|---|---|
 | 0 | ~~Audit~~ | **Fait (§21)** |
 | 1 | Aura Engine v1, en repli SVG (§3) | **partiellement livré.** Faits : moteur (`lib/aura.ts`), dérivation de l'ambiance (`lib/auraBinding.ts`), état réseau en store (`lib/networkStore.ts`), détection de réception (`lib/portfolio/receive.ts`), halo branché sur l'accueil. Manquent : impulsion Succès (aucun suivi de confirmation on-chain n'existe), ambiance « réseau chargé » (données de gas fausses), Aura sur Unlock (pas de halo sur cet écran — étape 4) |
-| 2 | Fondations transverses : états des boutons, claviers, toasts, réduire-animations (§6, §7, §12.2) | un écran pilote passe toute la checklist §20.2 |
+| 2 | Fondations transverses (§6, §7, §12.2) | **en cours.** Faits : grammaire haptique Light/Selection, dépassement au relâchement, chargement sans saut de largeur, états `success` et `notYet`, file d'attente des toasts + durée proportionnelle + annonce lecteur d'écran, ombre du toast retirée, pavé de montant (séparateur selon la langue, maintien pour effacer, touche au ressort), pavé PIN (dégradé décoratif et code mort retirés), `SENSITIVE_INPUT_PROPS` appliqué aux champs de phrase. Manquent : glisser pour fermer un toast (voir §23), sheets qui suivent le clavier (§7.3), écran pilote validé sur device |
 | 3 | **Migration des 96 boutons hors kit**, par ordre de densité | zéro `TouchableOpacity` / `Pressable` brut hors kit |
 | 4 | Unlock + Welcome (§7.2, §15) | le premier écran et le plus vu sont au niveau signature |
 | 5 | États vides + chiffres vivants + réception (§8, §11) | un wallet neuf et une réception sont mis en scène de bout en bout |
@@ -572,6 +574,7 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 | ~~Données de gas~~ | ~~`Math.random()` affiché à l'utilisateur~~ | **tranché : source réelle.** `getFeeData()` (ethers + bascule RPC) et `getPrices()` (cache + repli), dans la devise de l'utilisateur. Coût `null` quand le prix de l'ETH manque → l'affichage se tait. Branche `surge` réparée et testée. |
 | Seuils de gas | `THRESHOLDS = { low: 10, normal: 30, high: 80 }` posés sur le papier, ce que le §19 rejette | à calibrer sur données réelles |
 | **Confirmation on-chain** | aucun suivi n'existe : l'impulsion Succès (§3.2) n'a pas de source | à construire avant l'étape 5 |
+| **`react-native-gesture-handler`** | déclaré en dépendance mais importé NULLE PART, donc pas de `GestureHandlerRootView`. Bloque « glisser pour fermer » (§12.2) et le home morphing (§9) | adoption structurelle à décider — le §9 en aura besoin de toute façon |
 
 ### 21.5 Contradiction ouverte entre le plan et le code poussé
 

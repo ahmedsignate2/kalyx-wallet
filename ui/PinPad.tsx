@@ -1,19 +1,28 @@
 /**
- * Saisie de PIN « premium » : ronds animés + pavé numérique en relief (dégradé
- * + ombre), retour haptique par touche, secousse à l'erreur.
+ * Saisie de PIN : anneau de progression + pavé numérique, retour haptique par
+ * touche, secousse à l'erreur.
  *
- * Deux modes de ronds :
- * - `expectedLength` connu (option « app bancaire ») → on affiche EXACTEMENT ce
- *   nombre de ronds vides qui se remplissent ; auto-validation quand c'est plein ;
- * - sinon → affichage progressif : un rond apparaît à chaque chiffre (aucune
- *   longueur imposée), l'appelant valide via un bouton.
+ * Nettoyé à l'étape 2 (docs/08 §18, §7.2) :
+ *  - les touches étaient dessinées avec un LinearGradient « pour le volume ».
+ *    Un dégradé décoratif est précisément ce que le §18 interdit : le relief
+ *    vient du contraste de la surface, pas d'une fausse lumière peinte dessus ;
+ *  - un composant `Dot` et ses trois variables de taille étaient calculés à
+ *    chaque rendu sans jamais être affichés — l'anneau les avait remplacés.
+ *    Code mort supprimé ;
+ *  - la touche s'enfonce au RESSORT au lieu de sauter d'un état à l'autre, et
+ *    respecte « réduire les animations » ;
+ *  - alias de thème hérités (`glassBorder`, `accent`) remplacés par les tokens.
+ *
+ * `expectedLength` connu → auto-validation quand c'est plein ; sinon l'appelant
+ * valide via un bouton.
  */
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
+import Reanimated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { haptic } from '../lib/haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { KalyxRing } from './KalyxRing';
 import { fonts, radii, spacing, useTheme } from './theme';
+import { radius, springs, durations } from './tokens';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 /** Taille d'une touche et espacement : le pavé fait 4 rangées = 4×KEY + 3×GAP = 324 px. */
@@ -80,13 +89,6 @@ export function PinPad({
     onChange(value.slice(0, -1));
   };
 
-  // Nb de ronds : exact si connu, sinon progressif (min 1 dès la 1ʳᵉ frappe).
-  const dotCount = expectedLength ?? Math.max(1, Math.min(cap, value.length));
-  // Ronds adaptatifs : plus petits/serrés quand le code est long (ne prennent
-  // pas toute la largeur ; 12 ronds tiennent sous le clavier).
-  const dotSize = dotCount <= 6 ? 15 : dotCount <= 9 ? 13 : 11;
-  const dotGap = dotCount <= 6 ? 14 : dotCount <= 9 ? 11 : 9;
-
   return (
     <View style={{ alignItems: 'center', gap: spacing(2) }}>
       {/* Anneau de progression (compact : le pavé complet doit tenir sans défiler) */}
@@ -116,53 +118,42 @@ export function PinPad({
   );
 }
 
-/** Rond du PIN : « pop » (scale) au remplissage. */
-function Dot({ filled, size }: { filled: boolean; size: number }) {
-  const { colors } = useTheme();
-  const s = useRef(new Animated.Value(filled ? 1 : 0)).current;
-  useEffect(() => {
-    Animated.spring(s, { toValue: filled ? 1 : 0, useNativeDriver: true, speed: 20, bounciness: 14 }).start();
-  }, [filled, s]);
-  const scale = s.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] });
-  const r = size / 2;
-  return (
-    <View style={{ width: size, height: size, borderRadius: r, borderWidth: 1.5, borderColor: colors.glassBorder, alignItems: 'center', justifyContent: 'center' }}>
-      <Animated.View style={{ width: size, height: size, borderRadius: r, backgroundColor: colors.accent, opacity: s, transform: [{ scale }] }} />
-    </View>
-  );
-}
-
-/** Touche du pavé : léger relief (dégradé de surface + ombre douce). */
+/** Touche du pavé : surface pleine, enfoncement au ressort. */
 function Key({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
-  const { colors, mode, shadow } = useTheme();
-  // Surface légèrement dégradée pour le volume (plus clair en haut).
-  const surface: readonly [string, string] =
-    mode === 'dark' ? ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.03)'] : ['#FFFFFF', '#EEF1F8'];
+  const { colors } = useTheme();
+  const reduced = useReducedMotion();
+  const pressed = useSharedValue(0);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: reduced ? 1 : 1 - pressed.value * 0.06 }],
+    backgroundColor: pressed.value > 0.5 ? colors.surface3 : colors.surface2,
+  }));
+
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => ({ width: KEY, height: KEY, borderRadius: radii.pill, transform: [{ scale: pressed ? 0.94 : 1 }] })}
+      onPressIn={() => { pressed.value = reduced ? withTiming(1, { duration: durations.micro }) : withSpring(1, springs.snappy); }}
+      onPressOut={() => { pressed.value = reduced ? withTiming(0, { duration: durations.micro }) : withSpring(0, springs.snappy); }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
-      <LinearGradient
-        colors={surface}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+      <Reanimated.View
         style={[
           {
             width: KEY,
             height: KEY,
-            borderRadius: radii.pill,
+            borderRadius: radius.round,
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 1,
-            borderColor: colors.glassBorder,
+            borderColor: colors.border,
           },
-          shadow.card,
+          style,
         ]}
       >
         <Text style={{ color: colors.text, fontSize: 27, fontFamily: fonts.semibold }}>{label}</Text>
-      </LinearGradient>
+      </Reanimated.View>
     </Pressable>
   );
 }
