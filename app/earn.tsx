@@ -209,8 +209,10 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
   const t = useT();
   const p = pv.protocol;
   const isStaking = p.kind === 'staking';
-  const withdrawLabel = isStaking ? (t('earnUnstake') || 'Unstake') : (t('earnWithdraw') || 'Retirer');
-  const depositLabel = isStaking ? (t('earnStake') || 'Stake') : (t('earnDeposit') || 'Déposer');
+  // Les clés existent dans les 15 langues : les replis codés en dur étaient du
+  // code mort qui n'aurait servi qu'à afficher du français à tout le monde.
+  const withdrawLabel = isStaking ? t('earnUnstake') : t('earnWithdraw');
+  const depositLabel = isStaking ? t('earnStake') : t('earnDeposit');
 
   return (
     <GlassCard>

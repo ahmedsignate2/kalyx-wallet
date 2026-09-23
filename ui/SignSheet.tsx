@@ -13,7 +13,7 @@ import { useT } from "../lib/settingsStore";
  */
 import React, { useState } from 'react';
 import { View, ScrollView, Image } from 'react-native';
-import { Text, Button, HoldButton, Surface, Divider, RiskBadge, AddressGlyph, Sheet, Skeleton, Pressable } from './kit';
+import { Text, Button, HoldButton, Surface, Divider, RiskBadge, AddressGlyph, Sheet, Skeleton, Pressable, Pressable as KPressable } from './kit';
 import { Icon } from './icon';
 import { useTheme } from './theme';
 import { space, radius } from './tokens';
@@ -61,7 +61,7 @@ export function SignSheet({
       {badDomain ? (
         <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'center', backgroundColor: colors.danger, borderRadius: radius.input, padding: space[3] }}>
           <Icon name="alert" size={18} color="#fff" />
-          <Text variant="caption" style={{ color: '#fff', flex: 1 }}>{verify?.isScam ? 'Site signalé comme frauduleux. Refuse.' : 'Ce site n’est pas celui qu’il prétend être. Refuse.'}</Text>
+          <Text variant="caption" style={{ color: '#fff', flex: 1 }}>{verify?.isScam ? t('domainScam') : t('domainImpersonating')}</Text>
         </View>
       ) : null}
 
@@ -124,9 +124,9 @@ export function SignSheet({
       {/* 5. Détails techniques repliés */}
       {raw ? (
         <View>
-          <Pressable onPress={() => setShowRaw((v) => !v)} style={{ paddingVertical: space[1] }}>
-            <Text variant="caption" tone="secondary">{showRaw ? 'Masquer les données techniques' : 'Voir les données techniques'}</Text>
-          </Pressable>
+          <KPressable onPress={() => setShowRaw((v) => !v)} hitSlop={8} style={{ paddingVertical: space[1] }} accessibilityLabel={showRaw ? t('hideTechDetails') : t('showTechDetails')}>
+            <Text variant="caption" tone="secondary">{showRaw ? t('hideTechDetails') : t('showTechDetails')}</Text>
+          </KPressable>
           {showRaw ? (
             <ScrollView style={{ maxHeight: 160 }}>
               <Text variant="micro" tone="tertiary" selectable style={{ fontFamily: undefined }}>{raw}</Text>
@@ -139,7 +139,7 @@ export function SignSheet({
       {danger ? (
         <View style={{ gap: space[2] }}>
           <Button label={t("deny")} variant="primary" onPress={onReject} />
-          <HoldButton label={signLabel ?? 'Signer quand même'} danger icon="sign" onComplete={onSign} disabled={!explanation} />
+          <HoldButton label={signLabel ?? t('signAnyway')} danger icon="sign" onComplete={onSign} disabled={!explanation} />
         </View>
       ) : (
         <View style={{ flexDirection: 'row', gap: space[2] }}>

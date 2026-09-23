@@ -24,7 +24,7 @@ function Ico({ n }: { n: IconName }) {
 }
 const chevron = <Icon name="chevron" size={18} tone="faint" />;
 
-function OptionButton({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+function OptionButton({ label, selected, onPress, icon }: { label: string; selected: boolean; onPress: () => void; icon?: IconName }) {
   const { colors } = useTheme();
   return (
     <KPressable
@@ -44,7 +44,13 @@ function OptionButton({ label, selected, onPress }: { label: string; selected: b
         backgroundColor: selected ? colors.accent : 'transparent',
       }}
     >
-      {selected ? <Icon name="checkmark" size={15} color={colors.onPrimary} /> : null}
+      {/* Coche si sélectionné, sinon l'icône de l'option — jamais les deux, pour
+          ne pas élargir le bouton selon son état. */}
+      {selected ? (
+        <Icon name="checkmark" size={15} color={colors.onPrimary} />
+      ) : icon ? (
+        <Icon name={icon} size={15} color={colors.text} />
+      ) : null}
       <Text style={{ color: selected ? colors.onPrimary : colors.text, fontFamily: fonts.semibold }}>{label}</Text>
     </KPressable>
   );
@@ -165,14 +171,17 @@ export default function Settings() {
             <Text style={typography.body}>{t('appearance')}</Text>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
+            {/* Les libellés portaient des emoji (⚙ 🌙 ☀️), interdits par le §19 :
+                leur rendu change selon la plateforme et ils ne sont pas lus par
+                les lecteurs d'écran. Icônes du kit à la place. */}
             {(
               [
-                { key: 'system', label: `⚙ ${t('themeSystem')}` },
-                { key: 'dark', label: `🌙 ${t('themeDark')}` },
-                { key: 'light', label: `☀️ ${t('themeLight')}` },
+                { key: 'system', label: t('themeSystem'), icon: 'gear' },
+                { key: 'dark', label: t('themeDark'), icon: 'appearance' },
+                { key: 'light', label: t('themeLight'), icon: 'flash' },
               ] as const
             ).map((o) => (
-              <OptionButton key={o.key} label={o.label} selected={themePref === o.key} onPress={() => setThemePref(o.key)} />
+              <OptionButton key={o.key} label={o.label} icon={o.icon} selected={themePref === o.key} onPress={() => setThemePref(o.key)} />
             ))}
           </View>
         </View>
