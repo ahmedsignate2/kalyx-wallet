@@ -144,6 +144,23 @@ export default function Approvals() {
                       </Text>
                     </View>
                   </View>
+                  {/*
+                    TRANSACTION THEATER (docs/08 §13) : intention → conséquence →
+                    détails techniques. L'écran montrait l'INFORMATION (le montant
+                    autorisé) sans dire ce qu'elle IMPLIQUE. Une autorisation
+                    illimitée affichée « ∞ » est parfaitement exacte et
+                    parfaitement incompréhensible pour qui ne connaît pas le
+                    mécanisme des allowances ERC-20. On dit donc d'abord ce que
+                    l'app PEUT FAIRE, en français courant, et ce qui reste
+                    possible plus tard.
+                  */}
+                  <Text style={[typography.muted, { marginTop: spacing(1) }]}>
+                    {unlimited
+                      ? t('approvalIntentUnlimited').replace('{symbol}', it.symbol)
+                      : t('approvalIntentLimited')
+                          .replace('{amount}', formatTokenAmount(it.allowance, it.decimals))
+                          .replace('{symbol}', it.symbol)}
+                  </Text>
                   <KPressable
                     onPress={() => setTarget(it)}
                     style={{ marginTop: spacing(1.5), alignItems: 'center', paddingVertical: spacing(1.25), borderRadius: radii.pill, borderWidth: 1, borderColor: colors.danger + '66' }}
