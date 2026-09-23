@@ -327,7 +327,7 @@ export async function exportDiagnosticReport(): Promise<DiagnosticExportResult> 
 
       await Sharing.shareAsync(fileUri, {
         mimeType: 'application/json',
-        dialogTitle: 'Nova Diagnostic Report',
+        dialogTitle: 'Kalyx Diagnostic Report',
         UTI: 'public.json',
       });
 

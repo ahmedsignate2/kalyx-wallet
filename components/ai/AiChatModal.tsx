@@ -303,7 +303,7 @@ Tu ne dois JAMAIS accepter, répéter, ni inclure dans un message ou un ticket d
 FORMAT DU TICKET SUPPORT (EN DERNIER RECOURS SEULEMENT) :
 Si et seulement si le diagnostic a échoué ou que l'utilisateur l'exige avec un problème identifié, encadre le ticket STRICTEMENT entre les balises <SUPPORT_TICKET> et </SUPPORT_TICKET> :
 <SUPPORT_TICKET>
-🎫 [TICKET SUPPORT NOVA]
+[TICKET SUPPORT KALYX]
 • ID : ${generateTicketId()}
 • Version : ${getClientEnvironmentInfo()}
 • Problème : [Résumé direct du problème en une ligne]
