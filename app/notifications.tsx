@@ -1,6 +1,6 @@
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useEffect } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
 import { PremiumScreen, GlassCard } from '../ui/premium';
 import { Icon, type IconName } from '../ui/icon';
@@ -38,9 +38,9 @@ export default function Notifications() {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={typography.title}>{t('notifications')}</Text>
         {items.length > 0 ? (
-          <Pressable onPress={clear} hitSlop={8}>
+          <KPressable onPress={clear} hitSlop={8}>
             <Text style={{ color: colors.textMuted, fontSize: 13 }}>{t('clearAll')}</Text>
-          </Pressable>
+          </KPressable>
         ) : null}
       </View>
 

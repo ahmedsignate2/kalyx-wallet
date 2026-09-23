@@ -16,12 +16,12 @@
  *  - Provider EIP-1193 injecté (window.ethereum) — plomberie inchangée.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, TextInput, Pressable as RNPressable, ScrollView, Share, Alert, Switch, Image, useWindowDimensions, KeyboardAvoidingView, Platform, Linking } from 'react-native';
+import { View, TextInput, ScrollView, Share, Alert, Switch, Image, useWindowDimensions, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
-import { Text, Button, IconButton, Surface, Divider, ListRow, Sheet, Chip, EmptyState, AddressGlyph, Input, Pressable } from '../ui/kit';
+import { Text, Button, IconButton, Surface, Divider, ListRow, Sheet, Chip, EmptyState, AddressGlyph, Input, Pressable, Pressable as KPressable } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { SignSheet } from '../ui/SignSheet';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
@@ -528,9 +528,9 @@ export default function Browser() {
             {VERIFIED_DAPPS.map((c) => {
               const on = c.category === category;
               return (
-                <RNPressable key={c.category} onPress={() => { haptic.selection(); setCategory(c.category); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={{ paddingVertical: space[1], borderBottomWidth: 2, borderBottomColor: on ? colors.text : 'transparent' }}>
+                <KPressable key={c.category} onPress={() => { haptic.selection(); setCategory(c.category); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={{ paddingVertical: space[1], borderBottomWidth: 2, borderBottomColor: on ? colors.text : 'transparent' }}>
                   <Text variant="body" tone={on ? 'primary' : 'secondary'}>{c.category}</Text>
-                </RNPressable>
+                </KPressable>
               );
             })}
           </View>
@@ -614,14 +614,14 @@ export default function Browser() {
               {q ? (
                 <>
                   {suggestions.map((s) => (
-                    <Pressable key={s.host} onPress={() => go(s.url, s.title)} noScale style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: 56 }}>
+                    <KPressable key={s.host} onPress={() => go(s.url, s.title)} noScale style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: 56 }}>
                       <DappLogo host={s.host} size={32} />
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Highlight text={s.title || s.host} />
                         <Text variant="caption" tone="tertiary" numberOfLines={1}>{s.host}</Text>
                       </View>
                       <Icon name={s.kind === 'fav' ? 'starFilled' : s.kind === 'verified' ? 'check' : 'history'} size={14} tone="faint" />
-                    </Pressable>
+                    </KPressable>
                   ))}
                   <ListRow left={<View style={{ width: 32, alignItems: 'center' }}><Icon name="search" size={18} tone="muted" /></View>} title={normalizeUrl(input) ? `${t('openUrl')} ${input.trim()}` : `${t('searchQuery')} « ${input.trim()} »`} subtitle={normalizeUrl(input) ? undefined : `${t('searchQuery')} ${ENGINES.find((e) => e.key === engine)?.label ?? ''}`} onPress={() => go(input)} />
                 </>
@@ -647,7 +647,7 @@ export default function Browser() {
               <View style={{ flex: 1, height: 48, borderRadius: radius.round, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.textSecondary, flexDirection: 'row', alignItems: 'center', paddingHorizontal: space[4], gap: space[2] }}>
                 <Icon name="search" size={15} tone="muted" />
                 <TextInput autoFocus value={input} onChangeText={setInput} onSubmitEditing={() => go(input)} placeholder={t('searchOrEnterUrl')} placeholderTextColor={colors.textTertiary} autoCapitalize="none" autoCorrect={false} keyboardType="url" returnKeyType="go" selectTextOnFocus style={{ flex: 1, color: colors.text, fontSize: 16, fontFamily: 'GeneralSans-Medium', paddingVertical: 0 }} />
-                {input ? <RNPressable onPress={() => setInput('')} hitSlop={8}><Icon name="close" size={14} tone="muted" /></RNPressable> : null}
+                {input ? <KPressable onPress={() => setInput('')} hitSlop={8}><Icon name="close" size={14} tone="muted" /></KPressable> : null}
               </View>
               <IconButton icon="scan" label={t('scanQr')} tone="ghost" onPress={() => router.push('/scan')} />
             </>
@@ -668,11 +668,11 @@ export default function Browser() {
                 onLongPress={() => { if (activeTab.url) { Clipboard.setStringAsync(activeTab.url); haptic.light(); toast.success(t('linkCopied'), origin); } }}
                 onAccount={() => setConnSheet(true)}
               />
-              <RNPressable onPress={() => setSwitcher(true)} accessibilityLabel={`${tabs.length} ${t('tabs')}`} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
+              <KPressable onPress={() => setSwitcher(true)} accessibilityLabel={`${tabs.length} ${t('tabs')}`} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
                 <View style={{ width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
                   <Text variant="micro" tabular>{tabs.length}</Text>
                 </View>
-              </RNPressable>
+              </KPressable>
               <IconButton icon="more" label={t('menu')} tone="ghost" onPress={() => setMenu(true)} />
             </>
           )}
@@ -696,18 +696,18 @@ export default function Browser() {
             const host = tb.url ? originOf(tb.url) : '';
             const on = tb.id === activeId;
             return (
-              <Pressable key={tb.id} onPress={() => { setActiveId(tb.id); setSwitcher(false); }} accessibilityLabel={tb.title || host || t('newTab')} style={{ width: w }}>
+              <KPressable key={tb.id} onPress={() => { setActiveId(tb.id); setSwitcher(false); }} accessibilityLabel={tb.title || host || t('newTab')} style={{ width: w }}>
                 <View style={{ height: w * 0.75, borderRadius: radius.container, backgroundColor: tb.incognito ? colors.bg : colors.surface1, borderWidth: on ? 2 : 1, borderColor: on ? colors.text : tb.incognito ? colors.textSecondary : colors.border, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                   {host ? <DappLogo host={host} size={40} /> : <Icon name={tb.incognito ? 'incognito' : 'add'} size={28} tone="faint" />}
-                  <RNPressable onPress={() => closeTab(tb.id)} hitSlop={8} accessibilityLabel={t('closeTab')} style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}>
+                  <KPressable onPress={() => closeTab(tb.id)} hitSlop={8} accessibilityLabel={t('closeTab')} style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}>
                     <Icon name="close" size={14} />
-                  </RNPressable>
+                  </KPressable>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: space[1] }}>
                   {host ? <DappLogo host={host} size={14} /> : null}
                   <Text variant="caption" numberOfLines={1} style={{ flex: 1 }}>{tb.title || host || (tb.incognito ? t('privateTab') : t('newTab'))}</Text>
                 </View>
-              </Pressable>
+              </KPressable>
             );
           })}
         </View>
@@ -854,12 +854,12 @@ export default function Browser() {
           <Text variant="caption" tone="secondary">{t('canProposeTx')}</Text>
           <Text variant="caption" tone="secondary">{t('cannotMove')}</Text>
           <Divider />
-          <Pressable onPress={() => setRememberSite((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <KPressable onPress={() => setRememberSite((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: rememberSite ? colors.text : colors.border, backgroundColor: rememberSite ? colors.text : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
               {rememberSite ? <Icon name="check" size={14} color={colors.bg} /> : null}
             </View>
             <Text variant="body">{t('rememberSite')}</Text>
-          </Pressable>
+          </KPressable>
         </Surface>
 
         <View style={{ flexDirection: 'row', gap: space[2], marginTop: space[2] }}>

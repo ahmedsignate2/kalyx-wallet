@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, StatusBar, StyleSheet } from 'react-native';
+import { View, Text, TextInput, KeyboardAvoidingView, Platform, StatusBar, StyleSheet } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -136,10 +136,10 @@ export default function Import() {
           <GlassCard>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(1) }}>
               <Text style={typography.muted}>{wordCount > 0 ? `${wordCount} ${t('wordsWord')}` : t('recoveryPhrase')}</Text>
-              <Pressable onPress={paste} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <KPressable onPress={paste} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                 <Icon name="copy" size={15} color={colors.accent} />
                 <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('paste')}</Text>
-              </Pressable>
+              </KPressable>
             </View>
             <TextInput
               value={text}

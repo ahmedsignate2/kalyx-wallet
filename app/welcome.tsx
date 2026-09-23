@@ -3,7 +3,7 @@
  *
  * C'est aussi l'OUVERTURE de l'app au premier lancement : aucun splash ne le
  * précède (app/_layout.tsx), donc la séquence complète se joue ici, d'un seul
- * tenant, en ~1,8 s. D'abord la cérémonie, seule à l'écran et en grand : le
+ * tenant, en ~2,2 s. D'abord la cérémonie, seule à l'écran et en grand : le
  * noyau s'allume, les seize rayons en jaillissent un par un au ressort, le halo
  * naît du même point. Puis, SEULEMENT ensuite, le logo se pose pendant que le
  * nom puis la baseline montent, les trois arguments
@@ -18,11 +18,11 @@
  * écran mort au tout premier contact.
  */
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, Pressable as RNPressable } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
-import { Text, Button, Halo, Pressable, Checkbox } from '../ui/kit';
+import { Text, Button, Halo, Pressable, Checkbox, Pressable as KPressable } from '../ui/kit';
 import { KalyxLogoIgnite } from '../ui/KalyxLogo';
 import { Icon, type IconName } from '../ui/icon';
 import { useTheme } from '../ui/theme';
@@ -43,10 +43,10 @@ import { isDriveConfigured } from '../lib/googleDrive';
  * puis se pose pendant que le nom arrive : le geste sert de transition au lieu
  * d'être suivi d'une coupure.
  */
-const IGNITE = { delay: 80, stagger: 32 } as const;
-const BEAT = { logo: 0, name: 950, tagline: 1090, props: 1220, actions: 1500 } as const;
+const IGNITE = { delay: 110, stagger: 44 } as const;
+const BEAT = { logo: 0, name: 1180, tagline: 1360, props: 1520, actions: 1860 } as const;
 /** Décalage entre deux arguments (seule cascade autorisée, cf. doctrine §2). */
-const STAGGER = 80;
+const STAGGER = 95;
 /** Échelle du logo pendant la cérémonie, avant qu'il ne se pose à 1. */
 const CEREMONY_SCALE = 1.45;
 
@@ -159,7 +159,7 @@ export default function Welcome() {
   };
 
   return (
-    <RNPressable onPress={skip} style={{ flex: 1, backgroundColor: colors.bg }}>
+    <KPressable onPress={skip} style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
       {/*
         ScrollView + flexGrow:1 : centré quand tout tient, défilant sinon (petit
@@ -237,6 +237,6 @@ export default function Welcome() {
           ) : null}
         </Animated.View>
       </ScrollView>
-    </RNPressable>
+    </KPressable>
   );
 }

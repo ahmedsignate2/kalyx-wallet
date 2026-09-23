@@ -1,7 +1,7 @@
 import { Icon } from '../ui/icon';
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React from 'react';
-import { Text, ScrollView, Pressable, View } from 'react-native';
+import { Text, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Title } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
@@ -22,7 +22,7 @@ export default function Language() {
         {LANGUAGES.map((l) => {
           const active = l.code === language;
           return (
-            <Pressable
+            <KPressable
               key={l.code}
               onPress={() => {
                 setLanguage(l.code);
@@ -43,7 +43,7 @@ export default function Language() {
                 </View>
                 {active ? <Icon name="check" size={18} color={colors.accent} /> : null}
               </Card>
-            </Pressable>
+            </KPressable>
           );
         })}
       </ScrollView>

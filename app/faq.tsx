@@ -1,6 +1,6 @@
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
 import { PremiumScreen, GlassCard } from '../ui/premium';
 import { Icon } from '../ui/icon';
@@ -60,12 +60,12 @@ export default function Faq() {
                 const expanded = open === id;
                 return (
                   <View key={id} style={{ borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
-                    <Pressable onPress={() => setOpen(expanded ? null : id)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1.5) }}>
+                    <KPressable onPress={() => setOpen(expanded ? null : id)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1.5) }}>
                       <Text style={[typography.bodyStrong, { flex: 1, fontSize: 15 }]}>{qa.q}</Text>
                       <View style={{ transform: [{ rotate: expanded ? '90deg' : '0deg' }] }}>
                         <Icon name="chevron" size={16} color={colors.textMuted} />
                       </View>
-                    </Pressable>
+                    </KPressable>
                     {expanded ? <Text style={[typography.muted, { fontSize: 14, lineHeight: 20, paddingBottom: spacing(1.5) }]}>{qa.a}</Text> : null}
                   </View>
                 );

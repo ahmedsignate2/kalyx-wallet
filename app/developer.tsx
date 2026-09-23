@@ -1,6 +1,6 @@
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, Share, Switch } from 'react-native';
+import { View, Text, TextInput, ScrollView, Share, Switch } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Stack } from 'expo-router';
 import Constants from 'expo-constants';
@@ -131,9 +131,9 @@ export default function Developer() {
                     <Text style={typography.body}>{c.name}</Text>
                     <Text style={typography.muted}>{t('chainWord')} {c.evmChainId} · {c.nativeSymbol}</Text>
                   </View>
-                  <Pressable onPress={() => removeChain(c.id)} hitSlop={8}>
+                  <KPressable onPress={() => removeChain(c.id)} hitSlop={8}>
                     <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('removeWord')}</Text>
-                  </Pressable>
+                  </KPressable>
                 </View>
               ))}
             </GlassCard>
@@ -151,30 +151,30 @@ export default function Developer() {
           {/* Sauvegarde portable des réseaux (survit à une réinstallation) */}
           <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>{t('customNetworksNote')}</Text>
           <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
-            <Pressable onPress={onExport} style={{ flex: 1 }}>
+            <KPressable onPress={onExport} style={{ flex: 1 }}>
               <GlassCard style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1) }}>
                 <Icon name="share" size={17} color={colors.accent} />
                 <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('backupWord')}</Text>
               </GlassCard>
-            </Pressable>
-            <Pressable onPress={onImport} style={{ flex: 1 }}>
+            </KPressable>
+            <KPressable onPress={onImport} style={{ flex: 1 }}>
               <GlassCard style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1) }}>
                 <Icon name="copy" size={17} color={colors.accent} />
                 <Text style={{ color: colors.accent, fontFamily: fonts.semibold }}>{t('restoreWord')}</Text>
               </GlassCard>
-            </Pressable>
+            </KPressable>
           </View>
         </View>
 
         {/* Maintenance */}
         <View style={{ gap: spacing(1) }}>
           <Text style={typography.section}>{t('maintenance')}</Text>
-          <Pressable onPress={() => { clearNotifs(); toast.info(t('notifCenterCleared')); }}>
+          <KPressable onPress={() => { clearNotifs(); toast.info(t('notifCenterCleared')); }}>
             <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
               <Icon name="refresh" size={18} color={colors.textMuted} />
               <Text style={typography.body}>{t('clearNotifCenter')}</Text>
             </GlassCard>
-          </Pressable>
+          </KPressable>
         </View>
       </ScrollView>
     </PremiumScreen>

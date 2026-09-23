@@ -1,6 +1,6 @@
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
 import * as Clipboard from 'expo-clipboard';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
@@ -43,7 +43,7 @@ export default function RevealPrivateKey() {
           <Card>
             <Text selectable style={[typography.body, { fontFamily: undefined, letterSpacing: 0.5 }]}>{pk}</Text>
           </Card>
-          <Pressable
+          <KPressable
             onPress={async () => {
               await Clipboard.setStringAsync(pk);
               toast.success(t('copied'), t('pkCopiedBody'));
@@ -52,7 +52,7 @@ export default function RevealPrivateKey() {
           >
             <Icon name="copy" size={18} color={colors.accent} />
             <Text style={{ color: colors.accent, fontFamily: typography.bodyStrong.fontFamily }}>{t('copyKey')}</Text>
-          </Pressable>
+          </KPressable>
           <View
             style={{
               backgroundColor: colors.bgElevated,

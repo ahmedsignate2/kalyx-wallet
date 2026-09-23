@@ -1,3 +1,4 @@
+import { Pressable as KPressable } from './kit';
 /**
  * Fenêtres globales WalletConnect : proposition de session + requête à signer.
  * Monté à la racine pour capter les événements quel que soit l'écran.
@@ -11,7 +12,7 @@
  */
 import { base58 } from '@scure/base';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, ScrollView, Image, StyleSheet } from 'react-native';
+import { Modal, View, Text, ScrollView, Image, StyleSheet } from 'react-native';
 import { GlassCard, ErrorBox, GradientAvatar } from './premium';
 import { Button } from './components';
 import { ConfirmUnlock } from './ConfirmUnlock';
@@ -50,7 +51,7 @@ function Overlay({ children, onCancel }: { children: React.ReactNode, onCancel?:
   return (
     <Modal transparent animationType="fade" onRequestClose={onCancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
-        <Pressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onCancel} />
+        <KPressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onCancel} />
         <View style={{ backgroundColor: colors.bgDeep, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
           {children}
         </View>
@@ -63,7 +64,7 @@ function Overlay({ children, onCancel }: { children: React.ReactNode, onCancel?:
 function PermRow({ on, onToggle, label, fixed }: { on: boolean; onToggle?: () => void; label: string; fixed?: boolean }) {
   const { colors } = useTheme();
   return (
-    <Pressable
+    <KPressable
       onPress={fixed ? undefined : onToggle}
       disabled={fixed}
       style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(0.5) }}
@@ -72,7 +73,7 @@ function PermRow({ on, onToggle, label, fixed }: { on: boolean; onToggle?: () =>
         {on ? <Icon name="check" size={14} color={colors.onPrimary} /> : null}
       </View>
       <Text style={{ color: colors.text, flex: 1, fontSize: 14 }}>{label}</Text>
-    </Pressable>
+    </KPressable>
   );
 }
 

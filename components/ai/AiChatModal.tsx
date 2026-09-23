@@ -1,8 +1,8 @@
 import { APP_ROUTES_MAP } from '../../lib/aiAppMap';
 import React, { useState, useEffect, useRef } from 'react';
-import { KeyboardAvoidingView, Platform, View, TextInput, Pressable, ScrollView, Modal, FlatList } from 'react-native';
+import { KeyboardAvoidingView, Platform, View, TextInput, ScrollView, Modal, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, IconButton, Skeleton, Chip } from '../../ui/kit';
+import { Text, IconButton, Skeleton, Chip, Pressable as KPressable } from '../../ui/kit';
 import { space, radius } from '../../ui/tokens';
 import { useTheme } from '../../ui/theme';
 import { useAiStore } from '../../lib/aiStore';
@@ -151,10 +151,10 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
       ) : null}
 
       <View style={{ flexDirection: 'row', gap: space[2] }}>
-        <Pressable
+        <KPressable
           onPress={handleCopy}
           disabled={secretCheck.hasSecret}
-          style={({ pressed }) => ({
+          style={{
             flex: 1,
             flexDirection: 'row',
             alignItems: 'center',
@@ -165,19 +165,19 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
             backgroundColor: colors.surface2,
             borderWidth: 1,
             borderColor: colors.border,
-            opacity: secretCheck.hasSecret ? 0.4 : pressed ? 0.85 : 1,
-          })}
+            opacity: secretCheck.hasSecret ? 0.4 : 1,
+          }}
         >
           <Icon name={copied ? 'checkmark' : 'copy'} size={16} color={copied ? colors.up : colors.text} />
           <Text variant="body" style={{ fontWeight: '600', color: copied ? colors.up : colors.text, fontSize: 13 }}>
             {copied ? t('aiSupportCopied') : t('aiSupportCopy')}
           </Text>
-        </Pressable>
+        </KPressable>
 
-        <Pressable
+        <KPressable
           onPress={handleExport}
           disabled={secretCheck.hasSecret || isOpening}
-          style={({ pressed }) => ({
+          style={{
             flex: 1.2,
             flexDirection: 'row',
             alignItems: 'center',
@@ -186,14 +186,14 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
             height: 44,
             borderRadius: radius.round,
             backgroundColor: secretCheck.hasSecret ? colors.surface3 : colors.primary,
-            opacity: secretCheck.hasSecret ? 0.4 : pressed ? 0.85 : 1,
-          })}
+            opacity: secretCheck.hasSecret ? 0.4 : 1,
+          }}
         >
           <Icon name="telegramLogo" size={16} color={secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary} />
           <Text variant="body" style={{ fontWeight: '600', color: secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary, fontSize: 13 }}>
             {t('aiSupportSendTelegram')}
           </Text>
-        </Pressable>
+        </KPressable>
       </View>
     </View>
   );
@@ -541,7 +541,7 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={onClose} accessibilityLabel={t('aiClose')} />
+        <KPressable noScale haptic="none" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={onClose} accessibilityLabel={t('aiClose')} />
         <View style={{ height: '88%', backgroundColor: colors.surface2, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, overflow: 'hidden' }}>
           {/* En-tête */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[3], paddingTop: space[3], paddingBottom: space[2] }}>
@@ -562,10 +562,10 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
               ListHeaderComponent={<Text variant="caption" tone="secondary" style={{ marginBottom: space[2] }}>{t('aiRecentChats')}</Text>}
               ListEmptyComponent={<Text variant="bodySecondary" tone="secondary">{t('aiNoChats')}</Text>}
               renderItem={({ item }) => (
-                <Pressable onPress={() => { setActiveSession(item.id); setShowHistory(false); }} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', minHeight: 52, gap: space[2], borderRadius: radius.input, paddingHorizontal: space[2], backgroundColor: pressed || item.id === activeSessionId ? colors.surface3 : 'transparent' })}>
+                <KPressable onPress={() => { setActiveSession(item.id); setShowHistory(false); }} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 52, gap: space[2], borderRadius: radius.input, paddingHorizontal: space[2], backgroundColor: item.id === activeSessionId ? colors.surface3 : 'transparent' }}>
                   <Text variant="body" numberOfLines={1} style={{ flex: 1 }}>{item.title}</Text>
-                  <Pressable onPress={() => deleteSession(item.id)} hitSlop={8} accessibilityLabel={t('aiDelete')}><Icon name="close" size={14} tone="faint" /></Pressable>
-                </Pressable>
+                  <KPressable onPress={() => deleteSession(item.id)} hitSlop={8} accessibilityLabel={t('aiDelete')}><Icon name="close" size={14} tone="faint" /></KPressable>
+                </KPressable>
               )}
             />
           ) : (
@@ -673,9 +673,9 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
                       style={{ color: colors.text, fontSize: 15, lineHeight: 20, fontFamily: 'GeneralSans-Medium', paddingVertical: 12, maxHeight: 100 }}
                     />
                   </View>
-                  <Pressable onPress={() => sendMessage()} disabled={!input.trim() || loading} accessibilityLabel={t('aiSend')} style={({ pressed }) => ({ width: 48, height: 48, borderRadius: radius.round, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: !input.trim() || loading ? 0.4 : pressed ? 0.8 : 1 })}>
+                  <KPressable onPress={() => sendMessage()} disabled={!input.trim() || loading} accessibilityLabel={t('aiSend')} style={{ width: 48, height: 48, borderRadius: radius.round, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: !input.trim() || loading ? 0.4 : 1 }}>
                     <Icon name="send" size={20} color={colors.onPrimary} />
-                  </Pressable>
+                  </KPressable>
                 </View>
               </View>
             </>

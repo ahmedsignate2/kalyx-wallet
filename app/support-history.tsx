@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { PremiumScreen, GlassCard } from '../ui/premium';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, radii, useTheme } from '../ui/theme';
@@ -125,20 +125,20 @@ export default function SupportHistoryScreen() {
               </View>
             </View>
 
-            <Pressable
+            <KPressable
               onPress={handleExportDiagnostic}
               disabled={isExporting}
               hitSlop={8}
-              style={({ pressed }) => ({
+              style={{
                 backgroundColor: colors.accent,
                 width: 38,
                 height: 38,
                 borderRadius: radii.md,
-                opacity: pressed || isExporting ? 0.7 : 1,
+                opacity: isExporting ? 0.7 : 1,
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
-              })}
+              }}
               accessibilityLabel={t('diagnosticExportButton')}
             >
               {isExporting ? (
@@ -146,7 +146,7 @@ export default function SupportHistoryScreen() {
               ) : (
                 <Icon name="share" size={18} color="#fff" />
               )}
-            </Pressable>
+            </KPressable>
           </View>
         </GlassCard>
 
@@ -199,10 +199,10 @@ export default function SupportHistoryScreen() {
                           </Text>
                         </View>
 
-                        <Pressable
+                        <KPressable
                           onPress={() => handleCopyId(ticket.id)}
                           hitSlop={8}
-                          style={({ pressed }) => ({
+                          style={{
                             flexDirection: 'row',
                             alignItems: 'center',
                             gap: 4,
@@ -210,9 +210,8 @@ export default function SupportHistoryScreen() {
                             paddingVertical: 3,
                             borderRadius: radii.sm,
                             backgroundColor: colors.glassStrong,
-                            opacity: pressed ? 0.7 : 1,
                             flexShrink: 0,
-                          })}
+                          }}
                         >
                           <Icon name={isCopied ? 'check' : 'copy'} size={14} color={isCopied ? colors.success : colors.accent} />
                           <Text
@@ -224,7 +223,7 @@ export default function SupportHistoryScreen() {
                           >
                             {isCopied ? t('supportHistoryCopied') : t('aiSupportCopy')}
                           </Text>
-                        </Pressable>
+                        </KPressable>
                       </View>
 
                       <Text style={{ color: colors.textSecondary, fontSize: 11, fontFamily: fonts.regular }}>
@@ -299,7 +298,7 @@ export default function SupportHistoryScreen() {
                     ) : null}
 
                     {/* Bouton pour plier/déplier les détails */}
-                    <Pressable
+                    <KPressable
                       onPress={() => setExpandedTicketId(isExpanded ? null : ticket.id)}
                       style={{
                         alignSelf: 'flex-start',
@@ -310,28 +309,27 @@ export default function SupportHistoryScreen() {
                       <Text style={{ color: colors.accent, fontSize: 12, fontFamily: fonts.medium }}>
                         {isExpanded ? t('supportHistoryHideDetails') : t('supportHistoryDetails')}
                       </Text>
-                    </Pressable>
+                    </KPressable>
                   </GlassCard>
                 );
               })}
 
               {/* Bouton Effacer l'historique */}
-              <Pressable
+              <KPressable
                 onPress={handleClearHistory}
-                style={({ pressed }) => ({
+                style={{
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: spacing(0.75),
                   paddingVertical: spacing(1.5),
-                  opacity: pressed ? 0.7 : 1,
-                })}
+                }}
               >
                 <Icon name="broom" size={16} color={colors.textSecondary} />
                 <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: fonts.medium }}>
                   {t('supportHistoryClear')}
                 </Text>
-              </Pressable>
+              </KPressable>
             </View>
           )}
       </PremiumScreen>

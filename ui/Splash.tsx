@@ -2,7 +2,7 @@
  * Écran d'ouverture « particules », façon wallet haut de gamme (l'idée retenue
  * par l'utilisateur : sobre, techno, pas d'agressivité).
  *
- * Séquence (~1,4 s — bible §7 : froid < 2 s). Elle ne joue QUE pour un
+ * Séquence (~1,6 s — bible §7 : froid < 2 s). Elle ne joue QUE pour un
  * utilisateur qui revient : au premier lancement, l'écran de bienvenue est
  * lui-même l'ouverture (cf. app/_layout.tsx).
  *   1. ~48 particules bleu/violet dispersées CONVERGENT vers le centre.
@@ -115,18 +115,18 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
         // 380 → 1000 : le HALO naît d'un point exactement quand les rayons
         // s'allument. Le halo n'est pas le décor de l'écran suivant : il fait
         // partie de l'allumage, c'est la chaleur que dégage la marque.
-        Animated.timing(logoIn, { toValue: 1, duration: 620, delay: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(logoIn, { toValue: 1, duration: 780, delay: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
         // 560 → 1020 : « KALYX » monte. Fondu + translation + échelle, et une
         // sortie cubique longue : le mot se dépose, il ne surgit pas.
         Animated.sequence([
-          Animated.delay(560),
+          Animated.delay(700),
           Animated.parallel([
             Animated.timing(wordOp, { toValue: 1, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
             Animated.timing(wordY, { toValue: 0, duration: 460, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
           ]),
         ]),
       ]),
-      Animated.delay(100),
+      Animated.delay(160),
       Animated.timing(screenOp, { toValue: 0, duration: 260, easing: Easing.in(Easing.quad), useNativeDriver: true }),
     ]).start(({ finished }) => finished && onFinish());
   }, [progress, logoIn, wordOp, wordY, sweep, screenOp, onFinish]);
@@ -167,7 +167,7 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
             dans la marque. L'allumage démarre à 380 ms (quand les premières
             particules arrivent) et dure 620 ms.
           */}
-          <KalyxLogoIgnite size={SPLASH_LOGO_SIZE} delay={380} stagger={32} />
+          <KalyxLogoIgnite size={SPLASH_LOGO_SIZE} delay={380} stagger={44} />
         </View>
 
         {/* Wordmark « KALYX » : police de marque + halo lumineux + barre de lumière */}

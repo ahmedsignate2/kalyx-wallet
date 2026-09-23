@@ -1,8 +1,8 @@
 import React, { useRef } from 'react';
-import { View, Text, Pressable, Linking } from 'react-native';
+import { View, Text, Linking } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
-import { ScreenHeader } from '../../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../../ui/kit';
 import { PremiumScreen, GlassCard, ListRow } from '../../ui/premium';
 import { KalyxLogo } from '../../ui/KalyxLogo';
 import { Icon } from '../../ui/icon';
@@ -102,7 +102,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
           Kalyx Wallet
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Pressable
+          <KPressable
             onPress={onVersionTap}
             hitSlop={8}
             accessibilityLabel={`${t('legalAppVersion')} ${appVersion}`}
@@ -110,7 +110,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
             <Text style={typography.muted}>
               {t('legalAppVersion')} v{appVersion}
             </Text>
-          </Pressable>
+          </KPressable>
           {IS_BETA ? (
             <View
               style={{
@@ -216,7 +216,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
           }}
         >
           <Text style={[typography.muted, { flexShrink: 0 }]}>{t('legalContactLabel')}</Text>
-          <Pressable onPress={openEmail} hitSlop={6} accessibilityRole="link" style={{ flex: 1, alignItems: 'flex-end' }}>
+          <KPressable onPress={openEmail} hitSlop={6} accessibilityRole="link" style={{ flex: 1, alignItems: 'flex-end' }}>
             <Text
               style={[
                 typography.bodyStrong,
@@ -225,7 +225,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
             >
               {LEGAL_CONSTANTS.CONTACT_EMAIL}
             </Text>
-          </Pressable>
+          </KPressable>
         </View>
 
         {/* Type d'application */}

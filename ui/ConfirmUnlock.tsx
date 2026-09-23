@@ -1,3 +1,4 @@
+import { Pressable as KPressable } from './kit';
 /**
  * Feuille de confirmation d'une action sensible, avec déverrouillage unifié :
  * biométrie AUTO à l'ouverture (si activée) + repli sur le pavé PIN.
@@ -16,7 +17,7 @@
  * `perform({biometric:true})`.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, Modal, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KalyxLogo } from './KalyxLogo';
 import { PinPad } from './PinPad';
@@ -241,7 +242,7 @@ Action: ${aiContext.method || 'Transfer'}`;
   return (
     <Modal transparent animationType="slide" onRequestClose={cancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
-        <Pressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={cancel} />
+        <KPressable noScale haptic="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={cancel} />
         {/* Feuille : padding bas = inset système (barre de navigation Android /
             home indicator iOS) pour que la rangée « 0 » du pavé reste visible ;
             défilable pour ne jamais tronquer le pavé sur un petit écran. */}
@@ -276,9 +277,9 @@ Action: ${aiContext.method || 'Transfer'}`;
               <Text style={{ color: colors.danger, fontFamily: fonts.medium, textAlign: 'center', marginBottom: spacing(1) }}>
                 {error}
               </Text>
-              <Pressable onPress={onCancel} hitSlop={8} style={{ paddingVertical: 10, paddingHorizontal: 24, borderRadius: radii.pill, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}>
+              <KPressable onPress={onCancel} hitSlop={8} style={{ paddingVertical: 10, paddingHorizontal: 24, borderRadius: radii.pill, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}>
                 <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.semibold }}>{t('closeWord') || t("aiClose")}</Text>
-              </Pressable>
+              </KPressable>
             </View>
           ) : (
             <>
@@ -315,28 +316,28 @@ Action: ${aiContext.method || 'Transfer'}`;
               ) : null}
 
               {canValidateManually ? (
-                <Pressable onPress={() => run({ pin })} hitSlop={8}>
+                <KPressable onPress={() => run({ pin })} hitSlop={8}>
                   <Text style={{ color: colors.accent, fontSize: 16, fontFamily: fonts.semibold }}>{t('validate')}</Text>
-                </Pressable>
+                </KPressable>
               ) : null}
 
               {bioEnabled ? (
-                <Pressable
+                <KPressable
                   onPress={() => run({ biometric: true })}
                   hitSlop={8}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
                 >
                   <Icon name="security" size={18} color={colors.accent} />
                   <Text style={{ color: colors.accent, fontSize: 13, fontFamily: fonts.semibold }}>{t('useBiometry')}</Text>
-                </Pressable>
+                </KPressable>
               ) : null}
             </>
           )}
 
           {phase !== 'error' ? (
-            <Pressable onPress={cancel} hitSlop={8}>
+            <KPressable onPress={cancel} hitSlop={8}>
               <Text style={{ color: colors.textMuted, fontSize: 15 }}>{t('cancel')}</Text>
-            </Pressable>
+            </KPressable>
           ) : null}
         </ScrollView>
       </View>
