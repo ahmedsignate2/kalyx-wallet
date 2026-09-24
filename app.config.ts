@@ -79,19 +79,6 @@ const config: ExpoConfig = {
         'Kalyx utilise le Bluetooth pour se connecter à un portefeuille matériel Ledger.',
       // Deep links : Kalyx gère aussi le schéma WalletConnect « wc: » et « ethereum: ».
       CFBundleURLTypes: [{ CFBundleURLSchemes: [...schemes, 'wc', 'ethereum'] }],
-      /*
-       * TAUX DE RAFRAÎCHISSEMENT ÉLEVÉ (ProMotion, 120 Hz).
-       *
-       * iOS plafonne les applications à 60 images par seconde par défaut, même
-       * sur un écran 120 Hz : il faut le demander explicitement. Sans ce
-       * drapeau, tout le travail d'animation de cette refonte tourne à la
-       * moitié de la fluidité dont l'appareil est capable, et aucun réglage
-       * côté JavaScript n'y change quoi que ce soit.
-       *
-       * Les appareils sans ProMotion ne sont pas affectés : ils restent à leur
-       * taux natif (60 Hz). Ce drapeau lève un plafond, il n'en impose pas un.
-       */
-      CADisableMinimumFrameDuration: true,
     },
   },
   android: {
