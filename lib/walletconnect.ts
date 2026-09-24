@@ -572,6 +572,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
          * signature de 65, ce qui a fait croire à un format inattendu.
          */
         technicalLogger.logDapp('btc_signMessage', undefined, {
+          chain: 'bitcoin',
           requestedProtocol: requested ?? '(absent)',
           resolvedProtocol: type,
           addressKind: isBech32 ? 'bech32 (segwit natif)' : 'héritée',
