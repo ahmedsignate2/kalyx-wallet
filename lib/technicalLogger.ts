@@ -59,7 +59,24 @@ export function formatCondensedLog(l: LogEntry): string {
 
   if (l.category === 'DAPP') {
     const err = l.details?.error ? ` -> (${l.details.error})` : '';
-    return `[${l.timestamp}] [DAPP] ${l.message}${err}`;
+    /*
+     * LES DÉTAILS ÉTAIENT JETÉS. Ce formateur n'imprimait que le message et
+     * l'erreur : tout le reste des `details` disparaissait avant d'atteindre le
+     * ticket. Un `btc_signMessage` instrumenté avec le protocole demandé, celui
+     * retenu, le type d'adresse et la taille de signature se réduisait à
+     * « [DAPP] btc_signMessage » — l'instrumentation existait, le diagnostic
+     * était vide, et on ne pouvait pas savoir pourquoi.
+     *
+     * Rendu en paires `clé=valeur` et non en JSON : le JSON brut est interdit
+     * dans les tickets (illisible, et verrouillé par un test).
+     */
+    const facts = l.details
+      ? Object.entries(l.details)
+          .filter(([k, v]) => k !== 'chain' && k !== 'error' && v !== undefined && v !== null && v !== '')
+          .map(([k, v]) => `${k}=${String(v)}`)
+          .join(', ')
+      : '';
+    return `[${l.timestamp}] [DAPP] ${chainPrefix}${l.message}${facts ? ` (${facts})` : ''}${err}`;
   }
 
   // SYS & WALLET
