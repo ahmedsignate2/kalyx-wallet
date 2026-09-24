@@ -210,6 +210,16 @@ export default function RootLayout() {
         <Stack
           screenOptions={{
             headerShown: false, // chaque écran dessine son en-tête (ui/kit/ScreenHeader)
+            /*
+               Les écrans quittés restaient MONTÉS et continuaient de rendre :
+               le halo qui respire, les éclats qui dérivent, l'onde du logo…
+               Toutes ces boucles s'accumulaient au fil de la navigation et se
+               disputaient les images pendant la transition — d'où les
+               micro-saccades. `freezeOnBlur` suspend le rendu d'un écran qui
+               n'a plus le focus, ce que le §3.7 demandait déjà (« pause quand
+               l'écran n'a pas le focus »).
+            */
+            freezeOnBlur: true,
             headerStyle: { backgroundColor: colors.bg },
             headerTintColor: colors.text,
             headerShadowVisible: false,
