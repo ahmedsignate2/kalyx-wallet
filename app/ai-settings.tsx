@@ -1,8 +1,9 @@
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, ScrollView, Alert, ActivityIndicator, Switch } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme, fonts, radii, spacing } from '../ui/theme';
+import { useSettings } from '../lib/settingsStore';
 import { useT } from '../lib/settingsStore';
 import { PremiumScreen, GlassCard, ListRow, IconButton } from '../ui/premium';
 import { Icon } from '../ui/icon';
@@ -14,6 +15,8 @@ import { Linking } from 'react-native';
 export default function AiSettings() {
   const { colors, typography } = useTheme();
   const t = useT();
+  const aiToolsEnabled = useSettings((st) => st.aiToolsEnabled);
+  const setAiToolsEnabled = useSettings((st) => st.setAiToolsEnabled);
   const { isEnabled, provider, apiKey, setApiKey, disableAi, loadInitialState } = useAiStore();
   
   const [selectedProvider, setSelectedProvider] = useState<AiProvider>(provider);
@@ -179,6 +182,30 @@ export default function AiSettings() {
             </View>
             <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: fonts.medium, lineHeight: 20 }}>
               {t('aiActiveDesc')}
+            </Text>
+          </GlassCard>
+        )}
+
+        {/*
+          OUTILS DE L'ASSISTANT — opt-in strict, et l'avertissement dit pourquoi.
+          Tant que c'est désactivé, les outils ne sont même pas ANNONCÉS au
+          modèle : un modèle qui ne les connaît pas ne peut pas les appeler.
+          Visible seulement si une clé IA est configurée : proposer d'outiller un
+          assistant inactif n'aurait aucun sens.
+        */}
+        {isEnabled && (
+          <GlassCard style={{ marginTop: spacing(2) }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 15 }}>{t('aiToolsTitle')}</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: fonts.medium, lineHeight: 19 }}>
+                  {t('aiToolsDesc')}
+                </Text>
+              </View>
+              <Switch value={aiToolsEnabled} onValueChange={setAiToolsEnabled} />
+            </View>
+            <Text style={{ color: colors.warning, fontSize: 12, fontFamily: fonts.medium, lineHeight: 18, marginTop: spacing(1.25) }}>
+              {t('aiToolsWarn')}
             </Text>
           </GlassCard>
         )}
