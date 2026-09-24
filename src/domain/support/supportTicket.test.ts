@@ -140,7 +140,7 @@ describe('Support Ticket & Secret Detector System', () => {
         recentLogs: '[12:00:00] [TX] Error 400',
       });
 
-      expect(ticket).toContain('🎫 [TICKET SUPPORT KALYX]');
+      expect(ticket).toContain('[TICKET SUPPORT KALYX]');
       expect(ticket).toMatch(/• ID : KX-\d{8}-\d{5}/);
       expect(ticket).toContain('• Version : Kalyx v');
       expect(ticket).toContain('• Problème : Échec broadcast transaction');
@@ -187,8 +187,11 @@ describe('Support Ticket & Secret Detector System', () => {
       const normalized = normalizeSupportTicket(raw);
       expect(normalized).not.toContain('{"method"');
       expect(normalized).toContain('[Sepolia] Aucun log d\'exécution direct enregistré pour cette chaîne.');
-      expect(normalized).toContain('(Appel global multi-chaînes d\'arrière-plan) :');
-      expect(normalized).toContain('[RPC] Swellchain: eth_getBalance -> 500 (Réseau indisponible)');
+      // Le bruit d'arrière-plan est RÉSUMÉ : lister des échecs de réseaux sans
+      // rapport sous le vrai problème faisait croire à une corrélation.
+      expect(normalized).toContain('Arrière-plan, sans rapport probable');
+      expect(normalized).toContain('Swellchain');
+      expect(normalized).not.toContain('[RPC] Swellchain: eth_getBalance -> 500');
     });
 
     it('throws when trying to open Telegram with a ticket containing secrets', async () => {
