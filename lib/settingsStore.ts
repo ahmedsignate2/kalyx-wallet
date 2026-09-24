@@ -50,6 +50,13 @@ interface SettingsState {
   privacyGuard: boolean;
   /** Sons de l'application (triptyque succès, etc) */
   soundEnabled: boolean;
+  /**
+   * Outils de l'assistant IA (mesures en lecture seule). DÉSACTIVÉ par défaut,
+   * et volontairement : l'app accepte n'importe quel modèle, y compris des 8B
+   * ou un endpoint personnalisé. Qui l'active l'assume ; personne n'y est
+   * poussé, et l'assistant fonctionne sans.
+   */
+  aiToolsEnabled: boolean;
   hapticsEnabled: boolean;
   /** ISO de la dernière sauvegarde chiffrée réussie (fichier ou Drive), null sinon. */
   encryptedBackupAt: string | null;
@@ -72,6 +79,7 @@ interface SettingsState {
   setAutoLockMinutes: (min: number) => void;
   setPrivacyGuard: (on: boolean) => void;
   setSoundEnabled: (on: boolean) => void;
+  setAiToolsEnabled: (on: boolean) => void;
   setHapticsEnabled: (on: boolean) => void;
   markEncryptedBackup: (kind?: 'file' | 'drive') => void;
   /** Date constatée sur Drive (vérification en ligne) : écrase la mémoire locale. */
@@ -82,7 +90,7 @@ interface SettingsState {
 function persist(
   s: Pick<
     SettingsState,
-    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt' | 'driveBackupAt'
+    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'aiToolsEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt' | 'driveBackupAt'
   >,
 ) {
   void saveSettings({
@@ -101,6 +109,7 @@ function persist(
     autoLockMinutes: s.autoLockMinutes,
     privacyGuard: s.privacyGuard,
     soundEnabled: s.soundEnabled,
+    aiToolsEnabled: s.aiToolsEnabled,
     hapticsEnabled: s.hapticsEnabled,
     encryptedBackupAt: s.encryptedBackupAt,
     driveBackupAt: s.driveBackupAt,
@@ -125,6 +134,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   autoLockMinutes: 3,
   privacyGuard: true,
   soundEnabled: true,
+  aiToolsEnabled: false,
   hapticsEnabled: true,
   encryptedBackupAt: null,
   driveBackupAt: null,
@@ -152,6 +162,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
       autoLockMinutes: typeof s?.autoLockMinutes === 'number' ? (s.autoLockMinutes as number) : 3,
       privacyGuard: s?.privacyGuard !== false,
       soundEnabled: s?.soundEnabled !== false,
+      // Opt-in strict : absent en stockage = désactivé.
+      aiToolsEnabled: s?.aiToolsEnabled === true,
       hapticsEnabled: s?.hapticsEnabled !== false,
       encryptedBackupAt: typeof s?.encryptedBackupAt === 'string' ? s.encryptedBackupAt : null,
       driveBackupAt: typeof s?.driveBackupAt === 'string' ? s.driveBackupAt : null,
@@ -162,6 +174,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setSoundEnabled: (on) => {
     set({ soundEnabled: on });
     persist({ ...get(), soundEnabled: on });
+  },
+  setAiToolsEnabled: (on) => {
+    set({ aiToolsEnabled: on });
+    persist({ ...get(), aiToolsEnabled: on });
   },
   setHapticsEnabled: (on) => {
     set({ hapticsEnabled: on });
