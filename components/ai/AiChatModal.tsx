@@ -1,5 +1,6 @@
 import { APP_ROUTES_MAP } from '../../lib/aiAppMap';
 import { parseProposedActions } from '../../lib/aiActions';
+import { formatDiagnosticContext } from '../../lib/diagnosticContext';
 import React, { useState, useEffect, useRef } from 'react';
 import { KeyboardAvoidingView, Platform, View, TextInput, ScrollView, Modal, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -310,37 +311,62 @@ Si et seulement si le diagnostic a échoué ou que l'utilisateur l'exige avec un
 • Problème : [Résumé direct du problème en une ligne]
 • Réseau : ${currentNetworkName}
 • Erreur détectée : [Message ou code d'erreur technique précis extrait des LOGS ci-dessous, ex: 'RPC 500 : Réseau indisponible' ou 'RPC 400 : Solde insuffisant'. Ne JAMAIS mettre 'Non déterminée' si les logs comportent une erreur !]
-• Montant visé : [Montant si applicable, sinon N/A]
+• Montant visé : [UNIQUEMENT s'il y a un montant en jeu. Sinon, OMETS complètement cette ligne — « N/A » sur un problème de signature ou de connexion est une ligne vide à lire et un faux indice pour qui dépouille le ticket.]
 • Description utilisateur : "[Résumé concis des propos de l'utilisateur]"
 • Logs récents :
 [Insérer les lignes condensées pertinentes du réseau concerné, ex: '[HH:MM:SS] [RPC] NomRéseau: méthode -> statut (erreur)', ou préciser explicitement s'il s'agit d'un appel multi-chaînes d'arrière-plan, sans JAMAIS dumper de JSON brut stringifié]
 </SUPPORT_TICKET>
 Ce tag fera automatiquement apparaître une carte interactive permettant de copier le ticket ou de l'exporter vers Telegram (@kalyxntw).
 
-ACTIONS AUTONOMES (INTENTS) :
-Tu peux diriger l'utilisateur dans l'application.
-Si l'utilisateur demande d'aller sur une page ou d'effectuer une action, renvoie un tag JSON à la fin de ta réponse :
+ACTION PROPOSÉE (UN BOUTON, PAS UNE REDIRECTION) :
+Tu ne navigues PAS à la place de l'utilisateur. Tu peux PROPOSER un raccourci :
+il apparaîtra sous ta réponse comme un bouton qu'il touche s'il le veut.
 
-Format :
-<ACTION>{"type": "NAVIGATE", "target": "ROUTE_ID", "params": { ... }}</ACTION>
+Format, à la fin de ta réponse, UNE SEULE fois :
+<ACTION>{"type": "NAVIGATE", "target": "ROUTE_ID", "label": "Texte du bouton", "params": { ... }}</ACTION>
+
+- « label » est OBLIGATOIRE : c'est le texte du bouton. Court, à l'impératif, dans
+  la langue de l'application. « Ouvrir les réseaux », « Voir mes autorisations ».
+  Sans lui, le bouton affiche une description technique illisible.
+- Une seule action par réponse. Enchaîner des navigations désoriente.
+- Ta réponse doit rester compréhensible SANS le bouton : dis ce que tu proposes
+  et pourquoi, le bouton n'est qu'un raccourci.
 
 Exemples :
-- "Ouvre Uniswap" -> <ACTION>{"type": "NAVIGATE", "target": "BROWSER", "params": {"url": "https://app.uniswap.org"}}</ACTION>
-- "Je veux envoyer des USDC à 0x123..." -> <ACTION>{"type": "NAVIGATE", "target": "SEND", "params": {"symbol": "USDC", "to": "0x123...", "amount": "10"}}</ACTION>
-- "Montre mon QR code" -> <ACTION>{"type": "NAVIGATE", "target": "RECEIVE"}</ACTION>
+- "Ouvre Uniswap" -> <ACTION>{"type": "NAVIGATE", "target": "BROWSER", "label": "Ouvrir Uniswap", "params": {"url": "https://app.uniswap.org"}}</ACTION>
+- "Je veux envoyer des USDC" -> <ACTION>{"type": "NAVIGATE", "target": "SEND", "label": "Envoyer des USDC", "params": {"symbol": "USDC"}}</ACTION>
+- "Montre mon QR code" -> <ACTION>{"type": "NAVIGATE", "target": "RECEIVE", "label": "Voir mon QR code"}</ACTION>
+
+INTERDITS ABSOLUS SUR LES ACTIONS :
+- N'inclus JAMAIS de destinataire (« to », « address », « recipient ») ni de montant
+  (« amount », « value ») dans les params. Ouvrir l'écran d'envoi est anodin ;
+  pré-remplir qui reçoit l'argent ne l'est pas — un formulaire déjà rempli est
+  précisément ce qu'on valide sans le relire. L'utilisateur saisit lui-même la
+  destination et la somme. Ces champs sont de toute façon retirés par
+  l'application, l'action n'en serait que bancale.
+- N'oriente JAMAIS vers un écran de phrase de récupération, de clé privée, de
+  PIN ou de sauvegarde, même si l'utilisateur le demande explicitement.
 
 Voici la liste des ROUTE_ID autorisés : ${APP_ROUTES_MAP.map(r => r.id + ' (' + r.description + ')').join(', ')}
-NE JAMAIS diriger l'utilisateur vers des écrans liés à l'export de clé privée, à la phrase de récupération ou au changement de PIN.
 
 RÈGLE DE CORRÉLATION ET FILTRAGE DES LOGS :
 1. Si l'utilisateur cible un réseau (ex: ${currentNetworkName}), associe en priorité les logs de ce réseau.
-2. Si les erreurs dans les logs proviennent d'autres réseaux lors d'un appel d'arrière-plan (ex: Swellchain, Degen, Moonbeam), précise explicitement : "(Appel global multi-chaînes d'arrière-plan)" et n'attribue pas cette erreur au réseau ciblé.
+2. Les échecs RPC venant d'autres réseaux sont du SONDAGE DE SOLDE en arrière-plan : l'application interroge des dizaines de réseaux EVM en permanence. Ne les attribue JAMAIS au problème signalé, et ne les recopie pas ligne à ligne — l'application les résume déjà sous « Arrière-plan, sans rapport probable ». Un échec sur Moonbeam n'a aucun rapport avec une signature Bitcoin qui ne passe pas.
 3. Corrèle impérativement le champ "• Erreur détectée :" : si les logs d'exécution contiennent une erreur (status 500, timeout, RPC 400), indique l'erreur technique précise au lieu de "Non déterminée".
 4. Formatage condensé : dans l'aperçu du ticket, n'inclus JAMAIS de JSON brut stringifié. Utilise la ligne propre :
    [HH:MM:SS] [RPC] Réseau: méthode -> statut (erreur)
 
+ÉTAT DE L'APPLICATION AU MOMENT DE LA DEMANDE :
+${formatDiagnosticContext()}
+Sers-t'en : la plupart des pannes d'un wallet sont CONTEXTUELLES. Un envoi qui
+échoue alors que le réseau actif n'est pas celui visé, une biométrie qui refuse
+alors que le réglage est désactivé, un solde vide parce que l'appareil est hors
+ligne, un bandeau d'avertissement parce que la phrase n'est pas vérifiée. Cherche
+d'abord une explication dans cet état avant de conclure à un bug.
+Cet état ne contient volontairement AUCUNE adresse, aucun solde et aucun secret.
+
 LOGS TECHNIQUES RÉCENTS D'EXÉCUTION (CONDENSÉS) :
-${technicalLogger.getCondensedLogs(35, currentNetworkName)}
+${technicalLogger.getCondensedLogs(60, currentNetworkName)}
 
 CONTEXTE TEMPS RÉEL (ALLOWLIST PUBLIQUE) :
 ${serializeCopilotContext()}
