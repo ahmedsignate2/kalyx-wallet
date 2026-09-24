@@ -94,11 +94,46 @@ describe('Technical Logger & Sanitizer', () => {
       expect(errSepolia).toContain('Aucune erreur sur Sepolia');
       expect(errSepolia).toContain('Swellchain en arrière-plan');
 
-      // Ticket logs pour Sepolia
+      // Ticket logs pour Sepolia : le bruit d'arrière-plan est RÉSUMÉ, pas listé.
       const ticketLogs = technicalLogger.getCondensedTicketLogs('Sepolia');
       expect(ticketLogs).toContain('[Sepolia] Aucun log d\'exécution direct enregistré pour cette chaîne.');
-      expect(ticketLogs).toContain('(Appel global multi-chaînes d\'arrière-plan) :');
-      expect(ticketLogs).toContain('[RPC] Swellchain: eth_getBalance -> 500 (Réseau indisponible)');
+      expect(ticketLogs).toContain('Arrière-plan, sans rapport probable');
+      expect(ticketLogs).toContain('Swellchain');
+      // Le détail ligne à ligne disparaît : coller trois échecs de réseaux sans
+      // rapport sous le vrai problème faisait croire à une corrélation.
+      expect(ticketLogs).not.toContain('[RPC] Swellchain: eth_getBalance -> 500');
+    });
+
+    test('un log dApp porte sa chaîne et n\'est plus écarté des tickets ciblés', () => {
+      // Le défaut : logDapp ne transmettait pas `chain`, donc matchesChain
+      // échouait et un ticket « problème sur Bitcoin » excluait justement les
+      // lignes WalletConnect — puis concluait « aucune erreur dans les logs ».
+      technicalLogger.logDapp('btc_signMessage', undefined, {
+        chain: 'bitcoin',
+        resolvedProtocol: 'bip322',
+        signatureBytes: 108,
+      });
+      const ticketLogs = technicalLogger.getCondensedTicketLogs('bitcoin');
+      expect(ticketLogs).toContain('btc_signMessage');
+      expect(ticketLogs).not.toContain('Aucun log d\'exécution direct');
+    });
+
+    test('rapporte une opération réussie quand aucune erreur n\'a été levée', () => {
+      // Une signature produite correctement puis refusée par la dApp ne porte
+      // aucun isError. L'ancien code répondait « aucune erreur », en taisant la
+      // seule ligne utile du diagnostic.
+      technicalLogger.logDapp('btc_signMessage', undefined, {
+        chain: 'bitcoin',
+        resolvedProtocol: 'ecdsa',
+        signatureBytes: 65,
+      });
+      const detected = technicalLogger.getDetectedError('bitcoin');
+      expect(detected).toContain('Aucune erreur côté wallet');
+      expect(detected).toContain('btc_signMessage');
+      expect(detected).toContain('resolvedProtocol=ecdsa');
+      expect(detected).toContain('signatureBytes=65');
+      // La chaîne elle-même n'est pas répétée dans les faits : elle est le contexte.
+      expect(detected).not.toContain('chain=bitcoin');
     });
   });
 });

@@ -70,8 +70,18 @@ describe('kv.web — chiffrement au repos', () => {
     const kv = await import('../../lib/kv.web');
     fake.raw().set('legacy', 'plain-text');
     expect(await kv.kvGet('legacy')).toBe('plain-text');
-    await new Promise((r) => setTimeout(r, 20));
-    const after = fake.raw().get('legacy');
+    /*
+     * On ATTEND la condition au lieu de parier sur un délai. L'attente fixe de
+     * 20 ms passait en isolation et échouait par intermittence dans la suite
+     * complète, sous charge — un test instable rend toute la suite suspecte et
+     * fait perdre du temps à chercher une régression qui n'existe pas.
+     */
+    let after: unknown;
+    for (let i = 0; i < 100; i++) {
+      after = fake.raw().get('legacy');
+      if (typeof after === 'object') break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
     expect(typeof after).toBe('object');
     expect(await kv.kvGet('legacy')).toBe('plain-text');
   });

@@ -121,8 +121,15 @@ class TechnicalLogger {
     this.log('TX', `Step: ${step}`, details, isError, details?.chain ? String(details.chain) : undefined);
   }
 
+  /**
+   * `details.chain` est propagé au log. Sans ça, TOUS les événements dApp
+   * portaient `chain: undefined` et se trouvaient écartés des tickets ciblés
+   * sur un réseau : `matchesChain(undefined, 'bitcoin')` est faux. Un ticket
+   * « problème WalletConnect sur Bitcoin » excluait donc précisément les lignes
+   * WalletConnect, et concluait « aucune erreur dans les logs ».
+   */
   public logDapp(event: string, url?: string, details?: Record<string, any>, isError = false) {
-    this.log('DAPP', `${event}${url ? ` [${url}]` : ''}`, details, isError);
+    this.log('DAPP', `${event}${url ? ` [${url}]` : ''}`, details, isError, details?.chain ? String(details.chain) : undefined);
   }
 
   public logWallet(event: string, details?: Record<string, any>, isError = false) {
@@ -189,9 +196,20 @@ class TechnicalLogger {
       lines.push(`[${targetChain}] Aucun log d'exécution direct enregistré pour cette chaîne.`);
     }
 
+    /*
+     * Bruit d'arrière-plan RÉSUMÉ, pas listé. Le sondage de solde interroge des
+     * dizaines de réseaux EVM en permanence ; trois de ces échecs, choisis au
+     * hasard et collés sous le vrai problème, faisaient croire à un rapport
+     * entre « Moonbeam ne répond pas » et « ma signature Bitcoin est refusée ».
+     * Une ligne de synthèse suffit et n'induit personne en erreur.
+     */
     if (otherErrors.length > 0) {
-      lines.push(`(Appel global multi-chaînes d'arrière-plan) :`);
-      lines.push(...otherErrors.slice(-3).map(formatCondensedLog));
+      const chains = [...new Set(otherErrors.map((l) => l.chain || 'inconnu'))];
+      const methods = [...new Set(otherErrors.map((l) => String(l.details?.method ?? '')).filter(Boolean))];
+      const what = methods.length === 1 ? methods[0] : 'appels RPC';
+      lines.push(
+        `(Arrière-plan, sans rapport probable : ${otherErrors.length} échec(s) ${what} sur ${chains.length} réseau(x) — ${chains.slice(0, 4).join(', ')}${chains.length > 4 ? '…' : ''})`,
+      );
     }
 
     return lines.join('\n');
@@ -223,7 +241,28 @@ class TechnicalLogger {
       return `${last.category} : ${last.message}`;
     }
 
-    // 2. Si pas d'erreur directe sur le réseau ciblé, mais erreurs d'arrière-plan
+    /*
+     * 2. Opération PERTINENTE mais sans erreur côté wallet.
+     *
+     * Une action peut réussir ici et être refusée ailleurs — une signature
+     * produite correctement puis rejetée par la dApp, par exemple. Elle ne
+     * porte donc aucun `isError`, et l'ancien code concluait « aucune erreur
+     * dans les logs » : la ligne la plus utile du diagnostic était passée sous
+     * silence, alors qu'elle contient exactement ce qu'il faut savoir.
+     */
+    const relevant = this.logs.filter((l) => isTarget(l) && (l.category === 'DAPP' || l.category === 'TX'));
+    if (relevant.length > 0) {
+      const last = relevant[relevant.length - 1];
+      const facts = last.details
+        ? Object.entries(last.details)
+            .filter(([k]) => k !== 'chain')
+            .map(([k, v]) => `${k}=${String(v)}`)
+            .join(', ')
+        : '';
+      return `Aucune erreur côté wallet. Dernière opération : ${last.message}${facts ? ` (${facts})` : ''}`;
+    }
+
+    // 3. Si pas d'erreur directe sur le réseau ciblé, mais erreurs d'arrière-plan
     const anyErrors = this.logs.filter((l) => l.isError);
     if (anyErrors.length > 0) {
       const last = anyErrors[anyErrors.length - 1];
