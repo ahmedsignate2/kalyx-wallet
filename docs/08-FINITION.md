@@ -11,6 +11,8 @@
 
 Convention : **« à vérifier »** signalait une hypothèse issue de l'analyse du repo. Toutes ont été tranchées à l'audit — voir §21.3.
 
+> ⚠ **RÈGLE DE LIVRAISON.** `runtimeVersion` utilise la politique `fingerprint`, qui hache `app.config.ts`, `package.json` et le projet natif. **Toute modification de l'un d'eux coupe les mises à jour OTA vers les APK déjà installés**, silencieusement : la publication réussit, mais l'appareil ne voit plus rien qui le concerne. Ne jamais toucher ces fichiers entre deux OTA ; les regrouper et les livrer avec un build. C'est arrivé une fois, en ajoutant le drapeau 120 Hz — deux lots de correctifs sont restés inaccessibles jusqu'au retrait du drapeau.
+
 ---
 
 ## 0. Le pari
@@ -574,7 +576,7 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 | ~~Données de gas~~ | ~~`Math.random()` affiché à l'utilisateur~~ | **tranché : source réelle.** `getFeeData()` (ethers + bascule RPC) et `getPrices()` (cache + repli), dans la devise de l'utilisateur. Coût `null` quand le prix de l'ETH manque → l'affichage se tait. Branche `surge` réparée et testée. |
 | Seuils de gas | `THRESHOLDS = { low: 10, normal: 30, high: 80 }` posés sur le papier, ce que le §19 rejette | à calibrer sur données réelles |
 | **Confirmation on-chain** | aucun suivi n'existe : l'impulsion Succès (§3.2) n'a pas de source | à construire avant l'étape 5 |
-| **120 Hz** | `CADisableMinimumFrameDuration` ajouté à `ios.infoPlist` : sans lui, iOS plafonne à 60 fps même sur écran ProMotion, quoi que fasse le JavaScript. **Change l'empreinte native → exige un rebuild.** Android suit le taux de l'écran via Choreographer ; aucun réglage en workflow managé, un appareil qui plafonnerait demanderait un plugin de config. | rebuild à planifier |
+| **120 Hz** | **À AJOUTER AU PROCHAIN REBUILD, pas avant.** Le drapeau ci-dessous lève le plafond de 60 fps d'iOS sur écran ProMotion. Il a été ajouté puis RETIRÉ : la politique `runtimeVersion: fingerprint` hache `app.config.ts`, donc l'ajouter change l'empreinte et COUPE immédiatement les OTA vers l'APK installé — les correctifs publiés ensuite n'atteignent plus personne. À remettre dans `ios.infoPlist` au moment où l'on déclenche un build, jamais entre deux. Snippet : `CADisableMinimumFrameDuration: true`. Côté Android, React Native suit le taux de l'écran via Choreographer ; aucun réglage en workflow managé. |
 | **`react-native-gesture-handler`** | déclaré en dépendance mais importé NULLE PART, donc pas de `GestureHandlerRootView`. Bloque « glisser pour fermer » (§12.2) et le home morphing (§9) | adoption structurelle à décider — le §9 en aura besoin de toute façon |
 
 ### 21.5 Contradiction ouverte entre le plan et le code poussé
