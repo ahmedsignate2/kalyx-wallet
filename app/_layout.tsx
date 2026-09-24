@@ -197,7 +197,15 @@ export default function RootLayout() {
       <SafeAreaProvider>
         {/* Icônes de statut claires sur thème sombre, et inversement. */}
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
-        <View style={{ flex: 1 }}>
+        {/*
+          FOND EXPLICITE — c'est la cause de l'écran noir entre deux pages.
+          Ce conteneur n'avait pas de `backgroundColor`, et le fond de FENÊTRE
+          natif est `#06070D` (app.config.ts). Pendant la transition de pile,
+          l'écran sortant glisse et l'entrant n'a pas encore tout couvert :
+          chaque pixel non peint laissait voir ce presque-noir. En thème clair,
+          c'est un flash brutal ; en thème sombre, un clignotement de teinte.
+        */}
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <OfflineBanner />
         <Stack
           screenOptions={{
@@ -207,8 +215,17 @@ export default function RootLayout() {
             headerShadowVisible: false,
             contentStyle: { backgroundColor: colors.bg },
             headerTitle: '',
-            animation: 'slide_from_right',
-            animationDuration: 220,
+            /*
+               `ios_from_right` plutôt que `slide_from_right` : sur Android, il
+               reproduit la poussée iOS — l'écran sortant recule ET s'assombrit
+               légèrement pendant que l'entrant arrive, ce qui donne une
+               profondeur que le glissement plat n'a pas. Sur iOS il retombe sur
+               la transition système, qui est déjà celle-là.
+            */
+            animation: 'ios_from_right',
+            // 220 ms était sec ; 280 laisse le geste se terminer, en cohérence
+            // avec l'ouverture de l'app qu'on vient d'allonger.
+            animationDuration: 280,
           }}
         />
         <WalletConnectHost />
