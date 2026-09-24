@@ -7,6 +7,11 @@ export interface ChatMessage {
   sender: 'user' | 'assistant';
   text: string;
   timestamp: number;
+  /**
+   * Action PROPOSÉE avec la réponse, rendue en bouton. Elle n'est jamais jouée
+   * d'elle-même : l'assistant suggère, l'utilisateur décide (cf. lib/aiActions).
+   */
+  action?: { label: string; route: string; params: Record<string, string> };
 }
 
 export interface ChatSession {
