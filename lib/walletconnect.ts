@@ -203,7 +203,13 @@ interface WcState {
   /** Autorisations accordées au site : `tx` (proposer des transactions),
    *  `sign` (demander des signatures de message). La lecture (adresses/soldes)
    *  est inhérente à la connexion. Par défaut : tout autorisé. */
-  approveProposal: (unlock: Unlock, perms?: { tx: boolean; sign: boolean }) => Promise<void>;
+  /**
+   * `accountIndex` : indice de DÉRIVATION HD du compte à partager. Absent = le
+   * compte actif. La dApp ne voyait jusqu'ici que ce dernier, sans qu'on puisse
+   * en choisir un autre — alors qu'une session WalletConnect se noue avec UN
+   * compte et ne peut plus changer ensuite.
+   */
+  approveProposal: (unlock: Unlock, perms?: { tx: boolean; sign: boolean }, accountIndex?: number) => Promise<void>;
   rejectProposal: () => Promise<void>;
   /** `overrideData` : calldata de remplacement (ex. approve réduit au montant exact). */
   approveRequest: (unlock: Unlock, overrideData?: string) => Promise<void>;
@@ -365,7 +371,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     await wallet.pair({ uri: normalized });
   },
 
-  approveProposal: async (unlock, perms) => {
+  approveProposal: async (unlock, perms, accountIndex) => {
     const { wallet, proposal } = get();
     if (!wallet || !proposal || !sdkUtils) return;
     const p = perms ?? { tx: true, sign: true };
@@ -379,14 +385,20 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     const solMethods = ['solana_getAccounts', ...(p.tx ? ['solana_signTransaction', 'solana_signAllTransactions', 'solana_signAndSendTransaction'] : []), ...(p.sign ? ['solana_signMessage'] : [])];
     const btcMethods = ['getAccountAddresses', 'getAccounts', ...(p.tx ? ['signPsbt', 'sendTransaction', 'sendTransfer'] : []), ...(p.sign ? ['signMessage'] : [])];
     const wstate = useWallet.getState();
-    const address = wstate.account?.address;
+    /*
+     * Compte partagé avec la dApp. Choisi par l'utilisateur à la connexion
+     * quand il en a plusieurs : une session WalletConnect se noue avec UN
+     * compte et ne peut plus en changer ensuite, donc le choix doit se faire
+     * maintenant ou jamais.
+     */
+    const wanted = accountIndex ?? wstate.activeAccountIndex;
+    const acct = wstate.accounts.find((a) => a.index === wanted) ?? wstate.accounts[0];
+    const address = acct?.evmAddress ?? wstate.account?.address;
     if (!address) throw new Error('Aucun compte actif');
     // Exige l'identité dès la connexion (parité avec le navigateur dApps intégré).
     // Biométrie ou PIN ; lève si refusée → l'UI affiche l'erreur, aucune session.
     await wstate.verifyUnlock(unlock);
     const chains = evmChains();
-    // Adresses non-EVM du compte actif (partagées en lecture seule au dashboard).
-    const acct = wstate.accounts.find((a) => a.index === wstate.activeAccountIndex) ?? wstate.accounts[0];
     const evmAddress = acct?.evmAddress || address;
     const supportedNamespaces: Record<string, unknown> = {
       eip155: {

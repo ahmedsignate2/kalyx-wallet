@@ -20,8 +20,9 @@
  *
  * `mood` : hausse = plus lumineux, frange chaude ; baisse = plus faible, froid.
  */
-import React, { useEffect } from 'react';
-import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import React, { useEffect, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
+import Animated, { Easing, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, RadialGradient, Stop, Circle, Rect } from 'react-native-svg';
 import { useTheme } from '../theme';
 import { durations, springs } from '../tokens';
@@ -64,10 +65,25 @@ const PULSE: Record<AuraPulse, { scale: number; opacity: number }> = {
  * Cycle de respiration. Sur le thread UI, donc insensible à la charge
  * JavaScript. `amplitude` module l'intensité pour les couches larges.
  */
+/**
+ * L'app est-elle au premier plan ? Une respiration qui tourne en arrière-plan
+ * consomme de la batterie pour rien, et le §3.7 demande explicitement de la
+ * mettre en pause. Elle repart de la valeur affichée au retour (§4.2).
+ */
+function useForeground(): boolean {
+  const [active, setActive] = useState(AppState.currentState === 'active');
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s: AppStateStatus) => setActive(s === 'active'));
+    return () => sub.remove();
+  }, []);
+  return active;
+}
+
 function useAuraStyle(amplitude: number, isAura: boolean) {
   const ambient = useAura((s) => (isAura ? s.ambient : 'rest'));
   const event = useAura((s) => (isAura ? s.event : null));
   const reduced = useReducedMotion();
+  const foreground = useForeground();
 
   const breath = useSharedValue(0);
   /** Opacité de base, animée pour que le passage en veille soit un fondu. */
@@ -80,6 +96,12 @@ function useAuraStyle(amplitude: number, isAura: boolean) {
   useEffect(() => {
     floor.value = withTiming(cfg.floor, { duration: durations.themeCrossfade });
 
+    // Arrière-plan : on arrête la boucle sans la réinitialiser — elle reprendra
+    // de la valeur affichée, donc sans saut au retour (§4.2, §3.7).
+    if (!foreground) {
+      cancelAnimation(breath);
+      return;
+    }
     // « Réduire les animations » : chaque ambiance devient un NIVEAU FIXE (§4.4).
     // Le halo continue de dire l'état, il cesse seulement de bouger.
     if (reduced || cfg.period === 0) {
@@ -89,7 +111,7 @@ function useAuraStyle(amplitude: number, isAura: boolean) {
     // On ne remet pas `breath` à 0 avant de relancer : la nouvelle boucle part
     // de la valeur affichée, donc aucun saut au changement d'ambiance (§4.2).
     breath.value = withRepeat(withTiming(1, { duration: cfg.period, easing: Easing.inOut(Easing.sin) }), -1, true);
-  }, [breath, floor, cfg.period, cfg.floor, ambient, reduced]);
+  }, [breath, floor, cfg.period, cfg.floor, ambient, reduced, foreground]);
 
   useEffect(() => {
     if (!event) return;
