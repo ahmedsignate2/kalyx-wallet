@@ -74,15 +74,22 @@ describe('Support Ticket & Secret Detector System', () => {
       clearTechnicalLogs();
     });
 
-    it('records and formats logs up to 60 items without exceeding limit', () => {
-      for (let i = 1; i <= 70; i++) {
+    it('le tampon reste plafonné et garde les entrées les PLUS RÉCENTES', () => {
+      /*
+       * On teste le comportement, pas la constante. L'ancienne version exigeait
+       * exactement 60 — c'était la valeur du moment, pas une exigence — et elle
+       * cassait au premier changement de profondeur, pour rien.
+       */
+      const CAP = 300;
+      const total = CAP + 40;
+      for (let i = 1; i <= total; i++) {
         recordTechnicalLog('RPC', `Appel RPC n°${i}`);
       }
-      const logs = getRecentTechnicalLogs(100);
-      expect(logs.length).toBe(60);
-      // Le plus ancien conservé doit être le n°11
-      expect(logs[0]).toContain('Appel RPC n°11');
-      expect(logs[59]).toContain('Appel RPC n°70');
+      const logs = getRecentTechnicalLogs(total);
+      expect(logs.length).toBeLessThanOrEqual(CAP);
+      expect(logs[logs.length - 1]).toContain(`Appel RPC n°${total}`);
+      // Les premiers ont été évincés.
+      expect(logs.some((l) => l.includes('Appel RPC n°1 '))).toBe(false);
     });
 
     it('sanitizes secrets before recording them in technical logs', () => {

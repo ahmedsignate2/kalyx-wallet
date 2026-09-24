@@ -69,7 +69,15 @@ export function formatCondensedLog(l: LogEntry): string {
 
 class TechnicalLogger {
   private logs: LogEntry[] = [];
-  private readonly MAX_LOGS = 60;
+  /*
+   * PROFONDEUR. 60 entrées représentaient environ deux minutes d'usage actif :
+   * le temps de reproduire un bug en passant par trois écrans, la cause était
+   * déjà sortie du tampon. 300 entrées couvrent une session de diagnostic
+   * complète, pour quelques dizaines de kilo-octets en mémoire — et chaque
+   * entrée passe par `sanitizeLog`, donc en garder plus n'augmente pas le
+   * risque, seulement la capacité à comprendre.
+   */
+  private readonly MAX_LOGS = 300;
 
   public log(
     category: LogEntry['category'],
