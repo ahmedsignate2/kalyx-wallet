@@ -41,14 +41,22 @@ describe('Technical Logger & Sanitizer', () => {
   });
 
   describe('technicalLogger buffer and helpers', () => {
-    test('circular buffer caps at 60 entries', () => {
-      for (let i = 0; i < 75; i++) {
+    test('tampon circulaire : plafonné, et ce sont les PLUS ANCIENS qui sortent', () => {
+      /*
+       * On teste le comportement, pas la constante. L'ancienne version exigeait
+       * exactement 60 — c'était la valeur du moment, pas une exigence — et elle
+       * a donc cassé au premier changement de profondeur, pour rien.
+       */
+      const CAP = 300;
+      const total = CAP + 40;
+      for (let i = 0; i < total; i++) {
         technicalLogger.log('SYS', `Action event ${i}`);
       }
-      const logs = technicalLogger.getRecentLogs(100);
-      expect(logs.length).toBe(60);
-      expect(logs[logs.length - 1].message).toBe('Action event 74');
-      expect(logs[0].message).toBe('Action event 15');
+      const logs = technicalLogger.getRecentLogs(total);
+      expect(logs.length).toBeLessThanOrEqual(CAP);
+      // Le plus récent est conservé, le plus ancien a été évincé.
+      expect(logs[logs.length - 1].message).toBe(`Action event ${total - 1}`);
+      expect(logs.some((l) => l.message === 'Action event 0')).toBe(false);
     });
 
     test('detects errors and provides error logs', () => {
