@@ -206,7 +206,7 @@ export function AiChatModal({ visible, onClose, context }: { visible: boolean, o
   const t = useT();
   const insets = useSafeAreaInsets();
   const { provider, apiKey, customUrl, customModel, copilotStatus, currentSearchQuery, setCopilotStatus } = useAiStore();
-  const { profileName, language, fiat } = useSettings();
+  const { profileName, language, fiat, aiToolsEnabled } = useSettings();
   const activeChain = useWallet((s) => s.activeChain);
   const accounts = useWallet((s) => s.accounts);
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
@@ -371,8 +371,20 @@ ${technicalLogger.getCondensedLogs(60, currentNetworkName)}
 CONTEXTE TEMPS RÉEL (ALLOWLIST PUBLIQUE) :
 ${serializeCopilotContext()}
 Utilise uniquement ces données présentes. N'invente jamais un solde, une transaction ou une raison d'échec. Ce contexte ne contient volontairement aucune seed, clé privée, PIN ou secret.
-Si l'historique local est vide ou insuffisant pour répondre à une question de transaction, utilise l'outil public ${FETCH_WALLET_HISTORY_TOOL.name} avec l'adresse et le réseau concernés avant de répondre.
-Pour les cours, actualités ou informations de protocole qui peuvent changer, utilise ${WEB_SEARCH_TOOL.name} avant de répondre. N'affirme jamais qu'une recherche a été faite si l'outil n'a pas renvoyé de résultats.`;
+${aiToolsEnabled ? `OUTILS (MESURE SEULE, ET ILS COÛTENT) :
+Si l'historique local est vide ou insuffisant pour répondre à une question de
+transaction, utilise ${FETCH_WALLET_HISTORY_TOOL.name} avant de répondre.
+Pour les cours, actualités ou documentation de protocole susceptibles d'avoir
+changé, utilise ${WEB_SEARCH_TOOL.name} avant de répondre.
+
+Chaque appel sort de l'appareil et consomme un quota strictement limité :
+3 par réponse, 20 par heure. Une même cible redemandée est servie d'un cache,
+sans rien coûter, mais changer d'argument coûte. Si un outil te répond qu'une
+limite est atteinte, CONCLUS avec ce que tu as — ne réessaie pas, ne reformule
+pas l'appel. N'affirme jamais qu'une recherche a été faite si l'outil n'a rien
+renvoyé.` : `Tu n'as AUCUN outil : l'utilisateur ne les a pas activés. Réponds
+avec le contexte et les logs déjà fournis, et ne prétends jamais avoir consulté
+une source externe.`}`;
 
     if (ctx.screen === 'browser') {
       return `${base}\n\nNAVIGATION ACTIVE (dApp) :\n- URL : ${ctx.url || 'Page vierge'}\n- Titre : ${ctx.title || 'Inconnu'}\n\nVérifie la réputation de l'URL, préviens contre le phishing et réponds aux questions sur la dApp.`;
@@ -461,7 +473,15 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
         body.system = SYSTEM_PROMPT;
         body.messages = apiMessages;
         body.max_tokens = 1000;
-      } else {
+      } else if (aiToolsEnabled) {
+        /*
+         * OPT-IN STRICT. Les outils ne sont même pas ANNONCÉS au modèle tant que
+         * l'utilisateur ne les a pas activés : un modèle qui ne les connaît pas
+         * ne peut pas les appeler. C'est plus solide que de filtrer les appels
+         * après coup, et ça vaut pour n'importe quel modèle — l'app en accepte
+         * de 8 milliards de paramètres, et n'importe quel endpoint via
+         * `customUrl`.
+         */
         body.tools = [
           { type: 'function', function: FETCH_WALLET_HISTORY_TOOL },
           { type: 'function', function: WEB_SEARCH_TOOL },
