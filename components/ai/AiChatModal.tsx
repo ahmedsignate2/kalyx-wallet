@@ -1,4 +1,5 @@
 import { APP_ROUTES_MAP } from '../../lib/aiAppMap';
+import { parseProposedActions } from '../../lib/aiActions';
 import React, { useState, useEffect, useRef } from 'react';
 import { KeyboardAvoidingView, Platform, View, TextInput, ScrollView, Modal, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -490,34 +491,16 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
          rawReply = rawReply || t('aiConnectionFailed');
       }
       
-      let cleanReply = rawReply;
-      const actions: (() => void)[] = [];
-      const actionRegex = /<ACTION>([\s\S]*?)<\/ACTION>/gi;
-      let actionMatch: RegExpExecArray | null;
-      while ((actionMatch = actionRegex.exec(rawReply)) !== null) {
-        try {
-          const action = JSON.parse(actionMatch[1].trim()) as { target?: string; params?: Record<string, string> };
-          const routeConfig = action.target ? APP_ROUTES_MAP.find((r) => r.id === action.target) : undefined;
-          if (routeConfig) {
-            actions.push(() => {
-              onClose();
-              const params = { ...(action.params ?? {}) };
-              if (action.target === 'SEND' && params.to) {
-                const addr = params.to;
-                const valid = /^0x[a-fA-F0-9]{40}$/.test(addr) || /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr) || addr.endsWith('.eth') || addr.endsWith('.sol');
-                if (!valid) delete params.to;
-              }
-              router.push({ pathname: routeConfig.route as any, params });
-            });
-          }
-        } catch (error) {
-          console.warn('[AI Action] Erreur parsing JSON:', error instanceof Error ? error.message : 'JSON invalide');
-        }
-      }
-      cleanReply = cleanReply.replace(actionRegex, '').replace(/[^\S\r\n]{2,}/g, ' ').trim();
-      addMessageToActive({ sender: "assistant", text: cleanReply });
+      /*
+       * L'assistant PROPOSE, il ne redirige plus. Les actions étaient jouées
+       * automatiquement 200 ms après la réponse : l'écran se fermait et l'app
+       * sautait ailleurs sans que personne l'ait demandé. Elles deviennent un
+       * bouton sous la réponse, et le filtrage de sécurité vit dans
+       * lib/aiActions — un prompt se contourne, un analyseur non.
+       */
+      const { text: cleanReply, actions } = parseProposedActions(rawReply);
+      addMessageToActive({ sender: 'assistant', text: cleanReply, action: actions[0] });
       copilotLog(traceId, 'response.complete', { responseChars: cleanReply.length, actionCount: actions.length, totalElapsedMs: Date.now() - startedAt });
-      actions.forEach((action, index) => setTimeout(action, 200 + index * 150));
     } catch (e) {
       copilotError(traceId, 'request.failed', e, { totalElapsedMs: Date.now() - startedAt });
       setCopilotStatus('idle');
@@ -637,6 +620,37 @@ Pour les cours, actualités ou informations de protocole qui peuvent changer, ut
                               {textWithoutTicket}
                             </Text>
                           </View>
+                        ) : null}
+                        {/*
+                          ACTION PROPOSÉE : un bouton, pas une redirection.
+                          L'assistant suggère où aller ; c'est l'utilisateur qui
+                          y va. Le filtrage (écrans interdits, destinataire et
+                          montant retirés) est fait par lib/aiActions avant
+                          d'arriver ici.
+                        */}
+                        {!mine && m.action ? (
+                          <KPressable
+                            onPress={() => { onClose(); router.push({ pathname: m.action!.route as any, params: m.action!.params }); }}
+                            haptic="light"
+                            overshoot
+                            accessibilityLabel={m.action.label}
+                            style={{
+                              alignSelf: 'flex-start',
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: space[2],
+                              minHeight: 40,
+                              paddingHorizontal: space[3],
+                              borderRadius: radius.round,
+                              borderWidth: 1,
+                              borderColor: colors.primary,
+                            }}
+                          >
+                            <Icon name="forward" size={15} color={colors.primary} />
+                            <Text variant="caption" style={{ color: colors.primary }} numberOfLines={1}>
+                              {m.action.label}
+                            </Text>
+                          </KPressable>
                         ) : null}
                         {ticketMatch ? (
                           <TicketSupportCard ticketContent={ticketMatch[1].trim()} />
