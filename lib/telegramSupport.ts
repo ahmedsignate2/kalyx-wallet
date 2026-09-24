@@ -61,6 +61,30 @@ export function buildSupportTicketContent(params: SupportTicketParams): string {
     recentLogs = technicalLogger.getCondensedTicketLogs(network, 5);
   }
 
+  /*
+   * CONTEXTE, en plus des logs. Les logs disaient ce qui s'était PASSÉ, jamais
+   * DANS QUEL ÉTAT : quel réseau, quel indice de compte, en ligne ou non,
+   * biométrie active, phrase vérifiée. La plupart des pannes d'un wallet sont
+   * contextuelles, et sans cet état un ticket ne permet pas de reproduire.
+   * Aucune adresse, aucun solde, aucun secret n'y figure (cf. le test de
+   * lib/diagnosticContext).
+   */
+  let context = '';
+  try {
+    context = require('./diagnosticContext').formatDiagnosticContext();
+  } catch {
+    // Contexte indisponible : un ticket sans contexte vaut mieux que pas de ticket.
+  }
+
+  /*
+   * « Montant visé » n'apparaît que s'il y en a un. Il s'affichait « N/A » sur
+   * un problème de signature ou de connexion, où la notion n'a aucun sens : une
+   * ligne vide de plus à lire, et un faux indice pour qui dépouille le ticket.
+   */
+  const amountLine = targetAmount && !/^(?:N\/A|Non spécifié|-)?$/i.test(String(targetAmount).trim())
+    ? `• Montant visé : ${targetAmount}\n`
+    : '';
+
   const ticketContent = (
     `[TICKET SUPPORT KALYX]\n` +
     `• ID : ${ticketId}\n` +
@@ -68,8 +92,9 @@ export function buildSupportTicketContent(params: SupportTicketParams): string {
     `• Problème : ${problem}\n` +
     `• Réseau : ${network}\n` +
     `• Erreur détectée : ${detectedError}\n` +
-    `• Montant visé : ${targetAmount}\n` +
+    amountLine +
     `• Description utilisateur : "${userDescription}"\n` +
+    (context ? `• Contexte : ${context}\n` : '') +
     `• Logs récents :\n` +
     `${recentLogs}`
   );
