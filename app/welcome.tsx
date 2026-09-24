@@ -6,7 +6,7 @@
  * tenant, en ~2,2 s. D'abord la cérémonie, seule à l'écran et en grand : le
  * noyau s'allume, les seize rayons en jaillissent un par un au ressort, le halo
  * naît du même point. Puis, SEULEMENT ensuite, le logo se pose pendant que le
- * nom puis la baseline montent, LE repère de confiance apparaît, enfin les actions. ~900 ms au total, et
+ * nom puis la baseline montent, les trois repères arrivent en décalé, enfin les actions. ~900 ms au total, et
  * surtout NON BLOQUANT : chaque élément est touchable dès qu'il est visible.
  *
  * Consentement : la case reste obligatoire (protection juridique — clause de
@@ -45,6 +45,8 @@ const IGNITE = { delay: 110, stagger: 44 } as const;
 const BEAT = { logo: 0, name: 1180, tagline: 1360, props: 1520, actions: 1860 } as const;
 /** Échelle du logo pendant la cérémonie, avant qu'il ne se pose à 1. */
 const CEREMONY_SCALE = 1.45;
+/** Décalage entre deux arguments (seule cascade autorisée, cf. doctrine §2). */
+const STAGGER = 95;
 
 /**
  * Éclat qui dérive lentement autour du logo. Trois suffisent : Rainbow fait
@@ -142,6 +144,12 @@ export default function Welcome() {
   const actionsStyle = useAnimatedStyle(() => ({ opacity: actions.value, transform: [{ translateY: (1 - actions.value) * 12 }] }));
   const ctaStyle = useAnimatedStyle(() => ({ transform: [{ scale: cta.value }] }));
 
+  const PROPS: { icon: IconName; title: string; sub: string }[] = [
+    { icon: 'security', title: t('propNonCustodial'), sub: t('propNonCustodialSub') },
+    { icon: 'exchange', title: t('propSwap'), sub: t('propSwapSub') },
+    { icon: 'nft', title: t('propTokens'), sub: t('propTokensSub') },
+  ];
+
   /** Garde le consentement obligatoire, sans jamais présenter un bouton mort. */
   const guarded = (go: () => void) => () => {
     if (!agreed) { haptic.warning(); setNudge((n) => n + 1); return; }
@@ -194,20 +202,20 @@ export default function Welcome() {
         </View>
 
         {/*
-          UN SEUL repère de confiance (§15.1), là où il y avait trois blocs de
-          fonctionnalités. Une fonctionnalité se prouve dans l'usage, pas dans un
-          paragraphe (§2.2) — et sur le premier écran, la seule chose qu'un
-          utilisateur a besoin de savoir est où sont ses clés. Rainbow et Phantom
-          montrent sans raconter ; on s'aligne.
+          TROIS repères, pas un.
+          Le plan (§15.1) demandait de réduire à un seul argument, au motif
+          qu'une fonctionnalité se prouve dans l'usage. Essayé, et le verdict sur
+          l'écran réel est sans appel : il paraît vide. Un premier écran doit
+          donner assez de matière pour qu'on ait envie d'entrer ; réduire à une
+          ligne laisse un grand trou sous le logo.
+
+          La cascade reste la seule tolérée par la doctrine §2 : liste courte,
+          figée, au premier affichage uniquement — jamais au re-rendu.
         */}
-        <View style={{ marginVertical: space[6] }}>
-          <Argument
-            icon="security"
-            title={t('propNonCustodial')}
-            sub={t('propNonCustodialSub')}
-            delay={BEAT.props}
-            reduced={reduced}
-          />
+        <View style={{ gap: space[4], marginVertical: space[6] }}>
+          {PROPS.map((p, i) => (
+            <Argument key={p.title} {...p} delay={BEAT.props + i * STAGGER} reduced={reduced} />
+          ))}
         </View>
 
         <Animated.View style={[{ gap: space[3] }, actionsStyle]}>
