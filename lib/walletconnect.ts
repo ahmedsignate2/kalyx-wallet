@@ -1,4 +1,5 @@
 import { base58, base64 } from '@scure/base';
+import { utf8ToBytes } from '@noble/hashes/utils';
 /**
  * WalletConnect (Reown) — Kalyx est le WALLET auquel les dApps se connectent.
  * Flux : coller une URI wc: → proposition de session → approbation (compte actif
@@ -542,30 +543,40 @@ export const useWalletConnect = create<WcState>((set, get) => ({
          *    puis r et s), soit 88 caractères en base64 ;
          *  - BIP-322 : la pile de témoin sérialisée, 108 octets pour un
          *    P2WPKH, soit 144 caractères.
-         * Un vérificateur BIP-137 (`bitcoinjs-message`) refuse tout ce qui ne
-         * fait pas 65 octets avec le message exact « Invalid signature length ».
-         * Se tromper de protocole ne donne donc pas une signature invalide : ça
-         * donne une erreur de LONGUEUR, qui ne dit rien sur la cause.
+         * Se tromper de protocole ne donne donc pas « signature invalide » mais
+         * une erreur de LONGUEUR, qui ne dit rien sur la cause.
          *
-         * On ne lit plus que le champ `protocol` de la spec. L'ancien repli sur
-         * `type` était dangereux : c'est une clé générique, qu'une dApp peut
-         * utiliser pour tout autre chose (« type » de message, de compte…), et
-         * il suffisait qu'elle contienne une chaîne commençant par « bip322 »
-         * pour basculer de protocole à l'insu de tout le monde.
+         * DÉFAUT : BIP-322 pour une adresse SegWit natif (bc1q…), ECDSA sinon.
+         *
+         * Mesuré, pas supposé : sur https://react-app.walletconnect.com — le
+         * dApp de référence de WalletConnect — une requête SANS champ
+         * `protocol` reçoit notre signature BIP-137 de 65 octets (vérifiée
+         * correcte : en-tête 39+recovery, r et s) et la rejette avec « Invalid
+         * signature length ». Un vérificateur qui voulait de l'ECDSA aurait
+         * accepté 65 octets. Il vérifie donc en BIP-322, qui est de fait le
+         * standard des adresses bech32 et ce que font Unisat, Xverse et Leather.
+         *
+         * Les adresses héritées (1…, 3…) restent en ECDSA : BIP-322 y est peu
+         * répandu. Et un `protocol` explicite gagne toujours sur ce défaut.
          */
-        const proto = String(pSafe.protocol ?? pSafe[0]?.protocol ?? 'ecdsa').toLowerCase();
+        const btcAddrForProto = activeAccount()?.btcAddress ?? String(pSafe.address ?? pSafe[0]?.address ?? '');
+        const isBech32 = /^(bc1|tb1)/i.test(btcAddrForProto);
+        const requested = pSafe.protocol ?? pSafe[0]?.protocol;
+        const proto = String(requested ?? (isBech32 ? 'bip322' : 'ecdsa')).toLowerCase();
         const type: 'ecdsa' | 'bip322' = proto.startsWith('bip322') ? 'bip322' : 'ecdsa';
         const sigBase64 = await w.signBitcoinMessage(unlock, msg, type);
         /*
-         * Journalisé pour que le prochain échec soit diagnosticable d'un coup :
-         * le protocole DEMANDÉ, celui RETENU, et la taille réellement envoyée.
-         * Visible dans les logs techniques (assistant IA, ticket de support).
+         * Journalisé pour que le prochain échec soit diagnosticable d'un coup.
+         * La taille est DÉCODÉE et non estimée : `base64.length * 3 / 4`
+         * comptait le caractère de remplissage et annonçait 66 octets pour une
+         * signature de 65, ce qui a fait croire à un format inattendu.
          */
         technicalLogger.logDapp('btc_signMessage', undefined, {
-          requestedProtocol: pSafe.protocol ?? pSafe[0]?.protocol ?? '(absent)',
+          requestedProtocol: requested ?? '(absent)',
           resolvedProtocol: type,
-          signatureBytes: Math.floor((sigBase64.length * 3) / 4),
-          messageBytes: msg.length,
+          addressKind: isBech32 ? 'bech32 (segwit natif)' : 'héritée',
+          signatureBytes: base64.decode(sigBase64).length,
+          messageBytes: utf8ToBytes(msg).length,
         });
         const btcAddr = activeAccount()?.btcAddress ?? pSafe.address ?? pSafe[0]?.address;
         // Spec Reown : signature en base64 + adresse signataire.
