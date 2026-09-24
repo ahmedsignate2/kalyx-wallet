@@ -112,6 +112,25 @@ describe('Technical Logger & Sanitizer', () => {
       expect(ticketLogs).not.toContain('[RPC] Swellchain: eth_getBalance -> 500');
     });
 
+    test('un log dApp rend ses DÉTAILS, pas seulement son nom', () => {
+      /*
+       * Le formateur condensé n'imprimait que le message : un btc_signMessage
+       * instrumenté avec le protocole et la taille de signature se réduisait à
+       * « [DAPP] btc_signMessage ». L'instrumentation existait, le diagnostic
+       * était vide, et on ne pouvait pas savoir pourquoi.
+       */
+      technicalLogger.logDapp('btc_signMessage', undefined, {
+        chain: 'bitcoin',
+        resolvedProtocol: 'bip322',
+        signatureBytes: 108,
+      });
+      const line = technicalLogger.getCondensedTicketLogs('bitcoin');
+      expect(line).toContain('resolvedProtocol=bip322');
+      expect(line).toContain('signatureBytes=108');
+      // Pas de JSON brut : illisible dans un ticket.
+      expect(line).not.toContain('{"');
+    });
+
     test('un log dApp porte sa chaîne et n\'est plus écarté des tickets ciblés', () => {
       // Le défaut : logDapp ne transmettait pas `chain`, donc matchesChain
       // échouait et un ticket « problème sur Bitcoin » excluait justement les
