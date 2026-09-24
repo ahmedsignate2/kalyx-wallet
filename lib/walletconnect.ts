@@ -11,6 +11,7 @@ import { base58, base64 } from '@scure/base';
  */
 import { Platform, AppState, Linking } from 'react-native';
 import { create } from 'zustand';
+import { technicalLogger } from './technicalLogger';
 import { useWallet, type Unlock } from './walletStore';
 import { notify } from './notifications';
 import { listChains, getAdapter, type RawTxRequest } from '../src';
@@ -215,6 +216,21 @@ interface WcState {
 
 let _wcInitializing = false;
 
+/**
+ * Compte actif — par indice de DÉRIVATION HD, jamais par position de tableau.
+ *
+ * `activeAccountIndex` est l'indice HD (0, 1, 2…), et le reste du code le
+ * résout ainsi (cf. `toAccount` dans lib/walletStore). Ce fichier faisait
+ * `accounts[activeAccountIndex]`, ce qui n'est équivalent que si aucun compte
+ * n'a jamais été supprimé ni réordonné. Sinon la dApp recevait l'adresse d'un
+ * compte DIFFÉRENT de celui qui signe — et la vérification échouait côté dApp,
+ * sans que rien ne le signale de ce côté-ci.
+ */
+function activeAccount() {
+  const s = useWallet.getState();
+  return s.accounts.find((a) => a.index === s.activeAccountIndex) ?? s.accounts[0];
+}
+
 export const useWalletConnect = create<WcState>((set, get) => ({
   configured: PROJECT_ID.length > 0,
   ready: false,
@@ -308,7 +324,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       }
       if (!SIGNING_METHODS.has(method)) {
         // Lecture / capacités : réponse immédiate, sans écran. Inconnue : erreur JSON-RPC standard.
-        const acct = useWallet.getState().accounts[useWallet.getState().activeAccountIndex];
+        const acct = activeAccount();
         const evmAddress = acct?.evmAddress ?? useWallet.getState().account?.address;
         const caip: string = request?.params?.chainId ?? '';
         const evmId = caip.startsWith('eip155:') ? Number(caip.slice(7)) : undefined;
@@ -370,7 +386,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     await wstate.verifyUnlock(unlock);
     const chains = evmChains();
     // Adresses non-EVM du compte actif (partagées en lecture seule au dashboard).
-    const acct = wstate.accounts[wstate.activeAccountIndex];
+    const acct = wstate.accounts.find((a) => a.index === wstate.activeAccountIndex) ?? wstate.accounts[0];
     const evmAddress = acct?.evmAddress || address;
     const supportedNamespaces: Record<string, unknown> = {
       eip155: {
@@ -472,7 +488,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         if (!txStr && typeof pSafe === 'string') txStr = pSafe;
         if (typeof txStr !== 'string') throw new Error('Expected String');
         const res = await w.signSolanaTransaction(unlock, txStr);
-        const solAddr = useWallet.getState().accounts[useWallet.getState().activeAccountIndex]?.solAddress;
+        const solAddr = activeAccount()?.solAddress;
         result = { signature: extractSolanaSignature(res, solAddr || ''), transaction: ensureBase64(res) };
       } else if (method === 'solana_signAndSendTransaction') {
         // Signe puis diffuse : la dApp attend { signature } (base58 de la transaction envoyée).
@@ -487,7 +503,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         let txStrArray = pSafe.transactions || pSafe[0]?.transactions || (Array.isArray(pSafe) ? pSafe : [pSafe]);
         if (!Array.isArray(txStrArray)) txStrArray = [txStrArray];
         const res = await w.signSolanaTransactions(unlock, txStrArray);
-        const solAddr = useWallet.getState().accounts[useWallet.getState().activeAccountIndex]?.solAddress;
+        const solAddr = activeAccount()?.solAddress;
         result = { signatures: res.map(r => extractSolanaSignature(r, solAddr || '')), transactions: res.map(ensureBase64) };
       } else if (method === 'solana_signMessage') {
         const pSafe: any = p || {};
@@ -506,10 +522,40 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         if (!msg && Array.isArray(pSafe)) msg = pSafe.filter(x => typeof x === 'string').pop();
         if (!msg && typeof pSafe === 'string') msg = pSafe;
         if (typeof msg !== 'string') throw new Error('Expected String');
-        const proto = String(pSafe.protocol ?? pSafe[0]?.protocol ?? pSafe.type ?? pSafe[0]?.type ?? 'ecdsa').toLowerCase();
+        /*
+         * PROTOCOLE DE SIGNATURE — la cause des « Invalid signature length ».
+         *
+         * Les deux protocoles produisent des tailles TRÈS différentes :
+         *  - ECDSA / BIP-137 : 65 octets (1 en-tête 39+recovery pour P2WPKH,
+         *    puis r et s), soit 88 caractères en base64 ;
+         *  - BIP-322 : la pile de témoin sérialisée, 108 octets pour un
+         *    P2WPKH, soit 144 caractères.
+         * Un vérificateur BIP-137 (`bitcoinjs-message`) refuse tout ce qui ne
+         * fait pas 65 octets avec le message exact « Invalid signature length ».
+         * Se tromper de protocole ne donne donc pas une signature invalide : ça
+         * donne une erreur de LONGUEUR, qui ne dit rien sur la cause.
+         *
+         * On ne lit plus que le champ `protocol` de la spec. L'ancien repli sur
+         * `type` était dangereux : c'est une clé générique, qu'une dApp peut
+         * utiliser pour tout autre chose (« type » de message, de compte…), et
+         * il suffisait qu'elle contienne une chaîne commençant par « bip322 »
+         * pour basculer de protocole à l'insu de tout le monde.
+         */
+        const proto = String(pSafe.protocol ?? pSafe[0]?.protocol ?? 'ecdsa').toLowerCase();
         const type: 'ecdsa' | 'bip322' = proto.startsWith('bip322') ? 'bip322' : 'ecdsa';
         const sigBase64 = await w.signBitcoinMessage(unlock, msg, type);
-        const btcAddr = w.accounts[w.activeAccountIndex]?.btcAddress ?? pSafe.address ?? pSafe[0]?.address;
+        /*
+         * Journalisé pour que le prochain échec soit diagnosticable d'un coup :
+         * le protocole DEMANDÉ, celui RETENU, et la taille réellement envoyée.
+         * Visible dans les logs techniques (assistant IA, ticket de support).
+         */
+        technicalLogger.logDapp('btc_signMessage', undefined, {
+          requestedProtocol: pSafe.protocol ?? pSafe[0]?.protocol ?? '(absent)',
+          resolvedProtocol: type,
+          signatureBytes: Math.floor((sigBase64.length * 3) / 4),
+          messageBytes: msg.length,
+        });
+        const btcAddr = activeAccount()?.btcAddress ?? pSafe.address ?? pSafe[0]?.address;
         // Spec Reown : signature en base64 + adresse signataire.
         result = { signature: sigBase64, address: btcAddr };
       } else if (method === 'bitcoin_signPsbt' || method === 'signPsbt') {
