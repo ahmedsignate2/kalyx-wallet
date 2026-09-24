@@ -21,6 +21,7 @@ import { fonts, radii, spacing, useTheme } from './theme';
 import { useTokenStore } from '../lib/tokenStore';
 import { useWalletConnect } from '../lib/walletconnect';
 import { useWallet, type Unlock } from '../lib/walletStore';
+import { accountDisplayName } from '../lib/walletNames';
 import { useT, useSettings } from '../lib/settingsStore';
 import { sound } from '../lib/sound';
 import {
@@ -155,8 +156,14 @@ export function WalletConnectHost() {
   const approveRequest = useWalletConnect((s) => s.approveRequest);
   const rejectRequest = useWalletConnect((s) => s.rejectRequest);
   const account = useWallet((s) => s.account);
+  const accounts = useWallet((s) => s.accounts);
+  const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
 
   const [confirming, setConfirming] = useState(false);
+  /** Compte partagé avec la dApp : le compte actif par défaut. */
+  const [shareIndex, setShareIndex] = useState(activeAccountIndex);
+  // Le compte actif peut changer pendant qu'une proposition est ouverte.
+  useEffect(() => { setShareIndex(activeAccountIndex); }, [activeAccountIndex]);
   const reduceRef = useRef<string | null>(null);
   // Autorisations granulaires accordées au site (cases à la connexion).
   const [allowTx, setAllowTx] = useState(true);
@@ -321,6 +328,37 @@ export function WalletConnectHost() {
             <PermRow on={allowSign} onToggle={() => setAllowSign((v) => !v)} label={t('permSignLabel')} />
             <Text style={[typography.muted, { marginTop: spacing(0.75) }]}>{t('cannotMove')}</Text>
           </View>
+          {/*
+            CHOIX DU COMPTE — n'existait pas : la dApp recevait toujours le
+            compte actif. Or une session WalletConnect se noue avec UN compte et
+            ne peut plus en changer ensuite : le choix se fait maintenant ou
+            jamais. Affiché uniquement à partir de deux comptes, pour ne pas
+            encombrer le cas courant.
+          */}
+          {accounts.length > 1 ? (
+            <View style={{ marginTop: spacing(1.5), gap: spacing(0.75) }}>
+              <Text style={typography.muted}>{t('wcChooseAccount')}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(0.75) }}>
+                {accounts.map((a) => {
+                  const on = a.index === shareIndex;
+                  return (
+                    <KPressable
+                      key={a.index}
+                      onPress={() => setShareIndex(a.index)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: on }}
+                      accessibilityLabel={accountDisplayName(a, t)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, paddingHorizontal: spacing(1.25), borderRadius: radii.pill, borderWidth: 1, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primary : 'transparent' }}
+                    >
+                      <Text style={{ color: on ? colors.onPrimary : colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>
+                        {accountDisplayName(a, t)}
+                      </Text>
+                    </KPressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
         </GlassCard>
 
         <SecBanner risk={null} phish={phishSite} />
@@ -338,7 +376,7 @@ export function WalletConnectHost() {
           visible={confirming}
           title={t('confirmConnection')}
           subtitle={meta.name ?? 'dApp'}
-          perform={(unlock) => approveProposal(unlock, { tx: allowTx, sign: allowSign })}
+          perform={(unlock) => approveProposal(unlock, { tx: allowTx, sign: allowSign }, shareIndex)}
           onDone={() => setConfirming(false)}
           onCancel={() => setConfirming(false)}
         />
