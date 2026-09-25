@@ -5,6 +5,7 @@
  *   écran Envoyer prérempli, après confirmation. Jamais d'exécution directe.
  * - `kalyx://pay?uri=…` et `https://kalyxwallet.com/pay?uri=…` → même chose,
  *   pour les liens partagés qui doivent rester cliquables sans l'app installée.
+ * - `https://pay.walletconnect.com/…` → paiement marchand (WalletConnect Pay).
  * - `kalyx://browse?url=https://…` → ouvre l'URL dans le navigateur dApps.
  * - `kalyx://<route>` est géré nativement par expo-router.
  *
@@ -38,6 +39,7 @@ import {
   extractWcUri,
   extractPaymentUri,
   extractBrowseUrl,
+  extractPayLink,
   type QrResult,
 } from '../src';
 import { runQrIntent, setPendingIntent } from '../lib/paymentIntent';
@@ -110,6 +112,15 @@ export function DeepLinks() {
       const pay = extractPaymentUri(url);
       if (pay) {
         act(parseQr(pay));
+        return;
+      }
+      /*
+       * Lien de paiement marchand. Testé AVANT `browse` : c'est une URL https,
+       * elle finirait sinon dans le navigateur dApps où elle ne sert à rien.
+       */
+      const payLink = extractPayLink(url);
+      if (payLink) {
+        act({ kind: 'wc-pay', link: payLink });
         return;
       }
       if (/(^|\/\/)browse\b/i.test(url)) {

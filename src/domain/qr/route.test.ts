@@ -125,3 +125,22 @@ describe('sendIntentFor', () => {
     expect(sendIntentFor({ kind: 'invalid', raw: 'zz' })).toBeNull();
   });
 });
+
+describe('WalletConnect Pay dans le routage', () => {
+  it('n\'est PAS une intention d\'envoi', () => {
+    /*
+     * Un lien Pay désigne une DEMANDE côté marchand, pas un destinataire. Le
+     * traiter comme un envoi préremplirait l'écran d'envoi avec une URL en
+     * guise d'adresse.
+     */
+    expect(sendIntentFor({ kind: 'wc-pay', link: 'https://pay.walletconnect.com/x' })).toBeNull();
+    expect(qrTargetFamily({ kind: 'wc-pay', link: 'https://pay.walletconnect.com/x' })).toBeNull();
+  });
+
+  it('se décrit avec ses propres libellés, traduits', () => {
+    const d = describeQr({ kind: 'wc-pay', link: 'https://pay.walletconnect.com/x' }, T);
+    expect(d.title).toBe('qrPayTitle');
+    expect(d.cta).toBe('next');
+    expect(d.danger).toBe(false);
+  });
+});

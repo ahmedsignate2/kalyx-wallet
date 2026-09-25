@@ -165,6 +165,7 @@ export {
   extractWcUri,
   extractPaymentUri,
   extractBrowseUrl,
+  extractPayLink,
   PAY_SCHEMES,
 } from './domain/qr/deeplink';
 
@@ -209,6 +210,18 @@ export type {
 } from './domain/chains/v2/types';
 export type { ChainCapabilities, MessageSigningKind } from './domain/chains/v2/capabilities';
 export type { ChainSigner, SignerCurve, Secp256k1Signer, Ed25519Signer } from './domain/chains/v2/signer';
+
+// WalletConnect Pay — réseaux couverts et garde-fou de signature (pur)
+export {
+  payAccountsFor,
+  caip10,
+  parseCaip2,
+  checkPayAction,
+  PAY_EVM_CHAIN_IDS,
+  PAY_ALLOWED_METHODS,
+  type PayMethod,
+  type PayActionCheck,
+} from './domain/pay/payChains';
 
 // NFT (Alchemy)
 export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
