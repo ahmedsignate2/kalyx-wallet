@@ -70,6 +70,8 @@ export type QrLabelKey =
   | 'qrPayTitle'
   | 'qrPayDetail'
   | 'qrSolanaTxRequest'
+  | 'qrLightningOnly'
+  | 'qrLightningOnlyBody'
   | 'qrOpenSite'
   | 'qrOpenInBrowser'
   | 'qrNotRecognized'
@@ -143,6 +145,9 @@ export function describeQr(result: QrResult, t: QrTranslate): QrDescription {
       return { title: t('qrWcTitle'), detail: t('qrWcDetail'), cta: t('connect'), danger: false };
     case 'wc-pay':
       return { title: t('qrPayTitle'), detail: t('qrPayDetail'), cta: t('next'), danger: false };
+    case 'lightning-only':
+      // Pas d'action possible : il n'y a rien à payer en chaîne.
+      return { title: t('qrLightningOnly'), detail: t('qrLightningOnlyBody'), cta: null, danger: false };
     case 'solana-tx-request':
       /*
        * Marquée DANGEREUSE : on ne connaît pas encore le contenu de la

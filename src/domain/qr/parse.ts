@@ -67,6 +67,16 @@ export type QrResult =
    * vient d'un serveur, et doit donc être décodé et montré avant signature.
    */
   | { kind: 'solana-tx-request'; url: string }
+  /**
+   * QR unifié qui ne propose QUE Lightning.
+   *
+   * L'ABNF de BIP-21 autorise une adresse VIDE (`*base58`), et c'est ce que
+   * produisent les portefeuilles Lightning : `bitcoin:?lightning=lnbc…`. Il n'y
+   * a alors rien à payer en chaîne. Sans ce cas, l'utilisateur recevait « QR non
+   * reconnu » sur un QR parfaitement valide — et en concluait que le scanner
+   * était cassé, au lieu d'apprendre que Kalyx ne gère pas Lightning.
+   */
+  | { kind: 'lightning-only' }
   | { kind: 'walletconnect'; uri: string }
   /**
    * Lien WalletConnect Pay : une DEMANDE côté marchand, pas une adresse.
@@ -123,11 +133,23 @@ function splitUri(body: string): { path: string; query: Record<string, string>; 
   return { path: body.slice(0, qi), query: parseQuery(raw), raw };
 }
 
-/** Montant décimal valide et strictement positif ? */
+/**
+ * Montant décimal valide et strictement positif ?
+ *
+ * L'ABNF de BIP-21 est `*digit [ "." *digit ]`, où `*` signifie ZÉRO ou plus :
+ * `.5` et `5.` sont donc des montants grammaticalement valides. L'expression
+ * précédente exigeait un chiffre de part et d'autre du point et les rejetait en
+ * silence — le montant disparaissait du lien et l'utilisateur le retapait à la
+ * main, sans savoir qu'il en manquait un.
+ *
+ * Le point seul (`.`) reste refusé : ce n'est pas un nombre.
+ */
 function cleanAmount(v: string | undefined): string | undefined {
   if (!v) return undefined;
-  if (!/^\d+(\.\d+)?$/.test(v)) return undefined;
-  return Number(v) > 0 ? v : undefined;
+  const t = v.trim();
+  if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(t)) return undefined;
+  const n = Number(t);
+  return Number.isFinite(n) && n > 0 ? t : undefined;
 }
 
 /**
@@ -206,6 +228,14 @@ const KNOWN_BIP21_REQ = new Set<string>();
 
 function parseBitcoinUri(body: string): QrResult {
   const { path, query } = splitUri(body);
+
+  /*
+   * Adresse vide : la spec l'autorise, et c'est la forme d'un QR unifié dont
+   * seule l'offre Lightning est renseignée. On le DIT, au lieu de répondre
+   * « non reconnu » à un QR valide.
+   */
+  if (path.trim() === '' && (query.lightning || query.lno)) return { kind: 'lightning-only' };
+
   if (!isValidBtcAddress(path)) return { kind: 'invalid', raw: `bitcoin:${body}` };
 
   /*
@@ -215,9 +245,14 @@ function parseBitcoinUri(body: string): QrResult {
    * que font la plupart des portefeuilles, revient à payer autre chose que ce
    * que le bénéficiaire a formulé — sans le dire à personne.
    */
-  const unknownReq = Object.keys(query).find(
-    (k) => k.toLowerCase().startsWith('req-') && !KNOWN_BIP21_REQ.has(k.toLowerCase()),
-  );
+  /*
+   * Comparaison SENSIBLE À LA CASSE. La spec est explicite : « le reste de
+   * l'URI est sensible à la casse, y compris les clés de requête », et l'ABNF
+   * fixe le préfixe littéral `req-`. Mettre la clé en minuscules faisait donc
+   * traiter `REQ-truc` comme une exigence inconnue et REJETER une URI que la
+   * spec dit valide — un paiement refusé pour rien.
+   */
+  const unknownReq = Object.keys(query).find((k) => k.startsWith('req-') && !KNOWN_BIP21_REQ.has(k));
   if (unknownReq) return { kind: 'invalid', raw: `bitcoin:${body}` };
 
   /*
