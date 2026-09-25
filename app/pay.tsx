@@ -12,6 +12,7 @@ import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import * as Clipboard from 'expo-clipboard';
 import { Linking } from 'react-native';
 import { Text, Button, Surface, ListRow, IconButton, Skeleton, EmptyState, Chip } from '../ui/kit';
 import { useTheme } from '../ui/theme';
@@ -65,7 +66,17 @@ export default function PayScreen() {
          */
         if (detail === 'expired') return t('payExpired');
         if (detail === 'succeeded') return t('payAlreadyPaid');
-        return t('payNoOptionBody');
+        /*
+         * On NE SAIT PAS si l'utilisateur ne détient aucun jeton accepté ou s'il
+         * n'en a pas assez pour le montant demandé : le service ne le dit pas.
+         * Affirmer « tu n'en as aucun » serait faux dans le second cas — et
+         * c'est précisément ce que disait la version précédente à quelqu'un qui
+         * avait de l'USDC sur Base. On montre donc le MONTANT DEMANDÉ et on
+         * laisse l'utilisateur juger.
+         */
+        return options?.info
+          ? `${t('payRequested')} ${formatTokenAmount(BigInt(options.info.amount.value || '0'), options.info.amount.display.decimals)} ${options.info.amount.display.assetSymbol}. ${t('payNoOptionBody')}`
+          : t('payNoOptionBody');
       case 'INFO_REQUIRED':
         return t('payInfoRequiredBody');
       case 'ACTION_REFUSED':
@@ -186,6 +197,20 @@ export default function PayScreen() {
               actionLabel={t('back')}
               onAction={close}
             />
+            {/*
+              Diagnostic copiable : zéro option a plusieurs causes que cet écran
+              ne distingue pas, et sans données on en reste aux hypothèses.
+            */}
+            <Button
+              label={t('payCopyDiagnostic')}
+              variant="ghost"
+              size="md"
+              dense
+              onPress={() => {
+                void Clipboard.setStringAsync(usePay.getState().diagnostic());
+                toast.success(t('copied'));
+              }}
+            />
           </Surface>
         ) : null}
 
@@ -218,6 +243,20 @@ export default function PayScreen() {
               title={result.status === 'succeeded' ? t('paySucceeded') : t('payProcessing')}
               actionLabel={t('back')}
               onAction={close}
+            />
+            {/*
+              Diagnostic copiable : zéro option a plusieurs causes que cet écran
+              ne distingue pas, et sans données on en reste aux hypothèses.
+            */}
+            <Button
+              label={t('payCopyDiagnostic')}
+              variant="ghost"
+              size="md"
+              dense
+              onPress={() => {
+                void Clipboard.setStringAsync(usePay.getState().diagnostic());
+                toast.success(t('copied'));
+              }}
             />
           </Surface>
         ) : null}
