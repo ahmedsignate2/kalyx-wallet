@@ -2,7 +2,7 @@
   "applinks": {
     "apps": [],
     "details": [
-      { "appID": "TEAMID.com.kalyx.wallet", "paths": ["/wc", "/wc/*"] }
+      { "appID": "TEAMID.com.kalyx.wallet", "paths": ["/wc", "/wc/*", "/pay", "/pay/*"] }
     ]
   }
 }
