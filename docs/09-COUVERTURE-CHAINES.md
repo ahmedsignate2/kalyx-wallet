@@ -100,5 +100,29 @@ Légende :
   la limite DEMANDÉE et non consommée.
 
 **Limite qu'aucun test ne lèvera :** rien de tout cela n'a été exécuté contre un
-réseau réel. Les 748 tests bouchonnent le réseau. Un envoi BTC réel de bout en
-bout, sur un petit montant, vaut plus que cinquante tests de plus.
+réseau réel. Les tests bouchonnent le réseau. Un envoi BTC réel de bout en bout,
+sur un petit montant, vaut plus que cinquante tests de plus.
+
+---
+
+## Limites connues, assumées
+
+**La clé privée EVM transite par une chaîne de caractères.** `ethers` expose sa
+signature via `new Wallet(privateKeyHex)`, ce qui oblige à reconstruire une
+chaîne hexadécimale à partir des octets. Une chaîne JavaScript est IMMUABLE :
+`wipeSigner` remet à zéro le `Uint8Array` d'origine, mais la copie hexadécimale
+reste en mémoire jusqu'au passage du ramasse-miettes.
+
+C'est une limite d'`ethers`, pas du design — et elle existait déjà avant la v2,
+où la clé circulait en hexadécimal de bout en bout. La v2 réduit la fenêtre :
+la chaîne n'est fabriquée qu'au moment de signer, et pas transportée.
+
+La contourner demanderait de signer à la main avec `@noble/curves` plutôt que
+d'utiliser `Wallet` — donc de réimplémenter l'encodage RLP et la sérialisation
+des transactions de type 0 et 2. Du code de signature écrit maison, c'est-à-dire
+exactement l'endroit où une erreur coûte le plus cher, pour fermer une fenêtre
+qui se mesure en millisecondes sur un appareil déjà déverrouillé. **Non retenu**
+pour l'instant ; à reconsidérer si le reste de la surface se resserre.
+
+Solana, Bitcoin, et demain TON, ne sont pas concernés : `@noble/curves` et
+`@scure/btc-signer` signent directement des octets.

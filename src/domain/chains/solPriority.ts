@@ -56,8 +56,17 @@ export const PRIORITY_FEE_FLOOR = 10_000n;
  */
 export const PRIORITY_FEE_CAP = 5_000_000n;
 
-/** Centile retenu parmi les échantillons récents. */
+/** Centile retenu par défaut parmi les échantillons récents. */
 const PERCENTILE = 0.75;
+
+/**
+ * Centiles des trois paliers proposés à l'utilisateur.
+ *
+ * Des centiles et non des multiplicateurs arbitraires : « rapide » doit vouloir
+ * dire « au-dessus de 95 % de ce que le réseau a vu récemment », ce qui reste
+ * vrai quand le réseau change d'échelle. Doubler un prix ne veut rien dire.
+ */
+export const SPEED_PERCENTILES = { slow: 0.5, normal: 0.75, fast: 0.95 } as const;
 
 /** Instruction : fixer la limite d'unités de calcul. */
 export function setComputeUnitLimitIx(units: number): Instruction {
@@ -93,7 +102,7 @@ export function priorityInstructions(units: number, microLamports: bigint): Inst
  * chargé. Toujours ramené entre le plancher et le plafond, y compris quand le
  * RPC répond n'importe quoi — une valeur absurde ne doit pas devenir un prix.
  */
-export function pickPriorityFee(samples: unknown): bigint {
+export function pickPriorityFee(samples: unknown, percentile: number = PERCENTILE): bigint {
   const fees = Array.isArray(samples)
     ? samples
         .map((s) => (s && typeof s === 'object' ? (s as { prioritizationFee?: unknown }).prioritizationFee : undefined))
@@ -104,7 +113,8 @@ export function pickPriorityFee(samples: unknown): bigint {
   if (fees.length === 0) return PRIORITY_FEE_FLOOR;
 
   fees.sort((a, b) => a - b);
-  const idx = Math.min(fees.length - 1, Math.floor(fees.length * PERCENTILE));
+  const p = Math.min(1, Math.max(0, percentile));
+  const idx = Math.min(fees.length - 1, Math.floor(fees.length * p));
   const picked = BigInt(fees[idx]);
 
   if (picked < PRIORITY_FEE_FLOOR) return PRIORITY_FEE_FLOOR;
