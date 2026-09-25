@@ -1,6 +1,6 @@
-import type { TxSummary } from './types';
+import type { TxParsed } from './types';
 
-export function parseAlchemyTransfers(json: any, ownerAddress: string): TxSummary[] {
+export function parseAlchemyTransfers(json: any, ownerAddress: string): TxParsed[] {
   if (!json || !json.result || !Array.isArray(json.result.transfers)) return [];
 
   return json.result.transfers.map((t: any) => {
@@ -44,6 +44,6 @@ export function parseAlchemyTransfers(json: any, ownerAddress: string): TxSummar
       status: 'success',
       asset: isRealNative ? undefined : asset, // undefined falls back to chain.nativeSymbol
       decimals: isRealNative ? undefined : decimals,
-    } as TxSummary;
+    } as TxParsed;
   });
 }

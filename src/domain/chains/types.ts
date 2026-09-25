@@ -60,6 +60,22 @@ export interface Balance {
 }
 
 export interface TxSummary {
+  /**
+   * Réseau d'origine, identifiant Kalyx.
+   *
+   * INDISPENSABLE, et longtemps absent. Une transaction sans sa chaîne oblige
+   * celui qui l'affiche à deviner ses décimales et son symbole — et l'accueil
+   * devinait le RÉSEAU ACTIF, alors qu'il agrège l'historique de tous. Un envoi
+   * de 1 000 satoshis vu depuis Base ressortait en
+   * « 0,000000000000001 ETH » : ni le montant ni la monnaie n'étaient les bons,
+   * et la contre-valeur suivait le mauvais symbole.
+   *
+   * Les analyseurs purs ne la connaissent pas — ils lisent la réponse d'un
+   * indexeur, pas une configuration. Ils rendent donc un `TxParsed`, et c'est
+   * l'adaptateur qui l'estampille : il est le seul à savoir de quelle chaîne il
+   * parle, et il est le passage obligé de tous les analyseurs.
+   */
+  chain: string;
   hash: string;
   from: string;
   to: string;
@@ -72,6 +88,15 @@ export interface TxSummary {
   decimals?: number; // e.g. "SWAP", "TRANSFER", "NFT"
   description?: string; // Texte lisible fourni par l'indexeur (ex: Helius)
 }
+
+/**
+ * Transaction analysée, avant estampillage de la chaîne.
+ *
+ * C'est ce que rendent les analyseurs purs (`parseBtcTx`, `parseSolanaTx`,
+ * `parseTxList`, …). Le type le dit, donc TypeScript refuse de laisser passer
+ * une liste non estampillée jusqu'à l'interface.
+ */
+export type TxParsed = Omit<TxSummary, 'chain'>;
 
 export interface TransferParams {
   to: string;

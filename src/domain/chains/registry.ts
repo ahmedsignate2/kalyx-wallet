@@ -70,3 +70,23 @@ export function listChains(opts?: { includeTestnets?: boolean }): ChainConfig[] 
 export function hasChain(chainId: string): boolean {
   return adapters.has(chainId);
 }
+
+/**
+ * Symbole et décimales natifs d'une chaîne, ou `undefined` si elle est inconnue.
+ *
+ * Destiné à l'affichage d'une liste qui MÊLE LES RÉSEAUX : chaque ligne doit
+ * être formatée avec les décimales de SA chaîne, jamais celles du réseau
+ * affiché. `getAdapter` lève sur une chaîne inconnue, ce qui est juste pour un
+ * envoi mais pas ici : un historique en cache peut citer un réseau
+ * personnalisé que l'utilisateur vient de retirer, et cette ligne doit se
+ * dégrader, pas faire tomber l'écran.
+ */
+export function nativeOfChain(chainId: string): { symbol: string; decimals: number } | undefined {
+  const c = adapters.get(chainId)?.config;
+  return c ? { symbol: c.nativeSymbol, decimals: c.nativeDecimals } : undefined;
+}
+
+/** Nom lisible d'une chaîne, ou `undefined` si elle est inconnue. */
+export function chainNameOf(chainId: string): string | undefined {
+  return adapters.get(chainId)?.config.name;
+}

@@ -26,7 +26,7 @@ import type {
   TransferParams,
   UnsignedTx,
 } from './types';
-import type { TxSummary } from './types';
+import type { TxParsed, TxSummary } from './types';
 import { deriveEvmAccount } from '../../crypto/hd';
 import { APPROVAL_TOPIC, addressTopic, spendersFromLogs, type ApprovalItem } from '../approvals/approvals';
 import { normalizeEvmAddress } from '../validation/address';
@@ -106,7 +106,21 @@ export class EvmChainAdapter implements ChainAdapter {
     return this.call((p) => p.getTransaction(hash), 'eth_getTransactionByHash');
   }
 
+  /**
+   * Historique du compte, chaque ligne ESTAMPILLÉE de sa chaîne.
+   *
+   * L'estampillage se fait ici et nulle part ailleurs : les analyseurs lisent la
+   * réponse d'un indexeur et ignorent de quel réseau il s'agit, alors que
+   * l'adaptateur ne parle que du sien. Un seul point de passage, donc aucune
+   * liste ne peut ressortir sans sa chaîne — et l'accueil cesse de deviner les
+   * décimales d'après le réseau affiché.
+   */
   async getHistory(address: string): Promise<TxSummary[]> {
+    return (await this.fetchHistory(address)).map((tx) => ({ ...tx, chain: this.config.id }));
+  }
+
+  /** Historique brut : Alchemy, puis Etherscan V2, puis les clones. */
+  private async fetchHistory(address: string): Promise<TxParsed[]> {
     const owner = normalizeEvmAddress(address);
 
     // 0. Alchemy (si supporté)

@@ -1,8 +1,8 @@
-import type { TxSummary } from './types';
+import type { TxParsed } from './types';
 
 const ANKR_URL = 'https://rpc.ankr.com/multichain/a8acb82bb28e6bf5c1e4a1ea695c9cc09ecbb9161bbdf5cb7b055a447692cdac';
 
-export async function fetchAnkrHistory(address: string, blockchain: string): Promise<TxSummary[]> {
+export async function fetchAnkrHistory(address: string, blockchain: string): Promise<TxParsed[]> {
   try {
     const payload = {
       jsonrpc: '2.0',
@@ -52,7 +52,7 @@ export async function fetchAnkrHistory(address: string, blockchain: string): Pro
         direction: isOut ? 'out' : 'in',
         status: (tx.status === '0x1' || tx.status === '1' || tx.status === 'SUCCESS' || tx.status === true) ? 'success' : 'failed',
         // Fallback for native chain tokens, Ankr provides token transfers in getTokenTransfers, but for basic getTransactions we assume Native.
-      } as TxSummary;
+      } as TxParsed;
     });
   } catch (e) {
     console.warn(`Ankr fallback failed for ${blockchain}:`, e);
