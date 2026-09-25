@@ -77,8 +77,25 @@ const config: ExpoConfig = {
       // Ledger Nano X en Bluetooth (transport @ledgerhq BLE).
       NSBluetoothAlwaysUsageDescription:
         'Kalyx utilise le Bluetooth pour se connecter à un portefeuille matériel Ledger.',
-      // Deep links : Kalyx gère aussi le schéma WalletConnect « wc: » et « ethereum: ».
-      CFBundleURLTypes: [{ CFBundleURLSchemes: [...schemes, 'wc', 'ethereum'] }],
+      /*
+       * Lève le plafond de 60 fps d'iOS sur les écrans ProMotion : sans ce
+       * drapeau, une app React Native reste bridée à 60 quel que soit l'écran.
+       * Il n'a d'effet qu'au build — et il change l'empreinte, donc il ne
+       * s'ajoute QU'au moment où l'on reconstruit, jamais entre deux OTA.
+       */
+      CADisableMinimumFrameDuration: true,
+      /*
+       * Deep links. Kalyx se déclare pour WalletConnect (`wc:`) et pour les
+       * trois formats d'URI de paiement : `ethereum:` (EIP-681),
+       * `bitcoin:` (BIP-21) et `solana:` (Solana Pay).
+       *
+       * Les trois ensemble, c'est ce que les autres ne font pas : MetaMask
+       * prend `ethereum:`, Phantom prend `solana:`, aucun ne prend les trois.
+       * Le routage correspondant vit dans `lib/paymentIntent`.
+       */
+      CFBundleURLTypes: [
+        { CFBundleURLSchemes: [...schemes, 'wc', 'ethereum', 'bitcoin', 'solana'] },
+      ],
     },
   },
   android: {
@@ -98,20 +115,34 @@ const config: ExpoConfig = {
     // leur rationale/flags corrects — par leurs plugins respectifs. Les
     // redéclarer ici doublonnait BLUETOOTH_SCAN SANS `neverForLocation`,
     // risquant d'annuler ce flag dans le manifeste fusionné.
-    // Deep links système : « wc: » (WalletConnect) ouvre Kalyx (au prochain rebuild).
+    // Deep links système : WalletConnect et les trois URI de paiement (cf. iOS).
     intentFilters: [
       {
         action: 'VIEW',
         autoVerify: false,
-        data: [...schemes.map((scheme) => ({ scheme })), { scheme: 'wc' }, { scheme: 'ethereum' }],
+        data: [
+          ...schemes.map((scheme) => ({ scheme })),
+          { scheme: 'wc' },
+          { scheme: 'ethereum' },
+          { scheme: 'bitcoin' },
+          { scheme: 'solana' },
+        ],
         category: ['BROWSABLE', 'DEFAULT'],
       },
-      // App Link WalletConnect (Universal Link) : vérifié via
+      // App Links (Universal Links) : vérifiés via
       // https://kalyxwallet.com/.well-known/assetlinks.json (empreinte SHA-256 du keystore).
+      //
+      // `/pay` en plus de `/wc` : une demande de paiement doit rester cliquable
+      // partout et mener quelque part même sans Kalyx installé — un `bitcoin:`
+      // collé dans une conversation ne fait ni l'un ni l'autre. Côté iOS,
+      // `applinks:kalyxwallet.com` couvre déjà tous les chemins.
       {
         action: 'VIEW',
         autoVerify: true,
-        data: [{ scheme: 'https', host: 'kalyxwallet.com', pathPrefix: '/wc' }],
+        data: [
+          { scheme: 'https', host: 'kalyxwallet.com', pathPrefix: '/wc' },
+          { scheme: 'https', host: 'kalyxwallet.com', pathPrefix: '/pay' },
+        ],
         category: ['BROWSABLE', 'DEFAULT'],
       },
     ],

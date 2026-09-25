@@ -560,6 +560,13 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 
 ## 23. Risques et questions ouvertes
 
+> ⚠ **L'EMPREINTE A CHANGÉ le 2026-09-25.** `app.config.ts` a été modifié (schémas `bitcoin:`/`solana:`,
+> App Link `/pay`, drapeau 120 Hz), ce qui était l'objet même de ce rebuild. Conséquence mécanique :
+> **les APK installés AVANT ce build ne reçoivent plus aucune OTA.** Le dernier lot qui les atteint est
+> le commit `b19155c` (liens de paiement, scanner dans l'en-tête), publié juste avant. Tant que le
+> nouveau build n'est pas installé, publier une OTA ne sert à rien — elle vise un runtime que personne
+> n'a encore.
+
 | Sujet | Question | Comment trancher |
 |---|---|---|
 | CGU | la case peut-elle quitter le premier écran ? | avis juridique |
@@ -577,8 +584,8 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 | Seuils de gas | `THRESHOLDS = { low: 10, normal: 30, high: 80 }` posés sur le papier, ce que le §19 rejette | à calibrer sur données réelles |
 | **Confirmation on-chain** | aucun suivi n'existe : l'impulsion Succès (§3.2) n'a pas de source | à construire avant l'étape 5 |
 | **Signature Bitcoin non testée** | `@scure/btc-signer` est un paquet ESM pur, que Jest ne transforme pas. Le code de production l'importe donc dynamiquement, et les tests de `BitcoinChainAdapter` ÉVITENT le chemin de signature : la construction BIP-137 comme BIP-322 n'est couverte par **aucun test**. Vérifié à la main depuis la spec (clé publique du témoin → adresse, sighash BIP-143 avec le `scriptCode` P2PKH, SIGHASH_ALL) : l'implémentation est conforme. Mais rien n'empêcherait une régression silencieuse. Rendre ce domaine testable demande un `transform` babel-jest sur `@scure`/`@noble` — tenté, non retenu pour l'instant. | à faire avant toute retouche de la signature |
-| **120 Hz** | **À AJOUTER AU PROCHAIN REBUILD, pas avant.** Le drapeau ci-dessous lève le plafond de 60 fps d'iOS sur écran ProMotion. Il a été ajouté puis RETIRÉ : la politique `runtimeVersion: fingerprint` hache `app.config.ts`, donc l'ajouter change l'empreinte et COUPE immédiatement les OTA vers l'APK installé — les correctifs publiés ensuite n'atteignent plus personne. À remettre dans `ios.infoPlist` au moment où l'on déclenche un build, jamais entre deux. Snippet : `CADisableMinimumFrameDuration: true`. Côté Android, React Native suit le taux de l'écran via Choreographer ; aucun réglage en workflow managé. |
-| **Schémas `bitcoin:` et `solana:`** | **À DÉCLARER AU PROCHAIN REBUILD, avec le drapeau 120 Hz — même raison, même piège.** Le routage est en place côté JS (`lib/paymentIntent`, `ui/DeepLinks`) et livrable en OTA dès maintenant : il fonctionne déjà pour `ethereum:` (déjà déclaré), pour `kalyx://pay?uri=…` et pour `https://kalyxwallet.com/pay?uri=…`. Mais tant que `bitcoin:` et `solana:` ne sont pas dans `app.config.ts`, l'OS ne propose pas Kalyx pour une facture BIP-21 ou une demande Solana Pay : le code est là, l'OS ne l'appelle jamais. Déclarer ces schémas touche `app.config.ts`, donc change l'empreinte et coupe les OTA. Snippets : `ios.infoPlist.CFBundleURLTypes[0].CFBundleURLSchemes` → ajouter `'bitcoin'`, `'solana'` ; `android.intentFilters[0].data` → ajouter `{ scheme: 'bitcoin' }`, `{ scheme: 'solana' }` ; et pour le lien partageable, un filtre `autoVerify: true` sur `{ scheme: 'https', host: 'kalyxwallet.com', pathPrefix: '/pay' }` (l'`associatedDomains` iOS `applinks:kalyxwallet.com` couvre déjà tous les chemins). |
+| ~~120 Hz~~ | **FAIT (build du 2026-09-25).** `CADisableMinimumFrameDuration: true` est dans `ios.infoPlist`. Il n'a d'effet qu'au build, et il change l'empreinte : il a donc été ajouté au moment où l'on reconstruit, jamais entre deux OTA. Côté Android, React Native suit le taux de l'écran via Choreographer ; aucun réglage en workflow managé. À vérifier sur un appareil ProMotion une fois le build installé. |
+| ~~Schémas `bitcoin:` et `solana:`~~ | **FAIT (build du 2026-09-25).** Déclarés dans `app.config.ts` : `ios.infoPlist.CFBundleURLTypes` et `android.intentFilters`. App Link `/pay` ajouté à côté de `/wc`, avec sa page de relais (`web/app/(root)/pay`) pour que la demande reste partageable sans l'app. **Reste un bloquant iOS :** `web/public/.well-known/apple-app-site-association` porte encore `TEAMID` en dur à la place du Team ID Apple réel — tant qu'il y est, AUCUN lien universel iOS ne fonctionne, ni `/wc` ni `/pay`. Android est couvert (`handle_all_urls` dans assetlinks.json). |
 | **`react-native-gesture-handler`** | déclaré en dépendance mais importé NULLE PART, donc pas de `GestureHandlerRootView`. Bloque « glisser pour fermer » (§12.2) et le home morphing (§9) | adoption structurelle à décider — le §9 en aura besoin de toute façon |
 
 ### 21.5 Contradiction ouverte entre le plan et le code poussé
