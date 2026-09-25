@@ -10,9 +10,8 @@
  */
 import { ed25519 } from '@noble/curves/ed25519';
 import { base58, base64 } from '@scure/base';
+import { buildTransactionMessage, type Instruction } from './solMessage';
 
-// Le System Program est la clé publique « tout à zéro » (base58 "111…1").
-const SYSTEM_PROGRAM_ID = new Uint8Array(32);
 const SYSTEM_TRANSFER_INDEX = 2; // enum d'instruction System : Transfer
 
 /** Encodage compact-u16 (shortvec) des longueurs de tableaux Solana. */
@@ -46,41 +45,65 @@ function u64le(value: bigint): number[] {
   return out;
 }
 
+export const SYSTEM_PROGRAM_BASE58 = '11111111111111111111111111111111';
+
 export interface SolTransferMsg {
   from: string; // base58
   to: string; // base58
   lamports: bigint;
   recentBlockhash: string; // base58
+  /**
+   * Instructions à placer AVANT le transfert — en pratique les deux
+   * instructions ComputeBudget (cf. solPriority). En tête parce que c'est la
+   * convention, et parce que le budget doit être fixé avant d'être consommé.
+   */
+  prefix?: Instruction[];
+}
+
+/** Instruction System `transfer` : from → to, `lamports`. */
+export function systemTransferIx(from: string, to: string, lamports: bigint): Instruction {
+  return {
+    programId: SYSTEM_PROGRAM_BASE58,
+    keys: [
+      { pubkey: from, isSigner: true, isWritable: true },
+      { pubkey: to, isSigner: false, isWritable: true },
+    ],
+    data: Uint8Array.from([...u32le(SYSTEM_TRANSFER_INDEX), ...u64le(lamports)]),
+  };
 }
 
 /**
  * Sérialise le MESSAGE (octets signés) d'un transfert SOL.
- * Ordre des comptes : [from (signer, writable), to (writable), System (readonly)].
+ *
+ * Délègue au constructeur général plutôt que d'assembler les octets à la main :
+ * c'est le seul moyen d'ajouter les instructions ComputeBudget sans réécrire
+ * l'en-tête et l'ordre des comptes, que Solana impose en quatre blocs. Sans
+ * `prefix`, la sortie est identique octet pour octet à l'ancienne version —
+ * l'ordre [payeur, destinataire, System] et l'en-tête [1, 0, 1] en découlent.
  */
-export function buildTransferMessage({ from, to, lamports, recentBlockhash }: SolTransferMsg): Uint8Array {
-  const fromKey = base58.decode(from);
-  const toKey = base58.decode(to);
-  const blockhash = base58.decode(recentBlockhash);
-  if (fromKey.length !== 32 || toKey.length !== 32 || blockhash.length !== 32) {
-    throw new Error('Clé ou blockhash Solana invalide (attendu 32 octets)');
+export function buildTransferMessage({
+  from,
+  to,
+  lamports,
+  recentBlockhash,
+  prefix = [],
+}: SolTransferMsg): Uint8Array {
+  // Validation explicite : le constructeur général signale une clé invalide,
+  // mais ce message-ci a un contrat plus ancien et plus précis.
+  for (const [label, key] of [['clé', from], ['clé', to], ['blockhash', recentBlockhash]] as const) {
+    let len = 0;
+    try {
+      len = base58.decode(key).length;
+    } catch {
+      throw new Error(`Clé ou blockhash Solana invalide (attendu 32 octets, ${label})`);
+    }
+    if (len !== 32) throw new Error('Clé ou blockhash Solana invalide (attendu 32 octets)');
   }
 
-  const bytes: number[] = [];
-  // En-tête : 1 signature requise, 0 readonly signé, 1 readonly non signé (System).
-  bytes.push(1, 0, 1);
-  // Comptes : from, to, System Program.
-  bytes.push(...encodeLength(3));
-  bytes.push(...fromKey, ...toKey, ...SYSTEM_PROGRAM_ID);
-  // Blockhash récent.
-  bytes.push(...blockhash);
-  // Instructions : une seule (transfer).
-  bytes.push(...encodeLength(1));
-  bytes.push(2); // programIdIndex → System Program (compte n°2)
-  bytes.push(...encodeLength(2), 0, 1); // comptes impliqués : from (0), to (1)
-  const data = [...u32le(SYSTEM_TRANSFER_INDEX), ...u64le(lamports)];
-  bytes.push(...encodeLength(data.length), ...data);
-
-  return Uint8Array.from(bytes);
+  return buildTransactionMessage(from, recentBlockhash, [
+    ...prefix,
+    systemTransferIx(from, to, lamports),
+  ]);
 }
 
 /**
