@@ -35,6 +35,7 @@ import { useContacts } from '../lib/contactsStore';
 import { toast } from '../lib/toast';
 import { haptic } from '../lib/haptics';
 import { getAdapter, transactionsToCsv, humanizeTx, groupByDay, type TxSummary } from '../src';
+import { BtcAccelerate } from '../ui/BtcAccelerate';
 
 type Filter = 'all' | 'in' | 'out' | 'failed';
 
@@ -126,6 +127,10 @@ export default function History() {
         contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[4] }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { haptic.light(); setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.textSecondary} colors={[colors.textSecondary]} />}
       >
+        {/* Transaction Bitcoin coincée : proposée à l'accélération, en tête,
+            parce que c'est la seule chose qu'on puisse encore faire pour elle. */}
+        <BtcAccelerate />
+
         <View style={{ flexDirection: 'row', gap: space[2], flexWrap: 'wrap' }}>
           {filters.map((f) => <Chip key={f.key} label={f.label} selected={filter === f.key} onPress={() => setFilter(f.key)} />)}
         </View>

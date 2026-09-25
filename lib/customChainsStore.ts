@@ -1,33 +1,59 @@
 /**
- * Réseaux EVM personnalisés (mode développeur) : l'utilisateur ajoute un RPC
- * custom (chainId, symbole, explorateur). Persistés et enregistrés dans le
- * registre de chaînes au boot, pour apparaître partout comme un réseau normal.
+ * Réseaux personnalisés : l'utilisateur ajoute son propre RPC (EVM, Bitcoin ou
+ * Solana). Persistés et enregistrés dans le registre de chaînes au boot, pour
+ * apparaître partout comme un réseau normal.
+ *
+ * Les trois familles, pas seulement l'EVM : sur Solana l'endpoint public est le
+ * goulot d'étranglement, et pouvoir y mettre le sien change tout — c'est même le
+ * cas d'usage principal. Le registre savait déjà fabriquer les trois adapters.
  */
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { registerChain, unregisterChain, serializeNetworks, parseNetworksBackup, type ChainConfig } from '../src';
+import {
+  registerChain,
+  unregisterChain,
+  serializeNetworks,
+  parseNetworksBackup,
+  customChainId,
+  DEFAULT_DECIMALS,
+  type ChainConfig,
+  type ChainFamily,
+} from '../src';
 import { useWallet, DEFAULT_CHAIN } from './walletStore';
 
 const KEY = 'nova.customChains';
 
 export interface CustomChainInput {
   name: string;
+  /** Par défaut `evm` : les appelants d'avant l'ouverture aux autres familles. */
+  family?: ChainFamily;
+  /** Requis pour l'EVM uniquement — hors EVM, la notion n'existe pas. */
   evmChainId: number;
   nativeSymbol: string;
+  /** Décimales de la pièce native ; défaut selon la famille. */
+  nativeDecimals?: number;
   rpcUrl: string;
   explorerUrl?: string;
   testnet?: boolean;
 }
 
-/** Construit une ChainConfig EVM à partir de la saisie utilisateur. */
+/** Construit une ChainConfig à partir de la saisie utilisateur. */
 export function buildCustomChain(input: CustomChainInput): ChainConfig {
+  const family = input.family ?? 'evm';
+  const name = input.name.trim();
+  const evmChainId = family === 'evm' ? input.evmChainId : undefined;
   return {
-    id: `custom-${input.evmChainId}`,
-    name: input.name.trim(),
-    family: 'evm',
-    evmChainId: input.evmChainId,
+    id: customChainId(family, evmChainId, name),
+    name,
+    family,
+    ...(evmChainId !== undefined ? { evmChainId } : {}),
     nativeSymbol: input.nativeSymbol.trim().toUpperCase(),
-    nativeDecimals: 18,
+    nativeDecimals:
+      Number.isInteger(input.nativeDecimals) &&
+      (input.nativeDecimals as number) >= 0 &&
+      (input.nativeDecimals as number) <= 36
+        ? (input.nativeDecimals as number)
+        : DEFAULT_DECIMALS[family],
     rpcUrls: [input.rpcUrl.trim()],
     explorerUrl: input.explorerUrl?.trim() || undefined,
     testnet: input.testnet === true,
@@ -65,11 +91,23 @@ export const useCustomChains = create<CustomChainsState>((set, get) => ({
   },
 
   add: (input) => {
+    const family = input.family ?? 'evm';
     if (!input.name.trim() || !input.nativeSymbol.trim()) return { ok: false, error: 'Nom et symbole requis.' };
-    if (!Number.isInteger(input.evmChainId) || input.evmChainId <= 0) return { ok: false, error: 'Chain ID invalide.' };
+    // Le Chain ID n'est exigé que pour l'EVM : hors EVM, l'identité vient du nom.
+    if (family === 'evm' && (!Number.isInteger(input.evmChainId) || input.evmChainId <= 0)) {
+      return { ok: false, error: 'Chain ID invalide.' };
+    }
     if (!/^https:\/\//i.test(input.rpcUrl.trim())) return { ok: false, error: 'RPC : URL https requise.' };
+    if (
+      input.nativeDecimals !== undefined &&
+      (!Number.isInteger(input.nativeDecimals) || input.nativeDecimals < 0 || input.nativeDecimals > 36)
+    ) {
+      return { ok: false, error: 'Décimales : entier entre 0 et 36.' };
+    }
     const config = buildCustomChain(input);
-    if (get().chains.some((c) => c.id === config.id)) return { ok: false, error: 'Ce Chain ID existe déjà.' };
+    if (get().chains.some((c) => c.id === config.id)) {
+      return { ok: false, error: family === 'evm' ? 'Ce Chain ID existe déjà.' : 'Ce nom de réseau existe déjà.' };
+    }
     registerChain(config);
     const chains = [...get().chains, config];
     set({ chains });

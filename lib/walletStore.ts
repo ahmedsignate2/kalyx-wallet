@@ -21,6 +21,7 @@ import { Wallet, getBytes, isHexString } from 'ethers';
 import {
   generateMnemonic,
   validateMnemonic,
+  type FeeSpeed,
   mnemonicToSeedSync,
   deriveEvmAccount,
   evmAccountFromPrivateKey,
@@ -77,6 +78,7 @@ import { kvGet, kvSet } from './kv';
 import { aura } from './aura';
 import { isLegacyDefaultName } from './walletNames';
 import { useSettings } from './settingsStore';
+import { usePendingBtc } from './pendingBtc';
 
 /** Réseau actif mémorisé entre deux lancements (non sensible). */
 const K_ACTIVE_CHAIN = 'kalyx.activeChain';
@@ -87,7 +89,18 @@ export const DEFAULT_CHAIN = 'ethereum'; // mainnet par défaut (les testnets so
 
 export type Unlock = { pin: string } | { biometric: true };
 /** Frais de gas EIP-1559 choisis par l'utilisateur (palier Lent/Normal/Rapide). */
-export type GasOverride = { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint };
+/**
+ * Frais choisis par l'utilisateur.
+ *
+ * `speed` sert aux chaînes qui n'ont pas de notion de « prix du gaz » : sur
+ * Bitcoin le palier se traduit en sat/vB, calculé par l'adapter au moment de
+ * l'envoi. Sans lui, le choix Lent/Normal/Rapide était ignoré hors EVM.
+ */
+export type GasOverride = {
+  maxFeePerGas: bigint;
+  maxPriorityFeePerGas: bigint;
+  speed?: FeeSpeed;
+};
 export type SwapStatus = 'approving' | 'approvalWait' | 'swapping' | 'confirming';
 
 interface WalletState {
@@ -130,6 +143,8 @@ interface WalletState {
   removeWallet: (id: string) => Promise<void>;
   lock: () => void;
   signAndSend: (to: string, amount: string, unlock: Unlock, gas?: GasOverride) => Promise<string>;
+  /** Accélère une transaction Bitcoin en attente (remplacement BIP-125). */
+  bumpBitcoin: (txid: string, unlock: Unlock, speed?: FeeSpeed) => Promise<string>;
   executeSwap: (quote: SwapQuote, unlock: Unlock, onStatus?: (s: SwapStatus) => void) => Promise<string>;
 
   signSolanaTransaction: (unlock: Unlock, txStr: string, refreshBlockhash?: boolean) => Promise<string>;
@@ -595,10 +610,20 @@ export const useWallet = create<WalletState>((set, get) => ({
       if (isPk) throw new Error('Portefeuille clé privée : Bitcoin non disponible (EVM uniquement).');
       const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
       const btcSigner = deriveBtcSigner(seed, account.index);
-      return adapter.sendBitcoin(account.address, to, amount, {
-        privateKey: btcSigner.privateKey,
-        publicKey: btcSigner.publicKey,
-      });
+      const sent = await adapter.sendBitcoinDetailed(
+        account.address,
+        to,
+        amount,
+        { privateKey: btcSigner.privateKey, publicKey: btcSigner.publicKey },
+        { speed: gas?.speed },
+      );
+      /*
+       * On MÉMORISE de quoi remplacer cette transaction. Les UTXO dépensés
+       * disparaissent de l'ensemble des UTXO disponibles, donc sans ces entrées
+       * une accélération (RBF) serait impossible à construire plus tard.
+       */
+      usePendingBtc.getState().remember(account.address, sent);
+      return sent.txid;
     }
 
     // Solana = comptes ed25519 : transaction et signature propres.
@@ -616,6 +641,38 @@ export const useWallet = create<WalletState>((set, get) => ({
     const unsigned = await adapter.prepareTransfer(account.address, { to, amount }, gas);
     const raw = await adapter.signTransaction(unsigned, pk);
     return adapter.broadcast(raw);
+  },
+
+  bumpBitcoin: async (txid, unlock, speed) => {
+    const { account, activeChain, activeWalletId, wallets } = get();
+    if (!account) throw new Error('Aucun compte');
+    const adapter = getAdapter(activeChain);
+    if (!(adapter instanceof BitcoinChainAdapter)) throw new Error('Accélération : réseau Bitcoin requis');
+    if (isPrivateKeyWallet(wallets, activeWalletId)) {
+      throw new Error('Portefeuille clé privée : Bitcoin non disponible (EVM uniquement).');
+    }
+
+    const pending = usePendingBtc.getState().txs.find((t) => t.txid === txid);
+    if (!pending) throw new Error('Transaction introuvable ou trop ancienne pour être accélérée.');
+    if (pending.from !== account.address) throw new Error('Cette transaction vient d’un autre compte.');
+
+    const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
+    const btcSigner = deriveBtcSigner(seed, account.index);
+    const sent = await adapter.bumpBitcoinFee(
+      account.address,
+      {
+        to: pending.to,
+        target: BigInt(pending.target),
+        feeRate: pending.feeRate,
+        inputs: pending.inputs,
+      },
+      { privateKey: btcSigner.privateKey, publicKey: btcSigner.publicKey },
+      { speed },
+    );
+    // `remember` évince l'originale : elle partage les mêmes entrées, donc elle
+    // n'est plus accélérable — proposer de le faire mènerait à un rejet.
+    usePendingBtc.getState().remember(account.address, sent);
+    return sent.txid;
   },
 
   executeSwap: async (quote, unlock, onStatus) => {

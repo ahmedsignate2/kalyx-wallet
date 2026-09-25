@@ -16,6 +16,7 @@ import { useCustomTokens } from '../lib/customTokensStore';
 import { useContacts } from '../lib/contactsStore';
 import { useNotifCenter } from '../lib/notificationCenter';
 import { useCustomChains } from '../lib/customChainsStore';
+import { usePendingBtc } from '../lib/pendingBtc';
 import { useWalletConnect } from '../lib/walletconnect';
 import { useFonts } from 'expo-font';
 import { RootErrorBoundary, ErrorScreen } from '../ui/ErrorBoundary';
@@ -93,6 +94,7 @@ export default function RootLayout() {
   const loadContacts = useContacts((s) => s.load);
   const loadNotifs = useNotifCenter((s) => s.load);
   const loadCustomChains = useCustomChains((s) => s.load);
+  const loadPendingBtc = usePendingBtc((s) => s.load);
   const loadPriceAlerts = usePriceAlerts((s) => s.load);
   const loadRecents = useRecentRecipients((s) => s.load);
   const loadTokenPrefs = useTokenPrefs((s) => s.load);
@@ -159,6 +161,7 @@ export default function RootLayout() {
         await loadContacts();
         await loadNotifs();
         await loadCustomChains();
+        await loadPendingBtc();
         await loadPriceAlerts();
         await loadRecents();
         await loadTokenPrefs();

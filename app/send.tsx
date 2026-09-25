@@ -31,7 +31,8 @@ import { toast } from '../lib/toast';
 import {
   getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
   formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
-  estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, type FeeOptions, type FeeSpeed,
+  estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, BitcoinChainAdapter,
+  estimateVsize, CHANGE_KIND, type FeeOptions, type FeeSpeed,
   simulateSendTransaction, type SimulationResult,
 } from '../src';
 import { AntiDrainerBanner } from '../src/components/security/AntiDrainerBanner';
@@ -219,6 +220,29 @@ export default function Send() {
         setPrice(tp[token.mint.toLowerCase()] ?? 0);
       }
       if (a instanceof EvmChainAdapter) a.getFeeOptions(token ? 65_000n : undefined).then((f) => alive && setFeeOptions(f)).catch(() => {});
+      /*
+       * Bitcoin a lui aussi trois paliers — ils existaient côté réseau, mais
+       * l'écran ne les demandait qu'à l'EVM, donc l'utilisateur n'avait aucun
+       * choix de vitesse sur BTC. On les traduit dans la même forme pour
+       * réutiliser exactement la même interface : `maxFeePerGas` porte le taux
+       * en sat/vB, `costWei` le coût estimé en satoshis.
+       */
+      if (a instanceof BitcoinChainAdapter) {
+        a.getFeeRates()
+          .then((rates) => {
+            if (!alive) return;
+            // Estimation sur la taille la plus courante : 1 entrée, 2 sorties.
+            // Le montant exact est recalculé à l'envoi, entrées réelles en main.
+            const vsize = BigInt(estimateVsize(1, [CHANGE_KIND, CHANGE_KIND]));
+            const tier = (rate: number) => ({
+              maxFeePerGas: BigInt(rate),
+              maxPriorityFeePerGas: BigInt(rate),
+              costWei: BigInt(rate) * vsize,
+            });
+            setFeeOptions({ slow: tier(rates.slow), normal: tier(rates.normal), fast: tier(rates.fast) });
+          })
+          .catch(() => {});
+      }
     })();
     return () => {
       alive = false;
@@ -332,7 +356,18 @@ export default function Send() {
       speed,
     });
     try {
-      const gas = feeOptions ? { maxFeePerGas: feeOptions[speed].maxFeePerGas, maxPriorityFeePerGas: feeOptions[speed].maxPriorityFeePerGas } : undefined;
+      // `speed` accompagne toujours le palier : Bitcoin n'a pas de « prix du
+      // gaz », c'est le palier lui-même que l'adapter traduit en sat/vB.
+      /*
+       * `undefined` et surtout pas un objet à zéro quand les paliers ne sont pas
+       * chargés : `prepareTransfer` fait `gas?.maxFeePerGas ?? fee.maxFeePerGas`,
+       * et `0n` n'est pas nullish — il écraserait les frais du réseau par zéro,
+       * donc une transaction refusée. Sans palier, l'adapter prend ceux du
+       * réseau côté EVM, et le palier « normal » côté Bitcoin.
+       */
+      const gas = feeOptions
+        ? { maxFeePerGas: feeOptions[speed].maxFeePerGas, maxPriorityFeePerGas: feeOptions[speed].maxPriorityFeePerGas, speed }
+        : undefined;
       const h =
         token?.kind === 'spl' ? await wallet.sendSolToken(recipient, tokenAmountStr, { mint: token.mint, decimals: token.decimals }, unlock)
         : token?.kind === 'erc20' ? await wallet.sendToken(recipient, tokenAmountStr, { contract: token.contract, decimals: token.decimals }, unlock, gas)
