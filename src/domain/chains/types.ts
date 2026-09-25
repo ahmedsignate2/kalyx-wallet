@@ -10,7 +10,12 @@
  * passée en paramètre au moment de signer, puis remise à zéro par l'appelant.
  */
 
-export type ChainFamily = 'evm' | 'bitcoin' | 'solana';
+/**
+ * Familles de chaînes connues du type. `ton` y figure pour que l'adapter
+ * squelette compile et que les points d'extension soient visibles ; aucune
+ * chaîne TON n'est enregistrée, et l'adapter refuse toutes les opérations.
+ */
+export type ChainFamily = 'evm' | 'bitcoin' | 'solana' | 'ton';
 
 export interface ChainConfig {
   /** Identifiant interne stable ('ethereum', 'bnb', 'polygon', 'sepolia'). */

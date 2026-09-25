@@ -4,11 +4,11 @@ import { useBrowserStore } from './browserStore';
 import { useDappActivity } from './dappActivity';
 import { usePortfolioStore } from './portfolio/portfolioStore';
 import { useHistoryStore } from './historyStore';
-import { getAdapter, listChains } from '../src';
+import { getAdapter, listChains, type ChainFamily } from '../src';
 import { technicalLogger, getRecentTechnicalLogs } from './technicalLogger';
 
 export interface CopilotWalletContext {
-  activeNetwork: { id: string; name: string; chainId: number | string; isTestnet: boolean; family: 'evm' | 'solana' | 'bitcoin' };
+  activeNetwork: { id: string; name: string; chainId: number | string; isTestnet: boolean; family: ChainFamily };
   environment: { showTestnets: boolean; activeTab: 'mainnet' | 'testnet' };
   addresses: { evm: string; solana: string; bitcoin: string };
   balances: Array<{ network: string; tokenSymbol: string; tokenName: string; amount: string; fiatValueEur: number; isTestnet: boolean }>;
