@@ -29,8 +29,6 @@ import {
   type ChainSigner,
   type SendRequest,
   type BitcoinPendingContext,
-  signBip137Message,
-  signBip322Message,
   type FeeSpeed,
   mnemonicToSeedSync,
   deriveEvmAccount,
@@ -871,24 +869,21 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signBitcoinMessage: async (unlock, message, type = 'ecdsa') => {
-    const { account, activeWalletId } = get();
+    const { account } = get();
     if (!account) throw new Error('Aucun compte');
-    const secret = await revealMnemonic(activeWalletId, unlock);
-    const signer = deriveBtcSigner(mnemonicToSeedSync(secret), account.index);
 
     /*
-     * La construction des signatures vit dans `src/domain/chains/btcSign` : ici
-     * elle était enfouie derrière le déverrouillage et le stockage, donc
-     * intestable — et ni BIP-137 ni BIP-322 n'étaient couverts par le moindre
-     * test, alors que ce sont les fonctions qui prouvent la possession d'une
-     * adresse à un tiers.
+     * Passe par l'adapter v2 et par `withSigner` : la clé est effacée après la
+     * signature, succès ou échec. Elle restait auparavant vivante jusqu'au
+     * ramasse-miettes, alors qu'elle n'avait plus aucune raison d'exister.
      *
      * Spec WalletConnect Bitcoin : `message` est du TEXTE (UTF-8). Aucune
      * heuristique hex/base64 — « test » est un message, pas un encodage.
      */
-    return type === 'ecdsa'
-      ? signBip137Message(message, signer.privateKey)
-      : signBip322Message(message, { privateKey: signer.privateKey, publicKey: signer.publicKey });
+    const adapter = getAdapterV2('bitcoin');
+    if (!adapter.signMessage) throw new Error('Signature de message indisponible sur Bitcoin');
+    const signer = await get().deriveSigner(adapter, unlock);
+    return withSigner(signer, (sk) => adapter.signMessage!(message, sk, type === 'ecdsa' ? 'bip137' : 'bip322'));
   },
 
   signBitcoinPsbt: async (unlock, psbtBase64, options) => {
