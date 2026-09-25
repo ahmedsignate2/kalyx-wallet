@@ -62,6 +62,18 @@ const CONFIRM_POLL_MS = 1_500;
  */
 const CONFIRM_TIMEOUT_MS = 60_000;
 
+/**
+ * Compléments Solana Pay portés par un transfert.
+ *
+ * `references` sont des comptes en lecture seule non signataires, sans effet
+ * sur le transfert : c'est le seul moyen pour le marchand de retrouver CETTE
+ * transaction. `memo` est inscrit on-chain via le programme SPL Memo.
+ */
+export interface SolanaPayExtras {
+  references?: string[];
+  memo?: string;
+}
+
 export class SolanaChainAdapter implements ChainAdapter {
   readonly config: ChainConfig;
 
@@ -388,6 +400,7 @@ export class SolanaChainAdapter implements ChainAdapter {
     to: string,
     amount: string,
     signer: { secretKey: Uint8Array; publicKey: Uint8Array },
+    opts?: SolanaPayExtras,
   ): Promise<string> {
     if (!isValidSolanaAddress(to)) throw new WalletError('INVALID_ADDRESS', 'Adresse destinataire invalide');
     const lamports = parseAmount(amount, this.config.nativeDecimals).raw;
@@ -404,6 +417,8 @@ export class SolanaChainAdapter implements ChainAdapter {
       lamports,
       recentBlockhash: blockhash,
       prefix: priorityInstructions(CU_SOL_TRANSFER, microLamports),
+      references: opts?.references,
+      memo: opts?.memo,
     });
     const wireTx = signAndSerialize(message, signer.secretKey);
 
@@ -428,6 +443,7 @@ export class SolanaChainAdapter implements ChainAdapter {
     mint: string,
     decimals: number,
     signer: { secretKey: Uint8Array; publicKey: Uint8Array },
+    opts?: SolanaPayExtras,
   ): Promise<string> {
     if (!isValidSolanaAddress(to)) throw new WalletError('INVALID_ADDRESS', 'Adresse destinataire invalide');
     if (!isValidSolanaAddress(mint)) throw new WalletError('INVALID_ADDRESS', 'Mint invalide');
@@ -450,6 +466,8 @@ export class SolanaChainAdapter implements ChainAdapter {
       recentBlockhash: blockhash,
       prefix: priorityInstructions(CU_SPL_TRANSFER, microLamports),
       tokenProgram,
+      references: opts?.references,
+      memo: opts?.memo,
     });
     const wireTx = signAndSerialize(message, signer.secretKey);
 

@@ -68,7 +68,7 @@ Légende :
 
 | Capacité | EVM | Bitcoin | Solana |
 |---|---|---|---|
-| URI de paiement | OK (EIP-681) | OK (BIP-21, `req-` respecté) | OK (Solana Pay) |
+| URI de paiement | OK (EIP-681) | OK (BIP-21, `req-` respecté) | OK (Solana Pay complet : `reference`, `label`, `message`, `memo`, requêtes de transaction) |
 | Lien profond + lien universel | OK | OK | OK |
 | Réseaux personnalisés | OK | Absent (choix) — cf. §23, les adresses testnet sont refusées | OK (RPC personnel) |
 | Échange (swap) | OK | **MANQUE** — aucun agrégateur UTXO branché | OK |
@@ -86,6 +86,15 @@ Légende :
 4. **Simulation Bitcoin.** Il n'existe pas d'équivalent simple à `eth_call` sur un
    modèle UTXO ; les contrôles (poussière, solde, frais, format d'adresse) sont
    faits avant signature, ce qui couvre l'essentiel du risque.
+
+**Résolu depuis :** Solana Pay était incomplet au point d'être inutilisable en
+commerce. `reference` était purement IGNORÉ — c'est pourtant le seul moyen pour
+un marchand de retrouver la transaction parmi celles qui arrivent sur son
+adresse, donc son terminal restait sur « en attente » alors que les fonds
+étaient partis. Et la spec autorise sa répétition, que le parseur de requête
+écrasait. `label`, `message` et `memo` étaient ignorés côté Solana alors qu'ils
+étaient lus pour Bitcoin. Les requêtes de TRANSACTION (`solana:https://…`),
+c'est-à-dire la moitié de la spec, donnaient « QR non reconnu ».
 
 **Résolu depuis :** la NOTIFICATION de confirmation sur Bitcoin et Solana.
 `lib/txWatch` ne suivait que l'EVM, parce que la v1 n'avait de `waitForTx` que

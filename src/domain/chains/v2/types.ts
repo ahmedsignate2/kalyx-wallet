@@ -94,6 +94,14 @@ export interface SendRequest {
    * obligerait à rouvrir tout le chemin d'envoi, de l'écran au signataire.
    */
   memo?: string;
+  /**
+   * Repères d'un paiement, à joindre à la transaction sans effet sur elle.
+   *
+   * `reference` de Solana Pay : des comptes en lecture seule qui permettent au
+   * marchand de retrouver la transaction. Sans eux, un terminal de paiement ne
+   * saura jamais que le client a payé.
+   */
+  references?: string[];
 }
 
 /**

@@ -69,6 +69,7 @@ export type QrLabelKey =
   | 'qrWcDetail'
   | 'qrPayTitle'
   | 'qrPayDetail'
+  | 'qrSolanaTxRequest'
   | 'qrOpenSite'
   | 'qrOpenInBrowser'
   | 'qrNotRecognized'
@@ -128,8 +129,12 @@ export function describeQr(result: QrResult, t: QrTranslate): QrDescription {
       return {
         title: result.splToken ? t('qrPaySpl') : t('qrPaySolana'),
         detail: lines(
+          // Le bénéficiaire et le motif étaient lus pour Bitcoin et ignorés
+          // ici : l'utilisateur ne voyait ni à qui il payait, ni pourquoi.
+          result.label ? `${t('payRequestFrom')} : ${result.label}` : undefined,
           result.splToken ? `${t('qrToken')} : ${result.splToken}` : undefined,
           result.amount ? `${t('amount')} : ${result.amount}` : undefined,
+          result.message,
         ),
         cta: t('next'),
         danger: false,
@@ -138,6 +143,13 @@ export function describeQr(result: QrResult, t: QrTranslate): QrDescription {
       return { title: t('qrWcTitle'), detail: t('qrWcDetail'), cta: t('connect'), danger: false };
     case 'wc-pay':
       return { title: t('qrPayTitle'), detail: t('qrPayDetail'), cta: t('next'), danger: false };
+    case 'solana-tx-request':
+      /*
+       * Marquée DANGEREUSE : on ne connaît pas encore le contenu de la
+       * transaction, elle sera construite par le serveur. L'écran doit la
+       * décoder et la montrer avant toute signature.
+       */
+      return { title: t('qrSolanaTxRequest'), detail: result.url, cta: t('next'), danger: true };
     case 'url':
       return { title: t('qrOpenSite'), detail: result.url, cta: t('qrOpenInBrowser'), danger: true };
     case 'invalid':
@@ -168,10 +180,23 @@ export interface SendIntent {
   contract?: string;
   /** Mint SPL demandé par le lien. */
   mint?: string;
-  /** Bénéficiaire annoncé (BIP-21 `label`) — informatif, jamais vérifié. */
+  /** Bénéficiaire annoncé (`label`) — informatif, jamais vérifié. */
   payee?: string;
-  /** Motif annoncé (BIP-21 `message`) — informatif, jamais vérifié. */
+  /**
+   * Motif annoncé (`message` BIP-21 ou Solana Pay) — AFFICHAGE seul.
+   *
+   * Renommé depuis `memo`, qui prêtait à confusion : sur Solana, `memo` est une
+   * instruction écrite ON-CHAIN, pas un texte d'interface. Confondre les deux
+   * ferait inscrire dans la blockchain un libellé destiné à l'écran.
+   */
+  note?: string;
+  /** Texte à inscrire ON-CHAIN (instruction SPL Memo de Solana Pay). */
   memo?: string;
+  /**
+   * Repères `reference` de Solana Pay : comptes non signataires en lecture
+   * seule, ajoutés à la transaction pour que le marchand la retrouve.
+   */
+  references?: string[];
 }
 
 /**
@@ -202,7 +227,7 @@ export function sendIntentFor(result: QrResult): SendIntent | null {
         to: result.address,
         amount: result.amount,
         payee: result.label,
-        memo: result.message,
+        note: result.message,
       };
     case 'solana-uri':
       /*
@@ -211,7 +236,15 @@ export function sendIntentFor(result: QrResult): SendIntent | null {
        * `spl-token`. L'écran de scan le jetait dans ce cas, par prudence mal
        * placée — le montant demandé disparaissait d'une facture en USDC.
        */
-      return { to: result.address, amount: result.amount, mint: result.splToken };
+      return {
+        to: result.address,
+        amount: result.amount,
+        mint: result.splToken,
+        payee: result.label,
+        note: result.message,
+        memo: result.memo,
+        references: result.reference,
+      };
     default:
       return null;
   }

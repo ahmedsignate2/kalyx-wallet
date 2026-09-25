@@ -22,6 +22,32 @@ export interface Instruction {
   data: Uint8Array;
 }
 
+export const MEMO_PROGRAM = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
+
+/**
+ * Instruction SPL Memo : inscrit un texte ON-CHAIN.
+ *
+ * Solana Pay la prévoit pour rattacher un paiement à une commande côté
+ * marchand. Définie ICI, au niveau le plus bas, et non dans `solSpl` : `solTx`
+ * en a besoin aussi, et l'y importer créerait un cycle
+ * `solTx → solSpl → solMessage → solTx`.
+ */
+export function memoIx(text: string): Instruction {
+  return { programId: MEMO_PROGRAM, keys: [], data: new TextEncoder().encode(text) };
+}
+
+/**
+ * Comptes `reference` de Solana Pay : NON signataires, LECTURE SEULE.
+ *
+ * Ils n'ont aucun effet sur l'opération ; ils existent pour que le marchand
+ * retrouve la transaction en interrogeant les transactions de cette clé. Les
+ * marquer signataires la rendrait insignable, en écriture changerait le sens de
+ * l'opération.
+ */
+export function referenceKeys(references: string[] | undefined): AccountMeta[] {
+  return (references ?? []).map((pubkey) => ({ pubkey, isSigner: false, isWritable: false }));
+}
+
 interface Merged {
   pubkey: string;
   isSigner: boolean;

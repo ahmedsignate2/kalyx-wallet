@@ -223,6 +223,17 @@ export {
   type PayActionCheck,
 } from './domain/pay/payChains';
 
+// Solana Pay — requêtes de transaction (pur, `fetch` injecté)
+export {
+  parseTxRequestIdentity,
+  parseTxRequestPayload,
+  fetchTxRequestIdentity,
+  fetchTxRequestPayload,
+  checkTxRequest,
+  type TxRequestIdentity,
+  type TxRequestPayload,
+} from './domain/pay/solanaTxRequest';
+
 // NFT (Alchemy)
 export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
 export { getSolanaNfts } from './domain/nft/solanaNft';

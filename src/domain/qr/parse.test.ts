@@ -204,3 +204,70 @@ describe('parseQr — WalletConnect Pay', () => {
     expect(parseQr(`bitcoin:${BTC}?amount=0.01`).kind).toBe('bitcoin-uri');
   });
 });
+
+describe('parseQr — Solana Pay complet', () => {
+  const REF1 = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+  const REF2 = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+
+  it('retient TOUTES les occurrences de `reference`', () => {
+    /*
+     * Le trou le plus grave : `reference` était purement ignoré. C'est le seul
+     * moyen pour le marchand de retrouver CETTE transaction parmi celles qui
+     * arrivent sur son adresse — sans lui, son terminal reste sur « en
+     * attente » alors que les fonds sont partis. Et la spec autorise la
+     * répétition, que `parseQuery` écrasait.
+     */
+    const r = parseQr(`solana:${SOL}?amount=1&reference=${REF1}&reference=${REF2}`);
+    expect(r.kind).toBe('solana-uri');
+    if (r.kind !== 'solana-uri') return;
+    expect(r.reference).toEqual([REF1, REF2]);
+  });
+
+  it('écarte une `reference` qui n\'est pas une clé publique', () => {
+    // Une valeur fautive ne doit pas devenir un compte de la transaction.
+    const r = parseQr(`solana:${SOL}?reference=pas-une-cle&reference=${REF1}`);
+    if (r.kind !== 'solana-uri') return;
+    expect(r.reference).toEqual([REF1]);
+  });
+
+  it('absente quand il n\'y en a pas', () => {
+    const r = parseQr(`solana:${SOL}?amount=1`);
+    if (r.kind !== 'solana-uri') return;
+    expect(r.reference).toBeUndefined();
+  });
+
+  it('lit label, message et memo — ignorés jusqu\'ici côté Solana', () => {
+    // Ils étaient lus pour Bitcoin et pas pour Solana : l'utilisateur ne voyait
+    // ni à qui il payait, ni pourquoi.
+    const r = parseQr(`solana:${SOL}?amount=1&label=Caf%C3%A9%20Nova&message=Table%2012&memo=cmd-42`);
+    if (r.kind !== 'solana-uri') return;
+    expect(r.label).toBe('Café Nova');
+    expect(r.message).toBe('Table 12');
+    expect(r.memo).toBe('cmd-42');
+  });
+});
+
+describe('parseQr — requêtes de transaction Solana Pay', () => {
+  it('reconnaît `solana:https://…`, la moitié de la spec qui manquait', () => {
+    // Avant : « QR non reconnu ».
+    expect(parseQr('solana:https://marchand.example/pay/42')).toEqual({
+      kind: 'solana-tx-request',
+      url: 'https://marchand.example/pay/42',
+    });
+  });
+
+  it('refuse http en clair : l\'adresse de l\'utilisateur partirait en chemin', () => {
+    expect(parseQr('solana:http://marchand.example/pay').kind).toBe('invalid');
+  });
+
+  it('refuse une cible locale ou une IP littérale', () => {
+    /*
+     * On s'apprête à envoyer l'adresse de l'utilisateur à ce serveur puis à
+     * signer ce qu'il renvoie. Une cible locale pointerait vers le réseau de
+     * l'appareil lui-même ; une demande légitime porte un nom.
+     */
+    for (const bad of ['https://localhost/pay', 'https://127.0.0.1/pay', 'https://192.168.1.10/pay', 'https://intranet/pay']) {
+      expect(parseQr(`solana:${bad}`).kind).toBe('invalid');
+    }
+  });
+});

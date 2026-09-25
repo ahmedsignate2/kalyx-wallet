@@ -70,3 +70,38 @@ describe('signAndSerialize', () => {
     expect(ed25519.verify(wire.slice(1, 65), wire.slice(65), other.publicKey)).toBe(false);
   });
 });
+
+describe('Solana Pay — transfert SOL natif', () => {
+  const REF = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+  const MEMO_PROGRAM_ID = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
+
+  function keysOf(msg: Uint8Array): string[] {
+    let i = 3;
+    const count = msg[i];
+    i += 1;
+    const out: string[] = [];
+    for (let k = 0; k < count; k++) {
+      out.push(base58.encode(msg.slice(i, i + 32)));
+      i += 32;
+    }
+    return out;
+  }
+
+  const base = { from: FROM, to: TO, lamports: 1_000_000n, recentBlockhash: BLOCKHASH };
+
+  it('le repère atterrit dans les comptes', () => {
+    expect(keysOf(buildTransferMessage(base))).not.toContain(REF);
+    expect(keysOf(buildTransferMessage({ ...base, references: [REF] }))).toContain(REF);
+  });
+
+  it('le mémo ajoute le programme SPL Memo', () => {
+    expect(keysOf(buildTransferMessage({ ...base, memo: 'facture 7' }))).toContain(MEMO_PROGRAM_ID);
+  });
+
+  it('sans repère ni mémo, la sortie ne change PAS', () => {
+    // Garantit qu'un transfert ordinaire n'est pas affecté par l'ajout.
+    const a = buildTransferMessage(base);
+    const b = buildTransferMessage({ ...base, references: undefined, memo: undefined });
+    expect(Array.from(a)).toEqual(Array.from(b));
+  });
+});
