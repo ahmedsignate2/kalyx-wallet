@@ -35,7 +35,38 @@ export type QrResult =
       /** `message` BIP-21 : motif du paiement. */
       message?: string;
     }
-  | { kind: 'solana-uri'; address: string; amount?: string; splToken?: string }
+  | {
+      kind: 'solana-uri';
+      address: string;
+      amount?: string;
+      splToken?: string;
+      /**
+       * Repères `reference` de Solana Pay.
+       *
+       * Des clés publiques à ajouter à la transaction en comptes NON
+       * SIGNATAIRES et en lecture seule. C'est le seul moyen pour le marchand
+       * de retrouver CETTE transaction parmi toutes celles qui arrivent sur son
+       * adresse : sans elles, un terminal de paiement ne saura jamais que le
+       * client a payé, et restera sur « en attente » alors que les fonds sont
+       * partis.
+       */
+      reference?: string[];
+      /** `label` : le bénéficiaire, tel qu'il s'annonce. Affichage seul. */
+      label?: string;
+      /** `message` : motif du paiement. Affichage seul. */
+      message?: string;
+      /** `memo` : texte à inscrire ON-CHAIN via le programme SPL Memo. */
+      memo?: string;
+    }
+  /**
+   * Requête de TRANSACTION Solana Pay : `solana:https://…`.
+   *
+   * L'autre moitié de la spec. Le portefeuille interroge l'URL pour obtenir le
+   * nom du marchand, puis lui envoie son adresse et reçoit une transaction
+   * DÉJÀ CONSTRUITE à signer. Rien à voir avec un transfert : ce qu'on signe
+   * vient d'un serveur, et doit donc être décodé et montré avant signature.
+   */
+  | { kind: 'solana-tx-request'; url: string }
   | { kind: 'walletconnect'; uri: string }
   /**
    * Lien WalletConnect Pay : une DEMANDE côté marchand, pas une adresse.
@@ -59,11 +90,37 @@ function parseQuery(q: string): Record<string, string> {
   return out;
 }
 
+/**
+ * Toutes les valeurs d'une clé répétée.
+ *
+ * `parseQuery` écrase les doublons — dernier gagnant — ce qui convient partout
+ * SAUF pour `reference` de Solana Pay, que la spec autorise à apparaître
+ * plusieurs fois. Les écraser ferait perdre les repères qui permettent au
+ * marchand de retrouver le paiement.
+ */
+function parseQueryList(q: string, key: string): string[] {
+  if (!q) return [];
+  const out: string[] = [];
+  for (const pair of q.split('&')) {
+    const eq = pair.indexOf('=');
+    if (eq < 0) continue;
+    try {
+      if (decodeURIComponent(pair.slice(0, eq)) !== key) continue;
+      const v = decodeURIComponent(pair.slice(eq + 1)).trim();
+      if (v) out.push(v);
+    } catch {
+      /* paire illisible : ignorée */
+    }
+  }
+  return out;
+}
+
 /** Sépare une URI `scheme:body` en corps + query (après le premier '?'). */
-function splitUri(body: string): { path: string; query: Record<string, string> } {
+function splitUri(body: string): { path: string; query: Record<string, string>; raw: string } {
   const qi = body.indexOf('?');
-  if (qi < 0) return { path: body, query: {} };
-  return { path: body.slice(0, qi), query: parseQuery(body.slice(qi + 1)) };
+  if (qi < 0) return { path: body, query: {}, raw: '' };
+  const raw = body.slice(qi + 1);
+  return { path: body.slice(0, qi), query: parseQuery(raw), raw };
 }
 
 /** Montant décimal valide et strictement positif ? */
@@ -183,15 +240,53 @@ function parseBitcoinUri(body: string): QrResult {
 }
 
 function parseSolanaUri(body: string): QrResult {
-  const { path, query } = splitUri(body);
+  /*
+   * REQUÊTE DE TRANSACTION : le corps est une URL https, pas une adresse. La
+   * tester d'abord, sinon `isValidSolanaAddress` échoue et l'utilisateur reçoit
+   * « QR non reconnu » sur la moitié de la spec Solana Pay.
+   */
+  if (/^https:\/\//i.test(body)) {
+    return isSafeTxRequestUrl(body)
+      ? { kind: 'solana-tx-request', url: body }
+      : { kind: 'invalid', raw: `solana:${body}` };
+  }
+
+  const { path, query, raw } = splitUri(body);
   if (!isValidSolanaAddress(path)) return { kind: 'invalid', raw: `solana:${body}` };
   const splToken = query['spl-token'];
+
+  // Répétable par la spec : on prend TOUTES les occurrences, et on ne garde que
+  // les clés publiques valides — une valeur fautive ne doit pas devenir un compte.
+  const reference = parseQueryList(raw, 'reference').filter((r) => isValidSolanaAddress(r));
+
   return {
     kind: 'solana-uri',
     address: path,
     amount: cleanAmount(query.amount),
     splToken: splToken && isValidSolanaAddress(splToken) ? splToken : undefined,
+    reference: reference.length > 0 ? reference : undefined,
+    label: query.label || undefined,
+    message: query.message || undefined,
+    memo: query.memo || undefined,
   };
+}
+
+/**
+ * L'URL d'une requête de transaction est-elle acceptable ?
+ *
+ * `https` seulement, hôte qualifié, et pas de cible locale. On s'apprête à
+ * envoyer l'adresse de l'utilisateur à ce serveur puis à signer ce qu'il
+ * renvoie : une URL en clair exposerait l'adresse en chemin, et une cible
+ * locale pointerait vers le réseau de l'appareil lui-même.
+ */
+function isSafeTxRequestUrl(url: string): boolean {
+  if (!/^https:\/\//i.test(url)) return false;
+  const host = url.slice('https://'.length).split(/[/?#]/)[0].toLowerCase();
+  if (!host || !host.includes('.') || host.endsWith('.')) return false;
+  if (host === 'localhost' || host.endsWith('.localhost')) return false;
+  // Adresses IP littérales : une requête de paiement légitime porte un nom.
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.startsWith('[')) return false;
+  return true;
 }
 
 /** Analyse une chaîne scannée en intention typée. Jamais d'exécution ici. */

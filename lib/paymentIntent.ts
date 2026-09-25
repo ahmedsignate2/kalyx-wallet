@@ -115,6 +115,14 @@ async function sendParamsFor(
    * précisément là que l'utilisateur doit choisir son jeton.
    */
   const params: Record<string, string> = { to: intent.to };
+  /*
+   * REPÈRES ET MÉMO transportés jusqu'à l'écran d'envoi, puis jusqu'à la
+   * transaction. Les perdre ici reviendrait à payer un marchand qui ne verra
+   * jamais le paiement : `reference` est le seul lien entre sa demande et la
+   * transaction qui arrive sur son adresse.
+   */
+  if (intent.references?.length) params.references = intent.references.join(',');
+  if (intent.memo) params.memo = intent.memo;
   const token = intent.contract ?? intent.mint;
   const kind = intent.contract ? 'erc20' : 'spl';
 
@@ -178,6 +186,16 @@ export async function runQrIntent(result: QrResult, opts?: { replace?: boolean }
    */
   if (result.kind === 'wc-pay') {
     go({ pathname: '/pay', params: { link: result.link } });
+    return;
+  }
+  /*
+   * Requête de transaction Solana Pay : la transaction sera CONSTRUITE PAR UN
+   * SERVEUR. Écran dédié, où elle est décodée et montrée avant signature —
+   * l'écran d'envoi ne conviendrait pas, il suppose qu'on sait déjà ce qu'on
+   * envoie et à qui.
+   */
+  if (result.kind === 'solana-tx-request') {
+    go({ pathname: '/solana-request', params: { url: result.url } });
     return;
   }
   const intent = sendIntentFor(result);

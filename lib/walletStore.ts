@@ -103,9 +103,25 @@ export type Unlock = { pin: string } | { biometric: true };
  * l'envoi. Sans lui, le choix Lent/Normal/Rapide était ignoré hors EVM.
  */
 export type GasOverride = {
-  maxFeePerGas: bigint;
-  maxPriorityFeePerGas: bigint;
+  /**
+   * Frais choisis explicitement.
+   *
+   * OPTIONNELS depuis le passage à la v2 : le palier (`speed`) suffit, et
+   * l'adapter chiffre au moment de préparer — c'est-à-dire juste avant de
+   * signer, plutôt qu'avec une valeur lue quand l'écran s'est ouvert. Ce type
+   * sert aussi à transporter les compléments d'un paiement, qui n'ont rien à
+   * voir avec les frais.
+   */
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
   speed?: FeeSpeed;
+  /**
+   * Compléments d'un paiement (Solana Pay) : repères à joindre à la
+   * transaction, et texte inscrit on-chain. Sans les repères, un terminal de
+   * paiement ne saura jamais que le client a payé.
+   */
+  references?: string[];
+  memo?: string;
 };
 export type SwapStatus = 'approving' | 'approvalWait' | 'swapping' | 'confirming';
 
@@ -186,7 +202,13 @@ interface WalletState {
   /** Envoie un token ERC-20 détenu (transfer) sur le réseau actif. */
   sendToken: (to: string, amount: string, token: { contract: string; decimals: number }, unlock: Unlock, gas?: GasOverride) => Promise<string>;
   /** Envoie un token SPL détenu (Solana) : crée l'ATA si besoin puis transfère. */
-  sendSolToken: (to: string, amount: string, token: { mint: string; decimals: number }, unlock: Unlock) => Promise<string>;
+  sendSolToken: (
+    to: string,
+    amount: string,
+    token: { mint: string; decimals: number },
+    unlock: Unlock,
+    extras?: { references?: string[]; memo?: string },
+  ) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   revealPhrase: (unlock: Unlock) => Promise<string>;
   /** Révèle la clé privée EVM d'un wallet importé par clé privée. */
@@ -641,6 +663,8 @@ export const useWallet = create<WalletState>((set, get) => ({
       to,
       amount: parseAmount(amount, adapter.config.nativeDecimals).raw,
       speed: gas?.speed,
+      references: gas?.references,
+      memo: gas?.memo,
     };
     return get().sendDraft(adapter, account.address, request, unlock);
   },
@@ -983,6 +1007,8 @@ export const useWallet = create<WalletState>((set, get) => ({
         amount: parseAmount(amount, token.decimals).raw, // lève si montant invalide
         token: { id: token.contract, symbol: 'TOKEN', decimals: token.decimals },
         speed: gas?.speed,
+        references: gas?.references,
+        memo: gas?.memo,
       },
       unlock,
     );
@@ -996,7 +1022,7 @@ export const useWallet = create<WalletState>((set, get) => ({
    * fait que l'un s'appelle contrat et l'autre mint est un détail que l'adapter
    * absorbe.
    */
-  sendSolToken: async (to, amount, token, unlock) => {
+  sendSolToken: async (to, amount, token, unlock, extras) => {
     const { account, activeChain } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapterV2(activeChain);
@@ -1010,6 +1036,8 @@ export const useWallet = create<WalletState>((set, get) => ({
         to,
         amount: parseAmount(amount, token.decimals).raw,
         token: { id: token.mint, symbol: 'TOKEN', decimals: token.decimals },
+        references: extras?.references,
+        memo: extras?.memo,
       },
       unlock,
     );

@@ -49,7 +49,7 @@ export default function Send() {
   const sym = fiatSymbol(fiat);
   const wallet = useWallet();
   const { account, activeChain, accounts } = wallet;
-  const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; symbol?: string; decimals?: string; chain?: string }>();
+  const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; symbol?: string; decimals?: string; chain?: string; references?: string; memo?: string }>();
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const pf = usePortfolioStore();
 
@@ -388,17 +388,33 @@ export default function Send() {
       // `speed` accompagne toujours le palier : Bitcoin n'a pas de « prix du
       // gaz », c'est le palier lui-même que l'adapter traduit en sat/vB.
       /*
-       * `undefined` et surtout pas un objet à zéro quand les paliers ne sont pas
-       * chargés : `prepareTransfer` fait `gas?.maxFeePerGas ?? fee.maxFeePerGas`,
-       * et `0n` n'est pas nullish — il écraserait les frais du réseau par zéro,
+       * Les champs de frais sont OMIS quand les paliers ne sont pas chargés,
+       * jamais mis à zéro : `prepareSend` fait `gas?.maxFeePerGas ?? réseau`, et
+       * `0n` n'est pas nullish — il écraserait les frais du réseau par zéro,
        * donc une transaction refusée. Sans palier, l'adapter prend ceux du
-       * réseau côté EVM, et le palier « normal » côté Bitcoin.
+       * réseau côté EVM et le palier « normal » côté Bitcoin.
        */
-      const gas = feeOptions
-        ? { maxFeePerGas: feeOptions[speed].maxFeePerGas, maxPriorityFeePerGas: feeOptions[speed].maxPriorityFeePerGas, speed }
-        : undefined;
+      /*
+       * Repères et mémo de Solana Pay, venus du QR ou du lien profond. Ils ne
+       * changent rien au transfert mais sans eux le marchand ne retrouve jamais
+       * la transaction — son terminal reste sur « en attente ».
+       */
+      const payExtras = {
+        references: params.references ? String(params.references).split(',').filter(Boolean) : undefined,
+        memo: params.memo ? String(params.memo) : undefined,
+      };
+      const gas = {
+        ...(feeOptions
+          ? {
+              maxFeePerGas: feeOptions[speed].maxFeePerGas,
+              maxPriorityFeePerGas: feeOptions[speed].maxPriorityFeePerGas,
+            }
+          : {}),
+        speed,
+        ...payExtras,
+      };
       const h =
-        token?.kind === 'spl' ? await wallet.sendSolToken(recipient, tokenAmountStr, { mint: token.mint, decimals: token.decimals }, unlock)
+        token?.kind === 'spl' ? await wallet.sendSolToken(recipient, tokenAmountStr, { mint: token.mint, decimals: token.decimals }, unlock, payExtras)
         : token?.kind === 'erc20' ? await wallet.sendToken(recipient, tokenAmountStr, { contract: token.contract, decimals: token.decimals }, unlock, gas)
         : await wallet.signAndSend(recipient, tokenAmountStr, unlock, gas);
       setHash(h);

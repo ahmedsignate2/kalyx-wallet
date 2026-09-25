@@ -10,7 +10,7 @@
  */
 import { ed25519 } from '@noble/curves/ed25519';
 import { base58, base64 } from '@scure/base';
-import { buildTransactionMessage, type Instruction } from './solMessage';
+import { buildTransactionMessage, memoIx, referenceKeys, type Instruction } from './solMessage';
 
 const SYSTEM_TRANSFER_INDEX = 2; // enum d'instruction System : Transfer
 
@@ -58,15 +58,31 @@ export interface SolTransferMsg {
    * convention, et parce que le budget doit être fixé avant d'être consommé.
    */
   prefix?: Instruction[];
+  /** Repères Solana Pay, en comptes lecture seule non signataires. */
+  references?: string[];
+  /** Texte inscrit on-chain via le programme SPL Memo. */
+  memo?: string;
 }
 
-/** Instruction System `transfer` : from → to, `lamports`. */
-export function systemTransferIx(from: string, to: string, lamports: bigint): Instruction {
+/**
+ * Instruction System `transfer` : from → to, `lamports`.
+ *
+ * `references` ajoute les repères Solana Pay en comptes NON signataires et en
+ * LECTURE SEULE : sans effet sur le transfert, ils permettent au marchand de
+ * retrouver la transaction.
+ */
+export function systemTransferIx(
+  from: string,
+  to: string,
+  lamports: bigint,
+  references?: string[],
+): Instruction {
   return {
     programId: SYSTEM_PROGRAM_BASE58,
     keys: [
       { pubkey: from, isSigner: true, isWritable: true },
       { pubkey: to, isSigner: false, isWritable: true },
+      ...referenceKeys(references),
     ],
     data: Uint8Array.from([...u32le(SYSTEM_TRANSFER_INDEX), ...u64le(lamports)]),
   };
@@ -87,6 +103,8 @@ export function buildTransferMessage({
   lamports,
   recentBlockhash,
   prefix = [],
+  references,
+  memo,
 }: SolTransferMsg): Uint8Array {
   // Validation explicite : le constructeur général signale une clé invalide,
   // mais ce message-ci a un contrat plus ancien et plus précis.
@@ -102,7 +120,9 @@ export function buildTransferMessage({
 
   return buildTransactionMessage(from, recentBlockhash, [
     ...prefix,
-    systemTransferIx(from, to, lamports),
+    // Le memo précède le transfert, comme le prévoit Solana Pay.
+    ...(memo ? [memoIx(memo)] : []),
+    systemTransferIx(from, to, lamports, references),
   ]);
 }
 
