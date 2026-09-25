@@ -8,7 +8,7 @@
  *     devise, simulation « ton solde passera de A à B », MAINTENIR pour envoyer.
  *  4. Suivi : Envoyée → Incluse → Confirmée, on peut quitter (notification).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { View, ScrollView, Image } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -49,14 +49,29 @@ export default function Send() {
   const sym = fiatSymbol(fiat);
   const wallet = useWallet();
   const { account, activeChain, accounts } = wallet;
-  const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; symbol?: string; decimals?: string; chain?: string; references?: string; memo?: string }>();
+  const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; symbol?: string; decimals?: string; chain?: string; references?: string; memo?: string; payee?: string; note?: string }>();
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const pf = usePortfolioStore();
 
   // « Quoi envoyer » (étape 0) : depuis l'accueil, on choisit le TOKEN et la chaîne
   // en découle. Depuis la page d'un token (params), on saute cette étape.
   const presetToken = !!(params.contract || params.mint || params.chain);
-  const [step, setStep] = useState<Step>(presetToken ? 1 : 0);
+  /**
+   * Demande de paiement complète : destinataire ET montant fournis par le lien.
+   *
+   * Dans ce cas l'utilisateur n'a rien à ressaisir, et surtout il ne doit PAS
+   * repasser par l'étape « quoi envoyer » — elle appelle `setAmount('')` et
+   * effaçait donc le montant que le lien venait de fournir. On part de l'étape
+   * du montant, et un effet fait avancer au récapitulatif par la VALIDATION
+   * habituelle : la sauter laisserait passer un montant supérieur au solde ou
+   * des frais impayables.
+   */
+  const isPrefilledPayment = !!(params.to && params.amount);
+  /** Détails annoncés par le lien de paiement, pour le récapitulatif. */
+  const payeeLabel = params.payee ? String(params.payee) : null;
+  const noteLabel = params.note ? String(params.note) : null;
+  const memoLabel = params.memo ? String(params.memo) : null;
+  const [step, setStep] = useState<Step>(isPrefilledPayment ? 2 : presetToken ? 1 : 0);
   const [picked, setPicked] = useState<Holding | null>(null);
   const [search, setSearch] = useState('');
   const [environment, setEnvironment] = useState<'mainnet' | 'testnet'>('mainnet');
@@ -508,6 +523,28 @@ export default function Send() {
     setStep(3);
   };
 
+  /*
+   * Avance automatiquement au récapitulatif quand le lien a tout fourni.
+   *
+   * On attend le SOLDE, sans quoi la validation refuserait un montant
+   * parfaitement payable. Et on passe par `goStep3`, donc par les mêmes
+   * contrôles que la saisie manuelle : si le montant dépasse le solde ou si les
+   * frais sont impayables, l'utilisateur reste sur l'étape du montant avec
+   * l'erreur affichée et le montant prérempli — ce qui est précisément
+   * l'information utile.
+   */
+  const autoAdvanced = useRef(false);
+  useEffect(() => {
+    if (!isPrefilledPayment || autoAdvanced.current) return;
+    if (step !== 2 || balance == null || amountRaw <= 0n) return;
+    // Pour un envoi de la pièce native, on attend aussi les frais : les juger
+    // avant leur chargement produirait une erreur qui disparaîtrait ensuite.
+    if (isNativeSend && !feeOptions) return;
+    autoAdvanced.current = true;
+    goStep3();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPrefilledPayment, step, balance, amountRaw, isNativeSend, feeOptions]);
+
   const paste = async () => {
     try {
       const c = (await Clipboard.getStringAsync()).trim();
@@ -718,6 +755,31 @@ export default function Send() {
       <Sheet visible={step === 3 && !confirming} onClose={() => setStep(2)}>
         <Text variant="title2">{t("verifyBeforeSendTitle")}</Text>
         <Surface padded={false}>
+          {/*
+            CE QUE LE LIEN ANNONCE, en tête et non dans un toast qui disparaît.
+            Bénéficiaire et motif sont écrits par l'émetteur du lien : affichés,
+            jamais vérifiés — mais c'est la seule chose qui permet à
+            l'utilisateur de reconnaître ce qu'il paie.
+          */}
+          {payeeLabel ? (
+            <>
+              <ListRow title={t('payRequestFrom')} right={<Text variant="body">{payeeLabel}</Text>} />
+              <Divider inset={16} />
+            </>
+          ) : null}
+          {noteLabel ? (
+            <>
+              <ListRow title={t('labelReason')} right={<Text variant="body">{noteLabel}</Text>} />
+              <Divider inset={16} />
+            </>
+          ) : null}
+          {memoLabel ? (
+            <>
+              {/* Le mémo part ON-CHAIN, contrairement aux deux précédents. */}
+              <ListRow title={t('labelOnChainMemo')} right={<Text variant="body">{memoLabel}</Text>} />
+              <Divider inset={16} />
+            </>
+          ) : null}
           <ListRow left={<AddressGlyph address={recipient} size={40} />} title={destLabel ?? t("labelRecipient")} subtitle={groupAddress(recipient)} />
           <Divider inset={68} />
           <ListRow title={t("txLabelAmount")} right={<View style={{ alignItems: 'flex-end' }}><Text variant="body" tabular>{formatTokenAmount(amountRaw, decimals)} {symbol}</Text>{price > 0 ? <Text variant="caption" tone="secondary" tabular>≈ {formatFiat(fiatOfAmount)} {sym}</Text> : null}</View>} />
