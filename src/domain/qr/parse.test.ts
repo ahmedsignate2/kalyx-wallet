@@ -3,6 +3,7 @@ import { parseQr } from './parse';
 const EVM = '0x742d35cc6634c0532925a3b844bc454e4438f44e'; // minuscule = sans checksum
 const SOL = 'HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk';
 const BTC = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
 describe('parseQr — adresses nues', () => {
   it('adresse EVM', () => {
@@ -86,5 +87,92 @@ describe('parseQr — URL et invalides', () => {
   });
   it('bitcoin: adresse invalide → invalide', () => {
     expect(parseQr('bitcoin:pasuneadresse?amount=1').kind).toBe('invalid');
+  });
+});
+
+const USDC = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+
+describe('parseQr — EIP-681 complet', () => {
+  it('transfer ERC-20 : le CONTRAT et le montant brut sont conservés', () => {
+    // C'était le bug : seul le destinataire survivait, donc une facture en
+    // USDC arrivait sur l'écran d'envoi de la pièce native.
+    const r = parseQr(`ethereum:${USDC}@1/transfer?address=${EVM}&uint256=1500000`);
+    expect(r.kind).toBe('ethereum-uri');
+    if (r.kind !== 'ethereum-uri') return;
+    expect(r.address.toLowerCase()).toBe(EVM);
+    expect(r.contract?.toLowerCase()).toBe(USDC);
+    expect(r.amountRaw).toBe('1500000');
+    expect(r.chainId).toBe(1);
+    // Surtout pas de montant « utilisateur » : les décimales sont inconnues ici.
+    expect(r.amount).toBeUndefined();
+  });
+
+  it('transfer sans uint256 : contrat gardé, montant absent', () => {
+    const r = parseQr(`ethereum:${USDC}/transfer?address=${EVM}`);
+    expect(r.kind).toBe('ethereum-uri');
+    if (r.kind !== 'ethereum-uri') return;
+    expect(r.contract?.toLowerCase()).toBe(USDC);
+    expect(r.amountRaw).toBeUndefined();
+  });
+
+  it('transfer dont le contrat est invalide → invalide', () => {
+    expect(parseQr(`ethereum:pasuncontrat/transfer?address=${EVM}`).kind).toBe('invalid');
+  });
+
+  it('notation scientifique : value=2.014e18 → 2.014 ETH', () => {
+    const r = parseQr(`ethereum:${EVM}?value=2.014e18`);
+    expect(r.kind).toBe('ethereum-uri');
+    if (r.kind === 'ethereum-uri') expect(r.amount).toBe('2.014');
+  });
+
+  it('préfixe pay- accepté', () => {
+    const r = parseQr(`ethereum:pay-${EVM}@137?value=1000000000000000000`);
+    expect(r.kind).toBe('ethereum-uri');
+    if (r.kind !== 'ethereum-uri') return;
+    expect(r.address.toLowerCase()).toBe(EVM);
+    expect(r.chainId).toBe(137);
+    // `formatAmount` rend la forme décimale complète : 1 ETH s'écrit « 1.0 ».
+    expect(r.amount).toBe('1.0');
+  });
+});
+
+describe('parseQr — BIP-21 complet', () => {
+  it('bech32 en MAJUSCULES (forme des QR) : normalisé en minuscules', () => {
+    // Le signeur attend la forme canonique ; l'adresse repartait en majuscules.
+    const r = parseQr(`bitcoin:${BTC.toUpperCase()}?amount=0.5`);
+    expect(r).toEqual({
+      kind: 'bitcoin-uri',
+      address: BTC,
+      amount: '0.5',
+      label: undefined,
+      message: undefined,
+    });
+  });
+
+  it('adresse nue en majuscules : normalisée aussi', () => {
+    expect(parseQr(BTC.toUpperCase())).toEqual({ kind: 'bitcoin-address', address: BTC });
+  });
+
+  it('label et message conservés pour affichage', () => {
+    const r = parseQr(`bitcoin:${BTC}?amount=0.01&label=Caf%C3%A9%20Nova&message=Table%2012`);
+    expect(r.kind).toBe('bitcoin-uri');
+    if (r.kind !== 'bitcoin-uri') return;
+    expect(r.label).toBe('Café Nova');
+    expect(r.message).toBe('Table 12');
+  });
+
+  it('paramètre req- inconnu → URI INVALIDE (règle BIP-21)', () => {
+    // Ignorer un `req-` inconnu, c'est payer autre chose que ce qui est demandé.
+    expect(parseQr(`bitcoin:${BTC}?amount=0.01&req-fiat=EUR`).kind).toBe('invalid');
+  });
+});
+
+describe('parseQr — Solana Pay', () => {
+  it('spl-token : le montant est en unités décimales du jeton, on le garde', () => {
+    const r = parseQr(`solana:${SOL}?amount=12.5&spl-token=${USDC_MINT}`);
+    expect(r.kind).toBe('solana-uri');
+    if (r.kind !== 'solana-uri') return;
+    expect(r.amount).toBe('12.5');
+    expect(r.splToken).toBe(USDC_MINT);
   });
 });

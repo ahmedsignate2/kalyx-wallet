@@ -1,6 +1,7 @@
 import { ScreenHeader } from '../ui/kit';
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
+import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { fonts, spacing, useTheme } from '../ui/theme';
@@ -78,7 +79,16 @@ export default function WalletConnectScreen() {
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>{t('wcLink')}</Text>
-          <Text onPress={onPaste} style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('paste')}</Text>
+          {/*
+            Scanner le QR : c'est la façon NORMALE de connecter une dApp ou la
+            webapp, et cet écran ne proposait que de coller un `wc:` à la main —
+            un lien qu'il faut d'abord aller copier ailleurs, sur un autre
+            appareil. Sans cette entrée, la connexion par QR était impossible.
+          */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
+            <Text onPress={() => router.push('/scan')} style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('scanQr')}</Text>
+            <Text onPress={onPaste} style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('paste')}</Text>
+          </View>
         </View>
         <TextInput value={uri} onChangeText={setUri} placeholder="wc:…" placeholderTextColor={colors.textSecondary} autoCapitalize="none" autoCorrect={false} style={{ color: colors.text, fontSize: 14, paddingVertical: spacing(1) }} />
       </Card>
