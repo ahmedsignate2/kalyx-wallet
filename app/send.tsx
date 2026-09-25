@@ -32,7 +32,8 @@ import {
   getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
   formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
   estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, BitcoinChainAdapter,
-  estimateVsize, CHANGE_KIND, type FeeOptions, type FeeSpeed,
+  estimateVsize, CHANGE_KIND, transferFeeFor, amountAfterTransferFee,
+  type FeeOptions, type FeeSpeed, type TransferFeeConfig,
   simulateSendTransaction, type SimulationResult,
 } from '../src';
 import { AntiDrainerBanner } from '../src/components/security/AntiDrainerBanner';
@@ -179,6 +180,13 @@ export default function Send() {
   const [price, setPrice] = useState(0);
   const [nativePrice, setNativePrice] = useState(0);
   const [feeOptions, setFeeOptions] = useState<FeeOptions | null>(null);
+  /*
+   * Frais PRÉLEVÉS PAR LE JETON (extension Token-2022). Le programme retient un
+   * pourcentage à l'arrivée : sans l'afficher, on annonce « tu envoies 100 » et
+   * 99,5 arrivent, et l'utilisateur en conclut que le portefeuille a perdu la
+   * différence.
+   */
+  const [tokenFee, setTokenFee] = useState<TransferFeeConfig | null>(null);
   const [speed, setSpeed] = useState<FeeSpeed>('normal');
   const [reserve, setReserve] = useState<bigint>(0n);
   useEffect(() => {
@@ -227,6 +235,11 @@ export default function Send() {
        * réutiliser exactement la même interface : `maxFeePerGas` porte le taux
        * en sat/vB, `costWei` le coût estimé en satoshis.
        */
+      if (a instanceof SolanaChainAdapter && token?.kind === 'spl') {
+        a.getTransferFeeConfig(token.mint).then((c) => alive && setTokenFee(c)).catch(() => {});
+      } else {
+        setTokenFee(null);
+      }
       if (a instanceof BitcoinChainAdapter) {
         a.getFeeRates()
           .then((rates) => {
@@ -272,6 +285,9 @@ export default function Send() {
   } catch {
     amountRaw = 0n;
   }
+  // Prélèvement du jeton sur CE montant (0 si le mint n'en a pas). Calculé ici,
+  // après `amountRaw` : il dépend du montant, pas seulement du jeton.
+  const transferFeeRaw = transferFeeFor(amountRaw, tokenFee);
   const fiatOfAmount = inFiat ? amountNum : amountNum * price;
   const available = balance != null ? (isNativeSend ? (balance > feeRaw ? balance - feeRaw : 0n) : balance) : 0n;
   const overBalance = balance != null && amountRaw > available;
@@ -673,6 +689,18 @@ export default function Send() {
           <ListRow title={t("labelNetwork")} right={<Text variant="body">{chain.name}</Text>} />
           <Divider inset={16} />
           <ListRow title={t("labelNetworkFee")} subtitle={feeOptions ? `${speed === 'slow' ? t("feeSlow") : speed === 'fast' ? t("feeFast") : t("feeNormal")} · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}` : `${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? `environ ${formatFiat(feeFiat)} ${sym}` : '—'}</Text>} />
+          {/*
+            Le jeton lui-même prélève : on montre ce qui ARRIVERA, pas seulement
+            ce qui part. C'est le seul endroit où l'utilisateur peut encore
+            renoncer en connaissance de cause.
+          */}
+          {transferFeeRaw > 0n ? (
+            <ListRow
+              title={t('tokenTransferFee')}
+              subtitle={`${formatTokenAmount(transferFeeRaw, decimals)} ${symbol}`}
+              right={<Text variant="body" tabular>{`${t('recipientGets')} ${formatTokenAmount(amountAfterTransferFee(amountRaw, tokenFee), decimals)} ${symbol}`}</Text>}
+            />
+          ) : null}
         </Surface>
         {feeOptions ? (
           <View style={{ flexDirection: 'row', gap: space[2] }}>

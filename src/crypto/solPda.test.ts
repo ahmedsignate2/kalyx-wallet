@@ -48,3 +48,29 @@ describe('findProgramAddress', () => {
     expect(isOnCurve(address)).toBe(false);
   });
 });
+
+describe('getAssociatedTokenAddress — Token-2022', () => {
+  const OWNER = '9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PQtwhpU';
+  const MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+  const TOKEN = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+  const TOKEN_2022 = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
+
+  it('le programme fait partie des seeds : deux ATA DIFFÉRENTS', () => {
+    /*
+     * Le programme était figé sur l'historique, donc l'ATA d'un mint Token-2022
+     * était calculé faux : adresse valide, mais pointant sur un compte que
+     * personne n'initialisera jamais.
+     */
+    const legacy = getAssociatedTokenAddress(MINT, OWNER, TOKEN);
+    const t2022 = getAssociatedTokenAddress(MINT, OWNER, TOKEN_2022);
+    expect(legacy).not.toBe(t2022);
+  });
+
+  it('le défaut reste le programme historique', () => {
+    expect(getAssociatedTokenAddress(MINT, OWNER)).toBe(getAssociatedTokenAddress(MINT, OWNER, TOKEN));
+  });
+
+  it('refuse un programme qui n\'est pas une clé de 32 octets', () => {
+    expect(() => getAssociatedTokenAddress(MINT, OWNER, 'pas-un-programme')).toThrow();
+  });
+});

@@ -39,11 +39,21 @@ export interface SplToken {
   symbol: string;
   name: string;
   logo?: string;
+  /**
+   * Programme propriétaire du compte : historique ou Token-2022.
+   *
+   * Indispensable, et pas seulement informatif : il entre dans les seeds de
+   * l'ATA et dans l'instruction de transfert. Sans lui, on ne peut pas renvoyer
+   * un jeton Token-2022 qu'on vient pourtant d'afficher.
+   */
+  programId: string;
 }
 
 interface RawTokenAccount {
   pubkey?: string;
   account?: {
+    /** Programme propriétaire du compte, tel que le renvoie le RPC. */
+    owner?: string;
     data?: {
       parsed?: {
         info?: {
@@ -55,8 +65,16 @@ interface RawTokenAccount {
   };
 }
 
-/** Parse la réponse getTokenAccountsByOwner → liste de tokens SPL non nuls. */
-export function parseTokenAccounts(value: RawTokenAccount[] | null | undefined): SplToken[] {
+/**
+ * Parse la réponse `getTokenAccountsByOwner` → liste de tokens non nuls.
+ *
+ * `fallbackProgram` sert quand le RPC n'expose pas `account.owner` : on sait de
+ * quel programme on a demandé les comptes, c'est donc celui-là.
+ */
+export function parseTokenAccounts(
+  value: RawTokenAccount[] | null | undefined,
+  fallbackProgram: string = SPL_TOKEN_PROGRAM,
+): SplToken[] {
   if (!Array.isArray(value)) return [];
   const out: SplToken[] = [];
   for (const acc of value) {
@@ -76,8 +94,23 @@ export function parseTokenAccounts(value: RawTokenAccount[] | null | undefined):
       symbol: known?.symbol ?? `${mint.slice(0, 4)}…`,
       name: known?.name ?? 'Token SPL',
       logo: known?.logo,
+      programId: acc?.account?.owner ?? fallbackProgram,
     });
   }
   // Soldes les plus élevés d'abord (heuristique simple, sans prix).
   return out.sort((a, b) => (b.raw > a.raw ? 1 : b.raw < a.raw ? -1 : 0));
+}
+
+/**
+ * Fusionne les comptes des deux programmes de jetons.
+ *
+ * Déduplique par MINT : un même mint ne peut appartenir qu'à un programme, mais
+ * un RPC qui répondrait deux fois ne doit pas doubler le solde affiché.
+ */
+export function mergeTokenAccounts(...lists: SplToken[][]): SplToken[] {
+  const byMint = new Map<string, SplToken>();
+  for (const list of lists) {
+    for (const t of list) if (!byMint.has(t.mint)) byMint.set(t.mint, t);
+  }
+  return [...byMint.values()].sort((a, b) => (b.raw > a.raw ? 1 : b.raw < a.raw ? -1 : 0));
 }

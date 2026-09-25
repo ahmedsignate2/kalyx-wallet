@@ -22,8 +22,15 @@ import { WalletError } from '../errors';
 import { tryInOrder, withTimeout, withRetry } from './net';
 import { buildTransferMessage, signAndSerialize } from './solTx';
 import { parseSolanaTx, type SolTxResponse } from './solHistory';
-import { parseTokenAccounts, SPL_TOKEN_PROGRAM, type SplToken } from '../tokens/splTokens';
+import {
+  parseTokenAccounts,
+  mergeTokenAccounts,
+  SPL_TOKEN_PROGRAM,
+  SPL_TOKEN_2022_PROGRAM,
+  type SplToken,
+} from '../tokens/splTokens';
 import { fetchSplMetadata } from '../tokens/splMetadata';
+import { parseTransferFeeConfig, type TransferFeeConfig } from '../tokens/token2022';
 import { buildSplTransferMessage } from './solSpl';
 import {
   priorityInstructions,
@@ -174,14 +181,76 @@ export class SolanaChainAdapter implements ChainAdapter {
   }
 
   /** Tokens SPL détenus par l'adresse (solde + mint), triés par solde. */
-  async getSplTokens(address: string): Promise<SplToken[]> {
-    if (!isValidSolanaAddress(address)) return [];
-    const res = await this.rpc<{ value?: unknown[] }>('getTokenAccountsByOwner', [
-      address,
-      { programId: SPL_TOKEN_PROGRAM },
+  /**
+   * Programme propriétaire d'un mint : historique ou Token-2022.
+   *
+   * L'information est on-chain — c'est le `owner` du compte du mint — et elle
+   * fait autorité. On ne la devine pas : se tromper de programme calcule un ATA
+   * faux et vise la mauvaise instruction, donc un envoi qui échoue, ou pire,
+   * qui part vers un compte que personne ne contrôle.
+   */
+  async getMintProgram(mint: string): Promise<string> {
+    if (!isValidSolanaAddress(mint)) throw new WalletError('INVALID_ADDRESS', 'Mint invalide');
+    const res = await this.rpc<{ value?: { owner?: string } | null }>('getAccountInfo', [
+      mint,
       { encoding: 'jsonParsed' },
     ]);
-    const tokens = parseTokenAccounts((res?.value ?? []) as never);
+    const owner = res?.value?.owner;
+    if (owner === SPL_TOKEN_PROGRAM || owner === SPL_TOKEN_2022_PROGRAM) return owner;
+    if (!owner) throw new WalletError('INVALID_ADDRESS', 'Mint introuvable sur ce réseau');
+    throw new WalletError('NOT_SUPPORTED', `Programme de jeton non géré : ${owner}`);
+  }
+
+  /**
+   * Frais de transfert d'un mint Token-2022, ou null s'il n'en prélève pas.
+   *
+   * Sert à ne pas MENTIR sur le montant reçu : le programme retient un
+   * pourcentage à l'arrivée, donc le destinataire reçoit moins que ce qu'on
+   * envoie. Ne lève jamais — un mint sans extension, un RPC muet ou un réseau
+   * qui ne connaît pas Token-2022 valent tous « pas de frais connus ».
+   */
+  async getTransferFeeConfig(mint: string): Promise<TransferFeeConfig | null> {
+    if (!isValidSolanaAddress(mint)) return null;
+    try {
+      const [info, epoch] = await Promise.all([
+        this.rpc<unknown>('getAccountInfo', [mint, { encoding: 'jsonParsed' }]),
+        this.rpc<{ epoch?: number }>('getEpochInfo', []).then((e) => e?.epoch ?? 0),
+      ]);
+      return parseTransferFeeConfig(info, epoch);
+    } catch {
+      return null;
+    }
+  }
+
+  async getSplTokens(address: string): Promise<SplToken[]> {
+    if (!isValidSolanaAddress(address)) return [];
+
+    /*
+     * LES DEUX programmes. On n'interrogeait que l'historique, si bien que tout
+     * jeton Token-2022 — PYUSD en tête, et une part croissante des nouveaux
+     * mints — était purement INVISIBLE : l'utilisateur ne voyait pas un solde
+     * qu'il détenait bel et bien.
+     *
+     * Les deux appels sont indépendants : si l'un échoue, l'autre reste utile,
+     * et mieux vaut une liste partielle qu'un portefeuille vide.
+     */
+    const query = async (programId: string): Promise<SplToken[]> => {
+      try {
+        const res = await this.rpc<{ value?: unknown[] }>('getTokenAccountsByOwner', [
+          address,
+          { programId },
+          { encoding: 'jsonParsed' },
+        ]);
+        return parseTokenAccounts((res?.value ?? []) as never, programId);
+      } catch {
+        return [];
+      }
+    };
+
+    const tokens = mergeTokenAccounts(
+      ...(await Promise.all([query(SPL_TOKEN_PROGRAM), query(SPL_TOKEN_2022_PROGRAM)])),
+    );
+
     // Enrichit les mints hors table curée (nom/symbole/logo réels via Jupiter).
     // Best-effort : si le réseau échoue, les tokens gardent leur mint tronqué.
     const meta = await fetchSplMetadata(tokens.map((t) => t.mint));
@@ -364,9 +433,12 @@ export class SolanaChainAdapter implements ChainAdapter {
     if (!isValidSolanaAddress(mint)) throw new WalletError('INVALID_ADDRESS', 'Mint invalide');
     if (amount <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant invalide');
 
-    const [{ blockhash, lastValidBlockHeight }, microLamports] = await Promise.all([
+    const [{ blockhash, lastValidBlockHeight }, microLamports, tokenProgram] = await Promise.all([
       this.recentBlockhash(),
       this.priorityFee(),
+      // Le programme du mint fait autorité on-chain : il entre dans les seeds
+      // de l'ATA et dans l'instruction, on ne le devine pas.
+      this.getMintProgram(mint),
     ]);
 
     const message = buildSplTransferMessage({
@@ -377,6 +449,7 @@ export class SolanaChainAdapter implements ChainAdapter {
       decimals,
       recentBlockhash: blockhash,
       prefix: priorityInstructions(CU_SPL_TRANSFER, microLamports),
+      tokenProgram,
     });
     const wireTx = signAndSerialize(message, signer.secretKey);
 
