@@ -32,7 +32,36 @@ export default function PayScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ link?: string }>();
 
-  const { phase, options, selected, collectUrl, result, error, open, select, collected, confirm, reset } = usePay();
+  const { phase, options, selected, collectUrl, result, failure, detail, open, select, collected, confirm, reset } =
+    usePay();
+
+  /*
+   * LA TRADUCTION SE FAIT ICI, à partir d'un code. Le magasin portait des
+   * phrases en français en dur : elles sortaient telles quelles à l'écran
+   * quelle que soit la langue, alors que les clés existaient déjà.
+   */
+  const failureTitle =
+    failure === 'NO_OPTION' ? t('payNoOptionTitle') : failure === 'UNAVAILABLE' ? t('payUnavailable') : t('payFailed');
+  const failureBody = (() => {
+    switch (failure) {
+      case 'UNAVAILABLE':
+        return t('payUnavailableBody');
+      case 'NO_EVM_ACCOUNT':
+        return t('payNoEvmAccount');
+      case 'NO_OPTION':
+        // Zéro option n'est pas une panne : le service ne règle qu'en
+        // stablecoins précis. Le dire évite de chercher un bogue qui n'existe pas.
+        return t('payNoOptionBody');
+      case 'INFO_REQUIRED':
+        return t('payInfoRequiredBody');
+      case 'ACTION_REFUSED':
+        return `${t('payActionRefused')}${detail ? ` (${detail})` : ''}`;
+      case 'FAILED':
+        return detail ?? t('payFailedBody');
+      default:
+        return undefined;
+    }
+  })();
   const [asking, setAsking] = useState(false);
 
   useEffect(() => {
@@ -136,7 +165,13 @@ export default function PayScreen() {
 
         {phase === 'error' ? (
           <Surface>
-            <EmptyState icon="warning" title={t('payFailed')} body={error ?? undefined} actionLabel={t('back')} onAction={close} />
+            <EmptyState
+              icon={failure === 'NO_OPTION' ? 'info' : 'warning'}
+              title={failureTitle}
+              body={failureBody}
+              actionLabel={t('back')}
+              onAction={close}
+            />
           </Surface>
         ) : null}
 
@@ -193,7 +228,7 @@ export default function PayScreen() {
           // `confirm` ne lève pas : elle publie l'erreur dans le magasin. On la
           // relaie, parce que ConfirmUnlock distingue un PIN faux d'un échec
           // d'exécution à partir de ce qui est LEVÉ.
-          if (r.phase === 'error') throw new Error(r.error ?? t('payFailed'));
+          if (r.phase === 'error') throw new Error(r.detail ?? t('payFailed'));
         }}
         onDone={() => setAsking(false)}
         onCancel={() => setAsking(false)}
