@@ -17,7 +17,7 @@ import type {
   UnsignedTx,
 } from './types';
 import { deriveBtcAccount } from '../../crypto/btc';
-import { isValidBtcAddress } from '../validation/btcAddress';
+import { isValidBtcAddress, normalizeBtcAddress, btcAddressKind } from '../validation/btcAddress';
 import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
 import { tryInOrder, withTimeout } from './net';
@@ -135,7 +135,11 @@ export class BitcoinChainAdapter implements ChainAdapter {
    * stockée ni loggée.
    */
   async sendBitcoin(from: string, to: string, amount: string, signer: { privateKey: Uint8Array; publicKey: Uint8Array }): Promise<string> {
-    if (!isValidBtcAddress(to)) throw new WalletError('INVALID_ADDRESS', 'Adresse destinataire invalide');
+    // Normalisation AVANT validation : le bech32 majuscule des QR doit passer,
+    // et une adresse base58 doit traverser intacte (casse significative).
+    const dest = normalizeBtcAddress(to);
+    const destKind = btcAddressKind(dest);
+    if (!destKind) throw new WalletError('INVALID_ADDRESS', 'Adresse destinataire invalide');
     const target = parseAmount(amount, this.config.nativeDecimals).raw;
     if (target <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant invalide');
 
@@ -147,7 +151,9 @@ export class BitcoinChainAdapter implements ChainAdapter {
       .filter((u) => u.status?.confirmed !== false) // confirmés d'abord
       .map((u) => ({ txid: u.txid, vout: u.vout, value: u.value }));
 
-    const selection = selectUtxos(utxos, target, feeRate);
+    // Le type de l'adresse destinataire entre dans le calcul des frais : une
+    // sortie P2PKH ou Taproot est plus grosse qu'une P2WPKH.
+    const selection = selectUtxos(utxos, target, feeRate, destKind);
     if (!selection) throw new WalletError('INSUFFICIENT_FUNDS', 'Solde Bitcoin insuffisant (frais inclus).');
 
     // @scure/btc-signer est ESM pur (Jest ne le transforme pas) : import
@@ -164,7 +170,7 @@ export class BitcoinChainAdapter implements ChainAdapter {
         witnessUtxo: { script: p2wpkh.script, amount: BigInt(input.value) },
       });
     }
-    tx.addOutputAddress(to, target);
+    tx.addOutputAddress(dest, target);
     if (selection.change > 0n) tx.addOutputAddress(from, selection.change);
 
     tx.sign(signer.privateKey);

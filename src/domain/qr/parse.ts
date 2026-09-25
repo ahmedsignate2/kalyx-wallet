@@ -6,7 +6,7 @@
  * WalletConnect (wc:) et URLs web. Tout le reste = invalide.
  */
 import { isValidEvmAddress, normalizeEvmAddress } from '../validation/address';
-import { isValidBtcAddress } from '../validation/btcAddress';
+import { isValidBtcAddress, normalizeBtcAddress } from '../validation/btcAddress';
 import { isValidSolanaAddress } from '../../crypto/solana';
 import { formatAmount } from '../validation/amount';
 
@@ -158,14 +158,18 @@ function parseBitcoinUri(body: string): QrResult {
   if (unknownReq) return { kind: 'invalid', raw: `bitcoin:${body}` };
 
   /*
-   * Normalisation en minuscules. Le bech32 est insensible à la casse et les
-   * générateurs de QR encodent en MAJUSCULES — c'est la forme recommandée,
-   * elle tient dans un QR plus petit. L'adresse repartait telle quelle vers
-   * l'écran d'envoi puis vers le signeur, qui, lui, attend la forme canonique.
+   * Normalisation. Le bech32 est insensible à la casse et les générateurs de QR
+   * encodent en MAJUSCULES — c'est la forme recommandée, elle tient dans un QR
+   * plus petit, et le signeur attend la forme minuscule.
+   *
+   * Mais `normalizeBtcAddress` et pas `toLowerCase()` : le base58 d'une adresse
+   * `1…` ou `3…` est SENSIBLE À LA CASSE, et la mettre en minuscules la détruit.
+   * C'est le bug qu'introduisait la version précédente de cette ligne, invisible
+   * tant que les adresses héritées étaient refusées en amont.
    */
   return {
     kind: 'bitcoin-uri',
-    address: path.toLowerCase(),
+    address: normalizeBtcAddress(path),
     amount: cleanAmount(query.amount),
     label: query.label || undefined,
     message: query.message || undefined,
@@ -201,8 +205,9 @@ export function parseQr(raw: string): QrResult {
 
   // Adresses nues (ordre : EVM sans ambiguïté, puis Bitcoin, puis Solana).
   if (isValidEvmAddress(s)) return { kind: 'evm-address', address: normalizeEvmAddress(s) };
-  // Minuscules : cf. parseBitcoinUri, le bech32 des QR est en majuscules.
-  if (isValidBtcAddress(s)) return { kind: 'bitcoin-address', address: s.toLowerCase() };
+  // Cf. parseBitcoinUri : minuscules pour le bech32 seulement, le base58 est
+  // sensible à la casse.
+  if (isValidBtcAddress(s)) return { kind: 'bitcoin-address', address: normalizeBtcAddress(s) };
   if (isValidSolanaAddress(s)) return { kind: 'solana-address', address: s };
 
   // URL web (à confirmer avant ouverture dans le navigateur dApps).

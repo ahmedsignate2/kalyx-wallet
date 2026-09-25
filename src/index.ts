@@ -42,6 +42,9 @@ export {
 export {
   checkBtcAddress,
   isValidBtcAddress,
+  normalizeBtcAddress,
+  btcAddressKind,
+  type BtcAddressKind,
   assertValidBtcAddress,
   type BtcAddressCheck,
 } from './domain/validation/btcAddress';
