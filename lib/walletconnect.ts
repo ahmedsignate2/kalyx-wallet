@@ -1,4 +1,4 @@
-import { base58, base64 } from '@scure/base';
+import { base58, base64, hex } from '@scure/base';
 import { utf8ToBytes } from '@noble/hashes/utils';
 /**
  * WalletConnect (Reown) — Kalyx est le WALLET auquel les dApps se connectent.
@@ -608,7 +608,13 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         let txid: string | undefined;
         if (broadcast) {
           const isHex = resStr.toLowerCase().startsWith('70736274');
-          const bytes = isHex ? Buffer.from(resStr, 'hex') : base64.decode(resStr);
+          /*
+           * `hex.decode` et non `Buffer.from` : `Buffer` n'est PAS un global de
+           * React Native, et ce chemin — signer puis diffuser un PSBT pour une
+           * dApp — aurait levé dans l'app tout en passant en test, où Node le
+           * fournit.
+           */
+          const bytes = isHex ? hex.decode(resStr) : base64.decode(resStr);
           const signed = BtcTransaction.fromPSBT(bytes);
           txid = await (getAdapter('bitcoin') as any).broadcastHex(signed.hex);
         }
