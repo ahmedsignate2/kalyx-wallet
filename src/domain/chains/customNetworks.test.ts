@@ -4,6 +4,7 @@ import {
   NETWORKS_BACKUP_VERSION,
   customChainId,
   DEFAULT_DECIMALS,
+  CUSTOM_FAMILIES,
 } from './customNetworks';
 import type { ChainConfig } from './types';
 
@@ -207,5 +208,29 @@ describe('RPC en clair', () => {
     );
     expect(chains).toHaveLength(0);
     expect(error).toBeTruthy();
+  });
+});
+
+describe('familles proposées vs familles lisibles', () => {
+  it('Bitcoin n\'est PAS proposé : ce serait une impasse', () => {
+    /*
+     * `checkBtcAddress` refuse les adresses testnet — délibérément, pour qu'on
+     * ne puisse pas envoyer des fonds réels vers une adresse de test. Un réseau
+     * Bitcoin personnalisé serait donc créable et sélectionnable, mais
+     * n'accepterait aucune adresse.
+     */
+    expect(CUSTOM_FAMILIES).toEqual(['evm', 'solana']);
+  });
+
+  it('mais un réseau Bitcoin DÉJÀ enregistré se recharge encore', () => {
+    // Le supprimer en silence ferait disparaître une entrée créée par
+    // l'utilisateur, sans explication.
+    const { chains } = parseNetworksBackup(
+      JSON.stringify([
+        { name: 'Bitcoin (mon nœud)', family: 'bitcoin', nativeSymbol: 'BTC', rpcUrls: ['https://noeud.local/api'] },
+      ]),
+    );
+    expect(chains).toHaveLength(1);
+    expect(chains[0].family).toBe('bitcoin');
   });
 });

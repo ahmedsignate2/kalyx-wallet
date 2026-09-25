@@ -1,4 +1,4 @@
-import { buildSplTransferMessage, transferCheckedIx, TOKEN_PROGRAM } from './solSpl';
+import { buildSplTransferMessage, transferCheckedIx, TOKEN_PROGRAM, TOKEN_2022_PROGRAM } from './solSpl';
 import { buildTransactionMessage } from './solMessage';
 import { signAndSerialize } from './solTx';
 import { getAssociatedTokenAddress } from '../../crypto/solPda';
@@ -56,5 +56,49 @@ describe('buildSplTransferMessage', () => {
     const wire = base64.decode(signAndSerialize(msg, signer.secretKey));
     expect(wire[0]).toBe(1); // une signature
     expect(ed25519.verify(wire.slice(1, 65), wire.slice(65), signer.publicKey)).toBe(true);
+  });
+});
+
+describe('buildSplTransferMessage — Token-2022', () => {
+  const FROM = '9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PQtwhpU';
+  const TO = 'HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk';
+  const MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+  const BH = 'EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N';
+
+  const params = { from: FROM, to: TO, mint: MINT, amount: 1_000_000n, decimals: 6, recentBlockhash: BH };
+
+  /** Clés de comptes du message, dans l'ordre. */
+  function keys(msg: Uint8Array): string[] {
+    let i = 3;
+    const count = msg[i];
+    i += 1;
+    const out: string[] = [];
+    for (let k = 0; k < count; k++) {
+      out.push(base58.encode(msg.slice(i, i + 32)));
+      i += 32;
+    }
+    return out;
+  }
+
+  it('vise le programme Token-2022 quand on le lui dit', () => {
+    // Le message référençait toujours le programme historique : un mint
+    // Token-2022 était donc inenvoyable, sans message compréhensible.
+    const msg = buildSplTransferMessage({ ...params, tokenProgram: TOKEN_2022_PROGRAM });
+    expect(keys(msg)).toContain(TOKEN_2022_PROGRAM);
+    expect(keys(msg)).not.toContain(TOKEN_PROGRAM);
+  });
+
+  it('vise le programme historique par défaut', () => {
+    const msg = buildSplTransferMessage(params);
+    expect(keys(msg)).toContain(TOKEN_PROGRAM);
+    expect(keys(msg)).not.toContain(TOKEN_2022_PROGRAM);
+  });
+
+  it('les ATA diffèrent selon le programme : ce ne sont pas les mêmes comptes', () => {
+    const legacy = keys(buildSplTransferMessage(params));
+    const t2022 = keys(buildSplTransferMessage({ ...params, tokenProgram: TOKEN_2022_PROGRAM }));
+    // Même émetteur, même destinataire, même mint — et pourtant des comptes de
+    // jeton distincts, parce que le programme entre dans les seeds.
+    expect(legacy.filter((k) => !t2022.includes(k)).length).toBeGreaterThan(0);
   });
 });

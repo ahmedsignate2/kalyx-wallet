@@ -13,7 +13,7 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { base58 } from '@scure/base';
 
 const PDA_MARKER = utf8ToBytes('ProgramDerivedAddress');
-const TOKEN_PROGRAM = base58.decode('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 const ASSOCIATED_TOKEN_PROGRAM = base58.decode('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 
 /** true si les 32 octets sont un point ed25519 valide (donc SUR la courbe). */
@@ -49,11 +49,22 @@ export function findProgramAddress(seeds: Uint8Array[], programId: Uint8Array): 
 /**
  * Adresse du compte de token associé (ATA) pour (owner, mint), en base58.
  * seeds = [owner, TokenProgram, mint], program = AssociatedTokenProgram.
+ *
+ * `tokenProgram` fait PARTIE DES SEEDS : un mint Token-2022 n'a donc pas le même
+ * ATA qu'un mint du programme historique. Il était figé sur le programme
+ * historique, ce qui calculait une adresse fausse pour tout mint Token-2022 —
+ * l'envoi aurait créé un compte au mauvais endroit, ou échoué.
  */
-export function getAssociatedTokenAddress(mint: string, owner: string): string {
+export function getAssociatedTokenAddress(
+  mint: string,
+  owner: string,
+  tokenProgram: string = TOKEN_PROGRAM,
+): string {
   const ownerKey = base58.decode(owner);
   const mintKey = base58.decode(mint);
+  const programKey = base58.decode(tokenProgram);
   if (ownerKey.length !== 32 || mintKey.length !== 32) throw new Error('owner/mint invalide (32 octets attendus)');
-  const { address } = findProgramAddress([ownerKey, TOKEN_PROGRAM, mintKey], ASSOCIATED_TOKEN_PROGRAM);
+  if (programKey.length !== 32) throw new Error('programme de token invalide (32 octets attendus)');
+  const { address } = findProgramAddress([ownerKey, programKey, mintKey], ASSOCIATED_TOKEN_PROGRAM);
   return base58.encode(address);
 }

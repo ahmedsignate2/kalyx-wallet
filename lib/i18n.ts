@@ -637,6 +637,8 @@ const en = {
   btcPendingBody: "Below the current fee rate, it may stay pending for hours. Speeding it up replaces it with a higher-fee version; the amount sent does not change.",
   btcBumpAction: "Speed up",
   btcBumpSent: "Replacement broadcast",
+  tokenTransferFee: "Token fee (charged by the token)",
+  recipientGets: "recipient gets",
   payQueuedUnlock: "Unlock to continue the payment",
   noWalletYet: "No wallet on this device yet",
 
@@ -848,7 +850,7 @@ const en = {
     "It is waiting to be included in a block. Network fees that are too low or heavy congestion slow it down. Kalyx notifies you as soon as it is confirmed.",
   faqQ10: "How do I cancel a transaction?",
   faqA10:
-    "A confirmed transaction is irreversible. A still-pending transaction can sometimes be replaced (same nonce, higher fees) — this feature is not yet automated in Kalyx.",
+    "A confirmed transaction is irreversible. A pending one can often still be replaced: on EVM networks, Speed up and Cancel are on the transaction tracking screen (same nonce, higher fee); on Bitcoin, Speed up appears in Activity, because Kalyx marks its transactions as replaceable (BIP-125). On Solana a transaction that does not land simply expires, and nothing is deducted.",
   faqQ11: "What are network fees?",
   faqA11:
     "It’s the cost paid to the network validators to process your transaction, settled in the native crypto (ETH, BNB, POL…). It varies with network congestion.",
@@ -2105,6 +2107,8 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     btcPendingBody: "Sous le taux actuel du réseau, elle peut rester en attente des heures. L'accélérer la remplace par une version qui paie plus ; le montant envoyé ne change pas.",
     btcBumpAction: "Accélérer",
     btcBumpSent: "Remplacement diffusé",
+    tokenTransferFee: "Frais du jeton (prélevés par le jeton)",
+    recipientGets: "le destinataire reçoit",
     payQueuedUnlock: "Déverrouille pour continuer le paiement",
     noWalletYet: "Aucun portefeuille sur cet appareil",
 
@@ -2310,7 +2314,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
       "Elle attend d’être incluse dans un bloc. Des frais de réseau trop bas ou une forte congestion la ralentissent. Kalyx te notifie dès qu’elle est confirmée.",
     faqQ10: "Comment annuler une transaction ?",
     faqA10:
-      "Une transaction confirmée est irréversible. Une transaction encore en attente peut parfois être remplacée (même nonce, frais plus élevés) — cette fonction n’est pas encore automatisée dans Kalyx.",
+      "Une transaction confirmée est irréversible. Une transaction en attente, elle, peut souvent encore être remplacée : sur les réseaux EVM, Accélérer et Annuler sont sur l’écran de suivi de la transaction (même nonce, frais plus élevés) ; sur Bitcoin, Accélérer apparaît dans l’Activité, parce que Kalyx marque ses transactions comme remplaçables (BIP-125). Sur Solana, une transaction qui n’aboutit pas expire simplement, et rien n’est débité.",
     faqQ11: "Que sont les frais de réseau ?",
     faqA11:
       "C’est le coût payé aux validateurs du réseau pour traiter ta transaction, réglé dans la crypto native (ETH, BNB, POL…). Il varie selon la congestion du réseau.",
