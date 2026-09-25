@@ -31,9 +31,9 @@ import { toast } from '../lib/toast';
 import {
   getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isWalletAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
   formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
-  estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, BitcoinChainAdapter,
-  estimateVsize, CHANGE_KIND, transferFeeFor, amountAfterTransferFee,
-  type FeeOptions, type FeeSpeed, type TransferFeeConfig,
+  estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter,
+  findAdapterV2, transferFeeFor, amountAfterTransferFee,
+  type FeeOptions, type FeeSpeed, type FeeQuotes, type TransferFeeConfig,
   simulateSendTransaction, type SimulationResult,
 } from '../src';
 import { AntiDrainerBanner } from '../src/components/security/AntiDrainerBanner';
@@ -229,34 +229,45 @@ export default function Send() {
         setBalance(list.find((x) => x.mint === token.mint)?.raw ?? 0n);
         setPrice(tp[token.mint.toLowerCase()] ?? 0);
       }
-      if (a instanceof EvmChainAdapter) a.getFeeOptions(token ? 65_000n : undefined).then((f) => alive && setFeeOptions(f)).catch(() => {});
       /*
-       * Bitcoin a lui aussi trois paliers — ils existaient côté réseau, mais
-       * l'écran ne les demandait qu'à l'EVM, donc l'utilisateur n'avait aucun
-       * choix de vitesse sur BTC. On les traduit dans la même forme pour
-       * réutiliser exactement la même interface : `maxFeePerGas` porte le taux
-       * en sat/vB, `costWei` le coût estimé en satoshis.
+       * PALIERS DE FRAIS — une seule demande, quelle que soit la chaîne.
+       *
+       * Il y avait ici trois branches `instanceof`, et Bitcoin chiffrait sur une
+       * taille SUPPOSÉE : une entrée, deux sorties. Or le coût d'une transaction
+       * Bitcoin dépend du nombre d'entrées réellement retenues — annoncer le
+       * prix d'une entrée quand le paiement en demandera cinq trompait de
+       * 4 × 68 vB. `quoteFees` fait une vraie sélection de pièces, palier par
+       * palier, et l'écran n'a plus à savoir de quelle chaîne il parle.
        */
+      const v2 = findAdapterV2(targetChainId);
+      if (v2?.capabilities.feeTiers && v2.quoteFees) {
+        const ref = token
+          ? { id: token.kind === 'spl' ? token.mint : token.contract, symbol, decimals }
+          : null;
+        v2.quoteFees(senderAddress, { to: recipientOk ? recipient : senderAddress, amount: 1n, token: ref })
+          .then((q: FeeQuotes) => {
+            if (!alive) return;
+            // `FeeOptions` attend la forme EVM : `costWei` porte le coût, les
+            // deux autres champs ne servent qu'au palier EVM, qui les relit.
+            const tier = (t: (typeof q)['slow']) => {
+              const o = t.opaque as { maxFeePerGas?: bigint; maxPriorityFeePerGas?: bigint } | bigint | number;
+              const evm = typeof o === 'object' && o !== null && 'maxFeePerGas' in o ? o : null;
+              return {
+                maxFeePerGas: evm?.maxFeePerGas ?? 0n,
+                maxPriorityFeePerGas: evm?.maxPriorityFeePerGas ?? 0n,
+                costWei: t.cost,
+              };
+            };
+            setFeeOptions({ slow: tier(q.slow), normal: tier(q.normal), fast: tier(q.fast) });
+          })
+          .catch(() => {});
+      }
+
+      // Frais PRÉLEVÉS PAR LE JETON (Token-2022) : propre à Solana.
       if (a instanceof SolanaChainAdapter && token?.kind === 'spl') {
         a.getTransferFeeConfig(token.mint).then((c) => alive && setTokenFee(c)).catch(() => {});
       } else {
         setTokenFee(null);
-      }
-      if (a instanceof BitcoinChainAdapter) {
-        a.getFeeRates()
-          .then((rates) => {
-            if (!alive) return;
-            // Estimation sur la taille la plus courante : 1 entrée, 2 sorties.
-            // Le montant exact est recalculé à l'envoi, entrées réelles en main.
-            const vsize = BigInt(estimateVsize(1, [CHANGE_KIND, CHANGE_KIND]));
-            const tier = (rate: number) => ({
-              maxFeePerGas: BigInt(rate),
-              maxPriorityFeePerGas: BigInt(rate),
-              costWei: BigInt(rate) * vsize,
-            });
-            setFeeOptions({ slow: tier(rates.slow), normal: tier(rates.normal), fast: tier(rates.fast) });
-          })
-          .catch(() => {});
       }
     })();
     return () => {
