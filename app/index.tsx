@@ -18,6 +18,7 @@ import { router } from 'expo-router';
 import { useWallet } from '../lib/walletStore';
 import { useTheme } from '../ui/theme';
 import { KalyxLogo } from '../ui/KalyxLogo';
+import { clearPendingIntent, flushPendingIntent } from '../lib/paymentIntent';
 import { SPLASH_LOGO_SIZE, SPLASH_LOGO_LIFT } from '../ui/Splash';
 
 export default function Index() {
@@ -28,9 +29,20 @@ export default function Index() {
 
   useEffect(() => {
     if (!ready) return;
-    if (!hasWallet) router.replace('/welcome');
-    else if (!isUnlocked) router.replace('/unlock');
-    else router.replace('/home');
+    /*
+     * Sort de l'attente une intention de paiement arrivée pendant le démarrage
+     * (cf. lib/paymentIntent). Ici seulement, car c'est le premier endroit où
+     * l'état du coffre est vraiment connu : sans portefeuille on l'oublie, déjà
+     * déverrouillé on la joue, sinon `app/unlock.tsx` s'en charge après le PIN.
+     */
+    if (!hasWallet) {
+      clearPendingIntent();
+      router.replace('/welcome');
+    } else if (!isUnlocked) router.replace('/unlock');
+    else {
+      router.replace('/home');
+      flushPendingIntent();
+    }
   }, [ready, hasWallet, isUnlocked]);
 
   /*

@@ -12,6 +12,7 @@ import { useDriveFlow } from '../lib/googleDrive';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { lockRemainingMs } from '../src';
+import { flushPendingIntent } from '../lib/paymentIntent';
 import { isBiometricAvailable } from '../lib/biometrics';
 
 export default function Unlock() {
@@ -49,9 +50,17 @@ export default function Unlock() {
         useDriveFlow.getState().setReturnTo(null);
         router.replace('/home');
         router.push(back);
+        // Rejouée ici aussi : un lien de paiement est une action que
+        // l'utilisateur vient de faire, elle passe devant la reprise du flux
+        // Drive. La laisser en attente la ferait surgir au déverrouillage
+        // SUIVANT, hors de tout contexte.
+        flushPendingIntent();
         return;
       }
       router.replace('/home');
+      // Lien de paiement reçu pendant que l'app était verrouillée : c'est la
+      // raison pour laquelle l'utilisateur vient de déverrouiller.
+      flushPendingIntent();
     });
   }, [screenOp]);
 

@@ -137,14 +137,24 @@ export {
 } from './domain/tokens/splTokens';
 
 // QR — analyse du contenu scanné (adresses, URIs de paiement, wc:, URL)
-export { parseQr, type QrResult } from './domain/qr/parse';
+export { parseQr, parseEip681Number, type QrResult } from './domain/qr/parse';
 export {
   qrTargetFamily,
   kalyxChainIdForEvm,
   describeQr,
+  sendIntentFor,
   type QrFamily,
   type QrDescription,
+  type SendIntent,
 } from './domain/qr/route';
+
+// Liens profonds — extraction d'intentions depuis une URL externe
+export {
+  extractWcUri,
+  extractPaymentUri,
+  extractBrowseUrl,
+  PAY_SCHEMES,
+} from './domain/qr/deeplink';
 
 // NFT (Alchemy)
 export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
