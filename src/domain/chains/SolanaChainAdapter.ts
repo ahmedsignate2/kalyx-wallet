@@ -25,9 +25,35 @@ import { parseSolanaTx, type SolTxResponse } from './solHistory';
 import { parseTokenAccounts, SPL_TOKEN_PROGRAM, type SplToken } from '../tokens/splTokens';
 import { fetchSplMetadata } from '../tokens/splMetadata';
 import { buildSplTransferMessage } from './solSpl';
+import {
+  priorityInstructions,
+  pickPriorityFee,
+  CU_SOL_TRANSFER,
+  CU_SPL_TRANSFER,
+} from './solPriority';
 import { technicalLogger } from '../../../lib/technicalLogger';
 
 const API_TIMEOUT_MS = 12_000;
+
+/**
+ * Commitment pour récupérer le blockhash d'une transaction à émettre.
+ *
+ * `confirmed` et non `finalized` : le blockhash finalisé a une douzaine de
+ * secondes de retard, prises directement sur les ~60 s de validité. On partait
+ * donc avec un quart de la fenêtre déjà consommé, pour rien — `finalized` ne
+ * sert qu'à LIRE un état définitif, pas à préparer un envoi.
+ */
+const SEND_COMMITMENT = 'confirmed';
+
+/** Intervalle entre deux relevés d'état d'une transaction émise. */
+const CONFIRM_POLL_MS = 1_500;
+
+/**
+ * Au-delà, on arrête d'attendre. ~60 s correspond à la durée de validité d'un
+ * blockhash : passé ce délai, la transaction ne peut plus être incluse, donc
+ * continuer à interroger ne renseignerait sur rien.
+ */
+const CONFIRM_TIMEOUT_MS = 60_000;
 
 export class SolanaChainAdapter implements ChainAdapter {
   readonly config: ChainConfig;
@@ -193,6 +219,101 @@ export class SolanaChainAdapter implements ChainAdapter {
    * signature (= identifiant de tx Solana). La clé transite, n'est jamais stockée.
    */
 
+  /**
+   * Prix de priorité à appliquer, en micro-lamports par unité de calcul.
+   *
+   * Interroge les frais récemment observés sur le réseau et retient le centile
+   * 75 (cf. solPriority). Ne lève JAMAIS : un RPC muet ne doit pas empêcher
+   * d'envoyer, il fait simplement retomber sur le plancher.
+   */
+  private async priorityFee(): Promise<bigint> {
+    try {
+      const samples = await this.rpc<unknown>('getRecentPrioritizationFees', [[]]);
+      return pickPriorityFee(samples);
+    } catch {
+      return pickPriorityFee(null);
+    }
+  }
+
+  /** Blockhash récent + hauteur de bloc au-delà de laquelle il expire. */
+  private async recentBlockhash(): Promise<{ blockhash: string; lastValidBlockHeight?: number }> {
+    const latest = await this.rpc<{
+      value?: { blockhash?: string; lastValidBlockHeight?: number };
+    }>('getLatestBlockhash', [{ commitment: SEND_COMMITMENT }]);
+    const blockhash = latest?.value?.blockhash;
+    if (!blockhash) throw new WalletError('RPC_UNAVAILABLE', 'Blockhash Solana indisponible');
+    return { blockhash, lastValidBlockHeight: latest?.value?.lastValidBlockHeight };
+  }
+
+  /**
+   * Attend qu'une transaction émise soit RÉELLEMENT prise en compte.
+   *
+   * Sans cette étape, `sendSolana` rendait une signature et on en déduisait que
+   * l'envoi avait réussi. Or sur Solana une transaction acceptée par un RPC
+   * n'est pas une transaction incluse : elle peut être abandonnée en silence si
+   * elle n'a pas assez de priorité, ou échouer à l'exécution. L'utilisateur
+   * voyait « envoyé », l'argent n'avait pas bougé, et rien dans l'app ne le
+   * contredisait jamais.
+   *
+   * Lève `TX_FAILED` si la chaîne rejette la transaction, `TX_EXPIRED` si le
+   * blockhash périme sans inclusion.
+   */
+  async confirmSignature(signature: string, lastValidBlockHeight?: number): Promise<void> {
+    const deadline = Date.now() + CONFIRM_TIMEOUT_MS;
+
+    for (;;) {
+      try {
+        const res = await this.rpc<{
+          value?: ({ err?: unknown; confirmationStatus?: string } | null)[];
+        }>('getSignatureStatuses', [[signature], { searchTransactionHistory: false }]);
+        const status = res?.value?.[0];
+        if (status) {
+          if (status.err) {
+            throw new WalletError(
+              'TX_FAILED',
+              `Transaction rejetée par le réseau : ${JSON.stringify(status.err).slice(0, 120)}`,
+            );
+          }
+          if (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized') {
+            return;
+          }
+        }
+      } catch (e) {
+        // Une erreur de lecture n'est pas un échec de la transaction : on
+        // retentera. Seul un `err` explicite de la chaîne est définitif.
+        if (e instanceof WalletError && e.code === 'TX_FAILED') throw e;
+      }
+
+      if (Date.now() >= deadline) break;
+
+      /*
+       * Le blockhash a-t-il expiré ? C'est la seule preuve qu'une transaction
+       * non vue ne passera JAMAIS — sinon on ne saurait pas distinguer « pas
+       * encore incluse » de « abandonnée ».
+       */
+      if (lastValidBlockHeight !== undefined) {
+        try {
+          const height = await this.rpc<number>('getBlockHeight', [{ commitment: SEND_COMMITMENT }]);
+          if (typeof height === 'number' && height > lastValidBlockHeight) {
+            throw new WalletError(
+              'TX_EXPIRED',
+              'Transaction abandonnée par le réseau (blockhash expiré). Les fonds n\'ont pas bougé.',
+            );
+          }
+        } catch (e) {
+          if (e instanceof WalletError && e.code === 'TX_EXPIRED') throw e;
+        }
+      }
+
+      await new Promise((r) => setTimeout(r, CONFIRM_POLL_MS));
+    }
+
+    throw new WalletError(
+      'TX_EXPIRED',
+      'Transaction non confirmée dans le délai imparti. Vérifie l\'explorateur avant de réessayer.',
+    );
+  }
+
   async sendSolana(
     from: string,
     to: string,
@@ -203,17 +324,27 @@ export class SolanaChainAdapter implements ChainAdapter {
     const lamports = parseAmount(amount, this.config.nativeDecimals).raw;
     if (lamports <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant invalide');
 
-    const latest = await this.rpc<{ value?: { blockhash?: string } }>('getLatestBlockhash', [
-      { commitment: 'finalized' },
+    const [{ blockhash, lastValidBlockHeight }, microLamports] = await Promise.all([
+      this.recentBlockhash(),
+      this.priorityFee(),
     ]);
-    const blockhash = latest?.value?.blockhash;
-    if (!blockhash) throw new WalletError('RPC_UNAVAILABLE', 'Blockhash Solana indisponible');
 
-    const message = buildTransferMessage({ from, to, lamports, recentBlockhash: blockhash });
+    const message = buildTransferMessage({
+      from,
+      to,
+      lamports,
+      recentBlockhash: blockhash,
+      prefix: priorityInstructions(CU_SOL_TRANSFER, microLamports),
+    });
     const wireTx = signAndSerialize(message, signer.secretKey);
 
-    const sig = await this.rpc<string>('sendTransaction', [wireTx, { encoding: 'base64' }]);
+    const sig = await this.rpc<string>('sendTransaction', [
+      wireTx,
+      { encoding: 'base64', preflightCommitment: SEND_COMMITMENT, maxRetries: 3 },
+    ]);
     if (!sig) throw new WalletError('BROADCAST_FAILED', 'Diffusion refusée par le réseau Solana');
+
+    await this.confirmSignature(sig, lastValidBlockHeight);
     return sig;
   }
 
@@ -233,17 +364,29 @@ export class SolanaChainAdapter implements ChainAdapter {
     if (!isValidSolanaAddress(mint)) throw new WalletError('INVALID_ADDRESS', 'Mint invalide');
     if (amount <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant invalide');
 
-    const latest = await this.rpc<{ value?: { blockhash?: string } }>('getLatestBlockhash', [
-      { commitment: 'finalized' },
+    const [{ blockhash, lastValidBlockHeight }, microLamports] = await Promise.all([
+      this.recentBlockhash(),
+      this.priorityFee(),
     ]);
-    const blockhash = latest?.value?.blockhash;
-    if (!blockhash) throw new WalletError('RPC_UNAVAILABLE', 'Blockhash Solana indisponible');
 
-    const message = buildSplTransferMessage({ from, to, mint, amount, decimals, recentBlockhash: blockhash });
+    const message = buildSplTransferMessage({
+      from,
+      to,
+      mint,
+      amount,
+      decimals,
+      recentBlockhash: blockhash,
+      prefix: priorityInstructions(CU_SPL_TRANSFER, microLamports),
+    });
     const wireTx = signAndSerialize(message, signer.secretKey);
 
-    const sig = await this.rpc<string>('sendTransaction', [wireTx, { encoding: 'base64' }]);
+    const sig = await this.rpc<string>('sendTransaction', [
+      wireTx,
+      { encoding: 'base64', preflightCommitment: SEND_COMMITMENT, maxRetries: 3 },
+    ]);
     if (!sig) throw new WalletError('BROADCAST_FAILED', 'Diffusion refusée par le réseau Solana');
+
+    await this.confirmSignature(sig, lastValidBlockHeight);
     return sig;
   }
 

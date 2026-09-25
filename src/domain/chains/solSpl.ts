@@ -65,6 +65,8 @@ export interface SplTransferParams {
   amount: bigint;
   decimals: number;
   recentBlockhash: string;
+  /** Instructions ComputeBudget, en tête de transaction (cf. solPriority). */
+  prefix?: Instruction[];
 }
 
 /** Message signable d'un transfert SPL (ATA idempotent + TransferChecked). */
@@ -72,6 +74,7 @@ export function buildSplTransferMessage(p: SplTransferParams): Uint8Array {
   const source = getAssociatedTokenAddress(p.mint, p.from);
   const dest = getAssociatedTokenAddress(p.mint, p.to);
   const instructions: Instruction[] = [
+    ...(p.prefix ?? []),
     createAtaIdempotentIx(p.from, dest, p.to, p.mint),
     transferCheckedIx(source, p.mint, dest, p.from, p.amount, p.decimals),
   ];
