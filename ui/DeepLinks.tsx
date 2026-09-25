@@ -1,11 +1,28 @@
 /**
  * Liens profonds : ouvre Kalyx depuis l'extérieur.
  * - `wc:…` (ou `kalyx://wc?uri=…`) → appairage WalletConnect + écran WC.
+ * - `ethereum:…` (EIP-681), `bitcoin:…` (BIP-21), `solana:…` (Solana Pay) →
+ *   écran Envoyer prérempli, après confirmation. Jamais d'exécution directe.
+ * - `kalyx://pay?uri=…` et `https://kalyxwallet.com/pay?uri=…` → même chose,
+ *   pour les liens partagés qui doivent rester cliquables sans l'app installée.
  * - `kalyx://browse?url=https://…` → ouvre l'URL dans le navigateur dApps.
  * - `kalyx://<route>` est géré nativement par expo-router.
  *
+ * DEUX MANQUES CORRIGÉS ICI :
+ *
+ * 1. `ethereum:` était DÉCLARÉ côté natif (app.config, iOS comme Android) mais
+ *    routé nulle part. L'OS proposait donc Kalyx pour une facture EIP-681,
+ *    l'app s'ouvrait… et la chaîne tombait à travers toutes les branches, sans
+ *    même un message. Un cul-de-sac, déjà livré.
+ * 2. Une intention arrivant PORTEFEUILLE VERROUILLÉ était poussée dans le vide :
+ *    la barrière de verrouillage ne vit qu'à l'entrée (app/index.tsx), donc au
+ *    démarrage à froid ce `push` courait contre le `replace('/unlock')`. Selon
+ *    qui gagnait, on atterrissait sur `/send` verrouillé, ou l'intention était
+ *    écrasée et perdue. Elle est maintenant mise EN ATTENTE et rejouée au
+ *    déverrouillage.
+ *
  * Le schéma applicatif est déclaré dans app.config ; l'enregistrement système
- * de `wc:` (intent-filters) prend effet au prochain rebuild.
+ * de `bitcoin:` / `solana:` (intent-filters) prend effet au prochain rebuild.
  */
 import { useEffect } from 'react';
 import * as Linking from 'expo-linking';
@@ -16,39 +33,46 @@ import { useDriveFlow } from '../lib/googleDrive';
 import { useWallet } from '../lib/walletStore';
 import { useSettings as useSettingsStore } from '../lib/settingsStore';
 import { router } from 'expo-router';
-import { useWalletConnect } from '../lib/walletconnect';
-
-/** Extrait une URI WalletConnect d'un lien (directe ou via ?uri=). */
-export function extractWcUri(url: string): string | null {
-  if (url.startsWith('wc:')) return decodeURIComponent(url);
-  
-  // Correction pour les liens directs WalletConnect interceptés par le scheme kalyx://
-  if (url.startsWith('kalyx://') && (url.includes('symKey=') || url.includes('relay-protocol='))) {
-     return `wc:${url.slice('kalyx://'.length)}`;
-  }
-  
-  const m = url.match(/[?&]uri=([^&]+)/);
-  if (m) {
-    try {
-      const decoded = decodeURIComponent(m[1]);
-      if (decoded.startsWith('wc:')) return decoded;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-/** Extrait une URL https à ouvrir dans le navigateur (kalyx://browse?url=…). */
-export function extractBrowseUrl(url: string): string | null {
-  const m = url.match(/[?&]url=([^&]+)/);
-  if (!m) return null;
-  const decoded = decodeURIComponent(m[1]);
-  return /^https:\/\//i.test(decoded) ? decoded : null;
-}
+import {
+  parseQr,
+  extractWcUri,
+  extractPaymentUri,
+  extractBrowseUrl,
+  type QrResult,
+} from '../src';
+import { runQrIntent, setPendingIntent } from '../lib/paymentIntent';
 
 export function DeepLinks() {
   useEffect(() => {
+    /** Exécute maintenant, ou met en attente si le portefeuille est verrouillé. */
+    const act = (result: QrResult) => {
+      const w = useWallet.getState();
+      /*
+       * Démarrage à froid : `getInitialURL()` répond AVANT que le coffre soit
+       * lu, et `hasWallet` vaut alors `false` par défaut. Juger ici, c'est
+       * répondre « aucun portefeuille » à quelqu'un qui en a un et vient de
+       * toucher un lien de paiement. On met de côté et `app/index.tsx`
+       * tranche quand l'état est connu.
+       */
+      if (!w.ready) {
+        setPendingIntent(result);
+        return;
+      }
+      if (!w.hasWallet) {
+        // Aucun portefeuille : rien à mettre en attente, et rediriger vers la
+        // création en avalant le lien serait un mensonge sur ce qui va se passer.
+        toast.error(translate(useSettings.getState().language, 'noWalletYet'));
+        return;
+      }
+      if (!w.isUnlocked) {
+        // Rejouée par `app/unlock.tsx`, après l'accueil — cf. paymentIntent.
+        setPendingIntent(result);
+        toast.info(translate(useSettings.getState().language, 'payQueuedUnlock'));
+        return;
+      }
+      void runQrIntent(result);
+    };
+
     const handle = async (url: string | null, coldStart = false) => {
       if (!url) return;
       // Retour de Google (sauvegarde / restauration Drive) : repris ici même si
@@ -78,8 +102,14 @@ export function DeepLinks() {
       }
       const wc = extractWcUri(url);
       if (wc) {
-        useWalletConnect.getState().pair(wc).catch((e) => toast.error(translate(useSettings.getState().language, 'connectionFailed'), e instanceof Error ? e.message : undefined));
-        router.push('/walletconnect');
+        act({ kind: 'walletconnect', uri: wc });
+        return;
+      }
+      // URI de paiement : analysée, jamais exécutée — `act` mène à l'écran de
+      // confirmation, prérempli, sur la bonne chaîne et avec le bon jeton.
+      const pay = extractPaymentUri(url);
+      if (pay) {
+        act(parseQr(pay));
         return;
       }
       if (/(^|\/\/)browse\b/i.test(url)) {
