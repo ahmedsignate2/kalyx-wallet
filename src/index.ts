@@ -168,6 +168,43 @@ export {
   PAY_SCHEMES,
 } from './domain/qr/deeplink';
 
+/*
+ * Chaînes — interface v2.
+ *
+ * Coexiste avec la v1 pendant la migration. Le reste de l'app utilise encore la
+ * v1 ; ces exports existent pour que `walletStore` et les écrans puissent
+ * basculer chaîne par chaîne, sans que rien ne soit à moitié converti.
+ */
+export { getAdapterV2, findAdapterV2, forgetAdapterV2, resetAdaptersV2 } from './domain/chains/v2/registry';
+export { signerFromSeed, signerFromEvmPrivateKey } from './domain/chains/v2/derive';
+export { withSigner, wipeSigner, assertCurve } from './domain/chains/v2/signer';
+export { capabilities, NO_CAPABILITIES } from './domain/chains/v2/capabilities';
+export { EvmAdapterV2, type EvmPayload } from './domain/chains/v2/EvmAdapterV2';
+export { SolanaAdapterV2, type SolanaPayload } from './domain/chains/v2/SolanaAdapterV2';
+export {
+  BitcoinAdapterV2,
+  type BitcoinPayload,
+  type BitcoinPendingContext,
+} from './domain/chains/v2/BitcoinAdapterV2';
+export type {
+  ChainAdapterV2,
+  SendRequest,
+  SendDraft,
+  SignedSend,
+  BroadcastOutcome,
+  TxWaitHint,
+  TxState,
+  PendingRef,
+  FeeQuote,
+  FeeQuotes,
+  SendSpeed,
+  TokenRef,
+  TokenHolding,
+  DraftWarning,
+} from './domain/chains/v2/types';
+export type { ChainCapabilities, MessageSigningKind } from './domain/chains/v2/capabilities';
+export type { ChainSigner, SignerCurve, Secp256k1Signer, Ed25519Signer } from './domain/chains/v2/signer';
+
 // NFT (Alchemy)
 export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
 export { getSolanaNfts } from './domain/nft/solanaNft';
