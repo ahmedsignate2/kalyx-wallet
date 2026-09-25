@@ -21,6 +21,7 @@ export {
   deriveSolanaAccount,
   deriveSolanaSigner,
   isValidSolanaAddress,
+  isWalletAddress,
   solPath,
   type SolAccount,
   type SolSigner,

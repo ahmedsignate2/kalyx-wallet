@@ -27,8 +27,34 @@ export interface CoinSelection {
   change: bigint;
 }
 
-/** Seuil de « poussière » P2WPKH : une sortie plus petite coûte plus qu'elle ne vaut. */
-export const DUST_SATS = 294n;
+/**
+ * Seuils de « poussière », PAR TYPE de sortie.
+ *
+ * Bitcoin Core refuse de relayer une transaction portant une sortie dont la
+ * valeur ne couvrirait pas trois fois le coût de sa dépense : elle est
+ * « non standard » et aucun nœud ne la propage. Le seuil dépend de la taille du
+ * script, donc du type d'adresse.
+ *
+ * Une seule constante était utilisée, celle du P2WPKH (294). Depuis qu'on
+ * envoie aussi vers des adresses héritées (546) et Taproot (330), ce seuil
+ * unique est trop bas pour elles — et il n'était de toute façon appliqué qu'à la
+ * MONNAIE, jamais à la sortie du destinataire.
+ */
+export const DUST_BY_KIND: Record<BtcAddressKind, bigint> = {
+  p2pkh: 546n,
+  p2sh: 540n,
+  p2wpkh: 294n,
+  p2wsh: 330n,
+  p2tr: 330n,
+};
+
+/** Seuil de poussière de NOTRE sortie de monnaie (toujours P2WPKH). */
+export const DUST_SATS = DUST_BY_KIND.p2wpkh;
+
+/** Seuil de poussière applicable à une sortie de ce type. */
+export function dustThreshold(kind: BtcAddressKind): bigint {
+  return DUST_BY_KIND[kind];
+}
 
 /** Type de la sortie de monnaie : notre propre adresse, donc toujours P2WPKH. */
 export const CHANGE_KIND: BtcAddressKind = 'p2wpkh';
@@ -78,6 +104,24 @@ export function estimateVsize(inputs: number, outputs: BtcAddressKind[]): number
  * `toKind` est le type de l'adresse du destinataire : sans lui, les frais sont
  * calculés sur une sortie P2WPKH quelle que soit la destination réelle.
  */
+/**
+ * Nombre maximal d'entrées retenues.
+ *
+ * Deux raisons. Une transaction au-delà de 100 000 vB est NON STANDARD et aucun
+ * nœud ne la relaie : à 68 vB par entrée, on s'en approcherait vers 1 400
+ * entrées. Et bien avant ça, une transaction à plusieurs centaines d'entrées
+ * coûte davantage en frais qu'elle ne transporte. 200 laisse une marge
+ * confortable tout en gardant la transaction relayable.
+ */
+export const MAX_INPUTS = 200;
+
+/**
+ * Sélectionne les UTXO couvrant `target` sats + frais (feeRate en sat/vB).
+ *
+ * Renvoie null si le solde est insuffisant frais compris, si la sortie du
+ * destinataire serait de la poussière, ou s'il faudrait plus d'entrées que
+ * `MAX_INPUTS`.
+ */
 export function selectUtxos(
   utxos: Utxo[],
   target: bigint,
@@ -85,12 +129,25 @@ export function selectUtxos(
   toKind: BtcAddressKind = 'p2wpkh',
 ): CoinSelection | null {
   if (target <= 0n) return null;
+  /*
+   * Sortie du destinataire sous le seuil de poussière : la transaction serait
+   * construite, signée, puis REFUSÉE à la diffusion, avec un message de nœud
+   * incompréhensible. Autant le dire avant de signer.
+   */
+  if (target < dustThreshold(toKind)) return null;
   const rate = Math.max(1, feeRate); // au moins 1 sat/vB
   const sorted = [...utxos].filter((u) => u.value > 0).sort((a, b) => b.value - a.value);
 
   const chosen: Utxo[] = [];
   let sum = 0n;
   for (const u of sorted) {
+    /*
+     * Entrée non rentable : elle apporte moins qu'elle ne coûte à dépenser.
+     * L'ajouter réduirait le montant disponible au lieu de l'augmenter. On
+     * arrête là — les pièces suivantes sont plus petites encore (tri décroissant).
+     */
+    if (BigInt(u.value) <= BigInt(Math.ceil(INPUT_VBYTES * rate))) break;
+    if (chosen.length >= MAX_INPUTS) return null;
     chosen.push(u);
     sum += BigInt(u.value);
 
