@@ -105,3 +105,30 @@ describe('humanizeTx — liste qui mêle les réseaux', () => {
     expect(humanizeTx(tx, onBase).title).toBe('Envoyé 0.1 ETH');
   });
 });
+
+describe('humanizeTx — attente', () => {
+  /*
+   * Bitcoin codait `success` en dur, si bien qu'une transaction encore dans le
+   * mempool s'affichait comme confirmée. `pending` est transversal : il ne
+   * remplace ni la nature de l'opération, ni le montant.
+   */
+  it('une transaction en attente est signalée sans changer son libellé', () => {
+    const h = humanizeTx({ ...base, status: 'pending' }, ctx);
+    expect(h.pending).toBe(true);
+    expect(h.failed).toBe(false);
+    expect(h.title).toBe('Envoyé 0.1 ETH');
+    expect(h.amount).toBe('−0.1 ETH');
+  });
+
+  it('une transaction confirmée ne l’est pas', () => {
+    expect(humanizeTx(base, ctx).pending).toBe(false);
+  });
+
+  /** Un échec n'est pas une attente : les deux états restent distincts. */
+  it('un échec reste un échec, jamais une attente', () => {
+    const h = humanizeTx({ ...base, status: 'failed' }, ctx);
+    expect(h.failed).toBe(true);
+    expect(h.pending).toBe(false);
+    expect(h.tone).toBe('danger');
+  });
+});

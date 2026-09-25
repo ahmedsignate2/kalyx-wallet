@@ -151,6 +151,7 @@ export default function History() {
                     <ActivityRow
                       h={r.h}
                       time={new Date(r.tx.timestamp * 1000).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                      pendingLabel={t('txPending')}
                       onPress={() => router.push({ pathname: '/tracking', params: { hash: r.tx.hash, chainId: chain.id } })}
                     />
                     {i < g.items.length - 1 ? <Divider inset={68} /> : null}
