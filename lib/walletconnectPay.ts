@@ -24,7 +24,14 @@ import { technicalLogger } from './technicalLogger';
 import type { Unlock } from './walletStore';
 import { base64 } from '@scure/base';
 import { utf8ToBytes } from '@noble/hashes/utils';
-import { payAccountsFor, checkPayAction, listChains, type PayMethod, type PayRefusal } from '../src';
+import {
+  payAccountsFor,
+  checkPayAction,
+  listChains,
+  formatTokenAmount,
+  type PayMethod,
+  type PayRefusal,
+} from '../src';
 
 /** Identifiant public du projet Pay, fourni au build (secret EAS). */
 const PAY_APP_ID = (process.env.EXPO_PUBLIC_WALLETCONNECT_PAY_ID ?? '').trim();
@@ -69,12 +76,30 @@ export interface PayInfo {
   /** Secondes depuis l'époque. */
   expiresAt: number;
   merchant: { name: string; iconUrl?: string };
+  /**
+   * Compte que le service a RECONNU comme payeur, s'il en a reconnu un.
+   *
+   * Champ à haute valeur de diagnostic : absent, il dit que le service n'a
+   * apparié AUCUN des comptes envoyés — ce qui n'a rien à voir avec un solde
+   * insuffisant. On ne le lisait pas, et c'est une des raisons pour lesquelles
+   * un « zéro option » restait indéchiffrable.
+   */
+  buyer?: { accountCaip10: string; accountProviderName: string };
 }
 
 export interface PayOptions {
   paymentId: string;
   info?: PayInfo;
   options: PayOption[];
+  /**
+   * Capture de données exigée AVANT toute option, au niveau de la demande.
+   *
+   * Distincte du `collectData` porté par une option : celle-ci conditionne la
+   * production même des options. Le service peut donc rendre zéro option non
+   * par manque de fonds, mais parce qu'il attend des informations — et tant
+   * qu'on ne lisait pas ce champ, ce cas ressortait en « rien pour payer ».
+   */
+  collectData?: PayCollectData | null;
 }
 
 interface PayAction {
@@ -103,6 +128,24 @@ export class PayActionRefused extends Error {
     super(`pay action refused: ${code}`);
     this.name = 'PayActionRefused';
   }
+}
+
+/**
+ * Montant lisible d'un `PayAmount`.
+ *
+ * `value` est en UNITÉS MINIMALES ; l'afficher tel quel fait passer 0,01 USD
+ * pour 1 USD. Mes traces le faisaient, et un diagnostic qui se trompe d'un
+ * facteur cent envoie chercher le problème au mauvais endroit.
+ */
+export function payAmountText(amount: PayAmount | undefined): string | null {
+  if (!amount) return null;
+  let raw: bigint;
+  try {
+    raw = BigInt(amount.value || '0');
+  } catch {
+    return `${amount.value} ${amount.display?.assetSymbol ?? ''}`.trim();
+  }
+  return `${formatTokenAmount(raw, amount.display?.decimals ?? 0)} ${amount.display?.assetSymbol ?? ''}`.trim();
 }
 
 /* ── Chargement gardé du SDK ─────────────────────────────────────────────── */
@@ -299,10 +342,17 @@ export const usePay = create<PayState>((set, get) => ({
         accounts: accounts.join(' '),
         options: options.options.length,
         status: options.info?.status,
-        requested: options.info
-          ? `${options.info.amount.value} ${options.info.amount.display.assetSymbol}`
-          : undefined,
+        requested: payAmountText(options.info?.amount) ?? undefined,
         merchant: options.info?.merchant.name,
+        /*
+         * Le payeur RECONNU par le service, et la capture de données exigée au
+         * niveau de la demande. Deux champs que le SDK rend depuis le début et
+         * qu'on ne regardait pas — donc deux causes de « zéro option » qu'on ne
+         * pouvait pas distinguer d'un solde insuffisant.
+         */
+        buyer: options.info?.buyer?.accountCaip10,
+        buyerVia: options.info?.buyer?.accountProviderName,
+        needsData: options.collectData ? 'oui' : 'non',
       });
 
       if (options.options.length === 0) {
@@ -317,6 +367,18 @@ export const usePay = create<PayState>((set, get) => ({
          * refus bien mieux que nous. Une demande expirée ou déjà réglée n'a rien
          * à voir avec un solde insuffisant, et l'écran peut le dire.
          */
+        /*
+         * UNE CAPTURE EXIGÉE AU NIVEAU DE LA DEMANDE n'est pas une absence de
+         * fonds. Le service ne produit aucune option tant qu'il n'a pas les
+         * informations qu'il réclame ; conclure « rien pour payer » enverrait
+         * l'utilisateur alimenter un portefeuille déjà suffisant. On ouvre donc
+         * le formulaire, et le flux reprend ensuite son cours normal.
+         */
+        const rootCollect = options.collectData?.url;
+        if (rootCollect) {
+          set({ phase: 'collecting', options, collectUrl: buildCollectUrl(rootCollect), failure: null });
+          return;
+        }
         set({ phase: 'error', failure: 'NO_OPTION', options, detail: options.info?.status ?? null });
         return;
       }
@@ -340,7 +402,24 @@ export const usePay = create<PayState>((set, get) => ({
     });
   },
 
-  collected: () => set({ collectUrl: null, phase: 'choosing' }),
+  collected: () => {
+    /*
+     * Deux situations, et elles ne se terminent pas de la même façon.
+     *
+     * La capture portée par une OPTION arrive alors que l'option est déjà
+     * choisie : il n'y a plus qu'à signer. La capture portée par la DEMANDE
+     * arrive avant qu'aucune option n'existe — le service les produit à partir
+     * des informations qu'on vient de lui donner. Retomber sur « choisir »
+     * afficherait alors une liste vide, sans rien expliquer.
+     */
+    const { options, link } = get();
+    if (link && (options?.options.length ?? 0) === 0) {
+      set({ collectUrl: null });
+      void get().open(link);
+      return;
+    }
+    set({ collectUrl: null, phase: 'choosing' });
+  },
 
   confirm: async (unlock) => {
     const c = payClient();
@@ -407,15 +486,32 @@ export const usePay = create<PayState>((set, get) => ({
         link,
         failure,
         detail,
+        sdkAvailable: payClient() !== null,
+        appIdSet: PAY_APP_ID.length > 0,
         accountsSent: payAccountsFor(stored?.evmAddress ?? ''),
         optionCount: options?.options.length ?? null,
         paymentId: options?.paymentId ?? null,
         requestStatus: options?.info?.status ?? null,
-        requested: options?.info
-          ? `${options.info.amount.value} ${options.info.amount.display.assetSymbol} (${options.info.amount.display.decimals} déc.)`
-          : null,
+        requested: payAmountText(options?.info?.amount),
         merchant: options?.info?.merchant.name ?? null,
         expiresAt: options?.info?.expiresAt ?? null,
+        /** Le service a-t-il apparié un de nos comptes ? Absent = non. */
+        buyerRecognised: options?.info?.buyer?.accountCaip10 ?? null,
+        buyerProvider: options?.info?.buyer?.accountProviderName ?? null,
+        collectDataAtRoot: options?.collectData?.url ?? null,
+        /*
+         * LA RÉPONSE ENTIÈRE, telle quelle.
+         *
+         * J'ai choisi les champs à la main trois fois de suite, et trois fois la
+         * réponse se trouvait dans un champ que je n'avais pas pris — le montant
+         * mal divisé, le payeur reconnu, la capture au niveau racine. Un
+         * diagnostic dont le contenu dépend de mes hypothèses ne sert qu'à les
+         * confirmer.
+         *
+         * Aucun secret n'y figure : identifiants de paiement, montants, marchand
+         * et adresses publiques. Rien ne vient du portefeuille de l'utilisateur.
+         */
+        raw: options ?? null,
       },
       null,
       2,

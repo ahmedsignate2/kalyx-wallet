@@ -1,6 +1,6 @@
 jest.mock('./walletStore', () => ({ useWallet: { getState: () => ({ account: null }) } }));
 
-import { buildCollectUrl, requiredCollectFields, isPayAvailable } from './walletconnectPay';
+import { buildCollectUrl, requiredCollectFields, isPayAvailable, payAmountText } from './walletconnectPay';
 
 describe('buildCollectUrl', () => {
   const BASE = 'https://pay.walletconnect.com/ic/abc';
@@ -71,5 +71,42 @@ describe('isPayAvailable', () => {
      * au démarrage, comme le ferait un import statique.
      */
     expect(isPayAvailable()).toBe(false);
+  });
+});
+
+describe('payAmountText', () => {
+  const amount = (value: string, decimals: number, assetSymbol = 'USD') => ({
+    unit: `iso4217/${assetSymbol}`,
+    value,
+    display: { assetSymbol, assetName: assetSymbol, decimals },
+  });
+
+  /*
+   * LE DÉFAUT QU'ON VERROUILLE. `value` est en unités minimales : ma trace
+   * affichait « 1 USD » pour une demande de 0,01 USD, soit cent fois trop. Un
+   * diagnostic faux d'un facteur cent fait chercher le problème ailleurs — et
+   * c'est exactement ce qui s'est produit.
+   */
+  it('applique les décimales au lieu de rendre les unités minimales', () => {
+    expect(payAmountText(amount('1', 2))).toBe('0.01 USD');
+    expect(payAmountText(amount('100', 2))).toBe('1 USD');
+    expect(payAmountText(amount('170000', 6, 'USDC'))).toBe('0.17 USDC');
+  });
+
+  it('sans décimales, la valeur reste entière', () => {
+    expect(payAmountText(amount('42', 0))).toBe('42 USD');
+  });
+
+  it('rien à afficher sans montant', () => {
+    expect(payAmountText(undefined)).toBeNull();
+  });
+
+  /*
+   * Une valeur que le service enverrait hors format ne doit pas faire tomber
+   * l'écran de diagnostic : c'est le seul endroit où l'on peut encore
+   * comprendre ce qui se passe.
+   */
+  it('une valeur non numérique est rendue telle quelle, sans lever', () => {
+    expect(payAmountText(amount('abc', 2))).toBe('abc USD');
   });
 });
