@@ -14,8 +14,26 @@ export type QrResult =
   | { kind: 'evm-address'; address: string }
   | { kind: 'solana-address'; address: string }
   | { kind: 'bitcoin-address'; address: string }
-  | { kind: 'ethereum-uri'; address: string; amount?: string; chainId?: number }
-  | { kind: 'bitcoin-uri'; address: string; amount?: string }
+  | {
+      kind: 'ethereum-uri';
+      address: string;
+      /** Montant en unités UTILISATEUR (décimal), quand il est connu ici. */
+      amount?: string;
+      chainId?: number;
+      /** Contrat ERC-20 pour un `…/transfer` (absent = pièce native). */
+      contract?: string;
+      /** Montant en unités de BASE du jeton : les décimales sont inconnues ici. */
+      amountRaw?: string;
+    }
+  | {
+      kind: 'bitcoin-uri';
+      address: string;
+      amount?: string;
+      /** `label` BIP-21 : le bénéficiaire, tel qu'il s'annonce. */
+      label?: string;
+      /** `message` BIP-21 : motif du paiement. */
+      message?: string;
+    }
   | { kind: 'solana-uri'; address: string; amount?: string; splToken?: string }
   | { kind: 'walletconnect'; uri: string }
   | { kind: 'url'; url: string }
@@ -49,33 +67,109 @@ function cleanAmount(v: string | undefined): string | undefined {
   return Number(v) > 0 ? v : undefined;
 }
 
+/**
+ * Nombre au format EIP-681 → entier en unités de base.
+ *
+ * La spec autorise la notation scientifique (`value=2.014e18`), et c'est la
+ * forme que produisent plusieurs générateurs de liens de paiement. Un parseur
+ * limité à `\d+` les rejetait en silence : le montant disparaissait du lien et
+ * l'utilisateur tapait un chiffre à la main, sans savoir qu'il en manquait un.
+ *
+ * On calcule en entier, jamais en flottant : `Number('2.014e18')` perd des
+ * unités de base, et sur un montant en wei cette perte est de l'argent.
+ */
+export function parseEip681Number(v: string | undefined): bigint | undefined {
+  if (!v) return undefined;
+  const m = /^(\d+)(?:\.(\d+))?(?:[eE]\+?(\d+))?$/.exec(v.trim());
+  if (!m) return undefined;
+  const [, int, frac = '', expRaw] = m;
+  const exp = expRaw ? Number(expRaw) : 0;
+  if (exp > 80) return undefined; // au-delà, ce n'est plus un montant plausible
+  // On décale la virgule de `exp` rangs ; s'il reste une fraction, le nombre
+  // n'est pas un entier d'unités de base et on refuse plutôt que d'arrondir.
+  if (frac.length > exp) return undefined;
+  const digits = int + frac + '0'.repeat(exp - frac.length);
+  try {
+    return BigInt(digits);
+  } catch {
+    return undefined;
+  }
+}
+
 function parseEthereumUri(body: string): QrResult {
   const { path, query } = splitUri(body);
-  // path = <address>[@chainId][/function]
-  const [target, fn] = path.split('/');
+  // path = [pay-]<address>[@chainId][/function]
+  const [targetRaw, fn] = path.split('/');
+  // Préfixe `pay-` : facultatif dans EIP-681, mais présent chez plusieurs
+  // émetteurs de factures. Non retiré, l'adresse devenait « invalide ».
+  const target = targetRaw.replace(/^pay-/i, '');
   const [addrRaw, chainRaw] = target.split('@');
   const chainId = chainRaw && /^\d+$/.test(chainRaw) ? Number(chainRaw) : undefined;
 
-  // Transfert de token ERC-20 : le vrai destinataire est dans ?address=…
-  // (on ne préremplit pas le montant, décimales du token inconnues ici).
+  /*
+   * Transfert de token ERC-20 : `ethereum:<contrat>@<chainId>/transfer?address=<dest>&uint256=<montant>`.
+   *
+   * Le destinataire est dans `?address=`, et l'adresse en tête du lien est le
+   * CONTRAT. L'ancienne version jetait ce contrat : on gardait le bon
+   * destinataire et on perdait le jeton, donc une facture en USDC amenait sur
+   * l'écran d'envoi de la pièce native. `uint256` était ignoré de même.
+   *
+   * `uint256` est en unités de BASE du jeton, dont les décimales ne sont pas
+   * dans le lien : on le transmet brut (`amountRaw`) et la conversion se fait
+   * là où les décimales sont connues. Convertir ici avec 18 par défaut
+   * donnerait un montant faux d'un facteur 10^12 sur un USDC.
+   */
   if (fn === 'transfer' && query.address && isValidEvmAddress(query.address)) {
-    return { kind: 'ethereum-uri', address: normalizeEvmAddress(query.address), chainId };
+    if (!isValidEvmAddress(addrRaw)) return { kind: 'invalid', raw: `ethereum:${body}` };
+    const raw = parseEip681Number(query.uint256);
+    return {
+      kind: 'ethereum-uri',
+      address: normalizeEvmAddress(query.address),
+      contract: normalizeEvmAddress(addrRaw),
+      amountRaw: raw !== undefined && raw > 0n ? raw.toString() : undefined,
+      chainId,
+    };
   }
   if (!isValidEvmAddress(addrRaw)) return { kind: 'invalid', raw: `ethereum:${body}` };
 
-  // value = wei (EIP-681). Conversion en ETH décimal si entier.
-  let amount: string | undefined;
-  if (query.value && /^\d+$/.test(query.value)) {
-    const eth = formatAmount(BigInt(query.value), 18);
-    amount = cleanAmount(eth);
-  }
+  // value = wei (EIP-681). Conversion en pièce native décimale.
+  const wei = parseEip681Number(query.value);
+  const amount = wei !== undefined ? cleanAmount(formatAmount(wei, 18)) : undefined;
   return { kind: 'ethereum-uri', address: normalizeEvmAddress(addrRaw), amount, chainId };
 }
+
+/** Paramètres `req-` de BIP-21 que l'on sait honorer (aucun pour l'instant). */
+const KNOWN_BIP21_REQ = new Set<string>();
 
 function parseBitcoinUri(body: string): QrResult {
   const { path, query } = splitUri(body);
   if (!isValidBtcAddress(path)) return { kind: 'invalid', raw: `bitcoin:${body}` };
-  return { kind: 'bitcoin-uri', address: path, amount: cleanAmount(query.amount) };
+
+  /*
+   * Paramètre `req-` inconnu → URI INVALIDE, c'est la règle de BIP-21 et elle
+   * existe pour une raison : `req-` signale une exigence sans laquelle le
+   * paiement n'est pas celui qui a été demandé. Ignorer un `req-` inconnu, ce
+   * que font la plupart des portefeuilles, revient à payer autre chose que ce
+   * que le bénéficiaire a formulé — sans le dire à personne.
+   */
+  const unknownReq = Object.keys(query).find(
+    (k) => k.toLowerCase().startsWith('req-') && !KNOWN_BIP21_REQ.has(k.toLowerCase()),
+  );
+  if (unknownReq) return { kind: 'invalid', raw: `bitcoin:${body}` };
+
+  /*
+   * Normalisation en minuscules. Le bech32 est insensible à la casse et les
+   * générateurs de QR encodent en MAJUSCULES — c'est la forme recommandée,
+   * elle tient dans un QR plus petit. L'adresse repartait telle quelle vers
+   * l'écran d'envoi puis vers le signeur, qui, lui, attend la forme canonique.
+   */
+  return {
+    kind: 'bitcoin-uri',
+    address: path.toLowerCase(),
+    amount: cleanAmount(query.amount),
+    label: query.label || undefined,
+    message: query.message || undefined,
+  };
 }
 
 function parseSolanaUri(body: string): QrResult {
@@ -107,7 +201,8 @@ export function parseQr(raw: string): QrResult {
 
   // Adresses nues (ordre : EVM sans ambiguïté, puis Bitcoin, puis Solana).
   if (isValidEvmAddress(s)) return { kind: 'evm-address', address: normalizeEvmAddress(s) };
-  if (isValidBtcAddress(s)) return { kind: 'bitcoin-address', address: s };
+  // Minuscules : cf. parseBitcoinUri, le bech32 des QR est en majuscules.
+  if (isValidBtcAddress(s)) return { kind: 'bitcoin-address', address: s.toLowerCase() };
   if (isValidSolanaAddress(s)) return { kind: 'solana-address', address: s };
 
   // URL web (à confirmer avant ouverture dans le navigateur dApps).

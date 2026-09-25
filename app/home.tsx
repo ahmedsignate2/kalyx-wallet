@@ -364,7 +364,7 @@ export default function Home() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* ── En-tête : compte ▾ · recherche · réglages ── */}
+        {/* ── En-tête : compte ▾ · réseau ▾ · scanner · notifications · menu ── */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <KPressable onPress={() => router.push('/accounts')} accessibilityLabel={t("a11ySwitchAccount")} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2], height: 48 }}>
             <AddressGlyph address={stored.evmAddress} size={32} />
@@ -375,12 +375,20 @@ export default function Home() {
           <KPressable
             onPress={() => router.push('/networks')}
             accessibilityLabel={`${t('network')} : ${getAdapter(activeChain).config.name}`}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingHorizontal: space[2], borderRadius: radius.round, backgroundColor: colors.surface2, maxWidth: 150 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingHorizontal: space[2], borderRadius: radius.round, backgroundColor: colors.surface2, maxWidth: 128 }}
           >
             {chainIconUrl(activeChain) ? <Image source={{ uri: chainIconUrl(activeChain) }} style={{ width: 16, height: 16, borderRadius: 8 }} /> : null}
             <Text variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>{getAdapter(activeChain).config.name}</Text>
             <Icon name="caretDown" size={12} tone="muted" />
           </KPressable>
+          {/*
+            Scanner : seule porte d'entrée pour connecter une dApp ou la webapp
+            par QR, et il n'était atteignable que depuis l'écran d'envoi et le
+            navigateur dApps — donc introuvable quand on en a besoin. Ici, au
+            même endroit que chez Phantom et Rainbow, sans ligne en plus : le
+            nom du compte se raccourcit déjà tout seul.
+          */}
+          <IconButton icon="scan" label={t("scanQr")} tone="ghost" onPress={() => router.push('/scan')} />
           <View>
             <IconButton icon="bell" label={t("labelNotifications")} tone="ghost" onPress={() => router.push('/notifications')} />
             {unread > 0 ? <View style={{ position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.warning }} /> : null}

@@ -20,18 +20,9 @@ import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { toast } from '../lib/toast';
-import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
-import { useWalletConnect } from '../lib/walletconnect';
-import {
-  parseQr,
-  describeQr,
-  qrTargetFamily,
-  kalyxChainIdForEvm,
-  getAdapter,
-  listChains,
-  type QrResult,
-} from '../src';
+import { parseQr, describeQr, type QrResult } from '../src';
+import { runQrIntent } from '../lib/paymentIntent';
 
 // expo-camera est un MODULE NATIF : présent seulement après un rebuild EAS.
 // On le charge de façon paresseuse ET gardée — un import statique planterait
@@ -56,46 +47,18 @@ export default function Scan() {
   );
 }
 
-/** Détermine la chaîne cible puis navigue selon le contenu scanné. */
+/**
+ * Navigue selon le contenu scanné.
+ *
+ * Le mapping vit désormais dans `lib/paymentIntent` : les liens profonds
+ * doivent se comporter EXACTEMENT comme le scanner, et deux copies de cette
+ * logique finissaient toujours par diverger. Celle-ci avait déjà dérivé — elle
+ * ne transmettait ni le contrat ERC-20 ni le mint SPL, donc une facture en
+ * jeton atterrissait sur l'écran d'envoi de la pièce native.
+ */
 function useQrAction() {
-  const setActiveChain = useWallet((s) => s.setActiveChain);
-  const activeChain = useWallet((s) => s.activeChain);
-  const t = useT();
-
   return (r: QrResult) => {
-    if (r.kind === 'walletconnect') {
-      useWalletConnect.getState().pair(r.uri).catch((e) => toast.error(t('connectionFailed'), e instanceof Error ? e.message : undefined));
-      router.replace('/walletconnect');
-      return;
-    }
-    if (r.kind === 'url') {
-      router.replace({ pathname: '/browser', params: { url: r.url } });
-      return;
-    }
-    if (r.kind === 'invalid') {
-      toast.error(t('qrNotRecognized'));
-      return;
-    }
-
-    // Adresse ou URI de paiement : aligner la chaîne active sur la famille.
-    const fam = qrTargetFamily(r);
-    const currentIsEvm = getAdapter(activeChain).config.family === 'evm';
-    let chainId = activeChain;
-    if (fam === 'bitcoin') chainId = 'bitcoin';
-    else if (fam === 'solana') chainId = 'solana';
-    else if (fam === 'evm') {
-      if (r.kind === 'ethereum-uri' && r.chainId) {
-        chainId = kalyxChainIdForEvm(r.chainId, listChains()) ?? (currentIsEvm ? activeChain : 'ethereum');
-      } else {
-        chainId = currentIsEvm ? activeChain : 'ethereum';
-      }
-    }
-    if (chainId !== activeChain) setActiveChain(chainId);
-
-    // Montant préchargé seulement si sûr (pas de token SPL via URI : décimales inconnues).
-    const amount =
-      r.kind === 'solana-uri' && r.splToken ? undefined : 'amount' in r ? (r as { amount?: string }).amount : undefined;
-    router.replace({ pathname: '/send', params: { to: r.address, ...(amount ? { amount } : {}) } });
+    void runQrIntent(r, { replace: true });
   };
 }
 
@@ -264,7 +227,7 @@ function ResultSheet({ result, onAct, onRescan }: { result: QrResult; onAct: (r:
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
-  const d = describeQr(result);
+  const d = describeQr(result, t);
   return (
     <View style={styles.sheetWrap}>
       <View style={[styles.sheet, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
