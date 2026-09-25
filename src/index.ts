@@ -181,6 +181,11 @@ export { withSigner, wipeSigner, assertCurve } from './domain/chains/v2/signer';
 export { capabilities, NO_CAPABILITIES } from './domain/chains/v2/capabilities';
 export { EvmAdapterV2, type EvmPayload } from './domain/chains/v2/EvmAdapterV2';
 export { SolanaAdapterV2, type SolanaPayload } from './domain/chains/v2/SolanaAdapterV2';
+/*
+ * TON : squelette qui refuse tout. Volontairement PAS dans le registre v2 —
+ * exporté pour que le travail à venir soit visible, pas pour être appelé.
+ */
+export { TonAdapterV2, TON_TARGET_CAPABILITIES, type TonPayload } from './domain/chains/v2/TonAdapterV2';
 export {
   BitcoinAdapterV2,
   type BitcoinPayload,

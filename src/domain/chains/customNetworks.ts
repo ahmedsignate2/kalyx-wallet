@@ -65,6 +65,9 @@ export const DEFAULT_DECIMALS: Record<ChainFamily, number> = {
   evm: 18,
   bitcoin: 8,
   solana: 9,
+  // TON compte en nanotons. Présent pour la complétude du type ; `ton` n'est
+  // pas dans CUSTOM_FAMILIES, donc l'utilisateur ne peut pas en ajouter.
+  ton: 9,
 };
 
 /** Fragment d'identifiant stable et lisible dérivé d'un nom libre. */
