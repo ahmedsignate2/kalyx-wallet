@@ -20,7 +20,7 @@ import { useWallet } from '../lib/walletStore';
 import { usePendingBtc } from '../lib/pendingBtc';
 import { toast } from '../lib/toast';
 import { useT } from '../lib/settingsStore';
-import { getAdapter, formatTokenAmount, shortAddress } from '../src';
+import { findAdapterV2, formatTokenAmount, shortAddress } from '../src';
 
 export function BtcAccelerate() {
   const t = useT();
@@ -31,7 +31,12 @@ export function BtcAccelerate() {
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const family = getAdapter(activeChain).config.family;
+  /*
+   * CAPACITÉ plutôt que famille : ce bandeau parle d'accélération, pas de
+   * Bitcoin. Le jour où une autre chaîne sait accélérer, il fonctionne sans
+   * être touché.
+   */
+  const canAccelerate = !!findAdapterV2(activeChain)?.capabilities.accelerate;
   /*
    * La plus récente seulement : les autres partagent ses entrées — un
    * remplacement dépense les mêmes — ou sont périmées. Proposer plusieurs
@@ -41,7 +46,7 @@ export function BtcAccelerate() {
    * de lui-même dès que la transaction est remplacée ou oubliée.
    */
   const pending =
-    family === 'bitcoin' && account
+    canAccelerate && account
       ? txs.filter((x) => x.from === account.address && x.inputs.length > 0).sort((a, b) => b.at - a.at)[0]
       : undefined;
 

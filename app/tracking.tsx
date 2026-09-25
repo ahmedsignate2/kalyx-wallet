@@ -18,6 +18,7 @@ import {
   buildSpeedUpTx,
   buildCancelTx,
   fetchOriginalEvmTx,
+  findAdapterV2,
   getPrices,
   type CalculatedReplacementGas,
   type RawTxRequest,
@@ -116,7 +117,16 @@ export default function TrackingScreen() {
     return () => clearInterval(interval);
   }, [chain?.id, activeHash, activeAccountIndex]);
 
+  /** La chaîne sait-elle remplacer une transaction en attente ? */
+  const canReplace = (() => {
+    if (!chain) return false;
+    const a = findAdapterV2(chain.id);
+    return !!a?.capabilities.accelerate && !!a?.capabilities.cancel;
+  })();
+
   const handleOpenAction = async (action: 'speedUp' | 'cancel') => {
+    // Le chemin de remplacement lui-même reste EVM : il reconstruit la
+    // transaction d'origine depuis la chaîne, ce que seul l'EVM permet.
     if (!chain || chain.family !== 'evm' || !activeHash) return;
     haptic.selection();
     setReplacementAction(action);
@@ -348,7 +358,14 @@ export default function TrackingScreen() {
           </GlassCard>
 
           <View style={{ gap: spacing(1.5), marginTop: spacing(1) }}>
-            {chain?.family === 'evm' && !confirmed ? (
+            {/*
+              CAPACITÉ, et non famille de chaîne. Le jour où une autre chaîne
+              sait accélérer et annuler, les boutons apparaissent sans que cet
+              écran soit touché — et une chaîne qui ne sait pas ne les montre
+              pas, au lieu de dépendre d'un test qu'on aurait oublié de
+              rallonger.
+            */}
+            {canReplace && !confirmed ? (
               <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
                 <Button
                   label={t('speedUpButton')}

@@ -49,7 +49,7 @@ Légende :
 
 | Capacité | EVM | Bitcoin | Solana |
 |---|---|---|---|
-| Suivi de confirmation | OK | OK (via l'historique) | OK (`confirmSignature`, expiration détectée) |
+| Suivi de confirmation | OK | OK | OK (`confirmSignature`, expiration détectée) |
 | Accélérer | OK (même nonce, +20 %) | OK (RBF, BIP-125) | n/a — une tx non incluse expire, rien n'est débité |
 | Annuler | OK (nonce vers soi) | OK (RBF vers soi-même) — *disponible sur l'adapter v2* | n/a |
 | Distinguer « échouée » d'« expirée » | OK | OK | OK (`TX_FAILED` / `TX_EXPIRED`) |
@@ -86,6 +86,14 @@ Légende :
 4. **Simulation Bitcoin.** Il n'existe pas d'équivalent simple à `eth_call` sur un
    modèle UTXO ; les contrôles (poussière, solde, frais, format d'adresse) sont
    faits avant signature, ce qui couvre l'essentiel du risque.
+
+**Résolu depuis :** la NOTIFICATION de confirmation sur Bitcoin et Solana.
+`lib/txWatch` ne suivait que l'EVM, parce que la v1 n'avait de `waitForTx` que
+là : un envoi Bitcoin ou Solana n'était jamais confirmé, l'utilisateur voyait
+« envoyé » et plus rien ensuite, quoi qu'il arrive à sa transaction. La v2 rend
+`waitForTx` obligatoire sur les trois et distingue les issues — confirmée,
+échouée (incluse puis rejetée, frais payés), abandonnée (jamais incluse, fonds
+intacts).
 
 **Résolu depuis :** l'annulation Bitcoin. Elle existe sur `BitcoinAdapterV2` —
 même mécanisme RBF que l'accélération, mais en se renvoyant les fonds à soi-même,
