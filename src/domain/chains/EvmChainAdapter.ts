@@ -597,6 +597,28 @@ export class EvmChainAdapter implements ChainAdapter {
   }
 
   /**
+   * Comme `waitForTx`, mais rend le reçu.
+   *
+   * Le reçu porte `status`, qui distingue une transaction INCLUSE ET REVERTÉE
+   * d'une transaction réussie. Les frais sont payés dans les deux cas, mais
+   * l'effet attendu n'a eu lieu que dans un — et `waitForTx`, qui ne rend rien,
+   * ne permettait pas de faire la différence.
+   */
+  async waitForReceipt(hash: string): Promise<{ status: number | null } | null> {
+    return this.call((p) => p.waitForTransaction(hash, 1, 120_000));
+  }
+
+  /**
+   * Prochain nonce, en incluant les transactions encore en attente.
+   *
+   * `pending` et non `latest` : sans cela, deux envois successifs réutiliseraient
+   * le même nonce et le second remplacerait le premier au lieu de le suivre.
+   */
+  async getNonce(address: string): Promise<number> {
+    return this.call((p) => p.getTransactionCount(normalizeEvmAddress(address), 'pending'));
+  }
+
+  /**
    * Approbations ERC-20 ACTIVES pour `owner`, parmi les `tokens` fournis (ceux
    * détenus, via getErc20Tokens). Pour chaque token : logs Approval de cet
    * owner → spenders uniques → allowance actuelle ; on ne garde que > 0.
