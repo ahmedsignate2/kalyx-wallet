@@ -98,3 +98,28 @@ export function isValidSolanaAddress(addr: string): boolean {
     return false;
   }
 }
+
+/**
+ * L'adresse est-elle celle d'un PORTEFEUILLE, ou d'un compte dérivé de programme ?
+ *
+ * Sur Solana, une adresse de 32 octets valide peut être deux choses très
+ * différentes : une clé publique ed25519, donc un portefeuille que quelqu'un
+ * contrôle ; ou une PDA — compte de jeton associé, compte de programme — que
+ * PERSONNE ne peut signer. Envoyer du SOL sur une PDA, c'est le perdre
+ * définitivement, et c'est une erreur courante : l'adresse d'un compte de jeton
+ * USDC se copie aussi facilement que celle d'un portefeuille.
+ *
+ * Rien ne distinguait les deux : toute chaîne de 32 octets était acceptée sans
+ * un mot. On vérifie donc si l'adresse est un point valide de la courbe —
+ * seules les vraies clés publiques le sont.
+ */
+export function isWalletAddress(addr: string): boolean {
+  try {
+    const bytes = base58.decode(addr);
+    if (bytes.length !== 32) return false;
+    ed25519.Point.fromHex(bytes);
+    return true;
+  } catch {
+    return false;
+  }
+}

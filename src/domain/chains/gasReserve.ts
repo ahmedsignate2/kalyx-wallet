@@ -10,6 +10,13 @@
  *   moment (`getRecentPrioritizationFees`, percentile 75 des 150 derniers
  *   slots, plafonné) × marge. Le rent d'un compte temporaire (wSOL/ATA) n'est
  *   PAS inclus ici : il dépend de l'opération (voir Earn `nativeReserve`).
+ * - Bitcoin : taille d'une transaction courante × le taux sat/vB du réseau. Une
+ *   constante de 1 500 satoshis était renvoyée ici, EN SE DÉCLARANT estimée
+ *   (`live: true`). C'était faux deux fois : rien n'était estimé, et 1 500
+ *   satoshis ne couvrent pas une transaction dès que le réseau dépasse ~10
+ *   sat/vB. Le « montant disponible » était donc surévalué, et un envoi du
+ *   solde entier échouait après coup sur « solde insuffisant » — sur un montant
+ *   que l'app venait elle-même de proposer.
  *
  * `estimateGasReserve` ne LÈVE jamais : RPC muet → repli prudent minimal.
  */
@@ -29,6 +36,15 @@ export const SOL_BASE_FEE = 5_000n;
 const SOL_SWAP_CU = 400_000n;
 /** Solana : priorité plafonnée (µlamports/CU) — au-delà, on ne sur-paie pas. */
 const SOL_PRIO_CAP = 5_000n;
+
+/**
+ * Bitcoin : taille d'une transaction courante (1 entrée, 2 sorties).
+ *
+ * C'est l'hypothèse de référence pour réserver de quoi payer les frais. Une
+ * transaction à plusieurs entrées coûtera davantage, mais la sélection de
+ * pièces tranchera pour de bon au moment de l'envoi.
+ */
+export const BTC_TYPICAL_VBYTES = 141n;
 
 export interface GasReserve {
   /** Unité brute du natif (wei / lamports). */
@@ -77,7 +93,11 @@ export async function estimateGasReserve(adapter: ChainAdapter): Promise<GasRese
       return { raw: solanaReserveFromPriorityFees(fees), live: true };
     }
     if (adapter.config.family === 'bitcoin') {
-      return { raw: 1_500n, live: true };
+      const btc = adapter as { getFeeRates?: () => Promise<{ normal: number }> };
+      if (typeof btc.getFeeRates !== 'function') return fallback(adapter);
+      const rates = await btc.getFeeRates();
+      const raw = (BigInt(Math.max(1, Math.ceil(rates.normal))) * BTC_TYPICAL_VBYTES * MARGIN_NUM) / MARGIN_DEN;
+      return raw > 0n ? { raw, live: true } : fallback(adapter);
     }
   } catch {
     /* RPC muet */

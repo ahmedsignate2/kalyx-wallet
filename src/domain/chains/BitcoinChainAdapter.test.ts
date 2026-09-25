@@ -282,3 +282,36 @@ describe('BitcoinChainAdapter — transaction réellement construite et signée'
     expect(tx.getOutput(0).amount).toBe(100_000n);
   });
 });
+
+describe('BitcoinChainAdapter — poussière et réserve', () => {
+  const seed2 = mnemonicToSeedSync(PHRASE);
+  const signer2 = deriveBtcSigner(seed2, 0);
+
+  function stubbed(fetchJson: (path: string) => unknown) {
+    const a = new BitcoinChainAdapter((getAdapter('bitcoin') as BitcoinChainAdapter).config);
+    (a as unknown as { fetchJson: unknown }).fetchJson = async (p: string) => fetchJson(p);
+    (a as unknown as { broadcastHex: unknown }).broadcastHex = async () => 'TXID';
+    return a;
+  }
+
+  const FEES = { fastestFee: 40, halfHourFee: 20, hourFee: 10, minimumFee: 1 };
+  const UTXOS = [{ txid: 'b'.repeat(64), vout: 0, value: 2_000_000, status: { confirmed: true } }];
+
+  it('refuse un montant sous le seuil de poussière AVANT de signer', async () => {
+    // Avant : transaction construite, signée, puis refusée à la diffusion avec
+    // un message de nœud illisible.
+    const a = stubbed((p) => (p.includes('/utxo') ? UTXOS : FEES));
+    await expect(
+      a.sendBitcoinDetailed(signer2.address, BTC_ADDR_0, '0.000001', signer2), // 100 sats
+    ).rejects.toMatchObject({ code: 'AMOUNT_TOO_SMALL' });
+  });
+
+  it('le seuil suit le TYPE de l\'adresse destinataire', async () => {
+    const a = stubbed((p) => (p.includes('/utxo') ? UTXOS : FEES));
+    const montant = '0.000004'; // 400 sats : au-dessus de 294, en dessous de 546
+    await expect(a.sendBitcoinDetailed(signer2.address, BTC_ADDR_0, montant, signer2)).resolves.toBeDefined();
+    await expect(
+      a.sendBitcoinDetailed(signer2.address, '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', montant, signer2),
+    ).rejects.toMatchObject({ code: 'AMOUNT_TOO_SMALL' });
+  });
+});

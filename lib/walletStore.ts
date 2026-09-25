@@ -690,6 +690,33 @@ export const useWallet = create<WalletState>((set, get) => ({
         const allowance = await adapter.getAllowance(quote.fromToken.address, account.address, quote.approvalAddress);
         if (allowance < quote.fromAmount) {
           onStatus?.('approving');
+
+          /*
+           * REMISE À ZÉRO D'ABORD, quand une autorisation non nulle existe déjà.
+           *
+           * USDT sur Ethereum — et quelques autres jetons antérieurs à la
+           * finalisation d'ERC-20 — font échouer `approve(spender, montant)`
+           * tant que l'autorisation courante n'est pas nulle. Quelqu'un ayant
+           * déjà autorisé 100 USDT et voulant en échanger 200 voyait donc son
+           * échange échouer sur un revert que rien n'expliquait.
+           *
+           * Le surcoût d'une transaction ne concerne QUE ce cas — autorisation
+           * non nulle et insuffisante —, c'est-à-dire exactement celui qui
+           * échouait. Les autres ne paient rien de plus.
+           */
+          if (allowance > 0n) {
+            const resetHash = await adapter.sendContractTx(
+              {
+                to: quote.fromToken.address,
+                data: adapter.buildApproveData(quote.approvalAddress, 0n),
+                chainId: Number(quote.tx.chainId),
+              },
+              account.address,
+              signerKey,
+            );
+            await adapter.waitForTx(resetHash);
+          }
+
           const approveData = adapter.buildApproveData(quote.approvalAddress, quote.fromAmount);
           const approveHash = await adapter.sendContractTx(
             { to: quote.fromToken.address, data: approveData, chainId: Number(quote.tx.chainId) },
