@@ -158,7 +158,7 @@ export class BitcoinChainAdapter implements ChainAdapter {
   }
 
   /** UTXO confirmés de l'adresse, prêts pour la sélection. */
-  private async confirmedUtxos(from: string): Promise<Utxo[]> {
+  async confirmedUtxos(from: string): Promise<Utxo[]> {
     const raw = (await this.fetchJson(`/address/${from}/utxo`)) as RawUtxo[];
     return (raw ?? [])
       .filter((u) => u.status?.confirmed !== false)
@@ -166,20 +166,22 @@ export class BitcoinChainAdapter implements ChainAdapter {
   }
 
   /**
-   * Construit, signe et diffuse une transaction à partir d'entrées CHOISIES.
+   * Construit et SIGNE une transaction à partir d'entrées choisies, sans la
+   * diffuser. Rend le hex filaire.
    *
-   * Isolé du choix des pièces pour que le remplacement (RBF) puisse réutiliser
-   * exactement les mêmes entrées — c'est la condition d'un remplacement valide.
+   * Séparé de la diffusion pour que l'interface v2 puisse montrer à
+   * l'utilisateur ce qu'il signe avant de l'envoyer : `signAndBroadcast`
+   * enchaînait les deux, donc il n'existait aucun moment où la transaction
+   * existait sans être déjà partie.
    */
-  private async signAndBroadcast(
+  async buildSignedHex(
     from: string,
     dest: string,
     target: bigint,
     selection: CoinSelection,
     signer: { privateKey: Uint8Array; publicKey: Uint8Array },
   ): Promise<string> {
-    // @scure/btc-signer est ESM pur (Jest ne le transforme pas) : import
-    // dynamique ici → le module reste chargeable en test (envoi non exercé).
+    // @scure/btc-signer est ESM pur : import dynamique (cf. jest.config).
     const btc = await import('@scure/btc-signer');
 
     // Construction P2WPKH (SegWit natif) côté ENTRÉES : c'est ce que Kalyx dérive.
@@ -204,7 +206,36 @@ export class BitcoinChainAdapter implements ChainAdapter {
 
     tx.sign(signer.privateKey);
     tx.finalize();
-    return this.broadcastHex(tx.hex);
+    return tx.hex;
+  }
+
+  /** État d'une transaction : confirmée, dans le mempool, ou inconnue. */
+  async getTxStatus(txid: string): Promise<'confirmed' | 'pending' | 'unknown'> {
+    try {
+      const tx = (await this.fetchJson(`/tx/${txid}`)) as { status?: { confirmed?: boolean } };
+      if (!tx || typeof tx !== 'object') return 'unknown';
+      return tx.status?.confirmed ? 'confirmed' : 'pending';
+    } catch {
+      // Un nœud qui ne connaît pas la transaction répond en erreur : on ne sait
+      // pas, et on ne prétend pas qu'elle a échoué.
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Construit, signe et diffuse une transaction à partir d'entrées CHOISIES.
+   *
+   * Isolé du choix des pièces pour que le remplacement (RBF) puisse réutiliser
+   * exactement les mêmes entrées — c'est la condition d'un remplacement valide.
+   */
+  private async signAndBroadcast(
+    from: string,
+    dest: string,
+    target: bigint,
+    selection: CoinSelection,
+    signer: { privateKey: Uint8Array; publicKey: Uint8Array },
+  ): Promise<string> {
+    return this.broadcastHex(await this.buildSignedHex(from, dest, target, selection, signer));
   }
 
   /**
