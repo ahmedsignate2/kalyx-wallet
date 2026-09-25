@@ -80,7 +80,7 @@ import {
 } from './secureStore';
 import { authenticate } from './biometrics';
 import { submitSolanaSigned } from './solanaSubmit';
-import { kvGet, kvSet } from './kv';
+import { kvGet, kvSet, kvDel } from './kv';
 import { aura } from './aura';
 import { isLegacyDefaultName } from './walletNames';
 import { useSettings } from './settingsStore';
@@ -88,6 +88,16 @@ import { usePendingBtc } from './pendingBtc';
 
 /** Réseau actif mémorisé entre deux lancements (non sensible). */
 const K_ACTIVE_CHAIN = 'kalyx.activeChain';
+/**
+ * Portefeuille et compte choisis au dernier lancement.
+ *
+ * Le réseau actif était persisté, ces deux-là non : `bootstrap` reprenait
+ * TOUJOURS `wallets[0]` et l'indice 0. Quelqu'un qui travaille sur son second
+ * compte retrouvait donc le principal à chaque retour dans l'app, et devait le
+ * resélectionner — en permanence.
+ */
+const K_ACTIVE_WALLET = 'kalyx.activeWallet';
+const K_ACTIVE_ACCOUNT = 'kalyx.activeAccount';
 import { VersionedTransaction, Keypair } from '@solana/web3.js';
 import * as btcLib from '@scure/btc-signer';
 
@@ -238,6 +248,24 @@ function storedAccountFromPk(privateKey: string): StoredAccount {
   return { index: 0, label: '', evmAddress: acct.address, btcAddress: '' };
 }
 
+/**
+ * Mémorise le portefeuille et le compte actifs.
+ *
+ * Un seul point de persistance, appelé partout où l'un des deux change. Six
+ * endroits écrivaient `activeWalletId` sans rien enregistrer : ajouter la
+ * persistance à chacun garantissait qu'un septième l'oublierait.
+ */
+function rememberActive(walletId: string, accountIndex: number): void {
+  kvSet(K_ACTIVE_WALLET, walletId).catch(() => {});
+  kvSet(K_ACTIVE_ACCOUNT, String(accountIndex)).catch(() => {});
+}
+
+/** Oublie le portefeuille et le compte actifs (remise à zéro complète). */
+function forgetActive(): void {
+  kvDel(K_ACTIVE_WALLET).catch(() => {});
+  kvDel(K_ACTIVE_ACCOUNT).catch(() => {});
+}
+
 function isPrivateKeyWallet(wallets: WalletMeta[], id: string): boolean {
   return wallets.find((w) => w.id === id)?.type === 'privateKey';
 }
@@ -360,7 +388,14 @@ export const useWallet = create<WalletState>((set, get) => ({
       wallets = wallets.map((w) => (isLegacyDefaultName(w.label) ? { ...w, label: '' } : w));
       await saveWalletsList(wallets);
     }
-    const activeWalletId = wallets[0]?.id ?? 'primary';
+    /*
+     * Portefeuille du dernier lancement, s'il existe ENCORE : il peut avoir été
+     * supprimé entre-temps, et repartir sur un identifiant fantôme donnerait un
+     * portefeuille vide sans rien expliquer.
+     */
+    const savedWallet = await kvGet(K_ACTIVE_WALLET).catch(() => null);
+    const activeWalletId =
+      (savedWallet && wallets.some((w) => w.id === savedWallet) ? savedWallet : wallets[0]?.id) ?? 'primary';
     let accounts = wallets.length ? (await loadAccounts(activeWalletId)) ?? [] : [];
     if (accounts.some((a) => isLegacyDefaultName(a.label))) {
       accounts = accounts.map((a) => (isLegacyDefaultName(a.label) ? { ...a, label: '' } : a));
@@ -371,6 +406,16 @@ export const useWallet = create<WalletState>((set, get) => ({
     // Réseau actif du dernier lancement (sinon réseau par défaut).
     const savedChain = await kvGet(K_ACTIVE_CHAIN).catch(() => null);
     const activeChain = savedChain && hasChain(savedChain) ? savedChain : get().activeChain;
+
+    /*
+     * Compte du dernier lancement, s'il appartient bien à CE portefeuille. Un
+     * indice conservé d'un autre portefeuille, ou d'un compte supprimé depuis,
+     * afficherait le solde de quelqu'un d'autre — on retombe alors sur le
+     * premier compte.
+     */
+    const savedIndex = Number(await kvGet(K_ACTIVE_ACCOUNT).catch(() => null));
+    const activeAccountIndex = accounts.some((a) => a.index === savedIndex) ? savedIndex : (accounts[0]?.index ?? 0);
+
     set({
       ready: true,
       hasWallet: wallets.length > 0 && accounts.length > 0,
@@ -378,9 +423,9 @@ export const useWallet = create<WalletState>((set, get) => ({
       wallets,
       activeWalletId,
       accounts,
-      activeAccountIndex: 0,
+      activeAccountIndex,
       activeChain,
-      account: toAccount(accounts, 0, activeChain),
+      account: toAccount(accounts, activeAccountIndex, activeChain),
       failedAttempts: lock.failedAttempts,
       lastFailedAt: lock.lastFailedAt,
     });
@@ -532,8 +577,12 @@ export const useWallet = create<WalletState>((set, get) => ({
     kvSet(K_ACTIVE_CHAIN, safe).catch(() => {});
   },
 
-  setActiveAccount: (index) =>
-    set({ activeAccountIndex: index, account: toAccount(get().accounts, index, get().activeChain) }),
+  setActiveAccount: (index) => {
+    set({ activeAccountIndex: index, account: toAccount(get().accounts, index, get().activeChain) });
+    // Persisté, comme le réseau actif : sans cela le choix ne survivait pas à
+    // une sortie de l'app.
+    rememberActive(get().activeWalletId, index);
+  },
 
   addAccount: async (unlock, label) => {
     const { activeWalletId } = get();
@@ -568,6 +617,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     const wallets = [...get().wallets, { id, label: label?.trim() || '' }];
     await saveWalletsList(wallets);
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
+    rememberActive(id, 0);
     return m; // à afficher pour sauvegarde
   },
 
@@ -582,6 +632,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     const wallets = [...get().wallets, { id, label: label?.trim() || '' }];
     await saveWalletsList(wallets);
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
+    rememberActive(id, 0);
   },
 
   importPrivateKey: async (privateKey, pin, label) => {
@@ -617,6 +668,11 @@ export const useWallet = create<WalletState>((set, get) => ({
         ? DEFAULT_CHAIN
         : get().activeChain;
     set({ activeWalletId: id, accounts, activeAccountIndex: 0, activeChain: chain, account: toAccount(accounts, 0, chain) });
+    /*
+     * Changer de portefeuille remet le compte à zéro : laisser l'ancien indice
+     * ferait rouvrir l'app sur un compte qui n'existe peut-être pas ici.
+     */
+    rememberActive(id, 0);
   },
 
   renameWallet: async (id, label) => {
@@ -636,6 +692,8 @@ export const useWallet = create<WalletState>((set, get) => ({
       const nextId = wallets[0].id;
       const accounts = (await loadAccounts(nextId)) ?? [];
       set({ wallets, activeWalletId: nextId, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
+      // Le portefeuille mémorisé vient d'être supprimé : on enregistre le suivant.
+      rememberActive(nextId, 0);
     } else {
       set({ wallets });
     }
@@ -1091,6 +1149,9 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   reset: async () => {
     await wipeAll(get().wallets);
+    // Le portefeuille et le compte mémorisés n'ont plus d'objet : les laisser
+    // ferait chercher, au prochain lancement, un identifiant qui n'existe plus.
+    forgetActive();
     set({
       hasWallet: false,
       isUnlocked: false,
