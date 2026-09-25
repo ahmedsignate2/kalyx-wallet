@@ -65,6 +65,8 @@ export interface BitcoinPendingContext {
   target: bigint;
   feeRate: number;
   inputs: Utxo[];
+  /** Frais payés, en satoshis. Affichés, et utiles pour comparer au remplacement. */
+  fee: bigint;
 }
 
 export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
@@ -217,6 +219,7 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
       target: signed.draft.payload.target,
       feeRate: signed.draft.payload.feeRate,
       inputs: signed.draft.payload.selection.inputs,
+      fee: signed.draft.fee,
     };
     return { txid, opaque: context };
   }
