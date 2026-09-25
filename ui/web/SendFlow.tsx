@@ -312,7 +312,9 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
     setAmountError(null);
     if (amountRaw <= 0n) return setAmountError(t('errEnterAmount'));
     if (overBalance) return setAmountError(tw('youOwn', { balance: formatTokenAmount(balance ?? 0n, decimals), symbol, reserve: isNativeSend ? tw('feesReserved', { fee: `${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}` }) : '' }));
-    if (notEnoughGas) return setAmountError(t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText));
+    // Bloquant, message déjà affiché sous le montant. Le dupliquer en rouge
+    // juste sous sa version orange était le même défaut que sur mobile.
+    if (notEnoughGas) return;
     setSendError(null);
     setStep(3);
   };
@@ -493,7 +495,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
               {balance == null ? <Skeleton width={160} /> : <Text variant="caption" tone="secondary" tabular>{t('balanceLabel')} : {formatTokenAmount(balance, decimals)} {symbol}</Text>}
               <Chip label={t('chipMax')} onPress={setMax} />
             </View>
-            {notEnoughGas ? <Text variant="caption" tone="warning">{t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText)}</Text> : null}
+            {notEnoughGas ? <Text variant="caption" tone="danger">{t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText)}</Text> : null}
             {amountError && hasEnteredAmount ? <Text variant="caption" tone="danger">{amountError}</Text> : null}
             <View style={{ flex: 1 }} />
             <AmountKeypad value={amount} onChange={(v) => { setAmount(v); setAmountError(null); }} maxDecimals={inFiat ? 2 : Math.min(decimals, 8)} />
