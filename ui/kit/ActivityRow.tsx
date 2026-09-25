@@ -17,6 +17,7 @@ export function ActivityRow({
   h,
   time,
   network,
+  pendingLabel,
   onPress,
 }: {
   h: HumanTx;
@@ -29,6 +30,13 @@ export function ActivityRow({
    * Historique n'en montre qu'un et n'a donc rien à répéter.
    */
   network?: string;
+  /**
+   * Libellé de l'état « en attente », fourni traduit par l'écran.
+   *
+   * Le texte ne peut pas être écrit ici : ce composant n'a pas de langue, et une
+   * phrase en dur en ressortirait une seule quel que soit le réglage.
+   */
+  pendingLabel?: string;
   onPress?: () => void;
 }) {
   const { colors } = useTheme();
@@ -51,10 +59,14 @@ export function ActivityRow({
       onPress={onPress}
       left={left}
       title={h.title}
-      subtitle={network ? (h.subtitle ? `${h.subtitle} · ${network}` : network) : h.subtitle}
+      subtitle={[h.subtitle, network, h.pending && pendingLabel ? pendingLabel : null].filter(Boolean).join(' · ') || undefined}
       right={
         <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
-          {h.amount ? <Text variant="body" tabular style={{ color }}>{h.amount}</Text> : null}
+          {h.amount ? (
+            <Text variant="body" tabular style={{ color, opacity: h.pending ? 0.6 : 1 }}>
+              {h.amount}
+            </Text>
+          ) : null}
           <Text variant="micro" tone="tertiary">{h.fiat ? `${h.fiat} · ` : ''}{time}</Text>
         </View>
       }

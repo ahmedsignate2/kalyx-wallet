@@ -22,6 +22,14 @@ export interface HumanTx {
   /** Montant signé formaté (« +0.1 ETH ») ; vide pour une approbation. */
   amount?: string;
   failed: boolean;
+  /**
+   * Diffusée mais pas encore incluse dans un bloc.
+   *
+   * Distinct de `failed` : rien n'a échoué, on attend. Bitcoin ne le disait pas
+   * — son analyseur codait `success` en dur —, si bien qu'une transaction encore
+   * dans le mempool s'affichait comme confirmée.
+   */
+  pending: boolean;
   /** Transfert entrant à 0 (poussière/spam) : masqué par défaut. */
   spam: boolean;
 }
@@ -69,7 +77,14 @@ export function humanizeTx(tx: TxSummary, ctx: HumanizeCtx): HumanTx {
   const amountNum = Number(tx.value) / 10 ** decimals;
   const fiat = !unverified && ctx.fiatOf ? ctx.fiatOf(symbol, amountNum) : undefined;
 
-  let out: HumanTx;
+  const pending = tx.status === 'pending';
+
+  /*
+   * Les branches ne décrivent QUE la nature de l'opération ; l'attente est un
+   * état transversal, ajouté une seule fois plus bas. L'énumérer dans chacune
+   * des huit branches n'aurait fait qu'offrir huit endroits pour l'oublier.
+   */
+  let out: Omit<HumanTx, 'pending'>;
   if (type === 'SWAP') {
     out = { title: `Échangé ${amountStr} ${symbol}`, subtitle: tx.description ?? undefined, icon: 'exchange', tone: 'neutral', amount: undefined, failed, spam: false };
   } else if (type === 'APPROVE' || type === 'APPROVAL') {
@@ -88,13 +103,14 @@ export function humanizeTx(tx: TxSummary, ctx: HumanizeCtx): HumanTx {
   } else {
     out = { title: `Envoyé ${amountStr} ${symbol}`, subtitle: `à ${name(tx.to)}`, icon: 'send', tone: 'down', amount: `−${amountStr} ${symbol}`, failed, spam: false, counterparty: tx.to, fiat };
   }
+  const result: HumanTx = { ...out, pending };
   if (failed) {
-    out.title = `Échouée · ${out.title.charAt(0).toLowerCase()}${out.title.slice(1)}`;
-    out.subtitle = 'Rien n’a été débité (sauf les frais réseau). Cause fréquente : frais trop bas ou autorisation manquante.';
-    out.icon = 'errorCircle';
-    out.tone = 'danger';
+    result.title = `Échouée · ${result.title.charAt(0).toLowerCase()}${result.title.slice(1)}`;
+    result.subtitle = 'Rien n’a été débité (sauf les frais réseau). Cause fréquente : frais trop bas ou autorisation manquante.';
+    result.icon = 'errorCircle';
+    result.tone = 'danger';
   }
-  return out;
+  return result;
 }
 
 export interface TxGroup<T> {

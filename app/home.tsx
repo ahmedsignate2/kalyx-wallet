@@ -597,6 +597,7 @@ export default function Home() {
                       h={r.h}
                       time={new Date(r.tx.timestamp * 1000).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                       network={chainNameOf(r.tx.chain)}
+                      pendingLabel={t('txPending')}
                       onPress={() => router.push('/history')}
                     />
                     {i < arr.length - 1 ? <Divider inset={68} /> : null}
