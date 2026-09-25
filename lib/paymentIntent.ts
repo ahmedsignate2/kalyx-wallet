@@ -171,6 +171,15 @@ export async function runQrIntent(result: QrResult, opts?: { replace?: boolean }
     go({ pathname: '/browser', params: { url: result.url } });
     return;
   }
+  /*
+   * Paiement marchand : une DEMANDE, pas une adresse. Le service la résout en
+   * options payables d'après les soldes réels — d'où un écran à part, et non
+   * l'écran d'envoi.
+   */
+  if (result.kind === 'wc-pay') {
+    go({ pathname: '/pay', params: { link: result.link } });
+    return;
+  }
   const intent = sendIntentFor(result);
   if (!intent) {
     toast.error(tr('qrNotRecognized'));
