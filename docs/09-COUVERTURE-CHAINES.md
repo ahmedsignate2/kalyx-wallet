@@ -135,4 +135,16 @@ qui se mesure en millisecondes sur un appareil déjà déverrouillé. **Non rete
 pour l'instant ; à reconsidérer si le reste de la surface se resserre.
 
 Solana, Bitcoin, et demain TON, ne sont pas concernés : `@noble/curves` et
-`@scure/btc-signer` signent directement des octets.
+`@scure/btc-signer` signent directement des octets. Leurs chemins de signature —
+envoi, message, PSBT, transaction dApp — passent tous par `withSigner`, donc la
+clé est effacée après usage, succès ou échec.
+
+**Deux chemins EVM restent hors du cycle d'effacement** pour la même raison :
+`signMessage` (personal_sign) et `signTypedData`. Ils reçoivent une clé
+hexadécimale de `revealEvmSigningKey` et la donnent à `ethers`. Les router par
+la v2 n'y changerait rien — ethers refabriquerait la chaîne — et
+`signMessage` y perdrait une nuance qui compte : `personal_sign` sur une
+donnée hexadécimale doit signer les OCTETS DÉCODÉS, pas le texte de
+l'hexadécimal, distinction que la signature v2 (`message: string`) ne porte
+pas. Les migrer pour le seul principe casserait des signatures que les dApps
+vérifient. **Laissés sur la v1, sciemment.**
