@@ -313,6 +313,31 @@ export class EvmChainAdapter implements ChainAdapter {
     return computeFeeTiers(fee, gasLimit);
   }
 
+  /**
+   * Limite de gaz d'un transfert de la pièce native.
+   *
+   * ESTIMÉE, plus figée à 21 000. C'est exact pour un transfert vers un compte
+   * ordinaire, et faux partout ailleurs : une adresse de contrat avec un
+   * `receive()` consomme davantage, et les rollups facturent en plus la
+   * composante calldata L1. La transaction partait alors avec trop peu de gaz et
+   * échouait après diffusion, frais perdus. Le chemin dApp estimait déjà (cf.
+   * `sendContractTx`) ; seul l'envoi propre du portefeuille ne le faisait pas.
+   *
+   * Un échec d'estimation ne bloque PAS l'envoi : il arrive pour une raison
+   * bénigne (RPC qui refuse `eth_estimateGas`, solde insuffisant au moment de la
+   * simulation) et on retombe alors sur le minimum protocolaire.
+   */
+  private async nativeGasLimit(from: string, intent: TransferIntent): Promise<bigint> {
+    try {
+      const est = await this.call((p) => p.estimateGas({ from, to: intent.to, value: intent.value }));
+      // Marge de 25 % : l'estimation est faite sur l'état courant, et il bouge.
+      const withMargin = (est * 125n) / 100n;
+      return withMargin > NATIVE_TRANSFER_GAS ? withMargin : NATIVE_TRANSFER_GAS;
+    } catch {
+      return NATIVE_TRANSFER_GAS;
+    }
+  }
+
   async prepareTransfer(
     from: string,
     params: TransferParams,
@@ -321,33 +346,66 @@ export class EvmChainAdapter implements ChainAdapter {
     const intent = this.buildTransfer(params);
     const sender = normalizeEvmAddress(from);
 
-    const [nonce, fee] = await Promise.all([
+    /*
+     * `getFeeData` est lu MÊME quand un palier est fourni : c'est lui qui dit si
+     * la chaîne propose l'EIP-1559. Sans cette lecture, on signait en type 2 sur
+     * une chaîne legacy — qui rejette la transaction — parce que les paliers de
+     * `computeFeeTiers` remplissent `maxFeePerGas` dans les deux modes.
+     */
+    const [nonce, fee, gasLimit] = await Promise.all([
       this.call((p) => p.getTransactionCount(sender, 'pending')),
-      gas ? Promise.resolve(null) : this.call((p) => p.getFeeData()),
+      this.call((p) => p.getFeeData()),
+      this.nativeGasLimit(sender, intent),
     ]);
 
-    // Frais choisis par l'utilisateur (palier) sinon suggestion du réseau (EIP-1559).
-    const maxFeePerGas = gas?.maxFeePerGas ?? fee?.maxFeePerGas ?? null;
-    const maxPriorityFeePerGas = gas?.maxPriorityFeePerGas ?? fee?.maxPriorityFeePerGas ?? null;
-    if (maxFeePerGas == null || maxPriorityFeePerGas == null) {
-      throw new WalletError('INVALID_AMOUNT', 'Frais réseau indisponibles (EIP-1559)');
+    const supports1559 = fee?.maxFeePerGas != null && fee?.maxPriorityFeePerGas != null;
+
+    if (supports1559) {
+      const maxFeePerGas = gas?.maxFeePerGas ?? fee!.maxFeePerGas!;
+      const maxPriorityFeePerGas = gas?.maxPriorityFeePerGas ?? fee!.maxPriorityFeePerGas!;
+      return { ...intent, nonce, gasLimit, maxFeePerGas, maxPriorityFeePerGas };
     }
 
-    return { ...intent, nonce, gasLimit: NATIVE_TRANSFER_GAS, maxFeePerGas, maxPriorityFeePerGas };
+    /*
+     * Chaîne legacy. Le palier choisi par l'utilisateur reste honoré : sur cette
+     * branche `computeFeeTiers` a mis le gasPrice modulé dans `maxFeePerGas`, on
+     * le relit donc là. Sinon, le gasPrice du réseau.
+     */
+    const gasPrice = gas?.maxFeePerGas ?? fee?.gasPrice ?? null;
+    if (gasPrice == null) {
+      throw new WalletError('RPC_UNAVAILABLE', 'Frais réseau indisponibles sur cette chaîne');
+    }
+    return { ...intent, nonce, gasLimit, gasPrice };
   }
 
   async signTransaction(tx: UnsignedTx, privateKey: string): Promise<string> {
     // Signature 100 % hors-ligne : aucun provider requis.
     const wallet = new Wallet(privateKey);
-    return wallet.signTransaction({
-      type: 2, // EIP-1559
+    const common = {
       to: tx.to,
       value: tx.value,
       nonce: tx.nonce,
       gasLimit: tx.gasLimit,
+      chainId: tx.evmChainId,
+    };
+
+    /*
+     * Le TYPE suit les frais préparés, il n'est plus fixé à 2. Signer en type 2
+     * une transaction destinée à une chaîne sans EIP-1559 la fait rejeter au
+     * moment de la diffusion, avec un message du RPC que personne ne peut
+     * interpréter.
+     */
+    if (tx.gasPrice != null) {
+      return wallet.signTransaction({ ...common, type: 0, gasPrice: tx.gasPrice });
+    }
+    if (tx.maxFeePerGas == null || tx.maxPriorityFeePerGas == null) {
+      throw new WalletError('INVALID_AMOUNT', 'Frais manquants : transaction non signable');
+    }
+    return wallet.signTransaction({
+      ...common,
+      type: 2, // EIP-1559
       maxFeePerGas: tx.maxFeePerGas,
       maxPriorityFeePerGas: tx.maxPriorityFeePerGas,
-      chainId: tx.evmChainId,
     });
   }
 
