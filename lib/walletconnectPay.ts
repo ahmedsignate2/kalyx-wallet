@@ -20,6 +20,7 @@
  */
 import { create } from 'zustand';
 import { useWallet } from './walletStore';
+import { technicalLogger } from './technicalLogger';
 import type { Unlock } from './walletStore';
 import { base64 } from '@scure/base';
 import { utf8ToBytes } from '@noble/hashes/utils';
@@ -280,6 +281,27 @@ export const usePay = create<PayState>((set, get) => ({
     set({ ...EMPTY, phase: 'loading', link });
     try {
       const options = await c.getPaymentOptions({ paymentLink: link, accounts, includePaymentInfo: true });
+
+      /*
+       * TRACE DE DIAGNOSTIC. Zéro option peut venir de plusieurs causes qu'on
+       * ne distingue pas depuis l'écran : soldes insuffisants, demande déjà
+       * réglée, demande expirée, ou comptes envoyés sous une forme que le
+       * service n'exploite pas. Sans cette trace, un « rien pour payer » reste
+       * inexplicable — c'est ce qui s'est passé au premier essai sur appareil.
+       *
+       * Ne contient AUCUN secret : des adresses publiques et le statut du
+       * service, et le filtre d'assainissement raccourcit les adresses.
+       */
+      technicalLogger.log('DAPP', 'WalletConnect Pay : options', {
+        chains: accounts.length,
+        options: options.options.length,
+        status: options.info?.status,
+        requested: options.info
+          ? `${options.info.amount.value} ${options.info.amount.display.assetSymbol}`
+          : undefined,
+        merchant: options.info?.merchant.name,
+      });
+
       if (options.options.length === 0) {
         /*
          * Zéro option n'est PAS forcément une panne : WalletConnect Pay ne règle
@@ -287,7 +309,12 @@ export const usePay = create<PayState>((set, get) => ({
          * détient que de l'ETH n'a légitimement rien à proposer, et le message
          * doit le dire au lieu de laisser croire à un bogue.
          */
-        set({ phase: 'error', failure: 'NO_OPTION' });
+        /*
+         * L'état de la demande est CONSERVÉ même sans option : il explique le
+         * refus bien mieux que nous. Une demande expirée ou déjà réglée n'a rien
+         * à voir avec un solde insuffisant, et l'écran peut le dire.
+         */
+        set({ phase: 'error', failure: 'NO_OPTION', options, detail: options.info?.status ?? null });
         return;
       }
       set({ phase: 'choosing', options });

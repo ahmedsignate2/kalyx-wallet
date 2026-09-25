@@ -41,7 +41,15 @@ export default function PayScreen() {
    * quelle que soit la langue, alors que les clés existaient déjà.
    */
   const failureTitle =
-    failure === 'NO_OPTION' ? t('payNoOptionTitle') : failure === 'UNAVAILABLE' ? t('payUnavailable') : t('payFailed');
+    failure === 'NO_OPTION'
+      ? detail === 'expired'
+        ? t('payExpiredTitle')
+        : detail === 'succeeded'
+          ? t('payAlreadyPaidTitle')
+          : t('payNoOptionTitle')
+      : failure === 'UNAVAILABLE'
+        ? t('payUnavailable')
+        : t('payFailed');
   const failureBody = (() => {
     switch (failure) {
       case 'UNAVAILABLE':
@@ -49,8 +57,14 @@ export default function PayScreen() {
       case 'NO_EVM_ACCOUNT':
         return t('payNoEvmAccount');
       case 'NO_OPTION':
-        // Zéro option n'est pas une panne : le service ne règle qu'en
-        // stablecoins précis. Le dire évite de chercher un bogue qui n'existe pas.
+        /*
+         * Zéro option a plusieurs causes, et elles n'ont rien à voir. Le statut
+         * de la demande, quand le service le donne, tranche : expirée ou déjà
+         * réglée, ce n'est pas une question de solde — et laisser croire le
+         * contraire envoie l'utilisateur chercher un problème inexistant.
+         */
+        if (detail === 'expired') return t('payExpired');
+        if (detail === 'succeeded') return t('payAlreadyPaid');
         return t('payNoOptionBody');
       case 'INFO_REQUIRED':
         return t('payInfoRequiredBody');
