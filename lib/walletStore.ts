@@ -22,6 +22,7 @@ import {
   generateMnemonic,
   validateMnemonic,
   getAdapterV2,
+  assertCurve,
   signerFromSeed,
   signerFromEvmPrivateKey,
   withSigner,
@@ -35,9 +36,7 @@ import {
   evmAccountFromPrivateKey,
   normalizeEvmPrivateKey,
   deriveBtcAccount,
-  deriveBtcSigner,
   deriveSolanaAccount,
-  deriveSolanaSigner,
   evmPath,
   btcPath,
   solPath,
@@ -811,10 +810,15 @@ export const useWallet = create<WalletState>((set, get) => ({
 
 
   signSolanaTransaction: async (unlock, txStr, refreshBlockhash = false) => {
-    const { account, activeWalletId } = get();
+    const { account } = get();
     if (!account) throw new Error('Aucun compte');
-    const secret = await revealMnemonic(activeWalletId, unlock);
-    const signer = deriveSolanaSigner(mnemonicToSeedSync(secret), account.index);
+    /*
+     * Dérivation par le chemin unique, donc clé EFFACÉE après usage. Elle était
+     * tirée à la main ici et restait vivante jusqu'au ramasse-miettes — sur un
+     * chemin appelé par n'importe quelle dApp connectée.
+     */
+    const signer = await get().deriveSigner(getAdapterV2('solana'), unlock);
+    assertCurve(signer, 'ed25519');
 
     const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(txStr) && txStr.length % 4 === 0;
     const bytes = isBase64 ? base64.decode(txStr) : base58.decode(txStr);
@@ -833,11 +837,16 @@ export const useWallet = create<WalletState>((set, get) => ({
       }
     }
 
-    const keypair = Keypair.fromSeed(signer.secretKey);
-
-    tx.sign([keypair]);
-
-    const serialized = tx.serialize();
+    /*
+     * `withSigner` efface la clé après la signature, y compris si `tx.sign`
+     * lève — et c'est le chemin d'erreur qui compte, une dApp pouvant envoyer
+     * une transaction malformée.
+     */
+    const serialized = await withSigner(signer, async (sk) => {
+      assertCurve(sk, 'ed25519');
+      tx.sign([Keypair.fromSeed(sk.secretKey)]);
+      return tx.serialize();
+    });
     return isBase64 ? base64.encode(serialized) : base58.encode(serialized);
   },
 
@@ -850,10 +859,10 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signSolanaMessage: async (unlock, message) => {
-    const { account, activeWalletId } = get();
+    const { account } = get();
     if (!account) throw new Error('Aucun compte');
-    const secret = await revealMnemonic(activeWalletId, unlock);
-    const signer = deriveSolanaSigner(mnemonicToSeedSync(secret), account.index);
+    const signer = await get().deriveSigner(getAdapterV2('solana'), unlock);
+    assertCurve(signer, 'ed25519');
     let msgBytes: Uint8Array;
     try {
       msgBytes = base58.decode(message);
@@ -864,7 +873,10 @@ export const useWallet = create<WalletState>((set, get) => ({
         msgBytes = utf8ToBytes(message);
       }
     }
-    const signature = ed25519.sign(msgBytes, signer.secretKey);
+    const signature = await withSigner(signer, async (sk) => {
+      assertCurve(sk, 'ed25519');
+      return ed25519.sign(msgBytes, sk.secretKey);
+    });
     return { signature: base58.encode(signature) };
   },
 
@@ -887,10 +899,10 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signBitcoinPsbt: async (unlock, psbtBase64, options) => {
-    const { account, activeWalletId } = get();
+    const { account } = get();
     if (!account) throw new Error('Aucun compte');
-    const secret = await revealMnemonic(activeWalletId, unlock);
-    const signer = deriveBtcSigner(mnemonicToSeedSync(secret), account.index);
+    const signer = await get().deriveSigner(getAdapterV2('bitcoin'), unlock);
+    assertCurve(signer, 'secp256k1');
 
     const btc = await import('@scure/btc-signer');
     let psbtBytes: Uint8Array;
@@ -901,13 +913,18 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
     const tx = btc.Transaction.fromPSBT(psbtBytes);
 
-    if (options?.signInputs && options.signInputs.length > 0) {
-      for (const idx of options.signInputs) {
-        tx.signIdx(signer.privateKey, idx);
+    // Clé effacée après la signature, y compris si le PSBT est malformé — et
+    // il vient d'une dApp, donc il peut l'être.
+    await withSigner(signer, async (sk) => {
+      assertCurve(sk, 'secp256k1');
+      if (options?.signInputs && options.signInputs.length > 0) {
+        for (const idx of options.signInputs) {
+          tx.signIdx(sk.privateKey, idx);
+        }
+      } else {
+        tx.sign(sk.privateKey);
       }
-    } else {
-      tx.sign(signer.privateKey);
-    }
+    });
 
     if (options?.finalize) {
       tx.finalize();
