@@ -13,7 +13,24 @@ import { useTheme } from '../theme';
 import { radius } from '../tokens';
 import type { HumanTx } from '../../src';
 
-export function ActivityRow({ h, time, onPress }: { h: HumanTx; time: string; onPress?: () => void }) {
+export function ActivityRow({
+  h,
+  time,
+  network,
+  onPress,
+}: {
+  h: HumanTx;
+  time: string;
+  /**
+   * Réseau de la transaction, sur une liste qui en MÊLE plusieurs.
+   *
+   * Sans lui, deux lignes identiques — « Envoyé 0,00001 » sur Base et sur
+   * Bitcoin — sont indiscernables. L'accueil agrège tous les réseaux ; l'écran
+   * Historique n'en montre qu'un et n'a donc rien à répéter.
+   */
+  network?: string;
+  onPress?: () => void;
+}) {
   const { colors } = useTheme();
   const color = h.tone === 'up' ? colors.up : h.tone === 'danger' ? colors.danger : h.spam ? colors.textTertiary : colors.text;
   const left =
@@ -34,7 +51,7 @@ export function ActivityRow({ h, time, onPress }: { h: HumanTx; time: string; on
       onPress={onPress}
       left={left}
       title={h.title}
-      subtitle={h.subtitle}
+      subtitle={network ? (h.subtitle ? `${h.subtitle} · ${network}` : network) : h.subtitle}
       right={
         <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
           {h.amount ? <Text variant="body" tabular style={{ color }}>{h.amount}</Text> : null}

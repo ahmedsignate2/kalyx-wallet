@@ -4,6 +4,7 @@ import type { TxSummary } from '../chains/types';
 const ctx = { chainName: 'Ethereum', nativeSymbol: 'ETH', nativeDecimals: 18, explorerUrl: 'https://etherscan.io' };
 
 const tx = (o: Partial<TxSummary>): TxSummary => ({
+  chain: 'ethereum',
   hash: '0xabc',
   from: '0xFrom',
   to: '0xTo',

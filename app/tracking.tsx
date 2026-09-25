@@ -81,6 +81,7 @@ export default function TrackingScreen() {
           if (rpcTx) {
             if (!tx) {
               tx = {
+                chain: chain.id,
                 hash: rpcTx.hash,
                 from: rpcTx.from,
                 to: rpcTx.to ?? '',

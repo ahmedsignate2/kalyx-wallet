@@ -4,7 +4,7 @@
  * Isolé et testé : la logique de normalisation ne dépend pas du réseau. Le fetch
  * réseau (dans EvmChainAdapter) est volontairement séparé pour rester testable.
  */
-import type { TxSummary } from './types';
+import type { TxParsed, TxSummary } from './types';
 
 interface RawTx {
   hash: string;
@@ -36,7 +36,7 @@ function directionOf(from: string, to: string, owner: string): TxSummary['direct
  * Transforme la réponse brute en TxSummary[]. Robuste : si la réponse est une
  * erreur (clé API manquante, rate limit) ou malformée, renvoie [].
  */
-export function parseTxList(json: unknown, ownerAddress: string): TxSummary[] {
+export function parseTxList(json: unknown, ownerAddress: string): TxParsed[] {
   const resp = json as EtherscanResponse;
   if (!resp || !Array.isArray(resp.result)) return [];
 

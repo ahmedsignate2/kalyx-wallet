@@ -27,8 +27,22 @@ export interface HumanTx {
 }
 
 export interface HumanizeCtx {
+  /** Repli quand la chaîne de la transaction est introuvable. */
   nativeSymbol: string;
+  /** Repli quand la chaîne de la transaction est introuvable. */
   nativeDecimals: number;
+  /**
+   * Symbole et décimales natifs de la chaîne D'UNE transaction donnée.
+   *
+   * Sans ce résolveur, une liste qui mêle plusieurs réseaux — celle de l'accueil
+   * — applique à toutes les lignes les décimales du réseau AFFICHÉ. Un envoi de
+   * 1 000 satoshis vu depuis Base ressortait en « 0,000000000000001 ETH », et la
+   * contre-valeur cherchait le prix de l'ETH pour du Bitcoin.
+   *
+   * Facultatif : un écran qui ne montre qu'un seul réseau a déjà le bon contexte
+   * et n'a rien à résoudre.
+   */
+  nativeOf?: (chain: string) => { symbol: string; decimals: number } | undefined;
   /** Nom d'une adresse (contact, ENS, « Toi ») — sinon adresse courte. */
   nameOf?: (address: string) => string | undefined;
   /** Symboles des tokens VÉRIFIÉS : un token entrant hors de cette liste = airdrop spam probable. */
@@ -38,14 +52,19 @@ export interface HumanizeCtx {
 }
 
 export function humanizeTx(tx: TxSummary, ctx: HumanizeCtx): HumanTx {
-  const symbol = tx.asset ?? ctx.nativeSymbol;
-  const decimals = tx.decimals ?? ctx.nativeDecimals;
+  /*
+   * LA CHAÎNE DE LA TRANSACTION D'ABORD, jamais celle de l'écran. C'est la seule
+   * façon d'afficher juste une liste qui mêle les réseaux.
+   */
+  const native = ctx.nativeOf?.(tx.chain);
+  const symbol = tx.asset ?? native?.symbol ?? ctx.nativeSymbol;
+  const decimals = tx.decimals ?? native?.decimals ?? ctx.nativeDecimals;
   const amountStr = formatTokenAmount(tx.value, decimals);
   const name = (a: string) => ctx.nameOf?.(a) ?? shortAddress(a);
   const failed = tx.status === 'failed';
   const type = (tx.type ?? '').toUpperCase();
   const inbound = tx.direction === 'in';
-  const isToken = !!tx.asset && tx.asset.toUpperCase() !== ctx.nativeSymbol.toUpperCase();
+  const isToken = !!tx.asset && tx.asset.toUpperCase() !== (native?.symbol ?? ctx.nativeSymbol).toUpperCase();
   const unverified = isToken && !!ctx.verifiedSymbols && !ctx.verifiedSymbols.has(symbol.toUpperCase());
   const amountNum = Number(tx.value) / 10 ** decimals;
   const fiat = !unverified && ctx.fiatOf ? ctx.fiatOf(symbol, amountNum) : undefined;
