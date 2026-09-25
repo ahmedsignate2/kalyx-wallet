@@ -24,6 +24,15 @@ export type WalletErrorCode =
   | 'RPC_UNAVAILABLE'
   | 'BROADCAST_FAILED'
   | 'CALL_EXCEPTION'
+  /** La chaîne a inclus la transaction mais son exécution a échoué. */
+  | 'TX_FAILED'
+  /**
+   * Transaction jamais incluse : sur Solana, un blockhash périmé la rend
+   * définitivement inutilisable. À distinguer de `BROADCAST_FAILED`, qui dit
+   * que le réseau a refusé de la prendre — ici il l'a prise, puis abandonnée.
+   * Dans les deux cas les fonds n'ont pas bougé, et c'est ce qu'il faut dire.
+   */
+  | 'TX_EXPIRED'
   | 'NOT_SUPPORTED';
 
 export class WalletError extends Error {
