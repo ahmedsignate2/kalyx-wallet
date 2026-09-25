@@ -30,6 +30,7 @@ import type {
   BroadcastOutcome,
   ChainAdapterV2,
   FeeQuotes,
+  PendingRef,
   SendDraft,
   SendRequest,
   SendSpeed,
@@ -294,11 +295,16 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
    */
   private async prepareReplacement(
     from: string,
-    txid: string,
+    pending: PendingRef,
     toSelf: boolean,
   ): Promise<SendDraft<EvmPayload>> {
     const sender = normalizeEvmAddress(from);
-    const original: OriginalEvmTx | null = await fetchOriginalEvmTx(this.v1, txid);
+    /*
+     * L'EVM retrouve tout sur la chaîne à partir du hash : le `opaque` de
+     * `PendingRef` ne sert pas ici. Il existe pour Bitcoin, où les entrées
+     * dépensées sont irrécupérables après coup.
+     */
+    const original: OriginalEvmTx | null = await fetchOriginalEvmTx(this.v1, pending.txid);
     if (!original) {
       throw new WalletError('NOT_SUPPORTED', 'Transaction introuvable : impossible de la remplacer.');
     }
@@ -338,12 +344,12 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
     };
   }
 
-  prepareAcceleration(from: string, txid: string): Promise<SendDraft<EvmPayload>> {
-    return this.prepareReplacement(from, txid, false);
+  prepareAcceleration(from: string, pending: PendingRef): Promise<SendDraft<EvmPayload>> {
+    return this.prepareReplacement(from, pending, false);
   }
 
-  prepareCancellation(from: string, txid: string): Promise<SendDraft<EvmPayload>> {
-    return this.prepareReplacement(from, txid, true);
+  prepareCancellation(from: string, pending: PendingRef): Promise<SendDraft<EvmPayload>> {
+    return this.prepareReplacement(from, pending, true);
   }
 
   async signMessage(message: string, signer: ChainSigner): Promise<string> {

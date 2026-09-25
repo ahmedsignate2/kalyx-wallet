@@ -173,6 +173,25 @@ export interface TxWaitHint {
   opaque?: unknown;
 }
 
+/**
+ * Désignation d'une transaction en attente, pour la remplacer.
+ *
+ * L'identifiant NE SUFFIT PAS partout. En EVM, l'adapter retrouve tout sur la
+ * chaîne à partir du hash. En Bitcoin, non : un remplacement doit reprendre
+ * exactement les mêmes entrées, or les UTXO dépensés disparaissent aussitôt de
+ * l'ensemble des UTXO disponibles — ils sont irrécupérables après coup. C'est
+ * donc l'appelant, qui les a conservés au moment de la diffusion, qui les
+ * redonne ici.
+ *
+ * Cosmos et TON tomberont du même côté que l'EVM (numéro de séquence lisible
+ * on-chain), mais le champ existe pour que ce ne soit pas une surprise.
+ */
+export interface PendingRef {
+  txid: string;
+  /** Contexte conservé par l'appelant depuis la diffusion. */
+  opaque?: unknown;
+}
+
 /** État d'une transaction diffusée. */
 export type TxState =
   | { status: 'pending' }
@@ -248,9 +267,9 @@ export interface ChainAdapterV2<P = unknown> {
   /** `capabilities.tokens` */
   listTokens?(address: string): Promise<TokenHolding[]>;
   /** `capabilities.accelerate` */
-  prepareAcceleration?(from: string, txid: string, speed?: SendSpeed): Promise<SendDraft<P>>;
+  prepareAcceleration?(from: string, pending: PendingRef, speed?: SendSpeed): Promise<SendDraft<P>>;
   /** `capabilities.cancel` */
-  prepareCancellation?(from: string, txid: string, speed?: SendSpeed): Promise<SendDraft<P>>;
+  prepareCancellation?(from: string, pending: PendingRef, speed?: SendSpeed): Promise<SendDraft<P>>;
   /** `capabilities.messageSigning !== 'none'` */
   signMessage?(message: string, signer: ChainSigner, variant?: string): Promise<string>;
   /** `capabilities.simulation` */
