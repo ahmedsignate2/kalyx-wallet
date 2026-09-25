@@ -21,7 +21,7 @@ import { isValidBtcAddress, normalizeBtcAddress, btcAddressKind } from '../valid
 import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
 import { tryInOrder, withTimeout } from './net';
-import { selectUtxos, estimateVsize, CHANGE_KIND, DUST_SATS, type Utxo, type CoinSelection } from './btcTx';
+import { selectUtxos, estimateVsize, dustThreshold, CHANGE_KIND, DUST_SATS, MAX_INPUTS, type Utxo, type CoinSelection } from './btcTx';
 import { parseBtcFeeRates, bumpedRate, FALLBACK_RATES, type BtcFeeRates } from './btcFees';
 import type { FeeSpeed } from './gas';
 
@@ -231,13 +231,38 @@ export class BitcoinChainAdapter implements ChainAdapter {
     const target = parseAmount(amount, this.config.nativeDecimals).raw;
     if (target <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant invalide');
 
+    /*
+     * Poussière : une sortie sous ce seuil rend la transaction NON STANDARD, et
+     * aucun nœud ne la relaie. Sans ce contrôle, elle était construite, signée,
+     * puis refusée à la diffusion avec un message de nœud incompréhensible — et
+     * le seuil dépend du type d'adresse (546 en hérité, 294 en SegWit natif).
+     */
+    const dust = dustThreshold(destKind);
+    if (target < dust) {
+      throw new WalletError(
+        'AMOUNT_TOO_SMALL',
+        `Montant trop faible pour cette adresse : ${dust} satoshis minimum, sinon le réseau refuse la transaction.`,
+      );
+    }
+
     const [utxos, rates] = await Promise.all([this.confirmedUtxos(from), this.getFeeRates()]);
     const feeRate = rates[opts?.speed ?? 'normal'];
 
     // Le type de l'adresse destinataire entre dans le calcul des frais : une
     // sortie P2PKH ou Taproot est plus grosse qu'une P2WPKH.
     const selection = selectUtxos(utxos, target, feeRate, destKind);
-    if (!selection) throw new WalletError('INSUFFICIENT_FUNDS', 'Solde Bitcoin insuffisant (frais inclus).');
+    if (!selection) {
+      // `selectUtxos` refuse aussi au-delà de MAX_INPUTS : le distinguer évite
+      // d'annoncer un solde insuffisant à quelqu'un qui a les fonds.
+      const spendable = utxos.filter((u) => BigInt(u.value) > BigInt(68 * feeRate)).length;
+      if (spendable > MAX_INPUTS) {
+        throw new WalletError(
+          'NOT_SUPPORTED',
+          'Trop de petites pièces à rassembler pour une seule transaction. Envoie un montant plus faible.',
+        );
+      }
+      throw new WalletError('INSUFFICIENT_FUNDS', 'Solde Bitcoin insuffisant (frais inclus).');
+    }
 
     const txid = await this.signAndBroadcast(from, dest, target, selection, signer);
     return { txid, to: dest, target, feeRate, inputs: selection.inputs, fee: selection.fee };

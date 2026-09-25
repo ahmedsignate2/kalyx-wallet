@@ -1,4 +1,5 @@
-import { deriveSolanaAccount, deriveSolanaSigner, isValidSolanaAddress, solPath } from './solana';
+import { deriveSolanaAccount, deriveSolanaSigner, isValidSolanaAddress, isWalletAddress, solPath } from './solana';
+import { getAssociatedTokenAddress } from './solPda';
 import { mnemonicToSeedSync } from './mnemonic';
 import { ed25519 } from '@noble/curves/ed25519';
 import { base58 } from '@scure/base';
@@ -75,5 +76,32 @@ describe('isValidSolanaAddress', () => {
     expect(isValidSolanaAddress('0xdeadbeef')).toBe(false); // '0' n'est pas base58, contient 'x'
     expect(isValidSolanaAddress('abc')).toBe(false);
     expect(isValidSolanaAddress('')).toBe(false);
+  });
+});
+
+describe('isWalletAddress — PDA vs portefeuille', () => {
+  const PHRASE = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
+  it('une clé publique dérivée EST un portefeuille', () => {
+    const { address } = deriveSolanaAccount(mnemonicToSeedSync(PHRASE), 0);
+    expect(isWalletAddress(address)).toBe(true);
+  });
+
+  it('un compte de jeton associé N\'EST PAS un portefeuille', () => {
+    /*
+     * Une PDA est délibérément HORS de la courbe : personne ne peut signer pour
+     * elle. Y envoyer du SOL, c'est le perdre — et l'adresse d'un compte de
+     * jeton USDC se copie aussi facilement que celle d'un portefeuille.
+     */
+    const { address } = deriveSolanaAccount(mnemonicToSeedSync(PHRASE), 0);
+    const ata = getAssociatedTokenAddress('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', address);
+    expect(isValidSolanaAddress(ata)).toBe(true); // 32 octets valides…
+    expect(isWalletAddress(ata)).toBe(false); // …mais pas un portefeuille
+  });
+
+  it('refuse ce qui n\'est pas une adresse', () => {
+    expect(isWalletAddress('')).toBe(false);
+    expect(isWalletAddress('pas-une-adresse')).toBe(false);
+    expect(isWalletAddress('0x9858EfFD232B4033E47d90003D41EC34EcaEda94')).toBe(false);
   });
 });

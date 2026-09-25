@@ -1,4 +1,12 @@
-import { estimateVsize, selectUtxos, DUST_SATS, OUTPUT_VBYTES, type Utxo } from './btcTx';
+import {
+  estimateVsize,
+  selectUtxos,
+  DUST_SATS,
+  DUST_BY_KIND,
+  MAX_INPUTS,
+  OUTPUT_VBYTES,
+  type Utxo,
+} from './btcTx';
 
 const utxo = (value: number, i = 0): Utxo => ({ txid: 'a'.repeat(64), vout: i, value });
 
@@ -65,5 +73,45 @@ describe('selectUtxos', () => {
     expect(cheap!.fee).toBeLessThan(dear!.fee);
     // Et rien ne se perd : tout est réparti entre montant, frais et monnaie.
     expect(20000n + dear!.fee + dear!.change).toBe(100000n);
+  });
+});
+
+describe('poussière et bornes', () => {
+  it('refuse une sortie destinataire sous le seuil de POUSSIÈRE', () => {
+    /*
+     * Sans ce contrôle, la transaction était construite, signée, puis REFUSÉE à
+     * la diffusion (« non standard ») avec un message de nœud incompréhensible.
+     */
+    expect(selectUtxos([utxo(1_000_000)], 100n, 10, 'p2wpkh')).toBeNull();
+    expect(selectUtxos([utxo(1_000_000)], DUST_SATS, 10, 'p2wpkh')).not.toBeNull();
+  });
+
+  it('le seuil dépend du TYPE d\'adresse', () => {
+    // 546 en hérité, 294 en SegWit natif : un seuil unique acceptait des
+    // sorties héritées que le réseau refuse.
+    const heritee = 400n; // > 294 mais < 546
+    expect(selectUtxos([utxo(1_000_000)], heritee, 10, 'p2wpkh')).not.toBeNull();
+    expect(selectUtxos([utxo(1_000_000)], heritee, 10, 'p2pkh')).toBeNull();
+    expect(DUST_BY_KIND.p2pkh).toBeGreaterThan(DUST_BY_KIND.p2wpkh);
+  });
+
+  it('ignore les pièces qui coûtent plus cher à dépenser qu\'elles ne valent', () => {
+    // À 50 sat/vB, une entrée coûte ~3 400 sats : en ajouter une de 1 000
+    // RÉDUIRAIT le montant disponible.
+    const sel = selectUtxos([utxo(500_000, 0), utxo(1_000, 1), utxo(900, 2)], 100_000n, 50);
+    expect(sel).not.toBeNull();
+    expect(sel!.inputs).toHaveLength(1);
+  });
+
+  it('refuse plutôt que de construire une transaction non relayable', () => {
+    // Au-delà d'un certain nombre d'entrées, la transaction dépasse la taille
+    // standard et aucun nœud ne la propage.
+    const many = Array.from({ length: MAX_INPUTS + 50 }, (_, i) => utxo(5_000, i));
+    expect(selectUtxos(many, BigInt(5_000 * (MAX_INPUTS + 40)), 1)).toBeNull();
+  });
+
+  it('reste possible quand les pièces suffisent sous la limite', () => {
+    const few = Array.from({ length: 10 }, (_, i) => utxo(50_000, i));
+    expect(selectUtxos(few, 300_000n, 5)).not.toBeNull();
   });
 });
