@@ -153,6 +153,24 @@ export interface BroadcastOutcome {
   txid: string;
   /** Au-delà, cesser d'attendre : la transaction ne sera plus incluse. */
   expiresAt?: number;
+  /**
+   * Repère de péremption propre à la chaîne, rendu tel quel à `waitForTx`.
+   *
+   * Une horloge ne suffit pas : Solana raisonne en HAUTEUR DE BLOC, et c'est la
+   * seule preuve qu'une transaction non vue ne passera jamais — sinon on ne sait
+   * pas distinguer « pas encore incluse » d'« abandonnée ». Cosmos aura son
+   * `timeout_height`, TON son `seqno`. Sans ce champ, l'attente se terminait par
+   * un simple délai, donc l'utilisateur restait une minute devant un écran qui
+   * ne savait rien lui dire.
+   */
+  opaque?: unknown;
+}
+
+/** Ce que `waitForTx` reçoit en plus de l'identifiant. */
+export interface TxWaitHint {
+  expiresAt?: number;
+  /** Le `opaque` rendu par `broadcastSend`. */
+  opaque?: unknown;
 }
 
 /** État d'une transaction diffusée. */
@@ -222,7 +240,7 @@ export interface ChainAdapterV2<P = unknown> {
    * c'est précisément l'hypothèse qui faisait afficher « envoyé » sur Solana
    * pour une transaction abandonnée par le réseau.
    */
-  waitForTx(txid: string, hint?: { expiresAt?: number }): Promise<TxState>;
+  waitForTx(txid: string, hint?: TxWaitHint): Promise<TxState>;
 
   // ── Optionnels, gouvernés par `capabilities` ───────────────────────────────
   /** `capabilities.feeTiers` */
