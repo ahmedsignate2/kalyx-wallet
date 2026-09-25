@@ -47,9 +47,17 @@ export const PAY_ALLOWED_METHODS = [
 
 export type PayMethod = (typeof PAY_ALLOWED_METHODS)[number];
 
-/** Compte au format CAIP-10 (`eip155:<chainId>:<adresse>`). */
+/**
+ * Compte au format CAIP-10 (`eip155:<chainId>:<adresse>`).
+ *
+ * Adresse en MINUSCULES. CAIP-10 tolère la casse mixte de l'EIP-55, mais la
+ * forme minuscule est celle qu'attendent la plupart des services, et un
+ * comparateur de chaînes naïf côté serveur ne trouverait rien avec une adresse
+ * en casse mixte — soldes bien présents, zéro option en retour. C'est une cause
+ * plausible d'un refus inexpliqué, et la forme minuscule ne coûte rien.
+ */
 export function caip10(chainId: number, address: string): string {
-  return `eip155:${chainId}:${address}`;
+  return `eip155:${chainId}:${address.toLowerCase()}`;
 }
 
 /**
