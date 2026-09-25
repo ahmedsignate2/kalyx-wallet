@@ -3,7 +3,7 @@
  * blockstream (`/address/:addr/txs`). On calcule l'effet net sur l'adresse
  * suivie (somme des sorties reçues − somme des entrées dépensées). Pur, testable.
  */
-import type { TxSummary } from './types';
+import type { TxParsed, TxSummary } from './types';
 
 export interface BtcVin {
   prevout?: { scriptpubkey_address?: string; value?: number } | null;
@@ -19,8 +19,8 @@ export interface BtcTxResponse {
   vout?: BtcVout[];
 }
 
-/** Transforme une transaction BTC en TxSummary du point de vue de `address`. */
-export function parseBtcTx(address: string, tx: BtcTxResponse): TxSummary | null {
+/** Transforme une transaction BTC en résumé du point de vue de `address`. */
+export function parseBtcTx(address: string, tx: BtcTxResponse): TxParsed | null {
   if (!tx.txid) return null;
   const vin = tx.vin ?? [];
   const vout = tx.vout ?? [];

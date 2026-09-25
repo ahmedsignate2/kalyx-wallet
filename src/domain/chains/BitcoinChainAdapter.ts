@@ -14,6 +14,7 @@ import type {
   TransferIntent,
   TransferParams,
   TxSummary,
+  TxParsed,
   UnsignedTx,
 } from './types';
 import { deriveBtcAccount } from '../../crypto/btc';
@@ -106,13 +107,23 @@ export class BitcoinChainAdapter implements ChainAdapter {
     };
   }
 
+  /**
+   * Historique du compte, chaque ligne ESTAMPILLÉE de sa chaîne.
+   *
+   * L'estampillage se fait ici et nulle part ailleurs : les analyseurs lisent la
+   * réponse d'un indexeur et ignorent de quel réseau il s'agit, alors que
+   * l'adaptateur ne parle que du sien. Un seul point de passage, donc aucune
+   * liste ne peut ressortir sans sa chaîne — et l'accueil cesse de deviner les
+   * décimales d'après le réseau affiché.
+   */
   async getHistory(address: string): Promise<TxSummary[]> {
     if (!isValidBtcAddress(address)) return [];
     const txs = (await this.fetchJson(`/address/${address}/txs`)) as BtcTxResponse[];
     if (!Array.isArray(txs)) return [];
     return txs
       .map((tx) => parseBtcTx(address, tx))
-      .filter((x): x is TxSummary => x !== null);
+      .filter((x): x is TxParsed => x !== null)
+      .map((tx) => ({ ...tx, chain: this.config.id }));
   }
 
   /**

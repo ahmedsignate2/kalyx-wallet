@@ -4,7 +4,7 @@ import type { TxSummary } from '../chains/types';
 const ME = '0x28C6c06298d514Db089934071355E5743bf21d60';
 const V = '0xd8dA6BF26964aF9D7eEd9e03E62415f8b1F2f8F7';
 const ctx = { nativeSymbol: 'ETH', nativeDecimals: 18, nameOf: (a: string) => (a === V ? 'vitalik.eth' : undefined) };
-const base: TxSummary = { hash: '0x1', from: ME, to: V, value: 10n ** 17n, timestamp: 1_700_000_000, direction: 'out', status: 'success' };
+const base: TxSummary = { chain: 'ethereum', hash: '0x1', from: ME, to: V, value: 10n ** 17n, timestamp: 1_700_000_000, direction: 'out', status: 'success' };
 
 describe('humanizeTx', () => {
   it('envoi natif avec nom', () => {
@@ -55,5 +55,53 @@ describe('humanizeTx', () => {
     expect(g.map((x) => x.label)).toEqual(['Aujourd’hui', 'Hier', expect.any(String)]);
     expect(g[0].items).toHaveLength(2);
     expect(g[0].items[0].timestamp).toBe(t - 100);
+  });
+});
+
+describe('humanizeTx — liste qui mêle les réseaux', () => {
+  /*
+   * LE BUG SIGNALÉ. L'accueil agrège l'historique de tous les réseaux, mais le
+   * contexte portait les décimales du réseau AFFICHÉ. Un envoi de 1 000
+   * satoshis consulté depuis Base ressortait donc divisé par 10^18 et libellé
+   * en ETH : ni le montant, ni la monnaie, ni la contre-valeur.
+   */
+  const natives: Record<string, { symbol: string; decimals: number }> = {
+    bitcoin: { symbol: 'BTC', decimals: 8 },
+    base: { symbol: 'ETH', decimals: 18 },
+    solana: { symbol: 'SOL', decimals: 9 },
+  };
+  // Contexte d'un écran POSÉ SUR BASE, comme lors du test sur appareil.
+  const onBase = {
+    nativeSymbol: 'ETH',
+    nativeDecimals: 18,
+    nativeOf: (c: string) => natives[c],
+  };
+
+  it('un envoi Bitcoin garde ses 8 décimales et son symbole, vu depuis Base', () => {
+    const tx: TxSummary = { chain: 'bitcoin', hash: 'btc1', from: ME, to: V, value: 1_000n, timestamp: 1, direction: 'out', status: 'success' };
+    const h = humanizeTx(tx, onBase);
+    expect(h.title).toBe('Envoyé 0.00001 BTC');
+    expect(h.amount).toBe('−0.00001 BTC');
+  });
+
+  it('un envoi Solana garde ses 9 décimales, vu depuis Base', () => {
+    const tx: TxSummary = { chain: 'solana', hash: 'sol1', from: ME, to: V, value: 10_000n, timestamp: 1, direction: 'out', status: 'success' };
+    expect(humanizeTx(tx, onBase).title).toBe('Envoyé 0.00001 SOL');
+  });
+
+  /*
+   * La contre-valeur suivait le mauvais symbole : on cherchait le prix de l'ETH
+   * pour un montant en Bitcoin. Elle doit maintenant interroger BTC.
+   */
+  it('la contre-valeur est demandée pour le symbole de la bonne chaîne', () => {
+    const asked: string[] = [];
+    const tx: TxSummary = { chain: 'bitcoin', hash: 'btc2', from: ME, to: V, value: 100_000_000n, timestamp: 1, direction: 'out', status: 'success' };
+    humanizeTx(tx, { ...onBase, fiatOf: (symbol) => { asked.push(symbol); return undefined; } });
+    expect(asked).toEqual(['BTC']);
+  });
+
+  it('chaîne inconnue : on retombe sur le contexte au lieu de casser', () => {
+    const tx: TxSummary = { chain: 'reseau-retire', hash: 'x', from: ME, to: V, value: 10n ** 17n, timestamp: 1, direction: 'out', status: 'success' };
+    expect(humanizeTx(tx, onBase).title).toBe('Envoyé 0.1 ETH');
   });
 });

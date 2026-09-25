@@ -12,7 +12,7 @@
  * On lit donc AUSSI `preTokenBalances`/`postTokenBalances`, et le mouvement de
  * jeton l'emporte quand il y en a un : c'est lui que l'utilisateur a voulu.
  */
-import type { TxSummary } from './types';
+import type { TxParsed, TxSummary } from './types';
 import { KNOWN_MINTS } from '../tokens/splTokens';
 
 export interface SolTxAccount {
@@ -135,7 +135,7 @@ function tokenCounterparty(address: string, tx: SolTxResponse, mint: string, del
  * Transforme une transaction Solana en TxSummary du point de vue de `address`.
  * Renvoie null si l'adresse n'apparaît pas ou si la structure est incomplète.
  */
-export function parseSolanaTx(address: string, tx: SolTxResponse): TxSummary | null {
+export function parseSolanaTx(address: string, tx: SolTxResponse): TxParsed | null {
   const keys = tx.transaction?.message?.accountKeys;
   const pre = tx.meta?.preBalances;
   const post = tx.meta?.postBalances;
