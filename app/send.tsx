@@ -321,7 +321,6 @@ export default function Send() {
   const overBalance = balance != null && amountRaw > available;
   const hasEnteredAmount = parseFloat(amount || '0') > 0;
   const notEnoughGas = hasEnteredAmount && nativeBal != null && nativeBal < feeRaw;
-  const showNotEnoughGasWarning = hasEnteredAmount && notEnoughGas;
   const approxVal = feeFiat > 0 ? `${formatFiat(feeFiat)} ${sym}` : `${formatAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`;
   const missingFeeText = t('aboutApprox').replace('{amount}', approxVal);
 
@@ -505,7 +504,10 @@ export default function Send() {
     setAmountError(null);
     if (amountRaw <= 0n) return setAmountError(t("errEnterAmount"));
     if (overBalance) return setAmountError(`Tu possèdes ${formatTokenAmount(balance ?? 0n, decimals)} ${symbol}${isNativeSend ? ` (frais réservés : ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol})` : ''}.`);
-    if (hasEnteredAmount && notEnoughGas) return setAmountError(t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText));
+    if (notEnoughGas) {
+      technicalLogger.logTx('step_2_not_enough_gas', { chain: chain.name, feeRaw: feeRaw.toString() }, true);
+      return; // bloquant, message déjà affiché — même convention que l'empoisonnement
+    }
     technicalLogger.logTx('step_2_fee_simulation', {
       amount: tokenAmountStr,
       symbol,
@@ -720,7 +722,16 @@ export default function Send() {
               {balance == null ? <Skeleton width={160} /> : <Text variant="caption" tone="secondary" tabular>{t("balanceLabel")} : {formatTokenAmount(balance, decimals)} {symbol}</Text>}
               <Chip label={t("chipMax")} onPress={setMax} />
             </View>
-            {showNotEnoughGasWarning && hasEnteredAmount ? <Text variant="caption" tone="warning">{t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText)}</Text> : null}
+            {/*
+              MANQUE DE GAZ : un seul message, et il BLOQUE.
+              Il s'affichait deux fois — en orange ici, et en rouge juste
+              dessous parce que `goStep3` remettait le texte identique dans
+              `amountError`. Deux tonalités pour le même fait laissaient croire
+              à deux problèmes distincts. Le message est dérivé de l'état, donc
+              vivant sous la frappe, là où `amountError` est effacé à chaque
+              touche ; et il est en rouge, parce que l'envoi est impossible.
+            */}
+            {notEnoughGas ? <Text variant="caption" tone="danger">{t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText)}</Text> : null}
             {amountError && hasEnteredAmount ? <Text variant="caption" tone="danger">{amountError}</Text> : null}
             <View style={{ flex: 1 }} />
             <AmountKeypad value={amount} onChange={(v) => { setAmount(v); setAmountError(null); }} maxDecimals={inFiat ? 2 : Math.min(decimals, 8)} />
