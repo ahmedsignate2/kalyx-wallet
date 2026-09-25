@@ -10,11 +10,18 @@ import {
 const ME = '0x9858EfFD232B4033E47d90003D41EC34EcaEda94';
 
 describe('payAccountsFor', () => {
-  it('rend un compte CAIP-10 par réseau couvert', () => {
+  it('rend un compte CAIP-10 par réseau couvert, adresse en MINUSCULES', () => {
+    /*
+     * CAIP-10 tolère la casse mixte de l'EIP-55, mais un comparateur de chaînes
+     * naïf côté serveur ne trouverait rien avec elle — soldes bien présents,
+     * zéro option en retour. La forme minuscule est celle qu'attendent la
+     * plupart des services et ne coûte rien.
+     */
     const accounts = payAccountsFor(ME);
     expect(accounts).toHaveLength(PAY_EVM_CHAIN_IDS.length);
-    expect(accounts).toContain(`eip155:1:${ME}`);
-    expect(accounts).toContain(`eip155:8453:${ME}`);
+    expect(accounts).toContain(`eip155:1:${ME.toLowerCase()}`);
+    expect(accounts).toContain(`eip155:8453:${ME.toLowerCase()}`);
+    expect(accounts.every((a) => a === a.toLowerCase())).toBe(true);
   });
 
   it('rien du tout si l\'adresse n\'est pas une adresse EVM', () => {
@@ -26,6 +33,7 @@ describe('payAccountsFor', () => {
 
   it('tolère les espaces autour', () => {
     expect(payAccountsFor(`  ${ME}  `)[0]).toBe(caip10(1, ME));
+    expect(caip10(1, ME)).toBe(`eip155:1:${ME.toLowerCase()}`);
   });
 });
 
