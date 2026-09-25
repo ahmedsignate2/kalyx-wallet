@@ -148,3 +148,55 @@ donnée hexadécimale doit signer les OCTETS DÉCODÉS, pas le texte de
 l'hexadécimal, distinction que la signature v2 (`message: string`) ne porte
 pas. Les migrer pour le seul principe casserait des signatures que les dApps
 vérifient. **Laissés sur la v1, sciemment.**
+
+---
+
+## État de la migration vers `ChainAdapterV2`
+
+L'interface v1 était modelée sur l'EVM : Bitcoin et Solana y levaient
+`NOT_SUPPORTED` sur trois méthodes et passaient par des méthodes maison, ce qui
+obligeait `walletStore` et les écrans à aiguiller sur `instanceof`. La v2 pose
+un pipeline typé — préparer, signer, diffuser, confirmer — avec une charge utile
+opaque par chaîne et des capacités déclarées.
+
+**Migré, et appelé par l'app :**
+
+| Chemin | État |
+|---|---|
+| Envoi de la pièce native (3 chaînes) | v2 — un seul `sendDraft` |
+| Envoi de jeton (ERC-20, SPL, Token-2022) | v2 — même chemin |
+| Accélération / annulation | v2, gouvernées par les capacités |
+| Suivi de confirmation | v2 — les trois chaînes, issues distinguées |
+| Paliers de frais à l'écran | v2 — `quoteFees`, vraie sélection UTXO côté BTC |
+| Signature de message Bitcoin (BIP-137 / BIP-322) | v2 |
+| Signature Solana (transaction, message) | v2 pour la dérivation et l'effacement |
+| Signature PSBT Bitcoin | v2 pour la dérivation et l'effacement |
+
+**Resté sur la v1, avec sa raison :**
+
+| Chemin | Pourquoi |
+|---|---|
+| Échange (swap) | Opération propre à chaque chaîne, absente de l'interface v2 |
+| Transaction brute pour dApp (`eth_sendTransaction`) | Notion purement EVM |
+| Autorisations ERC-20, rendement, `isContract` | Notions purement EVM |
+| `signMessage` (personal_sign), `signTypedData` | Clé hexadécimale imposée par ethers ; et `personal_sign` sur une donnée hexadécimale doit signer les octets DÉCODÉS, nuance que la signature v2 ne porte pas |
+
+Ces `instanceof` restants ne sont PAS de l'aiguillage oublié : ce sont des
+opérations qui n'existent que sur une chaîne. Inventer des capacités génériques
+pour les couvrir rendrait l'interface plus vague, pas plus juste.
+
+**Ce que la migration a fait apparaître, et qui valait le détour :**
+
+1. `BroadcastOutcome.opaque` — Solana raisonne en hauteur de bloc, pas en
+   horloge ; sans ce repère l'attente se terminait par un simple délai.
+2. `PendingRef.opaque` — un remplacement Bitcoin doit reprendre les mêmes
+   entrées, or les UTXO dépensés sont irrécupérables après coup.
+
+Les deux ont été trouvés en migrant la deuxième et la troisième chaîne. Migrer
+les trois d'un coup les aurait fait découvrir après coup, sur trois adapters
+déjà écrits.
+
+**Ce qu'aucun test ne garantit :** le chemin d'envoi de l'app est passé d'un code
+éprouvé en production à un code neuf, vérifié uniquement contre un réseau
+bouchonné. Un envoi réel par chaîne, sur un montant minuscule, reste nécessaire
+avant de considérer la migration terminée.
