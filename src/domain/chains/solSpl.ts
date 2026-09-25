@@ -11,13 +11,14 @@
  * programme. Le programme est donc un PARAMÈTRE partout où il intervient.
  */
 import { getAssociatedTokenAddress } from '../../crypto/solPda';
-import { buildTransactionMessage, type Instruction } from './solMessage';
+import { buildTransactionMessage, memoIx, referenceKeys, MEMO_PROGRAM, type Instruction } from './solMessage';
+
+export { MEMO_PROGRAM, memoIx };
 
 export const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 export const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 export const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 export const ASSOCIATED_TOKEN_PROGRAM = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
-
 function u64le(value: bigint): number[] {
   const out: number[] = [];
   let v = value;
@@ -61,6 +62,7 @@ export function transferCheckedIx(
   amount: bigint,
   decimals: number,
   tokenProgram: string = TOKEN_PROGRAM,
+  references?: string[],
 ): Instruction {
   // Le discriminant 12 (TransferChecked) est identique dans les deux
   // programmes : seul le programme destinataire de l'instruction change.
@@ -71,6 +73,7 @@ export function transferCheckedIx(
       { pubkey: mint, isSigner: false, isWritable: false },
       { pubkey: dest, isSigner: false, isWritable: true },
       { pubkey: owner, isSigner: true, isWritable: false },
+      ...referenceKeys(references),
     ],
     data: Uint8Array.from([12, ...u64le(amount), decimals & 0xff]),
   };
@@ -87,6 +90,10 @@ export interface SplTransferParams {
   prefix?: Instruction[];
   /** Programme propriétaire du mint ; par défaut le programme historique. */
   tokenProgram?: string;
+  /** Repères Solana Pay, ajoutés en comptes lecture seule non signataires. */
+  references?: string[];
+  /** Texte inscrit on-chain via le programme SPL Memo. */
+  memo?: string;
 }
 
 /** Message signable d'un transfert SPL (ATA idempotent + TransferChecked). */
@@ -98,8 +105,10 @@ export function buildSplTransferMessage(p: SplTransferParams): Uint8Array {
   const dest = getAssociatedTokenAddress(p.mint, p.to, tokenProgram);
   const instructions: Instruction[] = [
     ...(p.prefix ?? []),
+    // Le memo précède le transfert, comme le prévoit Solana Pay.
+    ...(p.memo ? [memoIx(p.memo)] : []),
     createAtaIdempotentIx(p.from, dest, p.to, p.mint, tokenProgram),
-    transferCheckedIx(source, p.mint, dest, p.from, p.amount, p.decimals, tokenProgram),
+    transferCheckedIx(source, p.mint, dest, p.from, p.amount, p.decimals, tokenProgram, p.references),
   ];
   return buildTransactionMessage(p.from, p.recentBlockhash, instructions);
 }

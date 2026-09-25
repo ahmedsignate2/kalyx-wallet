@@ -102,3 +102,65 @@ describe('buildSplTransferMessage — Token-2022', () => {
     expect(legacy.filter((k) => !t2022.includes(k)).length).toBeGreaterThan(0);
   });
 });
+
+describe('Solana Pay — repères et mémo DANS la transaction', () => {
+  const FROM2 = '9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PQtwhpU';
+  const TO2 = 'HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk';
+  const MINT2 = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+  const BH2 = 'EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N';
+  const REF = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+  const MEMO_PROGRAM_ID = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
+
+  const base = { from: FROM2, to: TO2, mint: MINT2, amount: 1_000_000n, decimals: 6, recentBlockhash: BH2 };
+
+  function keysOf(msg: Uint8Array): string[] {
+    let i = 3;
+    const count = msg[i];
+    i += 1;
+    const out: string[] = [];
+    for (let k = 0; k < count; k++) {
+      out.push(base58.encode(msg.slice(i, i + 32)));
+      i += 32;
+    }
+    return out;
+  }
+
+  it('la `reference` figure dans les comptes de la transaction', () => {
+    /*
+     * Le parseur peut bien la lire : si elle n'atterrit pas dans la
+     * transaction, le marchand ne la retrouvera pas davantage. C'est le seul
+     * test qui prouve que la chaîne complète tient.
+     */
+    const sans = keysOf(buildSplTransferMessage(base));
+    const avec = keysOf(buildSplTransferMessage({ ...base, references: [REF] }));
+    expect(sans).not.toContain(REF);
+    expect(avec).toContain(REF);
+  });
+
+  it('elle n\'est NI signataire NI en écriture', () => {
+    /*
+     * Signataire, la transaction deviendrait insignable — on n'a pas cette
+     * clé. En écriture, elle changerait le sens de l'opération. La spec exige
+     * lecture seule, non signataire.
+     */
+    const msg = buildSplTransferMessage({ ...base, references: [REF] });
+    const numSigners = msg[0];
+    const numReadonlyUnsigned = msg[2];
+    const keys = keysOf(msg);
+    const idx = keys.indexOf(REF);
+    // Les signataires occupent les premières positions.
+    expect(idx).toBeGreaterThanOrEqual(numSigners);
+    // Et le bloc final, en lecture seule non signée, contient notre repère.
+    expect(idx).toBeGreaterThanOrEqual(keys.length - numReadonlyUnsigned);
+  });
+
+  it('plusieurs repères sont tous présents', () => {
+    const keys = keysOf(buildSplTransferMessage({ ...base, references: [REF, TO2] }));
+    expect(keys).toContain(REF);
+  });
+
+  it('le mémo ajoute le programme SPL Memo, et seulement s\'il y en a un', () => {
+    expect(keysOf(buildSplTransferMessage(base))).not.toContain(MEMO_PROGRAM_ID);
+    expect(keysOf(buildSplTransferMessage({ ...base, memo: 'cmd-42' }))).toContain(MEMO_PROGRAM_ID);
+  });
+});

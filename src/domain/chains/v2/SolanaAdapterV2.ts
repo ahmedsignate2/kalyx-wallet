@@ -86,7 +86,8 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
     messageSigning: 'ed25519',
     customNetworks: true,
     // Le programme Memo existe sur Solana, mais n'est pas câblé ici.
-    memo: false,
+    // Solana Pay porte un `memo` inscrit on-chain (programme SPL Memo).
+    memo: true,
     // Un transfert de jeton crée le compte associé du destinataire, à nos frais.
     activatesDestination: true,
   });
@@ -199,6 +200,8 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
         lamports: request.amount,
         recentBlockhash: blockhash,
         prefix: priorityInstructions(CU_SOL_TRANSFER, price),
+        references: request.references,
+        memo: request.memo,
       });
       return {
         ...common,
@@ -240,6 +243,8 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
       recentBlockhash: blockhash,
       prefix: priorityInstructions(CU_SPL_TRANSFER, price),
       tokenProgram,
+      references: request.references,
+      memo: request.memo,
     });
 
     return {
