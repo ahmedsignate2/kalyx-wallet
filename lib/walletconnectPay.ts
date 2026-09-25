@@ -238,6 +238,8 @@ interface PayState {
   select: (option: PayOption, theme?: 'light' | 'dark') => void;
   /** Le formulaire hébergé a abouti : on peut poursuivre. */
   collected: () => void;
+  /** Résumé copiable de la tentative, pour un ticket. */
+  diagnostic: () => string;
   /** Signe les actions et confirme le paiement. */
   confirm: (unlock: Unlock) => Promise<void>;
   reset: () => void;
@@ -294,6 +296,7 @@ export const usePay = create<PayState>((set, get) => ({
        */
       technicalLogger.log('DAPP', 'WalletConnect Pay : options', {
         chains: accounts.length,
+        accounts: accounts.join(' '),
         options: options.options.length,
         status: options.info?.status,
         requested: options.info
@@ -383,6 +386,41 @@ export const usePay = create<PayState>((set, get) => ({
   },
 
   reset: () => set({ ...EMPTY }),
+
+  /**
+   * Résumé copiable de la tentative.
+   *
+   * Zéro option a plusieurs causes que l'écran ne distingue pas : soldes
+   * insuffisants pour le MONTANT demandé, demande expirée, déjà réglée, ou
+   * comptes envoyés sous une forme que le service n'exploite pas. Sans ce
+   * résumé on en reste aux hypothèses — et j'en ai déjà donné deux fausses.
+   *
+   * Ne contient aucun secret : des adresses publiques, le statut du service et
+   * le montant demandé.
+   */
+  diagnostic: () => {
+    const { link, options, failure, detail } = get();
+    const w = useWallet.getState();
+    const stored = w.accounts.find((a) => a.index === w.activeAccountIndex) ?? w.accounts[0];
+    return JSON.stringify(
+      {
+        link,
+        failure,
+        detail,
+        accountsSent: payAccountsFor(stored?.evmAddress ?? ''),
+        optionCount: options?.options.length ?? null,
+        paymentId: options?.paymentId ?? null,
+        requestStatus: options?.info?.status ?? null,
+        requested: options?.info
+          ? `${options.info.amount.value} ${options.info.amount.display.assetSymbol} (${options.info.amount.display.decimals} déc.)`
+          : null,
+        merchant: options?.info?.merchant.name ?? null,
+        expiresAt: options?.info?.expiresAt ?? null,
+      },
+      null,
+      2,
+    );
+  },
 }));
 
 /**
