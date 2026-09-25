@@ -123,6 +123,10 @@ async function sendParamsFor(
    */
   if (intent.references?.length) params.references = intent.references.join(',');
   if (intent.memo) params.memo = intent.memo;
+  // Bénéficiaire et motif annoncés par le lien : AFFICHÉS sur le récapitulatif,
+  // jamais vérifiés — une étiquette est écrite par l'émetteur du lien.
+  if (intent.payee) params.payee = intent.payee;
+  if (intent.note) params.note = intent.note;
   const token = intent.contract ?? intent.mint;
   const kind = intent.contract ? 'erc20' : 'spl';
 
@@ -206,10 +210,6 @@ export async function runQrIntent(result: QrResult, opts?: { replace?: boolean }
 
   const chainId = targetChainFor(result);
   if (chainId !== useWallet.getState().activeChain) useWallet.getState().setActiveChain(chainId);
-
-  // Bénéficiaire annoncé par le lien (BIP-21) : affiché, jamais vérifié — une
-  // étiquette est écrite par l'émetteur du lien, elle ne prouve rien.
-  if (intent.payee) toast.info(tr('payRequestFrom'), intent.payee);
 
   const params = await sendParamsFor(intent, chainId);
   go({ pathname: '/send', params });
