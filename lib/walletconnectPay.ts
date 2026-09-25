@@ -21,7 +21,9 @@
 import { create } from 'zustand';
 import { useWallet } from './walletStore';
 import type { Unlock } from './walletStore';
-import { payAccountsFor, checkPayAction, type PayMethod } from '../src';
+import { base64 } from '@scure/base';
+import { utf8ToBytes } from '@noble/hashes/utils';
+import { payAccountsFor, checkPayAction, listChains, type PayMethod } from '../src';
 
 /** Identifiant public du projet Pay, fourni au build (secret EAS). */
 const PAY_APP_ID = (process.env.EXPO_PUBLIC_WALLETCONNECT_PAY_ID ?? '').trim();
@@ -127,14 +129,17 @@ export function isPayAvailable(): boolean {
 
 /* ── Capture de données : URL du formulaire hébergé ──────────────────────── */
 
-/** base64url sans remplissage, tel que le formulaire l'attend. */
+/**
+ * base64url sans remplissage, tel que le formulaire l'attend.
+ *
+ * Passe par `@scure/base` et non par `btoa` ni `Buffer` : NI L'UN NI L'AUTRE
+ * n'est garanti sous Hermes. `btoa` n'est pas un global de React Native, et
+ * `Buffer` n'existe que si on l'installe explicitement — ce que le projet ne
+ * fait pas. Le code aurait donc levé dans l'app tout en passant en test, où
+ * Node fournit les deux.
+ */
 function base64url(value: string): string {
-  const b64 =
-    typeof btoa === 'function'
-      ? btoa(value)
-      : // Environnement sans `btoa` (Node) : même résultat.
-        Buffer.from(value, 'utf8').toString('base64');
-  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return base64.encode(utf8ToBytes(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /**
@@ -348,8 +353,14 @@ async function signPayAction(action: PayAction, unlock: Unlock): Promise<string>
   }
 }
 
-/** Identifiant Kalyx d'une chaîne EVM, ou null si elle n'est pas configurée. */
+/**
+ * Identifiant Kalyx d'une chaîne EVM, ou null si elle n'est pas configurée.
+ *
+ * `listChains` est importé statiquement : un `require` au milieu d'une fonction
+ * n'apportait rien ici — le même module est déjà importé en tête du fichier —
+ * et laissait planer un doute sur une résolution paresseuse qui n'avait aucune
+ * raison d'être.
+ */
 function evmChainIdToKalyx(evmChainId: number): string | null {
-  const { listChains } = require('../src') as typeof import('../src');
   return listChains().find((c) => c.evmChainId === evmChainId)?.id ?? null;
 }
