@@ -34,8 +34,31 @@ interface NetworksBackup {
   chains: ChainConfig[];
 }
 
-/** Familles qu'un utilisateur peut ajouter lui-même. */
-export const CUSTOM_FAMILIES: ChainFamily[] = ['evm', 'bitcoin', 'solana'];
+/**
+ * Familles qu'un utilisateur peut ajouter lui-même.
+ *
+ * `bitcoin` en est ABSENT, volontairement. Le seul intérêt d'un réseau Bitcoin
+ * personnalisé serait un testnet ou son propre nœud ; or `checkBtcAddress`
+ * refuse les adresses testnet — un choix délibéré, pour qu'on ne puisse pas
+ * envoyer des fonds réels vers une adresse de test. Proposer la famille
+ * amènerait donc l'utilisateur dans une impasse : un réseau qu'il peut créer et
+ * sélectionner, mais où aucune adresse n'est acceptée. Un testnet Bitcoin à
+ * moitié géré vaut moins que pas de testnet du tout.
+ *
+ * Pour l'ouvrir un jour, il faudra : préfixe `tb1` en bech32, versions base58
+ * 0x6F et 0xC4, et le tout conditionné à `config.testnet` — sans jamais
+ * accepter une adresse testnet sur un réseau principal.
+ */
+export const CUSTOM_FAMILIES: ChainFamily[] = ['evm', 'solana'];
+
+/**
+ * Familles lisibles depuis une sauvegarde, plus large que celles qu'on propose.
+ *
+ * Un réseau `bitcoin` déjà enregistré avant ce resserrage doit continuer à se
+ * charger : le supprimer en silence ferait disparaître une entrée que
+ * l'utilisateur a créée, sans explication.
+ */
+const READABLE_FAMILIES: ChainFamily[] = ['evm', 'bitcoin', 'solana'];
 
 /** Décimales par défaut d'une famille, quand l'utilisateur ne précise pas. */
 export const DEFAULT_DECIMALS: Record<ChainFamily, number> = {
@@ -75,7 +98,7 @@ function sanitize(raw: unknown): ChainConfig | null {
   const c = raw as Record<string, unknown>;
 
   // Famille : par défaut `evm`, pour lire les sauvegardes d'avant ce changement.
-  const family = (typeof c.family === 'string' && (CUSTOM_FAMILIES as string[]).includes(c.family)
+  const family = (typeof c.family === 'string' && (READABLE_FAMILIES as string[]).includes(c.family)
     ? c.family
     : 'evm') as ChainFamily;
 

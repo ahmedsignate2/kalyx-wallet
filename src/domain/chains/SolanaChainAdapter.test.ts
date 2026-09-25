@@ -172,6 +172,8 @@ describe('sendSplToken', () => {
     const { adapter } = stub({
       getLatestBlockhash: blockhashOk,
       getRecentPrioritizationFees: () => [{ slot: 1, prioritizationFee: 20_000 }],
+      // Le programme du mint est désormais résolu on-chain avant de construire.
+      getAccountInfo: () => ({ value: { owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' } }),
       sendTransaction: (p) => {
         sent = p[0] as string;
         return 'SPLSIG';
@@ -212,5 +214,115 @@ describe('méthodes génériques EVM', () => {
     await expect(adapter.prepareTransfer()).rejects.toMatchObject({ code: 'NOT_SUPPORTED' });
     await expect(adapter.signTransaction()).rejects.toMatchObject({ code: 'NOT_SUPPORTED' });
     await expect(adapter.broadcast()).rejects.toMatchObject({ code: 'NOT_SUPPORTED' });
+  });
+});
+
+describe('Token-2022', () => {
+  const MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+  const LEGACY = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+  const T2022 = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
+
+  const account = (mint: string, amount: string) => ({
+    pubkey: `ata-${mint}`,
+    account: { data: { parsed: { info: { mint, tokenAmount: { amount, decimals: 6 } } } } },
+  });
+
+  it('getSplTokens interroge LES DEUX programmes', async () => {
+    /*
+     * Un seul programme était interrogé, si bien que tout jeton Token-2022 —
+     * PYUSD en tête — était purement invisible : l'utilisateur ne voyait pas un
+     * solde qu'il détenait réellement.
+     */
+    const asked: string[] = [];
+    const { adapter } = stub({
+      getTokenAccountsByOwner: (p) => {
+        const programId = (p[1] as { programId: string }).programId;
+        asked.push(programId);
+        return { value: [account(programId === T2022 ? 'MintNouveau' : 'MintAncien', '1000')] };
+      },
+    });
+    const tokens = await adapter.getSplTokens(FROM);
+    expect(asked).toContain(LEGACY);
+    expect(asked).toContain(T2022);
+    expect(tokens.map((t) => t.mint).sort()).toEqual(['MintAncien', 'MintNouveau']);
+  });
+
+  it('un programme en échec n\'efface pas l\'autre', async () => {
+    // Mieux vaut une liste partielle qu'un portefeuille qui paraît vide.
+    const { adapter } = stub({
+      getTokenAccountsByOwner: (p) => {
+        if ((p[1] as { programId: string }).programId === T2022) throw new Error('RPC HS');
+        return { value: [account('MintAncien', '1000')] };
+      },
+    });
+    const tokens = await adapter.getSplTokens(FROM);
+    expect(tokens.map((t) => t.mint)).toEqual(['MintAncien']);
+  });
+
+  it('getMintProgram lit le propriétaire ON-CHAIN, il ne le devine pas', async () => {
+    const { adapter } = stub({ getAccountInfo: () => ({ value: { owner: T2022 } }) });
+    await expect(adapter.getMintProgram(MINT)).resolves.toBe(T2022);
+  });
+
+  it('getMintProgram refuse un programme inconnu plutôt que de tenter l\'envoi', async () => {
+    // Se tromper de programme calcule un ATA faux : un envoi vers un compte que
+    // personne ne contrôle. Mieux vaut refuser.
+    const { adapter } = stub({ getAccountInfo: () => ({ value: { owner: 'AutreProgramme11111111111111111111111111111' } }) });
+    await expect(adapter.getMintProgram(MINT)).rejects.toMatchObject({ code: 'NOT_SUPPORTED' });
+  });
+
+  it('getMintProgram signale un mint introuvable', async () => {
+    const { adapter } = stub({ getAccountInfo: () => ({ value: null }) });
+    await expect(adapter.getMintProgram(MINT)).rejects.toMatchObject({ code: 'INVALID_ADDRESS' });
+  });
+
+  it('sendSplToken résout le programme avant de construire la transaction', async () => {
+    const { adapter, calls } = stub({
+      getLatestBlockhash: blockhashOk,
+      getRecentPrioritizationFees: () => [],
+      getAccountInfo: () => ({ value: { owner: T2022 } }),
+      sendTransaction: () => 'SIG',
+      getSignatureStatuses: confirmed,
+    });
+    await adapter.sendSplToken(FROM, TO, 1_000_000n, MINT, 6, {
+      secretKey: SECRET,
+      publicKey: base58.decode(FROM),
+    });
+    expect(calls.map((c) => c.method)).toContain('getAccountInfo');
+  });
+
+  it('getTransferFeeConfig rend les frais du mint, et null sans lever', async () => {
+    const withFee = stub({
+      getAccountInfo: () => ({
+        value: {
+          data: {
+            parsed: {
+              info: {
+                extensions: [
+                  {
+                    extension: 'transferFeeConfig',
+                    state: { newerTransferFee: { epoch: 0, transferFeeBasisPoints: 50, maximumFee: '1000000' } },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      }),
+      getEpochInfo: () => ({ epoch: 700 }),
+    });
+    await expect(withFee.adapter.getTransferFeeConfig(MINT)).resolves.toEqual({
+      basisPoints: 50,
+      maximumFee: 1_000_000n,
+    });
+
+    // Un RPC muet ne doit pas empêcher d'envoyer : null, pas d'exception.
+    const broken = stub({
+      getAccountInfo: () => {
+        throw new Error('HS');
+      },
+      getEpochInfo: () => ({ epoch: 1 }),
+    });
+    await expect(broken.adapter.getTransferFeeConfig(MINT)).resolves.toBeNull();
   });
 });
