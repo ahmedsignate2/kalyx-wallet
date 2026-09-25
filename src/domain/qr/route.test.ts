@@ -112,7 +112,12 @@ describe('sendIntentFor', () => {
       label: 'Café Nova',
       message: 'Table 12',
     });
-    expect(i).toEqual({ to: 'bc1x', amount: '0.01', payee: 'Café Nova', memo: 'Table 12' });
+    /*
+     * `note` et non `memo` : sur Solana, `memo` est une instruction écrite
+     * ON-CHAIN, pas un texte d'interface. Confondre les deux ferait inscrire
+     * dans la blockchain un libellé destiné à l'écran.
+     */
+    expect(i).toEqual({ to: 'bc1x', amount: '0.01', payee: 'Café Nova', note: 'Table 12' });
   });
 
   it('adresse nue : destinataire seul, aucun montant inventé', () => {

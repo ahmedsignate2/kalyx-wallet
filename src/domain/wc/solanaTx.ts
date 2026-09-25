@@ -46,6 +46,14 @@ export interface SolanaTxDescription {
   lookupTables: number;
   /** Vrai si le payeur des frais n'est pas l'adresse attendue (signature demandée pour un autre compte). */
   feePayerMismatch?: boolean;
+  /**
+   * Nombre de signatures que la transaction exige.
+   *
+   * Au-delà d'une, elle attend aussi celle d'un tiers : la signer, c'est
+   * autoriser une opération qui ne s'exécutera que si ce tiers le décide, au
+   * moment qu'il choisit — et notre signature reste valable en attendant.
+   */
+  signerCount: number;
 }
 
 class Reader {
@@ -90,7 +98,14 @@ function byteCandidates(input: string | Uint8Array): Uint8Array[] {
 }
 
 /** Décode le MESSAGE (sans les signatures). */
-export function parseSolanaMessage(bytes: Uint8Array): { version: 'legacy' | 0; keys: string[]; programIndexes: number[]; lookupTables: number } {
+export function parseSolanaMessage(bytes: Uint8Array): {
+  version: 'legacy' | 0;
+  keys: string[];
+  programIndexes: number[];
+  lookupTables: number;
+  /** Premier octet de l'en-tête : nombre de signatures requises. */
+  signerCount: number;
+} {
   const r = new Reader(bytes);
   let version: 'legacy' | 0 = 'legacy';
   if ((r.peek() & 0x80) !== 0) {
@@ -98,7 +113,9 @@ export function parseSolanaMessage(bytes: Uint8Array): { version: 'legacy' | 0; 
     if (v !== 0) throw new Error(`version de transaction non gérée : ${v}`);
     version = 0;
   }
-  r.bytes(3); // en-tête : signatures requises, lecture seule signées, lecture seule non signées
+  // En-tête : signatures requises, lecture seule signées, lecture seule non signées.
+  const header = r.bytes(3);
+  const signerCount = header[0];
   const nKeys = r.compact();
   const keys: string[] = [];
   for (let i = 0; i < nKeys; i++) keys.push(base58.encode(r.bytes(32)));
@@ -121,7 +138,7 @@ export function parseSolanaMessage(bytes: Uint8Array): { version: 'legacy' | 0; 
       r.bytes(r.compact());
     }
   }
-  return { version, keys, programIndexes, lookupTables };
+  return { version, keys, programIndexes, lookupTables, signerCount };
 }
 
 /** Décrit une transaction sérialisée (signatures + message). Jamais ne lève : null si illisible. */
@@ -167,6 +184,7 @@ function describeBytes(bytes: Uint8Array, expectedFeePayer?: string): SolanaTxDe
       feePayer,
       lookupTables: msg.lookupTables,
       feePayerMismatch: expectedFeePayer ? feePayer !== expectedFeePayer : undefined,
+      signerCount: msg.signerCount,
     };
   } catch {
     return null;
