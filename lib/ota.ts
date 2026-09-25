@@ -25,6 +25,45 @@ import { AppState, type AppStateStatus } from 'react-native';
 
 type UpdatesModule = typeof import('expo-updates');
 
+/** Ce qu'il faut savoir pour comprendre POURQUOI une OTA arrive ou n'arrive pas. */
+export interface OtaDiagnostic {
+  /** Empreinte du binaire installé. Une OTA n'atteint QUE ce runtime. */
+  runtimeVersion: string;
+  /** Canal de mise à jour (`preview`, `production`). */
+  channel: string;
+  /** `true` si l'app tourne sur le bundle embarqué, `false` sur une OTA. */
+  embedded: boolean;
+  /** Identifiant de la mise à jour appliquée, absent si bundle embarqué. */
+  updateId: string | null;
+  /** Date de création de la mise à jour appliquée. */
+  createdAt: string | null;
+}
+
+/**
+ * État réel des mises à jour sur CET appareil.
+ *
+ * Existe parce que la question « pourquoi l'OTA n'arrive pas ? » n'a qu'une
+ * réponse possible — la version d'exécution du binaire ne correspond pas à
+ * celle sous laquelle la mise à jour a été publiée — et qu'on n'avait aucun
+ * moyen de la LIRE depuis l'app. On la devinait, deux fois de suite, et on s'est
+ * trompé les deux fois.
+ *
+ * Il suffit maintenant de comparer ce que cet écran affiche avec ce
+ * qu'imprime `eas update` : si les deux diffèrent, la mise à jour ne
+ * descendra jamais, et il faut reconstruire.
+ */
+export function otaDiagnostic(): OtaDiagnostic | null {
+  const U = getUpdates();
+  if (!U) return null;
+  return {
+    runtimeVersion: U.runtimeVersion ?? '—',
+    channel: U.channel ?? '—',
+    embedded: U.isEmbeddedLaunch,
+    updateId: U.updateId ?? null,
+    createdAt: U.createdAt ? U.createdAt.toISOString() : null,
+  };
+}
+
 /**
  * Chargement paresseux : le module natif peut manquer (Expo Go, dev-client pas
  * reconstruit), et son absence ne doit jamais empêcher l'app de démarrer.

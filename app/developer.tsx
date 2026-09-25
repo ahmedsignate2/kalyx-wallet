@@ -12,10 +12,13 @@ import { useCustomChains, type CustomChainInput } from '../lib/customChainsStore
 import { useSettings, useT } from '../lib/settingsStore';
 import { useNotifCenter } from '../lib/notificationCenter';
 import { toast } from '../lib/toast';
+import { otaDiagnostic } from '../lib/ota';
 
 export default function Developer() {
   const { colors, typography } = useTheme();
   const t = useT();
+  // Lu une seule fois : ces valeurs ne changent pas pendant la session.
+  const [ota] = useState(() => otaDiagnostic());
   // Services configurés (clé présente ou non — jamais la valeur).
   const SERVICES: { name: string; present: boolean }[] = [
     { name: t('svcAlchemy'), present: !!process.env.EXPO_PUBLIC_ALCHEMY_KEY },
@@ -89,7 +92,37 @@ export default function Developer() {
           <GlassCard>
             <Row label={t('versionWord')} value={`v${Constants.expoConfig?.version ?? '0.0.1'}`} colors={colors} typography={typography} />
             <Row label={t('environment')} value={__DEV__ ? t('developmentEnv') : t('productionEnv')} colors={colors} typography={typography} divider />
+            {/*
+              VERSION D'EXÉCUTION. À comparer avec ce qu'imprime `eas update` :
+              si les deux diffèrent, la mise à jour ne descendra JAMAIS sur cet
+              appareil, et il faut reconstruire. C'est la seule cause possible
+              d'une OTA qui n'arrive pas, et on n'avait aucun moyen de la lire
+              depuis l'app — on la devinait.
+            */}
+            {ota ? (
+              <>
+                <Row label={t('otaRuntime')} value={ota.runtimeVersion} colors={colors} typography={typography} divider />
+                <Row label={t('otaChannel')} value={ota.channel} colors={colors} typography={typography} divider />
+                <Row
+                  label={t('otaSource')}
+                  value={ota.embedded ? t('otaEmbedded') : `${t('otaApplied')} · ${(ota.updateId ?? '').slice(0, 8)}`}
+                  colors={colors}
+                  typography={typography}
+                  divider
+                />
+              </>
+            ) : null}
           </GlassCard>
+          {ota ? (
+            <Button
+              label={t('otaCopyDiagnostic')}
+              variant="ghost"
+              onPress={() => {
+                void Clipboard.setStringAsync(JSON.stringify(ota, null, 2));
+                toast.success(t('copied'));
+              }}
+            />
+          ) : null}
         </View>
 
         {/* Réseaux de test (séparés du mainnet) */}
