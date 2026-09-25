@@ -67,6 +67,8 @@ export type QrLabelKey =
   | 'qrToken'
   | 'qrWcTitle'
   | 'qrWcDetail'
+  | 'qrPayTitle'
+  | 'qrPayDetail'
   | 'qrOpenSite'
   | 'qrOpenInBrowser'
   | 'qrNotRecognized'
@@ -134,6 +136,8 @@ export function describeQr(result: QrResult, t: QrTranslate): QrDescription {
       };
     case 'walletconnect':
       return { title: t('qrWcTitle'), detail: t('qrWcDetail'), cta: t('connect'), danger: false };
+    case 'wc-pay':
+      return { title: t('qrPayTitle'), detail: t('qrPayDetail'), cta: t('next'), danger: false };
     case 'url':
       return { title: t('qrOpenSite'), detail: result.url, cta: t('qrOpenInBrowser'), danger: true };
     case 'invalid':

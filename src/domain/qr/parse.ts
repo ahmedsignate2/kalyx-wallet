@@ -9,6 +9,7 @@ import { isValidEvmAddress, normalizeEvmAddress } from '../validation/address';
 import { isValidBtcAddress, normalizeBtcAddress } from '../validation/btcAddress';
 import { isValidSolanaAddress } from '../../crypto/solana';
 import { formatAmount } from '../validation/amount';
+import { extractPayLink } from './deeplink';
 
 export type QrResult =
   | { kind: 'evm-address'; address: string }
@@ -36,6 +37,11 @@ export type QrResult =
     }
   | { kind: 'solana-uri'; address: string; amount?: string; splToken?: string }
   | { kind: 'walletconnect'; uri: string }
+  /**
+   * Lien WalletConnect Pay : une DEMANDE côté marchand, pas une adresse.
+   * Distingué des URI de paiement de chaîne, qui désignent un destinataire.
+   */
+  | { kind: 'wc-pay'; link: string }
   | { kind: 'url'; url: string }
   | { kind: 'invalid'; raw: string };
 
@@ -197,6 +203,13 @@ export function parseQr(raw: string): QrResult {
 
   // WalletConnect (case-sensitive : on garde la chaîne d'origine).
   if (lower.startsWith('wc:')) return { kind: 'walletconnect', uri: s };
+
+  /*
+   * Lien de paiement marchand. Testé AVANT la branche « URL web » : sans cela
+   * il finirait dans le navigateur dApps, où il ne servirait à rien.
+   */
+  const payLink = extractPayLink(s);
+  if (payLink) return { kind: 'wc-pay', link: payLink };
 
   // URIs de paiement par schéma.
   if (lower.startsWith('ethereum:')) return parseEthereumUri(s.slice('ethereum:'.length));

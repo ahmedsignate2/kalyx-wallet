@@ -1,4 +1,4 @@
-import { extractWcUri, extractPaymentUri, extractBrowseUrl } from './deeplink';
+import { extractWcUri, extractPaymentUri, extractBrowseUrl, extractPayLink } from './deeplink';
 
 const BTC = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
 const EVM = '0x742d35cc6634c0532925a3b844bc454e4438f44e';
@@ -85,5 +85,43 @@ describe('extractBrowseUrl', () => {
   });
   it('null sans paramètre url', () => {
     expect(extractBrowseUrl('kalyx://browse')).toBeNull();
+  });
+});
+
+describe('extractPayLink', () => {
+  it('reconnaît un lien WalletConnect Pay', () => {
+    const link = 'https://pay.walletconnect.com/pay_123abc';
+    expect(extractPayLink(link)).toBe(link);
+    expect(extractPayLink('https://pay.walletconnect.com/p/xyz?ref=1')).toBe(
+      'https://pay.walletconnect.com/p/xyz?ref=1',
+    );
+  });
+
+  it('compare l\'HÔTE, pas une sous-chaîne', () => {
+    /*
+     * `pay.walletconnect.com.evil.example` contient le motif sans être notre
+     * hôte. Une simple recherche de sous-chaîne enverrait un lien hostile dans
+     * le flux de paiement.
+     */
+    expect(extractPayLink('https://pay.walletconnect.com.evil.example/pay_1')).toBeNull();
+    expect(extractPayLink('https://evil.example/pay.walletconnect.com/pay_1')).toBeNull();
+    expect(extractPayLink('https://notpay.walletconnect.com/pay_1')).toBeNull();
+  });
+
+  it('exige https', () => {
+    expect(extractPayLink('http://pay.walletconnect.com/pay_1')).toBeNull();
+  });
+
+  it('la racine seule n\'est pas une demande de paiement', () => {
+    expect(extractPayLink('https://pay.walletconnect.com')).toBeNull();
+    expect(extractPayLink('https://pay.walletconnect.com/')).toBeNull();
+  });
+
+  it('ne confond pas avec les URI de paiement de chaîne ni avec wc:', () => {
+    // Les trois arrivent par le même scanner : les distinguer avant tout
+    // traitement est la première chose à faire.
+    expect(extractPayLink('bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')).toBeNull();
+    expect(extractPayLink('wc:topic@2?symKey=ab')).toBeNull();
+    expect(extractPayLink('kalyx://pay?uri=bitcoin%3Abc1q')).toBeNull();
   });
 });

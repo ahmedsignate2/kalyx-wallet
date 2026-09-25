@@ -14,6 +14,36 @@
 /** Schémas d'URI de paiement reconnus, dans leur forme directe. */
 export const PAY_SCHEMES = ['ethereum:', 'bitcoin:', 'solana:'] as const;
 
+/** Hôte des liens de paiement WalletConnect Pay. */
+const WC_PAY_HOST = 'pay.walletconnect.com';
+
+/**
+ * Extrait un lien WalletConnect Pay, ou null.
+ *
+ * À NE PAS confondre avec les URI de paiement de chaîne (`bitcoin:`, `solana:`)
+ * : un lien Pay ne désigne pas une adresse, il désigne une DEMANDE côté
+ * marchand, que le service résout en options de paiement. Les deux arrivent par
+ * le même scanner et le même lien profond, d'où le besoin de les distinguer
+ * avant tout traitement.
+ *
+ * Le SDK standalone n'expose pas d'équivalent de `isPaymentLink` — c'est une
+ * fonction de WalletKit. On la reconstitue donc ici, en vérifiant l'HÔTE et non
+ * une simple présence de sous-chaîne : `pay.walletconnect.com.evil.example`
+ * contient le motif sans être notre hôte.
+ */
+export function extractPayLink(url: string): string | null {
+  const raw = (url ?? '').trim();
+  if (!/^https:\/\//i.test(raw)) return null;
+
+  // Hôte exact, comparé après le schéma et avant le premier `/`, `?` ou `#`.
+  const host = raw.slice('https://'.length).split(/[/?#]/)[0].toLowerCase();
+  if (host !== WC_PAY_HOST) return null;
+
+  // Un lien sans chemin n'est pas une demande de paiement, juste la racine.
+  const rest = raw.slice('https://'.length + host.length);
+  return rest && rest !== '/' ? raw : null;
+}
+
 /** Valeur d'un paramètre de requête, décodée, ou null. */
 function queryParam(url: string, key: string): string | null {
   const m = url.match(new RegExp(`[?&]${key}=([^&]+)`));

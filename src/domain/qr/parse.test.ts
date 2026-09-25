@@ -176,3 +176,31 @@ describe('parseQr — Solana Pay', () => {
     expect(r.splToken).toBe(USDC_MINT);
   });
 });
+
+describe('parseQr — WalletConnect Pay', () => {
+  const PAY = 'https://pay.walletconnect.com/pay_abc123';
+
+  it('reconnaît un lien de paiement marchand', () => {
+    expect(parseQr(PAY)).toEqual({ kind: 'wc-pay', link: PAY });
+  });
+
+  it('classé AVANT « URL web » : sinon il finirait dans le navigateur dApps', () => {
+    /*
+     * C'est une URL https parfaitement valide. Sans branche dédiée, elle
+     * tomberait dans `kind: 'url'` et s'ouvrirait dans le navigateur, où elle
+     * ne sert à rien — l'utilisateur verrait une page de paiement web au lieu
+     * de son portefeuille.
+     */
+    expect(parseQr(PAY).kind).not.toBe('url');
+    expect(parseQr('https://app.uniswap.org').kind).toBe('url');
+  });
+
+  it('un hôte voisin reste une simple URL', () => {
+    expect(parseQr('https://pay.walletconnect.com.evil.example/pay_1').kind).toBe('url');
+  });
+
+  it('ne se confond pas avec wc: ni avec une URI de paiement de chaîne', () => {
+    expect(parseQr('wc:topic@2?symKey=ab').kind).toBe('walletconnect');
+    expect(parseQr(`bitcoin:${BTC}?amount=0.01`).kind).toBe('bitcoin-uri');
+  });
+});
