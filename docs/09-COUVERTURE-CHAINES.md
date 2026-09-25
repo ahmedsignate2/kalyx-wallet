@@ -126,6 +126,17 @@ sur un petit montant, vaut plus que cinquante tests de plus.
 
 ## Limites connues, assumées
 
+**53 messages d'erreur de domaine sont écrits en français EN DUR.** Tous les
+`new WalletError(code, 'message')` de `src/domain` portent un texte, et ce texte
+remonte à l'utilisateur via les toasts (`toast.error(t('sendFailed'), e.message)`).
+Un utilisateur en anglais voit donc « Adresse Bitcoin invalide » ou « Solde
+Bitcoin insuffisant (frais inclus) ».
+
+Le code d'erreur, lui, est bien structuré : la correction consiste à traduire
+depuis `e.code` dans les écrans plutôt qu'à afficher `e.message`, et à réduire
+le message à une aide au diagnostic. Ce n'est pas un trou de conception mais une
+dette d'interface, systémique et antérieure à tout ce travail. **Non traitée.**
+
 **La clé privée EVM transite par une chaîne de caractères.** `ethers` expose sa
 signature via `new Wallet(privateKeyHex)`, ce qui oblige à reconstruire une
 chaîne hexadécimale à partir des octets. Une chaîne JavaScript est IMMUABLE :

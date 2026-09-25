@@ -57,14 +57,14 @@ describe('checkPayAction — le garde-fou', () => {
     for (const method of ['eth_sign', 'eth_signTypedData', 'wallet_addEthereumChain', 'solana_signTransaction', '']) {
       const r = checkPayAction({ chainId: 'eip155:1', method });
       expect(r.ok).toBe(false);
-      expect(r.reason).toMatch(/non autorisée/);
+      expect(r.reason).toBe('METHOD_NOT_ALLOWED');
     }
   });
 
   it('REFUSE un espace de noms qu\'on ne sait pas interpréter', () => {
     const r = checkPayAction({ chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', method: 'personal_sign' });
     expect(r.ok).toBe(false);
-    expect(r.reason).toMatch(/Espace de noms/);
+    expect(r.reason).toBe('NAMESPACE_UNSUPPORTED');
   });
 
   it('REFUSE un réseau hors du périmètre de paiement', () => {
@@ -72,7 +72,7 @@ describe('checkPayAction — le garde-fou', () => {
     // qu'on croit.
     const r = checkPayAction({ chainId: 'eip155:999999', method: 'personal_sign' });
     expect(r.ok).toBe(false);
-    expect(r.reason).toMatch(/hors du périmètre/);
+    expect(r.reason).toBe('CHAIN_OUT_OF_SCOPE');
   });
 
   it('REFUSE une chaîne illisible ou absente', () => {
@@ -83,5 +83,35 @@ describe('checkPayAction — le garde-fou', () => {
 
   it('le périmètre autorisé est injectable, pour les tests et une évolution', () => {
     expect(checkPayAction({ chainId: 'eip155:999', method: 'personal_sign' }, [999]).ok).toBe(true);
+  });
+});
+
+describe('les refus portent un CODE, jamais une phrase', () => {
+  it('chaque refus rend un code et non du texte traduisible', () => {
+    /*
+     * Un domaine pur ne connaît pas la langue de l'utilisateur. Des messages
+     * écrits ici ressortent tels quels à l'écran — c'est ce qui s'est passé :
+     * « Aucune option de paiement disponible pour tes soldes » s'est affiché en
+     * français alors que les clés de traduction existaient déjà.
+     */
+    const cas: [Record<string, unknown>, string][] = [
+      [{ chainId: 'eip155:1', method: 'eth_sign' }, 'METHOD_NOT_ALLOWED'],
+      [{ chainId: 42, method: 'personal_sign' }, 'CHAIN_UNREADABLE'],
+      [{ chainId: 'solana:abc', method: 'personal_sign' }, 'NAMESPACE_UNSUPPORTED'],
+      [{ chainId: 'eip155:abc', method: 'personal_sign' }, 'CHAIN_INVALID'],
+      [{ chainId: 'eip155:999999', method: 'personal_sign' }, 'CHAIN_OUT_OF_SCOPE'],
+    ];
+    for (const [action, code] of cas) {
+      const r = checkPayAction(action);
+      expect(r.ok).toBe(false);
+      expect(r.reason).toBe(code);
+      // Et surtout : aucun espace, donc aucune phrase.
+      expect(r.reason).not.toMatch(/\s/);
+    }
+  });
+
+  it('le détail accompagne le code, sans le remplacer', () => {
+    expect(checkPayAction({ chainId: 'eip155:1', method: 'eth_sign' }).detail).toBe('eth_sign');
+    expect(checkPayAction({ chainId: 'eip155:999999', method: 'personal_sign' }).detail).toBe('999999');
   });
 });
