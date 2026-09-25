@@ -51,7 +51,7 @@ Légende :
 |---|---|---|---|
 | Suivi de confirmation | OK | OK (via l'historique) | OK (`confirmSignature`, expiration détectée) |
 | Accélérer | OK (même nonce, +20 %) | OK (RBF, BIP-125) | n/a — une tx non incluse expire, rien n'est débité |
-| Annuler | OK (nonce vers soi) | **MANQUE** — techniquement possible en RBF vers soi-même | n/a |
+| Annuler | OK (nonce vers soi) | OK (RBF vers soi-même) — *disponible sur l'adapter v2* | n/a |
 | Distinguer « échouée » d'« expirée » | OK | OK | OK (`TX_FAILED` / `TX_EXPIRED`) |
 
 ## 4. dApps et signature
@@ -80,15 +80,17 @@ Légende :
 
 **Manques réels, par ordre d'impact :**
 
-1. **Annulation Bitcoin.** L'accélération existe ; annuler serait le même
-   mécanisme RBF, mais en se renvoyant les fonds à soi-même. Le socle est déjà
-   là (`bumpBitcoinFee`), il manque le chemin « destinataire = moi ».
-2. **Échange Bitcoin.** Aucun agrégateur UTXO n'est branché. C'est une intégration
+1. **Échange Bitcoin.** Aucun agrégateur UTXO n'est branché. C'est une intégration
    externe, pas un trou de notre architecture.
 3. **NFT Solana.** Les jetons sont lus, pas les NFT.
 4. **Simulation Bitcoin.** Il n'existe pas d'équivalent simple à `eth_call` sur un
    modèle UTXO ; les contrôles (poussière, solde, frais, format d'adresse) sont
    faits avant signature, ce qui couvre l'essentiel du risque.
+
+**Résolu depuis :** l'annulation Bitcoin. Elle existe sur `BitcoinAdapterV2` —
+même mécanisme RBF que l'accélération, mais en se renvoyant les fonds à soi-même,
+ce qui dépense les mêmes entrées et rend l'originale caduque. Elle sera visible
+dans l'interface au branchement de la v2.
 
 **Ce qui n'est PAS un manque, et qu'il faut arrêter de rechercher :**
 
