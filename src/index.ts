@@ -133,9 +133,17 @@ export { transactionsToCsv, type CsvContext } from './domain/export/txCsv';
 // Export manuel chiffré de la seed
 export { createBackup, restoreBackup, BACKUP_VERSION, type BackupEnvelope } from './domain/backup/cloudBackup';
 export {
+  parseTransferFeeConfig,
+  transferFeeFor,
+  amountAfterTransferFee,
+  type TransferFeeConfig,
+} from './domain/tokens/token2022';
+export {
   parseTokenAccounts,
+  mergeTokenAccounts,
   KNOWN_MINTS,
   SPL_TOKEN_PROGRAM,
+  SPL_TOKEN_2022_PROGRAM,
   type SplToken,
 } from './domain/tokens/splTokens';
 
