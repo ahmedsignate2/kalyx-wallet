@@ -14,6 +14,7 @@ import type {
   TransferIntent,
   TransferParams,
   TxSummary,
+  TxParsed,
   UnsignedTx,
 } from './types';
 import { deriveSolanaAccount, isValidSolanaAddress } from '../../crypto/solana';
@@ -129,7 +130,21 @@ export class SolanaChainAdapter implements ChainAdapter {
     };
   }
 
+  /**
+   * Historique du compte, chaque ligne ESTAMPILLÉE de sa chaîne.
+   *
+   * L'estampillage se fait ici et nulle part ailleurs : les analyseurs lisent la
+   * réponse d'un indexeur et ignorent de quel réseau il s'agit, alors que
+   * l'adaptateur ne parle que du sien. Un seul point de passage, donc aucune
+   * liste ne peut ressortir sans sa chaîne — et l'accueil cesse de deviner les
+   * décimales d'après le réseau affiché.
+   */
   async getHistory(address: string): Promise<TxSummary[]> {
+    return (await this.fetchHistory(address)).map((tx) => ({ ...tx, chain: this.config.id }));
+  }
+
+  /** Historique brut : Helius si disponible, sinon les signatures RPC. */
+  private async fetchHistory(address: string): Promise<TxParsed[]> {
     if (!isValidSolanaAddress(address)) return [];
     
     const HELIUS_KEY = process.env.EXPO_PUBLIC_HELIUS_KEY;
@@ -189,7 +204,7 @@ export class SolanaChainAdapter implements ChainAdapter {
     );
     return txs
       .map((tx) => (tx ? parseSolanaTx(address, tx) : null))
-      .filter((x): x is TxSummary => x !== null);
+      .filter((x): x is TxParsed => x !== null);
   }
 
   /** Tokens SPL détenus par l'adresse (solde + mint), triés par solde. */

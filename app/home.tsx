@@ -33,7 +33,7 @@ import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
 import { isDeviceCompromised } from '../lib/deviceSecurity';
 import { IS_BETA } from '../lib/appStage';
-import { getAdapter, listChains, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type TxSummary, type ChartPoint, type NftItem } from '../src';
+import { getAdapter, listChains, nativeOfChain, chainNameOf, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type TxSummary, type ChartPoint, type NftItem } from '../src';
 
 const HIDE_KEY = 'kalyx.hideBalance';
 type Tab = 'tokens' | 'nft' | 'activity';
@@ -159,8 +159,13 @@ export default function Home() {
     }))
       .then((lists) => {
         if (!alive) return;
+        /*
+         * Clé RÉSEAU + EMPREINTE. L'empreinte seule confondait deux
+         * transactions homonymes venues de chaînes différentes — cas réel entre
+         * EVM compatibles, où un même hachage peut exister sur deux réseaux.
+         */
         const unique = new Map<string, TxSummary>();
-        lists.flat().forEach((tx) => unique.set(tx.hash, tx));
+        lists.flat().forEach((tx) => unique.set(`${tx.chain}:${tx.hash}`, tx));
         setRecent([...unique.values()].sort((a, b) => b.timestamp - a.timestamp).slice(0, 5));
       })
       .catch(() => {
@@ -240,6 +245,14 @@ export default function Home() {
   const humanCtx = {
     nativeSymbol: getAdapter(activeChain).config.nativeSymbol,
     nativeDecimals: getAdapter(activeChain).config.nativeDecimals,
+    /*
+     * LA CHAÎNE DE CHAQUE LIGNE, pas celle affichée. Cette liste agrège
+     * l'historique de tous les réseaux ; sans ce résolveur, les décimales du
+     * réseau actif s'appliquaient à tout, et un envoi de 1 000 satoshis vu
+     * depuis Base s'affichait « 0,000000000000001 ETH » — avec, en plus, la
+     * contre-valeur de l'ETH sur un montant en Bitcoin.
+     */
+    nativeOf: nativeOfChain,
     nameOf,
     verifiedSymbols: vSymbols,
     fiatOf: (symbol: string, amount: number) => {
@@ -579,8 +592,13 @@ export default function Home() {
             <>
               <Surface padded={false}>
                 {recent.map((tx) => ({ tx, h: humanizeTx(tx, humanCtx) })).filter((r) => !r.h.spam).slice(0, 5).map((r, i, arr) => (
-                  <React.Fragment key={r.tx.hash}>
-                    <ActivityRow h={r.h} time={new Date(r.tx.timestamp * 1000).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })} onPress={() => router.push('/history')} />
+                  <React.Fragment key={`${r.tx.chain}:${r.tx.hash}`}>
+                    <ActivityRow
+                      h={r.h}
+                      time={new Date(r.tx.timestamp * 1000).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                      network={chainNameOf(r.tx.chain)}
+                      onPress={() => router.push('/history')}
+                    />
                     {i < arr.length - 1 ? <Divider inset={68} /> : null}
                   </React.Fragment>
                 ))}

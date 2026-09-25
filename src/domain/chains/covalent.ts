@@ -1,4 +1,4 @@
-import type { TxSummary } from './types';
+import type { TxParsed, TxSummary } from './types';
 
 function directionOf(from: string, to: string, owner: string): TxSummary['direction'] {
   const o = owner.toLowerCase();
@@ -9,7 +9,7 @@ function directionOf(from: string, to: string, owner: string): TxSummary['direct
   return 'in';
 }
 
-export function parseCovalentTxList(json: any, ownerAddress: string): TxSummary[] {
+export function parseCovalentTxList(json: any, ownerAddress: string): TxParsed[] {
   if (!json || !json.data || !Array.isArray(json.data.items)) return [];
 
   return json.data.items
