@@ -11,7 +11,7 @@
  * sur le réseau Bitcoin, pour le compte courant, et pour une transaction dont on
  * a gardé les entrées (sans elles, aucun remplacement n'est constructible).
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Text, Button, Surface } from './kit';
 import { space } from './tokens';
@@ -49,6 +49,45 @@ export function BtcAccelerate() {
     canAccelerate && account
       ? txs.filter((x) => x.from === account.address && x.inputs.length > 0).sort((a, b) => b.at - a.at)[0]
       : undefined;
+
+  /*
+   * ON OUBLIE UNE TRANSACTION CONFIRMÉE.
+   *
+   * `forget` existait depuis le début et personne ne l'appelait : le bandeau
+   * restait donc affiché jusqu'à la péremption de l'entrée, TROIS JOURS, bien
+   * après que la transaction soit entrée dans un bloc. Il proposait alors
+   * d'accélérer une transaction déjà minée, où le remplacement est refusé par
+   * construction — un bouton qui ne peut que produire une erreur.
+   *
+   * La vérification est un appel unique, pas une attente : `waitForTx` de
+   * Bitcoin interroge le statut et rend la main. On ne réagit qu'à un
+   * `confirmed` — une transaction inconnue du nœud reste `pending`, et
+   * l'effacer là ferait perdre les entrées, donc tout recours.
+   */
+  useEffect(() => {
+    if (!pending) return;
+    const adapter = findAdapterV2(activeChain);
+    if (!adapter) return;
+    const txid = pending.txid;
+    let alive = true;
+
+    const check = async () => {
+      const state = await adapter.waitForTx(txid).catch(() => null);
+      if (alive && state?.status === 'confirmed') usePendingBtc.getState().forget(txid);
+    };
+
+    /*
+     * Une vérification au montage NE SUFFIT PAS : l'écran reste ouvert pendant
+     * que le bloc se mine, et le bandeau attendrait un remontage pour partir.
+     * Une minute est large pour Bitcoin, qui produit un bloc toutes les dix.
+     */
+    void check();
+    const timer = setInterval(() => void check(), 60_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [pending?.txid, activeChain]);
 
   if (!pending) return null;
 
