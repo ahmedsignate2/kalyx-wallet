@@ -639,6 +639,7 @@ const en = {
   btcBumpSent: "Replacement broadcast",
   tokenTransferFee: "Token fee (charged by the token)",
   recipientGets: "recipient gets",
+  solanaPdaWarning: "This address is a program account (e.g. a token account), not a wallet. Nobody can sign for it: SOL sent here is lost. Check with the recipient.",
   payQueuedUnlock: "Unlock to continue the payment",
   noWalletYet: "No wallet on this device yet",
 
@@ -2109,6 +2110,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     btcBumpSent: "Remplacement diffusé",
     tokenTransferFee: "Frais du jeton (prélevés par le jeton)",
     recipientGets: "le destinataire reçoit",
+    solanaPdaWarning: "Cette adresse est un compte de programme (par ex. un compte de jeton), pas un portefeuille. Personne ne peut signer pour elle : le SOL envoyé ici est perdu. Vérifie auprès du destinataire.",
     payQueuedUnlock: "Déverrouille pour continuer le paiement",
     noWalletYet: "Aucun portefeuille sur cet appareil",
 

@@ -29,7 +29,7 @@ import { friendlyTxError } from '../lib/txError';
 import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
 import {
-  getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
+  getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isWalletAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
   formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
   estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, BitcoinChainAdapter,
   estimateVsize, CHANGE_KIND, transferFeeFor, amountAfterTransferFee,
@@ -167,6 +167,8 @@ export default function Send() {
   const isKnown = recipientOk && known.some((k) => k.toLowerCase() === recipient.toLowerCase());
   const contactName = contacts.find((c) => c.address.toLowerCase() === recipient.toLowerCase())?.name;
   const [isContract, setIsContract] = useState(false);
+  /** Destinataire Solana qui n'est pas une clé publique : PDA / compte de jeton. */
+  const isSolanaPda = family === 'solana' && recipientOk && !isWalletAddress(recipient);
   useEffect(() => {
     setIsContract(false);
     if (!recipientOk || family !== 'evm') return;
@@ -607,6 +609,13 @@ export default function Send() {
               </Surface>
             ) : null}
             {isContract ? <Text variant="caption" tone="warning">{t("contractAddressWarning")}</Text> : null}
+            {/*
+              Adresse Solana hors-courbe : c'est une PDA — compte de jeton ou
+              compte de programme — que personne ne peut signer. Y envoyer du
+              SOL, c'est le perdre définitivement, et l'adresse d'un compte de
+              jeton se copie aussi facilement que celle d'un portefeuille.
+            */}
+            {isSolanaPda ? <Text variant="caption" tone="warning">{t('solanaPdaWarning')}</Text> : null}
             {contactName ? <Text variant="caption" tone="secondary">{t("contactLabel").replace("${contactName}", contactName)}</Text> : null}
 
             {recents.length > 0 ? (
