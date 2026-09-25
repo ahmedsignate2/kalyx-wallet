@@ -215,7 +215,7 @@ describe('EvmAdapterV2 — remplacement', () => {
   it('accélérer : MÊME nonce, même destinataire, frais plus élevés', async () => {
     // Un nonce différent créerait une seconde transaction au lieu d'en
     // remplacer une.
-    const d = await withOriginal().prepareAcceleration(account.address, '0xabc');
+    const d = await withOriginal().prepareAcceleration(account.address, { txid: '0xabc' });
     expect(d.payload.nonce).toBe(3);
     expect(d.payload.to).toBe(DEST);
     expect(d.payload.value).toBe(original.value);
@@ -223,7 +223,7 @@ describe('EvmAdapterV2 — remplacement', () => {
   });
 
   it('annuler : même nonce, envoi à SOI-MÊME de valeur nulle', async () => {
-    const d = await withOriginal().prepareCancellation(account.address, '0xabc');
+    const d = await withOriginal().prepareCancellation(account.address, { txid: '0xabc' });
     expect(d.payload.nonce).toBe(3);
     expect(d.payload.to).toBe(account.address);
     expect(d.payload.value).toBe(0n);
@@ -237,7 +237,7 @@ describe('EvmAdapterV2 — remplacement', () => {
       ...original,
       from: DEST, // un autre compte que celui qui demande
     });
-    await expect(a.prepareAcceleration(account.address, '0xabc')).rejects.toMatchObject({
+    await expect(a.prepareAcceleration(account.address, { txid: '0xabc' })).rejects.toMatchObject({
       code: 'NOT_SUPPORTED',
     });
   });
