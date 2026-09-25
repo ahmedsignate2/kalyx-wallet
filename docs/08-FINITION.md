@@ -560,6 +560,18 @@ Priorité par fréquence d'usage réelle. Colonnes renseignées : ✅ conforme, 
 
 ## 23. Risques et questions ouvertes
 
+> **COMMENT VÉRIFIER, au lieu de deviner.** L'écran Développeur affiche la
+> VERSION D'EXÉCUTION du binaire installé. Une OTA n'atteint que le runtime sous
+> lequel elle a été publiée — c'est la seule cause possible d'une mise à jour qui
+> n'arrive pas. Comparer ce que l'écran affiche avec ce qu'imprime `eas update`
+> tranche en deux secondes. Et `node node_modules/expo-updates/bin/cli.js
+> runtimeversion:resolve --platform android` donne l'empreinte de l'arbre courant.
+>
+> Attention : l'empreinte est calculée par la machine QUI CONSTRUIT, et elle
+> hache `node_modules`. Un build local et une OTA publiée depuis la même machine,
+> sans réinstallation entre les deux, donnent la même empreinte. Depuis deux
+> machines différentes, ou après un `npm install`, rien ne le garantit.
+
 > ⚠ **L'EMPREINTE A CHANGÉ le 2026-09-25.** `app.config.ts` a été modifié (schémas `bitcoin:`/`solana:`,
 > App Link `/pay`, drapeau 120 Hz), ce qui était l'objet même de ce rebuild. Conséquence mécanique :
 > **les APK installés AVANT ce build ne reçoivent plus aucune OTA.** Le dernier lot qui les atteint est
