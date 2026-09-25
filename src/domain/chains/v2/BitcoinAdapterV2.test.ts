@@ -163,6 +163,7 @@ describe('BitcoinAdapterV2 — remplacement', () => {
     target: 100_000n,
     feeRate: 10,
     inputs: [{ txid: 'b'.repeat(64), vout: 0, value: 2_000_000 }],
+    fee: 1_410n,
   };
   const pending = { txid: 'TXID', opaque: context };
 
