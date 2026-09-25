@@ -1,6 +1,7 @@
 import { getAdapter } from './registry';
 import { BitcoinChainAdapter } from './BitcoinChainAdapter';
 import { mnemonicToSeedSync } from '../../crypto/mnemonic';
+import { deriveBtcSigner } from '../../crypto/btc';
 import { isWalletError } from '../errors';
 
 const PHRASE =
@@ -161,5 +162,123 @@ describe('BitcoinChainAdapter — paliers de frais et remplacement', () => {
       }, { speed });
     }
     expect(seen[0]).toBeLessThan(seen[1]); // slow coûte moins que fast
+  });
+});
+
+describe('BitcoinChainAdapter — transaction réellement construite et signée', () => {
+  /*
+   * Ces tests n'étaient pas possibles avant : `@scure/btc-signer` est publié en
+   * ESM pur et Jest ne le chargeait pas, si bien que la CONSTRUCTION d'une
+   * transaction Bitcoin n'était vérifiée nulle part. On décode ici le hex
+   * réellement diffusé, plutôt que de faire confiance au code qui l'a produit.
+   */
+  const seed = mnemonicToSeedSync(PHRASE);
+  const signer = deriveBtcSigner(seed, 0);
+
+  const UTXO = { txid: 'b'.repeat(64), vout: 0, value: 2_000_000, status: { confirmed: true } };
+  const FEES = { fastestFee: 40, halfHourFee: 20, hourFee: 10, minimumFee: 1 };
+
+  /** Adapter sans réseau, qui capture le hex diffusé au lieu de l'envoyer. */
+  function capture() {
+    const a = new BitcoinChainAdapter((getAdapter('bitcoin') as BitcoinChainAdapter).config);
+    let hex = '';
+    (a as unknown as { fetchJson: unknown }).fetchJson = async (p: string) =>
+      p.includes('/utxo') ? [UTXO] : FEES;
+    (a as unknown as { broadcastHex: unknown }).broadcastHex = async (h: string) => {
+      hex = h;
+      return 'TXID';
+    };
+    return { adapter: a, hex: () => hex };
+  }
+
+  /** Décode la transaction diffusée avec la bibliothèque, pas avec notre code. */
+  async function decode(hexStr: string) {
+    const btc = await import('@scure/btc-signer');
+    return btc.Transaction.fromRaw(Buffer.from(hexStr, 'hex'), { allowUnknownOutputs: true });
+  }
+
+  it('les entrées sont marquées REMPLAÇABLES (RBF)', async () => {
+    /*
+     * btc-signer met 0xFFFFFFFF par défaut, ce qui rend la transaction FINALE :
+     * une transaction coincée à taux trop faible l'était définitivement, sans
+     * aucun recours, ni depuis Kalyx ni par un service tiers.
+     */
+    const { adapter, hex } = capture();
+    await adapter.sendBitcoinDetailed(signer.address, BTC_ADDR_0, '0.001', signer);
+    const tx = await decode(hex());
+    expect(tx.getInput(0).sequence).toBeLessThan(0xfffffffe);
+  });
+
+  it('envoie le bon montant au bon destinataire, et rend la monnaie à soi', async () => {
+    const { adapter, hex } = capture();
+    const res = await adapter.sendBitcoinDetailed(signer.address, BTC_ADDR_0, '0.001', signer);
+    const tx = await decode(hex());
+
+    expect(tx.outputsLength).toBe(2); // destinataire + monnaie
+    expect(tx.getOutput(0).amount).toBe(100_000n); // 0,001 BTC
+    // Rien ne se perd : entrée = montant + frais + monnaie.
+    expect(100_000n + res.fee + BigInt(tx.getOutput(1).amount!)).toBe(BigInt(UTXO.value));
+  });
+
+  it('sait envoyer vers une adresse HÉRITÉE (1…), refusée jusqu\'ici', async () => {
+    // Le trou d'origine : ces adresses étaient rejetées à la validation, donc
+    // impossible de payer une plateforme ou un portefeuille ancien.
+    const { adapter, hex } = capture();
+    const P2PKH = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+    const res = await adapter.sendBitcoinDetailed(signer.address, P2PKH, '0.001', signer);
+    expect(res.to).toBe(P2PKH);
+    const tx = await decode(hex());
+    // Script P2PKH : OP_DUP OP_HASH160 <20 octets> OP_EQUALVERIFY OP_CHECKSIG.
+    const script = tx.getOutput(0).script!;
+    expect(script.length).toBe(25);
+    expect(script[0]).toBe(0x76);
+    expect(script[1]).toBe(0xa9);
+    expect(script[24]).toBe(0xac);
+  });
+
+  it('sait envoyer vers une adresse P2SH (3…)', async () => {
+    const { adapter, hex } = capture();
+    const res = await adapter.sendBitcoinDetailed(signer.address, '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy', '0.001', signer);
+    expect(res.to).toBe('3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy');
+    const tx = await decode(hex());
+    // Script P2SH : OP_HASH160 <20 octets> OP_EQUAL.
+    const script = tx.getOutput(0).script!;
+    expect(script.length).toBe(23);
+    expect(script[0]).toBe(0xa9);
+    expect(script[22]).toBe(0x87);
+  });
+
+  it('accepte un bech32 en MAJUSCULES et le normalise', async () => {
+    // Forme recommandée pour les QR ; elle repartait telle quelle vers le
+    // signeur, qui attend la forme canonique.
+    const { adapter } = capture();
+    const res = await adapter.sendBitcoinDetailed(signer.address, BTC_ADDR_0.toUpperCase(), '0.001', signer);
+    expect(res.to).toBe(BTC_ADDR_0);
+  });
+
+  it('le palier choisi change réellement les frais payés', async () => {
+    const slow = capture();
+    const fast = capture();
+    const a = await slow.adapter.sendBitcoinDetailed(signer.address, BTC_ADDR_0, '0.001', signer, { speed: 'slow' });
+    const b = await fast.adapter.sendBitcoinDetailed(signer.address, BTC_ADDR_0, '0.001', signer, { speed: 'fast' });
+    expect(a.feeRate).toBe(FEES.hourFee);
+    expect(b.feeRate).toBe(FEES.fastestFee);
+    expect(a.fee).toBeLessThan(b.fee);
+  });
+
+  it('l\'accélération reprend les MÊMES entrées et paie strictement plus', async () => {
+    const first = capture();
+    const sent = await first.adapter.sendBitcoinDetailed(signer.address, BTC_ADDR_0, '0.001', signer, { speed: 'slow' });
+
+    const bump = capture();
+    const replaced = await bump.adapter.bumpBitcoinFee(signer.address, sent, signer, { speed: 'fast' });
+
+    expect(replaced.inputs).toEqual(sent.inputs); // condition d'un remplacement valide
+    expect(replaced.feeRate).toBeGreaterThan(sent.feeRate);
+    expect(replaced.fee).toBeGreaterThan(sent.fee);
+
+    // Le MONTANT ENVOYÉ ne bouge pas : la hausse sort de la monnaie.
+    const tx = await decode(bump.hex());
+    expect(tx.getOutput(0).amount).toBe(100_000n);
   });
 });
