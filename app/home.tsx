@@ -364,9 +364,14 @@ export default function Home() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* ── En-tête : compte ▾ · réseau ▾ · scanner · notifications · menu ── */}
+        {/* ── En-tête : compte ▾ · réseau ▾ · notifications · menu ── */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <KPressable onPress={() => router.push('/accounts')} accessibilityLabel={t("a11ySwitchAccount")} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2], height: 48 }}>
+          {/*
+            Le bloc compte prend la place restante, et garde une marge à droite :
+            son chevron se retrouvait collé à la chip réseau dès que le nom du
+            compte était long, au point de sembler caché.
+          */}
+          <KPressable onPress={() => router.push('/accounts')} accessibilityLabel={t("a11ySwitchAccount")} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2], height: 48, paddingRight: space[1] }}>
             <AddressGlyph address={stored.evmAddress} size={32} />
             <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0 }}>{accountDisplayName(stored, t)}</Text>
             <Icon name="caretDown" size={14} tone="muted" />
@@ -375,25 +380,29 @@ export default function Home() {
           <KPressable
             onPress={() => router.push('/networks')}
             accessibilityLabel={`${t('network')} : ${getAdapter(activeChain).config.name}`}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingHorizontal: space[2], borderRadius: radius.round, backgroundColor: colors.surface2, maxWidth: 128 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingHorizontal: space[2], borderRadius: radius.round, backgroundColor: colors.surface2, maxWidth: 112, flexShrink: 0 }}
           >
             {chainIconUrl(activeChain) ? <Image source={{ uri: chainIconUrl(activeChain) }} style={{ width: 16, height: 16, borderRadius: 8 }} /> : null}
             <Text variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>{getAdapter(activeChain).config.name}</Text>
             <Icon name="caretDown" size={12} tone="muted" />
           </KPressable>
           {/*
-            Scanner : seule porte d'entrée pour connecter une dApp ou la webapp
-            par QR, et il n'était atteignable que depuis l'écran d'envoi et le
-            navigateur dApps — donc introuvable quand on en a besoin. Ici, au
-            même endroit que chez Phantom et Rainbow, sans ligne en plus : le
-            nom du compte se raccourcit déjà tout seul.
+            Cloche et menu SANS écart entre elles : un `IconButton` fait 48 px
+            pour une icône de 22, donc il porte déjà 13 px de marge interne de
+            chaque côté. Y ajouter un `gap` donnait plus de trente pixels de vide
+            entre deux glyphes — l'en-tête paraissait désaccordé.
+
+            Le scanner a quitté cette rangée : à quatre cibles plus le nom du
+            compte, rien ne tenait sur un écran étroit. Il est dans la rangée
+            d'actions, où il ne prend la place d'aucun texte.
           */}
-          <IconButton icon="scan" label={t("scanQr")} tone="ghost" onPress={() => router.push('/scan')} />
-          <View>
-            <IconButton icon="bell" label={t("labelNotifications")} tone="ghost" onPress={() => router.push('/notifications')} />
-            {unread > 0 ? <View style={{ position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.warning }} /> : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View>
+              <IconButton icon="bell" label={t("labelNotifications")} tone="ghost" onPress={() => router.push('/notifications')} />
+              {unread > 0 ? <View style={{ position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.warning }} /> : null}
+            </View>
+            <IconButton icon="menu" label={t("labelMenu")} tone="ghost" onPress={() => router.push('/menu')} />
           </View>
-          <IconButton icon="menu" label={t("labelMenu")} tone="ghost" onPress={() => router.push('/menu')} />
         </View>
 
         {/* Sauvegarde sautée : bandeau permanent (§4.9) */}
@@ -448,6 +457,12 @@ export default function Home() {
           <Button label={t("actionReceive")} icon="receive" variant="secondary" size="md" dense style={{ flex: 1 }} onPress={() => router.push('/receive')} />
           <Button label={t("actionSend")} icon="send" variant="primary" size="md" dense style={{ flex: 1 }} onPress={() => router.push('/send')} />
           <Button label="Swap" icon="exchange" variant="secondary" size="md" dense style={{ flex: 1 }} onPress={() => router.push('/swap')} />
+          {/*
+            Scanner, sans libellé : un quatrième bouton texte aurait comprimé les
+            trois autres. Il reste à portée de pouce, et c'est la seule porte
+            d'entrée pour connecter une dApp ou la webapp par QR.
+          */}
+          <IconButton icon="scan" label={t("scanQr")} tone="surface" onPress={() => router.push('/scan')} />
         </View>
 
         {/* ── Tokens · NFT · Activité ── */}
