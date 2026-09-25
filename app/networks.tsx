@@ -12,10 +12,10 @@ import { useSettings, useT } from '../lib/settingsStore';
 import { listChains, chainIconUrl, customChainId, CUSTOM_FAMILIES, DEFAULT_DECIMALS, type ChainFamily } from '../src';
 
 /** Libellés des familles : noms propres, donc non traduits. */
-const FAMILY_LABELS: Record<ChainFamily, string> = { evm: 'EVM', bitcoin: 'Bitcoin', solana: 'Solana' };
+const FAMILY_LABELS: Record<ChainFamily, string> = { evm: 'EVM', bitcoin: 'Bitcoin', solana: 'Solana', ton: 'TON' };
 
 /** Symbole suggéré par famille, pour ne pas laisser le champ vide. */
-const DEFAULT_SYMBOLS: Record<ChainFamily, string> = { evm: 'ETH', bitcoin: 'BTC', solana: 'SOL' };
+const DEFAULT_SYMBOLS: Record<ChainFamily, string> = { evm: 'ETH', bitcoin: 'BTC', solana: 'SOL', ton: 'TON' };
 import { useCustomChains, type CustomChainInput } from '../lib/customChainsStore';
 import { space, radius } from '../ui/tokens';
 import { Icon } from '../ui/icon';
