@@ -82,11 +82,22 @@ export interface TransferIntent {
 }
 
 /** Transaction complète prête à signer (frais et nonce renseignés). */
+/**
+ * Transaction prête à signer.
+ *
+ * Les frais sont exprimés SOIT en EIP-1559 (`maxFeePerGas` +
+ * `maxPriorityFeePerGas`), SOIT en legacy (`gasPrice`) — jamais les deux. Cette
+ * alternative était absente : le type imposait le 1559, donc l'envoi de la pièce
+ * native échouait sur toute chaîne qui ne le propose pas, y compris les réseaux
+ * personnalisés que l'utilisateur ajoute lui-même.
+ */
 export interface UnsignedTx extends TransferIntent {
   nonce: number;
   gasLimit: bigint;
-  maxFeePerGas: bigint;
-  maxPriorityFeePerGas: bigint;
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
+  /** Frais legacy (type 0) : renseigné seulement si la chaîne n'a pas l'EIP-1559. */
+  gasPrice?: bigint;
 }
 
 export interface ChainAdapter {

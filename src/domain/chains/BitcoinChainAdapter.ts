@@ -21,7 +21,31 @@ import { isValidBtcAddress, normalizeBtcAddress, btcAddressKind } from '../valid
 import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
 import { tryInOrder, withTimeout } from './net';
-import { selectUtxos, type Utxo } from './btcTx';
+import { selectUtxos, estimateVsize, CHANGE_KIND, DUST_SATS, type Utxo, type CoinSelection } from './btcTx';
+import { parseBtcFeeRates, bumpedRate, FALLBACK_RATES, type BtcFeeRates } from './btcFees';
+import type { FeeSpeed } from './gas';
+
+/**
+ * Séquence marquant les entrées comme REMPLAÇABLES (BIP-125 : toute valeur
+ * < 0xFFFFFFFE). btc-signer met 0xFFFFFFFF par défaut, ce qui rend la
+ * transaction finale — donc impossible à accélérer si elle reste coincée.
+ */
+const RBF_SEQUENCE = 0xfffffffd;
+
+/** Ce qu'il faut conserver d'un envoi pour pouvoir le remplacer plus tard. */
+export interface BtcSendResult {
+  txid: string;
+  /** Destinataire, sous forme canonique. */
+  to: string;
+  /** Montant envoyé, en satoshis. */
+  target: bigint;
+  /** Taux payé (sat/vB) : le remplacement doit faire strictement mieux. */
+  feeRate: number;
+  /** Entrées dépensées : un remplacement doit reprendre les MÊMES. */
+  inputs: Utxo[];
+  /** Frais réellement payés, en satoshis. */
+  fee: bigint;
+}
 import { parseBtcTx, type BtcTxResponse } from './btcHistory';
 
 const API_TIMEOUT_MS = 8_000;
@@ -117,50 +141,48 @@ export class BitcoinChainAdapter implements ChainAdapter {
     throw new WalletError('NOT_SUPPORTED', 'Utiliser sendBitcoin pour l’envoi Bitcoin');
   }
 
-  /** Frais recommandés (sat/vB) via mempool.space ; repli prudent sinon. */
-  private async feeRate(): Promise<number> {
+  /**
+   * Trois paliers de frais (sat/vB) via mempool.space.
+   *
+   * Remplace la lecture d'une seule valeur (`halfHourFee`) avec repli `8` en
+   * dur : l'utilisateur n'avait aucun choix de vitesse sur Bitcoin, alors que
+   * l'EVM en propose trois, et un taux figé est soit du surpaiement soit des
+   * heures d'attente selon le jour.
+   */
+  async getFeeRates(): Promise<BtcFeeRates> {
     try {
-      const fees = (await this.fetchJson('/v1/fees/recommended')) as { halfHourFee?: number };
-      const r = Number(fees.halfHourFee);
-      return Number.isFinite(r) && r > 0 ? r : 8;
+      return parseBtcFeeRates(await this.fetchJson('/v1/fees/recommended'));
     } catch {
-      return 8; // sat/vB par défaut si l'API échoue
+      return FALLBACK_RATES;
     }
   }
 
-  /**
-   * ENVOI Bitcoin (P2WPKH) : récupère les UTXO confirmés, sélectionne les
-   * pièces (frais inclus), construit + signe la tx avec @scure/btc-signer,
-   * diffuse le hex. Renvoie le txid. La clé privée transite mais n'est jamais
-   * stockée ni loggée.
-   */
-  async sendBitcoin(from: string, to: string, amount: string, signer: { privateKey: Uint8Array; publicKey: Uint8Array }): Promise<string> {
-    // Normalisation AVANT validation : le bech32 majuscule des QR doit passer,
-    // et une adresse base58 doit traverser intacte (casse significative).
-    const dest = normalizeBtcAddress(to);
-    const destKind = btcAddressKind(dest);
-    if (!destKind) throw new WalletError('INVALID_ADDRESS', 'Adresse destinataire invalide');
-    const target = parseAmount(amount, this.config.nativeDecimals).raw;
-    if (target <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant invalide');
-
-    const [raw, feeRate] = await Promise.all([
-      this.fetchJson(`/address/${from}/utxo`) as Promise<RawUtxo[]>,
-      this.feeRate(),
-    ]);
-    const utxos: Utxo[] = (raw ?? [])
-      .filter((u) => u.status?.confirmed !== false) // confirmés d'abord
+  /** UTXO confirmés de l'adresse, prêts pour la sélection. */
+  private async confirmedUtxos(from: string): Promise<Utxo[]> {
+    const raw = (await this.fetchJson(`/address/${from}/utxo`)) as RawUtxo[];
+    return (raw ?? [])
+      .filter((u) => u.status?.confirmed !== false)
       .map((u) => ({ txid: u.txid, vout: u.vout, value: u.value }));
+  }
 
-    // Le type de l'adresse destinataire entre dans le calcul des frais : une
-    // sortie P2PKH ou Taproot est plus grosse qu'une P2WPKH.
-    const selection = selectUtxos(utxos, target, feeRate, destKind);
-    if (!selection) throw new WalletError('INSUFFICIENT_FUNDS', 'Solde Bitcoin insuffisant (frais inclus).');
-
+  /**
+   * Construit, signe et diffuse une transaction à partir d'entrées CHOISIES.
+   *
+   * Isolé du choix des pièces pour que le remplacement (RBF) puisse réutiliser
+   * exactement les mêmes entrées — c'est la condition d'un remplacement valide.
+   */
+  private async signAndBroadcast(
+    from: string,
+    dest: string,
+    target: bigint,
+    selection: CoinSelection,
+    signer: { privateKey: Uint8Array; publicKey: Uint8Array },
+  ): Promise<string> {
     // @scure/btc-signer est ESM pur (Jest ne le transforme pas) : import
     // dynamique ici → le module reste chargeable en test (envoi non exercé).
     const btc = await import('@scure/btc-signer');
 
-    // Construction P2WPKH (SegWit natif).
+    // Construction P2WPKH (SegWit natif) côté ENTRÉES : c'est ce que Kalyx dérive.
     const p2wpkh = btc.p2wpkh(signer.publicKey);
     const tx = new btc.Transaction();
     for (const input of selection.inputs) {
@@ -168,6 +190,13 @@ export class BitcoinChainAdapter implements ChainAdapter {
         txid: input.txid,
         index: input.vout,
         witnessUtxo: { script: p2wpkh.script, amount: BigInt(input.value) },
+        /*
+         * REMPLAÇABLE (BIP-125). La séquence par défaut de btc-signer est
+         * 0xFFFFFFFF, qui marque la transaction comme FINALE : une transaction
+         * coincée à taux trop faible l'était alors définitivement, sans aucun
+         * moyen de l'accélérer — ni depuis Kalyx, ni par un service tiers.
+         */
+        sequence: RBF_SEQUENCE,
       });
     }
     tx.addOutputAddress(dest, target);
@@ -176,6 +205,118 @@ export class BitcoinChainAdapter implements ChainAdapter {
     tx.sign(signer.privateKey);
     tx.finalize();
     return this.broadcastHex(tx.hex);
+  }
+
+  /**
+   * ENVOI Bitcoin : récupère les UTXO confirmés, sélectionne les pièces (frais
+   * inclus), construit + signe la tx avec @scure/btc-signer, diffuse le hex.
+   * La clé privée transite mais n'est jamais stockée ni loggée.
+   *
+   * Renvoie de quoi REMPLACER cette transaction plus tard : les entrées et le
+   * taux payé. Sans ces deux informations, une accélération est impossible —
+   * les UTXO dépensés ne figurent plus dans l'ensemble des UTXO disponibles.
+   */
+  async sendBitcoinDetailed(
+    from: string,
+    to: string,
+    amount: string,
+    signer: { privateKey: Uint8Array; publicKey: Uint8Array },
+    opts?: { speed?: FeeSpeed },
+  ): Promise<BtcSendResult> {
+    // Normalisation AVANT validation : le bech32 majuscule des QR doit passer,
+    // et une adresse base58 doit traverser intacte (casse significative).
+    const dest = normalizeBtcAddress(to);
+    const destKind = btcAddressKind(dest);
+    if (!destKind) throw new WalletError('INVALID_ADDRESS', 'Adresse destinataire invalide');
+    const target = parseAmount(amount, this.config.nativeDecimals).raw;
+    if (target <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant invalide');
+
+    const [utxos, rates] = await Promise.all([this.confirmedUtxos(from), this.getFeeRates()]);
+    const feeRate = rates[opts?.speed ?? 'normal'];
+
+    // Le type de l'adresse destinataire entre dans le calcul des frais : une
+    // sortie P2PKH ou Taproot est plus grosse qu'une P2WPKH.
+    const selection = selectUtxos(utxos, target, feeRate, destKind);
+    if (!selection) throw new WalletError('INSUFFICIENT_FUNDS', 'Solde Bitcoin insuffisant (frais inclus).');
+
+    const txid = await this.signAndBroadcast(from, dest, target, selection, signer);
+    return { txid, to: dest, target, feeRate, inputs: selection.inputs, fee: selection.fee };
+  }
+
+  /** Envoi Bitcoin ; renvoie le txid (cf. `sendBitcoinDetailed` pour le RBF). */
+  async sendBitcoin(
+    from: string,
+    to: string,
+    amount: string,
+    signer: { privateKey: Uint8Array; publicKey: Uint8Array },
+    opts?: { speed?: FeeSpeed },
+  ): Promise<string> {
+    return (await this.sendBitcoinDetailed(from, to, amount, signer, opts)).txid;
+  }
+
+  /**
+   * ACCÉLÈRE une transaction en attente (remplacement BIP-125).
+   *
+   * Reprend EXACTEMENT les mêmes entrées et le même destinataire, au même
+   * montant, mais à un taux plus élevé : la différence sort de la monnaie
+   * rendue. Un remplacement doit payer strictement plus que l'original, sinon
+   * les nœuds le rejettent (cf. `bumpedRate`).
+   *
+   * Si la monnaie ne suffit plus à couvrir la hausse, on refuse plutôt que de
+   * rogner le montant envoyé : l'utilisateur a demandé à accélérer un paiement,
+   * pas à en changer le montant.
+   */
+  async bumpBitcoinFee(
+    from: string,
+    previous: { to: string; target: bigint; feeRate: number; inputs: Utxo[] },
+    signer: { privateKey: Uint8Array; publicKey: Uint8Array },
+    opts?: { speed?: FeeSpeed },
+  ): Promise<BtcSendResult> {
+    const dest = normalizeBtcAddress(previous.to);
+    const destKind = btcAddressKind(dest);
+    if (!destKind) throw new WalletError('INVALID_ADDRESS', 'Adresse destinataire invalide');
+    if (previous.inputs.length === 0) {
+      throw new WalletError('NOT_SUPPORTED', 'Transaction non remplaçable : entrées inconnues.');
+    }
+
+    const rates = await this.getFeeRates();
+    const feeRate = bumpedRate(previous.feeRate, rates[opts?.speed ?? 'fast']);
+    if (feeRate === null) {
+      throw new WalletError(
+        'NOT_SUPPORTED',
+        'Transaction déjà au taux maximal : impossible de l’accélérer davantage.',
+      );
+    }
+
+    const total = previous.inputs.reduce((sum, u) => sum + BigInt(u.value), 0n);
+    const vsize = estimateVsize(previous.inputs.length, [destKind, CHANGE_KIND]);
+    const fee = BigInt(Math.ceil(vsize * feeRate));
+    if (total < previous.target + fee) {
+      throw new WalletError(
+        'INSUFFICIENT_FUNDS',
+        'Monnaie insuffisante pour accélérer sans réduire le montant envoyé.',
+      );
+    }
+    let change = total - previous.target - fee;
+    let selection: CoinSelection;
+    if (change >= DUST_SATS) {
+      selection = { inputs: previous.inputs, fee, change };
+    } else {
+      // Monnaie devenue poussière : elle part en frais, comme à l'envoi initial.
+      const vsizeNoChange = estimateVsize(previous.inputs.length, [destKind]);
+      const feeNoChange = BigInt(Math.ceil(vsizeNoChange * feeRate));
+      if (total < previous.target + feeNoChange) {
+        throw new WalletError(
+          'INSUFFICIENT_FUNDS',
+          'Monnaie insuffisante pour accélérer sans réduire le montant envoyé.',
+        );
+      }
+      change = 0n;
+      selection = { inputs: previous.inputs, fee: total - previous.target, change: 0n };
+    }
+
+    const txid = await this.signAndBroadcast(from, dest, previous.target, selection, signer);
+    return { txid, to: dest, target: previous.target, feeRate, inputs: previous.inputs, fee: selection.fee };
   }
 
   /** Diffusion d'une transaction signée (hex brut) : POST mempool.space / blockstream, renvoie le txid. */

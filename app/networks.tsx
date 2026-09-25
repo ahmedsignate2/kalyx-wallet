@@ -1,4 +1,4 @@
-import { ScreenHeader, IconButton, Pressable as KPressable, Button, Checkbox, Text as KText } from '../ui/kit';
+import { ScreenHeader, IconButton, Pressable as KPressable, Button, Checkbox, SegmentedControl, Text as KText } from '../ui/kit';
 import { ExplainSheet } from '../components/ai/ExplainSheet';
 import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
@@ -9,7 +9,13 @@ import { SearchBar, RemoteIcon } from '../ui/premium';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
-import { listChains, chainIconUrl } from '../src';
+import { listChains, chainIconUrl, customChainId, CUSTOM_FAMILIES, DEFAULT_DECIMALS, type ChainFamily } from '../src';
+
+/** Libellés des familles : noms propres, donc non traduits. */
+const FAMILY_LABELS: Record<ChainFamily, string> = { evm: 'EVM', bitcoin: 'Bitcoin', solana: 'Solana' };
+
+/** Symbole suggéré par famille, pour ne pas laisser le champ vide. */
+const DEFAULT_SYMBOLS: Record<ChainFamily, string> = { evm: 'ETH', bitcoin: 'BTC', solana: 'SOL' };
 import { useCustomChains, type CustomChainInput } from '../lib/customChainsStore';
 import { space, radius } from '../ui/tokens';
 import { Icon } from '../ui/icon';
@@ -27,7 +33,17 @@ export default function Networks() {
   const [query, setQuery] = useState('');
   const [explain, setExplain] = useState<{ name: string; id: string } | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState<CustomChainInput>({ name: '', rpcUrl: '', evmChainId: 0, nativeSymbol: '', explorerUrl: '', testnet: false });
+  const EMPTY_FORM: CustomChainInput = {
+    name: '',
+    family: 'evm',
+    rpcUrl: '',
+    evmChainId: 0,
+    nativeSymbol: '',
+    nativeDecimals: DEFAULT_DECIMALS.evm,
+    explorerUrl: '',
+    testnet: false,
+  };
+  const [form, setForm] = useState<CustomChainInput>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const scrolledOnce = useRef(false);
@@ -52,9 +68,10 @@ export default function Networks() {
       setFormError(result.error ?? t('errNetwork'));
       return;
     }
-    const id = `custom-${form.evmChainId}`;
+    const family = form.family ?? 'evm';
+    const id = customChainId(family, family === 'evm' ? form.evmChainId : undefined, form.name.trim());
     setAddOpen(false);
-    setForm({ name: '', rpcUrl: '', evmChainId: 0, nativeSymbol: '', explorerUrl: '', testnet: false });
+    setForm(EMPTY_FORM);
     choose(id);
   };
 
@@ -163,27 +180,63 @@ export default function Networks() {
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
           <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing(2.5), gap: spacing(1.25) }}>
             <Text style={typography.section}>{t("addNetwork")}</Text>
-            {([
-              ['name', t("networkName"), 'Arbitrum Sepolia'],
-              ['rpcUrl', t("rpcUrl"), 'https://…'],
-              ['evmChainId', 'Chain ID', '421614'],
-              ['nativeSymbol', t("currencySymbol"), 'ETH'],
-              ['explorerUrl', t("blockExplorer"), 'https://…'],
-            ] as const).map(([key, label, placeholder]) => (
-              <View key={key} style={{ gap: 4 }}>
-                <Text style={typography.muted}>{label}</Text>
-                <TextInput
-                  value={String(form[key] ?? '')}
-                  onChangeText={(value) => setForm((current) => ({ ...current, [key]: key === 'evmChainId' ? Number(value.replace(/\D/g, '')) : value }))}
-                  placeholder={placeholder}
-                  placeholderTextColor={colors.textSecondary}
-                  keyboardType={key === 'evmChainId' ? 'number-pad' : key === 'rpcUrl' || key === 'explorerUrl' ? 'url' : 'default'}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={{ color: colors.text, backgroundColor: colors.surface2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}
-                />
-              </View>
-            ))}
+            {/*
+              La FAMILLE d'abord : elle décide des champs suivants. Sans ce
+              choix, seuls les réseaux EVM étaient ajoutables — donc pas moyen de
+              mettre son propre RPC Solana, alors que l'endpoint public est
+              précisément le goulot d'étranglement de cette chaîne.
+            */}
+            <View style={{ gap: 4 }}>
+              <Text style={typography.muted}>{t('networkFamily')}</Text>
+              <SegmentedControl
+                items={CUSTOM_FAMILIES.map((f) => ({ key: f, label: FAMILY_LABELS[f] }))}
+                value={form.family ?? 'evm'}
+                onChange={(family) =>
+                  setForm((current) => ({
+                    ...current,
+                    family,
+                    // Les décimales suivent la famille tant que l'utilisateur n'y
+                    // a pas touché : 8 pour Bitcoin, 9 pour Solana, 18 pour l'EVM.
+                    nativeDecimals: DEFAULT_DECIMALS[family],
+                    nativeSymbol: current.nativeSymbol || DEFAULT_SYMBOLS[family],
+                  }))
+                }
+              />
+            </View>
+            {(
+              [
+                ['name', t('networkName'), form.family === 'solana' ? 'Solana (mon RPC)' : 'Arbitrum Sepolia'],
+                ['rpcUrl', t('rpcUrl'), 'https://…'],
+                // Le Chain ID n'existe que sur l'EVM : l'afficher ailleurs
+                // demanderait à l'utilisateur d'inventer une valeur.
+                ...(form.family === 'evm' ? [['evmChainId', 'Chain ID', '421614'] as const] : []),
+                ['nativeSymbol', t('currencySymbol'), DEFAULT_SYMBOLS[form.family ?? 'evm']],
+                ['nativeDecimals', t('nativeDecimals'), String(DEFAULT_DECIMALS[form.family ?? 'evm'])],
+                ['explorerUrl', t('blockExplorer'), 'https://…'],
+              ] as const
+            ).map(([key, label, placeholder]) => {
+              const numeric = key === 'evmChainId' || key === 'nativeDecimals';
+              return (
+                <View key={key} style={{ gap: 4 }}>
+                  <Text style={typography.muted}>{label}</Text>
+                  <TextInput
+                    value={String(form[key] ?? '')}
+                    onChangeText={(value) =>
+                      setForm((current) => ({
+                        ...current,
+                        [key]: numeric ? Number(value.replace(/\D/g, '')) : value,
+                      }))
+                    }
+                    placeholder={placeholder}
+                    placeholderTextColor={colors.textSecondary}
+                    keyboardType={numeric ? 'number-pad' : key === 'rpcUrl' || key === 'explorerUrl' ? 'url' : 'default'}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    style={{ color: colors.text, backgroundColor: colors.surface2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}
+                  />
+                </View>
+              );
+            })}
             <View style={{ paddingVertical: space[1] }}>
               <Checkbox
                 checked={form.testnet === true}

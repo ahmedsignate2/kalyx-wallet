@@ -248,9 +248,26 @@ export { getAdapter, listChains, hasChain, registerChain, unregisterChain } from
 export { chainIconUrl } from './domain/chains/icons';
 export { EvmChainAdapter, type RawTxRequest } from './domain/chains/EvmChainAdapter';
 export { computeFeeTiers, type FeeOptions, type FeeTier, type FeeSpeed } from './domain/chains/gas';
+export {
+  parseBtcFeeRates,
+  bumpedRate,
+  FALLBACK_RATES,
+  MIN_RELAY_RATE,
+  MAX_SANE_RATE,
+  type BtcFeeRates,
+} from './domain/chains/btcFees';
+export { estimateVsize, OUTPUT_VBYTES, CHANGE_KIND, DUST_SATS, type Utxo } from './domain/chains/btcTx';
+export type { BtcSendResult } from './domain/chains/BitcoinChainAdapter';
 export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BASE_SEPOLIA, BITCOIN, SOLANA, SOLANA_DEVNET, buildExplorerTxUrl } from './domain/chains/configs';
 // Sauvegarde portable des réseaux EVM personnalisés (export/import)
-export { serializeNetworks, parseNetworksBackup, NETWORKS_BACKUP_VERSION } from './domain/chains/customNetworks';
+export {
+  serializeNetworks,
+  parseNetworksBackup,
+  NETWORKS_BACKUP_VERSION,
+  customChainId,
+  CUSTOM_FAMILIES,
+  DEFAULT_DECIMALS,
+} from './domain/chains/customNetworks';
 export type {
   ChainAdapter,
   ChainConfig,
