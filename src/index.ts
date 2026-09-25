@@ -221,6 +221,7 @@ export {
   PAY_ALLOWED_METHODS,
   type PayMethod,
   type PayActionCheck,
+  type PayRefusal,
 } from './domain/pay/payChains';
 
 // Solana Pay — requêtes de transaction (pur, `fetch` injecté)

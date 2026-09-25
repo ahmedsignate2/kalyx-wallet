@@ -23,7 +23,7 @@ import { useWallet } from './walletStore';
 import type { Unlock } from './walletStore';
 import { base64 } from '@scure/base';
 import { utf8ToBytes } from '@noble/hashes/utils';
-import { payAccountsFor, checkPayAction, listChains, type PayMethod } from '../src';
+import { payAccountsFor, checkPayAction, listChains, type PayMethod, type PayRefusal } from '../src';
 
 /** Identifiant public du projet Pay, fourni au build (secret EAS). */
 const PAY_APP_ID = (process.env.EXPO_PUBLIC_WALLETCONNECT_PAY_ID ?? '').trim();
@@ -86,6 +86,22 @@ export interface PayResult {
   status: PayStatus;
   isFinal: boolean;
   pollInMs?: number;
+}
+
+/**
+ * Refus du garde-fou, porteur d'un CODE et non d'une phrase.
+ *
+ * Une `Error` avec un message français aurait ressorti ce message à l'écran,
+ * non traduit — c'est précisément le défaut qu'on corrige ici.
+ */
+export class PayActionRefused extends Error {
+  constructor(
+    readonly code: PayRefusal,
+    readonly detail?: string,
+  ) {
+    super(`pay action refused: ${code}`);
+    this.name = 'PayActionRefused';
+  }
 }
 
 /* ── Chargement gardé du SDK ─────────────────────────────────────────────── */
@@ -179,6 +195,28 @@ export function requiredCollectFields(schema: string | undefined): string[] {
 
 type Phase = 'idle' | 'loading' | 'choosing' | 'collecting' | 'signing' | 'done' | 'error';
 
+/**
+ * Cause d'échec, sous forme de CODE.
+ *
+ * PAS un texte. J'avais écrit ces messages en français en dur dans ce magasin,
+ * et ils sont ressortis en français à l'écran quelle que soit la langue — alors
+ * que les clés de traduction existaient déjà et que j'avais moi-même posé la
+ * règle ailleurs : un module qui ne fait pas d'interface n'écrit pas de phrase.
+ */
+export type PayFailure =
+  /** Module natif absent : installation antérieure au build qui l'embarque. */
+  | 'UNAVAILABLE'
+  /** Aucune adresse EVM sur ce portefeuille (import par clé privée exotique). */
+  | 'NO_EVM_ACCOUNT'
+  /** Le service ne propose rien de finançable avec les soldes actuels. */
+  | 'NO_OPTION'
+  /** Informations exigées, formulaire non complété. */
+  | 'INFO_REQUIRED'
+  /** Échec réseau ou refus du service. */
+  | 'FAILED'
+  /** Action de paiement refusée par le garde-fou. */
+  | 'ACTION_REFUSED';
+
 interface PayState {
   phase: Phase;
   link: string | null;
@@ -188,7 +226,10 @@ interface PayState {
   /** URL du formulaire hébergé, quand l'option choisie exige une capture. */
   collectUrl: string | null;
   result: PayResult | null;
-  error: string | null;
+  /** Cause d'échec, à traduire par l'écran. */
+  failure: PayFailure | null;
+  /** Détail technique éventuel (méthode refusée, message du service). */
+  detail: string | null;
 
   /** Charge les options d'un lien de paiement. */
   open: (link: string) => Promise<void>;
@@ -208,7 +249,8 @@ const EMPTY = {
   selected: null,
   collectUrl: null,
   result: null,
-  error: null,
+  failure: null,
+  detail: null,
 };
 
 export const usePay = create<PayState>((set, get) => ({
@@ -217,13 +259,21 @@ export const usePay = create<PayState>((set, get) => ({
   open: async (link) => {
     const c = payClient();
     if (!c) {
-      set({ phase: 'error', error: 'Le paiement marchand n’est pas disponible sur cette version.' });
+      set({ phase: 'error', failure: 'UNAVAILABLE' });
       return;
     }
-    const account = useWallet.getState().account;
-    const accounts = payAccountsFor(account?.address ?? '');
+
+    /*
+     * L'adresse EVM, TOUJOURS — et non `account.address`, qui suit la chaîne
+     * active et vaut donc une adresse Bitcoin ou Solana quand l'utilisateur est
+     * sur ces réseaux. Scanner un lien de paiement depuis l'écran Bitcoin
+     * envoyait alors zéro compte au service, sans que rien ne l'explique.
+     */
+    const w = useWallet.getState();
+    const stored = w.accounts.find((a) => a.index === w.activeAccountIndex) ?? w.accounts[0];
+    const accounts = payAccountsFor(stored?.evmAddress ?? '');
     if (accounts.length === 0) {
-      set({ phase: 'error', error: 'Aucun compte EVM disponible pour payer.' });
+      set({ phase: 'error', failure: 'NO_EVM_ACCOUNT' });
       return;
     }
 
@@ -231,12 +281,18 @@ export const usePay = create<PayState>((set, get) => ({
     try {
       const options = await c.getPaymentOptions({ paymentLink: link, accounts, includePaymentInfo: true });
       if (options.options.length === 0) {
-        set({ phase: 'error', error: 'Aucune option de paiement disponible pour tes soldes.' });
+        /*
+         * Zéro option n'est PAS forcément une panne : WalletConnect Pay ne règle
+         * qu'en stablecoins précis sur huit réseaux. Un portefeuille qui ne
+         * détient que de l'ETH n'a légitimement rien à proposer, et le message
+         * doit le dire au lieu de laisser croire à un bogue.
+         */
+        set({ phase: 'error', failure: 'NO_OPTION' });
         return;
       }
       set({ phase: 'choosing', options });
     } catch (e) {
-      set({ phase: 'error', error: e instanceof Error ? e.message : 'Paiement indisponible.' });
+      set({ phase: 'error', failure: 'FAILED', detail: e instanceof Error ? e.message : null });
     }
   },
 
@@ -261,11 +317,11 @@ export const usePay = create<PayState>((set, get) => ({
     const { options, selected } = get();
     if (!c || !options || !selected) return;
     if (selected.collectData?.url && get().collectUrl) {
-      set({ phase: 'error', error: 'Informations requises avant de confirmer le paiement.' });
+      set({ phase: 'error', failure: 'INFO_REQUIRED' });
       return;
     }
 
-    set({ phase: 'signing', error: null });
+    set({ phase: 'signing', failure: null, detail: null });
     try {
       const actions = await c.getRequiredPaymentActions({
         paymentId: options.paymentId,
@@ -290,7 +346,12 @@ export const usePay = create<PayState>((set, get) => ({
       });
       set({ phase: 'done', result });
     } catch (e) {
-      set({ phase: 'error', error: e instanceof Error ? e.message : 'Le paiement a échoué.' });
+      const refused = e instanceof PayActionRefused ? e : null;
+      set({
+        phase: 'error',
+        failure: refused ? 'ACTION_REFUSED' : 'FAILED',
+        detail: refused ? refused.code : e instanceof Error ? e.message : null,
+      });
     }
   },
 
@@ -308,7 +369,7 @@ export const usePay = create<PayState>((set, get) => ({
 async function signPayAction(action: PayAction, unlock: Unlock): Promise<string> {
   const { chainId, method, params } = action.walletRpc;
   const check = checkPayAction({ chainId, method });
-  if (!check.ok) throw new Error(check.reason ?? 'Action de paiement refusée');
+  if (!check.ok) throw new PayActionRefused(check.reason ?? 'CHAIN_UNREADABLE', check.detail);
 
   let parsed: unknown;
   try {

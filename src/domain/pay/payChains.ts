@@ -70,10 +70,26 @@ export function parseCaip2(chainId: string): { namespace: string; reference: str
   return m ? { namespace: m[1], reference: m[2] } : null;
 }
 
+/**
+ * Raison d'un refus, sous forme de CODE.
+ *
+ * Pas un texte : un domaine pur ne connaît pas la langue de l'utilisateur, et
+ * un message écrit ici ressortirait en français quelle que soit la langue
+ * choisie. C'est exactement l'erreur que j'ai refaite dans le magasin de Pay.
+ */
+export type PayRefusal =
+  | 'METHOD_NOT_ALLOWED'
+  | 'CHAIN_UNREADABLE'
+  | 'NAMESPACE_UNSUPPORTED'
+  | 'CHAIN_INVALID'
+  | 'CHAIN_OUT_OF_SCOPE';
+
 export interface PayActionCheck {
   ok: boolean;
   /** Renseigné quand l'action est refusée. */
-  reason?: string;
+  reason?: PayRefusal;
+  /** Valeur en cause, à injecter dans le message traduit. */
+  detail?: string;
   /** Chaîne EVM visée, quand l'action est acceptée. */
   evmChainId?: number;
 }
@@ -94,21 +110,21 @@ export function checkPayAction(
 ): PayActionCheck {
   const method = typeof action?.method === 'string' ? action.method : '';
   if (!(PAY_ALLOWED_METHODS as readonly string[]).includes(method)) {
-    return { ok: false, reason: `Méthode de paiement non autorisée : ${method || '(absente)'}` };
+    return { ok: false, reason: 'METHOD_NOT_ALLOWED', detail: method };
   }
 
   const caip = typeof action?.chainId === 'string' ? parseCaip2(action.chainId) : null;
-  if (!caip) return { ok: false, reason: 'Identifiant de chaîne illisible' };
+  if (!caip) return { ok: false, reason: 'CHAIN_UNREADABLE' };
   if (caip.namespace !== 'eip155') {
-    return { ok: false, reason: `Espace de noms non géré : ${caip.namespace}` };
+    return { ok: false, reason: 'NAMESPACE_UNSUPPORTED', detail: caip.namespace };
   }
 
   const evmChainId = Number(caip.reference);
   if (!Number.isInteger(evmChainId) || evmChainId <= 0) {
-    return { ok: false, reason: 'Identifiant de chaîne EVM invalide' };
+    return { ok: false, reason: 'CHAIN_INVALID' };
   }
   if (!allowed.includes(evmChainId)) {
-    return { ok: false, reason: `Réseau hors du périmètre de paiement : ${evmChainId}` };
+    return { ok: false, reason: 'CHAIN_OUT_OF_SCOPE', detail: String(evmChainId) };
   }
 
   return { ok: true, evmChainId };
