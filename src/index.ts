@@ -258,6 +258,15 @@ export {
 } from './domain/chains/btcFees';
 export { estimateVsize, OUTPUT_VBYTES, CHANGE_KIND, DUST_SATS, type Utxo } from './domain/chains/btcTx';
 export type { BtcSendResult } from './domain/chains/BitcoinChainAdapter';
+export {
+  signBip137Message,
+  signBip322Message,
+  recoverBip137PublicKey,
+  bip137Digest,
+  encodeVarInt,
+  BIP137_SIGNATURE_BYTES,
+  type BtcMessageSigner,
+} from './domain/chains/btcSign';
 export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BASE_SEPOLIA, BITCOIN, SOLANA, SOLANA_DEVNET, buildExplorerTxUrl } from './domain/chains/configs';
 // Sauvegarde portable des réseaux EVM personnalisés (export/import)
 export {
