@@ -21,6 +21,14 @@ import { Wallet, getBytes, isHexString } from 'ethers';
 import {
   generateMnemonic,
   validateMnemonic,
+  getAdapterV2,
+  signerFromSeed,
+  signerFromEvmPrivateKey,
+  withSigner,
+  type ChainAdapterV2,
+  type ChainSigner,
+  type SendRequest,
+  type BitcoinPendingContext,
   signBip137Message,
   signBip322Message,
   type FeeSpeed,
@@ -44,7 +52,6 @@ import {
   isWalletError,
   WalletError,
   EvmChainAdapter,
-  BitcoinChainAdapter,
   SolanaChainAdapter,
   NATIVE_TOKEN,
   parseAmount,
@@ -145,6 +152,26 @@ interface WalletState {
   removeWallet: (id: string) => Promise<void>;
   lock: () => void;
   signAndSend: (to: string, amount: string, unlock: Unlock, gas?: GasOverride) => Promise<string>;
+  /**
+   * Prépare, signe et diffuse un envoi sur n'importe quelle chaîne.
+   *
+   * Chemin unique : c'est lui qui remplace les trois branches `instanceof` que
+   * l'interface v1 imposait.
+   */
+  sendDraft: (
+    adapter: ChainAdapterV2,
+    from: string,
+    request: SendRequest,
+    unlock: Unlock,
+  ) => Promise<string>;
+  /**
+   * Dérive le signataire de la chaîne, à partir de la seed qui ne sort pas d'ici.
+   *
+   * Exposé sur le store parce que les chemins de signature (envoi, message,
+   * dApp) en ont tous besoin — et qu'il ne doit exister qu'UNE façon d'obtenir
+   * du matériel de signature.
+   */
+  deriveSigner: (adapter: ChainAdapterV2, unlock: Unlock) => Promise<ChainSigner>;
   /** Accélère une transaction Bitcoin en attente (remplacement BIP-125). */
   bumpBitcoin: (txid: string, unlock: Unlock, speed?: FeeSpeed) => Promise<string>;
   executeSwap: (quote: SwapQuote, unlock: Unlock, onStatus?: (s: SwapStatus) => void) => Promise<string>;
@@ -602,79 +629,114 @@ export const useWallet = create<WalletState>((set, get) => ({
   lock: () => set({ isUnlocked: false }),
 
   signAndSend: async (to, amount, unlock, gas) => {
-    const { account, activeChain, activeWalletId, wallets } = get();
+    const { account, activeChain } = get();
     if (!account) throw new Error('Aucun compte');
-    const adapter = getAdapter(activeChain);
-    const isPk = isPrivateKeyWallet(wallets, activeWalletId);
+    const adapter = getAdapterV2(activeChain);
 
-    // Bitcoin = modèle UTXO : chemin d'envoi dédié (clé + tx différentes).
-    if (adapter instanceof BitcoinChainAdapter) {
-      if (isPk) throw new Error('Portefeuille clé privée : Bitcoin non disponible (EVM uniquement).');
-      const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
-      const btcSigner = deriveBtcSigner(seed, account.index);
-      const sent = await adapter.sendBitcoinDetailed(
-        account.address,
-        to,
-        amount,
-        { privateKey: btcSigner.privateKey, publicKey: btcSigner.publicKey },
-        { speed: gas?.speed },
+    /*
+     * UN SEUL chemin pour les trois chaînes. Il y en avait trois, choisis par
+     * `instanceof`, parce que l'interface v1 ne savait exprimer que l'EVM :
+     * Bitcoin et Solana passaient par des méthodes maison. Chaque chaîne
+     * ajoutée rallongeait ce branchement, et celle qu'on oubliait quelque part
+     * ne cassait rien — elle disparaissait simplement d'un écran.
+     */
+    const request: SendRequest = {
+      to,
+      amount: parseAmount(amount, adapter.config.nativeDecimals).raw,
+      speed: gas?.speed,
+    };
+    return get().sendDraft(adapter, account.address, request, unlock);
+  },
+
+  /**
+   * Prépare, signe, diffuse. Le signataire est dérivé ICI et effacé aussitôt.
+   *
+   * La seed ne sort pas de ce module : elle est lue, dérivée, puis remise à
+   * zéro. L'adapter ne reçoit que le matériel de signature de SA chaîne, donc
+   * rien qui permette de remonter au portefeuille entier.
+   */
+  sendDraft: async (adapter, from, request, unlock) => {
+    const { activeWalletId, wallets, account } = get();
+    if (!account) throw new Error('Aucun compte');
+
+    const draft = await adapter.prepareSend(from, request);
+    const signer = await get().deriveSigner(adapter, unlock);
+    const signed = await withSigner(signer, (s) => adapter.signSend(draft, s));
+    const outcome = await adapter.broadcastSend(signed);
+
+    /*
+     * Contexte de remplacement, quand la chaîne en produit un. Bitcoin en a
+     * besoin : les UTXO dépensés disparaissent de l'ensemble disponible, donc
+     * sans les conserver ici aucune accélération n'est constructible ensuite.
+     */
+    if (adapter.config.family === 'bitcoin' && outcome.opaque) {
+      usePendingBtc.getState().remember(from, outcome.txid, outcome.opaque as BitcoinPendingContext);
+    }
+    void activeWalletId;
+    void wallets;
+    return outcome.txid;
+  },
+
+  deriveSigner: async (adapter, unlock) => {
+    const { account, activeWalletId, wallets } = get();
+    if (!account) throw new Error('Aucun compte');
+    const family = adapter.config.family;
+
+    /*
+     * Portefeuille importé par CLÉ PRIVÉE : pas de seed, donc pas de
+     * dérivation possible — et une clé secp256k1 EVM ne donne ni adresse
+     * Bitcoin ni compte Solana. Le refus est explicite plutôt que silencieux.
+     */
+    if (isPrivateKeyWallet(wallets, activeWalletId)) {
+      if (family !== 'evm') {
+        throw new Error(`Portefeuille clé privée : ${family} non disponible (EVM uniquement).`);
+      }
+      return signerFromEvmPrivateKey(
+        await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock),
       );
-      /*
-       * On MÉMORISE de quoi remplacer cette transaction. Les UTXO dépensés
-       * disparaissent de l'ensemble des UTXO disponibles, donc sans ces entrées
-       * une accélération (RBF) serait impossible à construire plus tard.
-       */
-      usePendingBtc.getState().remember(account.address, sent);
-      return sent.txid;
     }
 
-    // Solana = comptes ed25519 : transaction et signature propres.
-    if (adapter instanceof SolanaChainAdapter) {
-      if (isPk) throw new Error('Portefeuille clé privée : Solana non disponible (EVM uniquement).');
-      const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
-      const solSigner = deriveSolanaSigner(seed, account.index);
-      return adapter.sendSolana(account.address, to, amount, {
-        secretKey: solSigner.secretKey,
-        publicKey: solSigner.publicKey,
-      });
+    const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
+    try {
+      return signerFromSeed(family, seed, account.index);
+    } finally {
+      // La seed est remise à zéro dès la dérivation faite : elle n'a aucune
+      // raison de survivre à l'appel qui l'a demandée.
+      seed.fill(0);
     }
-
-    const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
-    const unsigned = await adapter.prepareTransfer(account.address, { to, amount }, gas);
-    const raw = await adapter.signTransaction(unsigned, pk);
-    return adapter.broadcast(raw);
   },
 
   bumpBitcoin: async (txid, unlock, speed) => {
-    const { account, activeChain, activeWalletId, wallets } = get();
+    const { account, activeChain } = get();
     if (!account) throw new Error('Aucun compte');
-    const adapter = getAdapter(activeChain);
-    if (!(adapter instanceof BitcoinChainAdapter)) throw new Error('Accélération : réseau Bitcoin requis');
-    if (isPrivateKeyWallet(wallets, activeWalletId)) {
-      throw new Error('Portefeuille clé privée : Bitcoin non disponible (EVM uniquement).');
+    const adapter = getAdapterV2(activeChain);
+    if (!adapter.capabilities.accelerate || !adapter.prepareAcceleration) {
+      throw new Error('Cette chaîne ne permet pas d’accélérer une transaction.');
     }
 
     const pending = usePendingBtc.getState().txs.find((t) => t.txid === txid);
     if (!pending) throw new Error('Transaction introuvable ou trop ancienne pour être accélérée.');
     if (pending.from !== account.address) throw new Error('Cette transaction vient d’un autre compte.');
 
-    const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
-    const btcSigner = deriveBtcSigner(seed, account.index);
-    const sent = await adapter.bumpBitcoinFee(
-      account.address,
-      {
-        to: pending.to,
-        target: BigInt(pending.target),
-        feeRate: pending.feeRate,
-        inputs: pending.inputs,
-      },
-      { privateKey: btcSigner.privateKey, publicKey: btcSigner.publicKey },
-      { speed },
-    );
+    const context: BitcoinPendingContext = {
+      dest: pending.to,
+      target: BigInt(pending.target),
+      feeRate: pending.feeRate,
+      inputs: pending.inputs,
+      fee: BigInt(pending.fee),
+    };
+
+    const draft = await adapter.prepareAcceleration(account.address, { txid, opaque: context }, speed);
+    const signer = await get().deriveSigner(adapter, unlock);
+    const signed = await withSigner(signer, (s) => adapter.signSend(draft, s));
+    const outcome = await adapter.broadcastSend(signed);
+
     // `remember` évince l'originale : elle partage les mêmes entrées, donc elle
     // n'est plus accélérable — proposer de le faire mènerait à un rejet.
-    usePendingBtc.getState().remember(account.address, sent);
-    return sent.txid;
+    if (outcome.opaque) {
+      usePendingBtc.getState().remember(account.address, outcome.txid, outcome.opaque as BitcoinPendingContext);
+    }
+    return outcome.txid;
   },
 
   executeSwap: async (quote, unlock, onStatus) => {
@@ -897,36 +959,48 @@ export const useWallet = create<WalletState>((set, get) => ({
   sendToken: async (to, amount, token, unlock, gas) => {
     const { account, activeChain } = get();
     if (!account) throw new Error('Aucun compte');
-    const cfg = getAdapter(activeChain).config;
-    if (cfg.family !== 'evm' || !cfg.evmChainId) throw new Error('Envoi de token non supporté sur ce réseau');
-    const raw = parseAmount(amount, token.decimals).raw; // lève si montant invalide
-    const req: RawTxRequest = {
-      to: token.contract,
-      data: erc20TransferData(to, raw), // lève si adresse destinataire invalide
-      value: 0n,
-      chainId: cfg.evmChainId,
-      // Palier de frais choisi par l'utilisateur (sinon sendContractTx utilise le réseau).
-      maxFeePerGas: gas?.maxFeePerGas,
-      maxPriorityFeePerGas: gas?.maxPriorityFeePerGas,
-    };
-    return get().sendRawTxOn(unlock, activeChain, req);
+    const adapter = getAdapterV2(activeChain);
+    if (!adapter.capabilities.tokenSend) {
+      throw new Error('Envoi de jeton non supporté sur ce réseau');
+    }
+    return get().sendDraft(
+      adapter,
+      account.address,
+      {
+        to,
+        amount: parseAmount(amount, token.decimals).raw, // lève si montant invalide
+        token: { id: token.contract, symbol: 'TOKEN', decimals: token.decimals },
+        speed: gas?.speed,
+      },
+      unlock,
+    );
   },
 
+  /**
+   * Envoi d'un jeton SPL.
+   *
+   * Conservé pour ne pas casser ses appelants, mais c'est désormais LE MÊME
+   * chemin que `sendToken` : un envoi de jeton est un envoi de jeton, et le
+   * fait que l'un s'appelle contrat et l'autre mint est un détail que l'adapter
+   * absorbe.
+   */
   sendSolToken: async (to, amount, token, unlock) => {
-    const { account, activeChain, activeWalletId, wallets } = get();
+    const { account, activeChain } = get();
     if (!account) throw new Error('Aucun compte');
-    if (isPrivateKeyWallet(wallets, activeWalletId)) {
-      throw new Error('Portefeuille clé privée : Solana non disponible (EVM uniquement).');
+    const adapter = getAdapterV2(activeChain);
+    if (!adapter.capabilities.tokenSend) {
+      throw new Error('Envoi de jeton non supporté sur ce réseau');
     }
-    const adapter = getAdapter(activeChain);
-    if (!(adapter instanceof SolanaChainAdapter)) throw new Error('Token SPL : réseau Solana requis');
-    const raw = parseAmount(amount, token.decimals).raw; // lève si montant invalide
-    const m = await revealMnemonic(activeWalletId, unlock);
-    const signer = deriveSolanaSigner(mnemonicToSeedSync(m), account.index);
-    return adapter.sendSplToken(account.address, to, raw, token.mint, token.decimals, {
-      secretKey: signer.secretKey,
-      publicKey: signer.publicKey,
-    });
+    return get().sendDraft(
+      adapter,
+      account.address,
+      {
+        to,
+        amount: parseAmount(amount, token.decimals).raw,
+        token: { id: token.mint, symbol: 'TOKEN', decimals: token.decimals },
+      },
+      unlock,
+    );
   },
 
   changePin: async (oldPin, newPin) => {

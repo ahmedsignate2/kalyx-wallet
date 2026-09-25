@@ -13,7 +13,7 @@
  */
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { BtcSendResult } from '../src';
+import type { BitcoinPendingContext } from '../src';
 
 const KEY = 'nova.pendingBtc';
 
@@ -46,7 +46,7 @@ interface PendingBtcState {
   txs: PendingBtcTx[];
   load: () => Promise<void>;
   /** Enregistre un envoi tout juste diffusé. */
-  remember: (from: string, sent: BtcSendResult) => void;
+  remember: (from: string, txid: string, context: BitcoinPendingContext) => void;
   /** Oublie une transaction (confirmée, remplacée, ou abandonnée). */
   forget: (txid: string) => void;
   /** Transactions encore accélérables pour cette adresse, les plus récentes d'abord. */
@@ -75,15 +75,15 @@ export const usePendingBtc = create<PendingBtcState>((set, get) => ({
     }
   },
 
-  remember: (from, sent) => {
+  remember: (from, txid, context) => {
     const entry: PendingBtcTx = {
-      txid: sent.txid,
+      txid,
       from,
-      to: sent.to,
-      target: sent.target.toString(),
-      fee: sent.fee.toString(),
-      feeRate: sent.feeRate,
-      inputs: sent.inputs,
+      to: context.dest,
+      target: context.target.toString(),
+      fee: context.fee.toString(),
+      feeRate: context.feeRate,
+      inputs: context.inputs,
       at: Date.now(),
     };
     /*
@@ -91,7 +91,7 @@ export const usePendingBtc = create<PendingBtcState>((set, get) => ({
      * ferait proposer d'accélérer une transaction déjà remplacée, dont la
      * diffusion échouerait. On évince donc toute entrée partageant une entrée.
      */
-    const spent = new Set(sent.inputs.map((i) => `${i.txid}:${i.vout}`));
+    const spent = new Set(context.inputs.map((i) => `${i.txid}:${i.vout}`));
     const kept = fresh(get().txs).filter(
       (t) => t.txid !== entry.txid && !t.inputs.some((i) => spent.has(`${i.txid}:${i.vout}`)),
     );
