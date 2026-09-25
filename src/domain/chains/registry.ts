@@ -45,6 +45,13 @@ export function unregisterChain(id: string): void {
   adapters.delete(id);
   const i = customChains.findIndex((c) => c.id === id);
   if (i >= 0) customChains.splice(i, 1);
+  /*
+   * Le registre v2 met ses adapters en cache : sans cet oubli, un adapter
+   * construit sur la configuration retirée continuerait de répondre, et de
+   * parler à un RPC que l'utilisateur vient de supprimer. Import différé pour
+   * ne pas créer de cycle entre les deux registres.
+   */
+  void import('./v2/registry').then((m) => m.forgetAdapterV2(id)).catch(() => {});
 }
 
 export function getAdapter(chainId: string): ChainAdapter {
