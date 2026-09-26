@@ -33,7 +33,7 @@ export default function PayScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ link?: string }>();
 
-  const { phase, options, selected, collectUrl, result, failure, detail, open, select, collected, confirm, reset } =
+  const { phase, options, selected, collectUrl, result, failure, detail, open, select, collected, recheck, confirm, reset } =
     usePay();
 
   /*
@@ -138,6 +138,15 @@ export default function PayScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: SCREEN_MARGIN, height: 48 }}>
           <IconButton icon="back" label={t('back')} tone="ghost" onPress={close} />
         </View>
+        {/*
+          CE QUI PART, ET CHEZ QUI. L'utilisateur s'apprête à saisir son nom
+          légal, sa date de naissance et son lieu de résidence dans une page
+          hébergée par un tiers. Le lui dire avant n'est pas une politesse :
+          c'est la seule chose qui distingue un consentement d'une surprise.
+        */}
+        <View style={{ paddingHorizontal: SCREEN_MARGIN, paddingBottom: space[3] }}>
+          <Text variant="caption" tone="secondary">{t('payCollectNotice')}</Text>
+        </View>
         <WebView
           source={{ uri: collectUrl }}
           onMessage={onMessage}
@@ -206,12 +215,17 @@ export default function PayScreen() {
 
         {phase === 'error' ? (
           <Surface>
+            {/*
+              LA RELANCE PLUTÔT QUE LE RETOUR. Quand la vérification est en cours
+              d'examen, « Retour » oblige à rescanner le QR pour savoir où elle
+              en est. Dans ce seul cas l'action principale redemande les options.
+            */}
             <EmptyState
               icon={stating ? 'info' : 'warning'}
               title={failureTitle}
               body={failureBody}
-              actionLabel={t('back')}
-              onAction={close}
+              actionLabel={failure === 'INFO_NOT_ENOUGH' ? t('retry') : t('back')}
+              onAction={failure === 'INFO_NOT_ENOUGH' ? () => void recheck() : close}
             />
             {/*
               Diagnostic copiable : zéro option a plusieurs causes que cet écran

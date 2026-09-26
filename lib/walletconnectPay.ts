@@ -297,6 +297,15 @@ interface PayState {
   select: (option: PayOption, theme?: 'light' | 'dark') => void;
   /** Le formulaire hébergé a abouti : on peut poursuivre. */
   collected: () => void;
+  /**
+   * Redemande les options sans repasser par le formulaire.
+   *
+   * La vérification d'identité que le service exige n'est pas instantanée :
+   * elle peut être en cours d'examen quand on redemande les options. Sans
+   * relance, l'utilisateur devait ressortir de l'écran et RESCANNER le QR pour
+   * savoir si elle avait abouti.
+   */
+  recheck: () => Promise<void>;
   /** Résumé copiable de la tentative, pour un ticket. */
   diagnostic: () => string;
   /** Signe les actions et confirme le paiement. */
@@ -421,6 +430,12 @@ export const usePay = create<PayState>((set, get) => ({
       collectUrl: url ? buildCollectUrl(url, { theme }) : null,
       phase: url ? 'collecting' : 'choosing',
     });
+  },
+
+  recheck: async () => {
+    const { link } = get();
+    // `true` : on ne repropose jamais le formulaire, il a déjà été envoyé.
+    if (link) await get().open(link, true);
   },
 
   collected: () => {
