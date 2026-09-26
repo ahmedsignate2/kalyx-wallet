@@ -208,6 +208,10 @@ const en = {
   feesReserved: ' (fees reserved: {fee})',
   // Réseaux
   networksTitle: 'Networks',
+  connErrNoAccounts: 'Your phone did not return any address. Create or import a wallet in Kalyx, then connect again.',
+  connErrIdleExpired: 'Session closed after 30 minutes without activity. Connect again.',
+  connErrMissingProjectId: 'This site is misconfigured: the WalletConnect key is missing. Nothing you did caused this.',
+  connErrConnectFailed: 'Connection failed. Check that Kalyx is open on your phone, then try again.',
   agentTab: 'Agent',
 } as const;
 
@@ -400,6 +404,10 @@ const fr: Dict = {
   youOwn: 'Tu possèdes {balance} {symbol}{reserve}.',
   feesReserved: ' (frais réservés : {fee})',
   networksTitle: 'Réseaux',
+  connErrNoAccounts: 'Ton téléphone n’a renvoyé aucune adresse. Crée ou importe un portefeuille dans Kalyx, puis reconnecte-toi.',
+  connErrIdleExpired: 'Session fermée après 30 minutes sans activité. Reconnecte-toi.',
+  connErrMissingProjectId: 'Ce site est mal configuré : la clé WalletConnect manque. Tu n’y es pour rien.',
+  connErrConnectFailed: 'La connexion a échoué. Vérifie que Kalyx est ouvert sur ton téléphone, puis réessaie.',
   agentTab: 'Agent',
 };
 
@@ -589,6 +597,10 @@ const es: Dict = {
   youOwn: 'Tienes {balance} {symbol}{reserve}.',
   feesReserved: ' (comisiones reservadas: {fee})',
   networksTitle: 'Redes',
+  connErrNoAccounts: 'Tu teléfono no devolvió ninguna dirección. Crea o importa una cartera en Kalyx y vuelve a conectarte.',
+  connErrIdleExpired: 'Sesión cerrada tras 30 minutos sin actividad. Vuelve a conectarte.',
+  connErrMissingProjectId: 'Este sitio está mal configurado: falta la clave de WalletConnect. No es culpa tuya.',
+  connErrConnectFailed: 'La conexión ha fallado. Comprueba que Kalyx está abierto en tu teléfono e inténtalo de nuevo.',
   agentTab: 'Agente',
 };
 
@@ -778,6 +790,10 @@ const pt: Dict = {
   youOwn: 'Tem {balance} {symbol}{reserve}.',
   feesReserved: ' (taxas reservadas: {fee})',
   networksTitle: 'Redes',
+  connErrNoAccounts: 'O teu telefone não devolveu nenhum endereço. Cria ou importa uma carteira no Kalyx e liga-te novamente.',
+  connErrIdleExpired: 'Sessão fechada após 30 minutos sem atividade. Liga-te novamente.',
+  connErrMissingProjectId: 'Este site está mal configurado: falta a chave WalletConnect. A culpa não é tua.',
+  connErrConnectFailed: 'A ligação falhou. Verifica se o Kalyx está aberto no teu telefone e tenta de novo.',
   agentTab: 'Agente',
 };
 
@@ -967,6 +983,10 @@ const de: Dict = {
   youOwn: 'Du besitzt {balance} {symbol}{reserve}.',
   feesReserved: ' (reservierte Gebühren: {fee})',
   networksTitle: 'Netzwerke',
+  connErrNoAccounts: 'Dein Telefon hat keine Adresse zurückgegeben. Erstelle oder importiere eine Wallet in Kalyx und verbinde dich erneut.',
+  connErrIdleExpired: 'Sitzung nach 30 Minuten ohne Aktivität beendet. Verbinde dich erneut.',
+  connErrMissingProjectId: 'Diese Seite ist falsch konfiguriert: der WalletConnect-Schlüssel fehlt. Das liegt nicht an dir.',
+  connErrConnectFailed: 'Verbindung fehlgeschlagen. Prüfe, ob Kalyx auf deinem Telefon geöffnet ist, und versuche es erneut.',
   agentTab: 'Agent',
 };
 
@@ -1156,6 +1176,10 @@ const it: Dict = {
   youOwn: 'Possiedi {balance} {symbol}{reserve}.',
   feesReserved: ' (commissioni riservate: {fee})',
   networksTitle: 'Reti',
+  connErrNoAccounts: 'Il telefono non ha restituito alcun indirizzo. Crea o importa un portafoglio in Kalyx, poi riconnettiti.',
+  connErrIdleExpired: 'Sessione chiusa dopo 30 minuti di inattività. Riconnettiti.',
+  connErrMissingProjectId: 'Questo sito è configurato male: manca la chiave WalletConnect. Non dipende da te.',
+  connErrConnectFailed: 'Connessione non riuscita. Controlla che Kalyx sia aperto sul telefono e riprova.',
   agentTab: 'Agente',
 };
 
@@ -1345,6 +1369,10 @@ const nl: Dict = {
   youOwn: 'Je bezit {balance} {symbol}{reserve}.',
   feesReserved: ' (gereserveerde kosten: {fee})',
   networksTitle: 'Netwerken',
+  connErrNoAccounts: 'Je telefoon gaf geen enkel adres terug. Maak of importeer een wallet in Kalyx en maak opnieuw verbinding.',
+  connErrIdleExpired: 'Sessie gesloten na 30 minuten zonder activiteit. Maak opnieuw verbinding.',
+  connErrMissingProjectId: 'Deze site is verkeerd geconfigureerd: de WalletConnect-sleutel ontbreekt. Het is niet jouw fout.',
+  connErrConnectFailed: 'Verbinding mislukt. Controleer of Kalyx open staat op je telefoon en probeer het opnieuw.',
   agentTab: 'Agent',
 };
 
@@ -1534,6 +1562,10 @@ const pl: Dict = {
   youOwn: 'Masz {balance} {symbol}{reserve}.',
   feesReserved: ' (zarezerwowane opłaty: {fee})',
   networksTitle: 'Sieci',
+  connErrNoAccounts: 'Telefon nie zwrócił żadnego adresu. Utwórz lub zaimportuj portfel w Kalyx, a potem połącz się ponownie.',
+  connErrIdleExpired: 'Sesja zamknięta po 30 minutach bez aktywności. Połącz się ponownie.',
+  connErrMissingProjectId: 'Ta strona jest źle skonfigurowana: brakuje klucza WalletConnect. To nie twoja wina.',
+  connErrConnectFailed: 'Połączenie nie udało się. Sprawdź, czy Kalyx jest otwarty w telefonie, i spróbuj ponownie.',
   agentTab: 'Agent',
 };
 
@@ -1723,6 +1755,10 @@ const tr: Dict = {
   youOwn: '{balance} {symbol} sahibisin{reserve}.',
   feesReserved: ' (ayrılan ücret: {fee})',
   networksTitle: 'Ağlar',
+  connErrNoAccounts: 'Telefonun hiçbir adres döndürmedi. Kalyx’te bir cüzdan oluştur veya içe aktar, sonra yeniden bağlan.',
+  connErrIdleExpired: '30 dakika işlem yapılmadığı için oturum kapatıldı. Yeniden bağlan.',
+  connErrMissingProjectId: 'Bu site hatalı yapılandırılmış: WalletConnect anahtarı eksik. Senin bir hatan değil.',
+  connErrConnectFailed: 'Bağlantı kurulamadı. Kalyx’in telefonunda açık olduğunu kontrol et ve tekrar dene.',
   agentTab: 'Ajan',
 };
 
@@ -1912,6 +1948,10 @@ const ru: Dict = {
   youOwn: 'У вас {balance} {symbol}{reserve}.',
   feesReserved: ' (зарезервировано на комиссию: {fee})',
   networksTitle: 'Сети',
+  connErrNoAccounts: 'Телефон не вернул ни одного адреса. Создай или импортируй кошелёк в Kalyx и подключись снова.',
+  connErrIdleExpired: 'Сессия закрыта после 30 минут без активности. Подключись снова.',
+  connErrMissingProjectId: 'Сайт настроен неправильно: отсутствует ключ WalletConnect. Это не из-за тебя.',
+  connErrConnectFailed: 'Не удалось подключиться. Проверь, открыт ли Kalyx на телефоне, и попробуй снова.',
   agentTab: 'Агент',
 };
 
@@ -2101,6 +2141,10 @@ const ar: Dict = {
   youOwn: 'تملك {balance} {symbol}{reserve}.',
   feesReserved: ' (رسوم محجوزة: {fee})',
   networksTitle: 'الشبكات',
+  connErrNoAccounts: 'لم يُرجع هاتفك أي عنوان. أنشئ محفظة أو استوردها في Kalyx ثم أعد الاتصال.',
+  connErrIdleExpired: 'أُغلقت الجلسة بعد 30 دقيقة من عدم النشاط. أعد الاتصال.',
+  connErrMissingProjectId: 'هذا الموقع مُهيَّأ بشكل خاطئ: مفتاح WalletConnect مفقود. لا ذنب لك في ذلك.',
+  connErrConnectFailed: 'فشل الاتصال. تأكد من أن Kalyx مفتوح على هاتفك ثم أعد المحاولة.',
   agentTab: 'الوكيل',
 };
 
@@ -2290,6 +2334,10 @@ const hi: Dict = {
   youOwn: 'आपके पास {balance} {symbol} है{reserve}।',
   feesReserved: ' (आरक्षित शुल्क: {fee})',
   networksTitle: 'नेटवर्क',
+  connErrNoAccounts: 'आपके फ़ोन से कोई पता नहीं मिला। Kalyx में वॉलेट बनाएँ या आयात करें, फिर दोबारा कनेक्ट करें।',
+  connErrIdleExpired: '30 मिनट तक कोई गतिविधि न होने पर सत्र बंद हो गया। फिर से कनेक्ट करें।',
+  connErrMissingProjectId: 'यह साइट ठीक से कॉन्फ़िगर नहीं है: WalletConnect कुंजी नहीं है। इसमें आपकी कोई गलती नहीं है।',
+  connErrConnectFailed: 'कनेक्शन नहीं हो सका। देखें कि Kalyx आपके फ़ोन पर खुला है, फिर दोबारा कोशिश करें।',
   agentTab: 'एजेंट',
 };
 
@@ -2479,6 +2527,10 @@ const zh: Dict = {
   youOwn: '你持有 {balance} {symbol}{reserve}。',
   feesReserved: '（预留费用：{fee}）',
   networksTitle: '网络',
+  connErrNoAccounts: '手机未返回任何地址。请先在 Kalyx 中创建或导入钱包，然后重新连接。',
+  connErrIdleExpired: '30 分钟无操作，会话已关闭。请重新连接。',
+  connErrMissingProjectId: '本站配置有误：缺少 WalletConnect 密钥。这不是你的问题。',
+  connErrConnectFailed: '连接失败。请确认手机上已打开 Kalyx，然后重试。',
   agentTab: '助手',
 };
 
@@ -2668,6 +2720,10 @@ const ja: Dict = {
   youOwn: '保有：{balance} {symbol}{reserve}。',
   feesReserved: '（手数料予約：{fee}）',
   networksTitle: 'ネットワーク',
+  connErrNoAccounts: 'スマートフォンからアドレスが返されませんでした。Kalyx でウォレットを作成またはインポートしてから、もう一度接続してください。',
+  connErrIdleExpired: '30 分間操作がなかったためセッションを終了しました。もう一度接続してください。',
+  connErrMissingProjectId: 'このサイトの設定に不備があります： WalletConnect キーがありません。あなたの操作は関係ありません。',
+  connErrConnectFailed: '接続できませんでした。スマートフォンで Kalyx が開いているか確認して、もう一度お試しください。',
   agentTab: 'エージェント',
 };
 
@@ -2857,6 +2913,10 @@ const ko: Dict = {
   youOwn: '{balance} {symbol} 보유{reserve}.',
   feesReserved: ' (예약 수수료: {fee})',
   networksTitle: '네트워크',
+  connErrNoAccounts: '휴대폰이 주소를 반환하지 않았습니다. Kalyx에서 지갑을 만들거나 가져온 뒤 다시 연결하세요.',
+  connErrIdleExpired: '30분간 활동이 없어 세션을 종료했습니다. 다시 연결하세요.',
+  connErrMissingProjectId: '이 사이트의 설정이 잘못되었습니다: WalletConnect 키가 없습니다. 사용자의 문제가 아닙니다.',
+  connErrConnectFailed: '연결에 실패했습니다. 휴대폰에서 Kalyx가 열려 있는지 확인한 뒤 다시 시도하세요.',
   agentTab: '에이전트',
 };
 
