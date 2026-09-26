@@ -176,3 +176,31 @@ describe('parseImportedKey — refus', () => {
     expect(r.key.families).toEqual(['bitcoin']);
   });
 });
+
+describe('parseImportedKey — WIF du monde réel', () => {
+  /*
+   * VECTEUR CANONIQUE du wiki Bitcoin. Les tests précédents fabriquaient leurs
+   * WIF avec notre propre encodeur : ils auraient passé même si l'encodeur et le
+   * décodeur partageaient la même erreur. Celui-ci vient de l'extérieur.
+   *
+   * C'est aussi la forme que les gens ont réellement en main — portefeuilles
+   * papier, anciens exports — et elle est NON COMPRESSÉE.
+   */
+  const WIF_5 = '5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ';
+  const KEY_5 = '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d';
+
+  it('décode le WIF non compressé du wiki, octet pour octet', () => {
+    const r = parseImportedKey(WIF_5);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.key.format).toBe('wif');
+    expect(r.key.families).toEqual(['bitcoin']);
+    expect(r.key.compressed).toBe(false);
+    expect(hex.encode(r.key.secret)).toBe(KEY_5);
+  });
+
+  it('un WIF non compressé fait 51 caractères, un compressé 52', () => {
+    expect(WIF_5).toHaveLength(51);
+    expect(wif(hex.decode(KEY_5), true)).toHaveLength(52);
+  });
+});
