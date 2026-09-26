@@ -25,7 +25,7 @@ import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AddressGlyph, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../ui/kit';
 import { useWallet } from '../lib/walletStore';
 import { accountDisplayName } from '../lib/walletNames';
-import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
+import { useSettings, useT, useActivityT, fiatSymbol } from '../lib/settingsStore';
 import { useNotifCenter, unreadCount } from '../lib/notificationCenter';
 import { usePortfolioStore, splitHoldings, verifiedSymbols, portfolioHistory, loadAllNfts, PERIODS, type Period, type Holding, type ChainNft } from '../lib/portfolio';
 import { useContacts } from '../lib/contactsStore';
@@ -66,6 +66,7 @@ function fmtDate(t: number, period: Period, locale = 'en-US'): string {
 export default function Home() {
   const { colors } = useTheme();
   const t = useT();
+  const activityT = useActivityT();
   const insets = useSafeAreaInsets();
   const { width: windowW } = useWindowDimensions();
   // Largeur RÉELLE du conteneur (mesurée) : ne dépend pas de la fenêtre système
@@ -239,10 +240,11 @@ export default function Home() {
   const priceBySymbol = new Map(pf.holdings.filter((h) => h.verified && h.price > 0).map((h) => [h.symbol.toUpperCase(), h.price]));
   const nameOf = (a: string) => {
     const l = a.toLowerCase();
-    if (accounts.some((x) => x.evmAddress.toLowerCase() === l || x.solAddress?.toLowerCase() === l)) return 'toi';
+    if (accounts.some((x) => x.evmAddress.toLowerCase() === l || x.solAddress?.toLowerCase() === l)) return t('actYou');
     return contacts.find((c) => c.address.toLowerCase() === l)?.name;
   };
   const humanCtx = {
+    t: activityT,
     nativeSymbol: getAdapter(activeChain).config.nativeSymbol,
     nativeDecimals: getAdapter(activeChain).config.nativeDecimals,
     /*

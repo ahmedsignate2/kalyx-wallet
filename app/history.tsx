@@ -1,4 +1,4 @@
-import { useT, useSettings } from "../lib/settingsStore";
+import { useT, useActivityT, useSettings } from "../lib/settingsStore";
 
 const LANG_LOCALES: Record<string, string> = {
   en: 'en-US',
@@ -41,6 +41,7 @@ type Filter = 'all' | 'in' | 'out' | 'failed';
 
 export default function History() {
   const t = useT();
+  const activityT = useActivityT();
   const language = useSettings((s) => s.language);
   const locale = LANG_LOCALES[language] || 'en-US';
   const { colors } = useTheme();
@@ -71,15 +72,16 @@ export default function History() {
   const nameOf = useCallback(
     (a: string) => {
       const l = a.toLowerCase();
-      if (accounts.some((x) => x.evmAddress.toLowerCase() === l || x.solAddress?.toLowerCase() === l || x.btcAddress.toLowerCase() === l)) return 'toi';
+      if (accounts.some((x) => x.evmAddress.toLowerCase() === l || x.solAddress?.toLowerCase() === l || x.btcAddress.toLowerCase() === l)) return t('actYou');
       return contacts.find((c) => c.address.toLowerCase() === l)?.name;
     },
     [accounts, contacts],
   );
 
   const rows = useMemo(() => {
-    const ctx = { nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals, nameOf };
+    const ctx = { t: activityT, nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals, nameOf };
     return cached.map((tx) => ({ tx, h: humanizeTx(tx, ctx) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cached, chain.nativeSymbol, chain.nativeDecimals, nameOf]);
   const spamCount = rows.filter((r) => r.h.spam).length;
   const filtered = rows.filter((r) => {

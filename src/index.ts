@@ -251,7 +251,7 @@ export { explainRequest, type SignExplanation, type SignRisk, type ExplainInput 
 export { describeSolanaTransaction, KNOWN_SOLANA_PROGRAMS, type SolanaTxDescription } from './domain/wc/solanaTx';
 
 // Activité humanisée (§4.6)
-export { humanizeTx, groupByDay, type HumanTx, type HumanizeCtx, type TxGroup } from './domain/tx/humanize';
+export { humanizeTx, groupByDay, type HumanTx, type HumanizeCtx, type TxGroup, type ActivityKey, type ActivityTranslate } from './domain/tx/humanize';
 
 // Glyphe d'adresse (étoile unique par adresse, vérification visuelle)
 export { glyphFor, starPath, GLYPH_PALETTE, type AddressGlyphSpec } from './domain/wallet/glyph';

@@ -3,7 +3,7 @@
  * état du déverrouillage biométrique. Persistées localement.
  */
 import { create } from 'zustand';
-import { setNumberLocale } from '../src';
+import { setNumberLocale, type ActivityTranslate } from '../src';
 import { saveSettings, loadSettings } from './secureStore';
 import { translate, type Lang, type Key, detectInitialLanguage, resolveLanguage, applyRTL, isRtl, USER_LANGUAGE_KEY } from './i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -259,6 +259,29 @@ export const useSettings = create<SettingsState>((set, get) => ({
 export function useT(): (key: Key) => string {
   const lang = useSettings((s) => s.language);
   return (key: Key) => translate(lang, key);
+}
+
+/**
+ * Traducteur des phrases d'activité, paramètres substitués.
+ *
+ * `humanizeTx` est un module de domaine : il ne connaît pas la langue et ne peut
+ * donc pas écrire ses phrases — il rend une clé et des paramètres. Ce crochet
+ * fait le pont, à un seul endroit, plutôt que de laisser chaque écran refaire
+ * la même substitution.
+ *
+ * Les motifs sont de la forme `{amount}` ; `split`/`join` plutôt que `replace`,
+ * qui ne remplacerait que la première occurrence et interpréterait `$&` dans la
+ * valeur — un nom de contact contenant `$` corromprait la phrase.
+ */
+export function useActivityT(): ActivityTranslate {
+  const lang = useSettings((s) => s.language);
+  return (key, params) => {
+    let out = translate(lang, key as Key);
+    if (params) {
+      for (const [k, v] of Object.entries(params)) out = out.split(`{${k}}`).join(v);
+    }
+    return out;
+  };
 }
 
 export function fiatSymbol(code: string): string {

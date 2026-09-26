@@ -4,6 +4,12 @@
  *   « Échangé 0,1 ETH » · « Autorisé Uniswap à dépenser tes USDC » · « Reçu 1 NFT »
  * Les échecs disent qu'ils ont échoué ; les transferts spam à 0 sont masqués.
  * Regroupement par Aujourd'hui / Hier / date. Pur et testé.
+ *
+ * LES PHRASES NE SONT PAS ÉCRITES ICI. Elles l'étaient, en français, si bien que
+ * l'historique restait français dans les quatorze autres langues — alors que
+ * tout l'écran autour était traduit. Un module de domaine ne connaît pas la
+ * langue de l'utilisateur : il reçoit un traducteur et lui passe une CLÉ et des
+ * paramètres, comme `describeQr` le fait déjà pour les codes QR.
  */
 import type { TxSummary } from '../chains/types';
 import { formatTokenAmount } from '../validation/format';
@@ -34,7 +40,30 @@ export interface HumanTx {
   spam: boolean;
 }
 
+/**
+ * Clés de phrases de l'activité. Liste fermée : une clé inconnue ne compile pas.
+ */
+export type ActivityKey =
+  | 'actSent'
+  | 'actReceived'
+  | 'actSwapped'
+  | 'actApproved'
+  | 'actNftIn'
+  | 'actNftOut'
+  | 'actInternal'
+  | 'actInteraction'
+  | 'actTo'
+  | 'actFrom'
+  | 'actUnverified'
+  | 'actFailedPrefix'
+  | 'actFailedBody';
+
+/** Traducteur injecté : rend la phrase de `key`, paramètres substitués. */
+export type ActivityTranslate = (key: ActivityKey, params?: Record<string, string>) => string;
+
 export interface HumanizeCtx {
+  /** Traducteur de l'écran appelant. */
+  t: ActivityTranslate;
   /** Repli quand la chaîne de la transaction est introuvable. */
   nativeSymbol: string;
   /** Repli quand la chaîne de la transaction est introuvable. */
@@ -84,29 +113,44 @@ export function humanizeTx(tx: TxSummary, ctx: HumanizeCtx): HumanTx {
    * état transversal, ajouté une seule fois plus bas. L'énumérer dans chacune
    * des huit branches n'aurait fait qu'offrir huit endroits pour l'oublier.
    */
+  const t = ctx.t;
+  const money = { amount: amountStr, symbol };
+
   let out: Omit<HumanTx, 'pending'>;
   if (type === 'SWAP') {
-    out = { title: `Échangé ${amountStr} ${symbol}`, subtitle: tx.description ?? undefined, icon: 'exchange', tone: 'neutral', amount: undefined, failed, spam: false };
+    out = { title: t('actSwapped', money), subtitle: tx.description ?? undefined, icon: 'exchange', tone: 'neutral', amount: undefined, failed, spam: false };
   } else if (type === 'APPROVE' || type === 'APPROVAL') {
-    out = { title: `Autorisé ${name(tx.to)} à dépenser tes ${symbol}`, icon: 'security', tone: 'neutral', failed, spam: false };
+    out = { title: t('actApproved', { name: name(tx.to), symbol }), icon: 'security', tone: 'neutral', failed, spam: false };
   } else if (type === 'NFT') {
-    out = { title: inbound ? `Reçu 1 NFT de ${name(tx.from)}` : `Envoyé 1 NFT à ${name(tx.to)}`, icon: 'nft', tone: inbound ? 'up' : 'neutral', failed, spam: false };
+    out = {
+      title: inbound ? t('actNftIn', { name: name(tx.from) }) : t('actNftOut', { name: name(tx.to) }),
+      icon: 'nft',
+      tone: inbound ? 'up' : 'neutral',
+      failed,
+      spam: false,
+    };
   } else if (tx.direction === 'self') {
-    out = { title: `Transfert interne · ${amountStr} ${symbol}`, icon: 'send', tone: 'neutral', amount: `${amountStr} ${symbol}`, failed, spam: false };
+    out = { title: t('actInternal', money), icon: 'send', tone: 'neutral', amount: `${amountStr} ${symbol}`, failed, spam: false };
   } else if (inbound && unverified) {
     // Token inconnu reçu sans rien demander : gris, sans « + », sans valeur, masqué par défaut.
-    out = { title: `Reçu ${amountStr} ${symbol}`, subtitle: 'Token non vérifié — n’interagis pas avec lui', icon: 'alert', tone: 'neutral', amount: `${amountStr} ${symbol}`, failed, spam: true, counterparty: tx.from };
+    out = { title: t('actReceived', money), subtitle: t('actUnverified'), icon: 'alert', tone: 'neutral', amount: `${amountStr} ${symbol}`, failed, spam: true, counterparty: tx.from };
   } else if (inbound) {
-    out = { title: `Reçu ${amountStr} ${symbol}`, subtitle: `de ${name(tx.from)}`, icon: 'receive', tone: 'up', amount: `+${amountStr} ${symbol}`, failed, spam: tx.value === 0n, counterparty: tx.from, fiat };
+    out = { title: t('actReceived', money), subtitle: t('actFrom', { name: name(tx.from) }), icon: 'receive', tone: 'up', amount: `+${amountStr} ${symbol}`, failed, spam: tx.value === 0n, counterparty: tx.from, fiat };
   } else if (tx.value === 0n && type !== 'TRANSFER') {
-    out = { title: `Interaction avec ${name(tx.to)}`, subtitle: tx.description ?? undefined, icon: 'dapps', tone: 'neutral', failed, spam: false };
+    out = { title: t('actInteraction', { name: name(tx.to) }), subtitle: tx.description ?? undefined, icon: 'dapps', tone: 'neutral', failed, spam: false };
   } else {
-    out = { title: `Envoyé ${amountStr} ${symbol}`, subtitle: `à ${name(tx.to)}`, icon: 'send', tone: 'down', amount: `−${amountStr} ${symbol}`, failed, spam: false, counterparty: tx.to, fiat };
+    out = { title: t('actSent', money), subtitle: t('actTo', { name: name(tx.to) }), icon: 'send', tone: 'down', amount: `−${amountStr} ${symbol}`, failed, spam: false, counterparty: tx.to, fiat };
   }
   const result: HumanTx = { ...out, pending };
   if (failed) {
-    result.title = `Échouée · ${result.title.charAt(0).toLowerCase()}${result.title.slice(1)}`;
-    result.subtitle = 'Rien n’a été débité (sauf les frais réseau). Cause fréquente : frais trop bas ou autorisation manquante.';
+    /*
+     * Le titre est repris TEL QUEL. L'ancienne version en minusculait la
+     * première lettre pour enchaîner « Échouée · envoyé … » : un réflexe de
+     * français, qui n'a aucun sens en chinois, en japonais ou en arabe, et qui
+     * abîme une phrase allemande commençant par un montant.
+     */
+    result.title = t('actFailedPrefix', { what: result.title });
+    result.subtitle = t('actFailedBody');
     result.icon = 'errorCircle';
     result.tone = 'danger';
   }
