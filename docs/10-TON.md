@@ -39,7 +39,18 @@ autre dans `signerFromSeed` — et le fait que notre seed BIP-39 déjà calculé
 serve à rien ici : il faut la PHRASE, pas la graine. C'est la seule chaîne dans
 ce cas, et cela remonte jusqu'à `deriveSigner` dans `walletStore`.
 
-> **À trancher avant d'implémenter.** Le reste du document suppose (a).
+> **TRANCHÉ : (a), la dérivation native.** Implémentée dans
+> `src/domain/chains/ton/tonMnemonic.ts`, avec l'algorithme écrit constante par
+> constante — sels, itérations, décalages d'octets — parce qu'aucune de ces
+> valeurs n'est devinable et qu'une seule erreur suffit à dériver la clé d'une
+> autre adresse.
+>
+> **Reste à confirmer avant d'activer TON :** l'implémentation suit l'algorithme
+> de `ton-crypto` mais n'est PAS validée contre un vecteur réel. Les tests
+> couvrent le déterminisme, les longueurs, l'effet du mot de passe et de l'ordre
+> des mots — pas l'interopérabilité. Il faut comparer une adresse dérivée ici à
+> celle que Tonkeeper affiche pour la même phrase. Une dérivation fausse ne plante
+> pas : elle montre un portefeuille vide, ce qui est le pire des deux.
 
 ---
 
@@ -227,3 +238,36 @@ L'écosystème officiel est `@ton/core`, `@ton/crypto` et `@ton/ton`. Deux point
 
 Le point le plus coûteux est la dérivation : c'est la seule chaîne où la graine
 BIP-39 déjà calculée ne sert à rien, et cela remonte jusqu'à `walletStore`.
+
+
+---
+
+## 12. État d'avancement
+
+**Fait, pur et testé.**
+
+- `tonAddress.ts` — analyse, écriture et validation des adresses. Les deux
+  écritures (`EQ…` rebondissante, `UQ…` non rebondissante) sont reconnues et le
+  drapeau est RENDU au lieu d'être jeté : c'est ce qui permettra à `prepareSend`
+  de comparer la forme demandée à l'état réel du compte. Le drapeau testnet est
+  refusé sur le réseau principal, comme pour Bitcoin. Le CRC est validé contre le
+  vecteur canonique du CRC-16/XMODEM (`123456789` → `0x31C3`), et le workchain est
+  lu comme un entier SIGNÉ — la masterchain vaut −1, écrit `0xFF`, et le lire non
+  signé ferait refuser une adresse valide. Quatorze tests.
+- `tonMnemonic.ts` — dérivation native phrase → graine ed25519, contrôle de
+  validité TON (sans rapport avec BIP-39 : pas de somme de contrôle sur les mots)
+  et détection d'une phrase protégée par mot de passe. Onze tests.
+
+**Reste à faire, dans l'ordre.**
+
+1. Confirmer la dérivation contre une adresse Tonkeeper réelle. Rien ne doit être
+   exposé dans l'app avant.
+2. Choisir la version du contrat de portefeuille (v4R2 ou W5) et embarquer son
+   code, sans quoi l'adresse — qui est `hash(code, data)` et non un dérivé de la
+   clé — ne peut pas être calculée.
+3. Construire le message externe (BOC) et le `StateInit` du premier envoi, qui
+   déploie le compte aux frais de l'expéditeur.
+4. Brancher `deriveSigner` sur la PHRASE et non sur la graine BIP-39 — TON est la
+   seule chaîne dans ce cas, et c'est le seul endroit du magasin à toucher.
+5. Enregistrer l'adaptateur et sa configuration, en dernier : un adaptateur
+   enregistré à moitié est plus dangereux qu'un adaptateur absent.
