@@ -299,14 +299,28 @@ interface PayState {
   /** Détail technique éventuel (méthode refusée, message du service). */
   detail: string | null;
 
+  /** Compte qui paie, et son adresse EVM. Renseigné dès le premier chargement. */
+  payer: { index: number; evmAddress: string } | null;
+
   /**
    * Charge les options d'un lien de paiement.
+   *
+   * Options NOMMÉES : la file de paramètres positionnels devenait illisible, et
+   * trois booléens de suite finissent toujours par être inversés.
    *
    * `afterInfo` marque le rechargement qui SUIT l'envoi du formulaire. Sans ce
    * drapeau, un service qui redemande des informations à chaque réponse fait
    * reparcourir le formulaire sans fin — c'est la boucle observée sur appareil.
+   *
+   * `accountIndex` laisse payer depuis un AUTRE compte que celui affiché. Un
+   * portefeuille en a souvent plusieurs, et les fonds ne sont pas toujours sur
+   * celui qu'on regarde — sans ce choix, il fallait changer de compte à
+   * l'accueil puis rescanner le QR.
    */
-  open: (link: string, afterInfo?: boolean, theme?: 'light' | 'dark') => Promise<void>;
+  open: (
+    link: string,
+    opts?: { afterInfo?: boolean; theme?: 'light' | 'dark'; accountIndex?: number },
+  ) => Promise<void>;
   /** Retient une option ; ouvre la capture de données si elle est requise. */
   select: (option: PayOption, theme?: 'light' | 'dark') => void;
   /** Le formulaire hébergé a abouti : on peut poursuivre. */
@@ -336,12 +350,14 @@ const EMPTY = {
   result: null,
   failure: null,
   detail: null,
+  payer: null,
 };
 
 export const usePay = create<PayState>((set, get) => ({
   ...EMPTY,
 
-  open: async (link, afterInfo = false, theme) => {
+  open: async (link, opts = {}) => {
+    const { afterInfo = false, theme, accountIndex } = opts;
     const c = payClient();
     if (!c) {
       set({ phase: 'error', failure: 'UNAVAILABLE' });
@@ -355,14 +371,21 @@ export const usePay = create<PayState>((set, get) => ({
      * envoyait alors zéro compte au service, sans que rien ne l'explique.
      */
     const w = useWallet.getState();
-    const stored = w.accounts.find((a) => a.index === w.activeAccountIndex) ?? w.accounts[0];
+    const wanted = accountIndex ?? w.activeAccountIndex;
+    const stored = w.accounts.find((a) => a.index === wanted) ?? w.accounts[0];
     const accounts = payAccountsFor(stored?.evmAddress ?? '');
     if (accounts.length === 0) {
       set({ phase: 'error', failure: 'NO_EVM_ACCOUNT' });
       return;
     }
 
-    set({ ...EMPTY, phase: 'loading', link });
+    /*
+     * Le compte payeur est CONSERVÉ dans l'état : l'écran doit pouvoir dire
+     * lequel a servi. Devant un « rien pour payer », savoir quelle adresse a été
+     * interrogée est la moitié de l'explication — c'est celle qu'il faut
+     * alimenter.
+     */
+    set({ ...EMPTY, phase: 'loading', link, payer: { index: stored.index, evmAddress: stored.evmAddress } });
     try {
       const options = await c.getPaymentOptions({ paymentLink: link, accounts, includePaymentInfo: true });
 
@@ -429,6 +452,7 @@ export const usePay = create<PayState>((set, get) => ({
              * qui s'ouvre au milieu d'une app sombre se remarque.
              */
             collectUrl: buildCollectUrl(next.url, { theme, themeVariables: PAY_THEME_VARIABLES }),
+            payer: get().payer,
             failure: null,
           });
           return;
@@ -457,9 +481,9 @@ export const usePay = create<PayState>((set, get) => ({
   },
 
   recheck: async () => {
-    const { link } = get();
-    // `true` : on ne repropose jamais le formulaire, il a déjà été envoyé.
-    if (link) await get().open(link, true);
+    const { link, payer } = get();
+    // `afterInfo` : on ne repropose jamais le formulaire, il a déjà été envoyé.
+    if (link) await get().open(link, { afterInfo: true, accountIndex: payer?.index });
   },
 
   collected: () => {
@@ -476,10 +500,12 @@ export const usePay = create<PayState>((set, get) => ({
     if (link && (options?.options.length ?? 0) === 0) {
       set({ collectUrl: null });
       /*
-       * `true` : ce rechargement SUIT l'envoi du formulaire. Il interdit d'y
-       * revenir, et c'est ce qui coupe la boucle.
+       * `afterInfo` : ce rechargement SUIT l'envoi du formulaire. Il interdit
+       * d'y revenir, et c'est ce qui coupe la boucle. Le compte payeur est
+       * repris tel quel, sans quoi la relance interrogerait un autre compte que
+       * celui pour lequel les informations viennent d'être envoyées.
        */
-      void get().open(link, true);
+      void get().open(link, { afterInfo: true, accountIndex: get().payer?.index });
       return;
     }
     set({ collectUrl: null, phase: 'choosing' });
