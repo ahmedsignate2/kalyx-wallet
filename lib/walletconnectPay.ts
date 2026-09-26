@@ -28,6 +28,8 @@ import {
   payAccountsFor,
   checkPayAction,
   decideNoOption,
+  needsCollect,
+  preselectOption,
   listChains,
   formatTokenAmount,
   type PayMethod,
@@ -127,6 +129,14 @@ export interface PayResult {
   status: PayStatus;
   isFinal: boolean;
   pollInMs?: number;
+  /**
+   * Détail du règlement, quand le service le rend.
+   *
+   * On ne le lisait pas : l'écran de succès n'avait donc ni l'empreinte de la
+   * transaction ni le montant effectivement réglé — rien à montrer, rien à
+   * vérifier sur un explorateur.
+   */
+  info?: { txId: string; optionAmount: PayAmount };
 }
 
 /**
@@ -294,6 +304,23 @@ interface PayState {
   /** URL du formulaire hébergé, quand l'option choisie exige une capture. */
   collectUrl: string | null;
   result: PayResult | null;
+  /**
+   * Options dont les informations ont été ENVOYÉES.
+   *
+   * L'option rendue par le service garde son `collectData` même après l'envoi :
+   * le badge « informations requises » restait donc affiché indéfiniment, sans
+   * qu'aucun signe ne dise que la saisie avait abouti. La réponse du serveur ne
+   * peut pas porter cette information — c'est à nous de la retenir.
+   */
+  collectedIds: string[];
+  /**
+   * Réseau où le paiement s'est réglé, identifiant Kalyx.
+   *
+   * Déduit de la dernière action signée. Sans lui, l'écran de succès ne peut pas
+   * construire un lien d'explorateur, donc l'utilisateur n'a aucun moyen de
+   * vérifier que son argent est bien parti.
+   */
+  settledChain: string | null;
   /** Cause d'échec, à traduire par l'écran. */
   failure: PayFailure | null;
   /** Détail technique éventuel (méthode refusée, message du service). */
@@ -351,6 +378,8 @@ const EMPTY = {
   failure: null,
   detail: null,
   payer: null,
+  collectedIds: [],
+  settledChain: null,
 };
 
 export const usePay = create<PayState>((set, get) => ({
@@ -460,7 +489,13 @@ export const usePay = create<PayState>((set, get) => ({
         set({ phase: 'error', failure: next.reason, options, detail: options.info?.status ?? null });
         return;
       }
-      set({ phase: 'choosing', options });
+      /*
+       * PRÉSÉLECTION de la première option qui ne réclame rien : sans elle, le
+       * bouton de paiement n'apparaissait qu'après un appui, et l'écran semblait
+       * attendre sans dire quoi. Jamais une option qui exige des informations —
+       * cela ouvrirait un formulaire que personne n'a demandé.
+       */
+      set({ phase: 'choosing', options, selected: preselectOption(options.options, get().collectedIds) });
     } catch (e) {
       set({ phase: 'error', failure: 'FAILED', detail: e instanceof Error ? e.message : null });
     }
@@ -472,7 +507,12 @@ export const usePay = create<PayState>((set, get) => ({
      * Et elle doit avoir lieu AVANT de demander les actions — sinon le service
      * répond « IC data required » et le flux casse sans explication.
      */
-    const url = option.collectData?.url;
+    /*
+     * ON NE ROUVRE PAS UN FORMULAIRE DÉJÀ ENVOYÉ. Le service renvoie
+     * `collectData` à l'identique après coup : s'y fier seul faisait reparcourir
+     * la saisie dès qu'on retouchait l'option.
+     */
+    const url = needsCollect(option, get().collectedIds) ? option.collectData?.url : undefined;
     set({
       selected: option,
       collectUrl: url ? buildCollectUrl(url, { theme, themeVariables: PAY_THEME_VARIABLES }) : null,
@@ -496,7 +536,14 @@ export const usePay = create<PayState>((set, get) => ({
      * des informations qu'on vient de lui donner. Retomber sur « choisir »
      * afficherait alors une liste vide, sans rien expliquer.
      */
-    const { options, link } = get();
+    const { options, link, selected, collectedIds } = get();
+    /*
+     * ON RETIENT QUE C'EST FAIT. Le badge de l'option se calcule ensuite d'après
+     * cette liste et non d'après `collectData`, qui ne change jamais.
+     */
+    if (selected && !collectedIds.includes(selected.id)) {
+      set({ collectedIds: [...collectedIds, selected.id] });
+    }
     if (link && (options?.options.length ?? 0) === 0) {
       set({ collectUrl: null });
       /*
@@ -533,6 +580,15 @@ export const usePay = create<PayState>((set, get) => ({
        * commence par une approbation dont la suivante dépend —, donc on signe
        * en SÉRIE, jamais en parallèle.
        */
+      /*
+       * Le réseau de RÈGLEMENT, lu avant de signer : c'est celui de la dernière
+       * action, celle qui déplace les fonds. L'écran de succès en a besoin pour
+       * proposer un lien d'explorateur.
+       */
+      const last = actions[actions.length - 1];
+      const lastChain = last ? checkPayAction(last.walletRpc) : null;
+      const settledChain = lastChain?.ok && lastChain.evmChainId ? evmChainIdToKalyx(lastChain.evmChainId) : null;
+
       const data: (string | object)[] = [];
       for (const action of actions) {
         data.push(await signPayAction(action, unlock));
@@ -543,7 +599,7 @@ export const usePay = create<PayState>((set, get) => ({
         optionId: selected.id,
         data,
       });
-      set({ phase: 'done', result });
+      set({ phase: 'done', result, settledChain });
     } catch (e) {
       const refused = e instanceof PayActionRefused ? e : null;
       set({
