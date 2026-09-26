@@ -7,14 +7,14 @@
  * dans une WebView : ses champs évoluent sans nous prévenir, et une copie
  * native empêcherait de payer le jour où elle diverge.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import * as Clipboard from 'expo-clipboard';
 import { Linking } from 'react-native';
-import { Text, Button, Surface, ListRow, IconButton, Skeleton, EmptyState, Chip } from '../ui/kit';
+import { Text, Button, Surface, ListRow, IconButton, Skeleton, EmptyState, Chip, Pressable as KPressable } from '../ui/kit';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN } from '../ui/tokens';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
@@ -22,7 +22,17 @@ import { usePay, type PayOption } from '../lib/walletconnectPay';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { technicalLogger } from '../lib/technicalLogger';
-import { formatTokenAmount } from '../src';
+import {
+  formatTokenAmount,
+  formatNumber,
+  shortAddress,
+  listChains,
+  chainNameOf,
+  payEligibleHoldings,
+  payCoverageLines,
+} from '../src';
+import { useWallet } from '../lib/walletStore';
+import { usePortfolioStore } from '../lib/portfolio';
 
 /** Domaines autorisés dans la WebView de capture. */
 const COLLECT_HOST = 'pay.walletconnect.com';
@@ -34,7 +44,7 @@ export default function PayScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ link?: string }>();
 
-  const { phase, options, selected, collectUrl, result, failure, detail, open, select, collected, recheck, confirm, reset } =
+  const { phase, options, selected, collectUrl, result, failure, detail, payer, open, select, collected, recheck, confirm, reset } =
     usePay();
 
   /*
@@ -104,11 +114,32 @@ export default function PayScreen() {
    * qu'il n'a rien à proposer.
    */
   const stating = failure === 'NO_OPTION' || failure === 'INFO_NOT_ENOUGH';
+
+  /*
+   * DE QUOI EXPLIQUER, pas seulement constater.
+   *
+   * L'écran disait ce que Pay accepte EN GÉNÉRAL et se taisait sur ce que
+   * l'utilisateur détient. Il a fallu cinq heures et un détour par un navigateur
+   * pour découvrir qu'un paiement n'acceptait que des actifs sur Ethereum alors
+   * que les fonds étaient sur Base — alors que l'app connaissait les deux.
+   */
+  const accounts = useWallet((w) => w.accounts);
+  const holdings = usePortfolioStore((s) => s.holdings);
+  const chains = useMemo(() => listChains({ includeTestnets: false }), []);
+  const evmChainIdOf = useCallback((id: string) => chains.find((c) => c.id === id)?.evmChainId, [chains]);
+  const nameOfEvm = useCallback(
+    (evmChainId: number) => chains.find((c) => c.evmChainId === evmChainId)?.name,
+    [chains],
+  );
+  const eligible = useMemo(() => payEligibleHoldings(holdings, evmChainIdOf), [holdings, evmChainIdOf]);
+  const coverage = useMemo(() => payCoverageLines(nameOfEvm), [nameOfEvm]);
+  /** Comptes autres que celui qui vient d'être interrogé. */
+  const otherAccounts = useMemo(() => accounts.filter((a) => a.index !== payer?.index), [accounts, payer?.index]);
   const [asking, setAsking] = useState(false);
 
   useEffect(() => {
     const link = params.link ? String(params.link) : '';
-    if (link) void open(link, false, mode === 'light' ? 'light' : 'dark');
+    if (link) void open(link, { theme: mode === 'light' ? 'light' : 'dark' });
     return () => reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.link]);
@@ -295,6 +326,94 @@ export default function PayScreen() {
               }}
             />
           </Surface>
+        ) : null}
+
+        {/*
+          POURQUOI RIEN N'EST PROPOSÉ, en trois faits vérifiables : le compte
+          interrogé, ce qu'on détient parmi les actifs réglables, et l'étendue de
+          ce que le service règle. Sans ces trois-là, « rien pour payer » n'est
+          pas une explication, c'est une porte fermée.
+        */}
+        {stating ? (
+          <>
+            <Surface>
+              <View style={{ gap: space[2] }}>
+                <Text variant="caption" tone="secondary">{t('payAccountUsed')}</Text>
+                <KPressable
+                  onPress={() => {
+                    if (!payer) return;
+                    void Clipboard.setStringAsync(payer.evmAddress);
+                    toast.success(t('copied'));
+                  }}
+                >
+                  <Text variant="body" tabular>{payer ? shortAddress(payer.evmAddress) : '—'}</Text>
+                </KPressable>
+              </View>
+            </Surface>
+
+            <Surface>
+              <View style={{ gap: space[2] }}>
+                <Text variant="caption" tone="secondary">{t('payYouHold')}</Text>
+                {eligible.length === 0 ? (
+                  <Text variant="body">{t('payHoldNone')}</Text>
+                ) : (
+                  eligible.map((h) => (
+                    <Text key={`${h.chainId}:${h.symbol}`} variant="body" tabular>
+                      {`${formatNumber(h.amount)} ${h.symbol} · ${chainNameOf(h.chainId) ?? h.chainId}`}
+                    </Text>
+                  ))
+                )}
+                {/*
+                  LE PIÈGE, DIT EXPLICITEMENT. Détenir un actif de la liste ne
+                  suffit pas : le marchand décide des réseaux acceptés, et c'est
+                  exactement ce qui nous a échappé cinq heures.
+                */}
+                <Text variant="micro" tone="tertiary">{t('payMerchantDecides')}</Text>
+              </View>
+            </Surface>
+
+            <Surface>
+              <View style={{ gap: space[2] }}>
+                <Text variant="caption" tone="secondary">{t('payAcceptedAssets')}</Text>
+                {coverage.map((c) => (
+                  <Text key={c.symbol} variant="micro" tone="secondary">
+                    {`${c.symbol} — ${c.networks.join(', ')}`}
+                  </Text>
+                ))}
+              </View>
+            </Surface>
+
+            {/*
+              PAYER DEPUIS UN AUTRE COMPTE, sans rescanner. Les fonds ne sont pas
+              toujours sur le compte qu'on regarde, et il fallait jusqu'ici en
+              changer à l'accueil puis refaire le QR.
+            */}
+            {otherAccounts.length > 0 ? (
+              <Surface>
+                <View style={{ gap: space[2] }}>
+                  <Text variant="caption" tone="secondary">{t('payOtherAccount')}</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
+                    {otherAccounts.map((a) => (
+                      <Chip
+                        key={a.index}
+                        label={shortAddress(a.evmAddress)}
+                        selected={false}
+                        onPress={() => {
+                          const link = params.link ? String(params.link) : '';
+                          if (link) {
+                            void open(link, {
+                              theme: mode === 'light' ? 'light' : 'dark',
+                              accountIndex: a.index,
+                            });
+                          }
+                        }}
+                      />
+                    ))}
+                  </View>
+                </View>
+              </Surface>
+            ) : null}
+          </>
         ) : null}
 
         {/* CE QU'ON PAIE ET À QUI, avant tout le reste. */}

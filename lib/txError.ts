@@ -5,12 +5,33 @@
  * Accepte un `t` optionnel pour les traductions i18n. Sans `t`, renvoie
  * la clé i18n brute (fallback anglais dans le dictionnaire).
  */
-import { isWalletError, SwapError } from '../src';
+import { isWalletError, isWcConnectError, SwapError } from '../src';
 import { recordTechnicalLog } from './technicalLogger';
 
 export type TFn = (key: any) => string;
 
 export function friendlyTxError(e: unknown, t?: TFn): string {
+  /*
+   * ÉCHEC DE CONNEXION D'UNE dApp, en premier parce qu'il porte un code et que
+   * le reste de cette fonction devine à partir de messages. Le détail technique
+   * suit la phrase traduite : « réseau non supporté » sans dire lequel oblige à
+   * chercher, et c'est ce silence qui fait perdre des heures.
+   */
+  if (isWcConnectError(e)) {
+    const key =
+      e.code === 'NO_ACCOUNT'
+        ? 'wcErrNoAccount'
+        : e.code === 'UNSUPPORTED_REQUEST'
+          ? 'wcErrUnsupported'
+          : e.code === 'NO_COMPATIBLE_CHAIN'
+            ? 'wcErrNoChain'
+            : e.code === 'PROPOSAL_EXPIRED'
+              ? 'wcErrExpired'
+              : 'wcErrRelay';
+    const phrase = t ? t(key) : e.code;
+    return e.detail ? `${phrase} (${e.detail})` : phrase;
+  }
+
   const errMsg = typeof e === 'object' && e ? (e as any)?.shortMessage || (e as any)?.message || 'Transaction error' : String(e);
   recordTechnicalLog('TX_ERROR', errMsg, typeof e === 'object' && e ? { code: (e as any)?.code, status: (e as any)?.status } : undefined);
   console.error('[txError] Raw error interceptée:', typeof e === 'object' ? JSON.stringify(e, Object.getOwnPropertyNames(e)) : e);
@@ -61,7 +82,8 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
     return t ? t('errInsufficientFunds') : 'Insufficient balance to cover the amount and network fees.';
   }
   if (msg.includes('missing revert data') || (msg.includes('estimategas') && err?.code === 'CALL_EXCEPTION')) {
-    return 'La simulation a été refusée par le contrat (autorisation manquante, solde modifié ou devis expiré). Demande un nouveau devis.';
+    // Traduit : ce message-ci était écrit en français en dur.
+    return t ? t('errSimulationRefused') : 'The contract refused the simulation (missing allowance, changed balance, or expired quote). Request a new quote.';
   }
   if (msg.includes('simulation failed') || msg.includes('custom program error')) {
     return t ? t('errCallException') : 'Transaction failed (contract). Check the amount or allowance.';
