@@ -320,7 +320,7 @@ export {
 } from './domain/wc/message';
 
 // Chaînes (plugins)
-export { getAdapter, listChains, hasChain, nativeOfChain, chainNameOf, registerChain, unregisterChain } from './domain/chains/registry';
+export { getAdapter, listChains, hasChain, nativeOfChain, chainNameOf, chainMetaOf, registerChain, unregisterChain } from './domain/chains/registry';
 export { chainIconUrl } from './domain/chains/icons';
 export { EvmChainAdapter, type RawTxRequest } from './domain/chains/EvmChainAdapter';
 export { computeFeeTiers, type FeeOptions, type FeeTier, type FeeSpeed } from './domain/chains/gas';
