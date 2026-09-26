@@ -41,6 +41,14 @@ function ChainRasterIcon({ slug, alt }: { slug: string; alt: string }) {
   return <Image src={src} alt={alt} width={15} height={15} className="rounded-full" />;
 }
 
+function TonIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden fill="#0098EA">
+      <path d="M18.7 2H5.3C2.84 2 1.28 4.66 2.52 6.8l8.4 14.57c.54.93 1.88.93 2.42 0l8.4-14.57C22.97 4.66 21.4 2 18.7 2Zm-7.79 15.16-1.83-3.54-4.41-7.9a1.16 1.16 0 0 1 1.01-1.72h5.23v13.16Zm8.31-11.44-4.4 7.9-1.84 3.54V4h5.23a1.16 1.16 0 0 1 1.01 1.72Z" />
+    </svg>
+  );
+}
+
 const CHAINS: { name: string; icon: React.ReactNode }[] = [
   { name: 'Avalanche', icon: <ChainRasterIcon slug="avalanche" alt="" /> },
   { name: 'Sei', icon: <ChainRasterIcon slug="sei" alt="" /> },
@@ -73,6 +81,25 @@ export function Networks({ t }: { t: Dict }) {
           <span style={{ color: WALLETCONNECT_BLUE }}>{t.networks.walletconnect}</span>
         </Reveal>
       </div>
+
+      {/*
+        TON EST ANNONCÉ « À VENIR », PAS DANS LA RANGÉE.
+
+        La rangée au-dessus liste ce qui fonctionne aujourd'hui ; y glisser TON
+        laisserait croire qu'on peut y recevoir des fonds, alors que l'adaptateur
+        n'est pas enregistré et que la dérivation attend d'être confrontée à une
+        vraie adresse Tonkeeper. Un site qui promet plus que l'application est le
+        même défaut qu'un écran qui décrit faux ses propres capacités.
+      */}
+      <Reveal
+        className="mx-auto mt-5 flex max-w-page items-center justify-center gap-2 text-xs text-mist"
+        delay={0.28}
+      >
+        <span aria-hidden className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-paper/95">
+          <TonIcon size={13} />
+        </span>
+        <span>{t.networks.soon}</span>
+      </Reveal>
     </section>
   );
 }

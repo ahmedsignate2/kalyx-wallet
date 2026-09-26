@@ -4,7 +4,7 @@ const ja: Dict = {
   meta: {
     title: 'Kalyx Wallet — ノンカストディアル・マルチチェーン暗号資産ウォレット',
     description:
-      '鍵はあなたのスマホの中に。Bitcoin、Ethereum、Solana と 60 のネットワーク。すべての署名は、署名する前に説明されます。無料、アカウント不要。',
+      '鍵はあなたのスマホの中に。Bitcoin、Ethereum、Solana と 64 のネットワーク。すべての署名は、署名する前に説明されます。無料、アカウント不要。',
   },
   nav: {
     how: '仕組み',
@@ -51,6 +51,7 @@ const ja: Dict = {
   networks: {
     label: '対応ネットワーク',
     walletconnect: 'WalletConnect（Reown）と相互運用可能',
+    soon: 'TON は近日対応：アドレスと鍵の導出はすでに実装し、テスト済みです。',
   },
   how: {
     kicker: '仕組み',
@@ -60,8 +61,8 @@ const ja: Dict = {
     steps: [
       {
         title: 'ひとつの残高。すべてのチェーン。',
-        text: 'Bitcoin、Ethereum とその Layer 2、Solana：63 のネットワークをひとつの数字、ひとつの曲線に集約。残高はネットワークが応答する前にキャッシュから表示されます。',
-        value: '63',
+        text: 'Bitcoin、Ethereum とその Layer 2、Solana：64 のネットワークをひとつの数字、ひとつの曲線に集約。残高はネットワークが応答する前にキャッシュから表示されます。',
+        value: '64',
         label: 'ネットワーク',
       },
       {

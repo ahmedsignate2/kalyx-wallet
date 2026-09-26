@@ -3,7 +3,7 @@ import type { Dict } from './fr';
 const zh: Dict = {
   meta: {
     title: 'Kalyx Wallet — 非托管、多链加密货币钱包',
-    description: '你的密钥只留在你的手机上。Bitcoin、Ethereum、Solana 与 60 条网络，每一次签名都在签署前解释清楚。免费，无需账户。',
+    description: '你的密钥只留在你的手机上。Bitcoin、Ethereum、Solana 与 64 条网络，每一次签名都在签署前解释清楚。免费，无需账户。',
   },
   nav: {
     how: '运作方式',
@@ -50,6 +50,7 @@ const zh: Dict = {
   networks: {
     label: '支持的网络',
     walletconnect: '与 WalletConnect（Reown）互操作',
+    soon: 'TON 即将支持：地址与密钥派生已编写并通过测试。',
   },
   how: {
     kicker: '运作方式',
@@ -59,8 +60,8 @@ const zh: Dict = {
     steps: [
       {
         title: '一个余额。你的所有链。',
-        text: 'Bitcoin、Ethereum 及其 Layer 2、Solana：63 条网络汇聚成一个数字、一条曲线。余额在网络响应之前就从缓存中显示。',
-        value: '63',
+        text: 'Bitcoin、Ethereum 及其 Layer 2、Solana：64 条网络汇聚成一个数字、一条曲线。余额在网络响应之前就从缓存中显示。',
+        value: '64',
         label: '条网络',
       },
       {

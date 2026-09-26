@@ -51,6 +51,7 @@ const ko: Dict = {
   networks: {
     label: '지원 네트워크',
     walletconnect: 'WalletConnect(Reown)와 상호운용 가능',
+    soon: 'TON 지원 예정: 주소와 키 파생은 이미 작성되어 테스트를 마쳤습니다.',
   },
   how: {
     kicker: '작동 방식',
@@ -61,7 +62,7 @@ const ko: Dict = {
       {
         title: '하나의 잔액. 모든 체인.',
         text: 'Bitcoin, Ethereum과 그 Layer 2, Solana: 63개 네트워크를 하나의 숫자, 하나의 곡선으로. 잔액은 네트워크가 응답하기 전에 캐시에서 먼저 표시됩니다.',
-        value: '63',
+        value: '64',
         label: '네트워크',
       },
       {
