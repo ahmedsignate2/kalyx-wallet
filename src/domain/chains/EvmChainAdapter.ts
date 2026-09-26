@@ -43,6 +43,20 @@ import { technicalLogger } from '../../../lib/technicalLogger';
 const NATIVE_TRANSFER_GAS = 21_000n;
 
 // Délai max par RPC avant de passer au suivant.
+/**
+ * Réessais pour une LECTURE d'historique.
+ *
+ * Deux tentatives et 300 ms d'attente, là où le défaut de `withRetry` en fait
+ * trois avec un repli exponentiel à partir d'une seconde. Ce défaut est juste
+ * pour une DIFFUSION de transaction, où abandonner coûte un envoi perdu. Pour une
+ * lecture, il transformait un fournisseur muet en vingt-sept secondes d'attente —
+ * et l'adaptateur en essaie jusqu'à quatre à la suite, ce qui dépassait la
+ * minute. Une lecture qui échoue n'a rien perdu : le cache garde la valeur
+ * précédente, et le prochain rafraîchissement retentera.
+ */
+const READ_RETRIES = 2;
+const READ_BACKOFF_MS = 300;
+
 const RPC_TIMEOUT_MS = 8_000;
 
 export class EvmChainAdapter implements ChainAdapter {
@@ -255,7 +269,7 @@ export class EvmChainAdapter implements ChainAdapter {
             return parseCovalentTxList(json, owner);
           }
           throw new Error('Covalent invalid format');
-        }, 3, 1000);
+        }, READ_RETRIES, READ_BACKOFF_MS);
       } catch {
         // Ignorer et essayer le suivant
       }
@@ -271,7 +285,7 @@ export class EvmChainAdapter implements ChainAdapter {
         const json = (await res.json()) as { result?: unknown };
         if (Array.isArray(json?.result)) return parseTxList(json, owner);
         throw new Error('Etherscan V2 invalid format');
-      }, 3, 1000);
+      }, READ_RETRIES, READ_BACKOFF_MS);
     } catch {
       // Échec ou timeout (pas de clé, ou réseau non supporté), on passe aux fallbacks
     }
@@ -300,7 +314,7 @@ export class EvmChainAdapter implements ChainAdapter {
             return parseTxList(fbJson, owner);
           }
           throw new Error('Blockscout invalid format');
-        }, 3, 1000);
+        }, READ_RETRIES, READ_BACKOFF_MS);
       } catch {
         // Ignorer et essayer le suivant
       }

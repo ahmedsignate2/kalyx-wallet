@@ -159,3 +159,71 @@ export function useHistoryLoading(chain: string, address: string | undefined): b
 export function useHistoryCache(): Record<string, TxSummary[]> {
   return useHistoryStore((s) => s.cache);
 }
+
+/**
+ * Agrège l'historique de plusieurs réseaux depuis le cache.
+ *
+ * Pure, et partagée par l'accueil et l'écran Historique : les deux montraient la
+ * même chose de deux façons différentes, et l'accueil contournait complètement
+ * ce cache — il appelait les adaptateurs en direct, avec un `Promise.all` qui
+ * n'affichait RIEN avant que les huit réseaux aient répondu. Un seul indexeur
+ * lent, et la liste restait vide plusieurs dizaines de secondes.
+ *
+ * En lisant le cache, l'affichage est immédiat au deuxième lancement, et les
+ * lignes apparaissent réseau par réseau au fur et à mesure des réponses.
+ */
+export function aggregateHistory(
+  cache: Record<string, TxSummary[]>,
+  chains: readonly { id: string; family: string }[],
+  addressFor: (family: string) => string | undefined,
+): TxSummary[] {
+  const seen = new Map<string, TxSummary>();
+  for (const c of chains) {
+    const address = addressFor(c.family);
+    if (!address) continue;
+    /*
+     * Clé RÉSEAU + EMPREINTE : l'empreinte seule confond deux transactions
+     * homonymes venues de deux chaînes EVM, ce qui arrive réellement.
+     */
+    for (const tx of cache[cacheKey(c.id, address)] ?? []) seen.set(`${tx.chain}:${tx.hash}`, tx);
+  }
+  return [...seen.values()].sort((a, b) => b.timestamp - a.timestamp);
+}
+
+/**
+ * Un chargement est-il en cours pour l'un de ces réseaux ? Réactif.
+ *
+ * Rend un BOOLÉEN, et c'est volontaire : un sélecteur zustand qui rendrait un
+ * objet neuf à chaque appel serait comparé par identité et redéclencherait un
+ * rendu en boucle.
+ */
+export function useAnyHistoryLoading(
+  chains: readonly { id: string; family: string }[],
+  addressFor: (family: string) => string | undefined,
+): boolean {
+  return useHistoryStore((s) =>
+    chains.some((c) => {
+      const address = addressFor(c.family);
+      return address ? s.loading[cacheKey(c.id, address)] === true : false;
+    }),
+  );
+}
+
+/**
+ * Au moins un réseau a-t-il déjà répondu avec succès ?
+ *
+ * Sépare « rien à montrer » de « on n'a pas réussi à demander ». Sans cette
+ * distinction, un réseau injoignable produirait le message « aucune activité »,
+ * qui affirme quelque chose de faux sur le portefeuille de l'utilisateur.
+ */
+export function useAnyHistoryFetched(
+  chains: readonly { id: string; family: string }[],
+  addressFor: (family: string) => string | undefined,
+): boolean {
+  return useHistoryStore((s) =>
+    chains.some((c) => {
+      const address = addressFor(c.family);
+      return address ? (s.lastFetch[cacheKey(c.id, address)] ?? 0) > 0 : false;
+    }),
+  );
+}
