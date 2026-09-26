@@ -131,7 +131,13 @@ export function formatTonAddress(
   const full = Uint8Array.from([...body, (crc >> 8) & 0xff, crc & 0xff]);
   // base64url par défaut : c'est la forme que la spécification demande et celle
   // qui traverse une URL sans être réécrite.
-  return opts.urlSafe === false ? base64.encode(full) : base64urlnopad.encode(full) + '==';
+  //
+  // SANS remplissage : 36 octets font exactement 48 caractères. On ajoutait
+  // `==`, ce qui donnait 50 caractères qu'aucun portefeuille n'accepte — et les
+  // tests ne le voyaient pas, parce qu'ils relisaient l'adresse avec notre
+  // propre analyse, tolérante au remplissage, au lieu de la comparer à une
+  // adresse réelle. C'est désormais le cas (`tonWallet.test.ts`).
+  return opts.urlSafe === false ? base64.encode(full) : base64urlnopad.encode(full);
 }
 
 /** Forme brute `workchain:hachageHexadécimal`, celle que les API attendent. */

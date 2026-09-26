@@ -1,0 +1,242 @@
+{
+ "keys": [
+  {
+   "source": "@ton/crypto mnemonic.spec.ts (vecteur officiel)",
+   "phrase": "hospital stove relief fringe tongue always charge angry urge sentence again match nerve inquiry senior coconut label tumble carry category beauty bean road solution",
+   "kind": "ton",
+   "seed": "9d659a6c2234db7f6e4f977e6e8653b9f5946d557163f31034011375d8f3f97d",
+   "publicKey": "f6c450a16bb1c514e22f1977e390a3025599aa1e7b00068a6aacf2119484c1bd",
+   "v5r1": {
+    "uq": "UQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53h3h",
+    "eq": "EQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53kAk",
+    "raw": "0:d22ce1556a6359cddcb82ee95c95c08110591145e67b5ac70108b030dcf839de"
+   },
+   "v4r2": {
+    "uq": "UQAYZ-rchbaHK4IUkCvcyl3V8spcAnO8IBRCNvS3are-CbyQ",
+    "eq": "EQAYZ-rchbaHK4IUkCvcyl3V8spcAnO8IBRCNvS3are-CeFV",
+    "raw": "0:1867eadc85b6872b8214902bdcca5dd5f2ca5c0273bc20144236f4b76ab7be09"
+   },
+   "v3r2": {
+    "uq": "UQDbuMbjSKj1IkoMU-whUDd5v2Om4G6tVwrwBxlrBmBtq12L",
+    "eq": "EQDbuMbjSKj1IkoMU-whUDd5v2Om4G6tVwrwBxlrBmBtqwBO",
+    "raw": "0:dbb8c6e348a8f5224a0c53ec21503779bf63a6e06ead570af007196b06606dab"
+   },
+   "v5r1Testnet": {
+    "uq": "0QC2w3H-ofk4DSeQynfr5fUiDdiVjxYoi8PGzW9Zd7X-sz0t",
+    "raw": "0:b6c371fea1f9380d2790ca77ebe5f5220dd8958f16288bc3c6cd6f5977b5feb3"
+   }
+  },
+  {
+   "source": "@ton/crypto mnemonic.spec.ts (vecteur officiel)",
+   "phrase": "dose ice enrich trigger test dove century still betray gas diet dune use other base gym mad law immense village world example praise game",
+   "kind": "ton",
+   "seed": "119dcf2840a3d56521d260b2f125eedc0d4f3795b9e627269a4b5a6dca8257bd",
+   "publicKey": "c04ad1885c127fe863abb00752fa844e6439bb04f264d70de7cea580b32637ab",
+   "v5r1": {
+    "uq": "UQDbuUzGbucJ6xkeLjr5O5s7A2u8xp-3DlxCbO8Lm3kwoXLR",
+    "eq": "EQDbuUzGbucJ6xkeLjr5O5s7A2u8xp-3DlxCbO8Lm3kwoS8U",
+    "raw": "0:dbb94cc66ee709eb191e2e3af93b9b3b036bbcc69fb70e5c426cef0b9b7930a1"
+   },
+   "v4r2": {
+    "uq": "UQDwzJzZsH2rII9Sv4krAGIhIn12pEhCj4LYcKa8jdXTdwhQ",
+    "eq": "EQDwzJzZsH2rII9Sv4krAGIhIn12pEhCj4LYcKa8jdXTd1WV",
+    "raw": "0:f0cc9cd9b07dab208f52bf892b006221227d76a448428f82d870a6bc8dd5d377"
+   },
+   "v3r2": {
+    "uq": "UQALALpSqtsgrgbzEEIXYsYtiTQJOV3_dJUpD5MXZTYxAyl-",
+    "eq": "EQALALpSqtsgrgbzEEIXYsYtiTQJOV3_dJUpD5MXZTYxA3S7",
+    "raw": "0:0b00ba52aadb20ae06f310421762c62d893409395dff7495290f931765363103"
+   },
+   "v5r1Testnet": {
+    "uq": "0QAUuuNZuB0F5tdgAHoQmyFEbClpfuFp_8iEveDVoDgNPq05",
+    "raw": "0:14bae359b81d05e6d760007a109b21446c29697ee169ffc884bde0d5a0380d3e"
+   }
+  },
+  {
+   "source": "@ton/crypto mnemonic.spec.ts (vecteur officiel)",
+   "phrase": "hobby coil wisdom mechanic fossil pretty enough attract since choice exhaust hazard kit oven damp flip hawk tribe spice glare step hammer apple number",
+   "kind": "ton",
+   "seed": "764c63ecdc92b331caf3c5a81c483da8444d4ac87d87af9e3cd36ae207d94e51",
+   "publicKey": "99ac861b19db16bc0f01adfc6897f4760dfc44f9415284c78689d4fcc28b94f7",
+   "v5r1": {
+    "uq": "UQDCteULTD5Rloi7FCvfMMo7gVP5-479zUTs4dfhVbwg0Ezk",
+    "eq": "EQDCteULTD5Rloi7FCvfMMo7gVP5-479zUTs4dfhVbwg0BEh",
+    "raw": "0:c2b5e50b4c3e519688bb142bdf30ca3b8153f9fb8efdcd44ece1d7e155bc20d0"
+   },
+   "v4r2": {
+    "uq": "UQAUxRgxKM-rvEu8YHyZs_37v6vJQPCcGAlY-ZtolrGLSEQv",
+    "eq": "EQAUxRgxKM-rvEu8YHyZs_37v6vJQPCcGAlY-ZtolrGLSBnq",
+    "raw": "0:14c5183128cfabbc4bbc607c99b3fdfbbfabc940f09c180958f99b6896b18b48"
+   },
+   "v3r2": {
+    "uq": "UQBVBLUh52E8LjXIIobQnv9DXmK-PrbVe7_QWGn4HmiTy9Ir",
+    "eq": "EQBVBLUh52E8LjXIIobQnv9DXmK-PrbVe7_QWGn4HmiTy4_u",
+    "raw": "0:5504b521e7613c2e35c82286d09eff435e62be3eb6d57bbfd05869f81e6893cb"
+   },
+   "v5r1Testnet": {
+    "uq": "0QAH7g_MoD0vLGmakks68wBkqRzw0hkoOx5c6Hg6nl0R4Ru6",
+    "raw": "0:07ee0fcca03d2f2c699a924b3af30064a91cf0d219283b1e5ce8783a9e5d11e1"
+   }
+  },
+  {
+   "source": "@ton/crypto mnemonic.spec.ts (vecteur officiel)",
+   "phrase": "now wide tag purity diamond coin unit rack device replace cheap deposit mention fence elite elder city measure reward lion chef promote depart connect",
+   "kind": "ton",
+   "seed": "2a8a63e0467f1f4148e0be0cc13e922d726f0b1c29272d6743eb83cf5549128f",
+   "publicKey": "313abf58635fd310310d1debd54f4fe1fd63631ced044ba0af96b67b85eed31b",
+   "v5r1": {
+    "uq": "UQASqG7n7N5SiJ1PAf1yA74qC2QYyDH7IV5uFJQEFXWoy7-s",
+    "eq": "EQASqG7n7N5SiJ1PAf1yA74qC2QYyDH7IV5uFJQEFXWoy-Jp",
+    "raw": "0:12a86ee7ecde52889d4f01fd7203be2a0b6418c831fb215e6e1494041575a8cb"
+   },
+   "v4r2": {
+    "uq": "UQBm7Qm7tCOPInUaKko-2bHYG7o6QE4arrx1lNPYHrshxqfi",
+    "eq": "EQBm7Qm7tCOPInUaKko-2bHYG7o6QE4arrx1lNPYHrshxvon",
+    "raw": "0:66ed09bbb4238f22751a2a4a3ed9b1d81bba3a404e1aaebc7594d3d81ebb21c6"
+   },
+   "v3r2": {
+    "uq": "UQAIIJCJoDnriJCXkipacW03c9SIzZEYxIfViRb2TLgF42eo",
+    "eq": "EQAIIJCJoDnriJCXkipacW03c9SIzZEYxIfViRb2TLgF4zpt",
+    "raw": "0:08209089a039eb889097922a5a716d3773d488cd9118c487d58916f64cb805e3"
+   },
+   "v5r1Testnet": {
+    "uq": "0QBU5_p6nqj9oL1G_BO6YvH7YU17VJEKQwAQYy7PeOMOAFg4",
+    "raw": "0:54e7fa7a9ea8fda0bd46fc13ba62f1fb614d7b54910a430010632ecf78e30e00"
+   }
+  },
+  {
+   "source": "@ton/crypto mnemonic.spec.ts (vecteur officiel)",
+   "phrase": "clinic toward wedding category tip spin purity absent army gun brain happy move company that cheap tank way shoe awkward pole protect wear crystal",
+   "kind": "ton",
+   "seed": "e5e78a8e1e509da180bc5aeb8af1a37d4311c5110402842925760a4035119362",
+   "publicKey": "b1f8a0b9b4c2353ddfad8937ed396fb7670e88e8b72128b15006839a2a86be47",
+   "v5r1": {
+    "uq": "UQBM1zpwB5IBnL4sa6sddxBJz5ZtTohaROgvK4sQmUu9U4P7",
+    "eq": "EQBM1zpwB5IBnL4sa6sddxBJz5ZtTohaROgvK4sQmUu9U94-",
+    "raw": "0:4cd73a700792019cbe2c6bab1d771049cf966d4e885a44e82f2b8b10994bbd53"
+   },
+   "v4r2": {
+    "uq": "UQDMBkk9Sy_VbIibduiag1jtbXPUmXv8DUdFvFfqSu-2q69O",
+    "eq": "EQDMBkk9Sy_VbIibduiag1jtbXPUmXv8DUdFvFfqSu-2q_KL",
+    "raw": "0:cc06493d4b2fd56c889b76e89a8358ed6d73d4997bfc0d4745bc57ea4aefb6ab"
+   },
+   "v3r2": {
+    "uq": "UQA1sZJCbzE3awZi7dGeG4-_JoF4fs_kNmU9aBDI1oiR7J84",
+    "eq": "EQA1sZJCbzE3awZi7dGeG4-_JoF4fs_kNmU9aBDI1oiR7ML9",
+    "raw": "0:35b192426f31376b0662edd19e1b8fbf2681787ecfe436653d6810c8d68891ec"
+   },
+   "v5r1Testnet": {
+    "uq": "0QC40X3CkslkMp7RDbpHSL18zqu3-EzqDaOAlv0iHvYeFPyQ",
+    "raw": "0:b8d17dc292c964329ed10dba4748bd7cceabb7f84cea0da38096fd221ef61e14"
+   }
+  },
+  {
+   "source": "BIP-39 standard → chemin Tonkeeper",
+   "phrase": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+   "kind": "bip39",
+   "seed": "b477ef5ed17fb8a2b8faddd7a9835a227243a82c70b190c7af4896155aa7df9f",
+   "publicKey": "7952e94118f34607c75e23258dd9220d66ccac5a3ee074125c25068e8107bfbf",
+   "v5r1": {
+    "uq": "UQBHyu-oZVDHRYQ1-rKlGqpHy5yAqanPBirEQNMNOmfHLtaT",
+    "eq": "EQBHyu-oZVDHRYQ1-rKlGqpHy5yAqanPBirEQNMNOmfHLotW",
+    "raw": "0:47caefa86550c7458435fab2a51aaa47cb9c80a9a9cf062ac440d30d3a67c72e"
+   },
+   "v4r2": {
+    "uq": "UQAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9-RKY",
+    "eq": "EQAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9-U9d",
+    "raw": "0:335996ba9cce6625ebfdd7019ced50927c1a08b1846a289a55efc37c01d77df9"
+   },
+   "v3r2": {
+    "uq": "UQC9LJL69GjPHMTyZ_9_P2QKTGnQhMWs2eRk6MVDiDina88a",
+    "eq": "EQC9LJL69GjPHMTyZ_9_P2QKTGnQhMWs2eRk6MVDiDina5Lf",
+    "raw": "0:bd2c92faf468cf1cc4f267ff7f3f640a4c69d084c5acd9e464e8c5438838a76b"
+   },
+   "v5r1Testnet": {
+    "uq": "0QCf9EYCGEnzNflKo0BRm4IM0g2i094C_uqgJBSBmHZMUG87",
+    "raw": "0:9ff446021849f335f94aa340519b820cd20da2d3de02feeaa024148198764c50"
+   }
+  },
+  {
+   "source": "BIP-39 standard → chemin Tonkeeper",
+   "phrase": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art",
+   "kind": "bip39",
+   "seed": "618373f1049ac823d23c406ac4155bef631d6b095b18f974abc4065c0bf7b96b",
+   "publicKey": "c6d2c947e552974c9f739fd7a02652519b8eef8cb9eef7867ac2e8f85777f244",
+   "v5r1": {
+    "uq": "UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw",
+    "eq": "EQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0Lw01",
+    "raw": "0:b4db46c77a252aab2c3c041e04b6d6e599189d2a44ff86720d27ef2b6423f42f"
+   },
+   "v4r2": {
+    "uq": "UQDOTGWodYYyrTkfGPECR7I9_B1-3BbF6Wzvgp0FIomdctqZ",
+    "eq": "EQDOTGWodYYyrTkfGPECR7I9_B1-3BbF6Wzvgp0FIomdcodc",
+    "raw": "0:ce4c65a8758632ad391f18f10247b23dfc1d7edc16c5e96cef829d0522899d72"
+   },
+   "v3r2": {
+    "uq": "UQDQGmFYcDpYloyZVEQ8yg9d_uQ5GVL-U6wtD10z66STZ2-b",
+    "eq": "EQDQGmFYcDpYloyZVEQ8yg9d_uQ5GVL-U6wtD10z66STZzJe",
+    "raw": "0:d01a6158703a58968c9954443cca0f5dfee4391952fe53ac2d0f5d33eba49367"
+   },
+   "v5r1Testnet": {
+    "uq": "0QDMSAmRLcSMWXLxRBud0nfiP0ORYlKOfNZe2sZC0HSnTL0u",
+    "raw": "0:cc4809912dc48c5972f1441b9dd277e23f439162528e7cd65edac642d074a74c"
+   }
+  },
+  {
+   "source": "BIP-39 standard → chemin Tonkeeper",
+   "phrase": "legal winner thank year wave sausage worth useful legal winner thank yellow",
+   "kind": "bip39",
+   "seed": "930b30bc355699d639e8b9561c5e650edfc696294f9917cc19a453dcd526cf84",
+   "publicKey": "434908c4c092113fcced4eec061b09c02b7b8934a9ca555e2032505aab7558ea",
+   "v5r1": {
+    "uq": "UQBrw0MOZyO5dPbuh-iY3uGvZ63R9xc_0a7ddgwKUByq_UWB",
+    "eq": "EQBrw0MOZyO5dPbuh-iY3uGvZ63R9xc_0a7ddgwKUByq_RhE",
+    "raw": "0:6bc3430e6723b974f6ee87e898dee1af67add1f7173fd1aedd760c0a501caafd"
+   },
+   "v4r2": {
+    "uq": "UQAT3OD7z1oIW9VfKvYxjBe5FHytgET5pnlf88Ed-bCnVflu",
+    "eq": "EQAT3OD7z1oIW9VfKvYxjBe5FHytgET5pnlf88Ed-bCnVaSr",
+    "raw": "0:13dce0fbcf5a085bd55f2af6318c17b9147cad8044f9a6795ff3c11df9b0a755"
+   },
+   "v3r2": {
+    "uq": "UQCEY_SmLBXQMbYiYSHB_ROlXcuuowfEzPJ4tBdF4a5mUzCr",
+    "eq": "EQCEY_SmLBXQMbYiYSHB_ROlXcuuowfEzPJ4tBdF4a5mU21u",
+    "raw": "0:8463f4a62c15d031b6226121c1fd13a55dcbaea307c4ccf278b41745e1ae6653"
+   },
+   "v5r1Testnet": {
+    "uq": "0QAsHmhVZvafXNfdpuj17jgHDvGUQH1EzGrAVqXMWMPicL-n",
+    "raw": "0:2c1e685566f69f5cd7dda6e8f5ee38070ef194407d44cc6ac056a5cc58c3e270"
+   }
+  },
+  {
+   "source": "BIP-39 12 mots, valide AUSSI en TON (sha256(\"kalyx-ton-precedence-490\")[:16])",
+   "phrase": "focus paper tragic work cluster dismiss wish reason appear family creek style",
+   "kind": "ton",
+   "seed": "6ab115504890473acd46241f11e11ff9397fd97088347acfd3c1ef48f4e1821e",
+   "publicKey": "0c0c0ff30efa45df5f49ff31b807837b5c1228c15425d621a773b8865312b461",
+   "v5r1": {
+    "uq": "UQAvjqLPIZOVhKncPMuV9zSkxoIO9_3puG8wWoZVryZiemb5",
+    "eq": "EQAvjqLPIZOVhKncPMuV9zSkxoIO9_3puG8wWoZVryZiejs8",
+    "raw": "0:2f8ea2cf21939584a9dc3ccb95f734a4c6820ef7fde9b86f305a8655af26627a"
+   },
+   "v4r2": {
+    "uq": "UQADDyFJ7zwDIJyKc4Q1nd6S1tFT96OAIUNXBAh-1dZiXmeq",
+    "eq": "EQADDyFJ7zwDIJyKc4Q1nd6S1tFT96OAIUNXBAh-1dZiXjpv",
+    "raw": "0:030f2149ef3c03209c8a7384359dde92d6d153f7a38021435704087ed5d6625e"
+   },
+   "v3r2": {
+    "uq": "UQCqFh5lxy-fkSGHz6WYLhF8fRhSrM0-n6JYBO9iSc3_bprX",
+    "eq": "EQCqFh5lxy-fkSGHz6WYLhF8fRhSrM0-n6JYBO9iSc3_bscS",
+    "raw": "0:aa161e65c72f9f912187cfa5982e117c7d1852accd3e9fa25804ef6249cdff6e"
+   },
+   "v5r1Testnet": {
+    "uq": "0QCyb4mVrIX6iPJNVAv_cU8kTG58P-31iuFpnPraZZHplynf",
+    "raw": "0:b26f8995ac85fa88f24d540bff714f244c6e7c3fedf58ae1699cfada6591e997"
+   }
+  }
+ ],
+ "invalid": [
+  "hospital stove relief fringe tongue always charge angry urge sentence again match nerve inquiry senior coconut label tumble carry category beauty bean road kalyx",
+  "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon"
+ ]
+}
