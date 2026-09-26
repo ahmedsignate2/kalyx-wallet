@@ -21,6 +21,7 @@ import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { usePay, type PayOption } from '../lib/walletconnectPay';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
+import { technicalLogger } from '../lib/technicalLogger';
 import { formatTokenAmount } from '../src';
 
 /** Domaines autorisés dans la WebView de capture. */
@@ -107,7 +108,7 @@ export default function PayScreen() {
 
   useEffect(() => {
     const link = params.link ? String(params.link) : '';
-    if (link) void open(link);
+    if (link) void open(link, false, mode === 'light' ? 'light' : 'dark');
     return () => reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.link]);
@@ -123,13 +124,29 @@ export default function PayScreen() {
 
   /* ── Capture de données : formulaire hébergé ───────────────────────────── */
   if (collectUrl) {
+    /*
+     * TOUT CE QUE LE FORMULAIRE DIT EST TRACÉ.
+     *
+     * Le formulaire compte plusieurs pages, et « Continuer » n'aboutissait pas.
+     * Sans trace, on ne peut que théoriser — et j'ai déjà donné trois causes
+     * fausses à ce paiement. On enregistre donc les messages du pont, les
+     * navigations refusées et les erreurs de chargement. Rien de personnel n'y
+     * figure : des types de messages et des hôtes, jamais le contenu des champs.
+     */
     const onMessage = (e: WebViewMessageEvent) => {
+      const raw = e.nativeEvent.data;
       try {
-        const data = JSON.parse(e.nativeEvent.data) as { type?: string; error?: string };
+        const data = JSON.parse(raw) as { type?: string; error?: string };
+        technicalLogger.log('DAPP', 'Pay : message du formulaire', { type: data.type ?? '(sans type)' });
         if (data.type === 'IC_COMPLETE') collected();
-        else if (data.type === 'IC_ERROR') toast.error(t('payFailed'), data.error);
+        else if (data.type === 'IC_ERROR') {
+          technicalLogger.log('DAPP', 'Pay : formulaire en erreur', { error: data.error ?? '' });
+          toast.error(t('payFailed'), data.error);
+        }
       } catch {
-        // Message non JSON : ignoré, le formulaire en émet d'autres.
+        // Message non JSON : le formulaire en émet d'autres. On note sa taille,
+        // jamais son contenu — il pourrait porter des données personnelles.
+        technicalLogger.log('DAPP', 'Pay : message non JSON du formulaire', { length: raw.length });
       }
     };
     return (
@@ -156,12 +173,48 @@ export default function PayScreen() {
            * l'utilisateur du formulaire sans moyen d'y revenir.
            */
           onShouldStartLoadWithRequest={(req) => {
-            if (!req.url.startsWith('https://')) return false;
+            /*
+             * LES SCHÉMAS INTERNES PASSENT. On refusait tout ce qui n'était pas
+             * `https://`, donc aussi `about:blank` et `blob:` — que les pages à
+             * plusieurs étapes utilisent couramment pour enchaîner. Ils ne
+             * chargent rien de distant : les bloquer ne protégeait de rien et
+             * pouvait figer le formulaire sur sa première page.
+             */
+            if (/^(?:about|blob):/i.test(req.url)) return true;
+            if (!req.url.startsWith('https://')) {
+              technicalLogger.log('DAPP', 'Pay : navigation refusée (schéma)', {
+                scheme: req.url.split(':')[0],
+              });
+              return false;
+            }
             const host = req.url.slice('https://'.length).split(/[/?#]/)[0].toLowerCase();
             if (host === COLLECT_HOST || host.endsWith(`.${COLLECT_HOST}`)) return true;
+            // Hôte tiers : on note lequel, puis on l'ouvre dehors.
+            technicalLogger.log('DAPP', 'Pay : navigation sortie vers le navigateur', { host });
             void Linking.openURL(req.url);
             return false;
           }}
+          /*
+           * `window.open` DOIT NAVIGUER SUR PLACE.
+           *
+           * Android autorise par défaut les fenêtres multiples, et sans
+           * gestionnaire un `window.open` ou un `target="_blank"` ne fait
+           * RIEN — silencieusement. C'est exactement l'allure d'un bouton
+           * « Continuer » mort. En refusant les fenêtres multiples, la
+           * navigation se fait dans cette vue, où la règle ci-dessus décide.
+           */
+          setSupportMultipleWindows={false}
+          onError={(e) =>
+            technicalLogger.log('DAPP', 'Pay : échec de chargement du formulaire', {
+              code: String(e.nativeEvent.code ?? ''),
+              description: e.nativeEvent.description ?? '',
+            })
+          }
+          onHttpError={(e) =>
+            technicalLogger.log('DAPP', 'Pay : réponse HTTP en erreur', {
+              status: String(e.nativeEvent.statusCode ?? ''),
+            })
+          }
           javaScriptEnabled
           domStorageEnabled
           startInLoadingState

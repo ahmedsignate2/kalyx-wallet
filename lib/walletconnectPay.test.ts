@@ -110,3 +110,32 @@ describe('payAmountText', () => {
     expect(payAmountText(amount('abc', 2))).toBe('abc USD');
   });
 });
+
+describe('buildCollectUrl — thème du tableau de bord', () => {
+  /*
+   * `themeVariables` est déjà encodé en base64url par le tableau de bord : il
+   * doit partir VERBATIM. Le réencoder produirait un paramètre que le formulaire
+   * ignore, et le thème passerait à la trappe sans rien signaler.
+   */
+  const EXPORTED =
+    'eyJmb250RmFtaWx5IjoicG9wcGlucyIsImZvbnRTaXplIjoxNSwiaW5wdXRSYWRpdXMiOjI0LCJidXR0b25SYWRpdXMiOjI0fQ';
+
+  it('la valeur exportée part telle quelle', () => {
+    const url = buildCollectUrl('https://pay.walletconnect.com/collect/?pid=x', {
+      themeVariables: EXPORTED,
+    });
+    expect(url).toContain(`themeVariables=${EXPORTED}`);
+    // Ni réencodée, ni tronquée du remplissage qu'elle n'a pas.
+    expect(url).not.toContain('%3D');
+  });
+
+  it('le mode et le thème coexistent sur une URL qui a déjà une requête', () => {
+    const url = buildCollectUrl('https://pay.walletconnect.com/collect/?pid=x&accounts=y', {
+      theme: 'dark',
+      themeVariables: EXPORTED,
+    });
+    expect(url).toContain('?pid=x&accounts=y&');
+    expect(url).toContain('theme=dark');
+    expect(url).toContain(`themeVariables=${EXPORTED}`);
+  });
+});
