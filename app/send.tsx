@@ -16,6 +16,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
+import { ContactPicker } from '../ui/ContactPicker';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { useWallet, type Unlock } from '../lib/walletStore';
@@ -152,6 +153,7 @@ export default function Send() {
   const [inFiat, setInFiat] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
+  const [pickContact, setPickContact] = useState(false);
 
   // ── Adresse valide selon la famille ──
   const validAddress = useCallback((a: string) => (family === 'evm' ? isValidEvmAddress(a) : family === 'solana' ? isValidSolanaAddress(a) : isValidBtcAddress(a)), [family]);
@@ -657,7 +659,12 @@ export default function Send() {
             <View style={{ flexDirection: 'row', gap: space[2] }}>
               <Chip label={t("chipPaste")} icon="copy" onPress={paste} />
               <Chip label={t("chipScan")} icon="scan" onPress={() => router.push('/scan')} />
-              <Chip label={t("chipContacts")} icon="contacts" onPress={() => router.push('/contacts')} />
+              {/*
+                LE CONTACT SE CHOISIT SUR PLACE. Ce bouton menait à l'écran des
+                contacts, donc hors du tunnel : on perdait le jeton choisi et il
+                fallait revenir. Une feuille garde l'utilisateur où il est.
+              */}
+              <Chip label={t("chipContacts")} icon="contacts" onPress={() => setPickContact(true)} />
             </View>
             {isEns && ens.status === 'resolving' ? <Text variant="caption" tone="secondary">{t("resolvingEns")}</Text> : null}
 
@@ -858,6 +865,20 @@ export default function Send() {
           danger={simResult?.warningLevel === 'critical'}
         />
       </Sheet>
+
+      {/*
+        Filtré sur la famille de la chaîne active : proposer un contact Bitcoin
+        pendant un envoi Solana ne produirait qu'un refus incompréhensible.
+      */}
+      <ContactPicker
+        visible={pickContact}
+        family={family}
+        onClose={() => setPickContact(false)}
+        onPick={(address) => {
+          setTo(address);
+          setAddressError(null);
+        }}
+      />
 
       <ConfirmUnlock
         visible={confirming}
