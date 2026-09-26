@@ -1,9 +1,38 @@
-import { humanizeTx, groupByDay } from './humanize';
+import { humanizeTx, groupByDay, type ActivityTranslate } from './humanize';
 import type { TxSummary } from '../chains/types';
+
+/*
+ * Les phrases viennent d'un TRADUCTEUR INJECTÉ, plus du module.
+ *
+ * On lui donne ici les motifs français, ceux de `lib/i18n`, pour deux raisons :
+ * les assertions restent lisibles, et la substitution des paramètres est
+ * exercée pour de vrai — c'est elle qui casserait en silence.
+ */
+const FR: Record<string, string> = {
+  actSent: 'Envoyé {amount} {symbol}',
+  actReceived: 'Reçu {amount} {symbol}',
+  actSwapped: 'Échangé {amount} {symbol}',
+  actApproved: 'Autorisé {name} à dépenser tes {symbol}',
+  actNftIn: 'Reçu 1 NFT de {name}',
+  actNftOut: 'Envoyé 1 NFT à {name}',
+  actInternal: 'Transfert interne · {amount} {symbol}',
+  actInteraction: 'Interaction avec {name}',
+  actTo: 'à {name}',
+  actFrom: 'de {name}',
+  actUnverified: 'Token non vérifié — n’interagis pas avec lui',
+  actFailedPrefix: 'Échouée · {what}',
+  actFailedBody: 'Rien n’a été débité (sauf les frais réseau). Cause fréquente : frais trop bas ou autorisation manquante.',
+};
+
+const tr: ActivityTranslate = (key, params) => {
+  let out = FR[key] ?? key;
+  if (params) for (const [k, v] of Object.entries(params)) out = out.split(`{${k}}`).join(v);
+  return out;
+};
 
 const ME = '0x28C6c06298d514Db089934071355E5743bf21d60';
 const V = '0xd8dA6BF26964aF9D7eEd9e03E62415f8b1F2f8F7';
-const ctx = { nativeSymbol: 'ETH', nativeDecimals: 18, nameOf: (a: string) => (a === V ? 'vitalik.eth' : undefined) };
+const ctx = { t: tr, nativeSymbol: 'ETH', nativeDecimals: 18, nameOf: (a: string) => (a === V ? 'vitalik.eth' : undefined) };
 const base: TxSummary = { chain: 'ethereum', hash: '0x1', from: ME, to: V, value: 10n ** 17n, timestamp: 1_700_000_000, direction: 'out', status: 'success' };
 
 describe('humanizeTx', () => {
@@ -43,7 +72,13 @@ describe('humanizeTx', () => {
   });
   it('échec expliqué', () => {
     const h = humanizeTx({ ...base, status: 'failed' }, ctx);
-    expect(h.title).toBe('Échouée · envoyé 0.1 ETH');
+    /*
+     * Le titre est repris tel quel, majuscule comprise. L'ancienne version en
+     * minusculait la première lettre — un réflexe de français, sans objet en
+     * chinois, en japonais ou en arabe, et qui abîme une phrase allemande
+     * commençant par un montant.
+     */
+    expect(h.title).toBe('Échouée · Envoyé 0.1 ETH');
     expect(h.tone).toBe('danger');
     expect(h.subtitle).toContain('Rien n’a été débité');
   });
@@ -72,6 +107,7 @@ describe('humanizeTx — liste qui mêle les réseaux', () => {
   };
   // Contexte d'un écran POSÉ SUR BASE, comme lors du test sur appareil.
   const onBase = {
+    t: tr,
     nativeSymbol: 'ETH',
     nativeDecimals: 18,
     nativeOf: (c: string) => natives[c],
