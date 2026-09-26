@@ -30,6 +30,8 @@ import {
 } from '../ui/kit';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN } from '../ui/tokens';
+import { FadeInUp } from '../ui/FadeInUp';
+import { cascadeDelay } from '../ui/motion';
 import { useContacts } from '../lib/contactsStore';
 import { useT } from '../lib/settingsStore';
 import { useEnsName } from '../lib/useEns';
@@ -205,7 +207,7 @@ export default function Contacts() {
         ) : (
           <Surface padded={false}>
             {shown.map((c, i) => (
-              <React.Fragment key={c.id}>
+              <FadeInUp key={c.id} delay={cascadeDelay(i)}>
                 <ContactRow
                   contact={c}
                   pickMode={pickMode}
@@ -215,7 +217,7 @@ export default function Contacts() {
                   t={t}
                 />
                 {i < shown.length - 1 ? <Divider inset={68} /> : null}
-              </React.Fragment>
+              </FadeInUp>
             ))}
           </Surface>
         )}
