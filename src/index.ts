@@ -249,6 +249,15 @@ export {
   tonSeedFromMnemonic,
   TON_MNEMONIC_WORDS,
 } from './domain/chains/ton/tonMnemonic';
+export { resolveTonKey, tonKeyKind, TON_BIP39_PATH, type TonKey, type TonKeyKind } from './domain/chains/ton/tonKeys';
+export {
+  tonWalletAddress,
+  tonW5WalletId,
+  TON_DEFAULT_WALLET_VERSION,
+  TON_IMPORT_WALLET_VERSIONS,
+  TON_DEFAULT_SUBWALLET_ID,
+  type TonWalletVersion,
+} from './domain/chains/ton/tonWallet';
 export {
   parseImportedKey,
   type KeyFamily,

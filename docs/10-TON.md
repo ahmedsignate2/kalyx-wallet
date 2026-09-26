@@ -39,18 +39,32 @@ autre dans `signerFromSeed` — et le fait que notre seed BIP-39 déjà calculé
 serve à rien ici : il faut la PHRASE, pas la graine. C'est la seule chaîne dans
 ce cas, et cela remonte jusqu'à `deriveSigner` dans `walletStore`.
 
-> **TRANCHÉ : (a), la dérivation native.** Implémentée dans
-> `src/domain/chains/ton/tonMnemonic.ts`, avec l'algorithme écrit constante par
-> constante — sels, itérations, décalages d'octets — parce qu'aucune de ces
-> valeurs n'est devinable et qu'une seule erreur suffit à dériver la clé d'une
-> autre adresse.
+> **TRANCHÉ, PUIS CORRIGÉ (26/09) : la règle de Tonkeeper, et non (a) seule.**
 >
-> **Reste à confirmer avant d'activer TON :** l'implémentation suit l'algorithme
-> de `ton-crypto` mais n'est PAS validée contre un vecteur réel. Les tests
-> couvrent le déterminisme, les longueurs, l'effet du mot de passe et de l'ordre
-> des mots — pas l'interopérabilité. Il faut comparer une adresse dérivée ici à
-> celle que Tonkeeper affiche pour la même phrase. Une dérivation fausse ne plante
-> pas : elle montre un portefeuille vide, ce qui est le pire des deux.
+> La recommandation ci-dessus oubliait un fait : **toutes les phrases que Kalyx
+> crée sont BIP-39.** Relu dans le code de Tonkeeper
+> (`tonkeeper-web/packages/core/src/service/mnemonicService.ts`), le choix ne se
+> fait pas par portefeuille mais par PHRASE :
+>
+> 1. phrase TON valide (`mnemonicValidate` de `@ton/crypto`) → dérivation native ;
+> 2. sinon phrase BIP-39 valide → SLIP-0010 sur **`m/44'/607'/0'`**, sans passphrase ;
+> 3. sinon, invalide.
+>
+> Appliquer la native à tout aurait donné, pour chaque phrase Kalyx, une adresse
+> TON différente de celle de Tonkeeper : le portefeuille vide que ce paragraphe
+> voulait éviter, dans l'autre sens. L'ORDRE compte aussi : le contrôle TON ne
+> regarde pas la longueur, donc une phrase BIP-39 de 12 mots peut le passer (une
+> fois sur 256 environ) — Tonkeeper la dérive alors en native, nous aussi.
+>
+> Implémenté dans `tonKeys.ts` (`resolveTonKey`). Validé contre les cinq vecteurs
+> officiels de `@ton/crypto`, et contre la fonction de chemin de Tonkeeper
+> recopiée à l'identique pour produire les vecteurs BIP-39. Deux écarts de notre
+> version précédente avec `@ton/crypto` ont été corrigés au passage : elle exigeait
+> 24 mots (faux), et ne vérifiait pas que les mots sont dans la liste.
+>
+> **Conséquence pour l'import :** les phrases Tonkeeper ne passent PAS le contrôle
+> BIP-39 (aucun des cinq vecteurs officiels ne le passe). L'import actuel, qui
+> n'accepte que BIP-39, les refuserait toutes.
 
 ---
 
@@ -64,10 +78,21 @@ TON, non.** Une adresse TON est le hachage de l'état initial d'un contrat :
 Conséquence directe : **la même clé donne des adresses différentes selon la
 version de contrat.** Les versions en circulation sont v3R2, v4R2 et W5 (v5).
 
-**À trancher :** quelle version Kalyx génère. W5 est la plus récente (frais
-délégués, opérations groupées) ; v4R2 reste la plus répandue. Et il faudra
-probablement savoir LIRE les deux, même si l'on n'en génère qu'une, pour qu'une
-phrase importée retrouve ses fonds là où ils sont.
+> **TRANCHÉ : on crée en W5 (`v5r1`), on relit v4R2 et v3R2 à l'import.**
+> W5 est le `defaultWalletVersion` de Tonkeeper dans toutes ses applications
+> (mobile, web, extension, bureau, mini-app Telegram) : une phrase Kalyx importée
+> dans Tonkeeper y retrouve la même adresse. Tonkeeper calcule aussi les adresses
+> v3R1, v3R2, v4R2 et W5 bêta à l'import ; on couvre v4R2 et v3R2, où dorment les
+> fonds des portefeuilles d'avant la W5. v3R1 et W5 bêta restent à ajouter si un
+> cas réel se présente.
+>
+> Sur W5, le réseau entre dans le `wallet_id` (`−239` principal, `−3` test) : le
+> réseau de test donne une AUTRE adresse, pas seulement une autre écriture.
+
+**Implémenté** dans `tonWallet.ts`. Pour l'adresse, le code du contrat n'entre
+que par son hachage et sa profondeur (la cellule `StateInit` le référence sans le
+contenir) : deux constantes par version, relevées dans `@ton/core`. Vérifié sur
+neuf clés × trois versions contre les adresses que calcule `@ton/ton`.
 
 Cela casse une hypothèse implicite du reste du code : `deriveAccount(seed, index)`
 rend une adresse. Sur TON, il faudra aussi la version de contrat — et `index`
@@ -244,30 +269,37 @@ BIP-39 déjà calculée ne sert à rien, et cela remonte jusqu'à `walletStore`.
 
 ## 12. État d'avancement
 
-**Fait, pur et testé.**
+**Fait, pur, et validé contre l'écosystème (26/09).**
 
-- `tonAddress.ts` — analyse, écriture et validation des adresses. Les deux
-  écritures (`EQ…` rebondissante, `UQ…` non rebondissante) sont reconnues et le
-  drapeau est RENDU au lieu d'être jeté : c'est ce qui permettra à `prepareSend`
-  de comparer la forme demandée à l'état réel du compte. Le drapeau testnet est
-  refusé sur le réseau principal, comme pour Bitcoin. Le CRC est validé contre le
-  vecteur canonique du CRC-16/XMODEM (`123456789` → `0x31C3`), et le workchain est
-  lu comme un entier SIGNÉ — la masterchain vaut −1, écrit `0xFF`, et le lire non
-  signé ferait refuser une adresse valide. Quatorze tests.
-- `tonMnemonic.ts` — dérivation native phrase → graine ed25519, contrôle de
-  validité TON (sans rapport avec BIP-39 : pas de somme de contrôle sur les mots)
-  et détection d'une phrase protégée par mot de passe. Onze tests.
+- `tonKeys.ts` — phrase → clé, avec la règle et l'ordre de Tonkeeper (§1).
+- `tonMnemonic.ts` — dérivation native et contrôle de validité, alignés sur
+  `@ton/crypto` : les cinq vecteurs officiels passent.
+- `tonWallet.ts` — adresse d'une clé pour W5, v4R2 et v3R2, réseau principal et
+  de test (§2).
+- `tonAddress.ts` — analyse et écriture des adresses. **Corrigé :** l'écriture
+  ajoutait `==` à la fin (50 caractères au lieu de 48), qu'aucun portefeuille
+  n'accepte ; les tests ne comparaient jamais à une adresse réelle.
+- `crypto/slip10.ts` — SLIP-0010 ed25519, désormais partagé par Solana et TON.
+
+Tous les vecteurs sont dans `tonkeeper-vectors.json`, avec leur provenance dans
+`tonKeys.test.ts`. Aucun n'est calculé par le code testé.
+
+**Vérification manuelle, à faire une fois :** importer dans Tonkeeper la phrase
+de test publique BIP-39 de 24 mots (`abandon` × 23 puis `art`) et comparer
+l'adresse W5 affichée à celle du fichier de vecteurs. C'est une phrase connue de
+tous : ne jamais y envoyer de fonds.
 
 **Reste à faire, dans l'ordre.**
 
-1. Confirmer la dérivation contre une adresse Tonkeeper réelle. Rien ne doit être
-   exposé dans l'app avant.
-2. Choisir la version du contrat de portefeuille (v4R2 ou W5) et embarquer son
-   code, sans quoi l'adresse — qui est `hash(code, data)` et non un dérivé de la
-   clé — ne peut pas être calculée.
-3. Construire le message externe (BOC) et le `StateInit` du premier envoi, qui
-   déploie le compte aux frais de l'expéditeur.
-4. Brancher `deriveSigner` sur la PHRASE et non sur la graine BIP-39 — TON est la
-   seule chaîne dans ce cas, et c'est le seul endroit du magasin à toucher.
-5. Enregistrer l'adaptateur et sa configuration, en dernier : un adaptateur
+1. Construire le message externe (BOC) et le `StateInit` du premier envoi. Ici le
+   code COMPLET du contrat devient nécessaire, et avec lui une sérialisation de
+   cellules complète : décider entre `@ton/core` (officiel, mais une dépendance —
+   voir §10) et une implémentation maison. Ne pas improviser une sérialisation
+   BOC : une erreur y fait refuser le message, ou pire.
+2. Import : accepter les phrases TON (refusées aujourd'hui, §1) et décider ce
+   qu'est un portefeuille créé depuis une phrase TON — elle ne dérive ni EVM, ni
+   Bitcoin, ni Solana de façon que d'autres portefeuilles reconnaissent. Même
+   raisonnement que pour les clés brutes : un compte limité à sa famille.
+3. Brancher `deriveSigner` sur la PHRASE, via `resolveTonKey`.
+4. Enregistrer l'adaptateur et sa configuration, en dernier : un adaptateur
    enregistré à moitié est plus dangereux qu'un adaptateur absent.

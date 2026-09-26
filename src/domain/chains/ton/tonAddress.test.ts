@@ -6,6 +6,7 @@ import {
   parseRawTonAddress,
   isValidTonAddress,
 } from './tonAddress';
+import VECTORS from './tonkeeper-vectors.json';
 
 const HASH = Uint8Array.from(Array.from({ length: 32 }, (_, i) => i + 1));
 
@@ -133,3 +134,31 @@ describe('isValidTonAddress', () => {
     expect(isValidTonAddress('')).toBe(false);
   });
 });
+
+/*
+ * Contre des adresses RÉELLES, produites par `@ton/ton` (voir
+ * `tonkeeper-vectors.json`). Les tests ci-dessus relisaient nos propres
+ * écritures avec notre propre analyse : un défaut commun aux deux — le `==`
+ * ajouté à la fin — passait inaperçu.
+ */
+describe('adresses réelles', () => {
+  const real = VECTORS.keys.flatMap((k) => [k.v5r1, k.v4r2, k.v3r2]);
+
+  it('s’écrivent en 48 caractères, sans remplissage', () => {
+    for (const a of real) {
+      const parsed = parseTonAddress(a.uq)!;
+      expect(formatTonAddress(parsed, { bounceable: false })).toBe(a.uq);
+      expect(formatTonAddress(parsed, { bounceable: true })).toBe(a.eq);
+      expect(a.uq).toHaveLength(48);
+    }
+  });
+
+  it('se lisent sous les deux formes, avec le bon drapeau', () => {
+    for (const a of real) {
+      expect(parseTonAddress(a.uq)?.bounceable).toBe(false);
+      expect(parseTonAddress(a.eq)?.bounceable).toBe(true);
+      expect(toRawTonAddress(parseTonAddress(a.eq)!)).toBe(a.raw);
+    }
+  });
+});
+
