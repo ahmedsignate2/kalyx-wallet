@@ -177,7 +177,7 @@ export {
  * basculer chaîne par chaîne, sans que rien ne soit à moitié converti.
  */
 export { getAdapterV2, findAdapterV2, forgetAdapterV2, resetAdaptersV2 } from './domain/chains/v2/registry';
-export { signerFromSeed, signerFromEvmPrivateKey } from './domain/chains/v2/derive';
+export { signerFromSeed, signerFromEvmPrivateKey, signerFromRawKey, addressFromRawKey } from './domain/chains/v2/derive';
 export { withSigner, wipeSigner, assertCurve } from './domain/chains/v2/signer';
 export { capabilities, NO_CAPABILITIES } from './domain/chains/v2/capabilities';
 export { EvmAdapterV2, type EvmPayload } from './domain/chains/v2/EvmAdapterV2';
@@ -224,6 +224,14 @@ export {
   type PayRefusal,
 } from './domain/pay/payChains';
 export { WcConnectError, isWcConnectError, type WcConnectCode } from './domain/wc/connectError';
+export {
+  parseImportedKey,
+  type KeyFamily,
+  type KeyFormat,
+  type ParsedKey,
+  type KeyParseError,
+  type KeyParseResult,
+} from './domain/keys/importKey';
 export { decideNoOption, needsCollect, preselectOption, type NoOptionAction, type NoOptionInput } from './domain/pay/payFlow';
 export {
   PAY_SUPPORTED_ASSETS,
