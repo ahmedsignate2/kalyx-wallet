@@ -54,6 +54,16 @@ export interface SolanaTxDescription {
    * moment qu'il choisit — et notre signature reste valable en attendant.
    */
   signerCount: number;
+  /**
+   * Emplacements de signature DÉJÀ remplis, dans l'ordre des signataires.
+   *
+   * Solana sérialise une signature absente en 64 octets nuls. Savoir lesquels
+   * sont remplis change tout pour une requête de transaction : une transaction à
+   * deux signataires dont l'autre a DÉJÀ signé est complète dès qu'on la signe,
+   * alors qu'une dont l'autre n'a pas signé s'exécutera au moment que ce tiers
+   * choisira — et notre signature l'attendra.
+   */
+  signaturesPresent: boolean[];
 }
 
 class Reader {
@@ -154,7 +164,17 @@ function describeBytes(bytes: Uint8Array, expectedFeePayer?: string): SolanaTxDe
   try {
     const r = new Reader(bytes);
     const nSig = r.compact();
-    r.bytes(nSig * 64);
+    const sigBytes = r.bytes(nSig * 64);
+    /*
+     * Un emplacement vide vaut 64 octets NULS : c'est ainsi que Solana sérialise
+     * une signature manquante. On ne lit pas les signatures elles-mêmes,
+     * seulement leur présence.
+     */
+    const signaturesPresent: boolean[] = [];
+    for (let i = 0; i < nSig; i++) {
+      const slot = sigBytes.subarray(i * 64, (i + 1) * 64);
+      signaturesPresent.push(slot.some((b) => b !== 0));
+    }
     const msg = parseSolanaMessage(bytes.subarray(nSig * 64 + compactLen(nSig)));
     const programs: string[] = [];
     for (const idx of msg.programIndexes) {
@@ -185,6 +205,7 @@ function describeBytes(bytes: Uint8Array, expectedFeePayer?: string): SolanaTxDe
       lookupTables: msg.lookupTables,
       feePayerMismatch: expectedFeePayer ? feePayer !== expectedFeePayer : undefined,
       signerCount: msg.signerCount,
+      signaturesPresent,
     };
   } catch {
     return null;
