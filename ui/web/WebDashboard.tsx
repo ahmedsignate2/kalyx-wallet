@@ -17,8 +17,8 @@ import { useAsync } from './useAsync';
 import { AgentPanel, AgentSetup, PROVIDER_LABELS } from './AgentPanel';
 import { MarketPanel } from './MarketPanel';
 import { WEB_FONTS, useWebFonts, useWebPalette } from './webTheme';
-import { useWebT } from './webI18n';
-import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useIdle, useTabHidden, tgHaptic } from './platform';
+import { useWebT, type WebKey } from './webI18n';
+import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useTelegramClosingConfirmation, useIdle, useTabHidden, tgHaptic } from './platform';
 import { toRaw, encodeErc20Transfer } from './evmEncode';
 import { useTokenLogo } from './tokenLogos';
 import { FadeInUp, CrossFade, useCountUp, Pop, KalyxSpinner, KalyxSuccessPulse } from './motion';
@@ -32,7 +32,7 @@ import { useAiStore } from '../../lib/aiStore';
 import { PROVIDER_DEFAULTS } from '../../lib/aiConfig';
 import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
-import { useWebConnect } from '../../lib/webConnect';
+import { useWebConnect, type WebConnectError } from '../../lib/webConnect';
 import { toast } from '../../lib/toast';
 import { useSettings, useT, useActivityT, fiatSymbol, FIATS } from '../../lib/settingsStore';
 import { useContacts } from '../../lib/contactsStore';
@@ -54,6 +54,7 @@ import {
   type Balance,
   type TxSummary,
   type ChainConfig,
+  type ChainFamily,
   type ChartPoint,
   type HumanTx,
 } from '../../src';
@@ -172,7 +173,9 @@ export function WebDashboard() {
   }, [idle, disconnect, tw]);
 
   useEffect(() => {
-    init();
+    // Sans `catch`, un relay injoignable au chargement produisait un rejet non
+    // traité. L'échec est reporté à l'écran par `connect()`, qui le gère.
+    init().catch(() => {});
     // app/_layout.tsx saute tout le bootstrap natif sur web (pas de coffre
     // local ici) — mais les préférences (devise, langue, thème), les contacts,
     // les destinataires récents et l'état IA (clé BYOK) sont persistés en kv et
@@ -258,6 +261,15 @@ function SigningModal() {
 }
 
 /* ------------------------------------------------------------------ Connexion */
+
+/** Code d'échec de connexion → clé de traduction. Une table, pas un `switch`
+ *  dispersé : un code ajouté au magasin sans sa phrase casse la compilation. */
+const CONN_ERROR_KEYS: Record<WebConnectError, WebKey> = {
+  IDLE_EXPIRED: 'connErrIdleExpired',
+  MISSING_PROJECT_ID: 'connErrMissingProjectId',
+  CONNECT_FAILED: 'connErrConnectFailed',
+  NO_ACCOUNTS: 'connErrNoAccounts',
+};
 
 function ConnectView() {
   const t = useT();
@@ -369,7 +381,10 @@ function ConnectView() {
           </Pressable>
         )}
 
-        {error ? <Text style={{ color: colors.danger, textAlign: 'center' }}>{error}</Text> : null}
+        {/* Le magasin ne porte qu'un code : la phrase est choisie ici, dans la
+            langue de l'utilisateur. Avant, le message du magasin — français, ou
+            brut du SDK WalletConnect — arrivait tel quel à l'écran. */}
+        {error ? <Text style={{ color: colors.danger, textAlign: 'center' }}>{tw(CONN_ERROR_KEYS[error])}</Text> : null}
 
         <Pressable onPress={() => setInstallOpen(true)} hitSlop={8} style={({ pressed }) => ({ marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: 6, opacity: pressed ? 0.6 : 1 })}>
           <Icon name="import" size={14} color={GOLD} />
@@ -595,6 +610,10 @@ function Dashboard() {
   const tgApp = useTelegramApp();
   const closeOverlay = useCallback(() => { setSheet(null); setNetworkSheet(false); }, []);
   useTelegramBackButton(tgApp, !!sheet || networkSheet, closeOverlay);
+  // Fermer la mini-app pendant un envoi ou un swap laisse l'utilisateur sans
+  // savoir si la transaction est partie : Telegram demande alors confirmation.
+  // Uniquement pendant ces parcours — sinon l'alerte apparaîtrait à chaque sortie.
+  useTelegramClosingConfirmation(tgApp, sheet === 'send' || sheet === 'swap');
   const openSheet = (k: ActionSheetKind) => { tgHaptic(tgApp, 'light'); setSheet(k); };
 
   const heroData = useHeroData({ worth, chain, address });
@@ -1185,15 +1204,42 @@ function MobileTokenList({ data, chain, address, onReceive }: { data: HeroData; 
 
 /** Sélecteur de réseau : liste verticale (desktop) ou puces horizontales (étroit),
  *  avec recherche au-delà de ~6 réseaux. */
+/**
+ * Familles présentées en onglets, dans cet ordre — le même que dans l'app.
+ *
+ * La session WalletConnect ouvre TOUS les réseaux EVM plus Solana et Bitcoin :
+ * une soixantaine d'entrées dans une seule liste plate, où l'on ne cherche plus,
+ * on fait défiler. Regrouper par famille rend la liste parcourable sans taper.
+ *
+ * Contrairement à l'app, pas d'onglet TON ici : ce sélecteur ne montre que ce que
+ * le téléphone a effectivement autorisé à signer, et TON n'est dans aucun espace
+ * de noms WalletConnect. Un onglet vide laisserait croire le contraire ; l'arrivée
+ * de TON s'annonce sur le site, pas dans la liste de ce qui est signable.
+ */
+const WEB_FAMILY_ORDER: ChainFamily[] = ['evm', 'bitcoin', 'solana'];
+const WEB_FAMILY_LABELS: Record<string, string> = { evm: 'EVM', bitcoin: 'Bitcoin', solana: 'Solana' };
+
 function NetworkSelector({ vertical, onSelected }: { vertical: boolean; onSelected?: () => void }) {
   const t = useT();
-  const { colors } = useTheme();
+  const { colors, typography } = useTheme();
   const accounts = useWebConnect((s) => s.accounts);
   const selected = useWebConnect((s) => s.selected);
   const setChain = useWebConnect((s) => s.setChain);
   const [q, setQ] = useState('');
   const chains = useMemo(() => accounts.map((a) => chainById(a.chainId)), [accounts]);
-  const filtered = chains.filter((c) => !q || c.name.toLowerCase().includes(q.trim().toLowerCase()));
+  // Onglets réduits aux familles réellement présentes dans la session : si le
+  // portefeuille n'a pas d'adresse Bitcoin, bip122 n'y est pas, donc pas d'onglet.
+  const families = useMemo(() => WEB_FAMILY_ORDER.filter((f) => chains.some((c) => c.family === f)), [chains]);
+  // La famille du réseau actif : on ouvre la liste sur l'onglet où il se trouve.
+  const activeFamily = chains.find((c) => c.id === selected)?.family;
+  const [family, setFamily] = useState<ChainFamily>(activeFamily ?? 'evm');
+  const shownFamily = families.includes(family) ? family : (families[0] ?? 'evm');
+  const needle = q.trim().toLowerCase();
+  // Une recherche porte sur TOUT, pas sur l'onglet courant : sinon on ne trouve
+  // pas « solana » depuis l'onglet EVM et rien ne dit pourquoi.
+  const filtered = needle
+    ? chains.filter((c) => c.name.toLowerCase().includes(needle))
+    : chains.filter((c) => c.family === shownFamily);
   const item = (c: ChainConfig) => {
     const on = c.id === selected;
     return (
@@ -1216,7 +1262,23 @@ function NetworkSelector({ vertical, onSelected }: { vertical: boolean; onSelect
           <TextInput value={q} onChangeText={setQ} placeholder={t("searchNetwork")} placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 13, paddingVertical: spacing(0.85) }} />
         </View>
       ) : null}
-      {vertical ? (
+      {/* Onglets masqués pendant une recherche : celle-ci porte sur tout, les
+          laisser suggérerait qu'elle se limite à la famille affichée. */}
+      {!needle && families.length > 1 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+          {families.map((f) => {
+            const on = f === shownFamily;
+            return (
+              <Pressable key={f} onPress={() => setFamily(f)} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: radii.pill, backgroundColor: on ? colors.text + '14' : 'transparent', borderWidth: 1, borderColor: on ? colors.text + '22' : colors.text + '10' }}>
+                <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: on ? fonts.semibold : fonts.medium, fontSize: 12 }}>{WEB_FAMILY_LABELS[f]}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+      {filtered.length === 0 ? (
+        <Text style={[typography.muted, { paddingVertical: spacing(1.5) }]}>{t('noNetworkMatch').replace('{q}', needle ? q : WEB_FAMILY_LABELS[shownFamily])}</Text>
+      ) : vertical ? (
         <View style={{ gap: spacing(0.5) }}>{filtered.map(item)}</View>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(0.75) }}>{filtered.map(item)}</ScrollView>
