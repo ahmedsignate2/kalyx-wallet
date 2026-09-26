@@ -1,5 +1,5 @@
 import { ScreenHeader, SENSITIVE_INPUT_PROPS, Pressable as KPressable } from '../ui/kit';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -9,7 +9,17 @@ import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
-import { validateMnemonic, normalizeEvmPrivateKey, restoreBackup } from '../src';
+import {
+  validateMnemonic,
+  restoreBackup,
+  parseImportedKey,
+  addressFromRawKey,
+  chainNameOf,
+  listChains,
+  groupAddress,
+  type KeyFamily,
+  type KeyParseError,
+} from '../src';
 import { isDriveConfigured } from '../lib/googleDrive';
 
 type Mode = 'phrase' | 'key' | 'backup';
@@ -27,12 +37,56 @@ export default function ImportWallet() {
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Famille retenue quand la clé collée peut servir plusieurs réseaux. */
+  const [family, setFamily] = useState<KeyFamily | null>(null);
+
+  /*
+   * ANALYSE À LA FRAPPE, et pas seulement au moment d'importer.
+   *
+   * L'import n'acceptait qu'une clé EVM en hexadécimal et répondait « clé privée
+   * invalide » à tout le reste — un WIF Bitcoin, un export Phantom. On analyse
+   * donc en direct et on MONTRE ce qu'on a reconnu, ainsi que l'adresse dérivée :
+   * c'est le seul garde-fou qui vaille, puisqu'une clé valide peut désigner une
+   * adresse que l'utilisateur ne reconnaît pas.
+   */
+  const parsed = useMemo(() => (mode === 'key' && text.trim() ? parseImportedKey(text) : null), [mode, text]);
+  const candidates = parsed?.ok ? parsed.key.families : [];
+  const chosen: KeyFamily | null = family ?? (candidates.length === 1 ? candidates[0] : null);
+  const derived = useMemo(() => {
+    if (!parsed?.ok || !chosen) return null;
+    try {
+      return addressFromRawKey(chosen, parsed.key.secret);
+    } catch {
+      return null;
+    }
+  }, [parsed, chosen]);
+
+  /** Nom du premier réseau d'une famille, pour étiqueter le choix. */
+  const familyLabel = (f: KeyFamily) =>
+    chainNameOf(listChains({ includeTestnets: false }).find((c) => c.family === f)?.id ?? '') ?? f;
+
+  /** Message d'un refus d'analyse, depuis son code. */
+  const parseErrorText = (code: KeyParseError) => {
+    switch (code) {
+      case 'OUT_OF_RANGE':
+        return t('keyErrOutOfRange');
+      case 'BAD_CHECKSUM':
+        return t('keyErrChecksum');
+      case 'BAD_WIF_VERSION':
+        return t('keyErrWifVersion');
+      case 'SOLANA_MISMATCH':
+        return t('keyErrSolanaMismatch');
+      default:
+        return t('keyErrUnrecognised');
+    }
+  };
 
   const switchMode = (m: Mode) => {
     setMode(m);
     setError(null);
     setText('');
     setPwd('');
+    setFamily(null);
   };
 
   const onImport = async () => {
@@ -47,8 +101,15 @@ export default function ImportWallet() {
         if (!validateMnemonic(text)) { setError(t('invalidPhraseSimple')); return; }
         await importWallet(text, pin, label);
       } else if (mode === 'key') {
-        try { normalizeEvmPrivateKey(text); } catch { setError(t('invalidPrivateKey')); return; }
-        await importPrivateKey(text, pin, label);
+        if (!parsed) { setError(t('keyErrUnrecognised')); return; }
+        if (!parsed.ok) { setError(parseErrorText(parsed.error)); return; }
+        // Plusieurs réseaux possibles et aucun choisi : on ne devine pas.
+        if (!chosen) { setError(t('keyErrFamilyRequired')); return; }
+        if (chosen === 'bitcoin' && parsed.key.compressed === false) {
+          setError(t('keyErrWifUncompressed'));
+          return;
+        }
+        await importPrivateKey(text, pin, label, chosen);
       } else {
         // Sauvegarde chiffrée : déchiffre avec le mot de passe puis importe la phrase.
         const { mnemonic, error: err } = await restoreBackup(text, pwd);
@@ -137,6 +198,59 @@ export default function ImportWallet() {
           style={{ minHeight: mode === 'key' ? 44 : 100, color: colors.text, fontSize: mode === 'backup' ? 12 : 16, textAlignVertical: 'top' }}
         />
       </Card>
+
+      {/*
+        CE QU'ON A RECONNU, ET OÙ ÇA MÈNE. Une clé peut être parfaitement valide
+        et désigner une adresse que l'utilisateur ne reconnaît pas — un secret
+        pris pour la mauvaise famille, une graine confondue avec une clé
+        complète. Montrer l'adresse laisse la vérification à celui qui sait.
+      */}
+      {mode === 'key' && parsed ? (
+        <Card>
+          {!parsed.ok ? (
+            <Text style={{ color: colors.danger }}>{parseErrorText(parsed.error)}</Text>
+          ) : (
+            <>
+              <Text style={typography.muted}>{t('keyRecognised')}</Text>
+              {/*
+                Plus d'une famille possible : 32 octets sur secp256k1 servent
+                l'EVM et Bitcoin, et sont aussi une graine ed25519. Trois adresses
+                pour un même secret — l'utilisateur seul sait laquelle il veut.
+              */}
+              {candidates.length > 1 ? (
+                <>
+                  <Text style={[typography.muted, { marginTop: spacing(1) }]}>{t('keyChooseNetwork')}</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(0.75), marginTop: spacing(0.5) }}>
+                    {candidates.map((f) => {
+                      const on = chosen === f;
+                      return (
+                        <KPressable
+                          key={f}
+                          onPress={() => setFamily(f)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: on }}
+                          style={{ minHeight: 36, paddingHorizontal: spacing(1.25), justifyContent: 'center', borderRadius: 999, borderWidth: 1, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primary : 'transparent' }}
+                        >
+                          <Text style={{ color: on ? colors.onPrimary : colors.text, fontFamily: typography.bodyStrong.fontFamily, fontSize: 13 }}>
+                            {familyLabel(f)}
+                          </Text>
+                        </KPressable>
+                      );
+                    })}
+                  </View>
+                </>
+              ) : null}
+              {derived ? (
+                <View style={{ marginTop: spacing(1.5) }}>
+                  <Text style={typography.muted}>{t('keyDerivedAddress')}</Text>
+                  <Text style={{ color: colors.text, fontSize: 13 }}>{groupAddress(derived)}</Text>
+                  <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>{t('keyCheckAddress')}</Text>
+                </View>
+              ) : null}
+            </>
+          )}
+        </Card>
+      ) : null}
 
       {mode === 'backup' ? (
         <Card>

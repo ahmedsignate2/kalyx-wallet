@@ -71,6 +71,36 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
   }
 
   if (isWalletError(e)) {
+    /*
+     * CODES D'IMPORT. Le magasin lève un `WalletError` dont le message est un
+     * code préfixé `import.` : la raison précise change ce qu'il faut dire, et
+     * une seule phrase pour six cas n'aide personne à s'en sortir. Sans cette
+     * traduction, l'utilisateur lirait « import.WRONG_FAMILY:bitcoin:solana ».
+     */
+    if (e.message.startsWith('import.')) {
+      const [code, have, want] = e.message.slice('import.'.length).split(':');
+      switch (code) {
+        case 'OUT_OF_RANGE':
+          return t ? t('keyErrOutOfRange') : 'Key outside the valid range.';
+        case 'BAD_CHECKSUM':
+          return t ? t('keyErrChecksum') : 'Checksum mismatch.';
+        case 'BAD_WIF_VERSION':
+          return t ? t('keyErrWifVersion') : 'Unknown WIF version.';
+        case 'SOLANA_MISMATCH':
+          return t ? t('keyErrSolanaMismatch') : 'The public key does not match the private key.';
+        case 'FAMILY_REQUIRED':
+        case 'FAMILY_UNSUPPORTED':
+          return t ? t('keyErrFamilyRequired') : 'Pick the network this key is for.';
+        case 'WIF_UNCOMPRESSED':
+          return t ? t('keyErrWifUncompressed') : 'Uncompressed WIF: legacy address, not supported.';
+        case 'WRONG_FAMILY': {
+          const phrase = t ? t('keyErrWrongFamily') : 'This wallet was imported for {have}. {want} is not available.';
+          return phrase.split('{have}').join(have ?? '?').split('{want}').join(want ?? '?');
+        }
+        default:
+          return t ? t('keyErrUnrecognised') : 'Key not recognised.';
+      }
+    }
     if (e.code === 'WRONG_PIN') return t ? t('errWrongPin') : 'Incorrect PIN.';
     if (e.code === 'RPC_UNAVAILABLE') return t ? t('errRpcUnavailable') : 'Network unavailable. Try again.';
     return e.message;
