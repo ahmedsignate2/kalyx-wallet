@@ -4,7 +4,7 @@ const it: Dict = {
   meta: {
     title: 'Kalyx Wallet — Wallet crypto non-custodial e multi-chain',
     description:
-      'Le tue chiavi restano sul tuo telefono. Bitcoin, Ethereum, Solana e 60 reti, ogni firma spiegata prima di firmare. Gratis, senza account.',
+      'Le tue chiavi restano sul tuo telefono. Bitcoin, Ethereum, Solana e 64 reti, ogni firma spiegata prima di firmare. Gratis, senza account.',
   },
   nav: {
     how: 'Come funziona',
@@ -51,6 +51,7 @@ const it: Dict = {
   networks: {
     label: 'Reti supportate',
     walletconnect: 'Interoperabile con WalletConnect (Reown)',
+    soon: 'TON sta arrivando: indirizzi e derivazione delle chiavi sono già scritti e testati.',
   },
   how: {
     kicker: 'Come funziona',
@@ -60,8 +61,8 @@ const it: Dict = {
     steps: [
       {
         title: 'Un saldo. Tutte le tue chain.',
-        text: 'Bitcoin, Ethereum e i suoi Layer 2, Solana: 63 reti aggregate in una sola cifra, una sola curva. Il saldo compare dalla cache prima ancora che la rete risponda.',
-        value: '63',
+        text: 'Bitcoin, Ethereum e i suoi Layer 2, Solana: 64 reti aggregate in una sola cifra, una sola curva. Il saldo compare dalla cache prima ancora che la rete risponda.',
+        value: '64',
         label: 'reti',
       },
       {
