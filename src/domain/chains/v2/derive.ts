@@ -13,9 +13,11 @@
  * une adresse qui n'est pas celle du compte affiché.
  */
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { hexToBytes } from '@noble/hashes/utils';
-import { deriveEvmAccount } from '../../../crypto/hd';
-import { deriveBtcSigner } from '../../../crypto/btc';
+import { ed25519 } from '@noble/curves/ed25519';
+import { base58 } from '@scure/base';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { deriveEvmAccount, evmAccountFromPrivateKey } from '../../../crypto/hd';
+import { deriveBtcSigner, p2wpkhAddress } from '../../../crypto/btc';
 import { deriveSolanaSigner } from '../../../crypto/solana';
 import type { ChainFamily } from '../types';
 import type { ChainSigner } from './signer';
@@ -60,5 +62,53 @@ export function signerFromSeed(family: ChainFamily, seed: Uint8Array, index = 0)
        * adresse qui n'est pas la sienne.
        */
       throw new Error(`Aucune dérivation de signataire pour la famille « ${family} »`);
+  }
+}
+
+/**
+ * Signataire d'une clé IMPORTÉE : le secret est la clé, sans dérivation.
+ *
+ * Distinct de `signerFromSeed`, et ça n'est pas un détail. Une clé importée n'a
+ * pas de chemin : appliquer BIP-44 ou BIP-84 à un secret qui EST déjà la clé
+ * produirait une autre clé, donc une autre adresse — l'utilisateur verrait un
+ * portefeuille vide et croirait ses fonds perdus.
+ */
+export function signerFromRawKey(family: ChainFamily, secret: Uint8Array): ChainSigner {
+  if (secret.length !== 32) throw new Error('Clé importée invalide (32 octets attendus)');
+  switch (family) {
+    case 'evm':
+    case 'bitcoin':
+      /*
+       * Clé publique COMPRESSÉE dans les deux cas. L'EVM calcule son adresse
+       * depuis la forme non compressée mais n'a pas besoin qu'on la stocke, et
+       * Bitcoin n'accepte que la forme compressée en segwit natif.
+       */
+      return { curve: 'secp256k1', privateKey: secret, publicKey: secp256k1.getPublicKey(secret, true) };
+    case 'solana':
+      return { curve: 'ed25519', secretKey: secret, publicKey: ed25519.getPublicKey(secret) };
+    default:
+      throw new Error(`Aucun signataire importable pour la famille « ${family} »`);
+  }
+}
+
+/**
+ * Adresse d'une clé importée, pour l'afficher AVANT de confirmer l'import.
+ *
+ * C'est le seul garde-fou qui vaille : une clé peut être valide et produire une
+ * adresse que l'utilisateur ne reconnaît pas — un WIF non compressé, un secret
+ * pris pour la mauvaise famille, une graine confondue avec une clé complète.
+ * Montrer l'adresse laisse la vérification à celui qui sait.
+ */
+export function addressFromRawKey(family: ChainFamily, secret: Uint8Array): string {
+  const signer = signerFromRawKey(family, secret);
+  switch (family) {
+    case 'evm':
+      return evmAccountFromPrivateKey(bytesToHex(secret)).address;
+    case 'bitcoin':
+      return p2wpkhAddress(signer.publicKey);
+    case 'solana':
+      return base58.encode(signer.publicKey);
+    default:
+      throw new Error(`Aucune adresse dérivable pour la famille « ${family} »`);
   }
 }

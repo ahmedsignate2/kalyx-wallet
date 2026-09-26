@@ -11,6 +11,14 @@ export type WalletErrorCode =
   | 'AMOUNT_TOO_SMALL'
   | 'INSUFFICIENT_FUNDS'
   | 'INVALID_MNEMONIC'
+  /**
+   * Clé privée importée illisible, ambiguë ou non servie.
+   *
+   * Le `message` porte un code détaillé préfixé `import.` — la raison précise
+   * change ce qu'il faut dire à l'utilisateur, et une seule phrase pour six cas
+   * ne l'aide pas à s'en sortir.
+   */
+  | 'INVALID_KEY'
   | 'MNEMONIC_VERIFICATION_FAILED'
   | 'INVALID_PIN'
   | 'WRONG_PIN'
