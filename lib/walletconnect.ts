@@ -15,7 +15,7 @@ import { create } from 'zustand';
 import { technicalLogger } from './technicalLogger';
 import { useWallet, type Unlock } from './walletStore';
 import { notify } from './notifications';
-import { listChains, getAdapter, type RawTxRequest } from '../src';
+import { listChains, getAdapter, WcConnectError, type RawTxRequest } from '../src';
 import { handleSmartError } from './errorHandler';
 import { submitSolanaSigned } from './solanaSubmit';
 import type { IWeb3Wallet } from '@walletconnect/web3wallet';
@@ -395,7 +395,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     const wanted = accountIndex ?? wstate.activeAccountIndex;
     const acct = wstate.accounts.find((a) => a.index === wanted) ?? wstate.accounts[0];
     const address = acct?.evmAddress ?? wstate.account?.address;
-    if (!address) throw new Error('Aucun compte actif');
+    if (!address) throw new WcConnectError('NO_ACCOUNT');
     // Exige l'identité dès la connexion (parité avec le navigateur dApps intégré).
     // Biométrie ou PIN ; lève si refusée → l'UI affiche l'erreur, aucune session.
     await wstate.verifyUnlock(unlock);
@@ -434,13 +434,17 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         supportedNamespaces,
       });
     } catch (e) {
-      // buildApprovedNamespaces jette si la dApp EXIGE un réseau/une méthode
-      // hors de notre liste (ex. Solana). Message clair plutôt que silence.
+      /*
+        buildApprovedNamespaces jette si la dApp EXIGE un réseau ou une méthode
+        hors de notre liste. Le détail technique est CONSERVÉ : « réseau non
+        supporté » sans dire lequel oblige à chercher, et c'est ce genre de
+        silence qui coûte des heures.
+      */
       const detail = e instanceof Error ? e.message : String(e);
-      throw new Error(`Cette dApp demande un réseau ou une méthode non supportés par Kalyx. (${detail.slice(0, 120)})`);
+      throw new WcConnectError('UNSUPPORTED_REQUEST', detail.slice(0, 160));
     }
     if (!namespaces || Object.keys(namespaces).length === 0) {
-      throw new Error('Cette dApp ne demande aucun réseau compatible (EVM).');
+      throw new WcConnectError('NO_COMPATIBLE_CHAIN');
     }
     try {
       await wallet.approveSession({ id: proposal.id, namespaces: namespaces as any });
@@ -448,9 +452,9 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       const detail = e instanceof Error ? e.message : String(e);
       if (/expired|deleted|record/i.test(detail)) {
         // On laisse la fenêtre ouverte pour afficher l'erreur ; « Refuser » la fermera.
-        throw new Error('La demande de connexion a expiré. Relance la connexion depuis la dApp.');
+        throw new WcConnectError('PROPOSAL_EXPIRED');
       }
-      throw new Error(`Connexion refusée par WalletConnect : ${detail.slice(0, 140)}`);
+      throw new WcConnectError('REJECTED_BY_RELAY', detail.slice(0, 160));
     }
     set({ proposal: null });
     get().refresh();
