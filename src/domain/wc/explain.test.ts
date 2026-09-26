@@ -96,13 +96,13 @@ describe('Permit2 et Solana (régressions)', () => {
   });
 
   it('Solana : un swap Jupiter est expliqué comme un swap', () => {
-    const e = explainRequest({ kind: 'solanaTx', method: 'solana_signTransaction', domain: 'jup.ag', solana: { version: 0, programs: [], known: ['Jupiter v6', 'Compute Budget'], dapp: 'Jupiter v6', action: 'swap', instructions: 4, feePayer: 'x', lookupTables: 2, feePayerMismatch: false, signerCount: 1 } });
+    const e = explainRequest({ kind: 'solanaTx', method: 'solana_signTransaction', domain: 'jup.ag', solana: { version: 0, programs: [], known: ['Jupiter v6', 'Compute Budget'], dapp: 'Jupiter v6', action: 'swap', instructions: 4, feePayer: 'x', lookupTables: 2, feePayerMismatch: false, signerCount: 1, signaturesPresent: [false] } });
     expect(e.title).toBe('Swap');
     expect(e.headline).toContain('via Jupiter v6');
     expect(e.risk).toBe('none');
-    const bad = explainRequest({ kind: 'solanaTx', domain: 'jup.ag', solana: { version: 0, programs: [], known: [], dapp: null, action: 'contract', instructions: 1, feePayer: 'y', lookupTables: 0, feePayerMismatch: true, signerCount: 1 } });
+    const bad = explainRequest({ kind: 'solanaTx', domain: 'jup.ag', solana: { version: 0, programs: [], known: [], dapp: null, action: 'contract', instructions: 1, feePayer: 'y', lookupTables: 0, feePayerMismatch: true, signerCount: 1, signaturesPresent: [false] } });
     expect(bad.risk).toBe('warning'); // programme inconnu
-    const sponsored = explainRequest({ kind: 'solanaTx', domain: 'jup.ag', solana: { version: 0, programs: [], known: ['Jupiter v6'], dapp: 'Jupiter v6', action: 'swap', instructions: 4, feePayer: '7rhxnLV8C77o6d8oz26AgK8x8m5ePsdeRawjqvojbjnQ', lookupTables: 2, feePayerMismatch: true, signerCount: 1 } });
+    const sponsored = explainRequest({ kind: 'solanaTx', domain: 'jup.ag', solana: { version: 0, programs: [], known: ['Jupiter v6'], dapp: 'Jupiter v6', action: 'swap', instructions: 4, feePayer: '7rhxnLV8C77o6d8oz26AgK8x8m5ePsdeRawjqvojbjnQ', lookupTables: 2, feePayerMismatch: true, signerCount: 1, signaturesPresent: [false] } });
     expect(sponsored.risk).toBe('none');
     expect(sponsored.detail).toContain('payés par la dApp');
   });

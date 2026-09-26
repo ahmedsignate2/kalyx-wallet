@@ -66,3 +66,44 @@ describe('describeSolanaTransaction', () => {
     expect(() => parseSolanaMessage(new Uint8Array([0x81, 1, 0, 1]))).toThrow();
   });
 });
+
+describe('describeSolanaTransaction — emplacements de signature', () => {
+  /*
+   * Solana sérialise une signature absente en 64 octets NULS. Distinguer un
+   * emplacement rempli d'un emplacement vide est ce qui permet d'accepter une
+   * transaction co-signée par un terminal marchand — sa signature est déjà
+   * posée — tout en refusant celle dont un tiers garde la main.
+   */
+  function twoSigners(secondSigned: boolean): string {
+    const m: number[] = [];
+    m.push(2, 0, 1); // deux signatures requises
+    m.push(...compact(3));
+    m.push(...key(7), ...key(8), ...base58.decode(SYSTEM));
+    m.push(...new Uint8Array(32)); // blockhash
+    m.push(...compact(1));
+    m.push(2, ...compact(2), 0, 1, ...compact(1), 0);
+    const slots = [...new Uint8Array(64), ...new Uint8Array(64).fill(secondSigned ? 9 : 0)];
+    return base64.encode(new Uint8Array([...compact(2), ...slots, ...m]));
+  }
+
+  it('lit deux emplacements vides quand personne n’a signé', () => {
+    const d = describeSolanaTransaction(twoSigners(false), b58(7))!;
+    expect(d.signerCount).toBe(2);
+    expect(d.signaturesPresent).toEqual([false, false]);
+  });
+
+  it('repère la signature du second signataire quand elle est posée', () => {
+    const d = describeSolanaTransaction(twoSigners(true), b58(7))!;
+    expect(d.signerCount).toBe(2);
+    expect(d.signaturesPresent).toEqual([false, true]);
+  });
+
+  /** Cas courant : une seule signature attendue, pas encore posée. */
+  it('un signataire unique non signé', () => {
+    const d = describeSolanaTransaction(
+      buildTx({ version: 'legacy', keys: [key(7), base58.decode(SYSTEM)], ixs: [{ program: 1, accounts: [0], data: [2] }] }),
+      b58(7),
+    )!;
+    expect(d.signaturesPresent).toEqual([false]);
+  });
+});

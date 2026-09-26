@@ -26,6 +26,7 @@ import {
   shortAddress,
   type TxRequestIdentity,
   type SolanaTxDescription,
+  type TxRequestRefusal,
 } from '../src';
 
 export default function SolanaRequestScreen() {
@@ -47,6 +48,25 @@ export default function SolanaRequestScreen() {
   const [asking, setAsking] = useState(false);
 
   const close = useCallback(() => (router.canGoBack() ? router.back() : router.replace('/home')), []);
+
+  /** Message d'un refus, depuis son code. */
+  const refusalText = useCallback(
+    (reason?: TxRequestRefusal) => {
+      switch (reason) {
+        case 'UNREADABLE':
+          return t('solReqUnreadable');
+        case 'NO_FEE_PAYER':
+          return t('solReqNoFeePayer');
+        case 'NOT_YOUR_ACCOUNT':
+          return t('solReqNotYourAccount');
+        case 'THIRD_PARTY_PENDING':
+          return t('solReqThirdParty');
+        default:
+          return t('solReqFailed');
+      }
+    },
+    [t],
+  );
 
   useEffect(() => {
     let alive = true;
@@ -77,7 +97,12 @@ export default function SolanaRequestScreen() {
       const desc = describeSolanaTransaction(payload.transaction, me);
       const check = checkTxRequest(desc, me);
       if (!check.ok) {
-        setError(check.reason ?? t('solReqFailed'));
+        /*
+         * LA TRADUCTION SE FAIT ICI, à partir d'un code. Le contrôle portait ses
+         * refus en français dans le domaine : ils sortaient en français quelle
+         * que soit la langue choisie. Même faute que dans le magasin de Pay.
+         */
+        setError(refusalText(check.reason));
         setLoading(false);
         return;
       }

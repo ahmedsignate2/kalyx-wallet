@@ -232,6 +232,7 @@ export {
   fetchTxRequestIdentity,
   fetchTxRequestPayload,
   checkTxRequest,
+  type TxRequestRefusal,
   type TxRequestIdentity,
   type TxRequestPayload,
 } from './domain/pay/solanaTxRequest';

@@ -138,9 +138,27 @@ export async function fetchTxRequestPayload(
   }
 }
 
+/**
+ * Raison d'un refus, sous forme de CODE.
+ *
+ * Pas une phrase : ce module ne connaît pas la langue de l'utilisateur, et les
+ * messages qu'il portait en français sortaient tels quels quel que soit le
+ * réglage. C'est la même faute que dans le magasin de Pay et dans
+ * l'humanisation de l'historique.
+ */
+export type TxRequestRefusal =
+  /** Transaction indéchiffrable : on ne signe pas ce qu'on ne sait pas lire. */
+  | 'UNREADABLE'
+  /** Aucun payeur de frais dans le message. */
+  | 'NO_FEE_PAYER'
+  /** Le payeur de frais n'est pas nous. */
+  | 'NOT_YOUR_ACCOUNT'
+  /** Un tiers doit encore signer : il choisirait quand l'opération s'exécute. */
+  | 'THIRD_PARTY_PENDING';
+
 export interface TxRequestCheck {
   ok: boolean;
-  reason?: string;
+  reason?: TxRequestRefusal;
 }
 
 /**
@@ -151,25 +169,45 @@ export interface TxRequestCheck {
  * 1. **Nous devons être le PAYEUR DE FRAIS**, c'est-à-dire le compte n°0. Sur
  *    Solana, ce compte paie et signe ; s'il s'agissait de quelqu'un d'autre, on
  *    signerait une transaction dont on ne maîtrise ni le coût ni l'intention.
- * 2. **La transaction ne doit exiger qu'UNE signature.** Plusieurs signataires
- *    signifient qu'elle attend aussi celle d'un tiers : on signerait alors une
- *    opération qui ne s'exécutera que si ce tiers le décide, à un moment qu'il
- *    choisit — et notre signature reste valable en attendant.
+ * 2. **Aucune signature de TIERS ne doit rester à venir.**
+ *
+ * La seconde règle était trop large : elle refusait toute transaction à
+ * plusieurs signataires. Or un terminal interactif co-signe légitimement — une
+ * remise, un programme de fidélité — et sa signature est DÉJÀ posée quand il
+ * nous envoie la transaction. Refuser ce cas, c'est refuser la moitié des
+ * caisses que la spécification vise.
+ *
+ * Ce qui compte n'est pas le NOMBRE de signataires mais qu'aucune signature ne
+ * MANQUE à part la nôtre : notre signature achève alors la transaction. S'il en
+ * manque une autre, l'opération ne s'exécutera que lorsque ce tiers le décidera,
+ * au moment qu'il choisira, et notre signature l'attendra jusque-là.
  *
  * Le décodage lui-même est fait par `describeSolanaTransaction`, qui sait déjà
  * lire un message et vérifier le payeur (il sert au chemin WalletConnect).
  */
 export function checkTxRequest(
-  description: { feePayer?: string; signerCount?: number } | null,
+  description: { feePayer?: string; signerCount?: number; signaturesPresent?: boolean[] } | null,
   expectedAccount: string,
 ): TxRequestCheck {
-  if (!description) return { ok: false, reason: 'Transaction illisible' };
-  if (!description.feePayer) return { ok: false, reason: 'Payeur de frais absent de la transaction' };
-  if (description.feePayer !== expectedAccount) {
-    return { ok: false, reason: 'La transaction ne part pas de ton compte' };
-  }
-  if (typeof description.signerCount === 'number' && description.signerCount > 1) {
-    return { ok: false, reason: 'La transaction exige la signature d’un tiers' };
+  if (!description) return { ok: false, reason: 'UNREADABLE' };
+  if (!description.feePayer) return { ok: false, reason: 'NO_FEE_PAYER' };
+  if (description.feePayer !== expectedAccount) return { ok: false, reason: 'NOT_YOUR_ACCOUNT' };
+
+  const signers = description.signerCount ?? 1;
+  if (signers > 1) {
+    /*
+     * Le compte n°0 est le nôtre — vérifié juste au-dessus — et c'est celui que
+     * nous allons signer. On n'examine donc que les emplacements 1..n-1.
+     *
+     * Sans la liste, on ne peut rien affirmer : on refuse, comme avant. Mieux
+     * vaut bloquer un paiement légitime que signer une transaction dont un tiers
+     * garderait la maîtrise du déclenchement.
+     */
+    const present = description.signaturesPresent;
+    if (!present) return { ok: false, reason: 'THIRD_PARTY_PENDING' };
+    for (let i = 1; i < signers; i++) {
+      if (!present[i]) return { ok: false, reason: 'THIRD_PARTY_PENDING' };
+    }
   }
   return { ok: true };
 }

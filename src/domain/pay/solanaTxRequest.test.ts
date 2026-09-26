@@ -118,22 +118,70 @@ describe('checkTxRequest — le garde-fou', () => {
      */
     const r = checkTxRequest({ feePayer: AUTRE, signerCount: 1 }, ME);
     expect(r.ok).toBe(false);
-    expect(r.reason).toMatch(/ne part pas de ton compte/);
+    // Un CODE, pas une phrase : le domaine ne connaît pas la langue de l'écran.
+    expect(r.reason).toBe('NOT_YOUR_ACCOUNT');
   });
 
-  it('REFUSE une transaction qui exige la signature d\'un tiers', () => {
+  it('REFUSE une transaction dont un tiers n\'a PAS encore signé', () => {
     /*
-     * Plusieurs signataires : l'opération ne s'exécutera que si ce tiers le
-     * décide, au moment qu'il choisit — et notre signature reste valable en
-     * attendant.
+     * L'emplacement du second signataire est vide : l'opération ne s'exécutera
+     * que lorsque ce tiers le décidera, au moment qu'il choisira, et notre
+     * signature l'attendra jusque-là.
      */
-    const r = checkTxRequest({ feePayer: ME, signerCount: 2 }, ME);
+    const r = checkTxRequest({ feePayer: ME, signerCount: 2, signaturesPresent: [false, false] }, ME);
     expect(r.ok).toBe(false);
-    expect(r.reason).toMatch(/tiers/);
+    expect(r.reason).toBe('THIRD_PARTY_PENDING');
   });
 
   it('REFUSE une transaction illisible ou sans payeur', () => {
     expect(checkTxRequest(null, ME).ok).toBe(false);
     expect(checkTxRequest({ signerCount: 1 }, ME).ok).toBe(false);
+  });
+});
+
+describe('checkTxRequest — transaction co-signée par le marchand', () => {
+  /*
+   * LA RÈGLE CORRIGÉE. L'ancienne refusait tout au-delà d'un signataire, ce qui
+   * écartait les terminaux interactifs — remise, fidélité — qui co-signent
+   * légitimement et dont la signature est DÉJÀ posée quand ils nous envoient la
+   * transaction. C'est la moitié des caisses que la spécification vise.
+   *
+   * Ce qui compte n'est pas le nombre de signataires mais qu'aucune signature ne
+   * manque à part la nôtre : la nôtre achève alors la transaction.
+   */
+  it('ACCEPTE quand la seule signature manquante est la nôtre', () => {
+    const r = checkTxRequest({ feePayer: ME, signerCount: 2, signaturesPresent: [false, true] }, ME);
+    expect(r.ok).toBe(true);
+  });
+
+  it('ACCEPTE trois signataires si les deux autres ont signé', () => {
+    const r = checkTxRequest(
+      { feePayer: ME, signerCount: 3, signaturesPresent: [false, true, true] },
+      ME,
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it('REFUSE dès qu’une seule des autres manque', () => {
+    const r = checkTxRequest(
+      { feePayer: ME, signerCount: 3, signaturesPresent: [false, true, false] },
+      ME,
+    );
+    expect(r.reason).toBe('THIRD_PARTY_PENDING');
+  });
+
+  /*
+   * Sans la liste des emplacements, on ne peut RIEN affirmer. On refuse, comme
+   * avant : mieux vaut bloquer un paiement légitime que signer une transaction
+   * dont un tiers garderait la maîtrise du déclenchement.
+   */
+  it('REFUSE si la présence des signatures est inconnue', () => {
+    expect(checkTxRequest({ feePayer: ME, signerCount: 2 }, ME).reason).toBe('THIRD_PARTY_PENDING');
+  });
+
+  /** Un seul signataire : la liste ne change rien, c'est nous et personne d'autre. */
+  it('ACCEPTE un signataire unique, liste ou pas', () => {
+    expect(checkTxRequest({ feePayer: ME, signerCount: 1 }, ME).ok).toBe(true);
+    expect(checkTxRequest({ feePayer: ME, signerCount: 1, signaturesPresent: [false] }, ME).ok).toBe(true);
   });
 });
