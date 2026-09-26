@@ -21,7 +21,7 @@ import { useWebT, type WebKey } from './webI18n';
 import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useTelegramClosingConfirmation, useIdle, useTabHidden, tgHaptic } from './platform';
 import { toRaw, encodeErc20Transfer } from './evmEncode';
 import { useTokenLogo } from './tokenLogos';
-import { FadeInUp, CrossFade, useCountUp, Pop, KalyxSpinner, KalyxSuccessPulse } from './motion';
+import { FadeInUp, CrossFade, useCountUp, Pop, KalyxSpinner, KalyxSuccessPulse, reducedMotion } from './motion';
 import { Text as KText, Button, Sheet, Surface, ListRow, Divider } from '../kit';
 import { ReceiveScreen } from './ReceiveScreen';
 import { SendFlow } from './SendFlow';
@@ -543,7 +543,7 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
     const nativeSum = slices.reduce((s, x) => s + x.native, 0);
     const change24h = nativeSum > 0 ? slices.reduce((s, x) => s + x.change24h * x.native, 0) / nativeSum : 0;
     return { total, change24h, slices };
-  }, [key, fiat, rev]);
+  }, [key, fiat], [rev]);
 }
 
 type MobileTab = 'home' | 'market' | 'agent' | 'settings';
@@ -805,6 +805,9 @@ function Skeleton({ w = '100%', h, r = 8, style }: { w?: number | string; h: num
   const [width, setWidth] = useState(0);
   const x = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    // Le balayage était la seule animation du tableau de bord à ignorer
+    // « réduire les animations » — et c'est celle qui tourne en boucle.
+    if (reducedMotion()) return;
     const loop = Animated.loop(
       Animated.timing(x, { toValue: 1, duration: 1100, easing: Easing.linear, useNativeDriver: false }),
     );
@@ -883,13 +886,14 @@ function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null
   // pourcentages semblaient se contredire (ex. +4,6 % vs -2,4 %) alors que ce
   // sont juste deux périodes différentes. Même période par défaut partout.
   const [days, setDays] = useState('1');
-  const { data: bal } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address, rev]);
+  const { data: bal } = useAsync<Balance>(() => getAdapter(chain.id).getBalance(address), [chain.id, address], [rev]);
   // Points horodatés (pas juste les prix) : le graphique est scrubable au
   // doigt/à la souris (InteractiveChart, déjà utilisé et testé côté app
   // mobile sur l'écran token) et affiche prix + heure exacts sous le curseur.
   const { data: points, loading } = useAsync<ChartPoint[]>(
     () => (chain.coingeckoId ? getMarketChartPoints(chain.coingeckoId, fiat, days) : Promise.resolve([])),
-    [chain.coingeckoId, fiat, days, rev],
+    [chain.coingeckoId, fiat, days],
+    [rev],
   );
   // Prix brut de l'actif natif (pas la valeur du portefeuille) : avec un petit
   // solde, « valeur = prix × solde » restait plate à ~0 quel que soit le
@@ -1149,7 +1153,7 @@ function MobileTokenList({ data, chain, address, onReceive }: { data: HeroData; 
     const tokens = await getErc20Tokens(chain, address);
     const prices = chain.coingeckoPlatform && tokens.length ? await getTokenPrices(chain.coingeckoPlatform, tokens.map((tk) => tk.contract), fiat) : {};
     return { tokens, prices };
-  }, [chain.id, address, fiat, rev, isEvm]);
+  }, [chain.id, address, fiat, isEvm], [rev]);
 
   const nativeAmount = bal ? Number(bal.raw) / 10 ** bal.decimals : 0;
   const hasNative = bal != null && bal.raw !== 0n;
@@ -1601,7 +1605,7 @@ function NftsPanel({ chain, address, flat }: { chain: ChainConfig; address: stri
   const tw = useWebT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
-  const { data, loading } = useAsync<NftItem[]>(() => getNfts(chain, address), [chain.id, address, rev]);
+  const { data, loading } = useAsync<NftItem[]>(() => getNfts(chain, address), [chain.id, address], [rev]);
   if (loading) return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1.5) }}>
       {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} w="47%" h={196} r={radii.md} />)}
@@ -1673,7 +1677,7 @@ function HistoryPanel({ chain, address, flat }: { chain: ChainConfig; address: s
   const activityT = useActivityT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
-  const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address, rev]);
+  const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address], [rev]);
   const [filter, setFilter] = useState<TxFilter>('all');
   const [limit, setLimit] = useState(15);
   const [detail, setDetail] = useState<{ tx: TxSummary; h: HumanTx } | null>(null);

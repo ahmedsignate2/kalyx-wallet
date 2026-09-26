@@ -8,7 +8,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, View, type StyleProp, type ViewStyle } from 'react-native';
 import { KalyxLogo } from '../KalyxLogo';
 
-function reducedMotion(): boolean {
+/** Réglage système « réduire les animations ». Exporté : les animations vivant
+ *  hors de ce fichier doivent le respecter aussi, sinon le réglage ne vaut que
+ *  pour la moitié de l'interface. */
+export function reducedMotion(): boolean {
   try {
     const m = (globalThis as { matchMedia?: (q: string) => { matches: boolean } }).matchMedia;
     return !!m && m('(prefers-reduced-motion: reduce)').matches;
