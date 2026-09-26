@@ -271,3 +271,84 @@ describe('parseQr — requêtes de transaction Solana Pay', () => {
     }
   });
 });
+
+describe('parseQr — requête de transaction Solana Pay au lien ENCODÉ', () => {
+  /*
+   * LE CAS RÉEL, tel qu'un terminal le produit. La spec dit que le lien est
+   * « conditionnellement encodé en URL » : dès qu'il porte ses propres
+   * paramètres — et une caisse passe toujours `recipient`, `amount`,
+   * `spl-token`, `reference` à son point d'entrée — il DOIT être encodé, sans
+   * quoi ses `&` se confondraient avec ceux de Solana Pay.
+   *
+   * On ne testait que la forme nue, donc toute caisse réelle recevait « QR non
+   * reconnu » : nous n'acceptions que le cas que la spec décrit comme
+   * l'exception.
+   */
+  const LIEN =
+    'https://hardwood-medal-observed-booking.trycloudflare.com/api' +
+    '?recipient=9Xd8RtngB7mu5342Hc9kN7PYAdH4uwRP7sN8MK6C2ECc' +
+    '&amount=0.001' +
+    '&spl-token=2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo' +
+    '&reference=CJx2VksYsMihZHV9on9L5DXhGMssGxLAzvufJwY2nhbd' +
+    '&label=Kalyx+Store';
+
+  it('reconnaît le QR encodé et rend le lien décodé, intact', () => {
+    const r = parseQr(`solana:${encodeURIComponent(LIEN)}`);
+    expect(r.kind).toBe('solana-tx-request');
+    expect(r).toMatchObject({ url: LIEN });
+  });
+
+  it('accepte encore la forme nue, sans paramètres', () => {
+    const r = parseQr('solana:https://exemple.com/pay');
+    expect(r).toMatchObject({ kind: 'solana-tx-request', url: 'https://exemple.com/pay' });
+  });
+
+  /** Les chiffres hexadécimaux peuvent être en minuscules comme en majuscules. */
+  it('insensible à la casse de l’encodage', () => {
+    expect(parseQr('solana:https%3a%2f%2fexemple.com%2Fapi%3Fa%3D1').kind).toBe('solana-tx-request');
+    expect(parseQr('solana:HTTPS%3A%2F%2Fexemple.com%2Fapi%3Fa%3D1').kind).toBe('solana-tx-request');
+  });
+
+  /*
+   * Les garde-fous s'appliquent au lien DÉCODÉ : l'encodage ne doit pas servir à
+   * les contourner. Sinon `solana:http%3A%2F%2F…` ferait passer du clair.
+   */
+  it('l’encodage ne contourne pas les garde-fous', () => {
+    expect(parseQr(`solana:${encodeURIComponent('http://exemple.com/api?a=1')}`).kind).toBe('invalid');
+    expect(parseQr(`solana:${encodeURIComponent('https://localhost/api?a=1')}`).kind).toBe('invalid');
+    expect(parseQr(`solana:${encodeURIComponent('https://10.0.0.7/api?a=1')}`).kind).toBe('invalid');
+  });
+
+  /** Séquence de pourcentage invalide : refusée, jamais une exception. */
+  it('un encodage cassé est refusé sans lever', () => {
+    expect(() => parseQr('solana:https%3A%2F%2Fexemple.com%2F%ZZ')).not.toThrow();
+    expect(parseQr('solana:https%3A%2F%2Fexemple.com%2F%ZZ').kind).toBe('invalid');
+  });
+
+  /*
+   * ON NE DÉCODE QU'UNE FOIS. Décoder en boucle jusqu'à obtenir une URL rendrait
+   * imprévisible ce qu'on finit par appeler.
+   */
+  it('un corps doublement encodé est refusé', () => {
+    const double = encodeURIComponent(encodeURIComponent(LIEN));
+    expect(parseQr(`solana:${double}`).kind).toBe('invalid');
+  });
+
+  /*
+   * LA REQUÊTE DE TRANSFERT NE DOIT PAS ÊTRE ABÎMÉE. Décoder le corps entier
+   * avant de le découper — le raccourci qui paraît naturel — transformerait un
+   * `%26` à l'intérieur d'une valeur en vrai `&` et couperait un paramètre en
+   * deux. C'est une injection de paramètre, pas un détail d'affichage.
+   */
+  it('un transfert dont une valeur contient un « & » encodé reste intact', () => {
+    const r = parseQr(
+      'solana:9Xd8RtngB7mu5342Hc9kN7PYAdH4uwRP7sN8MK6C2ECc?amount=0.001&label=Caf%C3%A9%20%26%20Th%C3%A9',
+    );
+    expect(r).toMatchObject({
+      kind: 'solana-uri',
+      address: '9Xd8RtngB7mu5342Hc9kN7PYAdH4uwRP7sN8MK6C2ECc',
+      amount: '0.001',
+      label: 'Café & Thé',
+    });
+  });
+});

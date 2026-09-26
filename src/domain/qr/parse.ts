@@ -280,9 +280,10 @@ function parseSolanaUri(body: string): QrResult {
    * tester d'abord, sinon `isValidSolanaAddress` échoue et l'utilisateur reçoit
    * « QR non reconnu » sur la moitié de la spec Solana Pay.
    */
-  if (/^https:\/\//i.test(body)) {
-    return isSafeTxRequestUrl(body)
-      ? { kind: 'solana-tx-request', url: body }
+  const link = txRequestLink(body);
+  if (link !== null) {
+    return isSafeTxRequestUrl(link)
+      ? { kind: 'solana-tx-request', url: link }
       : { kind: 'invalid', raw: `solana:${body}` };
   }
 
@@ -304,6 +305,46 @@ function parseSolanaUri(body: string): QrResult {
     message: query.message || undefined,
     memo: query.memo || undefined,
   };
+}
+
+/**
+ * Lien d'une requête de transaction, décodé si besoin ; `null` si le corps n'en
+ * est pas une.
+ *
+ * LA SPEC LE DIT : le lien est « conditionnellement encodé en URL ». Quand il
+ * porte ses propres paramètres — et c'est le cas de tout terminal, qui passe
+ * `recipient`, `amount`, `spl-token`, `reference` à son propre point d'entrée —
+ * il DOIT être encodé, sans quoi ses `&` se confondraient avec ceux de Solana
+ * Pay. Un QR de caisse ressemble donc à
+ * `solana:https%3A%2F%2Fexemple.com%2Fapi%3Frecipient%3D…`.
+ *
+ * On ne testait que la forme nue, et toute caisse réelle recevait « QR non
+ * reconnu » : nous n'acceptions en pratique que le cas que la spec décrit comme
+ * l'exception.
+ *
+ * Le décodage ne s'applique QU'À CE LIEN, et une seule fois. L'appliquer au
+ * corps entier avant de le découper — ce qui paraît plus simple — casserait les
+ * requêtes de transfert : un `%26` à l'intérieur d'une valeur deviendrait un
+ * vrai `&` et couperait un paramètre en deux. `parseQuery` décode déjà chaque
+ * valeur séparément, ce qui est la seule façon correcte de le faire.
+ */
+function txRequestLink(body: string): string | null {
+  // Lien nu : la spec prévoit cette forme quand il n'a pas de paramètres.
+  if (/^https:\/\//i.test(body)) return body;
+  // Forme encodée. `i` couvre aussi les chiffres hexadécimaux (%3a, %2F…).
+  if (!/^https%3a%2f%2f/i.test(body)) return null;
+  try {
+    const decoded = decodeURIComponent(body);
+    /*
+     * On ne décode qu'une fois. Un corps doublement encodé sort d'ici en `null`
+     * plutôt que de nous faire boucler sur des décodages successifs, dont on ne
+     * saurait plus dire ce qu'ils produisent.
+     */
+    return /^https:\/\//i.test(decoded) ? decoded : null;
+  } catch {
+    // Séquence de pourcentage invalide : ce n'est pas un lien exploitable.
+    return null;
+  }
 }
 
 /**
