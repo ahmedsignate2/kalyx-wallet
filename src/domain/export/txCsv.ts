@@ -6,12 +6,29 @@
 import type { TxSummary } from '../chains/types';
 import { formatAmount } from '../validation/amount';
 
+export interface ChainMeta {
+  name: string;
+  nativeSymbol: string;
+  nativeDecimals: number;
+  /** Base URL de l'explorateur (ex. https://etherscan.io). */
+  explorerUrl?: string;
+}
+
 export interface CsvContext {
+  /** Repli : réseau affiché, quand la chaîne d'une ligne est introuvable. */
   chainName: string;
   nativeSymbol: string;
   nativeDecimals: number;
-  /** Base URL de l'explorateur (ex. https://etherscan.io) → colonne « Lien ». */
   explorerUrl?: string;
+  /**
+   * Réseau de CHAQUE transaction, résolu depuis `tx.chain`.
+   *
+   * Sans lui, toutes les lignes héritaient du réseau affiché : un export fait
+   * depuis Base annonçait « Base » et « ETH » pour des transactions Bitcoin,
+   * avec un lien etherscan qui ne menait nulle part, et des montants divisés par
+   * 10^18 au lieu de 10^8.
+   */
+  chainOf?: (chain: string) => ChainMeta | undefined;
 }
 
 const HEADER = ['Date (UTC)', 'Réseau', 'Sens', 'Montant', 'Actif', 'De', 'Vers', 'Statut', 'Hash', 'Lien'];
@@ -23,21 +40,46 @@ function esc(v: string): string {
 
 const SENS: Record<TxSummary['direction'], string> = { in: 'Reçu', out: 'Envoyé', self: 'Interne' };
 
+/**
+ * Statut lisible.
+ *
+ * « Confirmée » était rendu pour tout ce qui n'avait pas échoué, donc aussi pour
+ * une transaction encore dans le mempool. Un export comptable qui affirme une
+ * confirmation qui n'a pas eu lieu est pire qu'un export incomplet.
+ */
+const STATUT: Record<TxSummary['status'], string> = {
+  success: 'Confirmée',
+  failed: 'Échouée',
+  pending: 'En attente',
+};
+
 /** Une ligne CSV pour une transaction. */
 function rowFor(tx: TxSummary, ctx: CsvContext): string {
   const date = new Date((tx.timestamp || 0) * 1000);
   const dateStr = Number.isNaN(date.getTime()) ? '' : date.toISOString().replace('T', ' ').slice(0, 19);
-  const amount = formatAmount(tx.value, ctx.nativeDecimals);
-  const link = ctx.explorerUrl ? `${ctx.explorerUrl.replace(/\/$/, '')}/tx/${tx.hash}` : '';
+
+  const meta = ctx.chainOf?.(tx.chain);
+  const name = meta?.name ?? ctx.chainName;
+  const explorerUrl = meta?.explorerUrl ?? ctx.explorerUrl;
+
+  /*
+   * L'ACTIF DE LA TRANSACTION, pas l'unité native du réseau. Un transfert
+   * d'USDC sortait libellé « ETH » et divisé par 18 décimales au lieu de 6 : le
+   * montant exporté n'avait aucun rapport avec l'opération.
+   */
+  const symbol = tx.asset ?? meta?.nativeSymbol ?? ctx.nativeSymbol;
+  const decimals = tx.decimals ?? meta?.nativeDecimals ?? ctx.nativeDecimals;
+  const amount = formatAmount(tx.value, decimals);
+  const link = explorerUrl ? `${explorerUrl.replace(/\/$/, '')}/tx/${tx.hash}` : '';
   return [
     dateStr,
-    ctx.chainName,
+    name,
     SENS[tx.direction],
     amount,
-    ctx.nativeSymbol,
+    symbol,
     tx.from,
     tx.to,
-    tx.status === 'failed' ? 'Échouée' : 'Confirmée',
+    STATUT[tx.status] ?? '',
     tx.hash,
     link,
   ]
