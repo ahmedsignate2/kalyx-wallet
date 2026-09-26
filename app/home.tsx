@@ -33,7 +33,14 @@ import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
 import { isDeviceCompromised } from '../lib/deviceSecurity';
 import { IS_BETA } from '../lib/appStage';
-import { getAdapter, listChains, nativeOfChain, chainNameOf, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type TxSummary, type ChartPoint, type NftItem } from '../src';
+import { getAdapter, listChains, nativeOfChain, chainNameOf, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type ChartPoint, type NftItem } from '../src';
+import {
+  useHistoryStore,
+  useHistoryCache,
+  useAnyHistoryLoading,
+  useAnyHistoryFetched,
+  aggregateHistory,
+} from '../lib/historyStore';
 
 const HIDE_KEY = 'kalyx.hideBalance';
 type Tab = 'tokens' | 'nft' | 'activity';
@@ -101,8 +108,6 @@ export default function Home() {
   const [chartLoading, setChartLoading] = useState(false);
   const [scrub, setScrub] = useState<ChartPoint | null>(null);
   const [showSmall, setShowSmall] = useState(false);
-  const [recent, setRecent] = useState<TxSummary[] | null>(null);
-  const [recentError, setRecentError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
   const [nfts, setNfts] = useState<ChainNft[] | null>(null);
@@ -146,38 +151,47 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pf.key, pf.at, period, fiat]);
 
-  // Activité récente (réseau actif — source de l'écran Historique).
+  /*
+   * ACTIVITÉ RÉCENTE — CACHE D'ABORD, RÉSEAU ENSUITE.
+   *
+   * Cet écran appelait les adaptateurs en DIRECT, avec un `Promise.all` : rien ne
+   * s'affichait avant que les huit réseaux aient répondu, et rien n'était
+   * conservé d'une ouverture à l'autre. Or un indexeur muet coûte cher — chaque
+   * fournisseur est réessayé trois fois avec un repli exponentiel — donc un seul
+   * réseau lent laissait la liste vide plusieurs dizaines de secondes, à chaque
+   * ouverture de l'app.
+   *
+   * On lit désormais le même cache persisté que l'écran Historique : l'affichage
+   * est immédiat dès la deuxième ouverture, et comme le magasin remplit le cache
+   * réseau par réseau, les lignes apparaissent au fur et à mesure au lieu
+   * d'attendre le plus lent.
+   */
+  const historyChains = useMemo(() => listChains({ includeTestnets: false }), []);
+  const historyAddressFor = useCallback(
+    (family: string) =>
+      family === 'solana' ? acct?.solAddress : family === 'bitcoin' ? acct?.btcAddress : acct?.evmAddress,
+    [acct?.evmAddress, acct?.solAddress, acct?.btcAddress],
+  );
+  const historyCache = useHistoryCache();
+  const recent = useMemo(
+    () => aggregateHistory(historyCache, historyChains, historyAddressFor).slice(0, 5),
+    [historyCache, historyChains, historyAddressFor],
+  );
+  const fetchHistory = useHistoryStore((s) => s.fetchHistory);
+  const recentLoading = useAnyHistoryLoading(historyChains, historyAddressFor);
+  const recentFetched = useAnyHistoryFetched(historyChains, historyAddressFor);
+
   useEffect(() => {
-    let alive = true;
-    setRecent(null);
-    setRecentError(false);
     if (!account) return;
-    const historyChains = listChains({ includeTestnets: false });
-    const addressFor = (family: string) => family === 'solana' ? acct?.solAddress : family === 'bitcoin' ? acct?.btcAddress : acct?.evmAddress;
-    Promise.all(historyChains.map(async (chain) => {
-      const address = addressFor(chain.family);
-      return address ? getAdapter(chain.id).getHistory(address) : [];
-    }))
-      .then((lists) => {
-        if (!alive) return;
-        /*
-         * Clé RÉSEAU + EMPREINTE. L'empreinte seule confondait deux
-         * transactions homonymes venues de chaînes différentes — cas réel entre
-         * EVM compatibles, où un même hachage peut exister sur deux réseaux.
-         */
-        const unique = new Map<string, TxSummary>();
-        lists.flat().forEach((tx) => unique.set(`${tx.chain}:${tx.hash}`, tx));
-        setRecent([...unique.values()].sort((a, b) => b.timestamp - a.timestamp).slice(0, 5));
-      })
-      .catch(() => {
-        if (!alive) return;
-        setRecent([]);
-        setRecentError(true);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [account, acct?.evmAddress, acct?.solAddress, acct?.btcAddress]);
+    /*
+     * Chaque réseau est lancé SÉPARÉMENT et son échec absorbé seul : un réseau
+     * injoignable ne doit priver l'écran ni des autres, ni du cache.
+     */
+    for (const chain of historyChains) {
+      const address = historyAddressFor(chain.family);
+      if (address) void fetchHistory(chain.id, address).catch(() => {});
+    }
+  }, [account, historyChains, historyAddressFor, fetchHistory]);
 
   // NFT agrégés (chargés à l'ouverture de l'onglet).
   useEffect(() => {
@@ -203,7 +217,18 @@ export default function Home() {
     haptic.selection();
     setRefreshing(true);
     try {
-      await pf.refresh(acct, fiat, { force: true });
+      /*
+       * L'historique se rafraîchit AUSSI, et en parallèle du portefeuille : le
+       * geste veut dire « remets tout à jour », et l'activité en faisait partie
+       * sans jamais être redemandée.
+       */
+      await Promise.all([
+        pf.refresh(acct, fiat, { force: true }),
+        ...historyChains.map((chain) => {
+          const address = historyAddressFor(chain.family);
+          return address ? fetchHistory(chain.id, address).catch(() => {}) : Promise.resolve();
+        }),
+      ]);
       if (tab === 'nft') setNfts(await loadAllNfts(acct).catch(() => []));
     } finally {
       setRefreshing(false);
@@ -580,9 +605,16 @@ export default function Home() {
                 })}
               </View>
             )
-          ) : recent === null ? (
+          ) : /*
+            TROIS CAS DE LISTE VIDE, et ils ne disent pas la même chose. Un
+            chargement en cours mérite un squelette ; un réseau qui n'a jamais
+            répondu mérite « indisponible » ; et « aucune activité » ne se dit que
+            lorsqu'au moins un réseau a réellement répondu — l'affirmer sans avoir
+            pu demander serait un mensonge sur le portefeuille de l'utilisateur.
+          */
+          recent.length === 0 && recentLoading ? (
             <Surface padded={false}>{[0, 1, 2].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center' }}><Skeleton width="70%" /></View>)}</Surface>
-          ) : recentError ? (
+          ) : recent.length === 0 && !recentFetched ? (
             <Surface>
               <EmptyState icon="warning" title={t("activityUnavailableTitle")} body={t("activityUnavailableBody")} />
             </Surface>
