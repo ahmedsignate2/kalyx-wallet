@@ -63,6 +63,7 @@ import {
   parseImportedKey,
   type ChainFamily,
   type KeyFamily,
+  type BackupWallet,
 } from '../src';
 import { technicalLogger } from './technicalLogger';
 import {
@@ -191,6 +192,26 @@ interface WalletState {
     label?: string,
     family?: KeyFamily,
   ) => Promise<void>;
+  /**
+   * TOUS les portefeuilles, pour une sauvegarde.
+   *
+   * La sauvegarde n'emportait que la phrase du portefeuille ACTIF : trois
+   * portefeuilles créés, un seul sauvegardé, et la restauration réussissait — donc
+   * rien n'avertissait de la perte des deux autres. C'est le pire genre de
+   * sauvegarde, celle qui donne confiance et ne tient pas.
+   *
+   * Les secrets ne vivent que le temps de l'appel : l'appelant les chiffre
+   * immédiatement et ne les garde pas.
+   */
+  exportAllWallets: (unlock: Unlock) => Promise<BackupWallet[]>;
+  /**
+   * Restaure plusieurs portefeuilles d'un coup.
+   *
+   * Les portefeuilles DÉJÀ présents sont ignorés, comparés par leur secret : une
+   * restauration par-dessus une installation existante ne doit pas créer de
+   * doublons, et l'utilisateur ne peut pas les distinguer une fois créés.
+   */
+  importWallets: (wallets: readonly BackupWallet[], pin: string) => Promise<number>;
   setActiveWallet: (id: string) => Promise<void>;
   renameWallet: (id: string, label: string) => Promise<void>;
   removeWallet: (id: string) => Promise<void>;
@@ -749,6 +770,63 @@ export const useWallet = create<WalletState>((set, get) => ({
       account: toAccount(accounts, 0, chain),
     });
     rememberActive(id, 0);
+  },
+
+  exportAllWallets: async (unlock) => {
+    const { wallets, activeWalletId } = get();
+    /*
+     * Le PIN est vérifié UNE FOIS, sur le portefeuille actif : tous les coffres
+     * partagent le même code, et redemander à chaque itération n'ajouterait
+     * aucune sécurité — seulement des occasions d'échouer à moitié.
+     */
+    await revealMnemonic(activeWalletId, unlock);
+    const out: BackupWallet[] = [];
+    for (const w of wallets) {
+      const vault = await loadVault(w.id);
+      if (!vault) continue; // coffre absent : on ne fabrique pas un secret vide
+      const secret = await decryptSecret(vault, (unlock as { pin?: string }).pin ?? '');
+      out.push({
+        label: w.label ?? '',
+        type: w.type === 'privateKey' ? 'privateKey' : 'seed',
+        ...(w.type === 'privateKey' ? { keyFamily: w.keyFamily ?? 'evm' } : {}),
+        secret,
+      });
+    }
+    return out;
+  },
+
+  importWallets: async (list, pin) => {
+    assertValidPin(pin);
+    let added = 0;
+    for (const w of list) {
+      /*
+       * DOUBLON IGNORÉ, comparé par le secret. Restaurer par-dessus une
+       * installation existante créerait sinon deux portefeuilles identiques, que
+       * l'utilisateur ne saurait pas distinguer.
+       */
+      let already = false;
+      for (const existing of get().wallets) {
+        const vault = await loadVault(existing.id);
+        if (!vault) continue;
+        try {
+          if ((await decryptSecret(vault, pin)) === w.secret) {
+            already = true;
+            break;
+          }
+        } catch {
+          // Coffre illisible avec ce PIN : on ne peut rien conclure, on continue.
+        }
+      }
+      if (already) continue;
+
+      if (w.type === 'privateKey') {
+        await get().importPrivateKey(w.secret, pin, w.label, w.keyFamily ?? 'evm');
+      } else {
+        await get().importWallet(w.secret, pin, w.label);
+      }
+      added += 1;
+    }
+    return added;
   },
 
   setActiveWallet: async (id) => {

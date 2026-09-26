@@ -9,9 +9,11 @@ import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
+import { toast } from '../lib/toast';
 import {
   validateMnemonic,
   restoreBackup,
+  type BackupError,
   parseImportedKey,
   addressFromRawKey,
   chainNameOf,
@@ -29,6 +31,23 @@ export default function ImportWallet() {
   const t = useT();
   const insets = useSafeAreaInsets();
   const importWallet = useWallet((s) => s.importWallet);
+  const importWallets = useWallet((s) => s.importWallets);
+
+  /** Message d'un échec de sauvegarde, depuis son code. */
+  const backupErrorText = (code: BackupError) => {
+    switch (code) {
+      case 'UNREADABLE':
+        return t('backupErrUnreadable');
+      case 'NOT_A_BACKUP':
+        return t('backupErrNotBackup');
+      case 'TOO_RECENT':
+        return t('backupErrTooRecent');
+      case 'WRONG_PASSWORD':
+        return t('backupErrWrongPassword');
+      default:
+        return t('backupErrCorrupted');
+    }
+  };
   const importPrivateKey = useWallet((s) => s.importPrivateKey);
   const [mode, setMode] = useState<Mode>('phrase');
   const [text, setText] = useState('');
@@ -107,10 +126,18 @@ export default function ImportWallet() {
         if (!chosen) { setError(t('keyErrFamilyRequired')); return; }
         await importPrivateKey(text, pin, label, chosen);
       } else {
-        // Sauvegarde chiffrée : déchiffre avec le mot de passe puis importe la phrase.
-        const { mnemonic, error: err } = await restoreBackup(text, pwd);
-        if (err || !mnemonic) { setError(err ?? t('invalidBackup')); return; }
-        await importWallet(mnemonic, pin, label);
+        /*
+          Sauvegarde chiffrée : déchiffre, puis importe TOUS les portefeuilles
+          qu'elle contient. Elle n'en restaurait qu'un — sans rien signaler, donc
+          sans que l'utilisateur puisse s'apercevoir de ce qui manquait.
+        */
+        const r = await restoreBackup(text, pwd);
+        if (r.error || !r.wallets?.length) {
+          setError(r.error ? backupErrorText(r.error) : t('invalidBackup'));
+          return;
+        }
+        const added = await importWallets(r.wallets, pin);
+        toast.success(t('backupRestoredCount').replace('{count}', String(added)));
       }
       router.replace('/home');
     } catch (e) {
