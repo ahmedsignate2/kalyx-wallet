@@ -189,7 +189,13 @@ export default function ImportWallet() {
         <TextInput
           value={text}
           onChangeText={setText}
-          placeholder={mode === 'phrase' ? 'mot1 mot2 mot3 …' : mode === 'key' ? '0x…' : '{ "app": "kalyx", … }'}
+          /*
+            Le repère de saisie annonce les TROIS formes acceptées : il ne
+            montrait que « 0x… », donc rien ne laissait deviner qu'un WIF
+            Bitcoin ou une clé Solana passaient. Et l'exemple de phrase était
+            écrit en français en dur, alors que la clé existait déjà.
+          */
+          placeholder={mode === 'phrase' ? t('wordExamplePh') : mode === 'key' ? '0x… · 5Kd… · base58' : '{ "app": "kalyx", … }'}
           placeholderTextColor={colors.textSecondary}
           multiline={mode !== 'key'}
           // Phrase, clé privée ou sauvegarde chiffrée : tous des secrets (§7.3).
