@@ -13,7 +13,9 @@
 import { Cell } from '@ton/core';
 import { hex } from '@scure/base';
 import type { Ed25519Signer } from '../v2/signer';
-import { buildTonTransfer, TON_SEND_MODE_ALL, TON_SEND_MODE_DEFAULT, type TonTransferParams } from './tonTransfer';
+import { Address } from '@ton/core';
+import { buildTonTransfer, normalizedExternalHash, TON_SEND_MODE_ALL, TON_SEND_MODE_DEFAULT, type TonTransferParams } from './tonTransfer';
+import LIVE from './ton-live-message.json';
 import { TON_WALLET_CODE } from './tonWalletCode';
 import { tonWalletAddress, type TonWalletVersion } from './tonWallet';
 import TX from './ton-transfer-vectors.json';
@@ -101,3 +103,24 @@ describe('cohérence avec tonWallet.ts', () => {
     expect(tonWalletAddress(hex.decode(t.publicKey), 'v5r1')).toBeTruthy();
   });
 });
+
+/*
+ * Le hachage NORMALISÉ (TEP-467) sert d'identifiant de transaction : c'est sous
+ * lui que TON Center et les explorateurs indexent un message externe. Vérifié
+ * contre une transaction RÉELLE, et non contre une autre implémentation : le
+ * `hash_norm` ci-dessous vient de l'indexeur.
+ */
+describe('hachage normalisé — contre le réseau', () => {
+  it('reproduit le hash_norm indexé par TON Center pour une transaction réelle', () => {
+    const got = normalizedExternalHash(Address.parseRaw(LIVE.destination.toLowerCase()), Cell.fromBase64(LIVE.body));
+    expect(got.toString('base64')).toBe(LIVE.hash_norm);
+  });
+
+  it('chaque transfert construit porte son hachage normalisé', () => {
+    const t = TX.transfers[0];
+    const out = buildTonTransfer(paramsOf(t), signerFor(t.publicKey));
+    expect(out.normalizedHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(out.normalizedHash).not.toBe(out.hash); // le message envoyé embarque l'état initial : autre cellule
+  });
+});
+

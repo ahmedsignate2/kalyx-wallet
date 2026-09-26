@@ -335,10 +335,30 @@ plus loin. (Phrase connue de tous : ne jamais y envoyer de fonds.)
 
 **Reste à faire, dans l'ordre.**
 
-1. **Lecture de la chaîne** (adaptateur) : état du compte (actif / non déployé),
-   `seqno`, solde, diffusion du BOC, suivi de la transaction par le hachage du
-   message (§9 — attention, les explorateurs indexent le hachage NORMALISÉ,
-   TEP-467, pas celui du message tel qu'envoyé).
+1. ~~**Lecture de la chaîne** (adaptateur)~~ — fait, sur TON Center (26/09) :
+   `TonAdapterV2` lit l'état du compte (actif / non déployé / contrat), le solde,
+   le seqno et la version du contrat ; prépare (rebond selon la règle de
+   Tonkeeper, relue dans son code : `UQ…` ne rebondit jamais, sinon rebond ssi le
+   destinataire est actif), signe (version retrouvée en comparant l'adresse
+   d'envoi aux adresses de la clé : un signataire qui ne la possède pas ne signe
+   rien ; échéance fixée À LA SIGNATURE), diffuse, et suit la transaction par son
+   hachage NORMALISÉ (TEP-467) — calcul vérifié contre le `hash_norm` que TON
+   Center indexe pour une transaction réelle. Le suivi lit les phases : avec
+   `IGNORE_ERRORS`, un envoi sans fonds est SAUTÉ en silence et la phase se dit
+   réussie ; `skipped_actions` le trahit. Toujours NON enregistré.
+   Formes de réponse relevées en direct, pas supposées (`tonCenter.ts`).
+   **Frais :** `estimateFee` du nœud + 0,001 TON de marge par destinataire (il
+   omet l'acheminement : relevé 540 668 nanotons sur une vraie transaction) ;
+   premier envoi : 0,01 TON fixe (l'estimation exigerait la clé publique, que la
+   préparation n'a pas). **Attention, vérifié :** `estimateFee` accepte aussi un
+   corps au seqno FAUX — une estimation réussie ne prouve PAS qu'un message est
+   correct. La justesse du message repose sur l'identité octet pour octet avec
+   `@ton/ton` (l'adaptateur reproduit le transfert de référence de bout en bout),
+   et sur un envoi réel sur le réseau de test.
+   Au passage, `isValidTonAddress` refusait sur le réseau de test les écritures
+   `UQ…`/`EQ…` et les adresses brutes : sur TON, les octets d'une adresse sont
+   les mêmes sur les deux réseaux, seul le refus « adresse de test sur le réseau
+   principal » protège quelque chose. C'est le seul qui reste.
    > **TRANCHÉ (26/09) :** TON Center SANS clé pour développer et tester (chaque
    > appareil a sa propre limite). En production, un proxy Cloudflare Worker —
    > la clé reste côté serveur, jamais dans un `EXPO_PUBLIC_` partagé par tous
@@ -352,6 +372,13 @@ plus loin. (Phrase connue de tous : ne jamais y envoyer de fonds.)
    compte), que Tonkeeper sait afficher ; ou `m/44'/607'/i'`, qu'aucun autre
    portefeuille ne montrerait. La première est la plus prometteuse, à vérifier
    dans Tonkeeper avant de choisir.
+   > **Vérifié dans le code (26/09) :** une réponse externe affirmait que Tonkeeper
+   > incrémente `m/44'/607'/i'` pour les comptes secondaires d'une phrase BIP-39.
+   > C'est faux : dans tout `tonkeeper-web`, le SEUL chemin TON est la constante
+   > `TON_DERIVATION_PATH = "m/44'/607'/0'"`, sans index. Les comptes multiples de
+   > Tonkeeper passent par un autre mécanisme (« MAM », `TonKeychainRoot`).
+   > Suivre cette réponse aurait donné aux comptes 2 et 3 des adresses que
+   > Tonkeeper n'affiche jamais. Décision inchangée : TON sur le compte 0 seul.
 4. Enregistrer l'adaptateur et sa configuration, en dernier : un adaptateur
    enregistré à moitié est plus dangereux qu'un adaptateur absent.
    **PIÈGE :** le registre v1 (`chains/registry.ts`) instancie un adaptateur pour

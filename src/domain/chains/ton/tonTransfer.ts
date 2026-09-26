@@ -92,6 +92,11 @@ export interface TonSignedTransfer {
   boc: string;
   /** Hachage de la cellule du message externe (hex). */
   hash: string;
+  /**
+   * Hachage NORMALISÉ (TEP-467, hex) — l'identifiant sous lequel les explorateurs
+   * et TON Center indexent le message. C'est lui qui sert à suivre la transaction.
+   */
+  normalizedHash: string;
   /** Adresse du portefeuille émetteur, non rebondissante. */
   from: string;
 }
@@ -158,37 +163,79 @@ export function buildTonTransfer(params: TonTransferParams, signer: Ed25519Signe
   const expected = tonWalletAddress(publicKey, version, { testnet });
   if (self.toRawString() !== toRawTonAddress(expected)) throw new Error('État initial incohérent avec l’adresse du portefeuille');
 
-  const outgoing: MessageRelaxed[] = messages.map((m) => {
-    if (typeof m.amount !== 'bigint' || m.amount < 0n) throw new Error('Montant invalide');
-    return internal({ to: destination(m.to, testnet), value: m.amount, bounce: m.bounce, body: m.comment ? commentCell(m.comment) : undefined });
-  });
-
-  const signing = new Builder();
-  if (version === 'v5r1') {
-    // En message externe, IGNORE_ERRORS est ajouté à chaque envoi (`toSafeV5R1SendMode`).
-    const actions: OutActionSendMsg[] = outgoing.map((outMsg) => ({ type: 'sendMsg', mode: sendMode | SendMode.IGNORE_ERRORS, outMsg }));
-    signing
-      .storeUint(W5_AUTH_SIGNED_EXTERNAL, 32)
-      .storeUint(tonW5WalletId({ testnet }), 32)
-      .storeUint(validUntil, 32)
-      .storeUint(seqno, 32)
-      .storeMaybeRef(beginCell().store(storeOutList(actions)).endCell())
-      .storeBit(0); // aucune action étendue
-  } else {
-    signing.storeUint(TON_DEFAULT_SUBWALLET_ID, 32).storeUint(validUntil, 32).storeUint(seqno, 32);
-    if (version === 'v4r2') signing.storeUint(0, 8); // opération 0 : envoi simple
-    for (const m of outgoing) signing.storeUint(sendMode, 8).storeRef(beginCell().store(storeMessageRelaxed(m)));
-  }
-
-  const signature = Buffer.from(ed25519.sign(signing.endCell().hash(), seed));
-  const body = version === 'v5r1'
-    ? beginCell().storeBuilder(signing).storeBuffer(signature).endCell()
-    : beginCell().storeBuffer(signature).storeBuilder(signing).endCell();
+  const body = transferBody(version, { seqno, validUntil, messages, testnet, sendMode }, (hash) => ed25519.sign(hash, seed));
 
   const message = beginCell().store(storeMessage(external({ to: self, init: deploy ? init : undefined, body }))).endCell();
   return {
     boc: message.toBoc().toString('base64'),
     hash: message.hash().toString('hex'),
+    normalizedHash: normalizedExternalHash(self, body).toString('hex'),
     from: formatTonAddress(expected, { bounceable: false, testnet }),
   };
+}
+
+/**
+ * Corps signé d'un transfert, pour la version donnée. `sign` reçoit le hachage
+ * du message à signer et rend 64 octets.
+ */
+function transferBody(
+  version: TonWalletVersion,
+  p: { seqno: number; validUntil: number; messages: TonTransferMessage[]; testnet: boolean; sendMode: number },
+  sign: (hash: Uint8Array) => Uint8Array,
+): Cell {
+  const outgoing: MessageRelaxed[] = p.messages.map((m) => {
+    if (typeof m.amount !== 'bigint' || m.amount < 0n) throw new Error('Montant invalide');
+    return internal({ to: destination(m.to, p.testnet), value: m.amount, bounce: m.bounce, body: m.comment ? commentCell(m.comment) : undefined });
+  });
+
+  const signing = new Builder();
+  if (version === 'v5r1') {
+    // En message externe, IGNORE_ERRORS est ajouté à chaque envoi (`toSafeV5R1SendMode`).
+    const actions: OutActionSendMsg[] = outgoing.map((outMsg) => ({ type: 'sendMsg', mode: p.sendMode | SendMode.IGNORE_ERRORS, outMsg }));
+    signing
+      .storeUint(W5_AUTH_SIGNED_EXTERNAL, 32)
+      .storeUint(tonW5WalletId({ testnet: p.testnet }), 32)
+      .storeUint(p.validUntil, 32)
+      .storeUint(p.seqno, 32)
+      .storeMaybeRef(beginCell().store(storeOutList(actions)).endCell())
+      .storeBit(0); // aucune action étendue
+  } else {
+    signing.storeUint(TON_DEFAULT_SUBWALLET_ID, 32).storeUint(p.validUntil, 32).storeUint(p.seqno, 32);
+    if (version === 'v4r2') signing.storeUint(0, 8); // opération 0 : envoi simple
+    for (const m of outgoing) signing.storeUint(p.sendMode, 8).storeRef(beginCell().store(storeMessageRelaxed(m)));
+  }
+
+  const signature = Buffer.from(sign(signing.endCell().hash()));
+  if (signature.length !== 64) throw new Error('Signature ed25519 de 64 octets attendue');
+  return version === 'v5r1'
+    ? beginCell().storeBuilder(signing).storeBuffer(signature).endCell()
+    : beginCell().storeBuffer(signature).storeBuilder(signing).endCell();
+}
+
+/**
+ * Corps signé par des ZÉROS, pour l'estimation des frais : TON Center
+ * (`estimateFee`, avec `ignore_chksig`) exécute le contrat sans vérifier la
+ * signature. Aucune clé n'est nécessaire — et aucune n'est demandée.
+ */
+export function tonTransferBodyForEstimate(
+  version: TonWalletVersion,
+  p: { seqno: number; validUntil: number; messages: TonTransferMessage[]; testnet?: boolean; sendMode?: number },
+): string {
+  assertUint32(p.seqno, 'seqno');
+  assertUint32(p.validUntil, 'validUntil');
+  const body = transferBody(version, { ...p, testnet: !!p.testnet, sendMode: p.sendMode ?? TON_SEND_MODE_DEFAULT }, () => new Uint8Array(64));
+  return body.toBoc().toString('base64');
+}
+
+/**
+ * Hachage NORMALISÉ d'un message externe (TEP-467) : source vide, frais
+ * d'import nuls, pas d'état initial, corps TOUJOURS en référence. Deux envois du
+ * même corps ont ainsi le même identifiant, quelle que soit la façon dont le
+ * message a été emballé.
+ *
+ * Vérifié contre le `hash_norm` que TON Center indexe pour une transaction réelle
+ * (`tonTransfer.test.ts`).
+ */
+export function normalizedExternalHash(to: Address, body: Cell): Buffer {
+  return beginCell().store(storeMessage(external({ to, body }), { forceRef: true })).endCell().hash();
 }
