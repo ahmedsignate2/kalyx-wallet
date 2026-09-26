@@ -41,3 +41,37 @@ export function decideNoOption({ rootCollectUrl, afterInfo }: NoOptionInput): No
   if (url) return { kind: 'collect', url };
   return { kind: 'stop', reason: 'NO_OPTION' };
 }
+
+/**
+ * Faut-il encore faire remplir le formulaire pour cette option ?
+ *
+ * Le `collectData` d'une option NE DISPARAÎT PAS après l'envoi : le service le
+ * renvoie à l'identique. S'y fier seul avait deux conséquences — un badge
+ * « informations requises » qui restait affiché pour toujours, et un formulaire
+ * qui se rouvrait dès qu'on retouchait l'option déjà renseignée.
+ *
+ * La mémoire de ce qui a été envoyé est donc du côté de l'app, et c'est elle qui
+ * tranche.
+ */
+export function needsCollect(
+  option: { id: string; collectData?: { url?: string } | null } | null | undefined,
+  collectedIds: readonly string[],
+): boolean {
+  if (!option?.collectData?.url) return false;
+  return !collectedIds.includes(option.id);
+}
+
+/**
+ * Option à présélectionner dans une liste, ou `null`.
+ *
+ * La PREMIÈRE qui ne réclame rien : présélectionner une option qui exige des
+ * informations ouvrirait un formulaire que l'utilisateur n'a pas demandé. Sans
+ * présélection, le bouton de paiement n'apparaissait qu'après un appui, et
+ * l'écran semblait attendre sans dire quoi.
+ */
+export function preselectOption<T extends { id: string; collectData?: { url?: string } | null }>(
+  options: readonly T[],
+  collectedIds: readonly string[] = [],
+): T | null {
+  return options.find((o) => !needsCollect(o, collectedIds)) ?? null;
+}

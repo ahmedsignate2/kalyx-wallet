@@ -224,7 +224,7 @@ export {
   type PayRefusal,
 } from './domain/pay/payChains';
 export { WcConnectError, isWcConnectError, type WcConnectCode } from './domain/wc/connectError';
-export { decideNoOption, type NoOptionAction, type NoOptionInput } from './domain/pay/payFlow';
+export { decideNoOption, needsCollect, preselectOption, type NoOptionAction, type NoOptionInput } from './domain/pay/payFlow';
 export {
   PAY_SUPPORTED_ASSETS,
   payEligibleHoldings,
