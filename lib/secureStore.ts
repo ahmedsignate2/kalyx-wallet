@@ -12,7 +12,7 @@
  */
 import * as SecureStore from 'expo-secure-store';
 import { kvSet, kvGet, kvDel } from './kv';
-import { serializeVault, deserializeVault, type EncryptedVault } from '../src';
+import { serializeVault, deserializeVault, type EncryptedVault, type TonWalletVersion } from '../src';
 
 // ⚠️ Préfixe `nova.` CONSERVÉ après le renommage en Kalyx (2026-09-11) : ces clés
 // adressent le coffre chiffré et les comptes déjà stockés sur les appareils. Les
@@ -41,6 +41,18 @@ export interface StoredAccount {
   btcAddress: string;
   /** Adresse Solana (base58). Optionnel : absent des comptes créés avant l'ajout de Solana. */
   solAddress?: string;
+  /**
+   * Clé publique TON (hex, 32 octets), et non une adresse : sur TON l'adresse
+   * dépend de la version du contrat et du réseau (la W5 du réseau de test a une
+   * autre adresse). Elle se recalcule sans secret à partir de cette clé.
+   *
+   * Absente des comptes d'avant TON (complétée au déverrouillage), et des comptes
+   * d'index > 0 : Tonkeeper ne dérive qu'UNE clé TON par phrase, et c'est celle-ci
+   * qu'on garantit identique.
+   */
+  tonPublicKey?: string;
+  /** Version du contrat de portefeuille TON. Absente = W5 (`v5r1`), comme Tonkeeper. */
+  tonVersion?: TonWalletVersion;
 }
 
 export interface WalletMeta {
@@ -50,8 +62,15 @@ export interface WalletMeta {
    * Origine du coffre. `'seed'` (défaut, rétro-compat) = mnémonique BIP-39,
    * dérivation HD multi-comptes. `'privateKey'` = clé privée importée : un seul
    * compte, pas de dérivation HD, pas de phrase de récupération.
+   *
+   * `'tonPhrase'` = phrase Tonkeeper, qui n'est PAS une phrase BIP-39 : elle
+   * n'ouvre QUE TON. Un type à part, et non `'seed'` avec un drapeau : partout,
+   * « pas une clé privée » voulait dire « phrase BIP-39 », et une phrase TON
+   * rangée comme `'seed'` aurait traversé la dérivation BIP-39 au déverrouillage
+   * et à l'ajout de compte — des adresses EVM, Bitcoin et Solana qu'aucun autre
+   * portefeuille ne montre pour cette phrase.
    */
-  type?: 'seed' | 'privateKey';
+  type?: 'seed' | 'privateKey' | 'tonPhrase';
   /**
    * Famille servie par une clé importée.
    *

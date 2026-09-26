@@ -9,9 +9,10 @@ import { GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
-import { useWallet } from '../lib/walletStore';
+import { useWallet, phraseKindForImport } from '../lib/walletStore';
+import { friendlyTxError } from '../lib/txError';
 import { useT, useSettings } from '../lib/settingsStore';
-import { validateMnemonic, unknownWords } from '../src';
+import { isWalletError, unknownWords } from '../src';
 import { Text as KText, SENSITIVE_INPUT_PROPS, Pressable as KPressable } from '../ui/kit';
 import { PinPromptModal } from '../ui/PinPromptModal';
 import { radius } from '../ui/tokens';
@@ -47,8 +48,15 @@ export default function Import() {
 
   const onNext = () => {
     setError(null);
-    if (!validateMnemonic(text.trim())) {
-      setError(t('invalidPhraseBip'));
+    /*
+     * Même règle que le magasin, AVANT le PIN. Une phrase Tonkeeper n'est plus
+     * « invalide » : elle est reconnue, et s'ouvre dès qu'un réseau TON est
+     * configuré — sinon un message le dit.
+     */
+    try {
+      phraseKindForImport(text.trim());
+    } catch (e) {
+      setError(isWalletError(e) && e.code === 'INVALID_MNEMONIC' ? t('invalidPhraseBip') : friendlyTxError(e, t as never));
       return;
     }
     // Rappel post-onboarding : proposer de restaurer les réseaux perso (le
@@ -77,9 +85,17 @@ export default function Import() {
       await importWallet(pendingMnemonic, pin);
       setPendingMnemonic(null);
       router.replace('/wallets');
-    } catch {
-      // PIN refusé : on secoue, le wallet existant n'a pas bougé.
-      setPinError((n) => n + 1);
+    } catch (e) {
+      /*
+       * Seul un PIN faux fait secouer le clavier. Tout le reste était pris pour
+       * un PIN faux : l'utilisateur recommençait un code juste, sans comprendre.
+       */
+      if (isWalletError(e) && e.code === 'WRONG_PIN') {
+        setPinError((n) => n + 1);
+      } else {
+        setPendingMnemonic(null);
+        setError(friendlyTxError(e, t as never));
+      }
     } finally {
       setPinBusy(false);
     }

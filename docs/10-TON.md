@@ -311,6 +311,18 @@ BIP-39 déjà calculée ne sert à rien, et cela remonte jusqu'à `walletStore`.
   compte, adresse de test sur le réseau principal, échéance en millisecondes.
 - `tonWalletCode.ts` — code des trois contrats, vérifié contre le hachage utilisé
   pour les adresses.
+- **Import et signature (magasin)** — une phrase Tonkeeper est RECONNUE
+  (`classifyRecoveryPhrase`) et ouvre un portefeuille de type `tonPhrase`, limité
+  à TON : aucune adresse EVM, Bitcoin ou Solana n'est dérivée d'elle, ni à
+  l'import, ni au déverrouillage, ni à l'ajout de compte (refusé), ni à l'export de
+  clé (refusé). Tant qu'aucun réseau TON n'est configuré, l'import le DIT
+  (`import.TON_NOT_YET`, 15 langues) au lieu de « phrase invalide » ; il s'ouvrira
+  de lui-même dès qu'une configuration TON existera. Les portefeuilles BIP-39
+  reçoivent leur clé publique TON sur le compte 0 (rattrapée au déverrouillage
+  pour les anciens). `deriveSigner` dérive TON depuis la PHRASE (`resolveTonKey`)
+  et refuse de signer si la clé dérivée n'est pas celle dont l'adresse est
+  affichée. Couvert par un scénario complet sur le vrai magasin
+  (`lib/walletStoreTon.test.ts`, 13 étapes, chiffrement et dérivations réels).
 
 Tous les vecteurs sont dans `tonkeeper-vectors.json`, avec leur provenance dans
 `tonKeys.test.ts`. Aucun n'est calculé par le code testé.
@@ -326,12 +338,24 @@ plus loin. (Phrase connue de tous : ne jamais y envoyer de fonds.)
 1. **Lecture de la chaîne** (adaptateur) : état du compte (actif / non déployé),
    `seqno`, solde, diffusion du BOC, suivi de la transaction par le hachage du
    message (§9 — attention, les explorateurs indexent le hachage NORMALISÉ,
-   TEP-467, pas celui du message tel qu'envoyé). Fournisseur à choisir : TON
-   Center demande une clé au-delà d'une requête par seconde.
-2. Import : accepter les phrases TON (refusées aujourd'hui, §1) et décider ce
-   qu'est un portefeuille créé depuis une phrase TON — elle ne dérive ni EVM, ni
-   Bitcoin, ni Solana de façon que d'autres portefeuilles reconnaissent. Même
-   raisonnement que pour les clés brutes : un compte limité à sa famille.
-3. Brancher `deriveSigner` sur la PHRASE, via `resolveTonKey`.
+   TEP-467, pas celui du message tel qu'envoyé).
+   > **TRANCHÉ (26/09) :** TON Center SANS clé pour développer et tester (chaque
+   > appareil a sa propre limite). En production, un proxy Cloudflare Worker —
+   > la clé reste côté serveur, jamais dans un `EXPO_PUBLIC_` partagé par tous
+   > les utilisateurs — devant **TonAPI** (tonapi.io), qui simplifie l'historique
+   > et les jettons.
+2. ~~Import des phrases TON~~ et ~~signataire depuis la phrase~~ — faits (ci-dessus).
+3. **Question ouverte — comptes d'index > 0 sur TON.** Aujourd'hui, seul le
+   compte 0 d'une phrase BIP-39 a TON : c'est la seule clé que Tonkeeper dérive
+   pour elle, donc la seule qu'on garantit identique. Pour les comptes suivants,
+   deux voies : les sous-portefeuilles W5 de la MÊME clé (numéro = index du
+   compte), que Tonkeeper sait afficher ; ou `m/44'/607'/i'`, qu'aucun autre
+   portefeuille ne montrerait. La première est la plus prometteuse, à vérifier
+   dans Tonkeeper avant de choisir.
 4. Enregistrer l'adaptateur et sa configuration, en dernier : un adaptateur
    enregistré à moitié est plus dangereux qu'un adaptateur absent.
+   **PIÈGE :** le registre v1 (`chains/registry.ts`) instancie un adaptateur pour
+   CHAQUE configuration de `ALL_CHAINS` au chargement du module, et lève sur une
+   famille inconnue. Ajouter une configuration TON sans traiter `'ton'` dans
+   `createAdapter` fait planter l'app AU DÉMARRAGE. (`toAccount` et
+   `setActiveWallet` lisent déjà la configuration sans adaptateur.)

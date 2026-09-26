@@ -64,20 +64,39 @@ export function tonKeyKind(phrase: string): TonKeyKind | null {
  * l'adresse ne correspondrait plus à celle de Tonkeeper, et c'est précisément
  * la correspondance qu'on garantit ici.
  */
-export function resolveTonKey(phrase: string): TonKey {
+export function resolveTonKey(phrase: string, bip39Seed?: Uint8Array): TonKey {
   const kind = tonKeyKind(phrase);
   if (kind === 'ton') {
     const seed = tonSeedFromMnemonic(phrase);
     return { kind, seed, publicKey: ed25519.getPublicKey(seed) };
   }
   if (kind === 'bip39') {
-    const bip39Seed = mnemonicToSeedSync(phrase);
+    /*
+     * `bip39Seed` : la graine BIP-39 SANS passphrase de cette même phrase, si
+     * l'appelant l'a déjà calculée — 2 048 tours de PBKDF2 épargnés. Elle
+     * appartient à l'appelant : on ne l'efface que si on l'a calculée ici.
+     */
+    const seed64 = bip39Seed ?? mnemonicToSeedSync(phrase);
     try {
-      const { key } = deriveEd25519(bip39Seed, [44, 607, 0]);
+      const { key } = deriveEd25519(seed64, [44, 607, 0]);
       return { kind, seed: key, publicKey: ed25519.getPublicKey(key) };
     } finally {
-      bip39Seed.fill(0);
+      if (!bip39Seed) seed64.fill(0);
     }
   }
   throw new Error('Phrase invalide : ni phrase TON ni phrase BIP-39');
 }
+
+/**
+ * Clé PUBLIQUE TON d'une phrase, sans rien garder du secret.
+ *
+ * Pour ce que le magasin enregistre à côté des adresses : de quoi calculer
+ * l'adresse de chaque version de contrat sans redemander le code. La graine est
+ * effacée avant de rendre la main.
+ */
+export function tonPublicKeyFromPhrase(phrase: string, bip39Seed?: Uint8Array): Uint8Array {
+  const key = resolveTonKey(phrase, bip39Seed);
+  key.seed.fill(0);
+  return key.publicKey;
+}
+
