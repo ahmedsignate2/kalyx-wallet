@@ -18,7 +18,12 @@
     "types": [
       "node",
       "jest"
-    ]
+    ],
+    "paths": {
+      "phosphor-react-native/src/icons/*": [
+        "./node_modules/phosphor-react-native/lib/typescript/icons/*"
+      ]
+    }
   },
   "include": [
     "src",
