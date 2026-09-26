@@ -38,23 +38,92 @@ if (requireOptionalNativeModule('ExpoCamera')) {
 }
 const CAMERA_OK = !!cameraMod;
 
+/*
+ * expo-image-picker est un MODULE NATIF, chargé comme la caméra : de façon
+ * paresseuse et gardée. Sans lui — une installation antérieure au build qui
+ * l'embarque — la lecture d'image se replie sur le presse-papiers au lieu de
+ * faire tomber l'écran.
+ */
+let pickerMod: typeof import('expo-image-picker') | null = null;
+if (requireOptionalNativeModule('ExpoImagePicker')) {
+  try {
+    pickerMod = require('expo-image-picker');
+  } catch {
+    pickerMod = null;
+  }
+}
+
+type ImageQrResult =
+  | { kind: 'ok'; data: string }
+  | { kind: 'no-image' }
+  | { kind: 'no-qr' }
+  | { kind: 'denied' }
+  | { kind: 'unavailable' };
+
 /**
- * Lit un QR dans une IMAGE du presse-papiers.
+ * Décode un QR dans un fichier image local.
  *
- * `expo-camera` sait déjà décoder une image (`scanFromURLAsync`) : il n'y avait
- * rien de natif à ajouter, seulement un moyen de désigner l'image. Le
- * presse-papiers en est un, et il a l'avantage de ne rien coûter — ouvrir la
- * galerie exigerait un module natif de plus, donc un rebuild, et couperait les
- * mises à jour OTA du build en cours.
+ * `expo-camera` sait le faire (`scanFromURLAsync`) : il n'y a jamais eu de
+ * décodeur à écrire, seulement un moyen de désigner l'image.
+ */
+async function decodeQrFromFile(uri: string): Promise<ImageQrResult> {
+  if (!cameraMod?.scanFromURLAsync) return { kind: 'unavailable' };
+  try {
+    const found = await cameraMod.scanFromURLAsync(uri, ['qr']);
+    const first = found?.[0]?.data;
+    return first ? { kind: 'ok', data: first } : { kind: 'no-qr' };
+  } catch {
+    return { kind: 'no-qr' };
+  }
+}
+
+/**
+ * Laisse l'utilisateur CHOISIR une image dans sa galerie, et y lit un QR.
+ *
+ * La version précédente lisait le presse-papiers : il fallait donc avoir pensé à
+ * copier la capture d'écran avant, ce que personne ne fait. Choisir dans la
+ * galerie est le geste attendu, et il passe par la demande d'autorisation
+ * habituelle du système — avec son motif, déclaré dans `app.config.ts`, parce
+ * qu'un « accès aux photos » sans raison est refusé à juste titre.
+ *
+ * Une seule image, lue une fois. Rien n'est copié ni conservé.
+ */
+async function pickQrFromGallery(): Promise<ImageQrResult> {
+  if (!pickerMod) return { kind: 'unavailable' };
+  /*
+   * L'autorisation est demandée au moment du geste, pas au lancement : c'est la
+   * recommandation d'Android, et c'est le seul moment où le motif est évident
+   * pour l'utilisateur.
+   */
+  const perm = await pickerMod.requestMediaLibraryPermissionsAsync().catch(() => null);
+  if (!perm?.granted) return { kind: 'denied' };
+  const res = await pickerMod
+    .launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      // Pas de recadrage : il pourrait couper le QR, et on ne veut pas éditer.
+      allowsEditing: false,
+      quality: 1,
+      selectionLimit: 1,
+    })
+    .catch(() => null);
+  const uri = res && !res.canceled ? res.assets?.[0]?.uri : undefined;
+  // Annulation : ce n'est pas une erreur, l'utilisateur a changé d'avis.
+  if (!uri) return { kind: 'no-image' };
+  return decodeQrFromFile(uri);
+}
+
+/**
+ * Repli : lit un QR dans une IMAGE du presse-papiers.
+ *
+ * Utile tant que le module natif de la galerie n'est pas embarqué, et pour qui
+ * vient de copier une capture d'écran.
  *
  * L'image est écrite dans un fichier temporaire plutôt que passée en URI de
  * données : `scanFromURLAsync` attend une URL de fichier, et une URI de données
  * marche selon les plateformes. Le fichier est supprimé ensuite — une capture de
  * QR peut porter une demande de paiement, elle n'a rien à faire dans le cache.
  */
-async function readQrFromClipboardImage(): Promise<
-  { kind: 'ok'; data: string } | { kind: 'no-image' } | { kind: 'no-qr' } | { kind: 'unavailable' }
-> {
+async function readQrFromClipboardImage(): Promise<ImageQrResult> {
   if (!cameraMod?.scanFromURLAsync) return { kind: 'unavailable' };
   const has = await Clipboard.hasImageAsync().catch(() => false);
   if (!has) return { kind: 'no-image' };
@@ -66,15 +135,23 @@ async function readQrFromClipboardImage(): Promise<
   const path = `${FileSystem.cacheDirectory}kalyx-qr-scan.png`;
   try {
     await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 });
-    const found = await cameraMod.scanFromURLAsync(path, ['qr']);
-    const first = found?.[0]?.data;
-    return first ? { kind: 'ok', data: first } : { kind: 'no-qr' };
-  } catch {
-    return { kind: 'no-qr' };
+    return await decodeQrFromFile(path);
   } finally {
     // Sans attendre : l'échec d'un nettoyage ne doit pas retarder l'écran.
     void FileSystem.deleteAsync(path, { idempotent: true }).catch(() => {});
   }
+}
+
+/**
+ * Lit un QR dans une image : la GALERIE d'abord, le presse-papiers en repli.
+ *
+ * L'ordre compte. Choisir dans la galerie est le geste que l'utilisateur attend ;
+ * le presse-papiers ne sert que si le module natif n'est pas là.
+ */
+async function readQrFromImage(): Promise<ImageQrResult> {
+  const picked = await pickQrFromGallery();
+  if (picked.kind !== 'unavailable') return picked;
+  return readQrFromClipboardImage();
 }
 
 export default function Scan() {
@@ -135,10 +212,10 @@ function Scanner() {
   };
   /* Lire le QR d'une capture d'écran, sans avoir à le viser. */
   const fromImage = async () => {
-    const r = await readQrFromClipboardImage();
+    const r = await readQrFromImage();
+    if (r.kind === 'denied') return toast.info(t('scanGalleryDenied'));
     if (r.kind === 'no-image') return toast.info(t('scanNoImage'));
-    if (r.kind === 'no-qr') return toast.info(t('scanNoQrInImage'));
-    if (r.kind === 'unavailable') return toast.info(t('scanNoQrInImage'));
+    if (r.kind === 'no-qr' || r.kind === 'unavailable') return toast.info(t('scanNoQrInImage'));
     locked.current = true;
     setResult(parseQr(r.data));
   };
