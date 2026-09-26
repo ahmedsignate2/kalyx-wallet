@@ -225,6 +225,22 @@ export {
 } from './domain/pay/payChains';
 export { WcConnectError, isWcConnectError, type WcConnectCode } from './domain/wc/connectError';
 export {
+  crc16Xmodem,
+  parseTonAddress,
+  formatTonAddress,
+  toRawTonAddress,
+  parseRawTonAddress,
+  isValidTonAddress,
+  type TonAddress,
+} from './domain/chains/ton/tonAddress';
+export {
+  tonWords,
+  isValidTonMnemonic,
+  tonMnemonicNeedsPassword,
+  tonSeedFromMnemonic,
+  TON_MNEMONIC_WORDS,
+} from './domain/chains/ton/tonMnemonic';
+export {
   parseImportedKey,
   type KeyFamily,
   type KeyFormat,

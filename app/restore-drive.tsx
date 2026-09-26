@@ -67,7 +67,8 @@ export default function RestoreDriveScreen() {
     const r = await restoreBackup(text, pwd);
     setBusy(false);
     if (r.error || !r.mnemonic) {
-      setPwdError(r.error ?? 'Erreur inconnue.');
+      // Traduit : ce repli était la dernière phrase française en dur d'un écran.
+      setPwdError(r.error ?? t('invalidBackup'));
       return;
     }
     setPwd('');
