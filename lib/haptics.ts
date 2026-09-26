@@ -15,21 +15,15 @@
  *   haptic.error();       // PIN faux
  *   haptic.warning();     // site à risque
  */
-import { AccessibilityInfo, Platform } from 'react-native';
+import { Platform } from 'react-native';
+// Source UNIQUE du réglage : ce module en gardait sa propre copie, et les
+// animations, elles, ne le consultaient nulle part.
+import { reduceMotionEnabled } from './reduceMotion';
 
 // ─── État interne ────────────────────────────────────────────────────────────
 
 let Haptics: typeof import('expo-haptics') | null = null;
 let loaded = false;
-let reduceMotion = false;
-
-// Écoute le réglage d'accessibilité du système.
-AccessibilityInfo.isReduceMotionEnabled?.()
-  ?.then((v: boolean) => { reduceMotion = v; })
-  ?.catch(() => {});
-AccessibilityInfo.addEventListener?.('reduceMotionChanged', (v: boolean) => {
-  reduceMotion = v;
-});
 
 /** Charge expo-haptics en lazy (jamais bloquant). */
 async function load(): Promise<typeof import('expo-haptics') | null> {
@@ -52,7 +46,7 @@ void load();
 function noop() { /* no-op quand haptique indisponible ou désactivé */ }
 
 async function run(fn: (h: typeof import('expo-haptics')) => Promise<void>) {
-  if (reduceMotion) return;
+  if (reduceMotionEnabled()) return;
   try {
     // Import différé : settingsStore importe aussi des modules qui utilisent haptic.
     const { useSettings } = require('./settingsStore') as typeof import('./settingsStore');
