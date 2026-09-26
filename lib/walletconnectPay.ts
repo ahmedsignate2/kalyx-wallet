@@ -37,6 +37,20 @@ import {
 /** Identifiant public du projet Pay, fourni au build (secret EAS). */
 const PAY_APP_ID = (process.env.EXPO_PUBLIC_WALLETCONNECT_PAY_ID ?? '').trim();
 
+/**
+ * Thème du formulaire hébergé, exporté du tableau de bord WalletConnect Pay.
+ *
+ * Chaîne base64url à passer VERBATIM : le tableau de bord l'encode déjà, et la
+ * réencoder produirait un paramètre que le formulaire ignore. Elle décode en
+ * `{"fontFamily":"poppins","fontSize":15,"inputRadius":24,"buttonRadius":24}`.
+ *
+ * Constante et non variable d'environnement : ce n'est ni un secret ni une
+ * valeur qui varie par build, et la garder dans le code la rend modifiable par
+ * une simple mise à jour OTA.
+ */
+const PAY_THEME_VARIABLES =
+  'eyJmb250RmFtaWx5IjoicG9wcGlucyIsImZvbnRTaXplIjoxNSwiaW5wdXRSYWRpdXMiOjI0LCJidXR0b25SYWRpdXMiOjI0fQ';
+
 /* ── Formes minimales de ce que rend le SDK ──────────────────────────────────
  *
  * Redéclarées plutôt qu'importées du paquet : le module natif est absent en
@@ -292,7 +306,7 @@ interface PayState {
    * drapeau, un service qui redemande des informations à chaque réponse fait
    * reparcourir le formulaire sans fin — c'est la boucle observée sur appareil.
    */
-  open: (link: string, afterInfo?: boolean) => Promise<void>;
+  open: (link: string, afterInfo?: boolean, theme?: 'light' | 'dark') => Promise<void>;
   /** Retient une option ; ouvre la capture de données si elle est requise. */
   select: (option: PayOption, theme?: 'light' | 'dark') => void;
   /** Le formulaire hébergé a abouti : on peut poursuivre. */
@@ -327,7 +341,7 @@ const EMPTY = {
 export const usePay = create<PayState>((set, get) => ({
   ...EMPTY,
 
-  open: async (link, afterInfo = false) => {
+  open: async (link, afterInfo = false, theme) => {
     const c = payClient();
     if (!c) {
       set({ phase: 'error', failure: 'UNAVAILABLE' });
@@ -406,7 +420,17 @@ export const usePay = create<PayState>((set, get) => ({
          */
         const next = decideNoOption({ rootCollectUrl: options.collectData?.url, afterInfo });
         if (next.kind === 'collect') {
-          set({ phase: 'collecting', options, collectUrl: buildCollectUrl(next.url), failure: null });
+          set({
+            phase: 'collecting',
+            options,
+            /*
+             * Le mode CLAIR ou SOMBRE de l'app accompagne le thème : la
+             * documentation recommande de l'accorder, et un formulaire blanc
+             * qui s'ouvre au milieu d'une app sombre se remarque.
+             */
+            collectUrl: buildCollectUrl(next.url, { theme, themeVariables: PAY_THEME_VARIABLES }),
+            failure: null,
+          });
           return;
         }
         set({ phase: 'error', failure: next.reason, options, detail: options.info?.status ?? null });
@@ -427,7 +451,7 @@ export const usePay = create<PayState>((set, get) => ({
     const url = option.collectData?.url;
     set({
       selected: option,
-      collectUrl: url ? buildCollectUrl(url, { theme }) : null,
+      collectUrl: url ? buildCollectUrl(url, { theme, themeVariables: PAY_THEME_VARIABLES }) : null,
       phase: url ? 'collecting' : 'choosing',
     });
   },
