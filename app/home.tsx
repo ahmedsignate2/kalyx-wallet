@@ -22,6 +22,8 @@ import { InteractiveChart } from '../ui/InteractiveChart';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
+import { FadeInUp } from '../ui/FadeInUp';
+import { cascadeDelay } from '../ui/motion';
 import { Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AddressGlyph, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../ui/kit';
 import { useWallet } from '../lib/walletStore';
 import { accountDisplayName } from '../lib/walletNames';
@@ -528,8 +530,16 @@ export default function Home() {
             ) : (
               <>
                 <Surface padded={false}>
+                  {/*
+                    CASCADE À L'ARRIVÉE. `cascadeDelay` était défini dans
+                    `ui/motion` et utilisé NULLE PART : les listes apparaissaient
+                    d'un bloc, instantanément, et c'est ce qui donnait cette
+                    sécheresse. Le décalage ne dépasse pas douze lignes — au-delà
+                    il vaut zéro, une attente d'une seconde pour voir une liste
+                    n'est plus du raffinement.
+                  */}
                   {(showSmall ? [...main, ...small] : main).map((h, i, arr) => (
-                    <React.Fragment key={h.id}>
+                    <FadeInUp key={h.id} delay={cascadeDelay(i)}>
                       <TokenRow
                         symbol={h.symbol}
                         name={`${h.name} · ${getAdapter(h.chainId).config.name}`}
@@ -542,7 +552,7 @@ export default function Home() {
                         onPress={() => openHolding(h)}
                       />
                       {i < arr.length - 1 ? <Divider inset={68} /> : null}
-                    </React.Fragment>
+                    </FadeInUp>
                   ))}
                 </Surface>
                 {small.length > 0 ? (
@@ -626,7 +636,7 @@ export default function Home() {
             <>
               <Surface padded={false}>
                 {recent.map((tx) => ({ tx, h: humanizeTx(tx, humanCtx) })).filter((r) => !r.h.spam).slice(0, 5).map((r, i, arr) => (
-                  <React.Fragment key={`${r.tx.chain}:${r.tx.hash}`}>
+                  <FadeInUp key={`${r.tx.chain}:${r.tx.hash}`} delay={cascadeDelay(i)}>
                     <ActivityRow
                       h={r.h}
                       time={new Date(r.tx.timestamp * 1000).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
@@ -636,7 +646,7 @@ export default function Home() {
                       onPress={() => router.push('/history')}
                     />
                     {i < arr.length - 1 ? <Divider inset={68} /> : null}
-                  </React.Fragment>
+                  </FadeInUp>
                 ))}
               </Surface>
               <KPressable onPress={() => router.push('/history')} style={{ alignSelf: 'center', paddingVertical: space[2] }}>

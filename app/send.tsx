@@ -17,6 +17,7 @@ import { Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressG
 import { Icon } from '../ui/icon';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { ContactPicker } from '../ui/ContactPicker';
+import { FadeInUp } from '../ui/FadeInUp';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { useWallet, type Unlock } from '../lib/walletStore';
@@ -636,9 +637,16 @@ export default function Send() {
           );
         })() : null}
 
+        {/*
+          CHAQUE ÉTAPE ENTRE EN FONDU. Les étapes s'échangeaient instantanément :
+          le contenu changeait du tout au tout sans que rien ne relie l'avant à
+          l'après, et c'est ce qui donnait cette sécheresse. `flex: 1` sur
+          l'enrobage est obligatoire — l'espaceur qui pousse le bouton en bas
+          d'écran s'écraserait sinon, et l'animation changerait la mise en page.
+        */}
         {/* ── 1. Destinataire ── */}
         {step === 1 ? (
-          <>
+          <FadeInUp style={{ flex: 1, gap: space[5] }}>
             <Surface level={2} style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[3] }}>
               {recipientOk ? <AddressGlyph address={recipient} size={40} /> : <View style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}><Icon name="profile" size={18} tone="faint" /></View>}
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -707,12 +715,12 @@ export default function Send() {
             {addressError ? <Text variant="caption" tone="danger">{addressError}</Text> : null}
             <View style={{ flex: 1 }} />
             <Button label={t("actionContinue")} onPress={goStep2} disabled={!recipientOk || !!poisoning} />
-          </>
+          </FadeInUp>
         ) : null}
 
         {/* ── 2. Montant ── */}
         {step === 2 ? (
-          <>
+          <FadeInUp style={{ flex: 1, gap: space[5] }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
               <AddressGlyph address={recipient} size={28} />
               <Text variant="caption" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>{t("labelTo")}{destLabel ?? shortAddress(recipient)}</Text>
@@ -743,7 +751,7 @@ export default function Send() {
             <View style={{ flex: 1 }} />
             <AmountKeypad value={amount} onChange={(v) => { setAmount(v); setAmountError(null); }} maxDecimals={inFiat ? 2 : Math.min(decimals, 8)} />
             <Button label={t("verify")} onPress={goStep3} disabled={amountRaw <= 0n} />
-          </>
+          </FadeInUp>
         ) : null}
 
         {/* ── 4. Suivi ── */}

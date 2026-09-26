@@ -29,6 +29,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, IconButton, Surface, Divider, Chip, Skeleton, EmptyState, ActivityRow, Pressable } from '../ui/kit';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN } from '../ui/tokens';
+import { FadeInUp } from '../ui/FadeInUp';
+import { cascadeDelay } from '../ui/motion';
 import { useWallet } from '../lib/walletStore';
 import { useHistoryStore, useHistoryCache, cacheKey } from '../lib/historyStore';
 import { useContacts } from '../lib/contactsStore';
@@ -260,8 +262,11 @@ export default function History() {
             <View key={g.label} style={{ gap: space[2] }}>
               <Text variant="caption" tone="secondary">{g.label}</Text>
               <Surface padded={false}>
+                {/* Cascade à l'arrivée, comme sur l'accueil : au-delà de douze
+                    lignes le décalage vaut zéro, une liste ne doit pas se faire
+                    attendre pour le plaisir du mouvement. */}
                 {g.items.map((r, i) => (
-                  <React.Fragment key={`${r.tx.chain}:${r.tx.hash}`}>
+                  <FadeInUp key={`${r.tx.chain}:${r.tx.hash}`} delay={cascadeDelay(i)}>
                     <ActivityRow
                       h={r.h}
                       time={new Date(r.tx.timestamp * 1000).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
@@ -278,7 +283,7 @@ export default function History() {
                       onPress={() => router.push({ pathname: '/tracking', params: { hash: r.tx.hash, chainId: r.tx.chain } })}
                     />
                     {i < g.items.length - 1 ? <Divider inset={68} /> : null}
-                  </React.Fragment>
+                  </FadeInUp>
                 ))}
               </Surface>
             </View>
