@@ -56,3 +56,37 @@ export function shortAddress(address: string, head = 6, tail = 4): string {
   if (s.length <= head + tail + 1) return s;
   return `${s.slice(0, head)}…${s.slice(-tail)}`;
 }
+
+/**
+ * Familles de chaînes auxquelles une adresse peut appartenir.
+ *
+ * Une adresse ne vaut que pour la famille qui sait la lire : proposer un contact
+ * Bitcoin pendant un envoi Solana ne peut produire qu'un refus, et l'utilisateur
+ * n'a aucun moyen de savoir pourquoi le nom qu'il vient de choisir est rejeté.
+ * Mieux vaut ne pas le lui proposer.
+ */
+export type AddressFamily = 'evm' | 'solana' | 'bitcoin';
+
+/**
+ * Familles pour lesquelles cette adresse est valide.
+ *
+ * Plusieurs, en théorie : les jeux de caractères de Solana et de Bitcoin se
+ * recouvrent en base58, et une adresse peut passer deux validations. On rend donc
+ * l'ensemble plutôt que de trancher arbitrairement.
+ */
+export function addressFamilies(
+  address: string,
+  check: {
+    evm: (a: string) => boolean;
+    solana: (a: string) => boolean;
+    bitcoin: (a: string) => boolean;
+  },
+): AddressFamily[] {
+  const a = (address ?? '').trim();
+  if (!a) return [];
+  const out: AddressFamily[] = [];
+  if (check.evm(a)) out.push('evm');
+  if (check.solana(a)) out.push('solana');
+  if (check.bitcoin(a)) out.push('bitcoin');
+  return out;
+}
