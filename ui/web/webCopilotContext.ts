@@ -11,6 +11,7 @@ import { getAdapter, humanizeTx, type ChainConfig, type TxSummary } from '../../
 import type { CopilotWalletContext } from '../../lib/copilotContext';
 import { maskId } from '../../lib/copilotContext';
 import { useAsync } from './useAsync';
+import { useActivityT } from '../../lib/settingsStore';
 
 interface NetWorthLike {
   data: {
@@ -30,6 +31,7 @@ function safeText(v: string | null | undefined, max = 80): string {
 
 export function useWebCopilotContext(chain: ChainConfig, address: string, worth: NetWorthLike): CopilotWalletContext {
   const { data: history } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address]);
+  const activityT = useActivityT();
 
   return useMemo(() => {
     const balances = (worth.data?.slices ?? [])
@@ -44,7 +46,7 @@ export function useWebCopilotContext(chain: ChainConfig, address: string, worth:
       }));
 
     const recentActivity = (history ?? []).slice(0, 10).map((tx) => {
-      const h = humanizeTx(tx, { nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals });
+      const h = humanizeTx(tx, { t: activityT, nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals });
       return {
         id: tx.hash,
         timestamp: new Date(tx.timestamp * 1000).toISOString(),

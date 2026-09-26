@@ -34,7 +34,7 @@ import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useWebConnect } from '../../lib/webConnect';
 import { toast } from '../../lib/toast';
-import { useSettings, useT, fiatSymbol, FIATS } from '../../lib/settingsStore';
+import { useSettings, useT, useActivityT, fiatSymbol, FIATS } from '../../lib/settingsStore';
 import { useContacts } from '../../lib/contactsStore';
 import { useRecentRecipients } from '../../lib/recentRecipientsStore';
 import { LANGUAGES } from '../../lib/i18n';
@@ -1591,6 +1591,13 @@ function txKind(tx: TxSummary, h: HumanTx): TxFilter {
 function HistoryPanel({ chain, address, flat }: { chain: ChainConfig; address: string; flat?: boolean }) {
   const t = useT();
   const tw = useWebT();
+  /*
+   * Le dictionnaire de l'app, pas celui du web : les phrases d'activité vivent
+   * dans `lib/i18n` et `useActivityT` lit le même réglage de langue. Les
+   * dupliquer dans `webI18n` aurait créé deux vérités à maintenir pour un texte
+   * identique.
+   */
+  const activityT = useActivityT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
   const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address, rev]);
@@ -1599,7 +1606,7 @@ function HistoryPanel({ chain, address, flat }: { chain: ChainConfig; address: s
   const [detail, setDetail] = useState<{ tx: TxSummary; h: HumanTx } | null>(null);
   if (loading) return <SkeletonRows count={5} flat={flat} />;
   const rows = (data ?? [])
-    .map((tx) => ({ tx, h: humanizeTx(tx, { nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals }) }))
+    .map((tx) => ({ tx, h: humanizeTx(tx, { t: activityT, nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals }) }))
     .filter(({ h }) => !h.spam);
   if (!rows.length) {
     const empty = { title: tw('noActivity'), subtitle: tw('noActivityBody') };
