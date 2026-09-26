@@ -483,7 +483,17 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
     if (!accounts.length) return { total: 0, change24h: 0, slices: [] };
     const entries = accounts.map((a) => ({ acc: a, chain: chainById(a.chainId) }));
     const ids = [...new Set(entries.map((e) => e.chain.coingeckoId).filter(Boolean))] as string[];
-    const prices = await getPrices(ids, fiat); // { coingeckoId: { price, change24h } }
+    /*
+     * LES PRIX N'ATTENDENT PLUS, ET RIEN NE LES ATTEND.
+     *
+     * Ils étaient récupérés avec `await` AVANT la moindre lecture de solde : un
+     * CoinGecko lent ou limité en débit retardait tout l'écran, alors qu'un prix
+     * ne sert qu'à convertir un solde déjà connu. Même défaut, même correction que
+     * dans le magasin de portefeuille de l'app mobile.
+     */
+    const pricesP = getPrices(ids, fiat).catch(
+      () => ({}) as Record<string, { price: number; change24h: number }>,
+    );
     const slices = await Promise.all(
       entries.map(async ({ acc, chain }): Promise<ChainWorth> => {
         let native = 0;
@@ -491,7 +501,8 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
         let tokens = 0;
         let price = 0;
         try {
-          const bal = await getAdapter(chain.id).getBalance(acc.address);
+          // Le solde part tout de suite ; les prix arrivent en parallèle.
+          const [bal, prices] = await Promise.all([getAdapter(chain.id).getBalance(acc.address), pricesP]);
           const p = chain.coingeckoId ? prices[chain.coingeckoId] : undefined;
           price = p?.price ?? 0;
           native = (Number(bal.raw) / 10 ** bal.decimals) * price;

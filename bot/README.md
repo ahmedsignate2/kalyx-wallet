@@ -15,7 +15,8 @@ se fait dans la Mini App, signée sur le téléphone.
 | `/price eth` | Cours CoinGecko (cache 60 s) |
 | `/gas` | Gas Ethereum / Base / Arbitrum / Polygon / BNB + priorité Solana (cache 30 s) |
 | `/scan 0x…` | Rapport GoPlus : honeypot, taxes, droits du owner |
-| `/alert eth 3000` · `/alerts` | Alerte de prix (cron 5 min) |
+| `/alert eth 3000` | Pose une alerte de prix (cron 5 min). Plafond : 20 alertes ouvertes par personne |
+| `/alerts` (`/unalert`) | Liste les alertes, un bouton par alerte pour la supprimer (+ « tout supprimer ») |
 | `/help` | Modèle non-custodial, ce que le bot ne demande jamais |
 
 Réponses dans les 15 langues de l'app (fr, en, es, pt, de, it, nl, pl, tr, ru, ar, hi, zh, ja, ko) : langue choisie au `/start`, sinon celle de Telegram, sinon anglais.
@@ -24,6 +25,8 @@ Réponses dans les 15 langues de l'app (fr, en, es, pt, de, it, nl, pl, tr, ru, 
 - Webhook Telegram authentifié par `X-Telegram-Bot-Api-Secret-Token` (comparaison à temps constant).
 - Messages en `parse_mode: HTML` avec échappement systématique (jamais de Markdown : une adresse ou un pseudo ne peut pas injecter de formatage).
 - Limitation de débit par utilisateur (KV), 5 scans / minute.
+- Suppression d'alerte autorisée par le `telegram_id` dans le `WHERE` : un identifiant deviné ne donne accès à rien.
+- 20 alertes ouvertes au maximum par personne : le cron relit toutes les alertes toutes les 5 minutes.
 - Aucune donnée sensible en base (voir `schema.sql`).
 
 ## Déploiement

@@ -57,7 +57,12 @@ export function useWebCopilotContext(chain: ChainConfig, address: string, worth:
         counterpartyOrDapp: maskId(tx.to),
         gasFeePaid: null,
         status: tx.status,
-        failureReason: tx.status === 'failed' ? 'Transaction échouée' : null,
+        /*
+          On ne FABRIQUE pas une raison. « Transaction échouée » n'en est pas
+          une : c'est la redite de `status`, en français, dans un contexte
+          envoyé à un modèle. Sans raison connue, le champ reste nul.
+        */
+        failureReason: null,
       };
     });
 

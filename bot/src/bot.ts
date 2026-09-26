@@ -5,7 +5,7 @@ import { esc, familyOf, rateLimited, type Env } from './env';
 import { LANGS, LANG_LABEL, strings, toLang, type Lang } from './i18n';
 import { fmtCompact, fmtFiat, getGas, getPrice, resolveCoinId } from './market';
 import { scanToken } from './scan';
-import { addAlert, listAlerts, upsertUser, userLangOrNull } from './store';
+import { MAX_ALERTS_PER_USER, addAlert, countAlerts, listAlerts, removeAlert, removeAllAlerts, upsertUser, userLangOrNull } from './store';
 
 const HTML = { parse_mode: 'HTML' as const, link_preview_options: { is_disabled: true } };
 
@@ -123,6 +123,11 @@ export function createBot(env: Env): Bot<Ctx> {
     const [sym, targetStr] = ctx.match.trim().split(/\s+/);
     const target = Number((targetStr ?? '').replace(',', '.'));
     if (!sym || !Number.isFinite(target) || target <= 0) return ctx.reply(t(ctx).alertUsage, HTML);
+    // Le cron relit toutes les alertes ouvertes toutes les 5 minutes : sans plafond,
+    // une seule personne peut faire grossir ce travail sans limite.
+    if ((await countAlerts(env, ctx.from.id)) >= MAX_ALERTS_PER_USER) {
+      return ctx.reply(t(ctx).alertLimit(String(MAX_ALERTS_PER_USER)), HTML);
+    }
     const id = resolveCoinId(sym);
     const p = await getPrice(env, id).catch(() => null);
     if (!p) return ctx.reply(t(ctx).priceUnknown(esc(sym)), HTML);
@@ -132,10 +137,44 @@ export function createBot(env: Env): Bot<Ctx> {
     await ctx.reply(t(ctx).alertAdded(esc(p.symbol), direction, fmtFiat(target, 'usd', lang(ctx))), HTML);
   });
 
-  bot.command('alerts', async (ctx) => {
+  /** Libellé d'une alerte : sert au texte de la liste ET au bouton qui la supprime,
+   *  pour que les deux ne puissent pas diverger. */
+  const alertLabel = (ctx: Ctx, r: { symbol: string; target: number; direction: string; fiat: string }) =>
+    `${r.symbol.toUpperCase()} ${r.direction === 'above' ? '>' : '<'} ${fmtFiat(r.target, r.fiat, lang(ctx))}`;
+
+  // La liste porte un bouton par alerte. Le bouton transporte l'identifiant réel de
+  // la ligne, pas son rang : si une alerte se déclenche entre l'affichage et le clic,
+  // on ne supprime pas celle d'à côté.
+  async function alertsCard(ctx: Ctx, telegramId: number) {
+    const rows = await listAlerts(env, telegramId);
+    if (!rows.length) return { text: t(ctx).alertsNone, reply_markup: undefined };
+    const kb = new InlineKeyboard();
+    rows.forEach((r) => kb.text(t(ctx).alertDelete(alertLabel(ctx, r)), `alert:del:${r.id}`).row());
+    if (rows.length > 1) kb.text(t(ctx).alertDeleteAll, 'alert:del:all');
+    return { text: t(ctx).alertsList(rows.map((r) => esc(alertLabel(ctx, r)))), reply_markup: kb };
+  }
+
+  bot.command(['alerts', 'unalert'], async (ctx) => {
     if (!ctx.from) return;
-    const rows = await listAlerts(env, ctx.from.id);
-    await ctx.reply(rows.length ? t(ctx).alertsList(rows) : t(ctx).alertsNone, HTML);
+    const card = await alertsCard(ctx, ctx.from.id);
+    await ctx.reply(card.text, { ...HTML, reply_markup: card.reply_markup });
+  });
+
+  // `telegram_id` figure dans le WHERE de la suppression : c'est l'autorisation.
+  // Personne ne peut effacer l'alerte d'un autre en devinant un identifiant.
+  bot.callbackQuery(/^alert:del:(\d+|all)$/, async (ctx) => {
+    if (!ctx.from) return;
+    const arg = ctx.match[1];
+    if (arg === 'all') {
+      const n = await removeAllAlerts(env, ctx.from.id);
+      await ctx.answerCallbackQuery({ text: t(ctx).alertsRemoved(String(n)) });
+    } else {
+      const done = await removeAlert(env, ctx.from.id, Number(arg));
+      await ctx.answerCallbackQuery({ text: done ? t(ctx).alertRemoved : t(ctx).alertGone });
+    }
+    // Le message est remplacé par la liste à jour, ou par « aucune alerte ».
+    const card = await alertsCard(ctx, ctx.from.id);
+    await ctx.editMessageText(card.text, { ...HTML, reply_markup: card.reply_markup }).catch(() => {});
   });
 
   bot.on('message:text', async (ctx) => {
