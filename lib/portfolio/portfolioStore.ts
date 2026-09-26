@@ -114,32 +114,141 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
     ? listChains({ includeTestnets: true }).filter((c) => c.coingeckoId || c.testnet)
     : VALUE_CHAINS;
   const ids = [...new Set(chains.map((c) => c.coingeckoId).filter((id): id is string => !!id))];
-  const [prices, markets] = await Promise.all([getPrices(ids, fiat).catch(() => ({})), getMarkets(fiat, 100).catch(() => [])]);
+
+  /*
+   * TOUT PART EN MÊME TEMPS, ET RIEN N'ATTEND CE DONT IL N'A PAS BESOIN.
+   *
+   * La version précédente enchaînait quatre étapes avec des `await` successifs :
+   * les prix, PUIS les soldes natifs, PUIS les jetons ERC-20, PUIS les jetons
+   * Solana. La durée totale était donc leur SOMME, alors qu'aucune de ces
+   * requêtes ne dépend du résultat d'une autre — un prix ne sert qu'à convertir
+   * un solde déjà connu. Un CoinGecko lent retardait à lui seul l'affichage de
+   * tous les soldes.
+   *
+   * Les quatre partent maintenant ensemble et ne sont recollées qu'à la fin : la
+   * durée devient celle de la plus lente.
+   */
+  const pricesP = Promise.all([
+    getPrices(ids, fiat).catch(() => ({}) as Record<string, { price: number; change24h: number }>),
+    getMarkets(fiat, 100).catch(() => []),
+  ]);
+
+  /** Soldes natifs bruts : la conversion en devise attend les prix, pas la lecture. */
+  const rawNativesP = Promise.all(
+    chains.map(async (chain) => {
+      const address =
+        chain.family === 'bitcoin' ? acct.btcAddress : chain.family === 'solana' ? acct.solAddress : acct.evmAddress;
+      if (!address) return null;
+      try {
+        const raw = (await getAdapter(chain.id).getBalance(address)).raw;
+        /*
+         * Solde nul ou RPC muet : rien à montrer. On ne fabrique pas un faux 0 —
+         * le cache garde l'ancienne valeur, ce qui vaut mieux qu'un zéro inventé.
+         */
+        return raw === 0n ? null : { chain, raw };
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  // ERC-20 sur les réseaux couverts par Alchemy ; le spam est déjà filtré par
+  // `getErc20Tokens`.
+  const evmChains = VALUE_CHAINS.filter(
+    (c) => c.family === 'evm' && c.coingeckoPlatform && c.rpcUrls.some((u) => u.includes('.alchemy.com')),
+  );
+  const erc20P = Promise.all(
+    evmChains.map(async (chain): Promise<Holding[]> => {
+      try {
+        const list = await getErc20Tokens(chain, acct.evmAddress);
+        if (!list.length) return [];
+        const tp = await getTokenPrices(
+          chain.coingeckoPlatform!,
+          list.map((t) => t.contract),
+          fiat,
+        ).catch(() => ({}) as Record<string, number>);
+        const known = new Set(knownTokensFor(chain.evmChainId).map((a: string) => a.toLowerCase()));
+        return list.map((t) => {
+          const price = safeNum(tp[t.contract.toLowerCase()]);
+          const amount = safeNum(Number(formatAmount(t.raw, t.decimals)));
+          const verified = price > 0 || known.has(t.contract.toLowerCase());
+          return {
+            id: `${chain.id}:${t.contract.toLowerCase()}`,
+            chainId: chain.id,
+            kind: 'erc20' as const,
+            contract: t.contract,
+            symbol: t.symbol,
+            name: t.name,
+            decimals: t.decimals,
+            raw: t.raw,
+            amount,
+            logo: t.logo,
+            price,
+            fiat: verified ? safeNum(amount * price) : 0,
+            change24h: null,
+            verified,
+          };
+        });
+      } catch {
+        return [];
+      }
+    }),
+  );
+
+  // Jetons SPL. Lancé lui aussi sans attendre : il ne dépend de rien d'autre.
+  const splP: Promise<Holding[]> = (async () => {
+    if (!acct.solAddress) return [];
+    try {
+      const a = getAdapter('solana');
+      const list = a instanceof SolanaChainAdapter ? await a.getSplTokens(acct.solAddress) : [];
+      const tp = list.length
+        ? await getTokenPrices(
+            'solana',
+            list.map((t) => t.mint),
+            fiat,
+          ).catch(() => ({}) as Record<string, number>)
+        : {};
+      return list.map((t) => {
+        const price = safeNum(tp[t.mint.toLowerCase()]);
+        const amount = safeNum(Number(formatAmount(t.raw, t.decimals)));
+        const verified = price > 0 || !!KNOWN_MINTS[t.mint];
+        return {
+          id: `solana:${t.mint}`,
+          chainId: 'solana',
+          kind: 'spl' as const,
+          contract: t.mint,
+          symbol: t.symbol,
+          name: t.name,
+          decimals: t.decimals,
+          raw: t.raw,
+          amount,
+          logo: t.logo,
+          price,
+          fiat: verified ? safeNum(amount * price) : 0,
+          change24h: null,
+          verified,
+        };
+      });
+    } catch {
+      return [];
+    }
+  })();
+
+  const [[prices, markets], rawNatives, erc20, spl] = await Promise.all([pricesP, rawNativesP, erc20P, splP]);
   const logos = new Map(markets.map((m) => [m.id, m.image]));
 
-  // 1) Natifs — tous les réseaux, en parallèle, tolérant aux pannes.
-  const natives = await Promise.all(
-    chains.map(async (chain): Promise<Holding | null> => {
-      const address = chain.family === 'bitcoin' ? acct.btcAddress : chain.family === 'solana' ? acct.solAddress : acct.evmAddress;
-      if (!address) return null;
-      let raw = 0n;
-      try {
-        raw = (await getAdapter(chain.id).getBalance(address)).raw;
-      } catch {
-        return null; // RPC muet : on ne montre pas un faux 0 (le cache garde l'ancienne valeur)
-      }
-      if (raw === 0n) return null;
-      const p = chain.coingeckoId
-        ? (prices as Record<string, { price: number; change24h: number }>)[chain.coingeckoId]
-        : undefined;
+  const natives: Holding[] = rawNatives
+    .filter((x): x is { chain: (typeof chains)[number]; raw: bigint } => x !== null)
+    .map(({ chain, raw }) => {
+      const p = chain.coingeckoId ? prices[chain.coingeckoId] : undefined;
       const amount = safeNum(Number(formatAmount(raw, chain.nativeDecimals)));
       return {
         id: `${chain.id}:native`,
         chainId: chain.id,
-        kind: 'native',
+        kind: 'native' as const,
         symbol: chain.nativeSymbol,
-        // `name` identifie l'actif, jamais le réseau : « Base » est un
-        // réseau dont le natif est ETH, « BNB Chain » porte du BNB.
+        // `name` identifie l'actif, jamais le réseau : « Base » est un réseau
+        // dont le natif est ETH, « BNB Chain » porte du BNB.
         name: chain.nativeSymbol,
         decimals: chain.nativeDecimals,
         raw,
@@ -151,49 +260,9 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
         coingeckoId: chain.coingeckoId,
         verified: true,
       };
-    }),
-  );
+    });
 
-  // 2) ERC-20 sur les réseaux couverts (Alchemy) — spam déjà filtré par getErc20Tokens.
-  const evmChains = VALUE_CHAINS.filter((c) => c.family === 'evm' && c.coingeckoPlatform && c.rpcUrls.some((u) => u.includes('.alchemy.com')));
-  const erc20 = await Promise.all(
-    evmChains.map(async (chain): Promise<Holding[]> => {
-      try {
-        const list = await getErc20Tokens(chain, acct.evmAddress);
-        if (!list.length) return [];
-        const tp = await getTokenPrices(chain.coingeckoPlatform!, list.map((t) => t.contract), fiat).catch(() => ({} as Record<string, number>));
-        const known = new Set(knownTokensFor(chain.evmChainId).map((a: string) => a.toLowerCase()));
-        return list.map((t) => {
-          const price = safeNum(tp[t.contract.toLowerCase()]);
-          const amount = safeNum(Number(formatAmount(t.raw, t.decimals)));
-          const verified = price > 0 || known.has(t.contract.toLowerCase());
-          return { id: `${chain.id}:${t.contract.toLowerCase()}`, chainId: chain.id, kind: 'erc20', contract: t.contract, symbol: t.symbol, name: t.name, decimals: t.decimals, raw: t.raw, amount, logo: t.logo, price, fiat: verified ? safeNum(amount * price) : 0, change24h: null, verified };
-        });
-      } catch {
-        return [];
-      }
-    }),
-  );
-
-  // 3) SPL Solana.
-  let spl: Holding[] = [];
-  if (acct.solAddress) {
-    try {
-      const a = getAdapter('solana');
-      const list = a instanceof SolanaChainAdapter ? await a.getSplTokens(acct.solAddress) : [];
-      const tp = list.length ? await getTokenPrices('solana', list.map((t) => t.mint), fiat).catch(() => ({} as Record<string, number>)) : {};
-      spl = list.map((t) => {
-        const price = safeNum(tp[t.mint.toLowerCase()]);
-        const amount = safeNum(Number(formatAmount(t.raw, t.decimals)));
-        const verified = price > 0 || !!KNOWN_MINTS[t.mint];
-        return { id: `solana:${t.mint}`, chainId: 'solana', kind: 'spl', contract: t.mint, symbol: t.symbol, name: t.name, decimals: t.decimals, raw: t.raw, amount, logo: t.logo, price, fiat: verified ? safeNum(amount * price) : 0, change24h: null, verified };
-      });
-    } catch {
-      spl = [];
-    }
-  }
-
-  const all = [...natives.filter((h): h is Holding => h !== null), ...erc20.flat(), ...spl];
+  const all = [...natives, ...erc20.flat(), ...spl];
   // Tri par valeur ; sans prix → après, par montant.
   return all.sort((a, b) => b.fiat - a.fiat || b.amount - a.amount);
 }

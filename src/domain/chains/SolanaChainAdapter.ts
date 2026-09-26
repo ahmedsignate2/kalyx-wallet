@@ -41,6 +41,20 @@ import {
 } from './solPriority';
 import { technicalLogger } from '../../../lib/technicalLogger';
 
+/**
+ * Réessais pour une LECTURE d'historique.
+ *
+ * Deux tentatives et 300 ms d'attente, là où le défaut de `withRetry` en fait
+ * trois avec un repli exponentiel à partir d'une seconde. Ce défaut est juste
+ * pour une DIFFUSION de transaction, où abandonner coûte un envoi perdu. Pour une
+ * lecture, il transformait un fournisseur muet en vingt-sept secondes d'attente —
+ * et l'adaptateur en essaie jusqu'à quatre à la suite, ce qui dépassait la
+ * minute. Une lecture qui échoue n'a rien perdu : le cache garde la valeur
+ * précédente, et le prochain rafraîchissement retentera.
+ */
+const READ_RETRIES = 2;
+const READ_BACKOFF_MS = 300;
+
 const API_TIMEOUT_MS = 12_000;
 
 /**
@@ -184,7 +198,7 @@ export class SolanaChainAdapter implements ChainAdapter {
             }
           }
           throw new Error('Helius invalid format');
-        }, 3, 1000);
+        }, READ_RETRIES, READ_BACKOFF_MS);
       } catch (e) {
         // Fallback to RPC if Helius fails
       }
