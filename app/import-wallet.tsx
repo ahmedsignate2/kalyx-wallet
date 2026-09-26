@@ -105,10 +105,6 @@ export default function ImportWallet() {
         if (!parsed.ok) { setError(parseErrorText(parsed.error)); return; }
         // Plusieurs réseaux possibles et aucun choisi : on ne devine pas.
         if (!chosen) { setError(t('keyErrFamilyRequired')); return; }
-        if (chosen === 'bitcoin' && parsed.key.compressed === false) {
-          setError(t('keyErrWifUncompressed'));
-          return;
-        }
         await importPrivateKey(text, pin, label, chosen);
       } else {
         // Sauvegarde chiffrée : déchiffre avec le mot de passe puis importe la phrase.
@@ -251,6 +247,18 @@ export default function ImportWallet() {
                   <Text style={typography.muted}>{t('keyDerivedAddress')}</Text>
                   <Text style={{ color: colors.text, fontSize: 13 }}>{groupAddress(derived)}</Text>
                   <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>{t('keyCheckAddress')}</Text>
+                  {/*
+                    WIF NON COMPRESSÉ : un AVERTISSEMENT, plus un refus. La clé
+                    fonctionne et l'adresse dérivée est valide, mais le propriétaire
+                    d'une telle clé détient souvent ses fonds sur l'adresse héritée
+                    de la même clé — que Kalyx ne sait pas lire. Il faut le dire, pas
+                    empêcher l'import.
+                  */}
+                  {chosen === 'bitcoin' && parsed.ok && parsed.key.compressed === false ? (
+                    <Text style={{ color: colors.warning, fontSize: 12, marginTop: spacing(0.75) }}>
+                      {t('keyErrWifUncompressed')}
+                    </Text>
+                  ) : null}
                 </View>
               ) : null}
             </>

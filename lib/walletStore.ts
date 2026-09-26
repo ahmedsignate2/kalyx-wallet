@@ -704,14 +704,22 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!candidates.includes(chosen)) throw new WalletError('INVALID_KEY', 'import.FAMILY_UNSUPPORTED');
 
     /*
-     * WIF NON COMPRESSÉ REFUSÉ. Kalyx ne gère que le segwit natif (bc1…), et une
-     * clé non compressée désigne une adresse héritée : on dériverait une adresse
-     * où les fonds ne sont pas, et l'utilisateur conclurait qu'ils ont disparu.
+     * LE WIF NON COMPRESSÉ N'EST PLUS REFUSÉ, et mon refus précédent était mal
+     * raisonné. Le drapeau de compression décrit la forme de clé publique que le
+     * propriétaire avait utilisée pour SON adresse ; la clé privée, elle, est la
+     * même trente-deux octets, et on en dérive parfaitement une adresse segwit
+     * natif valide.
+     *
+     * Surtout, la distinction ne séparait rien : le détenteur d'un WIF COMPRESSÉ
+     * peut tout aussi bien avoir des fonds sur l'adresse héritée de la même clé.
+     * Refuser le `5…` écartait la forme que les gens ont le plus souvent en main
+     * — portefeuilles papier, anciens exports — pour un risque qui existe dans
+     * les deux cas.
+     *
+     * Ce qui protège vraiment est déjà en place : l'écran AFFICHE l'adresse
+     * dérivée avant l'import, et prévient quand la clé vient d'un WIF non
+     * compressé.
      */
-    if (chosen === 'bitcoin' && parsed.key.compressed === false) {
-      throw new WalletError('INVALID_KEY', 'import.WIF_UNCOMPRESSED');
-    }
-
     await revealMnemonic(get().activeWalletId, { pin }); // vérifie le PIN (un seul PIN d'app)
     const id = newWalletId();
     const accounts = [storedAccountFromRawKey(chosen, parsed.key.secret)];
