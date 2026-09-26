@@ -30,6 +30,11 @@ module.exports = {
    * échoue à la première mais réussit à la SECONDE, et le fichier repassait en
    * « ignoré ». Ancré, le chemin entier est jugé d'un bloc.
    */
+  /*
+   * Même substitution que dans metro.config.js : `@ton/core` reçoit notre
+   * `tonCoreCrypto.ts` à la place de `@ton/crypto`, absent de l'app.
+   */
+  moduleNameMapper: { '^@ton/crypto$': '<rootDir>/src/crypto/tonCoreCrypto.ts' },
   transformIgnorePatterns: ['^(?!.*(?:@scure[/\\\\]btc-signer|micro-packed)).*[/\\\\]node_modules[/\\\\]'],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {}],

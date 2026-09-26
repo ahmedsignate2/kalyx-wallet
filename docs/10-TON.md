@@ -233,6 +233,28 @@ de ne pas retomber dans « diffusé donc réussi », l'hypothèse qui faisait af
 
 ## 10. Dépendances et outillage
 
+> **TRANCHÉ (26/09) : `@ton/core` 0.63.1 seul, épinglé ; `@ton/crypto` remplacé.**
+>
+> Sur React Native, `@ton/crypto` charge sa variante mobile, qui exige le module
+> NATIF `react-native-fast-pbkdf2` dès l'import : le build aurait échoué. Plutôt
+> qu'un module natif de plus (sans garantie de compatibilité avec RN 0.86) pour un
+> PBKDF2 inutile — la dérivation passe par `@noble` —, `@ton/crypto` est remplacé
+> par `src/crypto/tonCoreCrypto.ts`, dans `metro.config.js` ET `jest.config.js`.
+> `@ton/core` ne lui emprunte que trois fonctions (`sha256_sync`, `sign`,
+> `signVerify`) ; un test lit le code installé de `@ton/core` et échoue si une
+> version future en appelle une autre. `.npmrc` (`legacy-peer-deps`) empêche npm
+> d'installer `@ton/crypto` d'office.
+>
+> Vérifié par un vrai bundle Android et web (import temporaire, retiré ensuite) :
+> notre module est pris, et ni `@ton/crypto`, ni `react-native-fast-pbkdf2`, ni
+> tweetnacl, ni jssha n'y figurent. Coût : 106 Ko bruts pour `@ton/core`, 11 Ko
+> pour notre code TON, code des contrats compris. Jest charge `@ton/core` en
+> CommonJS sans transformation.
+>
+> Le point 2 ci-dessous (empreinte) s'applique : `package.json` a changé. Les OTA
+> étaient déjà coupées depuis `6f75bfc` ; tout part dans le même build.
+
+
 L'écosystème officiel est `@ton/core`, `@ton/crypto` et `@ton/ton`. Deux points
 à vérifier AVANT de les ajouter :
 
@@ -280,22 +302,32 @@ BIP-39 déjà calculée ne sert à rien, et cela remonte jusqu'à `walletStore`.
   ajoutait `==` à la fin (50 caractères au lieu de 48), qu'aucun portefeuille
   n'accepte ; les tests ne comparaient jamais à une adresse réelle.
 - `crypto/slip10.ts` — SLIP-0010 ed25519, désormais partagé par Solana et TON.
+- `tonTransfer.ts` — construction et signature d'un transfert (message externe,
+  BOC) pour W5, v4R2 et v3R2 : déploiement au premier envoi, commentaire (y
+  compris long), plusieurs destinataires, réseau de test, envoi du solde entier.
+  **Identique octet pour octet** à `@ton/ton` sur sept cas de référence produits
+  avec le VRAI `@ton/crypto`. Refuse ce qui viserait un autre compte ou un autre
+  réseau : état initial qui ne redonne pas l'adresse, clé qui n'est pas celle du
+  compte, adresse de test sur le réseau principal, échéance en millisecondes.
+- `tonWalletCode.ts` — code des trois contrats, vérifié contre le hachage utilisé
+  pour les adresses.
 
 Tous les vecteurs sont dans `tonkeeper-vectors.json`, avec leur provenance dans
 `tonKeys.test.ts`. Aucun n'est calculé par le code testé.
 
-**Vérification manuelle, à faire une fois :** importer dans Tonkeeper la phrase
-de test publique BIP-39 de 24 mots (`abandon` × 23 puis `art`) et comparer
-l'adresse W5 affichée à celle du fichier de vecteurs. C'est une phrase connue de
-tous : ne jamais y envoyer de fonds.
+**Vérifié dans le vrai Tonkeeper (26/09).** La phrase de test publique BIP-39 de
+24 mots (`abandon` × 23 puis `art`), importée dans Tonkeeper, y affiche en W5
+`UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw` — exactement l'adresse du
+fichier de vecteurs. C'est la confirmation que ce document exigeait avant d'aller
+plus loin. (Phrase connue de tous : ne jamais y envoyer de fonds.)
 
 **Reste à faire, dans l'ordre.**
 
-1. Construire le message externe (BOC) et le `StateInit` du premier envoi. Ici le
-   code COMPLET du contrat devient nécessaire, et avec lui une sérialisation de
-   cellules complète : décider entre `@ton/core` (officiel, mais une dépendance —
-   voir §10) et une implémentation maison. Ne pas improviser une sérialisation
-   BOC : une erreur y fait refuser le message, ou pire.
+1. **Lecture de la chaîne** (adaptateur) : état du compte (actif / non déployé),
+   `seqno`, solde, diffusion du BOC, suivi de la transaction par le hachage du
+   message (§9 — attention, les explorateurs indexent le hachage NORMALISÉ,
+   TEP-467, pas celui du message tel qu'envoyé). Fournisseur à choisir : TON
+   Center demande une clé au-delà d'une requête par seconde.
 2. Import : accepter les phrases TON (refusées aujourd'hui, §1) et décider ce
    qu'est un portefeuille créé depuis une phrase TON — elle ne dérive ni EVM, ni
    Bitcoin, ni Solana de façon que d'autres portefeuilles reconnaissent. Même
