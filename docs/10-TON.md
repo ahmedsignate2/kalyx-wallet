@@ -327,6 +327,20 @@ BIP-39 déjà calculée ne sert à rien, et cela remonte jusqu'à `walletStore`.
 Tous les vecteurs sont dans `tonkeeper-vectors.json`, avec leur provenance dans
 `tonKeys.test.ts`. Aucun n'est calculé par le code testé.
 
+**Envoi RÉEL sur le réseau de test (26/09) — de bout en bout, avec l'adaptateur.**
+Portefeuille jetable (phrase BIP-39 générée et gardée hors du dépôt), alimenté
+par @testgiver_ton_bot, adresse `0QAHnB2FOTQY4Y7W7Yp33rvQz6fIEzZ8398pbTweyDrrEu_5` :
+
+| Étape | Résultat |
+|---|---|
+| Envoi 1 — compte non déployé | déploiement + transfert **confirmés en 3 s** ; le compte devient `wallet v5 r1`, seqno 1 |
+| Envoi 2 — compte actif | **confirmé en 6 s**, seqno 2, frais estimés par le nœud |
+| Historique | les deux envois avec leurs commentaires, et les reçus |
+
+Le suivi a retrouvé chaque transaction par son hachage normalisé, et en a lu les
+phases. Tout le chemin — dérivation BIP-39 → clé TON → adresse W5 → préparation
+→ signature → BOC → diffusion → suivi → historique — fonctionne sur la chaîne.
+
 **Vérifié dans le vrai Tonkeeper (26/09).** La phrase de test publique BIP-39 de
 24 mots (`abandon` × 23 puis `art`), importée dans Tonkeeper, y affiche en W5
 `UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw` — exactement l'adresse du
@@ -347,10 +361,14 @@ plus loin. (Phrase connue de tous : ne jamais y envoyer de fonds.)
    `IGNORE_ERRORS`, un envoi sans fonds est SAUTÉ en silence et la phase se dit
    réussie ; `skipped_actions` le trahit. Toujours NON enregistré.
    Formes de réponse relevées en direct, pas supposées (`tonCenter.ts`).
-   **Frais :** `estimateFee` du nœud + 0,001 TON de marge par destinataire (il
-   omet l'acheminement : relevé 540 668 nanotons sur une vraie transaction) ;
-   premier envoi : 0,01 TON fixe (l'estimation exigerait la clé publique, que la
-   préparation n'a pas). **Attention, vérifié :** `estimateFee` accepte aussi un
+   **Frais :** `estimateFee` du nœud + 0,001 TON de marge PRUDENTE par
+   destinataire ; premier envoi : 0,01 TON fixe (l'estimation exigerait la clé
+   publique, que la préparation n'a pas). Mesuré sur nos envois réels (réseau de
+   test) : l'estimation du nœud tombait juste à 0,1 % près (526 870 nanotons
+   réels) ; le déploiement a coûté 0,001 TON. La marge couvre ce qu'on ne peut pas
+   mesurer sans envoyer sur le réseau principal, où l'acheminement coûte environ
+   huit fois plus. Une première version de ce texte affirmait que le nœud
+   « omet l'acheminement » : ce n'était pas établi. **Attention, vérifié :** `estimateFee` accepte aussi un
    corps au seqno FAUX — une estimation réussie ne prouve PAS qu'un message est
    correct. La justesse du message repose sur l'identité octet pour octet avec
    `@ton/ton` (l'adaptateur reproduit le transfert de référence de bout en bout),

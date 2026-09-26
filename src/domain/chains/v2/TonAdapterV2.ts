@@ -75,15 +75,27 @@ export interface TonPayload {
 /** Échéance d'un message, en secondes après la signature. */
 const VALIDITY_SECONDS = 300;
 /**
- * Marge par message sortant : `estimateFee` n'inclut pas les frais
- * d'acheminement de l'action (relevé : `fwd_fee` à 0, alors qu'une transaction
- * réelle en a payé 540 668 nanotons). 0,001 TON couvre un transfert commenté.
+ * Marge par message sortant, par PRUDENCE — et voici exactement ce qu'on sait.
+ *
+ * Mesuré sur nos propres envois réels (réseau de test, 26/09, mode 3) : le coût
+ * réel pour l'envoyeur (frais de transaction + acheminement du message sortant)
+ * était de 526 870 nanotons, et l'estimation du nœud tombait juste à 0,1 % près
+ * — alors que son champ `fwd_fee` affiche 0. Ce qu'on ne peut PAS mesurer sans
+ * envoyer sur le réseau principal : si l'estimation y reste aussi juste, alors
+ * que l'acheminement y coûte environ HUIT fois plus (540 668 nanotons relevés
+ * sur une transaction réelle, contre 66 667 sur le réseau de test).
+ *
+ * 0,001 TON couvre cet écart éventuel. Surestimer ne coûte qu'un peu de marge
+ * au bouton « Max » ; sous-estimer ferait échouer un envoi. L'émulation TonAPI
+ * donnera le chiffre exact en production.
  */
 const FORWARD_FEE_MARGIN = 1_000_000n;
 /**
  * Premier envoi d'un compte non déployé : l'estimation par le nœud exigerait
  * l'état initial, donc la clé publique, que la préparation n'a pas. Estimation
- * PRUDENTE et fixe, à remplacer par l'émulation TonAPI en production.
+ * fixe et PRUDENTE : le déploiement réel a coûté 1 000 270 nanotons sur le réseau
+ * de test (0,001 TON) ; le réseau principal achemine plus cher. À remplacer par
+ * l'émulation TonAPI en production.
  */
 const DEPLOY_FEE_ESTIMATE = 10_000_000n;
 /** Délai entre deux sondages du suivi (TON Center sans clé : une requête par seconde). */
