@@ -15,9 +15,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, Easing, StyleSheet, Dimensions } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system/legacy';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import { Button } from '../ui/components';
-import { Icon } from '../ui/icon';
+import { Icon, type IconName } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { toast } from '../lib/toast';
 import { useT } from '../lib/settingsStore';
@@ -36,6 +37,45 @@ if (requireOptionalNativeModule('ExpoCamera')) {
   }
 }
 const CAMERA_OK = !!cameraMod;
+
+/**
+ * Lit un QR dans une IMAGE du presse-papiers.
+ *
+ * `expo-camera` sait déjà décoder une image (`scanFromURLAsync`) : il n'y avait
+ * rien de natif à ajouter, seulement un moyen de désigner l'image. Le
+ * presse-papiers en est un, et il a l'avantage de ne rien coûter — ouvrir la
+ * galerie exigerait un module natif de plus, donc un rebuild, et couperait les
+ * mises à jour OTA du build en cours.
+ *
+ * L'image est écrite dans un fichier temporaire plutôt que passée en URI de
+ * données : `scanFromURLAsync` attend une URL de fichier, et une URI de données
+ * marche selon les plateformes. Le fichier est supprimé ensuite — une capture de
+ * QR peut porter une demande de paiement, elle n'a rien à faire dans le cache.
+ */
+async function readQrFromClipboardImage(): Promise<
+  { kind: 'ok'; data: string } | { kind: 'no-image' } | { kind: 'no-qr' } | { kind: 'unavailable' }
+> {
+  if (!cameraMod?.scanFromURLAsync) return { kind: 'unavailable' };
+  const has = await Clipboard.hasImageAsync().catch(() => false);
+  if (!has) return { kind: 'no-image' };
+  const img = await Clipboard.getImageAsync({ format: 'png' }).catch(() => null);
+  if (!img?.data) return { kind: 'no-image' };
+
+  // `data` arrive préfixé « data:image/png;base64, » : on ne garde que la charge.
+  const base64 = img.data.replace(/^data:image\/[a-z+]+;base64,/i, '');
+  const path = `${FileSystem.cacheDirectory}kalyx-qr-scan.png`;
+  try {
+    await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 });
+    const found = await cameraMod.scanFromURLAsync(path, ['qr']);
+    const first = found?.[0]?.data;
+    return first ? { kind: 'ok', data: first } : { kind: 'no-qr' };
+  } catch {
+    return { kind: 'no-qr' };
+  } finally {
+    // Sans attendre : l'échec d'un nettoyage ne doit pas retarder l'écran.
+    void FileSystem.deleteAsync(path, { idempotent: true }).catch(() => {});
+  }
+}
 
 export default function Scan() {
   const t = useT();
@@ -93,6 +133,15 @@ function Scanner() {
     locked.current = true;
     setResult(parseQr(text));
   };
+  /* Lire le QR d'une capture d'écran, sans avoir à le viser. */
+  const fromImage = async () => {
+    const r = await readQrFromClipboardImage();
+    if (r.kind === 'no-image') return toast.info(t('scanNoImage'));
+    if (r.kind === 'no-qr') return toast.info(t('scanNoQrInImage'));
+    if (r.kind === 'unavailable') return toast.info(t('scanNoQrInImage'));
+    locked.current = true;
+    setResult(parseQr(r.data));
+  };
 
   if (!permission) return <View style={{ flex: 1, backgroundColor: '#000' }} />;
 
@@ -110,6 +159,14 @@ function Scanner() {
         <Button label={t('allow')} onPress={requestPermission} />
         <KPressable onPress={paste} style={{ marginTop: spacing(2) }}>
           <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('pasteFromClipboard')}</Text>
+        </KPressable>
+        {/*
+          Caméra refusée : lire une capture d'écran reste possible, et c'est
+          souvent la seule voie qui reste pour payer. La proposer ici évite un
+          cul-de-sac.
+        */}
+        <KPressable onPress={fromImage} style={{ marginTop: spacing(1.5) }}>
+          <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('scanFromImage')}</Text>
         </KPressable>
       </View>
     );
@@ -133,6 +190,7 @@ function Scanner() {
       <View style={styles.toolbar}>
         <ToolButton icon={torch ? 'flash' : 'flashOff'} label={t('torchLabel')} active={torch} onPress={() => setTorch((v) => !v)} />
         <ToolButton icon="copy" label={t('paste')} onPress={paste} />
+        <ToolButton icon="image" label={t('scanFromImage')} onPress={fromImage} />
       </View>
 
       {result ? <ResultSheet result={result} onAct={act} onRescan={rescan} /> : null}
@@ -209,7 +267,7 @@ function ScanFrame() {
   );
 }
 
-function ToolButton({ icon, label, active, onPress }: { icon: 'flash' | 'flashOff' | 'copy'; label: string; active?: boolean; onPress: () => void }) {
+function ToolButton({ icon, label, active, onPress }: { icon: IconName; label: string; active?: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   return (
