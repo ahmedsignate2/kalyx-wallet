@@ -3,7 +3,7 @@
  * simulation obligatoire → diffusion → attente de confirmation (poll).
  * Ne résout QUE si la chaîne a confirmé ; lève sinon avec un message clair.
  */
-import { getAdapter, SolanaChainAdapter } from '../src';
+import { getAdapter, SolanaChainAdapter, WalletError } from '../src';
 
 export type SolanaSubmitStatus = 'sending' | 'confirming';
 
@@ -39,7 +39,9 @@ export async function submitSolanaSigned(
   if (sim?.value?.err) throw new Error(friendlySolanaSimError(sim.value.err, sim.value.logs ?? []));
 
   const hash = await rpc.rpc<string>('sendTransaction', [signedBase64, { encoding: 'base64', maxRetries: 3 }]);
-  if (!hash) throw new Error('Diffusion refusée par le réseau Solana');
+  // `WalletError` et non `Error` nu : le code est ce qui permet de traduire.
+  // Une phrase française jetée ici ressortait telle quelle dans toutes les langues.
+  if (!hash) throw new WalletError('BROADCAST_FAILED', 'Diffusion refusée par le réseau Solana');
 
   onStatus?.('confirming');
   const deadline = Date.now() + (opts.confirmTimeoutMs ?? 75_000);

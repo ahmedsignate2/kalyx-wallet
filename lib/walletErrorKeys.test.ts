@@ -49,3 +49,44 @@ describe('friendlyTxError — tous les codes du portefeuille sont traduits', () 
     expect(message).toBe('Détail technique précis');
   });
 });
+
+describe('friendlyTxError — aucune fuite de langue', () => {
+  const t = (key: string) => `T:${key}`;
+
+  /*
+   * LA FUITE SUPPRIMÉE. Une liste blanche renvoyait certains messages français
+   * TELS QUELS, dans les quinze langues — le commentaire l'assumait, et ça ne
+   * marchait qu'en français.
+   */
+  it('un message français rédigé à la main ne ressort plus tel quel', () => {
+    for (const m of [
+      'Solde insuffisant pour couvrir le montant',
+      'Simulation refusée par le réseau',
+      'Diffusion refusée par le réseau Solana',
+      'Confirmation non reçue',
+      'L’autorisation a expiré',
+    ]) {
+      const out = friendlyTxError(new Error(m), t as never);
+      expect(out).toBe('T:errGenericTxFail');
+      expect(out).not.toContain('Solde');
+      expect(out).not.toContain('refusée');
+    }
+  });
+
+  /*
+   * Le repli accolait cinquante caractères du message BRUT à la phrase traduite —
+   * souvent du français, parfois un fragment de JSON-RPC. Le détail vit dans le
+   * journal technique, pas à l'écran.
+   */
+  it('le repli générique ne colle plus un extrait du message brut', () => {
+    const out = friendlyTxError(new Error('quelque chose d’imprévu côté serveur'), t as never);
+    expect(out).toBe('T:errGenericTxFail');
+    expect(out).not.toContain('imprévu');
+  });
+
+  /** Les cas reconnus gardent leur message précis, traduit. */
+  it('un cas reconnu reste précis', () => {
+    expect(friendlyTxError(new Error('insufficient funds for gas'), t as never)).toBe('T:errInsufficientFunds');
+    expect(friendlyTxError(new Error('user rejected the request'), t as never)).toBe('T:errUserRejected');
+  });
+});

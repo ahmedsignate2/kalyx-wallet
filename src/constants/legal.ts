@@ -16,7 +16,7 @@ export const LEGAL_CONSTANTS = {
   PRIVACY_POLICY_URL: process.env.EXPO_PUBLIC_PRIVACY_URL || 'https://kalyxwallet.com/privacy',
   TERMS_OF_SERVICE_URL: process.env.EXPO_PUBLIC_TERMS_URL || 'https://kalyxwallet.com/terms',
   WEBSITE_URL: process.env.EXPO_PUBLIC_WEBSITE_URL || 'https://kalyxwallet.com',
-  GITHUB_URL: process.env.EXPO_PUBLIC_GITHUB_URL || 'https://github.com/ahmedsignate2/kalyx-wallet-release',
+  GITHUB_URL: process.env.EXPO_PUBLIC_GITHUB_URL || 'https://github.com/ahmedsignate2/kalyx-wallet.git',
   TELEGRAM_URL: 'https://t.me/kalyxntw',
   X_URL: 'https://x.com/kalyxntw',
 } as const;
