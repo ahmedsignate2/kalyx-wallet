@@ -223,6 +223,7 @@ export {
   type PayActionCheck,
   type PayRefusal,
 } from './domain/pay/payChains';
+export { decideNoOption, type NoOptionAction, type NoOptionInput } from './domain/pay/payFlow';
 
 // Solana Pay — requêtes de transaction (pur, `fetch` injecté)
 export {
