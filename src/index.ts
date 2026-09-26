@@ -132,7 +132,16 @@ export { alertTriggered, type PriceAlert } from './domain/alerts/priceAlerts';
 // Export CSV des transactions
 export { transactionsToCsv, type CsvContext } from './domain/export/txCsv';
 // Export manuel chiffré de la seed
-export { createBackup, restoreBackup, BACKUP_VERSION, type BackupEnvelope } from './domain/backup/cloudBackup';
+export {
+  createBackup,
+  createWalletsBackup,
+  restoreBackup,
+  backupWalletCount,
+  BACKUP_VERSION,
+  type BackupEnvelope,
+  type BackupWallet,
+  type BackupError,
+} from './domain/backup/cloudBackup';
 export {
   parseTransferFeeConfig,
   transferFeeFor,
