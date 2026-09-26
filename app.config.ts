@@ -171,6 +171,24 @@ const config: ExpoConfig = {
           'Kalyx utilise la caméra pour scanner les QR codes : adresses de paiement et connexions WalletConnect.',
       },
     ],
+    /*
+      Choix d'une image pour y lire un QR — actif au prochain rebuild EAS.
+
+      `photosPermission` porte la RAISON, et c'est ce qu'Android et iOS montrent
+      à l'utilisateur au moment de la demande : « accès aux photos » sans motif
+      est refusé, à juste titre.
+
+      Pas d'accès en écriture, pas de caméra via ce plugin, et aucune permission
+      Android 13+ au-delà de READ_MEDIA_IMAGES : on lit UNE image que
+      l'utilisateur désigne lui-même.
+    */
+    [
+      'expo-image-picker',
+      {
+        photosPermission:
+          'Kalyx accède à une photo que tu choisis pour y lire un QR code de paiement. Aucune autre image n’est lue.',
+      },
+    ],
     // Ledger BLE (react-native-ble-plx) — actif au prochain rebuild EAS.
     // `neverForLocation: true` : le scan Bluetooth sert UNIQUEMENT à trouver un
     // Ledger, jamais à géolocaliser. Sans ce flag, le plugin ajoute
