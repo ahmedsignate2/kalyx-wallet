@@ -16,6 +16,7 @@ import type { ChainConfig } from '../types';
 import { EvmAdapterV2 } from './EvmAdapterV2';
 import { BitcoinAdapterV2 } from './BitcoinAdapterV2';
 import { SolanaAdapterV2 } from './SolanaAdapterV2';
+import { TonAdapterV2 } from './TonAdapterV2';
 import type { ChainAdapterV2 } from './types';
 
 const cache = new Map<string, ChainAdapterV2>();
@@ -29,6 +30,8 @@ function create(config: ChainConfig): ChainAdapterV2 {
       return new BitcoinAdapterV2(config);
     case 'solana':
       return new SolanaAdapterV2(config);
+    case 'ton':
+      return new TonAdapterV2(config);
     default:
       throw new Error(`Famille de chaîne non supportée en v2 : ${config.family}`);
   }

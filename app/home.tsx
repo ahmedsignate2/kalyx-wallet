@@ -26,6 +26,7 @@ import { FadeInUp } from '../ui/FadeInUp';
 import { cascadeDelay } from '../ui/motion';
 import { Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AddressGlyph, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../ui/kit';
 import { useWallet } from '../lib/walletStore';
+import { addressForChain } from '../lib/accountAddress';
 import { accountDisplayName } from '../lib/walletNames';
 import { useSettings, useT, useActivityT, fiatSymbol } from '../lib/settingsStore';
 import { useNotifCenter, unreadCount } from '../lib/notificationCenter';
@@ -42,6 +43,7 @@ import {
   useAnyHistoryLoading,
   useAnyHistoryFetched,
   aggregateHistory,
+  type HistoryChain,
 } from '../lib/historyStore';
 
 const HIDE_KEY = 'kalyx.hideBalance';
@@ -92,7 +94,10 @@ export default function Home() {
   const locale = LANG_LOCALES[language] || 'en-US';
   const unread = useNotifCenter((s) => unreadCount(s.items));
   const stored = accounts.find((a) => a.index === activeAccountIndex) ?? accounts[0];
-  const acct = useMemo(() => (stored ? { evmAddress: stored.evmAddress, solAddress: stored.solAddress, btcAddress: stored.btcAddress } : null), [stored]);
+  const acct = useMemo(
+    () => (stored ? { evmAddress: stored.evmAddress, solAddress: stored.solAddress, btcAddress: stored.btcAddress, tonPublicKey: stored.tonPublicKey, tonVersion: stored.tonVersion } : null),
+    [stored],
+  );
 
   const periodLabels: Record<Period, string> = {
     '1J': t('period1D'),
@@ -169,11 +174,7 @@ export default function Home() {
    * d'attendre le plus lent.
    */
   const historyChains = useMemo(() => listChains({ includeTestnets: false }), []);
-  const historyAddressFor = useCallback(
-    (family: string) =>
-      family === 'solana' ? acct?.solAddress : family === 'bitcoin' ? acct?.btcAddress : acct?.evmAddress,
-    [acct?.evmAddress, acct?.solAddress, acct?.btcAddress],
-  );
+  const historyAddressFor = useCallback((chain: HistoryChain) => addressForChain(acct, chain) || undefined, [acct]);
   const historyCache = useHistoryCache();
   const recent = useMemo(
     () => aggregateHistory(historyCache, historyChains, historyAddressFor).slice(0, 5),
@@ -190,7 +191,7 @@ export default function Home() {
      * injoignable ne doit priver l'écran ni des autres, ni du cache.
      */
     for (const chain of historyChains) {
-      const address = historyAddressFor(chain.family);
+      const address = historyAddressFor(chain);
       if (address) void fetchHistory(chain.id, address).catch(() => {});
     }
   }, [account, historyChains, historyAddressFor, fetchHistory]);
@@ -227,7 +228,7 @@ export default function Home() {
       await Promise.all([
         pf.refresh(acct, fiat, { force: true }),
         ...historyChains.map((chain) => {
-          const address = historyAddressFor(chain.family);
+          const address = historyAddressFor(chain);
           return address ? fetchHistory(chain.id, address).catch(() => {}) : Promise.resolve();
         }),
       ]);

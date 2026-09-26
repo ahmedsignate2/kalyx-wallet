@@ -68,9 +68,16 @@ const DEST_ACTIVE_EQ = KEYS.keys[4].v4r2.eq; // EQ… : rebondissante
 
 // ---------------------------------------------------------------- tests
 describe('TonAdapterV2 — enregistrement', () => {
-  it('toujours aucune chaîne TON enregistrée (l’activation est une étape à part)', () => {
-    expect(listChains({ includeTestnets: true }).some((c) => c.family === 'ton')).toBe(false);
-    expect(findAdapterV2('ton')).toBeNull();
+  /*
+   * Activation du 26/09 : TON est enregistré sur le RÉSEAU DE TEST, et nulle part
+   * ailleurs. Le réseau principal attend son fournisseur de production (TonAPI).
+   */
+  it('TON est enregistré sur le réseau de test, et seulement lui', () => {
+    const ton = listChains({ includeTestnets: true }).filter((c) => c.family === 'ton');
+    expect(ton.map((c) => c.id)).toEqual(['ton-testnet']);
+    expect(ton[0].testnet).toBe(true);
+    expect(listChains({ includeTestnets: false }).some((c) => c.family === 'ton')).toBe(false);
+    expect(findAdapterV2('ton-testnet')).toBeInstanceOf(TonAdapterV2);
   });
 
   it('refuse une configuration qui n’est pas TON', () => {

@@ -66,14 +66,13 @@ import {
   classifyRecoveryPhrase,
   resolveTonKey,
   tonPublicKeyFromPhrase,
-  tonWalletAddress,
-  formatTonAddress,
   TON_DEFAULT_WALLET_VERSION,
   TON_BIP39_PATH,
   type RecoveryPhraseKind,
   type ChainConfig,
 } from '../src';
 import { technicalLogger } from './technicalLogger';
+import { addressForChain } from './accountAddress';
 import {
   saveVault,
   loadVault,
@@ -470,17 +469,8 @@ function toAccount(accounts: StoredAccount[], activeIndex: number, chainId: stri
   if (!a) return null;
   const config = chainConfig(chainId);
   const family = config.family;
-  if (family === 'ton') {
-    // L'adresse TON se recalcule depuis la clé publique : elle dépend de la
-    // version du contrat ET du réseau (la W5 du réseau de test est une autre adresse).
-    const testnet = !!config.testnet;
-    const address = a.tonPublicKey
-      ? formatTonAddress(tonWalletAddress(hexToBytes(a.tonPublicKey), a.tonVersion ?? TON_DEFAULT_WALLET_VERSION, { testnet }), { bounceable: false, testnet })
-      : '';
-    return { chain: chainId, address, index: a.index, path: TON_BIP39_PATH };
-  }
-  const address = family === 'bitcoin' ? a.btcAddress : family === 'solana' ? a.solAddress ?? '' : a.evmAddress;
-  const path = family === 'bitcoin' ? btcPath(a.index) : family === 'solana' ? solPath(a.index) : evmPath(a.index);
+  const address = addressForChain(a, config);
+  const path = family === 'ton' ? TON_BIP39_PATH : family === 'bitcoin' ? btcPath(a.index) : family === 'solana' ? solPath(a.index) : evmPath(a.index);
   return { chain: chainId, address, index: a.index, path };
 }
 

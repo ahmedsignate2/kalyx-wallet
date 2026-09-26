@@ -34,10 +34,11 @@ import {
   getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isWalletAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
   formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
   estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter,
-  findAdapterV2, transferFeeFor, amountAfterTransferFee,
+  findAdapterV2, getAdapterV2, isValidTonAddress, transferFeeFor, amountAfterTransferFee,
   type FeeOptions, type FeeSpeed, type FeeQuotes, type TransferFeeConfig,
   simulateSendTransaction, type SimulationResult,
 } from '../src';
+import { addressForChain } from '../lib/accountAddress';
 import { AntiDrainerBanner } from '../src/components/security/AntiDrainerBanner';
 
 type Step = 0 | 1 | 2 | 3 | 4;
@@ -80,7 +81,7 @@ export default function Send() {
 
   const targetChainId = picked?.chainId ?? (params.chain && hasChain(String(params.chain)) ? String(params.chain) : activeChain);
   const chain = getAdapter(targetChainId).config;
-  const family = chain.family as RecipientFamily;
+  const family: RecipientFamily = chain.family;
 
   useEffect(() => {
     if (targetChainId !== activeChain) {
@@ -89,12 +90,8 @@ export default function Send() {
   }, [targetChainId, activeChain, setActiveChain]);
 
   const activeSt = accounts.find((a) => a.index === wallet.activeAccountIndex) ?? accounts[0];
-  const senderAddress = useMemo(() => {
-    if (!activeSt) return '';
-    if (family === 'bitcoin') return activeSt.btcAddress;
-    if (family === 'solana') return activeSt.solAddress ?? '';
-    return activeSt.evmAddress;
-  }, [activeSt, family]);
+  // La fonction unique : sans elle, un envoi TON serait parti de l'adresse EVM.
+  const senderAddress = useMemo(() => addressForChain(activeSt, chain), [activeSt, chain]);
 
   const recents = useRecentRecipients((s) => s.recents).filter((r) => r.family === family);
   const addRecent = useRecentRecipients((s) => s.add);
@@ -147,7 +144,7 @@ export default function Send() {
   useEffect(() => {
     const st = accounts.find((a) => a.index === wallet.activeAccountIndex) ?? accounts[0];
     if (!st) return;
-    const a = { evmAddress: st.evmAddress, solAddress: st.solAddress, btcAddress: st.btcAddress };
+    const a = { evmAddress: st.evmAddress, solAddress: st.solAddress, btcAddress: st.btcAddress, tonPublicKey: st.tonPublicKey, tonVersion: st.tonVersion };
     pf.hydrate(a, fiat).then(() => pf.refresh(a, fiat, { includeTestnets: showTestnets, force: true }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet.activeAccountIndex, fiat, showTestnets]);
@@ -155,9 +152,30 @@ export default function Send() {
   const [addressError, setAddressError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
   const [pickContact, setPickContact] = useState(false);
+  /*
+   * COMMENTAIRE saisi par l'utilisateur, quand la chaîne en porte un. Les
+   * plateformes d'échange l'exigent pour attribuer un dépôt TON : sans champ, un
+   * dépôt partait sans propriétaire. Un lien de paiement qui fixe déjà le mémo
+   * garde la main — l'écran l'affiche sans le rendre modifiable.
+   */
+  const [comment, setComment] = useState('');
+  const memoCapable = !!findAdapterV2(targetChainId)?.capabilities.memo;
+  const memo = params.memo ? String(params.memo) : comment.trim() || undefined;
 
   // ── Adresse valide selon la famille ──
-  const validAddress = useCallback((a: string) => (family === 'evm' ? isValidEvmAddress(a) : family === 'solana' ? isValidSolanaAddress(a) : isValidBtcAddress(a)), [family]);
+  /*
+   * Une validation PAR FAMILLE, sans cas par défaut. Le ternaire précédent
+   * retombait sur Bitcoin : une adresse TON aurait été jugée selon la règle
+   * Bitcoin — donc refusée, ou pire, une adresse Bitcoin acceptée pour TON.
+   */
+  const validAddress = useCallback((a: string) => {
+    switch (family) {
+      case 'evm': return isValidEvmAddress(a);
+      case 'solana': return isValidSolanaAddress(a);
+      case 'bitcoin': return isValidBtcAddress(a);
+      case 'ton': return isValidTonAddress(a, { testnet: !!chain.testnet });
+    }
+  }, [family, chain.testnet]);
 
   // ── ENS ──
   const isEns = family === 'evm' && looksLikeEnsName(to.trim());
@@ -180,7 +198,8 @@ export default function Send() {
   const recipientOk = !!recipient && validAddress(recipient);
 
   // ── Confiance : mes comptes + récents + contacts ──
-  const known = useMemo(() => [...accounts.flatMap((a) => [a.evmAddress, a.solAddress ?? '', a.btcAddress]).filter(Boolean), ...recents.map((r) => r.address), ...contacts.map((c) => c.address)], [accounts, recents, contacts]);
+  // Mes adresses sur CE réseau aussi (TON se calcule) : s'envoyer à soi-même n'est pas « une adresse jamais utilisée ».
+  const known = useMemo(() => [...accounts.flatMap((a) => [a.evmAddress, a.solAddress ?? '', a.btcAddress, addressForChain(a, chain)]).filter(Boolean), ...recents.map((r) => r.address), ...contacts.map((c) => c.address)], [accounts, recents, contacts, chain]);
   const poisoning = recipientOk ? detectPoisoning(recipient, known) : null;
   const isKnown = recipientOk && known.some((k) => k.toLowerCase() === recipient.toLowerCase());
   const contactName = contacts.find((c) => c.address.toLowerCase() === recipient.toLowerCase())?.name;
@@ -418,7 +437,7 @@ export default function Send() {
        */
       const payExtras = {
         references: params.references ? String(params.references).split(',').filter(Boolean) : undefined,
-        memo: params.memo ? String(params.memo) : undefined,
+        memo,
       };
       const gas = {
         ...(feeOptions
@@ -467,6 +486,14 @@ export default function Send() {
             if (s?.confirmationStatus) setStage('included');
             if (s?.confirmationStatus === 'confirmed' || s?.confirmationStatus === 'finalized') break;
           }
+        } else if (chain.family === 'ton') {
+          /*
+           * TON : l'adaptateur retrouve la transaction par le hachage normalisé
+           * du message et lit ses phases — pas de « diffusé donc réussi ». Un
+           * envoi sauté faute de fonds, ou expiré, est un échec.
+           */
+          const st = await getAdapterV2(activeChain).waitForTx(hash);
+          if (st.status !== 'confirmed') throw new Error(st.status === 'failed' ? st.reason ?? 'failed' : st.status);
         } else {
           return; // Bitcoin : pas de suivi in-app (v1)
         }
@@ -491,7 +518,7 @@ export default function Send() {
     setAddressError(null);
     if (!recipientOk) {
       technicalLogger.logTx('step_1_address_invalid', { input: to, isEns, chain: chain.name }, true);
-      const fam = family === 'evm' ? t("errNeedEvmAddress") : family === 'solana' ? t("errNeedSolAddress") : t("errNeedBtcAddress");
+      const fam = family === 'evm' ? t("errNeedEvmAddress") : family === 'solana' ? t("errNeedSolAddress") : family === 'ton' ? t("errNeedTonAddress") : t("errNeedBtcAddress");
       return setAddressError(isEns && ens.status === 'resolving' ? t("errResolvingEns") : isEns ? t("errEnsNotFound") : t('errNeedAddressFull').replace('${symbol}', symbol).replace('${chain.name}', chain.name).replace('${fam}', fam));
     }
     if (poisoning) {
@@ -698,6 +725,14 @@ export default function Send() {
             */}
             {isSolanaPda ? <Text variant="caption" tone="warning">{t('solanaPdaWarning')}</Text> : null}
             {contactName ? <Text variant="caption" tone="secondary">{t("contactLabel").replace("${contactName}", contactName)}</Text> : null}
+
+            {memoCapable && !params.memo ? (
+              <View style={{ gap: space[1] }}>
+                <Text variant="caption" tone="secondary">{t('commentLabel')}</Text>
+                <Input placeholder={t('commentPlaceholder')} value={comment} onChangeText={setComment} autoCapitalize="none" maxLength={120} />
+                {family === 'ton' ? <Text variant="caption" tone="tertiary">{t('commentHint')}</Text> : null}
+              </View>
+            ) : null}
 
             {recents.length > 0 ? (
               <View style={{ gap: space[2] }}>

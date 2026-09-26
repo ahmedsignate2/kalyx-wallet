@@ -1,4 +1,5 @@
 import { useWallet } from './walletStore';
+import { addressForChain } from './accountAddress';
 import { useSettings } from './settingsStore';
 import { useBrowserStore } from './browserStore';
 import { useDappActivity } from './dappActivity';
@@ -80,7 +81,7 @@ export function getCopilotContextSnapshot(): CopilotWalletContext {
       }),
     recentActivity: [
       ...listChains({ includeTestnets: settings.showTestnets }).flatMap((network) => {
-        const address = network.family === 'solana' ? account?.solAddress : network.family === 'bitcoin' ? account?.btcAddress : account?.evmAddress;
+        const address = addressForChain(account, network);
         if (!address) return [];
         return history.getCached(network.id, address).map((tx) => ({
           id: tx.hash,

@@ -2,6 +2,7 @@ import { fetchAddressTransactions, type PublicChainTransaction } from './explore
 import { searchWeb, type WebSearchResult } from './webSearch';
 import { copilotLog, copilotError } from './copilotLogger';
 import { useWallet } from './walletStore';
+import { addressForChain } from './accountAddress';
 import { getAdapter } from '../src';
 import { maskId } from './copilotContext';
 import { requestBillableCall, rememberResult, TOOL_TIMEOUT_MS } from './aiToolBudget';
@@ -104,8 +105,7 @@ export async function executeCopilotTool(name: string, args: unknown): Promise<P
   // Adresse du compte actif, résolue ici : le modèle ne la reçoit jamais en clair.
   const wallet = useWallet.getState();
   const account = wallet.accounts.find((a) => a.index === wallet.activeAccountIndex) ?? wallet.accounts[0];
-  const family = getAdapter(input.network).config.family;
-  const address = family === 'solana' ? account?.solAddress : family === 'bitcoin' ? account?.btcAddress : account?.evmAddress;
+  const address = addressForChain(account, getAdapter(input.network).config);
   if (!address) throw new Error('Aucun compte actif pour ce réseau.');
   try {
     const result = await withTimeout(fetchAddressTransactions(address, input.network));

@@ -65,7 +65,7 @@ export function shortAddress(address: string, head = 6, tail = 4): string {
  * n'a aucun moyen de savoir pourquoi le nom qu'il vient de choisir est rejeté.
  * Mieux vaut ne pas le lui proposer.
  */
-export type AddressFamily = 'evm' | 'solana' | 'bitcoin';
+export type AddressFamily = 'evm' | 'solana' | 'bitcoin' | 'ton';
 
 /**
  * Familles pour lesquelles cette adresse est valide.
@@ -80,6 +80,12 @@ export function addressFamilies(
     evm: (a: string) => boolean;
     solana: (a: string) => boolean;
     bitcoin: (a: string) => boolean;
+    /*
+     * Obligatoire, pas optionnel : oublier TON ici faisait juger « invalide »
+     * toute adresse TON du carnet de contacts. Aucun recouvrement avec les autres
+     * écritures (48 caractères base64url, ou `0:` suivi de 64 hexadécimaux).
+     */
+    ton: (a: string) => boolean;
   },
 ): AddressFamily[] {
   const a = (address ?? '').trim();
@@ -88,5 +94,6 @@ export function addressFamilies(
   if (check.evm(a)) out.push('evm');
   if (check.solana(a)) out.push('solana');
   if (check.bitcoin(a)) out.push('bitcoin');
+  if (check.ton(a)) out.push('ton');
   return out;
 }

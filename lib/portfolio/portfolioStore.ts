@@ -21,7 +21,9 @@ import {
   KNOWN_MINTS,
   SolanaChainAdapter,
   type ChainConfig,
+  type TonWalletVersion,
 } from '../../src';
+import { addressForChain } from '../accountAddress';
 import { safeNum } from '../earn/earnStore';
 import { usePortfolio as useLegacyPortfolio } from '../portfolioStore';
 import { aura } from '../aura';
@@ -57,6 +59,9 @@ export interface PortfolioAccount {
   evmAddress: string;
   solAddress?: string;
   btcAddress?: string;
+  /** Clé publique TON (hex) : l'adresse TON dépend du réseau, elle se calcule par chaîne. */
+  tonPublicKey?: string;
+  tonVersion?: TonWalletVersion;
 }
 
 interface Snapshot {
@@ -80,7 +85,12 @@ interface PortfolioState extends Snapshot {
 
 const VALUE_CHAINS: ChainConfig[] = listChains({ includeTestnets: false }).filter((c) => c.coingeckoId);
 const STALE_MS = 45_000;
-const cacheKey = (a: PortfolioAccount, fiat: string) => `kalyx.portfolio.${a.evmAddress.toLowerCase()}.${fiat}`;
+/*
+ * Clé du cache : l'adresse EVM, ou à défaut la clé TON. Un portefeuille ouvert
+ * par une phrase TON n'a PAS d'adresse EVM : avec la seule adresse EVM, tous ces
+ * portefeuilles auraient partagé le même cache, « kalyx.portfolio..eur ».
+ */
+const cacheKey = (a: PortfolioAccount, fiat: string) => `kalyx.portfolio.${(a.evmAddress || `ton:${a.tonPublicKey ?? ''}`).toLowerCase()}.${fiat}`;
 
 function serialize(s: Snapshot): string {
   return JSON.stringify({ ...s, holdings: s.holdings.map((h) => ({ ...h, raw: h.raw.toString() })) });
@@ -136,8 +146,8 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
   /** Soldes natifs bruts : la conversion en devise attend les prix, pas la lecture. */
   const rawNativesP = Promise.all(
     chains.map(async (chain) => {
-      const address =
-        chain.family === 'bitcoin' ? acct.btcAddress : chain.family === 'solana' ? acct.solAddress : acct.evmAddress;
+      // La fonction unique : sans elle, TON aurait interrogé TON Center avec l'adresse EVM.
+      const address = addressForChain(acct, chain);
       if (!address) return null;
       try {
         const raw = (await getAdapter(chain.id).getBalance(address)).raw;
