@@ -35,7 +35,8 @@ export type IconName =
   // Nouveaux (bible)
   | 'sign' | 'back' | 'caretDown' | 'checkmark' | 'lock' | 'alert' | 'errorCircle' | 'clock'
   | 'incognito' | 'desktop' | 'broom' | 'tabs' | 'caretLeft' | 'bulb'
-  | 'xLogo' | 'telegramLogo' | 'githubLogo' | 'gear';
+  | 'xLogo' | 'telegramLogo' | 'githubLogo' | 'gear'
+  | 'image';
 
 const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   home: { icon: HouseIcon },
@@ -115,6 +116,9 @@ const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   telegramLogo: { icon: TelegramLogoIcon },
   githubLogo: { icon: GithubLogoIcon },
   gear: { icon: GearSixIcon },
+  // Même glyphe que `nft` : c'est une image dans les deux cas, et « nft »
+  // ne veut rien dire sur un bouton « lire une image ».
+  image: { icon: ImageIcon },
 };
 
 export function Icon({
