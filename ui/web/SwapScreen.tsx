@@ -23,7 +23,7 @@ import { useT } from '../../lib/settingsStore';
 import { useTokenStore, type Tok } from '../../lib/tokenStore';
 import { useWebConnect } from '../../lib/webConnect';
 import { submitSolanaSigned } from '../../lib/solanaSubmit';
-import { friendlyTxError } from '../../lib/txError';
+import { UserFacingError, friendlyTxError } from '../../lib/txError';
 import {
   getAdapter, getErc20Tokens, getBestQuote, parseAmount, formatTokenAmount, formatInputAmount, formatFiat, isWalletError,
   NATIVE_TOKEN, estimateGasReserve, type GasReserve, type SwapQuote, EvmChainAdapter, SolanaChainAdapter, type ChainConfig,
@@ -277,7 +277,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
           setStep(t('stApprovalWait'));
           await adapter.waitForTx(approveHash);
           const seen = await adapter.waitForAllowance(q.fromToken.address, address, q.approvalAddress, q.fromAmount);
-          if (!seen) throw new Error(tw('allowanceNotVisible'));
+          if (!seen) throw new UserFacingError(tw('allowanceNotVisible'));
         }
       }
       setStep(t('stSwapping'));
@@ -290,10 +290,10 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       setStep(t('stSwapping'));
       const res: unknown = await request('solana_signTransaction', [{ transaction: q.tx.data }]);
       const signed = pick<string>(res, ['transaction']) ?? (typeof res === 'string' ? res : undefined);
-      if (!signed) throw new Error(tw('phoneNoSignedTx'));
+      if (!signed) throw new UserFacingError(tw('phoneNoSignedTx'));
       return submitSolanaSigned(signed, (st) => setStep(t(st === 'sending' ? 'stSwapping' : 'stConfirming')));
     }
-    throw new Error(tw('swapIncompatible', { type: q.tx.type }));
+    throw new UserFacingError(tw('swapIncompatible', { type: q.tx.type }));
   };
 
   const onConfirm = async () => {

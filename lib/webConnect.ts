@@ -63,13 +63,25 @@ const METHOD_LABELS: Record<string, string> = {
   bitcoin_signMessage: 'Signature de message',
 };
 
+/**
+ * Raison d'un échec de connexion, sous forme de CODE.
+ *
+ * C'était une phrase, écrite en français dans ce fichier et affichée telle quelle
+ * par le tableau de bord — donc en français dans les quinze langues. Le message
+ * brut du SDK WalletConnect passait aussi directement à l'écran : « No matching
+ * key. session topic doesn't exist » n'aide personne. Le code dit quoi afficher,
+ * l'interface le traduit (`connErr*` dans webI18n), et le détail technique part
+ * dans la console, où il sert au diagnostic.
+ */
+export type WebConnectError = 'IDLE_EXPIRED' | 'MISSING_PROJECT_ID' | 'CONNECT_FAILED' | 'NO_ACCOUNTS';
+
 interface WebConnectState {
   status: Status;
   uri: string | null;
   topic: string | null;
   accounts: ConnAccount[]; // toutes les chaînes approuvées par le wallet
   selected: string | null; // ID de chaîne Kalyx sélectionné
-  error: string | null;
+  error: WebConnectError | null;
   /** Métadonnées du portefeuille appairé (l'app Kalyx mobile), pour le panneau Sécurité. */
   peerName: string | null;
   peerUrl: string | null;
@@ -94,6 +106,18 @@ interface WebConnectState {
 }
 
 let client: InstanceType<typeof SignClient> | null = null;
+/**
+ * Initialisation en cours, mémorisée.
+ *
+ * `init()` est appelée au montage du tableau de bord ET par `connect()`. La garde
+ * était `if (client) return`, or `client` n'est posé qu'APRÈS l'`await` de
+ * `SignClient.init` — le temps d'un aller-retour réseau. Cliquer « Connecter »
+ * pendant ce temps faisait passer les deux appels : deux clients, donc deux
+ * websockets vers le relay, les gestionnaires d'events enregistrés en double, et
+ * deux intervalles d'expiration qui ne s'arrêtaient jamais. Le second client
+ * écrasait la variable, laissant le premier ouvert sans que rien ne le ferme.
+ */
+let initPromise: Promise<void> | null = null;
 
 // Le sign-client WalletConnect (pino) crache en console.error des logs internes
 // BÉNINS, surtout à chaque reconnexion du relais : restauration des souscriptions
@@ -198,63 +222,71 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
   init: async () => {
     silenceBenignWebLogs();
     if (client || !PROJECT_ID) return;
-    client = await SignClient.init({
-      projectId: PROJECT_ID,
-      metadata: {
-        name: 'Kalyx Wallet',
-        description: 'Tableau de bord Kalyx — votre portefeuille, en lecture seule',
-        url: DASHBOARD_URL,
-        icons: [DASHBOARD_ICON],
-      },
-    });
-    const sessions = client.session.getAll();
-    const last = sessions[sessions.length - 1];
-    if (last) {
-      const accounts = collect(last.namespaces as Record<string, { accounts?: string[] }>);
-      if (accounts.length) {
-        const meta = (last.peer as { metadata?: { name?: string; url?: string } } | undefined)?.metadata;
-        set({
-          status: 'connected', topic: last.topic, accounts, selected: accounts[0].chainId, uri: null,
-          peerName: meta?.name ?? null, peerUrl: meta?.url ?? null, connectedAt: last.expiry ? last.expiry * 1000 - 7 * 24 * 3600 * 1000 : Date.now(),
-        });
-      }
-    }
-
-    // Sync instantanée : réagit aux events du téléphone sans rafraîchir la page.
-    const syncFromSession = () => {
-      const { topic } = get();
-      if (!client || !topic) return;
-      try {
-        const s = client.session.get(topic);
-        const accounts = collect(s.namespaces as Record<string, { accounts?: string[] }>);
+    // Le second appel attend le premier au lieu d'en lancer un autre. En cas
+    // d'échec la promesse est oubliée : sinon un réseau momentanément coupé
+    // condamnerait la page à ne plus jamais pouvoir se connecter.
+    if (initPromise) return initPromise;
+    initPromise = (async () => {
+      client = await SignClient.init({
+        projectId: PROJECT_ID,
+        metadata: {
+          name: 'Kalyx Wallet',
+          description: 'Tableau de bord Kalyx — votre portefeuille, en lecture seule',
+          url: DASHBOARD_URL,
+          icons: [DASHBOARD_ICON],
+        },
+      });
+      const sessions = client.session.getAll();
+      const last = sessions[sessions.length - 1];
+      if (last) {
+        const accounts = collect(last.namespaces as Record<string, { accounts?: string[] }>);
         if (accounts.length) {
-          const sel = get().selected;
-          set({ accounts, selected: sel && accounts.some((a) => a.chainId === sel) ? sel : accounts[0].chainId });
+          const meta = (last.peer as { metadata?: { name?: string; url?: string } } | undefined)?.metadata;
+          set({
+            status: 'connected', topic: last.topic, accounts, selected: accounts[0].chainId, uri: null,
+            peerName: meta?.name ?? null, peerUrl: meta?.url ?? null, connectedAt: last.expiry ? last.expiry * 1000 - 7 * 24 * 3600 * 1000 : Date.now(),
+          });
         }
-      } catch {
-        /* session absente : ignore */
       }
-      set({ rev: get().rev + 1, lastActivity: Date.now() });
-    };
-    client.on('session_event', syncFromSession); // chainChanged / accountsChanged
-    client.on('session_update', syncFromSession);
-    client.on('session_delete', () => get().reset());
-    // Le téléphone a coupé la session, ou elle a expiré côté relay : on nettoie
-    // pour ne pas rester « connecté » sur une session morte (source du désync).
-    client.on('session_expire', () => get().reset());
 
-    // Expiration de session : déconnexion auto après 30 min sans activité.
-    setInterval(() => {
-      const { status, lastActivity } = get();
-      if (status === 'connected' && Date.now() - lastActivity > SESSION_TTL) {
-        void get().disconnect().finally(() => set({ error: 'Session expirée pour inactivité. Reconnecte-toi.' }));
-      }
-    }, 30_000);
+      // Sync instantanée : réagit aux events du téléphone sans rafraîchir la page.
+      const syncFromSession = () => {
+        const { topic } = get();
+        if (!client || !topic) return;
+        try {
+          const s = client.session.get(topic);
+          const accounts = collect(s.namespaces as Record<string, { accounts?: string[] }>);
+          if (accounts.length) {
+            const sel = get().selected;
+            set({ accounts, selected: sel && accounts.some((a) => a.chainId === sel) ? sel : accounts[0].chainId });
+          }
+        } catch {
+          /* session absente : ignore */
+        }
+        set({ rev: get().rev + 1, lastActivity: Date.now() });
+      };
+      client.on('session_event', syncFromSession); // chainChanged / accountsChanged
+      client.on('session_update', syncFromSession);
+      client.on('session_delete', () => get().reset());
+      // Le téléphone a coupé la session, ou elle a expiré côté relay : on nettoie
+      // pour ne pas rester « connecté » sur une session morte (source du désync).
+      client.on('session_expire', () => get().reset());
+
+      // Expiration de session : déconnexion auto après 30 min sans activité.
+      setInterval(() => {
+        const { status, lastActivity } = get();
+        if (status === 'connected' && Date.now() - lastActivity > SESSION_TTL) {
+          void get().disconnect().finally(() => set({ error: 'IDLE_EXPIRED' }));
+        }
+      }, 30_000);
+    })().catch((e) => { initPromise = null; throw e; });
+    return initPromise;
   },
 
   connect: async () => {
     if (!PROJECT_ID) {
-      set({ status: 'error', error: 'EXPO_PUBLIC_WALLETCONNECT_ID manquant dans .env' });
+      console.error('[webConnect] EXPO_PUBLIC_WALLETCONNECT_ID manquant dans .env');
+      set({ status: 'error', error: 'MISSING_PROJECT_ID' });
       return;
     }
     set({ status: 'connecting', uri: null, error: null });
@@ -282,14 +314,18 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       if (uri) set({ uri });
       const session = await approval();
       const accounts = collect(session.namespaces as Record<string, { accounts?: string[] }>);
-      if (!accounts.length) throw new Error('Aucune adresse reçue');
+      // Session ouverte mais vide : le téléphone n'a pas de portefeuille, ou n'a
+      // approuvé aucune chaîne. Le remède n'est pas « réessaie », d'où son code.
+      if (!accounts.length) { set({ status: 'error', uri: null, error: 'NO_ACCOUNTS' }); return; }
       const meta = (session.peer as { metadata?: { name?: string; url?: string } } | undefined)?.metadata;
       set({
         status: 'connected', topic: session.topic, accounts, selected: accounts[0].chainId, uri: null, lastActivity: Date.now(),
         peerName: meta?.name ?? null, peerUrl: meta?.url ?? null, connectedAt: Date.now(),
       });
     } catch (e) {
-      set({ status: 'error', uri: null, error: e instanceof Error ? e.message : 'Connexion échouée' });
+      // Le message du SDK est technique et anglais : il va au journal, pas à l'écran.
+      console.error('[webConnect] connexion échouée:', e instanceof Error ? e.message : e);
+      set({ status: 'error', uri: null, error: 'CONNECT_FAILED' });
     }
   },
 

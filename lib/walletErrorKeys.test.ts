@@ -6,7 +6,7 @@
  * dans toutes les langues — exactement le défaut qu'on vient de corriger. Ce test
  * le fait échouer à la place.
  */
-import { friendlyTxError } from './txError';
+import { UserFacingError, friendlyTxError } from './txError';
 import { WalletError } from '../src';
 
 /** Codes du domaine, lus dans la source : impossible d'en oublier un. */
@@ -88,5 +88,42 @@ describe('friendlyTxError — aucune fuite de langue', () => {
   it('un cas reconnu reste précis', () => {
     expect(friendlyTxError(new Error('insufficient funds for gas'), t as never)).toBe('T:errInsufficientFunds');
     expect(friendlyTxError(new Error('user rejected the request'), t as never)).toBe('T:errUserRejected');
+  });
+});
+
+/**
+ * L'autre bout du même problème : une phrase que l'interface a DÉJÀ traduite ne
+ * doit pas repasser par les devinettes. Le tableau de bord web levait des
+ * `Error` nues portant ses diagnostics, et la version anglaise de « the approval
+ * is confirmed but not yet visible on the network » tombait sur `network` — donc
+ * on affichait « réseau indisponible, vérifie ta connexion », faux. En français
+ * la même erreur ne matchait rien et devenait le message générique : l'utilisateur
+ * voyait un message différent selon sa langue.
+ */
+describe('friendlyTxError — les messages déjà traduits passent intacts', () => {
+  const t = (key: string) => `T:${key}`;
+
+  it('rend le message tel quel, sans le soumettre aux devinettes', () => {
+    const m = 'The approval is confirmed but not yet visible on the network. Try again in a few seconds.';
+    expect(friendlyTxError(new UserFacingError(m), t as never)).toBe(m);
+  });
+
+  it('ne se laisse pas réécrire par un mot-clé contenu dans la phrase', () => {
+    // Chacune contient un mot que les heuristiques cherchent (network, rejected,
+    // nonce, slippage) : aucune ne doit être détournée.
+    for (const m of [
+      'Le téléphone n’a pas renvoyé de transaction signée.',
+      'Network fee could not be read — try again.',
+      'The phone rejected nothing: it never answered.',
+      'Nonce introuvable côté téléphone.',
+      'Slippage setting unavailable on this route.',
+    ]) {
+      expect(friendlyTxError(new UserFacingError(m), t as never)).toBe(m);
+    }
+  });
+
+  it('une Error nue portant la même phrase reste, elle, traduite par code', () => {
+    // La distinction est déclarée par celui qui lève, jamais devinée.
+    expect(friendlyTxError(new Error('Nonce introuvable côté téléphone.'), t as never)).toBe('T:errNonce');
   });
 });
