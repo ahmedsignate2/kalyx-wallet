@@ -836,6 +836,30 @@ export default function Send() {
         ) : null}
         {family === 'evm' ? <Text variant="caption" tone="warning">{t("checkNetworkWarning").replace("${chain.name}", chain.name)}</Text> : null}
         {!isKnown ? <Text variant="caption" tone="warning">{t("firstTimeWarning").replace("${recipient.slice(-4)}", recipient.slice(-4))}</Text> : null}
+
+        {/*
+          LES DEUX GARDE-FOUS QUI MANQUAIENT ICI.
+          
+          L'empoisonnement d'adresse et la PDA Solana n'étaient signalés qu'à
+          l'étape 1, et `goStep2` en était le SEUL blocage. Or un lien de paiement
+          prérempli démarre à l'étape 2 et rejoint directement le récapitulatif :
+          il ne passait donc par aucun des deux. Un QR menant à une adresse
+          sosie, ou à un compte de jeton Solana, arrivait ici sans un mot.
+          
+          Le récapitulatif est le seul point que TOUS les chemins traversent.
+          C'est donc ici que le garde-fou doit vivre, en plus de l'étape 1.
+        */}
+        {poisoning ? (
+          <Surface style={{ borderColor: colors.danger, gap: space[2] }}>
+            <Text variant="body" tone="danger">{t("suspiciousAddressTitle")}</Text>
+            <Text variant="caption" tone="secondary">{t("suspiciousAddressBody")}</Text>
+            <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
+              <AddressGlyph address={poisoning.lookalike} size={28} />
+              <Text variant="caption" tone="secondary" style={{ flex: 1 }}>{groupAddress(poisoning.lookalike)}</Text>
+            </View>
+          </Surface>
+        ) : null}
+        {isSolanaPda ? <Text variant="caption" tone="danger">{t('solanaPdaWarning')}</Text> : null}
         <AntiDrainerBanner loading={isSimulating} simulation={simResult} />
         {simResult?.warningLevel === 'critical' ? (
           <KPressable
@@ -869,7 +893,18 @@ export default function Send() {
         <HoldButton
           label={t("holdToSend")}
           onComplete={() => setConfirming(true)}
-          disabled={isSimulating || (simResult?.warningLevel === 'critical' && !forceSendChecked)}
+          /*
+            ET ILS BLOQUENT. Les afficher sans empêcher l'envoi ne servirait à
+            rien pour une PDA : les fonds y sont définitivement perdus, il n'y a
+            pas de cas légitime à couvrir. L'adresse sosie bloque aussi, par
+            cohérence avec l'étape 1 qui la bloquait déjà.
+          */
+          disabled={
+            isSimulating ||
+            !!poisoning ||
+            isSolanaPda ||
+            (simResult?.warningLevel === 'critical' && !forceSendChecked)
+          }
           danger={simResult?.warningLevel === 'critical'}
         />
       </Sheet>
