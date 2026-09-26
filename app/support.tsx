@@ -19,9 +19,9 @@ import { useT } from '../lib/settingsStore';
 import { chainIconUrl } from '../src';
 
 const CRYPTO = [
-  { key: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', address: 'bc1quv6merwsfumzu6699hhxkdlyu63kn3efhp4jzq' },
+  { key: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', address: 'bc1qkalyxyueng23j7elpqrk4pcp3thp94u6cs5rkn' },
   { key: 'ethereum', name: 'Ethereum (EVM)', symbol: 'ETH', address: '0x7411b6a0b4df0f3a0bab9fe2c5d5cb47ddbdb69b' },
-  { key: 'solana', name: 'Solana', symbol: 'SOL', address: '46L3QPmk7daHeDgegZCPCTkXegotaoRpwoVpDMnxhpVP' },
+  { key: 'solana', name: 'Solana', symbol: 'SOL', address: 'KALYXiXBdhzuEyFuPx9EdoqyaiUcrBTT9k66v4C13jz' },
 ] as const;
 
 export default function Support() {

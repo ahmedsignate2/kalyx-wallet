@@ -179,9 +179,21 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
   if (msg.includes('timeout') || msg.includes('network') || msg.includes('failed to fetch') || msg.includes('network request failed')) {
     return t ? t('errNetworkOffline') : 'Network unavailable. Check your connection and try again.';
   }
-  // Messages déjà rédigés pour l'utilisateur (simulation Solana, Earn) : on les garde tels quels.
-  if (/^(solde|simulation|le prix|transaction échouée on-chain|confirmation non reçue|diffusion refusée|l'autorisation|la simulation)/i.test(err?.message ?? '')) {
-    return err!.message!;
-  }
-  return (t ? t('errGenericTxFail') : 'Transaction failed. Try again.') + ' (' + msg.substring(0, 50) + ')';
+  /*
+   * DEUX FUITES DE LANGUE SUPPRIMÉES ICI.
+   *
+   * Une liste blanche renvoyait certains messages « déjà rédigés pour
+   * l'utilisateur » TELS QUELS — c'est-à-dire en français, dans les quinze
+   * langues. Le commentaire l'assumait ; ça ne marchait qu'en français. Les cas
+   * qu'elle visait sont désormais des `WalletError` à code, donc traduits plus
+   * haut, et le seul `Error` nu qui restait (diffusion Solana refusée) a reçu son
+   * code.
+   *
+   * Et le repli final accolait cinquante caractères du message BRUT à la phrase
+   * traduite : souvent du français, parfois un fragment de JSON-RPC. Le détail
+   * technique est déjà dans le journal, enregistré en tête de cette fonction ;
+   * l'écran n'a pas besoin d'en montrer un morceau tronqué dans une langue que
+   * l'utilisateur ne lit pas.
+   */
+  return t ? t('errGenericTxFail') : 'Transaction failed. Try again.';
 }
