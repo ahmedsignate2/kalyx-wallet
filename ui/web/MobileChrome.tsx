@@ -5,6 +5,7 @@
  * validée (cf. webTheme.ts). Aucune donnée réseau ici.
  */
 import React, { useEffect, useRef, useState } from 'react';
+import { reducedMotion } from './motion';
 import { View, Text, Pressable, Animated } from 'react-native';
 import { KalyxSpinner } from './motion';
 import { KalyxLogo } from '../KalyxLogo';
@@ -109,7 +110,9 @@ export function SegmentTabs<T extends string>({ tabs, value, onChange }: { tabs:
   useEffect(() => {
     const l = layouts[value];
     if (!l) return;
-    if (!placed.current) { x.setValue(l.x); w.setValue(l.w); placed.current = true; return; }
+    // Premier placement, ou « réduire les animations » : le trait se pose
+    // directement sous l'onglet au lieu d'y glisser.
+    if (!placed.current || reducedMotion()) { x.setValue(l.x); w.setValue(l.w); placed.current = true; return; }
     Animated.parallel([
       Animated.spring(x, { toValue: l.x, speed: 22, bounciness: 4, useNativeDriver: false }),
       Animated.spring(w, { toValue: l.w, speed: 22, bounciness: 4, useNativeDriver: false }),
