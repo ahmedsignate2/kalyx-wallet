@@ -27,6 +27,7 @@ import { utf8ToBytes } from '@noble/hashes/utils';
 import {
   payAccountsFor,
   checkPayAction,
+  decideNoOption,
   listChains,
   formatTokenAmount,
   type PayMethod,
@@ -256,6 +257,15 @@ export type PayFailure =
   | 'NO_OPTION'
   /** Informations exigées, formulaire non complété. */
   | 'INFO_REQUIRED'
+  /**
+   * Formulaire envoyé, et le service ne propose toujours rien.
+   *
+   * Distinct de `NO_OPTION` : l'utilisateur a fourni ce qu'on lui demandait, il
+   * doit savoir que ce n'est pas lui qui a mal fait. Et distinct pour une raison
+   * de fonctionnement : c'est cet état qui ARRÊTE la boucle — sans lui, on
+   * réaffichait le même formulaire indéfiniment.
+   */
+  | 'INFO_NOT_ENOUGH'
   /** Échec réseau ou refus du service. */
   | 'FAILED'
   /** Action de paiement refusée par le garde-fou. */
@@ -275,8 +285,14 @@ interface PayState {
   /** Détail technique éventuel (méthode refusée, message du service). */
   detail: string | null;
 
-  /** Charge les options d'un lien de paiement. */
-  open: (link: string) => Promise<void>;
+  /**
+   * Charge les options d'un lien de paiement.
+   *
+   * `afterInfo` marque le rechargement qui SUIT l'envoi du formulaire. Sans ce
+   * drapeau, un service qui redemande des informations à chaque réponse fait
+   * reparcourir le formulaire sans fin — c'est la boucle observée sur appareil.
+   */
+  open: (link: string, afterInfo?: boolean) => Promise<void>;
   /** Retient une option ; ouvre la capture de données si elle est requise. */
   select: (option: PayOption, theme?: 'light' | 'dark') => void;
   /** Le formulaire hébergé a abouti : on peut poursuivre. */
@@ -302,7 +318,7 @@ const EMPTY = {
 export const usePay = create<PayState>((set, get) => ({
   ...EMPTY,
 
-  open: async (link) => {
+  open: async (link, afterInfo = false) => {
     const c = payClient();
     if (!c) {
       set({ phase: 'error', failure: 'UNAVAILABLE' });
@@ -374,12 +390,17 @@ export const usePay = create<PayState>((set, get) => ({
          * l'utilisateur alimenter un portefeuille déjà suffisant. On ouvre donc
          * le formulaire, et le flux reprend ensuite son cours normal.
          */
-        const rootCollect = options.collectData?.url;
-        if (rootCollect) {
-          set({ phase: 'collecting', options, collectUrl: buildCollectUrl(rootCollect), failure: null });
+        /*
+         * LA DÉCISION EST DANS `decideNoOption`, pure et testée — c'est ici
+         * qu'était la boucle, et une règle de ce genre n'a pas sa place au
+         * milieu d'un magasin où rien ne peut la vérifier.
+         */
+        const next = decideNoOption({ rootCollectUrl: options.collectData?.url, afterInfo });
+        if (next.kind === 'collect') {
+          set({ phase: 'collecting', options, collectUrl: buildCollectUrl(next.url), failure: null });
           return;
         }
-        set({ phase: 'error', failure: 'NO_OPTION', options, detail: options.info?.status ?? null });
+        set({ phase: 'error', failure: next.reason, options, detail: options.info?.status ?? null });
         return;
       }
       set({ phase: 'choosing', options });
@@ -415,7 +436,11 @@ export const usePay = create<PayState>((set, get) => ({
     const { options, link } = get();
     if (link && (options?.options.length ?? 0) === 0) {
       set({ collectUrl: null });
-      void get().open(link);
+      /*
+       * `true` : ce rechargement SUIT l'envoi du formulaire. Il interdit d'y
+       * revenir, et c'est ce qui coupe la boucle.
+       */
+      void get().open(link, true);
       return;
     }
     set({ collectUrl: null, phase: 'choosing' });

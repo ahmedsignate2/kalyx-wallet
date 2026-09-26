@@ -50,7 +50,9 @@ export default function PayScreen() {
           : t('payNoOptionTitle')
       : failure === 'UNAVAILABLE'
         ? t('payUnavailable')
-        : t('payFailed');
+        : failure === 'INFO_NOT_ENOUGH'
+          ? t('payInfoSentTitle')
+          : t('payFailed');
   const failureBody = (() => {
     switch (failure) {
       case 'UNAVAILABLE':
@@ -79,6 +81,13 @@ export default function PayScreen() {
           : t('payNoOptionBody');
       case 'INFO_REQUIRED':
         return t('payInfoRequiredBody');
+      /*
+       * Les informations SONT parties. Le dire explicitement évite de laisser
+       * croire que la saisie a échoué — et c'est l'état qui remplace la boucle
+       * où le même formulaire revenait sans fin.
+       */
+      case 'INFO_NOT_ENOUGH':
+        return t('payInfoSentBody');
       case 'ACTION_REFUSED':
         return `${t('payActionRefused')}${detail ? ` (${detail})` : ''}`;
       case 'FAILED':
@@ -87,6 +96,13 @@ export default function PayScreen() {
         return undefined;
     }
   })();
+  /*
+   * Un CONSTAT, pas une panne : ni « rien pour payer » ni « informations
+   * envoyées » ne signalent une erreur de l'app ou de l'utilisateur. Un triangle
+   * d'alerte ferait chercher un problème là où le service se contente de dire
+   * qu'il n'a rien à proposer.
+   */
+  const stating = failure === 'NO_OPTION' || failure === 'INFO_NOT_ENOUGH';
   const [asking, setAsking] = useState(false);
 
   useEffect(() => {
@@ -191,7 +207,7 @@ export default function PayScreen() {
         {phase === 'error' ? (
           <Surface>
             <EmptyState
-              icon={failure === 'NO_OPTION' ? 'info' : 'warning'}
+              icon={stating ? 'info' : 'warning'}
               title={failureTitle}
               body={failureBody}
               actionLabel={t('back')}
