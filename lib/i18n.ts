@@ -426,7 +426,7 @@ const en = {
   phraseModeHint:
     "Paste a BIP-39 phrase (12 or 24 words). It will be encrypted with your PIN.",
   keyModeHint:
-    "Paste an EVM private key (0x… or 64 hex). One account, EVM networks only (no Bitcoin, no Solana, no recovery phrase).",
+    "Paste an EVM key (0x… or 64 hex), a Bitcoin WIF, or a Solana key (base58 or JSON array). One account, one network family, no recovery phrase.",
   backupModeHint:
     "Paste the contents of an encrypted Kalyx backup and enter its password.",
   privateKeyLabel: "Private key",
@@ -2024,7 +2024,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "Colle une phrase BIP-39 (12 ou 24 mots). Elle sera chiffrée avec ton PIN.",
     keyModeHint:
-      "Colle une clé privée EVM (0x… ou 64 hex). Un seul compte, réseaux EVM uniquement (ni Bitcoin, ni Solana, pas de phrase de récupération).",
+      "Colle une clé EVM (0x… ou 64 hex), un WIF Bitcoin, ou une clé Solana (base58 ou tableau JSON). Un seul compte, une seule famille de réseaux, pas de phrase de récupération.",
     backupModeHint:
       "Colle le contenu d’une sauvegarde chiffrée Kalyx et entre son mot de passe.",
     privateKeyLabel: "Clé privée",
@@ -3616,7 +3616,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "Pega una frase BIP-39 (12 o 24 palabras). Se cifrará con tu PIN.",
     keyModeHint:
-      "Pega una clave privada EVM (0x… o 64 hex). Una sola cuenta, solo redes EVM (ni Bitcoin, ni Solana, sin frase de recuperación).",
+      "Pega una clave EVM (0x… o 64 hex), un WIF de Bitcoin, o una clave Solana (base58 o arreglo JSON). Una cuenta, una familia de redes, sin frase de recuperación.",
     backupModeHint:
       "Pega el contenido de una copia cifrada de Kalyx e introduce su contraseña.",
     privateKeyLabel: "Clave privada",
@@ -5126,7 +5126,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "Cola uma frase BIP-39 (12 ou 24 palavras). Será cifrada com o teu PIN.",
     keyModeHint:
-      "Cola uma chave privada EVM (0x… ou 64 hex). Uma só conta, apenas redes EVM (nem Bitcoin, nem Solana, sem frase de recuperação).",
+      "Cola uma chave EVM (0x… ou 64 hex), um WIF Bitcoin, ou uma chave Solana (base58 ou matriz JSON). Uma conta, uma família de redes, sem frase de recuperação.",
     backupModeHint:
       "Cola o conteúdo de uma cópia cifrada Kalyx e introduz a palavra-passe.",
     privateKeyLabel: "Chave privada",
@@ -6623,7 +6623,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "Füge eine BIP-39-Phrase ein (12 oder 24 Wörter). Sie wird mit deiner PIN verschlüsselt.",
     keyModeHint:
-      "Füge einen privaten EVM-Schlüssel ein (0x… oder 64 Hex). Ein Konto, nur EVM-Netzwerke (kein Bitcoin, kein Solana, keine Wiederherstellungsphrase).",
+      "Füge einen EVM-Schlüssel (0x… oder 64 Hex), einen Bitcoin-WIF oder einen Solana-Schlüssel (base58 oder JSON-Array) ein. Ein Konto, eine Netzwerkfamilie, keine Wiederherstellungsphrase.",
     backupModeHint:
       "Füge den Inhalt eines verschlüsselten Kalyx-Backups ein und gib sein Passwort ein.",
     privateKeyLabel: "Privater Schlüssel",
@@ -8129,7 +8129,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "Incolla una frase BIP-39 (12 o 24 parole). Sarà cifrata con il tuo PIN.",
     keyModeHint:
-      "Incolla una chiave privata EVM (0x… o 64 hex). Un solo account, solo reti EVM (né Bitcoin, né Solana, nessuna frase di recupero).",
+      "Incolla una chiave EVM (0x… o 64 hex), un WIF Bitcoin, o una chiave Solana (base58 o array JSON). Un conto, una famiglia di reti, senza frase di recupero.",
     backupModeHint:
       "Incolla il contenuto di un backup cifrato Kalyx e inserisci la sua password.",
     privateKeyLabel: "Chiave privata",
@@ -9622,7 +9622,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "Plak een BIP-39-zin (12 of 24 woorden). Wordt versleuteld met je PIN.",
     keyModeHint:
-      "Plak een EVM-privésleutel (0x… of 64 hex). Eén account, alleen EVM-netwerken (geen Bitcoin, geen Solana, geen herstelzin).",
+      "Plak een EVM-sleutel (0x… of 64 hex), een Bitcoin-WIF, of een Solana-sleutel (base58 of JSON-array). Een account, een netwerkfamilie, geen herstelzin.",
     backupModeHint:
       "Plak de inhoud van een versleutelde Kalyx-back-up en voer het wachtwoord in.",
     privateKeyLabel: "Privésleutel",
@@ -11138,7 +11138,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "Wklej frazę BIP-39 (12 lub 24 słowa). Zostanie zaszyfrowana twoim PIN-em.",
     keyModeHint:
-      "Wklej klucz prywatny EVM (0x… lub 64 hex). Jedno konto, tylko sieci EVM (bez Bitcoina, bez Solany, bez frazy odzyskiwania).",
+      "Wklej klucz EVM (0x… lub 64 hex), WIF Bitcoina lub klucz Solany (base58 albo tablica JSON). Jedno konto, jedna rodzina sieci, bez frazy odzyskiwania.",
     backupModeHint:
       "Wklej zawartość zaszyfrowanej kopii Kalyx i wprowadź jej hasło.",
     privateKeyLabel: "Klucz prywatny",
@@ -12648,7 +12648,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "Bir BIP-39 ifadesi yapıştır (12 veya 24 kelime). PIN’inle şifrelenir.",
     keyModeHint:
-      "Bir EVM özel anahtarı yapıştır (0x… veya 64 hex). Tek hesap, yalnızca EVM ağları (Bitcoin yok, Solana yok, kurtarma ifadesi yok).",
+      "Bir EVM anahtarı (0x… veya 64 hex), bir Bitcoin WIF ya da bir Solana anahtarı (base58 veya JSON dizisi) yapıştırın. Tek hesap, tek ağ ailesi, kurtarma ifadesi yok.",
     backupModeHint:
       "Şifreli bir Kalyx yedeğinin içeriğini yapıştır ve parolasını gir.",
     privateKeyLabel: "Özel anahtar",
@@ -14156,7 +14156,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "Вставьте фразу BIP-39 (12 или 24 слова). Она будет зашифрована вашим PIN.",
     keyModeHint:
-      "Вставьте приватный ключ EVM (0x… или 64 hex). Один счёт, только сети EVM (без Bitcoin, без Solana, без фразы восстановления).",
+      "Вставьте ключ EVM (0x… или 64 hex), WIF Bitcoin или ключ Solana (base58 либо массив JSON). Один счёт, одно семейство сетей, без фразы восстановления.",
     backupModeHint:
       "Вставьте содержимое зашифрованной резервной копии Kalyx и введите её пароль.",
     privateKeyLabel: "Приватный ключ",
@@ -15696,7 +15696,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "الصق عبارة BIP-39 (12 أو 24 كلمة). ستُشفّر برمز PIN الخاص بك.",
     keyModeHint:
-      "الصق مفتاحًا خاصًا EVM (0x… أو 64 hex). حساب واحد، شبكات EVM فقط (لا Bitcoin ولا Solana ولا عبارة استرداد).",
+      "الصق مفتاح EVM (0x… أو 64 حرفًا ست عشريًا)، أو WIF لبيتكوين، أو مفتاح سولانا (base58 أو مصفوفة JSON). حساب واحد، عائلة شبكات واحدة، بدون عبارة استرداد.",
     backupModeHint: "الصق محتوى نسخة احتياطية Kalyx مشفّرة وأدخل كلمة مرورها.",
     privateKeyLabel: "مفتاح خاص",
     backupContent: "محتوى النسخة الاحتياطية",
@@ -17193,7 +17193,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "एक BIP-39 फ़्रेज़ पेस्ट करें (12 या 24 शब्द)। यह आपके PIN से एन्क्रिप्ट होगी।",
     keyModeHint:
-      "एक EVM निजी कुंजी पेस्ट करें (0x… या 64 हेक्स)। एक खाता, केवल EVM नेटवर्क (न Bitcoin, न Solana, कोई रिकवरी फ़्रेज़ नहीं)।",
+      "ऐक EVM कुंजी (0x… या 64 hex), ऐक Bitcoin WIF, या ऐक Solana कुंजी (base58 या JSON सरणी) चिपकाऐँ। ऐक खाता, ऐक नेटवर्क परिवार, कोई रिकवरी फ़्रेज़ नहीं।",
     backupModeHint:
       "एक एन्क्रिप्टेड Kalyx बैकअप की सामग्री पेस्ट करें और उसका पासवर्ड दर्ज करें।",
     privateKeyLabel: "निजी कुंजी",
@@ -18715,7 +18715,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     tabPhrase: "助记词",
     phraseModeHint: "粘贴 BIP-39 助记词（12 或 24 个词）。将用你的 PIN 加密。",
     keyModeHint:
-      "粘贴 EVM 私钥（0x… 或 64 位十六进制）。单个账户，仅 EVM 网络（无 Bitcoin、无 Solana、无恢复助记词）。",
+      "粘贴 EVM 密钥（0x… 或 64 位十六进制）、比特币 WIF，或 Solana 密钥（base58 或 JSON 数组）。单个账户，单个网络家族，无恢复助记词。",
     backupModeHint: "粘贴加密的 Kalyx 备份内容并输入其密码。",
     privateKeyLabel: "私钥",
     backupContent: "备份内容",
@@ -20171,7 +20171,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "BIP-39フレーズを貼り付け（12または24単語）。PINで暗号化されます。",
     keyModeHint:
-      "EVM秘密鍵を貼り付け（0x…または64桁16進）。アカウント1つ、EVMネットワークのみ（Bitcoin・Solana・リカバリーフレーズなし）。",
+      "EVM 鍵（0x… または 16 進 64 文字）、Bitcoin の WIF、または Solana 鍵（base58 か JSON 配列）を貼り付けてください。口座は 1 つ、ネットワーク系列は 1 つ、リカバリーフレーズはありません。",
     backupModeHint:
       "暗号化されたKalyxバックアップの内容を貼り付け、パスワードを入力してください。",
     privateKeyLabel: "秘密鍵",
@@ -21688,7 +21688,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     phraseModeHint:
       "BIP-39 문구를 붙여넣으세요(12 또는 24 단어). PIN으로 암호화됩니다.",
     keyModeHint:
-      "EVM 개인 키를 붙여넣으세요(0x… 또는 16진수 64자). 계정 하나, EVM 네트워크만(Bitcoin·Solana·복구 문구 없음).",
+      "EVM 키(0x… 또는 16진수 64자), 뱄트추인 WIF, 또는 솔라나 키(base58 또는 JSON 배열)를 붙여넣으세요. 계정 하나, 네트워킬 계열 하나, 복구 구문 없음.",
     backupModeHint: "암호화된 Kalyx 백업 내용을 붙여넣고 비밀번호를 입력하세요.",
     privateKeyLabel: "개인 키",
     backupContent: "백업 내용",
