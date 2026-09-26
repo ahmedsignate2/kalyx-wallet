@@ -7,9 +7,18 @@ import { create } from 'zustand';
 import { getAdapter, type TxSummary } from '../src';
 
 // Clé de cache : `${chainId}:${address}`
-function cacheKey(chain: string, address: string): string {
+export function cacheKey(chain: string, address: string): string {
   return `${chain}:${address.toLowerCase()}`;
 }
+
+/**
+ * Tableau vide PARTAGÉ, rendu quand une clé est absente du cache.
+ *
+ * Un `[]` neuf à chaque appel serait une nouvelle référence : le sélecteur
+ * zustand la comparerait par identité, conclurait à un changement et
+ * redéclencherait un rendu en boucle.
+ */
+const NO_TX: TxSummary[] = [];
 
 /** Clé AsyncStorage pour la persistance. */
 const STORAGE_KEY = 'nova.historyCache';
@@ -121,3 +130,32 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
 
 // Hydratation automatique au chargement du module.
 void useHistoryStore.getState().hydrate();
+
+/* ── Lecture RÉACTIVE du cache ───────────────────────────────────────────────
+ *
+ * `getCached` et `isLoading` sont des fonctions STABLES : un écran qui fait
+ * `useHistoryStore((s) => s.getCached)` s'abonne à la fonction, pas aux
+ * données. Quand `fetchHistory` remplit le cache, rien ne le prévient et la
+ * liste reste vide — jusqu'à ce qu'un autre changement d'état provoque un
+ * rendu, par exemple une simple pression sur un filtre, après quoi les
+ * transactions apparaissent d'un coup. C'est exactement ce qu'on observait :
+ * « Tout » vide à l'ouverture, et rempli dès qu'on touchait « Envoyé ».
+ *
+ * Ces crochets s'abonnent à la TRANCHE de cache concernée. Les garder ici, à
+ * côté du magasin, évite que le prochain écran refasse la même erreur.
+ */
+
+/** Transactions cachées pour ce réseau et cette adresse, réactif. */
+export function useCachedHistory(chain: string, address: string | undefined): TxSummary[] {
+  return useHistoryStore((s) => (address ? s.cache[cacheKey(chain, address)] : undefined) ?? NO_TX);
+}
+
+/** Un chargement est-il en cours pour ce réseau et cette adresse ? Réactif. */
+export function useHistoryLoading(chain: string, address: string | undefined): boolean {
+  return useHistoryStore((s) => (address ? s.loading[cacheKey(chain, address)] : false) ?? false);
+}
+
+/** Tout le cache, pour un écran qui agrège plusieurs réseaux. Réactif. */
+export function useHistoryCache(): Record<string, TxSummary[]> {
+  return useHistoryStore((s) => s.cache);
+}

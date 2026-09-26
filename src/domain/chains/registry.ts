@@ -90,3 +90,19 @@ export function nativeOfChain(chainId: string): { symbol: string; decimals: numb
 export function chainNameOf(chainId: string): string | undefined {
   return adapters.get(chainId)?.config.name;
 }
+
+/**
+ * Nom, unité native et explorateur d'une chaîne, ou `undefined` si inconnue.
+ *
+ * Pour un export ou une liste qui couvre plusieurs réseaux : sans cela, chaque
+ * ligne héritait du réseau affiché et le fichier annonçait le mauvais réseau,
+ * le mauvais symbole et un lien d'explorateur qui ne menait nulle part.
+ */
+export function chainMetaOf(
+  chainId: string,
+): { name: string; nativeSymbol: string; nativeDecimals: number; explorerUrl?: string } | undefined {
+  const c = adapters.get(chainId)?.config;
+  return c
+    ? { name: c.name, nativeSymbol: c.nativeSymbol, nativeDecimals: c.nativeDecimals, explorerUrl: c.explorerUrl }
+    : undefined;
+}
