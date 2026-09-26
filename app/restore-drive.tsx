@@ -14,6 +14,7 @@ import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Button, Surface, ScreenHeader } from '../ui/kit';
 import { Icon } from '../ui/icon';
+import { FadeInUp } from '../ui/FadeInUp';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
@@ -133,70 +134,89 @@ export default function RestoreDriveScreen() {
           <ScreenHeader title={t('driveTitle')} onBack={leave} fallback={hasWallet ? '/wallets' : '/welcome'} />
           <Text variant="bodySecondary" tone="secondary">{t('driveExplain')}</Text>
 
+          {/*
+            CHAQUE ÉTAPE DU RESTORE ENTRE EN FONDU. Le flux échangeait ses blocs
+            instantanément — recherche, sauvegarde trouvée, mot de passe — sans
+            rien qui relie l'un à l'autre, sur un parcours déjà long et
+            technique. Ces blocs sont des sœurs dans un conteneur à `gap` : les
+            enrober ne déplace rien.
+          */}
           {!configured && (
-            <Surface style={{ padding: space[4] }}>
-              <Text>{t('driveNotConfigured')}</Text>
-            </Surface>
+            <FadeInUp>
+              <Surface style={{ padding: space[4] }}>
+                <Text>{t('driveNotConfigured')}</Text>
+              </Surface>
+            </FadeInUp>
           )}
 
           {isRestore && (flow.status === 'auth' || flow.status === 'working') && (
-            <Surface style={{ padding: space[4], flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-              <ActivityIndicator color={colors.text} />
-              <Text tone="secondary" style={{ flex: 1 }}>{flow.status === 'auth' ? t('driveConnect') : t('driveSearching')}</Text>
-            </Surface>
+            <FadeInUp>
+              <Surface style={{ padding: space[4], flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+                <ActivityIndicator color={colors.text} />
+                <Text tone="secondary" style={{ flex: 1 }}>{flow.status === 'auth' ? t('driveConnect') : t('driveSearching')}</Text>
+              </Surface>
+            </FadeInUp>
           )}
 
           {isRestore && flow.status === 'done' && flow.restoreResult === null && (
-            <Surface style={{ padding: space[4], gap: space[3] }}>
-              <Text>{t('driveNone')}</Text>
-              <Button label={t('driveTryAgain')} variant="secondary" onPress={() => flow.start({ kind: 'restore' })} />
-              <Button label={t('driveIgnore')} variant="secondary" onPress={leave} />
-            </Surface>
+            <FadeInUp>
+              <Surface style={{ padding: space[4], gap: space[3] }}>
+                <Text>{t('driveNone')}</Text>
+                <Button label={t('driveTryAgain')} variant="secondary" onPress={() => flow.start({ kind: 'restore' })} />
+                <Button label={t('driveIgnore')} variant="secondary" onPress={leave} />
+              </Surface>
+            </FadeInUp>
           )}
 
           {isRestore && flow.status === 'error' && (
-            <Surface style={{ padding: space[4], gap: space[3] }}>
-              <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
-                <Icon name="warning" size={18} color={colors.warning} />
-                <Text style={{ flex: 1 }}>{errorText}</Text>
-              </View>
-              {configured && <Button label={t('driveTryAgain')} onPress={() => flow.start({ kind: 'restore' })} />}
-              <Button label={t('driveIgnore')} variant="secondary" onPress={leave} />
-            </Surface>
+            <FadeInUp>
+              <Surface style={{ padding: space[4], gap: space[3] }}>
+                <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
+                  <Icon name="warning" size={18} color={colors.warning} />
+                  <Text style={{ flex: 1 }}>{errorText}</Text>
+                </View>
+                {configured && <Button label={t('driveTryAgain')} onPress={() => flow.start({ kind: 'restore' })} />}
+                <Button label={t('driveIgnore')} variant="secondary" onPress={leave} />
+              </Surface>
+            </FadeInUp>
           )}
 
           {isRestore && flow.status === 'done' && flow.restoreResult && !askPassword && (
-            <Surface style={{ padding: space[4], gap: space[3] }}>
-              <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
-                <Icon name="check" size={20} color={colors.up} />
-                <Text variant="title2">{t('driveFound')}</Text>
-              </View>
-              <Text tone="secondary">{t('driveFoundSub').replace('{date}', dateLabel(flow.restoreResult.modifiedTime))}</Text>
-              <Button label={t('driveRestoreBtn')} onPress={() => setAskPassword(true)} />
-              <Button label={t('driveIgnore')} variant="secondary" onPress={leave} />
-            </Surface>
+            <FadeInUp>
+              <Surface style={{ padding: space[4], gap: space[3] }}>
+                <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
+                  <Icon name="check" size={20} color={colors.up} />
+                  <Text variant="title2">{t('driveFound')}</Text>
+                </View>
+                <Text tone="secondary">{t('driveFoundSub').replace('{date}', dateLabel(flow.restoreResult.modifiedTime))}</Text>
+                <Button label={t('driveRestoreBtn')} onPress={() => setAskPassword(true)} />
+                <Button label={t('driveIgnore')} variant="secondary" onPress={leave} />
+              </Surface>
+            </FadeInUp>
           )}
 
           {isRestore && flow.status === 'done' && flow.restoreResult && askPassword && (
-            <Surface style={{ padding: space[4], gap: space[3] }}>
-              <Text variant="title2">{t('drivePasswordTitle')}</Text>
-              <Text tone="secondary">{t('drivePasswordSub')}</Text>
-              <TextInput
-                value={pwd}
-                onChangeText={(v) => {
-                  setPwd(v);
-                  setPwdError(null);
-                }}
-                secureTextEntry
-                autoCapitalize="none"
-                autoFocus
-                placeholder="••••••••"
-                placeholderTextColor={colors.textTertiary}
-                style={{ color: colors.text, fontSize: 16, paddingVertical: space[3], paddingHorizontal: space[3], backgroundColor: colors.surface2, borderRadius: radius.input }}
-              />
-              {pwdError ? <Text style={{ color: colors.danger }}>{pwdError}</Text> : null}
-              <Button label={busy ? t('driveSaving') : t('driveDecrypt')} onPress={() => decrypt(flow.restoreResult!.text)} disabled={busy || pwd.length === 0} />
-            </Surface>
+            <FadeInUp>
+              <Surface style={{ padding: space[4], gap: space[3] }}>
+                <Text variant="title2">{t('drivePasswordTitle')}</Text>
+                <Text tone="secondary">{t('drivePasswordSub')}</Text>
+                <TextInput
+                  value={pwd}
+                  onChangeText={(v) => {
+                    setPwd(v);
+                    setPwdError(null);
+                  }}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoFocus
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.textTertiary}
+                  style={{ color: colors.text, fontSize: 16, paddingVertical: space[3], paddingHorizontal: space[3], backgroundColor: colors.surface2, borderRadius: radius.input }}
+                />
+                {pwdError ? <Text style={{ color: colors.danger }}>{pwdError}</Text> : null}
+                <Button label={busy ? t('driveSaving') : t('driveDecrypt')} onPress={() => decrypt(flow.restoreResult!.text)} disabled={busy || pwd.length === 0} />
+              </Surface>
+            </FadeInUp>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
