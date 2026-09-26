@@ -16,7 +16,7 @@
  *  - Provider EIP-1193 injecté (window.ethereum) — plomberie inchangée.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, TextInput, ScrollView, Share, Alert, Switch, Image, useWindowDimensions, KeyboardAvoidingView, Platform, Linking } from 'react-native';
+import { View, TextInput, ScrollView, Share, Alert, Switch, Image, useWindowDimensions, Linking } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,6 +51,7 @@ import {
   decodeTx, simulateTx, explainRequest, getTokenMetadata, chainIconUrl, isValidEvmAddress, type RawTxRequest, type RiskAssessment, type Simulation,
 } from '../src';
 import { useHistoryStore } from '../lib/historyStore';
+import { useKeyboardHeight } from '../ui/useKeyboardHeight';
 
 // WebView = module natif : require dynamique pour ne pas crasher avant rebuild.
 let WebViewComp: React.ComponentType<Record<string, unknown>> | null = null;
@@ -118,6 +119,7 @@ export default function Browser() {
   const t = useT();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const kbHeight = useKeyboardHeight();
   const { width: screenW } = useWindowDimensions();
   const setBrowserContext = useBrowserStore((s) => s.setBrowserContext);
   const account = useWallet((s) => s.account);
@@ -638,9 +640,19 @@ export default function Browser() {
         ) : null}
       </View>
 
-      {/* Chrome du bas : [←] [adresse] [onglets] [⋮] */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[2], paddingTop: space[2], paddingBottom: asMainTab && !activeTab.url && !editing ? insets.bottom + 84 : insets.bottom + space[2], backgroundColor: colors.bg }, chromeStyle]}>
+      {/*
+        Chrome du bas : [←] [adresse] [onglets] [⋮]
+
+        LA BARRE MONTE AVEC LE CLAVIER, explicitement. L'affichage bord à bord
+        imposé depuis Android 15 empêche `adjustResize` de redimensionner la
+        fenêtre, et le `behavior` de `KeyboardAvoidingView` valait `undefined`
+        sur Android : la barre d'adresse se retrouvait sous le clavier dès qu'on
+        la touchait pour taper. La marge de sécurité du bas est abandonnée
+        pendant ce temps — le clavier occupe déjà la place, l'ajouter creuserait
+        un trou.
+      */}
+      <View style={{ marginBottom: kbHeight }}>
+        <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[2], paddingTop: space[2], paddingBottom: asMainTab && !activeTab.url && !editing ? insets.bottom + 84 : (kbHeight > 0 ? space[2] : insets.bottom + space[2]), backgroundColor: colors.bg }, chromeStyle]}>
           {editing ? (
             <>
               <IconButton icon="close" label={t('cancel')} tone="ghost" onPress={() => { setEditing(false); setInput(''); }} />
@@ -677,7 +689,7 @@ export default function Browser() {
             </>
           )}
         </Animated.View>
-      </KeyboardAvoidingView>
+      </View>
       {/* Onglet principal « Explorer » : barre de navigation sur la page nouvel onglet. */}
       {asMainTab && !activeTab.url && !editing ? <AppTabBar active="browser" /> : null}
 

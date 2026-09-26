@@ -254,7 +254,7 @@ export { getSolanaNfts } from './domain/nft/solanaNft';
 export { estimateGasReserve, evmReserveFromFeeData, solanaReserveFromPriorityFees, SWAP_GAS_UNITS, SOL_BASE_FEE, type GasReserve } from './domain/chains/gasReserve';
 
 // Anti-empoisonnement d'adresse + formats lisibles
-export { detectPoisoning, groupAddress, shortAddress, type PoisoningMatch } from './domain/validation/poisoning';
+export { detectPoisoning, groupAddress, shortAddress, addressFamilies, type PoisoningMatch, type AddressFamily } from './domain/validation/poisoning';
 
 // Signature expliquée (§4.7) : simulation + explication humaine + niveau de risque
 export { simulateTx, staticSimulation, parseAlchemySimulation, type Simulation, type AssetChange } from './domain/tx/simulate';
