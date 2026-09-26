@@ -30,6 +30,7 @@ import {
   isValidEvmAddress,
   isValidSolanaAddress,
   isValidBtcAddress,
+  isValidTonAddress,
   type AddressFamily,
 } from '../src';
 
@@ -37,6 +38,7 @@ const CHECKS = {
   evm: isValidEvmAddress,
   solana: isValidSolanaAddress,
   bitcoin: isValidBtcAddress,
+  ton: (a: string) => isValidTonAddress(a, { testnet: true }),
 };
 
 export function ContactPicker({

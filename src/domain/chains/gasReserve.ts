@@ -59,6 +59,13 @@ function fallback(adapter: ChainAdapter): GasReserve {
   if (fam === 'solana') return { raw: 100_000n, live: false }; // 0.0001 SOL
   if (fam === 'evm') return { raw: 10n ** BigInt(adapter.config.nativeDecimals - 4), live: false }; // 0.0001 natif
   if (fam === 'bitcoin') return { raw: 1_500n, live: false }; // 1 500 satoshis (≈ 0.000015 BTC)
+  /*
+   * TON : 0,01 TON, l'estimation prudente d'un premier envoi (déploiement
+   * compris ; mesuré 0,001 TON sur le réseau de test). Ce n'était PAS traité :
+   * la réserve valait 0, et le bouton « Max » aurait voulu envoyer tout le solde
+   * sans rien laisser pour les frais — envoi refusé.
+   */
+  if (fam === 'ton') return { raw: 10_000_000n, live: false };
   return { raw: 0n, live: false };
 }
 

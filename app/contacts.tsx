@@ -44,14 +44,21 @@ import {
   isValidEvmAddress,
   isValidSolanaAddress,
   isValidBtcAddress,
+  isValidTonAddress,
   type AddressFamily,
 } from '../src';
 
-const CHECKS = { evm: isValidEvmAddress, solana: isValidSolanaAddress, bitcoin: isValidBtcAddress };
+// TON : le carnet ne dépend d'aucun réseau, on accepte les deux écritures (`testnet: true`).
+const CHECKS = { evm: isValidEvmAddress, solana: isValidSolanaAddress, bitcoin: isValidBtcAddress, ton: (a: string) => isValidTonAddress(a, { testnet: true }) };
 
 /** Nom du premier réseau non-test d'une famille, pour étiqueter une adresse. */
 function familyLabel(family: AddressFamily): string {
-  return listChains({ includeTestnets: false }).find((c) => c.family === family)?.name ?? family;
+  // Réseau principal d'abord ; TON n'a encore que son réseau de test.
+  return (
+    listChains({ includeTestnets: false }).find((c) => c.family === family)?.name ??
+    listChains({ includeTestnets: true }).find((c) => c.family === family)?.name ??
+    family
+  );
 }
 
 /**

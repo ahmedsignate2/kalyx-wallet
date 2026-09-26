@@ -397,8 +397,40 @@ plus loin. (Phrase connue de tous : ne jamais y envoyer de fonds.)
    > Tonkeeper passent par un autre mécanisme (« MAM », `TonKeychainRoot`).
    > Suivre cette réponse aurait donné aux comptes 2 et 3 des adresses que
    > Tonkeeper n'affiche jamais. Décision inchangée : TON sur le compte 0 seul.
-4. Enregistrer l'adaptateur et sa configuration, en dernier : un adaptateur
-   enregistré à moitié est plus dangereux qu'un adaptateur absent.
+4. ~~Enregistrer l'adaptateur et sa configuration~~ — **fait sur le réseau de
+   test (26/09).** `TON_TESTNET` (`ton-testnet`, TON Center sans clé, explorateur
+   Tonscan) est dans `ALL_CHAINS` ; TON est enregistré dans les deux registres —
+   en v1 par `TonChainAdapter`, LECTURE SEULE (solde, historique : le portefeuille
+   et l'historique lisent encore par `getAdapter`), l'envoi passant par la v2.
+   Réseau principal : pas encore — il attend le proxy TonAPI.
+
+   Ce qu'il a fallu corriger pour que TON ne retombe nulle part sur l'EVM :
+   - **Une seule fonction d'adresse, `lib/accountAddress.ts`.** Le ternaire
+     `solana ? … : bitcoin ? … : evm` était recopié dans une douzaine d'écrans ;
+     avec TON, chacun prenait l'adresse EVM sans rien dire — l'envoi serait parti
+     de l'adresse EVM, le portefeuille aurait interrogé TON Center avec elle,
+     Recevoir l'aurait affichée comme adresse TON. `switch` exhaustif, sans cas
+     par défaut : une famille oubliée ne compile pas.
+   - **Des types qui cachaient TON.** L'écran d'envoi FORÇAIT la famille
+     (`as RecipientFamily`, figé à trois) : ses aiguillages retombaient sur
+     Bitcoin sans erreur — la validation d'une adresse TON suivait la règle
+     Bitcoin. `AddressFamily` ignorait TON : toute adresse TON du carnet de
+     contacts était « invalide ». Élargis, et c'est le compilateur qui a trouvé
+     les suivants.
+   - La simulation d'envoi divisait tout ce qui n'est ni EVM ni Solana par 10^8
+     (Bitcoin) : un montant TON serait apparu dix fois trop grand.
+   - La réserve de frais valait 0 pour TON : « Max » aurait voulu envoyer tout le
+     solde sans rien laisser aux frais.
+   - Champ **commentaire** à l'envoi, dès que la chaîne déclare `memo` (TON, et
+     Solana qui le gérait déjà) ; suivi après envoi par l'adaptateur v2.
+   - Recevoir : textes TON (et plus ceux de Bitcoin, qui tombaient par défaut).
+   - Réseaux : l'ancien panneau « TON pas encore disponible » était devenu faux ;
+     remplacé par « TON — réseau de test », avec un bouton pour afficher les
+     réseaux de test.
+
+   Vérifié : bundles Android et web construits avec TON actif (le module de
+   substitution de `@ton/crypto` enfin sollicité par Metro), aucune erreur au
+   démarrage de l'export web — le registre y instancie l'adaptateur TON.
    **PIÈGE :** le registre v1 (`chains/registry.ts`) instancie un adaptateur pour
    CHAQUE configuration de `ALL_CHAINS` au chargement du module, et lève sur une
    famille inconnue. Ajouter une configuration TON sans traiter `'ton'` dans

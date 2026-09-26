@@ -16,12 +16,20 @@ import { hex } from '@scure/base';
 import type { ChainAdapterV2, ChainConfig } from '../src';
 import VECTORS from '../src/domain/chains/ton/tonkeeper-vectors.json';
 
-// ---- Réseau TON fictif, activable : aucune configuration TON n'existe encore. ----
+// ---- TON piloté par le test : les configurations TON réelles sont retirées, et un
+// réseau TON PRINCIPAL fictif s'active à la demande — pour tester aussi bien le
+// refus « TON pas configuré » que l'adresse principale confirmée dans Tonkeeper.
 let mockTonOn = false;
 const mockTonCfg = { id: 'ton-test-cfg', name: 'TON', family: 'ton', nativeSymbol: 'TON', nativeDecimals: 9, rpcUrls: [] };
 jest.mock('../src', () => {
   const actual = jest.requireActual('../src');
-  return { ...actual, listChains: (o?: { includeTestnets?: boolean }) => [...actual.listChains(o), ...(mockTonOn ? [mockTonCfg] : [])] };
+  return {
+    ...actual,
+    listChains: (o?: { includeTestnets?: boolean }) => [
+      ...actual.listChains(o).filter((c: { family: string }) => c.family !== 'ton'),
+      ...(mockTonOn ? [mockTonCfg] : []),
+    ],
+  };
 });
 
 // ---- Stockage en mémoire à la place du trousseau de l'appareil. ----

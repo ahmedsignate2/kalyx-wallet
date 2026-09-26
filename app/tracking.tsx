@@ -24,6 +24,7 @@ import {
   type RawTxRequest,
 } from '../src';
 import { useWallet, type Unlock } from '../lib/walletStore';
+import { addressForChain } from '../lib/accountAddress';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { toast } from '../lib/toast';
 import { haptic } from '../lib/haptics';
@@ -59,12 +60,8 @@ export default function TrackingScreen() {
     try {
       const adapter = getAdapter(chain.id);
       const stored = accounts.find((a) => a.index === activeAccountIndex) ?? accounts[0];
-      const address =
-        chain.family === 'bitcoin'
-          ? stored?.btcAddress
-          : chain.family === 'solana'
-            ? stored?.solAddress
-            : stored?.evmAddress;
+      // La fonction unique : sans elle, une transaction TON aurait été suivie sur l'adresse EVM.
+      const address = addressForChain(stored, chain);
 
       if (chain.coingeckoId) {
         getPrices([chain.coingeckoId], fiat)

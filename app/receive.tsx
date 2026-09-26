@@ -15,14 +15,15 @@ import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
+import { addressForChain } from '../lib/accountAddress';
 import { accountDisplayName } from '../lib/walletNames';
 import { useSettings, useT } from '../lib/settingsStore';
 import { useCustomChains } from '../lib/customChainsStore';
 import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
-import { getAdapter, listChains, chainIconUrl } from '../src';
+import { getAdapter, listChains, chainIconUrl, type ChainFamily } from '../src';
 
-type Fam = 'evm' | 'solana' | 'bitcoin';
+type Fam = ChainFamily;
 
 export default function Receive() {
   const t = useT();
@@ -48,9 +49,8 @@ export default function Receive() {
    * adresse — et, avant le garde-fou du QR, à un écran qui tombait.
    */
   const hasAddressFor = useCallback(
-    (family: string) =>
-      family === 'solana' ? !!stored?.solAddress : family === 'bitcoin' ? !!stored?.btcAddress : !!stored?.evmAddress,
-    [stored?.evmAddress, stored?.solAddress, stored?.btcAddress],
+    (family: ChainFamily) => !!addressForChain(stored, { family }),
+    [stored],
   );
 
   const networks = useMemo(() => {
@@ -74,7 +74,8 @@ export default function Receive() {
   if (!stored) return null;
   const selected = networks.find((c) => c.id === selectedChain) ?? networks[0];
   const fam = selected?.family as Fam | undefined;
-  const address = fam === 'solana' ? stored.solAddress ?? '' : fam === 'bitcoin' ? stored.btcAddress : stored.evmAddress;
+  // La fonction unique : l'adresse TON se calcule, et dépend du réseau.
+  const address = selected ? addressForChain(stored, selected) : '';
   const isTestnet = selected?.testnet === true;
   const hint =
     // Regex et non littéral : chaque langue traduit le repli À L'INTÉRIEUR du
@@ -83,10 +84,12 @@ export default function Receive() {
     // ailleurs le `${…}` s'affichait tel quel.
     fam === 'evm' ? t('hintEvm').replace(/\$\{[^}]*\}/, selected?.name ?? t('thisNetwork'))
     : fam === 'solana' ? t("hintSolana")
+    : fam === 'ton' ? t("hintTon")
     : t("hintBitcoin");
   const warn =
     fam === 'evm' ? t("warnEvm")
     : fam === 'solana' ? t("warnSolana")
+    : fam === 'ton' ? t("warnTon")
     : t("warnBitcoin");
 
   const copy = async () => {
@@ -225,7 +228,7 @@ export default function Receive() {
             <ScrollView contentContainerStyle={{ gap: space[2] }}>
               {networks.map((network) => {
                 const selectedNetwork = network.id === selected?.id;
-                const addressType = network.family === 'solana' ? t("addressTypeSolana") : t("addressTypeEvm");
+                const addressType = network.family === 'solana' ? t("addressTypeSolana") : network.family === 'ton' ? t("addressTypeTon") : t("addressTypeEvm");
                 return (
                   <KPressable
                     key={network.id}

@@ -4,7 +4,13 @@
  * Si le réseau échoue, le cache est conservé (jamais effacé).
  */
 import { create } from 'zustand';
-import { getAdapter, type TxSummary } from '../src';
+import { getAdapter, type ChainConfig, type TxSummary } from '../src';
+
+/**
+ * Ce qu'il faut d'une chaîne pour retrouver son adresse : la famille ne suffit
+ * plus, l'adresse TON dépend aussi du réseau (la W5 du réseau de test diffère).
+ */
+export type HistoryChain = Pick<ChainConfig, 'id' | 'family' | 'testnet'>;
 
 // Clé de cache : `${chainId}:${address}`
 export function cacheKey(chain: string, address: string): string {
@@ -174,12 +180,12 @@ export function useHistoryCache(): Record<string, TxSummary[]> {
  */
 export function aggregateHistory(
   cache: Record<string, TxSummary[]>,
-  chains: readonly { id: string; family: string }[],
-  addressFor: (family: string) => string | undefined,
+  chains: readonly HistoryChain[],
+  addressFor: (chain: HistoryChain) => string | undefined,
 ): TxSummary[] {
   const seen = new Map<string, TxSummary>();
   for (const c of chains) {
-    const address = addressFor(c.family);
+    const address = addressFor(c);
     if (!address) continue;
     /*
      * Clé RÉSEAU + EMPREINTE : l'empreinte seule confond deux transactions
@@ -198,12 +204,12 @@ export function aggregateHistory(
  * rendu en boucle.
  */
 export function useAnyHistoryLoading(
-  chains: readonly { id: string; family: string }[],
-  addressFor: (family: string) => string | undefined,
+  chains: readonly HistoryChain[],
+  addressFor: (chain: HistoryChain) => string | undefined,
 ): boolean {
   return useHistoryStore((s) =>
     chains.some((c) => {
-      const address = addressFor(c.family);
+      const address = addressFor(c);
       return address ? s.loading[cacheKey(c.id, address)] === true : false;
     }),
   );
@@ -217,12 +223,12 @@ export function useAnyHistoryLoading(
  * qui affirme quelque chose de faux sur le portefeuille de l'utilisateur.
  */
 export function useAnyHistoryFetched(
-  chains: readonly { id: string; family: string }[],
-  addressFor: (family: string) => string | undefined,
+  chains: readonly HistoryChain[],
+  addressFor: (chain: HistoryChain) => string | undefined,
 ): boolean {
   return useHistoryStore((s) =>
     chains.some((c) => {
-      const address = addressFor(c.family);
+      const address = addressFor(c);
       return address ? (s.lastFetch[cacheKey(c.id, address)] ?? 0) > 0 : false;
     }),
   );

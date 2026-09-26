@@ -1,4 +1,6 @@
 import { detectPoisoning, groupAddress, shortAddress, addressFamilies } from './poisoning';
+import { isValidTonAddress } from '../chains/ton/tonAddress';
+import TON from '../chains/ton/tonkeeper-vectors.json';
 
 const REAL = '0xd8dA6BF26964aF9D7eEd9e03E62415f8b1F2f8F7';
 const FAKE = '0xd8dA00000000000000000000000000000000f8F7'; // même début/fin, milieu différent
@@ -32,7 +34,18 @@ describe('addressFamilies', () => {
     evm: (a: string) => /^0x[a-fA-F0-9]{40}$/.test(a),
     solana: (a: string) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a),
     bitcoin: (a: string) => /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}$/.test(a),
+    ton: (a: string) => isValidTonAddress(a, { testnet: true }),
   };
+
+  /*
+   * TON était ignoré : une adresse TON du carnet de contacts était jugée
+   * invalide. Les deux écritures (principale et de test), et la forme brute,
+   * n'appartiennent qu'à TON — aucun recouvrement avec les autres familles.
+   */
+  it('une adresse TON n’appartient qu’à TON, sous toutes ses écritures', () => {
+    const k = TON.keys[0];
+    for (const a of [k.v5r1.uq, k.v5r1.eq, k.v5r1Testnet.uq, k.v5r1.raw]) expect(addressFamilies(a, check)).toEqual(['ton']);
+  });
 
   it('une adresse EVM n’appartient qu’à la famille EVM', () => {
     expect(addressFamilies('0x28C6c06298d514Db089934071355E5743bf21d60', check)).toEqual(['evm']);

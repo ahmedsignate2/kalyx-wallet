@@ -42,6 +42,7 @@ export default function Networks() {
   const addCustomChain = useCustomChains((s) => s.add);
 
   const showTestnets = useSettings((s) => s.showTestnets);
+  const setFlag = useSettings((s) => s.setFlag);
   const all = useMemo(() => listChains({ includeTestnets: showTestnets }), [showTestnets]);
   const [query, setQuery] = useState('');
   const [explain, setExplain] = useState<{ name: string; id: string } | null>(null);
@@ -194,9 +195,17 @@ export default function Networks() {
               <Muted>{t('noNetworkMatch').replace('{q}', query)}</Muted>
             </Card>
           ) : family === 'ton' ? (
+            /*
+              TON n'existe que sur le réseau de test pour l'instant : un onglet
+              vide ne dirait pas pourquoi. On l'explique, et on offre le réglage
+              ici même plutôt que d'envoyer l'utilisateur le chercher.
+            */
             <Card style={{ gap: spacing(1) }}>
-              <Text style={typography.section}>{t('tonNotYetTitle')}</Text>
-              <Text style={typography.muted}>{t('tonNotYetBody')}</Text>
+              <Text style={typography.section}>{t('tonTestnetTitle')}</Text>
+              <Text style={typography.muted}>{t('tonTestnetBody')}</Text>
+              {!showTestnets ? (
+                <Button label={t('showTestnetsAction')} variant="secondary" onPress={() => setFlag('showTestnets', true)} />
+              ) : null}
             </Card>
           ) : (
             <Card>

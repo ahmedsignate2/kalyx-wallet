@@ -5,8 +5,14 @@
  */
 import { create } from 'zustand';
 import { saveRecentRecipients, loadRecentRecipients } from './secureStore';
+import type { ChainFamily } from '../src';
 
-export type RecipientFamily = 'evm' | 'bitcoin' | 'solana';
+/**
+ * Toutes les familles, TON comprise. C'était une liste à part, figée à trois : l'écran
+ * d'envoi y FORÇAIT la famille de la chaîne (`as RecipientFamily`), ce qui cachait
+ * TON au contrôle de types — ses aiguillages retombaient sur Bitcoin sans erreur.
+ */
+export type RecipientFamily = ChainFamily;
 
 export interface RecentRecipient {
   address: string;

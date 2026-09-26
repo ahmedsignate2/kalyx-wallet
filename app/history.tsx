@@ -32,7 +32,8 @@ import { space, SCREEN_MARGIN } from '../ui/tokens';
 import { FadeInUp } from '../ui/FadeInUp';
 import { cascadeDelay } from '../ui/motion';
 import { useWallet } from '../lib/walletStore';
-import { useHistoryStore, useHistoryCache, cacheKey } from '../lib/historyStore';
+import { useHistoryStore, useHistoryCache, cacheKey, type HistoryChain } from '../lib/historyStore';
+import { addressForChain } from '../lib/accountAddress';
 import { useContacts } from '../lib/contactsStore';
 import { toast } from '../lib/toast';
 import { haptic } from '../lib/haptics';
@@ -81,10 +82,7 @@ export default function History() {
    */
   const acct = useWallet((s) => s.accounts.find((a) => a.index === s.activeAccountIndex) ?? s.accounts[0]);
   const chains = useMemo(() => listChains({ includeTestnets: false }), []);
-  const addressFor = useCallback(
-    (family: string) => (family === 'solana' ? acct?.solAddress : family === 'bitcoin' ? acct?.btcAddress : acct?.evmAddress),
-    [acct?.evmAddress, acct?.solAddress, acct?.btcAddress],
-  );
+  const addressFor = useCallback((chain: HistoryChain) => addressForChain(acct, chain) || undefined, [acct]);
 
   /*
    * ABONNEMENT AU CACHE, et non à `getCached`.
@@ -100,7 +98,7 @@ export default function History() {
   const cached: TxSummary[] = useMemo(() => {
     const seen = new Map<string, TxSummary>();
     for (const c of chains) {
-      const address = addressFor(c.family);
+      const address = addressFor(c);
       if (!address) continue;
       for (const tx of cache[cacheKey(c.id, address)] ?? []) seen.set(`${tx.chain}:${tx.hash}`, tx);
     }
@@ -109,7 +107,7 @@ export default function History() {
 
   const loading = useHistoryStore((s) =>
     chains.some((c) => {
-      const address = addressFor(c.family);
+      const address = addressFor(c);
       return address ? s.loading[cacheKey(c.id, address)] === true : false;
     }),
   );
@@ -117,7 +115,7 @@ export default function History() {
   const load = useCallback(async () => {
     await Promise.all(
       chains.map((c) => {
-        const address = addressFor(c.family);
+        const address = addressFor(c);
         return address ? fetchHistory(c.id, address).catch(() => {}) : Promise.resolve();
       }),
     );

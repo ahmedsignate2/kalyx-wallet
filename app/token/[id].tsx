@@ -16,6 +16,7 @@ import { fonts, spacing, useTheme } from '../../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { toast } from '../../lib/toast';
 import { useWallet } from '../../lib/walletStore';
+import { addressForChain } from '../../lib/accountAddress';
 import { usePortfolioStore, type Holding } from '../../lib/portfolio';
 import { usePriceAlerts } from '../../lib/priceAlertsStore';
 import {
@@ -148,7 +149,7 @@ export default function TokenDetail() {
     const state = useWallet.getState();
     const stored = state.accounts.find((a) => a.index === state.activeAccountIndex);
     if (!stored) return;
-    const acct = { evmAddress: stored.evmAddress, solAddress: stored.solAddress, btcAddress: stored.btcAddress };
+    const acct = { evmAddress: stored.evmAddress, solAddress: stored.solAddress, btcAddress: stored.btcAddress, tonPublicKey: stored.tonPublicKey, tonVersion: stored.tonVersion };
     portfolio.hydrate(acct, fiat).then(() => portfolio.refresh(acct, fiat));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account?.address, fiat]);
@@ -166,9 +167,7 @@ export default function TokenDetail() {
   useEffect(() => {
     if (!chain) return;
     const stored = accounts.find((a) => a.index === activeAccountIndex) ?? accounts[0];
-    const address = chain.family === 'bitcoin' ? stored?.btcAddress
-      : chain.family === 'solana' ? stored?.solAddress
-        : stored?.evmAddress;
+    const address = addressForChain(stored, chain);
     if (!address) return;
     let alive = true;
     setActivity(null);

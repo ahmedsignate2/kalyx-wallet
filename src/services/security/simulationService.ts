@@ -273,7 +273,7 @@ export async function simulateSolanaTransaction(params: {
  * Point d'entrée universel pour la simulation de transfert (EVM, Solana, Bitcoin).
  */
 export async function simulateSendTransaction(params: {
-  family: 'evm' | 'solana' | 'bitcoin';
+  family: 'evm' | 'solana' | 'bitcoin' | 'ton';
   from: string;
   to: string;
   amount: bigint;
@@ -307,8 +307,13 @@ export async function simulateSendTransaction(params: {
     });
   }
 
-  // Bitcoin : transfert standard UTXO
-  const formattedAmount = (Number(params.amount) / 1e8).toString();
+  /*
+   * Bitcoin et TON : pas de simulation, transfert natif standard. Montant formaté
+   * avec les décimales DU JETON : il était divisé par 10^8 en dur, ce qui aurait
+   * affiché un transfert TON (9 décimales) dix fois trop grand.
+   */
+  const formattedAmount =
+    params.family === 'bitcoin' ? (Number(params.amount) / 1e8).toString() : ethers.formatUnits(params.amount, params.tokenDecimals);
   return {
     isSafe: true,
     warningLevel: 'none',

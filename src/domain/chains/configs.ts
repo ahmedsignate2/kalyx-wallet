@@ -616,6 +616,27 @@ export const SOLANA_DEVNET: ChainConfig = {
   testnet: true,
 };
 
+/**
+ * TON — RÉSEAU DE TEST seulement (activation du 26/09).
+ *
+ * Le réseau principal attend son fournisseur de production : un proxy Cloudflare
+ * Worker devant TonAPI (décision du 26/09). Ici, TON Center sans clé.
+ *
+ * Explorateur : Tonscan, vérifié en le consultant — il résout à la fois le
+ * hachage d'une transaction (historique) et le hachage NORMALISÉ d'un message
+ * (juste après un envoi), sous le même `/tx/<hash>`. Tonviewer ne répondait pas.
+ */
+export const TON_TESTNET: ChainConfig = {
+  id: 'ton-testnet',
+  name: 'TON Testnet',
+  family: 'ton',
+  nativeSymbol: 'TON',
+  nativeDecimals: 9,
+  rpcUrls: ['https://testnet.toncenter.com/api'],
+  explorerUrl: 'https://testnet.tonscan.org',
+  testnet: true,
+};
+
 // Ordre d'affichage dans le sélecteur : testnet en tête (réseau par défaut).
 export const ALL_CHAINS: ChainConfig[] = [
   SEPOLIA,
@@ -686,6 +707,7 @@ export const ALL_CHAINS: ChainConfig[] = [
   BITCOIN,
   SOLANA,
   SOLANA_DEVNET,
+  TON_TESTNET,
 ];
 
 /**
