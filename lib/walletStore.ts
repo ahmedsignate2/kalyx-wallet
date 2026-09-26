@@ -15,7 +15,7 @@ import { base64, base58, hex } from '@scure/base';
 import { ed25519 } from '@noble/curves/ed25519';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { sha256 } from '@noble/hashes/sha256';
-import { concatBytes, utf8ToBytes } from '@noble/hashes/utils';
+import { bytesToHex, concatBytes, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { create } from 'zustand';
 import { Wallet, getBytes, isHexString } from 'ethers';
 import {
@@ -57,6 +57,12 @@ import {
   type MnemonicStrength,
   type SwapQuote,
   type RawTxRequest,
+  listChains,
+  addressFromRawKey,
+  signerFromRawKey,
+  parseImportedKey,
+  type ChainFamily,
+  type KeyFamily,
 } from '../src';
 import { technicalLogger } from './technicalLogger';
 import {
@@ -169,7 +175,22 @@ interface WalletState {
   createWallet: (pin: string, label?: string) => Promise<string>; // renvoie la phrase à sauvegarder
   importWallet: (mnemonic: string, pin: string, label?: string) => Promise<void>;
   /** Importe un wallet depuis une clé privée EVM (un seul compte, EVM uniquement). */
-  importPrivateKey: (privateKey: string, pin: string, label?: string) => Promise<void>;
+  /**
+   * Importe une clé privée : EVM en hexadécimal, Bitcoin en WIF, Solana en
+   * base58 ou en tableau JSON.
+   *
+   * `family` tranche quand la clé pourrait servir plusieurs chaînes — 32 octets
+   * sur secp256k1 valent pour l'EVM et Bitcoin, et sont aussi une graine ed25519.
+   * Sans ce choix l'import échoue plutôt que de deviner : trois adresses
+   * différentes sortent du même secret, et en choisir une au hasard montrerait un
+   * portefeuille vide.
+   */
+  importPrivateKey: (
+    privateKey: string,
+    pin: string,
+    label?: string,
+    family?: KeyFamily,
+  ) => Promise<void>;
   setActiveWallet: (id: string) => Promise<void>;
   renameWallet: (id: string, label: string) => Promise<void>;
   removeWallet: (id: string) => Promise<void>;
@@ -242,12 +263,6 @@ function deriveStoredAccount(mnemonic: string, index: number, label: string): St
 }
 
 /** Compte unique (EVM) d'un wallet importé par clé privée : pas de HD, ni BTC/Solana. */
-function storedAccountFromPk(privateKey: string): StoredAccount {
-  const acct = evmAccountFromPrivateKey(privateKey);
-  // Libellé vide = nom par défaut, traduit à l'affichage (lib/walletNames.ts).
-  return { index: 0, label: '', evmAddress: acct.address, btcAddress: '' };
-}
-
 /**
  * Mémorise le portefeuille et le compte actifs.
  *
@@ -268,6 +283,39 @@ function forgetActive(): void {
 
 function isPrivateKeyWallet(wallets: WalletMeta[], id: string): boolean {
   return wallets.find((w) => w.id === id)?.type === 'privateKey';
+}
+
+/**
+ * Famille servie par un portefeuille importé, ou `null` s'il vient d'une phrase.
+ *
+ * `keyFamily` absent vaut `'evm'` : c'est la rétro-compatibilité, tous les
+ * imports antérieurs à l'ouverture aux autres chaînes étant des clés EVM.
+ */
+function privateKeyFamily(wallets: WalletMeta[], id: string): KeyFamily | null {
+  const w = wallets.find((x) => x.id === id);
+  if (w?.type !== 'privateKey') return null;
+  return w.keyFamily ?? 'evm';
+}
+
+/** Premier réseau non-test d'une famille donnée, pour y basculer. */
+function firstChainOfFamily(family: ChainFamily): string {
+  return listChains({ includeTestnets: false }).find((c) => c.family === family)?.id ?? DEFAULT_CHAIN;
+}
+
+/**
+ * Compte d'une clé importée : une seule adresse, celle de sa famille.
+ *
+ * Les autres champs restent VIDES à dessein. Y mettre l'adresse qu'on pourrait
+ * dériver du même secret sur une autre courbe laisserait croire que le
+ * portefeuille détient là-bas aussi — alors que l'utilisateur n'a importé qu'une
+ * clé, pour un usage.
+ */
+function storedAccountFromRawKey(family: KeyFamily, secret: Uint8Array): StoredAccount {
+  const address = addressFromRawKey(family, secret);
+  const base: StoredAccount = { index: 0, label: '', evmAddress: '', btcAddress: '' };
+  if (family === 'bitcoin') return { ...base, btcAddress: address };
+  if (family === 'solana') return { ...base, solAddress: address };
+  return { ...base, evmAddress: address };
 }
 
 /**
@@ -635,21 +683,55 @@ export const useWallet = create<WalletState>((set, get) => ({
     rememberActive(id, 0);
   },
 
-  importPrivateKey: async (privateKey, pin, label) => {
-    // Valide/normalise la clé AVANT toute écriture (lève si invalide).
-    const key = normalizeEvmPrivateKey(privateKey);
+  importPrivateKey: async (privateKey, pin, label, family) => {
+    /*
+     * ANALYSE AVANT TOUTE ÉCRITURE. L'import n'acceptait qu'une clé EVM en
+     * hexadécimal : un WIF Bitcoin ou un export Phantom étaient refusés sans
+     * explication, alors que ce sont les formes que les utilisateurs ont en main.
+     */
+    const parsed = parseImportedKey(privateKey);
+    if (!parsed.ok) throw new WalletError('INVALID_KEY', `import.${parsed.error}`);
+
+    /*
+     * LA FAMILLE NE SE DEVINE PAS quand plusieurs sont possibles : 32 octets sur
+     * secp256k1 servent l'EVM et Bitcoin, et sont aussi une graine ed25519. Trois
+     * adresses différentes pour un même secret — choisir à la place de
+     * l'utilisateur, c'est lui montrer un portefeuille vide.
+     */
+    const candidates = parsed.key.families;
+    const chosen = family ?? (candidates.length === 1 ? candidates[0] : null);
+    if (!chosen) throw new WalletError('INVALID_KEY', 'import.FAMILY_REQUIRED');
+    if (!candidates.includes(chosen)) throw new WalletError('INVALID_KEY', 'import.FAMILY_UNSUPPORTED');
+
+    /*
+     * WIF NON COMPRESSÉ REFUSÉ. Kalyx ne gère que le segwit natif (bc1…), et une
+     * clé non compressée désigne une adresse héritée : on dériverait une adresse
+     * où les fonds ne sont pas, et l'utilisateur conclurait qu'ils ont disparu.
+     */
+    if (chosen === 'bitcoin' && parsed.key.compressed === false) {
+      throw new WalletError('INVALID_KEY', 'import.WIF_UNCOMPRESSED');
+    }
+
     await revealMnemonic(get().activeWalletId, { pin }); // vérifie le PIN (un seul PIN d'app)
     const id = newWalletId();
-    const accounts = [storedAccountFromPk(key)];
-    await saveVault(id, await encryptSecret(key, pin));
+    const accounts = [storedAccountFromRawKey(chosen, parsed.key.secret)];
+    /*
+     * Le coffre garde le secret en hexadécimal. Le préfixe `0x` est conservé pour
+     * l'EVM : c'est la forme que `normalizeEvmPrivateKey` attend et que tous les
+     * coffres existants contiennent.
+     */
+    const stored = chosen === 'evm' ? '0x' + bytesToHex(parsed.key.secret) : bytesToHex(parsed.key.secret);
+    await saveVault(id, await encryptSecret(stored, pin));
     await saveAccounts(id, accounts);
     const wallets: WalletMeta[] = [
       ...get().wallets,
-      { id, label: label?.trim() || '', type: 'privateKey' },
+      { id, label: label?.trim() || '', type: 'privateKey', keyFamily: chosen },
     ];
     await saveWalletsList(wallets);
-    // EVM only : si le réseau actif n'est pas EVM, on bascule sur un réseau EVM valide.
-    const chain = getAdapter(get().activeChain).config.family === 'evm' ? get().activeChain : DEFAULT_CHAIN;
+    // Le réseau actif doit appartenir à la famille de la clé, sinon le compte
+    // n'aurait pas d'adresse à montrer.
+    const chain =
+      getAdapter(get().activeChain).config.family === chosen ? get().activeChain : firstChainOfFamily(chosen);
     set({
       wallets,
       activeWalletId: id,
@@ -658,14 +740,21 @@ export const useWallet = create<WalletState>((set, get) => ({
       activeChain: chain,
       account: toAccount(accounts, 0, chain),
     });
+    rememberActive(id, 0);
   },
 
   setActiveWallet: async (id) => {
     const accounts = (await loadAccounts(id)) ?? [];
-    // Un wallet clé privée est EVM-only : forcer un réseau EVM si besoin.
+    /*
+     * Un portefeuille importé ne sert QU'UNE famille : si le réseau affiché n'en
+     * fait pas partie, le compte n'aurait aucune adresse à montrer. On bascule
+     * donc sur un réseau de la bonne famille — et non sur l'EVM par défaut, ce
+     * qui aurait présenté une adresse vide pour une clé Bitcoin ou Solana.
+     */
+    const pkFamily = privateKeyFamily(get().wallets, id);
     const chain =
-      isPrivateKeyWallet(get().wallets, id) && getAdapter(get().activeChain).config.family !== 'evm'
-        ? DEFAULT_CHAIN
+      pkFamily && getAdapter(get().activeChain).config.family !== pkFamily
+        ? firstChainOfFamily(pkFamily)
         : get().activeChain;
     set({ activeWalletId: id, accounts, activeAccountIndex: 0, activeChain: chain, account: toAccount(accounts, 0, chain) });
     /*
@@ -766,13 +855,33 @@ export const useWallet = create<WalletState>((set, get) => ({
      * dérivation possible — et une clé secp256k1 EVM ne donne ni adresse
      * Bitcoin ni compte Solana. Le refus est explicite plutôt que silencieux.
      */
-    if (isPrivateKeyWallet(wallets, activeWalletId)) {
-      if (family !== 'evm') {
-        throw new Error(`Portefeuille clé privée : ${family} non disponible (EVM uniquement).`);
+    const pkFamily = privateKeyFamily(wallets, activeWalletId);
+    if (pkFamily) {
+      /*
+       * Une clé importée sert SA famille et rien d'autre. Le refus nomme les deux
+       * familles : « Solana non disponible » sans dire ce que le portefeuille sait
+       * faire n'apprend rien à celui qui vient d'importer un WIF.
+       */
+      if (family !== pkFamily) {
+        throw new WalletError('NOT_SUPPORTED', `import.WRONG_FAMILY:${pkFamily}:${family}`);
       }
-      return signerFromEvmPrivateKey(
-        await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock),
-      );
+      if (pkFamily === 'evm') {
+        return signerFromEvmPrivateKey(
+          await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock),
+        );
+      }
+      /*
+       * Clé BRUTE, sans dérivation. Appliquer BIP-84 ou SLIP-0010 à un secret qui
+       * EST déjà la clé produirait une autre clé, donc une autre adresse que celle
+       * affichée à l'import.
+       */
+      const raw = (await revealMnemonic(activeWalletId, unlock)).replace(/^0x/i, '');
+      const secret = hexToBytes(raw);
+      try {
+        return signerFromRawKey(pkFamily, secret);
+      } finally {
+        secret.fill(0);
+      }
     }
 
     const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
@@ -1124,9 +1233,17 @@ export const useWallet = create<WalletState>((set, get) => ({
     const { activeWalletId, wallets, account } = get();
     if (!account) throw new Error('Aucun compte');
     // Wallet clé privée : la clé stockée EST la clé privée. Wallet HD : dérivée du compte actif.
-    return isPrivateKeyWallet(wallets, activeWalletId)
-      ? normalizeEvmPrivateKey(await revealMnemonic(activeWalletId, unlock))
-      : deriveEvmAccount(mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock)), account.index).privateKey;
+    const pkFamily = privateKeyFamily(wallets, activeWalletId);
+    if (pkFamily) {
+      const secret = await revealMnemonic(activeWalletId, unlock);
+      /*
+       * On rend le secret TEL QU'IL EST STOCKÉ pour une clé non EVM : le
+       * normaliser en clé EVM y ajouterait un `0x` et laisserait croire à une clé
+       * Ethereum, alors que c'est une clé Bitcoin ou Solana.
+       */
+      return pkFamily === 'evm' ? normalizeEvmPrivateKey(secret) : secret.replace(/^0x/i, '');
+    }
+    return deriveEvmAccount(mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock)), account.index).privateKey;
   },
 
   enableBiometric: async (pin) => {

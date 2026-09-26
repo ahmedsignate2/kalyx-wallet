@@ -48,10 +48,21 @@ export interface WalletMeta {
   label: string;
   /**
    * Origine du coffre. `'seed'` (défaut, rétro-compat) = mnémonique BIP-39,
-   * dérivation HD multi-comptes. `'privateKey'` = clé privée EVM importée :
-   * un seul compte, pas de dérivation HD, EVM uniquement (ni phrase, ni BTC/Solana).
+   * dérivation HD multi-comptes. `'privateKey'` = clé privée importée : un seul
+   * compte, pas de dérivation HD, pas de phrase de récupération.
    */
   type?: 'seed' | 'privateKey';
+  /**
+   * Famille servie par une clé importée.
+   *
+   * ABSENT = `'evm'`, et c'est la rétro-compatibilité : tous les portefeuilles
+   * importés avant l'ouverture aux autres chaînes sont EVM, et rien ne doit les
+   * faire basculer ailleurs. Une clé importée ne sert QU'UNE famille — le secret
+   * pourrait techniquement en servir plusieurs, mais l'adresse dérivée diffère à
+   * chaque fois, et présenter plusieurs adresses pour un même import ne ferait
+   * que semer le doute.
+   */
+  keyFamily?: 'evm' | 'bitcoin' | 'solana';
 }
 
 const base: SecureStore.SecureStoreOptions = {
