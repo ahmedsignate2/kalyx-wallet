@@ -14,6 +14,19 @@ import { listChains, chainIconUrl, customChainId, CUSTOM_FAMILIES, DEFAULT_DECIM
 /** Libellés des familles : noms propres, donc non traduits. */
 const FAMILY_LABELS: Record<ChainFamily, string> = { evm: 'EVM', bitcoin: 'Bitcoin', solana: 'Solana', ton: 'TON' };
 
+/**
+ * Familles présentées en onglets, dans cet ordre.
+ *
+ * La liste était PLATE : tous les réseaux les uns après les autres, mainnets puis
+ * testnets, sans rien qui regroupe. Passé une dizaine d'entrées, on ne cherche
+ * plus, on défile. Les quatre familles sont donc des onglets, comme sur l'écran
+ * Recevoir, et chacun ne montre que ses réseaux.
+ *
+ * TON y figure même sans réseau configuré, et c'est délibéré : son absence est une
+ * information, et l'onglet le DIT au lieu de laisser croire à un oubli.
+ */
+const FAMILY_TABS: ChainFamily[] = ['evm', 'bitcoin', 'solana', 'ton'];
+
 /** Symbole suggéré par famille, pour ne pas laisser le champ vide. */
 const DEFAULT_SYMBOLS: Record<ChainFamily, string> = { evm: 'ETH', bitcoin: 'BTC', solana: 'SOL', ton: 'TON' };
 import { useCustomChains, type CustomChainInput } from '../lib/customChainsStore';
@@ -49,9 +62,22 @@ export default function Networks() {
   const scrolledOnce = useRef(false);
 
   const q = query.trim().toLowerCase();
+  /*
+   * Onglet ouvert sur la famille du réseau ACTIF : on arrive sur cet écran pour
+   * changer de réseau, pas pour changer de chaîne — commencer ailleurs obligerait
+   * à revenir sur ses pas.
+   */
+  const [family, setFamily] = useState<ChainFamily>(
+    () => (listChains({ includeTestnets: true }).find((c) => c.id === activeChain)?.family ?? 'evm') as ChainFamily,
+  );
+  /*
+   * UNE RECHERCHE IGNORE L'ONGLET. Chercher veut dire « trouve-le où qu'il soit » ;
+   * filtrer en plus sur la famille rendrait invisible un réseau dont on vient de
+   * taper le nom exact.
+   */
   const chains = q
     ? all.filter((c) => c.name.toLowerCase().includes(q) || c.nativeSymbol.toLowerCase().includes(q))
-    : all;
+    : all.filter((c) => c.family === family);
   // Séparation nette mainnet / testnet.
   const mainnets = chains.filter((c) => !c.testnet);
   const testnets = chains.filter((c) => c.testnet);
@@ -143,10 +169,40 @@ export default function Networks() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/*
+          LES QUATRE FAMILLES EN ONGLETS, toujours visibles hors recherche — y
+          compris quand la famille choisie n'a aucun réseau, sinon on ne pourrait
+          plus en sortir. Masquées pendant une recherche : celle-ci porte sur
+          tout, les afficher suggérerait le contraire.
+        */}
+        {!q ? (
+          <SegmentedControl
+            items={FAMILY_TABS.map((f) => ({ key: f, label: FAMILY_LABELS[f] }))}
+            value={family}
+            onChange={(next) => setFamily(next as ChainFamily)}
+          />
+        ) : null}
+
         {chains.length === 0 ? (
-          <Card>
-            <Muted>{t('noNetworkMatch').replace('{q}', query)}</Muted>
-          </Card>
+          /*
+            TROIS VIDES DIFFÉRENTS. Une recherche sans résultat n'est pas une
+            famille sans réseau, et TON mérite qu'on dise où en est le travail
+            plutôt qu'un onglet muet — un vide ne se distingue pas d'un bogue.
+          */
+          q ? (
+            <Card>
+              <Muted>{t('noNetworkMatch').replace('{q}', query)}</Muted>
+            </Card>
+          ) : family === 'ton' ? (
+            <Card style={{ gap: spacing(1) }}>
+              <Text style={typography.section}>{t('tonNotYetTitle')}</Text>
+              <Text style={typography.muted}>{t('tonNotYetBody')}</Text>
+            </Card>
+          ) : (
+            <Card>
+              <Muted>{t('noNetworkMatch').replace('{q}', FAMILY_LABELS[family])}</Muted>
+            </Card>
+          )
         ) : (
           <>
             {/* Section principale (mainnet) */}
