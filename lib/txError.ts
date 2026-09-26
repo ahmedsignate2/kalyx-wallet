@@ -11,6 +11,29 @@ import { recordTechnicalLog } from './technicalLogger';
 export type TFn = (key: any) => string;
 
 /**
+ * Erreur dont le message est DÉJÀ rédigé dans la langue de l'utilisateur.
+ *
+ * À ne pas confondre avec la liste blanche supprimée plus bas : celle-là
+ * DEVINAIT, par une expression régulière sur des débuts de phrases françaises,
+ * si un message était présentable — donc elle ne marchait qu'en français. Ici
+ * c'est celui qui lève l'erreur qui le DÉCLARE, et il ne peut le déclarer que
+ * depuis l'interface, seul endroit qui tient un traducteur. Rien n'est deviné.
+ *
+ * Sert aux diagnostics précis du tableau de bord web — « l'autorisation est
+ * confirmée mais pas encore visible sur le réseau », « le téléphone n'a pas
+ * renvoyé de transaction signée ». Sans elle, ces phrases retombaient sur le
+ * message générique, ou pire : la version anglaise contenant « network »
+ * ressortait en « réseau indisponible, vérifie ta connexion », un diagnostic
+ * faux. Quel message l'utilisateur voyait dépendait de sa langue.
+ */
+export class UserFacingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UserFacingError';
+  }
+}
+
+/**
  * Message TRADUIT de chaque code d'erreur du portefeuille.
  *
  * `WalletError` porte un code ET un message, et ce message était écrit en
@@ -76,6 +99,9 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
   const errMsg = typeof e === 'object' && e ? (e as any)?.shortMessage || (e as any)?.message || 'Transaction error' : String(e);
   recordTechnicalLog('TX_ERROR', errMsg, typeof e === 'object' && e ? { code: (e as any)?.code, status: (e as any)?.status } : undefined);
   console.error('[txError] Raw error interceptée:', typeof e === 'object' ? JSON.stringify(e, Object.getOwnPropertyNames(e)) : e);
+  // Message déjà traduit par l'appelant : on le rend tel quel, sans le soumettre
+  // aux devinettes qui suivent. Il est passé par le journal juste au-dessus.
+  if (e instanceof UserFacingError) return e.message;
   // SwapError : diagnostic précis (minimum, liquidité, slippage, gas).
   if (e instanceof SwapError) {
     const fill = (s: string) => s.replace(/\{(\w+)\}/g, (_, k) => e.meta?.[k] ?? '?');

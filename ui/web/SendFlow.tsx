@@ -27,6 +27,7 @@ import { Icon } from '../icon';
 import { useTheme } from '../theme';
 import { space, SCREEN_MARGIN, radius } from '../tokens';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
+import { UserFacingError, friendlyTxError } from '../../lib/txError';
 import { useRecentRecipients, type RecipientFamily } from '../../lib/recentRecipientsStore';
 import { useContacts } from '../../lib/contactsStore';
 import { useWebConnect } from '../../lib/webConnect';
@@ -242,19 +243,19 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
       const sol = getAdapter(chain.id) as SolanaChainAdapter;
       const latest = await sol.rpc<{ value?: { blockhash?: string } }>('getLatestBlockhash', [{ commitment: 'finalized' }]);
       const recentBlockhash = latest?.value?.blockhash;
-      if (!recentBlockhash) throw new Error(tw('blockhashUnavailable'));
+      if (!recentBlockhash) throw new UserFacingError(tw('blockhashUnavailable'));
       const message = token
         ? buildSplTransferMessage({ from: senderAddress, to: recipient, mint: token.contract, amount: amountRaw, decimals: token.decimals, recentBlockhash })
         : buildTransferMessage({ from: senderAddress, to: recipient, lamports: amountRaw, recentBlockhash });
       const res: unknown = await request('solana_signTransaction', [{ transaction: unsignedSolanaTx(message) }]);
       const signed = pick<string>(res, ['transaction']) ?? (typeof res === 'string' ? res : undefined);
-      if (!signed) throw new Error(tw('phoneNoSignedTx'));
+      if (!signed) throw new UserFacingError(tw('phoneNoSignedTx'));
       // Simulation + diffusion + attente de confirmation : même chemin que l'app.
       return submitSolanaSigned(signed);
     }
     const res: unknown = await request('sendTransfer', [{ recipientAddress: recipient, amount: tokenAmountStr }]);
     const txid = pick<string>(res, ['txid']) ?? (typeof res === 'string' ? res : undefined);
-    if (!txid) throw new Error(tw('phoneNoTxid'));
+    if (!txid) throw new UserFacingError(tw('phoneNoTxid'));
     return txid;
   };
 
@@ -272,7 +273,9 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
       toast.success(t('sendTitle'), `${formatTokenAmount(amountRaw, decimals)} ${symbol}`);
       pf.refresh(pfAccount!, fiat, { includeTestnets: showTestnets, force: true }).catch(() => {});
     } catch (e) {
-      setSendError(e instanceof Error ? e.message : tw('rejectedOrFailed'));
+      // Le message brut d'ethers, du RPC ou de WalletConnect n'a pas de langue :
+      // il passe par le même entonnoir que l'app pour être traduit par son code.
+      setSendError(friendlyTxError(e, t as never));
       setStep(3);
     } finally {
       setConfirming(false);

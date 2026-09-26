@@ -10,7 +10,7 @@
  * paramètres `tgWebApp*` dans le hash/la query, et expose des ponts natifs
  * (`TelegramWebviewProxy` sur mobile, `external.notify` sur desktop).
  */
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 export type WebPlatform = 'telegram' | 'web';
 
@@ -87,6 +87,7 @@ export interface TelegramWebApp {
   setBackgroundColor?: (color: string) => void;
   setBottomBarColor?: (color: string) => void;
   enableClosingConfirmation?: () => void;
+  disableClosingConfirmation?: () => void;
   disableVerticalSwipes?: () => void;
   requestFullscreen?: () => void;
   BiometricManager: TelegramBiometricManager;
@@ -115,8 +116,15 @@ export function loadTelegramWebApp(): Promise<TelegramWebApp | null> {
   return loading;
 }
 
-/** Prépare la mini-app : plein écran, couleurs alignées sur le fond, pas de
- *  fermeture par glissement vertical (sinon scroller la liste fermait l'app). */
+/**
+ * Prépare la mini-app : plein écran, couleurs alignées sur le fond, pas de
+ * fermeture par glissement vertical (sinon scroller la liste fermait l'app).
+ *
+ * DEUX EFFETS, PAS UN. Tout dépendait de `bg`, donc un changement de thème
+ * rappelait `ready()` — qui annonce à Telegram que l'interface est prête, une
+ * chose qui n'arrive qu'une fois — et `expand()`. L'ouverture se fait une fois ;
+ * seules les couleurs suivent le thème.
+ */
 export function useTelegramSetup(bg: string) {
   const [app, setApp] = useState<TelegramWebApp | null>(null);
   useEffect(() => {
@@ -126,9 +134,6 @@ export function useTelegramSetup(bg: string) {
       try {
         a.ready();
         a.expand();
-        a.setHeaderColor?.(bg);
-        a.setBackgroundColor?.(bg);
-        a.setBottomBarColor?.(bg);
         a.disableVerticalSwipes?.();
       } catch {
         /* version de client trop ancienne pour certaines méthodes */
@@ -136,8 +141,39 @@ export function useTelegramSetup(bg: string) {
       setApp(a);
     });
     return () => { alive = false; };
-  }, [bg]);
+  }, []);
+  useEffect(() => {
+    if (!app) return;
+    try {
+      app.setHeaderColor?.(bg);
+      app.setBackgroundColor?.(bg);
+      app.setBottomBarColor?.(bg);
+    } catch {
+      /* méthode absente sur les clients anciens */
+    }
+  }, [app, bg]);
   return app;
+}
+
+/**
+ * Demande confirmation avant fermeture, seulement pendant `active`.
+ *
+ * `disableVerticalSwipes` empêche de fermer la mini-app en faisant défiler, mais
+ * pas la croix ni le geste système. Fermer au milieu d'un envoi laisse
+ * l'utilisateur sans savoir si la transaction est partie. On l'active donc pendant
+ * les parcours de signature, et on la coupe après : la garder en permanence
+ * ferait apparaître une alerte à chaque sortie, y compris depuis l'accueil.
+ */
+export function useTelegramClosingConfirmation(app: TelegramWebApp | null, active: boolean) {
+  useEffect(() => {
+    if (!app?.enableClosingConfirmation || !active) return;
+    try {
+      app.enableClosingConfirmation();
+    } catch {
+      return;
+    }
+    return () => { try { app.disableClosingConfirmation?.(); } catch { /* ignore */ } };
+  }, [app, active]);
 }
 
 export const TelegramAppContext = createContext<TelegramWebApp | null>(null);
@@ -172,23 +208,46 @@ export function tgHaptic(app: TelegramWebApp | null, kind: 'light' | 'success' |
 
 /* ------------------------------------------------------- Inactivité (web) */
 
-/** Vrai après `timeoutMs` sans interaction (souris, clavier, toucher, scroll). */
+/**
+ * Vrai après `timeoutMs` sans interaction (souris, clavier, toucher, scroll).
+ *
+ * UN SEUL MINUTEUR, RÉARMÉ — au lieu d'un sondage toutes les cinq secondes qui
+ * ne s'arrêtait jamais. Le masquage du solde l'utilise avec deux minutes : sur un
+ * téléphone, dans la mini-app Telegram, c'était douze réveils par minute pendant
+ * toute la session pour vérifier une soustraction. Un `setTimeout` réarmé à chaque
+ * geste fait exactement le même travail avec zéro réveil pendant l'inactivité.
+ *
+ * `idle` vit aussi dans une ref : il était dans les dépendances de l'effet, donc
+ * chaque bascule désinscrivait puis réinscrivait les six écouteurs.
+ *
+ * `visibilitychange` a quitté la liste des gestes. Il la remettait à zéro, donc
+ * passer en arrière-plan REPOUSSAIT le masquage automatique du solde — l'inverse
+ * de ce qu'on veut d'un minuteur de confidentialité. Le retour au premier plan est
+ * de toute façon suivi d'un geste réel, et `useTabHidden` masque immédiatement.
+ */
 export function useIdle(timeoutMs: number, enabled: boolean): boolean {
   const [idle, setIdle] = useState(false);
+  const idleRef = useRef(false);
   useEffect(() => {
     const w = win();
     if (!enabled || !w?.addEventListener) return;
-    let last = Date.now();
-    let timer: ReturnType<typeof setInterval> | null = null;
-    const bump = () => { last = Date.now(); if (idle) setIdle(false); };
-    const events = ['pointerdown', 'keydown', 'touchstart', 'wheel', 'scroll', 'visibilitychange'];
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const arm = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { idleRef.current = true; setIdle(true); }, timeoutMs);
+    };
+    const bump = () => {
+      if (idleRef.current) { idleRef.current = false; setIdle(false); }
+      arm();
+    };
+    const events = ['pointerdown', 'keydown', 'touchstart', 'wheel', 'scroll'];
     events.forEach((e) => w.addEventListener?.(e, bump, { passive: true }));
-    timer = setInterval(() => { if (Date.now() - last > timeoutMs) setIdle(true); }, 5_000);
+    arm();
     return () => {
       events.forEach((e) => w.removeEventListener?.(e, bump));
-      if (timer) clearInterval(timer);
+      if (timer) clearTimeout(timer);
     };
-  }, [timeoutMs, enabled, idle]);
+  }, [timeoutMs, enabled]);
   return idle;
 }
 
