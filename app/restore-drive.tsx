@@ -19,9 +19,10 @@ import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
+import { toast } from '../lib/toast';
 import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
 import { PinPromptModal } from '../ui/PinPromptModal';
-import { restoreBackup } from '../src';
+import { restoreBackup, type BackupError, type BackupWallet } from '../src';
 
 export default function RestoreDriveScreen() {
   const { colors } = useTheme();
@@ -30,7 +31,7 @@ export default function RestoreDriveScreen() {
   const language = useSettings((s) => s.language);
   const pinLength = useSettings((s) => s.pinLength);
   const setImportedDraft = useWallet((s) => s.setImportedDraft);
-  const importWallet = useWallet((s) => s.importWallet);
+  const importWallets = useWallet((s) => s.importWallets);
   const hasWallet = useWallet((s) => s.hasWallet);
 
   const flow = useDriveFlow();
@@ -42,7 +43,7 @@ export default function RestoreDriveScreen() {
    * Phrase déchiffrée en attente quand un wallet existe DÉJÀ : on demande alors
    * le PIN courant pour l'AJOUTER, au lieu de remplacer l'existant.
    */
-  const [pendingMnemonic, setPendingMnemonic] = useState<string | null>(null);
+  const [pendingWallets, setPendingWallets] = useState<BackupWallet[] | null>(null);
   const [pinError, setPinError] = useState(0);
   const [pinBusy, setPinBusy] = useState(false);
 
@@ -61,14 +62,35 @@ export default function RestoreDriveScreen() {
     router.replace(hasWallet ? '/wallets' : '/welcome');
   };
 
+  /** Message d'un échec de sauvegarde, depuis son code. */
+  const backupErrorText = (code: BackupError) => {
+    switch (code) {
+      case 'UNREADABLE':
+        return t('backupErrUnreadable');
+      case 'NOT_A_BACKUP':
+        return t('backupErrNotBackup');
+      case 'TOO_RECENT':
+        return t('backupErrTooRecent');
+      case 'WRONG_PASSWORD':
+        return t('backupErrWrongPassword');
+      default:
+        return t('backupErrCorrupted');
+    }
+  };
+
   async function decrypt(text: string) {
     setBusy(true);
     setPwdError(null);
     const r = await restoreBackup(text, pwd);
     setBusy(false);
-    if (r.error || !r.mnemonic) {
-      // Traduit : ce repli était la dernière phrase française en dur d'un écran.
-      setPwdError(r.error ?? t('invalidBackup'));
+    /*
+     * TOUS les portefeuilles, plus seulement la première phrase. Une sauvegarde
+     * de trois portefeuilles n'en restaurait qu'un, sans rien signaler — et
+     * l'utilisateur n'avait aucun moyen de s'en apercevoir.
+     */
+    if (r.error || !r.wallets?.length) {
+      // Traduit depuis un CODE : ces messages étaient en français dans le domaine.
+      setPwdError(r.error ? backupErrorText(r.error) : t('invalidBackup'));
       return;
     }
     setPwd('');
@@ -88,19 +110,27 @@ export default function RestoreDriveScreen() {
      *    restauré à côté, sans jamais toucher à l'existant.
      */
     if (hasWallet) {
-      setPendingMnemonic(r.mnemonic);
+      setPendingWallets(r.wallets);
       return;
     }
-    setImportedDraft(r.mnemonic);
+    /*
+     * Premier lancement : le flux d'installation ne sait recevoir qu'UNE phrase.
+     * On lui donne la première, et les autres sont ajoutées juste après, une fois
+     * le code créé — sinon elles seraient silencieusement perdues.
+     */
+    const first = r.wallets.find((w) => w.type === 'seed') ?? r.wallets[0];
+    setPendingWallets(r.wallets.filter((w) => w !== first));
+    setImportedDraft(first.secret);
     router.push('/set-pin');
   }
 
   async function addAlongside(pin: string) {
-    if (!pendingMnemonic) return;
+    if (!pendingWallets?.length) return;
     setPinBusy(true);
     try {
-      await importWallet(pendingMnemonic, pin);
-      setPendingMnemonic(null);
+      const added = await importWallets(pendingWallets, pin);
+      setPendingWallets(null);
+      toast.success(t('backupRestoredCount').replace('{count}', String(added)));
       router.replace('/wallets');
     } catch {
       // PIN refusé (ou phrase invalide) : on secoue, l'existant est intact.
@@ -118,14 +148,14 @@ export default function RestoreDriveScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PinPromptModal
-        visible={!!pendingMnemonic}
+        visible={!!pendingWallets?.length}
         title={t('importPinTitle')}
         subtitle={t('importPinSub')}
         expectedLength={pinLength}
         busy={pinBusy}
         errorSignal={pinError}
         onSubmit={addAlongside}
-        onCancel={() => setPendingMnemonic(null)}
+        onCancel={() => setPendingWallets(null)}
       />
       <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView

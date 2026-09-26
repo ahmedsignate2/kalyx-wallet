@@ -20,7 +20,7 @@ import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
-import { createBackup } from '../src';
+import { createWalletsBackup } from '../src';
 import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
 
 type Target = 'drive' | 'file';
@@ -36,7 +36,9 @@ export default function CloudBackupScreen() {
   const { colors } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
-  const revealPhrase = useWallet((s) => s.revealPhrase);
+  const exportAllWallets = useWallet((s) => s.exportAllWallets);
+  // Nombre de portefeuilles réellement emportés, pour le DIRE après coup.
+  const walletCount = useWallet((s) => s.wallets.length);
   const activeWalletId = useWallet((s) => s.activeWalletId);
   const wallets = useWallet((s) => s.wallets);
   const isPk = wallets.find((w) => w.id === activeWalletId)?.type === 'privateKey';
@@ -55,6 +57,7 @@ export default function CloudBackupScreen() {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileDone, setFileDone] = useState(false);
+  const [savedCount, setSavedCount] = useState<number | null>(null);
 
   // Un flux Drive terminé (succès ou erreur) est acquitté quand on quitte l'écran.
   useEffect(() => () => { if (flow.status === 'done' || flow.status === 'error') flow.reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -74,6 +77,13 @@ export default function CloudBackupScreen() {
 
   const dateLabel = (iso: string) => new Date(iso).toLocaleString(language, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+  /*
+    CE QUE LA SAUVEGARDE EMPORTE, annoncé avant de la créer. Elle n'emportait
+    qu'un portefeuille sans le dire ; annoncer le nombre est ce qui permet à
+    l'utilisateur de repérer une sauvegarde incomplète.
+  */
+  const coversLabel = t('backupCovers').replace('{count}', String(savedCount ?? walletCount));
+
   const submit = (to: Target) => {
     setError(null);
     setFileDone(false);
@@ -83,10 +93,18 @@ export default function CloudBackupScreen() {
     setConfirming(true);
   };
 
-  // Révèle la phrase (biométrie/PIN) et chiffre — 1 s. LÈVE pour ConfirmUnlock.
+  /*
+    Révèle TOUS les portefeuilles (biométrie/PIN) et chiffre. LÈVE pour ConfirmUnlock.
+
+    La sauvegarde n'emportait que la phrase du portefeuille ACTIF : trois
+    portefeuilles créés, un seul sauvegardé — et la restauration réussissait, donc
+    rien n'avertissait de la perte des deux autres. C'est le pire genre de
+    sauvegarde, celle qui donne confiance et ne tient pas.
+  */
   const perform = async (unlock: Unlock) => {
-    const mnemonic = await revealPhrase(unlock);
-    const blob = await createBackup(mnemonic, pwd);
+    const all = await exportAllWallets(unlock);
+    const blob = await createWalletsBackup(all, pwd);
+    setSavedCount(all.length);
     setPwd('');
     setConfirm('');
     if (target === 'drive') {
@@ -140,6 +158,12 @@ export default function CloudBackupScreen() {
           <View style={{ gap: space[2] }}>
             <ScreenHeader title={t('encBackup')} />
             <Text variant="bodySecondary" tone="secondary">{t('backupOneLiner')}</Text>
+            {/*
+              COMBIEN de portefeuilles la sauvegarde emporte. Elle n'en prenait
+              qu'un sans le dire ; annoncer le nombre est ce qui permet de repérer
+              une sauvegarde incomplète avant d'avoir besoin d'elle.
+            */}
+            <Text variant="caption" tone="secondary">{coversLabel}</Text>
           </View>
 
           {/* 2. Formulaire */}
