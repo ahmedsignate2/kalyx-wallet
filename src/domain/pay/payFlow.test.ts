@@ -1,4 +1,4 @@
-import { decideNoOption } from './payFlow';
+import { decideNoOption, needsCollect, preselectOption } from './payFlow';
 
 describe('decideNoOption', () => {
   it('formulaire exigé, première réponse : on le présente', () => {
@@ -53,5 +53,60 @@ describe('decideNoOption', () => {
     for (const url of [undefined, null, '', '  ', 'https://x/form', 'https://y/other']) {
       expect(decideNoOption({ rootCollectUrl: url, afterInfo: true }).kind).toBe('stop');
     }
+  });
+});
+
+describe('needsCollect', () => {
+  const plain = { id: 'a' };
+  const withForm = { id: 'b', collectData: { url: 'https://x/form' } };
+
+  it('une option sans formulaire ne réclame rien', () => {
+    expect(needsCollect(plain, [])).toBe(false);
+    expect(needsCollect({ id: 'c', collectData: null }, [])).toBe(false);
+    expect(needsCollect({ id: 'd', collectData: {} }, [])).toBe(false);
+  });
+
+  it('une option avec formulaire le réclame, une fois', () => {
+    expect(needsCollect(withForm, [])).toBe(true);
+    expect(needsCollect(withForm, ['b'])).toBe(false);
+  });
+
+  /*
+   * LE DÉFAUT CORRIGÉ. Le service renvoie `collectData` à l'identique après
+   * l'envoi : s'y fier seul laissait le badge affiché pour toujours et
+   * rouvrait le formulaire dès qu'on retouchait l'option.
+   */
+  it('la mémoire de l’app prime sur ce que le service répète', () => {
+    expect(needsCollect(withForm, ['a', 'b', 'c'])).toBe(false);
+  });
+
+  it('rien à réclamer sans option', () => {
+    expect(needsCollect(null, [])).toBe(false);
+    expect(needsCollect(undefined, [])).toBe(false);
+  });
+});
+
+describe('preselectOption', () => {
+  const plain = { id: 'a' };
+  const withForm = { id: 'b', collectData: { url: 'https://x/form' } };
+
+  it('retient la première option qui ne réclame rien', () => {
+    expect(preselectOption([withForm, plain])).toEqual(plain);
+  });
+
+  it('retient une option déjà renseignée', () => {
+    expect(preselectOption([withForm], ['b'])).toEqual(withForm);
+  });
+
+  /*
+   * Présélectionner une option qui exige des informations ouvrirait un
+   * formulaire que l'utilisateur n'a pas demandé.
+   */
+  it('ne présélectionne rien quand toutes réclament des informations', () => {
+    expect(preselectOption([withForm])).toBeNull();
+  });
+
+  it('rien à présélectionner dans une liste vide', () => {
+    expect(preselectOption([])).toBeNull();
   });
 });

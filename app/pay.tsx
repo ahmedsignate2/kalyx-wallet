@@ -18,7 +18,7 @@ import { Text, Button, Surface, ListRow, IconButton, Skeleton, EmptyState, Chip,
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN } from '../ui/tokens';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
-import { usePay, type PayOption } from '../lib/walletconnectPay';
+import { usePay, payAmountText, type PayOption } from '../lib/walletconnectPay';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { technicalLogger } from '../lib/technicalLogger';
@@ -28,6 +28,8 @@ import {
   shortAddress,
   listChains,
   chainNameOf,
+  buildExplorerTxUrl,
+  needsCollect,
   payEligibleHoldings,
   payCoverageLines,
 } from '../src';
@@ -44,8 +46,24 @@ export default function PayScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ link?: string }>();
 
-  const { phase, options, selected, collectUrl, result, failure, detail, payer, open, select, collected, recheck, confirm, reset } =
-    usePay();
+  const {
+    phase,
+    options,
+    selected,
+    collectUrl,
+    result,
+    failure,
+    detail,
+    payer,
+    collectedIds,
+    settledChain,
+    open,
+    select,
+    collected,
+    recheck,
+    confirm,
+    reset,
+  } = usePay();
 
   /*
    * LA TRADUCTION SE FAIT ICI, à partir d'un code. Le magasin portait des
@@ -152,6 +170,8 @@ export default function PayScreen() {
   }, [info?.expiresAt]);
 
   const close = () => (router.canGoBack() ? router.back() : router.replace('/home'));
+  /** Montant d'une option, décimales appliquées. */
+  const amountOf = (o: PayOption) => formatTokenAmount(BigInt(o.amount.value || '0'), o.amount.display.decimals);
 
   /* ── Capture de données : formulaire hébergé ───────────────────────────── */
   if (collectUrl) {
@@ -254,17 +274,91 @@ export default function PayScreen() {
     );
   }
 
+  /* ── Paiement abouti : un écran À PART ENTIÈRE ──────────────────────────
+   *
+   * La carte « paiement envoyé » s'empilait SOUS la liste des jetons et la carte
+   * du marchand : l'écran donnait l'impression qu'on choisissait encore, alors
+   * que l'argent était parti. Un retour anticipé, comme pour le formulaire, et
+   * il ne reste que ce qui compte.
+   */
+  if (phase === 'done' && result) {
+    const settled = chains.find((c) => c.id === settledChain);
+    const txId = result.info?.txId;
+    const explorerUrl = settled?.explorerUrl && txId ? buildExplorerTxUrl(settled.explorerUrl, txId) : null;
+    const paid = result.info?.optionAmount ?? selected?.amount;
+    const ok = result.status === 'succeeded';
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top }}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: 'center',
+            padding: SCREEN_MARGIN,
+            gap: space[4],
+            paddingBottom: insets.bottom + space[6],
+          }}
+        >
+          <EmptyState
+            icon={ok ? 'check' : 'clock'}
+            title={ok ? t('paySucceeded') : t('payProcessing')}
+            body={
+              info
+                ? `${payAmountText(info.amount) ?? ''} · ${t('towards')} ${info.merchant.name}`
+                : undefined
+            }
+          />
+
+          <Surface padded={false}>
+            {paid ? (
+              <ListRow
+                title={t('payRequested')}
+                subtitle={`${formatTokenAmount(BigInt(paid.value || '0'), paid.display.decimals)} ${paid.display.assetSymbol}`}
+              />
+            ) : null}
+            {settled?.name || paid?.display.networkName ? (
+              <ListRow title={t('network')} subtitle={settled?.name ?? paid?.display.networkName ?? ''} />
+            ) : null}
+            {/*
+              L'EMPREINTE, ET UN LIEN QUAND ON PEUT. C'est la seule façon pour
+              l'utilisateur de vérifier lui-même que son argent est parti ; sans
+              elle il n'a que notre parole.
+            */}
+            {txId ? (
+              <ListRow
+                title={t('viewOnExplorer')}
+                subtitle={shortAddress(txId)}
+                onPress={explorerUrl ? () => void Linking.openURL(explorerUrl) : undefined}
+              />
+            ) : null}
+          </Surface>
+
+          {/* UN SEUL bouton, et il ramène à l'accueil : il n'y a plus rien à faire ici. */}
+          <Button label={t('done')} onPress={() => router.replace('/home')} />
+        </ScrollView>
+      </View>
+    );
+  }
+
   /* ── Choix de l'option et confirmation ─────────────────────────────────── */
   const renderOption = (o: PayOption) => {
     const active = selected?.id === o.id;
-    const amount = formatTokenAmount(BigInt(o.amount.value || '0'), o.amount.display.decimals);
+    /*
+     * LE BADGE SUIT CE QUI S'EST PASSÉ, pas ce que le serveur répète.
+     *
+     * L'option garde son `collectData` même après l'envoi du formulaire : le
+     * badge « informations requises » restait donc affiché indéfiniment, et rien
+     * ne disait à l'utilisateur que sa saisie avait abouti. On le calcule
+     * maintenant d'après les options dont les informations sont parties.
+     */
+    const needsInfo = needsCollect(o, collectedIds);
     return (
       <ListRow
         key={o.id}
-        title={`${amount} ${o.amount.display.assetSymbol}`}
+        title={`${amountOf(o)} ${o.amount.display.assetSymbol}`}
         subtitle={[o.amount.display.networkName, o.etaS ? `~${o.etaS}s` : null].filter(Boolean).join(' · ')}
         right={
-          o.collectData ? (
+          needsInfo ? (
             <Chip label={t('payInfoRequired')} selected={false} onPress={() => select(o, mode === 'light' ? 'light' : 'dark')} />
           ) : (
             <Text variant="caption" tone={active ? 'primary' : 'secondary'}>{active ? '✓' : ''}</Text>
@@ -436,31 +530,6 @@ export default function PayScreen() {
 
         {options && options.options.length > 0 ? (
           <Surface padded={false}>{options.options.map(renderOption)}</Surface>
-        ) : null}
-
-        {phase === 'done' && result ? (
-          <Surface>
-            <EmptyState
-              icon={result.status === 'succeeded' ? 'check' : 'clock'}
-              title={result.status === 'succeeded' ? t('paySucceeded') : t('payProcessing')}
-              actionLabel={t('back')}
-              onAction={close}
-            />
-            {/*
-              Diagnostic copiable : zéro option a plusieurs causes que cet écran
-              ne distingue pas, et sans données on en reste aux hypothèses.
-            */}
-            <Button
-              label={t('payCopyDiagnostic')}
-              variant="ghost"
-              size="md"
-              dense
-              onPress={() => {
-                void Clipboard.setStringAsync(usePay.getState().diagnostic());
-                toast.success(t('copied'));
-              }}
-            />
-          </Surface>
         ) : null}
 
         {selected && phase !== 'done' ? (
