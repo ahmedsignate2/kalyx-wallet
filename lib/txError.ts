@@ -10,6 +10,47 @@ import { recordTechnicalLog } from './technicalLogger';
 
 export type TFn = (key: any) => string;
 
+/**
+ * Message TRADUIT de chaque code d'erreur du portefeuille.
+ *
+ * `WalletError` porte un code ET un message, et ce message était écrit en
+ * français dans le domaine — cinquante-sept fois. On le renvoyait tel quel à
+ * l'utilisateur, donc l'app parlait français quelle que soit la langue choisie.
+ *
+ * Le code suffit à dire quoi afficher. La phrase française reste dans le JOURNAL
+ * technique, où elle sert au diagnostic : elle porte souvent un détail précis
+ * — quel mint, quelle entrée manquante — mais un détail dans une langue que
+ * l'utilisateur ne lit pas ne l'aide pas. Quand un cas mérite vraiment son
+ * message propre, il mérite son propre code : c'est ce qui a été fait pour
+ * l'import de clés (`import.*`) et pour les refus de WalletConnect.
+ */
+const WALLET_ERROR_KEYS: Record<string, string> = {
+  AMOUNT_TOO_SMALL: 'errAmountTooSmall',
+  BIOMETRIC_NOT_SET: 'errBiometricNotSet',
+  BIOMETRIC_REFUSED: 'errBiometricRefused',
+  BROADCAST_FAILED: 'errBroadcastFailed',
+  CALL_EXCEPTION: 'errCallException',
+  INSUFFICIENT_FUNDS: 'errInsufficientFunds',
+  INVALID_ADDRESS: 'errInvalidAddress',
+  /*
+   * Repli d'`INVALID_KEY` : les cas d'import portent un sous-code `import.*`
+   * traité plus haut, mais un `INVALID_KEY` lancé sans ce préfixe retombait
+   * sur la phrase française du domaine — le trou que le test a révélé.
+   */
+  INVALID_KEY: 'keyErrUnrecognised',
+  INVALID_AMOUNT: 'errInvalidAmount',
+  INVALID_MNEMONIC: 'errInvalidMnemonic',
+  INVALID_PIN: 'errInvalidPin',
+  MNEMONIC_VERIFICATION_FAILED: 'errMnemonicMismatch',
+  NOT_SUPPORTED: 'errNotSupported',
+  RPC_UNAVAILABLE: 'errRpcUnavailable',
+  TX_EXPIRED: 'errTxExpired',
+  TX_FAILED: 'errTxFailedOnChain',
+  VAULT_CORRUPTED: 'errVaultCorrupted',
+  WALLET_ALREADY_EXISTS: 'errWalletExists',
+  WRONG_PIN: 'errWrongPin',
+};
+
 export function friendlyTxError(e: unknown, t?: TFn): string {
   /*
    * ÉCHEC DE CONNEXION D'UNE dApp, en premier parce qu'il porte un code et que
@@ -101,8 +142,14 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
           return t ? t('keyErrUnrecognised') : 'Key not recognised.';
       }
     }
-    if (e.code === 'WRONG_PIN') return t ? t('errWrongPin') : 'Incorrect PIN.';
-    if (e.code === 'RPC_UNAVAILABLE') return t ? t('errRpcUnavailable') : 'Network unavailable. Try again.';
+    /*
+     * TRADUCTION PAR CODE. Le repli précédent — `return e.message` — renvoyait la
+     * phrase française écrite dans le domaine, dans toutes les langues.
+     */
+    const key = WALLET_ERROR_KEYS[e.code];
+    if (key && t) return t(key);
+    // Sans traducteur (appels hors interface), la phrase du domaine reste le
+    // meilleur repli disponible.
     return e.message;
   }
   const err = e as { code?: string | number; shortMessage?: string; info?: { error?: { message?: string } }; message?: string };
