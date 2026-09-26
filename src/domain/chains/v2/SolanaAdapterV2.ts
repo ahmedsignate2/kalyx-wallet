@@ -59,6 +59,21 @@ export interface SolanaPayload {
 const BASE_FEE = 5_000n;
 
 /**
+ * Location d'un compte de jeton associé (ATA), en lamports.
+ *
+ * Ouvrir le compte de jeton du DESTINATAIRE coûte cette somme, et c'est le
+ * payeur qui l'avance. Elle vaut environ 0,00204 SOL, soit quatre cents fois les
+ * frais de base : l'omettre du devis ne faisait pas qu'afficher un chiffre
+ * approximatif, elle rendait le contrôle de solde faux. Un envoi de jeton à une
+ * adresse qui n'en détient pas encore passait la vérification puis échouait
+ * on-chain faute de lamports.
+ *
+ * Valeur fixe du programme SPL Token (165 octets de données), la même que celle
+ * dont `lib/earn/earnEngine` tient déjà compte.
+ */
+const ATA_RENT = 2_039_280n;
+
+/**
  * Validité approximative d'un blockhash, en millisecondes.
  *
  * Le réseau raisonne en HAUTEUR DE BLOC, pas en horloge : 150 blocs, soit à peu
@@ -141,6 +156,14 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
   async quoteFees(from: string, request: SendRequest): Promise<FeeQuotes> {
     void from;
     const cu = BigInt(request.token ? CU_SPL_TRANSFER : CU_SOL_TRANSFER);
+    /*
+     * La location de l'ATA entre dans le devis quand le destinataire n'a pas
+     * encore de compte pour ce jeton. Elle s'ajoute aux trois paliers à
+     * l'identique — elle ne dépend pas de la vitesse — mais elle doit y être :
+     * c'est le coût réel de l'opération, et c'est ce montant que l'écran compare
+     * au solde en SOL.
+     */
+    const rent = await this.rentForDestination(request);
     let samples: unknown = null;
     try {
       samples = await this.v1.rpc<unknown>('getRecentPrioritizationFees', [[]]);
@@ -149,9 +172,28 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
     }
     const quote = (speed: SendSpeed) => {
       const price = pickPriorityFee(samples, SPEED_PERCENTILES[speed]);
-      return { cost: BASE_FEE + (price * cu) / 1_000_000n, opaque: price };
+      return { cost: BASE_FEE + (price * cu) / 1_000_000n + rent, opaque: price };
     };
     return { slow: quote('slow'), normal: quote('normal'), fast: quote('fast') };
+  }
+
+  /**
+   * Location à avancer pour ouvrir le compte de jeton du destinataire, ou zéro.
+   *
+   * Zéro pour un envoi de SOL, zéro si le compte existe déjà, et zéro si on ne
+   * peut pas le savoir : un RPC muet ne doit pas faire surestimer les frais et
+   * bloquer un envoi parfaitement finançable. Le risque assumé dans ce dernier
+   * cas est une sous-estimation, celui qu'on avait tout le temps auparavant.
+   */
+  private async rentForDestination(request: SendRequest): Promise<bigint> {
+    if (!request.token || !this.validateAddress(request.to)) return 0n;
+    try {
+      const tokenProgram = await this.v1.getMintProgram(request.token.id);
+      const destAta = getAssociatedTokenAddress(request.token.id, request.to, tokenProgram);
+      return (await this.accountExists(destAta)) ? 0n : ATA_RENT;
+    } catch {
+      return 0n;
+    }
   }
 
   // ── Envoi ──────────────────────────────────────────────────────────────────
@@ -232,7 +274,19 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
     // Le compte de jeton du destinataire sera créé s'il manque — à nos frais.
     const destAta = getAssociatedTokenAddress(request.token.id, request.to, tokenProgram);
     const exists = await this.accountExists(destAta);
-    if (!exists) warnings.push({ code: 'ACTIVATES_DESTINATION', severity: 'info' });
+    /*
+     * Le montant accompagne l'avertissement : « tu vas activer le compte du
+     * destinataire » sans dire ce que cela coûte laisse croire à une formalité.
+     * Le devis l'inclut déjà (cf. `rentForDestination`), l'écran peut donc
+     * l'annoncer.
+     */
+    if (!exists) {
+      warnings.push({
+        code: 'ACTIVATES_DESTINATION',
+        severity: 'info',
+        params: { rent: ATA_RENT.toString() },
+      });
+    }
 
     const message = buildSplTransferMessage({
       from,
