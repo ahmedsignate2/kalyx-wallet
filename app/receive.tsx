@@ -4,7 +4,7 @@
  * claires sur les réseaux compatibles, Copier (haptique + toast) et Partager.
  * Le réseau se choisit ici (famille d'adresse : EVM / Solana / Bitcoin).
  */
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, ScrollView, Share, Image, Modal, Platform } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,15 +40,36 @@ export default function Receive() {
   const [selectedChain, setSelectedChain] = useState(activeChain);
   const [testnetPickerOpen, setTestnetPickerOpen] = useState(false);
 
+  /**
+   * Une adresse existe-t-elle pour cette famille sur ce portefeuille ?
+   *
+   * Un portefeuille importé par clé privée ne sert QU'UNE famille : les deux
+   * autres adresses sont vides. Offrir l'onglet quand même menait à un écran sans
+   * adresse — et, avant le garde-fou du QR, à un écran qui tombait.
+   */
+  const hasAddressFor = useCallback(
+    (family: string) =>
+      family === 'solana' ? !!stored?.solAddress : family === 'bitcoin' ? !!stored?.btcAddress : !!stored?.evmAddress,
+    [stored?.evmAddress, stored?.solAddress, stored?.btcAddress],
+  );
+
   const networks = useMemo(() => {
     if (environment === 'mainnet') {
-      return listChains({ includeTestnets: false }).filter((c) => c.id === 'ethereum' || c.id === 'solana' || c.id === 'bitcoin');
+      return listChains({ includeTestnets: false })
+        .filter((c) => c.id === 'ethereum' || c.id === 'solana' || c.id === 'bitcoin')
+        /*
+         * ON NE PROPOSE QUE CE QU'ON PEUT SERVIR. Masquer plutôt que griser : un
+         * onglet grisé pose une question — « pourquoi ? » — à laquelle cet écran
+         * n'a pas la place de répondre, alors que son absence ne trompe personne.
+         */
+        .filter((c) => hasAddressFor(c.family));
     }
     const configured = listChains({ includeTestnets: true }).filter((c) => c.testnet);
     const custom = customChains.filter((c) => c.testnet);
     const byId = new Map([...configured, ...custom].map((chain) => [chain.id, chain]));
-    return [...byId.values()];
-  }, [environment, customChains]);
+    // Même règle sur les réseaux de test : pas d'adresse, pas d'onglet.
+    return [...byId.values()].filter((c) => hasAddressFor(c.family));
+  }, [environment, customChains, hasAddressFor]);
 
   if (!stored) return null;
   const selected = networks.find((c) => c.id === selectedChain) ?? networks[0];
@@ -123,14 +144,30 @@ export default function Receive() {
             {chainIconUrl(selected.id) ? <Image source={{ uri: chainIconUrl(selected.id) }} style={{ width: 22, height: 22, borderRadius: 11 }} /> : null}
             <Text variant="body">{selected.name}</Text>
           </View> : null}
-          <View style={{ padding: space[3], backgroundColor: '#FFFFFF', borderRadius: radius.container }}>
-            <QRCode value={address} size={220} ecl="H" backgroundColor="#FFFFFF" color="#06070D" />
-            <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-              <View style={{ backgroundColor: '#FFFFFF', borderRadius: radius.round, padding: 4 }}>
-                <AddressGlyph address={address} size={48} background />
+          {/*
+            JAMAIS DE QR SANS ADRESSE. `react-native-qrcode-svg` lève
+            « No input text » sur une valeur vide, et cette exception faisait
+            tomber tout l'écran — pas un champ vide, un écran blanc. Le cas arrive
+            dès qu'un portefeuille importé par clé privée ne sert pas la famille
+            affichée : l'adresse vaut alors la chaîne vide.
+          */}
+          {address ? (
+            <View style={{ padding: space[3], backgroundColor: '#FFFFFF', borderRadius: radius.container }}>
+              <QRCode value={address} size={220} ecl="H" backgroundColor="#FFFFFF" color="#06070D" />
+              <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ backgroundColor: '#FFFFFF', borderRadius: radius.round, padding: 4 }}>
+                  <AddressGlyph address={address} size={48} background />
+                </View>
               </View>
             </View>
-          </View>
+          ) : (
+            <View style={{ paddingHorizontal: space[4], gap: space[2], alignItems: 'center' }}>
+              <Text variant="body">{t('receiveNoAddressTitle')}</Text>
+              <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
+                {t('receiveNoAddressBody')}
+              </Text>
+            </View>
+          )}
           <Text
             variant="body"
             tabular

@@ -79,6 +79,13 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
             {chainIconUrl(sel.id) ? <Image source={{ uri: chainIconUrl(sel.id) }} style={{ width: 22, height: 22, borderRadius: 11 }} /> : null}
             <Text variant="body">{sel.name}</Text>
           </View>
+          {/*
+            Même garde-fou que sur mobile : `react-native-qrcode-svg` lève
+            « No input text » sur une valeur vide et fait tomber l'écran entier.
+          */}
+          {!address ? (
+            <Text variant="caption" tone="secondary">{t('receiveNoAddressTitle')}</Text>
+          ) : (
           <View style={{ padding: space[3], backgroundColor: '#FFFFFF', borderRadius: radius.container }}>
             <QRCode value={address} size={220} ecl="H" backgroundColor="#FFFFFF" color="#06070D" />
             <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
@@ -87,6 +94,7 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
               </View>
             </View>
           </View>
+          )}
           <Text
             variant="body"
             tabular
