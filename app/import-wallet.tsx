@@ -6,12 +6,12 @@ import * as Clipboard from 'expo-clipboard';
 import { router, Stack } from 'expo-router';
 import { Card, Button, Title, Muted } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
-import { useWallet } from '../lib/walletStore';
+import { useWallet, phraseKindForImport } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import { toast } from '../lib/toast';
 import {
-  validateMnemonic,
+  isWalletError,
   restoreBackup,
   type BackupError,
   parseImportedKey,
@@ -117,7 +117,17 @@ export default function ImportWallet() {
     setBusy(true);
     try {
       if (mode === 'phrase') {
-        if (!validateMnemonic(text)) { setError(t('invalidPhraseSimple')); return; }
+        /*
+          Même règle que le magasin : une phrase Tonkeeper est RECONNUE — elle
+          s'ouvre si un réseau TON est configuré, sinon un message l'explique au
+          lieu de « phrase invalide ».
+        */
+        try {
+          phraseKindForImport(text);
+        } catch (e) {
+          setError(isWalletError(e) && e.code === 'INVALID_MNEMONIC' ? t('invalidPhraseSimple') : friendlyTxError(e, t as never));
+          return;
+        }
         await importWallet(text, pin, label);
       } else if (mode === 'key') {
         if (!parsed) { setError(t('keyErrUnrecognised')); return; }
@@ -141,7 +151,8 @@ export default function ImportWallet() {
       }
       router.replace('/home');
     } catch (e) {
-      setError(friendlyTxError(e));
+      // Avec le traducteur : sans lui, tous les messages sortaient en anglais.
+      setError(friendlyTxError(e, t as never));
     } finally {
       setBusy(false);
     }

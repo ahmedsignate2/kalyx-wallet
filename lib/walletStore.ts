@@ -20,7 +20,6 @@ import { create } from 'zustand';
 import { Wallet, getBytes, isHexString } from 'ethers';
 import {
   generateMnemonic,
-  validateMnemonic,
   getAdapterV2,
   assertCurve,
   signerFromSeed,
@@ -64,6 +63,15 @@ import {
   type ChainFamily,
   type KeyFamily,
   type BackupWallet,
+  classifyRecoveryPhrase,
+  resolveTonKey,
+  tonPublicKeyFromPhrase,
+  tonWalletAddress,
+  formatTonAddress,
+  TON_DEFAULT_WALLET_VERSION,
+  TON_BIP39_PATH,
+  type RecoveryPhraseKind,
+  type ChainConfig,
 } from '../src';
 import { technicalLogger } from './technicalLogger';
 import {
@@ -274,13 +282,70 @@ interface WalletState {
 
 function deriveStoredAccount(mnemonic: string, index: number, label: string): StoredAccount {
   const seed = mnemonicToSeedSync(mnemonic);
-  return {
-    index,
-    label,
-    evmAddress: deriveEvmAccount(seed, index).address,
-    btcAddress: deriveBtcAccount(seed, index).address,
-    solAddress: deriveSolanaAccount(seed, index).address,
-  };
+  try {
+    return {
+      index,
+      label,
+      evmAddress: deriveEvmAccount(seed, index).address,
+      btcAddress: deriveBtcAccount(seed, index).address,
+      solAddress: deriveSolanaAccount(seed, index).address,
+      ...(index === 0 ? tonFields(mnemonic, seed) : {}),
+    };
+  } finally {
+    seed.fill(0);
+  }
+}
+
+/**
+ * Clé publique TON d'une phrase, pour le compte 0 SEULEMENT : Tonkeeper ne
+ * dérive qu'une clé TON par phrase, et c'est celle-là qu'on garantit identique.
+ *
+ * Jamais bloquant : TON est une famille ajoutée, et un échec ici ne doit ni
+ * empêcher de créer un portefeuille ni de le déverrouiller. Le champ restera
+ * vide, et sera retenté au déverrouillage suivant.
+ */
+function tonFields(mnemonic: string, bip39Seed?: Uint8Array): Pick<StoredAccount, 'tonPublicKey' | 'tonVersion'> {
+  try {
+    return { tonPublicKey: bytesToHex(tonPublicKeyFromPhrase(mnemonic, bip39Seed)), tonVersion: TON_DEFAULT_WALLET_VERSION };
+  } catch {
+    return {};
+  }
+}
+
+/** Comptes initiaux d'un portefeuille ouvert par une phrase, selon sa sorte. */
+function accountsForPhrase(mnemonic: string, kind: RecoveryPhraseKind): StoredAccount[] {
+  if (kind === 'ton') {
+    /*
+     * Phrase TON : une seule clé, un seul compte, et AUCUNE adresse hors TON. Pas
+     * de dérivation BIP-39 de cette phrase : elle donnerait des adresses qu'aucun
+     * autre portefeuille ne montre pour elle.
+     */
+    return [{ index: 0, label: '', evmAddress: '', btcAddress: '', ...tonFields(mnemonic) }];
+  }
+  return [deriveStoredAccount(mnemonic, 0, '')];
+}
+
+/** Un réseau TON est-il configuré ? C'est la seule condition pour ouvrir une phrase TON. */
+function tonAvailable(): boolean {
+  return listChains({ includeTestnets: true }).some((c) => c.family === 'ton');
+}
+
+/**
+ * Sorte d'une phrase à importer — ou le refus, TRADUIT par code.
+ *
+ * Une phrase Tonkeeper n'est plus « invalide » : elle est reconnue. Tant qu'aucun
+ * réseau TON n'est configuré, on le DIT (`import.TON_NOT_YET`) au lieu de créer un
+ * portefeuille qui n'aurait rien à montrer. Dès qu'une configuration TON est
+ * enregistrée, l'import fonctionne, sans interrupteur séparé qu'on oublierait.
+ *
+ * Exportée pour que les écrans vérifient AVANT de demander le PIN, avec la même
+ * règle que le magasin — deux règles finiraient par diverger.
+ */
+export function phraseKindForImport(mnemonic: string): RecoveryPhraseKind {
+  const kind = classifyRecoveryPhrase(mnemonic);
+  if (!kind) throw new WalletError('INVALID_MNEMONIC', 'Invalid recovery phrase');
+  if (kind === 'ton' && !tonAvailable()) throw new WalletError('NOT_SUPPORTED', 'import.TON_NOT_YET');
+  return kind;
 }
 
 /** Compte unique (EVM) d'un wallet importé par clé privée : pas de HD, ni BTC/Solana. */
@@ -307,6 +372,27 @@ function isPrivateKeyWallet(wallets: WalletMeta[], id: string): boolean {
 }
 
 /**
+ * Portefeuille ouvert par une phrase BIP-39 — le SEUL qui dérive des comptes HD
+ * multi-chaînes. Type absent = `'seed'` (rétro-compatibilité).
+ *
+ * À utiliser partout où l'on s'apprête à passer le secret dans
+ * `mnemonicToSeedSync`. Tester « pas une clé privée » ne suffit plus : une phrase
+ * TON n'est pas une clé privée, et n'est pas une phrase BIP-39 non plus.
+ */
+function isBip39Wallet(wallets: WalletMeta[], id: string): boolean {
+  const t = wallets.find((w) => w.id === id)?.type;
+  return t === undefined || t === 'seed';
+}
+
+/** Le portefeuille ne sert-il QU'UNE famille ? Laquelle — ou `null` s'il est multi-chaînes. */
+function walletFamily(wallets: WalletMeta[], id: string): ChainFamily | null {
+  const w = wallets.find((x) => x.id === id);
+  if (w?.type === 'tonPhrase') return 'ton';
+  if (w?.type === 'privateKey') return w.keyFamily ?? 'evm';
+  return null;
+}
+
+/**
  * Famille servie par un portefeuille importé, ou `null` s'il vient d'une phrase.
  *
  * `keyFamily` absent vaut `'evm'` : c'est la rétro-compatibilité, tous les
@@ -320,7 +406,13 @@ function privateKeyFamily(wallets: WalletMeta[], id: string): KeyFamily | null {
 
 /** Premier réseau non-test d'une famille donnée, pour y basculer. */
 function firstChainOfFamily(family: ChainFamily): string {
-  return listChains({ includeTestnets: false }).find((c) => c.family === family)?.id ?? DEFAULT_CHAIN;
+  // Réseau principal d'abord ; à défaut un réseau de test de la famille (TON se
+  // développe sur son réseau de test avant d'avoir une configuration principale).
+  return (
+    listChains({ includeTestnets: false }).find((c) => c.family === family)?.id ??
+    listChains({ includeTestnets: true }).find((c) => c.family === family)?.id ??
+    DEFAULT_CHAIN
+  );
 }
 
 /**
@@ -350,16 +442,43 @@ async function revealEvmSigningKey(
   accountIndex: number,
   unlock: Unlock,
 ): Promise<string> {
+  if (walletFamily(wallets, activeWalletId) === 'ton') {
+    throw new WalletError('NOT_SUPPORTED', 'import.WRONG_FAMILY:ton:evm');
+  }
   const secret = await revealMnemonic(activeWalletId, unlock);
   return isPrivateKeyWallet(wallets, activeWalletId)
     ? normalizeEvmPrivateKey(secret)
     : deriveEvmAccount(mnemonicToSeedSync(secret), accountIndex).privateKey;
 }
 
+/**
+ * Configuration d'un réseau, SANS instancier d'adaptateur.
+ *
+ * `toAccount` et `setActiveWallet` n'ont besoin que de la famille et du drapeau
+ * « réseau de test ». Passer par `getAdapter` exigeait un adaptateur v1 pour
+ * chaque famille — TON n'en a pas, et ouvrir une phrase TON aurait planté ici.
+ * Même message qu'avant pour un réseau inconnu.
+ */
+function chainConfig(chainId: string): ChainConfig {
+  const config = listChains({ includeTestnets: true }).find((c) => c.id === chainId);
+  if (!config) throw new Error(`Chaîne inconnue: ${chainId}`);
+  return config;
+}
+
 function toAccount(accounts: StoredAccount[], activeIndex: number, chainId: string): Account | null {
   const a = accounts.find((x) => x.index === activeIndex) ?? accounts[0];
   if (!a) return null;
-  const family = getAdapter(chainId).config.family;
+  const config = chainConfig(chainId);
+  const family = config.family;
+  if (family === 'ton') {
+    // L'adresse TON se recalcule depuis la clé publique : elle dépend de la
+    // version du contrat ET du réseau (la W5 du réseau de test est une autre adresse).
+    const testnet = !!config.testnet;
+    const address = a.tonPublicKey
+      ? formatTonAddress(tonWalletAddress(hexToBytes(a.tonPublicKey), a.tonVersion ?? TON_DEFAULT_WALLET_VERSION, { testnet }), { bounceable: false, testnet })
+      : '';
+    return { chain: chainId, address, index: a.index, path: TON_BIP39_PATH };
+  }
   const address = family === 'bitcoin' ? a.btcAddress : family === 'solana' ? a.solAddress ?? '' : a.evmAddress;
   const path = family === 'bitcoin' ? btcPath(a.index) : family === 'solana' ? solPath(a.index) : evmPath(a.index);
   return { chain: chainId, address, index: a.index, path };
@@ -367,21 +486,34 @@ function toAccount(accounts: StoredAccount[], activeIndex: number, chainId: stri
 
 /**
  * Rétro-compat : les comptes créés avant l'ajout de Solana n'ont pas de
- * `solAddress`. On les complète dès qu'on dispose de la seed (au déverrouillage),
- * puis on persiste. Sans effet si tout est déjà rempli.
+ * `solAddress`, ceux d'avant TON pas de `tonPublicKey` (compte 0 seulement). On
+ * les complète dès qu'on dispose de la phrase (au déverrouillage), en calculant
+ * la graine UNE fois pour les deux, puis on persiste. Sans effet si tout est
+ * déjà rempli.
+ *
+ * Réservé aux portefeuilles BIP-39 : l'appelant le vérifie (`isBip39Wallet`).
  */
-async function backfillSolAddresses(
+async function backfillPhraseAccounts(
   walletId: string,
   mnemonic: string,
   accounts: StoredAccount[],
 ): Promise<StoredAccount[]> {
-  if (accounts.length === 0 || accounts.every((a) => a.solAddress)) return accounts;
+  const needSol = accounts.some((a) => !a.solAddress);
+  const needTon = accounts.some((a) => a.index === 0 && !a.tonPublicKey);
+  if (accounts.length === 0 || (!needSol && !needTon)) return accounts;
   const seed = mnemonicToSeedSync(mnemonic);
-  const updated = accounts.map((a) =>
-    a.solAddress ? a : { ...a, solAddress: deriveSolanaAccount(seed, a.index).address },
-  );
-  await saveAccounts(walletId, updated);
-  return updated;
+  try {
+    const ton = needTon ? tonFields(mnemonic, seed) : {};
+    const updated = accounts.map((a) => ({
+      ...a,
+      ...(a.solAddress ? {} : { solAddress: deriveSolanaAccount(seed, a.index).address }),
+      ...(a.index === 0 && !a.tonPublicKey ? ton : {}),
+    }));
+    await saveAccounts(walletId, updated);
+    return updated;
+  } finally {
+    seed.fill(0);
+  }
 }
 
 /** Révèle la seed du wallet `id` (biométrie ou PIN), de façon transitoire. */
@@ -504,7 +636,7 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   setImportedDraft: (mnemonic) => {
     const m = canonicalMnemonic(mnemonic);
-    if (!validateMnemonic(m)) throw new Error('Phrase de récupération invalide');
+    phraseKindForImport(m); // refus traduit : phrase invalide, ou TON pas encore disponible
     set({ draftMnemonic: m, draftWasImported: true });
   },
 
@@ -536,7 +668,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
     assertValidPin(pin);
     const id = 'primary';
-    const accounts = [deriveStoredAccount(m, 0, '')];
+    const kind = phraseKindForImport(m);
+    const accounts = accountsForPhrase(m, kind);
     await saveVault(id, await encryptSecret(m, pin));
     await saveAccounts(id, accounts);
     /*
@@ -559,14 +692,17 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (opts?.enableBiometric) await enableBiometricSeed(id, m);
     else await disableBiometricSeed(id).catch(() => {});
     useSettings.getState().setBiometricEnabled(!!opts?.enableBiometric);
-    const wallets: WalletMeta[] = [{ id, label: '' }];
+    const wallets: WalletMeta[] = [{ id, label: '', ...(kind === 'ton' ? { type: 'tonPhrase' as const } : {}) }];
     await saveWalletsList(wallets);
+    // Une phrase TON n'a d'adresse que sur TON : on ouvre directement sur ce réseau.
+    const chain = kind === 'ton' ? firstChainOfFamily('ton') : get().activeChain;
     set({
       wallets,
       activeWalletId: id,
       accounts,
       activeAccountIndex: 0,
-      account: toAccount(accounts, 0, get().activeChain),
+      activeChain: chain,
+      account: toAccount(accounts, 0, chain),
       hasWallet: true,
       isUnlocked: true,
       draftMnemonic: null,
@@ -581,10 +717,11 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
     try {
       const secret = await revealMnemonic(activeWalletId, { pin });
-      // Un wallet clé privée n'a pas de seed → pas de backfill Solana (EVM only).
-      const accounts = isPrivateKeyWallet(get().wallets, activeWalletId)
-        ? get().accounts
-        : await backfillSolAddresses(activeWalletId, secret, get().accounts);
+      // Seule une phrase BIP-39 dérive des comptes : ni une clé privée, ni une
+      // phrase TON ne passent par le rattrapage (qui ferait une dérivation BIP-39).
+      const accounts = isBip39Wallet(get().wallets, activeWalletId)
+        ? await backfillPhraseAccounts(activeWalletId, secret, get().accounts)
+        : get().accounts;
       set({
         isUnlocked: true,
         failedAttempts: 0,
@@ -613,9 +750,9 @@ export const useWallet = create<WalletState>((set, get) => ({
   unlockWithBiometrics: async () => {
     const { activeWalletId } = get();
     const secret = await revealMnemonic(activeWalletId, { biometric: true });
-    const accounts = isPrivateKeyWallet(get().wallets, activeWalletId)
-      ? get().accounts
-      : await backfillSolAddresses(activeWalletId, secret, get().accounts);
+    const accounts = isBip39Wallet(get().wallets, activeWalletId)
+      ? await backfillPhraseAccounts(activeWalletId, secret, get().accounts)
+      : get().accounts;
     set({
       isUnlocked: true,
       accounts,
@@ -655,8 +792,12 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   addAccount: async (unlock, label) => {
     const { activeWalletId } = get();
-    if (isPrivateKeyWallet(get().wallets, activeWalletId)) {
-      throw new Error('Un portefeuille importé par clé privée n’a qu’un seul compte.');
+    /*
+     * Une clé privée n'a qu'un compte, une phrase TON aussi (une phrase, une clé).
+     * Code traduit, et non plus une phrase française dans toutes les langues.
+     */
+    if (!isBip39Wallet(get().wallets, activeWalletId)) {
+      throw new WalletError('NOT_SUPPORTED', 'import.SINGLE_ACCOUNT');
     }
     const mnemonic = await revealMnemonic(activeWalletId, unlock);
     const accounts = get().accounts;
@@ -692,15 +833,18 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   importWallet: async (mnemonic, pin, label) => {
     const m = canonicalMnemonic(mnemonic);
-    if (!validateMnemonic(m)) throw new Error('Phrase de récupération invalide');
+    const kind = phraseKindForImport(m);
     await revealMnemonic(get().activeWalletId, { pin }); // vérifie le PIN
     const id = newWalletId();
-    const accounts = [deriveStoredAccount(m, 0, '')];
+    const accounts = accountsForPhrase(m, kind);
     await saveVault(id, await encryptSecret(m, pin));
     await saveAccounts(id, accounts);
-    const wallets = [...get().wallets, { id, label: label?.trim() || '' }];
+    const meta: WalletMeta = { id, label: label?.trim() || '', ...(kind === 'ton' ? { type: 'tonPhrase' as const } : {}) };
+    const wallets = [...get().wallets, meta];
     await saveWalletsList(wallets);
-    set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
+    // Une phrase TON n'a d'adresse que sur TON : on bascule sur ce réseau.
+    const chain = kind === 'ton' ? firstChainOfFamily('ton') : get().activeChain;
+    set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, activeChain: chain, account: toAccount(accounts, 0, chain) });
     rememberActive(id, 0);
   },
 
@@ -787,6 +931,8 @@ export const useWallet = create<WalletState>((set, get) => ({
       const secret = await decryptSecret(vault, (unlock as { pin?: string }).pin ?? '');
       out.push({
         label: w.label ?? '',
+        // Une phrase TON part comme `'seed'` : la restauration la reclasse d'après
+        // la phrase elle-même (`classifyRecoveryPhrase`), sans champ de plus.
         type: w.type === 'privateKey' ? 'privateKey' : 'seed',
         ...(w.type === 'privateKey' ? { keyFamily: w.keyFamily ?? 'evm' } : {}),
         secret,
@@ -837,10 +983,10 @@ export const useWallet = create<WalletState>((set, get) => ({
      * donc sur un réseau de la bonne famille — et non sur l'EVM par défaut, ce
      * qui aurait présenté une adresse vide pour une clé Bitcoin ou Solana.
      */
-    const pkFamily = privateKeyFamily(get().wallets, id);
+    const onlyFamily = walletFamily(get().wallets, id);
     const chain =
-      pkFamily && getAdapter(get().activeChain).config.family !== pkFamily
-        ? firstChainOfFamily(pkFamily)
+      onlyFamily && chainConfig(get().activeChain).family !== onlyFamily
+        ? firstChainOfFamily(onlyFamily)
         : get().activeChain;
     set({ activeWalletId: id, accounts, activeAccountIndex: 0, activeChain: chain, account: toAccount(accounts, 0, chain) });
     /*
@@ -968,6 +1114,31 @@ export const useWallet = create<WalletState>((set, get) => ({
       } finally {
         secret.fill(0);
       }
+    }
+
+    /*
+     * TON : depuis la PHRASE, et non depuis la graine BIP-39 — la dérivation
+     * dépend de la sorte de phrase (règle de Tonkeeper, `resolveTonKey`). Une
+     * phrase TON ne sert que TON ; une phrase BIP-39 sert TON sur son compte 0,
+     * le seul que Tonkeeper montre pour elle.
+     */
+    const onlyFamily = walletFamily(wallets, activeWalletId);
+    if (onlyFamily === 'ton' && family !== 'ton') {
+      throw new WalletError('NOT_SUPPORTED', `import.WRONG_FAMILY:ton:${family}`);
+    }
+    if (family === 'ton') {
+      if (account.index !== 0) throw new WalletError('NOT_SUPPORTED', 'import.TON_FIRST_ACCOUNT');
+      const key = resolveTonKey(await revealMnemonic(activeWalletId, unlock));
+      /*
+       * La clé dérivée doit être celle dont on affiche l'adresse. Si elles
+       * divergeaient, on signerait pour un autre compte que celui montré.
+       */
+      const shown = get().accounts.find((a) => a.index === 0)?.tonPublicKey;
+      if (!shown || shown !== bytesToHex(key.publicKey)) {
+        key.seed.fill(0);
+        throw new Error('TON public key mismatch');
+      }
+      return { curve: 'ed25519', secretKey: key.seed, publicKey: key.publicKey };
     }
 
     const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
@@ -1329,6 +1500,8 @@ export const useWallet = create<WalletState>((set, get) => ({
        */
       return pkFamily === 'evm' ? normalizeEvmPrivateKey(secret) : secret.replace(/^0x/i, '');
     }
+    // Une phrase TON n'a pas de clé EVM : la dériver en BIP-39 inventerait un compte.
+    if (!isBip39Wallet(wallets, activeWalletId)) throw new WalletError('NOT_SUPPORTED', 'import.WRONG_FAMILY:ton:evm');
     return deriveEvmAccount(mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock)), account.index).privateKey;
   },
 

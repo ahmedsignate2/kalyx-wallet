@@ -160,6 +160,12 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
           return t ? t('keyErrFamilyRequired') : 'Pick the network this key is for.';
         case 'WIF_UNCOMPRESSED':
           return t ? t('keyErrWifUncompressed') : 'Uncompressed WIF: legacy address, not supported.';
+        case 'TON_NOT_YET':
+          return t ? t('keyErrTonNotYet') : 'TON recovery phrase recognised. TON is not available in Kalyx yet.';
+        case 'SINGLE_ACCOUNT':
+          return t ? t('keyErrSingleAccount') : 'This wallet has a single account.';
+        case 'TON_FIRST_ACCOUNT':
+          return t ? t('keyErrTonFirstAccount') : 'On this wallet, TON is available on the first account only.';
         case 'WRONG_FAMILY': {
           const phrase = t ? t('keyErrWrongFamily') : 'This wallet was imported for {have}. {want} is not available.';
           return phrase.split('{have}').join(have ?? '?').split('{want}').join(want ?? '?');

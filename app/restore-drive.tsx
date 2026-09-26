@@ -22,7 +22,7 @@ import { useT, useSettings } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
 import { PinPromptModal } from '../ui/PinPromptModal';
-import { restoreBackup, type BackupError, type BackupWallet } from '../src';
+import { classifyRecoveryPhrase, restoreBackup, type BackupError, type BackupWallet } from '../src';
 
 export default function RestoreDriveScreen() {
   const { colors } = useTheme();
@@ -118,7 +118,12 @@ export default function RestoreDriveScreen() {
      * On lui donne la première, et les autres sont ajoutées juste après, une fois
      * le code créé — sinon elles seraient silencieusement perdues.
      */
-    const first = r.wallets.find((w) => w.type === 'seed') ?? r.wallets[0];
+    // Une phrase BIP-39 de préférence pour le portefeuille principal : elle ouvre
+    // toutes les chaînes, alors qu'une phrase TON n'ouvre que TON.
+    const first =
+      r.wallets.find((w) => w.type === 'seed' && classifyRecoveryPhrase(w.secret) === 'bip39') ??
+      r.wallets.find((w) => w.type === 'seed') ??
+      r.wallets[0];
     setPendingWallets(r.wallets.filter((w) => w !== first));
     setImportedDraft(first.secret);
     router.push('/set-pin');
