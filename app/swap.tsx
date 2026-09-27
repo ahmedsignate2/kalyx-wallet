@@ -37,6 +37,7 @@ import {
   SolanaChainAdapter,
 } from '../src';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
+import { usePortfolioStore } from '../lib/portfolio';
 import { TokenPicker } from '../ui/TokenPicker';
 
 /** Durée de validité d'un devis avant auto-actualisation (s). */
@@ -444,6 +445,7 @@ export default function Swap() {
     sound.send();
     try {
       const hash = await executeSwap(quote, unlock, (s) => setStep(t(STATUS_KEY[s])));
+      usePortfolioStore.getState().invalidate();
       haptic.success();
       sound.success();
       const summary = `${amount} ${fromTok.symbol} → ≈ ${formatTokenAmount(quote.toAmount, quote.toToken.decimals)} ${toTok.symbol}`;

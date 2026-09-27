@@ -451,7 +451,7 @@ export default function Browser() {
       if (pending.kind === 'tx' && tb?.chainId) {
         const chainAddress = useWallet.getState().account?.address;
         if (chainAddress) {
-          void useHistoryStore.getState().fetchHistory(tb.chainId, chainAddress);
+          void useHistoryStore.getState().fetchHistory(tb.chainId, chainAddress, { force: true });
         }
       }
       if (!tb?.incognito) activity.addSignature({ host: pending.origin, kind: pending.kind === 'tx' ? 'tx' : pending.kind === 'typedData' ? 'typedData' : 'sign' });

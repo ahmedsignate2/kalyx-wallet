@@ -112,11 +112,11 @@ export default function History() {
     }),
   );
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     await Promise.all(
       chains.map((c) => {
         const address = addressFor(c);
-        return address ? fetchHistory(c.id, address).catch(() => {}) : Promise.resolve();
+        return address ? fetchHistory(c.id, address, { force }).catch(() => {}) : Promise.resolve();
       }),
     );
   }, [chains, addressFor, fetchHistory]);
@@ -210,7 +210,7 @@ export default function History() {
 
       <ScrollView
         contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[4] }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { haptic.light(); setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.textSecondary} colors={[colors.textSecondary]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { haptic.light(); setRefreshing(true); await load(true); setRefreshing(false); }} tintColor={colors.textSecondary} colors={[colors.textSecondary]} />}
       >
         {/* Transaction Bitcoin coincée : proposée à l'accélération, en tête,
             parce que c'est la seule chose qu'on puisse encore faire pour elle. */}

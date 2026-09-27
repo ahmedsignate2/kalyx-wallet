@@ -39,6 +39,7 @@ import {
   simulateSendTransaction, type SimulationResult,
 } from '../src';
 import { addressForChain } from '../lib/accountAddress';
+import { useHistoryStore } from '../lib/historyStore';
 import { AntiDrainerBanner } from '../src/components/security/AntiDrainerBanner';
 
 type Step = 0 | 1 | 2 | 3 | 4;
@@ -145,7 +146,7 @@ export default function Send() {
     const st = accounts.find((a) => a.index === wallet.activeAccountIndex) ?? accounts[0];
     if (!st) return;
     const a = { evmAddress: st.evmAddress, solAddress: st.solAddress, btcAddress: st.btcAddress, tonPublicKey: st.tonPublicKey, tonVersion: st.tonVersion };
-    pf.hydrate(a, fiat).then(() => pf.refresh(a, fiat, { includeTestnets: showTestnets, force: true }));
+    pf.hydrate(a, fiat, { includeTestnets: showTestnets }).then(() => pf.refresh(a, fiat, { includeTestnets: showTestnets, force: true }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet.activeAccountIndex, fiat, showTestnets]);
   const [inFiat, setInFiat] = useState(false);
@@ -455,6 +456,9 @@ export default function Send() {
         : await wallet.signAndSend(recipient, tokenAmountStr, unlock, gas);
       setHash(h);
       setStage('sent');
+      // Les soldes et l'activité affichés ne sont plus justes : le prochain écran les redemande.
+      pf.invalidate();
+      if (senderAddress) useHistoryStore.getState().markStale(chain.id, senderAddress);
       technicalLogger.logTx('step_4_broadcast_success', { txHash: h, symbol, chain: chain.name });
       addRecent(recipient, family);
       const dest = contactName ?? (isEns ? to.trim() : shortAddress(recipient));

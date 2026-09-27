@@ -41,8 +41,13 @@ interface HistoryState {
   getCached: (chain: string, address: string) => TxSummary[];
   /** Vérifie si un fetch est en cours pour cette clé. */
   isLoading: (chain: string, address: string) => boolean;
-  /** Fetch depuis le réseau et met à jour le cache. Non-bloquant, ne throw jamais. */
-  fetchHistory: (chain: string, address: string) => Promise<TxSummary[]>;
+  /**
+   * Fetch depuis le réseau et met à jour le cache. Ne throw jamais.
+   * Sans `force`, une réponse de moins de HISTORY_FRESH_MS est réutilisée.
+   */
+  fetchHistory: (chain: string, address: string, opts?: { force?: boolean }) => Promise<TxSummary[]>;
+  /** À appeler après un envoi : la prochaine demande pour cette clé ira au réseau. */
+  markStale: (chain: string, address: string) => void;
   /** Charge le cache persisté depuis AsyncStorage (appelé au démarrage). */
   hydrate: () => Promise<void>;
 }
@@ -66,6 +71,25 @@ async function getStorage() {
   return AsyncStorage;
 }
 
+/**
+ * Âge sous lequel un historique est réutilisé sans réseau.
+ *
+ * Les onglets naviguent par `replace` : l'accueil et l'Historique sont
+ * REMONTÉS à chaque passage, et chaque montage redemandait tous les réseaux —
+ * une dizaine d'appels d'indexeur par changement d'onglet. Le geste « tirer
+ * pour rafraîchir » et le suivi d'un envoi passent `force`.
+ */
+export const HISTORY_FRESH_MS = 60_000;
+
+/** Demandes en cours par clé : deux écrans qui demandent la même chose n'en font qu'une. */
+const inflight = new Map<string, Promise<TxSummary[]>>();
+
+/*
+ * Clés à redemander quoi qu'il arrive (après un envoi). À part de `lastFetch` :
+ * le remettre à zéro ferait croire aux écrans que le réseau n'a jamais répondu.
+ */
+const stale = new Set<string>();
+
 /** Persiste le cache en arrière-plan (fire-and-forget). */
 function persistCache(cache: Record<string, TxSummary[]>) {
   void (async () => {
@@ -83,23 +107,9 @@ function persistCache(cache: Record<string, TxSummary[]>) {
   })();
 }
 
-export const useHistoryStore = create<HistoryState>((set, get) => ({
-  cache: {},
-  loading: {},
-  lastFetch: {},
-
-  getCached: (chain, address) => {
-    const key = cacheKey(chain, address);
-    return get().cache[key] ?? [];
-  },
-
-  isLoading: (chain, address) => {
-    const key = cacheKey(chain, address);
-    return get().loading[key] ?? false;
-  },
-
-  fetchHistory: async (chain, address) => {
-    const key = cacheKey(chain, address);
+export const useHistoryStore = create<HistoryState>((set, get) => {
+  /** L'appel réseau lui-même ; `fetchHistory` décide s'il a lieu. */
+  const fetchFromNetwork = async (key: string, chain: string, address: string): Promise<TxSummary[]> => {
     set((s) => ({ loading: { ...s.loading, [key]: true } }));
     try {
       const txs = await getAdapter(chain).getHistory(address);
@@ -118,21 +128,55 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     } finally {
       set((s) => ({ loading: { ...s.loading, [key]: false } }));
     }
-  },
+  };
 
-  hydrate: async () => {
-    try {
-      const storage = await getStorage();
-      const raw = await storage!.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Record<string, TxSummary[]>;
-        set({ cache: parsed });
+  return {
+    cache: {},
+    loading: {},
+    lastFetch: {},
+
+    getCached: (chain, address) => {
+      const key = cacheKey(chain, address);
+      return get().cache[key] ?? [];
+    },
+
+    isLoading: (chain, address) => {
+      const key = cacheKey(chain, address);
+      return get().loading[key] ?? false;
+    },
+
+    fetchHistory: (chain, address, opts) => {
+      const key = cacheKey(chain, address);
+      const running = inflight.get(key);
+      if (running) return running;
+      const s0 = get();
+      if (!opts?.force && !stale.has(key) && s0.cache[key] && Date.now() - (s0.lastFetch[key] ?? 0) < HISTORY_FRESH_MS) {
+        return Promise.resolve(s0.cache[key]);
       }
-    } catch {
-      // Cache corrompu ou absent : on repart de zéro.
-    }
-  },
-}));
+      stale.delete(key);
+      const request = fetchFromNetwork(key, chain, address).finally(() => inflight.delete(key));
+      inflight.set(key, request);
+      return request;
+    },
+
+    markStale: (chain, address) => {
+      stale.add(cacheKey(chain, address));
+    },
+
+    hydrate: async () => {
+      try {
+        const storage = await getStorage();
+        const raw = await storage!.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Record<string, TxSummary[]>;
+          set({ cache: parsed });
+        }
+      } catch {
+        // Cache corrompu ou absent : on repart de zéro.
+      }
+    },
+  };
+});
 
 // Hydratation automatique au chargement du module.
 void useHistoryStore.getState().hydrate();

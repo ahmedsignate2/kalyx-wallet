@@ -47,6 +47,13 @@ export function smooth(points: ChartPoint[], max = 80): ChartPoint[] {
   });
 }
 
+/** Courbe déjà calculée, sans réseau : l'accueil la montre dès son montage au lieu d'un squelette. */
+export function peekPortfolioHistory(key: string | null, period: Period): ChartPoint[] | null {
+  if (!key) return null;
+  const hit = cache.get(`${key}:${period}`);
+  return hit && Date.now() - hit.at < TTL ? hit.points : null;
+}
+
 export async function portfolioHistory(holdings: Holding[], fiat: string, period: Period, key: string): Promise<ChartPoint[]> {
   const ck = `${key}:${period}`;
   const hit = cache.get(ck);

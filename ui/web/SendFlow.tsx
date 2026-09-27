@@ -84,7 +84,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
   const pfAccount = useWebPortfolioAccount();
   useEffect(() => {
     if (!pfAccount) return;
-    pf.hydrate(pfAccount, fiat).then(() => pf.refresh(pfAccount, fiat, { includeTestnets: showTestnets, force: true }));
+    pf.hydrate(pfAccount, fiat, { includeTestnets: showTestnets }).then(() => pf.refresh(pfAccount, fiat, { includeTestnets: showTestnets, force: true }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pfAccount, fiat, showTestnets]);
 
