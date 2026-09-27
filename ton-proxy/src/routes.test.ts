@@ -40,3 +40,12 @@ test('corps POST : { boc } seul, re-sérialisé, taille bornée', () => {
   assert.equal(sanitizeBody('pas du json').ok, false);
   assert.equal(sanitizeBody(JSON.stringify({ boc: 'A'.repeat(70_000) })).ok, false);
 });
+
+test('cache : jamais le seqno ni le suivi, 10 s pour une adresse', () => {
+  const c = (m: string, p: string, q = '') => { const r = R(m, p, q); return r.ok ? r.route.cacheSeconds : 'refus'; };
+  assert.equal(c('GET', `/mainnet/v2/wallet/${A}/seqno`), undefined);
+  assert.equal(c('GET', '/testnet/v2/blockchain/messages/111097c6ae737d4a980c7629dcca17049a817c5934f7b643200b8cb0aac2215f/transaction'), undefined);
+  assert.equal(c('POST', '/mainnet/v2/blockchain/message'), undefined);
+  assert.equal(c('GET', `/mainnet/v2/accounts/${A}`), 10);
+  assert.equal(c('GET', '/mainnet/v2/rates', 'tokens=ton&currencies=usd'), 60);
+});
