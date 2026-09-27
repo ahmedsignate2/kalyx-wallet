@@ -23,6 +23,9 @@ const schemes = ['kalyx', ...(googleScheme ? [googleScheme] : [])];
 const BUILD_PROFILE = process.env.EAS_BUILD_PROFILE ?? '';
 const APP_VERSION = BUILD_PROFILE.startsWith('production') ? '1.0.0' : '0.1.0';
 
+/** Runtime natif, partagé par le build et les OTA — voir `runtimeVersion` plus bas. */
+export const NATIVE_RUNTIME = 'native-2026.09.27';
+
 const config: ExpoConfig = {
   name: 'Kalyx Wallet',
   slug: 'kalyx-wallet',
@@ -53,20 +56,27 @@ const config: ExpoConfig = {
     fallbackToCacheTimeout: 0,
   },
   /*
-   * EMPREINTE, et surtout PAS `appVersion`.
+   * RUNTIME EXPLICITE, et non plus l'empreinte calculée (27/09).
    *
-   * Une OTA ne doit jamais atterrir sur un binaire incompatible : si le JS
-   * appelle un module natif absent de l'APK installé, l'app plante au lancement
-   * et l'utilisateur n'a plus que la réinstallation pour s'en sortir. La
-   * politique `fingerprint` hache le projet natif, donc une mise à jour n'est
-   * proposée qu'aux binaires réellement capables de l'exécuter.
+   * Les builds se font désormais sur le serveur, plus sur EAS (quota épuisé),
+   * alors que les mises à jour OTA sont calculées ailleurs : deux empreintes
+   * calculées dans deux environnements peuvent diverger, et l'OTA ne redescend
+   * alors jamais — en silence. Un numéro fixe, partagé par le build et l'OTA,
+   * supprime ce décalage.
    *
-   * `appVersion` serait un piège ici en plus : APP_VERSION vaut '0.1.0' en
-   * preview et '1.0.0' en production (voir plus haut), et `autoIncrement` est
-   * actif sur production — chaque changement de version orphelinerait les
+   * Le risque que l'empreinte évitait reste réel : changer le natif SANS
+   * changer ce numéro enverrait du JavaScript qui appelle un module absent de
+   * l'APK installé, et l'app planterait au lancement. D'où
+   * `scripts/check-native-runtime.mjs`, exécuté en CI : il recalcule
+   * l'empreinte native et échoue si elle a changé alors que ce numéro est resté
+   * le même. Pour un nouveau natif : incrémenter NATIVE_RUNTIME, lancer
+   * `node scripts/check-native-runtime.mjs --record`, puis rebuilder l'APK.
+   *
+   * Pas `appVersion` : APP_VERSION diffère entre preview et production et
+   * s'incrémente seul en production — chaque changement orphelinerait les
    * installations existantes.
    */
-  runtimeVersion: { policy: 'fingerprint' },
+  runtimeVersion: NATIVE_RUNTIME,
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.kalyx.wallet',
