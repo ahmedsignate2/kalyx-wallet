@@ -26,6 +26,23 @@ interface RawNft {
   image?: { cachedUrl?: string; thumbnailUrl?: string; pngUrl?: string; originalUrl?: string };
 }
 
+/**
+ * URL affichable par React Native : `ipfs://` passe par une passerelle, et un
+ * SVG (les Basenames, beaucoup de noms on-chain) est converti en PNG — `Image`
+ * ne décode pas le SVG et laissait une case vide.
+ */
+export function displayableImage(url: string): string {
+  let u = url.trim();
+  if (!u) return '';
+  if (u.startsWith('http://')) u = `https://${u.slice(7)}`;
+  if (u.startsWith('ipfs://')) u = `https://ipfs.io/ipfs/${u.slice(7).replace(/^ipfs\//, '')}`;
+  if (u.startsWith('data:image/svg') || /\.svg(?:[?#]|$)/i.test(u)) {
+    if (u.startsWith('data:')) return '';
+    return `https://wsrv.nl/?url=${encodeURIComponent(u.replace(/^https?:\/\//, ''))}&output=png&w=500&h=500&fit=contain`;
+  }
+  return /^https:\/\//.test(u) || u.startsWith('data:image/') ? u : '';
+}
+
 export function parseNfts(json: unknown): NftItem[] {
   const list = (json as { ownedNfts?: RawNft[] })?.ownedNfts;
   if (!Array.isArray(list)) return [];
@@ -39,14 +56,19 @@ export function parseNfts(json: unknown): NftItem[] {
       tokenId: String(n?.tokenId ?? ''),
       name: n?.name || n?.contract?.name || (n?.tokenId ? `#${n.tokenId}` : 'NFT'),
       collection: n?.contract?.name || n?.collection?.name || '',
-      image:
+      image: displayableImage(
         n?.image?.cachedUrl ||
-        n?.image?.thumbnailUrl ||
         n?.image?.pngUrl ||
+        n?.image?.thumbnailUrl ||
         n?.image?.originalUrl ||
         '',
+      ),
+      named: !!(n?.name || n?.contract?.name),
     }))
-    .filter((n) => n.contract && n.image); // on n'affiche que les NFT avec image
+    // Sans image, un NFT reste montré (case avec icône) s'il a au moins un nom :
+    // un Basename tout juste frappé n'a parfois pas encore d'aperçu chez Alchemy.
+    .filter((n) => n.contract && (n.image || n.named))
+    .map(({ named: _named, ...n }) => n);
 }
 
 /** Dérive l'URL NFT API depuis l'URL RPC Alchemy (v2 -> nft/v3). */

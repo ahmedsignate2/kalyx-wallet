@@ -215,12 +215,25 @@ export default function Home() {
     }
   }, [account, historyChains, historyAddressFor, fetchHistory]);
 
-  // NFT agrégés (chargés à l'ouverture de l'onglet).
+  /*
+   * NFT agrégés, lus à l'ouverture de l'onglet. L'accueil reste monté (navigateur
+   * d'onglets) : une liste lue une fois restait figée — un NFT reçu ensuite
+   * n'apparaissait jamais. Elle est relue si elle a plus d'une minute, et
+   * aussitôt si le compte change ; l'ancienne reste affichée pendant la lecture.
+   */
+  const nftsRead = useRef<{ key: string; at: number } | null>(null);
+  const nftKey = acct ? `${acct.evmAddress}|${acct.solAddress ?? ''}|${acct.tonPublicKey ?? ''}` : '';
   useEffect(() => {
-    if (tab !== 'nft' || !acct || nfts !== null) return;
-    loadAllNfts(acct).then(setNfts).catch(() => setNfts([]));
+    if (tab !== 'nft' || !acct) return;
+    const last = nftsRead.current;
+    if (last && last.key === nftKey && Date.now() - last.at < 60_000) return;
+    if (last?.key !== nftKey) setNfts(null);
+    nftsRead.current = { key: nftKey, at: Date.now() };
+    let alive = true;
+    loadAllNfts(acct).then((l) => alive && setNfts(l)).catch(() => alive && setNfts((cur) => cur ?? []));
+    return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, acct?.evmAddress]);
+  }, [tab, nftKey]);
 
   const onRefresh = useCallback(async () => {
     if (!acct) return;
@@ -251,12 +264,15 @@ export default function Home() {
           return address ? fetchHistory(chain.id, address, { force: true }).catch(() => {}) : Promise.resolve();
         }),
       ]);
-      if (tab === 'nft') setNfts(await loadAllNfts(acct).catch(() => []));
+      if (tab === 'nft') {
+        nftsRead.current = { key: nftKey, at: Date.now() };
+        setNfts(await loadAllNfts(acct).catch(() => []));
+      }
     } finally {
       setRefreshing(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [acct, fiat]);
+  }, [acct, fiat, tab, nftKey]);
 
   // Avertissements uniques (bêta, appareil rooté, réseaux perso à restaurer).
   useEffect(() => {
@@ -706,7 +722,7 @@ export default function Home() {
           name={sendNft.name}
           onClose={() => setSendNft(null)}
           // Le NFT est parti : la liste est relue au prochain affichage de l'onglet.
-          onSent={() => { setSendNft(null); setNfts(null); }}
+          onSent={() => { setSendNft(null); if (acct) { nftsRead.current = { key: nftKey, at: Date.now() }; loadAllNfts(acct).then(setNfts).catch(() => {}); } }}
         />
       ) : null}
     </View>
