@@ -27,6 +27,7 @@
  */
 import { useEffect } from 'react';
 import * as Linking from 'expo-linking';
+import { looksLikeTonConnect } from '../src/domain/tonconnect/connectLink';
 import { toast } from '../lib/toast';
 import { useSettings } from '../lib/settingsStore';
 import { translate } from '../lib/i18n';
@@ -100,6 +101,15 @@ export function DeepLinks() {
         } else if (f.status === 'error') {
           toast.error(translate(lang, 'driveCancelled'), f.error ?? undefined);
         }
+        return;
+      }
+      /*
+       * TON Connect : une dApp qui a choisi Kalyx (liste officielle des wallets)
+       * ouvre `kalyx://?v=2&id=…&r=…` ou `https://kalyxwallet.com/ton-connect?…`.
+       * La demande s'affiche par-dessus l'écran courant (ui/TonConnectHost).
+       */
+      if (looksLikeTonConnect(url)) {
+        act({ kind: 'tonconnect', link: url });
         return;
       }
       const wc = extractWcUri(url);

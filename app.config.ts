@@ -24,7 +24,7 @@ const BUILD_PROFILE = process.env.EAS_BUILD_PROFILE ?? '';
 const APP_VERSION = BUILD_PROFILE.startsWith('production') ? '1.0.0' : '0.1.0';
 
 /** Runtime natif, partagé par le build et les OTA — voir `runtimeVersion` plus bas. */
-export const NATIVE_RUNTIME = 'native-2026.09.27';
+export const NATIVE_RUNTIME = 'native-2026.09.28';
 
 const config: ExpoConfig = {
   name: 'Kalyx Wallet',
@@ -152,6 +152,8 @@ const config: ExpoConfig = {
         data: [
           { scheme: 'https', host: 'kalyxwallet.com', pathPrefix: '/wc' },
           { scheme: 'https', host: 'kalyxwallet.com', pathPrefix: '/pay' },
+          // TON Connect : lien universel déclaré dans la liste officielle des wallets TON.
+          { scheme: 'https', host: 'kalyxwallet.com', pathPrefix: '/ton-connect' },
         ],
         category: ['BROWSABLE', 'DEFAULT'],
       },
