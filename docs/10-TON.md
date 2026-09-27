@@ -436,3 +436,29 @@ plus loin. (Phrase connue de tous : ne jamais y envoyer de fonds.)
    famille inconnue. Ajouter une configuration TON sans traiter `'ton'` dans
    `createAdapter` fait planter l'app AU DÉMARRAGE. (`toAccount` et
    `setActiveWallet` lisent déjà la configuration sans adaptateur.)
+
+---
+
+## 13. TonAPI, par le proxy Kalyx (27/09)
+
+`ton-proxy/` (Worker Cloudflare, déployé) garde la clé TonAPI et n'ouvre que dix
+routes. L'app l'utilise en fournisseur PRINCIPAL (`tonApi.ts`, `tonProxy.ts`),
+et chaque lecture retombe sur TON Center si TonAPI échoue.
+
+Ce qu'il apporte, vérifié en direct à travers le Worker :
+- **Frais exacts** par émulation (`event.extra`, signature à zéro acceptée) :
+  0,000372 TON relevés sur un vrai portefeuille, au lieu de l'estimation
+  prudente. Le premier envoi d'un compte non déployé reste estimé (l'émulation
+  exigerait l'état initial, donc la clé publique).
+- **`memo_required`** : l'avertissement `MEMO_REQUIRED` (bloquant) quand une
+  plateforme exige un commentaire et qu'il est vide.
+- **Historique en actions.** Deux pièges relevés sur un vrai compte : un dépôt
+  rebondissant reçu avant le déploiement est RENVOYÉ automatiquement — ce n'est
+  pas un envoi, il est affiché en reçu net marqué `BOUNCE` ; et `ext_msg_hash`
+  est exactement le hachage normalisé qu'un envoi rend, donc le suivi retrouve
+  la transaction directement.
+- **Solde** : un NOMBRE JSON chez TonAPI — lu dans le texte brut, sinon arrondi
+  au-delà de 2^53 nanotons.
+
+Reste : les jetons (USDT…), puis l'activation du réseau principal.
+

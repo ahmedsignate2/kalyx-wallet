@@ -58,7 +58,8 @@ const FEE: Route = (m, url) => (m === 'POST' && url.pathname.endsWith('/v2/estim
 function adapter(config: ChainConfig, routes: Route[], now = 1_790_000_000_000) {
   const f = fakeCenter(routes);
   let t = now;
-  const a = new TonAdapterV2(config, { client: f.client(config.rpcUrls[0]), now: () => t, sleep: async (ms) => { t += ms; } });
+  // TON Center seul (`api: null`) : ces tests couvrent le fournisseur de repli.
+  const a = new TonAdapterV2(config, { client: f.client(config.rpcUrls[0]), api: null, now: () => t, sleep: async (ms) => { t += ms; } });
   return { a, calls: f.calls, advance: (ms: number) => { t += ms; } };
 }
 
