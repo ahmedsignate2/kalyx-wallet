@@ -10,15 +10,16 @@
  *
  * Aucune donnée n'est journalisée : ni adresse, ni message, ni IP.
  */
-import { MAX_BODY_BYTES, resolve, sanitizeBody, UPSTREAM } from './routes';
+import { BROADCAST_FALLBACK, MAX_BODY_BYTES, resolve, sanitizeBody, UPSTREAM } from './routes';
 
 export interface Env {
   /** Clé TonAPI — SECRET : `wrangler secret put TONAPI_KEY`. */
   TONAPI_KEY: string;
   /** Origines web autorisées (séparées par des virgules). L'app native n'envoie pas d'Origin. */
   ALLOWED_ORIGINS?: string;
-  /** Limiteur de débit Cloudflare (optionnel : absent, pas de limite côté Worker). */
+  /** Limiteurs Cloudflare (optionnels) : lectures, et envois — plus strict. */
   LIMITER?: { limit(opts: { key: string }): Promise<{ success: boolean }> };
+  LIMITER_WRITE?: { limit(opts: { key: string }): Promise<{ success: boolean }> };
 }
 
 const json = (status: number, body: unknown, extra: Record<string, string> = {}) =>
@@ -51,9 +52,10 @@ export default {
     if (!r.ok) return json(r.status, { error: r.error }, corsHeaders);
 
     // Débit par IP : une lecture peut être fréquente, un envoi beaucoup moins.
-    if (env.LIMITER) {
+    const limiter = request.method === 'POST' ? env.LIMITER_WRITE : env.LIMITER;
+    if (limiter) {
       const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-      const { success } = await env.LIMITER.limit({ key: `${request.method}:${ip}` });
+      const { success } = await limiter.limit({ key: ip });
       if (!success) return json(429, { error: 'rate limited' }, { ...corsHeaders, 'retry-after': '10' });
     }
 
@@ -74,16 +76,44 @@ export default {
       if (hit) return new Response(hit.body, { status: hit.status, headers: { ...Object.fromEntries(hit.headers), ...corsHeaders } });
     }
 
-    let res: Response;
-    try {
-      res = await fetch(upstream, {
+    const call = () =>
+      fetch(upstream, {
         method: request.method,
         headers: { authorization: `Bearer ${env.TONAPI_KEY}`, accept: 'application/json', ...(body ? { 'content-type': 'application/json' } : {}) },
         body,
       });
+    let res: Response | null;
+    try {
+      res = await call();
+      // Le quota TonAPI est GLOBAL à la clé : un 429 est souvent passager. Une
+      // lecture est retentée une fois, une seconde plus tard.
+      if (res.status === 429 && request.method === 'GET') {
+        await new Promise((r) => setTimeout(r, 1000));
+        res = await call();
+      }
     } catch {
-      return json(502, { error: 'tonapi unreachable' }, corsHeaders);
+      res = null;
     }
+
+    /*
+     * Diffusion : si TonAPI sature ou tombe, le MÊME BOC part par TON Center.
+     * L'utilisateur qui vient de confirmer un envoi ne doit pas voir d'échec
+     * pour une question de quota. Un refus du message lui-même (4xx autre que
+     * 429) n'est PAS rejoué ailleurs : il serait refusé là-bas aussi.
+     */
+    if (r.route.broadcast && body && (!res || res.status === 429 || res.status >= 500)) {
+      try {
+        const fb = await fetch(BROADCAST_FALLBACK[r.network], { method: 'POST', headers: { 'content-type': 'application/json' }, body });
+        const out = (await fb.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+        // HTTP 200 = accepté, sauf refus EXPLICITE (`ok: false`) : présenter un
+        // envoi parti comme un échec pousserait l'utilisateur à recommencer.
+        if (fb.ok && out?.ok !== false) return json(200, { relayed: 'toncenter' }, corsHeaders);
+        return json(fb.status === 200 ? 502 : fb.status, { error: out?.error ?? 'broadcast failed' }, corsHeaders);
+      } catch {
+        return json(502, { error: 'broadcast unreachable' }, corsHeaders);
+      }
+    }
+    if (!res) return json(502, { error: 'tonapi unreachable' }, corsHeaders);
 
     // On ne relaie que le statut et le corps : aucun en-tête amont (quota, serveur…).
     const text = await res.text();

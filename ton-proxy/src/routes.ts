@@ -15,6 +15,17 @@ export const UPSTREAM: Record<Network, string> = {
   testnet: 'https://testnet.tonapi.io',
 };
 
+/**
+ * Repli de DIFFUSION seulement. TonAPI et TON Center n'ont pas le même format
+ * de réponse : pour une lecture, le Worker ne pourrait pas traduire l'un en
+ * l'autre sans risquer de tromper l'app. Pour une diffusion, les deux prennent
+ * le même BOC signé — relayer ailleurs est sans ambiguïté.
+ */
+export const BROADCAST_FALLBACK: Record<Network, string> = {
+  mainnet: 'https://toncenter.com/api/v2/sendBoc',
+  testnet: 'https://testnet.toncenter.com/api/v2/sendBoc',
+};
+
 // Adresse conviviale (48 caractères base64url) ou brute (workchain:64 hex).
 const ADDR = '(?:[A-Za-z0-9_-]{48}|-?\\d{1,3}:[0-9a-fA-F]{64})';
 // Hachage : 64 hexadécimaux ou base64url de 43/44 caractères.
@@ -27,23 +38,36 @@ interface Route {
   query?: Record<string, RegExp>;
   /** Durée de cache (s) ; absent = pas de cache. */
   cacheSeconds?: number;
+  /** Diffusion d'un message : repli sur TON Center si TonAPI sature. */
+  broadcast?: boolean;
 }
 
 const LIMIT = /^(?:[1-9]|[1-9]\d|100)$/;
 const LT = /^\d{1,24}$/;
 const CODES = /^[a-zA-Z0-9,]{1,64}$/;
 
+/*
+ * DURÉES DE CACHE, choisies route par route :
+ * - cours, métadonnées de jeton : communs à tous → 60 s / 300 s ;
+ * - état, jetons, historique d'une adresse : 10 s — neutralise le
+ *   « tirer pour rafraîchir » répété sans montrer de données vieilles ;
+ * - seqno : JAMAIS. Un seqno vieux de 10 s ferait signer un second envoi
+ *   rapproché avec un compteur périmé : le réseau le refuserait ;
+ * - suivi d'une transaction : jamais — un « pas encore trouvée » mis en cache
+ *   retarderait la confirmation affichée ;
+ * - émulation, diffusion : jamais, par nature.
+ */
 export const ROUTES: Route[] = [
-  { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}$`) },
-  { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}/events$`), query: { limit: LIMIT, before_lt: LT } },
-  { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}/jettons$`), query: { currencies: CODES } },
+  { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}$`), cacheSeconds: 10 },
+  { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}/events$`), query: { limit: LIMIT, before_lt: LT }, cacheSeconds: 10 },
+  { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}/jettons$`), query: { currencies: CODES }, cacheSeconds: 10 },
   { method: 'GET', pattern: new RegExp(`^/v2/wallet/${ADDR}/seqno$`) },
   { method: 'GET', pattern: new RegExp(`^/v2/blockchain/messages/${HASH}/transaction$`) },
   { method: 'GET', pattern: new RegExp(`^/v2/events/${HASH}$`) },
   { method: 'GET', pattern: new RegExp(`^/v2/jettons/${ADDR}$`), cacheSeconds: 300 },
   { method: 'GET', pattern: /^\/v2\/rates$/, query: { tokens: CODES, currencies: CODES }, cacheSeconds: 60 },
   { method: 'POST', pattern: /^\/v2\/wallet\/emulate$/ },
-  { method: 'POST', pattern: /^\/v2\/blockchain\/message$/ },
+  { method: 'POST', pattern: /^\/v2\/blockchain\/message$/, broadcast: true },
 ];
 
 export type Resolved =
