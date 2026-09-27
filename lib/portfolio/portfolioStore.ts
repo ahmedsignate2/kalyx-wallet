@@ -486,9 +486,16 @@ export function splitHoldings(holdings: Holding[], threshold = 1): { main: Holdi
   const main: Holding[] = [];
   const small: Holding[] = [];
   const hidden: Holding[] = [];
+  /*
+   * « Petit » est RELATIF au portefeuille : moins de 1 % du total, plafonné au
+   * seuil. Avec un seuil fixe de 1, un portefeuille de 0,31 € avait TOUS ses
+   * jetons repliés — relevé sur un vrai compte, où l'accueil semblait vide.
+   */
+  const total = holdings.reduce((s, h) => s + (h.verified ? h.fiat : 0), 0);
+  const cut = Math.min(threshold, total * 0.01);
   for (const h of holdings) {
     if (!h.verified) hidden.push(h);
-    else if (h.fiat >= threshold || (h.price === 0 && h.kind === 'native')) main.push(h);
+    else if (h.fiat >= cut && h.fiat > 0 || (h.price === 0 && h.kind === 'native')) main.push(h);
     else small.push(h);
   }
   return { main, small, hidden };
