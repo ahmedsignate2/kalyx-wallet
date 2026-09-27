@@ -34,6 +34,7 @@ import {
   formatTokenAmount,
   type PayMethod,
   type PayRefusal,
+  WalletError,
 } from '../src';
 
 /** Identifiant public du projet Pay, fourni au build (secret EAS). */
@@ -325,6 +326,12 @@ interface PayState {
   failure: PayFailure | null;
   /** Détail technique éventuel (méthode refusée, message du service). */
   detail: string | null;
+  /**
+   * L'erreur elle-même, pour que l'écran la TRADUISE (réseau coupé, fonds
+   * insuffisants, refus…) : son message brut, souvent en français ou tiré du
+   * SDK, s'affichait tel quel dans toutes les langues.
+   */
+  error: unknown;
 
   /** Compte qui paie, et son adresse EVM. Renseigné dès le premier chargement. */
   payer: { index: number; evmAddress: string } | null;
@@ -377,6 +384,7 @@ const EMPTY = {
   result: null,
   failure: null,
   detail: null,
+  error: null,
   payer: null,
   collectedIds: [],
   settledChain: null,
@@ -497,7 +505,7 @@ export const usePay = create<PayState>((set, get) => ({
        */
       set({ phase: 'choosing', options, selected: preselectOption(options.options, get().collectedIds) });
     } catch (e) {
-      set({ phase: 'error', failure: 'FAILED', detail: e instanceof Error ? e.message : null });
+      set({ phase: 'error', failure: 'FAILED', detail: e instanceof Error ? e.message : null, error: e });
     }
   },
 
@@ -606,6 +614,7 @@ export const usePay = create<PayState>((set, get) => ({
         phase: 'error',
         failure: refused ? 'ACTION_REFUSED' : 'FAILED',
         detail: refused ? refused.code : e instanceof Error ? e.message : null,
+        error: e,
       });
     }
   },
@@ -706,7 +715,7 @@ async function signPayAction(action: PayAction, unlock: Unlock): Promise<string>
       const tx = args[0] as { to?: string; data?: string; value?: string } | undefined;
       if (!tx?.to) throw new Error('Transaction de paiement incomplète');
       const chain = evmChainIdToKalyx(check.evmChainId!);
-      if (!chain) throw new Error(`Réseau ${check.evmChainId} non configuré dans le portefeuille`);
+      if (!chain) throw new WalletError('NOT_SUPPORTED', `Réseau ${check.evmChainId} non configuré dans le portefeuille`);
       return w.sendRawTxOn(unlock, chain, {
         to: tx.to,
         data: tx.data ?? '0x',
