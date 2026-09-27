@@ -47,6 +47,23 @@ export interface TonApiEvent {
   is_scam?: boolean;
 }
 
+/** Ce qu'une transaction ferait, selon l'émulation de TonAPI. */
+export interface TonEmulation {
+  fee: bigint;
+  net: bigint;
+  risk: {
+    /** Le message vide TOUT le solde restant. */
+    allBalance: boolean;
+    /** TON qui quittent le portefeuille (nanotons). */
+    ton: bigint;
+    jettons: { amount: bigint; symbol: string; decimals: number; verified: boolean }[];
+    /** Nombre de NFT qui partent. */
+    nfts: number;
+  };
+  /** Une action de la chaîne échouerait. */
+  failed: boolean;
+}
+
 /** Issue d'une transaction lue sur TonAPI. */
 export interface TonApiTxOutcome {
   hash: string;
@@ -117,10 +134,39 @@ export class TonApiClient {
 
   /** Frais EXACTS par émulation d'un message externe (signature à zéro acceptée). */
   async emulateFee(externalBoc: string): Promise<bigint> {
+    return (await this.emulate(externalBoc)).fee;
+  }
+
+  /**
+   * Émulation complète : frais nets, et `risk` — ce qui QUITTE le portefeuille
+   * (TON, jettons, NFT), calculé par TonAPI sur l'exécution réelle et non sur
+   * ce que la dApp prétend. Forme relevée (`tonapi-live.json`, `emulateV3`).
+   */
+  async emulate(externalBoc: string): Promise<TonEmulation> {
     const r = await this.call('POST', '/v2/wallet/emulate', { boc: externalBoc });
     const extra = r.status === 200 ? bigField(r.text, 'extra') : null;
     if (extra === null) throw new WalletError('RPC_UNAVAILABLE', `TonAPI : émulation impossible (HTTP ${r.status})`);
-    return extra < 0n ? -extra : 0n;
+    const risk = r.json?.risk ?? {};
+    const jettons = Array.isArray(risk.jettons) ? risk.jettons : [];
+    return {
+      // `extra` < 0 : ce que le compte perd hors montants envoyés ; > 0 : il reçoit plus qu'il ne paie.
+      fee: extra < 0n ? -extra : 0n,
+      net: extra,
+      risk: {
+        allBalance: risk.transfer_all_remaining_balance === true,
+        ton: /^\d+$/.test(String(risk.ton ?? '')) ? BigInt(String(risk.ton)) : 0n,
+        jettons: jettons
+          .filter((j: any) => /^\d+$/.test(String(j?.quantity ?? '')))
+          .map((j: any) => ({
+            amount: BigInt(String(j.quantity)),
+            symbol: String(j.jetton?.symbol ?? '?').slice(0, 24),
+            decimals: Number.isInteger(j.jetton?.decimals) ? j.jetton.decimals : 9,
+            verified: j.jetton?.verification === 'whitelist',
+          })),
+        nfts: Array.isArray(risk.nfts) ? risk.nfts.length : 0,
+      },
+      failed: Array.isArray(r.json?.event?.actions) && r.json.event.actions.some((a: any) => a?.status && a.status !== 'ok'),
+    };
   }
 
   /** Diffuse un message externe. Le proxy relaie par TON Center si TonAPI sature. */

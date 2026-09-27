@@ -45,9 +45,10 @@ import type {
 } from './types';
 import { formatTonAddress, isValidTonAddress, parseRawTonAddress, parseTonAddress, toRawTonAddress } from '../ton/tonAddress';
 import { TonCenterClient, type TonAccountState, type TonCenterTx } from '../ton/tonCenter';
-import { TonApiClient, type TonApiEvent } from '../ton/tonApi';
+import { TonApiClient, type TonApiEvent, type TonEmulation } from '../ton/tonApi';
+import type { DappTransaction } from '../../tonconnect/requests';
 import { TON_PROXY_URL } from '../ton/tonProxy';
-import { buildTonTransfer, tonExternalForEstimate, tonTransferBodyForEstimate, TON_SEND_MODE_DEFAULT } from '../ton/tonTransfer';
+import { buildTonTransfer, tonExternalForEstimate, tonTransferBodyForEstimate, TON_SEND_MODE_DEFAULT, type TonTransferMessage } from '../ton/tonTransfer';
 import { tonWalletAddress, TON_IMPORT_WALLET_VERSIONS, type TonWalletVersion } from '../ton/tonWallet';
 import type { TonNft } from '../ton/tonNfts';
 import { jettonTransferBody, rawJettonAddress, JETTON_TRANSFER_TON, type TonJettonBalance } from '../ton/tonJettons';
@@ -128,6 +129,22 @@ export const TON_TARGET_CAPABILITIES: ChainCapabilities = capabilities({
   memo: true,
   activatesDestination: true,
 });
+
+/** Brouillon d'une transaction de dApp : état du compte et ce qu'elle ferait. */
+export interface DappDraft {
+  from: string;
+  tx: DappTransaction;
+  seqno: number;
+  deploys: boolean;
+  version?: TonWalletVersion;
+  balance: bigint;
+  /** Émulation TonAPI ; null si indisponible (compte non déployé, TonAPI muet). */
+  emulation: TonEmulation | null;
+}
+
+function dappMessages(tx: DappTransaction): TonTransferMessage[] {
+  return tx.messages.map((m) => ({ to: m.to, amount: m.amount, bounce: m.bounce, payload: m.payload, init: m.init }));
+}
 
 function notYet(what: string): never {
   throw new WalletError('NOT_SUPPORTED', `TON : ${what} n'est pas encore implémenté (cf. docs/10-TON.md).`);
@@ -580,6 +597,59 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
       testnet: this.testnet,
     });
     return { to: p.jettonWallet, amount: JETTON_TRANSFER_TON, bounce: true, payload };
+  }
+
+  /**
+   * Transaction demandée par une dApp (TON Connect), déjà validée par
+   * `parseSendTransaction`. On lit l'état du compte, puis on ÉMULE le message
+   * complet : l'utilisateur voit ce qui sort réellement du portefeuille, pas
+   * ce que la dApp prétend.
+   */
+  async prepareDappTransfer(from: string, tx: DappTransaction): Promise<DappDraft> {
+    const sender = await this.state(from);
+    if (sender.status === 'frozen') throw new WalletError('NOT_SUPPORTED', 'TON : compte gelé');
+    if (sender.status === 'active' && !sender.version) {
+      throw new WalletError('NOT_SUPPORTED', `TON : contrat de portefeuille non pris en charge (${sender.walletType ?? 'inconnu'})`);
+    }
+    const deploys = sender.status !== 'active';
+    const seqno = sender.seqno ?? 0;
+    const draft: DappDraft = { from, tx, seqno, deploys, version: sender.version, balance: sender.balance, emulation: null };
+    if (this.api && sender.version && !deploys) {
+      try {
+        const validUntil = Math.floor(this.now() / 1000) + VALIDITY_SECONDS;
+        draft.emulation = await this.api.emulate(
+          tonExternalForEstimate(sender.version, from, { seqno, validUntil, messages: dappMessages(tx), testnet: this.testnet }),
+        );
+      } catch {
+        /* sans émulation : l'écran le dit, et montre les montants bruts */
+      }
+    }
+    return draft;
+  }
+
+  /**
+   * Signe la transaction d'une dApp. L'échéance est la plus proche entre celle
+   * de la dApp et la nôtre (5 min) : ni un message valable indéfiniment, ni un
+   * message qui survivrait à ce que la dApp a demandé.
+   */
+  async signDappTransfer(draft: DappDraft, signer: ChainSigner): Promise<{ boc: string; txid: string; expiresAt: number }> {
+    assertCurve(signer, 'ed25519');
+    const fromRaw = rawOf(draft.from);
+    const candidates = draft.version ? [draft.version] : TON_IMPORT_WALLET_VERSIONS;
+    const version = candidates.find((v) => toRawTonAddress(tonWalletAddress(signer.publicKey, v, { testnet: this.testnet })) === fromRaw);
+    if (!version) throw new WalletError('NOT_SUPPORTED', 'TON : la clé de signature ne correspond pas à l’adresse d’envoi');
+    const ours = Math.floor(this.now() / 1000) + VALIDITY_SECONDS;
+    const validUntil = draft.tx.validUntil ? Math.min(draft.tx.validUntil, ours) : ours;
+    const built = buildTonTransfer(
+      { version, seqno: draft.seqno, validUntil, deploy: draft.deploys, testnet: this.testnet, sendMode: TON_SEND_MODE_DEFAULT, messages: dappMessages(draft.tx) },
+      signer,
+    );
+    return { boc: built.boc, txid: built.normalizedHash, expiresAt: validUntil * 1000 };
+  }
+
+  /** Diffuse le BOC signé d'une transaction de dApp (mêmes replis qu'un envoi). */
+  async broadcastDapp(signed: { boc: string; txid: string; expiresAt: number }): Promise<void> {
+    await this.broadcastSend({ chainId: this.config.id, raw: signed.boc, txid: signed.txid, draft: { expiresAt: signed.expiresAt } as never });
   }
 
   async broadcastSend(signed: SignedSend<TonPayload>): Promise<BroadcastOutcome> {
