@@ -50,3 +50,25 @@ describe('cliché du portefeuille', () => {
     await pending.catch(() => {});
   });
 });
+
+describe('réseau muet : les actifs ne disparaissent pas', () => {
+  const { carryOver } = require('./portfolioStore');
+  const h = (chainId: string, kind: string, id: string, fiat: number) => ({ id, chainId, kind, fiat, amount: fiat, raw: 1n, verified: true });
+  const before = [h('base', 'native', 'base:native', 50), h('base', 'erc20', 'base:0xusdc', 100), h('arbitrum', 'native', 'arbitrum:native', 30)];
+
+  it('garde le natif d’un réseau dont la lecture a échoué', () => {
+    const fresh = [h('base', 'erc20', 'base:0xusdc', 100)];
+    const out = carryOver(before, fresh, new Set(['base:native']));
+    expect(out.map((x: { id: string }) => x.id)).toEqual(['base:0xusdc', 'base:native']);
+  });
+
+  it('garde les jetons d’un réseau dont la liste a échoué, sans doublon', () => {
+    const fresh = [h('base', 'native', 'base:native', 50)];
+    const out = carryOver(before, fresh, new Set(['base:tokens']));
+    expect(out.map((x: { id: string }) => x.id).sort()).toEqual(['base:0xusdc', 'base:native']);
+  });
+
+  it('un solde RELU à zéro disparaît bien (pas d’échec déclaré)', () => {
+    expect(carryOver(before, [], new Set())).toEqual([]);
+  });
+});
