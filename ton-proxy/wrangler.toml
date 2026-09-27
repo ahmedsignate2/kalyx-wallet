@@ -1,0 +1,17 @@
+name = "kalyx-ton-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[vars]
+# Origines web autorisées (l'app native n'envoie pas d'en-tête Origin).
+ALLOWED_ORIGINS = "https://app.kalyxwallet.com,https://kalyxwallet.com"
+
+# Limite de débit par IP et par méthode : 60 requêtes / 60 s.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "7301"
+  [ratelimits.simple]
+  limit = 60
+  period = 60
+
+# SECRET, jamais ici : npx wrangler secret put TONAPI_KEY
