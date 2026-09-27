@@ -47,3 +47,11 @@ describe('Historique Base réel (Ankr)', () => {
     expect(swap!.legs?.some((l) => l.direction === 'in' && l.asset === 'USDC')).toBe(true);
   });
 });
+
+it('approve(spender, montant) = une AUTORISATION, adressée au dépensier', () => {
+  const me = '0x84e90b03e29c28b22c645ad6c0badc9574995eb3';
+  const spender = '1231deb6f5749ef6ce6943a275a1d3e7486f4eae';
+  const input = `0x095ea7b3${'0'.repeat(24)}${spender}${'f'.repeat(64)}`;
+  const [tx] = parseAnkrHistory({ result: { transactions: [{ hash: '0xa', from: me, to: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', value: '0x0', status: '0x1', timestamp: '0x6ab7d8df', input }] } }, null, me);
+  expect(tx).toMatchObject({ type: 'APPROVE', to: `0x${spender}`, contract: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913' });
+});

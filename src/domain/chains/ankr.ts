@@ -32,14 +32,14 @@ export function ankrTime(raw: unknown): number {
   return n > 1e11 ? Math.floor(n / 1000) : Math.floor(n);
 }
 
-interface AnkrTx { hash?: string; transactionHash?: string; from?: string; to?: string | null; value?: string; status?: string | number | boolean; timestamp?: string | number; blockNumber?: string }
+interface AnkrTx { input?: string; hash?: string; transactionHash?: string; from?: string; to?: string | null; value?: string; status?: string | number | boolean; timestamp?: string | number; blockNumber?: string }
 interface AnkrTransfer { transactionHash?: string; fromAddress?: string; toAddress?: string; contractAddress?: string; valueRawInteger?: string; tokenSymbol?: string; tokenDecimals?: number; timestamp?: number; blockHeight?: number }
 
 export function parseAnkrHistory(txJson: unknown, transfersJson: unknown, ownerAddress: string): TxParsed[] {
   const owner = ownerAddress.toLowerCase();
   const txs = ((txJson as { result?: { transactions?: AnkrTx[] } } | null)?.result?.transactions ?? []) as AnkrTx[];
   const transfers = ((transfersJson as { result?: { transfers?: AnkrTransfer[] } } | null)?.result?.transfers ?? []) as AnkrTransfer[];
-  const byHash = new Map<string, { ts: number; status: TxParsed['status']; byOwner?: boolean; legs: RawLeg[] }>();
+  const byHash = new Map<string, { ts: number; status: TxParsed['status']; byOwner?: boolean; approve?: boolean; legs: RawLeg[] }>();
   const entry = (hash: string, ts: number) => {
     const key = hash.toLowerCase();
     const e = byHash.get(key) ?? { ts, status: 'success' as TxParsed['status'], legs: [] };
@@ -56,6 +56,8 @@ export function parseAnkrHistory(txJson: unknown, transfersJson: unknown, ownerA
     const e = entry(hash, ankrTime(t.timestamp));
     e.status = t.status === '0x1' || t.status === '1' || t.status === 1 || t.status === 'SUCCESS' || t.status === true ? 'success' : 'failed';
     e.byOwner = from === owner;
+    // approve(address,uint256) : autorisation de dépense, pas un envoi.
+    if (from === owner && (t.input ?? '').toLowerCase().startsWith('0x095ea7b3')) e.approve = true;
     e.legs.push({ from: t.from ?? '', to: t.to ?? '', direction: from === owner ? 'out' : 'in', self: from === owner && to === owner, value: big(t.value) });
   }
   for (const t of transfers) {
@@ -86,6 +88,13 @@ export function parseAnkrHistory(txJson: unknown, transfersJson: unknown, ownerA
   for (const [hash, e] of byHash) {
     const byOwner = e.byOwner ?? (e.ts >= covered ? false : undefined);
     const tx = txFromLegs({ hash, timestamp: e.ts, status: e.status, byOwner }, e.legs);
+    if (tx && e.approve && !tx.legs) {
+      // Le token autorisé est le contrat appelé ; le dépensier est dans les données d'appel.
+      const input = (txs.find((x) => (x.hash ?? '').toLowerCase() === hash)?.input ?? '').toLowerCase();
+      const spender = input.length >= 74 ? `0x${input.slice(34, 74)}` : tx.to;
+      out.push({ ...tx, type: 'APPROVE', contract: tx.to, to: spender });
+      continue;
+    }
     if (tx) out.push(tx);
   }
   return out.sort((a, b) => b.timestamp - a.timestamp);

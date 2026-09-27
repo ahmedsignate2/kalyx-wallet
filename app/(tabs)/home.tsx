@@ -299,7 +299,7 @@ export default function Home() {
       setRefreshing(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [acct, fiat, tab, nftKey]);
+  }, [acct, fiat, tab, nftKey, historyChains, historyAddressFor]);
 
   // Avertissements uniques (bêta, appareil rooté, réseaux perso à restaurer).
   useEffect(() => {
