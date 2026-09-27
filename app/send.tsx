@@ -8,6 +8,7 @@
  *     devise, simulation « ton solde passera de A à B », MAINTENIR pour envoyer.
  *  4. Suivi : Envoyée → Incluse → Confirmée, on peut quitter (notification).
  */
+import { usePaidAddresses } from '../lib/historySpam';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -205,7 +206,8 @@ export default function Send() {
 
   // ── Confiance : mes comptes + récents + contacts ──
   // Mes adresses sur CE réseau aussi (TON se calcule) : s'envoyer à soi-même n'est pas « une adresse jamais utilisée ».
-  const known = useMemo(() => [...accounts.flatMap((a) => [a.evmAddress, a.solAddress ?? '', a.btcAddress, addressForChain(a, chain)]).filter(Boolean), ...recents.map((r) => r.address), ...contacts.map((c) => c.address)], [accounts, recents, contacts, chain]);
+  const paid = usePaidAddresses();
+  const known = useMemo(() => [...accounts.flatMap((a) => [a.evmAddress, a.solAddress ?? '', a.btcAddress, addressForChain(a, chain)]).filter(Boolean), ...recents.map((r) => r.address), ...contacts.map((c) => c.address), ...paid], [accounts, recents, contacts, chain, paid]);
   const poisoning = recipientOk ? detectPoisoning(recipient, known) : null;
   const isKnown = recipientOk && known.some((k) => k.toLowerCase() === recipient.toLowerCase());
   const contactName = contacts.find((c) => c.address.toLowerCase() === recipient.toLowerCase())?.name;
