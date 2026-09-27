@@ -41,6 +41,11 @@ export type WalletErrorCode =
    * Dans les deux cas les fonds n'ont pas bougé, et c'est ce qu'il faut dire.
    */
   | 'TX_EXPIRED'
+  /**
+   * La destination EXIGE un commentaire (plateforme d'échange) et il est vide :
+   * sans lui, le dépôt arriverait sans propriétaire et les fonds seraient perdus.
+   */
+  | 'MEMO_REQUIRED'
   | 'NOT_SUPPORTED';
 
 export class WalletError extends Error {

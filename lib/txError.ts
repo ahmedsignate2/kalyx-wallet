@@ -64,6 +64,7 @@ const WALLET_ERROR_KEYS: Record<string, string> = {
   INVALID_AMOUNT: 'errInvalidAmount',
   INVALID_MNEMONIC: 'errInvalidMnemonic',
   INVALID_PIN: 'errInvalidPin',
+  MEMO_REQUIRED: 'errMemoRequired',
   MNEMONIC_VERIFICATION_FAILED: 'errMnemonicMismatch',
   NOT_SUPPORTED: 'errNotSupported',
   RPC_UNAVAILABLE: 'errRpcUnavailable',

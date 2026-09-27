@@ -20,6 +20,8 @@ import {
   knownTokensFor,
   KNOWN_MINTS,
   SolanaChainAdapter,
+  TonAdapterV2,
+  findAdapterV2,
   type ChainConfig,
   type TonWalletVersion,
 } from '../../src';
@@ -33,7 +35,7 @@ export interface Holding {
   /** `${chainId}:${contract|native}` */
   id: string;
   chainId: string;
-  kind: 'native' | 'erc20' | 'spl';
+  kind: 'native' | 'erc20' | 'spl' | 'jetton';
   contract?: string;
   symbol: string;
   name: string;
@@ -257,7 +259,46 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
     }
   })();
 
-  const [[prices, markets], rawNatives, erc20, spl] = await Promise.all([pricesP, rawNativesP, erc20P, splP]);
+  /*
+   * Jettons TON. Prix et vérification viennent de TonAPI (CoinGecko ne cote pas
+   * la plupart) : seul un jetton en liste blanche est « vérifié » et compté.
+   * Le SYMBOLE ne prouve rien — de faux « USD₮ » circulent.
+   */
+  const jettonsP: Promise<Holding[]> = Promise.all(
+    chains
+      .filter((c) => c.family === 'ton')
+      .map(async (chain): Promise<Holding[]> => {
+        const address = addressForChain(acct, chain);
+        const a = address ? findAdapterV2(chain.id) : undefined;
+        if (!address || !(a instanceof TonAdapterV2) || !a.capabilities.tokens) return [];
+        try {
+          return (await a.jettons(address, fiat)).map((j) => {
+            const amount = safeNum(Number(formatAmount(j.raw, j.decimals)));
+            const verified = j.verification === 'whitelist';
+            return {
+              id: `${chain.id}:${j.master}`,
+              chainId: chain.id,
+              kind: 'jetton' as const,
+              contract: j.master,
+              symbol: j.symbol,
+              name: j.name,
+              decimals: j.decimals,
+              raw: j.raw,
+              amount,
+              logo: j.image,
+              price: verified ? safeNum(j.price) : 0,
+              fiat: verified ? safeNum(amount * j.price) : 0,
+              change24h: verified ? j.change24h : null,
+              verified,
+            };
+          });
+        } catch {
+          return [];
+        }
+      }),
+  ).then((l) => l.flat());
+
+  const [[prices, markets], rawNatives, erc20, spl, jettons] = await Promise.all([pricesP, rawNativesP, erc20P, splP, jettonsP]);
   const logos = new Map(markets.map((m) => [m.id, m.image]));
 
   const natives: Holding[] = rawNatives
@@ -285,7 +326,7 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
       };
     });
 
-  const all = [...natives, ...erc20.flat(), ...spl];
+  const all = [...natives, ...erc20.flat(), ...spl, ...jettons];
   // Tri par valeur ; sans prix → après, par montant.
   return all.sort((a, b) => b.fiat - a.fiat || b.amount - a.amount);
 }

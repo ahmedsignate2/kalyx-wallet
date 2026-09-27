@@ -226,6 +226,7 @@ export default function TokenDetail() {
         if (holding) {
           if (holding.contract) {
             if (holding.kind === 'spl') sendParams.mint = holding.contract;
+            else if (holding.kind === 'jetton') sendParams.jetton = holding.contract;
             else sendParams.contract = holding.contract;
           }
           sendParams.symbol = holding.symbol;

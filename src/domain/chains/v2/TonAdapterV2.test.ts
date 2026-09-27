@@ -85,9 +85,10 @@ describe('TonAdapterV2 — enregistrement', () => {
     expect(() => new TonAdapterV2({ ...MAINNET, family: 'evm' })).toThrow(/non-TON/);
   });
 
-  it('ne déclare que ce qui fonctionne : le commentaire', () => {
+  it('ne déclare que ce qui fonctionne : le commentaire et, avec TonAPI, les jettons', () => {
     const a = new TonAdapterV2(MAINNET);
-    expect(a.capabilities).toEqual({ ...NO_CAPABILITIES, memo: true });
+    expect(a.capabilities).toEqual({ ...NO_CAPABILITIES, memo: true, tokens: true, tokenSend: true, activatesDestination: true });
+    expect(new TonAdapterV2(MAINNET, { api: null }).capabilities).toEqual({ ...NO_CAPABILITIES, memo: true, activatesDestination: true });
     expect(a.signerCurve).toBe('ed25519');
   });
 

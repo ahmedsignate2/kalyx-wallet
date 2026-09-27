@@ -271,6 +271,8 @@ interface WalletState {
     unlock: Unlock,
     extras?: { references?: string[]; memo?: string },
   ) => Promise<string>;
+  /** Envoie un jetton TON (TEP-74) : message à notre portefeuille de jeton, commentaire compris. */
+  sendJetton: (to: string, amount: string, token: { master: string; decimals: number }, unlock: Unlock, extras?: { memo?: string }) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   revealPhrase: (unlock: Unlock) => Promise<string>;
   /** Révèle la clé privée EVM d'un wallet importé par clé privée. */
@@ -1096,6 +1098,10 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!account) throw new Error('Aucun compte');
 
     const draft = await adapter.prepareSend(from, request);
+    // Dernier verrou, quel que soit l'écran : un dépôt sans le commentaire exigé est perdu.
+    if (draft.warnings.some((w) => w.code === 'MEMO_REQUIRED')) {
+      throw new WalletError('MEMO_REQUIRED', 'La destination exige un commentaire');
+    }
     const signer = await get().deriveSigner(adapter, unlock);
     const signed = await withSigner(signer, (s) => adapter.signSend(draft, s));
     const outcome = await adapter.broadcastSend(signed);
@@ -1499,6 +1505,21 @@ export const useWallet = create<WalletState>((set, get) => ({
         references: extras?.references,
         memo: extras?.memo,
       },
+      unlock,
+    );
+  },
+
+  sendJetton: async (to, amount, token, unlock, extras) => {
+    const { account, activeChain } = get();
+    if (!account) throw new Error('Aucun compte');
+    const adapter = getAdapterV2(activeChain);
+    if (adapter.config.family !== 'ton' || !adapter.capabilities.tokenSend) {
+      throw new Error('Envoi de jeton non supporté sur ce réseau');
+    }
+    return get().sendDraft(
+      adapter,
+      account.address,
+      { to, amount: parseAmount(amount, token.decimals).raw, token: { id: token.master, symbol: 'JETTON', decimals: token.decimals }, memo: extras?.memo },
       unlock,
     );
   },

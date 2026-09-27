@@ -17,6 +17,7 @@
 import { WalletError } from '../../errors';
 import type { TonAccountState, TonAccountStatus } from './tonCenter';
 import type { TonWalletVersion } from './tonWallet';
+import { parseJettonBalances, type TonJettonBalance } from './tonJettons';
 
 type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<{ status: number; text(): Promise<string> }>;
 
@@ -32,7 +33,17 @@ export interface TonApiEvent {
     type: string;
     status: string;
     TonTransfer?: { sender?: { address?: string }; recipient?: { address?: string }; amount?: number | string; comment?: string };
+    /** `sender`/`recipient` = comptes PROPRIÉTAIRES ; `amount` en chaîne (relevé). */
+    JettonTransfer?: {
+      sender?: { address?: string };
+      recipient?: { address?: string };
+      amount?: string;
+      comment?: string;
+      jetton?: { address?: string; symbol?: string; decimals?: number; verification?: string };
+    };
   }[];
+  /** Événement signalé comme arnaque par TonAPI. */
+  is_scam?: boolean;
 }
 
 /** Issue d'une transaction lue sur TonAPI. */
@@ -47,6 +58,15 @@ export interface TonApiTxOutcome {
 function bigField(text: string, field: string): bigint | null {
   const m = text.match(new RegExp(`"${field}"\\s*:\\s*"?(-?\\d+)"?`));
   return m ? BigInt(m[1]) : null;
+}
+
+/**
+ * Segment de chemin pour une adresse. Le « : » d'une adresse BRUTE (`0:…`) reste
+ * tel quel : encodé en `%3A`, la liste blanche du proxy ne reconnaissait plus
+ * l'adresse et répondait 404.
+ */
+function seg(address: string): string {
+  return encodeURIComponent(address).replace(/%3A/gi, ':');
 }
 
 export class TonApiClient {
@@ -72,7 +92,7 @@ export class TonApiClient {
   }
 
   async accountState(address: string): Promise<TonAccountState & { memoRequired?: boolean }> {
-    const r = await this.call('GET', `/v2/accounts/${encodeURIComponent(address)}`);
+    const r = await this.call('GET', `/v2/accounts/${seg(address)}`);
     if (r.status !== 200 || !r.json) throw new WalletError('RPC_UNAVAILABLE', `TonAPI : compte illisible (HTTP ${r.status})`);
     const j = r.json;
     const status = (['active', 'uninit', 'frozen', 'nonexist'].includes(j.status) ? j.status : 'uninit') as TonAccountStatus;
@@ -87,7 +107,7 @@ export class TonApiClient {
       memoRequired: j.memo_required === true,
     };
     if (status === 'active' && version) {
-      const s = await this.call('GET', `/v2/wallet/${encodeURIComponent(address)}/seqno`);
+      const s = await this.call('GET', `/v2/wallet/${seg(address)}/seqno`);
       if (s.status !== 200 || typeof s.json?.seqno !== 'number') throw new WalletError('RPC_UNAVAILABLE', 'TonAPI : seqno illisible');
       state.seqno = s.json.seqno;
     }
@@ -124,8 +144,16 @@ export class TonApiClient {
     return { hash: String(t.hash), utime: Number(t.utime ?? 0), ok: !reason && t.success !== false, reason: reason ?? (t.success === false ? 'échec' : undefined) };
   }
 
+  /** Soldes de jettons, prix dans `currency`, listes noires écartées. */
+  async jettons(address: string, currency = 'usd'): Promise<TonJettonBalance[]> {
+    const cur = /^[a-z]{3}$/i.test(currency) ? currency.toLowerCase() : 'usd';
+    const r = await this.call('GET', `/v2/accounts/${seg(address)}/jettons?currencies=${cur}`);
+    if (r.status !== 200 || !r.json) throw new WalletError('RPC_UNAVAILABLE', `TonAPI : jetons illisibles (HTTP ${r.status})`);
+    return parseJettonBalances(r.json, cur);
+  }
+
   async events(address: string, limit = 25): Promise<TonApiEvent[]> {
-    const r = await this.call('GET', `/v2/accounts/${encodeURIComponent(address)}/events?limit=${limit}`);
+    const r = await this.call('GET', `/v2/accounts/${seg(address)}/events?limit=${limit}`);
     if (r.status !== 200 || !r.json) throw new WalletError('RPC_UNAVAILABLE', `TonAPI : historique illisible (HTTP ${r.status})`);
     return (r.json.events ?? []) as TonApiEvent[];
   }
