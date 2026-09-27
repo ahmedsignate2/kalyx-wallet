@@ -16,6 +16,8 @@ import {
   getMarkets,
   getErc20Tokens,
   getTokenPrices,
+  getLlamaTokenPricesUsd,
+  llamaKey,
   formatAmount,
   knownTokensFor,
   KNOWN_MINTS,
@@ -89,6 +91,9 @@ interface PortfolioState extends Snapshot {
   invalidate: () => void;
 }
 
+/** Référence dollar pour convertir les prix DefiLlama (en USD) dans la devise. */
+const USD_PEG = 'tether';
+
 const VALUE_CHAINS: ChainConfig[] = listChains({ includeTestnets: false }).filter((c) => c.coingeckoId);
 const STALE_MS = 45_000;
 /*
@@ -138,7 +143,8 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
   const chains = includeTestnets
     ? listChains({ includeTestnets: true }).filter((c) => c.coingeckoId || c.testnet)
     : VALUE_CHAINS;
-  const ids = [...new Set(chains.map((c) => c.coingeckoId).filter((id): id is string => !!id))];
+  // + l'USDT : son cours dans la devise sert de taux dollar → devise pour les prix de jetons.
+  const ids = [...new Set([...chains.map((c) => c.coingeckoId).filter((id): id is string => !!id), USD_PEG])];
 
   /*
    * TOUT PART EN MÊME TEMPS, ET RIEN N'ATTEND CE DONT IL N'A PAS BESOIN.
@@ -178,63 +184,82 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
   );
 
   // ERC-20 sur les réseaux couverts par Alchemy ; le spam est déjà filtré par
-  // `getErc20Tokens`.
+  // `getErc20Tokens`. Les LISTES seulement : les prix viennent ensuite, groupés.
   const evmChains = VALUE_CHAINS.filter(
     (c) => c.family === 'evm' && c.coingeckoPlatform && c.rpcUrls.some((u) => u.includes('.alchemy.com')),
   );
-  const erc20P = Promise.all(
-    evmChains.map(async (chain): Promise<Holding[]> => {
-      try {
-        const list = await getErc20Tokens(chain, acct.evmAddress);
-        if (!list.length) return [];
-        const tp = await getTokenPrices(
-          chain.coingeckoPlatform!,
-          list.map((t) => t.contract),
-          fiat,
-        ).catch(() => ({}) as Record<string, number>);
-        const known = new Set(knownTokensFor(chain.evmChainId).map((a: string) => a.toLowerCase()));
-        return list.map((t) => {
-          const price = safeNum(tp[t.contract.toLowerCase()]);
-          const amount = safeNum(Number(formatAmount(t.raw, t.decimals)));
-          const verified = price > 0 || known.has(t.contract.toLowerCase());
-          return {
-            id: `${chain.id}:${t.contract.toLowerCase()}`,
-            chainId: chain.id,
-            kind: 'erc20' as const,
-            contract: t.contract,
-            symbol: t.symbol,
-            name: t.name,
-            decimals: t.decimals,
-            raw: t.raw,
-            amount,
-            logo: t.logo,
-            price,
-            fiat: verified ? safeNum(amount * price) : 0,
-            change24h: null,
-            verified,
-          };
-        });
-      } catch {
-        return [];
-      }
-    }),
+  const erc20ListsP = Promise.all(
+    evmChains.map(async (chain) => ({ chain, list: await getErc20Tokens(chain, acct.evmAddress).catch(() => []) })),
   );
 
   // Jetons SPL. Lancé lui aussi sans attendre : il ne dépend de rien d'autre.
-  const splP: Promise<Holding[]> = (async () => {
+  const splListP = (async () => {
     if (!acct.solAddress) return [];
     try {
       const a = getAdapter('solana');
-      const list = a instanceof SolanaChainAdapter ? await a.getSplTokens(acct.solAddress) : [];
-      const tp = list.length
-        ? await getTokenPrices(
-            'solana',
-            list.map((t) => t.mint),
-            fiat,
-          ).catch(() => ({}) as Record<string, number>)
-        : {};
-      return list.map((t) => {
-        const price = safeNum(tp[t.mint.toLowerCase()]);
+      return a instanceof SolanaChainAdapter ? await a.getSplTokens(acct.solAddress) : [];
+    } catch {
+      return [];
+    }
+  })();
+
+  /*
+   * PRIX DES JETONS : UNE requête DefiLlama pour tous les réseaux, en dollars,
+   * convertie avec le cours de l'USDT dans la devise. Il y avait ici un appel
+   * CoinGecko PAR RÉSEAU — 14 à chaque chargement, dont 9 refusés sur 14 lors
+   * d'une mesure (HTTP 429) : les jetons restaient sans prix, donc à 0. CoinGecko
+   * reste le repli si DefiLlama ne répond pas du tout.
+   */
+  const tokensP = Promise.all([erc20ListsP, splListP, pricesP]).then(async ([erc20Lists, splList, [prices]]) => {
+    const refs = [
+      ...erc20Lists.flatMap(({ chain, list }) => list.map((t) => ({ chainId: chain.id, address: t.contract }))),
+      ...splList.map((t) => ({ chainId: 'solana', address: t.mint })),
+    ];
+    const usd = refs.length ? await getLlamaTokenPricesUsd(refs).catch(() => ({}) as Record<string, number>) : {};
+    const fx = fiat.toLowerCase() === 'usd' ? 1 : safeNum(prices[USD_PEG]?.price);
+    const llamaUp = Object.keys(usd).length > 0;
+    const priceOf = async (chainId: string, address: string, platform: string | undefined, all: string[]): Promise<number> => {
+      const p = usd[llamaKey(chainId, address)];
+      if (p && fx > 0) return p * fx;
+      if (llamaUp || !platform) return 0;
+      // Repli CoinGecko, par réseau, seulement si DefiLlama est entièrement muet.
+      const tp = await getTokenPrices(platform, all, fiat).catch(() => ({}) as Record<string, number>);
+      return safeNum(tp[address.toLowerCase()]);
+    };
+
+    const erc20 = await Promise.all(
+      erc20Lists.map(async ({ chain, list }) => {
+        const known = new Set(knownTokensFor(chain.evmChainId).map((a: string) => a.toLowerCase()));
+        const contracts = list.map((t) => t.contract);
+        return Promise.all(
+          list.map(async (t): Promise<Holding> => {
+            const price = safeNum(await priceOf(chain.id, t.contract, chain.coingeckoPlatform, contracts));
+            const amount = safeNum(Number(formatAmount(t.raw, t.decimals)));
+            const verified = price > 0 || known.has(t.contract.toLowerCase());
+            return {
+              id: `${chain.id}:${t.contract.toLowerCase()}`,
+              chainId: chain.id,
+              kind: 'erc20' as const,
+              contract: t.contract,
+              symbol: t.symbol,
+              name: t.name,
+              decimals: t.decimals,
+              raw: t.raw,
+              amount,
+              logo: t.logo,
+              price,
+              fiat: verified ? safeNum(amount * price) : 0,
+              change24h: null,
+              verified,
+            };
+          }),
+        );
+      }),
+    );
+    const mints = splList.map((t) => t.mint);
+    const spl = await Promise.all(
+      splList.map(async (t): Promise<Holding> => {
+        const price = safeNum(await priceOf('solana', t.mint, 'solana', mints));
         const amount = safeNum(Number(formatAmount(t.raw, t.decimals)));
         const verified = price > 0 || !!KNOWN_MINTS[t.mint];
         return {
@@ -253,11 +278,10 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
           change24h: null,
           verified,
         };
-      });
-    } catch {
-      return [];
-    }
-  })();
+      }),
+    );
+    return { erc20: erc20.flat(), spl };
+  });
 
   /*
    * Jettons TON. Prix et vérification viennent de TonAPI (CoinGecko ne cote pas
@@ -298,7 +322,7 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
       }),
   ).then((l) => l.flat());
 
-  const [[prices, markets], rawNatives, erc20, spl, jettons] = await Promise.all([pricesP, rawNativesP, erc20P, splP, jettonsP]);
+  const [[prices, markets], rawNatives, { erc20, spl }, jettons] = await Promise.all([pricesP, rawNativesP, tokensP, jettonsP]);
   const logos = new Map(markets.map((m) => [m.id, m.image]));
 
   const natives: Holding[] = rawNatives
@@ -326,7 +350,7 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
       };
     });
 
-  const all = [...natives, ...erc20.flat(), ...spl, ...jettons];
+  const all = [...natives, ...erc20, ...spl, ...jettons];
   // Tri par valeur ; sans prix → après, par montant.
   return all.sort((a, b) => b.fiat - a.fiat || b.amount - a.amount);
 }

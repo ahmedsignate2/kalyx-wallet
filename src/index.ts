@@ -85,6 +85,9 @@ export {
   type PinCheck,
 } from './security/pin';
 
+// Prix de jetons groupés (DefiLlama) — une requête pour tous les réseaux.
+export { getLlamaTokenPricesUsd, llamaKey, LLAMA_CHAIN } from './domain/prices/defillama';
+
 // Prix de marché (CoinGecko)
 export {
   getPrices,
