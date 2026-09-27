@@ -13,11 +13,12 @@
  * quitte jamais le magasin, comme pour un transfert.
  */
 import { sha256 } from '@noble/hashes/sha256';
+import { utf8ToBytes } from '@noble/hashes/utils';
 import { base64 } from '@scure/base';
 import { parseTonAddress, parseRawTonAddress, toRawTonAddress } from '../chains/ton/tonAddress';
 
-const PREFIX = new TextEncoder().encode('ton-proof-item-v2/');
-const CONNECT = new TextEncoder().encode('ton-connect');
+const PREFIX = utf8ToBytes('ton-proof-item-v2/');
+const CONNECT = utf8ToBytes('ton-connect');
 
 export const TON_MAINNET_ID = '-239';
 export const TON_TESTNET_ID = '-3';
@@ -38,12 +39,18 @@ export function tonProofMessage(address: string, domain: string, timestamp: numb
   if (!a) throw new Error('Adresse TON invalide');
   const wc = new Uint8Array(4);
   new DataView(wc.buffer).setInt32(0, a.workchain, false);
-  const d = new TextEncoder().encode(domain);
+  const d = utf8ToBytes(domain);
   const len = new Uint8Array(4);
   new DataView(len.buffer).setUint32(0, d.length, true);
+  // Octet par octet, pas `DataView.setBigUint64` : incertain sous Hermes, et
+  // une exception ici faisait échouer toute connexion avec preuve (STON.fi).
   const ts = new Uint8Array(8);
-  new DataView(ts.buffer).setBigUint64(0, BigInt(timestamp), true);
-  return concat(PREFIX, wc, a.hash, len, d, ts, new TextEncoder().encode(payload));
+  let rest = BigInt(timestamp);
+  for (let i = 0; i < 8; i++) {
+    ts[i] = Number(rest & 0xffn);
+    rest >>= 8n;
+  }
+  return concat(PREFIX, wc, a.hash, len, d, ts, utf8ToBytes(payload));
 }
 
 /** Ce qui est réellement signé en ed25519. */
@@ -66,7 +73,7 @@ export async function buildTonProof(
     name: 'ton_proof',
     proof: {
       timestamp: p.timestamp,
-      domain: { lengthBytes: new TextEncoder().encode(p.domain).length, value: p.domain },
+      domain: { lengthBytes: utf8ToBytes(p.domain).length, value: p.domain },
       payload: p.payload,
       signature: base64.encode(signature),
     },

@@ -81,6 +81,7 @@ async function post(url: string, body: unknown): Promise<unknown> {
     TIMEOUT,
     () => new Error('timeout'),
   );
+  if (!res.ok) throw new Error(`Alchemy : HTTP ${res.status}`);
   return res.json();
 }
 
@@ -162,16 +163,40 @@ export function pageKeyOf(json: unknown): string | undefined {
 }
 
 /** Liste les tokens ERC-20 détenus (non-spam) d'une adresse sur une chaîne. */
+/**
+ * Réponse Alchemy exploitable, sinon exception. Un refus (HTTP 429, `error`
+ * JSON-RPC) n'est PAS « aucun jeton » : confondre les deux faisait disparaître
+ * les jetons de l'accueil au moindre refus, puis réapparaître au chargement
+ * suivant.
+ */
+function assertOk(json: unknown, what: string): void {
+  const items = Array.isArray(json) ? json : [json];
+  if (items.length === 0 || items.some((j) => !j || typeof j !== 'object' || 'error' in (j as object))) {
+    throw new Error(`Alchemy : ${what} refusé`);
+  }
+}
+
+/** Jetons ERC-20 détenus ; ne lève jamais (vide en cas d'échec). Voir `getErc20TokensStrict`. */
 export async function getErc20Tokens(chain: ChainConfig, address: string): Promise<Erc20Token[]> {
+  return getErc20TokensStrict(chain, address).catch(() => []);
+}
+
+/**
+ * Jetons ERC-20 détenus, en LEVANT si Alchemy n'a pas répondu proprement : le
+ * portefeuille distingue ainsi « aucun jeton » de « lecture impossible », et
+ * garde dans le second cas les jetons déjà connus.
+ */
+export async function getErc20TokensStrict(chain: ChainConfig, address: string): Promise<Erc20Token[]> {
   const url = alchemyUrlOf(chain);
   if (!url) return []; // pas de clé Alchemy -> feature indisponible, dégrade en vide
-  try {
+  {
     // 1. Soldes non nuls, paginés (borné). Type 'erc20' explicite sur chaque page.
     const enumerated: { contract: string; raw: bigint }[] = [];
     let pageKey: string | undefined;
     for (let page = 0; page < MAX_BALANCE_PAGES; page++) {
       const params: unknown[] = pageKey ? [address, 'erc20', { pageKey }] : [address, 'erc20'];
       const balJson = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params });
+      assertOk(balJson, 'soldes');
       enumerated.push(...parseTokenBalances(balJson));
       pageKey = pageKeyOf(balJson);
       if (!pageKey) break;
@@ -184,6 +209,7 @@ export async function getErc20Tokens(chain: ChainConfig, address: string): Promi
     let known: { contract: string; raw: bigint }[] = [];
     if (knownMissing.length) {
       const kJson = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params: [address, knownMissing] });
+      assertOk(kJson, 'soldes connus');
       known = parseTokenBalances(kJson); // ne garde que les soldes non nuls
     }
 
@@ -202,6 +228,7 @@ export async function getErc20Tokens(chain: ChainConfig, address: string): Promi
         params: [b.contract],
       }));
       const metaJson = await post(url, batch);
+      assertOk(metaJson, 'métadonnées');
       const metaById = new Map<number, TokenMeta | null>();
       if (Array.isArray(metaJson)) {
         for (const m of metaJson as { id: number }[]) metaById.set(m.id, parseTokenMetadata(m));
@@ -214,7 +241,5 @@ export async function getErc20Tokens(chain: ChainConfig, address: string): Promi
       }
     }
     return tokens;
-  } catch {
-    return [];
   }
 }

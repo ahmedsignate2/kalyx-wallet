@@ -19,9 +19,25 @@ import { useWallet } from '../lib/walletStore';
 import { usePortfolioStore } from '../lib/portfolio';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
+import { UserFacingError } from '../lib/txError';
+import { technicalLogger } from '../lib/technicalLogger';
 import { haptic } from '../lib/haptics';
-import { formatTokenAmount, shortAddress } from '../src';
+import { formatTokenAmount, shortAddress, isWalletError } from '../src';
 import { totalOut } from '../src/domain/tonconnect/requests';
+
+/**
+ * Erreur lisible pour l'écran de code. Un code « tc… » est traduit ; un PIN
+ * faux reste tel quel (l'écran le reconnaît) ; toute autre erreur garde son
+ * VRAI message — l'écran l'aurait sinon remplacée par « Transaction failed »,
+ * ce qui a caché la cause du premier échec sur STON.fi.
+ */
+function readable(e: unknown, t: (k: never) => string): unknown {
+  const msg = e instanceof Error ? e.message : String(e);
+  technicalLogger.logDapp(`tonconnect: ${msg}`);
+  if (isWalletError(e)) return e;
+  if (msg.startsWith('tc')) return new UserFacingError(t(msg as never));
+  return new UserFacingError(`${t('connectionFailed' as never)} — ${msg}`);
+}
 
 function DappHeader({ name, domain, icon }: { name: string; domain: string; icon: string }) {
   const { colors } = useTheme();
@@ -63,9 +79,7 @@ function ConnectSheet({ p }: { p: Extract<TcPending, { kind: 'connect' }> }) {
           try {
             await approveConnect(unlock);
           } catch (e) {
-            const key = e instanceof Error ? e.message : '';
-            if (key.startsWith('tc')) throw new Error(t(key as never));
-            throw e;
+            throw readable(e, t);
           }
           haptic.success();
         }}
@@ -139,9 +153,7 @@ function TxSheet({ p }: { p: Extract<TcPending, { kind: 'tx' }> }) {
           try {
             await approveTx(unlock);
           } catch (err) {
-            const key = err instanceof Error ? err.message : '';
-            if (key.startsWith('tc')) throw new Error(t(key as never));
-            throw err;
+            throw readable(err, t);
           }
           usePortfolioStore.getState().invalidate();
           haptic.success();
