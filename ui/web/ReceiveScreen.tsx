@@ -6,10 +6,10 @@
  * famille d'adresse : EVM / Solana / Bitcoin).
  */
 import React, { useMemo, useState } from 'react';
-import { View, ScrollView, Share, Image, Platform } from 'react-native';
+import { View, ScrollView, Share, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
-import { Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl } from '../kit';
+import { LogoImage, Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl } from '../kit';
 import { useTheme } from '../theme';
 import { space, SCREEN_MARGIN, radius } from '../tokens';
 import { useT } from '../../lib/settingsStore';
@@ -76,7 +76,7 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
 
         <Surface style={{ alignItems: 'center', gap: space[4], paddingVertical: space[6] }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {chainIconUrl(sel.id) ? <Image source={{ uri: chainIconUrl(sel.id) }} style={{ width: 22, height: 22, borderRadius: 11 }} /> : null}
+            {chainIconUrl(sel.id) ? <LogoImage uri={chainIconUrl(sel.id)!} size={22} /> : null}
             <Text variant="body">{sel.name}</Text>
           </View>
           {/*

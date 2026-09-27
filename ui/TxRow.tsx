@@ -1,4 +1,4 @@
-import { Pressable as KPressable } from './kit';
+import { Pressable as KPressable, LogoImage } from './kit';
 /**
  * Ligne de transaction « premium », partagée entre l'Historique et l'accueil :
  * - logo de la crypto (au lieu d'une icône grise) + pastille de direction
@@ -11,7 +11,7 @@ import { Pressable as KPressable } from './kit';
  * - `expanded` : détail replié (adresses from/to copiables + explorateur).
  */
 import React from 'react';
-import { Image, Linking, Text, View } from 'react-native';
+import { Linking, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { PressableScale } from './premium';
 import { Icon } from './icon';
@@ -90,7 +90,7 @@ export function TxRow({
       {/* Logo + pastille de direction */}
       <View style={{ width: 42, height: 42 }}>
         {logoUri ? (
-          <Image source={{ uri: logoUri }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface2 }} />
+          <LogoImage uri={logoUri} size={42} style={{ backgroundColor: colors.surface2 }} />
         ) : (
           <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name={inbound ? 'receive' : 'send'} size={19} color={dirColor} />

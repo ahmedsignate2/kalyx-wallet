@@ -5,12 +5,12 @@
  * Le réseau se choisit ici (famille d'adresse : EVM / Solana / Bitcoin).
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, ScrollView, Share, Image, Modal, Platform } from 'react-native';
+import { View, ScrollView, Share, Modal, Platform } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
-import { Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl, Pressable as KPressable } from '../ui/kit';
+import { LogoImage, Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl, Pressable as KPressable } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
@@ -133,7 +133,7 @@ export default function Receive() {
               paddingHorizontal: 14,
             }}
           >
-            {chainIconUrl(selected.id) ? <Image source={{ uri: chainIconUrl(selected.id) }} style={{ width: 20, height: 20, borderRadius: 10 }} /> : null}
+            {chainIconUrl(selected.id) ? <LogoImage uri={chainIconUrl(selected.id)!} size={20} /> : null}
             <Text variant="caption">{selected.name}</Text>
             <Icon name="caretDown" size={16} tone="muted" />
           </KPressable>
@@ -144,7 +144,7 @@ export default function Receive() {
 
         <Surface style={{ alignItems: 'center', gap: space[4], paddingVertical: space[6] }}>
           {selected && environment === 'mainnet' ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {chainIconUrl(selected.id) ? <Image source={{ uri: chainIconUrl(selected.id) }} style={{ width: 22, height: 22, borderRadius: 11 }} /> : null}
+            {chainIconUrl(selected.id) ? <LogoImage uri={chainIconUrl(selected.id)!} size={22} /> : null}
             <Text variant="body">{selected.name}</Text>
           </View> : null}
           {/*
@@ -249,7 +249,7 @@ export default function Receive() {
                       borderColor: colors.primary,
                     }}
                   >
-                    {chainIconUrl(network.id) ? <Image source={{ uri: chainIconUrl(network.id) }} style={{ width: 24, height: 24, borderRadius: 12 }} /> : null}
+                    {chainIconUrl(network.id) ? <LogoImage uri={chainIconUrl(network.id)!} size={24} /> : null}
                     <View style={{ flex: 1 }}>
                       <Text variant="body">{network.name}</Text>
                       <Text variant="caption" tone="secondary">{addressType}</Text>

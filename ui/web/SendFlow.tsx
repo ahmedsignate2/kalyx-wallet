@@ -19,10 +19,10 @@
  * Les frais réseau affichés sont une estimation — c'est le téléphone qui les fixe.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, Pressable as RNPressable, Image, TextInput } from 'react-native';
+import { View, ScrollView, Pressable as RNPressable, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { base64 } from '@scure/base';
-import { Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, type TxStage } from '../kit';
+import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, type TxStage } from '../kit';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
 import { space, SCREEN_MARGIN, radius } from '../tokens';
@@ -361,7 +361,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
             <Text variant="title2">{step === 0 ? t('aiSend') : step === 4 ? t('headerTracking') : (t('headerSendToken').replace('${symbol}', symbol) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
             {step > 0 && chainIconUrl(chain.id) ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: 12, backgroundColor: colors.surface2 }}>
-                <Image source={{ uri: chainIconUrl(chain.id) }} style={{ width: 14, height: 14, borderRadius: 7 }} />
+                <LogoImage uri={chainIconUrl(chain.id)!} size={14} />
                 <Text variant="micro" tone="secondary">{chain.name}</Text>
               </View>
             ) : null}

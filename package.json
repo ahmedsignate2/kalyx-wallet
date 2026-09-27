@@ -11,7 +11,8 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "web": "expo start --web",
-    "build:web": "expo export -p web"
+    "build:web": "expo export -p web",
+    "gen:chain-logos": "node --no-warnings scripts/gen-chain-logos.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

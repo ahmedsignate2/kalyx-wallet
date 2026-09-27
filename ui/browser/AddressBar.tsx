@@ -10,9 +10,9 @@ import { useT } from "../../lib/settingsStore";
  *  - Onglet privé : fond Encre, fine bordure Brume, icône Detective.
  */
 import React from 'react';
-import { View, Image } from 'react-native';
+import { View } from 'react-native';
 import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
-import { Text, AddressGlyph, Pressable as KPressable } from '../kit';
+import { LogoImage, Text, AddressGlyph, Pressable as KPressable } from '../kit';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
 import { radius, space } from '../tokens';
@@ -75,7 +75,7 @@ export function AddressBar({
               <AddressGlyph address={address} size={26} background={!danger} />
               {chainIconUrl(chainId) ? (
                 <View style={{ position: 'absolute', right: 0, bottom: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: colors.surface1, borderWidth: 1.5, borderColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                  <Image source={{ uri: chainIconUrl(chainId) }} style={{ width: 10, height: 10, borderRadius: 5, opacity: 0.9 }} />
+                  <LogoImage uri={chainIconUrl(chainId)!} size={10} style={{ opacity: 0.9 }} />
                 </View>
               ) : null}
             </KPressable>

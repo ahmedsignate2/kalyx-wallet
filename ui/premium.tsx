@@ -11,7 +11,7 @@
  * grammaire d'appui sans être touchés un par un.
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, ViewStyle, StyleProp, Image, Animated, TextInput as RNTextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ViewStyle, StyleProp, Animated, TextInput as RNTextInput, KeyboardAvoidingView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, StatusBar } from 'react-native';
@@ -19,7 +19,7 @@ import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient, R
 import { Dimensions } from 'react-native';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
 import { Icon, type IconName } from './icon';
-import { Pressable as KPressable } from './kit';
+import { Pressable as KPressable, LogoImage } from './kit';
 
 const PREMIUM_W = Dimensions.get('window').width;
 
@@ -395,13 +395,7 @@ export function RemoteIcon({
       </View>
     );
   }
-  return (
-    <Image
-      source={{ uri }}
-      onError={() => setFailed(true)}
-      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: theme.colors.surface1 }}
-    />
-  );
+  return <LogoImage uri={uri} size={size} onError={() => setFailed(true)} style={{ backgroundColor: theme.colors.surface1 }} />;
 }
 
 export function GradientAvatar({ label }: { label: string }) {
@@ -582,7 +576,7 @@ export function MarketRow({
   const content = (
     <View style={[styles.listItem, divider ? styles.divider : null]}>
       {imageUri ? (
-        <Image source={{ uri: imageUri }} style={{ width: 42, height: 42, borderRadius: 21 }} />
+        <LogoImage uri={imageUri} size={42} />
       ) : (
         <Avatar label={icon} color={color} />
       )}

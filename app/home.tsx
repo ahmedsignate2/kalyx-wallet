@@ -24,7 +24,7 @@ import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { FadeInUp } from '../ui/FadeInUp';
 import { cascadeDelay } from '../ui/motion';
-import { Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AddressGlyph, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../ui/kit';
+import { LogoImage, Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AddressGlyph, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../ui/kit';
 import { useWallet } from '../lib/walletStore';
 import { addressForChain } from '../lib/accountAddress';
 import { accountDisplayName } from '../lib/walletNames';
@@ -430,7 +430,7 @@ export default function Home() {
             accessibilityLabel={`${t('network')} : ${getAdapter(activeChain).config.name}`}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingHorizontal: space[2], borderRadius: radius.round, backgroundColor: colors.surface2, maxWidth: 112, flexShrink: 0 }}
           >
-            {chainIconUrl(activeChain) ? <Image source={{ uri: chainIconUrl(activeChain) }} style={{ width: 16, height: 16, borderRadius: 8 }} /> : null}
+            {chainIconUrl(activeChain) ? <LogoImage uri={chainIconUrl(activeChain)!} size={16} /> : null}
             <Text variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>{getAdapter(activeChain).config.name}</Text>
             <Icon name="caretDown" size={12} tone="muted" />
           </KPressable>
@@ -611,7 +611,7 @@ export default function Home() {
                       <View style={{ width: w, height: w, borderRadius: 12, backgroundColor: colors.surface2, overflow: 'hidden' }}>
                         {n.image ? <Image source={{ uri: n.image }} style={{ width: w, height: w }} resizeMode="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Icon name="nft" size={28} tone="faint" /></View>}
                         <View style={{ position: 'absolute', right: 6, bottom: 6, width: 18, height: 18, borderRadius: 9, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                          {chainIconUrl(n.chainId) ? <Image source={{ uri: chainIconUrl(n.chainId) }} style={{ width: 12, height: 12, borderRadius: 6 }} /> : null}
+                          {chainIconUrl(n.chainId) ? <LogoImage uri={chainIconUrl(n.chainId)!} size={12} /> : null}
                         </View>
                       </View>
                       <Text variant="caption" numberOfLines={1}>{n.name}</Text>
