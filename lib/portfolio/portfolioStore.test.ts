@@ -84,3 +84,19 @@ describe('prix absent cette fois : le dernier connu est gardé', () => {
     expect(carryOver([h('base:0xa', 2)], [h('base:0xa', 3)], new Set())[0]).toMatchObject({ price: 3, fiat: 30 });
   });
 });
+
+describe('petits soldes : seuil relatif au portefeuille', () => {
+  const { splitHoldings } = require('./portfolioStore');
+  const h = (id: string, fiat: number, kind = 'erc20', verified = true) => ({ id, chainId: 'base', kind, fiat, price: fiat > 0 ? 1 : 0, amount: fiat, raw: 1n, verified });
+  it('portefeuille de 0,31 € (relevé réel) : les vrais jetons restent visibles', () => {
+    const r = splitHoldings([h('usdc', 0.157), h('bnbusdc', 0.071), h('savax', 0.052), h('weth', 0.0088), h('usdt', 0.0000088), h('boar', 0, 'erc20', false)]);
+    expect(r.main.map((x: { id: string }) => x.id)).toEqual(['usdc', 'bnbusdc', 'savax', 'weth']);
+    expect(r.small.map((x: { id: string }) => x.id)).toEqual(['usdt']);
+    expect(r.hidden.map((x: { id: string }) => x.id)).toEqual(['boar']);
+  });
+  it('gros portefeuille : le seuil reste 1 € comme avant', () => {
+    const r = splitHoldings([h('eth', 5000), h('dust', 0.5), h('usdc', 1.2)]);
+    expect(r.main.map((x: { id: string }) => x.id)).toEqual(['eth', 'usdc']);
+    expect(r.small.map((x: { id: string }) => x.id)).toEqual(['dust']);
+  });
+});

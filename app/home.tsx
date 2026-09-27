@@ -49,6 +49,7 @@ import {
 } from '../lib/historyStore';
 
 const HIDE_KEY = 'kalyx.hideBalance';
+const SMALL_KEY = 'kalyx.showSmallBalances';
 type Tab = 'tokens' | 'nft' | 'activity';
 
 const LANG_LOCALES: Record<string, string> = {
@@ -117,6 +118,15 @@ export default function Home() {
   const [chartLoading, setChartLoading] = useState(false);
   const [scrub, setScrub] = useState<ChartPoint | null>(null);
   const [showSmall, setShowSmall] = useState(false);
+  // Mémorisé : les onglets remontent l'accueil, et la section se repliait à chaque retour.
+  useEffect(() => {
+    AsyncStorage.getItem(SMALL_KEY).then((v) => setShowSmall(v === '1')).catch(() => {});
+  }, []);
+  const toggleSmall = () =>
+    setShowSmall((v) => {
+      AsyncStorage.setItem(SMALL_KEY, v ? '0' : '1').catch(() => {});
+      return !v;
+    });
   const [refreshing, setRefreshing] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
   const [nfts, setNfts] = useState<ChainNft[] | null>(null);
@@ -580,7 +590,7 @@ export default function Home() {
                   ))}
                 </Surface>
                 {small.length > 0 ? (
-                  <KPressable onPress={() => setShowSmall((v) => !v)} style={{ alignSelf: 'center', paddingVertical: space[2] }}>
+                  <KPressable onPress={toggleSmall} style={{ alignSelf: 'center', paddingVertical: space[2] }}>
                     <Text variant="caption" tone="secondary">{showSmall ? t("hideSmallBalances") : t('showSmallBalances').replace('${small.length}', small.length.toString())}</Text>
                   </KPressable>
                 ) : null}
