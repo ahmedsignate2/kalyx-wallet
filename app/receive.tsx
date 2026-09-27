@@ -56,7 +56,7 @@ export default function Receive() {
   const networks = useMemo(() => {
     if (environment === 'mainnet') {
       return listChains({ includeTestnets: false })
-        .filter((c) => c.id === 'ethereum' || c.id === 'solana' || c.id === 'bitcoin')
+        .filter((c) => c.id === 'ethereum' || c.id === 'solana' || c.id === 'bitcoin' || c.id === 'ton')
         /*
          * ON NE PROPOSE QUE CE QU'ON PEUT SERVIR. Masquer plutôt que griser : un
          * onglet grisé pose une question — « pourquoi ? » — à laquelle cet écran

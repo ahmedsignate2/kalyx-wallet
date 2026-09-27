@@ -73,11 +73,11 @@ describe('TonAdapterV2 — enregistrement', () => {
    * Activation du 26/09 : TON est enregistré sur le RÉSEAU DE TEST, et nulle part
    * ailleurs. Le réseau principal attend son fournisseur de production (TonAPI).
    */
-  it('TON est enregistré sur le réseau de test, et seulement lui', () => {
+  it('TON est enregistré sur le réseau principal et le réseau de test', () => {
     const ton = listChains({ includeTestnets: true }).filter((c) => c.family === 'ton');
-    expect(ton.map((c) => c.id)).toEqual(['ton-testnet']);
-    expect(ton[0].testnet).toBe(true);
-    expect(listChains({ includeTestnets: false }).some((c) => c.family === 'ton')).toBe(false);
+    expect(ton.map((c) => c.id)).toEqual(['ton', 'ton-testnet']);
+    expect(listChains({ includeTestnets: false }).filter((c) => c.family === 'ton').map((c) => c.id)).toEqual(['ton']);
+    expect(findAdapterV2('ton')).toBeInstanceOf(TonAdapterV2);
     expect(findAdapterV2('ton-testnet')).toBeInstanceOf(TonAdapterV2);
   });
 

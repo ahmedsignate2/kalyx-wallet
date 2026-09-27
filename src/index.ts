@@ -397,7 +397,7 @@ export {
   BIP137_SIGNATURE_BYTES,
   type BtcMessageSigner,
 } from './domain/chains/btcSign';
-export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BASE_SEPOLIA, BITCOIN, SOLANA, SOLANA_DEVNET, TON_TESTNET, buildExplorerTxUrl } from './domain/chains/configs';
+export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BASE_SEPOLIA, BITCOIN, SOLANA, SOLANA_DEVNET, TON, TON_TESTNET, buildExplorerTxUrl } from './domain/chains/configs';
 // Sauvegarde portable des réseaux EVM personnalisés (export/import)
 export {
   serializeNetworks,

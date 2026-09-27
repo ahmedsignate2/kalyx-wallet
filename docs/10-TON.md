@@ -402,7 +402,8 @@ plus loin. (Phrase connue de tous : ne jamais y envoyer de fonds.)
    Tonscan) est dans `ALL_CHAINS` ; TON est enregistré dans les deux registres —
    en v1 par `TonChainAdapter`, LECTURE SEULE (solde, historique : le portefeuille
    et l'historique lisent encore par `getAdapter`), l'envoi passant par la v2.
-   Réseau principal : pas encore — il attend le proxy TonAPI.
+   Réseau principal : **activé le 27/09** (`TON`, explorateur Tonscan, cours CoinGecko
+   `the-open-network`), une fois TonAPI en place et le chemin validé sur téléphone.
 
    Ce qu'il a fallu corriger pour que TON ne retombe nulle part sur l'EVM :
    - **Une seule fonction d'adresse, `lib/accountAddress.ts`.** Le ternaire
@@ -460,5 +461,5 @@ Ce qu'il apporte, vérifié en direct à travers le Worker :
 - **Solde** : un NOMBRE JSON chez TonAPI — lu dans le texte brut, sinon arrondi
   au-delà de 2^53 nanotons.
 
-Reste : les jetons (USDT…), puis l'activation du réseau principal.
+Réseau principal activé le 27/09. Reste : les jetons (USDT…).
 
