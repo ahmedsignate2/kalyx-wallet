@@ -32,7 +32,7 @@ import { addressForChain } from '../../lib/accountAddress';
 import { accountDisplayName } from '../../lib/walletNames';
 import { useSettings, useT, useActivityT, fiatSymbol } from '../../lib/settingsStore';
 import { useNotifCenter, unreadCount } from '../../lib/notificationCenter';
-import { usePortfolioStore, splitHoldings, verifiedSymbols, portfolioHistory, peekPortfolioHistory, loadAllNfts, PERIODS, type Period, type Holding, type ChainNft } from '../../lib/portfolio';
+import { usePortfolioStore, splitHoldings, verifiedSymbols, portfolioHistory, peekPortfolioHistory, loadNftReport, PERIODS, type NftReport, type Period, type Holding, type ChainNft } from '../../lib/portfolio';
 import { useContacts } from '../../lib/contactsStore';
 import { haptic } from '../../lib/haptics';
 import { toast } from '../../lib/toast';
@@ -131,6 +131,17 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
   const [nfts, setNfts] = useState<ChainNft[] | null>(null);
+  /** Ce qui n'a pas répondu à la dernière lecture : on le dit, au lieu d'afficher « aucun NFT ». */
+  const [nftIssues, setNftIssues] = useState<{ failed: string[]; unavailable: string[]; nothingAnswered: boolean } | null>(null);
+  /*
+   * Un réseau en panne GARDE ce qu'il montrait : une lecture ratée ne doit pas
+   * faire disparaître des NFT qui étaient là il y a une minute.
+   */
+  const applyNftReport = useCallback((r: NftReport) => {
+    const down = new Set(r.failed);
+    setNfts((cur) => [...r.nfts, ...(cur ?? []).filter((n) => down.has(n.chainId))]);
+    setNftIssues({ failed: r.failed, unavailable: r.unavailable, nothingAnswered: r.asked > 0 && r.failed.length + r.unavailable.length === r.asked });
+  }, []);
   const [openNft, setOpenNft] = useState<ChainNft | null>(null);
   const [sendNft, setSendNft] = useState<ChainNft | null>(null);
   const contacts = useContacts((s) => s.contacts);
@@ -257,10 +268,18 @@ export default function Home() {
     if (last?.key !== nftKey) setNfts(null);
     nftsRead.current = { key: nftKey, at: Date.now() };
     let alive = true;
-    loadAllNfts(acct).then((l) => alive && setNfts(l)).catch(() => alive && setNfts((cur) => cur ?? []));
+    loadNftReport(acct).then((r) => alive && applyNftReport(r)).catch(() => alive && setNfts((cur) => cur ?? []));
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, nftKey]);
+
+  const retryNfts = useCallback(() => {
+    if (!acct) return;
+    haptic.selection();
+    nftsRead.current = { key: nftKey, at: Date.now() };
+    setNfts(null);
+    loadNftReport(acct).then(applyNftReport).catch(() => setNfts([]));
+  }, [acct, nftKey, applyNftReport]);
 
   const onRefresh = useCallback(async () => {
     if (!acct) return;
@@ -293,7 +312,8 @@ export default function Home() {
       ]);
       if (tab === 'nft') {
         nftsRead.current = { key: nftKey, at: Date.now() };
-        setNfts(await loadAllNfts(acct).catch(() => []));
+        const r = await loadNftReport(acct).catch(() => null);
+        if (r) applyNftReport(r);
       }
     } finally {
       setRefreshing(false);
@@ -679,8 +699,11 @@ export default function Home() {
               </>
             )
           ) : tab === 'nft' ? (
-            nfts === null ? (
+            <View style={{ gap: space[3] }}>
+            {nfts === null ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>{[0, 1, 2, 3].map((i) => <Skeleton key={i} width={(screenW - SCREEN_MARGIN * 2 - space[3]) / 2} height={(screenW - SCREEN_MARGIN * 2 - space[3]) / 2} />)}</View>
+            ) : nfts.length === 0 && nftIssues?.nothingAnswered ? (
+              <Surface><EmptyState icon="warning" title={t('nftLoadFailedTitle')} body={t('nftLoadFailedBody')} actionLabel={t('retry')} onAction={retryNfts} /></Surface>
             ) : nfts.length === 0 ? (
               <Surface><EmptyState icon="nft" title={t("emptyNftTitle")} body={t("emptyNftBody")} actionLabel={t("actionReceive")} onAction={() => router.push('/receive')} /></Surface>
             ) : (
@@ -701,7 +724,15 @@ export default function Home() {
                   );
                 })}
               </View>
-            )
+            )}
+            {/* Ce qui n'a pas répondu est NOMMÉ : une liste incomplète ne se fait pas passer pour complète. */}
+            {nfts !== null && !nftIssues?.nothingAnswered && nftIssues?.failed.length ? (
+              <Text variant="micro" tone="tertiary" style={{ textAlign: 'center' }}>{t('nftPartial').replace('{networks}', nftIssues.failed.map((c) => chainNameOf(c) ?? c).join(', '))}</Text>
+            ) : null}
+            {nfts !== null && nftIssues?.unavailable.length ? (
+              <Text variant="micro" tone="tertiary" style={{ textAlign: 'center' }}>{t('nftUnavailable').replace('{networks}', nftIssues.unavailable.map((c) => chainNameOf(c) ?? c).join(', '))}</Text>
+            ) : null}
+            </View>
           ) : /*
             TROIS CAS DE LISTE VIDE, et ils ne disent pas la même chose. Un
             chargement en cours mérite un squelette ; un réseau qui n'a jamais
@@ -760,7 +791,7 @@ export default function Home() {
           name={sendNft.name}
           onClose={() => setSendNft(null)}
           // Le NFT est parti : la liste est relue au prochain affichage de l'onglet.
-          onSent={() => { setSendNft(null); if (acct) { nftsRead.current = { key: nftKey, at: Date.now() }; loadAllNfts(acct).then(setNfts).catch(() => {}); } }}
+          onSent={() => { setSendNft(null); if (acct) { nftsRead.current = { key: nftKey, at: Date.now() }; loadNftReport(acct).then(applyNftReport).catch(() => {}); } }}
         />
       ) : null}
     </View>

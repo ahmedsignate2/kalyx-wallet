@@ -5,6 +5,7 @@
  */
 import { withTimeout } from '../chains/net';
 import type { ChainConfig } from '../chains/types';
+import { isSpamNft } from './nftSpam';
 
 const TIMEOUT = 12_000;
 
@@ -68,6 +69,8 @@ export function parseNfts(json: unknown): NftItem[] {
     // Sans image, un NFT reste montré (case avec icône) s'il a au moins un nom :
     // un Basename tout juste frappé n'a parfois pas encore d'aperçu chez Alchemy.
     .filter((n) => n.contract && (n.image || n.named))
+    // `isSpam` d'Alchemy en laisse passer : mêmes règles de nom que sur Solana.
+    .filter((n) => !isSpamNft({ name: n.name, collection: n.collection }))
     .map(({ named: _named, ...n }) => n);
 }
 
@@ -82,8 +85,7 @@ function nftBaseUrl(chain: ChainConfig): string | undefined {
 export async function getNfts(chain: ChainConfig, address: string): Promise<NftItem[]> {
   const base = nftBaseUrl(chain);
   if (!base) return [];
-  try {
-    const res = await withTimeout(
+  const res = await withTimeout(
       // Pas de `excludeFilters[]=SPAM` ni `spamConfidenceLevel` : réservés au plan
       // payant Alchemy (403 sinon). Le spam est écarté côté client via `isSpam`
       // (cf. parseNfts). pageSize=100 (max) pour dépasser les airdrops spam.
@@ -91,8 +93,12 @@ export async function getNfts(chain: ChainConfig, address: string): Promise<NftI
       TIMEOUT,
       () => new Error('timeout'),
     );
-    return parseNfts(await res.json());
-  } catch {
-    return [];
-  }
+  /*
+   * Un réseau que l'API NFT ne couvre pas répond 4xx : ce n'est pas une panne,
+   * il n'y a simplement rien à lire là. Une panne (5xx, délai) REMONTE : avant,
+   * elle devenait une liste vide et l'écran affirmait « aucun NFT ».
+   */
+  if (res.status >= 400 && res.status < 500 && res.status !== 429) return [];
+  if (!res.ok) throw new Error(`Alchemy NFT ${res.status}`);
+  return parseNfts(await res.json());
 }
