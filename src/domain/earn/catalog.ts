@@ -14,7 +14,7 @@ export const NATIVE = 'native';
 
 /** Logo protocole (DefiLlama, webp) converti en PNG via wsrv.nl — même proxy que chainIconUrl. */
 const ICON = (slug: string) =>
-  `https://wsrv.nl/?url=${encodeURIComponent(`icons.llamao.fi/icons/protocols/${slug}?w=96&h=96`)}&output=png&w=96&h=96&fit=cover`;
+  `https://wsrv.nl/?url=${encodeURIComponent(`icons.llamao.fi/icons/protocols/${slug}?w=192&h=192`)}&output=png&w=192&h=192&fit=cover`;
 
 // ─── Sous-jacents ──────────────────────────────────────────────────────
 const ETH: EarnToken = { address: NATIVE, symbol: 'ETH', decimals: 18, coingeckoId: 'ethereum' };
