@@ -150,6 +150,18 @@ export default function EarnScreen() {
           </View>
         </GlassCard>
 
+        {/* Échec de chargement : le DIRE, au lieu de listes vides qui feraient croire à zéro position. */}
+        {earn.error && !earn.loading ? (
+          <GlassCard>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+              <Icon name="alert" size={20} color={colors.warning} />
+              <Text style={[typography.muted, { flex: 1 }]}>{t('earnLoadFailed')}</Text>
+            </View>
+            <View style={{ height: spacing(1.5) }} />
+            <Button label={t('retry')} variant="ghost" onPress={onRefresh} />
+          </GlassCard>
+        ) : null}
+
         {/* Mes positions */}
         {initialLoading ? (
           <GlassCard>{[0, 1].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>
