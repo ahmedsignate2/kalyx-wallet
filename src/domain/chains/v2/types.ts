@@ -95,6 +95,12 @@ export interface SendRequest {
    */
   memo?: string;
   /**
+   * Échéance imposée par une demande de paiement (TON Pay `exp`), en secondes
+   * Unix. La chaîne qui sait l'inscrire dans le message (TON) le fait, pour
+   * qu'un paiement signé trop tard soit refusé par le réseau lui-même.
+   */
+  expiresAt?: number;
+  /**
    * Repères d'un paiement, à joindre à la transaction sans effet sur elle.
    *
    * `reference` de Solana Pay : des comptes en lecture seule qui permettent au

@@ -53,7 +53,7 @@ export default function Send() {
   const sym = fiatSymbol(fiat);
   const wallet = useWallet();
   const { account, activeChain, accounts } = wallet;
-  const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; jetton?: string; symbol?: string; decimals?: string; chain?: string; references?: string; memo?: string; payee?: string; note?: string }>();
+  const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; jetton?: string; exp?: string; symbol?: string; decimals?: string; chain?: string; references?: string; memo?: string; payee?: string; note?: string }>();
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const pf = usePortfolioStore();
 
@@ -465,6 +465,8 @@ export default function Send() {
       const payExtras = {
         references: params.references ? String(params.references).split(',').filter(Boolean) : undefined,
         memo,
+        // Échéance d'une facture TON Pay : inscrite dans le message, refusée par la chaîne au-delà.
+        expiresAt: params.exp ? Number(params.exp) : undefined,
       };
       const gas = {
         ...(feeOptions
@@ -477,7 +479,7 @@ export default function Send() {
         ...payExtras,
       };
       const h =
-        token?.kind === 'jetton' ? await wallet.sendJetton(recipient, tokenAmountStr, { master: token.master, decimals: token.decimals }, unlock, { memo })
+        token?.kind === 'jetton' ? await wallet.sendJetton(recipient, tokenAmountStr, { master: token.master, decimals: token.decimals }, unlock, { memo, expiresAt: payExtras.expiresAt })
         : token?.kind === 'spl' ? await wallet.sendSolToken(recipient, tokenAmountStr, { mint: token.mint, decimals: token.decimals }, unlock, payExtras)
         : token?.kind === 'erc20' ? await wallet.sendToken(recipient, tokenAmountStr, { contract: token.contract, decimals: token.decimals }, unlock, gas)
         : await wallet.signAndSend(recipient, tokenAmountStr, unlock, gas);

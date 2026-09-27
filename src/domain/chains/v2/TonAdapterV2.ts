@@ -76,6 +76,8 @@ export interface TonPayload {
   sendMode: number;
   /** Adresse (brute) de NOTRE portefeuille de jeton : présente = transfert de jetton. */
   jettonWallet?: string;
+  /** Échéance imposée par une facture (secondes) : le message expire au plus tard à ce moment. */
+  expiresAt?: number;
 }
 
 /** Échéance d'un message, en secondes après la signature. */
@@ -408,6 +410,11 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     return { pool, poolAddress, tsTonInTon: await this.api.priceInTon(pool.tsTonMaster).catch(() => null) };
   }
 
+  /** Métadonnées d'un jetton (symbole, décimales, vérification), ou null. */
+  async jettonInfo(master: string): Promise<{ symbol: string; decimals: number; verified: boolean } | null> {
+    return this.api ? this.api.jettonInfo(master) : null;
+  }
+
   /** NFT détenus, domaines .ton compris ; vide sans TonAPI. */
   async nfts(address: string): Promise<TonNft[]> {
     return this.api ? this.api.nfts(address) : [];
@@ -464,7 +471,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
       token: null,
       fee,
       warnings,
-      payload: { seqno, deploys, version: sender.version, bounce, comment, sendMode: TON_SEND_MODE_DEFAULT },
+      payload: { seqno, deploys, version: sender.version, bounce, comment, sendMode: TON_SEND_MODE_DEFAULT, expiresAt: request.expiresAt },
     };
   }
 
@@ -524,7 +531,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
       token: { id: master, symbol: jetton.symbol, decimals: jetton.decimals },
       fee,
       warnings,
-      payload: { seqno, deploys, version: sender.version, bounce: true, comment, sendMode: TON_SEND_MODE_DEFAULT, jettonWallet: jetton.wallet },
+      payload: { seqno, deploys, version: sender.version, bounce: true, comment, sendMode: TON_SEND_MODE_DEFAULT, jettonWallet: jetton.wallet, expiresAt: request.expiresAt },
     };
   }
 
@@ -571,7 +578,12 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     const version = candidates.find((v) => toRawTonAddress(tonWalletAddress(signer.publicKey, v, { testnet: this.testnet })) === fromRaw);
     if (!version) throw new WalletError('NOT_SUPPORTED', 'TON : la clé de signature ne correspond pas à l’adresse d’envoi');
 
-    const validUntil = Math.floor(this.now() / 1000) + VALIDITY_SECONDS;
+    const nowS = Math.floor(this.now() / 1000);
+    // Une facture expirée n'est pas signée ; sinon le message expire avec elle.
+    if (draft.payload.expiresAt !== undefined && draft.payload.expiresAt <= nowS) {
+      throw new WalletError('TX_EXPIRED', 'TON : la demande de paiement a expiré');
+    }
+    const validUntil = Math.min(nowS + VALIDITY_SECONDS, draft.payload.expiresAt ?? Infinity);
     const built = buildTonTransfer(
       {
         version,

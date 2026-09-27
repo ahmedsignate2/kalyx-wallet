@@ -167,3 +167,15 @@ describe('NFT et noms .ton', () => {
     expect(await new TonAdapterV2(MAIN, { api: null, client: noCenter }).resolveDomain('foundation.ton')).toBeNull();
   });
 });
+
+describe('TON Pay : échéance de la facture', () => {
+  it('le message expire avec la facture ; une facture expirée n’est pas signée', async () => {
+    const nowS = Math.floor(NOW / 1000);
+    const ad = new TonAdapterV2(MAIN, { api: sender(), client: noCenter, now: () => NOW });
+    const d = await ad.prepareSend(FROM, { to: DEST, amount: 1000n, token: { id: USDT_TON_MASTER, symbol: 'USDT', decimals: 6 }, memo: 'Commande 42', expiresAt: nowS + 60 });
+    const signed = await ad.signSend(d, signer);
+    expect(signed.draft.expiresAt).toBe((nowS + 60) * 1000);
+    const late = await ad.prepareSend(FROM, { to: DEST, amount: 1000n, token: { id: USDT_TON_MASTER, symbol: 'USDT', decimals: 6 }, expiresAt: nowS - 1 });
+    await expect(ad.signSend(late, signer)).rejects.toMatchObject({ code: 'TX_EXPIRED' });
+  });
+});

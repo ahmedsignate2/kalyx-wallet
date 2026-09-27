@@ -217,6 +217,15 @@ export class TonApiClient {
     return parseDnsWallet(r.json, testnet);
   }
 
+  /** Symbole et décimales d'un jetton, pour un jetton qu'on ne détient pas encore. */
+  async jettonInfo(master: string): Promise<{ symbol: string; decimals: number; verified: boolean } | null> {
+    const r = await this.call('GET', `/v2/jettons/${seg(master)}`);
+    const m = r.status === 200 ? r.json?.metadata : null;
+    const decimals = Number(m?.decimals ?? 9);
+    if (!m || !Number.isInteger(decimals) || decimals < 0 || decimals > 255) return null;
+    return { symbol: String(m.symbol ?? '?').slice(0, 24), decimals, verified: r.json?.verification === 'whitelist' };
+  }
+
   /** Pool de staking (Tonstakers) : APY, minimum, contrat du tsTON. */
   async stakingPool(pool: string): Promise<TonstakersPool> {
     const r = await this.call('GET', `/v2/staking/pool/${seg(pool)}`);

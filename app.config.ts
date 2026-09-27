@@ -104,7 +104,8 @@ const config: ExpoConfig = {
        * Le routage correspondant vit dans `lib/paymentIntent`.
        */
       CFBundleURLTypes: [
-        { CFBundleURLSchemes: [...schemes, 'wc', 'ethereum', 'bitcoin', 'solana'] },
+        // `ton` : factures TON Pay (ton://transfer/…) ; `tc` : lien TON Connect unifié, obligatoire (spec deeplinks).
+        { CFBundleURLSchemes: [...schemes, 'wc', 'ethereum', 'bitcoin', 'solana', 'ton', 'tc'] },
       ],
     },
   },
@@ -136,6 +137,8 @@ const config: ExpoConfig = {
           { scheme: 'ethereum' },
           { scheme: 'bitcoin' },
           { scheme: 'solana' },
+          { scheme: 'ton' },
+          { scheme: 'tc' },
         ],
         category: ['BROWSABLE', 'DEFAULT'],
       },
