@@ -39,10 +39,13 @@ function useThemeStyles() {
 export function PremiumScreen({
   children,
   footer,
+  tabBarSpace,
   refreshControl,
 }: {
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /** Laisse la place de la barre d'onglets (dessinée par le navigateur d'onglets). */
+  tabBarSpace?: boolean;
   /** Élément <RefreshControl> pour le « balayer vers le bas pour rafraîchir ». */
   refreshControl?: React.ComponentProps<typeof ScrollView>['refreshControl'];
 }) {
@@ -57,7 +60,7 @@ export function PremiumScreen({
           contentContainerStyle={{
             paddingTop: topPadding,
             paddingHorizontal: spacing(2.5),
-            paddingBottom: insets.bottom + (footer ? 120 : spacing(5)),
+            paddingBottom: insets.bottom + (footer || tabBarSpace ? 120 : spacing(5)),
             flexGrow: 1,
             gap: spacing(2.5),
           }}
@@ -622,21 +625,20 @@ function NavTab({ item, on }: { item: NavItem; on: boolean }) {
   const { theme } = useThemeStyles();
   const { colors } = theme;
   const reduce = useReduceMotion();
-  const lift = useSharedValue(on && !reduce ? 0 : 1);
+  // 0 = inactif, 1 = actif. La barre reste montée d'un onglet à l'autre : l'onglet
+  // quitté s'éteint pendant que le nouveau s'allume, les deux mouvements se voient.
+  const p = useSharedValue(on ? 1 : 0);
   useEffect(() => {
-    if (on && !reduce) {
-      lift.value = 0;
-      lift.value = withSpring(1, springs.bouncy);
-    } else lift.value = 1;
-  }, [on, reduce, lift]);
+    p.value = reduce ? (on ? 1 : 0) : withSpring(on ? 1 : 0, on ? springs.bouncy : springs.snappy);
+  }, [on, reduce, p]);
   const iconStyle = useAnimatedStyle(() => ({
-    transform: on ? [{ translateY: (1 - lift.value) * 6 }, { scale: 0.8 + 0.2 * lift.value }] : [],
+    transform: [{ translateY: -2 * p.value }, { scale: 1 + 0.1 * p.value }],
   }));
-  const dotStyle = useAnimatedStyle(() => ({ opacity: on ? lift.value : 0, transform: [{ scale: on ? lift.value : 0 }] }));
+  const pillStyle = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ scaleX: 0.3 + 0.7 * p.value }, { scaleY: 0.6 + 0.4 * p.value }] }));
+  const dotStyle = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ scale: p.value }] }));
   return (
     <KPressable
       onPress={() => {
-        // L'onglet courant ne se recharge pas : un `replace` vers soi-même remontait tout l'écran.
         if (on) return;
         haptic.selection();
         item.onPress();
@@ -646,9 +648,12 @@ function NavTab({ item, on }: { item: NavItem; on: boolean }) {
       accessibilityLabel={item.label}
       style={{ flex: 1, alignItems: 'center', gap: 3 }}
     >
-      <Reanimated.View style={iconStyle}>
-        <Icon name={item.icon} size={22} color={on ? colors.primary : colors.textTertiary} />
-      </Reanimated.View>
+      <View style={{ width: 52, height: 30, alignItems: 'center', justifyContent: 'center' }}>
+        <Reanimated.View style={[StyleSheet.absoluteFill, { borderRadius: 15, backgroundColor: colors.surface3 }, pillStyle]} />
+        <Reanimated.View style={iconStyle}>
+          <Icon name={item.icon} size={22} color={on ? colors.primary : colors.textTertiary} />
+        </Reanimated.View>
+      </View>
       <Text numberOfLines={1} style={{ fontSize: 11, color: on ? colors.text : colors.textTertiary, fontFamily: fonts.semibold }}>
         {item.label}
       </Text>

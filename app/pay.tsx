@@ -334,7 +334,7 @@ export default function PayScreen() {
           </Surface>
 
           {/* UN SEUL bouton, et il ramène à l'accueil : il n'y a plus rien à faire ici. */}
-          <Button label={t('done')} onPress={() => router.replace('/home')} />
+          <Button label={t('done')} onPress={() => router.dismissTo('/home')} />
         </ScrollView>
       </View>
     );

@@ -7,23 +7,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, Text, View } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { GlassCard, RemoteIcon, SkeletonRow, PressableScale } from '../ui/premium';
-import { AppTabBar } from '../ui/tabs';
+import { GlassCard, RemoteIcon, SkeletonRow, PressableScale } from '../../ui/premium';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView } from 'react-native';
-import { Button } from '../ui/components';
-import { CountUp } from '../ui/CountUp';
-import { FadeInUp } from '../ui/FadeInUp';
-import { Icon } from '../ui/icon';
-import { EarnSheet } from '../ui/EarnSheet';
-import { TonStakingSheet } from '../ui/TonStakingSheet';
-import { loadStaking, type StakingInfo } from '../lib/ton/staking';
-import { SegmentedControl, Pressable as KPressable } from '../ui/kit';
-import { fonts, radii, spacing, useTheme } from '../ui/theme';
-import { useWallet } from '../lib/walletStore';
-import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
-import { useEarn, selectPositions, sumPositions, priceOf, safeNum, type EarnAccount, type EarnPositionView } from '../lib/earn';
-import { EARN_CATALOG, getAdapter, chainIconUrl, formatTokenAmount, formatAmount, formatFiat, formatPercent, type EarnProtocol, type EarnAction } from '../src';
+import { Button } from '../../ui/components';
+import { CountUp } from '../../ui/CountUp';
+import { FadeInUp } from '../../ui/FadeInUp';
+import { Icon } from '../../ui/icon';
+import { EarnSheet } from '../../ui/EarnSheet';
+import { TonStakingSheet } from '../../ui/TonStakingSheet';
+import { loadStaking, type StakingInfo } from '../../lib/ton/staking';
+import { SegmentedControl, Pressable as KPressable } from '../../ui/kit';
+import { fonts, radii, spacing, useTheme } from '../../ui/theme';
+import { useWallet } from '../../lib/walletStore';
+import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
+import { useEarn, selectPositions, sumPositions, priceOf, safeNum, type EarnAccount, type EarnPositionView } from '../../lib/earn';
+import { EARN_CATALOG, getAdapter, chainIconUrl, formatTokenAmount, formatAmount, formatFiat, formatPercent, type EarnProtocol, type EarnAction } from '../../src';
 
 type Filter = 'mine' | 'all' | 'staking' | 'lending';
 
@@ -201,7 +200,6 @@ export default function EarnScreen() {
           )}
         </View>
       </ScrollView>
-      <AppTabBar active="earn" />
       </View>
 
       <EarnSheet visible={!!sheet} protocol={sheet?.protocol ?? null} action={sheet?.action ?? 'deposit'} onClose={() => setSheet(null)} onSuccess={onSuccess} />

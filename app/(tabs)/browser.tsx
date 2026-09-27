@@ -21,41 +21,41 @@ import { Stack, useLocalSearchParams, router, useFocusEffect } from 'expo-router
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
-import { Text, Button, IconButton, Surface, Divider, ListRow, Sheet, Chip, EmptyState, AddressGlyph, Input, Pressable, Pressable as KPressable } from '../ui/kit';
-import { Icon } from '../ui/icon';
-import { SignSheet } from '../ui/SignSheet';
-import { ConfirmUnlock } from '../ui/ConfirmUnlock';
-import { AddressBar, splitHost } from '../ui/browser/AddressBar';
-import { AppTabBar } from '../ui/tabs';
-import { RemoteIcon } from '../ui/premium';
-import { Comet } from '../ui/browser/Comet';
-import { DappTile, DappLogo, siteName } from '../ui/browser/DappTile';
-import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, radius, springs } from '../ui/tokens';
-import { haptic } from '../lib/haptics';
-import { sound } from '../lib/sound';
-import { useWallet, type Unlock } from '../lib/walletStore';
-import { useTokenStore } from '../lib/tokenStore';
-import { useSettings, useT } from '../lib/settingsStore';
-import { toast } from '../lib/toast';
-import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../lib/recentDapps';
-import { useDappActivity } from '../lib/dappActivity';
-import { technicalLogger } from '../lib/technicalLogger';
-import { useBrowserStore } from '../lib/browserStore';
-import { usePortfolioStore } from '../lib/portfolio';
-import { saveTabs, loadTabs } from '../lib/browserTabs';
-import { useBrowserPresence } from '../lib/browserPresence';
-import { useWalletConnect } from '../lib/walletconnect';
-import { useTonConnect } from '../lib/tonconnect/store';
-import { looksLikeTonConnect } from '../src/domain/tonconnect/connectLink';
-import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../lib/browserPrefs';
-import { buildInjectedProvider, parseDappMessage, respondJs, emitJs, rpcProxy, READONLY_METHODS, type DappRequest } from '../lib/dappProvider';
+import { Text, Button, IconButton, Surface, Divider, ListRow, Sheet, Chip, EmptyState, AddressGlyph, Input, Pressable, Pressable as KPressable } from '../../ui/kit';
+import { Icon } from '../../ui/icon';
+import { SignSheet } from '../../ui/SignSheet';
+import { ConfirmUnlock } from '../../ui/ConfirmUnlock';
+import { AddressBar, splitHost } from '../../ui/browser/AddressBar';
+import { useTabBar } from '../../ui/tabs';
+import { RemoteIcon } from '../../ui/premium';
+import { Comet } from '../../ui/browser/Comet';
+import { DappTile, DappLogo, siteName } from '../../ui/browser/DappTile';
+import { useTheme } from '../../ui/theme';
+import { space, SCREEN_MARGIN, radius, springs } from '../../ui/tokens';
+import { haptic } from '../../lib/haptics';
+import { sound } from '../../lib/sound';
+import { useWallet, type Unlock } from '../../lib/walletStore';
+import { useTokenStore } from '../../lib/tokenStore';
+import { useSettings, useT } from '../../lib/settingsStore';
+import { toast } from '../../lib/toast';
+import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../../lib/recentDapps';
+import { useDappActivity } from '../../lib/dappActivity';
+import { technicalLogger } from '../../lib/technicalLogger';
+import { useBrowserStore } from '../../lib/browserStore';
+import { usePortfolioStore } from '../../lib/portfolio';
+import { saveTabs, loadTabs } from '../../lib/browserTabs';
+import { useBrowserPresence } from '../../lib/browserPresence';
+import { useWalletConnect } from '../../lib/walletconnect';
+import { useTonConnect } from '../../lib/tonconnect/store';
+import { looksLikeTonConnect } from '../../src/domain/tonconnect/connectLink';
+import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../../lib/browserPrefs';
+import { buildInjectedProvider, parseDappMessage, respondJs, emitJs, rpcProxy, READONLY_METHODS, type DappRequest } from '../../lib/dappProvider';
 import {
   getAdapter, listChains, hexToText, parseSiwe, siweDomainMismatch, summarizeTypedData, assessAddress, isPhishingSite,
   decodeTx, simulateTx, explainRequest, getTokenMetadata, chainIconUrl, isValidEvmAddress, type RawTxRequest, type RiskAssessment, type Simulation,
-} from '../src';
-import { useHistoryStore } from '../lib/historyStore';
-import { useKeyboardHeight } from '../ui/useKeyboardHeight';
+} from '../../src';
+import { useHistoryStore } from '../../lib/historyStore';
+import { useKeyboardHeight } from '../../ui/useKeyboardHeight';
 
 // WebView = module natif : require dynamique pour ne pas crasher avant rebuild.
 let WebViewComp: React.ComponentType<Record<string, unknown>> | null = null;
@@ -226,9 +226,13 @@ export default function Browser() {
   }, [activeId, compact]);
 
   // Deep-link : /browser?url=…
-  const { url: urlParam, tab: tabParam } = useLocalSearchParams<{ url?: string; tab?: string }>();
-  // Barre de navigation principale seulement si on vient de l'onglet Explorer (pas du Menu ni d'un lien).
-  const asMainTab = tabParam === '1';
+  const { url: urlParam } = useLocalSearchParams<{ url?: string }>();
+  // Barre d'onglets sur la page « nouvel onglet » seulement : une dApp ouverte a tout l'écran.
+  const showTabBar = !activeTab.url && !editing;
+  useFocusEffect(useCallback(() => {
+    useTabBar.getState().setHidden(!showTabBar);
+    return () => useTabBar.getState().setHidden(false);
+  }, [showTabBar]));
   useEffect(() => {
     const u = urlParam ? normalizeUrl(String(urlParam)) : null;
     if (u) updateTab(activeRef.current, { url: u });
@@ -662,7 +666,7 @@ export default function Browser() {
         un trou.
       */}
       <View style={{ marginBottom: kbHeight }}>
-        <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[2], paddingTop: space[2], paddingBottom: asMainTab && !activeTab.url && !editing ? insets.bottom + 84 : (kbHeight > 0 ? space[2] : insets.bottom + space[2]), backgroundColor: colors.bg }, chromeStyle]}>
+        <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[2], paddingTop: space[2], paddingBottom: showTabBar ? insets.bottom + 84 : (kbHeight > 0 ? space[2] : insets.bottom + space[2]), backgroundColor: colors.bg }, chromeStyle]}>
           {editing ? (
             <>
               <IconButton icon="close" label={t('cancel')} tone="ghost" onPress={() => { setEditing(false); setInput(''); }} />
@@ -700,8 +704,6 @@ export default function Browser() {
           )}
         </Animated.View>
       </View>
-      {/* Onglet principal « Explorer » : barre de navigation sur la page nouvel onglet. */}
-      {asMainTab && !activeTab.url && !editing ? <AppTabBar active="browser" /> : null}
 
       {/* Grille d'onglets */}
       <Sheet visible={switcher} onClose={() => setSwitcher(false)}>
@@ -752,9 +754,9 @@ export default function Browser() {
                 subtitle={t('browserParkSub')}
                 onPress={() => {
                   setMenu(false);
-                  // L'accueil passe PAR-DESSUS : la page reste vivante dessous, sans rechargement.
+                  // L'onglet Explorer reste monté : la page reste vivante, sans rechargement.
                   useBrowserPresence.getState().park({ url: activeTab.url!, title: activeTab.title || activeTab.url! });
-                  router.push('/home');
+                  router.navigate('/home');
                 }}
               />
               <Divider />
