@@ -1,0 +1,42 @@
+// node --experimental-strip-types --test src/routes.test.ts
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { resolve, sanitizeBody } from './routes.ts';
+
+const A = 'UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw';
+const R = (m: string, p: string, q = '') => resolve(m, p, new URLSearchParams(q));
+
+test('les routes relevées passent, sur les deux réseaux', () => {
+  for (const [m, p, q] of [
+    ['GET', `/mainnet/v2/accounts/${A}`, ''],
+    ['GET', `/testnet/v2/accounts/${A}/events`, 'limit=20&before_lt=99183004000001'],
+    ['GET', `/mainnet/v2/accounts/${A}/jettons`, 'currencies=usd,eur'],
+    ['GET', `/mainnet/v2/wallet/${A}/seqno`, ''],
+    ['GET', '/testnet/v2/blockchain/messages/111097c6ae737d4a980c7629dcca17049a817c5934f7b643200b8cb0aac2215f/transaction', ''],
+    ['GET', '/mainnet/v2/rates', 'tokens=ton&currencies=usd'],
+    ['POST', '/mainnet/v2/wallet/emulate', ''],
+    ['POST', '/testnet/v2/blockchain/message', ''],
+  ]) assert.equal(R(m, p, q).ok, true, `${m} ${p}`);
+});
+
+test('pas un proxy ouvert : tout le reste est refusé', () => {
+  assert.equal(R('GET', '/mainnet/v2/staking/pools').ok, false);
+  assert.equal(R('GET', '/v2/accounts/' + A).ok, false); // réseau obligatoire
+  assert.equal(R('GET', '/mainnet/v2/accounts/pas-une-adresse').ok, false);
+  assert.equal(R('GET', `/mainnet/v2/accounts/${A}/../../admin`).ok, false);
+  assert.deepEqual(R('DELETE', `/mainnet/v2/accounts/${A}`), { ok: false, status: 405, error: 'method not allowed' });
+});
+
+test('les paramètres inconnus ou hors bornes sont refusés, pas ignorés', () => {
+  assert.equal(R('GET', `/mainnet/v2/accounts/${A}/events`, 'limit=1000').ok, false);
+  assert.equal(R('GET', `/mainnet/v2/accounts/${A}`, 'foo=bar').ok, false);
+  const ok = R('GET', `/mainnet/v2/accounts/${A}/events`, 'limit=20');
+  assert.equal(ok.ok && ok.upstreamPath, `/v2/accounts/${A}/events?limit=20`);
+});
+
+test('corps POST : { boc } seul, re-sérialisé, taille bornée', () => {
+  assert.deepEqual(sanitizeBody('{"boc":"te6cckEBAQEAAgAAAEysuc0=","evil":1}'), { ok: true, body: '{"boc":"te6cckEBAQEAAgAAAEysuc0="}' });
+  assert.equal(sanitizeBody('{"boc":"<script>"}').ok, false);
+  assert.equal(sanitizeBody('pas du json').ok, false);
+  assert.equal(sanitizeBody(JSON.stringify({ boc: 'A'.repeat(70_000) })).ok, false);
+});

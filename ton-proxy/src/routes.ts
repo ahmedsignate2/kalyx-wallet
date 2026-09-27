@@ -1,0 +1,94 @@
+/**
+ * Routes autorisées vers TonAPI — la LISTE BLANCHE du proxy.
+ *
+ * Le Worker détient la clé TonAPI : s'il relayait n'importe quel chemin, il
+ * deviendrait un accès gratuit à TonAPI pour qui connaît son URL, sur le quota
+ * de Kalyx. On ne laisse donc passer que ce dont l'app a besoin, chaque route
+ * relevée en interrogeant TonAPI le 27/09, et seulement ses paramètres connus.
+ *
+ * Fonctions pures, testées sans Cloudflare (`routes.test.ts`).
+ */
+export type Network = 'mainnet' | 'testnet';
+
+export const UPSTREAM: Record<Network, string> = {
+  mainnet: 'https://tonapi.io',
+  testnet: 'https://testnet.tonapi.io',
+};
+
+// Adresse conviviale (48 caractères base64url) ou brute (workchain:64 hex).
+const ADDR = '(?:[A-Za-z0-9_-]{48}|-?\\d{1,3}:[0-9a-fA-F]{64})';
+// Hachage : 64 hexadécimaux ou base64url de 43/44 caractères.
+const HASH = '(?:[0-9a-fA-F]{64}|[A-Za-z0-9_=-]{43,44})';
+
+interface Route {
+  method: 'GET' | 'POST';
+  pattern: RegExp;
+  /** Paramètres de requête autorisés, avec leur contrôle. */
+  query?: Record<string, RegExp>;
+  /** Durée de cache (s) ; absent = pas de cache. */
+  cacheSeconds?: number;
+}
+
+const LIMIT = /^(?:[1-9]|[1-9]\d|100)$/;
+const LT = /^\d{1,24}$/;
+const CODES = /^[a-zA-Z0-9,]{1,64}$/;
+
+export const ROUTES: Route[] = [
+  { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}$`) },
+  { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}/events$`), query: { limit: LIMIT, before_lt: LT } },
+  { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}/jettons$`), query: { currencies: CODES } },
+  { method: 'GET', pattern: new RegExp(`^/v2/wallet/${ADDR}/seqno$`) },
+  { method: 'GET', pattern: new RegExp(`^/v2/blockchain/messages/${HASH}/transaction$`) },
+  { method: 'GET', pattern: new RegExp(`^/v2/events/${HASH}$`) },
+  { method: 'GET', pattern: new RegExp(`^/v2/jettons/${ADDR}$`), cacheSeconds: 300 },
+  { method: 'GET', pattern: /^\/v2\/rates$/, query: { tokens: CODES, currencies: CODES }, cacheSeconds: 60 },
+  { method: 'POST', pattern: /^\/v2\/wallet\/emulate$/ },
+  { method: 'POST', pattern: /^\/v2\/blockchain\/message$/ },
+];
+
+export type Resolved =
+  | { ok: true; network: Network; upstreamPath: string; route: Route }
+  | { ok: false; status: 400 | 404 | 405; error: string };
+
+/**
+ * `/<réseau>/v2/…?…` → chemin TonAPI filtré, ou refus.
+ * Les paramètres inconnus sont REFUSÉS, pas ignorés : un paramètre ignoré
+ * silencieusement masquerait une erreur de l'app.
+ */
+export function resolve(method: string, pathname: string, search: URLSearchParams): Resolved {
+  const m = pathname.match(/^\/(mainnet|testnet)(\/v2\/.*)$/);
+  if (!m) return { ok: false, status: 404, error: 'unknown route' };
+  const network = m[1] as Network;
+  const path = m[2];
+  const route = ROUTES.find((r) => r.pattern.test(path));
+  if (!route) return { ok: false, status: 404, error: 'route not allowed' };
+  if (route.method !== method) return { ok: false, status: 405, error: 'method not allowed' };
+  const out = new URLSearchParams();
+  for (const [k, v] of search) {
+    const check = route.query?.[k];
+    if (!check || !check.test(v)) return { ok: false, status: 400, error: `parameter not allowed: ${k}` };
+    out.set(k, v);
+  }
+  const qs = out.toString();
+  return { ok: true, network, upstreamPath: qs ? `${path}?${qs}` : path, route };
+}
+
+/** Taille maximale d'un corps POST : un message TON signé tient en quelques Ko. */
+export const MAX_BODY_BYTES = 64 * 1024;
+
+/**
+ * Corps POST : `{ boc }` et RIEN d'autre, re-sérialisé — aucun champ inconnu
+ * n'est relayé. Base64 (standard ou url), taille bornée.
+ */
+export function sanitizeBody(raw: string): { ok: true; body: string } | { ok: false; error: string } {
+  if (raw.length > MAX_BODY_BYTES) return { ok: false, error: 'body too large' };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: 'invalid json' };
+  }
+  const boc = (parsed as { boc?: unknown })?.boc;
+  if (typeof boc !== 'string' || !/^[A-Za-z0-9+/_=-]{8,}$/.test(boc)) return { ok: false, error: 'invalid boc' };
+  return { ok: true, body: JSON.stringify({ boc }) };
+}
