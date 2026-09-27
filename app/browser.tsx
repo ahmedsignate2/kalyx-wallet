@@ -17,7 +17,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, TextInput, ScrollView, Share, Alert, Switch, Image, useWindowDimensions, Linking } from 'react-native';
-import { Stack, useLocalSearchParams, router } from 'expo-router';
+import { Stack, useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
@@ -44,6 +44,10 @@ import { technicalLogger } from '../lib/technicalLogger';
 import { useBrowserStore } from '../lib/browserStore';
 import { usePortfolioStore } from '../lib/portfolio';
 import { saveTabs, loadTabs } from '../lib/browserTabs';
+import { useBrowserPresence } from '../lib/browserPresence';
+import { useWalletConnect } from '../lib/walletconnect';
+import { useTonConnect } from '../lib/tonconnect/store';
+import { looksLikeTonConnect } from '../src/domain/tonconnect/connectLink';
 import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../lib/browserPrefs';
 import { buildInjectedProvider, parseDappMessage, respondJs, emitJs, rpcProxy, READONLY_METHODS, type DappRequest } from '../lib/dappProvider';
 import {
@@ -160,6 +164,12 @@ export default function Browser() {
   const [input, setInput] = useState('');
   const [switcher, setSwitcher] = useState(false);
   const [menu, setMenu] = useState(false);
+  // Connexion par lien (WalletConnect / TON Connect) SANS quitter la page.
+  const [linkSheet, setLinkSheet] = useState(false);
+  const [linkText, setLinkText] = useState('');
+  const [linkBusy, setLinkBusy] = useState(false);
+  // Revenir sur le navigateur = il n'est plus « de côté ».
+  useFocusEffect(useCallback(() => { useBrowserPresence.getState().clear(); }, []));
   const [connSheet, setConnSheet] = useState(false);
   const [findSheet, setFindSheet] = useState(false);
   const [findQ, setFindQ] = useState('');
@@ -736,9 +746,21 @@ export default function Browser() {
               <ListRow left={<Icon name="desktop" size={20} />} title={t('desktopVersion')} right={<Switch value={activeTab.desktop} onValueChange={(v) => updateTab(activeTab.id, { desktop: v })} />} />
               <ListRow left={<Icon name="walletconnect" size={20} />} title={t('siteConnection')} subtitle={siteConn ? `${t('connected')} · ${chain.name}` : t('notConnected')} onPress={() => { setMenu(false); setConnSheet(true); }} />
               <ListRow left={<Icon name="refresh" size={20} />} title={t('reload')} onPress={() => { setMenu(false); webref.current?.reload(); }} />
+              <ListRow
+                left={<Icon name="home" size={20} />}
+                title={t('browserPark')}
+                subtitle={t('browserParkSub')}
+                onPress={() => {
+                  setMenu(false);
+                  // L'accueil passe PAR-DESSUS : la page reste vivante dessous, sans rechargement.
+                  useBrowserPresence.getState().park({ url: activeTab.url!, title: activeTab.title || activeTab.url! });
+                  router.push('/home');
+                }}
+              />
               <Divider />
             </>
           ) : null}
+          <ListRow left={<Icon name="walletconnect" size={20} />} title={t('browserConnectLink')} subtitle={t('browserConnectLinkSub')} onPress={() => { setMenu(false); setLinkSheet(true); }} />
           <ListRow left={<Icon name="add" size={20} />} title={t('newTab')} onPress={() => newTab(false)} />
           <ListRow left={<Icon name="incognito" size={20} />} title={t('privateTab')} subtitle={t('nothingRemembered')} onPress={() => newTab(true)} />
           <ListRow left={<Icon name="appearance" size={20} />} title={t('darkSites')} right={<Switch value={forceDark} onValueChange={(v) => { setForceDark(v); saveForceDark(v); }} />} />
@@ -769,6 +791,47 @@ export default function Browser() {
             }}
           />
         </View>
+      </Sheet>
+
+      {/* Connexion par lien : WalletConnect ou TON Connect, la page reste ouverte */}
+      <Sheet visible={linkSheet} onClose={() => setLinkSheet(false)}>
+        <Text variant="title2">{t('browserConnectLink')}</Text>
+        <Text variant="bodySecondary" tone="secondary">{t('browserConnectLinkHelp')}</Text>
+        <Input value={linkText} onChangeText={setLinkText} placeholder="wc:… · tc://… · https://…ton-connect…" autoCapitalize="none" autoCorrect={false} />
+        <View style={{ flexDirection: 'row', gap: space[2] }}>
+          <View style={{ flex: 1 }}>
+            <Button label={t('paste')} variant="secondary" onPress={async () => setLinkText((await Clipboard.getStringAsync()).trim())} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Button label={t('scanQr')} variant="secondary" onPress={() => { setLinkSheet(false); router.push('/scan'); }} />
+          </View>
+        </View>
+        <Button
+          label={t('connect')}
+          loading={linkBusy}
+          disabled={!linkText.trim()}
+          onPress={async () => {
+            const link = linkText.trim();
+            setLinkBusy(true);
+            try {
+              if (looksLikeTonConnect(link)) {
+                const err = await useTonConnect.getState().openLink(link);
+                if (err) return toast.error(t('connectionFailed'), t(err as never));
+              } else if (link.startsWith('wc:')) {
+                await useWalletConnect.getState().pair(link);
+              } else {
+                return toast.error(t('invalidUri'), t('browserConnectLinkHelp'));
+              }
+              // La demande s'affiche par-dessus la page (fenêtres globales) : on ferme seulement cette feuille.
+              setLinkText('');
+              setLinkSheet(false);
+            } catch (e) {
+              toast.error(t('connectionFailed'), /expired/i.test(String(e)) ? t('linkExpiredBody') : t('linkUnusable'));
+            } finally {
+              setLinkBusy(false);
+            }
+          }}
+        />
       </Sheet>
 
       {/* Rechercher dans la page */}

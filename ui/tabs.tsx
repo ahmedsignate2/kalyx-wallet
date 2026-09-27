@@ -8,6 +8,7 @@ import React from 'react';
 import { router } from 'expo-router';
 import { BottomNav } from './premium';
 import { useT } from '../lib/settingsStore';
+import { useBrowserPresence } from '../lib/browserPresence';
 
 export type MainTab = 'home' | 'browser' | 'earn' | 'menu';
 
@@ -19,7 +20,13 @@ export function AppTabBar({ active }: { active: MainTab }) {
       center={{ icon: 'exchange', label: t('navExchange'), onPress: () => router.push('/swap') }}
       items={[
         { key: 'home', icon: 'home', label: t('navHome'), onPress: () => router.replace('/home') },
-        { key: 'browser', icon: 'dapps', label: t('navExplore'), onPress: () => router.replace({ pathname: '/browser', params: { tab: '1' } }) },
+        {
+          key: 'browser',
+          icon: 'dapps',
+          label: t('navExplore'),
+          // Une dApp mise de côté est RETROUVÉE (même page, sans rechargement), pas recréée.
+          onPress: () => (useBrowserPresence.getState().parked ? router.dismissTo('/browser') : router.replace({ pathname: '/browser', params: { tab: '1' } })),
+        },
         { key: 'earn', icon: 'staking', label: 'Earn', onPress: () => router.replace('/earn') },
         { key: 'menu', icon: 'menu', label: t('menu'), onPress: () => router.replace('/menu') },
       ]}

@@ -26,6 +26,7 @@ import { FadeInUp } from '../ui/FadeInUp';
 import { cascadeDelay } from '../ui/motion';
 import { LogoImage, Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../ui/kit';
 import { WalletAvatar } from '../ui/avatarArt';
+import { useBrowserPresence, hostOf } from '../lib/browserPresence';
 import { useWallet } from '../lib/walletStore';
 import { addressForChain } from '../lib/accountAddress';
 import { accountDisplayName } from '../lib/walletNames';
@@ -121,6 +122,7 @@ export default function Home() {
   const [nfts, setNfts] = useState<ChainNft[] | null>(null);
   const [openNft, setOpenNft] = useState<ChainNft | null>(null);
   const contacts = useContacts((s) => s.contacts);
+  const parked = useBrowserPresence((s) => s.parked);
 
   // Cache d'abord (instantané), puis réseau.
   useEffect(() => {
@@ -462,6 +464,19 @@ export default function Home() {
             <Icon name="warning" size={18} color={colors.warning} />
             <Text variant="caption" style={{ flex: 1 }}>{t("unverifiedBackupWarning")}</Text>
             <Icon name="chevron" size={14} tone="muted" />
+          </KPressable>
+        ) : null}
+
+        {/* dApp mise de côté : un geste pour la retrouver telle quelle. */}
+        {parked ? (
+          <KPressable
+            onPress={() => router.dismissTo('/browser')}
+            accessibilityLabel={t('browserBackTo').replace('{site}', hostOf(parked.url))}
+            style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: space[2], paddingHorizontal: space[3], borderRadius: radius.round, backgroundColor: colors.surface2 }}
+          >
+            <Icon name="dapps" size={16} tone="muted" />
+            <Text variant="caption" numberOfLines={1} style={{ maxWidth: 240 }}>{t('browserBackTo').replace('{site}', hostOf(parked.url))}</Text>
+            <Icon name="chevron" size={12} tone="muted" />
           </KPressable>
         ) : null}
 
