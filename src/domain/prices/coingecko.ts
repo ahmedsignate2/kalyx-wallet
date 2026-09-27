@@ -108,7 +108,8 @@ export function parseSearchCoins(json: unknown): SearchCoin[] {
       id: c.id!,
       name: c.name ?? c.id!,
       symbol: (c.symbol ?? '').toUpperCase(),
-      thumb: c.thumb ?? c.large ?? '',
+      // `large` (250 px) d'abord : `thumb` ne fait que 25 px, flou dès 36 px à l'écran.
+      thumb: c.large ?? c.thumb ?? '',
       rank: typeof c.market_cap_rank === 'number' ? c.market_cap_rank : null,
     }));
 }
