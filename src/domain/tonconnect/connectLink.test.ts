@@ -62,3 +62,12 @@ describe('anti-hameçonnage', () => {
     expect(manifestOriginMatches('https://app.ston.fi.evil.io/m.json', ston)).toBe(false);
   });
 });
+
+describe('liens Kalyx (liste officielle des wallets)', () => {
+  const { KALYX_BRIDGE } = require('./connectLink');
+  const q = V.tonkeeper.slice(V.tonkeeper.indexOf('?'));
+  it.each([['kalyx://' + q], ['https://kalyxwallet.com/ton-connect' + q]])('%s : reconnu, réponse sur le pont officiel', (link) => {
+    expect(looksLikeTonConnect(link)).toBe(true);
+    expect(parseConnectLink(link)).toMatchObject({ clientId: V.id, bridge: KALYX_BRIDGE });
+  });
+});

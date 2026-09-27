@@ -17,6 +17,17 @@
 import WALLETS from './wallets-bridges.json';
 
 export const DEFAULT_BRIDGE = 'https://bridge.tonapi.io/bridge';
+/**
+ * Pont que Kalyx déclare dans la liste officielle des wallets : celui de la
+ * fondation TON. Une dApp qui a choisi « Kalyx » écoute ICI — la réponse doit
+ * donc partir ici quand la demande arrive par un lien Kalyx.
+ */
+export const KALYX_BRIDGE = 'https://connect.ton.org/bridge';
+
+/** Lien propre à Kalyx : `kalyx://…` ou `https://kalyxwallet.com/ton-connect…`. */
+function isKalyxLink(link: string): boolean {
+  return /^kalyx:/i.test(link) || /^https:\/\/(www\.)?kalyxwallet\.com\/ton-connect/i.test(link);
+}
 
 export interface ConnectRequest {
   manifestUrl: string;
@@ -57,6 +68,7 @@ const BRIDGE_BY_LINK = new Map<string, string>(
 
 /** Pont à utiliser pour un lien scanné. */
 export function bridgeForLink(link: string): string {
+  if (isKalyxLink(link)) return KALYX_BRIDGE;
   try {
     const u = new URL(link);
     if (u.protocol === 'tc:') return DEFAULT_BRIDGE;
