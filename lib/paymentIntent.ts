@@ -179,6 +179,15 @@ export async function runQrIntent(result: QrResult, opts?: { replace?: boolean }
     go('/walletconnect');
     return;
   }
+  if (result.kind === 'tonconnect') {
+    // La demande s'affiche par-dessus l'écran courant (ui/TonConnectHost) : pas de navigation.
+    // Chargé à la demande : le magasin TON Connect n'a rien à faire au démarrage.
+    const { useTonConnect } = await import('./tonconnect/store');
+    const err = await useTonConnect.getState().openLink(result.link);
+    if (err) toast.error(tr('connectionFailed'), tr(err as never));
+    if (opts?.replace) router.back();
+    return;
+  }
   if (result.kind === 'url') {
     go({ pathname: '/browser', params: { url: result.url } });
     return;

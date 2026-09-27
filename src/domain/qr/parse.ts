@@ -5,6 +5,7 @@
  * paiement (EIP-681 ethereum:, BIP-21 bitcoin:, Solana Pay solana:),
  * WalletConnect (wc:) et URLs web. Tout le reste = invalide.
  */
+import { looksLikeTonConnect } from '../tonconnect/connectLink';
 import { isValidEvmAddress, normalizeEvmAddress } from '../validation/address';
 import { isValidBtcAddress, normalizeBtcAddress } from '../validation/btcAddress';
 import { isValidSolanaAddress } from '../../crypto/solana';
@@ -78,6 +79,8 @@ export type QrResult =
    */
   | { kind: 'lightning-only' }
   | { kind: 'walletconnect'; uri: string }
+  /** Demande de connexion TON Connect (QR d'une dApp TON, lien `tc://` ou universel). */
+  | { kind: 'tonconnect'; link: string }
   /**
    * Lien WalletConnect Pay : une DEMANDE côté marchand, pas une adresse.
    * Distingué des URI de paiement de chaîne, qui désignent un destinataire.
@@ -374,6 +377,13 @@ export function parseQr(raw: string): QrResult {
 
   // WalletConnect (case-sensitive : on garde la chaîne d'origine).
   if (lower.startsWith('wc:')) return { kind: 'walletconnect', uri: s };
+
+  /*
+   * TON Connect : testé AVANT la branche « URL web ». Le QR d'une dApp TON est
+   * un lien https vers un wallet (Tonkeeper, Telegram Wallet…) qui porte la
+   * demande en paramètres : sans ce cas, il s'ouvrirait dans le navigateur.
+   */
+  if (looksLikeTonConnect(s)) return { kind: 'tonconnect', link: s };
 
   /*
    * Lien de paiement marchand. Testé AVANT la branche « URL web » : sans cela
