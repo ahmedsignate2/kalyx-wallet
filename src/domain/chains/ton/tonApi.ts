@@ -18,6 +18,7 @@ import { WalletError } from '../../errors';
 import type { TonAccountState, TonAccountStatus } from './tonCenter';
 import type { TonWalletVersion } from './tonWallet';
 import { parseJettonBalances, type TonJettonBalance } from './tonJettons';
+import { normalizeTonDomain, parseDnsWallet, parseTonNfts, type TonNft } from './tonNfts';
 
 type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<{ status: number; text(): Promise<string> }>;
 
@@ -150,6 +151,23 @@ export class TonApiClient {
     const r = await this.call('GET', `/v2/accounts/${seg(address)}/jettons?currencies=${cur}`);
     if (r.status !== 200 || !r.json) throw new WalletError('RPC_UNAVAILABLE', `TonAPI : jetons illisibles (HTTP ${r.status})`);
     return parseJettonBalances(r.json, cur);
+  }
+
+  /** NFT détenus (domaines .ton compris), arnaques écartées. */
+  async nfts(address: string, limit = 100): Promise<TonNft[]> {
+    const r = await this.call('GET', `/v2/accounts/${seg(address)}/nfts?limit=${limit}&offset=0&indirect_ownership=false`);
+    if (r.status !== 200 || !r.json) throw new WalletError('RPC_UNAVAILABLE', `TonAPI : NFT illisibles (HTTP ${r.status})`);
+    return parseTonNfts(r.json);
+  }
+
+  /** Nom .ton → adresse du portefeuille désigné, ou null s'il n'existe pas / ne désigne rien. */
+  async resolveDomain(name: string, testnet: boolean): Promise<string | null> {
+    const domain = normalizeTonDomain(name);
+    if (!domain) return null;
+    const r = await this.call('GET', `/v2/dns/${domain}/resolve`);
+    if (r.status === 404 || (r.status >= 400 && r.status < 500)) return null;
+    if (r.status !== 200) throw new WalletError('RPC_UNAVAILABLE', `TonAPI : résolution impossible (HTTP ${r.status})`);
+    return parseDnsWallet(r.json, testnet);
   }
 
   async events(address: string, limit = 25): Promise<TonApiEvent[]> {

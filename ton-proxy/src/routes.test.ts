@@ -14,6 +14,10 @@ test('les routes relevées passent, sur les deux réseaux', () => {
     ['GET', `/mainnet/v2/wallet/${A}/seqno`, ''],
     ['GET', '/testnet/v2/blockchain/messages/111097c6ae737d4a980c7629dcca17049a817c5934f7b643200b8cb0aac2215f/transaction', ''],
     ['GET', '/mainnet/v2/rates', 'tokens=ton&currencies=usd'],
+    ['GET', `/mainnet/v2/accounts/${A}/nfts`, 'limit=100&offset=0&indirect_ownership=false'],
+    ['GET', '/mainnet/v2/dns/foundation.ton/resolve', ''],
+    ['GET', '/mainnet/v2/dns/sub.kalyx-wallet.ton/resolve', ''],
+    ['GET', '/mainnet/v2/dns/alice.t.me/resolve', ''],
     ['POST', '/mainnet/v2/wallet/emulate', ''],
     ['POST', '/testnet/v2/blockchain/message', ''],
   ]) assert.equal(R(m, p, q).ok, true, `${m} ${p}`);
@@ -24,6 +28,10 @@ test('pas un proxy ouvert : tout le reste est refusé', () => {
   assert.equal(R('GET', '/v2/accounts/' + A).ok, false); // réseau obligatoire
   assert.equal(R('GET', '/mainnet/v2/accounts/pas-une-adresse').ok, false);
   assert.equal(R('GET', `/mainnet/v2/accounts/${A}/../../admin`).ok, false);
+  assert.equal(R('GET', '/mainnet/v2/dns/Foundation.TON/resolve').ok, false); // l'app met en minuscules
+  assert.equal(R('GET', '/mainnet/v2/dns/evil.com/resolve').ok, false);
+  assert.equal(R('GET', '/mainnet/v2/dns/a..ton/resolve').ok, false);
+  assert.equal(R('GET', `/mainnet/v2/accounts/${A}/nfts`, 'limit=1000').ok, false);
   assert.deepEqual(R('DELETE', `/mainnet/v2/accounts/${A}`), { ok: false, status: 405, error: 'method not allowed' });
 });
 

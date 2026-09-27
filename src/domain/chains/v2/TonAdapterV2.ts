@@ -49,6 +49,7 @@ import { TonApiClient, type TonApiEvent } from '../ton/tonApi';
 import { TON_PROXY_URL } from '../ton/tonProxy';
 import { buildTonTransfer, tonExternalForEstimate, tonTransferBodyForEstimate, TON_SEND_MODE_DEFAULT } from '../ton/tonTransfer';
 import { tonWalletAddress, TON_IMPORT_WALLET_VERSIONS, type TonWalletVersion } from '../ton/tonWallet';
+import type { TonNft } from '../ton/tonNfts';
 import { jettonTransferBody, rawJettonAddress, JETTON_TRANSFER_TON, type TonJettonBalance } from '../ton/tonJettons';
 
 /**
@@ -379,6 +380,16 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
   async jettons(address: string, currency = 'usd'): Promise<TonJettonBalance[]> {
     if (!this.api) return notYet('la lecture des jetons sans TonAPI');
     return this.api.jettons(address, currency);
+  }
+
+  /** NFT détenus, domaines .ton compris ; vide sans TonAPI. */
+  async nfts(address: string): Promise<TonNft[]> {
+    return this.api ? this.api.nfts(address) : [];
+  }
+
+  /** Nom .ton → adresse conviviale, ou null. Sans TonAPI : null (pas de résolveur de repli). */
+  async resolveDomain(name: string): Promise<string | null> {
+    return this.api ? this.api.resolveDomain(name, this.testnet) : null;
   }
 
   async listTokens(address: string): Promise<TokenHolding[]> {
