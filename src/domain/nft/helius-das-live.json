@@ -1,0 +1,1112 @@
+{
+ "_source": "Helius DAS getAssetsByOwner, compte public DmvJgd4T…, relevé 2026-09-27",
+ "result": {
+  "total": 35,
+  "items": [
+   {
+    "id": "JDtdTLzb7gpBBsQrKWDYX2NCfUZHkzATH2QX5dFrTL7H",
+    "interface": "ProgrammableNFT",
+    "compression": {
+     "compressed": false
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "J1S9H3QjnRtBbbuD4HjPV6RpRhwuk4zKbxsnCHuTgh9w",
+      "collection_metadata": {
+       "name": "Mad Lads"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Mad Lads #7972"
+     },
+     "links": {
+      "image": "https://madlads.s3.us-west-2.amazonaws.com/images/7972.png"
+     },
+     "files": [
+      {
+       "uri": "https://madlads.s3.us-west-2.amazonaws.com/images/7972.png",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://madlads.s3.us-west-2.amazonaws.com/images/7972.png",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "HdnVAJdUjhHgx22GRZjHnDZK6AdNoji9CBtafv1653p7",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "CvsKkZM6UAvCJBF2SGLfR8di52ZhYscg9zBNzCfkB19H",
+      "collection_metadata": {
+       "name": "Golden Shorts Bingo Cards"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Golden Shorts Bingo Cards"
+     },
+     "links": {
+      "image": "https://bafybeiarry26winniyzce7gzzlidpkgs2xbcwevv7jmq4ifnqvlygungm4.ipfs.w3s.link/32152.png"
+     },
+     "files": [
+      {
+       "uri": "https://bafybeiarry26winniyzce7gzzlidpkgs2xbcwevv7jmq4ifnqvlygungm4.ipfs.w3s.link/32152.png",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://bafybeiarry26winniyzce7gzzlidpkgs2xbcwevv7jmq4ifnqvlygungm4.ipfs.w3s.link/32152.png",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "HWXTecVfJd2QT2QVfWq8jnusrri3UQHMJp3DSrrsKuQA",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "FJtF4yc7Ho3cvN6cVRfTyyMcG3XPP7bakX7vVBvKpsEF",
+      "collection_metadata": {
+       "name": "Claim You BOME"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Claim You BOME"
+     },
+     "links": {
+      "image": "https://img.hi-hi.vip/json/img/666bome.png"
+     },
+     "files": [
+      {
+       "uri": "https://img.hi-hi.vip/json/img/666bome.png",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://img.hi-hi.vip/json/img/666bome.png",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "GaUXESeVvv2HjdpMEHY1UekWV6izTNFmM6nWHP5VShUJ",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "AERs5TL38hXyDrsS3BPZCmkfhx2aq1NbCNBS8xHjKmJm",
+      "collection_metadata": {
+       "name": "🎁Jupiter AirDrop"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "🎁2.0 Jupiter AirDrop"
+     },
+     "links": {
+      "image": "https://img.hi-hi.vip/json/img/jup333.png"
+     },
+     "files": [
+      {
+       "uri": "https://img.hi-hi.vip/json/img/jup333.png",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://img.hi-hi.vip/json/img/jup333.png",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "GR1GEq6vm9jDha5A4Et5QHDPg3th3TAquTEVjPuJDnUd",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "7u8eADjYyfNpr5tmvar9DqS2jSF38wgpw3ytEnpnP5Lp",
+      "collection_metadata": {
+       "name": "Alpha Vault #3"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Alpha Vault #3"
+     },
+     "links": {
+      "image": "https://bafkreiezh525cboeb47un42arnc3l27t6zcurllecwnijvvlu566xtwssa.ipfs.nftstorage.link/"
+     },
+     "files": [
+      {
+       "uri": "https://bafkreiezh525cboeb47un42arnc3l27t6zcurllecwnijvvlu566xtwssa.ipfs.nftstorage.link/",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://bafkreiezh525cboeb47un42arnc3l27t6zcurllecwnijvvlu566xtwssa.ipfs.nftstorage.link/",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "Fz3AjgpRfrqtUXRf1pF3JKnne21WGqCGCwCwvvaPWNZT",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "CZHE1fJJJyt7Qs2rWbv9bpcNMFY9ZWR6XrSEJhUtSgo3",
+      "collection_metadata": {
+       "name": "dVIN Labs"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "dVIN Digital Cork #107972"
+     },
+     "links": {
+      "image": "https://clubdvin.mypinata.cloud/ipfs/QmZAH7HhZN2Xw6DvRuco5e1cS4hiAXchiDiMjBXV3ufdnD"
+     },
+     "files": [
+      {
+       "uri": "https://clubdvin.mypinata.cloud/ipfs/QmZAH7HhZN2Xw6DvRuco5e1cS4hiAXchiDiMjBXV3ufdnD",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://clubdvin.mypinata.cloud/ipfs/QmZAH7HhZN2Xw6DvRuco5e1cS4hiAXchiDiMjBXV3ufdnD",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "FsqToj3p6xaMR9SKsLjb8Cf3xahrqLXNbY7Fw4U2ZZVZ",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "o1JpgnGSmuMGg3S5bFQKMkg5eKJXZE9UMv5Bmqt67gM",
+      "collection_metadata": {
+       "name": "4000$ W Drop 4000W.io"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "4000$ W Drop 4000W.io"
+     },
+     "links": {
+      "image": "https://img.hi-hi.vip/json/img/4000w1.gif"
+     },
+     "files": [
+      {
+       "uri": "https://img.hi-hi.vip/json/img/4000w1.gif",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://img.hi-hi.vip/json/img/4000w1.gif",
+       "mime": "image/gif"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "FPYNRv1JMkMWQfkZ4XY3y3G8PwyK8CNRMKtY5ipqzM6T",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "GC5tNrmpPnpqsVcVZtdWsGnHZpxVyPJb4kJW7sXCukWu",
+      "collection_metadata": {
+       "name": "PYTH Drip"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Pixelated Prophecy"
+     },
+     "links": {
+      "image": "https://arweave.net/recerOIXMLGiEYzPjyQRFlakcGmspR2IVX10vTPeiLU?ext=png"
+     },
+     "files": [
+      {
+       "uri": "https://arweave.net/recerOIXMLGiEYzPjyQRFlakcGmspR2IVX10vTPeiLU?ext=png",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://arweave.net/recerOIXMLGiEYzPjyQRFlakcGmspR2IVX10vTPeiLU?ext=png",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "FA3GXCJgdk6Y8rjBffeineaBdDBwuzVrePb6sg6FAfmZ",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "Em9wb7niKr9bkvDeYnzA57XPU11KDTBSKBnY7J4SHPFL",
+      "collection_metadata": {
+       "name": "Drop Pass"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Drop Pass"
+     },
+     "links": {
+      "image": "https://nftstorage.link/ipfs/bafybeieykfh3ephftxbrcj5bxya3e4r5gy2d35xdugqfkle57td6nhmfaa"
+     },
+     "files": [
+      {
+       "uri": "https://nftstorage.link/ipfs/bafybeieykfh3ephftxbrcj5bxya3e4r5gy2d35xdugqfkle57td6nhmfaa",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://nftstorage.link/ipfs/bafybeieykfh3ephftxbrcj5bxya3e4r5gy2d35xdugqfkle57td6nhmfaa",
+       "mime": "image/gif"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "EjTvzQQkPBdnXCWh93GqMfZLR3tLjf57t48Qf2vVpV63",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "FJtF4yc7Ho3cvN6cVRfTyyMcG3XPP7bakX7vVBvKpsEF",
+      "collection_metadata": {
+       "name": "Claim You BOME"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Claim You BOME"
+     },
+     "links": {
+      "image": "https://img.hi-hi.vip/json/img/666bome.png"
+     },
+     "files": [
+      {
+       "uri": "https://img.hi-hi.vip/json/img/666bome.png",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://img.hi-hi.vip/json/img/666bome.png",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "EdFMbnMuvsaBJay3iwP9t7oYrYBPdLbaUtNVqC8VW6mq",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "9oeJLywNwTYjdJcQaF6GByUz98wGqG4LytBWSeDaFCNW",
+      "collection_metadata": {
+       "name": "Solana SCX Shopping Voucher "
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Solana SCX Shopping Voucher"
+     },
+     "links": {
+      "image": "https://updg8.storage.googleapis.com/7282073b-d1cb-4a13-ad2f-ccfa414ed305"
+     },
+     "files": [
+      {
+       "uri": "https://updg8.storage.googleapis.com/7282073b-d1cb-4a13-ad2f-ccfa414ed305",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://updg8.storage.googleapis.com/7282073b-d1cb-4a13-ad2f-ccfa414ed305",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "De3WJG9yixSQsiPbdKAc6pkwWWbtEfrRnyRcnbubg6Pw",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "2NjH9aFB8ha1Vg1kfnqAnabrPmG7ZvwViwFTS13Grvgk",
+      "collection_metadata": {
+       "name": "2400JUP Drop Box"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "2400JUP Drop Box"
+     },
+     "links": {
+      "image": "https://nftstorage.link/ipfs/bafybeighewxxp5ubsie3m4esxhczoylpxarb7gui3ryxykz7hrr7xugnwm"
+     },
+     "files": [
+      {
+       "uri": "https://nftstorage.link/ipfs/bafybeighewxxp5ubsie3m4esxhczoylpxarb7gui3ryxykz7hrr7xugnwm",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://nftstorage.link/ipfs/bafybeighewxxp5ubsie3m4esxhczoylpxarb7gui3ryxykz7hrr7xugnwm",
+       "mime": "image/gif"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "DTdJYYQVmVwBattkyNLPDoBhRDCJSPDLo1w6WF9bxH9A",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "HZxvoXBwWJK5kWkG2Zww47YNJr6NhHPLnHjYxUZ7SnbN",
+      "collection_metadata": {
+       "name": "Truck Coin Swap"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Truck Coin Swap"
+     },
+     "links": {
+      "image": "https://updg8.storage.googleapis.com/d01183c1-d1e0-4d0b-a743-c82bf74f6b44"
+     },
+     "files": [
+      {
+       "uri": "https://updg8.storage.googleapis.com/d01183c1-d1e0-4d0b-a743-c82bf74f6b44",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://updg8.storage.googleapis.com/d01183c1-d1e0-4d0b-a743-c82bf74f6b44",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "DPG5GsAcAmBi3dPLMwV5tdvMd8BsHUAHaEpFbWN5jLNd",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "Em9wb7niKr9bkvDeYnzA57XPU11KDTBSKBnY7J4SHPFL",
+      "collection_metadata": {
+       "name": "Drop Pass"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Drop Pass"
+     },
+     "links": {
+      "image": "https://nftstorage.link/ipfs/bafybeieykfh3ephftxbrcj5bxya3e4r5gy2d35xdugqfkle57td6nhmfaa"
+     },
+     "files": [
+      {
+       "uri": "https://nftstorage.link/ipfs/bafybeieykfh3ephftxbrcj5bxya3e4r5gy2d35xdugqfkle57td6nhmfaa",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://nftstorage.link/ipfs/bafybeieykfh3ephftxbrcj5bxya3e4r5gy2d35xdugqfkle57td6nhmfaa",
+       "mime": "image/gif"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "BUxkuzirMjxVquxDm52jo5RahDyLxMzTZfXaP2qYSeQv",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "AcWeBB7sbJ3zQRgz7bDUqaqpdmFDX4Y7SUYrgWHi3svx",
+      "collection_metadata": {
+       "name": "Raposa Farmooors"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Raposa Farmooors"
+     },
+     "links": {
+      "image": "https://updg8.storage.googleapis.com/2922a160-9255-4e69-b539-569812089c60"
+     },
+     "files": [
+      {
+       "uri": "https://updg8.storage.googleapis.com/2922a160-9255-4e69-b539-569812089c60",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://updg8.storage.googleapis.com/2922a160-9255-4e69-b539-569812089c60",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "BQrLuxn5hU6rvxnMmJKrc9DbXb5CLirRJtGh2H52fPrv",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [],
+    "content": {
+     "metadata": {
+      "name": "Data Pioneer Invitation #259"
+     },
+     "links": {
+      "image": "https://tudrhsasxekfwaalxfob.supabase.co/storage/v1/object/public/public-assets/nft/data-pioneer-invitation.png"
+     },
+     "files": [
+      {
+       "uri": "https://tudrhsasxekfwaalxfob.supabase.co/storage/v1/object/public/public-assets/nft/data-pioneer-invitation.png",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://tudrhsasxekfwaalxfob.supabase.co/storage/v1/object/public/public-assets/nft/data-pioneer-invitation.png",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "BQPLfiKygQBPeJXeWNx4oQB8HNRjJFuvdGnfJhaQguLH",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "6wz9cMQfiNB1oBNGvjtp9zmcWdxhcLhzs8dCZM9hbPA4",
+      "collection_metadata": {
+       "name": "JUP Third round Drop"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "JUP Third round Drop"
+     },
+     "links": {
+      "image": "https://img.hi-hi.vip/json/img/555jup.png"
+     },
+     "files": [
+      {
+       "uri": "https://img.hi-hi.vip/json/img/555jup.png",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://img.hi-hi.vip/json/img/555jup.png",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "8m2LLL3BXJYo2kuPzGy2oajT57EYKQKcarq8N4arBe59",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "C2Nn78Wa2FqAt2pjo6dZLP3PEy1pn5Qxf25doZcB5uqo",
+      "collection_metadata": {
+       "name": "\\\" U​SD​C VO​UC​HER \\"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": ""
+     },
+     "links": {
+      "image": "https://ipfs.io/ipfs/QmduygWEMM8yZquZryyyaQSbqhH1tnCbSBTTdwM9WwtKx5"
+     },
+     "files": [
+      {
+       "uri": "https://ipfs.io/ipfs/QmduygWEMM8yZquZryyyaQSbqhH1tnCbSBTTdwM9WwtKx5",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://ipfs.io/ipfs/QmduygWEMM8yZquZryyyaQSbqhH1tnCbSBTTdwM9WwtKx5",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "8iLXcB1z9C7vq1BdSi1TVpG2cNh1HVKk8oMYJYHFwP2r",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "3EJr3Lya26q5njaZaQ2ZcHkpmHPhDHt3MrGeQbCjzZYH",
+      "collection_metadata": {
+       "name": "Portals Loot Boxes"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Mad Lads Loot Box"
+     },
+     "links": {
+      "image": "https://shdw-drive.genesysgo.net/63pJNMwRHXoFJ7x4BFoa1gQiDyxHQEm7hVEg1yimv1Xy/452faa66-feac-4221-89cf-049cdf03f850.jpg"
+     },
+     "files": [
+      {
+       "uri": "https://shdw-drive.genesysgo.net/63pJNMwRHXoFJ7x4BFoa1gQiDyxHQEm7hVEg1yimv1Xy/452faa66-feac-4221-89cf-049cdf03f850.jpg",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://shdw-drive.genesysgo.net/63pJNMwRHXoFJ7x4BFoa1gQiDyxHQEm7hVEg1yimv1Xy/452faa66-feac-4221-89cf-049cdf03f850.jpg",
+       "mime": "image/jpg"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "7h5mrCAj9GoTw7tSKMft8K1Jnd4K3PNWy5zkDBNEASWC",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "8e3T4jXSuf1b1qUGJtbLHmZ1dFczK38FPGhxLd3yiK7i",
+      "collection_metadata": {
+       "name": "🎁WEN Vоucher"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "🎁WEN Voucher"
+     },
+     "links": {
+      "image": "https://nftstorage.link/ipfs/bafkreierpy2voo47v4tcnwfwoqfgpznoqc3h2tk6xc4mirpztep2hsg52q"
+     },
+     "files": [
+      {
+       "uri": "https://nftstorage.link/ipfs/bafkreierpy2voo47v4tcnwfwoqfgpznoqc3h2tk6xc4mirpztep2hsg52q",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://nftstorage.link/ipfs/bafkreierpy2voo47v4tcnwfwoqfgpznoqc3h2tk6xc4mirpztep2hsg52q",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "7eAim47GEqChjbbppdB7sz7dtjmrdYPMds2ZqRV2EUnG",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": false
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "BuAYoZPVwQw4AfeEpHTx6iGPbQtB27W7tJUjgyLzgiko",
+      "collection_metadata": {
+       "name": "Quekz"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Quekz #3976"
+     },
+     "links": {
+      "image": "https://arweave.net/CJ4PzUlHH176yKVBhXLjkNjdVDYjfDsajge6UeBvLcU"
+     },
+     "files": [
+      {
+       "uri": "https://arweave.net/CJ4PzUlHH176yKVBhXLjkNjdVDYjfDsajge6UeBvLcU",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://arweave.net/CJ4PzUlHH176yKVBhXLjkNjdVDYjfDsajge6UeBvLcU",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "7J8Fco9mUnFysC3KgdmpBAsa6TSFmT5Q5nkrbigD3sdM",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "5ZJRSMq92A98UHZ8m1sQuikGcv6BfhXPNkBLoRg5DAGd",
+      "collection_metadata": {
+       "name": "3000$W Token Ticket"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "3000$W Token Ticket"
+     },
+     "links": {
+      "image": "https://nftstorage.link/ipfs/bafybeidlrppkqhuyj25z637hgd7z373vmufiyp5w62a35xhsvpqnsxjagm"
+     },
+     "files": [
+      {
+       "uri": "https://nftstorage.link/ipfs/bafybeidlrppkqhuyj25z637hgd7z373vmufiyp5w62a35xhsvpqnsxjagm",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://nftstorage.link/ipfs/bafybeidlrppkqhuyj25z637hgd7z373vmufiyp5w62a35xhsvpqnsxjagm",
+       "mime": "image/gif"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "75C3hSN976EwVLyf6bWPSiTjNGhADF6iCFGPxF7LiXzP",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "AhHn9PRttGF8XAi7onB2goqFYCmVbbRV6Quf3hjVUqwf",
+      "collection_metadata": {
+       "name": "RAYD.PROMO Limited Gift"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "RAYD.PROMO Limited Gift"
+     },
+     "links": {
+      "image": "https://i.ibb.co/3vwcb21/4-1.gif"
+     },
+     "files": [
+      {
+       "uri": "https://i.ibb.co/3vwcb21/4-1.gif",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://i.ibb.co/3vwcb21/4-1.gif",
+       "mime": "image/gif"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "6ZULK6oVnScyJf8cYKvw8gcAJ1kSzUB1QWALqvxYJS17",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "BKpjKCyWXe25TNTL6LkGfS7szQoT48QaGM6hB22MT9Ms",
+      "collection_metadata": {
+       "name": "FOMO 0% HOUSE EDGE GAMES"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "FOMO 0% HOUSE EDGE GAMES"
+     },
+     "links": {
+      "image": "https://updg8.storage.googleapis.com/fb4830e3-60e0-431e-850b-0f4f1521b3e0"
+     },
+     "files": [
+      {
+       "uri": "https://updg8.storage.googleapis.com/fb4830e3-60e0-431e-850b-0f4f1521b3e0",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://updg8.storage.googleapis.com/fb4830e3-60e0-431e-850b-0f4f1521b3e0",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "6VAyyFsPrKYG8BP4wY7jJyHefgt9p36zgpT39YKTLUqu",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "CfLaCSFuiwtfwB1jCLzQwY7wscy3R62LWHDhYXNegEUf",
+      "collection_metadata": {
+       "name": "SOL SLOW"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Still Faster than ETH"
+     },
+     "links": {
+      "image": "https://hips.hearstapps.com/hmg-prod/images/beautiful-smooth-haired-red-cat-lies-on-the-sofa-royalty-free-image-1678488026.jpg"
+     },
+     "files": [
+      {
+       "uri": "https://hips.hearstapps.com/hmg-prod/images/beautiful-smooth-haired-red-cat-lies-on-the-sofa-royalty-free-image-1678488026.jpg",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://hips.hearstapps.com/hmg-prod/images/beautiful-smooth-haired-red-cat-lies-on-the-sofa-royalty-free-image-1678488026.jpg",
+       "mime": "image/jpeg"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "4FeVTSdVvKcp7KZcQTqeLqPajvvBHPwy5zLQyEfYwKjc",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "GTesCKkqXA5j9SMz6asuoaNynSBExiVUkMQQL8cczQEW",
+      "collection_metadata": {
+       "name": "FOLLOW @SlerfPFPs"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "FOLLOW @SlerfPFPs"
+     },
+     "links": {
+      "image": "https://updg8.storage.googleapis.com/ab3f5963-52eb-481b-8699-08d7c9ea3448"
+     },
+     "files": [
+      {
+       "uri": "https://updg8.storage.googleapis.com/ab3f5963-52eb-481b-8699-08d7c9ea3448",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://updg8.storage.googleapis.com/ab3f5963-52eb-481b-8699-08d7c9ea3448",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "3pMNMGfx9M98j4dPy9hHWWjGKPidJ5rvRPSMwwgEBbEC",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "CZj71qF9DuyPW8nzosHPu9eU9WGw5BJZgozjq9nDiSQu",
+      "collection_metadata": {
+       "name": "FOMO 0% HOUSE EDGE GAMES"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "FOMO 0% HOUSE EDGE GAMES"
+     },
+     "links": {
+      "image": "https://updg8.storage.googleapis.com/9ad36034-c5f5-4c63-b6a8-03ba4559edc7"
+     },
+     "files": [
+      {
+       "uri": "https://updg8.storage.googleapis.com/9ad36034-c5f5-4c63-b6a8-03ba4559edc7",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://updg8.storage.googleapis.com/9ad36034-c5f5-4c63-b6a8-03ba4559edc7",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "3NhbDhVxkRZA7LKbdaVSCisPpmystngjA7gJa7XZSEza",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [],
+    "content": {
+     "metadata": {
+      "name": "Mad Lads Inth Pool #7972"
+     },
+     "links": {
+      "image": "https://shdw-drive.genesysgo.net/8tFbksjpYVZBwgHuu1WfS4B5h8M6zDgkNpz4kLXWb9dm/7972.png"
+     },
+     "files": [
+      {
+       "uri": "https://shdw-drive.genesysgo.net/8tFbksjpYVZBwgHuu1WfS4B5h8M6zDgkNpz4kLXWb9dm/7972.png",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://shdw-drive.genesysgo.net/8tFbksjpYVZBwgHuu1WfS4B5h8M6zDgkNpz4kLXWb9dm/7972.png",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "31VxKbXEBpVH5945EUyqnWhEsyvjDRfMxrJtpAWQ3oFP",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "BYnmpDzjFaEs6dghi5UsGTL5ZyoAPbwWfMaVFzDcVj8",
+      "collection_metadata": {
+       "name": "Limited Drop"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Limited Drop"
+     },
+     "links": {
+      "image": "https://nftstorage.link/ipfs/bafybeiahfsbxvuvvwyxvual6o43f56wx3ciiylh7b37eekrqd76fruggl4"
+     },
+     "files": [
+      {
+       "uri": "https://nftstorage.link/ipfs/bafybeiahfsbxvuvvwyxvual6o43f56wx3ciiylh7b37eekrqd76fruggl4",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://nftstorage.link/ipfs/bafybeiahfsbxvuvvwyxvual6o43f56wx3ciiylh7b37eekrqd76fruggl4",
+       "mime": "image/gif"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "2oYyzD1d7dnpNFrWC7Ji85GEjtiGx3nh3uegG2A5wvkN",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "3EJr3Lya26q5njaZaQ2ZcHkpmHPhDHt3MrGeQbCjzZYH",
+      "collection_metadata": {
+       "name": "Portals Loot Boxes"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Claynosaurz Loot Box"
+     },
+     "links": {
+      "image": "https://shdw-drive.genesysgo.net/63pJNMwRHXoFJ7x4BFoa1gQiDyxHQEm7hVEg1yimv1Xy/a6858c61-6fc1-4337-bca5-2570bfea5d4f.jpg"
+     },
+     "files": [
+      {
+       "uri": "https://shdw-drive.genesysgo.net/63pJNMwRHXoFJ7x4BFoa1gQiDyxHQEm7hVEg1yimv1Xy/a6858c61-6fc1-4337-bca5-2570bfea5d4f.jpg",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://shdw-drive.genesysgo.net/63pJNMwRHXoFJ7x4BFoa1gQiDyxHQEm7hVEg1yimv1Xy/a6858c61-6fc1-4337-bca5-2570bfea5d4f.jpg",
+       "mime": "image/jpg"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "2Wobx5JLANo9AqnFzxV7q8JEYVnfoC1Xq8XKHwzV9tRQ",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "AcWeBB7sbJ3zQRgz7bDUqaqpdmFDX4Y7SUYrgWHi3svx",
+      "collection_metadata": {
+       "name": "Raposa Farmooors"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Raposa Farmooors"
+     },
+     "links": {
+      "image": "https://updg8.storage.googleapis.com/2922a160-9255-4e69-b539-569812089c60"
+     },
+     "files": [
+      {
+       "uri": "https://updg8.storage.googleapis.com/2922a160-9255-4e69-b539-569812089c60",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://updg8.storage.googleapis.com/2922a160-9255-4e69-b539-569812089c60",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "2Mz1fSR9xcJdsqRAB5hR3kGmcZkS6jgGo4WvDpaRSFw9",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "2oq2U6curkz57izRMvmbirztXwVYvyK6T1kz3w64ik3F",
+      "collection_metadata": {
+       "name": "Claim your 5000WIF"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Claim your 5000WIF"
+     },
+     "links": {
+      "image": "https://img.hi-hi.vip/json/img/5000wif.png"
+     },
+     "files": [
+      {
+       "uri": "https://img.hi-hi.vip/json/img/5000wif.png",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://img.hi-hi.vip/json/img/5000wif.png",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "25VW4qn5Sett5eVZ6GbeT8Xv4z7gkzMC1HdZGoxRnZqB",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "4bKV9eUxtKpWeMBcapT2xZDNcVGNy3sCZuEhwiWmbLej",
+      "collection_metadata": {
+       "name": "$ARMENI"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "$ARMENI"
+     },
+     "links": {
+      "image": "https://updg8.storage.googleapis.com/3d9b0fa2-23d8-41c9-a825-6578003d3564"
+     },
+     "files": [
+      {
+       "uri": "https://updg8.storage.googleapis.com/3d9b0fa2-23d8-41c9-a825-6578003d3564",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://updg8.storage.googleapis.com/3d9b0fa2-23d8-41c9-a825-6578003d3564",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "rHvxxKoy2mwpggXYQjw4vDV8KeVtmMvA9JsVz8dqFVW",
+    "interface": "V1_NFT",
+    "compression": {
+     "compressed": true
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "CvsKkZM6UAvCJBF2SGLfR8di52ZhYscg9zBNzCfkB19H",
+      "collection_metadata": {
+       "name": "Golden Shorts Bingo Cards"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Golden Shorts Bingo Cards"
+     },
+     "links": {
+      "image": "https://bafybeiarry26winniyzce7gzzlidpkgs2xbcwevv7jmq4ifnqvlygungm4.ipfs.w3s.link/28605.png"
+     },
+     "files": [
+      {
+       "uri": "https://bafybeiarry26winniyzce7gzzlidpkgs2xbcwevv7jmq4ifnqvlygungm4.ipfs.w3s.link/28605.png",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://bafybeiarry26winniyzce7gzzlidpkgs2xbcwevv7jmq4ifnqvlygungm4.ipfs.w3s.link/28605.png",
+       "mime": "image/png"
+      }
+     ]
+    },
+    "burnt": false
+   },
+   {
+    "id": "cJPw6Xvhtg5rmr6J4kX6QmkzTdU1xzcn14d4MWeBFGC",
+    "interface": "ProgrammableNFT",
+    "compression": {
+     "compressed": false
+    },
+    "grouping": [
+     {
+      "group_key": "collection",
+      "group_value": "pyTh2UtBKfuDW6KCdT3swospYeoLmmKaGujWA91Moru",
+      "collection_metadata": {
+       "name": "Pythenians"
+      }
+     }
+    ],
+    "content": {
+     "metadata": {
+      "name": "Pythenians #2540"
+     },
+     "links": {
+      "image": "https://ipfs.pythenians.xyz/nft/a8b7f67731cbcf399f989cd1ef119a96364870c6.png"
+     },
+     "files": [
+      {
+       "uri": "https://ipfs.pythenians.xyz/nft/a8b7f67731cbcf399f989cd1ef119a96364870c6.png",
+       "cdn_uri": "https://cdn.helius-rpc.com/cdn-cgi/image//https://ipfs.pythenians.xyz/nft/a8b7f67731cbcf399f989cd1ef119a96364870c6.png",
+       "mime": "image/jpg"
+      }
+     ]
+    },
+    "burnt": false
+   }
+  ]
+ }
+}
