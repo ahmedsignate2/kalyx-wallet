@@ -6,6 +6,8 @@ import * as Clipboard from 'expo-clipboard';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWalletConnect } from '../lib/walletconnect';
+import { useTonConnect } from '../lib/tonconnect/store';
+import { looksLikeTonConnect } from '../src/domain/tonconnect/connectLink';
 import { useDappActivity, type SigKind } from '../lib/dappActivity';
 import { toast } from '../lib/toast';
 import { useT } from '../lib/settingsStore';
@@ -34,6 +36,10 @@ export default function WalletConnectScreen() {
   const loadActivity = useDappActivity((s) => s.load);
   useEffect(() => { loadActivity(); }, [loadActivity]);
 
+  const tonSessions = useTonConnect((s) => s.sessions);
+  const openTonLink = useTonConnect((s) => s.openLink);
+  const disconnectTon = useTonConnect((s) => s.disconnect);
+
   const [uri, setUri] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -48,6 +54,14 @@ export default function WalletConnectScreen() {
   }
 
   const onConnect = async () => {
+    // Un lien TON Connect collé ici part vers son propre flux (ui/TonConnectHost).
+    if (looksLikeTonConnect(uri)) {
+      setBusy(true);
+      const err = await openTonLink(uri).finally(() => setBusy(false));
+      if (err) toast.error(t('connectionFailed'), t(err as never));
+      else setUri('');
+      return;
+    }
     if (!uri.trim().startsWith('wc:')) {
       toast.error(t('invalidUri'), t('pasteWcLink'));
       return;
@@ -111,6 +125,22 @@ export default function WalletConnectScreen() {
                 <Muted>{s.url}</Muted>
               </View>
               <Text onPress={() => disconnect(s.topic)} style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('disconnect')}</Text>
+            </Card>
+          ))
+        )}
+
+        {/* Apps TON connectées par TON Connect */}
+        <Text style={[typography.section, { marginTop: spacing(2) }]}>{t('tcConnectedApps')}</Text>
+        {tonSessions.length === 0 ? (
+          <Muted>{t('tcNoApps')}</Muted>
+        ) : (
+          tonSessions.map((s) => (
+            <Card key={s.clientId} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={typography.body}>{s.manifest.name}</Text>
+                <Muted>{s.manifest.url.replace(/^https:\/\//, '')}</Muted>
+              </View>
+              <Text onPress={() => void disconnectTon(s.clientId)} style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('tcDisconnect')}</Text>
             </Card>
           ))
         )}

@@ -507,6 +507,38 @@ part les 0,05 TON joints.
   dans `ton-proxy/`) : sans elles, les NFT TON restent vides et un nom `.ton`
   est « introuvable », sans rien casser d'autre.
 
-Reste : TON Connect v2, staking, commentaires chiffrés, changement de version
-de portefeuille, envoi de NFT.
+## 16. TON Connect v2 (27/09)
+
+Connexion aux dApps TON (STON.fi, DeDust, mini-apps Telegram), en trois couches.
+
+- **Protocole** (`src/domain/tonconnect/`), chaque pièce vérifiée contre sa
+  référence :
+  - `sessionCrypto` : crypto_box reconstruit avec @noble — identique octet
+    pour octet à tweetnacl (`nacl-box-vectors.json`) ;
+  - `connectLink` : liens universels, `tc://`, Telegram (réencodage du SDK
+    inversé) ; le pont de réponse est celui du wallet dont la dApp a affiché
+    le QR (liste officielle, `wallets-bridges.json`) ; manifeste refusé s'il
+    n'est pas hébergé sur le domaine qu'il déclare ;
+  - `tonProof` : mêmes octets signés que Tonkeeper ; `walletStateInit` qui
+    redonne l'adresse ;
+  - `requests` : `sendTransaction` contrôlé (échéance, réseau, expéditeur,
+    adresses conviviales, ≤ 4 messages, contenu lisible) ;
+  - `sse` : lecteur de flux, calé sur le vrai pont de TonAPI.
+- **App** (`lib/tonconnect/`) : pont SSE par XMLHttpRequest (pas
+  d'EventSource en React Native), une connexion par pont ; sessions dans le
+  stockage chiffré ; file de demandes. Test de bout en bout contre une fausse
+  dApp (`store.test.ts`).
+- **Écrans** (`ui/TonConnectHost.tsx`) : la transaction est montrée par ce
+  qu'elle FAIT — émulation TonAPI : TON, jettons, NFT qui sortent, vidage du
+  solde, échec prévisible (bouton désactivé). Code exigé pour tout.
+- **Entrées** : scanner le QR TON Connect d'une dApp, ou coller le lien dans
+  l'écran WalletConnect, qui liste aussi les apps TON connectées.
+
+Pas encore : `signData`, les éléments structurés (`items`), le lien profond
+`tc://` ouvert depuis une autre app (schéma natif : nouvel APK), et
+l'inscription de Kalyx dans la liste officielle des wallets (pour apparaître
+dans le sélecteur des dApps).
+
+Reste : staking, commentaires chiffrés, changement de version de
+portefeuille, envoi de NFT.
 

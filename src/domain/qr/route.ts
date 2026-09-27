@@ -67,6 +67,8 @@ export type QrLabelKey =
   | 'qrToken'
   | 'qrWcTitle'
   | 'qrWcDetail'
+  | 'qrTcTitle'
+  | 'qrTcDetail'
   | 'qrPayTitle'
   | 'qrPayDetail'
   | 'qrSolanaTxRequest'
@@ -143,6 +145,8 @@ export function describeQr(result: QrResult, t: QrTranslate): QrDescription {
       };
     case 'walletconnect':
       return { title: t('qrWcTitle'), detail: t('qrWcDetail'), cta: t('connect'), danger: false };
+    case 'tonconnect':
+      return { title: t('qrTcTitle'), detail: t('qrTcDetail'), cta: t('connect'), danger: false };
     case 'wc-pay':
       return { title: t('qrPayTitle'), detail: t('qrPayDetail'), cta: t('next'), danger: false };
     case 'lightning-only':
