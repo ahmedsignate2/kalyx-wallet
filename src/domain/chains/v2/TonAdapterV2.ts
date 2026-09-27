@@ -234,6 +234,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
           status: this.outcome(tx).status === 'confirmed' ? 'success' : 'failed',
           type: 'TRANSFER',
           description: outs[0].message_content?.decoded?.comment ?? undefined,
+          messageHash: inm?.hash_norm ? hex.encode(base64.decode(inm.hash_norm)) : undefined,
         });
       }
     }

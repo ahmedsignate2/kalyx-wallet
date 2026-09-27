@@ -272,6 +272,10 @@ describe('getHistory — réponse réelle de TON Center', () => {
     const [sent, received] = await a.getHistory(HISTORY.account);
     expect(sent).toMatchObject({ direction: 'out', status: 'success', value: 1171729n, from: HISTORY.account, asset: 'TON', decimals: 9 });
     expect(sent.hash).toMatch(/^[0-9a-f]{64}$/);
+    // L'identifiant rendu après un envoi (hachage normalisé du message) doit retrouver
+    // cette transaction : sans lui, l'écran de suivi restait sur « en attente ».
+    expect(sent.messageHash).toBe(Buffer.from(HISTORY.transactions[0].in_msg!.hash_norm!, 'base64').toString('hex'));
+    expect(sent.messageHash).not.toBe(sent.hash);
     /*
      * Reçu par un compte pas encore déployé : le réseau le marque `aborted`
      * (aucun code à exécuter) alors que les fonds sont crédités. C'est un reçu RÉUSSI.

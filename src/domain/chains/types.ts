@@ -87,6 +87,14 @@ export interface TxSummary {
   asset?: string;
   decimals?: number; // e.g. "SWAP", "TRANSFER", "NFT"
   description?: string; // Texte lisible fourni par l'indexeur (ex: Helius)
+  /**
+   * TON : hachage NORMALISÉ (hex) du message externe qui a déclenché cette
+   * transaction. C'est l'identifiant rendu juste après un envoi — et il diffère
+   * du hachage de la transaction (`hash`). Sans lui, l'écran de suivi cherchait
+   * l'un sous le nom de l'autre et restait sur « en attente » après une
+   * transaction confirmée.
+   */
+  messageHash?: string;
 }
 
 /**
