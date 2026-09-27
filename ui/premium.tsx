@@ -20,6 +20,10 @@ import { Dimensions } from 'react-native';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
 import { Icon, type IconName } from './icon';
 import { Pressable as KPressable, LogoImage } from './kit';
+import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { springs } from './tokens';
+import { useReduceMotion } from '../lib/reduceMotion';
+import { haptic } from '../lib/haptics';
 
 const PREMIUM_W = Dimensions.get('window').width;
 
@@ -607,6 +611,52 @@ export interface NavItem {
 }
 
 /** Bottom nav : 4 items + bouton central surélevé (FAB). */
+/**
+ * Onglet de la barre du bas. L'onglet actif S'ANIME à l'arrivée sur l'écran :
+ * l'icône monte et rebondit, un point de lumière s'allume dessous. La barre est
+ * redessinée par chaque écran : c'est donc exactement le moment où l'on vient
+ * de changer d'onglet — l'animation dit « tu es ici ». Rien si l'utilisateur a
+ * demandé au système de réduire les animations.
+ */
+function NavTab({ item, on }: { item: NavItem; on: boolean }) {
+  const { theme } = useThemeStyles();
+  const { colors } = theme;
+  const reduce = useReduceMotion();
+  const lift = useSharedValue(on && !reduce ? 0 : 1);
+  useEffect(() => {
+    if (on && !reduce) {
+      lift.value = 0;
+      lift.value = withSpring(1, springs.bouncy);
+    } else lift.value = 1;
+  }, [on, reduce, lift]);
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: on ? [{ translateY: (1 - lift.value) * 6 }, { scale: 0.8 + 0.2 * lift.value }] : [],
+  }));
+  const dotStyle = useAnimatedStyle(() => ({ opacity: on ? lift.value : 0, transform: [{ scale: on ? lift.value : 0 }] }));
+  return (
+    <KPressable
+      onPress={() => {
+        // L'onglet courant ne se recharge pas : un `replace` vers soi-même remontait tout l'écran.
+        if (on) return;
+        haptic.selection();
+        item.onPress();
+      }}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: on }}
+      accessibilityLabel={item.label}
+      style={{ flex: 1, alignItems: 'center', gap: 3 }}
+    >
+      <Reanimated.View style={iconStyle}>
+        <Icon name={item.icon} size={22} color={on ? colors.primary : colors.textTertiary} />
+      </Reanimated.View>
+      <Text numberOfLines={1} style={{ fontSize: 11, color: on ? colors.text : colors.textTertiary, fontFamily: fonts.semibold }}>
+        {item.label}
+      </Text>
+      <Reanimated.View style={[{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.primary, marginTop: -1 }, dotStyle]} />
+    </KPressable>
+  );
+}
+
 export function BottomNav({
   items,
   active,
@@ -621,24 +671,7 @@ export function BottomNav({
   const { colors } = theme;
   const left = items.slice(0, 2);
   const right = items.slice(2, 4);
-  const renderItem = (it: NavItem) => {
-    const on = it.key === active;
-    return (
-      <KPressable
-        key={it.key}
-        onPress={it.onPress}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: on }}
-        accessibilityLabel={it.label}
-        style={{ flex: 1, alignItems: 'center', gap: 3 }}
-      >
-        <Icon name={it.icon} size={22} color={on ? colors.primary : colors.textTertiary} />
-        <Text numberOfLines={1} style={{ fontSize: 11, color: on ? colors.text : colors.textTertiary, fontFamily: fonts.semibold }}>
-          {it.label}
-        </Text>
-      </KPressable>
-    );
-  };
+  const renderItem = (it: NavItem) => <NavTab key={it.key} item={it} on={it.key === active} />;
   return (
     <View style={[styles.navWrap, { paddingBottom: insets.bottom || spacing(1.5) }]}>
       <View style={styles.navBar}>

@@ -528,7 +528,7 @@ export default function Swap() {
           {/* Inversion : tourne de 180° avec le ressort Vif */}
           <View style={{ alignItems: 'center', marginVertical: -space[4], zIndex: 2 }}>
             <Animated.View style={flipStyle}>
-              <KPressable onPress={onFlip} disabled={isBridge} accessibilityLabel="Inverser les tokens" style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.4 : 1 }}>
+              <KPressable onPress={onFlip} disabled={isBridge} accessibilityLabel={t('swapFlip')} style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.4 : 1 }}>
                 <Icon name="convert" size={18} />
               </KPressable>
             </Animated.View>

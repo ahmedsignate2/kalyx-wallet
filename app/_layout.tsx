@@ -44,6 +44,9 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return <ErrorScreen error={error} onRetry={retry} />;
 }
 
+/** Écrans de la barre d'onglets : entre eux, un fondu (voir plus bas). */
+const TAB_ROUTES = ['home', 'browser', 'earn', 'menu'] as const;
+
 export default function RootLayout() {
   const { mode, colors } = useTheme();
   const t = useT();
@@ -241,7 +244,18 @@ export default function RootLayout() {
             // avec l'ouverture de l'app qu'on vient d'allonger.
             animationDuration: 280,
           }}
-        />
+        >
+          {/*
+            ONGLETS : fondu court, pas de glissement. Passer d'un onglet à
+            l'autre se faisait par `replace` avec la poussée latérale des écrans
+            empilés : l'écran glissait en découvrant le fond sur son bord (les
+            « micro-écrans noirs ») pendant qu'il se montait en entier (les
+            saccades). Un fondu ne découvre rien, et masque le montage.
+          */}
+          {TAB_ROUTES.map((name) => (
+            <Stack.Screen key={name} name={name} options={{ animation: 'fade', animationDuration: 180 }} />
+          ))}
+        </Stack>
         <WalletConnectHost />
         <TonConnectHost />
         <ToastHost />
