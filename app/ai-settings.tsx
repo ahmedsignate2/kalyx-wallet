@@ -105,7 +105,7 @@ export default function AiSettings() {
             color: colors.text,
             fontFamily: fonts.medium,
           }}
-          placeholder="Ex: sk-..."
+          placeholder="sk-…"
           placeholderTextColor={colors.textTertiary}
           value={inputKey}
           onChangeText={setInputKey}
@@ -124,7 +124,7 @@ export default function AiSettings() {
             <Text style={[typography.body, { color: colors.textSecondary }]}>{t('aiApiUrl')}</Text>
             <TextInput
               style={{ backgroundColor: colors.surface1, borderColor: colors.border, borderWidth: 1, borderRadius: radii.md, padding: spacing(1.5), color: colors.text, fontFamily: fonts.medium }}
-              placeholder="Ex: https://api.together.xyz/v1/chat/completions"
+              placeholder="https://api.together.xyz/v1/chat/completions"
               placeholderTextColor={colors.textTertiary}
               value={customUrl}
               onChangeText={setCustomUrl}
@@ -133,7 +133,7 @@ export default function AiSettings() {
             <Text style={[typography.body, { color: colors.textSecondary }]}>{t('aiModelName')}</Text>
             <TextInput
               style={{ backgroundColor: colors.surface1, borderColor: colors.border, borderWidth: 1, borderRadius: radii.md, padding: spacing(1.5), color: colors.text, fontFamily: fonts.medium }}
-              placeholder="Ex: qwen-2.5-72b ou gemini-1.5-pro"
+              placeholder="qwen-2.5-72b · gemini-1.5-pro"
               placeholderTextColor={colors.textTertiary}
               value={customModel}
               onChangeText={setCustomModel}

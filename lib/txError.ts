@@ -73,6 +73,11 @@ const WALLET_ERROR_KEYS: Record<string, string> = {
   VAULT_CORRUPTED: 'errVaultCorrupted',
   WALLET_ALREADY_EXISTS: 'errWalletExists',
   WRONG_PIN: 'errWrongPin',
+  LOCKED_OUT: 'errLockedOut',
+  INSUFFICIENT_GAS: 'errInsufficientGas',
+  NO_RECOVERY_PHRASE: 'errNoRecoveryPhrase',
+  BUMP_NOT_FOUND: 'errBumpNotFound',
+  TX_UNCONFIRMED: 'errTxUnconfirmed',
 };
 
 export function friendlyTxError(e: unknown, t?: TFn): string {

@@ -13,7 +13,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, RefreshControl, Alert, Image, useWindowDimensions } from 'react-native';
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MarketPanel } from '../../ui/MarketPanel';
 import { NftDetailModal } from '../../ui/NftDetailModal';
@@ -216,6 +216,29 @@ export default function Home() {
   }, [account, historyChains, historyAddressFor, fetchHistory]);
 
   /*
+   * RETOUR SUR L'ONGLET. L'accueil reste monté : les effets ci-dessus ne
+   * rejouent plus à chaque visite, et un solde invalidé par un envoi restait
+   * affiché tel quel. Au retour, on redemande — les magasins jugent eux-mêmes
+   * de la fraîcheur (60 s, ou tout de suite après un envoi), donc une visite
+   * rapprochée ne coûte aucun appel. Le premier passage est laissé aux effets.
+   */
+  const seenFocus = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!seenFocus.current) {
+        seenFocus.current = true;
+        return;
+      }
+      if (!acct) return;
+      void usePortfolioStore.getState().refresh(acct, fiat);
+      for (const chain of historyChains) {
+        const address = historyAddressFor(chain);
+        if (address) void fetchHistory(chain.id, address).catch(() => {});
+      }
+    }, [acct, fiat, historyChains, historyAddressFor, fetchHistory]),
+  );
+
+  /*
    * NFT agrégés, lus à l'ouverture de l'onglet. L'accueil reste monté (navigateur
    * d'onglets) : une liste lue une fois restait figée — un NFT reçu ensuite
    * n'apparaissait jamais. Elle est relue si elle a plus d'une minute, et
@@ -294,6 +317,46 @@ export default function Home() {
     });
   }, []);
 
+  /*
+   * HOME MORPHING (docs/08 §9). Le solde ne DISPARAÎT jamais : il change de
+   * forme. Tout est interpolé sur la position de défilement, donc réversible —
+   * on remonte, il redevient grand, sans à-coup et sans seuil qui déclencherait
+   * une animation jouée toute seule (§2.7).
+   *
+   * Pas besoin de react-native-gesture-handler : `useAnimatedScrollHandler`
+   * donne la position sur le THREAD UI, ce qui suffit. Seul l'étirement du halo
+   * pendant qu'on tire (§10.4) demanderait d'intercepter le geste.
+   *
+   * Conservé même avec « réduire les animations » : le §4.4 le prévoit
+   * explicitement, puisqu'il suit le doigt et n'est pas une animation autonome.
+   */
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
+  /** Plage de morphing, en pixels de défilement. */
+  const MORPH = { from: 32, to: 132 } as const;
+  /** Solde géant : rétrécit et s'efface en montant. */
+  const bigBalanceStyle = useAnimatedStyle(() => {
+    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
+    return { opacity: 1 - p, transform: [{ scale: 1 - p * 0.22 }, { translateY: -p * 18 }] };
+  });
+  /** En-tête compact : prend le relais exactement où le grand s'efface. */
+  const compactStyle = useAnimatedStyle(() => {
+    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
+    return { opacity: p, transform: [{ translateY: (1 - p) * -8 }] };
+  });
+  /** Halo : se resserre en un POINT de lumière près du solde (§9). */
+  const haloStyle = useAnimatedStyle(() => {
+    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
+    return { opacity: 1 - p * 0.72, transform: [{ scale: 1 - p * 0.7 }] };
+  });
+  const prevTotal = useRef(pf.total);
+  useEffect(() => { prevTotal.current = pf.total; }, [pf.total]);
+
+  /*
+   * Tous les hooks AVANT ce retour : l'accueil reste monté dans les onglets, et
+   * le verrouillage vide `account` — un hook placé après aurait changé leur
+   * nombre au déverrouillage (« Rendered more hooks… », écran planté).
+   */
   if (!account || !stored) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   const sym = fiatSymbol(fiat);
@@ -327,38 +390,6 @@ export default function Home() {
   };
   const mood: 'up' | 'down' | 'flat' = pf.pnl24h == null ? 'flat' : pf.pnl24h >= 0 ? 'up' : 'down';
 
-  /*
-   * HOME MORPHING (docs/08 §9). Le solde ne DISPARAÎT jamais : il change de
-   * forme. Tout est interpolé sur la position de défilement, donc réversible —
-   * on remonte, il redevient grand, sans à-coup et sans seuil qui déclencherait
-   * une animation jouée toute seule (§2.7).
-   *
-   * Pas besoin de react-native-gesture-handler : `useAnimatedScrollHandler`
-   * donne la position sur le THREAD UI, ce qui suffit. Seul l'étirement du halo
-   * pendant qu'on tire (§10.4) demanderait d'intercepter le geste.
-   *
-   * Conservé même avec « réduire les animations » : le §4.4 le prévoit
-   * explicitement, puisqu'il suit le doigt et n'est pas une animation autonome.
-   */
-  const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
-  /** Plage de morphing, en pixels de défilement. */
-  const MORPH = { from: 32, to: 132 } as const;
-  /** Solde géant : rétrécit et s'efface en montant. */
-  const bigBalanceStyle = useAnimatedStyle(() => {
-    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
-    return { opacity: 1 - p, transform: [{ scale: 1 - p * 0.22 }, { translateY: -p * 18 }] };
-  });
-  /** En-tête compact : prend le relais exactement où le grand s'efface. */
-  const compactStyle = useAnimatedStyle(() => {
-    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
-    return { opacity: p, transform: [{ translateY: (1 - p) * -8 }] };
-  });
-  /** Halo : se resserre en un POINT de lumière près du solde (§9). */
-  const haloStyle = useAnimatedStyle(() => {
-    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
-    return { opacity: 1 - p * 0.72, transform: [{ scale: 1 - p * 0.7 }] };
-  });
   const shownValue = scrub ? scrub.v : pf.total;
   /*
    * Sens du roulement des chiffres (§8) : comparé au total PRÉCÉDEMMENT AFFICHÉ,
@@ -367,10 +398,8 @@ export default function Home() {
    * elle ne déclenche ni impulsion de l'Aura ni couleur d'alerte. Seul le sens
    * du roulement la reflète.
    */
-  const prevTotal = useRef(pf.total);
   const rollDir: 'up' | 'down' | 'none' =
     pf.total === prevTotal.current ? 'none' : pf.total > prevTotal.current ? 'up' : 'down';
-  useEffect(() => { prevTotal.current = pf.total; }, [pf.total]);
   const pnlUp = (pf.pnl24h ?? 0) >= 0;
   const chartWidth = screenW - SCREEN_MARGIN * 2;
 

@@ -38,6 +38,7 @@ import {
   type EarnPosition,
   type EarnTx,
   type RawTxRequest,
+  WalletError,
 } from '../../src';
 import type { Unlock } from '../walletStore';
 import { useWallet } from '../walletStore';
@@ -424,7 +425,7 @@ async function executeEvm(p: EarnProtocol, q: EarnQuote, unlock: Unlock, onStatu
   const gasBal = await adapter.getBalance(owner).then((b) => b.raw).catch(() => -1n);
   const needNative = (q.tx.value ?? 0n) + (q.gasNative > 0n ? q.gasNative : 0n);
   if (gasBal >= 0n && gasBal < needNative) {
-    throw new Error(`Solde en ${adapter.config.nativeSymbol} insuffisant pour payer les frais réseau.`);
+    throw new WalletError('INSUFFICIENT_GAS', `Solde en ${adapter.config.nativeSymbol} insuffisant pour payer les frais réseau.`);
   }
 
   // 1) Approve exact si l'allowance actuelle est insuffisante (jamais d'approve infini).
