@@ -140,7 +140,22 @@ function summarize(holdings: Holding[]): Pick<Snapshot, 'total' | 'pnl24h' | 'pn
   return { total: safeNum(total), pnl24h: pnl == null ? null : safeNum(pnl), pnl24hPct: pnl == null || past <= 0 ? null : safeNum((pnl / past) * 100) };
 }
 
-async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnets = false): Promise<Holding[]> {
+/**
+ * Lectures qui ont ÉCHOUÉ (tous les RPC du réseau muets), par source :
+ * `${chainId}:native` ou `${chainId}:tokens`. Un échec n'est pas un solde nul :
+ * `refresh` garde alors ce que le cliché précédent montrait pour cette source,
+ * au lieu de faire disparaître des actifs bien réels.
+ */
+type Failed = Set<string>;
+
+/** Actifs du cliché précédent dont la source n'a pas pu être relue. */
+export function carryOver(previous: Holding[], fresh: Holding[], failed: Failed): Holding[] {
+  if (failed.size === 0) return fresh;
+  const kept = previous.filter((h) => failed.has(`${h.chainId}:${h.kind === 'native' ? 'native' : 'tokens'}`) && !fresh.some((f) => f.id === h.id));
+  return kept.length ? [...fresh, ...kept].sort((a, b) => b.fiat - a.fiat || b.amount - a.amount) : fresh;
+}
+
+async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnets = false, failed: Failed = new Set()): Promise<Holding[]> {
   const chains = includeTestnets
     ? listChains({ includeTestnets: true }).filter((c) => c.coingeckoId || c.testnet)
     : VALUE_CHAINS;
@@ -179,6 +194,7 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
          */
         return raw === 0n ? null : { chain, raw };
       } catch {
+        failed.add(`${chain.id}:native`);
         return null;
       }
     }),
@@ -190,7 +206,13 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
     (c) => c.family === 'evm' && c.coingeckoPlatform && c.rpcUrls.some((u) => u.includes('.alchemy.com')),
   );
   const erc20ListsP = Promise.all(
-    evmChains.map(async (chain) => ({ chain, list: await getErc20Tokens(chain, acct.evmAddress).catch(() => []) })),
+    evmChains.map(async (chain) => ({
+      chain,
+      list: await getErc20Tokens(chain, acct.evmAddress).catch(() => {
+        failed.add(`${chain.id}:tokens`);
+        return [];
+      }),
+    })),
   );
 
   // Jetons SPL. Lancé lui aussi sans attendre : il ne dépend de rien d'autre.
@@ -200,6 +222,7 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
       const a = getAdapter('solana');
       return a instanceof SolanaChainAdapter ? await a.getSplTokens(acct.solAddress) : [];
     } catch {
+      failed.add('solana:tokens');
       return [];
     }
   })();
@@ -324,6 +347,7 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
             };
           });
         } catch {
+          failed.add(`${chain.id}:tokens`);
           return [];
         }
       }),
@@ -406,7 +430,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     // ce que le halo ne peut pas déduire : les événements.
     const before = s.holdings;
     try {
-      const holdings = await loadHoldings(acct, fiat, includeTestnets);
+      const failed: Failed = new Set();
+      // Un réseau muet garde ses actifs du cliché précédent : jamais de solde qui disparaît.
+      const holdings = carryOver(s.key === key ? before : [], await loadHoldings(acct, fiat, includeTestnets, failed), failed);
       const snap: Snapshot = { holdings, ...summarize(holdings), at: Date.now() };
       set({ ...snap, key, fromCache: false, loading: false });
       if (didReceive(before, holdings)) aura.pulse('receive');
