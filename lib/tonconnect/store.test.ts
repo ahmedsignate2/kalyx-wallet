@@ -128,6 +128,22 @@ describe('TON Connect, du QR à la transaction', () => {
     expect(read(sent.length - 1)).toEqual({ error: { code: 300, message: 'User declined the transaction' }, id: '8' });
   });
 
+  it('sous-compte actif : la transaction est refusée avant toute signature', async () => {
+    const session = useTonConnect.getState().sessions[0];
+    const w = require('../walletStore').useWallet.getState();
+    w.accounts.push({ index: 1, label: '', evmAddress: '0x1', btcAddress: '' });
+    w.activeAccountIndex = 1;
+    const req = { method: 'sendTransaction', id: '11', params: [JSON.stringify({ valid_until: Math.floor(Date.now() / 1000) + 300, messages: [{ address: KEYS.keys[4].v4r2.eq, amount: '1' }] })] };
+    onMessage!({ from: dapp.publicKey, message: base64.encode(encryptMessage(JSON.stringify(req), session.keyPair.publicKey, dapp.secretKey)) });
+    await new Promise((r) => setTimeout(r, 20));
+    const before = broadcasts.length;
+    await expect(useTonConnect.getState().approveTx({ pin: '000000' } as never)).rejects.toThrow('tcWrongAccount');
+    expect(broadcasts.length).toBe(before);
+    w.activeAccountIndex = 0;
+    w.accounts.pop();
+    await useTonConnect.getState().rejectTx();
+  });
+
   it('méthode inconnue : 400 sans rien montrer ; déconnexion par la dApp : session retirée', async () => {
     const session = useTonConnect.getState().sessions[0];
     const enc = (o: object) => base64.encode(encryptMessage(JSON.stringify(o), session.keyPair.publicKey, dapp.secretKey));

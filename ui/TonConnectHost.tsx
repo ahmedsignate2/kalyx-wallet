@@ -59,17 +59,51 @@ function DappHeader({ name, domain, icon }: { name: string; domain: string; icon
   );
 }
 
+/**
+ * TON n'existe que sur le compte PRINCIPAL d'une phrase (une clé TON par
+ * phrase, règle de Tonkeeper). Sur un sous-compte, on l'explique avant toute
+ * demande de code, et on propose d'y passer — au lieu d'une erreur après coup.
+ */
+function useTonAccess(): { ok: boolean; mainIndex: number } {
+  const accounts = useWallet((s) => s.accounts);
+  const active = useWallet((s) => s.activeAccountIndex);
+  return { ok: !!accounts[active]?.tonPublicKey, mainIndex: accounts.findIndex((a) => !!a.tonPublicKey) };
+}
+
+function TonAccessNotice({ mainIndex, message }: { mainIndex: number; message: string }) {
+  const t = useT();
+  const { colors } = useTheme();
+  return (
+    <Surface style={{ borderColor: colors.warning, gap: space[3] }}>
+      <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
+        <Icon name="alert" size={18} color={colors.warning} />
+        <Text variant="bodySecondary" style={{ flex: 1 }}>{mainIndex >= 0 ? message : t('tcNoTonForWallet')}</Text>
+      </View>
+      {mainIndex >= 0 ? (
+        <Button label={t('tcUseMainAccount')} variant="secondary" onPress={() => { haptic.selection(); useWallet.getState().setActiveAccount(mainIndex); }} />
+      ) : null}
+    </Surface>
+  );
+}
+
 function ConnectSheet({ p }: { p: Extract<TcPending, { kind: 'connect' }> }) {
   const t = useT();
   const { approveConnect, rejectConnect } = useTonConnect.getState();
   const [confirming, setConfirming] = useState(false);
+  const access = useTonAccess();
   return (
     <Sheet visible onClose={() => void rejectConnect()}>
       <DappHeader name={p.manifest.name} domain={p.domain} icon={p.manifest.iconUrl} />
       <Text variant="title2" style={{ textAlign: 'center' }}>{t('tcConnectTitle').replace('{name}', p.manifest.name)}</Text>
-      <Text variant="bodySecondary" tone="secondary">{t('tcShares')}</Text>
-      {p.proofPayload !== undefined ? <Text variant="caption" tone="secondary">{t('tcProofNote')}</Text> : null}
-      <Button label={t('connect')} onPress={() => setConfirming(true)} />
+      {access.ok ? (
+        <>
+          <Text variant="bodySecondary" tone="secondary">{t('tcShares')}</Text>
+          {p.proofPayload !== undefined ? <Text variant="caption" tone="secondary">{t('tcProofNote')}</Text> : null}
+        </>
+      ) : (
+        <TonAccessNotice mainIndex={access.mainIndex} message={t('tcSubAccount')} />
+      )}
+      <Button label={t('connect')} onPress={() => setConfirming(true)} disabled={!access.ok} />
       <Button label={t('actionCancel')} variant="secondary" onPress={() => void rejectConnect()} />
       <ConfirmUnlock
         visible={confirming}
@@ -99,6 +133,11 @@ function TxSheet({ p }: { p: Extract<TcPending, { kind: 'tx' }> }) {
   const e = p.draft?.emulation ?? null;
   const loading = !p.draft && !p.error;
   const wrongWallet = activeWalletId !== p.session.walletId;
+  // Même portefeuille mais un autre compte : le compte connecté est le principal (le seul avec TON).
+  const accounts = useWallet((s) => s.accounts);
+  const activeIndex = useWallet((s) => s.activeAccountIndex);
+  const sessionIndex = accounts.findIndex((a) => !!a.tonPublicKey);
+  const wrongAccount = !wrongWallet && sessionIndex >= 0 && activeIndex !== sessionIndex;
   const tonOut = e ? e.risk.ton : totalOut(p.tx);
 
   return (
@@ -143,7 +182,8 @@ function TxSheet({ p }: { p: Extract<TcPending, { kind: 'tx' }> }) {
       </Surface>
 
       {wrongWallet ? <Text variant="caption" tone="danger">{t('tcWrongWallet')}</Text> : null}
-      <Button label={t('tcApprove')} onPress={() => setConfirming(true)} disabled={wrongWallet || loading || !!e?.failed} />
+      {wrongAccount ? <TonAccessNotice mainIndex={sessionIndex} message={t('tcWrongAccount')} /> : null}
+      <Button label={t('tcApprove')} onPress={() => setConfirming(true)} disabled={wrongWallet || wrongAccount || loading || !!e?.failed} />
       <Button label={t('tcReject')} variant="secondary" onPress={() => void rejectTx()} />
       <ConfirmUnlock
         visible={confirming}
