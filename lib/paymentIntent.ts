@@ -36,9 +36,13 @@ import {
   listChains,
   formatAmount,
   getTokenMetadata,
+  findAdapterV2,
+  TonAdapterV2,
   type QrResult,
   type SendIntent,
 } from '../src';
+import { parseTonAddress } from '../src/domain/chains/ton/tonAddress';
+import { rawJettonAddress } from '../src/domain/chains/ton/tonJettons';
 
 /** Au-delà, on préfère envoyer l'utilisateur sur l'écran sans le jeton. */
 const META_TIMEOUT_MS = 6000;
@@ -88,12 +92,41 @@ async function resolveToken(
   }
 }
 
+/**
+ * Jetton TON demandé par une facture (« TON Pay » en USD₮…) : symbole et
+ * décimales depuis les jettons DÉTENUS, sinon depuis TonAPI — le montant du
+ * lien est en unités de base, il ne se convertit qu'avec les bonnes décimales.
+ */
+async function jettonParams(params: Record<string, string>, intent: SendIntent, chainId: string): Promise<Record<string, string>> {
+  const master = rawJettonAddress(intent.jetton!);
+  if (!master) throw new Error('qrNotRecognized');
+  const held = usePortfolioStore.getState().holdings.find((h) => h.kind === 'jetton' && h.chainId === chainId && h.contract === master);
+  const adapter = findAdapterV2(chainId);
+  const meta = held ? { symbol: held.symbol, decimals: held.decimals } : adapter instanceof TonAdapterV2 ? await adapter.jettonInfo(master).catch(() => null) : null;
+  if (!meta) {
+    toast.error(t()('payTokenUnknown'), intent.jetton);
+    return params;
+  }
+  params.jetton = master;
+  params.symbol = meta.symbol;
+  params.decimals = String(meta.decimals);
+  if (intent.amountRaw) params.amount = formatAmount(BigInt(intent.amountRaw), meta.decimals);
+  return params;
+}
+
 /** Chaîne Kalyx sur laquelle ce contenu doit être traité. */
 function targetChainFor(result: QrResult): string {
   const activeChain = useWallet.getState().activeChain;
   const fam = qrTargetFamily(result);
   if (fam === 'bitcoin') return 'bitcoin';
   if (fam === 'solana') return 'solana';
+  if (fam === 'ton') {
+    // Le drapeau « réseau de test » est porté par l'adresse elle-même.
+    const address = (result as { address?: string }).address ?? '';
+    const ton = listChains({ includeTestnets: true }).filter((c) => c.family === 'ton');
+    const testnet = !!parseTonAddress(address)?.testnet;
+    return (ton.find((c) => !!c.testnet === testnet) ?? ton[0]).id;
+  }
   if (fam !== 'evm') return activeChain;
   const currentIsEvm = getAdapter(activeChain).config.family === 'evm';
   if (result.kind === 'ethereum-uri' && result.chainId) {
@@ -127,6 +160,16 @@ async function sendParamsFor(
   // jamais vérifiés — une étiquette est écrite par l'émetteur du lien.
   if (intent.payee) params.payee = intent.payee;
   if (intent.note) params.note = intent.note;
+  // Échéance d'une facture TON Pay : une demande expirée n'est même pas préremplie.
+  if (intent.expiresAt) {
+    if (intent.expiresAt <= Math.floor(Date.now() / 1000)) throw new Error('payExpired');
+    params.exp = String(intent.expiresAt);
+  }
+  if (intent.jetton) return jettonParams(params, intent, chainId);
+  if (intent.amountRaw && getAdapter(chainId).config.family === 'ton') {
+    params.amount = formatAmount(BigInt(intent.amountRaw), getAdapter(chainId).config.nativeDecimals);
+    return params;
+  }
   const token = intent.contract ?? intent.mint;
   const kind = intent.contract ? 'erc20' : 'spl';
 
@@ -220,7 +263,14 @@ export async function runQrIntent(result: QrResult, opts?: { replace?: boolean }
   const chainId = targetChainFor(result);
   if (chainId !== useWallet.getState().activeChain) useWallet.getState().setActiveChain(chainId);
 
-  const params = await sendParamsFor(intent, chainId);
+  let params: Record<string, string>;
+  try {
+    params = await sendParamsFor(intent, chainId);
+  } catch (e) {
+    const key = e instanceof Error ? e.message : '';
+    toast.error(tr(key === 'payExpired' ? 'payExpired' : 'qrNotRecognized'));
+    return;
+  }
   go({ pathname: '/send', params });
 }
 

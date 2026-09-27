@@ -112,6 +112,11 @@ export function DeepLinks() {
         act({ kind: 'tonconnect', link: url });
         return;
       }
+      // Facture TON Pay (ton://transfer/…) : écran d'envoi prérempli, jamais un envoi direct.
+      if (/^ton:\/\//i.test(url)) {
+        act(parseQr(url));
+        return;
+      }
       const wc = extractWcUri(url);
       if (wc) {
         act({ kind: 'walletconnect', uri: wc });

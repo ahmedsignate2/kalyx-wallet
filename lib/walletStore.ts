@@ -147,6 +147,8 @@ export type GasOverride = {
    */
   references?: string[];
   memo?: string;
+  /** Échéance d'une facture (TON Pay), en secondes Unix : la chaîne refusera le paiement au-delà. */
+  expiresAt?: number;
 };
 export type SwapStatus = 'approving' | 'approvalWait' | 'swapping' | 'confirming';
 
@@ -272,7 +274,7 @@ interface WalletState {
     extras?: { references?: string[]; memo?: string },
   ) => Promise<string>;
   /** Envoie un jetton TON (TEP-74) : message à notre portefeuille de jeton, commentaire compris. */
-  sendJetton: (to: string, amount: string, token: { master: string; decimals: number }, unlock: Unlock, extras?: { memo?: string }) => Promise<string>;
+  sendJetton: (to: string, amount: string, token: { master: string; decimals: number }, unlock: Unlock, extras?: { memo?: string; expiresAt?: number }) => Promise<string>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   revealPhrase: (unlock: Unlock) => Promise<string>;
   /** Révèle la clé privée EVM d'un wallet importé par clé privée. */
@@ -1082,6 +1084,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       speed: gas?.speed,
       references: gas?.references,
       memo: gas?.memo,
+      expiresAt: gas?.expiresAt,
     };
     return get().sendDraft(adapter, account.address, request, unlock);
   },
@@ -1519,7 +1522,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     return get().sendDraft(
       adapter,
       account.address,
-      { to, amount: parseAmount(amount, token.decimals).raw, token: { id: token.master, symbol: 'JETTON', decimals: token.decimals }, memo: extras?.memo },
+      { to, amount: parseAmount(amount, token.decimals).raw, token: { id: token.master, symbol: 'JETTON', decimals: token.decimals }, memo: extras?.memo, expiresAt: extras?.expiresAt },
       unlock,
     );
   },

@@ -6,6 +6,7 @@
  * WalletConnect (wc:) et URLs web. Tout le reste = invalide.
  */
 import { looksLikeTonConnect } from '../tonconnect/connectLink';
+import { parseRawTonAddress, parseTonAddress } from '../chains/ton/tonAddress';
 import { isValidEvmAddress, normalizeEvmAddress } from '../validation/address';
 import { isValidBtcAddress, normalizeBtcAddress } from '../validation/btcAddress';
 import { isValidSolanaAddress } from '../../crypto/solana';
@@ -79,6 +80,16 @@ export type QrResult =
    */
   | { kind: 'lightning-only' }
   | { kind: 'walletconnect'; uri: string }
+  /** Adresse TON nue (conviviale). */
+  | { kind: 'ton-address'; address: string }
+  /**
+   * Demande de paiement TON (« TON Pay ») : `ton://transfer/<adresse>?amount=…
+   * &text=…&jetton=…&exp=…` (spec « Deep links », docs.ton.org), ou la même
+   * chose derrière un lien https de wallet (Tonkeeper, Tonhub, MyTonWallet).
+   * `amountRaw` est en unités de BASE (nanotons, ou unités du jetton) ; `text`
+   * est le commentaire que le marchand attend pour retrouver la commande.
+   */
+  | { kind: 'ton-uri'; address: string; amountRaw?: string; jetton?: string; text?: string; exp?: number; bin?: boolean }
   /** Demande de connexion TON Connect (QR d'une dApp TON, lien `tc://` ou universel). */
   | { kind: 'tonconnect'; link: string }
   /**
@@ -369,6 +380,46 @@ function isSafeTxRequestUrl(url: string): boolean {
 }
 
 /** Analyse une chaîne scannée en intention typée. Jamais d'exécution ici. */
+/** Préfixes reconnus pour un transfert TON : le schéma standard et les liens https des wallets. */
+const TON_TRANSFER_PREFIXES = [
+  'ton://transfer/',
+  'https://app.tonkeeper.com/transfer/',
+  'https://tonhub.com/transfer/',
+  'https://my.tt/transfer/',
+];
+
+/**
+ * `ton://transfer/<adresse>?amount=&text=&jetton=&exp=&bin=` → `ton-uri`, ou
+ * null. Refuse ce qui est mal formé plutôt que de deviner : un montant non
+ * entier, un jetton ou une adresse illisible.
+ */
+export function parseTonTransfer(s: string): QrResult | null {
+  const lower = s.toLowerCase();
+  const prefix = TON_TRANSFER_PREFIXES.find((p) => lower.startsWith(p));
+  if (!prefix) return null;
+  const rest = s.slice(prefix.length);
+  const q = rest.indexOf('?');
+  const address = decodeURIComponent(q < 0 ? rest : rest.slice(0, q)).replace(/\/+$/, '');
+  if (!parseTonAddress(address) && !parseRawTonAddress(address.toLowerCase())) return null;
+  const params = parseQuery(q < 0 ? '' : rest.slice(q + 1));
+  const out: Extract<QrResult, { kind: 'ton-uri' }> = { kind: 'ton-uri', address };
+  if (params.amount !== undefined) {
+    if (!/^\d{1,30}$/.test(params.amount)) return null;
+    out.amountRaw = params.amount;
+  }
+  if (params.jetton !== undefined) {
+    if (!parseTonAddress(params.jetton) && !parseRawTonAddress(params.jetton.toLowerCase())) return null;
+    out.jetton = params.jetton;
+  }
+  if (params.text) out.text = params.text.slice(0, 500);
+  if (params.exp !== undefined) {
+    if (!/^\d{1,12}$/.test(params.exp)) return null;
+    out.exp = Number(params.exp);
+  }
+  if (params.bin) out.bin = true;
+  return out;
+}
+
 export function parseQr(raw: string): QrResult {
   const s = (raw ?? '').trim();
   if (!s) return { kind: 'invalid', raw: '' };
@@ -403,6 +454,11 @@ export function parseQr(raw: string): QrResult {
   // sensible à la casse.
   if (isValidBtcAddress(s)) return { kind: 'bitcoin-address', address: normalizeBtcAddress(s) };
   if (isValidSolanaAddress(s)) return { kind: 'solana-address', address: s };
+
+  // Paiement TON : ton://transfer/… et ses équivalents https de wallets.
+  const tonPay = parseTonTransfer(s);
+  if (tonPay) return tonPay;
+  if (parseTonAddress(s)) return { kind: 'ton-address', address: s };
 
   // URL web (à confirmer avant ouverture dans le navigateur dApps).
   if (/^https?:\/\/\S+$/i.test(s)) return { kind: 'url', url: s };

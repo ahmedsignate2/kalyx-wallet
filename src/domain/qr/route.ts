@@ -4,8 +4,9 @@
  * confirmation. AUCUNE navigation ni exécution ici — l'UI décide après accord.
  */
 import type { QrResult } from './parse';
+import { formatAmount } from '../validation/amount';
 
-export type QrFamily = 'evm' | 'bitcoin' | 'solana';
+export type QrFamily = 'evm' | 'bitcoin' | 'solana' | 'ton';
 
 /** Famille de chaîne requise pour agir sur ce QR (null si non transactionnel). */
 export function qrTargetFamily(result: QrResult): QrFamily | null {
@@ -19,6 +20,9 @@ export function qrTargetFamily(result: QrResult): QrFamily | null {
     case 'solana-address':
     case 'solana-uri':
       return 'solana';
+    case 'ton-address':
+    case 'ton-uri':
+      return 'ton';
     default:
       return null;
   }
@@ -67,6 +71,10 @@ export type QrLabelKey =
   | 'qrToken'
   | 'qrWcTitle'
   | 'qrWcDetail'
+  | 'qrTonAddress'
+  | 'qrPayTon'
+  | 'qrPayJetton'
+  | 'qrTonBlind'
   | 'qrTcTitle'
   | 'qrTcDetail'
   | 'qrPayTitle'
@@ -143,6 +151,25 @@ export function describeQr(result: QrResult, t: QrTranslate): QrDescription {
         cta: t('next'),
         danger: false,
       };
+    case 'ton-address':
+      return { title: t('qrTonAddress'), detail: result.address, cta: t('actionSend'), danger: false };
+    case 'ton-uri':
+      /*
+       * `bin` = corps de message opaque (« blind signing ») : Kalyx refuse de
+       * signer ce qu'il ne peut pas montrer. Pas d'action proposée.
+       */
+      if (result.bin) return { title: t('qrTonBlind'), detail: lines(), cta: null, danger: true };
+      return {
+        title: result.jetton ? t('qrPayJetton') : t('qrPayTon'),
+        detail: lines(
+          result.jetton ? `${t('qrToken')} : ${result.jetton}` : undefined,
+          // Montant du jetton en unités de base : converti sur l'écran d'envoi, décimales connues.
+          !result.jetton && result.amountRaw ? `${t('amount')} : ${formatAmount(BigInt(result.amountRaw), 9)} TON` : undefined,
+          result.text,
+        ),
+        cta: t('next'),
+        danger: false,
+      };
     case 'walletconnect':
       return { title: t('qrWcTitle'), detail: t('qrWcDetail'), cta: t('connect'), danger: false };
     case 'tonconnect':
@@ -189,6 +216,10 @@ export interface SendIntent {
   contract?: string;
   /** Mint SPL demandé par le lien. */
   mint?: string;
+  /** Contrat maître d'un jetton TON demandé par le lien (« TON Pay » en USDT…). */
+  jetton?: string;
+  /** Échéance de la demande (secondes Unix) : au-delà, la chaîne refusera le paiement. */
+  expiresAt?: number;
   /** Bénéficiaire annoncé (`label`) — informatif, jamais vérifié. */
   payee?: string;
   /**
@@ -231,6 +262,12 @@ export function sendIntentFor(result: QrResult): SendIntent | null {
         amountRaw: result.amountRaw,
         contract: result.contract,
       };
+    case 'ton-address':
+      return { to: result.address };
+    case 'ton-uri':
+      if (result.bin) return null;
+      // `text` part ON-CHAIN (commentaire du transfert) : c'est la référence de commande du marchand.
+      return { to: result.address, amountRaw: result.amountRaw, jetton: result.jetton, memo: result.text, expiresAt: result.exp };
     case 'bitcoin-uri':
       return {
         to: result.address,
