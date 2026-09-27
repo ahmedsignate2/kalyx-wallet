@@ -23,8 +23,11 @@ export function NftDetailModal({
   nft,
   explorerUrl,
   onClose,
+  onSend,
 }: {
   nft: NftItem | null;
+  /** Présent si ce NFT peut être envoyé depuis Kalyx (TON pour l'instant). */
+  onSend?: () => void;
   /** Base explorer du réseau actif (ex. https://etherscan.io). */
   explorerUrl?: string;
   onClose: () => void;
@@ -73,6 +76,7 @@ export function NftDetailModal({
               </Text>
             ) : null}
 
+            {onSend ? <Button label={t('nftSendTitle')} onPress={onSend} /> : null}
             <Button label={t('closeWord')} variant="ghost" onPress={onClose} />
           </ScrollView>
         </View>
