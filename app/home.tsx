@@ -26,6 +26,7 @@ import { FadeInUp } from '../ui/FadeInUp';
 import { cascadeDelay } from '../ui/motion';
 import { LogoImage, Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../ui/kit';
 import { WalletAvatar } from '../ui/avatarArt';
+import { TonNftSendSheet } from '../ui/TonNftSendSheet';
 import { useBrowserPresence, hostOf } from '../lib/browserPresence';
 import { useWallet } from '../lib/walletStore';
 import { addressForChain } from '../lib/accountAddress';
@@ -131,6 +132,7 @@ export default function Home() {
   const [showHidden, setShowHidden] = useState(false);
   const [nfts, setNfts] = useState<ChainNft[] | null>(null);
   const [openNft, setOpenNft] = useState<ChainNft | null>(null);
+  const [sendNft, setSendNft] = useState<ChainNft | null>(null);
   const contacts = useContacts((s) => s.contacts);
   const parked = useBrowserPresence((s) => s.parked);
 
@@ -692,7 +694,22 @@ export default function Home() {
       </Animated.ScrollView>
       {/* Fond opaque sous la barre d'état : le contenu ne passe plus « dessous » au scroll. */}
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.bg }} />
-      <NftDetailModal nft={openNft as NftItem | null} explorerUrl={openNft ? getAdapter(openNft.chainId).config.explorerUrl : undefined} onClose={() => setOpenNft(null)} />
+      <NftDetailModal
+        nft={openNft as NftItem | null}
+        explorerUrl={openNft ? getAdapter(openNft.chainId).config.explorerUrl : undefined}
+        onClose={() => setOpenNft(null)}
+        onSend={openNft && getAdapter(openNft.chainId).config.family === 'ton' ? () => { setSendNft(openNft); setOpenNft(null); } : undefined}
+      />
+      {sendNft ? (
+        <TonNftSendSheet
+          chainId={sendNft.chainId}
+          nftAddress={sendNft.tokenId}
+          name={sendNft.name}
+          onClose={() => setSendNft(null)}
+          // Le NFT est parti : la liste est relue au prochain affichage de l'onglet.
+          onSent={() => { setSendNft(null); setNfts(null); }}
+        />
+      ) : null}
       <AppTabBar active="home" />
     </View>
   );

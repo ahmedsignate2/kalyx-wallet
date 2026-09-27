@@ -16,7 +16,9 @@
  * `wallet.address` (brute) = le portefeuille désigné par le nom ; 404
  * « entity not found » = nom inexistant.
  */
-import { formatTonAddress, parseRawTonAddress } from './tonAddress';
+import { Buffer } from 'buffer';
+import { Address, beginCell, comment as commentCell, type Cell } from '@ton/core';
+import { formatTonAddress, parseRawTonAddress, parseTonAddress } from './tonAddress';
 
 export interface TonNft {
   /** Adresse de l'élément NFT (brute). */
@@ -71,4 +73,44 @@ export function parseDnsWallet(json: unknown, testnet: boolean): string | null {
   const raw = (json as { wallet?: { address?: string } } | null)?.wallet?.address;
   const a = typeof raw === 'string' ? parseRawTonAddress(raw.toLowerCase()) : null;
   return a ? formatTonAddress(a, { bounceable: false, testnet }) : null;
+}
+
+/** Opcode `transfer` d'un élément NFT (TEP-62). */
+export const NFT_TRANSFER_OP = 0x5fcc3d14;
+/**
+ * TON joint au transfert d'un NFT : le gaz de l'élément NFT et la
+ * notification au nouveau propriétaire. Valeur de Tonkeeper ; l'excédent
+ * revient par `response_destination`.
+ */
+export const NFT_TRANSFER_TON = 50_000_000n;
+
+/**
+ * Corps `transfer` TEP-62, envoyé à l'ÉLÉMENT NFT par son propriétaire :
+ *   transfer#5fcc3d14 query_id:uint64 new_owner:MsgAddress
+ *     response_destination:MsgAddress custom_payload:(Maybe ^Cell)
+ *     forward_amount:Coins forward_payload:(Either Cell ^Cell)
+ * Vérifié contre des transferts réels (`ton-nft-transfer-vectors.json`).
+ */
+export function nftTransferBody(p: { newOwner: string; responseTo: string; queryId: bigint; forwardTon?: bigint; comment?: string; testnet?: boolean }): Cell {
+  if (p.queryId < 0n || p.queryId >= 1n << 64n) throw new Error('query_id hors limites');
+  return beginCell()
+    .storeUint(NFT_TRANSFER_OP, 32)
+    .storeUint(p.queryId, 64)
+    .storeAddress(tonAddressOf(p.newOwner, !!p.testnet))
+    .storeAddress(tonAddressOf(p.responseTo, !!p.testnet))
+    .storeBit(0) // pas de custom_payload
+    .storeCoins(p.forwardTon ?? 1n)
+    .storeMaybeRef(p.comment ? commentCell(p.comment) : null)
+    .endCell();
+}
+
+function tonAddressOf(address: string, testnet: boolean): Address {
+  const friendly = parseTonAddress(address);
+  if (friendly) {
+    if (friendly.testnet && !testnet) throw new Error('Adresse TON du réseau de test : refusée sur le réseau principal');
+    return new Address(friendly.workchain, Buffer.from(friendly.hash));
+  }
+  const raw = parseRawTonAddress(address.toLowerCase());
+  if (raw) return new Address(raw.workchain, Buffer.from(raw.hash));
+  throw new Error('Adresse TON invalide');
 }
