@@ -49,6 +49,8 @@ const BOOL = /^(?:true|false)$/;
 const DOMAIN = '(?:[a-z0-9-]{1,63}\\.){1,4}(?:ton|t\\.me)';
 const LT = /^\d{1,24}$/;
 const CODES = /^[a-zA-Z0-9,]{1,64}$/;
+// Jetons du cours : symboles OU adresses de contrat (brutes « 0:… » ou conviviales), séparés par des virgules.
+const TOKENS = /^[A-Za-z0-9:_,-]{1,300}$/;
 
 /*
  * DURÉES DE CACHE, choisies route par route :
@@ -73,7 +75,9 @@ export const ROUTES: Route[] = [
   { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}/nfts$`), query: { limit: LIMIT, offset: OFFSET, indirect_ownership: BOOL }, cacheSeconds: 60 },
   // Résolution d'un nom .ton : 60 s. Assez court pour suivre un changement de propriétaire.
   { method: 'GET', pattern: new RegExp(`^/v2/dns/${DOMAIN}/resolve$`), cacheSeconds: 60 },
-  { method: 'GET', pattern: /^\/v2\/rates$/, query: { tokens: CODES, currencies: CODES }, cacheSeconds: 60 },
+  { method: 'GET', pattern: /^\/v2\/rates$/, query: { tokens: TOKENS, currencies: CODES }, cacheSeconds: 60 },
+  // Pool de staking (Tonstakers) : APY, minimum, contrat du tsTON. Cinq minutes suffisent.
+  { method: 'GET', pattern: new RegExp(`^/v2/staking/pool/${ADDR}$`), cacheSeconds: 300 },
   { method: 'POST', pattern: /^\/v2\/wallet\/emulate$/ },
   { method: 'POST', pattern: /^\/v2\/blockchain\/message$/, broadcast: true },
 ];

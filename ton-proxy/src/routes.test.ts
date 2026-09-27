@@ -18,6 +18,8 @@ test('les routes relevées passent, sur les deux réseaux', () => {
     ['GET', '/mainnet/v2/dns/foundation.ton/resolve', ''],
     ['GET', '/mainnet/v2/dns/sub.kalyx-wallet.ton/resolve', ''],
     ['GET', '/mainnet/v2/dns/alice.t.me/resolve', ''],
+    ['GET', '/mainnet/v2/staking/pool/EQCkWxfyhAkim3g2DjKQQg8T5P4g-Q1-K_jErGcDJZ4i-vqR', ''],
+    ['GET', '/mainnet/v2/rates', 'tokens=0:bdf3fa8098d129b54b4f73b5bac5d1e1fd91eb054169c3916dfc8ccd536d1000&currencies=ton'],
     ['POST', '/mainnet/v2/wallet/emulate', ''],
     ['POST', '/testnet/v2/blockchain/message', ''],
   ]) assert.equal(R(m, p, q).ok, true, `${m} ${p}`);

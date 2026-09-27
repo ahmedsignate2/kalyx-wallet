@@ -542,3 +542,22 @@ dans le sélecteur des dApps).
 Reste : staking, commentaires chiffrés, changement de version de
 portefeuille, envoi de NFT.
 
+## 17. Envoi de NFT et staking Tonstakers (27/09)
+
+- **NFT** : `transfer#5fcc3d14` (TEP-62) à l'élément NFT, 0,05 TON de gaz ;
+  corps identique au bit près à 13 transferts réels. Destinataire : adresse
+  ou nom .ton. Émulé sur le réseau principal (vrai domaine, succès).
+- **Staking liquide Tonstakers** (SDK officiel `tonstakers-sdk`) :
+  - dépôt au pool `EQCkWxfy…-vqR` : `stake#47d54391 query_id partner`, montant
+    + 1 TON de réserve (rendue) ; code partenaire 0 ;
+  - retrait : `burn#595f07bc` à notre portefeuille tsTON, 1,05 TON joints ;
+    modes standard / instantané (fill_or_kill) / meilleur taux
+    (wait_till_round_end) ;
+  - 12 dépôts et 9 retraits réels reproduits au bit près
+    (`tonstakers-vectors.json`) ; dépôt de 1 TON et retrait de tsTON émulés
+    sur le réseau principal avec succès (0,0136 et 0,0018 TON de frais nets) ;
+  - APY, minimum et contrat tsTON : `/v2/staking/pool/{pool}` ; valeur du
+    tsTON : `/v2/rates?tokens=<maître>&currencies=ton` (1 tsTON ≈ 1,16 TON le
+    27/09). **Deux routes ajoutées au proxy : à redéployer**, sinon la carte
+    Staking reste masquée.
+

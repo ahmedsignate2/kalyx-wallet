@@ -51,6 +51,7 @@ import { TON_PROXY_URL } from '../ton/tonProxy';
 import { buildTonTransfer, tonExternalForEstimate, tonTransferBodyForEstimate, TON_SEND_MODE_DEFAULT, type TonTransferMessage } from '../ton/tonTransfer';
 import { tonWalletAddress, TON_IMPORT_WALLET_VERSIONS, type TonWalletVersion } from '../ton/tonWallet';
 import type { TonNft } from '../ton/tonNfts';
+import { TONSTAKERS_POOL, type TonstakersPool } from '../ton/tonstakers';
 import { jettonTransferBody, rawJettonAddress, JETTON_TRANSFER_TON, type TonJettonBalance } from '../ton/tonJettons';
 
 /**
@@ -397,6 +398,14 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
   async jettons(address: string, currency = 'usd'): Promise<TonJettonBalance[]> {
     if (!this.api) return notYet('la lecture des jetons sans TonAPI');
     return this.api.jettons(address, currency);
+  }
+
+  /** Tonstakers : pool (APY, minimum, tsTON) et valeur d'1 tsTON en TON. */
+  async tonstakers(): Promise<{ pool: TonstakersPool; poolAddress: string; tsTonInTon: number | null }> {
+    if (!this.api) return notYet('le staking sans TonAPI');
+    const poolAddress = this.testnet ? TONSTAKERS_POOL.testnet : TONSTAKERS_POOL.mainnet;
+    const pool = await this.api.stakingPool(poolAddress);
+    return { pool, poolAddress, tsTonInTon: await this.api.priceInTon(pool.tsTonMaster).catch(() => null) };
   }
 
   /** NFT détenus, domaines .ton compris ; vide sans TonAPI. */
