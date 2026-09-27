@@ -9,6 +9,7 @@ import { useWallet } from '../lib/walletStore';
 import { walletDisplayName } from '../lib/walletNames';
 import { useT, useSettings } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
+import { WalletAvatar, AvatarPicker } from '../ui/avatarArt';
 
 export default function Wallets() {
   const { colors, typography } = useTheme();
@@ -22,6 +23,7 @@ export default function Wallets() {
 
   const [editing, setEditing] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
+  const [avatarFor, setAvatarFor] = useState<string | null>(null);
 
   const onRemove = (id: string, label: string) => {
     if (wallets.length <= 1) {
@@ -69,6 +71,9 @@ export default function Wallets() {
               accessibilityLabel={w.label}
             >
               <Card style={{ borderColor: active ? colors.primary : colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <KPressable onPress={() => setAvatarFor(w.id)} hitSlop={6} accessibilityLabel={t('a11yChangeAvatar')} style={{ marginRight: spacing(1.5) }}>
+                  <WalletAvatar walletId={w.id} size={44} />
+                </KPressable>
                 <View style={{ flex: 1 }}>
                   <Text style={typography.body}>{walletDisplayName(w, i, t)}</Text>
                   {active ? (
@@ -108,6 +113,7 @@ export default function Wallets() {
           <Button label={t('createAction')} onPress={() => router.push('/create-wallet')} />
         </View>
       </View>
+      {avatarFor ? <AvatarPicker walletId={avatarFor} visible onClose={() => setAvatarFor(null)} /> : null}
     </Screen>
   );
 }

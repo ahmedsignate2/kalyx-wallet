@@ -1,9 +1,10 @@
 import { Pressable as KPressable } from '../ui/kit';
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Alert } from 'react-native';
 import { router, Stack } from 'expo-router';
 import Constants from 'expo-constants';
-import { PremiumScreen, GlassCard, ListRow, SegmentedTabs, GradientAvatar } from '../ui/premium';
+import { PremiumScreen, GlassCard, ListRow, SegmentedTabs } from '../ui/premium';
+import { WalletAvatar, AvatarPicker } from '../ui/avatarArt';
 import { Icon, type IconName } from '../ui/icon';
 import { AppTabBar } from '../ui/tabs';
 import { useAiStore } from '../lib/aiStore';
@@ -27,6 +28,8 @@ export default function Menu() {
   const aiEnabled = useAiStore((s) => s.isEnabled);
   const { profileName, uiMode, setUiMode } = useSettings();
   const reset = useWallet((s) => s.reset);
+  const activeWalletId = useWallet((s) => s.activeWalletId);
+  const [pickAvatar, setPickAvatar] = useState(false);
   const expert = uiMode === 'expert';
 
   const onReset = () =>
@@ -44,7 +47,10 @@ export default function Menu() {
       <KPressable onPress={() => router.push('/settings')}>
         <GlassCard>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            <GradientAvatar label={(profileName || 'K').slice(0, 1).toUpperCase()} />
+            {/* L'avatar a son propre geste : le reste de la carte mène aux réglages. */}
+            <KPressable onPress={() => setPickAvatar(true)} hitSlop={6} accessibilityLabel={t('a11yChangeAvatar')}>
+              <WalletAvatar size={48} />
+            </KPressable>
             <View style={{ flex: 1 }}>
               <Text style={typography.bodyStrong}>{profileName || t('yourProfile')}</Text>
               <Text style={typography.muted}>{t('profile')} · {t('settings')}</Text>
@@ -132,6 +138,7 @@ export default function Menu() {
       </GlassCard>
 
       <ListRow left={<Ico n="reset" />} title={t('resetWallet')} right={<Icon name="chevron" size={18} color={colors.danger} />} onPress={onReset} />
+      <AvatarPicker walletId={activeWalletId} visible={pickAvatar} onClose={() => setPickAvatar(false)} />
     </PremiumScreen>
   );
 }

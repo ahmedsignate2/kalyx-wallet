@@ -82,6 +82,8 @@ export interface WalletMeta {
    * que semer le doute.
    */
   keyFamily?: 'evm' | 'bitcoin' | 'solana';
+  /** Avatar de profil (« 3d:rocket », « flat:diamond » — lib/avatars.ts). Tiré au hasard à la création. */
+  avatar?: string;
 }
 
 const base: SecureStore.SecureStoreOptions = {

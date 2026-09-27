@@ -434,6 +434,8 @@ Interdits : flou décoratif, verre dépoli, ombres, bordures épaisses. Les shee
 | Constantes de timing inventées | toute valeur se règle sur device |
 | CGU acceptées par un glissement | non validé juridiquement |
 
+**Exception (décision produit, 2026-09-27) : les avatars de portefeuille.** Un sticker 3D (Fluent Emoji, MIT) est tiré au hasard à la création, et l'utilisateur peut passer au style « Minimal » — pictogramme Phosphor sur fond de couleur — dans le sélecteur d'avatar (`ui/avatarArt.tsx`, `lib/avatars.ts`). L'exception s'arrête à l'avatar : aucun sticker ailleurs dans l'interface, et l'`AddressGlyph` reste l'identité des adresses tierces (destinataires, contacts), là où il protège contre l'empoisonnement d'adresse.
+
 ---
 
 ## 20. Critères de réussite

@@ -92,6 +92,7 @@ import {
   type StoredAccount,
   type WalletMeta,
 } from './secureStore';
+import { randomAvatarId } from './avatars';
 import { authenticate } from './biometrics';
 import { submitSolanaSigned } from './solanaSubmit';
 import { kvGet, kvSet, kvDel } from './kv';
@@ -221,6 +222,8 @@ interface WalletState {
   importWallets: (wallets: readonly BackupWallet[], pin: string) => Promise<number>;
   setActiveWallet: (id: string) => Promise<void>;
   renameWallet: (id: string, label: string) => Promise<void>;
+  /** Change l'avatar de profil d'un portefeuille (lib/avatars.ts). */
+  setWalletAvatar: (id: string, avatar: string) => Promise<void>;
   removeWallet: (id: string) => Promise<void>;
   lock: () => void;
   signAndSend: (to: string, amount: string, unlock: Unlock, gas?: GasOverride) => Promise<string>;
@@ -605,6 +608,11 @@ export const useWallet = create<WalletState>((set, get) => ({
       wallets = wallets.map((w) => (isLegacyDefaultName(w.label) ? { ...w, label: '' } : w));
       await saveWalletsList(wallets);
     }
+    // Portefeuilles d'avant les avatars : chacun reçoit le sien, tiré au hasard, une fois.
+    if (wallets.some((w) => !w.avatar)) {
+      wallets = wallets.map((w) => (w.avatar ? w : { ...w, avatar: randomAvatarId() }));
+      await saveWalletsList(wallets);
+    }
     /*
      * Portefeuille du dernier lancement, s'il existe ENCORE : il peut avoir été
      * supprimé entre-temps, et repartir sur un identifiant fantôme donnerait un
@@ -708,7 +716,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (opts?.enableBiometric) await enableBiometricSeed(id, m);
     else await disableBiometricSeed(id).catch(() => {});
     useSettings.getState().setBiometricEnabled(!!opts?.enableBiometric);
-    const wallets: WalletMeta[] = [{ id, label: '', ...(kind === 'ton' ? { type: 'tonPhrase' as const } : {}) }];
+    const wallets: WalletMeta[] = [{ id, label: '', avatar: randomAvatarId(), ...(kind === 'ton' ? { type: 'tonPhrase' as const } : {}) }];
     await saveWalletsList(wallets);
     // Une phrase TON n'a d'adresse que sur TON : on ouvre directement sur ce réseau.
     const chain = kind === 'ton' ? firstChainOfFamily('ton') : get().activeChain;
@@ -846,7 +854,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     const accounts = [deriveStoredAccount(m, 0, '')];
     await saveVault(id, await encryptSecret(m, pin));
     await saveAccounts(id, accounts);
-    const wallets = [...get().wallets, { id, label: label?.trim() || '' }];
+    const wallets = [...get().wallets, { id, label: label?.trim() || '', avatar: randomAvatarId() }];
     await saveWalletsList(wallets);
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
     rememberActive(id, 0);
@@ -861,7 +869,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     const accounts = accountsForPhrase(m, kind);
     await saveVault(id, await encryptSecret(m, pin));
     await saveAccounts(id, accounts);
-    const meta: WalletMeta = { id, label: label?.trim() || '', ...(kind === 'ton' ? { type: 'tonPhrase' as const } : {}) };
+    const meta: WalletMeta = { id, label: label?.trim() || '', avatar: randomAvatarId(), ...(kind === 'ton' ? { type: 'tonPhrase' as const } : {}) };
     const wallets = [...get().wallets, meta];
     await saveWalletsList(wallets);
     // Une phrase TON n'a d'adresse que sur TON : on bascule sur ce réseau.
@@ -920,7 +928,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     await saveAccounts(id, accounts);
     const wallets: WalletMeta[] = [
       ...get().wallets,
-      { id, label: label?.trim() || '', type: 'privateKey', keyFamily: chosen },
+      { id, label: label?.trim() || '', type: 'privateKey', keyFamily: chosen, avatar: randomAvatarId() },
     ];
     await saveWalletsList(wallets);
     // Le réseau actif doit appartenir à la famille de la clé, sinon le compte
@@ -1022,6 +1030,12 @@ export const useWallet = create<WalletState>((set, get) => ({
     const name = label.trim();
     if (!name) return;
     const wallets = get().wallets.map((w) => (w.id === id ? { ...w, label: name } : w));
+    await saveWalletsList(wallets);
+    set({ wallets });
+  },
+
+  setWalletAvatar: async (id, avatar) => {
+    const wallets = get().wallets.map((w) => (w.id === id ? { ...w, avatar } : w));
     await saveWalletsList(wallets);
     set({ wallets });
   },

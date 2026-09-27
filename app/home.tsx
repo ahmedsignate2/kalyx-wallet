@@ -24,7 +24,8 @@ import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { FadeInUp } from '../ui/FadeInUp';
 import { cascadeDelay } from '../ui/motion';
-import { LogoImage, Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AddressGlyph, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../ui/kit';
+import { LogoImage, Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../ui/kit';
+import { WalletAvatar } from '../ui/avatarArt';
 import { useWallet } from '../lib/walletStore';
 import { addressForChain } from '../lib/accountAddress';
 import { accountDisplayName } from '../lib/walletNames';
@@ -420,7 +421,7 @@ export default function Home() {
             compte était long, au point de sembler caché.
           */}
           <KPressable onPress={() => router.push('/accounts')} accessibilityLabel={t("a11ySwitchAccount")} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2], height: 48, paddingRight: space[1] }}>
-            <AddressGlyph address={stored.evmAddress} size={32} />
+            <WalletAvatar size={32} />
             <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0 }}>{accountDisplayName(stored, t)}</Text>
             <Icon name="caretDown" size={14} tone="muted" />
           </KPressable>
