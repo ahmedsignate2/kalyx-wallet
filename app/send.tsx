@@ -232,6 +232,8 @@ export default function Send() {
   const [tokenFee, setTokenFee] = useState<TransferFeeConfig | null>(null);
   const [speed, setSpeed] = useState<FeeSpeed>('normal');
   const [reserve, setReserve] = useState<bigint>(0n);
+  /** Jetton TON : coût RÉEL (émulé), distinct du TON joint au message qu'il faut avoir. */
+  const [jettonFee, setJettonFee] = useState<bigint | null>(null);
   useEffect(() => {
     setBalance(picked?.raw ?? null);
     setPrice(picked?.price ?? 0);
@@ -239,6 +241,7 @@ export default function Send() {
     setNativePrice(0);
     setFeeOptions(null);
     setReserve(0n);
+    setJettonFee(null);
     setAmountError(null);
 
     if (!senderAddress) return;
@@ -278,6 +281,12 @@ export default function Send() {
         setPrice(held?.verification === 'whitelist' ? held.price : 0);
         // Le message emporte ce TON pour le gaz (l'excédent revient) : il faut l'avoir.
         setReserve(JETTON_TRANSFER_TON);
+        // Coût réel, émulé sur un envoi à soi-même : c'est lui qu'on affiche.
+        if (ton instanceof TonAdapterV2 && held && held.raw > 0n) {
+          ton.prepareSend(senderAddress, { to: senderAddress, amount: 1n, token: { id: held.master, symbol: held.symbol, decimals: held.decimals } })
+            .then((d) => alive && setJettonFee(d.fee))
+            .catch(() => {});
+        }
       }
       /*
        * PALIERS DE FRAIS — une seule demande, quelle que soit la chaîne.
@@ -327,7 +336,10 @@ export default function Send() {
   }, [senderAddress, targetChainId, fiat, params.contract, params.mint, params.jetton, picked?.id]);
 
   // Frais en natif (unité brute) : palier EVM choisi, sinon réserve dynamique.
-  const feeRaw = feeOptions ? feeOptions[speed].costWei : reserve;
+  // Ce qu'il faut AVOIR en natif pour envoyer, et ce que l'envoi COÛTE : identiques,
+  // sauf pour un jetton TON (0,05 TON joints, l'excédent revient).
+  const gasRequired = feeOptions ? feeOptions[speed].costWei : reserve;
+  const feeRaw = token?.kind === 'jetton' && jettonFee != null ? jettonFee : gasRequired;
   let feeFiat = 0;
   if (family === 'bitcoin') {
     const feeInBtc = Number(feeRaw) / 1e8;
@@ -355,9 +367,9 @@ export default function Send() {
   const available = balance != null ? (isNativeSend ? (balance > feeRaw ? balance - feeRaw : 0n) : balance) : 0n;
   const overBalance = balance != null && amountRaw > available;
   const hasEnteredAmount = parseFloat(amount || '0') > 0;
-  const notEnoughGas = hasEnteredAmount && nativeBal != null && nativeBal < feeRaw;
+  const notEnoughGas = hasEnteredAmount && nativeBal != null && nativeBal < gasRequired;
   const approxVal = feeFiat > 0 ? `${formatFiat(feeFiat)} ${sym}` : `${formatAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`;
-  const missingFeeText = t('aboutApprox').replace('{amount}', approxVal);
+  const missingFeeText = t('aboutApprox').replace('{amount}', gasRequired === feeRaw ? approxVal : `${formatAmount(gasRequired, chain.nativeDecimals)} ${chain.nativeSymbol}`);
 
   const setMax = () => {
     haptic.light();
