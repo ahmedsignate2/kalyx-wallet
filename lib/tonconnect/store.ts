@@ -284,7 +284,11 @@ export const useTonConnect = create<TcState>((set, get) => {
       const p = get().queue[0];
       if (p?.kind !== 'tx') throw new Error('tcNothingPending');
       const { session } = p;
-      if (useWallet.getState().activeWalletId !== session.walletId) throw new Error('tcWrongWallet');
+      const w = useWallet.getState();
+      if (w.activeWalletId !== session.walletId) throw new Error('tcWrongWallet');
+      // Le compte ACTIF doit être celui dont l'adresse a été partagée (le principal, seul à avoir TON).
+      const chain = listChains({ includeTestnets: true }).find((c) => c.id === session.chainId);
+      if (!chain || addressForChain(w.accounts[w.activeAccountIndex], chain) !== session.address) throw new Error('tcWrongAccount');
       const adapter = getAdapterV2(session.chainId);
       if (!(adapter instanceof TonAdapterV2)) throw new Error('TON indisponible');
       // État relu au moment de signer : le seqno a pu bouger depuis l'affichage.
