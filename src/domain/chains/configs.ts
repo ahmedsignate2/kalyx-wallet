@@ -617,7 +617,23 @@ export const SOLANA_DEVNET: ChainConfig = {
 };
 
 /**
- * TON — RÉSEAU DE TEST seulement (activation du 26/09).
+ * TON — réseau principal (activé le 27/09, une fois TonAPI en place derrière le
+ * proxy Kalyx, et le chemin complet validé sur le réseau de test puis sur
+ * téléphone). Lecture et envoi par TonAPI (`tonProxy.ts`), TON Center en repli.
+ */
+export const TON: ChainConfig = {
+  id: 'ton',
+  name: 'TON',
+  family: 'ton',
+  nativeSymbol: 'TON',
+  nativeDecimals: 9,
+  rpcUrls: ['https://toncenter.com/api'],
+  explorerUrl: 'https://tonscan.org',
+  coingeckoId: 'the-open-network',
+};
+
+/**
+ * TON — réseau de test (activation du 26/09).
  *
  * Le réseau principal attend son fournisseur de production : un proxy Cloudflare
  * Worker devant TonAPI (décision du 26/09). Ici, TON Center sans clé.
@@ -707,6 +723,7 @@ export const ALL_CHAINS: ChainConfig[] = [
   BITCOIN,
   SOLANA,
   SOLANA_DEVNET,
+  TON,
   TON_TESTNET,
 ];
 
