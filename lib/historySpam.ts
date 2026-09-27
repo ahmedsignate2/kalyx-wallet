@@ -75,3 +75,20 @@ export function useHistoryChains(): ChainConfig[] {
     [holdingKey, cachedKey],
   );
 }
+
+/**
+ * Adresses que l'utilisateur a RÉELLEMENT payées, d'après tout l'historique
+ * en cache (natif ou token de confiance, transaction réussie). L'écran d'envoi
+ * s'en sert contre l'empoisonnement : sans elles, il ne connaissait que les
+ * envois faits depuis Kalyx, alors que l'attaquant imite n'importe quel
+ * destinataire — y compris ceux payés depuis un autre portefeuille.
+ */
+export function usePaidAddresses(): string[] {
+  const cache = useHistoryStore((s) => s.cache);
+  const holdings = usePortfolioStore((s) => s.holdings);
+  return useMemo(() => {
+    const verified = new Set(holdings.filter((h) => h.verified && h.contract).map((h) => `${h.chainId}:${h.contract!.toLowerCase()}`));
+    const all = Object.values(cache).flat();
+    return [...knownCounterparties(all, buildTrusted(verified))];
+  }, [cache, holdings]);
+}
