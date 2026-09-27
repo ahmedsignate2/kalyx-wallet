@@ -1,6 +1,6 @@
-import { ScreenHeader, Pressable as KPressable, Button } from '../../ui/kit';
+import { LogoImage, ScreenHeader, Pressable as KPressable, Button } from '../../ui/kit';
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Image, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import {
   PremiumScreen,
@@ -260,7 +260,7 @@ export default function TokenDetail() {
           {/* En-tête token + épingler en favori */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
             {(networkLogo || detail?.image) ? (
-              <Image source={{ uri: networkLogo || detail?.image }} style={{ width: 48, height: 48, borderRadius: 24 }} />
+              <LogoImage uri={networkLogo || detail?.image!} size={48} />
             ) : (
               <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface2 }} />
             )}

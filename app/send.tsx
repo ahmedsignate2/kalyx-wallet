@@ -9,11 +9,11 @@
  *  4. Suivi : Envoyée → Incluse → Confirmée, on peut quitter (notification).
  */
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { View, ScrollView, Image } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
+import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { ContactPicker } from '../ui/ContactPicker';
@@ -610,7 +610,7 @@ export default function Send() {
             <Text variant="title2">{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : (t('headerSendToken').replace('${symbol}', symbol) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
             {step > 0 && chainIconUrl(chain.id) ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: 12, backgroundColor: colors.surface2 }}>
-                <Image source={{ uri: chainIconUrl(chain.id) }} style={{ width: 14, height: 14, borderRadius: 7 }} />
+                <LogoImage uri={chainIconUrl(chain.id)!} size={14} />
                 <Text variant="micro" tone="secondary">{chain.name}</Text>
               </View>
             ) : null}

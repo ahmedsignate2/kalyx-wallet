@@ -22,7 +22,7 @@ import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, u
 import { toRaw, encodeErc20Transfer } from './evmEncode';
 import { useTokenLogo } from './tokenLogos';
 import { FadeInUp, CrossFade, useCountUp, Pop, KalyxSpinner, KalyxSuccessPulse, reducedMotion } from './motion';
-import { Text as KText, Button, Sheet, Surface, ListRow, Divider } from '../kit';
+import { Text as KText, Button, Sheet, Surface, ListRow, Divider, LogoImage } from '../kit';
 import { ReceiveScreen } from './ReceiveScreen';
 import { SendFlow } from './SendFlow';
 import { SwapScreen } from './SwapScreen';
@@ -101,7 +101,7 @@ function TokenAvatar({ uri: primary, label, seed, size = 32, chainId }: { uri?: 
       </View>
     );
   }
-  return <Image source={{ uri }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+  return <LogoImage uri={uri} size={size} onError={() => setFailed(true)} />;
 }
 
 /** Icône de réseau avec repli AUTO sur cercle lettré : chainIconUrl() renvoie
@@ -120,7 +120,7 @@ function ChainAvatar({ chain, size = 20 }: { chain: ChainConfig; size?: number }
       </View>
     );
   }
-  return <Image source={{ uri }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.glass }} />;
+  return <LogoImage uri={uri} size={size} onError={() => setFailed(true)} style={{ backgroundColor: colors.glass }} />;
 }
 
 /** Horodatage relatif court (ts en secondes). */

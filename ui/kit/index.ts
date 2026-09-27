@@ -6,6 +6,7 @@ export { HoldButton } from './HoldButton';
 export { Surface, Divider } from './Surface';
 export { ListRow, TokenRow } from './ListRow';
 export { TokenIcon } from './TokenIcon';
+export { LogoImage } from './LogoImage';
 export { AddressGlyph } from './AddressGlyph';
 export { AmountDisplay } from './AmountDisplay';
 export { Chip, RiskBadge, type RiskLevel } from './Chip';

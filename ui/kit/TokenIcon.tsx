@@ -3,8 +3,9 @@
  * (initiale + couleur tirée du hash du contrat). Jamais d'image cassée (§2.8).
  */
 import React, { useMemo, useState } from 'react';
-import { Image, View } from 'react-native';
+import { View } from 'react-native';
 import { Text } from './Text';
+import { LogoImage } from './LogoImage';
 import { glyphFor } from '../../src';
 import { useTheme } from '../theme';
 
@@ -13,7 +14,7 @@ export function TokenIcon({ symbol, logo, seed, size = 40 }: { symbol: string; l
   const [failed, setFailed] = useState(false);
   const bg = useMemo(() => glyphFor(seed ?? symbol).colors[0], [seed, symbol]);
   if (logo && !failed) {
-    return <Image source={{ uri: logo }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.surface2 }} accessibilityIgnoresInvertColors />;
+    return <LogoImage uri={logo} size={size} onError={() => setFailed(true)} style={{ backgroundColor: colors.surface2 }} />;
   }
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
