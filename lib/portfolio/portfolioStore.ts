@@ -94,6 +94,13 @@ interface PortfolioState extends Snapshot {
   invalidate: () => void;
 }
 
+/**
+ * Réseaux où Alchemy sert le RPC mais PAS l'API de jetons. Relevé le 27/09 :
+ * Mantle répond « EAPIs not enabled on specified network: [MANTLE_MAINNET] »
+ * (HTTP 400) — un refus définitif, pas une panne : inutile de le demander.
+ */
+const ALCHEMY_NO_TOKEN_API = new Set(['mantle']);
+
 /** Référence dollar pour convertir les prix DefiLlama (en USD) dans la devise. */
 const USD_PEG = 'tether';
 
@@ -233,7 +240,7 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
   // ERC-20 sur les réseaux couverts par Alchemy ; le spam est déjà filtré par
   // `getErc20Tokens`. Les LISTES seulement : les prix viennent ensuite, groupés.
   const evmChains = VALUE_CHAINS.filter(
-    (c) => c.family === 'evm' && c.coingeckoPlatform && c.rpcUrls.some((u) => u.includes('.alchemy.com')),
+    (c) => c.family === 'evm' && c.coingeckoPlatform && c.rpcUrls.some((u) => u.includes('.alchemy.com')) && !ALCHEMY_NO_TOKEN_API.has(c.id),
   );
   // Quatre réseaux à la fois : quatorze requêtes simultanées déclenchaient les
   // refus d'Alchemy (HTTP 429) — et des jetons qui disparaissaient.
