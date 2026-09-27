@@ -46,6 +46,7 @@ import {
   storeMessage,
   storeMessageRelaxed,
   storeOutList,
+  storeStateInit,
   type MessageRelaxed,
   type OutActionSendMsg,
   type StateInit,
@@ -74,6 +75,8 @@ export interface TonTransferMessage {
   comment?: string;
   /** Corps déjà construit (transfert de jetton…). Exclusif de `comment`. */
   payload?: Cell;
+  /** État initial joint (déploiement d'un contrat par une dApp). */
+  init?: StateInit;
 }
 
 export interface TonTransferParams {
@@ -112,6 +115,15 @@ function initialData(version: TonWalletVersion, publicKey: Uint8Array, testnet: 
   const b = beginCell().storeUint(0, 32).storeUint(TON_DEFAULT_SUBWALLET_ID, 32).storeBuffer(pub);
   if (version === 'v4r2') b.storeBit(0);
   return b.endCell();
+}
+
+/**
+ * `StateInit` du portefeuille (code + données initiales), en BOC base64 — ce que
+ * TON Connect transmet à la dApp (`walletStateInit`), qui en redérive l'adresse.
+ */
+export function tonWalletStateInitBoc(publicKey: Uint8Array, version: TonWalletVersion, testnet = false): string {
+  const init: StateInit = { code: Cell.fromBase64(TON_WALLET_CODE[version]), data: initialData(version, publicKey, testnet) };
+  return beginCell().store(storeStateInit(init)).endCell().toBoc().toString('base64');
 }
 
 /** Destinataire : adresse lue, et refus d'une adresse de test sur le réseau principal. */
@@ -188,7 +200,7 @@ function transferBody(
   const outgoing: MessageRelaxed[] = p.messages.map((m) => {
     if (typeof m.amount !== 'bigint' || m.amount < 0n) throw new Error('Montant invalide');
     if (m.payload && m.comment) throw new Error('Un message porte un commentaire OU un corps, pas les deux');
-    return internal({ to: destination(m.to, p.testnet), value: m.amount, bounce: m.bounce, body: m.payload ?? (m.comment ? commentCell(m.comment) : undefined) });
+    return internal({ to: destination(m.to, p.testnet), value: m.amount, bounce: m.bounce, init: m.init, body: m.payload ?? (m.comment ? commentCell(m.comment) : undefined) });
   });
 
   const signing = new Builder();

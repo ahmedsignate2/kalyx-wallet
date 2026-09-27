@@ -1,0 +1,19 @@
+{
+ "message": {
+  "manifestUrl": "https://app.ston.fi/tonconnect-manifest.json",
+  "items": [
+   {
+    "name": "ton_addr"
+   },
+   {
+    "name": "ton_proof",
+    "payload": "a1b2c3-nonce_with.dots-and=eq"
+   }
+  ]
+ },
+ "id": "ce8d3ad1ccb633ec7b70c17814a5c76ecd029685050d344745ba05870e587d59",
+ "tonkeeper": "https://app.tonkeeper.com/ton-connect?v=2&id=ce8d3ad1ccb633ec7b70c17814a5c76ecd029685050d344745ba05870e587d59&trace_id=0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b&r=%7B%22manifestUrl%22%3A%22https%3A%2F%2Fapp.ston.fi%2Ftonconnect-manifest.json%22%2C%22items%22%3A%5B%7B%22name%22%3A%22ton_addr%22%7D%2C%7B%22name%22%3A%22ton_proof%22%2C%22payload%22%3A%22a1b2c3-nonce_with.dots-and%3Deq%22%7D%5D%7D",
+ "mytonwallet": "https://connect.mytonwallet.org/?v=2&id=ce8d3ad1ccb633ec7b70c17814a5c76ecd029685050d344745ba05870e587d59&trace_id=0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b&r=%7B%22manifestUrl%22%3A%22https%3A%2F%2Fapp.ston.fi%2Ftonconnect-manifest.json%22%2C%22items%22%3A%5B%7B%22name%22%3A%22ton_addr%22%7D%2C%7B%22name%22%3A%22ton_proof%22%2C%22payload%22%3A%22a1b2c3-nonce_with.dots-and%3Deq%22%7D%5D%7D",
+ "telegram": "https://t.me/wallet/start?startapp=tonconnect-v__2-id__ce8d3ad1ccb633ec7b70c17814a5c76ecd029685050d344745ba05870e587d59-trace--5Fid__0199a1b2--2Dc3d4--2D7e5f--2D8a9b--2D0c1d2e3f4a5b-r__--7B--22manifestUrl--22--3A--22https--3A--2F--2Fapp--2Eston--2Efi--2Ftonconnect--2Dmanifest--2Ejson--22--2C--22items--22--3A--5B--7B--22name--22--3A--22ton--5Faddr--22--7D--2C--7B--22name--22--3A--22ton--5Fproof--22--2C--22payload--22--3A--22a1b2c3--2Dnonce--5Fwith--2Edots--2Dand--3Deq--22--7D--5D--7D",
+ "tc": "tc://?v=2&id=ce8d3ad1ccb633ec7b70c17814a5c76ecd029685050d344745ba05870e587d59&trace_id=0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b&r=%7B%22manifestUrl%22%3A%22https%3A%2F%2Fapp.ston.fi%2Ftonconnect-manifest.json%22%2C%22items%22%3A%5B%7B%22name%22%3A%22ton_addr%22%7D%2C%7B%22name%22%3A%22ton_proof%22%2C%22payload%22%3A%22a1b2c3-nonce_with.dots-and%3Deq%22%7D%5D%7D"
+}
