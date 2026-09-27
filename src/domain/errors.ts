@@ -46,7 +46,17 @@ export type WalletErrorCode =
    * sans lui, le dépôt arriverait sans propriétaire et les fonds seraient perdus.
    */
   | 'MEMO_REQUIRED'
-  | 'NOT_SUPPORTED';
+  | 'NOT_SUPPORTED'
+  /** Trop de codes faux : le coffre refuse d'essayer pendant un moment. */
+  | 'LOCKED_OUT'
+  /** Solde natif insuffisant pour les frais réseau (le montant lui-même suffirait). */
+  | 'INSUFFICIENT_GAS'
+  /** Portefeuille importé par clé privée : aucune phrase à montrer ni sauvegarder. */
+  | 'NO_RECOVERY_PHRASE'
+  /** Transaction à accélérer introuvable, déjà confirmée ou trop ancienne. */
+  | 'BUMP_NOT_FOUND'
+  /** Diffusée, mais pas confirmée dans le délai : elle peut encore passer. */
+  | 'TX_UNCONFIRMED';
 
 export class WalletError extends Error {
   readonly code: WalletErrorCode;

@@ -50,12 +50,12 @@ export async function submitSolanaSigned(
     try {
       const st = await rpc.rpc<{ value?: ({ err?: unknown; confirmationStatus?: string } | null)[] }>('getSignatureStatuses', [[hash]]);
       const s = st?.value?.[0];
-      if (s?.err) throw new Error(`Transaction échouée on-chain : ${JSON.stringify(s.err).slice(0, 100)}`);
+      if (s?.err) throw new WalletError('TX_FAILED', `Transaction échouée on-chain : ${JSON.stringify(s.err).slice(0, 100)}`);
       if (s?.confirmationStatus === 'confirmed' || s?.confirmationStatus === 'finalized') return hash;
     } catch (e) {
       if (e instanceof Error && e.message.startsWith('Transaction échouée')) throw e;
       /* RPC muet : on réessaie */
     }
   }
-  throw new Error(`Confirmation non reçue après ${Math.round((opts.confirmTimeoutMs ?? 75_000) / 1000)} s. Vérifiez sur l’explorateur : ${hash}`);
+  throw new WalletError('TX_UNCONFIRMED', `Confirmation non reçue après ${Math.round((opts.confirmTimeoutMs ?? 75_000) / 1000)} s. Vérifiez sur l’explorateur : ${hash}`);
 }

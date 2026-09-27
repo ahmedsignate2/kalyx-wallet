@@ -9,6 +9,7 @@ import { useWallet } from '../lib/walletStore';
 import { walletDisplayName } from '../lib/walletNames';
 import { useT, useSettings } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
+import { friendlyTxError } from '../lib/txError';
 import { WalletAvatar, AvatarPicker } from '../ui/avatarArt';
 
 export default function Wallets() {
@@ -35,7 +36,7 @@ export default function Wallets() {
       t('deleteWalletBody').replace('{label}', label),
       [
         { text: t('cancel'), style: 'cancel' },
-        { text: t('deleteAction'), style: 'destructive', onPress: () => removeWallet(id).catch(() => {}) },
+        { text: t('deleteAction'), style: 'destructive', onPress: () => removeWallet(id).catch((e) => toast.error(t('failed'), friendlyTxError(e, t))) },
       ],
     );
   };

@@ -741,7 +741,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   unlockWithPin: async (pin) => {
     const { failedAttempts, lastFailedAt, activeWalletId } = get();
     if (lockRemainingMs(failedAttempts, lastFailedAt, Date.now()) > 0) {
-      throw new Error('Trop de tentatives. Réessaie plus tard.');
+      throw new WalletError('LOCKED_OUT', 'Trop de tentatives. Réessaie plus tard.');
     }
     try {
       const secret = await revealMnemonic(activeWalletId, { pin });
@@ -1201,11 +1201,11 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapterV2(activeChain);
     if (!adapter.capabilities.accelerate || !adapter.prepareAcceleration) {
-      throw new Error('Cette chaîne ne permet pas d’accélérer une transaction.');
+      throw new WalletError('NOT_SUPPORTED', 'Cette chaîne ne permet pas d’accélérer une transaction.');
     }
 
     const pending = usePendingBtc.getState().txs.find((t) => t.txid === txid);
-    if (!pending) throw new Error('Transaction introuvable ou trop ancienne pour être accélérée.');
+    if (!pending) throw new WalletError('BUMP_NOT_FOUND', 'Transaction introuvable ou trop ancienne pour être accélérée.');
     if (pending.from !== account.address) throw new Error('Cette transaction vient d’un autre compte.');
 
     const context: BitcoinPendingContext = {
@@ -1452,7 +1452,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     const { account, accounts, activeAccountIndex, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(chainId);
-    if (!(adapter instanceof EvmChainAdapter)) throw new Error('Chaîne non supportée');
+    if (!(adapter instanceof EvmChainAdapter)) throw new WalletError('NOT_SUPPORTED', 'Chaîne non supportée');
     // `from` = adresse EVM du compte actif (identique sur toutes les chaînes EVM),
     // même si la chaîne ACTIVE est Solana/Bitcoin (ex. Earn sur Avalanche depuis Solana).
     const stored = accounts.find((a) => a.index === activeAccountIndex);
@@ -1466,7 +1466,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapterV2(activeChain);
     if (!adapter.capabilities.tokenSend) {
-      throw new Error('Envoi de jeton non supporté sur ce réseau');
+      throw new WalletError('NOT_SUPPORTED', 'Envoi de jeton non supporté sur ce réseau');
     }
     return get().sendDraft(
       adapter,
@@ -1496,7 +1496,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapterV2(activeChain);
     if (!adapter.capabilities.tokenSend) {
-      throw new Error('Envoi de jeton non supporté sur ce réseau');
+      throw new WalletError('NOT_SUPPORTED', 'Envoi de jeton non supporté sur ce réseau');
     }
     return get().sendDraft(
       adapter,
@@ -1517,7 +1517,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapterV2(activeChain);
     if (adapter.config.family !== 'ton' || !adapter.capabilities.tokenSend) {
-      throw new Error('Envoi de jeton non supporté sur ce réseau');
+      throw new WalletError('NOT_SUPPORTED', 'Envoi de jeton non supporté sur ce réseau');
     }
     return get().sendDraft(
       adapter,
@@ -1541,7 +1541,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   revealPhrase: async (unlock) => {
     const { activeWalletId, wallets } = get();
     if (isPrivateKeyWallet(wallets, activeWalletId)) {
-      throw new Error('Ce portefeuille a été importé par clé privée : il n’a pas de phrase de récupération.');
+      throw new WalletError('NO_RECOVERY_PHRASE', 'Ce portefeuille a été importé par clé privée : il n’a pas de phrase de récupération.');
     }
     return revealMnemonic(activeWalletId, unlock);
   },

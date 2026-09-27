@@ -6,7 +6,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, Text, View } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useFocusEffect } from 'expo-router';
 import { GlassCard, RemoteIcon, SkeletonRow, PressableScale } from '../../ui/premium';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView } from 'react-native';
@@ -63,10 +63,12 @@ export default function EarnScreen() {
     return a ? { evmAddress: a.evmAddress, solAddress: a.solAddress } : null;
   }, [wallet.accounts, wallet.activeAccountIndex]);
 
-  useEffect(() => {
-    if (acct) earn.refresh(acct, fiat);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [acct?.evmAddress, acct?.solAddress, fiat]);
+  // À chaque visite de l'onglet (il reste monté) : le magasin juge de la fraîcheur.
+  useFocusEffect(
+    useCallback(() => {
+      if (acct) void useEarn.getState().refresh(acct, fiat);
+    }, [acct, fiat]),
+  );
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {

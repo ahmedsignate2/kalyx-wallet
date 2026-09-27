@@ -96,7 +96,7 @@ export function SignSheet({
         <Surface level={1} padded={false}>
           {explanation.lose.map((l, i) => (
             <View key={`l${i}`} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: space[3] }}>
-              <Text variant="caption" tone="secondary">Tu perds</Text>
+              <Text variant="caption" tone="secondary">{t("tcLeaves")}</Text>
               <Text variant="body" tone="down" tabular>− {l}</Text>
             </View>
           ))}
