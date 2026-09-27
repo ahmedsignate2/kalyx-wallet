@@ -79,8 +79,12 @@ interface PortfolioState extends Snapshot {
   key: string | null;
   fromCache: boolean;
   error: string | null;
-  hydrate: (acct: PortfolioAccount, fiat: string) => Promise<void>;
+  hydrate: (acct: PortfolioAccount, fiat: string, opts?: { includeTestnets?: boolean }) => Promise<void>;
   refresh: (acct: PortfolioAccount, fiat: string, opts?: { force?: boolean; includeTestnets?: boolean }) => Promise<void>;
+  /** Vrai après un envoi : le prochain `refresh` ignore la fraîcheur. */
+  invalidated: boolean;
+  /** À appeler après un envoi : les soldes affichés ne sont plus justes. */
+  invalidate: () => void;
 }
 
 const VALUE_CHAINS: ChainConfig[] = listChains({ includeTestnets: false }).filter((c) => c.coingeckoId);
@@ -90,7 +94,16 @@ const STALE_MS = 45_000;
  * par une phrase TON n'a PAS d'adresse EVM : avec la seule adresse EVM, tous ces
  * portefeuilles auraient partagé le même cache, « kalyx.portfolio..eur ».
  */
-const cacheKey = (a: PortfolioAccount, fiat: string) => `kalyx.portfolio.${(a.evmAddress || `ton:${a.tonPublicKey ?? ''}`).toLowerCase()}.${fiat}`;
+const accountKey = (a: PortfolioAccount, fiat: string) => `kalyx.portfolio.${(a.evmAddress || `ton:${a.tonPublicKey ?? ''}`).toLowerCase()}.${fiat}`;
+
+/*
+ * UNE seule clé pour lire et pour écrire. `hydrate` lisait « …eur » quand
+ * `refresh` écrivait « …eur.mainnet » : le cache n'était jamais relu, et
+ * comme les onglets remontent l'accueil à chaque passage, chaque retour
+ * vidait les montants (squelettes) et rappelait tous les réseaux.
+ */
+export const snapshotKey = (a: PortfolioAccount, fiat: string, includeTestnets = false) =>
+  `${accountKey(a, fiat)}.${includeTestnets ? 'testnets' : 'mainnet'}`;
 
 function serialize(s: Snapshot): string {
   return JSON.stringify({ ...s, holdings: s.holdings.map((h) => ({ ...h, raw: h.raw.toString() })) });
@@ -287,9 +300,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   key: null,
   fromCache: false,
   error: null,
+  invalidated: false,
 
-  hydrate: async (acct, fiat) => {
-    const key = cacheKey(acct, fiat);
+  invalidate: () => set({ invalidated: true }),
+
+  hydrate: async (acct, fiat, opts) => {
+    const key = snapshotKey(acct, fiat, opts?.includeTestnets === true);
     if (get().key === key) return;
     try {
       const json = await AsyncStorage.getItem(key);
@@ -303,11 +319,13 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
 
   refresh: async (acct, fiat, opts) => {
     const includeTestnets = opts?.includeTestnets === true;
-    const key = `${cacheKey(acct, fiat)}.${includeTestnets ? 'testnets' : 'mainnet'}`;
+    const key = snapshotKey(acct, fiat, includeTestnets);
     const s = get();
     if (s.loading) return;
-    if (!opts?.force && s.key === key && !s.fromCache && Date.now() - s.at < STALE_MS) return;
-    set({ loading: true, error: null });
+    // L'âge du CLICHÉ décide, qu'il vienne du disque ou du réseau : un cliché
+    // relu du disque il y a dix secondes n'a pas à être redemandé.
+    if (!opts?.force && !s.invalidated && s.key === key && Date.now() - s.at < STALE_MS) return;
+    set({ loading: true, error: null, invalidated: false });
     // `loading` suffit : l'ambiance Synchronisation en est DÉRIVÉE par
     // lib/auraBinding.ts. Ce store n'a pas à connaître le halo, il n'émet que
     // ce que le halo ne peut pas déduire : les événements.

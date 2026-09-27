@@ -30,7 +30,7 @@ import { addressForChain } from '../lib/accountAddress';
 import { accountDisplayName } from '../lib/walletNames';
 import { useSettings, useT, useActivityT, fiatSymbol } from '../lib/settingsStore';
 import { useNotifCenter, unreadCount } from '../lib/notificationCenter';
-import { usePortfolioStore, splitHoldings, verifiedSymbols, portfolioHistory, loadAllNfts, PERIODS, type Period, type Holding, type ChainNft } from '../lib/portfolio';
+import { usePortfolioStore, splitHoldings, verifiedSymbols, portfolioHistory, peekPortfolioHistory, loadAllNfts, PERIODS, type Period, type Holding, type ChainNft } from '../lib/portfolio';
 import { useContacts } from '../lib/contactsStore';
 import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
@@ -111,7 +111,7 @@ export default function Home() {
   const [hidden, setHidden] = useState(false);
   const [tab, setTab] = useState<Tab>('tokens');
   const [period, setPeriod] = useState<Period>('1S');
-  const [points, setPoints] = useState<ChartPoint[]>([]);
+  const [points, setPoints] = useState<ChartPoint[]>(() => peekPortfolioHistory(pf.key, '1S') ?? []);
   const [chartLoading, setChartLoading] = useState(false);
   const [scrub, setScrub] = useState<ChartPoint | null>(null);
   const [showSmall, setShowSmall] = useState(false);
@@ -145,6 +145,11 @@ export default function Home() {
     let alive = true;
     if (!pf.key || pf.holdings.length === 0) {
       setPoints([]);
+      return;
+    }
+    const known = peekPortfolioHistory(pf.key, period);
+    if (known) {
+      setPoints(known);
       return;
     }
     setChartLoading(true);
@@ -229,7 +234,7 @@ export default function Home() {
         pf.refresh(acct, fiat, { force: true }),
         ...historyChains.map((chain) => {
           const address = historyAddressFor(chain);
-          return address ? fetchHistory(chain.id, address).catch(() => {}) : Promise.resolve();
+          return address ? fetchHistory(chain.id, address, { force: true }).catch(() => {}) : Promise.resolve();
         }),
       ]);
       if (tab === 'nft') setNfts(await loadAllNfts(acct).catch(() => []));
