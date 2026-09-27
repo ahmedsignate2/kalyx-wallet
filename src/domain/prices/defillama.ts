@@ -43,8 +43,9 @@ const CHUNK = 60;
 const TIMEOUT_MS = 8_000;
 
 export interface TokenRef {
+  /** Réseau Kalyx, ou `coingecko` pour une pièce désignée par son identifiant CoinGecko. */
   chainId: string;
-  /** Contrat ERC-20 ou mint Solana. */
+  /** Contrat ERC-20, mint Solana, ou identifiant CoinGecko (« ethereum »). */
   address: string;
 }
 
@@ -53,7 +54,36 @@ export function llamaKey(chainId: string, address: string): string {
   return `${chainId}:${chainId === 'solana' ? address : address.toLowerCase()}`;
 }
 
+/**
+ * Taux 1 USD → devise, par Frankfurter (taux de la BCE, sans clé), pour
+ * convertir les prix DefiLlama quand CoinGecko ne répond pas. Gardé 6 h en
+ * mémoire ; le dernier taux connu sert si le service est muet.
+ */
+const FX_TTL_MS = 6 * 3600_000;
+const fxCache = new Map<string, { at: number; rate: number }>();
+
+export async function getUsdFxRate(fiat: string, fetchFn: FetchLike = (u, i) => fetch(u, i)): Promise<number> {
+  const cur = fiat.toUpperCase();
+  if (cur === 'USD') return 1;
+  if (!/^[A-Z]{3}$/.test(cur)) return 0;
+  const hit = fxCache.get(cur);
+  if (hit && Date.now() - hit.at < FX_TTL_MS) return hit.rate;
+  try {
+    const res = await fetchFn(`https://api.frankfurter.dev/v1/latest?base=USD&symbols=${cur}`);
+    const rate = res.ok ? Number(((await res.json()) as { rates?: Record<string, unknown> })?.rates?.[cur]) : NaN;
+    if (Number.isFinite(rate) && rate > 0) {
+      fxCache.set(cur, { at: Date.now(), rate });
+      return rate;
+    }
+  } catch {
+    /* dernier taux connu ci-dessous */
+  }
+  return hit?.rate ?? 0;
+}
+
 function coinId(t: TokenRef): string | null {
+  // DefiLlama cote aussi par identifiant CoinGecko : c'est ainsi qu'on price les pièces natives.
+  if (t.chainId === 'coingecko') return /^[a-z0-9-]+$/.test(t.address) ? `coingecko:${t.address}` : null;
   const chain = LLAMA_CHAIN[t.chainId];
   return chain ? `${chain}:${t.chainId === 'solana' ? t.address : t.address.toLowerCase()}` : null;
 }
