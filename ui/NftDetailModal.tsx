@@ -66,7 +66,7 @@ export function NftDetailModal({
 
             {explorerUrl ? (
               <Text
-                onPress={() => Linking.openURL(`${explorerUrl}/token/${nft.contract}?a=${nft.tokenId}`)}
+                onPress={() => Linking.openURL(nft.url ?? `${explorerUrl}/token/${nft.contract}?a=${nft.tokenId}`)}
                 style={{ color: colors.primary, fontFamily: fonts.semibold, textAlign: 'center' }}
               >
                 {t('nftViewOnExplorer')}

@@ -43,6 +43,10 @@ interface Route {
 }
 
 const LIMIT = /^(?:[1-9]|[1-9]\d|100)$/;
+const OFFSET = /^\d{1,5}$/;
+const BOOL = /^(?:true|false)$/;
+// Nom TON DNS : « kalyx.ton », « sous.domaine.ton », « nom.t.me » — minuscules, chiffres, tirets.
+const DOMAIN = '(?:[a-z0-9-]{1,63}\\.){1,4}(?:ton|t\\.me)';
 const LT = /^\d{1,24}$/;
 const CODES = /^[a-zA-Z0-9,]{1,64}$/;
 
@@ -65,6 +69,10 @@ export const ROUTES: Route[] = [
   { method: 'GET', pattern: new RegExp(`^/v2/blockchain/messages/${HASH}/transaction$`) },
   { method: 'GET', pattern: new RegExp(`^/v2/events/${HASH}$`) },
   { method: 'GET', pattern: new RegExp(`^/v2/jettons/${ADDR}$`), cacheSeconds: 300 },
+  // NFT d'une adresse (domaines .ton compris) : 60 s, ils changent rarement.
+  { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}/nfts$`), query: { limit: LIMIT, offset: OFFSET, indirect_ownership: BOOL }, cacheSeconds: 60 },
+  // Résolution d'un nom .ton : 60 s. Assez court pour suivre un changement de propriétaire.
+  { method: 'GET', pattern: new RegExp(`^/v2/dns/${DOMAIN}/resolve$`), cacheSeconds: 60 },
   { method: 'GET', pattern: /^\/v2\/rates$/, query: { tokens: CODES, currencies: CODES }, cacheSeconds: 60 },
   { method: 'POST', pattern: /^\/v2\/wallet\/emulate$/ },
   { method: 'POST', pattern: /^\/v2\/blockchain\/message$/, broadcast: true },

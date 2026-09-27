@@ -33,7 +33,7 @@ import { toast } from '../lib/toast';
 import {
   getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isWalletAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
   formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
-  estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, TonAdapterV2, JETTON_TRANSFER_TON,
+  estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, TonAdapterV2, JETTON_TRANSFER_TON, normalizeTonDomain,
   findAdapterV2, getAdapterV2, isValidTonAddress, transferFeeFor, amountAfterTransferFee,
   type FeeOptions, type FeeSpeed, type FeeQuotes, type TransferFeeConfig,
   simulateSendTransaction, type SimulationResult,
@@ -181,15 +181,17 @@ export default function Send() {
     }
   }, [family, chain.testnet]);
 
-  // ── ENS ──
-  const isEns = family === 'evm' && looksLikeEnsName(to.trim());
+  // ── Noms : ENS sur EVM, TON DNS (« kalyx.ton ») sur TON ──
+  const tonDomain = family === 'ton' ? normalizeTonDomain(to) : null;
+  const isEns = (family === 'evm' && looksLikeEnsName(to.trim())) || !!tonDomain;
   const [ens, setEns] = useState<{ status: 'idle' | 'resolving' | 'found' | 'notfound'; address: string | null }>({ status: 'idle', address: null });
   useEffect(() => {
     if (!isEns) return setEns({ status: 'idle', address: null });
     setEns({ status: 'resolving', address: null });
     const name = to.trim();
     const timer = setTimeout(() => {
-      resolveEnsName(name)
+      const ton = tonDomain ? findAdapterV2(targetChainId) : null;
+      (ton instanceof TonAdapterV2 ? ton.resolveDomain(tonDomain!) : resolveEnsName(name))
         .then((a) => {
           const cleaned = a ? cleanAddressInput(a) : null;
           setEns(cleaned ? { status: 'found', address: cleaned } : { status: 'notfound', address: null });
@@ -197,7 +199,7 @@ export default function Send() {
         .catch(() => setEns({ status: 'notfound', address: null }));
     }, 400);
     return () => clearTimeout(timer);
-  }, [to, isEns]);
+  }, [to, isEns, tonDomain, targetChainId]);
   const recipient = isEns ? ens.address ?? '' : to.trim();
   const recipientOk = !!recipient && validAddress(recipient);
 
@@ -548,7 +550,7 @@ export default function Send() {
     if (!recipientOk) {
       technicalLogger.logTx('step_1_address_invalid', { input: to, isEns, chain: chain.name }, true);
       const fam = family === 'evm' ? t("errNeedEvmAddress") : family === 'solana' ? t("errNeedSolAddress") : family === 'ton' ? t("errNeedTonAddress") : t("errNeedBtcAddress");
-      return setAddressError(isEns && ens.status === 'resolving' ? t("errResolvingEns") : isEns ? t("errEnsNotFound") : t('errNeedAddressFull').replace('${symbol}', symbol).replace('${chain.name}', chain.name).replace('${fam}', fam));
+      return setAddressError(isEns && ens.status === 'resolving' ? t(tonDomain ? 'resolvingName' : 'errResolvingEns') : isEns ? t(tonDomain ? 'errNameNotFound' : 'errEnsNotFound') : t('errNeedAddressFull').replace('${symbol}', symbol).replace('${chain.name}', chain.name).replace('${fam}', fam));
     }
     if (poisoning) {
       technicalLogger.logTx('step_1_address_poisoning_blocked', { recipient, chain: chain.name }, true);
@@ -730,7 +732,7 @@ export default function Send() {
               */}
               <Chip label={t("chipContacts")} icon="contacts" onPress={() => setPickContact(true)} />
             </View>
-            {isEns && ens.status === 'resolving' ? <Text variant="caption" tone="secondary">{t("resolvingEns")}</Text> : null}
+            {isEns && ens.status === 'resolving' ? <Text variant="caption" tone="secondary">{t(tonDomain ? 'resolvingName' : 'resolvingEns')}</Text> : null}
 
             {poisoning ? (
               <Surface style={{ borderColor: colors.danger, gap: space[2] }}>

@@ -14,6 +14,8 @@ export interface NftItem {
   name: string;
   collection: string;
   image: string;
+  /** Page de l'explorateur, quand la chaîne n'a pas le format `/token/{contrat}?a={id}` (TON). */
+  url?: string;
 }
 
 interface RawNft {

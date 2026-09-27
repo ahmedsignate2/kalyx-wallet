@@ -490,7 +490,23 @@ Lecture, envoi et historique des jettons TEP-74 (`tonJettons.ts`, `TonAdapterV2`
 - **Images** : TonAPI sert du WebP signé ; converties en PNG par `wsrv.nl`.
 - Webapp : pas d'envoi de jetton (la signature par téléphone ne couvre pas TON).
 
-Reste : NFT et domaines `.ton`, TON Connect v2, staking, commentaires chiffrés,
-changement de version de portefeuille, frais du jetton affichés depuis
-l'émulation (l'écran montre pour l'instant les 0,05 TON joints).
+Frais du jetton : l'écran affiche le coût émulé (envoi à soi-même) et exige à
+part les 0,05 TON joints.
+
+## 15. NFT et noms `.ton` (27/09)
+
+- **NFT** : `/v2/accounts/{a}/nfts` (route ajoutée au proxy, cache 60 s). Sur le
+  compte relevé, la MOITIÉ des NFT sont des arnaques (« 1,000,000 NOT Voucher »,
+  « 6,515 USDT Bonus »…) : écartés par `trust: blacklist` ou par l'absence de
+  collection. Un domaine `.ton` est toujours gardé (collection TON DNS). Lien
+  explorateur : `tonscan.org/nft/{adresse}`.
+- **Noms** : `/v2/dns/{nom}/resolve` (route ajoutée, cache 60 s, noms en
+  minuscules seulement). Envoyer accepte « kalyx.ton » comme ENS sur EVM ;
+  l'adresse est rendue conviviale NON rebondissante.
+- **Le proxy doit être redéployé** pour ces deux routes (`npx wrangler deploy`
+  dans `ton-proxy/`) : sans elles, les NFT TON restent vides et un nom `.ton`
+  est « introuvable », sans rien casser d'autre.
+
+Reste : TON Connect v2, staking, commentaires chiffrés, changement de version
+de portefeuille, envoi de NFT.
 

@@ -143,3 +143,27 @@ describe('jettons — historique (événements réels)', () => {
     expect(h.some((t) => t.asset === 'USDT-GARN')).toBe(false);
   });
 });
+
+describe('NFT et noms .ton', () => {
+  const NFTS = require('../ton/tonapi-nfts-live.json');
+  const owner = 'UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw';
+  const ad = new TonAdapterV2(MAIN, {
+    api: api({
+      [`GET /v2/accounts/${owner}/nfts?limit=100&offset=0&indirect_ownership=false`]: { status: 200, body: NFTS.nfts },
+      'GET /v2/dns/foundation.ton/resolve': { status: 200, body: NFTS.dnsFoundation },
+    }),
+    client: noCenter,
+  });
+
+  it('NFT sans les arnaques, domaines compris', async () => {
+    const list = await ad.nfts(owner);
+    expect(list.some((n) => n.dns === 'mygoldtonnft.ton')).toBe(true);
+    expect(list.some((n) => /voucher/i.test(n.name))).toBe(false);
+  });
+
+  it('résout un nom .ton, rien pour un nom inconnu', async () => {
+    expect(await ad.resolveDomain('foundation.ton')).toMatch(/^UQ/);
+    expect(await ad.resolveDomain('inconnu.ton')).toBeNull();
+    expect(await new TonAdapterV2(MAIN, { api: null, client: noCenter }).resolveDomain('foundation.ton')).toBeNull();
+  });
+});
