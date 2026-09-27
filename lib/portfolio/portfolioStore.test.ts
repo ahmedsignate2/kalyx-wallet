@@ -72,3 +72,15 @@ describe('réseau muet : les actifs ne disparaissent pas', () => {
     expect(carryOver(before, [], new Set())).toEqual([]);
   });
 });
+
+describe('prix absent cette fois : le dernier connu est gardé', () => {
+  const { carryOver } = require('./portfolioStore');
+  const h = (id: string, price: number, verified = true) => ({ id, chainId: 'base', kind: 'erc20', amount: 10, raw: 10n, price, fiat: verified ? 10 * price : 0, verified, change24h: null });
+  it('un jeton sans prix garde le précédent (et reste vérifié)', () => {
+    const out = carryOver([h('base:0xa', 2)], [h('base:0xa', 0, false)], new Set());
+    expect(out[0]).toMatchObject({ price: 2, fiat: 20, verified: true });
+  });
+  it('un nouveau prix l’emporte toujours', () => {
+    expect(carryOver([h('base:0xa', 2)], [h('base:0xa', 3)], new Set())[0]).toMatchObject({ price: 3, fiat: 30 });
+  });
+});

@@ -14,7 +14,7 @@ import {
   listChains,
   getPrices,
   getMarkets,
-  getErc20Tokens,
+  getErc20TokensStrict,
   getTokenPrices,
   getLlamaTokenPricesUsd,
   getUsdFxRate,
@@ -148,11 +148,36 @@ function summarize(holdings: Holding[]): Pick<Snapshot, 'total' | 'pnl24h' | 'pn
  */
 type Failed = Set<string>;
 
-/** Actifs du cliché précédent dont la source n'a pas pu être relue. */
+/**
+ * Actifs du cliché précédent dont la source n'a pas pu être relue, et prix
+ * précédent pour un actif dont le prix n'est pas arrivé cette fois : sans lui,
+ * l'actif tombait à 0 et glissait dans « petits soldes » ou « masqués »,
+ * pour revenir au chargement suivant.
+ */
 export function carryOver(previous: Holding[], fresh: Holding[], failed: Failed): Holding[] {
-  if (failed.size === 0) return fresh;
-  const kept = previous.filter((h) => failed.has(`${h.chainId}:${h.kind === 'native' ? 'native' : 'tokens'}`) && !fresh.some((f) => f.id === h.id));
-  return kept.length ? [...fresh, ...kept].sort((a, b) => b.fiat - a.fiat || b.amount - a.amount) : fresh;
+  const prev = new Map(previous.map((h) => [h.id, h]));
+  const priced = fresh.map((h) => {
+    const p = prev.get(h.id);
+    if (h.price > 0 || !p || p.price <= 0) return h;
+    const verified = h.verified || p.verified;
+    return { ...h, price: p.price, fiat: verified ? h.amount * p.price : 0, change24h: h.change24h ?? p.change24h, verified };
+  });
+  const kept = failed.size ? previous.filter((h) => failed.has(`${h.chainId}:${h.kind === 'native' ? 'native' : 'tokens'}`) && !fresh.some((f) => f.id === h.id)) : [];
+  return [...priced, ...kept].sort((a, b) => b.fiat - a.fiat || b.amount - a.amount);
+}
+
+/** `Promise.all` avec au plus `limit` tâches en vol, ordre des résultats conservé. */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
 }
 
 async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnets = false, failed: Failed = new Set()): Promise<Holding[]> {
@@ -205,15 +230,15 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
   const evmChains = VALUE_CHAINS.filter(
     (c) => c.family === 'evm' && c.coingeckoPlatform && c.rpcUrls.some((u) => u.includes('.alchemy.com')),
   );
-  const erc20ListsP = Promise.all(
-    evmChains.map(async (chain) => ({
+  // Quatre réseaux à la fois : quatorze requêtes simultanées déclenchaient les
+  // refus d'Alchemy (HTTP 429) — et des jetons qui disparaissaient.
+  const erc20ListsP = mapLimit(evmChains, 4, async (chain) => ({
       chain,
-      list: await getErc20Tokens(chain, acct.evmAddress).catch(() => {
+      list: await getErc20TokensStrict(chain, acct.evmAddress).catch(() => {
         failed.add(`${chain.id}:tokens`);
         return [];
       }),
-    })),
-  );
+    }));
 
   // Jetons SPL. Lancé lui aussi sans attendre : il ne dépend de rien d'autre.
   const splListP = (async () => {

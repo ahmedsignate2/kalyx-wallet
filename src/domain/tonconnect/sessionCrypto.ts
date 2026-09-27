@@ -12,7 +12,7 @@
  */
 import { x25519 } from '@noble/curves/ed25519';
 import { hsalsa, xsalsa20poly1305 } from '@noble/ciphers/salsa';
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { hex } from '@scure/base';
 
 const NONCE_LENGTH = 24;
@@ -55,7 +55,7 @@ export function newSessionKeyPair(): SessionKeyPair {
 /** Chiffre `message` pour `theirPublic` : `nonce || boîte`. */
 export function encryptMessage(message: string, theirPublicHex: string, mySecretHex: string, nonce: Uint8Array = randomBytes(NONCE_LENGTH)): Uint8Array {
   if (nonce.length !== NONCE_LENGTH) throw new Error('Nonce de 24 octets attendu');
-  const boxed = xsalsa20poly1305(boxKey(hex.decode(theirPublicHex), hex.decode(mySecretHex)), nonce).encrypt(new TextEncoder().encode(message));
+  const boxed = xsalsa20poly1305(boxKey(hex.decode(theirPublicHex), hex.decode(mySecretHex)), nonce).encrypt(utf8ToBytes(message));
   const out = new Uint8Array(NONCE_LENGTH + boxed.length);
   out.set(nonce, 0);
   out.set(boxed, NONCE_LENGTH);
@@ -67,5 +67,24 @@ export function decryptMessage(blob: Uint8Array, theirPublicHex: string, mySecre
   if (blob.length < NONCE_LENGTH + 16) throw new Error('Message TON Connect tronqué');
   const nonce = blob.subarray(0, NONCE_LENGTH);
   const opened = xsalsa20poly1305(boxKey(hex.decode(theirPublicHex), hex.decode(mySecretHex)), nonce).decrypt(blob.subarray(NONCE_LENGTH));
-  return new TextDecoder().decode(opened);
+  return utf8Decode(opened);
+}
+
+/**
+ * UTF-8 → texte, sans `TextDecoder` : sa présence sous Hermes n'est pas
+ * garantie, et un message de dApp indéchiffrable serait perdu en silence.
+ */
+export function utf8Decode(b: Uint8Array): string {
+  let out = '';
+  for (let i = 0; i < b.length; ) {
+    const c = b[i++];
+    let cp: number;
+    if (c < 0x80) cp = c;
+    else if (c >= 0xc0 && c < 0xe0) cp = ((c & 0x1f) << 6) | (b[i++] & 0x3f);
+    else if (c >= 0xe0 && c < 0xf0) cp = ((c & 0x0f) << 12) | ((b[i++] & 0x3f) << 6) | (b[i++] & 0x3f);
+    else if (c >= 0xf0) cp = ((c & 0x07) << 18) | ((b[i++] & 0x3f) << 12) | ((b[i++] & 0x3f) << 6) | (b[i++] & 0x3f);
+    else cp = 0xfffd;
+    out += String.fromCodePoint(cp);
+  }
+  return out;
 }

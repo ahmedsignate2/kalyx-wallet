@@ -118,6 +118,7 @@ export {
 // Tokens ERC-20 (Alchemy)
 export {
   getErc20Tokens,
+  getErc20TokensStrict,
   getTokenMetadata,
   getCustomTokens,
   isSpamToken,
