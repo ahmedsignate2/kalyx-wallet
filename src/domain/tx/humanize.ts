@@ -110,6 +110,8 @@ export interface HumanizeCtx {
   verifiedSymbols?: Set<string>;
   /** Contre-valeur d'un montant (symbole, montant humain) → chaîne formatée, ou undefined. */
   fiatOf?: (symbol: string, amount: number) => string | undefined;
+  /** Symbole d'un token connu (portefeuille), par réseau et adresse. */
+  symbolOf?: (chain: string, contract: string) => string | undefined;
   /** Tri anti-spam (voir `spam.ts`) ; prime sur les règles de repli. */
   spamOf?: (tx: TxSummary) => SpamReason | null;
 }
@@ -166,7 +168,9 @@ export function humanizeTx(tx: TxSummary, ctx: HumanizeCtx): HumanTx {
       out = { title: t('actSwapped', money), label: t('actLabelSwapped'), subtitle: tx.description ?? undefined, icon: 'exchange', tone: 'neutral', amount: `−${amountStr} ${symbol}`, failed, spam: false };
     }
   } else if (type === 'APPROVE' || type === 'APPROVAL') {
-    out = { title: t('actApproved', { name: name(tx.to), symbol }), label: t('actLabelApproved'), subtitle: name(tx.to), icon: 'security', tone: 'neutral', failed, spam: false };
+    // Le token autorisé est le CONTRAT, pas la monnaie native du réseau.
+    const approved = tx.asset ?? (tx.contract ? ctx.symbolOf?.(tx.chain, tx.contract) ?? shortAddress(tx.contract) : symbol);
+    out = { title: t('actApproved', { name: name(tx.to), symbol: approved }), label: t('actLabelApproved'), subtitle: name(tx.to), icon: 'security', tone: 'neutral', failed, spam: false };
   } else if (type === 'NFT') {
     out = {
       title: inbound ? t('actNftIn', { name: name(tx.from) }) : t('actNftOut', { name: name(tx.to) }),

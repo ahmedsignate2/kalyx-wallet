@@ -147,13 +147,14 @@ export default function History() {
       nativeOf: nativeOfChain,
       nameOf,
       spamOf,
+      symbolOf: (c: string, contract: string) => holdings.find((x) => x.chainId === c && x.contract?.toLowerCase() === contract.toLowerCase())?.symbol,
       fiatOf: (symbol: string, amount: number) => {
         const p = priceBySymbol.get(symbol.toUpperCase());
         return p ? `${formatFiat(amount * p)} ${sym}` : undefined;
       },
     };
     return cached.map((tx) => ({ tx, h: humanizeTx(tx, ctx) }));
-  }, [cached, activityT, chain.nativeSymbol, chain.nativeDecimals, nameOf, spamOf, priceBySymbol, sym]);
+  }, [cached, activityT, chain.nativeSymbol, chain.nativeDecimals, nameOf, spamOf, priceBySymbol, sym, holdings]);
 
   const spamRows = rows.filter((r) => r.h.spam);
   const poisoned = spamRows.some((r) => r.h.spamReason === 'poisoning');
@@ -173,22 +174,27 @@ export default function History() {
       .toLowerCase();
     return hay.includes(q);
   };
-  const visible = rows.filter((r) => {
-    if (r.h.spam) return false;
-    if (onlyChain && r.tx.chain !== onlyChain) return false;
-    if (filter === 'in' && r.tx.direction !== 'in') return false;
-    if (filter === 'out' && r.tx.direction !== 'out') return false;
-    if (filter === 'swap' && (r.tx.type ?? '').toUpperCase() !== 'SWAP') return false;
-    return matches(r);
-  });
+  const visible = useMemo(
+    () =>
+      rows.filter((r) => {
+        if (r.h.spam) return false;
+        if (onlyChain && r.tx.chain !== onlyChain) return false;
+        if (filter === 'in' && r.tx.direction !== 'in') return false;
+        if (filter === 'out' && r.tx.direction !== 'out') return false;
+        if (filter === 'swap' && (r.tx.type ?? '').toUpperCase() !== 'SWAP') return false;
+        return matches(r);
+      }),
+    // `matches` ne dépend que de `q`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, onlyChain, filter, q],
+  );
   const sections = useMemo(
     () =>
       groupByDay(visible.map((r) => ({ ...r, timestamp: r.tx.timestamp })), Date.now(), locale, { today: t('txToday'), yesterday: t('txYesterday') }).map((g) => ({
         title: g.label,
         data: g.items,
       })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [visible.length, visible[0]?.tx.hash, rows, filter, onlyChain, q, locale],
+    [visible, locale, t],
   );
   const hiddenShown = showSpam ? spamRows.filter((r) => (!onlyChain || r.tx.chain === onlyChain) && matches(r)) : [];
 

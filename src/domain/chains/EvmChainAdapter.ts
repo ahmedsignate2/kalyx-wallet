@@ -121,6 +121,19 @@ export class EvmChainAdapter implements ChainAdapter {
   }
 
   /**
+   * Reçu d'une transaction, SANS attendre : `null` tant qu'elle n'est pas dans
+   * un bloc. Donne ce que l'écran de suivi affichait en « ~ » : les frais
+   * RÉELLEMENT payés (gaz consommé × prix effectif), et le verdict d'exécution.
+   */
+  async getReceiptInfo(hash: string): Promise<{ status: 'success' | 'failed'; fee: bigint; blockNumber: number; timestamp?: number } | null> {
+    const r = await this.call((p) => p.getTransactionReceipt(hash), 'eth_getTransactionReceipt');
+    if (!r) return null;
+    const fee = r.fee ?? r.gasUsed * (r.gasPrice ?? 0n);
+    const block = await this.call((p) => p.getBlock(r.blockNumber), 'eth_getBlockByNumber').catch(() => null);
+    return { status: r.status === 0 ? 'failed' : 'success', fee, blockNumber: r.blockNumber, ...(block ? { timestamp: block.timestamp } : {}) };
+  }
+
+  /**
    * Historique du compte, chaque ligne ESTAMPILLÉE de sa chaîne.
    *
    * L'estampillage se fait ici et nulle part ailleurs : les analyseurs lisent la
