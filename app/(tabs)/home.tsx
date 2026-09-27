@@ -15,31 +15,30 @@ import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useS
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppTabBar } from '../ui/tabs';
-import { MarketPanel } from '../ui/MarketPanel';
-import { NftDetailModal } from '../ui/NftDetailModal';
-import { InteractiveChart } from '../ui/InteractiveChart';
-import { Icon } from '../ui/icon';
-import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
-import { FadeInUp } from '../ui/FadeInUp';
-import { cascadeDelay } from '../ui/motion';
-import { LogoImage, Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../ui/kit';
-import { WalletAvatar } from '../ui/avatarArt';
-import { TonNftSendSheet } from '../ui/TonNftSendSheet';
-import { useBrowserPresence, hostOf } from '../lib/browserPresence';
-import { useWallet } from '../lib/walletStore';
-import { addressForChain } from '../lib/accountAddress';
-import { accountDisplayName } from '../lib/walletNames';
-import { useSettings, useT, useActivityT, fiatSymbol } from '../lib/settingsStore';
-import { useNotifCenter, unreadCount } from '../lib/notificationCenter';
-import { usePortfolioStore, splitHoldings, verifiedSymbols, portfolioHistory, peekPortfolioHistory, loadAllNfts, PERIODS, type Period, type Holding, type ChainNft } from '../lib/portfolio';
-import { useContacts } from '../lib/contactsStore';
-import { haptic } from '../lib/haptics';
-import { toast } from '../lib/toast';
-import { isDeviceCompromised } from '../lib/deviceSecurity';
-import { IS_BETA } from '../lib/appStage';
-import { getAdapter, listChains, nativeOfChain, chainNameOf, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type ChartPoint, type NftItem } from '../src';
+import { MarketPanel } from '../../ui/MarketPanel';
+import { NftDetailModal } from '../../ui/NftDetailModal';
+import { InteractiveChart } from '../../ui/InteractiveChart';
+import { Icon } from '../../ui/icon';
+import { useTheme } from '../../ui/theme';
+import { space, SCREEN_MARGIN, radius } from '../../ui/tokens';
+import { FadeInUp } from '../../ui/FadeInUp';
+import { cascadeDelay } from '../../ui/motion';
+import { LogoImage, Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../../ui/kit';
+import { WalletAvatar } from '../../ui/avatarArt';
+import { TonNftSendSheet } from '../../ui/TonNftSendSheet';
+import { useBrowserPresence, hostOf } from '../../lib/browserPresence';
+import { useWallet } from '../../lib/walletStore';
+import { addressForChain } from '../../lib/accountAddress';
+import { accountDisplayName } from '../../lib/walletNames';
+import { useSettings, useT, useActivityT, fiatSymbol } from '../../lib/settingsStore';
+import { useNotifCenter, unreadCount } from '../../lib/notificationCenter';
+import { usePortfolioStore, splitHoldings, verifiedSymbols, portfolioHistory, peekPortfolioHistory, loadAllNfts, PERIODS, type Period, type Holding, type ChainNft } from '../../lib/portfolio';
+import { useContacts } from '../../lib/contactsStore';
+import { haptic } from '../../lib/haptics';
+import { toast } from '../../lib/toast';
+import { isDeviceCompromised } from '../../lib/deviceSecurity';
+import { IS_BETA } from '../../lib/appStage';
+import { getAdapter, listChains, nativeOfChain, chainNameOf, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type ChartPoint, type NftItem } from '../../src';
 import {
   useHistoryStore,
   useHistoryCache,
@@ -47,7 +46,7 @@ import {
   useAnyHistoryFetched,
   aggregateHistory,
   type HistoryChain,
-} from '../lib/historyStore';
+} from '../../lib/historyStore';
 
 const HIDE_KEY = 'kalyx.hideBalance';
 const SMALL_KEY = 'kalyx.showSmallBalances';
@@ -482,7 +481,7 @@ export default function Home() {
         {/* dApp mise de côté : un geste pour la retrouver telle quelle. */}
         {parked ? (
           <KPressable
-            onPress={() => router.dismissTo('/browser')}
+            onPress={() => router.navigate('/browser')}
             accessibilityLabel={t('browserBackTo').replace('{site}', hostOf(parked.url))}
             style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: space[2], paddingHorizontal: space[3], borderRadius: radius.round, backgroundColor: colors.surface2 }}
           >
@@ -710,7 +709,6 @@ export default function Home() {
           onSent={() => { setSendNft(null); setNfts(null); }}
         />
       ) : null}
-      <AppTabBar active="home" />
     </View>
   );
 }

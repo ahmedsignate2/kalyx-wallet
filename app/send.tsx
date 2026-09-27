@@ -840,7 +840,7 @@ export default function Send() {
             <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t("canLeaveScreenInfo")}</Text>
             {hash ? <Button label={t('trackTransaction')} variant="secondary" size="md" onPress={() => router.push({ pathname: '/tracking', params: { hash, chainId: chain.id } })} /> : null}
             <View style={{ flex: 1 }} />
-            <Button label={t("actionDone")} onPress={() => router.replace('/home')} />
+            <Button label={t("actionDone")} onPress={() => router.dismissTo('/home')} />
           </>
         ) : null}
       </ScrollView>

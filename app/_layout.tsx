@@ -45,7 +45,6 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 }
 
 /** Écrans de la barre d'onglets : entre eux, un fondu (voir plus bas). */
-const TAB_ROUTES = ['home', 'browser', 'earn', 'menu'] as const;
 
 export default function RootLayout() {
   const { mode, colors } = useTheme();
@@ -246,15 +245,12 @@ export default function RootLayout() {
           }}
         >
           {/*
-            ONGLETS : fondu court, pas de glissement. Passer d'un onglet à
-            l'autre se faisait par `replace` avec la poussée latérale des écrans
-            empilés : l'écran glissait en découvrant le fond sur son bord (les
-            « micro-écrans noirs ») pendant qu'il se montait en entier (les
-            saccades). Un fondu ne découvre rien, et masque le montage.
+            ONGLETS : un seul écran de pile, `(tabs)`, qui contient les quatre
+            onglets (voir `app/(tabs)/_layout.tsx`). On y arrive en fondu —
+            depuis le déverrouillage ou la création du wallet — et non en
+            poussée latérale, qui découvrait le fond sur le bord.
           */}
-          {TAB_ROUTES.map((name) => (
-            <Stack.Screen key={name} name={name} options={{ animation: 'fade', animationDuration: 180 }} />
-          ))}
+          <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 220 }} />
         </Stack>
         <WalletConnectHost />
         <TonConnectHost />

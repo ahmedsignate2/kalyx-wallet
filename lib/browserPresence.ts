@@ -1,10 +1,7 @@
 /**
- * La dApp « mise de côté » : le navigateur reste monté SOUS l'écran courant.
- *
- * Les onglets naviguent par `replace` : quitter le navigateur le démontait, et
- * y revenir rechargeait la page — la session du site et sa connexion au wallet
- * étaient perdues. Mettre de côté POUSSE l'accueil par-dessus le navigateur ;
- * y revenir le RETROUVE (`router.dismissTo`) au lieu d'en créer un nouveau.
+ * La dApp « mise de côté » : l'onglet Explorer reste monté (navigateur
+ * d'onglets), la page garde sa session et sa connexion au wallet. Ce store ne
+ * sert qu'à le SIGNALER ailleurs — la pastille « Revenir sur … » de l'accueil.
  */
 import { create } from 'zustand';
 

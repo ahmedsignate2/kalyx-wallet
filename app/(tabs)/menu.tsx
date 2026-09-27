@@ -1,16 +1,15 @@
-import { Pressable as KPressable } from '../ui/kit';
+import { Pressable as KPressable } from '../../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, Alert } from 'react-native';
 import { router, Stack } from 'expo-router';
 import Constants from 'expo-constants';
-import { PremiumScreen, GlassCard, ListRow, SegmentedTabs } from '../ui/premium';
-import { WalletAvatar, AvatarPicker } from '../ui/avatarArt';
-import { Icon, type IconName } from '../ui/icon';
-import { AppTabBar } from '../ui/tabs';
-import { useAiStore } from '../lib/aiStore';
-import { spacing, useTheme } from '../ui/theme';
-import { useSettings, useT } from '../lib/settingsStore';
-import { useWallet } from '../lib/walletStore';
+import { PremiumScreen, GlassCard, ListRow, SegmentedTabs } from '../../ui/premium';
+import { WalletAvatar, AvatarPicker } from '../../ui/avatarArt';
+import { Icon, type IconName } from '../../ui/icon';
+import { useAiStore } from '../../lib/aiStore';
+import { spacing, useTheme } from '../../ui/theme';
+import { useSettings, useT } from '../../lib/settingsStore';
+import { useWallet } from '../../lib/walletStore';
 
 function Ico({ n }: { n: IconName }) {
   const { colors } = useTheme();
@@ -39,7 +38,7 @@ export default function Menu() {
     ]);
 
   return (
-    <PremiumScreen footer={<AppTabBar active="menu" />}>
+    <PremiumScreen tabBarSpace>
       <Stack.Screen options={{ headerShown: false }} />
       <Text style={typography.title}>{t('menu')}</Text>
 
