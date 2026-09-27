@@ -110,15 +110,17 @@ describe('parseSolanaTx — transferts de JETONS', () => {
     expect(r.from).toBe(AUTRE);
   });
 
-  it('deux jetons qui bougent = un ÉCHANGE, et on garde le plus gros', () => {
+  it('deux jetons qui bougent = un ÉCHANGE : ce qui sort, puis ce qui entre', () => {
     const tx = tokenTx(
       [bal(1, USDC, ME, '10000000'), bal(3, BONK, ME, '0', 5)],
       [bal(1, USDC, ME, '0'), bal(3, BONK, ME, '999999999', 5)],
     );
     const r = parseSolanaTx(ME, tx as never)!;
     expect(r.type).toBe('SWAP');
-    expect(r.value).toBe(999_999_999n); // le mouvement dominant
-    expect(r.asset).toBe('BONK');
+    // Comparer des montants bruts de décimales différentes n'a pas de sens : la
+    // ligne décrit ce qui SORT, la jambe entrante dit ce qu'on a reçu.
+    expect(r).toMatchObject({ direction: 'out', value: 10_000_000n, asset: 'USDC', contract: USDC });
+    expect(r.legs?.find((l) => l.direction === 'in')).toMatchObject({ value: 999_999_999n, asset: 'BONK', contract: BONK });
   });
 
   it('additionne plusieurs comptes du MÊME mint', () => {

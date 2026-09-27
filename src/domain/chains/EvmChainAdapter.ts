@@ -1,5 +1,5 @@
 import { fetchAnkrHistory } from './ankr';
-import { parseAlchemyTransfers } from './alchemy';
+import { parseAlchemyHistory, alchemyTransfersBody } from './alchemy';
 /**
  * Adapter EVM (Ethereum / BNB Chain / Polygon / testnets).
  *
@@ -137,78 +137,29 @@ export class EvmChainAdapter implements ChainAdapter {
   private async fetchHistory(address: string): Promise<TxParsed[]> {
     const owner = normalizeEvmAddress(address);
 
-    // 0. Alchemy (si supporté)
-    const alchemyNetworks: Record<string, string> = {
-      ethereum: 'eth-mainnet',
-      base: 'base-mainnet',
-      polygon: 'polygon-mainnet',
-      arbitrum: 'arb-mainnet',
-      optimism: 'opt-mainnet',
-    };
-    
-
-    const alchemyNet = alchemyNetworks[this.config.id];
-    if (ALCHEMY_KEY && alchemyNet) {
+    /*
+     * 0. Alchemy, sur TOUT réseau servi par Alchemy (son URL est en tête des
+     * RPC quand la clé existe) — et non plus sur une liste figée de cinq. Un
+     * réseau qui ne connaît pas `getAssetTransfers` répond par une erreur, et
+     * l'on passe aux replis.
+     */
+    const alchemyUrl = this.config.rpcUrls.find((u) => u.includes('.g.alchemy.com/v2/'));
+    if (alchemyUrl) {
       try {
-        const alchemyTxs = await withRetry(async () => {
-          const res = await withTimeout(
-            fetch(`https://${alchemyNet}.g.alchemy.com/v2/${ALCHEMY_KEY}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'alchemy_getAssetTransfers',
-                params: [{
-                  fromBlock: '0x0',
-                  toBlock: 'latest',
-                  toAddress: owner,
-                  category: ['external', 'erc20'],
-                  withMetadata: true,
-                }],
-              }),
-            }),
-            RPC_TIMEOUT_MS,
-            () => new Error('timeout')
-          );
-          const json = await res.json();
-          if (json && json.result) {
-            const received = parseAlchemyTransfers(json, owner);
-            
-            // Fetch sent transfers too
-            const resSent = await fetch(`https://${alchemyNet}.g.alchemy.com/v2/${ALCHEMY_KEY}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 2,
-                method: 'alchemy_getAssetTransfers',
-                params: [{
-                  fromBlock: '0x0',
-                  toBlock: 'latest',
-                  fromAddress: owner,
-                  category: ['external', 'erc20'],
-                  withMetadata: true,
-                }],
-              }),
-            });
-            const jsonSent = await resSent.json();
-            const sent = jsonSent && jsonSent.result ? parseAlchemyTransfers(jsonSent, owner) : [];
-            
-            const allTxs = [...received, ...sent].sort((a, b) => b.timestamp - a.timestamp);
-            const unique = [];
-            const seen = new Set();
-            for (const tx of allTxs) {
-              if (!seen.has(tx.hash)) {
-                seen.add(tx.hash);
-                unique.push(tx);
-              }
-            }
-            return unique;
-          }
-          throw new Error('Alchemy invalid format');
+        return await withRetry(async () => {
+          const ask = async (side: 'from' | 'to', id: number) => {
+            const res = await withTimeout(
+              fetch(alchemyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: alchemyTransfersBody(owner, side, this.config.id, id) }),
+              RPC_TIMEOUT_MS,
+              () => new Error('timeout'),
+            );
+            const json = await res.json();
+            if (!json?.result) throw new Error(`Alchemy: ${json?.error?.message ?? res.status}`);
+            return json;
+          };
+          const [received, sent] = await Promise.all([ask('to', 1), ask('from', 2)]);
+          return parseAlchemyHistory([received, sent], owner);
         }, 2, 1000);
-        return alchemyTxs;
       } catch (e) {
         console.warn('Alchemy fallback:', e);
       }

@@ -27,7 +27,17 @@ export function cacheKey(chain: string, address: string): string {
 const NO_TX: TxSummary[] = [];
 
 /** Clé AsyncStorage pour la persistance. */
-const STORAGE_KEY = 'nova.historyCache';
+const STORAGE_KEY = 'nova.historyCache.v2';
+
+/*
+ * SÉRIALISATION DES MONTANTS. `JSON.stringify` LÈVE une exception sur un
+ * `bigint` — et l'erreur était avalée : le cache n'a jamais été écrit, si bien
+ * que l'historique repartait vide à chaque ouverture et relisait tous les
+ * réseaux. Les montants voyagent donc en texte marqué, et reviennent en bigint.
+ */
+const BIG = '__big:';
+export const historyReplacer = (_k: string, v: unknown) => (typeof v === 'bigint' ? `${BIG}${v.toString()}` : v);
+export const historyReviver = (_k: string, v: unknown) => (typeof v === 'string' && v.startsWith(BIG) ? BigInt(v.slice(BIG.length)) : v);
 
 interface HistoryState {
   /** Transactions cachées par clé chain:address. */
@@ -100,7 +110,7 @@ function persistCache(cache: Record<string, TxSummary[]>) {
       for (const [k, v] of Object.entries(cache)) {
         trimmed[k] = v.slice(0, 50);
       }
-      await storage!.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+      await storage!.setItem(STORAGE_KEY, JSON.stringify(trimmed, historyReplacer));
     } catch {
       // Silencieux : la persistance est un bonus, pas une obligation.
     }
@@ -168,8 +178,9 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
         const storage = await getStorage();
         const raw = await storage!.getItem(STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw) as Record<string, TxSummary[]>;
-          set({ cache: parsed });
+          const parsed = JSON.parse(raw, historyReviver) as Record<string, TxSummary[]>;
+          // Le réseau a pu répondre avant la lecture du disque : il a priorité.
+          set((s) => ({ cache: { ...parsed, ...s.cache } }));
         }
       } catch {
         // Cache corrompu ou absent : on repart de zéro.

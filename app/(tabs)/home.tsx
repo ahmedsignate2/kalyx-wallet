@@ -47,6 +47,7 @@ import {
   aggregateHistory,
   type HistoryChain,
 } from '../../lib/historyStore';
+import { useSpamOf, useHistoryChains } from '../../lib/historySpam';
 
 const HIDE_KEY = 'kalyx.hideBalance';
 const SMALL_KEY = 'kalyx.showSmallBalances';
@@ -192,13 +193,16 @@ export default function Home() {
    * réseau par réseau, les lignes apparaissent au fur et à mesure au lieu
    * d'attendre le plus lent.
    */
-  const historyChains = useMemo(() => listChains({ includeTestnets: false }), []);
+  const historyChains = useHistoryChains();
   const historyAddressFor = useCallback((chain: HistoryChain) => addressForChain(acct, chain) || undefined, [acct]);
   const historyCache = useHistoryCache();
+  // Toute l'activité : le spam est écarté AVANT de garder les cinq dernières,
+  // sinon cinq airdrops récents vidaient l'aperçu.
   const recent = useMemo(
-    () => aggregateHistory(historyCache, historyChains, historyAddressFor).slice(0, 5),
+    () => aggregateHistory(historyCache, historyChains, historyAddressFor),
     [historyCache, historyChains, historyAddressFor],
   );
+  const spamOf = useSpamOf(recent);
   const fetchHistory = useHistoryStore((s) => s.fetchHistory);
   const recentLoading = useAnyHistoryLoading(historyChains, historyAddressFor);
   const recentFetched = useAnyHistoryFetched(historyChains, historyAddressFor);
@@ -369,6 +373,8 @@ export default function Home() {
     if (accounts.some((x) => x.evmAddress.toLowerCase() === l || x.solAddress?.toLowerCase() === l)) return t('actYou');
     return contacts.find((c) => c.address.toLowerCase() === l)?.name;
   };
+  const logoOfTx = (tx: { chain: string; contract?: string }) =>
+    pf.holdings.find((h) => h.chainId === tx.chain && (tx.contract ? h.contract?.toLowerCase() === tx.contract.toLowerCase() : h.kind === 'native'))?.logo;
   const humanCtx = {
     t: activityT,
     nativeSymbol: getAdapter(activeChain).config.nativeSymbol,
@@ -383,6 +389,7 @@ export default function Home() {
     nativeOf: nativeOfChain,
     nameOf,
     verifiedSymbols: vSymbols,
+    spamOf,
     fiatOf: (symbol: string, amount: number) => {
       const p = priceBySymbol.get(symbol.toUpperCase());
       return p ? `${formatFiat(amount * p)} ${sym}` : undefined;
@@ -722,8 +729,10 @@ export default function Home() {
                       time={new Date(r.tx.timestamp * 1000).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                       network={chainNameOf(r.tx.chain)}
                       networkIcon={chainIconUrl(r.tx.chain)}
+                      tokenLogo={logoOfTx(r.tx)}
+                      tokenSeed={r.tx.contract}
                       pendingLabel={t('txPending')}
-                      onPress={() => router.push('/history')}
+                      onPress={() => router.push({ pathname: '/tracking', params: { hash: r.tx.hash, chainId: r.tx.chain } })}
                     />
                     {i < arr.length - 1 ? <Divider inset={68} /> : null}
                   </FadeInUp>

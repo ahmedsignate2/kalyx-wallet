@@ -160,10 +160,18 @@ export function parseSolanaTx(address: string, tx: SolTxResponse): TxParsed | nu
   if (deltas.length > 0) {
     // Le plus gros mouvement en valeur absolue : sur un échange il y en a deux,
     // et c'est celui-là qui décrit le mieux l'opération.
-    const main = deltas.reduce((a, b) => (abs(b.delta) > abs(a.delta) ? b : a));
+    const outs = deltas.filter((d) => d.delta < 0n);
+    const swap = deltas.length > 1 && outs.length > 0 && deltas.some((d) => d.delta > 0n);
+    // Sur un échange, la ligne décrit ce qui SORT ; ce qui entre suit dans `legs`.
+    const main = (swap ? outs : deltas).reduce((a, b) => (abs(b.delta) > abs(a.delta) ? b : a));
     const other = tokenCounterparty(address, tx, main.mint, main.delta);
     const known = KNOWN_MINTS[main.mint];
+    const symbolOf = (mint: string) => KNOWN_MINTS[mint]?.symbol ?? `${mint.slice(0, 4)}…`;
     return {
+      contract: main.mint,
+      ...(deltas.length > 1
+        ? { legs: deltas.map((d) => ({ direction: d.delta > 0n ? ('in' as const) : ('out' as const), value: abs(d.delta), asset: symbolOf(d.mint), decimals: d.decimals, contract: d.mint })) }
+        : {}),
       hash: sig,
       from: main.delta > 0n ? other ?? payer : address,
       to: main.delta > 0n ? address : other ?? main.mint,
