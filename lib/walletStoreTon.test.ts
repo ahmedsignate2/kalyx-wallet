@@ -176,4 +176,23 @@ describe('magasin × TON, dans l’ordre où l’utilisateur le vit', () => {
     // Restaurer par-dessus : doublons détectés, rien n'est ajouté deux fois.
     expect(await W().importWallets(all, PIN)).toBe(0);
   });
+
+  /*
+   * Le rattrapage ne visait que le portefeuille ACTIF : basculer ensuite sur un
+   * autre faisait disparaître TON Testnet de Recevoir (signalé sur téléphone).
+   */
+  it('14. au déverrouillage, les AUTRES portefeuilles BIP-39 reçoivent aussi leur clé TON', async () => {
+    const legal = VECTORS.keys.find((k) => k.phrase.startsWith('legal winner'))!;
+    await W().importWallet(legal.phrase, PIN, 'Second');
+    const id = W().activeWalletId;
+    const ss = jest.requireMock('./secureStore');
+    const stripped = (await ss.loadAccounts(id)).map(({ tonPublicKey, tonVersion, ...rest }: Record<string, unknown>) => rest);
+    await ss.saveAccounts(id, stripped);
+    await W().setActiveWallet('primary');
+    await W().unlockWithPin(PIN);
+    await new Promise((r) => setTimeout(r, 1500)); // rattrapage en arrière-plan
+    expect((await ss.loadAccounts(id))[0].tonPublicKey).toBe(legal.publicKey);
+    await W().setActiveWallet(id);
+    expect(W().accounts[0].tonPublicKey).toBe(legal.publicKey);
+  });
 });

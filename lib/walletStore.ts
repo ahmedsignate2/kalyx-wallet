@@ -306,8 +306,34 @@ function deriveStoredAccount(mnemonic: string, index: number, label: string): St
 function tonFields(mnemonic: string, bip39Seed?: Uint8Array): Pick<StoredAccount, 'tonPublicKey' | 'tonVersion'> {
   try {
     return { tonPublicKey: bytesToHex(tonPublicKeyFromPhrase(mnemonic, bip39Seed)), tonVersion: TON_DEFAULT_WALLET_VERSION };
-  } catch {
+  } catch (e) {
+    // Jamais bloquant, mais plus jamais muet : un TON absent de Recevoir sans
+    // trace dans le journal ne se diagnostique pas.
+    technicalLogger.logSys('TON: public key derivation failed', { error: e instanceof Error ? e.message : String(e) });
     return {};
+  }
+}
+
+/**
+ * Rattrapage des AUTRES portefeuilles à phrase BIP-39, après un déverrouillage.
+ *
+ * Le rattrapage ne visait que le portefeuille actif : basculer ensuite sur un
+ * autre chargeait ses comptes depuis le stockage, SANS clé TON — et TON Testnet
+ * disparaissait de Recevoir. Le secret de chaque coffre est lu avec le même
+ * code (ou le secret biométrique déjà autorisé), en arrière-plan : ce travail
+ * ne doit ni retarder ni faire échouer le déverrouillage.
+ */
+async function backfillOtherWallets(wallets: WalletMeta[], activeId: string, readSecret: (id: string) => Promise<string | null>): Promise<void> {
+  for (const w of wallets) {
+    if (w.id === activeId || !isBip39Wallet(wallets, w.id)) continue;
+    try {
+      const accounts = await loadAccounts(w.id);
+      if (!accounts?.length || accounts.every((a) => a.solAddress && (a.index !== 0 || a.tonPublicKey))) continue;
+      const secret = await readSecret(w.id);
+      if (secret) await backfillPhraseAccounts(w.id, secret, accounts);
+    } catch (e) {
+      technicalLogger.logSys('Backfill of another wallet failed', { error: e instanceof Error ? e.message : String(e) });
+    }
   }
 }
 
@@ -726,6 +752,10 @@ export const useWallet = create<WalletState>((set, get) => ({
       // c'est le seul endroit qui sait qu'un déverrouillage a RÉUSSI.
       aura.pulse('unlock');
       void saveLockState(0, 0); // réinitialise le compteur persistant
+      void backfillOtherWallets(get().wallets, activeWalletId, async (id) => {
+        const vault = await loadVault(id);
+        return vault ? decryptSecret(vault, pin) : null;
+      });
     } catch (e) {
       if (isWalletError(e) && e.code === 'WRONG_PIN') {
         const failedAttempts = get().failedAttempts + 1;
@@ -752,6 +782,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     // animée. La continuité se joue au TIMING — l'impulsion part à l'instant
     // où l'OS rend la main, sans coupure visible entre lui et Kalyx.
     aura.pulse('unlock');
+    // Secrets biométriques des autres portefeuilles, déjà autorisés par ce geste.
+    void backfillOtherWallets(get().wallets, activeWalletId, (id) => readBiometricSeed(id));
   },
 
   verifyPin: async (pin) => {
