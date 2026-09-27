@@ -239,3 +239,18 @@ export function tonTransferBodyForEstimate(
 export function normalizedExternalHash(to: Address, body: Cell): Buffer {
   return beginCell().store(storeMessage(external({ to, body }), { forceRef: true })).endCell().hash();
 }
+
+/**
+ * Message EXTERNE complet, signé par des zéros, pour une émulation (TonAPI) :
+ * même corps que l'envoi réel, adressé au portefeuille émetteur. Pas d'état
+ * initial : l'émulation vise un compte déjà déployé.
+ */
+export function tonExternalForEstimate(
+  version: TonWalletVersion,
+  from: string,
+  p: { seqno: number; validUntil: number; messages: TonTransferMessage[]; testnet?: boolean; sendMode?: number },
+): string {
+  const body = Cell.fromBase64(tonTransferBodyForEstimate(version, p));
+  return beginCell().store(storeMessage(external({ to: destination(from, !!p.testnet), body }))).endCell().toBoc().toString('base64');
+}
+

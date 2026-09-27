@@ -45,7 +45,9 @@ import type {
 } from './types';
 import { formatTonAddress, isValidTonAddress, parseRawTonAddress, parseTonAddress, toRawTonAddress } from '../ton/tonAddress';
 import { TonCenterClient, type TonAccountState, type TonCenterTx } from '../ton/tonCenter';
-import { buildTonTransfer, tonTransferBodyForEstimate, TON_SEND_MODE_DEFAULT } from '../ton/tonTransfer';
+import { TonApiClient, type TonApiEvent } from '../ton/tonApi';
+import { TON_PROXY_URL } from '../ton/tonProxy';
+import { buildTonTransfer, tonExternalForEstimate, tonTransferBodyForEstimate, TON_SEND_MODE_DEFAULT } from '../ton/tonTransfer';
 import { tonWalletAddress, TON_IMPORT_WALLET_VERSIONS, type TonWalletVersion } from '../ton/tonWallet';
 
 /**
@@ -148,13 +150,19 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
   readonly capabilities: ChainCapabilities = capabilities({ memo: true });
 
   private readonly client: TonCenterClient;
+  /**
+   * TonAPI par le proxy Kalyx : fournisseur PRINCIPAL. `null` = TON Center seul.
+   * Chaque lecture retombe sur TON Center si TonAPI échoue : TON ne dépend
+   * jamais d'un seul fournisseur.
+   */
+  private readonly api: TonApiClient | null;
   private readonly testnet: boolean;
   private readonly now: () => number;
   private readonly sleep: (ms: number) => Promise<void>;
 
   constructor(
     config: ChainConfig,
-    deps: { client?: TonCenterClient; now?: () => number; sleep?: (ms: number) => Promise<void> } = {},
+    deps: { client?: TonCenterClient; api?: TonApiClient | null; now?: () => number; sleep?: (ms: number) => Promise<void> } = {},
   ) {
     if (config.family !== 'ton') {
       throw new Error(`Config non-TON passée à TonAdapterV2 : ${config.id}`);
@@ -162,6 +170,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     this.config = config;
     this.testnet = !!config.testnet;
     this.client = deps.client ?? new TonCenterClient(config.rpcUrls[0] ?? (this.testnet ? 'https://testnet.toncenter.com/api' : 'https://toncenter.com/api'));
+    this.api = deps.api !== undefined ? deps.api : new TonApiClient(`${TON_PROXY_URL}/${this.testnet ? 'testnet' : 'mainnet'}`);
     this.now = deps.now ?? (() => Date.now());
     this.sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   }
@@ -180,8 +189,20 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     return isValidTonAddress(address, { testnet: this.testnet });
   }
 
+  /** État d'un compte : TonAPI d'abord, TON Center en repli. */
+  private async state(address: string): Promise<TonAccountState & { memoRequired?: boolean }> {
+    if (this.api) {
+      try {
+        return await this.api.accountState(address);
+      } catch {
+        /* repli ci-dessous */
+      }
+    }
+    return this.client.accountState(address);
+  }
+
   async getBalance(address: string): Promise<Balance> {
-    const s = await this.client.accountState(address);
+    const s = await this.state(address);
     return { raw: s.balance, decimals: this.config.nativeDecimals, symbol: this.config.nativeSymbol };
   }
 
@@ -194,6 +215,71 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
    * exécuter — alors que les fonds sont bien crédités : c'est un reçu réussi.
    */
   async getHistory(address: string): Promise<TxSummary[]> {
+    if (this.api) {
+      try {
+        return this.historyFromEvents(address, await this.api.events(address));
+      } catch {
+        /* repli sur TON Center ci-dessous */
+      }
+    }
+    return this.historyFromTonCenter(address);
+  }
+
+  /**
+   * Historique TonAPI : des ÉVÉNEMENTS déjà décodés en actions.
+   *
+   * On retient les transferts de TON qui concernent ce compte. Un événement peut
+   * en contenir dans les DEUX sens : c'est un REBOND quand l'argent entré repart
+   * vers son expéditeur — relevé sur un vrai compte : un dépôt rebondissant
+   * reçu avant le déploiement est renvoyé automatiquement. Le compter comme un
+   * envoi affichait un « envoi » que l'utilisateur n'a jamais fait. On montre
+   * alors le NET reçu, marqué `BOUNCE`.
+   */
+  private historyFromEvents(address: string, events: TonApiEvent[]): TxSummary[] {
+    const me = rawOf(address);
+    const show = (raw?: string) => {
+      const a = raw ? parseRawTonAddress(raw.toLowerCase()) : null;
+      return a ? formatTonAddress(a, { bounceable: false, testnet: this.testnet }) : raw ?? '';
+    };
+    const out: TxSummary[] = [];
+    for (const e of events) {
+      const transfers = e.actions.filter((a) => a.type === 'TonTransfer' && a.TonTransfer).map((a) => ({ ...a.TonTransfer!, ok: a.status === 'ok' }));
+      const sent = transfers.filter((t) => rawOf(t.sender?.address ?? '') === me);
+      const received = transfers.filter((t) => rawOf(t.recipient?.address ?? '') === me && rawOf(t.sender?.address ?? '') !== me);
+      if (!sent.length && !received.length) continue;
+      const sum = (l: typeof transfers) => l.reduce((s, t) => s + BigInt(String(t.amount ?? 0)), 0n);
+      const inSenders = new Set(received.map((t) => rawOf(t.sender?.address ?? '')));
+      const isBounce = received.length > 0 && sent.length > 0 && sent.every((t) => inSenders.has(rawOf(t.recipient?.address ?? '')));
+      const base = {
+        chain: this.config.id,
+        hash: e.event_id,
+        timestamp: e.timestamp,
+        asset: this.config.nativeSymbol,
+        decimals: this.config.nativeDecimals,
+        status: (e.in_progress ? 'pending' : transfers.every((t) => t.ok) ? 'success' : 'failed') as TxSummary['status'],
+      };
+      if (isBounce || !sent.length) {
+        const value = isBounce ? sum(received) - sum(sent) : sum(received);
+        out.push({ ...base, from: show(received[0].sender?.address), to: address, value: value > 0n ? value : 0n, direction: 'in', type: isBounce ? 'BOUNCE' : 'TRANSFER', description: received[0].comment ?? undefined });
+        continue;
+      }
+      const first = sent[0];
+      out.push({
+        ...base,
+        from: address,
+        to: show(first.recipient?.address),
+        value: sum(sent),
+        direction: rawOf(first.recipient?.address ?? '') === me ? 'self' : 'out',
+        type: 'TRANSFER',
+        description: first.comment ?? undefined,
+        // L'identifiant rendu juste après l'envoi : le suivi le retrouve directement.
+        messageHash: e.ext_msg_hash?.toLowerCase(),
+      });
+    }
+    return out;
+  }
+
+  private async historyFromTonCenter(address: string): Promise<TxSummary[]> {
     const me = rawOf(address);
     const { transactions, addressBook } = await this.client.transactions(address);
     const friendly = (raw?: string | null) => {
@@ -253,13 +339,13 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     if (!this.validateAddress(request.to)) throw new WalletError('INVALID_ADDRESS', 'Adresse TON invalide pour ce réseau');
     if (request.amount <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant nul');
 
-    const sender = await this.client.accountState(from);
+    const sender = await this.state(from);
     if (sender.status === 'frozen') throw new WalletError('NOT_SUPPORTED', 'TON : compte gelé');
     if (sender.status === 'active' && !sender.version) {
       // Contrat actif que Kalyx ne sait pas signer : mieux vaut refuser que deviner.
       throw new WalletError('NOT_SUPPORTED', `TON : contrat de portefeuille non pris en charge (${sender.walletType ?? 'inconnu'})`);
     }
-    const dest: TonAccountState = await this.client.accountState(request.to);
+    const dest = await this.state(request.to);
 
     const deploys = sender.status !== 'active';
     const seqno = sender.seqno ?? 0;
@@ -269,6 +355,9 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     const warnings: DraftWarning[] = [];
     if (dest.status !== 'active') warnings.push({ code: 'ACTIVATES_DESTINATION', severity: 'info' });
     if (dest.notWallet) warnings.push({ code: 'DESTINATION_NOT_WALLET', severity: 'warning' });
+    // TonAPI sait quelles adresses EXIGENT un commentaire (plateformes d'échange) :
+    // sans lui, le dépôt arriverait sans propriétaire.
+    if (dest.memoRequired && !request.memo?.trim()) warnings.push({ code: 'MEMO_REQUIRED', severity: 'danger' });
 
     const comment = request.memo?.trim() || undefined;
     const fee = await this.estimateFee(from, sender, { seqno, to: request.to, amount: request.amount, bounce, comment });
@@ -300,6 +389,16 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     m: { seqno: number; to: string; amount: bigint; bounce: boolean; comment?: string },
   ): Promise<bigint> {
     if (sender.status !== 'active' || !sender.version) return DEPLOY_FEE_ESTIMATE;
+    const validUntil = Math.floor(this.now() / 1000) + VALIDITY_SECONDS;
+    const messages = [{ to: m.to, amount: m.amount, bounce: m.bounce, comment: m.comment }];
+    // Frais EXACTS : émulation TonAPI (signature à zéro), sans marge.
+    if (this.api) {
+      try {
+        return await this.api.emulateFee(tonExternalForEstimate(sender.version, from, { seqno: m.seqno, validUntil, messages, testnet: this.testnet }));
+      } catch {
+        /* repli : estimation TON Center + marge */
+      }
+    }
     try {
       const body = tonTransferBodyForEstimate(sender.version, {
         seqno: m.seqno,
@@ -344,6 +443,17 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
 
   async broadcastSend(signed: SignedSend<TonPayload>): Promise<BroadcastOutcome> {
     if (!signed.txid) throw new Error('TON : message signé sans hachage');
+    if (this.api) {
+      try {
+        await this.api.sendBoc(signed.raw);
+        return { txid: signed.txid, expiresAt: signed.draft.expiresAt };
+      } catch (e) {
+        // Un REFUS du message est définitif : il le serait ailleurs aussi. Seul
+        // un proxy injoignable justifie de passer par TON Center — rediffuser le
+        // même BOC est sans risque, le seqno empêche toute double exécution.
+        if (!(e instanceof WalletError) || e.code !== 'RPC_UNAVAILABLE') throw e;
+      }
+    }
     await this.client.sendBoc(signed.raw);
     return { txid: signed.txid, expiresAt: signed.draft.expiresAt };
   }
@@ -357,11 +467,39 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
   async waitForTx(txid: string, hint?: TxWaitHint): Promise<TxState> {
     const deadline = (hint?.expiresAt ?? this.now() + VALIDITY_SECONDS * 1000) + INDEXER_GRACE_MS;
     for (;;) {
-      const txs = await this.client.transactionsByMessage(txid).catch(() => null);
-      if (txs && txs.length > 0) return this.outcome(txs[0]);
+      const found = await this.lookupMessage(txid);
+      if (found) return found.state;
       if (this.now() > deadline) return { status: 'expired' };
       await this.sleep(POLL_MS);
     }
+  }
+
+  /**
+   * La transaction déclenchée par un message : TonAPI d'abord, TON Center en
+   * repli. `null` tant qu'elle n'est pas indexée.
+   */
+  private async lookupMessage(msgHash: string): Promise<{ hash: string; state: TxState } | null> {
+    if (this.api) {
+      try {
+        const t = await this.api.transactionByMessage(msgHash);
+        if (!t) return null;
+        return { hash: t.hash, state: t.ok ? { status: 'confirmed', at: t.utime * 1000 } : { status: 'failed', reason: t.reason } };
+      } catch {
+        /* repli ci-dessous */
+      }
+    }
+    const txs = await this.client.transactionsByMessage(msgHash).catch(() => null);
+    if (!txs?.length) return null;
+    return { hash: hex.encode(base64.decode(txs[0].hash)), state: this.outcome(txs[0]) };
+  }
+
+  /**
+   * Hachage de la TRANSACTION déclenchée par un message — pour l'écran de suivi,
+   * qui reçoit juste après un envoi le hachage du message et cherche ensuite la
+   * transaction dans l'historique. `null` tant qu'elle n'est pas indexée.
+   */
+  async transactionHashForMessage(msgHash: string): Promise<string | null> {
+    return (await this.lookupMessage(msgHash))?.hash ?? null;
   }
 
   /**

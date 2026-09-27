@@ -75,6 +75,13 @@ export default function TrackingScreen() {
         // MESSAGE, pas celui de la transaction — on accepte les deux.
         const wanted = activeHash.toLowerCase();
         let tx = history.find((t) => t.hash.toLowerCase() === wanted || t.messageHash?.toLowerCase() === wanted);
+        // Historique TonAPI : pas de hachage de message dans les événements. On
+        // demande à l'adaptateur quelle transaction ce message a déclenchée.
+        if (!tx && chain.family === 'ton') {
+          const v2 = findAdapterV2(chain.id) as unknown as { transactionHashForMessage?: (h: string) => Promise<string | null> } | null;
+          const txHash = await v2?.transactionHashForMessage?.(activeHash).catch(() => null);
+          if (txHash) tx = history.find((t) => t.hash.toLowerCase() === txHash.toLowerCase());
+        }
 
         if (adapter instanceof EvmChainAdapter) {
           const rpcTx = await adapter.getTransaction(activeHash).catch(() => null);
