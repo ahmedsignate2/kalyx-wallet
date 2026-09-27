@@ -17,6 +17,7 @@ import {
   getErc20Tokens,
   getTokenPrices,
   getLlamaTokenPricesUsd,
+  getUsdFxRate,
   llamaKey,
   formatAmount,
   knownTokensFor,
@@ -214,9 +215,15 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
     const refs = [
       ...erc20Lists.flatMap(({ chain, list }) => list.map((t) => ({ chainId: chain.id, address: t.contract }))),
       ...splList.map((t) => ({ chainId: 'solana', address: t.mint })),
+      // Les pièces natives aussi : si CoinGecko est muet, elles gardent un prix.
+      ...ids.filter((id) => id !== USD_PEG).map((id) => ({ chainId: 'coingecko', address: id })),
     ];
-    const usd = refs.length ? await getLlamaTokenPricesUsd(refs).catch(() => ({}) as Record<string, number>) : {};
-    const fx = fiat.toLowerCase() === 'usd' ? 1 : safeNum(prices[USD_PEG]?.price);
+    const [usd, fxBackup] = await Promise.all([
+      refs.length ? getLlamaTokenPricesUsd(refs).catch(() => ({}) as Record<string, number>) : Promise.resolve({} as Record<string, number>),
+      // Taux de secours, demandé seulement si CoinGecko n'a pas donné l'USDT.
+      fiat.toLowerCase() === 'usd' || prices[USD_PEG]?.price ? Promise.resolve(0) : getUsdFxRate(fiat).catch(() => 0),
+    ]);
+    const fx = fiat.toLowerCase() === 'usd' ? 1 : safeNum(prices[USD_PEG]?.price) || fxBackup;
     const llamaUp = Object.keys(usd).length > 0;
     const priceOf = async (chainId: string, address: string, platform: string | undefined, all: string[]): Promise<number> => {
       const p = usd[llamaKey(chainId, address)];
@@ -280,7 +287,7 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
         };
       }),
     );
-    return { erc20: erc20.flat(), spl };
+    return { erc20: erc20.flat(), spl, usd, fx };
   });
 
   /*
@@ -322,13 +329,16 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
       }),
   ).then((l) => l.flat());
 
-  const [[prices, markets], rawNatives, { erc20, spl }, jettons] = await Promise.all([pricesP, rawNativesP, tokensP, jettonsP]);
+  const [[prices, markets], rawNatives, { erc20, spl, usd, fx }, jettons] = await Promise.all([pricesP, rawNativesP, tokensP, jettonsP]);
   const logos = new Map(markets.map((m) => [m.id, m.image]));
 
   const natives: Holding[] = rawNatives
     .filter((x): x is { chain: (typeof chains)[number]; raw: bigint } => x !== null)
     .map(({ chain, raw }) => {
       const p = chain.coingeckoId ? prices[chain.coingeckoId] : undefined;
+      // CoinGecko d'abord (il donne aussi la variation 24 h), DefiLlama converti sinon.
+      const backup = chain.coingeckoId && fx > 0 ? safeNum(usd[llamaKey('coingecko', chain.coingeckoId)]) * fx : 0;
+      const price = safeNum(p?.price) || backup;
       const amount = safeNum(Number(formatAmount(raw, chain.nativeDecimals)));
       return {
         id: `${chain.id}:native`,
@@ -342,8 +352,8 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
         raw,
         amount,
         logo: chain.coingeckoId ? logos.get(chain.coingeckoId) : undefined,
-        price: safeNum(p?.price),
-        fiat: safeNum(amount * safeNum(p?.price)),
+        price,
+        fiat: safeNum(amount * price),
         change24h: p ? safeNum(p.change24h) : null,
         coingeckoId: chain.coingeckoId,
         verified: true,

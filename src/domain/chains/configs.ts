@@ -96,7 +96,7 @@ export const POLYGON: ChainConfig = {
   ]),
   explorerUrl: 'https://polygonscan.com',
   explorerApi: 'https://polygon.blockscout.com/api',
-  coingeckoId: 'matic-network',
+  coingeckoId: 'polygon-ecosystem-token', // POL : MATIC a été remplacé, et DefiLlama ne connaît plus « matic-network »
   coingeckoPlatform: 'polygon-pos',
 };
 

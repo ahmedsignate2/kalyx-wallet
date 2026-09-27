@@ -49,3 +49,23 @@ describe('DefiLlama', () => {
     expect(urls.length).toBe(3);
   });
 });
+
+describe('taux de change de secours', () => {
+  it('USD → 1 sans réseau ; sinon le taux Frankfurter, puis le dernier connu', async () => {
+    const { getUsdFxRate } = await import('./defillama');
+    expect(await getUsdFxRate('usd', async () => { throw new Error('ne doit pas être appelé'); })).toBe(1);
+    const ok = async () => ({ ok: true, json: async () => ({ amount: 1, base: 'USD', rates: { GBP: 0.75458 } }) });
+    expect(await getUsdFxRate('gbp', ok)).toBeCloseTo(0.75458);
+    expect(await getUsdFxRate('xx1', ok)).toBe(0);
+  });
+
+  it('prix d’une pièce native par son identifiant CoinGecko', async () => {
+    const urls: string[] = [];
+    const out = await getLlamaTokenPricesUsd([{ chainId: 'coingecko', address: 'ethereum' }], async (u) => {
+      urls.push(u);
+      return { ok: true, json: async () => ({ coins: { 'coingecko:ethereum': { price: 2689.49, confidence: 0.99 } } }) };
+    });
+    expect(urls[0]).toContain('coingecko:ethereum');
+    expect(out[llamaKey('coingecko', 'ethereum')]).toBeCloseTo(2689.49);
+  });
+});
