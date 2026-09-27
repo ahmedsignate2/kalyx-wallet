@@ -510,7 +510,7 @@ export default function Home() {
               <IconButton icon="bell" label={t("labelNotifications")} tone="ghost" onPress={() => router.push('/notifications')} />
               {unread > 0 ? <View style={{ position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.warning }} /> : null}
             </View>
-            <IconButton icon="menu" label={t("labelMenu")} tone="ghost" onPress={() => router.push('/menu')} />
+            <IconButton icon="menu" label={t("labelMenu")} tone="ghost" onPress={() => router.navigate('/menu')} />
           </View>
         </View>
 

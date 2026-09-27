@@ -88,7 +88,7 @@ export default function Menu() {
       <GlassCard>
         <ListRow left={<Ico n="accounts" />} title={t('accounts')} right={chev} onPress={() => router.push('/accounts')} />
         <ListRow divider left={<Ico n="networks" />} title={t('networks')} right={chev} onPress={() => router.push('/networks')} />
-        <ListRow divider left={<Ico n="dapps" />} title={t('dappBrowser')} subtitle={t('dappBrowserSub')} right={chev} onPress={() => router.push('/browser')} />
+        <ListRow divider left={<Ico n="dapps" />} title={t('dappBrowser')} subtitle={t('dappBrowserSub')} right={chev} onPress={() => router.navigate('/browser')} />
         <ListRow divider left={<Ico n="walletconnect" />} title="WalletConnect" subtitle={t('connectedApps')} right={chev} onPress={() => router.push('/walletconnect')} />
         <ListRow divider left={<Ico n="security" />} title={t('approvals')} subtitle={t('approvalsSub')} right={chev} onPress={() => router.push('/approvals')} />
         <ListRow divider left={<Ico n="contacts" />} title={t('contacts')} right={chev} onPress={() => router.push('/contacts')} />
