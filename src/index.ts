@@ -419,6 +419,7 @@ export type {
   Account,
   Balance,
   TxSummary,
+  TxLeg,
   TxParsed,
   TransferParams,
   TransferIntent,

@@ -341,6 +341,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
         type: 'TRANSFER',
         asset: j.jetton.symbol ?? '?',
         decimals,
+        ...(j.jetton.address ? { contract: String(j.jetton.address) } : {}),
         description: j.comment ?? undefined,
         messageHash: out ? e.ext_msg_hash?.toLowerCase() : undefined,
       };

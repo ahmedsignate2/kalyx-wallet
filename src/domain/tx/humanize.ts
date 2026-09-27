@@ -12,11 +12,25 @@
  * paramètres, comme `describeQr` le fait déjà pour les codes QR.
  */
 import type { TxSummary } from '../chains/types';
+import { swapReceived } from './legs';
+import type { SpamReason } from './spam';
 import { formatTokenAmount } from '../validation/format';
 import { shortAddress } from '../validation/poisoning';
 
 export interface HumanTx {
   title: string;
+  /**
+   * Verbe court (« Envoyé », « Reçu », « Échangé »…) pour une ligne où le
+   * montant a sa propre colonne : le répéter dans le titre rendait la liste
+   * difficile à parcourir.
+   */
+  label: string;
+  /** Swap : ce qui est SORTI (« −100 USDC »), sous le montant reçu. */
+  amountAlt?: string;
+  /** Pourquoi la ligne est masquée par défaut. */
+  spamReason?: SpamReason;
+  /** Symbole principal, pour l'icône du token. */
+  symbol?: string;
   /** Adresse de la contrepartie (glyphe), si pertinente. */
   counterparty?: string;
   /** Contre-valeur formatée (« 0,08 € ») — jamais pour un token non vérifié. */
@@ -56,7 +70,17 @@ export type ActivityKey =
   | 'actFrom'
   | 'actUnverified'
   | 'actFailedPrefix'
-  | 'actFailedBody';
+  | 'actFailedBody'
+  | 'actSwappedPair'
+  | 'actLabelSent'
+  | 'actLabelReceived'
+  | 'actLabelSwapped'
+  | 'actLabelApproved'
+  | 'actLabelNftIn'
+  | 'actLabelNftOut'
+  | 'actLabelInternal'
+  | 'actLabelInteraction'
+  | 'actLabelFailed';
 
 /** Traducteur injecté : rend la phrase de `key`, paramètres substitués. */
 export type ActivityTranslate = (key: ActivityKey, params?: Record<string, string>) => string;
@@ -86,6 +110,8 @@ export interface HumanizeCtx {
   verifiedSymbols?: Set<string>;
   /** Contre-valeur d'un montant (symbole, montant humain) → chaîne formatée, ou undefined. */
   fiatOf?: (symbol: string, amount: number) => string | undefined;
+  /** Tri anti-spam (voir `spam.ts`) ; prime sur les règles de repli. */
+  spamOf?: (tx: TxSummary) => SpamReason | null;
 }
 
 export function humanizeTx(tx: TxSummary, ctx: HumanizeCtx): HumanTx {
@@ -118,30 +144,63 @@ export function humanizeTx(tx: TxSummary, ctx: HumanizeCtx): HumanTx {
 
   let out: Omit<HumanTx, 'pending'>;
   if (type === 'SWAP') {
-    out = { title: t('actSwapped', money), subtitle: tx.description ?? undefined, icon: 'exchange', tone: 'neutral', amount: undefined, failed, spam: false };
+    const got = swapReceived(tx);
+    if (got) {
+      const gotSym = got.asset ?? native?.symbol ?? ctx.nativeSymbol;
+      const gotDec = got.decimals ?? native?.decimals ?? ctx.nativeDecimals;
+      const gotStr = formatTokenAmount(got.value, gotDec);
+      const gotFiat = ctx.fiatOf ? ctx.fiatOf(gotSym, Number(got.value) / 10 ** gotDec) : undefined;
+      out = {
+        title: t('actSwappedPair', { from: `${amountStr} ${symbol}`, to: `${gotStr} ${gotSym}` }),
+        label: t('actLabelSwapped'),
+        subtitle: `${symbol} → ${gotSym}`,
+        icon: 'exchange',
+        tone: 'up',
+        amount: `+${gotStr} ${gotSym}`,
+        amountAlt: `−${amountStr} ${symbol}`,
+        fiat: gotFiat ?? fiat,
+        failed,
+        spam: false,
+      };
+    } else {
+      out = { title: t('actSwapped', money), label: t('actLabelSwapped'), subtitle: tx.description ?? undefined, icon: 'exchange', tone: 'neutral', amount: `−${amountStr} ${symbol}`, failed, spam: false };
+    }
   } else if (type === 'APPROVE' || type === 'APPROVAL') {
-    out = { title: t('actApproved', { name: name(tx.to), symbol }), icon: 'security', tone: 'neutral', failed, spam: false };
+    out = { title: t('actApproved', { name: name(tx.to), symbol }), label: t('actLabelApproved'), subtitle: name(tx.to), icon: 'security', tone: 'neutral', failed, spam: false };
   } else if (type === 'NFT') {
     out = {
       title: inbound ? t('actNftIn', { name: name(tx.from) }) : t('actNftOut', { name: name(tx.to) }),
+      label: inbound ? t('actLabelNftIn') : t('actLabelNftOut'),
+      subtitle: inbound ? t('actFrom', { name: name(tx.from) }) : t('actTo', { name: name(tx.to) }),
+      amount: `${inbound ? '+' : '−'}${tx.value > 1n ? tx.value.toString() : '1'} ${tx.asset && tx.asset !== '?' ? tx.asset : 'NFT'}`,
+      counterparty: inbound ? tx.from : tx.to,
       icon: 'nft',
       tone: inbound ? 'up' : 'neutral',
       failed,
       spam: false,
     };
   } else if (tx.direction === 'self') {
-    out = { title: t('actInternal', money), icon: 'send', tone: 'neutral', amount: `${amountStr} ${symbol}`, failed, spam: false };
+    out = { title: t('actInternal', money), label: t('actLabelInternal'), icon: 'send', tone: 'neutral', amount: `${amountStr} ${symbol}`, failed, spam: false };
   } else if (inbound && unverified) {
     // Token inconnu reçu sans rien demander : gris, sans « + », sans valeur, masqué par défaut.
-    out = { title: t('actReceived', money), subtitle: t('actUnverified'), icon: 'alert', tone: 'neutral', amount: `${amountStr} ${symbol}`, failed, spam: true, counterparty: tx.from };
+    out = { title: t('actReceived', money), label: t('actLabelReceived'), subtitle: t('actUnverified'), icon: 'alert', tone: 'neutral', amount: `${amountStr} ${symbol}`, failed, spam: true, counterparty: tx.from };
   } else if (inbound) {
-    out = { title: t('actReceived', money), subtitle: t('actFrom', { name: name(tx.from) }), icon: 'receive', tone: 'up', amount: `+${amountStr} ${symbol}`, failed, spam: tx.value === 0n, counterparty: tx.from, fiat };
+    out = { title: t('actReceived', money), label: t('actLabelReceived'), subtitle: t('actFrom', { name: name(tx.from) }), icon: 'receive', tone: 'up', amount: `+${amountStr} ${symbol}`, failed, spam: tx.value === 0n, counterparty: tx.from, fiat };
   } else if (tx.value === 0n && type !== 'TRANSFER') {
-    out = { title: t('actInteraction', { name: name(tx.to) }), subtitle: tx.description ?? undefined, icon: 'dapps', tone: 'neutral', failed, spam: false };
+    out = { title: t('actInteraction', { name: name(tx.to) }), label: t('actLabelInteraction'), subtitle: tx.description ?? name(tx.to), icon: 'dapps', tone: 'neutral', failed, spam: false };
   } else {
-    out = { title: t('actSent', money), subtitle: t('actTo', { name: name(tx.to) }), icon: 'send', tone: 'down', amount: `−${amountStr} ${symbol}`, failed, spam: false, counterparty: tx.to, fiat };
+    out = { title: t('actSent', money), label: t('actLabelSent'), subtitle: t('actTo', { name: name(tx.to) }), icon: 'send', tone: 'down', amount: `−${amountStr} ${symbol}`, failed, spam: false, counterparty: tx.to, fiat };
   }
-  const result: HumanTx = { ...out, pending };
+  const result: HumanTx = { ...out, pending, symbol };
+  const reason = ctx.spamOf?.(tx) ?? null;
+  if (reason) {
+    result.spam = true;
+    result.spamReason = reason;
+    result.tone = 'neutral';
+    // Un spam n'a jamais de contre-valeur ni de « + » triomphant.
+    result.fiat = undefined;
+    if (result.amount) result.amount = result.amount.replace(/^[+−]/, '');
+  }
   if (failed) {
     /*
      * Le titre est repris TEL QUEL. L'ancienne version en minusculait la
@@ -150,6 +209,7 @@ export function humanizeTx(tx: TxSummary, ctx: HumanizeCtx): HumanTx {
      * abîme une phrase allemande commençant par un montant.
      */
     result.title = t('actFailedPrefix', { what: result.title });
+    result.label = t('actLabelFailed');
     result.subtitle = t('actFailedBody');
     result.icon = 'errorCircle';
     result.tone = 'danger';
