@@ -33,6 +33,7 @@ import { safeNum } from '../earn/earnStore';
 import { usePortfolio as useLegacyPortfolio } from '../portfolioStore';
 import { aura } from '../aura';
 import { didReceive } from './receive';
+import { usePortfolioDiag, type PortfolioDiag } from './diagnostics';
 
 export interface Holding {
   /** `${chainId}:${contract|native}` */
@@ -180,7 +181,8 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
   return out;
 }
 
-async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnets = false, failed: Failed = new Set()): Promise<Holding[]> {
+async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnets = false, failed: Failed = new Set(), diag?: PortfolioDiag): Promise<Holding[]> {
+  const note = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 160);
   const chains = includeTestnets
     ? listChains({ includeTestnets: true }).filter((c) => c.coingeckoId || c.testnet)
     : VALUE_CHAINS;
@@ -213,6 +215,7 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
       if (!address) return null;
       try {
         const raw = (await getAdapter(chain.id).getBalance(address)).raw;
+        if (diag) diag.nativesFailed = diag.nativesFailed.filter((c) => c !== chain.id);
         /*
          * Solde nul ou RPC muet : rien à montrer. On ne fabrique pas un faux 0 —
          * le cache garde l'ancienne valeur, ce qui vaut mieux qu'un zéro inventé.
@@ -220,6 +223,7 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
         return raw === 0n ? null : { chain, raw };
       } catch {
         failed.add(`${chain.id}:native`);
+        diag?.nativesFailed.push(chain.id);
         return null;
       }
     }),
@@ -232,21 +236,28 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
   );
   // Quatre réseaux à la fois : quatorze requêtes simultanées déclenchaient les
   // refus d'Alchemy (HTTP 429) — et des jetons qui disparaissaient.
-  const erc20ListsP = mapLimit(evmChains, 4, async (chain) => ({
-      chain,
-      list: await getErc20TokensStrict(chain, acct.evmAddress).catch(() => {
-        failed.add(`${chain.id}:tokens`);
-        return [];
-      }),
-    }));
+  const erc20ListsP = mapLimit(evmChains, 4, async (chain) => {
+    try {
+      const list = await getErc20TokensStrict(chain, acct.evmAddress);
+      if (diag) diag.erc20[chain.id] = list.length;
+      return { chain, list };
+    } catch (e) {
+      failed.add(`${chain.id}:tokens`);
+      if (diag) diag.erc20[chain.id] = `ÉCHEC ${note(e)}`;
+      return { chain, list: [] };
+    }
+  });
 
   // Jetons SPL. Lancé lui aussi sans attendre : il ne dépend de rien d'autre.
   const splListP = (async () => {
     if (!acct.solAddress) return [];
     try {
       const a = getAdapter('solana');
-      return a instanceof SolanaChainAdapter ? await a.getSplTokens(acct.solAddress) : [];
-    } catch {
+      const l = a instanceof SolanaChainAdapter ? await a.getSplTokens(acct.solAddress) : [];
+      if (diag) diag.spl = l.length;
+      return l;
+    } catch (e) {
+      if (diag) diag.spl = `ÉCHEC ${note(e)}`;
       failed.add('solana:tokens');
       return [];
     }
@@ -272,6 +283,7 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
       fiat.toLowerCase() === 'usd' || prices[USD_PEG]?.price ? Promise.resolve(0) : getUsdFxRate(fiat).catch(() => 0),
     ]);
     const fx = fiat.toLowerCase() === 'usd' ? 1 : safeNum(prices[USD_PEG]?.price) || fxBackup;
+    if (diag) diag.prices = { asked: refs.length, got: Object.keys(usd).length, fx };
     const llamaUp = Object.keys(usd).length > 0;
     const priceOf = async (chainId: string, address: string, platform: string | undefined, all: string[]): Promise<number> => {
       const p = usd[llamaKey(chainId, address)];
@@ -351,7 +363,9 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
         const a = address ? findAdapterV2(chain.id) : undefined;
         if (!address || !(a instanceof TonAdapterV2) || !a.capabilities.tokens) return [];
         try {
-          return (await a.jettons(address, fiat)).map((j) => {
+          const js = await a.jettons(address, fiat);
+          if (diag) diag.jettons = { ...(diag.jettons ?? {}), [chain.id]: js.length };
+          return js.map((j) => {
             const amount = safeNum(Number(formatAmount(j.raw, j.decimals)));
             const verified = j.verification === 'whitelist';
             return {
@@ -371,7 +385,8 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
               verified,
             };
           });
-        } catch {
+        } catch (e) {
+          if (diag) diag.jettons = { ...(diag.jettons ?? {}), [chain.id]: `ÉCHEC ${note(e)}` };
           failed.add(`${chain.id}:tokens`);
           return [];
         }
@@ -456,8 +471,10 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const before = s.holdings;
     try {
       const failed: Failed = new Set();
+      const diag: PortfolioDiag = { at: Date.now(), ms: 0, erc20: {}, nativesFailed: [], prices: { asked: 0, got: 0, fx: 0 }, holdings: 0 };
       // Un réseau muet garde ses actifs du cliché précédent : jamais de solde qui disparaît.
-      const holdings = carryOver(s.key === key ? before : [], await loadHoldings(acct, fiat, includeTestnets, failed), failed);
+      const holdings = carryOver(s.key === key ? before : [], await loadHoldings(acct, fiat, includeTestnets, failed, diag), failed);
+      usePortfolioDiag.getState().set({ ...diag, ms: Date.now() - diag.at, holdings: holdings.length });
       const snap: Snapshot = { holdings, ...summarize(holdings), at: Date.now() };
       set({ ...snap, key, fromCache: false, loading: false });
       if (didReceive(before, holdings)) aura.pulse('receive');
@@ -470,6 +487,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         snap.pnl24hPct ?? undefined,
       );
     } catch (e) {
+      usePortfolioDiag.getState().set({ at: Date.now(), ms: 0, error: e instanceof Error ? `${e.name}: ${e.message}` : String(e), erc20: {}, nativesFailed: [], prices: { asked: 0, got: 0, fx: 0 }, holdings: 0 });
       set({ loading: false, error: e instanceof Error ? e.message : 'Réseau indisponible' });
       aura.pulse('error');
     }

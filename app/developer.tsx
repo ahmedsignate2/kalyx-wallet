@@ -1,6 +1,7 @@
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, Share, Switch } from 'react-native';
+import { View, Text, TextInput, ScrollView, Share, Switch, Platform } from 'react-native';
+import { usePortfolioDiag, diagText } from '../lib/portfolio/diagnostics';
 import * as Clipboard from 'expo-clipboard';
 import { Stack } from 'expo-router';
 import Constants from 'expo-constants';
@@ -15,6 +16,7 @@ import { toast } from '../lib/toast';
 import { otaDiagnostic } from '../lib/ota';
 
 export default function Developer() {
+  const diag = usePortfolioDiag((s) => s.last);
   const { colors, typography } = useTheme();
   const t = useT();
   // Lu une seule fois : ces valeurs ne changent pas pendant la session.
@@ -123,6 +125,17 @@ export default function Developer() {
               }}
             />
           ) : null}
+        </View>
+
+        {/* Dernier chargement des soldes, réseau par réseau : l'erreur RÉELLE de l'appareil. */}
+        <View style={{ gap: spacing(1) }}>
+          <Text style={typography.section}>{t('diagBalances')}</Text>
+          <GlassCard>
+            <Text selectable style={[typography.muted, { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 11 }]}>
+              {diag ? diagText(diag) : t('diagNone')}
+            </Text>
+          </GlassCard>
+          {diag ? <Button label={t('diagShare')} variant="ghost" onPress={() => void Share.share({ message: diagText(diag) })} /> : null}
         </View>
 
         {/* Réseaux de test (séparés du mainnet) */}
