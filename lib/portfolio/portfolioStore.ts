@@ -34,6 +34,7 @@ import { usePortfolio as useLegacyPortfolio } from '../portfolioStore';
 import { aura } from '../aura';
 import { didReceive } from './receive';
 import { usePortfolioDiag, type PortfolioDiag } from './diagnostics';
+import { ALCHEMY_KEY } from '../../src/domain/chains/configs';
 
 export interface Holding {
   /** `${chainId}:${contract|native}` */
@@ -474,7 +475,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       const diag: PortfolioDiag = { at: Date.now(), ms: 0, erc20: {}, nativesFailed: [], prices: { asked: 0, got: 0, fx: 0 }, holdings: 0 };
       // Un réseau muet garde ses actifs du cliché précédent : jamais de solde qui disparaît.
       const holdings = carryOver(s.key === key ? before : [], await loadHoldings(acct, fiat, includeTestnets, failed, diag), failed);
-      usePortfolioDiag.getState().set({ ...diag, ms: Date.now() - diag.at, holdings: holdings.length });
+      usePortfolioDiag.getState().set({ ...diag, ms: Date.now() - diag.at, holdings: holdings.length, alchemyKey: ALCHEMY_KEY.length });
       const snap: Snapshot = { holdings, ...summarize(holdings), at: Date.now() };
       set({ ...snap, key, fromCache: false, loading: false });
       if (didReceive(before, holdings)) aura.pulse('receive');

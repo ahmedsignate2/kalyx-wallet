@@ -21,6 +21,8 @@ export interface PortfolioDiag {
   /** Prix obtenus / demandés auprès de DefiLlama, taux dollar → devise. */
   prices: { asked: number; got: number; fx: number };
   holdings: number;
+  /** Clé Alchemy présente dans CETTE version de l'app (longueur seulement). */
+  alchemyKey?: number;
 }
 
 interface DiagState {
@@ -35,6 +37,7 @@ export function diagText(d: PortfolioDiag): string {
   const lines = [
     `Kalyx — diagnostic des soldes, ${new Date(d.at).toISOString()} (${d.ms} ms)`,
     d.error ? `ERREUR : ${d.error}` : 'chargement : ok',
+    `clé Alchemy : ${d.alchemyKey ? `présente (${d.alchemyKey} caractères)` : 'ABSENTE — aucun jeton ERC-20 ne peut être lu'}`,
     `actifs : ${d.holdings}`,
     `prix DefiLlama : ${d.prices.got}/${d.prices.asked}, taux : ${d.prices.fx}`,
     `natifs en échec : ${d.nativesFailed.join(', ') || 'aucun'}`,
