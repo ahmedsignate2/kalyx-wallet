@@ -72,6 +72,8 @@ export interface TonTransferMessage {
   bounce: boolean;
   /** Commentaire texte — les plateformes l'exigent pour attribuer un dépôt. */
   comment?: string;
+  /** Corps déjà construit (transfert de jetton…). Exclusif de `comment`. */
+  payload?: Cell;
 }
 
 export interface TonTransferParams {
@@ -185,7 +187,8 @@ function transferBody(
 ): Cell {
   const outgoing: MessageRelaxed[] = p.messages.map((m) => {
     if (typeof m.amount !== 'bigint' || m.amount < 0n) throw new Error('Montant invalide');
-    return internal({ to: destination(m.to, p.testnet), value: m.amount, bounce: m.bounce, body: m.comment ? commentCell(m.comment) : undefined });
+    if (m.payload && m.comment) throw new Error('Un message porte un commentaire OU un corps, pas les deux');
+    return internal({ to: destination(m.to, p.testnet), value: m.amount, bounce: m.bounce, body: m.payload ?? (m.comment ? commentCell(m.comment) : undefined) });
   });
 
   const signing = new Builder();

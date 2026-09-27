@@ -350,11 +350,13 @@ export default function Home() {
     if (!h.verified) {
       return Alert.alert(t("unverifiedTokenTitle"), t('unverifiedTokenDesc').replace('${h.name}', h.name).replace('${h.symbol}', h.symbol), [{ text: t("actionUnderstoodShort") }]);
     }
-    const sendParams = h.kind === 'spl' ? { mint: h.contract!, symbol: h.symbol, decimals: String(h.decimals), chain: h.chainId } : { contract: h.contract!, symbol: h.symbol, decimals: String(h.decimals), chain: h.chainId };
+    const tokenKey = h.kind === 'spl' ? 'mint' : h.kind === 'jetton' ? 'jetton' : 'contract';
+    const sendParams = { [tokenKey]: h.contract!, symbol: h.symbol, decimals: String(h.decimals), chain: h.chainId };
     Alert.alert(`${h.symbol} · ${getAdapter(h.chainId).config.name}`, `${formatTokenAmount(h.raw, h.decimals)} ${h.symbol}`, [
       { text: t("actionSend"), onPress: () => { useWallet.getState().setActiveChain(h.chainId); router.push({ pathname: '/send', params: sendParams }); } },
-      { text: t("actionSwap"), onPress: () => { useWallet.getState().setActiveChain(h.chainId); router.push({ pathname: '/swap', params: { contract: h.contract! } }); } },
-      { text: t("actionCancel"), style: 'cancel' },
+      // Pas d'échange pour un jetton TON : le moteur d'échange (LI.FI) ne couvre pas TON.
+      ...(h.kind === 'jetton' ? [] : [{ text: t("actionSwap"), onPress: () => { useWallet.getState().setActiveChain(h.chainId); router.push({ pathname: '/swap', params: { contract: h.contract! } }); } }]),
+      { text: t("actionCancel"), style: 'cancel' as const },
     ]);
   };
 

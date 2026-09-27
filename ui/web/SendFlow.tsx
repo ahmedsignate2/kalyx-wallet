@@ -347,7 +347,8 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
   const q = search.trim().toLowerCase();
   const list = [...main, ...small].filter((h) => {
     const c = chainOf(h.chainId);
-    return h.raw > 0n && !!c && !!c.testnet === showTestnets && !!addressForChain(accounts, h.chainId) &&
+    // Jettons TON : la signature par le téléphone (WalletConnect) ne couvre pas TON.
+    return h.raw > 0n && h.kind !== 'jetton' && !!c && !!c.testnet === showTestnets && !!addressForChain(accounts, h.chainId) &&
       (!q || h.symbol.toLowerCase().includes(q) || h.name.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
   });
 

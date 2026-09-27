@@ -49,6 +49,7 @@ import { TonApiClient, type TonApiEvent } from '../ton/tonApi';
 import { TON_PROXY_URL } from '../ton/tonProxy';
 import { buildTonTransfer, tonExternalForEstimate, tonTransferBodyForEstimate, TON_SEND_MODE_DEFAULT } from '../ton/tonTransfer';
 import { tonWalletAddress, TON_IMPORT_WALLET_VERSIONS, type TonWalletVersion } from '../ton/tonWallet';
+import { jettonTransferBody, rawJettonAddress, JETTON_TRANSFER_TON, type TonJettonBalance } from '../ton/tonJettons';
 
 /**
  * Charge utile d'un envoi TON, figée à la préparation.
@@ -70,7 +71,7 @@ export interface TonPayload {
   /** Commentaire — les plateformes d'échange l'exigent pour attribuer un dépôt. */
   comment?: string;
   sendMode: number;
-  /** Adresse du portefeuille de jeton à débiter, pour un transfert de jeton (à venir). */
+  /** Adresse (brute) de NOTRE portefeuille de jeton : présente = transfert de jetton. */
   jettonWallet?: string;
 }
 
@@ -143,11 +144,12 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
   readonly signerCurve: SignerCurve = 'ed25519';
 
   /**
-   * Ce qui fonctionne VRAIMENT, et rien d'autre : le commentaire. Les jetons, la
+   * Ce qui fonctionne VRAIMENT, et rien d'autre : le commentaire, et les jettons
+   * quand TonAPI est là (TON Center ne décrit pas les soldes de jetons). La
    * signature de message et les réseaux personnalisés viendront avec leur code —
    * une capacité déclarée sans son code produirait un bouton qui échoue.
    */
-  readonly capabilities: ChainCapabilities = capabilities({ memo: true });
+  readonly capabilities: ChainCapabilities;
 
   private readonly client: TonCenterClient;
   /**
@@ -171,6 +173,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     this.testnet = !!config.testnet;
     this.client = deps.client ?? new TonCenterClient(config.rpcUrls[0] ?? (this.testnet ? 'https://testnet.toncenter.com/api' : 'https://toncenter.com/api'));
     this.api = deps.api !== undefined ? deps.api : new TonApiClient(`${TON_PROXY_URL}/${this.testnet ? 'testnet' : 'mainnet'}`);
+    this.capabilities = capabilities({ memo: true, tokens: !!this.api, tokenSend: !!this.api, activatesDestination: true });
     this.now = deps.now ?? (() => Date.now());
     this.sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   }
@@ -246,7 +249,11 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
       const transfers = e.actions.filter((a) => a.type === 'TonTransfer' && a.TonTransfer).map((a) => ({ ...a.TonTransfer!, ok: a.status === 'ok' }));
       const sent = transfers.filter((t) => rawOf(t.sender?.address ?? '') === me);
       const received = transfers.filter((t) => rawOf(t.recipient?.address ?? '') === me && rawOf(t.sender?.address ?? '') !== me);
-      if (!sent.length && !received.length) continue;
+      if (!sent.length && !received.length) {
+        const row = this.jettonRow(address, me, e, show);
+        if (row) out.push(row);
+        continue;
+      }
       const sum = (l: typeof transfers) => l.reduce((s, t) => s + BigInt(String(t.amount ?? 0)), 0n);
       const inSenders = new Set(received.map((t) => rawOf(t.sender?.address ?? '')));
       const isBounce = received.length > 0 && sent.length > 0 && sent.every((t) => inSenders.has(rawOf(t.recipient?.address ?? '')));
@@ -277,6 +284,47 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
       });
     }
     return out;
+  }
+
+  /**
+   * Transfert de jetton de l'événement, s'il concerne ce compte.
+   *
+   * Un jetton REÇU sans vérification (`none`) n'est pas montré : c'est la forme
+   * des airdrops d'arnaque — le relevé contient un faux « Tethe USD » envoyé
+   * ainsi. Un jetton ENVOYÉ l'est toujours : l'utilisateur doit voir ce qu'il a
+   * fait. Un événement signalé comme arnaque, ou un jeton en liste noire,
+   * jamais.
+   */
+  private jettonRow(address: string, me: string | null, e: TonApiEvent, show: (raw?: string) => string): TxSummary | null {
+    if (e.is_scam) return null;
+    for (const a of e.actions) {
+      const j = a.type === 'JettonTransfer' ? a.JettonTransfer : undefined;
+      if (!j?.jetton || !/^\d+$/.test(String(j.amount ?? ''))) continue;
+      const verification = j.jetton.verification;
+      if (verification === 'blacklist') continue;
+      const out = rawOf(j.sender?.address ?? '') === me;
+      const incoming = rawOf(j.recipient?.address ?? '') === me;
+      if (!out && !incoming) continue;
+      if (!out && verification !== 'whitelist') continue;
+      const decimals = Number(j.jetton.decimals);
+      if (!Number.isInteger(decimals)) continue;
+      return {
+        chain: this.config.id,
+        hash: e.event_id,
+        timestamp: e.timestamp,
+        from: out ? address : show(j.sender?.address),
+        to: incoming ? address : show(j.recipient?.address),
+        value: BigInt(String(j.amount)),
+        direction: out && incoming ? 'self' : out ? 'out' : 'in',
+        status: e.in_progress ? 'pending' : a.status === 'ok' ? 'success' : 'failed',
+        type: 'TRANSFER',
+        asset: j.jetton.symbol ?? '?',
+        decimals,
+        description: j.comment ?? undefined,
+        messageHash: out ? e.ext_msg_hash?.toLowerCase() : undefined,
+      };
+    }
+    return null;
   }
 
   private async historyFromTonCenter(address: string): Promise<TxSummary[]> {
@@ -327,15 +375,21 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     return out;
   }
 
-  async listTokens(): Promise<TokenHolding[]> {
-    return notYet('la lecture des jetons (prévue avec TonAPI)');
+  /** Soldes de jettons, prix dans `currency` ; listes noires déjà écartées. */
+  async jettons(address: string, currency = 'usd'): Promise<TonJettonBalance[]> {
+    if (!this.api) return notYet('la lecture des jetons sans TonAPI');
+    return this.api.jettons(address, currency);
+  }
+
+  async listTokens(address: string): Promise<TokenHolding[]> {
+    return (await this.jettons(address)).map((j) => ({ id: j.master, symbol: j.symbol, decimals: j.decimals, raw: j.raw, name: j.name, logo: j.image }));
   }
 
   /**
    * Préparation : état des deux comptes, rebond, avertissements, frais, solde.
    */
   async prepareSend(from: string, request: SendRequest): Promise<SendDraft<TonPayload>> {
-    if (request.token) notYet('l’envoi de jetons (prévu avec TonAPI)');
+    if (request.token) return this.prepareJettonSend(from, request);
     if (!this.validateAddress(request.to)) throw new WalletError('INVALID_ADDRESS', 'Adresse TON invalide pour ce réseau');
     if (request.amount <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant nul');
 
@@ -374,6 +428,66 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
       fee,
       warnings,
       payload: { seqno, deploys, version: sender.version, bounce, comment, sendMode: TON_SEND_MODE_DEFAULT },
+    };
+  }
+
+  /**
+   * Envoi d'un jetton : un message à NOTRE portefeuille de jeton, qui débite et
+   * transmet au destinataire (TEP-74, `tonJettons.ts`).
+   *
+   * Le montant du brouillon est en unités du JETON ; les frais, en TON. Le
+   * message emporte JETTON_TRANSFER_TON pour le gaz ; l'excédent revient. Il
+   * faut donc avoir ce TON-là, en plus des frais, même si le coût réel est
+   * moindre — sinon le portefeuille de jeton rejette le transfert.
+   */
+  private async prepareJettonSend(from: string, request: SendRequest): Promise<SendDraft<TonPayload>> {
+    const token = request.token!;
+    if (!this.api) notYet('l’envoi de jetons sans TonAPI');
+    if (!this.validateAddress(request.to)) throw new WalletError('INVALID_ADDRESS', 'Adresse TON invalide pour ce réseau');
+    if (request.amount <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant nul');
+    const master = rawJettonAddress(token.id);
+    if (!master) throw new WalletError('INVALID_ADDRESS', 'TON : identifiant de jeton invalide');
+
+    const [sender, dest, held] = await Promise.all([this.state(from), this.state(request.to), this.api!.jettons(from)]);
+    const jetton = held.find((j) => j.master === master);
+    if (!jetton || jetton.raw < request.amount) throw new WalletError('INSUFFICIENT_FUNDS', 'Solde de jeton insuffisant');
+    if (sender.status === 'frozen') throw new WalletError('NOT_SUPPORTED', 'TON : compte gelé');
+    if (sender.status === 'active' && !sender.version) {
+      throw new WalletError('NOT_SUPPORTED', `TON : contrat de portefeuille non pris en charge (${sender.walletType ?? 'inconnu'})`);
+    }
+
+    const warnings: DraftWarning[] = [];
+    if (dest.notWallet) warnings.push({ code: 'DESTINATION_NOT_WALLET', severity: 'warning' });
+    if (dest.memoRequired && !request.memo?.trim()) warnings.push({ code: 'MEMO_REQUIRED', severity: 'danger' });
+
+    const deploys = sender.status !== 'active';
+    const seqno = sender.seqno ?? 0;
+    const comment = request.memo?.trim() || undefined;
+    const payload = jettonTransferBody({ amount: request.amount, to: request.to, responseTo: from, comment, queryId: 0n, testnet: this.testnet });
+    const message = { to: jetton.wallet, amount: JETTON_TRANSFER_TON, bounce: true, payload };
+
+    // Frais : émulation (coût NET, excédent rendu compris) ; à défaut, tout le TON joint.
+    let fee = JETTON_TRANSFER_TON;
+    if (!deploys && sender.version) {
+      try {
+        const validUntil = Math.floor(this.now() / 1000) + VALIDITY_SECONDS;
+        fee = await this.api!.emulateFee(tonExternalForEstimate(sender.version, from, { seqno, validUntil, messages: [message], testnet: this.testnet }));
+      } catch {
+        /* estimation prudente ci-dessus */
+      }
+    }
+    const needed = JETTON_TRANSFER_TON + (deploys ? DEPLOY_FEE_ESTIMATE : FORWARD_FEE_MARGIN);
+    if (sender.balance < needed) throw new WalletError('INSUFFICIENT_FUNDS', 'Pas assez de TON pour les frais du jeton');
+
+    return {
+      chainId: this.config.id,
+      from,
+      to: request.to,
+      amount: request.amount,
+      token: { id: master, symbol: jetton.symbol, decimals: jetton.decimals },
+      fee,
+      warnings,
+      payload: { seqno, deploys, version: sender.version, bounce: true, comment, sendMode: TON_SEND_MODE_DEFAULT, jettonWallet: jetton.wallet },
     };
   }
 
@@ -429,7 +543,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
         deploy: draft.payload.deploys,
         testnet: this.testnet,
         sendMode: draft.payload.sendMode,
-        messages: [{ to: draft.to, amount: draft.amount, bounce: draft.payload.bounce, comment: draft.payload.comment }],
+        messages: [this.outgoing(draft)],
       },
       signer,
     );
@@ -439,6 +553,22 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
       txid: built.normalizedHash,
       draft: { ...draft, expiresAt: validUntil * 1000 },
     };
+  }
+
+  /** Message sortant du brouillon : TON au destinataire, ou transfert à notre portefeuille de jeton. */
+  private outgoing(draft: SendDraft<TonPayload>) {
+    const p = draft.payload;
+    if (!p.jettonWallet) return { to: draft.to, amount: draft.amount, bounce: p.bounce, comment: p.comment };
+    const payload = jettonTransferBody({
+      amount: draft.amount,
+      to: draft.to,
+      responseTo: draft.from,
+      comment: p.comment,
+      // Identifiant de requête : l'heure, pour distinguer deux envois identiques.
+      queryId: BigInt(this.now()),
+      testnet: this.testnet,
+    });
+    return { to: p.jettonWallet, amount: JETTON_TRANSFER_TON, bounce: true, payload };
   }
 
   async broadcastSend(signed: SignedSend<TonPayload>): Promise<BroadcastOutcome> {

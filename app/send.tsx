@@ -33,7 +33,7 @@ import { toast } from '../lib/toast';
 import {
   getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isWalletAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
   formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
-  estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter,
+  estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, TonAdapterV2, JETTON_TRANSFER_TON,
   findAdapterV2, getAdapterV2, isValidTonAddress, transferFeeFor, amountAfterTransferFee,
   type FeeOptions, type FeeSpeed, type FeeQuotes, type TransferFeeConfig,
   simulateSendTransaction, type SimulationResult,
@@ -53,13 +53,13 @@ export default function Send() {
   const sym = fiatSymbol(fiat);
   const wallet = useWallet();
   const { account, activeChain, accounts } = wallet;
-  const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; symbol?: string; decimals?: string; chain?: string; references?: string; memo?: string; payee?: string; note?: string }>();
+  const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; jetton?: string; symbol?: string; decimals?: string; chain?: string; references?: string; memo?: string; payee?: string; note?: string }>();
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const pf = usePortfolioStore();
 
   // « Quoi envoyer » (étape 0) : depuis l'accueil, on choisit le TOKEN et la chaîne
   // en découle. Depuis la page d'un token (params), on saute cette étape.
-  const presetToken = !!(params.contract || params.mint || params.chain);
+  const presetToken = !!(params.contract || params.mint || params.jetton || params.chain);
   /**
    * Demande de paiement complète : destinataire ET montant fournis par le lien.
    *
@@ -102,12 +102,15 @@ export default function Send() {
   const token = picked
     ? picked.kind === 'erc20' ? { kind: 'erc20' as const, contract: picked.contract!, symbol: picked.symbol, decimals: picked.decimals }
       : picked.kind === 'spl' ? { kind: 'spl' as const, mint: picked.contract!, symbol: picked.symbol, decimals: picked.decimals }
+      : picked.kind === 'jetton' ? { kind: 'jetton' as const, master: picked.contract!, symbol: picked.symbol, decimals: picked.decimals }
       : null
     : params.contract
       ? { kind: 'erc20' as const, contract: String(params.contract), symbol: String(params.symbol ?? 'TOKEN'), decimals: decimalsParam }
       : params.mint
         ? { kind: 'spl' as const, mint: String(params.mint), symbol: String(params.symbol ?? 'TOKEN'), decimals: decimalsParam }
-        : null;
+        : params.jetton
+          ? { kind: 'jetton' as const, master: String(params.jetton), symbol: String(params.symbol ?? 'TOKEN'), decimals: decimalsParam }
+          : null;
   const symbol = token ? token.symbol : chain.nativeSymbol;
   const decimals = token ? token.decimals : chain.nativeDecimals;
   const isNativeSend = !token;
@@ -266,6 +269,15 @@ export default function Send() {
         if (!alive) return;
         setBalance(list.find((x) => x.mint === token.mint)?.raw ?? 0n);
         setPrice(tp[token.mint.toLowerCase()] ?? 0);
+      } else if (token.kind === 'jetton') {
+        const ton = findAdapterV2(targetChainId);
+        const list = ton instanceof TonAdapterV2 ? await ton.jettons(senderAddress, fiat).catch(() => []) : [];
+        if (!alive) return;
+        const held = list.find((x) => x.master === token.master.toLowerCase());
+        setBalance(held?.raw ?? 0n);
+        setPrice(held?.verification === 'whitelist' ? held.price : 0);
+        // Le message emporte ce TON pour le gaz (l'excédent revient) : il faut l'avoir.
+        setReserve(JETTON_TRANSFER_TON);
       }
       /*
        * PALIERS DE FRAIS — une seule demande, quelle que soit la chaîne.
@@ -280,7 +292,7 @@ export default function Send() {
       const v2 = findAdapterV2(targetChainId);
       if (v2?.capabilities.feeTiers && v2.quoteFees) {
         const ref = token
-          ? { id: token.kind === 'spl' ? token.mint : token.contract, symbol, decimals }
+          ? { id: token.kind === 'spl' ? token.mint : token.kind === 'jetton' ? token.master : token.contract, symbol, decimals }
           : null;
         v2.quoteFees(senderAddress, { to: recipientOk ? recipient : senderAddress, amount: 1n, token: ref })
           .then((q: FeeQuotes) => {
@@ -312,7 +324,7 @@ export default function Send() {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [senderAddress, targetChainId, fiat, params.contract, params.mint, picked?.id]);
+  }, [senderAddress, targetChainId, fiat, params.contract, params.mint, params.jetton, picked?.id]);
 
   // Frais en natif (unité brute) : palier EVM choisi, sinon réserve dynamique.
   const feeRaw = feeOptions ? feeOptions[speed].costWei : reserve;
@@ -451,7 +463,8 @@ export default function Send() {
         ...payExtras,
       };
       const h =
-        token?.kind === 'spl' ? await wallet.sendSolToken(recipient, tokenAmountStr, { mint: token.mint, decimals: token.decimals }, unlock, payExtras)
+        token?.kind === 'jetton' ? await wallet.sendJetton(recipient, tokenAmountStr, { master: token.master, decimals: token.decimals }, unlock, { memo })
+        : token?.kind === 'spl' ? await wallet.sendSolToken(recipient, tokenAmountStr, { mint: token.mint, decimals: token.decimals }, unlock, payExtras)
         : token?.kind === 'erc20' ? await wallet.sendToken(recipient, tokenAmountStr, { contract: token.contract, decimals: token.decimals }, unlock, gas)
         : await wallet.signAndSend(recipient, tokenAmountStr, unlock, gas);
       setHash(h);

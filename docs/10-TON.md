@@ -461,5 +461,36 @@ Ce qu'il apporte, vérifié en direct à travers le Worker :
 - **Solde** : un NOMBRE JSON chez TonAPI — lu dans le texte brut, sinon arrondi
   au-delà de 2^53 nanotons.
 
-Réseau principal activé le 27/09. Reste : les jetons (USDT…).
+Réseau principal activé le 27/09.
+
+## 14. Jettons (27/09)
+
+Lecture, envoi et historique des jettons TEP-74 (`tonJettons.ts`, `TonAdapterV2`).
+
+- **Lecture** : `/v2/accounts/{a}/jettons?currencies=…` donne, pour chaque
+  jeton, NOTRE portefeuille de jeton (plus besoin de `get_wallet_address`), le
+  prix dans la devise de l'utilisateur et un statut de vérification.
+- **Le symbole ne prouve rien.** Relevé sur le compte du maître USD₮ : un faux
+  « USD₮ » en liste noire à côté du vrai, et un « Tethe USD / USDT-GARN » non
+  vérifié reçu sans rien demander. Règle : `blacklist` écarté partout ; `none`
+  masqué, sans valeur, jamais montré en réception dans l'historique ; seul
+  `whitelist` compte dans le total.
+- **Transfert** : `transfer#0f8a7ea5` envoyé à notre portefeuille de jeton, avec
+  0,05 TON pour le gaz (valeur de Tonkeeper, l'excédent revient par
+  `response_destination`) et `forward_ton_amount = 1` nanoton pour que le
+  destinataire reçoive la notification — et le commentaire, indispensable aux
+  dépôts sur plateforme. Le corps est comparé AU BIT PRÈS à 9 transferts USD₮
+  réels (`ton-jetton-transfer-vectors.json`).
+- **Preuve sur le réseau principal** : émulation par TonAPI d'un transfert de
+  1 unité d'USD₮ préparé par l'adaptateur depuis un vrai portefeuille W5 —
+  `JettonTransfer ok`, 0,0022 TON de frais nets.
+- **Commentaire exigé** : `MEMO_REQUIRED` était calculé mais jamais montré.
+  `sendDraft` bloque désormais l'envoi (erreur traduite `errMemoRequired`),
+  pour TON comme pour les jettons.
+- **Images** : TonAPI sert du WebP signé ; converties en PNG par `wsrv.nl`.
+- Webapp : pas d'envoi de jetton (la signature par téléphone ne couvre pas TON).
+
+Reste : NFT et domaines `.ton`, TON Connect v2, staking, commentaires chiffrés,
+changement de version de portefeuille, frais du jetton affichés depuis
+l'émulation (l'écran montre pour l'instant les 0,05 TON joints).
 

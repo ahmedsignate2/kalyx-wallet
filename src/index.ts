@@ -196,6 +196,7 @@ export { SolanaAdapterV2, type SolanaPayload } from './domain/chains/v2/SolanaAd
  * exporté pour que le travail à venir soit visible, pas pour être appelé.
  */
 export { TonAdapterV2, TON_TARGET_CAPABILITIES, type TonPayload } from './domain/chains/v2/TonAdapterV2';
+export { JETTON_TRANSFER_TON, USDT_TON_MASTER, type TonJettonBalance } from './domain/chains/ton/tonJettons';
 export {
   BitcoinAdapterV2,
   type BitcoinPayload,
