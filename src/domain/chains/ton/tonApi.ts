@@ -19,6 +19,7 @@ import type { TonAccountState, TonAccountStatus } from './tonCenter';
 import type { TonWalletVersion } from './tonWallet';
 import { parseJettonBalances, type TonJettonBalance } from './tonJettons';
 import { normalizeTonDomain, parseDnsWallet, parseTonNfts, type TonNft } from './tonNfts';
+import { parseStakingPool, type TonstakersPool } from './tonstakers';
 
 type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<{ status: number; text(): Promise<string> }>;
 
@@ -214,6 +215,23 @@ export class TonApiClient {
     if (r.status === 404 || (r.status >= 400 && r.status < 500)) return null;
     if (r.status !== 200) throw new WalletError('RPC_UNAVAILABLE', `TonAPI : résolution impossible (HTTP ${r.status})`);
     return parseDnsWallet(r.json, testnet);
+  }
+
+  /** Pool de staking (Tonstakers) : APY, minimum, contrat du tsTON. */
+  async stakingPool(pool: string): Promise<TonstakersPool> {
+    const r = await this.call('GET', `/v2/staking/pool/${seg(pool)}`);
+    const parsed = r.status === 200 ? parseStakingPool(r.json) : null;
+    if (!parsed) throw new WalletError('RPC_UNAVAILABLE', `TonAPI : pool illisible (HTTP ${r.status})`);
+    return parsed;
+  }
+
+  /** Valeur d'un jeton en TON (ex. 1 tsTON = 1,16 TON), ou null si inconnue. */
+  async priceInTon(master: string): Promise<number | null> {
+    const r = await this.call('GET', `/v2/rates?tokens=${seg(master)}&currencies=ton`);
+    const rates = r.status === 200 ? (r.json?.rates as Record<string, { prices?: { TON?: unknown } }> | undefined) : undefined;
+    const hit = rates ? Object.values(rates)[0]?.prices?.TON : undefined;
+    const n = Number(hit);
+    return Number.isFinite(n) && n > 0 ? n : null;
   }
 
   async events(address: string, limit = 25): Promise<TonApiEvent[]> {

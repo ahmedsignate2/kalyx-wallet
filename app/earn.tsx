@@ -16,6 +16,8 @@ import { CountUp } from '../ui/CountUp';
 import { FadeInUp } from '../ui/FadeInUp';
 import { Icon } from '../ui/icon';
 import { EarnSheet } from '../ui/EarnSheet';
+import { TonStakingSheet } from '../ui/TonStakingSheet';
+import { loadStaking, type StakingInfo } from '../lib/ton/staking';
 import { SegmentedControl, Pressable as KPressable } from '../ui/kit';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -160,6 +162,9 @@ export default function EarnScreen() {
             ))}
           </View>
         ) : null}
+
+        {/* Staking TON natif (Tonstakers) : à part, il ne passe pas par le catalogue EVM. */}
+        <TonStakingCard />
 
         {/* Opportunités */}
         <View style={{ gap: spacing(1.5) }}>
@@ -344,3 +349,46 @@ function OpportunityCard({ p, apy, available, price, fiat, onPress }: { p: EarnP
     </PressableScale>
   );
 }
+
+/** Carte Tonstakers : APY en direct, tsTON détenus et leur valeur, Staker / Retirer. */
+function TonStakingCard() {
+  const t = useT();
+  const { colors, typography } = useTheme();
+  const hasTon = useWallet((s) => !!s.accounts[s.activeAccountIndex]?.tonPublicKey);
+  const [info, setInfo] = useState<StakingInfo | null>(null);
+  const [action, setAction] = useState<'stake' | 'unstake' | null>(null);
+  const load = useCallback(() => {
+    if (!hasTon) return setInfo(null);
+    loadStaking().then(setInfo).catch(() => setInfo(null));
+  }, [hasTon]);
+  useEffect(load, [load]);
+  if (!hasTon || !info) return null;
+  const tsTon = info.tsTon?.raw ?? 0n;
+  const inTon = info.tsTonInTon ? Number(formatAmount(tsTon, 9)) * info.tsTonInTon : null;
+  return (
+    <GlassCard>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+        <RemoteIcon uri={chainIconUrl(info.chainId)} label="TON" size={40} />
+        <View style={{ flex: 1 }}>
+          <Text style={typography.bodyStrong}>{t('stkTitle')}</Text>
+          <Text style={typography.muted}>{t('stkSub')}</Text>
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={{ color: colors.up, fontFamily: fonts.bold, fontVariant: ['tabular-nums'] }}>{info.pool.apy.toFixed(2)} %</Text>
+          <Text style={typography.muted}>{t('stkApy')}</Text>
+        </View>
+      </View>
+      {tsTon > 0n ? (
+        <Text style={[typography.muted, { marginTop: spacing(1) }]}>
+          {t('stkYours')} · {formatTokenAmount(tsTon, 9)} tsTON{inTon != null ? ` ≈ ${inTon.toFixed(4)} TON` : ''}
+        </Text>
+      ) : null}
+      <View style={{ flexDirection: 'row', gap: spacing(1), marginTop: spacing(1.5) }}>
+        <View style={{ flex: 1 }}><Button label={t('stkStake')} onPress={() => setAction('stake')} /></View>
+        {tsTon > 0n ? <View style={{ flex: 1 }}><Button label={t('stkUnstake')} variant="ghost" onPress={() => setAction('unstake')} /></View> : null}
+      </View>
+      {action ? <TonStakingSheet info={info} action={action} onClose={() => setAction(null)} onDone={() => { setAction(null); load(); }} /> : null}
+    </GlassCard>
+  );
+}
+
