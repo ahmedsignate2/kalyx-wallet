@@ -71,7 +71,10 @@ export default function TrackingScreen() {
 
       if (address) {
         const history = await adapter.getHistory(address).catch(() => []);
-        let tx = history.find((t) => t.hash.toLowerCase() === activeHash.toLowerCase());
+        // TON : juste après un envoi, `activeHash` est le hachage normalisé du
+        // MESSAGE, pas celui de la transaction — on accepte les deux.
+        const wanted = activeHash.toLowerCase();
+        let tx = history.find((t) => t.hash.toLowerCase() === wanted || t.messageHash?.toLowerCase() === wanted);
 
         if (adapter instanceof EvmChainAdapter) {
           const rpcTx = await adapter.getTransaction(activeHash).catch(() => null);
