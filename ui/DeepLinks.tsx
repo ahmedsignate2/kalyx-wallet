@@ -140,7 +140,7 @@ export function DeepLinks() {
       }
       if (/(^|\/\/)browse\b/i.test(url)) {
         const target = extractBrowseUrl(url);
-        if (target) router.push({ pathname: '/browser', params: { url: target } });
+        if (target) router.navigate({ pathname: '/browser', params: { url: target } });
       }
     };
     Linking.getInitialURL().then((u) => handle(u, true));

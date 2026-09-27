@@ -27,6 +27,7 @@ import { haptic } from '../lib/haptics';
 
 const GO_RE = /\[\[go:(\/[a-z0-9\-/]+)\]\]/gi;
 const KNOWN_ROUTES = new Set(APP_ROUTES_MAP.map((r) => r.route));
+const TAB_ROUTES = new Set(['/home', '/browser', '/earn', '/menu']);
 
 /** Sépare le texte du modèle et les écrans proposés (seules les routes connues passent). */
 function splitAnswer(text: string): { text: string; routes: string[] } {
@@ -184,7 +185,9 @@ export function CopilotSheet() {
                           label={t('copilotOpen')}
                           onPress={() => {
                             closeChat();
-                            router.push(r as never);
+                            // Un onglet est REJOINT (pas empilé une seconde fois) ; un écran est poussé.
+                            if (TAB_ROUTES.has(r)) router.navigate(r as never);
+                            else router.push(r as never);
                           }}
                         />
                       ))}

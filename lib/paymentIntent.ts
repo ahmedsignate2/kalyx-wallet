@@ -232,7 +232,8 @@ export async function runQrIntent(result: QrResult, opts?: { replace?: boolean }
     return;
   }
   if (result.kind === 'url') {
-    go({ pathname: '/browser', params: { url: result.url } });
+    // Onglet Explorer : rejoint avec la page, jamais empilé une seconde fois.
+    router.navigate({ pathname: '/browser', params: { url: result.url } });
     return;
   }
   /*
