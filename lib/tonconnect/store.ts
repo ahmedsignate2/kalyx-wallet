@@ -1,0 +1,312 @@
+/**
+ * TON Connect côté wallet : sessions, demandes en attente, réponses.
+ *
+ * Le protocole est dans `src/domain/tonconnect` (chiffrement, liens, preuve,
+ * requêtes — chacun vérifié contre la référence) ; ici, l'état de l'app :
+ *  - une SESSION par dApp connectée : clé x25519 à nous, identifiant client de
+ *    la dApp, pont, manifeste, portefeuille et adresse TON utilisés. Gardée
+ *    dans le stockage chiffré (`kv` = Keychain / Keystore) ;
+ *  - une file de DEMANDES en attente (connexion, transaction), montrées une à
+ *    une par `ui/TonConnectHost` ; rien n'est signé sans le code de
+ *    l'utilisateur ;
+ *  - un auditeur de pont par pont, pour toutes ses sessions à la fois.
+ */
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+import { create } from 'zustand';
+import { base64 } from '@scure/base';
+import { ed25519 } from '@noble/curves/ed25519';
+import { kvDel, kvGet, kvSet } from '../kv';
+import { useWallet, type Unlock } from '../walletStore';
+import { addressForChain } from '../accountAddress';
+import { technicalLogger } from '../technicalLogger';
+import { BridgeListener, bridgeSend, type BridgeMessage } from './bridge';
+import {
+  getAdapterV2,
+  listChains,
+  TonAdapterV2,
+  withSigner,
+  type ChainConfig,
+  type Ed25519Signer,
+} from '../../src';
+import { decryptMessage, encryptMessage, newSessionKeyPair, type SessionKeyPair } from '../../src/domain/tonconnect/sessionCrypto';
+import { manifestDomain, manifestOriginMatches, parseConnectLink, parseManifest, type DappManifest, type ParsedConnectLink } from '../../src/domain/tonconnect/connectLink';
+import { buildTonProof, tonAddrReply } from '../../src/domain/tonconnect/tonProof';
+import { parseSendTransaction, TC_ERROR, TC_MAX_MESSAGES, type DappTransaction } from '../../src/domain/tonconnect/requests';
+import { tonWalletStateInitBoc } from '../../src/domain/chains/ton/tonTransfer';
+import type { DappDraft } from '../../src/domain/chains/v2/TonAdapterV2';
+
+export interface TcSession {
+  /** Identifiant client de la dApp (sa clé publique x25519). */
+  clientId: string;
+  bridge: string;
+  keyPair: SessionKeyPair;
+  manifest: DappManifest;
+  walletId: string;
+  /** Adresse TON conviviale partagée avec la dApp. */
+  address: string;
+  chainId: string;
+  connectedAt: number;
+  lastEventId?: string;
+}
+
+export type TcPending =
+  | { kind: 'connect'; link: ParsedConnectLink; manifest: DappManifest; domain: string; proofPayload?: string }
+  | { kind: 'tx'; session: TcSession; requestId: string; tx: DappTransaction; draft: DappDraft | null; error?: string };
+
+interface TcState {
+  sessions: TcSession[];
+  queue: TcPending[];
+  hydrated: boolean;
+  hydrate: () => Promise<void>;
+  /** Lien ou QR scanné. Rend un message d'erreur lisible, ou null si la demande est affichée. */
+  openLink: (text: string) => Promise<string | null>;
+  approveConnect: (unlock: Unlock) => Promise<void>;
+  rejectConnect: () => Promise<void>;
+  approveTx: (unlock: Unlock) => Promise<string>;
+  rejectTx: () => Promise<void>;
+  disconnect: (clientId: string) => Promise<void>;
+}
+
+const INDEX_KEY = 'tc.sessions';
+const EVENT_ID_KEY = 'tc.eventId';
+const sessionKey = (clientId: string) => `tc.s.${clientId}`;
+
+/** Réseau TON du portefeuille : le réseau de test si c'est le réseau actif. */
+function tonChain(): ChainConfig {
+  const active = useWallet.getState().activeChain;
+  const ton = listChains({ includeTestnets: true }).filter((c) => c.family === 'ton');
+  return ton.find((c) => c.id === active) ?? ton.find((c) => !c.testnet)!;
+}
+
+function device() {
+  return {
+    platform: Platform.OS === 'ios' ? 'iphone' : 'android',
+    appName: 'kalyx',
+    appVersion: Constants.expoConfig?.version ?? '0.1.0',
+    maxProtocolVersion: 2,
+    // La forme ancienne (« SendTransaction ») reste exigée par les vieux SDK.
+    features: ['SendTransaction', { name: 'SendTransaction', maxMessages: TC_MAX_MESSAGES }],
+  };
+}
+
+let eventCounter = 0;
+async function nextEventId(): Promise<number> {
+  if (eventCounter === 0) eventCounter = Number((await kvGet(EVENT_ID_KEY).catch(() => null)) ?? '0') || 0;
+  eventCounter += 1;
+  void kvSet(EVENT_ID_KEY, String(eventCounter)).catch(() => {});
+  return eventCounter;
+}
+
+/** Chiffre et envoie un message à la dApp d'une session (ou d'une connexion en cours). */
+async function sendTo(bridge: string, keyPair: SessionKeyPair, dappClientId: string, payload: unknown, topic?: string): Promise<void> {
+  const blob = encryptMessage(JSON.stringify(payload), dappClientId, keyPair.secretKey);
+  await bridgeSend(bridge, keyPair.publicKey, dappClientId, base64.encode(blob), topic);
+}
+
+async function persist(sessions: TcSession[]): Promise<void> {
+  await kvSet(INDEX_KEY, JSON.stringify(sessions.map((s) => s.clientId)));
+  await Promise.all(sessions.map((s) => kvSet(sessionKey(s.clientId), JSON.stringify(s))));
+}
+
+const listeners = new Map<string, BridgeListener>();
+
+async function fetchManifest(url: string): Promise<DappManifest | null> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const res = await fetch(url, { signal: ctl.signal });
+    return res.ok ? parseManifest(await res.json()) : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export const useTonConnect = create<TcState>((set, get) => {
+  /** Une connexion par pont, pour toutes ses sessions. */
+  const relisten = () => {
+    for (const l of listeners.values()) l.stop();
+    listeners.clear();
+    const byBridge = new Map<string, TcSession[]>();
+    for (const s of get().sessions) byBridge.set(s.bridge, [...(byBridge.get(s.bridge) ?? []), s]);
+    for (const [bridge, list] of byBridge) {
+      const last = list.map((s) => s.lastEventId).filter(Boolean).sort().pop();
+      const l = new BridgeListener(bridge, list.map((s) => s.keyPair.publicKey), last, (m) => void onMessage(m));
+      listeners.set(bridge, l);
+      l.start();
+    }
+  };
+
+  const respond = (session: TcSession, payload: unknown) => sendTo(session.bridge, session.keyPair, session.clientId, payload);
+
+  const remove = async (clientId: string) => {
+    const sessions = get().sessions.filter((s) => s.clientId !== clientId);
+    set({ sessions, queue: get().queue.filter((p) => p.kind !== 'tx' || p.session.clientId !== clientId) });
+    await kvDel(sessionKey(clientId)).catch(() => {});
+    await persist(sessions).catch(() => {});
+    relisten();
+  };
+
+  const onMessage = async (m: BridgeMessage) => {
+    const session = get().sessions.find((s) => s.clientId === m.from);
+    if (!session) return;
+    if (m.eventId) {
+      session.lastEventId = m.eventId;
+      void kvSet(sessionKey(session.clientId), JSON.stringify(session)).catch(() => {});
+    }
+    let req: { method?: string; params?: unknown[]; id?: string | number };
+    try {
+      req = JSON.parse(decryptMessage(base64.decode(m.message), session.clientId, session.keyPair.secretKey));
+    } catch {
+      technicalLogger.logDapp('tonconnect: message indéchiffrable ignoré', session.manifest.url);
+      return;
+    }
+    const id = String(req.id ?? '');
+    if (req.method === 'disconnect') {
+      await respond(session, { result: {}, id }).catch(() => {});
+      await remove(session.clientId);
+      return;
+    }
+    if (req.method !== 'sendTransaction') {
+      await respond(session, { error: { code: TC_ERROR.METHOD_NOT_SUPPORTED, message: 'Méthode non prise en charge' }, id }).catch(() => {});
+      return;
+    }
+    const parsed = parseSendTransaction(req.params?.[0], { address: session.address, testnet: session.chainId !== 'ton', nowSeconds: Math.floor(Date.now() / 1000) });
+    if (!parsed.ok) {
+      await respond(session, { error: { code: parsed.code, message: parsed.message }, id }).catch(() => {});
+      return;
+    }
+    const pending: TcPending = { kind: 'tx', session, requestId: id, tx: parsed.tx, draft: null };
+    set({ queue: [...get().queue, pending] });
+    // L'émulation arrive après : l'écran s'ouvre tout de suite, le bilan se complète.
+    const adapter = getAdapterV2(session.chainId);
+    if (adapter instanceof TonAdapterV2) {
+      adapter
+        .prepareDappTransfer(session.address, parsed.tx)
+        .then((draft) => set({ queue: get().queue.map((p) => (p === pending ? { ...pending, draft } : p)) }))
+        .catch((e) => set({ queue: get().queue.map((p) => (p === pending ? { ...pending, error: e instanceof Error ? e.message : String(e) } : p)) }));
+    }
+  };
+
+  /** Signataire TON du portefeuille ACTIF, pour UNE opération ; effacé ensuite. */
+  const withTonSigner = async <T>(chainId: string, unlock: Unlock, fn: (signer: Ed25519Signer, adapter: TonAdapterV2) => Promise<T>) => {
+    const adapter = getAdapterV2(chainId);
+    if (!(adapter instanceof TonAdapterV2)) throw new Error('TON indisponible');
+    const signer = await useWallet.getState().deriveSigner(adapter, unlock);
+    return withSigner(signer, (s) => {
+      if (s.curve !== 'ed25519') throw new Error('Signataire ed25519 attendu');
+      return fn(s, adapter);
+    });
+  };
+
+  return {
+    sessions: [],
+    queue: [],
+    hydrated: false,
+
+    hydrate: async () => {
+      if (get().hydrated) return;
+      try {
+        const ids = JSON.parse((await kvGet(INDEX_KEY)) ?? '[]') as string[];
+        const sessions = (await Promise.all(ids.map((id) => kvGet(sessionKey(id)).catch(() => null))))
+          .filter((x): x is string => !!x)
+          .map((x) => JSON.parse(x) as TcSession);
+        set({ sessions, hydrated: true });
+      } catch {
+        set({ hydrated: true });
+      }
+      relisten();
+    },
+
+    openLink: async (text) => {
+      const link = parseConnectLink(text);
+      if (!link) return 'tcInvalidLink';
+      const manifest = await fetchManifest(link.request.manifestUrl);
+      if (!manifest) return 'tcManifestError';
+      if (!manifestOriginMatches(link.request.manifestUrl, manifest)) return 'tcManifestMismatch';
+      const proof = link.request.items.find((i) => i.name === 'ton_proof') as { payload?: string } | undefined;
+      set({ queue: [...get().queue, { kind: 'connect', link, manifest, domain: manifestDomain(manifest), proofPayload: proof?.payload }] });
+      return null;
+    },
+
+    approveConnect: async (unlock) => {
+      const p = get().queue[0];
+      if (p?.kind !== 'connect') return;
+      const w = useWallet.getState();
+      const chain = tonChain();
+      const stored = w.accounts[w.activeAccountIndex];
+      const address = addressForChain(stored, chain);
+      if (!address || !stored?.tonPublicKey) throw new Error('tcNoTonAccount');
+      const keyPair = newSessionKeyPair();
+      const items: unknown[] = [];
+      await withTonSigner(chain.id, unlock, async (signer) => {
+        const publicKey = signer.publicKey;
+        const secret = signer.secretKey.subarray(0, 32);
+        const pub = Buffer.from(publicKey).toString('hex');
+        if (pub !== stored.tonPublicKey!.toLowerCase()) throw new Error('tcKeyMismatch');
+        items.push(tonAddrReply({ address, testnet: !!chain.testnet, publicKeyHex: pub, stateInitBoc: tonWalletStateInitBoc(publicKey, stored.tonVersion ?? 'v5r1', !!chain.testnet) }));
+        if (p.proofPayload !== undefined) {
+          items.push(await buildTonProof({ address, domain: p.domain, payload: p.proofPayload, timestamp: Math.floor(Date.now() / 1000) }, (d) => ed25519.sign(d, secret)));
+        }
+      });
+      await sendTo(p.link.bridge, keyPair, p.link.clientId, { event: 'connect', id: await nextEventId(), payload: { items, device: device() } });
+      const session: TcSession = {
+        clientId: p.link.clientId,
+        bridge: p.link.bridge,
+        keyPair,
+        manifest: p.manifest,
+        walletId: w.activeWalletId,
+        address,
+        chainId: chain.id,
+        connectedAt: Date.now(),
+      };
+      const sessions = [...get().sessions.filter((s) => s.clientId !== session.clientId), session];
+      set({ sessions, queue: get().queue.slice(1) });
+      await persist(sessions);
+      relisten();
+    },
+
+    rejectConnect: async () => {
+      const p = get().queue[0];
+      if (p?.kind !== 'connect') return;
+      set({ queue: get().queue.slice(1) });
+      // Réponse d'une clé jetable : la dApp sait que l'utilisateur a refusé.
+      await sendTo(p.link.bridge, newSessionKeyPair(), p.link.clientId, {
+        event: 'connect_error',
+        id: await nextEventId(),
+        payload: { code: TC_ERROR.USER_REJECTS, message: 'User declined the connection' },
+      }).catch(() => {});
+    },
+
+    approveTx: async (unlock) => {
+      const p = get().queue[0];
+      if (p?.kind !== 'tx') throw new Error('tcNothingPending');
+      const { session } = p;
+      if (useWallet.getState().activeWalletId !== session.walletId) throw new Error('tcWrongWallet');
+      const adapter = getAdapterV2(session.chainId);
+      if (!(adapter instanceof TonAdapterV2)) throw new Error('TON indisponible');
+      // État relu au moment de signer : le seqno a pu bouger depuis l'affichage.
+      const draft = await adapter.prepareDappTransfer(session.address, p.tx);
+      const signed = await withTonSigner(session.chainId, unlock, (signer) => adapter.signDappTransfer(draft, signer));
+      await adapter.broadcastDapp(signed);
+      set({ queue: get().queue.slice(1) });
+      await respond(session, { result: signed.boc, id: p.requestId }).catch(() => {});
+      return signed.txid;
+    },
+
+    rejectTx: async () => {
+      const p = get().queue[0];
+      if (p?.kind !== 'tx') return;
+      set({ queue: get().queue.slice(1) });
+      await respond(p.session, { error: { code: TC_ERROR.USER_REJECTS, message: 'User declined the transaction' }, id: p.requestId }).catch(() => {});
+    },
+
+    disconnect: async (clientId) => {
+      const session = get().sessions.find((s) => s.clientId === clientId);
+      if (session) await respond(session, { event: 'disconnect', id: await nextEventId(), payload: {} }).catch(() => {});
+      await remove(clientId);
+    },
+  };
+});
