@@ -47,8 +47,8 @@ signature, fuite de donnée · **P2** fonctionnement, confort.
 
 | # | Fonction | Prio | Statut | Notes |
 |---|---|---|---|---|
-| C1 | `signAndSend` / `sendDraft` (envoi natif, toutes chaînes) | P0 | ⬜ | Montant, décimales, frais, réserve de gas. |
-| C2 | `sendToken`, `sendSolToken`, `sendJetton` | P0 | ⬜ | |
+| C1 | `signAndSend` / `sendDraft` (envoi natif, toutes chaînes) | P0 | ✅ 🛡️ | Un seul chemin pour toutes les chaînes, mémo exigé vérifié, clé effacée. **Corrigé :** l'envoi est refusé si le réseau actif n'est pas celui affiché (sinon même adresse, autre réseau). |
+| C2 | `sendToken`, `sendSolToken`, `sendJetton` | P0 | ✅ 🛡️ | **Corrigé :** décimales relues sur le contrat (EVM `decimals()`, TON via TonAPI) et comparées avant signature ; Solana les vérifie déjà (`transferChecked`). |
 | C3 | Envoi de NFT (EVM, Solana, TON) | P0 | ⬜ | Message d'erreur corrigé (a9a8fc3). |
 | C4 | `executeSwap` | P0 | ✅ 🛡️ | Contrôle B1 avant dérivation de la clé. |
 | C5 | `signMessage`, `signTypedData` | P0 | ⚠️ | Décodage et alerte autre réseau ; Permit / Permit2 à vérifier. |

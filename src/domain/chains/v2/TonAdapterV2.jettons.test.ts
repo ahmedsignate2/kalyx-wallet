@@ -87,6 +87,8 @@ describe('jettons — préparation', () => {
   it('refuse plus de jetons qu’on n’en a', async () => {
     const ad = new TonAdapterV2(MAIN, { api: sender(), client: noCenter });
     await expect(ad.prepareSend(FROM, { to: DEST, amount: 1061n, token: { id: USDT_TON_MASTER, symbol: 'USDT', decimals: 6 } })).rejects.toMatchObject({ code: 'INSUFFICIENT_FUNDS' });
+    // Décimales de l'écran ≠ décimales du jeton : refusé (le montant brut serait faux).
+    await expect(ad.prepareSend(FROM, { to: DEST, amount: 1000n, token: { id: USDT_TON_MASTER, symbol: 'USDT', decimals: 9 } })).rejects.toMatchObject({ code: 'INVALID_AMOUNT' });
   });
 
   it('refuse un jeton en liste noire, même s’il porte le symbole USD₮', async () => {

@@ -516,6 +516,13 @@ export default function Send() {
         speed,
         ...payExtras,
       };
+      /*
+       * Le coffre envoie sur le réseau ACTIF ; l'écran affiche `targetChainId`.
+       * Ils sont alignés par un effet — s'ils ne l'étaient pas (bascule refusée,
+       * course), un envoi « sur Base » partirait sur Ethereum avec la même
+       * adresse. On refuse plutôt que de deviner.
+       */
+      if (useWallet.getState().activeChain !== targetChainId) throw new Error(t('errNetworkMismatch'));
       const h =
         token?.kind === 'jetton' ? await wallet.sendJetton(recipient, tokenAmountStr, { master: token.master, decimals: token.decimals }, unlock, { memo, expiresAt: payExtras.expiresAt })
         : token?.kind === 'spl' ? await wallet.sendSolToken(recipient, tokenAmountStr, { mint: token.mint, decimals: token.decimals }, unlock, payExtras)

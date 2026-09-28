@@ -138,6 +138,18 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
 
   // ── Envoi ──────────────────────────────────────────────────────────────────
 
+  /** `decimals()` du contrat, ou null si illisible (fonction absente, RPC en panne). */
+  private async readDecimals(contract: string): Promise<number | null> {
+    try {
+      const raw = await this.v1.callContract(contract, '0x313ce567');
+      if (!/^0x[0-9a-fA-F]{1,64}$/.test(raw)) return null;
+      const n = Number(BigInt(raw));
+      return n <= 255 ? n : null;
+    } catch {
+      return null;
+    }
+  }
+
   async prepareSend(from: string, request: SendRequest): Promise<SendDraft<EvmPayload>> {
     const sender = normalizeEvmAddress(from);
     if (!this.validateAddress(request.to)) {
@@ -154,11 +166,21 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
     const value = isToken ? 0n : request.amount;
     const data = isToken ? erc20TransferData(request.to, request.amount) : '0x';
 
-    const [nonce, fee, gasLimit] = await Promise.all([
+    const [nonce, fee, gasLimit, onchainDecimals] = await Promise.all([
       this.v1.getNonce(sender),
       this.v1.getFeeData(),
       this.estimateGas(sender, txTo, value, data, isToken),
+      isToken ? this.readDecimals(txTo) : Promise.resolve(null),
     ]);
+    /*
+     * DÉCIMALES RELUES SUR LE CONTRAT. Le montant brut est calculé avec les
+     * décimales que l'écran connaît (indexeur, lien, liste) : fausses, « 10 »
+     * affiché partirait comme 10 × 10¹² unités, ou l'inverse. Solana le refuse
+     * de lui-même (`transferChecked`) ; ici rien ne le faisait.
+     */
+    if (onchainDecimals !== null && onchainDecimals !== request.token!.decimals) {
+      throw new WalletError('INVALID_AMOUNT', `Décimales du jeton incohérentes (${request.token!.decimals} ≠ ${onchainDecimals} sur le contrat)`);
+    }
 
     /*
      * Le palier choisi n'est appliqué QUE si la chaîne propose l'EIP-1559.
