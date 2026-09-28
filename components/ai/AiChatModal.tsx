@@ -7,6 +7,7 @@ import { KeyboardAvoidingView, Platform, View, TextInput, ScrollView, Modal, Fla
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, IconButton, Skeleton, Chip, Pressable as KPressable } from '../../ui/kit';
 import { space, radius } from '../../ui/tokens';
+import { GOLD, IconDisc, Orbit, Pulse, Rise, TypingDots } from '../../ui/nova';
 import { useTheme } from '../../ui/theme';
 import { useAiStore } from '../../lib/aiStore';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
@@ -582,12 +583,19 @@ une source externe.`}`;
     <SafeModal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <KPressable noScale haptic="none" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={onClose} accessibilityLabel={t('aiClose')} />
-        <View style={{ height: '88%', backgroundColor: colors.surface2, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, overflow: 'hidden' }}>
-          {/* En-tête */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[3], paddingTop: space[3], paddingBottom: space[2] }}>
-            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2], paddingLeft: space[2] }}>
-              <Icon name="sparkles" size={18} />
-              <Text variant="title2">{t('aiTitle')}</Text>
+        <View style={{ height: '90%', backgroundColor: colors.bg, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderWidth: 1, borderBottomWidth: 0, borderColor: colors.border, overflow: 'hidden' }}>
+          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.surface3, marginTop: space[2] }} />
+          {/* En-tête : l'étoile d'or, le nom, et un point qui dit que l'assistant est là. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[3], paddingTop: space[2], paddingBottom: space[2], borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[3], paddingLeft: space[1] }}>
+              <IconDisc name="sparkles" tone="gold" size={38} />
+              <View>
+                <Text variant="body">{t('aiTitle')}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Pulse size={6} color={colors.up} />
+                  <Text variant="micro" tone="tertiary">{loading ? t('aiStatusThinking') : 'Kalyx'}</Text>
+                </View>
+              </View>
             </View>
             <IconButton icon="history" label={t('aiRecentChats')} tone={showHistory ? 'surface' : 'ghost'} onPress={() => setShowHistory((v) => !v)} />
             <IconButton icon="add" label={t('aiNewChat')} tone="ghost" onPress={() => { createNewSession(); setShowHistory(false); }} />
@@ -612,9 +620,10 @@ une source externe.`}`;
             <>
               {messages.length === 0 ? (
                 /* État d'accueil au centre */
-                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space[8], gap: space[3] }}>
-                  <View style={{ width: 64, height: 64, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name="sparkles" size={28} />
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space[6], gap: space[3] }}>
+                  <View style={{ width: 96, height: 96, alignItems: 'center', justifyContent: 'center', marginBottom: space[2] }}>
+                    <View pointerEvents="none" style={{ position: 'absolute', left: 48, top: 48 }}><Orbit cx={0} cy={0} r={70} /></View>
+                    <IconDisc name="sparkles" tone="gold" size={84} />
                   </View>
                   <Text variant="title2" style={{ textAlign: 'center' }}>{profileName ? t('aiGreetingName').replace('{name}', profileName) : t('aiGreeting')}</Text>
                   <Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center' }}>{greeting}</Text>
@@ -632,6 +641,17 @@ une source externe.`}`;
                             .replace('{cost}', `${formatFiat(ethGas.fiatTransfer)} ${fiatSymbol(ethGas.fiat)}`)}
                     </Text>
                   ) : null}
+                  {/* Quatre questions pour démarrer, en cartes : plus lisibles qu'une rangée de puces. */}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], marginTop: space[3], width: '100%' }}>
+                    {SUGGESTIONS.map((sg, i) => (
+                      <Rise key={sg.label} delay={120 + i * 60} style={{ width: '48.5%' }}>
+                        <KPressable onPress={() => sendMessage(sg.label)} haptic="light" accessibilityLabel={sg.label} style={{ minHeight: 92, padding: space[3], gap: space[2], borderRadius: 20, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+                          <IconDisc name={sg.icon} size={32} />
+                          <Text variant="caption" numberOfLines={3}>{sg.label}</Text>
+                        </KPressable>
+                      </Rise>
+                    ))}
+                  </View>
                 </View>
               ) : (
                 <ScrollView ref={scrollViewRef} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: space[4], paddingVertical: space[3], gap: space[2] }} keyboardShouldPersistTaps="handled" onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}>
@@ -642,7 +662,7 @@ une source externe.`}`;
                     const textWithoutTicket = ticketMatch ? m.text.replace(ticketRegex, '').trim() : m.text;
 
                     return (
-                      <View
+                      <Rise
                         key={i}
                         style={{
                           alignSelf: mine ? 'flex-end' : 'flex-start',
@@ -651,6 +671,12 @@ une source externe.`}`;
                           gap: space[2],
                         }}
                       >
+                        {!mine && textWithoutTicket && (i === 0 || messages[i - 1]?.sender === 'user') ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Icon name="sparkles" size={13} color={GOLD} />
+                            <Text variant="micro" tone="tertiary">{t('aiTitle')}</Text>
+                          </View>
+                        ) : null}
                         {textWithoutTicket ? (
                           <View
                             style={{
@@ -660,9 +686,9 @@ une source externe.`}`;
                               borderColor: colors.border,
                               paddingHorizontal: space[3],
                               paddingVertical: space[2],
-                              borderRadius: 18,
-                              borderBottomRightRadius: mine ? 6 : 18,
-                              borderBottomLeftRadius: mine ? 18 : 6,
+                              borderRadius: 20,
+                              borderBottomRightRadius: mine ? 6 : 20,
+                              borderBottomLeftRadius: mine ? 20 : 6,
                             }}
                           >
                             <Text
@@ -712,15 +738,15 @@ une source externe.`}`;
                         {ticketMatch ? (
                           <TicketSupportCard ticketContent={ticketMatch[1].trim()} />
                         ) : null}
-                      </View>
+                      </Rise>
                     );
                   })}
                   {loading ? (
-                    <View style={{ alignSelf: 'flex-start', width: '60%', gap: space[1], padding: space[3], backgroundColor: colors.surface1, borderRadius: 18, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: colors.border }}>
+                    <View style={{ alignSelf: 'flex-start', maxWidth: '80%', gap: space[2], padding: space[3], backgroundColor: colors.surface1, borderRadius: 20, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: colors.border }}>
+                      <TypingDots />
                       <Text variant="caption" tone="secondary">
                         {copilotStatus === 'searching_web' ? t('aiStatusWebSearch').replace('{query}', currentSearchQuery ?? '') : copilotStatus === 'analyzing_sources' ? t('aiStatusReadingSources') : copilotStatus === 'generating' ? t('aiStatusWriting') : t('aiStatusThinking')}
                       </Text>
-                      <Skeleton width="100%" height={12} /><Skeleton width="70%" height={12} />
                     </View>
                   ) : null}
                 </ScrollView>
@@ -728,11 +754,13 @@ une source externe.`}`;
 
               {/* Suggestions + saisie */}
               <View style={{ paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: insets.bottom + space[3], gap: space[3], borderTopWidth: 1, borderTopColor: colors.border }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: space[2] }}>
-                  {SUGGESTIONS.map((sg) => <Chip key={sg.label} label={sg.label} icon={sg.icon} onPress={() => sendMessage(sg.label)} />)}
-                </ScrollView>
+                {messages.length > 0 ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: space[2] }}>
+                    {SUGGESTIONS.map((sg) => <Chip key={sg.label} label={sg.label} icon={sg.icon} onPress={() => sendMessage(sg.label)} />)}
+                  </ScrollView>
+                ) : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                  <View style={{ flex: 1, minHeight: 48, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, paddingHorizontal: space[4], justifyContent: 'center' }}>
+                  <View style={{ flex: 1, minHeight: 50, borderRadius: 25, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, paddingHorizontal: space[4], justifyContent: 'center' }}>
                     <TextInput
                       value={input}
                       onChangeText={setInput}
@@ -744,7 +772,7 @@ une source externe.`}`;
                       style={{ color: colors.text, fontSize: 15, lineHeight: 20, fontFamily: 'GeneralSans-Medium', paddingVertical: 12, maxHeight: 100 }}
                     />
                   </View>
-                  <KPressable onPress={() => sendMessage()} disabled={!input.trim() || loading} accessibilityLabel={t('aiSend')} style={{ width: 48, height: 48, borderRadius: radius.round, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: !input.trim() || loading ? 0.4 : 1 }}>
+                  <KPressable onPress={() => sendMessage()} disabled={!input.trim() || loading} accessibilityLabel={t('aiSend')} style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: !input.trim() || loading ? 0.4 : 1 }}>
                     <Icon name="send" size={20} color={colors.onPrimary} />
                   </KPressable>
                 </View>

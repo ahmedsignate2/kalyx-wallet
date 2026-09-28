@@ -293,3 +293,30 @@ export function useScreenEntrance() {
   }, [reduce, p]);
   return useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateY: (1 - p.value) * 14 }] }));
 }
+
+/* ------------------------------------------------------------------ */
+/* Trois points qui respirent : quelqu'un écrit                        */
+/* ------------------------------------------------------------------ */
+
+function TypingDot({ delay }: { delay: number }) {
+  const { colors } = useTheme();
+  const reduce = useReduceMotion();
+  const p = useSharedValue(0);
+  useEffect(() => {
+    if (reduce) return;
+    p.value = withDelay(delay, withRepeat(withSequence(withTiming(1, { duration: 380 }), withTiming(0, { duration: 380 })), -1, false));
+    return () => cancelAnimation(p);
+  }, [delay, reduce, p]);
+  const s = useAnimatedStyle(() => ({ opacity: 0.35 + p.value * 0.65, transform: [{ translateY: -3 * p.value }] }));
+  return <Animated.View style={[{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.textSecondary }, s]} />;
+}
+
+export function TypingDots() {
+  return (
+    <View style={{ flexDirection: 'row', gap: 5, alignItems: 'center', height: 14 }}>
+      <TypingDot delay={0} />
+      <TypingDot delay={140} />
+      <TypingDot delay={280} />
+    </View>
+  );
+}
