@@ -2,6 +2,7 @@
  * Staking liquide TON (Tonstakers) : déposer ou retirer, avec le bilan ÉMULÉ
  * avant le code — ce qui sort, ce qui revient, les frais réels.
  */
+import { friendlyTxError } from '../lib/txError';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { Sheet, Text, Button, Input, Surface, SegmentedControl } from './kit';
@@ -36,7 +37,8 @@ export function TonStakingSheet({ info, action, onClose, onDone }: { info: Staki
   } catch {
     raw = 0n;
   }
-  const n = Number(amount) || 0;
+  // Clavier système : « 1,5 » en français. Le montant signé passe par `parseAmount` (virgule comprise).
+  const n = Number(amount.replace(',', '.')) || 0;
   const receive = rate > 0 && n > 0 ? (stake ? `${(n / rate).toFixed(4)} tsTON` : `${(n * rate).toFixed(4)} TON`) : null;
   const max = stake
     ? info.tonBalance > TONSTAKERS_STAKE_RESERVE + 50_000_000n ? info.tonBalance - TONSTAKERS_STAKE_RESERVE - 50_000_000n : 0n
@@ -48,7 +50,7 @@ export function TonStakingSheet({ info, action, onClose, onDone }: { info: Staki
       setDraft(stake ? await planStake(info, raw) : await planUnstake(info, raw, mode));
     } catch (e) {
       const key = e instanceof Error ? e.message : '';
-      toast.error(stake ? t('stkStake') : t('stkUnstake'), /^(stake|unstake)/.test(key) ? t(key as never) : key);
+      toast.error(stake ? t('stkStake') : t('stkUnstake'), /^(stake|unstake)/.test(key) ? t(key as never) : friendlyTxError(e, t));
     } finally {
       setBusy(false);
     }

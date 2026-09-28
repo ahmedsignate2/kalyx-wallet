@@ -15,6 +15,7 @@
  *    connexion/signature via SignSheet + biométrie unifiée.
  *  - Provider EIP-1193 injecté (window.ethereum) — plomberie inchangée.
  */
+import { signMessageParam } from '../../lib/dappProvider';
 import { buildTonJsBridge, parseTcJsMessage } from '../../src/domain/tonconnect/jsBridge';
 import { useTonConnect, tcJsHost, tcDeviceInfo } from '../../lib/tonconnect/store';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -385,7 +386,7 @@ export default function Browser() {
         if (isSigning) {
           if (!isConnected || !addr) return respond(id, null, { code: 4100, message: t('notConnected') });
           if (method === 'personal_sign' || method === 'eth_sign') {
-            const hex = String(method === 'personal_sign' ? params[0] : params[1] ?? '');
+            const hex = signMessageParam(method, params);
             const text = hexToText(hex) ?? (hex.startsWith('0x') ? null : hex);
             setPending({ kind: 'sign', tabId, id, origin: reqOrigin, hex, text, siwe: text ? parseSiwe(text) : null });
             return;
@@ -396,8 +397,10 @@ export default function Browser() {
             setPending({ kind: 'typedData', tabId, id, origin: reqOrigin, data, summary: summarizeTypedData(data) });
             return;
           }
-          const tx = (params[0] ?? {}) as { to?: string; value?: string; data?: string; gas?: string };
+          const tx = (params[0] ?? {}) as { from?: string; to?: string; value?: string; data?: string; gas?: string };
           if (!tx.to || !isValidEvmAddress(tx.to)) return respond(id, null, { code: 4200, message: 'Contract deployment is not supported' });
+          // Transaction préparée pour un AUTRE compte (changé depuis la connexion) : on ne la signe pas avec celui-ci.
+          if (tx.from && tx.from.toLowerCase() !== addr.toLowerCase()) return respond(id, null, { code: 4100, message: 'The requested account is not the active account' });
           const raw: RawTxRequest = { to: tx.to, data: tx.data ?? '0x', value: tx.value ? BigInt(tx.value) : 0n, chainId: chain.evmChainId!, gasLimit: tx.gas ? BigInt(tx.gas) : undefined };
           setPending({ kind: 'tx', tabId, id, origin: reqOrigin, to: tx.to, value: raw.value ?? 0n, raw });
           return;

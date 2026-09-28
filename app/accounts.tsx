@@ -1,4 +1,6 @@
 import { Icon } from '../ui/icon';
+import { isWalletError } from '../src';
+import { friendlyTxError } from '../lib/txError';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
@@ -48,7 +50,7 @@ export default function Accounts() {
       setAdding(false);
       router.back();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('failed'));
+      setError(isWalletError(e) ? friendlyTxError(e, t) : t('failed'));
     } finally {
       setBusy(false);
     }

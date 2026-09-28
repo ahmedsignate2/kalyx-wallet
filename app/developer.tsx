@@ -1,4 +1,5 @@
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { probeRpcChainId } from '../src/domain/chains/customNetworks';
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, Share, Switch, Platform } from 'react-native';
 import { usePortfolioDiag, diagText } from '../lib/portfolio/diagnostics';
@@ -42,10 +43,21 @@ export default function Developer() {
   const [chainIdStr, setChainIdStr] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const onAdd = () => {
+  const [checking, setChecking] = useState(false);
+  const onAdd = async () => {
     setError(null);
-    const res = addChain({ ...form, evmChainId: Number(chainIdStr) });
-    if (!res.ok) { setError(res.error ?? t('failed')); return; }
+    const want = Number(chainIdStr);
+    const input = { ...form, evmChainId: want };
+    // Contrôles de forme d'abord (sans réseau), puis le Chain ID RÉEL du RPC.
+    if (/^https:\/\//i.test(form.rpcUrl.trim()) && Number.isInteger(want) && want > 0) {
+      setChecking(true);
+      const got = await probeRpcChainId(form.rpcUrl.trim());
+      setChecking(false);
+      if (got === null) { setError(t('netErrUnreachable')); return; }
+      if (got !== want) { setError(t('netErrMismatch').replace('{got}', String(got)).replace('{want}', String(want))); return; }
+    }
+    const res = addChain(input);
+    if (!res.ok) { setError(res.error ? t(res.error as never).replace('{name}', res.detail ?? '') : t('failed')); return; }
     toast.success(t('networkAdded'), form.name);
     setForm({ name: '', evmChainId: 0, nativeSymbol: '', rpcUrl: '', explorerUrl: '' });
     setChainIdStr('');
@@ -191,7 +203,7 @@ export default function Developer() {
             {input(form.rpcUrl, (v) => setForm({ ...form, rpcUrl: v }), t('rpcPh'), 'url')}
             {input(form.explorerUrl ?? '', (v) => setForm({ ...form, explorerUrl: v }), t('explorerPh'), 'url')}
             {error ? <ErrorBox message={error} /> : null}
-            <Button label={t('addNetwork')} onPress={onAdd} />
+            <Button label={t('addNetwork')} onPress={() => void onAdd()} loading={checking} />
           </GlassCard>
 
           {/* Sauvegarde portable des réseaux (survit à une réinstallation) */}

@@ -1,4 +1,5 @@
 import { base58, base64, hex } from '@scure/base';
+import { signMessageParam } from './dappProvider';
 import { utf8ToBytes } from '@noble/hashes/utils';
 /**
  * WalletConnect (Reown) — Kalyx est le WALLET auquel les dApps se connectent.
@@ -482,14 +483,16 @@ export const useWalletConnect = create<WcState>((set, get) => ({
 
     try {
       let result: any;
-      if (method === 'personal_sign') result = await w.signMessage(unlock, p[0]);
-      else if (method === 'eth_sign') result = await w.signMessage(unlock, p[1]);
+      if (method === 'personal_sign' || method === 'eth_sign') result = await w.signMessage(unlock, signMessageParam(method, p));
       else if (method.startsWith('eth_signTypedData')) {
         const data = typeof p[1] === 'string' ? JSON.parse(p[1]) : p[1];
         result = await w.signTypedData(unlock, data);
       } else if (method === 'eth_sendTransaction') {
         if (!chain) throw new Error('Réseau de la requête non supporté');
         const tx = p[0];
+        // Préparée pour un autre compte que celui qui signerait : refus plutôt qu'envoi depuis le mauvais compte.
+        const signer = w.accounts.find((a) => a.index === w.activeAccountIndex)?.evmAddress ?? '';
+        if (typeof tx?.from === 'string' && signer && tx.from.toLowerCase() !== signer.toLowerCase()) throw new Error('from ≠ compte actif');
         const req: RawTxRequest = {
           to: tx.to,
           data: overrideData ?? tx.data ?? '0x',
