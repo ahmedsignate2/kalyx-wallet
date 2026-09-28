@@ -15,7 +15,7 @@ import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
+import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, HoldRing, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { ContactPicker } from '../ui/ContactPicker';
@@ -685,7 +685,7 @@ export default function Send() {
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => { setAddressError(null); setAmountError(null); (step === 0 || step === 4 || (step === 1 && presetToken) ? router.back() : setStep((s) => (s - 1) as Step)); }} />
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <Text variant="title2">{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
+            <Text variant="title2">{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : step === 3 ? t("verifyBeforeSendTitle") : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
             {step > 0 && chainIconUrl(chain.id) ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: 12, backgroundColor: colors.surface2 }}>
                 <LogoImage uri={chainIconUrl(chain.id)!} size={14} />
@@ -871,6 +871,169 @@ export default function Send() {
           </FadeInUp>
         ) : null}
 
+        {/*
+          ── 3. Récapitulatif, plein écran (Nova) ──
+          C'était une feuille : le montant s'y lisait en petit, au milieu de la
+          liste. Le récapitulatif est le dernier regard avant que l'argent parte,
+          il mérite l'écran entier — le montant en grand, le destinataire avec
+          ses quatre derniers caractères en clair, puis l'anneau à maintenir.
+        */}
+        {step === 3 ? (
+          <FadeInUp style={{ flex: 1, gap: space[4] }}>
+            <View style={{ alignItems: 'center', gap: 6, paddingTop: space[2] }}>
+              <Text variant="micro" tone="secondary" style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>{t('sendYouSend')}</Text>
+              <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 52, lineHeight: 58, textAlign: 'center' }}>
+                {formatTokenAmount(amountRaw, decimals)} <Text variant="title2" tone="secondary">{symbol}</Text>
+              </Text>
+              {price > 0 ? <Text variant="bodySecondary" tone="secondary" tabular>≈ {formatFiat(fiatOfAmount)} {sym}</Text> : null}
+            </View>
+            <Surface padded={false} style={{ borderRadius: 26 }}>
+              {/*
+                CE QUE LE LIEN ANNONCE, en tête et non dans un toast qui disparaît.
+                Bénéficiaire et motif sont écrits par l'émetteur du lien : affichés,
+                jamais vérifiés — mais c'est la seule chose qui permet à
+                l'utilisateur de reconnaître ce qu'il paie.
+              */}
+              {payeeLabel ? (
+                <>
+                  <ListRow title={t('payRequestFrom')} right={<Text variant="body">{payeeLabel}</Text>} />
+                  <Divider inset={16} />
+                </>
+              ) : null}
+              {noteLabel ? (
+                <>
+                  <ListRow title={t('labelReason')} right={<Text variant="body">{noteLabel}</Text>} />
+                  <Divider inset={16} />
+                </>
+              ) : null}
+              {memoLabel ? (
+                <>
+                  {/* Le mémo part ON-CHAIN, contrairement aux deux précédents. */}
+                  <ListRow title={t('labelOnChainMemo')} right={<Text variant="body">{memoLabel}</Text>} />
+                  <Divider inset={16} />
+                </>
+              ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[4] }}>
+                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                  <AddressGlyph address={recipient} size={34} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                  <Text variant="body" numberOfLines={1}>{destLabel ?? t("labelRecipient")}</Text>
+                  <Text variant="caption" tone="secondary" numberOfLines={1} style={{ fontFamily: 'monospace' }}>
+                    {recipient.slice(0, 6)}…<Text variant="caption" style={{ fontFamily: 'monospace', color: colors.text }}>{recipient.slice(-4)}</Text>
+                  </Text>
+                </View>
+                <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, backgroundColor: isKnown ? 'rgba(60,217,138,0.10)' : 'rgba(255,181,71,0.10)' }}>
+                  <Text variant="micro" style={{ color: isKnown ? colors.up : colors.warning }}>{isKnown ? t('badgeKnownContact') : t('badgeFirstTime')}</Text>
+                </View>
+              </View>
+              <Divider inset={76} />
+              <ListRow title={t("labelNetwork")} right={<Text variant="body">{chain.name}</Text>} />
+              <Divider inset={16} />
+              <ListRow title={t("labelNetworkFee")} subtitle={feeOptions ? `${speed === 'slow' ? t("feeSlow") : speed === 'fast' ? t("feeFast") : t("feeNormal")} · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}` : `${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? t('aboutApprox').replace('{amount}', `${formatFiat(feeFiat)} ${sym}`) : '—'}</Text>} />
+              {/*
+                Le jeton lui-même prélève : on montre ce qui ARRIVERA, pas seulement
+                ce qui part. C'est le seul endroit où l'utilisateur peut encore
+                renoncer en connaissance de cause.
+              */}
+              {transferFeeRaw > 0n ? (
+                <ListRow
+                  title={t('tokenTransferFee')}
+                  subtitle={`${formatTokenAmount(transferFeeRaw, decimals)} ${symbol}`}
+                  right={<Text variant="body" tabular>{`${t('recipientGets')} ${formatTokenAmount(amountAfterTransferFee(amountRaw, tokenFee), decimals)} ${symbol}`}</Text>}
+                />
+              ) : null}
+            </Surface>
+            {feeOptions ? (
+              <View style={{ flexDirection: 'row', gap: space[2] }}>
+                {(['slow', 'normal', 'fast'] as FeeSpeed[]).map((s) => <Chip key={s} label={s === 'slow' ? t("feeSlow") : s === 'normal' ? t("feeNormal") : t("feeFast")} selected={speed === s} onPress={() => setSpeed(s)} />)}
+              </View>
+            ) : null}
+            {afterBalance != null ? (
+              <Text variant="bodySecondary" tone="secondary">{fill(t('balanceUpdatePreview'), { symbol: symbol, before: formatTokenAmount(balance!, decimals), after: formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals) })}</Text>
+            ) : null}
+            {/* Frais qui écrasent le montant (2 € envoyés, 5 € de frais) : le dire avant la signature. */}
+            {feeFiat > 0 && fiatOfAmount > 0 && feeFiat > fiatOfAmount * 0.5 ? (
+              <Text variant="caption" tone="warning">{t('sendHighFee').replace('{pct}', String(Math.round((feeFiat / fiatOfAmount) * 100)))}</Text>
+            ) : null}
+            {family === 'evm' ? <Text variant="caption" tone="warning">{fill(t('checkNetworkWarning'), { chain: chain.name })}</Text> : null}
+            {!isKnown ? <Text variant="caption" tone="warning">{fill(t('firstTimeWarning'), { end: recipient.slice(-4) })}</Text> : null}
+
+            {/*
+              LES DEUX GARDE-FOUS QUI MANQUAIENT ICI.
+          
+              L'empoisonnement d'adresse et la PDA Solana n'étaient signalés qu'à
+              l'étape 1, et `goStep2` en était le SEUL blocage. Or un lien de paiement
+              prérempli démarre à l'étape 2 et rejoint directement le récapitulatif :
+              il ne passait donc par aucun des deux. Un QR menant à une adresse
+              sosie, ou à un compte de jeton Solana, arrivait ici sans un mot.
+          
+              Le récapitulatif est le seul point que TOUS les chemins traversent.
+              C'est donc ici que le garde-fou doit vivre, en plus de l'étape 1.
+            */}
+            {poisoning ? (
+              <Surface style={{ borderColor: colors.danger, gap: space[2] }}>
+                <Text variant="body" tone="danger">{t("suspiciousAddressTitle")}</Text>
+                <Text variant="caption" tone="secondary">{t("suspiciousAddressBody")}</Text>
+                <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
+                  <AddressGlyph address={poisoning.lookalike} size={28} />
+                  <Text variant="caption" tone="secondary" style={{ flex: 1 }}>{groupAddress(poisoning.lookalike)}</Text>
+                </View>
+              </Surface>
+            ) : null}
+            {isSolanaPda ? <Text variant="caption" tone="danger">{t('solanaPdaWarning')}</Text> : null}
+            <AntiDrainerBanner loading={isSimulating} simulation={simResult} />
+            {simResult?.warningLevel === 'critical' ? (
+              <KPressable
+                onPress={() => setForceSendChecked((v) => !v)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: space[2],
+                  paddingVertical: space[1],
+                }}
+              >
+                <View
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 4,
+                    borderWidth: 1.5,
+                    borderColor: forceSendChecked ? colors.danger : colors.border,
+                    backgroundColor: forceSendChecked ? colors.danger : 'transparent',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {forceSendChecked ? <Icon name="check" size={14} color="#FFFFFF" /> : null}
+                </View>
+                <Text variant="caption" tone="danger" style={{ flex: 1 }}>
+                  {t('antiDrainerForceSendConfirm')}
+                </Text>
+              </KPressable>
+            ) : null}
+            <View style={{ flex: 1, minHeight: space[4] }} />
+            <HoldRing
+              hint={t("holdToSend")}
+              holdingHint={t('holdKeepGoing')}
+              onComplete={() => setConfirming(true)}
+              /*
+                ET ILS BLOQUENT. Les afficher sans empêcher l'envoi ne servirait à
+                rien pour une PDA : les fonds y sont définitivement perdus, il n'y a
+                pas de cas légitime à couvrir. L'adresse sosie bloque aussi, par
+                cohérence avec l'étape 1 qui la bloquait déjà.
+              */
+              disabled={
+                isSimulating ||
+                !!poisoning ||
+                isSolanaPda ||
+                (simResult?.warningLevel === 'critical' && !forceSendChecked)
+              }
+              danger={simResult?.warningLevel === 'critical'}
+            />
+          </FadeInUp>
+        ) : null}
+
         {/* ── 4. Suivi ── */}
         {step === 4 ? (
           <>
@@ -893,142 +1056,6 @@ export default function Send() {
           </>
         ) : null}
       </ScrollView>
-
-      {/* ── 3. Récapitulatif (sheet) ── */}
-      <Sheet visible={step === 3 && !confirming} onClose={() => setStep(2)}>
-        <Text variant="title2">{t("verifyBeforeSendTitle")}</Text>
-        <Surface padded={false}>
-          {/*
-            CE QUE LE LIEN ANNONCE, en tête et non dans un toast qui disparaît.
-            Bénéficiaire et motif sont écrits par l'émetteur du lien : affichés,
-            jamais vérifiés — mais c'est la seule chose qui permet à
-            l'utilisateur de reconnaître ce qu'il paie.
-          */}
-          {payeeLabel ? (
-            <>
-              <ListRow title={t('payRequestFrom')} right={<Text variant="body">{payeeLabel}</Text>} />
-              <Divider inset={16} />
-            </>
-          ) : null}
-          {noteLabel ? (
-            <>
-              <ListRow title={t('labelReason')} right={<Text variant="body">{noteLabel}</Text>} />
-              <Divider inset={16} />
-            </>
-          ) : null}
-          {memoLabel ? (
-            <>
-              {/* Le mémo part ON-CHAIN, contrairement aux deux précédents. */}
-              <ListRow title={t('labelOnChainMemo')} right={<Text variant="body">{memoLabel}</Text>} />
-              <Divider inset={16} />
-            </>
-          ) : null}
-          <ListRow left={<AddressGlyph address={recipient} size={40} />} title={destLabel ?? t("labelRecipient")} subtitle={groupAddress(recipient)} />
-          <Divider inset={68} />
-          <ListRow title={t("txLabelAmount")} right={<View style={{ alignItems: 'flex-end' }}><Text variant="body" tabular>{formatTokenAmount(amountRaw, decimals)} {symbol}</Text>{price > 0 ? <Text variant="caption" tone="secondary" tabular>≈ {formatFiat(fiatOfAmount)} {sym}</Text> : null}</View>} />
-          <Divider inset={16} />
-          <ListRow title={t("labelNetwork")} right={<Text variant="body">{chain.name}</Text>} />
-          <Divider inset={16} />
-          <ListRow title={t("labelNetworkFee")} subtitle={feeOptions ? `${speed === 'slow' ? t("feeSlow") : speed === 'fast' ? t("feeFast") : t("feeNormal")} · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}` : `${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? t('aboutApprox').replace('{amount}', `${formatFiat(feeFiat)} ${sym}`) : '—'}</Text>} />
-          {/*
-            Le jeton lui-même prélève : on montre ce qui ARRIVERA, pas seulement
-            ce qui part. C'est le seul endroit où l'utilisateur peut encore
-            renoncer en connaissance de cause.
-          */}
-          {transferFeeRaw > 0n ? (
-            <ListRow
-              title={t('tokenTransferFee')}
-              subtitle={`${formatTokenAmount(transferFeeRaw, decimals)} ${symbol}`}
-              right={<Text variant="body" tabular>{`${t('recipientGets')} ${formatTokenAmount(amountAfterTransferFee(amountRaw, tokenFee), decimals)} ${symbol}`}</Text>}
-            />
-          ) : null}
-        </Surface>
-        {feeOptions ? (
-          <View style={{ flexDirection: 'row', gap: space[2] }}>
-            {(['slow', 'normal', 'fast'] as FeeSpeed[]).map((s) => <Chip key={s} label={s === 'slow' ? t("feeSlow") : s === 'normal' ? t("feeNormal") : t("feeFast")} selected={speed === s} onPress={() => setSpeed(s)} />)}
-          </View>
-        ) : null}
-        {afterBalance != null ? (
-          <Text variant="bodySecondary" tone="secondary">{fill(t('balanceUpdatePreview'), { symbol: symbol, before: formatTokenAmount(balance!, decimals), after: formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals) })}</Text>
-        ) : null}
-        {/* Frais qui écrasent le montant (2 € envoyés, 5 € de frais) : le dire avant la signature. */}
-        {feeFiat > 0 && fiatOfAmount > 0 && feeFiat > fiatOfAmount * 0.5 ? (
-          <Text variant="caption" tone="warning">{t('sendHighFee').replace('{pct}', String(Math.round((feeFiat / fiatOfAmount) * 100)))}</Text>
-        ) : null}
-        {family === 'evm' ? <Text variant="caption" tone="warning">{fill(t('checkNetworkWarning'), { chain: chain.name })}</Text> : null}
-        {!isKnown ? <Text variant="caption" tone="warning">{fill(t('firstTimeWarning'), { end: recipient.slice(-4) })}</Text> : null}
-
-        {/*
-          LES DEUX GARDE-FOUS QUI MANQUAIENT ICI.
-          
-          L'empoisonnement d'adresse et la PDA Solana n'étaient signalés qu'à
-          l'étape 1, et `goStep2` en était le SEUL blocage. Or un lien de paiement
-          prérempli démarre à l'étape 2 et rejoint directement le récapitulatif :
-          il ne passait donc par aucun des deux. Un QR menant à une adresse
-          sosie, ou à un compte de jeton Solana, arrivait ici sans un mot.
-          
-          Le récapitulatif est le seul point que TOUS les chemins traversent.
-          C'est donc ici que le garde-fou doit vivre, en plus de l'étape 1.
-        */}
-        {poisoning ? (
-          <Surface style={{ borderColor: colors.danger, gap: space[2] }}>
-            <Text variant="body" tone="danger">{t("suspiciousAddressTitle")}</Text>
-            <Text variant="caption" tone="secondary">{t("suspiciousAddressBody")}</Text>
-            <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
-              <AddressGlyph address={poisoning.lookalike} size={28} />
-              <Text variant="caption" tone="secondary" style={{ flex: 1 }}>{groupAddress(poisoning.lookalike)}</Text>
-            </View>
-          </Surface>
-        ) : null}
-        {isSolanaPda ? <Text variant="caption" tone="danger">{t('solanaPdaWarning')}</Text> : null}
-        <AntiDrainerBanner loading={isSimulating} simulation={simResult} />
-        {simResult?.warningLevel === 'critical' ? (
-          <KPressable
-            onPress={() => setForceSendChecked((v) => !v)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: space[2],
-              paddingVertical: space[1],
-            }}
-          >
-            <View
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: 4,
-                borderWidth: 1.5,
-                borderColor: forceSendChecked ? colors.danger : colors.border,
-                backgroundColor: forceSendChecked ? colors.danger : 'transparent',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {forceSendChecked ? <Icon name="check" size={14} color="#FFFFFF" /> : null}
-            </View>
-            <Text variant="caption" tone="danger" style={{ flex: 1 }}>
-              {t('antiDrainerForceSendConfirm')}
-            </Text>
-          </KPressable>
-        ) : null}
-        <HoldButton
-          label={t("holdToSend")}
-          onComplete={() => setConfirming(true)}
-          /*
-            ET ILS BLOQUENT. Les afficher sans empêcher l'envoi ne servirait à
-            rien pour une PDA : les fonds y sont définitivement perdus, il n'y a
-            pas de cas légitime à couvrir. L'adresse sosie bloque aussi, par
-            cohérence avec l'étape 1 qui la bloquait déjà.
-          */
-          disabled={
-            isSimulating ||
-            !!poisoning ||
-            isSolanaPda ||
-            (simResult?.warningLevel === 'critical' && !forceSendChecked)
-          }
-          danger={simResult?.warningLevel === 'critical'}
-        />
-      </Sheet>
 
       {/*
         Filtré sur la famille de la chaîne active : proposer un contact Bitcoin

@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { LogoImage, Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl, Pressable as KPressable } from '../ui/kit';
+import { Orbit, Rise } from '../ui/nova';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
@@ -144,7 +145,7 @@ export default function Receive() {
           <Text variant="caption" tone="secondary">{t("evmDescription")}</Text>
         ) : null}
 
-        <Surface style={{ alignItems: 'center', gap: space[4], paddingVertical: space[6] }}>
+        <Surface style={{ alignItems: 'center', gap: space[4], paddingVertical: space[6], borderRadius: 26 }}>
           {selected && environment === 'mainnet' ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             {chainIconUrl(selected.id) ? <LogoImage uri={chainIconUrl(selected.id)!} size={22} /> : null}
             <Text variant="body">{selected.name}</Text>
@@ -157,6 +158,10 @@ export default function Receive() {
             affichée : l'adresse vaut alors la chaîne vide.
           */}
           {address ? (
+            <Rise key={address} delay={60}>
+            <View pointerEvents="none" style={{ position: 'absolute', left: '50%', top: '50%' }}>
+              <Orbit cx={0} cy={0} r={150} />
+            </View>
             <View style={{ padding: space[3], backgroundColor: '#FFFFFF', borderRadius: radius.container }}>
               <QRCode value={address} size={220} ecl="H" backgroundColor="#FFFFFF" color="#06070D" />
               <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
@@ -165,6 +170,7 @@ export default function Receive() {
                 </View>
               </View>
             </View>
+            </Rise>
           ) : (
             <View style={{ paddingHorizontal: space[4], gap: space[2], alignItems: 'center' }}>
               <Text variant="body">{t('receiveNoAddressTitle')}</Text>

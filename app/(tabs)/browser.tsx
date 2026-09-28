@@ -36,6 +36,7 @@ import { Comet } from '../../ui/browser/Comet';
 import { DappTile, DappLogo, siteName } from '../../ui/browser/DappTile';
 import { useTheme } from '../../ui/theme';
 import { space, SCREEN_MARGIN, radius, springs } from '../../ui/tokens';
+import { Orbit, Rise, TextTabs } from '../../ui/nova';
 import { haptic } from '../../lib/haptics';
 import { sound } from '../../lib/sound';
 import { useWallet, type Unlock } from '../../lib/walletStore';
@@ -567,11 +568,25 @@ export default function Browser() {
     return <Text variant="body" tone="secondary" numberOfLines={1}>{text.slice(0, i)}<Text variant="body">{text.slice(i, i + q.length)}</Text>{text.slice(i + q.length)}</Text>;
   };
 
-  // ── Page nouvel onglet ──
+  // ── Page nouvel onglet (Nova) ──
+  /*
+   * Appelée comme une FONCTION (`{NewTabPage()}`), pas comme un composant :
+   * définie dans le rendu, `<NewTabPage />` changeait d'identité à chaque
+   * rendu, et React démontait puis remontait toute la page — les animations
+   * d'entrée auraient rejoué à chaque octet de progression.
+   */
   const NewTabPage = () => {
     const cat = VERIFIED_DAPPS.find((c) => c.category === category) ?? VERIFIED_DAPPS[0];
+    const card = { borderRadius: 26, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border } as const;
     return (
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, padding: SCREEN_MARGIN, paddingTop: space[3], paddingBottom: space[10], gap: space[5] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {/* En-tête : le titre, et la même orbite que l'accueil, en petit, en haut à droite. */}
+        <View style={{ height: 76, justifyContent: 'center' }}>
+          <View pointerEvents="none" style={{ position: 'absolute', right: 34, top: 38 }}>
+            <Orbit cx={0} cy={0} r={46} />
+          </View>
+          <Rise><Text variant="title1">{t('navExplore')}</Text></Rise>
+        </View>
         {activeTab.incognito ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             <Icon name="incognito" size={18} tone="muted" />
@@ -579,42 +594,38 @@ export default function Browser() {
           </View>
         ) : null}
         {favorites.length > 0 ? (
-          <View style={{ gap: space[3] }}>
+          <Rise delay={60} style={{ gap: space[3] }}>
             <Text variant="title2">{t('favorites')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
               {favorites.map((f) => <DappTile key={f.host} host={f.host} label={f.title || f.host} onPress={() => go(f.url, f.title)} />)}
             </View>
-          </View>
+          </Rise>
         ) : null}
         {recents.length > 0 && !activeTab.incognito ? (
-          <View style={{ gap: space[3] }}>
+          <Rise delay={110} style={{ gap: space[3] }}>
             <Text variant="title2">{t('recents')}</Text>
-            <View>
-              {recents.slice(0, 5).map((r) => (
-                <ListRow key={r.host} style={{ paddingHorizontal: 0, minHeight: 56 }} left={<DappLogo host={r.host} size={32} />} title={siteName(r.host)} subtitle={r.host} onPress={() => go(r.url, siteName(r.host))} />
+            <View style={[card, { paddingVertical: space[1], overflow: 'hidden' }]}>
+              {recents.slice(0, 5).map((r, i, arr) => (
+                <React.Fragment key={r.host}>
+                  <ListRow style={{ minHeight: 60 }} left={<DappLogo host={r.host} size={34} />} title={siteName(r.host)} subtitle={r.host} onPress={() => go(r.url, siteName(r.host))} />
+                  {i < arr.length - 1 ? <Divider inset={66} /> : null}
+                </React.Fragment>
               ))}
             </View>
-          </View>
+          </Rise>
         ) : null}
-        <View style={{ gap: space[3] }}>
-          <View style={{ flexDirection: 'row', gap: space[5] }}>
-            {VERIFIED_DAPPS.map((c) => {
-              const on = c.category === category;
-              return (
-                <KPressable key={c.category} onPress={() => { haptic.selection(); setCategory(c.category); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={{ paddingVertical: space[1], borderBottomWidth: 2, borderBottomColor: on ? colors.text : 'transparent' }}>
-                  <Text variant="body" tone={on ? 'primary' : 'secondary'}>{c.category}</Text>
-                </KPressable>
-              );
-            })}
-          </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
+        <Rise delay={160} style={{ gap: space[4] }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: space[4] }}>
+            <TextTabs items={VERIFIED_DAPPS.map((c) => ({ key: c.category, label: c.category }))} value={category} onChange={(k) => { haptic.selection(); setCategory(k); }} />
+          </ScrollView>
+          <View style={[card, { flexDirection: 'row', flexWrap: 'wrap', gap: space[3], padding: space[4], justifyContent: 'flex-start' }]}>
             {cat.items.map((d) => <DappTile key={d.host} host={d.host} label={d.name} onPress={() => go(d.url, d.name)} />)}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
-            <Icon name="security" size={14} tone="muted" />
+            <Icon name="security" size={14} color={colors.up} />
             <Text variant="caption" tone="secondary" style={{ flex: 1, fontFamily: 'GeneralSans-Regular' }}>{t('verifiedDappsMsg')}</Text>
           </View>
-        </View>
+        </Rise>
       </ScrollView>
     );
   };
@@ -683,7 +694,7 @@ export default function Browser() {
             style={{ flex: 1, backgroundColor: colors.bg }}
           />
         ) : (
-          <NewTabPage />
+          NewTabPage()
         )}
 
         {/* Suggestions (mode édition) */}

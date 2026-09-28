@@ -24,3 +24,4 @@ export { CountdownRing } from './CountdownRing';
 export { ActivityRow } from './ActivityRow';
 export { ScreenHeader } from './ScreenHeader';
 export { SparkBurst } from './SparkBurst';
+export { HoldRing } from './HoldRing';
