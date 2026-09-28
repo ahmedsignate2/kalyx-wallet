@@ -67,4 +67,12 @@ describe('plancher de sécurité — appliqué par l’analyseur, pas par le pro
     expect(actions[0].params.pin).toBeUndefined();
     expect(actions[0].params.phrase).toBeUndefined();
   });
+  it('liste blanche : ni jeton, ni décimales, ni mémo vers l’envoi ; navigateur en https seulement', () => {
+    const send = parseProposedActions(wrap({ target: 'SEND', params: { contract: '0x' + 'b'.repeat(40), decimals: '0', memo: 'x', chain: 'ethereum', symbol: 'USDC' } })).actions[0];
+    expect(send.params).toEqual({ symbol: 'USDC' });
+    const swap = parseProposedActions(wrap({ target: 'SWAP', params: { contract: '0x' + 'b'.repeat(40) } })).actions[0];
+    expect(swap.params).toEqual({});
+    expect(parseProposedActions(wrap({ target: 'BROWSER', params: { url: 'javascript:alert(1)' } })).actions[0].params).toEqual({});
+    expect(parseProposedActions(wrap({ target: 'BROWSER', params: { url: 'https://app.uniswap.org' } })).actions[0].params).toEqual({ url: 'https://app.uniswap.org' });
+  });
 });

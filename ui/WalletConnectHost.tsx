@@ -285,7 +285,11 @@ export function WalletConnectHost() {
     (async () => {
       const d = info.decoded;
       const meta = d && (d.kind === 'transfer' || d.kind === 'approve') ? await getTokenMetadata(info.chain!, d.token).catch(() => null) : null;
-      const s = await simulateTx(info.chain!, { from: account.address, to: info.tx!.to, value: info.tx!.value, data: info.tx!.data }, meta ? { symbol: meta.symbol, decimals: meta.decimals } : undefined);
+      // Le compte qui SIGNERA (compte actif, adresse EVM) — pas l'adresse du réseau affiché.
+      const w = useWallet.getState();
+      const from = w.accounts.find((a) => a.index === w.activeAccountIndex)?.evmAddress ?? '';
+      if (!from) { if (alive) setSim(null); return; }
+      const s = await simulateTx(info.chain!, { from, to: info.tx!.to, value: info.tx!.value, data: info.tx!.data }, meta ? { symbol: meta.symbol, decimals: meta.decimals } : undefined);
       if (alive) setSim(s);
     })();
     return () => {

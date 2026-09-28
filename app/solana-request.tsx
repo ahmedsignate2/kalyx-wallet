@@ -16,6 +16,7 @@ import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN } from '../ui/tokens';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { useWallet } from '../lib/walletStore';
+import { addressForChain } from '../lib/accountAddress';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import {
@@ -36,7 +37,14 @@ export default function SolanaRequestScreen() {
   const params = useLocalSearchParams<{ url?: string }>();
   const url = params.url ? String(params.url) : '';
 
-  const account = useWallet((s) => s.account);
+  /*
+   * L'adresse SOLANA du compte actif, quel que soit le réseau affiché. `account`
+   * suit le réseau actif : sur Ethereum, c'était l'adresse 0x qui partait au
+   * serveur marchand, et la transaction revenait refusée (« pas ton compte »).
+   */
+  const solAddress = useWallet((s) =>
+    addressForChain(s.accounts.find((a) => a.index === s.activeAccountIndex) ?? s.accounts[0], { family: 'solana', testnet: false }),
+  );
   const signSolanaTransaction = useWallet((s) => s.signSolanaTransaction);
 
   const [identity, setIdentity] = useState<TxRequestIdentity | null>(null);
@@ -71,7 +79,7 @@ export default function SolanaRequestScreen() {
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const me = account?.address ?? '';
+      const me = solAddress;
       if (!url || !me) {
         setError(t('solReqUnavailable'));
         setLoading(false);
@@ -116,7 +124,7 @@ export default function SolanaRequestScreen() {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, account?.address]);
+  }, [url, solAddress]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
