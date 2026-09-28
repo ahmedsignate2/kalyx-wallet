@@ -20,6 +20,7 @@
  */
 import { BACKUP_KDF, encryptSecret, decryptSecret, type EncryptedVault } from '../../security/vault';
 import { validateMnemonic } from '../../crypto/mnemonic';
+import { classifyRecoveryPhrase } from '../keys/recoveryPhrase';
 
 /**
  * Version 2 : la liste des portefeuilles.
@@ -179,7 +180,14 @@ export async function restoreBackup(
      * restaurer deux portefeuilles sur trois en silence laisserait l'utilisateur
      * croire qu'il a tout récupéré. Mieux vaut un échec visible.
      */
-    if (type === 'seed' && !validateMnemonic(w.secret)) return { error: 'CORRUPTED' };
+    /*
+     * PHRASE TON ACCEPTÉE. L'export écrit une phrase TON comme `'seed'` (la
+     * restauration la reclasse d'après la phrase elle-même) — mais ce contrôle
+     * n'acceptait que le BIP-39 : une seule phrase TON rendait TOUTE la
+     * sauvegarde « corrompue », et l'utilisateur perdait l'accès à ses autres
+     * portefeuilles avec elle.
+     */
+    if (type === 'seed' && classifyRecoveryPhrase(w.secret) === null) return { error: 'CORRUPTED' };
     wallets.push({
       label: typeof w.label === 'string' ? w.label : '',
       type,
@@ -190,5 +198,6 @@ export async function restoreBackup(
     });
   }
 
-  return { wallets, mnemonic: wallets.find((w) => w.type === 'seed')?.secret };
+  // Phrase « principale » : BIP-39 de préférence (elle ouvre toutes les chaînes, une phrase TON n'ouvre que TON).
+  return { wallets, mnemonic: (wallets.find((w) => w.type === 'seed' && classifyRecoveryPhrase(w.secret) === 'bip39') ?? wallets.find((w) => w.type === 'seed'))?.secret };
 }
