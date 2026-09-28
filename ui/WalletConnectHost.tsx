@@ -10,6 +10,7 @@ import { Pressable as KPressable } from './kit';
  * - eth_sendTransaction → destinataire, montant natif, réseau.
  * Les données brutes restent accessibles via « Détails techniques ».
  */
+import { utf8Decode } from '../src/domain/tonconnect/sessionCrypto';
 import { base58 } from '@scure/base';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, ScrollView, Image, StyleSheet } from 'react-native';
@@ -137,7 +138,8 @@ function decodeMessageText(raw: string, base58First: boolean): string {
   try {
     if (base58First) {
       const bytes = base58.decode(raw);
-      const txt = new TextDecoder().decode(bytes);
+      // Pas de `TextDecoder` : absent sous Hermes, il levait et le message restait en base58 illisible.
+      const txt = utf8Decode(bytes);
       if (/^[\x20-\x7E\u00A0-\uFFFF\s]*$/.test(txt)) return txt;
     }
   } catch { /* pas du base58 */ }

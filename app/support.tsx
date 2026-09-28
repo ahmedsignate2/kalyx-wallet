@@ -1,8 +1,13 @@
 /**
  * « Soutenez-nous » : Kalyx est un wallet non-custodial, gratuit, sans pub ni
  * revente de données, développé en indépendant. Cette page explique POURQUOI
- * soutenir et propose des dons en crypto (BTC/SOL/ETH). Aucune adresse ne quitte
+ * soutenir et propose des dons en crypto (BTC/ETH/SOL/TON). Aucune adresse ne quitte
  * l'app : ce sont des adresses de RÉCEPTION publiques codées ici.
+ *
+ * TON : le nom `kalyxwallet.ton` est MONTRÉ, mais c'est l'adresse qui se copie.
+ * Relevé du 27/09 : le domaine appartient bien au portefeuille ci-dessous, mais
+ * aucun portefeuille n'y est encore LIÉ (enregistrement « wallet » vide) — un
+ * wallet tiers qui résout le nom échouerait. L'adresse, elle, marche partout.
  */
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
@@ -22,7 +27,9 @@ const CRYPTO = [
   { key: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', address: 'bc1qkalyxyueng23j7elpqrk4pcp3thp94u6cs5rkn' },
   { key: 'ethereum', name: 'Ethereum (EVM)', symbol: 'ETH', address: '0x7411b6a0b4df0f3a0bab9fe2c5d5cb47ddbdb69b' },
   { key: 'solana', name: 'Solana', symbol: 'SOL', address: 'KALYXiXBdhzuEyFuPx9EdoqyaiUcrBTT9k66v4C13jz' },
-] as const;
+  // Propriétaire de kalyxwallet.ton (W5, forme non rebondissante, réseau principal).
+  { key: 'ton', name: 'TON', symbol: 'TON', address: 'UQBapKtQghRx5Wh1WpscDbNNH9kLIpdd89rSxMU5EJCmVBrU', domain: 'kalyxwallet.ton' },
+] as const satisfies readonly { key: string; name: string; symbol: string; address: string; domain?: string }[];
 
 export default function Support() {
   const { colors, typography } = useTheme();
@@ -78,7 +85,7 @@ export default function Support() {
               <RemoteIcon uri={chainIconUrl(c.key)} label={c.symbol} size={38} />
               <View style={{ flex: 1 }}>
                 <Text style={typography.bodyStrong}>{c.name}</Text>
-                <Text style={typography.muted}>{c.symbol}</Text>
+                <Text style={typography.muted}>{'domain' in c ? `${c.symbol} · ${c.domain}` : c.symbol}</Text>
               </View>
               <KPressable onPress={() => setOpenQr(open ? null : c.key)} hitSlop={8} style={{ padding: 6 }}>
                 <Icon name="scan" size={20} color={open ? colors.primary : colors.textSecondary} />

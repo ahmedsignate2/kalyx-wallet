@@ -4,15 +4,17 @@ import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { PremiumScreen, GlassCard, SegmentedTabs } from '../ui/premium';
 import { spacing, useTheme } from '../ui/theme';
-import { useT } from '../lib/settingsStore';
-import { PRIVACY, TERMS, LEGAL_UPDATED, type LegalSection } from '../lib/legalText';
+import { useT, useSettings } from '../lib/settingsStore';
+import { legalFor, type LegalSection } from '../lib/legalText';
 
 export default function Legal() {
   const { colors, typography } = useTheme();
   const t = useT();
   const { doc } = useLocalSearchParams<{ doc?: string }>();
   const [tab, setTab] = useState(doc === 'terms' ? 'terms' : 'privacy');
-  const sections: LegalSection[] = tab === 'terms' ? TERMS : PRIVACY;
+  const language = useSettings((st) => st.language);
+  const legal = legalFor(language);
+  const sections: LegalSection[] = tab === 'terms' ? legal.terms : legal.privacy;
 
   return (
     <>
@@ -27,7 +29,7 @@ export default function Legal() {
         active={tab}
         onChange={setTab}
       />
-      <Text style={[typography.muted, { fontSize: 12 }]}>{t('lastUpdated')} {LEGAL_UPDATED}</Text>
+      <Text style={[typography.muted, { fontSize: 12 }]}>{t('lastUpdated')} {legal.updated}</Text>
       <ScrollView contentContainerStyle={{ gap: spacing(1.5), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
         {sections.map((s) => (
           <GlassCard key={s.title} style={{ gap: spacing(0.75) }}>
