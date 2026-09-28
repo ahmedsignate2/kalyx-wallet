@@ -1,4 +1,11 @@
 import { ethers } from 'ethers';
+import { formatAmount } from '../../domain/validation/amount';
+
+/** Montant exact (entiers, aucune perte au-delà de 2⁵³), sans zéros de fin : « 1 », « 0.5 ». */
+const exact = (raw: bigint, decimals: number) => {
+  const s = formatAmount(raw, decimals);
+  return s.includes('.') ? s.replace(/\.?0+$/, '') : s;
+};
 
 export interface SimulationResult {
   isSafe: boolean;
@@ -252,7 +259,8 @@ export async function simulateSolanaTransaction(params: {
     // Fail-safe silencieux
   }
 
-  const formattedAmount = (Number(params.amount) / Math.pow(10, params.tokenDecimals)).toString();
+  // En entier (formatUnits) : Number() perdait des chiffres au-delà de 2⁵³ unités.
+  const formattedAmount = exact(params.amount, params.tokenDecimals);
 
   return {
     isSafe: warningLevel === 'none',
@@ -313,7 +321,7 @@ export async function simulateSendTransaction(params: {
    * affiché un transfert TON (9 décimales) dix fois trop grand.
    */
   const formattedAmount =
-    params.family === 'bitcoin' ? (Number(params.amount) / 1e8).toString() : ethers.formatUnits(params.amount, params.tokenDecimals);
+    exact(params.amount, params.family === 'bitcoin' ? 8 : params.tokenDecimals);
   return {
     isSafe: true,
     warningLevel: 'none',

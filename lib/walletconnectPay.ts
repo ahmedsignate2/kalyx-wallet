@@ -710,7 +710,7 @@ async function signPayAction(action: PayAction, unlock: Unlock): Promise<string>
       const raw = args.find((a) => typeof a === 'object' || (typeof a === 'string' && a.trim().startsWith('{')));
       const typed = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (!typed || typeof typed !== 'object') throw new Error('Données typées absentes');
-      return w.signTypedData(unlock, typed as Parameters<typeof w.signTypedData>[1]);
+      return w.signTypedData(unlock, typed as Parameters<typeof w.signTypedData>[1], check.evmChainId);
     }
     case 'eth_sendTransaction': {
       const tx = args[0] as { to?: string; data?: string; value?: string } | undefined;

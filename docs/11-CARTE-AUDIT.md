@@ -99,6 +99,23 @@ En place :
 - `src/domain/tonconnect/payload.test.ts` + `lib/tonconnect/store.test.ts` : jamais de signature TON à l'aveugle.
 - `src/domain/swap/guard.test.ts` (+ `guardLive.test.ts`, `EARN_LIVE=1`) : devis d'échange / Earn contrôlés.
 
+## Rapport Gemini du 28/09 — vérifié point par point
+
+| # | Constat Gemini | Verdict | Suite |
+|---|---|---|---|
+| 1 | Graine non effacée dans `exportPrivateKey` | Réel (gravité surestimée : il faut lire la mémoire du téléphone) | Corrigé : graine et clé effacées. |
+| 2 | Graine et clé BTC non effacées (WalletConnect) | Réel, et plus grave : la phrase était relue HORS du coffre | Corrigé : passe par `deriveSigner`, effacé après usage. |
+| 3 | Clé AES / clair non effacés dans le coffre | Réel | Corrigé (chiffrement et déchiffrement). |
+| 4 | Graine inline dans `revealEvmSigningKey` | Réel | Corrigé. |
+| 5 | Entropie / graine TON non effacées | Réel | Corrigé. |
+| 6 | Décimales / symbole de l'écran d'envoi | Déjà couvert | Décimales relues sur le contrat (C2), liens externes filtrés (A1). |
+| 7 | Phrase laissée dans l'état après vérification abandonnée | Réel | Corrigé : effacée en quittant l'écran et au verrouillage. |
+| 8 | EIP-712 : `domain.chainId` non comparé | Partiel : alerte déjà en place | Renforcé : refus dans le coffre (navigateur, WalletConnect, Pay). |
+| 9 | Montant simulé en `Number` | Réel (affichage) | Corrigé : calcul entier. |
+| 10 | « tx: <clé> » passe le détecteur | Réel (introduit par l'audit précédent) | Corrigé : seuls les hashes CONNUS de l'app passent. |
+| 11 | Ticket dans l'URL Telegram | Fuite : non (HTTPS vers Telegram, fragment en web) ; longueur : réel | Ticket limité à 3 500 caractères ; repli web vers le support. |
+| 12 | Transaction envoyée à l'IA | Réel (automatique) | Analyse à la demande, avec mention de ce qui part ; « sûr » plus en vert. |
+
 ## Journal
 
 | Date | Commit | Lignes passées à ✅ |

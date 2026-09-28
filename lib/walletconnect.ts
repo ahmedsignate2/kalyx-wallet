@@ -17,7 +17,7 @@ import { create } from 'zustand';
 import { technicalLogger } from './technicalLogger';
 import { useWallet, type Unlock } from './walletStore';
 import { notify } from './notifications';
-import { listChains, getAdapter, WcConnectError, type RawTxRequest } from '../src';
+import { listChains, getAdapter, getAdapterV2, withSigner, assertCurve, WcConnectError, type RawTxRequest } from '../src';
 import { handleSmartError } from './errorHandler';
 import { submitSolanaSigned } from './solanaSubmit';
 import type { IWeb3Wallet } from '@walletconnect/web3wallet';
@@ -490,7 +490,9 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       if (method === 'personal_sign' || method === 'eth_sign') result = await w.signMessage(unlock, signMessageParam(method, p));
       else if (method.startsWith('eth_signTypedData')) {
         const data = typeof p[1] === 'string' ? JSON.parse(p[1]) : p[1];
-        result = await w.signTypedData(unlock, data);
+        // Réseau de la REQUÊTE (eip155:<id>) : un domain.chainId différent est refusé par le coffre.
+        const reqChain = typeof params.chainId === 'string' && params.chainId.startsWith('eip155:') ? Number(params.chainId.slice(7)) : undefined;
+        result = await w.signTypedData(unlock, data, reqChain);
       } else if (method === 'eth_sendTransaction') {
         if (!chain) throw new Error('Réseau de la requête non supporté');
         const tx = p[0];
@@ -631,13 +633,19 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         }
         result = txid ? { psbt: resStr, txid } : { psbt: resStr };
       } else if (method === 'bitcoin_getAccounts' || method === 'getAccountAddresses' || method === 'bitcoin_getAccountAddresses') {
+        /*
+         * PAR LE COFFRE. Ce chemin relisait la PHRASE complète (`revealPhrase`)
+         * et dérivait la graine ici, sans jamais l'effacer — hors du seul
+         * module autorisé à la toucher. `deriveSigner` fait la même dérivation
+         * (compte actif, BIP-84) et efface graine et clé après usage.
+         */
         const btcModule = await import('../src/crypto/btc');
-        const mnemonicModule = await import('../src/crypto/mnemonic');
-        const activeWallet = w.wallets.find(x => x.id === w.activeWalletId);
-        if (!activeWallet || activeWallet.type === 'privateKey') throw new Error('Bitcoin accounts not available for PK wallet');
-        const secret = mnemonicModule.mnemonicToSeedSync(await w.revealPhrase(unlock));
-        const derived = btcModule.deriveBtcAccount(secret, w.account?.index || 0);
-        result = [{ address: derived.address, publicKey: derived.publicKey.replace(/^0x/, ''), path: `m/84'/0'/0'/0/${w.account?.index || 0}`, intention: 'payment', purpose: 'payment' }];
+        const index = w.account?.index || 0;
+        const publicKey = await withSigner(await w.deriveSigner(getAdapterV2('bitcoin'), unlock), async (s) => {
+          assertCurve(s, 'secp256k1');
+          return new Uint8Array(s.publicKey);
+        });
+        result = [{ address: btcModule.p2wpkhAddress(publicKey), publicKey: hex.encode(publicKey), path: `m/84'/0'/0'/0/${index}`, intention: 'payment', purpose: 'payment' }];
       } else if (method === 'bitcoin_sendTransaction' || method === 'sendTransfer') {
         // Build, sign, broadcast and return txid
         const pSafe: any = p || {};
@@ -645,15 +653,14 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         const amountStr = String(pSafe.amount || pSafe[0]?.amount || pSafe[1] || 0);
         if (!to || typeof to !== 'string') throw new Error('Expected String for recipientAddress');
         const adapter = getAdapter('bitcoin');
-        
         const btcModule = await import('../src/crypto/btc');
-        const mnemonicModule = await import('../src/crypto/mnemonic');
-        const secret = mnemonicModule.mnemonicToSeedSync(await w.revealPhrase(unlock));
-        const btcSigner = btcModule.deriveBtcSigner(secret, w.account?.index || 0);
-        
-        const txid = await (adapter as any).sendBitcoin(btcSigner.address, to, amountStr, {
-          privateKey: btcSigner.privateKey,
-          publicKey: btcSigner.publicKey,
+        // Clé dérivée par le coffre, effacée après la signature (même en cas d'erreur).
+        const txid = await withSigner(await w.deriveSigner(getAdapterV2('bitcoin'), unlock), (s) => {
+          assertCurve(s, 'secp256k1');
+          return (adapter as any).sendBitcoin(btcModule.p2wpkhAddress(s.publicKey), to, amountStr, {
+            privateKey: s.privateKey,
+            publicKey: s.publicKey,
+          });
         });
         result = { txid };
       } else {

@@ -119,6 +119,21 @@ describe('Code PIN : le compteur protège AUSSI les confirmations (phrase, clé,
   });
 });
 
+describe('EIP-712 : jamais signé pour un autre réseau que celui de la demande', () => {
+  it('domain.chainId ≠ réseau demandé : refus ; identique ou absent : signé', async () => {
+    useWallet.setState({ failedAttempts: 0, lastFailedAt: 0 });
+    const typed = (chainId?: unknown) => ({
+      domain: { name: 'USDC', version: '2', ...(chainId !== undefined ? { chainId } : {}), verifyingContract: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
+      types: { Permit: [{ name: 'owner', type: 'address' }, { name: 'value', type: 'uint256' }] },
+      message: { owner: '0x0000000000000000000000000000000000000001', value: '1' },
+    });
+    expect(await codeOf(W().signTypedData({ pin: PIN }, typed(1), 11155111))).toMatch(/^NOT_SUPPORTED\|/);
+    expect(await codeOf(W().signTypedData({ pin: PIN }, typed('0x1'), 11155111))).toMatch(/^NOT_SUPPORTED\|/);
+    expect(await W().signTypedData({ pin: PIN }, typed('0x1'), 1)).toMatch(/^0x[0-9a-f]{130}$/);
+    expect(await W().signTypedData({ pin: PIN }, typed(), 1)).toMatch(/^0x[0-9a-f]{130}$/);
+  });
+});
+
 describe('Actions irréversibles : jamais sans le code', () => {
   it('supprimer un portefeuille ou tout réinitialiser exige le bon code, et jamais app verrouillée', async () => {
     useWallet.setState({ failedAttempts: 0, lastFailedAt: 0 });
