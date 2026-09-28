@@ -33,6 +33,7 @@ jest.mock('../src', () => {
 });
 
 // ---- Stockage en mémoire à la place du trousseau de l'appareil. ----
+const mockLockWrites: number[][] = [];
 jest.mock('./secureStore', () => {
   const vaults = new Map<string, unknown>();
   const accounts = new Map<string, unknown>();
@@ -51,7 +52,7 @@ jest.mock('./secureStore', () => {
     hasBiometricSeed: async (id: string) => bio.has(id),
     saveWalletsList: async (l: unknown[]) => { wallets = clone(l); },
     loadWalletsList: async () => clone(wallets),
-    saveLockState: async () => {},
+    saveLockState: async (n: number, t: number) => { mockLockWrites.push([n, t]); },
     loadLockState: async () => ({ failedAttempts: 0, lastFailedAt: 0 }),
     wipeWallet: async () => {},
     wipeAll: async () => {},
@@ -100,6 +101,16 @@ describe('Code PIN : le compteur protège AUSSI les confirmations (phrase, clé,
     expect(W().failedAttempts).toBe(0);
     expect(await codeOf(W().unlockWithPin('000111'))).toMatch(/^WRONG_PIN\|/);
     expect(W().failedAttempts).toBe(1);
+  });
+
+  it('la tentative est écrite comme ratée AVANT la vérification (app tuée pendant scrypt = essai compté)', async () => {
+    const before = W().failedAttempts;
+    mockLockWrites.length = 0;
+    useWallet.setState({ lastFailedAt: Date.now() - 31_000 });
+    await W().revealPhrase({ pin: PIN });
+    expect(mockLockWrites[0][0]).toBe(before + 1); // écrit d'abord comme échec…
+    expect(mockLockWrites[mockLockWrites.length - 1]).toEqual([0, 0]); // …puis effacé, code bon
+    await codeOf(W().unlockWithPin('000111')); // remet l'état attendu par la suite
   });
 
   it('changer de PIN avec un ancien code faux compte comme une erreur', async () => {

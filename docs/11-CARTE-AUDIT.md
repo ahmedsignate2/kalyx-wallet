@@ -61,7 +61,7 @@ signature, fuite de donnée · **P2** fonctionnement, confort.
 
 | # | Élément | Prio | Statut | Notes |
 |---|---|---|---|---|
-| D1 | Stockage de la phrase (SecureStore, chiffrement, dérivation du PIN) | P0 | ⬜ | Revue du format et des options SecureStore. |
+| D1 | Stockage de la phrase (SecureStore, chiffrement, dérivation du PIN) | P0 | ✅ ⚠️ | scrypt (N=2¹⁴, sel aléatoire) + AES-GCM, SecureStore `WHEN_UNLOCKED_THIS_DEVICE_ONLY`, sauvegarde Android désactivée. Blocage jusqu'à 1 h par essai. **Corrigé :** tentative écrite comme ratée avant la vérification (tuer l'app n'offre plus d'essai gratuit). **Réserve :** la copie biométrique de la phrase n'est pas liée à l'empreinte au niveau matériel (choix documenté : clé Keystore perdue à la réinstallation). |
 | D2 | Tentatives de PIN, blocage | P0 | ✅ 🛡️ | Comptées partout (`lib/walletPinLockout.test.ts`). |
 | D3 | Biométrie | P0 | ✅ | Pas de repli sur le code du téléphone (1d974f1). |
 | D4 | Verrouillage (rideau, fenêtres, hôtes) | P0 | ✅ | `app/_layout.tsx`, `SafeModal`, `useLocked`. Verrouillage auto en arrière-plan à revérifier (⬜). |
