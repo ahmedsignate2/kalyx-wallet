@@ -43,6 +43,8 @@ export default function Import() {
     if (clip) {
       setText(clip.trim());
       setError(null);
+      // La phrase est dans le champ : elle ne doit pas rester dans le presse-papier, lisible par le clavier ou une autre app.
+      void Clipboard.setStringAsync('').catch(() => {});
     }
   };
 

@@ -216,7 +216,14 @@ export default function ImportWallet() {
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>{mode === 'phrase' ? t('recoveryPhrase') : mode === 'key' ? t('privateKeyLabel') : t('backupContent')}</Text>
-          <KPressable onPress={async () => setText((await Clipboard.getStringAsync()).trim())}>
+          <KPressable
+            onPress={async () => {
+              const clip = (await Clipboard.getStringAsync()).trim();
+              setText(clip);
+              // Phrase ou clé privée : effacée du presse-papier dès qu'elle est dans le champ.
+              if (clip) void Clipboard.setStringAsync('').catch(() => {});
+            }}
+          >
             <Text style={{ color: colors.primary, fontFamily: typography.bodyStrong.fontFamily }}>{t('paste')}</Text>
           </KPressable>
         </View>
