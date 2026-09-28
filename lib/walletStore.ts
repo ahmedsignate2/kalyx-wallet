@@ -50,6 +50,7 @@ import {
   lockRemainingMs,
   isWalletError,
   WalletError,
+  checkSwapQuote,
   EvmChainAdapter,
   SolanaChainAdapter,
   NATIVE_TOKEN,
@@ -1279,6 +1280,20 @@ export const useWallet = create<WalletState>((set, get) => ({
     const { account, activeChain, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(activeChain);
+
+    /*
+     * Dernier contrôle, au moment de signer, sur le devis lui-même (voir
+     * `src/domain/swap/guard.ts`) : réseau actif, contrat et autorisation LI.FI
+     * officiels, et arrivée sur UNE DE NOS adresses — l'échange est toujours
+     * vers soi. Refusé avant que la clé soit dérivée.
+     */
+    const own = get().accounts.find((a) => a.index === get().activeAccountIndex);
+    const receivers = [own?.evmAddress, own?.solAddress].filter((x): x is string => !!x);
+    const fromAddress = quote.tx.type === 'evm' ? own?.evmAddress ?? '' : own?.solAddress ?? '';
+    const passes = receivers.some((toAddress) =>
+      checkSwapQuote(quote, { fromEvmChainId: adapter.config.evmChainId, fromToken: quote.fromToken.address, fromAmount: quote.fromAmount, fromAddress, toAddress }).ok,
+    );
+    if (!passes) throw new WalletError('NOT_SUPPORTED', 'Devis d’échange refusé : il ne correspond pas à ce qui a été demandé');
 
     if (quote.tx.type === 'evm' && adapter instanceof EvmChainAdapter) {
       const signerKey = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);

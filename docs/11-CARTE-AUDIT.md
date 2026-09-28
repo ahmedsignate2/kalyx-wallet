@@ -33,8 +33,8 @@ signature, fuite de donnée · **P2** fonctionnement, confort.
 
 | # | Source | Prio | Statut | Notes |
 |---|---|---|---|---|
-| B1 | Devis d'échange LI.FI / Jupiter / STON.fi → transaction à signer | P0 | ⬜ | Vérifier destinataire, montant, approbations, jeton reçu. |
-| B2 | Earn / staking (transactions construites) | P0 | ⬜ | `lib/earn/earnEngine.ts`. |
+| B1 | Devis d'échange LI.FI / Jupiter → transaction à signer | P0 | ✅ 🛡️ | `src/domain/swap/guard.ts` : contrat et autorisation LI.FI officiels par réseau, réseau, jeton, montant, réception chez soi ; Solana : payé par nous. Revérifié au moment de signer. Testé sur devis réels. |
+| B2 | Earn / staking (transactions construites) | P0 | ✅ 🛡️ | Contrats directs codés en dur (Aave, Lido, Benqi) ; routes LI.FI passées au même contrôle que B1. |
 | B3 | Métadonnées de jetons (nom, symbole, décimales) | P1 | ⬜ | Usurpation de symbole, faux USDC, décimales. |
 | B4 | Historique (spam, empoisonnement d'adresse) | P1 | ⬜ | `lib/historySpam.ts`. |
 | B5 | NFT (métadonnées, images) | P2 | ⬜ | |
@@ -50,7 +50,7 @@ signature, fuite de donnée · **P2** fonctionnement, confort.
 | C1 | `signAndSend` / `sendDraft` (envoi natif, toutes chaînes) | P0 | ⬜ | Montant, décimales, frais, réserve de gas. |
 | C2 | `sendToken`, `sendSolToken`, `sendJetton` | P0 | ⬜ | |
 | C3 | Envoi de NFT (EVM, Solana, TON) | P0 | ⬜ | Message d'erreur corrigé (a9a8fc3). |
-| C4 | `executeSwap` | P0 | ⬜ | Voir B1. |
+| C4 | `executeSwap` | P0 | ✅ 🛡️ | Contrôle B1 avant dérivation de la clé. |
 | C5 | `signMessage`, `signTypedData` | P0 | ⚠️ | Décodage et alerte autre réseau ; Permit / Permit2 à vérifier. |
 | C6 | `sendRawTxOn` | P0 | ⚠️ | Chain ID de la demande, `from` EVM. Clé en hexadécimal non effacée. |
 | C7 | `signSolanaTransaction(s)`, `signSolanaMessage` | P0 | ✅ | Décodeur unique (1d974f1). Rafraîchissement du blockhash à revoir. |
@@ -96,6 +96,7 @@ En place :
 
 - `scripts/check-address-usage.mjs` (CI) : tout nouvel `account.address` (adresse du réseau affiché) doit être vérifié.
 - `lib/nativeIntent.test.ts` : aucun lien externe n'ouvre un écran directement.
+- `src/domain/swap/guard.test.ts` (+ `guardLive.test.ts`, `EARN_LIVE=1`) : devis d'échange / Earn contrôlés.
 
 ## Journal
 
@@ -103,3 +104,4 @@ En place :
 |---|---|---|
 | 2026-09-28 | a9a8fc3 | A3, A4, E3 |
 | 2026-09-28 | e401228 | A1, A8, A9 |
+| 2026-09-28 | (ce commit) | B1, B2, C4 |
