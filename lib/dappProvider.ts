@@ -187,3 +187,18 @@ export function buildInjectedProvider(chainIdHex: string): string {
 })();
 true;`;
 }
+
+/**
+ * Le message d'une demande de signature EVM, quel que soit l'ordre des
+ * paramètres. `personal_sign` est `[message, adresse]`, mais de vieilles dApps
+ * l'envoient à l'envers (`[adresse, message]`, l'ordre d'`eth_sign`) : sans ce
+ * tri, le wallet signait l'ADRESSE — une signature inutile, et un texte affiché
+ * qui n'était pas celui que la dApp voulait faire signer.
+ */
+export function signMessageParam(method: string, params: unknown[]): string {
+  const a = typeof params[0] === 'string' ? params[0] : '';
+  const b = typeof params[1] === 'string' ? params[1] : '';
+  const isAddr = (x: string) => /^0x[0-9a-fA-F]{40}$/.test(x);
+  if (method === 'eth_sign') return b;
+  return isAddr(a) && b && !isAddr(b) ? b : a;
+}

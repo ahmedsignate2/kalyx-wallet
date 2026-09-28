@@ -196,3 +196,31 @@ export function parseNetworksBackup(text: string): { chains: ChainConfig[]; erro
   if (chains.length === 0) return { chains: [], error: 'Aucun réseau valide dans la sauvegarde.' };
   return { chains };
 }
+
+/**
+ * Chain ID RÉEL d'un RPC (`eth_chainId`), ou null s'il ne répond pas.
+ *
+ * Le Chain ID déclaré entre dans chaque signature (EIP-155). Un RPC qui répond
+ * pour une autre chaîne que celle saisie, c'est une faute de frappe — ou un
+ * piège : un réseau « perso » déclaré avec le Chain ID 1 et un RPC hostile
+ * ferait signer des transactions valables sur le vrai Ethereum.
+ */
+export async function probeRpcChainId(rpcUrl: string, fetcher: typeof fetch = fetch, timeoutMs = 8000): Promise<number | null> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const res = await fetcher(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] }),
+      signal: ctl.signal,
+    });
+    const json = (await res.json()) as { result?: unknown };
+    const n = typeof json?.result === 'string' ? Number(BigInt(json.result)) : NaN;
+    return Number.isSafeInteger(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}

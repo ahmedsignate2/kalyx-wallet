@@ -584,7 +584,7 @@ export default function Send() {
       if (isNativeSend) getAdapter(targetChainId).buildTransfer({ to: recipient, amount: tokenAmountStr });
     } catch (e) {
       technicalLogger.logTx('step_2_buildTransfer_failed', { error: isWalletError(e) ? e.message : String(e), chain: chain.name }, true);
-      return setAmountError(isWalletError(e) ? e.message : t("errInvalidAmount"));
+      return setAmountError(isWalletError(e) && /décimales/.test(e.message) ? t('errTooManyDecimals').replace('{max}', String(decimals)) : t("errInvalidAmount"));
     }
     haptic.light();
     setStep(3);

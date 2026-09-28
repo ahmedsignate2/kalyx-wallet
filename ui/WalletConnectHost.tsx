@@ -10,6 +10,7 @@ import { Pressable as KPressable } from './kit';
  * - eth_sendTransaction → destinataire, montant natif, réseau.
  * Les données brutes restent accessibles via « Détails techniques ».
  */
+import { signMessageParam } from '../lib/dappProvider';
 import { utf8Decode } from '../src/domain/tonconnect/sessionCrypto';
 import { base58 } from '@scure/base';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -198,7 +199,7 @@ export function WalletConnectHost() {
     let tx: { to?: string; value: bigint; dataBytes: number; data?: string } | null = null;
 
     if (method === 'personal_sign' || method === 'eth_sign') {
-      const hex = method === 'personal_sign' ? p[0] : p[1];
+      const hex = signMessageParam(method, p);
       text = typeof hex === 'string' ? (hexToText(hex) ?? (hex.startsWith('0x') ? null : hex)) : null;
       siwe = text ? parseSiwe(text) : null;
       kind = siwe ? 'siwe' : 'message';

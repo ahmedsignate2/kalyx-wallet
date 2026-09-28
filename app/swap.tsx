@@ -377,7 +377,7 @@ export default function Swap() {
     } catch (e) {
       stopCountdown();
       reset();
-      setError(isWalletError(e) ? e.message : t('amountInvalid'));
+      setError(isWalletError(e) && /décimales/.test(e.message) ? t('errTooManyDecimals').replace('{max}', String(fromTok.decimals)) : t('amountInvalid'));
       return;
     }
     if (!opts.auto) {

@@ -1,4 +1,6 @@
 import { radius } from '../ui/tokens';
+import { isWalletError } from '../src';
+import { friendlyTxError } from '../lib/txError';
 import { Pressable as KPressable, Halo } from '../ui/kit';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
@@ -105,7 +107,8 @@ export default function Unlock() {
         if (biometricEnabled) void healBiometric(code).catch(() => {});
         goHome();
       } catch (e) {
-        setError(e instanceof Error ? e.message : t('incorrectCode'));
+        // Traduit par code : le message du coffre est en français, et un PIN faux doit se lire dans la langue choisie.
+        setError(isWalletError(e) ? friendlyTxError(e, t) : t('incorrectCode'));
         setPin('');
         setErrSignal((n) => n + 1); // secousse + vibration
         setBusy(false);
