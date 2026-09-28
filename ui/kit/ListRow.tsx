@@ -26,7 +26,12 @@ export function ListRow({ left, title, subtitle, right, onPress, chevron, style 
   const { colors } = useTheme();
   const content = (
     <View style={[{ minHeight: TOKEN_ROW_HEIGHT, flexDirection: 'row', alignItems: 'center', gap: space[3], paddingHorizontal: space[4] }, style]}>
-      {left}
+      {React.isValidElement(left) && left.type === Icon ? (
+        // Icône nue → disque Orbite, comme les disques d'action (Nova).
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={(left.props as { name: React.ComponentProps<typeof Icon>['name'] }).name} size={18} color={(left.props as { color?: string }).color ?? colors.text} />
+        </View>
+      ) : left}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text variant="body" numberOfLines={1}>{title}</Text>
         {subtitle ? <Text variant="caption" tone="secondary" numberOfLines={1}>{subtitle}</Text> : null}

@@ -13,6 +13,7 @@
  *   - une ligne = un verbe, une contrepartie, un montant — lisible d'un coup d'œil ;
  *   - la liste est virtualisée (SectionList) : fluide même avec des centaines de lignes.
  */
+import { ScreenOrbit } from '../ui/nova';
 import { journal } from '../lib/debugJournal';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, SectionList, RefreshControl, Share, ScrollView } from 'react-native';
@@ -314,6 +315,7 @@ export default function History() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenOrbit top={insets.top + 56} />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 56, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t('back')} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
         <View style={{ flex: 1 }}>

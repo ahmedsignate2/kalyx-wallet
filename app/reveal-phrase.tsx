@@ -1,3 +1,4 @@
+import { Rise } from '../ui/nova';
 import { router } from 'expo-router';
 import { ScreenHeader } from '../ui/kit';
 import React, { useEffect, useState } from 'react';
@@ -41,8 +42,9 @@ export default function RevealPhrase() {
         <Card>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
             {words.map((w, i) => (
-              <View
+              <Rise
                 key={i}
+                delay={80 + i * 40}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -50,13 +52,13 @@ export default function RevealPhrase() {
                   borderRadius: radii.sm,
                   paddingVertical: spacing(1),
                   paddingHorizontal: spacing(1.5),
-                  minWidth: '30%',
+                  minWidth: '31%',
                   gap: 6,
                 }}
               >
                 <Text style={[typography.muted, { width: 20 }]}>{i + 1}</Text>
                 <Text style={typography.body}>{w}</Text>
-              </View>
+              </Rise>
             ))}
           </View>
         </Card>

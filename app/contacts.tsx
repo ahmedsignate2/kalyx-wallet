@@ -10,6 +10,7 @@
  * Rien de tout cela n'est stocké ailleurs que sur l'appareil : supprimer une
  * fiche ne touche pas la chaîne, et l'écran le dit au moment de confirmer.
  */
+import { ScreenOrbit } from '../ui/nova';
 import React, { useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -164,6 +165,7 @@ export default function Contacts() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenOrbit top={insets.top + 48} />
       <View
         style={{
           paddingTop: insets.top,

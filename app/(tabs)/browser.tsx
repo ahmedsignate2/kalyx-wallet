@@ -596,8 +596,8 @@ export default function Browser() {
         {favorites.length > 0 ? (
           <Rise delay={60} style={{ gap: space[3] }}>
             <Text variant="title2">{t('favorites')}</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
-              {favorites.map((f) => <DappTile key={f.host} host={f.host} label={f.title || f.host} onPress={() => go(f.url, f.title)} />)}
+            <View style={[card, { flexDirection: 'row', flexWrap: 'wrap', rowGap: space[4], paddingVertical: space[4], paddingHorizontal: space[2] }]}>
+              {favorites.map((f) => <DappTile key={f.host} host={f.host} label={f.title || f.host} width="33.33%" onPress={() => go(f.url, f.title)} />)}
             </View>
           </Rise>
         ) : null}
@@ -618,8 +618,9 @@ export default function Browser() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: space[4] }}>
             <TextTabs items={VERIFIED_DAPPS.map((c) => ({ key: c.category, label: c.category }))} value={category} onChange={(k) => { haptic.selection(); setCategory(k); }} />
           </ScrollView>
-          <View style={[card, { flexDirection: 'row', flexWrap: 'wrap', gap: space[3], padding: space[4], justifyContent: 'flex-start' }]}>
-            {cat.items.map((d) => <DappTile key={d.host} host={d.host} label={d.name} onPress={() => go(d.url, d.name)} />)}
+          {/* Trois par ligne : à deux colonnes, la carte laissait un grand vide à droite. */}
+          <View style={[card, { flexDirection: 'row', flexWrap: 'wrap', rowGap: space[4], paddingVertical: space[4], paddingHorizontal: space[2] }]}>
+            {cat.items.map((d) => <DappTile key={d.host} host={d.host} label={d.name} width="33.33%" onPress={() => go(d.url, d.name)} />)}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
             <Icon name="security" size={14} color={colors.up} />

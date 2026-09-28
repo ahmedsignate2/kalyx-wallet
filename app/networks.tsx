@@ -1,3 +1,5 @@
+import { Pills, Pulse, SectionLabel } from '../ui/nova';
+import { fill } from '../lib/i18n';
 import { ScreenHeader, IconButton, Pressable as KPressable, Button, Checkbox, SegmentedControl, Text as KText } from '../ui/kit';
 import { SafeModal } from '../ui/kit/SafeModal';
 import { ExplainSheet } from '../components/ai/ExplainSheet';
@@ -116,8 +118,9 @@ export default function Networks() {
       >
         <Card
           style={{
-            borderColor: active ? colors.primary : colors.border,
-            borderWidth: active ? 1.5 : 1,
+            borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border,
+            borderRadius: 22,
+            paddingVertical: spacing(1.75),
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -135,9 +138,9 @@ export default function Networks() {
             </View>
           </View>
           {/* Expliquer ce réseau (Copilot) — sans changer de réseau. */}
-          <IconButton icon="sparkles" label={`Expliquer ${c.name}`} tone="ghost" onPress={() => setExplain({ name: c.name, id: c.id })} />
+          <IconButton icon="sparkles" label={fill(t('a11yExplainThing'), { name: c.name })} tone="ghost" onPress={() => setExplain({ name: c.name, id: c.id })} />
           {/* Icône du kit : le glyphe texte « ✓ » rendait différemment selon la police. */}
-          {active ? <Icon name="check" size={18} /> : null}
+          {active ? <Pulse size={8} /> : null}
         </Card>
       </KPressable>
     );
@@ -178,7 +181,7 @@ export default function Networks() {
           tout, les afficher suggérerait le contraire.
         */}
         {!q ? (
-          <SegmentedControl
+          <Pills
             items={FAMILY_TABS.map((f) => ({ key: f, label: FAMILY_LABELS[f] }))}
             value={family}
             onChange={(next) => setFamily(next as ChainFamily)}
@@ -217,18 +220,14 @@ export default function Networks() {
           <>
             {/* Section principale (mainnet) */}
             {mainnets.length > 0 ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                <View style={{ width: 3, height: 15, borderRadius: 2, backgroundColor: colors.primary }} />
-                <Text style={typography.section}>{t('mainNetworks')}</Text>
-              </View>
+              <SectionLabel>{t('mainNetworks')}</SectionLabel>
             ) : null}
             {mainnets.map((c) => renderChain(c))}
 
             {/* Section testnet, nettement séparée */}
             {testnets.length > 0 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: spacing(2) }}>
-                <View style={{ width: 3, height: 15, borderRadius: 2, backgroundColor: colors.warning }} />
-                <Text style={typography.section}>{t('testNetworks')}</Text>
+                <SectionLabel>{t('testNetworks')}</SectionLabel>
                 <View style={{ backgroundColor: colors.warning + '22', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
                   <Text style={{ color: colors.warning, fontSize: 10, fontFamily: fonts.bold }}>{t('noRealFunds')}</Text>
                 </View>

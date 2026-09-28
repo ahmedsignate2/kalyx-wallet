@@ -1,3 +1,4 @@
+import { GOLD, IconDisc, Pulse, Rise } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
@@ -67,23 +68,23 @@ export default function Wallets() {
             );
           }
           return (
+            <Rise key={w.id} delay={Math.min(i, 8) * 50}>
             <KPressable
-              key={w.id}
               onPress={() => setActiveWallet(w.id)}
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
               accessibilityLabel={w.label}
             >
-              <Card style={{ borderColor: active ? colors.primary : colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Card style={{ borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <KPressable onPress={() => setAvatarFor(w.id)} hitSlop={6} accessibilityLabel={t('a11yChangeAvatar')} style={{ marginRight: spacing(1.5) }}>
                   <WalletAvatar walletId={w.id} size={44} />
                 </KPressable>
                 <View style={{ flex: 1 }}>
                   <Text style={typography.body}>{walletDisplayName(w, i, t)}</Text>
                   {active ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.semibold }}>{t('activeLabel')}</Text>
-                      <Icon name="check" size={13} color={colors.primary} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                      <Pulse size={7} />
+                      <Text style={{ color: GOLD, fontSize: 13, fontFamily: fonts.semibold }}>{t('activeLabel')}</Text>
                     </View>
                   ) : null}
                 </View>
@@ -96,15 +97,16 @@ export default function Wallets() {
                   onPress={() => { setEditing(w.id); setEditLabel(walletDisplayName(w, i, t)); }}
                   hitSlop={10}
                   accessibilityLabel={t('name')}
-                  style={{ marginRight: spacing(1.5) }}
+                  style={{ marginRight: spacing(1) }}
                 >
-                  <Icon name="sign" size={18} />
+                  <IconDisc name="sign" size={34} />
                 </KPressable>
                 <KPressable onPress={() => onRemove(w.id, w.label)} hitSlop={10} accessibilityLabel={t('deleteAction')}>
-                  <Icon name="close" size={18} color={colors.danger} />
+                  <IconDisc name="close" tone="danger" size={34} />
                 </KPressable>
               </Card>
             </KPressable>
+            </Rise>
           );
         })}
       </ScrollView>

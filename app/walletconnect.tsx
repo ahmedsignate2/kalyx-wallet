@@ -1,4 +1,6 @@
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { ActionDisc, Pulse, Rise, SectionLabel } from '../ui/nova';
+import { DappLogo } from '../ui/browser/DappTile';
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import { router } from 'expo-router';
@@ -87,22 +89,20 @@ export default function WalletConnectScreen() {
 
   return (
     <Screen scroll>
+      <ScreenHeader />
       <Title>WalletConnect</Title>
       <Muted>{t('wcIntro')}</Muted>
+
+      {/* Les deux façons de se connecter, en disques : scanner d'abord, coller ensuite. */}
+      <View style={{ flexDirection: 'row', gap: spacing(1), marginVertical: spacing(1) }}>
+        <ActionDisc index={0} tone="primary" icon="scan" label={t('scanQr')} onPress={() => router.push('/scan')} />
+        <ActionDisc index={1} icon="copy" label={t('paste')} onPress={onPaste} />
+        <View style={{ flex: 2 }} />
+      </View>
 
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>{t('wcLink')}</Text>
-          {/*
-            Scanner le QR : c'est la façon NORMALE de connecter une dApp ou la
-            webapp, et cet écran ne proposait que de coller un `wc:` à la main —
-            un lien qu'il faut d'abord aller copier ailleurs, sur un autre
-            appareil. Sans cette entrée, la connexion par QR était impossible.
-          */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
-            <Text onPress={() => router.push('/scan')} style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('scanQr')}</Text>
-            <Text onPress={onPaste} style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('paste')}</Text>
-          </View>
         </View>
         <TextInput value={uri} onChangeText={setUri} placeholder="wc:…" placeholderTextColor={colors.textSecondary} autoCapitalize="none" autoCorrect={false} style={{ color: colors.text, fontSize: 14, paddingVertical: spacing(1) }} />
       </Card>
@@ -110,7 +110,7 @@ export default function WalletConnectScreen() {
 
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing(1) }}>
-          <Text style={typography.section}>{t('wcSessions')}</Text>
+          <SectionLabel>{t('wcSessions')}</SectionLabel>
           {sessions.length > 1 ? (
             <Text onPress={() => disconnectAll()} style={{ color: colors.danger, fontFamily: fonts.semibold, fontSize: 13 }}>{t('disconnectAll')}</Text>
           ) : null}
@@ -119,52 +119,61 @@ export default function WalletConnectScreen() {
           <Muted>{t('noWcSessions')}</Muted>
         ) : (
           sessions.map((s) => (
-            <Card key={s.topic} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1 }}>
-                <Text style={typography.body}>{s.name}</Text>
-                <Muted>{s.url}</Muted>
+            <Rise key={s.topic}>
+            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), borderRadius: 22 }}>
+              <SessionLogo url={s.url} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={typography.body} numberOfLines={1}>{s.name}</Text>
+                <Muted>{s.url.replace(/^https?:\/\//, '')}</Muted>
               </View>
-              <Text onPress={() => disconnect(s.topic)} style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('disconnect')}</Text>
+              <DangerPill label={t('disconnect')} onPress={() => disconnect(s.topic)} />
             </Card>
+            </Rise>
           ))
         )}
 
         {/* Apps TON connectées par TON Connect */}
-        <Text style={[typography.section, { marginTop: spacing(2) }]}>{t('tcConnectedApps')}</Text>
+        <View style={{ marginTop: spacing(2) }}><SectionLabel>{t('tcConnectedApps')}</SectionLabel></View>
         {tonSessions.length === 0 ? (
           <Muted>{t('tcNoApps')}</Muted>
         ) : (
           tonSessions.map((s) => (
-            <Card key={s.clientId} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1 }}>
-                <Text style={typography.body}>{s.manifest.name}</Text>
+            <Rise key={s.clientId}>
+            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), borderRadius: 22 }}>
+              <SessionLogo url={s.manifest.url} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={typography.body} numberOfLines={1}>{s.manifest.name}</Text>
                 <Muted>{s.manifest.url.replace(/^https:\/\//, '')}</Muted>
               </View>
-              <Text onPress={() => void disconnectTon(s.clientId)} style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('tcDisconnect')}</Text>
+              <DangerPill label={t('tcDisconnect')} onPress={() => void disconnectTon(s.clientId)} />
             </Card>
+            </Rise>
           ))
         )}
 
         {/* dApps connectées via le navigateur intégré */}
-        <Text style={[typography.section, { marginTop: spacing(2) }]}>{t('browserDapps')}</Text>
+        <View style={{ marginTop: spacing(2) }}><SectionLabel>{t('browserDapps')}</SectionLabel></View>
         {connections.length === 0 ? (
           <Muted>{t('noBrowserDapps')}</Muted>
         ) : (
           connections.map((c) => (
-            <Card key={c.host} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1 }}>
+            <Rise key={c.host}>
+            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), borderRadius: 22 }}>
+              <SessionLogo url={`https://${c.host}`} />
+              <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={typography.body} numberOfLines={1}>{c.title || c.host}</Text>
                 <Muted>{c.host} · {ago(c.at)}</Muted>
               </View>
-              <Text onPress={() => removeConnection(c.host)} style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('forget')}</Text>
+              <DangerPill label={t('forget')} onPress={() => removeConnection(c.host)} />
             </Card>
+            </Rise>
           ))
         )}
 
         {/* Journal des signatures/transactions (navigateur) */}
         {signatures.length > 0 ? (
           <>
-            <Text style={[typography.section, { marginTop: spacing(2) }]}>{t('recentSignatures')}</Text>
+            <View style={{ marginTop: spacing(2) }}><SectionLabel>{t('recentSignatures')}</SectionLabel></View>
             <Card style={{ gap: 0 }}>
               {signatures.slice(0, 20).map((s, i) => (
                 <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
@@ -179,5 +188,31 @@ export default function WalletConnectScreen() {
           </>
         ) : null}
     </Screen>
+  );
+}
+
+
+/** Logo du site + point vert qui pulse : la session est vivante. */
+function SessionLogo({ url }: { url: string }) {
+  const { colors } = useTheme();
+  let host = '';
+  try { host = new URL(url).host; } catch { host = url.replace(/^https?:\/\//, '').split('/')[0]; }
+  return (
+    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+      <DappLogo host={host} size={30} />
+      <View style={{ position: 'absolute', right: -1, bottom: -1, padding: 2, borderRadius: 8, backgroundColor: colors.surface1 }}>
+        <Pulse size={8} color={colors.up} />
+      </View>
+    </View>
+  );
+}
+
+/** Action destructrice, en pilule rouge discrète (et non un simple texte). */
+function DangerPill({ label, onPress }: { label: string; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <KPressable onPress={onPress} haptic="light" accessibilityLabel={label} style={{ paddingHorizontal: 12, height: 34, borderRadius: 17, justifyContent: 'center', backgroundColor: 'rgba(255,77,94,0.10)' }}>
+      <Text style={{ color: colors.danger, fontFamily: fonts.semibold, fontSize: 13 }}>{label}</Text>
+    </KPressable>
   );
 }

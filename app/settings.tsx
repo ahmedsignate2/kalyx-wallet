@@ -1,4 +1,5 @@
-import { IconDisc } from '../ui/nova';
+import { IconDisc, Orbit } from '../ui/nova';
+import { WalletAvatar, AvatarPicker } from '../ui/avatarArt';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import React, { useEffect, useState } from 'react';
@@ -110,6 +111,8 @@ export default function Settings() {
       setBioBusy(false);
     }
   };
+  const activeWalletId = useWallet((s) => s.activeWalletId);
+  const [pickAvatar, setPickAvatar] = useState(false);
   const onReset = () => {
     Alert.alert(t('resetWallet'), t('resetWarning'), [
       { text: t('cancel'), style: 'cancel' },
@@ -124,13 +127,20 @@ export default function Settings() {
 
   return (
     <PremiumScreen>
+      <AvatarPicker walletId={activeWalletId} visible={pickAvatar} onClose={() => setPickAvatar(false)} />
       <ScreenHeader />
       <Text style={typography.title}>{t('settings')}</Text>
 
-      {/* Profil */}
+      {/* Profil : l'avatar se change ici aussi, d'un tap (il ouvre le sélecteur). */}
       <GlassCard>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-          <Icon name="profile" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
+          <KPressable onPress={() => setPickAvatar(true)} haptic="light" accessibilityLabel={t('a11yChangeAvatar')} style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}>
+            <View pointerEvents="none" style={{ position: 'absolute', left: 32, top: 32 }}><Orbit cx={0} cy={0} r={40} /></View>
+            <WalletAvatar size={58} />
+            <View style={{ position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary, borderWidth: 2, borderColor: colors.surface1, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="image" size={12} color={colors.onPrimary} />
+            </View>
+          </KPressable>
           <View style={{ flex: 1 }}>
             <Text style={typography.muted}>{t('profile')}</Text>
             <TextInput
