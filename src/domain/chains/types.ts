@@ -117,6 +117,11 @@ export interface TxSummary {
    * quand la source ne permet pas de le savoir.
    */
   byOwner?: boolean;
+  /**
+   * Numéro de bloc, seulement quand l'indexeur n'a pas fourni d'horodatage :
+   * l'adaptateur s'en sert pour retrouver la date (sinon « 1er janvier 1970 »).
+   */
+  block?: number;
 }
 
 /** Un mouvement de valeur à l'intérieur d'une transaction. */

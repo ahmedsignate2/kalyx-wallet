@@ -183,7 +183,7 @@ export function humanizeTx(tx: TxSummary, ctx: HumanizeCtx): HumanTx {
       failed,
       spam: false,
     };
-  } else if (tx.direction === 'self') {
+  } else if (tx.direction === 'self' && !(tx.value === 0n && type !== 'TRANSFER')) {
     out = { title: t('actInternal', money), label: t('actLabelInternal'), icon: 'send', tone: 'neutral', amount: `${amountStr} ${symbol}`, failed, spam: false };
   } else if (inbound && unverified) {
     // Token inconnu reçu sans rien demander : gris, sans « + », sans valeur, masqué par défaut.
@@ -191,6 +191,7 @@ export function humanizeTx(tx: TxSummary, ctx: HumanizeCtx): HumanTx {
   } else if (inbound) {
     out = { title: t('actReceived', money), label: t('actLabelReceived'), subtitle: t('actFrom', { name: name(tx.from) }), icon: 'receive', tone: 'up', amount: `+${amountStr} ${symbol}`, failed, spam: tx.value === 0n, counterparty: tx.from, fiat };
   } else if (tx.value === 0n && type !== 'TRANSFER') {
+    // Appel de contrat sans valeur — y compris un envoi de 0 à soi-même (annulation, délégation).
     out = { title: t('actInteraction', { name: name(tx.to) }), label: t('actLabelInteraction'), subtitle: tx.description ?? name(tx.to), icon: 'dapps', tone: 'neutral', failed, spam: false };
   } else {
     out = { title: t('actSent', money), label: t('actLabelSent'), subtitle: t('actTo', { name: name(tx.to) }), icon: 'send', tone: 'down', amount: `−${amountStr} ${symbol}`, failed, spam: false, counterparty: tx.to, fiat };

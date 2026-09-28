@@ -148,7 +148,30 @@ export class EvmChainAdapter implements ChainAdapter {
    * décimales d'après le réseau affiché.
    */
   async getHistory(address: string): Promise<TxSummary[]> {
-    return (await this.fetchHistory(address)).map((tx) => ({ ...tx, chain: this.config.id }));
+    const txs = await this.fetchHistory(address);
+    await this.fillMissingTimestamps(txs);
+    return txs.map(({ block: _b, ...tx }) => ({ ...tx, chain: this.config.id }));
+  }
+
+  /**
+   * Date des transactions rendues SANS horodatage : lue sur le bloc (une
+   * requête par bloc distinct, 40 au plus). Alchemy ne renvoie pas
+   * `blockTimestamp` sur Avalanche : toute l'activité s'affichait au
+   * « 1er janvier 1970 ». Un bloc illisible laisse la date à 0 — l'export la
+   * laisse alors vide plutôt que d'inventer.
+   */
+  private async fillMissingTimestamps(txs: TxParsed[]): Promise<void> {
+    const blocks = [...new Set(txs.filter((t) => !t.timestamp && t.block).map((t) => t.block!))].slice(0, 40);
+    if (!blocks.length) return;
+    const times = new Map<number, number>();
+    await Promise.all(
+      blocks.map(async (n) => {
+        const b = await this.call((p) => p.getBlock(n), 'eth_getBlockByNumber').catch(() => null);
+        if (b?.timestamp) times.set(n, Number(b.timestamp));
+      }),
+    );
+    for (const t of txs) if (!t.timestamp && t.block && times.has(t.block)) t.timestamp = times.get(t.block)!;
+    txs.sort((a, b) => b.timestamp - a.timestamp);
   }
 
   /** Historique brut : Alchemy, puis Etherscan V2, puis les clones. */

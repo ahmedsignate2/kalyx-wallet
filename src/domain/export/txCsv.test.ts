@@ -94,3 +94,19 @@ describe('transactionsToCsv — plusieurs réseaux dans un même fichier', () =>
     expect(row).toContain('ETH');
   });
 });
+
+describe('transactionsToCsv — nature de l’opération', () => {
+  const row = (o: Partial<TxSummary>) => transactionsToCsv([tx(o)], ctx).split('\r\n')[1].split(',');
+  it('NFT reçu sans nom de collection : « Reçu (NFT) », 1, « NFT #id » (et non « 1 ? »)', () => {
+    const r = row({ direction: 'in', type: 'NFT', asset: '?', value: 1n, decimals: 0, tokenId: '42', from: '0x0000000000000000000000000000000000000000' });
+    expect(r.slice(2, 5)).toEqual(['Reçu (NFT)', '1', 'NFT #42']);
+  });
+  it('appel de contrat à 0 et envoi de 0 à soi-même : « Interaction contrat »', () => {
+    expect(row({ value: 0n }).slice(2, 4)).toEqual(['Interaction contrat', '0']);
+    expect(row({ value: 0n, direction: 'self' }).slice(2, 4)).toEqual(['Interaction contrat', '0']);
+    expect(row({ value: 0n, type: 'TRANSFER', asset: 'USDC', decimals: 6 })[2]).toBe('Envoyé');
+  });
+  it('date inconnue : case vide, jamais 1970', () => {
+    expect(row({ timestamp: 0 })[0]).toBe('');
+  });
+});
