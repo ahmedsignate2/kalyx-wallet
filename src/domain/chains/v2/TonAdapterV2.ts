@@ -496,6 +496,10 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     const [sender, dest, held] = await Promise.all([this.state(from), this.state(request.to), this.api!.jettons(from)]);
     const jetton = held.find((j) => j.master === master);
     if (!jetton || jetton.raw < request.amount) throw new WalletError('INSUFFICIENT_FUNDS', 'Solde de jeton insuffisant');
+    // Montant brut calculé avec les décimales de l'écran : elles doivent être celles du jeton (voir EvmAdapterV2).
+    if (token.decimals !== jetton.decimals) {
+      throw new WalletError('INVALID_AMOUNT', `Décimales du jeton incohérentes (${token.decimals} ≠ ${jetton.decimals})`);
+    }
     if (sender.status === 'frozen') throw new WalletError('NOT_SUPPORTED', 'TON : compte gelé');
     if (sender.status === 'active' && !sender.version) {
       throw new WalletError('NOT_SUPPORTED', `TON : contrat de portefeuille non pris en charge (${sender.walletType ?? 'inconnu'})`);
