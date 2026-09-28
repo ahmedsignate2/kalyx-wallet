@@ -1,4 +1,5 @@
 import { LogoImage, ScreenHeader, Pressable as KPressable, Button } from '../../ui/kit';
+import { fill } from '../../lib/i18n';
 import { SafeModal } from '../../ui/kit/SafeModal';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
@@ -378,9 +379,9 @@ export default function TokenDetail() {
 
           <View>
             <Text style={typography.section}>{t("tokenDetailsTitle")}</Text>
-            <Text style={typography.muted}>{t('networkLabel').replace(/\$\{.*?\}/, chain?.name ?? t('multiChainMarket'))}</Text>
-            <Text style={typography.muted}>{t('decimalsLabel').replace(/\$\{.*?\}/, String(chain?.nativeDecimals ?? '—'))}</Text>
-            {chain?.explorerUrl ? <Text style={{ color: colors.primary, marginTop: 4 }}>{t('explorerLabel').replace(/\$\{.*?\}/, chain.explorerUrl)}</Text> : null}
+            <Text style={typography.muted}>{fill(t('networkLabel'), { network: chain?.name ?? t('multiChainMarket') })}</Text>
+            <Text style={typography.muted}>{fill(t('decimalsLabel'), { decimals: String(chain?.nativeDecimals ?? '—') })}</Text>
+            {chain?.explorerUrl ? <Text style={{ color: colors.primary, marginTop: 4 }}>{fill(t('explorerLabel'), { url: chain.explorerUrl })}</Text> : null}
           </View>
 
           {detail ? (

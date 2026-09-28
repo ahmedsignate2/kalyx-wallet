@@ -5,6 +5,7 @@
  * approuvés par le téléphone dans la session WalletConnect (une entrée par
  * famille d'adresse : EVM / Solana / Bitcoin).
  */
+import { fill } from '../../lib/i18n';
 import React, { useMemo, useState } from 'react';
 import { View, ScrollView, Share, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -47,7 +48,7 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
   const { chain: sel, address } = selected;
   const selFam = sel.family as Fam;
   const hint =
-    selFam === 'evm' ? t('hintEvm').replace(/\$\{selected\?\.name[^}]*\}/, sel.name)
+    selFam === 'evm' ? fill(t('hintEvm'), { network: sel.name })
     : selFam === 'solana' ? t('hintSolana')
     : t('hintBitcoin');
   const warn = selFam === 'evm' ? t('warnEvm') : selFam === 'solana' ? t('warnSolana') : t('warnBitcoin');
@@ -99,7 +100,7 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
             variant="body"
             tabular
             selectable
-            accessibilityLabel={t('a11yAddress').replace('${address}', address)}
+            accessibilityLabel={fill(t('a11yAddress'), { address: address })}
             style={{ fontSize: 13, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', color: colors.text, textAlign: 'center', lineHeight: 20, paddingHorizontal: 16, flexShrink: 1 }}
           >
             {address}

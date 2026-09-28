@@ -9,6 +9,7 @@
  * puis mise à jour en silence. 5 états : chargement (skeleton), normal, vide,
  * erreur (bandeau), hors ligne (OfflineBanner global).
  */
+import { fill } from '../../lib/i18n';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, RefreshControl, Alert, Image, useWindowDimensions } from 'react-native';
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from 'react-native-reanimated';
@@ -433,7 +434,7 @@ export default function Home() {
   const openHolding = (h: Holding) => {
     if (h.kind === 'native' && h.coingeckoId) return router.push({ pathname: '/token/[id]', params: { id: h.coingeckoId, chain: h.chainId } });
     if (!h.verified) {
-      return Alert.alert(t("unverifiedTokenTitle"), t('unverifiedTokenDesc').replace('${h.name}', h.name).replace('${h.symbol}', h.symbol), [{ text: t("actionUnderstoodShort") }]);
+      return Alert.alert(t("unverifiedTokenTitle"), fill(t('unverifiedTokenDesc'), { name: h.name, symbol: h.symbol }), [{ text: t("actionUnderstoodShort") }]);
     }
     const tokenKey = h.kind === 'spl' ? 'mint' : h.kind === 'jetton' ? 'jetton' : 'contract';
     const sendParams = { [tokenKey]: h.contract!, symbol: h.symbol, decimals: String(h.decimals), chain: h.chainId };
@@ -664,13 +665,13 @@ export default function Home() {
                 </Surface>
                 {small.length > 0 ? (
                   <KPressable onPress={toggleSmall} style={{ alignSelf: 'center', paddingVertical: space[2] }}>
-                    <Text variant="caption" tone="secondary">{showSmall ? t("hideSmallBalances") : t('showSmallBalances').replace('${small.length}', small.length.toString())}</Text>
+                    <Text variant="caption" tone="secondary">{showSmall ? t("hideSmallBalances") : fill(t('showSmallBalances'), { count: small.length.toString() })}</Text>
                   </KPressable>
                 ) : null}
                 {unverified.length > 0 ? (
                   <View style={{ gap: space[2] }}>
                     <KPressable onPress={() => setShowHidden((v) => !v)} style={{ alignSelf: 'center', paddingVertical: space[1] }}>
-                      <Text variant="caption" tone="tertiary">{showHidden ? t("hideUnverifiedTokens") : t('showUnverifiedTokens').replace('${unverified.length}', unverified.length.toString())}</Text>
+                      <Text variant="caption" tone="tertiary">{showHidden ? t("hideUnverifiedTokens") : fill(t('showUnverifiedTokens'), { count: unverified.length.toString() })}</Text>
                     </KPressable>
                     {showHidden ? (
                       <Surface padded={false} style={{ opacity: 0.75 }}>
