@@ -27,6 +27,7 @@ import { useTheme } from '../theme';
 import { radius, BUTTON_HEIGHT, durations, springs, space } from '../tokens';
 import { useT } from '../../lib/settingsStore';
 import { haptic } from '../../lib/haptics';
+import { SparkBurst } from './SparkBurst';
 
 export function HoldButton({
   label,
@@ -53,6 +54,8 @@ export function HoldButton({
   /** Minuteur des ticks : leur écart se resserre avec la progression. */
   const tick = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startedAt = useRef(0);
+  /** Éclat au « clac » : incrémenté à chaque envoi réussi du geste. */
+  const [burst, setBurst] = useState(0);
 
   const total = danger ? Math.max(durationMs, 2000) : durationMs;
 
@@ -79,6 +82,7 @@ export function HoldButton({
     holding.current = false;
     stopTicks();
     haptic.heavy(); // le « clac » : la validation lourde du §5
+    if (!danger) setBurst((n) => n + 1);
     onComplete();
   };
   const start = () => {
@@ -143,6 +147,7 @@ export function HoldButton({
           <Layer color={fillFg} />
         </Animated.View>
       </RNPressable>
+      {burst ? <SparkBurst burstKey={burst} radius={70} /> : null}
     </Animated.View>
   );
 }

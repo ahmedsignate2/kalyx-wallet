@@ -17,6 +17,8 @@ import { isWalletError, unknownWords } from '../src';
 import { Text as KText, SENSITIVE_INPUT_PROPS, Pressable as KPressable } from '../ui/kit';
 import { PinPromptModal } from '../ui/PinPromptModal';
 import { radius } from '../ui/tokens';
+import { Orbit, Rise } from '../ui/nova';
+import { fill } from '../lib/i18n';
 
 /**
  * Import d'une phrase (onboarding). LAYOUT FIXE, sans barre native ni double
@@ -149,11 +151,14 @@ export default function Import() {
         <View style={{ flex: 1, paddingHorizontal: spacing(2.5) }}>
           {/* Badge → titre → sous-titre, enchaînés sans vide */}
           <View style={{ alignItems: 'center', marginTop: 12 }}>
-            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="import" size={26} color={colors.primary} />
+            <View style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}>
+              <View pointerEvents="none" style={{ position: 'absolute', left: 32, top: 32 }}><Orbit cx={0} cy={0} r={46} /></View>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="import" size={26} color={colors.primary} />
+              </View>
             </View>
-            <Text style={[typography.title, { marginVertical: 8, textAlign: 'center' }]}>{t('importWalletT')}</Text>
-            <Text style={[typography.muted, { textAlign: 'center', marginBottom: 20 }]}>{t('pastePhraseHint')}</Text>
+            <Rise delay={80}><Text style={[typography.title, { marginVertical: 8, textAlign: 'center' }]}>{t('importWalletT')}</Text></Rise>
+            <Rise delay={160}><Text style={[typography.muted, { textAlign: 'center', marginBottom: 20 }]}>{t('pastePhraseHint')}</Text></Rise>
           </View>
 
           <GlassCard>
@@ -181,14 +186,14 @@ export default function Import() {
               {words.map((w, i) => {
                 const ok = !bad.includes(w.toLowerCase());
                 return (
-                  <View key={`${w}-${i}`} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.surface2, borderBottomWidth: 2, borderBottomColor: ok ? 'transparent' : colors.danger }}>
+                  <Rise key={`${w}-${i}`} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.surface2, borderBottomWidth: 2, borderBottomColor: ok ? 'transparent' : colors.danger }}>
                     <KText variant="caption" tone={ok ? 'secondary' : 'danger'}>{i + 1}. {w}</KText>
-                  </View>
+                  </Rise>
                 );
               })}
             </View>
           ) : null}
-          {bad.length > 0 ? <View style={{ marginTop: spacing(1) }}><KText variant="caption" tone="danger">{bad.length === 1 ? `« ${bad[0]} » n’est pas un mot de la liste BIP-39.` : `${bad.length} mots ne sont pas dans la liste BIP-39.`}</KText></View> : null}
+          {bad.length > 0 ? <View style={{ marginTop: spacing(1) }}><KText variant="caption" tone="danger">{bad.length === 1 ? fill(t('bip39BadOne'), { word: bad[0] }) : fill(t('bip39BadMany'), { count: String(bad.length) })}</KText></View> : null}
           {error ? <View style={{ marginTop: spacing(1.5) }}><ErrorBox message={error} /></View> : null}
 
           {/* Espace flexible : le bouton reste calé en bas */}

@@ -1,9 +1,10 @@
 /**
- * Accueil Kalyx (§4.1) — solde agrégé multi-chaîne à GAUCHE avec le halo à
- * droite, variation du jour, graphique de valeur (période au choix, scrub
- * avec haptique), actions Recevoir / Envoyer / Swap, puis Tokens · NFT ·
- * Activité. Pas de sélecteur de réseau ici : le détail par chaîne vit dans
- * la page du token.
+ * Accueil Kalyx — direction « Nova » : le halo respire en haut à droite dans
+ * son orbite (un point d'or la parcourt), le solde est aligné à gauche, puis le
+ * graphique et ses périodes, quatre disques d'action (Envoyer en Lumière,
+ * Recevoir, Échanger, Gagner en or) et Jetons · NFT · Activité. Le marché
+ * (Tendances) vit sous les jetons ; le réseau, les notifications et le scanner
+ * sont dans l'en-tête ; le menu est dans la barre flottante.
  *
  * Vitesse perçue : cache affiché immédiatement (usePortfolioStore.hydrate),
  * puis mise à jour en silence. 5 états : chargement (skeleton), normal, vide,
@@ -24,8 +25,9 @@ import { useTheme } from '../../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../../ui/tokens';
 import { FadeInUp } from '../../ui/FadeInUp';
 import { cascadeDelay } from '../../ui/motion';
-import { LogoImage, Text, Button, IconButton, Surface, Divider, TokenRow, TokenIcon, AmountDisplay, SegmentedControl, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../../ui/kit';
+import { LogoImage, Text, IconButton, Surface, Divider, TokenRow, TokenIcon, AmountDisplay, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../../ui/kit';
 import { WalletAvatar } from '../../ui/avatarArt';
+import { ActionDisc, Orbit, Pills, TextTabs, GOLD } from '../../ui/nova';
 import { TonNftSendSheet } from '../../ui/TonNftSendSheet';
 import { useBrowserPresence, hostOf } from '../../lib/browserPresence';
 import { useWallet } from '../../lib/walletStore';
@@ -385,6 +387,8 @@ export default function Home() {
   if (!account || !stored) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   const sym = fiatSymbol(fiat);
+  const hour = new Date().getHours();
+  const greeting = t(hour < 5 ? 'greeting_night' : hour < 12 ? 'greeting_morning' : hour < 18 ? 'greeting_afternoon' : hour < 22 ? 'greeting_evening' : 'greeting_night');
   const initialLoading = pf.loading && pf.at === 0;
   const { main, small, hidden: unverified } = splitHoldings(pf.holdings);
   const vSymbols = verifiedSymbols(pf.holdings);
@@ -453,8 +457,11 @@ export default function Home() {
       {/* Entièrement DANS l'écran horizontalement : Android clippe au bord → un halo qui
           déborde y laissait une coupure verticale nette (« boîte centrale »). */}
       {!hidden ? (
-        <Animated.View style={[{ position: 'absolute', right: 0, top: insets.top - 70 }, haloStyle]} pointerEvents="none">
-          <Halo size={300} mood={mood} aura />
+        <Animated.View style={[{ position: 'absolute', left: 0, right: 0, top: 0, height: insets.top + 420, overflow: 'hidden' }, haloStyle]} pointerEvents="none">
+          <Orbit cx={screenW - 90} cy={insets.top + 110} r={150} />
+          <View style={{ position: 'absolute', left: screenW - 90 - 150, top: insets.top + 110 - 150 }}>
+            <Halo size={300} mood={mood} aura />
+          </View>
         </Animated.View>
       ) : null}
 
@@ -501,44 +508,37 @@ export default function Home() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* ── En-tête : compte ▾ · réseau ▾ · notifications · menu ── */}
+        {/* ── En-tête : compte ▾ · réseau ▾ · notifications · scanner (le menu est dans la barre) ── */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          {/*
-            Le bloc compte prend la place restante, et garde une marge à droite :
-            son chevron se retrouvait collé à la chip réseau dès que le nom du
-            compte était long, au point de sembler caché.
-          */}
-          <KPressable onPress={() => router.push('/accounts')} accessibilityLabel={t("a11ySwitchAccount")} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2], height: 48, paddingRight: space[1] }}>
-            <WalletAvatar size={32} />
-            <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0 }}>{accountDisplayName(stored, t)}</Text>
-            <Icon name="caretDown" size={14} tone="muted" />
+          <KPressable onPress={() => router.push('/accounts')} accessibilityLabel={t("a11ySwitchAccount")} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[3], height: 48, paddingRight: space[1] }}>
+            <View style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface1, alignItems: 'center', justifyContent: 'center' }}>
+              <WalletAvatar size={32} />
+            </View>
+            <View style={{ flexShrink: 1, minWidth: 0 }}>
+              <Text variant="micro" tone="secondary" numberOfLines={1}>{greeting}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0 }}>{accountDisplayName(stored, t)}</Text>
+                <Icon name="caretDown" size={12} tone="muted" />
+              </View>
+            </View>
           </KPressable>
           {/* Réseau actif (Envoyer / Swap / dApps) : un tap ouvre le sélecteur. */}
           <KPressable
             onPress={() => router.push('/networks')}
             accessibilityLabel={`${t('network')} : ${getAdapter(activeChain).config.name}`}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingHorizontal: space[2], borderRadius: radius.round, backgroundColor: colors.surface2, maxWidth: 112, flexShrink: 0 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: space[2], borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, maxWidth: 104, flexShrink: 0 }}
           >
             {chainIconUrl(activeChain) ? <LogoImage uri={chainIconUrl(activeChain)!} size={16} /> : null}
             <Text variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>{getAdapter(activeChain).config.name}</Text>
             <Icon name="caretDown" size={12} tone="muted" />
           </KPressable>
-          {/*
-            Cloche et menu SANS écart entre elles : un `IconButton` fait 48 px
-            pour une icône de 22, donc il porte déjà 13 px de marge interne de
-            chaque côté. Y ajouter un `gap` donnait plus de trente pixels de vide
-            entre deux glyphes — l'en-tête paraissait désaccordé.
-
-            Le scanner a quitté cette rangée : à quatre cibles plus le nom du
-            compte, rien ne tenait sur un écran étroit. Il est dans la rangée
-            d'actions, où il ne prend la place d'aucun texte.
-          */}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: -space[2] }}>
             <View>
               <IconButton icon="bell" label={t("labelNotifications")} tone="ghost" onPress={() => router.push('/notifications')} />
-              {unread > 0 ? <View style={{ position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.warning }} /> : null}
+              {unread > 0 ? <View style={{ position: 'absolute', top: 11, right: 11, width: 8, height: 8, borderRadius: 4, borderWidth: 1.5, borderColor: colors.bg, backgroundColor: GOLD }} /> : null}
             </View>
-            <IconButton icon="menu" label={t("labelMenu")} tone="ghost" onPress={() => router.navigate('/menu')} />
+            {/* Scanner : seule porte d'entrée pour connecter une dApp ou la webapp par QR. */}
+            <IconButton icon="scan" label={t("scanQr")} tone="ghost" onPress={() => router.push('/scan')} />
           </View>
         </View>
 
@@ -565,7 +565,8 @@ export default function Home() {
         ) : null}
 
         {/* ── Solde (le halo est derrière, au niveau de l'écran) ── */}
-        <Animated.View style={bigBalanceStyle}>
+        <Animated.View style={[{ gap: space[1] }, bigBalanceStyle]}>
+          <Text variant="micro" tone="secondary" style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>{t('homeTotalBalance')}</Text>
           <KPressable onLongPress={toggleHidden} delayLongPress={350} accessibilityLabel={hidden ? t("a11yHiddenBalance") : t("a11yVisibleBalance")}>
             {initialLoading ? (
               <Skeleton width={220} height={52} />
@@ -599,29 +600,24 @@ export default function Home() {
               {chartLoading || initialLoading ? <Skeleton width="100%" height={150} /> : <Text variant="caption" tone="tertiary">{hidden ? ' ' : t("noHistoryYet")}</Text>}
             </View>
           )}
-          <SegmentedControl items={PERIODS.map((p) => ({ key: p, label: periodLabels[p] || p }))} value={period} onChange={setPeriod} />
+          <Pills items={PERIODS.map((p) => ({ key: p, label: periodLabels[p] || p }))} value={period} onChange={setPeriod} />
         </View>
 
-        {/* ── Actions ── */}
+        {/* ── Actions : quatre disques, Envoyer en Lumière, Gagner en or ── */}
         <View style={{ flexDirection: 'row', gap: space[2] }}>
-          <Button label={t("actionReceive")} icon="receive" variant="secondary" size="md" dense style={{ flex: 1 }} onPress={() => router.push('/receive')} />
-          <Button label={t("actionSend")} icon="send" variant="primary" size="md" dense style={{ flex: 1 }} onPress={() => router.push('/send')} />
-          <Button label="Swap" icon="exchange" variant="secondary" size="md" dense style={{ flex: 1 }} onPress={() => router.push('/swap')} />
-          {/*
-            Scanner, sans libellé : un quatrième bouton texte aurait comprimé les
-            trois autres. Il reste à portée de pouce, et c'est la seule porte
-            d'entrée pour connecter une dApp ou la webapp par QR.
-          */}
-          <IconButton icon="scan" label={t("scanQr")} tone="surface" onPress={() => router.push('/scan')} />
+          <ActionDisc index={0} tone="primary" icon="send" label={t("actionSend")} onPress={() => router.push('/send')} />
+          <ActionDisc index={1} icon="receive" label={t("actionReceive")} onPress={() => router.push('/receive')} />
+          <ActionDisc index={2} icon="exchange" label={t("actionSwap")} onPress={() => router.push('/swap')} />
+          <ActionDisc index={3} tone="gold" icon="staking" label={t("actionEarn")} onPress={() => router.navigate('/earn')} />
         </View>
 
         {/* ── Tokens · NFT · Activité ── */}
         <View style={{ gap: space[3] }}>
-          <SegmentedControl items={[{ key: 'tokens', label: t("tabTokens") }, { key: 'nft', label: t("tabNft") }, { key: 'activity', label: t("tabActivity") }]} value={tab} onChange={setTab} />
+          <TextTabs items={[{ key: 'tokens', label: t("tabTokens") }, { key: 'nft', label: t("tabNft") }, { key: 'activity', label: t("tabActivity") }]} value={tab} onChange={setTab} />
 
           {tab === 'tokens' ? (
             initialLoading ? (
-              <Surface padded={false}>
+              <Surface padded={false} style={{ borderRadius: 26 }}>
                 {[0, 1, 2].map((i) => (
                   <View key={i} style={{ height: 64, flexDirection: 'row', alignItems: 'center', gap: space[3], paddingHorizontal: space[4] }}>
                     <Skeleton width={40} height={40} round />
@@ -637,7 +633,7 @@ export default function Home() {
               </Surface>
             ) : (
               <>
-                <Surface padded={false}>
+                <Surface padded={false} style={{ borderRadius: 26 }}>
                   {/*
                     CASCADE À L'ARRIVÉE. `cascadeDelay` était défini dans
                     `ui/motion` et utilisé NULLE PART : les listes apparaissaient
@@ -742,7 +738,7 @@ export default function Home() {
             pu demander serait un mensonge sur le portefeuille de l'utilisateur.
           */
           recent.length === 0 && recentLoading ? (
-            <Surface padded={false}>{[0, 1, 2].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center' }}><Skeleton width="70%" /></View>)}</Surface>
+            <Surface padded={false} style={{ borderRadius: 26 }}>{[0, 1, 2].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center' }}><Skeleton width="70%" /></View>)}</Surface>
           ) : recent.length === 0 && !recentFetched ? (
             <Surface>
               <EmptyState icon="warning" title={t("activityUnavailableTitle")} body={t("activityUnavailableBody")} />
@@ -753,7 +749,7 @@ export default function Home() {
             </Surface>
           ) : (
             <>
-              <Surface padded={false}>
+              <Surface padded={false} style={{ borderRadius: 26 }}>
                 {recent.map((tx) => ({ tx, h: humanizeTx(tx, humanCtx) })).filter((r) => !r.h.spam).slice(0, 5).map((r, i, arr) => (
                   <FadeInUp key={`${r.tx.chain}:${r.tx.hash}`} delay={cascadeDelay(i)}>
                     <ActivityRow

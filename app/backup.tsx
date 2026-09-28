@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ScreenCapture from 'expo-screen-capture';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Text, Button, IconButton, Surface, EmptyState, Pressable as KPressable } from '../ui/kit';
+import { FlowDots, Rise } from '../ui/nova';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius, durations } from '../ui/tokens';
@@ -59,6 +60,7 @@ export default function Backup() {
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => router.back()} />
         <Text variant="title2" style={{ flex: 1 }}>{t('yourRecoveryPhrase')}</Text>
+        <FlowDots step={1} />
       </View>
       <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[5], flexGrow: 1 }}>
         <Text variant="body">{t('seedOwnershipWarning').replace('{n}', String(words.length))}</Text>
@@ -81,13 +83,13 @@ export default function Backup() {
                 {col.map((w, i) => {
                   const n = c * half + i + 1;
                   return (
-                    <View key={n} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], height: 40, paddingHorizontal: space[3], borderRadius: radius.input, backgroundColor: colors.surface2 }}>
+                    <Rise key={n} delay={120 + (n - 1) * 45} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], height: 40, paddingHorizontal: space[3], borderRadius: radius.input, backgroundColor: colors.surface2 }}>
                       <Text variant="caption" tone="tertiary" tabular style={{ width: 22 }}>{n}</Text>
                       <View style={{ flex: 1, justifyContent: 'center' }}>
                         <Animated.View style={wordsStyle}><Text variant="body">{w}</Text></Animated.View>
                         <Animated.View style={[{ position: 'absolute', left: 0 }, maskStyle]}><Text variant="body" tone="tertiary">••••••</Text></Animated.View>
                       </View>
-                    </View>
+                    </Rise>
                   );
                 })}
               </View>

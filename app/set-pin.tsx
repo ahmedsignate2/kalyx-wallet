@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { usePendingRestore } from '../lib/pendingRestore';
-import { View, Text, Switch, Animated, ActivityIndicator, Platform, StatusBar } from 'react-native';
+import { View, Text, Switch, Animated, ActivityIndicator, Platform, StatusBar, useWindowDimensions } from 'react-native';
+import { Orbit, Rise, Stardust } from '../ui/nova';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinPad } from '../ui/PinPad';
@@ -36,6 +37,7 @@ export default function SetPin() {
   const { colors } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
   const shake = useRef(new Animated.Value(0)).current;
   const confirmDraft = useWallet((s) => s.confirmDraft);
   /** Brouillon venu d'un import : le texte de naissance change (§12.1). */
@@ -150,6 +152,7 @@ export default function SetPin() {
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: topPadding, justifyContent: 'space-between' }}>
       {/* Pas de barre d'en-tête native (elle affichait une flèche ← en doublon). */}
       <Stack.Screen options={{ headerShown: false }} />
+      <Stardust width={winW} height={winH} count={12} />
 
       {/* ── HAUT : header unique (retour à gauche, langue à droite) + titre ── */}
       <View>
@@ -175,14 +178,14 @@ export default function SetPin() {
           </KPressable>
         </View>
 
-        <View style={{ paddingHorizontal: 24, marginTop: 8 }}>
+        <Rise key={step} style={{ paddingHorizontal: 24, marginTop: 8 }}>
           <Text style={{ fontSize: 24, fontFamily: fonts.bold, color: colors.text, letterSpacing: -0.3, marginBottom: 8 }}>
             {step === 'create' ? t('choosePinTitle') : t('confirmPinTitle')}
           </Text>
           <Text style={{ fontSize: 14, fontFamily: fonts.regular, color: colors.textSecondary, marginBottom: 12 }}>
             {step === 'create' ? t('choosePinSub') : t('confirmPinSub')}
           </Text>
-        </View>
+        </Rise>
 
         {/* Ligne biométrie : conteneur dédié + marge basse nette → jamais sur l'anneau. */}
         {step === 'create' && bioAvailable ? (
@@ -196,6 +199,9 @@ export default function SetPin() {
       {/* ── MILIEU : anneau centré, prend tout l'espace restant ── */}
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <Animated.View style={{ transform: [{ translateX: shake }] }}>
+          <View pointerEvents="none" style={{ position: 'absolute', left: 52, top: 52 }}>
+            <Orbit cx={0} cy={0} r={86} />
+          </View>
           <KalyxRing size={104} progress={progress} error={!!errSignal} />
         </Animated.View>
         <View style={{ height: 22, justifyContent: 'center', marginTop: 8 }}>

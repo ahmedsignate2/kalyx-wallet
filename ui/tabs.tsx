@@ -1,19 +1,24 @@
 /**
- * Barre d'onglets principale — 4 onglets + bouton central Swap :
- * Accueil (agrégé multi-chaîne : tokens, NFT, activité) · Explorer · Earn · Plus.
+ * Barre d'onglets principale — « Nova » : une pilule flottante, quatre icônes,
+ * un point d'or sous l'onglet actif. Échanger n'y figure plus : c'est un disque
+ * d'action sur l'accueil, à côté d'Envoyer et Recevoir.
  *
  * Elle appartient au navigateur d'onglets (`app/(tabs)/_layout.tsx`) et reste
  * montée d'un onglet à l'autre : les écrans ne se remontent plus à chaque
- * changement (fini les saccades), et l'animation de l'onglet actif se voit.
+ * changement, et la lumière glisse d'une icône à l'autre au lieu de sauter.
  */
-import React, { useEffect } from 'react';
-import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { View, type LayoutChangeEvent } from 'react-native';
 import type { BottomTabBarProps } from 'expo-router/tabs';
-import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Reanimated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { create } from 'zustand';
-import { BottomNav } from './premium';
 import { useT } from '../lib/settingsStore';
-import { durations } from './tokens';
+import { useReduceMotion } from '../lib/reduceMotion';
+import { durations, springs, BRAND_GOLD } from './tokens';
+import { useTheme } from './theme';
+import { Icon, type IconName } from './icon';
+import { Pressable as KPressable } from './kit';
 
 export type MainTab = 'home' | 'browser' | 'earn' | 'menu';
 
@@ -23,28 +28,96 @@ export const useTabBar = create<{ hidden: boolean; setHidden: (h: boolean) => vo
   setHidden: (hidden) => set({ hidden }),
 }));
 
+/** Or de la marque : le seul accent chaud de l'interface (Bible §2). */
+export const GOLD = BRAND_GOLD.light;
+const NAV_H = 66;
+
+const TABS: { key: MainTab; icon: IconName; label: (t: (k: any) => string) => string }[] = [
+  { key: 'home', icon: 'home', label: (t) => t('navHome') },
+  { key: 'browser', icon: 'dapps', label: (t) => t('navExplore') },
+  { key: 'earn', icon: 'staking', label: () => 'Earn' },
+  { key: 'menu', icon: 'menu', label: (t) => t('menu') },
+];
+
+function NavIcon({ icon, on }: { icon: IconName; on: boolean }) {
+  const { colors } = useTheme();
+  const reduce = useReduceMotion();
+  const p = useSharedValue(on ? 1 : 0);
+  useEffect(() => {
+    p.value = reduce ? (on ? 1 : 0) : withSpring(on ? 1 : 0, springs.snappy);
+  }, [on, reduce, p]);
+  const iconStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -3 * p.value }, { scale: 1 + 0.08 * p.value }] }));
+  const dotStyle = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ scale: p.value }] }));
+  return (
+    <View style={{ alignItems: 'center', gap: 5 }}>
+      <Reanimated.View style={iconStyle}>
+        <Icon name={icon} size={23} color={on ? colors.text : colors.textTertiary} />
+      </Reanimated.View>
+      <Reanimated.View style={[{ width: 4, height: 4, borderRadius: 2, backgroundColor: GOLD }, dotStyle]} />
+    </View>
+  );
+}
+
 export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const t = useT();
+  const { colors, mode } = useTheme();
+  const insets = useSafeAreaInsets();
+  const reduce = useReduceMotion();
   const hidden = useTabBar((s) => s.hidden);
   const active = state.routes[state.index]?.name as MainTab;
+  const activeIdx = Math.max(0, TABS.findIndex((x) => x.key === active));
+  const [w, setW] = useState(0);
+  const slot = w / TABS.length;
+
   const y = useSharedValue(hidden ? 1 : 0);
   useEffect(() => {
     y.value = withTiming(hidden ? 1 : 0, { duration: durations.themeCrossfade });
   }, [hidden, y]);
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value * 140 }], opacity: 1 - y.value }));
-  const go = (name: MainTab) => () => navigation.navigate(name);
+
+  /* La lueur sous l'onglet actif GLISSE d'un emplacement à l'autre. */
+  const x = useSharedValue(0);
+  useEffect(() => {
+    if (!slot) return;
+    const to = activeIdx * slot + (slot - 52) / 2;
+    x.value = reduce || x.value === 0 ? to : withSpring(to, springs.standard);
+  }, [activeIdx, slot, reduce, x]);
+  const glowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+
   return (
-    <Reanimated.View pointerEvents={hidden ? 'none' : 'box-none'} style={[{ position: 'absolute', left: 0, right: 0, bottom: 0 }, style]}>
-      <BottomNav
-        active={active}
-        center={{ icon: 'exchange', label: t('navExchange'), onPress: () => router.push('/swap') }}
-        items={[
-          { key: 'home', icon: 'home', label: t('navHome'), onPress: go('home') },
-          { key: 'browser', icon: 'dapps', label: t('navExplore'), onPress: go('browser') },
-          { key: 'earn', icon: 'staking', label: 'Earn', onPress: go('earn') },
-          { key: 'menu', icon: 'menu', label: t('menu'), onPress: go('menu') },
-        ]}
-      />
+    <Reanimated.View pointerEvents={hidden ? 'none' : 'box-none'} style={[{ position: 'absolute', left: 16, right: 16, bottom: Math.max(insets.bottom, 12) + 8 }, style]}>
+      <View
+        onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}
+        style={{
+          height: NAV_H,
+          borderRadius: NAV_H / 2,
+          backgroundColor: mode === 'dark' ? 'rgba(14,16,25,0.96)' : 'rgba(255,255,255,0.97)',
+          borderWidth: 1,
+          borderColor: mode === 'dark' ? 'rgba(255,255,255,0.08)' : colors.border,
+          flexDirection: 'row',
+          alignItems: 'center',
+          overflow: 'hidden',
+        }}
+      >
+        {slot ? (
+          <Reanimated.View
+            pointerEvents="none"
+            style={[{ position: 'absolute', left: 0, top: (NAV_H - 2 - 44) / 2, width: 52, height: 44, borderRadius: 22, backgroundColor: mode === 'dark' ? 'rgba(242,244,250,0.06)' : 'rgba(6,7,13,0.05)' }, glowStyle]}
+          />
+        ) : null}
+        {TABS.map((it) => (
+          <KPressable
+            key={it.key}
+            onPress={() => navigation.navigate(it.key)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: it.key === active }}
+            accessibilityLabel={it.label(t)}
+            style={{ flex: 1, height: NAV_H, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <NavIcon icon={it.icon} on={it.key === active} />
+          </KPressable>
+        ))}
+      </View>
     </Reanimated.View>
   );
 }

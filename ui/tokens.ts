@@ -149,12 +149,12 @@ export const TOUCH_MIN = 48;
 export const radius = {
   chip: 8, // chips, badges
   input: 12, // inputs, boutons secondaires
-  button: 18, // bouton principal (hauteur 56)
-  container: 22, // conteneurs
+  button: 20, // bouton principal (hauteur 58) — Nova
+  container: 24, // conteneurs — Nova
   sheet: 28, // bottom sheets (haut)
   round: 999, // avatars, glyphes
 } as const;
-export const BUTTON_HEIGHT = 56;
+export const BUTTON_HEIGHT = 58;
 
 /* ------------------------------------------------------------------ */
 /* Mouvement — ressorts Reanimated `withSpring`                        */

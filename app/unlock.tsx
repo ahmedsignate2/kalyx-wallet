@@ -3,7 +3,8 @@ import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
 import { Pressable as KPressable, Halo } from '../ui/kit';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, StyleSheet, Pressable } from 'react-native';
+import { View, Text, Animated, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
+import { Orbit, Rise, Stardust } from '../ui/nova';
 import { router, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +21,7 @@ import { isBiometricAvailable } from '../lib/biometrics';
 export default function Unlock() {
   const { colors, gradients } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
   const t = useT();
   const unlockWithPin = useWallet((s) => s.unlockWithPin);
   const unlockWithBiometrics = useWallet((s) => s.unlockWithBiometrics);
@@ -145,10 +147,12 @@ export default function Unlock() {
         vers l'accueil. Pour la biométrie, la fenêtre appartient au système et ne
         peut pas être animée : la continuité se joue au timing (§3.5).
       */}
+      <Stardust width={winW} height={winH} count={14} />
+      <Orbit cx={winW / 2} cy={insets.top + 120 + 160} r={132} />
       <Halo size={320} mood="flat" aura style={{ position: 'absolute', alignSelf: 'center', top: insets.top + 120 }} />
       <View style={{ flex: 1, paddingTop: insets.top + spacing(3), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3), alignItems: 'center' }}>
         {/* En-tête compact : titre, sous-titre, biométrie */}
-        <View style={{ alignItems: 'center', gap: spacing(1.25) }}>
+        <Rise style={{ alignItems: 'center', gap: spacing(1.25) }}>
           {/* Appui long (2 s) sur le titre : journal de diagnostic, lisible même quand le déverrouillage casse. */}
           <Pressable onLongPress={() => router.push('/journal')} delayLongPress={2000} accessible={false}>
             <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
@@ -169,7 +173,7 @@ export default function Unlock() {
               <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.semibold }}>{t('biometrics')}</Text>
             </KPressable>
           ) : null}
-        </View>
+        </Rise>
 
         {/* Espace flexible : pousse le clavier vers le bas sans l'étirer */}
         <View style={{ flex: 1, minHeight: spacing(2) }} />
