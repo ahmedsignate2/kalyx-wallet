@@ -11,8 +11,8 @@
  * animation. `?mode=import` affiche « Content de te revoir » pour un wallet
  * retrouvé, afin que l'utilisateur reconnaisse immédiatement ce qu'il récupère.
  */
-import React, { useEffect } from 'react';
-import { View, Pressable as RNPressable } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Pressable as RNPressable, useWindowDimensions } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
@@ -22,6 +22,8 @@ import { space, SCREEN_MARGIN, springs } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { aura } from '../lib/aura';
+import { haptic } from '../lib/haptics';
+import { Orbit, SparkBurst, Stardust } from '../ui/nova';
 
 /** Rythme, en ms : le glyphe d'abord, le sens ensuite. */
 const BEAT = { glyph: 120, title: 760, body: 960, action: 1200 } as const;
@@ -44,6 +46,13 @@ export default function WalletBorn() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const account = useWallet((s) => s.account);
   const halo = useSharedValue(reduced ? 1 : 0);
+  const { width: winW, height: winH } = useWindowDimensions();
+  /** L'éclat part quand le glyphe a fini de se dessiner : 0 = pas encore. */
+  const [burst, setBurst] = useState(0);
+  useEffect(() => {
+    const id = setTimeout(() => { setBurst(1); haptic.success(); }, BEAT.glyph + 520);
+    return () => clearTimeout(id);
+  }, []);
 
   useEffect(() => {
     if (!reduced) halo.value = withDelay(BEAT.glyph, withSpring(1, springs.gentle));
@@ -64,12 +73,17 @@ export default function WalletBorn() {
   return (
     <RNPressable onPress={go} style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <Stardust width={winW} height={winH} count={16} />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SCREEN_MARGIN, gap: space[5] }}>
         <View style={{ alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
           <Animated.View style={[{ position: 'absolute' }, haloStyle]} pointerEvents="none">
             <Halo size={300} mood="up" />
           </Animated.View>
+          <Animated.View style={[{ position: 'absolute', left: '50%', top: '50%' }, haloStyle]} pointerEvents="none">
+            <Orbit cx={0} cy={0} r={110} />
+          </Animated.View>
           {address ? <AddressGlyph address={address} size={104} background={false} draw /> : null}
+          {burst ? <SparkBurst burstKey={burst} radius={100} /> : null}
         </View>
 
         <Fade delay={BEAT.title} reduced={reduced}>

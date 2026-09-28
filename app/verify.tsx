@@ -5,6 +5,7 @@ import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Button, IconButton, Surface, Chip, EmptyState } from '../ui/kit';
+import { FlowDots, Rise } from '../ui/nova';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
@@ -60,19 +61,22 @@ export default function Verify() {
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => router.back()} />
         <Text variant="title2" style={{ flex: 1 }}>{t('verifyBackup')}</Text>
+        <FlowDots step={2} />
       </View>
       {!draft ? (
         <View style={{ padding: SCREEN_MARGIN }}><Surface><EmptyState icon="phrase" title={t('sessionExpired')} actionLabel={t('startOver')} onAction={() => router.replace('/welcome')} /></Surface></View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[4], flexGrow: 1 }}>
           <Text variant="bodySecondary" tone="secondary">{t('selectRightWord')}</Text>
-          {challenge.map((c) => (
-            <Surface key={c.position} style={{ gap: space[3] }}>
+          {challenge.map((c, i) => (
+            <Rise key={c.position} delay={80 + i * 90}>
+            <Surface style={{ gap: space[3] }}>
               <Text variant="caption" tone="secondary">{t('wordNo')} {c.position}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
                 {c.options.map((opt) => <Chip key={opt} label={opt} selected={answers[c.position] === opt} onPress={() => setAnswers((a) => ({ ...a, [c.position]: opt }))} />)}
               </View>
             </Surface>
+            </Rise>
           ))}
           <View style={{ flex: 1 }} />
           <Button label={t("pinValidate")} onPress={onValidate} disabled={!allAnswered} />

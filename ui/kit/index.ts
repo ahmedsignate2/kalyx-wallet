@@ -23,3 +23,4 @@ export { TxSteps, type TxStage } from './TxSteps';
 export { CountdownRing } from './CountdownRing';
 export { ActivityRow } from './ActivityRow';
 export { ScreenHeader } from './ScreenHeader';
+export { SparkBurst } from './SparkBurst';

@@ -16,7 +16,7 @@
  * écran mort au tout premier contact.
  */
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView } from 'react-native';
+import { View, ScrollView, useWindowDimensions } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
@@ -29,6 +29,7 @@ import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { haptic } from '../lib/haptics';
 import { isDriveConfigured } from '../lib/googleDrive';
+import { Orbit, Stardust } from '../ui/nova';
 
 /** Rythme de l'entrée, en millisecondes depuis l'ouverture de l'écran. */
 /*
@@ -99,6 +100,7 @@ function Argument({ icon, title, sub, delay, reduced }: { icon: IconName; title:
 export default function Welcome() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
   const t = useT();
   const reduced = useReducedMotion();
   const newDraft = useWallet((s) => s.newDraft);
@@ -159,6 +161,8 @@ export default function Welcome() {
   return (
     <KPressable onPress={skip} style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      {/* Nova : une poussière de lumière qui monte lentement derrière tout l'écran. */}
+      <Stardust width={winW} height={winH} count={22} />
       {/*
         ScrollView + flexGrow:1 : centré quand tout tient, défilant sinon (petit
         écran, texte légal long, langue verbeuse). Une View flex:1 laissait la
@@ -180,6 +184,10 @@ export default function Welcome() {
           <Animated.View style={ceremonyStyle} pointerEvents="none">
             <Animated.View style={[{ position: 'absolute' }, haloStyle]}>
               <Halo size={340} mood="up" />
+            </Animated.View>
+            {/* L'orbite naît avec le halo ; le point d'or la parcourt ensuite sans fin. */}
+            <Animated.View style={[{ position: 'absolute', left: 42, top: 42 }, haloStyle]}>
+              <Orbit cx={0} cy={0} r={96} />
             </Animated.View>
             {/* Trois éclats qui dérivent : l'écran continue de vivre après l'entrée. */}
             <Mote x={-74} y={-52} size={5} period={7100} reduced={reduced} delay={BEAT.name} />
@@ -212,7 +220,7 @@ export default function Welcome() {
           La cascade reste la seule tolérée par la doctrine §2 : liste courte,
           figée, au premier affichage uniquement — jamais au re-rendu.
         */}
-        <View style={{ gap: space[4], marginVertical: space[6] }}>
+        <View style={{ gap: space[4], marginVertical: space[6], padding: space[4], borderRadius: 26, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
           {PROPS.map((p, i) => (
             <Argument key={p.title} {...p} delay={BEAT.props + i * STAGGER} reduced={reduced} />
           ))}
