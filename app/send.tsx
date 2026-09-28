@@ -8,6 +8,7 @@
  *     devise, simulation « ton solde passera de A à B », MAINTENIR pour envoyer.
  *  4. Suivi : Envoyée → Incluse → Confirmée, on peut quitter (notification).
  */
+import { fill } from '../lib/i18n';
 import { usePaidAddresses } from '../lib/historySpam';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
@@ -536,7 +537,7 @@ export default function Send() {
       technicalLogger.logTx('step_4_broadcast_success', { txHash: h, symbol, chain: chain.name });
       addRecent(recipient, family);
       const dest = contactName ?? (isEns ? to.trim() : shortAddress(recipient));
-      notifyAndLog('tx', t("sendTitle"), t('sendSuccessMsg').replace('${formatTokenAmount(amountRaw, decimals)}', formatTokenAmount(amountRaw, decimals)).replace('${symbol}', symbol).replace('${dest}', dest));
+      notifyAndLog('tx', t("sendTitle"), fill(t('sendSuccessMsg'), { amount: formatTokenAmount(amountRaw, decimals), symbol: symbol, dest: dest }));
       haptic.success();
     } catch (e) {
       technicalLogger.logTx('step_4_broadcast_failed', { error: e instanceof Error ? e.message : String(e), chain: chain.name }, true);
@@ -579,7 +580,7 @@ export default function Send() {
           setStage('confirmed');
           technicalLogger.logTx('step_4_confirmed', { txHash: hash, chain: chain.name });
           haptic.success();
-          notifyAndLog('tx', t("sendConfirmTitle"), t('confirmSuccessMsg').replace('${formatTokenAmount(amountRaw, decimals)}', formatTokenAmount(amountRaw, decimals)).replace('${symbol}', symbol).replace('${contactName ?? shortAddress(recipient)}', contactName ?? shortAddress(recipient)));
+          notifyAndLog('tx', t("sendConfirmTitle"), fill(t('confirmSuccessMsg'), { amount: formatTokenAmount(amountRaw, decimals), symbol: symbol, dest: contactName ?? shortAddress(recipient) }));
         }
       } catch (err) {
         technicalLogger.logTx('step_4_confirmation_failed', { txHash: hash, error: String(err), chain: chain.name }, true);
@@ -597,7 +598,7 @@ export default function Send() {
     if (!recipientOk) {
       technicalLogger.logTx('step_1_address_invalid', { input: to, isEns, chain: chain.name }, true);
       const fam = family === 'evm' ? t("errNeedEvmAddress") : family === 'solana' ? t("errNeedSolAddress") : family === 'ton' ? t("errNeedTonAddress") : t("errNeedBtcAddress");
-      return setAddressError(isEns && ens.status === 'resolving' ? t(tonDomain ? 'resolvingName' : 'errResolvingEns') : isEns ? t(tonDomain ? 'errNameNotFound' : 'errEnsNotFound') : t('errNeedAddressFull').replace('${symbol}', symbol).replace('${chain.name}', chain.name).replace('${fam}', fam));
+      return setAddressError(isEns && ens.status === 'resolving' ? t(tonDomain ? 'resolvingName' : 'errResolvingEns') : isEns ? t(tonDomain ? 'errNameNotFound' : 'errEnsNotFound') : fill(t('errNeedAddressFull'), { symbol: symbol, chain: chain.name, fam: fam }));
     }
     if (poisoning) {
       technicalLogger.logTx('step_1_address_poisoning_blocked', { recipient, chain: chain.name }, true);
@@ -684,7 +685,7 @@ export default function Send() {
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => { setAddressError(null); setAmountError(null); (step === 0 || step === 4 || (step === 1 && presetToken) ? router.back() : setStep((s) => (s - 1) as Step)); }} />
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <Text variant="title2">{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : (t('headerSendToken').replace('${symbol}', symbol) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
+            <Text variant="title2">{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
             {step > 0 && chainIconUrl(chain.id) ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: 12, backgroundColor: colors.surface2 }}>
                 <LogoImage uri={chainIconUrl(chain.id)!} size={14} />
@@ -805,7 +806,7 @@ export default function Send() {
               jeton se copie aussi facilement que celle d'un portefeuille.
             */}
             {isSolanaPda ? <Text variant="caption" tone="warning">{t('solanaPdaWarning')}</Text> : null}
-            {contactName ? <Text variant="caption" tone="secondary">{t("contactLabel").replace("${contactName}", contactName)}</Text> : null}
+            {contactName ? <Text variant="caption" tone="secondary">{fill(t('contactLabel'), { contact: contactName })}</Text> : null}
 
             {memoCapable && !params.memo ? (
               <View style={{ gap: space[1] }}>
@@ -948,14 +949,14 @@ export default function Send() {
           </View>
         ) : null}
         {afterBalance != null ? (
-          <Text variant="bodySecondary" tone="secondary">{t("balanceUpdatePreview").replace("${symbol}", symbol).replace("${formatTokenAmount(balance!, decimals)}", formatTokenAmount(balance!, decimals)).replace("${formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals)}", formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals))}</Text>
+          <Text variant="bodySecondary" tone="secondary">{fill(t('balanceUpdatePreview'), { symbol: symbol, before: formatTokenAmount(balance!, decimals), after: formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals) })}</Text>
         ) : null}
         {/* Frais qui écrasent le montant (2 € envoyés, 5 € de frais) : le dire avant la signature. */}
         {feeFiat > 0 && fiatOfAmount > 0 && feeFiat > fiatOfAmount * 0.5 ? (
           <Text variant="caption" tone="warning">{t('sendHighFee').replace('{pct}', String(Math.round((feeFiat / fiatOfAmount) * 100)))}</Text>
         ) : null}
-        {family === 'evm' ? <Text variant="caption" tone="warning">{t("checkNetworkWarning").replace("${chain.name}", chain.name)}</Text> : null}
-        {!isKnown ? <Text variant="caption" tone="warning">{t("firstTimeWarning").replace("${recipient.slice(-4)}", recipient.slice(-4))}</Text> : null}
+        {family === 'evm' ? <Text variant="caption" tone="warning">{fill(t('checkNetworkWarning'), { chain: chain.name })}</Text> : null}
+        {!isKnown ? <Text variant="caption" tone="warning">{fill(t('firstTimeWarning'), { end: recipient.slice(-4) })}</Text> : null}
 
         {/*
           LES DEUX GARDE-FOUS QUI MANQUAIENT ICI.
@@ -1045,8 +1046,8 @@ export default function Send() {
 
       <ConfirmUnlock
         visible={confirming}
-        title={t('sendConfirmUnlockTitle').replace('${formatTokenAmount(amountRaw, decimals)}', formatTokenAmount(amountRaw, decimals)).replace('${symbol}', symbol)}
-        subtitle={t('sendConfirmUnlockSubtitle').replace('${destLabel ?? shortAddress(recipient)}', destLabel ?? shortAddress(recipient)).replace('${chain.name}', chain.name)}
+        title={fill(t('sendConfirmUnlockTitle'), { amount: formatTokenAmount(amountRaw, decimals), symbol: symbol })}
+        subtitle={fill(t('sendConfirmUnlockSubtitle'), { dest: destLabel ?? shortAddress(recipient), chain: chain.name })}
         perform={perform}
         onDone={() => { setConfirming(false); setStep(4); }}
         onCancel={() => setConfirming(false)}

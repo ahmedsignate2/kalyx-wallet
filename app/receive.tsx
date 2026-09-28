@@ -4,6 +4,7 @@
  * claires sur les réseaux compatibles, Copier (haptique + toast) et Partager.
  * Le réseau se choisit ici (famille d'adresse : EVM / Solana / Bitcoin).
  */
+import { fill } from '../lib/i18n';
 import { SafeModal } from '../ui/kit/SafeModal';
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, ScrollView, Share, Modal, Platform } from 'react-native';
@@ -83,7 +84,7 @@ export default function Receive() {
     // repère (`'ce réseau'`, `'this network'`, `'dieses Netzwerk'`…), donc
     // chercher la version française ne marchait qu'en français — partout
     // ailleurs le `${…}` s'affichait tel quel.
-    fam === 'evm' ? t('hintEvm').replace(/\$\{[^}]*\}/, selected?.name ?? t('thisNetwork'))
+    fam === 'evm' ? fill(t('hintEvm'), { network: selected?.name ?? t('thisNetwork') })
     : fam === 'solana' ? t("hintSolana")
     : fam === 'ton' ? t("hintTon")
     : t("hintBitcoin");
@@ -121,7 +122,7 @@ export default function Receive() {
         {environment === 'testnet' && selected ? (
           <KPressable
             onPress={() => setTestnetPickerOpen(true)}
-            accessibilityLabel={t('a11yTestnetSelected').replace('${selected.name}', selected.name)}
+            accessibilityLabel={fill(t('a11yTestnetSelected'), { network: selected.name })}
             accessibilityRole="button"
             style={{
               alignSelf: 'center',
@@ -176,7 +177,7 @@ export default function Receive() {
             variant="body"
             tabular
             selectable
-            accessibilityLabel={t('a11yAddress').replace('${address}', address)}
+            accessibilityLabel={fill(t('a11yAddress'), { address: address })}
             style={{
               fontSize: 13,
               fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',

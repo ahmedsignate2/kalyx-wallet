@@ -13,6 +13,7 @@
  *   - une ligne = un verbe, une contrepartie, un montant — lisible d'un coup d'œil ;
  *   - la liste est virtualisée (SectionList) : fluide même avec des centaines de lignes.
  */
+import { journal } from '../lib/debugJournal';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, SectionList, RefreshControl, Share, ScrollView } from 'react-native';
 import { router, Stack } from 'expo-router';
@@ -345,7 +346,18 @@ export default function History() {
         ListFooterComponent={footer}
         contentContainerStyle={{ paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6] }}
         initialNumToRender={14}
-        windowSize={9}
+        /*
+         * STABILITÉ EN BAS DE LISTE (Android). Le retrait des lignes hors écran
+         * (`removeClippedSubviews`, actif par défaut sur Android) combiné aux
+         * en-têtes de date collants et à une fenêtre courte faisait remesurer
+         * les lignes en boucle : l'écran montait et descendait tout seul en bas
+         * de « Envoyés ». Quelques centaines de lignes tiennent sans ces économies.
+         */
+        removeClippedSubviews={false}
+        windowSize={21}
+        maxToRenderPerBatch={20}
+        // Journal : si la hauteur du contenu oscille, la cause est là.
+        onContentSizeChange={(_w, h) => journal('state', `historique : hauteur du contenu ${Math.round(h)} (filtre ${filter})`)}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         refreshControl={

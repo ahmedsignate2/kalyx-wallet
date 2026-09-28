@@ -18,6 +18,7 @@
  *  - Bitcoin : sendTransfer — le téléphone construit, signe et diffuse.
  * Les frais réseau affichés sont une estimation — c'est le téléphone qui les fixe.
  */
+import { fill } from '../../lib/i18n';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, Pressable as RNPressable, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -305,7 +306,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
     setAddressError(null);
     if (!recipientOk) {
       const fam = family === 'evm' ? t('errNeedEvmAddress') : family === 'solana' ? t('errNeedSolAddress') : t('errNeedBtcAddress');
-      return setAddressError(isEns && ens.status === 'resolving' ? t('errResolvingEns') : isEns ? t('errEnsNotFound') : t('errNeedAddressFull').replace('${symbol}', symbol).replace('${chain.name}', chain.name).replace('${fam}', fam));
+      return setAddressError(isEns && ens.status === 'resolving' ? t('errResolvingEns') : isEns ? t('errEnsNotFound') : fill(t('errNeedAddressFull'), { symbol: symbol, chain: chain.name, fam: fam }));
     }
     if (poisoning) return;
     setAmountError(null);
@@ -359,7 +360,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <IconButton icon="back" label={t('back')} tone="ghost" onPress={back} />
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <Text variant="title2">{step === 0 ? t('aiSend') : step === 4 ? t('headerTracking') : (t('headerSendToken').replace('${symbol}', symbol) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
+            <Text variant="title2">{step === 0 ? t('aiSend') : step === 4 ? t('headerTracking') : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
             {step > 0 && chainIconUrl(chain.id) ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: 12, backgroundColor: colors.surface2 }}>
                 <LogoImage uri={chainIconUrl(chain.id)!} size={14} />
@@ -459,7 +460,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
               </Surface>
             ) : null}
             {isContract ? <Text variant="caption" tone="warning">{t('contractAddressWarning')}</Text> : null}
-            {contactName ? <Text variant="caption" tone="secondary">{t('contactLabel').replace('${contactName}', contactName)}</Text> : null}
+            {contactName ? <Text variant="caption" tone="secondary">{fill(t('contactLabel'), { contact: contactName })}</Text> : null}
 
             {recents.length > 0 ? (
               <View style={{ gap: space[2] }}>
@@ -554,10 +555,10 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
           <ListRow title={t('labelNetworkFee')} subtitle={`${tw('feeEstimate')} · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? `environ ${formatFiat(feeFiat)} ${sym}` : '—'}</Text>} />
         </Surface>
         {afterBalance != null ? (
-          <Text variant="bodySecondary" tone="secondary">{t('balanceUpdatePreview').replace('${symbol}', symbol).replace('${formatTokenAmount(balance!, decimals)}', formatTokenAmount(balance!, decimals)).replace('${formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals)}', formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals))}</Text>
+          <Text variant="bodySecondary" tone="secondary">{fill(t('balanceUpdatePreview'), { symbol: symbol, before: formatTokenAmount(balance!, decimals), after: formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals) })}</Text>
         ) : null}
-        {family === 'evm' ? <Text variant="caption" tone="warning">{t('checkNetworkWarning').replace('${chain.name}', chain.name)}</Text> : null}
-        {!isKnown ? <Text variant="caption" tone="warning">{t('firstTimeWarning').replace('${recipient.slice(-4)}', recipient.slice(-4))}</Text> : null}
+        {family === 'evm' ? <Text variant="caption" tone="warning">{fill(t('checkNetworkWarning'), { chain: chain.name })}</Text> : null}
+        {!isKnown ? <Text variant="caption" tone="warning">{fill(t('firstTimeWarning'), { end: recipient.slice(-4) })}</Text> : null}
         <AntiDrainerBanner loading={isSimulating} simulation={simResult} />
         {simResult?.warningLevel === 'critical' ? (
           <RNPressable onPress={() => setForceSendChecked((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: space[1] }}>
