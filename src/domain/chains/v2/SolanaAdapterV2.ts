@@ -83,6 +83,9 @@ const ATA_RENT = 2_039_280n;
  */
 const BLOCKHASH_TTL_MS = 60_000;
 
+/** Loyer minimal d'un compte système sans données (lamports). */
+export const SOL_RENT_EXEMPT_MIN = 890_880n;
+
 export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
   readonly config: ChainConfig;
   readonly signerCurve: SignerCurve = 'ed25519';
@@ -236,6 +239,26 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
     };
 
     if (!request.token) {
+      /*
+       * LOYER MINIMAL d'un compte système (0,00089 SOL). Solana refuse une
+       * transaction qui ouvrirait le compte du destinataire avec moins, ou qui
+       * laisserait l'expéditeur entre 0 et ce minimum — avec un message de nœud
+       * que personne ne comprend. On le dit avant de signer. Un RPC muet sur les
+       * soldes ne bloque rien : on ne refuse que ce qu'on sait perdu d'avance.
+       */
+      const [fromBal, toBal] = await Promise.all([
+        this.v1.getBalance(from).then((b) => b.raw).catch(() => null),
+        this.v1.getBalance(request.to).then((b) => b.raw).catch(() => null),
+      ]);
+      if (toBal === 0n && request.amount < SOL_RENT_EXEMPT_MIN) {
+        throw new WalletError('SOL_RENT_RECIPIENT', 'Destinataire sans compte : montant sous le loyer minimal');
+      }
+      if (fromBal !== null) {
+        const rest = fromBal - request.amount - tier.cost;
+        if (rest > 0n && rest < SOL_RENT_EXEMPT_MIN) {
+          throw new WalletError('SOL_RENT_SENDER', 'Reste sous le loyer minimal');
+        }
+      }
       const message = buildTransferMessage({
         from,
         to: request.to,
