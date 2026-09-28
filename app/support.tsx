@@ -4,10 +4,9 @@
  * soutenir et propose des dons en crypto (BTC/ETH/SOL/TON). Aucune adresse ne quitte
  * l'app : ce sont des adresses de RÉCEPTION publiques codées ici.
  *
- * TON : le nom `kalyxwallet.ton` est MONTRÉ, mais c'est l'adresse qui se copie.
- * Relevé du 27/09 : le domaine appartient bien au portefeuille ci-dessous, mais
- * aucun portefeuille n'y est encore LIÉ (enregistrement « wallet » vide) — un
- * wallet tiers qui résout le nom échouerait. L'adresse, elle, marche partout.
+ * TON : le nom `kalyxwallet.ton` est MONTRÉ, l'adresse se copie (elle marche
+ * dans tous les wallets, même ceux qui ne résolvent pas les noms). Vérifié le
+ * 28/09 : `kalyxwallet.ton` résout exactement vers cette adresse.
  */
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';

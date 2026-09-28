@@ -14,7 +14,7 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { create } from 'zustand';
-import { base64 } from '@scure/base';
+import { base64, hex } from '@scure/base';
 import { ed25519 } from '@noble/curves/ed25519';
 import { kvDel, kvGet, kvSet } from '../kv';
 import { useWallet, type Unlock } from '../walletStore';
@@ -35,6 +35,7 @@ import { buildTonProof, tonAddrReply } from '../../src/domain/tonconnect/tonProo
 import { parseSendTransaction, TC_ERROR, TC_MAX_MESSAGES, type DappTransaction } from '../../src/domain/tonconnect/requests';
 import { tonWalletStateInitBoc } from '../../src/domain/chains/ton/tonTransfer';
 import type { DappDraft } from '../../src/domain/chains/v2/TonAdapterV2';
+import { pageMatchesManifest, tcEmitJs, tcResolveJs, validConnectRequest, type TcJsCall } from '../../src/domain/tonconnect/jsBridge';
 
 export interface TcSession {
   /** Identifiant client de la dApp (sa clé publique x25519). */
@@ -51,8 +52,24 @@ export interface TcSession {
 }
 
 export type TcPending =
-  | { kind: 'connect'; link: ParsedConnectLink; manifest: DappManifest; domain: string; proofPayload?: string }
-  | { kind: 'tx'; session: TcSession; requestId: string; tx: DappTransaction; draft: DappDraft | null; error?: string };
+  | {
+      kind: 'connect';
+      link: ParsedConnectLink;
+      manifest: DappManifest;
+      domain: string;
+      proofPayload?: string;
+      /** Demande venue du NAVIGATEUR intégré (pont JS) : page et appel à résoudre. */
+      js?: { host: string; callId: number };
+    }
+  | { kind: 'tx'; session: TcSession; requestId: string; tx: DappTransaction; draft: DappDraft | null; error?: string; jsCallId?: number };
+
+/**
+ * Sortie vers la page du navigateur intégré (pont JS). Branchée par l'écran du
+ * navigateur : il n'exécute le JS que si la page ouverte est toujours `host`.
+ */
+export const tcJsHost: { deliver: ((host: string, js: string) => void) | null } = { deliver: null };
+const JS_BRIDGE = 'js';
+const jsClientId = (host: string) => `js:${host.toLowerCase()}`;
 
 interface TcState {
   sessions: TcSession[];
@@ -66,6 +83,8 @@ interface TcState {
   approveTx: (unlock: Unlock) => Promise<string>;
   rejectTx: () => Promise<void>;
   disconnect: (clientId: string) => Promise<void>;
+  /** Appel du pont JS d'une page du navigateur intégré. */
+  jsCall: (host: string, call: TcJsCall) => Promise<void>;
 }
 
 const INDEX_KEY = 'tc.sessions';
@@ -77,6 +96,10 @@ function tonChain(): ChainConfig {
   const active = useWallet.getState().activeChain;
   const ton = listChains({ includeTestnets: true }).filter((c) => c.family === 'ton');
   return ton.find((c) => c.id === active) ?? ton.find((c) => !c.testnet)!;
+}
+
+export function tcDeviceInfo() {
+  return device();
 }
 
 function device() {
@@ -130,7 +153,8 @@ export const useTonConnect = create<TcState>((set, get) => {
     for (const l of listeners.values()) l.stop();
     listeners.clear();
     const byBridge = new Map<string, TcSession[]>();
-    for (const s of get().sessions) byBridge.set(s.bridge, [...(byBridge.get(s.bridge) ?? []), s]);
+    // Les sessions du navigateur intégré n'ont pas de pont HTTP à écouter.
+    for (const s of get().sessions.filter((x) => x.bridge !== JS_BRIDGE)) byBridge.set(s.bridge, [...(byBridge.get(s.bridge) ?? []), s]);
     for (const [bridge, list] of byBridge) {
       const last = list.map((s) => s.lastEventId).filter(Boolean).sort().pop();
       const l = new BridgeListener(bridge, list.map((s) => s.keyPair.publicKey), last, (m) => void onMessage(m));
@@ -140,6 +164,42 @@ export const useTonConnect = create<TcState>((set, get) => {
   };
 
   const respond = (session: TcSession, payload: unknown) => sendTo(session.bridge, session.keyPair, session.clientId, payload);
+  /** Réponse à un appel de page (pont JS). */
+  const jsResolve = (host: string, callId: number, payload: unknown) => tcJsHost.deliver?.(host, tcResolveJs(callId, payload));
+  const hostOfSession = (s: TcSession) => s.clientId.slice(3);
+
+  /** Réponse `ton_addr` seule, pour une page qui retrouve sa connexion. */
+  const addrItem = (session: TcSession) => {
+    const w = useWallet.getState();
+    const stored = w.accounts.find((a) => !!a.tonPublicKey);
+    const chain = listChains({ includeTestnets: true }).find((c) => c.id === session.chainId);
+    if (!stored?.tonPublicKey || !chain) return null;
+    const pub = hex.decode(stored.tonPublicKey);
+    return tonAddrReply({ address: session.address, testnet: !!chain.testnet, publicKeyHex: stored.tonPublicKey.toLowerCase(), stateInitBoc: tonWalletStateInitBoc(pub, stored.tonVersion ?? 'v5r1', !!chain.testnet) });
+  };
+
+  /** Transaction demandée par une dApp (pont HTTP ou JS) : mise en file, puis émulée. */
+  const enqueueTx = (session: TcSession, id: string, raw: unknown, reply: (payload: unknown) => void, jsCallId?: number) => {
+    const parsed = parseSendTransaction(raw, { address: session.address, testnet: session.chainId !== 'ton', nowSeconds: Math.floor(Date.now() / 1000) });
+    if (!parsed.ok) {
+      reply({ error: { code: parsed.code, message: parsed.message }, id });
+      return;
+    }
+    const pending: TcPending = { kind: 'tx', session, requestId: id, tx: parsed.tx, draft: null, ...(jsCallId !== undefined ? { jsCallId } : {}) };
+    set({ queue: [...get().queue, pending] });
+    // L'émulation arrive après : l'écran s'ouvre tout de suite, le bilan se complète.
+    const adapter = getAdapterV2(session.chainId);
+    if (adapter instanceof TonAdapterV2) {
+      adapter
+        .prepareDappTransfer(session.address, parsed.tx)
+        .then((draft) => set({ queue: get().queue.map((p) => (p === pending ? { ...pending, draft } : p)) }))
+        .catch((e) => set({ queue: get().queue.map((p) => (p === pending ? { ...pending, error: e instanceof Error ? e.message : String(e) } : p)) }));
+    }
+  };
+
+  /** Répond à la dApp d'une demande de transaction, par son transport. */
+  const replyTx = (p: Extract<TcPending, { kind: 'tx' }>, payload: unknown) =>
+    p.session.bridge === JS_BRIDGE ? Promise.resolve(p.jsCallId !== undefined && jsResolve(hostOfSession(p.session), p.jsCallId, payload)) : respond(p.session, payload);
 
   const remove = async (clientId: string) => {
     const sessions = get().sessions.filter((s) => s.clientId !== clientId);
@@ -173,21 +233,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       await respond(session, { error: { code: TC_ERROR.METHOD_NOT_SUPPORTED, message: 'Méthode non prise en charge' }, id }).catch(() => {});
       return;
     }
-    const parsed = parseSendTransaction(req.params?.[0], { address: session.address, testnet: session.chainId !== 'ton', nowSeconds: Math.floor(Date.now() / 1000) });
-    if (!parsed.ok) {
-      await respond(session, { error: { code: parsed.code, message: parsed.message }, id }).catch(() => {});
-      return;
-    }
-    const pending: TcPending = { kind: 'tx', session, requestId: id, tx: parsed.tx, draft: null };
-    set({ queue: [...get().queue, pending] });
-    // L'émulation arrive après : l'écran s'ouvre tout de suite, le bilan se complète.
-    const adapter = getAdapterV2(session.chainId);
-    if (adapter instanceof TonAdapterV2) {
-      adapter
-        .prepareDappTransfer(session.address, parsed.tx)
-        .then((draft) => set({ queue: get().queue.map((p) => (p === pending ? { ...pending, draft } : p)) }))
-        .catch((e) => set({ queue: get().queue.map((p) => (p === pending ? { ...pending, error: e instanceof Error ? e.message : String(e) } : p)) }));
-    }
+    enqueueTx(session, id, req.params?.[0], (payload) => void respond(session, payload).catch(() => {}));
   };
 
   /** Signataire TON du portefeuille ACTIF, pour UNE opération ; effacé ensuite. */
@@ -251,7 +297,9 @@ export const useTonConnect = create<TcState>((set, get) => {
           items.push(await buildTonProof({ address, domain: p.domain, payload: p.proofPayload, timestamp: Math.floor(Date.now() / 1000) }, (d) => ed25519.sign(d, secret)));
         }
       });
-      await sendTo(p.link.bridge, keyPair, p.link.clientId, { event: 'connect', id: await nextEventId(), payload: { items, device: device() } });
+      const event = { event: 'connect', id: await nextEventId(), payload: { items, device: device() } };
+      if (p.js) jsResolve(p.js.host, p.js.callId, event);
+      else await sendTo(p.link.bridge, keyPair, p.link.clientId, event);
       const session: TcSession = {
         clientId: p.link.clientId,
         bridge: p.link.bridge,
@@ -272,12 +320,13 @@ export const useTonConnect = create<TcState>((set, get) => {
       const p = get().queue[0];
       if (p?.kind !== 'connect') return;
       set({ queue: get().queue.slice(1) });
+      const event = { event: 'connect_error', id: await nextEventId(), payload: { code: TC_ERROR.USER_REJECTS, message: 'User declined the connection' } };
+      if (p.js) {
+        jsResolve(p.js.host, p.js.callId, event);
+        return;
+      }
       // Réponse d'une clé jetable : la dApp sait que l'utilisateur a refusé.
-      await sendTo(p.link.bridge, newSessionKeyPair(), p.link.clientId, {
-        event: 'connect_error',
-        id: await nextEventId(),
-        payload: { code: TC_ERROR.USER_REJECTS, message: 'User declined the connection' },
-      }).catch(() => {});
+      await sendTo(p.link.bridge, newSessionKeyPair(), p.link.clientId, event).catch(() => {});
     },
 
     approveTx: async (unlock) => {
@@ -296,7 +345,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       const signed = await withTonSigner(session.chainId, unlock, (signer) => adapter.signDappTransfer(draft, signer));
       await adapter.broadcastDapp(signed);
       set({ queue: get().queue.slice(1) });
-      await respond(session, { result: signed.boc, id: p.requestId }).catch(() => {});
+      await replyTx(p, { result: signed.boc, id: p.requestId }).catch(() => {});
       return signed.txid;
     },
 
@@ -304,13 +353,55 @@ export const useTonConnect = create<TcState>((set, get) => {
       const p = get().queue[0];
       if (p?.kind !== 'tx') return;
       set({ queue: get().queue.slice(1) });
-      await respond(p.session, { error: { code: TC_ERROR.USER_REJECTS, message: 'User declined the transaction' }, id: p.requestId }).catch(() => {});
+      await replyTx(p, { error: { code: TC_ERROR.USER_REJECTS, message: 'User declined the transaction' }, id: p.requestId }).catch(() => {});
     },
 
     disconnect: async (clientId) => {
       const session = get().sessions.find((s) => s.clientId === clientId);
-      if (session) await respond(session, { event: 'disconnect', id: await nextEventId(), payload: {} }).catch(() => {});
+      const event = { event: 'disconnect', id: await nextEventId(), payload: {} };
+      if (session?.bridge === JS_BRIDGE) tcJsHost.deliver?.(hostOfSession(session), tcEmitJs(event));
+      else if (session) await respond(session, event).catch(() => {});
       await remove(clientId);
+    },
+
+    jsCall: async (host, call) => {
+      const clientId = jsClientId(host);
+      const session = get().sessions.find((s) => s.clientId === clientId);
+      if (call.method === 'restoreConnection') {
+        // La page retrouve sa connexion sans rien redemander — si elle en a une.
+        const item = session ? addrItem(session) : null;
+        jsResolve(host, call.id, item
+          ? { event: 'connect', id: await nextEventId(), payload: { items: [item], device: device() } }
+          : { event: 'connect_error', id: await nextEventId(), payload: { code: TC_ERROR.UNKNOWN, message: 'Not connected' } });
+        return;
+      }
+      if (call.method === 'connect') {
+        const request = validConnectRequest(call.params[1]);
+        const fail = async (code: number, message: string) => jsResolve(host, call.id, { event: 'connect_error', id: await nextEventId(), payload: { code, message } });
+        if (!request) return fail(TC_ERROR.BAD_REQUEST, 'Bad connect request');
+        const manifest = await fetchManifest(request.manifestUrl);
+        if (!manifest || !manifestOriginMatches(request.manifestUrl, manifest)) return fail(TC_ERROR.BAD_REQUEST, 'Manifest unavailable or mismatched');
+        if (!pageMatchesManifest(host, manifest)) {
+          technicalLogger.logDapp(`tonconnect js: page ${host} ≠ manifeste ${manifest.url}`);
+          return fail(TC_ERROR.BAD_REQUEST, 'Manifest does not belong to this page');
+        }
+        const proof = request.items.find((i) => i.name === 'ton_proof') as { payload?: string } | undefined;
+        const link: ParsedConnectLink = { clientId, request, bridge: JS_BRIDGE };
+        set({ queue: [...get().queue, { kind: 'connect', link, manifest, domain: manifestDomain(manifest), proofPayload: proof?.payload, js: { host, callId: call.id } }] });
+        return;
+      }
+      // send : { method, params, id }
+      const msg = call.params[0] as { method?: string; params?: unknown[]; id?: string | number } | undefined;
+      const id = String(msg?.id ?? '');
+      const reply = (payload: unknown) => jsResolve(host, call.id, payload);
+      if (!session) return reply({ error: { code: TC_ERROR.UNKNOWN_APP, message: 'Not connected' }, id });
+      if (msg?.method === 'disconnect') {
+        reply({ result: {}, id });
+        await remove(clientId);
+        return;
+      }
+      if (msg?.method !== 'sendTransaction') return reply({ error: { code: TC_ERROR.METHOD_NOT_SUPPORTED, message: 'Method not supported' }, id });
+      enqueueTx(session, id, msg.params?.[0], reply, call.id);
     },
   };
 });

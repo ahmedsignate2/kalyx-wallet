@@ -15,6 +15,8 @@
  *    connexion/signature via SignSheet + biométrie unifiée.
  *  - Provider EIP-1193 injecté (window.ethereum) — plomberie inchangée.
  */
+import { buildTonJsBridge, parseTcJsMessage } from '../../src/domain/tonconnect/jsBridge';
+import { useTonConnect, tcJsHost, tcDeviceInfo } from '../../lib/tonconnect/store';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, TextInput, ScrollView, Share, Alert, Switch, Image, useWindowDimensions, Linking } from 'react-native';
 import { Stack, useLocalSearchParams, router, useFocusEffect } from 'expo-router';
@@ -46,7 +48,6 @@ import { usePortfolioStore } from '../../lib/portfolio';
 import { saveTabs, loadTabs } from '../../lib/browserTabs';
 import { useBrowserPresence } from '../../lib/browserPresence';
 import { useWalletConnect } from '../../lib/walletconnect';
-import { useTonConnect } from '../../lib/tonconnect/store';
 import { looksLikeTonConnect } from '../../src/domain/tonconnect/connectLink';
 import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../../lib/browserPrefs';
 import { buildInjectedProvider, parseDappMessage, respondJs, emitJs, rpcProxy, READONLY_METHODS, type DappRequest } from '../../lib/dappProvider';
@@ -323,8 +324,23 @@ export default function Browser() {
   const [phishSite, setPhishSite] = useState(false);
   const [rememberSite, setRememberSite] = useState(false);
   const [connectLine, setConnectLine] = useState(0); // 0..1 : trait de lumière logo → glyphe
-  const injected = useMemo(() => buildInjectedProvider(chainIdHex), [chainIdHex]);
+  // Fournisseur EVM + pont TON Connect (le site TON demande la connexion directement au wallet).
+  const injected = useMemo(() => buildInjectedProvider(chainIdHex) + '\n' + buildTonJsBridge(tcDeviceInfo()), [chainIdHex]);
   const inject = useCallback((js: string) => webref.current?.injectJavaScript(js), []);
+  /*
+   * Réponses TON Connect vers la page : exécutées seulement si la page ouverte
+   * est TOUJOURS celle qui a demandé — une réponse ne doit jamais atterrir sur
+   * le site suivant.
+   */
+  useEffect(() => {
+    tcJsHost.deliver = (host, js) => {
+      const tab = tabsRef.current.find((x) => x.id === activeRef.current);
+      if (tab?.url && originOf(tab.url) === host) inject(js);
+    };
+    return () => {
+      tcJsHost.deliver = null;
+    };
+  }, [inject]);
   const respond = useCallback((id: number, result: unknown, err?: { code: number; message: string }) => inject(respondJs(id, result, err)), [inject]);
   const reject = useCallback((id: number, code = 4001, message = t('refuse')) => {
     technicalLogger.logDapp('request_rejected_by_user', undefined, { code, message }, true);
@@ -601,6 +617,12 @@ export default function Browser() {
             onScroll={onWebScroll}
             injectedJavaScriptBeforeContentLoaded={injected}
             onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
+              const tc = parseTcJsMessage(e.nativeEvent.data);
+              if (tc) {
+                const host = originOf(e.nativeEvent.url ?? activeTab.url ?? '');
+                if (host) void useTonConnect.getState().jsCall(host, tc);
+                return;
+              }
               const req = parseDappMessage(e.nativeEvent.data);
               if (req) onDappRequest(req, originOf(e.nativeEvent.url ?? activeTab.url ?? ''), activeTab.id);
             }}
