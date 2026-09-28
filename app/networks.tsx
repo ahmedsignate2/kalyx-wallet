@@ -1,4 +1,5 @@
 import { ScreenHeader, IconButton, Pressable as KPressable, Button, Checkbox, SegmentedControl, Text as KText } from '../ui/kit';
+import { SafeModal } from '../ui/kit/SafeModal';
 import { ExplainSheet } from '../components/ai/ExplainSheet';
 import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
@@ -241,7 +242,7 @@ export default function Networks() {
         </View>
       </ScrollView>
       <ExplainSheet visible={!!explain} onClose={() => setExplain(null)} subject={explain ? { kind: 'network', name: explain.name, logo: chainIconUrl(explain.id), seed: explain.id } : null} />
-      <Modal visible={addOpen} transparent animationType="slide" onRequestClose={() => setAddOpen(false)}>
+      <SafeModal visible={addOpen} transparent animationType="slide" onRequestClose={() => setAddOpen(false)}>
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
           <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing(2.5), gap: spacing(1.25) }}>
             <Text style={typography.section}>{t("addNetwork")}</Text>
@@ -316,7 +317,7 @@ export default function Networks() {
             </View>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
+      </SafeModal>
     </Screen>
   );
 }

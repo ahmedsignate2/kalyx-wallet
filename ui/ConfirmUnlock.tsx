@@ -16,6 +16,7 @@ import { Pressable as KPressable } from './kit';
  * gated (= double prompt). Le prompt unique EST la lecture gated déclenchée par
  * `perform({biometric:true})`.
  */
+import { SafeModal } from './kit/SafeModal';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -240,7 +241,7 @@ Action: ${aiContext.method || 'Transfer'}`;
   const canValidateManually = !pinLength && pin.length >= 6;
 
   return (
-    <Modal transparent animationType="slide" onRequestClose={cancel}>
+    <SafeModal transparent animationType="slide" onRequestClose={cancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <KPressable noScale haptic="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={cancel} />
         {/* Feuille : padding bas = inset système (barre de navigation Android /
@@ -341,6 +342,6 @@ Action: ${aiContext.method || 'Transfer'}`;
           ) : null}
         </ScrollView>
       </View>
-    </Modal>
+    </SafeModal>
   );
 }

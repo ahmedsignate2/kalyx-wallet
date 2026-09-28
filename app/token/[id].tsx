@@ -1,4 +1,5 @@
 import { LogoImage, ScreenHeader, Pressable as KPressable, Button } from '../../ui/kit';
+import { SafeModal } from '../../ui/kit/SafeModal';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -408,7 +409,7 @@ export default function TokenDetail() {
       )}
 
       {/* Modale : créer une alerte de prix */}
-      <Modal visible={alertOpen} transparent animationType="slide" onRequestClose={() => setAlertOpen(false)}>
+      <SafeModal visible={alertOpen} transparent animationType="slide" onRequestClose={() => setAlertOpen(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         {/* Fond : cible de fermeture. Ni rebond ni vibration — ce n'est pas un
             bouton, et une feuille qui tremble quand on la ferme fait cheap. */}
@@ -452,7 +453,7 @@ export default function TokenDetail() {
           </KPressable>
         </KPressable>
         </KeyboardAvoidingView>
-      </Modal>
+      </SafeModal>
     </PremiumScreen>
     </>
   );

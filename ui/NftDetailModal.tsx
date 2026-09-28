@@ -4,6 +4,7 @@ import { Pressable as KPressable } from './kit';
  * contrat / tokenId copiables, lien vers l'explorateur. Remplace l'Alert
  * de la galerie — c'est la fiche que Phantom montre au tap.
  */
+import { SafeModal } from './kit/SafeModal';
 import React from 'react';
 import { Image, Linking, Modal, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,7 +40,7 @@ export function NftDetailModal({
   const tokenIdShort = nft.tokenId.length > 12 ? `${nft.tokenId.slice(0, 10)}…` : nft.tokenId;
 
   return (
-    <Modal transparent animationType="slide" onRequestClose={onClose}>
+    <SafeModal transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <View
           style={{
@@ -81,7 +82,7 @@ export function NftDetailModal({
           </ScrollView>
         </View>
       </View>
-    </Modal>
+    </SafeModal>
   );
 }
 

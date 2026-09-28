@@ -1,4 +1,5 @@
 import { Pressable as KPressable } from './kit';
+import { SafeModal } from './kit/SafeModal';
 import { useT } from "../lib/settingsStore";
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, TextInput, Image, Modal, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet } from 'react-native';
@@ -165,7 +166,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <SafeModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <KPressable noScale haptic="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onClose} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ height: '85%', backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' }}>
@@ -263,6 +264,6 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
         )}
       </KeyboardAvoidingView>
       </View>
-    </Modal>
+    </SafeModal>
   );
 }

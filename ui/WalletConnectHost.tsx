@@ -10,6 +10,7 @@ import { Pressable as KPressable } from './kit';
  * - eth_sendTransaction → destinataire, montant natif, réseau.
  * Les données brutes restent accessibles via « Détails techniques ».
  */
+import { SafeModal } from './kit/SafeModal';
 import { signMessageParam } from '../lib/dappProvider';
 import { utf8Decode } from '../src/domain/tonconnect/sessionCrypto';
 import { base58 } from '@scure/base';
@@ -22,6 +23,7 @@ import { Icon, type IconName } from './icon';
 import { fonts, radii, spacing, useTheme } from './theme';
 import { useTokenStore } from '../lib/tokenStore';
 import { useWalletConnect } from '../lib/walletconnect';
+import { useLocked } from '../lib/lockState';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { accountDisplayName } from '../lib/walletNames';
 import { useT, useSettings, useExplainT } from '../lib/settingsStore';
@@ -54,14 +56,14 @@ function hostOf(url: string) {
 function Overlay({ children, onCancel }: { children: React.ReactNode, onCancel?: () => void }) {
   const { colors } = useTheme();
   return (
-    <Modal transparent animationType="fade" onRequestClose={onCancel}>
+    <SafeModal transparent animationType="fade" onRequestClose={onCancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <KPressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onCancel} />
         <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
           {children}
         </View>
       </View>
-    </Modal>
+    </SafeModal>
   );
 }
 
@@ -155,6 +157,7 @@ export function WalletConnectHost() {
   const { colors, typography } = useTheme();
   const t = useT();
   const exT = useExplainT();
+  const locked = useLocked();
   const proposal = useWalletConnect((s) => s.proposal);
   const request = useWalletConnect((s) => s.request);
   const sessions = useWalletConnect((s) => s.sessions);
@@ -327,6 +330,9 @@ export function WalletConnectHost() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, proposal]);
+
+  // App verrouillée : aucune fenêtre par-dessus l'écran de code. La demande reste en attente et s'affiche au déverrouillage.
+  if (locked) return null;
 
   if (proposal) {
     const meta = proposal.params?.proposer?.metadata ?? {};

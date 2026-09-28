@@ -286,6 +286,16 @@ export default function RootLayout() {
         ) : opening === 'splash' ? (
           <Splash onFinish={() => setOpening('done')} />
         ) : null}
+        {/*
+          RIDEAU DE VERROUILLAGE, dans le MÊME rendu que l'écran visé. La
+          redirection vers l'écran de code (effet plus haut) n'arrive qu'après
+          un premier affichage : sans ce rideau, un écran protégé ouvert par un
+          lien ou par le bouton retour se dessinait une fraction de seconde, avec
+          les données restées en mémoire. Il bloque aussi les appuis.
+        */}
+        {storeReady && hasWallet && !isUnlocked && !LOCKED_ALLOWED.has(pathname) ? (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, zIndex: 1000 }]} pointerEvents="auto" />
+        ) : null}
         </View>
       </SafeAreaProvider>
     </RootErrorBoundary>

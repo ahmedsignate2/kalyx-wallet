@@ -4,6 +4,7 @@
  * et fiche token. Posée au-dessus de la barre d'onglets, à droite. Style
  * tokens (Nuit + Trait + étoiles), pas de dégradé doré.
  */
+import { useLocked } from '../../lib/lockState';
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { usePathname } from 'expo-router';
@@ -33,6 +34,7 @@ export function FloatingAiAssistant() {
   const { totalUsd, tokensSummary, pnl24h, pnl24hPct, topGainer, topLoser } = usePortfolio();
   const { currentUrl, currentTitle } = useBrowserStore();
   const [collapsed, setCollapsed] = useState(false);
+  const locked = useLocked();
 
   useEffect(() => {
     setCollapsed(false);
@@ -43,7 +45,8 @@ export function FloatingAiAssistant() {
     return undefined;
   }, [pathname]);
 
-  if (!isEnabled) return null;
+  // Verrouillée : ni bulle ni conversation (elle montre soldes et activité).
+  if (!isEnabled || locked) return null;
   const onTabs = TAB_PATHS.includes(pathname);
   const onBrowser = pathname === BROWSER;
   const onToken = pathname.startsWith('/token/');
