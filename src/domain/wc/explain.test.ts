@@ -1,3 +1,8 @@
+// `lib/i18n` tire React Native : mêmes simulations que `legal.test.ts`.
+jest.mock('expo-localization', () => ({ getLocales: jest.fn(() => [{ languageCode: 'fr', languageTag: 'fr-FR', textDirection: 'ltr' }]) }));
+jest.mock('react-native', () => ({ I18nManager: { isRTL: false, allowRTL: jest.fn(), forceRTL: jest.fn() }, Platform: { OS: 'ios' }, NativeModules: {} }));
+jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(), setItem: jest.fn() }));
+
 import { explainRequest, type ExplainInput, type ExplainT } from './explain';
 import { decodeTx } from '../tx/decodeTx';
 import { translate, type Key } from '../../../lib/i18n';
