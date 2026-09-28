@@ -8,7 +8,7 @@
  * dit, et on montre les montants bruts.
  */
 import React, { useEffect, useState } from 'react';
-import { Image, View } from 'react-native';
+import { Image, ScrollView, View } from 'react-native';
 import { Sheet, Text, Button, Surface } from './kit';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon } from './icon';
@@ -25,6 +25,8 @@ import { haptic } from '../lib/haptics';
 import { formatTokenAmount, shortAddress, isWalletError } from '../src';
 import { totalOut } from '../src/domain/tonconnect/requests';
 import { blindSafe, describeTonPayload } from '../src/domain/tonconnect/payload';
+import { tonNetworkId } from '../src/domain/tonconnect/signData';
+import { Address } from '@ton/core';
 
 /**
  * Erreur lisible pour l'écran de code. Un code « tc… » est traduit ; un PIN
@@ -220,6 +222,70 @@ function TxSheet({ p }: { p: Extract<TcPending, { kind: 'tx' }> }) {
   );
 }
 
+/**
+ * Signature de DONNÉES (TON Connect `signData`). Règles d'affichage de la
+ * spécification : le texte est montré TEL QUEL (police à chasse fixe, défilable) ;
+ * des octets ou une cellule qu'on ne sait pas lire le sont avec un avertissement.
+ * Réseau ou adresse différents de ceux connectés : refus, sans possibilité de signer.
+ */
+function SignDataSheet({ p }: { p: Extract<TcPending, { kind: 'signData' }> }) {
+  const t = useT();
+  const { colors } = useTheme();
+  const { approveSignData, rejectSignData } = useTonConnect.getState();
+  const activeWalletId = useWallet((s) => s.activeWalletId);
+  const [confirming, setConfirming] = useState(false);
+  const wrongWallet = activeWalletId !== p.session.walletId;
+  const testnet = p.session.chainId !== 'ton';
+  const wrongNetwork = p.payload.network !== undefined && p.payload.network !== tonNetworkId(testnet);
+  let wrongFrom = false;
+  if (p.payload.from !== undefined) {
+    try {
+      wrongFrom = !Address.parse(p.payload.from).equals(Address.parse(p.session.address));
+    } catch {
+      wrongFrom = true;
+    }
+  }
+  const blocked = wrongWallet || wrongNetwork || wrongFrom;
+  return (
+    <Sheet visible onClose={() => void rejectSignData()}>
+      <DappHeader name={p.session.manifest.name} domain={new URL(p.session.manifest.url).host} icon={p.session.manifest.iconUrl} />
+      <Text variant="title2" style={{ textAlign: 'center' }}>{t('tcSignDataTitle').replace('{name}', p.session.manifest.name)}</Text>
+      {p.payload.type === 'text' ? (
+        <Surface style={{ maxHeight: 220 }}>
+          <ScrollView nestedScrollEnabled>
+            <Text variant="body" selectable style={{ fontFamily: 'monospace' }}>{p.payload.text}</Text>
+          </ScrollView>
+        </Surface>
+      ) : (
+        <Surface style={{ borderColor: colors.warning, flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
+          <Icon name="alert" size={18} color={colors.warning} />
+          <Text variant="body" tone="warning" style={{ flex: 1 }}>{t('tcSignDataUnknown')}</Text>
+        </Surface>
+      )}
+      <Text variant="caption" tone="secondary">{t('tcSignDataNote')}</Text>
+      {wrongNetwork ? <Text variant="caption" tone="danger">{t('tcSignDataWrongNetwork')}</Text> : null}
+      {wrongFrom ? <Text variant="caption" tone="danger">{t('tcSignDataWrongAccount')}</Text> : null}
+      {wrongWallet ? <Text variant="caption" tone="danger">{t('tcWrongWallet')}</Text> : null}
+      <Button label={t('sign')} onPress={() => setConfirming(true)} disabled={blocked} />
+      <Button label={t('tcReject')} variant="secondary" onPress={() => void rejectSignData()} />
+      <ConfirmUnlock
+        visible={confirming}
+        title={t('tcSignDataTitle').replace('{name}', p.session.manifest.name)}
+        perform={async (unlock) => {
+          try {
+            await approveSignData(unlock);
+          } catch (err) {
+            throw readable(err, t);
+          }
+          haptic.success();
+        }}
+        onDone={() => setConfirming(false)}
+        onCancel={() => setConfirming(false)}
+      />
+    </Sheet>
+  );
+}
+
 export function TonConnectHost() {
   const head = useTonConnect((s) => s.queue[0]);
   const hydrate = useTonConnect((s) => s.hydrate);
@@ -230,5 +296,7 @@ export function TonConnectHost() {
     if (unlocked) void hydrate();
   }, [unlocked, hydrate]);
   if (!head || !unlocked) return null;
-  return head.kind === 'connect' ? <ConnectSheet key={head.link.clientId} p={head} /> : <TxSheet key={head.requestId} p={head} />;
+  if (head.kind === 'connect') return <ConnectSheet key={head.link.clientId} p={head} />;
+  if (head.kind === 'signData') return <SignDataSheet key={head.requestId} p={head} />;
+  return <TxSheet key={head.requestId} p={head} />;
 }

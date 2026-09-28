@@ -23,6 +23,14 @@
       "name": "SendTransaction",
       "maxMessages": 4,
       "extraCurrencySupported": false
+    },
+    {
+      "name": "SignData",
+      "types": [
+        "text",
+        "binary",
+        "cell"
+      ]
     }
   ],
   "tondns": "kalyxwallet.ton"

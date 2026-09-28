@@ -139,6 +139,36 @@ describe('TON Connect, du QR à la transaction', () => {
     }
   });
 
+  it('signData : texte signé selon la spécification (vérifiable par la dApp) ; autre réseau ou autre adresse refusés', async () => {
+    const { signDataDigest } = require('../../src/domain/tonconnect/signData');
+    const { Address } = require('@ton/core');
+    const session = useTonConnect.getState().sessions[0];
+    const ask = async (id: string, payload: object) => {
+      onMessage!({ from: dapp.publicKey, message: base64.encode(encryptMessage(JSON.stringify({ method: 'signData', id, params: [JSON.stringify(payload)] }), session.keyPair.publicKey, dapp.secretKey)) });
+      await new Promise((r) => setTimeout(r, 20));
+    };
+    await ask('20', { type: 'text', text: 'Connexion à STON.fi', network: '-239', from: art.v5r1.raw });
+    expect(useTonConnect.getState().queue[0]).toMatchObject({ kind: 'signData', requestId: '20' });
+    await useTonConnect.getState().approveSignData({ pin: '000000' } as never);
+    const reply = read(sent.length - 1);
+    expect(reply.id).toBe('20');
+    expect(reply.result).toMatchObject({ address: art.v5r1.raw, domain: 'app.ston.fi', payload: { type: 'text', text: 'Connexion à STON.fi' } });
+    const digest = signDataDigest(reply.result.payload, Address.parse(reply.result.address), reply.result.domain, reply.result.timestamp);
+    expect(ed25519.verify(base64.decode(reply.result.signature), digest, hex.decode(art.publicKey))).toBe(true);
+
+    await ask('21', { type: 'text', text: 'x', network: '-3' });
+    await expect(useTonConnect.getState().approveSignData({ pin: '000000' } as never)).rejects.toThrow('tcSignDataWrongNetwork');
+    await useTonConnect.getState().rejectSignData();
+    expect(read(sent.length - 1)).toEqual({ error: { code: 300, message: 'User declined the request' }, id: '21' });
+
+    await ask('22', { type: 'text', text: 'x', from: KEYS.keys[4].v4r2.eq });
+    await expect(useTonConnect.getState().approveSignData({ pin: '000000' } as never)).rejects.toThrow('tcSignDataWrongAccount');
+    await useTonConnect.getState().rejectSignData();
+
+    await ask('23', { type: 'image', data: 'x' });
+    expect(read(sent.length - 1)).toEqual({ error: { code: 1, message: 'Bad signData request' }, id: '23' });
+  });
+
   it('refus : code 300 renvoyé à la dApp', async () => {
     const session = useTonConnect.getState().sessions[0];
     const req = { method: 'sendTransaction', id: '8', params: [JSON.stringify({ valid_until: Math.floor(Date.now() / 1000) + 300, messages: [{ address: KEYS.keys[4].v4r2.eq, amount: '1' }] })] };
@@ -167,7 +197,7 @@ describe('TON Connect, du QR à la transaction', () => {
   it('méthode inconnue : 400 sans rien montrer ; déconnexion par la dApp : session retirée', async () => {
     const session = useTonConnect.getState().sessions[0];
     const enc = (o: object) => base64.encode(encryptMessage(JSON.stringify(o), session.keyPair.publicKey, dapp.secretKey));
-    onMessage!({ from: dapp.publicKey, message: enc({ method: 'signData', id: '9', params: ['{}'] }) });
+    onMessage!({ from: dapp.publicKey, message: enc({ method: 'signMessage', id: '9', params: ['{}'] }) });
     await new Promise((r) => setTimeout(r, 20));
     expect(read(sent.length - 1)).toMatchObject({ error: { code: 400 }, id: '9' });
     expect(useTonConnect.getState().queue).toHaveLength(0);
