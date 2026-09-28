@@ -24,7 +24,7 @@ const BUILD_PROFILE = process.env.EAS_BUILD_PROFILE ?? '';
 const APP_VERSION = BUILD_PROFILE.startsWith('production') ? '1.0.0' : '0.1.0';
 
 /** Runtime natif, partagé par le build et les OTA — voir `runtimeVersion` plus bas. */
-export const NATIVE_RUNTIME = 'native-2026.09.28c';
+export const NATIVE_RUNTIME = 'native-2026.09.28b';
 
 const config: ExpoConfig = {
   name: 'Kalyx Wallet',
@@ -54,18 +54,6 @@ const config: ExpoConfig = {
     url: 'https://u.expo.dev/47cb06bd-ee7d-442d-b000-05abb945b599',
     checkAutomatically: 'ON_LOAD',
     fallbackToCacheTimeout: 0,
-    /*
-     * MISES À JOUR SIGNÉES (28/09). Sans signature, quiconque obtenait l'accès
-     * au compte Expo (jeton EAS, session volée) pouvait pousser du JavaScript
-     * sur tous les téléphones — donc lire les phrases au déverrouillage.
-     * L'APK embarque ce certificat PUBLIC et refuse toute mise à jour qui
-     * n'est pas signée par la clé privée correspondante, gardée HORS du dépôt
-     * (/root/Nova-archives/ota-signing/private-key.pem). Publier :
-     *   eas update … --private-key-path /root/Nova-archives/ota-signing/private-key.pem
-     * Clé perdue = plus aucune OTA possible avant un nouvel APK.
-     */
-    codeSigningCertificate: './certs/certificate.pem',
-    codeSigningMetadata: { keyid: 'main', alg: 'rsa-v1_5-sha256' },
   },
   /*
    * RUNTIME EXPLICITE, et non plus l'empreinte calculée (27/09).

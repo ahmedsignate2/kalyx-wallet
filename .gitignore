@@ -35,8 +35,6 @@ web-build/
 !.env.example
 .dev.vars
 *.pem
-# Certificat PUBLIC de signature des mises à jour (la clé privée reste hors du dépôt).
-!certs/certificate.pem
 *.key
 *.keystore
 *.jks
