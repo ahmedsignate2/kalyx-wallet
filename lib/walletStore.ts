@@ -578,19 +578,27 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
   if (lockRemainingMs(st.failedAttempts, st.lastFailedAt, Date.now()) > 0) {
     throw new WalletError('LOCKED_OUT', 'Trop de tentatives. Réessaie plus tard.');
   }
+  /*
+   * La tentative est ÉCRITE comme ratée AVANT la vérification (~1 s de
+   * scrypt), et effacée seulement si le code est bon. Enregistrée après, elle
+   * se perdait si l'app était tuée pendant ce temps, ou avant la fin de
+   * l'écriture : un essai gratuit à chaque relance.
+   */
+  await saveLockState(st.failedAttempts + 1, Date.now());
   try {
     const secret = await decryptSecret(vault, unlock.pin);
-    if (st.failedAttempts > 0) {
-      useWallet.setState({ failedAttempts: 0, lastFailedAt: 0 });
-      void saveLockState(0, 0);
-    }
+    useWallet.setState({ failedAttempts: 0, lastFailedAt: 0 });
+    await saveLockState(0, 0);
     return secret;
   } catch (e) {
     if (isWalletError(e) && e.code === 'WRONG_PIN') {
       const failedAttempts = useWallet.getState().failedAttempts + 1;
       const lastFailedAt = Date.now();
       useWallet.setState({ failedAttempts, lastFailedAt });
-      void saveLockState(failedAttempts, lastFailedAt); // survit au redémarrage
+      await saveLockState(failedAttempts, lastFailedAt); // survit au redémarrage
+    } else {
+      // Pas une erreur de code (coffre illisible…) : la tentative n'en était pas une.
+      await saveLockState(st.failedAttempts, st.lastFailedAt).catch(() => {});
     }
     throw e;
   }
