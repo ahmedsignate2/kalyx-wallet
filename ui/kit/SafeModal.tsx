@@ -13,10 +13,28 @@ import { Modal, type ModalProps } from 'react-native';
 import { useLocked } from '../../lib/lockState';
 import { journal } from '../../lib/debugJournal';
 
+/** `visible` absent = visible (défaut de React Native) ; seul `false` ferme. */
+export function modalWanted(visible: boolean | undefined): boolean {
+  return visible ?? true;
+}
+
+/** Affichée seulement si demandée ET app non verrouillée. */
+export function modalShown(visible: boolean | undefined, locked: boolean): boolean {
+  return modalWanted(visible) && !locked;
+}
+
 export function SafeModal(props: ModalProps & { journalName?: string }) {
   const locked = useLocked();
   const { journalName, ...modal } = props;
-  const wanted = !!modal.visible;
+  /*
+   * `visible` ABSENT = visible, comme la `Modal` de React Native. Plusieurs
+   * fenêtres (confirmation par PIN, demande de PIN, succès, détail NFT…) sont
+   * montées conditionnellement par leur parent et n'ont jamais passé `visible`.
+   * Le lire comme `false` les rendait invisibles à jamais : plus aucune
+   * confirmation par PIN, donc WalletConnect, TON Pay, réinitialisation et
+   * activation de la biométrie bloqués (28/09).
+   */
+  const wanted = modalWanted(modal.visible);
   // Journal : ouverture / fermeture, et SURTOUT une fenêtre demandée mais masquée par le verrouillage.
   const was = useRef(false);
   useEffect(() => {
@@ -24,5 +42,5 @@ export function SafeModal(props: ModalProps & { journalName?: string }) {
     was.current = wanted;
     journal('state', `fenêtre${journalName ? ` « ${journalName} »` : ''} : ${wanted ? (locked ? 'MASQUÉE (app verrouillée)' : 'affichée') : 'fermée'}`);
   }, [wanted, locked, journalName]);
-  return <Modal {...modal} visible={wanted && !locked} />;
+  return <Modal {...modal} visible={modalShown(modal.visible, locked)} />;
 }
