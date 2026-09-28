@@ -1,4 +1,5 @@
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { fetchApprovalCandidates } from '../src/domain/security/goplus';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView, RefreshControl } from 'react-native';
 import { Stack } from 'expo-router';
@@ -34,6 +35,8 @@ export default function Approvals() {
   const isEvm = chain.family === 'evm';
 
   const [items, setItems] = useState<ApprovalItem[] | null>(null);
+  /** Vérification incomplète : on ne dit JAMAIS « aucune approbation » dans ce cas. */
+  const [incomplete, setIncomplete] = useState(false);
   const [loading, setLoading] = useState(false);
   // Approbation en cours de révocation (attente de confirmation biométrie/PIN).
   const [target, setTarget] = useState<ApprovalItem | null>(null);
@@ -50,11 +53,16 @@ export default function Approvals() {
         setItems([]);
         return;
       }
-      const tokens = await getErc20Tokens(chain, account.address);
-      const approvals = await adapter.getApprovals(account.address, tokens);
-      setItems(approvals);
+      const [tokens, candidates] = await Promise.all([
+        getErc20Tokens(chain, account.address).catch(() => []),
+        chain.evmChainId ? fetchApprovalCandidates(chain.evmChainId, account.address) : Promise.resolve(null),
+      ]);
+      const report = await adapter.getApprovalsReport(account.address, tokens, candidates);
+      setItems(report.items);
+      setIncomplete(report.incomplete);
     } catch {
       setItems([]);
+      setIncomplete(true);
       toast.error(t('errorTitle'), t('cannotLoadApprovals'));
     } finally {
       setLoading(false);
@@ -106,6 +114,14 @@ export default function Approvals() {
         >
           {items == null ? (
             <GlassCard>{[0, 1, 2].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>
+          ) : items.length === 0 && incomplete ? (
+            <GlassCard>
+              <View style={{ alignItems: 'center', paddingVertical: spacing(3), gap: spacing(1) }}>
+                <Icon name="warning" size={30} color={colors.warning} />
+                <Text style={typography.bodyStrong}>{t('approvalsNotChecked')}</Text>
+                <Text style={[typography.muted, { textAlign: 'center' }]}>{t('approvalsIncomplete')}</Text>
+              </View>
+            </GlassCard>
           ) : items.length === 0 ? (
             <GlassCard>
               <View style={{ alignItems: 'center', paddingVertical: spacing(3), gap: spacing(1) }}>
@@ -129,7 +145,7 @@ export default function Approvals() {
                     )}
                     <View style={{ flex: 1 }}>
                       <Text style={typography.bodyStrong}>{it.symbol}</Text>
-                      <Text style={typography.muted}>{t('approvedTo')} {shorten(it.spender)}</Text>
+                      <Text style={typography.muted}>{t('approvedTo')} {it.spenderName ? `${it.spenderName} · ${shorten(it.spender)}` : shorten(it.spender)}</Text>
                     </View>
                     <View
                       style={{
@@ -154,6 +170,7 @@ export default function Approvals() {
                     l'app PEUT FAIRE, en français courant, et ce qui reste
                     possible plus tard.
                   */}
+                  {it.risky ? <Text style={{ color: colors.danger, fontFamily: fonts.semibold, marginTop: spacing(1) }}>{t('approvalRisky')}</Text> : null}
                   <Text style={[typography.muted, { marginTop: spacing(1) }]}>
                     {unlimited
                       ? t('approvalIntentUnlimited').replace('{symbol}', it.symbol)
@@ -172,6 +189,9 @@ export default function Approvals() {
             })
           )}
 
+          {items && items.length > 0 && incomplete ? (
+            <Text style={[typography.muted, { textAlign: 'center' }]}>{t('approvalsIncomplete')}</Text>
+          ) : null}
           {items && items.length > 0 && chain.explorerUrl ? (
             <KPressable onPress={() => Linking.openURL(chain.explorerUrl!)} style={{ alignSelf: 'center', paddingVertical: spacing(1) }}>
               <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{t('revokeIsTx')}</Text>

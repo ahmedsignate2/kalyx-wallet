@@ -32,6 +32,55 @@ export interface ApprovalItem {
   spender: string;
   /** Allowance actuelle (0 = déjà révoquée, exclue de la liste). */
   allowance: bigint;
+  /** Nom du contrat autorisé, quand il est connu (« LiFiDiamond »). */
+  spenderName?: string;
+  /** Contrat autorisé signalé comme malveillant ou douteux (GoPlus). */
+  risky?: boolean;
+}
+
+/** Autorisation annoncée par GoPlus, à VÉRIFIER sur la chaîne avant affichage. */
+export interface ApprovalCandidate {
+  token: string;
+  symbol: string;
+  decimals: number;
+  spender: string;
+  spenderName?: string;
+  risky: boolean;
+}
+
+/**
+ * Réponse GoPlus `token_approval_security` → paires (token, contrat autorisé).
+ *
+ * Pourquoi GoPlus : la liste passait par `getLogs` depuis le bloc 0, une plage
+ * que la plupart des RPC refusent. L'échec était avalé token par token, et
+ * l'écran affirmait « aucune approbation active » sans avoir rien pu lire.
+ * GoPlus indexe ces autorisations ; on ne lui fait confiance que pour les
+ * TROUVER — le montant est relu sur la chaîne (`allowance`).
+ */
+export function parseGoPlusApprovals(json: unknown): ApprovalCandidate[] {
+  const list = (json as { result?: unknown } | null)?.result;
+  if (!Array.isArray(list)) return [];
+  const out: ApprovalCandidate[] = [];
+  for (const t of list as Record<string, unknown>[]) {
+    const token = typeof t?.token_address === 'string' ? t.token_address : '';
+    if (!/^0x[0-9a-fA-F]{40}$/.test(token)) continue;
+    const decimals = Number(t.decimals);
+    for (const a of (Array.isArray(t.approved_list) ? t.approved_list : []) as Record<string, unknown>[]) {
+      const spender = typeof a?.approved_contract === 'string' ? a.approved_contract : '';
+      if (!/^0x[0-9a-fA-F]{40}$/.test(spender)) continue;
+      const info = (a.address_info ?? {}) as { contract_name?: unknown; malicious_behavior?: unknown; doubt_list?: unknown };
+      const bad = (Array.isArray(info.malicious_behavior) && info.malicious_behavior.length > 0) || info.doubt_list === 1 || t.malicious_address === 1;
+      out.push({
+        token: getAddress(token),
+        symbol: typeof t.token_symbol === 'string' && t.token_symbol ? t.token_symbol.slice(0, 20) : '?',
+        decimals: Number.isInteger(decimals) && decimals >= 0 && decimals <= 36 ? decimals : 18,
+        spender: getAddress(spender),
+        ...(typeof info.contract_name === 'string' && info.contract_name ? { spenderName: info.contract_name.slice(0, 40) } : {}),
+        risky: bad,
+      });
+    }
+  }
+  return out;
 }
 
 /** Topic (32 octets) d'une adresse, pour filtrer les logs par propriétaire. */
