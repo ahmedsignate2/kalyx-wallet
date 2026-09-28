@@ -11,6 +11,7 @@ import {
   CircleAction,
 } from '../../ui/premium';
 import { Halo } from '../../ui/kit/Halo';
+import { ActionDisc, Orbit, Pills } from '../../ui/nova';
 import { TxRow } from '../../ui/TxRow';
 import { InteractiveChart } from '../../ui/InteractiveChart';
 import { Icon } from '../../ui/icon';
@@ -245,11 +246,14 @@ export default function TokenDetail() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-      <Halo
-        size={280}
-        mood={detail ? (up ? 'up' : 'down') : 'flat'}
-        style={{ position: 'absolute', top: -70, right: -90, opacity: 0.7 }}
-      />
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, width: 300, height: 300 }}>
+        <Orbit cx={210} cy={60} r={120} />
+        <Halo
+          size={260}
+          mood={detail ? (up ? 'up' : 'down') : 'flat'}
+          style={{ position: 'absolute', top: -70, left: 80, opacity: 0.75 }}
+        />
+      </View>
       <ScreenHeader title={displayTitle} />
 
       {failed ? (
@@ -309,7 +313,7 @@ export default function TokenDetail() {
                     </Text>
                   ) : null}
                   {detail && detail.marketCap > 0 ? (
-                    <Text style={typography.muted}>Cap. {compact(detail.marketCap)} {fiatSymbol(fiat)}</Text>
+                    <Text style={typography.muted}>{t('marketCapShort')} {compact(detail.marketCap)} {fiatSymbol(fiat)}</Text>
                   ) : null}
                 </>
               )}
@@ -317,7 +321,7 @@ export default function TokenDetail() {
           </View>
 
           {/* Graphique */}
-          <GlassCard>
+          <View style={{ gap: spacing(1.5) }}>
             <View style={{ height: 190, justifyContent: 'center' }}>
               {loadingChart && chart.length === 0 ? (
                 <Text style={[typography.muted, { textAlign: 'center' }]}>{t("loadingChart")}</Text>
@@ -327,8 +331,8 @@ export default function TokenDetail() {
                 <InteractiveChart points={chart} color={chartColor} width={chartWidth} onScrub={setScrub} />
               )}
             </View>
-            <View style={{ marginTop: spacing(1) }}>
-              <SegmentedTabs
+            <View>
+              <Pills
                 items={CHART_PERIODS.map((p) => {
                   const chartPeriodLabels: Record<string, string> = {
                     '24h': t('chartPeriod24h'),
@@ -339,11 +343,19 @@ export default function TokenDetail() {
                   };
                   return { key: p.key, label: chartPeriodLabels[p.key] || p.label };
                 })}
-                active={period}
+                value={period}
                 onChange={(k) => setPeriod(k as ChartPeriod)}
               />
             </View>
-          </GlassCard>
+          </View>
+
+          {/* Actions : les mêmes disques que l'accueil. */}
+          <View style={{ flexDirection: 'row', gap: spacing(1) }}>
+            <ActionDisc index={0} tone="primary" icon="send" label={t('send')} disabled={chain?.family === 'bitcoin'} onPress={() => goSendReceive('/send')} />
+            <ActionDisc index={1} icon="receive" label={t('receive')} onPress={() => goSendReceive('/receive')} />
+            <ActionDisc index={2} icon="exchange" label={t('actionSwap')} onPress={() => router.push({ pathname: '/swap', params: { to: detail?.symbol ?? '' } })} />
+            <ActionDisc index={3} tone="gold" icon="bell" label={t('priceAlerts')} onPress={openAlert} />
+          </View>
 
           {/* Solde personnel, regroupé par réseau. */}
           {owned.length > 0 ? (
@@ -359,12 +371,6 @@ export default function TokenDetail() {
             </GlassCard>
           ) : null}
 
-          {/* Actions principales : envoyer, recevoir, swap. */}
-          <View style={{ flexDirection: 'row', gap: spacing(2), paddingHorizontal: spacing(1) }}>
-            <CircleAction icon="send" label={t('send')} disabled={chain?.family === 'bitcoin'} onPress={() => goSendReceive('/send')} />
-            <CircleAction icon="receive" label={t('receive')} onPress={() => goSendReceive('/receive')} />
-            <CircleAction icon="convert" label="Swap" onPress={() => router.push({ pathname: '/swap', params: { to: detail?.symbol ?? '' } })} />
-          </View>
           {/* Description */}
           {activity !== null ? (
             <View>
@@ -396,12 +402,12 @@ export default function TokenDetail() {
 
           <View>
             <Text style={typography.section}>{t("securityTitle")}</Text>
-            <Text style={typography.muted}>{risk ? `${risk.level === 'danger' ? t("securityRisk") : t("securitySafe")} · analyse GoPlus` : t("securityUnavailable")}</Text>
+            <Text style={typography.muted}>{risk ? `${risk.level === 'danger' ? t("securityRisk") : t("securitySafe")} · ${t('goplusAnalysis')}` : t("securityUnavailable")}</Text>
           </View>
 
           {detail?.description ? (
             <GlassCard>
-              <Text style={typography.bodyStrong}>À propos de {detail.name}</Text>
+              <Text style={typography.bodyStrong}>{fill(t('aboutTokenTitle'), { name: detail.name })}</Text>
               <Text numberOfLines={aboutExpanded ? undefined : 5} style={[typography.muted, { marginTop: spacing(1), lineHeight: 20 }]}>{detail.description}</Text>
               {detail.description.length > 320 ? <KPressable onPress={() => setAboutExpanded((v) => !v)} hitSlop={8} accessibilityLabel={aboutExpanded ? t('readLess') : t('readMore')}><Text style={{ color: colors.primary, marginTop: spacing(1), fontFamily: fonts.semibold }}>{aboutExpanded ? t("readLess") : t("readMore")}</Text></KPressable> : null}
             </GlassCard>

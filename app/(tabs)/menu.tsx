@@ -11,14 +11,10 @@ import { useAiStore } from '../../lib/aiStore';
 import { spacing, useTheme } from '../../ui/theme';
 import { useSettings, useT } from '../../lib/settingsStore';
 import { useWallet } from '../../lib/walletStore';
+import { ActionDisc, IconDisc, Orbit, Rise, SectionLabel } from '../../ui/nova';
 
-function Ico({ n }: { n: IconName }) {
-  const { colors } = useTheme();
-  return (
-    <View style={{ width: 30, alignItems: 'center' }}>
-      <Icon name={n} size={20} tone="muted" />
-    </View>
-  );
+function Ico({ n, tone }: { n: IconName; tone?: 'gold' | 'danger' }) {
+  return <IconDisc name={n} tone={tone} />;
 }
 const chev = <Icon name="chevron" size={18} tone="faint" />;
 
@@ -45,13 +41,15 @@ export default function Menu() {
       <Stack.Screen options={{ headerShown: false }} />
       <Text style={typography.title}>{t('menu')}</Text>
 
-      {/* Profil */}
+      {/* Profil : l'avatar dans son orbite, comme le halo de l'accueil. */}
+      <Rise>
       <KPressable onPress={() => router.push('/settings')}>
         <GlassCard>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
             {/* L'avatar a son propre geste : le reste de la carte mène aux réglages. */}
-            <KPressable onPress={() => setPickAvatar(true)} hitSlop={6} accessibilityLabel={t('a11yChangeAvatar')}>
-              <WalletAvatar size={48} />
+            <KPressable onPress={() => setPickAvatar(true)} hitSlop={6} accessibilityLabel={t('a11yChangeAvatar')} style={{ width: 60, height: 60, alignItems: 'center', justifyContent: 'center' }}>
+              <View pointerEvents="none" style={{ position: 'absolute', left: 30, top: 30 }}><Orbit cx={0} cy={0} r={38} /></View>
+              <WalletAvatar size={56} />
             </KPressable>
             <View style={{ flex: 1 }}>
               <Text style={typography.bodyStrong}>{profileName || t('yourProfile')}</Text>
@@ -61,8 +59,18 @@ export default function Menu() {
           </View>
         </GlassCard>
       </KPressable>
+      </Rise>
+
+      {/* Raccourcis : les quatre destinations les plus fréquentes, en disques. */}
+      <View style={{ flexDirection: 'row', gap: spacing(1) }}>
+        <ActionDisc index={0} icon="wallets" label={t('menuSecWallets')} onPress={() => router.push('/wallets')} />
+        <ActionDisc index={1} icon="accounts" label={t('accounts')} onPress={() => router.push('/accounts')} />
+        <ActionDisc index={2} icon="networks" label={t('networks')} onPress={() => router.push('/networks')} />
+        <ActionDisc index={3} icon="walletconnect" label="WalletConnect" onPress={() => router.push('/walletconnect')} />
+      </View>
 
       {/* Wallets */}
+      <SectionLabel>{t('menuSecWallets')}</SectionLabel>
       <GlassCard>
         <ListRow left={<Ico n="wallets" />} title={t('myWallets')} subtitle={t('myWalletsSub')} right={chev} onPress={() => router.push('/wallets')} />
         <ListRow divider left={<Ico n="import" />} title={t('importWalletT')} right={chev} onPress={() => router.push('/import-wallet')} />
@@ -88,6 +96,7 @@ export default function Menu() {
       </GlassCard>
 
       {/* Compte & réseaux */}
+      <SectionLabel>{t('menuSecConnections')}</SectionLabel>
       <GlassCard>
         <ListRow left={<Ico n="accounts" />} title={t('accounts')} right={chev} onPress={() => router.push('/accounts')} />
         <ListRow divider left={<Ico n="networks" />} title={t('networks')} right={chev} onPress={() => router.push('/networks')} />
@@ -100,6 +109,7 @@ export default function Menu() {
       </GlassCard>
 
       {/* Préférences */}
+      <SectionLabel>{t('menuSecPreferences')}</SectionLabel>
       <GlassCard>
         <ListRow left={<Ico n="language" />} title={t('language')} right={chev} onPress={() => router.push('/language')} />
         <ListRow divider left={<Ico n="currency" />} title={t('currency')} right={chev} onPress={() => router.push('/settings')} />
@@ -108,6 +118,7 @@ export default function Menu() {
       </GlassCard>
 
       {/* Sécurité */}
+      <SectionLabel>{t('security')}</SectionLabel>
       <GlassCard>
         <ListRow left={<Ico n="security" />} title={t('security')} subtitle={t("securityCenter")} right={chev} onPress={() => router.push('/security')} />
         <ListRow divider left={<Ico n="bell" />} title={t('priceAlerts')} subtitle={t('priceAlertsSub')} right={chev} onPress={() => router.push('/price-alerts')} />
@@ -126,20 +137,22 @@ export default function Menu() {
       ) : null}
 
       {/* Inviter des amis + soutenir + suggestions */}
+      <SectionLabel>{t('menuSecCommunity')}</SectionLabel>
       <GlassCard>
-        <ListRow left={<Ico n="gift" />} title={t('inviteFriends')} subtitle={t('inviteFriendsSub')} right={chev} onPress={() => router.push('/invite')} />
+        <ListRow left={<Ico n="gift" tone="gold" />} title={t('inviteFriends')} subtitle={t('inviteFriendsSub')} right={chev} onPress={() => router.push('/invite')} />
         <ListRow divider left={<Ico n="star" />} title={t('supportUs')} subtitle={t('supportUsSub')} right={chev} onPress={() => router.push('/support')} />
         <ListRow divider left={<Ico n="bulb" />} title={t('suggestFeature')} subtitle={t('suggestFeatureSub')} right={chev} onPress={() => router.push('/feature-request')} />
       </GlassCard>
 
       {/* Aide */}
+      <SectionLabel>{t('menuSecHelp')}</SectionLabel>
       <GlassCard>
         <ListRow left={<Ico n="faq" />} title={t('faq')} right={chev} onPress={() => router.push('/faq')} />
         <ListRow divider left={<Ico n="support" />} title={t('supportHistoryTitle')} subtitle={t('supportDiagnosticSubtitle')} right={chev} onPress={() => router.push('/support-history')} />
         <ListRow divider left={<Ico n="about" />} title={t('legalTitle')} subtitle={`Kalyx · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chev} onPress={() => router.push('/about')} />
       </GlassCard>
 
-      <ListRow left={<Ico n="reset" />} title={t('resetWallet')} right={<Icon name="chevron" size={18} color={colors.danger} />} onPress={onReset} />
+      <ListRow left={<Ico n="reset" tone="danger" />} title={t('resetWallet')} right={<Icon name="chevron" size={18} color={colors.danger} />} onPress={onReset} />
       <AvatarPicker walletId={activeWalletId} visible={pickAvatar} onClose={() => setPickAvatar(false)} />
       <ConfirmUnlock
         visible={confirmReset}

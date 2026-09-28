@@ -17,7 +17,8 @@ import { Icon } from '../../ui/icon';
 import { EarnSheet } from '../../ui/EarnSheet';
 import { TonStakingSheet } from '../../ui/TonStakingSheet';
 import { loadStaking, type StakingInfo } from '../../lib/ton/staking';
-import { SegmentedControl, Pressable as KPressable } from '../../ui/kit';
+import { Pressable as KPressable } from '../../ui/kit';
+import { Orbit, Pills, Rise, GOLD } from '../../ui/nova';
 import { fonts, radii, spacing, useTheme } from '../../ui/theme';
 import { useWallet } from '../../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
@@ -134,21 +135,26 @@ export default function EarnScreen() {
         </View>
         <Text style={[typography.muted, { marginTop: -spacing(1.5) }]}>{t('earnSubtitle')}</Text>
 
-        {/* Hero */}
-        <GlassCard glow>
-          <Text style={typography.muted}>{t('earnTotal')}</Text>
-          {initialLoading ? (
-            <Text style={typography.hero}>…</Text>
-          ) : (
-            <CountUp value={totalFiat} format={(v) => `${money(v)} ${fiatSymbol(fiat)}`} style={typography.hero} />
-          )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing(1) }}>
-            <Text style={typography.muted}>{t('earnYearly')}</Text>
-            <Text style={{ color: colors.up, fontFamily: fonts.bold, fontVariant: ['tabular-nums'] }}>
-              {initialLoading ? '…' : `+${money(yearlyFiat)} ${fiatSymbol(fiat)}`}
-            </Text>
+        {/*
+          Hero Nova : le total à gauche, en grand, et une orbite d'or à droite —
+          la même lumière que l'accueil, mais c'est l'or qui la parcourt ici,
+          puisque cet écran parle de ce que l'argent rapporte.
+        */}
+        <Rise style={{ paddingVertical: spacing(1), gap: 4 }}>
+          <View pointerEvents="none" style={{ position: 'absolute', right: 40, top: 50 }}>
+            <Orbit cx={0} cy={0} r={70} />
+            <View style={{ position: 'absolute', left: -5, top: -5, width: 10, height: 10, borderRadius: 5, backgroundColor: GOLD, opacity: 0.9 }} />
           </View>
-        </GlassCard>
+          <Text style={[typography.muted, { fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' }]}>{t('earnTotal')}</Text>
+          {initialLoading ? (
+            <Text style={[typography.hero, { fontSize: 46, lineHeight: 52 }]}>…</Text>
+          ) : (
+            <CountUp value={totalFiat} format={(v) => `${money(v)} ${fiatSymbol(fiat)}`} style={[typography.hero, { fontSize: 46, lineHeight: 52, letterSpacing: -1.5 }]} />
+          )}
+          <Text style={{ color: colors.up, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'], fontSize: 14 }}>
+            {initialLoading ? '…' : `+${money(yearlyFiat)} ${fiatSymbol(fiat)}`} <Text style={{ color: colors.textTertiary, fontFamily: fonts.regular }}>· {t('earnYearly')}</Text>
+          </Text>
+        </Rise>
 
         {/* Échec de chargement : le DIRE, au lieu de listes vides qui feraient croire à zéro position. */}
         {earn.error && !earn.loading ? (
@@ -182,11 +188,9 @@ export default function EarnScreen() {
         {/* Opportunités */}
         <View style={{ gap: spacing(1.5) }}>
           <Text style={typography.section}>{t('earnOpportunities')}</Text>
-          <SegmentedControl<Filter>
-            items={filters}
-            value={effectiveFilter}
-            onChange={(val) => setFilter(val)}
-          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <Pills<Filter> items={filters} value={effectiveFilter} onChange={(val) => setFilter(val)} />
+          </ScrollView>
 
           {initialLoading ? (
             <GlassCard>{[0, 1, 2].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>

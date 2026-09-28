@@ -1,3 +1,4 @@
+import { IconDisc } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import React, { useEffect, useState } from 'react';
@@ -16,12 +17,7 @@ import { ensureNotifPermission, notificationsAvailable, notify } from '../lib/no
 import { toast } from '../lib/toast';
 
 function Ico({ n }: { n: IconName }) {
-  const { colors } = useTheme();
-  return (
-    <View style={{ width: 28, alignItems: 'center' }}>
-      <Icon name={n} size={20} tone="muted" />
-    </View>
-  );
+  return <IconDisc name={n} />;
 }
 const chevron = <Icon name="chevron" size={18} tone="faint" />;
 
@@ -152,7 +148,7 @@ export default function Settings() {
 
       {/* Préférences */}
       <GlassCard>
-        <ListRow left={<Icon name="language" />} title={t('language')} subtitle={langName} right={chevron} onPress={() => router.push('/language')} />
+        <ListRow left={<IconDisc name="language" />} title={t('language')} subtitle={langName} right={chevron} onPress={() => router.push('/language')} />
         <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(0.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
             <Icon name="currency" />
@@ -229,15 +225,15 @@ export default function Settings() {
           </View>
           <Switch value={privacyGuard} onValueChange={setPrivacyGuard} />
         </View>
-        <ListRow divider left={<Icon name="pin" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
-        <ListRow divider left={<Icon name="phrase" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
-        <ListRow divider left={<Icon name="copy" />} title={t('revealPrivateKey')} right={chevron} onPress={() => router.push('/reveal-private-key')} />
-        <ListRow divider left={<Icon name="market" />} title={t('copilotByok')} subtitle={t('copilotByokSubtitle')} right={chevron} onPress={() => router.push('/ai-settings')} />
+        <ListRow divider left={<IconDisc name="pin" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
+        <ListRow divider left={<IconDisc name="phrase" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
+        <ListRow divider left={<IconDisc name="copy" />} title={t('revealPrivateKey')} right={chevron} onPress={() => router.push('/reveal-private-key')} />
+        <ListRow divider left={<IconDisc name="market" />} title={t('copilotByok')} subtitle={t('copilotByokSubtitle')} right={chevron} onPress={() => router.push('/ai-settings')} />
       </GlassCard>
 
       {/* Réseau & à venir */}
       <GlassCard>
-        <ListRow left={<Icon name="networks" />} title={t('network')} subtitle={t('chooseActiveNetwork')} right={chevron} onPress={() => router.push('/networks')} />
+        <ListRow left={<IconDisc name="networks" />} title={t('network')} subtitle={t('chooseActiveNetwork')} right={chevron} onPress={() => router.push('/networks')} />
         <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
@@ -290,11 +286,11 @@ export default function Settings() {
 
       {/* À propos */}
       <GlassCard>
-        <ListRow left={<Icon name="about" />} title={t('about')} subtitle={`Kalyx Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chevron} onPress={() => router.push('/about')} />
+        <ListRow left={<IconDisc name="about" />} title={t('about')} subtitle={`Kalyx Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chevron} onPress={() => router.push('/about')} />
       </GlassCard>
 
       <SectionHeader title="" />
-      <ListRow left={<Icon name="reset" />} title={t('resetWallet')} onPress={onReset} right={<Text style={{ color: colors.danger }}>›</Text>} />
+      <ListRow left={<IconDisc name="reset" />} title={t('resetWallet')} onPress={onReset} right={<Text style={{ color: colors.danger }}>›</Text>} />
       <View style={{ height: spacing(2) }} />
 
       <PinPromptModal
