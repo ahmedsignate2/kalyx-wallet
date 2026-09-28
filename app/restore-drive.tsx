@@ -8,6 +8,7 @@
  * Google est déjà déconnecté avant la saisie. Un mot de passe faux se retente
  * sans le recontacter. Phrase → même flux de sécurisation que l'import (PIN).
  */
+import { usePendingRestore } from '../lib/pendingRestore';
 import React, { useEffect, useState } from 'react';
 import { View, TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { router, Stack } from 'expo-router';
@@ -124,7 +125,8 @@ export default function RestoreDriveScreen() {
       r.wallets.find((w) => w.type === 'seed' && classifyRecoveryPhrase(w.secret) === 'bip39') ??
       r.wallets.find((w) => w.type === 'seed') ??
       r.wallets[0];
-    setPendingWallets(r.wallets.filter((w) => w !== first));
+    // Hors de cet écran : `set-pin` les ajoute avec le code qu'on va créer (voir lib/pendingRestore).
+    usePendingRestore.getState().set(r.wallets.filter((w) => w !== first));
     setImportedDraft(first.secret);
     router.push('/set-pin');
   }

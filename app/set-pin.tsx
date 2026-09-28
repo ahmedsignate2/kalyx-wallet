@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { usePendingRestore } from '../lib/pendingRestore';
 import { View, Text, Switch, Animated, ActivityIndicator, Platform, StatusBar } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +10,7 @@ import { Pressable as KPressable } from '../ui/kit';
 import { radius, space } from '../ui/tokens';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { toast } from '../lib/toast';
 import { useSettings, useT } from '../lib/settingsStore';
 import { checkPin, PIN_MIN } from '../src';
 import { isBiometricAvailable } from '../lib/biometrics';
@@ -90,6 +92,20 @@ export default function SetPin() {
     try {
       await confirmDraft(firstPin, { enableBiometric: useBio });
       useSettings.getState().setPinLength(firstPin.length); // ronds exacts au déverrouillage
+      /*
+       * Restauration d'une sauvegarde à PLUSIEURS portefeuilles : les autres sont
+       * ajoutés maintenant, avec ce code. Ils étaient perdus en silence.
+       */
+      const extra = usePendingRestore.getState().wallets;
+      if (extra.length) {
+        usePendingRestore.getState().clear();
+        try {
+          const added = await useWallet.getState().importWallets(extra, firstPin);
+          toast.success(t('backupRestoredCount').replace('{count}', String(added + 1)));
+        } catch {
+          toast.error(t('failed'), t('restorePartial'));
+        }
+      }
       // Naissance du wallet (§12.1) avant l'accueil : c'est le moment où
       // l'utilisateur apprend à reconnaître son glyphe.
       router.replace({ pathname: '/wallet-born', params: wasImport ? { mode: 'import' } : {} });

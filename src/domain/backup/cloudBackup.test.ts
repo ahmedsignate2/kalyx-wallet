@@ -143,3 +143,21 @@ describe('cloudBackup — compatibilité v1', () => {
     expect((await restoreBackup(JSON.stringify(v1), 'pw')).error).toBe('CORRUPTED');
   });
 });
+
+describe('Sauvegarde contenant une phrase TON', () => {
+  // Phrase Tonkeeper officielle (vecteur @ton/crypto) : PAS une phrase BIP-39.
+  const TON = require('../chains/ton/tonkeeper-vectors.json').keys[0].phrase as string;
+  const M = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
+  it('se restaure entièrement (elle rendait toute la sauvegarde « corrompue »)', async () => {
+    const list: BackupWallet[] = [
+      { label: 'TON', type: 'seed', secret: TON },
+      { label: 'Principal', type: 'seed', secret: M },
+    ];
+    const r = await restoreBackup(await createWalletsBackup(list, 'pw'), 'pw');
+    expect(r.error).toBeUndefined();
+    expect(r.wallets).toEqual(list);
+    // La phrase « principale » reste la BIP-39, même listée après la phrase TON.
+    expect(r.mnemonic).toBe(M);
+  });
+});

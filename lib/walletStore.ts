@@ -986,7 +986,19 @@ export const useWallet = create<WalletState>((set, get) => ({
     for (const w of wallets) {
       const vault = await loadVault(w.id);
       if (!vault) continue; // coffre absent : on ne fabrique pas un secret vide
-      const secret = await decryptSecret(vault, (unlock as { pin?: string }).pin ?? '');
+      /*
+       * Biométrie : pas de PIN pour déchiffrer — on lisait avec un code VIDE et
+       * l'export échouait à chaque fois. Chaque coffre biométrique est lu à la
+       * place ; un portefeuille qui n'en a pas oblige à passer par le code.
+       */
+      let secret: string;
+      if ('pin' in unlock) {
+        secret = await decryptSecret(vault, unlock.pin);
+      } else {
+        const bio = await readBiometricSeed(w.id);
+        if (!bio) throw new WalletError('BIOMETRIC_NOT_SET', 'Portefeuille sans coffre biométrique : utiliser le code');
+        secret = bio;
+      }
       out.push({
         label: w.label ?? '',
         // Une phrase TON part comme `'seed'` : la restauration la reclasse d'après
