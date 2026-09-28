@@ -375,9 +375,45 @@ export default function Send() {
   const approxVal = feeFiat > 0 ? `${formatFiat(feeFiat)} ${sym}` : `${formatAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`;
   const missingFeeText = t('aboutApprox').replace('{amount}', gasRequired === feeRaw ? approxVal : `${formatAmount(gasRequired, chain.nativeDecimals)} ${chain.nativeSymbol}`);
 
-  const setMax = () => {
+  /*
+   * BITCOIN : les frais dépendent des pièces retenues, donc du MONTANT. Le devis
+   * plus haut part d'un montant fictif (1 sat, une seule entrée) ; sans ce
+   * recalcul, le récapitulatif annonçait moins de frais que l'envoi réel n'en
+   * prélevait dès que le paiement demandait plusieurs pièces.
+   */
+  useEffect(() => {
+    if (family !== 'bitcoin' || !recipientOk || amountRaw <= 0n) return;
+    const v2 = findAdapterV2(targetChainId);
+    if (!v2?.quoteFees) return;
+    let alive = true;
+    const timer = setTimeout(() => {
+      v2.quoteFees!(senderAddress, { to: recipient, amount: amountRaw, token: null })
+        .then((q: FeeQuotes) => {
+          if (!alive) return;
+          const tier = (x: (typeof q)['slow']) => ({ maxFeePerGas: 0n, maxPriorityFeePerGas: 0n, costWei: x.cost });
+          setFeeOptions({ slow: tier(q.slow), normal: tier(q.normal), fast: tier(q.fast) });
+        })
+        .catch(() => {});
+    }, 400);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [family, recipientOk, recipient, amountRaw, targetChainId, senderAddress]);
+
+  const setMax = async () => {
     haptic.light();
     setAmountError(null);
+    // Bitcoin : le vrai maximum paie les frais de TOUTES les pièces dépensées.
+    const btc = family === 'bitcoin' && !token ? (findAdapterV2(targetChainId) as { maxSendable?: (f: string, to: string, sp: FeeSpeed) => Promise<{ amount: bigint }> } | undefined) : undefined;
+    if (btc?.maxSendable) {
+      const m = await btc.maxSendable(senderAddress, recipientOk ? recipient : senderAddress, speed).catch(() => null);
+      if (m) {
+        setInFiat(false);
+        setAmount(m.amount > 0n ? formatInputAmount(m.amount, decimals) : '0');
+        return;
+      }
+    }
     if (balance != null && balance > 0n && available === 0n) {
       setAmount('0');
       // Aucun message rouge affiché si le montant est à 0
