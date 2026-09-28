@@ -47,6 +47,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Aucun fichier interdit suivi (secret, .db, build, brouillon)
         run: node scripts/check-repo-files.mjs
+      - name: Bonne adresse par chaîne (pas de nouvel account.address)
+        run: node scripts/check-address-usage.mjs
       - name: Interdire les logs de seed / clé privée
         run: |
           if grep -rniE "console\.(log|debug|info|warn|error)\s*\(.*(mnemonic|seed|privatekey|private_key|secret)" src; then

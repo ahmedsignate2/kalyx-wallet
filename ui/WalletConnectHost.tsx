@@ -458,6 +458,13 @@ export function WalletConnectHost() {
       rejectRequest().catch(() => {});
     };
 
+    // Adresse qui SIGNE, selon la famille de la demande — pas celle du réseau affiché dans l'app.
+    const signerAcct = accounts.find((a) => a.index === useWallet.getState().activeAccountIndex);
+    const signerAddress =
+      kind === 'solanaTx' || request?.params?.request?.method?.startsWith('solana_') ? signerAcct?.solAddress
+      : kind.startsWith('btc') || request?.params?.request?.method?.startsWith('bitcoin_') ? signerAcct?.btcAddress
+      : signerAcct?.evmAddress;
+
     return (
       <>
         <SignSheet
@@ -467,7 +474,7 @@ export function WalletConnectHost() {
           explanation={explanation}
           simulating={simulating}
           network={chain?.name}
-          address={account?.address}
+          address={signerAddress}
           raw={rawJson}
           onReject={reject}
           onSign={() => setConfirming(true)}
