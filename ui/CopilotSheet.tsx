@@ -10,6 +10,7 @@
  * Le modèle peut proposer d'ouvrir un écran avec le marqueur `[[go:/route]]`
  * (routes de lib/aiAppMap.ts) : rendu sous forme de bouton, jamais exécuté seul.
  */
+import { useLocked } from '../lib/lockState';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
@@ -77,6 +78,7 @@ export function CopilotSheet() {
   const isEnabled = useAiStore((s) => s.isEnabled);
   const initialPrompt = useAiStore((s) => s.initialPrompt);
   const closeChat = useAiStore((s) => s.closeChat);
+  const locked = useLocked();
 
   const sessions = useAiChatHistoryStore((s) => s.sessions);
   const activeSessionId = useAiChatHistoryStore((s) => s.activeSessionId);
@@ -130,7 +132,8 @@ export function CopilotSheet() {
   }
 
   return (
-    <Sheet visible={isOpen} onClose={closeChat}>
+    // Jamais par-dessus l'écran de code : la conversation montre soldes et activité.
+    <Sheet visible={isOpen && !locked} onClose={closeChat}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <Icon name="sparkles" size={20} />

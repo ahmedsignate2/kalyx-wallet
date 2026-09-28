@@ -1,4 +1,5 @@
 import { Pressable as KPressable } from '../../ui/kit';
+import { ConfirmUnlock } from '../../ui/ConfirmUnlock';
 import React, { useState } from 'react';
 import { View, Text, Alert } from 'react-native';
 import { router, Stack } from 'expo-router';
@@ -29,12 +30,14 @@ export default function Menu() {
   const reset = useWallet((s) => s.reset);
   const activeWalletId = useWallet((s) => s.activeWalletId);
   const [pickAvatar, setPickAvatar] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const expert = uiMode === 'expert';
 
   const onReset = () =>
     Alert.alert(t('resetWallet'), t('resetWarning'), [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('resetWallet'), style: 'destructive', onPress: async () => { await reset(); router.replace('/welcome'); } },
+      // Tout effacer exige le code (ou la biométrie), pas seulement cette confirmation.
+      { text: t('resetWallet'), style: 'destructive', onPress: () => setConfirmReset(true) },
     ]);
 
   return (
@@ -138,6 +141,16 @@ export default function Menu() {
 
       <ListRow left={<Ico n="reset" />} title={t('resetWallet')} right={<Icon name="chevron" size={18} color={colors.danger} />} onPress={onReset} />
       <AvatarPicker walletId={activeWalletId} visible={pickAvatar} onClose={() => setPickAvatar(false)} />
+      <ConfirmUnlock
+        visible={confirmReset}
+        title={t('resetWallet')}
+        perform={(unlock) => reset(unlock)}
+        onDone={() => {
+          setConfirmReset(false);
+          router.replace('/welcome');
+        }}
+        onCancel={() => setConfirmReset(false)}
+      />
     </PremiumScreen>
   );
 }

@@ -1,4 +1,5 @@
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Switch, Alert } from 'react-native';
 import { router } from 'expo-router';
@@ -71,6 +72,7 @@ export default function Settings() {
   const [bioAvailable, setBioAvailable] = useState(false);
   // Pop-up de saisie du PIN pour activer la biométrie.
   const [askPin, setAskPin] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [bioBusy, setBioBusy] = useState(false);
   const [bioErr, setBioErr] = useState(0);
 
@@ -118,10 +120,8 @@ export default function Settings() {
       {
         text: t('resetWallet'),
         style: 'destructive',
-        onPress: async () => {
-          await reset();
-          router.replace('/welcome');
-        },
+        // Tout effacer exige le code (ou la biométrie), pas seulement cette confirmation.
+        onPress: () => setConfirmReset(true),
       },
     ]);
   };
@@ -306,6 +306,16 @@ export default function Settings() {
         errorSignal={bioErr}
         onSubmit={confirmEnableBio}
         onCancel={() => setAskPin(false)}
+      />
+      <ConfirmUnlock
+        visible={confirmReset}
+        title={t('resetWallet')}
+        perform={(unlock) => reset(unlock)}
+        onDone={() => {
+          setConfirmReset(false);
+          router.replace('/welcome');
+        }}
+        onCancel={() => setConfirmReset(false)}
       />
     </PremiumScreen>
   );

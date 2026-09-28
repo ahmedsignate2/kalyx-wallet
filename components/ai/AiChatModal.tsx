@@ -1,4 +1,5 @@
 import { APP_ROUTES_MAP } from '../../lib/aiAppMap';
+import { SafeModal } from '../../ui/kit/SafeModal';
 import { parseProposedActions } from '../../lib/aiActions';
 import { formatDiagnosticContext } from '../../lib/diagnosticContext';
 import React, { useState, useEffect, useRef } from 'react';
@@ -568,7 +569,7 @@ une source externe.`}`;
   ];
 
   return (
-    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+    <SafeModal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <KPressable noScale haptic="none" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={onClose} accessibilityLabel={t('aiClose')} />
         <View style={{ height: '88%', backgroundColor: colors.surface2, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, overflow: 'hidden' }}>
@@ -742,6 +743,6 @@ une source externe.`}`;
           )}
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </SafeModal>
   );
 }

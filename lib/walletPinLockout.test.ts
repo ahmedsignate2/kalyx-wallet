@@ -107,3 +107,19 @@ describe('Code PIN : le compteur protège AUSSI les confirmations (phrase, clé,
     expect(W().failedAttempts).toBe(2);
   });
 });
+
+describe('Actions irréversibles : jamais sans le code', () => {
+  it('supprimer un portefeuille ou tout réinitialiser exige le bon code, et jamais app verrouillée', async () => {
+    useWallet.setState({ failedAttempts: 0, lastFailedAt: 0 });
+    await W().unlockWithPin(PIN);
+    const before = W().wallets.length;
+    expect(await codeOf(W().removeWallet(W().activeWalletId, { pin: '000111' }))).toMatch(/^WRONG_PIN\|/);
+    expect(await codeOf(W().reset({ pin: '000111' }))).toMatch(/^WRONG_PIN\|/);
+    expect(W().wallets.length).toBe(before);
+    expect(W().hasWallet).toBe(true);
+    // Une boîte « Supprimer ? » restée ouverte au verrouillage ne suffit plus.
+    W().lock();
+    expect(await codeOf(W().reset({ pin: PIN }))).toMatch(/^LOCKED_OUT\|/);
+    expect(W().hasWallet).toBe(true);
+  });
+});

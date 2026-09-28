@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { SafeModal } from './kit/SafeModal';
 import { Animated, Linking, Modal, Text, View } from 'react-native';
 import Svg, { Circle, Path, G } from 'react-native-svg';
 
@@ -63,7 +64,7 @@ export function SuccessModal({
   const short = hash && hash.length > 18 ? `${hash.slice(0, 10)}…${hash.slice(-8)}` : hash;
 
   return (
-    <Modal transparent animationType="fade" onRequestClose={onClose}>
+    <SafeModal transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <View
           style={{
@@ -130,6 +131,6 @@ export function SuccessModal({
           </View>
         </View>
       </View>
-    </Modal>
+    </SafeModal>
   );
 }

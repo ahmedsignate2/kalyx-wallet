@@ -226,7 +226,8 @@ interface WalletState {
   renameWallet: (id: string, label: string) => Promise<void>;
   /** Change l'avatar de profil d'un portefeuille (lib/avatars.ts). */
   setWalletAvatar: (id: string, avatar: string) => Promise<void>;
-  removeWallet: (id: string) => Promise<void>;
+  /** Exige le code (ou la biométrie) : supprimer un portefeuille est irréversible sans sa phrase. */
+  removeWallet: (id: string, unlock: Unlock) => Promise<void>;
   lock: () => void;
   signAndSend: (to: string, amount: string, unlock: Unlock, gas?: GasOverride) => Promise<string>;
   /**
@@ -283,7 +284,8 @@ interface WalletState {
   disableBiometric: () => Promise<void>;
   /** Ré-enregistre le secret biométrique au format non-gated s'il manque (migration douce). */
   healBiometric: (pin: string) => Promise<void>;
-  reset: () => Promise<void>;
+  /** Efface TOUS les portefeuilles : exige le code (ou la biométrie), comme toute action irréversible. */
+  reset: (unlock: Unlock) => Promise<void>;
 }
 
 function deriveStoredAccount(mnemonic: string, index: number, label: string): StoredAccount {
@@ -1066,7 +1068,14 @@ export const useWallet = create<WalletState>((set, get) => ({
     set({ wallets });
   },
 
-  removeWallet: async (id) => {
+  removeWallet: async (id, unlock) => {
+    /*
+     * Irréversible : il ne suffit PAS d'une boîte de dialogue. Une confirmation
+     * restée ouverte au verrouillage automatique, ou un téléphone déverrouillé
+     * laissé deux secondes, suffisait à effacer un portefeuille.
+     */
+    if (!get().isUnlocked) throw new WalletError('LOCKED_OUT', 'App verrouillée');
+    await revealMnemonic(get().activeWalletId, unlock);
     const wallets = get().wallets.filter((w) => w.id !== id);
     if (wallets.length === 0) throw new Error('Impossible de supprimer le dernier portefeuille.');
     await wipeWallet(id);
@@ -1607,7 +1616,10 @@ export const useWallet = create<WalletState>((set, get) => ({
     await enableBiometricSeed(id, mnemonic);
   },
 
-  reset: async () => {
+  reset: async (unlock) => {
+    // Même règle que la suppression d'un portefeuille, pour TOUS à la fois.
+    if (!get().isUnlocked) throw new WalletError('LOCKED_OUT', 'App verrouillée');
+    await revealMnemonic(get().activeWalletId, unlock);
     await wipeAll(get().wallets);
     // Le portefeuille et le compte mémorisés n'ont plus d'objet : les laisser
     // ferait chercher, au prochain lancement, un identifiant qui n'existe plus.

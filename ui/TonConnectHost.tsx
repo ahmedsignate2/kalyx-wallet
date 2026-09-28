@@ -209,7 +209,8 @@ function TxSheet({ p }: { p: Extract<TcPending, { kind: 'tx' }> }) {
 export function TonConnectHost() {
   const head = useTonConnect((s) => s.queue[0]);
   const hydrate = useTonConnect((s) => s.hydrate);
-  const unlocked = useWallet((s) => !!s.account);
+  // `isUnlocked` et non `!!account` : le compte reste en mémoire après verrouillage.
+  const unlocked = useWallet((s) => s.isUnlocked && !!s.account);
   // Les sessions ne s'écoutent qu'une fois le portefeuille ouvert.
   useEffect(() => {
     if (unlocked) void hydrate();

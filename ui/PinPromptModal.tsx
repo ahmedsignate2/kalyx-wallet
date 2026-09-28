@@ -5,6 +5,7 @@ import { useT } from "../lib/settingsStore";
  * champ inline peu visible. Gère sa propre saisie ; le parent vérifie le PIN et
  * signale une erreur via `errorSignal` (secousse + reset).
  */
+import { SafeModal } from './kit/SafeModal';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,7 +48,7 @@ export function PinPromptModal({
   if (!visible) return null;
 
   return (
-    <Modal transparent animationType="slide" onRequestClose={onCancel}>
+    <SafeModal transparent animationType="slide" onRequestClose={onCancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         {/* Padding bas = inset système : la rangée « 0 » reste au-dessus de la barre de navigation. */}
         <ScrollView
@@ -114,6 +115,6 @@ export function PinPromptModal({
           </KPressable>
         </ScrollView>
       </View>
-    </Modal>
+    </SafeModal>
   );
 }

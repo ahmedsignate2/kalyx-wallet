@@ -4,6 +4,7 @@
  * claires sur les réseaux compatibles, Copier (haptique + toast) et Partager.
  * Le réseau se choisit ici (famille d'adresse : EVM / Solana / Bitcoin).
  */
+import { SafeModal } from '../ui/kit/SafeModal';
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, ScrollView, Share, Modal, Platform } from 'react-native';
 import { router, Stack } from 'expo-router';
@@ -202,7 +203,7 @@ export default function Receive() {
           <Button label={t("share")} icon="share" variant="secondary" style={{ flex: 1 }} onPress={share} />
         </View>
       </ScrollView>
-      <Modal
+      <SafeModal
         visible={testnetPickerOpen}
         transparent
         animationType="slide"
@@ -261,7 +262,7 @@ export default function Receive() {
             </ScrollView>
           </KPressable>
         </KPressable>
-      </Modal>
+      </SafeModal>
     </View>
   );
 }

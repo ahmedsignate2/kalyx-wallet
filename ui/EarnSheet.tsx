@@ -8,6 +8,7 @@ import { Pressable as KPressable } from './kit';
  *
  * Réutilisée par l'écran Earn et les onglets Staking/DeFi du portefeuille.
  */
+import { SafeModal } from './kit/SafeModal';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -245,7 +246,7 @@ export function EarnSheet({
 
   return (
     <>
-      <Modal visible={visible && !unlockVisible && !success} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+      <SafeModal visible={visible && !unlockVisible && !success} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
         {/* Le KAV enveloppe TOUT (fond + feuille) : dans un Modal Android, le clavier
             ne redimensionne pas la fenêtre → 'height' réduit le KAV de la hauteur du
             clavier, le fond (flex: 1) se comprime et la feuille reste au-dessus. */}
@@ -406,7 +407,7 @@ export function EarnSheet({
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
+      </SafeModal>
 
       <ConfirmUnlock
         visible={unlockVisible}

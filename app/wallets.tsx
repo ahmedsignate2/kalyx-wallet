@@ -1,4 +1,5 @@
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
 import React, { useState } from 'react';
 import { View, Text, TextInput, Alert, ScrollView } from 'react-native';
@@ -25,6 +26,7 @@ export default function Wallets() {
   const [editing, setEditing] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [avatarFor, setAvatarFor] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const onRemove = (id: string, label: string) => {
     if (wallets.length <= 1) {
@@ -36,7 +38,8 @@ export default function Wallets() {
       t('deleteWalletBody').replace('{label}', label),
       [
         { text: t('cancel'), style: 'cancel' },
-        { text: t('deleteAction'), style: 'destructive', onPress: () => removeWallet(id).catch((e) => toast.error(t('failed'), friendlyTxError(e, t))) },
+        // Confirmé ici, EXÉCUTÉ seulement après le code (ou la biométrie) : irréversible.
+        { text: t('deleteAction'), style: 'destructive', onPress: () => setRemoving(id) },
       ],
     );
   };
@@ -115,6 +118,15 @@ export default function Wallets() {
         </View>
       </View>
       {avatarFor ? <AvatarPicker walletId={avatarFor} visible onClose={() => setAvatarFor(null)} /> : null}
+      <ConfirmUnlock
+        visible={removing !== null}
+        title={t('deleteWalletQ')}
+        perform={async (unlock) => {
+          if (removing) await removeWallet(removing, unlock);
+        }}
+        onDone={() => setRemoving(null)}
+        onCancel={() => setRemoving(null)}
+      />
     </Screen>
   );
 }
