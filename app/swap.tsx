@@ -18,6 +18,8 @@ import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius, springs } from '../ui/tokens';
 import { useWallet, type SwapStatus, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
+import { fill } from '../lib/i18n';
+import { Rise, GOLD } from '../ui/nova';
 import {
   getAdapter,
   getErc20Tokens,
@@ -478,22 +480,29 @@ export default function Swap() {
   const toChainCfg = getAdapter(toChain).config;
   const impact = quote && quote.fromAmountUsd > 0 ? ((quote.toAmountUsd - quote.fromAmountUsd) / quote.fromAmountUsd) * 100 : null;
   const impactLevel: 'none' | 'warning' | 'danger' = impact == null ? 'none' : impact <= -10 ? 'danger' : impact <= -3 ? 'warning' : 'none';
-  const routeSentence = quote
-    ? `Via ${quote.toolName}${isBridge ? ` de ${fromChainCfg.name} vers ${toChainCfg.name}` : ` sur ${fromChainCfg.name}`}${quote.durationSec > 0 ? `, environ ${quote.durationSec < 60 ? `${quote.durationSec} secondes` : `${Math.round(quote.durationSec / 60)} min`}` : ''}.`
+  const routeTitle = quote
+    ? isBridge
+      ? fill(t('swapRouteBridge'), { tool: quote.toolName, from: fromChainCfg.name, to: toChainCfg.name })
+      : fill(t('swapRouteOn'), { tool: quote.toolName, chain: fromChainCfg.name })
     : null;
+  const routeDuration = quote && quote.durationSec > 0
+    ? quote.durationSec < 60 ? fill(t('durSeconds'), { n: String(quote.durationSec) }) : fill(t('durMinutes'), { n: String(Math.round(quote.durationSec / 60)) })
+    : '';
+  const routeSentence = routeTitle ? `${routeTitle}${routeDuration ? ` · ${routeDuration}` : ''}. ` : null;
+  const slippagePct = `${(Number(slippage) * 100).toFixed(1).replace('.', ',')} %`;
   const [advanced, setAdvanced] = useState(false);
   const [review, setReview] = useState(false);
 
-  const TokenBlock = ({ label, tok, chainId, value, onPick, right, muted }: { label: string; tok: Tok | undefined; chainId: string; value: string; onPick: () => void; right?: React.ReactNode; muted?: boolean }) => (
-    <Surface level={2} style={{ gap: space[2] }}>
+  const TokenBlock = ({ label, tok, chainId, value, onPick, right, bottom, muted }: { label: string; tok: Tok | undefined; chainId: string; value: string; onPick: () => void; right?: React.ReactNode; bottom?: React.ReactNode; muted?: boolean }) => (
+    <View style={{ gap: space[2], padding: 18, borderRadius: 26, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text variant="caption" tone="secondary">{label}</Text>
         {right}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ flex: 1, fontSize: 36, lineHeight: 42, color: muted ? colors.textSecondary : colors.text }}>{value || '0'}</Text>
-        <KPressable onPress={onPick} accessibilityLabel={`Choisir le token ${label}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: 6, paddingLeft: 6, paddingRight: 10, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
-          {tok ? <TokenIcon symbol={tok.symbol} logo={tok.logo} seed={tok.address} size={28} /> : <Skeleton width={28} height={28} round />}
+        <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ flex: 1, fontSize: 44, lineHeight: 50, letterSpacing: -1.2, color: muted ? colors.textTertiary : colors.text }}>{value || '0'}</Text>
+        <KPressable onPress={onPick} accessibilityLabel={`${label} : ${tok?.symbol ?? ''}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], height: 46, paddingLeft: 6, paddingRight: 12, borderRadius: 23, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border }}>
+          {tok ? <TokenIcon symbol={tok.symbol} logo={tok.logo} seed={tok.address} size={32} /> : <Skeleton width={32} height={32} round />}
           <View>
             <Text variant="body">{tok?.symbol ?? '…'}</Text>
             <Text variant="micro" tone="tertiary">{getAdapter(chainId).config.name}</Text>
@@ -501,7 +510,15 @@ export default function Swap() {
           <Icon name="caretDown" size={14} tone="muted" />
         </KPressable>
       </View>
-    </Surface>
+      {bottom}
+    </View>
+  );
+
+  const RouteRow = ({ label, value, tone }: { label: string; value: string; tone?: 'danger' | 'warning' }) => (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space[3] }}>
+      <Text variant="caption" tone="secondary">{label}</Text>
+      <Text variant="caption" tabular tone={tone} style={{ flexShrink: 1, textAlign: 'right' }}>{value}</Text>
+    </View>
   );
 
   return (
@@ -511,6 +528,11 @@ export default function Swap() {
         <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
         <Text variant="title2" style={{ flex: 1 }}>{isBridge ? t('bridgeAction') : t('swapAction')}</Text>
         {quote && countdown > 0 && !stale ? <CountdownRing progress={countdown / QUOTE_TTL_S} /> : null}
+        {available && account ? (
+          <KPressable onPress={() => setAdvanced((v) => !v)} accessibilityLabel={fill(t('slippageChip'), { pct: slippagePct })} style={{ paddingHorizontal: 12, height: 34, justifyContent: 'center', borderRadius: 17, backgroundColor: advanced ? colors.surface2 : colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+            <Text variant="caption" tone="secondary">{fill(t('slippageChip'), { pct: slippagePct })}</Text>
+          </KPressable>
+        ) : null}
       </View>
 
       {!available || !account ? (
@@ -521,61 +543,72 @@ export default function Swap() {
         <View style={{ padding: SCREEN_MARGIN, gap: space[3] }}><Skeleton height={110} /><Skeleton height={110} /></View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[3] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {/* Tu donnes */}
-          <TokenBlock
-            label={t("youGive")}
-            tok={fromTok}
-            chainId={activeChain}
-            value={amount}
-            onPick={() => setPickerState({ visible: true, side: 'from' })}
-            right={
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                <Text variant="caption" tone="secondary" tabular>{t('availableLabel')} : {formatTokenAmount(getAvailable(), fromTok.decimals)}</Text>
-                <Chip label={t("chipMax")} onPress={() => { onMax(); reset(); stopCountdown(); }} />
-              </View>
-            }
-          />
+          {advanced ? (
+            <Rise style={{ flexDirection: 'row', gap: space[2] }}>
+              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', ',')} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
+            </Rise>
+          ) : null}
 
-          {/* Inversion : tourne de 180° avec le ressort Vif */}
-          <View style={{ alignItems: 'center', marginVertical: -space[4], zIndex: 2 }}>
-            <Animated.View style={flipStyle}>
-              <KPressable onPress={onFlip} disabled={isBridge} accessibilityLabel={t('swapFlip')} style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.4 : 1 }}>
-                <Icon name="convert" size={18} />
-              </KPressable>
-            </Animated.View>
+          {/* Les deux cartes, et le disque d'inversion posé à cheval entre elles. */}
+          <View style={{ gap: space[2] }}>
+            <Rise>
+              <TokenBlock
+                label={t("youGive")}
+                tok={fromTok}
+                chainId={activeChain}
+                value={amount}
+                onPick={() => setPickerState({ visible: true, side: 'from' })}
+                bottom={
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
+                    <Text variant="caption" tone="secondary" tabular>{quote && quote.fromAmountUsd > 0 ? `≈ ${formatFiat(quote.fromAmountUsd)} $` : ' '}</Text>
+                    <KPressable onPress={() => { onMax(); reset(); stopCountdown(); }} hitSlop={8} accessibilityLabel={t("chipMax")}>
+                      <Text variant="caption" tone="secondary" tabular>{t('availableLabel')} : {formatTokenAmount(getAvailable(), fromTok.decimals)} · <Text variant="caption" style={{ color: GOLD }}>{t("chipMax")}</Text></Text>
+                    </KPressable>
+                  </View>
+                }
+              />
+            </Rise>
+            <Rise delay={70}>
+              <TokenBlock
+                label={t("youReceive")}
+                tok={toTok}
+                chainId={toChain}
+                value={quote ? formatTokenAmount(quote.toAmount, quote.toToken.decimals) : ''}
+                muted={!quote}
+                onPick={() => setPickerState({ visible: true, side: 'to' })}
+                bottom={<Text variant="caption" tone="secondary" tabular>{quote && quote.toAmountUsd > 0 ? `≈ ${formatFiat(quote.toAmountUsd)} $` : ' '}</Text>}
+              />
+            </Rise>
+            <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+              <Animated.View style={flipStyle}>
+                <KPressable onPress={onFlip} disabled={isBridge} overshoot haptic="light" accessibilityLabel={t('swapFlip')} style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary, borderWidth: 4, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.5 : 1 }}>
+                  <Icon name="convert" size={22} color={colors.onPrimary} />
+                </KPressable>
+              </Animated.View>
+            </View>
           </View>
 
-          {/* Tu reçois */}
-          <TokenBlock
-            label={t("youReceive")}
-            tok={toTok}
-            chainId={toChain}
-            value={quote ? formatTokenAmount(quote.toAmount, quote.toToken.decimals) : ''}
-            muted={!quote}
-            onPick={() => setPickerState({ visible: true, side: 'to' })}
-            right={quote && quote.toAmountUsd > 0 ? <Text variant="caption" tone="secondary" tabular>≈ {formatFiat(quote.toAmountUsd)} $</Text> : null}
-          />
-
-          {/* Route en une phrase + impact */}
+          {/* La route, en carte : par où passe l'échange, ce qu'il coûte, ce qu'on reçoit au pire. */}
           {quote ? (
-            <View style={{ gap: space[1] }}>
-              <Text variant="caption" tone="secondary">{routeSentence}</Text>
-              {impact != null ? <Text variant="caption" tone={impactLevel === 'danger' ? 'danger' : impactLevel === 'warning' ? 'warning' : 'secondary'} tabular>{t('priceImpact').replace('{impact}', impact.toFixed(2))}</Text> : null}
+            <Rise delay={120} style={{ gap: space[3], padding: space[4], borderRadius: 22, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: stale ? colors.warning : colors.up }} />
+                <Text variant="body" numberOfLines={2} style={{ flex: 1 }}>{routeTitle}</Text>
+                {routeDuration ? <Text variant="caption" tone="secondary">{routeDuration}</Text> : null}
+              </View>
+              <RouteRow label={t('minReceived')} value={`${formatTokenAmount(quote.toAmountMin, quote.toToken.decimals)} ${toTok.symbol}`} />
+              <RouteRow label={t('kalyxFee')} value={`${((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', ',')} %`} />
+              <RouteRow label={t('networkFee')} value={quote.gasCostUsd > 0 ? `≈ ${formatFiat(quote.gasCostUsd)} $` : quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : '—'} />
+              {impact != null && impactLevel !== 'none' ? <Text variant="caption" tone={impactLevel === 'danger' ? 'danger' : 'warning'} tabular>{t('priceImpact').replace('{impact}', impact.toFixed(2))}</Text> : null}
               {stale ? <Text variant="caption" tone="warning">{t('quoteStale')}</Text> : null}
-            </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                <Icon name="security" size={15} color={colors.up} />
+                <Text variant="micro" tone="secondary" style={{ flex: 1 }}>{t('swapGuarded')}</Text>
+              </View>
+            </Rise>
           ) : null}
           {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
           {isNativeTokenAddress(fromTok.address) ? <Text variant="micro" tone="tertiary">{t('gasReserve')} : {gasReserve ? `≈ ${formatTokenAmount(gasReserve.raw, chain.nativeDecimals)} ${chain.nativeSymbol}${gasReserve.live ? '' : ' (est.)'}` : '…'}</Text> : null}
-
-          {/* Réglage avancé replié : slippage */}
-          <KPressable onPress={() => setAdvanced((v) => !v)} style={{ paddingVertical: space[1] }}>
-            <Text variant="caption" tone="secondary">{advanced ? t("hideAdvancedSettings") : t("advancedSettingsSlippage").replace('{slippage}', (Number(slippage) * 100).toFixed(1))}</Text>
-          </KPressable>
-          {advanced ? (
-            <View style={{ flexDirection: 'row', gap: space[2] }}>
-              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', ',')} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
-            </View>
-          ) : null}
 
           {/* Clavier maison + action */}
           <AmountKeypad value={amount} onChange={(v) => { setAmount(v); reset(); stopCountdown(); }} maxDecimals={Math.min(fromTok.decimals, 8)} />
