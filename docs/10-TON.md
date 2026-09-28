@@ -561,3 +561,27 @@ portefeuille, envoi de NFT.
     27/09). **Deux routes ajoutées au proxy : à redéployer**, sinon la carte
     Staking reste masquée.
 
+
+## 18. Pont JS TON Connect dans le navigateur intégré (28/09)
+
+Comme Tonkeeper ou MyTonWallet, le navigateur de Kalyx injecte dans chaque page
+`window.kalyx.tonconnect` (spécification « JS bridge » de TON Connect). Le SDK du
+site le découvre en parcourant `window` (il exige `walletInfo` complet : `name`,
+`app_name`, `image`, `about_url`, `platforms`) et, voyant `isWalletBrowser`,
+demande la connexion directement au wallet : ni QR, ni choix de wallet.
+
+- `src/domain/tonconnect/jsBridge.ts` : script injecté, lecture des messages,
+  validation, règle page ↔ manifeste ;
+- `lib/tonconnect/store.ts` : transport `js` à côté du pont HTTP. Mêmes fenêtres
+  d'approbation, même `ton_proof`, même simulation ; sessions `js:<hôte>`
+  persistées, donc `restoreConnection` reconnecte la page sans rien redemander ;
+- `app/(tabs)/browser.tsx` : injection et routage des messages ; une réponse
+  n'est exécutée que si la page ouverte est toujours celle qui a demandé.
+
+Règle ajoutée par rapport au pont HTTP : la page doit appartenir au domaine que
+le manifeste déclare (même hôte ou sous-domaine). Le pont HTTP ne voit que le
+manifeste ; ici on voit la vraie page, et sans cette règle un site piégé
+obtiendrait une preuve `ton_proof` valable chez STON.fi.
+
+Test : `lib/tonconnect/jsBridge.test.ts` (découverte par le SDK, connexion avec
+preuve vérifiée, reprise, transaction, refus d'une page usurpatrice, déconnexion).
