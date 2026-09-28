@@ -19,8 +19,12 @@ const FORBIDDEN = [
 ];
 
 const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
+/** Certificat PUBLIC des mises à jour OTA : doit être dans le dépôt (la clé privée, jamais). */
+const ALLOWED = new Set(['certs/certificate.pem']);
+
 const bad = [];
 for (const f of files) {
+  if (ALLOWED.has(f)) continue;
   const hit = FORBIDDEN.find(([re]) => re.test(f));
   if (hit) bad.push(`${f}  (${hit[1]})`);
 }
