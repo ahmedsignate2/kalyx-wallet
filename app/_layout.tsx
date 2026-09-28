@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router, usePathname } from 'expo-router';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { OfflineBanner } from '../ui/OfflineBanner';
@@ -46,6 +46,9 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 /** Écrans de la barre d'onglets : entre eux, un fondu (voir plus bas). */
 
+/** Écrans ouverts app verrouillée : le code, et des pages sans aucune donnée du portefeuille. */
+const LOCKED_ALLOWED = new Set(['/', '/unlock', '/legal', '/faq', '/about']);
+
 export default function RootLayout() {
   const { mode, colors } = useTheme();
   const t = useT();
@@ -77,6 +80,20 @@ export default function RootLayout() {
    */
   const storeReady = useWallet((s) => s.ready);
   const hasWallet = useWallet((s) => s.hasWallet);
+  const isUnlocked = useWallet((s) => s.isUnlocked);
+  const pathname = usePathname();
+  /*
+   * GARDE GLOBALE DU VERROUILLAGE. Elle ne vivait que dans `app/index.tsx` : un
+   * lien profond (`kalyx://history`, `kalyx://wallets`…) ouvrait l'écran
+   * directement, SANS passer par l'index — historique et soldes lisibles, et
+   * suppression d'un portefeuille possible, app verrouillée. Tant qu'un
+   * portefeuille existe et n'est pas déverrouillé, seuls l'écran de code et
+   * des pages sans donnée restent accessibles.
+   */
+  useEffect(() => {
+    if (!storeReady || !hasWallet || isUnlocked) return;
+    if (!LOCKED_ALLOWED.has(pathname)) router.replace('/unlock');
+  }, [storeReady, hasWallet, isUnlocked, pathname]);
   const [opening, setOpening] = useState<'wait' | 'splash' | 'done'>('wait');
   useEffect(() => {
     if (!storeReady || opening !== 'wait') return;
