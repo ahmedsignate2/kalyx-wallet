@@ -59,6 +59,11 @@ const READ_BACKOFF_MS = 300;
 
 const RPC_TIMEOUT_MS = 8_000;
 
+/** Réseaux OP Stack : frais L1 en plus du gaz (voir `l1FeeUpperBound`). */
+const OP_STACK_CHAINS = new Set(['base', 'optimism', 'mode', 'zora', 'ink', 'soneium', 'unichain', 'worldchain', 'lisk', 'fraxtal', 'superseed', 'swell', 'blast', 'bob', 'base-sepolia']);
+const OP_GAS_ORACLE = '0x420000000000000000000000000000000000000F';
+const GAS_ORACLE_IFACE = new Interface(['function getL1FeeUpperBound(uint256) view returns (uint256)']);
+
 export class EvmChainAdapter implements ChainAdapter {
   readonly config: ChainConfig;
   private providers?: JsonRpcProvider[];
@@ -301,8 +306,36 @@ export class EvmChainAdapter implements ChainAdapter {
 
   /** Paliers de frais Lent/Normal/Rapide pour un `gasLimit` (défaut = transfert natif). */
   async getFeeOptions(gasLimit: bigint = NATIVE_TRANSFER_GAS): Promise<FeeOptions> {
-    const fee = await this.call((p) => p.getFeeData());
-    return computeFeeTiers(fee, gasLimit);
+    const [fee, l1] = await Promise.all([
+      this.call((p) => p.getFeeData()),
+      // Taille approximative d'une transaction signée : envoi natif, ou appel de jeton.
+      this.l1FeeUpperBound(gasLimit > NATIVE_TRANSFER_GAS ? 180 : 120),
+    ]);
+    const tiers = computeFeeTiers(fee, gasLimit);
+    if (l1 === 0n) return tiers;
+    return {
+      slow: { ...tiers.slow, costWei: tiers.slow.costWei + l1 },
+      normal: { ...tiers.normal, costWei: tiers.normal.costWei + l1 },
+      fast: { ...tiers.fast, costWei: tiers.fast.costWei + l1 },
+    };
+  }
+
+  /**
+   * FRAIS L1 d'un rollup OP Stack (Base, Optimism…) : la publication de la
+   * transaction sur Ethereum, prélevée EN PLUS du gaz. Ils n'étaient comptés
+   * nulle part : « Max » sur Base proposait tout le solde moins le gaz, et le
+   * nœud refusait la transaction faute de quoi payer ces frais. Plafond fourni
+   * par l'oracle du réseau ; 0 hors OP Stack ou si l'oracle ne répond pas.
+   */
+  async l1FeeUpperBound(txBytes: number): Promise<bigint> {
+    if (!OP_STACK_CHAINS.has(this.config.id)) return 0n;
+    try {
+      const data = GAS_ORACLE_IFACE.encodeFunctionData('getL1FeeUpperBound', [txBytes]);
+      const ret = await this.call((p) => p.call({ to: OP_GAS_ORACLE, data }));
+      return GAS_ORACLE_IFACE.decodeFunctionResult('getL1FeeUpperBound', ret)[0] as bigint;
+    } catch {
+      return 0n;
+    }
   }
 
   /**
