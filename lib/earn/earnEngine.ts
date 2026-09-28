@@ -39,6 +39,7 @@ import {
   type EarnTx,
   type RawTxRequest,
   WalletError,
+  checkSwapQuote,
 } from '../../src';
 import type { Unlock } from '../walletStore';
 import { useWallet } from '../walletStore';
@@ -354,6 +355,15 @@ async function lifiQuote(p: EarnProtocol, action: EarnAction, amount: bigint, ac
     isEarn: true, // 0 % Kalyx sur TOUT Earn (dépôt comme retrait) — les 0,3 % ne concernent que Swap/Bridge
   });
   if (!q) throw new SwapError('NO_ROUTE', `Aucune route pour ${tokenIn.symbol} → ${tokenOut.symbol}`);
+  // Même contrôle que l'échange (src/domain/swap/guard.ts) : contrat LI.FI officiel, bon montant, retour vers nous.
+  const check = checkSwapQuote(q, {
+    fromEvmChainId: p.chainId === 'solana' ? undefined : chain,
+    fromToken: lifiToken(p, tokenIn.address),
+    fromAmount: amount,
+    fromAddress: from,
+    toAddress: from,
+  });
+  if (!check.ok) throw new SwapError('PROVIDER_UNAVAILABLE', `Devis refusé : ${check.reason}`);
 
   let tx: EarnTx;
   if (q.tx.type === 'solana') tx = { type: 'solana', data: q.tx.data };

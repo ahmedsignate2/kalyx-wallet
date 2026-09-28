@@ -369,6 +369,7 @@ export {
 export { SwapError, type SwapErrorCode } from './domain/swap/swapError';
 export { getRelayQuote } from './domain/swap/relay';
 export { getBestQuote } from './domain/swap/index';
+export { checkSwapQuote, lifiContractFor, type SwapExpectation, type SwapQuoteRefusal } from './domain/swap/guard';
 
 // WalletConnect : décodage lisible des demandes de signature
 export {

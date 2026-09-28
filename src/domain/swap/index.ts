@@ -16,6 +16,7 @@ import { getRelayQuote, relayEnabled } from './relay';
 import { getAdapter } from '../chains/registry';
 import { SwapError, pickMostRelevant } from './swapError';
 import type { SwapQuote, SwapTokenInfo } from './lifi';
+import { checkSwapQuote } from './guard';
 
 const LIFI_SOLANA = 1151111081099710;
 const SOL_NATIVE = '11111111111111111111111111111111';
@@ -142,7 +143,25 @@ export async function getBestQuote(params: RouteParams): Promise<SwapQuote | nul
   }
 
   const results = await Promise.all(tasks);
-  const quotes = results.filter((q): q is SwapQuote => q !== null).map((q) => normalizeQuote(q, params));
+  /*
+   * Chaque devis est CONTRÔLÉ avant d'être retenu (contrat, autorisation,
+   * réseau, montant, adresse de réception) : un devis qui ne passe pas n'est
+   * jamais proposé à la signature. Voir `guard.ts`.
+   */
+  const quotes = results
+    .filter((q): q is SwapQuote => q !== null)
+    .map((q) => normalizeQuote(q, params))
+    .filter((q) => {
+      const c = checkSwapQuote(q, {
+        fromEvmChainId: fromChain.family === 'evm' ? fromChain.evmChainId : undefined,
+        fromToken: params.fromToken,
+        fromAmount: amount,
+        fromAddress: params.fromAddress,
+        toAddress: params.toAddress,
+      });
+      if (!c.ok) errors.push(new SwapError('PROVIDER_UNAVAILABLE', `Devis ${q.toolName} refusé : ${c.reason}`));
+      return c.ok;
+    });
   const best = pickBest(quotes);
   if (best) return best;
 
@@ -150,6 +169,7 @@ export async function getBestQuote(params: RouteParams): Promise<SwapQuote | nul
 }
 
 export * from './swapError';
+export * from './guard';
 export * from './lifi';
 export * from './relay';
 export * from './jupiter';
