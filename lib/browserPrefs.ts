@@ -34,6 +34,7 @@ export const VERIFIED_DAPPS: { category: string; items: { name: string; host: st
     { name: 'Jupiter', host: 'jup.ag', url: 'https://jup.ag' },
     { name: 'PancakeSwap', host: 'pancakeswap.finance', url: 'https://pancakeswap.finance' },
     { name: 'Curve', host: 'curve.fi', url: 'https://curve.fi' },
+    { name: 'STON.fi', host: 'app.ston.fi', url: 'https://app.ston.fi' },
   ] },
   { category: 'Lending', items: [
     { name: 'Aave', host: 'app.aave.com', url: 'https://app.aave.com' },
@@ -45,6 +46,8 @@ export const VERIFIED_DAPPS: { category: string; items: { name: string; host: st
     { name: 'Rocket Pool', host: 'stake.rocketpool.net', url: 'https://stake.rocketpool.net' },
     { name: 'Jito', host: 'jito.network', url: 'https://www.jito.network/staking' },
     { name: 'EigenLayer', host: 'app.eigenlayer.xyz', url: 'https://app.eigenlayer.xyz' },
+    { name: 'Tonstakers', host: 'app.tonstakers.com', url: 'https://app.tonstakers.com' },
+    { name: 'Marinade', host: 'marinade.finance', url: 'https://marinade.finance' },
   ] },
   { category: 'NFT', items: [
     { name: 'OpenSea', host: 'opensea.io', url: 'https://opensea.io' },

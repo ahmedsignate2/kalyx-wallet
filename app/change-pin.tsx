@@ -1,3 +1,4 @@
+import { FlowDots, Rise } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import React, { useState } from 'react';
@@ -105,9 +106,12 @@ export default function ChangePin() {
 
   return (
     <Screen>
-      <ScreenHeader />
-      <Title>{title}</Title>
-      <Muted>{hint}</Muted>
+      <ScreenHeader right={<FlowDots step={step === 'old' ? 1 : step === 'new' ? 2 : 3} />} />
+      {/* Le titre remonte à chaque étape : on voit que l'écran a avancé. */}
+      <Rise key={step} style={{ gap: spacing(1) }}>
+        <Title>{title}</Title>
+        <Muted>{hint}</Muted>
+      </Rise>
 
       <View style={{ flex: 1, minHeight: spacing(2) }} />
 

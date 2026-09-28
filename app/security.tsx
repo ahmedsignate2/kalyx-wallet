@@ -6,6 +6,9 @@
  *  - approbations actives (réseau actif) avec « Révoquer »
  *  - sessions WalletConnect ouvertes avec « Déconnecter »
  */
+import { ScreenOrbit, useScreenEntrance } from '../ui/nova';
+import Svg, { Circle } from 'react-native-svg';
+import Reanimated from 'react-native-reanimated';
 import { fetchApprovalCandidates } from '../src/domain/security/goplus';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
@@ -98,18 +101,27 @@ export default function SecurityCenter() {
   const checks = useMemo(() => [backupVerified, encryptedBackupDone, biometric, autoLock > 0 && autoLock <= 15, !approvalsIncomplete && (approvals ?? []).every((a) => !isUnlimited(a.allowance)), sessions.length <= 3], [backupVerified, encryptedBackupDone, biometric, autoLock, approvals, approvalsIncomplete, sessions.length]);
   const score = checks.filter(Boolean).length;
 
+  const entrance = useScreenEntrance();
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenOrbit top={insets.top + 48} />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/menu'))} />
         <Text variant="title2" style={{ flex: 1 }}>{t("security")}</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[5] }}>
-        <View>
-          <Text variant="balance" tabular>{score}<Text variant="title2" tone="secondary">/{checks.length}</Text></Text>
-          <Text variant="bodySecondary" tone="secondary">{score === checks.length ? t("allGood") : t("pointsToFix")}</Text>
-        </View>
+        {/* Score en anneau : vert quand tout est fait, or tant qu'il reste des points. */}
+        <Reanimated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[4] }, entrance]}>
+          <View style={{ width: 96, height: 96, alignItems: 'center', justifyContent: 'center' }}>
+            <Svg width={96} height={96} style={{ position: 'absolute' }}>
+              <Circle cx={48} cy={48} r={42} stroke={colors.surface2} strokeWidth={7} fill="none" />
+              <Circle cx={48} cy={48} r={42} stroke={score === checks.length ? colors.up : '#DDB565'} strokeWidth={7} fill="none" strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 42 * (checks.length ? score / checks.length : 0)} ${2 * Math.PI * 42}`} transform="rotate(-90 48 48)" />
+            </Svg>
+            <Text variant="title1" tabular>{score}<Text variant="caption" tone="secondary">/{checks.length}</Text></Text>
+          </View>
+          <Text variant="bodySecondary" tone="secondary" style={{ flex: 1 }}>{score === checks.length ? t("allGood") : t("pointsToFix")}</Text>
+        </Reanimated.View>
 
         <Surface padded={false}>
           <Check ok={backupVerified} icon="phrase" title={t("recoveryPhraseVerified")} body={backupVerified ? t("recoveryPhraseVerifiedMsg") : t("recoveryPhraseNotVerifiedMsg")} actionLabel={t("verify")} onAction={() => router.push('/reveal-phrase')} />

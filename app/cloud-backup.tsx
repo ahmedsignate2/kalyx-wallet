@@ -9,6 +9,7 @@
  * Drive est confié au flux persistant `useDriveFlow` (lib/googleDrive.ts), qui
  * survit au retour de Google et au redémarrage de l'app.
  */
+import { ScreenOrbit } from '../ui/nova';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { passwordStrength, MIN_BACKUP_LEVEL } from '../src/security/passwordStrength';
 import React, { useEffect, useState } from 'react';
@@ -147,6 +148,7 @@ export default function CloudBackupScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScreenOrbit top={insets.top + 48} />
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: SCREEN_MARGIN, paddingTop: insets.top + space[3], paddingBottom: insets.bottom + space[8], gap: space[5] }}
           keyboardShouldPersistTaps="handled"

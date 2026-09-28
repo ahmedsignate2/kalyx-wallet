@@ -9,6 +9,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable as KPressable } from './kit';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
 import { KalyxRing } from './KalyxRing';
+import Reanimated from 'react-native-reanimated';
+import { ScreenOrbit, useScreenEntrance } from './nova';
+import { radius as kRadius, BUTTON_HEIGHT } from './tokens';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -60,9 +63,12 @@ export function Screen({ children, scroll }: { children: React.ReactNode; scroll
   // Bas : inset système (barre de navigation Android edge-to-edge / home
   // indicator iOS) pour que la dernière rangée (pavé PIN, bouton) reste visible.
   const bottom = insets.bottom;
+  const entrance = useScreenEntrance();
   return (
     <View style={[styles.screen, { paddingTop: topPadding }]}>
+      <ScreenOrbit top={topPadding} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Reanimated.View style={[{ flex: 1 }, entrance]}>
         {scroll ? (
           <ScrollView
             style={{ flex: 1 }}
@@ -76,6 +82,7 @@ export function Screen({ children, scroll }: { children: React.ReactNode; scroll
         ) : (
           <View style={[styles.screenInner, { paddingBottom: spacing(3) + bottom }]}>{children}</View>
         )}
+        </Reanimated.View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -171,8 +178,8 @@ function createStyles({ colors }: Theme) {
       gap: spacing(1.5),
     },
     btn: {
-      height: 54,
-      borderRadius: radii.pill,
+      height: BUTTON_HEIGHT,
+      borderRadius: kRadius.button,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: spacing(3),

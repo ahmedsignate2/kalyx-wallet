@@ -22,6 +22,7 @@ import { Icon, type IconName } from './icon';
 import { Pressable as KPressable, LogoImage } from './kit';
 import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { springs } from './tokens';
+import { ScreenOrbit, useScreenEntrance } from './nova';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { haptic } from '../lib/haptics';
 
@@ -52,10 +53,13 @@ export function PremiumScreen({
   const insets = useSafeAreaInsets();
   const topPadding = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : insets.top + 8;
   const { theme } = useThemeStyles();
+  const entrance = useScreenEntrance();
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+      <ScreenOrbit top={topPadding} />
       {/* Clavier-aware : le contenu remonte au-dessus du clavier et reste défilable. */}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Reanimated.View style={[{ flex: 1 }, entrance]}>
         <ScrollView
           contentContainerStyle={{
             paddingTop: topPadding,
@@ -71,6 +75,7 @@ export function PremiumScreen({
         >
           {children}
         </ScrollView>
+        </Reanimated.View>
       </KeyboardAvoidingView>
       {footer}
     </View>
@@ -438,7 +443,7 @@ export function ListRow({
   const { theme, styles } = useThemeStyles();
   const content = (
     <View style={[styles.listItem, divider ? styles.divider : null]}>
-      {left}
+      {discIcon(left, theme.colors)}
       <View style={{ flex: 1 }}>
         <Text style={theme.typography.bodyStrong}>{title}</Text>
         {subtitle ? <Text style={theme.typography.muted}>{subtitle}</Text> : null}
@@ -447,6 +452,21 @@ export function ListRow({
     </View>
   );
   return onPress ? <PressableScale onPress={onPress}>{content}</PressableScale> : content;
+}
+
+/**
+ * Une icône nue passée en `left` est posée dans un disque Orbite — la même
+ * forme que les disques d'action de l'accueil. Une icône colorée exprès
+ * (danger, or…) garde sa couleur ; tout autre élément passe tel quel.
+ */
+export function discIcon(left: React.ReactNode, colors: { surface2: string; text: string }): React.ReactNode {
+  if (!React.isValidElement(left) || left.type !== Icon) return left;
+  const props = left.props as { name: IconName; color?: string };
+  return (
+    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name={props.name} size={18} color={props.color ?? colors.text} />
+    </View>
+  );
 }
 
 /** Mini-graphe (react-native-svg). */

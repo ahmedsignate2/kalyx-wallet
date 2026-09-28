@@ -266,3 +266,30 @@ export function IconDisc({ name, tone = 'default', size = 36 }: { name: IconName
     </View>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Décor et entrée communs à tous les écrans secondaires               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * La petite orbite en haut à droite, sans halo : la signature de l'accueil,
+ * rappelée discrètement sur chaque écran secondaire. `top` = haut du contenu.
+ */
+export function ScreenOrbit({ top }: { top: number }) {
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, width: 220, height: top + 140, overflow: 'hidden' }}>
+      <Orbit cx={190} cy={top + 22} r={64} />
+    </View>
+  );
+}
+
+/** Entrée d'écran : le contenu monte de 14 px en apparaissant, une seule fois. */
+export function useScreenEntrance() {
+  const reduce = useReduceMotion();
+  const p = useSharedValue(reduce ? 1 : 0);
+  useEffect(() => {
+    if (reduce) { p.value = 1; return; }
+    p.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
+  }, [reduce, p]);
+  return useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateY: (1 - p.value) * 14 }] }));
+}

@@ -1,3 +1,4 @@
+import { Pulse, Rise } from '../ui/nova';
 import { Icon } from '../ui/icon';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React from 'react';
@@ -19,11 +20,11 @@ export default function Language() {
       <ScreenHeader />
       <Title>{t('language')}</Title>
       <ScrollView contentContainerStyle={{ gap: spacing(1), paddingVertical: spacing(1) }}>
-        {LANGUAGES.map((l) => {
+        {LANGUAGES.map((l, i) => {
           const active = l.code === language;
           return (
+            <Rise key={l.code} delay={Math.min(i, 10) * 30}>
             <KPressable
-              key={l.code}
               onPress={() => {
                 setLanguage(l.code);
                 router.back();
@@ -34,16 +35,18 @@ export default function Language() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  borderColor: active ? colors.primary : colors.border,
+                  borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border,
+                  borderRadius: 22,
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
                   <Text style={{ fontSize: 22 }}>{l.flag}</Text>
                   <Text style={typography.body}>{l.name}</Text>
                 </View>
-                {active ? <Icon name="check" size={18} color={colors.primary} /> : null}
+                {active ? <Pulse size={8} /> : null}
               </Card>
             </KPressable>
+            </Rise>
           );
         })}
       </ScrollView>

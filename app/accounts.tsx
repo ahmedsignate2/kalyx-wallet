@@ -1,3 +1,5 @@
+import { GOLD, IconDisc, Pulse, Rise } from '../ui/nova';
+import { AddressGlyph } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
@@ -70,7 +72,7 @@ export default function Accounts() {
         keyboardShouldPersistTaps="handled"
       >
       <View style={{ gap: spacing(1.5) }}>
-        {accounts.map((a) => {
+        {accounts.map((a, i) => {
           const active = a.index === activeAccountIndex;
           if (editing === a.index) {
             return (
@@ -96,8 +98,8 @@ export default function Accounts() {
             );
           }
           return (
+            <Rise key={a.index} delay={Math.min(i, 8) * 50}>
             <KPressable
-              key={a.index}
               onPress={() => setActiveAccount(a.index)}
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
@@ -105,12 +107,17 @@ export default function Accounts() {
             >
               <Card
                 style={{
-                  borderColor: active ? colors.primary : colors.border,
+                  borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border,
+                  borderRadius: 24,
+                  gap: spacing(1.5),
                   flexDirection: 'row',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                 }}
               >
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                  <AddressGlyph address={a.evmAddress} size={32} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={typography.body}>{accountDisplayName(a, t)}</Text>
                   <Muted>{shorten(a.evmAddress)}</Muted>
@@ -126,11 +133,12 @@ export default function Accounts() {
                   accessibilityLabel={t('nameOptional')}
                   style={{ marginRight: spacing(1.5) }}
                 >
-                  <Icon name="sign" size={18} />
+                  <IconDisc name="sign" size={34} />
                 </KPressable>
-                {active ? <Icon name="check" size={18} color={colors.primary} /> : null}
+                {active ? <Pulse size={8} /> : <View style={{ width: 8 }} />}
               </Card>
             </KPressable>
+            </Rise>
           );
         })}
       </View>
@@ -164,8 +172,9 @@ export default function Accounts() {
           <Button label={busy ? t('creating') : t('createAccount')} loading={busy} onPress={onAdd} />
         </Card>
       ) : (
-        <KPressable onPress={() => setAdding(true)} hitSlop={8} style={{ marginTop: spacing(1) }}>
-          <Text style={{ color: colors.primary }}>{t('addAccountPlus')}</Text>
+        <KPressable onPress={() => setAdding(true)} haptic="light" style={{ marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), padding: spacing(2), borderRadius: 24, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border }}>
+          <IconDisc name="add" tone="gold" />
+          <Text style={{ color: colors.text, fontFamily: 'GeneralSans-Semibold', fontSize: 15 }}>{t('addAccountPlus').replace(/^[+＋]\s*/, '')}</Text>
         </KPressable>
       )}
       </ScrollView>
