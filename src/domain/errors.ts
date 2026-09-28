@@ -56,7 +56,11 @@ export type WalletErrorCode =
   /** Transaction à accélérer introuvable, déjà confirmée ou trop ancienne. */
   | 'BUMP_NOT_FOUND'
   /** Diffusée, mais pas confirmée dans le délai : elle peut encore passer. */
-  | 'TX_UNCONFIRMED';
+  | 'TX_UNCONFIRMED'
+  /** Solana : le destinataire n'a pas de compte et le montant ne couvre pas le loyer minimal. */
+  | 'SOL_RENT_RECIPIENT'
+  /** Solana : l'envoi laisserait un reste entre 0 et le loyer minimal. */
+  | 'SOL_RENT_SENDER';
 
 export class WalletError extends Error {
   readonly code: WalletErrorCode;

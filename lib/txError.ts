@@ -78,6 +78,8 @@ const WALLET_ERROR_KEYS: Record<string, string> = {
   NO_RECOVERY_PHRASE: 'errNoRecoveryPhrase',
   BUMP_NOT_FOUND: 'errBumpNotFound',
   TX_UNCONFIRMED: 'errTxUnconfirmed',
+  SOL_RENT_RECIPIENT: 'errSolRentRecipient',
+  SOL_RENT_SENDER: 'errSolRentSender',
 };
 
 export function friendlyTxError(e: unknown, t?: TFn): string {
