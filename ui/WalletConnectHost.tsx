@@ -24,7 +24,7 @@ import { useTokenStore } from '../lib/tokenStore';
 import { useWalletConnect } from '../lib/walletconnect';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { accountDisplayName } from '../lib/walletNames';
-import { useT, useSettings } from '../lib/settingsStore';
+import { useT, useSettings, useExplainT } from '../lib/settingsStore';
 import { sound } from '../lib/sound';
 import {
   hexToText,
@@ -39,6 +39,8 @@ import {
   explainRequest,
   describeSolanaTransaction,
   getTokenMetadata,
+  summarizePsbt,
+  type PsbtSummary,
   type RiskAssessment,
   type Simulation,
 } from '../src';
@@ -103,7 +105,8 @@ function SecBanner({ risk, phish }: { risk: RiskAssessment | 'loading' | null; p
             <Icon name="warning" size={18} color={colors.danger} />
             <Text style={{ color: colors.danger, fontFamily: fonts.bold, flex: 1 }}>{t('riskDetected')}</Text>
           </View>
-          {risk.reasons.map((r) => <Text key={r} style={{ color: colors.text, fontSize: 13 }}>• {r}</Text>)}
+          {/* Raisons GoPlus : des CLÉS (`gp…`), traduites ici. */}
+          {risk.reasons.map((r) => <Text key={r} style={{ color: colors.text, fontSize: 13 }}>• {/^gp[A-Z]/.test(r) ? t(r as never) : r}</Text>)}
         </View>
       ) : risk && risk.level === 'ok' ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -151,6 +154,7 @@ function decodeMessageText(raw: string, base58First: boolean): string {
 export function WalletConnectHost() {
   const { colors, typography } = useTheme();
   const t = useT();
+  const exT = useExplainT();
   const proposal = useWalletConnect((s) => s.proposal);
   const request = useWalletConnect((s) => s.request);
   const sessions = useWalletConnect((s) => s.sessions);
@@ -188,7 +192,7 @@ export function WalletConnectHost() {
     const peer = sessions.find((s) => s.topic === request.topic);
 
     let kind: 'siwe' | 'message' | 'typedData' | 'tx' | 'solanaTx' | 'btcAccounts' | 'btcTransfer' | 'btcPsbt' | 'other' = 'other';
-    let btc: { to?: string; sats?: bigint; inputs?: number; broadcast?: boolean } | null = null;
+    let btc: { to?: string; sats?: bigint; inputs?: number; broadcast?: boolean; psbt?: PsbtSummary | null } | null = null;
     let messageText: string | null = null;
     // Les dApps envoient les paramètres soit en tableau ([{…}]), soit en objet ({…}).
     const p0: any = Array.isArray(p) ? p[0] : p; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -219,7 +223,14 @@ export function WalletConnectHost() {
       kind = 'btcTransfer';
     } else if (method === 'signPsbt' || method === 'bitcoin_signPsbt') {
       const inputs = Array.isArray(p0?.signInputs) ? p0.signInputs.length : Array.isArray(p0?.inputsToSign) ? p0.inputsToSign.length : undefined;
-      btc = { inputs, broadcast: p0?.broadcast === true };
+      /*
+       * Le PSBT est DÉCODÉ : destinataires, montant qui part, frais. Sans ça, la
+       * fenêtre ne disait que « N entrées à signer » — une dApp pouvait faire
+       * signer l'envoi de tout le solde sans que rien ne le montre.
+       */
+      const raw = p0?.psbt ?? (Array.isArray(p) ? p.filter((x) => typeof x === 'string').pop() : typeof p === 'string' ? p : undefined);
+      const own = useWallet.getState().accounts.map((a) => a.btcAddress).filter(Boolean);
+      btc = { inputs, broadcast: p0?.broadcast === true, psbt: typeof raw === 'string' ? summarizePsbt(raw, own) : null };
       kind = 'btcPsbt';
     } else if (method.startsWith('eth_signTypedData')) {
       typed = summarizeTypedData(p[1]);
@@ -409,6 +420,7 @@ export function WalletConnectHost() {
       addressRisk: risk && risk !== 'loading' ? risk : null,
       phishingSite: phishSite,
       nativeSymbol: chain?.nativeSymbol,
+      t: exT,
     });
     const rawJson = JSON.stringify(request.params?.request?.params ?? {}, null, 2).slice(0, 1600);
 

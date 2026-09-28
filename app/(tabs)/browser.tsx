@@ -39,7 +39,7 @@ import { haptic } from '../../lib/haptics';
 import { sound } from '../../lib/sound';
 import { useWallet, type Unlock } from '../../lib/walletStore';
 import { useTokenStore } from '../../lib/tokenStore';
-import { useSettings, useT } from '../../lib/settingsStore';
+import { useSettings, useT, useExplainT } from '../../lib/settingsStore';
 import { toast } from '../../lib/toast';
 import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../../lib/recentDapps';
 import { useDappActivity } from '../../lib/dappActivity';
@@ -133,6 +133,8 @@ export default function Browser() {
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const biometricEnabled = useSettings((s) => s.biometricEnabled);
   const showTestnets = useSettings((s) => s.showTestnets);
+  // Explications de signature dans la langue choisie (elles étaient en français pour tous).
+  const exT = useExplainT();
 
   // ── Onglets (une seule WebView montée) ──
   const [tabs, setTabsState] = useState<Tab[]>(() => [mkTab(activeChain)]);
@@ -458,12 +460,12 @@ export default function Browser() {
   const explanation = useMemo(() => {
     if (!pending || pending.kind === 'connect') return null;
     const addressRisk = risk && risk !== 'loading' ? risk : null;
-    if (pending.kind === 'sign') return explainRequest({ kind: pending.siwe ? 'siwe' : 'message', domain: pending.origin, siwe: pending.siwe, siweMismatch: !!pending.siwe && siweDomainMismatch(pending.siwe.domain, `https://${pending.origin}`), addressRisk, phishingSite: phishSite });
-    if (pending.kind === 'typedData') return explainRequest({ kind: 'typedData', domain: pending.origin, typed: pending.summary, tokenSymbol: permitToken?.symbol ?? null, tokenDecimals: permitToken?.decimals ?? null, addressRisk, phishingSite: phishSite });
+    if (pending.kind === 'sign') return explainRequest({ kind: pending.siwe ? 'siwe' : 'message', domain: pending.origin, siwe: pending.siwe, siweMismatch: !!pending.siwe && siweDomainMismatch(pending.siwe.domain, `https://${pending.origin}`), messageText: pending.text, addressRisk, phishingSite: phishSite, t: exT });
+    if (pending.kind === 'typedData') return explainRequest({ kind: 'typedData', domain: pending.origin, typed: pending.summary, tokenSymbol: permitToken?.symbol ?? null, tokenDecimals: permitToken?.decimals ?? null, addressRisk, phishingSite: phishSite, t: exT });
     const decoded = decodeTx({ to: pending.raw.to, value: pending.raw.value, data: pending.raw.data });
-    return explainRequest({ kind: 'tx', domain: pending.origin, decoded, simulation: sim && sim !== 'loading' ? sim : null, addressRisk, phishingSite: phishSite, nativeSymbol: chain.nativeSymbol });
+    return explainRequest({ kind: 'tx', domain: pending.origin, decoded, simulation: sim && sim !== 'loading' ? sim : null, addressRisk, phishingSite: phishSite, nativeSymbol: chain.nativeSymbol, t: exT });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending, sim, risk, phishSite, permitToken]);
+  }, [pending, sim, risk, phishSite, permitToken, exT]);
 
   const perform = async (unlock: Unlock) => {
     if (!pending || !account) return;
