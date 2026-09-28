@@ -302,7 +302,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
             response: {
               id: request.id,
               jsonrpc: '2.0',
-              error: { code: 5100, message: 'Invalid session / Session expirée' }
+              error: { code: 5100, message: 'Invalid or expired session' }
             }
           });
         } catch (e) {
