@@ -31,6 +31,7 @@ import {
 } from '../../src';
 import { decryptMessage, encryptMessage, newSessionKeyPair, type SessionKeyPair } from '../../src/domain/tonconnect/sessionCrypto';
 import { manifestDomain, manifestOriginMatches, parseConnectLink, parseManifest, type DappManifest, type ParsedConnectLink } from '../../src/domain/tonconnect/connectLink';
+import { blindSafe } from '../../src/domain/tonconnect/payload';
 import { buildTonProof, tonAddrReply } from '../../src/domain/tonconnect/tonProof';
 import { parseSendTransaction, TC_ERROR, TC_MAX_MESSAGES, type DappTransaction } from '../../src/domain/tonconnect/requests';
 import { tonWalletStateInitBoc } from '../../src/domain/chains/ton/tonTransfer';
@@ -171,9 +172,16 @@ export const useTonConnect = create<TcState>((set, get) => {
   /** Réponse `ton_addr` seule, pour une page qui retrouve sa connexion. */
   const addrItem = (session: TcSession) => {
     const w = useWallet.getState();
+    /*
+     * Le compte de la SESSION, pas le premier compte TON venu : après un
+     * changement de portefeuille, la clé publique rendue ne correspondait plus
+     * à l'adresse de la session. Portefeuille ou adresse différents : pas de
+     * connexion à retrouver, la page redemandera.
+     */
+    if (w.activeWalletId !== session.walletId) return null;
     const stored = w.accounts.find((a) => !!a.tonPublicKey);
     const chain = listChains({ includeTestnets: true }).find((c) => c.id === session.chainId);
-    if (!stored?.tonPublicKey || !chain) return null;
+    if (!stored?.tonPublicKey || !chain || addressForChain(stored, chain) !== session.address) return null;
     const pub = hex.decode(stored.tonPublicKey);
     return tonAddrReply({ address: session.address, testnet: !!chain.testnet, publicKeyHex: stored.tonPublicKey.toLowerCase(), stateInitBoc: tonWalletStateInitBoc(pub, stored.tonVersion ?? 'v5r1', !!chain.testnet) });
   };
@@ -338,6 +346,13 @@ export const useTonConnect = create<TcState>((set, get) => {
       // Le compte ACTIF doit être celui dont l'adresse a été partagée (le principal, seul à avoir TON).
       const chain = listChains({ includeTestnets: true }).find((c) => c.id === session.chainId);
       if (!chain || addressForChain(w.accounts[w.activeAccountIndex], chain) !== session.address) throw new Error('tcWrongAccount');
+      /*
+       * Jamais à l'aveugle : sans émulation MONTRÉE, seuls les envois simples
+       * de TON (ce que l'écran affiche en entier) sont signables. Un transfert
+       * de jetons ou de NFT caché dans les données serait sinon invisible.
+       */
+      if (p.draft?.emulation?.failed) throw new Error('tcWillFail');
+      if (!p.draft?.emulation && !blindSafe(p.tx.messages)) throw new Error('tcCannotVerify');
       const adapter = getAdapterV2(session.chainId);
       if (!(adapter instanceof TonAdapterV2)) throw new Error('TON indisponible');
       // État relu au moment de signer : le seqno a pu bouger depuis l'affichage.

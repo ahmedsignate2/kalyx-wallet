@@ -21,7 +21,7 @@ signature, fuite de donnée · **P2** fonctionnement, confort.
 | A3 | Navigateur dApps — fournisseur EVM | `app/(tabs)/browser.tsx`, `lib/dappProvider.ts` | P0 | ✅ 🛡️ | Jeton de page contre les iframes, https obligatoire, adresse EVM, Chain ID de la demande. |
 | A4 | Navigateur dApps — pont TON | `src/domain/tonconnect/jsBridge.ts` | P0 | ✅ 🛡️ | Jeton de page, manifeste = page. |
 | A5 | WalletConnect (sessions, requêtes) | `lib/walletconnect.ts`, `ui/WalletConnectHost.tsx` | P0 | ⚠️ | Adresses par espace de noms, `from` = compte actif, EIP-712 autre réseau signalé. SDK `web3wallet` à migrer (dépendance `elliptic` vulnérable, non utilisée pour nos clés). |
-| A6 | TON Connect (pont HTTP / SSE) | `lib/tonconnect/store.ts` | P0 | ⬜ | Revue complète à faire (messages, `ton_proof`, domaines). |
+| A6 | TON Connect (pont HTTP / SSE et navigateur) | `lib/tonconnect/store.ts`, `ui/TonConnectHost.tsx` | P0 | ✅ 🛡️ | Messages chiffrés et authentifiés, `from` / réseau / échéance vérifiés, compte revérifié à la signature. **Corrigé :** sans émulation, un transfert de jetons ou de NFT caché dans les données était signable ; maintenant décodé localement (`src/domain/tonconnect/payload.ts`) et bloqué. `restoreConnection` limité au portefeuille de la session. |
 | A7 | WalletConnect Pay | `lib/walletconnectPay.ts`, `app/pay.tsx` | P0 | ⚠️ | Méthodes et réseaux en liste fermée. **Réserve :** la signature n'est pas comparée au montant choisi. |
 | A8 | Solana Pay (transaction construite par un serveur) | `app/solana-request.tsx` | P0 | ✅ | Décodée avant signature, adresse Solana correcte (e401228). |
 | A9 | Assistant IA (actions proposées) | `lib/aiActions.ts`, `components/ai/*`, `ui/CopilotSheet.tsx` | P1 | ✅ 🛡️ | Liste blanche d'écrans et de paramètres. Outils du copilote (`lib/copilotTools.ts`) à revoir. |
@@ -96,6 +96,7 @@ En place :
 
 - `scripts/check-address-usage.mjs` (CI) : tout nouvel `account.address` (adresse du réseau affiché) doit être vérifié.
 - `lib/nativeIntent.test.ts` : aucun lien externe n'ouvre un écran directement.
+- `src/domain/tonconnect/payload.test.ts` + `lib/tonconnect/store.test.ts` : jamais de signature TON à l'aveugle.
 - `src/domain/swap/guard.test.ts` (+ `guardLive.test.ts`, `EARN_LIVE=1`) : devis d'échange / Earn contrôlés.
 
 ## Journal
