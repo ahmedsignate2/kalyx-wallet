@@ -30,6 +30,7 @@ import { openTelegramTicket, normalizeSupportTicket, getClientEnvironmentInfo, g
 import { useTicketHistoryStore } from '../../lib/ticketHistoryStore';
 import { detectSensitiveSecrets, sanitizeSecrets } from '../../lib/secretDetector';
 import { knownTxHashes } from '../../lib/knownTxHashes';
+import { kalyxDocsPrompt } from '../../lib/kalyxDocs';
 import { technicalLogger, getFormattedTechnicalLogs } from '../../lib/technicalLogger';
 
 function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
@@ -264,7 +265,7 @@ export function AiChatModal({ visible, onClose, context }: { visible: boolean, o
       ? t('aiWelcomeBrowser')
       : t('aiWelcomeWallet');
 
-  function buildSystemPrompt(ctx: any) {
+  function buildSystemPrompt(ctx: any, question = '') {
     const currentChainConfig = getAdapter(activeChain)?.config;
     const currentNetworkName = currentChainConfig?.name || 'Sepolia';
 
@@ -388,13 +389,21 @@ renvoyé.` : `Tu n'as AUCUN outil : l'utilisateur ne les a pas activés. Répond
 avec le contexte et les logs déjà fournis, et ne prétends jamais avoir consulté
 une source externe.`}`;
 
+    /*
+     * DOCUMENTATION KALYX OFFICIELLE (lib/kalyxDocs.ts) : FAQ, pages du site,
+     * confidentialité, conditions, mentions légales — intégrées à l'app, dans
+     * la langue de l'utilisateur. Cherchée ICI avec la question, et jointe :
+     * marche avec tous les fournisseurs, sans outil, sans appel ni coût.
+     */
+    const docsBlock = kalyxDocsPrompt(question, (language || 'fr') as never);
+
     if (ctx.screen === 'browser') {
-      return `${base}\n\nNAVIGATION ACTIVE (dApp) :\n- URL : ${ctx.url || 'Page vierge'}\n- Titre : ${ctx.title || 'Inconnu'}\n\nVérifie la réputation de l'URL, préviens contre le phishing et réponds aux questions sur la dApp.`;
+      return `${base}${docsBlock}\n\nNAVIGATION ACTIVE (dApp) :\n- URL : ${ctx.url || 'Page vierge'}\n- Titre : ${ctx.title || 'Inconnu'}\n\nVérifie la réputation de l'URL, préviens contre le phishing et réponds aux questions sur la dApp.`;
     }
     if (ctx.screen === 'wallet') {
-      return `${base}\n\nDONNÉES DU PORTEFEUILLE :\n- Valeur totale : ${ctx.totalUsd} $\n- Actifs détenus : \n${ctx.tokensSummary?.length ? ctx.tokensSummary.join('\n') : 'Aucun token'}\n\nPERFORMANCES ET P&L (24h) :\n- Variation 24h : ${ctx.pnl24h !== undefined ? (ctx.pnl24h >= 0 ? '+' : '') + ctx.pnl24h.toFixed(2) + ' $ (' + (ctx.pnl24hPct >= 0 ? '+' : '') + ctx.pnl24hPct.toFixed(2) + ' %)' : 'Inconnue'}\n- Meilleur performer : ${ctx.topGainer || 'Aucun'}\n- Pire performer : ${ctx.topLoser || 'Aucun'}\nLORSQUE l'utilisateur demande un bilan ou ses performances, réponds en 2 à 3 phrases percutantes sans jargon lourd (ex: 'Sur les dernières 24h, ton portefeuille est à +5.2% (+0.08 $), principalement porté par ta position BTC.').\n\nSAUVEGARDE ET SÉCURITÉ :\n- Sauvegarde cloud active : ${ctx.hasCloudBackup ? 'OUI' : 'NON'}\n- Approbations actives : ${ctx.activeApprovalsCount || 0}\n\nRéponds directement aux questions sur la gestion, la sécurité ou la répartition de ces fonds.`;
+      return `${base}${docsBlock}\n\nDONNÉES DU PORTEFEUILLE :\n- Valeur totale : ${ctx.totalUsd} $\n- Actifs détenus : \n${ctx.tokensSummary?.length ? ctx.tokensSummary.join('\n') : 'Aucun token'}\n\nPERFORMANCES ET P&L (24h) :\n- Variation 24h : ${ctx.pnl24h !== undefined ? (ctx.pnl24h >= 0 ? '+' : '') + ctx.pnl24h.toFixed(2) + ' $ (' + (ctx.pnl24hPct >= 0 ? '+' : '') + ctx.pnl24hPct.toFixed(2) + ' %)' : 'Inconnue'}\n- Meilleur performer : ${ctx.topGainer || 'Aucun'}\n- Pire performer : ${ctx.topLoser || 'Aucun'}\nLORSQUE l'utilisateur demande un bilan ou ses performances, réponds en 2 à 3 phrases percutantes sans jargon lourd (ex: 'Sur les dernières 24h, ton portefeuille est à +5.2% (+0.08 $), principalement porté par ta position BTC.').\n\nSAUVEGARDE ET SÉCURITÉ :\n- Sauvegarde cloud active : ${ctx.hasCloudBackup ? 'OUI' : 'NON'}\n- Approbations actives : ${ctx.activeApprovalsCount || 0}\n\nRéponds directement aux questions sur la gestion, la sécurité ou la répartition de ces fonds.`;
     }
-    return base;
+    return base + docsBlock;
   }
 
   const sendMessage = async (userMsgOverride?: string) => {
@@ -457,7 +466,7 @@ une source externe.`}`;
           console.warn('[CopilotContext] Échec de la consultation on-chain:', error instanceof Error ? error.message : 'erreur inconnue');
         }
       }
-      const SYSTEM_PROMPT = buildSystemPrompt(context);
+      const SYSTEM_PROMPT = buildSystemPrompt(context, msgToSend);
       copilotLog(traceId, 'context.ready', { systemPromptChars: SYSTEM_PROMPT.length, historyMessages: messages.length });
       
       // Mapper les messages pour l'API
