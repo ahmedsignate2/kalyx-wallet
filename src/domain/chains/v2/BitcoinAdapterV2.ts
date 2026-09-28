@@ -17,6 +17,7 @@ import { BitcoinChainAdapter } from '../BitcoinChainAdapter';
 import { btcAddressKind, isValidBtcAddress, normalizeBtcAddress } from '../../validation/btcAddress';
 import {
   selectUtxos,
+  maxSendableBtc,
   estimateVsize,
   dustThreshold,
   CHANGE_KIND,
@@ -142,6 +143,14 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
     };
 
     return { slow: quote('slow'), normal: quote('normal'), fast: quote('fast') };
+  }
+
+  /** Maximum envoyable vers `to` au palier donné (toutes les pièces, frais réels). */
+  async maxSendable(from: string, to: string, speed: SendSpeed = 'normal'): Promise<{ amount: bigint; fee: bigint }> {
+    const [rates, utxos] = await Promise.all([this.v1.getFeeRates(), this.v1.confirmedUtxos(from)]);
+    const kind = btcAddressKind(normalizeBtcAddress(to)) ?? 'p2wpkh';
+    const m = maxSendableBtc(utxos, rates[speed], kind);
+    return { amount: m.amount, fee: m.fee };
   }
 
   // ── Envoi ──────────────────────────────────────────────────────────────────

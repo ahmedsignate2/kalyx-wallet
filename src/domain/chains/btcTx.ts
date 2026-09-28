@@ -152,18 +152,42 @@ export function selectUtxos(
     sum += BigInt(u.value);
 
     const feeWithChange = BigInt(Math.ceil(estimateVsize(chosen.length, [toKind, CHANGE_KIND]) * rate));
-    if (sum >= target + feeWithChange) {
-      const change = sum - target - feeWithChange;
-      if (change >= DUST_SATS) {
-        return { inputs: chosen, fee: feeWithChange, change };
-      }
-      // Monnaie sous le seuil : pas de sortie de change, on l'absorbe en frais.
-      const feeNoChange = BigInt(Math.ceil(estimateVsize(chosen.length, [toKind]) * rate));
-      if (sum >= target + feeNoChange) {
-        return { inputs: chosen, fee: sum - target, change: 0n };
-      }
-      // Sinon on continue d'accumuler des pièces.
+    if (sum >= target + feeWithChange && sum - target - feeWithChange >= DUST_SATS) {
+      return { inputs: chosen, fee: feeWithChange, change: sum - target - feeWithChange };
     }
+    /*
+     * SANS sortie de monnaie : le reste (sous le seuil de poussière) part en
+     * frais. Ce cas n'était tenté QUE si les frais AVEC monnaie étaient déjà
+     * couverts — « tout envoyer », qui ne tient justement que sans monnaie,
+     * finissait donc en « solde insuffisant ».
+     */
+    const feeNoChange = BigInt(Math.ceil(estimateVsize(chosen.length, [toKind]) * rate));
+    if (sum >= target + feeNoChange) {
+      return { inputs: chosen, fee: sum - target, change: 0n };
+    }
+    // Sinon on continue d'accumuler des pièces.
   }
   return null; // solde insuffisant
+}
+
+/**
+ * MAXIMUM réellement envoyable : toutes les pièces rentables (jusqu'à
+ * `MAX_INPUTS`), sans sortie de monnaie, moins les frais de CES entrées.
+ *
+ * Le bouton « Max » retranchait les frais d'une transaction à UNE entrée :
+ * avec plusieurs pièces, le montant proposé dépassait ce qui était payable et
+ * l'envoi échouait (ou demandait plus de frais qu'annoncé). Rend 0 si le reste
+ * tomberait sous le seuil de poussière du destinataire.
+ */
+export function maxSendableBtc(utxos: Utxo[], feeRate: number, toKind: BtcAddressKind = 'p2wpkh'): { amount: bigint; fee: bigint; inputs: number } {
+  const rate = Math.max(1, feeRate);
+  const usable = [...utxos]
+    .filter((u) => BigInt(u.value) > BigInt(Math.ceil(INPUT_VBYTES * rate)))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, MAX_INPUTS);
+  if (usable.length === 0) return { amount: 0n, fee: 0n, inputs: 0 };
+  const sum = usable.reduce((s, u) => s + BigInt(u.value), 0n);
+  const fee = BigInt(Math.ceil(estimateVsize(usable.length, [toKind]) * rate));
+  const amount = sum > fee ? sum - fee : 0n;
+  return amount >= dustThreshold(toKind) ? { amount, fee, inputs: usable.length } : { amount: 0n, fee, inputs: usable.length };
 }
