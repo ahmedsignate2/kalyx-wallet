@@ -4,6 +4,7 @@
  * et fiche token. Posée au-dessus de la barre d'onglets, à droite. Style
  * tokens (Nuit + Trait + étoiles), pas de dégradé doré.
  */
+import { GOLD } from '../../ui/nova';
 import { useLocked } from '../../lib/lockState';
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
@@ -52,7 +53,8 @@ export function FloatingAiAssistant() {
   const onToken = pathname.startsWith('/token/');
   const showBubble = onTabs || onBrowser || onToken;
   // Au-dessus de la barre d'onglets (≈ 88 + inset) ; sur le navigateur, au-dessus de la barre d'adresse.
-  const bottom = onTabs ? insets.bottom + 96 : onBrowser ? insets.bottom + 72 : insets.bottom + 24;
+  // La barre flottante occupe max(inset, 12) + 8 + 68 : la bulle se pose 14 px au-dessus.
+  const bottom = onTabs ? Math.max(insets.bottom, 12) + 90 : onBrowser ? insets.bottom + 72 : insets.bottom + 24;
 
   const context = onBrowser ? { screen: 'browser', url: currentUrl, title: currentTitle } : pathname.includes('market') ? { screen: 'markets' } : { screen: 'wallet', totalUsd, tokensSummary, pnl24h, pnl24hPct, topGainer, topLoser };
 
@@ -61,7 +63,7 @@ export function FloatingAiAssistant() {
       {showBubble && !isOpen ? (
         <View pointerEvents="box-none" style={{ position: 'absolute', right: 16, bottom, zIndex: 50 }}>
           <Pressable onPress={() => { if (collapsed) setCollapsed(false); else openChat(); }} accessibilityLabel={collapsed ? t('aiFloatingShow') : t('aiFloatingOpen')} style={{ width: collapsed ? 34 : 52, height: collapsed ? 40 : 52, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="sparkles" size={22} />
+            <Icon name="sparkles" size={22} color={GOLD} />
           </Pressable>
         </View>
       ) : null}
