@@ -110,7 +110,7 @@ export { SparkBurst } from './kit/SparkBurst';
  * `primary` : disque Lumière, icône encre — l'action principale, une seule par
  * rangée. `gold` : icône or — ce qui rapporte. Sinon : disque Orbite.
  */
-export function ActionDisc({ icon, label, onPress, tone = 'default', index = 0 }: { icon: IconName; label: string; onPress: () => void; tone?: 'primary' | 'gold' | 'default'; index?: number }) {
+export function ActionDisc({ icon, label, onPress, tone = 'default', index = 0, disabled }: { icon: IconName; label: string; onPress: () => void; tone?: 'primary' | 'gold' | 'default'; index?: number; disabled?: boolean }) {
   const { colors, mode } = useTheme();
   const reduce = useReduceMotion();
   const p = useSharedValue(reduce ? 1 : 0);
@@ -122,12 +122,12 @@ export function ActionDisc({ icon, label, onPress, tone = 'default', index = 0 }
   const bg = tone === 'primary' ? colors.primary : colors.surface2;
   const ink = tone === 'primary' ? colors.onPrimary : tone === 'gold' ? (mode === 'dark' ? GOLD : BRAND_GOLD.deep) : colors.text;
   return (
-    <Animated.View style={[{ flex: 1 }, rise]}>
-      <KPressable onPress={onPress} haptic="light" overshoot accessibilityRole="button" accessibilityLabel={label} style={{ alignItems: 'center', gap: 8 }}>
+    <Animated.View style={[{ flex: 1, opacity: disabled ? 0.4 : 1 }, rise]}>
+      <KPressable onPress={onPress} disabled={disabled} haptic="light" overshoot accessibilityRole="button" accessibilityLabel={label} style={{ alignItems: 'center', gap: 8 }}>
         <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: bg, borderWidth: tone === 'primary' ? 0 : 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={icon} size={23} color={ink} />
         </View>
-        <Text variant="caption" numberOfLines={1} style={{ fontFamily: fontFamily.semibold }}>{label}</Text>
+        <Text variant="caption" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fontFamily.semibold }}>{label}</Text>
       </KPressable>
     </Animated.View>
   );
@@ -241,6 +241,28 @@ export function FlowDots({ step, total = 3 }: { step: number; total?: number }) 
   return (
     <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }} accessibilityRole="progressbar" accessibilityValue={{ min: 1, max: total, now: step }}>
       {Array.from({ length: total }, (_, i) => <FlowDot key={i} on={i + 1 === step} done={i + 1 < step} />)}
+    </View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Titre de section et icône en disque (listes de réglages)            */
+/* ------------------------------------------------------------------ */
+
+/** Petit titre de section en capitales espacées, au-dessus d'une carte. */
+export function SectionLabel({ children }: { children: string }) {
+  return (
+    <Text variant="micro" tone="tertiary" style={{ letterSpacing: 1.2, textTransform: 'uppercase', marginLeft: 4, marginBottom: -4 }}>{children}</Text>
+  );
+}
+
+/** Icône de ligne posée dans un disque Orbite — la même forme que les disques d'action. */
+export function IconDisc({ name, tone = 'default', size = 36 }: { name: IconName; tone?: 'default' | 'gold' | 'danger'; size?: number }) {
+  const { colors, mode } = useTheme();
+  const ink = tone === 'gold' ? (mode === 'dark' ? GOLD : BRAND_GOLD.deep) : tone === 'danger' ? colors.danger : colors.text;
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name={name} size={Math.round(size * 0.5)} color={ink} />
     </View>
   );
 }
