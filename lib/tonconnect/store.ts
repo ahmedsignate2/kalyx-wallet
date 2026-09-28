@@ -32,6 +32,8 @@ import {
 import { decryptMessage, encryptMessage, newSessionKeyPair, type SessionKeyPair } from '../../src/domain/tonconnect/sessionCrypto';
 import { manifestDomain, manifestOriginMatches, parseConnectLink, parseManifest, type DappManifest, type ParsedConnectLink } from '../../src/domain/tonconnect/connectLink';
 import { blindSafe } from '../../src/domain/tonconnect/payload';
+import { parseSignDataPayload, signDataDigest, tonNetworkId, type SignDataPayload } from '../../src/domain/tonconnect/signData';
+import { Address } from '@ton/core';
 import { buildTonProof, tonAddrReply } from '../../src/domain/tonconnect/tonProof';
 import { parseSendTransaction, TC_ERROR, TC_MAX_MESSAGES, type DappTransaction } from '../../src/domain/tonconnect/requests';
 import { tonWalletStateInitBoc } from '../../src/domain/chains/ton/tonTransfer';
@@ -62,7 +64,9 @@ export type TcPending =
       /** Demande venue du NAVIGATEUR intégré (pont JS) : page et appel à résoudre. */
       js?: { host: string; callId: number };
     }
-  | { kind: 'tx'; session: TcSession; requestId: string; tx: DappTransaction; draft: DappDraft | null; error?: string; jsCallId?: number };
+  | { kind: 'tx'; session: TcSession; requestId: string; tx: DappTransaction; draft: DappDraft | null; error?: string; jsCallId?: number }
+  /** Signature de DONNÉES (texte, octets, cellule), pas d'une transaction. */
+  | { kind: 'signData'; session: TcSession; requestId: string; payload: SignDataPayload; jsCallId?: number };
 
 /**
  * Sortie vers la page du navigateur intégré (pont JS). Branchée par l'écran du
@@ -83,6 +87,8 @@ interface TcState {
   rejectConnect: () => Promise<void>;
   approveTx: (unlock: Unlock) => Promise<string>;
   rejectTx: () => Promise<void>;
+  approveSignData: (unlock: Unlock) => Promise<void>;
+  rejectSignData: () => Promise<void>;
   disconnect: (clientId: string) => Promise<void>;
   /** Appel du pont JS d'une page du navigateur intégré. */
   jsCall: (host: string, call: TcJsCall) => Promise<void>;
@@ -110,7 +116,7 @@ function device() {
     appVersion: Constants.expoConfig?.version ?? '0.1.0',
     maxProtocolVersion: 2,
     // La forme ancienne (« SendTransaction ») reste exigée par les vieux SDK.
-    features: ['SendTransaction', { name: 'SendTransaction', maxMessages: TC_MAX_MESSAGES }],
+    features: ['SendTransaction', { name: 'SendTransaction', maxMessages: TC_MAX_MESSAGES }, { name: 'SignData', types: ['text', 'binary', 'cell'] }],
   };
 }
 
@@ -205,13 +211,24 @@ export const useTonConnect = create<TcState>((set, get) => {
     }
   };
 
+  /** Demande de signature de données (pont HTTP ou JS) : lue, puis mise en file. */
+  const enqueueSignData = (session: TcSession, id: string, raw: unknown, reply: (payload: unknown) => void, jsCallId?: number) => {
+    const payload = parseSignDataPayload(raw);
+    console.log('[KALYX-TC] signData:reçu', { type: payload?.type ?? 'invalide', network: payload?.network ?? null });
+    if (!payload) {
+      reply({ error: { code: TC_ERROR.BAD_REQUEST, message: 'Bad signData request' }, id });
+      return;
+    }
+    set({ queue: [...get().queue, { kind: 'signData', session, requestId: id, payload, ...(jsCallId !== undefined ? { jsCallId } : {}) }] });
+  };
+
   /** Répond à la dApp d'une demande de transaction, par son transport. */
-  const replyTx = (p: Extract<TcPending, { kind: 'tx' }>, payload: unknown) =>
+  const replyTx = (p: Extract<TcPending, { kind: 'tx' | 'signData' }>, payload: unknown) =>
     p.session.bridge === JS_BRIDGE ? Promise.resolve(p.jsCallId !== undefined && jsResolve(hostOfSession(p.session), p.jsCallId, payload)) : respond(p.session, payload);
 
   const remove = async (clientId: string) => {
     const sessions = get().sessions.filter((s) => s.clientId !== clientId);
-    set({ sessions, queue: get().queue.filter((p) => p.kind !== 'tx' || p.session.clientId !== clientId) });
+    set({ sessions, queue: get().queue.filter((p) => p.kind === 'connect' || p.session.clientId !== clientId) });
     await kvDel(sessionKey(clientId)).catch(() => {});
     await persist(sessions).catch(() => {});
     relisten();
@@ -235,6 +252,10 @@ export const useTonConnect = create<TcState>((set, get) => {
     if (req.method === 'disconnect') {
       await respond(session, { result: {}, id }).catch(() => {});
       await remove(session.clientId);
+      return;
+    }
+    if (req.method === 'signData') {
+      enqueueSignData(session, id, req.params?.[0], (payload) => void respond(session, payload).catch(() => {}));
       return;
     }
     if (req.method !== 'sendTransaction') {
@@ -374,6 +395,46 @@ export const useTonConnect = create<TcState>((set, get) => {
       await replyTx(p, { error: { code: TC_ERROR.USER_REJECTS, message: 'User declined the transaction' }, id: p.requestId }).catch(() => {});
     },
 
+    approveSignData: async (unlock) => {
+      const p = get().queue[0];
+      if (p?.kind !== 'signData') throw new Error('tcNothingPending');
+      const { session, payload } = p;
+      const w = useWallet.getState();
+      if (w.activeWalletId !== session.walletId) throw new Error('tcWrongWallet');
+      const chain = listChains({ includeTestnets: true }).find((c) => c.id === session.chainId);
+      if (!chain || addressForChain(w.accounts[w.activeAccountIndex], chain) !== session.address) throw new Error('tcWrongAccount');
+      /*
+       * Règles de la spécification, appliquées AVANT la clé : un réseau
+       * différent de celui du portefeuille, ou une adresse de signature
+       * différente de celle connectée, et on ne signe pas.
+       */
+      if (payload.network !== undefined && payload.network !== tonNetworkId(!!chain.testnet)) throw new Error('tcSignDataWrongNetwork');
+      const me = Address.parse(session.address);
+      if (payload.from !== undefined) {
+        let from: Address | null = null;
+        try {
+          from = Address.parse(payload.from);
+        } catch {
+          from = null;
+        }
+        if (!from || !from.equals(me)) throw new Error('tcSignDataWrongAccount');
+      }
+      const domain = manifestDomain(session.manifest);
+      const timestamp = Math.floor(Date.now() / 1000);
+      const digest = signDataDigest(payload, me, domain, timestamp);
+      const signature = await withTonSigner(session.chainId, unlock, async (signer) => base64.encode(ed25519.sign(digest, signer.secretKey.subarray(0, 32))));
+      set({ queue: get().queue.slice(1) });
+      console.log('[KALYX-TC] signData:signé', { type: payload.type, domain });
+      await replyTx(p, { result: { signature, address: me.toRawString(), timestamp, domain, payload }, id: p.requestId }).catch(() => {});
+    },
+
+    rejectSignData: async () => {
+      const p = get().queue[0];
+      if (p?.kind !== 'signData') return;
+      set({ queue: get().queue.slice(1) });
+      await replyTx(p, { error: { code: TC_ERROR.USER_REJECTS, message: 'User declined the request' }, id: p.requestId }).catch(() => {});
+    },
+
     disconnect: async (clientId) => {
       const session = get().sessions.find((s) => s.clientId === clientId);
       const event = { event: 'disconnect', id: await nextEventId(), payload: {} };
@@ -418,6 +479,7 @@ export const useTonConnect = create<TcState>((set, get) => {
         await remove(clientId);
         return;
       }
+      if (msg?.method === 'signData') return enqueueSignData(session, id, msg.params?.[0], reply, call.id);
       if (msg?.method !== 'sendTransaction') return reply({ error: { code: TC_ERROR.METHOD_NOT_SUPPORTED, message: 'Method not supported' }, id });
       enqueueTx(session, id, msg.params?.[0], reply, call.id);
     },
