@@ -89,6 +89,42 @@ function notifyIncoming(title: string, body: string) {
 
 const PROJECT_ID = process.env.EXPO_PUBLIC_WALLETCONNECT_ID || '';
 
+/**
+ * DÉCONNEXION QUI ABOUTIT TOUJOURS DE NOTRE CÔTÉ.
+ *
+ * `disconnectSession` passe par le relais : session déjà expirée là-bas, réseau
+ * coupé, et il levait — la session restait enregistrée, la liste ne bougeait
+ * pas, « Déconnecter » semblait ne rien faire. On prévient la dApp si on peut
+ * (8 s au plus), puis on SUPPRIME la session et son appairage localement quoi
+ * qu'il arrive.
+ */
+async function forceDisconnect(w: IWeb3Wallet | null, topic: string): Promise<void> {
+  if (!w) return;
+  const reason = sdkUtils?.getSdkError('USER_DISCONNECTED') ?? { code: 6000, message: 'User disconnected' };
+  const pairingTopic: string | undefined = (w.getActiveSessions()?.[topic] as any)?.pairingTopic;
+  try {
+    await Promise.race([
+      w.disconnectSession({ topic, reason: reason as never }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
+    ]);
+    console.log('[KALYX-WC] disconnect:ok', { topic: topic.slice(0, 8) });
+  } catch (e) {
+    console.warn('[KALYX-WC] disconnect:relay-failed, suppression locale', { topic: topic.slice(0, 8), error: e instanceof Error ? e.message : String(e) });
+    try {
+      await (w as any).engine?.signClient?.session?.delete?.(topic, reason);
+    } catch {
+      /* déjà absente */
+    }
+  }
+  if (pairingTopic) {
+    try {
+      await (w as any).core?.pairing?.disconnect?.({ topic: pairingTopic });
+    } catch {
+      /* appairage déjà fermé */
+    }
+  }
+}
+
 // Utilitaires SDK chargés à l'init (import dynamique).
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let sdkUtils: { buildApprovedNamespaces: (a: any) => any; getSdkError: (k: any) => any } | null = null;
@@ -223,6 +259,8 @@ interface WcState {
   disconnect: (topic: string) => Promise<void>;
   /** Coupe TOUTES les sessions actives (ex. au verrouillage de Kalyx). */
   disconnectAll: () => Promise<void>;
+  /** Coupe les sessions qui utilisent l'une de ces adresses (portefeuille supprimé). */
+  disconnectAddresses: (addresses: string[]) => Promise<void>;
   refresh: () => void;
 }
 
@@ -722,19 +760,26 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   },
 
   disconnect: async (topic) => {
-    if (sdkUtils) await get().wallet?.disconnectSession({ topic, reason: sdkUtils.getSdkError('USER_DISCONNECTED') });
+    await forceDisconnect(get().wallet, topic);
+    get().refresh();
+  },
+
+  disconnectAddresses: async (addresses) => {
+    const w = get().wallet;
+    if (!w || !addresses.length) return;
+    const mine = new Set(addresses.map((a) => a.toLowerCase()));
+    const hit = Object.values(w.getActiveSessions()).filter((s: any) =>
+      Object.values(s.namespaces ?? {}).some((ns: any) => (ns.accounts ?? []).some((acc: string) => mine.has(String(acc).split(':').pop()!.toLowerCase()))),
+    );
+    await Promise.all(hit.map((s: any) => forceDisconnect(w, s.topic)));
     get().refresh();
   },
 
   disconnectAll: async () => {
     const w = get().wallet;
-    if (!w || !sdkUtils) return;
+    if (!w) return;
     const active = w.getActiveSessions();
-    await Promise.all(
-      Object.values(active).map((s: any) =>
-        w.disconnectSession({ topic: s.topic, reason: sdkUtils!.getSdkError('USER_DISCONNECTED') }).catch(() => {}),
-      ),
-    );
+    await Promise.all(Object.values(active).map((s: any) => forceDisconnect(w, s.topic)));
     get().refresh();
   },
 

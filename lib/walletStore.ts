@@ -1139,6 +1139,12 @@ export const useWallet = create<WalletState>((set, get) => ({
     await revealMnemonic(get().activeWalletId, unlock);
     const wallets = get().wallets.filter((w) => w.id !== id);
     if (wallets.length === 0) throw new Error('Impossible de supprimer le dernier portefeuille.');
+    // Ses connexions partent avec lui (sessions WalletConnect sur ses adresses, TON Connect liées à lui).
+    const gone = ((get().activeWalletId === id ? get().accounts : await loadAccounts(id)) ?? []).flatMap((a) => [a.evmAddress, a.solAddress, a.btcAddress].filter((x): x is string => !!x));
+    await Promise.race([
+      import('./sessionReset').then((m) => m.disconnectWallet(id, gone)).catch(() => {}),
+      new Promise((r) => setTimeout(r, 10_000)),
+    ]);
     await wipeWallet(id);
     await saveWalletsList(wallets);
     if (get().activeWalletId === id) {
@@ -1741,6 +1747,16 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!get().isUnlocked) throw new WalletError('LOCKED_OUT', 'App verrouillée');
     await revealMnemonic(get().activeWalletId, unlock);
     console.log('[KALYX-VAULT] reset:verified, wiping');
+    /*
+     * Toutes les connexions coupées AVANT l'effacement (WalletConnect, TON
+     * Connect, sites du navigateur) — 10 s au plus : un relais injoignable ne
+     * doit pas bloquer la réinitialisation. Import tardif : ces modules
+     * dépendent du coffre.
+     */
+    await Promise.race([
+      import('./sessionReset').then((m) => m.disconnectEverything()).catch(() => {}),
+      new Promise((r) => setTimeout(r, 10_000)),
+    ]);
     await wipeAll(get().wallets);
     // Le portefeuille et le compte mémorisés n'ont plus d'objet : les laisser
     // ferait chercher, au prochain lancement, un identifiant qui n'existe plus.

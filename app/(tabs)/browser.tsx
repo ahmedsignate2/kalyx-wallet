@@ -142,6 +142,12 @@ export default function Browser() {
    * ACTIF de l'app : sur Solana, une dApp EVM recevait l'adresse Solana.
    */
   const evmAddress = useWallet((s) => s.accounts.find((a) => a.index === s.activeAccountIndex)?.evmAddress);
+  /*
+   * Connexions effacées ailleurs (réinitialisation, « effacer les données ») :
+   * le navigateur reste monté et gardait ses sites connectés EN MÉMOIRE — la
+   * page ouverte voyait encore le compte. On les oublie et on prévient la page.
+   */
+  const dappEpoch = useDappActivity((s) => s.epoch);
   const activeChain = useWallet((s) => s.activeChain);
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const biometricEnabled = useSettings((s) => s.biometricEnabled);
@@ -345,6 +351,12 @@ export default function Browser() {
   const pageToken = useMemo(() => bytesToHexToken(), []);
   const injected = useMemo(() => buildInjectedProvider(chainIdHex, pageToken) + '\n' + buildTonJsBridge(tcDeviceInfo(), pageToken), [chainIdHex, pageToken]);
   const inject = useCallback((js: string) => webref.current?.injectJavaScript(js), []);
+  useEffect(() => {
+    if (!dappEpoch) return;
+    connected.current.clear();
+    inject(emitJs('accountsChanged', []));
+    inject(emitJs('disconnect', {}));
+  }, [dappEpoch, inject]);
   /*
    * Réponses TON Connect vers la page : exécutées seulement si la page ouverte
    * est TOUJOURS celle qui a demandé — une réponse ne doit jamais atterrir sur
