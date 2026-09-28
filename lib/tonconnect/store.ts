@@ -230,7 +230,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       return;
     }
     if (req.method !== 'sendTransaction') {
-      await respond(session, { error: { code: TC_ERROR.METHOD_NOT_SUPPORTED, message: 'Méthode non prise en charge' }, id }).catch(() => {});
+      await respond(session, { error: { code: TC_ERROR.METHOD_NOT_SUPPORTED, message: 'Method not supported' }, id }).catch(() => {});
       return;
     }
     enqueueTx(session, id, req.params?.[0], (payload) => void respond(session, payload).catch(() => {}));

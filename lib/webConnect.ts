@@ -332,7 +332,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
   disconnect: async () => {
     const { topic } = get();
     if (client && topic) {
-      await client.disconnect({ topic, reason: { code: 6000, message: 'Déconnexion utilisateur' } }).catch(() => {});
+      await client.disconnect({ topic, reason: { code: 6000, message: 'User disconnected' } }).catch(() => {});
     }
     get().reset();
   },

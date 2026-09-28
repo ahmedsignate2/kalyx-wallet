@@ -568,7 +568,10 @@ export default function Send() {
   const goStep3 = () => {
     setAmountError(null);
     if (amountRaw <= 0n) return setAmountError(t("errEnterAmount"));
-    if (overBalance) return setAmountError(`Tu possèdes ${formatTokenAmount(balance ?? 0n, decimals)} ${symbol}${isNativeSend ? ` (frais réservés : ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol})` : ''}.`);
+    if (overBalance) {
+      const held = `${formatTokenAmount(balance ?? 0n, decimals)} ${symbol}`;
+      return setAmountError(isNativeSend ? t('sendOverBalanceFee').replace('{amount}', held).replace('{fee}', `${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`) : t('sendOverBalance').replace('{amount}', held));
+    }
     if (notEnoughGas) {
       technicalLogger.logTx('step_2_not_enough_gas', { chain: chain.name, feeRaw: feeRaw.toString() }, true);
       return; // bloquant, message déjà affiché — même convention que l'empoisonnement
@@ -882,7 +885,7 @@ export default function Send() {
           <Divider inset={16} />
           <ListRow title={t("labelNetwork")} right={<Text variant="body">{chain.name}</Text>} />
           <Divider inset={16} />
-          <ListRow title={t("labelNetworkFee")} subtitle={feeOptions ? `${speed === 'slow' ? t("feeSlow") : speed === 'fast' ? t("feeFast") : t("feeNormal")} · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}` : `${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? `environ ${formatFiat(feeFiat)} ${sym}` : '—'}</Text>} />
+          <ListRow title={t("labelNetworkFee")} subtitle={feeOptions ? `${speed === 'slow' ? t("feeSlow") : speed === 'fast' ? t("feeFast") : t("feeNormal")} · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}` : `${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? t('aboutApprox').replace('{amount}', `${formatFiat(feeFiat)} ${sym}`) : '—'}</Text>} />
           {/*
             Le jeton lui-même prélève : on montre ce qui ARRIVERA, pas seulement
             ce qui part. C'est le seul endroit où l'utilisateur peut encore
@@ -903,6 +906,10 @@ export default function Send() {
         ) : null}
         {afterBalance != null ? (
           <Text variant="bodySecondary" tone="secondary">{t("balanceUpdatePreview").replace("${symbol}", symbol).replace("${formatTokenAmount(balance!, decimals)}", formatTokenAmount(balance!, decimals)).replace("${formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals)}", formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals))}</Text>
+        ) : null}
+        {/* Frais qui écrasent le montant (2 € envoyés, 5 € de frais) : le dire avant la signature. */}
+        {feeFiat > 0 && fiatOfAmount > 0 && feeFiat > fiatOfAmount * 0.5 ? (
+          <Text variant="caption" tone="warning">{t('sendHighFee').replace('{pct}', String(Math.round((feeFiat / fiatOfAmount) * 100)))}</Text>
         ) : null}
         {family === 'evm' ? <Text variant="caption" tone="warning">{t("checkNetworkWarning").replace("${chain.name}", chain.name)}</Text> : null}
         {!isKnown ? <Text variant="caption" tone="warning">{t("firstTimeWarning").replace("${recipient.slice(-4)}", recipient.slice(-4))}</Text> : null}
