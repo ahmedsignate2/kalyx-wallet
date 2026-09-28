@@ -33,7 +33,12 @@ if (!runtime) {
   console.error('NATIVE_RUNTIME introuvable dans app.config.ts');
   process.exit(2);
 }
-const { hash } = await createFingerprintAsync(root, { platforms: ['android'] });
+/*
+ * `.gitignore` exclu : l'outil l'inclut dans l'empreinte, mais il ne change
+ * rien à l'APK. Le réécrire (filtre du dépôt, 28/09) faisait croire à un
+ * changement natif — et réclamer un APK pour rien.
+ */
+const { hash } = await createFingerprintAsync(root, { platforms: ['android'], ignorePaths: ['.gitignore'] });
 
 if (process.argv.includes('--record')) {
   fs.writeFileSync(file, JSON.stringify({ runtime, fingerprint: hash }, null, 2) + '\n');

@@ -8,16 +8,15 @@
 # moindre erreur visible. Publier depuis la même infrastructure que le build est
 # la seule façon d'avoir des empreintes qui correspondent.
 #
-# DÉSACTIVÉ DEPUIS LE 28/09 : les mises à jour sont SIGNÉES (app.config.ts,
-# `codeSigningCertificate`), et la clé privée ne quitte pas la machine de
-# publication. Une mise à jour publiée ici ne serait pas signée : l'APK la
-# refuserait. Publier en local :
-#   npx eas-cli update --channel preview --message "…" --clear-cache \
-#     --private-key-path /root/Nova-archives/ota-signing/private-key.pem
-# (Plus de déclenchement automatique au push ; lancement manuel seulement.)
+# Déclenchement automatique à chaque push sur `main`, ou à la demande :
+#   npx eas-cli workflow:run publish-preview.yml
 
-name: Publier une mise a jour preview (non signee - ne pas utiliser)
+name: Publier une mise a jour preview
 
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   publish_update:
