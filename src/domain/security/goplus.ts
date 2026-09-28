@@ -18,20 +18,20 @@ export interface RiskAssessment {
   reasons: string[];
 }
 
-/** Drapeaux d'adresse GoPlus → libellés FR (valeur "1" = signalé). */
+/** Drapeaux d'adresse GoPlus → CLÉS de traduction (`gp…`), jamais une phrase figée dans une langue. */
 const ADDRESS_FLAGS: [string, string][] = [
-  ['malicious_contract', 'Contrat malveillant signalé'],
-  ['phishing_activities', 'Activités de phishing'],
-  ['stealing_attack', 'Attaques de vol détectées'],
-  ['honeypot_related_address', 'Lié à un honeypot'],
-  ['blackmail_activities', 'Activités de chantage'],
-  ['blacklist_doubt', 'Adresse en liste noire'],
-  ['fake_kyc', 'Faux KYC'],
-  ['financial_crime', 'Crime financier'],
-  ['darkweb_transactions', 'Transactions dark web'],
-  ['money_laundering', 'Blanchiment'],
-  ['sanctioned', 'Adresse sanctionnée'],
-  ['cybercrime', 'Cybercriminalité'],
+  ['malicious_contract', 'gpMaliciousContract'],
+  ['phishing_activities', 'gpPhishing'],
+  ['stealing_attack', 'gpStealing'],
+  ['honeypot_related_address', 'gpHoneypotAddress'],
+  ['blackmail_activities', 'gpBlackmail'],
+  ['blacklist_doubt', 'gpBlacklist'],
+  ['fake_kyc', 'gpFakeKyc'],
+  ['financial_crime', 'gpFinancialCrime'],
+  ['darkweb_transactions', 'gpDarkweb'],
+  ['money_laundering', 'gpLaundering'],
+  ['sanctioned', 'gpSanctioned'],
+  ['cybercrime', 'gpCybercrime'],
 ];
 
 export function parseAddressSecurity(json: unknown): RiskAssessment {
@@ -46,10 +46,10 @@ export function parseTokenSecurity(json: unknown, contract: string): RiskAssessm
   const t = map?.[contract.toLowerCase()];
   if (!t || typeof t !== 'object') return { level: 'unknown', reasons: [] };
   const reasons: string[] = [];
-  if (String(t.is_honeypot) === '1') reasons.push('Honeypot (revente impossible)');
-  if (String(t.cannot_sell_all) === '1') reasons.push('Revente totale bloquée');
-  if (String(t.is_blacklisted) === '1') reasons.push('Token en liste noire');
-  if (String(t.selfdestruct) === '1') reasons.push('Contrat auto-destructible');
+  if (String(t.is_honeypot) === '1') reasons.push('gpHoneypot');
+  if (String(t.cannot_sell_all) === '1') reasons.push('gpCannotSellAll');
+  if (String(t.is_blacklisted) === '1') reasons.push('gpTokenBlacklisted');
+  if (String(t.selfdestruct) === '1') reasons.push('gpSelfDestruct');
   return { level: reasons.length ? 'danger' : 'ok', reasons };
 }
 
