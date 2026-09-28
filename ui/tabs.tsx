@@ -18,7 +18,8 @@ import { useReduceMotion } from '../lib/reduceMotion';
 import { durations, springs, BRAND_GOLD } from './tokens';
 import { useTheme } from './theme';
 import { Icon, type IconName } from './icon';
-import { Pressable as KPressable } from './kit';
+import { Pressable as KPressable, Text } from './kit';
+import { fontFamily } from './tokens';
 
 export type MainTab = 'home' | 'browser' | 'earn' | 'menu';
 
@@ -30,30 +31,38 @@ export const useTabBar = create<{ hidden: boolean; setHidden: (h: boolean) => vo
 
 /** Or de la marque : le seul accent chaud de l'interface (Bible §2). */
 export const GOLD = BRAND_GOLD.light;
-const NAV_H = 66;
+const NAV_H = 68;
+/** Largeur de la lueur de l'onglet actif (bornée par l'emplacement). */
+const GLOW_W = 76;
 
 const TABS: { key: MainTab; icon: IconName; label: (t: (k: any) => string) => string }[] = [
   { key: 'home', icon: 'home', label: (t) => t('navHome') },
   { key: 'browser', icon: 'dapps', label: (t) => t('navExplore') },
-  { key: 'earn', icon: 'staking', label: () => 'Earn' },
+  { key: 'earn', icon: 'staking', label: (t) => t('actionEarn') },
   { key: 'menu', icon: 'menu', label: (t) => t('menu') },
 ];
 
-function NavIcon({ icon, on }: { icon: IconName; on: boolean }) {
+/*
+ * Icône + libellé : sans libellé la barre paraissait vide, et il fallait
+ * deviner ce que cachait chaque glyphe. L'actif monte légèrement, s'éclaire,
+ * et porte le point d'or au-dessus de l'icône.
+ */
+function NavItem({ icon, label, on }: { icon: IconName; label: string; on: boolean }) {
   const { colors } = useTheme();
   const reduce = useReduceMotion();
   const p = useSharedValue(on ? 1 : 0);
   useEffect(() => {
     p.value = reduce ? (on ? 1 : 0) : withSpring(on ? 1 : 0, springs.snappy);
   }, [on, reduce, p]);
-  const iconStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -3 * p.value }, { scale: 1 + 0.08 * p.value }] }));
+  const iconStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -1.5 * p.value }, { scale: 1 + 0.06 * p.value }] }));
   const dotStyle = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ scale: p.value }] }));
   return (
-    <View style={{ alignItems: 'center', gap: 5 }}>
+    <View style={{ alignItems: 'center', gap: 3 }}>
+      <Reanimated.View style={[{ width: 4, height: 4, borderRadius: 2, backgroundColor: GOLD, marginBottom: 1 }, dotStyle]} />
       <Reanimated.View style={iconStyle}>
-        <Icon name={icon} size={23} color={on ? colors.text : colors.textTertiary} />
+        <Icon name={icon} size={22} color={on ? colors.text : colors.textTertiary} />
       </Reanimated.View>
-      <Reanimated.View style={[{ width: 4, height: 4, borderRadius: 2, backgroundColor: GOLD }, dotStyle]} />
+      <Text variant="micro" numberOfLines={1} style={{ fontFamily: on ? fontFamily.semibold : fontFamily.medium, fontSize: 10.5, letterSpacing: 0.1, color: on ? colors.text : colors.textTertiary }}>{label}</Text>
     </View>
   );
 }
@@ -68,6 +77,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const activeIdx = Math.max(0, TABS.findIndex((x) => x.key === active));
   const [w, setW] = useState(0);
   const slot = w / TABS.length;
+  const glowW = Math.min(GLOW_W, slot - 8);
 
   const y = useSharedValue(hidden ? 1 : 0);
   useEffect(() => {
@@ -79,9 +89,9 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const x = useSharedValue(0);
   useEffect(() => {
     if (!slot) return;
-    const to = activeIdx * slot + (slot - 52) / 2;
+    const to = activeIdx * slot + (slot - glowW) / 2;
     x.value = reduce || x.value === 0 ? to : withSpring(to, springs.standard);
-  }, [activeIdx, slot, reduce, x]);
+  }, [activeIdx, slot, glowW, reduce, x]);
   const glowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
 
   return (
@@ -102,7 +112,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
         {slot ? (
           <Reanimated.View
             pointerEvents="none"
-            style={[{ position: 'absolute', left: 0, top: (NAV_H - 2 - 44) / 2, width: 52, height: 44, borderRadius: 22, backgroundColor: mode === 'dark' ? 'rgba(242,244,250,0.06)' : 'rgba(6,7,13,0.05)' }, glowStyle]}
+            style={[{ position: 'absolute', left: 0, top: (NAV_H - 2 - 56) / 2, width: glowW, height: 56, borderRadius: 28, backgroundColor: mode === 'dark' ? 'rgba(242,244,250,0.07)' : 'rgba(6,7,13,0.05)', borderWidth: 1, borderColor: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(6,7,13,0.06)' }, glowStyle]}
           />
         ) : null}
         {TABS.map((it) => (
@@ -114,7 +124,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
             accessibilityLabel={it.label(t)}
             style={{ flex: 1, height: NAV_H, alignItems: 'center', justifyContent: 'center' }}
           >
-            <NavIcon icon={it.icon} on={it.key === active} />
+            <NavItem icon={it.icon} label={it.label(t)} on={it.key === active} />
           </KPressable>
         ))}
       </View>
