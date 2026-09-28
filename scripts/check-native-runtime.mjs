@@ -26,6 +26,16 @@ import { createFingerprintAsync, SourceSkips } from '@expo/fingerprint';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const file = path.join(root, 'native-runtime.json');
 delete process.env.EAS_BUILD_PROFILE;
+/*
+ * MÊME CALCUL SUR TOUTES LES MACHINES. Expo charge `.env` tout seul, et
+ * app.config.ts en lit `EXPO_PUBLIC_GOOGLE_CLIENT_ID` (schéma d'URL Google) :
+ * la machine de build (avec .env), celle de dev et la CI (sans) calculaient
+ * des empreintes différentes pour le même code. Ni `.env` ni cette variable
+ * n'entrent dans le calcul. À retenir : changer l'ID client Google change le
+ * natif — nouvel APK, sans que cette garde le signale.
+ */
+process.env.EXPO_NO_DOTENV = '1';
+delete process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
 const config = fs.readFileSync(path.join(root, 'app.config.ts'), 'utf8');
 const runtime = config.match(/export const NATIVE_RUNTIME = '([^']+)'/)?.[1];
@@ -51,7 +61,13 @@ const sourceSkips =
   SourceSkips.ExpoConfigRuntimeVersionIfString |
   SourceSkips.ExpoConfigVersions;
 
-const { hash } = await createFingerprintAsync(root, { platforms: ['android'], sourceSkips });
+const { hash, sources } = await createFingerprintAsync(root, { platforms: ['android'], sourceSkips });
+
+// Diagnostic : une ligne par source, pour comparer deux machines (`diff`).
+if (process.argv.includes('--sources')) {
+  for (const s of sources) console.log(`${s.hash ?? '-'} ${s.type} ${s.filePath ?? s.id}`);
+  process.exit(0);
+}
 
 if (process.argv.includes('--record')) {
   fs.writeFileSync(file, JSON.stringify({ runtime, fingerprint: hash }, null, 2) + '\n');
