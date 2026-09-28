@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, Share, Switch, Platform } from 'react-native';
 import { usePortfolioDiag, diagText } from '../lib/portfolio/diagnostics';
 import * as Clipboard from 'expo-clipboard';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import Constants from 'expo-constants';
 import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
@@ -102,6 +102,8 @@ export default function Developer() {
       <ScrollView contentContainerStyle={{ gap: spacing(2), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Infos build */}
         <View style={{ gap: spacing(1) }}>
+          {/* Journal de diagnostic : tout ce que l'app a fait (lib/debugJournal.ts). */}
+          <Button label={t('journalTitle')} variant="ghost" onPress={() => router.push('/journal')} />
           <Text style={typography.section}>{t('appSection')}</Text>
           <GlassCard>
             <Row label={t('versionWord')} value={`v${Constants.expoConfig?.version ?? '0.0.1'}`} colors={colors} typography={typography} />

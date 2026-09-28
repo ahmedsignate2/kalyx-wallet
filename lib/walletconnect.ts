@@ -247,6 +247,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   request: null,
 
   init: async () => {
+    console.log('[KALYX-WC] init', { projectId: PROJECT_ID ? 'présent' : 'ABSENT', ready: !!get().wallet, initializing: _wcInitializing });
     if (!PROJECT_ID || get().wallet || _wcInitializing) return;
     _wcInitializing = true;
     try {
@@ -366,14 +367,18 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   pair: async (uri) => {
     const normalized = uri.trim();
     if (!normalized.startsWith('wc:')) throw new Error('URI WalletConnect invalide');
+    console.log('[KALYX-WC] pair:start', { walletReady: !!get().wallet });
     if (!get().wallet) await get().init();
     const wallet = get().wallet;
+    console.log('[KALYX-WC] pair:after-init', { walletReady: !!wallet });
     if (!wallet) throw new Error('WalletConnect n’est pas configuré');
     await wallet.pair({ uri: normalized });
+    console.log('[KALYX-WC] pair:done (en attente de la proposition du site)');
   },
 
   approveProposal: async (unlock, perms, accountIndex) => {
     const { wallet, proposal } = get();
+    console.log('[KALYX-WC] approve:start', { wallet: !!wallet, proposal: !!proposal, sdkUtils: !!sdkUtils });
     if (!wallet || !proposal || !sdkUtils) return;
     const p = perms ?? { tx: true, sign: true };
     // Méthodes autorisées selon les cases cochées (lecture toujours accordée via

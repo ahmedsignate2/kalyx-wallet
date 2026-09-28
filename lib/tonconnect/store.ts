@@ -276,8 +276,10 @@ export const useTonConnect = create<TcState>((set, get) => {
 
     openLink: async (text) => {
       const link = parseConnectLink(text);
+      console.log('[KALYX-TC] openLink', { parsed: !!link });
       if (!link) return 'tcInvalidLink';
       const manifest = await fetchManifest(link.request.manifestUrl);
+      console.log('[KALYX-TC] manifest', { url: link.request.manifestUrl, ok: !!manifest });
       if (!manifest) return 'tcManifestError';
       if (!manifestOriginMatches(link.request.manifestUrl, manifest)) return 'tcManifestMismatch';
       const proof = link.request.items.find((i) => i.name === 'ton_proof') as { payload?: string } | undefined;
@@ -339,6 +341,7 @@ export const useTonConnect = create<TcState>((set, get) => {
 
     approveTx: async (unlock) => {
       const p = get().queue[0];
+      console.log('[KALYX-TC] approveTx:start', { pending: p?.kind ?? null, emulation: p?.kind === 'tx' ? (p.draft?.emulation ? 'ok' : p.error ? `erreur: ${p.error}` : 'aucune') : null });
       if (p?.kind !== 'tx') throw new Error('tcNothingPending');
       const { session } = p;
       const w = useWallet.getState();

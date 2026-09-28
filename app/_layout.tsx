@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { journal } from '../lib/debugJournal';
+import { JournalProbe } from '../ui/JournalProbe';
 import { Platform, StyleSheet, View } from 'react-native';
 import { Stack, router, usePathname } from 'expo-router';
 import type { ErrorBoundaryProps } from 'expo-router';
@@ -47,7 +49,8 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 /** Écrans de la barre d'onglets : entre eux, un fondu (voir plus bas). */
 
 /** Écrans ouverts app verrouillée : le code, et des pages sans aucune donnée du portefeuille. */
-const LOCKED_ALLOWED = new Set(['/', '/unlock', '/legal', '/faq', '/about']);
+// `/journal` : si c'est le déverrouillage qui casse, sa trace doit rester lisible (lignes filtrées, sans secret).
+const LOCKED_ALLOWED = new Set(['/', '/unlock', '/legal', '/faq', '/about', '/journal']);
 
 export default function RootLayout() {
   const { mode, colors } = useTheme();
@@ -228,7 +231,12 @@ export default function RootLayout() {
           chaque pixel non peint laissait voir ce presque-noir. En thème clair,
           c'est un flash brutal ; en thème sombre, un clignotement de teinte.
         */}
-        <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        <View
+          style={{ flex: 1, backgroundColor: colors.bg }}
+          // Journal : chaque toucher (position, écran), y compris ceux qui n'atteignent aucun bouton.
+          onTouchEnd={(e) => journal('touch', `toucher (${Math.round(e.nativeEvent.pageX)}, ${Math.round(e.nativeEvent.pageY)}) sur ${pathname}`)}
+        >
+          <JournalProbe />
           <OfflineBanner />
         <Stack
           screenOptions={{
