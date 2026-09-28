@@ -9,10 +9,20 @@
  * `set-pin` les ajoute avec le code tout juste créé.
  */
 import { create } from 'zustand';
-import type { BackupWallet } from '../src/domain/backup/cloudBackup';
+import type { BackupAccount, BackupWallet } from '../src/domain/backup/cloudBackup';
 
-export const usePendingRestore = create<{ wallets: BackupWallet[]; set: (w: BackupWallet[]) => void; clear: () => void }>((set) => ({
+/**
+ * `primaryAccounts` : comptes du portefeuille principal (celui du code créé),
+ * recréés par `set-pin` juste après — sans quoi seul le compte n°1 revenait.
+ */
+export const usePendingRestore = create<{
+  wallets: BackupWallet[];
+  primaryAccounts: BackupAccount[];
+  set: (w: BackupWallet[], primaryAccounts?: BackupAccount[]) => void;
+  clear: () => void;
+}>((set) => ({
   wallets: [],
-  set: (wallets) => set({ wallets }),
-  clear: () => set({ wallets: [] }),
+  primaryAccounts: [],
+  set: (wallets, primaryAccounts = []) => set({ wallets, primaryAccounts }),
+  clear: () => set({ wallets: [], primaryAccounts: [] }),
 }));

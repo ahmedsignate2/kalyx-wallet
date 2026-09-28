@@ -41,6 +41,33 @@ export interface BackupWallet {
   keyFamily?: 'evm' | 'bitcoin' | 'solana';
   /** Phrase BIP-39, ou clé privée hexadécimale selon `type`. */
   secret: string;
+  /**
+   * Comptes dérivés de la phrase : numéro et nom, rien de secret. Sans eux, une
+   * restauration ne recréait que le compte n°1 — les autres existaient
+   * toujours, mais l'utilisateur ne les voyait plus. Absent des anciennes
+   * sauvegardes : on restaure alors le compte n°1 seulement.
+   */
+  accounts?: BackupAccount[];
+}
+
+export interface BackupAccount {
+  index: number;
+  label: string;
+}
+
+/** Liste de comptes lue dans une sauvegarde : bornée et vérifiée, jamais prise telle quelle. */
+export function sanitizeBackupAccounts(raw: unknown): BackupAccount[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const seen = new Set<number>();
+  const out: BackupAccount[] = [];
+  for (const a of raw.slice(0, 100)) {
+    const index = (a as { index?: unknown })?.index;
+    if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index > 999 || seen.has(index)) continue;
+    seen.add(index);
+    const label = (a as { label?: unknown }).label;
+    out.push({ index, label: typeof label === 'string' ? label.slice(0, 64) : '' });
+  }
+  return out.length ? out.sort((x, y) => x.index - y.index) : undefined;
 }
 
 export interface BackupEnvelope {
@@ -82,6 +109,7 @@ export async function createWalletsBackup(wallets: readonly BackupWallet[], pass
     label: w.label,
     type: w.type,
     ...(w.keyFamily ? { keyFamily: w.keyFamily } : {}),
+    ...(w.accounts?.length ? { accounts: sanitizeBackupAccounts(w.accounts) } : {}),
     // Une phrase est normalisée ; une clé privée ne doit PAS l'être — la casse
     // d'un hexadécimal est indifférente mais l'espace, lui, n'y a rien à faire.
     secret: w.type === 'seed' ? w.secret.trim().toLowerCase().replace(/\s+/g, ' ') : w.secret.trim(),
@@ -195,6 +223,7 @@ export async function restoreBackup(
         ? { keyFamily: w.keyFamily }
         : {}),
       secret: w.secret,
+      ...(sanitizeBackupAccounts((w as { accounts?: unknown }).accounts) ? { accounts: sanitizeBackupAccounts((w as { accounts?: unknown }).accounts) } : {}),
     });
   }
 
