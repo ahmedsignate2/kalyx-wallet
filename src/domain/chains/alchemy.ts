@@ -112,7 +112,8 @@ export function parseAlchemyHistory(jsons: unknown[], ownerAddress: string): TxP
     // Signée par le propriétaire = il est l'expéditeur de l'appel (transfert « external » sortant, même à 0).
     const byOwner = e.legs.some((l) => l.external && l.direction === 'out');
     const tx = txFromLegs({ hash, timestamp: e.ts, status: 'success', byOwner }, e.legs.map(({ external: _x, ...l }) => l));
-    if (tx) out.push(tx);
+    // Sans horodatage (Alchemy sur certains réseaux, dont Avalanche) : le bloc, pour retrouver la date.
+    if (tx) out.push(e.ts ? tx : { ...tx, block: e.block });
   }
   const block = new Map([...byHash].map(([h, e]) => [h, e.block]));
   return out.sort((a, b) => b.timestamp - a.timestamp || (block.get(b.hash) ?? 0) - (block.get(a.hash) ?? 0));
