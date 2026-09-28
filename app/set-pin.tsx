@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { usePendingRestore } from '../lib/pendingRestore';
 import { View, Text, Switch, Animated, ActivityIndicator, Platform, StatusBar } from 'react-native';
 import { router, Stack } from 'expo-router';
@@ -30,6 +31,8 @@ import { haptic } from '../lib/haptics';
  * de non-correspondance, secousse et retour à l'étape 1.
  */
 export default function SetPin() {
+  // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
+  useNoScreenCapture('set-pin');
   const { colors } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();

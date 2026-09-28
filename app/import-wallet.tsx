@@ -1,4 +1,5 @@
 import { ScreenHeader, SENSITIVE_INPUT_PROPS, Pressable as KPressable } from '../ui/kit';
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +28,8 @@ import { isDriveConfigured } from '../lib/googleDrive';
 type Mode = 'phrase' | 'key' | 'backup';
 
 export default function ImportWallet() {
+  // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
+  useNoScreenCapture('import-wallet');
   const { colors, typography } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();

@@ -62,6 +62,8 @@ export interface ExplainInput {
   short?: (a: string) => string;
   /** Traducteur de l'écran appelant (voir `ExplainKey`). */
   t?: ExplainT;
+  /** Chain ID EVM du réseau CONNECTÉ, pour repérer une signature EIP-712 destinée à un autre. */
+  connectedChainId?: number;
 }
 
 function fmtChange(c: AssetChange): string {
@@ -96,7 +98,7 @@ export type ExplainKey =
   | 'exTitleSolTx' | 'exSolUnreadableHeadline' | 'exSolUnreadableDetail' | 'exSolUnreadable' | 'exSolSponsored'
   | 'exSolSwap' | 'exSolStaking' | 'exSolNft' | 'exSolTransfer' | 'exSolProgram' | 'exSolProgramKnown'
   | 'exSolInstructions' | 'exSolSwapDetail' | 'exSolUnknownProgram' | 'exTitleSwap'
-  | 'exTitleRequest' | 'exOtherHeadline' | 'exOtherDetail' | 'exUnknownMethod';
+  | 'exTitleRequest' | 'exOtherHeadline' | 'exOtherDetail' | 'exUnknownMethod' | 'exTypedChainMismatch';
 
 export type ExplainT = (key: ExplainKey, params?: Record<string, string>) => string;
 
@@ -150,6 +152,15 @@ export function explainRequest(input: ExplainInput): SignExplanation {
   // ── EIP-712 (Permit, Permit2, ordres…) ──
   if (input.kind === 'typedData') {
     const t = input.typed;
+    /*
+     * Signature pour un AUTRE réseau que celui connecté : un Permit signé « sur
+     * Base » peut viser l'Ethereum, où tes fonds sont ailleurs — technique
+     * connue pour faire signer ce que l'écran ne montre pas.
+     */
+    if (t?.chainId && input.connectedChainId && t.chainId !== input.connectedChainId) {
+      risk = worst(risk, 'warning');
+      reasons.push(tr('exTypedChainMismatch', { signed: String(t.chainId), connected: String(input.connectedChainId) }));
+    }
     const spender = t?.details?.find((d) => /spender|autoris/i.test(d.label))?.value;
     const unlimited = t?.unlimited === true || !!t?.details?.find((d) => /montant|amount/i.test(d.label) && /illimit/i.test(d.value));
     let amount: string | undefined;

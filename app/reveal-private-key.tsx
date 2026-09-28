@@ -1,4 +1,5 @@
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { getAdapter } from '../src';
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
@@ -19,6 +20,7 @@ export default function RevealPrivateKey() {
   const wallets = useWallet((s) => s.wallets);
   const isPk = wallets.find((w) => w.id === activeWalletId)?.type === 'privateKey';
   const [confirming, setConfirming] = useState(false);
+  const chainName = getAdapter(useWallet.getState().activeChain).config.name;
   const [pk, setPk] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,7 +41,8 @@ export default function RevealPrivateKey() {
     return (
       <Screen>
       <ScreenHeader />
-        <Title>{t('yourPrivateKey')}</Title>
+        {/* Le RÉSEAU de la clé : une phrase donne une clé différente par famille (EVM, Bitcoin, Solana). */}
+        <Title>{isPk ? t('yourPrivateKey') : `${t('yourPrivateKey')} · ${chainName}`}</Title>
         <Muted>{t('pkWarningBody')}</Muted>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
           <Card>

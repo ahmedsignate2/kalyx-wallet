@@ -11,6 +11,9 @@
  * (aucune migration destructive). Un seul PIN d'app chiffre tous les coffres.
  * MULTI-COMPTES : au sein d'un wallet, plusieurs comptes par index HD.
  */
+import { solanaTxDecode } from '../src/domain/wc/solanaTx';
+import { formatExportedKey } from '../src/domain/keys/exportKey';
+import { deriveBtcSigner, deriveSolanaSigner } from '../src';
 import { base64, base58, hex } from '@scure/base';
 import { ed25519 } from '@noble/curves/ed25519';
 import { secp256k1 } from '@noble/curves/secp256k1';
@@ -546,7 +549,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
   if ('biometric' in unlock) {
     // Prompt biométrique explicite (fiable), PUIS lecture du secret non-gated.
     // Un seul prompt : le secret n'est plus keystore-gated (cf. secureStore).
-    const ok = await authenticate('Déverrouiller Kalyx Wallet');
+    const ok = await authenticate();
     /*
      * Codes typés et non messages : l'interface testait
      * `e.message.includes('refusée')`, donc elle matchait des chaînes
@@ -1356,8 +1359,11 @@ export const useWallet = create<WalletState>((set, get) => ({
     const signer = await get().deriveSigner(getAdapterV2('solana'), unlock);
     assertCurve(signer, 'ed25519');
 
-    const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(txStr) && txStr.length % 4 === 0;
-    const bytes = isBase64 ? base64.decode(txStr) : base58.decode(txStr);
+    // Même décodeur que la fenêtre qui a DÉCRIT la transaction : on signe ce qui a été montré.
+    const decoded = solanaTxDecode(txStr);
+    if (!decoded) throw new WalletError('NOT_SUPPORTED', 'Transaction Solana illisible');
+    const bytes = decoded.bytes;
+    const isBase64 = decoded.encoding === 'base64';
 
     const tx = VersionedTransaction.deserialize(bytes);
     
@@ -1607,7 +1613,20 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
     // Une phrase TON n'a pas de clé EVM : la dériver en BIP-39 inventerait un compte.
     if (!isBip39Wallet(wallets, activeWalletId)) throw new WalletError('NOT_SUPPORTED', 'import.WRONG_FAMILY:ton:evm');
-    return deriveEvmAccount(mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock)), account.index).privateKey;
+    /*
+     * LA CLÉ DU RÉSEAU AFFICHÉ, dans le format des autres wallets de cette
+     * famille. On rendait toujours la clé EVM : sur Solana, l'utilisateur collait
+     * dans Phantom une clé qui ouvrait un autre compte.
+     */
+    const family = chainConfig(get().activeChain).family;
+    if (family === 'ton') throw new WalletError('NOT_SUPPORTED', 'Pas de clé privée TON exportable : utiliser la phrase');
+    const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
+    if (family === 'bitcoin') return formatExportedKey('bitcoin', deriveBtcSigner(seed, account.index).privateKey);
+    if (family === 'solana') {
+      const s = deriveSolanaSigner(seed, account.index);
+      return formatExportedKey('solana', s.secretKey, s.publicKey);
+    }
+    return deriveEvmAccount(seed, account.index).privateKey;
   },
 
   enableBiometric: async (pin) => {

@@ -174,3 +174,14 @@ describe('Bitcoin et messages (WalletConnect)', () => {
     expect(e.detail).toContain('This is a message to be signed for BIP122');
   });
 });
+
+describe('EIP-712 pour un autre réseau', () => {
+  it('Permit signé pour Ethereum alors que la dApp est connectée sur Base : alerte', () => {
+    const typed = { name: 'USDC', primaryType: 'Permit', chainId: 1, details: [{ label: 'Autorisé (spender)', value: SPENDER }, { label: 'Montant', value: '1000000' }] };
+    const e = explain({ kind: 'typedData', domain: 'x.com', typed, connectedChainId: 8453 });
+    expect(e.reasons.join(' ')).toContain('Chain ID 1');
+    expect(e.risk).not.toBe('none');
+    const same = explain({ kind: 'typedData', domain: 'x.com', typed: { ...typed, chainId: 8453 }, connectedChainId: 8453 });
+    expect(same.reasons.join(' ')).not.toContain('Chain ID');
+  });
+});

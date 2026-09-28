@@ -88,7 +88,8 @@ type Pending =
   | { kind: 'connect'; tabId: string; id: number; origin: string }
   | { kind: 'sign'; tabId: string; id: number; origin: string; text: string | null; siwe: ReturnType<typeof parseSiwe>; hex: string }
   | { kind: 'typedData'; tabId: string; id: number; origin: string; summary: ReturnType<typeof summarizeTypedData>; data: unknown }
-  | { kind: 'tx'; tabId: string; id: number; origin: string; to?: string; value: bigint; raw: RawTxRequest };
+  /** `chainId` : réseau Kalyx FIGÉ à la demande — celui du Chain ID signé dans `raw`. */
+  | { kind: 'tx'; tabId: string; id: number; origin: string; to?: string; value: bigint; raw: RawTxRequest; chainId: string };
 
 function originOf(url: string): string {
   const m = url.match(/^https:\/\/([^/]+)/i);
@@ -413,7 +414,7 @@ export default function Browser() {
           // Transaction préparée pour un AUTRE compte (changé depuis la connexion) : on ne la signe pas avec celui-ci.
           if (tx.from && tx.from.toLowerCase() !== addr.toLowerCase()) return respond(id, null, { code: 4100, message: 'The requested account is not the active account' });
           const raw: RawTxRequest = { to: tx.to, data: tx.data ?? '0x', value: tx.value ? BigInt(tx.value) : 0n, chainId: chain.evmChainId!, gasLimit: tx.gas ? BigInt(tx.gas) : undefined };
-          setPending({ kind: 'tx', tabId, id, origin: reqOrigin, to: tx.to, value: raw.value ?? 0n, raw });
+          setPending({ kind: 'tx', tabId, id, origin: reqOrigin, to: tx.to, value: raw.value ?? 0n, raw, chainId: chain.id });
           return;
         }
         if (READONLY_METHODS.has(method)) return respond(id, await rpcProxy(chain.rpcUrls, method, params));
@@ -461,7 +462,7 @@ export default function Browser() {
     if (!pending || pending.kind === 'connect') return null;
     const addressRisk = risk && risk !== 'loading' ? risk : null;
     if (pending.kind === 'sign') return explainRequest({ kind: pending.siwe ? 'siwe' : 'message', domain: pending.origin, siwe: pending.siwe, siweMismatch: !!pending.siwe && siweDomainMismatch(pending.siwe.domain, `https://${pending.origin}`), messageText: pending.text, addressRisk, phishingSite: phishSite, t: exT });
-    if (pending.kind === 'typedData') return explainRequest({ kind: 'typedData', domain: pending.origin, typed: pending.summary, tokenSymbol: permitToken?.symbol ?? null, tokenDecimals: permitToken?.decimals ?? null, addressRisk, phishingSite: phishSite, t: exT });
+    if (pending.kind === 'typedData') return explainRequest({ kind: 'typedData', domain: pending.origin, typed: pending.summary, tokenSymbol: permitToken?.symbol ?? null, tokenDecimals: permitToken?.decimals ?? null, addressRisk, phishingSite: phishSite, connectedChainId: chain.evmChainId, t: exT });
     const decoded = decodeTx({ to: pending.raw.to, value: pending.raw.value, data: pending.raw.data });
     return explainRequest({ kind: 'tx', domain: pending.origin, decoded, simulation: sim && sim !== 'loading' ? sim : null, addressRisk, phishingSite: phishSite, nativeSymbol: chain.nativeSymbol, t: exT });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -490,7 +491,8 @@ export default function Browser() {
       let result: string;
       if (pending.kind === 'sign') result = await w.signMessage(unlock, pending.hex);
       else if (pending.kind === 'typedData') result = await w.signTypedData(unlock, pending.data as Parameters<typeof w.signTypedData>[1]);
-      else result = await w.sendRawTxOn(unlock, tb?.chainId ?? activeChain, pending.raw);
+      // Le réseau de la DEMANDE, pas celui de l'onglet maintenant : le Chain ID signé doit correspondre au nœud qui diffuse.
+      else result = await w.sendRawTxOn(unlock, pending.kind === 'tx' ? pending.chainId : tb?.chainId ?? activeChain, pending.raw);
       respond(pending.id, result);
       if (pending.kind === 'tx' && tb?.chainId) {
         const chainAddress = useWallet.getState().account?.address;

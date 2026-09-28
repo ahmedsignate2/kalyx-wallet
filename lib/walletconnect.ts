@@ -1,4 +1,5 @@
 import { base58, base64, hex } from '@scure/base';
+import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import { signMessageParam } from './dappProvider';
 import { utf8ToBytes } from '@noble/hashes/utils';
 /**
@@ -28,9 +29,9 @@ import { VersionedTransaction } from '@solana/web3.js';
 import { Transaction as BtcTransaction } from '@scure/btc-signer';
 function extractSolanaSignature(tx: string, address: string): string {
   try {
-    const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(tx) && tx.length % 4 === 0;
-    const bytes = isBase64 ? base64.decode(tx) : base58.decode(tx);
-    const vtx = VersionedTransaction.deserialize(bytes);
+    const decoded = solanaTxDecode(tx);
+    if (!decoded) return tx;
+    const vtx = VersionedTransaction.deserialize(decoded.bytes);
     const idx = vtx.message.staticAccountKeys.findIndex(k => k.toBase58() === address);
     if (idx >= 0 && vtx.signatures[idx]) {
       return base58.encode(vtx.signatures[idx]);
@@ -43,13 +44,10 @@ function extractSolanaSignature(tx: string, address: string): string {
 
 /** Spec WalletConnect Solana : `transaction` (signée, sérialisée) est renvoyée en BASE64. */
 function ensureBase64(tx: string): string {
-  const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(tx) && tx.length % 4 === 0;
-  if (isBase64) return tx;
-  try {
-    return base64.encode(base58.decode(tx));
-  } catch {
-    return tx;
-  }
+  // Encodage reconnu par la LECTURE de la transaction, pas deviné d'après les caractères.
+  const decoded = solanaTxDecode(tx);
+  if (!decoded) return tx;
+  return decoded.encoding === 'base64' ? tx : base64.encode(decoded.bytes);
 }
 
 /** Méthodes qui exigent une décision de l'utilisateur ; tout le reste est répondu automatiquement. */
