@@ -40,6 +40,17 @@ const FORBIDDEN_ROUTES = [
 /** Paramètres qu'aucune action ne transporte, sur aucun écran. */
 const FORBIDDEN_PARAMS = ['to', 'recipient', 'address', 'amount', 'value', 'pin', 'phrase', 'privateKey'];
 
+/*
+ * LISTE BLANCHE par écran. Interdire des noms ne suffisait pas : l'écran d'envoi
+ * lit aussi `contract`, `decimals`, `memo`, `chain`… et un texte soufflé au
+ * modèle pouvait ainsi présélectionner un faux jeton nommé « USDC », avec les
+ * décimales de son choix. Seul ce qui est listé ici passe.
+ */
+const ALLOWED_PARAMS: Record<string, string[]> = {
+  '/browser': ['url'],
+  '/send': ['symbol'],
+};
+
 export interface ProposedAction {
   /** Libellé du bouton, tel que le modèle l'a formulé (ou un repli). */
   label: string;
@@ -78,9 +89,11 @@ export function parseProposedActions(reply: string): { text: string; actions: Pr
     // Paramètres : on ne garde que des chaînes, et jamais un champ interdit.
     const params: Record<string, string> = {};
     for (const [k, v] of Object.entries(raw.params ?? {})) {
-      if (FORBIDDEN_PARAMS.includes(k)) continue;
+      if (FORBIDDEN_PARAMS.includes(k) || !(ALLOWED_PARAMS[config.route] ?? []).includes(k)) continue;
       if (typeof v === 'string' || typeof v === 'number') params[k] = String(v);
     }
+    // Navigateur : https uniquement (ni javascript:, ni http:, ni schéma d'app).
+    if (params.url !== undefined && !/^https:\/\/[^\s]+$/i.test(params.url)) delete params.url;
 
     actions.push({
       label: typeof raw.label === 'string' && raw.label.trim() ? raw.label.trim().slice(0, 60) : config.description,

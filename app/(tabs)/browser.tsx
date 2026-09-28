@@ -136,6 +136,12 @@ export default function Browser() {
   const { width: screenW } = useWindowDimensions();
   const setBrowserContext = useBrowserStore((s) => s.setBrowserContext);
   const account = useWallet((s) => s.account);
+  /*
+   * Adresse EVM du compte actif : c'est elle que voient les dApps (fournisseur
+   * `window.ethereum`) et elle qui signe. `account.address` suit le réseau
+   * ACTIF de l'app : sur Solana, une dApp EVM recevait l'adresse Solana.
+   */
+  const evmAddress = useWallet((s) => s.accounts.find((a) => a.index === s.activeAccountIndex)?.evmAddress);
   const activeChain = useWallet((s) => s.activeChain);
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const biometricEnabled = useSettings((s) => s.biometricEnabled);
@@ -363,7 +369,7 @@ export default function Browser() {
     async (req: DappRequest, reqOrigin: string, tabId: string) => {
       const { id, method, params } = req;
       technicalLogger.logDapp(`method_${method}`, reqOrigin);
-      const addr = account?.address;
+      const addr = evmAddress;
       const tb = tabsRef.current.find((x) => x.id === tabId);
       const isConnected = !!reqOrigin && connected.current.has(reqOrigin);
       try {
@@ -431,7 +437,7 @@ export default function Browser() {
         respond(id, null, { code: -32603, message: e instanceof Error ? e.message.slice(0, 160) : t('internalError') });
       }
     },
-    [account?.address, chain, chainIdHex, respond, inject, setActiveChain], // eslint-disable-line react-hooks/exhaustive-deps
+    [evmAddress, chain, chainIdHex, respond, inject, setActiveChain], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // Analyse GoPlus + simulation à l'apparition d'une demande.
@@ -452,13 +458,13 @@ export default function Browser() {
       else if (pending.kind === 'typedData' && pending.summary?.verifyingContract) { setRisk('loading'); assessAddress(cid, pending.summary.verifyingContract).then((r) => { setRisk(r); if (r?.level === 'danger') haptic.warning(); }).catch(() => setRisk(null)); }
       else if (pending.kind === 'connect') { isPhishingSite(`https://${pending.origin}`).then((r) => { setPhishSite(r); if (r) haptic.warning(); }).catch(() => {}); }
     }
-    if (pending.kind === 'tx' && account) {
+    if (pending.kind === 'tx' && evmAddress) {
       let alive = true;
       setSim('loading');
       (async () => {
         const d = decodeTx({ to: pending.raw.to, value: pending.raw.value, data: pending.raw.data });
         const meta = d.kind === 'transfer' || d.kind === 'approve' ? await getTokenMetadata(chain, d.token).catch(() => null) : null;
-        const r = await simulateTx(chain, { from: account.address, to: pending.raw.to, value: pending.raw.value, data: pending.raw.data }, meta ? { symbol: meta.symbol, decimals: meta.decimals } : undefined);
+        const r = await simulateTx(chain, { from: evmAddress, to: pending.raw.to, value: pending.raw.value, data: pending.raw.data }, meta ? { symbol: meta.symbol, decimals: meta.decimals } : undefined);
         if (alive) setSim(r);
       })();
       return () => { alive = false; };
@@ -477,14 +483,14 @@ export default function Browser() {
   }, [pending, sim, risk, phishSite, permitToken, exT]);
 
   const perform = async (unlock: Unlock) => {
-    if (!pending || !account) return;
+    if (!pending || !account || !evmAddress) return;
     const activity = useDappActivity.getState();
     const tb = tabsRef.current.find((x) => x.id === pending.tabId);
     if (pending.kind === 'connect') {
       await useWallet.getState().verifyUnlock(unlock);
       connected.current.add(pending.origin);
-      respond(pending.id, [account.address]);
-      inject(emitJs('accountsChanged', [account.address]));
+      respond(pending.id, [evmAddress]);
+      inject(emitJs('accountsChanged', [evmAddress]));
       inject(emitJs('connect', { chainId: chainIdHex }));
       if (!tb?.incognito) {
         activity.addConnection({ host: pending.origin, url: `https://${pending.origin}`, title: tb?.title || pending.origin });
@@ -503,9 +509,8 @@ export default function Browser() {
       else result = await w.sendRawTxOn(unlock, pending.kind === 'tx' ? pending.chainId : tb?.chainId ?? activeChain, pending.raw);
       respond(pending.id, result);
       if (pending.kind === 'tx' && tb?.chainId) {
-        const chainAddress = useWallet.getState().account?.address;
-        if (chainAddress) {
-          void useHistoryStore.getState().fetchHistory(tb.chainId, chainAddress, { force: true });
+        if (evmAddress) {
+          void useHistoryStore.getState().fetchHistory(tb.chainId, evmAddress, { force: true });
         }
       }
       if (!tb?.incognito) activity.addSignature({ host: pending.origin, kind: pending.kind === 'tx' ? 'tx' : pending.kind === 'typedData' ? 'typedData' : 'sign' });
@@ -731,7 +736,7 @@ export default function Browser() {
                 secure={!!activeTab.url?.startsWith('https://')}
                 danger={danger}
                 incognito={activeTab.incognito}
-                address={origin ? account?.address : undefined}
+                address={origin ? evmAddress : undefined}
                 chainId={activeTab.chainId}
                 compact={compact}
                 loading={progress > 0 && progress < 1}
@@ -999,7 +1004,7 @@ export default function Browser() {
         explanation={explanation}
         simulating={sim === 'loading'}
         network={chain.name}
-        address={account?.address}
+        address={evmAddress}
         raw={
           pending?.kind === 'tx'
             ? JSON.stringify(pending.raw, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 2)

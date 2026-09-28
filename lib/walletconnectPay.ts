@@ -700,7 +700,8 @@ async function signPayAction(action: PayAction, unlock: Unlock): Promise<string>
     case 'personal_sign': {
       // `personal_sign` reçoit [message, adresse] ; l'ordre peut être inversé
       // selon l'émetteur, on retient ce qui n'est pas notre adresse.
-      const me = (w.account?.address ?? '').toLowerCase();
+      // Adresse EVM du compte actif (celle qui signe) — pas l'adresse du réseau affiché.
+      const me = (w.accounts.find((a) => a.index === w.activeAccountIndex)?.evmAddress ?? '').toLowerCase();
       const message = args.find((a) => typeof a === 'string' && a.toLowerCase() !== me) as string | undefined;
       if (typeof message !== 'string') throw new Error('Message à signer absent');
       return w.signMessage(unlock, message);

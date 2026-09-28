@@ -10,6 +10,7 @@ import { TokenIcon } from './kit/TokenIcon';
 import { getAdapter, listChains } from '../src';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { useWallet } from '../lib/walletStore';
+import { addressForChain } from '../lib/accountAddress';
 import { formatAmount, formatTokenAmount, sortMarkets, type MarketCoin } from '../src';
 import { useSettings } from '../lib/settingsStore';
 import { loadMarkets } from './MarketPanel';
@@ -51,8 +52,9 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
   const fetchTokens = useTokenStore(s => s.fetchTokens);
   const tokensByChain = useTokenStore(s => s.tokensByChain);
   const loading = useTokenStore(s => s.loading);
-  const walletAccount = useWallet(s => s.account);
-  const accountAddress = address ?? walletAccount?.address;
+  // Adresse du compte actif SUR LA CHAÎNE CHOISIE dans le sélecteur (une adresse 0x ne lit pas des soldes Solana).
+  const activeSt = useWallet(s => s.accounts.find(a => a.index === s.activeAccountIndex) ?? s.accounts[0]);
+  const accountAddress = address ?? (addressForChain(activeSt, getAdapter(selectedChain).config) || undefined);
   const account = useMemo(() => (accountAddress ? { address: accountAddress } : undefined), [accountAddress]);
 
   const chains = useMemo(() => listChains({ includeTestnets: false }).filter(c => c.family === 'evm' || c.family === 'solana'), []);

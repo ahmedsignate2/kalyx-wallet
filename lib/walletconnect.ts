@@ -331,7 +331,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       if (!SIGNING_METHODS.has(method)) {
         // Lecture / capacités : réponse immédiate, sans écran. Inconnue : erreur JSON-RPC standard.
         const acct = activeAccount();
-        const evmAddress = acct?.evmAddress ?? useWallet.getState().account?.address;
+        // Adresse EVM seulement : sans elle, aucun compte (jamais l'adresse Solana/TON du réseau affiché).
+        const evmAddress = acct?.evmAddress;
         const caip: string = request?.params?.chainId ?? '';
         const evmId = caip.startsWith('eip155:') ? Number(caip.slice(7)) : undefined;
         let response: any;
@@ -393,23 +394,28 @@ export const useWalletConnect = create<WcState>((set, get) => ({
      */
     const wanted = accountIndex ?? wstate.activeAccountIndex;
     const acct = wstate.accounts.find((a) => a.index === wanted) ?? wstate.accounts[0];
-    const address = acct?.evmAddress ?? wstate.account?.address;
-    if (!address) throw new WcConnectError('NO_ACCOUNT');
+    /*
+     * Chaque espace de noms reçoit SON adresse. Avant, un portefeuille sans
+     * adresse EVM (clé Solana importée) s'annonçait en eip155 avec son adresse
+     * Solana ; désormais il se connecte en Solana seulement.
+     */
+    if (!acct?.evmAddress && !acct?.solAddress && !acct?.btcAddress) throw new WcConnectError('NO_ACCOUNT');
     // Exige l'identité dès la connexion (parité avec le navigateur dApps intégré).
     // Biométrie ou PIN ; lève si refusée → l'UI affiche l'erreur, aucune session.
     await wstate.verifyUnlock(unlock);
     const chains = evmChains();
-    const evmAddress = acct?.evmAddress || address;
-    const supportedNamespaces: Record<string, unknown> = {
-      eip155: {
+    const evmAddress = acct.evmAddress;
+    const supportedNamespaces: Record<string, unknown> = {};
+    if (evmAddress) {
+      supportedNamespaces.eip155 = {
         chains: chains.map((c) => c.caip),
         methods: evmMethods,
         events: ['chainChanged', 'accountsChanged'],
         accounts: chains.map((c) => `${c.caip}:${evmAddress}`),
-      },
-    };
+      };
+    }
     // Solana (namespace WalletConnect « solana »).
-    if (acct?.solAddress) {
+    if (acct.solAddress) {
       supportedNamespaces.solana = {
         chains: [SOLANA_CAIP],
         methods: solMethods,
@@ -418,7 +424,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       };
     }
     // Bitcoin (namespace « bip122 »).
-    if (acct?.btcAddress) {
+    if (acct.btcAddress) {
       supportedNamespaces.bip122 = {
         chains: [BTC_CAIP],
         methods: btcMethods,
