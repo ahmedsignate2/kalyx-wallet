@@ -20,12 +20,15 @@ export default function Faq() {
       { q: t('faqQ2'), a: t('faqA2') },
       { q: t('faqQ3'), a: t('faqA3') },
       { q: t('faqQ4'), a: t('faqA4') },
+      { q: t('faqQ22'), a: t('faqA22') },
     ] },
     { title: t('security'), items: [
       { q: t('faqQ5'), a: t('faqA5') },
       { q: t('faqQ6'), a: t('faqA6') },
       { q: t('faqQ7'), a: t('faqA7') },
       { q: t('faqQ8'), a: t('faqA8') },
+      { q: t('faqQ19'), a: t('faqA19') },
+      { q: t('faqQ20'), a: t('faqA20') },
     ] },
     { title: t('transactions'), items: [
       { q: t('faqQ9'), a: t('faqA9') },
@@ -42,6 +45,7 @@ export default function Faq() {
     { title: t('network'), items: [
       { q: t('faqQ17'), a: t('faqA17') },
       { q: t('faqQ18'), a: t('faqA18') },
+      { q: t('faqQ21'), a: t('faqA21') },
     ] },
   ];
 

@@ -32,15 +32,19 @@ Vous pouvez à tout moment effacer l'intégralité de ces données en désinstal
   {
     id: 'tiers',
     title: '4. Services tiers sollicités par l\'application',
-    body: `Lors de l'utilisation de certaines fonctionnalités blockchain, l'application interroge des services décentralisés ou APIs tierces qui reçoivent votre adresse IP et les requêtes publiques requises par les nœuds :
-• Alchemy & Nœuds RPC publics — consultation des soldes, tokens et NFTs
-• Etherscan / Explorateurs d'adresses — consultation de l'historique public de la blockchain
-• CoinGecko — cotation et flux de prix du marché
-• LI.FI — calcul des devis de swap et de bridge multi-chaînes
-• WalletConnect (Reown) — relais de messages cryptés avec les applications décentralisées (dApps)
-• GoPlus Security — analyse préventive des contrats, tokens et sites avant signature
-• Alchemy (simulation) — estimation du résultat d'une transaction demandée par une dApp avant signature
-• DuckDuckGo / Google Favicons — affichage des icônes de dApps dans le navigateur
+    body: `Pour afficher vos soldes et votre historique ou exécuter une opération, l'application interroge des services tiers. Ils reçoivent votre adresse IP et des données PUBLIQUES de blockchain (adresses, contrats, transactions) — jamais vos clés :
+• Alchemy & nœuds RPC publics (PublicNode, dRPC…) — soldes, tokens, NFT, historique et diffusion des transactions (EVM)
+• Ankr, Etherscan — historique des transactions (EVM), en repli
+• Helius & RPC public Solana — soldes, NFT et historique (Solana)
+• mempool.space — soldes, frais et historique (Bitcoin)
+• TonAPI & TON Center — soldes, jettons, NFT, noms .ton, simulation et diffusion (TON). Les requêtes TonAPI transitent par un relais opéré par l'éditeur (Cloudflare Workers) : il voit votre adresse IP et vos adresses TON, n'en conserve aucune trace, et ne garde qu'une minute en cache les réponses publiques
+• DefiLlama, CoinGecko, Frankfurter — prix des cryptos et taux de change
+• LI.FI, Relay — devis de swap et de bridge ; Jupiter — swap sur Solana ; Tonstakers — staking TON
+• WalletConnect (Reown) — relais chiffré avec les dApps, vérification du domaine (Verify) et paiements marchands (WalletConnect Pay)
+• Ponts TON Connect (TON Foundation, Tonkeeper) — messages chiffrés de bout en bout avec les dApps TON
+• GoPlus Security — analyse préventive des contrats, tokens et sites
+• wsrv.nl — conversion des images de NFT dans un format affichable
+• DuckDuckGo / Google Favicons — icônes des dApps dans le navigateur
 • Google Drive — uniquement si vous activez la sauvegarde Google Drive : un fichier chiffré sur votre appareil (scrypt + AES-256-GCM) est déposé dans le dossier privé de l'application ; l'accès est révoqué immédiatement après l'opération et aucun jeton n'est conservé
 • Fournisseur d'IA de votre choix (Copilot, clé personnelle) — uniquement si vous l'activez : soldes, réseau actif et activité récente masquée ; jamais vos adresses, clés ou phrase de récupération
 Chacun de ces tiers applique sa propre politique de confidentialité. Le navigateur Web3 intégré permet d'accéder à des dApps autonomes appliquant leurs propres règles d'usage.`,
@@ -71,7 +75,7 @@ Bien que ces défenses soient à l'état de l'art, aucun système informatique n
 • SIREN : 130 046 865 — Code APE : 62.01Z
 • Courriel de contact : support@kalyxwallet.com
 • Hébergement du site kalyxwallet.com : Cloudflare, Inc. — 101 Townsend St, San Francisco, CA 94107, USA
-• Hébergement de l'application : application mobile non-custodial exécutée localement sur l'appareil de l'utilisateur, ne nécessitant aucun serveur central de stockage de clés ou de base de données d'utilisateurs.
+• Hébergement de l'application : application mobile non-custodial exécutée localement sur l'appareil de l'utilisateur, sans serveur central de stockage de clés ni base de données d'utilisateurs. Seul le relais TON (sans journalisation) est opéré sur Cloudflare Workers.
 Le détail complet de ces mentions figure sur la page dédiée « Mentions légales ».`,
   },
   {

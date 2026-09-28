@@ -351,7 +351,7 @@ export default function TrackingScreen() {
           {when ? (
             <>
               <Divider inset={16} />
-              <ListRow title={t('labelDate')} right={<Text variant="body">{new Date(when * 1000).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</Text>} />
+              <ListRow title={t('labelDate')} right={<Text variant="body">{new Date(when * 1000).toLocaleString(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</Text>} />
             </>
           ) : null}
           {activeHash ? (

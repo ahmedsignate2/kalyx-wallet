@@ -583,8 +583,7 @@ const en = {
   supReason2Title: "Zero ads, zero data resale",
   supReason2Text: "We sell nothing, we track no one. Your wallet is yours.",
   supReason3Title: "Independently built",
-  supReason3Text:
-    "A small passionate team, not a giant. Every donation counts.",
+  supReason3Text: "Built by an independent developer, not a giant. Every donation counts.",
   supReason4Title: "Where your donation goes",
   supReason4Text: "Servers, API keys (RPC, prices, NFT), and new features.",
   supportNovaHero: "Support Kalyx",
@@ -979,8 +978,7 @@ const en = {
   faqA7:
     "Any action that moves funds or authorizes a contract to spend them must be signed by your private key, protected by your PIN. This is what prevents a site from doing anything without your explicit consent.",
   faqQ8: "How do I recognize a scam?",
-  faqA8:
-    "No legitimate party will ever ask for your recovery phrase. Beware of sites imitating a known brand (Kalyx warns you in red), “unlimited” approvals, and messages too good to be true. Kalyx also shows a security analysis (GoPlus) before each signature.",
+  faqA8: "No legitimate party will ever ask for your recovery phrase. Beware of sites imitating a known brand (Kalyx warns you in red), “unlimited” approvals and offers too good to be true. Kalyx checks sites and tokens with GoPlus, hides spam tokens and NFTs, and warns you about look-alike addresses.",
   faqQ9: "Why is my transaction pending?",
   faqA9:
     "It is waiting to be included in a block. Network fees that are too low or heavy congestion slow it down. Kalyx notifies you as soon as it is confirmed.",
@@ -994,11 +992,9 @@ const en = {
   faqA12:
     "Common causes: insufficient balance (including fees), slippage exceeded on a swap, gas limit too low, or the contract rejected the operation. Note: the gas fees of a failed transaction are still charged.",
   faqQ13: "How do I connect a dApp?",
-  faqA13:
-    "Two ways: the built-in browser (Menu → dApp browser), or WalletConnect (paste the “wc:…” link). In both cases, you confirm the connection with your PIN.",
+  faqA13: "Three ways: the Explore tab (built-in browser), WalletConnect (scan or paste a “wc:…” link) or TON Connect for TON apps (scan their QR code). In every case you confirm the connection with your PIN.",
   faqQ14: "How do I disconnect a dApp?",
-  faqA14:
-    "WalletConnect tab: “Disconnect” for a WalletConnect session, “Forget” for a built-in browser site.",
+  faqA14: "Menu → WalletConnect: “Disconnect” ends a WalletConnect or TON Connect session, “Forget” removes a built-in browser site. A dApp open in the Explore tab can also be disconnected from its ⋯ menu.",
   faqQ15: "What is WalletConnect?",
   faqA15:
     "A standard protocol that links your wallet to a dApp via a QR code or a link, without a browser extension.",
@@ -1160,6 +1156,14 @@ const en = {
   nftLoadFailedBody: "The NFT services did not respond. Your NFTs are safe: only their display failed.",
   nftPartial: "Not loaded: {networks}. Pull down to retry.",
   nftUnavailable: "{networks}: NFTs not available in this version.",
+  faqQ19: "Why are some tokens, NFTs or transactions hidden?",
+  faqA19: "Anyone can send tokens or NFTs to a public address without asking. Kalyx hides those that are unverified, worth zero, named like an ad (“claim”, “voucher”, links) or disguised with look-alike letters. In Activity, the button at the bottom shows them with the reason. Never interact with them: “claiming” them usually leads to a site that empties your wallet.",
+  faqQ20: "What is address poisoning?",
+  faqA20: "A scam where someone sends you a zero or tiny transfer from an address that starts and ends like one you have paid. They hope you will copy it from your history next time. Kalyx hides these transactions, flags the attempt in Activity and blocks sending to a look-alike. Always copy an address from its source, never from your history.",
+  faqQ21: "Why is TON only on my main account?",
+  faqA21: "As in Tonkeeper, one recovery phrase gives one TON wallet. Sub-accounts have EVM, Bitcoin and Solana addresses but no TON key. On a sub-account, TON apps show a “Switch to the main account” button.",
+  faqQ22: "How can I support Kalyx?",
+  faqA22: "Menu → Support us: donation addresses in BTC, ETH (all EVM networks), SOL and TON (kalyxwallet.ton), each with a QR code. Kalyx stays free, without ads or data resale; donations pay for servers and API keys.",
   errMemoRequired: "This address requires a comment (memo). Add the one the platform gave you, or your deposit will be lost.",
   errInsufficientFunds: "Insufficient funds (fees included)",
   errInvalidPsbt: "Invalid PSBT",
@@ -2315,8 +2319,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Text:
       "On ne vend rien, on ne piste personne. Ton wallet t’appartient.",
     supReason3Title: "Développé en indépendant",
-    supReason3Text:
-      "Une petite équipe passionnée, pas un géant. Chaque don compte.",
+    supReason3Text: "Développé par un indépendant, pas par un géant. Chaque don compte.",
     supReason4Title: "Où va ton don",
     supReason4Text:
       "Serveurs, clés d’API (RPC, prix, NFT), et de nouvelles fonctionnalités.",
@@ -2704,8 +2707,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "Toute action qui déplace des fonds ou autorise un contrat à les dépenser doit être signée par ta clé privée, protégée par ton PIN. C’est ce qui empêche un site de faire quoi que ce soit sans ton accord explicite.",
     faqQ8: "Comment reconnaître une arnaque ?",
-    faqA8:
-      "Personne de légitime ne te demandera jamais ta phrase de récupération. Méfie-toi des sites qui imitent une marque connue (Kalyx t’alerte en rouge), des approbations « illimitées », et des messages trop beaux pour être vrais. Kalyx affiche aussi une analyse de sécurité (GoPlus) avant chaque signature.",
+    faqA8: "Personne de légitime ne te demandera jamais ta phrase de récupération. Méfie-toi des sites qui imitent une marque connue (Kalyx t’alerte en rouge), des approbations « illimitées » et des offres trop belles pour être vraies. Kalyx vérifie sites et tokens avec GoPlus, masque les tokens et NFT de spam, et t’alerte sur les adresses sosies.",
     faqQ9: "Pourquoi ma transaction est-elle en attente ?",
     faqA9:
       "Elle attend d’être incluse dans un bloc. Des frais de réseau trop bas ou une forte congestion la ralentissent. Kalyx te notifie dès qu’elle est confirmée.",
@@ -2719,11 +2721,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "Causes fréquentes : solde insuffisant (frais compris), slippage dépassé sur un swap, limite de gas trop basse, ou le contrat a rejeté l’opération. Note : les frais de gas d’une transaction échouée sont quand même prélevés.",
     faqQ13: "Comment connecter une dApp ?",
-    faqA13:
-      "Deux façons : le navigateur intégré (Menu → Navigateur dApps), ou WalletConnect (colle le lien « wc:… »). Dans les deux cas, tu confirmes la connexion avec ton PIN.",
+    faqA13: "Trois façons : l’onglet Explorer (navigateur intégré), WalletConnect (scanne ou colle un lien « wc:… ») ou TON Connect pour les apps TON (scanne leur QR code). Dans tous les cas, tu confirmes la connexion avec ton PIN.",
     faqQ14: "Comment déconnecter une dApp ?",
-    faqA14:
-      "Onglet WalletConnect : « Déconnecter » pour une session WalletConnect, « Oublier » pour un site du navigateur intégré.",
+    faqA14: "Menu → WalletConnect : « Déconnecter » met fin à une session WalletConnect ou TON Connect, « Oublier » retire un site du navigateur intégré. Une dApp ouverte dans l’onglet Explorer se déconnecte aussi depuis son menu ⋯.",
     faqQ15: "Qu’est-ce que WalletConnect ?",
     faqA15:
       "Un protocole standard qui relie ton wallet à une dApp via un QR code ou un lien, sans extension de navigateur.",
@@ -2882,6 +2882,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "Les services NFT n’ont pas répondu. Tes NFT sont intacts : seul leur affichage a échoué.",
     nftPartial: "Non chargés : {networks}. Tire vers le bas pour réessayer.",
     nftUnavailable: "{networks} : NFT non disponibles dans cette version.",
+    faqQ19: "Pourquoi certains tokens, NFT ou transactions sont masqués ?",
+    faqA19: "N’importe qui peut envoyer des tokens ou des NFT à une adresse publique sans rien demander. Kalyx masque ceux qui sont non vérifiés, sans valeur, nommés comme une publicité (« claim », « voucher », liens) ou déguisés avec des lettres sosies. Dans l’Activité, le bouton en bas les affiche avec leur raison. N’interagis jamais avec eux : les « réclamer » mène le plus souvent à un site qui vide ton wallet.",
+    faqQ20: "Qu’est-ce que l’empoisonnement d’adresse ?",
+    faqA20: "Une arnaque où quelqu’un t’envoie un transfert nul ou minuscule depuis une adresse qui commence et finit comme une adresse que tu as payée. Il espère que tu la recopieras depuis ton historique la fois suivante. Kalyx masque ces transactions, signale la tentative dans l’Activité et bloque l’envoi vers un sosie. Copie toujours une adresse depuis sa source, jamais depuis ton historique.",
+    faqQ21: "Pourquoi TON n’est disponible que sur mon compte principal ?",
+    faqA21: "Comme dans Tonkeeper, une phrase de récupération donne un seul portefeuille TON. Les sous-comptes ont des adresses EVM, Bitcoin et Solana, mais pas de clé TON. Sur un sous-compte, les apps TON proposent un bouton « Passer au compte principal ».",
+    faqQ22: "Comment soutenir Kalyx ?",
+    faqA22: "Menu → Soutenez-nous : adresses de don en BTC, ETH (tous les réseaux EVM), SOL et TON (kalyxwallet.ton), chacune avec un QR code. Kalyx reste gratuit, sans publicité ni revente de données ; les dons financent les serveurs et les clés d’API.",
     errMemoRequired: "Cette adresse exige un commentaire (mémo). Ajoute celui que la plateforme t’a donné, sinon ton dépôt sera perdu.",
     errInsufficientFunds: "Solde insuffisant (frais inclus)",
     errInvalidPsbt: "PSBT invalide",
@@ -4042,8 +4050,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Text:
       "No vendemos nada, no rastreamos a nadie. Tu cartera es tuya.",
     supReason3Title: "Desarrollado de forma independiente",
-    supReason3Text:
-      "Un pequeño equipo apasionado, no un gigante. Cada donación cuenta.",
+    supReason3Text: "Desarrollado por un independiente, no por un gigante. Cada donación cuenta.",
     supReason4Title: "Adónde va tu donación",
     supReason4Text:
       "Servidores, claves de API (RPC, precios, NFT) y nuevas funciones.",
@@ -4359,8 +4366,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "Cualquier acción que mueva fondos o autorice a un contrato a gastarlos debe firmarse con tu clave privada, protegida por tu PIN. Esto impide que un sitio haga nada sin tu consentimiento explícito.",
     faqQ8: "¿Cómo reconozco una estafa?",
-    faqA8:
-      "Nadie legítimo te pedirá jamás tu frase de recuperación. Desconfía de los sitios que imitan una marca conocida (Kalyx te avisa en rojo), de las aprobaciones «ilimitadas» y de los mensajes demasiado buenos para ser verdad. Kalyx también muestra un análisis de seguridad (GoPlus) antes de cada firma.",
+    faqA8: "Nadie legítimo te pedirá nunca tu frase de recuperación. Desconfía de sitios que imitan una marca conocida (Kalyx te avisa en rojo), de aprobaciones «ilimitadas» y de ofertas demasiado buenas para ser verdad. Kalyx revisa sitios y tokens con GoPlus, oculta tokens y NFT de spam y te avisa de las direcciones imitadas.",
     faqQ9: "¿Por qué está pendiente mi transacción?",
     faqA9:
       "Espera a ser incluida en un bloque. Comisiones de red demasiado bajas o una fuerte congestión la ralentizan. Kalyx te avisa en cuanto se confirma.",
@@ -4374,11 +4380,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "Causas frecuentes: saldo insuficiente (comisiones incluidas), slippage superado en un swap, límite de gas demasiado bajo o el contrato rechazó la operación. Nota: las comisiones de gas de una transacción fallida se cobran igualmente.",
     faqQ13: "¿Cómo conecto una dApp?",
-    faqA13:
-      "Dos formas: el navegador integrado (Menú → Navegador dApps) o WalletConnect (pega el enlace «wc:…»). En ambos casos, confirmas la conexión con tu PIN.",
+    faqA13: "Tres formas: la pestaña Explorar (navegador integrado), WalletConnect (escanea o pega un enlace «wc:…») o TON Connect para las apps de TON (escanea su código QR). En todos los casos confirmas la conexión con tu PIN.",
     faqQ14: "¿Cómo desconecto una dApp?",
-    faqA14:
-      "Pestaña WalletConnect: «Desconectar» para una sesión WalletConnect, «Olvidar» para un sitio del navegador integrado.",
+    faqA14: "Menú → WalletConnect: «Desconectar» cierra una sesión de WalletConnect o TON Connect, «Olvidar» quita un sitio del navegador integrado. Una dApp abierta en Explorar también se desconecta desde su menú ⋯.",
     faqQ15: "¿Qué es WalletConnect?",
     faqA15:
       "Un protocolo estándar que vincula tu cartera a una dApp mediante un código QR o un enlace, sin extensión de navegador.",
@@ -4607,6 +4611,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "Los servicios de NFT no respondieron. Tus NFT están a salvo: solo falló su visualización.",
     nftPartial: "Sin cargar: {networks}. Desliza hacia abajo para reintentar.",
     nftUnavailable: "{networks}: NFT no disponibles en esta versión.",
+    faqQ19: "¿Por qué se ocultan algunos tokens, NFT o transacciones?",
+    faqA19: "Cualquiera puede enviar tokens o NFT a una dirección pública sin pedir permiso. Kalyx oculta los no verificados, sin valor, con nombre de anuncio («claim», «voucher», enlaces) o disfrazados con letras imitadas. En Actividad, el botón de abajo los muestra con su motivo. No interactúes nunca con ellos: «reclamarlos» suele llevar a un sitio que vacía tu wallet.",
+    faqQ20: "¿Qué es el envenenamiento de direcciones?",
+    faqA20: "Una estafa en la que alguien te envía una transferencia nula o mínima desde una dirección que empieza y termina como una que ya pagaste. Espera que la copies de tu historial la próxima vez. Kalyx oculta esas transacciones, avisa del intento en Actividad y bloquea el envío a una dirección imitada. Copia siempre una dirección de su origen, nunca de tu historial.",
+    faqQ21: "¿Por qué TON solo está en mi cuenta principal?",
+    faqA21: "Como en Tonkeeper, una frase de recuperación da una sola wallet TON. Las subcuentas tienen direcciones EVM, Bitcoin y Solana, pero no clave TON. En una subcuenta, las apps TON muestran un botón «Cambiar a la cuenta principal».",
+    faqQ22: "¿Cómo apoyar a Kalyx?",
+    faqA22: "Menú → Apóyanos: direcciones de donación en BTC, ETH (todas las redes EVM), SOL y TON (kalyxwallet.ton), cada una con código QR. Kalyx sigue siendo gratis, sin anuncios ni venta de datos; las donaciones pagan servidores y claves de API.",
     errMemoRequired: "Esta dirección exige un comentario (memo). Añade el que te dio la plataforma o tu depósito se perderá.",
     errInsufficientFunds:
       "Saldo insuficiente para cubrir el importe y las comisiones.",
@@ -5764,8 +5776,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Text:
       "Não vendemos nada, não rastreamos ninguém. A tua carteira é tua.",
     supReason3Title: "Desenvolvido de forma independente",
-    supReason3Text:
-      "Uma pequena equipa apaixonada, não um gigante. Cada donativo conta.",
+    supReason3Text: "Desenvolvido por um independente, não por um gigante. Cada doação conta.",
     supReason4Title: "Para onde vai o teu donativo",
     supReason4Text:
       "Servidores, chaves de API (RPC, preços, NFT) e novas funcionalidades.",
@@ -6080,8 +6091,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "Qualquer ação que mova fundos ou autorize um contrato a gastá-los tem de ser assinada pela tua chave privada, protegida pelo teu PIN. É isto que impede um site de fazer o que quer que seja sem o teu consentimento explícito.",
     faqQ8: "Como reconhecer uma fraude?",
-    faqA8:
-      "Ninguém legítimo pedirá a tua frase de recuperação. Desconfia de sites que imitam uma marca conhecida (o Kalyx alerta-te a vermelho), de aprovações «ilimitadas» e de mensagens boas demais para ser verdade. O Kalyx também mostra uma análise de segurança (GoPlus) antes de cada assinatura.",
+    faqA8: "Ninguém legítimo te pedirá a tua frase de recuperação. Desconfia de sites que imitam uma marca conhecida (a Kalyx avisa-te a vermelho), de aprovações «ilimitadas» e de ofertas boas demais para serem verdade. A Kalyx verifica sites e tokens com a GoPlus, oculta tokens e NFT de spam e avisa-te sobre endereços imitados.",
     faqQ9: "Porque está a minha transação pendente?",
     faqA9:
       "Está à espera de ser incluída num bloco. Taxas de rede demasiado baixas ou forte congestão atrasam-na. O Kalyx notifica-te assim que for confirmada.",
@@ -6095,11 +6105,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "Causas frequentes: saldo insuficiente (taxas incluídas), slippage excedido num swap, limite de gas demasiado baixo ou o contrato rejeitou a operação. Nota: as taxas de gas de uma transação falhada são cobradas na mesma.",
     faqQ13: "Como ligar uma dApp?",
-    faqA13:
-      "Duas formas: o navegador integrado (Menu → Navegador dApps) ou WalletConnect (cola o link «wc:…»). Em ambos os casos, confirmas a ligação com o teu PIN.",
+    faqA13: "Três formas: o separador Explorar (navegador integrado), o WalletConnect (lê ou cola um link «wc:…») ou o TON Connect para apps TON (lê o QR code). Em todos os casos confirmas a ligação com o teu PIN.",
     faqQ14: "Como desligar uma dApp?",
-    faqA14:
-      "Separador WalletConnect: «Desligar» para uma sessão WalletConnect, «Esquecer» para um site do navegador integrado.",
+    faqA14: "Menu → WalletConnect: «Desligar» termina uma sessão WalletConnect ou TON Connect, «Esquecer» remove um site do navegador integrado. Uma dApp aberta em Explorar também se desliga no seu menu ⋯.",
     faqQ15: "O que é o WalletConnect?",
     faqA15:
       "Um protocolo padrão que liga a tua carteira a uma dApp via código QR ou link, sem extensão de navegador.",
@@ -6328,6 +6336,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "Os serviços de NFT não responderam. Os teus NFT estão seguros: só a apresentação falhou.",
     nftPartial: "Não carregados: {networks}. Puxa para baixo para tentar de novo.",
     nftUnavailable: "{networks}: NFT indisponíveis nesta versão.",
+    faqQ19: "Porque é que alguns tokens, NFT ou transações estão ocultos?",
+    faqA19: "Qualquer pessoa pode enviar tokens ou NFT para um endereço público sem pedir. A Kalyx oculta os não verificados, sem valor, com nome de publicidade («claim», «voucher», links) ou disfarçados com letras imitadas. Na Atividade, o botão em baixo mostra-os com o motivo. Nunca interajas com eles: «reclamá-los» leva quase sempre a um site que esvazia a tua carteira.",
+    faqQ20: "O que é o envenenamento de endereços?",
+    faqA20: "Uma burla em que alguém te envia uma transferência nula ou mínima de um endereço que começa e acaba como um que já pagaste. Espera que o copies do histórico da próxima vez. A Kalyx oculta essas transações, sinaliza a tentativa na Atividade e bloqueia o envio para um endereço imitado. Copia sempre um endereço da sua origem, nunca do histórico.",
+    faqQ21: "Porque é que a TON só está na minha conta principal?",
+    faqA21: "Tal como no Tonkeeper, uma frase de recuperação dá uma única carteira TON. As subcontas têm endereços EVM, Bitcoin e Solana, mas não chave TON. Numa subconta, as apps TON mostram um botão «Mudar para a conta principal».",
+    faqQ22: "Como apoiar a Kalyx?",
+    faqA22: "Menu → Apoia-nos: endereços de doação em BTC, ETH (todas as redes EVM), SOL e TON (kalyxwallet.ton), cada um com QR code. A Kalyx continua gratuita, sem publicidade nem venda de dados; as doações pagam servidores e chaves de API.",
     errMemoRequired: "Este endereço exige um comentário (memo). Adiciona o que a plataforma te deu, ou o depósito será perdido.",
     errInsufficientFunds: "Saldo insuficiente para cobrir o valor e as taxas.",
     errUserRejected: "Transação cancelada.",
@@ -7472,8 +7488,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Text:
       "Wir verkaufen nichts, verfolgen niemanden. Deine Wallet gehört dir.",
     supReason3Title: "Unabhängig entwickelt",
-    supReason3Text:
-      "Ein kleines leidenschaftliches Team, kein Riese. Jede Spende zählt.",
+    supReason3Text: "Von einem unabhängigen Entwickler gebaut, nicht von einem Konzern. Jede Spende zählt.",
     supReason4Title: "Wohin deine Spende geht",
     supReason4Text:
       "Server, API-Schlüssel (RPC, Preise, NFT) und neue Funktionen.",
@@ -7793,8 +7808,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "Jede Aktion, die Gelder bewegt oder einem Vertrag erlaubt, sie auszugeben, muss mit deinem privaten Schlüssel signiert werden, der durch deine PIN geschützt ist. Das verhindert, dass eine Website ohne deine ausdrückliche Zustimmung etwas tut.",
     faqQ8: "Wie erkenne ich einen Betrug?",
-    faqA8:
-      "Kein seriöser Anbieter wird jemals nach deiner Wiederherstellungsphrase fragen. Sei misstrauisch bei Websites, die eine bekannte Marke nachahmen (Kalyx warnt dich in Rot), bei „unbegrenzten“ Freigaben und bei Nachrichten, die zu gut klingen, um wahr zu sein. Kalyx zeigt außerdem vor jeder Signatur eine Sicherheitsanalyse (GoPlus).",
+    faqA8: "Niemand Seriöses fragt je nach deiner Wiederherstellungsphrase. Vorsicht bei Seiten, die eine bekannte Marke nachahmen (Kalyx warnt rot), bei „unbegrenzten“ Freigaben und bei zu guten Angeboten. Kalyx prüft Seiten und Tokens mit GoPlus, blendet Spam-Tokens und -NFTs aus und warnt vor Doppelgänger-Adressen.",
     faqQ9: "Warum ist meine Transaktion ausstehend?",
     faqA9:
       "Sie wartet darauf, in einen Block aufgenommen zu werden. Zu niedrige Netzwerkgebühren oder starke Auslastung verlangsamen sie. Kalyx benachrichtigt dich, sobald sie bestätigt ist.",
@@ -7808,11 +7822,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "Häufige Ursachen: unzureichendes Guthaben (inkl. Gebühren), überschrittene Slippage bei einem Swap, zu niedriges Gas-Limit oder der Vertrag hat die Operation abgelehnt. Hinweis: Die Gas-Gebühren einer fehlgeschlagenen Transaktion werden trotzdem berechnet.",
     faqQ13: "Wie verbinde ich eine dApp?",
-    faqA13:
-      "Zwei Wege: der integrierte Browser (Menü → dApp-Browser) oder WalletConnect (füge den „wc:…“-Link ein). In beiden Fällen bestätigst du die Verbindung mit deiner PIN.",
+    faqA13: "Drei Wege: der Tab Entdecken (integrierter Browser), WalletConnect (einen „wc:…“-Link scannen oder einfügen) oder TON Connect für TON-Apps (ihren QR-Code scannen). In jedem Fall bestätigst du die Verbindung mit deiner PIN.",
     faqQ14: "Wie trenne ich eine dApp?",
-    faqA14:
-      "Tab WalletConnect: „Trennen“ für eine WalletConnect-Sitzung, „Vergessen“ für eine Website des integrierten Browsers.",
+    faqA14: "Menü → WalletConnect: „Trennen“ beendet eine WalletConnect- oder TON-Connect-Sitzung, „Vergessen“ entfernt eine Seite des integrierten Browsers. Eine im Tab Entdecken geöffnete dApp trennst du auch über ihr ⋯-Menü.",
     faqQ15: "Was ist WalletConnect?",
     faqA15:
       "Ein Standardprotokoll, das deine Wallet über einen QR-Code oder einen Link mit einer dApp verbindet, ohne Browsererweiterung.",
@@ -8041,6 +8053,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "Die NFT-Dienste haben nicht geantwortet. Deine NFTs sind sicher, nur die Anzeige ist fehlgeschlagen.",
     nftPartial: "Nicht geladen: {networks}. Zum Wiederholen nach unten ziehen.",
     nftUnavailable: "{networks}: NFTs in dieser Version nicht verfügbar.",
+    faqQ19: "Warum sind manche Tokens, NFTs oder Transaktionen ausgeblendet?",
+    faqA19: "Jeder kann ungefragt Tokens oder NFTs an eine öffentliche Adresse schicken. Kalyx blendet nicht verifizierte, wertlose, wie Werbung benannte („claim“, „voucher“, Links) oder mit Doppelgänger-Buchstaben getarnte aus. In der Aktivität zeigt der Button unten sie mit Grund an. Interagiere nie mit ihnen: Wer sie „einfordert“, landet meist auf einer Seite, die die Wallet leert.",
+    faqQ20: "Was ist Adressvergiftung?",
+    faqA20: "Ein Betrug: Jemand schickt dir eine Null- oder Mini-Überweisung von einer Adresse, die wie eine von dir bezahlte beginnt und endet – in der Hoffnung, dass du sie später aus dem Verlauf kopierst. Kalyx blendet solche Transaktionen aus, meldet den Versuch in der Aktivität und blockiert Sendungen an Doppelgänger. Kopiere Adressen immer von der Quelle, nie aus dem Verlauf.",
+    faqQ21: "Warum gibt es TON nur auf meinem Hauptkonto?",
+    faqA21: "Wie bei Tonkeeper ergibt eine Wiederherstellungsphrase eine einzige TON-Wallet. Unterkonten haben EVM-, Bitcoin- und Solana-Adressen, aber keinen TON-Schlüssel. Auf einem Unterkonto zeigen TON-Apps einen Button „Zum Hauptkonto wechseln“.",
+    faqQ22: "Wie kann ich Kalyx unterstützen?",
+    faqA22: "Menü → Unterstütze uns: Spendenadressen in BTC, ETH (alle EVM-Netzwerke), SOL und TON (kalyxwallet.ton), jeweils mit QR-Code. Kalyx bleibt kostenlos, ohne Werbung oder Datenverkauf; Spenden bezahlen Server und API-Schlüssel.",
     errMemoRequired: "Diese Adresse verlangt einen Kommentar (Memo). Gib den der Plattform an, sonst geht deine Einzahlung verloren.",
     errInsufficientFunds: "Unzureichende Mittel (einschließlich Gebühren)",
     errInvalidPsbt: "Ungültiges PSBT",
@@ -9185,8 +9205,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Text:
       "Non vendiamo nulla, non tracciamo nessuno. Il tuo wallet è tuo.",
     supReason3Title: "Sviluppato in modo indipendente",
-    supReason3Text:
-      "Un piccolo team appassionato, non un gigante. Ogni donazione conta.",
+    supReason3Text: "Sviluppato da un indipendente, non da un colosso. Ogni donazione conta.",
     supReason4Title: "Dove va la tua donazione",
     supReason4Text: "Server, chiavi API (RPC, prezzi, NFT) e nuove funzioni.",
     supportNovaHero: "Sostieni Kalyx",
@@ -9502,8 +9521,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "Ogni azione che sposta fondi o autorizza un contratto a spenderli deve essere firmata con la tua chiave privata, protetta dal tuo PIN. È ciò che impedisce a un sito di fare qualsiasi cosa senza il tuo consenso esplicito.",
     faqQ8: "Come riconosco una truffa?",
-    faqA8:
-      "Nessuno di legittimo ti chiederà mai la tua frase di recupero. Diffida dei siti che imitano un marchio noto (Kalyx ti avvisa in rosso), delle approvazioni «illimitate» e dei messaggi troppo belli per essere veri. Kalyx mostra anche un’analisi di sicurezza (GoPlus) prima di ogni firma.",
+    faqA8: "Nessuno di legittimo ti chiederà mai la frase di recupero. Diffida dei siti che imitano un marchio noto (Kalyx ti avvisa in rosso), delle approvazioni «illimitate» e delle offerte troppo belle per essere vere. Kalyx controlla siti e token con GoPlus, nasconde token e NFT di spam e ti avvisa sugli indirizzi sosia.",
     faqQ9: "Perché la mia transazione è in sospeso?",
     faqA9:
       "Sta aspettando di essere inclusa in un blocco. Commissioni di rete troppo basse o una forte congestione la rallentano. Kalyx ti avvisa non appena viene confermata.",
@@ -9517,11 +9535,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "Cause frequenti: saldo insufficiente (commissioni incluse), slippage superato su uno swap, limite di gas troppo basso, o il contratto ha rifiutato l’operazione. Nota: le commissioni di gas di una transazione fallita vengono comunque addebitate.",
     faqQ13: "Come collego una dApp?",
-    faqA13:
-      "Due modi: il browser integrato (Menu → Browser dApp) o WalletConnect (incolla il link «wc:…»). In entrambi i casi, confermi la connessione con il tuo PIN.",
+    faqA13: "Tre modi: la scheda Esplora (browser integrato), WalletConnect (scansiona o incolla un link «wc:…») o TON Connect per le app TON (scansiona il loro QR code). In ogni caso confermi la connessione con il PIN.",
     faqQ14: "Come scollego una dApp?",
-    faqA14:
-      "Scheda WalletConnect: «Disconnetti» per una sessione WalletConnect, «Dimentica» per un sito del browser integrato.",
+    faqA14: "Menu → WalletConnect: «Disconnetti» chiude una sessione WalletConnect o TON Connect, «Dimentica» rimuove un sito del browser integrato. Una dApp aperta in Esplora si disconnette anche dal suo menu ⋯.",
     faqQ15: "Cos’è WalletConnect?",
     faqA15:
       "Un protocollo standard che collega il tuo wallet a una dApp tramite un codice QR o un link, senza estensione del browser.",
@@ -9750,6 +9766,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "I servizi NFT non hanno risposto. I tuoi NFT sono al sicuro: è fallita solo la visualizzazione.",
     nftPartial: "Non caricati: {networks}. Trascina in basso per riprovare.",
     nftUnavailable: "{networks}: NFT non disponibili in questa versione.",
+    faqQ19: "Perché alcuni token, NFT o transazioni sono nascosti?",
+    faqA19: "Chiunque può inviare token o NFT a un indirizzo pubblico senza chiedere. Kalyx nasconde quelli non verificati, senza valore, con nomi pubblicitari («claim», «voucher», link) o camuffati con lettere sosia. In Attività, il pulsante in basso li mostra con il motivo. Non interagire mai con loro: «riscattarli» porta quasi sempre a un sito che svuota il wallet.",
+    faqQ20: "Cos’è l’avvelenamento degli indirizzi?",
+    faqA20: "Una truffa in cui qualcuno ti invia un trasferimento nullo o minimo da un indirizzo che inizia e finisce come uno che hai già pagato, sperando che tu lo copi dalla cronologia la volta dopo. Kalyx nasconde queste transazioni, segnala il tentativo in Attività e blocca l’invio a un sosia. Copia sempre un indirizzo dalla fonte, mai dalla cronologia.",
+    faqQ21: "Perché TON è solo sull’account principale?",
+    faqA21: "Come in Tonkeeper, una frase di recupero dà un solo wallet TON. I sottoaccount hanno indirizzi EVM, Bitcoin e Solana, ma nessuna chiave TON. Su un sottoaccount, le app TON mostrano il pulsante «Passa al conto principale».",
+    faqQ22: "Come sostenere Kalyx?",
+    faqA22: "Menu → Sostienici: indirizzi per donazioni in BTC, ETH (tutte le reti EVM), SOL e TON (kalyxwallet.ton), ognuno con QR code. Kalyx resta gratuito, senza pubblicità né rivendita di dati; le donazioni pagano server e chiavi API.",
     errMemoRequired: "Questo indirizzo richiede un commento (memo). Aggiungi quello fornito dalla piattaforma, o il deposito andrà perso.",
     errInsufficientFunds: "Fondi insufficienti (commissioni incluse)",
     errInvalidPsbt: "PSBT non valido",
@@ -10884,8 +10908,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Title: "Nul advertenties, nul dataverkoop",
     supReason2Text: "We verkopen niets, volgen niemand. Je wallet is van jou.",
     supReason3Title: "Onafhankelijk ontwikkeld",
-    supReason3Text:
-      "Een klein gepassioneerd team, geen reus. Elke donatie telt.",
+    supReason3Text: "Gebouwd door een onafhankelijke ontwikkelaar, niet door een gigant. Elke donatie telt.",
     supReason4Title: "Waar je donatie heen gaat",
     supReason4Text:
       "Servers, API-sleutels (RPC, prijzen, NFT) en nieuwe functies.",
@@ -11116,8 +11139,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "Elke actie die tegoeden verplaatst of een contract toestaat ze uit te geven, moet worden ondertekend met je privésleutel, beschermd door je PIN. Dit voorkomt dat een site iets doet zonder jouw uitdrukkelijke toestemming.",
     faqQ8: "Hoe herken ik oplichting?",
-    faqA8:
-      "Geen enkele legitieme partij vraagt ooit om je herstelzin. Wees op je hoede voor sites die een bekend merk nabootsen (Kalyx waarschuwt je in rood), voor “onbeperkte” goedkeuringen en voor berichten die te mooi zijn om waar te zijn. Kalyx toont ook een beveiligingsanalyse (GoPlus) vóór elke handtekening.",
+    faqA8: "Niemand betrouwbaars vraagt ooit om je herstelzin. Pas op voor sites die een bekend merk nadoen (Kalyx waarschuwt in rood), voor „onbeperkte” goedkeuringen en voor te mooie aanbiedingen. Kalyx controleert sites en tokens met GoPlus, verbergt spamtokens en -NFT’s en waarschuwt voor lijkende adressen.",
     faqQ9: "Waarom is mijn transactie in behandeling?",
     faqA9:
       "Hij wacht om in een blok te worden opgenomen. Te lage netwerkkosten of zware drukte vertragen hem. Kalyx stelt je op de hoogte zodra hij bevestigd is.",
@@ -11131,11 +11153,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "Veelvoorkomende oorzaken: onvoldoende saldo (inclusief kosten), slippage overschreden bij een swap, te lage gaslimiet of het contract weigerde de operatie. Let op: de gaskosten van een mislukte transactie worden toch in rekening gebracht.",
     faqQ13: "Hoe verbind ik een dApp?",
-    faqA13:
-      "Twee manieren: de ingebouwde browser (Menu → dApp-browser) of WalletConnect (plak de “wc:…”-link). In beide gevallen bevestig je de verbinding met je PIN.",
+    faqA13: "Drie manieren: het tabblad Verkennen (ingebouwde browser), WalletConnect (scan of plak een „wc:…”-link) of TON Connect voor TON-apps (scan hun QR-code). In alle gevallen bevestig je de verbinding met je pincode.",
     faqQ14: "Hoe verbreek ik een dApp?",
-    faqA14:
-      "Tabblad WalletConnect: “Verbreken” voor een WalletConnect-sessie, “Vergeten” voor een site van de ingebouwde browser.",
+    faqA14: "Menu → WalletConnect: „Verbinding verbreken” beëindigt een WalletConnect- of TON Connect-sessie, „Vergeten” verwijdert een site uit de ingebouwde browser. Een dApp in Verkennen verbreek je ook via het ⋯-menu.",
     faqQ15: "Wat is WalletConnect?",
     faqA15:
       "Een standaardprotocol dat je wallet via een QR-code of link met een dApp verbindt, zonder browserextensie.",
@@ -11451,6 +11471,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "De NFT-diensten reageerden niet. Je NFT’s zijn veilig: alleen de weergave mislukte.",
     nftPartial: "Niet geladen: {networks}. Trek omlaag om het opnieuw te proberen.",
     nftUnavailable: "{networks}: NFT’s niet beschikbaar in deze versie.",
+    faqQ19: "Waarom zijn sommige tokens, NFT’s of transacties verborgen?",
+    faqA19: "Iedereen kan ongevraagd tokens of NFT’s naar een openbaar adres sturen. Kalyx verbergt die niet geverifieerd zijn, geen waarde hebben, als reclame heten („claim”, „voucher”, links) of met lijkende letters vermomd zijn. In Activiteit toont de knop onderaan ze met de reden. Ga er nooit op in: ze „claimen” leidt meestal naar een site die je wallet leegmaakt.",
+    faqQ20: "Wat is adresvergiftiging?",
+    faqA20: "Een oplichtingstruc: iemand stuurt je een lege of piepkleine overdracht vanaf een adres dat begint en eindigt als een adres dat je hebt betaald, in de hoop dat je het later uit je geschiedenis kopieert. Kalyx verbergt die transacties, meldt de poging in Activiteit en blokkeert verzenden naar een lookalike. Kopieer een adres altijd van de bron, nooit uit je geschiedenis.",
+    faqQ21: "Waarom staat TON alleen op mijn hoofdaccount?",
+    faqA21: "Net als in Tonkeeper geeft één herstelzin één TON-wallet. Subaccounts hebben EVM-, Bitcoin- en Solana-adressen, maar geen TON-sleutel. Op een subaccount tonen TON-apps een knop „Naar de hoofdaccount”.",
+    faqQ22: "Hoe kan ik Kalyx steunen?",
+    faqA22: "Menu → Steun ons: donatieadressen in BTC, ETH (alle EVM-netwerken), SOL en TON (kalyxwallet.ton), elk met QR-code. Kalyx blijft gratis, zonder advertenties of doorverkoop van data; donaties betalen servers en API-sleutels.",
     errMemoRequired: "Dit adres vereist een opmerking (memo). Voeg die van het platform toe, anders gaat je storting verloren.",
     errInsufficientFunds: "Onvoldoende saldo (inclusief kosten)",
     errInvalidPsbt: "Ongeldige PSBT",
@@ -12610,8 +12638,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Text:
       "Niczego nie sprzedajemy, nikogo nie śledzimy. Twój portfel należy do ciebie.",
     supReason3Title: "Tworzony niezależnie",
-    supReason3Text:
-      "Mały, pełen pasji zespół, nie gigant. Każda darowizna się liczy.",
+    supReason3Text: "Tworzony przez niezależnego twórcę, nie przez giganta. Każda darowizna się liczy.",
     supReason4Title: "Na co idzie twoja darowizna",
     supReason4Text: "Serwery, klucze API (RPC, ceny, NFT) i nowe funkcje.",
     supportNovaHero: "Wesprzyj Kalyx",
@@ -12839,8 +12866,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "Każda akcja przenosząca środki lub upoważniająca kontrakt do ich wydania musi zostać podpisana twoim kluczem prywatnym, chronionym PIN-em. To uniemożliwia stronie zrobienie czegokolwiek bez twojej wyraźnej zgody.",
     faqQ8: "Jak rozpoznać oszustwo?",
-    faqA8:
-      "Nikt uczciwy nigdy nie poprosi o twoją frazę odzyskiwania. Uważaj na strony podszywające się pod znaną markę (Kalyx ostrzega na czerwono), na „nieograniczone” zgody i na wiadomości zbyt piękne, by były prawdziwe. Kalyx pokazuje też analizę bezpieczeństwa (GoPlus) przed każdym podpisem.",
+    faqA8: "Nikt uczciwy nigdy nie poprosi o Twoją frazę odzyskiwania. Uważaj na strony podszywające się pod znane marki (Kalyx ostrzega na czerwono), „nieograniczone” zatwierdzenia i zbyt piękne oferty. Kalyx sprawdza strony i tokeny przez GoPlus, ukrywa spamowe tokeny i NFT oraz ostrzega przed podrobionymi adresami.",
     faqQ9: "Dlaczego moja transakcja oczekuje?",
     faqA9:
       "Czeka na włączenie do bloku. Zbyt niskie opłaty sieciowe lub duże zatłoczenie ją spowalniają. Kalyx powiadomi cię, gdy zostanie potwierdzona.",
@@ -12854,11 +12880,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "Częste przyczyny: niewystarczające saldo (z opłatami), przekroczony slippage przy swapie, zbyt niski limit gazu lub kontrakt odrzucił operację. Uwaga: opłaty za gas nieudanej transakcji i tak są pobierane.",
     faqQ13: "Jak połączyć dApp?",
-    faqA13:
-      "Dwa sposoby: wbudowana przeglądarka (Menu → Przeglądarka dApp) lub WalletConnect (wklej link „wc:…”). W obu przypadkach potwierdzasz połączenie PIN-em.",
+    faqA13: "Trzy sposoby: karta Odkrywaj (wbudowana przeglądarka), WalletConnect (zeskanuj lub wklej link „wc:…”) albo TON Connect dla aplikacji TON (zeskanuj ich kod QR). Za każdym razem potwierdzasz połączenie PIN-em.",
     faqQ14: "Jak rozłączyć dApp?",
-    faqA14:
-      "Karta WalletConnect: „Rozłącz” dla sesji WalletConnect, „Zapomnij” dla strony wbudowanej przeglądarki.",
+    faqA14: "Menu → WalletConnect: „Rozłącz” kończy sesję WalletConnect lub TON Connect, „Zapomnij” usuwa stronę z wbudowanej przeglądarki. dApp otwartą w Odkrywaj rozłączysz też z jej menu ⋯.",
     faqQ15: "Czym jest WalletConnect?",
     faqA15:
       "Standardowy protokół łączący twój portfel z dApp za pomocą kodu QR lub linku, bez rozszerzenia przeglądarki.",
@@ -13174,6 +13198,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "Usługi NFT nie odpowiedziały. Twoje NFT są bezpieczne — nie udało się tylko ich wyświetlić.",
     nftPartial: "Nie wczytano: {networks}. Przeciągnij w dół, by spróbować ponownie.",
     nftUnavailable: "{networks}: NFT niedostępne w tej wersji.",
+    faqQ19: "Dlaczego niektóre tokeny, NFT lub transakcje są ukryte?",
+    faqA19: "Każdy może bez pytania wysłać tokeny lub NFT na publiczny adres. Kalyx ukrywa te niezweryfikowane, bezwartościowe, nazwane jak reklama („claim”, „voucher”, linki) lub zamaskowane podobnymi literami. W Aktywności przycisk na dole pokazuje je wraz z powodem. Nigdy z nimi nie wchodź w interakcję: „odebranie” zwykle prowadzi na stronę, która opróżnia portfel.",
+    faqQ20: "Czym jest zatruwanie adresu?",
+    faqA20: "Oszustwo, w którym ktoś wysyła Ci zerowy lub drobny przelew z adresu zaczynającego się i kończącego jak adres, któremu płaciłeś, licząc, że następnym razem skopiujesz go z historii. Kalyx ukrywa takie transakcje, sygnalizuje próbę w Aktywności i blokuje wysyłkę do sobowtóra. Zawsze kopiuj adres ze źródła, nigdy z historii.",
+    faqQ21: "Dlaczego TON jest tylko na koncie głównym?",
+    faqA21: "Jak w Tonkeeperze, jedna fraza odzyskiwania daje jeden portfel TON. Podkonta mają adresy EVM, Bitcoin i Solana, ale nie klucz TON. Na podkoncie aplikacje TON pokazują przycisk „Przejdź na konto główne”.",
+    faqQ22: "Jak wesprzeć Kalyx?",
+    faqA22: "Menu → Wesprzyj nas: adresy do darowizn w BTC, ETH (wszystkie sieci EVM), SOL i TON (kalyxwallet.ton), każdy z kodem QR. Kalyx pozostaje darmowy, bez reklam i sprzedaży danych; darowizny opłacają serwery i klucze API.",
     errMemoRequired: "Ten adres wymaga komentarza (memo). Dodaj ten od platformy, inaczej wpłata przepadnie.",
     errInsufficientFunds: "Niewystarczające środki (w tym opłaty)",
     errInvalidPsbt: "Nieprawidłowy PSBT",
@@ -14325,7 +14357,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Text:
       "Hiçbir şey satmayız, kimseyi izlemeyiz. Cüzdanın senindir.",
     supReason3Title: "Bağımsız geliştirildi",
-    supReason3Text: "Küçük, tutkulu bir ekip, dev değil. Her bağış önemli.",
+    supReason3Text: "Bir dev değil, bağımsız bir geliştirici tarafından yapıldı. Her bağış önemli.",
     supReason4Title: "Bağışın nereye gidiyor",
     supReason4Text:
       "Sunucular, API anahtarları (RPC, fiyatlar, NFT) ve yeni özellikler.",
@@ -14553,8 +14585,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "Fonları taşıyan veya bir kontratın onları harcamasına izin veren her eylem, PIN’inle korunan özel anahtarınla imzalanmalıdır. Bu, bir sitenin açık onayın olmadan hiçbir şey yapmasını engeller.",
     faqQ8: "Bir dolandırıcılığı nasıl tanırım?",
-    faqA8:
-      "Meşru hiç kimse asla kurtarma ifadeni istemez. Bilinen bir markayı taklit eden sitelere (Kalyx seni kırmızıyla uyarır), “sınırsız” onaylara ve gerçek olamayacak kadar iyi mesajlara dikkat et. Kalyx ayrıca her imzadan önce bir güvenlik analizi (GoPlus) gösterir.",
+    faqA8: "Hiçbir meşru taraf kurtarma ifadeni istemez. Tanınmış bir markayı taklit eden sitelere (Kalyx kırmızıyla uyarır), “sınırsız” onaylara ve gerçek olamayacak kadar iyi tekliflere dikkat et. Kalyx siteleri ve tokenleri GoPlus ile denetler, spam token ve NFT’leri gizler, benzer adreslere karşı uyarır.",
     faqQ9: "İşlemim neden beklemede?",
     faqA9:
       "Bir bloğa dahil edilmeyi bekliyor. Çok düşük ağ ücretleri veya yoğun tıkanıklık onu yavaşlatır. Kalyx, onaylandığı anda seni bilgilendirir.",
@@ -14568,11 +14599,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "Sık nedenler: yetersiz bakiye (ücretler dahil), bir swapta aşılan slippage, çok düşük gas limiti veya kontratın işlemi reddetmesi. Not: başarısız bir işlemin gas ücretleri yine de alınır.",
     faqQ13: "Bir dApp’i nasıl bağlarım?",
-    faqA13:
-      "İki yol: yerleşik tarayıcı (Menü → dApp tarayıcısı) veya WalletConnect (“wc:…” bağlantısını yapıştır). Her iki durumda da bağlantıyı PIN’inle onaylarsın.",
+    faqA13: "Üç yol: Keşfet sekmesi (yerleşik tarayıcı), WalletConnect (bir “wc:…” bağlantısını tara veya yapıştır) ya da TON uygulamaları için TON Connect (QR kodunu tara). Her durumda bağlantıyı PIN’inle onaylarsın.",
     faqQ14: "Bir dApp’in bağlantısını nasıl keserim?",
-    faqA14:
-      "WalletConnect sekmesi: WalletConnect oturumu için “Bağlantıyı kes”, yerleşik tarayıcı sitesi için “Unut”.",
+    faqA14: "Menü → WalletConnect: “Bağlantıyı kes” bir WalletConnect veya TON Connect oturumunu sonlandırır, “Unut” yerleşik tarayıcıdaki bir siteyi kaldırır. Keşfet’te açık bir dApp’in bağlantısı ⋯ menüsünden de kesilebilir.",
     faqQ15: "WalletConnect nedir?",
     faqA15:
       "Cüzdanını bir QR kodu veya bağlantı aracılığıyla, tarayıcı eklentisi olmadan bir dApp’e bağlayan standart bir protokol.",
@@ -14888,6 +14917,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "NFT hizmetleri yanıt vermedi. NFT’lerin güvende: yalnızca gösterim başarısız oldu.",
     nftPartial: "Yüklenemedi: {networks}. Yeniden denemek için aşağı çek.",
     nftUnavailable: "{networks}: Bu sürümde NFT kullanılamıyor.",
+    faqQ19: "Neden bazı token, NFT veya işlemler gizli?",
+    faqA19: "Herkes, izin almadan herkese açık bir adrese token veya NFT gönderebilir. Kalyx doğrulanmamış, değersiz, reklam gibi adlandırılmış (“claim”, “voucher”, bağlantılar) ya da benzer harflerle gizlenmiş olanları gizler. Aktivite’de alttaki düğme bunları nedeniyle gösterir. Onlarla asla etkileşime girme: “talep etmek” çoğu zaman cüzdanı boşaltan bir siteye götürür.",
+    faqQ20: "Adres zehirleme nedir?",
+    faqA20: "Birinin, ödeme yaptığın bir adres gibi başlayıp biten bir adresten sana sıfır veya çok küçük bir transfer göndermesiyle yapılan dolandırıcılık. Bir dahakine adresi geçmişinden kopyalamanı umar. Kalyx bu işlemleri gizler, girişimi Aktivite’de bildirir ve benzer adrese gönderimi engeller. Adresi her zaman kaynağından kopyala, geçmişinden değil.",
+    faqQ21: "TON neden yalnızca ana hesabımda?",
+    faqA21: "Tonkeeper’da olduğu gibi, bir kurtarma ifadesi tek bir TON cüzdanı verir. Alt hesapların EVM, Bitcoin ve Solana adresleri vardır ama TON anahtarı yoktur. Alt hesapta TON uygulamaları “Ana hesaba geç” düğmesini gösterir.",
+    faqQ22: "Kalyx’i nasıl destekleyebilirim?",
+    faqA22: "Menü → Bize destek ol: BTC, ETH (tüm EVM ağları), SOL ve TON (kalyxwallet.ton) bağış adresleri, her biri QR kodlu. Kalyx reklamsız ve veri satışı olmadan ücretsiz kalır; bağışlar sunucuları ve API anahtarlarını karşılar.",
     errMemoRequired: "Bu adres bir açıklama (memo) gerektiriyor. Platformun verdiğini ekle, yoksa yatırımın kaybolur.",
     errInsufficientFunds: "Yetersiz bakiye (ücretler dahil)",
     errInvalidPsbt: "Geçersiz PSBT",
@@ -16047,8 +16084,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Text:
       "Мы ничего не продаём, никого не отслеживаем. Ваш кошелёк принадлежит вам.",
     supReason3Title: "Разработан независимо",
-    supReason3Text:
-      "Небольшая увлечённая команда, а не гигант. Каждое пожертвование важно.",
+    supReason3Text: "Создан независимым разработчиком, а не гигантом. Каждое пожертвование важно.",
     supReason4Title: "Куда идёт ваше пожертвование",
     supReason4Text: "Серверы, ключи API (RPC, цены, NFT) и новые функции.",
     supportNovaHero: "Поддержать Kalyx",
@@ -16278,8 +16314,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "Любое действие, перемещающее средства или разрешающее контракту их тратить, должно быть подписано вашим приватным ключом, защищённым PIN. Именно это не даёт сайту сделать что-либо без вашего явного согласия.",
     faqQ8: "Как распознать мошенничество?",
-    faqA8:
-      "Ни один добросовестный участник никогда не попросит вашу фразу восстановления. Остерегайтесь сайтов, имитирующих известный бренд (Kalyx предупреждает красным), «безлимитных» разрешений и слишком хороших, чтобы быть правдой, сообщений. Kalyx также показывает анализ безопасности (GoPlus) перед каждой подписью.",
+    faqA8: "Никто честный никогда не попросит твою фразу восстановления. Остерегайся сайтов, подделывающих известный бренд (Kalyx предупредит красным), «безлимитных» разрешений и слишком хороших предложений. Kalyx проверяет сайты и токены через GoPlus, скрывает спам-токены и NFT и предупреждает об адресах-двойниках.",
     faqQ9: "Почему моя транзакция в ожидании?",
     faqA9:
       "Она ждёт включения в блок. Слишком низкие комиссии сети или сильная загруженность замедляют её. Kalyx уведомит вас, как только она будет подтверждена.",
@@ -16293,11 +16328,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "Частые причины: недостаточный баланс (с учётом комиссий), превышен slippage при обмене, слишком низкий лимит газа, или контракт отклонил операцию. Примечание: комиссии за газ неудачной транзакции всё равно списываются.",
     faqQ13: "Как подключить dApp?",
-    faqA13:
-      "Два способа: встроенный браузер (Меню → Браузер dApp) или WalletConnect (вставьте ссылку «wc:…»). В обоих случаях вы подтверждаете подключение своим PIN.",
+    faqA13: "Три способа: вкладка «Обзор» (встроенный браузер), WalletConnect (отсканируй или вставь ссылку «wc:…») или TON Connect для приложений TON (отсканируй их QR-код). В любом случае ты подтверждаешь подключение PIN-кодом.",
     faqQ14: "Как отключить dApp?",
-    faqA14:
-      "Вкладка WalletConnect: «Отключить» для сессии WalletConnect, «Забыть» для сайта встроенного браузера.",
+    faqA14: "Меню → WalletConnect: «Отключить» завершает сеанс WalletConnect или TON Connect, «Забыть» удаляет сайт встроенного браузера. dApp, открытое во вкладке «Обзор», отключается и через его меню ⋯.",
     faqQ15: "Что такое WalletConnect?",
     faqA15:
       "Стандартный протокол, связывающий ваш кошелёк с dApp через QR-код или ссылку, без расширения браузера.",
@@ -16614,6 +16647,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "Сервисы NFT не ответили. Твои NFT в сохранности: не удалось только их показать.",
     nftPartial: "Не загружено: {networks}. Потяни вниз, чтобы повторить.",
     nftUnavailable: "{networks}: NFT недоступны в этой версии.",
+    faqQ19: "Почему некоторые токены, NFT или транзакции скрыты?",
+    faqA19: "Кто угодно может без спроса прислать токены или NFT на публичный адрес. Kalyx скрывает непроверенные, бесценные, названные как реклама («claim», «voucher», ссылки) или замаскированные похожими буквами. В «Активности» кнопка внизу показывает их с причиной. Никогда не взаимодействуй с ними: «получение» обычно ведёт на сайт, который опустошает кошелёк.",
+    faqQ20: "Что такое подмена адреса (address poisoning)?",
+    faqA20: "Мошенничество: тебе присылают нулевой или крошечный перевод с адреса, который начинается и заканчивается как адрес, которому ты платил, — в расчёте, что потом ты скопируешь его из истории. Kalyx скрывает такие транзакции, сообщает о попытке в «Активности» и блокирует отправку на двойника. Всегда копируй адрес из источника, а не из истории.",
+    faqQ21: "Почему TON есть только на основном аккаунте?",
+    faqA21: "Как в Tonkeeper, одна фраза восстановления даёт один TON-кошелёк. У субаккаунтов есть адреса EVM, Bitcoin и Solana, но нет ключа TON. На субаккаунте приложения TON показывают кнопку «Перейти на основной счёт».",
+    faqQ22: "Как поддержать Kalyx?",
+    faqA22: "Меню → Поддержать нас: адреса для пожертвований в BTC, ETH (все сети EVM), SOL и TON (kalyxwallet.ton), у каждого есть QR-код. Kalyx остаётся бесплатным, без рекламы и продажи данных; пожертвования оплачивают серверы и API-ключи.",
     errMemoRequired: "Этот адрес требует комментарий (memo). Укажи тот, что дала платформа, иначе депозит будет потерян.",
     errInsufficientFunds: "Недостаточно средств (с учетом комиссии)",
     errInvalidPsbt: "Неверный PSBT",
@@ -17785,7 +17826,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Title: "صفر إعلانات، صفر بيع للبيانات",
     supReason2Text: "لا نبيع شيئًا، لا نتتبّع أحدًا. محفظتك ملكك.",
     supReason3Title: "مطوّرة باستقلالية",
-    supReason3Text: "فريق صغير شغوف، لا عملاق. كل تبرّع يهمّ.",
+    supReason3Text: "يطوّره مطوّر مستقل، لا شركة عملاقة. كل تبرع مهم.",
     supReason4Title: "إلى أين يذهب تبرّعك",
     supReason4Text: "الخوادم ومفاتيح API (RPC، الأسعار، NFT) وميزات جديدة.",
     supportNovaHero: "ادعم Kalyx",
@@ -18010,8 +18051,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "أي إجراء ينقل أموالًا أو يأذن لعقد بإنفاقها يجب أن يُوقَّع بمفتاحك الخاص المحمي برمز PIN. هذا ما يمنع موقعًا من فعل أي شيء دون موافقتك الصريحة.",
     faqQ8: "كيف أميّز عملية احتيال؟",
-    faqA8:
-      "لن يطلب منك أي طرف شرعي عبارة الاسترداد أبدًا. احذر من المواقع التي تقلّد علامة معروفة (ينبّهك Kalyx بالأحمر)، والموافقات «غير المحدودة»، والرسائل الجيدة أكثر من اللازم. يعرض Kalyx أيضًا تحليلًا أمنيًا (GoPlus) قبل كل توقيع.",
+    faqA8: "لن يطلب منك أي طرف شرعي عبارة الاسترداد أبدًا. احذر المواقع التي تقلّد علامة معروفة (ينبّهك Kalyx بالأحمر)، والموافقات «غير المحدودة»، والعروض الأجمل من أن تكون حقيقية. يفحص Kalyx المواقع والرموز عبر GoPlus، ويخفي الرموز وNFT المزعجة، وينبّهك إلى العناوين المقلّدة.",
     faqQ9: "لماذا معاملتي معلّقة؟",
     faqA9:
       "تنتظر إدراجها في كتلة. رسوم شبكة منخفضة جدًا أو ازدحام شديد يُبطئانها. يُخطرك Kalyx بمجرد تأكيدها.",
@@ -18025,11 +18065,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "أسباب شائعة: رصيد غير كافٍ (شاملًا الرسوم)، تجاوز الانزلاق في التبديل، حد غاز منخفض جدًا، أو رفض العقد للعملية. ملاحظة: تُخصم رسوم غاز المعاملة الفاشلة رغم ذلك.",
     faqQ13: "كيف أوصل تطبيق dApp؟",
-    faqA13:
-      "طريقتان: المتصفح المدمج (القائمة → متصفح dApp)، أو WalletConnect (الصق رابط «wc:…»). في كلتا الحالتين تؤكّد الاتصال برمز PIN.",
+    faqA13: "ثلاث طرق: تبويب الاستكشاف (المتصفح المدمج)، أو WalletConnect (امسح رابط «wc:…» أو الصقه)، أو TON Connect لتطبيقات TON (امسح رمز QR الخاص بها). في كل الحالات تؤكد الاتصال برمز PIN.",
     faqQ14: "كيف أفصل تطبيق dApp؟",
-    faqA14:
-      "علامة تبويب WalletConnect: «قطع الاتصال» لجلسة WalletConnect، «نسيان» لموقع المتصفح المدمج.",
+    faqA14: "القائمة ← WalletConnect: «قطع الاتصال» ينهي جلسة WalletConnect أو TON Connect، و«نسيان» يزيل موقعًا من المتصفح المدمج. ويمكن أيضًا قطع اتصال تطبيق مفتوح في الاستكشاف من قائمته ⋯.",
     faqQ15: "ما هو WalletConnect؟",
     faqA15:
       "بروتوكول قياسي يربط محفظتك بتطبيق dApp عبر رمز QR أو رابط، بدون إضافة متصفح.",
@@ -18343,6 +18381,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "لم تستجب خدمات NFT. رموزك بأمان: فشل عرضها فقط.",
     nftPartial: "لم يتم التحميل: {networks}. اسحب للأسفل لإعادة المحاولة.",
     nftUnavailable: "{networks}: رموز NFT غير متاحة في هذا الإصدار.",
+    faqQ19: "لماذا بعض الرموز أو NFT أو المعاملات مخفية؟",
+    faqA19: "يمكن لأي شخص إرسال رموز أو NFT إلى عنوان عام دون طلب. يخفي Kalyx غير الموثّق منها، أو عديم القيمة، أو المسمّى كإعلان («claim» أو «voucher» أو روابط)، أو المتنكّر بحروف مقلّدة. في النشاط، يعرضها الزر في الأسفل مع السبب. لا تتفاعل معها أبدًا: «المطالبة» بها تقود غالبًا إلى موقع يفرغ محفظتك.",
+    faqQ20: "ما هو تسميم العناوين؟",
+    faqA20: "احتيال يرسل فيه أحدهم تحويلًا صفريًا أو ضئيلًا من عنوان يبدأ وينتهي مثل عنوان دفعت له، على أمل أن تنسخه من سجلك لاحقًا. يخفي Kalyx هذه المعاملات، وينبّه إلى المحاولة في النشاط، ويمنع الإرسال إلى العنوان المقلَّد. انسخ العنوان دائمًا من مصدره، لا من سجلك.",
+    faqQ21: "لماذا TON متاحة فقط على حسابي الرئيسي؟",
+    faqA21: "كما في Tonkeeper، تعطي عبارة الاسترداد الواحدة محفظة TON واحدة. للحسابات الفرعية عناوين EVM وبيتكوين وسولانا، لكن بلا مفتاح TON. على حساب فرعي، تعرض تطبيقات TON زر «التبديل إلى الحساب الرئيسي».",
+    faqQ22: "كيف أدعم Kalyx؟",
+    faqA22: "القائمة ← ادعمنا: عناوين تبرع بـ BTC وETH (كل شبكات EVM) وSOL وTON (kalyxwallet.ton)، لكل منها رمز QR. يبقى Kalyx مجانيًا بلا إعلانات ولا بيع للبيانات؛ التبرعات تموّل الخوادم ومفاتيح API.",
     errMemoRequired: "هذا العنوان يتطلب تعليقًا (مذكرة). أضف التعليق الذي أعطتك إياه المنصة، وإلا فسيضيع إيداعك.",
     errInsufficientFunds: "أموال غير كافية (شاملة الرسوم)",
     errInvalidPsbt: "PSBT غير صالح",
@@ -19503,8 +19549,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Text:
       "हम कुछ नहीं बेचते, किसी को ट्रैक नहीं करते। आपका वॉलेट आपका है।",
     supReason3Title: "स्वतंत्र रूप से विकसित",
-    supReason3Text:
-      "एक छोटी जुनूनी टीम, कोई दिग्गज नहीं। हर दान मायने रखता है।",
+    supReason3Text: "किसी दिग्गज ने नहीं, एक स्वतंत्र डेवलपर ने बनाया है। हर दान मायने रखता है।",
     supReason4Title: "आपका दान कहां जाता है",
     supReason4Text: "सर्वर, API कुंजियां (RPC, कीमतें, NFT) और नई सुविधाएं।",
     supportNovaHero: "Kalyx का समर्थन करें",
@@ -19733,8 +19778,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "कोई भी क्रिया जो फंड ले जाती है या किसी कॉन्ट्रैक्ट को उन्हें खर्च करने की अनुमति देती है, उसे आपकी निजी कुंजी से हस्ताक्षरित होना चाहिए, जो आपके PIN द्वारा सुरक्षित है। यही किसी साइट को आपकी स्पष्ट सहमति के बिना कुछ भी करने से रोकता है।",
     faqQ8: "मैं धोखाधड़ी को कैसे पहचानूं?",
-    faqA8:
-      "कोई भी वैध व्यक्ति कभी आपकी रिकवरी फ़्रेज़ नहीं मांगेगा। किसी जानी-मानी ब्रांड की नकल करने वाली साइटों (Kalyx आपको लाल में चेतावनी देता है), «असीमित» स्वीकृतियों, और सच होने के लिए बहुत अच्छे संदेशों से सावधान रहें। Kalyx हर हस्ताक्षर से पहले एक सुरक्षा विश्लेषण (GoPlus) भी दिखाता है।",
+    faqA8: "कोई भी वैध पक्ष कभी आपका रिकवरी वाक्यांश नहीं माँगेगा। किसी जाने-माने ब्रांड की नकल करने वाली साइटों (Kalyx लाल रंग में चेतावनी देता है), “असीमित” अनुमतियों और अविश्वसनीय ऑफ़र से सावधान रहें। Kalyx GoPlus से साइटें और टोकन जाँचता है, स्पैम टोकन व NFT छिपाता है और हमशक्ल पतों पर चेतावनी देता है।",
     faqQ9: "मेरा लेनदेन लंबित क्यों है?",
     faqA9:
       "यह किसी ब्लॉक में शामिल होने की प्रतीक्षा कर रहा है। बहुत कम नेटवर्क शुल्क या भारी भीड़ इसे धीमा करती है। पुष्टि होते ही Kalyx आपको सूचित करता है।",
@@ -19748,11 +19792,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "सामान्य कारण: अपर्याप्त बैलेंस (शुल्क सहित), स्वैप पर स्लिपेज पार, बहुत कम गैस सीमा, या कॉन्ट्रैक्ट ने ऑपरेशन अस्वीकार किया। नोट: विफल लेनदेन के गैस शुल्क फिर भी लिए जाते हैं।",
     faqQ13: "dApp कैसे कनेक्ट करें?",
-    faqA13:
-      "दो तरीके: अंतर्निहित ब्राउज़र (मेन्यू → dApp ब्राउज़र), या WalletConnect («wc:…» लिंक पेस्ट करें)। दोनों में, आप अपने PIN से कनेक्शन की पुष्टि करते हैं।",
+    faqA13: "तीन तरीके: एक्सप्लोर टैब (बिल्ट-इन ब्राउज़र), WalletConnect (“wc:…” लिंक स्कैन या पेस्ट करें) या TON ऐप्स के लिए TON Connect (उनका QR कोड स्कैन करें)। हर बार आप PIN से कनेक्शन की पुष्टि करते हैं।",
     faqQ14: "dApp को कैसे डिस्कनेक्ट करें?",
-    faqA14:
-      "WalletConnect टैब: WalletConnect सत्र के लिए «डिस्कनेक्ट करें», अंतर्निहित ब्राउज़र साइट के लिए «भूल जाएं»।",
+    faqA14: "मेनू → WalletConnect: “डिस्कनेक्ट” WalletConnect या TON Connect सत्र समाप्त करता है, “भूल जाएँ” बिल्ट-इन ब्राउज़र की साइट हटाता है। एक्सप्लोर में खुले dApp को उसके ⋯ मेनू से भी डिस्कनेक्ट किया जा सकता है।",
     faqQ15: "WalletConnect क्या है?",
     faqA15:
       "एक मानक प्रोटोकॉल जो QR कोड या लिंक के माध्यम से आपके वॉलेट को dApp से जोड़ता है, बिना ब्राउज़र एक्सटेंशन के।",
@@ -20068,6 +20110,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "NFT सेवाओं ने जवाब नहीं दिया। आपके NFT सुरक्षित हैं: केवल उन्हें दिखाना विफल हुआ।",
     nftPartial: "लोड नहीं हुआ: {networks}। फिर कोशिश के लिए नीचे खींचें।",
     nftUnavailable: "{networks}: इस संस्करण में NFT उपलब्ध नहीं।",
+    faqQ19: "कुछ टोकन, NFT या लेनदेन छिपे क्यों हैं?",
+    faqA19: "कोई भी बिना पूछे किसी सार्वजनिक पते पर टोकन या NFT भेज सकता है। Kalyx असत्यापित, बेकार, विज्ञापन जैसे नाम वाले (“claim”, “voucher”, लिंक) या हमशक्ल अक्षरों से छिपे टोकन छिपाता है। गतिविधि में नीचे का बटन उन्हें कारण सहित दिखाता है। उनसे कभी इंटरैक्ट न करें: “क्लेम” करना अक्सर वॉलेट खाली करने वाली साइट पर ले जाता है।",
+    faqQ20: "एड्रेस पॉइज़निंग क्या है?",
+    faqA20: "एक धोखा जिसमें कोई ऐसे पते से शून्य या बेहद छोटा ट्रांसफ़र भेजता है जो आपके भुगतान किए पते की तरह शुरू और खत्म होता है, इस उम्मीद में कि अगली बार आप इसे इतिहास से कॉपी करेंगे। Kalyx ऐसे लेनदेन छिपाता है, गतिविधि में प्रयास की सूचना देता है और हमशक्ल पते पर भेजना रोकता है। पता हमेशा स्रोत से कॉपी करें, इतिहास से नहीं।",
+    faqQ21: "TON केवल मेरे मुख्य खाते पर क्यों है?",
+    faqA21: "Tonkeeper की तरह, एक रिकवरी वाक्यांश से एक ही TON वॉलेट बनता है। सब-खातों में EVM, बिटकॉइन और सोलाना पते होते हैं, पर TON कुंजी नहीं। सब-खाते पर TON ऐप्स “मुख्य खाते पर जाएँ” बटन दिखाते हैं।",
+    faqQ22: "Kalyx को कैसे सपोर्ट करें?",
+    faqA22: "मेनू → हमारा समर्थन करें: BTC, ETH (सभी EVM नेटवर्क), SOL और TON (kalyxwallet.ton) में दान के पते, हर एक QR कोड के साथ। Kalyx बिना विज्ञापन या डेटा बिक्री के मुफ़्त रहता है; दान से सर्वर और API कुंजियों का खर्च चलता है।",
     errMemoRequired: "इस पते के लिए टिप्पणी (मेमो) ज़रूरी है। प्लेटफ़ॉर्म से मिला मेमो जोड़ें, वरना आपकी जमा राशि खो जाएगी।",
     errInsufficientFunds: "पर्याप्त धन नहीं (शुल्क शामिल)",
     errInvalidPsbt: "अमान्य PSBT",
@@ -21219,7 +21269,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Title: "零广告，零数据转售",
     supReason2Text: "我们不卖任何东西，不追踪任何人。你的钱包属于你。",
     supReason3Title: "独立开发",
-    supReason3Text: "一支充满热情的小团队，而非巨头。每一笔捐赠都重要。",
+    supReason3Text: "由独立开发者打造，而非巨头。每一笔捐赠都很重要。",
     supReason4Title: "你的捐赠去向",
     supReason4Text: "服务器、API 密钥（RPC、价格、NFT）和新功能。",
     supportNovaHero: "支持 Kalyx",
@@ -21437,8 +21487,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "任何转移资金或授权合约花费资金的操作都必须用你的私钥签名，私钥由你的 PIN 保护。这可以防止网站在未经你明确同意的情况下做任何事情。",
     faqQ8: "如何识别骗局？",
-    faqA8:
-      "任何正规方都绝不会索要你的恢复助记词。警惕模仿知名品牌的网站（Kalyx 会以红色警示你）、“无限”授权，以及好得不真实的信息。Kalyx 还会在每次签名前显示安全分析（GoPlus）。",
+    faqA8: "任何正规方都不会索要你的助记词。警惕仿冒知名品牌的网站（Kalyx 会以红色提醒）、“无限额”授权和好得不真实的优惠。Kalyx 使用 GoPlus 检查网站和代币，隐藏垃圾代币和 NFT，并提醒你注意仿冒地址。",
     faqQ9: "为什么我的交易处于待处理状态？",
     faqA9:
       "它正在等待被打包进区块。网络费用过低或严重拥堵会使其变慢。一旦确认，Kalyx 会通知你。",
@@ -21452,11 +21501,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "常见原因：余额不足（含手续费）、兑换时滑点超限、gas 上限过低，或合约拒绝了操作。注意：失败交易的 gas 费仍会被扣除。",
     faqQ13: "如何连接 dApp？",
-    faqA13:
-      "两种方式：内置浏览器（菜单 → dApp 浏览器），或 WalletConnect（粘贴“wc:…”链接）。两种情况下，你都用 PIN 确认连接。",
+    faqA13: "三种方式：“探索”标签页（内置浏览器）、WalletConnect（扫描或粘贴 “wc:…” 链接），或用于 TON 应用的 TON Connect（扫描其二维码）。每种方式都需用 PIN 确认连接。",
     faqQ14: "如何断开 dApp？",
-    faqA14:
-      "WalletConnect 标签页：对 WalletConnect 会话点“断开”，对内置浏览器网站点“忘记”。",
+    faqA14: "菜单 → WalletConnect：“断开连接”结束 WalletConnect 或 TON Connect 会话，“忘记”移除内置浏览器中的站点。在“探索”中打开的 dApp 也可通过其 ⋯ 菜单断开。",
     faqQ15: "什么是 WalletConnect？",
     faqA15:
       "一种标准协议，通过二维码或链接将你的钱包连接到 dApp，无需浏览器扩展。",
@@ -21770,6 +21817,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "NFT 服务无响应。你的 NFT 安全无虞，只是暂时无法显示。",
     nftPartial: "未加载：{networks}。下拉可重试。",
     nftUnavailable: "{networks}：此版本暂不支持 NFT。",
+    faqQ19: "为什么有些代币、NFT 或交易被隐藏？",
+    faqA19: "任何人都可以不经允许向公开地址发送代币或 NFT。Kalyx 会隐藏未验证、无价值、名称像广告（“claim”、“voucher”、链接）或用仿冒字母伪装的内容。在“活动”中，底部按钮会显示它们及原因。切勿与之交互：“领取”通常会导向清空钱包的网站。",
+    faqQ20: "什么是地址投毒？",
+    faqA20: "一种诈骗：有人从一个首尾与你付过款的地址相同的地址向你发送零额或极小额转账，指望你下次从历史记录中复制它。Kalyx 会隐藏这类交易，在“活动”中提示此企图，并阻止向仿冒地址转账。请始终从来源复制地址，切勿从历史记录复制。",
+    faqQ21: "为什么 TON 只在我的主账户上？",
+    faqA21: "与 Tonkeeper 相同，一个助记词只对应一个 TON 钱包。子账户有 EVM、比特币和 Solana 地址，但没有 TON 密钥。在子账户上，TON 应用会显示“切换到主账户”按钮。",
+    faqQ22: "如何支持 Kalyx？",
+    faqA22: "菜单 → 支持我们：BTC、ETH（所有 EVM 网络）、SOL 和 TON（kalyxwallet.ton）的捐赠地址，均附二维码。Kalyx 保持免费，无广告、不出售数据；捐赠用于支付服务器和 API 密钥费用。",
     errMemoRequired: "该地址需要备注（memo）。请填写平台提供的备注，否则你的充值将会丢失。",
     errInsufficientFunds: "资金不足（含费用）",
     errInvalidPsbt: "无效的 PSBT",
@@ -22898,8 +22953,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Text:
       "何も売らず、誰も追跡しません。ウォレットはあなたのものです。",
     supReason3Title: "独立開発",
-    supReason3Text:
-      "巨大企業ではなく、情熱ある小さなチーム。すべての寄付が力になります。",
+    supReason3Text: "大企業ではなく、個人の開発者が作っています。どんな寄付も大きな力です。",
     supReason4Title: "寄付の使い道",
     supReason4Text: "サーバー、APIキー（RPC、価格、NFT）、新機能。",
     supportNovaHero: "Kalyxを応援",
@@ -23215,8 +23269,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "資金を動かす、または契約に支出を許可するあらゆる操作は、PINで保護された秘密鍵で署名する必要があります。これにより、サイトがあなたの明示的な同意なしに何もできないようになっています。",
     faqQ8: "詐欺を見分けるには？",
-    faqA8:
-      "正当な相手があなたのリカバリーフレーズを求めることは決してありません。有名ブランドを模倣するサイト（Kalyxが赤で警告）、「無制限」の承認、うますぎる話に注意してください。Kalyxは各署名の前にセキュリティ分析（GoPlus）も表示します。",
+    faqA8: "正規の相手がリカバリーフレーズを求めることは決してありません。有名ブランドを装うサイト（Kalyx が赤で警告）、「無制限」の承認、うますぎる話に注意してください。Kalyx は GoPlus でサイトとトークンを確認し、スパムのトークンや NFT を隠し、なりすましアドレスを警告します。",
     faqQ9: "なぜ取引が保留中なのですか？",
     faqA9:
       "ブロックに含まれるのを待っています。ネットワーク手数料が低すぎたり、混雑が激しいと遅くなります。確認され次第、Kalyxが通知します。",
@@ -23230,11 +23283,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "よくある原因：残高不足（手数料込み）、スワップでのスリッページ超過、ガス上限が低すぎる、または契約が操作を拒否。注意：失敗した取引のガス代も差し引かれます。",
     faqQ13: "dAppを接続するには？",
-    faqA13:
-      "2つの方法：内蔵ブラウザ（メニュー → dAppブラウザ）、またはWalletConnect（「wc:…」リンクを貼り付け）。どちらの場合もPINで接続を確認します。",
+    faqA13: "方法は3つ：探索タブ（内蔵ブラウザ）、WalletConnect（“wc:…” リンクをスキャンまたは貼り付け）、TON アプリなら TON Connect（QR コードをスキャン）。いずれも PIN で接続を確認します。",
     faqQ14: "dAppを切断するには？",
-    faqA14:
-      "WalletConnectタブ：WalletConnectセッションには「切断」、内蔵ブラウザのサイトには「削除」。",
+    faqA14: "メニュー → WalletConnect：「切断」で WalletConnect または TON Connect のセッションを終了し、「削除」で内蔵ブラウザのサイトを消します。探索タブで開いた dApp は ⋯ メニューからも切断できます。",
     faqQ15: "WalletConnectとは？",
     faqA15:
       "QRコードまたはリンクを介して、ブラウザ拡張機能なしでウォレットをdAppに接続する標準プロトコルです。",
@@ -23464,6 +23515,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "NFT サービスが応答しませんでした。NFT は無事で、表示に失敗しただけです。",
     nftPartial: "未読み込み：{networks}。下に引いて再試行。",
     nftUnavailable: "{networks}：このバージョンでは NFT を利用できません。",
+    faqQ19: "一部のトークン・NFT・取引が非表示なのはなぜ？",
+    faqA19: "公開アドレスには誰でも勝手にトークンや NFT を送れます。Kalyx は未検証のもの、無価値なもの、広告のような名前（“claim”、“voucher”、リンク）やなりすまし文字で偽装したものを非表示にします。アクティビティ下部のボタンで理由とともに表示できます。絶対に操作しないでください。「受け取る」とウォレットを空にするサイトへ誘導されるのが普通です。",
+    faqQ20: "アドレスポイズニングとは？",
+    faqA20: "送金したことのあるアドレスと先頭・末尾が同じアドレスから、ゼロや少額の送金を送りつける詐欺です。次回あなたが履歴からコピーするのを狙っています。Kalyx はこうした取引を隠し、アクティビティで警告し、なりすましアドレスへの送金をブロックします。アドレスは必ず元の情報からコピーし、履歴からはコピーしないでください。",
+    faqQ21: "TON がメインアカウントだけなのはなぜ？",
+    faqA21: "Tonkeeper と同じく、1つのリカバリーフレーズで作れる TON ウォレットは1つです。サブアカウントには EVM・Bitcoin・Solana のアドレスはありますが、TON の鍵はありません。サブアカウントでは、TON アプリに「メインアカウントに切り替え」ボタンが表示されます。",
+    faqQ22: "Kalyx を応援するには？",
+    faqA22: "メニュー → 私たちを応援：BTC、ETH（すべての EVM ネットワーク）、SOL、TON（kalyxwallet.ton）の寄付アドレスを QR コード付きで掲載しています。Kalyx は広告もデータ販売もなく無料のままです。寄付はサーバーと API キーの費用に充てられます。",
     errMemoRequired: "このアドレスにはコメント（メモ）が必要です。取引所から指定されたメモを入力しないと、入金が失われます。",
     errInsufficientFunds: "残高不足（手数料込み）",
     errInvalidPsbt: "無効なPSBT",
@@ -24615,8 +24674,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     supReason2Text:
       "우리는 아무것도 팔지 않고 누구도 추적하지 않습니다. 지갑은 당신의 것입니다.",
     supReason3Title: "독립적으로 개발",
-    supReason3Text:
-      "거대 기업이 아닌 열정적인 작은 팀. 모든 후원이 소중합니다.",
+    supReason3Text: "대기업이 아닌 독립 개발자가 만듭니다. 모든 기부가 소중합니다.",
     supReason4Title: "후원금의 사용처",
     supReason4Text: "서버, API 키(RPC, 가격, NFT), 새로운 기능.",
     supportNovaHero: "Kalyx 후원",
@@ -24925,7 +24983,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA7:
       "자금을 이동하거나 계약이 이를 사용하도록 승인하는 모든 작업은 PIN으로 보호된 개인 키로 서명해야 합니다. 이것이 사이트가 명시적 동의 없이 아무것도 하지 못하게 막습니다.",
     faqQ8: "사기를 어떻게 알아보나요?",
-    faqA8: "합법적인 누구도 복구 문구를 요구하지 않습니다. 유명 브랜드를 흥내 내는 사이트(Kalyx가 빨간색으로 경고함), “무제한” 승인, 그리고 너무 좋아 보이는 메시지를 조심하세요. Kalyx는 각 서명 전에 보안 분석(GoPlus)도 보여줍니다.",
+    faqA8: "정상적인 곳은 절대 복구 문구를 요구하지 않습니다. 유명 브랜드를 흉내 낸 사이트(Kalyx가 빨간색으로 경고), '무제한' 승인, 믿기 힘든 제안을 조심하세요. Kalyx는 GoPlus로 사이트와 토큰을 확인하고, 스팸 토큰과 NFT를 숨기며, 유사 주소를 경고합니다.",
     faqQ9: "왜 내 거래가 대기 중인가요?",
     faqA9:
       "블록에 포함되기를 기다리고 있습니다. 너무 낮은 네트워크 수수료나 심한 혼잡이 이를 느리게 합니다. 확인되는 즉시 Kalyx가 알려줍니다.",
@@ -24939,9 +24997,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     faqA12:
       "흔한 원인: 잔액 부족(수수료 포함), 스왑 시 슬리피지 초과, 너무 낮은 가스 한도, 또는 계약이 작업을 거부. 참고: 실패한 거래의 가스 수수료도 부과됩니다.",
     faqQ13: "dApp을 어떻게 연결하나요?",
-    faqA13: "두 가지 방법이 있습니다: 내장 브라우저(메뉴 → dApp 브라우저) 또는 WalletConnect(“wc:…” 링크 붙여넣기). 두 경우 모두 PIN으로 연결을 확인합니다.",
+    faqA13: "세 가지 방법: 탐색 탭(내장 브라우저), WalletConnect(“wc:…” 링크 스캔 또는 붙여넣기), TON 앱은 TON Connect(QR 코드 스캔). 모든 경우 PIN으로 연결을 확인합니다.",
     faqQ14: "dApp을 어떻게 연결 해제하나요?",
-    faqA14: "WalletConnect 탭: WalletConnect 세션은 “연결 해제”, 내장 브라우저 사이트는 “삭제”.",
+    faqA14: "메뉴 → WalletConnect: “연결 끊기”는 WalletConnect 또는 TON Connect 세션을 끝내고, “삭제”는 내장 브라우저의 사이트를 지웁니다. 탐색 탭에서 연 dApp은 ⋯ 메뉴에서도 연결을 끊을 수 있습니다.",
     faqQ15: "WalletConnect란 무엇인가요?",
     faqA15:
       "QR 코드나 링크를 통해 브라우저 확장 없이 지갑을 dApp에 연결하는 표준 프로토콜입니다.",
@@ -25169,6 +25227,14 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     nftLoadFailedBody: "NFT 서비스가 응답하지 않았습니다. NFT는 안전하며 표시만 실패했습니다.",
     nftPartial: "불러오지 못함: {networks}. 아래로 당겨 다시 시도하세요.",
     nftUnavailable: "{networks}: 이 버전에서는 NFT를 사용할 수 없습니다.",
+    faqQ19: "일부 토큰, NFT, 거래가 숨겨지는 이유는?",
+    faqA19: "누구나 허락 없이 공개 주소로 토큰이나 NFT를 보낼 수 있습니다. Kalyx는 미확인, 무가치, 광고 같은 이름(“claim”, “voucher”, 링크) 또는 유사 문자로 위장한 항목을 숨깁니다. 활동 화면 하단 버튼으로 이유와 함께 볼 수 있습니다. 절대 상호작용하지 마세요. “받기”를 누르면 대개 지갑을 비우는 사이트로 이어집니다.",
+    faqQ20: "주소 중독이란?",
+    faqA20: "송금한 적 있는 주소와 앞뒤가 같은 주소에서 0이나 아주 적은 금액을 보내는 사기입니다. 다음에 내역에서 주소를 복사하길 노립니다. Kalyx는 이런 거래를 숨기고, 활동에서 시도를 알리며, 유사 주소로의 송금을 차단합니다. 주소는 항상 원본에서 복사하고, 내역에서 복사하지 마세요.",
+    faqQ21: "TON이 기본 계정에만 있는 이유는?",
+    faqA21: "Tonkeeper와 마찬가지로 복구 문구 하나에 TON 지갑은 하나입니다. 하위 계정에는 EVM, 비트코인, 솔라나 주소는 있지만 TON 키는 없습니다. 하위 계정에서는 TON 앱에 “기본 계정으로 전환” 버튼이 표시됩니다.",
+    faqQ22: "Kalyx를 어떻게 후원하나요?",
+    faqA22: "메뉴 → 후원하기: BTC, ETH(모든 EVM 네트워크), SOL, TON(kalyxwallet.ton) 후원 주소를 QR 코드와 함께 제공합니다. Kalyx는 광고나 데이터 판매 없이 무료로 유지되며, 후원금은 서버와 API 키 비용에 쓰입니다.",
     errMemoRequired: "이 주소는 메모가 필요합니다. 플랫폼에서 받은 메모를 입력하지 않으면 입금이 유실됩니다.",
     errInsufficientFunds: "잔액 부족(수수료 포함)",
     errInvalidPsbt: "잘못된 PSBT",
