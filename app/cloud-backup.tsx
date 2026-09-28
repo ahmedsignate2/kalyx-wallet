@@ -9,6 +9,7 @@
  * Drive est confié au flux persistant `useDriveFlow` (lib/googleDrive.ts), qui
  * survit au retour de Google et au redémarrage de l'app.
  */
+import { passwordStrength, MIN_BACKUP_LEVEL } from '../src/security/passwordStrength';
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, KeyboardAvoidingView, Platform, Share, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
@@ -24,13 +25,6 @@ import { createWalletsBackup } from '../src';
 import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
 
 type Target = 'drive' | 'file';
-
-function strengthOf(pwd: string): { level: 0 | 1 | 2 | 3; key: 'strengthWeak' | 'strengthMedium' | 'strengthStrong' } {
-  if (pwd.length < 8) return { level: pwd.length === 0 ? 0 : 1, key: 'strengthWeak' };
-  const varied = /[A-Z]/.test(pwd) && /\d/.test(pwd) && /[^A-Za-z0-9]/.test(pwd);
-  if (pwd.length >= 12 && varied) return { level: 3, key: 'strengthStrong' };
-  return { level: 2, key: 'strengthMedium' };
-}
 
 export default function CloudBackupScreen() {
   const { colors } = useTheme();
@@ -62,9 +56,10 @@ export default function CloudBackupScreen() {
   // Un flux Drive terminé (succès ou erreur) est acquitté quand on quitte l'écran.
   useEffect(() => () => { if (flow.status === 'done' || flow.status === 'error') flow.reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const strength = strengthOf(pwd);
+  const strength = passwordStrength(pwd);
   const mismatch = confirm.length > 0 && pwd !== confirm;
-  const canSubmit = pwd.length >= 8 && confirm.length > 0 && !mismatch;
+  // Un mot de passe faible n'est plus accepté : c'est la seule protection du fichier.
+  const canSubmit = strength.level >= MIN_BACKUP_LEVEL && confirm.length > 0 && !mismatch;
 
   const driveBusy = flow.kind === 'save' && (flow.status === 'auth' || flow.status === 'working');
   const driveDone = flow.kind === 'save' && flow.status === 'done';
@@ -182,7 +177,7 @@ export default function CloudBackupScreen() {
               <View style={{ flexDirection: 'row', gap: space[1], alignItems: 'center' }}>{bar}</View>
               {pwd.length > 0 ? (
                 <Text variant="caption" tone={strength.level >= 3 ? 'up' : strength.level === 2 ? 'warning' : 'danger'}>
-                  {t(strength.key)}{pwd.length >= 8 && pwd.length < 12 ? ` · ${t('pwdRecommend12')}` : ''}
+                  {strength.level < MIN_BACKUP_LEVEL ? `${t(strength.key)} · ${t('pwdRuleHint')}` : t(strength.key)}
                 </Text>
               ) : null}
             </View>
