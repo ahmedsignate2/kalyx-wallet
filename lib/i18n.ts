@@ -521,7 +521,7 @@ const en = {
   yourPrivateKey: "Your private key",
   pkWarningBody:
     "Anyone who holds this key controls this account. Never share it, never enter it on any site. Screenshot blocked.",
-  pkCopiedBody: "Private key copied. Paste it quickly and clear the clipboard.",
+  pkCopiedBody: "Private key copied. It will be erased from the clipboard in 60 seconds or when you leave this screen.",
   copyKey: "Copy the key",
   pkVsPhraseNote:
     "A private key only protects a single account. Your recovery phrase, however, restores the WHOLE wallet — keep it safe too.",
@@ -2266,8 +2266,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "Ta clé privée",
     pkWarningBody:
       "Quiconque détient cette clé contrôle ce compte. Ne la partage jamais, ne la saisis sur aucun site. Capture d’écran bloquée.",
-    pkCopiedBody:
-      "Clé privée copiée. Colle-la vite et efface le presse-papier.",
+    pkCopiedBody: "Clé privée copiée. Elle sera effacée du presse-papier dans 60 secondes ou quand tu quitteras cet écran.",
     copyKey: "Copier la clé",
     pkVsPhraseNote:
       "Une clé privée ne protège qu’un seul compte. Ta phrase de récupération, elle, restaure TOUT le portefeuille — garde-la aussi en lieu sûr.",
@@ -4008,8 +4007,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "Tu clave privada",
     pkWarningBody:
       "Quien tenga esta clave controla esta cuenta. No la compartas nunca, no la introduzcas en ningún sitio. Captura bloqueada.",
-    pkCopiedBody:
-      "Clave privada copiada. Pégala rápido y borra el portapapeles.",
+    pkCopiedBody: "Clave privada copiada. Se borrará del portapapeles en 60 segundos o al salir de esta pantalla.",
     copyKey: "Copiar la clave",
     pkVsPhraseNote:
       "Una clave privada solo protege una cuenta. Tu frase de recuperación, en cambio, restaura TODA la cartera: guárdala también en lugar seguro.",
@@ -5741,8 +5739,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "A tua chave privada",
     pkWarningBody:
       "Quem tiver esta chave controla esta conta. Nunca a partilhes, não a introduzas em nenhum site. Captura bloqueada.",
-    pkCopiedBody:
-      "Chave privada copiada. Cola-a depressa e limpa a área de transferência.",
+    pkCopiedBody: "Chave privada copiada. Será apagada da área de transferência em 60 segundos ou quando saíres deste ecrã.",
     copyKey: "Copiar a chave",
     pkVsPhraseNote:
       "Uma chave privada só protege uma conta. A tua frase de recuperação, porém, restaura TODA a carteira — guarda-a também em local seguro.",
@@ -7461,8 +7458,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "Dein privater Schlüssel",
     pkWarningBody:
       "Wer diesen Schlüssel hat, kontrolliert dieses Konto. Teile ihn nie, gib ihn auf keiner Website ein. Screenshot blockiert.",
-    pkCopiedBody:
-      "Privater Schlüssel kopiert. Füge ihn schnell ein und leere die Zwischenablage.",
+    pkCopiedBody: "Privater Schlüssel kopiert. Er wird in 60 Sekunden oder beim Verlassen dieses Bildschirms aus der Zwischenablage gelöscht.",
     copyKey: "Schlüssel kopieren",
     pkVsPhraseNote:
       "Ein privater Schlüssel schützt nur ein einziges Konto. Deine Wiederherstellungsphrase stellt jedoch die GANZE Wallet wieder her — bewahre sie ebenfalls sicher auf.",
@@ -9188,8 +9184,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "La tua chiave privata",
     pkWarningBody:
       "Chiunque possieda questa chiave controlla questo account. Non condividerla mai, non inserirla su nessun sito. Screenshot bloccato.",
-    pkCopiedBody:
-      "Chiave privata copiata. Incollala subito e svuota gli appunti.",
+    pkCopiedBody: "Chiave privata copiata. Verrà cancellata dagli appunti tra 60 secondi o quando lasci questa schermata.",
     copyKey: "Copia la chiave",
     pkVsPhraseNote:
       "Una chiave privata protegge un solo account. La tua frase di recupero, invece, ripristina TUTTO il wallet — conservala anch’essa al sicuro.",
@@ -10902,7 +10897,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "Je privésleutel",
     pkWarningBody:
       "Iedereen met deze sleutel beheert dit account. Deel hem nooit, voer hem op geen enkele site in. Schermafbeelding geblokkeerd.",
-    pkCopiedBody: "Privésleutel gekopieerd. Plak hem snel en wis het klembord.",
+    pkCopiedBody: "Privésleutel gekopieerd. Hij wordt over 60 seconden of bij het verlaten van dit scherm van het klembord gewist.",
     copyKey: "Sleutel kopiëren",
     pkVsPhraseNote:
       "Een privésleutel beschermt slechts één account. Je herstelzin herstelt echter de HELE wallet — bewaar die ook veilig.",
@@ -12641,8 +12636,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "Twój klucz prywatny",
     pkWarningBody:
       "Każdy, kto ma ten klucz, kontroluje to konto. Nigdy go nie udostępniaj, nie wpisuj na żadnej stronie. Zrzut ekranu zablokowany.",
-    pkCopiedBody:
-      "Klucz prywatny skopiowany. Wklej go szybko i wyczyść schowek.",
+    pkCopiedBody: "Klucz prywatny skopiowany. Zostanie usunięty ze schowka za 60 sekund lub po opuszczeniu tego ekranu.",
     copyKey: "Kopiuj klucz",
     pkVsPhraseNote:
       "Klucz prywatny chroni tylko jedno konto. Twoja fraza odzyskiwania natomiast przywraca CAŁY portfel — również przechowuj ją bezpiecznie.",
@@ -14369,8 +14363,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "Özel anahtarın",
     pkWarningBody:
       "Bu anahtara sahip olan herkes bu hesabı kontrol eder. Asla paylaşma, hiçbir sitede girme. Ekran görüntüsü engelli.",
-    pkCopiedBody:
-      "Özel anahtar kopyalandı. Hızlıca yapıştır ve panoyu temizle.",
+    pkCopiedBody: "Özel anahtar kopyalandı. 60 saniye içinde veya bu ekrandan çıkınca panodan silinecek.",
     copyKey: "Anahtarı kopyala",
     pkVsPhraseNote:
       "Özel anahtar yalnızca tek bir hesabı korur. Kurtarma ifaden ise TÜM cüzdanı geri yükler — onu da güvende tut.",
@@ -16104,8 +16097,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "Ваш приватный ключ",
     pkWarningBody:
       "Тот, у кого есть этот ключ, управляет этим счётом. Никогда не делитесь им, не вводите его ни на одном сайте. Снимок экрана заблокирован.",
-    pkCopiedBody:
-      "Приватный ключ скопирован. Вставьте его быстро и очистите буфер обмена.",
+    pkCopiedBody: "Приватный ключ скопирован. Он будет удалён из буфера обмена через 60 секунд или когда ты покинешь этот экран.",
     copyKey: "Копировать ключ",
     pkVsPhraseNote:
       "Приватный ключ защищает только один счёт. Ваша фраза восстановления, напротив, восстанавливает ВЕСЬ кошелёк — храните её тоже в надёжном месте.",
@@ -17862,7 +17854,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "مفتاحك الخاص",
     pkWarningBody:
       "من يملك هذا المفتاح يتحكم في هذا الحساب. لا تشاركه أبدًا، ولا تدخله في أي موقع. لقطة الشاشة محظورة.",
-    pkCopiedBody: "تم نسخ المفتاح الخاص. الصقه بسرعة وامسح الحافظة.",
+    pkCopiedBody: "تم نسخ المفتاح الخاص. سيُمسح من الحافظة خلال 60 ثانية أو عند مغادرة هذه الشاشة.",
     copyKey: "نسخ المفتاح",
     pkVsPhraseNote:
       "المفتاح الخاص يحمي حسابًا واحدًا فقط. أما عبارة الاسترداد فتستعيد المحفظة كاملة — احفظها أيضًا في مكان آمن.",
@@ -19586,8 +19578,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "आपकी निजी कुंजी",
     pkWarningBody:
       "जिसके पास यह कुंजी है वह इस खाते को नियंत्रित करता है। इसे कभी साझा न करें, किसी साइट पर दर्ज न करें। स्क्रीनशॉट अवरुद्ध।",
-    pkCopiedBody:
-      "निजी कुंजी कॉपी हुई। इसे जल्दी पेस्ट करें और क्लिपबोर्ड साफ़ करें।",
+    pkCopiedBody: "निजी कुंजी कॉपी हुई। यह 60 सेकंड में या यह स्क्रीन छोड़ने पर क्लिपबोर्ड से मिट जाएगी।",
     copyKey: "कुंजी कॉपी करें",
     pkVsPhraseNote:
       "निजी कुंजी केवल एक खाते की रक्षा करती है। आपकी रिकवरी फ़्रेज़ पूरे वॉलेट को पुनर्स्थापित करती है — उसे भी सुरक्षित रखें।",
@@ -21323,7 +21314,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "你的私钥",
     pkWarningBody:
       "持有此私钥的人即可控制此账户。永不分享，不要在任何网站上输入。已禁止截屏。",
-    pkCopiedBody: "私钥已复制。请尽快粘贴并清空剪贴板。",
+    pkCopiedBody: "私钥已复制。将在 60 秒后或离开此页面时从剪贴板清除。",
     copyKey: "复制私钥",
     pkVsPhraseNote:
       "私钥只保护单个账户。而你的恢复助记词可恢复整个钱包——也请妥善保管。",
@@ -23009,8 +23000,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "あなたの秘密鍵",
     pkWarningBody:
       "この鍵を持つ者はこのアカウントを支配します。決して共有せず、どのサイトにも入力しないでください。スクリーンショットはブロックされています。",
-    pkCopiedBody:
-      "秘密鍵をコピーしました。すぐに貼り付けてクリップボードを消去してください。",
+    pkCopiedBody: "秘密鍵をコピーしました。60 秒後またはこの画面を離れたときにクリップボードから消去されます。",
     copyKey: "鍵をコピー",
     pkVsPhraseNote:
       "秘密鍵は1つのアカウントのみを保護します。一方、リカバリーフレーズはウォレット全体を復元します — こちらも安全に保管してください。",
@@ -24742,8 +24732,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     yourPrivateKey: "개인 키",
     pkWarningBody:
       "이 키를 가진 사람은 이 계정을 제어합니다. 절대 공유하지 말고 어떤 사이트에도 입력하지 마세요. 스크린샷 차단됨.",
-    pkCopiedBody:
-      "개인 키가 복사되었습니다. 빠르게 붙여넣고 클립보드를 지우세요.",
+    pkCopiedBody: "개인 키가 복사되었습니다. 60초 후 또는 이 화면을 나가면 클립보드에서 지워집니다.",
     copyKey: "키 복사",
     pkVsPhraseNote:
       "개인 키는 하나의 계정만 보호합니다. 반면 복구 문구는 전체 지갑을 복원합니다 — 이것도 안전하게 보관하세요.",

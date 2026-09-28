@@ -560,7 +560,34 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
   }
   const vault = await loadVault(id);
   if (!vault) throw new Error('Aucun coffre');
-  return decryptSecret(vault, unlock.pin);
+  /*
+   * LE COMPTEUR DE TENTATIVES EST ICI, pas seulement sur l'écran de
+   * déverrouillage. Toutes les confirmations par PIN passent par cette fonction
+   * — envoyer, signer, RÉVÉLER LA PHRASE, exporter la clé — et elles
+   * déchiffraient sans compter ni respecter le blocage : avec le téléphone
+   * déverrouillé entre les mains, on pouvait essayer les codes un par un sur
+   * « Révéler la phrase » sans jamais être arrêté.
+   */
+  const st = useWallet.getState();
+  if (lockRemainingMs(st.failedAttempts, st.lastFailedAt, Date.now()) > 0) {
+    throw new WalletError('LOCKED_OUT', 'Trop de tentatives. Réessaie plus tard.');
+  }
+  try {
+    const secret = await decryptSecret(vault, unlock.pin);
+    if (st.failedAttempts > 0) {
+      useWallet.setState({ failedAttempts: 0, lastFailedAt: 0 });
+      void saveLockState(0, 0);
+    }
+    return secret;
+  } catch (e) {
+    if (isWalletError(e) && e.code === 'WRONG_PIN') {
+      const failedAttempts = useWallet.getState().failedAttempts + 1;
+      const lastFailedAt = Date.now();
+      useWallet.setState({ failedAttempts, lastFailedAt });
+      void saveLockState(failedAttempts, lastFailedAt); // survit au redémarrage
+    }
+    throw e;
+  }
 }
 
 function newWalletId(): string {
@@ -769,12 +796,7 @@ export const useWallet = create<WalletState>((set, get) => ({
         return vault ? decryptSecret(vault, pin) : null;
       });
     } catch (e) {
-      if (isWalletError(e) && e.code === 'WRONG_PIN') {
-        const failedAttempts = get().failedAttempts + 1;
-        const lastFailedAt = Date.now();
-        set({ failedAttempts, lastFailedAt });
-        void saveLockState(failedAttempts, lastFailedAt); // survit au redémarrage
-      }
+      // Tentative ratée déjà comptée par `revealMnemonic`.
       throw e;
     }
   },
@@ -1529,6 +1551,8 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   changePin: async (oldPin, newPin) => {
     assertValidPin(newPin);
+    // L'ancien PIN est vérifié par le chemin commun : compteur et blocage compris.
+    await revealMnemonic(get().activeWalletId, { pin: oldPin });
     // Re-chiffre TOUS les coffres avec le nouveau PIN (le 1er vérifie l'ancien).
     for (const w of get().wallets) {
       const vault = await loadVault(w.id);

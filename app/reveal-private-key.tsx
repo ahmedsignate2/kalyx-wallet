@@ -2,7 +2,7 @@ import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
-import * as Clipboard from 'expo-clipboard';
+import { copySecret, clearSecret } from '../lib/secureClipboard';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
@@ -25,6 +25,8 @@ export default function RevealPrivateKey() {
     ScreenCapture.preventScreenCaptureAsync('reveal-pk').catch(() => {});
     return () => {
       ScreenCapture.allowScreenCaptureAsync('reveal-pk').catch(() => {});
+      // En quittant l'écran, la clé ne reste pas dans le presse-papier.
+      void clearSecret();
     };
   }, []);
 
@@ -45,7 +47,7 @@ export default function RevealPrivateKey() {
           </Card>
           <KPressable
             onPress={async () => {
-              await Clipboard.setStringAsync(pk);
+              await copySecret(pk);
               toast.success(t('copied'), t('pkCopiedBody'));
             }}
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: spacing(1.5) }}
