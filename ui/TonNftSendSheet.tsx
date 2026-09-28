@@ -2,6 +2,7 @@
  * Envoi d'un NFT TON : destinataire (adresse ou nom .ton), commentaire
  * facultatif, puis le bilan ÉMULÉ — le NFT qui part, les frais — avant le code.
  */
+import { friendlyTxError } from '../lib/txError';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -33,7 +34,8 @@ export function TonNftSendSheet({ chainId, nftAddress, name, onClose, onSent }: 
       setPlan(await planNftSend({ chainId, nftAddress, recipient, comment }));
     } catch (err) {
       const key = err instanceof Error ? err.message : '';
-      toast.error(t('nftSendTitle'), key.startsWith('nftSend') ? t(key as never) : key);
+      // Codes connus traduits ; toute autre erreur (réseau, TonAPI) passe par la traduction commune, jamais brute.
+      toast.error(t('nftSendTitle'), key.startsWith('nftSend') ? t(key as never) : friendlyTxError(err, t));
     } finally {
       setBusy(false);
     }

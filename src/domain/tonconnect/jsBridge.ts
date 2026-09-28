@@ -34,10 +34,11 @@ export interface TcJsCall {
 }
 
 /** Message de la page destiné au pont TON (les autres vont au fournisseur EVM). */
-export function parseTcJsMessage(raw: string): TcJsCall | null {
+/** `token` : jeton de page (voir `parseDappMessage`) — une iframe ne le connaît pas. */
+export function parseTcJsMessage(raw: string, token: string): TcJsCall | null {
   try {
-    const m = JSON.parse(raw) as { __kalyxTc?: unknown; id?: unknown; method?: unknown; params?: unknown };
-    if (m?.__kalyxTc !== 1 || typeof m.id !== 'number') return null;
+    const m = JSON.parse(raw) as { __kalyxTc?: unknown; id?: unknown; method?: unknown; params?: unknown; k?: unknown };
+    if (m?.__kalyxTc !== 1 || typeof m.id !== 'number' || !token || m.k !== token) return null;
     if (m.method !== 'connect' && m.method !== 'restoreConnection' && m.method !== 'send') return null;
     return { id: m.id, method: m.method, params: Array.isArray(m.params) ? m.params : [] };
   } catch {
@@ -82,7 +83,7 @@ export function tcEmitJs(event: unknown): string {
 }
 
 /** Script injecté avant le chargement de chaque page. */
-export function buildTonJsBridge(deviceInfo: unknown): string {
+export function buildTonJsBridge(deviceInfo: unknown, token: string): string {
   return `(function () {
   if (window.${KALYX_JS_BRIDGE_KEY} && window.${KALYX_JS_BRIDGE_KEY}.tonconnect) return;
   var pending = {};
@@ -92,7 +93,7 @@ export function buildTonJsBridge(deviceInfo: unknown): string {
     return new Promise(function (resolve) {
       var id = nextId++;
       pending[id] = resolve;
-      window.ReactNativeWebView.postMessage(JSON.stringify({ __kalyxTc: 1, id: id, method: method, params: params }));
+      window.ReactNativeWebView.postMessage(JSON.stringify({ __kalyxTc: 1, id: id, method: method, params: params, k: ${JSON.stringify(token)} }));
     });
   }
   var tonconnect = {

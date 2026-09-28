@@ -7,8 +7,14 @@
  */
 import { isWalletError, isWcConnectError, SwapError } from '../src';
 import { recordTechnicalLog } from './technicalLogger';
+import type { Key } from './i18n';
 
-export type TFn = (key: any) => string;
+/**
+ * Clés RÉELLES du dictionnaire : `(key: any)` laissait passer des clés absentes,
+ * qui s'affichaient comme un message VIDE (réseau coupé, devis expiré…). Une
+ * clé inconnue est maintenant une erreur de compilation.
+ */
+export type TFn = (key: Key) => string;
 
 /**
  * Erreur dont le message est DÉJÀ rédigé dans la langue de l'utilisateur.
@@ -47,7 +53,7 @@ export class UserFacingError extends Error {
  * message propre, il mérite son propre code : c'est ce qui a été fait pour
  * l'import de clés (`import.*`) et pour les refus de WalletConnect.
  */
-const WALLET_ERROR_KEYS: Record<string, string> = {
+const WALLET_ERROR_KEYS: Record<string, Key> = {
   AMOUNT_TOO_SMALL: 'errAmountTooSmall',
   BIOMETRIC_NOT_SET: 'errBiometricNotSet',
   BIOMETRIC_REFUSED: 'errBiometricRefused',

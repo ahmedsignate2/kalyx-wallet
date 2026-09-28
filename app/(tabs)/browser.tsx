@@ -15,6 +15,7 @@
  *    connexion/signature via SignSheet + biométrie unifiée.
  *  - Provider EIP-1193 injecté (window.ethereum) — plomberie inchangée.
  */
+import { randomBytes } from '@noble/hashes/utils';
 import { signMessageParam } from '../../lib/dappProvider';
 import { buildTonJsBridge, parseTcJsMessage } from '../../src/domain/tonconnect/jsBridge';
 import { useTonConnect, tcJsHost, tcDeviceInfo } from '../../lib/tonconnect/store';
@@ -121,6 +122,11 @@ function normalizeUrl(raw?: string | null): string | null {
   return null;
 }
 const DESKTOP_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15';
+
+/** 128 bits aléatoires (générateur sécurisé), en hexadécimal. */
+function bytesToHexToken(): string {
+  return Array.from(randomBytes(16), (b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 export default function Browser() {
   const t = useT();
@@ -329,7 +335,9 @@ export default function Browser() {
   const [rememberSite, setRememberSite] = useState(false);
   const [connectLine, setConnectLine] = useState(0); // 0..1 : trait de lumière logo → glyphe
   // Fournisseur EVM + pont TON Connect (le site TON demande la connexion directement au wallet).
-  const injected = useMemo(() => buildInjectedProvider(chainIdHex) + '\n' + buildTonJsBridge(tcDeviceInfo()), [chainIdHex]);
+  // Jeton de page, tiré une fois : seuls les scripts injectés dans la page principale le connaissent.
+  const pageToken = useMemo(() => bytesToHexToken(), []);
+  const injected = useMemo(() => buildInjectedProvider(chainIdHex, pageToken) + '\n' + buildTonJsBridge(tcDeviceInfo(), pageToken), [chainIdHex, pageToken]);
   const inject = useCallback((js: string) => webref.current?.injectJavaScript(js), []);
   /*
    * Réponses TON Connect vers la page : exécutées seulement si la page ouverte
@@ -633,13 +641,13 @@ export default function Browser() {
             onScroll={onWebScroll}
             injectedJavaScriptBeforeContentLoaded={injected}
             onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
-              const tc = parseTcJsMessage(e.nativeEvent.data);
+              const tc = parseTcJsMessage(e.nativeEvent.data, pageToken);
               if (tc) {
                 const host = originOf(e.nativeEvent.url ?? activeTab.url ?? '');
                 if (host) void useTonConnect.getState().jsCall(host, tc);
                 return;
               }
-              const req = parseDappMessage(e.nativeEvent.data);
+              const req = parseDappMessage(e.nativeEvent.data, pageToken);
               if (req) onDappRequest(req, originOf(e.nativeEvent.url ?? activeTab.url ?? ''), activeTab.id);
             }}
             onNavigationStateChange={(nav: { url: string; title?: string; canGoBack: boolean; canGoForward: boolean }) => {
