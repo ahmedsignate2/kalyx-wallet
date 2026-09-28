@@ -6,11 +6,8 @@ import { Nav } from './landing/nav';
 import { Footer } from './landing/footer';
 import type { Dict, Locale } from '../i18n';
 
-export interface LegalSection {
-  id: string;
-  title: string;
-  body: string;
-}
+import type { LegalSection } from '../content/types';
+export type { LegalSection };
 
 /** Enveloppe commune des pages légales, sur papier : les textes restent dans chaque page. */
 export function LegalPage({

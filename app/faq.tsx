@@ -6,6 +6,7 @@ import { PremiumScreen, GlassCard } from '../ui/premium';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useT } from '../lib/settingsStore';
+import { FAQ_SECTIONS } from '../lib/faqContent';
 
 interface QA { q: string; a: string; }
 interface Section { title: string; items: QA[]; }
@@ -14,40 +15,7 @@ export default function Faq() {
   const { colors, typography } = useTheme();
   const t = useT();
   const [open, setOpen] = useState<string | null>(null);
-  const FAQ: Section[] = [
-    { title: t('faqSecWallet'), items: [
-      { q: t('faqQ1'), a: t('faqA1') },
-      { q: t('faqQ2'), a: t('faqA2') },
-      { q: t('faqQ3'), a: t('faqA3') },
-      { q: t('faqQ4'), a: t('faqA4') },
-      { q: t('faqQ22'), a: t('faqA22') },
-    ] },
-    { title: t('security'), items: [
-      { q: t('faqQ5'), a: t('faqA5') },
-      { q: t('faqQ6'), a: t('faqA6') },
-      { q: t('faqQ7'), a: t('faqA7') },
-      { q: t('faqQ8'), a: t('faqA8') },
-      { q: t('faqQ19'), a: t('faqA19') },
-      { q: t('faqQ20'), a: t('faqA20') },
-    ] },
-    { title: t('transactions'), items: [
-      { q: t('faqQ9'), a: t('faqA9') },
-      { q: t('faqQ10'), a: t('faqA10') },
-      { q: t('faqQ11'), a: t('faqA11') },
-      { q: t('faqQ12'), a: t('faqA12') },
-    ] },
-    { title: t('faqSecDapps'), items: [
-      { q: t('faqQ13'), a: t('faqA13') },
-      { q: t('faqQ14'), a: t('faqA14') },
-      { q: t('faqQ15'), a: t('faqA15') },
-      { q: t('faqQ16'), a: t('faqA16') },
-    ] },
-    { title: t('network'), items: [
-      { q: t('faqQ17'), a: t('faqA17') },
-      { q: t('faqQ18'), a: t('faqA18') },
-      { q: t('faqQ21'), a: t('faqA21') },
-    ] },
-  ];
+  const FAQ: Section[] = FAQ_SECTIONS.map((sec) => ({ title: t(sec.title), items: sec.items.map((x) => ({ q: t(x.q), a: t(x.a) })) }));
 
   return (
     <>

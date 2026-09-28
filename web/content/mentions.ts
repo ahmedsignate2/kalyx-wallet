@@ -1,4 +1,4 @@
-import type { LegalSection } from '../components/legal-page';
+import type { LegalSection } from './types';
 
 /** Texte juridique, en français (fait foi). */
 export const sections: LegalSection[] = [

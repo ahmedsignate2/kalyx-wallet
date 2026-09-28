@@ -10,6 +10,7 @@
  * Le modèle peut proposer d'ouvrir un écran avec le marqueur `[[go:/route]]`
  * (routes de lib/aiAppMap.ts) : rendu sous forme de bouton, jamais exécuté seul.
  */
+import { kalyxDocsPrompt } from '../lib/kalyxDocs';
 import { useLocked } from '../lib/lockState';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, TextInput, ScrollView, ActivityIndicator } from 'react-native';
@@ -43,7 +44,7 @@ function splitAnswer(text: string): { text: string; routes: string[] } {
   return { text: clean, routes };
 }
 
-function buildSystem(lang: string, context: string): string {
+function buildSystem(lang: string, context: string, question = ''): string {
   const routes = APP_ROUTES_MAP.map((r) => `${r.route} — ${r.description}`).join('\n');
   return `Tu es Kalyx Copilot, l'assistant intégré de Kalyx Wallet, un wallet crypto 100 % non-custodial.
 Réponds dans la langue « ${lang} », en tutoyant, simple, direct, sobre, sans emoji, sans conseil d'investissement. 2 à 5 phrases, sauf explication technique demandée.
@@ -67,7 +68,7 @@ CE QUE FAIT KALYX (faits, n'invente rien d'autre) :
 ÉCRANS DE L'APP : quand un écran aide, termine par un marqueur [[go:ROUTE]] parmi :
 ${routes}
 
-Si les logs techniques montrent une erreur, explique la cause probable (RPC, solde, gas, rejet) et l'action à faire. Pour un ticket support, propose [[go:/support]].`;
+Si les logs techniques montrent une erreur, explique la cause probable (RPC, solde, gas, rejet) et l'action à faire. Pour un ticket support, propose [[go:/support]].${kalyxDocsPrompt(question, lang as never)}`;
 }
 
 export function CopilotSheet() {
@@ -126,7 +127,7 @@ export function CopilotSheet() {
     } catch {
       /* contexte refusé par le filtre : on continue sans */
     }
-    const r = await askAi(transcript, buildSystem(language, context));
+    const r = await askAi(transcript, buildSystem(language, context, q));
     setBusy(false);
     addMessageToActive({ sender: 'assistant', text: 'text' in r ? r.text : r.error });
   }
