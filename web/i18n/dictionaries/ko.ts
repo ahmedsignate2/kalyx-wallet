@@ -182,6 +182,7 @@ const ko: Dict = {
     items: [
       { value: '0 €', label: '전송, 수신, 보유', note: '네트워크 수수료만 적용됩니다 — 검증자에게 가지, 우리에게 오지 않습니다.' },
       { value: '0.3%', label: 'LI.FI를 통한 스왑', note: 'EVM 및 크로스체인. Kalyx의 유일한 수입입니다.' },
+      { value: '0.3%', label: 'STON.fi를 통한 TON 스왑', note: 'TON 스왑(TON, USD₮, 제튼). LI.FI와 같은 요율.' },
       { value: '0%', label: 'Jupiter를 통한 Solana 스왑', note: '경로에 추가되는 수수료 없음.' },
       { value: '0%', label: 'Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: 예치와 출금 모두 공제 없음.' },
       { value: '0 €', label: '구독, 영원히', note: '“프로” 버전 없음, 유료 장벽 뒤의 기능 없음.' },
@@ -242,7 +243,7 @@ const ko: Dict = {
     notice: '아래 문서는 프랑스어로 작성되었으며, 프랑스어 버전만 법적 효력을 가집니다.',
     privacyTitle: '개인정보 처리방침',
     privacyIntro: 'Kalyx에서 개인정보 보호는 선택이 아니라 아키텍처의 기반입니다. 우리는 데이터를 수집하지 않음으로써 당신의 데이터를 보호합니다.',
-    privacyMeta: ['업데이트: 2026년 7월 5일', 'Kalyx', '프랑스 법 및 GDPR'],
+    privacyMeta: ['업데이트: 2026년 9월 28일', 'Kalyx', '프랑스 법 및 GDPR'],
     privacyContact: '데이터에 관한 질문이 있으신가요?',
     termsTitle: '이용약관',
     termsIntro: 'Kalyx Wallet을 사용하기 전에 이 약관을 주의 깊게 읽어주세요. 책임 있는 사용의 틀과 논커스터디얼 모델의 특성을 정의합니다.',

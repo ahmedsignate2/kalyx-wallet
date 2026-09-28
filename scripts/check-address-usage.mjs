@@ -16,13 +16,13 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const REVIEWED = {
-  'app/swap.tsx': 14, // la source d'un échange est toujours le réseau actif
+  'app/swap.tsx': 16, // la source d'un échange est toujours le réseau actif (TON → TON compris)
   'app/token/[id].tsx': 2, // déclencheur de rafraîchissement seulement
   'app/approvals.tsx': 3, // écran EVM du réseau actif
   'app/security.tsx': 3, // idem
   'app/wallet-born.tsx': 1, // affichage après création
   'ui/BtcAccelerate.tsx': 1, // ouvert sur Bitcoin actif
-  'ui/TokenPicker.tsx': 4, // variable locale, calculée par addressForChain
+  'ui/TokenPicker.tsx': 5, // variable locale, calculée par addressForChain (TON compris)
   'lib/walletStore.ts': 13, // le coffre lui-même
 };
 

@@ -185,6 +185,7 @@ const fr = {
     items: [
       { value: '0 €', label: 'pour envoyer, recevoir, détenir', note: 'Seuls les frais du réseau s’appliquent — ils vont aux validateurs, pas à nous.' },
       { value: '0,3 %', label: 'sur un swap via LI.FI', note: 'EVM et d’une chaîne à l’autre. C’est la seule rémunération de Kalyx.' },
+      { value: '0,3 %', label: 'sur un swap TON via STON.fi', note: 'Échanges sur TON (TON, USD₮, jettons). Même taux que LI.FI.' },
       { value: '0 %', label: 'sur un swap Solana via Jupiter', note: 'Aucune commission ajoutée à la route.' },
       { value: '0 %', label: 'sur Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade : rien prélevé au dépôt ni au retrait.' },
       { value: '0 €', label: 'd’abonnement, pour toujours', note: 'Pas de version « pro », pas de fonctionnalité derrière un péage.' },
@@ -245,7 +246,7 @@ const fr = {
     notice: 'Le texte ci-dessous est rédigé en français ; seule la version française fait foi.',
     privacyTitle: 'Politique de confidentialité',
     privacyIntro: 'Chez Kalyx, votre vie privée n’est pas une option : c’est le fondement de l’architecture. Voici comment nous protégeons vos données, en refusant de les collecter.',
-    privacyMeta: ['Mise à jour : 5 juillet 2026', 'Kalyx', 'Droit français et RGPD'],
+    privacyMeta: ['Mise à jour : 28 septembre 2026', 'Kalyx', 'Droit français et RGPD'],
     privacyContact: 'Une question sur vos données ?',
     termsTitle: 'Conditions générales d’utilisation',
     termsIntro: 'Lisez attentivement ces conditions avant d’utiliser Kalyx Wallet. Elles définissent le cadre d’utilisation responsable et les spécificités du modèle non-custodial.',

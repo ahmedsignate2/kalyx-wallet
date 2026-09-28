@@ -33,6 +33,18 @@ export const useTokenStore = create<TokenState>((set, get) => ({
       const chain = adapter.config;
       let url = '';
 
+      if (chain.family === 'ton') {
+        /*
+         * TON : liste CHOISIE (jetons à forte liquidité chez STON.fi, ni
+         * blacklistés, ni obsolètes, ni taxés — src/domain/swap/stonfi-tokens.json),
+         * TON natif en tête. La liste complète de STON.fi (≈ 40 000 entrées) est
+         * trop lourde pour un téléphone ; les jetons détenus s'ajoutent à l'écran.
+         */
+        const list = require('../src/domain/swap/stonfi-tokens.json') as Tok[];
+        const ton: Tok = { address: '0x0000000000000000000000000000000000000000', symbol: 'TON', decimals: 9, name: 'Toncoin' };
+        set((state) => ({ tokensByChain: { ...state.tokensByChain, [chainId]: [ton, ...list] }, loading: { ...state.loading, [chainId]: false } }));
+        return;
+      }
       if (chain.family === 'evm' && chain.evmChainId) {
         url = `https://li.quest/v1/tokens?chains=${chain.evmChainId}`;
       } else if (chain.family === 'solana') {

@@ -7,7 +7,7 @@ import { fonts, radii, spacing, useTheme } from './theme';
 import { haptic } from '../lib/haptics';
 import { Icon } from './icon';
 import { TokenIcon } from './kit/TokenIcon';
-import { getAdapter, listChains } from '../src';
+import { getAdapter, getAdapterV2, listChains } from '../src';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { useWallet } from '../lib/walletStore';
 import { addressForChain } from '../lib/accountAddress';
@@ -57,7 +57,8 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
   const accountAddress = address ?? (addressForChain(activeSt, getAdapter(selectedChain).config) || undefined);
   const account = useMemo(() => (accountAddress ? { address: accountAddress } : undefined), [accountAddress]);
 
-  const chains = useMemo(() => listChains({ includeTestnets: false }).filter(c => c.family === 'evm' || c.family === 'solana'), []);
+  // TON : échanges STON.fi (jetton ↔ jetton sur TON uniquement).
+  const chains = useMemo(() => listChains({ includeTestnets: false }).filter(c => c.family === 'evm' || c.family === 'solana' || c.family === 'ton'), []);
 
   useEffect(() => {
     if (visible && account?.address) {
@@ -80,6 +81,14 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
         adapter.getSplTokens(account.address).then((tokens: any[]) => {
           const map: Record<string, bigint> = {};
           tokens.forEach(t => map[t.mint.toLowerCase()] = t.raw);
+          setHeldTokens(prev => ({ ...prev, ...map }));
+        }).catch(() => {});
+      }
+      if (adapter.config.family === 'ton') {
+        // Jettons détenus, indexés par adresse brute du maître (même forme que la liste STON.fi).
+        getAdapterV2(selectedChain).listTokens?.(account.address).then((tokens) => {
+          const map: Record<string, bigint> = {};
+          tokens.forEach((t) => { map[String(t.id).toLowerCase()] = t.raw; });
           setHeldTokens(prev => ({ ...prev, ...map }));
         }).catch(() => {});
       }

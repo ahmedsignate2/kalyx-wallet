@@ -11,6 +11,7 @@
  * (aucune migration destructive). Un seul PIN d'app chiffre tous les coffres.
  * MULTI-COMPTES : au sein d'un wallet, plusieurs comptes par index HD.
  */
+import { Address as TonCoreAddress, Cell as TonCell } from '@ton/core';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import { formatExportedKey } from '../src/domain/keys/exportKey';
 import { deriveBtcSigner, deriveSolanaSigner } from '../src';
@@ -51,6 +52,8 @@ import {
   isWalletError,
   WalletError,
   checkSwapQuote,
+  verifyTonSwap,
+  TonAdapterV2,
   EvmChainAdapter,
   SolanaChainAdapter,
   NATIVE_TOKEN,
@@ -1341,8 +1344,9 @@ export const useWallet = create<WalletState>((set, get) => ({
      * vers soi. Refusé avant que la clé soit dérivée.
      */
     const own = get().accounts.find((a) => a.index === get().activeAccountIndex);
-    const receivers = [own?.evmAddress, own?.solAddress].filter((x): x is string => !!x);
-    const fromAddress = quote.tx.type === 'evm' ? own?.evmAddress ?? '' : own?.solAddress ?? '';
+    const tonAddress = adapter.config.family === 'ton' ? addressForChain(own, adapter.config) : '';
+    const receivers = [own?.evmAddress, own?.solAddress, tonAddress].filter((x): x is string => !!x);
+    const fromAddress = quote.tx.type === 'evm' ? own?.evmAddress ?? '' : quote.tx.type === 'ton' ? tonAddress : own?.solAddress ?? '';
     const passes = receivers.some((toAddress) =>
       checkSwapQuote(quote, { fromEvmChainId: adapter.config.evmChainId, fromToken: quote.fromToken.address, fromAmount: quote.fromAmount, fromAddress, toAddress }).ok,
     );
@@ -1403,6 +1407,32 @@ export const useWallet = create<WalletState>((set, get) => ({
       onStatus?.('confirming');
       await adapter.waitForTx(hash);
       return hash;
+    } else if (quote.tx.type === 'ton' && adapter.config.family === 'ton') {
+      /*
+       * STON.fi (src/domain/swap/stonfi.ts). Messages construits par l'app et
+       * relus (tout revient à nous) ; ici, le portefeuille pTON du routeur est
+       * relu SUR LA CHAÎNE, puis la transaction est émulée : un échec prévu
+       * n'est jamais signé.
+       */
+      const v2 = getAdapterV2(activeChain) as TonAdapterV2;
+      const swapTx = quote.tx;
+      await verifyTonSwap(swapTx, (owner, master) => v2.jettonWalletOf(owner, master));
+      onStatus?.('swapping');
+      const draft = await v2.prepareDappTransfer(tonAddress, {
+        messages: swapTx.messages.map((m) => ({
+          to: TonCoreAddress.parse(m.to).toString({ bounceable: true }),
+          amount: m.amount,
+          bounce: true,
+          payload: TonCell.fromBase64(m.payload),
+        })),
+        validUntil: Math.floor(Date.now() / 1000) + 300,
+      });
+      if (draft.emulation?.failed) throw new WalletError('NOT_SUPPORTED', 'La simulation indique que cet échange échouerait');
+      const signer = await get().deriveSigner(v2, unlock);
+      const signed = await withSigner(signer, (s) => v2.signDappTransfer(draft, s));
+      await v2.broadcastDapp(signed);
+      onStatus?.('confirming');
+      return signed.txid;
     } else if (quote.tx.type === 'solana' && adapter.config.family === 'solana') {
       onStatus?.('swapping');
       // Blockhash rafraîchi à la signature (un devis peut dater de >60 s), puis

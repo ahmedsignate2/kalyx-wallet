@@ -182,6 +182,7 @@ const en: Dict = {
     items: [
       { value: '€0', label: 'to send, receive, hold', note: 'Only network fees apply — they go to validators, not to us.' },
       { value: '0.3%', label: 'on a swap via LI.FI', note: 'EVM and cross-chain. This is Kalyx’s only revenue.' },
+      { value: '0.3%', label: 'on a TON swap via STON.fi', note: 'Swaps on TON (TON, USD₮, jettons). Same rate as LI.FI.' },
       { value: '0%', label: 'on a Solana swap via Jupiter', note: 'No commission added to the route.' },
       { value: '0%', label: 'on Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: nothing taken on deposit or withdrawal.' },
       { value: '€0', label: 'subscription, forever', note: 'No “pro” tier, no feature behind a paywall.' },
@@ -242,7 +243,7 @@ const en: Dict = {
     notice: 'The text below is written in French; only the French version is legally binding.',
     privacyTitle: 'Privacy policy',
     privacyIntro: 'At Kalyx, your privacy is not an option: it is the foundation of the architecture. Here is how we protect your data, by refusing to collect it.',
-    privacyMeta: ['Updated: 5 July 2026', 'Kalyx', 'French law and GDPR'],
+    privacyMeta: ['Updated: 28 September 2026', 'Kalyx', 'French law and GDPR'],
     privacyContact: 'A question about your data?',
     termsTitle: 'Terms of use',
     termsIntro: 'Read these terms carefully before using Kalyx Wallet. They define the framework of responsible use and the specifics of the non-custodial model.',

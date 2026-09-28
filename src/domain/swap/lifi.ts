@@ -41,7 +41,17 @@ export interface BitcoinSwapTx {
   data: string; // base64 encoded PSBT
 }
 
-export type SwapTxRequest = EvmSwapTx | SolanaSwapTx | BitcoinSwapTx;
+/** Échange TON (STON.fi) : messages construits par l'app, routeur et portefeuille pTON à vérifier. */
+export interface TonSwapTx {
+  type: 'ton';
+  messages: { to: string; amount: bigint; payload: string }[];
+  /** Routeur STON.fi, forme brute. */
+  router: string;
+  /** Échange DEPUIS TON : portefeuille pTON du routeur (forme brute), revérifié sur la chaîne avant signature. */
+  ptonWallet?: string;
+}
+
+export type SwapTxRequest = EvmSwapTx | SolanaSwapTx | BitcoinSwapTx | TonSwapTx;
 
 export interface SwapTokenInfo {
   address: string;

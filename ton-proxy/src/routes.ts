@@ -67,6 +67,8 @@ export const ROUTES: Route[] = [
   { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}$`), cacheSeconds: 10 },
   { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}/events$`), query: { limit: LIMIT, before_lt: LT }, cacheSeconds: 10 },
   { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}/jettons$`), query: { currencies: CODES }, cacheSeconds: 10 },
+  // Portefeuille d'UN jetton pour un compte : vérifie le portefeuille pTON d'un routeur STON.fi avant un échange.
+  { method: 'GET', pattern: new RegExp(`^/v2/accounts/${ADDR}/jettons/${ADDR}$`), cacheSeconds: 300 },
   { method: 'GET', pattern: new RegExp(`^/v2/wallet/${ADDR}/seqno$`) },
   { method: 'GET', pattern: new RegExp(`^/v2/blockchain/messages/${HASH}/transaction$`) },
   { method: 'GET', pattern: new RegExp(`^/v2/events/${HASH}$`) },

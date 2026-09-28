@@ -181,6 +181,7 @@ const zh: Dict = {
     items: [
       { value: '0 €', label: '发送、接收、持有', note: '仅有网络费——付给验证者，而不是我们。' },
       { value: '0.3%', label: '通过 LI.FI 兑换', note: 'EVM 及跨链。这是 Kalyx 唯一的收入。' },
+      { value: '0.3%', label: '通过 STON.fi 的 TON 兑换', note: 'TON 上的兑换（TON、USD₮、Jetton）。与 LI.FI 相同的费率。' },
       { value: '0%', label: '通过 Jupiter 在 Solana 上兑换', note: '路径中不附加任何佣金。' },
       { value: '0%', label: 'Earn', note: 'Aave、Lido、Rocket Pool、Benqi、Jito、Marinade：存入与取出均不收取分毫。' },
       { value: '0 €', label: '订阅费，永远', note: '没有“专业版”，没有付费墙后的功能。' },
@@ -241,7 +242,7 @@ const zh: Dict = {
     notice: '以下文本以法语撰写；仅法语版本具有法律效力。',
     privacyTitle: '隐私政策',
     privacyIntro: '在 Kalyx，隐私不是一个选项，而是架构的基石。我们保护你数据的方式，就是拒绝收集它。',
-    privacyMeta: ['更新：2026 年 7 月 5 日', 'Kalyx', '法国法律与 GDPR'],
+    privacyMeta: ['更新：2026 年 9 月 28 日', 'Kalyx', '法国法律与 GDPR'],
     privacyContact: '对你的数据有疑问？',
     termsTitle: '通用使用条款',
     termsIntro: '使用 Kalyx Wallet 前请仔细阅读这些条款。它们界定了负责任使用的框架以及非托管模式的特性。',

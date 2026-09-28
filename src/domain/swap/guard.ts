@@ -25,6 +25,7 @@
 import { base58 } from '@scure/base';
 import { describeSolanaTransaction } from '../wc/solanaTx';
 import type { SwapQuote } from './lifi';
+import { STONFI_ROUTERS, tonSwapPaysUser } from './stonfi';
 
 const DIAMOND = '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae';
 
@@ -108,6 +109,15 @@ export function checkSwapQuote(q: SwapQuote, e: SwapExpectation): { ok: true } |
     if (!recv || !q.tx.data.toLowerCase().includes(recv)) return { ok: false, reason: 'RECEIVER_MISSING' };
     return { ok: true };
   }
+
+  if (q.tx.type === 'ton') {
+    // STON.fi : routeur officiel, un seul message, et tout revient à nous (relu dans le message).
+    if (!STONFI_ROUTERS.has(q.tx.router) || q.tx.messages.length !== 1) return { ok: false, reason: 'UNKNOWN_CONTRACT' };
+    if (!tonSwapPaysUser(q.tx.messages[0], e.fromAddress, q.tx.router)) return { ok: false, reason: 'RECEIVER_MISSING' };
+    return { ok: true };
+  }
+
+  if (q.tx.type === 'bitcoin') return { ok: false, reason: 'NOT_OUR_TX' };
 
   // Solana : la transaction doit être payée (et donc signée en premier) par nous.
   const d = describeSolanaTransaction(q.tx.data, e.fromAddress);

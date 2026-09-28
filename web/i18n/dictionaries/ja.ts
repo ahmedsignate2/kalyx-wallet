@@ -182,6 +182,7 @@ const ja: Dict = {
     items: [
       { value: '0 €', label: '送金・受取・保有', note: 'ネットワーク手数料のみ — バリデーターへ支払われ、私たちには入りません。' },
       { value: '0.3%', label: 'LI.FI 経由のスワップ', note: 'EVM とクロスチェーン。これが Kalyx 唯一の収入です。' },
+      { value: '0.3%', label: 'STON.fi 経由の TON スワップ', note: 'TON 上のスワップ（TON、USD₮、ジェットン）。LI.FI と同じ料率。' },
       { value: '0%', label: 'Jupiter 経由の Solana スワップ', note: 'ルートに追加される手数料はありません。' },
       { value: '0%', label: 'Earn', note: 'Aave、Lido、Rocket Pool、Benqi、Jito、Marinade：預け入れでも引き出しでも徴収なし。' },
       { value: '0 €', label: 'サブスクリプション、永久に', note: '「プロ」版なし、有料の壁の向こうの機能なし。' },
@@ -242,7 +243,7 @@ const ja: Dict = {
     notice: '以下の文書はフランス語で作成されています。法的効力を持つのはフランス語版のみです。',
     privacyTitle: 'プライバシーポリシー',
     privacyIntro: 'Kalyx にとってプライバシーはオプションではなく、アーキテクチャの土台です。データを収集しないことで、あなたのデータを守ります。',
-    privacyMeta: ['更新：2026 年 7 月 5 日', 'Kalyx', 'フランス法および GDPR'],
+    privacyMeta: ['更新：2026 年 9 月 28 日', 'Kalyx', 'フランス法および GDPR'],
     privacyContact: 'データについてのご質問は？',
     termsTitle: '利用規約',
     termsIntro: 'Kalyx Wallet を使用する前に、この規約をよくお読みください。責任ある利用の枠組みと、ノンカストディアルモデルの特性を定めています。',

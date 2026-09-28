@@ -200,6 +200,19 @@ export class TonApiClient {
     return parseJettonBalances(r.json, cur);
   }
 
+  /**
+   * Adresse (brute) du portefeuille du jetton `master` détenu par `owner`, lue
+   * sur la chaîne via TonAPI — ou null s'il n'existe pas. Sert à vérifier une
+   * adresse donnée par un tiers (ex. le portefeuille pTON d'un routeur STON.fi).
+   */
+  async jettonWalletOf(owner: string, master: string): Promise<string | null> {
+    const r = await this.call('GET', `/v2/accounts/${seg(owner)}/jettons/${seg(master)}`);
+    if (r.status === 404) return null;
+    if (r.status !== 200 || !r.json) throw new WalletError('RPC_UNAVAILABLE', `TonAPI : portefeuille de jetton illisible (HTTP ${r.status})`);
+    const a = r.json?.wallet_address?.address;
+    return typeof a === 'string' ? a : null;
+  }
+
   /** NFT détenus (domaines .ton compris), arnaques écartées. */
   async nfts(address: string, limit = 100): Promise<TonNft[]> {
     const r = await this.call('GET', `/v2/accounts/${seg(address)}/nfts?limit=${limit}&offset=0&indirect_ownership=false`);
