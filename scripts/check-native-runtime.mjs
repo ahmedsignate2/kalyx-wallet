@@ -21,7 +21,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { createFingerprintAsync } from '@expo/fingerprint';
+import { createFingerprintAsync, SourceSkips } from '@expo/fingerprint';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const file = path.join(root, 'native-runtime.json');
@@ -34,11 +34,24 @@ if (!runtime) {
   process.exit(2);
 }
 /*
- * `.gitignore` exclu : l'outil l'inclut dans l'empreinte, mais il ne change
- * rien à l'APK. Le réécrire (filtre du dépôt, 28/09) faisait croire à un
- * changement natif — et réclamer un APK pour rien.
+ * Sources exclues de l'empreinte :
+ *
+ *   GitIgnore — `.gitignore` est inclus comme source `bareGitIgnore` par
+ *   l'outil, mais il ne change rien à l'APK. `ignorePaths` ne le filtre pas
+ *   (c'est un chemin spécial) ; seul `sourceSkips` fonctionne.
+ *
+ *   ExpoConfigRuntimeVersionIfString — le runtime est une chaîne fixe ;
+ *   l'incrémenter ne doit pas changer l'empreinte, sinon on a un cycle.
+ *
+ *   ExpoConfigVersions — APP_VERSION varie par profil de build (supprimé
+ *   ci-dessus), mais ça ne touche pas le natif.
  */
-const { hash } = await createFingerprintAsync(root, { platforms: ['android'], ignorePaths: ['.gitignore'] });
+const sourceSkips =
+  SourceSkips.GitIgnore |
+  SourceSkips.ExpoConfigRuntimeVersionIfString |
+  SourceSkips.ExpoConfigVersions;
+
+const { hash } = await createFingerprintAsync(root, { platforms: ['android'], sourceSkips });
 
 if (process.argv.includes('--record')) {
   fs.writeFileSync(file, JSON.stringify({ runtime, fingerprint: hash }, null, 2) + '\n');
