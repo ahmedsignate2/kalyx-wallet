@@ -13,6 +13,16 @@
  */
 import { findAdapterV2, type TxWaitHint } from '../src';
 import { notifyAndLog } from './notificationCenter';
+import { fill, translate, type Key } from './i18n';
+import { useSettings } from './settingsStore';
+
+/*
+ * DANS LA LANGUE DE L'UTILISATEUR, lue au moment d'envoyer. Ces notifications
+ * étaient en français en dur, pour tout le monde. Le motif d'échec renvoyé par
+ * le réseau (souvent en français lui aussi) n'est plus recopié : le texte
+ * traduit dit l'essentiel — c'est rejeté, et les frais sont payés.
+ */
+const tr = (key: Key, label?: string) => fill(translate(useSettings.getState().language, key), { label: label ?? '' });
 
 export async function watchConfirmation(
   chainId: string,
@@ -27,7 +37,7 @@ export async function watchConfirmation(
     const state = await adapter.waitForTx(hash, hint);
     switch (state.status) {
       case 'confirmed':
-        notifyAndLog('tx', 'Transaction confirmée ✅', label);
+        notifyAndLog('tx', tr('notifTxConfirmedTitle'), label);
         return;
       case 'failed':
         /*
@@ -36,16 +46,16 @@ export async function watchConfirmation(
          * l'utilisateur attende indéfiniment une confirmation qui ne viendra
          * pas, ou qu'il renvoie en croyant que rien n'est parti.
          */
-        notifyAndLog('tx', 'Transaction échouée', `${label} — ${state.reason ?? 'rejetée par le réseau.'}`);
+        notifyAndLog('tx', tr('notifTxFailedTitle'), tr('notifTxFailedBody', label));
         return;
       case 'expired':
         // JAMAIS incluse : les fonds n'ont pas bougé, et on peut réessayer.
-        notifyAndLog('tx', 'Transaction abandonnée', `${label} — les fonds n'ont pas bougé, tu peux réessayer.`);
+        notifyAndLog('tx', tr('notifTxExpiredTitle'), tr('notifTxExpiredBody', label));
         return;
       default:
-        notifyAndLog('tx', 'Confirmation en attente', `${label} — vérifie l'explorateur si ça traîne.`);
+        notifyAndLog('tx', tr('notifTxPendingTitle'), tr('notifTxPendingBody', label));
     }
   } catch {
-    notifyAndLog('tx', 'Confirmation en attente', `${label} — vérifie l'explorateur si ça traîne.`);
+    notifyAndLog('tx', tr('notifTxPendingTitle'), tr('notifTxPendingBody', label));
   }
 }

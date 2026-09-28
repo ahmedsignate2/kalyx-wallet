@@ -15,6 +15,8 @@ import { utf8ToBytes } from '@noble/hashes/utils';
 import { Platform, AppState, Linking } from 'react-native';
 import { create } from 'zustand';
 import { technicalLogger } from './technicalLogger';
+import { useSettings } from './settingsStore';
+import { fill, translate, type Key } from './i18n';
 import { useWallet, type Unlock } from './walletStore';
 import { notify } from './notifications';
 import { listChains, getAdapter, getAdapterV2, withSigner, assertCurve, WcConnectError, type RawTxRequest } from '../src';
@@ -58,20 +60,24 @@ const SIGNING_METHODS = new Set([
   'bitcoin_getAccounts', 'getAccountAddresses', 'bitcoin_getAccountAddresses', 'getAccounts',
 ]);
 
-const METHOD_LABELS: Record<string, string> = {
-  eth_sendTransaction: 'Transaction à signer',
-  personal_sign: 'Signature de message',
-  eth_sign: 'Signature de message',
-  eth_signTypedData: 'Signature de données',
-  eth_signTypedData_v4: 'Signature de données',
-  solana_signTransaction: 'Transaction Solana à signer',
-  solana_signAllTransactions: 'Transactions Solana à signer',
-  solana_signMessage: 'Signature de message',
-  bitcoin_sendTransfer: 'Transaction Bitcoin à signer',
-  bitcoin_sendTransaction: 'Transaction Bitcoin à signer',
-  bitcoin_signPsbt: 'Transaction Bitcoin (PSBT) à signer',
-  bitcoin_signMessage: 'Signature de message',
+/** Libellé (clé de traduction) d'une demande, pour la notification. */
+const METHOD_LABELS: Record<string, Key> = {
+  eth_sendTransaction: 'wcReqTx',
+  personal_sign: 'wcReqMessage',
+  eth_sign: 'wcReqMessage',
+  eth_signTypedData: 'wcReqTyped',
+  eth_signTypedData_v4: 'wcReqTyped',
+  solana_signTransaction: 'wcReqSolTx',
+  solana_signAllTransactions: 'wcReqSolTx',
+  solana_signMessage: 'wcReqMessage',
+  bitcoin_sendTransfer: 'wcReqBtcTx',
+  bitcoin_sendTransaction: 'wcReqBtcTx',
+  bitcoin_signPsbt: 'wcReqBtcTx',
+  bitcoin_signMessage: 'wcReqMessage',
 };
+
+/** Texte de notification dans la langue de l'utilisateur (lue à l'envoi ; c'était du français pour tous). */
+const tr = (key: Key, vars: Record<string, string> = {}) => fill(translate(useSettings.getState().language, key), vars);
 
 /** Notifie une demande entrante (proposition/requête) quand l'app n'est PAS au
  *  premier plan — appuyer sur la notification rouvre Kalyx, où la fenêtre de
@@ -282,7 +288,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     w.on('session_proposal', (proposal: any) => {
       set({ proposal });
       const name = proposal?.params?.proposer?.metadata?.name;
-      notifyIncoming('Kalyx · Connexion demandée', name ? `${name} veut se connecter à votre portefeuille` : 'Un site veut se connecter à votre portefeuille');
+      notifyIncoming(tr('notifWcConnectTitle'), name ? tr('notifWcConnectBody', { name }) : tr('notifWcConnectBodyUnknown'));
     });
     w.on('session_request', async (request: any) => {
       console.log('\n[WC-IN] === SESSION_REQUEST RECEIVED ===');
@@ -349,8 +355,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       set({ requestQueue: q, request: q[0] });
       const topic: string | undefined = request?.topic;
       const peer = topic ? w.getActiveSessions()?.[topic]?.peer?.metadata?.name : undefined;
-      const label = METHOD_LABELS[method] ?? 'Signature demandée';
-      notifyIncoming('Kalyx · Action à valider', peer ? `${label} · ${peer}` : `${label} — appuyez pour ouvrir`);
+      const label = tr(METHOD_LABELS[method] ?? 'wcReqGeneric');
+      notifyIncoming(tr('notifWcActionTitle'), peer ? `${label} · ${peer}` : tr('notifWcActionOpen', { label }));
     });
     w.on('session_delete', () => get().refresh());
     // Réseau changé dans Kalyx → événement chainChanged vers les dApps connectées.
