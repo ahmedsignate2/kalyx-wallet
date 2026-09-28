@@ -75,7 +75,7 @@ signature, fuite de donnée · **P2** fonctionnement, confort.
 
 | # | Élément | Prio | Statut | Notes |
 |---|---|---|---|---|
-| E1 | **Mises à jour OTA non signées** | P0 | ⬜ | Sans signature de code, un accès au compte Expo suffit pour envoyer du code à tous les téléphones. Nécessite un nouvel APK. |
+| E1 | Mises à jour OTA signées | P0 | ✅ | Certificat `certs/certificate.pem` dans l'APK (runtime `native-2026.09.28c`), clé privée hors dépôt (`/root/Nova-archives/ota-signing/`). Publication auto du workflow EAS retirée (non signée). **Effectif dès que l'APK 28c est installé.** |
 | E2 | Variables `EXPO_PUBLIC_` (aucun secret) | P0 | ✅ | Clé Helius retirée. **À faire par toi :** révoquer l'ancienne clé. |
 | E3 | Historique git (secrets, fichiers privés) | P0 | ✅ 🛡️ | Historique réécrit ; `scripts/check-repo-files.mjs` en CI. |
 | E4 | Dépendances (`npm audit`) | P1 | ⚠️ | 5 alertes, toutes via `@walletconnect/web3wallet` (voir A5). |
