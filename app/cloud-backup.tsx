@@ -9,6 +9,7 @@
  * Drive est confié au flux persistant `useDriveFlow` (lib/googleDrive.ts), qui
  * survit au retour de Google et au redémarrage de l'app.
  */
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { passwordStrength, MIN_BACKUP_LEVEL } from '../src/security/passwordStrength';
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, KeyboardAvoidingView, Platform, Share, ActivityIndicator } from 'react-native';
@@ -27,6 +28,8 @@ import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
 type Target = 'drive' | 'file';
 
 export default function CloudBackupScreen() {
+  // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
+  useNoScreenCapture('cloud-backup');
   const { colors } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();

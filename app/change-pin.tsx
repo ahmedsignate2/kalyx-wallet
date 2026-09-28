@@ -1,4 +1,5 @@
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import React, { useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
@@ -19,6 +20,8 @@ import { checkPin, isWalletError, PIN_MIN } from '../src';
 type Step = 'old' | 'new' | 'confirm';
 
 export default function ChangePin() {
+  // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
+  useNoScreenCapture('change-pin');
   const { colors } = useTheme();
   const t = useT();
   const changePin = useWallet((s) => s.changePin);

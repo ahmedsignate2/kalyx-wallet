@@ -8,6 +8,7 @@
  * Google est déjà déconnecté avant la saisie. Un mot de passe faux se retente
  * sans le recontacter. Phrase → même flux de sécurisation que l'import (PIN).
  */
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { usePendingRestore } from '../lib/pendingRestore';
 import React, { useEffect, useState } from 'react';
 import { View, TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
@@ -26,6 +27,8 @@ import { PinPromptModal } from '../ui/PinPromptModal';
 import { classifyRecoveryPhrase, restoreBackup, type BackupError, type BackupWallet } from '../src';
 
 export default function RestoreDriveScreen() {
+  // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
+  useNoScreenCapture('restore-drive');
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();

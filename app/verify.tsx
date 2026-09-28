@@ -1,4 +1,5 @@
 /** Vérification (§4.9) — retrouver 3 mots au hasard, pas les 12. Succès → `backupVerified`. */
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import React, { useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -13,6 +14,8 @@ import { haptic } from '../lib/haptics';
 import { createBackupChallenge, verifyBackupChallenge } from '../src';
 
 export default function Verify() {
+  // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
+  useNoScreenCapture('verify');
   const t = useT();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();

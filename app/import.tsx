@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { View, Text, TextInput, KeyboardAvoidingView, Platform, StatusBar, StyleSheet } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +25,8 @@ import { radius } from '../ui/tokens';
  * le clavier (KeyboardAvoidingView).
  */
 export default function Import() {
+  // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
+  useNoScreenCapture('import');
   const { colors, typography, gradients } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();

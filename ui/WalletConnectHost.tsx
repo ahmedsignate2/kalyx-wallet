@@ -426,6 +426,7 @@ export function WalletConnectHost() {
       addressRisk: risk && risk !== 'loading' ? risk : null,
       phishingSite: phishSite,
       nativeSymbol: chain?.nativeSymbol,
+      connectedChainId: chain?.evmChainId,
       t: exT,
     });
     const rawJson = JSON.stringify(request.params?.request?.params ?? {}, null, 2).slice(0, 1600);
