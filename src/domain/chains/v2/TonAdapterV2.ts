@@ -426,6 +426,21 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     return this.api ? this.api.resolveDomain(name, this.testnet) : null;
   }
 
+  /** Portefeuille (brut) du jetton `master` DÉTENU par `owner`, lu dans ses soldes (TonAPI) ; null s'il n'en a pas. */
+  async ownJettonWallet(owner: string, master: string): Promise<string | null> {
+    if (!this.api) return null;
+    const m = rawJettonAddress(master);
+    const j = (await this.api.jettons(owner)).find((x) => x.master === m);
+    return j ? rawJettonAddress(j.wallet) : null;
+  }
+
+  /** Portefeuille (brut) du jetton `master` de n'importe quel compte, lu sur la chaîne (vérification d'un tiers). */
+  async jettonWalletOf(owner: string, master: string): Promise<string | null> {
+    if (!this.api) return null;
+    const a = await this.api.jettonWalletOf(owner, master);
+    return a ? rawJettonAddress(a) : null;
+  }
+
   async listTokens(address: string): Promise<TokenHolding[]> {
     return (await this.jettons(address)).map((j) => ({ id: j.master, symbol: j.symbol, decimals: j.decimals, raw: j.raw, name: j.name, logo: j.image }));
   }

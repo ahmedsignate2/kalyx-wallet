@@ -11,6 +11,7 @@ test('les routes relevées passent, sur les deux réseaux', () => {
     ['GET', `/mainnet/v2/accounts/${A}`, ''],
     ['GET', `/testnet/v2/accounts/${A}/events`, 'limit=20&before_lt=99183004000001'],
     ['GET', `/mainnet/v2/accounts/${A}/jettons`, 'currencies=usd,eur'],
+    ['GET', `/mainnet/v2/accounts/${A}/jettons/EQBnGWMCf3-FZZq1W4IWcWiGAc3PHuZ0_H-7sad2oY00o83S`, ''],
     ['GET', `/mainnet/v2/wallet/${A}/seqno`, ''],
     ['GET', '/testnet/v2/blockchain/messages/111097c6ae737d4a980c7629dcca17049a817c5934f7b643200b8cb0aac2215f/transaction', ''],
     ['GET', '/mainnet/v2/rates', 'tokens=ton&currencies=usd'],

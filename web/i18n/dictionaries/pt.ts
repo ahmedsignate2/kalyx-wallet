@@ -182,6 +182,7 @@ const pt: Dict = {
     items: [
       { value: '0 €', label: 'para enviar, receber, guardar', note: 'Só se aplicam as taxas de rede — vão para os validadores, não para nós.' },
       { value: '0,3 %', label: 'num swap via LI.FI', note: 'EVM e entre redes. É a única receita do Kalyx.' },
+      { value: '0,3 %', label: 'numa troca TON via STON.fi', note: 'Trocas em TON (TON, USD₮, jettons). A mesma taxa que a LI.FI.' },
       { value: '0 %', label: 'num swap Solana via Jupiter', note: 'Nenhuma comissão acrescentada à rota.' },
       { value: '0 %', label: 'no Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: nada retido no depósito nem no levantamento.' },
       { value: '0 €', label: 'de subscrição, para sempre', note: 'Sem versão «pro», sem funcionalidades atrás de uma portagem.' },
@@ -242,7 +243,7 @@ const pt: Dict = {
     notice: 'O texto abaixo está redigido em francês; só a versão francesa faz fé.',
     privacyTitle: 'Política de privacidade',
     privacyIntro: 'No Kalyx, a sua privacidade não é uma opção: é a base da arquitetura. Eis como protegemos os seus dados — recusando recolhê-los.',
-    privacyMeta: ['Atualização: 5 de julho de 2026', 'Kalyx', 'Direito francês e RGPD'],
+    privacyMeta: ['Atualização: 28 de setembro de 2026', 'Kalyx', 'Direito francês e RGPD'],
     privacyContact: 'Uma pergunta sobre os seus dados?',
     termsTitle: 'Condições gerais de utilização',
     termsIntro: 'Leia atentamente estas condições antes de utilizar a Kalyx Wallet. Definem o quadro de utilização responsável e as especificidades do modelo não custodial.',

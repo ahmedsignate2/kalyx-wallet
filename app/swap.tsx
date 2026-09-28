@@ -21,6 +21,7 @@ import { useT } from '../lib/settingsStore';
 import {
   getAdapter,
   getErc20Tokens,
+  getAdapterV2,
   getBestQuote,
   parseAmount,
   formatTokenAmount,
@@ -81,7 +82,8 @@ export default function Swap() {
   useEffect(() => {
     fetchTokens(activeChain);
   }, [activeChain, fetchTokens]);
-  const available = !chain.testnet && (chain.family === 'evm' || chain.family === 'solana');
+  // TON : échanges STON.fi, sur TON seulement (src/domain/swap/stonfi.ts).
+  const available = !chain.testnet && (chain.family === 'evm' || chain.family === 'solana' || chain.family === 'ton');
 
   const [from, setFrom] = useState(0);
   const [to, setTo] = useState(1);
@@ -157,6 +159,14 @@ export default function Swap() {
         .catch(() => {
           if (!cancelled) setHeld([]);
         });
+    } else if (chain.family === 'ton') {
+      // Jettons détenus, par adresse brute du maître (même forme que la liste STON.fi).
+      getAdapterV2(activeChain)
+        .listTokens?.(account.address)
+        .then((detected) => {
+          if (!cancelled) setHeld(detected.map((tk) => ({ symbol: tk.symbol, address: String(tk.id), decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
+        })
+        .catch(() => {});
     } else if (chain.family === 'solana') {
       const adapter = getAdapter(activeChain) as any;
       if (adapter.getSplTokens) {
@@ -398,6 +408,7 @@ export default function Swap() {
       if (toFamily === 'solana') targetAddress = storedAccount?.solAddress ?? '';
       else if (toFamily === 'bitcoin') targetAddress = storedAccount?.btcAddress ?? '';
       else if (toFamily === 'evm') targetAddress = storedAccount?.evmAddress ?? account.address;
+      else if (toFamily === 'ton') targetAddress = account.address; // TON → TON : même adresse
 
       const q = await getBestQuote({
         fromChainId: activeChain,

@@ -182,6 +182,7 @@ const nl: Dict = {
     items: [
       { value: '€ 0', label: 'om te versturen, ontvangen, bewaren', note: 'Alleen netwerkkosten gelden — die gaan naar de validators, niet naar ons.' },
       { value: '0,3 %', label: 'op een swap via LI.FI', note: 'EVM en tussen chains. Dit is de enige inkomstenbron van Kalyx.' },
+      { value: '0,3 %', label: 'op een TON-swap via STON.fi', note: 'Swaps op TON (TON, USD₮, jettons). Zelfde tarief als LI.FI.' },
       { value: '0 %', label: 'op een Solana-swap via Jupiter', note: 'Geen commissie toegevoegd aan de route.' },
       { value: '0 %', label: 'op Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: niets ingehouden bij storting of opname.' },
       { value: '€ 0', label: 'abonnement, voor altijd', note: 'Geen “pro”-versie, geen functie achter een tolpoort.' },
@@ -242,7 +243,7 @@ const nl: Dict = {
     notice: 'De onderstaande tekst is in het Frans opgesteld; alleen de Franse versie is juridisch bindend.',
     privacyTitle: 'Privacybeleid',
     privacyIntro: 'Bij Kalyx is je privacy geen optie: het is de basis van de architectuur. Zo beschermen we je gegevens — door ze niet te verzamelen.',
-    privacyMeta: ['Bijgewerkt: 5 juli 2026', 'Kalyx', 'Frans recht en AVG'],
+    privacyMeta: ['Bijgewerkt: 28 september 2026', 'Kalyx', 'Frans recht en AVG'],
     privacyContact: 'Een vraag over je gegevens?',
     termsTitle: 'Algemene gebruiksvoorwaarden',
     termsIntro: 'Lees deze voorwaarden aandachtig voordat je Kalyx Wallet gebruikt. Ze bepalen het kader voor verantwoord gebruik en de bijzonderheden van het non-custodial model.',

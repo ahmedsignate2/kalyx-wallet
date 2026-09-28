@@ -182,6 +182,7 @@ const tr: Dict = {
     items: [
       { value: '0 €', label: 'göndermek, almak, tutmak için', note: 'Yalnızca ağ ücretleri uygulanır — doğrulayıcılara gider, bize değil.' },
       { value: '%0,3', label: 'LI.FI üzerinden swap’ta', note: 'EVM ve zincirler arası. Kalyx’in tek geliri budur.' },
+      { value: '%0,3', label: 'STON.fi üzerinden TON takasında', note: 'TON üzerinde takaslar (TON, USD₮, jetonlar). LI.FI ile aynı oran.' },
       { value: '%0', label: 'Jupiter üzerinden Solana swap’ında', note: 'Rotaya eklenen komisyon yok.' },
       { value: '%0', label: 'Earn’de', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: yatırırken ya da çekerken hiçbir kesinti yok.' },
       { value: '0 €', label: 'abonelik, sonsuza dek', note: '“Pro” sürüm yok, paralı duvar arkasında özellik yok.' },
@@ -242,7 +243,7 @@ const tr: Dict = {
     notice: 'Aşağıdaki metin Fransızca yazılmıştır; yalnızca Fransızca sürüm bağlayıcıdır.',
     privacyTitle: 'Gizlilik politikası',
     privacyIntro: 'Kalyx’te gizliliğiniz bir seçenek değil: mimarinin temelidir. Verilerinizi nasıl koruduğumuz: onları toplamayı reddederek.',
-    privacyMeta: ['Güncelleme: 5 Temmuz 2026', 'Kalyx', 'Fransız hukuku ve GDPR'],
+    privacyMeta: ['Güncelleme: 28 Eylül 2026', 'Kalyx', 'Fransız hukuku ve GDPR'],
     privacyContact: 'Verileriniz hakkında bir sorunuz mu var?',
     termsTitle: 'Genel kullanım koşulları',
     termsIntro: 'Kalyx Wallet’ı kullanmadan önce bu koşulları dikkatle okuyun. Sorumlu kullanım çerçevesini ve saklama gerektirmeyen modelin özelliklerini tanımlar.',

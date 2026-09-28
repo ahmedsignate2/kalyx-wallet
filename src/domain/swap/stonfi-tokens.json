@@ -1,0 +1,191 @@
+[
+ {
+  "address": "0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe",
+  "symbol": "USD₮",
+  "decimals": 6,
+  "name": "Tether USD",
+  "logo": "https://asset.ston.fi/img/EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs/1a87edfee9a28b05578853952e5effb8cc30af1e0fb90043aa2ce19dce490849"
+ },
+ {
+  "address": "0:bdf3fa8098d129b54b4f73b5bac5d1e1fd91eb054169c3916dfc8ccd536d1000",
+  "symbol": "tsTON",
+  "decimals": 9,
+  "name": "Tonstakers TON",
+  "logo": "https://asset.ston.fi/img/EQC98_qAmNEptUtPc7W6xdHh_ZHrBUFpw5Ft_IzNU20QAJav/38f530facb209e4696b8aef17af51df94d16bd879926c517b07d25841da287b7"
+ },
+ {
+  "address": "0:3690254dc15b2297610cda60744a45f2b710aa4234b89adb630e99d79b01bd4f",
+  "symbol": "STON",
+  "decimals": 9,
+  "name": "STON",
+  "logo": "https://asset.ston.fi/img/EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO/7c9798ce1e64707fb4cb8f025d4060f66b386ed381b50498e3b88731cedeffe8"
+ },
+ {
+  "address": "0:5a0a05303a873a80708d967fe82736f4995b3bf581bbc18a1abe1fa8d48b5a9d",
+  "symbol": "UTYA",
+  "decimals": 9,
+  "name": "Utya",
+  "logo": "https://asset.ston.fi/img/EQBaCgUwOoc6gHCNln_oJzb0mVs79YG7wYoavh-o1ItaneLA/727e6cc971afdfa8ed9c698d0909eee9de344a0b6766ff5e4ddcc3323449d6f6"
+ },
+ {
+  "address": "0:59fdc69f3f20ebe4a513b3468dc61d194c3864a4464e3662c903648d1a52e6e0",
+  "symbol": "REDO",
+  "decimals": 9,
+  "name": "Resistance Dog",
+  "logo": "https://asset.ston.fi/img/EQBZ_cafPyDr5KUTs0aNxh0ZTDhkpEZONmLJA2SNGlLm4Cko/88d0249592ca2d167bbd0045754810f33b573193934114d7cc9fd33d150667f3"
+ },
+ {
+  "address": "0:ae3e6d351e576276e439e7168117fd64696fd6014cb90c77b2f2cbaacd4fcc00",
+  "symbol": "MAJOR",
+  "decimals": 9,
+  "name": "Major",
+  "logo": "https://asset.ston.fi/img/EQCuPm01HldiduQ55xaBF_1kaW_WAUy5DHey8suqzU_MAJOR/aea6edb39acc18a2958ed78165051844b8d4cec92b860866a25dd7f300a07e50"
+ },
+ {
+  "address": "0:2f956143c461769579baef2e32cc2d7bc18283f40d20bb03e432cd603ac33ffc",
+  "symbol": "NOT",
+  "decimals": 9,
+  "name": "Notcoin",
+  "logo": "https://asset.ston.fi/img/EQAvlWFDxGF2lXm67y4yzC17wYKD9A0guwPkMs1gOsM__NOT/c0dcf1d0e16604a22040bed2a5ec97765479fdba99538fa0bb5c243bb6220c5e"
+ },
+ {
+  "address": "0:57e8af5a5d59779d720d0b23cf2fce82e0e355990f2f2b7eb4bba772905297a4",
+  "symbol": "GEMSTON",
+  "decimals": 9,
+  "name": "GEMSTON",
+  "logo": "https://asset.ston.fi/img/EQBX6K9aXVl3nXINCyPPL86C4ONVmQ8vK360u6dykFKXpHCa/c6ab1e58e3b9b58a7429d38b7feab731afae2f66dc301a6c42041fdf7e9d7c9c"
+ },
+ {
+  "address": "0:6ca2c99c66b0fa1478a303ba9618bc39c28fda1fc50de37e618bddf98c9fd24c",
+  "symbol": "STORM",
+  "decimals": 9,
+  "name": "STORM",
+  "logo": "https://asset.ston.fi/img/EQBsosmcZrD6FHijA7qWGLw5wo_aH8UN435hi935jJ_STORM/c862989a0b60faa178ae77a935d29a6deda782917360092351386fca33bfe0c8"
+ },
+ {
+  "address": "0:4a45235191e3f5fb68dc8394ff7ffff4b391e3fafadb7cd2cc432f1d9d9b3bc5",
+  "symbol": "CHERRY",
+  "decimals": 9,
+  "name": "Hot Cherry",
+  "logo": "https://asset.ston.fi/img/EQBKRSNRkeP1-2jcg5T_f__0s5Hj-vrbfNLMQy8dnZs7xd_p/01bca2cd788e49d3fc03b5e48551340907d0d582b9c73ffbead880b1404c12d8"
+ },
+ {
+  "address": "0:3547f2ee4022c794c80ea354b81bb63b5b571dd05ac091b035d19abbadd74ac6",
+  "symbol": "XAUt0",
+  "decimals": 6,
+  "name": "Tether Gold",
+  "logo": "https://asset.ston.fi/img/EQA1R_LuQCLHlMgOo1S4G7Y7W1cd0FrAkbA10Zq7rddKxi9k/3bcae1f79dd8f8b89f1a60f5ea5f2ba9ebc15f96bd2667e12891df51a2b5377d"
+ },
+ {
+  "address": "0:105e5589bc66db15f13c177a12f2cf3b94881da2f4b8e7922c58569176625eb5",
+  "symbol": "JETTON",
+  "decimals": 9,
+  "name": "JetTon",
+  "logo": "https://asset.ston.fi/img/EQAQXlWJvGbbFfE8F3oS8s87lIgdovS455IsWFaRdmJetTon/8f3d0eaf65c9f877a21f0b102832b431c0df7a6b7788b8df9a57a4d0305320bf"
+ },
+ {
+  "address": "0:960e3e3d1c52274b04a4e3d780a38efa135601cb02e816e499e8e3b7c7b8e63f",
+  "symbol": "BabyDoge",
+  "decimals": 9,
+  "name": "Baby Doge Coin",
+  "logo": "https://asset.ston.fi/img/EQCWDj49HFInSwSk49eAo476E1YBywLoFuSZ6OO3x7jmP2jn/24e3b339086836abf0082a5921e3b0f056027713a4c324fd26dc33e3c37452a4"
+ },
+ {
+  "address": "0:264068a6291ad21c32e596f75475e0ec5f50accc6cbf48f80d34df301368a123",
+  "symbol": "TPET",
+  "decimals": 9,
+  "name": "TON PET MEMECOIN",
+  "logo": "https://asset.ston.fi/img/EQAmQGimKRrSHDLllvdUdeDsX1CszGy_SPgNNN8wE2ihIwnP/a7077406eeeb5bc4db326af5514eaaa4528e98c96863dd8b58743f9caa429247"
+ },
+ {
+  "address": "0:5a76af69d76b82d4a7d288f0806a812f8695cf1e3ee1056abe9aa1a7b6ec04d8",
+  "symbol": "CATS",
+  "decimals": 9,
+  "name": "TON Cats Jetton",
+  "logo": "https://asset.ston.fi/img/EQBadq9p12uC1KfSiPCAaoEvhpXPHj7hBWq-mqGntuwE2C1C/49d430716e72e69db8da0c4c55427f030fd2ffc4d23fcd7dc33694057bf913a6"
+ },
+ {
+  "address": "0:b4298559a7047e75390fc1546a6a01f60f7d617bddf547ba146cf201a3fefb17",
+  "symbol": "TONG",
+  "decimals": 9,
+  "name": "痛",
+  "logo": "https://asset.ston.fi/img/EQC0KYVZpwR-dTkPwVRqagH2D31he931R7oUbPIBo_77F97K/76ca005f4dde08aa71868e43c1eccbbfa4c42a795ae70de178483035ca69d4f3"
+ },
+ {
+  "address": "0:16a73dbf1b434ac651b656f8056e06463edf18d6a7b47068fee18c3905f99847",
+  "symbol": "MEM",
+  "decimals": 9,
+  "name": "Not Meme",
+  "logo": "https://asset.ston.fi/img/EQAWpz2_G0NKxlG2VvgFbgZGPt8Y1qe0cGj-4Yw5BfmYR5iF/503bf9e57a5c9f3eb469d76111efd90746ab647408360613828a27206007a43e"
+ },
+ {
+  "address": "0:746a957e372098243570481a032fce978e9d0e8b07320fc8c9d09e415569e70c",
+  "symbol": "OPEN",
+  "decimals": 9,
+  "name": "OPEN",
+  "logo": "https://asset.ston.fi/img/EQB0apV-NyCYJDVwSBoDL86Xjp0OiwcyD8jJ0J5BVWnnDJu7/73163918d3345dbe638084ae45674a82f02598505d0dddb76715727f205c489a"
+ },
+ {
+  "address": "0:effb2af8d7f099daeae0da07de8157dae383c33e320af45f8c8a510328350886",
+  "symbol": "ANON",
+  "decimals": 9,
+  "name": "ANON",
+  "logo": "https://asset.ston.fi/img/EQDv-yr41_CZ2urg2gfegVfa44PDPjIK9F-MilEDKDUIhlwZ/fbba0031e135f573ba8c3659c5403224a95330af1f4be2c2cad04874cdb3cf64"
+ },
+ {
+  "address": "0:dcfe7ae6e6839509540cf06449e6afe1af58e0a4d423b06908184faecedb76eb",
+  "symbol": "ECOR",
+  "decimals": 9,
+  "name": "Ecorpay Token",
+  "logo": "https://asset.ston.fi/img/EQDc_nrm5oOVCVQM8GRJ5q_hr1jgpNQjsGkIGE-uztt26_Ep/d1e1de6e11a6c4f7d195ac1b1377d43a3ae51a0afa3644e1e5f185e59638812e"
+ },
+ {
+  "address": "0:086fa2a675f74347b08dd4606a549b8fdb98829cb282bc1949d3b12fbaed9dcc",
+  "symbol": "USDe",
+  "decimals": 6,
+  "name": "Ethena USDe",
+  "logo": "https://asset.ston.fi/img/EQAIb6KmdfdDR7CN1GBqVJuP25iCnLKCvBlJ07Evuu2dzP5f/dbcc67993cd4aad4845a97a4a9722c6cb618123997c8112c29d4932b2739c4cd"
+ },
+ {
+  "address": "0:d0e545323c7acb7102653c073377f7e3c67f122eb94d430a250739f109d4a57d",
+  "symbol": "tsUSDe",
+  "decimals": 6,
+  "name": "tsUSDe",
+  "logo": "https://asset.ston.fi/img/EQDQ5UUyPHrLcQJlPAczd_fjxn8SLrlNQwolBznxCdSlfQwr/62bdb87aad0b9019a385a8b37a22733f8a6eb6c2d105275bd2527139e970d18b"
+ },
+ {
+  "address": "0:8c938fceba30a7938ea30291e72116e64ed61391299fba357d5fc61ed2abec1d",
+  "symbol": "XAUH",
+  "decimals": 18,
+  "name": "Herculis Gold Coin",
+  "logo": "https://asset.ston.fi/img/EQCMk4_OujCnk46jApHnIRbmTtYTkSmfujV9X8Ye0qvsHVKh/be5490c830be36de24f277e20d0e90fca00902a61b68959882962c45b6f65cbe"
+ },
+ {
+  "address": "0:e1c8fcdb223253fd69d8de01a9ae349850af5f88632358c7b3c4ef0c66251d7d",
+  "symbol": "cbBTC",
+  "decimals": 8,
+  "name": "Coinbase Wrapped BTC",
+  "logo": "https://asset.ston.fi/img/EQDhyPzbIjJT_WnY3gGprjSYUK9fiGMjWMezxO8MZiUdfb_B/068d8ddbf4a6dd685c229f2a57bc7246085ec1872826a32cb4327c4b3a1fa2c7"
+ },
+ {
+  "address": "0:5390b02112d7990918117bfc4cb39644d1b32b76e63129bcb3182a575d6f1d45",
+  "symbol": "WETH",
+  "decimals": 18,
+  "name": "Wrapped Ether",
+  "logo": "https://asset.ston.fi/img/EQBTkLAhEteZCRgRe_xMs5ZE0bMrduYxKbyzGCpXXW8dRWOT/6267787665c30c2500dbde048e2f8a6a6d7ec58633ea038723f4ce1fab337ccb"
+ },
+ {
+  "address": "0:757f204003da900cfe8b106685ddc6d4f976ebfa9e844816469ea94790720700",
+  "symbol": "SPYx",
+  "decimals": 8,
+  "name": "SP500 xStock",
+  "logo": "https://asset.ston.fi/img/EQB1fyBAA9qQDP6LEGaF3cbU-Xbr-p6ESBZGnqlHkHIHAJZv/63c092d665ad93882cba15a1b9bc213233e452edf97b45099c615f523d98b0e9"
+ },
+ {
+  "address": "0:4a5542448e30414b05360ca4c8303ebe9d51d1f08a7187f45dc708ed3486d1d0",
+  "symbol": "COC",
+  "decimals": 9,
+  "name": "Call of Odin's Chosen",
+  "logo": "https://asset.ston.fi/img/EQBKVUJEjjBBSwU2DKTIMD6-nVHR8Ipxh_RdxwjtNIbR0OIw/cfe199b8b055bbad9503fa2cc45831f29de1be25d9d625b6b056b1abaa6afa1c"
+ }
+]

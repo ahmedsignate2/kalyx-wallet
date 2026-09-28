@@ -39,7 +39,7 @@ Vous pouvez à tout moment effacer l'intégralité de ces données en désinstal
 • mempool.space — soldes, frais et historique (Bitcoin)
 • TonAPI & TON Center — soldes, jettons, NFT, noms .ton, simulation et diffusion (TON). Les requêtes TonAPI transitent par un relais opéré par l'éditeur (Cloudflare Workers) : il voit votre adresse IP et vos adresses TON, n'en conserve aucune trace, et ne garde qu'une minute en cache les réponses publiques
 • DefiLlama, CoinGecko, Frankfurter — prix des cryptos et taux de change
-• LI.FI, Relay — devis de swap et de bridge ; Jupiter — swap sur Solana ; Tonstakers — staking TON
+• LI.FI, Relay — devis de swap et de bridge ; Jupiter — swap sur Solana ; STON.fi — swap sur TON (reçoit votre adresse TON pour construire le devis) ; Tonstakers — staking TON
 • WalletConnect (Reown) — relais chiffré avec les dApps, vérification du domaine (Verify) et paiements marchands (WalletConnect Pay)
 • Ponts TON Connect (TON Foundation, Tonkeeper) — messages chiffrés de bout en bout avec les dApps TON
 • GoPlus Security — analyse préventive des contrats, tokens et sites
