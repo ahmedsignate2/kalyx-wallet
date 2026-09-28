@@ -60,7 +60,14 @@ export async function encryptSecret(
   const salt = getRandomBytes(16);
   const nonce = getRandomBytes(12);
   const key = await deriveKey(pin, salt, kdf);
-  const ct = gcm(key, nonce).encrypt(utf8ToBytes(plaintext));
+  const pt = utf8ToBytes(plaintext);
+  let ct: Uint8Array;
+  try {
+    ct = gcm(key, nonce).encrypt(pt);
+  } finally {
+    key.fill(0);
+    pt.fill(0);
+  }
   return {
     v: 1,
     kdf: 'scrypt',
@@ -82,13 +89,18 @@ export async function decryptSecret(
     throw new WalletError('VAULT_CORRUPTED', 'Format de coffre non supporté');
   }
   const key = await deriveKey(pin, hexToBytes(vault.salt), vault);
+  let pt: Uint8Array | null = null;
   try {
-    const pt = gcm(key, hexToBytes(vault.nonce)).decrypt(hexToBytes(vault.ct));
+    pt = gcm(key, hexToBytes(vault.nonce)).decrypt(hexToBytes(vault.ct));
     // bytesToUtf8 (lib auditée) au lieu de TextDecoder, absent sur Hermes/Android.
     return bytesToUtf8(pt);
   } catch {
     // GCM échoue si PIN faux OU données altérées : on ne distingue pas.
     throw new WalletError('WRONG_PIN', 'PIN incorrect');
+  } finally {
+    // Clé AES et octets déchiffrés effacés : seule la chaîne rendue survit (inévitable en JS).
+    key.fill(0);
+    pt?.fill(0);
   }
 }
 

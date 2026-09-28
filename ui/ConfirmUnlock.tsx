@@ -67,9 +67,21 @@ export function ConfirmUnlock({
   const aiStore = useAiStore();
   const [aiAnalysis, setAiAnalysis] = useState<{ riskLevel: string, explanation: string, threats: string[] } | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  /*
+   * ANALYSE IA À LA DEMANDE. Elle partait d'office à chaque confirmation :
+   * destination, montant et action envoyés au fournisseur d'IA sans que
+   * l'utilisateur l'ait demandé. Désormais un bouton, qui dit ce qui part.
+   */
+  const [aiRequested, setAiRequested] = useState(false);
+  useEffect(() => {
+    if (!visible) {
+      setAiRequested(false);
+      setAiAnalysis(null);
+    }
+  }, [visible]);
 
   useEffect(() => {
-    if (visible && aiStore.isEnabled && aiContext && !aiAnalysis && !analyzing) {
+    if (visible && aiRequested && aiStore.isEnabled && aiContext && !aiAnalysis && !analyzing) {
       setAnalyzing(true);
       (async () => {
         console.log('[AI Audit] Lancement de l\'audit de transaction pour:', aiContext.to);
@@ -285,8 +297,15 @@ Action: ${aiContext.method || 'Transfer'}`;
           ) : (
             <>
 
-              {aiStore.isEnabled && aiContext && (
-                <View style={{ width: '90%', backgroundColor: colors.surface2, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? colors.danger : aiAnalysis.riskLevel === 'WARNING' ? colors.warning : colors.up) : colors.border, marginBottom: 8 }}>
+              {aiStore.isEnabled && aiContext && !aiRequested ? (
+                <KPressable onPress={() => setAiRequested(true)} style={{ width: '90%', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 8 }}>
+                  <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{t('aiAuditRun')}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 11, fontFamily: fonts.medium, marginTop: 2 }}>{t('aiAuditRunNote')}</Text>
+                </KPressable>
+              ) : null}
+              {aiStore.isEnabled && aiContext && aiRequested && (
+                // « Sûr » n'est JAMAIS affiché en vert : l'IA n'a vu qu'une adresse et un montant.
+                <View style={{ width: '90%', backgroundColor: colors.surface2, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? colors.danger : aiAnalysis.riskLevel === 'WARNING' ? colors.warning : colors.border) : colors.border, marginBottom: 8 }}>
                   <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13, marginBottom: 4 }}>
                     {analyzing ? t("aiAuditInProgress") : (aiAnalysis ? `${t('aiAuditLabel')} ${aiAnalysis.riskLevel}` : t("aiAuditUndetermined"))}
                   </Text>

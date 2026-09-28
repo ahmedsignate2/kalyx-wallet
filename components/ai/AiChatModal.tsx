@@ -29,6 +29,7 @@ import { haptic } from '../../lib/haptics';
 import { openTelegramTicket, normalizeSupportTicket, getClientEnvironmentInfo, generateTicketId } from '../../lib/telegramSupport';
 import { useTicketHistoryStore } from '../../lib/ticketHistoryStore';
 import { detectSensitiveSecrets, sanitizeSecrets } from '../../lib/secretDetector';
+import { knownTxHashes } from '../../lib/knownTxHashes';
 import { technicalLogger, getFormattedTechnicalLogs } from '../../lib/technicalLogger';
 
 function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
@@ -49,14 +50,14 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
     }
   }, [normalizedTicket]);
 
-  const secretCheck = detectSensitiveSecrets(normalizedTicket);
+  const secretCheck = detectSensitiveSecrets(normalizedTicket, knownTxHashes());
 
   const ticketIdMatch = normalizedTicket.match(/• ID\s*:\s*([^\n]+)/i);
   const ticketId = ticketIdMatch ? ticketIdMatch[1].trim() : null;
 
   const handleExport = async () => {
     setErrorWarning(null);
-    const check = detectSensitiveSecrets(normalizedTicket);
+    const check = detectSensitiveSecrets(normalizedTicket, knownTxHashes());
     if (check.hasSecret) {
       setErrorWarning(check.warningMessage || t('aiSupportSecretAlert'));
       return;
@@ -73,7 +74,7 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
 
   const handleCopy = async () => {
     setErrorWarning(null);
-    const check = detectSensitiveSecrets(normalizedTicket);
+    const check = detectSensitiveSecrets(normalizedTicket, knownTxHashes());
     if (check.hasSecret) {
       setErrorWarning(check.warningMessage || t('aiSupportSecretAlert'));
       return;
@@ -401,7 +402,7 @@ une source externe.`}`;
     if (!msgToSend || !apiKey) return;
     
     // Contrôle de sécurité client : blocage immédiat si clé privée ou seed phrase
-    const secretCheck = detectSensitiveSecrets(msgToSend);
+    const secretCheck = detectSensitiveSecrets(msgToSend, knownTxHashes());
     if (secretCheck.hasSecret) {
       setInput('');
       addMessageToActive({ sender: 'user', text: sanitizeSecrets(msgToSend) });

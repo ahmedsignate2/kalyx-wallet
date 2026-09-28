@@ -1,6 +1,6 @@
 /** Vérification (§4.9) — retrouver 3 mots au hasard, pas les 12. Succès → `backupVerified`. */
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +23,14 @@ export default function Verify() {
   const { then } = useLocalSearchParams<{ then?: string }>();
   const challenge = useMemo(() => (draft ? createBackupChallenge(draft, { count: 3, optionsPerWord: 4 }) : []), [draft]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  /*
+   * Vérification différée (portefeuille existant) : la phrase a été recopiée
+   * dans l'état global pour ce seul écran. Quitter sans finir l'y laissait,
+   * indéfiniment. Elle en sort quoi qu'il arrive, à la fermeture de l'écran.
+   */
+  useEffect(() => () => {
+    if (then === 'security') useWallet.setState({ draftMnemonic: null });
+  }, [then]);
   const allAnswered = challenge.every((c) => answers[c.position]);
 
   const onValidate = () => {

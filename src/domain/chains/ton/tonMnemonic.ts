@@ -127,6 +127,12 @@ export function tonSeedFromMnemonic(mnemonic: string, password = ''): Uint8Array
   if (words.length === 0) throw new Error('Phrase TON vide');
   const entropy = mnemonicToEntropy(words, password);
   const seed = pbkdf2(sha512, entropy, utf8ToBytes(SALT_KEYSTORE), { c: ITERATIONS, dkLen: 64 });
-  // Les 32 PREMIERS octets, et seulement eux : les 32 suivants ne servent pas.
-  return seed.slice(0, 32);
+  try {
+    // Les 32 PREMIERS octets, et seulement eux : les 32 suivants ne servent pas.
+    return seed.slice(0, 32);
+  } finally {
+    // Intermédiaires effacés : seule la copie rendue survit (et l'appelant l'efface).
+    entropy.fill(0);
+    seed.fill(0);
+  }
 }

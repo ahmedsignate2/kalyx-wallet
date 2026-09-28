@@ -504,7 +504,7 @@ export default function Browser() {
       const w = useWallet.getState();
       let result: string;
       if (pending.kind === 'sign') result = await w.signMessage(unlock, pending.hex);
-      else if (pending.kind === 'typedData') result = await w.signTypedData(unlock, pending.data as Parameters<typeof w.signTypedData>[1]);
+      else if (pending.kind === 'typedData') result = await w.signTypedData(unlock, pending.data as Parameters<typeof w.signTypedData>[1], getAdapter(tb?.chainId ?? activeChain).config.evmChainId);
       // Le réseau de la DEMANDE, pas celui de l'onglet maintenant : le Chain ID signé doit correspondre au nœud qui diffuse.
       else result = await w.sendRawTxOn(unlock, pending.kind === 'tx' ? pending.chainId : tb?.chainId ?? activeChain, pending.raw);
       respond(pending.id, result);

@@ -1,5 +1,6 @@
 import { Linking, Platform } from 'react-native';
 import { detectSensitiveSecrets } from './secretDetector';
+import { knownTxHashes } from './knownTxHashes';
 import { technicalLogger } from './technicalLogger';
 
 export interface SupportTicketParams {
@@ -214,12 +215,19 @@ export function normalizeSupportTicket(rawContent: string, defaultNetwork?: stri
  */
 export const openTelegramTicket = async (ticketContent: string): Promise<boolean> => {
   // Vérification de sécurité absolue avant ouverture
-  const check = detectSensitiveSecrets(ticketContent);
+  const check = detectSensitiveSecrets(ticketContent, knownTxHashes());
   if (check.hasSecret) {
     throw new Error(check.warningMessage || 'Présence de données sensibles détectée dans le ticket.');
   }
 
-  const encodedText = encodeURIComponent(ticketContent);
+  /*
+   * Un message Telegram fait au plus 4 096 caractères : au-delà, le texte
+   * prérempli est tronqué sans prévenir (ou l'URL refusée). Le ticket commence
+   * par l'essentiel (ID, problème, environnement) ; on coupe la fin, et on le dit.
+   */
+  const MAX_TICKET = 3500;
+  const body = ticketContent.length > MAX_TICKET ? `${ticketContent.slice(0, MAX_TICKET)}\n[…]` : ticketContent;
+  const encodedText = encodeURIComponent(body);
   // Ouvre la discussion privée avec le compte officiel et préremplit le message
   const url = `https://t.me/kalyxntw?text=${encodedText}`;
 
@@ -229,7 +237,8 @@ export const openTelegramTicket = async (ticketContent: string): Promise<boolean
     return true;
   } else {
     // Fallback navigateur web si l'appli Telegram n'est pas installée
-    await Linking.openURL(`https://web.telegram.org/k/#?text=${encodedText}`);
+    // La conversation du SUPPORT (sans `@kalyxntw`, le texte partait vers aucun destinataire).
+    await Linking.openURL(`https://web.telegram.org/k/#@kalyxntw`);
     return true;
   }
 };

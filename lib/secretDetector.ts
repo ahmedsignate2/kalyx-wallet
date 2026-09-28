@@ -15,21 +15,21 @@ const SECRET_WARNING_MESSAGE =
  * Détecte si un texte contient une phrase mnémonique (BIP-39), une clé privée hexadécimale (64 caractères)
  * ou une clé privée Solana en Base58.
  */
-export function detectSensitiveSecrets(input: string): SecretDetectionResult {
+export function detectSensitiveSecrets(input: string, knownHashes: Iterable<string> = []): SecretDetectionResult {
   if (!input || typeof input !== 'string') {
     return { hasSecret: false };
   }
   /*
-   * HASHES DE TRANSACTION AUTORISÉS. Un hash EVM (0x + 64 hex) a exactement la
-   * forme d'une clé privée, et une signature Solana celle d'une clé Solana : le
-   * détecteur refusait précisément ce que le support demande. Impossible de les
-   * distinguer par la forme ; on retire donc ce qui est PRÉSENTÉ comme un hash —
-   * dans un lien d'explorateur (`/tx/…`) ou après « tx », « hash », « txid »,
-   * « transaction », « signature ». Tout le reste reste bloqué.
+   * HASHES DE TRANSACTION AUTORISÉS — SEULEMENT LES NÔTRES. Un hash EVM
+   * (0x + 64 hex) a exactement la forme d'une clé privée : aucune règle de
+   * forme ne les distingue. Laisser passer tout ce qui suit « tx: » ouvrait
+   * donc la porte à « tx: <clé privée> ». Désormais, une valeur n'est retirée
+   * que si c'est le hash d'une transaction CONNUE de l'app (historique, journal
+   * technique) ; toute autre valeur de cette forme reste bloquée.
    */
-  const text = input
-    .replace(/\/tx\/(?:0x)?[1-9A-HJ-NP-Za-km-z]{43,90}/g, '/tx/[hash]')
-    .replace(/\b(tx|txid|txhash|hash|transaction|signature)\s*[:=#]?\s*(?:0x)?[A-Za-z0-9]{43,90}/gi, '$1 [hash]');
+  const known = new Set(Array.from(knownHashes, (h) => h.toLowerCase().replace(/^0x/, '')));
+  const strip = (v: string) => (known.has(v.toLowerCase().replace(/^0x/, '')) ? '[hash]' : v);
+  const text = input.replace(/(?:0x)?[0-9A-Za-z]{43,90}/g, strip);
 
   // 1. Détection de clés privées hexadécimales brutes (64 hex avec ou sans 0x)
   // Exclut les masques déjà caviardés comme [CLÉ_MASQUÉE] ou [REDACTED]

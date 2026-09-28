@@ -266,7 +266,8 @@ interface WalletState {
 
   // Signature pour WalletConnect (requêtes dApp)
   signMessage: (unlock: Unlock, message: string) => Promise<string>;
-  signTypedData: (unlock: Unlock, typedData: { domain: unknown; types: Record<string, unknown>; message: unknown }) => Promise<string>;
+  /** `expectedChainId` : réseau de la demande ; un `domain.chainId` différent est refusé (rejeu sur un autre réseau). */
+  signTypedData: (unlock: Unlock, typedData: { domain: unknown; types: Record<string, unknown>; message: unknown }, expectedChainId?: number) => Promise<string>;
   sendRawTxOn: (unlock: Unlock, chainId: string, req: RawTxRequest) => Promise<string>;
   /** Envoie un token ERC-20 détenu (transfer) sur le réseau actif. */
   sendToken: (to: string, amount: string, token: { contract: string; decimals: number }, unlock: Unlock, gas?: GasOverride) => Promise<string>;
@@ -484,9 +485,13 @@ async function revealEvmSigningKey(
     throw new WalletError('NOT_SUPPORTED', 'import.WRONG_FAMILY:ton:evm');
   }
   const secret = await revealMnemonic(activeWalletId, unlock);
-  return isPrivateKeyWallet(wallets, activeWalletId)
-    ? normalizeEvmPrivateKey(secret)
-    : deriveEvmAccount(mnemonicToSeedSync(secret), accountIndex).privateKey;
+  if (isPrivateKeyWallet(wallets, activeWalletId)) return normalizeEvmPrivateKey(secret);
+  const seed = mnemonicToSeedSync(secret);
+  try {
+    return deriveEvmAccount(seed, accountIndex).privateKey;
+  } finally {
+    seed.fill(0); // graine effacée : elle servait à chaque signature EVM et restait en mémoire
+  }
 }
 
 /**
@@ -1119,7 +1124,9 @@ export const useWallet = create<WalletState>((set, get) => ({
   // toute façon le PIN/biométrie, donc garder la session est sûr — et éviter de
   // la couper évite un désync (le web resterait « connecté » sur une session
   // morte et les requêtes partiraient dans le vide).
-  lock: () => set({ isUnlocked: false }),
+  // Un brouillon de phrase n'a rien à faire dans un coffre verrouillé : un portefeuille existe déjà,
+  // le flux qui l'utilisait (vérification, ajout) recommencera après le code.
+  lock: () => set(get().hasWallet ? { isUnlocked: false, draftMnemonic: null } : { isUnlocked: false }),
 
   signAndSend: async (to, amount, unlock, gas) => {
     const { account, activeChain } = get();
@@ -1508,9 +1515,27 @@ export const useWallet = create<WalletState>((set, get) => ({
     return new Wallet(pk).signMessage(data);
   },
 
-  signTypedData: async (unlock, typedData) => {
+  signTypedData: async (unlock, typedData, expectedChainId) => {
     const { account, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
+    /*
+     * Une signature EIP-712 porte son réseau dans `domain.chainId`. Signée
+     * pour un autre réseau que celui de la demande (un « Permit » mainnet
+     * demandé depuis une page de test), elle est rejouable là-bas. Refusée,
+     * comme le fait MetaMask — avant de dériver la clé.
+     */
+    const domainChain = (typedData.domain as { chainId?: unknown } | null)?.chainId;
+    if (expectedChainId !== undefined && domainChain !== undefined && domainChain !== null) {
+      let n: number;
+      try {
+        n = Number(typeof domainChain === 'string' && /^0x/i.test(domainChain) ? BigInt(domainChain) : domainChain);
+      } catch {
+        n = NaN;
+      }
+      if (n !== expectedChainId) {
+        throw new WalletError('NOT_SUPPORTED', `Signature pour le réseau ${String(domainChain)} demandée sur le réseau ${expectedChainId} : refusée`);
+      }
+    }
     const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
     const { EIP712Domain: _drop, ...types } = (typedData.types ?? {}) as Record<string, unknown>;
     return new Wallet(pk).signTypedData(
@@ -1644,12 +1669,20 @@ export const useWallet = create<WalletState>((set, get) => ({
     const family = chainConfig(get().activeChain).family;
     if (family === 'ton') throw new WalletError('NOT_SUPPORTED', 'Pas de clé privée TON exportable : utiliser la phrase');
     const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
-    if (family === 'bitcoin') return formatExportedKey('bitcoin', deriveBtcSigner(seed, account.index).privateKey);
-    if (family === 'solana') {
-      const s = deriveSolanaSigner(seed, account.index);
-      return formatExportedKey('solana', s.secretKey, s.publicKey);
+    // Graine et clé dérivée effacées une fois la chaîne d'export formée (comme `deriveSigner`).
+    try {
+      if (family === 'bitcoin') {
+        const k = deriveBtcSigner(seed, account.index).privateKey;
+        try { return formatExportedKey('bitcoin', k); } finally { k.fill(0); }
+      }
+      if (family === 'solana') {
+        const s = deriveSolanaSigner(seed, account.index);
+        try { return formatExportedKey('solana', s.secretKey, s.publicKey); } finally { s.secretKey.fill(0); }
+      }
+      return deriveEvmAccount(seed, account.index).privateKey;
+    } finally {
+      seed.fill(0);
     }
-    return deriveEvmAccount(seed, account.index).privateKey;
   },
 
   enableBiometric: async (pin) => {
