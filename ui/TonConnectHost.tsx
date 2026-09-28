@@ -24,6 +24,7 @@ import { technicalLogger } from '../lib/technicalLogger';
 import { haptic } from '../lib/haptics';
 import { formatTokenAmount, shortAddress, isWalletError } from '../src';
 import { totalOut } from '../src/domain/tonconnect/requests';
+import { blindSafe, describeTonPayload } from '../src/domain/tonconnect/payload';
 
 /**
  * Erreur lisible pour l'écran de code. Un code « tc… » est traduit ; un PIN
@@ -37,6 +38,16 @@ function readable(e: unknown, t: (k: never) => string): unknown {
   if (isWalletError(e)) return e;
   if (msg.startsWith('tc')) return new UserFacingError(t(msg as never));
   return new UserFacingError(`${t('connectionFailed' as never)} — ${msg}`);
+}
+
+/** Nature des données d'un message, lue localement (jamais « data » sans plus). */
+function payloadLabel(payload: Parameters<typeof describeTonPayload>[0], t: (k: never) => string): string {
+  const d = describeTonPayload(payload);
+  if (d.kind === 'none') return '';
+  if (d.kind === 'comment') return d.text ? ` · « ${d.text.slice(0, 40)} »` : '';
+  if (d.kind === 'jetton') return ` · ${t('tcMsgJetton' as never)} → ${shortAddress(d.destination)}`;
+  if (d.kind === 'nft') return ` · ${t('tcMsgNft' as never)} → ${shortAddress(d.newOwner)}`;
+  return ` · ${t('tcMsgCall' as never)}`;
 }
 
 function DappHeader({ name, domain, icon }: { name: string; domain: string; icon: string }) {
@@ -139,6 +150,8 @@ function TxSheet({ p }: { p: Extract<TcPending, { kind: 'tx' }> }) {
   const sessionIndex = accounts.findIndex((a) => !!a.tonPublicKey);
   const wrongAccount = !wrongWallet && sessionIndex >= 0 && activeIndex !== sessionIndex;
   const tonOut = e ? e.risk.ton : totalOut(p.tx);
+  // Sans émulation, on ne signe que ce qu'on voit en entier (envois simples de TON) — voir src/domain/tonconnect/payload.ts.
+  const blind = !loading && !e && !blindSafe(p.tx.messages);
 
   return (
     <Sheet visible onClose={() => void rejectTx()}>
@@ -176,14 +189,15 @@ function TxSheet({ p }: { p: Extract<TcPending, { kind: 'tx' }> }) {
       <Surface style={{ gap: space[1] }}>
         {p.tx.messages.map((m, i) => (
           <Text key={i} variant="caption" tone="secondary" numberOfLines={1}>
-            → {shortAddress(m.to)} · {formatTokenAmount(m.amount, 9)} TON{m.payload ? ' · data' : ''}{m.init ? ' · deploy' : ''}
+            → {shortAddress(m.to)} · {formatTokenAmount(m.amount, 9)} TON{payloadLabel(m.payload, t)}{m.init ? ' · deploy' : ''}
           </Text>
         ))}
       </Surface>
 
+      {blind ? <Text variant="caption" tone="danger">{t('tcCannotVerify')}</Text> : null}
       {wrongWallet ? <Text variant="caption" tone="danger">{t('tcWrongWallet')}</Text> : null}
       {wrongAccount ? <TonAccessNotice mainIndex={sessionIndex} message={t('tcWrongAccount')} /> : null}
-      <Button label={t('tcApprove')} onPress={() => setConfirming(true)} disabled={wrongWallet || wrongAccount || loading || !!e?.failed} />
+      <Button label={t('tcApprove')} onPress={() => setConfirming(true)} disabled={wrongWallet || wrongAccount || loading || !!e?.failed || blind} />
       <Button label={t('tcReject')} variant="secondary" onPress={() => void rejectTx()} />
       <ConfirmUnlock
         visible={confirming}

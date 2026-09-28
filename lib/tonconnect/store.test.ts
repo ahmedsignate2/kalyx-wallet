@@ -55,7 +55,7 @@ jest.mock('../../src', () => {
     const path = decodeURIComponent(u.replace('https://p/n', ''));
     if (path === `/v2/accounts/${A}`) return { status: 200, text: async () => JSON.stringify({ ...L.accountActiveW5, balance: 1_000_000_000 }) };
     if (path === `/v2/wallet/${A}/seqno`) return { status: 200, text: async () => '{"seqno":5}' };
-    if (path === '/v2/wallet/emulate') return { status: 200, text: async () => JSON.stringify(L.emulateV3) };
+    if (path === '/v2/wallet/emulate') return (globalThis as { __emuDown?: boolean }).__emuDown ? { status: 503, text: async () => '{}' } : { status: 200, text: async () => JSON.stringify(L.emulateV3) };
     if (path === '/v2/blockchain/message') { broadcasts.push(JSON.parse(i!.body!).boc); return { status: 200, text: async () => '{}' }; }
     return { status: 404, text: async () => '{}' };
   });
@@ -117,6 +117,26 @@ describe('TON Connect, du QR à la transaction', () => {
     // Le BOC rendu est un message externe vers NOTRE portefeuille.
     const msg = loadMessage(Cell.fromBase64(reply.result).beginParse());
     expect(msg.info.dest?.toString()).toBe(require('@ton/core').Address.parse(art.v5r1.raw).toString());
+  });
+
+  it('émulation indisponible : un transfert de jetons caché dans les données n’est jamais signé', async () => {
+    const { beginCell, Address } = require('@ton/core');
+    const session = useTonConnect.getState().sessions[0];
+    const jet = beginCell().storeUint(0x0f8a7ea5, 32).storeUint(1, 64).storeCoins(10n ** 12n).storeAddress(Address.parse(KEYS.keys[4].v4r2.eq)).storeAddress(Address.parse(KEYS.keys[4].v4r2.eq)).storeBit(0).storeCoins(1n).storeBit(0).endCell();
+    (globalThis as { __emuDown?: boolean }).__emuDown = true;
+    try {
+      const req = { method: 'sendTransaction', id: '9', params: [JSON.stringify({ valid_until: Math.floor(Date.now() / 1000) + 300, messages: [{ address: KEYS.keys[4].v4r2.eq, amount: '50000000', payload: jet.toBoc().toString('base64') }] })] };
+      onMessage!({ from: dapp.publicKey, message: base64.encode(encryptMessage(JSON.stringify(req), session.keyPair.publicKey, dapp.secretKey)) });
+      await new Promise((r) => setTimeout(r, 20));
+      const pending = useTonConnect.getState().queue[0];
+      expect(pending.kind === 'tx' && pending.draft?.emulation).toBeNull();
+      const before = broadcasts.length;
+      await expect(useTonConnect.getState().approveTx({ pin: '000000' } as never)).rejects.toThrow('tcCannotVerify');
+      expect(broadcasts.length).toBe(before);
+    } finally {
+      (globalThis as { __emuDown?: boolean }).__emuDown = false;
+      await useTonConnect.getState().rejectTx();
+    }
   });
 
   it('refus : code 300 renvoyé à la dApp', async () => {
