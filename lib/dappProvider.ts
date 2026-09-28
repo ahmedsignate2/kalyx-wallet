@@ -60,9 +60,17 @@ export interface DappRequest {
   params: unknown[];
 }
 
-export function parseDappMessage(raw: string): DappRequest | null {
+/**
+ * JETON DE PAGE. Le pont `ReactNativeWebView` est injecté dans TOUTES les frames
+ * (iframes publicitaires comprises) ; sur les WebView anciennes, leurs messages
+ * portent même l'URL de la page principale. Le jeton n'existe que dans la
+ * fermeture du script injecté dans la page principale : un message sans lui
+ * vient d'ailleurs et est ignoré.
+ */
+export function parseDappMessage(raw: string, token: string): DappRequest | null {
   try {
-    const m = JSON.parse(raw) as Partial<DappRequest>;
+    const m = JSON.parse(raw) as Partial<DappRequest> & { k?: unknown };
+    if (!token || m?.k !== token) return null;
     if (typeof m?.id !== 'number' || typeof m?.method !== 'string') return null;
     return { id: m.id, method: m.method, params: Array.isArray(m.params) ? m.params : [] };
   } catch {
@@ -87,7 +95,7 @@ export function emitJs(event: string, data: unknown): string {
  * `chainIdHex` = réseau actif au moment du chargement (mis à jour ensuite via
  * l'événement chainChanged).
  */
-export function buildInjectedProvider(chainIdHex: string): string {
+export function buildInjectedProvider(chainIdHex: string, token: string): string {
   return `(function () {
   if (window.ethereum && window.ethereum.isKalyx) return;
   var pending = {};
@@ -111,7 +119,7 @@ export function buildInjectedProvider(chainIdHex: string): string {
         var id = nextId++;
         pending[id] = { resolve: resolve, reject: reject };
         window.ReactNativeWebView.postMessage(
-          JSON.stringify({ id: id, method: args.method, params: args.params || [] })
+          JSON.stringify({ id: id, method: args.method, params: args.params || [], k: ${JSON.stringify(token)} })
         );
       });
     },

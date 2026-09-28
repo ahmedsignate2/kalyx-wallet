@@ -90,7 +90,7 @@ describe('Pont JS : la page détecte Kalyx comme le SDK TON Connect', () => {
     const posted: string[] = [];
     const win: Record<string, unknown> = { ReactNativeWebView: { postMessage: (m: string) => posted.push(m) } };
     win.window = win;
-    vm.runInNewContext(buildTonJsBridge({ appName: 'kalyx', maxProtocolVersion: 2 }), win);
+    vm.runInNewContext(buildTonJsBridge({ appName: 'kalyx', maxProtocolVersion: 2 }, 'tok'), win);
     // Découverte du SDK : un objet de `window` dont `tonconnect.walletInfo` a ces champs.
     const found = Object.entries(win).filter(([, v]) => {
       const w = (v as { tonconnect?: { walletInfo?: Record<string, unknown> } })?.tonconnect?.walletInfo;
@@ -100,7 +100,10 @@ describe('Pont JS : la page détecte Kalyx comme le SDK TON Connect', () => {
     const tc = (win.kalyx as { tonconnect: { isWalletBrowser: boolean; protocolVersion: number; connect: (v: number, r: unknown) => Promise<unknown> } }).tonconnect;
     expect(tc).toMatchObject({ isWalletBrowser: true, protocolVersion: 2 });
     const p = tc.connect(2, REQUEST);
-    expect(parseTcJsMessage(posted[0])).toEqual({ id: 1, method: 'connect', params: [2, REQUEST] });
+    expect(parseTcJsMessage(posted[0], 'tok')).toEqual({ id: 1, method: 'connect', params: [2, REQUEST] });
+    // Une iframe (autre site) ne connaît pas le jeton de page : message ignoré.
+    expect(parseTcJsMessage(posted[0], 'autre')).toBeNull();
+    expect(parseTcJsMessage(JSON.stringify({ __kalyxTc: 1, id: 9, method: 'send', params: [] }), 'tok')).toBeNull();
     (win.__kalyxTcResolve as (id: number, v: unknown) => void)(1, { event: 'connect' });
     await expect(p).resolves.toEqual({ event: 'connect' });
   });
