@@ -226,6 +226,8 @@ interface WalletState {
    * doublons, et l'utilisateur ne peut pas les distinguer une fois créés.
    */
   importWallets: (wallets: readonly BackupWallet[], pin: string) => Promise<number>;
+  /** Recrée les comptes (numéro + nom) d'une sauvegarde pour un portefeuille à phrase BIP-39. */
+  restoreAccounts: (walletId: string, accounts: readonly { index: number; label: string }[], pin: string) => Promise<void>;
   setActiveWallet: (id: string) => Promise<void>;
   renameWallet: (id: string, label: string) => Promise<void>;
   /** Change l'avatar de profil d'un portefeuille (lib/avatars.ts). */
@@ -1029,6 +1031,8 @@ export const useWallet = create<WalletState>((set, get) => ({
         type: w.type === 'privateKey' ? 'privateKey' : 'seed',
         ...(w.type === 'privateKey' ? { keyFamily: w.keyFamily ?? 'evm' } : {}),
         secret,
+        // Comptes (numéro + nom) : sans eux, la restauration ne recréait que le compte n°1.
+        accounts: (w.id === activeWalletId ? get().accounts : (await loadAccounts(w.id)) ?? []).map((a) => ({ index: a.index, label: a.label ?? '' })),
       });
     }
     return out;
@@ -1062,10 +1066,32 @@ export const useWallet = create<WalletState>((set, get) => ({
         await get().importPrivateKey(w.secret, pin, w.label, w.keyFamily ?? 'evm');
       } else {
         await get().importWallet(w.secret, pin, w.label);
+        if (w.accounts?.length) await get().restoreAccounts(get().activeWalletId, w.accounts, pin);
       }
       added += 1;
     }
     return added;
+  },
+
+  restoreAccounts: async (walletId, list, pin) => {
+    // Une clé privée ou une phrase TON n'ont qu'un compte : rien à recréer.
+    if (!isBip39Wallet(get().wallets, walletId) || !list.length) return;
+    const mnemonic = await revealMnemonic(walletId, { pin });
+    const active = walletId === get().activeWalletId;
+    const existing = (active ? get().accounts : await loadAccounts(walletId)) ?? [];
+    const byIndex = new Map(existing.map((a) => [a.index, a]));
+    for (const { index, label } of list) {
+      const have = byIndex.get(index);
+      if (have) {
+        // Compte déjà là (le n°1, créé à l'import) : on lui rend seulement son nom.
+        if (label && !have.label) byIndex.set(index, { ...have, label });
+      } else {
+        byIndex.set(index, deriveStoredAccount(mnemonic, index, label));
+      }
+    }
+    const accounts = [...byIndex.values()].sort((a, b) => a.index - b.index);
+    await saveAccounts(walletId, accounts);
+    if (active) set({ accounts, account: toAccount(accounts, get().activeAccountIndex, get().activeChain) });
   },
 
   setActiveWallet: async (id) => {

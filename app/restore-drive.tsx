@@ -129,7 +129,7 @@ export default function RestoreDriveScreen() {
       r.wallets.find((w) => w.type === 'seed') ??
       r.wallets[0];
     // Hors de cet écran : `set-pin` les ajoute avec le code qu'on va créer (voir lib/pendingRestore).
-    usePendingRestore.getState().set(r.wallets.filter((w) => w !== first));
+    usePendingRestore.getState().set(r.wallets.filter((w) => w !== first), first.accounts ?? []);
     setImportedDraft(first.secret);
     router.push('/set-pin');
   }

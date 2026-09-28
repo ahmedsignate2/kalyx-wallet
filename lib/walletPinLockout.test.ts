@@ -134,6 +134,21 @@ describe('EIP-712 : jamais signé pour un autre réseau que celui de la demande'
   });
 });
 
+describe('Restauration : les comptes de la sauvegarde sont recréés', () => {
+  it('compte n°1 renommé, comptes 2 et 4 dérivés de la phrase', async () => {
+    useWallet.setState({ failedAttempts: 0, lastFailedAt: 0 });
+    const id = W().activeWalletId;
+    const before = W().accounts.map((a) => a.index);
+    await W().restoreAccounts(id, [{ index: 0, label: 'Principal' }, { index: 1, label: 'Épargne' }, { index: 3, label: '' }], PIN);
+    const after = W().accounts;
+    expect(after.map((a) => a.index)).toEqual([...new Set([...before, 0, 1, 3])].sort((a, b) => a - b));
+    expect(after.find((a) => a.index === 1)?.label).toBe('Épargne');
+    expect(after.find((a) => a.index === 3)?.evmAddress).toMatch(/^0x[0-9a-fA-F]{40}$/);
+    expect(await codeOf(W().restoreAccounts(id, [{ index: 5, label: '' }], '000111'))).toMatch(/^WRONG_PIN\|/);
+    useWallet.setState({ failedAttempts: 0, lastFailedAt: 0 });
+  });
+});
+
 describe('Actions irréversibles : jamais sans le code', () => {
   it('supprimer un portefeuille ou tout réinitialiser exige le bon code, et jamais app verrouillée', async () => {
     useWallet.setState({ failedAttempts: 0, lastFailedAt: 0 });

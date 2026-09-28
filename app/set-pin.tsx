@@ -99,7 +99,16 @@ export default function SetPin() {
        * Restauration d'une sauvegarde à PLUSIEURS portefeuilles : les autres sont
        * ajoutés maintenant, avec ce code. Ils étaient perdus en silence.
        */
+      /*
+       * Comptes du portefeuille principal (sauvegarde restaurée) : recréés avec
+       * ce code. Un échec ici ne doit pas bloquer l'entrée dans le portefeuille.
+       */
+      const primaryAccounts = usePendingRestore.getState().primaryAccounts;
+      if (primaryAccounts.length) {
+        await useWallet.getState().restoreAccounts(useWallet.getState().activeWalletId, primaryAccounts, firstPin).catch(() => toast.error(t('failed'), t('restorePartial')));
+      }
       const extra = usePendingRestore.getState().wallets;
+      if (!extra.length) usePendingRestore.getState().clear();
       if (extra.length) {
         usePendingRestore.getState().clear();
         try {

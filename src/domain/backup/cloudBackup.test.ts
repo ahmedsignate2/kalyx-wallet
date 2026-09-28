@@ -161,3 +161,27 @@ describe('Sauvegarde contenant une phrase TON', () => {
     expect(r.mnemonic).toBe(M);
   });
 });
+
+describe('cloudBackup — comptes de chaque portefeuille', () => {
+  it('les comptes (numéro + nom) font l’aller-retour ; sans eux, rien n’est inventé', async () => {
+    const blob = await createWalletsBackup(
+      [
+        { label: 'Principal', type: 'seed', secret: M1, accounts: [{ index: 0, label: '' }, { index: 1, label: 'Épargne' }, { index: 3, label: 'Jeux' }] },
+        { label: 'Second', type: 'seed', secret: M2 },
+      ],
+      'pw',
+    );
+    const r = await restoreBackup(blob, 'pw');
+    expect(r.wallets?.[0].accounts).toEqual([{ index: 0, label: '' }, { index: 1, label: 'Épargne' }, { index: 3, label: 'Jeux' }]);
+    expect(r.wallets?.[1].accounts).toBeUndefined();
+  });
+
+  it('entrées invalides d’une sauvegarde écartées (index hors bornes, doublons, types)', async () => {
+    const { sanitizeBackupAccounts } = await import('./cloudBackup');
+    expect(sanitizeBackupAccounts([{ index: 1, label: 'a' }, { index: 1, label: 'b' }, { index: -1 }, { index: 1.5 }, { index: 5000 }, 'x', { index: 2, label: 42 }])).toEqual([
+      { index: 1, label: 'a' },
+      { index: 2, label: '' },
+    ]);
+    expect(sanitizeBackupAccounts('pas une liste')).toBeUndefined();
+  });
+});
