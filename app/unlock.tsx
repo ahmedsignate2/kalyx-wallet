@@ -3,7 +3,7 @@ import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
 import { Pressable as KPressable, Halo } from '../ui/kit';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, StyleSheet } from 'react-native';
+import { View, Text, Animated, StyleSheet, Pressable } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -78,6 +78,7 @@ export default function Unlock() {
         // Refus/annulation → silencieux (l'utilisateur saisit son PIN).
         // Au TAP manuel, on affiche la vraie cause (ex. « à réactiver dans Réglages »).
         const msg = e instanceof Error ? e.message : '';
+        console.warn('[KALYX-UNLOCK] biometrics:failed', { manual, code: (e as { code?: string })?.code ?? null, msg });
         if (manual && !/refus|annul|cancel/i.test(msg)) {
           setError(/configur/i.test(msg) ? t('bioReactivate') : msg || t('bioUnavailable'));
         }
@@ -148,7 +149,10 @@ export default function Unlock() {
       <View style={{ flex: 1, paddingTop: insets.top + spacing(3), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3), alignItems: 'center' }}>
         {/* En-tête compact : titre, sous-titre, biométrie */}
         <View style={{ alignItems: 'center', gap: spacing(1.25) }}>
-          <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
+          {/* Appui long (2 s) sur le titre : journal de diagnostic, lisible même quand le déverrouillage casse. */}
+          <Pressable onLongPress={() => router.push('/journal')} delayLongPress={2000} accessible={false}>
+            <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
+          </Pressable>
           <Text style={{ color: error && !locked ? colors.danger : colors.textSecondary, fontSize: 14, textAlign: 'center' }}>{subtitle}</Text>
           {/*
             Le retour d'appui était un changement d'OPACITÉ (0.6), ce que le

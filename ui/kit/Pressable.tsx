@@ -19,6 +19,7 @@
  * Toujours à la pose du doigt, jamais au relâchement : plus tard, le retour
  * arriverait après l'action et donnerait une sensation de latence.
  */
+import { journal } from '../../lib/debugJournal';
 import React, { useCallback } from 'react';
 import { Pressable as RNPressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
@@ -78,9 +79,20 @@ export function Pressable({
     [onPressOut, pressed, reduced, overshoot, noScale],
   );
 
+  // Journal de diagnostic : chaque appui, avec le libellé du bouton (jamais sa valeur).
+  const userPress = rest.onPress;
+  const onPress = useCallback<NonNullable<PressableProps['onPress']>>(
+    (e) => {
+      journal('press', rest.accessibilityLabel ?? rest.testID ?? (typeof children === 'string' ? children : '(bouton sans libellé)'), disabled ? '(désactivé)' : '');
+      userPress?.(e);
+    },
+    [userPress, rest.accessibilityLabel, rest.testID, children, disabled],
+  );
+
   return (
     <AnimatedPressable
       {...rest}
+      onPress={userPress ? onPress : undefined}
       disabled={disabled}
       onPressIn={inH}
       onPressOut={outH}

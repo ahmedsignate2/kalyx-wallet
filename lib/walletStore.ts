@@ -552,6 +552,7 @@ async function backfillPhraseAccounts(
 
 /** Révèle la seed du wallet `id` (biométrie ou PIN), de façon transitoire. */
 async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
+  console.log('[KALYX-VAULT] reveal:start', { walletId: id, mode: 'biometric' in unlock ? 'biometric' : 'pin' });
   if ('biometric' in unlock) {
     // Prompt biométrique explicite (fiable), PUIS lecture du secret non-gated.
     // Un seul prompt : le secret n'est plus keystore-gated (cf. secureStore).
@@ -564,8 +565,10 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
      * visible. C'est précisément ce que les codes du domaine existent pour
      * éviter (cf. src/domain/errors.ts).
      */
+    console.log('[KALYX-VAULT] reveal:biometric-prompt', { ok });
     if (!ok) throw new WalletError('BIOMETRIC_REFUSED', 'Biometric request refused');
     const m = await readBiometricSeed(id);
+    console.log('[KALYX-VAULT] reveal:biometric-secret', { found: !!m });
     if (!m) throw new WalletError('BIOMETRIC_NOT_SET', 'No biometric vault for this wallet');
     return m;
   }
@@ -590,8 +593,10 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
    * l'écriture : un essai gratuit à chaque relance.
    */
   await saveLockState(st.failedAttempts + 1, Date.now());
+  console.log('[KALYX-VAULT] reveal:pin-decrypt', { failedAttempts: st.failedAttempts });
   try {
     const secret = await decryptSecret(vault, unlock.pin);
+    console.log('[KALYX-VAULT] reveal:pin-ok');
     useWallet.setState({ failedAttempts: 0, lastFailedAt: 0 });
     await saveLockState(0, 0);
     return secret;
@@ -822,6 +827,7 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   unlockWithBiometrics: async () => {
     const { activeWalletId } = get();
+    console.log('[KALYX-VAULT] unlockWithBiometrics:start');
     const secret = await revealMnemonic(activeWalletId, { biometric: true });
     const accounts = isBip39Wallet(get().wallets, activeWalletId)
       ? await backfillPhraseAccounts(activeWalletId, secret, get().accounts)
@@ -1705,8 +1711,10 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   reset: async (unlock) => {
     // Même règle que la suppression d'un portefeuille, pour TOUS à la fois.
+    console.log('[KALYX-VAULT] reset:start', { isUnlocked: get().isUnlocked, wallets: get().wallets.length });
     if (!get().isUnlocked) throw new WalletError('LOCKED_OUT', 'App verrouillée');
     await revealMnemonic(get().activeWalletId, unlock);
+    console.log('[KALYX-VAULT] reset:verified, wiping');
     await wipeAll(get().wallets);
     // Le portefeuille et le compte mémorisés n'ont plus d'objet : les laisser
     // ferait chercher, au prochain lancement, un identifiant qui n'existe plus.

@@ -8,11 +8,21 @@
  * détail d'un NFT…) restait donc affichée par-dessus, avec ses données. Toutes
  * les modales de l'app passent par ici ; elles réapparaissent au déverrouillage.
  */
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Modal, type ModalProps } from 'react-native';
 import { useLocked } from '../../lib/lockState';
+import { journal } from '../../lib/debugJournal';
 
-export function SafeModal(props: ModalProps) {
+export function SafeModal(props: ModalProps & { journalName?: string }) {
   const locked = useLocked();
-  return <Modal {...props} visible={!!props.visible && !locked} />;
+  const { journalName, ...modal } = props;
+  const wanted = !!modal.visible;
+  // Journal : ouverture / fermeture, et SURTOUT une fenêtre demandée mais masquée par le verrouillage.
+  const was = useRef(false);
+  useEffect(() => {
+    if (!wanted && !was.current) return; // jamais demandée : rien à dire
+    was.current = wanted;
+    journal('state', `fenêtre${journalName ? ` « ${journalName} »` : ''} : ${wanted ? (locked ? 'MASQUÉE (app verrouillée)' : 'affichée') : 'fermée'}`);
+  }, [wanted, locked, journalName]);
+  return <Modal {...modal} visible={wanted && !locked} />;
 }
