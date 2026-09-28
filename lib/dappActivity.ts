@@ -31,6 +31,11 @@ interface DappActivityState {
   signatures: SigEntry[];
   /** Hôtes « de confiance » : reconnexion sans re-demander le PIN. */
   remembered: string[];
+  /**
+   * Incrémenté à chaque effacement : le navigateur, resté monté, oublie alors
+   * les sites connectés qu'il garde en mémoire et prévient la page ouverte.
+   */
+  epoch: number;
   load: () => Promise<void>;
   addConnection: (c: Omit<DappConnection, 'at'>) => void;
   removeConnection: (host: string) => void;
@@ -44,6 +49,7 @@ export const useDappActivity = create<DappActivityState>((set, get) => ({
   connections: [],
   signatures: [],
   remembered: [],
+  epoch: 0,
 
   load: async () => {
     try {
@@ -93,7 +99,7 @@ export const useDappActivity = create<DappActivityState>((set, get) => ({
   },
 
   clear: () => {
-    set({ connections: [], signatures: [], remembered: [] });
+    set({ connections: [], signatures: [], remembered: [], epoch: get().epoch + 1 });
     void AsyncStorage.multiRemove([CONN_KEY, SIG_KEY, REMEMBER_KEY]).catch(() => {});
   },
 }));
