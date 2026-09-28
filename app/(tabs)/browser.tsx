@@ -354,9 +354,18 @@ export default function Browser() {
       technicalLogger.logDapp(`method_${method}`, reqOrigin);
       const addr = account?.address;
       const tb = tabsRef.current.find((x) => x.id === tabId);
-      const isConnected = connected.current.has(reqOrigin);
+      const isConnected = !!reqOrigin && connected.current.has(reqOrigin);
       try {
         if (method === 'eth_chainId') return respond(id, chainIdHex);
+        /*
+         * Page NON https : pas d'origine fiable. Toutes les pages http
+         * partageaient la même clé « '' » : connecter l'une donnait l'adresse
+         * à toutes les autres, sans rien demander. Lecture seule autorisée,
+         * aucune connexion ni signature.
+         */
+        if (!reqOrigin && !READONLY_METHODS.has(method) && method !== 'net_version' && method !== 'eth_accounts' && method !== 'wallet_getPermissions') {
+          return respond(id, null, { code: 4100, message: 'Wallet access requires an https page' });
+        }
         if (method === 'net_version') return respond(id, String(chain.evmChainId ?? 1));
         if (method === 'eth_accounts') return respond(id, isConnected && addr ? [addr] : []);
         if (method === 'wallet_getPermissions') return respond(id, isConnected ? [{ parentCapability: 'eth_accounts' }] : []);
