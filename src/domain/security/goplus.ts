@@ -8,6 +8,7 @@
  *
  * Helpers de PARSE purs (testés) + fonctions réseau.
  */
+import { parseGoPlusApprovals, type ApprovalCandidate } from '../approvals/approvals';
 const BASE = 'https://api.gopluslabs.io/api/v1';
 const TIMEOUT = 6000;
 
@@ -89,5 +90,23 @@ export async function isPhishingSite(url: string): Promise<boolean> {
     return parsePhishingSite(await getJson(`/phishing_site?url=${encodeURIComponent(url)}`));
   } catch {
     return false;
+  }
+}
+
+/**
+ * Autorisations ERC-20 d'une adresse, selon GoPlus (API v2), ou `null` si le
+ * service ne répond pas. Ce ne sont que des CANDIDATES : l'appelant relit
+ * chaque montant sur la chaîne.
+ */
+export async function fetchApprovalCandidates(chainId: number, owner: string): Promise<ApprovalCandidate[] | null> {
+  try {
+    const res = await fetch(`https://api.gopluslabs.io/api/v2/token_approval_security/${chainId}?addresses=${owner}`);
+    if (!res.ok) return null;
+    const json = (await res.json()) as { code?: number; result?: unknown };
+    // 1 = complet, 2 = « données partielles » : les deux portent une liste exploitable.
+    if (json?.code !== 1 && json?.code !== 2) return null;
+    return parseGoPlusApprovals(json);
+  } catch {
+    return null;
   }
 }

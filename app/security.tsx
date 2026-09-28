@@ -6,6 +6,7 @@
  *  - approbations actives (réseau actif) avec « Révoquer »
  *  - sessions WalletConnect ouvertes avec « Déconnecter »
  */
+import { fetchApprovalCandidates } from '../src/domain/security/goplus';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack } from 'expo-router';
@@ -57,6 +58,7 @@ export default function SecurityCenter() {
   const disconnect = useWalletConnect((s) => s.disconnect);
 
   const [approvals, setApprovals] = useState<ApprovalItem[] | null>(null);
+  const [approvalsIncomplete, setApprovalsIncomplete] = useState(false);
   const [target, setTarget] = useState<ApprovalItem | null>(null);
 
   const loadApprovals = useCallback(async () => {
@@ -64,10 +66,16 @@ export default function SecurityCenter() {
     const adapter = getAdapter(activeChain);
     if (!(adapter instanceof EvmChainAdapter)) return setApprovals([]);
     try {
-      const tokens = await getErc20Tokens(chain, account.address);
-      setApprovals(await adapter.getApprovals(account.address, tokens));
+      const [tokens, candidates] = await Promise.all([
+        getErc20Tokens(chain, account.address).catch(() => []),
+        chain.evmChainId ? fetchApprovalCandidates(chain.evmChainId, account.address) : Promise.resolve(null),
+      ]);
+      const report = await adapter.getApprovalsReport(account.address, tokens, candidates);
+      setApprovals(report.items);
+      setApprovalsIncomplete(report.incomplete);
     } catch {
       setApprovals([]);
+      setApprovalsIncomplete(true);
     }
   }, [account, activeChain, chain]);
   useEffect(() => {
@@ -87,7 +95,7 @@ export default function SecurityCenter() {
     }
   };
 
-  const checks = useMemo(() => [backupVerified, encryptedBackupDone, biometric, autoLock > 0 && autoLock <= 15, (approvals ?? []).every((a) => !isUnlimited(a.allowance)), sessions.length <= 3], [backupVerified, encryptedBackupDone, biometric, autoLock, approvals, sessions.length]);
+  const checks = useMemo(() => [backupVerified, encryptedBackupDone, biometric, autoLock > 0 && autoLock <= 15, !approvalsIncomplete && (approvals ?? []).every((a) => !isUnlimited(a.allowance)), sessions.length <= 3], [backupVerified, encryptedBackupDone, biometric, autoLock, approvals, approvalsIncomplete, sessions.length]);
   const score = checks.filter(Boolean).length;
 
   return (
@@ -121,6 +129,8 @@ export default function SecurityCenter() {
           <Surface padded={false}>
             {approvals === null ? (
               [0, 1].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center', gap: space[2] }}><Skeleton width="60%" /><Skeleton width="40%" height={12} /></View>)
+            ) : approvals.length === 0 && approvalsIncomplete ? (
+              <View style={{ padding: space[4] }}><Text variant="bodySecondary" tone="warning">{t('approvalsIncomplete')}</Text></View>
             ) : approvals.length === 0 ? (
               <View style={{ padding: space[4] }}><Text variant="bodySecondary" tone="secondary">{chain.family === 'evm' ? t("noApprovalsEvm") : t("noApprovalsNonEvm")}</Text></View>
             ) : (

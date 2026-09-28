@@ -28,7 +28,7 @@ import type {
 } from './types';
 import type { TxParsed, TxSummary } from './types';
 import { deriveEvmAccount } from '../../crypto/hd';
-import { APPROVAL_TOPIC, addressTopic, spendersFromLogs, type ApprovalItem } from '../approvals/approvals';
+import { APPROVAL_TOPIC, addressTopic, spendersFromLogs, type ApprovalItem, type ApprovalCandidate } from '../approvals/approvals';
 import { normalizeEvmAddress } from '../validation/address';
 import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
@@ -618,40 +618,79 @@ export class EvmChainAdapter implements ChainAdapter {
    * NB : couvre les tokens DÉTENUS (les seuls qui peuvent être vidés). Une
    * couverture exhaustive (tokens à solde nul) demanderait un indexeur.
    */
-  async getApprovals(
+  /**
+   * Autorisations ACTIVES du propriétaire, avec un verdict d'exhaustivité.
+   *
+   * `candidates` (GoPlus) dit OÙ regarder ; à défaut, on fouille les logs
+   * `Approval` token par token. Dans les deux cas le montant est RELU sur la
+   * chaîne : une autorisation déjà révoquée ou consommée n'est pas montrée.
+   *
+   * `incomplete` : au moins une vérification n'a pas pu se faire (RPC qui
+   * refuse la plage de `getLogs`, appel échoué). L'écran ne doit alors PAS
+   * dire « aucune approbation » — c'est ce qu'il affirmait jusqu'ici, sans
+   * avoir rien lu, sur la plupart des réseaux.
+   */
+  async getApprovalsReport(
     owner: string,
     tokens: { contract: string; symbol: string; decimals: number; logo?: string }[],
-  ): Promise<ApprovalItem[]> {
+    candidates: ApprovalCandidate[] | null,
+  ): Promise<{ items: ApprovalItem[]; incomplete: boolean }> {
     const addr = normalizeEvmAddress(owner);
-    const ownerT = addressTopic(addr);
+    let incomplete = false;
+    type Pair = { token: string; symbol: string; decimals: number; logo?: string; spender: string; spenderName?: string; risky?: boolean };
+    const pairs: Pair[] = [];
+    const logoOf = new Map(tokens.map((t) => [t.contract.toLowerCase(), t.logo]));
+    if (candidates) {
+      for (const c of candidates) pairs.push({ ...c, logo: logoOf.get(c.token.toLowerCase()) });
+    } else {
+      const ownerT = addressTopic(addr);
+      await Promise.all(
+        tokens.map(async (tk) => {
+          try {
+            const logs = await this.call((p) => p.getLogs({ address: tk.contract, topics: [APPROVAL_TOPIC, ownerT], fromBlock: 0, toBlock: 'latest' }));
+            for (const spender of spendersFromLogs(logs).slice(0, 20)) pairs.push({ ...tk, token: tk.contract, spender });
+          } catch {
+            incomplete = true; // plage refusée par le RPC : ce token n'a pas été vérifié
+          }
+        }),
+      );
+    }
+    const seen = new Set<string>();
     const results: ApprovalItem[] = [];
-
     await Promise.all(
-      tokens.map(async (tk) => {
+      pairs.map(async (pr) => {
+        const key = `${pr.token.toLowerCase()}:${pr.spender.toLowerCase()}`;
+        if (seen.has(key)) return;
+        seen.add(key);
         try {
-          const logs = await this.call((p) =>
-            p.getLogs({ address: tk.contract, topics: [APPROVAL_TOPIC, ownerT], fromBlock: 0, toBlock: 'latest' }),
-          );
-          const spenders = spendersFromLogs(logs).slice(0, 20); // borne de sûreté
-          for (const spender of spenders) {
-            try {
-              const data = ERC20.encodeFunctionData('allowance', [addr, spender]);
-              const ret = await this.call((p) => p.call({ to: tk.contract, data }));
-              const allowance = ERC20.decodeFunctionResult('allowance', ret)[0] as bigint;
-              if (allowance > 0n) {
-                results.push({ token: tk.contract, symbol: tk.symbol, decimals: tk.decimals, logo: tk.logo, spender, allowance });
-              }
-            } catch {
-              /* spender ignoré (appel échoué) */
-            }
+          const data = ERC20.encodeFunctionData('allowance', [addr, pr.spender]);
+          const ret = await this.call((p) => p.call({ to: pr.token, data }));
+          const allowance = ERC20.decodeFunctionResult('allowance', ret)[0] as bigint;
+          if (allowance > 0n) {
+            results.push({
+              token: pr.token,
+              symbol: pr.symbol,
+              decimals: pr.decimals,
+              logo: pr.logo,
+              spender: pr.spender,
+              allowance,
+              ...(pr.spenderName ? { spenderName: pr.spenderName } : {}),
+              ...(pr.risky ? { risky: true } : {}),
+            });
           }
         } catch {
-          /* token ignoré (limite de plage getLogs du RPC, etc.) */
+          incomplete = true;
         }
       }),
     );
-    // Illimitées d'abord, puis par montant décroissant.
-    return results.sort((a, b) => (b.allowance > a.allowance ? 1 : b.allowance < a.allowance ? -1 : 0));
+    // Contrats douteux d'abord, puis illimitées, puis par montant décroissant.
+    results.sort((a, b) => Number(!!b.risky) - Number(!!a.risky) || (b.allowance > a.allowance ? 1 : b.allowance < a.allowance ? -1 : 0));
+    return { items: results, incomplete };
+  }
+
+  /** Compatibilité : la liste seule, par les logs. */
+  async getApprovals(owner: string, tokens: { contract: string; symbol: string; decimals: number; logo?: string }[]): Promise<ApprovalItem[]> {
+    return (await this.getApprovalsReport(owner, tokens, null)).items;
   }
 }
 
