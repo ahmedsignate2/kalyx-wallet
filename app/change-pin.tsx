@@ -105,12 +105,12 @@ export default function ChangePin() {
   const canNext = pin.length >= PIN_MIN;
 
   return (
-    <Screen>
+    <Screen scroll>
       <ScreenHeader right={<FlowDots step={step === 'old' ? 1 : step === 'new' ? 2 : 3} />} />
       {/* Le titre remonte à chaque étape : on voit que l'écran a avancé. */}
       <NovaHero key={step} icon="pin" tone="gold" title={title} subtitle={hint} />
 
-      <View style={{ flex: 1, minHeight: spacing(2) }} />
+      <View style={{ height: spacing(2) }} />
 
       {error ? (
         <Text style={{ color: colors.danger, textAlign: 'center', marginBottom: spacing(1), fontFamily: fonts.medium }}>{error}</Text>
