@@ -1,3 +1,4 @@
+import { GOLD, NovaCard, NovaHero, Rise } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useEffect } from 'react';
 import { View, Text, ScrollView } from 'react-native';
@@ -33,40 +34,34 @@ export default function Notifications() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-      <ScreenHeader title={t('notifications')} />
-
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={typography.title}>{t('notifications')}</Text>
-        {items.length > 0 ? (
-          <KPressable onPress={clear} hitSlop={8}>
-            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{t('clearAll')}</Text>
+      <ScreenHeader
+        right={items.length > 0 ? (
+          <KPressable onPress={clear} haptic="light" accessibilityLabel={t('clearAll')} style={{ paddingHorizontal: 12, height: 34, borderRadius: 17, justifyContent: 'center', backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: fonts.semibold }}>{t('clearAll')}</Text>
           </KPressable>
-        ) : null}
-      </View>
+        ) : undefined}
+      />
+      <NovaHero icon="bell" tone="gold" title={t('notifications')} subtitle={items.length === 0 ? t('notifEmptyHint') : undefined} />
 
       {items.length === 0 ? (
-        <GlassCard>
-          <View style={{ alignItems: 'center', paddingVertical: spacing(3), gap: spacing(1) }}>
-            <Icon name="notifications" size={30} color={colors.textSecondary} />
-            <Text style={typography.bodyStrong}>{t('noNotifications')}</Text>
-            <Text style={[typography.muted, { textAlign: 'center' }]}>{t('notifEmptyHint')}</Text>
-          </View>
-        </GlassCard>
+        <NovaCard delay={160} style={{ alignItems: 'center', paddingVertical: spacing(3) }}>
+          <Text style={typography.bodyStrong}>{t('noNotifications')}</Text>
+        </NovaCard>
       ) : (
-        <ScrollView contentContainerStyle={{ gap: spacing(1.25), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
-          {items.map((n) => (
-            <GlassCard key={n.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={ICON[n.type]} size={19} color={n.type === 'tx' ? colors.up : colors.primary} />
+        <NovaCard delay={140} padded={false} style={{ paddingHorizontal: spacing(2) }}>
+          {items.map((n, i) => (
+            <Rise key={n.id} delay={Math.min(i, 10) * 40} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.5), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
+              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={ICON[n.type]} size={19} color={n.type === 'tx' ? colors.up : GOLD} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={typography.bodyStrong} numberOfLines={1}>{n.title}</Text>
                 {n.body ? <Text style={typography.muted} numberOfLines={2}>{n.body}</Text> : null}
               </View>
               <Text style={{ color: colors.textTertiary, fontSize: 12 }}>{ago(n.at)}</Text>
-            </GlassCard>
+            </Rise>
           ))}
-        </ScrollView>
+        </NovaCard>
       )}
     </PremiumScreen>
     </>

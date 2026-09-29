@@ -1,3 +1,4 @@
+import { NovaCard, NovaHero, NovaSwitch, SettingRow } from '../ui/nova';
 import { ScreenHeader } from '../ui/kit';
 import React from 'react';
 import { View, Text, Switch, ScrollView } from 'react-native';
@@ -37,21 +38,14 @@ export default function Extensions() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-      <ScreenHeader title={t('extensions')} />
+      <ScreenHeader />
+      <NovaHero icon="extensions" title={t('extensions')} subtitle={t('extensionsIntro')} />
       <ScrollView contentContainerStyle={{ gap: spacing(1.5), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
-        <Text style={typography.muted}>{t('extensionsIntro')}</Text>
-        {modules.map((m) => (
-          <GlassCard key={m.title} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name={m.icon} size={20} color={m.value ? colors.primary : colors.textSecondary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={typography.bodyStrong}>{m.title}</Text>
-              <Text style={typography.muted}>{m.sub}</Text>
-            </View>
-            <Switch value={m.value} onValueChange={m.onChange} />
-          </GlassCard>
-        ))}
+        <NovaCard delay={120}>
+          {modules.map((m, i) => (
+            <SettingRow key={m.title} divider={i > 0} icon={m.icon} tone={m.value ? 'gold' : undefined} title={m.title} hint={m.sub} right={<NovaSwitch value={m.value} onValueChange={m.onChange} />} />
+          ))}
+        </NovaCard>
       </ScrollView>
     </PremiumScreen>
     </>

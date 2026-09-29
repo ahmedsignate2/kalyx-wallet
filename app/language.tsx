@@ -1,4 +1,4 @@
-import { Pulse, Rise } from '../ui/nova';
+import { NovaHero, Pulse, Rise } from '../ui/nova';
 import { Icon } from '../ui/icon';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React from 'react';
@@ -18,7 +18,7 @@ export default function Language() {
   return (
     <Screen>
       <ScreenHeader />
-      <Title>{t('language')}</Title>
+      <NovaHero icon="language" title={t('language')} />
       <ScrollView contentContainerStyle={{ gap: spacing(1), paddingVertical: spacing(1) }}>
         {LANGUAGES.map((l, i) => {
           const active = l.code === language;

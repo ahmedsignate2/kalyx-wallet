@@ -221,15 +221,98 @@ export function sortMarkets(coins: MarketCoin[], order: MarketOrder): MarketCoin
 const CACHE_TTL_MS = 45_000;
 const cache = new Map<string, { value: unknown; ts: number }>();
 
+/**
+ * DURÉE DE VIE SELON LA DONNÉE. Un prix bouge à la seconde ; un graphique
+ * d'un an, lui, ne change pas d'un point visible en une heure. Tout garder
+ * 45 s faisait refaire des appels inutiles, et sur une IP mobile partagée
+ * chaque appel évité est un 429 évité.
+ */
+export function cacheTtlFor(key: string): number {
+  if (key.startsWith('markets:')) return 120_000;
+  if (key.startsWith('chart:')) {
+    const days = key.split(':')[3];
+    if (days === '1') return 120_000;
+    if (days === '7') return 10 * 60_000;
+    if (days === '30') return 30 * 60_000;
+    return 2 * 3_600_000;
+  }
+  return CACHE_TTL_MS;
+}
+
 function cacheGet<T>(key: string): T | undefined {
   const hit = cache.get(key);
-  return hit && Date.now() - hit.ts < CACHE_TTL_MS ? (hit.value as T) : undefined;
+  return hit && Date.now() - hit.ts < cacheTtlFor(key) ? (hit.value as T) : undefined;
 }
 function cacheGetStale<T>(key: string): T | undefined {
   return cache.get(key)?.value as T | undefined;
 }
 function cacheSet<T>(key: string, value: T): void {
   cache.set(key, { value, ts: Date.now() });
+  schedulePersist();
+}
+
+/*
+ * CACHE PERSISTANT. La mémoire se vidait à chaque redémarrage : l'app
+ * rouvrait sur des marchés et des graphiques vides tant que CoinGecko ne
+ * répondait pas — et quand il renvoyait 429 ou expirait, ils restaient vides.
+ * Les dernières valeurs sont désormais écrites sur l'appareil (données
+ * publiques uniquement : prix, marchés, courbes) et relues au démarrage ;
+ * elles servent de repli « périmé mais réel » et évitent l'écran vide.
+ */
+export interface PriceCacheStorage {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+}
+const STORE_KEY = 'kalyx.priceCache.v1';
+/** Entrées gardées sur disque : les plus récentes d'abord. */
+const MAX_PERSISTED = 80;
+let storage: PriceCacheStorage | null = null;
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
+function schedulePersist(): void {
+  if (!storage || persistTimer) return;
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    const entries = [...cache.entries()].sort((a, b) => b[1].ts - a[1].ts).slice(0, MAX_PERSISTED);
+    void storage?.setItem(STORE_KEY, JSON.stringify(entries)).catch(() => {});
+  }, 1_500);
+}
+
+/** Branche le stockage et recharge ce qui y était ; la mémoire plus fraîche gagne. */
+export async function attachPriceCacheStorage(s: PriceCacheStorage): Promise<void> {
+  storage = s;
+  try {
+    const raw = await s.getItem(STORE_KEY);
+    if (!raw) return;
+    const entries = JSON.parse(raw) as [string, { value: unknown; ts: number }][];
+    if (!Array.isArray(entries)) return;
+    for (const [k, v] of entries) {
+      if (typeof k !== 'string' || !v || typeof v.ts !== 'number') continue;
+      const mem = cache.get(k);
+      if (!mem || mem.ts < v.ts) cache.set(k, v);
+    }
+  } catch {
+    // Cache illisible : on repart de zéro, ce n'est qu'un cache.
+  }
+}
+
+/** Même requête déjà en vol : on attend la même réponse au lieu d'en lancer une autre. */
+const inflight = new Map<string, Promise<unknown>>();
+function once<T>(key: string, run: () => Promise<T>): Promise<T> {
+  const cur = inflight.get(key) as Promise<T> | undefined;
+  if (cur) return cur;
+  const p = run().finally(() => inflight.delete(key));
+  inflight.set(key, p);
+  return p;
+}
+
+/**
+ * L'API publique (et la clé « demo ») refusent l'historique au-delà de 365
+ * jours : « Tout » (max) répondait 401 et laissait le graphique vide. On
+ * demande donc un an, ce qui est le maximum réellement servi.
+ */
+export function effectiveDays(days: string): string {
+  return days === 'max' ? '365' : days;
 }
 
 // ---- Fetch réseau (dégrade en vide) ----
@@ -297,7 +380,7 @@ export async function getCoinDetail(id: string, vs = 'eur', lang = 'en'): Promis
 export async function getMarketChart(id: string, vs = 'eur', days = '7'): Promise<number[]> {
   try {
     const res = await withTimeout(
-      fetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${days}`), { headers: headers() }),
+      fetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${effectiveDays(days)}`), { headers: headers() }),
       TIMEOUT,
       () => new Error('timeout'),
     );
@@ -309,24 +392,27 @@ export async function getMarketChart(id: string, vs = 'eur', days = '7'): Promis
 
 /** Comme getMarketChart mais avec les timestamps (graphique scrubable). */
 export async function getMarketChartPoints(id: string, vs = 'eur', days = '7'): Promise<ChartPoint[]> {
-  const key = `chart:${id}:${vs}:${days}`;
+  const d = effectiveDays(days);
+  const key = `chart:${id}:${vs}:${d}`;
   const cached = cacheGet<ChartPoint[]>(key);
   if (cached) return cached;
-  try {
-    const res = await withTimeout(
-      fetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${days}`), { headers: headers() }),
-      TIMEOUT,
-      () => new Error('timeout'),
-    );
-    const json = await res.json();
-    if (!res.ok) console.warn('[coingecko] getMarketChartPoints HTTP', res.status, id, json);
-    const parsed = parseMarketChartPoints(json);
-    if (parsed.length > 0) cacheSet(key, parsed);
-    return parsed.length > 0 ? parsed : cacheGetStale(key) ?? [];
-  } catch (e) {
-    console.warn('[coingecko] getMarketChartPoints failed', id, e);
-    return cacheGetStale(key) ?? [];
-  }
+  return once(key, async () => {
+    try {
+      const res = await withTimeout(
+        fetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${d}`), { headers: headers() }),
+        TIMEOUT,
+        () => new Error('timeout'),
+      );
+      const json = await res.json();
+      if (!res.ok) console.warn('[coingecko] getMarketChartPoints HTTP', res.status, id, json);
+      const parsed = parseMarketChartPoints(json);
+      if (parsed.length > 0) cacheSet(key, parsed);
+      return parsed.length > 0 ? parsed : cacheGetStale<ChartPoint[]>(key) ?? [];
+    } catch (e) {
+      console.warn('[coingecko] getMarketChartPoints failed', id, e);
+      return cacheGetStale<ChartPoint[]>(key) ?? [];
+    }
+  });
 }
 
 /** Prix de tokens ERC-20 par contrat : { contractLowercase: price }. */
@@ -368,24 +454,26 @@ export async function getMarkets(vs = 'eur', perPage = 20): Promise<MarketCoin[]
   const key = `markets:${vs}:${perPage}`;
   const cached = cacheGet<MarketCoin[]>(key);
   if (cached) return cached;
-  try {
-    const res = await withTimeout(
-      fetch(
-        url(
-          `/coins/markets?vs_currency=${vs}&order=market_cap_desc&per_page=${perPage}&page=1&sparkline=true&price_change_percentage=24h`,
+  return once(key, async () => {
+    try {
+      const res = await withTimeout(
+        fetch(
+          url(
+            `/coins/markets?vs_currency=${vs}&order=market_cap_desc&per_page=${perPage}&page=1&sparkline=true&price_change_percentage=24h`,
+          ),
+          { headers: headers() },
         ),
-        { headers: headers() },
-      ),
-      TIMEOUT,
-      () => new Error('timeout'),
-    );
-    const json = await res.json();
-    if (!res.ok) console.warn('[coingecko] getMarkets HTTP', res.status, json);
-    const parsed = parseMarkets(json);
-    if (parsed.length > 0) cacheSet(key, parsed);
-    return parsed.length > 0 ? parsed : cacheGetStale(key) ?? [];
-  } catch (e) {
-    console.warn('[coingecko] getMarkets failed', e);
-    return cacheGetStale(key) ?? [];
-  }
+        TIMEOUT,
+        () => new Error('timeout'),
+      );
+      const json = await res.json();
+      if (!res.ok) console.warn('[coingecko] getMarkets HTTP', res.status, json);
+      const parsed = parseMarkets(json);
+      if (parsed.length > 0) cacheSet(key, parsed);
+      return parsed.length > 0 ? parsed : cacheGetStale<MarketCoin[]>(key) ?? [];
+    } catch (e) {
+      console.warn('[coingecko] getMarkets failed', e);
+      return cacheGetStale<MarketCoin[]>(key) ?? [];
+    }
+  });
 }

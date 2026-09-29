@@ -1,4 +1,4 @@
-import { Pills, Pulse, SectionLabel } from '../ui/nova';
+import { NovaHero, Pills, Pulse, SectionLabel } from '../ui/nova';
 import { fill } from '../lib/i18n';
 import { ScreenHeader, IconButton, Pressable as KPressable, Button, Checkbox, SegmentedControl, Text as KText } from '../ui/kit';
 import { SafeModal } from '../ui/kit/SafeModal';
@@ -156,10 +156,9 @@ export default function Networks() {
   return (
     <Screen>
       <ScreenHeader
-        title={t('network')}
         right={<IconButton icon="add" label={t("addNetwork")} tone="ghost" onPress={() => { setFormError(null); setAddOpen(true); }} />}
       />
-      <Muted>{t('sameAddressAllEvm')}</Muted>
+      <NovaHero icon="networks" title={t('network')} subtitle={t('sameAddressAllEvm')} />
 
       {all.length > 6 ? (
         <View style={{ marginTop: spacing(1) }}>

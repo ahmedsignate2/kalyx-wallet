@@ -1,3 +1,4 @@
+import { IconDisc, NovaCard, NovaHero } from '../ui/nova';
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
@@ -96,25 +97,14 @@ export default function SupportHistoryScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-        <ScreenHeader title={t('supportHistoryTitle')} />
+        <ScreenHeader />
+        <NovaHero icon="support" title={t('supportHistoryTitle')} subtitle={t('supportDiagnosticSubtitle')} />
 
         {/* Action : Export Diagnostic Système */}
-        <GlassCard style={{ padding: spacing(1.75), overflow: 'hidden' }}>
+        <NovaCard delay={50} style={{ padding: spacing(1.75), overflow: 'hidden' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing(1.5) }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), flex: 1, minWidth: 0 }}>
-              <View
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 12,
-                  backgroundColor: colors.surface2,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <Icon name="share" size={20} color={colors.primary} />
-              </View>
+              <IconDisc name="share" tone="gold" />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.bold }} numberOfLines={1}>
                   {t('diagnosticExportButton')}
@@ -148,16 +138,16 @@ export default function SupportHistoryScreen() {
               )}
             </KPressable>
           </View>
-        </GlassCard>
+        </NovaCard>
 
           {/* Liste des tickets ou État vide */}
           {tickets.length === 0 ? (
-            <GlassCard style={{ padding: spacing(3), alignItems: 'center', gap: spacing(1) }}>
+            <NovaCard delay={100} style={{ padding: spacing(3), alignItems: 'center', gap: spacing(1) }}>
               <Icon name="support" size={32} color={colors.textSecondary} />
               <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
                 {t('supportHistoryEmpty')}
               </Text>
-            </GlassCard>
+            </NovaCard>
           ) : (
             <View style={{ gap: spacing(1.5) }}>
               {tickets.map((ticket: StoredTicket) => {
@@ -165,7 +155,7 @@ export default function SupportHistoryScreen() {
                 const isExpanded = expandedTicketId === ticket.id;
 
                 return (
-                  <GlassCard
+                  <NovaCard delay={150}
                     key={ticket.id}
                     style={{
                       padding: spacing(1.75),
@@ -310,7 +300,7 @@ export default function SupportHistoryScreen() {
                         {isExpanded ? t('supportHistoryHideDetails') : t('supportHistoryDetails')}
                       </Text>
                     </KPressable>
-                  </GlassCard>
+                  </NovaCard>
                 );
               })}
 

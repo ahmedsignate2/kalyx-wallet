@@ -1,3 +1,4 @@
+import { NovaCard, NovaHero, SettingRow } from '../ui/nova';
 import { ScreenHeader } from '../ui/kit';
 import React from 'react';
 import { View, Text, Linking } from 'react-native';
@@ -41,55 +42,14 @@ export default function FeatureRequestScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-        <ScreenHeader title={t('featureRequestTitle')} />
+        <ScreenHeader />
+        <NovaHero icon="bulb" tone="gold" title={t('communityTitle')} subtitle={t('communityDesc')} />
 
-        <View style={{ gap: spacing(2) }}>
-          {/* Carte d'en-tête */}
-          <GlassCard glow>
-            <View style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1) }}>
-              <View
-                style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 26,
-                  backgroundColor: colors.surface2,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon name="bulb" size={26} color={colors.primary} />
-              </View>
-              <Text style={[typography.title, { textAlign: 'center', fontSize: 20 }]}>
-                {t('communityTitle')}
-              </Text>
-              <Text style={[typography.muted, { textAlign: 'center', paddingHorizontal: spacing(1) }]}>
-                {t('communityDesc')}
-              </Text>
-            </View>
-          </GlassCard>
-
-          {/* Liens communautaires */}
-          <GlassCard>
-            {/* Option 1 : X (Twitter) */}
-            <ListRow
-              left={<SocialIcon name="xLogo" />}
-              title={t('followOnX')}
-              subtitle="@kalyxntw"
-              right={chevron}
-              onPress={() => openUrl('https://x.com/kalyxntw')}
-            />
-
-            {/* Option 2 : Telegram */}
-            <ListRow
-              divider
-              left={<SocialIcon name="telegramLogo" />}
-              title={t('joinTelegram')}
-              subtitle="t.me/kalyxntw"
-              right={chevron}
-              onPress={() => openUrl('https://t.me/kalyxntw')}
-            />
-          </GlassCard>
-        </View>
+        {/* Liens communautaires */}
+        <NovaCard delay={140}>
+          <SettingRow icon="xLogo" title={t('followOnX')} hint="@kalyxntw" onPress={() => openUrl('https://x.com/kalyxntw')} />
+          <SettingRow divider icon="telegramLogo" title={t('joinTelegram')} hint="t.me/kalyxntw" onPress={() => openUrl('https://t.me/kalyxntw')} />
+        </NovaCard>
       </PremiumScreen>
     </>
   );

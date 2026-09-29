@@ -1,3 +1,4 @@
+import { GOLD, NovaCard, NovaHero, Rise, SectionLabel } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
@@ -21,12 +22,13 @@ export default function Faq() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-      <ScreenHeader title={t('faq')} />
+      <ScreenHeader />
+      <NovaHero icon="faq" title={t('faq')} />
       <ScrollView contentContainerStyle={{ gap: spacing(2), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
-        {FAQ.map((section) => (
-          <View key={section.title} style={{ gap: spacing(1) }}>
-            <Text style={typography.section}>{section.title}</Text>
-            <GlassCard style={{ paddingVertical: spacing(0.5) }}>
+        {FAQ.map((section, si) => (
+          <View key={section.title} style={{ gap: spacing(1.25) }}>
+            <SectionLabel>{section.title}</SectionLabel>
+            <NovaCard delay={Math.min(si, 6) * 60} style={{ paddingVertical: spacing(0.5) }}>
               {section.items.map((qa, i) => {
                 const id = section.title + i;
                 const expanded = open === id;
@@ -34,15 +36,15 @@ export default function Faq() {
                   <View key={id} style={{ borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
                     <KPressable onPress={() => setOpen(expanded ? null : id)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1.5) }}>
                       <Text style={[typography.bodyStrong, { flex: 1, fontSize: 15 }]}>{qa.q}</Text>
-                      <View style={{ transform: [{ rotate: expanded ? '90deg' : '0deg' }] }}>
-                        <Icon name="chevron" size={16} color={colors.textSecondary} />
+                      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: expanded ? 'rgba(221,181,101,0.14)' : colors.surface2, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: expanded ? '90deg' : '0deg' }] }}>
+                        <Icon name="chevron" size={14} color={expanded ? GOLD : colors.textSecondary} />
                       </View>
                     </KPressable>
-                    {expanded ? <Text style={[typography.muted, { fontSize: 14, lineHeight: 20, paddingBottom: spacing(1.5) }]}>{qa.a}</Text> : null}
+                    {expanded ? <Rise><Text style={[typography.muted, { fontSize: 14, lineHeight: 21, paddingBottom: spacing(1.5) }]}>{qa.a}</Text></Rise> : null}
                   </View>
                 );
               })}
-            </GlassCard>
+            </NovaCard>
           </View>
         ))}
       </ScrollView>

@@ -9,7 +9,7 @@
  * Drive est confié au flux persistant `useDriveFlow` (lib/googleDrive.ts), qui
  * survit au retour de Google et au redémarrage de l'app.
  */
-import { ScreenOrbit } from '../ui/nova';
+import { NovaHero } from '../ui/nova';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { passwordStrength, MIN_BACKUP_LEVEL } from '../src/security/passwordStrength';
 import React, { useEffect, useState } from 'react';
@@ -148,26 +148,27 @@ export default function CloudBackupScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScreenOrbit top={insets.top + 48} />
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: SCREEN_MARGIN, paddingTop: insets.top + space[3], paddingBottom: insets.bottom + space[8], gap: space[5] }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* 1. Titre + une phrase */}
+          {/* 1. Héros + ce que la sauvegarde emporte */}
           <View style={{ gap: space[2] }}>
-            <ScreenHeader title={t('encBackup')} />
-            <Text variant="bodySecondary" tone="secondary">{t('backupOneLiner')}</Text>
+            <ScreenHeader />
+            <NovaHero icon="share" tone="gold" title={t('encBackup')} subtitle={t('backupOneLiner')} />
             {/*
               COMBIEN de portefeuilles la sauvegarde emporte. Elle n'en prenait
               qu'un sans le dire ; annoncer le nombre est ce qui permet de repérer
               une sauvegarde incomplète avant d'avoir besoin d'elle.
             */}
-            <Text variant="caption" tone="secondary">{coversLabel}</Text>
+            <View style={{ alignSelf: 'center', paddingHorizontal: 14, height: 32, borderRadius: 16, justifyContent: 'center', backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+              <Text variant="caption" tone="secondary">{coversLabel}</Text>
+            </View>
           </View>
 
           {/* 2. Formulaire */}
-          <Surface style={{ gap: space[4] }}>
+          <Surface style={{ gap: space[4], borderRadius: 24 }}>
             <View style={{ gap: space[2] }}>
               <Input
                 label={t('backupPassword')}
@@ -201,7 +202,7 @@ export default function CloudBackupScreen() {
           </Surface>
 
           {/* 3. Statut réel */}
-          <Surface style={{ gap: space[3] }}>
+          <Surface style={{ gap: space[3], borderRadius: 24 }}>
             {driveBusy ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
                 <ActivityIndicator color={colors.text} />

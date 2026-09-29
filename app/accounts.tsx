@@ -1,4 +1,4 @@
-import { GOLD, IconDisc, Pulse, Rise } from '../ui/nova';
+import { GOLD, IconDisc, NovaHero, Pulse, Rise } from '../ui/nova';
 import { AddressGlyph } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { isWalletError } from '../src';
@@ -62,8 +62,7 @@ export default function Accounts() {
   return (
     <Screen>
       <ScreenHeader />
-      <Title>{t('accounts')}</Title>
-      <Muted>{t('allDerived')}</Muted>
+      <NovaHero icon="accounts" title={t('accounts')} subtitle={t('allDerived')} />
 
       <ScrollView
         style={{ flex: 1 }}

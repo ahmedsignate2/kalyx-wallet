@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { attachPriceCacheStorage } from '../src';
 import React, { useEffect, useState } from 'react';
 import { journal } from '../lib/debugJournal';
 import { JournalProbe } from '../ui/JournalProbe';
@@ -171,6 +173,8 @@ export default function RootLayout() {
     // on ne bootstrap pas les stores du wallet mobile.
     if (Platform.OS === 'web') return;
     console.log('[Kalyx] _layout: démarrage bootstrap');
+    // Cache des prix, marchés et courbes relu du disque : l'app ne rouvre plus sur du vide.
+    void attachPriceCacheStorage(AsyncStorage);
     (async () => {
       try {
         await bootstrap();
