@@ -22,7 +22,7 @@ import { Icon, type IconName } from './icon';
 import { Pressable as KPressable, LogoImage } from './kit';
 import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { springs } from './tokens';
-import { ScreenOrbit, useScreenEntrance } from './nova';
+import { useScreenEntrance } from './nova';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { haptic } from '../lib/haptics';
 
@@ -56,7 +56,6 @@ export function PremiumScreen({
   const entrance = useScreenEntrance();
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
-      <ScreenOrbit top={topPadding} />
       {/* Clavier-aware : le contenu remonte au-dessus du clavier et reste défilable. */}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Reanimated.View style={[{ flex: 1 }, entrance]}>

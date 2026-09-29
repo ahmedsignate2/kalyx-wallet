@@ -10,7 +10,7 @@
  * Rien de tout cela n'est stocké ailleurs que sur l'appareil : supprimer une
  * fiche ne touche pas la chaîne, et l'écran le dit au moment de confirmer.
  */
-import { ScreenOrbit } from '../ui/nova';
+import { NovaHero, ScreenOrbit } from '../ui/nova';
 import React, { useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -193,6 +193,7 @@ export default function Contacts() {
         contentContainerStyle={{ padding: SCREEN_MARGIN, gap: space[4], paddingBottom: insets.bottom + space[6] }}
         keyboardShouldPersistTaps="handled"
       >
+        {!pickMode ? <NovaHero icon="contacts" title={t('contacts')} subtitle={t('localAddressBook')} /> : null}
         {/* La recherche n'apparaît qu'au-delà de quelques fiches : en dessous,
             elle occuperait la place de ce qu'elle sert à trouver. */}
         {contacts.length > 5 ? (

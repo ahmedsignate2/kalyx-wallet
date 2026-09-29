@@ -1,4 +1,4 @@
-import { GOLD, IconDisc, Pulse, Rise } from '../ui/nova';
+import { GOLD, IconDisc, NovaHero, Pulse, Rise } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
@@ -48,8 +48,7 @@ export default function Wallets() {
   return (
     <Screen>
       <ScreenHeader />
-      <Title>{t('myWallets')}</Title>
-      <Muted>{t('eachWalletOwnPhrase')}</Muted>
+      <NovaHero icon="wallets" title={t('myWallets')} subtitle={t('eachWalletOwnPhrase')} />
 
       <ScrollView
         style={{ flex: 1, marginTop: spacing(1) }}

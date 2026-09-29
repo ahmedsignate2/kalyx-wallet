@@ -1,3 +1,4 @@
+import { NovaCard, NovaHero, Pills } from '../ui/nova';
 import { ScreenHeader } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
@@ -20,22 +21,24 @@ export default function Legal() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-      <ScreenHeader title={t('legalNotice')} />
-      <SegmentedTabs
-        items={[
-          { key: 'privacy', label: t('privacyShort') },
-          { key: 'terms', label: t('termsShort') },
-        ]}
-        active={tab}
-        onChange={setTab}
-      />
-      <Text style={[typography.muted, { fontSize: 12 }]}>{t('lastUpdated')} {legal.updated}</Text>
+      <ScreenHeader />
+      <NovaHero icon="about" title={t('legalNotice')} subtitle={`${t('lastUpdated')} ${legal.updated}`} />
+      <View style={{ alignItems: 'center' }}>
+        <Pills
+          items={[
+            { key: 'privacy', label: t('privacyShort') },
+            { key: 'terms', label: t('termsShort') },
+          ]}
+          value={tab}
+          onChange={(k) => setTab(k as typeof tab)}
+        />
+      </View>
       <ScrollView contentContainerStyle={{ gap: spacing(1.5), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
-        {sections.map((s) => (
-          <GlassCard key={s.title} style={{ gap: spacing(0.75) }}>
+        {sections.map((s, i) => (
+          <NovaCard key={`${tab}-${s.title}`} delay={Math.min(i, 6) * 50} style={{ gap: spacing(0.75) }}>
             <Text style={typography.bodyStrong}>{s.title}</Text>
-            <Text style={[typography.muted, { fontSize: 14, lineHeight: 20 }]}>{s.body}</Text>
-          </GlassCard>
+            <Text style={[typography.muted, { fontSize: 14, lineHeight: 21 }]}>{s.body}</Text>
+          </NovaCard>
         ))}
       </ScrollView>
     </PremiumScreen>

@@ -1,3 +1,4 @@
+import { AI_AUDIT_TIMEOUT_MS } from '../lib/aiToolBudget';
 import { Pressable as KPressable } from './kit';
 /**
  * Feuille de confirmation d'une action sensible, avec déverrouillage unifié :
@@ -101,7 +102,7 @@ Action: ${aiContext.method || 'Transfer'}`;
 
           console.log('[AI Audit] Requête envoyée à:', url, 'avec provider:', aiStore.provider);
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
+          const timeoutId = setTimeout(() => controller.abort(), AI_AUDIT_TIMEOUT_MS);
           
           const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
           clearTimeout(timeoutId);
@@ -126,7 +127,7 @@ Action: ${aiContext.method || 'Transfer'}`;
           setAiAnalysis(parsed);
         } catch (e) {
           if (String(e).includes('canceled') || String(e).includes('aborted') || (e as Error).name === 'AbortError') {
-            console.log('[AI Audit] Timeout atteint (2s), fallback neutre.');
+            console.log(`[AI Audit] Timeout atteint (${AI_AUDIT_TIMEOUT_MS / 1000}s), fallback neutre.`);
             setAiAnalysis({ riskLevel: 'MEDIUM', explanation: t("aiAuditTimeout"), threats: [] });
           } else {
             console.warn('[AI Audit] Erreur silencieuse ignorée:', (e as Error).message);

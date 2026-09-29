@@ -1,3 +1,4 @@
+import { NovaCard, NovaHero } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { fetchApprovalCandidates } from '../src/domain/security/goplus';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -91,17 +92,8 @@ export default function Approvals() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-      <ScreenHeader title={t('approvals')} />
-
-      <View style={{ alignItems: 'center', gap: spacing(1), marginBottom: spacing(0.5) }}>
-        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="security" size={26} color={colors.primary} />
-        </View>
-        <Text style={typography.title}>{t('spendApprovals')}</Text>
-        <Text style={[typography.muted, { textAlign: 'center' }]}>
-          {t('approvalsIntro').replace('{chain}', chain.name)}
-        </Text>
-      </View>
+      <ScreenHeader />
+      <NovaHero icon="security" title={t('spendApprovals')} subtitle={t('approvalsIntro').replace('{chain}', chain.name)} />
 
       {!isEvm ? (
         <GlassCard>
@@ -133,10 +125,10 @@ export default function Approvals() {
               </View>
             </GlassCard>
           ) : (
-            items.map((it) => {
+            items.map((it, idx) => {
               const unlimited = isUnlimited(it.allowance);
               return (
-                <GlassCard key={`${it.token}-${it.spender}`}>
+                <NovaCard key={`${it.token}-${it.spender}`} delay={Math.min(idx, 8) * 50} style={unlimited ? { borderColor: 'rgba(255,77,94,0.35)' } : undefined}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
                     {it.logo ? (
                       <Image source={{ uri: it.logo }} style={{ width: 40, height: 40, borderRadius: 20 }} />
@@ -149,9 +141,9 @@ export default function Approvals() {
                     </View>
                     <View
                       style={{
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
-                        borderRadius: 8,
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        borderRadius: 12,
                         backgroundColor: unlimited ? 'rgba(255,92,92,0.15)' : colors.surface2,
                       }}
                     >
@@ -180,11 +172,11 @@ export default function Approvals() {
                   </Text>
                   <KPressable
                     onPress={() => setTarget(it)}
-                    style={{ marginTop: spacing(1.5), alignItems: 'center', paddingVertical: spacing(1.25), borderRadius: radii.pill, borderWidth: 1, borderColor: colors.danger + '66' }}
+                    style={{ marginTop: spacing(1.5), alignItems: 'center', justifyContent: 'center', height: 46, borderRadius: 23, backgroundColor: 'rgba(255,77,94,0.10)' }}
                   >
                     <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('revoke')}</Text>
                   </KPressable>
-                </GlassCard>
+                </NovaCard>
               );
             })
           )}

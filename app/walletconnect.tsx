@@ -1,5 +1,5 @@
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
-import { ActionDisc, Pulse, Rise, SectionLabel } from '../ui/nova';
+import { ActionDisc, NovaHero, Pulse, Rise, SectionLabel } from '../ui/nova';
 import { DappLogo } from '../ui/browser/DappTile';
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
@@ -90,8 +90,7 @@ export default function WalletConnectScreen() {
   return (
     <Screen scroll>
       <ScreenHeader />
-      <Title>WalletConnect</Title>
-      <Muted>{t('wcIntro')}</Muted>
+      <NovaHero icon="walletconnect" title="WalletConnect" subtitle={t('wcIntro')} />
 
       {/* Les deux façons de se connecter, en disques : scanner d'abord, coller ensuite. */}
       <View style={{ flexDirection: 'row', gap: spacing(1), marginVertical: spacing(1) }}>

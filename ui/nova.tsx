@@ -9,7 +9,7 @@
  * « Réduire les animations » coupe tout mouvement autonome sans rien cacher.
  */
 import React, { useEffect, useMemo } from 'react';
-import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { Switch, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -318,5 +318,79 @@ export function TypingDots() {
       <TypingDot delay={140} />
       <TypingDot delay={280} />
     </View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Écrans secondaires : héros, lignes de réglage, interrupteur, options */
+/* ------------------------------------------------------------------ */
+
+/**
+ * En-tête d'écran Nova : un grand disque dans son orbite, le titre, une phrase.
+ * Remplace le « Titre + texte gris » des écrans secondaires — c'est ce qui les
+ * fait appartenir au même monde que l'accueil.
+ */
+export function NovaHero({ icon, title, subtitle, tone = 'default', children }: { icon?: IconName; title: string; subtitle?: string; tone?: 'default' | 'gold' | 'danger'; children?: React.ReactNode }) {
+  return (
+    <View style={{ alignItems: 'center', gap: 10, paddingTop: 4, paddingBottom: 8 }}>
+      <View style={{ width: 92, height: 92, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+        <View pointerEvents="none" style={{ position: 'absolute', left: 46, top: 46 }}><Orbit cx={0} cy={0} r={62} /></View>
+        {children ?? (icon ? <IconDisc name={icon} tone={tone} size={80} /> : null)}
+      </View>
+      <Rise delay={60}><Text variant="title1" style={{ textAlign: 'center' }}>{title}</Text></Rise>
+      {subtitle ? <Rise delay={120}><Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center', maxWidth: 330, lineHeight: 21 }}>{subtitle}</Text></Rise> : null}
+    </View>
+  );
+}
+
+/** Carte Nova : Nuit, arrondi 24, trait fin. `delay` la fait monter en cascade. */
+export function NovaCard({ children, delay = 0, style, padded = true }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle>; padded?: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <Rise delay={delay} style={[{ borderRadius: 24, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, padding: padded ? 16 : 0, overflow: 'hidden' }, style]}>
+      {children}
+    </Rise>
+  );
+}
+
+/** Interrupteur aux couleurs Nova : piste or quand il est allumé. */
+export function NovaSwitch({ value, onValueChange, disabled }: { value: boolean; onValueChange: (v: boolean) => void; disabled?: boolean }) {
+  const { colors } = useTheme();
+  return <Switch value={value} onValueChange={onValueChange} disabled={disabled} trackColor={{ false: colors.surface3, true: 'rgba(221,181,101,0.55)' }} thumbColor={value ? GOLD : '#C9CCD6'} ios_backgroundColor={colors.surface3} />;
+}
+
+/**
+ * Ligne de réglage : disque d'icône, titre, indication, puis ce qu'on veut à
+ * droite (interrupteur, chevron, valeur). `divider` trace le trait au-dessus.
+ */
+export function SettingRow({ icon, title, hint, right, onPress, divider, tone }: { icon: IconName; title: string; hint?: string; right?: React.ReactNode; onPress?: () => void; divider?: boolean; tone?: 'gold' | 'danger' }) {
+  const { colors } = useTheme();
+  const body = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 8, borderTopWidth: divider ? 1 : 0, borderTopColor: colors.border }}>
+      <IconDisc name={icon} tone={tone} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text variant="body" style={tone === 'danger' ? { color: colors.danger } : undefined}>{title}</Text>
+        {hint ? <Text variant="caption" tone="secondary">{hint}</Text> : null}
+      </View>
+      {right ?? (onPress ? <Icon name="chevron" size={16} color={colors.textTertiary} /> : null)}
+    </View>
+  );
+  return onPress ? <KPressable onPress={onPress} noScale accessibilityRole="button" accessibilityLabel={title}>{body}</KPressable> : body;
+}
+
+/** Option à choisir parmi d'autres : pilule, point d'or sur la choisie. */
+export function OptionPill({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <KPressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={label}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, height: 38, paddingHorizontal: 14, borderRadius: 19, borderWidth: 1, borderColor: selected ? 'rgba(221,181,101,0.55)' : colors.border, backgroundColor: selected ? colors.surface2 : 'transparent' }}
+    >
+      {selected ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: GOLD }} /> : null}
+      <Text variant="caption" style={{ fontFamily: fontFamily.semibold, color: selected ? colors.text : colors.textSecondary }}>{label}</Text>
+    </KPressable>
   );
 }

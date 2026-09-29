@@ -25,8 +25,17 @@ export const MAX_CALLS_PER_TURN = 3;
 export const MAX_CALLS_PER_HOUR = 20;
 /** Durée pendant laquelle une mesure est réutilisée au lieu d'être refaite. */
 export const CACHE_TTL_MS = 30_000;
-/** Délai au-delà duquel une mesure est abandonnée. */
-export const TOOL_TIMEOUT_MS = 8_000;
+/**
+ * Délai au-delà duquel une mesure est abandonnée. 8 s coupaient les
+ * recherches web et les historiques longs sur un réseau mobile moyen.
+ */
+export const TOOL_TIMEOUT_MS = 15_000;
+/**
+ * Délai laissé à l'audit IA d'une transaction. Il était de 2 s : un modèle
+ * met souvent plus que cela à répondre, et l'audit tombait presque toujours
+ * en « réponse neutre ». Il tourne pendant la saisie du code, sans la bloquer.
+ */
+export const AI_AUDIT_TIMEOUT_MS = 15_000;
 
 const HOUR_MS = 3_600_000;
 
