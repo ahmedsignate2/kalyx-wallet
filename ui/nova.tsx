@@ -365,12 +365,13 @@ export function TypingDots() {
  * Remplace le « Titre + texte gris » des écrans secondaires — c'est ce qui les
  * fait appartenir au même monde que l'accueil.
  */
-export function NovaHero({ icon, title, subtitle, tone = 'default', children }: { icon?: IconName; title: string; subtitle?: string; tone?: 'default' | 'gold' | 'danger'; children?: React.ReactNode }) {
+export function NovaHero({ icon, title, subtitle, tone = 'default', children, compact }: { icon?: IconName; title: string; subtitle?: string; tone?: 'default' | 'gold' | 'danger'; children?: React.ReactNode; /** Disque réduit, pour un écran fixe qui manque de hauteur. */ compact?: boolean }) {
+  const box = compact ? 60 : 92;
   return (
-    <View style={{ alignItems: 'center', gap: 10, paddingTop: 4, paddingBottom: 8 }}>
-      <View style={{ width: 92, height: 92, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-        <View pointerEvents="none" style={{ position: 'absolute', left: 46, top: 46 }}><Orbit cx={0} cy={0} r={62} /></View>
-        {children ?? (icon ? <IconDisc name={icon} tone={tone} size={80} /> : null)}
+    <View style={{ alignItems: 'center', gap: compact ? 6 : 10, paddingTop: compact ? 0 : 4, paddingBottom: compact ? 4 : 8 }}>
+      <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center', marginBottom: compact ? 0 : 4 }}>
+        <View pointerEvents="none" style={{ position: 'absolute', left: box / 2, top: box / 2 }}><Orbit cx={0} cy={0} r={compact ? 40 : 62} /></View>
+        {children ?? (icon ? <IconDisc name={icon} tone={tone} size={compact ? 52 : 80} /> : null)}
       </View>
       <Rise delay={60}><Text variant="title1" style={{ textAlign: 'center' }}>{title}</Text></Rise>
       {subtitle ? <Rise delay={120}><Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center', maxWidth: 330, lineHeight: 21 }}>{subtitle}</Text></Rise> : null}

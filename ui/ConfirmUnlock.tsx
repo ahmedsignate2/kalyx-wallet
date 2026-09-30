@@ -28,7 +28,7 @@ import { fonts, radii, spacing, useTheme } from './theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import type { Unlock } from '../lib/walletStore';
-import { buildAiRequestParams } from "../lib/aiConfig";
+import { auditTransaction, type TxAuditResult } from "../lib/aiTxAudit";
 import { useAiStore } from "../lib/aiStore";
 import { isWalletError } from '../src';
 
@@ -66,7 +66,8 @@ export function ConfirmUnlock({
   const attemptRef = useRef(0);
 
   const aiStore = useAiStore();
-  const [aiAnalysis, setAiAnalysis] = useState<{ riskLevel: string, explanation: string, threats: string[] } | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<TxAuditResult | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   /*
    * ANALYSE IA À LA DEMANDE. Elle partait d'office à chaque confirmation :
@@ -74,70 +75,37 @@ export function ConfirmUnlock({
    * l'utilisateur l'ait demandé. Désormais un bouton, qui dit ce qui part.
    */
   const [aiRequested, setAiRequested] = useState(false);
+  const auditRun = useRef(0);
   useEffect(() => {
     if (!visible) {
+      auditRun.current += 1; // une réponse tardive n'atterrit pas sur la fenêtre suivante
       setAiRequested(false);
       setAiAnalysis(null);
+      setAiError(null);
+      setAnalyzing(false);
     }
   }, [visible]);
 
-  useEffect(() => {
-    if (visible && aiRequested && aiStore.isEnabled && aiContext && !aiAnalysis && !analyzing) {
-      setAnalyzing(true);
-      (async () => {
-        console.log('[AI Audit] Lancement de l\'audit de transaction pour:', aiContext.to);
-        try {
-          const prompt = `Tu es un expert en cybersécurité Web3. Analyse cette transaction et renvoie STRICTEMENT ET UNIQUEMENT un JSON valide (sans markdown) : {"riskLevel": "SAFE" | "WARNING" | "DANGER", "explanation": "Short explanation in ${language || 'fr'}", "threats": ["Menace éventuelle"]}.
-Données:
-Cible: ${aiContext.to}
-Montant: ${aiContext.value}
-Action: ${aiContext.method || 'Transfer'}`;
-
-          const { url, headers, model } = buildAiRequestParams(aiStore.provider, aiStore.apiKey!, aiStore.customUrl, aiStore.customModel);
-          let body: any = { model, max_tokens: 250, response_format: { type: 'json_object' }, messages: [{ role: 'user', content: prompt }] };
-          if (aiStore.provider === 'anthropic') {
-            delete body.response_format; // Anthropic handle differently but let's just pass prompt as user
-            body.system = "Tu dois répondre UNIQUEMENT en JSON valide.";
-          }
-
-          console.log('[AI Audit] Requête envoyée à:', url, 'avec provider:', aiStore.provider);
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), AI_AUDIT_TIMEOUT_MS);
-          
-          const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
-          clearTimeout(timeoutId);
-          const data = await res.json();
-          
-          if (res.status === 429 || data?.error?.code === 429) {
-            console.warn('[AI Audit] Quota 429 atteint, fallback neutre.');
-            setAiAnalysis({
-              riskLevel: 'MEDIUM',
-              explanation: t("aiAuditQuotaExceeded"),
-              threats: []
-            });
-            return;
-          }
-
-          console.log('[AI Audit] Réponse brute reçue:', JSON.stringify(data).substring(0, 200) + '...');
-          let txt = data.choices?.[0]?.message?.content || '{}';
-          // Clean markdown
-          txt = txt.replace(/```json/g, '').replace(/```/g, '');
-          const parsed = JSON.parse(txt);
-          console.log('[AI Audit] Résultat de l\'analyse parsé:', parsed);
-          setAiAnalysis(parsed);
-        } catch (e) {
-          if (String(e).includes('canceled') || String(e).includes('aborted') || (e as Error).name === 'AbortError') {
-            console.log(`[AI Audit] Timeout atteint (${AI_AUDIT_TIMEOUT_MS / 1000}s), fallback neutre.`);
-            setAiAnalysis({ riskLevel: 'MEDIUM', explanation: t("aiAuditTimeout"), threats: [] });
-          } else {
-            console.warn('[AI Audit] Erreur silencieuse ignorée:', (e as Error).message);
-          }
-        } finally {
-          setAnalyzing(false);
-        }
-      })();
-    }
-  }, [visible, aiStore.isEnabled, aiContext]);
+  /*
+   * Lancée par le bouton, et non plus par un effet : l'effet ne surveillait pas
+   * le bouton, se relançait à chaque rendu, et la saisie du PIN effaçait le
+   * résultat. Voir lib/aiTxAudit.ts pour ce qui faisait échouer la requête.
+   */
+  const startAudit = async () => {
+    if (!aiContext || analyzing) return;
+    const runId = ++auditRun.current;
+    setAiRequested(true);
+    setAiAnalysis(null);
+    setAiError(null);
+    setAnalyzing(true);
+    console.log('[AI Audit] start', { provider: aiStore.provider });
+    const out = await auditTransaction(aiContext, language || 'fr', { timeout: t('aiAuditTimeout'), unreadable: t('aiAuditUnreadable') }, AI_AUDIT_TIMEOUT_MS);
+    if (runId !== auditRun.current) return;
+    console.log('[AI Audit] done', out.ok ? { riskLevel: out.result.riskLevel } : { error: out.error.slice(0, 120) });
+    if (out.ok) setAiAnalysis(out.result);
+    else setAiError(out.error);
+    setAnalyzing(false);
+  };
 
 
   const run = async (unlock: Unlock) => {
@@ -147,8 +115,6 @@ Action: ${aiContext.method || 'Transfer'}`;
     const unlockMode = viaBio ? 'biometric' : 'pin';
     console.log('[KALYX-AUTH][ConfirmUnlock] attempt:start', { attempt, unlockMode, title });
     setPhase('working');
-      setAiAnalysis(null);
-      setAnalyzing(false);
     setError(null);
     try {
       if (viaBio) {
@@ -299,7 +265,7 @@ Action: ${aiContext.method || 'Transfer'}`;
             <>
 
               {aiStore.isEnabled && aiContext && !aiRequested ? (
-                <KPressable onPress={() => setAiRequested(true)} style={{ width: '90%', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 8 }}>
+                <KPressable onPress={() => void startAudit()} style={{ width: '90%', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 8 }}>
                   <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{t('aiAuditRun')}</Text>
                   <Text style={{ color: colors.textSecondary, fontSize: 11, fontFamily: fonts.medium, marginTop: 2 }}>{t('aiAuditRunNote')}</Text>
                 </KPressable>
@@ -310,6 +276,15 @@ Action: ${aiContext.method || 'Transfer'}`;
                   <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13, marginBottom: 4 }}>
                     {analyzing ? t("aiAuditInProgress") : (aiAnalysis ? `${t('aiAuditLabel')} ${aiAnalysis.riskLevel}` : t("aiAuditUndetermined"))}
                   </Text>
+                  {/* Échec : la raison, puis de quoi réessayer — jamais un encadré muet. */}
+                  {!analyzing && aiError ? (
+                    <>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.medium }}>{aiError}</Text>
+                      <KPressable onPress={() => void startAudit()} hitSlop={8} style={{ marginTop: 6 }}>
+                        <Text style={{ color: colors.primary, fontSize: 12, fontFamily: fonts.semibold }}>{t('aiAuditRun')}</Text>
+                      </KPressable>
+                    </>
+                  ) : null}
                   {!analyzing && aiAnalysis && (
                     <>
                       <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.medium }}>{aiAnalysis.explanation}</Text>
