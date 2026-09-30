@@ -87,6 +87,7 @@ const WALLET_ERROR_KEYS: Record<string, Key> = {
   SOL_RENT_RECIPIENT: 'errSolRentRecipient',
   SOL_RENT_SENDER: 'errSolRentSender',
   SWAP_SIMULATION_FAILED: 'errSwapSimulationFailed',
+  WRONG_ACCOUNT: 'errWrongAccount',
 };
 
 /**
@@ -102,6 +103,7 @@ function detailedWalletKey(code: string, meta: Record<string, string>): Key | nu
   if (code === 'INSUFFICIENT_FUNDS' && meta.have && meta.fee && meta.symbol) return 'errInsufficientFundsHave';
   if (code === 'AMOUNT_TOO_SMALL' && meta.min && meta.symbol) return 'errAmountTooSmallMin';
   if (code === 'INSUFFICIENT_GAS' && meta.need && meta.have && meta.gas) return 'errTonSwapGas';
+  if (code === 'WRONG_ACCOUNT' && meta.address) return 'errWrongAccountAddr';
   return null;
 }
 
