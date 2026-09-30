@@ -2,7 +2,7 @@
  * Composants de base du design system (thémés clair/sombre).
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ViewStyle, ActivityIndicator, Animated, Dimensions, Easing, KeyboardAvoidingView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle, ActivityIndicator, Animated, Dimensions, Easing, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,6 +12,7 @@ import { KalyxRing } from './KalyxRing';
 import Reanimated from 'react-native-reanimated';
 import { useScreenEntrance } from './nova';
 import { radius as kRadius, BUTTON_HEIGHT } from './tokens';
+import { KeyboardAvoid } from './KeyboardAvoid';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -66,7 +67,7 @@ export function Screen({ children, scroll }: { children: React.ReactNode; scroll
   const entrance = useScreenEntrance();
   return (
     <View style={[styles.screen, { paddingTop: topPadding }]}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid style={{ flex: 1 }}>
         <Reanimated.View style={[{ flex: 1 }, entrance]}>
         {scroll ? (
           <ScrollView
@@ -82,7 +83,7 @@ export function Screen({ children, scroll }: { children: React.ReactNode; scroll
           <View style={[styles.screenInner, { paddingBottom: spacing(3) + bottom }]}>{children}</View>
         )}
         </Reanimated.View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </View>
   );
 }

@@ -9,6 +9,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, useWindowDimensions } from 'react-native';
+import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ScreenCapture from 'expo-screen-capture';
@@ -129,7 +130,9 @@ export default function CreateWallet() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
       <Stardust width={winW} height={winH} count={10} />
-      <View style={{ flex: 1, paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + space[4], gap: space[4] }}>
+      {/* Clavier ouvert (nom du portefeuille) : le bouton « Créer » reste visible, le reste défile. */}
+      <KeyboardAvoid style={{ flex: 1 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + space[4], gap: space[4] }}>
         <ScreenHeader right={<FlowDots step={1} total={2} />} />
 
         {/* Héros : le disque « créer » au centre de son orbite, qui naît puis tourne. */}
@@ -149,7 +152,8 @@ export default function CreateWallet() {
         {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
         <View style={{ flex: 1 }} />
         <Button label={busy ? t('creating') : t('createAction')} loading={busy} onPress={() => { setError(null); setAskPin(true); }} />
-      </View>
+      </ScrollView>
+      </KeyboardAvoid>
 
       <PinPromptModal
         visible={askPin}

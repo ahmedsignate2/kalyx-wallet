@@ -1719,6 +1719,7 @@ const en = {
   aiAuditQuotaExceeded:
     "AI verification unavailable (quota reached). The contract could not be validated.",
   aiAuditTimeout: "Fast audit skipped (timeout).",
+  aiAuditUnreadable: "The AI answered in an unreadable format. Try again, or choose another model in Settings → AI Copilot.",
   pinVerifying: "Verifying…",
   pinValidate: "Validate",
   tokenSelect: "Select a token",
@@ -3645,6 +3646,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditQuotaExceeded:
       "Vérification IA indisponible (quota atteint). Le contrat n'a pas pu être validé.",
     aiAuditTimeout: "Audit rapide ignoré (timeout).",
+    aiAuditUnreadable: "L’IA a répondu dans un format illisible. Réessaie, ou choisis un autre modèle dans Réglages → Copilot IA.",
     pinVerifying: "Vérification…",
     pinValidate: "Valider",
     tokenSelect: "Sélectionner un token",
@@ -5563,6 +5565,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditQuotaExceeded:
       "Verificación de IA no disponible (cuota alcanzada). El contrato no se pudo validar.",
     aiAuditTimeout: "Auditoría rápida omitida (tiempo de espera).",
+    aiAuditUnreadable: "La IA respondió en un formato ilegible. Inténtalo de nuevo o elige otro modelo en Ajustes → Copiloto IA.",
     pinVerifying: "Verificando…",
     pinValidate: "Validar",
     tokenSelect: "Seleccionar un token",
@@ -7463,6 +7466,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditUndetermined: "Auditoria de IA indeterminada",
     aiAuditQuotaExceeded: "Verificação de IA indisponível.",
     aiAuditTimeout: "Auditoria rápida ignorada.",
+    aiAuditUnreadable: "A IA respondeu num formato ilegível. Tenta de novo ou escolhe outro modelo em Definições → Copiloto IA.",
     pinVerifying: "A verificar...",
     pinValidate: "Validar",
     tokenSelect: "Selecionar um token",
@@ -9374,6 +9378,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditUndetermined: "KI-Audit unbestimmt",
     aiAuditQuotaExceeded: "KI-Überprüfung nicht verfügbar.",
     aiAuditTimeout: "Schnellaudit übersprungen.",
+    aiAuditUnreadable: "Die KI hat in einem unlesbaren Format geantwortet. Versuche es erneut oder wähle ein anderes Modell unter Einstellungen → KI-Copilot.",
     pinVerifying: "Wird überprüft...",
     pinValidate: "Bestätigen",
     tokenSelect: "Token auswählen",
@@ -11276,6 +11281,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditUndetermined: "Audit IA indeterminato",
     aiAuditQuotaExceeded: "Verifica IA non disponibile.",
     aiAuditTimeout: "Audit rapido ignorato.",
+    aiAuditUnreadable: "L’IA ha risposto in un formato illeggibile. Riprova o scegli un altro modello in Impostazioni → Copilot IA.",
     pinVerifying: "Verifica in corso...",
     pinValidate: "Convalida",
     tokenSelect: "Seleziona un token",
@@ -13197,6 +13203,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditQuotaExceeded:
       "AI-verificatie niet beschikbaar (quota bereikt). Contract kan niet worden gevalideerd.",
     aiAuditTimeout: "Snelle audit overgeslagen (time-out).",
+    aiAuditUnreadable: "De AI antwoordde in een onleesbaar formaat. Probeer opnieuw of kies een ander model in Instellingen → AI-copilot.",
     pinVerifying: "Controleren...",
     pinValidate: "Valideren",
     tokenSelect: "Selecteer een token",
@@ -15110,6 +15117,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditQuotaExceeded:
       "Weryfikacja AI niedostępna (osiągnięto limit). Kontrakt nie mógł zostać zweryfikowany.",
     aiAuditTimeout: "Pominięto szybki audyt (limit czasu).",
+    aiAuditUnreadable: "AI odpowiedziała w nieczytelnym formacie. Spróbuj ponownie lub wybierz inny model w Ustawienia → Copilot AI.",
     pinVerifying: "Weryfikowanie...",
     pinValidate: "Potwierdź",
     tokenSelect: "Wybierz token",
@@ -17018,6 +17026,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditQuotaExceeded:
       "Yapay Zeka doğrulaması kullanılamıyor (kota aşıldı). Sözleşme doğrulanamadı.",
     aiAuditTimeout: "Hızlı denetim atlandı (zaman aşımı).",
+    aiAuditUnreadable: "Yapay zekâ okunamayan bir biçimde yanıt verdi. Tekrar dene ya da Ayarlar → YZ Copilot’tan başka bir model seç.",
     pinVerifying: "Doğrulanıyor...",
     pinValidate: "Onayla",
     tokenSelect: "Bir token seçin",
@@ -18945,6 +18954,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditQuotaExceeded:
       "Проверка ИИ недоступна (квота исчерпана). Контракт не удалось проверить.",
     aiAuditTimeout: "Быстрый аудит пропущен (тайм-аут).",
+    aiAuditUnreadable: "ИИ ответил в нечитаемом формате. Попробуй ещё раз или выбери другую модель в Настройки → ИИ-копилот.",
     pinVerifying: "Проверка...",
     pinValidate: "Подтвердить",
     tokenSelect: "Выбрать токен",
@@ -20853,6 +20863,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditQuotaExceeded:
       "التحقق من الذكاء الاصطناعي غير متوفر (تم الوصول إلى الحصة). تعذر التحقق من العقد.",
     aiAuditTimeout: "تم تخطي التدقيق السريع (انتهت المهلة).",
+    aiAuditUnreadable: "ردّ الذكاء الاصطناعي بتنسيق غير مقروء. حاول مجددًا أو اختر نموذجًا آخر في الإعدادات ← مساعد الذكاء الاصطناعي.",
     pinVerifying: "جارٍ التحقق...",
     pinValidate: "تأكيد",
     tokenSelect: "تحديد رمز",
@@ -22785,6 +22796,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditQuotaExceeded:
       "AI सत्यापन अनुपलब्ध (कोटा पूरा हो गया)। अनुबंध सत्यापित नहीं किया जा सका।",
     aiAuditTimeout: "त्वरित ऑडिट छोड़ दिया गया (समय समाप्त)।",
+    aiAuditUnreadable: "AI ने अपठनीय प्रारूप में जवाब दिया। फिर से कोशिश करें, या सेटिंग्स → AI कोपायलट में कोई दूसरा मॉडल चुनें।",
     pinVerifying: "सत्यापित किया जा रहा है...",
     pinValidate: "पुष्टि करें",
     tokenSelect: "टोकन का चयन करें",
@@ -24665,6 +24677,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditUndetermined: "AI 审计无法确定",
     aiAuditQuotaExceeded: "AI 验证不可用（达到限额）。无法验证合约。",
     aiAuditTimeout: "已跳过快速审计（超时）。",
+    aiAuditUnreadable: "AI 的回复格式无法读取。请重试，或在 设置 → AI 助手 中选择其他模型。",
     pinVerifying: "验证中…",
     pinValidate: "验证",
     tokenSelect: "选择代币",
@@ -26580,6 +26593,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditQuotaExceeded:
       "AI 確認は利用できません (制限に達しました)。コントラクトを検証できませんでした。",
     aiAuditTimeout: "クイック監査をスキップしました（タイムアウト）。",
+    aiAuditUnreadable: "AI の回答を読み取れませんでした。もう一度試すか、設定 → AI コパイロット で別のモデルを選んでください。",
     pinVerifying: "確認中…",
     pinValidate: "検証",
     tokenSelect: "トークンを選択",
@@ -28475,6 +28489,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     aiAuditQuotaExceeded:
       "AI 확인을 사용할 수 없습니다(한도 초과). 계약을 검증할 수 없습니다.",
     aiAuditTimeout: "빠른 감사를 건너뛰었습니다(시간 초과).",
+    aiAuditUnreadable: "AI가 읽을 수 없는 형식으로 답했습니다. 다시 시도하거나 설정 → AI 코파일럿에서 다른 모델을 선택하세요.",
     pinVerifying: "확인 중…",
     pinValidate: "검증",
     tokenSelect: "토큰 선택",

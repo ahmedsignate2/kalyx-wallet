@@ -24,7 +24,7 @@ import { friendlyTxError } from '../lib/txError';
 import { haptic } from '../lib/haptics';
 import { notifyAndLog } from '../lib/notificationCenter';
 import { useEarn, priceOf, quote as earnQuote, execute as earnExecute, maxDeposit, nativeReserve, type EarnStatus, type EarnAccount } from '../lib/earn';
-import { getAdapter, parseAmount, formatTokenAmount, formatInputAmount, formatNumber, formatFiat, formatPercent, formatAmount, isNative, isWalletError, type EarnProtocol, type EarnAction, type EarnQuote } from '../src';
+import { getAdapter, parseAmount, formatTokenAmount, formatInputAmount, formatNumber, formatFiat, formatPercent, formatAmount, isNative, type EarnProtocol, type EarnAction, type EarnQuote } from '../src';
 
 const STATUS_KEY: Record<EarnStatus, 'earnQuoting' | 'stApproving' | 'stApprovalWait' | 'stSending' | 'stConfirming'> = {
   quoting: 'earnQuoting',
@@ -205,9 +205,9 @@ export function EarnSheet({
         setStatus(null);
         // WRONG_PIN et refus/absence de biométrie : ConfirmUnlock les gère
         // lui-même (réessai PIN, repli silencieux) → on relaie tels quels.
-        if (isWalletError(e) && e.code === 'WRONG_PIN') throw e;
-        if (e instanceof Error && /biométri|Biométrie/.test(e.message)) throw e;
-        throw new Error(friendlyTxError(e, t));
+        // Erreur d'origine relayée : ConfirmUnlock la traduit. Une Error nue portant
+        // le texte déjà traduit était retraduite en « Transaction échouée ».
+        throw e;
       }
   };
 
