@@ -7,6 +7,7 @@
  * l'en-tête donne les compteurs qui délimitent ces blocs. Le payeur de frais
  * est toujours le compte n°0 (signataire, écriture).
  */
+import { utf8ToBytes } from '@noble/hashes/utils';
 import { base58 } from '@scure/base';
 import { encodeLength } from './solTx';
 
@@ -33,7 +34,7 @@ export const MEMO_PROGRAM = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
  * `solTx → solSpl → solMessage → solTx`.
  */
 export function memoIx(text: string): Instruction {
-  return { programId: MEMO_PROGRAM, keys: [], data: new TextEncoder().encode(text) };
+  return { programId: MEMO_PROGRAM, keys: [], data: utf8ToBytes(text) };
 }
 
 /**

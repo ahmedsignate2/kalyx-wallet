@@ -25,6 +25,7 @@ import {
   SPEED_PERCENTILES,
   CU_SOL_TRANSFER,
   CU_SPL_TRANSFER,
+  sendComputeUnits,
 } from '../solPriority';
 import { amountAfterTransferFee, transferFeeFor } from '../../tokens/token2022';
 import { WalletError } from '../../errors';
@@ -159,7 +160,7 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
    */
   async quoteFees(from: string, request: SendRequest): Promise<FeeQuotes> {
     void from;
-    const cu = BigInt(request.token ? CU_SPL_TRANSFER : CU_SOL_TRANSFER);
+    const cu = BigInt(sendComputeUnits(request.token ? CU_SPL_TRANSFER : CU_SOL_TRANSFER, request.memo));
     /*
      * La location de l'ATA entre dans le devis quand le destinataire n'a pas
      * encore de compte pour ce jeton. Elle s'ajoute aux trois paliers à
@@ -271,7 +272,7 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
         to: request.to,
         lamports: request.amount,
         recentBlockhash: blockhash,
-        prefix: priorityInstructions(CU_SOL_TRANSFER, price),
+        prefix: priorityInstructions(sendComputeUnits(CU_SOL_TRANSFER, request.memo), price),
         references: request.references,
         memo: request.memo,
       });
@@ -325,7 +326,7 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
       amount: request.amount,
       decimals: request.token.decimals,
       recentBlockhash: blockhash,
-      prefix: priorityInstructions(CU_SPL_TRANSFER, price),
+      prefix: priorityInstructions(sendComputeUnits(CU_SPL_TRANSFER, request.memo), price),
       tokenProgram,
       references: request.references,
       memo: request.memo,

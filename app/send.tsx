@@ -13,6 +13,7 @@ import { usePaidAddresses } from '../lib/historySpam';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, HoldRing, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
@@ -29,7 +30,6 @@ import { useContacts } from '../lib/contactsStore';
 import { usePortfolioStore, splitHoldings, type Holding } from '../lib/portfolio';
 import { notifyAndLog } from '../lib/notificationCenter';
 import { technicalLogger } from '../lib/technicalLogger';
-import { friendlyTxError } from '../lib/txError';
 import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
 import {
@@ -541,8 +541,14 @@ export default function Send() {
       haptic.success();
     } catch (e) {
       technicalLogger.logTx('step_4_broadcast_failed', { error: e instanceof Error ? e.message : String(e), chain: chain.name }, true);
-      if (isWalletError(e) && e.code === 'WRONG_PIN') throw e;
-      throw new Error(friendlyTxError(e));
+      /*
+       * L'ERREUR D'ORIGINE, relayée telle quelle : c'est ConfirmUnlock qui la
+       * traduit (avec la langue). La traduire ici puis relancer une Error nue
+       * la faisait retraduire à partir de sa phrase — qui ne correspondait plus
+       * à rien : « Transaction échouée. Réessaie » à chaque fois, le vrai motif
+       * perdu (loyer Solana, solde, mémo…).
+       */
+      throw e;
     }
   };
 
@@ -698,6 +704,8 @@ export default function Send() {
         {step > 0 ? <StepBar step={step} total={4} /> : null}
       </View>
 
+      {/* Le clavier ne recouvre plus l'adresse, le montant, le mémo ni « Continuer » (Android bord à bord). */}
+      <KeyboardAvoid style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[5], flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         {/* ── 0. Quoi envoyer (agrégé multi-chaîne) ── */}
         {step === 0 ? (() => {
@@ -1056,6 +1064,7 @@ export default function Send() {
           </>
         ) : null}
       </ScrollView>
+      </KeyboardAvoid>
 
       {/*
         Filtré sur la famille de la chaîne active : proposer un contact Bitcoin

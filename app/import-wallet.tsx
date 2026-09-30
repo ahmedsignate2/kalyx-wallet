@@ -4,7 +4,7 @@ import { IconDisc, Orbit, Pills, Rise, SectionLabel } from '../ui/nova';
 import { fill } from '../lib/i18n';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { router, Stack } from 'expo-router';
@@ -29,6 +29,7 @@ import {
   type BackupWallet,
 } from '../src';
 import { isDriveConfigured } from '../lib/googleDrive';
+import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 
 type Mode = 'phrase' | 'key' | 'backup';
 
@@ -200,10 +201,7 @@ export default function ImportWallet() {
   const bad = mode === 'phrase' ? unknownWords(text) : [];
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoid style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
         contentContainerStyle={{
           padding: spacing(3),
@@ -382,6 +380,6 @@ export default function ImportWallet() {
         onSubmit={runImport}
         onCancel={() => setAskPin(false)}
       />
-    </KeyboardAvoidingView>
+    </KeyboardAvoid>
   );
 }

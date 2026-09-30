@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
-import { View, Text, TextInput, KeyboardAvoidingView, Platform, StatusBar, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Platform, StatusBar, StyleSheet } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,6 +19,7 @@ import { PinPromptModal } from '../ui/PinPromptModal';
 import { radius } from '../ui/tokens';
 import { Orbit, Rise } from '../ui/nova';
 import { fill } from '../lib/i18n';
+import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 
 /**
  * Import d'une phrase (onboarding). LAYOUT FIXE, sans barre native ni double
@@ -133,7 +134,7 @@ export default function Import() {
           et le §2.2 ne tolère aucun dégradé décoratif. */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
 
-      <KeyboardAvoidingView style={{ flex: 1, paddingTop: topPadding }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid style={{ flex: 1, paddingTop: topPadding }}>
         {/* Header unique, calé sous la barre d'état */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 48 }}>
           <KPressable
@@ -202,7 +203,7 @@ export default function Import() {
             <Button label={t('continueWord')} onPress={onNext} disabled={words.length === 0 || bad.length > 0} />
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </View>
   );
 }

@@ -11,7 +11,7 @@
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { usePendingRestore } from '../lib/pendingRestore';
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, TextInput, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Button, Surface, ScreenHeader } from '../ui/kit';
@@ -25,6 +25,7 @@ import { toast } from '../lib/toast';
 import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
 import { PinPromptModal } from '../ui/PinPromptModal';
 import { classifyRecoveryPhrase, restoreBackup, type BackupError, type BackupWallet } from '../src';
+import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 
 export default function RestoreDriveScreen() {
   // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
@@ -167,7 +168,7 @@ export default function RestoreDriveScreen() {
         onSubmit={addAlongside}
         onCancel={() => setPendingWallets(null)}
       />
-      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid style={{ flex: 1, backgroundColor: colors.bg }}>
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: SCREEN_MARGIN, paddingTop: insets.top + space[3], paddingBottom: insets.bottom + space[6], gap: space[4] }}
           keyboardShouldPersistTaps="handled"
@@ -260,7 +261,7 @@ export default function RestoreDriveScreen() {
             </FadeInUp>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </>
   );
 }
