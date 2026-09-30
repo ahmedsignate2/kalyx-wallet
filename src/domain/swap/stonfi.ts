@@ -105,6 +105,24 @@ const GAS = {
   tonToJetton: { forward: 300_000_000n },
   ptonTransfer: 10_000_000n,
 };
+/** Frais réseau du portefeuille lui-même (message externe), marge comprise. */
+const TON_WALLET_FEE_MARGIN = 20_000_000n;
+
+/**
+ * TON à garder EN PLUS du montant pour un échange STON.fi : le gas transmis au
+ * routeur (0,3 TON, l'essentiel revient en excédent) + le transfert pTON + les
+ * frais du portefeuille. La réserve d'un envoi simple (0,01 TON) était utilisée
+ * ici : « Max » ou un montant proche du solde laissait le portefeuille incapable
+ * de payer ce gas, et l'émulation refusait l'échange sans rien expliquer.
+ * Couvre aussi l'échange d'un jeton (0,3 TON de gas joints au transfert).
+ */
+export const STONFI_TON_RESERVE = GAS.tonToJetton.forward + GAS.ptonTransfer + TON_WALLET_FEE_MARGIN;
+
+/** TON que le portefeuille doit détenir pour envoyer `messages` (montants + frais). */
+export function tonNeededForMessages(messages: { amount: bigint }[]): bigint {
+  return messages.reduce((sum, m) => sum + m.amount, 0n) + TON_WALLET_FEE_MARGIN;
+}
+
 /** Délai de validité d'un échange (celui du SDK : 15 minutes). */
 const DEADLINE_SECONDS = 900;
 

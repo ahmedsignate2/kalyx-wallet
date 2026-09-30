@@ -8,7 +8,7 @@
  * décoratif — l'or n'est qu'un point, le blanc n'est que le halo — et
  * « Réduire les animations » coupe tout mouvement autonome sans rien cacher.
  */
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Switch, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
@@ -103,6 +103,34 @@ export function Stardust({ width, height, count = 18 }: { width: number; height:
 export { SparkBurst } from './kit/SparkBurst';
 
 /* ------------------------------------------------------------------ */
+/* Fin d'entrée : le style animé est retiré une fois l'animation jouée   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `true` une fois l'animation d'entrée terminée (`ms` après le montage).
+ *
+ * ÉCRAN NOIR DU MENU. Les onglets sont gelés quand on les quitte
+ * (`freezeOnBlur`). À leur retour, React réapplique les props de son dernier
+ * rendu — et pour un style animé, ce rendu porte la valeur du montage :
+ * opacité 0. L'animation, finie, ne se rejoue pas : l'écran entier, ou le haut
+ * du Menu (profil et quatre disques), restait noir. Une fois l'entrée jouée, le
+ * composant se redessine SANS style animé : ce que React réapplique alors est
+ * l'état visible.
+ */
+function useEntranceDone(ms: number, reduce: boolean): boolean {
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (reduce) {
+      setDone(true);
+      return;
+    }
+    const id = setTimeout(() => setDone(true), ms);
+    return () => clearTimeout(id);
+  }, [ms, reduce]);
+  return done;
+}
+
+/* ------------------------------------------------------------------ */
 /* Disque d'action                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -119,10 +147,11 @@ export function ActionDisc({ icon, label, onPress, tone = 'default', index = 0, 
     p.value = withDelay(120 + index * 60, withSpring(1, springs.standard));
   }, [index, reduce, p]);
   const rise = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateY: (1 - p.value) * 14 }, { scale: 0.9 + 0.1 * p.value }] }));
+  const done = useEntranceDone(120 + index * 60 + 1200, reduce);
   const bg = tone === 'primary' ? colors.primary : colors.surface2;
   const ink = tone === 'primary' ? colors.onPrimary : tone === 'gold' ? (mode === 'dark' ? GOLD : BRAND_GOLD.deep) : colors.text;
   return (
-    <Animated.View style={[{ flex: 1, opacity: disabled ? 0.4 : 1 }, rise]}>
+    <Animated.View style={[{ flex: 1, opacity: disabled ? 0.4 : 1 }, done ? null : rise]}>
       <KPressable onPress={onPress} disabled={disabled} haptic="light" overshoot accessibilityRole="button" accessibilityLabel={label} style={{ alignItems: 'center', gap: 8 }}>
         <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: bg, borderWidth: tone === 'primary' ? 0 : 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={icon} size={23} color={ink} />
@@ -197,7 +226,8 @@ export function Rise({ delay = 0, children, style }: { delay?: number; children:
     p.value = withDelay(delay, withSpring(1, springs.gentle));
   }, [delay, reduce, p]);
   const s = useAnimatedStyle(() => ({ opacity: Math.min(1, p.value * 1.4), transform: [{ translateY: (1 - p.value) * 18 }] }));
-  return <Animated.View style={[s, style]}>{children}</Animated.View>;
+  const done = useEntranceDone(delay + 1400, reduce);
+  return <Animated.View style={[done ? null : s, style]}>{children}</Animated.View>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -283,7 +313,10 @@ export function ScreenOrbit({ top }: { top: number }) {
   );
 }
 
-/** Entrée d'écran : le contenu monte de 14 px en apparaissant, une seule fois. */
+/**
+ * Entrée d'écran : le contenu monte de 14 px en apparaissant, une seule fois.
+ * Rend `undefined` une fois l'entrée jouée (voir `useEntranceDone`).
+ */
 export function useScreenEntrance() {
   const reduce = useReduceMotion();
   const p = useSharedValue(reduce ? 1 : 0);
@@ -291,7 +324,9 @@ export function useScreenEntrance() {
     if (reduce) { p.value = 1; return; }
     p.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
   }, [reduce, p]);
-  return useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateY: (1 - p.value) * 14 }] }));
+  const style = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateY: (1 - p.value) * 14 }] }));
+  const done = useEntranceDone(900, reduce);
+  return done ? undefined : style;
 }
 
 /* ------------------------------------------------------------------ */

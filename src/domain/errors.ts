@@ -60,15 +60,24 @@ export type WalletErrorCode =
   /** Solana : le destinataire n'a pas de compte et le montant ne couvre pas le loyer minimal. */
   | 'SOL_RENT_RECIPIENT'
   /** Solana : l'envoi laisserait un reste entre 0 et le loyer minimal. */
-  | 'SOL_RENT_SENDER';
+  | 'SOL_RENT_SENDER'
+  /** L'émulation d'un échange prévoit un échec (prix ou réserve changés) : rien n'est signé. */
+  | 'SWAP_SIMULATION_FAILED';
 
 export class WalletError extends Error {
   readonly code: WalletErrorCode;
+  /**
+   * Valeurs du message affiché (montants, symbole) : « tu peux envoyer au plus
+   * 0,0005 SOL » dit quoi corriger, « reste sous le loyer minimal » non. Jamais
+   * de secret ici.
+   */
+  readonly meta?: Record<string, string>;
 
-  constructor(code: WalletErrorCode, message: string) {
+  constructor(code: WalletErrorCode, message: string, meta?: Record<string, string>) {
     super(message);
     this.name = 'WalletError';
     this.code = code;
+    if (meta) this.meta = meta;
     // Restaure la chaîne de prototype (cible ES avec transpilation).
     Object.setPrototypeOf(this, WalletError.prototype);
   }

@@ -19,7 +19,7 @@ import { useSettings } from './settingsStore';
 import { fill, translate, type Key } from './i18n';
 import { useWallet, type Unlock } from './walletStore';
 import { notify } from './notifications';
-import { listChains, getAdapter, getAdapterV2, withSigner, assertCurve, WcConnectError, type RawTxRequest } from '../src';
+import { listChains, getAdapter, getAdapterV2, withSigner, assertCurve, WcConnectError, isValidEvmAddress, type RawTxRequest } from '../src';
 import { handleSmartError } from './errorHandler';
 import { submitSolanaSigned } from './solanaSubmit';
 import type { IWeb3Wallet } from '@walletconnect/web3wallet';
@@ -389,6 +389,18 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         await w.respondSessionRequest({ topic: request.topic, response: { id: request.id, jsonrpc: '2.0', ...response } }).catch(() => {});
         return;
       }
+      /*
+       * TRANSACTION SANS DESTINATAIRE VALIDE refusée dès l'arrivée, comme dans le
+       * navigateur : un `to` absent devient un DÉPLOIEMENT de contrat (le `data`
+       * part comme code), un `to` malformé n'a rien à faire devant l'utilisateur.
+       */
+      if (method === 'eth_sendTransaction' && !isValidEvmAddress(String(request?.params?.request?.params?.[0]?.to ?? ''))) {
+        await w.respondSessionRequest({
+          topic: request.topic,
+          response: { id: request.id, jsonrpc: '2.0', error: { code: 4200, message: 'Transaction without a valid recipient (contract deployment) is not supported' } },
+        }).catch(() => {});
+        return;
+      }
       const q = [...get().requestQueue, request];
       set({ requestQueue: q, request: q[0] });
       const topic: string | undefined = request?.topic;
@@ -545,6 +557,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       } else if (method === 'eth_sendTransaction') {
         if (!chain) throw new Error('Réseau de la requête non supporté');
         const tx = p[0];
+        // Défense en profondeur (déjà refusé à l'arrivée) : jamais de déploiement ni d'adresse malformée.
+        if (typeof tx?.to !== 'string' || !isValidEvmAddress(tx.to)) throw new Error('Destinataire de la transaction invalide');
         // Préparée pour un autre compte que celui qui signerait : refus plutôt qu'envoi depuis le mauvais compte.
         const signer = w.accounts.find((a) => a.index === w.activeAccountIndex)?.evmAddress ?? '';
         if (typeof tx?.from === 'string' && signer && tx.from.toLowerCase() !== signer.toLowerCase()) throw new Error('from ≠ compte actif');

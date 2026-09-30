@@ -88,7 +88,7 @@ export async function getBestQuote(params: RouteParams): Promise<SwapQuote | nul
    */
   if (fromChain.family === 'ton' || toChain.family === 'ton') {
     if (fromChain.family !== 'ton' || toChain.family !== 'ton' || fromChain.testnet) {
-      throw new SwapError('NO_ROUTE', 'Échange TON ↔ autre réseau pas encore disponible');
+      throw new SwapError('NO_ROUTE', 'Échange TON ↔ autre réseau pas encore disponible', { reason: 'tonCrossChain' });
     }
     const ton = getAdapterV2(params.fromChainId) as unknown as { ownJettonWallet?: (owner: string, master: string) => Promise<string | null> };
     const userOfferJettonWallet = isTonNative(params.fromToken) ? undefined : (await ton.ownJettonWallet?.(params.fromAddress, params.fromToken)) ?? undefined;
