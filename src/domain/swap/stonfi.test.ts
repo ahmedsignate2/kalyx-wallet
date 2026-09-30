@@ -1,5 +1,5 @@
 import { Address, beginCell, Cell } from '@ton/core';
-import { buildSwapMessage, getStonfiQuote, tonSwapPaysUser, verifyTonSwap, PTON_V2_1_MASTER, TON_FEE_RECIPIENT } from './stonfi';
+import { buildSwapMessage, getStonfiQuote, tonSwapPaysUser, verifyTonSwap, PTON_V2_1_MASTER, TON_FEE_RECIPIENT, STONFI_TON_RESERVE, tonNeededForMessages } from './stonfi';
 import { checkSwapQuote } from './guard';
 
 /*
@@ -77,5 +77,17 @@ describe('STON.fi : garde-fous', () => {
     await expect(verifyTonSwap(tx, ok)).resolves.toBeUndefined();
     await expect(verifyTonSwap(tx, async () => '0:' + '11'.repeat(32))).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE' });
     await expect(verifyTonSwap({ ...tx, router: '0:' + '22'.repeat(32) }, ok)).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE' });
+  });
+});
+
+describe('réserve de TON d’un échange STON.fi', () => {
+  it('couvre le gas joint au message (0,3 TON + transfert pTON) et les frais du portefeuille', () => {
+    // 0,3 + 0,01 + 0,02 : bien au-dessus des 0,01 TON d’un envoi simple, qui faisaient échouer « Max ».
+    expect(STONFI_TON_RESERVE).toBe(330_000_000n);
+  });
+
+  it('TON nécessaire = montants des messages + frais du portefeuille', () => {
+    expect(tonNeededForMessages([{ amount: 1_310_000_000n }])).toBe(1_330_000_000n);
+    expect(tonNeededForMessages([{ amount: 300_000_000n }])).toBeLessThanOrEqual(STONFI_TON_RESERVE);
   });
 });

@@ -43,3 +43,8 @@ export async function authenticate(reason?: string): Promise<boolean> {
     throw error;
   }
 }
+
+/** Texte de l'invite biométrique affichée par le système (copie protégée du coffre). */
+export function biometricPrompt(): string {
+  return translate(useSettings.getState().language, 'unlockKalyx');
+}

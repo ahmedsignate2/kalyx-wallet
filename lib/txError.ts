@@ -86,7 +86,26 @@ const WALLET_ERROR_KEYS: Record<string, Key> = {
   TX_UNCONFIRMED: 'errTxUnconfirmed',
   SOL_RENT_RECIPIENT: 'errSolRentRecipient',
   SOL_RENT_SENDER: 'errSolRentSender',
+  SWAP_SIMULATION_FAILED: 'errSwapSimulationFailed',
 };
+
+/**
+ * PHRASE CHIFFRÉE quand l'erreur porte ses montants (`WalletError.meta`).
+ *
+ * « Reste sous le loyer minimal » ou « solde insuffisant » ne disent pas quoi
+ * corriger : l'utilisateur baissait le montant au hasard, et échouait encore.
+ * Avec les chiffres — « tu peux envoyer au plus 0,0005 SOL » —, il sait quoi
+ * saisir. Une clé absente ici retombe sur la phrase générique du code.
+ */
+function detailedWalletKey(code: string, meta: Record<string, string>): Key | null {
+  if (code === 'SOL_RENT_SENDER' && meta.all) return Number(meta.max) > 0 ? 'errSolRentSenderMax' : 'errSolRentSenderAllOnly';
+  if (code === 'INSUFFICIENT_FUNDS' && meta.have && meta.fee && meta.symbol) return 'errInsufficientFundsHave';
+  if (code === 'AMOUNT_TOO_SMALL' && meta.min && meta.symbol) return 'errAmountTooSmallMin';
+  if (code === 'INSUFFICIENT_GAS' && meta.need && meta.have && meta.gas) return 'errTonSwapGas';
+  return null;
+}
+
+const fillMeta = (s: string, meta: Record<string, string> | undefined) => s.replace(/\{(\w+)\}/g, (m, k) => meta?.[k] ?? m);
 
 export function friendlyTxError(e: unknown, t?: TFn): string {
   /*
@@ -129,6 +148,7 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
       case 'NO_LIQUIDITY':
         return t ? t('errNoLiquidity') : 'No liquidity available for this pair.';
       case 'NO_ROUTE':
+        if (e.meta?.reason === 'tonCrossChain') return t ? t('errTonCrossChain') : 'On TON, swaps only work between TON tokens for now.';
         return t ? t('errNoRoute') : 'No route found. Try a different amount or pair.';
       case 'INVALID_TOKEN':
         return t ? t('errInvalidToken') : 'This token cannot be swapped.';
@@ -192,6 +212,8 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
      * TRADUCTION PAR CODE. Le repli précédent — `return e.message` — renvoyait la
      * phrase française écrite dans le domaine, dans toutes les langues.
      */
+    const detailed = e.meta ? detailedWalletKey(e.code, e.meta) : null;
+    if (detailed && t) return fillMeta(t(detailed), e.meta);
     const key = WALLET_ERROR_KEYS[e.code];
     if (key && t) return t(key);
     // Sans traducteur (appels hors interface), la phrase du domaine reste le

@@ -36,6 +36,26 @@ const DEFAULT_KDF = { N: 1 << 14, r: 8, p: 1, dkLen: 32 };
 // appareils. Les paramètres restent stockés dans chaque export.
 export const BACKUP_KDF = { N: 1 << 15, r: 8, p: 1, dkLen: 32 };
 
+/**
+ * BORNES des paramètres scrypt LUS dans un coffre ou une sauvegarde.
+ *
+ * Ils viennent du fichier : une sauvegarde piégée avec `N = 2^24` réclamait des
+ * gigaoctets de mémoire et figeait (ou tuait) l'app à la restauration. On
+ * n'accepte que ce que l'app a pu écrire, avec de la marge (2^17 au plus, soit
+ * 128 Mo avec r = 8) ; le reste est un coffre corrompu, refusé AVANT le calcul.
+ */
+const KDF_BOUNDS = { minLogN: 10, maxLogN: 17, maxR: 8, maxP: 2 };
+
+function assertKdfParams(v: { N: unknown; r: unknown; p: unknown }): void {
+  const { N, r, p } = v;
+  const ok =
+    typeof N === 'number' && Number.isInteger(N) &&
+    N >= 1 << KDF_BOUNDS.minLogN && N <= 1 << KDF_BOUNDS.maxLogN && (N & (N - 1)) === 0 &&
+    typeof r === 'number' && Number.isInteger(r) && r >= 1 && r <= KDF_BOUNDS.maxR &&
+    typeof p === 'number' && Number.isInteger(p) && p >= 1 && p <= KDF_BOUNDS.maxP;
+  if (!ok) throw new WalletError('VAULT_CORRUPTED', 'Paramètres de dérivation hors limites');
+}
+
 async function deriveKey(
   pin: string,
   salt: Uint8Array,
@@ -87,6 +107,10 @@ export async function decryptSecret(
 ): Promise<string> {
   if (vault.v !== 1 || vault.kdf !== 'scrypt') {
     throw new WalletError('VAULT_CORRUPTED', 'Format de coffre non supporté');
+  }
+  assertKdfParams(vault);
+  if (typeof vault.salt !== 'string' || typeof vault.nonce !== 'string' || typeof vault.ct !== 'string') {
+    throw new WalletError('VAULT_CORRUPTED', 'Coffre incomplet');
   }
   const key = await deriveKey(pin, hexToBytes(vault.salt), vault);
   let pt: Uint8Array | null = null;

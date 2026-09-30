@@ -28,6 +28,7 @@ import {
 } from '../solPriority';
 import { amountAfterTransferFee, transferFeeFor } from '../../tokens/token2022';
 import { WalletError } from '../../errors';
+import { formatInputAmount } from '../../validation/format';
 import { capabilities, type ChainCapabilities } from './capabilities';
 import { assertCurve, type ChainSigner, type SignerCurve } from './signer';
 import type {
@@ -256,7 +257,13 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
       if (fromBal !== null) {
         const rest = fromBal - request.amount - tier.cost;
         if (rest > 0n && rest < SOL_RENT_EXEMPT_MIN) {
-          throw new WalletError('SOL_RENT_SENDER', 'Reste sous le loyer minimal');
+          // Les deux montants valides, pour que le message dise QUOI saisir.
+          const all = fromBal - tier.cost;
+          const max = all - SOL_RENT_EXEMPT_MIN;
+          throw new WalletError('SOL_RENT_SENDER', 'Reste sous le loyer minimal', {
+            max: formatInputAmount(max > 0n ? max : 0n, 9),
+            all: formatInputAmount(all > 0n ? all : 0n, 9),
+          });
         }
       }
       const message = buildTransferMessage({

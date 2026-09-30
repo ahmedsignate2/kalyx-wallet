@@ -21,6 +21,7 @@
 import { BACKUP_KDF, encryptSecret, decryptSecret, type EncryptedVault } from '../../security/vault';
 import { validateMnemonic } from '../../crypto/mnemonic';
 import { classifyRecoveryPhrase } from '../keys/recoveryPhrase';
+import { isWalletError } from '../errors';
 
 /**
  * Version 2 : la liste des portefeuilles.
@@ -175,8 +176,9 @@ export async function restoreBackup(
   let plain: string;
   try {
     plain = await decryptSecret(env.vault, password);
-  } catch {
-    return { error: 'WRONG_PASSWORD' };
+  } catch (e) {
+    // Paramètres hors limites ou coffre incomplet : fichier abîmé, pas un mauvais mot de passe.
+    return { error: isWalletError(e) && e.code === 'VAULT_CORRUPTED' ? 'CORRUPTED' : 'WRONG_PASSWORD' };
   }
 
   /*
