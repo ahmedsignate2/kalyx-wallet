@@ -19,7 +19,7 @@ import { useSettings } from './settingsStore';
 import { fill, translate, type Key } from './i18n';
 import { useWallet, type Unlock } from './walletStore';
 import { notify } from './notifications';
-import { listChains, getAdapter, getAdapterV2, withSigner, assertCurve, WcConnectError, isValidEvmAddress, type RawTxRequest } from '../src';
+import { listChains, getAdapter, getAdapterV2, withSigner, assertCurve, WcConnectError, isValidEvmAddress, shortAddress, WalletError, type RawTxRequest } from '../src';
 import { handleSmartError } from './errorHandler';
 import { submitSolanaSigned } from './solanaSubmit';
 import type { IWeb3Wallet } from '@walletconnect/web3wallet';
@@ -603,7 +603,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         if (typeof tx?.to !== 'string' || !isValidEvmAddress(tx.to)) throw new Error('Destinataire de la transaction invalide');
         // Préparée pour un autre compte que celui qui signerait : refus plutôt qu'envoi depuis le mauvais compte.
         const signer = w.accounts.find((a) => a.index === w.activeAccountIndex)?.evmAddress ?? '';
-        if (typeof tx?.from === 'string' && signer && tx.from.toLowerCase() !== signer.toLowerCase()) throw new Error('from ≠ compte actif');
+        if (typeof tx?.from === 'string' && signer && tx.from.toLowerCase() !== signer.toLowerCase()) throw new WalletError('WRONG_ACCOUNT', 'from ≠ compte actif', { address: shortAddress(tx.from) });
         const req: RawTxRequest = {
           to: tx.to,
           data: overrideData ?? tx.data ?? '0x',
