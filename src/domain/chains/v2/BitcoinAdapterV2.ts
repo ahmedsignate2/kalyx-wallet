@@ -28,6 +28,7 @@ import {
 } from '../btcTx';
 import { bumpedRate } from '../btcFees';
 import { WalletError } from '../../errors';
+import { formatInputAmount } from '../../validation/format';
 import { capabilities, type ChainCapabilities } from './capabilities';
 import { assertCurve, type ChainSigner, type SignerCurve } from './signer';
 import type {
@@ -174,6 +175,7 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
       throw new WalletError(
         'AMOUNT_TOO_SMALL',
         `Montant trop faible pour cette adresse : ${dust} satoshis minimum, sinon le réseau refuse la transaction.`,
+        { min: formatInputAmount(BigInt(dust), 8), symbol: 'BTC' },
       );
     }
 
@@ -191,7 +193,13 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
           'Trop de petites pièces à rassembler pour une seule transaction. Envoie un montant plus faible.',
         );
       }
-      throw new WalletError('INSUFFICIENT_FUNDS', 'Solde Bitcoin insuffisant (frais inclus).');
+      const have = utxos.reduce((sum, u) => sum + BigInt(u.value), 0n);
+      throw new WalletError('INSUFFICIENT_FUNDS', 'Solde Bitcoin insuffisant (frais inclus).', {
+        have: formatInputAmount(have, 8),
+        // Frais d'une transaction courante au taux choisi : l'ordre de grandeur à prévoir en plus.
+        fee: formatInputAmount(BigInt(Math.ceil(feeRate * 141)), 8),
+        symbol: 'BTC',
+      });
     }
 
     return {

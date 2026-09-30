@@ -28,6 +28,7 @@
 import { base64, hex } from '@scure/base';
 import type { Account, Balance, ChainConfig, TxSummary } from '../types';
 import { WalletError } from '../../errors';
+import { formatInputAmount } from '../../validation/format';
 import { capabilities, type ChainCapabilities } from './capabilities';
 import { assertCurve, type ChainSigner, type SignerCurve } from './signer';
 import type {
@@ -476,7 +477,11 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     const comment = request.memo?.trim() || undefined;
     const fee = await this.estimateFee(from, sender, { seqno, to: request.to, amount: request.amount, bounce, comment });
     if (request.amount + fee > sender.balance) {
-      throw new WalletError('INSUFFICIENT_FUNDS', 'Solde TON insuffisant pour le montant et les frais');
+      throw new WalletError('INSUFFICIENT_FUNDS', 'Solde TON insuffisant pour le montant et les frais', {
+        have: formatInputAmount(sender.balance, 9),
+        fee: formatInputAmount(fee, 9),
+        symbol: 'TON',
+      });
     }
 
     return {

@@ -34,6 +34,8 @@ import {
   NATIVE_TOKEN,
   listChains,
   estimateGasReserve,
+  STONFI_TON_RESERVE,
+  type ChainAdapter,
   type GasReserve,
   type SwapQuote,
   EvmChainAdapter,
@@ -53,6 +55,17 @@ const STATUS_KEY = {
   swapping: 'stSwapping',
   confirming: 'stConfirming',
 } as const;
+
+/**
+ * Réserve de natif pour un ÉCHANGE. Sur TON, STON.fi fait joindre ~0,3 TON de
+ * gas au message (l'essentiel revient en excédent) : la réserve d'un envoi
+ * simple (0,01 TON) laissait « Max » proposer un montant que le portefeuille ne
+ * pouvait pas payer, et l'échange échouait à la simulation.
+ */
+function swapGasReserve(adapter: ChainAdapter): Promise<GasReserve> {
+  if (adapter.config.family === 'ton') return Promise.resolve({ raw: STONFI_TON_RESERVE, live: false });
+  return estimateGasReserve(adapter);
+}
 
 function isNativeTokenAddress(address?: string): boolean {
   if (!address) return false;
@@ -109,7 +122,7 @@ export default function Swap() {
   useEffect(() => {
     let cancelled = false;
     setGasReserve(null);
-    estimateGasReserve(getAdapter(activeChain)).then((r) => {
+    swapGasReserve(getAdapter(activeChain)).then((r) => {
       if (!cancelled) setGasReserve(r);
     });
     return () => {
@@ -361,7 +374,7 @@ export default function Swap() {
     if (!isBridge && fromTok.address.toLowerCase() === toTok.address.toLowerCase()) return t('swapTwoTokens');
     const bal = getTokenBalance();
     // Réserve : celle du state, ou ré-estimée à la volée si pas encore chargée.
-    const reserve = gasReserve?.raw ?? (await estimateGasReserve(getAdapter(activeChain))).raw;
+    const reserve = gasReserve?.raw ?? (await swapGasReserve(getAdapter(activeChain))).raw;
     const reserveStr = `${formatTokenAmount(reserve, chain.nativeDecimals)} ${chain.nativeSymbol}`;
     if (isNativeTokenAddress(fromTok.address)) {
       // Deux cas distincts : pas même de quoi payer le gas / montant trop grand une fois le gas réservé.

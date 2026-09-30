@@ -373,10 +373,28 @@ export default function Browser() {
     };
   }, [inject]);
   const respond = useCallback((id: number, result: unknown, err?: { code: number; message: string }) => inject(respondJs(id, result, err)), [inject]);
-  const reject = useCallback((id: number, code = 4001, message = t('refuse')) => {
+  /**
+   * Réponse à une demande APPROUVÉE (ou refusée) plus tard, dans la fenêtre :
+   * livrée seulement si l'onglet affiche TOUJOURS le site qui a demandé. Entre la
+   * demande et l'approbation, la page peut avoir changé — une signature ne doit
+   * jamais atterrir sur le site suivant (même règle que TON Connect).
+   */
+  const deliverTo = useCallback((host: string, tabId: string, js: string) => {
+    const tab = tabsRef.current.find((x) => x.id === activeRef.current);
+    if (!tab || tab.id !== tabId || originOf(tab.url ?? '') !== host) {
+      technicalLogger.logDapp('response_dropped_page_changed', host, { tabId }, true);
+      return;
+    }
+    inject(js);
+  }, [inject]);
+  const respondPending = useCallback(
+    (p: { id: number; origin: string; tabId: string }, result: unknown, err?: { code: number; message: string }) => deliverTo(p.origin, p.tabId, respondJs(p.id, result, err)),
+    [deliverTo],
+  );
+  const reject = useCallback((p: { id: number; origin: string; tabId: string }, code = 4001, message = t('refuse')) => {
     technicalLogger.logDapp('request_rejected_by_user', undefined, { code, message }, true);
-    return respond(id, null, { code, message });
-  }, [respond, t]);
+    return respondPending(p, null, { code, message });
+  }, [respondPending, t]);
 
   const onDappRequest = useCallback(
     async (req: DappRequest, reqOrigin: string, tabId: string) => {
@@ -412,6 +430,11 @@ export default function Browser() {
           return;
         }
         if (method === 'wallet_switchEthereumChain' || method === 'wallet_addEthereumChain') {
+          /*
+           * Site CONNECTÉ seulement : n'importe quelle page ouverte changeait le
+           * réseau actif de toute l'app, sans rien demander.
+           */
+          if (!isConnected) return respond(id, null, { code: 4100, message: t('notConnected') });
           const want = Number((params[0] as { chainId?: string })?.chainId ?? '0x0');
           const target = listChains().find((c) => c.family === 'evm' && c.evmChainId === want);
           if (!target) return respond(id, null, { code: 4902, message: t('networkNotSupported') });
@@ -502,9 +525,9 @@ export default function Browser() {
     if (pending.kind === 'connect') {
       await useWallet.getState().verifyUnlock(unlock);
       connected.current.add(pending.origin);
-      respond(pending.id, [evmAddress]);
-      inject(emitJs('accountsChanged', [evmAddress]));
-      inject(emitJs('connect', { chainId: chainIdHex }));
+      respondPending(pending, [evmAddress]);
+      deliverTo(pending.origin, pending.tabId, emitJs('accountsChanged', [evmAddress]));
+      deliverTo(pending.origin, pending.tabId, emitJs('connect', { chainId: chainIdHex }));
       if (!tb?.incognito) {
         activity.addConnection({ host: pending.origin, url: `https://${pending.origin}`, title: tb?.title || pending.origin });
         if (rememberSite) activity.remember(pending.origin);
@@ -520,7 +543,7 @@ export default function Browser() {
       else if (pending.kind === 'typedData') result = await w.signTypedData(unlock, pending.data as Parameters<typeof w.signTypedData>[1], getAdapter(tb?.chainId ?? activeChain).config.evmChainId);
       // Le réseau de la DEMANDE, pas celui de l'onglet maintenant : le Chain ID signé doit correspondre au nœud qui diffuse.
       else result = await w.sendRawTxOn(unlock, pending.kind === 'tx' ? pending.chainId : tb?.chainId ?? activeChain, pending.raw);
-      respond(pending.id, result);
+      respondPending(pending, result);
       if (pending.kind === 'tx' && tb?.chainId) {
         if (evmAddress) {
           void useHistoryStore.getState().fetchHistory(tb.chainId, evmAddress, { force: true });
@@ -534,7 +557,7 @@ export default function Browser() {
     setRememberSite(false);
   };
   const deny = () => {
-    if (pending) reject(pending.id);
+    if (pending) reject(pending);
     setPending(null);
     setRememberSite(false);
     setSignConfirm(false);
