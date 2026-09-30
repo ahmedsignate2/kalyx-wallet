@@ -66,3 +66,34 @@ describe('coffre chiffré (AES-256-GCM + scrypt)', () => {
     }
   });
 });
+
+describe('paramètres scrypt lus dans un coffre : bornés avant tout calcul', () => {
+  const corrupted = async (patch: Record<string, unknown>) => {
+    const vault = { ...(await encryptSecret(SEED_PHRASE, PIN)), ...patch } as never;
+    try {
+      await decryptSecret(vault, PIN);
+      return 'OK';
+    } catch (e) {
+      return isWalletError(e) ? e.code : 'autre';
+    }
+  };
+
+  it('une sauvegarde piégée (N énorme) est refusée comme corrompue, sans figer l’app', async () => {
+    expect(await corrupted({ N: 1 << 24 })).toBe('VAULT_CORRUPTED');
+    expect(await corrupted({ r: 64 })).toBe('VAULT_CORRUPTED');
+    expect(await corrupted({ p: 16 })).toBe('VAULT_CORRUPTED');
+  });
+
+  it('N non puissance de deux, négatif ou non numérique : refusé', async () => {
+    expect(await corrupted({ N: 30000 })).toBe('VAULT_CORRUPTED');
+    expect(await corrupted({ N: -16384 })).toBe('VAULT_CORRUPTED');
+    expect(await corrupted({ N: '16384' })).toBe('VAULT_CORRUPTED');
+    expect(await corrupted({ salt: undefined })).toBe('VAULT_CORRUPTED');
+  });
+
+  it('les paramètres que l’app écrit restent acceptés (coffre 2^14, sauvegarde 2^15)', async () => {
+    expect(await corrupted({})).toBe('OK');
+    const backup = await encryptSecret(SEED_PHRASE, PIN, { N: 1 << 15, r: 8, p: 1 });
+    await expect(decryptSecret(backup, PIN)).resolves.toBe(SEED_PHRASE);
+  });
+});
