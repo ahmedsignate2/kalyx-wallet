@@ -62,7 +62,9 @@ export type WalletErrorCode =
   /** Solana : l'envoi laisserait un reste entre 0 et le loyer minimal. */
   | 'SOL_RENT_SENDER'
   /** L'émulation d'un échange prévoit un échec (prix ou réserve changés) : rien n'est signé. */
-  | 'SWAP_SIMULATION_FAILED';
+  | 'SWAP_SIMULATION_FAILED'
+  /** La dApp demande de signer avec un AUTRE compte que le compte actif (changé depuis la connexion). */
+  | 'WRONG_ACCOUNT';
 
 export class WalletError extends Error {
   readonly code: WalletErrorCode;

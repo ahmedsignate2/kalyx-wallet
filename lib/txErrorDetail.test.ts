@@ -46,3 +46,18 @@ describe('friendlyTxError — les montants disent quoi corriger', () => {
     expect(friendlyTxError(new WalletError('SOL_RENT_SENDER', 'x'), ((k: string) => `T:${k}`) as never)).toBe('T:errSolRentSender');
   });
 });
+
+describe('WalletConnect : la dApp signe avec un autre compte que le compte actif', () => {
+  const t = (key: string) => translate('en', key as never);
+
+  it('le message nomme l’adresse demandée et dit quoi faire', () => {
+    const msg = friendlyTxError(new WalletError('WRONG_ACCOUNT', 'from ≠ compte actif', { address: '0x4999…b05E' }), t as never);
+    expect(msg).toContain('0x4999…b05E');
+    expect(msg).toMatch(/Switch account/);
+  });
+
+  it('sans adresse, la phrase générique du code (jamais « Transaction failed »)', () => {
+    const msg = friendlyTxError(new WalletError('WRONG_ACCOUNT', 'x'), t as never);
+    expect(msg).toBe(translate('en', 'errWrongAccount' as never));
+  });
+});
