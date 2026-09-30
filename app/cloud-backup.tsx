@@ -13,7 +13,7 @@ import { NovaHero } from '../ui/nova';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { passwordStrength, MIN_BACKUP_LEVEL } from '../src/security/passwordStrength';
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, KeyboardAvoidingView, Platform, Share, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Platform, Share, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Button, Surface, Input, ScreenHeader, Divider } from '../ui/kit';
@@ -25,6 +25,7 @@ import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
 import { createWalletsBackup } from '../src';
 import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
+import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 
 type Target = 'drive' | 'file';
 
@@ -147,7 +148,7 @@ export default function CloudBackupScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid style={{ flex: 1, backgroundColor: colors.bg }}>
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: SCREEN_MARGIN, paddingTop: insets.top + space[3], paddingBottom: insets.bottom + space[8], gap: space[5] }}
           keyboardShouldPersistTaps="handled"
@@ -244,7 +245,7 @@ export default function CloudBackupScreen() {
           onDone={() => setConfirming(false)}
           onCancel={() => setConfirming(false)}
         />
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </>
   );
 }

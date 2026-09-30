@@ -11,7 +11,7 @@
  * grammaire d'appui sans être touchés un par un.
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, ViewStyle, StyleProp, Animated, TextInput as RNTextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ViewStyle, StyleProp, Animated, TextInput as RNTextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, StatusBar } from 'react-native';
@@ -25,6 +25,7 @@ import { springs } from './tokens';
 import { useScreenEntrance } from './nova';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { haptic } from '../lib/haptics';
+import { KeyboardAvoid } from './KeyboardAvoid';
 
 const PREMIUM_W = Dimensions.get('window').width;
 
@@ -57,7 +58,7 @@ export function PremiumScreen({
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       {/* Clavier-aware : le contenu remonte au-dessus du clavier et reste défilable. */}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid style={{ flex: 1 }}>
         <Reanimated.View style={[{ flex: 1 }, entrance]}>
         <ScrollView
           contentContainerStyle={{
@@ -75,7 +76,7 @@ export function PremiumScreen({
           {children}
         </ScrollView>
         </Reanimated.View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
       {footer}
     </View>
   );

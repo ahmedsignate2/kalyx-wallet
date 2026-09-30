@@ -38,6 +38,7 @@ import {
   pickPriorityFee,
   CU_SOL_TRANSFER,
   CU_SPL_TRANSFER,
+  sendComputeUnits,
 } from './solPriority';
 import { technicalLogger } from '../../../lib/technicalLogger';
 
@@ -445,7 +446,7 @@ export class SolanaChainAdapter implements ChainAdapter {
       to,
       lamports,
       recentBlockhash: blockhash,
-      prefix: priorityInstructions(CU_SOL_TRANSFER, microLamports),
+      prefix: priorityInstructions(sendComputeUnits(CU_SOL_TRANSFER, opts?.memo), microLamports),
       references: opts?.references,
       memo: opts?.memo,
     });
@@ -493,7 +494,7 @@ export class SolanaChainAdapter implements ChainAdapter {
       amount,
       decimals,
       recentBlockhash: blockhash,
-      prefix: priorityInstructions(CU_SPL_TRANSFER, microLamports),
+      prefix: priorityInstructions(sendComputeUnits(CU_SPL_TRANSFER, opts?.memo), microLamports),
       tokenProgram,
       references: opts?.references,
       memo: opts?.memo,

@@ -24,7 +24,6 @@ import { useSettings, useT } from '../lib/settingsStore';
 import { useWalletConnect } from '../lib/walletconnect';
 import { toast } from '../lib/toast';
 import { haptic } from '../lib/haptics';
-import { friendlyTxError } from '../lib/txError';
 import { getAdapter, getErc20Tokens, revokeCalldata, isUnlimited, formatTokenAmount, shortAddress, EvmChainAdapter, type ApprovalItem } from '../src';
 
 function Check({ ok, icon, title, body, actionLabel, onAction }: { ok: boolean | null; icon: IconName; title: string; body: string; actionLabel?: string; onAction?: () => void }) {
@@ -94,7 +93,14 @@ export default function SecurityCenter() {
       toast.success(t("revokeSent"), `${target.symbol} · ${shortAddress(target.spender)}`);
       setApprovals((list) => (list ?? []).filter((a) => a !== target));
     } catch (e) {
-      throw new Error(friendlyTxError(e));
+      /*
+       * L'ERREUR D'ORIGINE, relayée telle quelle : c'est ConfirmUnlock qui la
+       * traduit (avec la langue). La traduire ici puis relancer une Error nue
+       * la faisait retraduire à partir de sa phrase — qui ne correspondait plus
+       * à rien : « Transaction échouée. Réessaie » à chaque fois, le vrai motif
+       * perdu (loyer Solana, solde, mémo…).
+       */
+      throw e;
     }
   };
 

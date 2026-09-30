@@ -202,15 +202,53 @@ function returnToDapp(wallet: IWeb3Wallet, topic: string): void {
   }
 }
 
-/** Prévient toutes les sessions EVM que le réseau actif a changé dans l'app. */
-function broadcastChainChanged(wallet: IWeb3Wallet, kalyxId: string): void {
-  const chain = evmChains().find((c) => c.kalyxId === kalyxId);
-  if (!chain) return;
-  const sessions = wallet.getActiveSessions?.() ?? {};
-  for (const s of Object.values(sessions) as any[]) {
-    if (!(s?.namespaces?.eip155?.chains ?? []).includes(chain.caip)) continue;
-    wallet.emitSessionEvent({ topic: s.topic, event: { name: 'chainChanged', data: chain.evmChainId }, chainId: chain.caip }).catch(() => {});
+/**
+ * Rouvre la connexion au relais si elle est tombée.
+ *
+ * « FAILED TO PUBLISH PAYLOAD … tag:1110 ». Le tag 1110 est `wc_sessionEvent` :
+ * l'événement « réseau changé » envoyé aux dApps. Chaque échec arrivait 60 s
+ * pile après un changement de réseau — le délai de publication : le message
+ * attendait un relais dont la connexion était morte (app passée en arrière-plan,
+ * réseau mobile qui change), jamais rétablie. On la rétablit avant d'envoyer,
+ * et au retour au premier plan.
+ */
+async function ensureRelay(wallet: IWeb3Wallet): Promise<void> {
+  const relayer = (wallet as any)?.core?.relayer as { connected?: boolean; transportOpen?: () => Promise<void>; restartTransport?: () => Promise<void> } | undefined;
+  if (!relayer || relayer.connected !== false) return;
+  try {
+    await relayer.transportOpen?.();
+  } catch {
+    await relayer.restartTransport?.().catch(() => {});
   }
+}
+
+let chainBroadcastTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Prévient les sessions EVM que le réseau actif a changé dans l'app.
+ *
+ * REGROUPÉ : plusieurs changements rapprochés (swap, navigateur, sélecteur)
+ * n'envoient que le DERNIER réseau, une fois le relais joignable. Les sessions
+ * expirées sont ignorées — publier vers elles ne peut qu'échouer.
+ */
+function broadcastChainChanged(wallet: IWeb3Wallet, kalyxId: string): void {
+  if (chainBroadcastTimer) clearTimeout(chainBroadcastTimer);
+  chainBroadcastTimer = setTimeout(() => {
+    chainBroadcastTimer = null;
+    const chain = evmChains().find((c) => c.kalyxId === kalyxId);
+    if (!chain) return;
+    const sessions = Object.values(wallet.getActiveSessions?.() ?? {}) as any[];
+    const now = Math.floor(Date.now() / 1000);
+    const targets = sessions.filter((s) => (s?.namespaces?.eip155?.chains ?? []).includes(chain.caip) && !(typeof s?.expiry === 'number' && s.expiry <= now));
+    if (!targets.length) return;
+    void ensureRelay(wallet).then(() => {
+      for (const s of targets) {
+        wallet.emitSessionEvent({ topic: s.topic, event: { name: 'chainChanged', data: chain.evmChainId }, chainId: chain.caip }).catch((e: unknown) => {
+          technicalLogger.logSys('WalletConnect chainChanged non publié', { error: e instanceof Error ? e.message.slice(0, 120) : String(e) });
+        });
+      }
+    });
+  }, 800);
 }
 
 function evmChains(): EvmChain[] {
@@ -412,6 +450,10 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     // Réseau changé dans Kalyx → événement chainChanged vers les dApps connectées.
     useWallet.subscribe((state, prev) => {
       if (state.activeChain !== prev.activeChain) broadcastChainChanged(w, state.activeChain);
+    });
+    // Retour au premier plan : connexion au relais rétablie, pour les demandes entrantes comme pour nos envois.
+    AppState.addEventListener('change', (st) => {
+      if (st === 'active') void ensureRelay(w);
     });
     set({ wallet: w, ready: true });
     get().refresh();

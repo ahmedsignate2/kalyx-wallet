@@ -2,10 +2,10 @@ import { FlowDots, NovaHero, Rise } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import React, { useState } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Title, Muted } from '../ui/components';
-import { PinPad } from '../ui/PinPad';
+import { PinPad, PIN_GAP, PIN_KEY } from '../ui/PinPad';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
@@ -20,6 +20,25 @@ import { checkPin, isWalletError, PIN_MIN } from '../src';
  */
 type Step = 'old' | 'new' | 'confirm';
 
+/** Hauteur de la ligne « Continuer / Recommencer / Vérification » sous le pavé. */
+const ACTION_ROW = 24;
+const GAP = spacing(2);
+
+/**
+ * Tailles du pavé pour la hauteur DISPONIBLE : touches et anneau rapetissent
+ * plutôt que de sortir de l'écran. Écran fixe : rien ne défile.
+ */
+function padSizes(avail: number): { key: number; ring: number } {
+  const fit = (ring: number) => Math.floor((avail - ring - GAP * 2 - PIN_GAP * 3 - ACTION_ROW) / 4);
+  let ring = 104;
+  let key = fit(ring);
+  if (key < 62) {
+    ring = 72;
+    key = fit(ring);
+  }
+  return { ring, key: Math.max(46, Math.min(PIN_KEY, key)) };
+}
+
 export default function ChangePin() {
   // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
   useNoScreenCapture('change-pin');
@@ -33,6 +52,11 @@ export default function ChangePin() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errSignal, setErrSignal] = useState(0);
+  const { height: winH } = useWindowDimensions();
+  // Hauteur réelle laissée au pavé, mesurée : dépend de l'appareil et des barres système.
+  const [padArea, setPadArea] = useState(0);
+  const sizes = padSizes(padArea || 460);
+  const compactHero = winH < 780;
 
   const fail = (msg: string) => {
     setError(msg);
@@ -105,26 +129,32 @@ export default function ChangePin() {
   const canNext = pin.length >= PIN_MIN;
 
   return (
-    <Screen scroll>
+    /*
+     * ÉCRAN FIXE, sans défilement : en-tête et titre en haut, pavé ancré en bas
+     * dans l'espace restant, dont la hauteur est MESURÉE. Les touches s'adaptent
+     * à cette hauteur — sur un petit téléphone, le pavé et « Continuer » restent
+     * visibles sans rien faire défiler.
+     */
+    <Screen>
       <ScreenHeader right={<FlowDots step={step === 'old' ? 1 : step === 'new' ? 2 : 3} />} />
       {/* Le titre remonte à chaque étape : on voit que l'écran a avancé. */}
-      <NovaHero key={step} icon="pin" tone="gold" title={title} subtitle={hint} />
+      <NovaHero key={step} icon="pin" tone="gold" title={title} subtitle={hint} compact={compactHero} />
 
-      <View style={{ height: spacing(2) }} />
+      {/* Hauteur réservée : le message d'erreur n'écrase pas le pavé en apparaissant. */}
+      <Text numberOfLines={2} style={{ minHeight: 20, color: colors.danger, textAlign: 'center', fontFamily: fonts.medium }}>{error ?? ''}</Text>
 
-      {error ? (
-        <Text style={{ color: colors.danger, textAlign: 'center', marginBottom: spacing(1), fontFamily: fonts.medium }}>{error}</Text>
-      ) : null}
-
-      <View style={{ alignItems: 'center', gap: spacing(2) }}>
+      <View
+        style={{ flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'flex-end', gap: GAP }}
+        onLayout={(e) => setPadArea(Math.round(e.nativeEvent.layout.height))}
+      >
         {step === 'confirm' ? (
-          <PinPad value={pin} onChange={onChange} expectedLength={newPin.length} onComplete={onConfirm} errorSignal={errSignal} disabled={busy} />
+          <PinPad value={pin} onChange={onChange} expectedLength={newPin.length} onComplete={onConfirm} errorSignal={errSignal} disabled={busy} keySize={sizes.key} ringSize={sizes.ring} />
         ) : (
-          <PinPad value={pin} onChange={onChange} errorSignal={errSignal} />
+          <PinPad value={pin} onChange={onChange} errorSignal={errSignal} keySize={sizes.key} ringSize={sizes.ring} />
         )}
         {/* Même correction qu'à la création : le changement de PIN rechiffre le
             coffre (scrypt), donc l'écran se figeait sans rien dire. */}
-        <View style={{ height: 24, justifyContent: 'center' }}>
+        <View style={{ height: ACTION_ROW, justifyContent: 'center' }}>
           {busy ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <ActivityIndicator size="small" color={colors.primary} />

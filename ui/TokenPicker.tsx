@@ -2,7 +2,7 @@ import { Pressable as KPressable } from './kit';
 import { SafeModal } from './kit/SafeModal';
 import { useT } from "../lib/settingsStore";
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, Image, Modal, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Image, Modal, FlatList, Platform, ActivityIndicator, StyleSheet } from 'react-native';
 import { fonts, radii, spacing, useTheme } from './theme';
 import { haptic } from '../lib/haptics';
 import { Icon } from './icon';
@@ -14,6 +14,7 @@ import { addressForChain } from '../lib/accountAddress';
 import { formatAmount, formatTokenAmount, sortMarkets, type MarketCoin } from '../src';
 import { useSettings } from '../lib/settingsStore';
 import { loadMarkets } from './MarketPanel';
+import { KeyboardAvoid } from './KeyboardAvoid';
 
 /** Onglets du sélecteur : mes jetons (soldes > 0), tendances (hausses du jour), top 100 (capitalisation). */
 type PickerTab = 'all' | 'mine' | 'trending' | 'top';
@@ -180,7 +181,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
     <SafeModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <KPressable noScale haptic="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onClose} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ height: '85%', backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' }}>
+        <KeyboardAvoid style={{ height: '85%', backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' }}>
         <View style={{ padding: spacing(2), borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(1.5) }}>
             <Text style={{ color: colors.text, fontFamily: fonts.extrabold, fontSize: 20 }}>{t("tokenSelect")}</Text>
@@ -273,7 +274,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
             }
           />
         )}
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
       </View>
     </SafeModal>
   );
