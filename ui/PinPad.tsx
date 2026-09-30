@@ -49,6 +49,7 @@ export function PinPad({
   hideRing,
   keySize = PIN_KEY,
   ringSize = 104,
+  ringLength,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -72,6 +73,12 @@ export function PinPad({
   keySize?: number;
   /** Diamètre de l'anneau de progression. */
   ringSize?: number;
+  /**
+   * Longueur qui REMPLIT l'anneau quand elle n'est pas connue d'avance (nouveau
+   * PIN : le minimum). Sans elle, l'anneau se remplissait sur 12 chiffres : un
+   * code de 6 ne le remplissait qu'à moitié.
+   */
+  ringLength?: number;
 }) {
   const { colors } = useTheme();
   const shake = useRef(new Animated.Value(0)).current;
@@ -109,7 +116,7 @@ export function PinPad({
       {/* Anneau de progression (compact : le pavé complet doit tenir sans défiler) */}
       {hideRing ? null : (
         <Animated.View style={{ transform: [{ translateX: shake }], alignItems: 'center', justifyContent: 'center', marginVertical: spacing(0.5) }}>
-          <KalyxRing size={ringSize} progress={value.length === 0 ? 0.001 : value.length / (expectedLength || cap)} error={!!errorSignal} />
+          <KalyxRing size={ringSize} progress={value.length === 0 ? 0.001 : Math.min(1, value.length / (expectedLength || ringLength || cap))} error={!!errorSignal} />
         </Animated.View>
       )}
 
