@@ -22,9 +22,9 @@ describe('paidCounterparties', () => {
 
 describe('looksLike — règle de casse', () => {
   const { looksLike } = require('./spam');
-  it('variante de casse d’une adresse Solana = sosie ; même EVM en autre casse = même adresse', () => {
+  it('une variante de casse n’est pas un sosie (personne n’en a la clé) ; même EVM en autre casse = même adresse', () => {
     const sol = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
-    expect(looksLike(sol.toLowerCase(), sol)).toBe(true);
+    expect(looksLike(sol.toLowerCase(), sol)).toBe(false);
     const evm = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
     expect(looksLike(evm.toLowerCase(), evm)).toBe(false);
   });

@@ -9,7 +9,8 @@ import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from '
 import { LinearGradient } from 'expo-linear-gradient';
 import { swapTokenTint, withAlpha } from '../lib/tokenColors';
 import { SnapSlider } from '../ui/SnapSlider';
-import { availableFrom, freshRaw, needsRead, writable, readSwapBalance, swapBalanceKey, type BalanceEntry } from '../lib/swapBalance';
+import { availableFrom, freshRaw } from '../lib/swapBalance';
+import { useSwapBalances } from '../lib/useSwapBalances';
 import { CHAIN_LOGO_SVG } from '../src/domain/chains/chainLogos.generated';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState, Pressable as KPressable } from '../ui/kit';
@@ -117,24 +118,6 @@ export default function Swap() {
   const [stale, setStale] = useState(false);
   const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  /*
-   * SOLDES ÉTIQUETÉS (lib/swapBalance.ts) : un registre clé → état, la clé
-   * portant réseau + compte + jeton (+ un compteur relevé après chaque swap).
-   * Une réponse ne peut atterrir que sur SA clé : jamais le solde d'un autre
-   * jeton formaté avec d'autres décimales, ni celui d'un autre réseau. Un
-   * échec est « erreur » (réessayable), jamais 0.
-   */
-  const [balances, setBalances] = useState<Record<string, BalanceEntry>>({});
-  const [balanceNonce, setBalanceNonce] = useState(0);
-  const balanceNonceRef = useRef(0);
-  balanceNonceRef.current = balanceNonce;
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true; // remis à vrai à chaque montage (effets doublés en mode strict)
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
   /**
    * Réserve de gas DYNAMIQUE (estimée sur le RPC du réseau actif) : ce qu'on
    * garde de natif pour que la tx passe. `null` = pas encore chargée.
@@ -175,6 +158,8 @@ export default function Swap() {
   // Succès : hash + résumé (capturés avant reset) pour l'écran animé.
   const [success, setSuccess] = useState<{ hash: string; summary: string; isBridge?: boolean; fromChain?: string; toChain?: string } | null>(null);
   const [held, setHeld] = useState<Tok[]>([]);
+  /** Branché plus bas sur useSwapBalances (déclaré après le choix du jeton source). */
+  const seedHeldRef = useRef<(chainId: string, owner: string, list: { token: string; raw: bigint }[]) => void>(() => {});
   const params = useLocalSearchParams<{ contract?: string; to?: string }>();
 
   // Tokens réellement détenus sur la chaîne active → swappables même hors liste curée.
@@ -184,26 +169,18 @@ export default function Swap() {
     if (!account?.address) return;
     const chainId = activeChain;
     const owner = account.address;
-    const nonceAtLoad = balanceNonceRef.current;
     const loaded = (list: Tok[]) => {
       if (cancelled) return;
       setHeld(list);
-      /*
-       * Les jetons détenus arrivent AVEC leur solde : on l'enregistre (étiqueté
-       * réseau + compte de CETTE lecture) au lieu d'une relecture par sélection.
-       */
-      const at = Date.now();
-      setBalances((b) => {
-        const next = { ...b };
-        for (const tk of list) {
+      // Leurs soldes s'affichent tout de suite (tenus pour vieux : une lecture directe suit).
+      seedHeldRef.current(
+        chainId,
+        owner,
+        list.flatMap((tk) => {
           const bal = (tk as Tok & { balance?: bigint }).balance;
-          if (typeof bal !== 'bigint') continue;
-          const key = `${swapBalanceKey(chainId, owner, tk.address)}#${nonceAtLoad}`;
-          // Une lecture directe (faite ou en cours) est plus fraîche que la liste ; un échec, non.
-          if (key.endsWith(`#${balanceNonceRef.current}`) && (!next[key] || next[key].status === 'error')) next[key] = { status: 'ok', raw: bal, at };
-        }
-        return next;
-      });
+          return typeof bal === 'bigint' ? [{ token: tk.address, raw: bal }] : [];
+        }),
+      );
     };
 
     if (chain.family === 'evm') {
@@ -331,67 +308,15 @@ export default function Swap() {
 
   const owner = account?.address;
   const srcNative = !!fromTok && isNativeTokenAddress(fromTok.address);
-  const srcKey = fromTok ? `${swapBalanceKey(activeChain, owner, srcNative ? 'native' : fromTok.address)}#${balanceNonce}` : '';
-  /** Le natif sert aussi à payer le gas d'un échange de jeton. */
-  const gasKey = `${swapBalanceKey(activeChain, owner, 'native')}#${balanceNonce}`;
-  /** Lectures en vol, par clé : un relevé périodique ne double jamais une lecture en cours. */
-  const inflight = useRef(new Set<string>());
-  /**
-   * Lit un solde. Un solde DÉJÀ CONNU reste affiché pendant sa relecture, et
-   * le reste si elle échoue (il vieillit, et la pré-vérification le relira) :
-   * une relecture de fond ne doit ni griser le curseur ni afficher une erreur
-   * pour une valeur qu'on avait. Sans valeur : « … » puis « erreur » réessayable.
-   */
-  const loadBalance = (key: string, token: string, native: boolean) => {
-    if (!owner || inflight.current.has(key)) return;
-    inflight.current.add(key);
-    setBalances((b) => (b[key]?.status === 'ok' ? b : { ...b, [key]: { status: 'loading', since: Date.now() } }));
-    readSwapBalance(activeChain, owner, token, native)
-      .then((raw) => putBalance(key, { status: 'ok', raw, at: Date.now() }))
-      .catch(() => putBalance(key, { status: 'error' }, true))
-      .finally(() => inflight.current.delete(key));
-  };
-  /**
-   * Écriture d'une lecture ASYNCHRONE : ignorée si sa génération de clés est
-   * passée (purgée après confirmation — elle reviendrait en fuite), ou si un
-   * échange vient d'être diffusé (le nœud rendait encore le solde d'avant).
-   * `keepOk` : un échec n'efface pas un solde déjà connu.
-   */
-  const putBalance = (key: string, entry: BalanceEntry, keepOk = false) => {
-    if (!key.endsWith(`#${balanceNonceRef.current}`)) return;
-    setBalances((b) => {
-      if (!writable(b[key], Date.now()) || (keepOk && b[key]?.status === 'ok')) return b;
-      return { ...b, [key]: entry };
-    });
-  };
-  /** Relit ce qui manque, a échoué ou a vieilli (dépensé ailleurs entre-temps). */
-  const refreshRef = useRef<() => void>(() => {});
-  refreshRef.current = () => {
-    if (!owner || !fromTok) return;
-    const now = Date.now();
-    if (needsRead(balances[srcKey], now)) loadBalance(srcKey, fromTok.address, srcNative);
-    if (!srcNative && needsRead(balances[gasKey], now)) loadBalance(gasKey, 'native', true);
-  };
-  useEffect(() => {
-    refreshRef.current();
-  }, [srcKey, gasKey]);
-  /*
-   * Relecture PÉRIODIQUE, sondée toutes les 10 s : un solde a au plus ~40 s
-   * (30 s de fraîcheur + un sondage). En pause pendant la confirmation.
-   */
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (!pausedRef.current) refreshRef.current();
-    }, 10_000);
-    return () => clearInterval(id);
-  }, []);
-  const srcEntry = srcKey ? balances[srcKey] : undefined;
-  const gasEntry = balances[srcNative ? srcKey : gasKey];
+  /** Confirmation ou exécution en cours : rafraîchissements suspendus. */
+  const pausedRef = useRef(false);
+  const sb = useSwapBalances({ chainId: activeChain, owner, srcToken: fromTok?.address ?? null, srcNative, pausedRef });
+  seedHeldRef.current = sb.seedHeld;
+  const { srcEntry, gasEntry, swapPending } = sb;
   /** Lecture du solde en échec : « Disponible » propose de réessayer. */
   const balanceError = srcEntry?.status === 'error' || (srcNative && !gasReserve && gasSlow);
   const retryBalance = () => {
-    if (!fromTok) return;
-    if (srcEntry?.status !== 'ok') loadBalance(srcKey, fromTok.address, srcNative); // déjà en vol : ignoré
+    sb.retry(); // déjà en vol : sans effet
     if (srcNative && !gasReserve) setGasNonce((n) => n + 1);
   };
   /**
@@ -404,7 +329,7 @@ export default function Swap() {
 
   const [sliderPct, setSliderPct] = useState<number | null>(null);
   /** Disponible pas encore lu : le curseur attend (un cran calculé sur 0 restait faux). */
-  const balanceUnknown = availableOrNull() == null;
+  const balanceUnknown = swapPending || availableOrNull() == null;
   const setPercent = (pct: bigint) => {
     if (!fromTok) return;
     const avail = getAvailable();
@@ -437,7 +362,6 @@ export default function Swap() {
   // Auto-refresh du devis : en PAUSE pendant la confirmation/exécution (sinon
   // la fenêtre PIN se fermait au milieu de la saisie) et STOPPÉ après une erreur
   // (sinon on spammait l'API toutes les 15 s sans route).
-  const pausedRef = useRef(false);
   useEffect(() => {
     pausedRef.current = confirming || step !== null;
   }, [confirming, step]);
@@ -464,12 +388,13 @@ export default function Swap() {
   /** Vérifications locales AVANT tout appel réseau (messages immédiats et précis). */
   const preflight = async (raw: bigint): Promise<string | null> => {
     if (!isBridge && fromTok.address.toLowerCase() === toTok.address.toLowerCase()) return t('swapTwoTokens');
+    // Échange précédent pas encore abouti : les soldes du réseau ne sont pas fiables.
+    if (swapPending) return t('errSwapPending');
     // Solde inconnu, en erreur ou lu il y a plus de 30 s : relu avant de juger les fonds (jamais pris pour 0).
     let bal = freshRaw(srcEntry, Date.now());
     if (bal == null) {
       try {
-        bal = await readSwapBalance(activeChain, account!.address, fromTok.address, srcNative);
-        putBalance(srcKey, { status: 'ok', raw: bal, at: Date.now() });
+        bal = await sb.readSrc(); // partage une lecture déjà en vol ; bornée à 15 s
       } catch {
         return null; // réseau muet : on laisse le devis trancher
       }
@@ -491,7 +416,7 @@ export default function Swap() {
       // Token SPL/ERC-20 : le natif du wallet doit couvrir le gas estimé.
       try {
         // Natif lu il y a plus de 30 s : relu, comme le solde du jeton (lecture bornée à 15 s).
-        const native = freshRaw(gasEntry, Date.now()) ?? (await readSwapBalance(activeChain, account!.address, 'native', true));
+        const native = freshRaw(gasEntry, Date.now()) ?? (await sb.readGas());
         if (native < reserve) return t('errNeedNativeForGas').replace('{amount}', reserveStr);
       } catch {
         /* réseau muet : on laisse le devis trancher */
@@ -587,22 +512,14 @@ export default function Swap() {
       setAmount('');
       setSliderPct(null);
       setSuccess({ hash, summary, isBridge, fromChain: activeChain, toChain: toChain });
-      // Soldes d'avant l'échange : plus affichés (« … ») jusqu'à la relecture après confirmation.
-      // Après ~20 s sans confirmation, la relecture périodique les reprend (needsRead).
-      const since = Date.now();
-      setBalances((b) => ({ ...b, [srcKey]: { status: 'loading', since, afterSwap: true }, [gasKey]: { status: 'loading', since, afterSwap: true } }));
       notifyAndLog('tx', isBridge ? t('bridgeSent') : t('swapExecuted'), summary);
       /*
-       * Soldes relus À LA CONFIRMATION, pas à la diffusion : relus tout de
-       * suite, ils auraient mis en cache le solde d'avant l'échange.
+       * Soldes du réseau mis de côté jusqu'à l'ISSUE de l'échange (le nœud rend
+       * encore ceux d'avant) ; relus dès qu'il est confirmé, échoué ou expiré.
        */
-      void watchConfirmation(activeChain, hash, summary).finally(() => {
-        if (!mountedRef.current) return;
-        // Nouvelle génération de clés : les anciennes ne seront plus jamais lues, on les retire.
-        const next = balanceNonceRef.current + 1;
-        balanceNonceRef.current = next;
-        setBalanceNonce(next);
-        setBalances((b) => Object.fromEntries(Object.entries(b).filter(([k]) => k.endsWith(`#${next}`))));
+      const settle = sb.beginSwap();
+      void watchConfirmation(activeChain, hash, summary).then((st) => {
+        if (st === 'confirmed' || st === 'failed' || st === 'expired') settle();
       });
     } catch (e) {
       // Devis probablement invalide après un échec (prix, blockhash, nonce) : on
@@ -717,9 +634,13 @@ export default function Swap() {
                  * carte, il passait sous le disque d'inversion posé à cheval.
                  */
                 right={
-                  <KPressable onPress={balanceError ? retryBalance : onMax} hitSlop={8} accessibilityLabel={balanceError ? t('retry') : t("chipMax")}>
-                    <Text variant="caption" tone="secondary" tabular numberOfLines={1}>{t('availableLabel')} : {balanceError ? '—' : balanceUnknown ? '…' : formatTokenAmount(getAvailable(), fromTok.decimals)} · <Text variant="caption" style={{ color: GOLD }}>{balanceError ? t('retry') : t("chipMax")}</Text></Text>
-                  </KPressable>
+                  swapPending ? (
+                    <Text variant="caption" tone="secondary" numberOfLines={1}>{t('availableLabel')} : {t('swapPendingShort')}</Text>
+                  ) : (
+                    <KPressable onPress={balanceError ? retryBalance : onMax} hitSlop={8} accessibilityLabel={balanceError ? t('retry') : t("chipMax")}>
+                      <Text variant="caption" tone="secondary" tabular numberOfLines={1}>{t('availableLabel')} : {balanceError ? '—' : balanceUnknown ? '…' : formatTokenAmount(getAvailable(), fromTok.decimals)} · <Text variant="caption" style={{ color: GOLD }}>{balanceError ? t('retry') : t("chipMax")}</Text></Text>
+                    </KPressable>
+                  )
                 }
                 bottom={<Text variant="caption" tone="secondary" tabular>{quote && quote.fromAmountUsd > 0 ? `≈ ${formatFiat(quote.fromAmountUsd)} $` : ' '}</Text>}
               />
