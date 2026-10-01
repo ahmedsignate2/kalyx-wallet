@@ -5,7 +5,11 @@ import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { View, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { swapTokenTint, withAlpha } from '../lib/tokenColors';
+import { SnapSlider } from '../ui/SnapSlider';
+import { CHAIN_LOGO_SVG } from '../src/domain/chains/chainLogos.generated';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState, Pressable as KPressable } from '../ui/kit';
 import { BridgeProgress } from '../ui/BridgeProgress';
@@ -80,7 +84,7 @@ function isNativeTokenAddress(address?: string): boolean {
 }
 
 export default function Swap() {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
   const activeChain = useWallet((s) => s.activeChain);
@@ -322,6 +326,7 @@ export default function Swap() {
   const onFlip = () => {
     if (isBridge) return;
     haptic.heavy();
+    setSliderPct(null); // l'ancienne part ne vaut rien pour l'autre jeton
     setFrom(to);
     setTo(from);
     reset();
@@ -358,12 +363,13 @@ export default function Swap() {
     return raw > reserveRaw ? raw - reserveRaw : 0n;
   };
 
+  const [sliderPct, setSliderPct] = useState<number | null>(null);
   const setPercent = (pct: bigint) => {
     if (!fromTok) return;
     const avail = getAvailable();
     setAmount(avail > 0n ? formatInputAmount((avail * pct) / 100n, fromTok.decimals) : '0');
   };
-  const onMax = () => setPercent(100n);
+  const onMax = () => { setSliderPct(100); setPercent(100n); };
   const onHalf = () => setPercent(50n);
 
   // Auto-refresh du devis : en PAUSE pendant la confirmation/exécution (sinon
@@ -502,6 +508,7 @@ export default function Swap() {
       stopCountdown();
       reset();
       setAmount('');
+      setSliderPct(null);
       setSuccess({ hash, summary, isBridge, fromChain: activeChain, toChain: toChain });
       notifyAndLog('tx', isBridge ? t('bridgeSent') : t('swapExecuted'), summary);
       void watchConfirmation(activeChain, hash, summary);
@@ -558,8 +565,25 @@ export default function Swap() {
     </View>
   );
 
+  /*
+   * FOND DU SWAP : la couleur de ce qu'on donne en haut, de ce qu'on reçoit en
+   * bas. L'écran dit l'échange avant même qu'on lise les symboles, et il change
+   * de lumière quand on change de jeton ou qu'on inverse.
+   */
+  const fromTint = swapTokenTint(fromTok?.symbol, activeChain, CHAIN_LOGO_SVG);
+  const toTint = swapTokenTint(toTok?.symbol, toChain, CHAIN_LOGO_SVG);
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {fromTint || toTint ? (
+        <Animated.View key={`${fromTint}-${toTint}`} entering={FadeIn.duration(450)} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <LinearGradient
+            colors={[withAlpha(fromTint ?? colors.bg, mode === 'dark' ? 0.24 : 0.14), withAlpha(fromTint ?? colors.bg, 0), withAlpha(toTint ?? colors.bg, 0), withAlpha(toTint ?? colors.bg, mode === 'dark' ? 0.2 : 0.12)]}
+            locations={[0, 0.42, 0.62, 1]}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+        </Animated.View>
+      ) : null}
       <Stack.Screen options={{ headerShown: false }} />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
@@ -654,7 +678,14 @@ export default function Swap() {
           {isNativeTokenAddress(fromTok.address) ? <Text variant="micro" tone="tertiary">{t('gasReserve')} : {gasReserve ? `≈ ${formatTokenAmount(gasReserve.raw, chain.nativeDecimals)} ${chain.nativeSymbol}${gasReserve.live ? '' : ' (est.)'}` : '…'}</Text> : null}
 
           {/* Clavier maison + action */}
-          <AmountKeypad value={amount} onChange={(v) => { setAmount(v); reset(); stopCountdown(); }} maxDecimals={Math.min(fromTok.decimals, 8)} />
+          {/* Curseur à crans : « la moitié », « tout » au pouce ; le clavier pour un montant précis. */}
+          <SnapSlider
+            value={sliderPct}
+            accent={fromTint}
+            maxLabel={t('chipMax')}
+            onChange={(p) => { setSliderPct(p); setPercent(BigInt(p)); reset(); stopCountdown(); }}
+          />
+          <AmountKeypad value={amount} onChange={(v) => { setSliderPct(null); setAmount(v); reset(); stopCountdown(); }} maxDecimals={Math.min(fromTok.decimals, 8)} />
           {!quote ? (
             <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading} disabled={!amount || Number(amount) <= 0} />
           ) : stale ? (
