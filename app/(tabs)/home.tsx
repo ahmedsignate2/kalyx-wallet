@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MarketPanel } from '../../ui/MarketPanel';
+import { Allocation } from '../../ui/Allocation';
 import { NftDetailModal } from '../../ui/NftDetailModal';
 import { InteractiveChart } from '../../ui/InteractiveChart';
 import { Icon } from '../../ui/icon';
@@ -748,6 +749,13 @@ export default function Home() {
                   </View>
                 ) : null}
                 {pf.error ? <Text variant="caption" tone="warning" style={{ textAlign: 'center' }}>{t("updateFailed")}{new Date(pf.at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</Text> : null}
+                {/* Répartition : où est l'argent, par actif ou par réseau, aux couleurs de chacun. */}
+                {!hidden ? (
+                  <Allocation
+                    items={main}
+                    labels={{ title: t('allocTitle'), byAsset: t('allocByAsset'), byChain: t('allocByChain'), other: t('allocOther') }}
+                  />
+                ) : null}
                 {/* Le marché vit ici (plus d'onglet) : hausses / baisses du jour, puis l'écran complet. */}
                 <MarketPanel />
               </>

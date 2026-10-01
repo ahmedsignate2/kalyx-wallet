@@ -112,9 +112,20 @@ export async function probeRecipient(chainId: string, myAddress: string | undefi
     within(adapter.getHistory(recipient), timeoutMs),
     evmChainId ? within(assessAddress(evmChainId, recipient), timeoutMs) : Promise.resolve(undefined),
   ]);
+  /*
+   * HISTORIQUE VIDE ≠ ADRESSE NEUVE. Quand tous les indexeurs d'un réseau
+   * échouent, l'adaptateur rend une liste vide plutôt qu'une erreur : on aurait
+   * affirmé « adresse sans aucun historique » à tort. Le vide n'est cru que si
+   * le solde de l'adresse est lui aussi nul ; sinon le profil est « non vérifié ».
+   */
+  let profile = theirs ? profileFromHistory(theirs) : undefined;
+  if (profile && profile.txCount === 0) {
+    const bal = await within(adapter.getBalance(recipient), timeoutMs);
+    if (!bal || bal.raw > 0n) profile = undefined;
+  }
   return {
     history: mine ? relationFromHistory(mine, recipient) : undefined,
-    profile: theirs ? profileFromHistory(theirs) : undefined,
+    profile,
     flags: risk && risk.level !== 'unknown' ? risk.reasons : undefined,
   };
 }

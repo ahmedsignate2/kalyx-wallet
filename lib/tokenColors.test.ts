@@ -26,8 +26,17 @@ describe('couleur des réseaux', () => {
     expect(tokenTint('ethereum', 'base', CHAIN_LOGO_SVG)).toBe('#0052FF');
     expect(tokenTint('ethereum', 'ethereum', CHAIN_LOGO_SVG)).toBe('#627EEA');
     expect(tokenTint('usd-coin', 'polygon', CHAIN_LOGO_SVG)).toBe('#2775CA');
-    expect(tokenTint('un-inconnu', 'optimism', CHAIN_LOGO_SVG)).toBe('#FE0420');
-    expect(tokenTint('un-inconnu', undefined, CHAIN_LOGO_SVG)).toBeNull();
+    expect(tokenTint(undefined, 'optimism', CHAIN_LOGO_SVG)).toBe('#FE0420');
+    expect(tokenTint(undefined, undefined, CHAIN_LOGO_SVG)).toBeNull();
+  });
+  it('chaque jeton a SA couleur, même inconnu, et toujours la même', () => {
+    const a = tokenTint('un-jeton-erc20', 'ethereum', CHAIN_LOGO_SVG);
+    const b = tokenTint('un-autre-jeton', 'ethereum', CHAIN_LOGO_SVG);
+    expect(a).toMatch(/^#[0-9A-F]{6}$/);
+    expect(a).not.toBe(b);
+    expect(a).toBe(tokenTint('un-jeton-erc20', 'ethereum', CHAIN_LOGO_SVG));
+    expect(tokenTint('aave', 'ethereum', CHAIN_LOGO_SVG)).toBe('#B6509E');
+    expect(tokenTint('uniswap', 'ethereum', CHAIN_LOGO_SVG)).toBe('#FF007A');
   });
 });
 
@@ -40,6 +49,7 @@ describe('teintes utilitaires', () => {
   it('jeton de swap : symbole d’abord, réseau ensuite', () => {
     const { swapTokenTint } = require('./tokenColors');
     expect(swapTokenTint('usdc', 'polygon', CHAIN_LOGO_SVG)).toBe('#2775CA');
-    expect(swapTokenTint('ZZZ', 'arbitrum', CHAIN_LOGO_SVG)).toBe('#28A0F0');
+    expect(swapTokenTint('ZZZ', 'arbitrum', CHAIN_LOGO_SVG)).toMatch(/^#[0-9A-F]{6}$/);
+    expect(swapTokenTint(undefined, 'arbitrum', CHAIN_LOGO_SVG)).toBe('#28A0F0');
   });
 });
