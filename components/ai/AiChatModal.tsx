@@ -470,13 +470,19 @@ une source externe.`}`;
       const SYSTEM_PROMPT = buildSystemPrompt(context, msgToSend);
       copilotLog(traceId, 'context.ready', { systemPromptChars: SYSTEM_PROMPT.length, historyMessages: messages.length });
       
-      // Mapper les messages pour l'API
-      let apiMessages = messages.map(m => ({ role: m.sender, content: m.text }));
-      apiMessages.push({ role: 'user', content: msgToSend });
-      
-      if (apiMessages.length > 0 && apiMessages[0].role === 'assistant') {
-        apiMessages = apiMessages.slice(1);
-      }
+      /*
+       * HISTORIQUE BORNÉ. Toute la conversation repartait à chaque message, en
+       * plus de ~24 000 caractères de consignes et de contexte : au troisième
+       * échange, Groq répondait 413 (« trop volumineux ») à chaque fois. Les 12
+       * derniers messages suffisent à suivre une conversation.
+       */
+      const toApi = (list: typeof messages, keep: number) => {
+        let out = list.slice(-keep).map((m) => ({ role: m.sender, content: m.text.length > 1500 ? `${m.text.slice(0, 1500)}…` : m.text }));
+        out.push({ role: 'user', content: msgToSend });
+        while (out.length > 0 && out[0].role === 'assistant') out = out.slice(1);
+        return out;
+      };
+      const apiMessages = toApi(messages, 12);
 
       const { url, headers, model } = buildAiRequestParams(provider, apiKey, customUrl, customModel);
       let body: any = { model, messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...apiMessages] };
@@ -503,6 +509,24 @@ une source externe.`}`;
 
       let res = await requestAi(url, headers, body);
       let data = await res.json().catch(() => ({}));
+      /*
+       * REQUÊTE TROP VOLUMINEUSE (413, ou dépassement de contexte) : une seconde
+       * tentative COMPACTE — les consignes (en tête du prompt) sont gardées, le
+       * contexte de fin (journal, extraits de documentation) est coupé, et
+       * seuls les 4 derniers messages partent. L'utilisateur reçoit une réponse
+       * au lieu d'une erreur.
+       */
+      const tooLarge = res.status === 413 || (res.status === 400 && /context|too large|too long|maximum|tokens/i.test(JSON.stringify(data).slice(0, 600)));
+      if (tooLarge) {
+        copilotLog(traceId, 'request.too_large.retry', { status: res.status, systemPromptChars: SYSTEM_PROMPT.length });
+        const compactSystem = SYSTEM_PROMPT.slice(0, 9000);
+        const compactMessages = toApi(messages, 4);
+        body = provider === 'anthropic'
+          ? { ...body, system: compactSystem, messages: compactMessages }
+          : { ...body, messages: [{ role: 'system', content: compactSystem }, ...compactMessages] };
+        res = await requestAi(url, headers, body);
+        data = await res.json().catch(() => ({}));
+      }
       const toolCalls = data?.choices?.[0]?.message?.tool_calls;
       if (res.ok && provider !== 'anthropic' && Array.isArray(toolCalls) && toolCalls.length > 0) {
         copilotLog(traceId, 'tools.received', { count: toolCalls.length, names: toolCalls.map((call: { function?: { name?: string } }) => call.function?.name) });
