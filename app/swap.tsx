@@ -9,7 +9,7 @@ import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from '
 import { LinearGradient } from 'expo-linear-gradient';
 import { swapTokenTint, withAlpha } from '../lib/tokenColors';
 import { SnapSlider } from '../ui/SnapSlider';
-import { availableFrom, readSwapBalance, swapBalanceKey, type BalanceEntry } from '../lib/swapBalance';
+import { availableFrom, needsRead, readSwapBalance, swapBalanceKey, type BalanceEntry } from '../lib/swapBalance';
 import { CHAIN_LOGO_SVG } from '../src/domain/chains/chainLogos.generated';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState, Pressable as KPressable } from '../ui/kit';
@@ -127,6 +127,10 @@ export default function Swap() {
    */
   const [balances, setBalances] = useState<Record<string, BalanceEntry>>({});
   const [balanceNonce, setBalanceNonce] = useState(0);
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
   /**
    * Réserve de gas DYNAMIQUE (estimée sur le RPC du réseau actif) : ce qu'on
    * garde de natif pour que la tx passe. `null` = pas encore chargée.
@@ -272,6 +276,8 @@ export default function Swap() {
   const onFlip = () => {
     if (isBridge) return;
     haptic.heavy();
+    // Un montant tiré d'un cran (« Max » de l'ancien jeton) ne vaut rien pour l'autre : effacé.
+    if (sliderPct != null) setAmount('');
     setSliderPct(null);
     setFrom(to);
     setTo(from);
@@ -294,13 +300,15 @@ export default function Swap() {
     if (!owner) return;
     setBalances((b) => ({ ...b, [key]: { status: 'loading' } }));
     readSwapBalance(activeChain, owner, token, native)
-      .then((raw) => setBalances((b) => ({ ...b, [key]: { status: 'ok', raw } })))
+      .then((raw) => setBalances((b) => ({ ...b, [key]: { status: 'ok', raw, at: Date.now() } })))
       .catch(() => setBalances((b) => ({ ...b, [key]: { status: 'error' } })));
   };
   useEffect(() => {
     if (!owner || !fromTok) return;
-    if (!balances[srcKey]) loadBalance(srcKey, fromTok.address, srcNative);
-    if (!srcNative && !balances[gasKey]) loadBalance(gasKey, 'native', true);
+    // Absent, en erreur, ou lu il y a plus de 30 s (dépensé ailleurs entre-temps) : relu.
+    const now = Date.now();
+    if (needsRead(balances[srcKey], now)) loadBalance(srcKey, fromTok.address, srcNative);
+    if (!srcNative && needsRead(balances[gasKey], now)) loadBalance(gasKey, 'native', true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [srcKey, gasKey]);
   const srcEntry = srcKey ? balances[srcKey] : undefined;
@@ -506,9 +514,14 @@ export default function Swap() {
       setAmount('');
       setSliderPct(null);
       setSuccess({ hash, summary, isBridge, fromChain: activeChain, toChain: toChain });
-      setBalanceNonce((n) => n + 1); // soldes relus : l'ancien « Disponible » n'est plus vrai
       notifyAndLog('tx', isBridge ? t('bridgeSent') : t('swapExecuted'), summary);
-      void watchConfirmation(activeChain, hash, summary);
+      /*
+       * Soldes relus À LA CONFIRMATION, pas à la diffusion : relus tout de
+       * suite, ils auraient mis en cache le solde d'avant l'échange.
+       */
+      void watchConfirmation(activeChain, hash, summary).finally(() => {
+        if (mountedRef.current) setBalanceNonce((n) => n + 1);
+      });
     } catch (e) {
       // Devis probablement invalide après un échec (prix, blockhash, nonce) : on
       // l'invalide pour forcer un nouveau devis avant toute nouvelle tentative.

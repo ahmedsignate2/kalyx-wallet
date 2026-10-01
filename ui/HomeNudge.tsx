@@ -1,8 +1,9 @@
 /**
  * CARTE D'ACTION de l'accueil — le point de sécurité le plus important qui
  * reste à régler, et UN seul à la fois (une pile de bannières se lit comme du
- * bruit) : phrase non vérifiée, puis pas de sauvegarde chiffrée, puis
- * biométrie coupée. Écartée d'un geste, elle revient au bout de sept jours :
+ * bruit) : pas de sauvegarde chiffrée, puis biométrie coupée (seulement si le
+ * téléphone en a une). La phrase non vérifiée a déjà sa bannière sur l'accueil :
+ * la répéter ici ferait deux alertes pour la même chose. Écartée d'un geste, elle revient au bout de sept jours :
  * un rappel, pas un harcèlement. Rien quand tout est fait.
  */
 import React, { useEffect, useState } from 'react';
@@ -15,7 +16,7 @@ import { Icon, type IconName } from './icon';
 import { useTheme } from './theme';
 import { fontFamily } from './tokens';
 import { useSettings, useT } from '../lib/settingsStore';
-import { useWallet } from '../lib/walletStore';
+import { isBiometricAvailable } from '../lib/biometrics';
 
 const SNOOZE_MS = 7 * 24 * 3600 * 1000;
 const key = (id: string) => `kalyx.nudge.${id}`;
@@ -25,16 +26,18 @@ type Nudge = { id: string; icon: IconName; title: string; body: string; cta: str
 export function HomeNudge() {
   const { colors } = useTheme();
   const t = useT();
-  const backupVerified = useSettings((s) => s.backupVerified);
   const encrypted = useSettings((s) => s.encryptedBackupAt !== null);
   const biometric = useSettings((s) => s.biometricEnabled);
-  const type = useWallet((s) => s.wallets.find((w) => w.id === s.activeWalletId)?.type ?? 'seed');
   const [snoozed, setSnoozed] = useState<Record<string, boolean> | null>(null);
+  /** Biométrie disponible sur CE téléphone : sinon, rien à activer (Réglages n'a pas le réglage). */
+  const [bioAvailable, setBioAvailable] = useState(false);
+  useEffect(() => {
+    isBiometricAvailable().then(setBioAvailable).catch(() => setBioAvailable(false));
+  }, []);
 
   const all: Nudge[] = [
-    ...(type !== 'privateKey' && !backupVerified ? [{ id: 'phrase', icon: 'phrase' as IconName, title: t('recoveryPhrase'), body: t('recoveryPhraseNotVerifiedMsg'), cta: t('verify'), go: () => router.push('/reveal-phrase') }] : []),
     ...(!encrypted ? [{ id: 'backup', icon: 'share' as IconName, title: t('encBackup'), body: t('encBackupTodoMsg'), cta: t('createBackupBtn'), go: () => router.push('/cloud-backup') }] : []),
-    ...(!biometric ? [{ id: 'bio', icon: 'security' as IconName, title: t('biometrics'), body: t('biometricsDisabledMsg'), cta: t('enable'), go: () => router.push('/settings') }] : []),
+    ...(!biometric && bioAvailable ? [{ id: 'bio', icon: 'security' as IconName, title: t('biometrics'), body: t('biometricsDisabledMsg'), cta: t('enable'), go: () => router.push('/settings') }] : []),
   ];
   const ids = all.map((n) => n.id).join(',');
 

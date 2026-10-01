@@ -8,6 +8,10 @@ import { addressKey, probeRecipient, profileFromHistory, relationFromHistory, sa
 const tx = (p: Partial<TxSummary>): TxSummary => ({ chain: 'ethereum', hash: 'h', from: '', to: '', value: 1n, timestamp: 1_700_000_000, direction: 'out', status: 'success', ...p });
 
 describe('égalité d’adresses', () => {
+  it('Solana : la casse compte (une autre casse = une autre adresse)', () => {
+    expect(sameAddress('7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', '7xkxtg2cw87d97txjsdpbd5jbkhetqa83tzrujosgasu')).toBe(false);
+    expect(sameAddress('BC1QXY2KGDYGJRSQTZQ2N0YRF2493P83KKFJHX0WLH', 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh')).toBe(true);
+  });
   it('EVM : insensible à la casse', () => {
     expect(sameAddress('0xAbC0000000000000000000000000000000000001', '0xabc0000000000000000000000000000000000001')).toBe(true);
   });
@@ -24,12 +28,12 @@ describe('égalité d’adresses', () => {
 describe('relation avec l’adresse', () => {
   it('compte les paiements réussis, la date du dernier, et les réceptions', () => {
     const r = relationFromHistory([
-      tx({ to: '0xBob', timestamp: 100 }),
-      tx({ to: '0xbob', timestamp: 300 }),
-      tx({ to: '0xbob', status: 'failed', timestamp: 400 }),
-      tx({ direction: 'in', from: '0xBOB' }),
-      tx({ to: '0xalice' }),
-    ], '0xbob');
+      tx({ to: '0x000000000000000000000000000000000000B0B0', timestamp: 100 }),
+      tx({ to: '0x000000000000000000000000000000000000b0b0', timestamp: 300 }),
+      tx({ to: '0x000000000000000000000000000000000000b0b0', status: 'failed', timestamp: 400 }),
+      tx({ direction: 'in', from: '0x000000000000000000000000000000000000B0B0' }),
+      tx({ to: '0x00000000000000000000000000000000000a11ce' }),
+    ], '0x000000000000000000000000000000000000b0b0');
     expect(r).toEqual({ paidCount: 2, lastPaidAt: 300, receivedCount: 1 });
   });
 });
