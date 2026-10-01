@@ -90,6 +90,15 @@ function fmtDate(t: number, period: Period, locale = 'en-US'): string {
 /** La révélation du solde ne se joue qu'une fois par session. */
 let balanceRevealed = false;
 
+/** Lignes affichées par page (jetons, jetons non vérifiés) et NFT par page. */
+const LIST_PAGE = 25;
+const NFT_PAGE = 12;
+/** Cascade d'apparition pour les premières lignes seulement : au-delà, une simple vue (rien à animer). */
+function MaybeFade({ index, children }: { index: number; children: React.ReactNode }) {
+  if (index >= 12) return <View>{children}</View>;
+  return <FadeInUp delay={cascadeDelay(index)}>{children}</FadeInUp>;
+}
+
 export default function Home() {
   const { colors } = useTheme();
   const t = useT();
@@ -424,6 +433,10 @@ export default function Home() {
    * le verrouillage vide `account` — un hook placé après aurait changé leur
    * nombre au déverrouillage (« Rendered more hooks… », écran planté).
    */
+  // Listes bornées (voir plus bas) — déclarées AVANT tout retour anticipé (règle des hooks).
+  const [tokenLimit, setTokenLimit] = useState(LIST_PAGE);
+  const [nftLimit, setNftLimit] = useState(NFT_PAGE);
+  const [unverifiedLimit, setUnverifiedLimit] = useState(LIST_PAGE);
   if (!account || !stored) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   const sym = fiatSymbol(fiat);
@@ -431,6 +444,13 @@ export default function Home() {
   const greeting = t(hour < 5 ? 'greeting_night' : hour < 12 ? 'greeting_morning' : hour < 18 ? 'greeting_afternoon' : hour < 22 ? 'greeting_evening' : 'greeting_night');
   const initialLoading = pf.loading && pf.at === 0;
   const { main, small, hidden: unverified } = splitHoldings(pf.holdings);
+  /*
+   * LISTES BORNÉES. Une grosse adresse (suivie en lecture seule, par exemple)
+   * détient des centaines de jetons et de NFT : tout rendre d'un coup — chaque
+   * ligne animée, avec ses logos — figeait puis faisait planter l'app. On en
+   * montre une page, et « Afficher plus » ajoute la suivante.
+   */
+  const shownTokens = showSmall ? [...main, ...small] : main;
   const vSymbols = verifiedSymbols(pf.holdings);
   const priceBySymbol = new Map(pf.holdings.filter((h) => h.verified && h.price > 0).map((h) => [h.symbol.toUpperCase(), h.price]));
   const nameOf = (a: string) => {
@@ -702,8 +722,8 @@ export default function Home() {
                     il vaut zéro, une attente d'une seconde pour voir une liste
                     n'est plus du raffinement.
                   */}
-                  {(showSmall ? [...main, ...small] : main).map((h, i, arr) => (
-                    <FadeInUp key={h.id} delay={cascadeDelay(i)}>
+                  {shownTokens.slice(0, tokenLimit).map((h, i, arr) => (
+                    <MaybeFade key={h.id} index={i}>
                       <TokenRow
                         symbol={h.symbol}
                         name={holdingLabel(h.name, getAdapter(h.chainId).config.name, [h.symbol])}
@@ -720,9 +740,14 @@ export default function Home() {
                         onPress={() => openHolding(h)}
                       />
                       {i < arr.length - 1 ? <Divider inset={68} /> : null}
-                    </FadeInUp>
+                    </MaybeFade>
                   ))}
                 </Surface>
+                {shownTokens.length > tokenLimit ? (
+                  <KPressable onPress={() => setTokenLimit((n) => n + LIST_PAGE)} style={{ alignSelf: 'center', paddingVertical: space[2] }}>
+                    <Text variant="caption" style={{ color: colors.primary }}>{t('showMoreCount').replace('{count}', String(shownTokens.length - tokenLimit))}</Text>
+                  </KPressable>
+                ) : null}
                 {small.length > 0 ? (
                   <KPressable onPress={toggleSmall} style={{ alignSelf: 'center', paddingVertical: space[2] }}>
                     <Text variant="caption" tone="secondary">{showSmall ? t("hideSmallBalances") : fill(t('showSmallBalances'), { count: small.length.toString() })}</Text>
@@ -735,7 +760,7 @@ export default function Home() {
                     </KPressable>
                     {showHidden ? (
                       <Surface padded={false} style={{ opacity: 0.75 }}>
-                        {unverified.map((h, i) => (
+                        {unverified.slice(0, unverifiedLimit).map((h, i) => (
                           <React.Fragment key={h.id}>
                             <KPressable noScale onPress={() => openHolding(h)}>
                               <View style={{ minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: space[3], paddingHorizontal: space[4] }}>
@@ -747,10 +772,15 @@ export default function Home() {
                                 <Text variant="caption" tone="tertiary" tabular>{formatTokenAmount(h.raw, h.decimals)} {h.symbol}</Text>
                               </View>
                             </KPressable>
-                            {i < unverified.length - 1 ? <Divider inset={68} /> : null}
+                            {i < Math.min(unverified.length, unverifiedLimit) - 1 ? <Divider inset={68} /> : null}
                           </React.Fragment>
                         ))}
                       </Surface>
+                    ) : null}
+                    {showHidden && unverified.length > unverifiedLimit ? (
+                      <KPressable onPress={() => setUnverifiedLimit((n) => n + LIST_PAGE)} style={{ alignSelf: 'center', paddingVertical: space[1] }}>
+                        <Text variant="caption" tone="tertiary">{t('showMoreCount').replace('{count}', String(unverified.length - unverifiedLimit))}</Text>
+                      </KPressable>
                     ) : null}
                   </View>
                 ) : null}
@@ -776,7 +806,7 @@ export default function Home() {
               <Surface><EmptyState icon="nft" title={t("emptyNftTitle")} body={t("emptyNftBody")} actionLabel={t("actionReceive")} onAction={() => router.push('/receive')} /></Surface>
             ) : (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
-                {nfts.map((n) => {
+                {nfts.slice(0, nftLimit).map((n) => {
                   const w = (screenW - SCREEN_MARGIN * 2 - space[3]) / 2;
                   return (
                     <KPressable key={`${n.chainId}:${n.contract}:${n.tokenId}`} onPress={() => setOpenNft(n)} style={{ width: w, gap: space[1] }} accessibilityLabel={n.name}>
@@ -793,6 +823,11 @@ export default function Home() {
                 })}
               </View>
             )}
+            {nfts && nfts.length > nftLimit ? (
+              <KPressable onPress={() => setNftLimit((n) => n + NFT_PAGE)} style={{ alignSelf: 'center', paddingVertical: space[2] }}>
+                <Text variant="caption" style={{ color: colors.primary }}>{t('showMoreCount').replace('{count}', String(nfts.length - nftLimit))}</Text>
+              </KPressable>
+            ) : null}
             {/* Ce qui n'a pas répondu est NOMMÉ : une liste incomplète ne se fait pas passer pour complète. */}
             {nfts !== null && !nftIssues?.nothingAnswered && nftIssues?.failed.length ? (
               <Text variant="micro" tone="tertiary" style={{ textAlign: 'center' }}>{t('nftPartial').replace('{networks}', nftIssues.failed.map((c) => chainNameOf(c) ?? c).join(', '))}</Text>

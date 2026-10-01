@@ -33,13 +33,15 @@ const canon = (d: number) => CYCLE + d;
 export type RollDirection = 'up' | 'down' | 'none';
 
 function Digit({
-  value, height, width, delay, variant, direction, intro,
+  value, height, width, delay, variant, direction, intro, fontSize,
 }: {
   value: number;
   height: number;
   width: number;
   delay: number;
   variant: TextVariant;
+  /** Taille réduite pour les très grands montants (sinon celle de la variante). */
+  fontSize?: number;
   direction: RollDirection;
   /** Révélation : le chiffre part du cycle du bas et fait un tour complet avant de se poser. */
   intro?: { delay: number };
@@ -86,7 +88,7 @@ function Digit({
     <View style={{ height, width, overflow: 'hidden' }}>
       <Animated.View style={style}>
         {STRIP.map((d, i) => (
-          <Text key={i} variant={variant} tabular style={{ height, lineHeight: height, textAlign: 'center' }}>
+          <Text key={i} variant={variant} tabular style={{ height, lineHeight: height, textAlign: 'center', ...(fontSize ? { fontSize } : null) }}>
             {d}
           </Text>
         ))}
@@ -120,10 +122,19 @@ export function AmountDisplay({
   reveal?: boolean;
 }) {
   const { typography } = useTheme();
-  const t = typography[variant] as { fontSize: number; lineHeight?: number };
+  const base = typography[variant] as { fontSize: number; lineHeight?: number };
+  /*
+   * TRÈS GRANDS MONTANTS (« 10 952 303 473,96 ») : la taille se réduit avec la
+   * longueur, sinon la fin du solde sortait de l'écran. Au-delà de 10
+   * caractères, proportionnellement, jamais sous 55 %.
+   */
+  const fit = Math.max(0.55, Math.min(1, 10 / Math.max(1, value.length)));
+  const fontSize = base.fontSize * fit;
+  const t = { fontSize, lineHeight: base.lineHeight ? base.lineHeight * fit : undefined };
   const height = t.lineHeight ?? Math.round(t.fontSize * 1.1);
   // Largeur d'un chiffre tabulaire ≈ 0,6 em pour General Sans.
   const width = Math.round(t.fontSize * 0.6);
+  const sized = fit < 1 ? fontSize : undefined;
   const chars = useMemo(() => value.split(''), [value]);
   const digitCount = chars.filter((c) => /\d/.test(c)).length;
   let seen = 0;
@@ -135,10 +146,10 @@ export function AmountDisplay({
           const idx = seen++;
           // Décalage : le chiffre le plus à droite part en premier.
           const delay = (digitCount - 1 - idx) * 20;
-          return <Digit key={`d${i}`} value={Number(c)} height={height} width={width} delay={delay} variant={variant} direction={direction} intro={reveal ? { delay: 120 + idx * 70 } : undefined} />;
+          return <Digit key={`d${i}`} value={Number(c)} height={height} width={width} delay={delay} variant={variant} fontSize={sized} direction={direction} intro={reveal ? { delay: 120 + idx * 70 } : undefined} />;
         }
         return (
-          <Text key={`s${i}`} variant={variant} style={{ height, lineHeight: height }}>
+          <Text key={`s${i}`} variant={variant} style={{ height, lineHeight: height, ...(sized ? { fontSize: sized } : null) }}>
             {c}
           </Text>
         );
