@@ -30,3 +30,16 @@ describe('couleur des réseaux', () => {
     expect(tokenTint('un-inconnu', undefined, CHAIN_LOGO_SVG)).toBeNull();
   });
 });
+
+describe('teintes utilitaires', () => {
+  it('withAlpha et mixHex', () => {
+    const { withAlpha, mixHex } = require('./tokenColors');
+    expect(withAlpha('#9945FF', 0.2)).toBe('rgba(153,69,255,0.2)');
+    expect(mixHex('#000000', '#FFFFFF', 0.5)).toBe('#808080');
+  });
+  it('jeton de swap : symbole d’abord, réseau ensuite', () => {
+    const { swapTokenTint } = require('./tokenColors');
+    expect(swapTokenTint('usdc', 'polygon', CHAIN_LOGO_SVG)).toBe('#2775CA');
+    expect(swapTokenTint('ZZZ', 'arbitrum', CHAIN_LOGO_SVG)).toBe('#28A0F0');
+  });
+});

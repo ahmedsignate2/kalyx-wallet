@@ -314,13 +314,18 @@ export default function TokenDetail() {
     all: t('periodAll'),
   };
 
+  /*
+   * LA FICHE PREND LA COULEUR DE L'ACTIF (ou de son réseau) : aurore, cartes,
+   * pilule de période. Le graphique garde le vert/rouge — il porte un sens.
+   */
+  const accent = tokenTint(id, chain?.id, CHAIN_LOGO_SVG);
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
       {/* Aurore aux couleurs de l'actif, ou de son réseau (ETH sur Base : bleu Base). */}
       <View pointerEvents="none" style={{ position: 'absolute', top: -60, left: -20, right: -20, height: 520 }}>
-        <Aurora height={520} mood={detail ? (up ? 'up' : 'down') : 'flat'} tint={tokenTint(id, chain?.id, CHAIN_LOGO_SVG)} />
+        <Aurora height={520} mood={detail ? (up ? 'up' : 'down') : 'flat'} tint={accent} />
       </View>
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, width: 300, height: 300 }}>
         <Orbit cx={210} cy={60} r={120} />
@@ -406,6 +411,7 @@ export default function TokenDetail() {
               )}
             </View>
             <Pills
+              accent={accent}
               items={CHART_PERIODS.map((p) => ({ key: p.key, label: periodLabels[p.key] || p.label }))}
               value={period}
               onChange={(k) => setPeriod(k as ChartPeriod)}
@@ -424,7 +430,7 @@ export default function TokenDetail() {
           {owned.length > 0 ? (
             <>
               <SectionLabel>{t('yourBalance')}</SectionLabel>
-              <NovaCard>
+              <NovaCard tint={accent}>
                 <Text style={[typography.hero, { fontSize: 34, lineHeight: 40 }]} numberOfLines={1} adjustsFontSizeToFit>
                   {money(ownedTotal, 2)} <Text style={{ color: colors.textSecondary, fontSize: 20 }}>{fiatSym}</Text>
                 </Text>
@@ -458,7 +464,7 @@ export default function TokenDetail() {
 
           {/* Jeton : réseau, contrat (copiable), décimales, explorateur — et la sécurité, en badge. */}
           <SectionLabel>{t('tokenDetailsTitle')}</SectionLabel>
-          <NovaCard padded={false}>
+          <NovaCard tint={accent} padded={false}>
             <InfoRow label={labelOf(t('networkLabel'))} right={
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 {networkLogo ? <LogoImage uri={networkLogo} size={18} /> : null}
@@ -496,7 +502,7 @@ export default function TokenDetail() {
           {detail?.description ? (
             <>
               <SectionLabel>{fill(t('aboutTokenTitle'), { name: detail.name })}</SectionLabel>
-              <NovaCard>
+              <NovaCard tint={accent}>
                 <Text numberOfLines={aboutExpanded ? undefined : 5} style={[typography.muted, { lineHeight: 21 }]}>{detail.description}</Text>
                 {detail.description.length > 320 ? (
                   <KPressable onPress={() => setAboutExpanded((v) => !v)} hitSlop={8} accessibilityLabel={aboutExpanded ? t('readLess') : t('readMore')}>
@@ -511,7 +517,7 @@ export default function TokenDetail() {
           {activity !== null ? (
             <>
               <SectionLabel>{t('tokenActivityTitle')}</SectionLabel>
-              <NovaCard padded={activityError || activity.length === 0}>
+              <NovaCard tint={accent} padded={activityError || activity.length === 0}>
                 {activityError ? <Text style={typography.muted}>{t("activityUnavailable")}</Text> : activity.length === 0 ? <Text style={typography.muted}>{t("noTxFound")}</Text> : (
                   activity.map((tx, i) => <TxRow key={tx.hash} tx={tx} symbol={detail?.symbol ?? id ?? ''} decimals={tx.decimals ?? decimals ?? chain?.nativeDecimals ?? 18} logoUri={tokenLogo} price={detail?.price} fiatSymbol={fiatSym} divider={i > 0} explorerUrl={chain?.explorerUrl} />)
                 )}
