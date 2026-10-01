@@ -50,7 +50,7 @@ describe('contexte local transmis à l’audit', () => {
 
   it('un contact déjà payé est présenté comme CONNU, sans divulguer son nom', () => {
     const prompt = buildAuditPrompt({ ...base, recipient: { contactName: 'Maman', paidBefore: true } });
-    expect(prompt).toContain('saved contacts');
+    expect(prompt).toContain("saved in the user's address book");
     expect(prompt).toContain('already sent funds to this exact address');
     expect(prompt).not.toContain('never sent');
     expect(prompt).not.toContain('Maman');
@@ -76,6 +76,37 @@ describe('contexte local transmis à l’audit', () => {
     await auditTransaction({ ...base, recipient: { ownAccount: true } }, 'fr', msgs, 1000);
     const [prompt, system] = (askAi as jest.Mock).mock.calls.at(-1);
     expect(prompt).toContain("user's own accounts");
-    expect(system).toContain('never call it unknown');
+    expect(system).toContain('Never call a contact');
+  });
+});
+
+describe('familier n’est pas sûr', () => {
+  const base = { to: '0xbob', value: '1 ETH', network: 'Ethereum' };
+
+  it('un contact déjà payé mais sur liste noire : le signalement passe en premier', () => {
+    const ctx = { ...base, recipient: { contactName: 'Ami', probe: { history: { paidCount: 3, lastPaidAt: 1_700_000_000, receivedCount: 0 }, flags: ['gpPhishing'] } } };
+    const prompt = buildAuditPrompt(ctx);
+    expect(prompt).toContain('blacklists flag this address');
+    expect(prompt).toContain('overrides any familiarity');
+    expect(prompt).toContain('3 successful payment(s)');
+    expect(prompt).toContain('does not prove who controls it');
+    expect(auditFacts(ctx)[0]).toEqual({ kind: 'flagged' });
+  });
+
+  it('la consigne interdit de conclure à la confiance', async () => {
+    (askAi as jest.Mock).mockResolvedValueOnce({ text: '{"riskLevel":"SAFE","explanation":"ok"}' });
+    await auditTransaction(base, 'fr', msgs, 1000);
+    const [, system] = (askAi as jest.Mock).mock.calls.at(-1);
+    expect(system).toContain('FAMILIAR IS NOT TRUSTED');
+    expect(system).toContain('A blacklist flag is always DANGER');
+  });
+
+  it('profil public et sources muettes', () => {
+    const fresh = { ...base, recipient: { probe: { history: { paidCount: 0, receivedCount: 0 }, profile: { txCount: 0, capped: false, distinctSenders: 0, inCount: 0, outCount: 0 } } } };
+    expect(buildAuditPrompt(fresh)).toContain('no transaction history at all');
+    expect(auditFacts(fresh)).toEqual([{ kind: 'new' }, { kind: 'fresh' }]);
+    const mute = { ...base, recipient: { probe: {} } };
+    expect(buildAuditPrompt(mute)).toContain('could not be checked');
+    expect(auditFacts(mute)).toContainEqual({ kind: 'unverified' });
   });
 });
