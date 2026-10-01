@@ -14,7 +14,7 @@
 import { Address as TonCoreAddress, Cell as TonCell } from '@ton/core';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import { formatExportedKey } from '../src/domain/keys/exportKey';
-import { deriveBtcSigner, deriveSolanaSigner, discoverAccountIndexes, parseWatchAddress } from '../src';
+import { deriveBtcSigner, deriveSolanaSigner, discoverAccountIndexes, normalizeAddressCase, parseWatchAddress } from '../src';
 import { base64, base58, hex } from '@scure/base';
 import { ed25519 } from '@noble/curves/ed25519';
 import { secp256k1 } from '@noble/curves/secp256k1';
@@ -91,6 +91,7 @@ import {
   hasVault,
   saveAccounts,
   loadAccounts,
+  loadAccountsStrict,
   enableBiometricSeed,
   disableBiometricSeed,
   readBiometricSeed,
@@ -334,32 +335,35 @@ interface WalletState {
  * Comptes PUBLICS (adresses EVM, Bitcoin, Solana) des indices demandés, graine
  * calculée UNE fois et effacée aussitôt. Sans TON : seul le compte 0 en a un.
  */
-function deriveStoredAccounts(mnemonic: string, indexes: number[]): StoredAccount[] {
+async function deriveStoredAccountsAsync(mnemonic: string, indexes: number[]): Promise<StoredAccount[]> {
   const seed = mnemonicToSeedSync(mnemonic);
   try {
-    return indexes.map((index) => ({
-      index,
-      label: '',
-      evmAddress: deriveEvmAccount(seed, index).address,
-      btcAddress: deriveBtcAccount(seed, index).address,
-      solAddress: deriveSolanaAccount(seed, index).address,
-    }));
+    const out: StoredAccount[] = [];
+    for (const index of indexes) {
+      out.push(publicAccountFromSeed(seed, index, ''));
+      await new Promise((r) => setTimeout(r, 0)); // rend la main à l'interface entre deux comptes
+    }
+    return out;
   } finally {
     seed.fill(0);
   }
 }
 
+/** Adresses publiques EVM, Bitcoin et Solana d'un indice (TON : compte 0 seulement, à part). */
+function publicAccountFromSeed(seed: Uint8Array, index: number, label: string): StoredAccount {
+  return {
+    index,
+    label,
+    evmAddress: deriveEvmAccount(seed, index).address,
+    btcAddress: deriveBtcAccount(seed, index).address,
+    solAddress: deriveSolanaAccount(seed, index).address,
+  };
+}
+
 function deriveStoredAccount(mnemonic: string, index: number, label: string): StoredAccount {
   const seed = mnemonicToSeedSync(mnemonic);
   try {
-    return {
-      index,
-      label,
-      evmAddress: deriveEvmAccount(seed, index).address,
-      btcAddress: deriveBtcAccount(seed, index).address,
-      solAddress: deriveSolanaAccount(seed, index).address,
-      ...(index === 0 ? tonFields(mnemonic, seed) : {}),
-    };
+    return { ...publicAccountFromSeed(seed, index, label), ...(index === 0 ? tonFields(mnemonic, seed) : {}) };
   } finally {
     seed.fill(0);
   }
@@ -526,6 +530,67 @@ async function authWalletFor(unlock: Unlock): Promise<string> {
     if (await hasBiometricSeed(w.id)) return w.id; // protégée ou ancienne copie
   }
   return id;
+}
+
+const DISCOVERY_MAX = 20;
+
+/**
+ * Cœur de la recherche des comptes. La phrase ne sert qu'à calculer les
+ * adresses PUBLIQUES (graine calculée une fois, effacée ensuite, le fil rendu à
+ * l'interface entre deux comptes) ; la recherche réseau se fait sans elle.
+ *
+ * À l'écriture, après un réseau qui a pu durer : le portefeuille doit être
+ * TOUJOURS le même (présent, et son compte 0 a l'adresse de CETTE phrase — une
+ * réinitialisation puis un nouveau portefeuille réutilisent l'id « primary ») ;
+ * un enregistrement illisible n'est jamais écrasé ; et les comptes ajoutés ou
+ * renommés entre-temps sont gardés.
+ */
+async function discoverWithPhrase(
+  walletId: string,
+  mnemonic: string,
+  opts: { onProgress?: (index: number) => void; onUnlocked?: () => void } = {},
+): Promise<{ added: number[]; uncertain: number[] }> {
+  const none = { added: [] as number[], uncertain: [] as number[] };
+  const st0 = useWallet.getState();
+  const existing = walletId === st0.activeWalletId ? st0.accounts : await loadAccountsStrict(walletId).catch(() => null);
+  if (!existing?.length) return none;
+  const known = new Set(existing.map((a) => a.index));
+  const wanted = [0, ...Array.from({ length: DISCOVERY_MAX }, (_, k) => k + 1).filter((i) => !known.has(i))];
+  const derived = await deriveStoredAccountsAsync(mnemonic, wanted);
+  const fingerprint = normalizeAddressCase(derived[0].evmAddress);
+  const candidates = new Map(derived.filter((a) => a.index > 0).map((a) => [a.index, a]));
+  opts.onUnlocked?.();
+  const { probeAccountActivity } = await import('./accountActivity');
+  const res = await discoverAccountIndexes((i) => probeAccountActivity(candidates.get(i)!), { known, max: DISCOVERY_MAX, onProgress: opts.onProgress });
+  if (!res.found.length) return res.uncertain.length ? { added: [], uncertain: res.uncertain } : none;
+
+  const sameWallet = (list: StoredAccount[] | null | undefined) =>
+    !!list && useWallet.getState().wallets.some((w) => w.id === walletId) && normalizeAddressCase(list.find((a) => a.index === 0)?.evmAddress ?? '') === fingerprint;
+  const isActive = () => walletId === useWallet.getState().activeWalletId;
+  const current = isActive() ? useWallet.getState().accounts : await loadAccountsStrict(walletId).catch(() => null);
+  if (!sameWallet(current)) return none; // supprimé, remplacé ou illisible : on n'écrit rien
+  const merge = (list: StoredAccount[]) => {
+    const have = new Set(list.map((a) => a.index));
+    return [...list, ...res.found.filter((i) => !have.has(i)).map((i) => candidates.get(i)!)].sort((a, b) => a.index - b.index);
+  };
+  const accounts = merge(current!);
+  await saveAccounts(walletId, accounts);
+  if (isActive()) {
+    // Fusion avec l'état DU MOMENT : un compte ajouté ou renommé pendant l'écriture n'est pas perdu.
+    const latest = useWallet.getState().accounts;
+    if (sameWallet(latest)) {
+      const merged = merge(latest);
+      useWallet.setState({ accounts: merged, account: toAccount(merged, useWallet.getState().activeAccountIndex, useWallet.getState().activeChain) });
+      if (merged.length !== accounts.length || merged.some((a, k) => a !== accounts[k])) await saveAccounts(walletId, merged);
+    }
+  }
+  await dropSupersededWatch(accounts);
+  return { added: res.found, uncertain: res.uncertain };
+}
+
+/** Recherche lancée juste après un import, avec la phrase déjà en main (pas de second déchiffrement). */
+function discoverAfterImport(walletId: string, mnemonic: string): void {
+  void import('./runDiscovery').then((m) => m.trackDiscovery(walletId, (opts) => discoverWithPhrase(walletId, mnemonic, opts), { announce: true }));
 }
 
 /** Prouve l'identité (code ou biométrie) sans rien signer : le secret lu est aussitôt jeté. */
@@ -893,6 +958,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   confirmDraft: async (pin, opts) => {
     const m = get().draftMnemonic;
     if (!m) throw new Error('Aucun mnémonique de brouillon');
+    const imported = get().draftWasImported;
     /*
      * GARDE-FOU CRITIQUE — perte de fonds.
      *
@@ -970,6 +1036,8 @@ export const useWallet = create<WalletState>((set, get) => ({
       draftMnemonic: null,
       draftWasImported: false,
     });
+    // Phrase IMPORTÉE au premier lancement (pas une phrase neuve, qui n'a rien) : comptes 2, 3… déjà utilisés.
+    if (imported && kind !== 'ton') discoverAfterImport(id, m);
   },
 
   unlockWithPin: async (pin) => {
@@ -1129,6 +1197,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, activeChain: chain, account: toAccount(accounts, 0, chain) });
     rememberActive(id, 0);
     await dropSupersededWatch(accounts);
+    if (kind !== 'ton') discoverAfterImport(id, m); // comptes 2, 3… déjà utilisés, en arrière-plan
   },
 
   importPrivateKey: async (privateKey, pin, label, family) => {
@@ -1298,27 +1367,8 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   discoverAccounts: async (walletId, unlock, opts = {}) => {
-    const { onProgress, onUnlocked } = opts;
     if (!isBip39Wallet(get().wallets, walletId)) return { added: [], uncertain: [] };
-    const MAX = 20;
-    const active = walletId === get().activeWalletId;
-    const existing = (active ? get().accounts : await loadAccounts(walletId)) ?? [];
-    const known = new Set(existing.map((a) => a.index));
-    const wanted = Array.from({ length: MAX }, (_, k) => k + 1).filter((i) => !known.has(i));
-    const candidates = new Map(deriveStoredAccounts(await revealMnemonic(walletId, unlock), wanted).map((a) => [a.index, a]));
-    onUnlocked?.();
-    const { probeAccountActivity } = await import('./accountActivity');
-    const res = await discoverAccountIndexes((i) => probeAccountActivity(candidates.get(i)!), { known, max: MAX, onProgress });
-    if (res.found.length) {
-      // Relu au moment d'écrire : un compte ajouté entre-temps n'est pas écrasé.
-      const now = (walletId === get().activeWalletId ? get().accounts : await loadAccounts(walletId)) ?? [];
-      const have = new Set(now.map((a) => a.index));
-      const accounts = [...now, ...res.found.filter((i) => !have.has(i)).map((i) => candidates.get(i)!)].sort((a, b) => a.index - b.index);
-      await saveAccounts(walletId, accounts);
-      if (walletId === get().activeWalletId) set({ accounts, account: toAccount(accounts, get().activeAccountIndex, get().activeChain) });
-      await dropSupersededWatch(accounts);
-    }
-    return { added: res.found, uncertain: res.uncertain };
+    return discoverWithPhrase(walletId, await revealMnemonic(walletId, unlock), opts);
   },
 
   addWatchWallet: async (address, label) => {
