@@ -23,6 +23,8 @@ export const dark = {
   surface2: '#161926', // Orbite — sheets, inputs
   surface3: '#1F2333', // Crépuscule — pressé, hover
   border: 'rgba(255,255,255,0.07)', // Trait
+  /** Liseré du HAUT des cartes : la lumière d'en haut accroche l'arête, la carte prend du volume. */
+  rim: 'rgba(255,255,255,0.13)',
   text: '#F2F4FA', // Lueur
   textSecondary: '#9499AB', // Brume
   textTertiary: '#5D6275', // Cendre
@@ -43,6 +45,7 @@ export const light: Palette = {
   surface2: '#EEF0F5',
   surface3: '#E4E7EF',
   border: 'rgba(6,7,13,0.08)',
+  rim: 'rgba(6,7,13,0.05)',
   text: '#0B0D16',
   textSecondary: '#5A6072',
   textTertiary: '#9097A8',
@@ -61,7 +64,12 @@ export const light: Palette = {
  */
 export const halo = {
   dark: {
-    stops: ['#FFFFFF', '#CFE3FF', 'rgba(255,217,184,0.30)', 'rgba(255,217,184,0)'] as const,
+    /*
+     * Frange en OR de la marque, opaque : le composant lui applique déjà son
+     * opacité (0,3). Avec une couleur à 30 % en plus, la frange tombait à 9 %
+     * — invisible — et le halo rendait comme une tache grise sur l'Encre.
+     */
+    stops: ['#FFFFFF', '#D3E4FF', '#DDB565', 'rgba(221,181,101,0)'] as const,
     positions: [0, 0.35, 0.7, 1] as const,
     opacity: 1,
   },
