@@ -28,6 +28,7 @@ import { Icon, type IconName } from './icon';
 import { Text, Pressable as KPressable } from './kit';
 import { BRAND_GOLD, springs, fontFamily } from './tokens';
 import { useReduceMotion } from '../lib/reduceMotion';
+import { mixHex, withAlpha } from '../lib/tokenColors';
 
 export const GOLD = BRAND_GOLD.light;
 
@@ -185,7 +186,7 @@ export function ActionDisc({ icon, label, onPress, tone = 'default', index = 0, 
 /* Pilules de période et onglets texte                                 */
 /* ------------------------------------------------------------------ */
 
-export function Pills<K extends string>({ items, value, onChange }: { items: { key: K; label: string }[]; value: K; onChange: (k: K) => void }) {
+export function Pills<K extends string>({ items, value, onChange, accent }: { items: { key: K; label: string }[]; value: K; onChange: (k: K) => void; /** Couleur de l'actif : la pilule active en prend une lueur (fiche token). */ accent?: string | null }) {
   const { colors } = useTheme();
   return (
     <View style={{ flexDirection: 'row', gap: 6 }} accessibilityRole="tablist">
@@ -197,7 +198,7 @@ export function Pills<K extends string>({ items, value, onChange }: { items: { k
             onPress={() => onChange(it.key)}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
-            style={{ height: 34, minWidth: 46, paddingHorizontal: 12, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.surface2 : 'transparent', borderWidth: 1, borderColor: on ? colors.border : 'transparent' }}
+            style={{ height: 34, minWidth: 46, paddingHorizontal: 12, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? (accent ? withAlpha(accent, 0.2) : colors.surface2) : 'transparent', borderWidth: 1, borderColor: on ? (accent ? withAlpha(accent, 0.45) : colors.border) : 'transparent' }}
           >
             <Text variant="caption" tone={on ? 'primary' : 'tertiary'} style={{ fontFamily: fontFamily.semibold }}>{it.label}</Text>
           </KPressable>
@@ -399,10 +400,11 @@ export function NovaHero({ icon, title, subtitle, tone = 'default', children, co
 }
 
 /** Carte Nova : Nuit, arrondi 24, trait fin. `delay` la fait monter en cascade. */
-export function NovaCard({ children, delay = 0, style, padded = true }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle>; padded?: boolean }) {
-  const { colors } = useTheme();
+export function NovaCard({ children, delay = 0, style, padded = true, tint }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle>; padded?: boolean; /** Couleur de l'actif : la carte en est très légèrement teintée (fiche token). */ tint?: string | null }) {
+  const { colors, mode } = useTheme();
+  const bg = tint && mode === 'dark' ? mixHex(colors.surface1, tint, 0.07) : colors.surface1;
   return (
-    <Rise delay={delay} style={[{ borderRadius: 24, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, borderTopColor: colors.rim, padding: padded ? 16 : 0, overflow: 'hidden' }, style]}>
+    <Rise delay={delay} style={[{ borderRadius: 24, backgroundColor: bg, borderWidth: 1, borderColor: tint ? withAlpha(tint, 0.16) : colors.border, borderTopColor: tint ? withAlpha(tint, 0.32) : colors.rim, padding: padded ? 16 : 0, overflow: 'hidden' }, style]}>
       {children}
     </Rise>
   );
