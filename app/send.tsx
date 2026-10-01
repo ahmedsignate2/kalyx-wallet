@@ -10,6 +10,7 @@
  */
 import { fill } from '../lib/i18n';
 import { usePaidAddresses } from '../lib/historySpam';
+import { sameAddress } from '../lib/txAuditProbe';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -218,11 +219,11 @@ export default function Send() {
   const known = useMemo(() => [...accounts.flatMap((a) => [a.evmAddress, a.solAddress ?? '', a.btcAddress, addressForChain(a, chain)]).filter(Boolean), ...recents.map((r) => r.address), ...contacts.map((c) => c.address), ...paid], [accounts, recents, contacts, chain, paid]);
   const poisoning = recipientOk ? detectPoisoning(recipient, known) : null;
   // Pour l'audit IA : ce que l'appareil sait de CE destinataire exact.
-  const sameAddr = (a: string) => !!a && a.toLowerCase() === recipient.toLowerCase();
+  const sameAddr = (a: string) => sameAddress(a, recipient); // TON : EQ… / UQ… / 0:… sont la même adresse
   const isOwnRecipient = recipientOk && accounts.some((a) => [a.evmAddress, a.solAddress ?? '', a.btcAddress, addressForChain(a, chain)].some(sameAddr));
   const paidBefore = recipientOk && (paid.some(sameAddr) || recents.some((r) => sameAddr(r.address)));
   const isKnown = recipientOk && known.some((k) => k.toLowerCase() === recipient.toLowerCase());
-  const contactName = contacts.find((c) => c.address.toLowerCase() === recipient.toLowerCase())?.name;
+  const contactName = contacts.find((c) => sameAddress(c.address, recipient))?.name;
   const [isContract, setIsContract] = useState(false);
   /** Destinataire Solana qui n'est pas une clé publique : PDA / compte de jeton. */
   const isSolanaPda = family === 'solana' && recipientOk && !isWalletAddress(recipient);
@@ -1143,6 +1144,8 @@ export default function Send() {
           value: `${formatTokenAmount(amountRaw, decimals)} ${symbol}`,
           method: 'transfer',
           network: chain.name,
+          chainId: targetChainId,
+          from: senderAddress,
           fiatValue: price > 0 ? `${formatFiat(fiatOfAmount)} ${sym}` : undefined,
           memo,
           recipient: {
