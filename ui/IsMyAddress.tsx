@@ -8,7 +8,7 @@ import { fontFamily } from './tokens';
 import { useT } from '../lib/settingsStore';
 import { useWallet } from '../lib/walletStore';
 import { loadAccountsStrict, type StoredAccount } from '../lib/secureStore';
-import { accountDisplayName, walletDisplayName } from '../lib/walletNames';
+import { accountDisplayName, walletDisplayName, walletPosition } from '../lib/walletNames';
 import { buildAddressIndex, lookupAddress, type WalletAccounts } from '../lib/isMyAddress';
 
 const FAMILY = { evm: 'EVM', solana: 'Solana', bitcoin: 'Bitcoin', ton: 'TON' } as const;
@@ -30,7 +30,9 @@ export function IsMyAddress() {
   /** Relecture demandée depuis l'avertissement « certains portefeuilles n'ont pas pu être vérifiés ». */
   const [reload, setReload] = useState(0);
   // Relu quand la LISTE des portefeuilles change (pas à chaque nouvelle référence du tableau).
-  const otherIds = wallets.filter((w) => w.id !== activeWalletId).map((w) => w.id).join(',');
+  // Les adresses SUIVIES ne sont pas à toi (aucune clé) : jamais dans la réponse « oui ».
+  const otherIds = wallets.filter((w) => w.id !== activeWalletId && w.type !== 'watch').map((w) => w.id).join(',');
+  const activeIsWatch = wallets.find((w) => w.id === activeWalletId)?.type === 'watch';
   useEffect(() => {
     let alive = true;
     setOthersState('loading');
@@ -44,7 +46,8 @@ export function IsMyAddress() {
            * (ancien compte, complétée au prochain déverrouillage) : ses adresses
            * TON sont inconnues — on le dit plutôt qu'un « pas à toi ».
            */
-          const seed = useWallet.getState().wallets.find((w) => w.id === id)?.type !== 'privateKey';
+          const type = useWallet.getState().wallets.find((w) => w.id === id)?.type;
+          const seed = type !== 'privateKey' && type !== 'watch'; // phrase BIP-39 ou phrase TON
           return { walletId: id, accounts, failed: seed && accounts.some((a) => !a.tonPublicKey) };
         } catch {
           return { walletId: id, accounts: [] as StoredAccount[], failed: true };
@@ -59,7 +62,10 @@ export function IsMyAddress() {
       alive = false;
     };
   }, [otherIds, reload]);
-  const index = useMemo(() => buildAddressIndex([{ walletId: activeWalletId, accounts: activeAccounts }, ...others]), [activeWalletId, activeAccounts, others]);
+  const index = useMemo(
+    () => buildAddressIndex([...(activeIsWatch ? [] : [{ walletId: activeWalletId, accounts: activeAccounts }]), ...others]),
+    [activeIsWatch, activeWalletId, activeAccounts, others],
+  );
   const accountsOf = (walletId: string) => (walletId === activeWalletId ? activeAccounts : others.find((o) => o.walletId === walletId)?.accounts ?? []);
 
   const [value, setValue] = useState('');
@@ -68,7 +74,7 @@ export function IsMyAddress() {
   const account = match ? accountsOf(match.walletId).find((a) => a.index === match.index) : null;
   // Nom affiché du portefeuille (« Portefeuille 2 »… quand il n'a pas été renommé) : le libellé brut est vide.
   const wPos = match ? wallets.findIndex((w) => w.id === match.walletId) : -1;
-  const walletLabel = match && wallets.length > 1 && wPos >= 0 ? walletDisplayName(wallets[wPos], wPos, t) : null;
+  const walletLabel = match && wallets.length > 1 && wPos >= 0 ? walletDisplayName(wallets[wPos], walletPosition(wallets, wallets[wPos].id), t) : null;
   const who = account ? `${walletLabel ? `${walletLabel} · ` : ''}${accountDisplayName(account, t)}` : '';
   return (
     <View style={{ gap: 10, padding: 16, borderRadius: 24, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>

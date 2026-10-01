@@ -15,6 +15,7 @@
  *    connexion/signature via SignSheet + biométrie unifiée.
  *  - Provider EIP-1193 injecté (window.ethereum) — plomberie inchangée.
  */
+import { useIsWatchOnly } from '../../ui/WatchOnlyGate';
 import { randomBytes } from '@noble/hashes/utils';
 import { signMessageParam } from '../../lib/dappProvider';
 import { buildTonJsBridge, parseTcJsMessage } from '../../src/domain/tonconnect/jsBridge';
@@ -143,6 +144,8 @@ export default function Browser() {
    * ACTIF de l'app : sur Solana, une dApp EVM recevait l'adresse Solana.
    */
   const evmAddress = useWallet((s) => s.accounts.find((a) => a.index === s.activeAccountIndex)?.evmAddress);
+  /** Adresse SUIVIE (lecture seule) : jamais présentée à un site comme celle de l'utilisateur. */
+  const watchOnly = useIsWatchOnly();
   /*
    * Connexions effacées ailleurs (réinitialisation, « effacer les données ») :
    * le navigateur reste monté et gardait ses sites connectés EN MÉMOIRE — la
@@ -352,6 +355,12 @@ export default function Browser() {
   const pageToken = useMemo(() => bytesToHexToken(), []);
   const injected = useMemo(() => buildInjectedProvider(chainIdHex, pageToken) + '\n' + buildTonJsBridge(tcDeviceInfo(), pageToken), [chainIdHex, pageToken]);
   const inject = useCallback((js: string) => webref.current?.injectJavaScript(js), []);
+  // Passage sur une adresse suivie : les sites connectés perdent le compte (ils ne doivent pas voir l'adresse suivie).
+  useEffect(() => {
+    if (!watchOnly) return;
+    connected.current.clear();
+    inject(emitJs('accountsChanged', []));
+  }, [watchOnly, inject]);
   useEffect(() => {
     if (!dappEpoch) return;
     connected.current.clear();
@@ -400,7 +409,7 @@ export default function Browser() {
     async (req: DappRequest, reqOrigin: string, tabId: string) => {
       const { id, method, params } = req;
       technicalLogger.logDapp(`method_${method}`, reqOrigin);
-      const addr = evmAddress;
+      const addr = watchOnly ? undefined : evmAddress; // lecture seule : aucun compte exposé (eth_accounts vide, sites mémorisés compris)
       const tb = tabsRef.current.find((x) => x.id === tabId);
       const isConnected = !!reqOrigin && connected.current.has(reqOrigin);
       try {
@@ -473,7 +482,7 @@ export default function Browser() {
         respond(id, null, { code: -32603, message: e instanceof Error ? e.message.slice(0, 160) : t('internalError') });
       }
     },
-    [evmAddress, chain, chainIdHex, respond, inject, setActiveChain], // eslint-disable-line react-hooks/exhaustive-deps
+    [evmAddress, watchOnly, chain, chainIdHex, respond, inject, setActiveChain], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // Analyse GoPlus + simulation à l'apparition d'une demande.
@@ -523,7 +532,8 @@ export default function Browser() {
     const activity = useDappActivity.getState();
     const tb = tabsRef.current.find((x) => x.id === pending.tabId);
     if (pending.kind === 'connect') {
-      await useWallet.getState().verifyUnlock(unlock);
+      // Lecture seule : lève WATCH_ONLY, rien n'est partagé avec le site.
+      await useWallet.getState().verifyConnect(unlock);
       connected.current.add(pending.origin);
       respondPending(pending, [evmAddress]);
       deliverTo(pending.origin, pending.tabId, emitJs('accountsChanged', [evmAddress]));

@@ -37,7 +37,8 @@ export default function CloudBackupScreen() {
   const insets = useSafeAreaInsets();
   const exportAllWallets = useWallet((s) => s.exportAllWallets);
   // Nombre de portefeuilles réellement emportés, pour le DIRE après coup.
-  const walletCount = useWallet((s) => s.wallets.length);
+  // Les adresses suivies n'ont pas de secret : elles ne partent pas dans la sauvegarde.
+  const walletCount = useWallet((s) => s.wallets.filter((w) => w.type !== 'watch').length);
   const activeWalletId = useWallet((s) => s.activeWalletId);
   const wallets = useWallet((s) => s.wallets);
   const isPk = wallets.find((w) => w.id === activeWalletId)?.type === 'privateKey';
