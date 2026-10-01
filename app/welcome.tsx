@@ -193,7 +193,8 @@ export default function Welcome() {
         */}
         <View style={{ flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center' }}>
           <Animated.View style={ceremonyStyle} pointerEvents="none">
-            <Animated.View style={[{ position: 'absolute' }, haloStyle]}>
+            {/* CENTRÉ sur le logo (84 px) : posé en (0, 0), le halo débordait en bas à droite et noyait le slogan. */}
+            <Animated.View style={[{ position: 'absolute', left: 42 - 170, top: 42 - 170 }, haloStyle]}>
               <Halo size={340} mood="up" />
             </Animated.View>
             {/* L'orbite naît avec le halo ; le point d'or la parcourt ensuite sans fin. */}
@@ -246,7 +247,7 @@ export default function Welcome() {
             shake={nudge}
             label={<Text variant="caption" tone="secondary" style={{ lineHeight: 18 }}>{t('legalConsentLabel')}</Text>}
           />
-          <View style={{ flexDirection: 'row', gap: space[4], marginLeft: 34 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space[4], rowGap: space[1], marginLeft: 34 }}>
             <Pressable onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })} noScale hitSlop={8}>
               <Text variant="caption" style={{ color: colors.primary, textDecorationLine: 'underline' }}>{t('legalTermsOfService')}</Text>
             </Pressable>

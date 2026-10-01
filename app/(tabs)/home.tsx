@@ -25,6 +25,7 @@ import { useTheme } from '../../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../../ui/tokens';
 import { FadeInUp } from '../../ui/FadeInUp';
 import { cascadeDelay } from '../../ui/motion';
+import { holdingLabel } from '../../lib/holdingLabel';
 import { holdingIcon } from '../../ui/kit/useFallbackLogo';
 import { LogoImage, Text, IconButton, Surface, Divider, TokenRow, TokenIcon, AmountDisplay, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../../ui/kit';
 import { WalletAvatar } from '../../ui/avatarArt';
@@ -372,6 +373,10 @@ export default function Home() {
     const fade = interpolate(p, [0, 0.55], [1, 0], Extrapolation.CLAMP);
     return { opacity: fade, transform: [{ scale: 1 - p * 0.22 }, { translateY: -p * 18 }] };
   });
+  const compactBgStyle = useAnimatedStyle(() => {
+    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
+    return { opacity: interpolate(p, [0.35, 0.9], [0, 0.97], Extrapolation.CLAMP) };
+  });
   const compactStyle = useAnimatedStyle(() => {
     const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
     const show = interpolate(p, [0.45, 1], [0, 1], Extrapolation.CLAMP);
@@ -485,6 +490,17 @@ export default function Home() {
         LE RELAIS du solde géant au même instant, de sorte que le montant reste
         lisible en continu pendant tout le défilement.
       */}
+      {/*
+        FOND de l'en-tête compact : sans lui, le montant flottait par-dessus les
+        libellés des disques et des tokens qui défilaient dessous. Il apparaît
+        avec l'en-tête, couvre la barre d'état, et se termine par un trait fin.
+      */}
+      {!hidden && !initialLoading ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + space[2] + 56, zIndex: 4, backgroundColor: colors.bg, borderBottomWidth: 1, borderBottomColor: colors.border }, compactBgStyle]}
+        />
+      ) : null}
       {!hidden && !initialLoading ? (
         <Animated.View
           pointerEvents="none"
@@ -665,7 +681,7 @@ export default function Home() {
                     <FadeInUp key={h.id} delay={cascadeDelay(i)}>
                       <TokenRow
                         symbol={h.symbol}
-                        name={`${h.name} · ${getAdapter(h.chainId).config.name}`}
+                        name={holdingLabel(h.name, getAdapter(h.chainId).config.name, [h.symbol])}
                         {...(() => {
                           const ic = holdingIcon(h, getAdapter(h.chainId).config, chainIconUrl(h.chainId));
                           return { logo: ic.logo, chainBadge: ic.badge };
