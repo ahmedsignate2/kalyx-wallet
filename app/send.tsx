@@ -13,6 +13,7 @@ import { usePaidAddresses } from '../lib/historySpam';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { holdingIcon } from '../ui/kit/useFallbackLogo';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { friendlyTxError } from '../lib/txError';
 
@@ -723,9 +724,10 @@ export default function Send() {
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => { setAddressError(null); setAmountError(null); (step === 0 || step === 4 || (step === 1 && presetToken) ? router.back() : setStep((s) => (s - 1) as Step)); }} />
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <Text variant="title2">{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : step === 3 ? t("verifyBeforeSendTitle") : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
+            {/* Le titre rétrécit (une ligne) : long (« Vérifie avant d'envoyer »), il poussait la pastille du réseau sur le compteur d'étapes. */}
+            <Text variant="title2" numberOfLines={1} style={{ flexShrink: 1 }}>{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : step === 3 ? t("verifyBeforeSendTitle") : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
             {step > 0 && chainIconUrl(chain.id) ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: 12, backgroundColor: colors.surface2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: 12, backgroundColor: colors.surface2, flexShrink: 0 }}>
                 <LogoImage uri={chainIconUrl(chain.id)!} size={14} />
                 <Text variant="micro" tone="secondary">{chain.name}</Text>
               </View>
@@ -762,8 +764,12 @@ export default function Send() {
                     <React.Fragment key={h.id}>
                       <TokenRow
                         symbol={h.symbol}
-                        name={`${h.symbol} sur ${getAdapter(h.chainId).config.name}`}
-                        logo={h.kind === 'native' ? chainIconUrl(h.chainId) : h.logo}
+                        name={`${h.symbol} · ${getAdapter(h.chainId).config.name}`}
+                        {...(() => {
+                          const ic = holdingIcon(h, getAdapter(h.chainId).config, chainIconUrl(h.chainId));
+                          return { logo: ic.logo, chainBadge: ic.badge };
+                        })()}
+                        chainId={h.chainId}
                         address={h.contract ?? h.chainId}
                         balance={`${formatTokenAmount(h.raw, h.decimals)} ${h.symbol}`}
                         fiat={h.price > 0 ? `${formatFiat(h.fiat)} ${sym}` : undefined}
@@ -880,7 +886,7 @@ export default function Send() {
           <FadeInUp style={{ flex: 1, gap: space[5] }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
               <AddressGlyph address={recipient} size={28} />
-              <Text variant="caption" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>{t("labelTo")}{destLabel ?? shortAddress(recipient)}</Text>
+              <Text variant="caption" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>{t("labelTo")} {destLabel ?? shortAddress(recipient)}</Text>
             </View>
             <KPressable onPress={() => price > 0 && setInFiat((v) => !v)} accessibilityLabel={t("a11yToggleCurrency")} style={{ paddingVertical: space[4] }}>
               <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit tone={overBalance ? 'danger' : 'primary'}>
@@ -1052,25 +1058,6 @@ export default function Send() {
                 </Text>
               </KPressable>
             ) : null}
-            <View style={{ flex: 1, minHeight: space[4] }} />
-            <HoldRing
-              hint={t("holdToSend")}
-              holdingHint={t('holdKeepGoing')}
-              onComplete={() => setConfirming(true)}
-              /*
-                ET ILS BLOQUENT. Les afficher sans empêcher l'envoi ne servirait à
-                rien pour une PDA : les fonds y sont définitivement perdus, il n'y a
-                pas de cas légitime à couvrir. L'adresse sosie bloque aussi, par
-                cohérence avec l'étape 1 qui la bloquait déjà.
-              */
-              disabled={
-                isSimulating ||
-                !!poisoning ||
-                isSolanaPda ||
-                (simResult?.warningLevel === 'critical' && !forceSendChecked)
-              }
-              danger={simResult?.warningLevel === 'critical'}
-            />
           </FadeInUp>
         ) : null}
 
@@ -1096,6 +1083,34 @@ export default function Send() {
           </>
         ) : null}
       </ScrollView>
+      {/*
+        L'ANNEAU « MAINTENIR POUR ENVOYER » EST FIXÉ EN BAS, hors du défilement :
+        au bout du récapitulatif, il passait sous la barre système dès que le
+        contenu dépassait l'écran (« Maintenir pour envoyer » coupé). Seul le
+        récapitulatif défile au-dessus — comme Phantom et Rainbow.
+      */}
+      {step === 3 ? (
+        <View style={{ alignItems: 'center', paddingTop: space[2], paddingBottom: insets.bottom + space[3], backgroundColor: colors.bg }}>
+          <HoldRing
+            hint={t("holdToSend")}
+            holdingHint={t('holdKeepGoing')}
+            onComplete={() => setConfirming(true)}
+            /*
+              ET ILS BLOQUENT. Les afficher sans empêcher l'envoi ne servirait à
+              rien pour une PDA : les fonds y sont définitivement perdus, il n'y a
+              pas de cas légitime à couvrir. L'adresse sosie bloque aussi, par
+              cohérence avec l'étape 1 qui la bloquait déjà.
+            */
+            disabled={
+              isSimulating ||
+              !!poisoning ||
+              isSolanaPda ||
+              (simResult?.warningLevel === 'critical' && !forceSendChecked)
+            }
+            danger={simResult?.warningLevel === 'critical'}
+          />
+        </View>
+      ) : null}
       </KeyboardAvoid>
 
       {/*

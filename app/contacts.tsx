@@ -11,6 +11,7 @@
  * fiche ne touche pas la chaîne, et l'écran le dit au moment de confirmer.
  */
 import { NovaHero, ScreenOrbit } from '../ui/nova';
+import { Icon } from '../ui/icon';
 import React, { useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -107,9 +108,12 @@ function ContactRow({
             <Text variant="micro" tone="tertiary">
               {families.length > 0 ? families.map(familyLabel).join(' · ') : t('contactNetworkUnknown')}
             </Text>
-            <KPressable onPress={onDelete} hitSlop={10} accessibilityLabel={t('deleteAction')}>
-              <Text variant="caption" tone="danger">✕</Text>
-            </KPressable>
+            {/*
+              Plus de croix rouge sur chaque ligne : une liste hérissée de « ✕ »
+              crie « danger » à chaque coup d'œil. La suppression est dans la
+              fiche (toucher le contact), avec sa confirmation.
+            */}
+            <Icon name="chevron" size={16} tone="faint" />
           </View>
         )
       }
@@ -165,7 +169,8 @@ export default function Contacts() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScreenOrbit top={insets.top + 48} />
+      {/* L'orbite d'angle seulement sans héros : avec lui, deux orbites se chevauchaient. */}
+      {pickMode ? <ScreenOrbit top={insets.top + 48} /> : null}
       <View
         style={{
           paddingTop: insets.top,
@@ -182,9 +187,14 @@ export default function Contacts() {
           tone="ghost"
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
         />
+        {/* Titre dans la barre en mode choix seulement : sinon le héros le porte déjà (il s'affichait deux fois). */}
         <View style={{ flex: 1 }}>
-          <Text variant="title2">{t('contacts')}</Text>
-          <Text variant="micro" tone="tertiary">{pickMode ? t('chooseRecipient') : t('localAddressBook')}</Text>
+          {pickMode ? (
+            <>
+              <Text variant="title2">{t('contacts')}</Text>
+              <Text variant="micro" tone="tertiary">{t('chooseRecipient')}</Text>
+            </>
+          ) : null}
         </View>
         <IconButton icon="add" label={t('contactNew')} tone="ghost" onPress={() => setForm({ name: '', address: '' })} />
       </View>
@@ -282,6 +292,17 @@ export default function Contacts() {
               <Button label={t('saveAction')} disabled={!canSave} onPress={save} />
             </View>
           </View>
+          {form?.id ? (
+            <Button
+              label={t('deleteAction')}
+              variant="destructive"
+              onPress={() => {
+                const f = form;
+                setForm(null);
+                setConfirmDelete({ id: f.id!, name: f.name });
+              }}
+            />
+          ) : null}
         </View>
       </Sheet>
 

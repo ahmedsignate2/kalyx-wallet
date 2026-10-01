@@ -25,6 +25,7 @@ import { useTheme } from '../../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../../ui/tokens';
 import { FadeInUp } from '../../ui/FadeInUp';
 import { cascadeDelay } from '../../ui/motion';
+import { holdingIcon } from '../../ui/kit/useFallbackLogo';
 import { LogoImage, Text, IconButton, Surface, Divider, TokenRow, TokenIcon, AmountDisplay, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../../ui/kit';
 import { WalletAvatar } from '../../ui/avatarArt';
 import { ActionDisc, Orbit, Pills, TextTabs, GOLD } from '../../ui/nova';
@@ -526,10 +527,14 @@ export default function Home() {
           <KPressable
             onPress={() => router.push('/networks')}
             accessibilityLabel={`${t('network')} : ${getAdapter(activeChain).config.name}`}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: space[2], borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, maxWidth: 104, flexShrink: 0 }}
+            /*
+              LOGO SEUL, comme Phantom : le nom du réseau prenait 104 px et
+              réduisait le nom du compte à « Co… ». Le nom reste dans le libellé
+              (lecteur d'écran) et sur l'écran Réseaux.
+            */
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 34, paddingLeft: 7, paddingRight: 8, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, flexShrink: 0 }}
           >
-            {chainIconUrl(activeChain) ? <LogoImage uri={chainIconUrl(activeChain)!} size={16} /> : null}
-            <Text variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>{getAdapter(activeChain).config.name}</Text>
+            {chainIconUrl(activeChain) ? <LogoImage uri={chainIconUrl(activeChain)!} size={20} /> : <Text variant="caption" numberOfLines={1}>{getAdapter(activeChain).config.name}</Text>}
             <Icon name="caretDown" size={12} tone="muted" />
           </KPressable>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: -space[2] }}>
@@ -647,7 +652,11 @@ export default function Home() {
                       <TokenRow
                         symbol={h.symbol}
                         name={`${h.name} · ${getAdapter(h.chainId).config.name}`}
-                        logo={h.kind === 'native' ? chainIconUrl(h.chainId) : h.logo}
+                        {...(() => {
+                          const ic = holdingIcon(h, getAdapter(h.chainId).config, chainIconUrl(h.chainId));
+                          return { logo: ic.logo, chainBadge: ic.badge };
+                        })()}
+                        chainId={h.chainId}
                         address={h.contract ?? h.chainId}
                         balance={`${formatTokenAmount(h.raw, h.decimals)} ${h.symbol}`}
                         fiat={h.price > 0 ? `${formatFiat(h.fiat)} ${sym}` : undefined}

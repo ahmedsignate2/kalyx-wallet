@@ -3782,7 +3782,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     earnLendingKind: "Pr\u00eat (Aave v3)",
     earnAvailable: "Disponible",
     earnStake: "Staker",
-    earnUnstake: "Unstaker",
+    earnUnstake: "Retirer",
     earnDeposit: "D\u00e9poser",
     earnWithdraw: "Retirer",
     earnApy: "APY",
