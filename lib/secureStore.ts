@@ -73,7 +73,7 @@ export interface WalletMeta {
    * et à l'ajout de compte — des adresses EVM, Bitcoin et Solana qu'aucun autre
    * portefeuille ne montre pour cette phrase.
    */
-  type?: 'seed' | 'privateKey' | 'tonPhrase';
+  type?: 'seed' | 'privateKey' | 'tonPhrase' | 'watch';
   /**
    * Famille servie par une clé importée.
    *
@@ -83,6 +83,8 @@ export interface WalletMeta {
    * pourrait techniquement en servir plusieurs, mais l'adresse dérivée diffère à
    * chaque fois, et présenter plusieurs adresses pour un même import ne ferait
    * que semer le doute.
+   *
+   * Pour un portefeuille `'watch'` (lecture seule) : famille de l'adresse suivie.
    */
   keyFamily?: 'evm' | 'bitcoin' | 'solana';
   /** Avatar de profil (« 3d:rocket », « flat:diamond » — lib/avatars.ts). Tiré au hasard à la création. */

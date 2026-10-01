@@ -8,6 +8,7 @@
  *     devise, simulation « ton solde passera de A à B », MAINTENIR pour envoyer.
  *  4. Suivi : Envoyée → Incluse → Confirmée, on peut quitter (notification).
  */
+import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { fill } from '../lib/i18n';
 import { usePaidAddresses } from '../lib/historySpam';
 import { sameAddress } from '../lib/txAuditProbe';
@@ -55,7 +56,7 @@ import { AntiDrainerBanner } from '../src/components/security/AntiDrainerBanner'
 
 type Step = 0 | 1 | 2 | 3 | 4;
 
-export default function Send() {
+function SendInner() {
   const t = useT();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -1173,3 +1174,6 @@ export default function Send() {
     </View>
   );
 }
+
+// Lecture seule : rien à signer ici (ui/WatchOnlyGate).
+export default withWatchOnlyGate(SendInner);

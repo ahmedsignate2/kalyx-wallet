@@ -10,6 +10,7 @@
  * puis mise à jour en silence. 5 états : chargement (skeleton), normal, vide,
  * erreur (bandeau), hors ligne (OfflineBanner global).
  */
+import { useIsWatchOnly } from '../../ui/WatchOnlyGate';
 import { fill } from '../../lib/i18n';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, RefreshControl, Alert, Image, useWindowDimensions } from 'react-native';
@@ -105,6 +106,7 @@ export default function Home() {
   const activeChain = useWallet((s) => s.activeChain);
   const fiat = useSettings((s) => s.fiat);
   const backupVerified = useSettings((s) => s.backupVerified);
+  const watchOnly = useIsWatchOnly(); // pas de phrase à vérifier pour une adresse suivie
   const language = useSettings((s) => s.language);
   const locale = LANG_LOCALES[language] || 'en-US';
   const unread = useNotifCenter((s) => unreadCount(s.items));
@@ -598,7 +600,7 @@ export default function Home() {
         </View>
 
         {/* Sauvegarde sautée : bandeau permanent (§4.9) */}
-        {!backupVerified ? (
+        {!backupVerified && !watchOnly ? (
           <KPressable onPress={() => router.push('/reveal-phrase')} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], padding: space[3], borderRadius: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.warning }}>
             <Icon name="warning" size={18} color={colors.warning} />
             <Text variant="caption" style={{ flex: 1 }}>{t("unverifiedBackupWarning")}</Text>

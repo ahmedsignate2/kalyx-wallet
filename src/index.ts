@@ -457,3 +457,4 @@ export {
 } from './services/transactions/replacementService';
 
 
+export { parseWatchAddress, type WatchFamily, type WatchAddressError } from './domain/wallet/watchAddress';

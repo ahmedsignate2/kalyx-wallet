@@ -14,7 +14,7 @@
 import { Address as TonCoreAddress, Cell as TonCell } from '@ton/core';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import { formatExportedKey } from '../src/domain/keys/exportKey';
-import { deriveBtcSigner, deriveSolanaSigner } from '../src';
+import { deriveBtcSigner, deriveSolanaSigner, normalizeAddressCase, parseWatchAddress } from '../src';
 import { base64, base58, hex } from '@scure/base';
 import { ed25519 } from '@noble/curves/ed25519';
 import { secp256k1 } from '@noble/curves/secp256k1';
@@ -239,6 +239,12 @@ interface WalletState {
   importWallets: (wallets: readonly BackupWallet[], pin: string) => Promise<number>;
   /** Recrée les comptes (numéro + nom) d'une sauvegarde pour un portefeuille à phrase BIP-39. */
   restoreAccounts: (walletId: string, accounts: readonly { index: number; label: string }[], pin: string) => Promise<void>;
+  /**
+   * Ajoute un portefeuille EN LECTURE SEULE : une adresse suivie (EVM,
+   * Bitcoin, Solana), sans clé. Lève INVALID_WATCH_ADDRESS (message
+   * `watch.<raison>`) ou WALLET_ALREADY_EXISTS si l'adresse est déjà là.
+   */
+  addWatchWallet: (address: string, label?: string) => Promise<void>;
   setActiveWallet: (id: string) => Promise<void>;
   renameWallet: (id: string, label: string) => Promise<void>;
   /** Change l'avatar de profil d'un portefeuille (lib/avatars.ts). */
@@ -419,6 +425,22 @@ function forgetActive(): void {
   kvDel(K_ACTIVE_ACCOUNT).catch(() => {});
 }
 
+/** Portefeuille en lecture seule : une adresse suivie, sans coffre ni clé. */
+function isWatchWallet(wallets: WalletMeta[], id: string): boolean {
+  return wallets.find((w) => w.id === id)?.type === 'watch';
+}
+
+/**
+ * Coffre qui PROUVE l'identité (code ou biométrie). Tous les coffres partagent
+ * le même code ; un portefeuille en lecture seule n'en a pas : la preuve passe
+ * alors par le premier portefeuille qui en a un. Jamais pour SIGNER — le
+ * secret obtenu n'appartient pas au portefeuille affiché.
+ */
+function authWalletId(wallets: WalletMeta[], activeId: string): string {
+  if (!isWatchWallet(wallets, activeId)) return activeId;
+  return wallets.find((w) => w.type !== 'watch')?.id ?? activeId;
+}
+
 function isPrivateKeyWallet(wallets: WalletMeta[], id: string): boolean {
   return wallets.find((w) => w.id === id)?.type === 'privateKey';
 }
@@ -440,7 +462,7 @@ function isBip39Wallet(wallets: WalletMeta[], id: string): boolean {
 function walletFamily(wallets: WalletMeta[], id: string): ChainFamily | null {
   const w = wallets.find((x) => x.id === id);
   if (w?.type === 'tonPhrase') return 'ton';
-  if (w?.type === 'privateKey') return w.keyFamily ?? 'evm';
+  if (w?.type === 'privateKey' || w?.type === 'watch') return w.keyFamily ?? 'evm';
   return null;
 }
 
@@ -565,6 +587,10 @@ async function backfillPhraseAccounts(
 
 /** Révèle la seed du wallet `id` (biométrie ou PIN), de façon transitoire. */
 async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
+  // Lecture seule : aucune clé. Dernier rempart, quel que soit l'écran qui demande à signer.
+  if (isWatchWallet(useWallet.getState().wallets, id)) {
+    throw new WalletError('WATCH_ONLY', 'Portefeuille en lecture seule : rien ne peut être signé.');
+  }
   console.log('[KALYX-VAULT] reveal:start', { walletId: id, mode: 'biometric' in unlock ? 'biometric' : 'pin' });
   if ('biometric' in unlock) {
     /*
@@ -838,10 +864,11 @@ export const useWallet = create<WalletState>((set, get) => ({
       throw new WalletError('LOCKED_OUT', 'Trop de tentatives. Réessaie plus tard.');
     }
     try {
-      const secret = await revealMnemonic(activeWalletId, { pin });
+      const authId = authWalletId(get().wallets, activeWalletId);
+      const secret = await revealMnemonic(authId, { pin });
       // Seule une phrase BIP-39 dérive des comptes : ni une clé privée, ni une
       // phrase TON ne passent par le rattrapage (qui ferait une dérivation BIP-39).
-      const accounts = isBip39Wallet(get().wallets, activeWalletId)
+      const accounts = authId === activeWalletId && isBip39Wallet(get().wallets, activeWalletId)
         ? await backfillPhraseAccounts(activeWalletId, secret, get().accounts)
         : get().accounts;
       set({
@@ -871,15 +898,16 @@ export const useWallet = create<WalletState>((set, get) => ({
   unlockWithBiometrics: async () => {
     const { activeWalletId } = get();
     console.log('[KALYX-VAULT] unlockWithBiometrics:start');
-    const legacy = !(await isBiometricSeedGated(activeWalletId));
-    const secret = await revealMnemonic(activeWalletId, { biometric: true });
+    const authId = authWalletId(get().wallets, activeWalletId);
+    const legacy = !(await isBiometricSeedGated(authId));
+    const secret = await revealMnemonic(authId, { biometric: true });
     /*
      * MIGRATION de l'ancienne copie en clair vers la copie protégée par l'OS,
      * juste après un geste réussi. Le système redemande le geste pour chiffrer ;
      * refusé, l'ancienne copie reste et la migration sera retentée.
      */
-    if (legacy) void enableBiometricSeed(activeWalletId, secret, biometricPrompt()).catch(() => {});
-    const accounts = isBip39Wallet(get().wallets, activeWalletId)
+    if (legacy) void enableBiometricSeed(authId, secret, biometricPrompt()).catch(() => {});
+    const accounts = authId === activeWalletId && isBip39Wallet(get().wallets, activeWalletId)
       ? await backfillPhraseAccounts(activeWalletId, secret, get().accounts)
       : get().accounts;
     set({
@@ -898,12 +926,12 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   verifyPin: async (pin) => {
     // Déchiffre le coffre à la volée : réussit = PIN correct, sinon WRONG_PIN.
-    await revealMnemonic(get().activeWalletId, { pin });
+    await revealMnemonic(authWalletId(get().wallets, get().activeWalletId), { pin });
   },
 
   verifyUnlock: async (unlock) => {
     // Biométrie (lecture gated) ou PIN : réussit = identité prouvée, seed jetée.
-    await revealMnemonic(get().activeWalletId, unlock);
+    await revealMnemonic(authWalletId(get().wallets, get().activeWalletId), unlock);
   },
 
   setActiveChain: (chainId) => {
@@ -950,7 +978,7 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   createWallet: async (pin, label) => {
     // Vérifie le PIN (cohérence : un seul PIN d'app) via le wallet actif.
-    await revealMnemonic(get().activeWalletId, { pin });
+    await revealMnemonic(authWalletId(get().wallets, get().activeWalletId), { pin });
     const m = generateMnemonic(128);
     const id = newWalletId();
     const accounts = [deriveStoredAccount(m, 0, '')];
@@ -966,7 +994,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   importWallet: async (mnemonic, pin, label) => {
     const m = canonicalMnemonic(mnemonic);
     const kind = phraseKindForImport(m);
-    await revealMnemonic(get().activeWalletId, { pin }); // vérifie le PIN
+    await revealMnemonic(authWalletId(get().wallets, get().activeWalletId), { pin }); // vérifie le PIN
     const id = newWalletId();
     const accounts = accountsForPhrase(m, kind);
     await saveVault(id, await encryptSecret(m, pin));
@@ -1017,7 +1045,7 @@ export const useWallet = create<WalletState>((set, get) => ({
      * dérivée avant l'import, et prévient quand la clé vient d'un WIF non
      * compressé.
      */
-    await revealMnemonic(get().activeWalletId, { pin }); // vérifie le PIN (un seul PIN d'app)
+    await revealMnemonic(authWalletId(get().wallets, get().activeWalletId), { pin }); // vérifie le PIN (un seul PIN d'app)
     const id = newWalletId();
     const accounts = [storedAccountFromRawKey(chosen, parsed.key.secret)];
     /*
@@ -1051,11 +1079,11 @@ export const useWallet = create<WalletState>((set, get) => ({
   exportAllWallets: async (unlock) => {
     const { wallets, activeWalletId } = get();
     /*
-     * Le PIN est vérifié UNE FOIS, sur le portefeuille actif : tous les coffres
+     * Le PIN est vérifié UNE FOIS, sur le portefeuille actif (ou, s'il est en lecture seule, un portefeuille à clé) : tous les coffres
      * partagent le même code, et redemander à chaque itération n'ajouterait
      * aucune sécurité — seulement des occasions d'échouer à moitié.
      */
-    await revealMnemonic(activeWalletId, unlock);
+    await revealMnemonic(authWalletId(wallets, activeWalletId), unlock);
     const out: BackupWallet[] = [];
     for (const w of wallets) {
       const vault = await loadVault(w.id);
@@ -1143,6 +1171,34 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (active) set({ accounts, account: toAccount(accounts, get().activeAccountIndex, get().activeChain) });
   },
 
+  addWatchWallet: async (address, label) => {
+    if (!get().hasWallet || !get().isUnlocked) throw new WalletError('LOCKED_OUT', 'App verrouillée');
+    const parsed = parseWatchAddress(address);
+    if (!parsed.ok) throw new WalletError('INVALID_WATCH_ADDRESS', `watch.${parsed.error}`);
+    /*
+     * DÉJÀ PRÉSENTE (dans un portefeuille à clé ou suivie) : un doublon
+     * afficherait deux fois les mêmes fonds — et laisserait croire qu'une
+     * adresse qu'on contrôle n'est « que » suivie.
+     */
+    const key = normalizeAddressCase(parsed.address);
+    for (const w of get().wallets) {
+      const accs = (w.id === get().activeWalletId ? get().accounts : await loadAccounts(w.id)) ?? [];
+      if (accs.some((a) => [a.evmAddress, a.btcAddress, a.solAddress].some((x) => x && normalizeAddressCase(x) === key))) {
+        throw new WalletError('WALLET_ALREADY_EXISTS', 'Adresse déjà présente dans un portefeuille');
+      }
+    }
+    const id = newWalletId();
+    const base: StoredAccount = { index: 0, label: '', evmAddress: '', btcAddress: '' };
+    const account: StoredAccount =
+      parsed.family === 'bitcoin' ? { ...base, btcAddress: parsed.address } : parsed.family === 'solana' ? { ...base, solAddress: parsed.address } : { ...base, evmAddress: parsed.address };
+    await saveAccounts(id, [account]); // aucun coffre : rien de secret à ranger
+    const wallets: WalletMeta[] = [...get().wallets, { id, label: label?.trim() || '', type: 'watch', keyFamily: parsed.family, avatar: randomAvatarId() }];
+    await saveWalletsList(wallets);
+    const chain = chainConfig(get().activeChain).family === parsed.family ? get().activeChain : firstChainOfFamily(parsed.family);
+    set({ wallets, activeWalletId: id, accounts: [account], activeAccountIndex: 0, activeChain: chain, account: toAccount([account], 0, chain) });
+    rememberActive(id, 0);
+  },
+
   setActiveWallet: async (id) => {
     const accounts = (await loadAccounts(id)) ?? [];
     /*
@@ -1185,9 +1241,11 @@ export const useWallet = create<WalletState>((set, get) => ({
      * laissé deux secondes, suffisait à effacer un portefeuille.
      */
     if (!get().isUnlocked) throw new WalletError('LOCKED_OUT', 'App verrouillée');
-    await revealMnemonic(get().activeWalletId, unlock);
+    await revealMnemonic(authWalletId(get().wallets, get().activeWalletId), unlock);
     const wallets = get().wallets.filter((w) => w.id !== id);
     if (wallets.length === 0) throw new Error('Impossible de supprimer le dernier portefeuille.');
+    // Le code de l'app vit dans les coffres : il en faut au moins un (les lectures seules n'en ont pas).
+    if (!wallets.some((w) => w.type !== 'watch')) throw new WalletError('LAST_KEY_WALLET', 'Il faut garder au moins un portefeuille avec clé.');
     // Ses connexions partent avec lui (sessions WalletConnect sur ses adresses, TON Connect liées à lui).
     const gone = ((get().activeWalletId === id ? get().accounts : await loadAccounts(id)) ?? []).flatMap((a) => [a.evmAddress, a.solAddress, a.btcAddress].filter((x): x is string => !!x));
     await Promise.race([
@@ -1754,7 +1812,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   changePin: async (oldPin, newPin) => {
     assertValidPin(newPin);
     // L'ancien PIN est vérifié par le chemin commun : compteur et blocage compris.
-    await revealMnemonic(get().activeWalletId, { pin: oldPin });
+    await revealMnemonic(authWalletId(get().wallets, get().activeWalletId), { pin: oldPin });
     /*
      * TOUT OU RIEN. Tous les coffres sont d'abord re-chiffrés EN MÉMOIRE (le
      * scrypt, lent, se fait ici, avant toute écriture) ; puis les anciens vont au
@@ -1791,6 +1849,7 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   exportPrivateKey: async (unlock) => {
     const { activeWalletId, wallets, account } = get();
+    if (isWatchWallet(wallets, activeWalletId)) throw new WalletError('WATCH_ONLY', 'Portefeuille en lecture seule : aucune clé à exporter.');
     if (!account) throw new Error('Aucun compte');
     // Wallet clé privée : la clé stockée EST la clé privée. Wallet HD : dérivée du compte actif.
     const pkFamily = privateKeyFamily(wallets, activeWalletId);
@@ -1830,7 +1889,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   enableBiometric: async (pin) => {
-    const id = get().activeWalletId;
+    const id = authWalletId(get().wallets, get().activeWalletId);
     const mnemonic = await revealMnemonic(id, { pin });
     try {
       await enableBiometricSeed(id, mnemonic, biometricPrompt());
@@ -1841,11 +1900,11 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   disableBiometric: async () => {
-    await disableBiometricSeed(get().activeWalletId);
+    await disableBiometricSeed(authWalletId(get().wallets, get().activeWalletId));
   },
 
   healBiometric: async (pin) => {
-    const id = get().activeWalletId;
+    const id = authWalletId(get().wallets, get().activeWalletId);
     if (await isBiometricSeedGated(id)) return; // copie protégée en place, rien à faire
     // Copie absente, invalidée ou encore en clair → réécrite au schéma protégé via le PIN.
     const mnemonic = await revealMnemonic(id, { pin });
@@ -1856,7 +1915,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     // Même règle que la suppression d'un portefeuille, pour TOUS à la fois.
     console.log('[KALYX-VAULT] reset:start', { isUnlocked: get().isUnlocked, wallets: get().wallets.length });
     if (!get().isUnlocked) throw new WalletError('LOCKED_OUT', 'App verrouillée');
-    await revealMnemonic(get().activeWalletId, unlock);
+    await revealMnemonic(authWalletId(get().wallets, get().activeWalletId), unlock);
     console.log('[KALYX-VAULT] reset:verified, wiping');
     /*
      * Toutes les connexions coupées AVANT l'effacement (WalletConnect, TON
