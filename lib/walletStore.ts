@@ -316,7 +316,13 @@ interface WalletState {
     unlock: Unlock,
     chainId: string,
     items: readonly { token: string; spender: string }[],
-    opts?: { onProgress?: (done: number, total: number) => void; /** Clé lue (code bon) : la suite est réseau seulement. */ onUnlocked?: () => void },
+    opts?: {
+      onProgress?: (done: number, total: number) => void;
+      /** Clé lue (code bon) : la suite est réseau seulement. */
+      onUnlocked?: () => void;
+      /** Faux = demande abandonnée (fenêtre fermée) : rien ne part, ou plus rien. */
+      shouldContinue?: () => boolean;
+    },
   ) => Promise<RevokeOutcome[]>;
   /** Envoie un token ERC-20 détenu (transfer) sur le réseau actif. */
   sendToken: (to: string, amount: string, token: { contract: string; decimals: number }, unlock: Unlock, gas?: GasOverride) => Promise<string>;
@@ -2030,13 +2036,27 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!from) throw new WalletError('NOT_SUPPORTED', 'Ce compte n’a pas d’adresse EVM');
     // UNE confirmation : la clé est lue une fois, pour tout le lot (et oubliée ensuite).
     const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
+    if (opts.shouldContinue && !opts.shouldContinue()) return items.map(() => ({ status: 'notSent' as const }));
     opts.onUnlocked?.();
+    // Pas un sou de natif : inutile de simuler N fois, le message est clair tout de suite.
+    if ((await adapter.getBalance(from)).raw === 0n) {
+      throw new WalletError('INSUFFICIENT_FUNDS', `Solde en ${adapter.config.nativeSymbol} insuffisant pour payer les frais réseau.`);
+    }
     const first = await adapter.getNonce(from); // « pending » : compte les transactions déjà en attente
     const chainIdNum = adapter.config.evmChainId;
     return runRevokeBatch(
       items,
       first,
-      (it, nonce) => adapter.sendContractTx({ to: it.token, data: revokeCalldata(it.spender), value: 0n, chainId: chainIdNum, nonce }, from, pk),
+      {
+        check: async (it) => ((await adapter.getAllowanceStrict(it.token, from, it.spender)) === 0n ? 'revoked' : 'active'),
+        send: async (it, suggested) => {
+          // Une autre transaction (WalletConnect, envoi) a pu partir pendant le lot : le plus grand gagne.
+          const nonce = Math.max(suggested, await adapter.getNonce(from).catch(() => suggested));
+          const hash = await adapter.sendContractTx({ to: it.token, data: revokeCalldata(it.spender), value: 0n, chainId: chainIdNum, nonce }, from, pk);
+          return { hash, nonce };
+        },
+        shouldContinue: opts.shouldContinue,
+      },
       opts.onProgress,
     );
   },
