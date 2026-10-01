@@ -264,6 +264,20 @@ export class SolanaChainAdapter implements ChainAdapter {
     }
   }
 
+  /**
+   * Solde STRICT d'un mint (SPL et Token-2022, tous comptes du propriétaire) :
+   * LÈVE si le RPC échoue ou répond de travers — là où `getSplTokens` rend une
+   * liste partielle. Pour tout ce qui décide d'un montant (swap).
+   */
+  async getSplTokenBalanceStrict(owner: string, mint: string): Promise<bigint> {
+    const res = await this.rpc<{ value?: { account?: { data?: { parsed?: { info?: { tokenAmount?: { amount?: string } } } } } }[] }>(
+      'getTokenAccountsByOwner',
+      [owner, { mint }, { encoding: 'jsonParsed', commitment: 'confirmed' }],
+    );
+    if (!res || !Array.isArray(res.value)) throw new Error('Réponse Solana illisible');
+    return res.value.reduce((sum, acc) => sum + BigInt(acc.account?.data?.parsed?.info?.tokenAmount?.amount ?? '0'), 0n);
+  }
+
   async getSplTokens(address: string): Promise<SplToken[]> {
     if (!isValidSolanaAddress(address)) return [];
 

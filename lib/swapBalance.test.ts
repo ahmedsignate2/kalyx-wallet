@@ -3,7 +3,7 @@ jest.mock('../src', () => {
   return { ...actual, getAdapter: jest.fn(), getAdapterV2: jest.fn() };
 });
 import { getAdapter, getAdapterV2 } from '../src';
-import { availableFrom, needsRead, readSwapBalance, swapBalanceKey, BALANCE_TTL_MS } from './swapBalance';
+import { availableFrom, freshRaw, needsRead, readSwapBalance, swapBalanceKey, BALANCE_TTL_MS } from './swapBalance';
 import { EvmChainAdapter, SolanaChainAdapter } from '../src';
 
 describe('readSwapBalance', () => {
@@ -22,7 +22,7 @@ describe('readSwapBalance', () => {
 describe('availableFrom', () => {
   it('inconnu tant que le solde ou la réserve manque', () => {
     expect(availableFrom(undefined, false, 0n)).toBeNull();
-    expect(availableFrom({ status: 'loading' }, false, 0n)).toBeNull();
+    expect(availableFrom({ status: 'loading', since: 0 }, false, 0n)).toBeNull();
     expect(availableFrom({ status: 'error' }, false, 0n)).toBeNull();
     expect(availableFrom({ status: 'ok', raw: 10n, at: 0 }, true, null)).toBeNull();
   });
@@ -53,7 +53,8 @@ describe('needsRead', () => {
   it('absent, erreur ou trop vieux → relire ; frais → garder', () => {
     expect(needsRead(undefined, 0)).toBe(true);
     expect(needsRead({ status: 'error' }, 0)).toBe(true);
-    expect(needsRead({ status: 'loading' }, 0)).toBe(false);
+    expect(needsRead({ status: 'loading', since: 0 }, 10_000)).toBe(false);
+    expect(needsRead({ status: 'loading', since: 0 }, 25_000)).toBe(true); // attente orpheline
     expect(needsRead({ status: 'ok', raw: 1n, at: 0 }, BALANCE_TTL_MS - 1)).toBe(false);
     expect(needsRead({ status: 'ok', raw: 1n, at: 0 }, BALANCE_TTL_MS + 1)).toBe(true);
   });
@@ -68,5 +69,13 @@ describe('EVM', () => {
     expect(await readSwapBalance('base', '0x0000000000000000000000000000000000000001', token, false)).toBe(5n);
     evm.call = jest.fn(async () => '0x');
     await expect(readSwapBalance('base', '0x0000000000000000000000000000000000000001', token, false)).rejects.toThrow();
+  });
+});
+
+describe('freshRaw', () => {
+  it('rend la valeur seulement si elle est lue et fraîche', () => {
+    expect(freshRaw({ status: 'ok', raw: 7n, at: 0 }, 1_000)).toBe(7n);
+    expect(freshRaw({ status: 'ok', raw: 7n, at: 0 }, BALANCE_TTL_MS + 1)).toBeNull();
+    expect(freshRaw({ status: 'error' }, 0)).toBeNull();
   });
 });
