@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
-import { walletDisplayName } from '../lib/walletNames';
+import { walletDisplayName, walletPosition } from '../lib/walletNames';
 import { useT, useSettings } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { friendlyTxError } from '../lib/txError';
@@ -32,6 +32,11 @@ export default function Wallets() {
   const onRemove = (id: string, label: string) => {
     if (wallets.length <= 1) {
       toast.warning(t('cannotTitle'), t('cannotDeleteLast'));
+      return;
+    }
+    // Le code de l'app vit dans les coffres : le dernier portefeuille à clé reste.
+    if (!wallets.some((w) => w.id !== id && w.type !== 'watch')) {
+      toast.warning(t('cannotTitle'), t('errLastKeyWallet'));
       return;
     }
     Alert.alert(
@@ -72,14 +77,20 @@ export default function Wallets() {
               onPress={() => setActiveWallet(w.id)}
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={walletDisplayName(w, i, t)}
+              accessibilityLabel={walletDisplayName(w, walletPosition(wallets, w.id), t)}
             >
               <Card style={{ borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <KPressable onPress={() => setAvatarFor(w.id)} hitSlop={6} accessibilityLabel={t('a11yChangeAvatar')} style={{ marginRight: spacing(1.5) }}>
                   <WalletAvatar walletId={w.id} size={44} />
                 </KPressable>
                 <View style={{ flex: 1 }}>
-                  <Text style={typography.body}>{walletDisplayName(w, i, t)}</Text>
+                  <Text style={typography.body}>{walletDisplayName(w, walletPosition(wallets, w.id), t)}</Text>
+                  {w.type === 'watch' ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <Icon name="eye" size={12} color={colors.textSecondary} />
+                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.semibold }}>{t('watchBadge')}</Text>
+                    </View>
+                  ) : null}
                   {active ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                       <Pulse size={7} />
@@ -93,7 +104,7 @@ export default function Wallets() {
                   son rendu change selon la plateforme et la police.
                 */}
                 <KPressable
-                  onPress={() => { setEditing(w.id); setEditLabel(walletDisplayName(w, i, t)); }}
+                  onPress={() => { setEditing(w.id); setEditLabel(walletDisplayName(w, walletPosition(wallets, w.id), t)); }}
                   hitSlop={10}
                   accessibilityLabel={t('name')}
                   style={{ marginRight: spacing(1) }}
@@ -118,6 +129,7 @@ export default function Wallets() {
           <Button label={t('createAction')} onPress={() => router.push('/create-wallet')} />
         </View>
       </View>
+      <Button label={t('watchAction')} variant="ghost" onPress={() => router.push('/watch-wallet')} />
       {avatarFor ? <AvatarPicker walletId={avatarFor} visible onClose={() => setAvatarFor(null)} /> : null}
       <ConfirmUnlock
         visible={removing !== null}
