@@ -771,7 +771,7 @@ export default function Browser() {
               <View style={{ flex: 1, height: 48, borderRadius: radius.round, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.textSecondary, flexDirection: 'row', alignItems: 'center', paddingHorizontal: space[4], gap: space[2] }}>
                 <Icon name="search" size={15} tone="muted" />
                 <TextInput autoFocus value={input} onChangeText={setInput} onSubmitEditing={() => go(input)} placeholder={t('searchOrEnterUrl')} placeholderTextColor={colors.textTertiary} autoCapitalize="none" autoCorrect={false} keyboardType="url" returnKeyType="go" selectTextOnFocus style={{ flex: 1, color: colors.text, fontSize: 16, fontFamily: 'GeneralSans-Medium', paddingVertical: 0 }} />
-                {input ? <KPressable onPress={() => setInput('')} hitSlop={8}><Icon name="close" size={14} tone="muted" /></KPressable> : null}
+                {input ? <KPressable onPress={() => setInput('')} hitSlop={8} accessibilityLabel={t('cancel')}><Icon name="close" size={14} tone="muted" /></KPressable> : null}
               </View>
               <IconButton icon="scan" label={t('scanQr')} tone="ghost" onPress={() => router.push('/scan')} />
             </>

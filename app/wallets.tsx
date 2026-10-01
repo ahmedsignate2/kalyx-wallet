@@ -72,7 +72,7 @@ export default function Wallets() {
               onPress={() => setActiveWallet(w.id)}
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={w.label}
+              accessibilityLabel={walletDisplayName(w, i, t)}
             >
               <Card style={{ borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <KPressable onPress={() => setAvatarFor(w.id)} hitSlop={6} accessibilityLabel={t('a11yChangeAvatar')} style={{ marginRight: spacing(1.5) }}>

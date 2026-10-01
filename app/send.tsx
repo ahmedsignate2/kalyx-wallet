@@ -14,6 +14,10 @@ import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
+import { friendlyTxError } from '../lib/txError';
+
+/** Refus de la préparation qui sont CERTAINS : affichés sous le montant, avant le code. */
+const PRECHECK_BLOCKING = new Set(['SOL_RENT_SENDER', 'SOL_RENT_RECIPIENT', 'INSUFFICIENT_FUNDS', 'AMOUNT_TOO_SMALL', 'INSUFFICIENT_GAS', 'MEMO_REQUIRED', 'INVALID_ADDRESS', 'INVALID_AMOUNT']);
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, HoldRing, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
@@ -157,6 +161,8 @@ export default function Send() {
   const [inFiat, setInFiat] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
+  // Vérification de l'envoi par la chaîne (sans clé) avant le récapitulatif.
+  const [checking, setChecking] = useState(false);
   const [pickContact, setPickContact] = useState(false);
   /*
    * COMMENTAIRE saisi par l'utilisateur, quand la chaîne en porte un. Les
@@ -615,7 +621,7 @@ export default function Send() {
     setAmountError(null);
     setStep(2);
   };
-  const goStep3 = () => {
+  const goStep3 = async () => {
     setAmountError(null);
     if (amountRaw <= 0n) return setAmountError(t("errEnterAmount"));
     if (overBalance) {
@@ -639,6 +645,32 @@ export default function Send() {
       technicalLogger.logTx('step_2_buildTransfer_failed', { error: isWalletError(e) ? e.message : String(e), chain: chain.name }, true);
       return setAmountError(isWalletError(e) && /décimales/.test(e.message) ? t('errTooManyDecimals').replace('{max}', String(decimals)) : t("errInvalidAmount"));
     }
+    /*
+     * LA CHAÎNE EST CONSULTÉE ICI, AVANT LE CODE. Les refus certains — loyer
+     * minimal Solana, solde Bitcoin insuffisant une fois les pièces choisies,
+     * montant sous le seuil de poussière, commentaire exigé — n'arrivaient
+     * qu'APRÈS le PIN et ses secondes de déchiffrement : on tapait son code pour
+     * apprendre qu'il fallait changer le montant, encore et encore. La
+     * préparation ne demande aucune clé : on la fait maintenant, et le message
+     * chiffré s'affiche sous le montant. Un réseau muet ne bloque rien : la
+     * vérification se refera à l'envoi.
+     */
+    const v2 = isNativeSend && (family === 'solana' || family === 'bitcoin' || family === 'ton') ? findAdapterV2(targetChainId) : undefined;
+    if (v2?.prepareSend) {
+      setChecking(true);
+      try {
+        const draft = await v2.prepareSend(senderAddress, { to: recipient, amount: amountRaw, token: null, speed, memo });
+        if (draft.warnings.some((w) => w.code === 'MEMO_REQUIRED')) return setAmountError(t('errMemoRequired'));
+      } catch (e) {
+        if (isWalletError(e) && PRECHECK_BLOCKING.has(e.code)) {
+          technicalLogger.logTx('step_2_precheck_refused', { code: e.code, chain: chain.name }, true);
+          return setAmountError(friendlyTxError(e, t));
+        }
+        // Réseau indisponible ou erreur inattendue : on laisse l'envoi trancher.
+      } finally {
+        setChecking(false);
+      }
+    }
     haptic.light();
     setStep(3);
   };
@@ -661,7 +693,7 @@ export default function Send() {
     // avant leur chargement produirait une erreur qui disparaîtrait ensuite.
     if (isNativeSend && !feeOptions) return;
     autoAdvanced.current = true;
-    goStep3();
+    void goStep3();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPrefilledPayment, step, balance, amountRaw, isNativeSend, feeOptions]);
 
@@ -875,7 +907,7 @@ export default function Send() {
             {amountError && hasEnteredAmount ? <Text variant="caption" tone="danger">{amountError}</Text> : null}
             <View style={{ flex: 1 }} />
             <AmountKeypad value={amount} onChange={(v) => { setAmount(v); setAmountError(null); }} maxDecimals={inFiat ? 2 : Math.min(decimals, 8)} />
-            <Button label={t("verify")} onPress={goStep3} disabled={amountRaw <= 0n} />
+            <Button label={t("verify")} onPress={() => void goStep3()} loading={checking} disabled={amountRaw <= 0n || checking} />
           </FadeInUp>
         ) : null}
 
