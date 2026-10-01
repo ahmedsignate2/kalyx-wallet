@@ -302,7 +302,8 @@ export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
 export { getSolanaNfts } from './domain/nft/solanaNft';
 
 // Réserve de gas dynamique (swap/bridge/dépôt), estimée sur le RPC de chaque réseau
-export { estimateGasReserve, fallbackGasReserve, evmReserveFromFeeData, solanaReserveFromPriorityFees, SWAP_GAS_UNITS, SOL_BASE_FEE, type GasReserve } from './domain/chains/gasReserve';
+export { normalizeAddressCase, isCaseInsensitiveAddress } from './domain/validation/addressCase';
+export { estimateGasReserve, evmReserveFromFeeData, solanaReserveFromPriorityFees, SWAP_GAS_UNITS, SOL_BASE_FEE, type GasReserve } from './domain/chains/gasReserve';
 
 // Anti-empoisonnement d'adresse + formats lisibles
 export { detectPoisoning, groupAddress, shortAddress, addressFamilies, type PoisoningMatch, type AddressFamily } from './domain/validation/poisoning';

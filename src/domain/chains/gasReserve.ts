@@ -54,11 +54,6 @@ export interface GasReserve {
 }
 
 /** Repli si le RPC ne répond pas : volontairement bas, l'estimation à la signature tranchera. */
-/** Réserve de REPLI (RPC muet ou trop lent) : prudente par famille, jamais 0. */
-export function fallbackGasReserve(adapter: ChainAdapter): GasReserve {
-  return fallback(adapter);
-}
-
 function fallback(adapter: ChainAdapter): GasReserve {
   const fam = adapter.config.family;
   if (fam === 'solana') return { raw: 100_000n, live: false }; // 0.0001 SOL

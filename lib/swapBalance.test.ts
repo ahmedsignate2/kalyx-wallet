@@ -4,7 +4,7 @@ jest.mock('../src', () => {
 });
 import { getAdapter, getAdapterV2 } from '../src';
 import { availableFrom, needsRead, readSwapBalance, swapBalanceKey, BALANCE_TTL_MS } from './swapBalance';
-import { SolanaChainAdapter } from '../src';
+import { EvmChainAdapter, SolanaChainAdapter } from '../src';
 
 describe('readSwapBalance', () => {
   it('lève quand la lecture échoue (jamais un 0 inventé)', async () => {
@@ -32,7 +32,8 @@ describe('availableFrom', () => {
     expect(availableFrom({ status: 'ok', raw: 10n, at: 0 }, false, 3n)).toBe(10n);
   });
   it('clé : casse ignorée pour EVM, conservée pour un mint Solana', () => {
-    expect(swapBalanceKey('base', '0xme', '0xABC')).toBe(swapBalanceKey('base', '0xme', '0xabc'));
+    const usdc = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+    expect(swapBalanceKey('base', '0xme', usdc)).toBe(swapBalanceKey('base', '0xme', usdc.toLowerCase()));
     expect(swapBalanceKey('solana', 'me', 'EPjFWdd5')).not.toBe(swapBalanceKey('solana', 'me', 'epjfwdd5'));
   });
 });
@@ -55,5 +56,17 @@ describe('needsRead', () => {
     expect(needsRead({ status: 'loading' }, 0)).toBe(false);
     expect(needsRead({ status: 'ok', raw: 1n, at: 0 }, BALANCE_TTL_MS - 1)).toBe(false);
     expect(needsRead({ status: 'ok', raw: 1n, at: 0 }, BALANCE_TTL_MS + 1)).toBe(true);
+  });
+});
+
+describe('EVM', () => {
+  it('balanceOf strict : réponse vide ou illisible = erreur, jamais 0', async () => {
+    const evm = Object.create(EvmChainAdapter.prototype);
+    const token = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+    evm.call = jest.fn(async () => '0x' + (5n).toString(16).padStart(64, '0'));
+    (getAdapter as jest.Mock).mockReturnValue(evm);
+    expect(await readSwapBalance('base', '0x0000000000000000000000000000000000000001', token, false)).toBe(5n);
+    evm.call = jest.fn(async () => '0x');
+    await expect(readSwapBalance('base', '0x0000000000000000000000000000000000000001', token, false)).rejects.toThrow();
   });
 });
