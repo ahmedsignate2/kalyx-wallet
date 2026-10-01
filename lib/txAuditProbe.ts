@@ -17,13 +17,19 @@
  * est derrière ; la consigne du modèle (lib/aiTxAudit.ts) le répète, et une
  * liste noire l'emporte toujours sur la familiarité.
  */
-import { assessAddress, getAdapter, parseRawTonAddress, parseTonAddress, toRawTonAddress, type TxSummary } from '../src';
+import { assessAddress, getAdapter, normalizeAddressCase, parseRawTonAddress, parseTonAddress, toRawTonAddress, type TxSummary } from '../src';
 
-/** Clé de comparaison : TON a plusieurs écritures d'une même adresse (EQ…, UQ…, 0:…). */
+/**
+ * Clé de comparaison d'une adresse.
+ *  - TON : plusieurs écritures d'une même adresse (EQ…, UQ…, 0:…) → forme brute ;
+ *  - le reste suit la règle unique (src/domain/validation/addressCase.ts) :
+ *    minuscules pour EVM et bech32, casse exacte pour Solana et base58.
+ */
 export function addressKey(address: string): string {
   const a = (address ?? '').trim();
   const ton = parseTonAddress(a) ?? parseRawTonAddress(a);
-  return ton ? toRawTonAddress(ton) : a.toLowerCase();
+  if (ton) return toRawTonAddress(ton);
+  return normalizeAddressCase(a);
 }
 
 export function sameAddress(a: string, b: string): boolean {
