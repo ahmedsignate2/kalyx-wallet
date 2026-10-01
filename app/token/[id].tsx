@@ -140,8 +140,11 @@ export default function TokenDetail() {
     toast.success(t("alertCreated"), `${(detail?.symbol || id).toUpperCase()} ${alertDir === 'above' ? '≥' : '≤'} ${target} ${fiatSymbol(fiat)}`);
   };
 
+  // Largeur MESURÉE du conteneur du graphique : il occupe toute la ligne, sans
+  // vide à droite, quelles que soient les marges de l'écran.
   const { width } = useWindowDimensions();
-  const chartWidth = width - spacing(2.5) * 2 - spacing(2.25) * 2;
+  const [chartBox, setChartBox] = useState(0);
+  const chartWidth = chartBox || width - spacing(2.5) * 2;
 
   // Chaîne Kalyx correspondante (si le token est une de nos chaînes natives).
   // Un ID CoinGecko peut représenter plusieurs natifs (ETH sur L2) ; le
@@ -388,7 +391,7 @@ export default function TokenDetail() {
 
           {/* Graphique */}
           <View style={{ gap: spacing(1.5) }}>
-            <View style={{ height: 200, justifyContent: 'center' }}>
+            <View style={{ height: 200, justifyContent: 'center' }} onLayout={(e) => setChartBox(Math.round(e.nativeEvent.layout.width))}>
               {loadingChart && chart.length === 0 ? (
                 <Skeleton height={160} />
               ) : chart.length < 2 ? (
