@@ -26,6 +26,7 @@ import { space, SCREEN_MARGIN, radius } from '../../ui/tokens';
 import { FadeInUp } from '../../ui/FadeInUp';
 import { cascadeDelay } from '../../ui/motion';
 import { holdingLabel } from '../../lib/holdingLabel';
+import { Aurora } from '../../ui/Aurora';
 import { holdingIcon } from '../../ui/kit/useFallbackLogo';
 import { LogoImage, Text, IconButton, Surface, Divider, TokenRow, TokenIcon, AmountDisplay, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable } from '../../ui/kit';
 import { WalletAvatar } from '../../ui/avatarArt';
@@ -478,6 +479,8 @@ export default function Home() {
           déborde y laissait une coupure verticale nette (« boîte centrale »). */}
       {!hidden ? (
         <Animated.View style={[{ position: 'absolute', left: 0, right: 0, top: 0, height: insets.top + 420, overflow: 'hidden' }, haloStyle]} pointerEvents="none">
+          {/* L'aurore : or, glacier et la teinte du jour, qui dérivent derrière le solde. */}
+          <Aurora height={insets.top + 420} mood={mood} />
           <Orbit cx={screenW - 90} cy={insets.top + 110} r={150} />
           <Animated.View style={[{ position: 'absolute', left: screenW - 90 - 150, top: insets.top + 110 - 150 }, haloCoreStyle]}>
             <Halo size={300} mood={mood} aura />
