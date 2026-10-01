@@ -28,11 +28,27 @@ import { fonts, radii, spacing, useTheme } from './theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import type { Unlock } from '../lib/walletStore';
-import { auditFacts, auditTransaction, type TxAuditContext, type TxAuditResult } from "../lib/aiTxAudit";
+import { auditFacts, auditTransaction, type TxAuditContext, type TxAuditFact, type TxAuditResult } from "../lib/aiTxAudit";
+import { probeRecipient } from "../lib/txAuditProbe";
 import { useAiStore } from "../lib/aiStore";
 import { isWalletError } from '../src';
 
-const FACT_KEY = { lookalike: 'aiFactLookalike', own: 'aiFactOwn', paid: 'aiFactPaid', new: 'aiFactNew', contract: 'aiFactContract' } as const;
+const FACT_KEY = {
+  flagged: 'aiFactFlagged', lookalike: 'aiFactLookalike', own: 'aiFactOwn', paid: 'aiFactPaid', received: 'aiFactReceived',
+  new: 'aiFactNew', contract: 'aiFactContract', fresh: 'aiFactFresh', unverified: 'aiFactUnverified',
+} as const;
+
+/** Libellé d'un fait, dans la langue de l'app. */
+function factLabel(f: TxAuditFact, t: ReturnType<typeof useT>, locale: string): string {
+  const date = (unix: number) => new Date(unix * 1000).toLocaleDateString(locale || undefined);
+  switch (f.kind) {
+    case 'contact': return t('aiFactContact').replace('{name}', f.name);
+    case 'paidN': return (f.last ? t('aiFactPaidNLast').replace('{date}', date(f.last)) : t('aiFactPaidN')).replace('{n}', String(f.n));
+    case 'since': return t('aiFactSince').replace('{date}', date(f.at));
+    case 'busy': return t('aiFactBusy').replace('{n}', String(f.n));
+    default: return t(FACT_KEY[f.kind]);
+  }
+}
 
 export function ConfirmUnlock({
   visible,
@@ -77,7 +93,10 @@ export function ConfirmUnlock({
    * l'utilisateur l'ait demandé. Désormais un bouton, qui dit ce qui part.
    */
   const [aiRequested, setAiRequested] = useState(false);
-  const facts = aiContext ? auditFacts(aiContext) : [];
+  // Contexte ENRICHI des données publiques relues au lancement de l'analyse.
+  const [auditedCtx, setAuditedCtx] = useState<TxAuditContext | null>(null);
+  const facts = auditedCtx ? auditFacts(auditedCtx) : [];
+  const [probing, setProbing] = useState(false);
   const auditRun = useRef(0);
   useEffect(() => {
     if (!visible) {
@@ -86,6 +105,8 @@ export function ConfirmUnlock({
       setAiAnalysis(null);
       setAiError(null);
       setAnalyzing(false);
+      setAuditedCtx(null);
+      setProbing(false);
     }
   }, [visible]);
 
@@ -102,7 +123,21 @@ export function ConfirmUnlock({
     setAiError(null);
     setAnalyzing(true);
     console.log('[AI Audit] start', { provider: aiStore.provider });
-    const out = await auditTransaction(aiContext, language || 'fr', { timeout: t('aiAuditTimeout'), unreadable: t('aiAuditUnreadable') }, AI_AUDIT_TIMEOUT_MS);
+    /*
+     * Données PUBLIQUES d'abord : ton historique relu à l'instant, le profil
+     * de l'adresse, les listes noires. L'IA juge ensuite sur des faits, et
+     * l'utilisateur voit lesquels (« Analysé avec : … »).
+     */
+    let ctx = aiContext;
+    if (aiContext.recipient && aiContext.chainId) {
+      setProbing(true);
+      const probe = await probeRecipient(aiContext.chainId, aiContext.from, aiContext.to);
+      if (runId !== auditRun.current) return;
+      setProbing(false);
+      ctx = { ...aiContext, recipient: { ...aiContext.recipient, probe } };
+    }
+    setAuditedCtx(ctx);
+    const out = await auditTransaction(ctx, language || 'fr', { timeout: t('aiAuditTimeout'), unreadable: t('aiAuditUnreadable') }, AI_AUDIT_TIMEOUT_MS);
     if (runId !== auditRun.current) return;
     console.log('[AI Audit] done', out.ok ? { riskLevel: out.result.riskLevel } : { error: out.error.slice(0, 120) });
     if (out.ok) setAiAnalysis(out.result);
@@ -277,7 +312,7 @@ export function ConfirmUnlock({
                 // « Sûr » n'est JAMAIS affiché en vert : l'IA n'a vu qu'une adresse et un montant.
                 <View style={{ width: '90%', backgroundColor: colors.surface2, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? colors.danger : aiAnalysis.riskLevel === 'WARNING' ? colors.warning : colors.border) : colors.border, marginBottom: 8 }}>
                   <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13, marginBottom: 4 }}>
-                    {analyzing ? t("aiAuditInProgress") : (aiAnalysis ? `${t('aiAuditLabel')} ${t(`aiRisk${aiAnalysis.riskLevel}` as const)}` : t("aiAuditUndetermined"))}
+                    {analyzing ? (probing ? t('aiAuditProbing') : t("aiAuditInProgress")) : (aiAnalysis ? `${t('aiAuditLabel')} ${t(`aiRisk${aiAnalysis.riskLevel}` as const)}` : t("aiAuditUndetermined"))}
                   </Text>
                   {/* Échec : la raison, puis de quoi réessayer — jamais un encadré muet. */}
                   {!analyzing && aiError ? (
@@ -297,7 +332,7 @@ export function ConfirmUnlock({
                       {/* Ce que l'analyse a reçu : l'utilisateur voit sur quoi repose l'avis. */}
                       {facts.length > 0 ? (
                         <Text style={{ color: colors.textTertiary, fontSize: 11, marginTop: 6, fontFamily: fonts.medium }}>
-                          {t('aiFactsTitle')} {facts.map((f) => (f.kind === 'contact' ? t('aiFactContact').replace('{name}', f.name) : t(FACT_KEY[f.kind]))).join(' · ')}
+                          {t('aiFactsTitle')} {facts.map((f) => factLabel(f, t, language)).join(' · ')}
                         </Text>
                       ) : null}
                     </>
