@@ -1,4 +1,6 @@
 import { GOLD, IconDisc, NovaHero, Pulse, Rise } from '../ui/nova';
+import { ConfirmUnlock } from '../ui/ConfirmUnlock';
+import { canDiscover, runDiscovery, useDiscovering } from '../lib/runDiscovery';
 import { AddressGlyph } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { isWalletError } from '../src';
@@ -37,6 +39,11 @@ export default function Accounts() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
   const [editLabel, setEditLabel] = useState('');
+  // Recherche des comptes 2, 3… déjà utilisés (phrase BIP-39 seulement).
+  const activeWalletId = useWallet((s) => s.activeWalletId);
+  const discoverable = useWallet((s) => canDiscover(s.activeWalletId));
+  const [askDiscover, setAskDiscover] = useState(false);
+  const discoverAt = useDiscovering(activeWalletId); // aussi celle lancée par l'import
 
   const onAdd = async () => {
     setError(null);
@@ -171,12 +178,40 @@ export default function Accounts() {
           <Button label={busy ? t('creating') : t('createAccount')} loading={busy} onPress={onAdd} />
         </Card>
       ) : (
+        <>
         <KPressable onPress={() => setAdding(true)} haptic="light" style={{ marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), padding: spacing(2), borderRadius: 24, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border }}>
           <IconDisc name="add" tone="gold" />
           <Text style={{ color: colors.text, fontFamily: 'GeneralSans-Semibold', fontSize: 15 }}>{t('addAccountPlus').replace(/^[+＋]\s*/, '')}</Text>
         </KPressable>
+        {discoverable ? (
+          <KPressable
+            onPress={() => setAskDiscover(true)}
+            disabled={discoverAt !== null}
+            haptic="light"
+            accessibilityLabel={t('discoverTitle')}
+            style={{ marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), padding: spacing(2), borderRadius: 24, borderWidth: 1, borderColor: colors.border, opacity: discoverAt !== null ? 0.6 : 1 }}
+          >
+            <IconDisc name="search" tone="gold" />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ color: colors.text, fontFamily: 'GeneralSans-Semibold', fontSize: 15 }}>{t('discoverTitle')}</Text>
+              <Text style={typography.muted}>{discoverAt !== null ? t('discoverProgress').replace('{n}', String(discoverAt + 1)) /* indice HD 1 = « Compte 2 » */ : t('discoverHint')}</Text>
+            </View>
+          </KPressable>
+        ) : null}
+        </>
       )}
       </ScrollView>
+      <ConfirmUnlock
+        visible={askDiscover}
+        title={t('discoverTitle')}
+        perform={async (unlock) => {
+          // Rend la main une fois la phrase lue (code faux → rejet, la fenêtre le signale) ;
+          // la recherche réseau continue ensuite, sans la phrase.
+          await runDiscovery(activeWalletId, unlock);
+        }}
+        onDone={() => setAskDiscover(false)}
+        onCancel={() => setAskDiscover(false)}
+      />
     </Screen>
   );
 }

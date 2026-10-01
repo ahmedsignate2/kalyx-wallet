@@ -114,3 +114,21 @@ export function mergeTokenAccounts(...lists: SplToken[][]): SplToken[] {
   }
   return [...byMint.values()].sort((a, b) => (b.raw > a.raw ? 1 : b.raw < a.raw ? -1 : 0));
 }
+
+/** Jetons SPL gardés au plus : une grosse adresse en a des milliers (dont beaucoup de poussière). */
+export const MAX_SPL_TOKENS = 100;
+
+/**
+ * Borne la liste : les jetons CONNUS d'abord (USDC, USDT, JUP…), puis les plus
+ * gros soldes bruts. Sans borne, une adresse avec des milliers de comptes de
+ * jetons envoyait des milliers de mints à la recherche de métadonnées et de
+ * prix, et l'accueil s'effondrait.
+ */
+export function capSplTokens(tokens: SplToken[], max = MAX_SPL_TOKENS): SplToken[] {
+  if (tokens.length <= max) return tokens;
+  const known = tokens.filter((t) => KNOWN_MINTS[t.mint]);
+  // Montant EN UNITÉS (raw / 10^décimales) : comparer des bruts favorisait les jetons à 9 décimales.
+  const units = (t: SplToken) => Number(t.raw) / 10 ** t.decimals;
+  const rest = tokens.filter((t) => !KNOWN_MINTS[t.mint]).sort((a, b) => units(b) - units(a));
+  return [...known, ...rest].slice(0, max);
+}

@@ -243,3 +243,42 @@ export async function getErc20TokensStrict(chain: ChainConfig, address: string):
     return tokens;
   }
 }
+
+/**
+ * L'adresse détient-elle AU MOINS UN jeton ERC-20 (solde non nul) ? Pour la
+ * recherche des comptes : un compte qui n'a fait que RECEVOIR des jetons (nonce
+ * 0, aucun natif) n'est pas vide. Une requête Alchemy si une clé existe, sinon
+ * `balanceOf` sur les jetons connus (USDC, USDT, DAI, WETH…). Lève si la
+ * lecture échoue : « inconnu », jamais « non ».
+ */
+export async function hasAnyErc20Balance(
+  chain: ChainConfig,
+  address: string,
+  balanceOfStrict: (token: string, owner: string) => Promise<bigint>,
+): Promise<boolean> {
+  const url = alchemyUrlOf(chain);
+  const known = knownTokensFor(chain.evmChainId);
+  if (url) {
+    try {
+      const json = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params: [address, 'erc20'] });
+      assertOk(json, 'soldes');
+      if (parseTokenBalances(json).length > 0) return true;
+      // L'énumération rate parfois les jetons connus (USDC sur Base) : une requête de plus, explicite.
+      if (!known.length) return false;
+      const k = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params: [address, known] });
+      assertOk(k, 'soldes connus');
+      return parseTokenBalances(k).length > 0;
+    } catch {
+      /* Alchemy muet : repli sur balanceOf, ci-dessous */
+    }
+  }
+  /*
+   * Ni Alchemy ni liste connue pour ce réseau : les jetons n'y sont pas
+   * vérifiables. « Non » (et non une erreur) : sinon CHAQUE compte vide y
+   * deviendrait « inconnu » et la recherche ne conclurait jamais. Le nonce et
+   * le solde natif, eux, restent sondés.
+   */
+  if (!known.length) return false;
+  const balances = await Promise.all(known.map((t) => balanceOfStrict(t, address)));
+  return balances.some((b) => b > 0n);
+}

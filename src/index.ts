@@ -120,6 +120,7 @@ export {
 // Tokens ERC-20 (Alchemy)
 export {
   getErc20Tokens,
+  hasAnyErc20Balance,
   getErc20TokensStrict,
   getTokenMetadata,
   getCustomTokens,
@@ -458,3 +459,4 @@ export {
 
 
 export { parseWatchAddress, type WatchFamily, type WatchAddressError } from './domain/wallet/watchAddress';
+export { discoverAccountIndexes, combineActivity, type AccountActivity, type DiscoveryResult } from './domain/wallet/accountDiscovery';

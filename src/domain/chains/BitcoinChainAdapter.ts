@@ -59,7 +59,8 @@ interface RawUtxo {
 }
 
 interface AddressStats {
-  chain_stats?: { funded_txo_sum?: number; spent_txo_sum?: number };
+  chain_stats?: { funded_txo_sum?: number; spent_txo_sum?: number; tx_count?: number };
+  mempool_stats?: { tx_count?: number };
 }
 
 export class BitcoinChainAdapter implements ChainAdapter {
@@ -91,6 +92,17 @@ export class BitcoinChainAdapter implements ChainAdapter {
       },
       { timeoutMs: API_TIMEOUT_MS, key: `btc:${this.config.id}` },
     );
+  }
+
+  /**
+   * L'adresse a-t-elle DÉJÀ servi (une transaction, même vidée depuis) ?
+   * Lève si l'indexeur ne répond pas : « inconnu », jamais « non ».
+   */
+  async hasActivity(address: string): Promise<boolean> {
+    if (!isValidBtcAddress(address)) throw new WalletError('INVALID_ADDRESS', 'Adresse Bitcoin invalide');
+    const stats = (await this.fetchJson(`/address/${address}`)) as AddressStats;
+    if (!stats || typeof stats !== 'object' || !stats.chain_stats) throw new Error('Réponse Bitcoin illisible');
+    return (stats.chain_stats.tx_count ?? 0) > 0 || (stats.mempool_stats?.tx_count ?? 0) > 0 || (stats.chain_stats.funded_txo_sum ?? 0) > 0;
   }
 
   async getBalance(address: string): Promise<Balance> {
