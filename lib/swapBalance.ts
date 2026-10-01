@@ -4,18 +4,18 @@
  * sur un compte plein faisait refuser l'échange pour fonds insuffisants).
  *
  *  - natif : solde du compte ;
- *  - EVM : balanceOf ;
+ *  - EVM : balanceOf strict (réponse vide ou illisible = erreur) ;
  *  - Solana : comptes SPL du propriétaire ;
  *  - TON : jettons listés par l'adaptateur v2.
  * Un jeton absent d'une liste LUE avec succès vaut 0 — c'est alors un fait.
  */
-import { EvmChainAdapter, SolanaChainAdapter, getAdapter, getAdapterV2 } from '../src';
+import { EvmChainAdapter, SolanaChainAdapter, getAdapter, getAdapterV2, normalizeAddressCase } from '../src';
 
 export async function readSwapBalance(chainId: string, owner: string, token: string, native: boolean): Promise<bigint> {
   const a = getAdapter(chainId);
   if (native) return (await a.getBalance(owner)).raw;
   const t = token.toLowerCase();
-  if (a instanceof EvmChainAdapter) return a.getTokenBalance(token, owner);
+  if (a instanceof EvmChainAdapter) return a.getTokenBalanceStrict(token, owner);
   if (a instanceof SolanaChainAdapter) {
     /*
      * Lecture DIRECTE des comptes de ce mint : `getSplTokens` avale ses erreurs
@@ -37,9 +37,8 @@ export async function readSwapBalance(chainId: string, owner: string, token: str
 
 /** Clé d'un solde : réseau + compte + jeton. Toutes les étiquettes passent par ici. */
 export function swapBalanceKey(chainId: string, owner: string | undefined, token: string): string {
-  // Casse ignorée seulement là où elle ne compte pas (EVM 0x…, TON brut) : un mint Solana garde la sienne.
-  const t = /^0x[0-9a-fA-F]+$/.test(token) || /^-?\d+:[0-9a-fA-F]{64}$/.test(token) ? token.toLowerCase() : token;
-  return `${chainId}:${owner ?? ''}:${t}`;
+  // Règle de casse unique (addressCase) : ignorée pour EVM et TON brut, gardée pour un mint Solana.
+  return `${chainId}:${owner ?? ''}:${normalizeAddressCase(token)}`;
 }
 
 /** `at` : moment de la lecture (ms) — une valeur trop vieille est relue au retour sur le jeton. */

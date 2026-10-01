@@ -488,6 +488,18 @@ export class EvmChainAdapter implements ChainAdapter {
   }
 
   /**
+   * balanceOf STRICT : lève si la réponse est vide (`0x`, contrat absent) ou
+   * illisible — là où `getTokenBalance` rend 0. Pour tout ce qui décide d'un
+   * montant (swap) : un faux 0 refuserait l'échange sur un compte plein.
+   */
+  async getTokenBalanceStrict(token: string, owner: string): Promise<bigint> {
+    const data = ERC20.encodeFunctionData('balanceOf', [owner]);
+    const result = await this.call((p) => p.call({ to: token, data }));
+    if (typeof result !== 'string' || !/^0x[0-9a-fA-F]+$/.test(result) || result === '0x') throw new Error('Solde du jeton illisible');
+    return BigInt(result);
+  }
+
+  /**
    * Attend que l'allowance `owner → spender` soit ≥ `min` sur le RPC (poll).
    * Après un approve confirmé, un nœud public en retard d'un bloc peut encore
    * renvoyer l'ancienne allowance → l'estimateGas de la tx suivante revert.

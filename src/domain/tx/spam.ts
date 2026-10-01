@@ -1,3 +1,4 @@
+import { normalizeAddressCase } from '../validation/addressCase';
 /**
  * Tri de l'historique : ce qui relève du SPAM, et pourquoi.
  *
@@ -94,38 +95,33 @@ export function spamReason(tx: TxSummary, ctx: SpamCtx): SpamReason | null {
   return null;
 }
 
+/** Transaction qui vaut « j'ai payé cette adresse » : envoi réussi, non nul, hors NFT et jeton douteux. */
+function isPaidOut(tx: TxSummary, trusted: SpamCtx['trusted']): boolean {
+  if (tx.direction !== 'out' || tx.status !== 'success' || tx.value <= 0n || !tx.to) return false;
+  if ((tx.type ?? '').toUpperCase() === 'NFT') return false;
+  return !(tx.contract && !trusted(tx.chain, tx.contract));
+}
+
+/**
+ * Adresses PAYÉES, dans leur casse d'origine (pas en minuscules) : sur Solana
+ * et en Bitcoin base58, la casse fait partie de l'adresse. Dédoublonnées selon
+ * la règle unique de casse (addressCase.ts).
+ */
+export function paidCounterparties(txs: TxSummary[], trusted: SpamCtx['trusted']): string[] {
+  const out = new Map<string, string>();
+  for (const tx of txs) if (isPaidOut(tx, trusted)) out.set(normalizeAddressCase(tx.to), tx.to);
+  return [...out.values()];
+}
+
 /**
  * Adresses « connues » tirées de l'historique lui-même : celles à qui
  * l'utilisateur a envoyé une valeur non nulle, depuis une transaction réussie,
  * en monnaie native ou en token DE CONFIANCE. Un faux token peut émettre un
  * transfert « de toi vers l'attaquant » sans ta signature ; un envoi natif, non.
  */
-/**
- * Adresses PAYÉES, dans leur casse d'origine (pas en minuscules) : sur Solana
- * et en Bitcoin base58, la casse fait partie de l'adresse — la comparer en
- * minuscules ne reconnaîtrait plus jamais un destinataire déjà payé une fois
- * la comparaison devenue exacte (lib/txAuditProbe addressKey).
- */
-export function paidCounterparties(txs: TxSummary[], trusted: SpamCtx['trusted']): string[] {
-  const out = new Map<string, string>();
-  for (const tx of txs) {
-    if (tx.direction !== 'out' || tx.status !== 'success' || tx.value <= 0n || !tx.to) continue;
-    if ((tx.type ?? '').toUpperCase() === 'NFT') continue;
-    if (tx.contract && !trusted(tx.chain, tx.contract)) continue;
-    const evmLike = /^0x[0-9a-fA-F]{40}$/.test(tx.to) || /^(bc|tb|bcrt)1/i.test(tx.to);
-    out.set(evmLike ? tx.to.toLowerCase() : tx.to, tx.to);
-  }
-  return [...out.values()];
-}
-
 export function knownCounterparties(txs: TxSummary[], trusted: SpamCtx['trusted'], extra: Iterable<string> = []): Set<string> {
   const out = new Set<string>();
   for (const a of extra) if (a) out.add(a.toLowerCase());
-  for (const tx of txs) {
-    if (tx.direction !== 'out' || tx.status !== 'success' || tx.value <= 0n || !tx.to) continue;
-    if ((tx.type ?? '').toUpperCase() === 'NFT') continue;
-    if (tx.contract && !trusted(tx.chain, tx.contract)) continue;
-    out.add(tx.to.toLowerCase());
-  }
+  for (const tx of txs) if (isPaidOut(tx, trusted)) out.add(tx.to.toLowerCase());
   return out;
 }
