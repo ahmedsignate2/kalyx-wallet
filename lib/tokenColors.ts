@@ -38,3 +38,89 @@ const BRAND: Record<string, string> = {
 export function tokenBrandColor(coingeckoId: string | undefined | null): string | null {
   return (coingeckoId && BRAND[coingeckoId]) || null;
 }
+
+/**
+ * Couleur d'un RÉSEAU, lue dans son propre logo embarqué : la teinte saturée
+ * la plus présente (le bleu de Base, le rouge d'Optimism, le jaune de BNB…).
+ * Couvre d'office les soixante réseaux, et ceux qu'on ajoutera — sans table à
+ * tenir à jour. Gris, blancs et noirs sont ignorés : ils ne disent rien.
+ */
+const chainCache = new Map<string, string | null>();
+
+/**
+ * Corrections : logos monochromes (aucune teinte à lire) ou dont la teinte la
+ * plus présente n'est pas celle de la marque (Arbitrum : le bleu nuit du fond
+ * l'emporte sur son bleu ciel).
+ */
+const CHAIN_OVERRIDE: Record<string, string> = {
+  ethereum: '#627EEA',
+  sepolia: '#627EEA',
+  arbitrum: '#28A0F0',
+  base: '#0052FF',
+  'base-sepolia': '#0052FF',
+  solana: '#9945FF',
+  'solana-devnet': '#9945FF',
+  linea: '#61DFFF',
+  zksync: '#8C8DFC',
+  scroll: '#EBC28E',
+  gnosis: '#3E9E7E',
+  cronos: '#1199FA',
+  zetachain: '#00A86B',
+  boba: '#CBFF00',
+  abstract: '#00DE73',
+  lisk: '#4070F4',
+  swell: '#4B65F2',
+};
+
+/** Réseau d'origine des grandes pièces natives : ailleurs, c'est la couleur du réseau qui parle. */
+const HOME_CHAIN: Record<string, string> = { ethereum: 'ethereum', bitcoin: 'bitcoin', solana: 'solana', 'the-open-network': 'ton', binancecoin: 'bnb' };
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  let h = hex.replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
+/** Saturation et luminosité (0-1) : on garde les vraies couleurs. */
+function isColorful([r, g, b]: [number, number, number]): boolean {
+  const max = Math.max(r, g, b) / 255;
+  const min = Math.min(r, g, b) / 255;
+  const l = (max + min) / 2;
+  const s = max === min ? 0 : (max - min) / (1 - Math.abs(2 * l - 1));
+  return s > 0.35 && l > 0.18 && l < 0.85;
+}
+
+export function dominantSvgColor(svg: string): string | null {
+  const counts = new Map<string, number>();
+  for (const m of svg.matchAll(/(?:fill|stop-color|stroke)\s*[=:]\s*["']?(#[0-9a-fA-F]{3,6})\b/g)) {
+    const rgb = hexToRgb(m[1]);
+    if (!rgb || !isColorful(rgb)) continue;
+    const key = `#${rgb.map((v) => v.toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let n = 0;
+  for (const [k, v] of counts) if (v > n) { best = k; n = v; }
+  return best;
+}
+
+export function chainBrandColor(chainId: string | undefined | null, logos: Readonly<Record<string, string>>): string | null {
+  if (!chainId) return null;
+  if (CHAIN_OVERRIDE[chainId]) return CHAIN_OVERRIDE[chainId];
+  if (!chainCache.has(chainId)) chainCache.set(chainId, logos[chainId] ? dominantSvgColor(logos[chainId]) : null);
+  return chainCache.get(chainId) ?? null;
+}
+
+/**
+ * Teinte de la fiche d'un actif.
+ *  - Une pièce native HORS de son réseau d'origine (ETH sur Base, sur
+ *    Arbitrum…) prend la couleur du réseau : c'est lui qui la distingue.
+ *  - Sinon la couleur de l'actif (USDC bleu, même sur Polygon).
+ *  - Actif inconnu : la couleur du réseau, à défaut rien.
+ */
+export function tokenTint(coingeckoId: string | undefined | null, chainId: string | undefined | null, logos: Readonly<Record<string, string>>): string | null {
+  const home = coingeckoId ? HOME_CHAIN[coingeckoId] : undefined;
+  if (home && chainId && chainId !== home) return chainBrandColor(chainId, logos) ?? tokenBrandColor(coingeckoId);
+  return tokenBrandColor(coingeckoId) ?? chainBrandColor(chainId, logos);
+}
