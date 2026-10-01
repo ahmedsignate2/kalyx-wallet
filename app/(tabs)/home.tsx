@@ -362,20 +362,34 @@ export default function Home() {
   const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
   /** Plage de morphing, en pixels de défilement. */
   const MORPH = { from: 32, to: 132 } as const;
-  /** Solde géant : rétrécit et s'efface en montant. */
+  /*
+   * Solde géant et en-tête compact se PASSENT le relais au lieu de se
+   * superposer : le grand s'efface sur la première moitié du morphing, le
+   * compact n'apparaît que sur la seconde. Plus de double « 1,45 » fantôme.
+   */
   const bigBalanceStyle = useAnimatedStyle(() => {
     const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
-    return { opacity: 1 - p, transform: [{ scale: 1 - p * 0.22 }, { translateY: -p * 18 }] };
+    const fade = interpolate(p, [0, 0.55], [1, 0], Extrapolation.CLAMP);
+    return { opacity: fade, transform: [{ scale: 1 - p * 0.22 }, { translateY: -p * 18 }] };
   });
-  /** En-tête compact : prend le relais exactement où le grand s'efface. */
   const compactStyle = useAnimatedStyle(() => {
     const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
-    return { opacity: p, transform: [{ translateY: (1 - p) * -8 }] };
+    const show = interpolate(p, [0.45, 1], [0, 1], Extrapolation.CLAMP);
+    return { opacity: show, transform: [{ translateY: (1 - show) * -8 }] };
   });
-  /** Halo : se resserre en un POINT de lumière près du solde (§9). */
+  /**
+   * Halo : se resserre en un POINT de lumière (§9). Seul le calque
+   * s'efface ; l'ÉCHELLE s'applique au halo lui-même. Mettre l'échelle sur le
+   * calque (qui clippe au bord de l'écran) faisait rétrécir sa zone de coupe
+   * avec lui : un carré aux bords nets apparaissait au milieu de l'écran.
+   */
   const haloStyle = useAnimatedStyle(() => {
     const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
-    return { opacity: 1 - p * 0.72, transform: [{ scale: 1 - p * 0.7 }] };
+    return { opacity: 1 - p * 0.72 };
+  });
+  const haloCoreStyle = useAnimatedStyle(() => {
+    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
+    return { transform: [{ scale: 1 - p * 0.7 }] };
   });
   const prevTotal = useRef(pf.total);
   useEffect(() => { prevTotal.current = pf.total; }, [pf.total]);
@@ -460,9 +474,9 @@ export default function Home() {
       {!hidden ? (
         <Animated.View style={[{ position: 'absolute', left: 0, right: 0, top: 0, height: insets.top + 420, overflow: 'hidden' }, haloStyle]} pointerEvents="none">
           <Orbit cx={screenW - 90} cy={insets.top + 110} r={150} />
-          <View style={{ position: 'absolute', left: screenW - 90 - 150, top: insets.top + 110 - 150 }}>
+          <Animated.View style={[{ position: 'absolute', left: screenW - 90 - 150, top: insets.top + 110 - 150 }, haloCoreStyle]}>
             <Halo size={300} mood={mood} aura />
-          </View>
+          </Animated.View>
         </Animated.View>
       ) : null}
 
