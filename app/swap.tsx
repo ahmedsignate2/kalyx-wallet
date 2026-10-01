@@ -522,7 +522,9 @@ export default function Swap() {
        * encore ceux d'avant) ; relus dès qu'il est confirmé, échoué ou expiré.
        */
       const settle = beginSwap(activeChain, owner);
-      void watchConfirmation(activeChain, hash, summary).then((st) => settle(st === 'confirmed' || st === 'failed' || st === 'expired'));
+      void watchConfirmation(activeChain, hash, summary)
+        .then((st) => settle(st === 'confirmed' || st === 'failed' || st === 'expired'))
+        .catch(() => settle(false)); // suivi en échec : le plafond de 3 min libérera
     } catch (e) {
       // Devis probablement invalide après un échec (prix, blockhash, nonce) : on
       // l'invalide pour forcer un nouveau devis avant toute nouvelle tentative.

@@ -38,7 +38,14 @@ export function IsMyAddress() {
       (otherIds ? otherIds.split(',') : []).map(async (id) => {
         // Aucun enregistrement = aucun compte (comme walletStore) ; seule une lecture qui LÈVE est un échec.
         try {
-          return { walletId: id, accounts: (await loadAccountsStrict(id)) ?? [], failed: false };
+          const accounts = (await loadAccountsStrict(id)) ?? [];
+          /*
+           * Portefeuille à phrase dont un compte n'a pas encore sa clé TON
+           * (ancien compte, complétée au prochain déverrouillage) : ses adresses
+           * TON sont inconnues — on le dit plutôt qu'un « pas à toi ».
+           */
+          const seed = useWallet.getState().wallets.find((w) => w.id === id)?.type !== 'privateKey';
+          return { walletId: id, accounts, failed: seed && accounts.some((a) => !a.tonPublicKey) };
         } catch {
           return { walletId: id, accounts: [] as StoredAccount[], failed: true };
         }
