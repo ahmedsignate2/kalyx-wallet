@@ -458,3 +458,4 @@ export {
 
 
 export { parseWatchAddress, type WatchFamily, type WatchAddressError } from './domain/wallet/watchAddress';
+export { discoverAccountIndexes, combineActivity, type AccountActivity, type DiscoveryResult } from './domain/wallet/accountDiscovery';
