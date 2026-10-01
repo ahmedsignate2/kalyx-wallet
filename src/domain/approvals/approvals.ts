@@ -124,43 +124,64 @@ export function revokeCalldata(spender: string): string {
 /**
  * RÉVOCATION GROUPÉE — un compte classique (EOA) ne peut pas tout révoquer en
  * UNE transaction : on en envoie une par autorisation, signées avec la même clé
- * (une seule confirmation) et des nonces CONSÉCUTIFS fixés d'avance — un nœud
- * en retard qui rendrait deux fois le même nonce ferait remplacer la première.
+ * (une seule confirmation), nonces suivis par le lot.
  *
- * Règles d'arrêt :
- *  - refus AVANT diffusion (simulation refusée : déjà révoquée, jeton bizarre)
- *    → on passe à la suivante avec LE MÊME nonce (il n'a pas servi) ;
- *  - frais insuffisants → arrêt : les suivantes échoueraient pareil ;
- *  - toute autre erreur (diffusion incertaine) → arrêt : on ne sait pas si le
- *    nonce est consommé, continuer risquerait d'en remplacer une.
+ * Pour chacune, dans l'ordre :
+ *  - `check` relit l'autorisation : déjà à 0 → « already », rien n'est envoyé ;
+ *  - `send` envoie (et rend le nonce RÉELLEMENT utilisé : l'appelant prend le
+ *    plus grand entre celui proposé et celui du réseau, au cas où une autre
+ *    transaction serait partie entre-temps) ;
+ *  - refus du contrat AVANT diffusion (CALL_EXCEPTION) → « skipped », nonce
+ *    intact, on continue ;
+ *  - frais insuffisants → « failed » (pas diffusée), arrêt ;
+ *  - toute autre erreur → « uncertain » (diffusion peut-être faite), arrêt :
+ *    continuer risquerait de remplacer une transaction ; l'écran dit de
+ *    vérifier l'historique avant de réessayer.
+ * `shouldContinue` faux (demande annulée) : plus rien ne part.
  */
 export type RevokeOutcome =
   | { status: 'sent'; hash: string }
+  | { status: 'already' }
   | { status: 'skipped'; error: unknown }
   | { status: 'failed'; error: unknown }
+  | { status: 'uncertain'; error: unknown }
   | { status: 'notSent' };
 
 export async function runRevokeBatch<T>(
   items: readonly T[],
   firstNonce: number,
-  send: (item: T, nonce: number) => Promise<string>,
+  io: {
+    check?: (item: T) => Promise<'active' | 'revoked'>;
+    send: (item: T, nonce: number) => Promise<{ hash: string; nonce: number }>;
+    shouldContinue?: () => boolean;
+  },
   onProgress?: (done: number, total: number) => void,
 ): Promise<RevokeOutcome[]> {
   const out: RevokeOutcome[] = items.map(() => ({ status: 'notSent' }));
   let nonce = firstNonce;
   for (let i = 0; i < items.length; i++) {
+    if (io.shouldContinue && !io.shouldContinue()) break;
     onProgress?.(i, items.length);
     try {
-      out[i] = { status: 'sent', hash: await send(items[i], nonce) };
-      nonce += 1;
+      if (io.check && (await io.check(items[i])) === 'revoked') {
+        out[i] = { status: 'already' };
+        continue;
+      }
+    } catch {
+      /* relecture impossible : on tente l'envoi, la simulation tranchera */
+    }
+    try {
+      const r = await io.send(items[i], nonce);
+      out[i] = { status: 'sent', hash: r.hash };
+      nonce = r.nonce + 1;
     } catch (e) {
       const code = (e as { code?: string })?.code;
       if (code === 'CALL_EXCEPTION') {
         out[i] = { status: 'skipped', error: e }; // pas diffusée : nonce intact
         continue;
       }
-      out[i] = { status: 'failed', error: e };
-      break; // frais insuffisants ou diffusion incertaine : on s'arrête là
+      out[i] = code === 'INSUFFICIENT_FUNDS' ? { status: 'failed', error: e } : { status: 'uncertain', error: e };
+      break;
     }
   }
   onProgress?.(items.length, items.length);

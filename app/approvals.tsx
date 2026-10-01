@@ -2,7 +2,7 @@ import { NovaCard, NovaHero } from '../ui/nova';
 import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { fetchApprovalCandidates } from '../src/domain/security/goplus';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, ScrollView, RefreshControl } from 'react-native';
 import { Stack } from 'expo-router';
 import * as Linking from 'expo-linking';
@@ -34,6 +34,8 @@ function ApprovalsInner() {
   const account = useWallet((s) => s.account);
   const activeChain = useWallet((s) => s.activeChain);
   const revokeApprovals = useWallet((s) => s.revokeApprovals);
+  /** Portefeuille + compte actifs : un résultat de révocation n'est appliqué qu'à eux. */
+  const scopeAccount = useWallet((s) => `${s.activeWalletId}#${s.activeAccountIndex}`);
   const chain = getAdapter(activeChain).config;
   const isEvm = chain.family === 'evm';
 
@@ -80,7 +82,9 @@ function ApprovalsInner() {
       const rank = (x: ApprovalItem) => (x.risky ? 0 : isUnlimited(x.allowance) ? 1 : 2);
       setItems([...report.items].sort((a, b) => rank(a) - rank(b)));
       setIncomplete(report.incomplete);
-      setSelected(new Set());
+      // Sélection gardée pour ce qui existe encore (un rechargement ne la perd pas).
+      const still = new Set(report.items.map(keyOf));
+      setSelected((cur) => new Set([...cur].filter((k) => still.has(k))));
     } catch {
       setItems([]);
       setIncomplete(true);
@@ -99,12 +103,19 @@ function ApprovalsInner() {
    * la feuille le signale) ; les transactions partent ensuite, progression à
    * l'écran — un lot dépasse vite le délai de la fenêtre biométrique.
    */
+  /** Demande en cours ; fermer la fenêtre l'annule (rien ne part, même si la clé arrive après). */
+  const request = useRef(0);
   const perform = (unlock: Unlock) =>
     new Promise<void>((resolve, reject) => {
       const list = targets ?? [];
       if (!list.length) return resolve();
+      const id = ++request.current;
+      const live = () => id === request.current;
+      // Réseau et compte au départ : un résultat n'est appliqué qu'à la liste qui l'a produit.
+      const scope = `${activeChain}:${scopeAccount}`;
       let unlocked = false;
       revokeApprovals(unlock, activeChain, list, {
+        shouldContinue: live,
         onUnlocked: () => {
           unlocked = true;
           setProgress({ done: 0, total: list.length });
@@ -113,28 +124,36 @@ function ApprovalsInner() {
         onProgress: (done, total) => setProgress({ done, total }),
       })
         .then((res) => {
-          const sentKeys = new Set(list.filter((_, k) => res[k].status === 'sent').map(keyOf));
-          const skipped = res.filter((r) => r.status === 'skipped').length;
-          const stop = res.find((r) => r.status === 'failed');
-          const notSent = res.filter((r) => r.status === 'notSent').length;
-          // Retirées localement (les transactions se confirment) ; le reste reste coché pour réessayer.
-          setItems((cur) => (cur ?? []).filter((x) => !sentKeys.has(keyOf(x))));
-          setSelected(new Set(list.filter((x) => !sentKeys.has(keyOf(x))).map(keyOf)));
-          if (sentKeys.size) toast.success(t('revokeSent'), fill(t('revokeBatchDone'), { count: String(sentKeys.size) }));
-          if (skipped) toast.warning(t('revoke'), fill(t('revokeBatchSkipped'), { count: String(skipped) }));
-          if (stop && stop.status === 'failed') {
-            toast.error(t('revoke'), fill(t('revokeBatchStopped'), { reason: friendlyTxError(stop.error, t as never), count: String(notSent + 1) }));
+          const done = new Set(list.filter((_, k) => res[k].status === 'sent' || res[k].status === 'already').map(keyOf));
+          const count = (st: string) => res.filter((r) => r.status === st).length;
+          const stop = res.find((r) => r.status === 'failed' || r.status === 'uncertain');
+          if (scopeRef.current === scope) {
+            // Révoquées ou déjà à 0 : retirées. Incertaine : décochée (vérifier l'historique). Le reste garde son état.
+            const uncertainKeys = new Set(list.filter((_, k) => res[k].status === 'uncertain').map(keyOf));
+            setItems((cur) => (cur ?? []).filter((x) => !done.has(keyOf(x))));
+            setSelected((cur) => new Set([...cur].filter((k) => !done.has(k) && !uncertainKeys.has(k))));
+          }
+          if (count('sent')) toast.success(t('revokeSent'), fill(t('revokeBatchDone'), { count: String(count('sent')) }));
+          if (count('already')) toast.info(t('revoke'), fill(t('revokeBatchAlready'), { count: String(count('already')) }));
+          if (count('skipped')) toast.warning(t('revoke'), fill(t('revokeBatchSkipped'), { count: String(count('skipped')) }));
+          if (stop && (stop.status === 'failed' || stop.status === 'uncertain')) {
+            const reason = friendlyTxError(stop.error, t as never);
+            const left = count('notSent') + (stop.status === 'failed' ? 1 : 0);
+            toast.error(t('revoke'), fill(t(stop.status === 'uncertain' ? 'revokeBatchUncertain' : 'revokeBatchStopped'), { reason, count: String(left) }));
           }
         })
         .catch((e) => {
-          if (!unlocked) reject(e);
+          if (!unlocked) reject(e); // code faux, biométrie refusée : la fenêtre le gère et reste ouverte
           else toast.error(t('revoke'), friendlyTxError(e, t as never));
         })
         .finally(() => {
+          if (!unlocked) return; // la fenêtre est encore là : on ne la ferme pas sous l'utilisateur
           setProgress(null);
           setTargets(null);
         });
     });
+  const scopeRef = useRef('');
+  scopeRef.current = `${activeChain}:${scopeAccount}`;
 
   const selectedItems = (items ?? []).filter((x) => selected.has(keyOf(x)));
   const busy = progress !== null;
@@ -182,7 +201,7 @@ function ApprovalsInner() {
                 <Text style={{ color: colors.text, fontSize: 13, fontFamily: fonts.semibold }}>{t('selectAllApprovals')}</Text>
               </KPressable>
               {items.some((x) => isUnlimited(x.allowance)) ? (
-                <KPressable disabled={busy} onPress={() => setSelected(new Set(items.filter((x) => isUnlimited(x.allowance) || x.risky).map(keyOf)))} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: colors.surface2 }}>
+                <KPressable disabled={busy} onPress={() => setSelected(new Set(items.filter((x) => isUnlimited(x.allowance)).map(keyOf)))} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: colors.surface2 }}>
                   <Text style={{ color: colors.text, fontSize: 13, fontFamily: fonts.semibold }}>{t('selectUnlimitedApprovals')}</Text>
                 </KPressable>
               ) : null}
@@ -297,7 +316,10 @@ function ApprovalsInner() {
         }
         perform={perform}
         onDone={() => undefined}
-        onCancel={() => setTargets(null)}
+        onCancel={() => {
+          request.current += 1; // annule une demande dont la clé arriverait après coup
+          setTargets(null);
+        }}
       />
     </PremiumScreen>
     </>

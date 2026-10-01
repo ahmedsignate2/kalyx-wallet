@@ -466,6 +466,14 @@ export class EvmChainAdapter implements ChainAdapter {
   // --- Support des transactions de contrat (swap/approbation ERC-20) ---
 
   /** Allowance ERC-20 (combien `spender` peut dépenser des tokens de `owner`). */
+  /** allowance STRICTE : lève si la réponse est vide ou illisible (jamais un faux « 0 = déjà révoquée »). */
+  async getAllowanceStrict(token: string, owner: string, spender: string): Promise<bigint> {
+    const data = ERC20.encodeFunctionData('allowance', [owner, spender]);
+    const result = await this.call((p) => p.call({ to: token, data }));
+    if (typeof result !== 'string' || !/^0x[0-9a-fA-F]+$/.test(result)) throw new Error('Autorisation illisible');
+    return BigInt(result);
+  }
+
   async getAllowance(token: string, owner: string, spender: string): Promise<bigint> {
     const data = ERC20.encodeFunctionData('allowance', [owner, spender]);
     const result = await this.call((p) => p.call({ to: token, data }));
