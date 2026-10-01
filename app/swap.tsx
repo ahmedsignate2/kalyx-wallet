@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { swapTokenTint, withAlpha } from '../lib/tokenColors';
 import { SnapSlider } from '../ui/SnapSlider';
 import { availableFrom, freshRaw } from '../lib/swapBalance';
-import { useSwapBalances } from '../lib/useSwapBalances';
+import { beginSwap, useSwapBalances } from '../lib/useSwapBalances';
 import { CHAIN_LOGO_SVG } from '../src/domain/chains/chainLogos.generated';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState, Pressable as KPressable } from '../ui/kit';
@@ -29,6 +29,7 @@ import { fill } from '../lib/i18n';
 import { Rise, GOLD } from '../ui/nova';
 import {
   getAdapter,
+  withTimeout,
   getErc20Tokens,
   getAdapterV2,
   getBestQuote,
@@ -49,7 +50,6 @@ import {
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { usePortfolioStore } from '../lib/portfolio';
 import { TokenPicker } from '../ui/TokenPicker';
-import { withTimeout } from '../src/domain/chains/net';
 
 /** Durée de validité d'un devis avant auto-actualisation (s). */
 const QUOTE_TTL_S = 30;
@@ -159,7 +159,7 @@ export default function Swap() {
   const [success, setSuccess] = useState<{ hash: string; summary: string; isBridge?: boolean; fromChain?: string; toChain?: string } | null>(null);
   const [held, setHeld] = useState<Tok[]>([]);
   /** Branché plus bas sur useSwapBalances (déclaré après le choix du jeton source). */
-  const seedHeldRef = useRef<(chainId: string, owner: string, list: { token: string; raw: bigint }[]) => void>(() => {});
+  const seedHeldRef = useRef<{ seed: (chainId: string, owner: string, list: { token: string; raw: bigint }[], gen: number) => void; gen: () => number }>({ seed: () => {}, gen: () => 0 });
   const params = useLocalSearchParams<{ contract?: string; to?: string }>();
 
   // Tokens réellement détenus sur la chaîne active → swappables même hors liste curée.
@@ -169,17 +169,19 @@ export default function Swap() {
     if (!account?.address) return;
     const chainId = activeChain;
     const owner = account.address;
+    const genAtLoad = seedHeldRef.current.gen();
     const loaded = (list: Tok[]) => {
       if (cancelled) return;
       setHeld(list);
       // Leurs soldes s'affichent tout de suite (tenus pour vieux : une lecture directe suit).
-      seedHeldRef.current(
+      seedHeldRef.current.seed(
         chainId,
         owner,
         list.flatMap((tk) => {
           const bal = (tk as Tok & { balance?: bigint }).balance;
           return typeof bal === 'bigint' ? [{ token: tk.address, raw: bal }] : [];
         }),
+        genAtLoad,
       );
     };
 
@@ -311,7 +313,8 @@ export default function Swap() {
   /** Confirmation ou exécution en cours : rafraîchissements suspendus. */
   const pausedRef = useRef(false);
   const sb = useSwapBalances({ chainId: activeChain, owner, srcToken: fromTok?.address ?? null, srcNative, pausedRef });
-  seedHeldRef.current = sb.seedHeld;
+  // Le hook dépend de `fromTok`, lui-même tiré de la liste détenue : d'où ce relais par ref.
+  seedHeldRef.current = { seed: sb.seedHeld, gen: sb.currentGen };
   const { srcEntry, gasEntry, swapPending } = sb;
   /** Lecture du solde en échec : « Disponible » propose de réessayer. */
   const balanceError = srcEntry?.status === 'error' || (srcNative && !gasReserve && gasSlow);
@@ -396,7 +399,8 @@ export default function Swap() {
       try {
         bal = await sb.readSrc(); // partage une lecture déjà en vol ; bornée à 15 s
       } catch {
-        return null; // réseau muet : on laisse le devis trancher
+        // Jamais de devis sur un solde qu'on n'a pas pu lire (l'indexeur peut être en retard).
+        return t('errBalanceUnreadable');
       }
     }
     // Réserve : celle du state, ou ré-estimée à la volée (8 s au plus) ; inestimable → le devis tranchera.
@@ -517,10 +521,8 @@ export default function Swap() {
        * Soldes du réseau mis de côté jusqu'à l'ISSUE de l'échange (le nœud rend
        * encore ceux d'avant) ; relus dès qu'il est confirmé, échoué ou expiré.
        */
-      const settle = sb.beginSwap();
-      void watchConfirmation(activeChain, hash, summary).then((st) => {
-        if (st === 'confirmed' || st === 'failed' || st === 'expired') settle();
-      });
+      const settle = beginSwap(activeChain, owner);
+      void watchConfirmation(activeChain, hash, summary).then((st) => settle(st === 'confirmed' || st === 'failed' || st === 'expired'));
     } catch (e) {
       // Devis probablement invalide après un échec (prix, blockhash, nonce) : on
       // l'invalide pour forcer un nouveau devis avant toute nouvelle tentative.

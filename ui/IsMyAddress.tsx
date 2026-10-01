@@ -7,7 +7,7 @@ import { useTheme } from './theme';
 import { fontFamily } from './tokens';
 import { useT } from '../lib/settingsStore';
 import { useWallet } from '../lib/walletStore';
-import { loadAccounts, type StoredAccount } from '../lib/secureStore';
+import { loadAccountsStrict, type StoredAccount } from '../lib/secureStore';
 import { accountDisplayName, walletDisplayName } from '../lib/walletNames';
 import { buildAddressIndex, lookupAddress, type WalletAccounts } from '../lib/isMyAddress';
 
@@ -29,16 +29,18 @@ export function IsMyAddress() {
   const [othersState, setOthersState] = useState<'loading' | 'ok' | 'partial'>('loading');
   /** Relecture demandée depuis l'avertissement « certains portefeuilles n'ont pas pu être vérifiés ». */
   const [reload, setReload] = useState(0);
+  // Relu quand la LISTE des portefeuilles change (pas à chaque nouvelle référence du tableau).
+  const otherIds = wallets.filter((w) => w.id !== activeWalletId).map((w) => w.id).join(',');
   useEffect(() => {
     let alive = true;
     setOthersState('loading');
     Promise.all(
-      wallets.filter((w) => w.id !== activeWalletId).map(async (w) => {
+      (otherIds ? otherIds.split(',') : []).map(async (id) => {
         // Aucun enregistrement = aucun compte (comme walletStore) ; seule une lecture qui LÈVE est un échec.
         try {
-          return { walletId: w.id, accounts: (await loadAccounts(w.id)) ?? [], failed: false };
+          return { walletId: id, accounts: (await loadAccountsStrict(id)) ?? [], failed: false };
         } catch {
-          return { walletId: w.id, accounts: [] as StoredAccount[], failed: true };
+          return { walletId: id, accounts: [] as StoredAccount[], failed: true };
         }
       }),
     ).then((list) => {
@@ -49,7 +51,7 @@ export function IsMyAddress() {
     return () => {
       alive = false;
     };
-  }, [wallets, activeWalletId, reload]);
+  }, [otherIds, reload]);
   const index = useMemo(() => buildAddressIndex([{ walletId: activeWalletId, accounts: activeAccounts }, ...others]), [activeWalletId, activeAccounts, others]);
   const accountsOf = (walletId: string) => (walletId === activeWalletId ? activeAccounts : others.find((o) => o.walletId === walletId)?.accounts ?? []);
 

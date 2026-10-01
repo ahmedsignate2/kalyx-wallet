@@ -9,9 +9,8 @@
  *  - TON : jettons listés par l'adaptateur v2 (TonAPI lève sur erreur HTTP).
  * Un jeton absent d'une liste LUE avec succès vaut 0 — c'est alors un fait.
  */
-import { EvmChainAdapter, SolanaChainAdapter, getAdapter, getAdapterV2 } from '../src';
+import { EvmChainAdapter, SolanaChainAdapter, getAdapter, getAdapterV2, withTimeout } from '../src';
 import { addressKey } from './txAuditProbe';
-import { withTimeout } from '../src/domain/chains/net';
 
 /** Lecture bornée à 15 s : un RPC qui ne répond pas devient une erreur, jamais une attente sans fin. */
 export function readSwapBalance(chainId: string, owner: string, token: string, native: boolean): Promise<bigint> {

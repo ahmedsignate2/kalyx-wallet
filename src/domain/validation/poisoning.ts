@@ -20,8 +20,9 @@ function core(a: string): string {
 }
 /** Règle de casse unique (addressCase) : EVM et bech32 en minuscules, Solana/base58 exacts. */
 function norm(a: string): string {
-  const s = normalizeAddressCase(a);
-  return s.startsWith('0X') ? s.toLowerCase() : s;
+  const s = a.trim();
+  // Tout 0x… (même hors format strict) reste comparé sans casse, comme avant.
+  return /^0x/i.test(s) ? s.toLowerCase() : normalizeAddressCase(s);
 }
 
 /**

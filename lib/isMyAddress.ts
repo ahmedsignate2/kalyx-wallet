@@ -24,7 +24,9 @@ export function buildAddressIndex<A extends AccountAddresses & { index: number }
         // Seule l'adresse TON change entre réseau principal et réseau de test.
         for (const testnet of family === 'ton' ? [false, true] : [false]) {
           const mine = addressForChain(acc, { family, testnet });
-          if (mine && !index.has(addressKey(mine))) index.set(addressKey(mine), { walletId: w.walletId, index: acc.index, family });
+          if (!mine) continue;
+          const k = addressKey(mine);
+          if (!index.has(k)) index.set(k, { walletId: w.walletId, index: acc.index, family });
         }
       }
     }
