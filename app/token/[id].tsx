@@ -14,7 +14,8 @@ import {
 import { Halo } from '../../ui/kit/Halo';
 import { ActionDisc, GOLD, NovaCard, Orbit, Pills, Rise, SectionLabel } from '../../ui/nova';
 import { Aurora } from '../../ui/Aurora';
-import { tokenBrandColor } from '../../lib/tokenColors';
+import { tokenTint } from '../../lib/tokenColors';
+import { CHAIN_LOGO_SVG } from '../../src/domain/chains/chainLogos.generated';
 import { TxRow } from '../../ui/TxRow';
 import { InteractiveChart } from '../../ui/InteractiveChart';
 import { Icon } from '../../ui/icon';
@@ -317,9 +318,9 @@ export default function TokenDetail() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-      {/* Aurore aux couleurs du token : Solana violet, Bitcoin orangé, ETH bleuté… */}
+      {/* Aurore aux couleurs de l'actif, ou de son réseau (ETH sur Base : bleu Base). */}
       <View pointerEvents="none" style={{ position: 'absolute', top: -60, left: -20, right: -20, height: 520 }}>
-        <Aurora height={520} mood={detail ? (up ? 'up' : 'down') : 'flat'} tint={tokenBrandColor(id)} />
+        <Aurora height={520} mood={detail ? (up ? 'up' : 'down') : 'flat'} tint={tokenTint(id, chain?.id, CHAIN_LOGO_SVG)} />
       </View>
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, width: 300, height: 300 }}>
         <Orbit cx={210} cy={60} r={120} />
