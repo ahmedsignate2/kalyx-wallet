@@ -19,6 +19,7 @@ import { router, Stack, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MarketPanel } from '../../ui/MarketPanel';
 import { Allocation } from '../../ui/Allocation';
+import { HomeNudge } from '../../ui/HomeNudge';
 import { NftDetailModal } from '../../ui/NftDetailModal';
 import { InteractiveChart } from '../../ui/InteractiveChart';
 import { Icon } from '../../ui/icon';
@@ -664,6 +665,9 @@ export default function Home() {
           <ActionDisc index={2} icon="exchange" label={t("actionSwap")} onPress={() => router.push('/swap')} />
           <ActionDisc index={3} tone="gold" icon="staking" label={t("actionEarn")} onPress={() => router.navigate('/earn')} />
         </View>
+
+        {/* Le point de sécurité le plus important qui reste à régler (un seul à la fois). */}
+        <HomeNudge />
 
         {/* ── Tokens · NFT · Activité ── */}
         <View style={{ gap: space[3] }}>
