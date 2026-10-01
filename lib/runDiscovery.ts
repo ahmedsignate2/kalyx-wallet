@@ -32,7 +32,7 @@ export function canDiscover(walletId: string): boolean {
   return type === undefined || type === 'seed';
 }
 
-type Run = (opts: { onProgress: (i: number) => void; onUnlocked: () => void }) => Promise<{ added: number[]; uncertain: number[] }>;
+type Run = (opts: { onProgress: (i: number) => void; onUnlocked: () => void }) => Promise<{ added: number[]; uncertain: number[]; aborted?: boolean }>;
 
 /**
  * Exécute une recherche et en annonce l'issue. Rend la main dès que la phrase
@@ -52,10 +52,12 @@ export function trackDiscovery(walletId: string, run: Run, opts: { announce?: bo
         if (opts.announce) toast.info(tr('discoverTitle'), tr('discoverRunning'));
       },
     })
-      .then(({ added, uncertain }) => {
-        if (added.length) toast.success(tr('discoverTitle'), tr('discoverFound').replace('{count}', String(added.length)));
+      .then(({ added, uncertain, aborted }) => {
+        // Trouvés mais pas écrits (portefeuille changé) : jamais « aucun compte » — à relancer.
+        if (aborted) toast.warning(tr('discoverTitle'), tr('discoverUncertain'));
+        else if (added.length) toast.success(tr('discoverTitle'), tr('discoverFound').replace('{count}', String(added.length)));
         else if (!uncertain.length) toast.info(tr('discoverTitle'), tr('discoverNone'));
-        if (uncertain.length) toast.warning(tr('discoverTitle'), tr('discoverUncertain'));
+        if (uncertain.length && !aborted) toast.warning(tr('discoverTitle'), tr('discoverUncertain'));
       })
       .catch((e) => {
         if (!unlocked) reject(e); // code faux, biométrie refusée… : à la fenêtre de confirmation

@@ -57,7 +57,9 @@ export async function discoverAccountIndexes(
       emptyRun += 1;
       quietRun += 1;
     } else {
+      // Peut-être utilisé : l'écart de `gap` vides se recompte APRÈS lui (sinon on s'arrêterait trop tôt).
       uncertain.push(i);
+      emptyRun = 0;
       quietRun += 1;
     }
   }

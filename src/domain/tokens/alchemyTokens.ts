@@ -257,12 +257,21 @@ export async function hasAnyErc20Balance(
   balanceOfStrict: (token: string, owner: string) => Promise<bigint>,
 ): Promise<boolean> {
   const url = alchemyUrlOf(chain);
-  if (url) {
-    const json = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params: [address, 'erc20'] });
-    assertOk(json, 'soldes');
-    if (parseTokenBalances(json).length > 0) return true;
-  }
   const known = knownTokensFor(chain.evmChainId);
+  if (url) {
+    try {
+      const json = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params: [address, 'erc20'] });
+      assertOk(json, 'soldes');
+      if (parseTokenBalances(json).length > 0) return true;
+      // L'énumération rate parfois les jetons connus (USDC sur Base) : une requête de plus, explicite.
+      if (!known.length) return false;
+      const k = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params: [address, known] });
+      assertOk(k, 'soldes connus');
+      return parseTokenBalances(k).length > 0;
+    } catch {
+      /* Alchemy muet : repli sur balanceOf, ci-dessous */
+    }
+  }
   const balances = await Promise.all(known.map((t) => balanceOfStrict(t, address)));
   return balances.some((b) => b > 0n);
 }
