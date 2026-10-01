@@ -42,6 +42,7 @@ import {
   describeSolanaTransaction,
   getTokenMetadata,
   summarizePsbt,
+  formatTokenAmount,
   type PsbtSummary,
   type RiskAssessment,
   type Simulation,
@@ -488,7 +489,14 @@ export function WalletConnectHost() {
           perform={perform}
           onDone={() => setConfirming(false)}
           onCancel={() => setConfirming(false)}
-          aiContext={tx ? { to: tx.to ?? '', value: tx.value.toString(), method: info.method, url: peer?.url } : undefined}
+          aiContext={tx ? {
+            to: tx.to ?? '',
+            // Montant lisible : le modèle recevait des wei bruts.
+            value: `${formatTokenAmount(tx.value, 18)} ${chain?.nativeSymbol ?? ''}`.trim(),
+            method: `${info.method} — ${explanation.title}: ${explanation.headline}`,
+            network: chain?.name,
+            url: peer?.url,
+          } : undefined}
         />
       </>
     );
