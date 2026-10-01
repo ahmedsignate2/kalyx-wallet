@@ -124,3 +124,34 @@ export function tokenTint(coingeckoId: string | undefined | null, chainId: strin
   if (home && chainId && chainId !== home) return chainBrandColor(chainId, logos) ?? tokenBrandColor(coingeckoId);
   return tokenBrandColor(coingeckoId) ?? chainBrandColor(chainId, logos);
 }
+
+/** `#RRGGBB` + opacité → `rgba(…)`. Couleur illisible : rendue telle quelle. */
+export function withAlpha(hex: string, alpha: number): string {
+  const rgb = hexToRgb(hex);
+  return rgb ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})` : hex;
+}
+
+/** Mélange opaque de deux couleurs `#RRGGBB` (t = part de `b`). */
+export function mixHex(a: string, b: string, t: number): string {
+  const x = hexToRgb(a);
+  const y = hexToRgb(b);
+  if (!x || !y) return a;
+  const c = x.map((v, i) => Math.round(v + (y[i] - v) * t));
+  return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+}
+
+/** Couleur de marque par SYMBOLE (listes de swap : pas d'identifiant CoinGecko). */
+const SYMBOL_BRAND: Record<string, string> = {
+  ETH: '#627EEA', WETH: '#627EEA', STETH: '#00A3FF', WSTETH: '#00A3FF',
+  BTC: '#F7931A', WBTC: '#F7931A', CBBTC: '#F7931A', TBTC: '#F7931A',
+  USDC: '#2775CA', 'USDC.E': '#2775CA', USDT: '#26A17B', 'USD₮': '#26A17B', USDT0: '#26A17B', DAI: '#F5AC37', USDE: '#4C4C4C',
+  SOL: '#9945FF', WSOL: '#9945FF', JUP: '#C7F284', BONK: '#F8A71D',
+  TON: '#0098EA', BNB: '#F3BA2F', WBNB: '#F3BA2F', POL: '#8247E5', MATIC: '#8247E5',
+  AVAX: '#E84142', WAVAX: '#E84142', ARB: '#28A0F0', OP: '#FF0420', LINK: '#2A5ADA',
+  UNI: '#FF007A', AAVE: '#B6509E', PEPE: '#3D8130', SHIB: '#FFA409', DOGE: '#C2A633',
+};
+
+/** Teinte d'un jeton de swap : son symbole, sinon le réseau. */
+export function swapTokenTint(symbol: string | undefined, chainId: string | undefined, logos: Readonly<Record<string, string>>): string | null {
+  return (symbol && SYMBOL_BRAND[symbol.toUpperCase()]) || chainBrandColor(chainId, logos);
+}
