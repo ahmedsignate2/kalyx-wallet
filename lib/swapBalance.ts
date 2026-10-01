@@ -37,7 +37,9 @@ export async function readSwapBalance(chainId: string, owner: string, token: str
 
 /** Clé d'un solde : réseau + compte + jeton. Toutes les étiquettes passent par ici. */
 export function swapBalanceKey(chainId: string, owner: string | undefined, token: string): string {
-  return `${chainId}:${owner ?? ''}:${token.toLowerCase()}`;
+  // Casse ignorée seulement là où elle ne compte pas (EVM 0x…, TON brut) : un mint Solana garde la sienne.
+  const t = /^0x[0-9a-fA-F]+$/.test(token) || /^-?\d+:[0-9a-fA-F]{64}$/.test(token) ? token.toLowerCase() : token;
+  return `${chainId}:${owner ?? ''}:${t}`;
 }
 
 /** `at` : moment de la lecture (ms) — une valeur trop vieille est relue au retour sur le jeton. */

@@ -43,6 +43,9 @@ export function HomeNudge() {
 
   useEffect(() => {
     let alive = true;
+    // Rien n'est affiché tant que l'état « écarté » de CETTE liste n'est pas relu
+    // (sinon une carte écartée réapparaissait un instant).
+    setSnoozed(null);
     Promise.all(all.map(async (n) => [n.id, Number(await AsyncStorage.getItem(key(n.id)).catch(() => null)) || 0] as const)).then((rows) => {
       if (!alive) return;
       const now = Date.now();

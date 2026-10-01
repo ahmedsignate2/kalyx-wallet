@@ -31,8 +31,9 @@ describe('availableFrom', () => {
     expect(availableFrom({ status: 'ok', raw: 2n, at: 0 }, true, 3n)).toBe(0n);
     expect(availableFrom({ status: 'ok', raw: 10n, at: 0 }, false, 3n)).toBe(10n);
   });
-  it('clé : insensible à la casse du jeton', () => {
+  it('clé : casse ignorée pour EVM, conservée pour un mint Solana', () => {
     expect(swapBalanceKey('base', '0xme', '0xABC')).toBe(swapBalanceKey('base', '0xme', '0xabc'));
+    expect(swapBalanceKey('solana', 'me', 'EPjFWdd5')).not.toBe(swapBalanceKey('solana', 'me', 'epjfwdd5'));
   });
 });
 
