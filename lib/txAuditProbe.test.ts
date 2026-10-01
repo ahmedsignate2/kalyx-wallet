@@ -57,3 +57,13 @@ describe('probeRecipient', () => {
     expect(p.flags).toEqual(['gpPhishing']);
   });
 });
+
+describe('historique vide', () => {
+  it('n’affirme « adresse neuve » que si le solde est nul aussi', async () => {
+    const base = { config: { family: 'solana' }, getHistory: jest.fn(async () => []) };
+    (getAdapter as jest.Mock).mockReturnValue({ ...base, getBalance: jest.fn(async () => ({ raw: 5n, decimals: 9, symbol: 'SOL' })) });
+    expect((await probeRecipient('solana', undefined, 'X', 200)).profile).toBeUndefined();
+    (getAdapter as jest.Mock).mockReturnValue({ ...base, getBalance: jest.fn(async () => ({ raw: 0n, decimals: 9, symbol: 'SOL' })) });
+    expect((await probeRecipient('solana', undefined, 'X', 200)).profile?.txCount).toBe(0);
+  });
+});
