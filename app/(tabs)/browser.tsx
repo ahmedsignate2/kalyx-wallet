@@ -55,7 +55,7 @@ import { looksLikeTonConnect } from '../../src/domain/tonconnect/connectLink';
 import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../../lib/browserPrefs';
 import { buildInjectedProvider, parseDappMessage, respondJs, emitJs, rpcProxy, READONLY_METHODS, type DappRequest } from '../../lib/dappProvider';
 import {
-  getAdapter, listChains, hexToText, parseSiwe, siweDomainMismatch, summarizeTypedData, assessAddress, isPhishingSite,
+  getAdapter, formatTokenAmount, listChains, hexToText, parseSiwe, siweDomainMismatch, summarizeTypedData, assessAddress, isPhishingSite,
   decodeTx, simulateTx, explainRequest, getTokenMetadata, chainIconUrl, isValidEvmAddress, type RawTxRequest, type RiskAssessment, type Simulation,
 } from '../../src';
 import { useHistoryStore } from '../../lib/historyStore';
@@ -1074,7 +1074,14 @@ export default function Browser() {
         perform={perform}
         onDone={() => setSignConfirm(false)}
         onCancel={() => setSignConfirm(false)}
-        aiContext={pending?.kind === 'tx' ? { to: pending.to ?? '', value: pending.value.toString(), method: 'eth_sendTransaction', url: `https://${pending.origin}` } : undefined}
+        aiContext={pending?.kind === 'tx' ? {
+          to: pending.to ?? '',
+          // Montant lisible : le modèle recevait des wei bruts (« 1000000000000000000 »).
+          value: `${formatTokenAmount(pending.value, 18)} ${getAdapter(pending.chainId).config.nativeSymbol}`,
+          method: explanation ? `eth_sendTransaction — ${explanation.title}: ${explanation.headline}` : 'eth_sendTransaction',
+          network: getAdapter(pending.chainId).config.name,
+          url: `https://${pending.origin}`,
+        } : undefined}
       />
     </View>
   );
