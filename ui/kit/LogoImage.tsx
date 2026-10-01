@@ -6,7 +6,7 @@
  * par ici : un <Image> nu ne sait pas lire « kalyx-chain:… » et resterait vide.
  */
 import React, { memo } from 'react';
-import { Image, Platform, View, type ImageStyle, type StyleProp } from 'react-native';
+import { Image, View, type ImageStyle, type StyleProp } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { embeddedChainLogo } from '../../src';
 
@@ -25,14 +25,18 @@ export const LogoImage = memo(function LogoImage({
 }) {
   const svg = embeddedChainLogo(uri);
   const box = { width: size, height: size, borderRadius: radius, overflow: 'hidden' as const };
-  if (svg && Platform.OS !== 'web') {
+  /*
+   * SvgXml PARTOUT, web compris. Sur le web, l'<Image> en data-URI restait
+   * vide (le chargement d'image de react-native-web échouait) : la pastille
+   * du réseau et les logos natifs du tableau de bord web n'apparaissaient pas.
+   */
+  if (svg) {
     return (
       <View style={[box, style as never]} accessibilityIgnoresInvertColors>
         <SvgXml xml={svg} width={size} height={size} />
       </View>
     );
   }
-  // Sur le web, le navigateur dessine lui-même le SVG : une URI data suffit.
-  const source = { uri: svg ? `data:image/svg+xml;utf8,${encodeURIComponent(svg)}` : uri };
+  const source = { uri };
   return <Image source={source} onError={onError} style={[box, style]} accessibilityIgnoresInvertColors />;
 });
