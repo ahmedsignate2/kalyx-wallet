@@ -15,6 +15,7 @@ import Animated, {
   cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
+  type SharedValue,
   withDelay,
   withRepeat,
   withSequence,
@@ -117,16 +118,28 @@ export { SparkBurst } from './kit/SparkBurst';
  * composant se redessine SANS style animé : ce que React réapplique alors est
  * l'état visible.
  */
-function useEntranceDone(ms: number, reduce: boolean): boolean {
+function useEntranceDone(ms: number, reduce: boolean, p: SharedValue<number>): boolean {
   const [done, setDone] = useState(false);
   useEffect(() => {
-    if (reduce) {
+    /*
+     * LA VALEUR EST FORCÉE À 1, pas seulement le style retiré. Une entrée
+     * interrompue (écran gelé, accueil occupé à charger) laissait la valeur à
+     * mi-chemin, et le moteur d'animation la réappliquait : les disques
+     * Envoyer / Recevoir / Swap / Gagner restaient à demi transparents, comme
+     * désactivés. Fini ou interrompu, l'élément termine pleinement visible.
+     */
+    const settle = () => {
+      cancelAnimation(p);
+      p.value = 1;
       setDone(true);
+    };
+    if (reduce) {
+      settle();
       return;
     }
-    const id = setTimeout(() => setDone(true), ms);
+    const id = setTimeout(settle, ms);
     return () => clearTimeout(id);
-  }, [ms, reduce]);
+  }, [ms, reduce, p]);
   return done;
 }
 
@@ -147,7 +160,7 @@ export function ActionDisc({ icon, label, onPress, tone = 'default', index = 0, 
     p.value = withDelay(120 + index * 60, withSpring(1, springs.standard));
   }, [index, reduce, p]);
   const rise = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateY: (1 - p.value) * 14 }, { scale: 0.9 + 0.1 * p.value }] }));
-  const done = useEntranceDone(120 + index * 60 + 1200, reduce);
+  const done = useEntranceDone(120 + index * 60 + 1200, reduce, p);
   const bg = tone === 'primary' ? colors.primary : colors.surface2;
   const ink = tone === 'primary' ? colors.onPrimary : tone === 'gold' ? (mode === 'dark' ? GOLD : BRAND_GOLD.deep) : colors.text;
   return (
@@ -226,7 +239,7 @@ export function Rise({ delay = 0, children, style }: { delay?: number; children:
     p.value = withDelay(delay, withSpring(1, springs.gentle));
   }, [delay, reduce, p]);
   const s = useAnimatedStyle(() => ({ opacity: Math.min(1, p.value * 1.4), transform: [{ translateY: (1 - p.value) * 18 }] }));
-  const done = useEntranceDone(delay + 1400, reduce);
+  const done = useEntranceDone(delay + 1400, reduce, p);
   return <Animated.View style={[done ? null : s, style]}>{children}</Animated.View>;
 }
 
@@ -325,7 +338,7 @@ export function useScreenEntrance() {
     p.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
   }, [reduce, p]);
   const style = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateY: (1 - p.value) * 14 }] }));
-  const done = useEntranceDone(900, reduce);
+  const done = useEntranceDone(900, reduce, p);
   return done ? undefined : style;
 }
 
