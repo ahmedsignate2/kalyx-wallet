@@ -14,7 +14,7 @@ import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { fill } from '../lib/i18n';
-import { isRecentlyRevoked, useRevokeState } from '../lib/revokeState';
+import { isRevokeInFlight, useRevokeState } from '../lib/revokeState';
 import { friendlyTxError } from '../lib/txError';
 import {
   getAdapter,
@@ -60,6 +60,7 @@ function ApprovalsInner() {
     });
   // Autorisations à révoquer (attente de confirmation biométrie/PIN).
   const [targets, setTargets] = useState<ApprovalItem[] | null>(null);
+  const [inFlight, setInFlight] = useState<Set<string>>(new Set());
   // Progression PARTAGÉE (lib/revokeState) : un lot lancé avant de quitter l'écran se voit encore ici.
   const progress = useRevokeState((st) => st.progress);
   const evmOwner = useWallet((st) => st.accounts.find((a) => a.index === st.activeAccountIndex)?.evmAddress ?? '');
@@ -87,9 +88,15 @@ function ApprovalsInner() {
       const report = await adapter.getApprovalsReport(account.address, tokens, candidates);
       // Les plus dangereuses d'abord : signalées, puis illimitées.
       const rank = (x: ApprovalItem) => (x.risky ? 0 : isUnlimited(x.allowance) ? 1 : 2);
-      // Révocations envoyées il y a peu, pas encore minées : le réseau lit l'ancienne valeur, on ne les remontre pas.
-      const fresh = report.items.filter((x) => !evmOwner || !isRecentlyRevoked(activeChain, evmOwner, x.token, x.spender));
-      setItems([...fresh].sort((a, b) => rank(a) - rank(b)));
+      // Révocations EN VOL (envoyées, pas encore minées) : montrées « en cours », non sélectionnables.
+      const flying = new Set<string>();
+      await Promise.all(
+        report.items.map(async (x) => {
+          if (evmOwner && (await isRevokeInFlight(activeChain, evmOwner, x.token, x.spender, async (h) => (await adapter.getReceiptInfo(h)) !== null))) flying.add(keyOf(x));
+        }),
+      );
+      setInFlight(flying);
+      setItems([...report.items].sort((a, b) => rank(a) - rank(b)));
       setIncomplete(report.incomplete);
       // Sélection gardée pour ce qui existe encore (un rechargement ne la perd pas).
       const still = new Set(report.items.map(keyOf));
@@ -129,7 +136,7 @@ function ApprovalsInner() {
        * Une clé arrivée après ne déclenche plus rien.
        */
       const timer = setTimeout(() => {
-        if (unlocked || !live()) return;
+        if (!('biometric' in unlock) || unlocked || !live()) return; // le code (scrypt) peut être lent : pas de délai
         request.current += 1;
         reject(new Error(t('authBiometricExpired')));
       }, 14_000);
@@ -138,6 +145,7 @@ function ApprovalsInner() {
         onUnlocked: () => {
           unlocked = true;
           clearTimeout(timer);
+          setTargets(null); // la fenêtre ne peut plus se rouvrir avec ce lot (elle relancerait la biométrie)
           resolve();
         },
       })
@@ -149,6 +157,7 @@ function ApprovalsInner() {
             // Révoquées ou déjà à 0 : retirées. Incertaine : décochée (vérifier l'historique). Le reste garde son état.
             const uncertainKeys = new Set(list.filter((_, k) => res[k].status === 'uncertain').map(keyOf));
             setItems((cur) => (cur ?? []).filter((x) => !done.has(keyOf(x))));
+            setInFlight((cur) => new Set([...cur, ...uncertainKeys]));
             setSelected((cur) => new Set([...cur].filter((k) => !done.has(k) && !uncertainKeys.has(k))));
           }
           if (count('sent')) toast.success(t('revokeSent'), fill(t('revokeBatchDone'), { count: String(count('sent')) }));
@@ -170,7 +179,6 @@ function ApprovalsInner() {
             resolve(); // demande abandonnée après lecture de la clé : jamais une promesse en suspens (sans effet si déjà réglée)
             return; // la fenêtre est encore là : on ne la ferme pas sous l'utilisateur
           }
-          setTargets(null);
         });
     });
   const scopeRef = useRef('');
@@ -218,11 +226,11 @@ function ApprovalsInner() {
           ) : (
             <>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), justifyContent: 'center' }}>
-              <KPressable disabled={busy} onPress={() => setSelected(new Set(items.map(keyOf)))} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: colors.surface2 }}>
+              <KPressable disabled={busy} onPress={() => setSelected(new Set(items.map(keyOf).filter((k) => !inFlight.has(k))))} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: colors.surface2 }}>
                 <Text style={{ color: colors.text, fontSize: 13, fontFamily: fonts.semibold }}>{t('selectAllApprovals')}</Text>
               </KPressable>
               {items.some((x) => isUnlimited(x.allowance)) ? (
-                <KPressable disabled={busy} onPress={() => setSelected(new Set(items.filter((x) => isUnlimited(x.allowance)).map(keyOf)))} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: colors.surface2 }}>
+                <KPressable disabled={busy} onPress={() => setSelected(new Set(items.filter((x) => isUnlimited(x.allowance)).map(keyOf).filter((k) => !inFlight.has(k))))} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: colors.surface2 }}>
                   <Text style={{ color: colors.text, fontSize: 13, fontFamily: fonts.semibold }}>{t('selectUnlimitedApprovals')}</Text>
                 </KPressable>
               ) : null}
@@ -234,12 +242,13 @@ function ApprovalsInner() {
             </View>
             {items.map((it, idx) => {
               const unlimited = isUnlimited(it.allowance);
+              const flying = inFlight.has(keyOf(it)); // révocation envoyée, pas encore minée
               return (
                 <NovaCard key={`${it.token}-${it.spender}`} delay={Math.min(idx, 8) * 50} style={unlimited ? { borderColor: 'rgba(255,77,94,0.35)' } : undefined}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
                     <KPressable
                       onPress={() => toggle(it)}
-                      disabled={busy}
+                      disabled={busy || flying}
                       hitSlop={8}
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: selected.has(keyOf(it)) }}
@@ -288,6 +297,9 @@ function ApprovalsInner() {
                           .replace('{amount}', formatTokenAmount(it.allowance, it.decimals))
                           .replace('{symbol}', it.symbol)}
                   </Text>
+                  {flying ? (
+                    <Text style={[typography.muted, { marginTop: spacing(1.5), textAlign: 'center' }]}>{t('revokeInFlight')}</Text>
+                  ) : (
                   <KPressable
                     onPress={() => setTargets([it])}
                     disabled={busy}
@@ -295,6 +307,7 @@ function ApprovalsInner() {
                   >
                     <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('revoke')}</Text>
                   </KPressable>
+                  )}
                 </NovaCard>
               );
             })}

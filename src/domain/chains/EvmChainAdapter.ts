@@ -550,7 +550,8 @@ export class EvmChainAdapter implements ChainAdapter {
     const estimate = () =>
       this.call((p) => p.estimateGas({ from, to: req.to, data: req.data ?? '0x', value: req.value ?? 0n }));
     let lastErr: unknown;
-    let lastIsRevert = false;
+    /** Un refus du contrat à N'IMPORTE QUEL essai : c'est un refus, même si le dernier a buté sur le réseau. */
+    let anyRevert = false;
     // Jusqu'à 3 essais : un revert « missing revert data » juste après un approve
     // vient souvent d'un nœud en retard (allowance pas encore visible), pas du contrat.
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -569,7 +570,7 @@ export class EvmChainAdapter implements ChainAdapter {
           throw new WalletError('INSUFFICIENT_FUNDS', `Solde en ${this.config.nativeSymbol} insuffisant pour payer les frais réseau.`);
         }
         const isRevert = code === 'CALL_EXCEPTION' || msg.includes('revert') || msg.includes('exceeds allowance') || msg.includes('transfer amount exceeds');
-        lastIsRevert = isRevert;
+        if (isRevert) anyRevert = true;
         if (!isRevert && gasLimit) {
           lastErr = undefined; // RPC muet, gasLimit fourni : on continue avec.
           break;
@@ -582,7 +583,7 @@ export class EvmChainAdapter implements ChainAdapter {
       // lui-même simulé la tx : on lui fait confiance plutôt que de bloquer sur un
       // nœud capricieux. Sinon on refuse d'envoyer une tx vouée à l'échec.
       // RPC muet (pas un refus du contrat) : l'erreur réseau telle quelle, jamais « refusé par le contrat ».
-      if (!gasLimit && !lastIsRevert) throw lastErr;
+      if (!gasLimit && !anyRevert) throw lastErr;
       if (!gasLimit) {
         throw new WalletError(
           'CALL_EXCEPTION',
