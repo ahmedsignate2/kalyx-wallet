@@ -84,6 +84,7 @@ import {
 } from '../src';
 import { technicalLogger } from './technicalLogger';
 import { addressForChain } from './accountAddress';
+import { isRecentlyRevoked, markRevoked, useRevokeState } from './revokeState';
 import { buildAddressIndex, lookupAddress } from './isMyAddress';
 import {
   saveVault,
@@ -2027,6 +2028,8 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   revokeApprovals: async (unlock, chainId, items, opts = {}) => {
+    // Un lot à la fois (même après avoir quitté l'écran) : deux lots liraient le même nonce.
+    if (useRevokeState.getState().progress) throw new Error('Une révocation est déjà en cours');
     const { account, accounts, activeAccountIndex, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(chainId);
@@ -2037,28 +2040,40 @@ export const useWallet = create<WalletState>((set, get) => ({
     // UNE confirmation : la clé est lue une fois, pour tout le lot (et oubliée ensuite).
     const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
     if (opts.shouldContinue && !opts.shouldContinue()) return items.map(() => ({ status: 'notSent' as const }));
+    if (useRevokeState.getState().progress) throw new Error('Une révocation est déjà en cours');
+    useRevokeState.setState({ progress: { done: 0, total: items.length } });
     opts.onUnlocked?.();
+    try {
     // Pas un sou de natif : inutile de simuler N fois, le message est clair tout de suite.
     if ((await adapter.getBalance(from)).raw === 0n) {
       throw new WalletError('INSUFFICIENT_FUNDS', `Solde en ${adapter.config.nativeSymbol} insuffisant pour payer les frais réseau.`);
     }
     const first = await adapter.getNonce(from); // « pending » : compte les transactions déjà en attente
     const chainIdNum = adapter.config.evmChainId;
-    return runRevokeBatch(
+    return await runRevokeBatch(
       items,
       first,
       {
-        check: async (it) => ((await adapter.getAllowanceStrict(it.token, from, it.spender)) === 0n ? 'revoked' : 'active'),
+        // Déjà à 0 — ou révocation envoyée il y a peu, pas encore minée (le réseau lit encore l'ancienne valeur).
+        check: async (it) =>
+          isRecentlyRevoked(chainId, from, it.token, it.spender) || (await adapter.getAllowanceStrict(it.token, from, it.spender)) === 0n ? 'revoked' : 'active',
         send: async (it, suggested) => {
           // Une autre transaction (WalletConnect, envoi) a pu partir pendant le lot : le plus grand gagne.
           const nonce = Math.max(suggested, await adapter.getNonce(from).catch(() => suggested));
           const hash = await adapter.sendContractTx({ to: it.token, data: revokeCalldata(it.spender), value: 0n, chainId: chainIdNum, nonce }, from, pk);
+          markRevoked(chainId, from, it.token, it.spender);
           return { hash, nonce };
         },
         shouldContinue: opts.shouldContinue,
       },
-      opts.onProgress,
+      (done, total) => {
+        useRevokeState.setState({ progress: { done, total } });
+        opts.onProgress?.(done, total);
+      },
     );
+    } finally {
+      useRevokeState.setState({ progress: null });
+    }
   },
 
   sendToken: async (to, amount, token, unlock, gas) => {

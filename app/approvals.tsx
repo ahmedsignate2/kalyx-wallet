@@ -14,6 +14,7 @@ import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { fill } from '../lib/i18n';
+import { isRecentlyRevoked, useRevokeState } from '../lib/revokeState';
 import { friendlyTxError } from '../lib/txError';
 import {
   getAdapter,
@@ -59,7 +60,13 @@ function ApprovalsInner() {
     });
   // Autorisations à révoquer (attente de confirmation biométrie/PIN).
   const [targets, setTargets] = useState<ApprovalItem[] | null>(null);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  // Progression PARTAGÉE (lib/revokeState) : un lot lancé avant de quitter l'écran se voit encore ici.
+  const progress = useRevokeState((st) => st.progress);
+  const evmOwner = useWallet((st) => st.accounts.find((a) => a.index === st.activeAccountIndex)?.evmAddress ?? '');
+  // Autre compte ou autre réseau : la sélection ne le suit jamais (mêmes jetons, mêmes contrats ≠ même choix).
+  useEffect(() => {
+    setSelected(new Set());
+  }, [scopeAccount, activeChain]);
 
   const load = useCallback(async () => {
     if (!account || !isEvm) {
@@ -80,7 +87,9 @@ function ApprovalsInner() {
       const report = await adapter.getApprovalsReport(account.address, tokens, candidates);
       // Les plus dangereuses d'abord : signalées, puis illimitées.
       const rank = (x: ApprovalItem) => (x.risky ? 0 : isUnlimited(x.allowance) ? 1 : 2);
-      setItems([...report.items].sort((a, b) => rank(a) - rank(b)));
+      // Révocations envoyées il y a peu, pas encore minées : le réseau lit l'ancienne valeur, on ne les remontre pas.
+      const fresh = report.items.filter((x) => !evmOwner || !isRecentlyRevoked(activeChain, evmOwner, x.token, x.spender));
+      setItems([...fresh].sort((a, b) => rank(a) - rank(b)));
       setIncomplete(report.incomplete);
       // Sélection gardée pour ce qui existe encore (un rechargement ne la perd pas).
       const still = new Set(report.items.map(keyOf));
@@ -92,7 +101,7 @@ function ApprovalsInner() {
     } finally {
       setLoading(false);
     }
-  }, [account, activeChain, chain, isEvm]);
+  }, [account, activeChain, chain, isEvm, evmOwner]);
 
   useEffect(() => {
     load();
@@ -114,14 +123,23 @@ function ApprovalsInner() {
       // Réseau et compte au départ : un résultat n'est appliqué qu'à la liste qui l'a produit.
       const scope = `${activeChain}:${scopeAccount}`;
       let unlocked = false;
+      /*
+       * Délai PROPRE (sous celui de la fenêtre, 15 s) : clé pas lue à temps →
+       * la demande est annulée ICI, avant que la fenêtre n'annonce l'expiration.
+       * Une clé arrivée après ne déclenche plus rien.
+       */
+      const timer = setTimeout(() => {
+        if (unlocked || !live()) return;
+        request.current += 1;
+        reject(new Error(t('authBiometricExpired')));
+      }, 14_000);
       revokeApprovals(unlock, activeChain, list, {
         shouldContinue: live,
         onUnlocked: () => {
           unlocked = true;
-          setProgress({ done: 0, total: list.length });
+          clearTimeout(timer);
           resolve();
         },
-        onProgress: (done, total) => setProgress({ done, total }),
       })
         .then((res) => {
           const done = new Set(list.filter((_, k) => res[k].status === 'sent' || res[k].status === 'already').map(keyOf));
@@ -147,8 +165,11 @@ function ApprovalsInner() {
           else toast.error(t('revoke'), friendlyTxError(e, t as never));
         })
         .finally(() => {
-          if (!unlocked) return; // la fenêtre est encore là : on ne la ferme pas sous l'utilisateur
-          setProgress(null);
+          clearTimeout(timer);
+          if (!unlocked) {
+            resolve(); // demande abandonnée après lecture de la clé : jamais une promesse en suspens (sans effet si déjà réglée)
+            return; // la fenêtre est encore là : on ne la ferme pas sous l'utilisateur
+          }
           setTargets(null);
         });
     });

@@ -133,8 +133,9 @@ export function revokeCalldata(spender: string): string {
  *    transaction serait partie entre-temps) ;
  *  - refus du contrat AVANT diffusion (CALL_EXCEPTION) → « skipped », nonce
  *    intact, on continue ;
- *  - frais insuffisants → « failed » (pas diffusée), arrêt ;
- *  - toute autre erreur → « uncertain » (diffusion peut-être faite), arrêt :
+ *  - erreur AVANT signature (frais insuffisants, réseau muet) → « failed »
+ *    (rien n'est parti), arrêt ;
+ *  - échec PENDANT la diffusion (`afterSign`) → « uncertain », arrêt :
  *    continuer risquerait de remplacer une transaction ; l'écran dit de
  *    vérifier l'historique avant de réessayer.
  * `shouldContinue` faux (demande annulée) : plus rien ne part.
@@ -180,7 +181,9 @@ export async function runRevokeBatch<T>(
         out[i] = { status: 'skipped', error: e }; // pas diffusée : nonce intact
         continue;
       }
-      out[i] = code === 'INSUFFICIENT_FUNDS' ? { status: 'failed', error: e } : { status: 'uncertain', error: e };
+      // Incertaine seulement si l'échec est survenu APRÈS signature (diffusion) ; avant, rien n'est parti.
+      const afterSign = !!(e as { afterSign?: boolean })?.afterSign;
+      out[i] = afterSign && code !== 'INSUFFICIENT_FUNDS' ? { status: 'uncertain', error: e } : { status: 'failed', error: e };
       break;
     }
   }
