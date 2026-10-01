@@ -51,6 +51,15 @@ function isCustom(label: string | undefined): boolean {
 }
 
 /**
+ * Rang d'un portefeuille pour son nom par défaut : parmi les portefeuilles À
+ * CLÉ seulement (une adresse suivie en tête de liste ne prend pas le nom
+ * « principal », et ne décale pas les numéros des autres).
+ */
+export function walletPosition(wallets: readonly WalletMeta[], id: string): number {
+  return wallets.filter((w) => w.type !== 'watch').findIndex((w) => w.id === id);
+}
+
+/**
  * Nom affiché d'un wallet. `position` est son rang dans la liste (0-indexé) :
  * il ne sert qu'à numéroter les noms par défaut.
  */

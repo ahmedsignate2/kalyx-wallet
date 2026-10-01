@@ -1,5 +1,4 @@
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
-import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { ActionDisc, NovaHero, Pulse, Rise, SectionLabel } from '../ui/nova';
 import { DappLogo } from '../ui/browser/DappTile';
 import React, { useEffect, useState } from 'react';
@@ -15,7 +14,7 @@ import { useDappActivity, type SigKind } from '../lib/dappActivity';
 import { toast } from '../lib/toast';
 import { useT } from '../lib/settingsStore';
 
-function WalletConnectScreenInner() {
+export default function WalletConnectScreen() {
   const { colors, typography } = useTheme();
   const t = useT();
   const SIG_LABEL: Record<SigKind, string> = { sign: t('sigMessage'), typedData: t('sigTypedData'), tx: t('sigTx') };
@@ -216,6 +215,3 @@ function DangerPill({ label, onPress }: { label: string; onPress: () => void }) 
     </KPressable>
   );
 }
-
-// Lecture seule : rien à signer ni à recevoir à son nom ici (ui/WatchOnlyGate).
-export default withWatchOnlyGate(WalletConnectScreenInner);
