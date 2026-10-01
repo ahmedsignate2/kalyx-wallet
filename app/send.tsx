@@ -217,6 +217,10 @@ export default function Send() {
   const paid = usePaidAddresses();
   const known = useMemo(() => [...accounts.flatMap((a) => [a.evmAddress, a.solAddress ?? '', a.btcAddress, addressForChain(a, chain)]).filter(Boolean), ...recents.map((r) => r.address), ...contacts.map((c) => c.address), ...paid], [accounts, recents, contacts, chain, paid]);
   const poisoning = recipientOk ? detectPoisoning(recipient, known) : null;
+  // Pour l'audit IA : ce que l'appareil sait de CE destinataire exact.
+  const sameAddr = (a: string) => !!a && a.toLowerCase() === recipient.toLowerCase();
+  const isOwnRecipient = recipientOk && accounts.some((a) => [a.evmAddress, a.solAddress ?? '', a.btcAddress, addressForChain(a, chain)].some(sameAddr));
+  const paidBefore = recipientOk && (paid.some(sameAddr) || recents.some((r) => sameAddr(r.address)));
   const isKnown = recipientOk && known.some((k) => k.toLowerCase() === recipient.toLowerCase());
   const contactName = contacts.find((c) => c.address.toLowerCase() === recipient.toLowerCase())?.name;
   const [isContract, setIsContract] = useState(false);
@@ -1134,7 +1138,21 @@ export default function Send() {
         perform={perform}
         onDone={() => { setConfirming(false); setStep(4); }}
         onCancel={() => setConfirming(false)}
-        aiContext={{ to: recipient, value: tokenAmountStr, method: 'transfer' }}
+        aiContext={{
+          to: recipient,
+          value: `${formatTokenAmount(amountRaw, decimals)} ${symbol}`,
+          method: 'transfer',
+          network: chain.name,
+          fiatValue: price > 0 ? `${formatFiat(fiatOfAmount)} ${sym}` : undefined,
+          memo,
+          recipient: {
+            contactName,
+            ownAccount: isOwnRecipient,
+            paidBefore: paidBefore,
+            lookalikeOf: poisoning?.lookalike,
+            isContract,
+          },
+        }}
       />
     </View>
   );

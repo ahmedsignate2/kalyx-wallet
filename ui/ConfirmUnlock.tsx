@@ -28,9 +28,11 @@ import { fonts, radii, spacing, useTheme } from './theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import type { Unlock } from '../lib/walletStore';
-import { auditTransaction, type TxAuditResult } from "../lib/aiTxAudit";
+import { auditFacts, auditTransaction, type TxAuditContext, type TxAuditResult } from "../lib/aiTxAudit";
 import { useAiStore } from "../lib/aiStore";
 import { isWalletError } from '../src';
+
+const FACT_KEY = { lookalike: 'aiFactLookalike', own: 'aiFactOwn', paid: 'aiFactPaid', new: 'aiFactNew', contract: 'aiFactContract' } as const;
 
 export function ConfirmUnlock({
   visible,
@@ -51,7 +53,7 @@ export function ConfirmUnlock({
   perform: (unlock: Unlock) => Promise<void>;
   onDone: () => void;
   onCancel: () => void;
-  aiContext?: { to: string; value: string; method?: string; url?: string };
+  aiContext?: TxAuditContext;
 }) {
   const { colors, typography } = useTheme();
   const t = useT();
@@ -75,6 +77,7 @@ export function ConfirmUnlock({
    * l'utilisateur l'ait demandé. Désormais un bouton, qui dit ce qui part.
    */
   const [aiRequested, setAiRequested] = useState(false);
+  const facts = aiContext ? auditFacts(aiContext) : [];
   const auditRun = useRef(0);
   useEffect(() => {
     if (!visible) {
@@ -274,7 +277,7 @@ export function ConfirmUnlock({
                 // « Sûr » n'est JAMAIS affiché en vert : l'IA n'a vu qu'une adresse et un montant.
                 <View style={{ width: '90%', backgroundColor: colors.surface2, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? colors.danger : aiAnalysis.riskLevel === 'WARNING' ? colors.warning : colors.border) : colors.border, marginBottom: 8 }}>
                   <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13, marginBottom: 4 }}>
-                    {analyzing ? t("aiAuditInProgress") : (aiAnalysis ? `${t('aiAuditLabel')} ${aiAnalysis.riskLevel}` : t("aiAuditUndetermined"))}
+                    {analyzing ? t("aiAuditInProgress") : (aiAnalysis ? `${t('aiAuditLabel')} ${t(`aiRisk${aiAnalysis.riskLevel}` as const)}` : t("aiAuditUndetermined"))}
                   </Text>
                   {/* Échec : la raison, puis de quoi réessayer — jamais un encadré muet. */}
                   {!analyzing && aiError ? (
@@ -291,6 +294,12 @@ export function ConfirmUnlock({
                       {aiAnalysis.threats && aiAnalysis.threats.length > 0 && (
                         <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4, fontFamily: fonts.semibold }}>{aiAnalysis.threats.join(', ')}</Text>
                       )}
+                      {/* Ce que l'analyse a reçu : l'utilisateur voit sur quoi repose l'avis. */}
+                      {facts.length > 0 ? (
+                        <Text style={{ color: colors.textTertiary, fontSize: 11, marginTop: 6, fontFamily: fonts.medium }}>
+                          {t('aiFactsTitle')} {facts.map((f) => (f.kind === 'contact' ? t('aiFactContact').replace('{name}', f.name) : t(FACT_KEY[f.kind]))).join(' · ')}
+                        </Text>
+                      ) : null}
                     </>
                   )}
                 </View>
