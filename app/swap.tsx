@@ -9,6 +9,7 @@ import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from '
 import { LinearGradient } from 'expo-linear-gradient';
 import { swapTokenTint, withAlpha } from '../lib/tokenColors';
 import { SnapSlider } from '../ui/SnapSlider';
+import { availableFrom, readSwapBalance, swapBalanceKey, type BalanceEntry } from '../lib/swapBalance';
 import { CHAIN_LOGO_SVG } from '../src/domain/chains/chainLogos.generated';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState, Pressable as KPressable } from '../ui/kit';
@@ -117,8 +118,15 @@ export default function Swap() {
   const [stale, setStale] = useState(false);
   const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const [nativeBalance, setNativeBalance] = useState<bigint | null>(null);
-  const [selectedTokenBalance, setSelectedTokenBalance] = useState<bigint | null>(null);
+  /*
+   * SOLDES ÉTIQUETÉS (lib/swapBalance.ts) : un registre clé → état, la clé
+   * portant réseau + compte + jeton (+ un compteur relevé après chaque swap).
+   * Une réponse ne peut atterrir que sur SA clé : jamais le solde d'un autre
+   * jeton formaté avec d'autres décimales, ni celui d'un autre réseau. Un
+   * échec est « erreur » (réessayable), jamais 0.
+   */
+  const [balances, setBalances] = useState<Record<string, BalanceEntry>>({});
+  const [balanceNonce, setBalanceNonce] = useState(0);
   /**
    * Réserve de gas DYNAMIQUE (estimée sur le RPC du réseau actif) : ce qu'on
    * garde de natif pour que la tx passe. `null` = pas encore chargée.
@@ -127,14 +135,17 @@ export default function Swap() {
   useEffect(() => {
     let cancelled = false;
     setGasReserve(null);
-    swapGasReserve(getAdapter(activeChain)).then((r) => {
-      if (!cancelled) setGasReserve(r);
-    });
+    swapGasReserve(getAdapter(activeChain))
+      .then((r) => {
+        if (!cancelled) setGasReserve(r);
+      })
+      // L'estimateur a son propre repli ; s'il échoue quand même, la réserve reste
+      // inconnue (jamais 0 : « Max » dépenserait tout, sans rien pour le gas).
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [activeChain]);
-  const reserveRaw = gasReserve?.raw ?? 0n;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -144,60 +155,39 @@ export default function Swap() {
   const [held, setHeld] = useState<Tok[]>([]);
   const params = useLocalSearchParams<{ contract?: string; to?: string }>();
 
-  // Récupère le solde natif de la chaîne active
-  useEffect(() => {
-    let cancelled = false;
-    if (!account?.address) {
-      setNativeBalance(null);
-      return;
-    }
-    getAdapter(activeChain)
-      .getBalance(account.address)
-      .then((b) => {
-        if (!cancelled) setNativeBalance(b.raw);
-      })
-      .catch(() => {
-        if (!cancelled) setNativeBalance(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeChain, account?.address]);
-
   // Tokens réellement détenus sur la chaîne active → swappables même hors liste curée.
   useEffect(() => {
     let cancelled = false;
     setHeld([]);
     if (!account?.address) return;
+    const loaded = (list: Tok[]) => {
+      if (!cancelled) setHeld(list);
+    };
 
     if (chain.family === 'evm') {
       getErc20Tokens(chain, account.address)
         .then((detected) => {
-          if (!cancelled)
-            setHeld(detected.map((tk) => ({ symbol: tk.symbol, address: tk.contract, decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
+          loaded(detected.map((tk) => ({ symbol: tk.symbol, address: tk.contract, decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
         })
-        .catch(() => {
-          if (!cancelled) setHeld([]);
-        });
+        .catch(() => loaded([]));
     } else if (chain.family === 'ton') {
       // Jettons détenus, par adresse brute du maître (même forme que la liste STON.fi).
       getAdapterV2(activeChain)
         .listTokens?.(account.address)
         .then((detected) => {
-          if (!cancelled) setHeld(detected.map((tk) => ({ symbol: tk.symbol, address: String(tk.id), decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
+          loaded(detected.map((tk) => ({ symbol: tk.symbol, address: String(tk.id), decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
         })
-        .catch(() => {});
+        .catch(() => loaded([]));
     } else if (chain.family === 'solana') {
       const adapter = getAdapter(activeChain) as any;
       if (adapter.getSplTokens) {
         adapter.getSplTokens(account.address)
           .then((detected: any[]) => {
-            if (!cancelled)
-              setHeld(detected.map((tk) => ({ symbol: tk.symbol, address: tk.mint, decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
+            loaded(detected.map((tk) => ({ symbol: tk.symbol, address: tk.mint, decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
           })
-          .catch(() => {});
-      }
-    }
+          .catch(() => loaded([]));
+      } else loaded([]);
+    } else loaded([]);
 
     return () => {
       cancelled = true;
@@ -279,54 +269,10 @@ export default function Swap() {
     return { zIndex: 1, transform: [{ translateY: -dist * (1 - orbit.value) }, { translateX: -34 * k }, { scale: 1 - 0.08 * k }], opacity: 1 - 0.25 * k };
   });
 
-  // Récupère le solde du token sélectionné s'il n'est pas natif
-  useEffect(() => {
-    let cancelled = false;
-    if (!account?.address || !fromTok) {
-      setSelectedTokenBalance(null);
-      return;
-    }
-    if (isNativeTokenAddress(fromTok.address)) {
-      setSelectedTokenBalance(null);
-      return;
-    }
-    const heldTok = held.find((t) => t.address.toLowerCase() === fromTok.address.toLowerCase());
-    if (heldTok) {
-      setSelectedTokenBalance((heldTok as any).balance ?? 0n);
-      return;
-    }
-    const adapter = getAdapter(activeChain);
-    if (adapter instanceof EvmChainAdapter) {
-      adapter
-        .getTokenBalance(fromTok.address, account.address)
-        .then((b) => {
-          if (!cancelled) setSelectedTokenBalance(b);
-        })
-        .catch(() => {
-          if (!cancelled) setSelectedTokenBalance(0n);
-        });
-    } else if (adapter instanceof SolanaChainAdapter) {
-      adapter
-        .getSplTokens(account.address)
-        .then((tokens) => {
-          if (!cancelled) {
-            const found = tokens.find((t) => t.mint.toLowerCase() === fromTok.address.toLowerCase());
-            setSelectedTokenBalance(found ? found.raw : 0n);
-          }
-        })
-        .catch(() => {
-          if (!cancelled) setSelectedTokenBalance(0n);
-        });
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [activeChain, account?.address, fromTok?.address, held]);
-
   const onFlip = () => {
     if (isBridge) return;
     haptic.heavy();
-    setSliderPct(null); // l'ancienne part ne vaut rien pour l'autre jeton
+    setSliderPct(null);
     setFrom(to);
     setTo(from);
     reset();
@@ -339,38 +285,72 @@ export default function Swap() {
     }
   };
 
-  const getTokenBalance = (): bigint => {
-    if (!fromTok) return 0n;
-    if (isNativeTokenAddress(fromTok.address)) {
-      return nativeBalance ?? 0n;
-    }
-    if (selectedTokenBalance != null) {
-      return selectedTokenBalance;
-    }
-    const heldTok = held.find((t) => t.address.toLowerCase() === fromTok.address.toLowerCase());
-    return heldTok ? (heldTok as any).balance ?? 0n : 0n;
+  const owner = account?.address;
+  const srcNative = !!fromTok && isNativeTokenAddress(fromTok.address);
+  const srcKey = fromTok ? `${swapBalanceKey(activeChain, owner, srcNative ? 'native' : fromTok.address)}#${balanceNonce}` : '';
+  /** Le natif sert aussi à payer le gas d'un échange de jeton. */
+  const gasKey = `${swapBalanceKey(activeChain, owner, 'native')}#${balanceNonce}`;
+  const loadBalance = (key: string, token: string, native: boolean) => {
+    if (!owner) return;
+    setBalances((b) => ({ ...b, [key]: { status: 'loading' } }));
+    readSwapBalance(activeChain, owner, token, native)
+      .then((raw) => setBalances((b) => ({ ...b, [key]: { status: 'ok', raw } })))
+      .catch(() => setBalances((b) => ({ ...b, [key]: { status: 'error' } })));
   };
-
+  useEffect(() => {
+    if (!owner || !fromTok) return;
+    if (!balances[srcKey]) loadBalance(srcKey, fromTok.address, srcNative);
+    if (!srcNative && !balances[gasKey]) loadBalance(gasKey, 'native', true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [srcKey, gasKey]);
+  const srcEntry = srcKey ? balances[srcKey] : undefined;
+  const gasEntry = balances[srcNative ? srcKey : gasKey];
+  const nativeBalance = gasEntry?.status === 'ok' ? gasEntry.raw : null;
+  /** Lecture du solde en échec : « Disponible » propose de réessayer. */
+  const balanceError = srcEntry?.status === 'error';
+  const retryBalance = () => fromTok && loadBalance(srcKey, fromTok.address, srcNative);
+  /** Solde brut du jeton source, ou null s'il n'est pas (encore) lu. */
+  const tokenBalanceOrNull = (): bigint | null => (srcEntry?.status === 'ok' ? srcEntry.raw : null);
+  const getTokenBalance = (): bigint => tokenBalanceOrNull() ?? 0n;
   /**
    * Solde DISPONIBLE pour l'échange : solde brut moins la réserve de gas si
-   * le token source est la monnaie native. Les raccourcis (MAX, 50 %) et la
-   * validation travaillent sur cette valeur, jamais sur le solde brut.
+   * le jeton source est la monnaie native ; null tant que l'un des deux est
+   * inconnu. Les raccourcis (Max, curseur) et la validation n'utilisent que lui.
    */
-  const getAvailable = (): bigint => {
-    if (!fromTok) return 0n;
-    const raw = getTokenBalance();
-    if (!isNativeTokenAddress(fromTok.address)) return raw;
-    return raw > reserveRaw ? raw - reserveRaw : 0n;
-  };
+  const availableOrNull = (): bigint | null => (fromTok ? availableFrom(srcEntry, srcNative, gasReserve?.raw ?? null) : null);
+  const getAvailable = (): bigint => availableOrNull() ?? 0n;
 
   const [sliderPct, setSliderPct] = useState<number | null>(null);
+  /** Disponible pas encore lu : le curseur attend (un cran calculé sur 0 restait faux). */
+  const balanceUnknown = availableOrNull() == null;
   const setPercent = (pct: bigint) => {
     if (!fromTok) return;
     const avail = getAvailable();
     setAmount(avail > 0n ? formatInputAmount((avail * pct) / 100n, fromTok.decimals) : '0');
   };
-  const onMax = () => { setSliderPct(100); setPercent(100n); };
-  const onHalf = () => setPercent(50n);
+  const onMax = () => {
+    if (balanceUnknown) return; // pas de « Max » calculé sur un solde pas encore lu
+    setSliderPct(100);
+    setPercent(100n);
+    reset();
+    stopCountdown();
+  };
+  /*
+   * Changer de jeton source ou de réseau EFFACE le cran : l'ancienne part ne
+   * vaut rien pour l'autre jeton, et ses soldes ne sont pas encore relus.
+   */
+  const sliderPctRef = useRef(sliderPct);
+  sliderPctRef.current = sliderPct;
+  useEffect(() => {
+    // Un montant tiré d'un cran (« Max » de l'ancien jeton) n'a plus de sens : on l'efface aussi.
+    if (sliderPctRef.current != null) {
+      setAmount('');
+      reset(); // le devis portait sur l'ancien montant
+      stopCountdown();
+    }
+    setSliderPct(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromTok?.address, activeChain, account?.address]);
 
   // Auto-refresh du devis : en PAUSE pendant la confirmation/exécution (sinon
   // la fenêtre PIN se fermait au milieu de la saisie) et STOPPÉ après une erreur
@@ -402,9 +382,25 @@ export default function Swap() {
   /** Vérifications locales AVANT tout appel réseau (messages immédiats et précis). */
   const preflight = async (raw: bigint): Promise<string | null> => {
     if (!isBridge && fromTok.address.toLowerCase() === toTok.address.toLowerCase()) return t('swapTwoTokens');
-    const bal = getTokenBalance();
+    /*
+     * Solde INCONNU (lecture en cours, ou échouée) : relu ici plutôt que pris
+     * pour 0 — « fonds insuffisants » à tort après un changement de réseau.
+     */
+    let bal = tokenBalanceOrNull();
+    if (bal == null) {
+      try {
+        bal = await readSwapBalance(activeChain, account!.address, fromTok.address, srcNative);
+      } catch {
+        return null; // réseau muet : on laisse le devis trancher
+      }
+    }
     // Réserve : celle du state, ou ré-estimée à la volée si pas encore chargée.
-    const reserve = gasReserve?.raw ?? (await swapGasReserve(getAdapter(activeChain))).raw;
+    let reserve: bigint;
+    try {
+      reserve = gasReserve?.raw ?? (await swapGasReserve(getAdapter(activeChain))).raw;
+    } catch {
+      return null; // réserve inestimable : on laisse le devis trancher
+    }
     const reserveStr = `${formatTokenAmount(reserve, chain.nativeDecimals)} ${chain.nativeSymbol}`;
     if (isNativeTokenAddress(fromTok.address)) {
       // Deux cas distincts : pas même de quoi payer le gas / montant trop grand une fois le gas réservé.
@@ -414,7 +410,7 @@ export default function Swap() {
       if (raw > bal) return t('errInsufficientFunds');
       // Token SPL/ERC-20 : le natif du wallet doit couvrir le gas estimé.
       try {
-        const native = nativeBalance ?? (await getAdapter(activeChain).getBalance(account!.address)).raw;
+        const native = nativeBalance ?? (await readSwapBalance(activeChain, account!.address, 'native', true));
         if (native < reserve) return t('errNeedNativeForGas').replace('{amount}', reserveStr);
       } catch {
         /* réseau muet : on laisse le devis trancher */
@@ -510,6 +506,7 @@ export default function Swap() {
       setAmount('');
       setSliderPct(null);
       setSuccess({ hash, summary, isBridge, fromChain: activeChain, toChain: toChain });
+      setBalanceNonce((n) => n + 1); // soldes relus : l'ancien « Disponible » n'est plus vrai
       notifyAndLog('tx', isBridge ? t('bridgeSent') : t('swapExecuted'), summary);
       void watchConfirmation(activeChain, hash, summary);
     } catch (e) {
@@ -625,8 +622,8 @@ export default function Swap() {
                  * carte, il passait sous le disque d'inversion posé à cheval.
                  */
                 right={
-                  <KPressable onPress={() => { onMax(); reset(); stopCountdown(); }} hitSlop={8} accessibilityLabel={t("chipMax")}>
-                    <Text variant="caption" tone="secondary" tabular numberOfLines={1}>{t('availableLabel')} : {formatTokenAmount(getAvailable(), fromTok.decimals)} · <Text variant="caption" style={{ color: GOLD }}>{t("chipMax")}</Text></Text>
+                  <KPressable onPress={balanceError ? retryBalance : onMax} hitSlop={8} accessibilityLabel={balanceError ? t('retry') : t("chipMax")}>
+                    <Text variant="caption" tone="secondary" tabular numberOfLines={1}>{t('availableLabel')} : {balanceError ? '—' : balanceUnknown ? '…' : formatTokenAmount(getAvailable(), fromTok.decimals)} · <Text variant="caption" style={{ color: GOLD }}>{balanceError ? t('retry') : t("chipMax")}</Text></Text>
                   </KPressable>
                 }
                 bottom={<Text variant="caption" tone="secondary" tabular>{quote && quote.fromAmountUsd > 0 ? `≈ ${formatFiat(quote.fromAmountUsd)} $` : ' '}</Text>}
@@ -681,6 +678,7 @@ export default function Swap() {
           {/* Curseur à crans : « la moitié », « tout » au pouce ; le clavier pour un montant précis. */}
           <SnapSlider
             value={sliderPct}
+            disabled={balanceUnknown}
             accent={fromTint}
             maxLabel={t('chipMax')}
             onChange={(p) => { setSliderPct(p); setPercent(BigInt(p)); reset(); stopCountdown(); }}
