@@ -7,7 +7,7 @@
  * un rappel, pas un harcèlement. Rien quand tout est fait.
  */
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { AppState, View } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text, Pressable as KPressable } from './kit';
@@ -33,7 +33,13 @@ export function HomeNudge() {
   /** Biométrie disponible sur CE téléphone : sinon, rien à activer (Réglages n'a pas le réglage). */
   const [bioAvailable, setBioAvailable] = useState(false);
   useEffect(() => {
-    isBiometricAvailable().then(setBioAvailable).catch(() => setBioAvailable(false));
+    const check = () => isBiometricAvailable().then(setBioAvailable).catch(() => setBioAvailable(false));
+    void check();
+    // Empreinte ou visage enregistré dans le système pendant que l'app tourne : revu au retour.
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') void check();
+    });
+    return () => sub.remove();
   }, []);
 
   const all: Nudge[] = [

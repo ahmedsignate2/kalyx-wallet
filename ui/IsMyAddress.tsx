@@ -8,7 +8,7 @@ import { fontFamily } from './tokens';
 import { useT } from '../lib/settingsStore';
 import { useWallet } from '../lib/walletStore';
 import { loadAccounts, type StoredAccount } from '../lib/secureStore';
-import { accountDisplayName } from '../lib/walletNames';
+import { accountDisplayName, walletDisplayName } from '../lib/walletNames';
 import { buildAddressIndex, lookupAddress, type WalletAccounts } from '../lib/isMyAddress';
 
 const FAMILY = { evm: 'EVM', solana: 'Solana', bitcoin: 'Bitcoin', ton: 'TON' } as const;
@@ -53,7 +53,9 @@ export function IsMyAddress() {
   const v = value.trim();
   const match = v.length >= 20 ? lookupAddress(index, v) : null;
   const account = match ? accountsOf(match.walletId).find((a) => a.index === match.index) : null;
-  const walletLabel = match && wallets.length > 1 ? wallets.find((w) => w.id === match.walletId)?.label : null;
+  // Nom affiché du portefeuille (« Portefeuille 2 »… quand il n'a pas été renommé) : le libellé brut est vide.
+  const wPos = match ? wallets.findIndex((w) => w.id === match.walletId) : -1;
+  const walletLabel = match && wallets.length > 1 && wPos >= 0 ? walletDisplayName(wallets[wPos], wPos, t) : null;
   const who = account ? `${walletLabel ? `${walletLabel} · ` : ''}${accountDisplayName(account, t)}` : '';
   return (
     <View style={{ gap: 10, padding: 16, borderRadius: 24, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
