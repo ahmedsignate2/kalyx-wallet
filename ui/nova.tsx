@@ -159,14 +159,20 @@ export function ActionDisc({ icon, label, onPress, tone = 'default', index = 0, 
     if (reduce) return;
     p.value = withDelay(120 + index * 60, withSpring(1, springs.standard));
   }, [index, reduce, p]);
-  const rise = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateY: (1 - p.value) * 14 }, { scale: 0.9 + 0.1 * p.value }] }));
+  /*
+   * AUCUNE OPACITÉ dans l'entrée : seulement montée et échelle. Une entrée
+   * interrompue (onglet gelé, accueil occupé) ne peut donc plus laisser les
+   * disques à demi transparents — au pire légèrement décalés, jamais « grisés ».
+   */
+  const rise = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - p.value) * 14 }, { scale: 0.9 + 0.1 * p.value }] }));
   const done = useEntranceDone(120 + index * 60 + 1200, reduce, p);
-  const bg = tone === 'primary' ? colors.primary : colors.surface2;
+  // Disques secondaires sur la surface la plus claire : actifs, pas éteints.
+  const bg = tone === 'primary' ? colors.primary : colors.surface3;
   const ink = tone === 'primary' ? colors.onPrimary : tone === 'gold' ? (mode === 'dark' ? GOLD : BRAND_GOLD.deep) : colors.text;
   return (
     <Animated.View style={[{ flex: 1, opacity: disabled ? 0.4 : 1 }, done ? null : rise]}>
       <KPressable onPress={onPress} disabled={disabled} haptic="light" overshoot accessibilityRole="button" accessibilityLabel={label} style={{ alignItems: 'center', gap: 8 }}>
-        <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: bg, borderWidth: tone === 'primary' ? 0 : 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: bg, borderWidth: tone === 'primary' ? 0 : 1, borderColor: tone === 'gold' ? (mode === 'dark' ? 'rgba(221,181,101,0.45)' : BRAND_GOLD.deep) : colors.border, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={icon} size={23} color={ink} />
         </View>
         <Text variant="caption" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fontFamily.semibold }}>{label}</Text>
