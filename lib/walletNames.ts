@@ -18,6 +18,7 @@
  * nommé son wallet « Portefeuille 2 » le verra suivre la langue : c'est le
  * compromis assumé, et il est invisible puisque le texte est le même en français.
  */
+import { shortAddress } from '../src/domain/validation/poisoning';
 import type { WalletMeta, StoredAccount } from './secureStore';
 
 /**
@@ -57,8 +58,7 @@ export function walletDisplayName(w: WalletMeta, position: number, t: T): string
   if (isCustom(w.label)) return w.label;
   // Une adresse suivie n'est jamais « Portefeuille principal », même en tête de liste.
   if (w.type === 'watch') {
-    const a = w.watchAddress ?? '';
-    return t('watchNameDefault').replace('{n}', a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a).trim();
+    return t('watchNameDefault').replace('{n}', shortAddress(w.watchAddress ?? '', 6, 4)).trim();
   }
   if (position === 0) return t('walletDefaultMain');
   const key = w.type === 'privateKey' ? 'walletDefaultKey' : 'walletDefaultN';
