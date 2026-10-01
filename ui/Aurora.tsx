@@ -47,7 +47,12 @@ function Nappe({ b, reduce }: { b: Blob; reduce: boolean }) {
   );
 }
 
-export function Aurora({ height, mood = 'flat' }: { height: number; mood?: 'up' | 'down' | 'flat' }) {
+export function Aurora({ height, mood = 'flat', tint }: {
+  height: number;
+  mood?: 'up' | 'down' | 'flat';
+  /** Couleur de marque d'un actif : elle remplace la nappe glacier (fiche token). */
+  tint?: string | null;
+}) {
   const { width } = useWindowDimensions();
   const { mode } = useTheme();
   const reduce = useReduceMotion();
@@ -56,7 +61,10 @@ export function Aurora({ height, mood = 'flat' }: { height: number; mood?: 'up' 
   const k = dark ? 1 : 0.55;
   const blobs: Blob[] = [
     { id: 'gold', color: '#DDB565', size: width * 1.1, x: width * 0.12, y: height * 0.3, dx: width * 0.18, dy: height * 0.08, period: 17000, opacity: 0.3 * k },
-    { id: 'glacier', color: dark ? '#9FC2FF' : '#7C9CD6', size: width * 0.95, x: width * 0.95, y: height * 0.12, dx: -width * 0.2, dy: height * 0.12, period: 21000, opacity: 0.16 * k },
+    tint
+      ? // Teinte de marque : la nappe la plus large, derrière le nom et le prix.
+        { id: 'tint', color: tint, size: width * 1.25, x: width * 0.22, y: height * 0.22, dx: width * 0.16, dy: height * 0.1, period: 19000, opacity: 0.42 * k }
+      : { id: 'glacier', color: dark ? '#9FC2FF' : '#7C9CD6', size: width * 0.95, x: width * 0.95, y: height * 0.12, dx: -width * 0.2, dy: height * 0.12, period: 21000, opacity: 0.16 * k },
     { id: 'mood', color: moodColor, size: width * 0.8, x: width * 0.55, y: height * 0.78, dx: width * 0.12, dy: -height * 0.1, period: 14000, opacity: 0.11 * k },
   ];
   return (
