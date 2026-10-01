@@ -465,15 +465,13 @@ export class EvmChainAdapter implements ChainAdapter {
 
   // --- Support des transactions de contrat (swap/approbation ERC-20) ---
 
-  /** Allowance ERC-20 (combien `spender` peut dépenser des tokens de `owner`). */
   /** allowance STRICTE : lève si la réponse est vide ou illisible (jamais un faux « 0 = déjà révoquée »). */
   async getAllowanceStrict(token: string, owner: string, spender: string): Promise<bigint> {
     const data = ERC20.encodeFunctionData('allowance', [owner, spender]);
-    const result = await this.call((p) => p.call({ to: token, data }));
-    if (typeof result !== 'string' || !/^0x[0-9a-fA-F]+$/.test(result)) throw new Error('Autorisation illisible');
-    return BigInt(result);
+    return strictUint(await this.call((p) => p.call({ to: token, data })), 'Autorisation illisible');
   }
 
+  /** Allowance ERC-20 (combien `spender` peut dépenser des tokens de `owner`). */
   async getAllowance(token: string, owner: string, spender: string): Promise<bigint> {
     const data = ERC20.encodeFunctionData('allowance', [owner, spender]);
     const result = await this.call((p) => p.call({ to: token, data }));
@@ -506,9 +504,7 @@ export class EvmChainAdapter implements ChainAdapter {
    * montant (swap) : un faux 0 refuserait l'échange sur un compte plein.
    */
   async getTokenBalanceStrict(token: string, owner: string): Promise<bigint> {
-    const result = await this.balanceOfRaw(token, owner);
-    if (typeof result !== 'string' || !/^0x[0-9a-fA-F]+$/.test(result)) throw new Error('Solde du jeton illisible');
-    return BigInt(result);
+    return strictUint(await this.balanceOfRaw(token, owner), 'Solde du jeton illisible');
   }
 
   /**
@@ -554,6 +550,7 @@ export class EvmChainAdapter implements ChainAdapter {
     const estimate = () =>
       this.call((p) => p.estimateGas({ from, to: req.to, data: req.data ?? '0x', value: req.value ?? 0n }));
     let lastErr: unknown;
+    let lastIsRevert = false;
     // Jusqu'à 3 essais : un revert « missing revert data » juste après un approve
     // vient souvent d'un nœud en retard (allowance pas encore visible), pas du contrat.
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -572,6 +569,7 @@ export class EvmChainAdapter implements ChainAdapter {
           throw new WalletError('INSUFFICIENT_FUNDS', `Solde en ${this.config.nativeSymbol} insuffisant pour payer les frais réseau.`);
         }
         const isRevert = code === 'CALL_EXCEPTION' || msg.includes('revert') || msg.includes('exceeds allowance') || msg.includes('transfer amount exceeds');
+        lastIsRevert = isRevert;
         if (!isRevert && gasLimit) {
           lastErr = undefined; // RPC muet, gasLimit fourni : on continue avec.
           break;
@@ -583,6 +581,8 @@ export class EvmChainAdapter implements ChainAdapter {
       // Revert persistant. Si le provider (LI.FI/Relay) a fourni un gasLimit, il a
       // lui-même simulé la tx : on lui fait confiance plutôt que de bloquer sur un
       // nœud capricieux. Sinon on refuse d'envoyer une tx vouée à l'échec.
+      // RPC muet (pas un refus du contrat) : l'erreur réseau telle quelle, jamais « refusé par le contrat ».
+      if (!gasLimit && !lastIsRevert) throw lastErr;
       if (!gasLimit) {
         throw new WalletError(
           'CALL_EXCEPTION',
@@ -622,8 +622,18 @@ export class EvmChainAdapter implements ChainAdapter {
     }
 
     const raw = await wallet.signTransaction(txReq);
-    const res = await this.call((p) => p.broadcastTransaction(raw), 'eth_sendRawTransaction');
-    return res.hash;
+    try {
+      const res = await this.call((p) => p.broadcastTransaction(raw), 'eth_sendRawTransaction');
+      return res.hash;
+    } catch (e) {
+      /*
+       * Échec APRÈS signature, pendant la diffusion : le nœud a peut-être reçu
+       * la transaction. Marqué pour que l'appelant ne la présente pas comme
+       * « non envoyée » (un nouvel essai paierait deux fois).
+       */
+      if (e && typeof e === 'object') (e as { afterSign?: boolean }).afterSign = true;
+      throw e;
+    }
   }
 
   /** L'adresse est-elle un CONTRAT (code non vide) ? Best-effort : false si RPC muet. */
@@ -791,3 +801,9 @@ const ERC20 = new Interface([
   'function allowance(address owner, address spender) view returns (uint256)',
   'function balanceOf(address owner) view returns (uint256)',
 ]);
+
+/** Entier non signé d'une réponse `eth_call` ; lève si elle est vide (`0x`) ou illisible. */
+function strictUint(result: unknown, message: string): bigint {
+  if (typeof result !== 'string' || !/^0x[0-9a-fA-F]+$/.test(result)) throw new Error(message);
+  return BigInt(result);
+}
