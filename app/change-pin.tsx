@@ -1,29 +1,36 @@
-import { FlowDots } from '../ui/nova';
-import { IconButton, Pressable as KPressable } from '../ui/kit';
+import { FlowDots, NovaHero } from '../ui/nova';
+import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import React, { useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import { router, Stack } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { Screen } from '../ui/components';
 import { PinPad, PIN_GAP, PIN_KEY } from '../ui/PinPad';
+import { KalyxRing } from '../ui/KalyxRing';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { friendlyTxError } from '../lib/txError';
-import { checkPin, isWalletError, PIN_MIN } from '../src';
+import { checkPin, isWalletError, PIN_MAX, PIN_MIN } from '../src';
 
 /**
  * Changement de PIN en 3 étapes : ancien code → nouveau → confirmation.
  *
- * MÊME MISE EN PAGE QUE LE DÉVERROUILLAGE, qui s'affiche bien partout : titre
- * compact en haut, pavé ancré en bas, rien ne défile. L'en-tête héros (grand
- * disque, orbite) prenait ~190 px et poussait le pavé hors de l'écran.
+ * THÈME NOVA, comme les autres écrans secondaires : en-tête, héros (disque dans
+ * son orbite, titre, phrase). Le disque EST l'anneau de saisie — c'est ce qui
+ * laisse au pavé la place de tenir sans défilement.
  *
- * L'ANCIEN CODE EST VÉRIFIÉ TOUT DE SUITE. Il ne l'était qu'à la fin : un code
- * faux obligeait à saisir deux fois le nouveau avant de l'apprendre. Sa longueur
- * est connue (celle du déverrouillage) : l'anneau se remplit sur elle et l'étape
- * se valide seule, comme à l'ouverture de l'app.
+ * MÊME LOGIQUE QUE LA CRÉATION DU CODE (set-pin) :
+ *  - saisir un code (l'ancien, puis le nouveau) : saisie libre de 6 à 12
+ *    chiffres, l'anneau se remplit au fil des chiffres, « Continuer » valide ;
+ *  - confirmer : la longueur est connue, l'anneau se remplit sur elle et l'étape
+ *    se valide seule.
+ * Aucune étape ne se valide d'elle-même pendant qu'on choisit sa longueur : les
+ * appuis suivants ne débordent jamais sur l'étape d'après.
+ *
+ * L'ancien code est vérifié dès « Continuer » (compteur et blocage compris) : un
+ * code faux n'est plus découvert après avoir saisi deux fois le nouveau.
  */
 type Step = 'old' | 'new' | 'confirm';
 
@@ -31,30 +38,19 @@ type Step = 'old' | 'new' | 'confirm';
 const ACTION_ROW = 24;
 const GAP = spacing(2);
 
-/** Touches et anneau à la taille de la hauteur DISPONIBLE : ils rapetissent plutôt que de sortir de l'écran. */
-function padSizes(avail: number): { key: number; ring: number } {
-  const fit = (ring: number) => Math.floor((avail - ring - GAP * 2 - PIN_GAP * 3 - ACTION_ROW) / 4);
-  let ring = 104;
-  let key = fit(ring);
-  if (key < 62) {
-    ring = 72;
-    key = fit(ring);
-  }
-  return { ring, key: Math.max(46, Math.min(PIN_KEY, key)) };
+/** Touches à la taille de la hauteur DISPONIBLE (mesurée) : elles rapetissent plutôt que de sortir de l'écran. */
+function keySizeFor(avail: number): number {
+  const key = Math.floor((avail - GAP - PIN_GAP * 3 - ACTION_ROW) / 4);
+  return Math.max(46, Math.min(PIN_KEY, key));
 }
 
 export default function ChangePin() {
   // Codes saisis ici : aucune capture d'écran.
   useNoScreenCapture('change-pin');
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const t = useT();
   const changePin = useWallet((s) => s.changePin);
   const verifyPin = useWallet((s) => s.verifyPin);
-  const pinLength = useSettings((s) => s.pinLength);
-  // Longueur du code actuel, si connue (enregistrée au dernier déverrouillage réussi).
-  const knownOld = pinLength >= PIN_MIN ? pinLength : undefined;
-
   const [step, setStep] = useState<Step>('old');
   const [oldPin, setOldPin] = useState('');
   const [newPin, setNewPin] = useState('');
@@ -64,7 +60,7 @@ export default function ChangePin() {
   const [errSignal, setErrSignal] = useState(0);
   // Hauteur réelle laissée au pavé, mesurée : dépend de l'appareil et des barres système.
   const [padArea, setPadArea] = useState(0);
-  const sizes = padSizes(padArea || 460);
+  const keySize = padArea ? keySizeFor(padArea) : PIN_KEY;
 
   const fail = (msg: string) => {
     setError(msg);
@@ -75,13 +71,13 @@ export default function ChangePin() {
     setPin(v);
   };
 
-  /** Ancien code : vérifié AVANT d'avancer (compteur de tentatives et blocage compris). */
-  const onOldNext = async (val = pin) => {
-    if (val.length < PIN_MIN) return fail(t('atLeastNDigits').replace('{n}', String(PIN_MIN)));
+  /** Ancien code : vérifié avant d'avancer. */
+  const onOldNext = async () => {
+    if (pin.length < PIN_MIN) return fail(t('atLeastNDigits').replace('{n}', String(PIN_MIN)));
     setBusy(true);
     try {
-      await verifyPin(val);
-      setOldPin(val);
+      await verifyPin(pin);
+      setOldPin(pin);
       setPin('');
       setStep('new');
     } catch (e) {
@@ -124,7 +120,7 @@ export default function ChangePin() {
         setStep('old');
         fail(t('oldPinIncorrect'));
       } else {
-        fail(friendlyTxError(e, t) || t('changeFailed'));
+        fail(friendlyTxError(e, t));
       }
     }
   };
@@ -139,51 +135,33 @@ export default function ChangePin() {
 
   const title = step === 'old' ? t('oldPinTitle') : step === 'new' ? t('newPinTitle') : t('confirmNewPin');
   const hint = step === 'old' ? t('enterCurrentCode') : step === 'new' ? t('chooseNewCode') : t('reenterNewCode');
-  // « Continuer » : nouveau code (longueur libre), ou ancien code de longueur inconnue.
-  const canNext = !busy && pin.length >= PIN_MIN && (step === 'new' || (step === 'old' && !knownOld));
+  // Anneau : sur 12 chiffres pendant qu'on choisit (comme à la création du code), sur la longueur connue à la confirmation.
+  const ringOf = step === 'confirm' ? newPin.length : PIN_MAX;
+  const progress = pin.length === 0 ? 0.001 : Math.min(1, pin.length / ringOf);
+  const canNext = !busy && step !== 'confirm' && pin.length >= PIN_MIN;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top, paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3) }}>
-      <Stack.Screen options={{ headerShown: false }} />
+    <Screen>
+      <ScreenHeader fallback="/menu" right={<FlowDots step={step === 'old' ? 1 : step === 'new' ? 2 : 3} />} />
+      {/* Héros Nova : le disque dans son orbite est l'anneau de saisie. Le titre remonte à chaque étape. */}
+      <NovaHero key={step} title={title} subtitle={hint}>
+        <KalyxRing size={84} progress={progress} error={!!error} />
+      </NovaHero>
 
-      {/* En-tête : retour et étapes. */}
-      <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <IconButton icon="back" label={t('back')} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/menu'))} />
-        <FlowDots step={step === 'old' ? 1 : step === 'new' ? 2 : 3} />
-      </View>
-
-      {/* Titre compact, comme au déverrouillage. */}
-      <View style={{ alignItems: 'center', gap: spacing(1), marginTop: spacing(1) }}>
-        <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
-        <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: 'center' }}>{hint}</Text>
-        {/* Hauteur réservée : le message d'erreur ne décale pas le pavé en apparaissant. */}
-        <Text numberOfLines={2} style={{ minHeight: 20, color: colors.danger, fontSize: 14, textAlign: 'center', fontFamily: fonts.medium }}>{error ?? ''}</Text>
-      </View>
+      {/* Hauteur réservée : le message d'erreur ne décale pas le pavé en apparaissant. */}
+      <Text numberOfLines={2} style={{ minHeight: 20, color: colors.danger, textAlign: 'center', fontFamily: fonts.medium }}>{error ?? ''}</Text>
 
       {/* Pavé ancré en bas, dans l'espace restant mesuré. */}
       <View
         style={{ flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'flex-end', gap: GAP }}
         onLayout={(e) => setPadArea(Math.round(e.nativeEvent.layout.height))}
       >
-        {step === 'old' ? (
-          <PinPad
-            key="old"
-            value={pin}
-            onChange={onChange}
-            expectedLength={knownOld}
-            onComplete={(v) => void onOldNext(v)}
-            ringLength={PIN_MIN}
-            errorSignal={errSignal}
-            disabled={busy}
-            keySize={sizes.key}
-            ringSize={sizes.ring}
-          />
-        ) : step === 'new' ? (
-          <PinPad key="new" value={pin} onChange={onChange} ringLength={PIN_MIN} errorSignal={errSignal} disabled={busy} keySize={sizes.key} ringSize={sizes.ring} />
+        {step === 'confirm' ? (
+          <PinPad hideRing value={pin} onChange={onChange} expectedLength={newPin.length} onComplete={onConfirm} errorSignal={errSignal} disabled={busy} keySize={keySize} />
         ) : (
-          <PinPad key="confirm" value={pin} onChange={onChange} expectedLength={newPin.length} onComplete={onConfirm} errorSignal={errSignal} disabled={busy} keySize={sizes.key} ringSize={sizes.ring} />
+          <PinPad hideRing value={pin} onChange={onChange} errorSignal={errSignal} disabled={busy} keySize={keySize} />
         )}
-        {/* Le rechiffrement (scrypt) prend quelques secondes : on le dit. */}
+        {/* Vérification et rechiffrement (scrypt) prennent quelques secondes : on le dit. */}
         <View style={{ height: ACTION_ROW, justifyContent: 'center' }}>
           {busy ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -201,6 +179,6 @@ export default function ChangePin() {
           ) : null}
         </View>
       </View>
-    </View>
+    </Screen>
   );
 }
