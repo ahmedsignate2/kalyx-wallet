@@ -30,25 +30,9 @@ import { friendlyTxError } from '../lib/txError';
 import type { Unlock } from '../lib/walletStore';
 import { auditFacts, auditTransaction, type TxAuditContext, type TxAuditFact, type TxAuditResult } from "../lib/aiTxAudit";
 import { probeRecipient } from "../lib/txAuditProbe";
+import { factLabel } from "./auditFactLabel";
 import { useAiStore } from "../lib/aiStore";
 import { isWalletError } from '../src';
-
-const FACT_KEY = {
-  flagged: 'aiFactFlagged', lookalike: 'aiFactLookalike', own: 'aiFactOwn', paid: 'aiFactPaid', received: 'aiFactReceived',
-  new: 'aiFactNew', contract: 'aiFactContract', fresh: 'aiFactFresh', unverified: 'aiFactUnverified',
-} as const;
-
-/** Libellé d'un fait, dans la langue de l'app. */
-function factLabel(f: TxAuditFact, t: ReturnType<typeof useT>, locale: string): string {
-  const date = (unix: number) => new Date(unix * 1000).toLocaleDateString(locale || undefined);
-  switch (f.kind) {
-    case 'contact': return t('aiFactContact').replace('{name}', f.name);
-    case 'paidN': return (f.last ? t('aiFactPaidNLast').replace('{date}', date(f.last)) : t('aiFactPaidN')).replace('{n}', String(f.n));
-    case 'since': return t('aiFactSince').replace('{date}', date(f.at));
-    case 'busy': return t('aiFactBusy').replace('{n}', String(f.n));
-    default: return t(FACT_KEY[f.kind]);
-  }
-}
 
 export function ConfirmUnlock({
   visible,

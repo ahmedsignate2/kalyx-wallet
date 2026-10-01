@@ -13,6 +13,7 @@ import { usePaidAddresses } from '../lib/historySpam';
 import { sameAddress } from '../lib/txAuditProbe';
 import { holdingLabel } from '../lib/holdingLabel';
 import { SendResult } from '../ui/SendResult';
+import { RecipientFacts } from '../ui/RecipientFacts';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -651,6 +652,17 @@ export default function Send() {
       if (isNativeSend) getAdapter(targetChainId).buildTransfer({ to: recipient, amount: tokenAmountStr });
     } catch (e) {
       technicalLogger.logTx('step_2_buildTransfer_failed', { error: isWalletError(e) ? e.message : String(e), chain: chain.name }, true);
+      /*
+       * L'ADRESSE, PAS LE MONTANT. Un lien de paiement saute l'étape du
+       * destinataire : une adresse au checksum faux arrivait jusqu'ici, et
+       * l'écran disait « Montant invalide » — l'utilisateur corrigeait un
+       * montant juste. On le ramène au destinataire avec la vraie raison.
+       */
+      if (isWalletError(e) && e.code === 'INVALID_ADDRESS') {
+        setStep(1);
+        setAddressError(t('errInvalidAddress'));
+        return;
+      }
       return setAmountError(isWalletError(e) && /décimales/.test(e.message) ? t('errTooManyDecimals').replace('{max}', String(decimals)) : t("errInvalidAmount"));
     }
     /*
@@ -940,6 +952,13 @@ export default function Send() {
               </Text>
               {price > 0 ? <Text variant="bodySecondary" tone="secondary" tabular>≈ {formatFiat(fiatOfAmount)} {sym}</Text> : null}
             </View>
+            {/* Ce qu'on sait du destinataire, en clair, avant de signer. */}
+            <RecipientFacts
+              to={recipient}
+              chainId={targetChainId}
+              from={senderAddress}
+              facts={{ contactName, ownAccount: isOwnRecipient, paidBefore, lookalikeOf: poisoning?.lookalike, isContract }}
+            />
             <Surface padded={false} style={{ borderRadius: 26 }}>
               {/*
                 CE QUE LE LIEN ANNONCE, en tête et non dans un toast qui disparaît.
@@ -976,9 +995,7 @@ export default function Send() {
                     {recipient.slice(0, 6)}…<Text variant="caption" style={{ fontFamily: 'monospace', color: colors.text }}>{recipient.slice(-4)}</Text>
                   </Text>
                 </View>
-                <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, backgroundColor: isKnown ? 'rgba(60,217,138,0.10)' : 'rgba(255,181,71,0.10)' }}>
-                  <Text variant="micro" style={{ color: isKnown ? colors.up : colors.warning }}>{isKnown ? t('badgeKnownContact') : t('badgeFirstTime')}</Text>
-                </View>
+                {/* Le badge « Premier envoi / Contact connu » faisait doublon avec la fiche Destinataire au-dessus. */}
               </View>
               <Divider inset={76} />
               <ListRow title={t("labelNetwork")} right={<Text variant="body">{chain.name}</Text>} />
