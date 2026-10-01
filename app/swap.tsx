@@ -571,14 +571,16 @@ export default function Swap() {
                 chainId={activeChain}
                 value={amount}
                 onPick={() => setPickerState({ visible: true, side: 'from' })}
-                bottom={
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
-                    <Text variant="caption" tone="secondary" tabular>{quote && quote.fromAmountUsd > 0 ? `≈ ${formatFiat(quote.fromAmountUsd)} $` : ' '}</Text>
-                    <KPressable onPress={() => { onMax(); reset(); stopCountdown(); }} hitSlop={8} accessibilityLabel={t("chipMax")}>
-                      <Text variant="caption" tone="secondary" tabular>{t('availableLabel')} : {formatTokenAmount(getAvailable(), fromTok.decimals)} · <Text variant="caption" style={{ color: GOLD }}>{t("chipMax")}</Text></Text>
-                    </KPressable>
-                  </View>
+                /*
+                 * « Disponible · Max » EN HAUT, face au libellé : en bas de la
+                 * carte, il passait sous le disque d'inversion posé à cheval.
+                 */
+                right={
+                  <KPressable onPress={() => { onMax(); reset(); stopCountdown(); }} hitSlop={8} accessibilityLabel={t("chipMax")}>
+                    <Text variant="caption" tone="secondary" tabular numberOfLines={1}>{t('availableLabel')} : {formatTokenAmount(getAvailable(), fromTok.decimals)} · <Text variant="caption" style={{ color: GOLD }}>{t("chipMax")}</Text></Text>
+                  </KPressable>
                 }
+                bottom={<Text variant="caption" tone="secondary" tabular>{quote && quote.fromAmountUsd > 0 ? `≈ ${formatFiat(quote.fromAmountUsd)} $` : ' '}</Text>}
               />
             </Rise>
             <Rise delay={70}>
