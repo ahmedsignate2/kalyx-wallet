@@ -467,17 +467,19 @@ async function dropSupersededWatch(newAccounts: StoredAccount[]): Promise<void> 
   const mine = buildAddressIndex([{ walletId: '_new', accounts: newAccounts }]);
   const gone = st.wallets.filter((w) => w.type === 'watch' && w.watchAddress && lookupAddress(mine, w.watchAddress));
   if (!gone.length) return;
-  const wallets = st.wallets.filter((w) => !gone.includes(w));
-  for (const w of gone) {
-    // Comme une suppression : ses connexions partent avec lui (10 s au plus).
-    await Promise.race([
-      import('./sessionReset').then((m) => m.disconnectWallet(w.id, [w.watchAddress!])).catch(() => {}),
-      new Promise((r) => setTimeout(r, 10_000)),
-    ]);
-    await wipeWallet(w.id);
+  /*
+   * Aucune session à couper : une adresse suivie ne se connecte à rien
+   * (verifyConnect). Appelée APRÈS un import déjà enregistré : un échec ici ne
+   * doit pas faire croire que l'import a échoué (on retenterait, en double).
+   */
+  try {
+    const wallets = useWallet.getState().wallets.filter((w) => !gone.some((g) => g.id === w.id));
+    await saveWalletsList(wallets);
+    useWallet.setState({ wallets });
+    for (const w of gone) await wipeWallet(w.id).catch(() => {});
+  } catch {
+    /* liste inchangée : l'adresse suivie reste, sans conséquence pour l'import */
   }
-  await saveWalletsList(wallets);
-  useWallet.setState({ wallets });
 }
 
 /**
@@ -491,7 +493,7 @@ async function authWalletFor(unlock: Unlock): Promise<string> {
   if (!('biometric' in unlock) || id === activeWalletId) return id;
   for (const w of wallets) {
     if (w.type === 'watch') continue;
-    if ((await isBiometricSeedGated(w.id)) || (await hasBiometricSeed(w.id))) return w.id;
+    if (await hasBiometricSeed(w.id)) return w.id; // protégée ou ancienne copie
   }
   return id;
 }
@@ -627,6 +629,17 @@ function toAccount(accounts: StoredAccount[], activeIndex: number, chainId: stri
  * Réservé aux portefeuilles BIP-39 : l'appelant le vérifie (`isBip39Wallet`).
  */
 async function backfillPhraseAccounts(
+  walletId: string,
+  mnemonic: string,
+  accounts: StoredAccount[],
+): Promise<StoredAccount[]> {
+  const updated = await backfillPhraseAccountsRaw(walletId, mnemonic, accounts);
+  // Adresses complétées (Solana, TON) : une lecture seule qui les suivait n'a plus lieu d'être.
+  if (updated !== accounts) await dropSupersededWatch(updated);
+  return updated;
+}
+
+async function backfillPhraseAccountsRaw(
   walletId: string,
   mnemonic: string,
   accounts: StoredAccount[],
@@ -1291,6 +1304,7 @@ export const useWallet = create<WalletState>((set, get) => ({
         ? firstChainOfFamily(onlyFamily)
         : get().activeChain;
     set({ activeWalletId: id, accounts, activeAccountIndex: 0, activeChain: chain, account: toAccount(accounts, 0, chain) });
+    kvSet(K_ACTIVE_CHAIN, chain).catch(() => {}); // sinon le réseau d'une autre famille reviendrait au relancement
     /*
      * Changer de portefeuille remet le compte à zéro : laisser l'ancien indice
      * ferait rouvrir l'app sur un compte qui n'existe peut-être pas ici.
@@ -1333,9 +1347,15 @@ export const useWallet = create<WalletState>((set, get) => ({
     await wipeWallet(id);
     await saveWalletsList(wallets);
     if (get().activeWalletId === id) {
-      // Le suivant peut ne servir qu'une famille (clé importée, adresse suivie) : setActiveWallet ajuste le réseau.
-      set({ wallets });
-      await get().setActiveWallet(wallets[0].id);
+      // Le suivant peut ne servir qu'une famille (clé importée, adresse suivie) : réseau ajusté.
+      // Un seul `set` : jamais un état où l'actif est le portefeuille supprimé.
+      const nextId = wallets[0].id;
+      const accounts = (await loadAccounts(nextId).catch(() => null)) ?? [];
+      const fam = walletFamily(wallets, nextId);
+      const chain = fam && chainConfig(get().activeChain).family !== fam ? firstChainOfFamily(fam) : get().activeChain;
+      set({ wallets, activeWalletId: nextId, accounts, activeAccountIndex: 0, activeChain: chain, account: toAccount(accounts, 0, chain) });
+      rememberActive(nextId, 0);
+      kvSet(K_ACTIVE_CHAIN, chain).catch(() => {});
     } else {
       set({ wallets });
     }
@@ -1976,7 +1996,10 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   disableBiometric: async () => {
-    await disableBiometricSeed(authWalletId(get().wallets, get().activeWalletId));
+    const { wallets, activeWalletId } = get();
+    // Lecture seule active : la copie peut être sur n'importe quel portefeuille à clé — toutes effacées.
+    const ids = isWatchWallet(wallets, activeWalletId) ? wallets.filter((w) => w.type !== 'watch').map((w) => w.id) : [activeWalletId];
+    for (const id of ids) await disableBiometricSeed(id);
   },
 
   healBiometric: async (pin) => {
