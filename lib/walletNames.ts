@@ -56,7 +56,10 @@ function isCustom(label: string | undefined): boolean {
 export function walletDisplayName(w: WalletMeta, position: number, t: T): string {
   if (isCustom(w.label)) return w.label;
   // Une adresse suivie n'est jamais « Portefeuille principal », même en tête de liste.
-  if (w.type === 'watch') return t('watchNameDefault').replace('{n}', String(position + 1));
+  if (w.type === 'watch') {
+    const a = w.watchAddress ?? '';
+    return t('watchNameDefault').replace('{n}', a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a).trim();
+  }
   if (position === 0) return t('walletDefaultMain');
   const key = w.type === 'privateKey' ? 'walletDefaultKey' : 'walletDefaultN';
   return t(key).replace('{n}', String(position + 1));

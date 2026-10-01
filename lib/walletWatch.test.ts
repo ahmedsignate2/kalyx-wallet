@@ -115,3 +115,16 @@ describe('Lecture seule : suivre, déverrouiller, jamais signer', () => {
     expect(W().activeWalletId).toBe(seedId);
   });
 });
+
+describe('Lecture seule remplacée par la clé', () => {
+  it('importer la clé d’une adresse suivie retire la lecture seule (pas deux fois les mêmes fonds)', async () => {
+    useWallet.setState({ failedAttempts: 0, lastFailedAt: 0 });
+    const addr = '0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf'; // clé privée 1
+    await W().addWatchWallet(addr);
+    expect(W().wallets.some((w) => w.type === 'watch')).toBe(true);
+    await W().importPrivateKey('0x' + '0'.repeat(63) + '1', PIN, '', 'evm');
+    expect(W().wallets.some((w) => w.type === 'watch')).toBe(false);
+    expect(W().account?.address).toBe(addr);
+  });
+});
+

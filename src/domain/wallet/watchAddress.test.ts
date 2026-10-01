@@ -5,6 +5,7 @@ describe('parseWatchAddress', () => {
     const r = parseWatchAddress('0x833589fcd6edb6e08f4c7c32d4f71b54bda02913');
     expect(r).toEqual({ ok: true, family: 'evm', address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' });
     expect(parseWatchAddress('0x833589FCD6eDb6E08f4c7C32D4f71b54bdA02913')).toEqual({ ok: false, error: 'BAD_CHECKSUM' });
+    expect(parseWatchAddress('0X833589FCD6EDB6E08F4C7C32D4F71B54BDA02913')).toMatchObject({ ok: true, family: 'evm' });
   });
   it('Bitcoin bech32 (majuscules d’un QR ramenées) et Solana', () => {
     const btc = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';

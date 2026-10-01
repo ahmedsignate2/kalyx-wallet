@@ -4,6 +4,7 @@
  * claires sur les réseaux compatibles, Copier (haptique + toast) et Partager.
  * Le réseau se choisit ici (famille d'adresse : EVM / Solana / Bitcoin).
  */
+import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { fill } from '../lib/i18n';
 import { SafeModal } from '../ui/kit/SafeModal';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -28,7 +29,7 @@ import { getAdapter, listChains, chainIconUrl, type ChainFamily } from '../src';
 
 type Fam = ChainFamily;
 
-export default function Receive() {
+function ReceiveInner() {
   const t = useT();
   const language = useSettings((st) => st.language);
   const { colors } = useTheme();
@@ -274,3 +275,6 @@ export default function Receive() {
     </View>
   );
 }
+
+// Lecture seule : rien à signer ni à recevoir à son nom ici (ui/WatchOnlyGate).
+export default withWatchOnlyGate(ReceiveInner);

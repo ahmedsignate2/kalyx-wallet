@@ -7,6 +7,7 @@
  * dans une WebView : ses champs évoluent sans nous prévenir, et une copie
  * native empêcherait de payer le jour où elle diverge.
  */
+import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -41,7 +42,7 @@ import { usePortfolioStore } from '../lib/portfolio';
 /** Domaines autorisés dans la WebView de capture. */
 const COLLECT_HOST = 'pay.walletconnect.com';
 
-export default function PayScreen() {
+function PayScreenInner() {
   const t = useT();
   // `mode` sert à accorder le formulaire hébergé au thème actif de l'app.
   const { colors, mode } = useTheme();
@@ -571,3 +572,6 @@ export default function PayScreen() {
     </View>
   );
 }
+
+// Lecture seule : rien à signer ni à recevoir à son nom ici (ui/WatchOnlyGate).
+export default withWatchOnlyGate(PayScreenInner);
