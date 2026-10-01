@@ -84,7 +84,7 @@ import {
 } from '../src';
 import { technicalLogger } from './technicalLogger';
 import { addressForChain } from './accountAddress';
-import { isRecentlyRevoked, markRevoked, useRevokeState } from './revokeState';
+import { isRevokeInFlight, markRevokeSent, useRevokeState } from './revokeState';
 import { buildAddressIndex, lookupAddress } from './isMyAddress';
 import {
   saveVault,
@@ -2056,13 +2056,22 @@ export const useWallet = create<WalletState>((set, get) => ({
       {
         // Déjà à 0 — ou révocation envoyée il y a peu, pas encore minée (le réseau lit encore l'ancienne valeur).
         check: async (it) =>
-          isRecentlyRevoked(chainId, from, it.token, it.spender) || (await adapter.getAllowanceStrict(it.token, from, it.spender)) === 0n ? 'revoked' : 'active',
+          (await isRevokeInFlight(chainId, from, it.token, it.spender, async (h) => (await adapter.getReceiptInfo(h)) !== null)) ||
+          (await adapter.getAllowanceStrict(it.token, from, it.spender)) === 0n
+            ? 'revoked'
+            : 'active',
         send: async (it, suggested) => {
           // Une autre transaction (WalletConnect, envoi) a pu partir pendant le lot : le plus grand gagne.
           const nonce = Math.max(suggested, await adapter.getNonce(from).catch(() => suggested));
-          const hash = await adapter.sendContractTx({ to: it.token, data: revokeCalldata(it.spender), value: 0n, chainId: chainIdNum, nonce }, from, pk);
-          markRevoked(chainId, from, it.token, it.spender);
-          return { hash, nonce };
+          try {
+            const hash = await adapter.sendContractTx({ to: it.token, data: revokeCalldata(it.spender), value: 0n, chainId: chainIdNum, nonce }, from, pk);
+            markRevokeSent(chainId, from, it.token, it.spender, hash);
+            return { hash, nonce };
+          } catch (e) {
+            // Diffusion interrompue : peut-être partie — retenue, pour ne pas la repayer à l'aveugle.
+            if ((e as { afterSign?: boolean })?.afterSign) markRevokeSent(chainId, from, it.token, it.spender, null);
+            throw e;
+          }
         },
         shouldContinue: opts.shouldContinue,
       },
