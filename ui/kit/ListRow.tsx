@@ -8,6 +8,7 @@ import React from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { Pressable as RNPressable } from 'react-native';
 import { Text } from './Text';
+import { useFallbackLogo } from './useFallbackLogo';
 import { TokenIcon } from './TokenIcon';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
@@ -49,24 +50,29 @@ export function ListRow({ left, title, subtitle, right, onPress, chevron, style 
 }
 
 export function TokenRow({
-  symbol, name, logo, address, balance, fiat, changePct, onPress, hidden,
+  symbol, name, logo, address, balance, fiat, changePct, onPress, hidden, chainId, chainBadge,
 }: {
   symbol: string; name: string; logo?: string | null; address?: string;
   /** Solde formaté (« 1.42 ETH »). */ balance: string;
   /** Valeur formatée (« 4 210,00 € »). */ fiat?: string;
   changePct?: number | null; onPress?: () => void; hidden?: boolean;
+  /** Réseau du jeton : sert à retrouver un logo manquant dans la liste du réseau. */ chainId?: string;
+  /** Logo du réseau en pastille. */ chainBadge?: string | null;
 }) {
   const up = (changePct ?? 0) >= 0;
+  const resolvedLogo = useFallbackLogo(chainId, address, logo);
+  // Une variation qui s'arrondit à 0,0 % n'apprend rien : « ↓ −0,0 % » n'est plus affiché.
+  const showChange = changePct != null && Math.abs(changePct) >= 0.05;
   return (
     <ListRow
       onPress={onPress}
-      left={<TokenIcon symbol={symbol} logo={logo} seed={address ?? symbol} />}
+      left={<TokenIcon symbol={symbol} logo={resolvedLogo} seed={address ?? symbol} badge={chainBadge} />}
       title={name}
       subtitle={hidden ? '••••' : balance}
       right={
         <View style={{ alignItems: 'flex-end' }}>
           <Text variant="body" tabular numberOfLines={1}>{hidden ? '••••' : fiat ?? '—'}</Text>
-          {changePct != null && !hidden ? (
+          {showChange && !hidden ? (
             <Text variant="caption" tone={up ? 'up' : 'down'} tabular>
               {up ? '↑ +' : '↓ −'}{Math.abs(changePct).toFixed(1).replace('.', ',')} %
             </Text>
