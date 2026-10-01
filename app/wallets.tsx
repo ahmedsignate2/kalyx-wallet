@@ -34,6 +34,11 @@ export default function Wallets() {
       toast.warning(t('cannotTitle'), t('cannotDeleteLast'));
       return;
     }
+    // Le code de l'app vit dans les coffres : le dernier portefeuille à clé reste.
+    if (!wallets.some((w) => w.id !== id && w.type !== 'watch')) {
+      toast.warning(t('cannotTitle'), t('errLastKeyWallet'));
+      return;
+    }
     Alert.alert(
       t('deleteWalletQ'),
       t('deleteWalletBody').replace('{label}', label),
@@ -80,6 +85,12 @@ export default function Wallets() {
                 </KPressable>
                 <View style={{ flex: 1 }}>
                   <Text style={typography.body}>{walletDisplayName(w, i, t)}</Text>
+                  {w.type === 'watch' ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <Icon name="eye" size={12} color={colors.textSecondary} />
+                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.semibold }}>{t('watchBadge')}</Text>
+                    </View>
+                  ) : null}
                   {active ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                       <Pulse size={7} />
@@ -118,6 +129,7 @@ export default function Wallets() {
           <Button label={t('createAction')} onPress={() => router.push('/create-wallet')} />
         </View>
       </View>
+      <Button label={t('watchAction')} variant="ghost" onPress={() => router.push('/watch-wallet')} />
       {avatarFor ? <AvatarPicker walletId={avatarFor} visible onClose={() => setAvatarFor(null)} /> : null}
       <ConfirmUnlock
         visible={removing !== null}

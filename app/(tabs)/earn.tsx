@@ -4,6 +4,7 @@
  * Données : `useEarn` (store partagé) → catalogue vérifié, APY réels, soldes,
  * positions, prix. Actions : `EarnSheet` (devis → confirmation → exécution).
  */
+import { withWatchOnlyGate } from '../../ui/WatchOnlyGate';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, Text, View } from 'react-native';
 import { Stack, router, useFocusEffect } from 'expo-router';
@@ -51,7 +52,7 @@ function ChainTag({ chainId }: { chainId: string }) {
   );
 }
 
-export default function EarnScreen() {
+function EarnScreenInner() {
   const { colors, typography } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
@@ -408,3 +409,5 @@ function TonStakingCard() {
   );
 }
 
+// Lecture seule : rien à signer ici (ui/WatchOnlyGate).
+export default withWatchOnlyGate(EarnScreenInner, { header: false });

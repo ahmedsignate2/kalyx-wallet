@@ -53,6 +53,12 @@ export type WalletErrorCode =
   | 'INSUFFICIENT_GAS'
   /** Portefeuille importé par clé privée : aucune phrase à montrer ni sauvegarder. */
   | 'NO_RECOVERY_PHRASE'
+  /** Portefeuille en lecture seule : aucune clé, rien ne peut être signé. */
+  | 'WATCH_ONLY'
+  /** Supprimer ce portefeuille ne laisserait que des lectures seules : plus aucun coffre pour le code. */
+  | 'LAST_KEY_WALLET'
+  /** Adresse à suivre invalide ou non prise en charge (détail dans le message : watch.<raison>). */
+  | 'INVALID_WATCH_ADDRESS'
   /** Transaction à accélérer introuvable, déjà confirmée ou trop ancienne. */
   | 'BUMP_NOT_FOUND'
   /** Diffusée, mais pas confirmée dans le délai : elle peut encore passer. */

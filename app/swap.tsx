@@ -1,4 +1,5 @@
 import { haptic } from "../lib/haptics";
+import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { sound } from "../lib/sound";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
@@ -84,7 +85,7 @@ function isNativeTokenAddress(address?: string): boolean {
   );
 }
 
-export default function Swap() {
+function SwapInner() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -789,3 +790,6 @@ export default function Swap() {
     </View>
   );
 }
+
+// Lecture seule : rien à signer ici (ui/WatchOnlyGate).
+export default withWatchOnlyGate(SwapInner);
