@@ -120,3 +120,49 @@ export function isUnlimited(allowance: bigint): boolean {
 export function revokeCalldata(spender: string): string {
   return ERC20.encodeFunctionData('approve', [getAddress(spender), 0n]);
 }
+
+/**
+ * RÉVOCATION GROUPÉE — un compte classique (EOA) ne peut pas tout révoquer en
+ * UNE transaction : on en envoie une par autorisation, signées avec la même clé
+ * (une seule confirmation) et des nonces CONSÉCUTIFS fixés d'avance — un nœud
+ * en retard qui rendrait deux fois le même nonce ferait remplacer la première.
+ *
+ * Règles d'arrêt :
+ *  - refus AVANT diffusion (simulation refusée : déjà révoquée, jeton bizarre)
+ *    → on passe à la suivante avec LE MÊME nonce (il n'a pas servi) ;
+ *  - frais insuffisants → arrêt : les suivantes échoueraient pareil ;
+ *  - toute autre erreur (diffusion incertaine) → arrêt : on ne sait pas si le
+ *    nonce est consommé, continuer risquerait d'en remplacer une.
+ */
+export type RevokeOutcome =
+  | { status: 'sent'; hash: string }
+  | { status: 'skipped'; error: unknown }
+  | { status: 'failed'; error: unknown }
+  | { status: 'notSent' };
+
+export async function runRevokeBatch<T>(
+  items: readonly T[],
+  firstNonce: number,
+  send: (item: T, nonce: number) => Promise<string>,
+  onProgress?: (done: number, total: number) => void,
+): Promise<RevokeOutcome[]> {
+  const out: RevokeOutcome[] = items.map(() => ({ status: 'notSent' }));
+  let nonce = firstNonce;
+  for (let i = 0; i < items.length; i++) {
+    onProgress?.(i, items.length);
+    try {
+      out[i] = { status: 'sent', hash: await send(items[i], nonce) };
+      nonce += 1;
+    } catch (e) {
+      const code = (e as { code?: string })?.code;
+      if (code === 'CALL_EXCEPTION') {
+        out[i] = { status: 'skipped', error: e }; // pas diffusée : nonce intact
+        continue;
+      }
+      out[i] = { status: 'failed', error: e };
+      break; // frais insuffisants ou diffusion incertaine : on s'arrête là
+    }
+  }
+  onProgress?.(items.length, items.length);
+  return out;
+}

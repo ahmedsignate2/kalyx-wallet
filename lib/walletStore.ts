@@ -14,7 +14,7 @@
 import { Address as TonCoreAddress, Cell as TonCell } from '@ton/core';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import { formatExportedKey } from '../src/domain/keys/exportKey';
-import { deriveBtcSigner, deriveSolanaSigner, discoverAccountIndexes, normalizeAddressCase, parseWatchAddress } from '../src';
+import { deriveBtcSigner, deriveSolanaSigner, discoverAccountIndexes, normalizeAddressCase, parseWatchAddress, revokeCalldata, runRevokeBatch, type RevokeOutcome } from '../src';
 import { base64, base58, hex } from '@scure/base';
 import { ed25519 } from '@noble/curves/ed25519';
 import { secp256k1 } from '@noble/curves/secp256k1';
@@ -307,6 +307,17 @@ interface WalletState {
   /** `expectedChainId` : réseau de la demande ; un `domain.chainId` différent est refusé (rejeu sur un autre réseau). */
   signTypedData: (unlock: Unlock, typedData: { domain: unknown; types: Record<string, unknown>; message: unknown }, expectedChainId?: number) => Promise<string>;
   sendRawTxOn: (unlock: Unlock, chainId: string, req: RawTxRequest) => Promise<string>;
+  /**
+   * RÉVOCATION GROUPÉE d'autorisations ERC-20 : une seule confirmation (code ou
+   * biométrie), puis une transaction par autorisation, nonces consécutifs
+   * (runRevokeBatch). Rend l'issue de chacune, dans l'ordre.
+   */
+  revokeApprovals: (
+    unlock: Unlock,
+    chainId: string,
+    items: readonly { token: string; spender: string }[],
+    opts?: { onProgress?: (done: number, total: number) => void; /** Clé lue (code bon) : la suite est réseau seulement. */ onUnlocked?: () => void },
+  ) => Promise<RevokeOutcome[]>;
   /** Envoie un token ERC-20 détenu (transfer) sur le réseau actif. */
   sendToken: (to: string, amount: string, token: { contract: string; decimals: number }, unlock: Unlock, gas?: GasOverride) => Promise<string>;
   /** Envoie un token SPL détenu (Solana) : crée l'ATA si besoin puis transfère. */
@@ -2007,6 +2018,27 @@ export const useWallet = create<WalletState>((set, get) => ({
     const from = stored?.evmAddress ?? account.address;
     const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
     return adapter.sendContractTx(req, from, pk);
+  },
+
+  revokeApprovals: async (unlock, chainId, items, opts = {}) => {
+    const { account, accounts, activeAccountIndex, activeWalletId, wallets } = get();
+    if (!account) throw new Error('Aucun compte');
+    const adapter = getAdapter(chainId);
+    if (!(adapter instanceof EvmChainAdapter) || !adapter.config.evmChainId) throw new WalletError('NOT_SUPPORTED', 'Chaîne non supportée');
+    // Adresse EVM du compte (jamais celle du réseau affiché, qui peut être Solana ou Bitcoin).
+    const from = accounts.find((a) => a.index === activeAccountIndex)?.evmAddress;
+    if (!from) throw new WalletError('NOT_SUPPORTED', 'Ce compte n’a pas d’adresse EVM');
+    // UNE confirmation : la clé est lue une fois, pour tout le lot (et oubliée ensuite).
+    const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
+    opts.onUnlocked?.();
+    const first = await adapter.getNonce(from); // « pending » : compte les transactions déjà en attente
+    const chainIdNum = adapter.config.evmChainId;
+    return runRevokeBatch(
+      items,
+      first,
+      (it, nonce) => adapter.sendContractTx({ to: it.token, data: revokeCalldata(it.spender), value: 0n, chainId: chainIdNum, nonce }, from, pk),
+      opts.onProgress,
+    );
   },
 
   sendToken: async (to, amount, token, unlock, gas) => {
