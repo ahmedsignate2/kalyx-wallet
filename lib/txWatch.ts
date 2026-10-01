@@ -24,21 +24,24 @@ import { useSettings } from './settingsStore';
  */
 const tr = (key: Key, label?: string) => fill(translate(useSettings.getState().language, key), { label: label ?? '' });
 
+/** Issue connue (confirmed/failed/expired) ou non (pending : délai dépassé ; unknown : illisible). */
+export type TxOutcome = 'confirmed' | 'failed' | 'expired' | 'pending' | 'unknown';
+
 export async function watchConfirmation(
   chainId: string,
   hash: string,
   label: string,
   hint?: TxWaitHint,
-): Promise<void> {
+): Promise<TxOutcome> {
   const adapter = findAdapterV2(chainId);
-  if (!adapter) return;
+  if (!adapter) return 'unknown';
 
   try {
     const state = await adapter.waitForTx(hash, hint);
     switch (state.status) {
       case 'confirmed':
         notifyAndLog('tx', tr('notifTxConfirmedTitle'), label);
-        return;
+        return 'confirmed';
       case 'failed':
         /*
          * INCLUSE puis rejetée : les frais ont été payés, l'effet attendu n'a
@@ -47,15 +50,17 @@ export async function watchConfirmation(
          * pas, ou qu'il renvoie en croyant que rien n'est parti.
          */
         notifyAndLog('tx', tr('notifTxFailedTitle'), tr('notifTxFailedBody', label));
-        return;
+        return 'failed';
       case 'expired':
         // JAMAIS incluse : les fonds n'ont pas bougé, et on peut réessayer.
         notifyAndLog('tx', tr('notifTxExpiredTitle'), tr('notifTxExpiredBody', label));
-        return;
+        return 'expired';
       default:
         notifyAndLog('tx', tr('notifTxPendingTitle'), tr('notifTxPendingBody', label));
+        return 'pending';
     }
   } catch {
     notifyAndLog('tx', tr('notifTxPendingTitle'), tr('notifTxPendingBody', label));
+    return 'unknown';
   }
 }

@@ -34,8 +34,12 @@ export function IsMyAddress() {
     setOthersState('loading');
     Promise.all(
       wallets.filter((w) => w.id !== activeWalletId).map(async (w) => {
-        const accounts = await loadAccounts(w.id).catch(() => null);
-        return { walletId: w.id, accounts: accounts ?? [], failed: accounts == null };
+        // Aucun enregistrement = aucun compte (comme walletStore) ; seule une lecture qui LÈVE est un échec.
+        try {
+          return { walletId: w.id, accounts: (await loadAccounts(w.id)) ?? [], failed: false };
+        } catch {
+          return { walletId: w.id, accounts: [] as StoredAccount[], failed: true };
+        }
       }),
     ).then((list) => {
       if (!alive) return;

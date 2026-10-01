@@ -64,13 +64,13 @@ export function isScamName(name: string | undefined): boolean {
 
 /** Même 4 premiers et 4 derniers caractères, adresse différente. */
 export function looksLike(a: string, b: string): boolean {
-  // Même adresse (selon la règle de casse) : pas un sosie. Une variante de casse
-  // d'une adresse Solana/base58, elle, EST une autre adresse — et un sosie parfait.
-  if (normalizeAddressCase(a) === normalizeAddressCase(b)) return false;
+  /*
+   * Même début + même fin, milieu différent. Une simple variante de CASSE n'est
+   * pas un sosie : personne n'en détient la clé, nul ne peut en envoyer.
+   */
   const x = a.toLowerCase().replace(/^0x/, '');
   const y = b.toLowerCase().replace(/^0x/, '');
-  if (x.length < 12 || y.length < 12) return false;
-  if (x === y) return true;
+  if (x === y || x.length < 12 || y.length < 12) return false;
   return x.slice(0, 4) === y.slice(0, 4) && x.slice(-4) === y.slice(-4);
 }
 

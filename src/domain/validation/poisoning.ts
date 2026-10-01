@@ -5,8 +5,10 @@
  * son historique. Si l'adresse saisie RESSEMBLE à une adresse connue (même
  * début + même fin) mais diffère au milieu → alerte bloquante.
  *
- * Pur, testé. Comparaison insensible à la casse (EVM) ; Solana/BTC sensibles.
+ * Pur, testé. Comparaison insensible à la casse pour EVM et bech32 ; Solana et
+ * Bitcoin base58 sensibles.
  */
+import { normalizeAddressCase } from './addressCase';
 export interface PoisoningMatch {
   /** L'adresse connue imitée. */
   lookalike: string;
@@ -16,9 +18,10 @@ function core(a: string): string {
   const s = a.trim();
   return s.startsWith('0x') || s.startsWith('0X') ? s.slice(2) : s;
 }
+/** Règle de casse unique (addressCase) : EVM et bech32 en minuscules, Solana/base58 exacts. */
 function norm(a: string): string {
-  const s = a.trim();
-  return s.startsWith('0x') || s.startsWith('0X') ? s.toLowerCase() : s;
+  const s = normalizeAddressCase(a);
+  return s.startsWith('0X') ? s.toLowerCase() : s;
 }
 
 /**

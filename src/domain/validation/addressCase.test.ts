@@ -11,3 +11,14 @@ describe('normalizeAddressCase', () => {
     expect(normalizeAddressCase('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')).toBe('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa');
   });
 });
+
+describe('détection d’empoisonnement — règle de casse partagée', () => {
+  const { detectPoisoning } = require('./poisoning');
+  it('BC1Q… en majuscules (QR) = la même adresse bech32 connue', () => {
+    const known = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+    expect(detectPoisoning(known.toUpperCase(), [known])).toBeNull();
+  });
+  it('0X majuscule = la même adresse EVM', () => {
+    expect(normalizeAddressCase('0X833589FCD6EDB6E08F4C7C32D4F71B54BDA02913')).toBe('0x833589fcd6edb6e08f4c7c32d4f71b54bda02913');
+  });
+});
