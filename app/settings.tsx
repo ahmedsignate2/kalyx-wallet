@@ -164,8 +164,9 @@ export default function Settings() {
         <SettingRow icon="language" title={t('language')} hint={langName} onPress={() => router.push('/language')} />
         <SettingRow divider icon="currency" title={t('currency')} />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), paddingBottom: spacing(1.5) }}>
+          {/* Symbole seulement s'il diffère du code : « CHF CHF » devient « CHF ». */}
           {FIATS.map((f) => (
-            <OptionPill key={f.code} label={`${f.symbol} ${f.code.toUpperCase()}`} selected={f.code === fiat} onPress={() => setFiat(f.code)} />
+            <OptionPill key={f.code} label={f.symbol.toUpperCase() === f.code.toUpperCase() ? f.code.toUpperCase() : `${f.symbol} ${f.code.toUpperCase()}`} selected={f.code === fiat} onPress={() => setFiat(f.code)} />
           ))}
         </View>
         <SettingRow divider icon="appearance" title={t('appearance')} />

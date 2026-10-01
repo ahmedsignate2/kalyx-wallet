@@ -6,15 +6,14 @@
  *  - approbations actives (réseau actif) avec « Révoquer »
  *  - sessions WalletConnect ouvertes avec « Déconnecter »
  */
-import { ScreenOrbit, useScreenEntrance } from '../ui/nova';
+import { GOLD, NovaHero, SectionLabel } from '../ui/nova';
 import Svg, { Circle } from 'react-native-svg';
-import Reanimated from 'react-native-reanimated';
 import { fetchApprovalCandidates } from '../src/domain/security/goplus';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, Button, IconButton, Surface, Divider, ListRow, TokenIcon, Skeleton, Chip, Pressable } from '../ui/kit';
+import { Text, Surface, Divider, ListRow, TokenIcon, Skeleton, Chip, Pressable, ScreenHeader } from '../ui/kit';
 import { Icon, type IconName } from '../ui/icon';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { useTheme } from '../ui/theme';
@@ -31,15 +30,16 @@ function Check({ ok, icon, title, body, actionLabel, onAction }: { ok: boolean |
   const { colors } = useTheme();
   const color = ok === null ? colors.textTertiary : ok ? colors.up : colors.warning;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], paddingVertical: space[3], paddingHorizontal: space[4] }}>
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3], paddingVertical: space[3], paddingHorizontal: space[4] }}>
       <View style={{ width: 36, height: 36, borderRadius: radius.round, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={ok ? 'check' : icon} size={18} color={color} />
       </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
+      {/* L'action passe SOUS le texte : à droite, elle écrasait la phrase sur huit lignes. */}
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
         <Text variant="body">{title}</Text>
         <Text variant="caption" tone="secondary">{body}</Text>
+        {!ok && actionLabel && onAction ? <View style={{ alignSelf: 'flex-start', marginTop: space[2] }}><Chip label={actionLabel} onPress={onAction} /></View> : null}
       </View>
-      {!ok && actionLabel && onAction ? <Chip label={actionLabel} onPress={onAction} /> : null}
     </View>
   );
 }
@@ -107,43 +107,42 @@ export default function SecurityCenter() {
   const checks = useMemo(() => [backupVerified, encryptedBackupDone, biometric, autoLock > 0 && autoLock <= 15, !approvalsIncomplete && (approvals ?? []).every((a) => !isUnlimited(a.allowance)), sessions.length <= 3], [backupVerified, encryptedBackupDone, biometric, autoLock, approvals, approvalsIncomplete, sessions.length]);
   const score = checks.filter(Boolean).length;
 
-  const entrance = useScreenEntrance();
+  const allDone = score === checks.length;
+  const R = 34;
+  const C = 2 * Math.PI * R;
+  /*
+   * THÈME NOVA : même en-tête et même héros que les autres écrans secondaires.
+   * L'anneau de score EST le disque du héros (vert quand tout est fait, or
+   * tant qu'il reste des points), le titre et la phrase dessous.
+   */
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScreenOrbit top={insets.top + 48} />
-      <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/menu'))} />
-        <Text variant="title2" style={{ flex: 1 }}>{t("security")}</Text>
-      </View>
-      <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[5] }}>
-        {/* Score en anneau : vert quand tout est fait, or tant qu'il reste des points. */}
-        <Reanimated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[4] }, entrance]}>
-          <View style={{ width: 96, height: 96, alignItems: 'center', justifyContent: 'center' }}>
-            <Svg width={96} height={96} style={{ position: 'absolute' }}>
-              <Circle cx={48} cy={48} r={42} stroke={colors.surface2} strokeWidth={7} fill="none" />
-              <Circle cx={48} cy={48} r={42} stroke={score === checks.length ? colors.up : '#DDB565'} strokeWidth={7} fill="none" strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 42 * (checks.length ? score / checks.length : 0)} ${2 * Math.PI * 42}`} transform="rotate(-90 48 48)" />
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + space[2], paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[5] }} showsVerticalScrollIndicator={false}>
+        <ScreenHeader fallback="/menu" />
+        <NovaHero title={t('security')} subtitle={allDone ? t('allGood') : t('pointsToFix')}>
+          <View style={{ width: 80, height: 80, alignItems: 'center', justifyContent: 'center', borderRadius: 40, backgroundColor: colors.surface1 }}>
+            <Svg width={80} height={80} style={{ position: 'absolute' }}>
+              <Circle cx={40} cy={40} r={R} stroke={colors.surface3} strokeWidth={6} fill="none" />
+              <Circle cx={40} cy={40} r={R} stroke={allDone ? colors.up : GOLD} strokeWidth={6} fill="none" strokeLinecap="round" strokeDasharray={`${C * (checks.length ? score / checks.length : 0)} ${C}`} transform="rotate(-90 40 40)" />
             </Svg>
-            <Text variant="title1" tabular>{score}<Text variant="caption" tone="secondary">/{checks.length}</Text></Text>
+            <Text variant="title2" tabular>{score}<Text variant="caption" tone="secondary">/{checks.length}</Text></Text>
           </View>
-          <Text variant="bodySecondary" tone="secondary" style={{ flex: 1 }}>{score === checks.length ? t("allGood") : t("pointsToFix")}</Text>
-        </Reanimated.View>
+        </NovaHero>
 
         <Surface padded={false}>
-          <Check ok={backupVerified} icon="phrase" title={t("recoveryPhraseVerified")} body={backupVerified ? t("recoveryPhraseVerifiedMsg") : t("recoveryPhraseNotVerifiedMsg")} actionLabel={t("verify")} onAction={() => router.push('/reveal-phrase')} />
+          <Check ok={backupVerified} icon="phrase" title={backupVerified ? t("recoveryPhraseVerified") : t("recoveryPhrase")} body={backupVerified ? t("recoveryPhraseVerifiedMsg") : t("recoveryPhraseNotVerifiedMsg")} actionLabel={t("verify")} onAction={() => router.push('/reveal-phrase')} />
           <Divider inset={68} />
           <Check ok={encryptedBackupDone} icon="share" title={t('encBackup')} body={encryptedBackupDone ? t('encBackupDoneMsg') : t('encBackupTodoMsg')} actionLabel={t('createBackupBtn')} onAction={() => router.push('/cloud-backup')} />
           <Divider inset={68} />
-          <Check ok={biometric} icon="security" title={t("biometricsEnabled")} body={biometric ? t("biometricsEnabledMsg") : t("biometricsDisabledMsg")} actionLabel={t("enable")} onAction={() => router.push('/settings')} />
+          <Check ok={biometric} icon="security" title={biometric ? t("biometricsEnabled") : t("biometrics")} body={biometric ? t("biometricsEnabledMsg") : t("biometricsDisabledMsg")} actionLabel={t("enable")} onAction={() => router.push('/settings')} />
           <Divider inset={68} />
           <Check ok={autoLock > 0 && autoLock <= 15} icon="lock" title={t("autoLock")} body={autoLock > 0 ? t('autoLockEnabledMsg').replace('{min}', String(autoLock)) : t("autoLockDisabledMsg")} actionLabel={t("configure")} onAction={() => router.push('/settings')} />
         </Surface>
 
         {/* Approbations */}
         <View style={{ gap: space[2] }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text variant="caption" tone="secondary">{t("approvedContracts")} · {chain.name}</Text>
-          </View>
+          <SectionLabel>{`${t("approvedContracts")} · ${chain.name}`}</SectionLabel>
           <Surface padded={false}>
             {approvals === null ? (
               [0, 1].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center', gap: space[2] }}><Skeleton width="60%" /><Skeleton width="40%" height={12} /></View>)
@@ -169,7 +168,7 @@ export default function SecurityCenter() {
 
         {/* Sessions WalletConnect */}
         <View style={{ gap: space[2] }}>
-          <Text variant="caption" tone="secondary">{t("connectedSites")}</Text>
+          <SectionLabel>{t("connectedSites")}</SectionLabel>
           <Surface padded={false}>
             {sessions.length === 0 ? (
               <View style={{ padding: space[4] }}><Text variant="bodySecondary" tone="secondary">{t("noConnectedSites")}</Text></View>

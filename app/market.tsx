@@ -11,10 +11,10 @@ import {
   Avatar,
   SkeletonRow
 } from '../ui/premium';
-import { ScreenHeader } from '../ui/kit';
+import { EmptyState, ScreenHeader } from '../ui/kit';
 import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
-import { getMarkets, sortMarkets, searchCoins, type MarketCoin, type SearchCoin, formatFiat } from '../src';
+import { getMarkets, getMarketsByIds, sortMarkets, searchCoins, type MarketCoin, type SearchCoin, formatFiat } from '../src';
 
 const money = formatFiat;
 
@@ -22,8 +22,24 @@ export default function Market() {
   const { colors, typography } = useTheme();
   const t = useT();
   const { fiat } = useSettings();
+  const favorites = useSettings((s) => s.favorites);
   const [coins, setCoins] = useState<MarketCoin[]>([]);
-  const [tab, setTab] = useState('favorites');
+  // Onglet Favoris par défaut SEULEMENT s'il y en a : sinon on ouvrirait sur un vide.
+  const [tab, setTab] = useState(() => (useSettings.getState().favorites.length ? 'favorites' : 'top'));
+  /*
+   * VRAIS FAVORIS. L'onglet affichait le top 10, quels que soient les favoris
+   * choisis (étoile de la fiche token). On lit maintenant ces coins-là, même
+   * hors du top 50.
+   */
+  const [favCoins, setFavCoins] = useState<MarketCoin[] | null>(null);
+  const favKey = favorites.join(',');
+  useEffect(() => {
+    if (!favorites.length) { setFavCoins([]); return; }
+    let alive = true;
+    getMarketsByIds(fiat, favorites).then((l) => alive && setFavCoins(l)).catch(() => alive && setFavCoins([]));
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fiat, favKey]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchCoin[]>([]);
   const [searching, setSearching] = useState(false);
@@ -69,7 +85,8 @@ export default function Market() {
         ? sortMarkets(coins, 'gainers')
         : tab === 'losers'
           ? sortMarkets(coins, 'losers')
-          : coins.slice(0, 10);
+          : favCoins ?? [];
+  const favEmpty = tab === 'favorites' && favCoins !== null && favCoins.length === 0;
 
   const tabs = [
     { key: 'favorites', label: t('favorites') },
@@ -116,7 +133,9 @@ export default function Market() {
         <>
           <SegmentedTabs items={tabs} active={tab} onChange={setTab} />
           <GlassCard>
-            {base.length === 0 ? (
+            {favEmpty ? (
+              <EmptyState icon="star" title={t('favorites')} body={t('favoritesEmpty')} />
+            ) : base.length === 0 ? (
               [0, 1, 2, 3, 4].map((i) => <SkeletonRow key={i} divider={i > 0} />)
             ) : (
               base.map((m, i) => (
@@ -124,7 +143,7 @@ export default function Market() {
                   key={m.id}
                   divider={i > 0}
                   icon={m.symbol.slice(0, 1)}
-                  color="#232A36"
+                  color={colors.surface2}
                   imageUri={m.image}
                   name={m.name}
                   symbol={m.symbol}

@@ -477,3 +477,35 @@ export async function getMarkets(vs = 'eur', perPage = 20): Promise<MarketCoin[]
     }
   });
 }
+
+/**
+ * Marché de coins PRÉCIS (les favoris) : un favori hors du top affiché doit
+ * apparaître quand même. Même format et même cache que `getMarkets`.
+ */
+export async function getMarketsByIds(vs: string, ids: string[]): Promise<MarketCoin[]> {
+  const list = [...new Set(ids.filter(Boolean))].slice(0, 100);
+  if (!list.length) return [];
+  const key = `markets:${vs}:ids:${list.slice().sort().join(',')}`;
+  const cached = cacheGet<MarketCoin[]>(key);
+  if (cached) return cached;
+  return once(key, async () => {
+    try {
+      const res = await withTimeout(
+        fetch(
+          url(
+            `/coins/markets?vs_currency=${vs}&ids=${encodeURIComponent(list.join(','))}&order=market_cap_desc&per_page=${list.length}&page=1&sparkline=true&price_change_percentage=24h`,
+          ),
+          { headers: headers() },
+        ),
+        TIMEOUT,
+        () => new Error('timeout'),
+      );
+      const parsed = parseMarkets(await res.json());
+      if (parsed.length > 0) cacheSet(key, parsed);
+      return parsed.length > 0 ? parsed : cacheGetStale<MarketCoin[]>(key) ?? [];
+    } catch (e) {
+      console.warn('[coingecko] getMarketsByIds failed', e);
+      return cacheGetStale<MarketCoin[]>(key) ?? [];
+    }
+  });
+}
