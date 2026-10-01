@@ -7,6 +7,7 @@
  *  - sessions WalletConnect ouvertes avec « Déconnecter »
  */
 import { GOLD, NovaHero, SectionLabel } from '../ui/nova';
+import { IsMyAddress } from '../ui/IsMyAddress';
 import Svg, { Circle } from 'react-native-svg';
 import { fetchApprovalCandidates } from '../src/domain/security/goplus';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -165,6 +166,9 @@ export default function SecurityCenter() {
             )}
           </Surface>
         </View>
+
+        {/* Vérifier qu'une adresse est bien à soi (avant de la partager). */}
+        <IsMyAddress />
 
         {/* Sessions WalletConnect */}
         <View style={{ gap: space[2] }}>
