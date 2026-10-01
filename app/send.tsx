@@ -11,6 +11,7 @@
 import { fill } from '../lib/i18n';
 import { usePaidAddresses } from '../lib/historySpam';
 import { sameAddress } from '../lib/txAuditProbe';
+import { holdingLabel } from '../lib/holdingLabel';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -769,7 +770,7 @@ export default function Send() {
                     <React.Fragment key={h.id}>
                       <TokenRow
                         symbol={h.symbol}
-                        name={`${h.symbol} · ${getAdapter(h.chainId).config.name}`}
+                        name={holdingLabel(h.symbol, getAdapter(h.chainId).config.name, [h.name])}
                         {...(() => {
                           const ic = holdingIcon(h, getAdapter(h.chainId).config, chainIconUrl(h.chainId));
                           return { logo: ic.logo, chainBadge: ic.badge };

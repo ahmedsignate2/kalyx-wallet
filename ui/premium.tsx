@@ -26,6 +26,7 @@ import { useScreenEntrance } from './nova';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { haptic } from '../lib/haptics';
 import { KeyboardAvoid } from './KeyboardAvoid';
+import { formatPercent } from '../src';
 
 const PREMIUM_W = Dimensions.get('window').width;
 
@@ -617,8 +618,9 @@ export function MarketRow({
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={{ color: theme.colors.text, fontFamily: fonts.semibold }}>{price}</Text>
         <Text style={{ color: c, fontSize: 13 }}>
+          {/* Même format que l'accueil (« +2,4 % ») : le Marché affichait « +2.40% ». */}
           {up ? '+' : ''}
-          {change.toFixed(2)}%
+          {formatPercent(change, 1)}
         </Text>
       </View>
     </View>

@@ -92,6 +92,7 @@ export { getLlamaTokenPricesUsd, getUsdFxRate, llamaKey, LLAMA_CHAIN } from './d
 export {
   getPrices,
   getMarkets,
+  getMarketsByIds,
   attachPriceCacheStorage,
   getCoinDetail,
   getMarketChart,
