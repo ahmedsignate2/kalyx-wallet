@@ -275,7 +275,12 @@ export class SolanaChainAdapter implements ChainAdapter {
       [owner, { mint }, { encoding: 'jsonParsed', commitment: 'confirmed' }],
     );
     if (!res || !Array.isArray(res.value)) throw new Error('Réponse Solana illisible');
-    return res.value.reduce((sum, acc) => sum + BigInt(acc.account?.data?.parsed?.info?.tokenAmount?.amount ?? '0'), 0n);
+    return res.value.reduce((sum, acc) => {
+      const amount = acc.account?.data?.parsed?.info?.tokenAmount?.amount;
+      // Compte non décodé (nœud dégradé) : illisible, pas 0.
+      if (typeof amount !== 'string' || !/^\d+$/.test(amount)) throw new Error('Compte de jeton illisible');
+      return sum + BigInt(amount);
+    }, 0n);
   }
 
   async getSplTokens(address: string): Promise<SplToken[]> {

@@ -14,28 +14,30 @@
  *    Cet état vit au niveau du MODULE : quitter l'écran et revenir ne le perd pas.
  */
 import { useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { create } from 'zustand';
 import { needsRead, readSwapBalance, swapBalanceKey, type BalanceEntry } from './swapBalance';
 
 /** Au-delà, un échange sans issue connue libère les soldes (relus tels que le réseau les donne). */
 export const SWAP_PENDING_MAX_MS = 180_000;
-/** Issue inconnue (suivi expiré ou illisible) : courte attente avant de relire. */
-export const SWAP_UNKNOWN_GRACE_MS = 15_000;
 
 const scopeOf = (chainId: string, owner: string | undefined) => swapBalanceKey(chainId, owner, '');
 
 /** Échanges en cours par périmètre (réseau + compte) et génération — partagés entre montages. */
-const usePendingSwaps = create<{ pending: Record<string, number>; gen: number }>(() => ({ pending: {}, gen: 0 }));
+const usePendingSwaps = create<{ pending: Record<string, number>; gen: Record<string, number> }>(() => ({ pending: {}, gen: {} }));
+/** Génération d'un périmètre : relevée à chaque échange diffusé ou abouti SUR CE périmètre seulement. */
+const genOf = (scope: string) => usePendingSwaps.getState().gen[scope] ?? 0;
 /** Un échange est-il en cours sur ce réseau pour ce compte ? */
 export const isSwapPending = (chainId: string, owner: string | undefined) => pendingOf(scopeOf(chainId, owner));
 const pendingOf = (scope: string) => (usePendingSwaps.getState().pending[scope] ?? 0) > 0;
 const bump = (scope: string, delta: number) =>
-  usePendingSwaps.setState((st) => ({ gen: st.gen + 1, pending: { ...st.pending, [scope]: Math.max(0, (st.pending[scope] ?? 0) + delta) } }));
+  usePendingSwaps.setState((st) => ({ gen: { ...st.gen, [scope]: (st.gen[scope] ?? 0) + 1 }, pending: { ...st.pending, [scope]: Math.max(0, (st.pending[scope] ?? 0) + delta) } }));
 
 /**
  * Échange diffusé sur `chainId` par `owner` : renvoie `settle(final)`.
  * `final` vrai (confirmé, échoué, expiré) → soldes relus tout de suite ; faux
- * (suivi sans issue) → relus après une courte attente. Sans appel : 3 min.
+ * (suivi abandonné sans issue) → la transaction peut encore être en attente :
+ * le verrou tient jusqu'au plafond de 3 min (sécurité d'abord).
  */
 export function beginSwap(chainId: string, owner: string | undefined): (final: boolean) => void {
   const scope = scopeOf(chainId, owner);
@@ -50,7 +52,6 @@ export function beginSwap(chainId: string, owner: string | undefined): (final: b
   const cap = setTimeout(release, SWAP_PENDING_MAX_MS);
   return (final) => {
     if (final) release();
-    else setTimeout(release, SWAP_UNKNOWN_GRACE_MS);
   };
 }
 /** Sondage de la relecture périodique : un solde a au plus ~40 s (30 s de fraîcheur + un sondage). */
@@ -73,7 +74,7 @@ export function useSwapBalances(opts: {
 
   const scope = scopeOf(chainId, owner);
   const swapPending = usePendingSwaps((st) => (st.pending[scope] ?? 0) > 0);
-  const gen = usePendingSwaps((st) => st.gen);
+  const gen = usePendingSwaps((st) => st.gen[scope] ?? 0);
   /*
    * À chaque bascule (échange diffusé ou abouti), les soldes du périmètre sont
    * vidés : ceux d'avant ne doivent ni s'afficher ni servir à un calcul.
@@ -83,6 +84,8 @@ export function useSwapBalances(opts: {
     if (lastGen.current === gen) return;
     lastGen.current = gen;
     setBalances((b) => Object.fromEntries(Object.entries(b).filter(([k]) => !k.startsWith(scope))));
+    refreshRef.current(true); // vidé : relu sans attendre le prochain sondage
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gen, scope]);
   const srcKey = srcToken ? swapBalanceKey(chainId, owner, srcNative ? 'native' : srcToken) : '';
   /** Le natif paie aussi le gas d'un échange de jeton. */
@@ -93,10 +96,10 @@ export function useSwapBalances(opts: {
   const read = (key: string, token: string, native: boolean): Promise<bigint> => {
     if (!owner) return Promise.reject(new Error('Aucun compte'));
     if (pendingOf(scope)) return Promise.reject(new Error('Échange en cours'));
-    const g = usePendingSwaps.getState().gen;
+    const g = genOf(scope);
     const running = inflight.current.get(key);
     if (running && running.g === g) return running.p;
-    const current = () => g === usePendingSwaps.getState().gen && !pendingOf(scope);
+    const current = () => g === genOf(scope) && !pendingOf(scope);
     setBalances((b) => (b[key]?.status === 'ok' ? b : { ...b, [key]: { status: 'loading', since: Date.now() } }));
     const p = readSwapBalance(chainId, owner, token, native).then(
       (raw) => {
@@ -119,19 +122,20 @@ export function useSwapBalances(opts: {
   const load = (key: string, token: string, native: boolean) => void read(key, token, native).catch(() => {});
 
   /** Relit ce qui manque, a échoué ou a vieilli (dépensé ailleurs entre-temps). */
-  const refreshRef = useRef<() => void>(() => {});
-  refreshRef.current = () => {
+  const refreshRef = useRef<(force?: boolean) => void>(() => {});
+  refreshRef.current = (force = false) => {
     if (!owner || !srcToken || pendingOf(scope)) return;
     const now = Date.now();
-    if (needsRead(balances[srcKey], now)) load(srcKey, srcToken, srcNative);
-    if (!srcNative && needsRead(balances[gasKey], now)) load(gasKey, 'native', true);
+    if (force || needsRead(balances[srcKey], now)) load(srcKey, srcToken, srcNative);
+    if (!srcNative && (force || needsRead(balances[gasKey], now))) load(gasKey, 'native', true);
   };
   useEffect(() => {
     refreshRef.current();
-  }, [srcKey, gasKey, swapPending, gen]);
+  }, [srcKey, gasKey, swapPending]);
   useEffect(() => {
+    // Ni pendant une confirmation, ni app en arrière-plan (quota RPC, batterie).
     const id = setInterval(() => {
-      if (!pausedRef.current) refreshRef.current();
+      if (!pausedRef.current && AppState.currentState === 'active') refreshRef.current();
     }, POLL_MS);
     return () => clearInterval(id);
   }, [pausedRef]);
@@ -157,9 +161,10 @@ export function useSwapBalances(opts: {
      * qu'un vide ou un échec, jamais une lecture directe.
      */
     seedHeld: (forChain: string, forOwner: string, list: { token: string; raw: bigint }[], loadedAtGen: number) => {
-      if (pendingOf(scopeOf(forChain, forOwner))) return;
+      const sc = scopeOf(forChain, forOwner);
+      if (pendingOf(sc)) return;
       setBalances((b) => {
-        if (loadedAtGen !== usePendingSwaps.getState().gen) return b; // liste lue avant un échange
+        if (loadedAtGen !== genOf(sc)) return b; // liste lue avant un échange
         const next = { ...b };
         for (const { token, raw } of list) {
           const key = swapBalanceKey(forChain, forOwner, token);
@@ -169,6 +174,6 @@ export function useSwapBalances(opts: {
       });
     },
     /** Génération courante : à relever AVANT de lancer la lecture de la liste des jetons détenus. */
-    currentGen: () => usePendingSwaps.getState().gen,
+    currentGen: () => genOf(scope),
   };
 }
