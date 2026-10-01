@@ -303,6 +303,7 @@ export { getSolanaNfts } from './domain/nft/solanaNft';
 
 // Réserve de gas dynamique (swap/bridge/dépôt), estimée sur le RPC de chaque réseau
 export { normalizeAddressCase, isCaseInsensitiveAddress } from './domain/validation/addressCase';
+export { withTimeout } from './domain/chains/net';
 export { estimateGasReserve, evmReserveFromFeeData, solanaReserveFromPriorityFees, SWAP_GAS_UNITS, SOL_BASE_FEE, type GasReserve } from './domain/chains/gasReserve';
 
 // Anti-empoisonnement d'adresse + formats lisibles

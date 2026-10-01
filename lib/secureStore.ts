@@ -128,6 +128,19 @@ export async function saveAccounts(id: string, accounts: StoredAccount[]): Promi
   await kvSet(accountsKey(id), JSON.stringify(accounts), base);
 }
 
+/**
+ * Comme `loadAccounts`, mais distingue « aucun enregistrement » (null) d'un
+ * enregistrement ILLISIBLE (lève) : pour ne jamais répondre « pas à toi » sur
+ * un portefeuille qu'on n'a pas pu lire.
+ */
+export async function loadAccountsStrict(id: string): Promise<StoredAccount[] | null> {
+  const raw = await kvGet(accountsKey(id), base);
+  if (!raw) return null;
+  const list = JSON.parse(raw) as unknown;
+  if (!Array.isArray(list)) throw new Error('Comptes illisibles');
+  return list as StoredAccount[];
+}
+
 export async function loadAccounts(id: string): Promise<StoredAccount[] | null> {
   const raw = await kvGet(accountsKey(id), base);
   if (!raw) return null;
