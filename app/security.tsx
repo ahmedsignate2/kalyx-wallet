@@ -30,15 +30,16 @@ function Check({ ok, icon, title, body, actionLabel, onAction }: { ok: boolean |
   const { colors } = useTheme();
   const color = ok === null ? colors.textTertiary : ok ? colors.up : colors.warning;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], paddingVertical: space[3], paddingHorizontal: space[4] }}>
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3], paddingVertical: space[3], paddingHorizontal: space[4] }}>
       <View style={{ width: 36, height: 36, borderRadius: radius.round, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={ok ? 'check' : icon} size={18} color={color} />
       </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
+      {/* L'action passe SOUS le texte : à droite, elle écrasait la phrase sur huit lignes. */}
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
         <Text variant="body">{title}</Text>
         <Text variant="caption" tone="secondary">{body}</Text>
+        {!ok && actionLabel && onAction ? <View style={{ alignSelf: 'flex-start', marginTop: space[2] }}><Chip label={actionLabel} onPress={onAction} /></View> : null}
       </View>
-      {!ok && actionLabel && onAction ? <Chip label={actionLabel} onPress={onAction} /> : null}
     </View>
   );
 }
@@ -130,11 +131,11 @@ export default function SecurityCenter() {
         </NovaHero>
 
         <Surface padded={false}>
-          <Check ok={backupVerified} icon="phrase" title={t("recoveryPhraseVerified")} body={backupVerified ? t("recoveryPhraseVerifiedMsg") : t("recoveryPhraseNotVerifiedMsg")} actionLabel={t("verify")} onAction={() => router.push('/reveal-phrase')} />
+          <Check ok={backupVerified} icon="phrase" title={backupVerified ? t("recoveryPhraseVerified") : t("recoveryPhrase")} body={backupVerified ? t("recoveryPhraseVerifiedMsg") : t("recoveryPhraseNotVerifiedMsg")} actionLabel={t("verify")} onAction={() => router.push('/reveal-phrase')} />
           <Divider inset={68} />
           <Check ok={encryptedBackupDone} icon="share" title={t('encBackup')} body={encryptedBackupDone ? t('encBackupDoneMsg') : t('encBackupTodoMsg')} actionLabel={t('createBackupBtn')} onAction={() => router.push('/cloud-backup')} />
           <Divider inset={68} />
-          <Check ok={biometric} icon="security" title={t("biometricsEnabled")} body={biometric ? t("biometricsEnabledMsg") : t("biometricsDisabledMsg")} actionLabel={t("enable")} onAction={() => router.push('/settings')} />
+          <Check ok={biometric} icon="security" title={biometric ? t("biometricsEnabled") : t("biometrics")} body={biometric ? t("biometricsEnabledMsg") : t("biometricsDisabledMsg")} actionLabel={t("enable")} onAction={() => router.push('/settings')} />
           <Divider inset={68} />
           <Check ok={autoLock > 0 && autoLock <= 15} icon="lock" title={t("autoLock")} body={autoLock > 0 ? t('autoLockEnabledMsg').replace('{min}', String(autoLock)) : t("autoLockDisabledMsg")} actionLabel={t("configure")} onAction={() => router.push('/settings')} />
         </Surface>

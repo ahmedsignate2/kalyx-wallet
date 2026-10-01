@@ -325,14 +325,12 @@ export default function TokenDetail() {
       </View>
       {/*
         EN-TÊTE UNIQUE. Le nom figurait deux fois (barre, puis rangée du logo) ;
-        favori et alerte vivent ici, à droite, comme sur les autres wallets.
+        le favori vit ici, à droite ; l'alerte a son disque sous le graphique
+        (la cloche figurait en double, en-tête ET disque).
       */}
       <ScreenHeader
         right={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
-            <KPressable onPress={openAlert} hitSlop={10} haptic="light" accessibilityLabel={t('actionCreateAlert')}>
-              <Icon name="bell" size={22} color={colors.textSecondary} />
-            </KPressable>
             <KPressable
               onPress={() => id && toggleFavorite(id)}
               hitSlop={10}
@@ -412,7 +410,7 @@ export default function TokenDetail() {
             <ActionDisc index={0} tone="primary" icon="send" label={t('send')} disabled={chain?.family === 'bitcoin'} onPress={() => goSendReceive('/send')} />
             <ActionDisc index={1} icon="receive" label={t('receive')} onPress={() => goSendReceive('/receive')} />
             <ActionDisc index={2} icon="exchange" label={t('actionSwap')} onPress={() => router.push({ pathname: '/swap', params: { to: detail?.symbol ?? '' } })} />
-            <ActionDisc index={3} tone="gold" icon="bell" label={t('priceAlerts')} onPress={openAlert} />
+            <ActionDisc index={3} tone="gold" icon="bell" label={t('actionAlert')} onPress={openAlert} />
           </View>
 
           {/* Ta position : valeur, puis le détail par réseau. */}

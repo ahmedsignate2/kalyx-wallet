@@ -175,7 +175,7 @@ export function ActionDisc({ icon, label, onPress, tone = 'default', index = 0, 
         <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: bg, borderWidth: tone === 'primary' ? 0 : 1, borderColor: tone === 'gold' ? (mode === 'dark' ? 'rgba(221,181,101,0.45)' : BRAND_GOLD.deep) : colors.border, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={icon} size={23} color={ink} />
         </View>
-        <Text variant="caption" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fontFamily.semibold }}>{label}</Text>
+        <Text variant="caption" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontFamily: fontFamily.semibold }}>{label}</Text>
       </KPressable>
     </Animated.View>
   );
