@@ -14,7 +14,7 @@
 import { Address as TonCoreAddress, Cell as TonCell } from '@ton/core';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import { formatExportedKey } from '../src/domain/keys/exportKey';
-import { deriveBtcSigner, deriveSolanaSigner, parseWatchAddress } from '../src';
+import { deriveBtcSigner, deriveSolanaSigner, discoverAccountIndexes, parseWatchAddress } from '../src';
 import { base64, base58, hex } from '@scure/base';
 import { ed25519 } from '@noble/curves/ed25519';
 import { secp256k1 } from '@noble/curves/secp256k1';
@@ -247,6 +247,17 @@ interface WalletState {
   /** Recrée les comptes (numéro + nom) d'une sauvegarde pour un portefeuille à phrase BIP-39. */
   restoreAccounts: (walletId: string, accounts: readonly { index: number; label: string }[], pin: string) => Promise<void>;
   /**
+   * RECHERCHE DES COMPTES d'une phrase BIP-39 : comptes 1, 2, 3… qui ont déjà
+   * servi (accountDiscovery), ajoutés au portefeuille. La phrase n'est lue que
+   * le temps de calculer les adresses publiques ; la recherche réseau se fait
+   * SANS elle. Rend les indices ajoutés et ceux qui n'ont pas pu être vérifiés.
+   */
+  discoverAccounts: (
+    walletId: string,
+    unlock: Unlock,
+    opts?: { onProgress?: (index: number) => void; /** Phrase lue (code bon) : la suite est réseau seulement. */ onUnlocked?: () => void },
+  ) => Promise<{ added: number[]; uncertain: number[] }>;
+  /**
    * Ajoute un portefeuille EN LECTURE SEULE : une adresse suivie (EVM,
    * Bitcoin, Solana), sans clé. Lève INVALID_WATCH_ADDRESS (message
    * `watch.<raison>`) ou WALLET_ALREADY_EXISTS si l'adresse est déjà là.
@@ -317,6 +328,25 @@ interface WalletState {
   healBiometric: (pin: string) => Promise<void>;
   /** Efface TOUS les portefeuilles : exige le code (ou la biométrie), comme toute action irréversible. */
   reset: (unlock: Unlock) => Promise<void>;
+}
+
+/**
+ * Comptes PUBLICS (adresses EVM, Bitcoin, Solana) des indices demandés, graine
+ * calculée UNE fois et effacée aussitôt. Sans TON : seul le compte 0 en a un.
+ */
+function deriveStoredAccounts(mnemonic: string, indexes: number[]): StoredAccount[] {
+  const seed = mnemonicToSeedSync(mnemonic);
+  try {
+    return indexes.map((index) => ({
+      index,
+      label: '',
+      evmAddress: deriveEvmAccount(seed, index).address,
+      btcAddress: deriveBtcAccount(seed, index).address,
+      solAddress: deriveSolanaAccount(seed, index).address,
+    }));
+  } finally {
+    seed.fill(0);
+  }
 }
 
 function deriveStoredAccount(mnemonic: string, index: number, label: string): StoredAccount {
@@ -1265,6 +1295,30 @@ export const useWallet = create<WalletState>((set, get) => ({
     await saveAccounts(walletId, accounts);
     if (active) set({ accounts, account: toAccount(accounts, get().activeAccountIndex, get().activeChain) });
     await dropSupersededWatch(accounts);
+  },
+
+  discoverAccounts: async (walletId, unlock, opts = {}) => {
+    const { onProgress, onUnlocked } = opts;
+    if (!isBip39Wallet(get().wallets, walletId)) return { added: [], uncertain: [] };
+    const MAX = 20;
+    const active = walletId === get().activeWalletId;
+    const existing = (active ? get().accounts : await loadAccounts(walletId)) ?? [];
+    const known = new Set(existing.map((a) => a.index));
+    const wanted = Array.from({ length: MAX }, (_, k) => k + 1).filter((i) => !known.has(i));
+    const candidates = new Map(deriveStoredAccounts(await revealMnemonic(walletId, unlock), wanted).map((a) => [a.index, a]));
+    onUnlocked?.();
+    const { probeAccountActivity } = await import('./accountActivity');
+    const res = await discoverAccountIndexes((i) => probeAccountActivity(candidates.get(i)!), { known, max: MAX, onProgress });
+    if (res.found.length) {
+      // Relu au moment d'écrire : un compte ajouté entre-temps n'est pas écrasé.
+      const now = (walletId === get().activeWalletId ? get().accounts : await loadAccounts(walletId)) ?? [];
+      const have = new Set(now.map((a) => a.index));
+      const accounts = [...now, ...res.found.filter((i) => !have.has(i)).map((i) => candidates.get(i)!)].sort((a, b) => a.index - b.index);
+      await saveAccounts(walletId, accounts);
+      if (walletId === get().activeWalletId) set({ accounts, account: toAccount(accounts, get().activeAccountIndex, get().activeChain) });
+      await dropSupersededWatch(accounts);
+    }
+    return { added: res.found, uncertain: res.uncertain };
   },
 
   addWatchWallet: async (address, label) => {
