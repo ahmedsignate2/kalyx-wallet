@@ -402,7 +402,7 @@ export function NovaHero({ icon, title, subtitle, tone = 'default', children, co
 export function NovaCard({ children, delay = 0, style, padded = true }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle>; padded?: boolean }) {
   const { colors } = useTheme();
   return (
-    <Rise delay={delay} style={[{ borderRadius: 24, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, padding: padded ? 16 : 0, overflow: 'hidden' }, style]}>
+    <Rise delay={delay} style={[{ borderRadius: 24, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, borderTopColor: colors.rim, padding: padded ? 16 : 0, overflow: 'hidden' }, style]}>
       {children}
     </Rise>
   );
