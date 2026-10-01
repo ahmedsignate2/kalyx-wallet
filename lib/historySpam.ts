@@ -7,7 +7,7 @@
 import { useMemo } from 'react';
 import { getAdapter, knownTokensFor, listChains, KNOWN_MINTS, type ChainConfig, type TxSummary } from '../src';
 import { useHistoryStore } from './historyStore';
-import { knownCounterparties, spamReason, type SpamCtx, type SpamReason } from '../src/domain/tx/spam';
+import { knownCounterparties, paidCounterparties, spamReason, type SpamCtx, type SpamReason } from '../src/domain/tx/spam';
 import { usePortfolioStore } from './portfolio';
 import { useWallet } from './walletStore';
 import { useContacts } from './contactsStore';
@@ -89,6 +89,6 @@ export function usePaidAddresses(): string[] {
   return useMemo(() => {
     const verified = new Set(holdings.filter((h) => h.verified && h.contract).map((h) => `${h.chainId}:${h.contract!.toLowerCase()}`));
     const all = Object.values(cache).flat();
-    return [...knownCounterparties(all, buildTrusted(verified))];
+    return paidCounterparties(all, buildTrusted(verified));
   }, [cache, holdings]);
 }

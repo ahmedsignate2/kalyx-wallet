@@ -25,11 +25,21 @@ export function IsMyAddress() {
    * publics (adresses) sont lus une fois ; aucune clé n'est touchée.
    */
   const [others, setOthers] = useState<WalletAccounts<StoredAccount>[]>([]);
+  /** Lecture des autres portefeuilles : en cours, ou incomplète — jamais un « non » sans avoir tout vu. */
+  const [othersState, setOthersState] = useState<'loading' | 'ok' | 'partial'>('loading');
   useEffect(() => {
     let alive = true;
+    setOthersState('loading');
     Promise.all(
-      wallets.filter((w) => w.id !== activeWalletId).map(async (w) => ({ walletId: w.id, accounts: (await loadAccounts(w.id).catch(() => null)) ?? [] })),
-    ).then((list) => alive && setOthers(list));
+      wallets.filter((w) => w.id !== activeWalletId).map(async (w) => {
+        const accounts = await loadAccounts(w.id).catch(() => null);
+        return { walletId: w.id, accounts: accounts ?? [], failed: accounts == null };
+      }),
+    ).then((list) => {
+      if (!alive) return;
+      setOthers(list);
+      setOthersState(list.some((x) => x.failed) ? 'partial' : 'ok');
+    });
     return () => {
       alive = false;
     };
@@ -50,9 +60,15 @@ export function IsMyAddress() {
       <Input value={value} onChangeText={setValue} placeholder="0x… · bc1… · UQ…" sensitive />
       {v.length >= 20 ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Icon name={match ? 'check' : 'info'} size={16} color={match ? colors.up : colors.textSecondary} />
+          <Icon name={match ? 'check' : othersState === 'partial' ? 'warning' : 'info'} size={16} color={match ? colors.up : othersState === 'partial' ? colors.warning : colors.textSecondary} />
           <Text variant="caption" style={{ color: match ? colors.up : colors.textSecondary, flex: 1 }}>
-            {match && account ? t('isMyAddressYes').replace('{account}', who).replace('{family}', FAMILY[match.family]) : t('isMyAddressNo')}
+            {match && account
+              ? t('isMyAddressYes').replace('{account}', who).replace('{family}', FAMILY[match.family])
+              : othersState === 'loading'
+                ? '…'
+                : othersState === 'partial'
+                  ? t('isMyAddressPartial')
+                  : t('isMyAddressNo')}
           </Text>
         </View>
       ) : null}

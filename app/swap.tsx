@@ -40,13 +40,13 @@ import {
   NATIVE_TOKEN,
   listChains,
   estimateGasReserve,
+  fallbackGasReserve,
   STONFI_TON_RESERVE,
   type ChainAdapter,
   type GasReserve,
   type SwapQuote,
-  EvmChainAdapter,
-  SolanaChainAdapter,
 } from '../src';
+import { withTimeout } from '../src/domain/chains/net';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { usePortfolioStore } from '../lib/portfolio';
 import { TokenPicker } from '../ui/TokenPicker';
@@ -127,9 +127,14 @@ export default function Swap() {
    */
   const [balances, setBalances] = useState<Record<string, BalanceEntry>>({});
   const [balanceNonce, setBalanceNonce] = useState(0);
+  const balanceNonceRef = useRef(0);
+  balanceNonceRef.current = balanceNonce;
   const mountedRef = useRef(true);
-  useEffect(() => () => {
-    mountedRef.current = false;
+  useEffect(() => {
+    mountedRef.current = true; // remis à vrai à chaque montage (effets doublés en mode strict)
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
   /**
    * Réserve de gas DYNAMIQUE (estimée sur le RPC du réseau actif) : ce qu'on
@@ -139,13 +144,19 @@ export default function Swap() {
   useEffect(() => {
     let cancelled = false;
     setGasReserve(null);
-    swapGasReserve(getAdapter(activeChain))
-      .then((r) => {
+    const adapter = getAdapter(activeChain);
+    /*
+     * Au-delà de 8 s (RPC de frais suspendu) ou en cas d'erreur : réserve de
+     * REPLI prudente, jamais 0 — sinon « Disponible : … » restait affiché sans
+     * fin, curseur et Max bloqués, sans rien à réessayer.
+     */
+    withTimeout(swapGasReserve(adapter), 8000, () => new Error('timeout'))
+      .then((r: GasReserve) => {
         if (!cancelled) setGasReserve(r);
       })
-      // L'estimateur a son propre repli ; s'il échoue quand même, la réserve reste
-      // inconnue (jamais 0 : « Max » dépenserait tout, sans rien pour le gas).
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setGasReserve(fallbackGasReserve(adapter));
+      });
     return () => {
       cancelled = true;
     };
@@ -164,8 +175,25 @@ export default function Swap() {
     let cancelled = false;
     setHeld([]);
     if (!account?.address) return;
+    const chainId = activeChain;
+    const owner = account.address;
+    const nonceAtLoad = balanceNonceRef.current;
     const loaded = (list: Tok[]) => {
-      if (!cancelled) setHeld(list);
+      if (cancelled) return;
+      setHeld(list);
+      /*
+       * Les jetons détenus arrivent AVEC leur solde : on l'enregistre (étiqueté
+       * réseau + compte de CETTE lecture) au lieu d'une relecture par sélection.
+       */
+      const at = Date.now();
+      setBalances((b) => {
+        const next = { ...b };
+        for (const tk of list) {
+          const bal = (tk as Tok & { balance?: bigint }).balance;
+          if (typeof bal === 'bigint') next[`${swapBalanceKey(chainId, owner, tk.address)}#${nonceAtLoad}`] = { status: 'ok', raw: bal, at };
+        }
+        return next;
+      });
     };
 
     if (chain.family === 'evm') {
@@ -319,7 +347,6 @@ export default function Swap() {
   const retryBalance = () => fromTok && loadBalance(srcKey, fromTok.address, srcNative);
   /** Solde brut du jeton source, ou null s'il n'est pas (encore) lu. */
   const tokenBalanceOrNull = (): bigint | null => (srcEntry?.status === 'ok' ? srcEntry.raw : null);
-  const getTokenBalance = (): bigint => tokenBalanceOrNull() ?? 0n;
   /**
    * Solde DISPONIBLE pour l'échange : solde brut moins la réserve de gas si
    * le jeton source est la monnaie native ; null tant que l'un des deux est
@@ -394,10 +421,13 @@ export default function Swap() {
      * Solde INCONNU (lecture en cours, ou échouée) : relu ici plutôt que pris
      * pour 0 — « fonds insuffisants » à tort après un changement de réseau.
      */
-    let bal = tokenBalanceOrNull();
+    // Solde inconnu, en erreur ou lu il y a plus de 30 s : relu avant de juger les fonds.
+    let bal = srcEntry?.status === 'ok' && !needsRead(srcEntry, Date.now()) ? srcEntry.raw : null;
     if (bal == null) {
       try {
         bal = await readSwapBalance(activeChain, account!.address, fromTok.address, srcNative);
+        const fresh = bal;
+        setBalances((b) => ({ ...b, [srcKey]: { status: 'ok', raw: fresh, at: Date.now() } }));
       } catch {
         return null; // réseau muet : on laisse le devis trancher
       }
@@ -410,7 +440,7 @@ export default function Swap() {
       return null; // réserve inestimable : on laisse le devis trancher
     }
     const reserveStr = `${formatTokenAmount(reserve, chain.nativeDecimals)} ${chain.nativeSymbol}`;
-    if (isNativeTokenAddress(fromTok.address)) {
+    if (srcNative) {
       // Deux cas distincts : pas même de quoi payer le gas / montant trop grand une fois le gas réservé.
       if (bal < reserve) return t('errGasBelowMinimum').replace('{amount}', reserveStr);
       if (raw > bal - reserve) return t('errAboveAvailable').replace('{amount}', reserveStr);
