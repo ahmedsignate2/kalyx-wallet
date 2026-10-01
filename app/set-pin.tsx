@@ -95,7 +95,9 @@ export default function SetPin() {
     }
     setBusy(true);
     try {
-      await confirmDraft(firstPin, { enableBiometric: useBio });
+      // Sauvegarde restaurée : ses comptes sont listés, pas de recherche réseau.
+      const fromBackup = usePendingRestore.getState().primaryAccounts.length > 0 || usePendingRestore.getState().wallets.length > 0;
+      await confirmDraft(firstPin, { enableBiometric: useBio, discover: !fromBackup });
       useSettings.getState().setPinLength(firstPin.length); // ronds exacts au déverrouillage
       /*
        * Restauration d'une sauvegarde à PLUSIEURS portefeuilles : les autres sont

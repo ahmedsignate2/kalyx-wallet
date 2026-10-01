@@ -194,7 +194,7 @@ export default function Accounts() {
             <IconDisc name="search" tone="gold" />
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={{ color: colors.text, fontFamily: 'GeneralSans-Semibold', fontSize: 15 }}>{t('discoverTitle')}</Text>
-              <Text style={typography.muted}>{discoverAt !== null ? t('discoverProgress').replace('{n}', String(discoverAt)) : t('discoverHint')}</Text>
+              <Text style={typography.muted}>{discoverAt !== null ? t('discoverProgress').replace('{n}', String(discoverAt + 1)) /* indice HD 1 = « Compte 2 » */ : t('discoverHint')}</Text>
             </View>
           </KPressable>
         ) : null}
