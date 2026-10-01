@@ -496,6 +496,9 @@ async function addressIndexOf(wallets: WalletMeta[]) {
  * n'a plus lieu d'être : elle ferait compter deux fois les mêmes fonds, l'une
  * « en lecture seule », l'autre avec clé. Elle est retirée.
  */
+/** Numéro du dernier changement de portefeuille demandé (setActiveWallet). */
+let switchSeq = 0;
+
 /** Écritures de la liste des comptes, une à la fois PAR portefeuille (lire → modifier → écrire). */
 const accountLocks = new Map<string, Promise<unknown>>();
 
@@ -601,9 +604,9 @@ async function prepareDiscovery(walletId: string, mnemonic: string): Promise<Pre
 async function searchPrepared(p: PreparedDiscovery, onProgress?: (i: number) => void): Promise<DiscoveryOutcome> {
   const { probeAccountActivity } = await import('./accountActivity');
   const res = await discoverAccountIndexes((i) => probeAccountActivity(p.candidates.get(i)!), { known: p.known, max: DISCOVERY_MAX, onProgress });
-  if (!res.found.length) return { added: [], uncertain: res.uncertain };
-  // Portefeuille supprimé entre-temps : rien à dire (gone).
+  // Portefeuille supprimé entre-temps : rien à dire (gone), trouvé ou non.
   if (!useWallet.getState().wallets.some((w) => w.id === p.walletId)) return { added: [], uncertain: [], aborted: true, gone: true };
+  if (!res.found.length) return { added: [], uncertain: res.uncertain };
   let added: number[] = [];
   let sameWallet = false;
   const written = await updateAccounts(p.walletId, (list) => {
@@ -1453,9 +1456,12 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   setActiveWallet: async (id) => {
+    // Le DERNIER choix gagne : un changement plus récent annule celui-ci pendant ses attentes.
+    const seq = ++switchSeq;
     // Une écriture de comptes en cours (recherche, ajout) d'abord : sinon on chargerait la liste d'avant.
     await (accountLocks.get(id) ?? Promise.resolve()).catch(() => {});
     const accounts = (await loadAccounts(id)) ?? [];
+    if (seq !== switchSeq) return;
     /*
      * Un portefeuille importé ne sert QU'UNE famille : si le réseau affiché n'en
      * fait pas partie, le compte n'aurait aucune adresse à montrer. On bascule

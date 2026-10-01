@@ -93,11 +93,6 @@ let balanceRevealed = false;
 /** Lignes affichées par page (jetons, jetons non vérifiés) et NFT par page. */
 const LIST_PAGE = 25;
 const NFT_PAGE = 12;
-/** Cascade d'apparition pour les premières lignes seulement : au-delà, une simple vue (rien à animer). */
-function MaybeFade({ index, children }: { index: number; children: React.ReactNode }) {
-  if (index >= 12) return <View>{children}</View>;
-  return <FadeInUp delay={cascadeDelay(index)}>{children}</FadeInUp>;
-}
 
 export default function Home() {
   const { colors } = useTheme();
@@ -650,7 +645,7 @@ export default function Home() {
             ) : hidden ? (
               <Text variant="balance">••••••</Text>
             ) : scrub ? (
-              <Text variant="balance" tabular>{formatFiat(shownValue)} <Text variant="title2" tone="secondary">{sym}</Text></Text>
+              <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.35}>{formatFiat(shownValue)} <Text variant="title2" tone="secondary">{sym}</Text></Text>
             ) : (
               <AmountDisplay value={formatFiat(pf.total)} suffix={sym} direction={rollDir} reveal={reveal} />
             )}
@@ -723,7 +718,7 @@ export default function Home() {
                     n'est plus du raffinement.
                   */}
                   {shownTokens.slice(0, tokenLimit).map((h, i, arr) => (
-                    <MaybeFade key={h.id} index={i}>
+                    <FadeInUp key={h.id} delay={cascadeDelay(i)}>
                       <TokenRow
                         symbol={h.symbol}
                         name={holdingLabel(h.name, getAdapter(h.chainId).config.name, [h.symbol])}
@@ -740,12 +735,12 @@ export default function Home() {
                         onPress={() => openHolding(h)}
                       />
                       {i < arr.length - 1 ? <Divider inset={68} /> : null}
-                    </MaybeFade>
+                    </FadeInUp>
                   ))}
                 </Surface>
                 {shownTokens.length > tokenLimit ? (
                   <KPressable onPress={() => setTokenLimit((n) => n + LIST_PAGE)} style={{ alignSelf: 'center', paddingVertical: space[2] }}>
-                    <Text variant="caption" style={{ color: colors.primary }}>{t('showMoreCount').replace('{count}', String(shownTokens.length - tokenLimit))}</Text>
+                    <Text variant="caption" style={{ color: colors.primary }}>{fill(t('showMoreCount'), { count: String(shownTokens.length - tokenLimit) })}</Text>
                   </KPressable>
                 ) : null}
                 {small.length > 0 ? (
@@ -779,7 +774,7 @@ export default function Home() {
                     ) : null}
                     {showHidden && unverified.length > unverifiedLimit ? (
                       <KPressable onPress={() => setUnverifiedLimit((n) => n + LIST_PAGE)} style={{ alignSelf: 'center', paddingVertical: space[1] }}>
-                        <Text variant="caption" tone="tertiary">{t('showMoreCount').replace('{count}', String(unverified.length - unverifiedLimit))}</Text>
+                        <Text variant="caption" tone="tertiary">{fill(t('showMoreCount'), { count: String(unverified.length - unverifiedLimit) })}</Text>
                       </KPressable>
                     ) : null}
                   </View>
@@ -825,7 +820,7 @@ export default function Home() {
             )}
             {nfts && nfts.length > nftLimit ? (
               <KPressable onPress={() => setNftLimit((n) => n + NFT_PAGE)} style={{ alignSelf: 'center', paddingVertical: space[2] }}>
-                <Text variant="caption" style={{ color: colors.primary }}>{t('showMoreCount').replace('{count}', String(nfts.length - nftLimit))}</Text>
+                <Text variant="caption" style={{ color: colors.primary }}>{fill(t('showMoreCount'), { count: String(nfts.length - nftLimit) })}</Text>
               </KPressable>
             ) : null}
             {/* Ce qui n'a pas répondu est NOMMÉ : une liste incomplète ne se fait pas passer pour complète. */}

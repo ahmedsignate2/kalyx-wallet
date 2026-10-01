@@ -16,7 +16,7 @@
  * le ressort posé, on ramène silencieusement la position au cycle central —
  * même image à l'écran, prêt pour le prochain roulement.
  */
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
 import { Text, type TextVariant } from './Text';
@@ -124,11 +124,16 @@ export function AmountDisplay({
   const { typography } = useTheme();
   const base = typography[variant] as { fontSize: number; lineHeight?: number };
   /*
-   * TRÈS GRANDS MONTANTS (« 10 952 303 473,96 ») : la taille se réduit avec la
-   * longueur, sinon la fin du solde sortait de l'écran. Au-delà de 10
-   * caractères, proportionnellement, jamais sous 55 %.
+   * TRÈS GRANDS MONTANTS (« 10 952 303 473,96 ») : la taille se réduit pour
+   * TENIR dans la largeur disponible (mesurée), sinon la fin du solde sortait
+   * de l'écran. Largeur estimée à taille pleine : 0,6 em par chiffre, 0,3 em
+   * par séparateur, le suffixe à demi-taille.
    */
-  const fit = Math.max(0.55, Math.min(1, 10 / Math.max(1, value.length)));
+  const [avail, setAvail] = useState(0);
+  const digitsN = value.replace(/\D/g, '').length;
+  const sepN = value.length - digitsN;
+  const fullW = base.fontSize * (digitsN * 0.6 + sepN * 0.3 + (suffix ? suffix.length * 0.3 + 0.5 : 0) + (prefix ? prefix.length * 0.6 : 0)) + (suffix ? 6 : 0);
+  const fit = avail > 0 && fullW > avail ? Math.max(0.35, avail / fullW) : 1;
   const fontSize = base.fontSize * fit;
   const t = { fontSize, lineHeight: base.lineHeight ? base.lineHeight * fit : undefined };
   const height = t.lineHeight ?? Math.round(t.fontSize * 1.1);
@@ -139,6 +144,7 @@ export function AmountDisplay({
   const digitCount = chars.filter((c) => /\d/.test(c)).length;
   let seen = 0;
   return (
+    <View onLayout={(e) => setAvail(e.nativeEvent.layout.width)} style={{ alignSelf: 'stretch' }}>
     <View style={{ flexDirection: 'row', alignItems: 'flex-end' }} accessibilityLabel={`${prefix ?? ''}${value}${suffix ? ' ' + suffix : ''}`}>
       {prefix ? <Text variant={variant}>{prefix}</Text> : null}
       {chars.map((c, i) => {
@@ -155,6 +161,7 @@ export function AmountDisplay({
         );
       })}
       {suffix ? <Text variant={variant} tone="secondary" style={{ marginLeft: 6, fontSize: t.fontSize * 0.5, lineHeight: height }}>{suffix}</Text> : null}
+    </View>
     </View>
   );
 }
