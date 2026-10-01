@@ -8,7 +8,8 @@ import { EASE } from './motion';
 import type { Dict } from '../../i18n';
 
 /*
- * Vraies captures de l'app (docs/screenshots) et vrais chiffres :
+ * Écrans de l'app actuelle, rendus depuis son code (thème Nova, portefeuille de
+ * démonstration — aucune donnée réelle), et vrais chiffres :
  *  - 63 réseaux = 67 configs dans src/domain/chains/configs.ts − 4 testnets
  *  - Envoyer en 4 étapes : app/send.tsx (StepBar), maintien 1,2 s (durations.holdToSend)
  *  - Swap : Jupiter (Solana), LI.FI et Relay (EVM, cross-chain) — src/domain/swap

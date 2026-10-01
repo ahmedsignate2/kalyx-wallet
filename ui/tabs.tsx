@@ -104,8 +104,15 @@ function NavItem({ icon, label, on }: { icon: IconName; label: string; on: boole
   );
 }
 
-/** Une action de l'éventail : jaillit de l'orbe vers sa place sur l'arc. */
-function FanAction({ i, open, label, icon, tone, onPress }: { i: number; open: SharedValue<number>; label: string; icon: IconName; tone?: 'primary' | 'gold'; onPress: () => void }) {
+/**
+ * Une action de l'éventail. Posée à sa place FINALE dans un calque plein écran,
+ * et l'animation la fait venir de l'orbe (translation inverse qui s'annule).
+ *
+ * POURQUOI : elle était dessinée hors du cadre de la barre. Sur Android, un
+ * toucher hors des limites du parent n'est jamais distribué à l'enfant : les
+ * boutons s'affichaient, et aucun ne répondait.
+ */
+function FanAction({ i, open, cx, cy, label, icon, tone, onPress }: { i: number; open: SharedValue<number>; cx: number; cy: number; label: string; icon: IconName; tone?: 'primary' | 'gold'; onPress: () => void }) {
   const { colors, mode } = useTheme();
   const a = FAN_ANGLES[i];
   const dx = Math.cos(a) * FAN_R;
@@ -115,14 +122,14 @@ function FanAction({ i, open, label, icon, tone, onPress }: { i: number; open: S
     const local = interpolate(open.value, [i * 0.12, 0.64 + i * 0.12], [0, 1], 'clamp');
     return {
       opacity: Math.min(1, local * 1.6),
-      transform: [{ translateX: dx * local }, { translateY: dy * local }, { scale: 0.4 + 0.6 * local }],
+      transform: [{ translateX: -dx * (1 - local) }, { translateY: -dy * (1 - local) }, { scale: 0.4 + 0.6 * local }],
     };
   });
   const bg = tone === 'primary' ? colors.primary : colors.surface3;
   const ink = tone === 'primary' ? colors.onPrimary : tone === 'gold' ? (mode === 'dark' ? GOLD : BRAND_GOLD.deep) : colors.text;
   return (
-    <Reanimated.View style={[{ position: 'absolute', left: -32, top: -32, width: 64, alignItems: 'center' }, style]}>
-      <KPressable onPress={onPress} haptic="light" accessibilityRole="button" accessibilityLabel={label} style={{ alignItems: 'center', gap: 6 }}>
+    <Reanimated.View style={[{ position: 'absolute', left: cx + dx - 40, top: cy + dy - 28, width: 80, alignItems: 'center' }, style]}>
+      <KPressable onPress={onPress} haptic="light" accessibilityRole="button" accessibilityLabel={label} hitSlop={6} style={{ alignItems: 'center', gap: 6 }}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderWidth: tone === 'primary' ? 0 : 1, borderColor: tone === 'gold' ? 'rgba(221,181,101,0.5)' : 'rgba(255,255,255,0.12)' }}>
           <Icon name={icon} size={23} color={ink} />
         </View>
@@ -202,6 +209,11 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const closeStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, open.value), transform: [{ rotate: `${(1 - open.value) * -90}deg` }] }));
   const logoStyle = useAnimatedStyle(() => ({ opacity: 1 - Math.min(1, open.value) }));
 
+  // Taille de l'écran (calque de l'éventail) : le centre de l'orbe s'en déduit.
+  const [layer, setLayer] = useState({ w: 0, h: 0 });
+  const orbCx = layer.w / 2;
+  const orbCy = layer.h - bottom - NAV_H - ORB_LIFT + ORB / 2 - 14;
+
   const go = (fn: () => void) => () => {
     setFan(false);
     fn();
@@ -216,7 +228,12 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
         </KPressable>
       </Reanimated.View>
 
-      <Reanimated.View pointerEvents={hidden ? 'none' : 'box-none'} style={[{ position: 'absolute', left: 16, right: 16, bottom }, dockStyle]}>
+      {/*
+        Le cadre de la barre COMMENCE au sommet de l'orbe : un parent qui
+        s'arrêtait au dock laissait le haut de l'orbe hors limites, donc mort
+        au toucher sur Android.
+      */}
+      <Reanimated.View pointerEvents={hidden ? 'none' : 'box-none'} style={[{ position: 'absolute', left: 16, right: 16, bottom, paddingTop: ORB_LIFT }, dockStyle]}>
         <View
           onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}
           style={{
@@ -258,13 +275,8 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
           ))}
         </View>
 
-        {/* ── L'ORBE et son éventail ── */}
-        <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: -ORB_LIFT, alignItems: 'center' }}>
-          <View pointerEvents="box-none" style={{ position: 'absolute', top: ORB / 2 - 14, left: '50%' }}>
-            {FAN.map((f, i) => (
-              <FanAction key={i} i={i} open={open} label={f.label(t)} icon={f.icon} tone={f.tone} onPress={go(f.go)} />
-            ))}
-          </View>
+        {/* ── L'ORBE ── */}
+        <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, alignItems: 'center' }}>
           <KPressable
             onPress={() => setFan(!fanOpen)}
             haptic="light"
@@ -290,6 +302,19 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
           </KPressable>
         </View>
       </Reanimated.View>
+
+      {/* ── L'ÉVENTAIL : calque plein écran, chaque action dans ses limites ── */}
+      <View
+        pointerEvents={fanOpen ? 'box-none' : 'none'}
+        style={StyleSheet.absoluteFill}
+        onLayout={(e: LayoutChangeEvent) => setLayer({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+      >
+        {layer.h
+          ? FAN.map((f, i) => (
+              <FanAction key={i} i={i} open={open} cx={orbCx} cy={orbCy} label={f.label(t)} icon={f.icon} tone={f.tone} onPress={go(f.go)} />
+            ))
+          : null}
+      </View>
     </>
   );
 }
