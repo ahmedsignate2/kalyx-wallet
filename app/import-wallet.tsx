@@ -174,7 +174,7 @@ export default function ImportWallet() {
     setBusy(true);
     try {
       if (mode === 'phrase') {
-        await importWallet(text, pin, label);
+        await importWallet(text, pin, label); // lance aussi la recherche des comptes 2, 3… (magasin)
       } else if (mode === 'key') {
         if (!parsed?.ok || !chosen) return;
         await importPrivateKey(text, pin, label, chosen);
