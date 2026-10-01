@@ -129,7 +129,7 @@ export default function EarnScreen() {
           <View style={{ flex: 1 }}>
             <Text style={typography.title}>{t('earnTitle')}</Text>
           </View>
-          <KPressable onPress={onRefresh} hitSlop={12} disabled={earn.loading}>
+          <KPressable onPress={onRefresh} hitSlop={12} disabled={earn.loading} accessibilityLabel={t('refresh')}>
             <Icon name="refresh" size={22} color={earn.loading ? colors.textTertiary : colors.textSecondary} />
           </KPressable>
         </View>
