@@ -1,4 +1,5 @@
 import { NovaCard, NovaHero } from '../ui/nova';
+import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { fetchApprovalCandidates } from '../src/domain/security/goplus';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -26,7 +27,7 @@ function shorten(a: string) {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
 
-export default function Approvals() {
+function ApprovalsInner() {
   const { colors, typography } = useTheme();
   const t = useT();
   const account = useWallet((s) => s.account);
@@ -204,3 +205,6 @@ export default function Approvals() {
     </>
   );
 }
+
+// Lecture seule : rien à signer ni à recevoir à son nom ici (ui/WatchOnlyGate).
+export default withWatchOnlyGate(ApprovalsInner);

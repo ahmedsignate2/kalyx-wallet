@@ -19,8 +19,10 @@ export type WatchFamily = 'evm' | 'bitcoin' | 'solana';
 export type WatchAddressError = 'EMPTY' | 'BAD_CHECKSUM' | 'TON_UNSUPPORTED' | 'UNKNOWN';
 
 export function parseWatchAddress(input: string): { ok: true; family: WatchFamily; address: string } | { ok: false; error: WatchAddressError } {
-  const a = (input ?? '').trim();
-  if (!a) return { ok: false, error: 'EMPTY' };
+  const raw = (input ?? '').trim();
+  if (!raw) return { ok: false, error: 'EMPTY' };
+  // « 0X… » (QR tout en majuscules) : même adresse, préfixe ramené à « 0x ».
+  const a = /^0X/.test(raw) ? '0x' + raw.slice(2) : raw;
   if (/^0x/i.test(a)) {
     const r = checkEvmAddress(a);
     if (r.valid && r.checksummed) return { ok: true, family: 'evm', address: r.checksummed };

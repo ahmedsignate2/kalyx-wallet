@@ -87,6 +87,8 @@ export interface WalletMeta {
    * Pour un portefeuille `'watch'` (lecture seule) : famille de l'adresse suivie.
    */
   keyFamily?: 'evm' | 'bitcoin' | 'solana';
+  /** Lecture seule : l'adresse suivie (sert au nom par défaut, « Adresse suivie 0x8335…2913 »). */
+  watchAddress?: string;
   /** Avatar de profil (« 3d:rocket », « flat:diamond » — lib/avatars.ts). Tiré au hasard à la création. */
   avatar?: string;
 }
