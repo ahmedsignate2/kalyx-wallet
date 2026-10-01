@@ -127,6 +127,8 @@ export const MAX_SPL_TOKENS = 100;
 export function capSplTokens(tokens: SplToken[], max = MAX_SPL_TOKENS): SplToken[] {
   if (tokens.length <= max) return tokens;
   const known = tokens.filter((t) => KNOWN_MINTS[t.mint]);
-  const rest = tokens.filter((t) => !KNOWN_MINTS[t.mint]);
+  // Montant EN UNITÉS (raw / 10^décimales) : comparer des bruts favorisait les jetons à 9 décimales.
+  const units = (t: SplToken) => Number(t.raw) / 10 ** t.decimals;
+  const rest = tokens.filter((t) => !KNOWN_MINTS[t.mint]).sort((a, b) => units(b) - units(a));
   return [...known, ...rest].slice(0, max);
 }
