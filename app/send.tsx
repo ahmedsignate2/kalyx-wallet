@@ -12,6 +12,7 @@ import { fill } from '../lib/i18n';
 import { usePaidAddresses } from '../lib/historySpam';
 import { sameAddress } from '../lib/txAuditProbe';
 import { holdingLabel } from '../lib/holdingLabel';
+import { SendResult } from '../ui/SendResult';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -1070,15 +1071,9 @@ export default function Send() {
         {/* ── 4. Suivi ── */}
         {step === 4 ? (
           <>
+            {/* Le moment de l'envoi : orbite, comète d'or, puis célébration à la confirmation. */}
+            <SendResult stage={stage} amount={`${formatTokenAmount(amountRaw, decimals)} ${symbol}`} dest={`${t('towards')} ${destLabel ?? shortAddress(recipient)} · ${chain.name}`} />
             <Surface style={{ gap: space[4] }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-                <AddressGlyph address={recipient} size={44} />
-                <View style={{ flex: 1 }}>
-                  <Text variant="title2" tabular>{formatTokenAmount(amountRaw, decimals)} {symbol}</Text>
-                  <Text variant="caption" tone="secondary">{t('towards')} {destLabel ?? shortAddress(recipient)} · {chain.name}</Text>
-                </View>
-              </View>
-              <Divider />
               <TxSteps stage={stage} />
               {stage === 'failed' ? <Text variant="caption" tone="danger">{t("txFailedMsg")}</Text> : null}
             </Surface>
