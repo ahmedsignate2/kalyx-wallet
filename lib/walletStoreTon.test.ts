@@ -32,6 +32,7 @@ jest.mock('../src', () => {
   };
 });
 
+const mockTrack = jest.fn(async () => {});
 // ---- Stockage en mémoire à la place du trousseau de l'appareil. ----
 jest.mock('./secureStore', () => {
   const vaults = new Map<string, unknown>();
@@ -45,6 +46,7 @@ jest.mock('./secureStore', () => {
     hasVault: async (id: string) => vaults.has(id),
     saveAccounts: async (id: string, a: unknown) => { accounts.set(id, clone(a)); },
     loadAccounts: async (id: string) => (accounts.has(id) ? clone(accounts.get(id)) : null),
+    loadAccountsStrict: async (id: string) => (accounts.has(id) ? clone(accounts.get(id)) : null),
     enableBiometricSeed: async (id: string, m: string) => { bio.set(id, m); },
     disableBiometricSeed: async (id: string) => { bio.delete(id); },
     readBiometricSeed: async (id: string) => bio.get(id) ?? null,
@@ -62,6 +64,7 @@ jest.mock('./secureStore', () => {
 jest.mock('@solana/web3.js', () => ({ VersionedTransaction: class {}, Keypair: class {} }));
 jest.mock('./kv', () => ({ kvGet: async () => null, kvSet: async () => {}, kvDel: async () => {} }));
 jest.mock('./biometrics', () => ({ authenticate: async () => true }));
+jest.mock('./runDiscovery', () => ({ trackDiscovery: mockTrack }));
 jest.mock('./aura', () => ({ aura: { pulse: () => {} } }));
 jest.mock('./settingsStore', () => ({ useSettings: { getState: () => ({ setBiometricEnabled: () => {} }) } }));
 jest.mock('./pendingBtc', () => ({ usePendingBtc: { getState: () => ({ txs: [] }) } }));

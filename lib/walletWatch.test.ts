@@ -5,8 +5,6 @@
  * Ce qui ne doit jamais arriver : signer avec le secret d'un AUTRE portefeuille
  * parce que l'actif n'en a pas, ou se retrouver sans aucun coffre pour le code.
  */
-import { hex } from '@scure/base';
-import type { ChainAdapterV2, ChainConfig } from '../src';
 import VECTORS from '../src/domain/chains/ton/tonkeeper-vectors.json';
 
 // ---- TON piloté par le test : les configurations TON réelles sont retirées, et un
@@ -25,6 +23,7 @@ jest.mock('../src', () => {
   };
 });
 
+const mockTrack = jest.fn(async () => {});
 // ---- Stockage en mémoire à la place du trousseau de l'appareil. ----
 const mockLockWrites: number[][] = [];
 jest.mock('./secureStore', () => {
@@ -39,6 +38,7 @@ jest.mock('./secureStore', () => {
     hasVault: async (id: string) => vaults.has(id),
     saveAccounts: async (id: string, a: unknown) => { accounts.set(id, clone(a)); },
     loadAccounts: async (id: string) => (accounts.has(id) ? clone(accounts.get(id)) : null),
+    loadAccountsStrict: async (id: string) => (accounts.has(id) ? clone(accounts.get(id)) : null),
     enableBiometricSeed: async (id: string, m: string) => { bio.set(id, m); },
     disableBiometricSeed: async (id: string) => { bio.delete(id); },
     readBiometricSeed: async (id: string) => bio.get(id) ?? null,
@@ -56,6 +56,7 @@ jest.mock('./secureStore', () => {
 jest.mock('@solana/web3.js', () => ({ VersionedTransaction: class {}, Keypair: class {} }));
 jest.mock('./kv', () => ({ kvGet: async () => null, kvSet: async () => {}, kvDel: async () => {} }));
 jest.mock('./biometrics', () => ({ authenticate: async () => true }));
+jest.mock('./runDiscovery', () => ({ trackDiscovery: mockTrack }));
 jest.mock('./aura', () => ({ aura: { pulse: () => {} } }));
 jest.mock('./settingsStore', () => ({ useSettings: { getState: () => ({ setBiometricEnabled: () => {} }) } }));
 jest.mock('./pendingBtc', () => ({ usePendingBtc: { getState: () => ({ txs: [] }) } }));
@@ -65,8 +66,6 @@ jest.mock('./walletNames', () => ({ isLegacyDefaultName: () => false }));
 
 // eslint-disable-next-line import/first
 import { useWallet } from './walletStore';
-// eslint-disable-next-line import/first
-import { classifyRecoveryPhrase } from '../src';
 
 const PIN = '482917';
 const art = VECTORS.keys.find((k) => k.phrase.endsWith(' art'))!;

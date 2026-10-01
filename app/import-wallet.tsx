@@ -1,5 +1,4 @@
 import { ScreenHeader, SENSITIVE_INPUT_PROPS, Pressable as KPressable, Text as KText } from '../ui/kit';
-import { runDiscovery } from '../lib/runDiscovery';
 import { PinPromptModal } from '../ui/PinPromptModal';
 import { IconDisc, Orbit, Pills, Rise, SectionLabel } from '../ui/nova';
 import { fill } from '../lib/i18n';
@@ -175,9 +174,7 @@ export default function ImportWallet() {
     setBusy(true);
     try {
       if (mode === 'phrase') {
-        await importWallet(text, pin, label);
-        // Comptes 2, 3… déjà utilisés : retrouvés en arrière-plan (la phrase n'est relue que pour les adresses).
-        void runDiscovery(useWallet.getState().activeWalletId, { pin }, { announce: true }).catch(() => {});
+        await importWallet(text, pin, label); // lance aussi la recherche des comptes 2, 3… (magasin)
       } else if (mode === 'key') {
         if (!parsed?.ok || !chosen) return;
         await importPrivateKey(text, pin, label, chosen);

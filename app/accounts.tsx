@@ -1,6 +1,6 @@
 import { GOLD, IconDisc, NovaHero, Pulse, Rise } from '../ui/nova';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
-import { canDiscover, runDiscovery } from '../lib/runDiscovery';
+import { canDiscover, runDiscovery, useDiscovering } from '../lib/runDiscovery';
 import { AddressGlyph } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { isWalletError } from '../src';
@@ -43,7 +43,7 @@ export default function Accounts() {
   const activeWalletId = useWallet((s) => s.activeWalletId);
   const discoverable = useWallet((s) => canDiscover(s.activeWalletId));
   const [askDiscover, setAskDiscover] = useState(false);
-  const [discoverAt, setDiscoverAt] = useState<number | null>(null);
+  const discoverAt = useDiscovering(activeWalletId); // aussi celle lancée par l'import
 
   const onAdd = async () => {
     setError(null);
@@ -207,7 +207,7 @@ export default function Accounts() {
         perform={async (unlock) => {
           // Rend la main une fois la phrase lue (code faux → rejet, la fenêtre le signale) ;
           // la recherche réseau continue ensuite, sans la phrase.
-          await runDiscovery(activeWalletId, unlock, { onProgress: setDiscoverAt, onFinished: () => setDiscoverAt(null) });
+          await runDiscovery(activeWalletId, unlock);
         }}
         onDone={() => setAskDiscover(false)}
         onCancel={() => setAskDiscover(false)}

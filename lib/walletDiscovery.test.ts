@@ -3,8 +3,6 @@
  * walletPinLockout.test.ts : stockage en mémoire, chiffrement et dérivations RÉELS ;
  * seule la sonde réseau est simulée, par adresse EVM).
  */
-import { hex } from '@scure/base';
-import type { ChainAdapterV2, ChainConfig } from '../src';
 import VECTORS from '../src/domain/chains/ton/tonkeeper-vectors.json';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { deriveEvmAccount } from '../src';
@@ -25,6 +23,7 @@ jest.mock('../src', () => {
   };
 });
 
+const mockTrack = jest.fn(async () => {});
 // ---- Stockage en mémoire à la place du trousseau de l'appareil. ----
 const mockLockWrites: number[][] = [];
 jest.mock('./secureStore', () => {
@@ -39,6 +38,7 @@ jest.mock('./secureStore', () => {
     hasVault: async (id: string) => vaults.has(id),
     saveAccounts: async (id: string, a: unknown) => { accounts.set(id, clone(a)); },
     loadAccounts: async (id: string) => (accounts.has(id) ? clone(accounts.get(id)) : null),
+    loadAccountsStrict: async (id: string) => (accounts.has(id) ? clone(accounts.get(id)) : null),
     enableBiometricSeed: async (id: string, m: string) => { bio.set(id, m); },
     disableBiometricSeed: async (id: string) => { bio.delete(id); },
     readBiometricSeed: async (id: string) => bio.get(id) ?? null,
@@ -56,6 +56,7 @@ jest.mock('./secureStore', () => {
 jest.mock('@solana/web3.js', () => ({ VersionedTransaction: class {}, Keypair: class {} }));
 jest.mock('./kv', () => ({ kvGet: async () => null, kvSet: async () => {}, kvDel: async () => {} }));
 jest.mock('./biometrics', () => ({ authenticate: async () => true }));
+jest.mock('./runDiscovery', () => ({ trackDiscovery: mockTrack }));
 jest.mock('./aura', () => ({ aura: { pulse: () => {} } }));
 jest.mock('./settingsStore', () => ({ useSettings: { getState: () => ({ setBiometricEnabled: () => {} }) } }));
 jest.mock('./pendingBtc', () => ({ usePendingBtc: { getState: () => ({ txs: [] }) } }));
@@ -67,8 +68,6 @@ const mockActivity = new Map<string, 'used' | 'empty' | 'unknown'>();
 jest.mock('./accountActivity', () => ({ probeAccountActivity: async (a: { evmAddress: string }) => mockActivity.get(a.evmAddress) ?? 'empty' }));
 // eslint-disable-next-line import/first
 import { useWallet } from './walletStore';
-// eslint-disable-next-line import/first
-import { classifyRecoveryPhrase } from '../src';
 
 const PIN = '482917';
 const art = VECTORS.keys.find((k) => k.phrase.endsWith(' art'))!;
@@ -80,6 +79,9 @@ describe('Recherche des comptes', () => {
   it('ajoute les comptes utilisés, jamais un inconnu ; s’arrête après 3 vides', async () => {
     W().setImportedDraft(art.phrase);
     await W().confirmDraft(PIN);
+    await new Promise((r) => setTimeout(r, 0));
+    // Phrase importée au premier lancement : la recherche est lancée d'office (sans second déchiffrement).
+    expect(mockTrack).toHaveBeenCalledWith(W().activeWalletId, expect.any(Function), { announce: true });
     mockActivity.set(evmAt(2), 'used');
     mockActivity.set(evmAt(3), 'unknown');
     mockActivity.set(evmAt(5), 'used');
@@ -100,3 +102,16 @@ describe('Recherche des comptes', () => {
     expect(await codeOf(W().discoverAccounts(W().activeWalletId, { pin: '000111' }))).toMatch(/^WRONG_PIN\|/);
   });
 });
+
+describe('Recherche : jamais écrite sur un autre portefeuille', () => {
+  it('portefeuille remplacé pendant la recherche (même id) : rien n’est écrit', async () => {
+    mockActivity.set(evmAt(12), 'used');
+    const id = W().activeWalletId;
+    const p = W().discoverAccounts(id, { pin: PIN });
+    // Pendant le réseau : le compte 0 de l'id devient celui d'une AUTRE phrase.
+    useWallet.setState({ accounts: [{ index: 0, label: '', evmAddress: '0x0000000000000000000000000000000000000001', btcAddress: '' }] });
+    await p;
+    expect(W().accounts.map((a) => a.index)).toEqual([0]);
+  });
+});
+

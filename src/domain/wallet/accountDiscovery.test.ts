@@ -18,6 +18,11 @@ describe('discoverAccountIndexes', () => {
     expect(r.uncertain).toEqual([1, 2, 3, 4, 5]);
     expect(r.lastChecked).toBe(5);
   });
+  it('réseau durablement muet : arrêt après 6 comptes sans activité, pas 20', async () => {
+    const r = await discoverAccountIndexes(async () => 'unknown');
+    expect(r.uncertain).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(r.lastChecked).toBe(6);
+  });
   it('les comptes déjà présents prolongent la recherche sans être rajoutés', async () => {
     const r = await discoverAccountIndexes(probeFrom({ 5: 'used' }), { known: new Set([2, 3]) });
     expect(r.found).toEqual([5]);

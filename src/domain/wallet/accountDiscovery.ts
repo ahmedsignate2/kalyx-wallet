@@ -8,7 +8,9 @@
  * « inconnu » (réseau muet). Un inconnu n'est NI ajouté NI compté comme vide —
  * le prendre pour vide arrêterait la recherche trop tôt et cacherait des
  * fonds ; il est rapporté pour que l'écran le dise (« certains comptes n'ont pas
- * pu être vérifiés »).
+ * pu être vérifiés »). Mais un réseau durablement muet ne doit pas faire sonder
+ * les 20 comptes : après `2 × gap` comptes SANS activité (vides ou inconnus),
+ * la recherche s'arrête aussi.
  *
  * Pur : la sonde (réseau) est injectée.
  */
@@ -31,12 +33,14 @@ export async function discoverAccountIndexes(
   const found: number[] = [];
   const uncertain: number[] = [];
   let emptyRun = 0;
+  let quietRun = 0; // vides OU inconnus depuis la dernière activité
   let i = start;
-  for (; i <= max && emptyRun < gap; i++) {
+  for (; i <= max && emptyRun < gap && quietRun < gap * 2; i++) {
     onProgress?.(i);
     // Compte déjà présent : il compte comme utilisé (on cherche AU-DELÀ), sans être rajouté.
     if (known.has(i)) {
       emptyRun = 0;
+      quietRun = 0;
       continue;
     }
     let r: AccountActivity;
@@ -48,10 +52,13 @@ export async function discoverAccountIndexes(
     if (r === 'used') {
       found.push(i);
       emptyRun = 0;
+      quietRun = 0;
     } else if (r === 'empty') {
       emptyRun += 1;
+      quietRun += 1;
     } else {
       uncertain.push(i);
+      quietRun += 1;
     }
   }
   return { found, uncertain, lastChecked: i - 1 };
