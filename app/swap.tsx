@@ -9,7 +9,7 @@ import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from '
 import { LinearGradient } from 'expo-linear-gradient';
 import { swapTokenTint, withAlpha } from '../lib/tokenColors';
 import { SnapSlider } from '../ui/SnapSlider';
-import { BALANCE_TTL_MS, availableFrom, needsRead, readSwapBalance, swapBalanceKey, type BalanceEntry } from '../lib/swapBalance';
+import { availableFrom, freshRaw, needsRead, readSwapBalance, swapBalanceKey, type BalanceEntry } from '../lib/swapBalance';
 import { CHAIN_LOGO_SVG } from '../src/domain/chains/chainLogos.generated';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState, Pressable as KPressable } from '../ui/kit';
@@ -45,7 +45,6 @@ import {
   type GasReserve,
   type SwapQuote,
 } from '../src';
-import { withTimeout } from '../src/domain/chains/net';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { usePortfolioStore } from '../lib/portfolio';
 import { TokenPicker } from '../ui/TokenPicker';
@@ -334,36 +333,42 @@ export default function Swap() {
   const srcKey = fromTok ? `${swapBalanceKey(activeChain, owner, srcNative ? 'native' : fromTok.address)}#${balanceNonce}` : '';
   /** Le natif sert aussi à payer le gas d'un échange de jeton. */
   const gasKey = `${swapBalanceKey(activeChain, owner, 'native')}#${balanceNonce}`;
-  const loadBalance = (key: string, token: string, native: boolean) => {
-    if (!owner) return;
-    setBalances((b) => ({ ...b, [key]: { status: 'loading' } }));
-    // 15 s sans réponse : « erreur » réessayable, jamais un « … » sans fin.
-    withTimeout(readSwapBalance(activeChain, owner, token, native), 15_000, () => new Error('timeout'))
-      .then((raw) => setBalances((b) => ({ ...b, [key]: { status: 'ok', raw, at: Date.now() } })))
-      .catch(() => setBalances((b) => ({ ...b, [key]: { status: 'error' } })));
-  };
-  useEffect(() => {
-    if (!owner || !fromTok) return;
-    // Absent, en erreur, ou lu il y a plus de 30 s (dépensé ailleurs entre-temps) : relu.
-    const now = Date.now();
-    if (needsRead(balances[srcKey], now)) loadBalance(srcKey, fromTok.address, srcNative);
-    if (!srcNative && needsRead(balances[gasKey], now)) loadBalance(gasKey, 'native', true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [srcKey, gasKey]);
-  /*
-   * Relecture PÉRIODIQUE : rester sur l'écran ne doit pas figer un solde
-   * dépensé ailleurs (autre appareil, dApp). Toutes les 30 s, ce qui a vieilli
-   * est relu ; les refs évitent de recréer l'intervalle à chaque rendu.
+  /** Lectures en vol, par clé : un relevé périodique ne double jamais une lecture en cours. */
+  const inflight = useRef(new Set<string>());
+  /**
+   * Lit un solde. Un solde DÉJÀ CONNU reste affiché pendant sa relecture, et
+   * le reste si elle échoue (il vieillit, et la pré-vérification le relira) :
+   * une relecture de fond ne doit ni griser le curseur ni afficher une erreur
+   * pour une valeur qu'on avait. Sans valeur : « … » puis « erreur » réessayable.
    */
+  const loadBalance = (key: string, token: string, native: boolean) => {
+    if (!owner || inflight.current.has(key)) return;
+    inflight.current.add(key);
+    setBalances((b) => (b[key]?.status === 'ok' ? b : { ...b, [key]: { status: 'loading', since: Date.now() } }));
+    readSwapBalance(activeChain, owner, token, native)
+      .then((raw) => setBalances((b) => ({ ...b, [key]: { status: 'ok', raw, at: Date.now() } })))
+      .catch(() => setBalances((b) => (b[key]?.status === 'ok' ? b : { ...b, [key]: { status: 'error' } })))
+      .finally(() => inflight.current.delete(key));
+  };
+  /** Relit ce qui manque, a échoué ou a vieilli (dépensé ailleurs entre-temps). */
   const refreshRef = useRef<() => void>(() => {});
   refreshRef.current = () => {
-    if (!owner || !fromTok || pausedRef.current) return;
+    if (!owner || !fromTok) return;
     const now = Date.now();
     if (needsRead(balances[srcKey], now)) loadBalance(srcKey, fromTok.address, srcNative);
     if (!srcNative && needsRead(balances[gasKey], now)) loadBalance(gasKey, 'native', true);
   };
   useEffect(() => {
-    const id = setInterval(() => refreshRef.current(), BALANCE_TTL_MS);
+    refreshRef.current();
+  }, [srcKey, gasKey]);
+  /*
+   * Relecture PÉRIODIQUE, sondée toutes les 10 s : un solde a au plus ~40 s
+   * (30 s de fraîcheur + un sondage). En pause pendant la confirmation.
+   */
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!pausedRef.current) refreshRef.current();
+    }, 10_000);
     return () => clearInterval(id);
   }, []);
   const srcEntry = srcKey ? balances[srcKey] : undefined;
@@ -372,7 +377,7 @@ export default function Swap() {
   const balanceError = srcEntry?.status === 'error' || (srcNative && !gasReserve && gasSlow);
   const retryBalance = () => {
     if (!fromTok) return;
-    if (srcEntry?.status !== 'ok' && srcEntry?.status !== 'loading') loadBalance(srcKey, fromTok.address, srcNative);
+    if (srcEntry?.status !== 'ok') loadBalance(srcKey, fromTok.address, srcNative); // déjà en vol : ignoré
     if (srcNative && !gasReserve) setGasNonce((n) => n + 1);
   };
   /**
@@ -446,7 +451,7 @@ export default function Swap() {
   const preflight = async (raw: bigint): Promise<string | null> => {
     if (!isBridge && fromTok.address.toLowerCase() === toTok.address.toLowerCase()) return t('swapTwoTokens');
     // Solde inconnu, en erreur ou lu il y a plus de 30 s : relu avant de juger les fonds (jamais pris pour 0).
-    let bal = srcEntry?.status === 'ok' && !needsRead(srcEntry, Date.now()) ? srcEntry.raw : null;
+    let bal = freshRaw(srcEntry, Date.now());
     if (bal == null) {
       try {
         bal = await readSwapBalance(activeChain, account!.address, fromTok.address, srcNative);
@@ -467,9 +472,8 @@ export default function Swap() {
       if (raw > bal) return t('errInsufficientFunds');
       // Token SPL/ERC-20 : le natif du wallet doit couvrir le gas estimé.
       try {
-        // Natif lu il y a plus de 30 s : relu, comme le solde du jeton.
-        const fresh = gasEntry?.status === 'ok' && !needsRead(gasEntry, Date.now()) ? gasEntry.raw : null;
-        const native = fresh ?? (await readSwapBalance(activeChain, account!.address, 'native', true));
+        // Natif lu il y a plus de 30 s : relu, comme le solde du jeton (lecture bornée à 15 s).
+        const native = freshRaw(gasEntry, Date.now()) ?? (await readSwapBalance(activeChain, account!.address, 'native', true));
         if (native < reserve) return t('errNeedNativeForGas').replace('{amount}', reserveStr);
       } catch {
         /* réseau muet : on laisse le devis trancher */
@@ -566,14 +570,21 @@ export default function Swap() {
       setSliderPct(null);
       setSuccess({ hash, summary, isBridge, fromChain: activeChain, toChain: toChain });
       // Soldes d'avant l'échange : plus affichés (« … ») jusqu'à la relecture après confirmation.
-      setBalances((b) => ({ ...b, [srcKey]: { status: 'loading' }, [gasKey]: { status: 'loading' } }));
+      // Après ~20 s sans confirmation, la relecture périodique les reprend (needsRead).
+      const since = Date.now();
+      setBalances((b) => ({ ...b, [srcKey]: { status: 'loading', since }, [gasKey]: { status: 'loading', since } }));
       notifyAndLog('tx', isBridge ? t('bridgeSent') : t('swapExecuted'), summary);
       /*
        * Soldes relus À LA CONFIRMATION, pas à la diffusion : relus tout de
        * suite, ils auraient mis en cache le solde d'avant l'échange.
        */
       void watchConfirmation(activeChain, hash, summary).finally(() => {
-        if (mountedRef.current) setBalanceNonce((n) => n + 1);
+        if (!mountedRef.current) return;
+        // Nouvelle génération de clés : les anciennes ne seront plus jamais lues, on les retire.
+        const next = balanceNonceRef.current + 1;
+        balanceNonceRef.current = next;
+        setBalanceNonce(next);
+        setBalances((b) => Object.fromEntries(Object.entries(b).filter(([k]) => k.endsWith(`#${next}`))));
       });
     } catch (e) {
       // Devis probablement invalide après un échec (prix, blockhash, nonce) : on

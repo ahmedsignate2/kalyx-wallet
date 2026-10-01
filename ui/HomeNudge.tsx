@@ -28,7 +28,8 @@ export function HomeNudge() {
   const t = useT();
   const encrypted = useSettings((s) => s.encryptedBackupAt !== null);
   const biometric = useSettings((s) => s.biometricEnabled);
-  const [snoozed, setSnoozed] = useState<Record<string, boolean> | null>(null);
+  /** id → écartée ? ; une carte dont l'état n'est pas encore relu n'est pas affichée. */
+  const [snoozed, setSnoozed] = useState<Record<string, boolean>>({});
   /** Biométrie disponible sur CE téléphone : sinon, rien à activer (Réglages n'a pas le réglage). */
   const [bioAvailable, setBioAvailable] = useState(false);
   useEffect(() => {
@@ -43,13 +44,15 @@ export function HomeNudge() {
 
   useEffect(() => {
     let alive = true;
-    // Rien n'est affiché tant que l'état « écarté » de CETTE liste n'est pas relu
-    // (sinon une carte écartée réapparaissait un instant).
-    setSnoozed(null);
-    Promise.all(all.map(async (n) => [n.id, Number(await AsyncStorage.getItem(key(n.id)).catch(() => null)) || 0] as const)).then((rows) => {
+    /*
+     * Seuls les ids pas encore relus le sont : l'état déjà connu est GARDÉ (le
+     * remettre à zéro quand la biométrie se révélait disponible faisait
+     * disparaître puis réapparaître la carte — l'accueil sautait).
+     */
+    Promise.all(all.filter((n) => snoozed[n.id] === undefined).map(async (n) => [n.id, Number(await AsyncStorage.getItem(key(n.id)).catch(() => null)) || 0] as const)).then((rows) => {
       if (!alive) return;
       const now = Date.now();
-      setSnoozed(Object.fromEntries(rows.map(([id, at]) => [id, now - at < SNOOZE_MS])));
+      if (rows.length) setSnoozed((s) => ({ ...s, ...Object.fromEntries(rows.map(([id, at]) => [id, now - at < SNOOZE_MS])) }));
     });
     return () => {
       alive = false;
@@ -57,12 +60,12 @@ export function HomeNudge() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ids]);
 
-  if (!snoozed) return null;
-  const n = all.find((x) => !snoozed[x.id]);
-  if (!n) return null;
+  // La première carte non écartée ; si une carte plus prioritaire n'est pas encore relue, on attend.
+  const n = all.find((x) => snoozed[x.id] !== true);
+  if (!n || snoozed[n.id] === undefined) return null;
   const dismiss = () => {
     AsyncStorage.setItem(key(n.id), String(Date.now())).catch(() => {});
-    setSnoozed((s) => ({ ...(s ?? {}), [n.id]: true }));
+    setSnoozed((s) => ({ ...s, [n.id]: true }));
   };
   return (
     <View style={{ flexDirection: 'row', gap: 12, padding: 14, borderRadius: 22, backgroundColor: colors.surface1, borderWidth: 1, borderColor: 'rgba(255,181,71,0.28)' }}>

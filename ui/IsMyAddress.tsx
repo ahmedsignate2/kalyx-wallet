@@ -1,7 +1,7 @@
 /** Carte « Est-ce mon adresse ? » (écran Sécurité). Logique : lib/isMyAddress.ts. */
 import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Input, Text } from './kit';
+import { Input, Pressable as KPressable, Text } from './kit';
 import { Icon } from './icon';
 import { useTheme } from './theme';
 import { fontFamily } from './tokens';
@@ -27,6 +27,8 @@ export function IsMyAddress() {
   const [others, setOthers] = useState<WalletAccounts<StoredAccount>[]>([]);
   /** Lecture des autres portefeuilles : en cours, ou incomplète — jamais un « non » sans avoir tout vu. */
   const [othersState, setOthersState] = useState<'loading' | 'ok' | 'partial'>('loading');
+  /** Relecture demandée depuis l'avertissement « certains portefeuilles n'ont pas pu être vérifiés ». */
+  const [reload, setReload] = useState(0);
   useEffect(() => {
     let alive = true;
     setOthersState('loading');
@@ -43,7 +45,7 @@ export function IsMyAddress() {
     return () => {
       alive = false;
     };
-  }, [wallets, activeWalletId]);
+  }, [wallets, activeWalletId, reload]);
   const index = useMemo(() => buildAddressIndex([{ walletId: activeWalletId, accounts: activeAccounts }, ...others]), [activeWalletId, activeAccounts, others]);
   const accountsOf = (walletId: string) => (walletId === activeWalletId ? activeAccounts : others.find((o) => o.walletId === walletId)?.accounts ?? []);
 
@@ -59,7 +61,13 @@ export function IsMyAddress() {
       <Text variant="caption" tone="secondary">{t('isMyAddressHint')}</Text>
       <Input value={value} onChangeText={setValue} placeholder="0x… · bc1… · UQ…" sensitive />
       {v.length >= 20 ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <KPressable
+          disabled={!!match || othersState !== 'partial'}
+          onPress={() => setReload((n) => n + 1)}
+          accessibilityRole={!match && othersState === 'partial' ? 'button' : undefined}
+          accessibilityLabel={!match && othersState === 'partial' ? t('retry') : undefined}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+        >
           <Icon name={match ? 'check' : othersState === 'partial' ? 'warning' : 'info'} size={16} color={match ? colors.up : othersState === 'partial' ? colors.warning : colors.textSecondary} />
           <Text variant="caption" style={{ color: match ? colors.up : colors.textSecondary, flex: 1 }}>
             {match && account
@@ -69,8 +77,9 @@ export function IsMyAddress() {
                 : othersState === 'partial'
                   ? t('isMyAddressPartial')
                   : t('isMyAddressNo')}
+            {!match && othersState === 'partial' ? <Text variant="caption" style={{ color: colors.primary }}>{` · ${t('retry')}`}</Text> : null}
           </Text>
-        </View>
+        </KPressable>
       ) : null}
     </View>
   );
