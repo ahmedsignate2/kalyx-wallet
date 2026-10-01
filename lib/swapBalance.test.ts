@@ -3,7 +3,8 @@ jest.mock('../src', () => {
   return { ...actual, getAdapter: jest.fn(), getAdapterV2: jest.fn() };
 });
 import { getAdapter, getAdapterV2 } from '../src';
-import { availableFrom, readSwapBalance, swapBalanceKey } from './swapBalance';
+import { availableFrom, needsRead, readSwapBalance, swapBalanceKey, BALANCE_TTL_MS } from './swapBalance';
+import { SolanaChainAdapter } from '../src';
 
 describe('readSwapBalance', () => {
   it('lève quand la lecture échoue (jamais un 0 inventé)', async () => {
@@ -23,14 +24,35 @@ describe('availableFrom', () => {
     expect(availableFrom(undefined, false, 0n)).toBeNull();
     expect(availableFrom({ status: 'loading' }, false, 0n)).toBeNull();
     expect(availableFrom({ status: 'error' }, false, 0n)).toBeNull();
-    expect(availableFrom({ status: 'ok', raw: 10n }, true, null)).toBeNull();
+    expect(availableFrom({ status: 'ok', raw: 10n, at: 0 }, true, null)).toBeNull();
   });
   it('natif : solde moins la réserve, jamais négatif', () => {
-    expect(availableFrom({ status: 'ok', raw: 10n }, true, 3n)).toBe(7n);
-    expect(availableFrom({ status: 'ok', raw: 2n }, true, 3n)).toBe(0n);
-    expect(availableFrom({ status: 'ok', raw: 10n }, false, 3n)).toBe(10n);
+    expect(availableFrom({ status: 'ok', raw: 10n, at: 0 }, true, 3n)).toBe(7n);
+    expect(availableFrom({ status: 'ok', raw: 2n, at: 0 }, true, 3n)).toBe(0n);
+    expect(availableFrom({ status: 'ok', raw: 10n, at: 0 }, false, 3n)).toBe(10n);
   });
   it('clé : insensible à la casse du jeton', () => {
     expect(swapBalanceKey('base', '0xme', '0xABC')).toBe(swapBalanceKey('base', '0xme', '0xabc'));
+  });
+});
+
+describe('Solana', () => {
+  it('somme les comptes du mint ; une erreur RPC remonte (pas de faux 0)', async () => {
+    const sol = Object.create(SolanaChainAdapter.prototype);
+    sol.rpc = jest.fn(async () => ({ value: [{ account: { data: { parsed: { info: { tokenAmount: { amount: '2000000' } } } } } }, { account: { data: { parsed: { info: { tokenAmount: { amount: '778700' } } } } } }] }));
+    (getAdapter as jest.Mock).mockReturnValue(sol);
+    expect(await readSwapBalance('solana', 'me', 'MINT', false)).toBe(2778700n);
+    sol.rpc = jest.fn(async () => { throw new Error('429'); });
+    await expect(readSwapBalance('solana', 'me', 'MINT', false)).rejects.toThrow('429');
+  });
+});
+
+describe('needsRead', () => {
+  it('absent, erreur ou trop vieux → relire ; frais → garder', () => {
+    expect(needsRead(undefined, 0)).toBe(true);
+    expect(needsRead({ status: 'error' }, 0)).toBe(true);
+    expect(needsRead({ status: 'loading' }, 0)).toBe(false);
+    expect(needsRead({ status: 'ok', raw: 1n, at: 0 }, BALANCE_TTL_MS - 1)).toBe(false);
+    expect(needsRead({ status: 'ok', raw: 1n, at: 0 }, BALANCE_TTL_MS + 1)).toBe(true);
   });
 });

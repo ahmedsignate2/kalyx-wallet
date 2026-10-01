@@ -19,11 +19,20 @@
  */
 import { assessAddress, getAdapter, parseRawTonAddress, parseTonAddress, toRawTonAddress, type TxSummary } from '../src';
 
-/** Clé de comparaison : TON a plusieurs écritures d'une même adresse (EQ…, UQ…, 0:…). */
+/**
+ * Clé de comparaison d'une adresse.
+ *  - TON : plusieurs écritures d'une même adresse (EQ…, UQ…, 0:…) → forme brute ;
+ *  - EVM (0x + 40 hex) et bech32 Bitcoin (bc1…, tb1…) : la casse ne compte pas → minuscules ;
+ *  - tout le reste (Solana, Bitcoin base58) : la casse COMPTE, comparaison exacte.
+ *    Mettre une adresse Solana en minuscules ferait passer pour identique une
+ *    adresse qui ne l'est pas.
+ */
 export function addressKey(address: string): string {
   const a = (address ?? '').trim();
   const ton = parseTonAddress(a) ?? parseRawTonAddress(a);
-  return ton ? toRawTonAddress(ton) : a.toLowerCase();
+  if (ton) return toRawTonAddress(ton);
+  if (/^0x[0-9a-fA-F]{40}$/.test(a) || /^(bc|tb|bcrt)1/i.test(a)) return a.toLowerCase();
+  return a;
 }
 
 export function sameAddress(a: string, b: string): boolean {

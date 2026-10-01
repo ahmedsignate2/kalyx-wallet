@@ -16,7 +16,20 @@ export async function readSwapBalance(chainId: string, owner: string, token: str
   if (native) return (await a.getBalance(owner)).raw;
   const t = token.toLowerCase();
   if (a instanceof EvmChainAdapter) return a.getTokenBalance(token, owner);
-  if (a instanceof SolanaChainAdapter) return (await a.getSplTokens(owner)).find((x) => x.mint.toLowerCase() === t)?.raw ?? 0n;
+  if (a instanceof SolanaChainAdapter) {
+    /*
+     * Lecture DIRECTE des comptes de ce mint : `getSplTokens` avale ses erreurs
+     * RPC et rend [] — un échec y devenait un faux 0 (« Disponible : 0 » sur un
+     * compte plein). Ici l'erreur remonte. Plus léger aussi : un seul appel,
+     * sans métadonnées. Le filtre par mint couvre SPL et Token-2022.
+     */
+    const res = await a.rpc<{ value?: { account?: { data?: { parsed?: { info?: { tokenAmount?: { amount?: string } } } } } }[] }>(
+      'getTokenAccountsByOwner',
+      [owner, { mint: token }, { encoding: 'jsonParsed', commitment: 'confirmed' }],
+    );
+    if (!res || !Array.isArray(res.value)) throw new Error('Réponse Solana illisible');
+    return res.value.reduce((sum, acc) => sum + BigInt(acc.account?.data?.parsed?.info?.tokenAmount?.amount ?? '0'), 0n);
+  }
   const v2 = getAdapterV2(chainId);
   if (v2.listTokens) return (await v2.listTokens(owner)).find((x) => String(x.id).toLowerCase() === t)?.raw ?? 0n;
   throw new Error(`Solde de jeton illisible sur ${chainId}`);
@@ -27,7 +40,17 @@ export function swapBalanceKey(chainId: string, owner: string | undefined, token
   return `${chainId}:${owner ?? ''}:${token.toLowerCase()}`;
 }
 
-export type BalanceEntry = { status: 'loading' } | { status: 'ok'; raw: bigint } | { status: 'error' };
+/** `at` : moment de la lecture (ms) — une valeur trop vieille est relue au retour sur le jeton. */
+export type BalanceEntry = { status: 'loading' } | { status: 'ok'; raw: bigint; at: number } | { status: 'error' };
+
+/** Au-delà, un solde déjà lu est relu quand on revient sur le jeton. */
+export const BALANCE_TTL_MS = 30_000;
+
+/** Faut-il (re)lire ce solde ? Absent, en erreur, ou trop vieux. */
+export function needsRead(entry: BalanceEntry | undefined, now: number): boolean {
+  if (!entry || entry.status === 'error') return true;
+  return entry.status === 'ok' && now - entry.at > BALANCE_TTL_MS;
+}
 
 /** Disponible pour l'échange : solde − réserve de frais (natif) ; null si l'un des deux est inconnu. */
 export function availableFrom(entry: BalanceEntry | undefined, native: boolean, reserve: bigint | null): bigint | null {
