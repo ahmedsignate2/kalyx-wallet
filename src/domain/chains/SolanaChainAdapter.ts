@@ -26,6 +26,7 @@ import { parseSolanaTx, type SolTxResponse } from './solHistory';
 import {
   parseTokenAccounts,
   mergeTokenAccounts,
+  capSplTokens,
   SPL_TOKEN_PROGRAM,
   SPL_TOKEN_2022_PROGRAM,
   type SplToken,
@@ -308,8 +309,8 @@ export class SolanaChainAdapter implements ChainAdapter {
       }
     };
 
-    const tokens = mergeTokenAccounts(
-      ...(await Promise.all([query(SPL_TOKEN_PROGRAM), query(SPL_TOKEN_2022_PROGRAM)])),
+    const tokens = capSplTokens(
+      mergeTokenAccounts(...(await Promise.all([query(SPL_TOKEN_PROGRAM), query(SPL_TOKEN_2022_PROGRAM)]))),
     );
 
     // Enrichit les mints hors table curée (nom/symbole/logo réels via Jupiter).

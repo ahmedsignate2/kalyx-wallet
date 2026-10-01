@@ -101,3 +101,15 @@ describe('mergeTokenAccounts', () => {
     expect(mergeTokenAccounts([], [])).toEqual([]);
   });
 });
+
+describe('capSplTokens', () => {
+  const { capSplTokens } = require('./splTokens');
+  const { KNOWN_MINTS } = require('./splTokens');
+  it('garde les connus d’abord, puis borne', () => {
+    const knownMint = Object.keys(KNOWN_MINTS)[0];
+    const many = Array.from({ length: 150 }, (_, i) => ({ mint: `m${i}`, raw: BigInt(1000 - i) }));
+    const out = capSplTokens([...many, { mint: knownMint, raw: 1n }], 100);
+    expect(out).toHaveLength(100);
+    expect(out[0].mint).toBe(knownMint);
+  });
+});
