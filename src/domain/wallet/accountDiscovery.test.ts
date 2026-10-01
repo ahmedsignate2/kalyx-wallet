@@ -18,6 +18,10 @@ describe('discoverAccountIndexes', () => {
     expect(r.uncertain).toEqual([1, 2, 3, 4, 5]);
     expect(r.lastChecked).toBe(5);
   });
+  it('les vides autour d’un inconnu ne se cumulent pas (il est peut-être utilisé)', async () => {
+    const r = await discoverAccountIndexes(probeFrom({ 2: 'unknown', 5: 'used' }));
+    expect(r.found).toEqual([5]); // 1 vide, 2 inconnu, 3-4 vides, 5 trouvé
+  });
   it('réseau durablement muet : arrêt après 6 comptes sans activité, pas 20', async () => {
     const r = await discoverAccountIndexes(async () => 'unknown');
     expect(r.uncertain).toEqual([1, 2, 3, 4, 5, 6]);

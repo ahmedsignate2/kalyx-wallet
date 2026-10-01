@@ -8,9 +8,9 @@
  *  - Solana : au moins une signature ou un solde ;
  *  - Bitcoin : au moins une transaction (même si l'adresse a été vidée).
  *
- * Agrégation PAR FAMILLE, puis entre familles (combineActivity) : un seul RPC
- * EVM muet ne rend plus TOUT inconnu — la famille EVM est « vide » quand la
- * majorité de ses réseaux a répondu vide et qu'aucun n'a vu d'activité.
+ * « Vide » seulement si TOUS les réseaux ont répondu vide : un réseau muet rend
+ * le compte « inconnu » (peut-être utilisé là) — jamais vide. Le coût d'un RPC
+ * durablement muet est borné par la recherche (arrêt après 6 comptes calmes).
  */
 import {
   BitcoinChainAdapter,
@@ -37,13 +37,6 @@ const asActivity = async (p: Promise<boolean>): Promise<AccountActivity> => {
   }
 };
 
-/** Famille EVM : utilisée si un réseau l'a vue ; vide si la MAJORITÉ a répondu vide ; sinon inconnue. */
-export function evmFamilyActivity(results: AccountActivity[]): AccountActivity {
-  if (results.includes('used')) return 'used';
-  const empty = results.filter((r) => r === 'empty').length;
-  return results.length && empty * 2 > results.length ? 'empty' : 'unknown';
-}
-
 async function evmActivity(address: string, known: Set<string>): Promise<AccountActivity | null> {
   const probes: Promise<AccountActivity>[] = [];
   for (const id of EVM_PROBE_CHAINS) {
@@ -60,7 +53,7 @@ async function evmActivity(address: string, known: Set<string>): Promise<Account
       ),
     );
   }
-  return probes.length ? evmFamilyActivity(await Promise.all(probes)) : null;
+  return probes.length ? combineActivity(await Promise.all(probes)) : null;
 }
 
 export async function probeAccountActivity(acc: { evmAddress?: string; solAddress?: string; btcAddress?: string }): Promise<AccountActivity> {
