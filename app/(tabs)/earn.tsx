@@ -257,6 +257,15 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
         </Text>
         <Text style={[typography.muted, { fontVariant: ['tabular-nums'] }]}>{pv.fiat > 0 ? `${money(pv.fiat)} ${fiatSymbol(fiat)}` : '—'}</Text>
       </View>
+      {/*
+        Rendement annuel SOUS la valeur, où il a la place. Coincé entre la
+        pastille d'APY et les deux boutons, il était réduit à un « … » orphelin.
+      */}
+      {pv.yearlyFiat > 0 ? (
+        <Text style={[typography.muted, { fontSize: 13, textAlign: 'right', marginTop: 2, color: colors.up }]} numberOfLines={1}>
+          {pv.yearlyFiat >= 0.01 ? `+${money(pv.yearlyFiat)} ${fiatSymbol(fiat)} ${t('earnPerYear')}` : t('earnUnderCentYear').replace('{sym}', fiatSymbol(fiat))}
+        </Text>
+      ) : null}
 
       <View style={{ height: 1, backgroundColor: colors.border, marginVertical: spacing(1.5) }} />
 
@@ -264,15 +273,6 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing(1) }}>
         <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing(1), justifyContent: 'flex-start' }}>
           <ApyBadge apy={pv.apy} />
-          {pv.yearlyFiat >= 0.01 ? (
-            <Text style={[typography.muted, { fontSize: 13, flexShrink: 1 }]} numberOfLines={1}>
-              +{money(pv.yearlyFiat)} {fiatSymbol(fiat)} {t('earnPerYear')}
-            </Text>
-          ) : pv.yearlyFiat > 0 ? (
-            <Text style={[typography.muted, { fontSize: 13, flexShrink: 1 }]} numberOfLines={1}>
-              {t('earnUnderCentYear').replace('{sym}', fiatSymbol(fiat))}
-            </Text>
-          ) : null}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <KPressable
@@ -390,7 +390,7 @@ function TonStakingCard() {
           <Text style={typography.muted}>{t('stkSub')}</Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ color: colors.up, fontFamily: fonts.bold, fontVariant: ['tabular-nums'] }}>{info.pool.apy.toFixed(2)} %</Text>
+          <Text style={{ color: colors.up, fontFamily: fonts.bold, fontVariant: ['tabular-nums'] }}>{formatPercent(info.pool.apy)}</Text>
           <Text style={typography.muted}>{t('stkApy')}</Text>
         </View>
       </View>

@@ -106,5 +106,6 @@ export function formatFiat(v: number, decimals = 2): string {
 /** Pourcentage : 2 décimales, sans zéros inutiles (3.50 → 3.5, 12.00 → 12). */
 export function formatPercent(v: number, decimals = 2): string {
   if (!Number.isFinite(v)) return '—';
-  return `${v.toFixed(decimals).replace(/\.?0+$/, '')} %`;
+  // Séparateur de la langue : « 3.58 % » s'affichait en français au lieu de « 3,58 % ».
+  return `${v.toFixed(decimals).replace(/\.?0+$/, '').replace('.', DECIMAL_SEP)} %`;
 }

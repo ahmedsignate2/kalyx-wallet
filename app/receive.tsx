@@ -141,7 +141,8 @@ export default function Receive() {
             <Icon name="caretDown" size={16} tone="muted" />
           </KPressable>
         ) : null}
-        {environment === 'mainnet' ? (
+        {/* « Ethereum & EVM · Base, Arbitrum… » : seulement sur Ethereum — il restait affiché sur Solana, Bitcoin et TON. */}
+        {environment === 'mainnet' && selected?.family === 'evm' ? (
           <Text variant="caption" tone="secondary">{t("evmDescription")}</Text>
         ) : null}
 

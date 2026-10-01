@@ -37,13 +37,15 @@ export function FloatingAiAssistant() {
   const [collapsed, setCollapsed] = useState(false);
   const locked = useLocked();
 
+  /*
+   * REPLI AUTOMATIQUE partout, plus seulement sur le navigateur : grande, la
+   * bulle recouvrait des actions (« Staker » dans Rendement, des lignes de
+   * jetons). Après quelques secondes elle se range en languette contre le bord.
+   */
   useEffect(() => {
     setCollapsed(false);
-    if (pathname === BROWSER) {
-      const timer = setTimeout(() => setCollapsed(true), 4500);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
+    const timer = setTimeout(() => setCollapsed(true), 4500);
+    return () => clearTimeout(timer);
   }, [pathname]);
 
   // Verrouillée : ni bulle ni conversation (elle montre soldes et activité).
@@ -61,9 +63,17 @@ export function FloatingAiAssistant() {
   return (
     <>
       {showBubble && !isOpen ? (
-        <View pointerEvents="box-none" style={{ position: 'absolute', right: 16, bottom, zIndex: 50 }}>
-          <Pressable onPress={() => { if (collapsed) setCollapsed(false); else openChat(); }} accessibilityLabel={collapsed ? t('aiFloatingShow') : t('aiFloatingOpen')} style={{ width: collapsed ? 34 : 52, height: collapsed ? 40 : 52, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="sparkles" size={22} color={GOLD} />
+        <View pointerEvents="box-none" style={{ position: 'absolute', right: collapsed ? 0 : 16, bottom, zIndex: 50 }}>
+          <Pressable
+            onPress={() => { if (collapsed) setCollapsed(false); else openChat(); }}
+            accessibilityLabel={collapsed ? t('aiFloatingShow') : t('aiFloatingOpen')}
+            style={
+              collapsed
+                ? { width: 28, height: 44, borderTopLeftRadius: 22, borderBottomLeftRadius: 22, backgroundColor: colors.surface1, borderWidth: 1, borderRightWidth: 0, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }
+                : { width: 52, height: 52, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }
+            }
+          >
+            <Icon name="sparkles" size={collapsed ? 16 : 22} color={GOLD} />
           </Pressable>
         </View>
       ) : null}
