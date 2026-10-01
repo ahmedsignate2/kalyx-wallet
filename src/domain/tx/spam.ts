@@ -1,3 +1,4 @@
+import { normalizeAddressCase } from '../validation/addressCase';
 /**
  * Tri de l'historique : ce qui relève du SPAM, et pourquoi.
  *
@@ -63,6 +64,10 @@ export function isScamName(name: string | undefined): boolean {
 
 /** Même 4 premiers et 4 derniers caractères, adresse différente. */
 export function looksLike(a: string, b: string): boolean {
+  /*
+   * Même début + même fin, milieu différent. Une simple variante de CASSE n'est
+   * pas un sosie : personne n'en détient la clé, nul ne peut en envoyer.
+   */
   const x = a.toLowerCase().replace(/^0x/, '');
   const y = b.toLowerCase().replace(/^0x/, '');
   if (x === y || x.length < 12 || y.length < 12) return false;
@@ -74,7 +79,7 @@ export function spamReason(tx: TxSummary, ctx: SpamCtx): SpamReason | null {
   // Ses propres échanges et approbations ne sont jamais du spam.
   if (type === 'SWAP' || type === 'APPROVE' || type === 'APPROVAL') return null;
   const inbound = tx.direction === 'in';
-  const counterparty = (inbound ? tx.from : tx.to).toLowerCase();
+  const counterparty = normalizeAddressCase(inbound ? tx.from : tx.to);
 
   // Un sosie d'une adresse connue, qui n'est pas elle-même connue : piège.
   if (counterparty && !ctx.known.has(counterparty)) {
@@ -94,6 +99,24 @@ export function spamReason(tx: TxSummary, ctx: SpamCtx): SpamReason | null {
   return null;
 }
 
+/** Transaction qui vaut « j'ai payé cette adresse » : envoi réussi, non nul, hors NFT et jeton douteux. */
+function isPaidOut(tx: TxSummary, trusted: SpamCtx['trusted']): boolean {
+  if (tx.direction !== 'out' || tx.status !== 'success' || tx.value <= 0n || !tx.to) return false;
+  if ((tx.type ?? '').toUpperCase() === 'NFT') return false;
+  return !(tx.contract && !trusted(tx.chain, tx.contract));
+}
+
+/**
+ * Adresses PAYÉES, dans leur casse d'origine (pas en minuscules) : sur Solana
+ * et en Bitcoin base58, la casse fait partie de l'adresse. Dédoublonnées selon
+ * la règle unique de casse (addressCase.ts).
+ */
+export function paidCounterparties(txs: TxSummary[], trusted: SpamCtx['trusted']): string[] {
+  const out = new Map<string, string>();
+  for (const tx of txs) if (isPaidOut(tx, trusted)) out.set(normalizeAddressCase(tx.to), tx.to);
+  return [...out.values()];
+}
+
 /**
  * Adresses « connues » tirées de l'historique lui-même : celles à qui
  * l'utilisateur a envoyé une valeur non nulle, depuis une transaction réussie,
@@ -102,12 +125,7 @@ export function spamReason(tx: TxSummary, ctx: SpamCtx): SpamReason | null {
  */
 export function knownCounterparties(txs: TxSummary[], trusted: SpamCtx['trusted'], extra: Iterable<string> = []): Set<string> {
   const out = new Set<string>();
-  for (const a of extra) if (a) out.add(a.toLowerCase());
-  for (const tx of txs) {
-    if (tx.direction !== 'out' || tx.status !== 'success' || tx.value <= 0n || !tx.to) continue;
-    if ((tx.type ?? '').toUpperCase() === 'NFT') continue;
-    if (tx.contract && !trusted(tx.chain, tx.contract)) continue;
-    out.add(tx.to.toLowerCase());
-  }
+  for (const a of extra) if (a) out.add(normalizeAddressCase(a));
+  for (const tx of txs) if (isPaidOut(tx, trusted)) out.add(normalizeAddressCase(tx.to));
   return out;
 }

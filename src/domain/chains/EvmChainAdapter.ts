@@ -476,15 +476,31 @@ export class EvmChainAdapter implements ChainAdapter {
     }
   }
 
-  /** Solde d'un token ERC-20 pour une adresse. */
-  async getTokenBalance(token: string, owner: string): Promise<bigint> {
+  /** Réponse brute de `balanceOf` (l'erreur RPC remonte). */
+  private balanceOfRaw(token: string, owner: string): Promise<string> {
     const data = ERC20.encodeFunctionData('balanceOf', [owner]);
-    const result = await this.call((p) => p.call({ to: token, data }));
+    return this.call((p) => p.call({ to: token, data }));
+  }
+
+  /** Solde d'un token ERC-20 pour une adresse (réponse illisible → 0 ; voir la version stricte). */
+  async getTokenBalance(token: string, owner: string): Promise<bigint> {
+    const result = await this.balanceOfRaw(token, owner);
     try {
       return BigInt(result);
     } catch {
       return 0n;
     }
+  }
+
+  /**
+   * balanceOf STRICT : lève si la réponse est vide (`0x`, contrat absent) ou
+   * illisible — là où `getTokenBalance` rend 0. Pour tout ce qui décide d'un
+   * montant (swap) : un faux 0 refuserait l'échange sur un compte plein.
+   */
+  async getTokenBalanceStrict(token: string, owner: string): Promise<bigint> {
+    const result = await this.balanceOfRaw(token, owner);
+    if (typeof result !== 'string' || !/^0x[0-9a-fA-F]+$/.test(result)) throw new Error('Solde du jeton illisible');
+    return BigInt(result);
   }
 
   /**
