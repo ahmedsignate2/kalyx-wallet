@@ -272,6 +272,8 @@ export async function hasAnyErc20Balance(
       /* Alchemy muet : repli sur balanceOf, ci-dessous */
     }
   }
+  // Ni Alchemy ni liste de jetons connus pour ce réseau : on ne SAIT pas (jamais « non »).
+  if (!known.length) throw new Error('Jetons de ce réseau illisibles');
   const balances = await Promise.all(known.map((t) => balanceOfStrict(t, address)));
   return balances.some((b) => b > 0n);
 }

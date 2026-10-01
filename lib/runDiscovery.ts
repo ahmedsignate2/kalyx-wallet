@@ -5,7 +5,7 @@
  * l'écran sait si l'une tourne déjà (useDiscovering).
  */
 import { create } from 'zustand';
-import { useWallet, type Unlock } from './walletStore';
+import { isBip39Wallet, useWallet, type Unlock } from './walletStore';
 import { toast } from './toast';
 import { translate, type Key } from './i18n';
 import { useSettings } from './settingsStore';
@@ -28,11 +28,17 @@ export const useDiscovering = (walletId: string) => useRunning((st) => st.at[wal
 
 /** Seule une phrase BIP-39 a des comptes 2, 3… (ni clé privée, ni phrase TON, ni adresse suivie). */
 export function canDiscover(walletId: string): boolean {
-  const type = useWallet.getState().wallets.find((w) => w.id === walletId)?.type;
-  return type === undefined || type === 'seed';
+  return isBip39Wallet(useWallet.getState().wallets, walletId);
 }
 
-type Run = (opts: { onProgress: (i: number) => void; onUnlocked: () => void }) => Promise<{ added: number[]; uncertain: number[]; aborted?: boolean }>;
+/** Génération : une réinitialisation rend muettes les recherches d'avant (même id « primary »). */
+let generation = 0;
+export function clearDiscoveries(): void {
+  generation += 1;
+  useRunning.setState({ at: {} });
+}
+
+type Run = (opts: { onProgress: (i: number) => void; onUnlocked: () => void }) => Promise<{ added: number[]; uncertain: number[]; aborted?: boolean; gone?: boolean }>;
 
 /**
  * Exécute une recherche et en annonce l'issue. Rend la main dès que la phrase
@@ -42,17 +48,20 @@ type Run = (opts: { onProgress: (i: number) => void; onUnlocked: () => void }) =
 export function trackDiscovery(walletId: string, run: Run, opts: { announce?: boolean } = {}): Promise<void> {
   if (useRunning.getState().at[walletId] != null || !canDiscover(walletId)) return Promise.resolve();
   setAt(walletId, 1);
+  const gen = generation;
+  const live = () => gen === generation;
   return new Promise<void>((resolve, reject) => {
     let unlocked = false;
     run({
-      onProgress: (i) => setAt(walletId, i),
+      onProgress: (i) => live() && setAt(walletId, i),
       onUnlocked: () => {
         unlocked = true;
         resolve();
         if (opts.announce) toast.info(tr('discoverTitle'), tr('discoverRunning'));
       },
     })
-      .then(({ added, uncertain, aborted }) => {
+      .then(({ added, uncertain, aborted, gone }) => {
+        if (!live() || gone) return; // portefeuille réinitialisé ou supprimé : rien à annoncer
         // Trouvés mais pas écrits (portefeuille changé) : jamais « aucun compte » — à relancer.
         if (aborted) toast.warning(tr('discoverTitle'), tr('discoverUncertain'));
         else if (added.length) toast.success(tr('discoverTitle'), tr('discoverFound').replace('{count}', String(added.length)));
@@ -64,7 +73,7 @@ export function trackDiscovery(walletId: string, run: Run, opts: { announce?: bo
         else toast.error(tr('discoverTitle'), friendlyTxError(e));
       })
       .finally(() => {
-        setAt(walletId, null);
+        if (live()) setAt(walletId, null);
         resolve();
       });
   });
