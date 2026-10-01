@@ -33,7 +33,7 @@ const canon = (d: number) => CYCLE + d;
 export type RollDirection = 'up' | 'down' | 'none';
 
 function Digit({
-  value, height, width, delay, variant, direction,
+  value, height, width, delay, variant, direction, intro,
 }: {
   value: number;
   height: number;
@@ -41,13 +41,23 @@ function Digit({
   delay: number;
   variant: TextVariant;
   direction: RollDirection;
+  /** Révélation : le chiffre part du cycle du bas et fait un tour complet avant de se poser. */
+  intro?: { delay: number };
 }) {
-  const y = useSharedValue(-canon(value) * height);
-  const shown = useRef(value);
   const reduced = useReducedMotion();
+  const y = useSharedValue(intro && !reduced ? -value * height : -canon(value) * height);
+  const shown = useRef(value);
+  useEffect(() => {
+    if (!intro || reduced) return;
+    // Un tour complet (dix crans vers le haut), ressort un peu plus ample.
+    y.value = withDelay(intro.delay, withSpring(-canon(value) * height, { damping: 20, stiffness: 70, mass: 1 }));
+    // Au montage seulement : la suite passe par le roulement normal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const from = shown.current;
+    if (intro && from === value) return; // le premier rendu appartient à la révélation
     shown.current = value;
     const rest = -canon(value) * height;
     if (reduced || direction === 'none' || from === value) {
@@ -90,7 +100,7 @@ function Digit({
  * séparateurs (espace, virgule, point) sont rendus tels quels.
  */
 export function AmountDisplay({
-  value, variant = 'balance', suffix, prefix, direction = 'none',
+  value, variant = 'balance', suffix, prefix, direction = 'none', reveal,
 }: {
   value: string;
   variant?: TextVariant;
@@ -103,6 +113,11 @@ export function AmountDisplay({
    * (première apparition, changement de devise).
    */
   direction?: RollDirection;
+  /**
+   * RÉVÉLATION (première apparition du solde après déverrouillage) : chaque
+   * chiffre fait un tour complet et se pose, de gauche à droite.
+   */
+  reveal?: boolean;
 }) {
   const { typography } = useTheme();
   const t = typography[variant] as { fontSize: number; lineHeight?: number };
@@ -120,7 +135,7 @@ export function AmountDisplay({
           const idx = seen++;
           // Décalage : le chiffre le plus à droite part en premier.
           const delay = (digitCount - 1 - idx) * 20;
-          return <Digit key={`d${i}`} value={Number(c)} height={height} width={width} delay={delay} variant={variant} direction={direction} />;
+          return <Digit key={`d${i}`} value={Number(c)} height={height} width={width} delay={delay} variant={variant} direction={direction} intro={reveal ? { delay: 120 + idx * 70 } : undefined} />;
         }
         return (
           <Text key={`s${i}`} variant={variant} style={{ height, lineHeight: height }}>

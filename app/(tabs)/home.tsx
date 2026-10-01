@@ -84,6 +84,9 @@ function fmtDate(t: number, period: Period, locale = 'en-US'): string {
   return period === '1J' || period === '1S' ? `${day} · ${time}` : d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: period === '1M' ? undefined : '2-digit' });
 }
 
+/** La révélation du solde ne se joue qu'une fois par session. */
+let balanceRevealed = false;
+
 export default function Home() {
   const { colors } = useTheme();
   const t = useT();
@@ -397,6 +400,18 @@ export default function Home() {
     const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
     return { transform: [{ scale: 1 - p * 0.7 }] };
   });
+  /*
+   * RÉVÉLATION DU SOLDE : la première fois qu'il apparaît dans la session
+   * (après le déverrouillage), chaque chiffre fait un tour et se pose, de
+   * gauche à droite. Une seule fois : revenir sur l'accueil ne la rejoue pas.
+   */
+  const [reveal, setReveal] = useState(() => !balanceRevealed);
+  useEffect(() => {
+    if (!reveal || (pf.loading && pf.at === 0) || hidden) return;
+    balanceRevealed = true;
+    const id = setTimeout(() => setReveal(false), 2600);
+    return () => clearTimeout(id);
+  }, [reveal, pf.loading, pf.at, hidden]);
   const prevTotal = useRef(pf.total);
   useEffect(() => { prevTotal.current = pf.total; }, [pf.total]);
 
@@ -613,7 +628,7 @@ export default function Home() {
             ) : scrub ? (
               <Text variant="balance" tabular>{formatFiat(shownValue)} <Text variant="title2" tone="secondary">{sym}</Text></Text>
             ) : (
-              <AmountDisplay value={formatFiat(pf.total)} suffix={sym} direction={rollDir} />
+              <AmountDisplay value={formatFiat(pf.total)} suffix={sym} direction={rollDir} reveal={reveal} />
             )}
           </KPressable>
           <View style={{ height: 22, justifyContent: 'center', marginTop: space[1] }}>

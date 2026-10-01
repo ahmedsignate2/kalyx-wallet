@@ -1,4 +1,5 @@
 import { haptic } from "../lib/haptics";
+import { useReduceMotion } from '../lib/reduceMotion';
 import { sound } from "../lib/sound";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
@@ -254,6 +255,25 @@ export default function Swap() {
   const isBridge = toChain !== activeChain;
   const flip = useSharedValue(0);
   const flipStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${flip.value * 180}deg` }] }));
+  /*
+   * INVERSION EN ORBITE : les deux cartes échangent leur place en tournant
+   * l'une autour de l'autre — celle du haut passe par la droite, l'autre par
+   * la gauche, en se rétrécissant au croisement. L'état est inversé tout de
+   * suite ; chaque carte part de l'ancienne place de l'autre et revient à la
+   * sienne. Distance = hauteur d'une carte + l'écart, mesurée.
+   */
+  const reduceMotion = useReduceMotion();
+  const orbit = useSharedValue(1);
+  const [blockH, setBlockH] = useState(0);
+  const dist = blockH + space[2];
+  const topOrbitStyle = useAnimatedStyle(() => {
+    const k = Math.sin(orbit.value * Math.PI);
+    return { zIndex: 2, transform: [{ translateY: dist * (1 - orbit.value) }, { translateX: 34 * k }, { scale: 1 - 0.08 * k }] };
+  });
+  const bottomOrbitStyle = useAnimatedStyle(() => {
+    const k = Math.sin(orbit.value * Math.PI);
+    return { zIndex: 1, transform: [{ translateY: -dist * (1 - orbit.value) }, { translateX: -34 * k }, { scale: 1 - 0.08 * k }], opacity: 1 - 0.25 * k };
+  });
 
   // Récupère le solde du token sélectionné s'il n'est pas natif
   useEffect(() => {
@@ -308,6 +328,10 @@ export default function Swap() {
     stopCountdown();
     flip.value = 0;
     flip.value = withSpring(1, springs.snappy);
+    if (!reduceMotion && blockH > 0) {
+      orbit.value = 0;
+      orbit.value = withSpring(1, { damping: 17, stiffness: 150, mass: 0.9 });
+    }
   };
 
   const getTokenBalance = (): bigint => {
@@ -564,7 +588,8 @@ export default function Swap() {
 
           {/* Les deux cartes, et le disque d'inversion posé à cheval entre elles. */}
           <View style={{ gap: space[2] }}>
-            <Rise>
+            <Rise style={{ zIndex: 2 }}>
+              <Animated.View style={topOrbitStyle} onLayout={(e) => setBlockH(Math.round(e.nativeEvent.layout.height))}>
               <TokenBlock
                 label={t("youGive")}
                 tok={fromTok}
@@ -582,8 +607,10 @@ export default function Swap() {
                 }
                 bottom={<Text variant="caption" tone="secondary" tabular>{quote && quote.fromAmountUsd > 0 ? `≈ ${formatFiat(quote.fromAmountUsd)} $` : ' '}</Text>}
               />
+              </Animated.View>
             </Rise>
             <Rise delay={70}>
+              <Animated.View style={bottomOrbitStyle}>
               <TokenBlock
                 label={t("youReceive")}
                 tok={toTok}
@@ -593,8 +620,9 @@ export default function Swap() {
                 onPick={() => setPickerState({ visible: true, side: 'to' })}
                 bottom={<Text variant="caption" tone="secondary" tabular>{quote && quote.toAmountUsd > 0 ? `≈ ${formatFiat(quote.toAmountUsd)} $` : ' '}</Text>}
               />
+              </Animated.View>
             </Rise>
-            <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+            <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 5, alignItems: 'center', justifyContent: 'center' }}>
               <Animated.View style={flipStyle}>
                 <KPressable onPress={onFlip} disabled={isBridge} overshoot haptic="light" accessibilityLabel={t('swapFlip')} style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary, borderWidth: 4, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.5 : 1 }}>
                   <Icon name="convert" size={22} color={colors.onPrimary} />
