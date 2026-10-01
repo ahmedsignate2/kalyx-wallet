@@ -46,7 +46,8 @@ export function IsMyAddress() {
            * (ancien compte, complétée au prochain déverrouillage) : ses adresses
            * TON sont inconnues — on le dit plutôt qu'un « pas à toi ».
            */
-          const seed = (useWallet.getState().wallets.find((w) => w.id === id)?.type ?? 'seed') === 'seed';
+          const type = useWallet.getState().wallets.find((w) => w.id === id)?.type;
+          const seed = type !== 'privateKey' && type !== 'watch'; // phrase BIP-39 ou phrase TON
           return { walletId: id, accounts, failed: seed && accounts.some((a) => !a.tonPublicKey) };
         } catch {
           return { walletId: id, accounts: [] as StoredAccount[], failed: true };

@@ -505,7 +505,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     if (!acct?.evmAddress && !acct?.solAddress && !acct?.btcAddress) throw new WcConnectError('NO_ACCOUNT');
     // Exige l'identité dès la connexion (parité avec le navigateur dApps intégré).
     // Biométrie ou PIN ; lève si refusée → l'UI affiche l'erreur, aucune session.
-    await wstate.verifyUnlock(unlock);
+    // Lecture seule : l'adresse suivie n'est PAS celle de l'utilisateur, on ne la présente pas comme telle.
+    await wstate.verifyConnect(unlock);
     const chains = evmChains();
     const evmAddress = acct.evmAddress;
     const supportedNamespaces: Record<string, unknown> = {};

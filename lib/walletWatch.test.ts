@@ -105,6 +105,8 @@ describe('Lecture seule : suivre, déverrouiller, jamais signer', () => {
     const typed = { domain: { name: 'X', chainId: 1 }, types: { M: [{ name: 'a', type: 'uint256' }] }, message: { a: '1' } };
     expect(await codeOf(W().signTypedData({ pin: PIN }, typed, 1))).toMatch(/^WATCH_ONLY\|/);
     expect(await codeOf(W().verifyUnlock({ pin: PIN }))).toBe('OK'); // l'identité, elle, se prouve
+    // …mais l'adresse suivie ne se connecte à aucun site (WalletConnect, navigateur).
+    expect(await codeOf(W().verifyConnect({ pin: PIN }))).toMatch(/^WATCH_ONLY\|/);
   });
 
   it('le dernier portefeuille à clé ne peut pas être supprimé ; l’adresse suivie, si', async () => {

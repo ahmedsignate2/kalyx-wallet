@@ -523,7 +523,8 @@ export default function Browser() {
     const activity = useDappActivity.getState();
     const tb = tabsRef.current.find((x) => x.id === pending.tabId);
     if (pending.kind === 'connect') {
-      await useWallet.getState().verifyUnlock(unlock);
+      // Lecture seule : lève WATCH_ONLY, rien n'est partagé avec le site.
+      await useWallet.getState().verifyConnect(unlock);
       connected.current.add(pending.origin);
       respondPending(pending, [evmAddress]);
       deliverTo(pending.origin, pending.tabId, emitJs('accountsChanged', [evmAddress]));
