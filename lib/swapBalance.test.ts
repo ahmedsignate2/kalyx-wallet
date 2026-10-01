@@ -13,8 +13,9 @@ describe('readSwapBalance', () => {
   });
   it('TON : jetton absent d’une liste lue = 0 ; présent = son solde', async () => {
     (getAdapter as jest.Mock).mockReturnValue({});
-    (getAdapterV2 as jest.Mock).mockReturnValue({ listTokens: jest.fn(async () => [{ id: '0:ABC', raw: 42n }]) });
-    expect(await readSwapBalance('ton', 'me', '0:abc', false)).toBe(42n);
+    const master = '0:' + 'AB'.repeat(32);
+    (getAdapterV2 as jest.Mock).mockReturnValue({ listTokens: jest.fn(async () => [{ id: master, raw: 42n }]) });
+    expect(await readSwapBalance('ton', 'me', master.toLowerCase(), false)).toBe(42n);
     expect(await readSwapBalance('ton', 'me', '0:zzz', false)).toBe(0n);
   });
 });

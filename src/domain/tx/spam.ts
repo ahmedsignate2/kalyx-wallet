@@ -64,9 +64,13 @@ export function isScamName(name: string | undefined): boolean {
 
 /** Même 4 premiers et 4 derniers caractères, adresse différente. */
 export function looksLike(a: string, b: string): boolean {
+  // Même adresse (selon la règle de casse) : pas un sosie. Une variante de casse
+  // d'une adresse Solana/base58, elle, EST une autre adresse — et un sosie parfait.
+  if (normalizeAddressCase(a) === normalizeAddressCase(b)) return false;
   const x = a.toLowerCase().replace(/^0x/, '');
   const y = b.toLowerCase().replace(/^0x/, '');
-  if (x === y || x.length < 12 || y.length < 12) return false;
+  if (x.length < 12 || y.length < 12) return false;
+  if (x === y) return true;
   return x.slice(0, 4) === y.slice(0, 4) && x.slice(-4) === y.slice(-4);
 }
 
@@ -75,7 +79,7 @@ export function spamReason(tx: TxSummary, ctx: SpamCtx): SpamReason | null {
   // Ses propres échanges et approbations ne sont jamais du spam.
   if (type === 'SWAP' || type === 'APPROVE' || type === 'APPROVAL') return null;
   const inbound = tx.direction === 'in';
-  const counterparty = (inbound ? tx.from : tx.to).toLowerCase();
+  const counterparty = normalizeAddressCase(inbound ? tx.from : tx.to);
 
   // Un sosie d'une adresse connue, qui n'est pas elle-même connue : piège.
   if (counterparty && !ctx.known.has(counterparty)) {
@@ -121,7 +125,7 @@ export function paidCounterparties(txs: TxSummary[], trusted: SpamCtx['trusted']
  */
 export function knownCounterparties(txs: TxSummary[], trusted: SpamCtx['trusted'], extra: Iterable<string> = []): Set<string> {
   const out = new Set<string>();
-  for (const a of extra) if (a) out.add(a.toLowerCase());
-  for (const tx of txs) if (isPaidOut(tx, trusted)) out.add(tx.to.toLowerCase());
+  for (const a of extra) if (a) out.add(normalizeAddressCase(a));
+  for (const tx of txs) if (isPaidOut(tx, trusted)) out.add(normalizeAddressCase(tx.to));
   return out;
 }

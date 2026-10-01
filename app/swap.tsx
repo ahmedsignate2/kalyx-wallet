@@ -9,7 +9,7 @@ import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from '
 import { LinearGradient } from 'expo-linear-gradient';
 import { swapTokenTint, withAlpha } from '../lib/tokenColors';
 import { SnapSlider } from '../ui/SnapSlider';
-import { availableFrom, freshRaw, needsRead, readSwapBalance, swapBalanceKey, type BalanceEntry } from '../lib/swapBalance';
+import { availableFrom, freshRaw, needsRead, writable, readSwapBalance, swapBalanceKey, type BalanceEntry } from '../lib/swapBalance';
 import { CHAIN_LOGO_SVG } from '../src/domain/chains/chainLogos.generated';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState, Pressable as KPressable } from '../ui/kit';
@@ -48,6 +48,7 @@ import {
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { usePortfolioStore } from '../lib/portfolio';
 import { TokenPicker } from '../ui/TokenPicker';
+import { withTimeout } from '../src/domain/chains/net';
 
 /** Durée de validité d'un devis avant auto-actualisation (s). */
 const QUOTE_TTL_S = 30;
@@ -198,8 +199,8 @@ export default function Swap() {
           const bal = (tk as Tok & { balance?: bigint }).balance;
           if (typeof bal !== 'bigint') continue;
           const key = `${swapBalanceKey(chainId, owner, tk.address)}#${nonceAtLoad}`;
-          // Une lecture directe (déjà faite ou en cours) est plus fraîche que la liste : on la garde.
-          if (!next[key]) next[key] = { status: 'ok', raw: bal, at };
+          // Une lecture directe (faite ou en cours) est plus fraîche que la liste ; un échec, non.
+          if (key.endsWith(`#${balanceNonceRef.current}`) && (!next[key] || next[key].status === 'error')) next[key] = { status: 'ok', raw: bal, at };
         }
         return next;
       });
@@ -346,9 +347,22 @@ export default function Swap() {
     inflight.current.add(key);
     setBalances((b) => (b[key]?.status === 'ok' ? b : { ...b, [key]: { status: 'loading', since: Date.now() } }));
     readSwapBalance(activeChain, owner, token, native)
-      .then((raw) => setBalances((b) => ({ ...b, [key]: { status: 'ok', raw, at: Date.now() } })))
-      .catch(() => setBalances((b) => (b[key]?.status === 'ok' ? b : { ...b, [key]: { status: 'error' } })))
+      .then((raw) => putBalance(key, { status: 'ok', raw, at: Date.now() }))
+      .catch(() => putBalance(key, { status: 'error' }, true))
       .finally(() => inflight.current.delete(key));
+  };
+  /**
+   * Écriture d'une lecture ASYNCHRONE : ignorée si sa génération de clés est
+   * passée (purgée après confirmation — elle reviendrait en fuite), ou si un
+   * échange vient d'être diffusé (le nœud rendait encore le solde d'avant).
+   * `keepOk` : un échec n'efface pas un solde déjà connu.
+   */
+  const putBalance = (key: string, entry: BalanceEntry, keepOk = false) => {
+    if (!key.endsWith(`#${balanceNonceRef.current}`)) return;
+    setBalances((b) => {
+      if (!writable(b[key], Date.now()) || (keepOk && b[key]?.status === 'ok')) return b;
+      return { ...b, [key]: entry };
+    });
   };
   /** Relit ce qui manque, a échoué ou a vieilli (dépensé ailleurs entre-temps). */
   const refreshRef = useRef<() => void>(() => {});
@@ -455,14 +469,18 @@ export default function Swap() {
     if (bal == null) {
       try {
         bal = await readSwapBalance(activeChain, account!.address, fromTok.address, srcNative);
-        const fresh = bal;
-        setBalances((b) => ({ ...b, [srcKey]: { status: 'ok', raw: fresh, at: Date.now() } }));
+        putBalance(srcKey, { status: 'ok', raw: bal, at: Date.now() });
       } catch {
         return null; // réseau muet : on laisse le devis trancher
       }
     }
-    // Réserve : celle du state, ou ré-estimée à la volée si pas encore chargée (ne lève jamais).
-    const reserve = gasReserve?.raw ?? (await swapGasReserve(getAdapter(activeChain))).raw;
+    // Réserve : celle du state, ou ré-estimée à la volée (8 s au plus) ; inestimable → le devis tranchera.
+    let reserve: bigint;
+    try {
+      reserve = gasReserve?.raw ?? (await withTimeout(swapGasReserve(getAdapter(activeChain)), 8000, () => new Error('timeout'))).raw;
+    } catch {
+      return null;
+    }
     const reserveStr = `${formatTokenAmount(reserve, chain.nativeDecimals)} ${chain.nativeSymbol}`;
     if (srcNative) {
       // Deux cas distincts : pas même de quoi payer le gas / montant trop grand une fois le gas réservé.
@@ -572,7 +590,7 @@ export default function Swap() {
       // Soldes d'avant l'échange : plus affichés (« … ») jusqu'à la relecture après confirmation.
       // Après ~20 s sans confirmation, la relecture périodique les reprend (needsRead).
       const since = Date.now();
-      setBalances((b) => ({ ...b, [srcKey]: { status: 'loading', since }, [gasKey]: { status: 'loading', since } }));
+      setBalances((b) => ({ ...b, [srcKey]: { status: 'loading', since, afterSwap: true }, [gasKey]: { status: 'loading', since, afterSwap: true } }));
       notifyAndLog('tx', isBridge ? t('bridgeSent') : t('swapExecuted'), summary);
       /*
        * Soldes relus À LA CONFIRMATION, pas à la diffusion : relus tout de

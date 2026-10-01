@@ -476,13 +476,13 @@ export class EvmChainAdapter implements ChainAdapter {
     }
   }
 
-  /** Solde d'un token ERC-20 pour une adresse. */
   /** Réponse brute de `balanceOf` (l'erreur RPC remonte). */
   private balanceOfRaw(token: string, owner: string): Promise<string> {
     const data = ERC20.encodeFunctionData('balanceOf', [owner]);
     return this.call((p) => p.call({ to: token, data }));
   }
 
+  /** Solde d'un token ERC-20 pour une adresse (réponse illisible → 0 ; voir la version stricte). */
   async getTokenBalance(token: string, owner: string): Promise<bigint> {
     const result = await this.balanceOfRaw(token, owner);
     try {
@@ -499,7 +499,7 @@ export class EvmChainAdapter implements ChainAdapter {
    */
   async getTokenBalanceStrict(token: string, owner: string): Promise<bigint> {
     const result = await this.balanceOfRaw(token, owner);
-    if (typeof result !== 'string' || !/^0x[0-9a-fA-F]+$/.test(result) || result === '0x') throw new Error('Solde du jeton illisible');
+    if (typeof result !== 'string' || !/^0x[0-9a-fA-F]+$/.test(result)) throw new Error('Solde du jeton illisible');
     return BigInt(result);
   }
 
