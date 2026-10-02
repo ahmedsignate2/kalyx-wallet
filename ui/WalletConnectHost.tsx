@@ -161,7 +161,8 @@ export function WalletConnectHost() {
   const [shareIndex, setShareIndex] = useState(activeAccountIndex);
   // Le compte actif peut changer pendant qu'une proposition est ouverte.
   useEffect(() => { setShareIndex(activeAccountIndex); }, [activeAccountIndex]);
-  const reduceRef = useRef<string | null>(null);
+  /** Calldata « approve réduit », liée à l'identifiant de LA demande pour laquelle elle a été calculée. */
+  const reduceRef = useRef<{ id: number; data: string } | null>(null);
   // Autorisations granulaires accordées au site (cases à la connexion).
   const [allowTx, setAllowTx] = useState(true);
   const [allowSign, setAllowSign] = useState(true);
@@ -431,7 +432,10 @@ export function WalletConnectHost() {
     // (ce que le routeur va prélever) ; sans simulation, on ne devine pas.
     const reducible = decoded?.kind === 'approve' && decoded.unlimited;
     const reducedAmount = simulation?.changes.find((c) => c.direction === 'out' && c.contract && decoded?.kind === 'approve' && c.contract.toLowerCase() === decoded.token.toLowerCase())?.rawAmount;
-    const [overrideData, setOverride] = [reduceRef.current, (v: string | null) => (reduceRef.current = v)];
+    const reqId: number | undefined = request?.id;
+    // Jamais appliquée à une autre demande que la sienne (échec, file qui avance).
+    const overrideData = reduceRef.current && reduceRef.current.id === reqId ? reduceRef.current.data : null;
+    const setOverride = (v: string | null) => (reduceRef.current = v && reqId != null ? { id: reqId, data: v } : null);
     const onReduce = () => {
       if (!reducible || !reducedAmount || decoded?.kind !== 'approve') return;
       const data = new Interface(['function approve(address,uint256)']).encodeFunctionData('approve', [decoded.spender, BigInt(reducedAmount)]);
@@ -440,8 +444,11 @@ export function WalletConnectHost() {
     };
 
     const perform = async (unlock: Unlock) => {
-      await approveRequest(unlock, overrideData ?? undefined);
-      setOverride(null);
+      try {
+        await approveRequest(unlock, overrideData ?? undefined);
+      } finally {
+        setOverride(null); // la file avance aussi en cas d'échec
+      }
       sound.success();
     };
     const reject = () => {

@@ -239,7 +239,7 @@ function SigningModal() {
         </Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>
           {phase === 'await'
-            ? tw('signAwaitBody', { label })
+            ? pending.slow ? tw('signAwaitSlow') : tw('signAwaitBody', { label })
             : detail ?? ''}
         </Text>
         {phase === 'await' ? (

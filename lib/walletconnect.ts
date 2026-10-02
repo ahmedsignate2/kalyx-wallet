@@ -30,7 +30,7 @@ import type { IWeb3Wallet } from '@walletconnect/web3wallet';
 
 import { VersionedTransaction } from '@solana/web3.js';
 import { Transaction as BtcTransaction } from '@scure/btc-signer';
-import { bitcoinMessageParam, solanaMessageParam } from './messageParams';
+import { bitcoinMessageParam, btcFromSats, solanaMessageParam } from './messageParams';
 function extractSolanaSignature(tx: string, address: string): string {
   try {
     const decoded = solanaTxDecode(tx);
@@ -47,6 +47,14 @@ function extractSolanaSignature(tx: string, address: string): string {
 }
 
 /** Spec WalletConnect Solana : `transaction` (signée, sérialisée) est renvoyée en BASE64. */
+/** Deux calldatas `approve(spender, …)` vers le même bénéficiaire ? */
+function sameApproveSpender(original: string, override: string): boolean {
+  const APPROVE = '0x095ea7b3';
+  const spender = (d: string) => (d.toLowerCase().startsWith(APPROVE) && d.length === 138 ? d.slice(10, 74).toLowerCase() : null);
+  const a = spender(original);
+  return a !== null && a === spender(override);
+}
+
 function ensureBase64(tx: string): string {
   // Encodage reconnu par la LECTURE de la transaction, pas deviné d'après les caractères.
   const decoded = solanaTxDecode(tx);
@@ -321,6 +329,32 @@ function activeAccount() {
   return s.accounts.find((a) => a.index === s.activeAccountIndex) ?? s.accounts[0];
 }
 
+/**
+ * Le compte qui signerait est-il celui que la dApp connaît ? Une session se noue
+ * avec UN compte (choisi à la connexion) ; si l'utilisateur a changé de compte
+ * ou de portefeuille depuis, signer avec l'actif produirait une signature d'un
+ * compte jamais partagé. Refus clair, avec l'adresse attendue.
+ */
+function assertSessionAccount(wallet: any, topic: string, chainId: unknown): void {
+  const ns = typeof chainId === 'string' ? chainId.split(':')[0] : '';
+  const session = wallet?.getActiveSessions?.()[topic];
+  const shared: string[] = ((session?.namespaces?.[ns]?.accounts ?? []) as string[]).map((a) => String(a).split(':').pop() ?? '');
+  if (!shared.length) return;
+  const w = useWallet.getState();
+  const acct = w.accounts.find((a) => a.index === w.activeAccountIndex);
+  const mine = ns === 'eip155' ? acct?.evmAddress : ns === 'solana' ? acct?.solAddress : ns === 'bip122' ? acct?.btcAddress : undefined;
+  if (!mine) return;
+  const same = ns === 'eip155' ? (a: string) => a.toLowerCase() === mine.toLowerCase() : (a: string) => a === mine;
+  if (!shared.some(same)) throw new WalletError('WRONG_ACCOUNT', 'compte actif ≠ compte de la session', { address: shortAddress(shared[0]) });
+}
+
+/** Retire LA demande traitée (par identifiant, pas la tête de file à l'aveugle) ; rend la file restante. */
+function advanceQueue(id: number): any[] {
+  const q = useWalletConnect.getState().requestQueue.filter((r: any) => r.id !== id);
+  useWalletConnect.setState({ requestQueue: q, request: q[0] ?? null });
+  return q;
+}
+
 export const useWalletConnect = create<WcState>((set, get) => ({
   configured: PROJECT_ID.length > 0,
   ready: false,
@@ -503,7 +537,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       ...(p.sign ? ['personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v3', 'eth_signTypedData_v4'] : []),
     ];
     const solMethods = ['solana_getAccounts', ...(p.tx ? ['solana_signTransaction', 'solana_signAllTransactions', 'solana_signAndSendTransaction'] : []), ...(p.sign ? ['solana_signMessage'] : [])];
-    const btcMethods = ['getAccountAddresses', 'getAccounts', ...(p.tx ? ['signPsbt', 'sendTransaction', 'sendTransfer'] : []), ...(p.sign ? ['signMessage'] : [])];
+    const btcMethods = ['getAccountAddresses', 'getAccounts', ...(p.tx ? ['signPsbt', 'sendTransfer'] : []), ...(p.sign ? ['signMessage'] : [])];
     const wstate = useWallet.getState();
     /*
      * Compte partagé avec la dApp. Choisi par l'utilisateur à la connexion
@@ -613,6 +647,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
        * ordre hors chaîne). Seule la lecture des comptes reste possible.
        */
       if (!/getAccounts|getAccountAddresses|requestAccounts/i.test(method)) await (await import('./whitelistStore')).assertDappAllowed();
+      assertSessionAccount(wallet, topic, params.chainId);
       if (method === 'personal_sign' || method === 'eth_sign') result = await w.signMessage(unlock, signMessageParam(method, p));
       else if (method.startsWith('eth_signTypedData')) {
         const data = typeof p[1] === 'string' ? JSON.parse(p[1]) : p[1];
@@ -627,6 +662,14 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         // Préparée pour un autre compte que celui qui signerait : refus plutôt qu'envoi depuis le mauvais compte.
         const signer = w.accounts.find((a) => a.index === w.activeAccountIndex)?.evmAddress ?? '';
         if (typeof tx?.from === 'string' && signer && tx.from.toLowerCase() !== signer.toLowerCase()) throw new WalletError('WRONG_ACCOUNT', 'from ≠ compte actif', { address: shortAddress(tx.from) });
+        /*
+         * « Approve réduit » : accepté seulement en remplacement d'un approve
+         * vers le MÊME bénéficiaire. Toute autre calldata (demande différente
+         * de celle pour laquelle il a été calculé) est refusée.
+         */
+        if (overrideData != null && !sameApproveSpender(String(tx.data ?? ''), overrideData)) {
+          throw new Error('Montant réduit inapplicable à cette demande');
+        }
         const req: RawTxRequest = {
           to: tx.to,
           data: overrideData ?? tx.data ?? '0x',
@@ -753,7 +796,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
           txid = await (getAdapter('bitcoin') as any).broadcastHex(signed.hex);
         }
         result = txid ? { psbt: resStr, txid } : { psbt: resStr };
-      } else if (method === 'bitcoin_getAccounts' || method === 'getAccountAddresses' || method === 'bitcoin_getAccountAddresses') {
+      } else if (method === 'bitcoin_getAccounts' || method === 'getAccounts' || method === 'getAccountAddresses' || method === 'bitcoin_getAccountAddresses') {
         /*
          * PAR LE COFFRE. Ce chemin relisait la PHRASE complète (`revealPhrase`)
          * et dérivait la graine ici, sans jamais l'effacer — hors du seul
@@ -767,12 +810,17 @@ export const useWalletConnect = create<WcState>((set, get) => ({
           return new Uint8Array(s.publicKey);
         });
         result = [{ address: btcModule.p2wpkhAddress(publicKey), publicKey: hex.encode(publicKey), path: `m/84'/0'/0'/0/${index}`, intention: 'payment', purpose: 'payment' }];
-      } else if (method === 'bitcoin_sendTransaction' || method === 'sendTransfer') {
-        // Build, sign, broadcast and return txid
+      } else if (method === 'bitcoin_sendTransaction' || method === 'sendTransfer' || method === 'bitcoin_sendTransfer') {
         const pSafe: any = p || {};
         const to = pSafe.recipientAddress || pSafe.recipient || pSafe.to || pSafe[0]?.recipientAddress || pSafe[0]?.recipient || pSafe[0]?.to || pSafe[0];
-        const amountStr = String(pSafe.amount || pSafe[0]?.amount || pSafe[1] || 0);
         if (!to || typeof to !== 'string') throw new Error('Expected String for recipientAddress');
+        /*
+         * Montant en SATOSHIS (spec WalletConnect Bitcoin), entier — comme
+         * l'affiche la fenêtre de confirmation. Il était lu en BTC : « 100000 »
+         * montré « 100000 sats » envoyait 100000 BTC.
+         */
+        const amountStr = btcFromSats(pSafe.amount ?? pSafe[0]?.amount ?? pSafe[1]);
+        await (await import('./whitelistStore')).assertRecipientAllowed(to);
         const adapter = getAdapter('bitcoin');
         const btcModule = await import('../src/crypto/btc');
         // Clé dérivée par le coffre, effacée après la signature (même en cas d'erreur).
@@ -793,23 +841,32 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       console.log('[WC-SUCCESS] Result payload:', JSON.stringify(result, null, 2));
       console.log('[WC-SUCCESS] =====================================\n');
 
-      await wallet.respondSessionRequest({ topic, response: { id, jsonrpc: '2.0', result } });
-      const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
+      /*
+       * L'action est FAITE (signée, diffusée) : la file avance d'abord. Un relais
+       * tombé au moment de répondre ne doit ni afficher « échec » ni laisser la
+       * même demande à l'écran — la réapprouver rediffuserait la transaction.
+       */
+      const q = advanceQueue(id);
+      try {
+        await wallet.respondSessionRequest({ topic, response: { id, jsonrpc: '2.0', result } });
+      } catch (respondErr) {
+        console.warn('[WC] réponse non transmise à la dApp (action déjà effectuée)', respondErr);
+      }
       if (q.length === 0) returnToDapp(wallet, topic);
+      return;
     } catch (e) {
       console.error('\n[WC-ERROR] === RESPONDING WITH ERROR ===');
       console.error('[WC-ERROR] Method:', method);
       console.error('[WC-ERROR] Error object:', e);
       console.error('[WC-ERROR] Error message:', e instanceof Error ? e.message : 'Unknown error');
       console.error('[WC-ERROR] ===============================\n');
+      advanceQueue(id);
       if (wallet && sdkUtils) {
-        await wallet.respondSessionRequest({
-          topic,
-          response: { id, jsonrpc: '2.0', error: { code: 5000, message: errorText(e) } },
-        });
+        await wallet
+          .respondSessionRequest({ topic, response: { id, jsonrpc: '2.0', error: { code: 5000, message: errorText(e) } } })
+          .catch((respondErr: unknown) => console.warn('[WC] refus non transmis à la dApp', respondErr));
       }
       handleSmartError(e);
-      const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
       throw e;
     }
   },
@@ -817,18 +874,19 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   rejectRequest: async () => {
     const { wallet, requestQueue } = get();
     const request = requestQueue[0];
-    if (wallet && request && sdkUtils) {
-      console.log('\n[WC-REJECT] === USER REJECTED REQUEST ===');
-      console.log('[WC-REJECT] ID:', request.id);
-      console.log('[WC-REJECT] Method:', request?.params?.request?.method);
-      console.log('[WC-REJECT] =================================\n');
-      await wallet.respondSessionRequest({
-        topic: request.topic,
-        response: { id: request.id, jsonrpc: '2.0', error: sdkUtils.getSdkError('USER_REJECTED') },
-      });
+    if (!request) return; // double appui : déjà refusée
+    // La fenêtre se ferme d'abord : une session expirée ne la laisse plus bloquée.
+    const q = advanceQueue(request.id);
+    if (wallet && sdkUtils) {
+      console.log('[WC-REJECT]', request.id, request?.params?.request?.method);
+      await wallet
+        .respondSessionRequest({
+          topic: request.topic,
+          response: { id: request.id, jsonrpc: '2.0', error: sdkUtils.getSdkError('USER_REJECTED') },
+        })
+        .catch((e: unknown) => console.warn('[WC] refus non transmis à la dApp', e));
     }
-    const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
-    if (q.length === 0) if (wallet) returnToDapp(wallet, request.topic);
+    if (q.length === 0 && wallet) returnToDapp(wallet, request.topic);
   },
 
   disconnect: async (topic) => {
