@@ -46,6 +46,10 @@ import { addressKey } from './txAuditProbe';
 import { buildAddressIndex, lookupAddress } from './isMyAddress';
 import { loadAccounts } from './secureStore';
 import { useWallet, type Unlock } from './walletStore';
+import { isDecoySession, onDecoyChange } from './sessionMode';
+
+// Entrée en session leurre : la vraie liste quitte la mémoire ; sortie : relue au besoin.
+onDecoyChange(() => useWhitelist.setState({ wl: EMPTY_WHITELIST, loaded: false }));
 
 const K_WHITELIST = 'kalyx.whitelist';
 const KV_OPTS = KV_DEVICE_ONLY;
@@ -124,6 +128,8 @@ let generation = 0;
  * l'écrire — l'appel suivant relira. `ok` faux = ne pas écrire par-dessus.
  */
 async function read(): Promise<{ wl: WhitelistState; ok: boolean }> {
+  // Session leurre : la vraie liste n'existe pas ici (ni lue, ni appliquée).
+  if (isDecoySession()) return { wl: EMPTY_WHITELIST, ok: true };
   const st = useWhitelist.getState();
   if (st.loaded) return { wl: st.wl, ok: true };
   let raw: string | null;
@@ -154,11 +160,17 @@ export async function loadWhitelist(): Promise<WhitelistState> {
 let queue: Promise<unknown> = Promise.resolve();
 function mutate(fn: (wl: WhitelistState, now: number | null) => WhitelistState | Promise<WhitelistState>): Promise<void> {
   const gen = generation;
+  const decoyAtStart = isDecoySession();
   const run = queue.catch(() => {}).then(async () => {
     const { wl, ok } = await read();
     if (!ok) throw new WalletError('VAULT_CORRUPTED', 'Liste blanche illisible pour le moment : réessaie.');
     const now = await chainNow();
     const next = await fn(whitelistSettle(wl, now), now);
+    if (decoyAtStart || isDecoySession()) {
+      // Session leurre (au départ OU maintenant) : jamais par-dessus la vraie liste.
+      if (isDecoySession()) useWhitelist.setState({ wl: next });
+      return;
+    }
     if (gen !== generation) return; // réinitialisée entre-temps : rien n'est réécrit (la réinitialisation passe APRÈS, dans la file)
     await kvSet(K_WHITELIST, JSON.stringify(next), KV_OPTS);
     useWhitelist.setState({ wl: next, loaded: true });
@@ -170,7 +182,7 @@ function mutate(fn: (wl: WhitelistState, now: number | null) => WhitelistState |
 /** Portefeuilles à noter (création ou import) dont la note n'a pas encore été écrite. */
 const pendingNotes = new Set<string>();
 function flushNotes(): Promise<void> {
-  if (!pendingNotes.size) return Promise.resolve();
+  if (!pendingNotes.size || isDecoySession()) return Promise.resolve(); // gardées pour la vraie session
   const ids = [...pendingNotes];
   return mutate((wl, now) => ids.reduce((acc, id) => whitelistNoteWallet(acc, id, now), wl)).then(() => {
     for (const id of ids) pendingNotes.delete(id);

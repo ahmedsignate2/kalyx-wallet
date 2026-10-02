@@ -111,6 +111,7 @@ function detailedWalletKey(code: string, meta: Record<string, string>): Key | nu
   if (code === 'INSUFFICIENT_GAS' && meta.need && meta.have && meta.gas) return 'errTonSwapGas';
   if (code === 'WRONG_ACCOUNT' && meta.address) return 'errWrongAccountAddr';
   if (code === 'WHITELIST_PENDING' && meta.hours) return 'errWhitelistPendingHours';
+  if (code === 'NOT_SUPPORTED' && meta.reason === 'duressBiometric') return 'duressBioOff';
   return null;
 }
 

@@ -177,7 +177,14 @@ export default function RootLayout() {
     void attachPriceCacheStorage(AsyncStorage);
     (async () => {
       try {
-        await bootstrap();
+        /*
+         * Démarrage EN SESSION LEURRE (code de contrainte) : marqueur lu AVANT
+         * tout chargement — le pare-feu est actif, et les chargements qui
+         * suivent ne lisent rien des vraies données.
+         */
+        const decoyId = await (await import('../lib/decoyCurtain')).consumeDecoyBoot();
+        if (decoyId) await useWallet.getState().bootDecoy(decoyId);
+        else await bootstrap();
         console.log('[Kalyx] bootstrap OK');
       } catch (e) {
         console.error('[Kalyx] bootstrap a échoué :', e);
