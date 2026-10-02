@@ -94,6 +94,7 @@ const WALLET_ERROR_KEYS: Record<string, Key> = {
   SOL_RENT_SENDER: 'errSolRentSender',
   SWAP_SIMULATION_FAILED: 'errSwapSimulationFailed',
   WRONG_ACCOUNT: 'errWrongAccount',
+  REQUEST_EXPIRED: 'wcErrRequestExpired',
 };
 
 /**
@@ -246,7 +247,7 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
   }
   if (msg.includes('blockhash not found') || msg.includes('devis expiré')) return t ? t('errQuoteExpired') : 'Quote expired. Request a new quote.';
   // Refus de l'UTILISATEUR seulement ; un rejet du nœud (« rejected by mempool », frais trop bas) n'en est pas un.
-  if (err?.code === 4001 || err?.code === 'ACTION_REJECTED' || /user (rejected|denied|cancel)|rejected by (the )?user|request rejected/.test(msg)) {
+  if (err?.code === 4001 || err?.code === 'ACTION_REJECTED' || /user[ _]?(rejected|rejects|denied|cancel)|(rejected|cancell?ed|canceled) by (the )?user|request rejected/.test(msg)) {
     return t ? t('errUserRejected') : 'Transaction cancelled.';
   }
   if (msg.includes('min relay fee') || msg.includes('mempool min fee') || msg.includes('insufficient fee')) {

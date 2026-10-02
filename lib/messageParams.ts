@@ -33,3 +33,18 @@ export function btcFromSats(raw: unknown): string {
   const frac = (sats % 100_000_000n).toString().padStart(8, '0').replace(/0+$/, '');
   return `${sats / 100_000_000n}${frac ? `.${frac}` : ''}`;
 }
+
+/**
+ * sendTransfer (Bitcoin) : destinataire et montant, lus pour l'écran ET pour
+ * l'envoi par cette seule fonction. `{ recipientAddress, amount }` (spec), ou
+ * `[adresse, montant]`. Champ vide = absent (jamais un repli silencieux).
+ */
+export function btcTransferParams(p: unknown): { to?: string; amount?: unknown } {
+  const p0: any = Array.isArray(p) ? (typeof p[0] === 'object' && p[0] ? p[0] : null) : p;
+  if (p0 && typeof p0 === 'object') {
+    const to = [p0.recipientAddress, p0.recipient, p0.to].find((x) => typeof x === 'string' && x.trim() !== '');
+    return { to, amount: p0.amount };
+  }
+  if (Array.isArray(p) && typeof p[0] === 'string') return { to: p[0].trim() || undefined, amount: p[1] };
+  return {};
+}

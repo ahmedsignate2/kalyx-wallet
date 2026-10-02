@@ -577,6 +577,8 @@ export const usePay = create<PayState>((set, get) => ({
     }
 
     set({ phase: 'signing', failure: null, detail: null });
+    // Compte actif d'avant : rendu à la fin, succès ou échec (les sessions dApp en dépendent).
+    const previousIndex = useWallet.getState().activeAccountIndex;
     try {
       /*
        * Le compte qui SIGNE est celui pour lequel les options ont été
@@ -632,6 +634,9 @@ export const usePay = create<PayState>((set, get) => ({
         detail: refused ? refused.code : e instanceof Error ? e.message : null,
         error: e,
       });
+    } finally {
+      const w = useWallet.getState();
+      if (w.activeAccountIndex !== previousIndex && w.accounts.some((a) => a.index === previousIndex)) w.setActiveAccount(previousIndex);
     }
   },
 
