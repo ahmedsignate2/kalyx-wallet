@@ -17,7 +17,7 @@ import { toast } from '../lib/toast';
 import { friendlyTxError } from '../lib/txError';
 import { type Unlock } from '../lib/walletStore';
 import { chainNow, loadWhitelist, useWhitelist, whitelistActions } from '../lib/whitelistStore';
-import { shortAddress, whitelistHoursUntil } from '../src';
+import { shortAddress, whitelistEntryActive, whitelistHoursUntil } from '../src';
 
 type Pending = { kind: 'enable' } | { kind: 'disable' } | { kind: 'add'; address: string; label: string };
 
@@ -95,7 +95,7 @@ export default function WhitelistScreen() {
           <Text variant="caption" tone="secondary">{t('wlEmpty')}</Text>
         ) : (
           wl.entries.map((e) => {
-            const active = e.activeAt === 0 || (now != null && now >= e.activeAt); // 0 : ajoutée hors protection
+            const active = whitelistEntryActive(e, now); // même règle que le verrou
             return (
               <View key={e.address} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: 6 }}>
                 <Icon name={active ? 'check' : 'clock'} size={16} color={active ? colors.up : colors.warning} />
@@ -107,7 +107,11 @@ export default function WhitelistScreen() {
                   </Text>
                 </View>
                 {/* Retirer renforce la protection : sans code. */}
-                <KPressable onPress={() => void whitelistActions.remove(e.address)} hitSlop={10} accessibilityLabel={t('deleteAction')}>
+                <KPressable
+                  onPress={() => void whitelistActions.remove(e.address).catch((err) => toast.error(t('wlTitle'), friendlyTxError(err, t as never)))}
+                  hitSlop={10}
+                  accessibilityLabel={t('deleteAction')}
+                >
                   <Icon name="close" size={16} color={colors.textTertiary} />
                 </KPressable>
               </View>

@@ -51,6 +51,11 @@ export function isEnforced(s: WhitelistState, now: number | null): boolean {
   return now == null || now < s.disableAt;
 }
 
+/** Une entrée est-elle utilisable à `now` ? (activeAt 0 : ajoutée hors protection, sans délai) */
+export function isEntryActive(e: WhitelistEntry, now: number | null): boolean {
+  return e.activeAt === 0 || (now != null && now >= e.activeAt);
+}
+
 /**
  * Peut-on envoyer à `address` ? `keyOf` compare les adresses (règle de casse et
  * formes TON) ; `isOwn` dit si c'est un compte de l'utilisateur (toujours permis).
@@ -67,8 +72,7 @@ export function checkRecipient(
   const k = keyOf(address);
   const e = s.entries.find((x) => keyOf(x.address) === k);
   if (!e) return { kind: 'blocked' };
-  // activeAt 0 : ajoutée quand la protection était éteinte — utilisable sans délai ni heure.
-  return e.activeAt === 0 || (now != null && now >= e.activeAt) ? { kind: 'allowed' } : { kind: 'pending', activeAt: e.activeAt };
+  return isEntryActive(e, now) ? { kind: 'allowed' } : { kind: 'pending', activeAt: e.activeAt };
 }
 
 /**

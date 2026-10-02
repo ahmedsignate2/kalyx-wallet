@@ -395,17 +395,11 @@ function SwapInner() {
     // Échange précédent pas encore abouti : les soldes du réseau ne sont pas fiables.
     if (swapPending) return t('errSwapPending');
     /*
-     * LISTE BLANCHE en vigueur : on n'achète que des jetons de la liste curée
-     * (ou le natif). Sinon un voleur viderait le portefeuille par un échange
-     * vers SON jeton, dans SA réserve — l'argent part sans aucun « destinataire ».
+     * LISTE BLANCHE : un échange ne peut pas vider le portefeuille vers un faux
+     * jeton, car la destination n'est choisie QUE dans la liste curée du réseau
+     * (TokenPicker, `toTokens`). Si ce choix s'élargit un jour (jeton collé,
+     * recherche), il faudra y appliquer assertDappAllowed comme ailleurs.
      */
-    if (!isBridge && !curatedAddrs.has(toTok.address.toLowerCase()) && !isNativeTokenAddress(toTok.address)) {
-      try {
-        await (await import('../lib/whitelistStore')).assertDappAllowed();
-      } catch (e) {
-        if (isWalletError(e) && e.code === 'WHITELIST_LOCKED') return t('errSwapWhitelistToken');
-      }
-    }
     // Solde inconnu, en erreur ou lu il y a plus de 30 s : relu avant de juger les fonds (jamais pris pour 0).
     let bal = freshRaw(srcEntry, Date.now());
     if (bal == null) {

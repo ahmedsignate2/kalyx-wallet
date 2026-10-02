@@ -137,8 +137,9 @@ async function read(): Promise<{ wl: WhitelistState; ok: boolean }> {
   return { wl, ok: true };
 }
 
-/** État À JOUR (une désactivation échue est appliquée et enregistrée). */
+/** État À JOUR (une désactivation échue est appliquée et enregistrée ; notes en attente retentées). */
 export async function loadWhitelist(): Promise<WhitelistState> {
+  if (pendingNotes.size) await flushNotes().catch(() => {});
   const { wl, ok } = await read();
   if (!ok || !wl.enabled) return wl;
   // Désactivation échue, ou délai « pas encore démarré » d'un portefeuille noté hors ligne : réglés avec l'heure.
@@ -158,12 +159,22 @@ function mutate(fn: (wl: WhitelistState, now: number | null) => WhitelistState |
     if (!ok) throw new WalletError('VAULT_CORRUPTED', 'Liste blanche illisible pour le moment : réessaie.');
     const now = await chainNow();
     const next = await fn(whitelistSettle(wl, now), now);
-    if (gen !== generation) return; // réinitialisée entre-temps : rien n'est réécrit
+    if (gen !== generation) return; // réinitialisée entre-temps : rien n'est réécrit (la réinitialisation passe APRÈS, dans la file)
     await kvSet(K_WHITELIST, JSON.stringify(next), KV_OPTS);
     useWhitelist.setState({ wl: next, loaded: true });
   });
   queue = run;
   return run;
+}
+
+/** Portefeuilles à noter (création ou import) dont la note n'a pas encore été écrite. */
+const pendingNotes = new Set<string>();
+function flushNotes(): Promise<void> {
+  if (!pendingNotes.size) return Promise.resolve();
+  const ids = [...pendingNotes];
+  return mutate((wl, now) => ids.reduce((acc, id) => whitelistNoteWallet(acc, id, now), wl)).then(() => {
+    for (const id of ids) pendingNotes.delete(id);
+  });
 }
 
 /** Heure de chaîne EXIGÉE pour démarrer un délai : sans elle, l'heure du téléphone le raccourcirait. */
@@ -194,13 +205,25 @@ export const whitelistActions = {
     }),
   /** Annuler une désactivation demandée = réactiver : renforce, sans code. */
   cancelDisable: () => mutate((wl) => (wl.enabled ? whitelistEnable(wl) : wl)),
-  /** Portefeuille créé ou importé : de confiance seulement après le délai (protection active). */
-  noteNewWallet: (id: string) => mutate((wl, now) => whitelistNoteWallet(wl, id, now)),
-  /** Réinitialisation de l'app : la liste part avec les portefeuilles. */
-  wipe: async () => {
+  /**
+   * Portefeuille créé ou importé : de confiance seulement après le délai
+   * (protection active). Une note qui échoue (trousseau muet) est RETENUE et
+   * retentée à chaque lecture, jusqu'à réussir.
+   */
+  noteNewWallet: (id: string) => {
+    pendingNotes.add(id);
+    return flushNotes();
+  },
+  /** Réinitialisation de l'app : la liste part avec les portefeuilles. Dans la file : aucune écriture ne la suit. */
+  wipe: () => {
     generation += 1;
-    await kvDel(K_WHITELIST, KV_OPTS).catch(() => {});
-    useWhitelist.setState({ wl: EMPTY_WHITELIST, loaded: true });
+    pendingNotes.clear();
+    const run = queue.catch(() => {}).then(async () => {
+      await kvDel(K_WHITELIST, KV_OPTS).catch(() => {});
+      useWhitelist.setState({ wl: EMPTY_WHITELIST, loaded: true });
+    });
+    queue = run;
+    return run;
   },
 };
 
