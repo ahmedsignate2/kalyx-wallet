@@ -25,6 +25,8 @@ import { askAi } from '../lib/aiAsk';
 import { serializeCopilotContext } from '../lib/copilotContext';
 import { APP_ROUTES_MAP } from '../lib/aiAppMap';
 import { useT, useSettings } from '../lib/settingsStore';
+import { detectSensitiveSecrets, sanitizeSecrets } from '../lib/secretDetector';
+import { knownTxHashes } from '../lib/knownTxHashes';
 import { haptic } from '../lib/haptics';
 
 const GO_RE = /\[\[go:(\/[a-z0-9\-/]+)\]\]/gi;
@@ -115,6 +117,12 @@ export function CopilotSheet() {
     if (!q || busy) return;
     haptic.light();
     setInput('');
+    // Secret dans le message : ni envoyé au fournisseur d'IA, ni gardé en clair.
+    if (detectSensitiveSecrets(q, knownTxHashes()).hasSecret) {
+      addMessageToActive({ sender: 'user', text: sanitizeSecrets(q) });
+      addMessageToActive({ sender: 'assistant', text: t('copilotSecretBlocked') });
+      return;
+    }
     addMessageToActive({ sender: 'user', text: q });
     setBusy(true);
     // Transcription des derniers échanges (le fournisseur ne garde aucune mémoire).

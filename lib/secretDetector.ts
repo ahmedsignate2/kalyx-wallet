@@ -1,3 +1,4 @@
+import { maskBip39Runs, maskSensitiveFields, stripUrlSecrets } from './sanitizeLog';
 import { wordlist } from '@scure/bip39/wordlists/english';
 
 const BIP39_SET = new Set(wordlist);
@@ -100,9 +101,10 @@ export function detectSensitiveSecrets(input: string, knownHashes: Iterable<stri
 export function sanitizeSecrets(text: string): string {
   if (!text || typeof text !== 'string') return '';
 
-  return text
-    // Masquage des paramètres sensibles type mot de passe / seed / clé
-    .replace(/(?:password|secret|private[_-]?key|mnemonic|seed|authorization|bearer)\s*[:=]\s*["']?[^"',\s}]+/gi, '$1=[MASQUÉ]')
+  // Phrase de récupération et champs sensibles : mêmes règles que les journaux
+  // (la phrase restait EN CLAIR dans l'historique du Copilote, le nom du champ
+  // devenait le littéral « $1 »).
+  return stripUrlSecrets(maskSensitiveFields(maskBip39Runs(text)))
     // Masquage des clés privées hexadécimales 64 car
     .replace(/\b(?:0x)?[a-fA-F0-9]{64}\b/g, '[CLÉ_HEX_MASQUÉE]')
     // Masquage des clés Base58 longues
@@ -111,4 +113,20 @@ export function sanitizeSecrets(text: string): string {
     .replace(/\b(0x[a-fA-F0-9]{4})[a-fA-F0-9]{32}([a-fA-F0-9]{4})\b/g, '$1…$2')
     .replace(/\b([1-9A-HJ-NP-Za-km-z]{4})[1-9A-HJ-NP-Za-km-z]{24,36}([1-9A-HJ-NP-Za-km-z]{4})\b/g, '$1…$2')
     .replace(/\b(bc1[a-z0-9]{4})[a-z0-9]{20,50}([a-z0-9]{4})\b/g, '$1…$2');
+}
+
+/**
+ * Secrets masqués, RIEN d'autre : adresses et liens restent entiers. Pour ce
+ * que l'utilisateur relit (historique du Copilote), où une adresse raccourcie
+ * ne servirait plus.
+ */
+export function maskSecretsOnly(text: string, knownHashes: Iterable<string> = []): string {
+  if (!text || typeof text !== 'string') return '';
+  // Un hash de transaction CONNU a la forme d'une clé privée mais n'en est pas une : il reste lisible.
+  const known = new Set([...knownHashes].map((h) => h.toLowerCase().replace(/^0x/, '')));
+  return maskSensitiveFields(maskBip39Runs(text))
+    .replace(/\b(?:0x)?[a-fA-F0-9]{64}\b/g, (m) => (known.has(m.toLowerCase().replace(/^0x/, '')) ? m : '[CLÉ_HEX_MASQUÉE]'))
+    .replace(/\b[xyz]prv[1-9A-HJ-NP-Za-km-z]{50,120}\b/g, '[CLÉ_ÉTENDUE_MASQUÉE]')
+    .replace(/\b[5KLc][1-9A-HJ-NP-Za-km-z]{50,51}\b/g, '[CLÉ_WIF_MASQUÉE]')
+    .replace(/\b[1-9A-HJ-NP-Za-km-z]{80,90}\b/g, '[CLÉ_B58_MASQUÉE]');
 }

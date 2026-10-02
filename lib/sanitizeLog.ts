@@ -35,32 +35,69 @@ const MIN_BIP39_RUN = 8;
  * BIP-39. On découpe sur les séparateurs plutôt qu'avec une expression
  * régulière : une seed peut être séparée par des espaces, des virgules, des
  * retours à la ligne ou des guillemets JSON, et un seul motif ne les couvre pas.
+ *
+ * Un mot HORS liste isolé (faute de frappe, mot oublié) ne coupe pas la suite :
+ * sinon deux moitiés de moins de 8 mots passaient, soit la phrase moins un mot
+ * — trivial à retrouver. Deux mots hors liste d'affilée la coupent, et la suite
+ * doit rester à 80 % de mots BIP-39 : une phrase anglaise ordinaire, qui en
+ * alterne quelques-uns avec d'autres mots, n'est pas masquée.
  */
-function maskBip39Runs(input: string): string {
+export function maskBip39Runs(input: string): string {
   const parts = input.split(/([^a-zA-Z]+)/); // garde les séparateurs
-  let run: number[] = [];
-  const flush = (out: string[]) => {
-    if (run.length >= MIN_BIP39_RUN) {
-      for (const i of run) out[i] = '';
-      out[run[0]] = '[PHRASE_RÉCUPÉRATION_MASQUÉE]';
-      // Les séparateurs internes sont neutralisés pour ne pas laisser « , , , ».
-      for (let k = run[0] + 1; k < run[run.length - 1]; k++) out[k] = '';
-    }
-    run = [];
-  };
+  const words: { i: number; bip: boolean }[] = [];
+  parts.forEach((w, i) => {
+    if (w && /^[a-zA-Z]+$/.test(w)) words.push({ i, bip: BIP39_SET.has(w.toLowerCase()) });
+  });
   const out = [...parts];
-  for (let i = 0; i < parts.length; i++) {
-    const w = parts[i];
-    if (!w) continue;
-    if (/^[a-zA-Z]+$/.test(w)) {
-      if (BIP39_SET.has(w.toLowerCase())) run.push(i);
-      else flush(out);
+  const mask = (seg: { i: number; bip: boolean }[]) => {
+    // Bords hors liste retirés : on ne masque que de la phrase.
+    while (seg.length && !seg[0].bip) seg.shift();
+    while (seg.length && !seg[seg.length - 1].bip) seg.pop();
+    const bip = seg.filter((w) => w.bip).length;
+    if (bip < MIN_BIP39_RUN || bip / seg.length < 0.8) return;
+    const first = seg[0].i;
+    const last = seg[seg.length - 1].i;
+    for (let k = first; k <= last; k++) out[k] = '';
+    out[first] = '[PHRASE_RÉCUPÉRATION_MASQUÉE]';
+  };
+  let seg: { i: number; bip: boolean }[] = [];
+  for (let k = 0; k < words.length; k++) {
+    const w = words[k];
+    if (!w.bip && seg.length && !seg[seg.length - 1].bip) {
+      // Deux hors liste d'affilée : la suite s'arrête là.
+      mask(seg);
+      seg = [];
     }
-    // Un séparateur ne rompt pas la suite : espaces, virgules, sauts de ligne
-    // et guillemets font tous partie des formes d'une seed recopiée.
+    seg.push(w);
   }
-  flush(out);
+  mask(seg);
   return out.join('');
+}
+
+/** Noms de champs dont la VALEUR est secrète. */
+const SENSITIVE_KEYS = 'password|passphrase|secret|private[_-]?key|mnemonic|seed|phrase|words|recovery|backup|pin|api[_-]?key|authorization|bearer|access[_-]?token|refresh[_-]?token|id[_-]?token|session[_-]?token';
+
+/**
+ * Valeur d'un champ sensible masquée EN ENTIER, forme d'origine gardée :
+ * `"pin":"1234"` → `"pin":"[MASQUÉ]"` (le JSON reste lisible),
+ * `Authorization: Bearer sk-…` → `Authorization: [MASQUÉ]`. Seul le premier
+ * mot était masqué auparavant : « Bearer » disparaissait, le jeton restait.
+ */
+export function maskSensitiveFields(input: string): string {
+  const re = new RegExp(
+    `((?:${SENSITIVE_KEYS})["']?\\s*[:=]\\s*)(?:"((?:[^"\\\\]|\\\\.)*)"|'([^']*)'|((?:bearer\\s+)?[^"',\\s}\\]]+))`,
+    'gi',
+  );
+  return input
+    .replace(re, (_m, pre: string, dq?: string, sq?: string) =>
+      dq !== undefined ? `${pre}"[MASQUÉ]"` : sq !== undefined ? `${pre}'[MASQUÉ]'` : `${pre}[MASQUÉ]`,
+    )
+    .replace(/\bbearer\s+(?!\[MASQUÉ\])[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [MASQUÉ]');
+}
+
+/** URL : paramètres et fragment retirés (codes OAuth, jetons d'accès, sessions). */
+export function stripUrlSecrets(input: string): string {
+  return input.replace(/\b(https?:\/\/[^\s?#"'<>]+)[?#][^\s"'<>]*/gi, '$1?[…]');
 }
 
 export const sanitizeLog = (raw: string): string => {
@@ -96,10 +133,10 @@ export const sanitizeLog = (raw: string): string => {
    * donc à travers cette règle — il n'était masqué que par hasard, quand le
    * détecteur de phrase BIP-39 le rattrapait.
    */
-  clean = clean.replace(
-    /(?:password|passphrase|secret|private[_-]?key|mnemonic|seed|phrase|words|recovery|backup|pin|api[_-]?key|authorization|bearer)["']?\s*[:=]\s*["']?[^"',\s}\]]+/gi,
-    (match) => `${match.split(/["']?\s*[:=]/)[0].replace(/["']$/, '')}=[MASQUÉ]`,
-  );
+  clean = maskSensitiveFields(clean);
+
+  // 6 bis. URL : la requête et le fragment peuvent porter un jeton (OAuth, session).
+  clean = stripUrlSecrets(clean);
 
   // 7. Adresses EVM complètes : raccourcies, pas masquées — une adresse est
   //    publique, et son début/fin reste utile au diagnostic.

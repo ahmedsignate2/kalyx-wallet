@@ -23,6 +23,8 @@ import { validateAiKey } from '../../lib/aiValidator';
 import { PROVIDER_DEFAULTS } from '../../lib/aiConfig';
 import { serializeCopilotContext } from '../../lib/copilotContext';
 import { useT, useSettings } from '../../lib/settingsStore';
+import { detectSensitiveSecrets, sanitizeSecrets } from '../../lib/secretDetector';
+import { knownTxHashes } from '../../lib/knownTxHashes';
 import { toast } from '../../lib/toast';
 import { useWebT, type WebKey } from './webI18n';
 import { useWebCopilotContext } from './webCopilotContext';
@@ -272,6 +274,7 @@ function MessageBubble({ m, onCopy, live, tight, first }: { m: { id: string; sen
 function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: string; worth: { data: { total: number; slices: { chain: ChainConfig; address: string; native: number; tokens: number; value: number; price: number; change24h: number }[] } | null } }) {
   const { colors, typography } = useTheme();
   const tw = useWebT();
+  const t = useT();
   const language = useSettings((s) => s.language);
   const disableAi = useAiStore((s) => s.disableAi);
   const provider = useAiStore((s) => s.provider);
@@ -299,6 +302,12 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     const q = text.trim();
     if (!q || busy) return;
     setInput('');
+    // Secret dans le message : ni envoyé au fournisseur d'IA, ni gardé en clair.
+    if (detectSensitiveSecrets(q, knownTxHashes()).hasSecret) {
+      addMessageToActive({ sender: 'user', text: sanitizeSecrets(q) });
+      addMessageToActive({ sender: 'assistant', text: t('copilotSecretBlocked') });
+      return;
+    }
     addMessageToActive({ sender: 'user', text: q });
     setBusy(true);
     const transcript = [...messages.slice(-8), { sender: 'user', text: q }]
