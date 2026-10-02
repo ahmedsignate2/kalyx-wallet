@@ -668,8 +668,8 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     }
     const deploys = sender.status !== 'active';
     const seqno = sender.seqno ?? 0;
-    this.assertNoSendInFlight(from, seqno);
-    const draft: DappDraft = { from, tx, seqno, deploys, version: sender.version, balance: sender.balance, emulation: null };
+    // Pas de garde « envoi en vol » ici : l'APERÇU d'une demande reste possible ; la signature, elle, la vérifie.
+        const draft: DappDraft = { from, tx, seqno, deploys, version: sender.version, balance: sender.balance, emulation: null };
     if (this.api && sender.version && !deploys) {
       try {
         const validUntil = Math.floor(this.now() / 1000) + VALIDITY_SECONDS;
@@ -688,8 +688,9 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
    * de la dApp et la nôtre (5 min) : ni un message valable indéfiniment, ni un
    * message qui survivrait à ce que la dApp a demandé.
    */
-  async signDappTransfer(draft: DappDraft, signer: ChainSigner): Promise<{ boc: string; txid: string; expiresAt: number }> {
+  async signDappTransfer(draft: DappDraft, signer: ChainSigner): Promise<{ boc: string; txid: string; expiresAt: number; from: string; seqno: number }> {
     assertCurve(signer, 'ed25519');
+    this.assertNoSendInFlight(draft.from, draft.seqno);
     const fromRaw = rawOf(draft.from);
     const candidates = draft.version ? [draft.version] : TON_IMPORT_WALLET_VERSIONS;
     const version = candidates.find((v) => toRawTonAddress(tonWalletAddress(signer.publicKey, v, { testnet: this.testnet })) === fromRaw);
@@ -700,12 +701,14 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
       { version, seqno: draft.seqno, validUntil, deploy: draft.deploys, testnet: this.testnet, sendMode: TON_SEND_MODE_DEFAULT, messages: dappMessages(draft.tx) },
       signer,
     );
-    return { boc: built.boc, txid: built.normalizedHash, expiresAt: validUntil * 1000 };
+    // `from` et `seqno` voyagent avec le message : sa diffusion le note « en vol », quel que soit l'appelant.
+    return { boc: built.boc, txid: built.normalizedHash, expiresAt: validUntil * 1000, from: draft.from, seqno: draft.seqno };
   }
 
   /** Diffuse le BOC signé d'une transaction de dApp (mêmes replis qu'un envoi). */
-  async broadcastDapp(signed: { boc: string; txid: string; expiresAt: number }, sent?: { from: string; seqno: number }): Promise<void> {
-    await this.broadcastSend({ chainId: this.config.id, raw: signed.boc, txid: signed.txid, draft: { expiresAt: signed.expiresAt, ...(sent ? { from: sent.from, payload: { seqno: sent.seqno } } : {}) } as never });
+  async broadcastDapp(signed: { boc: string; txid: string; expiresAt: number; from?: string; seqno?: number }): Promise<void> {
+    const sent = signed.from && typeof signed.seqno === 'number' ? { from: signed.from, payload: { seqno: signed.seqno } } : {};
+    await this.broadcastSend({ chainId: this.config.id, raw: signed.boc, txid: signed.txid, draft: { expiresAt: signed.expiresAt, ...sent } as never });
   }
 
   /*
@@ -716,7 +719,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
    * diffusé (et que ce message vit encore), on le DIT au lieu de signer.
    */
   private assertNoSendInFlight(from: string, seqno: number): void {
-    const key = rawOf(from) ?? from;
+    const key = `${this.config.id}:${rawOf(from) ?? from}`; // réseau inclus : test et principal ont la même adresse brute
     const f = TON_IN_FLIGHT.get(key);
     if (!f) return;
     if (seqno > f.seqno || this.now() > f.until) {
@@ -750,7 +753,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     const d = signed.draft as Partial<{ from: string; payload: { seqno?: number }; expiresAt: number }>;
     if (!d.from || typeof d.payload?.seqno !== 'number') return;
     const until = (d.expiresAt ?? this.now() + VALIDITY_SECONDS * 1000) + INDEXER_GRACE_MS;
-    TON_IN_FLIGHT.set((rawOf(d.from) ?? d.from), { seqno: d.payload.seqno, until });
+    TON_IN_FLIGHT.set(`${this.config.id}:${rawOf(d.from) ?? d.from}`, { seqno: d.payload.seqno, until });
   }
 
   /**

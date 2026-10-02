@@ -369,7 +369,8 @@ export class BitcoinChainAdapter implements ChainAdapter {
 
     const total = previous.inputs.reduce((sum, u) => sum + BigInt(u.value), 0n);
     // BIP-125 : au moins les frais de l'originale + 1 sat/vB de la nouvelle taille (voir BitcoinAdapterV2).
-    const prevFee = previous.fee ?? 0n;
+    // Frais d'origine inconnus : estimés au taux d'origine sur la taille d'origine (jamais 0, qui annulerait la règle).
+    const prevFee = previous.fee ?? BigInt(Math.ceil(previous.feeRate * estimateVsize(previous.inputs.length, [destKind, CHANGE_KIND])));
     const minFee = (vs: number) => {
       const byRate = BigInt(Math.ceil(vs * feeRate));
       const floor = prevFee + BigInt(Math.ceil(vs));

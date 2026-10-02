@@ -167,6 +167,8 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
     const value = isToken ? 0n : request.amount;
     const data = isToken ? erc20TransferData(request.to, request.amount) : '0x';
 
+    // Solde natif lu EN PARALLÈLE (contrôle « montant + frais » plus bas) ; illisible → null, le nœud tranchera.
+    const nativeBalance = this.v1.getBalance(sender).then((b) => b.raw).catch(() => null);
     const [nonce, fee, gasLimit, onchainDecimals] = await Promise.all([
       this.v1.getNonce(sender),
       this.v1.getFeeData(),
@@ -216,8 +218,10 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
      * « insufficient funds for gas * price + value », illisible. Une lecture de
      * solde impossible ne bloque pas : le nœud tranchera.
      */
-    const native = await this.v1.getBalance(sender).then((b) => b.raw).catch(() => null);
+    const native = await nativeBalance;
     if (native != null && native < value + feeCost) {
+      // Envoi de JETON : c'est le natif des frais qui manque — « réduis le montant » n'aiderait pas.
+      if (isToken) throw new WalletError('INSUFFICIENT_GAS', `${this.config.nativeSymbol} insuffisant pour les frais réseau.`);
       throw new WalletError('INSUFFICIENT_FUNDS', `Solde ${this.config.nativeSymbol} insuffisant (frais inclus).`, {
         have: formatInputAmount(native, this.config.nativeDecimals),
         fee: formatInputAmount(feeCost, this.config.nativeDecimals),

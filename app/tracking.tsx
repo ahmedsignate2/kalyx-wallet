@@ -275,11 +275,22 @@ export default function TrackingScreen() {
         setReplacementSheetVisible(false);
         return;
       }
+      // Déjà confirmée : plus rien à remplacer — on le dit au lieu d'un échec « nonce too low ».
+      if (orig.mined) {
+        toast.info(t('errTxAlreadyConfirmed'));
+        setReplacementSheetVisible(false);
+        return;
+      }
       const feeData = await adapter.getFeeData().catch(() => null);
-      const gasLimit = action === 'cancel' ? 21000n : orig.gasLimit;
+      // Annulation : limite ESTIMÉE (rollups : 21 000 refusés), 21 000 en plancher.
+      let gasLimit = orig.gasLimit;
+      if (action === 'cancel') {
+        const est = await adapter.estimateGasFor({ from: walletAddress, to: walletAddress, value: 0n }).catch(() => 0n);
+        gasLimit = est > 21000n ? est : 21000n;
+      }
       const gas = calculateReplacementGas(orig, { maxFeePerGas: feeData?.maxFeePerGas, maxPriorityFeePerGas: feeData?.maxPriorityFeePerGas, gasPrice: feeData?.gasPrice }, gasLimit);
       setReplacementGas(gas);
-      setPreparedTx(action === 'speedUp' ? buildSpeedUpTx(orig, gas) : buildCancelTx(orig, walletAddress, gas));
+      setPreparedTx(action === 'speedUp' ? buildSpeedUpTx(orig, gas) : buildCancelTx(orig, walletAddress, gas, gasLimit));
     } catch (err) {
       console.warn('Error preparing replacement', err);
       toast.error(t('replacementError'));
