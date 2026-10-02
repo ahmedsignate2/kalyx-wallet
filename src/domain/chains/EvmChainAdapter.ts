@@ -544,7 +544,8 @@ export class EvmChainAdapter implements ChainAdapter {
    */
   async sendContractTx(req: RawTxRequest, from: string, privateKey: string): Promise<string> {
     const wallet = new Wallet(privateKey);
-    const needFee = !req.gasPrice && !req.maxFeePerGas;
+    // Frais du réseau lus aussi quand la demande donne un maximum SANS pourboire : c'est lui qui fixe le pourboire.
+    const needFee = (!req.gasPrice && !req.maxFeePerGas) || (!!req.maxFeePerGas && req.maxPriorityFeePerGas == null);
     const [nonce, feeData] = await Promise.all([
       req.nonce != null ? Promise.resolve(req.nonce) : this.call((p) => p.getTransactionCount(from, 'pending')),
       needFee ? this.call((p) => p.getFeeData()) : Promise.resolve(null),
@@ -621,7 +622,8 @@ export class EvmChainAdapter implements ChainAdapter {
          * maximum. Reprendre le maximum entier donnait toute la marge au
          * validateur — près de deux fois les frais attendus.
          */
-        maxPriorityFeePerGas: req.maxPriorityFeePerGas ?? minBig(feeData?.maxPriorityFeePerGas ?? 1_500_000_000n, req.maxFeePerGas),
+        // Réseau illisible : l'ancien comportement (le maximum), jamais un pourboire fixe que certains réseaux refusent (Polygon).
+        maxPriorityFeePerGas: req.maxPriorityFeePerGas ?? minBig(feeData?.maxPriorityFeePerGas ?? req.maxFeePerGas, req.maxFeePerGas),
       };
     } else if (feeData?.maxFeePerGas) {
       txReq = {

@@ -331,16 +331,18 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
      * de jeton à créer — sans laisser l'expéditeur sous le loyer minimal. Sans
      * ce contrôle, l'envoi partait signé et échouait à la création du compte.
      */
-    const solNeeded = tier.cost + (exists ? 0n : ATA_RENT);
+    // `tier.cost` comprend DÉJÀ le loyer du compte à créer (cf. `rentForDestination`).
+    const solNeeded = tier.cost;
     const solBal = await this.v1.getBalance(from).then((b) => b.raw).catch(() => null);
     if (solBal !== null) {
       const restSol = solBal - solNeeded;
-      if (restSol < 0n || (restSol > 0n && restSol < SOL_RENT_EXEMPT_MIN)) {
-        throw new WalletError('INSUFFICIENT_FUNDS', 'SOL insuffisant pour les frais de cet envoi de jeton.', {
-          have: formatInputAmount(solBal, 9),
-          fee: formatInputAmount(solNeeded, 9),
-          symbol: 'SOL',
-        });
+      if (restSol < 0n) {
+        // C'est le SOL des frais qui manque, pas le jeton : « réduis le montant » n'aiderait pas.
+        throw new WalletError('INSUFFICIENT_GAS', 'SOL insuffisant pour les frais de cet envoi de jeton.');
+      }
+      if (restSol > 0n && restSol < SOL_RENT_EXEMPT_MIN) {
+        // Le compte SOL resterait sous le loyer minimal : la règle du loyer, pas un manque de jeton.
+        throw new WalletError('SOL_RENT_SENDER', 'Reste SOL sous le loyer minimal', { max: '0', all: '0' });
       }
     }
 

@@ -130,14 +130,16 @@ export function buildSpeedUpTx(
 export function buildCancelTx(
   original: OriginalEvmTx,
   walletAddress: string,
-  calculatedGas: CalculatedReplacementGas
+  calculatedGas: CalculatedReplacementGas,
+  /** Limite estimée (rollups : la part L1 compte en gaz) ; 21 000 par défaut. */
+  gasLimit: bigint = 21000n,
 ): RawTxRequest {
   return {
     to: walletAddress,
     value: 0n,
     data: '0x',
     nonce: original.nonce,
-    gasLimit: 21000n, // Envoi natif standard à 0 de valeur
+    gasLimit,
     chainId: original.chainId,
     maxFeePerGas: calculatedGas.maxFeePerGas,
     maxPriorityFeePerGas: calculatedGas.maxPriorityFeePerGas,

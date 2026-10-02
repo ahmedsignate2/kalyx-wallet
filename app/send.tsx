@@ -23,7 +23,7 @@ import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { friendlyTxError } from '../lib/txError';
 
 /** Refus de la préparation qui sont CERTAINS : affichés sous le montant, avant le code. */
-const PRECHECK_BLOCKING = new Set(['SOL_RENT_SENDER', 'SOL_RENT_RECIPIENT', 'INSUFFICIENT_FUNDS', 'AMOUNT_TOO_SMALL', 'INSUFFICIENT_GAS', 'MEMO_REQUIRED', 'INVALID_ADDRESS', 'INVALID_AMOUNT']);
+const PRECHECK_BLOCKING = new Set(['SOL_RENT_SENDER', 'SOL_RENT_RECIPIENT', 'INSUFFICIENT_FUNDS', 'AMOUNT_TOO_SMALL', 'INSUFFICIENT_GAS', 'MEMO_REQUIRED', 'INVALID_ADDRESS', 'INVALID_AMOUNT', 'PREVIOUS_TX_PENDING']);
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, HoldRing, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
