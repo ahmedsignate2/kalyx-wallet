@@ -8,6 +8,12 @@ it('refuse ce qui tombe en quelques secondes hors ligne', () => {
   }
 });
 
+it('refuse les motifs que la longueur et les sortes de caractères masquaient', () => {
+  for (const p of ['aaaaaaaaaA1!', 'ababababab1A', 'Qwerty123456!', 'Azertyuiop12!', 'Abcdefghij1!', '987654321Zyx!', 'Bitcoin2024Wallet!']) {
+    expect(ok(p)).toBe(false);
+  }
+});
+
 it('accepte un mot de passe raisonnable, et juge fort ce qui l’est', () => {
   expect(ok('Mardi9pluie')).toBe(true);
   expect(passwordStrength('Mardi9pluie').key).toBe('strengthMedium');

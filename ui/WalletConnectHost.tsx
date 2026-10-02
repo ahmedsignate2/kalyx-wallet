@@ -12,8 +12,7 @@ import { Pressable as KPressable } from './kit';
  */
 import { SafeModal } from './kit/SafeModal';
 import { signMessageParam } from '../lib/dappProvider';
-import { utf8Decode } from '../src/domain/tonconnect/sessionCrypto';
-import { base58 } from '@scure/base';
+import { solanaMessageBytes } from '../lib/solanaMessage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, ScrollView, Image, StyleSheet } from 'react-native';
 import { GlassCard, ErrorBox, GradientAvatar } from './premium';
@@ -139,21 +138,6 @@ function DappHeader({ name, url, icon }: { name: string; url: string; icon?: str
   );
 }
 
-/** Texte d'un message à signer : base58 (Solana), hex 0x (EVM) ou texte brut. Jamais ne lève. */
-function decodeMessageText(raw: string, base58First: boolean): string {
-  if (!raw) return '';
-  try {
-    if (base58First) {
-      const bytes = base58.decode(raw);
-      // Pas de `TextDecoder` : absent sous Hermes, il levait et le message restait en base58 illisible.
-      const txt = utf8Decode(bytes);
-      if (/^[\x20-\x7E\u00A0-\uFFFF\s]*$/.test(txt)) return txt;
-    }
-  } catch { /* pas du base58 */ }
-  if (raw.startsWith('0x')) return hexToText(raw) ?? raw;
-  return raw;
-}
-
 export function WalletConnectHost() {
   const { colors, typography } = useTheme();
   const t = useT();
@@ -215,7 +199,10 @@ export function WalletConnectHost() {
     } else if (method === 'solana_signMessage' || method === 'bitcoin_signMessage' || method === 'signMessage') {
       // Solana : message en base58 (spec) ; Bitcoin : texte UTF-8.
       const raw = p0?.message ?? p0?.msg ?? (typeof p0 === 'string' ? p0 : '');
-      messageText = decodeMessageText(String(raw ?? ''), method === 'solana_signMessage');
+      // Solana : le décodage même de la signature (lib/solanaMessage) — on montre ce qui sera signé.
+      messageText = method === 'solana_signMessage'
+        ? (solanaMessageBytes(String(raw ?? '')).text ?? String(raw ?? ''))
+        : String(raw ?? '');
       kind = 'message';
     } else if (method === 'getAccountAddresses' || method === 'bitcoin_getAccountAddresses' || method === 'bitcoin_getAccounts' || method === 'getAccounts') {
       kind = 'btcAccounts';

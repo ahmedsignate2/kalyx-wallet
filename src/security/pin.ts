@@ -51,7 +51,12 @@ export function lockRemainingMs(
   if (failedAttempts <= 0) return 0;
   const idx = Math.min(failedAttempts, LOCK_SCHEDULE_MS.length - 1);
   const wait = LOCK_SCHEDULE_MS[idx];
-  return Math.max(0, lastFailedAt + wait - now);
+  /*
+   * Horloge reculée (réglage manuel, fuseau, batterie vidée) : `lastFailedAt`
+   * est dans le futur et l'attente calculée pouvait valoir des mois. Jamais
+   * plus que l'attente du palier — le pire cas est de la refaire en entier.
+   */
+  return Math.min(wait, Math.max(0, lastFailedAt + wait - now));
 }
 
 export function isLockedOut(

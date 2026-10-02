@@ -845,6 +845,15 @@ async function revealEvmSigningKey(
   if (walletFamily(wallets, activeWalletId) === 'ton') {
     throw new WalletError('NOT_SUPPORTED', 'import.WRONG_FAMILY:ton:evm');
   }
+  /*
+   * Une clé Bitcoin ou Solana importée est aussi 32 octets : sans ce refus,
+   * elle serait prise pour une clé EVM et signerait depuis une AUTRE adresse
+   * que celle du portefeuille (signature personnelle, typée, transaction).
+   */
+  const pkFamily = privateKeyFamily(wallets, activeWalletId);
+  if (pkFamily && pkFamily !== 'evm') {
+    throw new WalletError('NOT_SUPPORTED', `import.WRONG_FAMILY:${pkFamily}:evm`);
+  }
   const secret = await revealMnemonic(activeWalletId, unlock);
   if (isPrivateKeyWallet(wallets, activeWalletId)) return normalizeEvmPrivateKey(secret);
   const seed = mnemonicToSeedSync(secret);
@@ -1038,7 +1047,12 @@ export const useWallet = create<WalletState>((set, get) => ({
   bootstrap: async () => {
     setDecoySession(false);
     // Changement de PIN interrompu (app tuée pendant l'écriture) : tout revient à l'ancien PIN.
-    if (await rollbackPinChange()) console.log('[KALYX-VAULT] init:pin-change-rolled-back');
+    try {
+      if (await rollbackPinChange()) console.log('[KALYX-VAULT] init:pin-change-rolled-back');
+    } catch (e) {
+      // Journal gardé : le prochain lancement réessaie. Le démarrage, lui, continue.
+      console.warn('[KALYX-VAULT] init:pin-change-rollback-failed', e);
+    }
     let wallets = await loadWalletsList();
     // Migration douce : un ancien wallet unique devient 'primary' (clés inchangées).
     if (wallets.length === 0 && (await hasVault('primary'))) {
@@ -1575,27 +1589,26 @@ export const useWallet = create<WalletState>((set, get) => ({
   importWallets: async (list, pin) => {
     assertNotDecoy(); // session leurre : jamais d'écriture sur les vrais portefeuilles
     assertValidPin(pin);
+    /*
+     * DOUBLON IGNORÉ, comparé par le secret. Restaurer par-dessus une
+     * installation existante créerait sinon deux portefeuilles identiques, que
+     * l'utilisateur ne saurait pas distinguer. Les coffres existants sont
+     * déchiffrés UNE fois (scrypt, lent) — et non une fois par entrée importée.
+     */
+    const known = new Set<string>();
+    for (const existing of get().wallets) {
+      const vault = await loadVault(existing.id);
+      if (!vault) continue;
+      try {
+        known.add(await decryptSecret(vault, pin));
+      } catch {
+        // Coffre illisible avec ce PIN : on ne peut rien conclure, on continue.
+      }
+    }
     let added = 0;
     for (const w of list) {
-      /*
-       * DOUBLON IGNORÉ, comparé par le secret. Restaurer par-dessus une
-       * installation existante créerait sinon deux portefeuilles identiques, que
-       * l'utilisateur ne saurait pas distinguer.
-       */
-      let already = false;
-      for (const existing of get().wallets) {
-        const vault = await loadVault(existing.id);
-        if (!vault) continue;
-        try {
-          if ((await decryptSecret(vault, pin)) === w.secret) {
-            already = true;
-            break;
-          }
-        } catch {
-          // Coffre illisible avec ce PIN : on ne peut rien conclure, on continue.
-        }
-      }
-      if (already) continue;
+      if (known.has(w.secret)) continue;
+      known.add(w.secret); // deux fois le même dans la sauvegarde : un seul portefeuille
 
       if (w.type === 'privateKey') {
         await get().importPrivateKey(w.secret, pin, w.label, w.keyFamily ?? 'evm');
@@ -2063,17 +2076,23 @@ export const useWallet = create<WalletState>((set, get) => ({
      * tirée à la main ici et restait vivante jusqu'au ramasse-miettes — sur un
      * chemin appelé par n'importe quelle dApp connectée.
      */
-    const signer = await get().deriveSigner(getAdapterV2('solana'), unlock);
-    assertCurve(signer, 'ed25519');
-
     // Même décodeur que la fenêtre qui a DÉCRIT la transaction : on signe ce qui a été montré.
+    // Décodée AVANT la dérivation : une entrée malformée ne fait jamais sortir la clé.
     const decoded = solanaTxDecode(txStr);
     if (!decoded) throw new WalletError('NOT_SUPPORTED', 'Transaction Solana illisible');
     const bytes = decoded.bytes;
     const isBase64 = decoded.encoding === 'base64';
 
-    const tx = VersionedTransaction.deserialize(bytes);
-    
+    let tx: VersionedTransaction;
+    try {
+      tx = VersionedTransaction.deserialize(bytes);
+    } catch {
+      throw new WalletError('NOT_SUPPORTED', 'Transaction Solana illisible');
+    }
+
+    const signer = await get().deriveSigner(getAdapterV2('solana'), unlock);
+    assertCurve(signer, 'ed25519');
+
     if (refreshBlockhash) {
       try {
         const adapter = getAdapter('solana') as SolanaChainAdapter;
@@ -2112,18 +2131,14 @@ export const useWallet = create<WalletState>((set, get) => ({
     await (await import('./whitelistStore')).assertDappAllowed(); // un message signé peut autoriser un transfert
     const { account } = get();
     if (!account) throw new Error('Aucun compte');
+    // Même décodage que la fenêtre qui l'a MONTRÉ ; refusé avant toute dérivation de clé.
+    const { solanaMessageBytes, looksLikeSolanaTransaction } = await import('./solanaMessage');
+    const { bytes: msgBytes } = solanaMessageBytes(message);
+    if (looksLikeSolanaTransaction(msgBytes)) {
+      throw new WalletError('NOT_SUPPORTED', 'Ce « message » est une transaction Solana : signature refusée');
+    }
     const signer = await get().deriveSigner(getAdapterV2('solana'), unlock);
     assertCurve(signer, 'ed25519');
-    let msgBytes: Uint8Array;
-    try {
-      msgBytes = base58.decode(message);
-    } catch {
-      try {
-        msgBytes = base64.decode(message);
-      } catch {
-        msgBytes = utf8ToBytes(message);
-      }
-    }
     const signature = await withSigner(signer, async (sk) => {
       assertCurve(sk, 'ed25519');
       return ed25519.sign(msgBytes, sk.secretKey);
@@ -2154,17 +2169,17 @@ export const useWallet = create<WalletState>((set, get) => ({
     await (await import('./whitelistStore')).assertDappAllowed(); // demandé par des dApps seulement : fermé sous liste blanche
     const { account } = get();
     if (!account) throw new Error('Aucun compte');
+    // PSBT lu AVANT la dérivation : une entrée malformée ne fait jamais sortir la clé.
+    const btc = await import('@scure/btc-signer');
+    let tx: InstanceType<typeof btc.Transaction>;
+    try {
+      const psbtBytes = psbtBase64.toLowerCase().startsWith('70736274') ? hex.decode(psbtBase64) : base64.decode(psbtBase64);
+      tx = btc.Transaction.fromPSBT(psbtBytes);
+    } catch {
+      throw new WalletError('NOT_SUPPORTED', 'PSBT illisible');
+    }
     const signer = await get().deriveSigner(getAdapterV2('bitcoin'), unlock);
     assertCurve(signer, 'secp256k1');
-
-    const btc = await import('@scure/btc-signer');
-    let psbtBytes: Uint8Array;
-    if (psbtBase64.toLowerCase().startsWith('70736274')) {
-      psbtBytes = hex.decode(psbtBase64);
-    } else {
-      psbtBytes = base64.decode(psbtBase64);
-    }
-    const tx = btc.Transaction.fromPSBT(psbtBytes);
 
     // Clé effacée après la signature, y compris si le PSBT est malformé — et
     // il vient d'une dApp, donc il peut l'être.
@@ -2399,7 +2414,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     try {
       for (const a of after) await saveVault(a.id, a.vault);
     } catch (e) {
-      await rollbackPinChange();
+      // Remise en place ; si elle échoue aussi, le journal reste pour le prochain lancement.
+      await rollbackPinChange().catch(() => {});
       throw e;
     }
     await clearPinChangeJournal();

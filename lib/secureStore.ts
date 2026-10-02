@@ -374,7 +374,13 @@ export async function clearPinChangeJournal(): Promise<void> {
   await kvDel(K_PIN_CHANGE, base);
 }
 
-/** Remet les coffres d'avant un changement de PIN interrompu. Rend true s'il y en avait un. */
+/**
+ * Remet les coffres d'avant un changement de PIN interrompu. Rend true s'il y en avait un.
+ *
+ * Le journal n'est effacé que si TOUS les coffres ont été remis : une écriture
+ * qui échoue le garde, et l'erreur remonte — le prochain lancement réessaie.
+ * L'effacer quand même laisserait pour toujours des coffres sous deux PIN.
+ */
 export async function rollbackPinChange(): Promise<boolean> {
   let raw: string | null;
   try {
@@ -383,12 +389,23 @@ export async function rollbackPinChange(): Promise<boolean> {
     return false;
   }
   if (!raw) return false;
+  let entries: { id: string; vault: EncryptedVault }[];
   try {
-    const entries = JSON.parse(raw) as { id: string; vault: string }[];
-    for (const e of entries) await saveVault(e.id, deserializeVault(e.vault));
+    entries = (JSON.parse(raw) as { id: string; vault: string }[]).map((e) => ({ id: e.id, vault: deserializeVault(e.vault) }));
   } catch {
-    // Journal illisible : on ne touche à rien de plus, les coffres restent tels quels.
+    // Journal illisible : rien à remettre, les coffres restent tels quels.
+    await clearPinChangeJournal().catch(() => {});
+    return true;
   }
+  let failure: unknown = null;
+  for (const e of entries) {
+    try {
+      await saveVault(e.id, e.vault);
+    } catch (err) {
+      failure ??= err; // on remet quand même les autres
+    }
+  }
+  if (failure) throw failure;
   await clearPinChangeJournal().catch(() => {});
   return true;
 }

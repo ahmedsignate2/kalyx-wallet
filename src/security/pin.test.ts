@@ -57,4 +57,10 @@ describe('limitation des tentatives (anti-brute-force)', () => {
     expect(lockRemainingMs(8, T0, T0)).toBe(300_000);
     expect(lockRemainingMs(50, T0, T0)).toBe(3_600_000); // plafonné
   });
+
+  it('horloge reculée : jamais plus que l’attente du palier', () => {
+    const yearMs = 365 * 24 * 3_600_000;
+    expect(lockRemainingMs(6, T0 + yearMs, T0)).toBe(30_000);
+    expect(lockRemainingMs(50, T0 + yearMs, T0)).toBe(3_600_000);
+  });
 });

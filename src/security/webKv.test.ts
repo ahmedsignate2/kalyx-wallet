@@ -29,6 +29,7 @@ function makeFakeIndexedDB() {
         return {
           get: (k: string) => req(() => st.get(k)),
           put: (v: unknown, k: string) => req(() => { st.set(k, v); return k; }),
+          add: (v: unknown, k: string) => req(() => { if (st.has(k)) throw new Error('ConstraintError'); st.set(k, v); return k; }),
           delete: (k: string) => req(() => { st.delete(k); return undefined; }),
         };
       },
@@ -101,5 +102,40 @@ describe('kv.web — chiffrement au repos', () => {
     await kv.kvSet('y', '1');
     await kv.kvDel('y');
     expect(await kv.kvGet('y')).toBeNull();
+  });
+});
+
+describe('kv.web — clé de chiffrement partagée entre onglets', () => {
+  it('l’onglet qui perd la course prend la clé du gagnant, sans l’écraser', async () => {
+    const fake = makeFakeIndexedDB();
+    (globalThis as { indexedDB?: unknown }).indexedDB = fake.factory;
+    const subtle = globalThis.crypto.subtle;
+    const winner = await subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    const realGenerate = subtle.generateKey.bind(subtle);
+    const spy = jest.spyOn(subtle, 'generateKey').mockImplementationOnce(async (...args: Parameters<typeof subtle.generateKey>) => {
+      fake.raw().set('__kalyx_kek_v1', winner); // l'autre onglet écrit la sienne pendant ce temps
+      return realGenerate(...args);
+    });
+    let kv: typeof import('../../lib/kv.web') | undefined;
+    jest.isolateModules(() => {
+      kv = require('../../lib/kv.web');
+    });
+    await kv!.kvSet('k', 'valeur');
+    expect(fake.raw().get('__kalyx_kek_v1')).toBe(winner);
+    expect(await kv!.kvGet('k')).toBe('valeur');
+    spy.mockRestore();
+  });
+
+  it('clé indisponible : rien n’est écrit en clair', async () => {
+    const fake = makeFakeIndexedDB();
+    (globalThis as { indexedDB?: unknown }).indexedDB = fake.factory;
+    const spy = jest.spyOn(globalThis.crypto.subtle, 'generateKey').mockRejectedValue(new Error('refusé'));
+    let kv: typeof import('../../lib/kv.web') | undefined;
+    jest.isolateModules(() => {
+      kv = require('../../lib/kv.web');
+    });
+    await expect(kv!.kvSet('secret', 'sk-123')).rejects.toThrow();
+    expect(fake.raw().get('secret')).toBeUndefined();
+    spy.mockRestore();
   });
 });
