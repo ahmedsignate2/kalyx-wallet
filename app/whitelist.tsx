@@ -17,11 +17,11 @@ import { toast } from '../lib/toast';
 import { friendlyTxError } from '../lib/txError';
 import { type Unlock } from '../lib/walletStore';
 import { chainNow, loadWhitelist, useWhitelist, whitelistActions } from '../lib/whitelistStore';
-import { shortAddress } from '../src';
+import { shortAddress, whitelistHoursUntil } from '../src';
 
 type Pending = { kind: 'enable' } | { kind: 'disable' } | { kind: 'add'; address: string; label: string };
 
-const hoursLeft = (at: number, now: number | null) => (now == null ? 24 : Math.max(1, Math.ceil((at - now) / 3_600_000)));
+const hoursLeft = whitelistHoursUntil;
 
 export default function WhitelistScreen() {
   const { colors } = useTheme();
@@ -36,7 +36,11 @@ export default function WhitelistScreen() {
   useEffect(() => {
     void loadWhitelist();
     void chainNow().then(setNow);
-    const id = setInterval(() => void chainNow().then(setNow), 60_000);
+    // Chaque minute : heure de chaîne ET état réglé (une désactivation échue s'affiche comme telle).
+    const id = setInterval(() => {
+      void chainNow().then(setNow);
+      void loadWhitelist();
+    }, 60_000);
     return () => clearInterval(id);
   }, []);
 
@@ -91,7 +95,7 @@ export default function WhitelistScreen() {
           <Text variant="caption" tone="secondary">{t('wlEmpty')}</Text>
         ) : (
           wl.entries.map((e) => {
-            const active = now != null && now >= e.activeAt;
+            const active = e.activeAt === 0 || (now != null && now >= e.activeAt); // 0 : ajoutée hors protection
             return (
               <View key={e.address} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: 6 }}>
                 <Icon name={active ? 'check' : 'clock'} size={16} color={active ? colors.up : colors.warning} />

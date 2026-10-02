@@ -394,6 +394,18 @@ function SwapInner() {
     if (!isBridge && fromTok.address.toLowerCase() === toTok.address.toLowerCase()) return t('swapTwoTokens');
     // Échange précédent pas encore abouti : les soldes du réseau ne sont pas fiables.
     if (swapPending) return t('errSwapPending');
+    /*
+     * LISTE BLANCHE en vigueur : on n'achète que des jetons de la liste curée
+     * (ou le natif). Sinon un voleur viderait le portefeuille par un échange
+     * vers SON jeton, dans SA réserve — l'argent part sans aucun « destinataire ».
+     */
+    if (!isBridge && !curatedAddrs.has(toTok.address.toLowerCase()) && !isNativeTokenAddress(toTok.address)) {
+      try {
+        await (await import('../lib/whitelistStore')).assertDappAllowed();
+      } catch (e) {
+        if (isWalletError(e) && e.code === 'WHITELIST_LOCKED') return t('errSwapWhitelistToken');
+      }
+    }
     // Solde inconnu, en erreur ou lu il y a plus de 30 s : relu avant de juger les fonds (jamais pris pour 0).
     let bal = freshRaw(srcEntry, Date.now());
     if (bal == null) {

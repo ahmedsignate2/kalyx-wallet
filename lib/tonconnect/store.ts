@@ -397,6 +397,7 @@ export const useTonConnect = create<TcState>((set, get) => {
     },
 
     approveSignData: async (unlock) => {
+      await (await import('../whitelistStore')).assertDappAllowed(); // liste blanche : aucune signature de dApp
       const p = get().queue[0];
       if (p?.kind !== 'signData') throw new Error('tcNothingPending');
       const { session, payload } = p;

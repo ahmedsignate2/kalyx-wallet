@@ -474,6 +474,7 @@ export {
   isEnforced as whitelistEnforced,
   noteWallet as whitelistNoteWallet,
   isTrustedWallet as whitelistTrustedWallet,
+  hoursUntil as whitelistHoursUntil,
   parseWhitelist,
   type WhitelistState,
   type WhitelistEntry,

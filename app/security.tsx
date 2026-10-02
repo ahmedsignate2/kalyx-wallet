@@ -94,7 +94,7 @@ export default function SecurityCenter() {
   const revoke = async (unlock: Unlock) => {
     if (!target || !chain.evmChainId) return;
     try {
-      await sendRawTxOn(unlock, activeChain, { to: target.token, data: revokeCalldata(target.spender), value: 0n, chainId: chain.evmChainId });
+      await sendRawTxOn(unlock, activeChain, { to: target.token, data: revokeCalldata(target.spender), value: 0n, chainId: chain.evmChainId }, { appFlow: true }); // révoquer : ne fait que renforcer
       haptic.success();
       toast.success(t("revokeSent"), `${target.symbol} · ${shortAddress(target.spender)}`);
       setApprovals((list) => (list ?? []).filter((a) => a !== target));

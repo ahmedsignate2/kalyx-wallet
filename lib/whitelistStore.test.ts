@@ -74,3 +74,19 @@ describe('le temps qui compte est celui de la chaîne', () => {
     expect(await code(assertRecipientAllowed(FRIEND))).toBe('OK');
   });
 });
+
+describe('horloge de chaîne : une source seule ne fait pas un saut en avant', () => {
+  it('nœud seul annonçant « 2 jours plus tard » ignoré ; l’heure établie avance normalement', async () => {
+    const realPerf = global.performance;
+    let fake = 0;
+    (global as { performance: unknown }).performance = { now: () => fake };
+    resetChainClock();
+    mockChainTime = 5_000_000;
+    const { chainNow } = await import('./whitelistStore');
+    expect(await chainNow()).toBe(5_000_000);
+    fake += 61_000; // une minute passe (l'ancre expire)
+    mockChainTime = 5_000_000 + 2 * 86_400_000; // le nœud ment : +2 jours
+    expect(await chainNow()).toBe(5_000_000 + 61_000); // projection gardée
+    (global as { performance: unknown }).performance = realPerf;
+  });
+});

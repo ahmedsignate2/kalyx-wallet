@@ -94,23 +94,31 @@ export function removeEntry(s: WhitelistState, address: string, keyOf: (a: strin
  * PRÉSENTS deviennent de confiance tout de suite (`walletIds`).
  */
 export function enable(s: WhitelistState, walletIds: readonly string[] = []): WhitelistState {
+  // Déjà active : rien à faire — surtout pas accorder une confiance immédiate à un portefeuille ajouté depuis.
+  if (s.enabled) return s.disableAt == null ? s : { ...s, disableAt: null };
   const have = new Set(s.trusted.map((x) => x.id));
   const trusted = [...s.trusted, ...walletIds.filter((id) => !have.has(id)).map((id) => ({ id, activeAt: 0 }))];
   return { ...s, enabled: true, disableAt: null, trusted };
 }
 
-/** Portefeuille créé ou importé : de confiance après le délai si la protection est active (sinon : à l'activation). */
+/** Délai pas encore démarré (heure de chaîne inconnue lors de l'ajout) : démarré au premier réglage avec l'heure. */
+export const DELAY_NOT_STARTED = -1;
+
+/**
+ * Portefeuille créé ou importé : de confiance après le délai si la protection
+ * est active (sinon : à l'activation). Heure inconnue : noté « délai pas encore
+ * démarré », jamais de confiance sans délai mesuré.
+ */
 export function noteWallet(s: WhitelistState, id: string, now: number | null): WhitelistState {
   if (!s.enabled || s.trusted.some((x) => x.id === id)) return s;
-  // Heure inconnue : jamais de confiance sans délai mesuré — on retentera.
-  if (now == null) return s;
-  return { ...s, trusted: [...s.trusted, { id, activeAt: now + WHITELIST_DELAY_MS }] };
+  return { ...s, trusted: [...s.trusted, { id, activeAt: now == null ? DELAY_NOT_STARTED : now + WHITELIST_DELAY_MS }] };
 }
 
 /** Ce portefeuille est-il de confiance À `now` ? */
 export function isTrustedWallet(s: WhitelistState, id: string, now: number | null): boolean {
   const t = s.trusted.find((x) => x.id === id);
-  return !!t && (t.activeAt === 0 || (now != null && now >= t.activeAt));
+  if (!t || t.activeAt === DELAY_NOT_STARTED) return false;
+  return t.activeAt === 0 || (now != null && now >= t.activeAt);
 }
 
 /** Demander la désactivation : effective après le délai (déjà demandée → inchangée). */
@@ -119,10 +127,23 @@ export function requestDisable(s: WhitelistState, now: number): WhitelistState {
   return { ...s, disableAt: now + WHITELIST_DELAY_MS };
 }
 
-/** Une désactivation échue est appliquée (état « éteint » propre). */
+/**
+ * Réglage avec l'heure : une désactivation échue est appliquée ; un délai « pas
+ * encore démarré » démarre maintenant.
+ */
 export function settle(s: WhitelistState, now: number | null): WhitelistState {
-  if (s.enabled && s.disableAt != null && now != null && now >= s.disableAt) return { ...s, enabled: false, disableAt: null };
-  return s;
+  if (now == null) return s;
+  let out = s;
+  if (out.trusted.some((x) => x.activeAt === DELAY_NOT_STARTED)) {
+    out = { ...out, trusted: out.trusted.map((x) => (x.activeAt === DELAY_NOT_STARTED ? { ...x, activeAt: now + WHITELIST_DELAY_MS } : x)) };
+  }
+  if (out.enabled && out.disableAt != null && now >= out.disableAt) out = { ...out, enabled: false, disableAt: null };
+  return out;
+}
+
+/** Heures restantes avant `at` (arrondi au-dessus, au moins 1) — même calcul pour l'écran et les messages. */
+export function hoursUntil(at: number, now: number | null): number {
+  return now == null ? 24 : Math.max(1, Math.ceil((at - now) / 3_600_000));
 }
 
 /** Lecture tolérante d'un état stocké (champ manquant ou abîmé → valeur sûre). */

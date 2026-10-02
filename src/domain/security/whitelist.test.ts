@@ -46,7 +46,12 @@ describe('portefeuilles de confiance', () => {
     s = noteWallet(s, 'thief', 100);
     expect(isTrustedWallet(s, 'thief', 100 + D - 1)).toBe(false);
     expect(isTrustedWallet(s, 'thief', 100 + D)).toBe(true);
-    expect(noteWallet(s, 'x', null)).toBe(s); // heure inconnue : pas de confiance
+    // Heure inconnue : noté, délai démarré au premier réglage avec l'heure — jamais de confiance immédiate.
+    const off = noteWallet(s, 'x', null);
+    expect(isTrustedWallet(off, 'x', 10 ** 15)).toBe(false);
+    expect(isTrustedWallet(settle(off, 500), 'x', 500 + D)).toBe(true);
+    // Réactiver une protection déjà active n'accorde rien.
+    expect(isTrustedWallet(enable(off, ['x']), 'x', 0)).toBe(false);
   });
   it('ajout quand la protection est éteinte : sans heure, utilisable dès l’activation', () => {
     const s = enable(addEntry(EMPTY_WHITELIST, '0xA', '', null, key));
