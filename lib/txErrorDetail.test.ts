@@ -77,5 +77,8 @@ describe('friendlyTxError — robuste et juste sur les refus', () => {
     expect(node).toBe(t('errUnderpriced'));
     expect(friendlyTxError(new Error('User rejected the request.'), t as never)).toBe(t('errUserRejected'));
     expect(friendlyTxError({ code: 4001, message: 'x' }, t as never)).toBe(t('errUserRejected'));
+    for (const m of ['User rejects the action in the wallet', 'Transaction cancelled by user', 'user_cancel']) {
+      expect(friendlyTxError(new Error(m), t as never)).toBe(t('errUserRejected'));
+    }
   });
 });

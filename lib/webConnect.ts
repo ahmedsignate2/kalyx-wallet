@@ -47,6 +47,8 @@ export interface PendingSign {
   detail?: string;
   /** Plus de 2 min sans réponse : la demande reste ouverte sur le téléphone. */
   slow?: boolean;
+  /** Expirée des deux côtés : relancer est sans risque. */
+  expired?: boolean;
 }
 
 /** Libellé lisible d'une méthode WalletConnect (pour le popup de signature). */
@@ -104,6 +106,8 @@ interface WebConnectState {
   request: (method: string, params: unknown[]) => Promise<string>;
   /** Force un rafraîchissement des panneaux (bouton manuel). */
   refresh: () => void;
+  /** La session ouverte avec le téléphone accepte-t-elle cette méthode ? */
+  supports: (method: string) => boolean;
   reset: () => void;
 }
 
@@ -310,7 +314,8 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
         optionalNamespaces: {
           eip155: { methods: evmMethods, chains: evmCaips(), events: evmEvents },
           solana: { methods: ['solana_getAccounts', 'solana_signTransaction'], chains: [SOLANA_CAIP], events: ['accountsChanged'] },
-          bip122: { methods: ['getAccountAddresses', 'getAccounts', 'sendTransfer'], chains: [BTC_CAIP], events: [] },
+          // `bitcoin_sendTransfer` : montant en satoshis, annoncé seulement par les versions du téléphone qui le lisent ainsi.
+          bip122: { methods: ['getAccountAddresses', 'getAccounts', 'sendTransfer', 'bitcoin_sendTransfer'], chains: [BTC_CAIP], events: [] },
         },
       });
       if (uri) set({ uri });
@@ -359,18 +364,26 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     set({ pending: { label, phase: 'await' } });
     // La requête part vers l'app Kalyx, qui affiche la demande + signe avec PIN/bio.
     /*
-     * PAS de délai qui rend la main : la demande resterait ouverte sur le
-     * téléphone, et la relancer d'ici puis approuver les deux enverrait deux
-     * fois. Passé 2 min, on PRÉVIENT seulement ; c'est l'expiration de la
-     * demande WalletConnect elle-même qui y met fin, des deux côtés à la fois.
+     * EXPIRATION COMMUNE. La demande part avec une durée de vie de 5 min (le
+     * minimum WalletConnect) : passé ce délai le téléphone la REFUSE
+     * (`approveRequest` lit `expiryTimestamp`), et ici on rend la main au même
+     * moment. Relancer ensuite ne peut donc plus produire deux envois. À 2 min,
+     * on prévient seulement.
      */
-    const timer: ReturnType<typeof setTimeout> = setTimeout(() => {
-      if (get().pending?.phase === 'await') {
-        set({ pending: { label, phase: 'await', slow: true } });
-      }
+    const REQ_EXPIRY_S = 300;
+    set({ lastActivity: Date.now() }); // une signature en cours n'est pas de l'inactivité
+    const slowTimer: ReturnType<typeof setTimeout> = setTimeout(() => {
+      if (get().pending?.phase === 'await') set({ pending: { label, phase: 'await', slow: true } });
     }, 120_000);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('REQUEST_EXPIRED')), (REQ_EXPIRY_S + 5) * 1000);
+    });
     try {
-      const res = await client.request<string>({ topic, chainId: kalyxToCaip(selected), request: { method, params } });
+      const res = await Promise.race([
+        client.request<string>({ topic, chainId: kalyxToCaip(selected), request: { method, params }, expiry: REQ_EXPIRY_S }),
+        timeout,
+      ]);
       // Signé sur le téléphone : succès auto-fermant + retour au tableau de bord à jour.
       set({ pending: { label, phase: 'ok', detail: 'Validé sur votre téléphone' }, rev: get().rev + 1, lastActivity: Date.now() });
       setTimeout(() => set({ rev: get().rev + 1 }), 4000); // 2e passe (inclusion bloc)
@@ -383,10 +396,23 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       } catch {
         get().reset();
       }
-      set({ pending: { label, phase: 'err', detail: e instanceof Error ? e.message : 'Refusé ou échoué' } });
+      const expired = e instanceof Error && e.message === 'REQUEST_EXPIRED';
+      set({ pending: { label, phase: 'err', expired, detail: e instanceof Error ? e.message : 'Refusé ou échoué' } });
       throw e;
     } finally {
-      clearTimeout(timer);
+      clearTimeout(slowTimer);
+      if (timer) clearTimeout(timer);
+    }
+  },
+
+  supports: (method) => {
+    const { topic } = get();
+    if (!client || !topic) return false;
+    try {
+      const ns = (client.session.get(topic).namespaces ?? {}) as Record<string, { methods?: string[] }>;
+      return Object.values(ns).some((n) => (n.methods ?? []).includes(method));
+    } catch {
+      return false;
     }
   },
 

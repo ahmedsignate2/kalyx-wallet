@@ -254,7 +254,14 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
       // Simulation + diffusion + attente de confirmation : même chemin que l'app.
       return submitSolanaSigned(signed);
     }
-    const res: unknown = await request('sendTransfer', [{ recipientAddress: recipient, amount: amountRaw.toString() }]); // satoshis (spec)
+    /*
+     * Montant en SATOSHIS, par `bitcoin_sendTransfer` : seules les versions du
+     * téléphone qui lisent des satoshis l'annoncent. Une ancienne version
+     * lisait `sendTransfer` en BTC — lui envoyer des satoshis enverrait
+     * 100 000 000 fois trop : on demande la mise à jour plutôt.
+     */
+    if (!useWebConnect.getState().supports('bitcoin_sendTransfer')) throw new UserFacingError(tw('phoneUpdateRequired'));
+    const res: unknown = await request('bitcoin_sendTransfer', [{ recipientAddress: recipient, amount: amountRaw.toString() }]);
     const txid = pick<string>(res, ['txid']) ?? (typeof res === 'string' ? res : undefined);
     if (!txid) throw new UserFacingError(tw('phoneNoTxid'));
     return txid;

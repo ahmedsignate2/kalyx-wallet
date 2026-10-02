@@ -30,7 +30,7 @@ import type { IWeb3Wallet } from '@walletconnect/web3wallet';
 
 import { VersionedTransaction } from '@solana/web3.js';
 import { Transaction as BtcTransaction } from '@scure/btc-signer';
-import { bitcoinMessageParam, btcFromSats, solanaMessageParam } from './messageParams';
+import { bitcoinMessageParam, btcFromSats, btcTransferParams, solanaMessageParam } from './messageParams';
 function extractSolanaSignature(tx: string, address: string): string {
   try {
     const decoded = solanaTxDecode(tx);
@@ -50,7 +50,8 @@ function extractSolanaSignature(tx: string, address: string): string {
 /** Deux calldatas `approve(spender, …)` vers le même bénéficiaire ? */
 function sameApproveSpender(original: string, override: string): boolean {
   const APPROVE = '0x095ea7b3';
-  const spender = (d: string) => (d.toLowerCase().startsWith(APPROVE) && d.length === 138 ? d.slice(10, 74).toLowerCase() : null);
+  // ≥ 138 : un approve peut porter un suffixe après ses arguments (attribution) ; seul le bénéficiaire compte.
+  const spender = (d: string) => (d.toLowerCase().startsWith(APPROVE) && d.length >= 138 ? d.slice(10, 74).toLowerCase() : null);
   const a = spender(original);
   return a !== null && a === spender(override);
 }
@@ -66,7 +67,7 @@ function ensureBase64(tx: string): string {
 const SIGNING_METHODS = new Set([
   'personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v3', 'eth_signTypedData_v4', 'eth_sendTransaction', 'eth_signTransaction',
   'solana_signTransaction', 'solana_signAllTransactions', 'solana_signMessage', 'solana_signAndSendTransaction',
-  'bitcoin_signMessage', 'signMessage', 'bitcoin_signPsbt', 'signPsbt', 'bitcoin_sendTransaction', 'sendTransfer', 'bitcoin_sendTransfer',
+  'bitcoin_signMessage', 'signMessage', 'bitcoin_signPsbt', 'signPsbt', 'bitcoin_sendTransaction', 'sendTransfer', 'bitcoin_sendTransfer', 'sendTransaction',
   'bitcoin_getAccounts', 'getAccountAddresses', 'bitcoin_getAccountAddresses', 'getAccounts',
 ]);
 
@@ -335,7 +336,7 @@ function activeAccount() {
  * ou de portefeuille depuis, signer avec l'actif produirait une signature d'un
  * compte jamais partagé. Refus clair, avec l'adresse attendue.
  */
-function assertSessionAccount(wallet: any, topic: string, chainId: unknown): void {
+export function assertSessionAccount(wallet: any, topic: string, chainId: unknown): void {
   const ns = typeof chainId === 'string' ? chainId.split(':')[0] : '';
   const session = wallet?.getActiveSessions?.()[topic];
   const shared: string[] = ((session?.namespaces?.[ns]?.accounts ?? []) as string[]).map((a) => String(a).split(':').pop() ?? '');
@@ -537,7 +538,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       ...(p.sign ? ['personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v3', 'eth_signTypedData_v4'] : []),
     ];
     const solMethods = ['solana_getAccounts', ...(p.tx ? ['solana_signTransaction', 'solana_signAllTransactions', 'solana_signAndSendTransaction'] : []), ...(p.sign ? ['solana_signMessage'] : [])];
-    const btcMethods = ['getAccountAddresses', 'getAccounts', ...(p.tx ? ['signPsbt', 'sendTransfer'] : []), ...(p.sign ? ['signMessage'] : [])];
+    const btcMethods = ['getAccountAddresses', 'getAccounts', ...(p.tx ? ['signPsbt', 'sendTransfer', 'sendTransaction', 'bitcoin_sendTransfer'] : []), ...(p.sign ? ['signMessage'] : [])];
     const wstate = useWallet.getState();
     /*
      * Compte partagé avec la dApp. Choisi par l'utilisateur à la connexion
@@ -648,6 +649,11 @@ export const useWalletConnect = create<WcState>((set, get) => ({
        */
       if (!/getAccounts|getAccountAddresses|requestAccounts/i.test(method)) await (await import('./whitelistStore')).assertDappAllowed();
       assertSessionAccount(wallet, topic, params.chainId);
+      // Expirée (le tableau de bord a déjà rendu la main à l'utilisateur) : jamais signée en retard.
+      const expiry = Number(params.request?.expiryTimestamp);
+      if (Number.isFinite(expiry) && expiry > 0 && Date.now() / 1000 > expiry) {
+        throw new WalletError('REQUEST_EXPIRED', 'demande expirée avant approbation');
+      }
       if (method === 'personal_sign' || method === 'eth_sign') result = await w.signMessage(unlock, signMessageParam(method, p));
       else if (method.startsWith('eth_signTypedData')) {
         const data = typeof p[1] === 'string' ? JSON.parse(p[1]) : p[1];
@@ -810,16 +816,16 @@ export const useWalletConnect = create<WcState>((set, get) => ({
           return new Uint8Array(s.publicKey);
         });
         result = [{ address: btcModule.p2wpkhAddress(publicKey), publicKey: hex.encode(publicKey), path: `m/84'/0'/0'/0/${index}`, intention: 'payment', purpose: 'payment' }];
-      } else if (method === 'bitcoin_sendTransaction' || method === 'sendTransfer' || method === 'bitcoin_sendTransfer') {
-        const pSafe: any = p || {};
-        const to = pSafe.recipientAddress || pSafe.recipient || pSafe.to || pSafe[0]?.recipientAddress || pSafe[0]?.recipient || pSafe[0]?.to || pSafe[0];
-        if (!to || typeof to !== 'string') throw new Error('Expected String for recipientAddress');
+      } else if (method === 'bitcoin_sendTransaction' || method === 'sendTransfer' || method === 'bitcoin_sendTransfer' || method === 'sendTransaction') {
+        // Même lecture que la fenêtre de confirmation (lib/messageParams).
+        const { to, amount } = btcTransferParams(p);
+        if (!to) throw new Error('Expected String for recipientAddress');
         /*
          * Montant en SATOSHIS (spec WalletConnect Bitcoin), entier — comme
          * l'affiche la fenêtre de confirmation. Il était lu en BTC : « 100000 »
          * montré « 100000 sats » envoyait 100000 BTC.
          */
-        const amountStr = btcFromSats(pSafe.amount ?? pSafe[0]?.amount ?? pSafe[1]);
+        const amountStr = btcFromSats(amount);
         await (await import('./whitelistStore')).assertRecipientAllowed(to);
         const adapter = getAdapter('bitcoin');
         const btcModule = await import('../src/crypto/btc');

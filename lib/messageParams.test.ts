@@ -1,4 +1,4 @@
-import { bitcoinMessageParam, btcFromSats, solanaMessageParam } from './messageParams';
+import { bitcoinMessageParam, btcFromSats, btcTransferParams, solanaMessageParam } from './messageParams';
 
 describe('btcFromSats — la dApp parle en satoshis', () => {
   it('convertit sans perte', () => {
@@ -21,5 +21,16 @@ describe('paramètres de message — une seule lecture', () => {
     expect(solanaMessageParam({ signMessage: 'abc' })).toBe('abc');
     expect(solanaMessageParam([{ message: 'm' }])).toBe('m');
     expect(solanaMessageParam({})).toBeUndefined();
+  });
+});
+
+describe('btcTransferParams — l’écran et l’envoi lisent la même chose', () => {
+  it('objet (spec) et tableau [adresse, montant]', () => {
+    expect(btcTransferParams([{ recipientAddress: 'bc1qa', amount: '5000' }])).toEqual({ to: 'bc1qa', amount: '5000' });
+    expect(btcTransferParams(['bc1qb', '7000'])).toEqual({ to: 'bc1qb', amount: '7000' });
+  });
+  it('champ vide : on passe au suivant, jamais une adresse vide', () => {
+    expect(btcTransferParams({ recipientAddress: '', recipient: 'bc1qc', amount: 1 }).to).toBe('bc1qc');
+    expect(btcTransferParams({}).to).toBeUndefined();
   });
 });
