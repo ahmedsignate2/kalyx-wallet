@@ -23,6 +23,7 @@ import { watchConfirmation } from '../lib/txWatch';
 import { friendlyTxError } from '../lib/txError';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
+import { toast } from '../lib/toast';
 import { space, SCREEN_MARGIN, radius, springs } from '../ui/tokens';
 import { useWallet, type SwapStatus, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
@@ -94,6 +95,10 @@ function SwapInner() {
   // Jeton « Tu donnes » choisi sur un AUTRE réseau : on bascule, puis on le sélectionne dès que sa liste est là.
   const pendingFrom = useRef<{ chainId: string; address: string } | null>(null);
   const pendingTo = useRef<{ chainId: string; address: string } | null>(null);
+  /** Destination choisie dont la liste n'est pas encore là : pas de devis tant qu'elle n'est pas appliquée. */
+  const [awaitingTo, setAwaitingTo] = useState(false);
+  /** `params.to` appliqué UNE fois : il ne doit plus écraser un choix fait ensuite. */
+  const paramToApplied = useRef(false);
   const account = useWallet((s) => s.account);
   const executeSwap = useWallet((s) => s.executeSwap);
   const chain = getAdapter(activeChain).config;
@@ -263,12 +268,12 @@ function SwapInner() {
   // Destination choisie avant que la liste de son réseau soit chargée : appliquée à son arrivée.
   useEffect(() => {
     const p = pendingTo.current;
-    if (!p || p.chainId !== toChain) return;
+    if (!p || p.chainId !== toChain || !toTokens.length) return;
     const idx = toTokens.findIndex((tk) => tk.address.toLowerCase() === p.address.toLowerCase());
-    if (idx >= 0) {
-      setTo(idx);
-      pendingTo.current = null;
-    }
+    pendingTo.current = null;
+    setAwaitingTo(false);
+    if (idx >= 0) setTo(idx);
+    else toast.error(t('errInvalidToken')); // liste chargée sans lui : dit, jamais remplacé en silence
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toChain, toTokens.length]);
 
@@ -277,9 +282,12 @@ function SwapInner() {
   // Arrivée depuis une fiche token ou le marché : le token demandé en destination.
   useEffect(() => {
     const sym = String(params.to ?? '').toLowerCase();
-    if (!sym) return;
+    if (!sym || paramToApplied.current) return;
     const idx = toTokens.findIndex((tk) => tk.symbol.toLowerCase() === sym);
-    if (idx >= 0) setTo(idx);
+    if (idx >= 0) {
+      setTo(idx);
+      paramToApplied.current = true;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.to, toTokens.length]);
   const isBridge = toChain !== activeChain;
@@ -524,7 +532,7 @@ function SwapInner() {
 
   const onConfirm = async (unlock: Unlock) => {
     if (!quote) return;
-    if (stale) throw new Error(t('quoteStale')); // devenu périmé pendant la saisie du code
+    if (stale) throw new Error(t('errQuoteExpired')); // devenu périmé pendant la saisie du code
     setStep(t('preparing'));
     sound.send();
     try {
@@ -727,7 +735,7 @@ function SwapInner() {
           />
           <AmountKeypad value={amount} onChange={(v) => { setSliderPct(null); setAmount(v); reset(); stopCountdown(); }} maxDecimals={Math.min(fromTok.decimals, 8)} />
           {!quote ? (
-            <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading} disabled={!amount || Number(amount) <= 0} />
+            <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading || awaitingTo} disabled={!amount || Number(amount) <= 0 || awaitingTo} />
           ) : stale ? (
             <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading} />
           ) : (
@@ -756,7 +764,7 @@ function SwapInner() {
             {stale ? (
               // Devis périmé : on le renouvelle, on ne signe pas un prix qui n'a plus cours.
               <>
-                <Text variant="caption" tone="warning">{t('quoteStale')}</Text>
+                <Text variant="caption" tone="warning">{t('errQuoteExpired')}</Text>
                 <Button label={t('getQuote')} onPress={() => { setReview(false); onQuote(); }} loading={loading} />
               </>
             ) : impactLevel === 'danger' ? (
@@ -807,11 +815,14 @@ function SwapInner() {
              * à son arrivée — on ne bascule plus en silence sur le premier jeton
              * (on aurait échangé vers autre chose que ce qui a été choisi).
              */
+            paramToApplied.current = true; // un choix explicite prime sur le lien d'arrivée
             if (idx >= 0) {
               pendingTo.current = null;
+              setAwaitingTo(false);
               setTo(idx);
             } else {
               pendingTo.current = { chainId, address: token.address };
+              setAwaitingTo(true);
             }
           }
           reset();
