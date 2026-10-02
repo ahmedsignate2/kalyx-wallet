@@ -43,6 +43,9 @@ const STALE_MS = 60_000;
 
 const accountKey = (a: EarnAccount) => `${a.evmAddress}|${a.solAddress ?? ''}`;
 
+let earnGen = 0;
+let earnLoadingKey: string | null = null;
+
 export const useEarn = create<EarnState>((set, get) => ({
   apys: {},
   balances: { underlying: {}, gas: {} },
@@ -59,7 +62,10 @@ export const useEarn = create<EarnState>((set, get) => ({
     const s = get();
     const fresh = s.loadedFor === key && s.pricesFiat === fiat && Date.now() - s.lastLoadedAt < STALE_MS;
     if (fresh && !opts?.force) return;
-    if (s.loading) return;
+    // En cours pour CE compte : rien à faire ; pour un autre, on relance et l'ancien résultat est ignoré.
+    if (s.loading && earnLoadingKey === key) return;
+    const gen = ++earnGen;
+    earnLoadingKey = key;
     set({ loading: true, error: null });
     try {
       const ids = [...new Set(EARN_CATALOG.flatMap((p) => [p.underlying.coingeckoId, p.receipt.coingeckoId]).filter((x): x is string => !!x))];
@@ -68,6 +74,7 @@ export const useEarn = create<EarnState>((set, get) => ({
         s.loadedFor === key && Object.keys(s.apys).length ? Promise.resolve(s.apys) : loadApys(),
         getPrices(ids, fiat).catch(() => ({} as Record<string, { price: number }>)),
       ]);
+      if (gen !== earnGen) return; // un autre compte a été demandé depuis
       const prices: Record<string, number> = {};
       for (const [id, v] of Object.entries(priceMap)) prices[id] = v.price;
       set({
@@ -81,6 +88,7 @@ export const useEarn = create<EarnState>((set, get) => ({
         loading: false,
       });
     } catch (e) {
+      if (gen !== earnGen) return;
       set({ loading: false, error: e instanceof Error ? e.message : 'Chargement impossible' });
     }
   },
@@ -88,6 +96,7 @@ export const useEarn = create<EarnState>((set, get) => ({
   refreshBalances: async (acct) => {
     try {
       const all = await loadAll(acct);
+      if (get().loadedFor !== accountKey(acct)) return; // compte changé entre-temps
       set({ balances: all.balances, positions: all.positions, lastLoadedAt: Date.now() });
     } catch {
       /* best-effort */

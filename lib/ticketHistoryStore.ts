@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sanitizeSecrets } from './secretDetector';
+import { isDecoySession, onDecoyChange } from './sessionMode';
 
 export interface StoredTicket {
   id: string; // Format KX-YYYYMMDD-XXXXX
@@ -150,7 +151,16 @@ export const useTicketHistoryStore = create<TicketHistoryState>()(
     }),
     {
       name: 'nova-support-tickets',
-      storage: createJSONStorage(() => safeAsyncStorage),
+      /*
+       * Session LEURRE (code de contrainte) : rien n'est lu ni écrit — les
+       * tickets réels (problèmes, adresses) trahiraient l'autre portefeuille,
+       * et « Effacer » ne doit pas toucher au vrai historique.
+       */
+      storage: createJSONStorage(() => ({
+        getItem: (k: string) => (isDecoySession() ? Promise.resolve(null) : safeAsyncStorage.getItem(k)),
+        setItem: (k: string, v: string) => (isDecoySession() ? Promise.resolve() : safeAsyncStorage.setItem(k, v)),
+        removeItem: (k: string) => (isDecoySession() ? Promise.resolve() : safeAsyncStorage.removeItem(k)),
+      })),
       /*
        * Tickets écrits par une version précédente, sans masquage : nettoyés
        * par une MIGRATION — elle seule est réécrite sur le disque (un `merge`
@@ -169,3 +179,8 @@ export const useTicketHistoryStore = create<TicketHistoryState>()(
     }
   )
 );
+
+onDecoyChange((on) => {
+  if (on) useTicketHistoryStore.setState({ tickets: [] });
+  else void useTicketHistoryStore.persist.rehydrate();
+});

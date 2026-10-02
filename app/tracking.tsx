@@ -16,6 +16,7 @@
  * ou annuler en attente, « Terminé » une fois le sort fixé.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIsWatchOnly } from '../ui/WatchOnlyGate';
 import { View, ScrollView, Linking, ActivityIndicator } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -231,8 +232,10 @@ export default function TrackingScreen() {
   const done = () => (router.canGoBack() ? router.back() : router.replace('/home'));
 
   /* ── Accélérer / annuler (EVM) ─────────────────────────────────────────── */
+  const watchOnly = useIsWatchOnly();
   const canReplace = (() => {
-    if (!chain) return false;
+    // Adresse suivie : aucune clé pour accélérer ou annuler — l'action finirait en refus après le code.
+    if (!chain || watchOnly) return false;
     const a = findAdapterV2(chain.id);
     return !!a?.capabilities.accelerate && !!a?.capabilities.cancel;
   })();

@@ -371,13 +371,25 @@ function OpportunityCard({ p, apy, available, price, fiat, onPress }: { p: EarnP
 function TonStakingCard() {
   const t = useT();
   const { colors, typography } = useTheme();
-  const hasTon = useWallet((s) => !!s.accounts[s.activeAccountIndex]?.tonPublicKey);
+  /*
+   * Clé TON du compte ACTIF, cherché par son index HD (pas par sa position dans
+   * la liste). Elle sert de dépendance : changer de portefeuille TON recharge
+   * la carte — sinon tsTON et l'adresse d'envoi restaient ceux du précédent.
+   */
+  const tonKey = useWallet((s) => s.accounts.find((a) => a.index === s.activeAccountIndex)?.tonPublicKey ?? '');
+  const walletId = useWallet((s) => s.activeWalletId);
+  const hasTon = !!tonKey;
   const [info, setInfo] = useState<StakingInfo | null>(null);
   const [action, setAction] = useState<'stake' | 'unstake' | null>(null);
   const load = useCallback(() => {
-    if (!hasTon) return setInfo(null);
-    loadStaking().then(setInfo).catch(() => setInfo(null));
-  }, [hasTon]);
+    setInfo(null);
+    if (!hasTon) return;
+    let alive = true;
+    loadStaking().then((v) => alive && setInfo(v)).catch(() => alive && setInfo(null));
+    return () => {
+      alive = false;
+    };
+  }, [hasTon, tonKey, walletId]);
   useEffect(load, [load]);
   if (!hasTon || !info) return null;
   const tsTon = info.tsTon?.raw ?? 0n;

@@ -1708,6 +1708,7 @@ const en = {
   siteNotResponding:
     "The site did not respond properly. Check your connection then try again.",
   retry: "Retry",
+  bootFailed: "Kalyx could not read its data on this device. Your funds are safe on the blockchain. Try again; if it persists, restart the phone.",
   networkError: "Network error",
   openUrl: "Open",
   searchQuery: "Search",
@@ -3744,6 +3745,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     siteNotResponding:
       "Le site n’a pas répondu correctement. Vérifie ta connexion puis réessaie.",
     retry: "Réessayer",
+    bootFailed: "Kalyx n'a pas pu lire ses données sur cet appareil. Tes fonds sont en sécurité sur la blockchain. Réessaie ; si cela persiste, redémarre le téléphone.",
     networkError: "Erreur réseau",
     openUrl: "Ouvrir",
     searchQuery: "Rechercher",
@@ -5774,6 +5776,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     siteNotResponding:
       "El sitio no respondió correctamente. Comprueba tu conexión y vuelve a intentarlo.",
     retry: "Reintentar",
+    bootFailed: "Kalyx no pudo leer sus datos en este dispositivo. Tus fondos están seguros en la blockchain. Inténtalo de nuevo; si persiste, reinicia el teléfono.",
     networkError: "Error de red",
     openUrl: "Abrir",
     searchQuery: "Buscar",
@@ -7791,6 +7794,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     cannotOpenPage: "Não é possível abrir página",
     siteNotResponding: "O site não responde. Verifique a ligação.",
     retry: "Tentar novamente",
+    bootFailed: "A Kalyx não conseguiu ler os dados neste dispositivo. Os seus fundos estão seguros na blockchain. Tente de novo; se persistir, reinicie o telemóvel.",
     networkError: "Erro de rede",
     openUrl: "Abrir",
     searchQuery: "Pesquisar",
@@ -9813,6 +9817,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     cannotOpenPage: "Seite kann nicht geöffnet werden",
     siteNotResponding: "Seite antwortet nicht.",
     retry: "Wiederholen",
+    bootFailed: "Kalyx konnte seine Daten auf diesem Gerät nicht lesen. Deine Guthaben sind auf der Blockchain sicher. Versuche es erneut; falls es bleibt, starte das Telefon neu.",
     networkError: "Netzwerkfehler",
     openUrl: "Öffnen",
     searchQuery: "Suchen",
@@ -11826,6 +11831,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     cannotOpenPage: "Impossibile aprire la pagina",
     siteNotResponding: "Il sito non risponde.",
     retry: "Riprova",
+    bootFailed: "Kalyx non è riuscita a leggere i dati su questo dispositivo. I tuoi fondi sono al sicuro sulla blockchain. Riprova; se persiste, riavvia il telefono.",
     networkError: "Errore di rete",
     openUrl: "Apri",
     searchQuery: "Cerca",
@@ -13850,6 +13856,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     siteNotResponding:
       "De site reageerde niet goed. Controleer je verbinding en probeer het opnieuw.",
     retry: "Opnieuw proberen",
+    bootFailed: "Kalyx kon zijn gegevens op dit apparaat niet lezen. Je tegoeden zijn veilig op de blockchain. Probeer het opnieuw; blijft het, herstart dan de telefoon.",
     networkError: "Netwerkfout",
     openUrl: "Openen",
     searchQuery: "Zoeken",
@@ -15874,6 +15881,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     siteNotResponding:
       "Strona nie odpowiada prawidłowo. Sprawdź swoje połączenie i spróbuj ponownie.",
     retry: "Spróbuj ponownie",
+    bootFailed: "Kalyx nie mógł odczytać danych na tym urządzeniu. Twoje środki są bezpieczne w blockchainie. Spróbuj ponownie; jeśli problem nie zniknie, uruchom ponownie telefon.",
     networkError: "Błąd sieci",
     openUrl: "Otwórz",
     searchQuery: "Szukaj",
@@ -17894,6 +17902,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     siteNotResponding:
       "Site düzgün yanıt vermedi. Bağlantınızı kontrol edin ve tekrar deneyin.",
     retry: "Yeniden Dene",
+    bootFailed: "Kalyx bu cihazdaki verilerini okuyamadı. Fonların blokzincirde güvende. Yeniden dene; devam ederse telefonu yeniden başlat.",
     networkError: "Ağ Hatası",
     openUrl: "Aç",
     searchQuery: "Ara",
@@ -19930,6 +19939,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     siteNotResponding:
       "Сайт не ответил должным образом. Проверьте соединение и попробуйте снова.",
     retry: "Повторить",
+    bootFailed: "Kalyx не удалось прочитать данные на этом устройстве. Ваши средства в безопасности в блокчейне. Повторите попытку; если не поможет, перезагрузите телефон.",
     networkError: "Ошибка сети",
     openUrl: "Открыть",
     searchQuery: "Поиск",
@@ -21955,6 +21965,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     siteNotResponding:
       "لم يستجب الموقع بشكل صحيح. تحقق من اتصالك وحاول مرة أخرى.",
     retry: "إعادة المحاولة",
+    bootFailed: "تعذّر على Kalyx قراءة بياناته على هذا الجهاز. أموالك آمنة على البلوكشين. حاول مجددًا؛ وإن استمر الأمر فأعد تشغيل الهاتف.",
     networkError: "خطأ في الشبكة",
     openUrl: "فتح",
     searchQuery: "بحث",
@@ -23994,6 +24005,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     siteNotResponding:
       "साइट ने ठीक से जवाब नहीं दिया। अपने कनेक्शन की जांच करें और पुनः प्रयास करें।",
     retry: "पुनः प्रयास करें",
+    bootFailed: "Kalyx इस डिवाइस पर अपना डेटा नहीं पढ़ सका। आपकी निधि ब्लॉकचेन पर सुरक्षित है। फिर कोशिश करें; समस्या बनी रहे तो फ़ोन रीस्टार्ट करें।",
     networkError: "नेटवर्क त्रुटि",
     openUrl: "खोलें",
     searchQuery: "खोज",
@@ -25992,6 +26004,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     cannotOpenPage: "无法打开此页面",
     siteNotResponding: "网站未正确响应。请检查您的连接并重试。",
     retry: "重试",
+    bootFailed: "Kalyx 无法读取此设备上的数据。你的资金在区块链上是安全的。请重试；如果问题仍然存在，请重启手机。",
     networkError: "网络错误",
     openUrl: "打开",
     searchQuery: "搜索",
@@ -28011,6 +28024,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     siteNotResponding:
       "サイトが正しく応答しませんでした。接続を確認して再試行してください。",
     retry: "再試行",
+    bootFailed: "Kalyx はこの端末のデータを読み込めませんでした。資産はブロックチェーン上で安全です。もう一度お試しください。続く場合は端末を再起動してください。",
     networkError: "ネットワークエラー",
     openUrl: "開く",
     searchQuery: "検索",
@@ -30020,6 +30034,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     siteNotResponding:
       "사이트가 제대로 응답하지 않았습니다. 연결을 확인하고 다시 시도하세요.",
     retry: "다시 시도",
+    bootFailed: "Kalyx가 이 기기에서 데이터를 읽지 못했습니다. 자금은 블록체인에 안전하게 있습니다. 다시 시도하고, 계속되면 휴대폰을 다시 시작하세요.",
     networkError: "네트워크 오류",
     openUrl: "열기",
     searchQuery: "검색",
