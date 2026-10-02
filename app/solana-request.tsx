@@ -215,11 +215,18 @@ export default function SolanaRequestScreen() {
           const decoded = solanaTxDecode(signed);
           if (!decoded) throw new Error(t('solReqFailed'));
           /*
-           * Diffusion et confirmation EN ARRIÈRE-PLAN : la fenêtre de
-           * confirmation (15 s sous biométrie) ne doit pas annoncer un échec
-           * pour un paiement qui passe. L'issue réelle est dite par un toast.
+           * Simulation et ENVOI attendus ici (rapides, et un refus certain —
+           * fonds, loyer — doit s'afficher comme un échec, pas après un succès).
+           * Seule l'attente de confirmation passe en arrière-plan : la fenêtre
+           * (15 s sous biométrie) n'annonce pas d'échec pour un paiement qui passe.
            */
-          void submitSolanaSigned(base64.encode(decoded.bytes)).then(
+          let resolveSent!: () => void;
+          const sent = new Promise<void>((r) => (resolveSent = r));
+          const done = submitSolanaSigned(base64.encode(decoded.bytes), (st) => {
+            if (st !== 'sending') resolveSent(); // diffusée : la suite n'est que l'attente du réseau
+          });
+          await Promise.race([sent, done.then(() => undefined)]);
+          void done.then(
             (sig) => toast.success(t('sendTitle'), shortAddress(sig)),
             (e) => toast.error(friendlyTxError(e, t as never)),
           );

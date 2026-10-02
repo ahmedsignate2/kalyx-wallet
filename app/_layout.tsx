@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { attachPriceCacheStorage } from '../src';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { journal } from '../lib/debugJournal';
 import { JournalProbe } from '../ui/JournalProbe';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -101,12 +101,23 @@ export default function RootLayout() {
   }, [storeReady, hasWallet, isUnlocked, pathname]);
   const [opening, setOpening] = useState<'wait' | 'splash' | 'done'>('wait');
   const [bootError, setBootError] = useState(false);
+  /** Session demandée au lancement (leurre ou réelle) : un nouvel essai rouvre LA MÊME. */
+  const bootDecoyId = useRef<string | null>(null);
+  const retrying = useRef(false);
   const retryBoot = () => {
+    if (retrying.current) return; // double appui : un seul démarrage à la fois
+    retrying.current = true;
     setBootError(false);
-    void useWallet.getState().bootstrap().catch((e) => {
-      console.error('[Kalyx] bootstrap a échoué (nouvel essai) :', e);
-      setBootError(true);
-    });
+    const id = bootDecoyId.current;
+    const run = id ? useWallet.getState().bootDecoy(id) : useWallet.getState().bootstrap();
+    void run
+      .catch((e) => {
+        console.error('[Kalyx] démarrage a échoué (nouvel essai) :', e);
+        setBootError(true);
+      })
+      .finally(() => {
+        retrying.current = false;
+      });
   };
   useEffect(() => {
     if (!storeReady || opening !== 'wait') return;
@@ -191,6 +202,7 @@ export default function RootLayout() {
          * suivent ne lisent rien des vraies données.
          */
         const decoyId = await (await import('../lib/decoyCurtain')).consumeDecoyBoot();
+        bootDecoyId.current = decoyId ?? null;
         if (decoyId) await useWallet.getState().bootDecoy(decoyId);
         else await bootstrap();
         console.log('[Kalyx] bootstrap OK');

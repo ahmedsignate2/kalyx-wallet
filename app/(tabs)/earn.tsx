@@ -5,7 +5,7 @@
  * positions, prix. Actions : `EarnSheet` (devis → confirmation → exécution).
  */
 import { withWatchOnlyGate } from '../../ui/WatchOnlyGate';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, Text, View } from 'react-native';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import { GlassCard, RemoteIcon, SkeletonRow, PressableScale } from '../../ui/premium';
@@ -381,16 +381,23 @@ function TonStakingCard() {
   const hasTon = !!tonKey;
   const [info, setInfo] = useState<StakingInfo | null>(null);
   const [action, setAction] = useState<'stake' | 'unstake' | null>(null);
-  const load = useCallback(() => {
-    setInfo(null);
+  /** Relecture demandée après un staking : passe par l'effet (annulable), sans vider la carte. */
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const lastAccount = useRef('');
+  useEffect(() => {
+    const accountId = `${walletId}:${tonKey}`;
+    // Compte changé : la carte du précédent disparaît. Simple relecture : elle reste affichée.
+    if (lastAccount.current !== accountId) {
+      lastAccount.current = accountId;
+      setInfo(null);
+    }
     if (!hasTon) return;
     let alive = true;
     loadStaking().then((v) => alive && setInfo(v)).catch(() => alive && setInfo(null));
     return () => {
       alive = false;
     };
-  }, [hasTon, tonKey, walletId]);
-  useEffect(load, [load]);
+  }, [hasTon, tonKey, walletId, reloadNonce]);
   if (!hasTon || !info) return null;
   const tsTon = info.tsTon?.raw ?? 0n;
   const inTon = info.tsTonInTon ? Number(formatAmount(tsTon, 9)) * info.tsTonInTon : null;
@@ -416,7 +423,7 @@ function TonStakingCard() {
         <View style={{ flex: 1 }}><Button label={t('stkStake')} onPress={() => setAction('stake')} /></View>
         {tsTon > 0n ? <View style={{ flex: 1 }}><Button label={t('stkUnstake')} variant="ghost" onPress={() => setAction('unstake')} /></View> : null}
       </View>
-      {action ? <TonStakingSheet info={info} action={action} onClose={() => setAction(null)} onDone={() => { setAction(null); load(); }} /> : null}
+      {action ? <TonStakingSheet info={info} action={action} onClose={() => setAction(null)} onDone={() => { setAction(null); setReloadNonce((n) => n + 1); }} /> : null}
     </GlassCard>
   );
 }
