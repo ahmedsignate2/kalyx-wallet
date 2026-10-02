@@ -297,7 +297,7 @@ interface WalletState {
   bumpBitcoin: (txid: string, unlock: Unlock, speed?: FeeSpeed) => Promise<string>;
   executeSwap: (quote: SwapQuote, unlock: Unlock, onStatus?: (s: SwapStatus) => void) => Promise<string>;
 
-  signSolanaTransaction: (unlock: Unlock, txStr: string, refreshBlockhash?: boolean) => Promise<string>;
+  signSolanaTransaction: (unlock: Unlock, txStr: string, refreshBlockhash?: boolean, opts?: { appFlow?: boolean }) => Promise<string>;
   signSolanaTransactions: (unlock: Unlock, txStrArray: string[]) => Promise<string[]>;
   signSolanaMessage: (unlock: Unlock, message: string) => Promise<{ signature: string }>;
   signBitcoinMessage: (unlock: Unlock, message: string, type?: 'ecdsa' | 'bip322') => Promise<string>;
@@ -307,7 +307,12 @@ interface WalletState {
   signMessage: (unlock: Unlock, message: string) => Promise<string>;
   /** `expectedChainId` : réseau de la demande ; un `domain.chainId` différent est refusé (rejeu sur un autre réseau). */
   signTypedData: (unlock: Unlock, typedData: { domain: unknown; types: Record<string, unknown>; message: unknown }, expectedChainId?: number) => Promise<string>;
-  sendRawTxOn: (unlock: Unlock, chainId: string, req: RawTxRequest) => Promise<string>;
+  /**
+   * Transaction EVM brute. FERMÉE sous liste blanche, sauf `appFlow` : un
+   * parcours construit par l'app vers les comptes de l'utilisateur (Earn,
+   * accélération, révocation). Les dApps n'ont pas ce drapeau.
+   */
+  sendRawTxOn: (unlock: Unlock, chainId: string, req: RawTxRequest, opts?: { appFlow?: boolean }) => Promise<string>;
   /**
    * RÉVOCATION GROUPÉE d'autorisations ERC-20 : une seule confirmation (code ou
    * biométrie), puis une transaction par autorisation, nonces consécutifs
@@ -1856,7 +1861,8 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
 
-  signSolanaTransaction: async (unlock, txStr, refreshBlockhash = false) => {
+  signSolanaTransaction: async (unlock, txStr, refreshBlockhash = false, opts) => {
+    if (!opts?.appFlow) await (await import('./whitelistStore')).assertDappAllowed(); // fermé par défaut (dApps)
     const { account } = get();
     if (!account) throw new Error('Aucun compte');
     /*
@@ -1910,6 +1916,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signSolanaMessage: async (unlock, message) => {
+    await (await import('./whitelistStore')).assertDappAllowed(); // un message signé peut autoriser un transfert
     const { account } = get();
     if (!account) throw new Error('Aucun compte');
     const signer = await get().deriveSigner(getAdapterV2('solana'), unlock);
@@ -1932,6 +1939,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signBitcoinMessage: async (unlock, message, type = 'ecdsa') => {
+    await (await import('./whitelistStore')).assertDappAllowed(); // un message signé peut autoriser un transfert
     const { account } = get();
     if (!account) throw new Error('Aucun compte');
 
@@ -1988,6 +1996,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signMessage: async (unlock, message) => {
+    await (await import('./whitelistStore')).assertDappAllowed(); // un message signé peut autoriser un transfert
     const { account, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
@@ -2026,7 +2035,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     );
   },
 
-  sendRawTxOn: async (unlock, chainId, req) => {
+  sendRawTxOn: async (unlock, chainId, req, opts) => {
+    if (!opts?.appFlow) await (await import('./whitelistStore')).assertDappAllowed(); // fermé par défaut
     const { account, accounts, activeAccountIndex, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(chainId);

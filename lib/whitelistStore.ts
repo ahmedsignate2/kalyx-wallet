@@ -23,6 +23,8 @@
 import { create } from 'zustand';
 import {
   EvmChainAdapter,
+  withTimeout,
+  whitelistHoursUntil,
   EMPTY_WHITELIST,
   WalletError,
   checkRecipient,
@@ -59,31 +61,56 @@ export function resetChainClock(): void {
   anchor = null;
 }
 
-/** Heure de CHAÎNE (ms), ou null si aucun réseau ne répond. Les réseaux sont interrogés ensemble. */
-export async function chainNow(): Promise<number | null> {
-  if (anchor && mono() - anchor.mono < TIME_TTL_MS) return anchor.chain + (mono() - anchor.mono);
-  const known = new Set(listChains().map((c) => c.id));
-  const probes = TIME_CHAINS.filter((id) => known.has(id))
-    .map((id) => getAdapter(id))
-    .filter((a): a is EvmChainAdapter => a instanceof EvmChainAdapter)
-    .map((a) => a.getLatestBlockTime());
-  try {
-    const t = await firstSuccess(probes);
-    anchor = { chain: t, mono: mono() };
-    return t;
-  } catch {
-    // Ancre plus ancienne mais connue : toujours mieux que l'heure du téléphone.
-    return anchor ? anchor.chain + (mono() - anchor.mono) : null;
-  }
-}
+/** Écart toléré entre sources, et saut maximal par rapport à l'heure déjà établie. */
+const TIME_TOLERANCE_MS = 15 * 60_000;
+const SOURCE_TIMEOUT_MS = 6_000;
+let inflightNow: Promise<number | null> | null = null;
 
-/** Première promesse résolue (Promise.any, absent de certains moteurs) ; rejette si toutes échouent. */
-function firstSuccess<T>(ps: Promise<T>[]): Promise<T> {
-  return new Promise((resolve, reject) => {
-    let left = ps.length;
-    if (!left) return reject(new Error('aucune source'));
-    for (const p of ps) p.then(resolve, () => { if (--left === 0) reject(new Error('aucune source')); });
+/**
+ * Heure de CHAÎNE (ms), ou null si aucun réseau ne répond. Les trois réseaux
+ * sont interrogés ensemble (une lecture partagée entre appelants) :
+ *  - trois réponses → la MÉDIANE (une source menteuse ne décide pas seule) ;
+ *  - deux → acceptées si elles concordent (15 min) ;
+ *  - une seule → acceptée sans heure établie, sinon seulement si elle concorde
+ *    avec l'heure établie avancée par l'horloge monotone : un nœud seul qui
+ *    annoncerait « dans 2 jours » ne fait pas échoir les délais.
+ */
+export function chainNow(): Promise<number | null> {
+  if (anchor && mono() - anchor.mono < TIME_TTL_MS) return Promise.resolve(anchor.chain + (mono() - anchor.mono));
+  if (inflightNow) return inflightNow;
+  inflightNow = (async () => {
+    const known = new Set(listChains().map((c) => c.id));
+    const sources = TIME_CHAINS.filter((id) => known.has(id))
+      .map((id) => getAdapter(id))
+      .filter((a): a is EvmChainAdapter => a instanceof EvmChainAdapter);
+    const got = (
+      await Promise.all(sources.map((a) => withTimeout(a.getLatestBlockTime(), SOURCE_TIMEOUT_MS, () => new Error('timeout')).catch(() => null)))
+    ).filter((x): x is number => typeof x === 'number' && Number.isFinite(x));
+    const projected = anchor ? anchor.chain + (mono() - anchor.mono) : null;
+    let t: number | null = null;
+    const sorted = [...got].sort((a, b) => a - b);
+    if (sorted.length >= 3) {
+      t = sorted[1]; // médiane : une source menteuse ne décide pas seule
+    } else if (sorted.length === 2) {
+      // Deux sources : elles doivent concorder.
+      if (sorted[1] - sorted[0] <= TIME_TOLERANCE_MS) t = sorted[1];
+    } else if (sorted.length === 1) {
+      /*
+       * Une seule source : acceptée sans heure établie ; sinon seulement si
+       * elle concorde avec la projection (pas de saut en avant suspect). Un
+       * téléphone resté en veille rattrape l'heure dès que deux sources répondent.
+       */
+      if (projected == null || Math.abs(sorted[0] - projected) <= TIME_TOLERANCE_MS) t = sorted[0];
+    }
+    if (t != null) {
+      anchor = { chain: t, mono: mono() };
+      return t;
+    }
+    return projected; // ancre connue : toujours mieux que l'heure du téléphone ; sinon null
+  })().finally(() => {
+    inflightNow = null;
   });
+  return inflightNow;
 }
 
 export const useWhitelist = create<{ wl: WhitelistState; loaded: boolean }>(() => ({ wl: EMPTY_WHITELIST, loaded: false }));
@@ -113,7 +140,9 @@ async function read(): Promise<{ wl: WhitelistState; ok: boolean }> {
 /** État À JOUR (une désactivation échue est appliquée et enregistrée). */
 export async function loadWhitelist(): Promise<WhitelistState> {
   const { wl, ok } = await read();
-  if (!ok || !wl.enabled || wl.disableAt == null) return wl;
+  if (!ok || !wl.enabled) return wl;
+  // Désactivation échue, ou délai « pas encore démarré » d'un portefeuille noté hors ligne : réglés avec l'heure.
+  if (wl.disableAt == null && !wl.trusted.some((x) => x.activeAt < 0)) return wl;
   const now = await chainNow();
   const settled = whitelistSettle(wl, now);
   if (settled !== wl) await mutate((cur, n) => whitelistSettle(cur, n)).catch(() => {});
@@ -205,7 +234,7 @@ export async function assertRecipientAllowed(to: string): Promise<void> {
   const v = checkRecipient(on.wl, to, on.now, addressKey, (a) => !!lookupAddress(own, a));
   if (v.kind === 'blocked') throw new WalletError('NOT_WHITELISTED', 'Destinataire absent de la liste blanche');
   if (v.kind === 'pending') {
-    const hours = on.now == null ? '24' : String(Math.max(1, Math.ceil((v.activeAt - on.now) / 3_600_000)));
+    const hours = String(whitelistHoursUntil(v.activeAt, on.now));
     throw new WalletError('WHITELIST_PENDING', 'Destinataire dans son délai de sûreté', { activeAt: String(v.activeAt), hours });
   }
 }

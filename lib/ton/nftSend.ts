@@ -50,6 +50,8 @@ export async function planNftSend(p: { chainId: string; nftAddress: string; reci
 }
 
 export async function sendNft(plan: NftSendPlan, unlock: Unlock): Promise<string> {
+  // Un NFT est un envoi comme un autre : liste blanche appliquée (.ton, numéros Telegram…).
+  await (await import('../whitelistStore')).assertRecipientAllowed(plan.to);
   const adapter = adapterFor(plan.chainId);
   const signer = await useWallet.getState().deriveSigner(adapter, unlock);
   const signed = await withSigner(signer, (s) => adapter.signDappTransfer(plan.draft, s));

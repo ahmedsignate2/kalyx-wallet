@@ -435,7 +435,7 @@ export default function TrackingScreen() {
         perform={async (unlock: Unlock) => {
           if (!preparedTx || !chain) return;
           try {
-            const newHash = await sendRawTxOn(unlock, chain.id, preparedTx);
+            const newHash = await sendRawTxOn(unlock, chain.id, preparedTx, { appFlow: true }); // accélérer SA transaction
             haptic.success();
             toast.success(t('replacementSuccess'));
             // Suivre la REMPLAÇANTE, depuis zéro.

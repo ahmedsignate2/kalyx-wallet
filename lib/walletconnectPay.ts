@@ -698,6 +698,7 @@ async function signPayAction(action: PayAction, unlock: Unlock): Promise<string>
 
   switch (method as PayMethod) {
     case 'personal_sign': {
+      await (await import('./whitelistStore')).assertDappAllowed(); // un message signé peut autoriser un paiement
       // `personal_sign` reçoit [message, adresse] ; l'ordre peut être inversé
       // selon l'émetteur, on retient ce qui n'est pas notre adresse.
       // Adresse EVM du compte actif (celle qui signe) — pas l'adresse du réseau affiché.
