@@ -5,6 +5,7 @@
  */
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isDecoySession, onDecoyChange } from './sessionMode';
 import { notify } from './notifications';
 import { useSettings } from './settingsStore';
 
@@ -33,12 +34,15 @@ interface NotifCenterState {
 let seq = 0;
 
 function persist(items: NotifItem[]) {
+  // Session leurre : rien n'est écrit par-dessus les vraies notifications.
+  if (isDecoySession()) return;
   void AsyncStorage.setItem(KEY, JSON.stringify(items)).catch(() => {});
 }
 
 export const useNotifCenter = create<NotifCenterState>((set, get) => ({
   items: [],
   load: async () => {
+    if (isDecoySession()) return set({ items: [] });
     try {
       const raw = await AsyncStorage.getItem(KEY);
       set({ items: raw ? (JSON.parse(raw) as NotifItem[]) : [] });
@@ -59,9 +63,15 @@ export const useNotifCenter = create<NotifCenterState>((set, get) => ({
   },
   clear: () => {
     set({ items: [] });
-    void AsyncStorage.removeItem(KEY).catch(() => {});
+    if (!isDecoySession()) void AsyncStorage.removeItem(KEY).catch(() => {});
   },
 }));
+
+// Session leurre : les vraies notifications disparaissent ; à la sortie, elles reviennent.
+onDecoyChange((on) => {
+  if (on) useNotifCenter.setState({ items: [] });
+  else void useNotifCenter.getState().load();
+});
 
 /** Nombre de non-lus (sélecteur pratique). */
 export function unreadCount(items: NotifItem[]): number {

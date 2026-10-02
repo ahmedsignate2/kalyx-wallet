@@ -13,6 +13,8 @@
  *
  * Repli localStorage si IndexedDB est indisponible (ex. certains modes privés).
  */
+import { decoyMayRead, decoyMayWrite } from './sessionMode';
+
 type Opts = unknown;
 
 const DB_NAME = 'nova';
@@ -163,6 +165,7 @@ async function open_(db: IDBDatabaseLike, stored: unknown): Promise<string | nul
 /* ------------------------------------------------------------------- API kv */
 
 export async function kvSet(key: string, value: string, _opts?: Opts): Promise<void> {
+  if (!decoyMayWrite(key)) return;
   const db = await openDB();
   if (!db) {
     try { ls()?.setItem(key, value); } catch { /* ignore */ }
@@ -177,6 +180,7 @@ export async function kvSet(key: string, value: string, _opts?: Opts): Promise<v
 }
 
 export async function kvGet(key: string, _opts?: Opts): Promise<string | null> {
+  if (!decoyMayRead(key)) return null;
   const db = await openDB();
   if (!db) {
     try { return ls()?.getItem(key) ?? null; } catch { return null; }
@@ -193,6 +197,7 @@ export async function kvGet(key: string, _opts?: Opts): Promise<string | null> {
 }
 
 export async function kvDel(key: string, _opts?: Opts): Promise<void> {
+  if (!decoyMayWrite(key)) return;
   const db = await openDB();
   if (!db) {
     try { ls()?.removeItem(key); } catch { /* ignore */ }

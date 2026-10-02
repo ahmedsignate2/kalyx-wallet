@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isDecoySession, onDecoyChange } from './sessionMode';
 
 export interface ChatMessage {
   id: string;
@@ -91,7 +92,17 @@ export const useAiChatHistoryStore = create<AiChatHistoryState>()(
     }),
     {
       name: 'kalyx-ai-chat-history',
-      storage: createJSONStorage(() => AsyncStorage),
+      // Session leurre : lectures vides, écritures ignorées (les vraies conversations restent intactes).
+      storage: createJSONStorage(() => ({
+        getItem: (k: string) => (isDecoySession() ? Promise.resolve(null) : AsyncStorage.getItem(k)),
+        setItem: (k: string, v: string) => (isDecoySession() ? Promise.resolve() : AsyncStorage.setItem(k, v)),
+        removeItem: (k: string) => (isDecoySession() ? Promise.resolve() : AsyncStorage.removeItem(k)),
+      })),
     }
   )
 );
+
+onDecoyChange((on) => {
+  if (on) useAiChatHistoryStore.setState({ sessions: [], activeSessionId: null });
+  else void useAiChatHistoryStore.persist.rehydrate();
+});
