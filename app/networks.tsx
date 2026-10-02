@@ -93,8 +93,16 @@ export default function Networks() {
   };
 
   const [probing, setProbing] = useState(false);
+  /** Formulaire fermé pendant la vérification : son résultat est ignoré (aucun ajout, aucune bascule). */
+  const addGen = useRef(0);
+  const closeAdd = () => {
+    addGen.current += 1;
+    setProbing(false);
+    setAddOpen(false);
+  };
   const saveCustomChain = async () => {
     if (probing) return;
+    const gen = addGen.current;
     setFormError(null);
     /*
      * Même contrôle que l'écran Développeur : le Chain ID RÉEL du RPC. Un RPC
@@ -104,6 +112,7 @@ export default function Networks() {
     if ((form.family ?? 'evm') === 'evm' && /^https:\/\//i.test(form.rpcUrl.trim()) && Number.isInteger(form.evmChainId) && form.evmChainId > 0) {
       setProbing(true);
       const got = await probeRpcChainId(form.rpcUrl.trim()).finally(() => setProbing(false));
+      if (gen !== addGen.current) return; // annulé entre-temps
       if (got === null) return setFormError(t('netErrUnreachable'));
       if (got !== form.evmChainId) return setFormError(t('netErrMismatch').replace('{got}', String(got)).replace('{want}', String(form.evmChainId)));
     }
@@ -255,7 +264,7 @@ export default function Networks() {
         </View>
       </ScrollView>
       <ExplainSheet visible={!!explain} onClose={() => setExplain(null)} subject={explain ? { kind: 'network', name: explain.name, logo: chainIconUrl(explain.id), seed: explain.id } : null} />
-      <SafeModal visible={addOpen} transparent animationType="slide" onRequestClose={() => setAddOpen(false)}>
+      <SafeModal visible={addOpen} transparent animationType="slide" onRequestClose={closeAdd}>
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
           <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing(2.5), gap: spacing(1.25) }}>
             <Text style={typography.section}>{t("addNetwork")}</Text>
@@ -325,7 +334,7 @@ export default function Networks() {
             </View>
             {formError ? <Text style={{ color: colors.danger }}>{formError}</Text> : null}
             <View style={{ flexDirection: 'row', gap: space[3] }}>
-              <View style={{ flex: 1 }}><Button label={t('cancel')} variant="ghost" onPress={() => setAddOpen(false)} /></View>
+              <View style={{ flex: 1 }}><Button label={t('cancel')} variant="ghost" onPress={closeAdd} /></View>
               <View style={{ flex: 1 }}><Button label={t('saveNetwork')} onPress={() => void saveCustomChain()} loading={probing} /></View>
             </View>
           </View>

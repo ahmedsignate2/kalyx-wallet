@@ -94,6 +94,9 @@ export const safeAsyncStorage = {
   },
 };
 
+/** Sortie de la session leurre : la prochaine relecture ne garde rien de la mémoire. */
+let dropMemoryOnHydrate = false;
+
 export const useTicketHistoryStore = create<TicketHistoryState>()(
   persist(
     (set, get) => ({
@@ -166,6 +169,12 @@ export const useTicketHistoryStore = create<TicketHistoryState>()(
        * par une MIGRATION — elle seule est réécrite sur le disque (un `merge`
        * ne nettoyait que la mémoire, le clair restait stocké).
        */
+      merge: (persisted, current) => {
+        const stored = (persisted as { tickets?: StoredTicket[] } | undefined)?.tickets;
+        const drop = dropMemoryOnHydrate;
+        dropMemoryOnHydrate = false;
+        return { ...current, tickets: stored ?? (drop ? [] : current.tickets) };
+      },
       version: 1,
       migrate: (persisted) => {
         const tickets = ((persisted as { tickets?: StoredTicket[] } | undefined)?.tickets ?? []).map((tk) => ({
@@ -181,6 +190,15 @@ export const useTicketHistoryStore = create<TicketHistoryState>()(
 );
 
 onDecoyChange((on) => {
-  if (on) useTicketHistoryStore.setState({ tickets: [] });
-  else void useTicketHistoryStore.persist.rehydrate();
+  if (on) {
+    useTicketHistoryStore.setState({ tickets: [] }); // écriture neutralisée : la session est déjà leurre
+    return;
+  }
+  /*
+   * Sortie : la relecture REMPLACE la mémoire (tickets du leurre compris),
+   * même sans vrai historique — et sans `setState`, qui écrirait une liste
+   * vide par-dessus le vrai historique.
+   */
+  dropMemoryOnHydrate = true;
+  void useTicketHistoryStore.persist.rehydrate();
 });

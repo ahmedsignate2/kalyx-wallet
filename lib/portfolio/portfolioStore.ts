@@ -473,6 +473,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   hydrate: async (acct, fiat, opts) => {
     const key = snapshotKey(acct, fiat, opts?.includeTestnets === true);
     if (get().key === key) return;
+    // Autre compte : tout chargement en vol pour l'ancien devient caduc (son résultat ne s'affichera plus).
+    if (loadingKey !== key) {
+      refreshGen += 1;
+      loadingKey = null;
+      set({ loading: false });
+    }
     try {
       const json = await AsyncStorage.getItem(key);
       const snap = json ? deserialize(json) : null;

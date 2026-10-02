@@ -97,6 +97,18 @@ function SwapInner() {
   const pendingTo = useRef<{ chainId: string; address: string } | null>(null);
   /** Destination choisie dont la liste n'est pas encore là : pas de devis tant qu'elle n'est pas appliquée. */
   const [awaitingTo, setAwaitingTo] = useState(false);
+  // Liste qui n'arrive jamais (réseau muet) : le devis n'est pas bloqué pour toujours.
+  useEffect(() => {
+    if (!awaitingTo) return;
+    const id = setTimeout(() => {
+      if (!pendingTo.current) return;
+      pendingTo.current = null;
+      setAwaitingTo(false);
+      toast.error(t('errNetworkOffline'));
+    }, 15_000);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awaitingTo]);
   /** `params.to` appliqué UNE fois : il ne doit plus écraser un choix fait ensuite. */
   const paramToApplied = useRef(false);
   const account = useWallet((s) => s.account);
@@ -268,7 +280,13 @@ function SwapInner() {
   // Destination choisie avant que la liste de son réseau soit chargée : appliquée à son arrivée.
   useEffect(() => {
     const p = pendingTo.current;
-    if (!p || p.chainId !== toChain || !toTokens.length) return;
+    if (p && p.chainId !== toChain) {
+      // Réseau d'arrivée changé depuis : ce choix n'a plus d'objet.
+      pendingTo.current = null;
+      setAwaitingTo(false);
+      return;
+    }
+    if (!p || !toTokens.length) return;
     const idx = toTokens.findIndex((tk) => tk.address.toLowerCase() === p.address.toLowerCase());
     pendingTo.current = null;
     setAwaitingTo(false);
@@ -820,6 +838,11 @@ function SwapInner() {
               pendingTo.current = null;
               setAwaitingTo(false);
               setTo(idx);
+            } else if (list.length) {
+              // Liste déjà là sans ce jeton : on le dit tout de suite.
+              pendingTo.current = null;
+              setAwaitingTo(false);
+              toast.error(t('errInvalidToken'));
             } else {
               pendingTo.current = { chainId, address: token.address };
               setAwaitingTo(true);

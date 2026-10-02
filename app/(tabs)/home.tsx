@@ -170,7 +170,7 @@ export default function Home() {
     if (!acct) return;
     pf.hydrate(acct, fiat).then(() => pf.refresh(acct, fiat));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [acct?.evmAddress, acct?.solAddress, fiat]);
+  }, [acct?.evmAddress, acct?.solAddress, acct?.btcAddress, acct?.tonPublicKey, fiat]); // toutes les adresses de la clé du cliché
 
   // Solde masqué : mémorisé.
   useEffect(() => {

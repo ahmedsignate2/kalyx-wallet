@@ -61,11 +61,20 @@ export const useEarn = create<EarnState>((set, get) => ({
     const key = accountKey(acct);
     const s = get();
     const fresh = s.loadedFor === key && s.pricesFiat === fiat && Date.now() - s.lastLoadedAt < STALE_MS;
-    if (fresh && !opts?.force) return;
-    // En cours pour CE compte : rien à faire ; pour un autre, on relance et l'ancien résultat est ignoré.
-    if (s.loading && earnLoadingKey === key) return;
+    const loadKey = `${key}|${fiat}`;
+    if (fresh && !opts?.force) {
+      // Données à jour pour ce compte : un chargement en vol pour un AUTRE devient caduc.
+      if (s.loading && earnLoadingKey !== loadKey) {
+        earnGen += 1;
+        earnLoadingKey = null;
+        set({ loading: false });
+      }
+      return;
+    }
+    // En cours pour CE compte et cette devise : rien à faire ; sinon on relance et l'ancien résultat est ignoré.
+    if (s.loading && earnLoadingKey === loadKey) return;
     const gen = ++earnGen;
-    earnLoadingKey = key;
+    earnLoadingKey = loadKey;
     set({ loading: true, error: null });
     try {
       const ids = [...new Set(EARN_CATALOG.flatMap((p) => [p.underlying.coingeckoId, p.receipt.coingeckoId]).filter((x): x is string => !!x))];
