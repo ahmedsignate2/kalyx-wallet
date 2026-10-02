@@ -296,6 +296,17 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
     }
 
     const total = previous.inputs.reduce((sum, u) => sum + BigInt(u.value), 0n);
+    /*
+     * BIP-125 (règles 3 et 4) : un remplacement paie AU MOINS les frais de
+     * l'originale, plus 1 sat/vB de sa propre taille. Un taux plus élevé ne
+     * suffit pas : une annulation (plus petite, sans sortie destinataire)
+     * pouvait payer MOINS au total et était refusée par les nœuds.
+     */
+    const minFee = (vsize: number) => {
+      const byRate = BigInt(Math.ceil(vsize * feeRate));
+      const floor = previous.fee + BigInt(Math.ceil(vsize));
+      return byRate > floor ? byRate : floor;
+    };
 
     /*
      * ANNULER : tout revient à soi, sans sortie de monnaie. Le montant
@@ -303,7 +314,7 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
      * transfère rien, elle consomme les entrées pour invalider l'originale.
      */
     if (toSelf) {
-      const fee = BigInt(Math.ceil(estimateVsize(previous.inputs.length, [CHANGE_KIND]) * feeRate));
+      const fee = minFee(estimateVsize(previous.inputs.length, [CHANGE_KIND]));
       const target = total - fee;
       if (target < DUST_SATS) {
         throw new WalletError(
@@ -326,7 +337,7 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
 
     // ACCÉLÉRER : même destinataire, même montant, la hausse sort de la monnaie.
     const vsize = estimateVsize(previous.inputs.length, [destKind, CHANGE_KIND]);
-    const fee = BigInt(Math.ceil(vsize * feeRate));
+    const fee = minFee(vsize);
     const insufficient = () =>
       new WalletError(
         'INSUFFICIENT_FUNDS',
@@ -340,7 +351,12 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
       selection = { inputs: previous.inputs, fee, change };
     } else {
       // Monnaie devenue poussière : elle part en frais, comme à l'envoi initial.
-      const feeNoChange = BigInt(Math.ceil(estimateVsize(previous.inputs.length, [destKind]) * feeRate));
+      /*
+       * Sans monnaie, les frais valent forcément `total - target` — ceux de
+       * l'originale si elle avait déjà absorbé la poussière : la « nouvelle »
+       * transaction serait identique et refusée. Il faut alors réduire le montant.
+       */
+      const feeNoChange = minFee(estimateVsize(previous.inputs.length, [destKind]));
       if (total < previous.target + feeNoChange) throw insufficient();
       selection = { inputs: previous.inputs, fee: total - previous.target, change: 0n };
     }
