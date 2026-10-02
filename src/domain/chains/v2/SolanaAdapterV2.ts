@@ -257,6 +257,14 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
       }
       if (fromBal !== null) {
         const rest = fromBal - request.amount - tier.cost;
+        // Montant + frais au-delà du solde : dit ICI (le nœud répondait « Attempt to debit an account… »).
+        if (rest < 0n) {
+          throw new WalletError('INSUFFICIENT_FUNDS', 'Solde SOL insuffisant (frais inclus).', {
+            have: formatInputAmount(fromBal, 9),
+            fee: formatInputAmount(tier.cost, 9),
+            symbol: 'SOL',
+          });
+        }
         if (rest > 0n && rest < SOL_RENT_EXEMPT_MIN) {
           // Les deux montants valides, pour que le message dise QUOI saisir.
           const all = fromBal - tier.cost;
@@ -317,6 +325,23 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
         severity: 'info',
         params: { rent: ATA_RENT.toString() },
       });
+    }
+    /*
+     * SOL nécessaire à un envoi de JETON : les frais, plus le loyer du compte
+     * de jeton à créer — sans laisser l'expéditeur sous le loyer minimal. Sans
+     * ce contrôle, l'envoi partait signé et échouait à la création du compte.
+     */
+    const solNeeded = tier.cost + (exists ? 0n : ATA_RENT);
+    const solBal = await this.v1.getBalance(from).then((b) => b.raw).catch(() => null);
+    if (solBal !== null) {
+      const restSol = solBal - solNeeded;
+      if (restSol < 0n || (restSol > 0n && restSol < SOL_RENT_EXEMPT_MIN)) {
+        throw new WalletError('INSUFFICIENT_FUNDS', 'SOL insuffisant pour les frais de cet envoi de jeton.', {
+          have: formatInputAmount(solBal, 9),
+          fee: formatInputAmount(solNeeded, 9),
+          symbol: 'SOL',
+        });
+      }
     }
 
     const message = buildSplTransferMessage({

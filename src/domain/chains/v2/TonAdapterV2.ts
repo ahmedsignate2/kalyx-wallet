@@ -160,6 +160,13 @@ function rawOf(address: string): string | null {
   return a ? toRawTonAddress(a) : null;
 }
 
+/** Dernier message diffusé par portefeuille (adresse brute) : son seqno et sa fin de vie. */
+const TON_IN_FLIGHT = new Map<string, { seqno: number; until: number }>();
+/** Oublie les envois en vol (tests : la chaîne simulée ne fait pas avancer le seqno). */
+export function clearTonInFlight(): void {
+  TON_IN_FLIGHT.clear();
+}
+
 export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
   readonly config: ChainConfig;
   /** ed25519, comme Solana — mais PAS la même dérivation (cf. docs/10-TON.md §1). */
@@ -464,6 +471,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
 
     const deploys = sender.status !== 'active';
     const seqno = sender.seqno ?? 0;
+    this.assertNoSendInFlight(from, seqno);
     const friendlyDest = parseTonAddress(request.to);
     const bounce = friendlyDest && !friendlyDest.bounceable ? false : dest.status === 'active';
 
@@ -531,6 +539,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
 
     const deploys = sender.status !== 'active';
     const seqno = sender.seqno ?? 0;
+    this.assertNoSendInFlight(from, seqno);
     const comment = request.memo?.trim() || undefined;
     const payload = jettonTransferBody({ amount: request.amount, to: request.to, responseTo: from, comment, queryId: 0n, testnet: this.testnet });
     const message = { to: jetton.wallet, amount: JETTON_TRANSFER_TON, bounce: true, payload };
@@ -659,6 +668,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     }
     const deploys = sender.status !== 'active';
     const seqno = sender.seqno ?? 0;
+    this.assertNoSendInFlight(from, seqno);
     const draft: DappDraft = { from, tx, seqno, deploys, version: sender.version, balance: sender.balance, emulation: null };
     if (this.api && sender.version && !deploys) {
       try {
@@ -694,8 +704,26 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
   }
 
   /** Diffuse le BOC signé d'une transaction de dApp (mêmes replis qu'un envoi). */
-  async broadcastDapp(signed: { boc: string; txid: string; expiresAt: number }): Promise<void> {
-    await this.broadcastSend({ chainId: this.config.id, raw: signed.boc, txid: signed.txid, draft: { expiresAt: signed.expiresAt } as never });
+  async broadcastDapp(signed: { boc: string; txid: string; expiresAt: number }, sent?: { from: string; seqno: number }): Promise<void> {
+    await this.broadcastSend({ chainId: this.config.id, raw: signed.boc, txid: signed.txid, draft: { expiresAt: signed.expiresAt, ...(sent ? { from: sent.from, payload: { seqno: sent.seqno } } : {}) } as never });
+  }
+
+  /*
+   * ENVOIS EN VOL. Un portefeuille TON n'accepte qu'UN message par seqno : un
+   * second envoi préparé avant l'inclusion du premier porte le même seqno et
+   * est ignoré — l'écran le déclarait « expiré » 6 minutes plus tard, sans
+   * raison visible. Tant que le seqno lu n'a pas dépassé celui d'un message
+   * diffusé (et que ce message vit encore), on le DIT au lieu de signer.
+   */
+  private assertNoSendInFlight(from: string, seqno: number): void {
+    const key = rawOf(from) ?? from;
+    const f = TON_IN_FLIGHT.get(key);
+    if (!f) return;
+    if (seqno > f.seqno || this.now() > f.until) {
+      TON_IN_FLIGHT.delete(key);
+      return;
+    }
+    throw new WalletError('PREVIOUS_TX_PENDING', 'TON : un envoi précédent est encore en cours de validation');
   }
 
   async broadcastSend(signed: SignedSend<TonPayload>): Promise<BroadcastOutcome> {
@@ -703,6 +731,7 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
     if (this.api) {
       try {
         await this.api.sendBoc(signed.raw);
+        this.noteInFlight(signed);
         return { txid: signed.txid, expiresAt: signed.draft.expiresAt };
       } catch (e) {
         // Un REFUS du message est définitif : il le serait ailleurs aussi. Seul
@@ -712,7 +741,16 @@ export class TonAdapterV2 implements ChainAdapterV2<TonPayload> {
       }
     }
     await this.client.sendBoc(signed.raw);
+    this.noteInFlight(signed);
     return { txid: signed.txid, expiresAt: signed.draft.expiresAt };
+  }
+
+  /** Message diffusé : son seqno est « en vol » jusqu'à son échéance (+ retard de l'indexeur). */
+  private noteInFlight(signed: SignedSend<TonPayload>): void {
+    const d = signed.draft as Partial<{ from: string; payload: { seqno?: number }; expiresAt: number }>;
+    if (!d.from || typeof d.payload?.seqno !== 'number') return;
+    const until = (d.expiresAt ?? this.now() + VALIDITY_SECONDS * 1000) + INDEXER_GRACE_MS;
+    TON_IN_FLIGHT.set((rawOf(d.from) ?? d.from), { seqno: d.payload.seqno, until });
   }
 
   /**

@@ -408,7 +408,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       const signed = await withTonSigner(session.chainId, unlock, (signer) => adapter.signDappTransfer(draft, signer));
       // Demande retirée pendant la signature (la dApp s'est déconnectée) : rien n'est diffusé.
       if (!stillQueued(get().queue, p)) throw new Error('tcNothingPending');
-      await adapter.broadcastDapp(signed);
+      await adapter.broadcastDapp(signed, { from: draft.from, seqno: draft.seqno });
       set({ queue: without(get().queue, p) });
       await replyTx(p, { result: signed.boc, id: p.requestId }).catch(() => {});
       return signed.txid;

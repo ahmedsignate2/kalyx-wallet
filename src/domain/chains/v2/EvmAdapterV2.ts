@@ -19,6 +19,7 @@ import { isValidEvmAddress, normalizeEvmAddress } from '../../validation/address
 import { erc20TransferData } from '../../tokens/transfer';
 import { getErc20Tokens } from '../../tokens/alchemyTokens';
 import { WalletError } from '../../errors';
+import { formatInputAmount } from '../../validation/format';
 import {
   calculateReplacementGas,
   fetchOriginalEvmTx,
@@ -209,6 +210,21 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
     const payload: EvmPayload = { to: txTo, value, data, nonce, gasLimit, chainId, ...fees };
     const feeCost = (fees.maxFeePerGas ?? fees.gasPrice ?? 0n) * gasLimit;
 
+    /*
+     * Solde natif ≥ montant (envoi natif) + frais maximum, vérifié AVANT de
+     * signer. Sans cela, « tout envoyer » partait signé et revenait du nœud en
+     * « insufficient funds for gas * price + value », illisible. Une lecture de
+     * solde impossible ne bloque pas : le nœud tranchera.
+     */
+    const native = await this.v1.getBalance(sender).then((b) => b.raw).catch(() => null);
+    if (native != null && native < value + feeCost) {
+      throw new WalletError('INSUFFICIENT_FUNDS', `Solde ${this.config.nativeSymbol} insuffisant (frais inclus).`, {
+        have: formatInputAmount(native, this.config.nativeDecimals),
+        fee: formatInputAmount(feeCost, this.config.nativeDecimals),
+        symbol: this.config.nativeSymbol,
+      });
+    }
+
     const warnings: SendDraft<EvmPayload>['warnings'] = [];
     // Destinataire qui est un contrat : légitime (multisig, pont), mais assez
     // souvent une erreur pour mériter d'être dit.
@@ -333,11 +349,26 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
     if (normalizeEvmAddress(original.from) !== sender) {
       throw new WalletError('NOT_SUPPORTED', 'Cette transaction vient d’un autre compte.');
     }
+    // Déjà dans un bloc : un remplacement serait refusé (« nonce too low »).
+    if (original.mined) throw new WalletError('TX_ALREADY_CONFIRMED', 'Transaction déjà confirmée');
 
     const fee = await this.v1.getFeeData();
-    // Une annulation ne fait rien : 21 000 suffisent, inutile de reprendre la
-    // limite de l'originale, qui pouvait être bien plus grande.
-    const gasLimit = toSelf ? NATIVE_TRANSFER_GAS : original.gasLimit;
+    /*
+     * Annulation : envoi à soi-même de valeur nulle. 21 000 sur une chaîne
+     * classique ; sur un rollup qui compte la part L1 en gaz (Arbitrum),
+     * 21 000 sont refusés (« intrinsic gas too low ») — la limite est donc
+     * ESTIMÉE, 21 000 restant le plancher.
+     */
+    let gasLimit = original.gasLimit;
+    if (toSelf) {
+      gasLimit = NATIVE_TRANSFER_GAS;
+      try {
+        const est = await this.v1.estimateGasFor({ from: sender, to: sender, value: 0n });
+        if (est > gasLimit) gasLimit = est;
+      } catch {
+        /* estimation indisponible : le plancher reste */
+      }
+    }
     const gas = calculateReplacementGas(original, fee, gasLimit);
 
     const payload: EvmPayload = {

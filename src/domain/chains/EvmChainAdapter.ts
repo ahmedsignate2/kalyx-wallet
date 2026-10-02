@@ -616,7 +616,12 @@ export class EvmChainAdapter implements ChainAdapter {
         ...common,
         type: 2 as const,
         maxFeePerGas: req.maxFeePerGas,
-        maxPriorityFeePerGas: req.maxPriorityFeePerGas ?? req.maxFeePerGas,
+        /*
+         * Pourboire absent de la demande (dApp) : celui du RÉSEAU, plafonné au
+         * maximum. Reprendre le maximum entier donnait toute la marge au
+         * validateur — près de deux fois les frais attendus.
+         */
+        maxPriorityFeePerGas: req.maxPriorityFeePerGas ?? minBig(feeData?.maxPriorityFeePerGas ?? 1_500_000_000n, req.maxFeePerGas),
       };
     } else if (feeData?.maxFeePerGas) {
       txReq = {
@@ -652,6 +657,11 @@ export class EvmChainAdapter implements ChainAdapter {
     } catch {
       return false;
     }
+  }
+
+  /** `eth_estimateGas` brut (lève si le nœud refuse). */
+  async estimateGasFor(tx: { from: string; to: string; value?: bigint; data?: string }): Promise<bigint> {
+    return this.call((p) => p.estimateGas({ from: tx.from, to: tx.to, value: tx.value ?? 0n, data: tx.data ?? '0x' }), 'eth_estimateGas');
   }
 
   /**
@@ -815,3 +825,5 @@ function strictUint(result: unknown, message: string): bigint {
   if (typeof result !== 'string' || !/^0x[0-9a-fA-F]+$/.test(result)) throw new Error(message);
   return BigInt(result);
 }
+
+const minBig = (a: bigint, b: bigint) => (a < b ? a : b);
