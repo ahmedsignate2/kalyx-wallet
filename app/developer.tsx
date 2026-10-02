@@ -77,7 +77,7 @@ export default function Developer() {
     const text = await Clipboard.getStringAsync().catch(() => '');
     if (!text?.trim()) { toast.info(t('clipboardEmpty'), t('copyBackupFirst')); return; }
     const res = importBackup(text);
-    if (!res.ok) { toast.error(t('restoreFailed'), res.error); return; }
+    if (!res.ok) { toast.error(t('restoreFailed'), t('invalidBackup')); return; } // message du domaine en français : jamais affiché tel quel
     if (res.added === 0) { toast.info(t('nothingToRestore'), t('networksAlreadyPresent')); return; }
     toast.success(`${res.added} ${t('networksRestoredWord')}`, res.skipped ? `${res.skipped} ${t('alreadyPresentWord')}` : undefined);
   };

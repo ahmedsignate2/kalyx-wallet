@@ -24,7 +24,7 @@ import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, radius, SCREEN_MARGIN } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
-import { useHistoryStore, useHistoryCache, cacheKey, type HistoryChain } from '../lib/historyStore';
+import { useHistoryStore, useHistoryCache, useAnyHistoryFetched, cacheKey, type HistoryChain } from '../lib/historyStore';
 import { addressForChain } from '../lib/accountAddress';
 import { useContacts } from '../lib/contactsStore';
 import { usePortfolioStore } from '../lib/portfolio';
@@ -101,6 +101,7 @@ export default function History() {
     }),
   );
 
+  const anyFetched = useAnyHistoryFetched(chains, addressFor);
   const load = useCallback(
     async (force = false) => {
       await Promise.all(
@@ -282,6 +283,11 @@ export default function History() {
             <View style={{ flex: 1, gap: space[2] }}><Skeleton width="45%" /><Skeleton width="30%" height={12} /></View>
           </View>
         ))}
+      </Surface>
+    ) : unfiltered && cached.length === 0 && !anyFetched ? (
+      // Aucun réseau n'a répondu : on ne prétend pas « aucune activité » (même règle que l'accueil).
+      <Surface>
+        <EmptyState icon="warning" title={t('activityUnavailableTitle')} body={t('activityUnavailableBody')} actionLabel={t('retry')} onAction={() => void load(true)} />
       </Surface>
     ) : (
       <Surface>

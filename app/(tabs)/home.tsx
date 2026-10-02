@@ -13,6 +13,7 @@
 import { useIsWatchOnly } from '../../ui/WatchOnlyGate';
 import { fill } from '../../lib/i18n';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isDecoySession } from '../../lib/sessionMode';
 import { View, RefreshControl, Alert, Image, useWindowDimensions } from 'react-native';
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -341,6 +342,8 @@ export default function Home() {
   // Avertissements uniques (bêta, appareil rooté, réseaux perso à restaurer).
   useEffect(() => {
     if (isDeviceCompromised()) toast.warning(t("deviceInsecureTitle"), t("deviceInsecureDesc"));
+    // Session leurre : ni lecture ni écriture de ces marqueurs (le rappel des réseaux perso appartient au vrai portefeuille).
+    if (isDecoySession()) return;
     AsyncStorage.getItem('nova.betaSeen').then((seen) => {
       const next = () =>
         AsyncStorage.getItem('nova.promptRestoreNetworks').then((v) => {

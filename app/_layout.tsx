@@ -3,7 +3,7 @@ import { attachPriceCacheStorage } from '../src';
 import React, { useEffect, useState } from 'react';
 import { journal } from '../lib/debugJournal';
 import { JournalProbe } from '../ui/JournalProbe';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, router, usePathname } from 'expo-router';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -100,6 +100,14 @@ export default function RootLayout() {
     if (!LOCKED_ALLOWED.has(pathname)) router.replace('/unlock');
   }, [storeReady, hasWallet, isUnlocked, pathname]);
   const [opening, setOpening] = useState<'wait' | 'splash' | 'done'>('wait');
+  const [bootError, setBootError] = useState(false);
+  const retryBoot = () => {
+    setBootError(false);
+    void useWallet.getState().bootstrap().catch((e) => {
+      console.error('[Kalyx] bootstrap a échoué (nouvel essai) :', e);
+      setBootError(true);
+    });
+  };
   useEffect(() => {
     if (!storeReady || opening !== 'wait') return;
     setOpening(hasWallet ? 'splash' : 'done');
@@ -187,23 +195,29 @@ export default function RootLayout() {
         else await bootstrap();
         console.log('[Kalyx] bootstrap OK');
       } catch (e) {
+        /*
+         * Stockage illisible au lancement : sans cela `ready` ne passait jamais
+         * à vrai et l'app restait sur un fond vide, sans message ni issue.
+         */
         console.error('[Kalyx] bootstrap a échoué :', e);
+        setBootError(true);
       }
-      try {
-        await loadSettings();
-        await loadCustomTokens();
-        await loadContacts();
-        await loadNotifs();
-        await loadCustomChains();
-        await loadPendingBtc();
-        await loadPriceAlerts();
-        await loadRecents();
-        await loadTokenPrefs();
-        await loadAiState();
-        await loadDriveFlow();
-        console.log('[Kalyx] loadSettings OK');
-      } catch (e) {
-        console.error('[Kalyx] loadSettings a échoué :', e);
+      /*
+       * Chargements INDÉPENDANTS : un seul en échec (fichier corrompu) n'empêche
+       * plus les autres — contacts, réseaux, alertes… — de se charger.
+       */
+      const loads: [string, () => Promise<unknown> | unknown][] = [
+        ['settings', loadSettings], ['customTokens', loadCustomTokens], ['contacts', loadContacts],
+        ['notifs', loadNotifs], ['customChains', loadCustomChains], ['pendingBtc', loadPendingBtc],
+        ['priceAlerts', loadPriceAlerts], ['recents', loadRecents], ['tokenPrefs', loadTokenPrefs],
+        ['ai', loadAiState], ['driveFlow', loadDriveFlow],
+      ];
+      for (const [name, load] of loads) {
+        try {
+          await load();
+        } catch (e) {
+          console.error(`[Kalyx] chargement « ${name} » a échoué :`, e);
+        }
       }
       try {
         await initWalletConnect();
@@ -297,7 +311,14 @@ export default function RootLayout() {
         <PriceAlertWatcher />
         <DeepLinks />
         <FloatingAiAssistant />
-        {opening === 'wait' ? (
+        {bootError && !storeReady ? (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, zIndex: 101, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 }]}>
+            <Text style={{ color: colors.text, fontSize: 16, textAlign: 'center' }}>{t('bootFailed')}</Text>
+            <Pressable onPress={retryBoot} accessibilityRole="button" style={{ paddingVertical: 12, paddingHorizontal: 24, borderRadius: 999, backgroundColor: colors.primary }}>
+              <Text style={{ color: colors.onPrimary, fontSize: 15 }}>{t('retry')}</Text>
+            </Pressable>
+          </View>
+        ) : opening === 'wait' ? (
           // Simple fond du thème : le temps de savoir s'il existe un wallet.
           // Surtout pas de roue de chargement — elle ferait exactement le trou
           // qu'on vient de supprimer.

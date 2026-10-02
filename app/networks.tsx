@@ -4,6 +4,7 @@ import { ScreenHeader, IconButton, Pressable as KPressable, Button, Checkbox, Se
 import { SafeModal } from '../ui/kit/SafeModal';
 import { ExplainSheet } from '../components/ai/ExplainSheet';
 import React, { useMemo, useRef, useState } from 'react';
+import { probeRpcChainId } from '../src/domain/chains/customNetworks';
 import { View, Text, ScrollView, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -91,11 +92,25 @@ export default function Networks() {
     router.back();
   };
 
-  const saveCustomChain = () => {
+  const [probing, setProbing] = useState(false);
+  const saveCustomChain = async () => {
+    if (probing) return;
     setFormError(null);
+    /*
+     * Même contrôle que l'écran Développeur : le Chain ID RÉEL du RPC. Un RPC
+     * mal saisi dont le réseau diffère était accepté ici, et les transactions
+     * étaient ensuite signées pour un autre réseau que celui du nœud.
+     */
+    if ((form.family ?? 'evm') === 'evm' && /^https:\/\//i.test(form.rpcUrl.trim()) && Number.isInteger(form.evmChainId) && form.evmChainId > 0) {
+      setProbing(true);
+      const got = await probeRpcChainId(form.rpcUrl.trim()).finally(() => setProbing(false));
+      if (got === null) return setFormError(t('netErrUnreachable'));
+      if (got !== form.evmChainId) return setFormError(t('netErrMismatch').replace('{got}', String(got)).replace('{want}', String(form.evmChainId)));
+    }
     const result = addCustomChain(form);
     if (!result.ok) {
-      setFormError(result.error ?? t('errNetwork'));
+      // Le refus est une CLÉ de traduction (et `detail` nomme le réseau intégré en conflit).
+      setFormError(result.error ? t(result.error as never).replace('{name}', result.detail ?? '') : t('errNetwork'));
       return;
     }
     const family = form.family ?? 'evm';
@@ -311,7 +326,7 @@ export default function Networks() {
             {formError ? <Text style={{ color: colors.danger }}>{formError}</Text> : null}
             <View style={{ flexDirection: 'row', gap: space[3] }}>
               <View style={{ flex: 1 }}><Button label={t('cancel')} variant="ghost" onPress={() => setAddOpen(false)} /></View>
-              <View style={{ flex: 1 }}><Button label={t('saveNetwork')} onPress={saveCustomChain} /></View>
+              <View style={{ flex: 1 }}><Button label={t('saveNetwork')} onPress={() => void saveCustomChain()} loading={probing} /></View>
             </View>
           </View>
         </KeyboardAvoidingView>
