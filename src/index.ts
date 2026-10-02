@@ -357,6 +357,8 @@ export {
   spendersFromLogs,
   isUnlimited,
   revokeCalldata,
+  runRevokeBatch,
+  type RevokeOutcome,
   type ApprovalItem,
 } from './domain/approvals/approvals';
 

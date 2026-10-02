@@ -14,7 +14,7 @@
 import { Address as TonCoreAddress, Cell as TonCell } from '@ton/core';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import { formatExportedKey } from '../src/domain/keys/exportKey';
-import { deriveBtcSigner, deriveSolanaSigner, discoverAccountIndexes, normalizeAddressCase, parseWatchAddress } from '../src';
+import { deriveBtcSigner, deriveSolanaSigner, discoverAccountIndexes, normalizeAddressCase, parseWatchAddress, revokeCalldata, runRevokeBatch, type RevokeOutcome } from '../src';
 import { base64, base58, hex } from '@scure/base';
 import { ed25519 } from '@noble/curves/ed25519';
 import { secp256k1 } from '@noble/curves/secp256k1';
@@ -84,6 +84,7 @@ import {
 } from '../src';
 import { technicalLogger } from './technicalLogger';
 import { addressForChain } from './accountAddress';
+import { isRevokeInFlight, markRevokeSent, useRevokeState } from './revokeState';
 import { buildAddressIndex, lookupAddress } from './isMyAddress';
 import {
   saveVault,
@@ -307,6 +308,23 @@ interface WalletState {
   /** `expectedChainId` : réseau de la demande ; un `domain.chainId` différent est refusé (rejeu sur un autre réseau). */
   signTypedData: (unlock: Unlock, typedData: { domain: unknown; types: Record<string, unknown>; message: unknown }, expectedChainId?: number) => Promise<string>;
   sendRawTxOn: (unlock: Unlock, chainId: string, req: RawTxRequest) => Promise<string>;
+  /**
+   * RÉVOCATION GROUPÉE d'autorisations ERC-20 : une seule confirmation (code ou
+   * biométrie), puis une transaction par autorisation, nonces consécutifs
+   * (runRevokeBatch). Rend l'issue de chacune, dans l'ordre.
+   */
+  revokeApprovals: (
+    unlock: Unlock,
+    chainId: string,
+    items: readonly { token: string; spender: string }[],
+    opts?: {
+      onProgress?: (done: number, total: number) => void;
+      /** Clé lue (code bon) : la suite est réseau seulement. */
+      onUnlocked?: () => void;
+      /** Faux = demande abandonnée (fenêtre fermée) : rien ne part, ou plus rien. */
+      shouldContinue?: () => boolean;
+    },
+  ) => Promise<RevokeOutcome[]>;
   /** Envoie un token ERC-20 détenu (transfer) sur le réseau actif. */
   sendToken: (to: string, amount: string, token: { contract: string; decimals: number }, unlock: Unlock, gas?: GasOverride) => Promise<string>;
   /** Envoie un token SPL détenu (Solana) : crée l'ATA si besoin puis transfère. */
@@ -2007,6 +2025,64 @@ export const useWallet = create<WalletState>((set, get) => ({
     const from = stored?.evmAddress ?? account.address;
     const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
     return adapter.sendContractTx(req, from, pk);
+  },
+
+  revokeApprovals: async (unlock, chainId, items, opts = {}) => {
+    // Un lot à la fois (même après avoir quitté l'écran) : deux lots liraient le même nonce.
+    if (useRevokeState.getState().progress) throw new Error('Une révocation est déjà en cours');
+    const { account, accounts, activeAccountIndex, activeWalletId, wallets } = get();
+    if (!account) throw new Error('Aucun compte');
+    const adapter = getAdapter(chainId);
+    if (!(adapter instanceof EvmChainAdapter) || !adapter.config.evmChainId) throw new WalletError('NOT_SUPPORTED', 'Chaîne non supportée');
+    // Adresse EVM du compte (jamais celle du réseau affiché, qui peut être Solana ou Bitcoin).
+    const from = accounts.find((a) => a.index === activeAccountIndex)?.evmAddress;
+    if (!from) throw new WalletError('NOT_SUPPORTED', 'Ce compte n’a pas d’adresse EVM');
+    // UNE confirmation : la clé est lue une fois, pour tout le lot (et oubliée ensuite).
+    const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
+    if (opts.shouldContinue && !opts.shouldContinue()) return items.map(() => ({ status: 'notSent' as const }));
+    if (useRevokeState.getState().progress) throw new Error('Une révocation est déjà en cours');
+    useRevokeState.setState({ progress: { done: 0, total: items.length } });
+    opts.onUnlocked?.();
+    try {
+    // Pas un sou de natif : inutile de simuler N fois, le message est clair tout de suite.
+    if ((await adapter.getBalance(from)).raw === 0n) {
+      throw new WalletError('INSUFFICIENT_FUNDS', `Solde en ${adapter.config.nativeSymbol} insuffisant pour payer les frais réseau.`);
+    }
+    const first = await adapter.getNonce(from); // « pending » : compte les transactions déjà en attente
+    const chainIdNum = adapter.config.evmChainId;
+    return await runRevokeBatch(
+      items,
+      first,
+      {
+        // Déjà à 0 — ou révocation envoyée il y a peu, pas encore minée (le réseau lit encore l'ancienne valeur).
+        check: async (it) =>
+          (await isRevokeInFlight(chainId, from, it.token, it.spender, async (h) => (await adapter.getReceiptInfo(h)) !== null)) ||
+          (await adapter.getAllowanceStrict(it.token, from, it.spender)) === 0n
+            ? 'revoked'
+            : 'active',
+        send: async (it, suggested) => {
+          // Une autre transaction (WalletConnect, envoi) a pu partir pendant le lot : le plus grand gagne.
+          const nonce = Math.max(suggested, await adapter.getNonce(from).catch(() => suggested));
+          try {
+            const hash = await adapter.sendContractTx({ to: it.token, data: revokeCalldata(it.spender), value: 0n, chainId: chainIdNum, nonce }, from, pk);
+            markRevokeSent(chainId, from, it.token, it.spender, hash);
+            return { hash, nonce };
+          } catch (e) {
+            // Diffusion interrompue : peut-être partie — retenue, pour ne pas la repayer à l'aveugle.
+            if ((e as { afterSign?: boolean })?.afterSign) markRevokeSent(chainId, from, it.token, it.spender, null);
+            throw e;
+          }
+        },
+        shouldContinue: opts.shouldContinue,
+      },
+      (done, total) => {
+        useRevokeState.setState({ progress: { done, total } });
+        opts.onProgress?.(done, total);
+      },
+    );
+    } finally {
+      useRevokeState.setState({ progress: null });
+    }
   },
 
   sendToken: async (to, amount, token, unlock, gas) => {
