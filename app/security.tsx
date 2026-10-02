@@ -175,6 +175,20 @@ export default function SecurityCenter() {
         {/* Vérifier qu'une adresse est bien à soi (avant de la partager). */}
         <IsMyAddress />
 
+        {/* Code de contrainte : un second code qui ouvre un portefeuille leurre. */}
+        <Pressable onPress={() => router.push('/duress')} accessibilityRole="button" accessibilityLabel={t('duressTitle')}>
+          <Surface>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+              <Icon name="lock" size={20} color={colors.textSecondary} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="body">{t('duressTitle')}</Text>
+                <Text variant="caption" tone="secondary" numberOfLines={2}>{t('duressHint')}</Text>
+              </View>
+              <Icon name="chevron" size={16} color={colors.textTertiary} />
+            </View>
+          </Surface>
+        </Pressable>
+
         {/* Liste blanche des destinataires (anti-vol : ajouts et désactivation différés de 24 h). */}
         <Pressable onPress={() => router.push('/whitelist')} accessibilityRole="button" accessibilityLabel={t('wlTitle')}>
           <Surface>
