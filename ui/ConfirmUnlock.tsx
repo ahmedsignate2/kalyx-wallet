@@ -28,6 +28,7 @@ import { fonts, radii, spacing, useTheme } from './theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import type { Unlock } from '../lib/walletStore';
+import { onBiometricUnlocked } from '../lib/walletStore';
 import { auditFacts, auditTransaction, type TxAuditContext, type TxAuditFact, type TxAuditResult } from "../lib/aiTxAudit";
 import { probeRecipient } from "../lib/txAuditProbe";
 import { factLabel } from "./auditFactLabel";
@@ -130,7 +131,11 @@ export function ConfirmUnlock({
   };
 
 
+  // Feuille fermée (Annuler, fond) : plus aucune action ne part, même déclenchée juste avant.
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
   const run = async (unlock: Unlock) => {
+    if (!visibleRef.current) return;
     const viaBio = 'biometric' in unlock;
     const attempt = ++attemptRef.current;
     const startedAt = Date.now();
@@ -158,6 +163,11 @@ export function ConfirmUnlock({
             });
             throw error;
           });
+        // Clé lue : le délai de garde s'arrête là, la suite (signature, diffusion) n'est pas bornée.
+        const stopWatch = onBiometricUnlocked(() => {
+          if (timer) clearTimeout(timer);
+          timer = undefined;
+        });
         try {
           await Promise.race([
             operation,
@@ -174,6 +184,7 @@ export function ConfirmUnlock({
             }),
           ]);
         } finally {
+          stopWatch();
           if (timer) clearTimeout(timer);
         }
       } else {

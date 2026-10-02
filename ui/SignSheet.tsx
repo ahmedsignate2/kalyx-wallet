@@ -50,7 +50,19 @@ export function SignSheet({
   const t = useT();
   const { colors } = useTheme();
   const [showRaw, setShowRaw] = useState(false);
-  const host = peer?.url ? peer.url.replace(/^[a-z]+:\/\//i, '').split('/')[0] : '';
+  /*
+   * Hôte RÉEL de l'URL déclarée (`new URL`). Le découpage manuel affichait
+   * « app.uniswap.org@evil.com » ou « evil.com?.uniswap.org » — le vrai site
+   * est ce qui suit « @ » et précède « ? ».
+   */
+  const host = (() => {
+    if (!peer?.url) return '';
+    try {
+      return new URL(/^[a-z]+:\/\//i.test(peer.url) ? peer.url : `https://${peer.url}`).host;
+    } catch {
+      return '';
+    }
+  })();
   const danger = explanation?.risk === 'danger';
   const verified = verify?.validation === 'VALID';
   const badDomain = verify?.validation === 'INVALID' || verify?.isScam;
@@ -69,9 +81,9 @@ export function SignSheet({
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
         {peer?.icon ? <Image source={{ uri: peer.icon }} style={{ width: 44, height: 44, borderRadius: radius.input, backgroundColor: colors.surface3 }} /> : <View style={{ width: 44, height: 44, borderRadius: radius.input, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}><Icon name="dapps" size={22} tone="muted" /></View>}
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text variant="body" numberOfLines={1}>{peer?.name ?? 'Application'}</Text>
+          <Text variant="body" numberOfLines={1}>{peer?.name ?? t('appGeneric')}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text variant="caption" tone={badDomain ? 'danger' : 'secondary'} numberOfLines={1} style={{ flexShrink: 1 }}>{host || 'domaine inconnu'}</Text>
+            <Text variant="caption" tone={badDomain ? 'danger' : 'secondary'} numberOfLines={1} style={{ flexShrink: 1 }}>{host || t('unknownDomain')}</Text>
             {verified ? <Icon name="check" size={14} color={colors.textSecondary} /> : null}
           </View>
         </View>

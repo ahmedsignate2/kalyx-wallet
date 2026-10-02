@@ -95,19 +95,34 @@ export function PinPad({
     ]).start();
   }, [errorSignal, shake]);
 
+  /*
+   * Validation différée (le dernier rond se remplit d'abord) : ANNULÉE si le
+   * pavé disparaît (Annuler, fond) ou si un chiffre est effacé entre-temps —
+   * sinon le code partait après « Annuler », ou complet après un retour arrière.
+   */
+  const submitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelSubmit = () => {
+    if (submitTimer.current) clearTimeout(submitTimer.current);
+    submitTimer.current = null;
+  };
+  useEffect(() => cancelSubmit, []);
   const press = (digit: string) => {
     if (disabled || value.length >= cap) return;
     haptic.selection();
     const next = value + digit;
     onChange(next);
     if (expectedLength && next.length === expectedLength) {
-      // Laisse le dernier rond se remplir avant de valider.
-      setTimeout(() => onComplete?.(next), 120);
+      cancelSubmit();
+      submitTimer.current = setTimeout(() => {
+        submitTimer.current = null;
+        onComplete?.(next);
+      }, 120);
     }
   };
   const back = () => {
     if (disabled || !value.length) return;
     haptic.selection();
+    cancelSubmit();
     onChange(value.slice(0, -1));
   };
 

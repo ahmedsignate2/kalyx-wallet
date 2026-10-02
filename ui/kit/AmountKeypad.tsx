@@ -118,7 +118,7 @@ export function AmountKeypad({
     const v = latest.current;
     if (k === '⌫') return onChange(v.slice(0, -1));
     if (k === '.') {
-      if (v.includes('.')) return;
+      if (v.includes('.') || maxDecimals <= 0) return; // jeton sans décimale : pas de virgule
       return onChange(v === '' ? '0.' : v + '.');
     }
     const [, frac = ''] = v.split('.');

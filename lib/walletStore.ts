@@ -947,6 +947,28 @@ async function backfillPhraseAccountsRaw(
 }
 
 /** Révèle la seed du wallet `id` (biométrie ou PIN), de façon transitoire. */
+/*
+ * Clé LUE par la biométrie : prévient les fenêtres de confirmation. Leur délai
+ * de garde (invite biométrique qui ne revient jamais) ne doit couvrir que
+ * l'invite — pas la signature, la diffusion et l'attente qui suivent : sinon
+ * « délai dépassé » s'affichait pendant qu'une opération longue partait quand
+ * même, et un nouvel essai la doublait.
+ */
+const biometricUnlockedListeners = new Set<() => void>();
+export function onBiometricUnlocked(cb: () => void): () => void {
+  biometricUnlockedListeners.add(cb);
+  return () => biometricUnlockedListeners.delete(cb);
+}
+const notifyBiometricUnlocked = () => {
+  for (const cb of [...biometricUnlockedListeners]) {
+    try {
+      cb();
+    } catch {
+      /* un abonné cassé ne bloque pas la signature */
+    }
+  }
+};
+
 async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
   // Lecture seule : aucune clé. Dernier rempart, quel que soit l'écran qui demande à signer.
   if (isWatchWallet(useWallet.getState().wallets, id)) {
@@ -969,6 +991,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
       }
       console.log('[KALYX-VAULT] reveal:biometric-gated', { found: !!m });
       if (!m) throw new WalletError('BIOMETRIC_NOT_SET', 'Biometric key invalidated for this wallet');
+      notifyBiometricUnlocked();
       return m;
     }
     // Ancienne copie en clair : invite de l'app, PUIS lecture (migrée ensuite, cf. unlockWithBiometrics).
@@ -986,6 +1009,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
     const m = await readLegacyBiometricSeed(id);
     console.log('[KALYX-VAULT] reveal:biometric-secret', { found: !!m });
     if (!m) throw new WalletError('BIOMETRIC_NOT_SET', 'No biometric vault for this wallet');
+    notifyBiometricUnlocked();
     return m;
   }
   const vault = await loadVault(id);
