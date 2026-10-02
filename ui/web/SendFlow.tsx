@@ -254,7 +254,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
       // Simulation + diffusion + attente de confirmation : même chemin que l'app.
       return submitSolanaSigned(signed);
     }
-    const res: unknown = await request('sendTransfer', [{ recipientAddress: recipient, amount: tokenAmountStr }]);
+    const res: unknown = await request('sendTransfer', [{ recipientAddress: recipient, amount: amountRaw.toString() }]); // satoshis (spec)
     const txid = pick<string>(res, ['txid']) ?? (typeof res === 'string' ? res : undefined);
     if (!txid) throw new UserFacingError(tw('phoneNoTxid'));
     return txid;

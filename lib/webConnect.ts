@@ -45,6 +45,8 @@ export interface PendingSign {
   label: string; // ex. « Transaction à signer »
   phase: 'await' | 'ok' | 'err';
   detail?: string;
+  /** Plus de 2 min sans réponse : la demande reste ouverte sur le téléphone. */
+  slow?: boolean;
 }
 
 /** Libellé lisible d'une méthode WalletConnect (pour le popup de signature). */
@@ -356,21 +358,19 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     const label = METHOD_LABELS[method] ?? 'Signature demandée';
     set({ pending: { label, phase: 'await' } });
     // La requête part vers l'app Kalyx, qui affiche la demande + signe avec PIN/bio.
-    // Timeout de courtoisie : si l'app ne répond pas (fermée / verrouillée / hors
-    // ligne), on rend la main avec un message utile au lieu de rester figé.
-    const REQ_TIMEOUT = 120_000;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(
-        () => reject(new Error("Le téléphone n'a pas répondu. Ouvre l'app Kalyx, déverrouille-la et réessaie.")),
-        REQ_TIMEOUT,
-      );
-    });
+    /*
+     * PAS de délai qui rend la main : la demande resterait ouverte sur le
+     * téléphone, et la relancer d'ici puis approuver les deux enverrait deux
+     * fois. Passé 2 min, on PRÉVIENT seulement ; c'est l'expiration de la
+     * demande WalletConnect elle-même qui y met fin, des deux côtés à la fois.
+     */
+    const timer: ReturnType<typeof setTimeout> = setTimeout(() => {
+      if (get().pending?.phase === 'await') {
+        set({ pending: { label, phase: 'await', slow: true } });
+      }
+    }, 120_000);
     try {
-      const res = await Promise.race([
-        client.request<string>({ topic, chainId: kalyxToCaip(selected), request: { method, params } }),
-        timeout,
-      ]);
+      const res = await client.request<string>({ topic, chainId: kalyxToCaip(selected), request: { method, params } });
       // Signé sur le téléphone : succès auto-fermant + retour au tableau de bord à jour.
       set({ pending: { label, phase: 'ok', detail: 'Validé sur votre téléphone' }, rev: get().rev + 1, lastActivity: Date.now() });
       setTimeout(() => set({ rev: get().rev + 1 }), 4000); // 2e passe (inclusion bloc)
@@ -386,7 +386,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       set({ pending: { label, phase: 'err', detail: e instanceof Error ? e.message : 'Refusé ou échoué' } });
       throw e;
     } finally {
-      if (timer) clearTimeout(timer);
+      clearTimeout(timer);
     }
   },
 

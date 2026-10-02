@@ -61,3 +61,21 @@ describe('WalletConnect : la dApp signe avec un autre compte que le compte actif
     expect(msg).toBe(translate('en', 'errWrongAccount' as never));
   });
 });
+
+describe('friendlyTxError — robuste et juste sur les refus', () => {
+  const t = (key: string) => translate('en', key as never);
+
+  it('null et erreur circulaire : jamais de levée', () => {
+    expect(() => friendlyTxError(null, t as never)).not.toThrow();
+    const circ: Record<string, unknown> = { message: 'boom' };
+    circ.self = circ;
+    expect(() => friendlyTxError(circ, t as never)).not.toThrow();
+  });
+
+  it('un rejet du nœud n’est pas « annulé par l’utilisateur »', () => {
+    const node = friendlyTxError(new Error('transaction rejected: min relay fee not met'), t as never);
+    expect(node).toBe(t('errUnderpriced'));
+    expect(friendlyTxError(new Error('User rejected the request.'), t as never)).toBe(t('errUserRejected'));
+    expect(friendlyTxError({ code: 4001, message: 'x' }, t as never)).toBe(t('errUserRejected'));
+  });
+});
