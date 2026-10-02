@@ -1,4 +1,4 @@
-import { maskBip39Runs, maskSensitiveFields, stripUrlSecrets } from './sanitizeLog';
+import { HEX_SECRET_RE, maskBip39Runs, maskSensitiveFields, stripUrlSecrets } from './sanitizeLog';
 import { wordlist } from '@scure/bip39/wordlists/english';
 
 const BIP39_SET = new Set(wordlist);
@@ -34,8 +34,11 @@ export function detectSensitiveSecrets(input: string, knownHashes: Iterable<stri
 
   // 1. Détection de clés privées hexadécimales brutes (64 hex avec ou sans 0x)
   // Exclut les masques déjà caviardés comme [CLÉ_MASQUÉE] ou [REDACTED]
-  const hexPattern = /(?:^|[^a-fA-F0-9])(?:0x)?([a-fA-F0-9]{64})(?:$|[^a-fA-F0-9])/;
-  if (hexPattern.test(text)) {
+  // 64 (clé 32 octets) ou 128 (clé ed25519 / graine de 64 octets) : `{64}` seul laissait passer les 128.
+  const hexPattern = /(?:^|[^a-fA-F0-9])(?:0x)?([a-fA-F0-9]{128}|[a-fA-F0-9]{64})(?:$|[^a-fA-F0-9])/;
+  // Clés étendues (xprv…) et WIF : elles aussi donnent les fonds.
+  const xprvOrWif = /\b(?:[xyz]prv[1-9A-HJ-NP-Za-km-z]{50,120}|[5KLc][1-9A-HJ-NP-Za-km-z]{50,51})\b/;
+  if (hexPattern.test(text) || xprvOrWif.test(text)) {
     return {
       hasSecret: true,
       reason: 'hex_key',
@@ -106,7 +109,7 @@ export function sanitizeSecrets(text: string): string {
   // devenait le littéral « $1 »).
   return stripUrlSecrets(maskSensitiveFields(maskBip39Runs(text)))
     // Masquage des clés privées hexadécimales 64 car
-    .replace(/\b(?:0x)?[a-fA-F0-9]{64}\b/g, '[CLÉ_HEX_MASQUÉE]')
+    .replace(HEX_SECRET_RE, '[CLÉ_HEX_MASQUÉE]')
     // Masquage des clés Base58 longues
     .replace(/\b[1-9A-HJ-NP-Za-km-z]{80,90}\b/g, '[CLÉ_B58_MASQUÉE]')
     // Masquage des adresses complètes (garder les 6 premiers et 4 derniers caractères pour identifier le compte sans fuite)
@@ -125,7 +128,7 @@ export function maskSecretsOnly(text: string, knownHashes: Iterable<string> = []
   // Un hash de transaction CONNU a la forme d'une clé privée mais n'en est pas une : il reste lisible.
   const known = new Set([...knownHashes].map((h) => h.toLowerCase().replace(/^0x/, '')));
   return maskSensitiveFields(maskBip39Runs(text))
-    .replace(/\b(?:0x)?[a-fA-F0-9]{64}\b/g, (m) => (known.has(m.toLowerCase().replace(/^0x/, '')) ? m : '[CLÉ_HEX_MASQUÉE]'))
+    .replace(HEX_SECRET_RE, (m) => (known.has(m.toLowerCase().replace(/^0x/, '')) ? m : '[CLÉ_HEX_MASQUÉE]'))
     .replace(/\b[xyz]prv[1-9A-HJ-NP-Za-km-z]{50,120}\b/g, '[CLÉ_ÉTENDUE_MASQUÉE]')
     .replace(/\b[5KLc][1-9A-HJ-NP-Za-km-z]{50,51}\b/g, '[CLÉ_WIF_MASQUÉE]')
     .replace(/\b[1-9A-HJ-NP-Za-km-z]{80,90}\b/g, '[CLÉ_B58_MASQUÉE]');

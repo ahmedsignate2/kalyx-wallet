@@ -151,13 +151,20 @@ export const useTicketHistoryStore = create<TicketHistoryState>()(
     {
       name: 'nova-support-tickets',
       storage: createJSONStorage(() => safeAsyncStorage),
-      // Tickets écrits par une version précédente, sans masquage : nettoyés au chargement.
-      merge: (persisted, current) => {
+      /*
+       * Tickets écrits par une version précédente, sans masquage : nettoyés
+       * par une MIGRATION — elle seule est réécrite sur le disque (un `merge`
+       * ne nettoyait que la mémoire, le clair restait stocké).
+       */
+      version: 1,
+      migrate: (persisted) => {
         const tickets = ((persisted as { tickets?: StoredTicket[] } | undefined)?.tickets ?? []).map((tk) => ({
           ...tk,
           content: sanitizeSecrets(tk.content),
+          problem: tk.problem && sanitizeSecrets(tk.problem),
+          detectedError: tk.detectedError && sanitizeSecrets(tk.detectedError),
         }));
-        return { ...current, tickets };
+        return { tickets } as never;
       },
     }
   )

@@ -54,7 +54,7 @@ describe('contexte local transmis à l’audit', () => {
     expect(prompt).toContain('already sent funds to this exact address');
     expect(prompt).not.toContain('never sent');
     expect(prompt).not.toContain('Maman');
-    expect(prompt).toContain('Network: TON');
+    expect(prompt).toContain('Network: "TON"');
     expect(prompt).toContain('0,5 TON (≈ 1,20 $)');
   });
 

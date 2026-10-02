@@ -40,3 +40,33 @@ describe('sanitizeSecrets — historique du Copilote et tickets', () => {
     expect(out).toContain('password');
   });
 });
+
+describe('sanitizeLog — cas relevés en revue', () => {
+  it('idempotent : relancé, rien ne s’ajoute', () => {
+    const once = sanitizeSecrets('password=hunter2 words: abandon ability able about above absent absorb abstract');
+    expect(sanitizeSecrets(once)).toBe(once);
+    expect(sanitizeLog(sanitizeLog('{"pin":"1234"}'))).toBe('{"pin":"[MASQUÉ]"}');
+  });
+  it('clé de 128 hex masquée', () => {
+    expect(sanitizeLog(`secret key ${'ab'.repeat(64)}`)).not.toContain('abab');
+  });
+  it('Basic, plusieurs mots, tableaux, objets, noms composés, JSON échappé', () => {
+    expect(sanitizeLog('Authorization: Basic dXNlcjpwYXNz')).not.toContain('dXNlcjpwYXNz');
+    expect(sanitizeLog('password: correct horse battery')).not.toContain('horse');
+    const arr = sanitizeLog('{"seed":[12,34,56],"ok":1}');
+    expect(JSON.parse(arr)).toEqual({ seed: '[MASQUÉ]', ok: 1 });
+    expect(sanitizeLog('{"secretKey":"s1","pinCode":"9999"}')).not.toMatch(/s1|9999/);
+    expect(sanitizeLog('{\\"password\\":\\"x9x\\"}')).not.toContain('x9x');
+  });
+  it('URL : identifiants et clé d’API dans le chemin retirés', () => {
+    const out = sanitizeLog('rpc https://eth-mainnet.g.alchemy.com/v2/AbCdEfGhIjKlMnOpQrStUv012345 and https://user:hunter2@rpc.example.com/');
+    expect(out).not.toContain('AbCdEfGhIjKlMnOpQrStUv012345');
+    expect(out).not.toContain('hunter2');
+    expect(out).toContain('eth-mainnet.g.alchemy.com');
+  });
+  it('la phrase masquée n’avale ni le contexte ni la clé JSON', () => {
+    const out = sanitizeLog(`{"error":"x","input":"${PHRASE}"}`);
+    expect(JSON.parse(out).input).toBe('[PHRASE_RÉCUPÉRATION_MASQUÉE]');
+    expect(sanitizeLog(`field value now (length 12, valid false): ${PHRASE}`)).toContain('valid false');
+  });
+});

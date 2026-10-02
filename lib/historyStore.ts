@@ -187,6 +187,8 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
         if (await decoyActive()) return;
         const storage = await getStorage();
         const raw = await storage.getItem(STORAGE_KEY);
+        // Session leurre ouverte PENDANT la lecture : le vrai historique n'entre pas en mémoire.
+        if (await decoyActive()) return;
         if (raw) {
           const parsed = JSON.parse(raw, historyReviver) as Record<string, TxSummary[]>;
           // Le réseau a pu répondre avant la lecture du disque : il a priorité.
@@ -202,9 +204,14 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
 // Hydratation automatique au chargement du module.
 void useHistoryStore.getState().hydrate();
 
-// Entrée en session leurre : le vrai historique, relu au lancement, quitte la mémoire.
+/*
+ * Entrée en session leurre : le vrai historique, relu au lancement, quitte la
+ * mémoire. Sortie (sans redémarrage) : celui du leurre la quitte à son tour, et
+ * le vrai est relu — sinon la première écriture aurait mis le leurre sur disque.
+ */
 onDecoyChange((on) => {
-  if (on) useHistoryStore.setState({ cache: {}, lastFetch: {} });
+  useHistoryStore.setState({ cache: {}, lastFetch: {} });
+  if (!on) void useHistoryStore.getState().hydrate();
 });
 
 /* ── Lecture RÉACTIVE du cache ───────────────────────────────────────────────
