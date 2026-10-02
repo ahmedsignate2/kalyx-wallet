@@ -262,7 +262,12 @@ export default function TrackingScreen() {
         value: tx?.value ?? 0n,
         chainId: chain.evmChainId ?? 1,
       });
-      if (!orig) {
+      /*
+       * La transaction à accélérer ou annuler doit être LA SIENNE : re-signer
+       * le contenu d'une transaction d'autrui (même nonce, autre émetteur)
+       * enverrait ses fonds où l'autre le voulait — sans liste blanche.
+       */
+      if (!orig || !walletAddress || orig.from.toLowerCase() !== walletAddress.toLowerCase()) {
         toast.error(t('replacementError'));
         setReplacementSheetVisible(false);
         return;

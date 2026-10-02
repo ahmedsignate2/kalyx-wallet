@@ -1853,7 +1853,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       // Blockhash rafraîchi à la signature (un devis peut dater de >60 s), puis
       // simulation OBLIGATOIRE → envoi → attente de confirmation : on ne dit
       // « swap exécuté » que si Solana a confirmé.
-      const signedTxStr = await get().signSolanaTransaction(unlock, quote.tx.data, true);
+      const signedTxStr = await get().signSolanaTransaction(unlock, quote.tx.data, true, { appFlow: true }); // échange construit par l'app
       return submitSolanaSigned(signedTxStr, (st) => onStatus?.(st === 'sending' ? 'swapping' : 'confirming'));
     } else {
       throw new Error(`Swap impossible: type de transaction (${(quote.tx as any).type}) incompatible avec le réseau actif`);
