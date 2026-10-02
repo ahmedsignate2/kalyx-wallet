@@ -1591,6 +1591,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     const { activeWalletId, wallets, account } = get();
     if (!account) throw new Error('Aucun compte');
 
+    // LISTE BLANCHE : dernier verrou avant toute signature d'envoi, quel que soit l'écran.
+    await (await import('./whitelistStore')).assertRecipientAllowed(request.to);
     const draft = await adapter.prepareSend(from, request);
     // Dernier verrou, quel que soit l'écran : un dépôt sans le commentaire exigé est perdu.
     if (draft.warnings.some((w) => w.code === 'MEMO_REQUIRED')) {
@@ -2273,6 +2275,8 @@ export const useWallet = create<WalletState>((set, get) => ({
       new Promise((r) => setTimeout(r, 10_000)),
     ]);
     await wipeAll(get().wallets);
+    // La liste blanche part avec les portefeuilles (un nouvel utilisateur repart de zéro).
+    await import('./whitelistStore').then((m) => m.whitelistActions.wipe()).catch(() => {});
     // Une recherche des comptes en cours appartenait à l'ancien portefeuille (l'id « primary » sera réutilisé).
     void import('./runDiscovery').then((m) => m.clearDiscoveries()).catch(() => {});
     // Le portefeuille et le compte mémorisés n'ont plus d'objet : les laisser
