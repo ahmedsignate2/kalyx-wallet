@@ -30,75 +30,116 @@ const BIP39_SET = new Set(wordlist);
  */
 const MIN_BIP39_RUN = 8;
 
+/** Mot à une faute près d'un mot BIP-39 (lettre en trop, en moins ou changée). */
+function nearBip39(w: string): boolean {
+  const x = w.toLowerCase();
+  // 4 lettres au moins : « to », « the », « and »… sont à une lettre d'un mot BIP-39 sans en être une faute.
+  if (x.length < 4 || x.length > 9) return false;
+  for (const b of BIP39_SET) {
+    if (Math.abs(b.length - x.length) > 1) continue;
+    let i = 0;
+    let j = 0;
+    let edits = 0;
+    while (i < b.length && j < x.length && edits <= 1) {
+      if (b[i] === x[j]) { i++; j++; continue; }
+      edits++;
+      if (b.length > x.length) i++;
+      else if (b.length < x.length) j++;
+      else { i++; j++; }
+    }
+    edits += b.length - i + (x.length - j);
+    if (edits <= 1) return true;
+  }
+  return false;
+}
+
 /**
  * Masque toute suite d'au moins `MIN_BIP39_RUN` mots appartenant à la wordlist
  * BIP-39. On découpe sur les séparateurs plutôt qu'avec une expression
  * régulière : une seed peut être séparée par des espaces, des virgules, des
  * retours à la ligne ou des guillemets JSON, et un seul motif ne les couvre pas.
  *
- * Un mot HORS liste isolé (faute de frappe, mot oublié) ne coupe pas la suite :
- * sinon deux moitiés de moins de 8 mots passaient, soit la phrase moins un mot
- * — trivial à retrouver. Deux mots hors liste d'affilée la coupent, et la suite
- * doit rester à 80 % de mots BIP-39 : une phrase anglaise ordinaire, qui en
- * alterne quelques-uns avec d'autres mots, n'est pas masquée.
+ * Tolérances et limites :
+ *  - un mot hors liste À UNE FAUTE PRÈS d'un mot BIP-39 (« absnt », 4 lettres
+ *    au moins) ne coupe pas la suite — sinon la phrase passait moins un mot,
+ *    trivial à retrouver ; la suite reste à 85 % de mots de la liste ;
+ *  - tout autre mot hors liste la coupe, et un séparateur porteur de « : » ou
+ *    « = » aussi (frontière clé/valeur : une seed n'en contient jamais) — le
+ *    contexte voisin et les clés JSON ne sont pas avalés.
  */
 export function maskBip39Runs(input: string): string {
   const parts = input.split(/([^a-zA-Z]+)/); // garde les séparateurs
-  const words: { i: number; bip: boolean }[] = [];
-  parts.forEach((w, i) => {
-    if (w && /^[a-zA-Z]+$/.test(w)) words.push({ i, bip: BIP39_SET.has(w.toLowerCase()) });
-  });
   const out = [...parts];
-  const mask = (seg: { i: number; bip: boolean }[]) => {
-    // Bords hors liste retirés : on ne masque que de la phrase.
-    while (seg.length && !seg[0].bip) seg.shift();
-    while (seg.length && !seg[seg.length - 1].bip) seg.pop();
-    const bip = seg.filter((w) => w.bip).length;
-    if (bip < MIN_BIP39_RUN || bip / seg.length < 0.8) return;
-    const first = seg[0].i;
-    const last = seg[seg.length - 1].i;
+  let seg: { i: number; bip: boolean }[] = [];
+  const mask = () => {
+    const run = seg;
+    seg = [];
+    while (run.length && !run[0].bip) run.shift();
+    while (run.length && !run[run.length - 1].bip) run.pop();
+    const bip = run.filter((w) => w.bip).length;
+    if (bip < MIN_BIP39_RUN || bip / run.length < 0.85) return;
+    const first = run[0].i;
+    const last = run[run.length - 1].i;
     for (let k = first; k <= last; k++) out[k] = '';
     out[first] = '[PHRASE_RÉCUPÉRATION_MASQUÉE]';
   };
-  let seg: { i: number; bip: boolean }[] = [];
-  for (let k = 0; k < words.length; k++) {
-    const w = words[k];
-    if (!w.bip && seg.length && !seg[seg.length - 1].bip) {
-      // Deux hors liste d'affilée : la suite s'arrête là.
-      mask(seg);
-      seg = [];
+  for (let k = 0; k < parts.length; k++) {
+    const w = parts[k];
+    if (!w) continue;
+    if (!/^[a-zA-Z]+$/.test(w)) {
+      if (/[:=]/.test(w)) mask();
+      continue;
     }
-    seg.push(w);
+    if (BIP39_SET.has(w.toLowerCase())) seg.push({ i: k, bip: true });
+    else if (seg.length && seg[seg.length - 1].bip && nearBip39(w)) seg.push({ i: k, bip: false });
+    else mask();
   }
-  mask(seg);
+  mask();
   return out.join('');
 }
 
-/** Noms de champs dont la VALEUR est secrète. */
+/** Noms de champs dont la VALEUR est secrète (aussi au sein d'un nom : `secretKey`, `pinCode`). */
 const SENSITIVE_KEYS = 'password|passphrase|secret|private[_-]?key|mnemonic|seed|phrase|words|recovery|backup|pin|api[_-]?key|authorization|bearer|access[_-]?token|refresh[_-]?token|id[_-]?token|session[_-]?token';
 
 /**
  * Valeur d'un champ sensible masquée EN ENTIER, forme d'origine gardée :
- * `"pin":"1234"` → `"pin":"[MASQUÉ]"` (le JSON reste lisible),
- * `Authorization: Bearer sk-…` → `Authorization: [MASQUÉ]`. Seul le premier
- * mot était masqué auparavant : « Bearer » disparaissait, le jeton restait.
+ * `"pin":"1234"` → `"pin":"[MASQUÉ]"` (le JSON reste lisible), JSON échappé
+ * compris ; `Authorization: Basic …`, `password: correct horse battery` →
+ * jusqu'à la fin de la valeur ; `"seed":[12,34]` et `{…}` → en bloc.
+ * Idempotent : relancé sur son propre résultat, il ne change plus rien.
  */
 export function maskSensitiveFields(input: string): string {
+  const key = `[A-Za-z_-]*(?:${SENSITIVE_KEYS})[A-Za-z_-]*`;
   const re = new RegExp(
-    `((?:${SENSITIVE_KEYS})["']?\\s*[:=]\\s*)(?:"((?:[^"\\\\]|\\\\.)*)"|'([^']*)'|((?:bearer\\s+)?[^"',\\s}\\]]+))`,
+    `(${key}\\\\?["']?\\s*[:=]\\s*)(?:(\\\\?)"(.*?)\\2"|'([^'\\n]*)'|(\\[[^\\]\\n]*\\]|\\{[^}\\n]*\\}|[^"'\\n,;}\\]]+))`,
     'gi',
   );
   return input
-    .replace(re, (_m, pre: string, dq?: string, sq?: string) =>
-      dq !== undefined ? `${pre}"[MASQUÉ]"` : sq !== undefined ? `${pre}'[MASQUÉ]'` : `${pre}[MASQUÉ]`,
-    )
+    .replace(re, (_m, pre: string, bs: string | undefined, dq?: string, sq?: string, bare?: string) => {
+      if (dq !== undefined) return `${pre}${bs ?? ''}"[MASQUÉ]${bs ?? ''}"`;
+      if (sq !== undefined) return `${pre}'[MASQUÉ]'`;
+      // Tableau ou objet sous une clé JSON (`"seed":[12,…]`) : chaîne, pour que le JSON reste valide.
+      if (bare && /^[[{]/.test(bare) && bare !== '[MASQUÉ]' && pre.includes('"')) return `${pre}"[MASQUÉ]"`;
+      return `${pre}[MASQUÉ]`;
+    })
     .replace(/\bbearer\s+(?!\[MASQUÉ\])[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [MASQUÉ]');
 }
 
-/** URL : paramètres et fragment retirés (codes OAuth, jetons d'accès, sessions). */
+/**
+ * URL : ce qui peut porter un secret est retiré — identifiants (`user:mot@`),
+ * paramètres, fragment, et tout segment de chemin long et opaque (clé d'API
+ * d'un RPC : `/v2/AbCd…`). L'hôte et le début du chemin restent pour le diagnostic.
+ */
 export function stripUrlSecrets(input: string): string {
-  return input.replace(/\b(https?:\/\/[^\s?#"'<>]+)[?#][^\s"'<>]*/gi, '$1?[…]');
+  return input.replace(/\bhttps?:\/\/[^\s"'<>]+/gi, (url) => {
+    let u = url.replace(/^(https?:\/\/)[^/@\s]*@/i, '$1[…]@');
+    u = u.replace(/[?#].*$/, (m) => (m.length > 1 ? '?[…]' : m));
+    return u.replace(/\/[A-Za-z0-9_-]{20,}(?=\/|$|\?)/g, '/[…]');
+  });
 }
+
+/** Secrets HEXADÉCIMAUX : clé 32 octets (64) et clé/graine 64 octets (128). */
+export const HEX_SECRET_RE = /\b(?:0x)?(?:[a-fA-F0-9]{128}|[a-fA-F0-9]{64})\b/g;
 
 export const sanitizeLog = (raw: string): string => {
   if (!raw || typeof raw !== 'string') return '';
@@ -108,7 +149,7 @@ export const sanitizeLog = (raw: string): string => {
   clean = maskBip39Runs(clean);
 
   // 2. Clés privées hexadécimales (64 chars hexadécimaux avec ou sans 0x)
-  clean = clean.replace(/\b(0x)?[a-fA-F0-9]{64}\b/g, '[CLÉ_PRIVÉE_MASQUÉE]');
+  clean = clean.replace(HEX_SECRET_RE, '[CLÉ_PRIVÉE_MASQUÉE]');
 
   // 3. Clés étendues BIP-32 (xprv/yprv/zprv) : elles dérivent TOUT le wallet.
   clean = clean.replace(/\b[xyz]prv[1-9A-HJ-NP-Za-km-z]{50,120}\b/g, '[CLÉ_ÉTENDUE_MASQUÉE]');

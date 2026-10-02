@@ -23,7 +23,7 @@ import { validateAiKey } from '../../lib/aiValidator';
 import { PROVIDER_DEFAULTS } from '../../lib/aiConfig';
 import { serializeCopilotContext } from '../../lib/copilotContext';
 import { useT, useSettings } from '../../lib/settingsStore';
-import { detectSensitiveSecrets, sanitizeSecrets } from '../../lib/secretDetector';
+import { maskSecretsOnly } from '../../lib/secretDetector';
 import { knownTxHashes } from '../../lib/knownTxHashes';
 import { toast } from '../../lib/toast';
 import { useWebT, type WebKey } from './webI18n';
@@ -302,15 +302,16 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     const q = text.trim();
     if (!q || busy) return;
     setInput('');
-    // Secret dans le message : ni envoyé au fournisseur d'IA, ni gardé en clair.
-    if (detectSensitiveSecrets(q, knownTxHashes()).hasSecret) {
-      addMessageToActive({ sender: 'user', text: sanitizeSecrets(q) });
-      addMessageToActive({ sender: 'assistant', text: t('copilotSecretBlocked') });
-      return;
-    }
-    addMessageToActive({ sender: 'user', text: q });
+    /*
+     * Secret dans le message (clé, phrase, WIF, xprv, champ « pin: »…) : MASQUÉ
+     * avant l'envoi au fournisseur d'IA et dans l'historique, et on le dit. Un
+     * hash de transaction connu reste lisible ; la question part quand même.
+     */
+    const masked = maskSecretsOnly(q, knownTxHashes());
+    addMessageToActive({ sender: 'user', text: masked });
+    if (masked !== q) addMessageToActive({ sender: 'assistant', text: t('copilotSecretMasked') });
     setBusy(true);
-    const transcript = [...messages.slice(-8), { sender: 'user', text: q }]
+    const transcript = [...messages.slice(-8), { sender: 'user', text: masked }]
       .map((m) => `${m.sender === 'user' ? tw('you') : tw('copilot')} : ${m.text}`)
       .join('\n');
     let ctx = '{}';
