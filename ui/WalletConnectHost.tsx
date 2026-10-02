@@ -13,6 +13,8 @@ import { Pressable as KPressable } from './kit';
 import { SafeModal } from './kit/SafeModal';
 import { signMessageParam } from '../lib/dappProvider';
 import { solanaMessageBytes } from '../lib/solanaMessage';
+import { bitcoinMessageParam, solanaMessageParam } from '../lib/messageParams';
+import { bytesToHex } from '@noble/hashes/utils';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, ScrollView, Image, StyleSheet } from 'react-native';
 import { GlassCard, ErrorBox, GradientAvatar } from './premium';
@@ -197,12 +199,14 @@ export function WalletConnectHost() {
       kind = siwe ? 'siwe' : 'message';
       messageText = text;
     } else if (method === 'solana_signMessage' || method === 'bitcoin_signMessage' || method === 'signMessage') {
-      // Solana : message en base58 (spec) ; Bitcoin : texte UTF-8.
-      const raw = p0?.message ?? p0?.msg ?? (typeof p0 === 'string' ? p0 : '');
-      // Solana : le décodage même de la signature (lib/solanaMessage) — on montre ce qui sera signé.
-      messageText = method === 'solana_signMessage'
-        ? (solanaMessageBytes(String(raw ?? '')).text ?? String(raw ?? ''))
-        : String(raw ?? '');
+      // Lu et décodé comme à la signature (lib/messageParams, lib/solanaMessage) : on montre ce qui sera signé.
+      if (method === 'solana_signMessage') {
+        const { bytes, text: decoded } = solanaMessageBytes(solanaMessageParam(p) ?? '');
+        // Octets binaires : montrés en hex, jamais sous l'apparence d'un texte.
+        messageText = decoded ?? `0x${bytesToHex(bytes)}`;
+      } else {
+        messageText = bitcoinMessageParam(p) ?? '';
+      }
       kind = 'message';
     } else if (method === 'getAccountAddresses' || method === 'bitcoin_getAccountAddresses' || method === 'bitcoin_getAccounts' || method === 'getAccounts') {
       kind = 'btcAccounts';

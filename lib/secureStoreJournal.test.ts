@@ -53,8 +53,8 @@ describe('changement de PIN : tout ou rien', () => {
     await saveVault('primary', vault('old-a'));
     await saveVault('w2', vault('old-b'));
     await savePinChangeJournal([{ id: 'primary', vault: vault('old-a') }, { id: 'w2', vault: vault('old-b') }]);
-    // L'app est tuée après avoir écrit UN seul nouveau coffre.
-    await saveVault('primary', vault('new-a'));
+    // L'app est tuée après avoir écrit UN seul nouveau coffre (écriture brute du changement).
+    mockStore.set('nova.vault', { value: JSON.stringify(vault('new-a')), gated: false });
 
     expect(await rollbackPinChange()).toBe(true);
     expect((await loadVault('primary'))?.ct).toBe('old-a');
@@ -69,9 +69,14 @@ describe('changement de PIN : tout ou rien', () => {
     mockFailWrite = 'nova.vault';
     await expect(rollbackPinChange()).rejects.toThrow('écriture refusée');
     expect((await loadVault('w2'))?.ct).toBe('old-b'); // les autres sont remis quand même
+    // Tant que le journal attend, aucune écriture de coffre ne passe sans le résoudre.
+    await expect(saveVault('w3', vault('neuf'))).rejects.toThrow('écriture refusée');
+    expect(await loadVault('w3')).toBeNull();
     mockFailWrite = null;
-    expect(await rollbackPinChange()).toBe(true); // journal toujours là
+    await saveVault('w3', vault('neuf')); // résout d'abord, puis écrit
     expect((await loadVault('primary'))?.ct).toBe('old-a');
+    expect((await loadVault('w3'))?.ct).toBe('neuf');
+    expect(await rollbackPinChange()).toBe(false); // journal résolu
   });
 
   it('sans journal (changement terminé), rien n’est touché', async () => {

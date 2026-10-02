@@ -103,8 +103,7 @@ import {
   loadWalletsList,
   saveLockState,
   loadLockState,
-  savePinChangeJournal,
-  clearPinChangeJournal,
+  commitPinChange,
   rollbackPinChange,
   wipeWallet,
   wipeAll,
@@ -832,6 +831,22 @@ function storedAccountFromRawKey(family: KeyFamily, secret: Uint8Array): StoredA
 }
 
 /**
+ * Attente avant le prochain essai de code, horloge corrigée. Un échec daté du
+ * FUTUR (horloge reculée depuis) est ramené à maintenant, et ramené pour de
+ * bon : sans cela l'attente restait figée à son palier tant que l'horloge
+ * n'avait pas rattrapé la date enregistrée — des semaines, parfois.
+ */
+function lockRemainingNow(): number {
+  const st = useWallet.getState();
+  const now = Date.now();
+  if (st.lastFailedAt > now) {
+    useWallet.setState({ lastFailedAt: now });
+    void saveLockState(st.failedAttempts, now).catch(() => {});
+  }
+  return lockRemainingMs(st.failedAttempts, Math.min(st.lastFailedAt, now), now);
+}
+
+/**
  * Clé privée EVM prête à signer, quelle que soit l'origine du wallet actif :
  * dérivée de la seed (wallet HD) ou clé importée telle quelle (wallet clé privée).
  * Le secret ne vit que le temps de l'appel.
@@ -984,7 +999,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
    * « Révéler la phrase » sans jamais être arrêté.
    */
   const st = useWallet.getState();
-  if (lockRemainingMs(st.failedAttempts, st.lastFailedAt, Date.now()) > 0) {
+  if (lockRemainingNow() > 0) {
     throw new WalletError('LOCKED_OUT', 'Trop de tentatives. Réessaie plus tard.');
   }
   /*
@@ -1222,10 +1237,10 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   unlockWithPin: async (pin) => {
-    const { failedAttempts, lastFailedAt, activeWalletId } = get();
-    if (lockRemainingMs(failedAttempts, lastFailedAt, Date.now()) > 0) {
+    if (lockRemainingNow() > 0) {
       throw new WalletError('LOCKED_OUT', 'Trop de tentatives. Réessaie plus tard.');
     }
+    const { failedAttempts, lastFailedAt, activeWalletId } = get();
     setDecoySession(false);
     try {
       const authId = authWalletId(get().wallets, activeWalletId);
@@ -1595,20 +1610,23 @@ export const useWallet = create<WalletState>((set, get) => ({
      * l'utilisateur ne saurait pas distinguer. Les coffres existants sont
      * déchiffrés UNE fois (scrypt, lent) — et non une fois par entrée importée.
      */
+    // Empreintes seulement : les secrets eux-mêmes ne restent pas réunis en mémoire le temps de l'import.
+    const fingerprint = (secret: string) => bytesToHex(sha256(utf8ToBytes(secret)));
     const known = new Set<string>();
     for (const existing of get().wallets) {
       const vault = await loadVault(existing.id);
       if (!vault) continue;
       try {
-        known.add(await decryptSecret(vault, pin));
+        known.add(fingerprint(await decryptSecret(vault, pin)));
       } catch {
         // Coffre illisible avec ce PIN : on ne peut rien conclure, on continue.
       }
     }
     let added = 0;
     for (const w of list) {
-      if (known.has(w.secret)) continue;
-      known.add(w.secret); // deux fois le même dans la sauvegarde : un seul portefeuille
+      const fp = fingerprint(w.secret);
+      if (known.has(fp)) continue;
+      known.add(fp); // deux fois le même dans la sauvegarde : un seul portefeuille
 
       if (w.type === 'privateKey') {
         await get().importPrivateKey(w.secret, pin, w.label, w.keyFamily ?? 'evm');
@@ -2410,15 +2428,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       before.push({ id: w.id, vault });
       after.push({ id: w.id, vault: await encryptSecret(m, newPin) });
     }
-    await savePinChangeJournal(before);
-    try {
-      for (const a of after) await saveVault(a.id, a.vault);
-    } catch (e) {
-      // Remise en place ; si elle échoue aussi, le journal reste pour le prochain lancement.
-      await rollbackPinChange().catch(() => {});
-      throw e;
-    }
-    await clearPinChangeJournal();
+    await commitPinChange(before, after);
   },
 
   revealPhrase: async (unlock) => {

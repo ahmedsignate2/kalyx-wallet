@@ -54,7 +54,8 @@ export function lockRemainingMs(
   /*
    * Horloge reculée (réglage manuel, fuseau, batterie vidée) : `lastFailedAt`
    * est dans le futur et l'attente calculée pouvait valoir des mois. Jamais
-   * plus que l'attente du palier — le pire cas est de la refaire en entier.
+   * plus que l'attente du palier ; le portefeuille ramène en plus la date à
+   * maintenant (`lockRemainingNow`), pour que l'attente reprenne son décompte.
    */
   return Math.min(wait, Math.max(0, lastFailedAt + wait - now));
 }
