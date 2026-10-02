@@ -239,8 +239,8 @@ function SigningModal() {
         </Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>
           {phase === 'await'
-            ? tw('signAwaitBody', { label })
-            : detail ?? ''}
+            ? pending.slow ? tw('signAwaitSlow') : tw('signAwaitBody', { label })
+            : pending.expired ? tw('signExpired') : detail ?? ''}
         </Text>
         {phase === 'await' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(0.5) }}>

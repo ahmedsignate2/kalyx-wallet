@@ -12,8 +12,9 @@ import { Pressable as KPressable } from './kit';
  */
 import { SafeModal } from './kit/SafeModal';
 import { signMessageParam } from '../lib/dappProvider';
-import { utf8Decode } from '../src/domain/tonconnect/sessionCrypto';
-import { base58 } from '@scure/base';
+import { solanaMessageBytes } from '../lib/solanaMessage';
+import { bitcoinMessageParam, btcTransferParams, solanaMessageParam } from '../lib/messageParams';
+import { bytesToHex } from '@noble/hashes/utils';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, ScrollView, Image, StyleSheet } from 'react-native';
 import { GlassCard, ErrorBox, GradientAvatar } from './premium';
@@ -22,7 +23,7 @@ import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon, type IconName } from './icon';
 import { fonts, radii, spacing, useTheme } from './theme';
 import { useTokenStore } from '../lib/tokenStore';
-import { useWalletConnect } from '../lib/walletconnect';
+import { assertSessionAccount, useWalletConnect } from '../lib/walletconnect';
 import { useLocked } from '../lib/lockState';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { accountDisplayName } from '../lib/walletNames';
@@ -43,6 +44,7 @@ import {
   getTokenMetadata,
   summarizePsbt,
   formatTokenAmount,
+  isWalletError,
   type PsbtSummary,
   type RiskAssessment,
   type Simulation,
@@ -139,21 +141,6 @@ function DappHeader({ name, url, icon }: { name: string; url: string; icon?: str
   );
 }
 
-/** Texte d'un message à signer : base58 (Solana), hex 0x (EVM) ou texte brut. Jamais ne lève. */
-function decodeMessageText(raw: string, base58First: boolean): string {
-  if (!raw) return '';
-  try {
-    if (base58First) {
-      const bytes = base58.decode(raw);
-      // Pas de `TextDecoder` : absent sous Hermes, il levait et le message restait en base58 illisible.
-      const txt = utf8Decode(bytes);
-      if (/^[\x20-\x7E\u00A0-\uFFFF\s]*$/.test(txt)) return txt;
-    }
-  } catch { /* pas du base58 */ }
-  if (raw.startsWith('0x')) return hexToText(raw) ?? raw;
-  return raw;
-}
-
 export function WalletConnectHost() {
   const { colors, typography } = useTheme();
   const t = useT();
@@ -175,7 +162,8 @@ export function WalletConnectHost() {
   const [shareIndex, setShareIndex] = useState(activeAccountIndex);
   // Le compte actif peut changer pendant qu'une proposition est ouverte.
   useEffect(() => { setShareIndex(activeAccountIndex); }, [activeAccountIndex]);
-  const reduceRef = useRef<string | null>(null);
+  /** Calldata « approve réduit », liée à l'identifiant de LA demande pour laquelle elle a été calculée. */
+  const reduceRef = useRef<{ id: number; data: string } | null>(null);
   // Autorisations granulaires accordées au site (cases à la connexion).
   const [allowTx, setAllowTx] = useState(true);
   const [allowSign, setAllowSign] = useState(true);
@@ -213,17 +201,23 @@ export function WalletConnectHost() {
       kind = siwe ? 'siwe' : 'message';
       messageText = text;
     } else if (method === 'solana_signMessage' || method === 'bitcoin_signMessage' || method === 'signMessage') {
-      // Solana : message en base58 (spec) ; Bitcoin : texte UTF-8.
-      const raw = p0?.message ?? p0?.msg ?? (typeof p0 === 'string' ? p0 : '');
-      messageText = decodeMessageText(String(raw ?? ''), method === 'solana_signMessage');
+      // Lu et décodé comme à la signature (lib/messageParams, lib/solanaMessage) : on montre ce qui sera signé.
+      if (method === 'solana_signMessage') {
+        const { bytes, text: decoded } = solanaMessageBytes(solanaMessageParam(p) ?? '');
+        // Octets binaires : montrés en hex, jamais sous l'apparence d'un texte.
+        messageText = decoded ?? `0x${bytesToHex(bytes)}`;
+      } else {
+        messageText = bitcoinMessageParam(p) ?? '';
+      }
       kind = 'message';
     } else if (method === 'getAccountAddresses' || method === 'bitcoin_getAccountAddresses' || method === 'bitcoin_getAccounts' || method === 'getAccounts') {
       kind = 'btcAccounts';
-    } else if (method === 'sendTransfer' || method === 'bitcoin_sendTransfer' || method === 'bitcoin_sendTransaction') {
-      const to = p0?.recipientAddress ?? p0?.recipient ?? p0?.to;
+    } else if (method === 'sendTransfer' || method === 'bitcoin_sendTransfer' || method === 'bitcoin_sendTransaction' || method === 'sendTransaction') {
+      // Même lecture que l'envoi (lib/messageParams) : l'écran montre ce qui partira.
+      const { to, amount } = btcTransferParams(p);
       let sats: bigint | undefined;
-      try { sats = p0?.amount != null ? BigInt(String(p0.amount)) : undefined; } catch { sats = undefined; }
-      btc = { to: typeof to === 'string' ? to : undefined, sats };
+      try { sats = amount != null && /^\d+$/.test(String(amount).trim()) ? BigInt(String(amount).trim()) : undefined; } catch { sats = undefined; }
+      btc = { to, sats };
       kind = 'btcTransfer';
     } else if (method === 'signPsbt' || method === 'bitcoin_signPsbt') {
       const inputs = Array.isArray(p0?.signInputs) ? p0.signInputs.length : Array.isArray(p0?.inputsToSign) ? p0.inputsToSign.length : undefined;
@@ -413,7 +407,19 @@ export function WalletConnectHost() {
     const { kind, siwe, typed, tx, chain, peer, phishing, decoded, verify } = info;
     const simulating = sim === 'loading';
     const simulation = sim && sim !== 'loading' ? sim : null;
-    const explanation = explainRequest({
+    /*
+     * Compte de la session ≠ compte actif : dit AVANT le code, pas après.
+     * Signer est alors bloqué (le coffre refuserait de toute façon).
+     */
+    let accountMismatch: string | null = null;
+    try {
+      assertSessionAccount(useWalletConnect.getState().wallet, request.topic, request.params?.chainId);
+    } catch (e) {
+      // Message construit ici (pas `friendlyTxError`, qui journalise à chaque rendu).
+      const address = isWalletError(e) ? e.meta?.address : undefined;
+      accountMismatch = address ? t('errWrongAccountAddr').replace('{address}', String(address)) : t('errWrongAccount');
+    }
+    const baseExplanation = explainRequest({
       kind,
       method: info.method,
       domain: peer?.url ? hostOf(peer.url) : undefined,
@@ -434,13 +440,19 @@ export function WalletConnectHost() {
       connectedChainId: chain?.evmChainId,
       t: exT,
     });
+    const explanation = accountMismatch
+      ? { ...baseExplanation, risk: 'danger' as const, reasons: [accountMismatch, ...baseExplanation.reasons] }
+      : baseExplanation;
     const rawJson = JSON.stringify(request.params?.request?.params ?? {}, null, 2).slice(0, 1600);
 
     // « Réduire au montant exact » : approve illimité → montant issu de la simulation
     // (ce que le routeur va prélever) ; sans simulation, on ne devine pas.
     const reducible = decoded?.kind === 'approve' && decoded.unlimited;
     const reducedAmount = simulation?.changes.find((c) => c.direction === 'out' && c.contract && decoded?.kind === 'approve' && c.contract.toLowerCase() === decoded.token.toLowerCase())?.rawAmount;
-    const [overrideData, setOverride] = [reduceRef.current, (v: string | null) => (reduceRef.current = v)];
+    const reqId: number | undefined = request?.id;
+    // Jamais appliquée à une autre demande que la sienne (échec, file qui avance).
+    const overrideData = reduceRef.current && reduceRef.current.id === reqId ? reduceRef.current.data : null;
+    const setOverride = (v: string | null) => (reduceRef.current = v && reqId != null ? { id: reqId, data: v } : null);
     const onReduce = () => {
       if (!reducible || !reducedAmount || decoded?.kind !== 'approve') return;
       const data = new Interface(['function approve(address,uint256)']).encodeFunctionData('approve', [decoded.spender, BigInt(reducedAmount)]);
@@ -449,8 +461,11 @@ export function WalletConnectHost() {
     };
 
     const perform = async (unlock: Unlock) => {
-      await approveRequest(unlock, overrideData ?? undefined);
-      setOverride(null);
+      try {
+        await approveRequest(unlock, overrideData ?? undefined);
+      } finally {
+        setOverride(null); // la file avance aussi en cas d'échec
+      }
       sound.success();
     };
     const reject = () => {
@@ -478,7 +493,7 @@ export function WalletConnectHost() {
           address={signerAddress}
           raw={rawJson}
           onReject={reject}
-          onSign={() => setConfirming(true)}
+          onSign={() => { if (!accountMismatch) setConfirming(true); }}
           onReduceApproval={reducible && reducedAmount ? onReduce : undefined}
           signLabel={kind === 'siwe' ? t("wcSignConnect") : kind === 'tx' || kind === 'btcTransfer' || kind === 'btcPsbt' ? t("wcSignConfirm") : kind === 'btcAccounts' ? t('allow') : t("wcSign")}
         />

@@ -34,10 +34,44 @@ function isSequence(s: string): boolean {
   return asc || desc;
 }
 
+const KEYBOARD_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm', 'azertyuiop', 'qsdfghjklm', 'wxcvbn', 'qwertzuiop', 'yxcvbnm', '1234567890'];
+
+/**
+ * Ce qui reste une fois retirés les motifs qu'un attaquant essaie en premier :
+ * mots connus, rangées du clavier, suites (abcd, 4321) et répétitions (aaa,
+ * abab). « Qwerty123456! » est long et a quatre sortes de caractères — mais
+ * presque rien ne reste, et c'est ce reste qui fait la force réelle.
+ */
+function residual(core: string): string {
+  let r = core;
+  for (const w of COMMON) r = r.split(w).join('');
+  for (const row of KEYBOARD_ROWS) {
+    for (const line of [row, [...row].reverse().join('')]) {
+      for (let len = line.length; len >= 4; len--) {
+        for (let i = 0; i + len <= line.length; i++) r = r.split(line.slice(i, i + len)).join('');
+      }
+    }
+  }
+  // Suites de 4 et plus (codes consécutifs, montantes ou descendantes).
+  const codes = [...r];
+  const keep = new Array(codes.length).fill(true);
+  for (let i = 0; i + 3 < codes.length; i++) {
+    for (const step of [1, -1]) {
+      let j = i;
+      while (j + 1 < codes.length && codes[j + 1].charCodeAt(0) - codes[j].charCodeAt(0) === step) j++;
+      if (j - i + 1 >= 4) for (let k = i; k <= j; k++) keep[k] = false;
+    }
+  }
+  r = codes.filter((_, i) => keep[i]).join('');
+  // Répétitions : un caractère trois fois et plus, un motif court répété.
+  return r.replace(/(.)\1{2,}/g, '').replace(/(.{2,4})\1+/g, '');
+}
+
 export function passwordStrength(pwd: string): Strength {
   if (!pwd) return { level: 0, key: 'strengthWeak' };
   const lower = pwd.toLowerCase();
-  const core = lower.replace(/[^a-z0-9]/g, '');
+  // Lettres de TOUTES les écritures gardées (arabe, cyrillique…) : seuls les blancs et la ponctuation ASCII tombent.
+  const core = lower.replace(/[\s!-/:-@[-`{-~]/g, '');
   const weak: Strength = { level: 1, key: 'strengthWeak' };
 
   if (pwd.length < 10) return weak;
@@ -46,6 +80,10 @@ export function passwordStrength(pwd: string): Strength {
   // Un mot connu, éventuellement suivi de chiffres ou de symboles (« Password2024! »).
   const stripped = core.replace(/\d+$/, '');
   if (COMMON.some((w) => stripped === w || (lower.includes(w) && pwd.length < w.length + 6))) return weak;
+
+  // Peu de caractères distincts (« aaaaaaaaaA1 », « ababab12ab ») ou presque rien hors motifs connus.
+  if (new Set(lower).size < Math.max(5, Math.ceil(pwd.length / 3))) return weak;
+  if (residual(core).length < 6) return weak;
 
   const classes = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((r) => r.test(pwd)).length;
   // Phrase de passe : plusieurs mots, longue — forte même sans symboles.

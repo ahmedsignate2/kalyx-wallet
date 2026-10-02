@@ -5,9 +5,11 @@
  */
 const mockStore = new Map<string, { value: string; gated: boolean }>();
 let mockGatedRead: 'ok' | 'invalidated' | 'cancel' = 'ok';
+let mockFailWrite: string | null = null;
 jest.mock('expo-secure-store', () => ({ WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'w' }));
 jest.mock('./kv', () => ({
   kvSet: async (k: string, v: string, o?: { requireAuthentication?: boolean }) => {
+    if (k === mockFailWrite) throw new Error('écriture refusée');
     mockStore.set(k, { value: v, gated: !!o?.requireAuthentication });
   },
   kvGet: async (k: string, o?: { requireAuthentication?: boolean }) => {
@@ -43,6 +45,7 @@ const vault = (tag: string): EncryptedVault => ({ v: 1, kdf: 'scrypt', N: 16384,
 beforeEach(() => {
   mockStore.clear();
   mockGatedRead = 'ok';
+  mockFailWrite = null;
 });
 
 describe('changement de PIN : tout ou rien', () => {
@@ -50,13 +53,30 @@ describe('changement de PIN : tout ou rien', () => {
     await saveVault('primary', vault('old-a'));
     await saveVault('w2', vault('old-b'));
     await savePinChangeJournal([{ id: 'primary', vault: vault('old-a') }, { id: 'w2', vault: vault('old-b') }]);
-    // L'app est tuée après avoir écrit UN seul nouveau coffre.
-    await saveVault('primary', vault('new-a'));
+    // L'app est tuée après avoir écrit UN seul nouveau coffre (écriture brute du changement).
+    mockStore.set('nova.vault', { value: JSON.stringify(vault('new-a')), gated: false });
 
     expect(await rollbackPinChange()).toBe(true);
     expect((await loadVault('primary'))?.ct).toBe('old-a');
     expect((await loadVault('w2'))?.ct).toBe('old-b');
     expect(await rollbackPinChange()).toBe(false); // journal effacé
+  });
+
+  it('une remise qui échoue garde le journal et lève : le prochain lancement réessaie', async () => {
+    await saveVault('primary', vault('new-a'));
+    await saveVault('w2', vault('new-b'));
+    await savePinChangeJournal([{ id: 'primary', vault: vault('old-a') }, { id: 'w2', vault: vault('old-b') }]);
+    mockFailWrite = 'nova.vault';
+    await expect(rollbackPinChange()).rejects.toThrow('écriture refusée');
+    expect((await loadVault('w2'))?.ct).toBe('old-b'); // les autres sont remis quand même
+    // Tant que le journal attend, aucune écriture de coffre ne passe sans le résoudre.
+    await expect(saveVault('w3', vault('neuf'))).rejects.toThrow('écriture refusée');
+    expect(await loadVault('w3')).toBeNull();
+    mockFailWrite = null;
+    await saveVault('w3', vault('neuf')); // résout d'abord, puis écrit
+    expect((await loadVault('primary'))?.ct).toBe('old-a');
+    expect((await loadVault('w3'))?.ct).toBe('neuf');
+    expect(await rollbackPinChange()).toBe(false); // journal résolu
   });
 
   it('sans journal (changement terminé), rien n’est touché', async () => {

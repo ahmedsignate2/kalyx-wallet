@@ -112,6 +112,16 @@ export async function decryptSecret(
   if (typeof vault.salt !== 'string' || typeof vault.nonce !== 'string' || typeof vault.ct !== 'string') {
     throw new WalletError('VAULT_CORRUPTED', 'Coffre incomplet');
   }
+  /*
+   * Forme vérifiée AVANT le déchiffrement : un coffre abîmé (hex invalide,
+   * nonce tronqué, chiffré plus court que l'étiquette GCM) n'est pas un PIN
+   * faux. Le dire « PIN incorrect » ferait consommer des essais — et verrouiller
+   * — quelqu'un qui tape le bon.
+   */
+  const isHex = (h: string) => h.length % 2 === 0 && /^[0-9a-f]*$/i.test(h);
+  if (!isHex(vault.salt) || !isHex(vault.nonce) || !isHex(vault.ct) || vault.salt.length === 0 || vault.nonce.length !== 24 || vault.ct.length < 34) {
+    throw new WalletError('VAULT_CORRUPTED', 'Coffre endommagé');
+  }
   const key = await deriveKey(pin, hexToBytes(vault.salt), vault);
   let pt: Uint8Array | null = null;
   try {

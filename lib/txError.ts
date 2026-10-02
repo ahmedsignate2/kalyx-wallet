@@ -94,6 +94,7 @@ const WALLET_ERROR_KEYS: Record<string, Key> = {
   SOL_RENT_SENDER: 'errSolRentSender',
   SWAP_SIMULATION_FAILED: 'errSwapSimulationFailed',
   WRONG_ACCOUNT: 'errWrongAccount',
+  REQUEST_EXPIRED: 'wcErrRequestExpired',
 };
 
 /**
@@ -141,7 +142,8 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
 
   const errMsg = typeof e === 'object' && e ? (e as any)?.shortMessage || (e as any)?.message || 'Transaction error' : String(e);
   recordTechnicalLog('TX_ERROR', errMsg, typeof e === 'object' && e ? { code: (e as any)?.code, status: (e as any)?.status } : undefined);
-  console.error('[txError] Raw error interceptée:', typeof e === 'object' ? JSON.stringify(e, Object.getOwnPropertyNames(e)) : e);
+  // Jamais de levée ICI : `null` ou une erreur à références circulaires faisaient planter le gestionnaire d'erreurs lui-même.
+  console.error('[txError] Raw error interceptée:', safeDump(e));
   // Message déjà traduit par l'appelant : on le rend tel quel, sans le soumettre
   // aux devinettes qui suivent. Il est passé par le journal juste au-dessus.
   if (e instanceof UserFacingError) return e.message;
@@ -244,7 +246,13 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
     return t ? t('errCallException') : 'Transaction failed (contract). Check the amount or allowance.';
   }
   if (msg.includes('blockhash not found') || msg.includes('devis expiré')) return t ? t('errQuoteExpired') : 'Quote expired. Request a new quote.';
-  if (msg.includes('user rejected') || msg.includes('rejected')) return t ? t('errUserRejected') : 'Transaction cancelled.';
+  // Refus de l'UTILISATEUR seulement ; un rejet du nœud (« rejected by mempool », frais trop bas) n'en est pas un.
+  if (err?.code === 4001 || err?.code === 'ACTION_REJECTED' || /user[ _]?(rejected|rejects|denied|cancel)|(rejected|cancell?ed|canceled) by (the )?user|request rejected/.test(msg)) {
+    return t ? t('errUserRejected') : 'Transaction cancelled.';
+  }
+  if (msg.includes('min relay fee') || msg.includes('mempool min fee') || msg.includes('insufficient fee')) {
+    return t ? t('errUnderpriced') : 'Fee too low or duplicate transaction. Try again.';
+  }
   if (msg.includes('invalid psbt') || msg.includes('idx') || msg.includes('not a valid base64')) return t ? t('errInvalidPsbt') : 'Invalid PSBT.';
   if (msg.includes('nonce')) return t ? t('errNonce') : 'Transaction conflict (nonce). Try again shortly.';
   if (msg.includes('replacement') || msg.includes('underpriced')) return t ? t('errUnderpriced') : 'Fee too low or duplicate transaction. Try again.';
@@ -274,4 +282,25 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
    * l'utilisateur ne lit pas.
    */
   return t ? t('errGenericTxFail') : 'Transaction failed. Try again.';
+}
+
+/** Représentation d'une erreur pour le journal, sans jamais lever (null, références circulaires). */
+function safeDump(e: unknown): string {
+  if (e === null || typeof e !== 'object') return String(e);
+  try {
+    // Propriétés propres (message, stack, code…), y compris non énumérables comme celles d'une Error.
+    const own: Record<string, unknown> = {};
+    for (const k of Object.getOwnPropertyNames(e)) own[k] = (e as Record<string, unknown>)[k];
+    const seen = new WeakSet<object>([e]);
+    return JSON.stringify(own, (_k, v: unknown) => {
+      if (typeof v === 'bigint') return v.toString();
+      if (v && typeof v === 'object') {
+        if (seen.has(v)) return '[circulaire]';
+        seen.add(v);
+      }
+      return v;
+    });
+  } catch {
+    return String((e as { message?: unknown }).message ?? e);
+  }
 }

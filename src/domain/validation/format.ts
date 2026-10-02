@@ -113,3 +113,12 @@ export function formatPercent(v: number, decimals = 2): string {
   const trimmed = fixed.includes('.') ? fixed.replace(/0+$/, '').replace(/\.$/, '') : fixed;
   return `${trimmed.replace('.', DECIMAL_SEP)} %`;
 }
+
+/**
+ * Zéros de fin d'une PARTIE DÉCIMALE retirés (« 1.2500 » → « 1.25 »,
+ * « 3.000 » → « 3 »). Un entier reste intact : « 100 » ne devient pas « 1 »,
+ * ce que faisait `/\.?0+$/` appliqué à `toFixed(0)` (jeton à 0 décimale).
+ */
+export function trimDecimalZeros(s: string): string {
+  return s.includes('.') ? s.replace(/\.?0+$/, '') : s;
+}

@@ -40,8 +40,22 @@ export default function Unlock() {
   const [errSignal, setErrSignal] = useState(0);
   const screenOp = useRef(new Animated.Value(1)).current;
 
-  const lockedMs = lockRemainingMs(failedAttempts, lastFailedAt, Date.now());
+  /*
+   * Horloge de l'écran : le verrou se calculait au rendu seulement, et rien ne
+   * rendait l'écran de nouveau — le décompte restait figé et le clavier
+   * désactivé après la fin de l'attente. Tic chaque seconde tant qu'il y a
+   * une attente.
+   */
+  const [now, setNow] = useState(() => Date.now());
+  const lockedMs = lockRemainingMs(failedAttempts, Math.min(lastFailedAt, now), now);
   const locked = lockedMs > 0;
+  useEffect(() => {
+    if (!locked) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [locked]);
+  // Nouvel échec enregistré : l'horloge repart de maintenant.
+  useEffect(() => setNow(Date.now()), [failedAttempts, lastFailedAt]);
   const known = pinLength >= 6 ? pinLength : undefined; // option 3 si connue
   const complete = known ? pin.length === known : pin.length >= 6;
 
@@ -82,7 +96,8 @@ export default function Unlock() {
         const msg = e instanceof Error ? e.message : '';
         console.warn('[KALYX-UNLOCK] biometrics:failed', { manual, code: (e as { code?: string })?.code ?? null, msg });
         if (manual && !/refus|annul|cancel/i.test(msg)) {
-          setError(/configur/i.test(msg) ? t('bioReactivate') : msg || t('bioUnavailable'));
+          // Jamais le message brut (souvent anglais, technique) : une erreur connue est traduite par son code.
+          setError(/configur/i.test(msg) ? t('bioReactivate') : isWalletError(e) ? friendlyTxError(e, t as never) : t('bioUnavailable'));
         }
       }
     },

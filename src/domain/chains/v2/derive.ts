@@ -20,7 +20,7 @@ import { deriveEvmAccount, evmAccountFromPrivateKey } from '../../../crypto/hd';
 import { deriveBtcSigner, p2wpkhAddress } from '../../../crypto/btc';
 import { deriveSolanaSigner } from '../../../crypto/solana';
 import type { ChainFamily } from '../types';
-import type { ChainSigner } from './signer';
+import { wipeSigner, type ChainSigner } from './signer';
 
 /** Octets d'une clé privée EVM, quelle que soit la présence du préfixe `0x`. */
 function evmKeyBytes(hex: string): Uint8Array {
@@ -75,6 +75,12 @@ export function signerFromSeed(family: ChainFamily, seed: Uint8Array, index = 0)
  */
 export function signerFromRawKey(family: ChainFamily, secret: Uint8Array): ChainSigner {
   if (secret.length !== 32) throw new Error('Clé importée invalide (32 octets attendus)');
+  /*
+   * COPIE : l'appelant efface son tampon dès ce retour (`finally`). Partager
+   * le même tableau ferait signer avec 32 zéros — une autre clé, une signature
+   * rejetée par le réseau.
+   */
+  const key = Uint8Array.from(secret);
   switch (family) {
     case 'evm':
     case 'bitcoin':
@@ -83,9 +89,9 @@ export function signerFromRawKey(family: ChainFamily, secret: Uint8Array): Chain
        * depuis la forme non compressée mais n'a pas besoin qu'on la stocke, et
        * Bitcoin n'accepte que la forme compressée en segwit natif.
        */
-      return { curve: 'secp256k1', privateKey: secret, publicKey: secp256k1.getPublicKey(secret, true) };
+      return { curve: 'secp256k1', privateKey: key, publicKey: secp256k1.getPublicKey(key, true) };
     case 'solana':
-      return { curve: 'ed25519', secretKey: secret, publicKey: ed25519.getPublicKey(secret) };
+      return { curve: 'ed25519', secretKey: key, publicKey: ed25519.getPublicKey(key) };
     default:
       throw new Error(`Aucun signataire importable pour la famille « ${family} »`);
   }
@@ -100,15 +106,20 @@ export function signerFromRawKey(family: ChainFamily, secret: Uint8Array): Chain
  * Montrer l'adresse laisse la vérification à celui qui sait.
  */
 export function addressFromRawKey(family: ChainFamily, secret: Uint8Array): string {
+  if (secret.length !== 32) throw new Error('Clé importée invalide (32 octets attendus)');
+  if (family === 'evm') return evmAccountFromPrivateKey(bytesToHex(secret)).address;
+  // Seule la clé publique sert : la copie privée du signataire est effacée aussitôt.
   const signer = signerFromRawKey(family, secret);
-  switch (family) {
-    case 'evm':
-      return evmAccountFromPrivateKey(bytesToHex(secret)).address;
-    case 'bitcoin':
-      return p2wpkhAddress(signer.publicKey);
-    case 'solana':
-      return base58.encode(signer.publicKey);
-    default:
-      throw new Error(`Aucune adresse dérivable pour la famille « ${family} »`);
+  try {
+    switch (family) {
+      case 'bitcoin':
+        return p2wpkhAddress(signer.publicKey);
+      case 'solana':
+        return base58.encode(signer.publicKey);
+      default:
+        throw new Error(`Aucune adresse dérivable pour la famille « ${family} »`);
+    }
+  } finally {
+    wipeSigner(signer);
   }
 }

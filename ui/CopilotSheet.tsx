@@ -25,6 +25,8 @@ import { askAi } from '../lib/aiAsk';
 import { serializeCopilotContext } from '../lib/copilotContext';
 import { APP_ROUTES_MAP } from '../lib/aiAppMap';
 import { useT, useSettings } from '../lib/settingsStore';
+import { maskSecretsOnly } from '../lib/secretDetector';
+import { knownTxHashes } from '../lib/knownTxHashes';
 import { haptic } from '../lib/haptics';
 
 const GO_RE = /\[\[go:(\/[a-z0-9\-/]+)\]\]/gi;
@@ -115,10 +117,17 @@ export function CopilotSheet() {
     if (!q || busy) return;
     haptic.light();
     setInput('');
-    addMessageToActive({ sender: 'user', text: q });
+    /*
+     * Secret dans le message (clé, phrase, WIF, xprv, champ « pin: »…) : MASQUÉ
+     * avant l'envoi au fournisseur d'IA et dans l'historique, et on le dit. Un
+     * hash de transaction connu reste lisible ; la question part quand même.
+     */
+    const masked = maskSecretsOnly(q, knownTxHashes());
+    addMessageToActive({ sender: 'user', text: masked });
+    if (masked !== q) addMessageToActive({ sender: 'assistant', text: t('copilotSecretMasked') });
     setBusy(true);
     // Transcription des derniers échanges (le fournisseur ne garde aucune mémoire).
-    const transcript = [...messages.slice(-8), { sender: 'user', text: q } as ChatMessage]
+    const transcript = [...messages.slice(-8), { sender: 'user', text: masked } as ChatMessage]
       .map((m) => `${m.sender === 'user' ? 'Utilisateur' : 'Copilot'} : ${m.text}`)
       .join('\n');
     let context = '{}';
@@ -127,7 +136,7 @@ export function CopilotSheet() {
     } catch {
       /* contexte refusé par le filtre : on continue sans */
     }
-    const r = await askAi(transcript, buildSystem(language, context, q));
+    const r = await askAi(transcript, buildSystem(language, context, masked));
     setBusy(false);
     addMessageToActive({ sender: 'assistant', text: 'text' in r ? r.text : r.error });
   }

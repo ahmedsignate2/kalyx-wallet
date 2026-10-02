@@ -45,6 +45,10 @@ export interface PendingSign {
   label: string; // ex. « Transaction à signer »
   phase: 'await' | 'ok' | 'err';
   detail?: string;
+  /** Plus de 2 min sans réponse : la demande reste ouverte sur le téléphone. */
+  slow?: boolean;
+  /** Expirée des deux côtés : relancer est sans risque. */
+  expired?: boolean;
 }
 
 /** Libellé lisible d'une méthode WalletConnect (pour le popup de signature). */
@@ -102,6 +106,8 @@ interface WebConnectState {
   request: (method: string, params: unknown[]) => Promise<string>;
   /** Force un rafraîchissement des panneaux (bouton manuel). */
   refresh: () => void;
+  /** La session ouverte avec le téléphone accepte-t-elle cette méthode ? */
+  supports: (method: string) => boolean;
   reset: () => void;
 }
 
@@ -308,7 +314,8 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
         optionalNamespaces: {
           eip155: { methods: evmMethods, chains: evmCaips(), events: evmEvents },
           solana: { methods: ['solana_getAccounts', 'solana_signTransaction'], chains: [SOLANA_CAIP], events: ['accountsChanged'] },
-          bip122: { methods: ['getAccountAddresses', 'getAccounts', 'sendTransfer'], chains: [BTC_CAIP], events: [] },
+          // `bitcoin_sendTransfer` : montant en satoshis, annoncé seulement par les versions du téléphone qui le lisent ainsi.
+          bip122: { methods: ['getAccountAddresses', 'getAccounts', 'sendTransfer', 'bitcoin_sendTransfer'], chains: [BTC_CAIP], events: [] },
         },
       });
       if (uri) set({ uri });
@@ -356,19 +363,25 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     const label = METHOD_LABELS[method] ?? 'Signature demandée';
     set({ pending: { label, phase: 'await' } });
     // La requête part vers l'app Kalyx, qui affiche la demande + signe avec PIN/bio.
-    // Timeout de courtoisie : si l'app ne répond pas (fermée / verrouillée / hors
-    // ligne), on rend la main avec un message utile au lieu de rester figé.
-    const REQ_TIMEOUT = 120_000;
+    /*
+     * EXPIRATION COMMUNE. La demande part avec une durée de vie de 5 min (le
+     * minimum WalletConnect) : passé ce délai le téléphone la REFUSE
+     * (`approveRequest` lit `expiryTimestamp`), et ici on rend la main au même
+     * moment. Relancer ensuite ne peut donc plus produire deux envois. À 2 min,
+     * on prévient seulement.
+     */
+    const REQ_EXPIRY_S = 300;
+    set({ lastActivity: Date.now() }); // une signature en cours n'est pas de l'inactivité
+    const slowTimer: ReturnType<typeof setTimeout> = setTimeout(() => {
+      if (get().pending?.phase === 'await') set({ pending: { label, phase: 'await', slow: true } });
+    }, 120_000);
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(
-        () => reject(new Error("Le téléphone n'a pas répondu. Ouvre l'app Kalyx, déverrouille-la et réessaie.")),
-        REQ_TIMEOUT,
-      );
+      timer = setTimeout(() => reject(new Error('REQUEST_EXPIRED')), (REQ_EXPIRY_S + 5) * 1000);
     });
     try {
       const res = await Promise.race([
-        client.request<string>({ topic, chainId: kalyxToCaip(selected), request: { method, params } }),
+        client.request<string>({ topic, chainId: kalyxToCaip(selected), request: { method, params }, expiry: REQ_EXPIRY_S }),
         timeout,
       ]);
       // Signé sur le téléphone : succès auto-fermant + retour au tableau de bord à jour.
@@ -383,10 +396,23 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       } catch {
         get().reset();
       }
-      set({ pending: { label, phase: 'err', detail: e instanceof Error ? e.message : 'Refusé ou échoué' } });
+      const expired = e instanceof Error && e.message === 'REQUEST_EXPIRED';
+      set({ pending: { label, phase: 'err', expired, detail: e instanceof Error ? e.message : 'Refusé ou échoué' } });
       throw e;
     } finally {
+      clearTimeout(slowTimer);
       if (timer) clearTimeout(timer);
+    }
+  },
+
+  supports: (method) => {
+    const { topic } = get();
+    if (!client || !topic) return false;
+    try {
+      const ns = (client.session.get(topic).namespaces ?? {}) as Record<string, { methods?: string[] }>;
+      return Object.values(ns).some((n) => (n.methods ?? []).includes(method));
+    } catch {
+      return false;
     }
   },
 

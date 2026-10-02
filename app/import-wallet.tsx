@@ -84,7 +84,13 @@ export default function ImportWallet() {
    */
   const parsed = useMemo(() => (mode === 'key' && text.trim() ? parseImportedKey(text) : null), [mode, text]);
   const candidates = parsed?.ok ? parsed.key.families : [];
-  const chosen: KeyFamily | null = family ?? (candidates.length === 1 ? candidates[0] : null);
+  /*
+   * Le choix ne vaut que s'il s'applique à la clé ACTUELLE : choisi pour une
+   * clé hex puis gardé pour un WIF collé ensuite, il importait le WIF comme
+   * graine Solana — une adresse qui ne détient pas les fonds.
+   */
+  const chosen: KeyFamily | null =
+    family && candidates.includes(family) ? family : candidates.length === 1 ? candidates[0] : null;
   const derived = useMemo(() => {
     if (!parsed?.ok || !chosen) return null;
     try {

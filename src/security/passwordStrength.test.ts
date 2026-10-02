@@ -8,9 +8,18 @@ it('refuse ce qui tombe en quelques secondes hors ligne', () => {
   }
 });
 
+it('refuse les motifs que la longueur et les sortes de caractères masquaient', () => {
+  for (const p of ['aaaaaaaaaA1!', 'ababababab1A', 'Qwerty123456!', 'Azertyuiop12!', 'Abcdefghij1!', '987654321Zyx!', 'Bitcoin2024Wallet!']) {
+    expect(ok(p)).toBe(false);
+  }
+});
+
 it('accepte un mot de passe raisonnable, et juge fort ce qui l’est', () => {
   expect(ok('Mardi9pluie')).toBe(true);
   expect(passwordStrength('Mardi9pluie').key).toBe('strengthMedium');
   expect(passwordStrength('Tr3s-long-Mot!').key).toBe('strengthStrong');
   expect(passwordStrength('cheval agrafe batterie correct').key).toBe('strengthStrong');
+  // Écritures non latines : une longue phrase de passe reste forte.
+  expect(passwordStrength('كلمة سر طويلة جدا وقوية').key).toBe('strengthStrong');
+  expect(passwordStrength('пароль очень длинный и сложный').key).toBe('strengthStrong');
 });

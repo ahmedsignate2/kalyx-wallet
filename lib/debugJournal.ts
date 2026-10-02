@@ -39,8 +39,13 @@ let lines: JournalLine[] = [];
 let installed = false;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 const listeners = new Set<() => void>();
-/** Évite qu'une ligne produite PAR le journal (erreur de stockage…) boucle sur elle-même. */
-let writing = false;
+/*
+ * Garde de RÉENTRANCE, limitée à l'exécution synchrone de `journal` : une ligne
+ * produite par le journal lui-même (un abonné qui journalise…) ne boucle pas.
+ * L'ancienne garde couvrait toute l'écriture disque, asynchrone : chaque
+ * erreur ou plantage survenu pendant ce temps était perdu — les lignes utiles.
+ */
+let inJournal = false;
 
 function stringify(v: unknown): string {
   if (typeof v === 'string') return v;
@@ -57,18 +62,22 @@ function scheduleSave(): void {
   if (saveTimer) return;
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    writing = true;
-    AsyncStorage.setItem(STORE_KEY, JSON.stringify(lines.slice(-MAX_STORED)))
-      .catch(() => {})
-      .finally(() => {
-        writing = false;
-      });
+    AsyncStorage.setItem(STORE_KEY, JSON.stringify(lines.slice(-MAX_STORED))).catch(() => {});
   }, 1500);
 }
 
 export function journal(k: JournalKind, ...parts: unknown[]): void {
   if (isDecoySession()) return; // session leurre : rien n'est consigné (le journal trahirait les deux coffres)
-  if (writing) return;
+  if (inJournal) return;
+  inJournal = true;
+  try {
+    record(k, parts);
+  } finally {
+    inJournal = false;
+  }
+}
+
+function record(k: JournalKind, parts: unknown[]): void {
   let m: string;
   try {
     m = sanitizeLog(parts.map(stringify).join(' '));

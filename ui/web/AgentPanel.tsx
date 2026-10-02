@@ -23,6 +23,8 @@ import { validateAiKey } from '../../lib/aiValidator';
 import { PROVIDER_DEFAULTS } from '../../lib/aiConfig';
 import { serializeCopilotContext } from '../../lib/copilotContext';
 import { useT, useSettings } from '../../lib/settingsStore';
+import { maskSecretsOnly } from '../../lib/secretDetector';
+import { knownTxHashes } from '../../lib/knownTxHashes';
 import { toast } from '../../lib/toast';
 import { useWebT, type WebKey } from './webI18n';
 import { useWebCopilotContext } from './webCopilotContext';
@@ -272,6 +274,7 @@ function MessageBubble({ m, onCopy, live, tight, first }: { m: { id: string; sen
 function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: string; worth: { data: { total: number; slices: { chain: ChainConfig; address: string; native: number; tokens: number; value: number; price: number; change24h: number }[] } | null } }) {
   const { colors, typography } = useTheme();
   const tw = useWebT();
+  const t = useT();
   const language = useSettings((s) => s.language);
   const disableAi = useAiStore((s) => s.disableAi);
   const provider = useAiStore((s) => s.provider);
@@ -299,9 +302,16 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     const q = text.trim();
     if (!q || busy) return;
     setInput('');
-    addMessageToActive({ sender: 'user', text: q });
+    /*
+     * Secret dans le message (clé, phrase, WIF, xprv, champ « pin: »…) : MASQUÉ
+     * avant l'envoi au fournisseur d'IA et dans l'historique, et on le dit. Un
+     * hash de transaction connu reste lisible ; la question part quand même.
+     */
+    const masked = maskSecretsOnly(q, knownTxHashes());
+    addMessageToActive({ sender: 'user', text: masked });
+    if (masked !== q) addMessageToActive({ sender: 'assistant', text: t('copilotSecretMasked') });
     setBusy(true);
-    const transcript = [...messages.slice(-8), { sender: 'user', text: q }]
+    const transcript = [...messages.slice(-8), { sender: 'user', text: masked }]
       .map((m) => `${m.sender === 'user' ? tw('you') : tw('copilot')} : ${m.text}`)
       .join('\n');
     let ctx = '{}';
