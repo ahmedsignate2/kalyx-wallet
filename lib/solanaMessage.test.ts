@@ -14,6 +14,13 @@ describe('solanaMessageBytes — on signe ce qui est montré', () => {
     expect(r.text).toBe(raw);
     expect(Array.from(r.bytes)).toEqual(Array.from(utf8ToBytes(raw)));
   });
+  it('UTF-8 invalide envoyé par une dApp : jamais d\'exception, jamais de texte trompeur', () => {
+    for (const b of [[0x41, 0xfd, 0xbf, 0xbf, 0xbf, 0xbf], [0x48, 0xc3, 0x41, 0x42], [0xc1, 0x81], [0xed, 0xa0, 0x80]]) {
+      expect(() => solanaMessageBytes(base58.encode(Uint8Array.from(b)))).not.toThrow();
+      expect(solanaMessageBytes(base58.encode(Uint8Array.from(b))).text).toBeNull();
+    }
+    expect(solanaMessageBytes(base58.encode(utf8ToBytes('émoji 🚀 ok'))).text).toBe('émoji 🚀 ok');
+  });
   it('binaire : aucun texte prétendu', () => {
     expect(solanaMessageBytes(base58.encode(new Uint8Array([0, 1, 2, 3]))).text).toBeNull();
   });

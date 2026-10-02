@@ -115,8 +115,20 @@ const gatedOpts = (prompt?: string): SecureStore.SecureStoreOptions => ({
   ...(prompt ? { authenticationPrompt: prompt } : {}),
 });
 
-export async function saveVault(id: string, vault: EncryptedVault): Promise<void> {
+/** Écriture brute, réservée au journal du changement de PIN (qui EST la résolution). */
+async function writeVault(id: string, vault: EncryptedVault): Promise<void> {
   await kvSet(vaultKey(id), serializeVault(vault), base);
+}
+
+/**
+ * Toute écriture ou suppression de coffre attend qu'un changement de PIN
+ * interrompu soit résolu (`settlePendingPinChange`). Sans cela, un coffre écrit
+ * pendant que le journal attend serait sous le nouveau PIN, et la remise du
+ * lancement suivant remettrait les autres sous l'ancien : deux PIN pour toujours.
+ */
+export async function saveVault(id: string, vault: EncryptedVault): Promise<void> {
+  await settlePendingPinChange();
+  await writeVault(id, vault);
 }
 
 export async function loadVault(id: string): Promise<EncryptedVault | null> {
@@ -250,7 +262,8 @@ export async function loadLockState(): Promise<{ failedAttempts: number; lastFai
     const raw = await kvGet(K_LOCKSTATE, base);
     if (!raw) return { failedAttempts: 0, lastFailedAt: 0 };
     const s = JSON.parse(raw) as { failedAttempts?: number; lastFailedAt?: number };
-    return { failedAttempts: Number(s.failedAttempts) || 0, lastFailedAt: Number(s.lastFailedAt) || 0 };
+    // Échec daté du futur (horloge reculée depuis) : ramené à maintenant.
+    return { failedAttempts: Number(s.failedAttempts) || 0, lastFailedAt: Math.min(Number(s.lastFailedAt) || 0, Date.now()) };
   } catch {
     return { failedAttempts: 0, lastFailedAt: 0 };
   }
@@ -400,7 +413,7 @@ export async function rollbackPinChange(): Promise<boolean> {
   let failure: unknown = null;
   for (const e of entries) {
     try {
-      await saveVault(e.id, e.vault);
+      await writeVault(e.id, e.vault);
     } catch (err) {
       failure ??= err; // on remet quand même les autres
     }
@@ -410,8 +423,40 @@ export async function rollbackPinChange(): Promise<boolean> {
   return true;
 }
 
+/** Changement de PIN interrompu encore en attente : remis maintenant, ou levé. */
+export async function settlePendingPinChange(): Promise<void> {
+  await rollbackPinChange();
+}
+
+/**
+ * Changement de PIN, tout ou rien : anciens coffres au journal, nouveaux
+ * écrits, journal effacé. Une écriture qui échoue remet les anciens ; une app
+ * tuée entre-temps les retrouve au lancement.
+ */
+export async function commitPinChange(
+  before: { id: string; vault: EncryptedVault }[],
+  after: { id: string; vault: EncryptedVault }[],
+): Promise<void> {
+  await settlePendingPinChange();
+  await savePinChangeJournal(before);
+  try {
+    for (const a of after) await writeVault(a.id, a.vault);
+  } catch (e) {
+    // Remise en place ; si elle échoue aussi, le journal reste et bloque les écritures.
+    await rollbackPinChange().catch(() => {});
+    throw e;
+  }
+  await clearPinChangeJournal();
+}
+
 /** Supprime un portefeuille précis (coffre + comptes + biométrie). */
 export async function wipeWallet(id: string): Promise<void> {
+  // Un coffre supprimé pendant que le journal attend reviendrait à sa remise.
+  await settlePendingPinChange();
+  await wipeWalletKeys(id);
+}
+
+async function wipeWalletKeys(id: string): Promise<void> {
   await Promise.all([
     kvDel(vaultKey(id), base),
     kvDel(accountsKey(id), base),
@@ -424,9 +469,11 @@ export async function wipeWallet(id: string): Promise<void> {
 
 /** Réinitialisation totale (tous les portefeuilles + la liste). */
 export async function wipeAll(list: WalletMeta[]): Promise<void> {
+  // Tout disparaît : un changement de PIN en attente n'a plus rien à remettre.
+  await clearPinChangeJournal();
   await Promise.all([
-    ...list.map((w) => wipeWallet(w.id)),
-    wipeWallet('primary'),
+    ...list.map((w) => wipeWalletKeys(w.id)),
+    wipeWalletKeys('primary'),
     kvDel(K_WALLETS, base),
   ]);
 }

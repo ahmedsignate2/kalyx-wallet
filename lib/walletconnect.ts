@@ -30,6 +30,7 @@ import type { IWeb3Wallet } from '@walletconnect/web3wallet';
 
 import { VersionedTransaction } from '@solana/web3.js';
 import { Transaction as BtcTransaction } from '@scure/btc-signer';
+import { bitcoinMessageParam, solanaMessageParam } from './messageParams';
 function extractSolanaSignature(tx: string, address: string): string {
   try {
     const decoded = solanaTxDecode(tx);
@@ -659,21 +660,14 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         const solAddr = activeAccount()?.solAddress;
         result = { signatures: res.map(r => extractSolanaSignature(r, solAddr || '')), transactions: res.map(ensureBase64) };
       } else if (method === 'solana_signMessage') {
-        const pSafe: any = p || {};
-        let msg = pSafe.message ?? pSafe.msg ?? pSafe.signMessage;
-        if (!msg && Array.isArray(pSafe)) {
-          msg = pSafe[0]?.message ?? pSafe[0]?.msg ?? pSafe[0];
-        }
-        if (!msg && typeof pSafe === 'string') msg = pSafe;
+        const msg = solanaMessageParam(p);
         if (typeof msg !== 'string') throw new Error('Expected String');
         const res = await w.signSolanaMessage(unlock, msg);
         const sig = typeof res === 'object' && res.signature ? res.signature : res;
         result = { signature: sig };
       } else if (method === 'bitcoin_signMessage' || method === 'signMessage') {
         const pSafe: any = p || {};
-        let msg = pSafe.message || pSafe[0]?.message;
-        if (!msg && Array.isArray(pSafe)) msg = pSafe.filter(x => typeof x === 'string').pop();
-        if (!msg && typeof pSafe === 'string') msg = pSafe;
+        const msg = bitcoinMessageParam(p);
         if (typeof msg !== 'string') throw new Error('Expected String');
         /*
          * PROTOCOLE DE SIGNATURE — la cause des « Invalid signature length ».

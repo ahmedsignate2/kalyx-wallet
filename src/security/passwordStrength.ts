@@ -70,7 +70,8 @@ function residual(core: string): string {
 export function passwordStrength(pwd: string): Strength {
   if (!pwd) return { level: 0, key: 'strengthWeak' };
   const lower = pwd.toLowerCase();
-  const core = lower.replace(/[^a-z0-9]/g, '');
+  // Lettres de TOUTES les écritures gardées (arabe, cyrillique…) : seuls les blancs et la ponctuation ASCII tombent.
+  const core = lower.replace(/[\s!-/:-@[-`{-~]/g, '');
   const weak: Strength = { level: 1, key: 'strengthWeak' };
 
   if (pwd.length < 10) return weak;

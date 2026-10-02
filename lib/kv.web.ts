@@ -186,10 +186,15 @@ async function open_(db: IDBDatabaseLike, stored: unknown): Promise<string | nul
 
 /* ------------------------------------------------------------------- API kv */
 
+const lsDrop = (key: string) => {
+  try { ls()?.removeItem(key); } catch { /* ignore */ }
+};
+
 export async function kvSet(key: string, value: string, _opts?: Opts): Promise<void> {
   if (!decoyMayWrite(key)) return;
   const db = await openDB();
   if (!db) {
+    // Navigateur sans IndexedDB : seul endroit possible, en clair (rien d'autre à faire).
     try { ls()?.setItem(key, value); } catch { /* ignore */ }
     return;
   }
@@ -199,6 +204,7 @@ export async function kvSet(key: string, value: string, _opts?: Opts): Promise<v
    */
   const payload = await seal(db, value);
   await wrap(db.transaction(STORE, 'readwrite').objectStore(STORE).put(payload, key));
+  lsDrop(key); // une ancienne copie en clair n'a plus à exister
 }
 
 export async function kvGet(key: string, _opts?: Opts): Promise<string | null> {
@@ -207,29 +213,31 @@ export async function kvGet(key: string, _opts?: Opts): Promise<string | null> {
   if (!db) {
     try { return ls()?.getItem(key) ?? null; } catch { return null; }
   }
-  try {
-    const stored = await wrap(db.transaction(STORE, 'readonly').objectStore(STORE).get(key));
-    const v = await open_(db, stored);
-    // Migration transparente : une valeur héritée en clair est réécrite chiffrée.
-    if (typeof stored === 'string' && v != null) void kvSet(key, v).catch(() => {});
-    return v;
-  } catch {
-    try { return ls()?.getItem(key) ?? null; } catch { return null; }
+  /*
+   * Une lecture qui échoue LÈVE, comme sur mobile : rendre la copie
+   * localStorage d'un ancien repli servirait une valeur périmée (un état de
+   * verrouillage avec moins d'essais ratés, un ancien coffre).
+   */
+  const stored = await wrap(db.transaction(STORE, 'readonly').objectStore(STORE).get(key));
+  if (stored === undefined) {
+    // Rien en base : une copie héritée en clair est reprise, chiffrée, puis effacée.
+    let legacy: string | null = null;
+    try { legacy = ls()?.getItem(key) ?? null; } catch { legacy = null; }
+    if (legacy != null) void kvSet(key, legacy).catch(() => {});
+    return legacy;
   }
+  const v = await open_(db, stored);
+  // Migration transparente : une valeur héritée en clair est réécrite chiffrée.
+  if (typeof stored === 'string' && v != null) void kvSet(key, v).catch(() => {});
+  return v;
 }
 
 export async function kvDel(key: string, _opts?: Opts): Promise<void> {
   if (!decoyMayWrite(key)) return;
+  lsDrop(key);
   const db = await openDB();
-  if (!db) {
-    try { ls()?.removeItem(key); } catch { /* ignore */ }
-    return;
-  }
-  try {
-    await wrap(db.transaction(STORE, 'readwrite').objectStore(STORE).delete(key));
-  } catch {
-    try { ls()?.removeItem(key); } catch { /* ignore */ }
-  }
+  if (!db) return;
+  await wrap(db.transaction(STORE, 'readwrite').objectStore(STORE).delete(key));
 }
 
 /** Sans objet sur le web (localStorage) : options ignorées. */

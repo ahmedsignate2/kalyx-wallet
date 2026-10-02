@@ -13,12 +13,43 @@
  */
 import { utf8ToBytes } from '@noble/hashes/utils';
 import { base58 } from '@scure/base';
-import { utf8Decode } from '../src/domain/tonconnect/sessionCrypto';
 
-/** Texte lisible (aucun caractère de contrôle hors blancs, aucun octet invalide). */
+/**
+ * UTF-8 STRICT : nul au moindre octet invalide (continuation manquante, forme
+ * trop longue, demi-paire, au-delà de U+10FFFF). Un décodeur tolérant avalait
+ * des octets : la fenêtre aurait montré un texte et l'utilisateur signé autre
+ * chose. Ne lève jamais — les octets viennent d'une dApp.
+ */
+function strictUtf8(b: Uint8Array): string | null {
+  let out = '';
+  for (let i = 0; i < b.length; ) {
+    const c = b[i++];
+    let need: number;
+    let cp: number;
+    let min: number;
+    if (c < 0x80) {
+      out += String.fromCharCode(c);
+      continue;
+    } else if (c >= 0xc2 && c < 0xe0) [need, cp, min] = [1, c & 0x1f, 0x80];
+    else if (c >= 0xe0 && c < 0xf0) [need, cp, min] = [2, c & 0x0f, 0x800];
+    else if (c >= 0xf0 && c < 0xf5) [need, cp, min] = [3, c & 0x07, 0x10000];
+    else return null;
+    if (i + need > b.length) return null;
+    for (let k = 0; k < need; k++) {
+      const x = b[i++];
+      if ((x & 0xc0) !== 0x80) return null;
+      cp = (cp << 6) | (x & 0x3f);
+    }
+    if (cp < min || cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff)) return null;
+    out += String.fromCodePoint(cp);
+  }
+  return out;
+}
+
+/** Texte lisible : UTF-8 valide, sans caractère de contrôle hors blancs. */
 function readableText(bytes: Uint8Array): string | null {
-  const txt = utf8Decode(bytes);
-  if (txt.includes('\uFFFD')) return null;
+  const txt = strictUtf8(bytes);
+  if (txt === null) return null;
   return /^[\x20-\x7E\u00A0-\uFFFF\s]*$/.test(txt) ? txt : null;
 }
 

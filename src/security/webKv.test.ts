@@ -139,3 +139,31 @@ describe('kv.web — clé de chiffrement partagée entre onglets', () => {
     spy.mockRestore();
   });
 });
+
+describe('kv.web — copies en clair d’un ancien repli localStorage', () => {
+  it('reprise chiffrée puis effacée ; une écriture efface aussi l’ancienne copie', async () => {
+    const fake = makeFakeIndexedDB();
+    (globalThis as { indexedDB?: unknown }).indexedDB = fake.factory;
+    const mem = new Map<string, string>();
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (k: string) => mem.get(k) ?? null,
+      setItem: (k: string, v: string) => void mem.set(k, v),
+      removeItem: (k: string) => void mem.delete(k),
+    };
+    let kv: typeof import('../../lib/kv.web') | undefined;
+    jest.isolateModules(() => {
+      kv = require('../../lib/kv.web');
+    });
+    mem.set('old', 'clair');
+    expect(await kv!.kvGet('old')).toBe('clair');
+    for (let i = 0; i < 100 && mem.has('old'); i++) await new Promise((r) => setTimeout(r, 10));
+    expect(mem.has('old')).toBe(false);
+    expect(typeof fake.raw().get('old')).toBe('object');
+
+    mem.set('lock', 'périmé');
+    await kv!.kvSet('lock', 'récent');
+    expect(mem.has('lock')).toBe(false);
+    expect(await kv!.kvGet('lock')).toBe('récent');
+    delete (globalThis as { localStorage?: unknown }).localStorage;
+  });
+});

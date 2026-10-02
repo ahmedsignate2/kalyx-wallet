@@ -19,4 +19,7 @@ it('accepte un mot de passe raisonnable, et juge fort ce qui l’est', () => {
   expect(passwordStrength('Mardi9pluie').key).toBe('strengthMedium');
   expect(passwordStrength('Tr3s-long-Mot!').key).toBe('strengthStrong');
   expect(passwordStrength('cheval agrafe batterie correct').key).toBe('strengthStrong');
+  // Écritures non latines : une longue phrase de passe reste forte.
+  expect(passwordStrength('كلمة سر طويلة جدا وقوية').key).toBe('strengthStrong');
+  expect(passwordStrength('пароль очень длинный и сложный').key).toBe('strengthStrong');
 });
