@@ -5,6 +5,7 @@
  */
 import { create } from 'zustand';
 import { getAdapter, type ChainConfig, type TxSummary } from '../src';
+import { isDecoySession, onDecoyChange } from './sessionMode';
 
 /**
  * Ce qu'il faut d'une chaîne pour retrouver son adresse : la famille ne suffit
@@ -62,23 +63,30 @@ interface HistoryState {
   hydrate: () => Promise<void>;
 }
 
-let AsyncStorage: { getItem: (k: string) => Promise<string | null>; setItem: (k: string, v: string) => Promise<void> } | null = null;
+type HistoryStorage = { getItem: (k: string) => Promise<string | null>; setItem: (k: string, v: string) => Promise<void> };
+let storageRef: HistoryStorage | null = null;
 
-async function getStorage() {
-  if (!AsyncStorage) {
+/*
+ * AsyncStorage, et non `./kv` : ce module n'exporte que kvGet/kvSet, donc
+ * `getItem`/`setItem` n'existaient pas — l'erreur était avalée et le cache ne
+ * fut jamais ni écrit ni relu. Et kv (trousseau) n'est pas fait pour 50 tx par
+ * clé. Un historique est public (adresses, montants) : AsyncStorage suffit.
+ */
+async function getStorage(): Promise<HistoryStorage> {
+  if (!storageRef) {
     try {
-      // Import dynamique pour éviter les problèmes au test.
-      const mod = await import('./kv');
-      AsyncStorage = mod as any;
+      const mod = await import('@react-native-async-storage/async-storage');
+      storageRef = (mod.default ?? mod) as unknown as HistoryStorage;
     } catch {
-      // Fallback silencieux si kv n'est pas disponible.
-      AsyncStorage = {
-        getItem: async () => null,
-        setItem: async () => {},
-      };
+      storageRef = { getItem: async () => null, setItem: async () => {} };
     }
   }
-  return AsyncStorage;
+  return storageRef;
+}
+
+/** Session leurre (code de contrainte) : rien du vrai historique n'est relu, rien du leurre n'est écrit. */
+async function decoyActive(): Promise<boolean> {
+  return isDecoySession();
 }
 
 /**
@@ -104,13 +112,14 @@ const stale = new Set<string>();
 function persistCache(cache: Record<string, TxSummary[]>) {
   void (async () => {
     try {
+      if (await decoyActive()) return;
       const storage = await getStorage();
       // On ne persiste que les 50 dernières tx par clé pour limiter la taille.
       const trimmed: Record<string, TxSummary[]> = {};
       for (const [k, v] of Object.entries(cache)) {
         trimmed[k] = v.slice(0, 50);
       }
-      await storage!.setItem(STORAGE_KEY, JSON.stringify(trimmed, historyReplacer));
+      await storage.setItem(STORAGE_KEY, JSON.stringify(trimmed, historyReplacer));
     } catch {
       // Silencieux : la persistance est un bonus, pas une obligation.
     }
@@ -175,8 +184,9 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
 
     hydrate: async () => {
       try {
+        if (await decoyActive()) return;
         const storage = await getStorage();
-        const raw = await storage!.getItem(STORAGE_KEY);
+        const raw = await storage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw, historyReviver) as Record<string, TxSummary[]>;
           // Le réseau a pu répondre avant la lecture du disque : il a priorité.
@@ -191,6 +201,11 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
 
 // Hydratation automatique au chargement du module.
 void useHistoryStore.getState().hydrate();
+
+// Entrée en session leurre : le vrai historique, relu au lancement, quitte la mémoire.
+onDecoyChange((on) => {
+  if (on) useHistoryStore.setState({ cache: {}, lastFetch: {} });
+});
 
 /* ── Lecture RÉACTIVE du cache ───────────────────────────────────────────────
  *

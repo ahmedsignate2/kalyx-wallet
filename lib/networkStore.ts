@@ -67,21 +67,29 @@ export function startNetworkWatch(): () => void {
     if (pending) { clearTimeout(pending); pending = null; }
   };
 
+  /*
+   * Génération des signaux « en ligne » : une seconde mesure partie AVANT un
+   * retour du réseau ne peut plus, en arrivant après, rétablir « hors ligne ».
+   */
+  let onlineGen = 0;
+
   /** Applique une mesure : en ligne tout de suite, hors ligne après confirmation. */
   const apply = (online: boolean) => {
     if (!alive) return;
     if (online) {
+      onlineGen += 1;
       clearPending();
       useNetwork.getState().set(true);
       return;
     }
     if (pending) return; // confirmation déjà en cours
+    const gen = onlineGen;
     pending = setTimeout(() => {
       pending = null;
       void (async () => {
         try {
           const again = await Network!.getNetworkStateAsync();
-          if (alive && (again.isConnected ?? true) === false) useNetwork.getState().set(false);
+          if (alive && gen === onlineGen && (again.isConnected ?? true) === false) useNetwork.getState().set(false);
         } catch {
           // Deuxième mesure impossible : on ne déclare pas hors ligne sur un doute.
         }

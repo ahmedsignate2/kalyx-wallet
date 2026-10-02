@@ -35,7 +35,9 @@ describe('Technical Logger & Sanitizer', () => {
     test('masks sensitive keywords like mnemonic or password', () => {
       const raw = 'Connexion avec password="super_secret_password" et private_key: abc';
       const cleaned = sanitizeLog(raw);
-      expect(cleaned).toContain('password=[MASQUÉ]');
+      // La forme d'origine est gardée (`password="…"`), seule la valeur disparaît.
+      expect(cleaned).toContain('password="[MASQUÉ]"');
+      expect(cleaned).toContain('private_key: [MASQUÉ]');
       expect(cleaned).not.toContain('super_secret_password');
     });
   });
