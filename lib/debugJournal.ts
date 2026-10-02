@@ -17,6 +17,7 @@
  * Gardé en mémoire (3 000 lignes) et recopié dans le stockage de l'app
  * (1 500 dernières) pour survivre à un plantage ou à un redémarrage.
  */
+import { isDecoySession } from './sessionMode';
 import { Alert, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sanitizeLog } from './sanitizeLog';
@@ -66,6 +67,7 @@ function scheduleSave(): void {
 }
 
 export function journal(k: JournalKind, ...parts: unknown[]): void {
+  if (isDecoySession()) return; // session leurre : rien n'est consigné (le journal trahirait les deux coffres)
   if (writing) return;
   let m: string;
   try {

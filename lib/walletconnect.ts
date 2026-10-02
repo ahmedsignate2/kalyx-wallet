@@ -1,4 +1,5 @@
 import { base58, base64, hex } from '@scure/base';
+import { isDecoySession } from './sessionMode';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import { signMessageParam } from './dappProvider';
 import { utf8ToBytes } from '@noble/hashes/utils';
@@ -367,6 +368,15 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       notifyIncoming(tr('notifWcConnectTitle'), name ? tr('notifWcConnectBody', { name }) : tr('notifWcConnectBodyUnknown'));
     });
     w.on('session_request', async (request: any) => {
+      // Session leurre : les vraies dApps ne reçoivent rien d'elle (refus silencieux, rien en file).
+      if (isDecoySession()) {
+        try {
+          await w.respondSessionRequest({ topic: request?.topic, response: { id: request?.id, jsonrpc: '2.0', error: { code: 4001, message: 'User rejected' } } });
+        } catch {
+          /* rien */
+        }
+        return;
+      }
       console.log('\n[WC-IN] === SESSION_REQUEST RECEIVED ===');
       console.log('[WC-IN] ID:', request?.id);
       console.log('[WC-IN] Topic:', request?.topic);
@@ -463,6 +473,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   },
 
   pair: async (uri) => {
+    // Session leurre : pas de nouvelle connexion (elle se mêlerait aux vraies) — un échec réseau ordinaire.
+    if (isDecoySession()) throw new WalletError('RPC_UNAVAILABLE', 'Relais indisponible');
     const normalized = uri.trim();
     if (!normalized.startsWith('wc:')) throw new Error('URI WalletConnect invalide');
     console.log('[KALYX-WC] pair:start', { walletReady: !!get().wallet });
@@ -823,11 +835,13 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   },
 
   disconnect: async (topic) => {
+    if (isDecoySession()) return; // jamais toucher aux vraies connexions depuis le leurre
     await forceDisconnect(get().wallet, topic);
     get().refresh();
   },
 
   disconnectAddresses: async (addresses) => {
+    if (isDecoySession()) return;
     const w = get().wallet;
     if (!w || !addresses.length) return;
     const mine = new Set(addresses.map((a) => a.toLowerCase()));
@@ -839,6 +853,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   },
 
   disconnectAll: async () => {
+    if (isDecoySession()) return;
     const w = get().wallet;
     if (!w) return;
     const active = w.getActiveSessions();
@@ -847,6 +862,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   },
 
   refresh: () => {
+    // Session leurre : les vraies sessions ne sont jamais listées.
+    if (isDecoySession()) return set({ sessions: [] });
     const w = get().wallet;
     if (!w) return;
     const active = w.getActiveSessions();

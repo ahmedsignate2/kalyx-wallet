@@ -4,7 +4,7 @@
  * La variante web (`kv.web.ts`) retombe sur localStorage.
  */
 import * as SecureStore from 'expo-secure-store';
-import { decoyMayWrite } from './sessionMode';
+import { decoyMayRead, decoyMayWrite } from './sessionMode';
 
 type Opts = SecureStore.SecureStoreOptions;
 
@@ -17,6 +17,7 @@ export function kvSet(key: string, value: string, opts?: Opts): Promise<void> {
 }
 
 export function kvGet(key: string, opts?: Opts): Promise<string | null> {
+  if (!decoyMayRead(key)) return Promise.resolve(null); // session leurre : rien des vraies données
   return SecureStore.getItemAsync(key, opts);
 }
 

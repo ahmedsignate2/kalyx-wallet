@@ -13,7 +13,7 @@
  *
  * Repli localStorage si IndexedDB est indisponible (ex. certains modes privés).
  */
-import { decoyMayWrite } from './sessionMode';
+import { decoyMayRead, decoyMayWrite } from './sessionMode';
 
 type Opts = unknown;
 
@@ -180,6 +180,7 @@ export async function kvSet(key: string, value: string, _opts?: Opts): Promise<v
 }
 
 export async function kvGet(key: string, _opts?: Opts): Promise<string | null> {
+  if (!decoyMayRead(key)) return null;
   const db = await openDB();
   if (!db) {
     try { return ls()?.getItem(key) ?? null; } catch { return null; }

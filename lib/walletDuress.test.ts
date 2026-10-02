@@ -116,8 +116,8 @@ describe('Code de contrainte', () => {
   });
 
   it('en session leurre : aucune écriture sur les vrais portefeuilles', async () => {
-    expect(await codeOf(W().createWallet(DURESS))).toMatch(/^NOT_SUPPORTED\|/);
-    expect(await codeOf(W().removeWallet(realId, { pin: DURESS }))).toMatch(/^NOT_SUPPORTED\|/);
+    expect(await codeOf(W().createWallet(DURESS))).toMatch(/^RPC_UNAVAILABLE\|/); // un échec réseau ordinaire, pas un refus
+    expect(await codeOf(W().removeWallet(realId, { pin: DURESS }))).toMatch(/^RPC_UNAVAILABLE\|/);
     await W().renameWallet(W().activeWalletId, 'Perso');
     W().lock();
     await new Promise((r) => setTimeout(r, 0));

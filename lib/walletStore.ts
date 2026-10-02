@@ -525,7 +525,8 @@ async function saveWalletsListSafe(list: WalletMeta[]): Promise<void> {
 
 /** En session leurre, ces actions n'existent pas (elles toucheraient aux vrais portefeuilles). */
 function assertNotDecoy(): void {
-  if (isDecoySession()) throw new WalletError('NOT_SUPPORTED', 'Action indisponible');
+  // Un échec RÉSEAU ordinaire, pas un refus : rien ne doit trahir la session leurre.
+  if (isDecoySession()) throw new WalletError('RPC_UNAVAILABLE', 'Réseau indisponible');
 }
 
 function rememberActive(walletId: string, accountIndex: number): void {
@@ -1259,7 +1260,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (duressPin.length !== mainPin.length) throw new WalletError('INVALID_PIN', 'duress.LENGTH');
     await proveIdentity({ pin: mainPin }); // vrai code exigé
     const old = await loadDuressMeta();
-    const id = `duress-${newWalletId()}`;
+    const id = newWalletId(); // identifiant ordinaire : rien ne le distingue d'un vrai portefeuille
     const m = generateMnemonic(128);
     const accounts = [deriveStoredAccount(m, 0, '')];
     await saveVault(id, await encryptSecret(m, duressPin));
