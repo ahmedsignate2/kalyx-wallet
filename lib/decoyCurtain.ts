@@ -46,6 +46,13 @@ async function clearMemory(): Promise<void> {
     import('./walletconnect').then((m) => m.useWalletConnect.setState({ sessions: [] } as never)),
     import('./tonconnect/store').then((m) => m.useTonConnect.setState({ sessions: [] } as never)),
     import('./settingsStore').then((m) => m.useSettings.setState({ encryptedBackupAt: null, driveBackupAt: null } as never)),
+    import('./historyStore').then((m) => m.useHistoryStore.setState({ cache: {}, lastFetch: {} } as never)),
+    import('./customTokensStore').then((m) => m.useCustomTokens.setState({ byChain: {} } as never)),
+    import('./priceAlertsStore').then((m) => m.usePriceAlerts.setState({ alerts: [] } as never)),
+    import('./ticketHistoryStore').then((m) => m.useTicketHistoryStore.setState({ tickets: [] } as never)),
+    import('./tonconnect/store').then((m) => m.useTonConnect.setState({ sessions: [], queue: [], hydrated: false } as never)),
+    import('./walletconnect').then((m) => m.useWalletConnect.setState({ requestQueue: [], request: null, proposal: null } as never)),
+    import('./debugJournal').then((m) => m.clearJournal()),
   ];
   await Promise.all(tasks.map((t) => t.catch(() => {})));
   for (const c of clearers) c();
@@ -58,9 +65,13 @@ export async function drawCurtain(decoyId: string): Promise<void> {
   await clearMemory();
 }
 
-/** Sortie : redémarrage de l'app (rien du leurre ne survit) ; repli si impossible. */
+/**
+ * Sortie : redémarrage de l'app (rien du leurre ne survit). Le pare-feu RESTE
+ * actif jusqu'au redémarrage (un minuteur ne peut rien écrire entre-temps).
+ * Repli si impossible : pare-feu levé, puis TOUS les magasins vidés sont relus
+ * depuis le disque avant de rendre la main.
+ */
 export async function liftCurtain(fallback: () => void): Promise<void> {
-  setDecoySession(false);
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const U = require('expo-updates') as { isEnabled?: boolean; reloadAsync?: () => Promise<void> };
@@ -81,5 +92,24 @@ export async function liftCurtain(fallback: () => void): Promise<void> {
   } catch {
     /* repli */
   }
+  setDecoySession(false);
+  await reloadMemory();
   fallback();
+}
+
+async function reloadMemory(): Promise<void> {
+  const tasks: Promise<unknown>[] = [
+    import('./settingsStore').then((m) => m.useSettings.getState().load()),
+    import('./contactsStore').then((m) => m.useContacts.getState().load()),
+    import('./recentRecipientsStore').then((m) => m.useRecentRecipients.getState().load()),
+    import('./dappActivity').then((m) => m.useDappActivity.getState().load()),
+    import('./pendingBtc').then((m) => m.usePendingBtc.getState().load()),
+    import('./notificationCenter').then((m) => m.useNotifCenter.getState().load()),
+    import('./aiChatHistoryStore').then((m) => m.useAiChatHistoryStore.persist.rehydrate()),
+    import('./customTokensStore').then((m) => m.useCustomTokens.getState().load()),
+    import('./priceAlertsStore').then((m) => m.usePriceAlerts.getState().load()),
+    import('./tonconnect/store').then((m) => m.useTonConnect.getState().hydrate()),
+    import('./walletconnect').then((m) => m.useWalletConnect.getState().refresh()),
+  ];
+  await Promise.all(tasks.map((t) => t.catch(() => {})));
 }

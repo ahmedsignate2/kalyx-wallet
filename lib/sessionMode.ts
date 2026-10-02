@@ -27,6 +27,17 @@ export function setDecoySession(on: boolean, writableIds: string[] = []): void {
  * contacts, liste blanche, réseau actif, historiques — reste tel quel sur le
  * disque ; le leurre ne vit qu'en mémoire, et l'app redémarre en sortant.
  */
+/**
+ * PARE-FEU DE LECTURE : en session leurre, le trousseau ne rend que le leurre,
+ * les réglages et le compteur de tentatives. Tout le reste (sessions de dApps,
+ * contacts, historiques, liste blanche…) se lit VIDE — un module chargé
+ * pendant la session ne peut pas y faire remonter de vraies données.
+ */
+export function decoyMayRead(key: string): boolean {
+  if (!decoy) return true;
+  return key === 'nova.settings' || key === 'nova.lockState' || decoyMayWrite(key);
+}
+
 export function decoyMayWrite(key: string): boolean {
   if (!decoy) return true;
   return key === 'kalyx.duress' || writable.some((id) => key.includes(id));
