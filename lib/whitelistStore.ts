@@ -46,6 +46,10 @@ import { addressKey } from './txAuditProbe';
 import { buildAddressIndex, lookupAddress } from './isMyAddress';
 import { loadAccounts } from './secureStore';
 import { useWallet, type Unlock } from './walletStore';
+import { isDecoySession, onDecoyChange } from './sessionMode';
+
+// Entrée en session leurre : la vraie liste quitte la mémoire ; sortie : relue au besoin.
+onDecoyChange(() => useWhitelist.setState({ wl: EMPTY_WHITELIST, loaded: false }));
 
 const K_WHITELIST = 'kalyx.whitelist';
 const KV_OPTS = KV_DEVICE_ONLY;
@@ -124,6 +128,8 @@ let generation = 0;
  * l'écrire — l'appel suivant relira. `ok` faux = ne pas écrire par-dessus.
  */
 async function read(): Promise<{ wl: WhitelistState; ok: boolean }> {
+  // Session leurre : la vraie liste n'existe pas ici (ni lue, ni appliquée).
+  if (isDecoySession()) return { wl: EMPTY_WHITELIST, ok: true };
   const st = useWhitelist.getState();
   if (st.loaded) return { wl: st.wl, ok: true };
   let raw: string | null;
@@ -159,6 +165,10 @@ function mutate(fn: (wl: WhitelistState, now: number | null) => WhitelistState |
     if (!ok) throw new WalletError('VAULT_CORRUPTED', 'Liste blanche illisible pour le moment : réessaie.');
     const now = await chainNow();
     const next = await fn(whitelistSettle(wl, now), now);
+    if (isDecoySession()) {
+      useWhitelist.setState({ wl: next }); // en mémoire seulement : jamais par-dessus la vraie liste
+      return;
+    }
     if (gen !== generation) return; // réinitialisée entre-temps : rien n'est réécrit (la réinitialisation passe APRÈS, dans la file)
     await kvSet(K_WHITELIST, JSON.stringify(next), KV_OPTS);
     useWhitelist.setState({ wl: next, loaded: true });

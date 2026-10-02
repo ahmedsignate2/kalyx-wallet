@@ -3,6 +3,7 @@
  */
 import { create } from 'zustand';
 import { saveContacts, loadContactsRaw } from './secureStore';
+import { isDecoySession, onDecoyChange } from './sessionMode';
 
 export interface Contact {
   id: string;
@@ -22,6 +23,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
   contacts: [],
 
   load: async () => {
+    if (isDecoySession()) return set({ contacts: [] });
     const raw = await loadContactsRaw();
     if (!raw) return;
     try {
@@ -35,7 +37,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const c: Contact = { id: `c${Date.now().toString(36)}`, name: name.trim(), address: address.trim() };
     const contacts = [...get().contacts, c].sort((a, b) => a.name.localeCompare(b.name));
     set({ contacts });
-    void saveContacts(contacts);
+    if (!isDecoySession()) void saveContacts(contacts); // session leurre : jamais par-dessus les vrais contacts
   },
 
   update: (id, name, address) => {
@@ -43,12 +45,18 @@ export const useContacts = create<ContactsState>((set, get) => ({
       .contacts.map((c) => (c.id === id ? { ...c, name: name.trim(), address: address.trim() } : c))
       .sort((a, b) => a.name.localeCompare(b.name));
     set({ contacts });
-    void saveContacts(contacts);
+    if (!isDecoySession()) void saveContacts(contacts);
   },
 
   remove: (id) => {
     const contacts = get().contacts.filter((c) => c.id !== id);
     set({ contacts });
-    void saveContacts(contacts);
+    if (!isDecoySession()) void saveContacts(contacts);
   },
 }));
+
+// Session leurre : les vrais contacts disparaissent ; à la sortie, ils reviennent.
+onDecoyChange((on) => {
+  if (on) useContacts.setState({ contacts: [] });
+  else void useContacts.getState().load();
+});

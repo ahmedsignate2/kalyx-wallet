@@ -114,7 +114,8 @@ import {
 import { randomAvatarId } from './avatars';
 import { authenticate, biometricPrompt } from './biometrics';
 import { submitSolanaSigned } from './solanaSubmit';
-import { kvGet, kvSet, kvDel } from './kv';
+import { KV_DEVICE_ONLY, kvGet, kvSet, kvDel } from './kv';
+import { isDecoySession, setDecoySession } from './sessionMode';
 import { aura } from './aura';
 import { isLegacyDefaultName } from './walletNames';
 import { useSettings } from './settingsStore';
@@ -192,6 +193,14 @@ interface WalletState {
   setImportedDraft: (mnemonic: string) => void;
   confirmDraft: (pin: string, opts?: { enableBiometric?: boolean; /** Faux pour une sauvegarde restaurée (comptes déjà listés). */ discover?: boolean }) => Promise<void>;
   unlockWithPin: (pin: string) => Promise<void>;
+  /** Code de contrainte configuré ? (toujours faux en session leurre) */
+  hasDuress: () => Promise<boolean>;
+  /** Configure (ou remplace) le code de contrainte et crée un portefeuille leurre neuf. */
+  setupDuress: (mainPin: string, duressPin: string) => Promise<void>;
+  /** Supprime le code de contrainte et le portefeuille leurre. */
+  removeDuress: (unlock: Unlock) => Promise<void>;
+  /** Adresses PUBLIQUES du leurre (pour y déposer un peu de fonds). */
+  duressAccounts: () => Promise<StoredAccount[]>;
   unlockWithBiometrics: () => Promise<void>;
   /** Vérifie le PIN (déchiffre le coffre à la volée) ; lève WRONG_PIN si faux. */
   verifyPin: (pin: string) => Promise<void>;
@@ -478,7 +487,49 @@ export function phraseKindForImport(mnemonic: string): RecoveryPhraseKind {
  * endroits écrivaient `activeWalletId` sans rien enregistrer : ajouter la
  * persistance à chacun garantissait qu'un septième l'oublierait.
  */
+/*
+ * ─── CODE DE CONTRAINTE ──────────────────────────────────────────────────────
+ * Un second code, choisi par l'utilisateur. Tapé au déverrouillage (sous la
+ * menace), il ouvre un PORTEFEUILLE LEURRE — une vraie phrase, à garnir d'un
+ * peu de fonds — et rien d'autre : les vrais portefeuilles ne sont ni listés,
+ * ni lisibles (leurs coffres restent chiffrés avec le vrai code), et rien de la
+ * session n'écrit par-dessus les vraies données (sessionMode).
+ *
+ * Le leurre n'est PAS dans la liste des portefeuilles : sa description vit à
+ * part, dans le trousseau ; son coffre est chiffré avec le code de contrainte.
+ */
+const K_DURESS = 'kalyx.duress';
+type DuressMeta = { id: string; label: string; avatar?: string };
+
+async function loadDuressMeta(): Promise<DuressMeta | null> {
+  try {
+    const raw = await kvGet(K_DURESS, KV_DEVICE_ONLY);
+    if (!raw) return null;
+    const o = JSON.parse(raw) as Partial<DuressMeta>;
+    return typeof o.id === 'string' ? { id: o.id, label: typeof o.label === 'string' ? o.label : '', avatar: o.avatar } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Écriture de la liste des portefeuilles, SÛRE en session leurre : la vraie
+ * liste n'est jamais touchée ; seul le leurre (nom, avatar) est mis à jour, à part.
+ */
+async function saveWalletsListSafe(list: WalletMeta[]): Promise<void> {
+  if (!isDecoySession()) return saveWalletsList(list);
+  const meta = await loadDuressMeta();
+  const decoy = meta && list.find((w) => w.id === meta.id);
+  if (decoy) await kvSet(K_DURESS, JSON.stringify({ id: decoy.id, label: decoy.label, avatar: decoy.avatar }), KV_DEVICE_ONLY);
+}
+
+/** En session leurre, ces actions n'existent pas (elles toucheraient aux vrais portefeuilles). */
+function assertNotDecoy(): void {
+  if (isDecoySession()) throw new WalletError('NOT_SUPPORTED', 'Action indisponible');
+}
+
 function rememberActive(walletId: string, accountIndex: number): void {
+  if (isDecoySession()) return; // session leurre : le portefeuille mémorisé reste le vrai
   kvSet(K_ACTIVE_WALLET, walletId).catch(() => {});
   kvSet(K_ACTIVE_ACCOUNT, String(accountIndex)).catch(() => {});
 }
@@ -563,7 +614,7 @@ async function dropSupersededWatch(newAccounts: StoredAccount[], supersededBy?: 
    */
   try {
     const wallets = useWallet.getState().wallets.filter((w) => !gone.some((g) => g.id === w.id));
-    await saveWalletsList(wallets);
+    await saveWalletsListSafe(wallets);
     useWallet.setState({ wallets });
     // L'adresse suivie retirée était AFFICHÉE : on bascule sur le portefeuille qui en a la clé (ou le premier).
     if (gone.some((g) => g.id === useWallet.getState().activeWalletId)) {
@@ -664,6 +715,40 @@ function discoverAfterImport(walletId: string, mnemonic: string): void {
       ),
     )
     .catch(() => {}); // recherche de confort : son échec ne touche pas l'import, déjà fait
+}
+
+/**
+ * Tente d'ouvrir la session LEURRE avec `pin`. La tentative ratée que le
+ * déverrouillage vient de compter est EFFACÉE (le code de contrainte n'est pas
+ * un code faux) ; aucun indice : même écran, même délai qu'un déverrouillage.
+ */
+async function enterDecoy(pin: string, prevFailed: number, prevAt: number): Promise<boolean> {
+  const meta = await loadDuressMeta();
+  if (!meta) return false;
+  const vault = await loadVault(meta.id);
+  if (!vault) return false;
+  try {
+    await decryptSecret(vault, pin);
+  } catch {
+    return false;
+  }
+  useWallet.setState({ failedAttempts: prevFailed, lastFailedAt: prevAt });
+  await saveLockState(prevFailed, prevAt).catch(() => {});
+  const accounts = (await loadAccounts(meta.id)) ?? [];
+  const st = useWallet.getState();
+  const chain = st.activeChain;
+  setDecoySession(true);
+  useWallet.setState({
+    isUnlocked: true,
+    wallets: [{ id: meta.id, label: meta.label, avatar: meta.avatar }],
+    activeWalletId: meta.id,
+    accounts,
+    activeAccountIndex: 0,
+    activeChain: chain,
+    account: toAccount(accounts, 0, chain),
+  });
+  aura.pulse('unlock');
+  return true;
 }
 
 /** Prouve l'identité (code ou biométrie) sans rien signer : le secret lu est aussitôt jeté. */
@@ -944,13 +1029,14 @@ export const useWallet = create<WalletState>((set, get) => ({
   lastFailedAt: 0,
 
   bootstrap: async () => {
+    setDecoySession(false);
     // Changement de PIN interrompu (app tuée pendant l'écriture) : tout revient à l'ancien PIN.
     if (await rollbackPinChange()) console.log('[KALYX-VAULT] init:pin-change-rolled-back');
     let wallets = await loadWalletsList();
     // Migration douce : un ancien wallet unique devient 'primary' (clés inchangées).
     if (wallets.length === 0 && (await hasVault('primary'))) {
       wallets = [{ id: 'primary', label: '' }];
-      await saveWalletsList(wallets);
+      await saveWalletsListSafe(wallets);
     }
     /*
      * MIGRATION DES NOMS PAR DÉFAUT. Les versions précédentes écrivaient
@@ -963,12 +1049,12 @@ export const useWallet = create<WalletState>((set, get) => ({
      */
     if (wallets.some((w) => isLegacyDefaultName(w.label))) {
       wallets = wallets.map((w) => (isLegacyDefaultName(w.label) ? { ...w, label: '' } : w));
-      await saveWalletsList(wallets);
+      await saveWalletsListSafe(wallets);
     }
     // Portefeuilles d'avant les avatars : chacun reçoit le sien, tiré au hasard, une fois.
     if (wallets.some((w) => !w.avatar)) {
       wallets = wallets.map((w) => (w.avatar ? w : { ...w, avatar: randomAvatarId() }));
-      await saveWalletsList(wallets);
+      await saveWalletsListSafe(wallets);
     }
     /*
      * Portefeuille du dernier lancement, s'il existe ENCORE : il peut avoir été
@@ -1094,7 +1180,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     } else await disableBiometricSeed(id).catch(() => {});
     useSettings.getState().setBiometricEnabled(biometricOn);
     const wallets: WalletMeta[] = [{ id, label: '', avatar: randomAvatarId(), ...(kind === 'ton' ? { type: 'tonPhrase' as const } : {}) }];
-    await saveWalletsList(wallets);
+    await saveWalletsListSafe(wallets);
     // Une phrase TON n'a d'adresse que sur TON : on ouvre directement sur ce réseau.
     const chain = kind === 'ton' ? firstChainOfFamily('ton') : get().activeChain;
     set({
@@ -1119,6 +1205,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (lockRemainingMs(failedAttempts, lastFailedAt, Date.now()) > 0) {
       throw new WalletError('LOCKED_OUT', 'Trop de tentatives. Réessaie plus tard.');
     }
+    setDecoySession(false);
     try {
       const authId = authWalletId(get().wallets, activeWalletId);
       const secret = await revealMnemonic(authId, { pin });
@@ -1146,9 +1233,44 @@ export const useWallet = create<WalletState>((set, get) => ({
         return vault ? decryptSecret(vault, pin) : null;
       });
     } catch (e) {
+      // Code faux pour les vrais coffres : est-ce le code de CONTRAINTE ?
+      if (isWalletError(e) && e.code === 'WRONG_PIN' && (await enterDecoy(pin, failedAttempts, lastFailedAt))) return;
       // Tentative ratée déjà comptée par `revealMnemonic`.
       throw e;
     }
+  },
+
+  hasDuress: async () => !isDecoySession() && (await loadDuressMeta()) !== null,
+
+  setupDuress: async (mainPin, duressPin) => {
+    assertNotDecoy();
+    assertValidPin(duressPin);
+    if (duressPin === mainPin) throw new WalletError('INVALID_PIN', 'duress.SAME_AS_MAIN');
+    // Même longueur que le vrai code : l'écran de déverrouillage (nombre de points) ne trahit rien.
+    if (duressPin.length !== mainPin.length) throw new WalletError('INVALID_PIN', 'duress.LENGTH');
+    await proveIdentity({ pin: mainPin }); // vrai code exigé
+    const old = await loadDuressMeta();
+    const id = `duress-${newWalletId()}`;
+    const m = generateMnemonic(128);
+    const accounts = [deriveStoredAccount(m, 0, '')];
+    await saveVault(id, await encryptSecret(m, duressPin));
+    await saveAccounts(id, accounts);
+    await kvSet(K_DURESS, JSON.stringify({ id, label: '', avatar: randomAvatarId() }), KV_DEVICE_ONLY);
+    if (old) await wipeWallet(old.id).catch(() => {}); // l'ancien leurre (et son code) disparaissent
+  },
+
+  removeDuress: async (unlock) => {
+    assertNotDecoy();
+    await proveIdentity(unlock);
+    const meta = await loadDuressMeta();
+    if (meta) await wipeWallet(meta.id).catch(() => {});
+    await kvDel(K_DURESS, KV_DEVICE_ONLY);
+  },
+
+  duressAccounts: async () => {
+    if (isDecoySession()) return [];
+    const meta = await loadDuressMeta();
+    return meta ? (await loadAccounts(meta.id)) ?? [] : [];
   },
 
   unlockWithBiometrics: async () => {
@@ -1247,6 +1369,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   createWallet: async (pin, label) => {
+    assertNotDecoy(); // session leurre : jamais d'écriture sur les vrais portefeuilles
     // Vérifie le PIN (cohérence : un seul PIN d'app) via le wallet actif.
     await proveIdentity({ pin });
     const m = generateMnemonic(128);
@@ -1255,7 +1378,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     await saveVault(id, await encryptSecret(m, pin));
     await saveAccounts(id, accounts);
     const wallets = [...get().wallets, { id, label: label?.trim() || '', avatar: randomAvatarId() }];
-    await saveWalletsList(wallets);
+    await saveWalletsListSafe(wallets);
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
     // Liste blanche active : ce portefeuille ne sera « à toi » (destinataire libre) qu'après 24 h.
     void (await import('./whitelistStore')).whitelistActions.noteNewWallet(id).catch(() => {});
@@ -1264,6 +1387,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   importWallet: async (mnemonic, pin, label, opts) => {
+    assertNotDecoy(); // session leurre : jamais d'écriture sur les vrais portefeuilles
     const m = canonicalMnemonic(mnemonic);
     const kind = phraseKindForImport(m);
     await proveIdentity({ pin }); // vérifie le PIN
@@ -1273,7 +1397,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     await saveAccounts(id, accounts);
     const meta: WalletMeta = { id, label: label?.trim() || '', avatar: randomAvatarId(), ...(kind === 'ton' ? { type: 'tonPhrase' as const } : {}) };
     const wallets = [...get().wallets, meta];
-    await saveWalletsList(wallets);
+    await saveWalletsListSafe(wallets);
     // Une phrase TON n'a d'adresse que sur TON : on bascule sur ce réseau.
     const chain = kind === 'ton' ? firstChainOfFamily('ton') : get().activeChain;
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, activeChain: chain, account: toAccount(accounts, 0, chain) });
@@ -1285,6 +1409,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   importPrivateKey: async (privateKey, pin, label, family) => {
+    assertNotDecoy(); // session leurre : jamais d'écriture sur les vrais portefeuilles
     /*
      * ANALYSE AVANT TOUTE ÉCRITURE. L'import n'acceptait qu'une clé EVM en
      * hexadécimal : un WIF Bitcoin ou un export Phantom étaient refusés sans
@@ -1336,7 +1461,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       ...get().wallets,
       { id, label: label?.trim() || '', type: 'privateKey', keyFamily: chosen, avatar: randomAvatarId() },
     ];
-    await saveWalletsList(wallets);
+    await saveWalletsListSafe(wallets);
     // Le réseau actif doit appartenir à la famille de la clé, sinon le compte
     // n'aurait pas d'adresse à montrer.
     const chain =
@@ -1397,6 +1522,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   importWallets: async (list, pin) => {
+    assertNotDecoy(); // session leurre : jamais d'écriture sur les vrais portefeuilles
     assertValidPin(pin);
     let added = 0;
     for (const w of list) {
@@ -1432,6 +1558,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   restoreAccounts: async (walletId, list, pin) => {
+    assertNotDecoy(); // session leurre : jamais d'écriture sur les vrais portefeuilles
     // Une clé privée ou une phrase TON n'ont qu'un compte : rien à recréer.
     if (!isBip39Wallet(get().wallets, walletId) || !list.length) return;
     const mnemonic = await revealMnemonic(walletId, { pin });
@@ -1463,6 +1590,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   addWatchWallet: async (address, label) => {
+    assertNotDecoy(); // session leurre : jamais d'écriture sur les vrais portefeuilles
     if (!get().hasWallet || !get().isUnlocked) throw new WalletError('LOCKED_OUT', 'App verrouillée');
     const parsed = parseWatchAddress(address);
     if (!parsed.ok) throw new WalletError('INVALID_WATCH_ADDRESS', `watch.${parsed.error}`);
@@ -1478,7 +1606,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     const account = storedAccountForAddress(parsed.family, parsed.address);
     await saveAccounts(id, [account]); // aucun coffre : rien de secret à ranger
     const wallets: WalletMeta[] = [...get().wallets, { id, label: label?.trim() || '', type: 'watch', keyFamily: parsed.family, watchAddress: parsed.address, avatar: randomAvatarId() }];
-    await saveWalletsList(wallets);
+    await saveWalletsListSafe(wallets);
     const chain = chainConfig(get().activeChain).family === parsed.family ? get().activeChain : firstChainOfFamily(parsed.family);
     set({ wallets, activeWalletId: id, accounts: [account], activeAccountIndex: 0, activeChain: chain, account: toAccount([account], 0, chain) });
     rememberActive(id, 0);
@@ -1516,17 +1644,18 @@ export const useWallet = create<WalletState>((set, get) => ({
     const name = label.trim();
     if (!name) return;
     const wallets = get().wallets.map((w) => (w.id === id ? { ...w, label: name } : w));
-    await saveWalletsList(wallets);
+    await saveWalletsListSafe(wallets);
     set({ wallets });
   },
 
   setWalletAvatar: async (id, avatar) => {
     const wallets = get().wallets.map((w) => (w.id === id ? { ...w, avatar } : w));
-    await saveWalletsList(wallets);
+    await saveWalletsListSafe(wallets);
     set({ wallets });
   },
 
   removeWallet: async (id, unlock) => {
+    assertNotDecoy(); // session leurre : jamais d'écriture sur les vrais portefeuilles
     /*
      * Irréversible : il ne suffit PAS d'une boîte de dialogue. Une confirmation
      * restée ouverte au verrouillage automatique, ou un téléphone déverrouillé
@@ -1545,7 +1674,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       new Promise((r) => setTimeout(r, 10_000)),
     ]);
     await wipeWallet(id);
-    await saveWalletsList(wallets);
+    await saveWalletsListSafe(wallets);
     if (get().activeWalletId === id) {
       // Le suivant peut ne servir qu'une famille (clé importée, adresse suivie) : réseau ajusté.
       // Un seul `set` : jamais un état où l'actif est le portefeuille supprimé.
@@ -1567,7 +1696,16 @@ export const useWallet = create<WalletState>((set, get) => ({
   // morte et les requêtes partiraient dans le vide).
   // Un brouillon de phrase n'a rien à faire dans un coffre verrouillé : un portefeuille existe déjà,
   // le flux qui l'utilisait (vérification, ajout) recommencera après le code.
-  lock: () => set(get().hasWallet ? { isUnlocked: false, draftMnemonic: null } : { isUnlocked: false }),
+  lock: () => {
+    if (isDecoySession()) {
+      // Fin de la session leurre : l'état VRAI est rechargé (verrouillé), le leurre oublié.
+      setDecoySession(false);
+      set({ isUnlocked: false, draftMnemonic: null, wallets: [], accounts: [], account: null });
+      void get().bootstrap();
+      return;
+    }
+    set(get().hasWallet ? { isUnlocked: false, draftMnemonic: null } : { isUnlocked: false });
+  },
 
   signAndSend: async (to, amount, unlock, gas) => {
     const { account, activeChain } = get();
@@ -2177,6 +2315,12 @@ export const useWallet = create<WalletState>((set, get) => ({
     assertValidPin(newPin);
     // L'ancien PIN est vérifié par le chemin commun : compteur et blocage compris.
     await proveIdentity({ pin: oldPin });
+    // Le nouveau code ne doit pas être le code de contrainte (il ouvrirait le vrai portefeuille, et le leurre deviendrait inaccessible).
+    if (!isDecoySession()) {
+      const meta = await loadDuressMeta();
+      const vault = meta ? await loadVault(meta.id) : null;
+      if (vault && (await decryptSecret(vault, newPin).then(() => true, () => false))) throw new WalletError('INVALID_PIN', 'duress.SAME_AS_MAIN');
+    }
     /*
      * TOUT OU RIEN. Tous les coffres sont d'abord re-chiffrés EN MÉMOIRE (le
      * scrypt, lent, se fait ici, avant toute écriture) ; puis les anciens vont au
@@ -2273,6 +2417,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   healBiometric: async (pin) => {
+    if (isDecoySession()) return;
     const id = authWalletId(get().wallets, get().activeWalletId);
     if (await isBiometricSeedGated(id)) return; // copie protégée en place, rien à faire
     // Copie absente, invalidée ou encore en clair → réécrite au schéma protégé via le PIN.
@@ -2281,6 +2426,20 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   reset: async (unlock) => {
+    if (isDecoySession()) {
+      /*
+       * Réinitialisation demandée DANS la session leurre : seul le leurre est
+       * effacé (les vrais portefeuilles ne sont même pas listés ici, et l'id
+       * « primary » d'un nouveau portefeuille écraserait le vrai coffre). L'app
+       * revient verrouillée, sur l'état réel.
+       */
+      await proveIdentity(unlock);
+      const meta = await loadDuressMeta();
+      if (meta) await wipeWallet(meta.id).catch(() => {});
+      await kvDel(K_DURESS, KV_DEVICE_ONLY).catch(() => {});
+      get().lock();
+      return;
+    }
     // Même règle que la suppression d'un portefeuille, pour TOUS à la fois.
     console.log('[KALYX-VAULT] reset:start', { isUnlocked: get().isUnlocked, wallets: get().wallets.length });
     if (!get().isUnlocked) throw new WalletError('LOCKED_OUT', 'App verrouillée');
@@ -2297,6 +2456,10 @@ export const useWallet = create<WalletState>((set, get) => ({
       new Promise((r) => setTimeout(r, 10_000)),
     ]);
     await wipeAll(get().wallets);
+    // Le leurre part avec le reste.
+    const duress = await loadDuressMeta();
+    if (duress) await wipeWallet(duress.id).catch(() => {});
+    await kvDel(K_DURESS, KV_DEVICE_ONLY).catch(() => {});
     // La liste blanche part avec les portefeuilles (un nouvel utilisateur repart de zéro).
     await import('./whitelistStore').then((m) => m.whitelistActions.wipe()).catch(() => {});
     // Une recherche des comptes en cours appartenait à l'ancien portefeuille (l'id « primary » sera réutilisé).
