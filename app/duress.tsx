@@ -100,6 +100,7 @@ export default function DuressScreen() {
           {pinInput(mainPin, setMainPin, t('duressMainPin'))}
           {pinInput(pin1, setPin1, t('duressNewPin'))}
           {pinInput(pin2, setPin2, t('duressConfirmPin'))}
+          <Text variant="caption" tone="secondary">{t('duressBioOff')}</Text>
           {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
           <Button label={t('duressSetup')} icon="security" loading={busy} disabled={mainPin.length < 6 || pin1.length < 6 || pin2.length < 6} onPress={() => void onSetup()} />
         </NovaCard>
