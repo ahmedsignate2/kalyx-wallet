@@ -1,4 +1,4 @@
-import { addEntry, checkRecipient, enable, EMPTY_WHITELIST, isEnforced, parseWhitelist, removeEntry, requestDisable, settle, WHITELIST_DELAY_MS as D } from './whitelist';
+import { addEntry, checkRecipient, enable, EMPTY_WHITELIST, isEnforced, isTrustedWallet, noteWallet, parseWhitelist, removeEntry, requestDisable, settle, WHITELIST_DELAY_MS as D } from './whitelist';
 
 const key = (a: string) => a.toLowerCase();
 const notOwn = () => false;
@@ -34,7 +34,23 @@ describe('liste blanche', () => {
     expect(removeEntry(s, '0xa', key).entries).toEqual([]);
   });
   it('fichier illisible : considérée ACTIVE et vide (jamais éteinte en silence)', () => {
-    expect(parseWhitelist('{oops')).toEqual({ enabled: true, entries: [], disableAt: null });
+    expect(parseWhitelist('{oops')).toEqual({ enabled: true, entries: [], trusted: [], disableAt: null });
     expect(parseWhitelist(null)).toEqual(EMPTY_WHITELIST);
   });
 });
+
+describe('portefeuilles de confiance', () => {
+  it('présents à l’activation : tout de suite ; créés ou importés ensuite : après 24 h', () => {
+    let s = enable(EMPTY_WHITELIST, ['a']);
+    expect(isTrustedWallet(s, 'a', null)).toBe(true);
+    s = noteWallet(s, 'thief', 100);
+    expect(isTrustedWallet(s, 'thief', 100 + D - 1)).toBe(false);
+    expect(isTrustedWallet(s, 'thief', 100 + D)).toBe(true);
+    expect(noteWallet(s, 'x', null)).toBe(s); // heure inconnue : pas de confiance
+  });
+  it('ajout quand la protection est éteinte : sans heure, utilisable dès l’activation', () => {
+    const s = enable(addEntry(EMPTY_WHITELIST, '0xA', '', null, key));
+    expect(checkRecipient(s, '0xA', null, key, notOwn)).toEqual({ kind: 'allowed' });
+  });
+});
+

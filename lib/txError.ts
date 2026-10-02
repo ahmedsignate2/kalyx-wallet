@@ -85,6 +85,7 @@ const WALLET_ERROR_KEYS: Record<string, Key> = {
   WATCH_ONLY: 'errWatchOnly',
   NOT_WHITELISTED: 'errNotWhitelisted',
   WHITELIST_PENDING: 'errWhitelistPending',
+  WHITELIST_LOCKED: 'errWhitelistLocked',
   LAST_KEY_WALLET: 'errLastKeyWallet',
   INVALID_WATCH_ADDRESS: 'watchErrUnknown',
   BUMP_NOT_FOUND: 'errBumpNotFound',

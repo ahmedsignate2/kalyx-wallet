@@ -364,6 +364,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       const p = get().queue[0];
       console.log('[KALYX-TC] approveTx:start', { pending: p?.kind ?? null, emulation: p?.kind === 'tx' ? (p.draft?.emulation ? 'ok' : p.error ? `erreur: ${p.error}` : 'aucune') : null });
       if (p?.kind !== 'tx') throw new Error('tcNothingPending');
+      await (await import('../whitelistStore')).assertDappAllowed(); // liste blanche en vigueur : pas de transaction de dApp
       const { session } = p;
       const w = useWallet.getState();
       if (w.activeWalletId !== session.walletId) throw new Error('tcWrongWallet');

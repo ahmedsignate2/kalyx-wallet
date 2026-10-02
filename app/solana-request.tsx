@@ -201,6 +201,7 @@ export default function SolanaRequestScreen() {
         subtitle={identity?.label}
         perform={async (unlock) => {
           if (!transaction) throw new Error(t('solReqFailed'));
+          await (await import('../lib/whitelistStore')).assertDappAllowed(); // liste blanche en vigueur : pas de transaction marchande arbitraire
           await signSolanaTransaction(unlock, transaction);
           toast.success(t('sign'));
         }}

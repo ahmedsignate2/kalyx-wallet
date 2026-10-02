@@ -22,6 +22,7 @@ const kv = new Map<string, string>();
 jest.mock('../kv', () => ({ kvGet: async (k: string) => kv.get(k) ?? null, kvSet: async (k: string, v: string) => void kv.set(k, v), kvDel: async (k: string) => void kv.delete(k) }));
 jest.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { version: '1.0.0' } } }));
+jest.mock('../whitelistStore', () => ({ assertDappAllowed: async () => {} }));
 jest.mock('../technicalLogger', () => ({ technicalLogger: { logDapp: () => {} } }));
 
 import KEYS from '../../src/domain/chains/ton/tonkeeper-vectors.json';

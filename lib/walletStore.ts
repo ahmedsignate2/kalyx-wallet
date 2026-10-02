@@ -1252,6 +1252,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     const wallets = [...get().wallets, { id, label: label?.trim() || '', avatar: randomAvatarId() }];
     await saveWalletsList(wallets);
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
+    // Liste blanche active : ce portefeuille ne sera « à toi » (destinataire libre) qu'après 24 h.
+    void (await import('./whitelistStore')).whitelistActions.noteNewWallet(id).catch(() => {});
     rememberActive(id, 0);
     return m; // à afficher pour sauvegarde
   },
@@ -1270,6 +1272,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     // Une phrase TON n'a d'adresse que sur TON : on bascule sur ce réseau.
     const chain = kind === 'ton' ? firstChainOfFamily('ton') : get().activeChain;
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, activeChain: chain, account: toAccount(accounts, 0, chain) });
+    // Liste blanche active : ce portefeuille ne sera « à toi » (destinataire libre) qu'après 24 h.
+    void (await import('./whitelistStore')).whitelistActions.noteNewWallet(id).catch(() => {});
     rememberActive(id, 0);
     await dropSupersededWatch(accounts, id);
     if (kind !== 'ton' && opts?.discover !== false) discoverAfterImport(id, m); // comptes 2, 3… déjà utilisés, en arrière-plan
@@ -1340,12 +1344,15 @@ export const useWallet = create<WalletState>((set, get) => ({
       activeChain: chain,
       account: toAccount(accounts, 0, chain),
     });
+    // Liste blanche active : ce portefeuille ne sera « à toi » (destinataire libre) qu'après 24 h.
+    void (await import('./whitelistStore')).whitelistActions.noteNewWallet(id).catch(() => {});
     rememberActive(id, 0);
     kvSet(K_ACTIVE_CHAIN, chain).catch(() => {});
     await dropSupersededWatch(accounts, id);
   },
 
   exportAllWallets: async (unlock) => {
+    await (await import('./whitelistStore')).assertSecretsExportable();
     const { wallets, activeWalletId } = get();
     /*
      * Le PIN est vérifié UNE FOIS, sur le portefeuille actif (ou, s'il est en lecture seule, un portefeuille à clé) : tous les coffres
@@ -1894,6 +1901,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signSolanaTransactions: async (unlock, txStrArray) => {
+    await (await import('./whitelistStore')).assertDappAllowed(); // demandé par des dApps seulement : fermé sous liste blanche
     const res: string[] = [];
     for (const tx of txStrArray) {
       res.push(await get().signSolanaTransaction(unlock, tx));
@@ -1942,6 +1950,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signBitcoinPsbt: async (unlock, psbtBase64, options) => {
+    await (await import('./whitelistStore')).assertDappAllowed(); // demandé par des dApps seulement : fermé sous liste blanche
     const { account } = get();
     if (!account) throw new Error('Aucun compte');
     const signer = await get().deriveSigner(getAdapterV2('bitcoin'), unlock);
@@ -1987,6 +1996,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signTypedData: async (unlock, typedData, expectedChainId) => {
+    await (await import('./whitelistStore')).assertDappAllowed(); // demandé par des dApps seulement : fermé sous liste blanche
     const { account, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     /*
@@ -2184,6 +2194,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   revealPhrase: async (unlock) => {
+    await (await import('./whitelistStore')).assertSecretsExportable(); // liste blanche en vigueur : pas d'export des secrets
     const { activeWalletId, wallets } = get();
     if (isPrivateKeyWallet(wallets, activeWalletId)) {
       throw new WalletError('NO_RECOVERY_PHRASE', 'Ce portefeuille a été importé par clé privée : il n’a pas de phrase de récupération.');
@@ -2192,6 +2203,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   exportPrivateKey: async (unlock) => {
+    await (await import('./whitelistStore')).assertSecretsExportable();
     const { activeWalletId, wallets, account } = get();
     if (isWatchWallet(wallets, activeWalletId)) throw new WalletError('WATCH_ONLY', 'Portefeuille en lecture seule : aucune clé à exporter.');
     if (!account) throw new Error('Aucun compte');

@@ -8,7 +8,6 @@
  *     devise, simulation « ton solde passera de A à B », MAINTENIR pour envoyer.
  *  4. Suivi : Envoyée → Incluse → Confirmée, on peut quitter (notification).
  */
-import { assertRecipientAllowed } from '../lib/whitelistStore';
 import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { fill } from '../lib/i18n';
 import { usePaidAddresses } from '../lib/historySpam';
@@ -636,7 +635,7 @@ function SendInner() {
      * signature, reste le dernier rempart.
      */
     try {
-      await assertRecipientAllowed(recipient);
+      await (await import('../lib/whitelistStore')).assertRecipientAllowed(recipient);
     } catch (e) {
       if (isWalletError(e) && (e.code === 'NOT_WHITELISTED' || e.code === 'WHITELIST_PENDING')) {
         setWlBlocked(e.code === 'NOT_WHITELISTED');

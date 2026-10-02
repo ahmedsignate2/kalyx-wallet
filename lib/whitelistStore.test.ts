@@ -5,6 +5,7 @@
 let mockChainTime = 1_000_000;
 const mockKv = new Map<string, string>();
 jest.mock('./kv', () => ({
+  KV_DEVICE_ONLY: {},
   kvGet: async (k: string) => mockKv.get(k) ?? null,
   kvSet: async (k: string, v: string) => { mockKv.set(k, v); },
   kvDel: async (k: string) => { mockKv.delete(k); },
@@ -17,12 +18,14 @@ jest.mock('../src', () => {
 });
 const ME = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 const mockVerify = jest.fn(async () => {});
+const mockWallets: { id: string; type?: string }[] = [{ id: 'w' }];
+const THIEF = '0x00000000000000000000000000000000000beef1';
 jest.mock('./walletStore', () => ({
-  useWallet: { getState: () => ({ wallets: [{ id: 'w' }], activeWalletId: 'w', accounts: [{ index: 0, label: '', evmAddress: ME, btcAddress: '' }], verifyUnlock: mockVerify }) },
+  useWallet: { getState: () => ({ wallets: mockWallets, activeWalletId: 'w', accounts: [{ index: 0, label: '', evmAddress: ME, btcAddress: '' }], verifyUnlock: mockVerify }) },
 }));
-jest.mock('./secureStore', () => ({ loadAccounts: async () => [] }));
+jest.mock('./secureStore', () => ({ loadAccounts: async (id: string) => (id === 'thief' ? [{ index: 0, label: '', evmAddress: THIEF, btcAddress: '' }] : []) }));
 
-import { assertRecipientAllowed, resetChainClock, whitelistActions } from './whitelistStore';
+import { assertDappAllowed, assertRecipientAllowed, assertSecretsExportable, resetChainClock, whitelistActions } from './whitelistStore';
 import { WHITELIST_DELAY_MS } from '../src';
 
 const FRIEND = '0x0000000000000000000000000000000000000abc';
@@ -44,6 +47,18 @@ describe('liste blanche — verrou d’envoi', () => {
     mockVerify.mockRejectedValueOnce(Object.assign(new Error('pin'), { code: 'WRONG_PIN' }));
     expect(await code(whitelistActions.requestDisable({ pin: '0' }))).toBe('WRONG_PIN');
     expect(await code(assertRecipientAllowed('0x0000000000000000000000000000000000000def'))).toBe('NOT_WHITELISTED');
+  });
+});
+
+describe('les portes de contournement sont fermées', () => {
+  it('dApps et export des secrets refusés tant que la protection est en vigueur', async () => {
+    expect(await code(assertDappAllowed())).toBe('WHITELIST_LOCKED');
+    expect(await code(assertSecretsExportable())).toBe('WHITELIST_LOCKED');
+  });
+  it('un portefeuille importé APRÈS l’activation n’est pas « à toi » avant 24 h', async () => {
+    mockWallets.push({ id: 'thief' });
+    await whitelistActions.noteNewWallet('thief');
+    expect(await code(assertRecipientAllowed(THIEF))).toBe('NOT_WHITELISTED');
   });
 });
 

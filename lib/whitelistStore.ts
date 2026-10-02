@@ -1,15 +1,24 @@
 /**
  * Liste blanche des destinataires — état, stockage chiffré, horloge de chaîne,
- * et le VERROU appelé avant toute signature d'envoi (walletStore.sendDraft).
- * Règles : src/domain/security/whitelist.ts.
+ * et les VERROUS. Règles : src/domain/security/whitelist.ts.
  *
- * - Stockée dans le trousseau (expo-secure-store), comme les coffres.
- * - Toute modification qui RELÂCHE la protection (activer — pour éviter une
- *   activation par erreur —, ajouter, demander la désactivation) exige le code
- *   ou la biométrie. Retirer une adresse ou annuler une désactivation, non :
- *   cela ne fait que renforcer.
- * - L'heure vient du dernier bloc (Ethereum, Base, Arbitrum), avancée ensuite
- *   par une horloge MONOTONE : changer l'heure du téléphone n'avance rien.
+ * Menace visée : un voleur qui connaît le code. Tant que la protection est EN
+ * VIGUEUR, tout ce qui permettrait de vider le portefeuille sur-le-champ est
+ * fermé, pas seulement le bouton Envoyer :
+ *  - envois : seulement vers la liste et les portefeuilles DE CONFIANCE
+ *    (assertRecipientAllowed, appelé par walletStore.sendDraft) ;
+ *  - transactions et signatures demandées par des dApps (navigateur,
+ *    WalletConnect, TON Connect, Solana Pay) : refusées (assertDappAllowed) —
+ *    on ne peut pas garantir où va l'argent d'un contrat arbitraire ;
+ *  - export des secrets (phrase, clé privée, sauvegarde) : refusé
+ *    (assertSecretsExportable) — sinon il suffirait de les importer ailleurs.
+ * Les parcours construits par l'app vers SES comptes (échange, Earn,
+ * révocation, accélération) restent permis.
+ *
+ * - Trousseau, mêmes options que les coffres (cet appareil, déverrouillé).
+ * - L'heure vient du dernier bloc (Ethereum, Base, Arbitrum, au plus rapide),
+ *   avancée ensuite par une horloge MONOTONE : changer l'heure du téléphone
+ *   n'avance rien.
  */
 import { create } from 'zustand';
 import {
@@ -23,18 +32,21 @@ import {
   whitelistAdd,
   whitelistEnable,
   whitelistEnforced,
+  whitelistNoteWallet,
   whitelistRemove,
   whitelistRequestDisable,
   whitelistSettle,
+  whitelistTrustedWallet,
   type WhitelistState,
 } from '../src';
-import { kvDel, kvGet, kvSet } from './kv';
+import { KV_DEVICE_ONLY, kvDel, kvGet, kvSet } from './kv';
 import { addressKey } from './txAuditProbe';
 import { buildAddressIndex, lookupAddress } from './isMyAddress';
 import { loadAccounts } from './secureStore';
 import { useWallet, type Unlock } from './walletStore';
 
 const K_WHITELIST = 'kalyx.whitelist';
+const KV_OPTS = KV_DEVICE_ONLY;
 const TIME_CHAINS = ['ethereum', 'base', 'arbitrum'];
 const TIME_TTL_MS = 60_000;
 
@@ -42,59 +54,84 @@ const TIME_TTL_MS = 60_000;
 const mono = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 let anchor: { chain: number; mono: number } | null = null;
 
-/** Oublie l'ancre d'heure : la prochaine lecture repart de la chaîne (changement de réseau, tests). */
+/** Oublie l'ancre d'heure : la prochaine lecture repart de la chaîne (tests, changement de réseau). */
 export function resetChainClock(): void {
   anchor = null;
 }
 
-/** Heure de CHAÎNE (ms), ou null si aucun réseau ne répond. */
+/** Heure de CHAÎNE (ms), ou null si aucun réseau ne répond. Les réseaux sont interrogés ensemble. */
 export async function chainNow(): Promise<number | null> {
   if (anchor && mono() - anchor.mono < TIME_TTL_MS) return anchor.chain + (mono() - anchor.mono);
   const known = new Set(listChains().map((c) => c.id));
-  for (const id of TIME_CHAINS) {
-    if (!known.has(id)) continue;
-    const a = getAdapter(id);
-    if (!(a instanceof EvmChainAdapter)) continue;
-    try {
-      const t = await a.getLatestBlockTime();
-      anchor = { chain: t, mono: mono() };
-      return t;
-    } catch {
-      /* réseau suivant */
-    }
+  const probes = TIME_CHAINS.filter((id) => known.has(id))
+    .map((id) => getAdapter(id))
+    .filter((a): a is EvmChainAdapter => a instanceof EvmChainAdapter)
+    .map((a) => a.getLatestBlockTime());
+  try {
+    const t = await firstSuccess(probes);
+    anchor = { chain: t, mono: mono() };
+    return t;
+  } catch {
+    // Ancre plus ancienne mais connue : toujours mieux que l'heure du téléphone.
+    return anchor ? anchor.chain + (mono() - anchor.mono) : null;
   }
-  // Ancre plus ancienne mais connue : toujours mieux que l'heure du téléphone.
-  return anchor ? anchor.chain + (mono() - anchor.mono) : null;
+}
+
+/** Première promesse résolue (Promise.any, absent de certains moteurs) ; rejette si toutes échouent. */
+function firstSuccess<T>(ps: Promise<T>[]): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let left = ps.length;
+    if (!left) return reject(new Error('aucune source'));
+    for (const p of ps) p.then(resolve, () => { if (--left === 0) reject(new Error('aucune source')); });
+  });
 }
 
 export const useWhitelist = create<{ wl: WhitelistState; loaded: boolean }>(() => ({ wl: EMPTY_WHITELIST, loaded: false }));
 
-export async function loadWhitelist(): Promise<WhitelistState> {
+/** Génération : une réinitialisation rend caduques les écritures en cours. */
+let generation = 0;
+
+/**
+ * Lit l'état. Lecture du trousseau en échec (passager) : on applique la
+ * protection pour CET appel (jamais éteinte en silence) sans le mémoriser ni
+ * l'écrire — l'appel suivant relira. `ok` faux = ne pas écrire par-dessus.
+ */
+async function read(): Promise<{ wl: WhitelistState; ok: boolean }> {
   const st = useWhitelist.getState();
-  if (st.loaded) return st.wl;
+  if (st.loaded) return { wl: st.wl, ok: true };
   let raw: string | null;
   try {
-    raw = await kvGet(K_WHITELIST);
+    raw = await kvGet(K_WHITELIST, KV_OPTS);
   } catch {
-    raw = '{illisible'; // trousseau muet : traité comme un fichier abîmé (protection ACTIVE, jamais éteinte)
+    return { wl: parseWhitelist('{illisible'), ok: false };
   }
   const wl = parseWhitelist(raw);
   useWhitelist.setState({ wl, loaded: true });
-  return wl;
+  return { wl, ok: true };
 }
 
-async function save(wl: WhitelistState): Promise<void> {
-  await kvSet(K_WHITELIST, JSON.stringify(wl));
-  useWhitelist.setState({ wl, loaded: true });
+/** État À JOUR (une désactivation échue est appliquée et enregistrée). */
+export async function loadWhitelist(): Promise<WhitelistState> {
+  const { wl, ok } = await read();
+  if (!ok || !wl.enabled || wl.disableAt == null) return wl;
+  const now = await chainNow();
+  const settled = whitelistSettle(wl, now);
+  if (settled !== wl) await mutate((cur, n) => whitelistSettle(cur, n)).catch(() => {});
+  return settled;
 }
 
-/** Modifications en file : jamais deux écritures croisées. */
+/** Modifications en file : jamais deux écritures croisées, ni une écriture après une réinitialisation. */
 let queue: Promise<unknown> = Promise.resolve();
 function mutate(fn: (wl: WhitelistState, now: number | null) => WhitelistState | Promise<WhitelistState>): Promise<void> {
+  const gen = generation;
   const run = queue.catch(() => {}).then(async () => {
+    const { wl, ok } = await read();
+    if (!ok) throw new WalletError('VAULT_CORRUPTED', 'Liste blanche illisible pour le moment : réessaie.');
     const now = await chainNow();
-    const cur = whitelistSettle(await loadWhitelist(), now);
-    await save(await fn(cur, now));
+    const next = await fn(whitelistSettle(wl, now), now);
+    if (gen !== generation) return; // réinitialisée entre-temps : rien n'est réécrit
+    await kvSet(K_WHITELIST, JSON.stringify(next), KV_OPTS);
+    useWhitelist.setState({ wl: next, loaded: true });
   });
   queue = run;
   return run;
@@ -106,16 +143,19 @@ function needNow(now: number | null): number {
   return now;
 }
 
+const keyWalletIds = () => useWallet.getState().wallets.filter((w) => w.type !== 'watch').map((w) => w.id);
+
 export const whitelistActions = {
   enable: (unlock: Unlock) =>
     mutate(async (wl) => {
       await useWallet.getState().verifyUnlock(unlock);
-      return whitelistEnable(wl);
+      return whitelistEnable(wl, keyWalletIds()); // portefeuilles présents : de confiance tout de suite
     }),
   add: (address: string, label: string, unlock: Unlock) =>
     mutate(async (wl, now) => {
       await useWallet.getState().verifyUnlock(unlock);
-      return whitelistAdd(wl, address, label, needNow(now), addressKey);
+      // Protection éteinte : pas de délai, donc pas d'heure requise.
+      return whitelistAdd(wl, address, label, wl.enabled ? needNow(now) : now, addressKey);
     }),
   remove: (address: string) => mutate((wl) => whitelistRemove(wl, address, addressKey)),
   requestDisable: (unlock: Unlock) =>
@@ -125,19 +165,30 @@ export const whitelistActions = {
     }),
   /** Annuler une désactivation demandée = réactiver : renforce, sans code. */
   cancelDisable: () => mutate((wl) => (wl.enabled ? whitelistEnable(wl) : wl)),
+  /** Portefeuille créé ou importé : de confiance seulement après le délai (protection active). */
+  noteNewWallet: (id: string) => mutate((wl, now) => whitelistNoteWallet(wl, id, now)),
   /** Réinitialisation de l'app : la liste part avec les portefeuilles. */
   wipe: async () => {
-    await kvDel(K_WHITELIST).catch(() => {});
+    generation += 1;
+    await kvDel(K_WHITELIST, KV_OPTS).catch(() => {});
     useWhitelist.setState({ wl: EMPTY_WHITELIST, loaded: true });
   },
 };
 
-/** Comptes de l'utilisateur (portefeuilles À CLÉ — une adresse suivie n'est pas à lui). */
-async function ownIndex() {
+/** Protection en vigueur maintenant ? (avec l'état à jour et l'heure de chaîne) */
+async function enforcedNow(): Promise<{ wl: WhitelistState; now: number | null } | null> {
+  const wl = await loadWhitelist();
+  if (!wl.enabled) return null;
+  const now = await chainNow();
+  return whitelistEnforced(wl, now) ? { wl, now } : null;
+}
+
+/** Comptes des portefeuilles DE CONFIANCE (une adresse suivie, ou un portefeuille trop récent, n'en est pas). */
+async function trustedIndex(wl: WhitelistState, now: number | null) {
   const st = useWallet.getState();
   const list = await Promise.all(
     st.wallets
-      .filter((w) => w.type !== 'watch')
+      .filter((w) => w.type !== 'watch' && whitelistTrustedWallet(wl, w.id, now))
       .map(async (w) => ({ walletId: w.id, accounts: (w.id === st.activeWalletId ? st.accounts : await loadAccounts(w.id)) ?? [] })),
   );
   return buildAddressIndex(list);
@@ -145,18 +196,26 @@ async function ownIndex() {
 
 /**
  * VERROU d'envoi — appelé par le magasin avant de signer. Lève NOT_WHITELISTED
- * ou WHITELIST_PENDING (avec l'heure d'activation en `meta`) ; sinon ne fait rien.
+ * ou WHITELIST_PENDING (heures restantes en `meta.hours`) ; sinon ne fait rien.
  */
 export async function assertRecipientAllowed(to: string): Promise<void> {
-  const wl = await loadWhitelist();
-  if (!wl.enabled) return;
-  const now = await chainNow();
-  if (!whitelistEnforced(wl, now)) return;
-  const own = await ownIndex();
-  const v = checkRecipient(wl, to, now, addressKey, (a) => !!lookupAddress(own, a));
+  const on = await enforcedNow();
+  if (!on) return;
+  const own = await trustedIndex(on.wl, on.now);
+  const v = checkRecipient(on.wl, to, on.now, addressKey, (a) => !!lookupAddress(own, a));
   if (v.kind === 'blocked') throw new WalletError('NOT_WHITELISTED', 'Destinataire absent de la liste blanche');
   if (v.kind === 'pending') {
-    const hours = now == null ? '24' : String(Math.max(1, Math.ceil((v.activeAt - now) / 3_600_000)));
+    const hours = on.now == null ? '24' : String(Math.max(1, Math.ceil((v.activeAt - on.now) / 3_600_000)));
     throw new WalletError('WHITELIST_PENDING', 'Destinataire dans son délai de sûreté', { activeAt: String(v.activeAt), hours });
   }
+}
+
+/** VERROU dApps : aucune transaction ni signature de dApp tant que la protection est en vigueur. */
+export async function assertDappAllowed(): Promise<void> {
+  if (await enforcedNow()) throw new WalletError('WHITELIST_LOCKED', 'Liste blanche active : transactions de dApps désactivées');
+}
+
+/** VERROU secrets : ni phrase, ni clé privée, ni sauvegarde tant que la protection est en vigueur. */
+export async function assertSecretsExportable(): Promise<void> {
+  if (await enforcedNow()) throw new WalletError('WHITELIST_LOCKED', 'Liste blanche active : export des secrets désactivé');
 }
