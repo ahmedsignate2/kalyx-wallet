@@ -60,7 +60,7 @@ import {
   type ChartPoint,
   type HumanTx,
 } from '../../src';
-import { friendlyTxError } from '../../lib/txError';
+import { webErrorText, webErrorKey } from './webErrors';
 
 function short(a: string) {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
@@ -243,7 +243,7 @@ function SigningModal() {
         <Text style={[typography.muted, { textAlign: 'center' }]}>
           {phase === 'await'
             ? pending.slow ? tw('signAwaitSlow') : tw('signAwaitBody', { label })
-            : pending.expired ? tw('signExpired') : detail ?? ''}
+            : pending.expired ? tw('signExpired') : (webErrorKey(detail) ? tw(webErrorKey(detail)!) : detail) ?? ''}
         </Text>
         {phase === 'await' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(0.5) }}>
@@ -1523,7 +1523,7 @@ function TokenRow({
       setTo(''); setAmount('');
     } catch (e) {
       // Jamais le message brut (« REQUEST_EXPIRED », « Non connecté ») : la phrase traduite de l'entonnoir commun.
-      setErr(e instanceof Error && e.message === 'REQUEST_EXPIRED' ? tw('signExpired') : friendlyTxError(e, t as never));
+      setErr(webErrorText(e, tw, t as never));
       setMsg(null);
     } finally {
       setBusy(false);

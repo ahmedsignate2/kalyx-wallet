@@ -11,6 +11,7 @@ import { useT } from "../lib/settingsStore";
  *     signer = maintenir 2 s.
  * Composant de PRÉSENTATION : le parent fournit l'explication et gère l'action.
  */
+import { dappHost } from '../src/domain/web/dappHost';
 import React, { useState } from 'react';
 import { View, ScrollView, Image } from 'react-native';
 import { Text, Button, HoldButton, Surface, Divider, RiskBadge, AddressGlyph, Sheet, Skeleton, Pressable, Pressable as KPressable } from './kit';
@@ -50,19 +51,8 @@ export function SignSheet({
   const t = useT();
   const { colors } = useTheme();
   const [showRaw, setShowRaw] = useState(false);
-  /*
-   * Hôte RÉEL de l'URL déclarée (`new URL`). Le découpage manuel affichait
-   * « app.uniswap.org@evil.com » ou « evil.com?.uniswap.org » — le vrai site
-   * est ce qui suit « @ » et précède « ? ».
-   */
-  const host = (() => {
-    if (!peer?.url) return '';
-    try {
-      return new URL(/^[a-z]+:\/\//i.test(peer.url) ? peer.url : `https://${peer.url}`).host;
-    } catch {
-      return '';
-    }
-  })();
+  // Hôte RÉEL (src/domain/web/dappHost) : « a.com@evil.com », « evil.com/@a.com » → evil.com.
+  const host = dappHost(peer?.url ?? '');
   const danger = explanation?.risk === 'danger';
   const verified = verify?.validation === 'VALID';
   const badDomain = verify?.validation === 'INVALID' || verify?.isScam;

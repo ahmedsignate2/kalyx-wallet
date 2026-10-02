@@ -106,6 +106,11 @@ export function InteractiveChart({
     setScrubIdx(null);
     onScrubRef.current?.(null);
   }
+  // Nouvelle série (autre période) pendant un glissement : le point montré n'existe plus — on le relâche.
+  useEffect(() => {
+    if (lastIdx.current != null) end();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawKey]);
 
   const geom = useMemo(() => {
     if (points.length < 2) return null;

@@ -14,7 +14,8 @@ import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon } from './icon';
 import { useTheme } from './theme';
 import { space, radius } from './tokens';
-import { useTonConnect, type TcPending } from '../lib/tonconnect/store';
+import { useTonConnect, pendingKey, type TcPending } from '../lib/tonconnect/store';
+import { dappHost } from '../src/domain/web/dappHost';
 import { useWallet } from '../lib/walletStore';
 import { usePortfolioStore } from '../lib/portfolio';
 import { useT } from '../lib/settingsStore';
@@ -88,7 +89,9 @@ function DappHeader({ name, domain, icon }: { name: string; domain: string; icon
 function useTonAccess(): { ok: boolean; mainIndex: number } {
   const accounts = useWallet((s) => s.accounts);
   const active = useWallet((s) => s.activeAccountIndex);
-  return { ok: !!accounts[active]?.tonPublicKey, mainIndex: accounts.findIndex((a) => !!a.tonPublicKey) };
+  // INDEX HD (et non position dans la liste) : c'est ce que tient `activeAccountIndex` et ce qu'attend `setActiveAccount`.
+  const main = accounts.find((a) => !!a.tonPublicKey);
+  return { ok: !!accounts.find((a) => a.index === active)?.tonPublicKey, mainIndex: main ? main.index : -1 };
 }
 
 function TonAccessNotice({ mainIndex, message }: { mainIndex: number; message: string }) {
@@ -157,15 +160,15 @@ function TxSheet({ p }: { p: Extract<TcPending, { kind: 'tx' }> }) {
   // Même portefeuille mais un autre compte : le compte connecté est le principal (le seul avec TON).
   const accounts = useWallet((s) => s.accounts);
   const activeIndex = useWallet((s) => s.activeAccountIndex);
-  const sessionIndex = accounts.findIndex((a) => !!a.tonPublicKey);
-  const wrongAccount = !wrongWallet && sessionIndex >= 0 && activeIndex !== sessionIndex;
+  const sessionAccount = accounts.find((a) => !!a.tonPublicKey);
+  const wrongAccount = !wrongWallet && !!sessionAccount && activeIndex !== sessionAccount.index;
   const tonOut = e ? e.risk.ton : totalOut(p.tx);
   // Sans émulation, on ne signe que ce qu'on voit en entier (envois simples de TON) — voir src/domain/tonconnect/payload.ts.
   const blind = !loading && !e && !blindSafe(p.tx.messages);
 
   return (
-    <Sheet visible onClose={() => void rejectTx()}>
-      <DappHeader name={p.session.manifest.name} domain={new URL(p.session.manifest.url).host} icon={p.session.manifest.iconUrl} />
+    <Sheet visible onClose={() => void rejectTx(pendingKey(p))}>
+      <DappHeader name={p.session.manifest.name} domain={dappHost(p.session.manifest.url)} icon={p.session.manifest.iconUrl} />
       <Text variant="title2" style={{ textAlign: 'center' }}>{t('tcTxTitle').replace('{name}', p.session.manifest.name)}</Text>
 
       {e?.risk.allBalance ? (
@@ -206,16 +209,16 @@ function TxSheet({ p }: { p: Extract<TcPending, { kind: 'tx' }> }) {
 
       {blind ? <Text variant="caption" tone="danger">{t('tcCannotVerify')}</Text> : null}
       {wrongWallet ? <Text variant="caption" tone="danger">{t('tcWrongWallet')}</Text> : null}
-      {wrongAccount ? <TonAccessNotice mainIndex={sessionIndex} message={t('tcWrongAccount')} /> : null}
+      {wrongAccount ? <TonAccessNotice mainIndex={sessionAccount ? sessionAccount.index : -1} message={t('tcWrongAccount')} /> : null}
       <Button label={t('tcApprove')} onPress={() => setConfirming(true)} disabled={wrongWallet || wrongAccount || loading || !!e?.failed || blind} />
-      <Button label={t('tcReject')} variant="secondary" onPress={() => void rejectTx()} />
+      <Button label={t('tcReject')} variant="secondary" onPress={() => void rejectTx(pendingKey(p))} />
       <ConfirmUnlock
         visible={confirming}
         title={t('tcTxTitle').replace('{name}', p.session.manifest.name)}
         subtitle={`${formatTokenAmount(tonOut, 9)} TON`}
         perform={async (unlock) => {
           try {
-            await approveTx(unlock);
+            await approveTx(unlock, pendingKey(p));
           } catch (err) {
             throw readable(err, t, 'sign');
           }
@@ -255,8 +258,8 @@ function SignDataSheet({ p }: { p: Extract<TcPending, { kind: 'signData' }> }) {
   }
   const blocked = wrongWallet || wrongNetwork || wrongFrom;
   return (
-    <Sheet visible onClose={() => void rejectSignData()}>
-      <DappHeader name={p.session.manifest.name} domain={new URL(p.session.manifest.url).host} icon={p.session.manifest.iconUrl} />
+    <Sheet visible onClose={() => void rejectSignData(pendingKey(p))}>
+      <DappHeader name={p.session.manifest.name} domain={dappHost(p.session.manifest.url)} icon={p.session.manifest.iconUrl} />
       <Text variant="title2" style={{ textAlign: 'center' }}>{t('tcSignDataTitle').replace('{name}', p.session.manifest.name)}</Text>
       {p.payload.type === 'text' ? (
         <Surface style={{ maxHeight: 220 }}>
@@ -275,13 +278,13 @@ function SignDataSheet({ p }: { p: Extract<TcPending, { kind: 'signData' }> }) {
       {wrongFrom ? <Text variant="caption" tone="danger">{t('tcSignDataWrongAccount')}</Text> : null}
       {wrongWallet ? <Text variant="caption" tone="danger">{t('tcWrongWallet')}</Text> : null}
       <Button label={t('sign')} onPress={() => setConfirming(true)} disabled={blocked} />
-      <Button label={t('tcReject')} variant="secondary" onPress={() => void rejectSignData()} />
+      <Button label={t('tcReject')} variant="secondary" onPress={() => void rejectSignData(pendingKey(p))} />
       <ConfirmUnlock
         visible={confirming}
         title={t('tcSignDataTitle').replace('{name}', p.session.manifest.name)}
         perform={async (unlock) => {
           try {
-            await approveSignData(unlock);
+            await approveSignData(unlock, pendingKey(p));
           } catch (err) {
             throw readable(err, t, 'sign');
           }
@@ -304,7 +307,8 @@ export function TonConnectHost() {
     if (unlocked) void hydrate();
   }, [unlocked, hydrate]);
   if (!head || !unlocked) return null;
-  if (head.kind === 'connect') return <ConnectSheet key={head.link.clientId} p={head} />;
-  if (head.kind === 'signData') return <SignDataSheet key={head.requestId} p={head} />;
-  return <TxSheet key={head.requestId} p={head} />;
+  // Clé = identité de la demande : une autre demande en tête remonte la feuille (code et état repartent de zéro).
+  if (head.kind === 'connect') return <ConnectSheet key={pendingKey(head)} p={head} />;
+  if (head.kind === 'signData') return <SignDataSheet key={pendingKey(head)} p={head} />;
+  return <TxSheet key={pendingKey(head)} p={head} />;
 }

@@ -137,7 +137,11 @@ import * as btcLib from '@scure/btc-signer';
 
 export const DEFAULT_CHAIN = 'ethereum'; // mainnet par défaut (les testnets sont cachés/optionnels)
 
-export type Unlock = { pin: string } | { biometric: true };
+/**
+ * `onUnlocked` (biométrie) : appelé quand la clé de CETTE demande a été lue —
+ * la fenêtre qui l'a lancée arrête alors son délai de garde de l'invite.
+ */
+export type Unlock = { pin: string } | { biometric: true; onUnlocked?: () => void };
 /** Frais de gas EIP-1559 choisis par l'utilisateur (palier Lent/Normal/Rapide). */
 /**
  * Frais choisis par l'utilisateur.
@@ -947,28 +951,6 @@ async function backfillPhraseAccountsRaw(
 }
 
 /** Révèle la seed du wallet `id` (biométrie ou PIN), de façon transitoire. */
-/*
- * Clé LUE par la biométrie : prévient les fenêtres de confirmation. Leur délai
- * de garde (invite biométrique qui ne revient jamais) ne doit couvrir que
- * l'invite — pas la signature, la diffusion et l'attente qui suivent : sinon
- * « délai dépassé » s'affichait pendant qu'une opération longue partait quand
- * même, et un nouvel essai la doublait.
- */
-const biometricUnlockedListeners = new Set<() => void>();
-export function onBiometricUnlocked(cb: () => void): () => void {
-  biometricUnlockedListeners.add(cb);
-  return () => biometricUnlockedListeners.delete(cb);
-}
-const notifyBiometricUnlocked = () => {
-  for (const cb of [...biometricUnlockedListeners]) {
-    try {
-      cb();
-    } catch {
-      /* un abonné cassé ne bloque pas la signature */
-    }
-  }
-};
-
 async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
   // Lecture seule : aucune clé. Dernier rempart, quel que soit l'écran qui demande à signer.
   if (isWatchWallet(useWallet.getState().wallets, id)) {
@@ -991,7 +973,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
       }
       console.log('[KALYX-VAULT] reveal:biometric-gated', { found: !!m });
       if (!m) throw new WalletError('BIOMETRIC_NOT_SET', 'Biometric key invalidated for this wallet');
-      notifyBiometricUnlocked();
+      unlock.onUnlocked?.(); // clé lue POUR CETTE demande : la fenêtre arrête son délai de garde
       return m;
     }
     // Ancienne copie en clair : invite de l'app, PUIS lecture (migrée ensuite, cf. unlockWithBiometrics).
@@ -1009,7 +991,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
     const m = await readLegacyBiometricSeed(id);
     console.log('[KALYX-VAULT] reveal:biometric-secret', { found: !!m });
     if (!m) throw new WalletError('BIOMETRIC_NOT_SET', 'No biometric vault for this wallet');
-    notifyBiometricUnlocked();
+    unlock.onUnlocked?.();
     return m;
   }
   const vault = await loadVault(id);
