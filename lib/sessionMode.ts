@@ -8,14 +8,28 @@
  * n'est écrit par-dessus les vraies données. Aucun indice visible à l'écran.
  */
 let decoy = false;
+/** Identifiants dont les clés de stockage restent inscriptibles en session leurre (le coffre du leurre). */
+let writable: string[] = [];
 const listeners = new Set<(on: boolean) => void>();
 
 export const isDecoySession = () => decoy;
 
-export function setDecoySession(on: boolean): void {
+export function setDecoySession(on: boolean, writableIds: string[] = []): void {
+  writable = on ? writableIds : [];
   if (decoy === on) return;
   decoy = on;
   for (const l of listeners) l(on);
+}
+
+/**
+ * PARE-FEU D'ÉCRITURE : en session leurre, seule une clé du leurre (son coffre,
+ * ses comptes, sa description) peut être écrite. Tout le reste — réglages,
+ * contacts, liste blanche, réseau actif, historiques — reste tel quel sur le
+ * disque ; le leurre ne vit qu'en mémoire, et l'app redémarre en sortant.
+ */
+export function decoyMayWrite(key: string): boolean {
+  if (!decoy) return true;
+  return key === 'kalyx.duress' || writable.some((id) => key.includes(id));
 }
 
 /** Pour les magasins qui doivent se vider (entrée) ou se recharger (sortie). */

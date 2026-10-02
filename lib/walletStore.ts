@@ -737,7 +737,8 @@ async function enterDecoy(pin: string, prevFailed: number, prevAt: number): Prom
   const accounts = (await loadAccounts(meta.id)) ?? [];
   const st = useWallet.getState();
   const chain = st.activeChain;
-  setDecoySession(true);
+  // Pare-feu d'écriture + mémoire vidée (contacts, dApps, notifications…) AVANT d'afficher quoi que ce soit.
+  await (await import('./decoyCurtain')).drawCurtain(meta.id);
   useWallet.setState({
     isUnlocked: true,
     wallets: [{ id: meta.id, label: meta.label, avatar: meta.avatar }],
@@ -1221,6 +1222,14 @@ export const useWallet = create<WalletState>((set, get) => ({
         accounts,
         account: toAccount(accounts, get().activeAccountIndex, get().activeChain),
       });
+      /*
+       * MÊME DÉLAI qu'une ouverture par le code de contrainte (deux
+       * déchiffrements) : avec un leurre configuré, on en fait un second, à
+       * blanc. Un observateur ne distingue pas les deux ouvertures au chrono.
+       */
+      const duress = await loadDuressMeta();
+      const decoyVault = duress ? await loadVault(duress.id) : null;
+      if (decoyVault) await decryptSecret(decoyVault, pin).catch(() => {});
       // Impulsion d'Ouverture (docs/08 §12) : le halo s'ouvre depuis le centre.
       // L'Aura l'abandonne si aucun halo n'est visible — c'est le cas
       // aujourd'hui sur l'écran de déverrouillage, qui n'en a pas encore
@@ -1257,6 +1266,13 @@ export const useWallet = create<WalletState>((set, get) => ({
     await saveAccounts(id, accounts);
     await kvSet(K_DURESS, JSON.stringify({ id, label: '', avatar: randomAvatarId() }), KV_DEVICE_ONLY);
     if (old) await wipeWallet(old.id).catch(() => {}); // l'ancien leurre (et son code) disparaissent
+    /*
+     * BIOMÉTRIE COUPÉE : un visage ou une empreinte ouvrent toujours les VRAIS
+     * portefeuilles — sous la contrainte, on présenterait le visage de la
+     * victime et le code de contrainte ne servirait à rien.
+     */
+    for (const w of get().wallets) await disableBiometricSeed(w.id).catch(() => {});
+    useSettings.getState().setBiometricEnabled(false);
   },
 
   removeDuress: async (unlock) => {
@@ -1482,6 +1498,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   exportAllWallets: async (unlock) => {
+    assertNotDecoy(); // session leurre : ni export (il remplacerait la vraie sauvegarde), ni changement de code
     await (await import('./whitelistStore')).assertSecretsExportable();
     const { wallets, activeWalletId } = get();
     /*
@@ -1698,10 +1715,14 @@ export const useWallet = create<WalletState>((set, get) => ({
   // le flux qui l'utilisait (vérification, ajout) recommencera après le code.
   lock: () => {
     if (isDecoySession()) {
-      // Fin de la session leurre : l'état VRAI est rechargé (verrouillé), le leurre oublié.
-      setDecoySession(false);
-      set({ isUnlocked: false, draftMnemonic: null, wallets: [], accounts: [], account: null });
-      void get().bootstrap();
+      // Fin de la session leurre : l'app REDÉMARRE (rien du leurre ne reste en mémoire). Repli : état réel rechargé.
+      set({ isUnlocked: false, draftMnemonic: null, wallets: [], accounts: [], account: null, activeWalletId: '' });
+      void import('./decoyCurtain').then((m) =>
+        m.liftCurtain(() => {
+          setDecoySession(false);
+          void get().bootstrap();
+        }),
+      );
       return;
     }
     set(get().hasWallet ? { isUnlocked: false, draftMnemonic: null } : { isUnlocked: false });
@@ -2312,12 +2333,15 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   changePin: async (oldPin, newPin) => {
+    assertNotDecoy(); // session leurre : ni export (il remplacerait la vraie sauvegarde), ni changement de code
     assertValidPin(newPin);
     // L'ancien PIN est vérifié par le chemin commun : compteur et blocage compris.
     await proveIdentity({ pin: oldPin });
     // Le nouveau code ne doit pas être le code de contrainte (il ouvrirait le vrai portefeuille, et le leurre deviendrait inaccessible).
     if (!isDecoySession()) {
       const meta = await loadDuressMeta();
+      // Même longueur que le code de contrainte : sinon l'écran de déverrouillage (nombre de points) le trahirait, ou le refuserait.
+      if (meta && newPin.length !== oldPin.length) throw new WalletError('INVALID_PIN', 'duress.LENGTH');
       const vault = meta ? await loadVault(meta.id) : null;
       if (vault && (await decryptSecret(vault, newPin).then(() => true, () => false))) throw new WalletError('INVALID_PIN', 'duress.SAME_AS_MAIN');
     }
@@ -2399,6 +2423,8 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   enableBiometric: async (pin) => {
+    // Code de contrainte configuré : la biométrie le contournerait (elle ouvre toujours les vrais portefeuilles).
+    if (!isDecoySession() && (await loadDuressMeta())) throw new WalletError('NOT_SUPPORTED', 'duress.BIOMETRIC', { reason: 'duressBiometric' });
     const id = authWalletId(get().wallets, get().activeWalletId);
     const mnemonic = await revealMnemonic(id, { pin });
     try {
