@@ -120,3 +120,73 @@ export function isUnlimited(allowance: bigint): boolean {
 export function revokeCalldata(spender: string): string {
   return ERC20.encodeFunctionData('approve', [getAddress(spender), 0n]);
 }
+
+/**
+ * RÉVOCATION GROUPÉE — un compte classique (EOA) ne peut pas tout révoquer en
+ * UNE transaction : on en envoie une par autorisation, signées avec la même clé
+ * (une seule confirmation), nonces suivis par le lot.
+ *
+ * Pour chacune, dans l'ordre :
+ *  - `check` relit l'autorisation : déjà à 0 → « already », rien n'est envoyé ;
+ *  - `send` envoie (et rend le nonce RÉELLEMENT utilisé : l'appelant prend le
+ *    plus grand entre celui proposé et celui du réseau, au cas où une autre
+ *    transaction serait partie entre-temps) ;
+ *  - refus du contrat AVANT diffusion (CALL_EXCEPTION) → « skipped », nonce
+ *    intact, on continue ;
+ *  - erreur AVANT signature (frais insuffisants, réseau muet) → « failed »
+ *    (rien n'est parti), arrêt ;
+ *  - échec PENDANT la diffusion (`afterSign`) → « uncertain », arrêt :
+ *    continuer risquerait de remplacer une transaction ; l'écran dit de
+ *    vérifier l'historique avant de réessayer.
+ * `shouldContinue` faux (demande annulée) : plus rien ne part.
+ */
+export type RevokeOutcome =
+  | { status: 'sent'; hash: string }
+  | { status: 'already' }
+  | { status: 'skipped'; error: unknown }
+  | { status: 'failed'; error: unknown }
+  | { status: 'uncertain'; error: unknown }
+  | { status: 'notSent' };
+
+export async function runRevokeBatch<T>(
+  items: readonly T[],
+  firstNonce: number,
+  io: {
+    check?: (item: T) => Promise<'active' | 'revoked'>;
+    send: (item: T, nonce: number) => Promise<{ hash: string; nonce: number }>;
+    shouldContinue?: () => boolean;
+  },
+  onProgress?: (done: number, total: number) => void,
+): Promise<RevokeOutcome[]> {
+  const out: RevokeOutcome[] = items.map(() => ({ status: 'notSent' }));
+  let nonce = firstNonce;
+  for (let i = 0; i < items.length; i++) {
+    if (io.shouldContinue && !io.shouldContinue()) break;
+    onProgress?.(i, items.length);
+    try {
+      if (io.check && (await io.check(items[i])) === 'revoked') {
+        out[i] = { status: 'already' };
+        continue;
+      }
+    } catch {
+      /* relecture impossible : on tente l'envoi, la simulation tranchera */
+    }
+    try {
+      const r = await io.send(items[i], nonce);
+      out[i] = { status: 'sent', hash: r.hash };
+      nonce = r.nonce + 1;
+    } catch (e) {
+      const code = (e as { code?: string })?.code;
+      if (code === 'CALL_EXCEPTION') {
+        out[i] = { status: 'skipped', error: e }; // pas diffusée : nonce intact
+        continue;
+      }
+      // Incertaine seulement si l'échec est survenu APRÈS signature (diffusion) ; avant, rien n'est parti.
+      const afterSign = !!(e as { afterSign?: boolean })?.afterSign;
+      out[i] = afterSign && code !== 'INSUFFICIENT_FUNDS' ? { status: 'uncertain', error: e } : { status: 'failed', error: e };
+      break;
+    }
+  }
+  onProgress?.(items.length, items.length);
+  return out;
+}
