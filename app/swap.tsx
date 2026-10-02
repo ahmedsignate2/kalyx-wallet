@@ -93,6 +93,7 @@ function SwapInner() {
   const setActiveChain = useWallet((s) => s.setActiveChain);
   // Jeton « Tu donnes » choisi sur un AUTRE réseau : on bascule, puis on le sélectionne dès que sa liste est là.
   const pendingFrom = useRef<{ chainId: string; address: string } | null>(null);
+  const pendingTo = useRef<{ chainId: string; address: string } | null>(null);
   const account = useWallet((s) => s.account);
   const executeSwap = useWallet((s) => s.executeSwap);
   const chain = getAdapter(activeChain).config;
@@ -258,6 +259,19 @@ function SwapInner() {
 
   const fromTok = fromTokens[from] ?? fromTokens[0];
   const toTokens = tokensByChain[toChain] ?? [];
+
+  // Destination choisie avant que la liste de son réseau soit chargée : appliquée à son arrivée.
+  useEffect(() => {
+    const p = pendingTo.current;
+    if (!p || p.chainId !== toChain) return;
+    const idx = toTokens.findIndex((tk) => tk.address.toLowerCase() === p.address.toLowerCase());
+    if (idx >= 0) {
+      setTo(idx);
+      pendingTo.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toChain, toTokens.length]);
+
   const toTok = toTokens[to] ?? toTokens[0];
 
   // Arrivée depuis une fiche token ou le marché : le token demandé en destination.
@@ -510,6 +524,7 @@ function SwapInner() {
 
   const onConfirm = async (unlock: Unlock) => {
     if (!quote) return;
+    if (stale) throw new Error(t('quoteStale')); // devenu périmé pendant la saisie du code
     setStep(t('preparing'));
     sound.send();
     try {
@@ -738,7 +753,13 @@ function SwapInner() {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', ',')} %</Text></View>
             </Surface>
             <Text variant="caption" tone="secondary">{routeSentence}{t("slippageTolerance")}{(quote.slippage * 100).toFixed(1).replace('.', ',')} %.</Text>
-            {impactLevel === 'danger' ? (
+            {stale ? (
+              // Devis périmé : on le renouvelle, on ne signe pas un prix qui n'a plus cours.
+              <>
+                <Text variant="caption" tone="warning">{t('quoteStale')}</Text>
+                <Button label={t('getQuote')} onPress={() => { setReview(false); onQuote(); }} loading={loading} />
+              </>
+            ) : impactLevel === 'danger' ? (
               <>
                 <Text variant="caption" tone="danger">{t("highPriceImpactWarning")}</Text>
                 <HoldButton label={t("holdToConfirm")} danger icon="exchange" onComplete={() => { setReview(false); setConfirming(true); }} />
@@ -781,7 +802,17 @@ function SwapInner() {
             setToChain(chainId);
             const list = tokensByChain[chainId] ?? [];
             const idx = list.findIndex((tk) => tk.address.toLowerCase() === token.address.toLowerCase());
-            setTo(Math.max(0, idx));
+            /*
+             * Liste pas encore chargée : le jeton choisi est retenu et appliqué
+             * à son arrivée — on ne bascule plus en silence sur le premier jeton
+             * (on aurait échangé vers autre chose que ce qui a été choisi).
+             */
+            if (idx >= 0) {
+              pendingTo.current = null;
+              setTo(idx);
+            } else {
+              pendingTo.current = { chainId, address: token.address };
+            }
           }
           reset();
           stopCountdown();

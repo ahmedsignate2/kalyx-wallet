@@ -57,7 +57,7 @@ export {
   type ParsedAmount,
 } from './domain/validation/amount';
 // Formatage lisible (précision selon la grandeur) — LA règle d'affichage des montants
-export { formatTokenAmount, formatNumber, formatInputAmount, formatFiat, formatPercent, formatDecimalString, setNumberLocale, decimalSeparator } from './domain/validation/format';
+export { formatTokenAmount, formatNumber, formatInputAmount, formatFiat, formatPercent, formatDecimalString, setNumberLocale, decimalSeparator, trimDecimalZeros } from './domain/validation/format';
 
 // Sauvegarde de seed
 export {

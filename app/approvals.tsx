@@ -69,10 +69,26 @@ function ApprovalsInner() {
     setSelected(new Set());
   }, [scopeAccount, activeChain]);
 
+  /*
+   * Génération du chargement : un chargement lent pour l'ANCIEN réseau ou
+   * compte ne peut plus écraser la liste après un changement — la révocation
+   * enverrait sinon des `approve(0)` vers des contrats d'un autre réseau.
+   */
+  const loadGen = useRef(0);
+  const loadedScope = useRef('');
   const load = useCallback(async () => {
+    const gen = ++loadGen.current;
+    const current = () => gen === loadGen.current;
     if (!account || !isEvm) {
       setItems([]);
       return;
+    }
+    // Autre réseau ou compte : l'ancienne liste n'est plus sélectionnable (un simple rechargement la garde).
+    const scopeKey = `${activeChain}:${evmOwner ?? ''}`;
+    if (loadedScope.current !== scopeKey) {
+      loadedScope.current = scopeKey;
+      setItems(null);
+      setSelected(new Set());
     }
     setLoading(true);
     try {
@@ -95,6 +111,7 @@ function ApprovalsInner() {
           if (evmOwner && (await isRevokeInFlight(activeChain, evmOwner, x.token, x.spender, async (h) => (await adapter.getReceiptInfo(h)) !== null))) flying.add(keyOf(x));
         }),
       );
+      if (!current()) return;
       setInFlight(flying);
       setItems([...report.items].sort((a, b) => rank(a) - rank(b)));
       setIncomplete(report.incomplete);
@@ -102,11 +119,12 @@ function ApprovalsInner() {
       const still = new Set(report.items.map(keyOf));
       setSelected((cur) => new Set([...cur].filter((k) => still.has(k))));
     } catch {
+      if (!current()) return;
       setItems([]);
       setIncomplete(true);
       toast.error(t('errorTitle'), t('cannotLoadApprovals'));
     } finally {
-      setLoading(false);
+      if (current()) setLoading(false);
     }
   }, [account, activeChain, chain, isEvm, evmOwner]);
 
