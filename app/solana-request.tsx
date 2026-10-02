@@ -20,6 +20,7 @@ import { addressForChain } from '../lib/accountAddress';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { submitSolanaSigned } from '../lib/solanaSubmit';
+import { friendlyTxError } from '../lib/txError';
 import { base64 } from '@scure/base';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import {
@@ -213,8 +214,15 @@ export default function SolanaRequestScreen() {
           const signed = await signSolanaTransaction(unlock, transaction);
           const decoded = solanaTxDecode(signed);
           if (!decoded) throw new Error(t('solReqFailed'));
-          const sig = await submitSolanaSigned(base64.encode(decoded.bytes));
-          toast.success(t('sendTitle'), shortAddress(sig));
+          /*
+           * Diffusion et confirmation EN ARRIÈRE-PLAN : la fenêtre de
+           * confirmation (15 s sous biométrie) ne doit pas annoncer un échec
+           * pour un paiement qui passe. L'issue réelle est dite par un toast.
+           */
+          void submitSolanaSigned(base64.encode(decoded.bytes)).then(
+            (sig) => toast.success(t('sendTitle'), shortAddress(sig)),
+            (e) => toast.error(friendlyTxError(e, t as never)),
+          );
         }}
         onDone={() => {
           setAsking(false);

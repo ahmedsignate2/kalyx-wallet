@@ -575,6 +575,11 @@ export default function Browser() {
       await useWallet.getState().verifyConnect(unlock);
       connected.current.add(connKey(pending.origin, tb?.incognito));
       respondPending(pending, [evmAddress]);
+      /*
+       * Demande RÉPONDUE : libérée avant l'animation (la feuille reste affichée).
+       * Une signature demandée aussitôt connecté (SIWE) ne doit pas recevoir -32002.
+       */
+      if (pendingRef.current === pending) pendingRef.current = null;
       deliverTo(pending.origin, pending.tabId, emitJs('accountsChanged', [evmAddress]));
       deliverTo(pending.origin, pending.tabId, emitJs('connect', { chainId: chainIdHex }));
       if (!tb?.incognito) {
