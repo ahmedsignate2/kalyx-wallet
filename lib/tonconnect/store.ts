@@ -325,6 +325,8 @@ export const useTonConnect = create<TcState>((set, get) => {
         if (pub !== stored.tonPublicKey!.toLowerCase()) throw new Error('tcKeyMismatch');
         items.push(tonAddrReply({ address, testnet: !!chain.testnet, publicKeyHex: pub, stateInitBoc: tonWalletStateInitBoc(publicKey, stored.tonVersion ?? 'v5r1', !!chain.testnet) }));
         if (p.proofPayload !== undefined) {
+          // ton_proof = signature d'un contenu fourni par la dApp : fermée sous liste blanche, comme les autres.
+          await (await import('../whitelistStore')).assertDappAllowed();
           items.push(await buildTonProof({ address, domain: p.domain, payload: p.proofPayload, timestamp: Math.floor(Date.now() / 1000) }, (d) => ed25519.sign(d, secret)));
         }
       });
@@ -364,6 +366,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       const p = get().queue[0];
       console.log('[KALYX-TC] approveTx:start', { pending: p?.kind ?? null, emulation: p?.kind === 'tx' ? (p.draft?.emulation ? 'ok' : p.error ? `erreur: ${p.error}` : 'aucune') : null });
       if (p?.kind !== 'tx') throw new Error('tcNothingPending');
+      await (await import('../whitelistStore')).assertDappAllowed(); // liste blanche en vigueur : pas de transaction de dApp
       const { session } = p;
       const w = useWallet.getState();
       if (w.activeWalletId !== session.walletId) throw new Error('tcWrongWallet');
@@ -396,6 +399,7 @@ export const useTonConnect = create<TcState>((set, get) => {
     },
 
     approveSignData: async (unlock) => {
+      await (await import('../whitelistStore')).assertDappAllowed(); // liste blanche : aucune signature de dApp
       const p = get().queue[0];
       if (p?.kind !== 'signData') throw new Error('tcNothingPending');
       const { session, payload } = p;

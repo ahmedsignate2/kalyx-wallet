@@ -419,7 +419,7 @@ async function executeSolana(q: EarnQuote, unlock: Unlock, onStatus?: (s: EarnSt
   const store = useWallet.getState();
   onStatus?.('sending');
   // Signature avec blockhash rafraîchi (le devis LI.FI peut dater de >60 s).
-  const signed = await store.signSolanaTransaction(unlock, q.tx.data, true);
+  const signed = await store.signSolanaTransaction(unlock, q.tx.data, true, { appFlow: true });
   // Simulation obligatoire → envoi → confirmation (partagé avec le swap).
   return submitSolanaSigned(signed, onStatus);
 }
@@ -449,7 +449,7 @@ async function executeEvm(p: EarnProtocol, q: EarnQuote, unlock: Unlock, onStatu
         value: 0n,
         chainId: q.tx.chainId,
       };
-      const approveHash = await store.sendRawTxOn(unlock, p.chainId, approveReq);
+      const approveHash = await store.sendRawTxOn(unlock, p.chainId, approveReq, { appFlow: true });
       onStatus?.('approvalWait');
       await adapter.waitForTx(approveHash);
       // Le reçu est là, mais un nœud public peut encore servir l'ancienne allowance :
@@ -469,7 +469,7 @@ async function executeEvm(p: EarnProtocol, q: EarnQuote, unlock: Unlock, onStatu
     // Après un approve, l'estimation initiale (faite sans allowance) est fausse → on laisse le réseau ré-estimer.
     gasLimit: q.approvalAddress ? undefined : q.tx.gasLimit,
   };
-  const hash = await store.sendRawTxOn(unlock, p.chainId, req);
+  const hash = await store.sendRawTxOn(unlock, p.chainId, req, { appFlow: true });
 
   // 3) Confirmation (1 bloc). waitForTx lève si la tx a revert.
   onStatus?.('confirming');

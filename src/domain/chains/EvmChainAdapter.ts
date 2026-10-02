@@ -465,6 +465,13 @@ export class EvmChainAdapter implements ChainAdapter {
 
   // --- Support des transactions de contrat (swap/approbation ERC-20) ---
 
+  /** Heure du dernier bloc (ms) — une horloge que le téléphone ne peut pas avancer. */
+  async getLatestBlockTime(): Promise<number> {
+    const b = await this.call((p) => p.getBlock('latest'), 'eth_getBlockByNumber');
+    if (!b || typeof b.timestamp !== 'number') throw new Error('Bloc illisible');
+    return b.timestamp * 1000;
+  }
+
   /** allowance STRICTE : lève si la réponse est vide ou illisible (jamais un faux « 0 = déjà révoquée »). */
   async getAllowanceStrict(token: string, owner: string, spender: string): Promise<bigint> {
     const data = ERC20.encodeFunctionData('allowance', [owner, spender]);

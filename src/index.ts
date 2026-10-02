@@ -462,3 +462,22 @@ export {
 
 export { parseWatchAddress, type WatchFamily, type WatchAddressError } from './domain/wallet/watchAddress';
 export { discoverAccountIndexes, combineActivity, type AccountActivity, type DiscoveryResult } from './domain/wallet/accountDiscovery';
+export {
+  WHITELIST_DELAY_MS,
+  EMPTY_WHITELIST,
+  checkRecipient,
+  addEntry as whitelistAdd,
+  removeEntry as whitelistRemove,
+  enable as whitelistEnable,
+  requestDisable as whitelistRequestDisable,
+  settle as whitelistSettle,
+  isEnforced as whitelistEnforced,
+  noteWallet as whitelistNoteWallet,
+  isTrustedWallet as whitelistTrustedWallet,
+  hoursUntil as whitelistHoursUntil,
+  isEntryActive as whitelistEntryActive,
+  parseWhitelist,
+  type WhitelistState,
+  type WhitelistEntry,
+  type Verdict as WhitelistVerdict,
+} from './domain/security/whitelist';

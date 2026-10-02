@@ -591,6 +591,12 @@ export const useWalletConnect = create<WcState>((set, get) => ({
 
     try {
       let result: any;
+      /*
+       * Liste blanche en vigueur : TOUTE signature de dApp est refusée — y compris
+       * un simple message, qui peut autoriser un transfert (transaction Safe,
+       * ordre hors chaîne). Seule la lecture des comptes reste possible.
+       */
+      if (!/getAccounts|getAccountAddresses|requestAccounts/i.test(method)) await (await import('./whitelistStore')).assertDappAllowed();
       if (method === 'personal_sign' || method === 'eth_sign') result = await w.signMessage(unlock, signMessageParam(method, p));
       else if (method.startsWith('eth_signTypedData')) {
         const data = typeof p[1] === 'string' ? JSON.parse(p[1]) : p[1];

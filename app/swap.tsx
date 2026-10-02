@@ -394,6 +394,12 @@ function SwapInner() {
     if (!isBridge && fromTok.address.toLowerCase() === toTok.address.toLowerCase()) return t('swapTwoTokens');
     // Échange précédent pas encore abouti : les soldes du réseau ne sont pas fiables.
     if (swapPending) return t('errSwapPending');
+    /*
+     * LISTE BLANCHE : un échange ne peut pas vider le portefeuille vers un faux
+     * jeton, car la destination n'est choisie QUE dans la liste curée du réseau
+     * (TokenPicker, `toTokens`). Si ce choix s'élargit un jour (jeton collé,
+     * recherche), il faudra y appliquer assertDappAllowed comme ailleurs.
+     */
     // Solde inconnu, en erreur ou lu il y a plus de 30 s : relu avant de juger les fonds (jamais pris pour 0).
     let bal = freshRaw(srcEntry, Date.now());
     if (bal == null) {

@@ -204,3 +204,6 @@ export async function kvDel(key: string, _opts?: Opts): Promise<void> {
     try { ls()?.removeItem(key); } catch { /* ignore */ }
   }
 }
+
+/** Sans objet sur le web (localStorage) : options ignorées. */
+export const KV_DEVICE_ONLY = {};

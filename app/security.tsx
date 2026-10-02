@@ -8,6 +8,7 @@
  */
 import { GOLD, NovaHero, SectionLabel } from '../ui/nova';
 import { IsMyAddress } from '../ui/IsMyAddress';
+import { useWhitelist } from '../lib/whitelistStore';
 import Svg, { Circle } from 'react-native-svg';
 import { fetchApprovalCandidates } from '../src/domain/security/goplus';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -54,6 +55,10 @@ export default function SecurityCenter() {
   const sendRawTxOn = useWallet((s) => s.sendRawTxOn);
   const chain = getAdapter(activeChain).config;
   const backupVerified = useSettings((s) => s.backupVerified);
+  const wlOn = useWhitelist((s) => s.wl.enabled);
+  useEffect(() => {
+    void import('../lib/whitelistStore').then((m) => m.loadWhitelist());
+  }, []);
   const encryptedBackupDone = useSettings((s) => s.encryptedBackupAt !== null);
   const biometric = useSettings((s) => s.biometricEnabled);
   const autoLock = useSettings((s) => s.autoLockMinutes);
@@ -89,7 +94,7 @@ export default function SecurityCenter() {
   const revoke = async (unlock: Unlock) => {
     if (!target || !chain.evmChainId) return;
     try {
-      await sendRawTxOn(unlock, activeChain, { to: target.token, data: revokeCalldata(target.spender), value: 0n, chainId: chain.evmChainId });
+      await sendRawTxOn(unlock, activeChain, { to: target.token, data: revokeCalldata(target.spender), value: 0n, chainId: chain.evmChainId }, { appFlow: true }); // révoquer : ne fait que renforcer
       haptic.success();
       toast.success(t("revokeSent"), `${target.symbol} · ${shortAddress(target.spender)}`);
       setApprovals((list) => (list ?? []).filter((a) => a !== target));
@@ -169,6 +174,20 @@ export default function SecurityCenter() {
 
         {/* Vérifier qu'une adresse est bien à soi (avant de la partager). */}
         <IsMyAddress />
+
+        {/* Liste blanche des destinataires (anti-vol : ajouts et désactivation différés de 24 h). */}
+        <Pressable onPress={() => router.push('/whitelist')} accessibilityRole="button" accessibilityLabel={t('wlTitle')}>
+          <Surface>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+              <Icon name="security" size={20} color={wlOn ? colors.up : colors.textSecondary} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="body">{t('wlTitle')}</Text>
+                <Text variant="caption" tone="secondary" numberOfLines={2}>{wlOn ? t('wlActiveBadge') : t('wlEnable')}</Text>
+              </View>
+              <Icon name="chevron" size={16} color={colors.textTertiary} />
+            </View>
+          </Surface>
+        </Pressable>
 
         {/* Sessions WalletConnect */}
         <View style={{ gap: space[2] }}>
