@@ -62,12 +62,19 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
   const chains = useMemo(() => listChains({ includeTestnets: false }).filter(c => c.family === 'evm' || c.family === 'solana' || c.family === 'ton'), []);
 
   useEffect(() => {
+    /*
+     * Soldes de CETTE chaîne et de CE compte uniquement : la liste repart de
+     * zéro, et une réponse arrivée après un changement est ignorée — sinon la
+     * ligne MATIC affichait le solde ETH, et « Mes jetons » ceux d'un autre réseau.
+     */
+    setHeldTokens({});
+    let alive = true;
     if (visible && account?.address) {
       fetchTokens(selectedChain);
       
       // 1. Fetch native balance for selectedChain
       getAdapter(selectedChain).getBalance(account.address).then(b => {
-        setHeldTokens(prev => ({
+        alive && setHeldTokens(prev => ({
           ...prev,
           ['0x0000000000000000000000000000000000000000']: b.raw,
           ['0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee']: b.raw,
@@ -82,7 +89,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
         adapter.getSplTokens(account.address).then((tokens: any[]) => {
           const map: Record<string, bigint> = {};
           tokens.forEach(t => map[t.mint.toLowerCase()] = t.raw);
-          setHeldTokens(prev => ({ ...prev, ...map }));
+          alive && setHeldTokens(prev => ({ ...prev, ...map }));
         }).catch(() => {});
       }
       if (adapter.config.family === 'ton') {
@@ -90,7 +97,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
         getAdapterV2(selectedChain).listTokens?.(account.address).then((tokens) => {
           const map: Record<string, bigint> = {};
           tokens.forEach((t) => { map[String(t.id).toLowerCase()] = t.raw; });
-          setHeldTokens(prev => ({ ...prev, ...map }));
+          alive && setHeldTokens(prev => ({ ...prev, ...map }));
         }).catch(() => {});
       }
       if (adapter.config.family === 'evm') {
@@ -98,11 +105,14 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
            src.getErc20Tokens(adapter.config, account.address).then((tokens: any[]) => {
               const map: Record<string, bigint> = {};
               tokens.forEach((t: any) => { map[t.contract.toLowerCase()] = t.raw; });
-              setHeldTokens(prev => ({ ...prev, ...map }));
+              alive && setHeldTokens(prev => ({ ...prev, ...map }));
            }).catch(() => {});
         });
       }
     }
+    return () => {
+      alive = false;
+    };
   }, [visible, selectedChain, fetchTokens, account]);
 
   const rawTokens = tokensByChain[selectedChain] ?? [];

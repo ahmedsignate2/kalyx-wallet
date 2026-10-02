@@ -3,6 +3,7 @@ import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { sound } from "../lib/sound";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { decimalSeparator } from '../src';
 import { View, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -594,7 +595,7 @@ function SwapInner() {
     ? quote.durationSec < 60 ? fill(t('durSeconds'), { n: String(quote.durationSec) }) : fill(t('durMinutes'), { n: String(Math.round(quote.durationSec / 60)) })
     : '';
   const routeSentence = routeTitle ? `${routeTitle}${routeDuration ? ` · ${routeDuration}` : ''}. ` : null;
-  const slippagePct = `${(Number(slippage) * 100).toFixed(1).replace('.', ',')} %`;
+  const slippagePct = `${(Number(slippage) * 100).toFixed(1).replace('.', decimalSeparator())} %`;
   const [advanced, setAdvanced] = useState(false);
   const [review, setReview] = useState(false);
 
@@ -667,7 +668,7 @@ function SwapInner() {
         <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[3] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {advanced ? (
             <Rise style={{ flexDirection: 'row', gap: space[2] }}>
-              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', ',')} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
+              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', decimalSeparator())} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
             </Rise>
           ) : null}
 
@@ -729,7 +730,7 @@ function SwapInner() {
                 {routeDuration ? <Text variant="caption" tone="secondary">{routeDuration}</Text> : null}
               </View>
               <RouteRow label={t('minReceived')} value={`${formatTokenAmount(quote.toAmountMin, quote.toToken.decimals)} ${toTok.symbol}`} />
-              <RouteRow label={t('kalyxFee')} value={`${((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', ',')} %`} />
+              <RouteRow label={t('kalyxFee')} value={`${((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', decimalSeparator())} %`} />
               <RouteRow label={t('networkFee')} value={quote.gasCostUsd > 0 ? `≈ ${formatFiat(quote.gasCostUsd)} $` : quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : '—'} />
               {impact != null && impactLevel !== 'none' ? <Text variant="caption" tone={impactLevel === 'danger' ? 'danger' : 'warning'} tabular>{t('priceImpact').replace('{impact}', impact.toFixed(2))}</Text> : null}
               {stale ? <Text variant="caption" tone="warning">{t('quoteStale')}</Text> : null}
@@ -776,9 +777,9 @@ function SwapInner() {
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('networkFee')}</Text><Text variant="caption" tabular>{quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : ''}{quote.gasCostUsd > 0 ? ` (≈ ${formatFiat(quote.gasCostUsd)} $)` : quote.gasCostNative > 0n ? '' : '—'}</Text></View>
               <Divider />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', ',')} %</Text></View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', decimalSeparator())} %</Text></View>
             </Surface>
-            <Text variant="caption" tone="secondary">{routeSentence}{t("slippageTolerance")}{(quote.slippage * 100).toFixed(1).replace('.', ',')} %.</Text>
+            <Text variant="caption" tone="secondary">{routeSentence}{t("slippageTolerance")}{(quote.slippage * 100).toFixed(1).replace('.', decimalSeparator())} %.</Text>
             {stale ? (
               // Devis périmé : on le renouvelle, on ne signe pas un prix qui n'a plus cours.
               <>

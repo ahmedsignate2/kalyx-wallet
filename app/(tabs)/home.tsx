@@ -13,6 +13,7 @@
 import { useIsWatchOnly } from '../../ui/WatchOnlyGate';
 import { fill } from '../../lib/i18n';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { decimalSeparator } from '../../src';
 import { isDecoySession } from '../../lib/sessionMode';
 import { View, RefreshControl, Alert, Image, useWindowDimensions } from 'react-native';
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from 'react-native-reanimated';
@@ -552,7 +553,7 @@ export default function Home() {
           <Text variant="body" tabular numberOfLines={1}>{formatFiat(pf.total)} {sym}</Text>
           {pf.pnl24hPct != null ? (
             <Text variant="caption" tone={pnlUp ? 'up' : 'down'} tabular>
-              {pnlUp ? '+' : '−'}{Math.abs(pf.pnl24hPct).toFixed(1).replace('.', ',')} %
+              {pnlUp ? '+' : '−'}{Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %
             </Text>
           ) : null}
         </Animated.View>
@@ -658,7 +659,7 @@ export default function Home() {
               <Text variant="caption" tone="secondary">{fmtDate(scrub.t, period, locale)}</Text>
             ) : hidden || initialLoading ? null : pf.pnl24h != null ? (
               <Text variant="caption" tone={pnlUp ? 'up' : 'down'} tabular>
-                {pnlUp ? '↑ +' : '↓ −'}{formatFiat(Math.abs(pf.pnl24h))} {sym} · {t("today")}{pf.pnl24hPct != null ? ` (${pnlUp ? '+' : '−'}${Math.abs(pf.pnl24hPct).toFixed(1).replace('.', ',')} %)` : ''}
+                {pnlUp ? '↑ +' : '↓ −'}{formatFiat(Math.abs(pf.pnl24h))} {sym} · {t("today")}{pf.pnl24hPct != null ? ` (${pnlUp ? '+' : '−'}${Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %)` : ''}
               </Text>
             ) : (
               <Text variant="caption" tone="tertiary">{pf.fromCache ? t("updating") : ' '}</Text>

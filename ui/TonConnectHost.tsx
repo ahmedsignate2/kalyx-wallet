@@ -21,6 +21,7 @@ import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { UserFacingError } from '../lib/txError';
 import { technicalLogger } from '../lib/technicalLogger';
+import { friendlyTxError } from '../lib/txError';
 import { haptic } from '../lib/haptics';
 import { formatTokenAmount, shortAddress, isWalletError } from '../src';
 import { totalOut } from '../src/domain/tonconnect/requests';
@@ -34,12 +35,19 @@ import { Address } from '@ton/core';
  * VRAI message — l'écran l'aurait sinon remplacée par « Transaction failed »,
  * ce qui a caché la cause du premier échec sur STON.fi.
  */
-function readable(e: unknown, t: (k: never) => string): unknown {
+function readable(e: unknown, t: (k: never) => string, context: 'connect' | 'sign' = 'connect'): unknown {
   const msg = e instanceof Error ? e.message : String(e);
   technicalLogger.logDapp(`tonconnect: ${msg}`);
   if (isWalletError(e)) return e;
   if (msg.startsWith('tc')) return new UserFacingError(t(msg as never));
-  return new UserFacingError(`${t('connectionFailed' as never)} — ${msg}`);
+  /*
+   * Connexion : « connexion impossible ». Transaction ou signature : la phrase
+   * de l'entonnoir commun (frais, solde, réseau…) — « connexion impossible »
+   * trompait sur un échec de diffusion. Le détail technique reste entre
+   * parenthèses : c'est lui qui a permis de trouver la cause sur STON.fi.
+   */
+  const head = context === 'connect' ? t('connectionFailed' as never) : friendlyTxError(e, t as never);
+  return new UserFacingError(`${head} (${msg.slice(0, 120)})`);
 }
 
 /** Nature des données d'un message, lue localement (jamais « data » sans plus). */
@@ -209,7 +217,7 @@ function TxSheet({ p }: { p: Extract<TcPending, { kind: 'tx' }> }) {
           try {
             await approveTx(unlock);
           } catch (err) {
-            throw readable(err, t);
+            throw readable(err, t, 'sign');
           }
           usePortfolioStore.getState().invalidate();
           haptic.success();
@@ -275,7 +283,7 @@ function SignDataSheet({ p }: { p: Extract<TcPending, { kind: 'signData' }> }) {
           try {
             await approveSignData(unlock);
           } catch (err) {
-            throw readable(err, t);
+            throw readable(err, t, 'sign');
           }
           haptic.success();
         }}

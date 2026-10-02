@@ -141,12 +141,14 @@ export function InteractiveChart({
   const { xy, area, toStr, line, length } = geom;
   const [ex, ey] = xy[xy.length - 1];
 
-  const scrubbing = scrubIdx != null;
-  const cut = scrubbing ? scrubIdx : xy.length - 1;
+  // Série raccourcie pendant un glissement (nouvelle période) : l'index est ramené dans les bornes.
+  const idx = scrubIdx != null ? Math.min(scrubIdx, xy.length - 1) : null;
+  const scrubbing = idx != null && idx >= 0;
+  const cut = scrubbing ? idx : xy.length - 1;
   const left = xy.slice(0, cut + 1);
   const right = xy.slice(cut);
-  const sx = scrubbing ? xy[scrubIdx][0] : 0;
-  const sy = scrubbing ? xy[scrubIdx][1] : 0;
+  const sx = scrubbing ? xy[idx][0] : 0;
+  const sy = scrubbing ? xy[idx][1] : 0;
 
   return (
     <View {...pan.panHandlers} collapsable={false}>

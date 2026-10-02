@@ -27,6 +27,7 @@ import { UserFacingError, friendlyTxError } from '../../lib/txError';
 import {
   getAdapter, getErc20Tokens, getBestQuote, parseAmount, formatTokenAmount, formatInputAmount, formatFiat, isWalletError,
   NATIVE_TOKEN, estimateGasReserve, type GasReserve, type SwapQuote, EvmChainAdapter, SolanaChainAdapter, type ChainConfig,
+  decimalSeparator,
 } from '../../src';
 import { encodeErc20Approve, hexQuantity } from './evmEncode';
 import { useWebT } from './webI18n';
@@ -296,8 +297,15 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
     throw new UserFacingError(tw('swapIncompatible', { type: q.tx.type }));
   };
 
+  /** Une seule exécution à la fois (deux clics pendant la fermeture de la feuille = deux envois). */
+  const confirmingRef = useRef(false);
   const onConfirm = async () => {
-    if (!quote) return;
+    if (!quote || confirmingRef.current) return;
+    if (stale) {
+      setError(t('errQuoteExpired')); // devis périmé : jamais envoyé au téléphone
+      return;
+    }
+    confirmingRef.current = true;
     setConfirming(true);
     setStep(t('preparing'));
     try {
@@ -309,6 +317,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       setStale(true);
       setError(friendlyTxError(e, t as never));
     } finally {
+      confirmingRef.current = false;
       setStep(null);
       setConfirming(false);
     }
@@ -406,7 +415,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
           </RNPressable>
           {advanced ? (
             <View style={{ flexDirection: 'row', gap: space[2] }}>
-              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', ',')} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
+              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', decimalSeparator())} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
             </View>
           ) : null}
 
@@ -435,11 +444,16 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('networkFee')}</Text><Text variant="caption" tabular>{quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : ''}{quote.gasCostUsd > 0 ? ` (≈ ${formatFiat(quote.gasCostUsd)} $)` : quote.gasCostNative > 0n ? '' : '—'}</Text></View>
               <Divider />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', ',')} %</Text></View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', decimalSeparator())} %</Text></View>
             </Surface>
-            <Text variant="caption" tone="secondary">{routeSentence}{t('slippageTolerance')}{(quote.slippage * 100).toFixed(1).replace('.', ',')} %.</Text>
+            <Text variant="caption" tone="secondary">{routeSentence}{t('slippageTolerance')}{(quote.slippage * 100).toFixed(1).replace('.', decimalSeparator())} %.</Text>
             <Text variant="caption" tone="tertiary">{tw('signOnPhoneNote')}</Text>
-            {impactLevel === 'danger' ? (
+            {stale ? (
+              <>
+                <Text variant="caption" tone="warning">{t('errQuoteExpired')}</Text>
+                <Button label={t('getQuote')} onPress={() => { setReview(false); onQuote(); }} loading={loading} />
+              </>
+            ) : impactLevel === 'danger' ? (
               <>
                 <Text variant="caption" tone="danger">{t('highPriceImpactWarning')}</Text>
                 <HoldButton label={t('holdToConfirm')} danger icon="exchange" onComplete={() => { setReview(false); void onConfirm(); }} />
@@ -483,7 +497,9 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
             setToChain(chainId);
             const list = tokensByChain[chainId] ?? [];
             const idx = list.findIndex((tk) => tk.address.toLowerCase() === token.address.toLowerCase());
-            setTo(Math.max(0, idx));
+            // Jeton absent de la liste (pas encore chargée) : jamais remplacé en silence par le premier.
+            if (idx >= 0) setTo(idx);
+            else setError(t('errInvalidToken'));
           }
           reset();
           stopCountdown();
