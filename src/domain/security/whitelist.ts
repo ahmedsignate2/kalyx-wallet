@@ -29,11 +29,18 @@ export interface WhitelistEntry {
 export interface WhitelistState {
   enabled: boolean;
   entries: WhitelistEntry[];
+  /**
+   * Portefeuilles DE CONFIANCE (leurs comptes reçoivent sans liste) : ceux qui
+   * existaient à l'activation, tout de suite ; ceux créés ou importés ENSUITE,
+   * après le délai — sinon un voleur importerait sa clé pour en faire « un de
+   * tes comptes » et envoyer dessus sur-le-champ.
+   */
+  trusted: { id: string; activeAt: number }[];
   /** Désactivation demandée : effective à ce moment (heure de chaîne), sinon null. */
   disableAt: number | null;
 }
 
-export const EMPTY_WHITELIST: WhitelistState = { enabled: false, entries: [], disableAt: null };
+export const EMPTY_WHITELIST: WhitelistState = { enabled: false, entries: [], trusted: [], disableAt: null };
 
 export type Verdict = { kind: 'allowed' } | { kind: 'pending'; activeAt: number } | { kind: 'blocked' };
 
@@ -60,14 +67,19 @@ export function checkRecipient(
   const k = keyOf(address);
   const e = s.entries.find((x) => keyOf(x.address) === k);
   if (!e) return { kind: 'blocked' };
-  return now != null && now >= e.activeAt ? { kind: 'allowed' } : { kind: 'pending', activeAt: e.activeAt };
+  // activeAt 0 : ajoutée quand la protection était éteinte — utilisable sans délai ni heure.
+  return e.activeAt === 0 || (now != null && now >= e.activeAt) ? { kind: 'allowed' } : { kind: 'pending', activeAt: e.activeAt };
 }
 
-/** Ajout : utilisable après le délai — sauf si la protection est éteinte (rien à protéger) : tout de suite. */
-export function addEntry(s: WhitelistState, address: string, label: string, now: number, keyOf: (a: string) => string): WhitelistState {
+/**
+ * Ajout : utilisable après le délai — sauf si la protection est éteinte (rien à
+ * protéger) : utilisable dès l'activation (`activeAt` 0, aucune heure requise).
+ */
+export function addEntry(s: WhitelistState, address: string, label: string, now: number | null, keyOf: (a: string) => string): WhitelistState {
   const k = keyOf(address);
   if (s.entries.some((x) => keyOf(x.address) === k)) return s;
-  const activeAt = s.enabled ? now + WHITELIST_DELAY_MS : now;
+  if (s.enabled && now == null) throw new Error('Heure de chaîne requise');
+  const activeAt = s.enabled ? now! + WHITELIST_DELAY_MS : 0;
   return { ...s, entries: [...s.entries, { address: address.trim(), label: label.trim(), activeAt }] };
 }
 
@@ -77,9 +89,28 @@ export function removeEntry(s: WhitelistState, address: string, keyOf: (a: strin
   return { ...s, entries: s.entries.filter((x) => keyOf(x.address) !== k) };
 }
 
-/** Activer : immédiat ; annule une désactivation en attente. */
-export function enable(s: WhitelistState): WhitelistState {
-  return { ...s, enabled: true, disableAt: null };
+/**
+ * Activer : immédiat ; annule une désactivation en attente. Les portefeuilles
+ * PRÉSENTS deviennent de confiance tout de suite (`walletIds`).
+ */
+export function enable(s: WhitelistState, walletIds: readonly string[] = []): WhitelistState {
+  const have = new Set(s.trusted.map((x) => x.id));
+  const trusted = [...s.trusted, ...walletIds.filter((id) => !have.has(id)).map((id) => ({ id, activeAt: 0 }))];
+  return { ...s, enabled: true, disableAt: null, trusted };
+}
+
+/** Portefeuille créé ou importé : de confiance après le délai si la protection est active (sinon : à l'activation). */
+export function noteWallet(s: WhitelistState, id: string, now: number | null): WhitelistState {
+  if (!s.enabled || s.trusted.some((x) => x.id === id)) return s;
+  // Heure inconnue : jamais de confiance sans délai mesuré — on retentera.
+  if (now == null) return s;
+  return { ...s, trusted: [...s.trusted, { id, activeAt: now + WHITELIST_DELAY_MS }] };
+}
+
+/** Ce portefeuille est-il de confiance À `now` ? */
+export function isTrustedWallet(s: WhitelistState, id: string, now: number | null): boolean {
+  const t = s.trusted.find((x) => x.id === id);
+  return !!t && (t.activeAt === 0 || (now != null && now >= t.activeAt));
 }
 
 /** Demander la désactivation : effective après le délai (déjà demandée → inchangée). */
@@ -102,13 +133,16 @@ export function parseWhitelist(raw: string | null): WhitelistState {
     const entries = Array.isArray(o.entries)
       ? o.entries.filter((e): e is WhitelistEntry => !!e && typeof e.address === 'string' && typeof e.activeAt === 'number').map((e) => ({ address: e.address, label: typeof e.label === 'string' ? e.label : '', activeAt: e.activeAt }))
       : [];
-    return { enabled: o.enabled === true, entries, disableAt: typeof o.disableAt === 'number' ? o.disableAt : null };
+    const trusted = Array.isArray(o.trusted)
+      ? o.trusted.filter((x): x is { id: string; activeAt: number } => !!x && typeof x.id === 'string' && typeof x.activeAt === 'number')
+      : [];
+    return { enabled: o.enabled === true, entries, trusted, disableAt: typeof o.disableAt === 'number' ? o.disableAt : null };
   } catch {
     /*
      * Illisible : on ne sait pas si la protection était active. Plutôt que
      * l'éteindre en silence (cadeau à un attaquant qui corromprait le fichier),
      * on la considère ACTIVE et vide : l'utilisateur verra qu'il faut la refaire.
      */
-    return { enabled: true, entries: [], disableAt: null };
+    return { enabled: true, entries: [], trusted: [], disableAt: null };
   }
 }

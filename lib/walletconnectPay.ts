@@ -707,12 +707,14 @@ async function signPayAction(action: PayAction, unlock: Unlock): Promise<string>
       return w.signMessage(unlock, message);
     }
     case 'eth_signTypedData_v4': {
+      await (await import('./whitelistStore')).assertDappAllowed(); // liste blanche : le paiement irait à une adresse hors liste
       const raw = args.find((a) => typeof a === 'object' || (typeof a === 'string' && a.trim().startsWith('{')));
       const typed = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (!typed || typeof typed !== 'object') throw new Error('Données typées absentes');
       return w.signTypedData(unlock, typed as Parameters<typeof w.signTypedData>[1], check.evmChainId);
     }
     case 'eth_sendTransaction': {
+      await (await import('./whitelistStore')).assertDappAllowed();
       const tx = args[0] as { to?: string; data?: string; value?: string } | undefined;
       if (!tx?.to) throw new Error('Transaction de paiement incomplète');
       const chain = evmChainIdToKalyx(check.evmChainId!);

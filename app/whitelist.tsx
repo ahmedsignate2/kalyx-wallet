@@ -63,6 +63,7 @@ export default function WhitelistScreen() {
               <Icon name="check" size={18} color={colors.up} />
               <Text variant="body" style={{ color: colors.up, flex: 1 }}>{t('wlActiveBadge')}</Text>
             </View>
+            <Text variant="caption" tone="secondary">{t('errWhitelistLocked')}</Text>
             {wl.disableAt != null ? (
               <>
                 <Text variant="caption" tone="warning">{fill(t('wlDisablePending'), { hours: String(hoursLeft(wl.disableAt, now)) })}</Text>

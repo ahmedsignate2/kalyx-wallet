@@ -472,6 +472,8 @@ export {
   requestDisable as whitelistRequestDisable,
   settle as whitelistSettle,
   isEnforced as whitelistEnforced,
+  noteWallet as whitelistNoteWallet,
+  isTrustedWallet as whitelistTrustedWallet,
   parseWhitelist,
   type WhitelistState,
   type WhitelistEntry,
