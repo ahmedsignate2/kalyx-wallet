@@ -348,7 +348,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
 
   request: async (method, params) => {
     const { topic, selected } = get();
-    if (!client || !topic || !selected) throw new Error('Non connecté');
+    if (!client || !topic || !selected) throw new Error('NOT_CONNECTED'); // code : traduit à l'affichage (ui/web/webErrors)
     // Garde-fou anti-« session zombie » : si le téléphone a laissé tomber la
     // session (verrouillage ancien, relance de l'app…), le web pouvait rester
     // « connecté » et la requête partait dans le vide. On vérifie d'abord que la
@@ -357,7 +357,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       client.session.get(topic);
     } catch {
       get().reset();
-      throw new Error('Session introuvable côté téléphone. Reconnecte le tableau de bord (QR).');
+      throw new Error('SESSION_LOST'); // code : traduit à l'affichage (ui/web/webErrors)
     }
     // Popup « Signature requise — ouvrez Kalyx » tant que le téléphone n'a pas répondu.
     const label = METHOD_LABELS[method] ?? 'Signature demandée';

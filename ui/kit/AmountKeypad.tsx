@@ -16,6 +16,7 @@
  * Le parent gère la chaîne (on n'impose ni longueur ni format ici).
  */
 import React, { useCallback, useEffect, useRef } from 'react';
+import { decimalSeparator } from '../../src';
 import { View, Pressable as RNPressable } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { Text } from './Text';
@@ -31,20 +32,6 @@ const ROWS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['.', '0', '⌫
 const HOLD_DELAY = 420;
 /** Rythme de l'effacement continu. */
 const HOLD_REPEAT = 90;
-
-/**
- * Séparateur décimal de la langue active. On demande à Intl plutôt que de
- * maintenir une liste de langues à la main : c'est exactement son travail, et
- * une liste finit toujours par oublier une langue.
- */
-function decimalSeparator(lang: string): string {
-  try {
-    const parts = new Intl.NumberFormat(lang).formatToParts(1.1);
-    return parts.find((p) => p.type === 'decimal')?.value ?? '.';
-  } catch {
-    return '.';
-  }
-}
 
 /** Une touche : fond qui s'allume au ressort, sans entraîner la grille. */
 function KeyBase({
@@ -103,8 +90,10 @@ export function AmountKeypad({
   disabled?: boolean;
 }) {
   const t = useT();
-  const language = useSettings((s) => s.language);
-  const sep = decimalSeparator(language);
+  // MÊME séparateur que tous les montants affichés (src : fixé selon la langue) — l'ancien, via Intl,
+  // donnait « ٫ » en arabe quand le reste de l'écran écrivait « . ».
+  useSettings((s) => s.language); // re-rendu au changement de langue
+  const sep = decimalSeparator();
   /** Deux minuteurs distincts : le délai avant maintien, puis la répétition. */
   const delayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);

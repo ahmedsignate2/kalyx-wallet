@@ -28,7 +28,6 @@ import { fonts, radii, spacing, useTheme } from './theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import type { Unlock } from '../lib/walletStore';
-import { onBiometricUnlocked } from '../lib/walletStore';
 import { auditFacts, auditTransaction, type TxAuditContext, type TxAuditFact, type TxAuditResult } from "../lib/aiTxAudit";
 import { probeRecipient } from "../lib/txAuditProbe";
 import { factLabel } from "./auditFactLabel";
@@ -146,7 +145,18 @@ export function ConfirmUnlock({
     try {
       if (viaBio) {
         let timer: ReturnType<typeof setTimeout> | undefined;
-        const operation = perform(unlock)
+        /*
+         * Clé lue POUR CETTE demande (et elle seule) : le délai de garde de
+         * l'invite s'arrête — signature et diffusion qui suivent ne sont pas bornées.
+         */
+        const tracked: Unlock = {
+          ...unlock,
+          onUnlocked: () => {
+            if (timer) clearTimeout(timer);
+            timer = undefined;
+          },
+        } as Unlock;
+        const operation = perform(tracked)
           .then(() => {
             console.log('[KALYX-AUTH][ConfirmUnlock] perform:resolved', {
               attempt,
@@ -163,11 +173,6 @@ export function ConfirmUnlock({
             });
             throw error;
           });
-        // Clé lue : le délai de garde s'arrête là, la suite (signature, diffusion) n'est pas bornée.
-        const stopWatch = onBiometricUnlocked(() => {
-          if (timer) clearTimeout(timer);
-          timer = undefined;
-        });
         try {
           await Promise.race([
             operation,
@@ -184,7 +189,6 @@ export function ConfirmUnlock({
             }),
           ]);
         } finally {
-          stopWatch();
           if (timer) clearTimeout(timer);
         }
       } else {

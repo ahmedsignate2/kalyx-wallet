@@ -85,10 +85,11 @@ interface TcState {
   openLink: (text: string) => Promise<string | null>;
   approveConnect: (unlock: Unlock) => Promise<void>;
   rejectConnect: () => Promise<void>;
-  approveTx: (unlock: Unlock) => Promise<string>;
-  rejectTx: () => Promise<void>;
-  approveSignData: (unlock: Unlock) => Promise<void>;
-  rejectSignData: () => Promise<void>;
+  /** `expected` : identité (`pendingKey`) de la demande MONTRÉE — une autre n'est jamais signée ni refusée à sa place. */
+  approveTx: (unlock: Unlock, expected?: string) => Promise<string>;
+  rejectTx: (expected?: string) => Promise<void>;
+  approveSignData: (unlock: Unlock, expected?: string) => Promise<void>;
+  rejectSignData: (expected?: string) => Promise<void>;
   disconnect: (clientId: string) => Promise<void>;
   /** Appel du pont JS d'une page du navigateur intégré. */
   jsCall: (host: string, call: TcJsCall) => Promise<void>;
@@ -160,12 +161,14 @@ async function fetchManifest(url: string): Promise<DappManifest | null> {
  * Retirer « la première » faisait sauter la demande d'une AUTRE dApp, restée
  * sans réponse.
  */
-function pendingKey(p: TcPending): string {
+export function pendingKey(p: TcPending): string {
   if (p.kind === 'connect') return `connect:${p.js ? `${p.js.host}:${p.js.callId}` : p.link.clientId}`;
   return `${p.kind}:${p.session.clientId}:${p.requestId}`;
 }
 const without = (queue: TcPending[], p: TcPending) => queue.filter((x) => pendingKey(x) !== pendingKey(p));
 const stillQueued = (queue: TcPending[], p: TcPending) => queue.some((x) => pendingKey(x) === pendingKey(p));
+/** La demande visée : celle dont l'identité est attendue (où qu'elle soit), sinon la tête. */
+const target = (queue: TcPending[], expected?: string) => (expected ? queue.find((x) => pendingKey(x) === expected) : queue[0]);
 /** Compte ACTIF, cherché par son index HD (et non par sa position dans la liste). */
 const activeStored = () => {
   const w = useWallet.getState();
@@ -380,8 +383,8 @@ export const useTonConnect = create<TcState>((set, get) => {
       await sendTo(p.link.bridge, newSessionKeyPair(), p.link.clientId, event).catch(() => {});
     },
 
-    approveTx: async (unlock) => {
-      const p = get().queue[0];
+    approveTx: async (unlock, expected) => {
+      const p = target(get().queue, expected);
       console.log('[KALYX-TC] approveTx:start', { pending: p?.kind ?? null, emulation: p?.kind === 'tx' ? (p.draft?.emulation ? 'ok' : p.error ? `erreur: ${p.error}` : 'aucune') : null });
       if (p?.kind !== 'tx') throw new Error('tcNothingPending');
       await (await import('../whitelistStore')).assertDappAllowed(); // liste blanche en vigueur : pas de transaction de dApp
@@ -411,16 +414,16 @@ export const useTonConnect = create<TcState>((set, get) => {
       return signed.txid;
     },
 
-    rejectTx: async () => {
-      const p = get().queue[0];
+    rejectTx: async (expected) => {
+      const p = target(get().queue, expected);
       if (p?.kind !== 'tx') return;
       set({ queue: without(get().queue, p) });
       await replyTx(p, { error: { code: TC_ERROR.USER_REJECTS, message: 'User declined the transaction' }, id: p.requestId }).catch(() => {});
     },
 
-    approveSignData: async (unlock) => {
+    approveSignData: async (unlock, expected) => {
       await (await import('../whitelistStore')).assertDappAllowed(); // liste blanche : aucune signature de dApp
-      const p = get().queue[0];
+      const p = target(get().queue, expected);
       if (p?.kind !== 'signData') throw new Error('tcNothingPending');
       const { session, payload } = p;
       const w = useWallet.getState();
@@ -447,13 +450,15 @@ export const useTonConnect = create<TcState>((set, get) => {
       const timestamp = Math.floor(Date.now() / 1000);
       const digest = signDataDigest(payload, me, domain, timestamp);
       const signature = await withTonSigner(session.chainId, unlock, async (signer) => base64.encode(ed25519.sign(digest, signer.secretKey.subarray(0, 32))));
+      // Demande retirée pendant la saisie du code (dApp déconnectée) : rien n'est envoyé.
+      if (!stillQueued(get().queue, p)) throw new Error('tcNothingPending');
       set({ queue: without(get().queue, p) });
       console.log('[KALYX-TC] signData:signé', { type: payload.type, domain });
       await replyTx(p, { result: { signature, address: me.toRawString(), timestamp, domain, payload }, id: p.requestId }).catch(() => {});
     },
 
-    rejectSignData: async () => {
-      const p = get().queue[0];
+    rejectSignData: async (expected) => {
+      const p = target(get().queue, expected);
       if (p?.kind !== 'signData') return;
       set({ queue: without(get().queue, p) });
       await replyTx(p, { error: { code: TC_ERROR.USER_REJECTS, message: 'User declined the request' }, id: p.requestId }).catch(() => {});

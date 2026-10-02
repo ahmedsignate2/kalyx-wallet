@@ -24,6 +24,7 @@ import { useTokenStore, type Tok } from '../../lib/tokenStore';
 import { useWebConnect } from '../../lib/webConnect';
 import { submitSolanaSigned } from '../../lib/solanaSubmit';
 import { UserFacingError, friendlyTxError } from '../../lib/txError';
+import { webErrorText } from './webErrors';
 import {
   getAdapter, getErc20Tokens, getBestQuote, parseAmount, formatTokenAmount, formatInputAmount, formatFiat, isWalletError,
   NATIVE_TOKEN, estimateGasReserve, type GasReserve, type SwapQuote, EvmChainAdapter, SolanaChainAdapter, type ChainConfig,
@@ -257,7 +258,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       if (!countdownInterval.current) startCountdown();
     } catch (e) {
       if (opts.auto) setStale(true);
-      else { setError(friendlyTxError(e, t as never)); stopCountdown(); }
+      else { setError(webErrorText(e, tw, t as never)); stopCountdown(); }
     } finally {
       if (!opts.auto) setLoading(false);
     }
@@ -315,7 +316,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       setSuccess({ hash, summary, isBridge });
     } catch (e) {
       setStale(true);
-      setError(friendlyTxError(e, t as never));
+      setError(webErrorText(e, tw, t as never));
     } finally {
       confirmingRef.current = false;
       setStep(null);
@@ -494,12 +495,21 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
               if (idx >= 0) setFrom(idx);
             }
           } else {
-            setToChain(chainId);
             const list = tokensByChain[chainId] ?? [];
             const idx = list.findIndex((tk) => tk.address.toLowerCase() === token.address.toLowerCase());
-            // Jeton absent de la liste (pas encore chargée) : jamais remplacé en silence par le premier.
-            if (idx >= 0) setTo(idx);
-            else setError(t('errInvalidToken'));
+            if (idx < 0) {
+              /*
+               * Jeton absent de la liste de ce réseau (pas encore chargée) : la
+               * destination reste celle d'avant — jamais un autre jeton choisi
+               * en silence — et on le dit (après `reset`, qui efface l'erreur).
+               */
+              reset();
+              stopCountdown();
+              setError(t('errInvalidToken'));
+              return;
+            }
+            setToChain(chainId);
+            setTo(idx);
           }
           reset();
           stopCountdown();
