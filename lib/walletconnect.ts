@@ -363,6 +363,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     })) as IWeb3Wallet;
 
     w.on('session_proposal', (proposal: any) => {
+      // Session leurre : une dApp (même déjà appairée au vrai portefeuille) n'est pas présentée.
+      if (isDecoySession()) return;
       set({ proposal });
       const name = proposal?.params?.proposer?.metadata?.name;
       notifyIncoming(tr('notifWcConnectTitle'), name ? tr('notifWcConnectBody', { name }) : tr('notifWcConnectBodyUnknown'));
@@ -487,6 +489,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   },
 
   approveProposal: async (unlock, perms, accountIndex) => {
+    if (isDecoySession()) throw new WalletError('RPC_UNAVAILABLE', 'Relais indisponible');
     const { wallet, proposal } = get();
     console.log('[KALYX-WC] approve:start', { wallet: !!wallet, proposal: !!proposal, sdkUtils: !!sdkUtils });
     if (!wallet || !proposal || !sdkUtils) return;

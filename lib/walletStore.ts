@@ -195,6 +195,8 @@ interface WalletState {
   unlockWithPin: (pin: string) => Promise<void>;
   /** Code de contrainte configuré ? (toujours faux en session leurre) */
   hasDuress: () => Promise<boolean>;
+  /** Démarrage en session leurre (après redémarrage ; pare-feu déjà actif) : leurre ouvert, rien d'autre chargé. */
+  bootDecoy: (decoyId: string) => Promise<void>;
   /** Configure (ou remplace) le code de contrainte et crée un portefeuille leurre neuf. */
   setupDuress: (mainPin: string, duressPin: string) => Promise<void>;
   /** Supprime le code de contrainte et le portefeuille leurre. */
@@ -735,6 +737,9 @@ async function enterDecoy(pin: string, prevFailed: number, prevAt: number): Prom
   }
   useWallet.setState({ failedAttempts: prevFailed, lastFailedAt: prevAt });
   await saveLockState(prevFailed, prevAt).catch(() => {});
+  // Cas normal : l'app REDÉMARRE directement en session leurre (rien de la vraie session ne survit en mémoire).
+  if (await (await import('./decoyCurtain')).restartIntoDecoy(meta.id)) return true;
+  // Repli (pas de redémarrage possible) : rideau en place.
   const accounts = (await loadAccounts(meta.id)) ?? [];
   const st = useWallet.getState();
   const chain = st.activeChain;
@@ -1251,6 +1256,34 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   hasDuress: async () => !isDecoySession() && (await loadDuressMeta()) !== null,
+
+  bootDecoy: async (decoyId) => {
+    const meta = await loadDuressMeta();
+    const accounts = (meta && meta.id === decoyId ? await loadAccounts(decoyId) : null) ?? [];
+    if (!meta || !accounts.length) {
+      // Leurre introuvable : démarrage ordinaire (verrouillé).
+      await (await import('./decoyCurtain')).liftCurtain(() => {
+        setDecoySession(false);
+        void get().bootstrap();
+      });
+      return;
+    }
+    const lock = await loadLockState();
+    const chain = get().activeChain;
+    set({
+      ready: true,
+      hasWallet: true,
+      isUnlocked: true,
+      wallets: [{ id: meta.id, label: meta.label, avatar: meta.avatar }],
+      activeWalletId: meta.id,
+      accounts,
+      activeAccountIndex: 0,
+      activeChain: chain,
+      account: toAccount(accounts, 0, chain),
+      failedAttempts: lock.failedAttempts,
+      lastFailedAt: lock.lastFailedAt,
+    });
+  },
 
   setupDuress: async (mainPin, duressPin) => {
     assertNotDecoy();
