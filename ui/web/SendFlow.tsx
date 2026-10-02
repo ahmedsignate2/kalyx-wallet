@@ -36,7 +36,7 @@ import { usePortfolioStore, splitHoldings, type Holding } from '../../lib/portfo
 import { submitSolanaSigned } from '../../lib/solanaSubmit';
 import { toast } from '../../lib/toast';
 import {
-  getAdapter, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount, formatAmount, formatFiat,
+  getAdapter, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount, trimDecimalZeros, formatAmount, formatFiat,
   getPrices, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
   estimateGasReserve, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, type FeeOptions, simulateSendTransaction, type SimulationResult,
   type ChainConfig,
@@ -177,7 +177,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
 
   // ── Montant ──
   const amountNum = Number(amount) || 0;
-  const tokenAmountStr = inFiat ? (price > 0 ? (amountNum / price).toFixed(Math.min(decimals, 8)).replace(/\.?0+$/, '') : '0') : amount;
+  const tokenAmountStr = inFiat ? (price > 0 ? trimDecimalZeros((amountNum / price).toFixed(Math.min(decimals, 8))) : '0') : amount;
   let amountRaw = 0n;
   try {
     amountRaw = tokenAmountStr ? parseAmount(tokenAmountStr, decimals).raw : 0n;
@@ -254,7 +254,14 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
       // Simulation + diffusion + attente de confirmation : même chemin que l'app.
       return submitSolanaSigned(signed);
     }
-    const res: unknown = await request('sendTransfer', [{ recipientAddress: recipient, amount: tokenAmountStr }]);
+    /*
+     * Montant en SATOSHIS, par `bitcoin_sendTransfer` : seules les versions du
+     * téléphone qui lisent des satoshis l'annoncent. Une ancienne version
+     * lisait `sendTransfer` en BTC — lui envoyer des satoshis enverrait
+     * 100 000 000 fois trop : on demande la mise à jour plutôt.
+     */
+    if (!useWebConnect.getState().supports('bitcoin_sendTransfer')) throw new UserFacingError(tw('phoneUpdateRequired'));
+    const res: unknown = await request('bitcoin_sendTransfer', [{ recipientAddress: recipient, amount: amountRaw.toString() }]);
     const txid = pick<string>(res, ['txid']) ?? (typeof res === 'string' ? res : undefined);
     if (!txid) throw new UserFacingError(tw('phoneNoTxid'));
     return txid;

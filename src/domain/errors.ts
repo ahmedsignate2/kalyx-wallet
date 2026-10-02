@@ -76,7 +76,9 @@ export type WalletErrorCode =
   /** L'émulation d'un échange prévoit un échec (prix ou réserve changés) : rien n'est signé. */
   | 'SWAP_SIMULATION_FAILED'
   /** La dApp demande de signer avec un AUTRE compte que le compte actif (changé depuis la connexion). */
-  | 'WRONG_ACCOUNT';
+  | 'WRONG_ACCOUNT'
+  /** Demande dApp arrivée à expiration avant d'être approuvée : rien n'est signé. */
+  | 'REQUEST_EXPIRED';
 
 export class WalletError extends Error {
   readonly code: WalletErrorCode;

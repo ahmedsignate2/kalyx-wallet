@@ -5,7 +5,7 @@
  */
 const getHistory = jest.fn();
 jest.mock('../src', () => ({ getAdapter: () => ({ getHistory }) }));
-jest.mock('./kv', () => ({ getItem: async () => null, setItem: async () => {} }));
+jest.mock('@react-native-async-storage/async-storage', () => ({ __esModule: true, default: { getItem: async () => null, setItem: async () => undefined } }));
 
 import { useHistoryStore, HISTORY_FRESH_MS } from './historyStore';
 

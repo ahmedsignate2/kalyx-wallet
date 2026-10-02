@@ -91,6 +91,14 @@ describe('paramètres scrypt lus dans un coffre : bornés avant tout calcul', ()
     expect(await corrupted({ salt: undefined })).toBe('VAULT_CORRUPTED');
   });
 
+  it('hex invalide, nonce tronqué, chiffré trop court : corrompu, pas « PIN incorrect »', async () => {
+    expect(await corrupted({ nonce: 'zz'.repeat(12) })).toBe('VAULT_CORRUPTED');
+    expect(await corrupted({ nonce: 'ab'.repeat(8) })).toBe('VAULT_CORRUPTED');
+    expect(await corrupted({ ct: 'abc' })).toBe('VAULT_CORRUPTED');
+    expect(await corrupted({ ct: 'ab'.repeat(10) })).toBe('VAULT_CORRUPTED');
+    expect(await corrupted({ salt: '' })).toBe('VAULT_CORRUPTED');
+  });
+
   it('les paramètres que l’app écrit restent acceptés (coffre 2^14, sauvegarde 2^15)', async () => {
     expect(await corrupted({})).toBe('OK');
     const backup = await encryptSecret(SEED_PHRASE, PIN, { N: 1 << 15, r: 8, p: 1 });

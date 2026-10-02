@@ -35,6 +35,7 @@ import {
   type PayMethod,
   type PayRefusal,
   WalletError,
+  shortAddress,
 } from '../src';
 
 /** Identifiant public du projet Pay, fourni au build (secret EAS). */
@@ -576,7 +577,24 @@ export const usePay = create<PayState>((set, get) => ({
     }
 
     set({ phase: 'signing', failure: null, detail: null });
+    // Compte actif d'avant : rendu à la fin, succès ou échec (les sessions dApp en dépendent).
+    const previousIndex = useWallet.getState().activeAccountIndex;
     try {
+      /*
+       * Le compte qui SIGNE est celui pour lequel les options ont été
+       * calculées (`payer`), pas forcément l'actif : on y bascule avant de
+       * signer — le coffre signe toujours avec le compte actif. Portefeuille
+       * changé entre-temps : refus plutôt qu'un paiement depuis un autre compte.
+       */
+      const payer = get().payer;
+      if (payer) {
+        const w = useWallet.getState();
+        const acct = w.accounts.find((a) => a.index === payer.index);
+        if (!acct || acct.evmAddress.toLowerCase() !== payer.evmAddress.toLowerCase()) {
+          throw new WalletError('WRONG_ACCOUNT', 'payeur introuvable dans le portefeuille actif', { address: shortAddress(payer.evmAddress) });
+        }
+        if (w.activeAccountIndex !== payer.index) w.setActiveAccount(payer.index);
+      }
       const actions = await c.getRequiredPaymentActions({
         paymentId: options.paymentId,
         optionId: selected.id,
@@ -616,6 +634,9 @@ export const usePay = create<PayState>((set, get) => ({
         detail: refused ? refused.code : e instanceof Error ? e.message : null,
         error: e,
       });
+    } finally {
+      const w = useWallet.getState();
+      if (w.activeAccountIndex !== previousIndex && w.accounts.some((a) => a.index === previousIndex)) w.setActiveAccount(previousIndex);
     }
   },
 

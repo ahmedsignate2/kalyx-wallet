@@ -19,6 +19,9 @@ import { useWallet } from '../lib/walletStore';
 import { addressForChain } from '../lib/accountAddress';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
+import { submitSolanaSigned } from '../lib/solanaSubmit';
+import { base64 } from '@scure/base';
+import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import {
   fetchTxRequestIdentity,
   fetchTxRequestPayload,
@@ -202,8 +205,16 @@ export default function SolanaRequestScreen() {
         perform={async (unlock) => {
           if (!transaction) throw new Error(t('solReqFailed'));
           await (await import('../lib/whitelistStore')).assertDappAllowed(); // liste blanche en vigueur : pas de transaction marchande arbitraire
-          await signSolanaTransaction(unlock, transaction);
-          toast.success(t('sign'));
+          /*
+           * Solana Pay : le portefeuille SIGNE PUIS DIFFUSE. La transaction
+           * signée était jetée et un succès s'affichait — le marchand n'était
+           * jamais payé. Simulée, envoyée et confirmée par le chemin commun.
+           */
+          const signed = await signSolanaTransaction(unlock, transaction);
+          const decoded = solanaTxDecode(signed);
+          if (!decoded) throw new Error(t('solReqFailed'));
+          const sig = await submitSolanaSigned(base64.encode(decoded.bytes));
+          toast.success(t('sendTitle'), shortAddress(sig));
         }}
         onDone={() => {
           setAsking(false);

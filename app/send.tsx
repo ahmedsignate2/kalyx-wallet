@@ -43,7 +43,7 @@ import { technicalLogger } from '../lib/technicalLogger';
 import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
 import {
-  getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isWalletAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
+  getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isWalletAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount, trimDecimalZeros,
   formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
   estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, TonAdapterV2, JETTON_TRANSFER_TON, normalizeTonDomain,
   findAdapterV2, getAdapterV2, isValidTonAddress, transferFeeFor, amountAfterTransferFee,
@@ -374,7 +374,7 @@ function SendInner() {
 
   // ── Montant ──
   const amountNum = Number(amount) || 0;
-  const tokenAmountStr = inFiat ? (price > 0 ? (amountNum / price).toFixed(Math.min(decimals, 8)).replace(/\.?0+$/, '') : '0') : amount;
+  const tokenAmountStr = inFiat ? (price > 0 ? trimDecimalZeros((amountNum / price).toFixed(Math.min(decimals, 8))) : '0') : amount;
   let amountRaw = 0n;
   try {
     amountRaw = tokenAmountStr ? parseAmount(tokenAmountStr, decimals).raw : 0n;
@@ -617,17 +617,24 @@ function SendInner() {
 
   /** Destinataire refusé par la liste blanche : on propose de l'y ajouter (utilisable après 24 h). */
   const [wlBlocked, setWlBlocked] = useState(false);
-  const goStep2 = async () => {
+  /**
+   * Contrôles du DESTINATAIRE (adresse valide, pas sosie, liste blanche). Rend
+   * vrai s'il passe ; sinon l'erreur est affichée à l'étape 1. Appelé par
+   * `goStep2` ET par `goStep3` : un lien de paiement prérempli entre à l'étape
+   * 2 sans passer par l'étape 1.
+   */
+  const recipientGate = async (): Promise<boolean> => {
     setAddressError(null);
     setWlBlocked(false);
     if (!recipientOk) {
       technicalLogger.logTx('step_1_address_invalid', { input: to, isEns, chain: chain.name }, true);
       const fam = family === 'evm' ? t("errNeedEvmAddress") : family === 'solana' ? t("errNeedSolAddress") : family === 'ton' ? t("errNeedTonAddress") : t("errNeedBtcAddress");
-      return setAddressError(isEns && ens.status === 'resolving' ? t(tonDomain ? 'resolvingName' : 'errResolvingEns') : isEns ? t(tonDomain ? 'errNameNotFound' : 'errEnsNotFound') : fill(t('errNeedAddressFull'), { symbol: symbol, chain: chain.name, fam: fam }));
+      setAddressError(isEns && ens.status === 'resolving' ? t(tonDomain ? 'resolvingName' : 'errResolvingEns') : isEns ? t(tonDomain ? 'errNameNotFound' : 'errEnsNotFound') : fill(t('errNeedAddressFull'), { symbol: symbol, chain: chain.name, fam: fam }));
+      return false;
     }
     if (poisoning) {
       technicalLogger.logTx('step_1_address_poisoning_blocked', { recipient, chain: chain.name }, true);
-      return; // bloquant, message déjà affiché
+      return false; // bloquant, message déjà affiché
     }
     /*
      * LISTE BLANCHE vérifiée DÈS le destinataire : refusé, on le dit tout de
@@ -639,10 +646,15 @@ function SendInner() {
     } catch (e) {
       if (isWalletError(e) && (e.code === 'NOT_WHITELISTED' || e.code === 'WHITELIST_PENDING')) {
         setWlBlocked(e.code === 'NOT_WHITELISTED');
-        return setAddressError(friendlyTxError(e, t as never));
+        setAddressError(friendlyTxError(e, t as never));
+        return false;
       }
       // Liste illisible ou réseau muet : le verrou d'envoi tranchera.
     }
+    return true;
+  };
+  const goStep2 = async () => {
+    if (!(await recipientGate())) return;
     technicalLogger.logTx('step_1_address_validated', { recipient, isEns, chain: chain.name });
     haptic.light();
     setAmountError(null);
@@ -650,6 +662,11 @@ function SendInner() {
   };
   const goStep3 = async () => {
     setAmountError(null);
+    // Destinataire contrôlé ici aussi (lien prérempli) : refusé → retour à l'étape 1, où l'erreur s'affiche.
+    if (!(await recipientGate())) {
+      setStep(1);
+      return;
+    }
     if (amountRaw <= 0n) return setAmountError(t("errEnterAmount"));
     if (overBalance) {
       const held = `${formatTokenAmount(balance ?? 0n, decimals)} ${symbol}`;
@@ -752,6 +769,13 @@ function SendInner() {
   if (!account) return null;
   const destLabel = contactName ?? (isEns ? to.trim() : null);
   const afterBalance = balance != null ? balance - amountRaw - (isNativeSend ? feeRaw : 0n) : null;
+  /*
+   * Vitesse de frais changée AU RÉCAPITULATIF, après le contrôle de solde de
+   * `goStep3` (« Max » puis « rapide ») : montant + frais dépassent le solde.
+   * L'aperçu affichait 0 et l'envoi échouait après le code ; c'est dit ici et
+   * l'envoi est bloqué.
+   */
+  const overBalanceAfterFee = isNativeSend && afterBalance != null && afterBalance < 0n;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -1040,6 +1064,9 @@ function SendInner() {
                 {(['slow', 'normal', 'fast'] as FeeSpeed[]).map((s) => <Chip key={s} label={s === 'slow' ? t("feeSlow") : s === 'normal' ? t("feeNormal") : t("feeFast")} selected={speed === s} onPress={() => setSpeed(s)} />)}
               </View>
             ) : null}
+            {overBalanceAfterFee ? (
+              <Text variant="caption" tone="danger">{t('errInsufficientFunds')}</Text>
+            ) : null}
             {afterBalance != null ? (
               <Text variant="bodySecondary" tone="secondary">{fill(t('balanceUpdatePreview'), { symbol: symbol, before: formatTokenAmount(balance!, decimals), after: formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals) })}</Text>
             ) : null}
@@ -1142,6 +1169,7 @@ function SendInner() {
             */
             disabled={
               isSimulating ||
+              overBalanceAfterFee ||
               !!poisoning ||
               isSolanaPda ||
               (simResult?.warningLevel === 'critical' && !forceSendChecked)

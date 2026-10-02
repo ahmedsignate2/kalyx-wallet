@@ -35,6 +35,7 @@ function formatAmount(raw: bigint, decimals: number): string {
   const value = negative ? -raw : raw;
   const digits = value.toString().padStart(decimals + 1, '0');
   const split = digits.length - decimals;
+  if (decimals === 0) return `${negative ? '-' : ''}${digits}`; // pas de « 100. »
   return `${negative ? '-' : ''}${digits.slice(0, split)}.${digits.slice(split)}`.replace(/\.?0+$/, '');
 }
 

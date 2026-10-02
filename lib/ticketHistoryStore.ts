@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { sanitizeSecrets } from './secretDetector';
 
 export interface StoredTicket {
   id: string; // Format KX-YYYYMMDD-XXXXX
@@ -97,7 +98,18 @@ export const useTicketHistoryStore = create<TicketHistoryState>()(
     (set, get) => ({
       tickets: [],
 
-      addTicket: (ticketInput) => {
+      addTicket: (rawInput) => {
+        /*
+         * Masqué AVANT d'être écrit : le contrôle des secrets n'a lieu qu'à
+         * l'envoi, et un ticket bloqué pour cette raison restait sur le disque
+         * avec la phrase ou la clé en clair.
+         */
+        const ticketInput = {
+          ...rawInput,
+          content: sanitizeSecrets(rawInput.content),
+          problem: rawInput.problem && sanitizeSecrets(rawInput.problem),
+          detectedError: rawInput.detectedError && sanitizeSecrets(rawInput.detectedError),
+        };
         const parsed = parseTicketContent(ticketInput.content, ticketInput.network);
         const id = ticketInput.id || parsed.id;
         const problem = ticketInput.problem || parsed.problem;
@@ -139,6 +151,21 @@ export const useTicketHistoryStore = create<TicketHistoryState>()(
     {
       name: 'nova-support-tickets',
       storage: createJSONStorage(() => safeAsyncStorage),
+      /*
+       * Tickets écrits par une version précédente, sans masquage : nettoyés
+       * par une MIGRATION — elle seule est réécrite sur le disque (un `merge`
+       * ne nettoyait que la mémoire, le clair restait stocké).
+       */
+      version: 1,
+      migrate: (persisted) => {
+        const tickets = ((persisted as { tickets?: StoredTicket[] } | undefined)?.tickets ?? []).map((tk) => ({
+          ...tk,
+          content: sanitizeSecrets(tk.content),
+          problem: tk.problem && sanitizeSecrets(tk.problem),
+          detectedError: tk.detectedError && sanitizeSecrets(tk.detectedError),
+        }));
+        return { tickets } as never;
+      },
     }
   )
 );
