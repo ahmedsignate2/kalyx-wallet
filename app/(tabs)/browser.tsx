@@ -90,7 +90,7 @@ function mkTab(chainId: string, url: string | null = null, incognito = false): T
 type Pending =
   | { kind: 'connect'; tabId: string; id: number; origin: string }
   | { kind: 'sign'; tabId: string; id: number; origin: string; text: string | null; siwe: ReturnType<typeof parseSiwe>; hex: string }
-  | { kind: 'typedData'; tabId: string; id: number; origin: string; summary: ReturnType<typeof summarizeTypedData>; data: unknown }
+  | { kind: 'typedData'; tabId: string; id: number; origin: string; summary: ReturnType<typeof summarizeTypedData>; data: unknown; evmChainId: number }
   /** `chainId` : réseau Kalyx FIGÉ à la demande — celui du Chain ID signé dans `raw`. */
   | { kind: 'tx'; tabId: string; id: number; origin: string; to?: string; value: bigint; raw: RawTxRequest; chainId: string };
 
@@ -341,7 +341,28 @@ export default function Browser() {
 
   // ── Pont EIP-1193 ──
   const connected = useRef<Set<string>>(new Set());
-  const [pending, setPending] = useState<Pending | null>(null);
+  /*
+   * Clé de connexion : un onglet PRIVÉ a ses propres sites connectés. Avec une
+   * clé commune, un site connecté dans un onglet normal voyait le compte dans
+   * l'onglet privé (et inversement), sans rien demander.
+   */
+  const connKey = (origin: string, incognito?: boolean) => (incognito ? `incognito:${origin}` : origin);
+  const [pending, setPendingState] = useState<Pending | null>(null);
+  /*
+   * UNE demande à la fois, lue sans attendre un rendu. Une seconde demande
+   * remplaçait la première sans lui répondre (la dApp restait bloquée), et la
+   * fin d'une signature effaçait celle arrivée pendant ce temps.
+   */
+  const pendingRef = useRef<Pending | null>(null);
+  const setPending = useCallback((p: Pending | null) => {
+    pendingRef.current = p;
+    setPendingState(p);
+  }, []);
+  /** Ferme CETTE demande seulement — jamais une autre arrivée entre-temps. */
+  const closePending = useCallback((p: Pending) => {
+    const cur = pendingRef.current;
+    if (cur && cur.id === p.id && cur.tabId === p.tabId) setPending(null);
+  }, [setPending]);
   const [sim, setSim] = useState<Simulation | 'loading' | null>(null);
   // Token d'un Permit / Permit2 (symbole + décimales) : registre local puis métadonnées ERC-20.
   const [permitToken, setPermitToken] = useState<{ symbol: string; decimals: number } | null>(null);
@@ -361,6 +382,17 @@ export default function Browser() {
     connected.current.clear();
     inject(emitJs('accountsChanged', []));
   }, [watchOnly, inject]);
+  const revoked = useDappActivity((s) => s.revoked);
+  useEffect(() => {
+    if (!revoked) return;
+    connected.current.delete(connKey(revoked.host, false));
+    connected.current.delete(connKey(revoked.host, true));
+    const tab = tabsRef.current.find((x) => x.id === activeRef.current);
+    if (tab?.url && originOf(tab.url) === revoked.host) {
+      inject(emitJs('accountsChanged', []));
+      inject(emitJs('disconnect', {}));
+    }
+  }, [revoked, inject]);
   useEffect(() => {
     if (!dappEpoch) return;
     connected.current.clear();
@@ -411,7 +443,12 @@ export default function Browser() {
       technicalLogger.logDapp(`method_${method}`, reqOrigin);
       const addr = watchOnly ? undefined : evmAddress; // lecture seule : aucun compte exposé (eth_accounts vide, sites mémorisés compris)
       const tb = tabsRef.current.find((x) => x.id === tabId);
-      const isConnected = !!reqOrigin && connected.current.has(reqOrigin);
+      const isConnected = !!reqOrigin && connected.current.has(connKey(reqOrigin, tb?.incognito));
+      /** Une demande attend déjà la décision de l'utilisateur : celle-ci est refusée tout de suite (EIP-1193, -32002). */
+      const openPending = (p: Pending) => {
+        if (pendingRef.current) return respond(id, null, { code: -32002, message: 'Request already pending. Please wait.' });
+        setPending(p);
+      };
       try {
         if (method === 'eth_chainId') return respond(id, chainIdHex);
         /*
@@ -429,13 +466,13 @@ export default function Browser() {
         if (method === 'eth_requestAccounts' || method === 'wallet_requestPermissions') {
           if (isConnected && addr) return respond(id, method === 'eth_requestAccounts' ? [addr] : [{ parentCapability: 'eth_accounts' }]);
           if (addr && !tb?.incognito && useDappActivity.getState().isRemembered(reqOrigin)) {
-            connected.current.add(reqOrigin);
+            connected.current.add(connKey(reqOrigin, false));
             inject(emitJs('accountsChanged', [addr]));
             inject(emitJs('connect', { chainId: chainIdHex }));
             useDappActivity.getState().addConnection({ host: reqOrigin, url: `https://${reqOrigin}`, title: reqOrigin });
             return respond(id, method === 'eth_requestAccounts' ? [addr] : [{ parentCapability: 'eth_accounts' }]);
           }
-          setPending({ kind: 'connect', tabId, id, origin: reqOrigin });
+          openPending({ kind: 'connect', tabId, id, origin: reqOrigin });
           return;
         }
         if (method === 'wallet_switchEthereumChain' || method === 'wallet_addEthereumChain') {
@@ -459,13 +496,15 @@ export default function Browser() {
           if (method === 'personal_sign' || method === 'eth_sign') {
             const hex = signMessageParam(method, params);
             const text = hexToText(hex) ?? (hex.startsWith('0x') ? null : hex);
-            setPending({ kind: 'sign', tabId, id, origin: reqOrigin, hex, text, siwe: text ? parseSiwe(text) : null });
+            openPending({ kind: 'sign', tabId, id, origin: reqOrigin, hex, text, siwe: text ? parseSiwe(text) : null });
             return;
           }
           if (method.startsWith('eth_signTypedData')) {
             const rawData = params[1];
             const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-            setPending({ kind: 'typedData', tabId, id, origin: reqOrigin, data, summary: summarizeTypedData(data) });
+            // Réseau de la DEMANDE, figé maintenant : onglet non EVM → refus (le contrôle anti-rejeu serait sauté).
+            if (!chain.evmChainId) return respond(id, null, { code: 4901, message: 'Switch to an EVM network to sign this message' });
+            openPending({ kind: 'typedData', tabId, id, origin: reqOrigin, data, summary: summarizeTypedData(data), evmChainId: chain.evmChainId });
             return;
           }
           const tx = (params[0] ?? {}) as { from?: string; to?: string; value?: string; data?: string; gas?: string };
@@ -473,7 +512,7 @@ export default function Browser() {
           // Transaction préparée pour un AUTRE compte (changé depuis la connexion) : on ne la signe pas avec celui-ci.
           if (tx.from && tx.from.toLowerCase() !== addr.toLowerCase()) return respond(id, null, { code: 4100, message: 'The requested account is not the active account' });
           const raw: RawTxRequest = { to: tx.to, data: tx.data ?? '0x', value: tx.value ? BigInt(tx.value) : 0n, chainId: chain.evmChainId!, gasLimit: tx.gas ? BigInt(tx.gas) : undefined };
-          setPending({ kind: 'tx', tabId, id, origin: reqOrigin, to: tx.to, value: raw.value ?? 0n, raw, chainId: chain.id });
+          openPending({ kind: 'tx', tabId, id, origin: reqOrigin, to: tx.to, value: raw.value ?? 0n, raw, chainId: chain.id });
           return;
         }
         if (READONLY_METHODS.has(method)) return respond(id, await rpcProxy(chain.rpcUrls, method, params));
@@ -534,7 +573,7 @@ export default function Browser() {
     if (pending.kind === 'connect') {
       // Lecture seule : lève WATCH_ONLY, rien n'est partagé avec le site.
       await useWallet.getState().verifyConnect(unlock);
-      connected.current.add(pending.origin);
+      connected.current.add(connKey(pending.origin, tb?.incognito));
       respondPending(pending, [evmAddress]);
       deliverTo(pending.origin, pending.tabId, emitJs('accountsChanged', [evmAddress]));
       deliverTo(pending.origin, pending.tabId, emitJs('connect', { chainId: chainIdHex }));
@@ -552,7 +591,7 @@ export default function Browser() {
       // Liste blanche en vigueur : aucune signature de dApp (un simple message peut autoriser un transfert).
       await (await import('../../lib/whitelistStore')).assertDappAllowed();
       if (pending.kind === 'sign') result = await w.signMessage(unlock, pending.hex);
-      else if (pending.kind === 'typedData') result = await w.signTypedData(unlock, pending.data as Parameters<typeof w.signTypedData>[1], getAdapter(tb?.chainId ?? activeChain).config.evmChainId);
+      else if (pending.kind === 'typedData') result = await w.signTypedData(unlock, pending.data as Parameters<typeof w.signTypedData>[1], pending.evmChainId);
       // Le réseau de la DEMANDE, pas celui de l'onglet maintenant : le Chain ID signé doit correspondre au nœud qui diffuse.
       else result = await w.sendRawTxOn(unlock, pending.kind === 'tx' ? pending.chainId : tb?.chainId ?? activeChain, pending.raw);
       respondPending(pending, result);
@@ -565,12 +604,14 @@ export default function Browser() {
       haptic.success();
       sound.success();
     }
-    setPending(null);
+    closePending(pending);
     setRememberSite(false);
   };
   const deny = () => {
-    if (pending) reject(pending);
-    setPending(null);
+    if (pending) {
+      reject(pending);
+      closePending(pending);
+    }
     setRememberSite(false);
     setSignConfirm(false);
   };
@@ -977,7 +1018,8 @@ export default function Browser() {
             onPress={() => {
               if (origin) {
                 removeConnection(origin);
-                connected.current.delete(origin);
+                connected.current.delete(connKey(origin, false));
+                connected.current.delete(connKey(origin, true));
                 inject(emitJs('accountsChanged', []));
                 inject(emitJs('disconnect', {}));
               }

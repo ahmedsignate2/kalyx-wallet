@@ -22,9 +22,10 @@ import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
+import { friendlyTxError } from '../lib/txError';
 import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
 import { PinPromptModal } from '../ui/PinPromptModal';
-import { classifyRecoveryPhrase, restoreBackup, type BackupError, type BackupWallet } from '../src';
+import { classifyRecoveryPhrase, isWalletError, restoreBackup, type BackupError, type BackupWallet } from '../src';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 
 export default function RestoreDriveScreen() {
@@ -99,7 +100,6 @@ export default function RestoreDriveScreen() {
       return;
     }
     setPwd('');
-    flow.reset();
     /*
      * CORRECTION D'UNE PERTE DE FONDS.
      *
@@ -115,9 +115,11 @@ export default function RestoreDriveScreen() {
      *    restauré à côté, sans jamais toucher à l'existant.
      */
     if (hasWallet) {
+      // Le flux reste ouvert : un code annulé ramène à la sauvegarde, pas à un écran vide.
       setPendingWallets(r.wallets);
       return;
     }
+    flow.reset();
     /*
      * Premier lancement : le flux d'installation ne sait recevoir qu'UNE phrase.
      * On lui donne la première, et les autres sont ajoutées juste après, une fois
@@ -141,11 +143,14 @@ export default function RestoreDriveScreen() {
     try {
       const added = await importWallets(pendingWallets, pin);
       setPendingWallets(null);
+      flow.reset();
       toast.success(t('backupRestoredCount').replace('{count}', String(added)));
       router.replace('/wallets');
-    } catch {
-      // PIN refusé (ou phrase invalide) : on secoue, l'existant est intact.
-      setPinError((n) => n + 1);
+    } catch (e) {
+      // Code refusé : on secoue. Toute autre erreur (stockage, sauvegarde) est DITE —
+      // la prendre pour un mauvais code faisait retaper le bon code sans fin.
+      if (isWalletError(e) && (e.code === 'WRONG_PIN' || e.code === 'INVALID_PIN')) setPinError((n) => n + 1);
+      else toast.error(friendlyTxError(e, t as never));
     } finally {
       setPinBusy(false);
     }
@@ -153,7 +158,7 @@ export default function RestoreDriveScreen() {
 
   const dateLabel = (iso: string) => new Date(iso).toLocaleDateString(language, { day: 'numeric', month: 'long', year: 'numeric' });
   const errorText =
-    flow.error === 'not_configured' ? t('driveNotConfigured') : flow.error === 'denied' || flow.error === 'timeout' ? t('driveCancelled') : flow.error;
+    flow.error === 'not_configured' ? t('driveNotConfigured') : flow.error === 'denied' || flow.error === 'timeout' ? t('driveCancelled') : flow.error ? t('driveFailed') : null;
 
   return (
     <>

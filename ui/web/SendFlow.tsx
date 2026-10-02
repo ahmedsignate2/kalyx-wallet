@@ -36,7 +36,7 @@ import { usePortfolioStore, splitHoldings, type Holding } from '../../lib/portfo
 import { submitSolanaSigned } from '../../lib/solanaSubmit';
 import { toast } from '../../lib/toast';
 import {
-  getAdapter, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount, formatAmount, formatFiat,
+  getAdapter, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount, trimDecimalZeros, formatAmount, formatFiat,
   getPrices, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
   estimateGasReserve, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, type FeeOptions, simulateSendTransaction, type SimulationResult,
   type ChainConfig,
@@ -177,7 +177,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
 
   // ── Montant ──
   const amountNum = Number(amount) || 0;
-  const tokenAmountStr = inFiat ? (price > 0 ? (amountNum / price).toFixed(Math.min(decimals, 8)).replace(/\.?0+$/, '') : '0') : amount;
+  const tokenAmountStr = inFiat ? (price > 0 ? trimDecimalZeros((amountNum / price).toFixed(Math.min(decimals, 8))) : '0') : amount;
   let amountRaw = 0n;
   try {
     amountRaw = tokenAmountStr ? parseAmount(tokenAmountStr, decimals).raw : 0n;

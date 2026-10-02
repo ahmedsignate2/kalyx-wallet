@@ -36,6 +36,12 @@ interface DappActivityState {
    * les sites connectés qu'il garde en mémoire et prévient la page ouverte.
    */
   epoch: number;
+  /**
+   * Dernier site OUBLIÉ (écran des connexions) et son compteur : le navigateur
+   * resté monté le retire de ses sites connectés en mémoire — sinon la page
+   * ouverte gardait le compte et pouvait encore demander des signatures.
+   */
+  revoked: { host: string; n: number } | null;
   load: () => Promise<void>;
   addConnection: (c: Omit<DappConnection, 'at'>) => void;
   removeConnection: (host: string) => void;
@@ -50,6 +56,7 @@ export const useDappActivity = create<DappActivityState>((set, get) => ({
   signatures: [],
   remembered: [],
   epoch: 0,
+  revoked: null,
 
   load: async () => {
     try {
@@ -86,7 +93,7 @@ export const useDappActivity = create<DappActivityState>((set, get) => ({
   removeConnection: (host) => {
     const connections = get().connections.filter((x) => x.host !== host);
     const remembered = get().remembered.filter((h) => h !== host);
-    set({ connections, remembered });
+    set({ connections, remembered, revoked: { host, n: (get().revoked?.n ?? 0) + 1 } });
     void AsyncStorage.setItem(CONN_KEY, JSON.stringify(connections)).catch(() => {});
     void AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify(remembered)).catch(() => {});
   },

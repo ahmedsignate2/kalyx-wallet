@@ -1604,6 +1604,8 @@ export const useWallet = create<WalletState>((set, get) => ({
   importWallets: async (list, pin) => {
     assertNotDecoy(); // session leurre : jamais d'écriture sur les vrais portefeuilles
     assertValidPin(pin);
+    // Code vérifié D'ABORD (et compté) : faux, il échouait en silence sur chaque coffre avant d'être refusé.
+    if (get().wallets.length) await proveIdentity({ pin });
     /*
      * DOUBLON IGNORÉ, comparé par le secret. Restaurer par-dessus une
      * installation existante créerait sinon deux portefeuilles identiques, que

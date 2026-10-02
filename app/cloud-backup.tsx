@@ -71,7 +71,7 @@ export default function CloudBackupScreen() {
   const driveDone = flow.kind === 'save' && flow.status === 'done';
   const driveError =
     flow.kind === 'save' && flow.status === 'error'
-      ? flow.error === 'not_configured' ? t('driveNotConfigured') : flow.error === 'denied' || flow.error === 'timeout' ? t('driveCancelled') : flow.error
+      ? flow.error === 'not_configured' ? t('driveNotConfigured') : flow.error === 'denied' || flow.error === 'timeout' ? t('driveCancelled') : t('driveFailed')
       : null;
   const checkBusy = flow.kind === 'check' && (flow.status === 'auth' || flow.status === 'working');
   const checkResult = flow.kind === 'check' && flow.status === 'done' ? flow.checkResult : undefined;
@@ -112,7 +112,9 @@ export default function CloudBackupScreen() {
       void flow.start({ kind: 'save', blob });
       return;
     }
-    await Share.share({ message: blob, title: t('backupShareTitle') });
+    const res = await Share.share({ message: blob, title: t('backupShareTitle') });
+    // Feuille de partage fermée sans rien enregistrer (iOS le dit) : aucune sauvegarde n'existe, on ne l'annonce pas.
+    if (res.action === Share.dismissedAction) return;
     markEncryptedBackup('file');
     setFileDone(true);
   };
