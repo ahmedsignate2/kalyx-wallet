@@ -83,6 +83,9 @@ const WALLET_ERROR_KEYS: Record<string, Key> = {
   INSUFFICIENT_GAS: 'errInsufficientGas',
   NO_RECOVERY_PHRASE: 'errNoRecoveryPhrase',
   WATCH_ONLY: 'errWatchOnly',
+  NOT_WHITELISTED: 'errNotWhitelisted',
+  WHITELIST_PENDING: 'errWhitelistPending',
+  WHITELIST_LOCKED: 'errWhitelistLocked',
   LAST_KEY_WALLET: 'errLastKeyWallet',
   INVALID_WATCH_ADDRESS: 'watchErrUnknown',
   BUMP_NOT_FOUND: 'errBumpNotFound',
@@ -107,6 +110,7 @@ function detailedWalletKey(code: string, meta: Record<string, string>): Key | nu
   if (code === 'AMOUNT_TOO_SMALL' && meta.min && meta.symbol) return 'errAmountTooSmallMin';
   if (code === 'INSUFFICIENT_GAS' && meta.need && meta.have && meta.gas) return 'errTonSwapGas';
   if (code === 'WRONG_ACCOUNT' && meta.address) return 'errWrongAccountAddr';
+  if (code === 'WHITELIST_PENDING' && meta.hours) return 'errWhitelistPendingHours';
   return null;
 }
 

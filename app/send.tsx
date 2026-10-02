@@ -615,8 +615,11 @@ function SendInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, hash]);
 
-  const goStep2 = () => {
+  /** Destinataire refusé par la liste blanche : on propose de l'y ajouter (utilisable après 24 h). */
+  const [wlBlocked, setWlBlocked] = useState(false);
+  const goStep2 = async () => {
     setAddressError(null);
+    setWlBlocked(false);
     if (!recipientOk) {
       technicalLogger.logTx('step_1_address_invalid', { input: to, isEns, chain: chain.name }, true);
       const fam = family === 'evm' ? t("errNeedEvmAddress") : family === 'solana' ? t("errNeedSolAddress") : family === 'ton' ? t("errNeedTonAddress") : t("errNeedBtcAddress");
@@ -625,6 +628,20 @@ function SendInner() {
     if (poisoning) {
       technicalLogger.logTx('step_1_address_poisoning_blocked', { recipient, chain: chain.name }, true);
       return; // bloquant, message déjà affiché
+    }
+    /*
+     * LISTE BLANCHE vérifiée DÈS le destinataire : refusé, on le dit tout de
+     * suite (et non après le montant et le code). Le verrou du magasin, avant
+     * signature, reste le dernier rempart.
+     */
+    try {
+      await (await import('../lib/whitelistStore')).assertRecipientAllowed(recipient);
+    } catch (e) {
+      if (isWalletError(e) && (e.code === 'NOT_WHITELISTED' || e.code === 'WHITELIST_PENDING')) {
+        setWlBlocked(e.code === 'NOT_WHITELISTED');
+        return setAddressError(friendlyTxError(e, t as never));
+      }
+      // Liste illisible ou réseau muet : le verrou d'envoi tranchera.
     }
     technicalLogger.logTx('step_1_address_validated', { recipient, isEns, chain: chain.name });
     haptic.light();
@@ -896,8 +913,11 @@ function SendInner() {
               </View>
             ) : null}
             {addressError ? <Text variant="caption" tone="danger">{addressError}</Text> : null}
+            {wlBlocked ? (
+              <Button label={t('wlAddFromSend')} variant="secondary" icon="security" onPress={() => router.push({ pathname: '/whitelist', params: { address: recipient } })} />
+            ) : null}
             <View style={{ flex: 1 }} />
-            <Button label={t("actionContinue")} onPress={goStep2} disabled={!recipientOk || !!poisoning} />
+            <Button label={t("actionContinue")} onPress={() => void goStep2()} disabled={!recipientOk || !!poisoning} />
           </FadeInUp>
         ) : null}
 

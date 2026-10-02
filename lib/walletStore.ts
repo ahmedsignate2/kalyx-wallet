@@ -297,7 +297,7 @@ interface WalletState {
   bumpBitcoin: (txid: string, unlock: Unlock, speed?: FeeSpeed) => Promise<string>;
   executeSwap: (quote: SwapQuote, unlock: Unlock, onStatus?: (s: SwapStatus) => void) => Promise<string>;
 
-  signSolanaTransaction: (unlock: Unlock, txStr: string, refreshBlockhash?: boolean) => Promise<string>;
+  signSolanaTransaction: (unlock: Unlock, txStr: string, refreshBlockhash?: boolean, opts?: { appFlow?: boolean }) => Promise<string>;
   signSolanaTransactions: (unlock: Unlock, txStrArray: string[]) => Promise<string[]>;
   signSolanaMessage: (unlock: Unlock, message: string) => Promise<{ signature: string }>;
   signBitcoinMessage: (unlock: Unlock, message: string, type?: 'ecdsa' | 'bip322') => Promise<string>;
@@ -307,7 +307,12 @@ interface WalletState {
   signMessage: (unlock: Unlock, message: string) => Promise<string>;
   /** `expectedChainId` : réseau de la demande ; un `domain.chainId` différent est refusé (rejeu sur un autre réseau). */
   signTypedData: (unlock: Unlock, typedData: { domain: unknown; types: Record<string, unknown>; message: unknown }, expectedChainId?: number) => Promise<string>;
-  sendRawTxOn: (unlock: Unlock, chainId: string, req: RawTxRequest) => Promise<string>;
+  /**
+   * Transaction EVM brute. FERMÉE sous liste blanche, sauf `appFlow` : un
+   * parcours construit par l'app vers les comptes de l'utilisateur (Earn,
+   * accélération, révocation). Les dApps n'ont pas ce drapeau.
+   */
+  sendRawTxOn: (unlock: Unlock, chainId: string, req: RawTxRequest, opts?: { appFlow?: boolean }) => Promise<string>;
   /**
    * RÉVOCATION GROUPÉE d'autorisations ERC-20 : une seule confirmation (code ou
    * biométrie), puis une transaction par autorisation, nonces consécutifs
@@ -1252,6 +1257,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     const wallets = [...get().wallets, { id, label: label?.trim() || '', avatar: randomAvatarId() }];
     await saveWalletsList(wallets);
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
+    // Liste blanche active : ce portefeuille ne sera « à toi » (destinataire libre) qu'après 24 h.
+    void (await import('./whitelistStore')).whitelistActions.noteNewWallet(id).catch(() => {});
     rememberActive(id, 0);
     return m; // à afficher pour sauvegarde
   },
@@ -1270,6 +1277,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     // Une phrase TON n'a d'adresse que sur TON : on bascule sur ce réseau.
     const chain = kind === 'ton' ? firstChainOfFamily('ton') : get().activeChain;
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, activeChain: chain, account: toAccount(accounts, 0, chain) });
+    // Liste blanche active : ce portefeuille ne sera « à toi » (destinataire libre) qu'après 24 h.
+    void (await import('./whitelistStore')).whitelistActions.noteNewWallet(id).catch(() => {});
     rememberActive(id, 0);
     await dropSupersededWatch(accounts, id);
     if (kind !== 'ton' && opts?.discover !== false) discoverAfterImport(id, m); // comptes 2, 3… déjà utilisés, en arrière-plan
@@ -1340,12 +1349,15 @@ export const useWallet = create<WalletState>((set, get) => ({
       activeChain: chain,
       account: toAccount(accounts, 0, chain),
     });
+    // Liste blanche active : ce portefeuille ne sera « à toi » (destinataire libre) qu'après 24 h.
+    void (await import('./whitelistStore')).whitelistActions.noteNewWallet(id).catch(() => {});
     rememberActive(id, 0);
     kvSet(K_ACTIVE_CHAIN, chain).catch(() => {});
     await dropSupersededWatch(accounts, id);
   },
 
   exportAllWallets: async (unlock) => {
+    await (await import('./whitelistStore')).assertSecretsExportable();
     const { wallets, activeWalletId } = get();
     /*
      * Le PIN est vérifié UNE FOIS, sur le portefeuille actif (ou, s'il est en lecture seule, un portefeuille à clé) : tous les coffres
@@ -1591,6 +1603,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     const { activeWalletId, wallets, account } = get();
     if (!account) throw new Error('Aucun compte');
 
+    // LISTE BLANCHE : dernier verrou avant toute signature d'envoi, quel que soit l'écran.
+    await (await import('./whitelistStore')).assertRecipientAllowed(request.to);
     const draft = await adapter.prepareSend(from, request);
     // Dernier verrou, quel que soit l'écran : un dépôt sans le commentaire exigé est perdu.
     if (draft.warnings.some((w) => w.code === 'MEMO_REQUIRED')) {
@@ -1839,7 +1853,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       // Blockhash rafraîchi à la signature (un devis peut dater de >60 s), puis
       // simulation OBLIGATOIRE → envoi → attente de confirmation : on ne dit
       // « swap exécuté » que si Solana a confirmé.
-      const signedTxStr = await get().signSolanaTransaction(unlock, quote.tx.data, true);
+      const signedTxStr = await get().signSolanaTransaction(unlock, quote.tx.data, true, { appFlow: true }); // échange construit par l'app
       return submitSolanaSigned(signedTxStr, (st) => onStatus?.(st === 'sending' ? 'swapping' : 'confirming'));
     } else {
       throw new Error(`Swap impossible: type de transaction (${(quote.tx as any).type}) incompatible avec le réseau actif`);
@@ -1847,7 +1861,8 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
 
-  signSolanaTransaction: async (unlock, txStr, refreshBlockhash = false) => {
+  signSolanaTransaction: async (unlock, txStr, refreshBlockhash = false, opts) => {
+    if (!opts?.appFlow) await (await import('./whitelistStore')).assertDappAllowed(); // fermé par défaut (dApps)
     const { account } = get();
     if (!account) throw new Error('Aucun compte');
     /*
@@ -1892,6 +1907,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signSolanaTransactions: async (unlock, txStrArray) => {
+    await (await import('./whitelistStore')).assertDappAllowed(); // demandé par des dApps seulement : fermé sous liste blanche
     const res: string[] = [];
     for (const tx of txStrArray) {
       res.push(await get().signSolanaTransaction(unlock, tx));
@@ -1900,6 +1916,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signSolanaMessage: async (unlock, message) => {
+    await (await import('./whitelistStore')).assertDappAllowed(); // un message signé peut autoriser un transfert
     const { account } = get();
     if (!account) throw new Error('Aucun compte');
     const signer = await get().deriveSigner(getAdapterV2('solana'), unlock);
@@ -1922,6 +1939,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signBitcoinMessage: async (unlock, message, type = 'ecdsa') => {
+    await (await import('./whitelistStore')).assertDappAllowed(); // un message signé peut autoriser un transfert
     const { account } = get();
     if (!account) throw new Error('Aucun compte');
 
@@ -1940,6 +1958,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signBitcoinPsbt: async (unlock, psbtBase64, options) => {
+    await (await import('./whitelistStore')).assertDappAllowed(); // demandé par des dApps seulement : fermé sous liste blanche
     const { account } = get();
     if (!account) throw new Error('Aucun compte');
     const signer = await get().deriveSigner(getAdapterV2('bitcoin'), unlock);
@@ -1977,6 +1996,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signMessage: async (unlock, message) => {
+    await (await import('./whitelistStore')).assertDappAllowed(); // un message signé peut autoriser un transfert
     const { account, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const pk = await revealEvmSigningKey(wallets, activeWalletId, account.index, unlock);
@@ -1985,6 +2005,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signTypedData: async (unlock, typedData, expectedChainId) => {
+    await (await import('./whitelistStore')).assertDappAllowed(); // demandé par des dApps seulement : fermé sous liste blanche
     const { account, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     /*
@@ -2014,7 +2035,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     );
   },
 
-  sendRawTxOn: async (unlock, chainId, req) => {
+  sendRawTxOn: async (unlock, chainId, req, opts) => {
+    if (!opts?.appFlow) await (await import('./whitelistStore')).assertDappAllowed(); // fermé par défaut
     const { account, accounts, activeAccountIndex, activeWalletId, wallets } = get();
     if (!account) throw new Error('Aucun compte');
     const adapter = getAdapter(chainId);
@@ -2182,6 +2204,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   revealPhrase: async (unlock) => {
+    await (await import('./whitelistStore')).assertSecretsExportable(); // liste blanche en vigueur : pas d'export des secrets
     const { activeWalletId, wallets } = get();
     if (isPrivateKeyWallet(wallets, activeWalletId)) {
       throw new WalletError('NO_RECOVERY_PHRASE', 'Ce portefeuille a été importé par clé privée : il n’a pas de phrase de récupération.');
@@ -2190,6 +2213,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   exportPrivateKey: async (unlock) => {
+    await (await import('./whitelistStore')).assertSecretsExportable();
     const { activeWalletId, wallets, account } = get();
     if (isWatchWallet(wallets, activeWalletId)) throw new WalletError('WATCH_ONLY', 'Portefeuille en lecture seule : aucune clé à exporter.');
     if (!account) throw new Error('Aucun compte');
@@ -2273,6 +2297,8 @@ export const useWallet = create<WalletState>((set, get) => ({
       new Promise((r) => setTimeout(r, 10_000)),
     ]);
     await wipeAll(get().wallets);
+    // La liste blanche part avec les portefeuilles (un nouvel utilisateur repart de zéro).
+    await import('./whitelistStore').then((m) => m.whitelistActions.wipe()).catch(() => {});
     // Une recherche des comptes en cours appartenait à l'ancien portefeuille (l'id « primary » sera réutilisé).
     void import('./runDiscovery').then((m) => m.clearDiscoveries()).catch(() => {});
     // Le portefeuille et le compte mémorisés n'ont plus d'objet : les laisser

@@ -53,6 +53,12 @@ export type WalletErrorCode =
   | 'INSUFFICIENT_GAS'
   /** Portefeuille importé par clé privée : aucune phrase à montrer ni sauvegarder. */
   | 'NO_RECOVERY_PHRASE'
+  /** Liste blanche active : ce destinataire n'y figure pas. */
+  | 'NOT_WHITELISTED'
+  /** Liste blanche : destinataire ajouté, encore dans son délai de sûreté de 24 h. */
+  | 'WHITELIST_PENDING'
+  /** Liste blanche en vigueur : dApps et export des secrets fermés (désactivation : 24 h). */
+  | 'WHITELIST_LOCKED'
   /** Portefeuille en lecture seule : aucune clé, rien ne peut être signé. */
   | 'WATCH_ONLY'
   /** Supprimer ce portefeuille ne laisserait que des lectures seules : plus aucun coffre pour le code. */
