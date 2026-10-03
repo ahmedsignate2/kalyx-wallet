@@ -1,5 +1,17 @@
 # 3. Architecture technique
 
+> **Écarts avec le plan d'origine** (état réel, octobre 2026) :
+> - Pas de TanStack Query ni de SQLite/MMKV : l'état et les caches sont dans des stores
+>   **Zustand** persistés (AsyncStorage pour le non-secret, SecureStore pour le secret ;
+>   IndexedDB chiffré côté web).
+> - Dérivation Ed25519 maison en **SLIP-0010** (`src/crypto/slip10.ts`), partagée par
+>   Solana et TON — pas de `ed25519-hd-key`.
+> - **TON** a rejoint EVM, Bitcoin et Solana (voir [10-TON.md](10-TON.md)).
+> - Un **tableau de bord web** (`ui/web/`, aussi mini-app Telegram) réutilise le moteur
+>   et les stores, sans jamais détenir de clé : il demande les signatures au téléphone
+>   par WalletConnect.
+> - Pas de mise à jour à distance (OTA) : chaque version est un APK construit sur EAS.
+
 ## 3.1 Stack
 
 | Couche | Choix | Pourquoi |
@@ -37,9 +49,10 @@ Une **seule seed BIP-39** → un master seed → dérivation par chaîne :
 
 | Chaîne | Chemin | Type d'adresse |
 |--------|--------|----------------|
-| Ethereum / BNB / Polygon | `m/44'/60'/0'/0/0` | Adresse EVM `0x...` (identique pour les 3) |
-| Bitcoin (SegWit natif) | `m/84'/0'/0'/0/0` | `bc1...` |
-| Solana | `m/44'/501'/0'/0'` | base58, courbe Ed25519 |
+| Tous les réseaux EVM (62) | `m/44'/60'/0'/0/i` | Adresse EVM `0x...` (identique partout) |
+| Bitcoin (SegWit natif) | `m/84'/0'/0'/0/i` | `bc1...` |
+| Solana | `m/44'/501'/i'/0'` | base58, courbe Ed25519 (SLIP-0010) |
+| TON | `m/44'/607'/0'` (ou phrase TON native) | adresse de wallet v4/v5, Ed25519 (SLIP-0010) |
 
 **Point clé :** ETH, BNB Chain et Polygon = **même clé, même adresse**. Seul le **RPC** (le réseau interrogé) change. C'est ce qui rend le MVP EVM si rentable : 3 chaînes pour le prix d'une.
 
@@ -85,6 +98,10 @@ interface ChainAdapter {
 - Phase 1-2 : `EvmAdapter` (paramétré par RPC + chainId).
 - Phase 3 : `BitcoinAdapter` (modèle UTXO).
 - Phase 4 : `SolanaAdapter` (Ed25519 + SPL).
+- Ajout : `TonChainAdapter` / `TonAdapterV2` (jettons, staking Tonstakers, TON Connect).
+
+Implémentation réelle : `src/domain/chains/` (`EvmChainAdapter`, `BitcoinChainAdapter`,
+`SolanaChainAdapter`, `TonChainAdapter`, et la génération `v2/`).
 
 ## 3.6 Backend ?
 
@@ -92,4 +109,10 @@ interface ChainAdapter {
 - aux **RPC** des chaînes (Alchemy/Infura pour EVM, mempool.space pour BTC, RPC Solana),
 - à des **API de données** en lecture seule (CoinGecko pour les prix, indexeurs pour l'historique).
 
-Ces services ne voient **jamais** de clé — seulement des **adresses publiques**. Un éventuel backend futur ne servirait qu'à des données non sensibles (notifications, prix), jamais à la custody.
+Ces services ne voient **jamais** de clé — seulement des **adresses publiques**.
+
+Services Kalyx existants (Cloudflare), tous **sans aucune clé** :
+- **`web/`** — site kalyxwallet.com et relais de paiement ;
+- **`ton-proxy/`** — proxy TonAPI (la clé TonAPI reste côté serveur, routes en liste blanche) ;
+- **`bot/`** — bot Telegram : ne garde que l'identifiant Telegram, la langue et les alertes de prix ;
+- **app.kalyxwallet.com** — tableau de bord web statique (`ui/web/`), signatures relayées au téléphone.

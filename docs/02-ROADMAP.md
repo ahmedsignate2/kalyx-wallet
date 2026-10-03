@@ -2,6 +2,26 @@
 
 Chaque phase est **livrable et testable** seule. On ne passe à la suivante qu'une fois la précédente stable. La règle : **la sécurité et le socle crypto d'abord, le multi-chain ensuite, le confort à la fin.**
 
+## État au 3 octobre 2026 — bêta ouverte
+
+| Phase | État | Réalisé |
+|---|---|---|
+| 1 — Socle & EVM | ✅ | Seed BIP-39, coffre chiffré (scrypt + AES-256-GCM), PIN + biométrie, envoi/réception |
+| 2 — Multi-EVM, tokens, historique | ✅ | 62 réseaux EVM, ERC-20, historique filtrable + CSV, Anti-Drainer (simulation), GoPlus |
+| 3 — Bitcoin | ✅ | BIP-84, UTXO, RBF, BIP-21 |
+| 4 — Solana | ✅ | SLIP-0010, SPL, Solana Pay |
+| + TON (hors plan initial) | ✅ | Adresses et dérivation natives, jettons, TON Connect, STON.fi, Tonstakers — voir [10-TON.md](10-TON.md) |
+| 5 — Confort & durcissement | 🟡 | Multi-portefeuilles, lecture seule, mode Débutant/Expert, **code de contrainte (portefeuille leurre)** à la place du « wallet caché », alertes de prix, contacts, liste blanche, 15 langues. **Reste : audit externe.** |
+| 6 — Écosystème | ✅ | Swap/bridge (LI.FI, Jupiter, STON.fi), Gagner (Lido, Rocket Pool, Benqi, Jito, Marinade, Aave, Tonstakers) |
+| 7 — Services régulés | ⬜ | Non commencé (volontairement) |
+| 8 — Multi-plateforme | 🟡 | Tableau de bord web + mini-app Telegram (signés sur le téléphone). Pas d'extension ni d'app desktop. |
+| 9 — Sécurité avancée | ⬜ | Wallets matériels, multisig, ERC-4337 : à venir |
+| 10 — Intelligence | 🟡 | Explication de chaque signature, analyse de risque, Copilote IA (fournisseur au choix de l'utilisateur, clé personnelle — pas encore local) |
+
+Distribution : APK construit sur EAS et publié sur [kalyx-wallet-release](https://github.com/ahmedsignate2/kalyx-wallet-release) ; pas de mise à jour à distance (OTA).
+
+Le reste de ce document est le plan d'origine, conservé tel quel.
+
 ---
 
 ## Phase 1 — Socle sécurisé & wallet EVM (= le MVP)

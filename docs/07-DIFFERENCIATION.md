@@ -1,5 +1,8 @@
 # 7. Différenciation — « pourquoi quitter MetaMask »
 
+> 📌 **Document de cadrage d'origine**, conservé pour l'historique des décisions.
+> État réel du projet : [README](../README.md) et le tableau d'avancement de [02-ROADMAP.md](02-ROADMAP.md).
+
 Objectif : ne pas faire « MetaMask avec un autre logo », mais apporter ce que les wallets classiques n'ont pas, **sans jamais casser le modèle non-custodial**. Chaque idée est classée par compatibilité avec ce modèle, puis placée dans la roadmap.
 
 ## 7.1 Le classement (le plus important)
@@ -14,7 +17,7 @@ Aucun serveur ne voit de clé, aucune contrainte réglementaire. **C'est là qu'
 | **Vérification de contrats suspects** | Prévenir les scams token/approval | Réputation de contrat (bases publiques), détection d'approvals dangereux, honeypots. |
 | **Multi-wallets en un clic** | Créer/gérer plusieurs comptes facilement | Dérivation d'index HD supplémentaires (`.../0/1`, `.../0/2`…) sur la même seed. |
 | **Mode débutant / expert** | Simplicité pour les néophytes, contrôle pour les pros | Toggle qui masque/affiche gas avancé, nonce, hex data, réseaux de test. |
-| **Wallet caché (2e PIN)** ⭐ | Déni plausible, façon passphrase Ledger | Une seed « leurre » sous le PIN principal, une seed cachée sous un 2e PIN. Chiffrement séparé. |
+| **Wallet caché (2e PIN)** ⭐ | Déni plausible, façon passphrase Ledger | Une seed « leurre » sous le PIN principal, une seed cachée sous un 2e PIN. Chiffrement séparé. **Réalisé sous la forme du code de contrainte** : un 2e code ouvre un portefeuille leurre (`app/duress.tsx`, `lib/decoyCurtain.ts`). |
 | **Alertes de prix** | Rétention, engagement | Seuils définis par l'utilisateur ; notifications locales (ou push via un service ne voyant que des symboles, jamais de clé). |
 | **UI ultra-fluide façon Revolut** | La première impression | Design system maison + Reanimated. Transversal. |
 

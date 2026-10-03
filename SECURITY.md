@@ -27,12 +27,16 @@ authentication tokens in a report — real or test. We will never ask for them.
 
 In scope:
 - The mobile app (`app/`, `lib/`, `src/`, `ui/`): key generation and storage,
-  PIN/biometrics, signing, WalletConnect handling, transaction simulation,
-  address-poisoning detection, backups.
+  PIN/biometrics, signing, WalletConnect and TON Connect handling, the
+  in-app dApp browser, transaction simulation, address-poisoning detection,
+  duress code / decoy wallet, recipient whitelist, backups.
 - The web dashboard `app.kalyxwallet.com` (`ui/web/`, `lib/webConnect.ts`,
   `public/_headers`): session handling, CSP, storage encryption, request
   forwarding to the phone.
 - The Telegram bot (`bot/`): webhook authentication, input handling.
+- The TonAPI proxy (`ton-proxy/`).
+- The release pipeline (`.eas/workflows/release-production.yml`,
+  `scripts/publish-release.mjs`): integrity of the published APK.
 - The marketing site `kalyxwallet.com` (`web/`).
 
 Out of scope:
@@ -58,7 +62,20 @@ to other users' data, no service disruption) will not be met with legal action.
 - No Kalyx server, no account, no remote session. Backups are encrypted
   client-side before any export.
 - Every signature is shown in plain language and approved on the phone.
-- Address-poisoning detection and transaction simulation before every send.
+- Address-poisoning detection and transaction simulation before every send;
+  hold-to-send confirmation.
+- PIN brute-force lockout based on both wall-clock and monotonic time (changing
+  the system clock does not shorten it).
+- **Duress code**: a second code opens a decoy wallet; the real wallets,
+  contacts, history and sessions are wiped from memory and storage is made
+  read-only for the decoy session.
+- **Recipient whitelist**: when enabled, sends and dApp signatures go only to
+  approved addresses; adding an address or disabling the list takes effect
+  after 24 hours.
+- **No over-the-air updates**: the app runs only the code shipped in the
+  installed APK (`expo-updates` is not included). Every release is built on
+  EAS and published with its SHA-256 checksum
+  (`sha256sum -c kalyx-wallet.apk.sha256`).
 
 ### Web dashboard (app.kalyxwallet.com) — threat model
 
@@ -79,6 +96,9 @@ Hardening in place (`public/_headers`, `lib/kv.web.ts`, `ui/web/platform.ts`,
   `Permissions-Policy`, COOP/CORP.
 - Least-privilege WalletConnect session: only `eth_sendTransaction`,
   `solana_signTransaction` and Bitcoin `sendTransfer` are requested.
+- Test networks (Sepolia, Base Sepolia, Monad Testnet, Solana Devnet) are
+  shared with the dashboard only if the user shows them in the app; the phone
+  refuses any request targeting a network that was not granted to the session.
 - IndexedDB values encrypted at rest (AES-256-GCM, non-extractable WebCrypto
   key).
 - Session cut after 30 min without interaction; balances auto-masked after
@@ -91,4 +111,6 @@ chose.
 
 ## Supported versions
 
-Only the latest release published on the releases page receives fixes.
+Only the latest release published on
+[kalyx-wallet-release](https://github.com/ahmedsignate2/kalyx-wallet-release/releases/latest)
+receives fixes. The app is currently in **open beta**.
