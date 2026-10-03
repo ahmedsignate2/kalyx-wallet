@@ -149,6 +149,7 @@ export function parseCoinDetail(json: unknown, vs: string, lang = 'en'): CoinDet
     market_data?: {
       current_price?: Record<string, number>;
       price_change_percentage_24h?: number;
+      price_change_percentage_24h_in_currency?: Record<string, number>;
       market_cap?: Record<string, number>;
       total_volume?: Record<string, number>;
       ath?: Record<string, number>;
@@ -169,7 +170,8 @@ export function parseCoinDetail(json: unknown, vs: string, lang = 'en'): CoinDet
     name: c.name ?? c.id,
     image: c.image?.large ?? c.image?.small ?? '',
     price: c.market_data?.current_price?.[vs] ?? 0,
-    change24h: c.market_data?.price_change_percentage_24h ?? 0,
+    // Variation DANS LA DEVISE demandée (celle à plat est en USD : en EUR, elle contredisait la courbe).
+    change24h: c.market_data?.price_change_percentage_24h_in_currency?.[vs] ?? c.market_data?.price_change_percentage_24h ?? 0,
     marketCap: c.market_data?.market_cap?.[vs] ?? 0,
     volume24h: c.market_data?.total_volume?.[vs] ?? 0,
     ath: c.market_data?.ath?.[vs] ?? 0,
@@ -243,8 +245,9 @@ function cacheGet<T>(key: string): T | undefined {
   const hit = cache.get(key);
   return hit && Date.now() - hit.ts < cacheTtlFor(key) ? (hit.value as T) : undefined;
 }
-function cacheGetStale<T>(key: string): T | undefined {
-  return cache.get(key)?.value as T | undefined;
+function cacheGetStale<T>(key: string, maxAgeMs = Infinity): T | undefined {
+  const hit = cache.get(key);
+  return hit && Date.now() - hit.ts <= maxAgeMs ? (hit.value as T) : undefined;
 }
 function cacheSet<T>(key: string, value: T): void {
   cache.set(key, { value, ts: Date.now() });
@@ -326,11 +329,22 @@ function headers(): Record<string, string> {
   return KEY ? { 'x-cg-demo-api-key': KEY } : {};
 }
 
-export async function getPrices(ids: string[], vs = 'eur'): Promise<Record<string, CoinPrice>> {
+/**
+ * Prix au comptant. En cas d'échec, le dernier prix connu sert de repli —
+ * pour l'AFFICHAGE. `maxStaleMs` borne ce repli pour ce qui DÉCIDE (alertes) :
+ * un prix d'il y a une semaine relu du disque déclenchait une alerte à tort.
+ */
+export async function getPrices(ids: string[], vs = 'eur', opts?: { maxStaleMs?: number }): Promise<Record<string, CoinPrice>> {
   if (ids.length === 0) return {};
   const key = `prices:${vs}:${[...ids].sort().join(',')}`;
   const cached = cacheGet<Record<string, CoinPrice>>(key);
   if (cached) return cached;
+  const maxStale = opts?.maxStaleMs ?? Infinity;
+  // Une seule requête par clé à la fois (portefeuille, alertes, tableau de bord demandent souvent la même).
+  return once(`${key}|${maxStale}`, () => fetchPrices(ids, vs, key, maxStale));
+}
+
+async function fetchPrices(ids: string[], vs: string, key: string, maxStale: number): Promise<Record<string, CoinPrice>> {
   try {
     const res = await withTimeout(
       fetch(url(`/simple/price?ids=${ids.join(',')}&vs_currencies=${vs}&include_24hr_change=true`), { headers: headers() }),
@@ -341,10 +355,10 @@ export async function getPrices(ids: string[], vs = 'eur'): Promise<Record<strin
     if (!res.ok) console.warn('[coingecko] getPrices HTTP', res.status, json);
     const parsed = parseSimplePrices(json, vs);
     if (Object.keys(parsed).length > 0) cacheSet(key, parsed);
-    return Object.keys(parsed).length > 0 ? parsed : cacheGetStale(key) ?? {};
+    return Object.keys(parsed).length > 0 ? parsed : cacheGetStale(key, maxStale) ?? {};
   } catch (e) {
     console.warn('[coingecko] getPrices failed', e);
-    return cacheGetStale(key) ?? {};
+    return cacheGetStale(key, maxStale) ?? {};
   }
 }
 
