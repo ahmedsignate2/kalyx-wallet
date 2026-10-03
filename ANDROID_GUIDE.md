@@ -1,153 +1,137 @@
-# 📱 Lancer Kalyx Wallet sur Android — guide simple
+# 📱 Kalyx Wallet sur Android — guide
 
-> Objectif : voir l'app tourner sur ton téléphone et tester le flux complet
-> **welcome → seed → backup → PIN → home → receive/send** sur Sepolia.
->
-> ⚠️ Cette app utilise des modules natifs (SecureStore, biométrie, anti-capture,
-> crypto). **Expo Go ne suffit pas** : il faut un **dev build** (une app de dev
-> installée sur le téléphone). Deux chemins possibles ci-dessous — choisis selon
-> ce que tu as.
+Trois façons d'avoir l'app sur un téléphone, de la plus simple à la plus technique :
 
----
+| Je veux… | Chemin |
+|---|---|
+| **Utiliser / tester** la bêta | [1. Installer l'APK publié](#1-installer-lapk-publié) |
+| **Développer** et voir mes changements | [2. Build de développement](#2-build-de-développement-local) |
+| **Construire et publier** une version | [3. Builds EAS et releases](#3-builds-eas-et-releases) |
 
-## 0. Prérequis communs
-
-- **Node.js 18+** et npm (déjà le cas ici : Node 20).
-- Un **compte Expo** gratuit → https://expo.dev/signup (nécessaire pour le dev build cloud).
-- Ton **téléphone Android** avec le **mode développeur** activé :
-  Réglages → À propos → appuie 7× sur « Numéro de build » → puis
-  Réglages → Options développeur → active **Débogage USB**.
+> L'app utilise des modules natifs (SecureStore, biométrie, anti-capture, caméra,
+> crypto). **Expo Go ne suffit pas** : il faut un APK Kalyx (publié, ou construit
+> par vous).
 
 ---
 
-## 1. Installer les dépendances (une seule fois)
+## 1. Installer l'APK publié
 
-Depuis le dossier du projet :
+1. Sur le téléphone, ouvrez [kalyxwallet.com/download](https://kalyxwallet.com/download)
+   (dernière release de [kalyx-wallet-release](https://github.com/ahmedsignate2/kalyx-wallet-release/releases/latest)).
+2. Autorisez « Installer des applis inconnues » pour le navigateur quand Android le demande.
+3. Facultatif mais recommandé — vérifiez le fichier avant de l'installer :
+   ```bash
+   sha256sum -c kalyx-wallet.apk.sha256
+   ```
+
+Il n'y a **pas de mise à jour à distance** : une nouvelle version = un nouvel APK
+à installer par-dessus (les portefeuilles sont conservés).
+
+---
+
+## 2. Build de développement (local)
+
+### Prérequis
+- **Node.js 20** et npm.
+- **Android Studio** (SDK Android, Gradle, émulateur) → https://developer.android.com/studio
+- `ANDROID_HOME` défini (Android Studio l'affiche dans SDK Manager) :
+  ```bash
+  export ANDROID_HOME=$HOME/Android/Sdk
+  export PATH=$PATH:$ANDROID_HOME/platform-tools
+  ```
+- Un émulateur (Device Manager → Create device) **ou** un téléphone en
+  **débogage USB** (Réglages → À propos → 7 appuis sur « Numéro de build », puis
+  Options développeur → Débogage USB).
+
+### Lancer
 
 ```bash
-npm install
-
-# Ajoute Expo, puis laisse Expo choisir les versions compatibles des modules :
-npx expo install expo react react-native react-dom \
-  expo-router expo-status-bar expo-constants expo-linking \
-  react-native-safe-area-context react-native-screens \
-  expo-secure-store expo-local-authentication expo-screen-capture \
-  expo-linear-gradient expo-clipboard \
-  react-native-qrcode-svg react-native-svg \
-  react-native-get-random-values
-
-npm install zustand
-
-# Aligne toutes les versions sur le SDK Expo installé (corrige les écarts) :
-npx expo install --fix
+npm ci
+cp .env.example .env          # renseigner au minimum ALCHEMY, WALLETCONNECT_ID
+npx expo run:android          # compile, installe et démarre l'app
 ```
 
-> `expo install` (au lieu de `npm install`) est important : il pose les
-> **versions compatibles** avec ton SDK Expo. `--fix` corrige tout écart restant.
+Ensuite, pour recharger le JavaScript sans recompiler :
 
----
-
-## 2. Deux chemins pour lancer
-
-### 🟢 Chemin A — tu as (ou peux installer) Android Studio
-
-C'est le plus direct si tu es sur un PC/Mac.
-
-1. Installe **Android Studio** → https://developer.android.com/studio
-   (il fournit le SDK Android, un émulateur, et Gradle).
-2. Ouvre-le une fois, laisse-le installer le **SDK** + crée un **émulateur**
-   (Device Manager → Create device), OU branche ton téléphone en USB.
-3. Vérifie la variable d'env `ANDROID_HOME` (Android Studio l'affiche dans
-   SDK Manager). Sur Linux/macOS, ajoute à ton shell :
-   ```bash
-   export ANDROID_HOME=$HOME/Android/Sdk
-   export PATH=$PATH:$ANDROID_HOME/platform-tools
-   ```
-4. Lance :
-   ```bash
-   npx expo run:android
-   ```
-   → compile un **dev build**, l'installe sur l'émulateur/téléphone, et démarre.
-
-Ensuite, pour recharger le code sans recompiler :
 ```bash
-npm start        # = expo start
+npm start
 ```
 
-### 🔵 Chemin B — PAS d'Android Studio / tu es sur Termux ou Linux minimal
+Il ne faut **recompiler** (`npx expo run:android`) qu'après un changement natif :
+nouvelle dépendance native, `app.config.ts`, plugin Expo.
 
-Ici on **ne compile pas en local** (Termux/Linux léger ne sont pas adaptés pour
-builder un APK Android — il faut le SDK Android + Gradle + JDK, lourd et pénible).
-On utilise le **build cloud EAS** : Expo compile l'APK pour toi, tu l'installes
-sur ton téléphone.
+### Tester sans risque : les réseaux de test
 
-1. Installe l'outil EAS et connecte-toi :
-   ```bash
-   npm install -g eas-cli
-   eas login
-   ```
-2. Lance le build **development** (dev client) dans le cloud :
-   ```bash
-   eas build --profile development --platform android
-   ```
-   (le profil `development` est déjà défini dans `eas.json`.)
-3. À la fin, EAS te donne un **lien**. Ouvre-le sur ton téléphone et
-   **installe l'APK** (autorise « installer depuis cette source »).
-4. Démarre le serveur de dev et connecte le téléphone :
-   ```bash
-   npm start -- --tunnel
-   ```
-   Ouvre l'app **Kalyx Wallet (dev)** installée, elle se connecte au serveur
-   (le `--tunnel` évite les soucis de même réseau Wi-Fi).
-
-> 💡 Sur **Termux** : garde Termux pour lancer `npm start -- --tunnel`. Le build
-> lui-même se fait dans le cloud (EAS), donc pas besoin d'Android SDK local.
+1. Créez un portefeuille (Bienvenue → Créer), notez et vérifiez la phrase, choisissez un PIN.
+2. Réseaux → **Afficher les réseaux de test**.
+3. Récupérez des jetons sur un faucet (Sepolia, Base Sepolia, Solana Devnet, TON Testnet).
+4. L'accueil affiche une section **Réseaux de test** (sans valeur, hors du total) ;
+   Envoyer propose un onglet **Testnet**.
 
 ---
 
-## 3. Tester le flux complet (checklist)
+## 3. Builds EAS et releases
 
-Une fois l'app ouverte :
+Les builds de distribution se font **sur EAS** (serveurs Expo), pas en local.
 
-1. **Welcome** → « Créer un wallet ».
-2. **Backup** → tes **12 mots** s'affichent. Sur Android, la **capture d'écran
-   est bloquée** (normal). Écris-les sur papier → « J'ai noté ma phrase ».
-3. **Verify** → sélectionne les **3 mots** demandés aux bonnes positions.
-4. **Set-PIN** → choisis un PIN (min 6 chiffres, évite 123456/000000),
-   confirme-le. Active la **biométrie** si proposée.
-5. **Home** → tu vois ton **adresse** et le **solde Sepolia** (0 au début).
-   - Copie ton adresse (tap dessus).
-   - Va sur un **faucet Sepolia** (ex. https://sepoliafaucet.com ou
-     https://www.alchemy.com/faucets/ethereum-sepolia), colle ton adresse,
-     reçois des ETH de test.
-   - Reviens et **tire vers le bas** (pull-to-refresh) → le solde se met à jour.
-6. **Receive** → vérifie le **QR code** + copie de l'adresse.
-7. **Send** → colle une adresse (tu peux t'envoyer à toi-même), un petit montant,
-   ton **PIN**, puis confirme. Tu obtiens un **hash de transaction**.
-8. **Verrouillage** → ferme complètement l'app et rouvre-la → l'écran
-   **Unlock** demande la **biométrie**, sinon le **PIN**.
+### Profils (`eas.json`)
 
-Si tout ça marche, le rez-de-chaussée existe : on pourra monter Bitcoin. 🙂
+| Profil | Sortie | Version | Usage |
+|---|---|---|---|
+| `preview` | APK | 0.1.0 | Testeurs |
+| `production-apk` | APK | 1.0.0 | Release publique |
+| `production` | AAB | 1.0.0 | Play Store |
+
+Les clés d'API (`EXPO_PUBLIC_*`) viennent des **variables d'environnement EAS**
+(expo.dev → projet → Environment variables), environnement `preview` ou `production`.
+
+### Publier une release (automatique)
+
+Le workflow [`.eas/workflows/release-production.yml`](.eas/workflows/release-production.yml)
+construit l'APK `production-apk` puis, **dès la fin du build**, le publie sur
+[kalyx-wallet-release](https://github.com/ahmedsignate2/kalyx-wallet-release)
+(`kalyx-wallet.apk` + `kalyx-wallet.apk.sha256`).
+
+```bash
+git push origin main:release                         # déclenche le workflow
+# ou, à la main :
+npx eas-cli workflow:run release-production.yml
+```
+
+Pré-requis (une fois) sur expo.dev :
+- **Project settings → GitHub** : relier `ahmedsignate2/kalyx-wallet` ;
+- **Environment variables → production** : `GH_RELEASE_TOKEN` (visibilité *Secret*),
+  jeton GitHub *fine-grained* limité à `kalyx-wallet-release`, permission
+  **Contents: Read and write**.
+
+La release est marquée comme la dernière : [kalyxwallet.com/download](https://kalyxwallet.com/download)
+la sert immédiatement.
+
+### Bêta ou stable
+
+`EXPO_PUBLIC_APP_STAGE` (dans `eas.json`) vaut **`beta`** en production pendant la
+bêta ouverte : badge Bêta et avertissement à l'accueil. Pour la sortie définitive,
+le passer à `stable`.
+
+### Build manuel (sans publication)
+
+```bash
+npx eas-cli login
+npx eas-cli build --profile production-apk --platform android
+```
+
+EAS donne un lien de téléchargement de l'APK à la fin.
 
 ---
 
-## 4. Dépannage rapide
+## 4. Dépannage
 
-| Symptôme | Cause probable / solution |
-|----------|---------------------------|
-| `expo run:android` : « SDK location not found » | `ANDROID_HOME` non défini → voir chemin A, étape 3. |
-| Écran blanc au démarrage | Vérifie que `index.js` importe bien `./polyfills` en premier (déjà le cas). Relance `npm start -c` (cache vidé). |
-| « crypto.getRandomValues not supported » | `react-native-get-random-values` non installé → refais l'étape 1. |
-| Le solde ne s'affiche pas | RPC public Sepolia lent → réessaie, ou mets une clé Alchemy dans `src/domain/chains/configs.ts`. |
-| Biométrie absente | Normal sur émulateur sans empreinte configurée → utilise le PIN. |
-| Build EAS échoue | Vérifie que tu es bien loggé (`eas whoami`) et que `app.config.ts` a bien un `android.package` (c'est le cas : `com.kalyx.wallet`). |
-
----
-
-## 5. Important
-
-- On teste **sur Sepolia (testnet)** : les fonds n'ont **aucune valeur réelle**,
-  zéro risque. Ne mets jamais de vrais fonds avant l'audit (cf. `SECURITY.md`).
-- La couche moteur (`src/`) est déjà **testée** (54 tests). Ce guide sert à
-  vérifier la **couche UI** sur un vrai appareil — c'est là que les problèmes
-  d'ergonomie apparaissent.
+| Symptôme | Piste |
+|---|---|
+| `expo run:android` : « SDK location not found » | `ANDROID_HOME` non défini (voir §2). |
+| Écran blanc au démarrage | `npm start -c` (vider le cache Metro). `index.js` doit importer `./polyfills` en premier (c'est le cas). |
+| Soldes ou historique vides | Clés manquantes dans `.env` (Alchemy, Etherscan, Helius) — l'app reste utilisable, ces écrans restent vides. |
+| Biométrie absente | Normal sur un émulateur sans empreinte : utiliser le PIN. |
+| Workflow EAS : « An Expo user account is required » | Lancer depuis expo.dev (dépôt relié) ou se connecter avec `npx eas-cli login`. |
+| Publication : `GH_RELEASE_TOKEN manquant` / HTTP 401-403 | Variable absente de l'environnement `production`, ou jeton sans droit d'écriture sur `kalyx-wallet-release`. |
+| Publication : HTTP 422 | Cette version (`v<version>-<build>`) est déjà publiée. |

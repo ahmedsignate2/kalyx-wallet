@@ -65,11 +65,15 @@ C'est **le document le plus important**. Dans un wallet non-custodial, une seule
 
 ## 5.8 Checklist avant toute mise en prod
 
-- [ ] Aucun `console.log` de secret (vérifié par lint + CI).
-- [ ] Preuve réseau : aucune requête ne contient de clé/seed.
-- [ ] Seed exportée = mêmes adresses qu'un wallet de référence (MetaMask).
-- [ ] Écrans seed protégés contre capture d'écran.
-- [ ] Brute-force PIN limité et testé.
-- [ ] Auto-lock + verrouillage arrière-plan testés.
-- [ ] `npm audit` propre, dépendances crypto épinglées et vérifiées.
+État au 3 octobre 2026 (bêta ouverte) :
+
+- [x] Aucun `console.log` de secret — garde CI « Anti-log de secret ».
+- [ ] Preuve réseau : aucune requête ne contient de clé/seed (à faire avec un proxy d'inspection).
+- [x] Seed exportée = mêmes adresses qu'un wallet de référence — vecteurs de test dans `src/crypto/*.test.ts`.
+- [x] Écrans seed protégés contre capture d'écran (`useNoScreenCapture`).
+- [x] Brute-force PIN limité et testé (horloge murale + monotone, `lib/walletPinLockout.test.ts`).
+- [x] Auto-lock + verrouillage arrière-plan (`ui/AutoLock.tsx`).
+- [ ] `npm audit` propre — alertes restantes via `@walletconnect/web3wallet` (voir [11-CARTE-AUDIT.md](11-CARTE-AUDIT.md), E4).
+- [x] Pas de mise à jour à distance (OTA) : seul le code de l'APK installé s'exécute.
+- [x] Releases publiées avec leur empreinte SHA-256.
 - [ ] Revue de sécurité externe réalisée.

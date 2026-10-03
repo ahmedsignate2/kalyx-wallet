@@ -81,8 +81,10 @@ signature, fuite de donnée · **P2** fonctionnement, confort.
 | E4 | Dépendances (`npm audit`) | P1 | ⚠️ | 5 alertes, toutes via `@walletconnect/web3wallet` (voir A5). |
 | E5 | Proxy TON (Worker) | P1 | ✅ | Liste blanche stricte, aucun journal. À redéployer par toi. |
 | E6 | Bot Telegram | P2 | ✅ | Webhook signé. Déployé depuis kalyx-wallet. |
-| E7 | Tableau de bord web (`ui/web`, `web/`) | P1 | ⬜ | |
+| E7 | Tableau de bord web (`ui/web`, `web/`) | P1 | ⚠️ | Audité (CSP, session WalletConnect au moindre privilège, IndexedDB chiffré, verrou d'inactivité, course ENS, loyer Solana). Réseaux de test : partagés seulement s'ils sont affichés sur le téléphone ; toute requête vers un réseau non accordé à la session est refusée (`sessionHasChain`). Reste : revue externe. |
 | E8 | Runtime natif / OTA incompatible | P1 | ✅ | Sans objet : plus d'OTA. |
+| E9 | Chaîne de publication des APK | P0 | ✅ | Build sur EAS, publication par `scripts/publish-release.mjs` avec SHA-256 joint ; jeton GitHub limité au dépôt de releases, stocké en variable EAS secrète. |
+| E10 | « Maintenir pour envoyer » sur navigateur mobile | P2 | ✅ | Appui long : plus de sélection ni de menu « Copier » qui interrompait le maintien (Android Chrome, iOS Safari, Telegram). |
 
 ---
 
@@ -97,6 +99,8 @@ En place :
 - `lib/nativeIntent.test.ts` : aucun lien externe n'ouvre un écran directement.
 - `src/domain/tonconnect/payload.test.ts` + `lib/tonconnect/store.test.ts` : jamais de signature TON à l'aveugle.
 - `src/domain/swap/guard.test.ts` (+ `guardLive.test.ts`, `EARN_LIVE=1`) : devis d'échange / Earn contrôlés.
+- `src/domain/wc/explain.test.ts` : un simple envoi natif non simulé n'est pas signalé à tort ; un appel de contrat non simulé l'est toujours.
+- `lib/portfolio/testnetBalances.test.ts` : soldes de test jamais comptés, jamais ceux d'un autre compte.
 
 ## Rapport Gemini du 28/09 — vérifié point par point
 
@@ -122,3 +126,4 @@ En place :
 | 2026-09-28 | a9a8fc3 | A3, A4, E3 |
 | 2026-09-28 | e401228 | A1, A8, A9 |
 | 2026-09-28 | (ce commit) | B1, B2, C4 |
+| 2026-10-03 | 264abde · 9034d49 · b9bbf69 · d5edd8f | E7 (partiel), E9, E10 |

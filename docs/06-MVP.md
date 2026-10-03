@@ -1,5 +1,8 @@
 # 6. Le MVP exact à coder en premier
 
+> 📌 **Document de cadrage d'origine**, conservé pour l'historique des décisions.
+> État réel du projet : [README](../README.md) et le tableau d'avancement de [02-ROADMAP.md](02-ROADMAP.md).
+
 **Définition du MVP = Phase 1.** Un wallet **EVM mono-compte**, sécurisé et beau, sur **un seul réseau** au départ (idéalement **testnet Sepolia** pour tester sans risque, puis Ethereum mainnet).
 
 > Pourquoi EVM d'abord : la clé EVM est aussi valable pour BNB Chain et Polygon (mêmes adresses). On construit donc la base de 3 chaînes d'un coup, sans complexité UTXO (Bitcoin) ni Ed25519 (Solana).

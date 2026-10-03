@@ -1,5 +1,7 @@
 # Couverture par chaîne — EVM, Bitcoin, Solana
 
+> TON (65ᵉ réseau principal) a sa propre fiche : [10-TON.md](10-TON.md).
+
 **Pourquoi ce document.** À la question « est-ce complet ? », j'ai répondu trois
 fois « oui, sauf… » puis trouvé d'autres trous à chaque nouvelle recherche. Le
 problème n'était pas les trous, c'était la méthode : j'auditais au hasard, donc
@@ -154,7 +156,7 @@ exactement l'endroit où une erreur coûte le plus cher, pour fermer une fenêtr
 qui se mesure en millisecondes sur un appareil déjà déverrouillé. **Non retenu**
 pour l'instant ; à reconsidérer si le reste de la surface se resserre.
 
-Solana, Bitcoin, et demain TON, ne sont pas concernés : `@noble/curves` et
+Solana, Bitcoin et TON ne sont pas concernés : `@noble/curves` et
 `@scure/btc-signer` signent directement des octets. Leurs chemins de signature —
 envoi, message, PSBT, transaction dApp — passent tous par `withSigner`, donc la
 clé est effacée après usage, succès ou échec.

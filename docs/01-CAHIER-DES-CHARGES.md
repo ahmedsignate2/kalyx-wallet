@@ -1,5 +1,8 @@
 # 1. Cahier des charges
 
+> 📌 **Document de cadrage d'origine**, conservé pour l'historique des décisions.
+> État réel du projet : [README](../README.md) et le tableau d'avancement de [02-ROADMAP.md](02-ROADMAP.md).
+
 ## 1.1 Vision produit
 
 Un wallet crypto mobile **plus simple que MetaMask**, **beau, rapide, multi-chain**. La cible : un utilisateur qui trouve MetaMask intimidant et veut une expérience type application bancaire moderne (Revolut), tout en gardant le contrôle total de ses fonds (non-custodial).

@@ -1,107 +1,74 @@
-# Lancer l'app Kalyx Wallet (Expo)
+# Lancer Kalyx Wallet en local
 
-> ⚠️ **Statut honnête** : le **moteur** (`src/`) est testé et vérifié (40 tests).
-> La **couche UI Expo** (`app/`, `ui/`, `lib/`) a été **écrite mais pas encore
-> lancée** — elle n'a pas pu être bootée dans l'environnement de dev (pas de
-> simulateur/téléphone). Les commandes ci-dessous sont à exécuter **sur ta
-> machine** pour l'ouvrir et itérer sur le design. C'est le moment où les vrais
-> problèmes d'ergonomie apparaissent.
+Mise en route rapide pour développer. Pour Android en détail (émulateur, téléphone,
+builds EAS, releases) : [ANDROID_GUIDE.md](ANDROID_GUIDE.md).
 
-## 1. Réseau par défaut
-
-L'app démarre sur **Sepolia (testnet)** via un RPC public — **zéro risque, aucune
-config requise** pour ouvrir l'app. Pour de meilleures perfs, remplace le RPC
-public dans `src/domain/chains/configs.ts` par un endpoint Alchemy/Infura.
-
-Récupère des ETH de test gratuits sur un faucet Sepolia pour tester recevoir/envoyer.
-
-## 2. Installer les dépendances Expo
-
-Le `package.json` racine ne contient que le moteur (pour garder la CI/les tests
-rapides). Ajoute la couche mobile :
+## 1. Installer
 
 ```bash
-npx expo install expo expo-router expo-secure-store expo-local-authentication \
-  expo-linear-gradient expo-clipboard expo-status-bar expo-screen-capture \
-  react-native-qrcode-svg react-native-svg react-native react react-dom
-npm install zustand
+git clone https://github.com/ahmedsignate2/kalyx-wallet.git
+cd kalyx-wallet
+npm ci
+cp .env.example .env
 ```
 
-Puis, dans `package.json`, assure-toi d'avoir :
+Toutes les dépendances (moteur, app, web) sont dans le `package.json` racine ;
+`npm ci` suffit. Le site (`web/`), le bot (`bot/`) et le relais TON (`ton-proxy/`)
+ont chacun leur propre `package.json`.
 
-```json
-{
-  "main": "index.js",
-  "scripts": {
-    "start": "expo start",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
-    "test": "jest",
-    "typecheck": "tsc --noEmit"
-  }
-}
-```
+## 2. Clés d'API (`.env`)
 
-> Note : `expo install` alignera les versions RN/Expo compatibles et mettra à
-> jour le lockfile (la CI se re-verrouillera au prochain PR).
+L'app démarre sans aucune clé, mais certaines fonctions restent vides sans elles :
+
+| Variable | Sans elle… |
+|---|---|
+| `EXPO_PUBLIC_ALCHEMY_KEY` | RPC publics plus lents ; pas de liste de jetons EVM ni de simulation |
+| `EXPO_PUBLIC_ETHERSCAN_KEY` | Pas d'historique EVM |
+| `EXPO_PUBLIC_HELIUS_KEY` | RPC Solana public (limité) |
+| `EXPO_PUBLIC_WALLETCONNECT_ID` | Pas de WalletConnect ni de tableau de bord web |
+| `EXPO_PUBLIC_LIFI_KEY` | Swap / bridge limités |
+| `EXPO_PUBLIC_COINGECKO_KEY` | Cours soumis aux limites de l'API gratuite |
+
+Après une modification de `.env`, relancer avec le cache vidé : `npx expo start -c`.
 
 ## 3. Lancer
 
-Il faut un **dev build** (pas Expo Go) car on utilise des modules natifs
-(secure-store, get-random-values) :
-
 ```bash
-# Android (SDK Android installé)
-npx expo run:android
-
-# iOS (macOS + Xcode)
-npx expo run:ios
+npx expo run:android   # app native (Android Studio ou téléphone USB) — à refaire après un changement natif
+npm start              # serveur Metro : recharge le JavaScript
+npm run web            # tableau de bord web (app.kalyxwallet.com) en local
 ```
 
-Puis `npx expo start` pour le rechargement à chaud.
+**Expo Go ne suffit pas** : l'app utilise des modules natifs (SecureStore,
+biométrie, anti-capture, caméra).
 
-## 4. Ce qui marche / ce qui est encore stubbé
+## 4. Vérifier avant de pousser
 
-| Écran / brique | État |
-|----------------|------|
-| Onboarding (créer / importer) | Fonctionnel : seed BIP-39 via le moteur testé |
-| Sauvegarde de seed | 12 mots + **anti-capture d'écran** (expo-screen-capture) |
-| Vérification de backup | **Fonctionnelle** via `createBackupChallenge` (moteur testé) |
-| Code PIN | **Fait** : choix + confirmation, politique de robustesse (moteur testé) |
-| Chiffrement de la seed | **Fait** : AES-256-GCM, clé dérivée du PIN via scrypt (moteur testé) |
-| Biométrie | **Fait** : déverrouillage Face ID / empreinte (expo-local-authentication) |
-| Anti-brute-force | **Fait** : verrouillage progressif après 5 échecs (moteur testé) |
-| Déverrouillage | Écran unlock : biométrie auto + PIN de secours |
-| Accueil | Adresse + solde réel via RPC Sepolia (pull-to-refresh) |
-| Recevoir | Adresse + **QR code** + copie |
-| Envoyer | Validation + confirmation + **signature/broadcast réels** (PIN requis pour signer) |
+```bash
+npm run typecheck
+npm test
+node scripts/check-repo-files.mjs
+node scripts/check-address-usage.mjs
+```
 
-### Détail sécurité (device)
-- La seed est chiffrée (AES-GCM + PIN) dans un **coffre** stocké dans SecureStore (Keychain/Keystore).
-- Une copie optionnelle protégée par la **biométrie de l'OS** permet le déverrouillage rapide.
-- L'adresse **publique** est stockée à part pour afficher le solde même verrouillé.
-- La seed/clé n'est **jamais** dans le state global : elle est déchiffrée à la volée, uniquement le temps de signer.
+C'est ce que la CI exécute à chaque push.
 
-## 4bis. Activer l'historique des transactions (clé Etherscan)
+## 5. Repères dans le code
 
-L'historient utilise l'API Etherscan V2 (une seule clé pour toutes les chaînes EVM).
+| Dossier | Contenu |
+|---|---|
+| `app/` | Écrans (Expo Router) |
+| `ui/kit/` | Composants du design system |
+| `ui/web/` | Tableau de bord web et mini-app Telegram |
+| `lib/` | Stores, coffre chiffré, WalletConnect, TON Connect, earn, IA, i18n (15 langues dans `lib/i18n.ts`) |
+| `src/` | Moteur sans React : crypto, adaptateurs de chaînes, transactions, swap, sécurité |
 
-1. `cp .env.example .env`
-2. Édite `.env` et colle ta clé :
-   ```
-   EXPO_PUBLIC_ETHERSCAN_KEY=TA_CLE_ICI
-   ```
-   (`.env` est gitignoré — ta clé n'est jamais committée.)
-3. Relance le serveur en vidant le cache pour que la variable soit prise en compte :
-   ```bash
-   npx expo start -c
-   ```
+## 6. Sécurité côté appareil (rappel)
 
-Sans clé, l'écran Historique reste simplement vide (aucun blocage).
-
-## 5. Ce qui reste (durcissement)
-
-1. **Persister les compteurs anti-brute-force** hors mémoire (survivre au redémarrage de l'app).
-2. **Auto-lock** au passage en arrière-plan + écran de garde (blur) dans l'app switcher.
-3. **Détection root/jailbreak** (roadmap phase 5).
-4. **Wallet caché** (2e PIN) — cf. `docs/07-DIFFERENCIATION.md`.
+- La phrase est chiffrée (AES-256-GCM, clé dérivée du PIN par scrypt) dans un coffre
+  stocké dans SecureStore (Keystore Android).
+- Une copie facultative protégée par la **biométrie du système** permet le
+  déverrouillage rapide.
+- La phrase et les clés ne sont jamais dans l'état global : elles sont déchiffrées
+  le temps de signer, puis effacées.
+- Ne jamais logger, envoyer ou committer un secret (la CI le vérifie).
