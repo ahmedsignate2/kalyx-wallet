@@ -1,0 +1,165 @@
+{
+ "_source": "ton-blockchain/wallets-list wallets-v2.json, relev\u00e9 le 2026-09-27",
+ "wallets": [
+  {
+   "name": "telegram-wallet",
+   "universal": "https://t.me/wallet?attach=wallet",
+   "bridge": "https://walletbot.me/tonconnect-bridge/bridge"
+  },
+  {
+   "name": "gramwallet",
+   "universal": "https://connect.gramwallet.io",
+   "bridge": "https://tonconnectbridge.mytonwallet.org/bridge"
+  },
+  {
+   "name": "tonkeeper",
+   "universal": "https://app.tonkeeper.com/ton-connect",
+   "bridge": "https://bridge.tonapi.io/bridge"
+  },
+  {
+   "name": "mytonwallet",
+   "universal": "https://connect.mytonwallet.org",
+   "bridge": "https://tonconnectbridge.mytonwallet.org/bridge"
+  },
+  {
+   "name": "tonhub",
+   "universal": "https://tonhub.com/ton-connect",
+   "bridge": "https://connect.tonhubapi.com/tonconnect"
+  },
+  {
+   "name": "bitgetTonWallet",
+   "universal": "https://bkcode.vip/ton-connect",
+   "bridge": "https://ton-connect-bridge.bgwapi.io/bridge"
+  },
+  {
+   "name": "binanceWeb3TonWallet",
+   "universal": "https://app.binance.com/cedefi/ton-connect",
+   "bridge": "https://wallet.binance.com/tonbridge/bridge"
+  },
+  {
+   "name": "okxWallet",
+   "universal": "https://web3.okx.com/download",
+   "bridge": "https://web3.okx.com/tonbridge/discover/rpc/bridge"
+  },
+  {
+   "name": "okxTonWallet",
+   "universal": "https://www.okx.com/download",
+   "bridge": "https://www.okx.com/tonbridge/discover/rpc/bridge"
+  },
+  {
+   "name": "hot",
+   "universal": "https://t.me/herewalletbot?attach=wallet",
+   "bridge": "https://sse-bridge.hot-labs.org"
+  },
+  {
+   "name": "bybitTonWallet",
+   "universal": "https://app.bybit.com/ton-connect",
+   "bridge": "https://api-node.bybit.com/spot/api/web3/bridge/ton/bridge"
+  },
+  {
+   "name": "safepalwallet",
+   "universal": "https://link.safepal.io/ton-connect",
+   "bridge": "https://ton-bridge.safepal.com/tonbridge/v1/bridge"
+  },
+  {
+   "name": "GateWallet",
+   "universal": "https://gate.onelink.me/Hls0/web3",
+   "bridge": "https://dapp.gateio.services/tonbridge_api/bridge/v1"
+  },
+  {
+   "name": "BitgetWeb3",
+   "universal": "https://t.me/BitgetOfficialBot?attach=wallet",
+   "bridge": "https://ton-connect-bridge.bgwapi.io/bridge"
+  },
+  {
+   "name": "bitgetWalletLite",
+   "universal": "https://t.me/BitgetWallet_TGBot?attach=wallet",
+   "bridge": "https://ton-connect-bridge.bgwapi.io/bridge"
+  },
+  {
+   "name": "tomoWallet",
+   "universal": "https://t.me/tomowalletbot?attach=wallet",
+   "bridge": "https://go-bridge.tomo.inc/bridge"
+  },
+  {
+   "name": "miraiapp-tg",
+   "universal": "https://t.me/MiraiAppBot?attach=wallet",
+   "bridge": "https://bridge.mirai.app"
+  },
+  {
+   "name": "Architec.ton",
+   "universal": "https://t.me/architec_ton_bot?attach=wallet",
+   "bridge": "https://tc.architecton.su/bridge"
+  },
+  {
+   "name": "tokenpocket",
+   "universal": "https://tp-lab.tptool.pro/ton-connect",
+   "bridge": "https://ton-connect.mytokenpocket.vip/bridge"
+  },
+  {
+   "name": "uxuyWallet",
+   "universal": "https://t.me/UXUYbot?attach=wallet",
+   "bridge": "https://bridge.uxuy.me/bridge"
+  },
+  {
+   "name": "tonkeeper-pro",
+   "universal": "https://app.tonkeeper.com/pro/ton-connect",
+   "bridge": "https://bridge.tonapi.io/bridge"
+  },
+  {
+   "name": "echoooTonWallet",
+   "universal": "https://www.echooo.xyz/ton-connect",
+   "bridge": "https://ton-connect-bridge.echooo.link/bridge"
+  },
+  {
+   "name": "koloWeb3Wallet",
+   "universal": "https://t.me/kolo?attach=wallet",
+   "bridge": "https://web3-bridge.kolo.in/bridge"
+  },
+  {
+   "name": "imToken",
+   "universal": "https://connect.token.im/link/ton-connect",
+   "bridge": "https://connect.token.im/tonbridge"
+  },
+  {
+   "name": "defiway",
+   "universal": "https://wallet.defiway.com/ton-connect",
+   "bridge": "https://api.defiway.com/ton-connect"
+  },
+  {
+   "name": "sparx",
+   "universal": "https://l.sparxwallet.com",
+   "bridge": "https://connect.ton.org/bridge"
+  },
+  {
+   "name": "stower",
+   "universal": "https://connect.stower.money",
+   "bridge": "https://bridge.stower.money/bridge"
+  },
+  {
+   "name": "walletverse",
+   "universal": "https://bridge.walletverse.io/tonconnect",
+   "bridge": "https://connect.ton.org/bridge"
+  },
+  {
+   "name": "bron",
+   "universal": "https://app.bron.org/ton-connect",
+   "bridge": "https://connect.ton.org/bridge"
+  },
+  {
+   "name": "sociawallet",
+   "universal": "https://t.me/SociaWalletBot/main",
+   "bridge": "https://connect.ton.org/bridge"
+  },
+  {
+   "name": "dewallet",
+   "universal": "https://t.me/dewallet?attach=wallet",
+   "bridge": "https://bridge.wallet.coffee.agency/bridge"
+  },
+  {
+   "name": "telegram",
+   "universal": "https://t.me/sendgrams",
+   "bridge": "https://tonbridge.telegram.org"
+  }
+ ]
+}

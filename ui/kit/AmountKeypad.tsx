@@ -16,7 +16,8 @@
  * Le parent gère la chaîne (on n'impose ni longueur ni format ici).
  */
 import React, { useCallback, useEffect, useRef } from 'react';
-import { View, Pressable as RNPressable } from 'react-native';
+import { decimalSeparator } from '../../src';
+import { View, Platform, Pressable as RNPressable } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { Text } from './Text';
 import { Icon } from '../icon';
@@ -32,24 +33,11 @@ const HOLD_DELAY = 420;
 /** Rythme de l'effacement continu. */
 const HOLD_REPEAT = 90;
 
-/**
- * Séparateur décimal de la langue active. On demande à Intl plutôt que de
- * maintenir une liste de langues à la main : c'est exactement son travail, et
- * une liste finit toujours par oublier une langue.
- */
-function decimalSeparator(lang: string): string {
-  try {
-    const parts = new Intl.NumberFormat(lang).formatToParts(1.1);
-    return parts.find((p) => p.type === 'decimal')?.value ?? '.';
-  } catch {
-    return '.';
-  }
-}
-
 /** Une touche : fond qui s'allume au ressort, sans entraîner la grille. */
 function KeyBase({
-  label, onPress, onPressIn, onPressOut, disabled, children,
+  label, onPress, onPressIn, onPressOut, disabled, children, height = 56,
 }: {
+  height?: number;
   label: string;
   onPress: () => void;
   onPressIn?: () => void;
@@ -86,7 +74,7 @@ function KeyBase({
       style={{ flex: 1 }}
     >
       <Animated.View
-        style={[{ height: 56, borderRadius: radius.input, alignItems: 'center', justifyContent: 'center' }, style]}
+        style={[{ height, borderRadius: radius.input, alignItems: 'center', justifyContent: 'center' }, style]}
       >
         {children}
       </Animated.View>
@@ -95,16 +83,20 @@ function KeyBase({
 }
 
 export function AmountKeypad({
-  value, onChange, maxDecimals = 8, disabled,
+  value, onChange, maxDecimals = 8, disabled, compact,
 }: {
   value: string;
   onChange: (v: string) => void;
   maxDecimals?: number;
   disabled?: boolean;
+  /** Touches basses (ordinateur : on tape surtout au clavier). */
+  compact?: boolean;
 }) {
   const t = useT();
-  const language = useSettings((s) => s.language);
-  const sep = decimalSeparator(language);
+  // MÊME séparateur que tous les montants affichés (src : fixé selon la langue) — l'ancien, via Intl,
+  // donnait « ٫ » en arabe quand le reste de l'écran écrivait « . ».
+  useSettings((s) => s.language); // re-rendu au changement de langue
+  const sep = decimalSeparator();
   /** Deux minuteurs distincts : le délai avant maintien, puis la répétition. */
   const delayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -118,7 +110,7 @@ export function AmountKeypad({
     const v = latest.current;
     if (k === '⌫') return onChange(v.slice(0, -1));
     if (k === '.') {
-      if (v.includes('.')) return;
+      if (v.includes('.') || maxDecimals <= 0) return; // jeton sans décimale : pas de virgule
       return onChange(v === '' ? '0.' : v + '.');
     }
     const [, frac = ''] = v.split('.');
@@ -147,8 +139,31 @@ export function AmountKeypad({
 
   useEffect(() => stopHold, [stopHold]);
 
+  /*
+   * CLAVIER PHYSIQUE (web) : sur ordinateur, cliquer chiffre par chiffre était
+   * la seule façon de saisir un montant. Chiffres, virgule ou point, Retour
+   * arrière — sauf quand un vrai champ de saisie a le focus.
+   */
+  useEffect(() => {
+    if (Platform.OS !== 'web' || disabled) return;
+    const w = (globalThis as { window?: { addEventListener: (t: string, f: (e: KeyboardEvent) => void) => void; removeEventListener: (t: string, f: (e: KeyboardEvent) => void) => void } }).window;
+    if (!w) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target as { tagName?: string; isContentEditable?: boolean } | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if (/^[0-9]$/.test(e.key)) press(e.key);
+      else if (e.key === '.' || e.key === ',') press('.');
+      else if (e.key === 'Backspace' || e.key === 'Delete') press('⌫');
+      else return;
+      e.preventDefault();
+    };
+    w.addEventListener('keydown', onKey);
+    return () => w.removeEventListener('keydown', onKey);
+  }, [disabled, press]);
+
   return (
-    <View style={{ gap: space[2] }}>
+    <View style={{ gap: compact ? space[1] : space[2] }}>
       {ROWS.map((row) => (
         <View key={row.join('')} style={{ flexDirection: 'row', gap: space[2] }}>
           {row.map((k) => (
@@ -159,6 +174,7 @@ export function AmountKeypad({
               onPressIn={k === '⌫' ? startHold : undefined}
               onPressOut={k === '⌫' ? stopHold : undefined}
               disabled={disabled}
+              height={compact ? 44 : 56}
             >
               {k === '⌫' ? <Icon name="back" size={22} /> : <Text variant="title1" tabular>{k === '.' ? sep : k}</Text>}
             </KeyBase>

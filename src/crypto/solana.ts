@@ -10,14 +10,10 @@
  * Chemin standard (compatible Phantom) : m/44'/501'/index'/0'. Une seule seed
  * BIP-39 dérive donc EVM, BTC ET Solana, sur des chemins disjoints.
  */
-import { hmac } from '@noble/hashes/hmac';
-import { sha512 } from '@noble/hashes/sha512';
-import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils';
+import { bytesToHex } from '@noble/hashes/utils';
 import { ed25519 } from '@noble/curves/ed25519';
 import { base58 } from '@scure/base';
-
-const HARDENED = 0x80000000;
-const ED25519_SEED = utf8ToBytes('ed25519 seed');
+import { deriveEd25519 } from './slip10';
 
 /** Chemin Solana : m/44'/501'/account'/0' (tous durcis). */
 export function solPath(index = 0): string {
@@ -25,32 +21,6 @@ export function solPath(index = 0): string {
     throw new Error('solPath: index doit être un entier >= 0');
   }
   return `m/44'/501'/${index}'/0'`;
-}
-
-function ser32(value: number): Uint8Array {
-  const b = new Uint8Array(4);
-  new DataView(b.buffer).setUint32(0, value >>> 0, false); // big-endian
-  return b;
-}
-
-/**
- * SLIP-0010 ed25519 : dérive (clé privée, chain code) le long des segments
- * (déjà exprimés en index durcis, ex. 44 pour 44'). Master = HMAC("ed25519 seed").
- */
-function deriveEd25519(seed: Uint8Array, segments: number[]): { key: Uint8Array; chainCode: Uint8Array } {
-  const I = hmac(sha512, ED25519_SEED, seed);
-  let key = I.slice(0, 32);
-  let chainCode = I.slice(32);
-  for (const seg of segments) {
-    const data = new Uint8Array(37); // 0x00 || key(32) || ser32(index)
-    data[0] = 0x00;
-    data.set(key, 1);
-    data.set(ser32(seg + HARDENED), 33);
-    const In = hmac(sha512, chainCode, data);
-    key = In.slice(0, 32);
-    chainCode = In.slice(32);
-  }
-  return { key, chainCode };
 }
 
 export interface SolAccount {

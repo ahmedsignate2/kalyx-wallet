@@ -41,7 +41,17 @@ export interface BitcoinSwapTx {
   data: string; // base64 encoded PSBT
 }
 
-export type SwapTxRequest = EvmSwapTx | SolanaSwapTx | BitcoinSwapTx;
+/** Échange TON (STON.fi) : messages construits par l'app, routeur et portefeuille pTON à vérifier. */
+export interface TonSwapTx {
+  type: 'ton';
+  messages: { to: string; amount: bigint; payload: string }[];
+  /** Routeur STON.fi, forme brute. */
+  router: string;
+  /** Échange DEPUIS TON : portefeuille pTON du routeur (forme brute), revérifié sur la chaîne avant signature. */
+  ptonWallet?: string;
+}
+
+export type SwapTxRequest = EvmSwapTx | SolanaSwapTx | BitcoinSwapTx | TonSwapTx;
 
 export interface SwapTokenInfo {
   address: string;
@@ -236,8 +246,14 @@ export function parseLifiError(status: number, json: unknown): SwapError {
 
 /** L'erreur vient-elle de la config des frais intégrateur (→ réessayer sans fee) ? */
 function isFeeConfigError(e: SwapError): boolean {
-  const m = e.message.toLowerCase();
-  return m.includes('integrator') || m.includes('fee');
+  /*
+   * La configuration des frais INTÉGRATEUR seulement. « fee » seul attrapait
+   * « montant trop faible pour couvrir les frais » : on redemandait alors un
+   * devis SANS frais Kalyx — latence doublée et frais perdus.
+   */
+  if (e.code === 'AMOUNT_BELOW_MINIMUM' || e.code === 'AMOUNT_ABOVE_MAXIMUM' || e.code === 'NO_LIQUIDITY') return false;
+  // Validation du paramètre (« "fee" must be… », fee_percentage…) comprise.
+  return /integrator|["']?fee["']? must|fee[ _-]?(config|recipient|percent|percentage|bps)|invalid fee/i.test(e.message);
 }
 
 async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQuote | null> {

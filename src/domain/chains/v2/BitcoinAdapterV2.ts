@@ -17,6 +17,7 @@ import { BitcoinChainAdapter } from '../BitcoinChainAdapter';
 import { btcAddressKind, isValidBtcAddress, normalizeBtcAddress } from '../../validation/btcAddress';
 import {
   selectUtxos,
+  maxSendableBtc,
   estimateVsize,
   dustThreshold,
   CHANGE_KIND,
@@ -27,6 +28,7 @@ import {
 } from '../btcTx';
 import { bumpedRate } from '../btcFees';
 import { WalletError } from '../../errors';
+import { formatInputAmount } from '../../validation/format';
 import { capabilities, type ChainCapabilities } from './capabilities';
 import { assertCurve, type ChainSigner, type SignerCurve } from './signer';
 import type {
@@ -144,6 +146,14 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
     return { slow: quote('slow'), normal: quote('normal'), fast: quote('fast') };
   }
 
+  /** Maximum envoyable vers `to` au palier donné (toutes les pièces, frais réels). */
+  async maxSendable(from: string, to: string, speed: SendSpeed = 'normal'): Promise<{ amount: bigint; fee: bigint }> {
+    const [rates, utxos] = await Promise.all([this.v1.getFeeRates(), this.v1.confirmedUtxos(from)]);
+    const kind = btcAddressKind(normalizeBtcAddress(to)) ?? 'p2wpkh';
+    const m = maxSendableBtc(utxos, rates[speed], kind);
+    return { amount: m.amount, fee: m.fee };
+  }
+
   // ── Envoi ──────────────────────────────────────────────────────────────────
 
   async prepareSend(from: string, request: SendRequest): Promise<SendDraft<BitcoinPayload>> {
@@ -165,6 +175,7 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
       throw new WalletError(
         'AMOUNT_TOO_SMALL',
         `Montant trop faible pour cette adresse : ${dust} satoshis minimum, sinon le réseau refuse la transaction.`,
+        { min: formatInputAmount(BigInt(dust), 8), symbol: 'BTC' },
       );
     }
 
@@ -182,7 +193,13 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
           'Trop de petites pièces à rassembler pour une seule transaction. Envoie un montant plus faible.',
         );
       }
-      throw new WalletError('INSUFFICIENT_FUNDS', 'Solde Bitcoin insuffisant (frais inclus).');
+      const have = utxos.reduce((sum, u) => sum + BigInt(u.value), 0n);
+      throw new WalletError('INSUFFICIENT_FUNDS', 'Solde Bitcoin insuffisant (frais inclus).', {
+        have: formatInputAmount(have, 8),
+        // Frais d'une transaction courante au taux choisi : l'ordre de grandeur à prévoir en plus.
+        fee: formatInputAmount(BigInt(Math.ceil(feeRate * 141)), 8),
+        symbol: 'BTC',
+      });
     }
 
     return {
@@ -279,6 +296,17 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
     }
 
     const total = previous.inputs.reduce((sum, u) => sum + BigInt(u.value), 0n);
+    /*
+     * BIP-125 (règles 3 et 4) : un remplacement paie AU MOINS les frais de
+     * l'originale, plus 1 sat/vB de sa propre taille. Un taux plus élevé ne
+     * suffit pas : une annulation (plus petite, sans sortie destinataire)
+     * pouvait payer MOINS au total et était refusée par les nœuds.
+     */
+    const minFee = (vsize: number) => {
+      const byRate = BigInt(Math.ceil(vsize * feeRate));
+      const floor = previous.fee + BigInt(Math.ceil(vsize));
+      return byRate > floor ? byRate : floor;
+    };
 
     /*
      * ANNULER : tout revient à soi, sans sortie de monnaie. Le montant
@@ -286,7 +314,7 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
      * transfère rien, elle consomme les entrées pour invalider l'originale.
      */
     if (toSelf) {
-      const fee = BigInt(Math.ceil(estimateVsize(previous.inputs.length, [CHANGE_KIND]) * feeRate));
+      const fee = minFee(estimateVsize(previous.inputs.length, [CHANGE_KIND]));
       const target = total - fee;
       if (target < DUST_SATS) {
         throw new WalletError(
@@ -309,7 +337,7 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
 
     // ACCÉLÉRER : même destinataire, même montant, la hausse sort de la monnaie.
     const vsize = estimateVsize(previous.inputs.length, [destKind, CHANGE_KIND]);
-    const fee = BigInt(Math.ceil(vsize * feeRate));
+    const fee = minFee(vsize);
     const insufficient = () =>
       new WalletError(
         'INSUFFICIENT_FUNDS',
@@ -323,7 +351,12 @@ export class BitcoinAdapterV2 implements ChainAdapterV2<BitcoinPayload> {
       selection = { inputs: previous.inputs, fee, change };
     } else {
       // Monnaie devenue poussière : elle part en frais, comme à l'envoi initial.
-      const feeNoChange = BigInt(Math.ceil(estimateVsize(previous.inputs.length, [destKind]) * feeRate));
+      /*
+       * Sans monnaie, les frais valent forcément `total - target` — ceux de
+       * l'originale si elle avait déjà absorbé la poussière : la « nouvelle »
+       * transaction serait identique et refusée. Il faut alors réduire le montant.
+       */
+      const feeNoChange = minFee(estimateVsize(previous.inputs.length, [destKind]));
       if (total < previous.target + feeNoChange) throw insufficient();
       selection = { inputs: previous.inputs, fee: total - previous.target, change: 0n };
     }

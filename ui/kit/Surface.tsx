@@ -11,7 +11,7 @@ import { radius, space } from '../tokens';
 export function Surface({ level = 1, padded = true, style, ...rest }: ViewProps & { level?: 1 | 2 | 3; padded?: boolean }) {
   const { colors } = useTheme();
   const bg = level === 3 ? colors.surface3 : level === 2 ? colors.surface2 : colors.surface1;
-  return <View {...rest} style={[{ backgroundColor: bg, borderRadius: radius.container, borderWidth: 1, borderColor: colors.border, padding: padded ? space[4] : 0, overflow: 'hidden' }, style]} />;
+  return <View {...rest} style={[{ backgroundColor: bg, borderRadius: radius.container, borderWidth: 1, borderColor: colors.border, borderTopColor: colors.rim, padding: padded ? space[4] : 0, overflow: 'hidden' }, style]} />;
 }
 
 /** Séparateur de liste (1 px Trait, retrait gauche optionnel). */

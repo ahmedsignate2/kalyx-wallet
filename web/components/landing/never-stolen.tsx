@@ -101,6 +101,23 @@ export function NeverStolen({ t }: { t: Dict }) {
             </ol>
             <p className="mt-auto pt-6 text-sm font-light text-mist">{s.s3.closing}</p>
           </Item>
+          {/* Scènes 4 et 5 — liste blanche (lib/whitelistStore, 24 h) et code de contrainte (app/duress.tsx) */}
+          {([['4', s.s4], ['5', s.s5]] as const).map(([n, sc]) => (
+            <Item key={n} as="article" className="flex flex-col rounded-[2rem] bg-ink-2 p-7 sm:p-8">
+              <p className="font-display text-sm text-sage">{s.scene} {n} · {sc.kicker}</p>
+              <h3 className="mt-3 font-display text-2xl leading-tight text-paper">{sc.title}</h3>
+              <p className="mt-3 text-sm font-light leading-relaxed text-mist">{sc.text}</p>
+              <ul className="mt-6 divide-y divide-bone/10 rounded-2xl border border-bone/10 bg-ink-3 text-sm">
+                {sc.rows.map(([label, value]) => (
+                  <li key={label} className="flex items-center justify-between gap-4 px-4 py-2.5">
+                    <span className="text-mist">{label}</span>
+                    <span className="text-right font-display text-bone">{value}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-auto pt-6 text-sm font-light text-mist">{sc.closing}</p>
+            </Item>
+          ))}
         </Stagger>
 
         <Reveal className="mt-14 border-t border-bone/10 pt-8 md:text-center">

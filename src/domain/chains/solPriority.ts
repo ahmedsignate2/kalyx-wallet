@@ -17,6 +17,7 @@
  * mettre 200 000 « au cas où » : les constantes ci-dessous sont ajustées au
  * plus près de ce que coûtent réellement nos deux transactions.
  */
+import { utf8ToBytes } from '@noble/hashes/utils';
 import type { Instruction } from './solMessage';
 
 export const COMPUTE_BUDGET_PROGRAM = 'ComputeBudget111111111111111111111111111111';
@@ -39,6 +40,24 @@ export const CU_SOL_TRANSFER = 1_000;
  * priorité reste inférieur à 0,0003 SOL même au plafond de prix.
  */
 export const CU_SPL_TRANSFER = 50_000;
+
+/**
+ * Surcoût d'un MÉMO (programme SPL Memo) : il vérifie l'UTF-8 et journalise le
+ * texte, ce qui coûte plusieurs milliers d'unités plus un coût par octet.
+ *
+ * LE MÉMO FAISAIT ÉCHOUER TOUT ENVOI DE SOL. Le budget d'un transfert (1 000
+ * unités) ne couvrait que l'instruction System : le mémo le dépassait, Solana
+ * interrompait la transaction (« budget de calcul dépassé ») à chaque fois.
+ */
+const CU_MEMO_BASE = 15_000;
+const CU_MEMO_PER_BYTE = 200;
+
+/** Budget de calcul d'un envoi, mémo compris. */
+export function sendComputeUnits(base: number, memo?: string): number {
+  if (!memo) return base;
+  const bytes = utf8ToBytes(memo).length;
+  return base + CU_MEMO_BASE + bytes * CU_MEMO_PER_BYTE;
+}
 
 /**
  * Plancher de prix, en micro-lamports par unité de calcul.

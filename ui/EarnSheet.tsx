@@ -8,6 +8,7 @@ import { Pressable as KPressable } from './kit';
  *
  * Réutilisée par l'écran Earn et les onglets Staking/DeFi du portefeuille.
  */
+import { SafeModal } from './kit/SafeModal';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,7 +24,7 @@ import { friendlyTxError } from '../lib/txError';
 import { haptic } from '../lib/haptics';
 import { notifyAndLog } from '../lib/notificationCenter';
 import { useEarn, priceOf, quote as earnQuote, execute as earnExecute, maxDeposit, nativeReserve, type EarnStatus, type EarnAccount } from '../lib/earn';
-import { getAdapter, parseAmount, formatTokenAmount, formatInputAmount, formatNumber, formatFiat, formatPercent, formatAmount, isNative, isWalletError, type EarnProtocol, type EarnAction, type EarnQuote } from '../src';
+import { getAdapter, parseAmount, formatTokenAmount, formatInputAmount, formatNumber, formatFiat, formatPercent, formatAmount, isNative, type EarnProtocol, type EarnAction, type EarnQuote } from '../src';
 
 const STATUS_KEY: Record<EarnStatus, 'earnQuoting' | 'stApproving' | 'stApprovalWait' | 'stSending' | 'stConfirming'> = {
   quoting: 'earnQuoting',
@@ -157,6 +158,10 @@ export function EarnSheet({
         try {
           const m = await maxDeposit(p, acct, underlyingBal);
           setAmountStr(formatInputAmount(m, tokenIn.decimals));
+        } catch (e) {
+          // Frais du dépôt maximal non estimables : on le dit (l'erreur était perdue, le bouton ne faisait rien).
+          setError(friendlyTxError(e, t as never));
+          return;
         } finally {
           setMaxing(false);
         }
@@ -204,9 +209,9 @@ export function EarnSheet({
         setStatus(null);
         // WRONG_PIN et refus/absence de biométrie : ConfirmUnlock les gère
         // lui-même (réessai PIN, repli silencieux) → on relaie tels quels.
-        if (isWalletError(e) && e.code === 'WRONG_PIN') throw e;
-        if (e instanceof Error && /biométri|Biométrie/.test(e.message)) throw e;
-        throw new Error(friendlyTxError(e, t));
+        // Erreur d'origine relayée : ConfirmUnlock la traduit. Une Error nue portant
+        // le texte déjà traduit était retraduite en « Transaction échouée ».
+        throw e;
       }
   };
 
@@ -245,7 +250,7 @@ export function EarnSheet({
 
   return (
     <>
-      <Modal visible={visible && !unlockVisible && !success} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+      <SafeModal visible={visible && !unlockVisible && !success} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
         {/* Le KAV enveloppe TOUT (fond + feuille) : dans un Modal Android, le clavier
             ne redimensionne pas la fenêtre → 'height' réduit le KAV de la hauteur du
             clavier, le fond (flex: 1) se comprime et la feuille reste au-dessus. */}
@@ -406,7 +411,7 @@ export function EarnSheet({
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
+      </SafeModal>
 
       <ConfirmUnlock
         visible={unlockVisible}

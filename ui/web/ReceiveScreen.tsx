@@ -5,11 +5,13 @@
  * approuvés par le téléphone dans la session WalletConnect (une entrée par
  * famille d'adresse : EVM / Solana / Bitcoin).
  */
+import { fill } from '../../lib/i18n';
 import React, { useMemo, useState } from 'react';
-import { View, ScrollView, Share, Image, Platform } from 'react-native';
+import { View, ScrollView, Share, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
-import { Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl } from '../kit';
+import { LogoImage, Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl } from '../kit';
+import { useFlowRootStyle, useFlowScrollStyle } from './flowEmbed';
 import { useTheme } from '../theme';
 import { space, SCREEN_MARGIN, radius } from '../tokens';
 import { useT } from '../../lib/settingsStore';
@@ -22,6 +24,8 @@ type Fam = 'evm' | 'solana' | 'bitcoin';
 export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose: () => void }) {
   const t = useT();
   const { colors } = useTheme();
+  const flowRoot = useFlowRootStyle(colors.bg);
+  const flowScroll = useFlowScrollStyle();
   const accounts = useWebConnect((s) => s.accounts);
   const peerName = useWebConnect((s) => s.peerName);
 
@@ -35,7 +39,8 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
       if (!c) continue;
       const fam = c.family as Fam;
       const cur = byFam.get(fam);
-      const preferred = c.id === chain.id || (!cur && !c.testnet);
+      // Réseau affiché d'abord ; sinon le principal plutôt qu'un réseau de test (une adresse Bitcoin de test `tb1…` n'est pas une adresse de réception réelle).
+      const preferred = c.id === chain.id || (!!cur && cur.chain.id !== chain.id && !!cur.chain.testnet && !c.testnet);
       if (!cur || preferred) byFam.set(fam, { chain: c, address: a.address });
     }
     return [...byFam.values()];
@@ -47,7 +52,7 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
   const { chain: sel, address } = selected;
   const selFam = sel.family as Fam;
   const hint =
-    selFam === 'evm' ? t('hintEvm').replace(/\$\{selected\?\.name[^}]*\}/, sel.name)
+    selFam === 'evm' ? fill(t('hintEvm'), { network: sel.name })
     : selFam === 'solana' ? t('hintSolana')
     : t('hintBitcoin');
   const warn = selFam === 'evm' ? t('warnEvm') : selFam === 'solana' ? t('warnSolana') : t('warnBitcoin');
@@ -59,12 +64,12 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
   const share = () => Share.share({ message: address }).catch(copy);
 
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg, zIndex: 20 }}>
+    <View style={flowRoot}>
       <View style={{ paddingHorizontal: SCREEN_MARGIN, height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t('back')} tone="ghost" onPress={onClose} />
         <Text variant="title2" style={{ flex: 1 }}>{t('receive')}</Text>
       </View>
-      <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: space[6], gap: space[5] }}>
+      <ScrollView style={flowScroll} contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: space[6], gap: space[5] }}>
         {networks.length > 1 ? (
           <SegmentedControl
             items={networks.map((n) => ({ key: n.chain.family as Fam, label: n.chain.name }))}
@@ -76,7 +81,7 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
 
         <Surface style={{ alignItems: 'center', gap: space[4], paddingVertical: space[6] }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {chainIconUrl(sel.id) ? <Image source={{ uri: chainIconUrl(sel.id) }} style={{ width: 22, height: 22, borderRadius: 11 }} /> : null}
+            {chainIconUrl(sel.id) ? <LogoImage uri={chainIconUrl(sel.id)!} size={22} /> : null}
             <Text variant="body">{sel.name}</Text>
           </View>
           {/*
@@ -99,7 +104,7 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
             variant="body"
             tabular
             selectable
-            accessibilityLabel={t('a11yAddress').replace('${address}', address)}
+            accessibilityLabel={fill(t('a11yAddress'), { address: address })}
             style={{ fontSize: 13, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', color: colors.text, textAlign: 'center', lineHeight: 20, paddingHorizontal: 16, flexShrink: 1 }}
           >
             {address}

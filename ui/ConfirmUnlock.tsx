@@ -1,3 +1,4 @@
+import { AI_AUDIT_TIMEOUT_MS } from '../lib/aiToolBudget';
 import { Pressable as KPressable } from './kit';
 /**
  * Feuille de confirmation d'une action sensible, avec déverrouillage unifié :
@@ -16,6 +17,7 @@ import { Pressable as KPressable } from './kit';
  * gated (= double prompt). Le prompt unique EST la lecture gated déclenchée par
  * `perform({biometric:true})`.
  */
+import { SafeModal } from './kit/SafeModal';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,7 +28,9 @@ import { fonts, radii, spacing, useTheme } from './theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import type { Unlock } from '../lib/walletStore';
-import { buildAiRequestParams } from "../lib/aiConfig";
+import { auditFacts, auditTransaction, type TxAuditContext, type TxAuditFact, type TxAuditResult } from "../lib/aiTxAudit";
+import { probeRecipient } from "../lib/txAuditProbe";
+import { factLabel } from "./auditFactLabel";
 import { useAiStore } from "../lib/aiStore";
 import { isWalletError } from '../src';
 
@@ -49,7 +53,7 @@ export function ConfirmUnlock({
   perform: (unlock: Unlock) => Promise<void>;
   onDone: () => void;
   onCancel: () => void;
-  aiContext?: { to: string; value: string; method?: string; url?: string };
+  aiContext?: TxAuditContext;
 }) {
   const { colors, typography } = useTheme();
   const t = useT();
@@ -64,82 +68,95 @@ export function ConfirmUnlock({
   const attemptRef = useRef(0);
 
   const aiStore = useAiStore();
-  const [aiAnalysis, setAiAnalysis] = useState<{ riskLevel: string, explanation: string, threats: string[] } | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<TxAuditResult | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-
+  /*
+   * ANALYSE IA À LA DEMANDE. Elle partait d'office à chaque confirmation :
+   * destination, montant et action envoyés au fournisseur d'IA sans que
+   * l'utilisateur l'ait demandé. Désormais un bouton, qui dit ce qui part.
+   */
+  const [aiRequested, setAiRequested] = useState(false);
+  // Contexte ENRICHI des données publiques relues au lancement de l'analyse.
+  const [auditedCtx, setAuditedCtx] = useState<TxAuditContext | null>(null);
+  const facts = auditedCtx ? auditFacts(auditedCtx) : [];
+  const [probing, setProbing] = useState(false);
+  const auditRun = useRef(0);
   useEffect(() => {
-    if (visible && aiStore.isEnabled && aiContext && !aiAnalysis && !analyzing) {
-      setAnalyzing(true);
-      (async () => {
-        console.log('[AI Audit] Lancement de l\'audit de transaction pour:', aiContext.to);
-        try {
-          const prompt = `Tu es un expert en cybersécurité Web3. Analyse cette transaction et renvoie STRICTEMENT ET UNIQUEMENT un JSON valide (sans markdown) : {"riskLevel": "SAFE" | "WARNING" | "DANGER", "explanation": "Short explanation in ${language || 'fr'}", "threats": ["Menace éventuelle"]}.
-Données:
-Cible: ${aiContext.to}
-Montant: ${aiContext.value}
-Action: ${aiContext.method || 'Transfer'}`;
-
-          const { url, headers, model } = buildAiRequestParams(aiStore.provider, aiStore.apiKey!, aiStore.customUrl, aiStore.customModel);
-          let body: any = { model, max_tokens: 250, response_format: { type: 'json_object' }, messages: [{ role: 'user', content: prompt }] };
-          if (aiStore.provider === 'anthropic') {
-            delete body.response_format; // Anthropic handle differently but let's just pass prompt as user
-            body.system = "Tu dois répondre UNIQUEMENT en JSON valide.";
-          }
-
-          console.log('[AI Audit] Requête envoyée à:', url, 'avec provider:', aiStore.provider);
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
-          
-          const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
-          clearTimeout(timeoutId);
-          const data = await res.json();
-          
-          if (res.status === 429 || data?.error?.code === 429) {
-            console.warn('[AI Audit] Quota 429 atteint, fallback neutre.');
-            setAiAnalysis({
-              riskLevel: 'MEDIUM',
-              explanation: t("aiAuditQuotaExceeded"),
-              threats: []
-            });
-            return;
-          }
-
-          console.log('[AI Audit] Réponse brute reçue:', JSON.stringify(data).substring(0, 200) + '...');
-          let txt = data.choices?.[0]?.message?.content || '{}';
-          // Clean markdown
-          txt = txt.replace(/```json/g, '').replace(/```/g, '');
-          const parsed = JSON.parse(txt);
-          console.log('[AI Audit] Résultat de l\'analyse parsé:', parsed);
-          setAiAnalysis(parsed);
-        } catch (e) {
-          if (String(e).includes('canceled') || String(e).includes('aborted') || (e as Error).name === 'AbortError') {
-            console.log('[AI Audit] Timeout atteint (2s), fallback neutre.');
-            setAiAnalysis({ riskLevel: 'MEDIUM', explanation: t("aiAuditTimeout"), threats: [] });
-          } else {
-            console.warn('[AI Audit] Erreur silencieuse ignorée:', (e as Error).message);
-          }
-        } finally {
-          setAnalyzing(false);
-        }
-      })();
+    if (!visible) {
+      auditRun.current += 1; // une réponse tardive n'atterrit pas sur la fenêtre suivante
+      setAiRequested(false);
+      setAiAnalysis(null);
+      setAiError(null);
+      setAnalyzing(false);
+      setAuditedCtx(null);
+      setProbing(false);
     }
-  }, [visible, aiStore.isEnabled, aiContext]);
+  }, [visible]);
+
+  /*
+   * Lancée par le bouton, et non plus par un effet : l'effet ne surveillait pas
+   * le bouton, se relançait à chaque rendu, et la saisie du PIN effaçait le
+   * résultat. Voir lib/aiTxAudit.ts pour ce qui faisait échouer la requête.
+   */
+  const startAudit = async () => {
+    if (!aiContext || analyzing) return;
+    const runId = ++auditRun.current;
+    setAiRequested(true);
+    setAiAnalysis(null);
+    setAiError(null);
+    setAnalyzing(true);
+    console.log('[AI Audit] start', { provider: aiStore.provider });
+    /*
+     * Données PUBLIQUES d'abord : ton historique relu à l'instant, le profil
+     * de l'adresse, les listes noires. L'IA juge ensuite sur des faits, et
+     * l'utilisateur voit lesquels (« Analysé avec : … »).
+     */
+    let ctx = aiContext;
+    if (aiContext.recipient && aiContext.chainId) {
+      setProbing(true);
+      const probe = await probeRecipient(aiContext.chainId, aiContext.from, aiContext.to);
+      if (runId !== auditRun.current) return;
+      setProbing(false);
+      ctx = { ...aiContext, recipient: { ...aiContext.recipient, probe } };
+    }
+    setAuditedCtx(ctx);
+    const out = await auditTransaction(ctx, language || 'fr', { timeout: t('aiAuditTimeout'), unreadable: t('aiAuditUnreadable') }, AI_AUDIT_TIMEOUT_MS);
+    if (runId !== auditRun.current) return;
+    console.log('[AI Audit] done', out.ok ? { riskLevel: out.result.riskLevel } : { error: out.error.slice(0, 120) });
+    if (out.ok) setAiAnalysis(out.result);
+    else setAiError(out.error);
+    setAnalyzing(false);
+  };
 
 
+  // Feuille fermée (Annuler, fond) : plus aucune action ne part, même déclenchée juste avant.
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
   const run = async (unlock: Unlock) => {
+    if (!visibleRef.current) return;
     const viaBio = 'biometric' in unlock;
     const attempt = ++attemptRef.current;
     const startedAt = Date.now();
     const unlockMode = viaBio ? 'biometric' : 'pin';
     console.log('[KALYX-AUTH][ConfirmUnlock] attempt:start', { attempt, unlockMode, title });
     setPhase('working');
-      setAiAnalysis(null);
-      setAnalyzing(false);
     setError(null);
     try {
       if (viaBio) {
         let timer: ReturnType<typeof setTimeout> | undefined;
-        const operation = perform(unlock)
+        /*
+         * Clé lue POUR CETTE demande (et elle seule) : le délai de garde de
+         * l'invite s'arrête — signature et diffusion qui suivent ne sont pas bornées.
+         */
+        const tracked: Unlock = {
+          ...unlock,
+          onUnlocked: () => {
+            if (timer) clearTimeout(timer);
+            timer = undefined;
+          },
+        } as Unlock;
+        const operation = perform(tracked)
           .then(() => {
             console.log('[KALYX-AUTH][ConfirmUnlock] perform:resolved', {
               attempt,
@@ -240,7 +257,7 @@ Action: ${aiContext.method || 'Transfer'}`;
   const canValidateManually = !pinLength && pin.length >= 6;
 
   return (
-    <Modal transparent animationType="slide" onRequestClose={cancel}>
+    <SafeModal transparent animationType="slide" onRequestClose={cancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <KPressable noScale haptic="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={cancel} />
         {/* Feuille : padding bas = inset système (barre de navigation Android /
@@ -284,17 +301,39 @@ Action: ${aiContext.method || 'Transfer'}`;
           ) : (
             <>
 
-              {aiStore.isEnabled && aiContext && (
-                <View style={{ width: '90%', backgroundColor: colors.surface2, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? colors.danger : aiAnalysis.riskLevel === 'WARNING' ? colors.warning : colors.up) : colors.border, marginBottom: 8 }}>
+              {aiStore.isEnabled && aiContext && !aiRequested ? (
+                <KPressable onPress={() => void startAudit()} style={{ width: '90%', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 8 }}>
+                  <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{t('aiAuditRun')}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 11, fontFamily: fonts.medium, marginTop: 2 }}>{t('aiAuditRunNote')}</Text>
+                </KPressable>
+              ) : null}
+              {aiStore.isEnabled && aiContext && aiRequested && (
+                // « Sûr » n'est JAMAIS affiché en vert : l'IA n'a vu qu'une adresse et un montant.
+                <View style={{ width: '90%', backgroundColor: colors.surface2, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? colors.danger : aiAnalysis.riskLevel === 'WARNING' ? colors.warning : colors.border) : colors.border, marginBottom: 8 }}>
                   <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13, marginBottom: 4 }}>
-                    {analyzing ? t("aiAuditInProgress") : (aiAnalysis ? `${t('aiAuditLabel')} ${aiAnalysis.riskLevel}` : t("aiAuditUndetermined"))}
+                    {analyzing ? (probing ? t('aiAuditProbing') : t("aiAuditInProgress")) : (aiAnalysis ? `${t('aiAuditLabel')} ${t(`aiRisk${aiAnalysis.riskLevel}` as const)}` : t("aiAuditUndetermined"))}
                   </Text>
+                  {/* Échec : la raison, puis de quoi réessayer — jamais un encadré muet. */}
+                  {!analyzing && aiError ? (
+                    <>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.medium }}>{aiError}</Text>
+                      <KPressable onPress={() => void startAudit()} hitSlop={8} style={{ marginTop: 6 }}>
+                        <Text style={{ color: colors.primary, fontSize: 12, fontFamily: fonts.semibold }}>{t('aiAuditRun')}</Text>
+                      </KPressable>
+                    </>
+                  ) : null}
                   {!analyzing && aiAnalysis && (
                     <>
                       <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.medium }}>{aiAnalysis.explanation}</Text>
                       {aiAnalysis.threats && aiAnalysis.threats.length > 0 && (
                         <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4, fontFamily: fonts.semibold }}>{aiAnalysis.threats.join(', ')}</Text>
                       )}
+                      {/* Ce que l'analyse a reçu : l'utilisateur voit sur quoi repose l'avis. */}
+                      {facts.length > 0 ? (
+                        <Text style={{ color: colors.textTertiary, fontSize: 11, marginTop: 6, fontFamily: fonts.medium }}>
+                          {t('aiFactsTitle')} {facts.map((f) => factLabel(f, t, language)).join(' · ')}
+                        </Text>
+                      ) : null}
                     </>
                   )}
                 </View>
@@ -341,6 +380,6 @@ Action: ${aiContext.method || 'Transfer'}`;
           ) : null}
         </ScrollView>
       </View>
-    </Modal>
+    </SafeModal>
   );
 }

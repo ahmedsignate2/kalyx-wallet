@@ -4,7 +4,7 @@ const de: Dict = {
   meta: {
     title: 'Kalyx Wallet — Non-custodial Multi-Chain-Krypto-Wallet',
     description:
-      'Deine Schlüssel bleiben auf deinem Handy. Bitcoin, Ethereum, Solana und 64 Netzwerke, jede Signatur erklärt, bevor du signierst. Kostenlos, ohne Konto.',
+      'Deine Schlüssel bleiben auf deinem Handy. Bitcoin, Ethereum, TON, Solana und 65 Netzwerke, jede Signatur erklärt, bevor du signierst. Kostenlos, ohne Konto.',
   },
   nav: {
     how: 'So funktioniert es',
@@ -41,7 +41,7 @@ const de: Dict = {
     line1: 'Die Souveränität',
     line2: 'über dein Vermögen.',
     line3: 'Ohne Kompromisse.',
-    sub: 'Verwalte Bitcoin, Ethereum und Solana in voller Freiheit. Deine privaten Schlüssel verlassen dein Handy nie.',
+    sub: 'Verwalte Bitcoin, Ethereum, TON und Solana in voller Freiheit. Deine privaten Schlüssel verlassen dein Handy nie.',
     cta: 'APK herunterladen',
     ctaSecondary: 'Sicherheit entdecken',
     chips: ['Non-custodial', 'AES-256-GCM', 'Null Telemetrie', 'Multi-Chain', 'KI optional (BYOK)'],
@@ -51,18 +51,18 @@ const de: Dict = {
   networks: {
     label: 'Unterstützte Netzwerke',
     walletconnect: 'Interoperabel mit WalletConnect (Reown)',
-    soon: 'TON kommt: Adressen und Schlüsselableitung sind bereits geschrieben und getestet.',
+    soon: 'TON, vollständig: Jettons, .ton-Namen, TON Connect, Swaps über STON.fi und Staking mit Tonstakers.',
   },
   how: {
     kicker: 'So funktioniert es',
     title: 'Eine Wallet,',
     titleEm: 'kein Labyrinth.',
-    lead: 'Fünf Bildschirme der App, so wie sie heute sind. Keine Mockups: das sind echte Screenshots.',
+    lead: 'Sechs Bildschirme der App, wie sie heute sind — aus ihrem Code gerendert, mit einem Demo-Wallet.',
     steps: [
       {
         title: 'Ein Saldo. Alle deine Chains.',
-        text: 'Bitcoin, Ethereum und seine Layer 2, Solana: 64 Netzwerke in einer Zahl, einer Kurve. Der Saldo erscheint aus dem Cache, noch bevor das Netzwerk antwortet.',
-        value: '64',
+        text: 'Bitcoin, Ethereum und seine Layer 2, Solana: 65 Netzwerke in einer Zahl, einer Kurve. Der Saldo erscheint aus dem Cache, noch bevor das Netzwerk antwortet.',
+        value: '65',
         label: 'Netzwerke',
       },
       {
@@ -73,13 +73,13 @@ const de: Dict = {
       },
       {
         title: 'Swap, ohne die App zu verlassen.',
-        text: 'Jupiter auf Solana, LI.FI und Relay auf EVM-Chains und chainübergreifend. Die Route steht in einem Satz, die Preisauswirkung wird vor der Bestätigung genannt.',
-        value: '3',
+        text: 'Jupiter auf Solana, LI.FI und Relay auf EVM-Chains und chainübergreifend. Die Route steht in einem Satz, die Preisauswirkung wird vor der Bestätigung genannt. Und STON.fi auf TON.',
+        value: '4',
         label: 'Router, du signierst selbst',
       },
       {
         title: 'Lass arbeiten, was schläft.',
-        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade. Du zahlst aus deiner Wallet ein und hebst ab, wann du willst. Kalyx nimmt nichts.',
+        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers. Du zahlst aus deiner Wallet ein und hebst ab, wann du willst. Kalyx nimmt nichts.',
         value: '0 %',
         label: 'Kalyx-Gebühr auf Earn',
       },
@@ -89,6 +89,12 @@ const de: Dict = {
         value: '1',
         label: 'Satz pro Signatur',
       },
+      {
+        title: 'Am Computer und in Telegram.',
+        text: 'Das Dashboard app.kalyxwallet.com und die Telegram-Mini-App zeigen Guthaben, Token, NFTs und Markt und bereiten Überweisungen und Swaps vor. Sie halten keinen Schlüssel: Jede Signatur bestätigst du auf deinem Handy, per WalletConnect.',
+        value: '0',
+        label: 'Schlüssel außerhalb deines Handys',
+      }
     ],
   },
   lose: {
@@ -154,6 +160,27 @@ const de: Dict = {
       waits: ['keine Wartezeit', '30 s', '1 Min.', '5 Min.', '15 Min.', '1 Std.'],
       closing: 'Und wenn du das Handy eines Tages verlierst: deine zwölf Wörter, auf ihrem Papier, stellen alles auf einem anderen wieder her.',
     },
+    s4: {
+      kicker: 'Die Whitelist',
+      title: 'Er kennt deine PIN. Nicht deine Geduld.',
+      text: 'Aktiviere die Whitelist: Überweisungen gehen nur noch an gewählte Adressen und an deine eigenen Konten. Selbst mit deiner PIN kann ein Dieb innerhalb der nächsten Stunde nichts ändern.',
+      rows: [
+        ['Adresse hinzugefügt', 'nutzbar in 24 h'],
+        ['Schutz abschalten', 'wirksam in 24 h'],
+        ['Senden an eine Unbekannte', 'blockiert'],
+      ],
+      closing: 'Ein eiliger Dieb geht mit leeren Händen.',
+    },
+    s5: {
+      kicker: 'Unter Zwang',
+      title: 'Man zwingt dich, die App zu öffnen.',
+      text: 'Gib deinen Notfallcode ein: Kalyx öffnet sich ganz normal, mit einem Köder-Wallet. Deine echten Wallets, Kontakte und Mitteilungen bleiben unsichtbar — nichts deutet auf sie hin.',
+      rows: [
+        ['Deine PIN', 'deine echten Wallets'],
+        ['Notfallcode', 'das Köder-Wallet'],
+      ],
+      closing: 'Biometrie ist aus, solange er existiert: Ein Gesicht würde immer die echten öffnen.',
+    },
     footer1: 'All das läuft',
     footerEm: 'auf deinem Handy',
     footer2: '. Kalyx hat keinen Server, der deine Schlüssel sieht, deine IP-Adresse wird uns nie gesendet, kein Analyse-SDK schaut dir über die Schulter.',
@@ -182,8 +209,9 @@ const de: Dict = {
     items: [
       { value: '0 €', label: 'fürs Senden, Empfangen, Halten', note: 'Nur Netzwerkgebühren fallen an — sie gehen an die Validatoren, nicht an uns.' },
       { value: '0,3 %', label: 'auf einen Swap über LI.FI', note: 'EVM und chainübergreifend. Das ist die einzige Einnahme von Kalyx.' },
+      { value: '0,3 %', label: 'auf einen TON-Swap über STON.fi', note: 'Swaps auf TON (TON, USD₮, Jettons). Gleicher Satz wie bei LI.FI.' },
       { value: '0 %', label: 'auf einen Solana-Swap über Jupiter', note: 'Keine Provision auf der Route.' },
-      { value: '0 %', label: 'auf Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: nichts einbehalten, weder bei Einzahlung noch bei Abhebung.' },
+      { value: '0 %', label: 'auf Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers: nichts einbehalten, weder bei Einzahlung noch bei Abhebung.' },
       { value: '0 €', label: 'Abo, für immer', note: 'Keine „Pro“-Version, keine Funktion hinter einer Schranke.' },
     ],
     p1a: 'Vor jeder Signatur werden die Netzwerkgebühren',
@@ -242,15 +270,15 @@ const de: Dict = {
     notice: 'Der folgende Text ist auf Französisch verfasst; nur die französische Fassung ist rechtlich maßgeblich.',
     privacyTitle: 'Datenschutzerklärung',
     privacyIntro: 'Bei Kalyx ist deine Privatsphäre keine Option: sie ist das Fundament der Architektur. So schützen wir deine Daten — indem wir sie nicht erheben.',
-    privacyMeta: ['Aktualisiert: 5. Juli 2026', 'Kalyx', 'Französisches Recht und DSGVO'],
+    privacyMeta: ['Aktualisiert: 3. Oktober 2026', 'Kalyx', 'Französisches Recht und DSGVO'],
     privacyContact: 'Eine Frage zu deinen Daten?',
     termsTitle: 'Allgemeine Nutzungsbedingungen',
     termsIntro: 'Lies diese Bedingungen sorgfältig, bevor du Kalyx Wallet nutzt. Sie definieren den Rahmen der verantwortungsvollen Nutzung und die Besonderheiten des Non-custodial-Modells.',
-    termsMeta: ['Überarbeitet: 5. Juli 2026', 'Beta-Version', 'Non-custodial-Modell'],
+    termsMeta: ['Überarbeitet: 3. Oktober 2026', 'Beta-Version', 'Non-custodial-Modell'],
     termsContact: 'Brauchst du Klarheit?',
     mentionsTitle: 'Impressum',
     mentionsIntro: 'Gemäß Artikel 6 des französischen Gesetzes Nr. 2004-575 vom 21. Juni 2004 für das Vertrauen in die digitale Wirtschaft (LCEN) finden Sie hier die Identität des Herausgebers dieser Website und ihres Hosters.',
-    mentionsMeta: ['Aktualisiert: 16. September 2026', 'Kalyx', 'LCEN — Herausgeber & Hosting'],
+    mentionsMeta: ['Aktualisiert: 3. Oktober 2026', 'Kalyx', 'LCEN — Herausgeber & Hosting'],
     mentionsContact: 'Eine Frage zum Herausgeber oder zum Hosting?',
     contactText: 'Schreib uns bei jeder Frage zu Sicherheit, Compliance oder den Bedingungen.',
   },

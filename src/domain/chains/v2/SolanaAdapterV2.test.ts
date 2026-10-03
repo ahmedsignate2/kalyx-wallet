@@ -266,3 +266,28 @@ describe('SolanaAdapterV2 — waitForTx', () => {
     await expect(adapter.waitForTx('SIG')).resolves.toEqual({ status: 'confirmed' });
   });
 });
+
+describe('SolanaAdapterV2 — loyer minimal d’un compte système', () => {
+  // Un destinataire DISTINCT du compte de test (DEST est sa propre adresse).
+  const OTHER = '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM';
+  const withBalances = (from: number, to: number) => ({
+    getLatestBlockhash: blockhashOk,
+    getRecentPrioritizationFees: fees,
+    getBalance: (p: unknown[]) => ({ value: p[0] === OTHER ? to : from }),
+  });
+  const code = (p: Promise<unknown>) => p.then(() => 'OK', (e: { code?: string }) => e.code);
+
+  it('destinataire vide + montant sous 0,00089 SOL : refusé AVANT signature', async () => {
+    const { adapter } = stub(withBalances(1_000_000_000, 0));
+    expect(await code(adapter.prepareSend(account.address, { to: OTHER, amount: 500_000n }))).toBe('SOL_RENT_RECIPIENT');
+    expect(await code(adapter.prepareSend(account.address, { to: OTHER, amount: 890_880n }))).toBe('OK');
+  });
+
+  it('reste entre 0 et le loyer minimal : refusé ; tout envoyer (reste 0) : accepté', async () => {
+    const { adapter } = stub(withBalances(10_000_000, 5_000_000));
+    const q = await adapter.quoteFees(account.address, { to: OTHER, amount: 1n });
+    // Laisserait 400 000 lamports : sous le minimum de 890 880.
+    expect(await code(adapter.prepareSend(account.address, { to: OTHER, amount: 10_000_000n - q.normal.cost - 400_000n }))).toBe('SOL_RENT_SENDER');
+    expect(await code(adapter.prepareSend(account.address, { to: OTHER, amount: 10_000_000n - q.normal.cost }))).toBe('OK');
+  });
+});

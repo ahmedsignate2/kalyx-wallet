@@ -1,6 +1,9 @@
-import { ScreenHeader, Pressable as KPressable, Button } from '../../ui/kit';
+import { LogoImage, ScreenHeader, Pressable as KPressable, Button, TokenIcon, Skeleton } from '../../ui/kit';
+import { fill } from '../../lib/i18n';
+import { SafeModal } from '../../ui/kit/SafeModal';
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Image, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text, useWindowDimensions, TextInput, KeyboardAvoidingView, Linking } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import {
   PremiumScreen,
@@ -9,6 +12,10 @@ import {
   CircleAction,
 } from '../../ui/premium';
 import { Halo } from '../../ui/kit/Halo';
+import { ActionDisc, GOLD, NovaCard, Orbit, Pills, Rise, SectionLabel } from '../../ui/nova';
+import { Aurora } from '../../ui/Aurora';
+import { tokenTint } from '../../lib/tokenColors';
+import { CHAIN_LOGO_SVG } from '../../src/domain/chains/chainLogos.generated';
 import { TxRow } from '../../ui/TxRow';
 import { InteractiveChart } from '../../ui/InteractiveChart';
 import { Icon } from '../../ui/icon';
@@ -16,6 +23,7 @@ import { fonts, spacing, useTheme } from '../../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { toast } from '../../lib/toast';
 import { useWallet } from '../../lib/walletStore';
+import { addressForChain } from '../../lib/accountAddress';
 import { usePortfolioStore, type Holding } from '../../lib/portfolio';
 import { usePriceAlerts } from '../../lib/priceAlertsStore';
 import {
@@ -31,6 +39,9 @@ import {
   getAdapter,
   chainIconUrl,
   assessToken,
+  formatPercent,
+  formatNumber,
+  shortAddress,
 } from '../../src';
 
 const money = formatFiat;
@@ -50,6 +61,42 @@ function formatScrubDate(ts: number, period: string): string {
   if (period === '24h') return `${dm} · ${hm}`;
   if (period === '7j' || period === '1m') return `${dm} · ${hm}`;
   return `${dm}/${d.getFullYear()}`;
+}
+
+/** Libellé seul, sans « : » ni emplacement (« Market cap: » → « Market cap »). */
+function labelOf(s: string): string {
+  return s.replace(/\s*\{\w+\}\s*$/, '').replace(/\s*[:：]\s*$/, '').trim();
+}
+
+/** Grand nombre sans devise : 19,8 M, 120 Md. */
+function compactNumber(v: number): string {
+  if (v >= 1e12) return `${formatNumber(v / 1e12)} T`;
+  if (v >= 1e9) return `${formatNumber(v / 1e9)} Md`;
+  if (v >= 1e6) return `${formatNumber(v / 1e6)} M`;
+  return formatNumber(v);
+}
+
+/** Tuile de statistique (marché) : libellé discret, valeur en avant. */
+function StatTile({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
+  const { colors, typography } = useTheme();
+  return (
+    <View style={{ flexBasis: wide ? '100%' : '48%', flexGrow: 1, padding: spacing(1.75), borderRadius: 20, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, gap: 4 }}>
+      <Text style={typography.muted} numberOfLines={1}>{label}</Text>
+      <Text style={[typography.bodyStrong, { fontVariant: ['tabular-nums'] }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+    </View>
+  );
+}
+
+/** Ligne libellé → valeur d'une carte d'informations ; touchable si `onPress`. */
+function InfoRow({ label, right, divider, onPress, a11y }: { label: string; right: React.ReactNode; divider?: boolean; onPress?: () => void; a11y?: string }) {
+  const { colors, typography } = useTheme();
+  const body = (
+    <View style={{ minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing(2), paddingHorizontal: spacing(2), borderTopWidth: divider ? 1 : 0, borderTopColor: colors.border }}>
+      <Text style={typography.muted}>{label}</Text>
+      <View style={{ flexShrink: 1, alignItems: 'flex-end' }}>{right}</View>
+    </View>
+  );
+  return onPress ? <KPressable noScale onPress={onPress} accessibilityLabel={a11y ?? label}>{body}</KPressable> : body;
 }
 
 export default function TokenDetail() {
@@ -96,8 +143,11 @@ export default function TokenDetail() {
     toast.success(t("alertCreated"), `${(detail?.symbol || id).toUpperCase()} ${alertDir === 'above' ? '≥' : '≤'} ${target} ${fiatSymbol(fiat)}`);
   };
 
+  // Largeur MESURÉE du conteneur du graphique : il occupe toute la ligne, sans
+  // vide à droite, quelles que soient les marges de l'écran.
   const { width } = useWindowDimensions();
-  const chartWidth = width - spacing(2.5) * 2 - spacing(2.25) * 2;
+  const [chartBox, setChartBox] = useState(0);
+  const chartWidth = chartBox || width - spacing(2.5) * 2;
 
   // Chaîne Kalyx correspondante (si le token est une de nos chaînes natives).
   // Un ID CoinGecko peut représenter plusieurs natifs (ETH sur L2) ; le
@@ -148,7 +198,7 @@ export default function TokenDetail() {
     const state = useWallet.getState();
     const stored = state.accounts.find((a) => a.index === state.activeAccountIndex);
     if (!stored) return;
-    const acct = { evmAddress: stored.evmAddress, solAddress: stored.solAddress, btcAddress: stored.btcAddress };
+    const acct = { evmAddress: stored.evmAddress, solAddress: stored.solAddress, btcAddress: stored.btcAddress, tonPublicKey: stored.tonPublicKey, tonVersion: stored.tonVersion };
     portfolio.hydrate(acct, fiat).then(() => portfolio.refresh(acct, fiat));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account?.address, fiat]);
@@ -166,9 +216,7 @@ export default function TokenDetail() {
   useEffect(() => {
     if (!chain) return;
     const stored = accounts.find((a) => a.index === activeAccountIndex) ?? accounts[0];
-    const address = chain.family === 'bitcoin' ? stored?.btcAddress
-      : chain.family === 'solana' ? stored?.solAddress
-        : stored?.evmAddress;
+    const address = addressForChain(stored, chain);
     if (!address) return;
     let alive = true;
     setActivity(null);
@@ -227,6 +275,7 @@ export default function TokenDetail() {
         if (holding) {
           if (holding.contract) {
             if (holding.kind === 'spl') sendParams.mint = holding.contract;
+            else if (holding.kind === 'jetton') sendParams.jetton = holding.contract;
             else sendParams.contract = holding.contract;
           }
           sendParams.symbol = holding.symbol;
@@ -239,16 +288,74 @@ export default function TokenDetail() {
     }
   };
 
+  // Logo du JETON (le logo du réseau va en pastille) ; contrat et décimales réels du jeton.
+  const tokenLogo = detail?.image || holding?.logo || networkLogo;
+  const showBadge = !!networkLogo && !!chain && (!!holding?.contract || !!marketContract || (chain.nativeSymbol === 'ETH' && chain.id !== 'ethereum'));
+  const contract = holding?.contract ?? marketContract;
+  const decimals = holding?.decimals ?? (contract ? undefined : chain?.nativeDecimals);
+  const fiatSym = fiatSymbol(fiat);
+  const changeShown = scrub ? scrubChange : detail?.change24h ?? null;
+  const changeUp = (changeShown ?? 0) >= 0;
+  const explorerHref = chain?.explorerUrl
+    ? contract && chain.family === 'evm'
+      ? `${chain.explorerUrl.replace(/\/+$/, '')}/token/${contract}`
+      : chain.explorerUrl
+    : null;
+  const copyContract = async () => {
+    if (!contract) return;
+    await Clipboard.setStringAsync(contract);
+    toast.success(t('addressCopied'), shortAddress(contract));
+  };
+  const periodLabels: Record<string, string> = {
+    '24h': t('chartPeriod24h'),
+    '7j': t('chartPeriod7d'),
+    '30j': t('chartPeriod30d'),
+    '1an': t('chartPeriod1y'),
+    all: t('periodAll'),
+  };
+
+  /*
+   * LA FICHE PREND LA COULEUR DE L'ACTIF (ou de son réseau) : aurore, cartes,
+   * pilule de période. Le graphique garde le vert/rouge — il porte un sens.
+   */
+  const accent = tokenTint(id, chain?.id, CHAIN_LOGO_SVG);
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-      <Halo
-        size={280}
-        mood={detail ? (up ? 'up' : 'down') : 'flat'}
-        style={{ position: 'absolute', top: -70, right: -90, opacity: 0.7 }}
+      {/* Aurore aux couleurs de l'actif, ou de son réseau (ETH sur Base : bleu Base). */}
+      <View pointerEvents="none" style={{ position: 'absolute', top: -60, left: -20, right: -20, height: 520 }}>
+        <Aurora height={520} mood={detail ? (up ? 'up' : 'down') : 'flat'} tint={accent} />
+      </View>
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, width: 300, height: 300 }}>
+        <Orbit cx={210} cy={60} r={120} />
+        <Halo
+          size={260}
+          mood={detail ? (up ? 'up' : 'down') : 'flat'}
+          style={{ position: 'absolute', top: -70, left: 80, opacity: 0.75 }}
+        />
+      </View>
+      {/*
+        EN-TÊTE UNIQUE. Le nom figurait deux fois (barre, puis rangée du logo) ;
+        le favori vit ici, à droite ; l'alerte a son disque sous le graphique
+        (la cloche figurait en double, en-tête ET disque).
+      */}
+      <ScreenHeader
+        right={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
+            <KPressable
+              onPress={() => id && toggleFavorite(id)}
+              hitSlop={10}
+              haptic="light"
+              accessibilityRole="switch"
+              accessibilityState={{ checked: isFav }}
+              accessibilityLabel={t('favorites')}
+            >
+              <Icon name={isFav ? 'starFilled' : 'star'} size={23} color={isFav ? GOLD : colors.textSecondary} />
+            </KPressable>
+          </View>
+        }
       />
-      <ScreenHeader title={displayTitle} />
 
       {failed ? (
         <GlassCard>
@@ -258,157 +365,170 @@ export default function TokenDetail() {
         </GlassCard>
       ) : (
         <>
-          {/* En-tête token + épingler en favori */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            {(networkLogo || detail?.image) ? (
-              <Image source={{ uri: networkLogo || detail?.image }} style={{ width: 48, height: 48, borderRadius: 24 }} />
+          {/* Identité : logo du jeton (pastille réseau), nom, symbole · réseau. */}
+          <Rise style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+            {tokenLogo ? (
+              <TokenIcon symbol={detail?.symbol ?? id ?? '?'} logo={tokenLogo} seed={contract ?? id} size={52} badge={showBadge ? networkLogo : null} />
             ) : (
-              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface2 }} />
+              <Skeleton width={52} height={52} round />
             )}
-            <View style={{ flex: 1 }}>
-              <Text style={typography.section}>{displayTitle}</Text>
-              <Text style={typography.muted}>{displaySymbol}</Text>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={typography.section} numberOfLines={1}>{assetName}</Text>
+              <Text style={typography.muted} numberOfLines={1}>{displaySymbol || ' '}</Text>
             </View>
-            <KPressable onPress={openAlert} hitSlop={10} haptic="light" accessibilityLabel={t('actionCreateAlert')} style={{ marginRight: spacing(1.5) }}>
-              <Icon name="bell" size={23} color={colors.textSecondary} />
-            </KPressable>
-            <KPressable
-              onPress={() => id && toggleFavorite(id)}
-              hitSlop={10}
-              haptic="light"
-              accessibilityRole="switch"
-              accessibilityState={{ checked: isFav }}
-              accessibilityLabel={t('favorites')}
-            >
-              <Icon name={isFav ? 'starFilled' : 'star'} size={24} color={isFav ? colors.warning : colors.textSecondary} />
-            </KPressable>
-          </View>
+          </Rise>
 
-          {/* Prix + variation + market cap */}
-          <View>
-            <Text style={typography.hero} numberOfLines={1} adjustsFontSizeToFit>
-              {loadingDetail && !scrub ? '…' : `${money(shownPrice, shownPrice >= 100 ? 0 : 2)} ${fiatSymbol(fiat)}`}
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), marginTop: 4 }}>
-              {scrub ? (
-                <>
-                  {scrubChange != null ? (
-                    <Text style={{ color: scrubChange >= 0 ? colors.up : colors.down, fontFamily: fonts.bold }}>
-                      {scrubChange >= 0 ? '▲' : '▼'} {Math.abs(scrubChange).toFixed(2)}%
-                    </Text>
-                  ) : null}
-                  <Text style={typography.muted}>{formatScrubDate(scrub.t, period)}</Text>
-                </>
-              ) : (
-                <>
-                  {detail ? (
-                    <Text style={{ color: detail.change24h >= 0 ? colors.up : colors.down, fontFamily: fonts.bold }}>
-                      {detail.change24h >= 0 ? '▲' : '▼'} {Math.abs(detail.change24h).toFixed(2)}% (24h)
-                    </Text>
-                  ) : null}
-                  {detail && detail.marketCap > 0 ? (
-                    <Text style={typography.muted}>Cap. {compact(detail.marketCap)} {fiatSymbol(fiat)}</Text>
-                  ) : null}
-                </>
-              )}
+          {/* Prix : grand, puis la variation en pastille colorée (date du point pendant le scrub). */}
+          <View style={{ gap: spacing(1) }}>
+            {loadingDetail && !scrub ? (
+              <Skeleton width={180} height={44} />
+            ) : (
+              <Text style={typography.hero} numberOfLines={1} adjustsFontSizeToFit>
+                {money(shownPrice, shownPrice >= 100 ? 0 : 2)} <Text style={{ color: colors.textSecondary, fontSize: 24 }}>{fiatSym}</Text>
+              </Text>
+            )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+              {changeShown != null ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: 28, borderRadius: 14, backgroundColor: changeUp ? 'rgba(52,199,123,0.14)' : 'rgba(255,92,92,0.14)' }}>
+                  <Text style={{ color: changeUp ? colors.up : colors.down, fontFamily: fonts.bold, fontSize: 14, fontVariant: ['tabular-nums'] }}>
+                    {changeUp ? '↑ +' : '↓ −'}{formatPercent(Math.abs(changeShown))}
+                  </Text>
+                </View>
+              ) : null}
+              <Text style={typography.muted}>{scrub ? formatScrubDate(scrub.t, period) : t('today')}</Text>
             </View>
           </View>
 
           {/* Graphique */}
-          <GlassCard>
-            <View style={{ height: 190, justifyContent: 'center' }}>
+          <View style={{ gap: spacing(1.5) }}>
+            <View style={{ height: 200, justifyContent: 'center' }} onLayout={(e) => setChartBox(Math.round(e.nativeEvent.layout.width))}>
               {loadingChart && chart.length === 0 ? (
-                <Text style={[typography.muted, { textAlign: 'center' }]}>{t("loadingChart")}</Text>
+                <Skeleton height={160} />
               ) : chart.length < 2 ? (
                 <Text style={[typography.muted, { textAlign: 'center' }]}>{t("noChartData")}</Text>
               ) : (
                 <InteractiveChart points={chart} color={chartColor} width={chartWidth} onScrub={setScrub} />
               )}
             </View>
-            <View style={{ marginTop: spacing(1) }}>
-              <SegmentedTabs
-                items={CHART_PERIODS.map((p) => {
-                  const chartPeriodLabels: Record<string, string> = {
-                    '24h': t('chartPeriod24h'),
-                    '7j': t('chartPeriod7d'),
-                    '30j': t('chartPeriod30d'),
-                    '1an': t('chartPeriod1y'),
-                    'all': t('periodAll'),
-                  };
-                  return { key: p.key, label: chartPeriodLabels[p.key] || p.label };
-                })}
-                active={period}
-                onChange={(k) => setPeriod(k as ChartPeriod)}
-              />
-            </View>
-          </GlassCard>
+            <Pills
+              accent={accent}
+              items={CHART_PERIODS.map((p) => ({ key: p.key, label: periodLabels[p.key] || p.label }))}
+              value={period}
+              onChange={(k) => setPeriod(k as ChartPeriod)}
+            />
+          </View>
 
-          {/* Solde personnel, regroupé par réseau. */}
+          {/* Actions : les mêmes disques que l'accueil. */}
+          <View style={{ flexDirection: 'row', gap: spacing(1) }}>
+            <ActionDisc index={0} tone="primary" icon="send" label={t('send')} disabled={chain?.family === 'bitcoin'} onPress={() => goSendReceive('/send')} />
+            <ActionDisc index={1} icon="receive" label={t('receive')} onPress={() => goSendReceive('/receive')} />
+            <ActionDisc index={2} icon="exchange" label={t('actionSwap')} onPress={() => router.push({ pathname: '/swap', params: { to: detail?.symbol ?? '' } })} />
+            <ActionDisc index={3} tone="gold" icon="bell" label={t('actionAlert')} onPress={openAlert} />
+          </View>
+
+          {/* Ta position : valeur, puis le détail par réseau. */}
           {owned.length > 0 ? (
-            <GlassCard>
-              <Text style={typography.bodyStrong}>{t("yourBalance")}</Text>
-              <Text style={[typography.hero, { marginTop: spacing(0.5) }]}>{money(ownedTotal, 2)} {fiatSymbol(fiat)}</Text>
-              {owned.map((holding: Holding) => (
-                <View key={holding.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing(1) }}>
-                  <Text style={typography.muted}>{formatTokenAmount(holding.raw, holding.decimals)} {holding.symbol} · {ALL_CHAINS.find((c) => c.id === holding.chainId)?.name ?? holding.chainId}</Text>
-                  <Text style={typography.body}>{money(holding.fiat, 2)} {fiatSymbol(fiat)}</Text>
-                </View>
-              ))}
-            </GlassCard>
+            <>
+              <SectionLabel>{t('yourBalance')}</SectionLabel>
+              <NovaCard tint={accent}>
+                <Text style={[typography.hero, { fontSize: 34, lineHeight: 40 }]} numberOfLines={1} adjustsFontSizeToFit>
+                  {money(ownedTotal, 2)} <Text style={{ color: colors.textSecondary, fontSize: 20 }}>{fiatSym}</Text>
+                </Text>
+                {owned.map((h: Holding, i) => (
+                  <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingTop: spacing(1.5), marginTop: i === 0 ? spacing(1.5) : 0, borderTopWidth: i === 0 ? 1 : 0, borderTopColor: colors.border }}>
+                    {chainIconUrl(h.chainId) ? <LogoImage uri={chainIconUrl(h.chainId)!} size={24} /> : null}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={typography.body} numberOfLines={1}>{formatTokenAmount(h.raw, h.decimals)} {h.symbol}</Text>
+                      <Text style={typography.muted} numberOfLines={1}>{ALL_CHAINS.find((c) => c.id === h.chainId)?.name ?? h.chainId}</Text>
+                    </View>
+                    <Text style={[typography.body, { fontVariant: ['tabular-nums'] }]}>{money(h.fiat, 2)} {fiatSym}</Text>
+                  </View>
+                ))}
+              </NovaCard>
+            </>
           ) : null}
 
-          {/* Actions principales : envoyer, recevoir, swap. */}
-          <View style={{ flexDirection: 'row', gap: spacing(2), paddingHorizontal: spacing(1) }}>
-            <CircleAction icon="send" label={t('send')} disabled={chain?.family === 'bitcoin'} onPress={() => goSendReceive('/send')} />
-            <CircleAction icon="receive" label={t('receive')} onPress={() => goSendReceive('/receive')} />
-            <CircleAction icon="convert" label="Swap" onPress={() => router.push({ pathname: '/swap', params: { to: detail?.symbol ?? '' } })} />
-          </View>
-          {/* Description */}
-          {activity !== null ? (
-            <View>
-              <Text style={typography.section}>{t("tokenActivityTitle")}</Text>
-              {activityError ? <Text style={typography.muted}>{t("activityUnavailable")}</Text> : activity.length === 0 ? <Text style={typography.muted}>{t("noTxFound")}</Text> : (
-                <View>
-                  {activity.map((tx, i) => <TxRow key={tx.hash} tx={tx} symbol={detail?.symbol ?? id ?? ''} decimals={tx.decimals ?? chain?.nativeDecimals ?? 18} logoUri={networkLogo || detail?.image} price={detail?.price} fiatSymbol={fiatSymbol(fiat)} divider={i > 0} explorerUrl={chain?.explorerUrl} />)}
-                </View>
-              )}
-            </View>
-          ) : null}
-
-          <View>
-            <Text style={typography.section}>{t("tokenDetailsTitle")}</Text>
-            <Text style={typography.muted}>{t('networkLabel').replace(/\$\{.*?\}/, chain?.name ?? t('multiChainMarket'))}</Text>
-            <Text style={typography.muted}>{t('decimalsLabel').replace(/\$\{.*?\}/, String(chain?.nativeDecimals ?? '—'))}</Text>
-            {chain?.explorerUrl ? <Text style={{ color: colors.primary, marginTop: 4 }}>{t('explorerLabel').replace(/\$\{.*?\}/, chain.explorerUrl)}</Text> : null}
-          </View>
-
+          {/* Marché : des tuiles, plus des lignes de texte gris. */}
           {detail ? (
-            <View>
-              <Text style={typography.section}>{t("marketDetailsTitle")}</Text>
-              <Text style={typography.muted}>{t('marketCapLabel')}{compact(detail.marketCap)} {fiatSymbol(fiat)}</Text>
-              <Text style={typography.muted}>{t('volume24hLabel')}{compact(detail.volume24h)} {fiatSymbol(fiat)}</Text>
-              <Text style={typography.muted}>ATH : {money(detail.ath)} {fiatSymbol(fiat)} · ATL : {money(detail.atl)} {fiatSymbol(fiat)}</Text>
-              {detail.circulatingSupply > 0 ? <Text style={typography.muted}>{t('circulatingSupplyLabel')}{detail.circulatingSupply.toLocaleString()}</Text> : null}
-            </View>
+            <>
+              <SectionLabel>{t('marketDetailsTitle')}</SectionLabel>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
+                {detail.marketCap > 0 ? <StatTile label={labelOf(t('marketCapLabel'))} value={`${compact(detail.marketCap)} ${fiatSym}`} /> : null}
+                {detail.volume24h > 0 ? <StatTile label={labelOf(t('volume24hLabel'))} value={`${compact(detail.volume24h)} ${fiatSym}`} /> : null}
+                {detail.ath > 0 ? <StatTile label="ATH" value={`${money(detail.ath)} ${fiatSym}`} /> : null}
+                {detail.atl > 0 ? <StatTile label="ATL" value={`${money(detail.atl)} ${fiatSym}`} /> : null}
+                {detail.circulatingSupply > 0 ? <StatTile label={labelOf(t('circulatingSupplyLabel'))} value={compactNumber(detail.circulatingSupply)} wide /> : null}
+              </View>
+            </>
           ) : null}
 
-          <View>
-            <Text style={typography.section}>{t("securityTitle")}</Text>
-            <Text style={typography.muted}>{risk ? `${risk.level === 'danger' ? t("securityRisk") : t("securitySafe")} · analyse GoPlus` : t("securityUnavailable")}</Text>
-          </View>
+          {/* Jeton : réseau, contrat (copiable), décimales, explorateur — et la sécurité, en badge. */}
+          <SectionLabel>{t('tokenDetailsTitle')}</SectionLabel>
+          <NovaCard tint={accent} padded={false}>
+            <InfoRow label={labelOf(t('networkLabel'))} right={
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {networkLogo ? <LogoImage uri={networkLogo} size={18} /> : null}
+                <Text style={typography.body}>{chain?.name ?? t('multiChainMarket')}</Text>
+              </View>
+            } />
+            {contract ? (
+              <InfoRow divider label={t('contractLabel')} onPress={copyContract} a11y={t('copyAddress')} right={
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[typography.body, { fontVariant: ['tabular-nums'] }]}>{shortAddress(contract)}</Text>
+                  <Icon name="copy" size={15} color={colors.textSecondary} />
+                </View>
+              } />
+            ) : null}
+            {decimals != null ? <InfoRow divider label={labelOf(t('decimalsLabel'))} right={<Text style={typography.body}>{decimals}</Text>} /> : null}
+            <InfoRow divider label={t('securityTitle')} right={
+              risk ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, height: 26, borderRadius: 13, backgroundColor: risk.level === 'danger' ? 'rgba(255,92,92,0.14)' : 'rgba(52,199,123,0.14)' }}>
+                  <Icon name={risk.level === 'danger' ? 'warning' : 'check'} size={13} color={risk.level === 'danger' ? colors.danger : colors.up} />
+                  <Text style={{ color: risk.level === 'danger' ? colors.danger : colors.up, fontFamily: fonts.semibold, fontSize: 13 }}>{risk.level === 'danger' ? t('securityRisk') : t('securitySafe')}</Text>
+                </View>
+              ) : (
+                <Text style={[typography.muted, { flexShrink: 1, textAlign: 'right' }]} numberOfLines={2}>{t('securityUnavailable')}</Text>
+              )
+            } />
+            {explorerHref ? (
+              <InfoRow divider label={t('viewOnExplorer')} onPress={() => Linking.openURL(explorerHref).catch(() => {})} a11y={t('viewOnExplorer')} right={<Icon name="chevron" size={16} color={colors.textSecondary} />} />
+            ) : null}
+          </NovaCard>
+          {risk?.level === 'danger' && risk.reasons.length > 0 ? (
+            <Text style={[typography.muted, { color: colors.danger, marginTop: -spacing(1) }]}>{risk.reasons.map((r) => t(r as never) || r).join(' · ')} · {t('goplusAnalysis')}</Text>
+          ) : null}
 
+          {/* À propos */}
           {detail?.description ? (
-            <GlassCard>
-              <Text style={typography.bodyStrong}>À propos de {detail.name}</Text>
-              <Text numberOfLines={aboutExpanded ? undefined : 5} style={[typography.muted, { marginTop: spacing(1), lineHeight: 20 }]}>{detail.description}</Text>
-              {detail.description.length > 320 ? <KPressable onPress={() => setAboutExpanded((v) => !v)} hitSlop={8} accessibilityLabel={aboutExpanded ? t('readLess') : t('readMore')}><Text style={{ color: colors.primary, marginTop: spacing(1), fontFamily: fonts.semibold }}>{aboutExpanded ? t("readLess") : t("readMore")}</Text></KPressable> : null}
-            </GlassCard>
+            <>
+              <SectionLabel>{fill(t('aboutTokenTitle'), { name: detail.name })}</SectionLabel>
+              <NovaCard tint={accent}>
+                <Text numberOfLines={aboutExpanded ? undefined : 5} style={[typography.muted, { lineHeight: 21 }]}>{detail.description}</Text>
+                {detail.description.length > 320 ? (
+                  <KPressable onPress={() => setAboutExpanded((v) => !v)} hitSlop={8} accessibilityLabel={aboutExpanded ? t('readLess') : t('readMore')}>
+                    <Text style={{ color: GOLD, marginTop: spacing(1), fontFamily: fonts.semibold }}>{aboutExpanded ? t("readLess") : t("readMore")}</Text>
+                  </KPressable>
+                ) : null}
+              </NovaCard>
+            </>
+          ) : null}
+
+          {/* Activité de ce jeton */}
+          {activity !== null ? (
+            <>
+              <SectionLabel>{t('tokenActivityTitle')}</SectionLabel>
+              <NovaCard tint={accent} padded={activityError || activity.length === 0}>
+                {activityError ? <Text style={typography.muted}>{t("activityUnavailable")}</Text> : activity.length === 0 ? <Text style={typography.muted}>{t("noTxFound")}</Text> : (
+                  activity.map((tx, i) => <TxRow key={tx.hash} tx={tx} symbol={detail?.symbol ?? id ?? ''} decimals={tx.decimals ?? decimals ?? chain?.nativeDecimals ?? 18} logoUri={tokenLogo} price={detail?.price} fiatSymbol={fiatSym} divider={i > 0} explorerUrl={chain?.explorerUrl} />)
+                )}
+              </NovaCard>
+            </>
           ) : null}
         </>
       )}
 
       {/* Modale : créer une alerte de prix */}
-      <Modal visible={alertOpen} transparent animationType="slide" onRequestClose={() => setAlertOpen(false)}>
+      <SafeModal visible={alertOpen} transparent animationType="slide" onRequestClose={() => setAlertOpen(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         {/* Fond : cible de fermeture. Ni rebond ni vibration — ce n'est pas un
             bouton, et une feuille qui tremble quand on la ferme fait cheap. */}
@@ -422,7 +542,7 @@ export default function TokenDetail() {
           {/* Absorbe les taps pour qu'ils ne ferment pas la feuille. */}
           <KPressable noScale haptic="none" style={{ backgroundColor: colors.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: spacing(2.5), gap: spacing(1.75) }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
-            <Text style={typography.section}>Alerte de prix · {(detail?.symbol || id || '').toUpperCase()}</Text>
+            <Text style={typography.section}>{t('priceAlertTitle')}{(detail?.symbol || id || '').toUpperCase()}</Text>
 
             <View style={{ flexDirection: 'row', gap: spacing(1) }}>
               {(['above', 'below'] as const).map((d) => {
@@ -452,7 +572,7 @@ export default function TokenDetail() {
           </KPressable>
         </KPressable>
         </KeyboardAvoidingView>
-      </Modal>
+      </SafeModal>
     </PremiumScreen>
     </>
   );

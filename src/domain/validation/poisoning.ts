@@ -5,8 +5,10 @@
  * son historique. Si l'adresse saisie RESSEMBLE à une adresse connue (même
  * début + même fin) mais diffère au milieu → alerte bloquante.
  *
- * Pur, testé. Comparaison insensible à la casse (EVM) ; Solana/BTC sensibles.
+ * Pur, testé. Comparaison insensible à la casse pour EVM et bech32 ; Solana et
+ * Bitcoin base58 sensibles.
  */
+import { normalizeAddressCase } from './addressCase';
 export interface PoisoningMatch {
   /** L'adresse connue imitée. */
   lookalike: string;
@@ -16,9 +18,11 @@ function core(a: string): string {
   const s = a.trim();
   return s.startsWith('0x') || s.startsWith('0X') ? s.slice(2) : s;
 }
+/** Règle de casse unique (addressCase) : EVM et bech32 en minuscules, Solana/base58 exacts. */
 function norm(a: string): string {
   const s = a.trim();
-  return s.startsWith('0x') || s.startsWith('0X') ? s.toLowerCase() : s;
+  // Tout 0x… (même hors format strict) reste comparé sans casse, comme avant.
+  return /^0x/i.test(s) ? s.toLowerCase() : normalizeAddressCase(s);
 }
 
 /**
@@ -65,7 +69,7 @@ export function shortAddress(address: string, head = 6, tail = 4): string {
  * n'a aucun moyen de savoir pourquoi le nom qu'il vient de choisir est rejeté.
  * Mieux vaut ne pas le lui proposer.
  */
-export type AddressFamily = 'evm' | 'solana' | 'bitcoin';
+export type AddressFamily = 'evm' | 'solana' | 'bitcoin' | 'ton';
 
 /**
  * Familles pour lesquelles cette adresse est valide.
@@ -80,6 +84,12 @@ export function addressFamilies(
     evm: (a: string) => boolean;
     solana: (a: string) => boolean;
     bitcoin: (a: string) => boolean;
+    /*
+     * Obligatoire, pas optionnel : oublier TON ici faisait juger « invalide »
+     * toute adresse TON du carnet de contacts. Aucun recouvrement avec les autres
+     * écritures (48 caractères base64url, ou `0:` suivi de 64 hexadécimaux).
+     */
+    ton: (a: string) => boolean;
   },
 ): AddressFamily[] {
   const a = (address ?? '').trim();
@@ -88,5 +98,6 @@ export function addressFamilies(
   if (check.evm(a)) out.push('evm');
   if (check.solana(a)) out.push('solana');
   if (check.bitcoin(a)) out.push('bitcoin');
+  if (check.ton(a)) out.push('ton');
   return out;
 }

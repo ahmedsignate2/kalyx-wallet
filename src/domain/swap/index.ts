@@ -16,6 +16,9 @@ import { getRelayQuote, relayEnabled } from './relay';
 import { getAdapter } from '../chains/registry';
 import { SwapError, pickMostRelevant } from './swapError';
 import type { SwapQuote, SwapTokenInfo } from './lifi';
+import { checkSwapQuote } from './guard';
+import { getStonfiQuote, isTonNative } from './stonfi';
+import { getAdapterV2 } from '../chains/v2/registry';
 
 const LIFI_SOLANA = 1151111081099710;
 const SOL_NATIVE = '11111111111111111111111111111111';
@@ -71,9 +74,6 @@ export async function getBestQuote(params: RouteParams): Promise<SwapQuote | nul
   if (toChain.family === 'solana' && !isSolanaAddress(params.toAddress)) {
     throw new SwapError('INVALID_ADDRESS', 'Ce portefeuille n’a pas d’adresse Solana', { chain: 'Solana' });
   }
-  if (fromChain.family !== 'evm' && fromChain.family !== 'solana') {
-    throw new SwapError('NO_ROUTE', `Swap non disponible depuis ${fromChain.name}`);
-  }
   let amount: bigint;
   try {
     amount = BigInt(params.fromAmount);
@@ -81,6 +81,35 @@ export async function getBestQuote(params: RouteParams): Promise<SwapQuote | nul
     throw new SwapError('NO_ROUTE', 'Montant invalide');
   }
   if (amount <= 0n) throw new SwapError('NO_ROUTE', 'Montant invalide');
+
+  /*
+   * TON : STON.fi, sur TON seulement. Un échange entre TON et une autre chaîne
+   * demande un pont que LI.FI ne couvre pas : refusé clairement plutôt que tenté.
+   */
+  if (fromChain.family === 'ton' || toChain.family === 'ton') {
+    if (fromChain.family !== 'ton' || toChain.family !== 'ton' || fromChain.testnet) {
+      throw new SwapError('NO_ROUTE', 'Échange TON ↔ autre réseau pas encore disponible', { reason: 'tonCrossChain' });
+    }
+    const ton = getAdapterV2(params.fromChainId) as unknown as { ownJettonWallet?: (owner: string, master: string) => Promise<string | null> };
+    const userOfferJettonWallet = isTonNative(params.fromToken) ? undefined : (await ton.ownJettonWallet?.(params.fromAddress, params.fromToken)) ?? undefined;
+    const q = await getStonfiQuote({
+      fromToken: params.fromToken,
+      toToken: params.toToken,
+      fromAmount: amount,
+      fromAddress: params.fromAddress,
+      userOfferJettonWallet,
+      slippage: params.slippage,
+      fromTokenInfo: params.fromTokenInfo,
+      toTokenInfo: params.toTokenInfo,
+    });
+    if (!q) throw new SwapError('NO_ROUTE', 'Aucune route trouvée.');
+    const c = checkSwapQuote(q, { fromToken: params.fromToken, fromAmount: amount, fromAddress: params.fromAddress, toAddress: params.fromAddress });
+    if (!c.ok) throw new SwapError('PROVIDER_UNAVAILABLE', `Devis STON.fi refusé : ${c.reason}`);
+    return normalizeQuote(q, params);
+  }
+  if (fromChain.family !== 'evm' && fromChain.family !== 'solana') {
+    throw new SwapError('NO_ROUTE', `Swap non disponible depuis ${fromChain.name}`);
+  }
 
   const sameChain = params.fromChainId === params.toChainId;
   const toLifiToken = (addr: string, family: string) => (addr === EVM_ZERO && family === 'solana' ? SOL_NATIVE : addr);
@@ -142,7 +171,26 @@ export async function getBestQuote(params: RouteParams): Promise<SwapQuote | nul
   }
 
   const results = await Promise.all(tasks);
-  const quotes = results.filter((q): q is SwapQuote => q !== null).map((q) => normalizeQuote(q, params));
+  /*
+   * Chaque devis est CONTRÔLÉ avant d'être retenu (contrat, autorisation,
+   * réseau, montant, adresse de réception) : un devis qui ne passe pas n'est
+   * jamais proposé à la signature. Voir `guard.ts`.
+   */
+  const quotes = results
+    .filter((q): q is SwapQuote => q !== null)
+    .map((q) => normalizeQuote(q, params))
+    .filter((q) => {
+      const c = checkSwapQuote(q, {
+        fromEvmChainId: fromChain.family === 'evm' ? fromChain.evmChainId : undefined,
+        fromToken: params.fromToken,
+        fromAmount: amount,
+        fromAddress: params.fromAddress,
+        toAddress: params.toAddress,
+        toToken: params.toToken,
+      });
+      if (!c.ok) errors.push(new SwapError('PROVIDER_UNAVAILABLE', `Devis ${q.toolName} refusé : ${c.reason}`));
+      return c.ok;
+    });
   const best = pickBest(quotes);
   if (best) return best;
 
@@ -150,6 +198,8 @@ export async function getBestQuote(params: RouteParams): Promise<SwapQuote | nul
 }
 
 export * from './swapError';
+export * from './guard';
+export * from './stonfi';
 export * from './lifi';
 export * from './relay';
 export * from './jupiter';

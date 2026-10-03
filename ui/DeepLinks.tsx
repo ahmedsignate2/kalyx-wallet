@@ -27,6 +27,7 @@
  */
 import { useEffect } from 'react';
 import * as Linking from 'expo-linking';
+import { looksLikeTonConnect } from '../src/domain/tonconnect/connectLink';
 import { toast } from '../lib/toast';
 import { useSettings } from '../lib/settingsStore';
 import { translate } from '../lib/i18n';
@@ -69,7 +70,7 @@ export function DeepLinks() {
       if (!w.isUnlocked) {
         // Rejouée par `app/unlock.tsx`, après l'accueil — cf. paymentIntent.
         setPendingIntent(result);
-        toast.info(translate(useSettings.getState().language, 'payQueuedUnlock'));
+        toast.info(translate(useSettings.getState().language, result.kind === 'url' ? 'linkQueuedUnlock' : 'payQueuedUnlock'));
         return;
       }
       void runQrIntent(result);
@@ -102,6 +103,20 @@ export function DeepLinks() {
         }
         return;
       }
+      /*
+       * TON Connect : une dApp qui a choisi Kalyx (liste officielle des wallets)
+       * ouvre `kalyx://?v=2&id=…&r=…` ou `https://kalyxwallet.com/ton-connect?…`.
+       * La demande s'affiche par-dessus l'écran courant (ui/TonConnectHost).
+       */
+      if (looksLikeTonConnect(url)) {
+        act({ kind: 'tonconnect', link: url });
+        return;
+      }
+      // Facture TON Pay (ton://transfer/…) : écran d'envoi prérempli, jamais un envoi direct.
+      if (/^ton:\/\//i.test(url)) {
+        act(parseQr(url));
+        return;
+      }
       const wc = extractWcUri(url);
       if (wc) {
         act({ kind: 'walletconnect', uri: wc });
@@ -125,7 +140,8 @@ export function DeepLinks() {
       }
       if (/(^|\/\/)browse\b/i.test(url)) {
         const target = extractBrowseUrl(url);
-        if (target) router.push({ pathname: '/browser', params: { url: target } });
+        // Par `act` : app verrouillée → mise en attente jusqu'au code (la page ne se charge pas derrière l'écran de verrouillage).
+        if (target) act({ kind: 'url', url: target });
       }
     };
     Linking.getInitialURL().then((u) => handle(u, true));

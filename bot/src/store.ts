@@ -71,9 +71,21 @@ export async function listAlerts(env: Env, telegramId: number): Promise<PriceAle
   return r.results;
 }
 
+/**
+ * Toutes les alertes ouvertes. Il y avait un `LIMIT 500` sans ordre : au-delà de
+ * 25 personnes à 20 alertes, une partie n'était JAMAIS vérifiée (et toujours
+ * la même, selon l'ordre de stockage). Lues par pages, dans l'ordre.
+ */
 export async function openAlerts(env: Env): Promise<PriceAlert[]> {
-  const r = await env.DB.prepare('SELECT * FROM price_alerts WHERE triggered = 0 LIMIT 500').all<PriceAlert>();
-  return r.results;
+  const PAGE = 1000;
+  const out: PriceAlert[] = [];
+  let after = 0;
+  for (;;) {
+    const r = await env.DB.prepare('SELECT * FROM price_alerts WHERE triggered = 0 AND id > ? ORDER BY id LIMIT ?').bind(after, PAGE).all<PriceAlert>();
+    out.push(...r.results);
+    if (r.results.length < PAGE) return out;
+    after = r.results[r.results.length - 1].id;
+  }
 }
 
 export async function markAlertTriggered(env: Env, id: number): Promise<void> {

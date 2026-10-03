@@ -4,27 +4,32 @@
  * claires sur les réseaux compatibles, Copier (haptique + toast) et Partager.
  * Le réseau se choisit ici (famille d'adresse : EVM / Solana / Bitcoin).
  */
+import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
+import { fill } from '../lib/i18n';
+import { SafeModal } from '../ui/kit/SafeModal';
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, ScrollView, Share, Image, Modal, Platform } from 'react-native';
+import { View, ScrollView, Share, Modal, Platform } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
-import { Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl, Pressable as KPressable } from '../ui/kit';
+import { LogoImage, Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl, Pressable as KPressable } from '../ui/kit';
+import { Orbit, Rise } from '../ui/nova';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
+import { addressForChain } from '../lib/accountAddress';
 import { accountDisplayName } from '../lib/walletNames';
 import { useSettings, useT } from '../lib/settingsStore';
 import { useCustomChains } from '../lib/customChainsStore';
 import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
-import { getAdapter, listChains, chainIconUrl } from '../src';
+import { getAdapter, listChains, chainIconUrl, type ChainFamily } from '../src';
 
-type Fam = 'evm' | 'solana' | 'bitcoin';
+type Fam = ChainFamily;
 
-export default function Receive() {
+function ReceiveInner() {
   const t = useT();
   const language = useSettings((st) => st.language);
   const { colors } = useTheme();
@@ -48,15 +53,14 @@ export default function Receive() {
    * adresse — et, avant le garde-fou du QR, à un écran qui tombait.
    */
   const hasAddressFor = useCallback(
-    (family: string) =>
-      family === 'solana' ? !!stored?.solAddress : family === 'bitcoin' ? !!stored?.btcAddress : !!stored?.evmAddress,
-    [stored?.evmAddress, stored?.solAddress, stored?.btcAddress],
+    (family: ChainFamily) => !!addressForChain(stored, { family }),
+    [stored],
   );
 
   const networks = useMemo(() => {
     if (environment === 'mainnet') {
       return listChains({ includeTestnets: false })
-        .filter((c) => c.id === 'ethereum' || c.id === 'solana' || c.id === 'bitcoin')
+        .filter((c) => c.id === 'ethereum' || c.id === 'solana' || c.id === 'bitcoin' || c.id === 'ton')
         /*
          * ON NE PROPOSE QUE CE QU'ON PEUT SERVIR. Masquer plutôt que griser : un
          * onglet grisé pose une question — « pourquoi ? » — à laquelle cet écran
@@ -74,19 +78,22 @@ export default function Receive() {
   if (!stored) return null;
   const selected = networks.find((c) => c.id === selectedChain) ?? networks[0];
   const fam = selected?.family as Fam | undefined;
-  const address = fam === 'solana' ? stored.solAddress ?? '' : fam === 'bitcoin' ? stored.btcAddress : stored.evmAddress;
+  // La fonction unique : l'adresse TON se calcule, et dépend du réseau.
+  const address = selected ? addressForChain(stored, selected) : '';
   const isTestnet = selected?.testnet === true;
   const hint =
     // Regex et non littéral : chaque langue traduit le repli À L'INTÉRIEUR du
     // repère (`'ce réseau'`, `'this network'`, `'dieses Netzwerk'`…), donc
     // chercher la version française ne marchait qu'en français — partout
     // ailleurs le `${…}` s'affichait tel quel.
-    fam === 'evm' ? t('hintEvm').replace(/\$\{[^}]*\}/, selected?.name ?? t('thisNetwork'))
+    fam === 'evm' ? fill(t('hintEvm'), { network: selected?.name ?? t('thisNetwork') })
     : fam === 'solana' ? t("hintSolana")
+    : fam === 'ton' ? t("hintTon")
     : t("hintBitcoin");
   const warn =
     fam === 'evm' ? t("warnEvm")
     : fam === 'solana' ? t("warnSolana")
+    : fam === 'ton' ? t("warnTon")
     : t("warnBitcoin");
 
   const copy = async () => {
@@ -117,7 +124,7 @@ export default function Receive() {
         {environment === 'testnet' && selected ? (
           <KPressable
             onPress={() => setTestnetPickerOpen(true)}
-            accessibilityLabel={t('a11yTestnetSelected').replace('${selected.name}', selected.name)}
+            accessibilityLabel={fill(t('a11yTestnetSelected'), { network: selected.name })}
             accessibilityRole="button"
             style={{
               alignSelf: 'center',
@@ -130,18 +137,19 @@ export default function Receive() {
               paddingHorizontal: 14,
             }}
           >
-            {chainIconUrl(selected.id) ? <Image source={{ uri: chainIconUrl(selected.id) }} style={{ width: 20, height: 20, borderRadius: 10 }} /> : null}
+            {chainIconUrl(selected.id) ? <LogoImage uri={chainIconUrl(selected.id)!} size={20} /> : null}
             <Text variant="caption">{selected.name}</Text>
             <Icon name="caretDown" size={16} tone="muted" />
           </KPressable>
         ) : null}
-        {environment === 'mainnet' ? (
+        {/* « Ethereum & EVM · Base, Arbitrum… » : seulement sur Ethereum — il restait affiché sur Solana, Bitcoin et TON. */}
+        {environment === 'mainnet' && selected?.family === 'evm' ? (
           <Text variant="caption" tone="secondary">{t("evmDescription")}</Text>
         ) : null}
 
-        <Surface style={{ alignItems: 'center', gap: space[4], paddingVertical: space[6] }}>
+        <Surface style={{ alignItems: 'center', gap: space[4], paddingVertical: space[6], borderRadius: 26 }}>
           {selected && environment === 'mainnet' ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {chainIconUrl(selected.id) ? <Image source={{ uri: chainIconUrl(selected.id) }} style={{ width: 22, height: 22, borderRadius: 11 }} /> : null}
+            {chainIconUrl(selected.id) ? <LogoImage uri={chainIconUrl(selected.id)!} size={22} /> : null}
             <Text variant="body">{selected.name}</Text>
           </View> : null}
           {/*
@@ -152,6 +160,10 @@ export default function Receive() {
             affichée : l'adresse vaut alors la chaîne vide.
           */}
           {address ? (
+            <Rise key={address} delay={60}>
+            <View pointerEvents="none" style={{ position: 'absolute', left: '50%', top: '50%' }}>
+              <Orbit cx={0} cy={0} r={150} />
+            </View>
             <View style={{ padding: space[3], backgroundColor: '#FFFFFF', borderRadius: radius.container }}>
               <QRCode value={address} size={220} ecl="H" backgroundColor="#FFFFFF" color="#06070D" />
               <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
@@ -160,6 +172,7 @@ export default function Receive() {
                 </View>
               </View>
             </View>
+            </Rise>
           ) : (
             <View style={{ paddingHorizontal: space[4], gap: space[2], alignItems: 'center' }}>
               <Text variant="body">{t('receiveNoAddressTitle')}</Text>
@@ -172,7 +185,7 @@ export default function Receive() {
             variant="body"
             tabular
             selectable
-            accessibilityLabel={t('a11yAddress').replace('${address}', address)}
+            accessibilityLabel={fill(t('a11yAddress'), { address: address })}
             style={{
               fontSize: 13,
               fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
@@ -195,11 +208,11 @@ export default function Receive() {
         </View>
 
         <View style={{ flexDirection: 'row', gap: space[2] }}>
-          <Button label={t("actionCopy")} icon="copy" variant="primary" style={{ flex: 1 }} onPress={copy} />
-          <Button label={t("share")} icon="share" variant="secondary" style={{ flex: 1 }} onPress={share} />
+          <Button label={t("actionCopy")} icon="copy" variant="primary" style={{ flex: 1 }} onPress={copy} disabled={!address} />
+          <Button label={t("share")} icon="share" variant="secondary" style={{ flex: 1 }} onPress={share} disabled={!address} />
         </View>
       </ScrollView>
-      <Modal
+      <SafeModal
         visible={testnetPickerOpen}
         transparent
         animationType="slide"
@@ -225,7 +238,7 @@ export default function Receive() {
             <ScrollView contentContainerStyle={{ gap: space[2] }}>
               {networks.map((network) => {
                 const selectedNetwork = network.id === selected?.id;
-                const addressType = network.family === 'solana' ? t("addressTypeSolana") : t("addressTypeEvm");
+                const addressType = network.family === 'solana' ? t("addressTypeSolana") : network.family === 'ton' ? t("addressTypeTon") : t("addressTypeEvm");
                 return (
                   <KPressable
                     key={network.id}
@@ -246,7 +259,7 @@ export default function Receive() {
                       borderColor: colors.primary,
                     }}
                   >
-                    {chainIconUrl(network.id) ? <Image source={{ uri: chainIconUrl(network.id) }} style={{ width: 24, height: 24, borderRadius: 12 }} /> : null}
+                    {chainIconUrl(network.id) ? <LogoImage uri={chainIconUrl(network.id)!} size={24} /> : null}
                     <View style={{ flex: 1 }}>
                       <Text variant="body">{network.name}</Text>
                       <Text variant="caption" tone="secondary">{addressType}</Text>
@@ -258,7 +271,10 @@ export default function Receive() {
             </ScrollView>
           </KPressable>
         </KPressable>
-      </Modal>
+      </SafeModal>
     </View>
   );
 }
+
+// Lecture seule : rien à signer ni à recevoir à son nom ici (ui/WatchOnlyGate).
+export default withWatchOnlyGate(ReceiveInner);

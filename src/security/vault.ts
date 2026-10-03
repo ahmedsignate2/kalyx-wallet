@@ -36,6 +36,26 @@ const DEFAULT_KDF = { N: 1 << 14, r: 8, p: 1, dkLen: 32 };
 // appareils. Les paramètres restent stockés dans chaque export.
 export const BACKUP_KDF = { N: 1 << 15, r: 8, p: 1, dkLen: 32 };
 
+/**
+ * BORNES des paramètres scrypt LUS dans un coffre ou une sauvegarde.
+ *
+ * Ils viennent du fichier : une sauvegarde piégée avec `N = 2^24` réclamait des
+ * gigaoctets de mémoire et figeait (ou tuait) l'app à la restauration. On
+ * n'accepte que ce que l'app a pu écrire, avec de la marge (2^17 au plus, soit
+ * 128 Mo avec r = 8) ; le reste est un coffre corrompu, refusé AVANT le calcul.
+ */
+const KDF_BOUNDS = { minLogN: 10, maxLogN: 17, maxR: 8, maxP: 2 };
+
+function assertKdfParams(v: { N: unknown; r: unknown; p: unknown }): void {
+  const { N, r, p } = v;
+  const ok =
+    typeof N === 'number' && Number.isInteger(N) &&
+    N >= 1 << KDF_BOUNDS.minLogN && N <= 1 << KDF_BOUNDS.maxLogN && (N & (N - 1)) === 0 &&
+    typeof r === 'number' && Number.isInteger(r) && r >= 1 && r <= KDF_BOUNDS.maxR &&
+    typeof p === 'number' && Number.isInteger(p) && p >= 1 && p <= KDF_BOUNDS.maxP;
+  if (!ok) throw new WalletError('VAULT_CORRUPTED', 'Paramètres de dérivation hors limites');
+}
+
 async function deriveKey(
   pin: string,
   salt: Uint8Array,
@@ -60,7 +80,14 @@ export async function encryptSecret(
   const salt = getRandomBytes(16);
   const nonce = getRandomBytes(12);
   const key = await deriveKey(pin, salt, kdf);
-  const ct = gcm(key, nonce).encrypt(utf8ToBytes(plaintext));
+  const pt = utf8ToBytes(plaintext);
+  let ct: Uint8Array;
+  try {
+    ct = gcm(key, nonce).encrypt(pt);
+  } finally {
+    key.fill(0);
+    pt.fill(0);
+  }
   return {
     v: 1,
     kdf: 'scrypt',
@@ -81,14 +108,33 @@ export async function decryptSecret(
   if (vault.v !== 1 || vault.kdf !== 'scrypt') {
     throw new WalletError('VAULT_CORRUPTED', 'Format de coffre non supporté');
   }
+  assertKdfParams(vault);
+  if (typeof vault.salt !== 'string' || typeof vault.nonce !== 'string' || typeof vault.ct !== 'string') {
+    throw new WalletError('VAULT_CORRUPTED', 'Coffre incomplet');
+  }
+  /*
+   * Forme vérifiée AVANT le déchiffrement : un coffre abîmé (hex invalide,
+   * nonce tronqué, chiffré plus court que l'étiquette GCM) n'est pas un PIN
+   * faux. Le dire « PIN incorrect » ferait consommer des essais — et verrouiller
+   * — quelqu'un qui tape le bon.
+   */
+  const isHex = (h: string) => h.length % 2 === 0 && /^[0-9a-f]*$/i.test(h);
+  if (!isHex(vault.salt) || !isHex(vault.nonce) || !isHex(vault.ct) || vault.salt.length === 0 || vault.nonce.length !== 24 || vault.ct.length < 34) {
+    throw new WalletError('VAULT_CORRUPTED', 'Coffre endommagé');
+  }
   const key = await deriveKey(pin, hexToBytes(vault.salt), vault);
+  let pt: Uint8Array | null = null;
   try {
-    const pt = gcm(key, hexToBytes(vault.nonce)).decrypt(hexToBytes(vault.ct));
+    pt = gcm(key, hexToBytes(vault.nonce)).decrypt(hexToBytes(vault.ct));
     // bytesToUtf8 (lib auditée) au lieu de TextDecoder, absent sur Hermes/Android.
     return bytesToUtf8(pt);
   } catch {
     // GCM échoue si PIN faux OU données altérées : on ne distingue pas.
     throw new WalletError('WRONG_PIN', 'PIN incorrect');
+  } finally {
+    // Clé AES et octets déchiffrés effacés : seule la chaîne rendue survit (inévitable en JS).
+    key.fill(0);
+    pt?.fill(0);
   }
 }
 

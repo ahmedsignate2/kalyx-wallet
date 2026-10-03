@@ -1,6 +1,10 @@
+import { NovaHero, Pills, Pulse, SectionLabel } from '../ui/nova';
+import { fill } from '../lib/i18n';
 import { ScreenHeader, IconButton, Pressable as KPressable, Button, Checkbox, SegmentedControl, Text as KText } from '../ui/kit';
+import { SafeModal } from '../ui/kit/SafeModal';
 import { ExplainSheet } from '../components/ai/ExplainSheet';
 import React, { useMemo, useRef, useState } from 'react';
+import { probeRpcChainId } from '../src/domain/chains/customNetworks';
 import { View, Text, ScrollView, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,6 +46,7 @@ export default function Networks() {
   const addCustomChain = useCustomChains((s) => s.add);
 
   const showTestnets = useSettings((s) => s.showTestnets);
+  const setFlag = useSettings((s) => s.setFlag);
   const all = useMemo(() => listChains({ includeTestnets: showTestnets }), [showTestnets]);
   const [query, setQuery] = useState('');
   const [explain, setExplain] = useState<{ name: string; id: string } | null>(null);
@@ -87,11 +92,34 @@ export default function Networks() {
     router.back();
   };
 
-  const saveCustomChain = () => {
+  const [probing, setProbing] = useState(false);
+  /** Formulaire fermé pendant la vérification : son résultat est ignoré (aucun ajout, aucune bascule). */
+  const addGen = useRef(0);
+  const closeAdd = () => {
+    addGen.current += 1;
+    setProbing(false);
+    setAddOpen(false);
+  };
+  const saveCustomChain = async () => {
+    if (probing) return;
+    const gen = addGen.current;
     setFormError(null);
+    /*
+     * Même contrôle que l'écran Développeur : le Chain ID RÉEL du RPC. Un RPC
+     * mal saisi dont le réseau diffère était accepté ici, et les transactions
+     * étaient ensuite signées pour un autre réseau que celui du nœud.
+     */
+    if ((form.family ?? 'evm') === 'evm' && /^https:\/\//i.test(form.rpcUrl.trim()) && Number.isInteger(form.evmChainId) && form.evmChainId > 0) {
+      setProbing(true);
+      const got = await probeRpcChainId(form.rpcUrl.trim()).finally(() => setProbing(false));
+      if (gen !== addGen.current) return; // annulé entre-temps
+      if (got === null) return setFormError(t('netErrUnreachable'));
+      if (got !== form.evmChainId) return setFormError(t('netErrMismatch').replace('{got}', String(got)).replace('{want}', String(form.evmChainId)));
+    }
     const result = addCustomChain(form);
     if (!result.ok) {
-      setFormError(result.error ?? t('errNetwork'));
+      // Le refus est une CLÉ de traduction (et `detail` nomme le réseau intégré en conflit).
+      setFormError(result.error ? t(result.error as never).replace('{name}', result.detail ?? '') : t('errNetwork'));
       return;
     }
     const family = form.family ?? 'evm';
@@ -114,8 +142,9 @@ export default function Networks() {
       >
         <Card
           style={{
-            borderColor: active ? colors.primary : colors.border,
-            borderWidth: active ? 1.5 : 1,
+            borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border,
+            borderRadius: 22,
+            paddingVertical: spacing(1.75),
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -133,9 +162,9 @@ export default function Networks() {
             </View>
           </View>
           {/* Expliquer ce réseau (Copilot) — sans changer de réseau. */}
-          <IconButton icon="sparkles" label={`Expliquer ${c.name}`} tone="ghost" onPress={() => setExplain({ name: c.name, id: c.id })} />
+          <IconButton icon="sparkles" label={fill(t('a11yExplainThing'), { name: c.name })} tone="ghost" onPress={() => setExplain({ name: c.name, id: c.id })} />
           {/* Icône du kit : le glyphe texte « ✓ » rendait différemment selon la police. */}
-          {active ? <Icon name="check" size={18} /> : null}
+          {active ? <Pulse size={8} /> : null}
         </Card>
       </KPressable>
     );
@@ -151,10 +180,9 @@ export default function Networks() {
   return (
     <Screen>
       <ScreenHeader
-        title={t('network')}
         right={<IconButton icon="add" label={t("addNetwork")} tone="ghost" onPress={() => { setFormError(null); setAddOpen(true); }} />}
       />
-      <Muted>{t('sameAddressAllEvm')}</Muted>
+      <NovaHero icon="networks" title={t('network')} subtitle={t('sameAddressAllEvm')} />
 
       {all.length > 6 ? (
         <View style={{ marginTop: spacing(1) }}>
@@ -176,7 +204,7 @@ export default function Networks() {
           tout, les afficher suggérerait le contraire.
         */}
         {!q ? (
-          <SegmentedControl
+          <Pills
             items={FAMILY_TABS.map((f) => ({ key: f, label: FAMILY_LABELS[f] }))}
             value={family}
             onChange={(next) => setFamily(next as ChainFamily)}
@@ -194,9 +222,17 @@ export default function Networks() {
               <Muted>{t('noNetworkMatch').replace('{q}', query)}</Muted>
             </Card>
           ) : family === 'ton' ? (
+            /*
+              TON n'existe que sur le réseau de test pour l'instant : un onglet
+              vide ne dirait pas pourquoi. On l'explique, et on offre le réglage
+              ici même plutôt que d'envoyer l'utilisateur le chercher.
+            */
             <Card style={{ gap: spacing(1) }}>
-              <Text style={typography.section}>{t('tonNotYetTitle')}</Text>
-              <Text style={typography.muted}>{t('tonNotYetBody')}</Text>
+              <Text style={typography.section}>{t('tonTestnetTitle')}</Text>
+              <Text style={typography.muted}>{t('tonTestnetBody')}</Text>
+              {!showTestnets ? (
+                <Button label={t('showTestnetsAction')} variant="secondary" onPress={() => setFlag('showTestnets', true)} />
+              ) : null}
             </Card>
           ) : (
             <Card>
@@ -207,18 +243,14 @@ export default function Networks() {
           <>
             {/* Section principale (mainnet) */}
             {mainnets.length > 0 ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                <View style={{ width: 3, height: 15, borderRadius: 2, backgroundColor: colors.primary }} />
-                <Text style={typography.section}>{t('mainNetworks')}</Text>
-              </View>
+              <SectionLabel>{t('mainNetworks')}</SectionLabel>
             ) : null}
             {mainnets.map((c) => renderChain(c))}
 
             {/* Section testnet, nettement séparée */}
             {testnets.length > 0 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: spacing(2) }}>
-                <View style={{ width: 3, height: 15, borderRadius: 2, backgroundColor: colors.warning }} />
-                <Text style={typography.section}>{t('testNetworks')}</Text>
+                <SectionLabel>{t('testNetworks')}</SectionLabel>
                 <View style={{ backgroundColor: colors.warning + '22', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
                   <Text style={{ color: colors.warning, fontSize: 10, fontFamily: fonts.bold }}>{t('noRealFunds')}</Text>
                 </View>
@@ -232,7 +264,7 @@ export default function Networks() {
         </View>
       </ScrollView>
       <ExplainSheet visible={!!explain} onClose={() => setExplain(null)} subject={explain ? { kind: 'network', name: explain.name, logo: chainIconUrl(explain.id), seed: explain.id } : null} />
-      <Modal visible={addOpen} transparent animationType="slide" onRequestClose={() => setAddOpen(false)}>
+      <SafeModal visible={addOpen} transparent animationType="slide" onRequestClose={closeAdd}>
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
           <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing(2.5), gap: spacing(1.25) }}>
             <Text style={typography.section}>{t("addNetwork")}</Text>
@@ -302,12 +334,12 @@ export default function Networks() {
             </View>
             {formError ? <Text style={{ color: colors.danger }}>{formError}</Text> : null}
             <View style={{ flexDirection: 'row', gap: space[3] }}>
-              <View style={{ flex: 1 }}><Button label={t('cancel')} variant="ghost" onPress={() => setAddOpen(false)} /></View>
-              <View style={{ flex: 1 }}><Button label={t('saveNetwork')} onPress={saveCustomChain} /></View>
+              <View style={{ flex: 1 }}><Button label={t('cancel')} variant="ghost" onPress={closeAdd} /></View>
+              <View style={{ flex: 1 }}><Button label={t('saveNetwork')} onPress={() => void saveCustomChain()} loading={probing} /></View>
             </View>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
+      </SafeModal>
     </Screen>
   );
 }

@@ -1,13 +1,22 @@
 /**
- * ActivityRow — une transaction humanisée (§4.6) : glyphe de la contrepartie
- * (ou icône d'action), phrase, avec qui, montant signé + valeur en devise,
- * heure. Le statut n'est affiché QUE s'il y a un problème (échec).
+ * ActivityRow — une transaction, lisible d'un coup d'œil.
+ *
+ *   [token]  Reçu                      +50 USDC
+ *   [badge]  de vitalik.eth · Base     50,00 € · 14:02
+ *
+ * Deux colonnes, et chaque information à un seul endroit. L'ancienne ligne
+ * mettait le montant DANS le titre (« Reçu 50 USDC ») puis le répétait à
+ * droite : la liste se lisait deux fois plus lentement, et un long montant
+ * tronquait le titre. Ici le titre n'est qu'un verbe, le montant a sa colonne.
+ *
+ * À gauche, le LOGO du token quand on le connaît — c'est ce que l'œil cherche
+ * dans un historique —, la pastille d'action en bas à droite, le réseau en haut
+ * à gauche. Une ligne suspecte (spam) est estompée et dit pourquoi.
  */
 import React from 'react';
 import { View } from 'react-native';
 import { ListRow } from './ListRow';
 import { Text } from './Text';
-import { AddressGlyph } from './AddressGlyph';
 import { TokenIcon } from './TokenIcon';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
@@ -19,94 +28,74 @@ export function ActivityRow({
   time,
   network,
   networkIcon,
+  tokenLogo,
+  tokenSeed,
   pendingLabel,
+  spamText,
   onPress,
 }: {
   h: HumanTx;
   time: string;
-  /**
-   * Réseau de la transaction, sur une liste qui en MÊLE plusieurs.
-   *
-   * Sans lui, deux lignes identiques — « Envoyé 0,00001 » sur Base et sur
-   * Bitcoin — sont indiscernables. L'accueil agrège tous les réseaux ; l'écran
-   * Historique n'en montre qu'un et n'a donc rien à répéter.
-   */
+  /** Nom du réseau, sur une liste qui en mêle plusieurs. */
   network?: string;
-  /**
-   * Logo du réseau. Le NOM seul ne suffit pas.
-   *
-   * Sur une liste qui mêle les réseaux, du texte au milieu d'un sous-titre se
-   * lit mal et ne se repère pas au survol de l'œil. Une pastille se reconnaît
-   * avant d'être lue — c'est ce qui permet de distinguer une ligne Base d'une
-   * ligne Bitcoin sans lire un mot.
-   */
+  /** Logo du réseau (pastille) : se reconnaît avant d'être lu. */
   networkIcon?: string | null;
-  /**
-   * Libellé de l'état « en attente », fourni traduit par l'écran.
-   *
-   * Le texte ne peut pas être écrit ici : ce composant n'a pas de langue, et une
-   * phrase en dur en ressortirait une seule quel que soit le réglage.
-   */
+  /** Logo du token principal, s'il est connu (portefeuille). */
+  tokenLogo?: string | null;
+  /** Contrat du token : couleur stable du monogramme quand le logo manque. */
+  tokenSeed?: string;
+  /** « En attente », traduit par l'écran (ce composant n'a pas de langue). */
   pendingLabel?: string;
+  /** Raison du masquage, traduite, pour une ligne spam affichée. */
+  spamText?: string;
   onPress?: () => void;
 }) {
   const { colors } = useTheme();
-  const color = h.tone === 'up' ? colors.up : h.tone === 'danger' ? colors.danger : h.spam ? colors.textTertiary : colors.text;
-  /*
-   * Deux pastilles à des COINS OPPOSÉS de l'avatar : l'action en bas à droite,
-   * le réseau en haut à gauche. Les superposer au même coin rendrait l'une des
-   * deux illisible, et c'est la seule place libre sur 40 px.
-   */
-  const networkBadge =
-    network || networkIcon ? (
-      <View
-        style={{
-          position: 'absolute',
-          left: -3,
-          top: -3,
-          width: 18,
-          height: 18,
-          borderRadius: radius.round,
-          backgroundColor: colors.surface1,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <TokenIcon symbol={network ?? '?'} logo={networkIcon ?? undefined} seed={network} size={14} />
-      </View>
-    ) : null;
+  const muted = h.spam;
+  const amountColor = h.tone === 'danger' ? colors.danger : h.tone === 'up' && !muted ? colors.up : muted ? colors.textTertiary : colors.text;
+  const badgeColor = h.tone === 'danger' ? colors.danger : h.tone === 'up' ? colors.up : colors.textSecondary;
+  const useToken = !!h.symbol && (h.icon === 'send' || h.icon === 'receive' || h.icon === 'exchange' || h.icon === 'alert');
 
-  const left =
-    h.counterparty && !h.failed && !h.spam ? (
-      <View>
-        <AddressGlyph address={h.counterparty} size={40} />
-        <View style={{ position: 'absolute', right: -3, bottom: -3, width: 18, height: 18, borderRadius: radius.round, backgroundColor: colors.surface1, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name={h.icon} size={11} color={h.tone === 'up' ? colors.up : colors.textSecondary} />
-        </View>
-        {networkBadge}
-      </View>
-    ) : (
-      <View>
+  const left = (
+    <View style={{ opacity: muted ? 0.5 : 1 }}>
+      {useToken ? (
+        <TokenIcon symbol={h.symbol!} logo={tokenLogo ?? undefined} seed={tokenSeed} size={40} />
+      ) : (
         <View style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name={h.icon} size={18} color={h.tone === 'danger' ? colors.danger : h.spam ? colors.textTertiary : colors.text} />
+          <Icon name={h.icon} size={18} color={h.tone === 'danger' ? colors.danger : colors.text} />
         </View>
-        {networkBadge}
-      </View>
-    );
+      )}
+      {useToken ? (
+        <View style={{ position: 'absolute', right: -3, bottom: -3, width: 18, height: 18, borderRadius: radius.round, backgroundColor: colors.surface1, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={h.failed ? 'errorCircle' : h.icon === 'alert' ? 'receive' : h.icon} size={11} color={badgeColor} />
+        </View>
+      ) : null}
+      {network || networkIcon ? (
+        <View style={{ position: 'absolute', left: -3, top: -3, width: 18, height: 18, borderRadius: radius.round, backgroundColor: colors.surface1, alignItems: 'center', justifyContent: 'center' }}>
+          <TokenIcon symbol={network ?? '?'} logo={networkIcon ?? undefined} seed={network} size={14} />
+        </View>
+      ) : null}
+    </View>
+  );
+
+  const subtitle = [muted && spamText ? spamText : h.subtitle, network, h.pending && pendingLabel ? pendingLabel : null].filter(Boolean).join(' · ') || undefined;
   return (
     <ListRow
       onPress={onPress}
       left={left}
-      title={h.title}
-      subtitle={[h.subtitle, network, h.pending && pendingLabel ? pendingLabel : null].filter(Boolean).join(' · ') || undefined}
+      title={h.label}
+      subtitle={subtitle}
       right={
-        <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
+        <View style={{ alignItems: 'flex-end', flexShrink: 0, maxWidth: 170 }}>
           {h.amount ? (
-            <Text variant="body" tabular style={{ color, opacity: h.pending ? 0.6 : 1 }}>
+            <Text variant="body" tabular numberOfLines={1} style={{ color: amountColor, opacity: h.pending ? 0.6 : 1 }}>
               {h.amount}
             </Text>
           ) : null}
-          <Text variant="micro" tone="tertiary">{h.fiat ? `${h.fiat} · ` : ''}{time}</Text>
+          {h.amountAlt ? (
+            <Text variant="micro" tabular numberOfLines={1} tone="secondary">{h.amountAlt}</Text>
+          ) : null}
+          <Text variant="micro" tone="tertiary" numberOfLines={1}>{h.fiat ? `${h.fiat} · ` : ''}{time}</Text>
         </View>
       }
     />

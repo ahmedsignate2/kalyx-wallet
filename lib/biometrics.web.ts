@@ -10,3 +10,7 @@ export async function isBiometricAvailable(): Promise<boolean> {
 export async function authenticate(_reason?: string): Promise<boolean> {
   return false;
 }
+
+export function biometricPrompt(): string {
+  return '';
+}

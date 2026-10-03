@@ -1,4 +1,4 @@
-import { formatTokenAmount, formatNumber, formatInputAmount, formatFiat, formatPercent, formatDecimalString } from './format';
+import { formatTokenAmount, formatNumber, formatInputAmount, formatFiat, formatPercent, setNumberLocale, formatDecimalString } from './format';
 
 const E = 10n ** 18n;
 
@@ -60,9 +60,23 @@ describe('formatFiat / formatPercent', () => {
     expect(formatPercent(3.5)).toBe('3.5 %');
     expect(formatPercent(12)).toBe('12 %');
     expect(formatPercent(2.247)).toBe('2.25 %');
+    // L'entier n'est jamais rogné : « 100 » restait « 1 % », « 20 » « 2 % ».
+    expect(formatPercent(100)).toBe('100 %');
+    expect(formatPercent(20, 0)).toBe('20 %');
+    expect(formatPercent(10.5, 1)).toBe('10.5 %');
+    expect(formatPercent(0)).toBe('0 %');
     expect(formatPercent(NaN)).toBe('—');
   });
   it('formatDecimalString négatif', () => {
     expect(formatDecimalString('-0.5')).toBe('-0.5');
+  });
+});
+
+describe('formatPercent suit la langue', () => {
+  afterEach(() => setNumberLocale('en'));
+  it('virgule en français (« 3,58 % », plus « 3.58 % »)', () => {
+    setNumberLocale('fr');
+    expect(formatPercent(3.58)).toBe('3,58 %');
+    expect(formatPercent(12)).toBe('12 %');
   });
 });

@@ -1,4 +1,4 @@
-import { parseNfts } from './alchemyNft';
+import { parseNfts, displayableImage } from './alchemyNft';
 
 describe('parseNfts', () => {
   const json = {
@@ -23,15 +23,16 @@ describe('parseNfts', () => {
     ],
   };
 
-  it('normalise et ne garde que les NFT avec contrat + image', () => {
+  it('normalise ; sans contrat = écarté, sans image mais nommé = gardé', () => {
     const nfts = parseNfts(json);
-    expect(nfts).toHaveLength(1);
+    expect(nfts).toHaveLength(2);
+    expect(nfts[1]).toMatchObject({ contract: '0xNoImage', name: 'No image', image: '' });
     expect(nfts[0]).toEqual({
       contract: '0xCollection',
       tokenId: '42',
       name: 'Cool Cat #42',
       collection: 'Cool Cats',
-      image: 'http://img/42.png',
+      image: 'https://img/42.png',
     });
   });
 
@@ -57,5 +58,23 @@ describe('parseNfts', () => {
     expect(parseNfts(null)).toEqual([]);
     expect(parseNfts({})).toEqual([]);
     expect(parseNfts({ ownedNfts: 'nope' })).toEqual([]);
+  });
+});
+
+describe('Basenames et images non affichables', () => {
+  it('un SVG passe en PNG, ipfs:// par une passerelle', () => {
+    expect(displayableImage('https://base.org/api/basenames/kalyx.base.eth/assets/cardImage.svg')).toMatch(/^https:\/\/wsrv\.nl\/\?url=base\.org.*output=png/);
+    expect(displayableImage('ipfs://Qm123/1.png')).toBe('https://ipfs.io/ipfs/Qm123/1.png');
+    expect(displayableImage('data:image/svg+xml;base64,AAAA')).toBe('');
+  });
+
+  it('un Basename sans aperçu reste montré, avec son nom', () => {
+    const nfts = parseNfts({
+      ownedNfts: [
+        { contract: { address: '0x03c4738Ee98aE44591e1A4A4F3CaB6641d95DD9a', name: 'Basenames' }, tokenId: '9', name: 'kalyx.base.eth', image: {} },
+        { contract: { address: '0xAnon' }, tokenId: '3', image: {} },
+      ],
+    });
+    expect(nfts).toEqual([{ contract: '0x03c4738Ee98aE44591e1A4A4F3CaB6641d95DD9a', tokenId: '9', name: 'kalyx.base.eth', collection: 'Basenames', image: '' }]);
   });
 });

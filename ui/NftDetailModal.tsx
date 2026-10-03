@@ -4,6 +4,7 @@ import { Pressable as KPressable } from './kit';
  * contrat / tokenId copiables, lien vers l'explorateur. Remplace l'Alert
  * de la galerie — c'est la fiche que Phantom montre au tap.
  */
+import { SafeModal } from './kit/SafeModal';
 import React from 'react';
 import { Image, Linking, Modal, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,8 +24,11 @@ export function NftDetailModal({
   nft,
   explorerUrl,
   onClose,
+  onSend,
 }: {
   nft: NftItem | null;
+  /** Présent si ce NFT peut être envoyé depuis Kalyx (TON pour l'instant). */
+  onSend?: () => void;
   /** Base explorer du réseau actif (ex. https://etherscan.io). */
   explorerUrl?: string;
   onClose: () => void;
@@ -36,7 +40,7 @@ export function NftDetailModal({
   const tokenIdShort = nft.tokenId.length > 12 ? `${nft.tokenId.slice(0, 10)}…` : nft.tokenId;
 
   return (
-    <Modal transparent animationType="slide" onRequestClose={onClose}>
+    <SafeModal transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <View
           style={{
@@ -66,18 +70,19 @@ export function NftDetailModal({
 
             {explorerUrl ? (
               <Text
-                onPress={() => Linking.openURL(`${explorerUrl}/token/${nft.contract}?a=${nft.tokenId}`)}
+                onPress={() => Linking.openURL(nft.url ?? `${explorerUrl}/token/${nft.contract}?a=${nft.tokenId}`)}
                 style={{ color: colors.primary, fontFamily: fonts.semibold, textAlign: 'center' }}
               >
                 {t('nftViewOnExplorer')}
               </Text>
             ) : null}
 
+            {onSend ? <Button label={t('nftSendTitle')} onPress={onSend} /> : null}
             <Button label={t('closeWord')} variant="ghost" onPress={onClose} />
           </ScrollView>
         </View>
       </View>
-    </Modal>
+    </SafeModal>
   );
 }
 

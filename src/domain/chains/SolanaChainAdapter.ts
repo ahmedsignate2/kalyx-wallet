@@ -26,6 +26,7 @@ import { parseSolanaTx, type SolTxResponse } from './solHistory';
 import {
   parseTokenAccounts,
   mergeTokenAccounts,
+  capSplTokens,
   SPL_TOKEN_PROGRAM,
   SPL_TOKEN_2022_PROGRAM,
   type SplToken,
@@ -38,6 +39,7 @@ import {
   pickPriorityFee,
   CU_SOL_TRANSFER,
   CU_SPL_TRANSFER,
+  sendComputeUnits,
 } from './solPriority';
 import { technicalLogger } from '../../../lib/technicalLogger';
 
@@ -263,6 +265,25 @@ export class SolanaChainAdapter implements ChainAdapter {
     }
   }
 
+  /**
+   * Solde STRICT d'un mint (SPL et Token-2022, tous comptes du propriétaire) :
+   * LÈVE si le RPC échoue ou répond de travers — là où `getSplTokens` rend une
+   * liste partielle. Pour tout ce qui décide d'un montant (swap).
+   */
+  async getSplTokenBalanceStrict(owner: string, mint: string): Promise<bigint> {
+    const res = await this.rpc<{ value?: { account?: { data?: { parsed?: { info?: { tokenAmount?: { amount?: string } } } } } }[] }>(
+      'getTokenAccountsByOwner',
+      [owner, { mint }, { encoding: 'jsonParsed', commitment: 'confirmed' }],
+    );
+    if (!res || !Array.isArray(res.value)) throw new Error('Réponse Solana illisible');
+    return res.value.reduce((sum, acc) => {
+      const amount = acc.account?.data?.parsed?.info?.tokenAmount?.amount;
+      // Compte non décodé (nœud dégradé) : illisible, pas 0.
+      if (typeof amount !== 'string' || !/^\d+$/.test(amount)) throw new Error('Compte de jeton illisible');
+      return sum + BigInt(amount);
+    }, 0n);
+  }
+
   async getSplTokens(address: string): Promise<SplToken[]> {
     if (!isValidSolanaAddress(address)) return [];
 
@@ -288,8 +309,8 @@ export class SolanaChainAdapter implements ChainAdapter {
       }
     };
 
-    const tokens = mergeTokenAccounts(
-      ...(await Promise.all([query(SPL_TOKEN_PROGRAM), query(SPL_TOKEN_2022_PROGRAM)])),
+    const tokens = capSplTokens(
+      mergeTokenAccounts(...(await Promise.all([query(SPL_TOKEN_PROGRAM), query(SPL_TOKEN_2022_PROGRAM)]))),
     );
 
     // Enrichit les mints hors table curée (nom/symbole/logo réels via Jupiter).
@@ -418,8 +439,13 @@ export class SolanaChainAdapter implements ChainAdapter {
       await new Promise((r) => setTimeout(r, CONFIRM_POLL_MS));
     }
 
+    /*
+     * Délai d'attente écoulé SANS preuve d'abandon (blockhash encore valide, ou
+     * hauteur inconnue) : la transaction peut encore passer. « Expirée »
+     * invitait à renvoyer — et les deux pouvaient être incluses.
+     */
     throw new WalletError(
-      'TX_EXPIRED',
+      'TX_UNCONFIRMED',
       'Transaction non confirmée dans le délai imparti. Vérifie l\'explorateur avant de réessayer.',
     );
   }
@@ -445,7 +471,7 @@ export class SolanaChainAdapter implements ChainAdapter {
       to,
       lamports,
       recentBlockhash: blockhash,
-      prefix: priorityInstructions(CU_SOL_TRANSFER, microLamports),
+      prefix: priorityInstructions(sendComputeUnits(CU_SOL_TRANSFER, opts?.memo), microLamports),
       references: opts?.references,
       memo: opts?.memo,
     });
@@ -493,7 +519,7 @@ export class SolanaChainAdapter implements ChainAdapter {
       amount,
       decimals,
       recentBlockhash: blockhash,
-      prefix: priorityInstructions(CU_SPL_TRANSFER, microLamports),
+      prefix: priorityInstructions(sendComputeUnits(CU_SPL_TRANSFER, opts?.memo), microLamports),
       tokenProgram,
       references: opts?.references,
       memo: opts?.memo,

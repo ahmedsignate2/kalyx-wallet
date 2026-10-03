@@ -22,7 +22,8 @@ async function runCheck(): Promise<void> {
   try {
     const { fiat, language } = useSettings.getState();
     const ids = [...new Set(alerts.map((a) => a.coingeckoId))];
-    const prices = await getPrices(ids, fiat);
+    // Prix récent seulement (≤ 10 min) : une alerte à usage unique ne part jamais sur un prix périmé.
+    const prices = await getPrices(ids, fiat, { maxStaleMs: 10 * 60_000 });
     for (const a of alerts) {
       const p = prices[a.coingeckoId]?.price;
       if (p != null && alertTriggered(a, p)) {

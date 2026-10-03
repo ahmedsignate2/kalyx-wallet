@@ -4,6 +4,8 @@
  * et fiche token. Posée au-dessus de la barre d'onglets, à droite. Style
  * tokens (Nuit + Trait + étoiles), pas de dégradé doré.
  */
+import { GOLD } from '../../ui/nova';
+import { useLocked } from '../../lib/lockState';
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { usePathname } from 'expo-router';
@@ -33,32 +35,45 @@ export function FloatingAiAssistant() {
   const { totalUsd, tokensSummary, pnl24h, pnl24hPct, topGainer, topLoser } = usePortfolio();
   const { currentUrl, currentTitle } = useBrowserStore();
   const [collapsed, setCollapsed] = useState(false);
+  const locked = useLocked();
 
+  /*
+   * REPLI AUTOMATIQUE partout, plus seulement sur le navigateur : grande, la
+   * bulle recouvrait des actions (« Staker » dans Rendement, des lignes de
+   * jetons). Après quelques secondes elle se range en languette contre le bord.
+   */
   useEffect(() => {
     setCollapsed(false);
-    if (pathname === BROWSER) {
-      const timer = setTimeout(() => setCollapsed(true), 4500);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
+    const timer = setTimeout(() => setCollapsed(true), 4500);
+    return () => clearTimeout(timer);
   }, [pathname]);
 
-  if (!isEnabled) return null;
+  // Verrouillée : ni bulle ni conversation (elle montre soldes et activité).
+  if (!isEnabled || locked) return null;
   const onTabs = TAB_PATHS.includes(pathname);
   const onBrowser = pathname === BROWSER;
   const onToken = pathname.startsWith('/token/');
   const showBubble = onTabs || onBrowser || onToken;
   // Au-dessus de la barre d'onglets (≈ 88 + inset) ; sur le navigateur, au-dessus de la barre d'adresse.
-  const bottom = onTabs ? insets.bottom + 96 : onBrowser ? insets.bottom + 72 : insets.bottom + 24;
+  // La barre flottante occupe max(inset, 12) + 8 + 68 : la bulle se pose 14 px au-dessus.
+  const bottom = onTabs ? Math.max(insets.bottom, 12) + 90 : onBrowser ? insets.bottom + 72 : insets.bottom + 24;
 
   const context = onBrowser ? { screen: 'browser', url: currentUrl, title: currentTitle } : pathname.includes('market') ? { screen: 'markets' } : { screen: 'wallet', totalUsd, tokensSummary, pnl24h, pnl24hPct, topGainer, topLoser };
 
   return (
     <>
       {showBubble && !isOpen ? (
-        <View pointerEvents="box-none" style={{ position: 'absolute', right: 16, bottom, zIndex: 50 }}>
-          <Pressable onPress={() => { if (collapsed) setCollapsed(false); else openChat(); }} accessibilityLabel={collapsed ? t('aiFloatingShow') : t('aiFloatingOpen')} style={{ width: collapsed ? 34 : 52, height: collapsed ? 40 : 52, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="sparkles" size={22} />
+        <View pointerEvents="box-none" style={{ position: 'absolute', right: collapsed ? 0 : 16, bottom, zIndex: 50 }}>
+          <Pressable
+            onPress={() => { if (collapsed) setCollapsed(false); else openChat(); }}
+            accessibilityLabel={collapsed ? t('aiFloatingShow') : t('aiFloatingOpen')}
+            style={
+              collapsed
+                ? { width: 28, height: 44, borderTopLeftRadius: 22, borderBottomLeftRadius: 22, backgroundColor: colors.surface1, borderWidth: 1, borderRightWidth: 0, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }
+                : { width: 52, height: 52, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }
+            }
+          >
+            <Icon name="sparkles" size={collapsed ? 16 : 22} color={GOLD} />
           </Pressable>
         </View>
       ) : null}

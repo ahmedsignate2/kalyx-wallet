@@ -1,28 +1,20 @@
 /**
- * TON — de la phrase de récupération à la clé, dérivation NATIVE.
+ * TON — dérivation NATIVE d'une phrase TON, et contrôle de validité.
  *
- * ## Pourquoi cette dérivation et pas SLIP-0010
+ * ## Quand elle s'applique
  *
- * TON utilise ed25519 comme Solana, mais il existe DEUX façons incompatibles de
- * passer d'une phrase à une clé, et elles donnent des adresses différentes pour
- * la même phrase. La dérivation native (celle d'ici) est ce qu'utilisent
- * Tonkeeper, TonHub et le portefeuille officiel ; SLIP-0010 sur `m/44'/607'` est
- * ce qu'utilise Ledger.
- *
- * Le choix est tranché en faveur de la native, pour une raison qui n'est pas
- * d'architecture : un utilisateur qui importe sa phrase Tonkeeper doit voir ses
- * fonds. Avec SLIP-0010 il verrait un compte vide et en conclurait, à raison, que
- * le portefeuille est cassé.
- *
- * Conséquence assumée : cette dérivation part de la PHRASE, pas de la graine
- * BIP-39 que Kalyx calcule déjà. C'est la seule chaîne dans ce cas, et cela
- * remonte jusqu'à `deriveSigner`. Voir `docs/10-TON.md` §1.
+ * Seulement aux PHRASES TON, celles que créent Tonkeeper, TonHub et le
+ * portefeuille officiel. Une phrase BIP-39 — toutes celles que Kalyx crée, et
+ * celles de MetaMask ou Trust — passe par SLIP-0010 sur `m/44'/607'/0'`. Le choix
+ * entre les deux n'est pas le nôtre : c'est celui de Tonkeeper, relu dans son
+ * code (`mnemonicService.ts`), et il est reproduit dans `tonKeys.ts`. Appliquer la
+ * native à tout aurait fait voir un portefeuille vide à quiconque importe sa
+ * phrase Kalyx dans Tonkeeper. Voir `docs/10-TON.md` §1.
  *
  * ## L'algorithme, écrit noir sur blanc
  *
- * Il est reproduit ici en détail parce qu'il n'a rien d'intuitif et que chaque
- * constante compte — un sel ou un nombre d'itérations erroné produit une clé
- * valide pour une adresse qui n'est pas celle de l'utilisateur :
+ * Chaque constante compte — un sel ou un nombre d'itérations erroné produit une
+ * clé valide pour une adresse qui n'est pas celle de l'utilisateur :
  *
  * 1. `entropie = HMAC-SHA512(clé = mots joints par une espace, données = mot de passe)`
  *    — noter l'inversion : la phrase est la CLÉ du HMAC, pas les données.
@@ -30,24 +22,24 @@
  * 3. La clé ed25519 est constituée des **32 premiers octets** de cette graine.
  *
  * La validité d'une phrase TON n'est PAS celle de BIP-39 : il n'y a pas de somme
- * de contrôle sur les mots. Une phrase est valide si
- * `PBKDF2-SHA512(entropie, "TON seed version", 100000/256)` commence par un octet
- * nul — ce qui explique pourquoi les générateurs TON tirent des phrases en boucle
- * jusqu'à tomber sur une qui passe.
+ * de contrôle sur les mots. Une phrase est valide si tous ses mots sont dans la
+ * liste et si `PBKDF2-SHA512(entropie, "TON seed version", 100000/256)` commence
+ * par un octet nul — d'où les générateurs TON qui tirent en boucle.
  *
- * ## Ce qui reste à confirmer avant d'activer TON
+ * ## Validé contre les vecteurs officiels
  *
- * Cette implémentation suit l'algorithme de `ton-crypto`, mais elle n'est PAS
- * validée contre un vecteur réel : les tests vérifient le déterminisme, les
- * longueurs et la cohérence interne, pas l'interopérabilité. Avant d'exposer TON
- * dans l'app, il faut comparer une adresse dérivée ici à celle que Tonkeeper
- * affiche pour la même phrase. Une dérivation fausse ne plante pas — elle montre
- * un portefeuille vide, ce qui est le pire des deux.
+ * Les cinq vecteurs publiés par `@ton/crypto` (phrase → clé) sont dans les tests,
+ * et le contrôle de validité reproduit `mnemonicValidate` à l'identique, y compris
+ * ce qu'il NE vérifie PAS : le nombre de mots. Une phrase BIP-39 de 12 mots peut
+ * donc être une phrase TON valide (une fois sur 256 environ), et Tonkeeper la
+ * traite alors comme telle. Notre version exigeait 24 mots : pour ces phrases,
+ * elle aurait choisi l'autre dérivation, donc une autre adresse.
  */
 import { hmac } from '@noble/hashes/hmac';
 import { sha512 } from '@noble/hashes/sha2';
 import { pbkdf2 } from '@noble/hashes/pbkdf2';
 import { utf8ToBytes } from '@noble/hashes/utils';
+import { wordlist } from '@scure/bip39/wordlists/english';
 
 /** Sel de la dérivation de clé. */
 const SALT_KEYSTORE = 'TON default seed';
@@ -58,8 +50,14 @@ const SALT_PASSWORD_VERSION = 'TON fast seed version';
 /** Itérations de la dérivation. Fixé par TON, pas un réglage. */
 const ITERATIONS = 100_000;
 
-/** Nombre de mots d'une phrase TON. */
+/**
+ * Nombre de mots d'une phrase TON GÉNÉRÉE. Ce n'est PAS une condition de
+ * validité : `@ton/crypto` ne vérifie pas la longueur, et Tonkeeper non plus.
+ */
 export const TON_MNEMONIC_WORDS = 24;
+
+/** La liste de mots TON est celle de BIP-39 en anglais. */
+const WORDS = new Set(wordlist);
 
 /** Normalise une phrase en liste de mots minuscules, sans espaces superflus. */
 export function tonWords(mnemonic: string): string[] {
@@ -77,23 +75,16 @@ function mnemonicToEntropy(words: string[], password = ''): Uint8Array {
   return hmac(sha512, utf8ToBytes(words.join(' ')), utf8ToBytes(password));
 }
 
-/**
- * La phrase est-elle une phrase TON valide ?
- *
- * Aucun rapport avec BIP-39 : pas de somme de contrôle sur les mots, mais un
- * contrôle sur l'entropie dérivée. Le nombre d'itérations est
- * `max(1, 100000/256)` — une division venue de la spécification, pas une
- * approximation de notre part.
- */
-export function isValidTonMnemonic(mnemonic: string, password = ''): boolean {
-  const words = tonWords(mnemonic);
-  if (words.length !== TON_MNEMONIC_WORDS) return false;
-  const entropy = mnemonicToEntropy(words, password);
-  const check = pbkdf2(sha512, entropy, utf8ToBytes(SALT_SEED_VERSION), {
-    c: Math.max(1, Math.floor(ITERATIONS / 256)),
-    dkLen: 64,
-  });
-  return check[0] === 0;
+/** `is_basic_seed` de tonlib : itérations `max(1, 100000/256)`, premier octet nul. */
+function isBasicSeed(entropy: Uint8Array): boolean {
+  const h = pbkdf2(sha512, entropy, utf8ToBytes(SALT_SEED_VERSION), { c: Math.max(1, Math.floor(ITERATIONS / 256)), dkLen: 64 });
+  return h[0] === 0;
+}
+
+/** `is_password_seed` de tonlib : une itération, premier octet à 1. */
+function isPasswordSeed(entropy: Uint8Array): boolean {
+  const h = pbkdf2(sha512, entropy, utf8ToBytes(SALT_PASSWORD_VERSION), { c: 1, dkLen: 64 });
+  return h[0] === 1;
 }
 
 /**
@@ -105,11 +96,23 @@ export function isValidTonMnemonic(mnemonic: string, password = ''): boolean {
  */
 export function tonMnemonicNeedsPassword(mnemonic: string): boolean {
   const words = tonWords(mnemonic);
-  if (words.length !== TON_MNEMONIC_WORDS) return false;
-  const entropy = mnemonicToEntropy(words, '');
-  const fast = pbkdf2(sha512, entropy, utf8ToBytes(SALT_PASSWORD_VERSION), { c: 1, dkLen: 64 });
-  // Marqueur « mot de passe » posé, et la phrase n'est pas valide telle quelle.
-  return fast[0] === 1 && !isValidTonMnemonic(mnemonic, '');
+  if (words.length === 0) return false;
+  const passless = mnemonicToEntropy(words, '');
+  return isPasswordSeed(passless) && !isBasicSeed(passless);
+}
+
+/**
+ * La phrase est-elle une phrase TON valide ?
+ *
+ * Reproduit `mnemonicValidate` de `@ton/crypto` — ce que Tonkeeper appelle
+ * pour décider quelle dérivation appliquer. Donc : tous les mots dans la liste,
+ * PAS de contrôle de longueur, et avec un mot de passe, la phrase doit en exiger un.
+ */
+export function isValidTonMnemonic(mnemonic: string, password = ''): boolean {
+  const words = tonWords(mnemonic);
+  if (words.length === 0 || !words.every((w) => WORDS.has(w))) return false;
+  if (password.length > 0 && !tonMnemonicNeedsPassword(mnemonic)) return false;
+  return isBasicSeed(mnemonicToEntropy(words, password));
 }
 
 /**
@@ -124,6 +127,12 @@ export function tonSeedFromMnemonic(mnemonic: string, password = ''): Uint8Array
   if (words.length === 0) throw new Error('Phrase TON vide');
   const entropy = mnemonicToEntropy(words, password);
   const seed = pbkdf2(sha512, entropy, utf8ToBytes(SALT_KEYSTORE), { c: ITERATIONS, dkLen: 64 });
-  // Les 32 PREMIERS octets, et seulement eux : les 32 suivants ne servent pas.
-  return seed.slice(0, 32);
+  try {
+    // Les 32 PREMIERS octets, et seulement eux : les 32 suivants ne servent pas.
+    return seed.slice(0, 32);
+  } finally {
+    // Intermédiaires effacés : seule la copie rendue survit (et l'appelant l'efface).
+    entropy.fill(0);
+    seed.fill(0);
+  }
 }

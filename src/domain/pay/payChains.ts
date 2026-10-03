@@ -12,6 +12,9 @@
  * plancher de sécurité des actions de l'IA dans le parseur et non dans le
  * prompt.
  */
+import { decodeTx } from '../tx/decodeTx';
+import { summarizeTypedData } from '../wc/message';
+
 
 /**
  * Identifiants EVM où WalletConnect Pay règle un paiement.
@@ -90,7 +93,8 @@ export type PayRefusal =
   | 'CHAIN_UNREADABLE'
   | 'NAMESPACE_UNSUPPORTED'
   | 'CHAIN_INVALID'
-  | 'CHAIN_OUT_OF_SCOPE';
+  | 'CHAIN_OUT_OF_SCOPE'
+  | 'RISKY_APPROVAL';
 
 export interface PayActionCheck {
   ok: boolean;
@@ -136,4 +140,38 @@ export function checkPayAction(
   }
 
   return { ok: true, evmChainId };
+}
+
+/** Contrat Permit2 canonique (même adresse sur toutes les chaînes EVM). */
+const PERMIT2 = '0x000000000022d473030f116ddee9f6b43ac78ba3';
+
+/**
+ * CONTENU d'une action de paiement : `checkPayAction` ne juge que la méthode et
+ * le réseau. Un paiement porte un MONTANT : rien ne justifie une autorisation
+ * illimitée à un tiers, un `setApprovalForAll`, ni un ordre de place de marché.
+ * Seule exception : l'approbation du contrat Permit2 lui-même, première étape
+ * normale d'un paiement Permit2 (la signature qui suit, elle, est bornée).
+ */
+export function checkPayPayload(method: string, args: unknown[]): { ok: true } | { ok: false; reason: 'RISKY_APPROVAL'; detail?: string } {
+  if (method === 'eth_sendTransaction') {
+    const tx = args[0] as { to?: string; data?: string; value?: string } | undefined;
+    const d = decodeTx({ to: tx?.to, data: tx?.data, value: tx?.value });
+    if (d.kind === 'approveAll' && d.approved) return { ok: false, reason: 'RISKY_APPROVAL', detail: d.operator };
+    if (d.kind === 'approve' && d.unlimited && d.spender.toLowerCase() !== PERMIT2) return { ok: false, reason: 'RISKY_APPROVAL', detail: d.spender };
+    return { ok: true };
+  }
+  if (method === 'eth_signTypedData_v4') {
+    const raw = args.find((a) => typeof a === 'object' || (typeof a === 'string' && a.trim().startsWith('{')));
+    let typed: unknown = raw;
+    if (typeof raw === 'string') {
+      try {
+        typed = JSON.parse(raw);
+      } catch {
+        return { ok: true }; // illisible : la signature échouera d'elle-même plus loin
+      }
+    }
+    const sum = summarizeTypedData(typed);
+    if (sum?.unlimited || sum?.order) return { ok: false, reason: 'RISKY_APPROVAL', detail: sum.primaryType };
+  }
+  return { ok: true };
 }

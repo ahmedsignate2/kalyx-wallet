@@ -4,6 +4,7 @@ import { useT } from "../../lib/settingsStore";
  * système en bas, contenu défilable borné (85 %). Ressort Standard à
  * l'ouverture (Modal natif « slide » en attendant @gorhom/bottom-sheet).
  */
+import { SafeModal } from './SafeModal';
 import React from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +16,7 @@ export function Sheet({ visible, onClose, children, dismissable = true }: { visi
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={dismissable ? onClose : undefined}>
+    <SafeModal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={dismissable ? onClose : undefined}>
       <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={dismissable ? onClose : undefined} accessibilityLabel={t("aiClose")} />
         <View style={{ backgroundColor: colors.surface2, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, maxHeight: '85%', flexShrink: 1, paddingBottom: Math.max(insets.bottom, 16) + 12 }}>
@@ -25,6 +26,6 @@ export function Sheet({ visible, onClose, children, dismissable = true }: { visi
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </SafeModal>
   );
 }

@@ -25,9 +25,11 @@ import {
   SPEED_PERCENTILES,
   CU_SOL_TRANSFER,
   CU_SPL_TRANSFER,
+  sendComputeUnits,
 } from '../solPriority';
 import { amountAfterTransferFee, transferFeeFor } from '../../tokens/token2022';
 import { WalletError } from '../../errors';
+import { formatInputAmount } from '../../validation/format';
 import { capabilities, type ChainCapabilities } from './capabilities';
 import { assertCurve, type ChainSigner, type SignerCurve } from './signer';
 import type {
@@ -82,6 +84,9 @@ const ATA_RENT = 2_039_280n;
  * de signer un brouillon manifestement mort.
  */
 const BLOCKHASH_TTL_MS = 60_000;
+
+/** Loyer minimal d'un compte système sans données (lamports). */
+export const SOL_RENT_EXEMPT_MIN = 890_880n;
 
 export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
   readonly config: ChainConfig;
@@ -155,7 +160,7 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
    */
   async quoteFees(from: string, request: SendRequest): Promise<FeeQuotes> {
     void from;
-    const cu = BigInt(request.token ? CU_SPL_TRANSFER : CU_SOL_TRANSFER);
+    const cu = BigInt(sendComputeUnits(request.token ? CU_SPL_TRANSFER : CU_SOL_TRANSFER, request.memo));
     /*
      * La location de l'ATA entre dans le devis quand le destinataire n'a pas
      * encore de compte pour ce jeton. Elle s'ajoute aux trois paliers à
@@ -236,12 +241,46 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
     };
 
     if (!request.token) {
+      /*
+       * LOYER MINIMAL d'un compte système (0,00089 SOL). Solana refuse une
+       * transaction qui ouvrirait le compte du destinataire avec moins, ou qui
+       * laisserait l'expéditeur entre 0 et ce minimum — avec un message de nœud
+       * que personne ne comprend. On le dit avant de signer. Un RPC muet sur les
+       * soldes ne bloque rien : on ne refuse que ce qu'on sait perdu d'avance.
+       */
+      const [fromBal, toBal] = await Promise.all([
+        this.v1.getBalance(from).then((b) => b.raw).catch(() => null),
+        this.v1.getBalance(request.to).then((b) => b.raw).catch(() => null),
+      ]);
+      if (toBal === 0n && request.amount < SOL_RENT_EXEMPT_MIN) {
+        throw new WalletError('SOL_RENT_RECIPIENT', 'Destinataire sans compte : montant sous le loyer minimal');
+      }
+      if (fromBal !== null) {
+        const rest = fromBal - request.amount - tier.cost;
+        // Montant + frais au-delà du solde : dit ICI (le nœud répondait « Attempt to debit an account… »).
+        if (rest < 0n) {
+          throw new WalletError('INSUFFICIENT_FUNDS', 'Solde SOL insuffisant (frais inclus).', {
+            have: formatInputAmount(fromBal, 9),
+            fee: formatInputAmount(tier.cost, 9),
+            symbol: 'SOL',
+          });
+        }
+        if (rest > 0n && rest < SOL_RENT_EXEMPT_MIN) {
+          // Les deux montants valides, pour que le message dise QUOI saisir.
+          const all = fromBal - tier.cost;
+          const max = all - SOL_RENT_EXEMPT_MIN;
+          throw new WalletError('SOL_RENT_SENDER', 'Reste sous le loyer minimal', {
+            max: formatInputAmount(max > 0n ? max : 0n, 9),
+            all: formatInputAmount(all > 0n ? all : 0n, 9),
+          });
+        }
+      }
       const message = buildTransferMessage({
         from,
         to: request.to,
         lamports: request.amount,
         recentBlockhash: blockhash,
-        prefix: priorityInstructions(CU_SOL_TRANSFER, price),
+        prefix: priorityInstructions(sendComputeUnits(CU_SOL_TRANSFER, request.memo), price),
         references: request.references,
         memo: request.memo,
       });
@@ -287,6 +326,25 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
         params: { rent: ATA_RENT.toString() },
       });
     }
+    /*
+     * SOL nécessaire à un envoi de JETON : les frais, plus le loyer du compte
+     * de jeton à créer — sans laisser l'expéditeur sous le loyer minimal. Sans
+     * ce contrôle, l'envoi partait signé et échouait à la création du compte.
+     */
+    // `tier.cost` comprend DÉJÀ le loyer du compte à créer (cf. `rentForDestination`).
+    const solNeeded = tier.cost;
+    const solBal = await this.v1.getBalance(from).then((b) => b.raw).catch(() => null);
+    if (solBal !== null) {
+      const restSol = solBal - solNeeded;
+      if (restSol < 0n) {
+        // C'est le SOL des frais qui manque, pas le jeton : « réduis le montant » n'aiderait pas.
+        throw new WalletError('INSUFFICIENT_GAS', 'SOL insuffisant pour les frais de cet envoi de jeton.');
+      }
+      if (restSol > 0n && restSol < SOL_RENT_EXEMPT_MIN) {
+        // Le compte SOL resterait sous le loyer minimal : la règle du loyer, pas un manque de jeton.
+        throw new WalletError('SOL_RENT_SENDER', 'Reste SOL sous le loyer minimal', { max: '0', all: '0' });
+      }
+    }
 
     const message = buildSplTransferMessage({
       from,
@@ -295,7 +353,7 @@ export class SolanaAdapterV2 implements ChainAdapterV2<SolanaPayload> {
       amount: request.amount,
       decimals: request.token.decimals,
       recentBlockhash: blockhash,
-      prefix: priorityInstructions(CU_SPL_TRANSFER, price),
+      prefix: priorityInstructions(sendComputeUnits(CU_SPL_TRANSFER, request.memo), price),
       tokenProgram,
       references: request.references,
       memo: request.memo,

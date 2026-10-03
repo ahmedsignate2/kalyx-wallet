@@ -57,7 +57,7 @@ export {
   type ParsedAmount,
 } from './domain/validation/amount';
 // Formatage lisible (précision selon la grandeur) — LA règle d'affichage des montants
-export { formatTokenAmount, formatNumber, formatInputAmount, formatFiat, formatPercent, formatDecimalString, setNumberLocale, decimalSeparator } from './domain/validation/format';
+export { formatTokenAmount, formatNumber, formatInputAmount, formatFiat, formatPercent, formatDecimalString, setNumberLocale, decimalSeparator, trimDecimalZeros } from './domain/validation/format';
 
 // Sauvegarde de seed
 export {
@@ -85,10 +85,15 @@ export {
   type PinCheck,
 } from './security/pin';
 
+// Prix de jetons groupés (DefiLlama) — une requête pour tous les réseaux.
+export { getLlamaTokenPricesUsd, getUsdFxRate, llamaKey, LLAMA_CHAIN } from './domain/prices/defillama';
+
 // Prix de marché (CoinGecko)
 export {
   getPrices,
   getMarkets,
+  getMarketsByIds,
+  attachPriceCacheStorage,
   getCoinDetail,
   getMarketChart,
   getMarketChartPoints,
@@ -115,6 +120,8 @@ export {
 // Tokens ERC-20 (Alchemy)
 export {
   getErc20Tokens,
+  hasAnyErc20Balance,
+  getErc20TokensStrict,
   getTokenMetadata,
   getCustomTokens,
   isSpamToken,
@@ -190,12 +197,14 @@ export { signerFromSeed, signerFromEvmPrivateKey, signerFromRawKey, addressFromR
 export { withSigner, wipeSigner, assertCurve } from './domain/chains/v2/signer';
 export { capabilities, NO_CAPABILITIES } from './domain/chains/v2/capabilities';
 export { EvmAdapterV2, type EvmPayload } from './domain/chains/v2/EvmAdapterV2';
-export { SolanaAdapterV2, type SolanaPayload } from './domain/chains/v2/SolanaAdapterV2';
+export { SolanaAdapterV2, SOL_RENT_EXEMPT_MIN, type SolanaPayload } from './domain/chains/v2/SolanaAdapterV2';
 /*
  * TON : squelette qui refuse tout. Volontairement PAS dans le registre v2 —
  * exporté pour que le travail à venir soit visible, pas pour être appelé.
  */
 export { TonAdapterV2, TON_TARGET_CAPABILITIES, type TonPayload } from './domain/chains/v2/TonAdapterV2';
+export { JETTON_TRANSFER_TON, USDT_TON_MASTER, type TonJettonBalance } from './domain/chains/ton/tonJettons';
+export { normalizeTonDomain, type TonNft } from './domain/chains/ton/tonNfts';
 export {
   BitcoinAdapterV2,
   type BitcoinPayload,
@@ -226,6 +235,7 @@ export {
   caip10,
   parseCaip2,
   checkPayAction,
+  checkPayPayload,
   PAY_EVM_CHAIN_IDS,
   PAY_ALLOWED_METHODS,
   type PayMethod,
@@ -249,6 +259,16 @@ export {
   tonSeedFromMnemonic,
   TON_MNEMONIC_WORDS,
 } from './domain/chains/ton/tonMnemonic';
+export { resolveTonKey, tonKeyKind, tonPublicKeyFromPhrase, TON_BIP39_PATH, type TonKey, type TonKeyKind } from './domain/chains/ton/tonKeys';
+export { classifyRecoveryPhrase, type RecoveryPhraseKind } from './domain/keys/recoveryPhrase';
+export {
+  tonWalletAddress,
+  tonW5WalletId,
+  TON_DEFAULT_WALLET_VERSION,
+  TON_IMPORT_WALLET_VERSIONS,
+  TON_DEFAULT_SUBWALLET_ID,
+  type TonWalletVersion,
+} from './domain/chains/ton/tonWallet';
 export {
   parseImportedKey,
   type KeyFamily,
@@ -284,6 +304,8 @@ export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
 export { getSolanaNfts } from './domain/nft/solanaNft';
 
 // Réserve de gas dynamique (swap/bridge/dépôt), estimée sur le RPC de chaque réseau
+export { normalizeAddressCase, isCaseInsensitiveAddress } from './domain/validation/addressCase';
+export { withTimeout } from './domain/chains/net';
 export { estimateGasReserve, evmReserveFromFeeData, solanaReserveFromPriorityFees, SWAP_GAS_UNITS, SOL_BASE_FEE, type GasReserve } from './domain/chains/gasReserve';
 
 // Anti-empoisonnement d'adresse + formats lisibles
@@ -291,7 +313,8 @@ export { detectPoisoning, groupAddress, shortAddress, addressFamilies, type Pois
 
 // Signature expliquée (§4.7) : simulation + explication humaine + niveau de risque
 export { simulateTx, staticSimulation, parseAlchemySimulation, type Simulation, type AssetChange } from './domain/tx/simulate';
-export { explainRequest, type SignExplanation, type SignRisk, type ExplainInput } from './domain/wc/explain';
+export { explainRequest, type SignExplanation, type SignRisk, type ExplainInput, type ExplainT, type ExplainKey } from './domain/wc/explain';
+export { summarizePsbt, type PsbtSummary } from './domain/wc/psbtSummary';
 export { describeSolanaTransaction, KNOWN_SOLANA_PROGRAMS, type SolanaTxDescription } from './domain/wc/solanaTx';
 
 // Activité humanisée (§4.6)
@@ -335,6 +358,8 @@ export {
   spendersFromLogs,
   isUnlimited,
   revokeCalldata,
+  runRevokeBatch,
+  type RevokeOutcome,
   type ApprovalItem,
 } from './domain/approvals/approvals';
 
@@ -352,6 +377,8 @@ export {
 export { SwapError, type SwapErrorCode } from './domain/swap/swapError';
 export { getRelayQuote } from './domain/swap/relay';
 export { getBestQuote } from './domain/swap/index';
+export { checkSwapQuote, lifiContractFor, type SwapExpectation, type SwapQuoteRefusal } from './domain/swap/guard';
+export { verifyTonSwap, getStonfiQuote, STONFI_ROUTERS, STONFI_TON_RESERVE, tonNeededForMessages } from './domain/swap/stonfi';
 
 // WalletConnect : décodage lisible des demandes de signature
 export {
@@ -365,7 +392,7 @@ export {
 
 // Chaînes (plugins)
 export { getAdapter, listChains, hasChain, nativeOfChain, chainNameOf, chainMetaOf, registerChain, unregisterChain } from './domain/chains/registry';
-export { chainIconUrl } from './domain/chains/icons';
+export { chainIconUrl, embeddedChainLogo, CHAIN_LOGO_PREFIX } from './domain/chains/icons';
 export { EvmChainAdapter, type RawTxRequest } from './domain/chains/EvmChainAdapter';
 export { computeFeeTiers, type FeeOptions, type FeeTier, type FeeSpeed } from './domain/chains/gas';
 export {
@@ -387,7 +414,7 @@ export {
   BIP137_SIGNATURE_BYTES,
   type BtcMessageSigner,
 } from './domain/chains/btcSign';
-export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BASE_SEPOLIA, BITCOIN, SOLANA, SOLANA_DEVNET, buildExplorerTxUrl } from './domain/chains/configs';
+export { ALL_CHAINS, ETHEREUM, BNB, POLYGON, BASE, SEPOLIA, BASE_SEPOLIA, BITCOIN, SOLANA, SOLANA_DEVNET, TON, TON_TESTNET, buildExplorerTxUrl } from './domain/chains/configs';
 // Sauvegarde portable des réseaux EVM personnalisés (export/import)
 export {
   serializeNetworks,
@@ -403,6 +430,7 @@ export type {
   Account,
   Balance,
   TxSummary,
+  TxLeg,
   TxParsed,
   TransferParams,
   TransferIntent,
@@ -433,3 +461,24 @@ export {
 } from './services/transactions/replacementService';
 
 
+export { parseWatchAddress, type WatchFamily, type WatchAddressError } from './domain/wallet/watchAddress';
+export { discoverAccountIndexes, combineActivity, type AccountActivity, type DiscoveryResult } from './domain/wallet/accountDiscovery';
+export {
+  WHITELIST_DELAY_MS,
+  EMPTY_WHITELIST,
+  checkRecipient,
+  addEntry as whitelistAdd,
+  removeEntry as whitelistRemove,
+  enable as whitelistEnable,
+  requestDisable as whitelistRequestDisable,
+  settle as whitelistSettle,
+  isEnforced as whitelistEnforced,
+  noteWallet as whitelistNoteWallet,
+  isTrustedWallet as whitelistTrustedWallet,
+  hoursUntil as whitelistHoursUntil,
+  isEntryActive as whitelistEntryActive,
+  parseWhitelist,
+  type WhitelistState,
+  type WhitelistEntry,
+  type Verdict as WhitelistVerdict,
+} from './domain/security/whitelist';

@@ -39,18 +39,32 @@ autre dans `signerFromSeed` — et le fait que notre seed BIP-39 déjà calculé
 serve à rien ici : il faut la PHRASE, pas la graine. C'est la seule chaîne dans
 ce cas, et cela remonte jusqu'à `deriveSigner` dans `walletStore`.
 
-> **TRANCHÉ : (a), la dérivation native.** Implémentée dans
-> `src/domain/chains/ton/tonMnemonic.ts`, avec l'algorithme écrit constante par
-> constante — sels, itérations, décalages d'octets — parce qu'aucune de ces
-> valeurs n'est devinable et qu'une seule erreur suffit à dériver la clé d'une
-> autre adresse.
+> **TRANCHÉ, PUIS CORRIGÉ (26/09) : la règle de Tonkeeper, et non (a) seule.**
 >
-> **Reste à confirmer avant d'activer TON :** l'implémentation suit l'algorithme
-> de `ton-crypto` mais n'est PAS validée contre un vecteur réel. Les tests
-> couvrent le déterminisme, les longueurs, l'effet du mot de passe et de l'ordre
-> des mots — pas l'interopérabilité. Il faut comparer une adresse dérivée ici à
-> celle que Tonkeeper affiche pour la même phrase. Une dérivation fausse ne plante
-> pas : elle montre un portefeuille vide, ce qui est le pire des deux.
+> La recommandation ci-dessus oubliait un fait : **toutes les phrases que Kalyx
+> crée sont BIP-39.** Relu dans le code de Tonkeeper
+> (`tonkeeper-web/packages/core/src/service/mnemonicService.ts`), le choix ne se
+> fait pas par portefeuille mais par PHRASE :
+>
+> 1. phrase TON valide (`mnemonicValidate` de `@ton/crypto`) → dérivation native ;
+> 2. sinon phrase BIP-39 valide → SLIP-0010 sur **`m/44'/607'/0'`**, sans passphrase ;
+> 3. sinon, invalide.
+>
+> Appliquer la native à tout aurait donné, pour chaque phrase Kalyx, une adresse
+> TON différente de celle de Tonkeeper : le portefeuille vide que ce paragraphe
+> voulait éviter, dans l'autre sens. L'ORDRE compte aussi : le contrôle TON ne
+> regarde pas la longueur, donc une phrase BIP-39 de 12 mots peut le passer (une
+> fois sur 256 environ) — Tonkeeper la dérive alors en native, nous aussi.
+>
+> Implémenté dans `tonKeys.ts` (`resolveTonKey`). Validé contre les cinq vecteurs
+> officiels de `@ton/crypto`, et contre la fonction de chemin de Tonkeeper
+> recopiée à l'identique pour produire les vecteurs BIP-39. Deux écarts de notre
+> version précédente avec `@ton/crypto` ont été corrigés au passage : elle exigeait
+> 24 mots (faux), et ne vérifiait pas que les mots sont dans la liste.
+>
+> **Conséquence pour l'import :** les phrases Tonkeeper ne passent PAS le contrôle
+> BIP-39 (aucun des cinq vecteurs officiels ne le passe). L'import actuel, qui
+> n'accepte que BIP-39, les refuserait toutes.
 
 ---
 
@@ -64,10 +78,21 @@ TON, non.** Une adresse TON est le hachage de l'état initial d'un contrat :
 Conséquence directe : **la même clé donne des adresses différentes selon la
 version de contrat.** Les versions en circulation sont v3R2, v4R2 et W5 (v5).
 
-**À trancher :** quelle version Kalyx génère. W5 est la plus récente (frais
-délégués, opérations groupées) ; v4R2 reste la plus répandue. Et il faudra
-probablement savoir LIRE les deux, même si l'on n'en génère qu'une, pour qu'une
-phrase importée retrouve ses fonds là où ils sont.
+> **TRANCHÉ : on crée en W5 (`v5r1`), on relit v4R2 et v3R2 à l'import.**
+> W5 est le `defaultWalletVersion` de Tonkeeper dans toutes ses applications
+> (mobile, web, extension, bureau, mini-app Telegram) : une phrase Kalyx importée
+> dans Tonkeeper y retrouve la même adresse. Tonkeeper calcule aussi les adresses
+> v3R1, v3R2, v4R2 et W5 bêta à l'import ; on couvre v4R2 et v3R2, où dorment les
+> fonds des portefeuilles d'avant la W5. v3R1 et W5 bêta restent à ajouter si un
+> cas réel se présente.
+>
+> Sur W5, le réseau entre dans le `wallet_id` (`−239` principal, `−3` test) : le
+> réseau de test donne une AUTRE adresse, pas seulement une autre écriture.
+
+**Implémenté** dans `tonWallet.ts`. Pour l'adresse, le code du contrat n'entre
+que par son hachage et sa profondeur (la cellule `StateInit` le référence sans le
+contenir) : deux constantes par version, relevées dans `@ton/core`. Vérifié sur
+neuf clés × trois versions contre les adresses que calcule `@ton/ton`.
 
 Cela casse une hypothèse implicite du reste du code : `deriveAccount(seed, index)`
 rend une adresse. Sur TON, il faudra aussi la version de contrat — et `index`
@@ -208,6 +233,28 @@ de ne pas retomber dans « diffusé donc réussi », l'hypothèse qui faisait af
 
 ## 10. Dépendances et outillage
 
+> **TRANCHÉ (26/09) : `@ton/core` 0.63.1 seul, épinglé ; `@ton/crypto` remplacé.**
+>
+> Sur React Native, `@ton/crypto` charge sa variante mobile, qui exige le module
+> NATIF `react-native-fast-pbkdf2` dès l'import : le build aurait échoué. Plutôt
+> qu'un module natif de plus (sans garantie de compatibilité avec RN 0.86) pour un
+> PBKDF2 inutile — la dérivation passe par `@noble` —, `@ton/crypto` est remplacé
+> par `src/crypto/tonCoreCrypto.ts`, dans `metro.config.js` ET `jest.config.js`.
+> `@ton/core` ne lui emprunte que trois fonctions (`sha256_sync`, `sign`,
+> `signVerify`) ; un test lit le code installé de `@ton/core` et échoue si une
+> version future en appelle une autre. `.npmrc` (`legacy-peer-deps`) empêche npm
+> d'installer `@ton/crypto` d'office.
+>
+> Vérifié par un vrai bundle Android et web (import temporaire, retiré ensuite) :
+> notre module est pris, et ni `@ton/crypto`, ni `react-native-fast-pbkdf2`, ni
+> tweetnacl, ni jssha n'y figurent. Coût : 106 Ko bruts pour `@ton/core`, 11 Ko
+> pour notre code TON, code des contrats compris. Jest charge `@ton/core` en
+> CommonJS sans transformation.
+>
+> Le point 2 ci-dessous (empreinte) s'applique : `package.json` a changé. Les OTA
+> étaient déjà coupées depuis `6f75bfc` ; tout part dans le même build.
+
+
 L'écosystème officiel est `@ton/core`, `@ton/crypto` et `@ton/ton`. Deux points
 à vérifier AVANT de les ajouter :
 
@@ -244,30 +291,297 @@ BIP-39 déjà calculée ne sert à rien, et cela remonte jusqu'à `walletStore`.
 
 ## 12. État d'avancement
 
-**Fait, pur et testé.**
+**Fait, pur, et validé contre l'écosystème (26/09).**
 
-- `tonAddress.ts` — analyse, écriture et validation des adresses. Les deux
-  écritures (`EQ…` rebondissante, `UQ…` non rebondissante) sont reconnues et le
-  drapeau est RENDU au lieu d'être jeté : c'est ce qui permettra à `prepareSend`
-  de comparer la forme demandée à l'état réel du compte. Le drapeau testnet est
-  refusé sur le réseau principal, comme pour Bitcoin. Le CRC est validé contre le
-  vecteur canonique du CRC-16/XMODEM (`123456789` → `0x31C3`), et le workchain est
-  lu comme un entier SIGNÉ — la masterchain vaut −1, écrit `0xFF`, et le lire non
-  signé ferait refuser une adresse valide. Quatorze tests.
-- `tonMnemonic.ts` — dérivation native phrase → graine ed25519, contrôle de
-  validité TON (sans rapport avec BIP-39 : pas de somme de contrôle sur les mots)
-  et détection d'une phrase protégée par mot de passe. Onze tests.
+- `tonKeys.ts` — phrase → clé, avec la règle et l'ordre de Tonkeeper (§1).
+- `tonMnemonic.ts` — dérivation native et contrôle de validité, alignés sur
+  `@ton/crypto` : les cinq vecteurs officiels passent.
+- `tonWallet.ts` — adresse d'une clé pour W5, v4R2 et v3R2, réseau principal et
+  de test (§2).
+- `tonAddress.ts` — analyse et écriture des adresses. **Corrigé :** l'écriture
+  ajoutait `==` à la fin (50 caractères au lieu de 48), qu'aucun portefeuille
+  n'accepte ; les tests ne comparaient jamais à une adresse réelle.
+- `crypto/slip10.ts` — SLIP-0010 ed25519, désormais partagé par Solana et TON.
+- `tonTransfer.ts` — construction et signature d'un transfert (message externe,
+  BOC) pour W5, v4R2 et v3R2 : déploiement au premier envoi, commentaire (y
+  compris long), plusieurs destinataires, réseau de test, envoi du solde entier.
+  **Identique octet pour octet** à `@ton/ton` sur sept cas de référence produits
+  avec le VRAI `@ton/crypto`. Refuse ce qui viserait un autre compte ou un autre
+  réseau : état initial qui ne redonne pas l'adresse, clé qui n'est pas celle du
+  compte, adresse de test sur le réseau principal, échéance en millisecondes.
+- `tonWalletCode.ts` — code des trois contrats, vérifié contre le hachage utilisé
+  pour les adresses.
+- **Import et signature (magasin)** — une phrase Tonkeeper est RECONNUE
+  (`classifyRecoveryPhrase`) et ouvre un portefeuille de type `tonPhrase`, limité
+  à TON : aucune adresse EVM, Bitcoin ou Solana n'est dérivée d'elle, ni à
+  l'import, ni au déverrouillage, ni à l'ajout de compte (refusé), ni à l'export de
+  clé (refusé). Tant qu'aucun réseau TON n'est configuré, l'import le DIT
+  (`import.TON_NOT_YET`, 15 langues) au lieu de « phrase invalide » ; il s'ouvrira
+  de lui-même dès qu'une configuration TON existera. Les portefeuilles BIP-39
+  reçoivent leur clé publique TON sur le compte 0 (rattrapée au déverrouillage
+  pour les anciens). `deriveSigner` dérive TON depuis la PHRASE (`resolveTonKey`)
+  et refuse de signer si la clé dérivée n'est pas celle dont l'adresse est
+  affichée. Couvert par un scénario complet sur le vrai magasin
+  (`lib/walletStoreTon.test.ts`, 13 étapes, chiffrement et dérivations réels).
+
+Tous les vecteurs sont dans `tonkeeper-vectors.json`, avec leur provenance dans
+`tonKeys.test.ts`. Aucun n'est calculé par le code testé.
+
+**Envoi RÉEL sur le réseau de test (26/09) — de bout en bout, avec l'adaptateur.**
+Portefeuille jetable (phrase BIP-39 générée et gardée hors du dépôt), alimenté
+par @testgiver_ton_bot, adresse `0QAHnB2FOTQY4Y7W7Yp33rvQz6fIEzZ8398pbTweyDrrEu_5` :
+
+| Étape | Résultat |
+|---|---|
+| Envoi 1 — compte non déployé | déploiement + transfert **confirmés en 3 s** ; le compte devient `wallet v5 r1`, seqno 1 |
+| Envoi 2 — compte actif | **confirmé en 6 s**, seqno 2, frais estimés par le nœud |
+| Historique | les deux envois avec leurs commentaires, et les reçus |
+
+Le suivi a retrouvé chaque transaction par son hachage normalisé, et en a lu les
+phases. Tout le chemin — dérivation BIP-39 → clé TON → adresse W5 → préparation
+→ signature → BOC → diffusion → suivi → historique — fonctionne sur la chaîne.
+
+**Vérifié dans le vrai Tonkeeper (26/09).** La phrase de test publique BIP-39 de
+24 mots (`abandon` × 23 puis `art`), importée dans Tonkeeper, y affiche en W5
+`UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw` — exactement l'adresse du
+fichier de vecteurs. C'est la confirmation que ce document exigeait avant d'aller
+plus loin. (Phrase connue de tous : ne jamais y envoyer de fonds.)
 
 **Reste à faire, dans l'ordre.**
 
-1. Confirmer la dérivation contre une adresse Tonkeeper réelle. Rien ne doit être
-   exposé dans l'app avant.
-2. Choisir la version du contrat de portefeuille (v4R2 ou W5) et embarquer son
-   code, sans quoi l'adresse — qui est `hash(code, data)` et non un dérivé de la
-   clé — ne peut pas être calculée.
-3. Construire le message externe (BOC) et le `StateInit` du premier envoi, qui
-   déploie le compte aux frais de l'expéditeur.
-4. Brancher `deriveSigner` sur la PHRASE et non sur la graine BIP-39 — TON est la
-   seule chaîne dans ce cas, et c'est le seul endroit du magasin à toucher.
-5. Enregistrer l'adaptateur et sa configuration, en dernier : un adaptateur
-   enregistré à moitié est plus dangereux qu'un adaptateur absent.
+1. ~~**Lecture de la chaîne** (adaptateur)~~ — fait, sur TON Center (26/09) :
+   `TonAdapterV2` lit l'état du compte (actif / non déployé / contrat), le solde,
+   le seqno et la version du contrat ; prépare (rebond selon la règle de
+   Tonkeeper, relue dans son code : `UQ…` ne rebondit jamais, sinon rebond ssi le
+   destinataire est actif), signe (version retrouvée en comparant l'adresse
+   d'envoi aux adresses de la clé : un signataire qui ne la possède pas ne signe
+   rien ; échéance fixée À LA SIGNATURE), diffuse, et suit la transaction par son
+   hachage NORMALISÉ (TEP-467) — calcul vérifié contre le `hash_norm` que TON
+   Center indexe pour une transaction réelle. Le suivi lit les phases : avec
+   `IGNORE_ERRORS`, un envoi sans fonds est SAUTÉ en silence et la phase se dit
+   réussie ; `skipped_actions` le trahit. Toujours NON enregistré.
+   Formes de réponse relevées en direct, pas supposées (`tonCenter.ts`).
+   **Frais :** `estimateFee` du nœud + 0,001 TON de marge PRUDENTE par
+   destinataire ; premier envoi : 0,01 TON fixe (l'estimation exigerait la clé
+   publique, que la préparation n'a pas). Mesuré sur nos envois réels (réseau de
+   test) : l'estimation du nœud tombait juste à 0,1 % près (526 870 nanotons
+   réels) ; le déploiement a coûté 0,001 TON. La marge couvre ce qu'on ne peut pas
+   mesurer sans envoyer sur le réseau principal, où l'acheminement coûte environ
+   huit fois plus. Une première version de ce texte affirmait que le nœud
+   « omet l'acheminement » : ce n'était pas établi. **Attention, vérifié :** `estimateFee` accepte aussi un
+   corps au seqno FAUX — une estimation réussie ne prouve PAS qu'un message est
+   correct. La justesse du message repose sur l'identité octet pour octet avec
+   `@ton/ton` (l'adaptateur reproduit le transfert de référence de bout en bout),
+   et sur un envoi réel sur le réseau de test.
+   Au passage, `isValidTonAddress` refusait sur le réseau de test les écritures
+   `UQ…`/`EQ…` et les adresses brutes : sur TON, les octets d'une adresse sont
+   les mêmes sur les deux réseaux, seul le refus « adresse de test sur le réseau
+   principal » protège quelque chose. C'est le seul qui reste.
+   > **TRANCHÉ (26/09) :** TON Center SANS clé pour développer et tester (chaque
+   > appareil a sa propre limite). En production, un proxy Cloudflare Worker —
+   > la clé reste côté serveur, jamais dans un `EXPO_PUBLIC_` partagé par tous
+   > les utilisateurs — devant **TonAPI** (tonapi.io), qui simplifie l'historique
+   > et les jettons.
+2. ~~Import des phrases TON~~ et ~~signataire depuis la phrase~~ — faits (ci-dessus).
+3. **Question ouverte — comptes d'index > 0 sur TON.** Aujourd'hui, seul le
+   compte 0 d'une phrase BIP-39 a TON : c'est la seule clé que Tonkeeper dérive
+   pour elle, donc la seule qu'on garantit identique. Pour les comptes suivants,
+   deux voies : les sous-portefeuilles W5 de la MÊME clé (numéro = index du
+   compte), que Tonkeeper sait afficher ; ou `m/44'/607'/i'`, qu'aucun autre
+   portefeuille ne montrerait. La première est la plus prometteuse, à vérifier
+   dans Tonkeeper avant de choisir.
+   > **Vérifié dans le code (26/09) :** une réponse externe affirmait que Tonkeeper
+   > incrémente `m/44'/607'/i'` pour les comptes secondaires d'une phrase BIP-39.
+   > C'est faux : dans tout `tonkeeper-web`, le SEUL chemin TON est la constante
+   > `TON_DERIVATION_PATH = "m/44'/607'/0'"`, sans index. Les comptes multiples de
+   > Tonkeeper passent par un autre mécanisme (« MAM », `TonKeychainRoot`).
+   > Suivre cette réponse aurait donné aux comptes 2 et 3 des adresses que
+   > Tonkeeper n'affiche jamais. Décision inchangée : TON sur le compte 0 seul.
+4. ~~Enregistrer l'adaptateur et sa configuration~~ — **fait sur le réseau de
+   test (26/09).** `TON_TESTNET` (`ton-testnet`, TON Center sans clé, explorateur
+   Tonscan) est dans `ALL_CHAINS` ; TON est enregistré dans les deux registres —
+   en v1 par `TonChainAdapter`, LECTURE SEULE (solde, historique : le portefeuille
+   et l'historique lisent encore par `getAdapter`), l'envoi passant par la v2.
+   Réseau principal : **activé le 27/09** (`TON`, explorateur Tonscan, cours CoinGecko
+   `the-open-network`), une fois TonAPI en place et le chemin validé sur téléphone.
+
+   Ce qu'il a fallu corriger pour que TON ne retombe nulle part sur l'EVM :
+   - **Une seule fonction d'adresse, `lib/accountAddress.ts`.** Le ternaire
+     `solana ? … : bitcoin ? … : evm` était recopié dans une douzaine d'écrans ;
+     avec TON, chacun prenait l'adresse EVM sans rien dire — l'envoi serait parti
+     de l'adresse EVM, le portefeuille aurait interrogé TON Center avec elle,
+     Recevoir l'aurait affichée comme adresse TON. `switch` exhaustif, sans cas
+     par défaut : une famille oubliée ne compile pas.
+   - **Des types qui cachaient TON.** L'écran d'envoi FORÇAIT la famille
+     (`as RecipientFamily`, figé à trois) : ses aiguillages retombaient sur
+     Bitcoin sans erreur — la validation d'une adresse TON suivait la règle
+     Bitcoin. `AddressFamily` ignorait TON : toute adresse TON du carnet de
+     contacts était « invalide ». Élargis, et c'est le compilateur qui a trouvé
+     les suivants.
+   - La simulation d'envoi divisait tout ce qui n'est ni EVM ni Solana par 10^8
+     (Bitcoin) : un montant TON serait apparu dix fois trop grand.
+   - La réserve de frais valait 0 pour TON : « Max » aurait voulu envoyer tout le
+     solde sans rien laisser aux frais.
+   - Champ **commentaire** à l'envoi, dès que la chaîne déclare `memo` (TON, et
+     Solana qui le gérait déjà) ; suivi après envoi par l'adaptateur v2.
+   - Recevoir : textes TON (et plus ceux de Bitcoin, qui tombaient par défaut).
+   - Réseaux : l'ancien panneau « TON pas encore disponible » était devenu faux ;
+     remplacé par « TON — réseau de test », avec un bouton pour afficher les
+     réseaux de test.
+
+   Vérifié : bundles Android et web construits avec TON actif (le module de
+   substitution de `@ton/crypto` enfin sollicité par Metro), aucune erreur au
+   démarrage de l'export web — le registre y instancie l'adaptateur TON.
+   **PIÈGE :** le registre v1 (`chains/registry.ts`) instancie un adaptateur pour
+   CHAQUE configuration de `ALL_CHAINS` au chargement du module, et lève sur une
+   famille inconnue. Ajouter une configuration TON sans traiter `'ton'` dans
+   `createAdapter` fait planter l'app AU DÉMARRAGE. (`toAccount` et
+   `setActiveWallet` lisent déjà la configuration sans adaptateur.)
+
+---
+
+## 13. TonAPI, par le proxy Kalyx (27/09)
+
+`ton-proxy/` (Worker Cloudflare, déployé) garde la clé TonAPI et n'ouvre que dix
+routes. L'app l'utilise en fournisseur PRINCIPAL (`tonApi.ts`, `tonProxy.ts`),
+et chaque lecture retombe sur TON Center si TonAPI échoue.
+
+Ce qu'il apporte, vérifié en direct à travers le Worker :
+- **Frais exacts** par émulation (`event.extra`, signature à zéro acceptée) :
+  0,000372 TON relevés sur un vrai portefeuille, au lieu de l'estimation
+  prudente. Le premier envoi d'un compte non déployé reste estimé (l'émulation
+  exigerait l'état initial, donc la clé publique).
+- **`memo_required`** : l'avertissement `MEMO_REQUIRED` (bloquant) quand une
+  plateforme exige un commentaire et qu'il est vide.
+- **Historique en actions.** Deux pièges relevés sur un vrai compte : un dépôt
+  rebondissant reçu avant le déploiement est RENVOYÉ automatiquement — ce n'est
+  pas un envoi, il est affiché en reçu net marqué `BOUNCE` ; et `ext_msg_hash`
+  est exactement le hachage normalisé qu'un envoi rend, donc le suivi retrouve
+  la transaction directement.
+- **Solde** : un NOMBRE JSON chez TonAPI — lu dans le texte brut, sinon arrondi
+  au-delà de 2^53 nanotons.
+
+Réseau principal activé le 27/09.
+
+## 14. Jettons (27/09)
+
+Lecture, envoi et historique des jettons TEP-74 (`tonJettons.ts`, `TonAdapterV2`).
+
+- **Lecture** : `/v2/accounts/{a}/jettons?currencies=…` donne, pour chaque
+  jeton, NOTRE portefeuille de jeton (plus besoin de `get_wallet_address`), le
+  prix dans la devise de l'utilisateur et un statut de vérification.
+- **Le symbole ne prouve rien.** Relevé sur le compte du maître USD₮ : un faux
+  « USD₮ » en liste noire à côté du vrai, et un « Tethe USD / USDT-GARN » non
+  vérifié reçu sans rien demander. Règle : `blacklist` écarté partout ; `none`
+  masqué, sans valeur, jamais montré en réception dans l'historique ; seul
+  `whitelist` compte dans le total.
+- **Transfert** : `transfer#0f8a7ea5` envoyé à notre portefeuille de jeton, avec
+  0,05 TON pour le gaz (valeur de Tonkeeper, l'excédent revient par
+  `response_destination`) et `forward_ton_amount = 1` nanoton pour que le
+  destinataire reçoive la notification — et le commentaire, indispensable aux
+  dépôts sur plateforme. Le corps est comparé AU BIT PRÈS à 9 transferts USD₮
+  réels (`ton-jetton-transfer-vectors.json`).
+- **Preuve sur le réseau principal** : émulation par TonAPI d'un transfert de
+  1 unité d'USD₮ préparé par l'adaptateur depuis un vrai portefeuille W5 —
+  `JettonTransfer ok`, 0,0022 TON de frais nets.
+- **Commentaire exigé** : `MEMO_REQUIRED` était calculé mais jamais montré.
+  `sendDraft` bloque désormais l'envoi (erreur traduite `errMemoRequired`),
+  pour TON comme pour les jettons.
+- **Images** : TonAPI sert du WebP signé ; converties en PNG par `wsrv.nl`.
+- Webapp : pas d'envoi de jetton (la signature par téléphone ne couvre pas TON).
+
+Frais du jetton : l'écran affiche le coût émulé (envoi à soi-même) et exige à
+part les 0,05 TON joints.
+
+## 15. NFT et noms `.ton` (27/09)
+
+- **NFT** : `/v2/accounts/{a}/nfts` (route ajoutée au proxy, cache 60 s). Sur le
+  compte relevé, la MOITIÉ des NFT sont des arnaques (« 1,000,000 NOT Voucher »,
+  « 6,515 USDT Bonus »…) : écartés par `trust: blacklist` ou par l'absence de
+  collection. Un domaine `.ton` est toujours gardé (collection TON DNS). Lien
+  explorateur : `tonscan.org/nft/{adresse}`.
+- **Noms** : `/v2/dns/{nom}/resolve` (route ajoutée, cache 60 s, noms en
+  minuscules seulement). Envoyer accepte « kalyx.ton » comme ENS sur EVM ;
+  l'adresse est rendue conviviale NON rebondissante.
+- **Le proxy doit être redéployé** pour ces deux routes (`npx wrangler deploy`
+  dans `ton-proxy/`) : sans elles, les NFT TON restent vides et un nom `.ton`
+  est « introuvable », sans rien casser d'autre.
+
+## 16. TON Connect v2 (27/09)
+
+Connexion aux dApps TON (STON.fi, DeDust, mini-apps Telegram), en trois couches.
+
+- **Protocole** (`src/domain/tonconnect/`), chaque pièce vérifiée contre sa
+  référence :
+  - `sessionCrypto` : crypto_box reconstruit avec @noble — identique octet
+    pour octet à tweetnacl (`nacl-box-vectors.json`) ;
+  - `connectLink` : liens universels, `tc://`, Telegram (réencodage du SDK
+    inversé) ; le pont de réponse est celui du wallet dont la dApp a affiché
+    le QR (liste officielle, `wallets-bridges.json`) ; manifeste refusé s'il
+    n'est pas hébergé sur le domaine qu'il déclare ;
+  - `tonProof` : mêmes octets signés que Tonkeeper ; `walletStateInit` qui
+    redonne l'adresse ;
+  - `requests` : `sendTransaction` contrôlé (échéance, réseau, expéditeur,
+    adresses conviviales, ≤ 4 messages, contenu lisible) ;
+  - `sse` : lecteur de flux, calé sur le vrai pont de TonAPI.
+- **App** (`lib/tonconnect/`) : pont SSE par XMLHttpRequest (pas
+  d'EventSource en React Native), une connexion par pont ; sessions dans le
+  stockage chiffré ; file de demandes. Test de bout en bout contre une fausse
+  dApp (`store.test.ts`).
+- **Écrans** (`ui/TonConnectHost.tsx`) : la transaction est montrée par ce
+  qu'elle FAIT — émulation TonAPI : TON, jettons, NFT qui sortent, vidage du
+  solde, échec prévisible (bouton désactivé). Code exigé pour tout.
+- **Entrées** : scanner le QR TON Connect d'une dApp, ou coller le lien dans
+  l'écran WalletConnect, qui liste aussi les apps TON connectées.
+
+Pas encore : `signData`, les éléments structurés (`items`), le lien profond
+`tc://` ouvert depuis une autre app (schéma natif : nouvel APK), et
+l'inscription de Kalyx dans la liste officielle des wallets (pour apparaître
+dans le sélecteur des dApps).
+
+Reste : staking, commentaires chiffrés, changement de version de
+portefeuille, envoi de NFT.
+
+## 17. Envoi de NFT et staking Tonstakers (27/09)
+
+- **NFT** : `transfer#5fcc3d14` (TEP-62) à l'élément NFT, 0,05 TON de gaz ;
+  corps identique au bit près à 13 transferts réels. Destinataire : adresse
+  ou nom .ton. Émulé sur le réseau principal (vrai domaine, succès).
+- **Staking liquide Tonstakers** (SDK officiel `tonstakers-sdk`) :
+  - dépôt au pool `EQCkWxfy…-vqR` : `stake#47d54391 query_id partner`, montant
+    + 1 TON de réserve (rendue) ; code partenaire 0 ;
+  - retrait : `burn#595f07bc` à notre portefeuille tsTON, 1,05 TON joints ;
+    modes standard / instantané (fill_or_kill) / meilleur taux
+    (wait_till_round_end) ;
+  - 12 dépôts et 9 retraits réels reproduits au bit près
+    (`tonstakers-vectors.json`) ; dépôt de 1 TON et retrait de tsTON émulés
+    sur le réseau principal avec succès (0,0136 et 0,0018 TON de frais nets) ;
+  - APY, minimum et contrat tsTON : `/v2/staking/pool/{pool}` ; valeur du
+    tsTON : `/v2/rates?tokens=<maître>&currencies=ton` (1 tsTON ≈ 1,16 TON le
+    27/09). **Deux routes ajoutées au proxy : à redéployer**, sinon la carte
+    Staking reste masquée.
+
+
+## 18. Pont JS TON Connect dans le navigateur intégré (28/09)
+
+Comme Tonkeeper ou MyTonWallet, le navigateur de Kalyx injecte dans chaque page
+`window.kalyx.tonconnect` (spécification « JS bridge » de TON Connect). Le SDK du
+site le découvre en parcourant `window` (il exige `walletInfo` complet : `name`,
+`app_name`, `image`, `about_url`, `platforms`) et, voyant `isWalletBrowser`,
+demande la connexion directement au wallet : ni QR, ni choix de wallet.
+
+- `src/domain/tonconnect/jsBridge.ts` : script injecté, lecture des messages,
+  validation, règle page ↔ manifeste ;
+- `lib/tonconnect/store.ts` : transport `js` à côté du pont HTTP. Mêmes fenêtres
+  d'approbation, même `ton_proof`, même simulation ; sessions `js:<hôte>`
+  persistées, donc `restoreConnection` reconnecte la page sans rien redemander ;
+- `app/(tabs)/browser.tsx` : injection et routage des messages ; une réponse
+  n'est exécutée que si la page ouverte est toujours celle qui a demandé.
+
+Règle ajoutée par rapport au pont HTTP : la page doit appartenir au domaine que
+le manifeste déclare (même hôte ou sous-domaine). Le pont HTTP ne voit que le
+manifeste ; ici on voit la vraie page, et sans cette règle un site piégé
+obtiendrait une preuve `ton_proof` valable chez STON.fi.
+
+Test : `lib/tonconnect/jsBridge.test.ts` (découverte par le SDK, connexion avec
+preuve vérifiée, reprise, transaction, refus d'une page usurpatrice, déconnexion).

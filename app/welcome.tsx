@@ -16,7 +16,7 @@
  * écran mort au tout premier contact.
  */
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
@@ -29,6 +29,7 @@ import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { haptic } from '../lib/haptics';
 import { isDriveConfigured } from '../lib/googleDrive';
+import { Orbit, Stardust } from '../ui/nova';
 
 /** Rythme de l'entrée, en millisecondes depuis l'ouverture de l'écran. */
 /*
@@ -80,7 +81,7 @@ function Argument({ icon, title, sub, delay, reduced }: { icon: IconName; title:
   const v = useSharedValue(reduced ? 1 : 0);
   useEffect(() => {
     if (reduced) { v.value = 1; return; }
-    v.value = withDelay(delay, withSpring(1, springs.standard));
+    v.value = withDelay(delay, withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) }));
   }, [v, delay, reduced]);
   const style = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ translateY: (1 - v.value) * 14 }] }));
   return (
@@ -99,6 +100,7 @@ function Argument({ icon, title, sub, delay, reduced }: { icon: IconName; title:
 export default function Welcome() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
   const t = useT();
   const reduced = useReducedMotion();
   const newDraft = useWallet((s) => s.newDraft);
@@ -117,16 +119,21 @@ export default function Welcome() {
 
   useEffect(() => {
     if (reduced) return;
-    logo.value = withDelay(BEAT.logo, withSpring(1, springs.gentle));
+    /*
+     * SANS REBOND. Les ressorts dépassaient leur cible (le logo, le nom, les
+     * actions) : à l'écran, tout sautillait. Des courbes qui décélèrent sans
+     * dépasser gardent la douceur et retirent le sautillement.
+     */
+    const calm = (ms: number) => ({ duration: ms, easing: Easing.out(Easing.cubic) });
+    logo.value = withDelay(BEAT.logo, withTiming(1, calm(900)));
     // Le logo se pose au moment exact où le nom monte : une seule transition.
-    settle.value = withDelay(BEAT.name, withSpring(1, springs.gentle));
-    name.value = withDelay(BEAT.name, withSpring(1, springs.standard));
-    tagline.value = withDelay(BEAT.tagline, withSpring(1, springs.standard));
-    actions.value = withDelay(BEAT.actions, withSpring(1, springs.standard));
+    settle.value = withDelay(BEAT.name, withTiming(1, calm(700)));
+    name.value = withDelay(BEAT.name, withTiming(1, calm(600)));
+    tagline.value = withDelay(BEAT.tagline, withTiming(1, calm(600)));
+    actions.value = withDelay(BEAT.actions, withTiming(1, calm(600)));
     // Rainbow fait pulser son CTA en continu (1,02 ↔ 0,98). On garde l'idée
     // mais deux fois plus discrète : à cette échelle on ne la voit pas, on la
     // ressent — et elle ne concurrence pas la respiration du halo.
-    cta.value = withDelay(BEAT.actions + 400, withRepeat(withTiming(1.012, { duration: 1400, easing: Easing.inOut(Easing.sin) }), -1, true));
   }, [logo, settle, name, tagline, actions, cta, reduced]);
 
   /** Tap n'importe où : on saute la mise en scène (elle ne bloquait déjà rien). */
@@ -139,11 +146,13 @@ export default function Welcome() {
   // « Punch » emprunté à Rainbow : le bloc dépasse légèrement sa taille finale
   // puis se pose au ressort. C'est ce dépassement qui donne la sensation de
   // matière ; un simple fondu fait plat.
-  const nameStyle = useAnimatedStyle(() => ({ opacity: name.value, transform: [{ translateY: (1 - name.value) * 10 }, { scale: 0.96 + name.value * 0.04 }] }));
+  const nameStyle = useAnimatedStyle(() => ({ opacity: name.value, transform: [{ translateY: (1 - name.value) * 10 }] }));
   const taglineStyle = useAnimatedStyle(() => ({ opacity: tagline.value, transform: [{ translateY: (1 - tagline.value) * 10 }] }));
   const actionsStyle = useAnimatedStyle(() => ({ opacity: actions.value, transform: [{ translateY: (1 - actions.value) * 12 }] }));
   const ctaStyle = useAnimatedStyle(() => ({ transform: [{ scale: cta.value }] }));
 
+  /** Les arguments ne s'affichent que s'il reste la place : les actions passent avant. */
+  const showProps = winH >= 760;
   const PROPS: { icon: IconName; title: string; sub: string }[] = [
     { icon: 'security', title: t('propNonCustodial'), sub: t('propNonCustodialSub') },
     { icon: 'exchange', title: t('propSwap'), sub: t('propSwapSub') },
@@ -157,18 +166,24 @@ export default function Welcome() {
   };
 
   return (
-    <KPressable onPress={skip} style={{ flex: 1, backgroundColor: colors.bg }}>
+    <KPressable onPress={skip} noScale haptic="none" accessible={false} style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      {/* Nova : une poussière de lumière qui monte lentement derrière tout l'écran. */}
+      <Stardust width={winW} height={winH} count={22} />
       {/*
         ScrollView + flexGrow:1 : centré quand tout tient, défilant sinon (petit
         écran, texte légal long, langue verbeuse). Une View flex:1 laissait la
         carte déborder par-dessus les boutons, car un enfant ne rétrécit pas par
         défaut dans Yoga, contrairement au web.
       */}
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + space[5], paddingBottom: insets.bottom + space[5], paddingHorizontal: SCREEN_MARGIN }}
-        showsVerticalScrollIndicator={false}
-      >
+      {/*
+        TOUT TIENT SUR L'ÉCRAN, sans défilement : un nouvel utilisateur ne sait
+        pas qu'il y a « Importer » ou la restauration Google Drive plus bas.
+        Le haut (logo, nom, arguments) prend la place qui reste et se tasse ;
+        le bas (consentement et actions) est toujours entièrement visible. Sur
+        un petit écran, les arguments cèdent leur place plutôt que les actions.
+      */}
+      <View style={{ flex: 1, paddingTop: insets.top + space[3], paddingBottom: insets.bottom + space[4], paddingHorizontal: SCREEN_MARGIN }}>
         {/*
           Au tout premier lancement, AUCUN splash ne précède cet écran (cf.
           app/_layout.tsx) : la bienvenue EST l'ouverture de l'app. La cérémonie
@@ -176,10 +191,15 @@ export default function Welcome() {
           jaillissent un par un au ressort, le halo naît du même point au même
           instant, et le tout redescend à sa taille normale quand le nom monte.
         */}
-        <View style={{ minHeight: 230, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center' }}>
           <Animated.View style={ceremonyStyle} pointerEvents="none">
-            <Animated.View style={[{ position: 'absolute' }, haloStyle]}>
+            {/* CENTRÉ sur le logo (84 px) : posé en (0, 0), le halo débordait en bas à droite et noyait le slogan. */}
+            <Animated.View style={[{ position: 'absolute', left: 42 - 170, top: 42 - 170 }, haloStyle]}>
               <Halo size={340} mood="up" />
+            </Animated.View>
+            {/* L'orbite naît avec le halo ; le point d'or la parcourt ensuite sans fin. */}
+            <Animated.View style={[{ position: 'absolute', left: 42, top: 42 }, haloStyle]}>
+              <Orbit cx={0} cy={0} r={96} />
             </Animated.View>
             {/* Trois éclats qui dérivent : l'écran continue de vivre après l'entrée. */}
             <Mote x={-74} y={-52} size={5} period={7100} reduced={reduced} delay={BEAT.name} />
@@ -188,13 +208,13 @@ export default function Welcome() {
             <KalyxLogoIgnite size={84} reduced={reduced} delay={IGNITE.delay} stagger={IGNITE.stagger} alive />
           </Animated.View>
           <Animated.View style={[{ alignItems: 'center', width: '100%', marginTop: space[4] }, nameStyle]}>
-            <Text variant="title1" style={{ fontSize: 38, lineHeight: 44, letterSpacing: 1.5 }}>Kalyx</Text>
+            <Text variant="title1" style={{ fontSize: 34, lineHeight: 40, letterSpacing: 1.5 }}>Kalyx</Text>
           </Animated.View>
           <Animated.View style={[{ alignItems: 'center', width: '100%' }, taglineStyle]}>
             <Text
               variant="bodySecondary"
               tone="secondary"
-              style={{ marginTop: space[3], textAlign: 'center', maxWidth: 300, fontSize: 15, lineHeight: 23 }}
+              style={{ marginTop: space[2], textAlign: 'center', maxWidth: 300, fontSize: 15, lineHeight: 22 }}
             >
               {t('tagline')}
             </Text>
@@ -212,11 +232,13 @@ export default function Welcome() {
           La cascade reste la seule tolérée par la doctrine §2 : liste courte,
           figée, au premier affichage uniquement — jamais au re-rendu.
         */}
-        <View style={{ gap: space[4], marginVertical: space[6] }}>
-          {PROPS.map((p, i) => (
-            <Argument key={p.title} {...p} delay={BEAT.props + i * STAGGER} reduced={reduced} />
-          ))}
-        </View>
+        {showProps ? (
+          <View style={{ gap: space[3], marginBottom: space[4], padding: space[3], borderRadius: 24, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+            {PROPS.map((p, i) => (
+              <Argument key={p.title} {...p} delay={BEAT.props + i * STAGGER} reduced={reduced} />
+            ))}
+          </View>
+        ) : null}
 
         <Animated.View style={[{ gap: space[3] }, actionsStyle]}>
           <Checkbox
@@ -225,7 +247,7 @@ export default function Welcome() {
             shake={nudge}
             label={<Text variant="caption" tone="secondary" style={{ lineHeight: 18 }}>{t('legalConsentLabel')}</Text>}
           />
-          <View style={{ flexDirection: 'row', gap: space[4], marginLeft: 34 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space[4], rowGap: space[1], marginLeft: 34 }}>
             <Pressable onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })} noScale hitSlop={8}>
               <Text variant="caption" style={{ color: colors.primary, textDecorationLine: 'underline' }}>{t('legalTermsOfService')}</Text>
             </Pressable>
@@ -235,7 +257,7 @@ export default function Welcome() {
           </View>
 
           <Animated.View style={ctaStyle}>
-            <Button label={t('createWalletT')} onPress={guarded(() => { newDraft(128); router.push('/backup'); })} sheen style={{ marginTop: space[2] }} />
+            <Button label={t('createWalletT')} onPress={guarded(() => { newDraft(128); router.push('/backup'); })} sheen style={{ marginTop: space[1] }} />
           </Animated.View>
           <Button label={t('havePhrase')} variant="secondary" onPress={guarded(() => router.push('/import'))} />
           {isDriveConfigured() ? (
@@ -244,7 +266,7 @@ export default function Welcome() {
             </Pressable>
           ) : null}
         </Animated.View>
-      </ScrollView>
+      </View>
     </KPressable>
   );
 }

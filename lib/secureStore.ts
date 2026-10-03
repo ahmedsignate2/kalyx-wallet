@@ -12,7 +12,7 @@
  */
 import * as SecureStore from 'expo-secure-store';
 import { kvSet, kvGet, kvDel } from './kv';
-import { serializeVault, deserializeVault, type EncryptedVault } from '../src';
+import { serializeVault, deserializeVault, type EncryptedVault, type TonWalletVersion } from '../src';
 
 // ⚠️ Préfixe `nova.` CONSERVÉ après le renommage en Kalyx (2026-09-11) : ces clés
 // adressent le coffre chiffré et les comptes déjà stockés sur les appareils. Les
@@ -32,6 +32,9 @@ const K_CONTACTS = 'nova.contacts'; // carnet d'adresses (non sensible)
 const vaultKey = (id: string) => (id === 'primary' ? 'nova.vault' : `nova.vault.${id}`);
 const accountsKey = (id: string) => (id === 'primary' ? 'nova.accounts' : `nova.accounts.${id}`);
 const bioKey = (id: string) => (id === 'primary' ? 'nova.bioSeed' : `nova.bioSeed.${id}`);
+/** Copie biométrique PROTÉGÉE par l'OS (nouveau schéma) et son témoin, lisible sans invite. */
+const bioGatedKey = (id: string) => (id === 'primary' ? 'nova.bioSeedG' : `nova.bioSeedG.${id}`);
+const bioFlagKey = (id: string) => (id === 'primary' ? 'nova.bioGated' : `nova.bioGated.${id}`);
 
 /** Compte = index HD + adresses publiques par famille (aucune donnée sensible). */
 export interface StoredAccount {
@@ -41,6 +44,18 @@ export interface StoredAccount {
   btcAddress: string;
   /** Adresse Solana (base58). Optionnel : absent des comptes créés avant l'ajout de Solana. */
   solAddress?: string;
+  /**
+   * Clé publique TON (hex, 32 octets), et non une adresse : sur TON l'adresse
+   * dépend de la version du contrat et du réseau (la W5 du réseau de test a une
+   * autre adresse). Elle se recalcule sans secret à partir de cette clé.
+   *
+   * Absente des comptes d'avant TON (complétée au déverrouillage), et des comptes
+   * d'index > 0 : Tonkeeper ne dérive qu'UNE clé TON par phrase, et c'est celle-ci
+   * qu'on garantit identique.
+   */
+  tonPublicKey?: string;
+  /** Version du contrat de portefeuille TON. Absente = W5 (`v5r1`), comme Tonkeeper. */
+  tonVersion?: TonWalletVersion;
 }
 
 export interface WalletMeta {
@@ -50,8 +65,15 @@ export interface WalletMeta {
    * Origine du coffre. `'seed'` (défaut, rétro-compat) = mnémonique BIP-39,
    * dérivation HD multi-comptes. `'privateKey'` = clé privée importée : un seul
    * compte, pas de dérivation HD, pas de phrase de récupération.
+   *
+   * `'tonPhrase'` = phrase Tonkeeper, qui n'est PAS une phrase BIP-39 : elle
+   * n'ouvre QUE TON. Un type à part, et non `'seed'` avec un drapeau : partout,
+   * « pas une clé privée » voulait dire « phrase BIP-39 », et une phrase TON
+   * rangée comme `'seed'` aurait traversé la dérivation BIP-39 au déverrouillage
+   * et à l'ajout de compte — des adresses EVM, Bitcoin et Solana qu'aucun autre
+   * portefeuille ne montre pour cette phrase.
    */
-  type?: 'seed' | 'privateKey';
+  type?: 'seed' | 'privateKey' | 'tonPhrase' | 'watch';
   /**
    * Famille servie par une clé importée.
    *
@@ -61,25 +83,52 @@ export interface WalletMeta {
    * pourrait techniquement en servir plusieurs, mais l'adresse dérivée diffère à
    * chaque fois, et présenter plusieurs adresses pour un même import ne ferait
    * que semer le doute.
+   *
+   * Pour un portefeuille `'watch'` (lecture seule) : famille de l'adresse suivie.
    */
   keyFamily?: 'evm' | 'bitcoin' | 'solana';
+  /** Lecture seule : l'adresse suivie (sert au nom par défaut, « Adresse suivie 0x8335…2913 »). */
+  watchAddress?: string;
+  /** Avatar de profil (« 3d:rocket », « flat:diamond » — lib/avatars.ts). Tiré au hasard à la création. */
+  avatar?: string;
 }
 
 const base: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
 };
 
-// Ancien schéma : secret biométrique gardé par le keystore matériel
-// (requireAuthentication). PROBLÈME : cette clé keystore ne survit pas toujours à
-// un nouveau build/réinstallation → lecture qui échoue, biométrie « cassée » alors
-// que le PIN marche. On garde bioGated seulement pour NETTOYER les anciens items.
+// Tout premier schéma, sous la clé `bioKey` : secret gardé par le keystore
+// (requireAuthentication). Sa clé ne survivait pas toujours à un nouveau build,
+// et rien ne savait s'en remettre. Gardé seulement pour NETTOYER ces items.
 const bioGated: SecureStore.SecureStoreOptions = {
   ...base,
   requireAuthentication: true,
 };
 
-export async function saveVault(id: string, vault: EncryptedVault): Promise<void> {
+/**
+ * Options de la copie biométrique protégée : le système exige l'empreinte ou le
+ * visage (jamais le code du téléphone) AVANT de rendre la valeur.
+ */
+const gatedOpts = (prompt?: string): SecureStore.SecureStoreOptions => ({
+  ...base,
+  requireAuthentication: true,
+  ...(prompt ? { authenticationPrompt: prompt } : {}),
+});
+
+/** Écriture brute, réservée au journal du changement de PIN (qui EST la résolution). */
+async function writeVault(id: string, vault: EncryptedVault): Promise<void> {
   await kvSet(vaultKey(id), serializeVault(vault), base);
+}
+
+/**
+ * Toute écriture ou suppression de coffre attend qu'un changement de PIN
+ * interrompu soit résolu (`settlePendingPinChange`). Sans cela, un coffre écrit
+ * pendant que le journal attend serait sous le nouveau PIN, et la remise du
+ * lancement suivant remettrait les autres sous l'ancien : deux PIN pour toujours.
+ */
+export async function saveVault(id: string, vault: EncryptedVault): Promise<void> {
+  await settlePendingPinChange();
+  await writeVault(id, vault);
 }
 
 export async function loadVault(id: string): Promise<EncryptedVault | null> {
@@ -95,32 +144,75 @@ export async function saveAccounts(id: string, accounts: StoredAccount[]): Promi
   await kvSet(accountsKey(id), JSON.stringify(accounts), base);
 }
 
+/** Comptes enregistrés : lève si l'enregistrement est illisible. */
+function parseAccounts(raw: string): StoredAccount[] {
+  const list = JSON.parse(raw) as unknown;
+  if (!Array.isArray(list)) throw new Error('Comptes illisibles');
+  return list as StoredAccount[];
+}
+
+/**
+ * Comme `loadAccounts`, mais distingue « aucun enregistrement » (null) d'un
+ * enregistrement ILLISIBLE (lève) : pour ne jamais répondre « pas à toi » sur
+ * un portefeuille qu'on n'a pas pu lire.
+ */
+export async function loadAccountsStrict(id: string): Promise<StoredAccount[] | null> {
+  const raw = await kvGet(accountsKey(id), base);
+  return raw ? parseAccounts(raw) : null;
+}
+
 export async function loadAccounts(id: string): Promise<StoredAccount[] | null> {
   const raw = await kvGet(accountsKey(id), base);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as StoredAccount[];
+    return parseAccounts(raw);
   } catch {
     return null;
   }
 }
 
-export async function enableBiometricSeed(id: string, mnemonic: string): Promise<void> {
-  // Stockage NON-gated (WHEN_UNLOCKED_THIS_DEVICE_ONLY) : survit comme le coffre PIN.
-  // L'accès est protégé par un prompt biométrique explicite (expo-local-authentication)
-  // AVANT la lecture — un seul prompt, fiable sur tous les builds. Compromis assumé :
-  // le secret n'est pas gated par le keystore matériel (voir walletStore.revealMnemonic).
-  await kvSet(bioKey(id), mnemonic, base);
+/**
+ * Copie biométrique de la phrase, PROTÉGÉE PAR L'OS.
+ *
+ * Elle était rangée en clair dans le Keystore, sans `requireAuthentication` : la
+ * seule barrière était l'invite biométrique de l'app, et tout code exécuté dans
+ * l'app pouvait la lire sans elle. Désormais le système refuse de la rendre sans
+ * empreinte ou visage. L'écriture demande elle aussi le geste (Android).
+ *
+ * Ce qui avait fait abandonner ce schéma — une clé invalidée (nouvelle empreinte,
+ * nouveau build) rendait la biométrie « cassée » — est géré : une lecture qui
+ * rend `null` efface le témoin, l'app repasse au PIN, et `healBiometric`
+ * réécrit la copie au déverrouillage suivant.
+ *
+ * Lève si l'OS refuse l'écriture (geste annulé) : rien n'est alors activé.
+ */
+export async function enableBiometricSeed(id: string, mnemonic: string, prompt?: string): Promise<void> {
+  await kvSet(bioGatedKey(id), mnemonic, gatedOpts(prompt));
+  await kvSet(bioFlagKey(id), '1', base);
+  // L'ancienne copie en clair disparaît dès que la protégée existe.
+  await kvDel(bioKey(id), base).catch(() => {});
 }
 
 export async function disableBiometricSeed(id: string): Promise<void> {
+  await kvDel(bioFlagKey(id), base).catch(() => {});
+  await kvDel(bioGatedKey(id), gatedOpts()).catch(() => {});
   await kvDel(bioKey(id), base).catch(() => {});
-  // Nettoie aussi un éventuel ancien item gated (migration).
+  // Nettoie aussi un éventuel tout premier item gated (migration).
   await kvDel(bioKey(id), bioGated).catch(() => {});
 }
 
-/** true si un secret biométrique (nouveau schéma) est présent pour ce wallet. */
+/** true si la copie biométrique est au schéma protégé (sa lecture demandera le geste). */
+export async function isBiometricSeedGated(id: string): Promise<boolean> {
+  try {
+    return (await kvGet(bioFlagKey(id), base)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** true si une copie biométrique existe (protégée ou ancienne), sans rien demander à l'utilisateur. */
 export async function hasBiometricSeed(id: string): Promise<boolean> {
+  if (await isBiometricSeedGated(id)) return true;
   try {
     return (await kvGet(bioKey(id), base)) != null;
   } catch {
@@ -170,7 +262,8 @@ export async function loadLockState(): Promise<{ failedAttempts: number; lastFai
     const raw = await kvGet(K_LOCKSTATE, base);
     if (!raw) return { failedAttempts: 0, lastFailedAt: 0 };
     const s = JSON.parse(raw) as { failedAttempts?: number; lastFailedAt?: number };
-    return { failedAttempts: Number(s.failedAttempts) || 0, lastFailedAt: Number(s.lastFailedAt) || 0 };
+    // Échec daté du futur (horloge reculée depuis) : ramené à maintenant.
+    return { failedAttempts: Number(s.failedAttempts) || 0, lastFailedAt: Math.min(Number(s.lastFailedAt) || 0, Date.now()) };
   } catch {
     return { failedAttempts: 0, lastFailedAt: 0 };
   }
@@ -250,11 +343,25 @@ export async function loadRecentRecipients<T>(): Promise<T[]> {
 }
 
 /**
- * Lit le secret biométrique (NON-gated). Le prompt biométrique est fait EN AMONT
- * par l'appelant (walletStore.revealMnemonic via expo-local-authentication).
- * Renvoie null si absent/illisible (jamais d'exception qui bloque l'UI).
+ * Lit la copie biométrique.
+ *
+ *  - Schéma protégé : l'OS affiche lui-même l'invite. `null` = clé invalidée
+ *    (nouvelle empreinte, nouveau build) : le témoin est effacé pour que
+ *    `healBiometric` la réécrive au prochain PIN. LÈVE si l'utilisateur annule —
+ *    la copie reste intacte, l'appelant repasse au PIN.
+ *  - Ancien schéma (copie en clair) : l'invite est faite EN AMONT par l'appelant.
  */
-export async function readBiometricSeed(id: string): Promise<string | null> {
+export async function readBiometricSeed(id: string, prompt?: string): Promise<string | null> {
+  if (await isBiometricSeedGated(id)) {
+    const m = await kvGet(bioGatedKey(id), gatedOpts(prompt));
+    if (m == null) await kvDel(bioFlagKey(id), base).catch(() => {});
+    return m;
+  }
+  return readLegacyBiometricSeed(id);
+}
+
+/** Ancienne copie en clair, sans invite. Rend null si absente, jamais d'exception. */
+export async function readLegacyBiometricSeed(id: string): Promise<string | null> {
   try {
     return await kvGet(bioKey(id), base);
   } catch {
@@ -262,21 +369,111 @@ export async function readBiometricSeed(id: string): Promise<string | null> {
   }
 }
 
+/*
+ * JOURNAL DU CHANGEMENT DE PIN. Les coffres sont réécrits un par un : une app
+ * tuée au milieu laissait certains portefeuilles sous l'ancien PIN et d'autres
+ * sous le nouveau — ceux-là devenaient illisibles avec le code en usage. Le
+ * journal garde les coffres d'AVANT (chiffrés sous l'ancien PIN, rien de plus
+ * sensible que ce qui était déjà là) le temps de l'écriture ; s'il existe au
+ * lancement, l'opération n'a pas abouti et tout revient à l'ancien PIN.
+ */
+const K_PIN_CHANGE = 'nova.pinChangeJournal';
+
+export async function savePinChangeJournal(before: { id: string; vault: EncryptedVault }[]): Promise<void> {
+  await kvSet(K_PIN_CHANGE, JSON.stringify(before.map((b) => ({ id: b.id, vault: serializeVault(b.vault) }))), base);
+}
+
+export async function clearPinChangeJournal(): Promise<void> {
+  await kvDel(K_PIN_CHANGE, base);
+}
+
+/**
+ * Remet les coffres d'avant un changement de PIN interrompu. Rend true s'il y en avait un.
+ *
+ * Le journal n'est effacé que si TOUS les coffres ont été remis : une écriture
+ * qui échoue le garde, et l'erreur remonte — le prochain lancement réessaie.
+ * L'effacer quand même laisserait pour toujours des coffres sous deux PIN.
+ */
+export async function rollbackPinChange(): Promise<boolean> {
+  let raw: string | null;
+  try {
+    raw = await kvGet(K_PIN_CHANGE, base);
+  } catch {
+    return false;
+  }
+  if (!raw) return false;
+  let entries: { id: string; vault: EncryptedVault }[];
+  try {
+    entries = (JSON.parse(raw) as { id: string; vault: string }[]).map((e) => ({ id: e.id, vault: deserializeVault(e.vault) }));
+  } catch {
+    // Journal illisible : rien à remettre, les coffres restent tels quels.
+    await clearPinChangeJournal().catch(() => {});
+    return true;
+  }
+  let failure: unknown = null;
+  for (const e of entries) {
+    try {
+      await writeVault(e.id, e.vault);
+    } catch (err) {
+      failure ??= err; // on remet quand même les autres
+    }
+  }
+  if (failure) throw failure;
+  await clearPinChangeJournal().catch(() => {});
+  return true;
+}
+
+/** Changement de PIN interrompu encore en attente : remis maintenant, ou levé. */
+export async function settlePendingPinChange(): Promise<void> {
+  await rollbackPinChange();
+}
+
+/**
+ * Changement de PIN, tout ou rien : anciens coffres au journal, nouveaux
+ * écrits, journal effacé. Une écriture qui échoue remet les anciens ; une app
+ * tuée entre-temps les retrouve au lancement.
+ */
+export async function commitPinChange(
+  before: { id: string; vault: EncryptedVault }[],
+  after: { id: string; vault: EncryptedVault }[],
+): Promise<void> {
+  await settlePendingPinChange();
+  await savePinChangeJournal(before);
+  try {
+    for (const a of after) await writeVault(a.id, a.vault);
+  } catch (e) {
+    // Remise en place ; si elle échoue aussi, le journal reste et bloque les écritures.
+    await rollbackPinChange().catch(() => {});
+    throw e;
+  }
+  await clearPinChangeJournal();
+}
+
 /** Supprime un portefeuille précis (coffre + comptes + biométrie). */
 export async function wipeWallet(id: string): Promise<void> {
+  // Un coffre supprimé pendant que le journal attend reviendrait à sa remise.
+  await settlePendingPinChange();
+  await wipeWalletKeys(id);
+}
+
+async function wipeWalletKeys(id: string): Promise<void> {
   await Promise.all([
     kvDel(vaultKey(id), base),
     kvDel(accountsKey(id), base),
     kvDel(bioKey(id), base).catch(() => {}),
-    kvDel(bioKey(id), bioGated).catch(() => {}), // ancien schéma
+    kvDel(bioKey(id), bioGated).catch(() => {}), // tout premier schéma
+    kvDel(bioGatedKey(id), gatedOpts()).catch(() => {}),
+    kvDel(bioFlagKey(id), base).catch(() => {}),
   ]);
 }
 
 /** Réinitialisation totale (tous les portefeuilles + la liste). */
 export async function wipeAll(list: WalletMeta[]): Promise<void> {
+  // Tout disparaît : un changement de PIN en attente n'a plus rien à remettre.
+  await clearPinChangeJournal();
   await Promise.all([
-    ...list.map((w) => wipeWallet(w.id)),
-    wipeWallet('primary'),
+    ...list.map((w) => wipeWalletKeys(w.id)),
+    wipeWalletKeys('primary'),
     kvDel(K_WALLETS, base),
   ]);
 }

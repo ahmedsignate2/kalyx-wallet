@@ -1,8 +1,10 @@
-import { ScreenHeader } from '../ui/kit';
+import { Button, Input, ScreenHeader, Text as KText, TokenIcon } from '../ui/kit';
+import { NovaCard, NovaHero } from '../ui/nova';
 import React, { useState } from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
-import { Screen, Card, Button, Title, Muted } from '../ui/components';
+import { PremiumScreen } from '../ui/premium';
+import { Icon } from '../ui/icon';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useCustomTokens } from '../lib/customTokensStore';
@@ -10,7 +12,7 @@ import { useT } from '../lib/settingsStore';
 import { getAdapter, getTokenMetadata, isValidEvmAddress, type TokenMeta } from '../src';
 
 export default function AddToken() {
-  const { colors, typography } = useTheme();
+  const { colors } = useTheme();
   const t = useT();
   const activeChain = useWallet((s) => s.activeChain);
   const add = useCustomTokens((s) => s.add);
@@ -48,49 +50,57 @@ export default function AddToken() {
     router.back();
   };
 
+  /*
+   * THÈME NOVA : en-tête (l'écran principal n'en avait pas — aucune flèche
+   * retour), héros, champ du kit, aperçu du token trouvé, puis le bouton.
+   */
   if (!isEvm) {
     return (
-      <Screen scroll>
-      <ScreenHeader />
-        <Title>{t('addToken')}</Title>
-        <Muted>{t('evmOnlyToken')}</Muted>
-      </Screen>
+      <PremiumScreen>
+        <ScreenHeader />
+        <NovaHero icon="add" title={t('addToken')} subtitle={t('evmOnlyToken')} />
+        <Button label={t('networks')} variant="secondary" icon="networks" onPress={() => router.push('/networks')} />
+      </PremiumScreen>
     );
   }
 
   return (
-    <Screen scroll>
-      <Title>{t('addToken')}</Title>
-      <Muted>{t('pasteContractOn').replace('{chain}', chain.name)}</Muted>
-      <Card>
-        <TextInput
+    <PremiumScreen>
+      <ScreenHeader />
+      <NovaHero icon="add" title={t('addToken')} subtitle={t('pasteContractOn').replace('{chain}', chain.name)} />
+      <NovaCard delay={140}>
+        <Input
           value={contract}
           onChangeText={(v) => {
             setContract(v);
             setMeta(null);
+            setError(null);
           }}
           placeholder="0x…"
-          placeholderTextColor={colors.textSecondary}
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={{ color: colors.text, fontSize: 15, paddingVertical: spacing(1) }}
+          sensitive
+          error={error}
+          onSubmitEditing={() => void onCheck()}
+          returnKeyType="search"
         />
-      </Card>
+      </NovaCard>
 
       {meta ? (
-        <Card>
-          <Text style={typography.bodyStrong}>{meta.name} ({meta.symbol})</Text>
-          <Muted>{meta.decimals} {t('decimalsWord')}</Muted>
-        </Card>
+        <NovaCard delay={0} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+          <TokenIcon symbol={meta.symbol} seed={contract.trim()} size={44} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <KText variant="body" numberOfLines={1}>{meta.name}</KText>
+            <KText variant="caption" tone="secondary">{meta.symbol} · {meta.decimals} {t('decimalsWord')} · {chain.name}</KText>
+          </View>
+          <Icon name="check" size={20} color={colors.up} />
+        </NovaCard>
       ) : null}
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
 
-      <View style={{ flex: 1 }} />
+      {/* Dans le défilement (et non en pied fixe) : le clavier ne le recouvre jamais. */}
       {meta ? (
-        <Button label={`${t('addWord')} ${meta.symbol}`} onPress={onAdd} />
+        <Button label={`${t('addWord')} ${meta.symbol}`} icon="add" onPress={onAdd} />
       ) : (
-        <Button label={checking ? t('verifying') : t('verifyToken')} loading={checking} onPress={onCheck} />
+        <Button label={t('verifyToken')} loading={checking} disabled={!contract.trim()} onPress={() => void onCheck()} />
       )}
-    </Screen>
+    </PremiumScreen>
   );
 }

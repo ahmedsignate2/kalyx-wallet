@@ -1,3 +1,4 @@
+import { IconDisc, NovaCard, NovaHero, Rise } from '../ui/nova';
 import { router } from 'expo-router';
 import { ScreenHeader } from '../ui/kit';
 import React, { useEffect, useState } from 'react';
@@ -35,14 +36,14 @@ export default function RevealPhrase() {
     return (
       <Screen>
       <ScreenHeader />
-        <Title>{t('yourRecoveryPhrase')}</Title>
-        <Muted>{t('dontShareScreenshotBlocked')}</Muted>
+        <NovaHero icon="phrase" tone="gold" title={t('yourRecoveryPhrase')} subtitle={t('dontShareScreenshotBlocked')} />
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
-        <Card>
+        <Card style={{ borderRadius: 26 }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
             {words.map((w, i) => (
-              <View
+              <Rise
                 key={i}
+                delay={80 + i * 40}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -50,13 +51,13 @@ export default function RevealPhrase() {
                   borderRadius: radii.sm,
                   paddingVertical: spacing(1),
                   paddingHorizontal: spacing(1.5),
-                  minWidth: '30%',
+                  minWidth: '31%',
                   gap: 6,
                 }}
               >
                 <Text style={[typography.muted, { width: 20 }]}>{i + 1}</Text>
                 <Text style={typography.body}>{w}</Text>
-              </View>
+              </Rise>
             ))}
           </View>
         </Card>
@@ -77,8 +78,12 @@ export default function RevealPhrase() {
 
   return (
     <Screen>
-      <Title>{t('revealPhraseTitle')}</Title>
-      <Muted>{t('confirmIdentityPhrase')}</Muted>
+      <ScreenHeader />
+      <NovaHero icon="phrase" tone="gold" title={t('revealPhraseTitle')} subtitle={t('confirmIdentityPhrase')} />
+      <NovaCard delay={160} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+        <IconDisc name="eyeOff" />
+        <Text style={[typography.muted, { flex: 1 }]}>{t('nobodyElseSee')}</Text>
+      </NovaCard>
       <View style={{ flex: 1 }} />
       <Button label={t('revealAction')} onPress={() => setConfirming(true)} />
 

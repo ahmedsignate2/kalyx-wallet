@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, KeyboardAvoidingView, Platform, StatusBar, StyleSheet } from 'react-native';
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
+import { View, Text, TextInput, Platform, StatusBar, StyleSheet } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,12 +10,16 @@ import { GlassCard, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
-import { useWallet } from '../lib/walletStore';
+import { useWallet, phraseKindForImport } from '../lib/walletStore';
+import { friendlyTxError } from '../lib/txError';
 import { useT, useSettings } from '../lib/settingsStore';
-import { validateMnemonic, unknownWords } from '../src';
+import { isWalletError, unknownWords } from '../src';
 import { Text as KText, SENSITIVE_INPUT_PROPS, Pressable as KPressable } from '../ui/kit';
 import { PinPromptModal } from '../ui/PinPromptModal';
 import { radius } from '../ui/tokens';
+import { Orbit, Rise } from '../ui/nova';
+import { fill } from '../lib/i18n';
+import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 
 /**
  * Import d'une phrase (onboarding). LAYOUT FIXE, sans barre native ni double
@@ -23,6 +28,8 @@ import { radius } from '../ui/tokens';
  * le clavier (KeyboardAvoidingView).
  */
 export default function Import() {
+  // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
+  useNoScreenCapture('import');
   const { colors, typography, gradients } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
@@ -42,13 +49,22 @@ export default function Import() {
     if (clip) {
       setText(clip.trim());
       setError(null);
+      // La phrase est dans le champ : elle ne doit pas rester dans le presse-papier, lisible par le clavier ou une autre app.
+      void Clipboard.setStringAsync('').catch(() => {});
     }
   };
 
   const onNext = () => {
     setError(null);
-    if (!validateMnemonic(text.trim())) {
-      setError(t('invalidPhraseBip'));
+    /*
+     * Même règle que le magasin, AVANT le PIN. Une phrase Tonkeeper n'est plus
+     * « invalide » : elle est reconnue, et s'ouvre dès qu'un réseau TON est
+     * configuré — sinon un message le dit.
+     */
+    try {
+      phraseKindForImport(text.trim());
+    } catch (e) {
+      setError(isWalletError(e) && e.code === 'INVALID_MNEMONIC' ? t('invalidPhraseBip') : friendlyTxError(e, t as never));
       return;
     }
     // Rappel post-onboarding : proposer de restaurer les réseaux perso (le
@@ -77,9 +93,17 @@ export default function Import() {
       await importWallet(pendingMnemonic, pin);
       setPendingMnemonic(null);
       router.replace('/wallets');
-    } catch {
-      // PIN refusé : on secoue, le wallet existant n'a pas bougé.
-      setPinError((n) => n + 1);
+    } catch (e) {
+      /*
+       * Seul un PIN faux fait secouer le clavier. Tout le reste était pris pour
+       * un PIN faux : l'utilisateur recommençait un code juste, sans comprendre.
+       */
+      if (isWalletError(e) && e.code === 'WRONG_PIN') {
+        setPinError((n) => n + 1);
+      } else {
+        setPendingMnemonic(null);
+        setError(friendlyTxError(e, t as never));
+      }
     } finally {
       setPinBusy(false);
     }
@@ -110,7 +134,7 @@ export default function Import() {
           et le §2.2 ne tolère aucun dégradé décoratif. */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
 
-      <KeyboardAvoidingView style={{ flex: 1, paddingTop: topPadding }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid style={{ flex: 1, paddingTop: topPadding }}>
         {/* Header unique, calé sous la barre d'état */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 48 }}>
           <KPressable
@@ -128,11 +152,14 @@ export default function Import() {
         <View style={{ flex: 1, paddingHorizontal: spacing(2.5) }}>
           {/* Badge → titre → sous-titre, enchaînés sans vide */}
           <View style={{ alignItems: 'center', marginTop: 12 }}>
-            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="import" size={26} color={colors.primary} />
+            <View style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}>
+              <View pointerEvents="none" style={{ position: 'absolute', left: 32, top: 32 }}><Orbit cx={0} cy={0} r={46} /></View>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="import" size={26} color={colors.primary} />
+              </View>
             </View>
-            <Text style={[typography.title, { marginVertical: 8, textAlign: 'center' }]}>{t('importWalletT')}</Text>
-            <Text style={[typography.muted, { textAlign: 'center', marginBottom: 20 }]}>{t('pastePhraseHint')}</Text>
+            <Rise delay={80}><Text style={[typography.title, { marginVertical: 8, textAlign: 'center' }]}>{t('importWalletT')}</Text></Rise>
+            <Rise delay={160}><Text style={[typography.muted, { textAlign: 'center', marginBottom: 20 }]}>{t('pastePhraseHint')}</Text></Rise>
           </View>
 
           <GlassCard>
@@ -160,14 +187,14 @@ export default function Import() {
               {words.map((w, i) => {
                 const ok = !bad.includes(w.toLowerCase());
                 return (
-                  <View key={`${w}-${i}`} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.surface2, borderBottomWidth: 2, borderBottomColor: ok ? 'transparent' : colors.danger }}>
+                  <Rise key={`${w}-${i}`} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.surface2, borderBottomWidth: 2, borderBottomColor: ok ? 'transparent' : colors.danger }}>
                     <KText variant="caption" tone={ok ? 'secondary' : 'danger'}>{i + 1}. {w}</KText>
-                  </View>
+                  </Rise>
                 );
               })}
             </View>
           ) : null}
-          {bad.length > 0 ? <View style={{ marginTop: spacing(1) }}><KText variant="caption" tone="danger">{bad.length === 1 ? `« ${bad[0]} » n’est pas un mot de la liste BIP-39.` : `${bad.length} mots ne sont pas dans la liste BIP-39.`}</KText></View> : null}
+          {bad.length > 0 ? <View style={{ marginTop: spacing(1) }}><KText variant="caption" tone="danger">{bad.length === 1 ? fill(t('bip39BadOne'), { word: bad[0] }) : fill(t('bip39BadMany'), { count: String(bad.length) })}</KText></View> : null}
           {error ? <View style={{ marginTop: spacing(1.5) }}><ErrorBox message={error} /></View> : null}
 
           {/* Espace flexible : le bouton reste calé en bas */}
@@ -176,7 +203,7 @@ export default function Import() {
             <Button label={t('continueWord')} onPress={onNext} disabled={words.length === 0 || bad.length > 0} />
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </View>
   );
 }

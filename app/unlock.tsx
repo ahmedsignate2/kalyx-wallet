@@ -1,7 +1,10 @@
 import { radius } from '../ui/tokens';
+import { isWalletError } from '../src';
+import { friendlyTxError } from '../lib/txError';
 import { Pressable as KPressable, Halo } from '../ui/kit';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, Animated, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
+import { Orbit, Rise, Stardust } from '../ui/nova';
 import { router, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,15 +12,15 @@ import { PinPad } from '../ui/PinPad';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useDriveFlow } from '../lib/googleDrive';
-import { useWallet } from '../lib/walletStore';
+import { useWallet, pinLockRemainingMs } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
-import { lockRemainingMs } from '../src';
 import { flushPendingIntent } from '../lib/paymentIntent';
 import { isBiometricAvailable } from '../lib/biometrics';
 
 export default function Unlock() {
   const { colors, gradients } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
   const t = useT();
   const unlockWithPin = useWallet((s) => s.unlockWithPin);
   const unlockWithBiometrics = useWallet((s) => s.unlockWithBiometrics);
@@ -36,8 +39,23 @@ export default function Unlock() {
   const [errSignal, setErrSignal] = useState(0);
   const screenOp = useRef(new Animated.Value(1)).current;
 
-  const lockedMs = lockRemainingMs(failedAttempts, lastFailedAt, Date.now());
+  /*
+   * Horloge de l'écran : le verrou se calculait au rendu seulement, et rien ne
+   * rendait l'écran de nouveau — le décompte restait figé et le clavier
+   * désactivé après la fin de l'attente. Tic chaque seconde tant qu'il y a
+   * une attente.
+   */
+  const [now, setNow] = useState(() => Date.now());
+  // Même règle que le portefeuille (horloge du téléphone ET chronomètre interne) ; `now` fait seulement retourner le décompte.
+  const lockedMs = useMemo(() => pinLockRemainingMs(), [now, failedAttempts, lastFailedAt]); // eslint-disable-line react-hooks/exhaustive-deps
   const locked = lockedMs > 0;
+  useEffect(() => {
+    if (!locked) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [locked]);
+  // Nouvel échec enregistré : l'horloge repart de maintenant.
+  useEffect(() => setNow(Date.now()), [failedAttempts, lastFailedAt]);
   const known = pinLength >= 6 ? pinLength : undefined; // option 3 si connue
   const complete = known ? pin.length === known : pin.length >= 6;
 
@@ -76,8 +94,10 @@ export default function Unlock() {
         // Refus/annulation → silencieux (l'utilisateur saisit son PIN).
         // Au TAP manuel, on affiche la vraie cause (ex. « à réactiver dans Réglages »).
         const msg = e instanceof Error ? e.message : '';
+        console.warn('[KALYX-UNLOCK] biometrics:failed', { manual, code: (e as { code?: string })?.code ?? null, msg });
         if (manual && !/refus|annul|cancel/i.test(msg)) {
-          setError(/configur/i.test(msg) ? t('bioReactivate') : msg || t('bioUnavailable'));
+          // Jamais le message brut (souvent anglais, technique) : une erreur connue est traduite par son code.
+          setError(/configur/i.test(msg) ? t('bioReactivate') : isWalletError(e) ? friendlyTxError(e, t as never) : t('bioUnavailable'));
         }
       }
     },
@@ -105,7 +125,8 @@ export default function Unlock() {
         if (biometricEnabled) void healBiometric(code).catch(() => {});
         goHome();
       } catch (e) {
-        setError(e instanceof Error ? e.message : t('incorrectCode'));
+        // Traduit par code : le message du coffre est en français, et un PIN faux doit se lire dans la langue choisie.
+        setError(isWalletError(e) ? friendlyTxError(e, t) : t('incorrectCode'));
         setPin('');
         setErrSignal((n) => n + 1); // secousse + vibration
         setBusy(false);
@@ -141,11 +162,16 @@ export default function Unlock() {
         vers l'accueil. Pour la biométrie, la fenêtre appartient au système et ne
         peut pas être animée : la continuité se joue au timing (§3.5).
       */}
+      <Stardust width={winW} height={winH} count={14} />
+      <Orbit cx={winW / 2} cy={insets.top + 120 + 160} r={132} />
       <Halo size={320} mood="flat" aura style={{ position: 'absolute', alignSelf: 'center', top: insets.top + 120 }} />
       <View style={{ flex: 1, paddingTop: insets.top + spacing(3), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3), alignItems: 'center' }}>
         {/* En-tête compact : titre, sous-titre, biométrie */}
-        <View style={{ alignItems: 'center', gap: spacing(1.25) }}>
-          <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
+        <Rise style={{ alignItems: 'center', gap: spacing(1.25) }}>
+          {/* Appui long (2 s) sur le titre : journal de diagnostic, lisible même quand le déverrouillage casse. */}
+          <Pressable onLongPress={() => router.push('/journal')} delayLongPress={2000} accessible={false}>
+            <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
+          </Pressable>
           <Text style={{ color: error && !locked ? colors.danger : colors.textSecondary, fontSize: 14, textAlign: 'center' }}>{subtitle}</Text>
           {/*
             Le retour d'appui était un changement d'OPACITÉ (0.6), ce que le
@@ -162,7 +188,7 @@ export default function Unlock() {
               <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.semibold }}>{t('biometrics')}</Text>
             </KPressable>
           ) : null}
-        </View>
+        </Rise>
 
         {/* Espace flexible : pousse le clavier vers le bas sans l'étirer */}
         <View style={{ flex: 1, minHeight: spacing(2) }} />

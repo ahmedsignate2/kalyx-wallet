@@ -2,7 +2,7 @@ import { secp256k1 } from '@noble/curves/secp256k1';
 import { ed25519 } from '@noble/curves/ed25519';
 import { base58 } from '@scure/base';
 import { bytesToHex } from '@noble/hashes/utils';
-import { signerFromSeed, signerFromEvmPrivateKey } from './derive';
+import { signerFromSeed, signerFromEvmPrivateKey, signerFromRawKey } from './derive';
 import { mnemonicToSeedSync } from '../../../crypto/mnemonic';
 import { deriveEvmAccount } from '../../../crypto/hd';
 import { deriveBtcAccount } from '../../../crypto/btc';
@@ -91,5 +91,17 @@ describe('signerFromEvmPrivateKey', () => {
 
   it('refuse une clé de mauvaise longueur', () => {
     expect(() => signerFromEvmPrivateKey('0xdeadbeef')).toThrow(/32 octets/);
+  });
+});
+
+describe('signerFromRawKey — la clé survit à l\'effacement du tampon de l\'appelant', () => {
+  it.each(['bitcoin', 'solana'] as const)('%s : la clé du signataire est une copie', (family) => {
+    const secret = new Uint8Array(32).fill(7);
+    const signer = signerFromRawKey(family, secret);
+    const before = bytesToHex(signer.curve === 'secp256k1' ? signer.privateKey : signer.secretKey);
+    secret.fill(0); // ce que fait `deriveSigner` dans son `finally`
+    const after = bytesToHex(signer.curve === 'secp256k1' ? signer.privateKey : signer.secretKey);
+    expect(after).toBe(before);
+    expect(after).not.toBe('00'.repeat(32));
   });
 });

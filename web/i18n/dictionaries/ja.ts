@@ -4,7 +4,7 @@ const ja: Dict = {
   meta: {
     title: 'Kalyx Wallet — ノンカストディアル・マルチチェーン暗号資産ウォレット',
     description:
-      '鍵はあなたのスマホの中に。Bitcoin、Ethereum、Solana と 64 のネットワーク。すべての署名は、署名する前に説明されます。無料、アカウント不要。',
+      '鍵はあなたのスマホの中に。Bitcoin、Ethereum、TON、Solana と 65 のネットワーク。すべての署名は、署名する前に説明されます。無料、アカウント不要。',
   },
   nav: {
     how: '仕組み',
@@ -41,7 +41,7 @@ const ja: Dict = {
     line1: 'あなたの資産に、',
     line2: 'あなたの主権を。',
     line3: '妥協なく。',
-    sub: 'Bitcoin、Ethereum、Solana を自由に管理。秘密鍵がスマホの外に出ることはありません。',
+    sub: 'Bitcoin、Ethereum、TON、Solana を自由に管理。秘密鍵がスマホの外に出ることはありません。',
     cta: 'APK をダウンロード',
     ctaSecondary: 'セキュリティを見る',
     chips: ['ノンカストディアル', 'AES-256-GCM', 'テレメトリーゼロ', 'マルチチェーン', 'AIはオプション（BYOK）'],
@@ -51,18 +51,18 @@ const ja: Dict = {
   networks: {
     label: '対応ネットワーク',
     walletconnect: 'WalletConnect（Reown）と相互運用可能',
-    soon: 'TON は近日対応：アドレスと鍵の導出はすでに実装し、テスト済みです。',
+    soon: 'TON にフル対応：ジェトン、.ton ネーム、TON Connect、STON.fi でのスワップ、Tonstakers のステーキング。',
   },
   how: {
     kicker: '仕組み',
     title: 'ウォレットであって、',
     titleEm: '迷路ではない。',
-    lead: 'アプリの 5 つの画面、今日そのままの姿。モックアップではなく、実際のスクリーンショットです。',
+    lead: 'アプリの今の 6 画面。コードからレンダリングし、デモ用ウォレットで表示しています。',
     steps: [
       {
         title: 'ひとつの残高。すべてのチェーン。',
-        text: 'Bitcoin、Ethereum とその Layer 2、Solana：64 のネットワークをひとつの数字、ひとつの曲線に集約。残高はネットワークが応答する前にキャッシュから表示されます。',
-        value: '64',
+        text: 'Bitcoin、Ethereum とその Layer 2、Solana：65 のネットワークをひとつの数字、ひとつの曲線に集約。残高はネットワークが応答する前にキャッシュから表示されます。',
+        value: '65',
         label: 'ネットワーク',
       },
       {
@@ -73,13 +73,13 @@ const ja: Dict = {
       },
       {
         title: 'アプリを離れずにスワップ。',
-        text: 'Solana では Jupiter、EVM チェーンとクロスチェーンでは LI.FI と Relay。ルートは一文で示され、価格への影響は確認前に告知されます。',
-        value: '3',
+        text: 'Solana では Jupiter、EVM チェーンとクロスチェーンでは LI.FI と Relay。ルートは一文で示され、価格への影響は確認前に告知されます。TON では STON.fi も。',
+        value: '4',
         label: 'ルーター、署名はあなた自身',
       },
       {
         title: '眠っている資産を働かせる。',
-        text: 'Aave v3、Lido、Rocket Pool、Benqi、Jito、Marinade。ウォレットから預け入れ、いつでも引き出し。Kalyx は途中で何も取りません。',
+        text: 'Aave v3、Lido、Rocket Pool、Benqi、Jito、Marinade, Tonstakers。ウォレットから預け入れ、いつでも引き出し。Kalyx は途中で何も取りません。',
         value: '0%',
         label: 'Earn の Kalyx 手数料',
       },
@@ -89,6 +89,12 @@ const ja: Dict = {
         value: '1',
         label: '署名ごとに一文',
       },
+      {
+        title: 'パソコンでも、Telegram でも。',
+        text: 'app.kalyxwallet.com のダッシュボードと Telegram ミニアプリは、残高・トークン・NFT・相場を表示し、送金やスワップを準備します。鍵は一切持たず、署名はすべて WalletConnect 経由でスマホ上で承認します。',
+        value: '0',
+        label: 'スマホの外にある鍵',
+      }
     ],
   },
   lose: {
@@ -154,6 +160,27 @@ const ja: Dict = {
       waits: ['待ち時間なし', '30 秒', '1 分', '5 分', '15 分', '1 時間'],
       closing: 'そしていつかスマホを失っても、紙に書いた 12 の単語が別の端末ですべてを再現します。',
     },
+    s4: {
+      kicker: 'ホワイトリスト',
+      title: 'PIN は知られても、時間は味方。',
+      text: 'ホワイトリストを有効にすると、送金は選んだアドレスと自分のアカウントにしか送れません。PIN を知っていても、泥棒は 1 時間以内に何も変えられません。',
+      rows: [
+        ['追加したアドレス', '24 時間後に使用可'],
+        ['保護の解除', '24 時間後に有効'],
+        ['未知のアドレスへの送金', 'ブロック'],
+      ],
+      closing: '急ぐ泥棒は手ぶらで去るだけ。',
+    },
+    s5: {
+      kicker: '強要されたら',
+      title: 'アプリを開けと迫られる。',
+      text: '強要コードを入力すると、Kalyx は通常どおりおとりウォレットで開きます。本物のウォレット・連絡先・通知は見えず、存在をうかがわせるものは何もありません。',
+      rows: [
+        ['あなたの PIN', '本物のウォレット'],
+        ['強要コード', 'おとりウォレット'],
+      ],
+      closing: '強要コードがある間は生体認証がオフ。顔なら常に本物を開いてしまうからです。',
+    },
     footer1: 'これらはすべて',
     footerEm: 'あなたのスマホ上で',
     footer2: '動きます。Kalyx にはあなたの鍵を見るサーバーはなく、IP アドレスが私たちに送られることはなく、解析 SDK が肩越しに覗くこともありません。',
@@ -182,8 +209,9 @@ const ja: Dict = {
     items: [
       { value: '0 €', label: '送金・受取・保有', note: 'ネットワーク手数料のみ — バリデーターへ支払われ、私たちには入りません。' },
       { value: '0.3%', label: 'LI.FI 経由のスワップ', note: 'EVM とクロスチェーン。これが Kalyx 唯一の収入です。' },
+      { value: '0.3%', label: 'STON.fi 経由の TON スワップ', note: 'TON 上のスワップ（TON、USD₮、ジェットン）。LI.FI と同じ料率。' },
       { value: '0%', label: 'Jupiter 経由の Solana スワップ', note: 'ルートに追加される手数料はありません。' },
-      { value: '0%', label: 'Earn', note: 'Aave、Lido、Rocket Pool、Benqi、Jito、Marinade：預け入れでも引き出しでも徴収なし。' },
+      { value: '0%', label: 'Earn', note: 'Aave、Lido、Rocket Pool、Benqi、Jito、Marinade, Tonstakers：預け入れでも引き出しでも徴収なし。' },
       { value: '0 €', label: 'サブスクリプション、永久に', note: '「プロ」版なし、有料の壁の向こうの機能なし。' },
     ],
     p1a: '署名のたびに、ネットワーク手数料は',
@@ -242,15 +270,15 @@ const ja: Dict = {
     notice: '以下の文書はフランス語で作成されています。法的効力を持つのはフランス語版のみです。',
     privacyTitle: 'プライバシーポリシー',
     privacyIntro: 'Kalyx にとってプライバシーはオプションではなく、アーキテクチャの土台です。データを収集しないことで、あなたのデータを守ります。',
-    privacyMeta: ['更新：2026 年 7 月 5 日', 'Kalyx', 'フランス法および GDPR'],
+    privacyMeta: ['更新：2026 年 10 月 3 日', 'Kalyx', 'フランス法および GDPR'],
     privacyContact: 'データについてのご質問は？',
     termsTitle: '利用規約',
     termsIntro: 'Kalyx Wallet を使用する前に、この規約をよくお読みください。責任ある利用の枠組みと、ノンカストディアルモデルの特性を定めています。',
-    termsMeta: ['改訂：2026 年 7 月 5 日', 'ベータ版', 'ノンカストディアルモデル'],
+    termsMeta: ['改訂：2026 年 10 月 3 日', 'ベータ版', 'ノンカストディアルモデル'],
     termsContact: 'ご不明な点は？',
     mentionsTitle: '法的表示',
     mentionsIntro: 'デジタル経済における信頼のための2004年6月21日付フランス法第2004-575号（LCEN）第6条に基づき、本サイトの発行者およびホスティング事業者の情報を以下に示します。',
-    mentionsMeta: ['更新日：2026年9月16日', 'Kalyx', 'LCEN — 発行者とホスティング'],
+    mentionsMeta: ['更新日：2026 年 10 月 3 日', 'Kalyx', 'LCEN — 発行者とホスティング'],
     mentionsContact: '発行者やホスティングについてのご質問は？',
     contactText: 'セキュリティ、コンプライアンス、規約に関するご質問はお気軽にお寄せください。',
   },

@@ -47,6 +47,9 @@ export function PinPad({
   errorSignal,
   bottomLeft,
   hideRing,
+  keySize = PIN_KEY,
+  ringSize = 104,
+  ringLength,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -63,6 +66,19 @@ export function PinPad({
   bottomLeft?: React.ReactNode;
   /** L'écran affiche l'anneau lui-même (layout fixe : anneau au centre, pavé ancré en bas). */
   hideRing?: boolean;
+  /**
+   * Diamètre des touches. Un écran FIXE (sans défilement) le réduit quand la
+   * hauteur manque, au lieu de pousser le pavé hors de l'écran.
+   */
+  keySize?: number;
+  /** Diamètre de l'anneau de progression. */
+  ringSize?: number;
+  /**
+   * Longueur qui REMPLIT l'anneau quand elle n'est pas connue d'avance (nouveau
+   * PIN : le minimum). Sans elle, l'anneau se remplissait sur 12 chiffres : un
+   * code de 6 ne le remplissait qu'à moitié.
+   */
+  ringLength?: number;
 }) {
   const { colors } = useTheme();
   const shake = useRef(new Animated.Value(0)).current;
@@ -79,19 +95,34 @@ export function PinPad({
     ]).start();
   }, [errorSignal, shake]);
 
+  /*
+   * Validation différée (le dernier rond se remplit d'abord) : ANNULÉE si le
+   * pavé disparaît (Annuler, fond) ou si un chiffre est effacé entre-temps —
+   * sinon le code partait après « Annuler », ou complet après un retour arrière.
+   */
+  const submitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelSubmit = () => {
+    if (submitTimer.current) clearTimeout(submitTimer.current);
+    submitTimer.current = null;
+  };
+  useEffect(() => cancelSubmit, []);
   const press = (digit: string) => {
     if (disabled || value.length >= cap) return;
     haptic.selection();
     const next = value + digit;
     onChange(next);
     if (expectedLength && next.length === expectedLength) {
-      // Laisse le dernier rond se remplir avant de valider.
-      setTimeout(() => onComplete?.(next), 120);
+      cancelSubmit();
+      submitTimer.current = setTimeout(() => {
+        submitTimer.current = null;
+        onComplete?.(next);
+      }, 120);
     }
   };
   const back = () => {
     if (disabled || !value.length) return;
     haptic.selection();
+    cancelSubmit();
     onChange(value.slice(0, -1));
   };
 
@@ -100,22 +131,22 @@ export function PinPad({
       {/* Anneau de progression (compact : le pavé complet doit tenir sans défiler) */}
       {hideRing ? null : (
         <Animated.View style={{ transform: [{ translateX: shake }], alignItems: 'center', justifyContent: 'center', marginVertical: spacing(0.5) }}>
-          <KalyxRing size={104} progress={value.length === 0 ? 0.001 : value.length / (expectedLength || cap)} error={!!errorSignal} />
+          <KalyxRing size={ringSize} progress={value.length === 0 ? 0.001 : Math.min(1, value.length / (expectedLength || ringLength || cap))} error={!!errorSignal} />
         </Animated.View>
       )}
 
       {/* Pavé numérique (3 colonnes ; ⌫ aligné sous le 0) */}
-      <View style={{ width: KEY * 3 + PIN_GAP * 2, flexDirection: 'row', flexWrap: 'wrap', gap: PIN_GAP, justifyContent: 'center' }}>
+      <View style={{ width: keySize * 3 + PIN_GAP * 2, flexDirection: 'row', flexWrap: 'wrap', gap: PIN_GAP, justifyContent: 'center' }}>
         {KEYS.map((k) => (
-          <Key key={k} label={k} onPress={() => press(k)} disabled={disabled} />
+          <Key key={k} label={k} onPress={() => press(k)} disabled={disabled} size={keySize} />
         ))}
-        <View style={{ width: KEY, height: KEY, alignItems: 'center', justifyContent: 'center' }}>{bottomLeft}</View>
-        <Key label="0" onPress={() => press('0')} disabled={disabled} />
+        <View style={{ width: keySize, height: keySize, alignItems: 'center', justifyContent: 'center' }}>{bottomLeft}</View>
+        <Key label="0" onPress={() => press('0')} disabled={disabled} size={keySize} />
         <Pressable
           onPress={back}
           disabled={disabled || !value.length}
           hitSlop={6}
-          style={({ pressed }) => ({ width: KEY, height: KEY, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : value.length ? 1 : 0.3 })}
+          style={({ pressed }) => ({ width: keySize, height: keySize, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : value.length ? 1 : 0.3 })}
         >
           <Text style={{ color: colors.text, fontSize: 30 }}>⌫</Text>
         </Pressable>
@@ -125,7 +156,7 @@ export function PinPad({
 }
 
 /** Touche du pavé : surface pleine, enfoncement au ressort. */
-function Key({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
+function Key({ label, onPress, disabled, size = KEY }: { label: string; onPress: () => void; disabled?: boolean; size?: number }) {
   const { colors } = useTheme();
   const reduced = useReducedMotion();
   const pressed = useSharedValue(0);
@@ -147,8 +178,8 @@ function Key({ label, onPress, disabled }: { label: string; onPress: () => void;
       <Reanimated.View
         style={[
           {
-            width: KEY,
-            height: KEY,
+            width: size,
+            height: size,
             borderRadius: radius.round,
             alignItems: 'center',
             justifyContent: 'center',
@@ -158,7 +189,7 @@ function Key({ label, onPress, disabled }: { label: string; onPress: () => void;
           style,
         ]}
       >
-        <Text style={{ color: colors.text, fontSize: 27, fontFamily: fonts.semibold }}>{label}</Text>
+        <Text style={{ color: colors.text, fontSize: Math.round(size * 0.39), fontFamily: fonts.semibold }}>{label}</Text>
       </Reanimated.View>
     </Pressable>
   );

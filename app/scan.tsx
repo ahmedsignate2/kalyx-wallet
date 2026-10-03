@@ -17,6 +17,7 @@ import { Stack, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import { requireOptionalNativeModule } from 'expo-modules-core';
+import { NATIVE_MODULE } from '../lib/nativeModules';
 import { Button } from '../ui/components';
 import { Icon, type IconName } from '../ui/icon';
 import { fonts, radii, spacing, useTheme } from '../ui/theme';
@@ -29,7 +30,7 @@ import { runQrIntent } from '../lib/paymentIntent';
 // On le charge de façon paresseuse ET gardée — un import statique planterait
 // tout l'app au chargement si le natif est absent (ExpoCamera introuvable).
 let cameraMod: typeof import('expo-camera') | null = null;
-if (requireOptionalNativeModule('ExpoCamera')) {
+if (requireOptionalNativeModule(NATIVE_MODULE.camera)) {
   try {
     cameraMod = require('expo-camera');
   } catch {
@@ -43,9 +44,14 @@ const CAMERA_OK = !!cameraMod;
  * paresseuse et gardée. Sans lui — une installation antérieure au build qui
  * l'embarque — la lecture d'image se replie sur le presse-papiers au lieu de
  * faire tomber l'écran.
+ *
+ * Le nom vient de `lib/nativeModules.ts`, vérifié par un test contre le paquet
+ * installé : écrit à la main « ExpoImagePicker » au lieu de
+ * « ExponentImagePicker », la garde échouait sur TOUS les builds et le scanner
+ * n'ouvrait jamais la galerie.
  */
 let pickerMod: typeof import('expo-image-picker') | null = null;
-if (requireOptionalNativeModule('ExpoImagePicker')) {
+if (requireOptionalNativeModule(NATIVE_MODULE.imagePicker)) {
   try {
     pickerMod = require('expo-image-picker');
   } catch {

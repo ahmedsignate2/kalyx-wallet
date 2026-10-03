@@ -352,3 +352,13 @@ describe('parseQr — requête de transaction Solana Pay au lien ENCODÉ', () =>
     });
   });
 });
+
+describe('liens piégés ou mal formés', () => {
+  it('un « % » mal formé ne fait pas planter la lecture', () => {
+    expect(() => parseQr('bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?label=Remise 100%')).not.toThrow();
+  });
+  it('une fonction autre qu’un transfert valide n’est jamais un envoi natif vers le contrat', () => {
+    expect(parseQr('ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/approve?address=0x000000000000000000000000000000000000dEaD&uint256=1').kind).toBe('invalid');
+    expect(parseQr('ethereum:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48@1/transfer?address=0xBAD&uint256=1').kind).toBe('invalid');
+  });
+});

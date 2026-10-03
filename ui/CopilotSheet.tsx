@@ -10,6 +10,8 @@
  * Le modèle peut proposer d'ouvrir un écran avec le marqueur `[[go:/route]]`
  * (routes de lib/aiAppMap.ts) : rendu sous forme de bouton, jamais exécuté seul.
  */
+import { kalyxDocsPrompt } from '../lib/kalyxDocs';
+import { useLocked } from '../lib/lockState';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
@@ -23,10 +25,13 @@ import { askAi } from '../lib/aiAsk';
 import { serializeCopilotContext } from '../lib/copilotContext';
 import { APP_ROUTES_MAP } from '../lib/aiAppMap';
 import { useT, useSettings } from '../lib/settingsStore';
+import { maskSecretsOnly } from '../lib/secretDetector';
+import { knownTxHashes } from '../lib/knownTxHashes';
 import { haptic } from '../lib/haptics';
 
 const GO_RE = /\[\[go:(\/[a-z0-9\-/]+)\]\]/gi;
 const KNOWN_ROUTES = new Set(APP_ROUTES_MAP.map((r) => r.route));
+const TAB_ROUTES = new Set(['/home', '/browser', '/earn', '/menu']);
 
 /** Sépare le texte du modèle et les écrans proposés (seules les routes connues passent). */
 function splitAnswer(text: string): { text: string; routes: string[] } {
@@ -41,7 +46,7 @@ function splitAnswer(text: string): { text: string; routes: string[] } {
   return { text: clean, routes };
 }
 
-function buildSystem(lang: string, context: string): string {
+function buildSystem(lang: string, context: string, question = ''): string {
   const routes = APP_ROUTES_MAP.map((r) => `${r.route} — ${r.description}`).join('\n');
   return `Tu es Kalyx Copilot, l'assistant intégré de Kalyx Wallet, un wallet crypto 100 % non-custodial.
 Réponds dans la langue « ${lang} », en tutoyant, simple, direct, sobre, sans emoji, sans conseil d'investissement. 2 à 5 phrases, sauf explication technique demandée.
@@ -65,7 +70,7 @@ CE QUE FAIT KALYX (faits, n'invente rien d'autre) :
 ÉCRANS DE L'APP : quand un écran aide, termine par un marqueur [[go:ROUTE]] parmi :
 ${routes}
 
-Si les logs techniques montrent une erreur, explique la cause probable (RPC, solde, gas, rejet) et l'action à faire. Pour un ticket support, propose [[go:/support]].`;
+Si les logs techniques montrent une erreur, explique la cause probable (RPC, solde, gas, rejet) et l'action à faire. Pour un ticket support, propose [[go:/support]].${kalyxDocsPrompt(question, lang as never)}`;
 }
 
 export function CopilotSheet() {
@@ -76,6 +81,7 @@ export function CopilotSheet() {
   const isEnabled = useAiStore((s) => s.isEnabled);
   const initialPrompt = useAiStore((s) => s.initialPrompt);
   const closeChat = useAiStore((s) => s.closeChat);
+  const locked = useLocked();
 
   const sessions = useAiChatHistoryStore((s) => s.sessions);
   const activeSessionId = useAiChatHistoryStore((s) => s.activeSessionId);
@@ -111,10 +117,17 @@ export function CopilotSheet() {
     if (!q || busy) return;
     haptic.light();
     setInput('');
-    addMessageToActive({ sender: 'user', text: q });
+    /*
+     * Secret dans le message (clé, phrase, WIF, xprv, champ « pin: »…) : MASQUÉ
+     * avant l'envoi au fournisseur d'IA et dans l'historique, et on le dit. Un
+     * hash de transaction connu reste lisible ; la question part quand même.
+     */
+    const masked = maskSecretsOnly(q, knownTxHashes());
+    addMessageToActive({ sender: 'user', text: masked });
+    if (masked !== q) addMessageToActive({ sender: 'assistant', text: t('copilotSecretMasked') });
     setBusy(true);
     // Transcription des derniers échanges (le fournisseur ne garde aucune mémoire).
-    const transcript = [...messages.slice(-8), { sender: 'user', text: q } as ChatMessage]
+    const transcript = [...messages.slice(-8), { sender: 'user', text: masked } as ChatMessage]
       .map((m) => `${m.sender === 'user' ? 'Utilisateur' : 'Copilot'} : ${m.text}`)
       .join('\n');
     let context = '{}';
@@ -123,13 +136,14 @@ export function CopilotSheet() {
     } catch {
       /* contexte refusé par le filtre : on continue sans */
     }
-    const r = await askAi(transcript, buildSystem(language, context));
+    const r = await askAi(transcript, buildSystem(language, context, masked));
     setBusy(false);
     addMessageToActive({ sender: 'assistant', text: 'text' in r ? r.text : r.error });
   }
 
   return (
-    <Sheet visible={isOpen} onClose={closeChat}>
+    // Jamais par-dessus l'écran de code : la conversation montre soldes et activité.
+    <Sheet visible={isOpen && !locked} onClose={closeChat}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <Icon name="sparkles" size={20} />
@@ -184,7 +198,9 @@ export function CopilotSheet() {
                           label={t('copilotOpen')}
                           onPress={() => {
                             closeChat();
-                            router.push(r as never);
+                            // Un onglet est REJOINT (pas empilé une seconde fois) ; un écran est poussé.
+                            if (TAB_ROUTES.has(r)) router.navigate(r as never);
+                            else router.push(r as never);
                           }}
                         />
                       ))}

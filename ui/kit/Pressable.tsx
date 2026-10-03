@@ -19,6 +19,7 @@
  * Toujours à la pose du doigt, jamais au relâchement : plus tard, le retour
  * arriverait après l'action et donnerait une sensation de latence.
  */
+import { journal } from '../../lib/debugJournal';
 import React, { useCallback } from 'react';
 import { Pressable as RNPressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
@@ -26,6 +27,43 @@ import { springs, durations, PRESS_SCALE } from '../tokens';
 import { haptic } from '../../lib/haptics';
 
 const AnimatedPressable = Animated.createAnimatedComponent(RNPressable);
+
+/**
+ * Premier texte visible d'un bouton, pour le JOURNAL quand il n'a pas de
+ * libellé explicite. Des dizaines de lignes ressortaient « (bouton sans
+ * libellé) » — lignes de liste, jetons, portefeuilles : impossible de savoir ce
+ * qui avait été touché. Le PREMIER texte seulement (le titre, pas le solde qui
+ * suit), et toute chaîne longue sans espace (adresse, hachage) est masquée :
+ * le journal ne porte jamais de valeur.
+ */
+export function firstText(node: React.ReactNode, depth = 0): string | null {
+  if (depth > 8 || node == null || typeof node === 'boolean') return null;
+  if (typeof node === 'string' || typeof node === 'number') {
+    const s = String(node).trim();
+    return s ? s : null;
+  }
+  if (Array.isArray(node)) {
+    for (const n of node) {
+      const s = firstText(n, depth + 1);
+      if (s) return s;
+    }
+    return null;
+  }
+  if (React.isValidElement(node)) {
+    const props = node.props as { children?: React.ReactNode; title?: unknown; label?: unknown };
+    // Composants du kit qui reçoivent leur texte en propriété (ListRow, Chip…).
+    for (const k of ['title', 'label'] as const) {
+      if (typeof props[k] === 'string' && (props[k] as string).trim()) return (props[k] as string).trim();
+    }
+    return firstText(props.children, depth + 1);
+  }
+  return null;
+}
+
+/** Libellé journalisable : borné, adresses et hachages masqués. */
+export function journalLabel(text: string): string {
+  return text.replace(/\S{20,}/g, '…').slice(0, 48);
+}
 
 /** Ampleur du dépassement au relâchement, en fraction de la course d'appui. */
 const OVERSHOOT = 0.35;
@@ -78,9 +116,22 @@ export function Pressable({
     [onPressOut, pressed, reduced, overshoot, noScale],
   );
 
+  // Journal de diagnostic : chaque appui, avec le libellé du bouton (jamais sa valeur).
+  const userPress = rest.onPress;
+  const onPress = useCallback<NonNullable<PressableProps['onPress']>>(
+    (e) => {
+      const derived = typeof children === 'function' ? null : firstText(children as React.ReactNode);
+      const label = rest.accessibilityLabel?.trim() || rest.testID || (derived ? journalLabel(derived) : '(bouton sans libellé)');
+      journal('press', label, disabled ? '(désactivé)' : '');
+      userPress?.(e);
+    },
+    [userPress, rest.accessibilityLabel, rest.testID, children, disabled],
+  );
+
   return (
     <AnimatedPressable
       {...rest}
+      onPress={userPress ? onPress : undefined}
       disabled={disabled}
       onPressIn={inH}
       onPressOut={outH}

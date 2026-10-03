@@ -4,7 +4,14 @@
  * Si le réseau échoue, le cache est conservé (jamais effacé).
  */
 import { create } from 'zustand';
-import { getAdapter, type TxSummary } from '../src';
+import { getAdapter, type ChainConfig, type TxSummary } from '../src';
+import { isDecoySession, onDecoyChange } from './sessionMode';
+
+/**
+ * Ce qu'il faut d'une chaîne pour retrouver son adresse : la famille ne suffit
+ * plus, l'adresse TON dépend aussi du réseau (la W5 du réseau de test diffère).
+ */
+export type HistoryChain = Pick<ChainConfig, 'id' | 'family' | 'testnet'>;
 
 // Clé de cache : `${chainId}:${address}`
 export function cacheKey(chain: string, address: string): string {
@@ -21,7 +28,17 @@ export function cacheKey(chain: string, address: string): string {
 const NO_TX: TxSummary[] = [];
 
 /** Clé AsyncStorage pour la persistance. */
-const STORAGE_KEY = 'nova.historyCache';
+const STORAGE_KEY = 'nova.historyCache.v2';
+
+/*
+ * SÉRIALISATION DES MONTANTS. `JSON.stringify` LÈVE une exception sur un
+ * `bigint` — et l'erreur était avalée : le cache n'a jamais été écrit, si bien
+ * que l'historique repartait vide à chaque ouverture et relisait tous les
+ * réseaux. Les montants voyagent donc en texte marqué, et reviennent en bigint.
+ */
+const BIG = '__big:';
+export const historyReplacer = (_k: string, v: unknown) => (typeof v === 'bigint' ? `${BIG}${v.toString()}` : v);
+export const historyReviver = (_k: string, v: unknown) => (typeof v === 'string' && v.startsWith(BIG) ? BigInt(v.slice(BIG.length)) : v);
 
 interface HistoryState {
   /** Transactions cachées par clé chain:address. */
@@ -35,65 +52,83 @@ interface HistoryState {
   getCached: (chain: string, address: string) => TxSummary[];
   /** Vérifie si un fetch est en cours pour cette clé. */
   isLoading: (chain: string, address: string) => boolean;
-  /** Fetch depuis le réseau et met à jour le cache. Non-bloquant, ne throw jamais. */
-  fetchHistory: (chain: string, address: string) => Promise<TxSummary[]>;
+  /**
+   * Fetch depuis le réseau et met à jour le cache. Ne throw jamais.
+   * Sans `force`, une réponse de moins de HISTORY_FRESH_MS est réutilisée.
+   */
+  fetchHistory: (chain: string, address: string, opts?: { force?: boolean }) => Promise<TxSummary[]>;
+  /** À appeler après un envoi : la prochaine demande pour cette clé ira au réseau. */
+  markStale: (chain: string, address: string) => void;
   /** Charge le cache persisté depuis AsyncStorage (appelé au démarrage). */
   hydrate: () => Promise<void>;
 }
 
-let AsyncStorage: { getItem: (k: string) => Promise<string | null>; setItem: (k: string, v: string) => Promise<void> } | null = null;
+type HistoryStorage = { getItem: (k: string) => Promise<string | null>; setItem: (k: string, v: string) => Promise<void> };
+let storageRef: HistoryStorage | null = null;
 
-async function getStorage() {
-  if (!AsyncStorage) {
+/*
+ * AsyncStorage, et non `./kv` : ce module n'exporte que kvGet/kvSet, donc
+ * `getItem`/`setItem` n'existaient pas — l'erreur était avalée et le cache ne
+ * fut jamais ni écrit ni relu. Et kv (trousseau) n'est pas fait pour 50 tx par
+ * clé. Un historique est public (adresses, montants) : AsyncStorage suffit.
+ */
+async function getStorage(): Promise<HistoryStorage> {
+  if (!storageRef) {
     try {
-      // Import dynamique pour éviter les problèmes au test.
-      const mod = await import('./kv');
-      AsyncStorage = mod as any;
+      const mod = await import('@react-native-async-storage/async-storage');
+      storageRef = (mod.default ?? mod) as unknown as HistoryStorage;
     } catch {
-      // Fallback silencieux si kv n'est pas disponible.
-      AsyncStorage = {
-        getItem: async () => null,
-        setItem: async () => {},
-      };
+      storageRef = { getItem: async () => null, setItem: async () => {} };
     }
   }
-  return AsyncStorage;
+  return storageRef;
 }
+
+/** Session leurre (code de contrainte) : rien du vrai historique n'est relu, rien du leurre n'est écrit. */
+async function decoyActive(): Promise<boolean> {
+  return isDecoySession();
+}
+
+/**
+ * Âge sous lequel un historique est réutilisé sans réseau.
+ *
+ * Les onglets naviguent par `replace` : l'accueil et l'Historique sont
+ * REMONTÉS à chaque passage, et chaque montage redemandait tous les réseaux —
+ * une dizaine d'appels d'indexeur par changement d'onglet. Le geste « tirer
+ * pour rafraîchir » et le suivi d'un envoi passent `force`.
+ */
+export const HISTORY_FRESH_MS = 60_000;
+
+/** Demandes en cours par clé : deux écrans qui demandent la même chose n'en font qu'une. */
+const inflight = new Map<string, Promise<TxSummary[]>>();
+
+/*
+ * Clés à redemander quoi qu'il arrive (après un envoi). À part de `lastFetch` :
+ * le remettre à zéro ferait croire aux écrans que le réseau n'a jamais répondu.
+ */
+const stale = new Set<string>();
 
 /** Persiste le cache en arrière-plan (fire-and-forget). */
 function persistCache(cache: Record<string, TxSummary[]>) {
   void (async () => {
     try {
+      if (await decoyActive()) return;
       const storage = await getStorage();
       // On ne persiste que les 50 dernières tx par clé pour limiter la taille.
       const trimmed: Record<string, TxSummary[]> = {};
       for (const [k, v] of Object.entries(cache)) {
         trimmed[k] = v.slice(0, 50);
       }
-      await storage!.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+      await storage.setItem(STORAGE_KEY, JSON.stringify(trimmed, historyReplacer));
     } catch {
       // Silencieux : la persistance est un bonus, pas une obligation.
     }
   })();
 }
 
-export const useHistoryStore = create<HistoryState>((set, get) => ({
-  cache: {},
-  loading: {},
-  lastFetch: {},
-
-  getCached: (chain, address) => {
-    const key = cacheKey(chain, address);
-    return get().cache[key] ?? [];
-  },
-
-  isLoading: (chain, address) => {
-    const key = cacheKey(chain, address);
-    return get().loading[key] ?? false;
-  },
-
-  fetchHistory: async (chain, address) => {
-    const key = cacheKey(chain, address);
+export const useHistoryStore = create<HistoryState>((set, get) => {
+  /** L'appel réseau lui-même ; `fetchHistory` décide s'il a lieu. */
+  const fetchFromNetwork = async (key: string, chain: string, address: string): Promise<TxSummary[]> => {
     set((s) => ({ loading: { ...s.loading, [key]: true } }));
     try {
       const txs = await getAdapter(chain).getHistory(address);
@@ -112,24 +147,72 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     } finally {
       set((s) => ({ loading: { ...s.loading, [key]: false } }));
     }
-  },
+  };
 
-  hydrate: async () => {
-    try {
-      const storage = await getStorage();
-      const raw = await storage!.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Record<string, TxSummary[]>;
-        set({ cache: parsed });
+  return {
+    cache: {},
+    loading: {},
+    lastFetch: {},
+
+    getCached: (chain, address) => {
+      const key = cacheKey(chain, address);
+      return get().cache[key] ?? [];
+    },
+
+    isLoading: (chain, address) => {
+      const key = cacheKey(chain, address);
+      return get().loading[key] ?? false;
+    },
+
+    fetchHistory: (chain, address, opts) => {
+      const key = cacheKey(chain, address);
+      const running = inflight.get(key);
+      if (running) return running;
+      const s0 = get();
+      if (!opts?.force && !stale.has(key) && s0.cache[key] && Date.now() - (s0.lastFetch[key] ?? 0) < HISTORY_FRESH_MS) {
+        return Promise.resolve(s0.cache[key]);
       }
-    } catch {
-      // Cache corrompu ou absent : on repart de zéro.
-    }
-  },
-}));
+      stale.delete(key);
+      const request = fetchFromNetwork(key, chain, address).finally(() => inflight.delete(key));
+      inflight.set(key, request);
+      return request;
+    },
+
+    markStale: (chain, address) => {
+      stale.add(cacheKey(chain, address));
+    },
+
+    hydrate: async () => {
+      try {
+        if (await decoyActive()) return;
+        const storage = await getStorage();
+        const raw = await storage.getItem(STORAGE_KEY);
+        // Session leurre ouverte PENDANT la lecture : le vrai historique n'entre pas en mémoire.
+        if (await decoyActive()) return;
+        if (raw) {
+          const parsed = JSON.parse(raw, historyReviver) as Record<string, TxSummary[]>;
+          // Le réseau a pu répondre avant la lecture du disque : il a priorité.
+          set((s) => ({ cache: { ...parsed, ...s.cache } }));
+        }
+      } catch {
+        // Cache corrompu ou absent : on repart de zéro.
+      }
+    },
+  };
+});
 
 // Hydratation automatique au chargement du module.
 void useHistoryStore.getState().hydrate();
+
+/*
+ * Entrée en session leurre : le vrai historique, relu au lancement, quitte la
+ * mémoire. Sortie (sans redémarrage) : celui du leurre la quitte à son tour, et
+ * le vrai est relu — sinon la première écriture aurait mis le leurre sur disque.
+ */
+onDecoyChange((on) => {
+  useHistoryStore.setState({ cache: {}, lastFetch: {} });
+  if (!on) void useHistoryStore.getState().hydrate();
+});
 
 /* ── Lecture RÉACTIVE du cache ───────────────────────────────────────────────
  *
@@ -174,12 +257,12 @@ export function useHistoryCache(): Record<string, TxSummary[]> {
  */
 export function aggregateHistory(
   cache: Record<string, TxSummary[]>,
-  chains: readonly { id: string; family: string }[],
-  addressFor: (family: string) => string | undefined,
+  chains: readonly HistoryChain[],
+  addressFor: (chain: HistoryChain) => string | undefined,
 ): TxSummary[] {
   const seen = new Map<string, TxSummary>();
   for (const c of chains) {
-    const address = addressFor(c.family);
+    const address = addressFor(c);
     if (!address) continue;
     /*
      * Clé RÉSEAU + EMPREINTE : l'empreinte seule confond deux transactions
@@ -198,12 +281,12 @@ export function aggregateHistory(
  * rendu en boucle.
  */
 export function useAnyHistoryLoading(
-  chains: readonly { id: string; family: string }[],
-  addressFor: (family: string) => string | undefined,
+  chains: readonly HistoryChain[],
+  addressFor: (chain: HistoryChain) => string | undefined,
 ): boolean {
   return useHistoryStore((s) =>
     chains.some((c) => {
-      const address = addressFor(c.family);
+      const address = addressFor(c);
       return address ? s.loading[cacheKey(c.id, address)] === true : false;
     }),
   );
@@ -217,12 +300,12 @@ export function useAnyHistoryLoading(
  * qui affirme quelque chose de faux sur le portefeuille de l'utilisateur.
  */
 export function useAnyHistoryFetched(
-  chains: readonly { id: string; family: string }[],
-  addressFor: (family: string) => string | undefined,
+  chains: readonly HistoryChain[],
+  addressFor: (chain: HistoryChain) => string | undefined,
 ): boolean {
   return useHistoryStore((s) =>
     chains.some((c) => {
-      const address = addressFor(c.family);
+      const address = addressFor(c);
       return address ? (s.lastFetch[cacheKey(c.id, address)] ?? 0) > 0 : false;
     }),
   );

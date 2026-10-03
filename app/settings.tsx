@@ -1,4 +1,7 @@
+import { IconDisc, NovaCard, NovaSwitch, OptionPill, Orbit, SectionLabel, SettingRow } from '../ui/nova';
+import { WalletAvatar, AvatarPicker } from '../ui/avatarArt';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Switch, Alert } from 'react-native';
 import { router } from 'expo-router';
@@ -13,14 +16,11 @@ import { useWallet } from '../lib/walletStore';
 import { isBiometricAvailable } from '../lib/biometrics';
 import { ensureNotifPermission, notificationsAvailable, notify } from '../lib/notifications';
 import { toast } from '../lib/toast';
+import { friendlyTxError } from '../lib/txError';
+import { isWalletError } from '../src';
 
 function Ico({ n }: { n: IconName }) {
-  const { colors } = useTheme();
-  return (
-    <View style={{ width: 28, alignItems: 'center' }}>
-      <Icon name={n} size={20} tone="muted" />
-    </View>
-  );
+  return <IconDisc name={n} />;
 }
 const chevron = <Icon name="chevron" size={18} tone="faint" />;
 
@@ -71,6 +71,7 @@ export default function Settings() {
   const [bioAvailable, setBioAvailable] = useState(false);
   // Pop-up de saisie du PIN pour activer la biométrie.
   const [askPin, setAskPin] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [bioBusy, setBioBusy] = useState(false);
   const [bioErr, setBioErr] = useState(0);
 
@@ -96,8 +97,12 @@ export default function Settings() {
   const onToggleBio = async (on: boolean) => {
     if (on) setAskPin(true);
     else {
-      await disableBiometric();
-      setBiometricEnabled(false);
+      try {
+        await disableBiometric();
+        setBiometricEnabled(false);
+      } catch (e) {
+        toast.error(friendlyTxError(e, t as never)); // l'interrupteur reste juste : rien n'a changé
+      }
     }
   };
   const confirmEnableBio = async (pin: string) => {
@@ -106,195 +111,140 @@ export default function Settings() {
       await enableBiometric(pin);
       setBiometricEnabled(true);
       setAskPin(false);
-    } catch {
-      setBioErr((n) => n + 1); // PIN refusé → secousse dans le pop-up
+    } catch (e) {
+      // Code refusé → secousse. Tout autre refus (code de contrainte défini, biométrie refusée,
+      // trop d'essais) est DIT : sinon on retapait le bon code sans jamais savoir pourquoi.
+      if (isWalletError(e) && e.code === 'WRONG_PIN') setBioErr((n) => n + 1);
+      else {
+        setAskPin(false);
+        toast.error(friendlyTxError(e, t as never));
+      }
     } finally {
       setBioBusy(false);
     }
   };
+  const activeWalletId = useWallet((s) => s.activeWalletId);
+  const [pickAvatar, setPickAvatar] = useState(false);
   const onReset = () => {
     Alert.alert(t('resetWallet'), t('resetWarning'), [
       { text: t('cancel'), style: 'cancel' },
       {
         text: t('resetWallet'),
         style: 'destructive',
-        onPress: async () => {
-          await reset();
-          router.replace('/welcome');
-        },
+        // Tout effacer exige le code (ou la biométrie), pas seulement cette confirmation.
+        onPress: () => setConfirmReset(true),
       },
     ]);
   };
 
+  const soundOn = useSettings((s) => s.soundEnabled);
+  const hapticsOn = useSettings((s) => s.hapticsEnabled);
+
   return (
     <PremiumScreen>
+      <AvatarPicker walletId={activeWalletId} visible={pickAvatar} onClose={() => setPickAvatar(false)} />
       <ScreenHeader />
-      <Text style={typography.title}>{t('settings')}</Text>
 
-      {/* Profil */}
-      <GlassCard>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-          <Icon name="profile" />
-          <View style={{ flex: 1 }}>
-            <Text style={typography.muted}>{t('profile')}</Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              onBlur={() => setProfileName(name.trim())}
-              onSubmitEditing={() => setProfileName(name.trim())}
-              placeholder={t('yourName')}
-              placeholderTextColor={colors.textSecondary}
-              style={{ color: colors.text, fontSize: 18, paddingVertical: 4 }}
-            />
+      {/*
+        HÉROS : l'avatar en grand, dans son orbite. Un tap ouvre le sélecteur ;
+        le nom se modifie juste dessous, centré, comme un titre.
+      */}
+      <View style={{ alignItems: 'center', gap: spacing(1) }}>
+        <KPressable onPress={() => setPickAvatar(true)} haptic="light" accessibilityLabel={t('a11yChangeAvatar')} style={{ width: 104, height: 104, alignItems: 'center', justifyContent: 'center' }}>
+          <View pointerEvents="none" style={{ position: 'absolute', left: 52, top: 52 }}><Orbit cx={0} cy={0} r={68} /></View>
+          <WalletAvatar size={96} />
+          <View style={{ position: 'absolute', right: 2, bottom: 2, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="image" size={14} color={colors.onPrimary} />
           </View>
-        </View>
-      </GlassCard>
+        </KPressable>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          onBlur={() => setProfileName(name.trim())}
+          onSubmitEditing={() => setProfileName(name.trim())}
+          placeholder={t('yourName')}
+          placeholderTextColor={colors.textTertiary}
+          accessibilityLabel={t('profile')}
+          style={{ color: colors.text, fontSize: 26, fontFamily: fonts.bold, textAlign: 'center', minWidth: 200, paddingVertical: 4 }}
+        />
+        <Text style={[typography.muted, { fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' }]}>{t('profile')} · {t('settings')}</Text>
+      </View>
 
       {/* Préférences */}
-      <GlassCard>
-        <ListRow left={<Icon name="language" />} title={t('language')} subtitle={langName} right={chevron} onPress={() => router.push('/language')} />
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(0.5) }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            <Icon name="currency" />
-            <Text style={typography.body}>{t('currency')}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
-            {FIATS.map((f) => (
-              <OptionButton key={f.code} label={`${f.symbol} ${f.code.toUpperCase()}`} selected={f.code === fiat} onPress={() => setFiat(f.code)} />
-            ))}
-          </View>
+      <SectionLabel>{t('menuSecPreferences')}</SectionLabel>
+      <NovaCard delay={60}>
+        <SettingRow icon="language" title={t('language')} hint={langName} onPress={() => router.push('/language')} />
+        <SettingRow divider icon="currency" title={t('currency')} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), paddingBottom: spacing(1.5) }}>
+          {/* Symbole seulement s'il diffère du code : « CHF CHF » devient « CHF ». */}
+          {FIATS.map((f) => (
+            <OptionPill key={f.code} label={f.symbol.toUpperCase() === f.code.toUpperCase() ? f.code.toUpperCase() : `${f.symbol} ${f.code.toUpperCase()}`} selected={f.code === fiat} onPress={() => setFiat(f.code)} />
+          ))}
         </View>
-        {/* Apparence : Système / Sombre / Clair */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            <Icon name="appearance" />
-            <Text style={typography.body}>{t('appearance')}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
-            {/* Les libellés portaient des emoji (⚙ 🌙 ☀️), interdits par le §19 :
-                leur rendu change selon la plateforme et ils ne sont pas lus par
-                les lecteurs d'écran. Icônes du kit à la place. */}
-            {(
-              [
-                { key: 'system', label: t('themeSystem'), icon: 'gear' },
-                { key: 'dark', label: t('themeDark'), icon: 'appearance' },
-                { key: 'light', label: t('themeLight'), icon: 'flash' },
-              ] as const
-            ).map((o) => (
-              <OptionButton key={o.key} label={o.label} icon={o.icon} selected={themePref === o.key} onPress={() => setThemePref(o.key)} />
-            ))}
-          </View>
+        <SettingRow divider icon="appearance" title={t('appearance')} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
+          {(
+            [
+              { key: 'system', label: t('themeSystem') },
+              { key: 'dark', label: t('themeDark') },
+              { key: 'light', label: t('themeLight') },
+            ] as const
+          ).map((o) => (
+            <OptionPill key={o.key} label={o.label} selected={themePref === o.key} onPress={() => setThemePref(o.key)} />
+          ))}
         </View>
-      </GlassCard>
+      </NovaCard>
 
       {/* Sécurité */}
-      <GlassCard>
-        {bioAvailable ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-              <Icon name="security" />
-              <Text style={typography.body}>{t('biometrics')}</Text>
+      <SectionLabel>{t('security')}</SectionLabel>
+      <NovaCard delay={120}>
+        {bioAvailable ? <SettingRow icon="security" title={t('biometrics')} right={<NovaSwitch value={biometricEnabled} onValueChange={onToggleBio} />} /> : null}
+        <SettingRow divider={bioAvailable} icon="lock" title={t('autoLock')} hint={t('autoLockHint')} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), paddingBottom: spacing(1.5) }}>
+          {([
+            { label: t('immediate'), m: 0 },
+            { label: '1 min', m: 1 },
+            { label: '3 min', m: 3 },
+            { label: '5 min', m: 5 },
+            { label: '15 min', m: 15 },
+            { label: t('never'), m: -1 },
+          ] as const).map((o) => (
+            <OptionPill key={o.m} label={o.label} selected={autoLockMinutes === o.m} onPress={() => setAutoLockMinutes(o.m)} />
+          ))}
+        </View>
+        <SettingRow divider icon="eye" title={t('privacyScreen')} hint={t('privacyScreenHint')} right={<NovaSwitch value={privacyGuard} onValueChange={setPrivacyGuard} />} />
+        <SettingRow divider icon="pin" title={t('changePin')} onPress={() => router.push('/change-pin')} />
+        <SettingRow divider icon="phrase" title={t('revealPhrase')} onPress={() => router.push('/reveal-phrase')} />
+        <SettingRow divider icon="copy" title={t('revealPrivateKey')} onPress={() => router.push('/reveal-private-key')} />
+        <SettingRow divider icon="sparkles" tone="gold" title={t('copilotByok')} hint={t('copilotByokSubtitle')} onPress={() => router.push('/ai-settings')} />
+      </NovaCard>
+
+      {/* Notifications, sons, vibrations */}
+      <SectionLabel>{t('notifications')}</SectionLabel>
+      <NovaCard delay={180}>
+        <SettingRow icon="networks" title={t('network')} hint={t('chooseActiveNetwork')} onPress={() => router.push('/networks')} />
+        <SettingRow divider icon="notifications" title={t('notifications')} hint={t('txAlerts')} right={<NovaSwitch value={notifOn} onValueChange={onToggleNotif} />} />
+        {notifOn ? (
+          <View style={{ paddingLeft: 48, paddingBottom: spacing(1) }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
+              <Text style={typography.body}>{t('transactions')}</Text>
+              <NovaSwitch value={notifTx} onValueChange={(v) => setNotifPref('notifTx', v)} />
             </View>
-            <Switch value={biometricEnabled} onValueChange={onToggleBio} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
+              <Text style={typography.body}>{t('priceAlerts')}</Text>
+              <NovaSwitch value={notifPrice} onValueChange={(v) => setNotifPref('notifPrice', v)} />
+            </View>
           </View>
         ) : null}
-        {/* Verrouillage automatique */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-            <Icon name="security" />
-            <View style={{ flex: 1 }}>
-              <Text style={typography.body}>{t('autoLock')}</Text>
-              <Text style={typography.muted}>{t('autoLockHint')}</Text>
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), marginTop: spacing(1) }}>
-            {([
-              { label: t('immediate'), m: 0 },
-              { label: '1 min', m: 1 },
-              { label: '3 min', m: 3 },
-              { label: '5 min', m: 5 },
-              { label: '15 min', m: 15 },
-              { label: t('never'), m: -1 },
-            ] as const).map((o) => (
-              <OptionButton key={o.m} label={o.label} selected={autoLockMinutes === o.m} onPress={() => setAutoLockMinutes(o.m)} />
-            ))}
-          </View>
-        </View>
-        {/* Écran de garde */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-          <Icon name="eye" />
-          <View style={{ flex: 1 }}>
-            <Text style={typography.body}>{t('privacyScreen')}</Text>
-            <Text style={typography.muted}>{t('privacyScreenHint')}</Text>
-          </View>
-          <Switch value={privacyGuard} onValueChange={setPrivacyGuard} />
-        </View>
-        <ListRow divider left={<Icon name="pin" />} title={t('changePin')} right={chevron} onPress={() => router.push('/change-pin')} />
-        <ListRow divider left={<Icon name="phrase" />} title={t('revealPhrase')} right={chevron} onPress={() => router.push('/reveal-phrase')} />
-        <ListRow divider left={<Icon name="copy" />} title={t('revealPrivateKey')} right={chevron} onPress={() => router.push('/reveal-private-key')} />
-        <ListRow divider left={<Icon name="market" />} title={t('copilotByok')} subtitle={t('copilotByokSubtitle')} right={chevron} onPress={() => router.push('/ai-settings')} />
-      </GlassCard>
+        <SettingRow divider icon="bell" title={t('appSounds')} hint={t('appSoundsHint')} right={<NovaSwitch value={soundOn} onValueChange={useSettings.getState().setSoundEnabled} />} />
+        <SettingRow divider icon="flash" title={t('appHaptics')} hint={t('appHapticsHint')} right={<NovaSwitch value={hapticsOn} onValueChange={useSettings.getState().setHapticsEnabled} />} />
+      </NovaCard>
 
-      {/* Réseau & à venir */}
-      <GlassCard>
-        <ListRow left={<Icon name="networks" />} title={t('network')} subtitle={t('chooseActiveNetwork')} right={chevron} onPress={() => router.push('/networks')} />
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5) }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
-              <Icon name="notifications" />
-              <View style={{ flex: 1 }}>
-                <Text style={typography.body}>{t('notifications')}</Text>
-                <Text style={typography.muted}>{t('txAlerts')}</Text>
-              </View>
-            </View>
-            <Switch value={notifOn} onValueChange={onToggleNotif} />
-          </View>
-          {/* Catégories */}
-          <View style={{ marginTop: spacing(1.25), gap: spacing(0.5), paddingLeft: spacing(4) }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={typography.body}>{t('transactions')}</Text>
-              <Switch value={notifTx} onValueChange={(v) => setNotifPref('notifTx', v)} />
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={typography.body}>{t('priceAlerts')}</Text>
-              <Switch value={notifPrice} onValueChange={(v) => setNotifPref('notifPrice', v)} />
-            </View>
-          </View>
-        </View>
-
-        {/* Son */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
-            <Icon name="notifications" />
-            <View style={{ flex: 1 }}>
-              <Text style={typography.body}>{t('appSounds')}</Text>
-              <Text style={typography.muted}>{t('appSoundsHint')}</Text>
-            </View>
-          </View>
-          <Switch value={useSettings((s) => s.soundEnabled)} onValueChange={useSettings.getState().setSoundEnabled} />
-        </View>
-
-        {/* Vibrations */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing(1.5), marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), justifyContent: 'space-between' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
-            <Icon name="flash" />
-            <View style={{ flex: 1 }}>
-              <Text style={typography.body}>{t('appHaptics')}</Text>
-              <Text style={typography.muted}>{t('appHapticsHint')}</Text>
-            </View>
-          </View>
-          <Switch value={useSettings((s) => s.hapticsEnabled)} onValueChange={useSettings.getState().setHapticsEnabled} />
-        </View>
-
-      </GlassCard>
-
-      {/* À propos */}
-      <GlassCard>
-        <ListRow left={<Icon name="about" />} title={t('about')} subtitle={`Kalyx Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chevron} onPress={() => router.push('/about')} />
-      </GlassCard>
-
-      <SectionHeader title="" />
-      <ListRow left={<Icon name="reset" />} title={t('resetWallet')} onPress={onReset} right={<Text style={{ color: colors.danger }}>›</Text>} />
+      {/* À propos et réinitialisation */}
+      <NovaCard delay={240}>
+        <SettingRow icon="about" title={t('about')} hint={`Kalyx Wallet · v${Constants.expoConfig?.version ?? '0.0.1'}`} onPress={() => router.push('/about')} />
+        <SettingRow divider icon="reset" tone="danger" title={t('resetWallet')} onPress={onReset} />
+      </NovaCard>
       <View style={{ height: spacing(2) }} />
 
       <PinPromptModal
@@ -306,6 +256,16 @@ export default function Settings() {
         errorSignal={bioErr}
         onSubmit={confirmEnableBio}
         onCancel={() => setAskPin(false)}
+      />
+      <ConfirmUnlock
+        visible={confirmReset}
+        title={t('resetWallet')}
+        perform={(unlock) => reset(unlock)}
+        onDone={() => {
+          setConfirmReset(false);
+          router.replace('/welcome');
+        }}
+        onCancel={() => setConfirmReset(false)}
       />
     </PremiumScreen>
   );

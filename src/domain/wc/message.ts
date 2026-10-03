@@ -118,6 +118,8 @@ export interface TypedDataSummary {
   unlimited?: boolean;
   /** Vrai pour une signature Permit2 (domaine « Permit2 » ou PermitSingle/PermitBatch/PermitTransferFrom). */
   permit2?: boolean;
+  /** Ordre de place de marché (Seaport, Blur…) : signé, il cède des actifs à qui l'exécute. */
+  order?: boolean;
 }
 
 /** BigInt tolérant (décimal, 0x-hex, number) ; null si non parsable. */
@@ -153,23 +155,72 @@ function fmtDeadline(v: unknown): string | null {
   return Number.isNaN(d.getTime()) ? null : `${d.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * Postes d'autorisation d'un message, QUELLE QUE SOIT leur forme : champs à
+ * plat (ERC-2612), `details` objet (PermitSingle), `details` TABLEAU
+ * (PermitBatch), `permitted` objet ou tableau (PermitTransferFrom / Batch).
+ * Lire seulement l'objet laissait passer les formes par lot — les plus utilisées
+ * pour vider un portefeuille d'un coup.
+ */
+function grants(m: Record<string, any>): { token?: unknown; amount?: unknown; expiration?: unknown }[] {
+  const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
+  const list = (v: unknown) => (Array.isArray(v) ? v.filter(isObj) : isObj(v) ? [v] : []);
+  const nested = [...list(m.details), ...list(m.permitted)].map((g) => ({ token: g.token, amount: g.amount ?? g.value, expiration: g.expiration }));
+  /*
+   * Le montant À PLAT compte TOUJOURS : un champ `details` factice (hors des
+   * types signés) ne doit pas masquer un `value` illimité, qui seul fait foi
+   * pour un Permit ERC-2612.
+   */
+  return [...nested, { token: m.token, amount: m.value ?? m.amount, expiration: undefined }];
+}
+
+/** Booléen EIP-712 : toute valeur « vraie » est encodée 1 (`true`, 1, "1", "true"). */
+const truthy = (v: unknown) => v === true || v === 1 || v === '1' || (typeof v === 'string' && v.toLowerCase() === 'true') || (typeof v === 'bigint' && v !== 0n);
+
+/** Le plus fort des montants (un seul illimité suffit), et l'échéance la plus lointaine. */
+function worstGrant(m: Record<string, any>): { amount: bigint | null; token?: string; expiry: unknown } {
+  let amount: bigint | null = null;
+  let token: string | undefined;
+  let expiry: unknown = m.deadline ?? m.sigDeadline ?? m.expiration ?? m.expiry;
+  for (const g of grants(m)) {
+    const a = asBigInt(g.amount);
+    if (a != null && (amount == null || a > amount)) {
+      amount = a;
+      if (typeof g.token === 'string') token = g.token;
+    } else if (!token && typeof g.token === 'string') token = g.token;
+    const e = asBigInt(g.expiration);
+    const cur = asBigInt(expiry);
+    if (e != null && (cur == null || e > cur)) expiry = g.expiration;
+  }
+  // Permis DAI : `allowed: true` = autorisation ILLIMITÉE, `expiry: 0` = sans fin.
+  // Révocation (`allowed: false`) : rien d'illimité ni d'éternel — c'est elle qui réduit le risque.
+  if (truthy(m.allowed)) {
+    amount = 2n ** 256n - 1n;
+    if (asBigInt(m.expiry) === 0n) expiry = NO_EXPIRY;
+  }
+  return { amount, token, expiry };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 /** Extrait les champs sensibles d'un message EIP-712 (Permit / Permit2 / génériques). */
 function extractDetails(message: unknown): { label: string; value: string }[] {
   if (!message || typeof message !== 'object' || Array.isArray(message)) return [];
   const m = message as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   const nested = m.details && typeof m.details === 'object' && !Array.isArray(m.details) ? m.details : {};
+  const worst = worstGrant(m);
   const out: { label: string; value: string }[] = [];
   const push = (label: string, value: string | null) => {
     if (value != null && value !== '') out.push({ label, value });
   };
   const spender = m.spender ?? m.delegate ?? nested.spender;
   if (typeof spender === 'string') push('Autorisé (spender)', spender);
-  const token = m.token ?? nested.token;
+  const token = m.token ?? nested.token ?? worst.token;
   if (typeof token === 'string') push('Token', token);
-  const amount = m.value ?? m.amount ?? nested.amount;
-  if (amount != null) push('Montant', fmtAmount(amount));
-  const deadline = m.deadline ?? m.sigDeadline ?? m.expiration ?? nested.expiration;
-  if (deadline != null) push('Échéance', fmtDeadline(deadline));
+  if (worst.amount != null) push('Montant', fmtAmount(worst.amount));
+  if (worst.expiry != null) push('Échéance', fmtDeadline(worst.expiry));
+  const n = grants(m).length;
+  if (n > 1) push('Jetons concernés', String(n)); // lot : plusieurs jetons d'un coup
   return out;
 }
 
@@ -198,9 +249,20 @@ export function summarizeTypedData(raw: unknown): TypedDataSummary | null {
   const nested = m.details && typeof m.details === 'object' && !Array.isArray(m.details) ? m.details : {};
   const primary = String(out.primaryType ?? '');
   out.permit2 = domain.name === 'Permit2' || /^Permit(Single|Batch|TransferFrom|WitnessTransferFrom)$/.test(primary);
-  const token = m.token ?? nested.token ?? (primary === 'Permit' && !out.permit2 ? domain.verifyingContract : undefined);
+  // Ordres NFT : Seaport (OrderComponents, offer/consideration), Blur et consorts (Order, BulkOrder).
+  /*
+   * PLACES DE MARCHÉ NFT seulement — un ordre de DEX (CoW, 1inch, 0x) ou de
+   * marché de prédiction est routinier : l'alarmer apprendrait à ignorer le rouge.
+   * Seaport : offer/consideration ; Blur, LooksRare : leur domaine EIP-712.
+   */
+  out.order =
+    (Array.isArray(m.offer) && Array.isArray(m.consideration)) ||
+    /^(seaport|blur exchange|looksrareprotocol|looksrare)$/i.test(String(domain.name ?? '')) ||
+    /^(OrderComponents|BulkOrder|MakerOrder|Maker)$/.test(primary);
+  const worst = worstGrant(m);
+  const token = m.token ?? nested.token ?? worst.token ?? (primary === 'Permit' && !out.permit2 ? domain.verifyingContract : undefined);
   if (typeof token === 'string') out.token = token;
-  const amount = asBigInt(m.value ?? m.amount ?? nested.amount);
+  const amount = worst.amount;
   if (amount != null) {
     out.amountRaw = amount.toString();
     out.unlimited = amount >= UNLIMITED;

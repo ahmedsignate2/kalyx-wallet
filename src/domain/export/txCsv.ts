@@ -55,8 +55,9 @@ const STATUT: Record<TxSummary['status'], string> = {
 
 /** Une ligne CSV pour une transaction. */
 function rowFor(tx: TxSummary, ctx: CsvContext): string {
+  // Date inconnue (indexeur sans horodatage) : case VIDE, jamais « 1970-01-01 ».
   const date = new Date((tx.timestamp || 0) * 1000);
-  const dateStr = Number.isNaN(date.getTime()) ? '' : date.toISOString().replace('T', ' ').slice(0, 19);
+  const dateStr = !tx.timestamp || Number.isNaN(date.getTime()) ? '' : date.toISOString().replace('T', ' ').slice(0, 19);
 
   const meta = ctx.chainOf?.(tx.chain);
   const name = meta?.name ?? ctx.chainName;
@@ -67,14 +68,33 @@ function rowFor(tx: TxSummary, ctx: CsvContext): string {
    * d'USDC sortait libellé « ETH » et divisé par 18 décimales au lieu de 6 : le
    * montant exporté n'avait aucun rapport avec l'opération.
    */
-  const symbol = tx.asset ?? meta?.nativeSymbol ?? ctx.nativeSymbol;
+  let symbol = tx.asset ?? meta?.nativeSymbol ?? ctx.nativeSymbol;
   const decimals = tx.decimals ?? meta?.nativeDecimals ?? ctx.nativeDecimals;
-  const amount = formatAmount(tx.value, decimals);
+  let amount = formatAmount(tx.value, decimals);
+  let sens = SENS[tx.direction];
+  /*
+   * NATURE DE L'OPÉRATION, comme dans l'écran d'activité (src/domain/tx/humanize.ts).
+   * Un NFT sortait en « 1 ? » (collection sans nom), un appel de contrat à 0 en
+   * « Envoyé 0.0 », une approbation comme un envoi.
+   */
+  const type = (tx.type ?? '').toUpperCase();
+  if (type === 'NFT') {
+    sens = `${tx.direction === 'in' ? 'Reçu' : 'Envoyé'} (NFT)`;
+    amount = tx.value > 1n ? tx.value.toString() : '1';
+    symbol = `${tx.asset && tx.asset !== '?' ? tx.asset : 'NFT'}${tx.tokenId ? ` #${tx.tokenId}` : ''}`;
+  } else if (type === 'SWAP') {
+    sens = 'Échange';
+  } else if (type === 'APPROVE' || type === 'APPROVAL') {
+    sens = 'Approbation';
+  } else if (tx.value === 0n && tx.direction !== 'in' && type !== 'TRANSFER') {
+    sens = 'Interaction contrat';
+    amount = '0';
+  }
   const link = explorerUrl ? `${explorerUrl.replace(/\/$/, '')}/tx/${tx.hash}` : '';
   return [
     dateStr,
     name,
-    SENS[tx.direction],
+    sens,
     amount,
     symbol,
     tx.from,

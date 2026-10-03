@@ -2,6 +2,7 @@
  * Liste des alertes de prix. Création depuis la fiche d'un token (icône 🔔).
  * Vérifiées quand l'app est ouverte (voir ui/PriceAlertWatcher) ; one-shot.
  */
+import { IconDisc, NovaCard, NovaHero, Rise } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React from 'react';
 import { View, Text } from 'react-native';
@@ -23,37 +24,39 @@ export default function PriceAlerts() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-      <ScreenHeader title={t('priceAlerts')} />
-      <Text style={typography.muted}>{t('priceAlertsIntro')}</Text>
+      <ScreenHeader />
+      <NovaHero icon="bell" tone="gold" title={t('priceAlerts')} subtitle={t('priceAlertsIntro')} />
 
       {alerts.length === 0 ? (
-        <GlassCard style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(3) }}>
-          <Icon name="info" size={30} color={colors.textSecondary} />
+        <NovaCard delay={160} style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(3) }}>
           <Text style={typography.bodyStrong}>{t('noAlerts')}</Text>
           <Text style={[typography.muted, { textAlign: 'center' }]}>{t('createAlertHint')}</Text>
-          <KPressable onPress={() => router.push('/market')} style={{ marginTop: spacing(1) }}>
-            <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('browseMarket')}</Text>
+          <KPressable onPress={() => router.push('/market')} haptic="light" style={{ marginTop: spacing(1.5), paddingHorizontal: 18, height: 44, borderRadius: 22, justifyContent: 'center', backgroundColor: colors.primary }}>
+            <Text style={{ color: colors.onPrimary, fontFamily: fonts.semibold }}>{t('browseMarket')}</Text>
           </KPressable>
-        </GlassCard>
+        </NovaCard>
       ) : (
-        <GlassCard style={{ paddingVertical: spacing(0.5) }}>
-          {alerts.map((a, i) => (
-            <View key={a.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.5), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: a.direction === 'above' ? colors.up : colors.down, fontSize: 18, fontFamily: fonts.bold }}>{a.direction === 'above' ? '▲' : '▼'}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={typography.bodyStrong}>{a.symbol.toUpperCase()}</Text>
-                <Text style={typography.muted}>
-                  {a.direction === 'above' ? t('above') : t('below')} {a.target.toLocaleString(undefined)} {fiatSymbol(fiat)}
-                </Text>
-              </View>
-              <KPressable onPress={() => remove(a.id)} hitSlop={8} style={{ padding: 6 }}>
-                <Icon name="close" size={18} tone="muted" />
-              </KPressable>
-            </View>
-          ))}
-        </GlassCard>
+        <NovaCard delay={140} padded={false} style={{ paddingHorizontal: spacing(2) }}>
+          {alerts.map((a, i) => {
+            const up = a.direction === 'above';
+            return (
+              <Rise key={a.id} delay={Math.min(i, 10) * 40} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.5), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
+                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: up ? 'rgba(60,217,138,0.10)' : 'rgba(255,99,99,0.10)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: up ? colors.up : colors.down, fontSize: 16, fontFamily: fonts.bold }}>{up ? '↑' : '↓'}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={typography.bodyStrong}>{a.symbol.toUpperCase()}</Text>
+                  <Text style={typography.muted}>
+                    {up ? t('above') : t('below')} <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{a.target.toLocaleString(undefined)} {fiatSymbol(fiat)}</Text>
+                  </Text>
+                </View>
+                <KPressable onPress={() => remove(a.id)} hitSlop={8} accessibilityLabel={t('deleteAction')}>
+                  <IconDisc name="close" size={34} />
+                </KPressable>
+              </Rise>
+            );
+          })}
+        </NovaCard>
       )}
     </PremiumScreen>
     </>

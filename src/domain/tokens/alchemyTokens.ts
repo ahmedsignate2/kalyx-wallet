@@ -47,14 +47,33 @@ export function parseTokenBalances(json: unknown): { contract: string; raw: bigi
   return out;
 }
 
+/** Métadonnées sans exiger les décimales (null si Alchemy ne les connaît pas). */
+function parseTokenMetadataLoose(json: unknown): (Omit<TokenMeta, 'decimals'> & { decimals: number | null }) | null {
+  const r = (json as { result?: { name?: string; symbol?: string; decimals?: number; logo?: string } })?.result;
+  if (!r) return null;
+  return { name: r.name ?? '', symbol: r.symbol ?? '', decimals: typeof r.decimals === 'number' ? r.decimals : null, logo: r.logo ?? undefined };
+}
+
+/** `decimals()` lu sur le contrat (eth_call) ; null si illisible. */
+async function readDecimalsOnChain(url: string, contract: string): Promise<number | null> {
+  try {
+    const j = (await post(url, { jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to: contract, data: '0x313ce567' }, 'latest'] })) as { result?: string };
+    const n = j?.result && j.result !== '0x' ? Number(BigInt(j.result)) : NaN;
+    return Number.isInteger(n) && n >= 0 && n <= 36 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Parse alchemy_getTokenMetadata. */
 export function parseTokenMetadata(json: unknown): TokenMeta | null {
   const r = (json as { result?: { name?: string; symbol?: string; decimals?: number; logo?: string } })?.result;
-  if (!r) return null;
+  // Décimales absentes (`null`) : métadonnées INCONNUES — jamais 0, qui afficherait et enverrait en unités brutes.
+  if (!r || typeof r.decimals !== 'number') return null;
   return {
     name: r.name ?? '',
     symbol: r.symbol ?? '',
-    decimals: typeof r.decimals === 'number' ? r.decimals : 0,
+    decimals: r.decimals,
     logo: r.logo ?? undefined,
   };
 }
@@ -81,6 +100,7 @@ async function post(url: string, body: unknown): Promise<unknown> {
     TIMEOUT,
     () => new Error('timeout'),
   );
+  if (!res.ok) throw new Error(`Alchemy : HTTP ${res.status}`);
   return res.json();
 }
 
@@ -131,15 +151,23 @@ export async function getCustomTokens(
       params: [c],
     }));
     const metaJson = await post(url, batch);
-    const metaById = new Map<number, TokenMeta | null>();
-    if (Array.isArray(metaJson)) for (const m of metaJson as { id: number }[]) metaById.set(m.id, parseTokenMetadata(m));
+    const metaById = new Map<number, ReturnType<typeof parseTokenMetadataLoose>>();
+    if (Array.isArray(metaJson)) for (const m of metaJson as { id: number }[]) metaById.set(m.id, parseTokenMetadataLoose(m));
 
     const out: Erc20Token[] = [];
-    contracts.forEach((c, i) => {
+    for (let i = 0; i < contracts.length; i++) {
+      const c = contracts[i];
       const meta = metaById.get(i);
-      if (!meta || !meta.symbol) return;
-      out.push({ contract: c, name: meta.name, symbol: meta.symbol, decimals: meta.decimals, logo: meta.logo, raw: balMap.get(c.toLowerCase()) ?? 0n });
-    });
+      if (!meta || !meta.symbol) continue;
+      /*
+       * Jeton AJOUTÉ par l'utilisateur dont l'indexeur ignore les décimales :
+       * lues sur le contrat. Illisibles → écarté (jamais 0, qui afficherait et
+       * enverrait en unités brutes).
+       */
+      const decimals = meta.decimals ?? (await readDecimalsOnChain(url, c));
+      if (decimals == null) continue;
+      out.push({ contract: c, name: meta.name, symbol: meta.symbol, decimals, logo: meta.logo, raw: balMap.get(c.toLowerCase()) ?? 0n });
+    }
     return out;
   } catch {
     return [];
@@ -162,16 +190,40 @@ export function pageKeyOf(json: unknown): string | undefined {
 }
 
 /** Liste les tokens ERC-20 détenus (non-spam) d'une adresse sur une chaîne. */
+/**
+ * Réponse Alchemy exploitable, sinon exception. Un refus (HTTP 429, `error`
+ * JSON-RPC) n'est PAS « aucun jeton » : confondre les deux faisait disparaître
+ * les jetons de l'accueil au moindre refus, puis réapparaître au chargement
+ * suivant.
+ */
+function assertOk(json: unknown, what: string): void {
+  const items = Array.isArray(json) ? json : [json];
+  if (items.length === 0 || items.some((j) => !j || typeof j !== 'object' || 'error' in (j as object))) {
+    throw new Error(`Alchemy : ${what} refusé`);
+  }
+}
+
+/** Jetons ERC-20 détenus ; ne lève jamais (vide en cas d'échec). Voir `getErc20TokensStrict`. */
 export async function getErc20Tokens(chain: ChainConfig, address: string): Promise<Erc20Token[]> {
+  return getErc20TokensStrict(chain, address).catch(() => []);
+}
+
+/**
+ * Jetons ERC-20 détenus, en LEVANT si Alchemy n'a pas répondu proprement : le
+ * portefeuille distingue ainsi « aucun jeton » de « lecture impossible », et
+ * garde dans le second cas les jetons déjà connus.
+ */
+export async function getErc20TokensStrict(chain: ChainConfig, address: string): Promise<Erc20Token[]> {
   const url = alchemyUrlOf(chain);
   if (!url) return []; // pas de clé Alchemy -> feature indisponible, dégrade en vide
-  try {
+  {
     // 1. Soldes non nuls, paginés (borné). Type 'erc20' explicite sur chaque page.
     const enumerated: { contract: string; raw: bigint }[] = [];
     let pageKey: string | undefined;
     for (let page = 0; page < MAX_BALANCE_PAGES; page++) {
       const params: unknown[] = pageKey ? [address, 'erc20', { pageKey }] : [address, 'erc20'];
       const balJson = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params });
+      assertOk(balJson, 'soldes');
       enumerated.push(...parseTokenBalances(balJson));
       pageKey = pageKeyOf(balJson);
       if (!pageKey) break;
@@ -184,6 +236,7 @@ export async function getErc20Tokens(chain: ChainConfig, address: string): Promi
     let known: { contract: string; raw: bigint }[] = [];
     if (knownMissing.length) {
       const kJson = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params: [address, knownMissing] });
+      assertOk(kJson, 'soldes connus');
       known = parseTokenBalances(kJson); // ne garde que les soldes non nuls
     }
 
@@ -202,6 +255,7 @@ export async function getErc20Tokens(chain: ChainConfig, address: string): Promi
         params: [b.contract],
       }));
       const metaJson = await post(url, batch);
+      assertOk(metaJson, 'métadonnées');
       const metaById = new Map<number, TokenMeta | null>();
       if (Array.isArray(metaJson)) {
         for (const m of metaJson as { id: number }[]) metaById.set(m.id, parseTokenMetadata(m));
@@ -214,7 +268,44 @@ export async function getErc20Tokens(chain: ChainConfig, address: string): Promi
       }
     }
     return tokens;
-  } catch {
-    return [];
   }
+}
+
+/**
+ * L'adresse détient-elle AU MOINS UN jeton ERC-20 (solde non nul) ? Pour la
+ * recherche des comptes : un compte qui n'a fait que RECEVOIR des jetons (nonce
+ * 0, aucun natif) n'est pas vide. Une requête Alchemy si une clé existe, sinon
+ * `balanceOf` sur les jetons connus (USDC, USDT, DAI, WETH…). Lève si la
+ * lecture échoue : « inconnu », jamais « non ».
+ */
+export async function hasAnyErc20Balance(
+  chain: ChainConfig,
+  address: string,
+  balanceOfStrict: (token: string, owner: string) => Promise<bigint>,
+): Promise<boolean> {
+  const url = alchemyUrlOf(chain);
+  const known = knownTokensFor(chain.evmChainId);
+  if (url) {
+    try {
+      const json = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params: [address, 'erc20'] });
+      assertOk(json, 'soldes');
+      if (parseTokenBalances(json).length > 0) return true;
+      // L'énumération rate parfois les jetons connus (USDC sur Base) : une requête de plus, explicite.
+      if (!known.length) return false;
+      const k = await post(url, { jsonrpc: '2.0', id: 1, method: 'alchemy_getTokenBalances', params: [address, known] });
+      assertOk(k, 'soldes connus');
+      return parseTokenBalances(k).length > 0;
+    } catch {
+      /* Alchemy muet : repli sur balanceOf, ci-dessous */
+    }
+  }
+  /*
+   * Ni Alchemy ni liste connue pour ce réseau : les jetons n'y sont pas
+   * vérifiables. « Non » (et non une erreur) : sinon CHAQUE compte vide y
+   * deviendrait « inconnu » et la recherche ne conclurait jamais. Le nonce et
+   * le solde natif, eux, restent sondés.
+   */
+  if (!known.length) return false;
+  const balances = await Promise.all(known.map((t) => balanceOfStrict(t, address)));
+  return balances.some((b) => b > 0n);
 }

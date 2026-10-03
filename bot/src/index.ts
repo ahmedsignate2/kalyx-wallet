@@ -57,7 +57,11 @@ export default {
       const alerts = await openAlerts(env);
       if (!alerts.length) return;
       const ids = [...new Set(alerts.map((a) => a.coin))];
-      const prices = await getPrices(env, ids, 'usd').catch(() => ({} as Record<string, number>));
+      // Par paquets de 100 identifiants : une seule URL pour des centaines de pièces dépassait les limites de l'API.
+      const prices: Record<string, number> = {};
+      for (let i = 0; i < ids.length; i += 100) {
+        Object.assign(prices, await getPrices(env, ids.slice(i, i + 100), 'usd').catch(() => ({} as Record<string, number>)));
+      }
       const bot = new Bot(env.BOT_TOKEN);
       for (const a of alerts) {
         const p = prices[a.coin];

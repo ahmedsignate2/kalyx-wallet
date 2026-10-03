@@ -4,7 +4,7 @@ const tr: Dict = {
   meta: {
     title: 'Kalyx Wallet — Saklama gerektirmeyen, çok zincirli kripto cüzdan',
     description:
-      'Anahtarlarınız telefonunuzda kalır. Bitcoin, Ethereum, Solana ve 64 ağ; her imza, imzalamadan önce açıklanır. Ücretsiz, hesapsız.',
+      'Anahtarlarınız telefonunuzda kalır. Bitcoin, Ethereum, TON, Solana ve 65 ağ; her imza, imzalamadan önce açıklanır. Ücretsiz, hesapsız.',
   },
   nav: {
     how: 'Nasıl çalışır',
@@ -41,7 +41,7 @@ const tr: Dict = {
     line1: 'Varlıklarınız',
     line2: 'üzerinde egemenlik.',
     line3: 'Ödünsüz.',
-    sub: 'Bitcoin, Ethereum ve Solana’yı tam özgürlükle yönetin. Özel anahtarlarınız telefonunuzdan asla çıkmaz.',
+    sub: 'Bitcoin, Ethereum, TON ve Solana’yı tam özgürlükle yönetin. Özel anahtarlarınız telefonunuzdan asla çıkmaz.',
     cta: 'APK’yı indir',
     ctaSecondary: 'Güvenliği keşfedin',
     chips: ['Saklama gerektirmez', 'AES-256-GCM', 'Sıfır telemetri', 'Çok zincirli', 'İsteğe bağlı AI (BYOK)'],
@@ -51,18 +51,18 @@ const tr: Dict = {
   networks: {
     label: 'Desteklenen ağlar',
     walletconnect: 'WalletConnect (Reown) ile birlikte çalışabilir',
-    soon: 'TON geliyor: adresler ve anahtar türetme yazıldı ve test edildi.',
+    soon: 'TON eksiksiz: jettonlar, .ton adları, TON Connect, STON.fi takasları ve Tonstakers ile staking.',
   },
   how: {
     kicker: 'Nasıl çalışır',
     title: 'Bir cüzdan,',
     titleEm: 'labirent değil.',
-    lead: 'Uygulamanın bugünkü haliyle beş ekranı. Taslak yok: bunlar gerçek ekran görüntüleri.',
+    lead: 'Uygulamanın bugünkü haliyle altı ekranı — kodundan, bir demo cüzdanla oluşturuldu.',
     steps: [
       {
         title: 'Tek bakiye. Tüm zincirleriniz.',
-        text: 'Bitcoin, Ethereum ve Layer 2’leri, Solana: 64 ağ tek bir rakamda, tek bir eğride. Bakiye, ağ yanıt vermeden önce önbellekten görünür.',
-        value: '64',
+        text: 'Bitcoin, Ethereum ve Layer 2’leri, Solana: 65 ağ tek bir rakamda, tek bir eğride. Bakiye, ağ yanıt vermeden önce önbellekten görünür.',
+        value: '65',
         label: 'ağ',
       },
       {
@@ -73,13 +73,13 @@ const tr: Dict = {
       },
       {
         title: 'Uygulamadan çıkmadan swap.',
-        text: 'Solana’da Jupiter, EVM zincirlerinde ve zincirler arasında LI.FI ile Relay. Rota tek cümleyle yazılır, fiyat etkisi onaylamadan önce bildirilir.',
-        value: '3',
+        text: 'Solana’da Jupiter, EVM zincirlerinde ve zincirler arasında LI.FI ile Relay. Rota tek cümleyle yazılır, fiyat etkisi onaylamadan önce bildirilir. Ve TON’da STON.fi.',
+        value: '4',
         label: 'yönlendirici, kendiniz imzalarsınız',
       },
       {
         title: 'Uyuyan varlıkları çalıştırın.',
-        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade. Cüzdanınızdan yatırır, istediğiniz zaman çekersiniz. Kalyx aradan hiçbir şey almaz.',
+        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers. Cüzdanınızdan yatırır, istediğiniz zaman çekersiniz. Kalyx aradan hiçbir şey almaz.',
         value: '%0',
         label: 'Earn’de Kalyx ücreti',
       },
@@ -89,6 +89,12 @@ const tr: Dict = {
         value: '1',
         label: 'imza başına cümle',
       },
+      {
+        title: 'Bilgisayarda ve Telegram’da.',
+        text: 'app.kalyxwallet.com paneli ve Telegram mini uygulaması bakiyeleri, tokenları, NFT’leri ve piyasayı gösterir, gönderim ve takaslarını hazırlar. Hiçbir anahtar tutmazlar: her imza WalletConnect ile telefonunda onaylanır.',
+        value: '0',
+        label: 'telefon dışında anahtar',
+      }
     ],
   },
   lose: {
@@ -154,6 +160,27 @@ const tr: Dict = {
       waits: ['bekleme yok', '30 sn', '1 dk', '5 dk', '15 dk', '1 sa'],
       closing: 'Bir gün telefonu kaybederseniz: kâğıttaki on iki kelimeniz her şeyi başka bir cihazda yeniden kurar.',
     },
+    s4: {
+      kicker: 'Beyaz liste',
+      title: 'PIN’inizi biliyor. Sabrınızı değil.',
+      text: 'Beyaz listeyi açın: gönderimler yalnızca seçtiğiniz adreslere ve kendi hesaplarınıza gider. PIN’iniz olsa bile bir hırsız bir saat içinde hiçbir şeyi değiştiremez.',
+      rows: [
+        ['Eklenen adres', '24 saat sonra kullanılabilir'],
+        ['Korumayı kapatma', '24 saat sonra geçerli'],
+        ['Bilinmeyen adrese gönderim', 'engellendi'],
+      ],
+      closing: 'Aceleci bir hırsız eli boş döner.',
+    },
+    s5: {
+      kicker: 'Baskı altında',
+      title: 'Sizi uygulamayı açmaya zorluyorlar.',
+      text: 'Baskı kodunuzu girin: Kalyx normal şekilde, bir yem cüzdanla açılır. Gerçek cüzdanlarınız, kişileriniz ve bildirimleriniz görünmez kalır — var olduklarını gösteren hiçbir şey yoktur.',
+      rows: [
+        ['PIN’iniz', 'gerçek cüzdanlarınız'],
+        ['Baskı kodu', 'yem cüzdan'],
+      ],
+      closing: 'Kod var olduğu sürece biyometri kapalıdır: bir yüz her zaman gerçek olanları açardı.',
+    },
     footer1: 'Bunların hepsi',
     footerEm: 'telefonunuzda çalışır',
     footer2: '. Kalyx’in anahtarlarınızı gören bir sunucusu yoktur, IP adresiniz bize hiç gönderilmez, hiçbir analitik SDK omzunuzun üzerinden bakmaz.',
@@ -182,8 +209,9 @@ const tr: Dict = {
     items: [
       { value: '0 €', label: 'göndermek, almak, tutmak için', note: 'Yalnızca ağ ücretleri uygulanır — doğrulayıcılara gider, bize değil.' },
       { value: '%0,3', label: 'LI.FI üzerinden swap’ta', note: 'EVM ve zincirler arası. Kalyx’in tek geliri budur.' },
+      { value: '%0,3', label: 'STON.fi üzerinden TON takasında', note: 'TON üzerinde takaslar (TON, USD₮, jetonlar). LI.FI ile aynı oran.' },
       { value: '%0', label: 'Jupiter üzerinden Solana swap’ında', note: 'Rotaya eklenen komisyon yok.' },
-      { value: '%0', label: 'Earn’de', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: yatırırken ya da çekerken hiçbir kesinti yok.' },
+      { value: '%0', label: 'Earn’de', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers: yatırırken ya da çekerken hiçbir kesinti yok.' },
       { value: '0 €', label: 'abonelik, sonsuza dek', note: '“Pro” sürüm yok, paralı duvar arkasında özellik yok.' },
     ],
     p1a: 'Her imzadan önce ağ ücretleri',
@@ -242,15 +270,15 @@ const tr: Dict = {
     notice: 'Aşağıdaki metin Fransızca yazılmıştır; yalnızca Fransızca sürüm bağlayıcıdır.',
     privacyTitle: 'Gizlilik politikası',
     privacyIntro: 'Kalyx’te gizliliğiniz bir seçenek değil: mimarinin temelidir. Verilerinizi nasıl koruduğumuz: onları toplamayı reddederek.',
-    privacyMeta: ['Güncelleme: 5 Temmuz 2026', 'Kalyx', 'Fransız hukuku ve GDPR'],
+    privacyMeta: ['Güncelleme: 3 Ekim 2026', 'Kalyx', 'Fransız hukuku ve GDPR'],
     privacyContact: 'Verileriniz hakkında bir sorunuz mu var?',
     termsTitle: 'Genel kullanım koşulları',
     termsIntro: 'Kalyx Wallet’ı kullanmadan önce bu koşulları dikkatle okuyun. Sorumlu kullanım çerçevesini ve saklama gerektirmeyen modelin özelliklerini tanımlar.',
-    termsMeta: ['Revizyon: 5 Temmuz 2026', 'Beta sürümü', 'Saklama gerektirmeyen model'],
+    termsMeta: ['Revizyon: 3 Ekim 2026', 'Beta sürümü', 'Saklama gerektirmeyen model'],
     termsContact: 'Açıklama mı gerekiyor?',
     mentionsTitle: 'Yasal bildirim',
     mentionsIntro: 'Dijital ekonomiye güven için 21 Haziran 2004 tarihli ve 2004-575 sayılı Fransız kanununun 6. maddesi (LCEN) uyarınca, bu sitenin yayıncısının ve barındırma sağlayıcısının kimliği aşağıdadır.',
-    mentionsMeta: ['Güncelleme: 16 Eylül 2026', 'Kalyx', 'LCEN — Yayıncı ve barındırma'],
+    mentionsMeta: ['Güncelleme: 3 Ekim 2026', 'Kalyx', 'LCEN — Yayıncı ve barındırma'],
     mentionsContact: 'Yayıncı veya barındırma hakkında bir sorunuz mu var?',
     contactText: 'Güvenlik, uyum veya koşullarla ilgili her soru için bize yazın.',
   },

@@ -4,6 +4,7 @@
  * l'app. On n'affiche donc aucun « code de parrainage » (ce serait un mécanisme
  * factice sans backend d'attribution).
  */
+import { IconDisc, NovaCard, NovaHero } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React from 'react';
 import { View, Text, Share } from 'react-native';
@@ -47,21 +48,11 @@ export default function Invite() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <PremiumScreen>
-      <ScreenHeader title={t('inviteFriends')} />
-
-      {/* Bandeau visuel */}
-      <GlassCard glow>
-        <View style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1.5) }}>
-          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="gift" size={30} color={colors.primary} />
-          </View>
-          <Text style={[typography.title, { textAlign: 'center' }]}>{t('discoverKalyx')}</Text>
-          <Text style={[typography.muted, { textAlign: 'center' }]}>{t('shareWithFriends')}</Text>
-        </View>
-      </GlassCard>
+      <ScreenHeader />
+      <NovaHero icon="gift" tone="gold" title={t('discoverKalyx')} subtitle={t('shareWithFriends')} />
 
       {/* Pourquoi ils vont aimer */}
-      <GlassCard>
+      <NovaCard delay={140}>
         {REASONS.map((r, i) => (
           <View
             key={r.text}
@@ -74,16 +65,15 @@ export default function Invite() {
               borderTopColor: colors.border,
             }}
           >
-            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name={r.icon} size={17} color={colors.primary} />
-            </View>
+            <IconDisc name={r.icon} />
             <Text style={[typography.body, { flex: 1 }]}>{r.text}</Text>
           </View>
         ))}
-      </GlassCard>
+      </NovaCard>
 
-      <KPressable onPress={copyLink} style={{ alignSelf: 'center' }}>
-        <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('copyLink')}</Text>
+      <KPressable onPress={copyLink} haptic="light" style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, height: 42, borderRadius: 21, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+        <Icon name="copy" size={15} color={colors.text} />
+        <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{t('copyLink')}</Text>
       </KPressable>
 
       <View style={{ flex: 1 }} />

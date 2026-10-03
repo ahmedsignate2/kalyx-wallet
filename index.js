@@ -2,6 +2,10 @@
 // 1) polyfills crypto AVANT tout le reste.
 import './polyfills';
 
+// 1 bis) Journal de diagnostic (écran Développeur → Journal) : console, erreurs,
+//    alertes, premier/arrière-plan — installé avant tout le reste.
+require('./lib/debugJournal').installJournal();
+
 // 2) Logs de démarrage + capture des erreurs JS non gérées (visibles via
 //    logcat / la console Metro), pour ne plus avoir de fermeture silencieuse.
 console.log('[Kalyx] index.js : démarrage');

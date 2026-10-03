@@ -1,0 +1,478 @@
+{
+ "source": "TonAPI v2 via kalyx-ton-proxy, relevé le 27/09 — données publiques",
+ "accountActiveW5": {
+  "address": "0:b4db46c77a252aab2c3c041e04b6d6e599189d2a44ff86720d27ef2b6423f42f",
+  "balance": 0,
+  "last_activity": 1779690821,
+  "status": "active",
+  "interfaces": [
+   "wallet_v5r1"
+  ],
+  "get_methods": [
+   "get_public_key",
+   "is_signature_allowed",
+   "seqno"
+  ],
+  "is_wallet": true
+ },
+ "seqnoW5": {
+  "seqno": 1
+ },
+ "accountV3": {
+  "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+  "balance": 1592540632745552,
+  "last_activity": 1790368385,
+  "status": "active",
+  "interfaces": [
+   "wallet_v3r2"
+  ],
+  "name": "TON Foundation (OLD)",
+  "is_scam": false,
+  "memo_required": false,
+  "get_methods": [
+   "get_public_key",
+   "seqno"
+  ],
+  "is_wallet": true
+ },
+ "accountNeverUsed": {
+  "address": "0:b4297d02ee96d5fc798d340dcc4bfe984a3042e292c91074d64c5a63b432f052",
+  "balance": 0,
+  "last_activity": 0,
+  "status": "nonexist",
+  "get_methods": [],
+  "is_wallet": true
+ },
+ "accountContract": {
+  "address": "0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe",
+  "balance": 1071021381993,
+  "last_activity": 1790511320,
+  "status": "active",
+  "interfaces": [
+   "jetton_master"
+  ],
+  "name": "Tether USD",
+  "is_scam": false,
+  "memo_required": false,
+  "get_methods": [
+   "get_jetton_data"
+  ],
+  "is_wallet": false
+ },
+ "txByMessage": {
+  "hash": "78c6f81e96a4bb5bc91137c87b87b559524d757ad9f6b27de3465b01fa722ecd",
+  "lt": 99183004000001,
+  "account": {
+   "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+   "is_scam": false,
+   "is_wallet": true
+  },
+  "success": true,
+  "utime": 1790464280,
+  "orig_status": "active",
+  "end_status": "active",
+  "total_fees": 482424,
+  "end_balance": 1928472859,
+  "transaction_type": "TransOrd",
+  "state_update_old": "951f0540a026baa7d1e78eaf10c21b8c5c99a7617fa51e594bdc80be64238cbc",
+  "state_update_new": "edd90c21b66af969b5ceac8e109f71e1f2d37608cb5799b8f5e671275700c579",
+  "in_msg": {
+   "msg_type": "ext_in_msg",
+   "created_lt": 0,
+   "ihr_disabled": false,
+   "bounce": false,
+   "bounced": false,
+   "value": 0,
+   "fwd_fee": 0,
+   "ihr_fee": 0,
+   "destination": {
+    "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+    "is_scam": false,
+    "is_wallet": true
+   },
+   "import_fee": 0,
+   "created_at": 0,
+   "op_code": "0x7369676e",
+   "hash": "111097c6ae737d4a980c7629dcca17049a817c5934f7b643200b8cb0aac2215f",
+   "raw_body": "b5ee9c720101040100af0001a17369676e7ffffffd6ab8524300000001b6c6adc288c6c60c970a2d0c530a76c9c36a860b5d385a13f78addeb8b8f2510978aaf51d1e751393a5704ba61fb39564049480d84a7e6b3e73f1ac26a17b2c1a001020a0ec3c86d0302030000009c4200160f342ab37b4fae6beed3747af71c038778ca203ea26635602b52e62c61f138200989680000000000000000000000000000000000004b616c797820e28094207365636f6e6420656e766f69",
+   "decoded_op_name": "wallet_signed_external_v5_r1",
+   "decoded_body": {
+    "wallet_id": 2147483645,
+    "valid_until": 1790464579,
+    "seqno": 1,
+    "actions": [
+     {
+      "magic": "0xec3c86d",
+      "mode": 3,
+      "msg": {
+       "sum_type": "MessageInternal",
+       "message_internal": {
+        "ihr_disabled": true,
+        "bounce": false,
+        "bounced": false,
+        "src": "",
+        "dest": "0:2c1e685566f69f5cd7dda6e8f5ee38070ef194407d44cc6ac056a5cc58c3e270",
+        "value": {
+         "grams": "20000000",
+         "other": {}
+        },
+        "ihr_fee": "0",
+        "fwd_fee": "0",
+        "created_lt": 0,
+        "created_at": 0,
+        "init": null,
+        "body": {
+         "is_right": false,
+         "value": {
+          "sum_type": "TextComment",
+          "op_code": 0,
+          "value": {
+           "text": "Kalyx — second envoi"
+          }
+         }
+        }
+       }
+      }
+     }
+    ],
+    "extended": null,
+    "signature": "db1ab70a231b18325c28b4314c29db270daa182d74e1684fde2b77ae2e3c94425e2abd47479d44e4e95c12e987ece55901252036129f9acf9cfc6b09a85ecb06"
+   }
+  },
+  "out_msgs": [
+   {
+    "msg_type": "int_msg",
+    "created_lt": 99183004000002,
+    "ihr_disabled": true,
+    "bounce": false,
+    "bounced": false,
+    "value": 20000000,
+    "fwd_fee": 44446,
+    "ihr_fee": 0,
+    "destination": {
+     "address": "0:2c1e685566f69f5cd7dda6e8f5ee38070ef194407d44cc6ac056a5cc58c3e270",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "source": {
+     "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "import_fee": 0,
+    "created_at": 1790464280,
+    "op_code": "0x00000000",
+    "hash": "3841a3f7d3a0503c2e9ef4c7e40eb8f1798fe197ae2aa86fc82e3e76fb53eaf6",
+    "raw_body": "b5ee9c7201010101001c000034000000004b616c797820e28094207365636f6e6420656e766f69",
+    "decoded_op_name": "text_comment",
+    "decoded_body": {
+     "text": "Kalyx — second envoi"
+    }
+   }
+  ],
+  "block": "(0,8000000000000000,92629227)",
+  "prev_trans_hash": "cabf2649341b98c5f3af31723576cf78f7b202464a52a074e92dd61fec3cd06b",
+  "prev_trans_lt": 99182976000001,
+  "compute_phase": {
+   "skipped": false,
+   "success": true,
+   "gas_fees": 329268,
+   "gas_used": 4939,
+   "vm_steps": 143,
+   "exit_code": 0,
+   "exit_code_description": "Ok"
+  },
+  "storage_phase": {
+   "fees_collected": 1,
+   "status_change": "acst_unchanged"
+  },
+  "action_phase": {
+   "success": true,
+   "result_code": 0,
+   "total_actions": 1,
+   "skipped_actions": 0,
+   "fwd_fees": 66667,
+   "total_fees": 22221
+  },
+  "aborted": false,
+  "destroyed": false,
+  "raw": "b5ee9c7201020c010002870003b57079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb1200005a34d7b89f01cabf2649341b98c5f3af31723576cf78f7b202464a52a074e92dd61fec3cd06b00005a34d60d60016ab851180003460eb8f080102030201e00405008272951f0540a026baa7d1e78eaf10c21b8c5c99a7617fa51e594bdc80be64238cbcedd90c21b66af969b5ceac8e109f71e1f2d37608cb5799b8f5e671275700c579020f0c4046182831a4400a0b01e588000f383b0a726831c31daddb14efbd77a19f4f90266cf9bfbe52da783d9075d624039b4b3b73ffffffeb55c292180000000db6356e1446363064b85168629853b64e1b54305ae9c2d09fbc56ef5c5c792884bc557a8e8f3a89c9d2b825d30fd9cab2024a406c253f359f39f8d61350bd960d060101df09020a0ec3c86d0307080000009c4200160f342ab37b4fae6beed3747af71c038778ca203ea26635602b52e62c61f138200989680000000000000000000000000000000000004b616c797820e28094207365636f6e6420656e766f6900e348000f383b0a726831c31daddb14efbd77a19f4f90266cf9bfbe52da783d9075d625000b079a1559bda7d735f769ba3d7b8e01c3bc65101f51331ab015a9731630f89c1004c4b400055b3c0000b469af713e04d570a2300000000025b0b63cbc1071404a1039b2b1b7b7321032b73b37b4c0009d4269631388000000000000000023c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020006dc9808235c95b34000000000002000000000003daa4c4a04dfb7538818a204fc93fe243f7838d105007e047512cd690677c972440501c4c"
+ },
+ "events": {
+  "events": [
+   {
+    "event_id": "78c6f81e96a4bb5bc91137c87b87b559524d757ad9f6b27de3465b01fa722ecd",
+    "account": {
+     "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "timestamp": 1790464280,
+    "actions": [
+     {
+      "type": "TonTransfer",
+      "status": "ok",
+      "TonTransfer": {
+       "sender": {
+        "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+        "is_scam": false,
+        "is_wallet": true
+       },
+       "recipient": {
+        "address": "0:2c1e685566f69f5cd7dda6e8f5ee38070ef194407d44cc6ac056a5cc58c3e270",
+        "is_scam": false,
+        "is_wallet": true
+       },
+       "amount": 20000000,
+       "comment": "Kalyx — second envoi"
+      },
+      "simple_preview": {
+       "name": "Gram Transfer",
+       "description": "Transferring 0.02 Gram",
+       "value": "0.02 Gram",
+       "accounts": [
+        {
+         "address": "0:2c1e685566f69f5cd7dda6e8f5ee38070ef194407d44cc6ac056a5cc58c3e270",
+         "is_scam": false,
+         "is_wallet": true
+        }
+       ]
+      },
+      "base_transactions": [
+       "9421f9b85ab0b48aa3a60990a19d4765f27139b1dcc3d146ff27b3537953bb71"
+      ]
+     }
+    ],
+    "is_scam": false,
+    "lt": 99183004000001,
+    "in_progress": false,
+    "extra": -526870,
+    "progress": 1,
+    "ext_msg_hash": "111097c6ae737d4a980c7629dcca17049a817c5934f7b643200b8cb0aac2215f"
+   },
+   {
+    "event_id": "cabf2649341b98c5f3af31723576cf78f7b202464a52a074e92dd61fec3cd06b",
+    "account": {
+     "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "timestamp": 1790464269,
+    "actions": [
+     {
+      "type": "TonTransfer",
+      "status": "ok",
+      "TonTransfer": {
+       "sender": {
+        "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+        "is_scam": false,
+        "is_wallet": true
+       },
+       "recipient": {
+        "address": "0:2c1e685566f69f5cd7dda6e8f5ee38070ef194407d44cc6ac056a5cc58c3e270",
+        "is_scam": false,
+        "is_wallet": true
+       },
+       "amount": 50000000,
+       "comment": "Kalyx — premier envoi TON (test)"
+      },
+      "simple_preview": {
+       "name": "Gram Transfer",
+       "description": "Transferring 0.05 Gram",
+       "value": "0.05 Gram",
+       "accounts": [
+        {
+         "address": "0:2c1e685566f69f5cd7dda6e8f5ee38070ef194407d44cc6ac056a5cc58c3e270",
+         "is_scam": false,
+         "is_wallet": true
+        }
+       ]
+      },
+      "base_transactions": [
+       "876cd4aedab23edf87fb7dac51c8eb47375117f9f746dbb28833a9e8fdef084c"
+      ]
+     },
+     {
+      "type": "ContractDeploy",
+      "status": "ok",
+      "ContractDeploy": {
+       "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+       "interfaces": [
+        "wallet_v5r1"
+       ]
+      },
+      "simple_preview": {
+       "name": "Contract Deploy",
+       "description": "Deploying a contract with interfaces wallet_v5r1",
+       "accounts": []
+      },
+      "base_transactions": [
+       "cabf2649341b98c5f3af31723576cf78f7b202464a52a074e92dd61fec3cd06b"
+      ]
+     }
+    ],
+    "is_scam": false,
+    "lt": 99182976000001,
+    "in_progress": false,
+    "extra": -1000270,
+    "progress": 1,
+    "ext_msg_hash": "22ef035525b2b20f685eb01071ea320991c30bed1cc3684ec91f0f177c9a36f1"
+   },
+   {
+    "event_id": "5513a710b47072c3474cb2db3ba85cdb1e83ff85e11a0f0d44cd63364dd6c83b",
+    "account": {
+     "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "timestamp": 1790464228,
+    "actions": [
+     {
+      "type": "TonTransfer",
+      "status": "ok",
+      "TonTransfer": {
+       "sender": {
+        "address": "0:b111a976236e3b5e990a250406098be60ea7c1a242cd4055a774b106dab968e7",
+        "name": "testnet-market.ton",
+        "is_scam": false,
+        "is_wallet": true
+       },
+       "recipient": {
+        "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+        "is_scam": false,
+        "is_wallet": true
+       },
+       "amount": 1000000,
+       "comment": "Get 300 testnet TON | TG: @testnet_market"
+      },
+      "simple_preview": {
+       "name": "Gram Transfer",
+       "description": "Transferring 0.001 Gram",
+       "value": "0.001 Gram",
+       "accounts": [
+        {
+         "address": "0:b111a976236e3b5e990a250406098be60ea7c1a242cd4055a774b106dab968e7",
+         "name": "testnet-market.ton",
+         "is_scam": false,
+         "is_wallet": true
+        }
+       ]
+      },
+      "base_transactions": [
+       "de876f30f33de9cfaa4bae99cc32104810294be537546204a4ee8dd7da7605b6"
+      ]
+     },
+     {
+      "type": "TonTransfer",
+      "status": "ok",
+      "TonTransfer": {
+       "sender": {
+        "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+        "is_scam": false,
+        "is_wallet": true
+       },
+       "recipient": {
+        "address": "0:b111a976236e3b5e990a250406098be60ea7c1a242cd4055a774b106dab968e7",
+        "name": "testnet-market.ton",
+        "is_scam": false,
+        "is_wallet": true
+       },
+       "amount": 933333
+      },
+      "simple_preview": {
+       "name": "Gram Transfer",
+       "description": "Transferring 0.000933 Gram",
+       "value": "0.000933 Gram",
+       "accounts": [
+        {
+         "address": "0:b111a976236e3b5e990a250406098be60ea7c1a242cd4055a774b106dab968e7",
+         "name": "testnet-market.ton",
+         "is_scam": false,
+         "is_wallet": true
+        }
+       ]
+      },
+      "base_transactions": [
+       "986fb227fd7e2743a8533438b7d4d9795d2d1ddfef49b3414835e9b1750576b2"
+      ]
+     }
+    ],
+    "is_scam": false,
+    "lt": 99182874000001,
+    "in_progress": false,
+    "extra": -22222,
+    "progress": 1,
+    "ext_msg_hash": "8637555dd00b6cd0ee8b23454b462e4cdff47793c9d32d91b5de7df8ebedf832"
+   },
+   {
+    "event_id": "f36cfae200c33652306bc2ec1ae727c979e9701c163c979c419cac597db98f04",
+    "account": {
+     "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "timestamp": 1790464199,
+    "actions": [
+     {
+      "type": "TonTransfer",
+      "status": "ok",
+      "TonTransfer": {
+       "sender": {
+        "address": "0:92112d13658a9c56482882e8486fc88c128e1cbda130988ad4e6a6d082737c7e",
+        "is_scam": false,
+        "is_wallet": true
+       },
+       "recipient": {
+        "address": "0:079c1d85393418e18ed6ed8a77debbd0cfa7c813367cdfdf296d3c1ec83aeb12",
+        "is_scam": false,
+        "is_wallet": true
+       },
+       "amount": 2000000000,
+       "comment": "https://t.me/testgiver_ton_bot"
+      },
+      "simple_preview": {
+       "name": "Gram Transfer",
+       "description": "Transferring 2 Gram",
+       "value": "2 Gram",
+       "accounts": [
+        {
+         "address": "0:92112d13658a9c56482882e8486fc88c128e1cbda130988ad4e6a6d082737c7e",
+         "is_scam": false,
+         "is_wallet": true
+        }
+       ]
+      },
+      "base_transactions": [
+       "5b27f7263b5c1e60993bfcb9e7a4610a0cd4764e17ab8bdf532b02ac4381c77a"
+      ]
+     }
+    ],
+    "is_scam": false,
+    "lt": 99182802000001,
+    "in_progress": false,
+    "extra": 0,
+    "progress": 1,
+    "ext_msg_hash": "ca24513da0db5f090ba026ad1220f79666653437cff77c117b8488737866e976"
+   }
+  ],
+  "next_from": 0
+ },
+ "emulateV3": {
+  "event": {
+   "extra": -372496,
+   "actions": [
+    {
+     "type": "TonTransfer",
+     "status": "ok"
+    }
+   ]
+  },
+  "risk": {
+   "transfer_all_remaining_balance": false,
+   "ton": 10000000,
+   "gram": 10000000,
+   "jettons": [],
+   "nfts": []
+  }
+ }
+}

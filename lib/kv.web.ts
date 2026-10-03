@@ -13,6 +13,8 @@
  *
  * Repli localStorage si IndexedDB est indisponible (ex. certains modes privés).
  */
+import { decoyMayRead, decoyMayWrite } from './sessionMode';
+
 type Opts = unknown;
 
 const DB_NAME = 'nova';
@@ -31,6 +33,8 @@ interface IDBOpenReq extends IDBReq<IDBDatabaseLike> {
 interface IDBStoreLike {
   get(key: string): IDBReq<unknown>;
   put(value: unknown, key: string): IDBReq<unknown>;
+  /** Échoue (ConstraintError) si la clé existe déjà. */
+  add?(value: unknown, key: string): IDBReq<unknown>;
   delete(key: string): IDBReq<unknown>;
 }
 interface IDBTxLike {
@@ -115,22 +119,40 @@ const webCrypto = (): CryptoLike | undefined => {
 };
 
 let kekPromise: Promise<unknown | null> | null = null;
+/**
+ * Clé de chiffrement, créée une seule fois — y compris entre deux ONGLETS.
+ * Écrite par `add` (refusé si elle existe) puis RELUE : l'onglet qui perd la
+ * course prend celle du gagnant au lieu d'écraser la clé qui a chiffré ses
+ * valeurs (elles deviendraient illisibles). Un échec n'est pas mis en cache :
+ * le prochain appel réessaie.
+ */
 function getKek(db: IDBDatabaseLike): Promise<unknown | null> {
   if (kekPromise) return kekPromise;
-  kekPromise = (async () => {
+  const attempt = (async () => {
     const c = webCrypto();
     if (!c) return null;
+    const read = () => wrap(db.transaction(STORE, 'readonly').objectStore(STORE).get(KEK_ID));
     try {
-      const existing = await wrap(db.transaction(STORE, 'readonly').objectStore(STORE).get(KEK_ID));
+      const existing = await read();
       if (existing && typeof existing === 'object') return existing;
       const key = await c.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-      await wrap(db.transaction(STORE, 'readwrite').objectStore(STORE).put(key, KEK_ID));
-      return key;
+      const store = db.transaction(STORE, 'readwrite').objectStore(STORE);
+      try {
+        await wrap(store.add ? store.add(key, KEK_ID) : store.put(key, KEK_ID));
+      } catch {
+        /* un autre onglet l'a écrite entre-temps : on relit la sienne */
+      }
+      const stored = await read();
+      return stored && typeof stored === 'object' ? stored : null;
     } catch {
       return null;
     }
   })();
-  return kekPromise;
+  kekPromise = attempt;
+  void attempt.then((k) => {
+    if (!k && kekPromise === attempt) kekPromise = null;
+  });
+  return attempt;
 }
 
 const enc = new TextEncoder();
@@ -138,8 +160,10 @@ const dec = new TextDecoder();
 
 async function seal(db: IDBDatabaseLike, value: string): Promise<Envelope | string> {
   const c = webCrypto();
+  if (!c) return value; // pas de WebCrypto du tout : clair (navigateur très ancien)
   const kek = await getKek(db);
-  if (!c || !kek) return value; // pas de WebCrypto : clair (navigateur très ancien)
+  // WebCrypto présent mais clé indisponible : on n'écrit RIEN plutôt qu'en clair.
+  if (!kek) throw new Error('Stockage chiffré indisponible');
   const iv = c.getRandomValues(new Uint8Array(12));
   const ct = await c.subtle.encrypt({ name: 'AES-GCM', iv }, kek, enc.encode(value));
   return { v: 1, iv: iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength) as ArrayBuffer, ct };
@@ -162,45 +186,59 @@ async function open_(db: IDBDatabaseLike, stored: unknown): Promise<string | nul
 
 /* ------------------------------------------------------------------- API kv */
 
+const lsDrop = (key: string) => {
+  try { ls()?.removeItem(key); } catch { /* ignore */ }
+};
+
 export async function kvSet(key: string, value: string, _opts?: Opts): Promise<void> {
+  if (!decoyMayWrite(key)) return;
   const db = await openDB();
   if (!db) {
+    // Navigateur sans IndexedDB : seul endroit possible, en clair (rien d'autre à faire).
     try { ls()?.setItem(key, value); } catch { /* ignore */ }
     return;
   }
-  try {
-    const payload = await seal(db, value);
-    await wrap(db.transaction(STORE, 'readwrite').objectStore(STORE).put(payload, key));
-  } catch {
-    try { ls()?.setItem(key, value); } catch { /* ignore */ }
-  }
+  /*
+   * Pas de repli localStorage ici : il écrivait la valeur EN CLAIR dès que le
+   * chiffrement ou l'écriture échouait. L'erreur remonte, comme sur mobile.
+   */
+  const payload = await seal(db, value);
+  await wrap(db.transaction(STORE, 'readwrite').objectStore(STORE).put(payload, key));
+  lsDrop(key); // une ancienne copie en clair n'a plus à exister
 }
 
 export async function kvGet(key: string, _opts?: Opts): Promise<string | null> {
+  if (!decoyMayRead(key)) return null;
   const db = await openDB();
   if (!db) {
     try { return ls()?.getItem(key) ?? null; } catch { return null; }
   }
-  try {
-    const stored = await wrap(db.transaction(STORE, 'readonly').objectStore(STORE).get(key));
-    const v = await open_(db, stored);
-    // Migration transparente : une valeur héritée en clair est réécrite chiffrée.
-    if (typeof stored === 'string' && v != null) void kvSet(key, v);
-    return v;
-  } catch {
-    try { return ls()?.getItem(key) ?? null; } catch { return null; }
+  /*
+   * Une lecture qui échoue LÈVE, comme sur mobile : rendre la copie
+   * localStorage d'un ancien repli servirait une valeur périmée (un état de
+   * verrouillage avec moins d'essais ratés, un ancien coffre).
+   */
+  const stored = await wrap(db.transaction(STORE, 'readonly').objectStore(STORE).get(key));
+  if (stored === undefined) {
+    // Rien en base : une copie héritée en clair est reprise, chiffrée, puis effacée.
+    let legacy: string | null = null;
+    try { legacy = ls()?.getItem(key) ?? null; } catch { legacy = null; }
+    if (legacy != null) void kvSet(key, legacy).catch(() => {});
+    return legacy;
   }
+  const v = await open_(db, stored);
+  // Migration transparente : une valeur héritée en clair est réécrite chiffrée.
+  if (typeof stored === 'string' && v != null) void kvSet(key, v).catch(() => {});
+  return v;
 }
 
 export async function kvDel(key: string, _opts?: Opts): Promise<void> {
+  if (!decoyMayWrite(key)) return;
+  lsDrop(key);
   const db = await openDB();
-  if (!db) {
-    try { ls()?.removeItem(key); } catch { /* ignore */ }
-    return;
-  }
-  try {
-    await wrap(db.transaction(STORE, 'readwrite').objectStore(STORE).delete(key));
-  } catch {
-    try { ls()?.removeItem(key); } catch { /* ignore */ }
-  }
+  if (!db) return;
+  await wrap(db.transaction(STORE, 'readwrite').objectStore(STORE).delete(key));
 }
+
+/** Sans objet sur le web (localStorage) : options ignorées. */
+export const KV_DEVICE_ONLY = {};

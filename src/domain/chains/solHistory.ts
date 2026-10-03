@@ -157,13 +157,50 @@ export function parseSolanaTx(address: string, tx: SolTxResponse): TxParsed | nu
    * éventuel compte créé, soit une ligne à ~0 SOL et un destinataire arbitraire.
    */
   const deltas = tokenDeltas(address, tx);
+  /*
+   * Jambe SOL d'un échange SOL ↔ jeton : le wSOL temporaire est créé et fermé
+   * dans la même transaction, il n'apparaît donc pas parmi les jetons. Le
+   * mouvement en lamports (hors frais) en tient lieu quand il dépasse le
+   * bruit du loyer et va en sens INVERSE du jeton — sinon « Reçu 150 USDC »
+   * sans le 1 SOL parti.
+   */
+  const solNet = delta + (payer === address ? fee : 0n);
+  const SOL_LEG_MIN = 5_000_000n; // au-delà du loyer d'un compte de jeton (~0,002 SOL)
+  if (deltas.length === 1 && abs(solNet) >= SOL_LEG_MIN && deltas[0].delta > 0n !== solNet > 0n) {
+    const tok = deltas[0];
+    const tokLeg = { direction: tok.delta > 0n ? ('in' as const) : ('out' as const), value: abs(tok.delta), asset: KNOWN_MINTS[tok.mint]?.symbol ?? `${tok.mint.slice(0, 4)}…`, decimals: tok.decimals, contract: tok.mint };
+    const solLeg = { direction: solNet > 0n ? ('in' as const) : ('out' as const), value: abs(solNet), decimals: 9 };
+    // La ligne décrit ce qui SORT ; ce qui entre suit dans `legs`.
+    const solOut = solNet < 0n;
+    return {
+      ...(solOut ? {} : { contract: tok.mint, asset: tokLeg.asset }),
+      legs: [tokLeg, solLeg],
+      hash: sig,
+      from: address,
+      to: tokenCounterparty(address, tx, tok.mint, tok.delta) ?? payer,
+      value: solOut ? abs(solNet) : abs(tok.delta),
+      timestamp,
+      direction: 'out',
+      status,
+      type: 'SWAP',
+      decimals: solOut ? 9 : tok.decimals,
+    };
+  }
   if (deltas.length > 0) {
     // Le plus gros mouvement en valeur absolue : sur un échange il y en a deux,
     // et c'est celui-là qui décrit le mieux l'opération.
-    const main = deltas.reduce((a, b) => (abs(b.delta) > abs(a.delta) ? b : a));
+    const outs = deltas.filter((d) => d.delta < 0n);
+    const swap = deltas.length > 1 && outs.length > 0 && deltas.some((d) => d.delta > 0n);
+    // Sur un échange, la ligne décrit ce qui SORT ; ce qui entre suit dans `legs`.
+    const main = (swap ? outs : deltas).reduce((a, b) => (abs(b.delta) > abs(a.delta) ? b : a));
     const other = tokenCounterparty(address, tx, main.mint, main.delta);
     const known = KNOWN_MINTS[main.mint];
+    const symbolOf = (mint: string) => KNOWN_MINTS[mint]?.symbol ?? `${mint.slice(0, 4)}…`;
     return {
+      contract: main.mint,
+      ...(deltas.length > 1
+        ? { legs: deltas.map((d) => ({ direction: d.delta > 0n ? ('in' as const) : ('out' as const), value: abs(d.delta), asset: symbolOf(d.mint), decimals: d.decimals, contract: d.mint })) }
+        : {}),
       hash: sig,
       from: main.delta > 0n ? other ?? payer : address,
       to: main.delta > 0n ? address : other ?? main.mint,

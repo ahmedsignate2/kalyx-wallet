@@ -21,6 +21,8 @@ const SEL = {
   approve: '0x095ea7b3', // approve(address,uint256)
   approveAll: '0xa22cb465', // setApprovalForAll(address,bool)
   safeTransferFrom: '0x42842e0e', // safeTransferFrom(address,address,uint256) [ERC-721]
+  safeTransferFromData: '0xb88d4fde', // safeTransferFrom(address,address,uint256,bytes) [ERC-721]
+  safeTransfer1155: '0xf242432a', // safeTransferFrom(address,address,uint256,uint256,bytes) [ERC-1155]
 } as const;
 
 // Au-delà de ce seuil, une approbation est « illimitée » (uint256/uint160 max…).
@@ -69,6 +71,10 @@ export function decodeTx(tx: { to?: string; value?: bigint | string; data?: stri
       // Heuristique : safeTransferFrom = NFT (tokenId) ; transferFrom générique = montant ERC-20.
       if (sel === SEL.safeTransferFrom) return { kind: 'nftTransfer', collection: token, from, to: dst, tokenId: third };
       return { kind: 'transferFrom', token, from, to: dst, amount: third };
+    }
+    // Variantes NFT que la fenêtre montrait comme « interaction contrat » : l'objet qui part et vers qui.
+    if (sel === SEL.safeTransferFromData || sel === SEL.safeTransfer1155) {
+      return { kind: 'nftTransfer', collection: token, from: addrAt(data, 0), to: addrAt(data, 1), tokenId: uintAt(data, 2) };
     }
   } catch {
     /* décodage impossible → interaction contrat générique */

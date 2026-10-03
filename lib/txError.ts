@@ -7,8 +7,14 @@
  */
 import { isWalletError, isWcConnectError, SwapError } from '../src';
 import { recordTechnicalLog } from './technicalLogger';
+import type { Key } from './i18n';
 
-export type TFn = (key: any) => string;
+/**
+ * Clés RÉELLES du dictionnaire : `(key: any)` laissait passer des clés absentes,
+ * qui s'affichaient comme un message VIDE (réseau coupé, devis expiré…). Une
+ * clé inconnue est maintenant une erreur de compilation.
+ */
+export type TFn = (key: Key) => string;
 
 /**
  * Erreur dont le message est DÉJÀ rédigé dans la langue de l'utilisateur.
@@ -47,7 +53,7 @@ export class UserFacingError extends Error {
  * message propre, il mérite son propre code : c'est ce qui a été fait pour
  * l'import de clés (`import.*`) et pour les refus de WalletConnect.
  */
-const WALLET_ERROR_KEYS: Record<string, string> = {
+const WALLET_ERROR_KEYS: Record<string, Key> = {
   AMOUNT_TOO_SMALL: 'errAmountTooSmall',
   BIOMETRIC_NOT_SET: 'errBiometricNotSet',
   BIOMETRIC_REFUSED: 'errBiometricRefused',
@@ -64,6 +70,7 @@ const WALLET_ERROR_KEYS: Record<string, string> = {
   INVALID_AMOUNT: 'errInvalidAmount',
   INVALID_MNEMONIC: 'errInvalidMnemonic',
   INVALID_PIN: 'errInvalidPin',
+  MEMO_REQUIRED: 'errMemoRequired',
   MNEMONIC_VERIFICATION_FAILED: 'errMnemonicMismatch',
   NOT_SUPPORTED: 'errNotSupported',
   RPC_UNAVAILABLE: 'errRpcUnavailable',
@@ -72,7 +79,46 @@ const WALLET_ERROR_KEYS: Record<string, string> = {
   VAULT_CORRUPTED: 'errVaultCorrupted',
   WALLET_ALREADY_EXISTS: 'errWalletExists',
   WRONG_PIN: 'errWrongPin',
+  LOCKED_OUT: 'errLockedOut',
+  INSUFFICIENT_GAS: 'errInsufficientGas',
+  NO_RECOVERY_PHRASE: 'errNoRecoveryPhrase',
+  WATCH_ONLY: 'errWatchOnly',
+  NOT_WHITELISTED: 'errNotWhitelisted',
+  WHITELIST_PENDING: 'errWhitelistPending',
+  WHITELIST_LOCKED: 'errWhitelistLocked',
+  LAST_KEY_WALLET: 'errLastKeyWallet',
+  INVALID_WATCH_ADDRESS: 'watchErrUnknown',
+  BUMP_NOT_FOUND: 'errBumpNotFound',
+  TX_UNCONFIRMED: 'errTxUnconfirmed',
+  SOL_RENT_RECIPIENT: 'errSolRentRecipient',
+  SOL_RENT_SENDER: 'errSolRentSender',
+  SWAP_SIMULATION_FAILED: 'errSwapSimulationFailed',
+  WRONG_ACCOUNT: 'errWrongAccount',
+  REQUEST_EXPIRED: 'wcErrRequestExpired',
+  TX_ALREADY_CONFIRMED: 'errTxAlreadyConfirmed',
+  PREVIOUS_TX_PENDING: 'errPreviousTxPending',
 };
+
+/**
+ * PHRASE CHIFFRÉE quand l'erreur porte ses montants (`WalletError.meta`).
+ *
+ * « Reste sous le loyer minimal » ou « solde insuffisant » ne disent pas quoi
+ * corriger : l'utilisateur baissait le montant au hasard, et échouait encore.
+ * Avec les chiffres — « tu peux envoyer au plus 0,0005 SOL » —, il sait quoi
+ * saisir. Une clé absente ici retombe sur la phrase générique du code.
+ */
+function detailedWalletKey(code: string, meta: Record<string, string>): Key | null {
+  if (code === 'SOL_RENT_SENDER' && meta.all) return Number(meta.max) > 0 ? 'errSolRentSenderMax' : 'errSolRentSenderAllOnly';
+  if (code === 'INSUFFICIENT_FUNDS' && meta.have && meta.fee && meta.symbol) return 'errInsufficientFundsHave';
+  if (code === 'AMOUNT_TOO_SMALL' && meta.min && meta.symbol) return 'errAmountTooSmallMin';
+  if (code === 'INSUFFICIENT_GAS' && meta.need && meta.have && meta.gas) return 'errTonSwapGas';
+  if (code === 'WRONG_ACCOUNT' && meta.address) return 'errWrongAccountAddr';
+  if (code === 'WHITELIST_PENDING' && meta.hours) return 'errWhitelistPendingHours';
+  if (code === 'NOT_SUPPORTED' && meta.reason === 'duressBiometric') return 'duressBioOff';
+  return null;
+}
+
+const fillMeta = (s: string, meta: Record<string, string> | undefined) => s.replace(/\{(\w+)\}/g, (m, k) => meta?.[k] ?? m);
 
 export function friendlyTxError(e: unknown, t?: TFn): string {
   /*
@@ -98,7 +144,8 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
 
   const errMsg = typeof e === 'object' && e ? (e as any)?.shortMessage || (e as any)?.message || 'Transaction error' : String(e);
   recordTechnicalLog('TX_ERROR', errMsg, typeof e === 'object' && e ? { code: (e as any)?.code, status: (e as any)?.status } : undefined);
-  console.error('[txError] Raw error interceptée:', typeof e === 'object' ? JSON.stringify(e, Object.getOwnPropertyNames(e)) : e);
+  // Jamais de levée ICI : `null` ou une erreur à références circulaires faisaient planter le gestionnaire d'erreurs lui-même.
+  console.error('[txError] Raw error interceptée:', safeDump(e));
   // Message déjà traduit par l'appelant : on le rend tel quel, sans le soumettre
   // aux devinettes qui suivent. Il est passé par le journal juste au-dessus.
   if (e instanceof UserFacingError) return e.message;
@@ -115,6 +162,7 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
       case 'NO_LIQUIDITY':
         return t ? t('errNoLiquidity') : 'No liquidity available for this pair.';
       case 'NO_ROUTE':
+        if (e.meta?.reason === 'tonCrossChain') return t ? t('errTonCrossChain') : 'On TON, swaps only work between TON tokens for now.';
         return t ? t('errNoRoute') : 'No route found. Try a different amount or pair.';
       case 'INVALID_TOKEN':
         return t ? t('errInvalidToken') : 'This token cannot be swapped.';
@@ -160,6 +208,12 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
           return t ? t('keyErrFamilyRequired') : 'Pick the network this key is for.';
         case 'WIF_UNCOMPRESSED':
           return t ? t('keyErrWifUncompressed') : 'Uncompressed WIF: legacy address, not supported.';
+        case 'TON_NOT_YET':
+          return t ? t('keyErrTonNotYet') : 'TON recovery phrase recognised. TON is not available in Kalyx yet.';
+        case 'SINGLE_ACCOUNT':
+          return t ? t('keyErrSingleAccount') : 'This wallet has a single account.';
+        case 'TON_FIRST_ACCOUNT':
+          return t ? t('keyErrTonFirstAccount') : 'On this wallet, TON is available on the first account only.';
         case 'WRONG_FAMILY': {
           const phrase = t ? t('keyErrWrongFamily') : 'This wallet was imported for {have}. {want} is not available.';
           return phrase.split('{have}').join(have ?? '?').split('{want}').join(want ?? '?');
@@ -172,6 +226,8 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
      * TRADUCTION PAR CODE. Le repli précédent — `return e.message` — renvoyait la
      * phrase française écrite dans le domaine, dans toutes les langues.
      */
+    const detailed = e.meta ? detailedWalletKey(e.code, e.meta) : null;
+    if (detailed && t) return fillMeta(t(detailed), e.meta);
     const key = WALLET_ERROR_KEYS[e.code];
     if (key && t) return t(key);
     // Sans traducteur (appels hors interface), la phrase du domaine reste le
@@ -192,7 +248,13 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
     return t ? t('errCallException') : 'Transaction failed (contract). Check the amount or allowance.';
   }
   if (msg.includes('blockhash not found') || msg.includes('devis expiré')) return t ? t('errQuoteExpired') : 'Quote expired. Request a new quote.';
-  if (msg.includes('user rejected') || msg.includes('rejected')) return t ? t('errUserRejected') : 'Transaction cancelled.';
+  // Refus de l'UTILISATEUR seulement ; un rejet du nœud (« rejected by mempool », frais trop bas) n'en est pas un.
+  if (err?.code === 4001 || err?.code === 'ACTION_REJECTED' || /user[ _]?(rejected|rejects|denied|cancel)|(rejected|cancell?ed|canceled) by (the )?user|request rejected/.test(msg)) {
+    return t ? t('errUserRejected') : 'Transaction cancelled.';
+  }
+  if (msg.includes('min relay fee') || msg.includes('mempool min fee') || msg.includes('insufficient fee')) {
+    return t ? t('errUnderpriced') : 'Fee too low or duplicate transaction. Try again.';
+  }
   if (msg.includes('invalid psbt') || msg.includes('idx') || msg.includes('not a valid base64')) return t ? t('errInvalidPsbt') : 'Invalid PSBT.';
   if (msg.includes('nonce')) return t ? t('errNonce') : 'Transaction conflict (nonce). Try again shortly.';
   if (msg.includes('replacement') || msg.includes('underpriced')) return t ? t('errUnderpriced') : 'Fee too low or duplicate transaction. Try again.';
@@ -222,4 +284,25 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
    * l'utilisateur ne lit pas.
    */
   return t ? t('errGenericTxFail') : 'Transaction failed. Try again.';
+}
+
+/** Représentation d'une erreur pour le journal, sans jamais lever (null, références circulaires). */
+function safeDump(e: unknown): string {
+  if (e === null || typeof e !== 'object') return String(e);
+  try {
+    // Propriétés propres (message, stack, code…), y compris non énumérables comme celles d'une Error.
+    const own: Record<string, unknown> = {};
+    for (const k of Object.getOwnPropertyNames(e)) own[k] = (e as Record<string, unknown>)[k];
+    const seen = new WeakSet<object>([e]);
+    return JSON.stringify(own, (_k, v: unknown) => {
+      if (typeof v === 'bigint') return v.toString();
+      if (v && typeof v === 'object') {
+        if (seen.has(v)) return '[circulaire]';
+        seen.add(v);
+      }
+      return v;
+    });
+  } catch {
+    return String((e as { message?: unknown }).message ?? e);
+  }
 }
