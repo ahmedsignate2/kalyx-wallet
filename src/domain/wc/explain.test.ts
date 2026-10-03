@@ -52,6 +52,18 @@ describe('explainRequest', () => {
     expect(e.holdToSign).toBe(true);
     expect(e.headline).toContain('tous tes NFT');
   });
+  it('simple envoi natif sans simulation (Sepolia) → montant connu, aucun signal de risque', () => {
+    const to = '0x7411000000000000000000000000000000b69b00';
+    const e = explain({ kind: 'tx', domain: 'app.kalyxwallet.com', decoded: decodeTx({ to, value: 10n ** 13n }), simulation: { source: 'static', approvals: [], changes: [], error: 'not supported' }, txValue: 10n ** 13n, nativeSymbol: 'ETH', nativeDecimals: 18 });
+    expect(e.risk).toBe('none');
+    expect(e.reasons).toEqual([]);
+    expect(e.lose).toEqual(['0.00001 ETH']);
+  });
+  it('appel de contrat AVEC valeur, non simulé → toujours signalé', () => {
+    const e = explain({ kind: 'tx', domain: 'x.com', decoded: decodeTx({ to: '0xrouter', value: 10n ** 13n, data: '0xdeadbeef00' }), simulation: { source: 'static', approvals: [], changes: [], error: 'x' }, txValue: 10n ** 13n, nativeSymbol: 'ETH', nativeDecimals: 18 });
+    expect(e.risk).toBe('warning');
+    expect(e.reasons.join(' ')).toContain('simulés');
+  });
   it('approve illimité → warning + réduire', () => {
     const e = explain({ kind: 'tx', domain: 'x.com', decoded: decodeTx({ to: '0xtoken', data: approveUnlimited }) });
     expect(e.risk).toBe('warning');

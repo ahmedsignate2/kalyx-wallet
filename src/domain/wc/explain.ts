@@ -227,14 +227,20 @@ export function explainRequest(input: ExplainInput): SignExplanation {
     const sim = input.simulation;
     const lose = (sim?.changes ?? []).filter((c) => c.direction === 'out').map(fmtChange);
     /*
-     * Simulation ABSENTE ou en échec : les effets ne sont pas connus. La valeur
-     * native qui part est montrée quand même, et le risque n'est plus « aucun ».
+     * Simulation ABSENTE ou en échec : la valeur native qui part est montrée
+     * quand même. Le risque n'est plus « aucun »… sauf pour un SIMPLE ENVOI
+     * (aucune donnée d'appel) : son effet est entièrement connu sans
+     * simulation — ce montant part vers ce destinataire, rien d'autre. Le
+     * signaler alarmait à chaque envoi, en particulier sur les réseaux où le
+     * simulateur n'existe pas (Sepolia, Base Sepolia…).
      */
     if (!input.simulating && (!sim || sim.error) && (input.txValue ?? 0n) > 0n) {
       const amount = `${formatDecimalString(formatUnits(input.txValue!, input.nativeDecimals ?? 18))} ${input.nativeSymbol ?? ''}`.trim();
       if (!lose.length) lose.push(amount);
-      risk = worst(risk, 'warning');
-      reasons.push(tr('exTxNoSimulationValue', { amount }));
+      if (d?.kind !== 'empty') {
+        risk = worst(risk, 'warning');
+        reasons.push(tr('exTxNoSimulationValue', { amount }));
+      }
     }
     const receive = (sim?.changes ?? []).filter((c) => c.direction === 'in').map(fmtChange);
     const approvals = sim?.approvals ?? [];
