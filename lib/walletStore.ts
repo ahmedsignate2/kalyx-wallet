@@ -137,7 +137,11 @@ import * as btcLib from '@scure/btc-signer';
 
 export const DEFAULT_CHAIN = 'ethereum'; // mainnet par défaut (les testnets sont cachés/optionnels)
 
-export type Unlock = { pin: string } | { biometric: true };
+/**
+ * `onUnlocked` (biométrie) : appelé quand la clé de CETTE demande a été lue —
+ * la fenêtre qui l'a lancée arrête alors son délai de garde de l'invite.
+ */
+export type Unlock = { pin: string } | { biometric: true; onUnlocked?: () => void };
 /** Frais de gas EIP-1559 choisis par l'utilisateur (palier Lent/Normal/Rapide). */
 /**
  * Frais choisis par l'utilisateur.
@@ -969,6 +973,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
       }
       console.log('[KALYX-VAULT] reveal:biometric-gated', { found: !!m });
       if (!m) throw new WalletError('BIOMETRIC_NOT_SET', 'Biometric key invalidated for this wallet');
+      unlock.onUnlocked?.(); // clé lue POUR CETTE demande : la fenêtre arrête son délai de garde
       return m;
     }
     // Ancienne copie en clair : invite de l'app, PUIS lecture (migrée ensuite, cf. unlockWithBiometrics).
@@ -986,6 +991,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
     const m = await readLegacyBiometricSeed(id);
     console.log('[KALYX-VAULT] reveal:biometric-secret', { found: !!m });
     if (!m) throw new WalletError('BIOMETRIC_NOT_SET', 'No biometric vault for this wallet');
+    unlock.onUnlocked?.();
     return m;
   }
   const vault = await loadVault(id);

@@ -47,14 +47,33 @@ export function parseTokenBalances(json: unknown): { contract: string; raw: bigi
   return out;
 }
 
+/** Métadonnées sans exiger les décimales (null si Alchemy ne les connaît pas). */
+function parseTokenMetadataLoose(json: unknown): (Omit<TokenMeta, 'decimals'> & { decimals: number | null }) | null {
+  const r = (json as { result?: { name?: string; symbol?: string; decimals?: number; logo?: string } })?.result;
+  if (!r) return null;
+  return { name: r.name ?? '', symbol: r.symbol ?? '', decimals: typeof r.decimals === 'number' ? r.decimals : null, logo: r.logo ?? undefined };
+}
+
+/** `decimals()` lu sur le contrat (eth_call) ; null si illisible. */
+async function readDecimalsOnChain(url: string, contract: string): Promise<number | null> {
+  try {
+    const j = (await post(url, { jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to: contract, data: '0x313ce567' }, 'latest'] })) as { result?: string };
+    const n = j?.result && j.result !== '0x' ? Number(BigInt(j.result)) : NaN;
+    return Number.isInteger(n) && n >= 0 && n <= 36 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Parse alchemy_getTokenMetadata. */
 export function parseTokenMetadata(json: unknown): TokenMeta | null {
   const r = (json as { result?: { name?: string; symbol?: string; decimals?: number; logo?: string } })?.result;
-  if (!r) return null;
+  // Décimales absentes (`null`) : métadonnées INCONNUES — jamais 0, qui afficherait et enverrait en unités brutes.
+  if (!r || typeof r.decimals !== 'number') return null;
   return {
     name: r.name ?? '',
     symbol: r.symbol ?? '',
-    decimals: typeof r.decimals === 'number' ? r.decimals : 0,
+    decimals: r.decimals,
     logo: r.logo ?? undefined,
   };
 }
@@ -132,15 +151,23 @@ export async function getCustomTokens(
       params: [c],
     }));
     const metaJson = await post(url, batch);
-    const metaById = new Map<number, TokenMeta | null>();
-    if (Array.isArray(metaJson)) for (const m of metaJson as { id: number }[]) metaById.set(m.id, parseTokenMetadata(m));
+    const metaById = new Map<number, ReturnType<typeof parseTokenMetadataLoose>>();
+    if (Array.isArray(metaJson)) for (const m of metaJson as { id: number }[]) metaById.set(m.id, parseTokenMetadataLoose(m));
 
     const out: Erc20Token[] = [];
-    contracts.forEach((c, i) => {
+    for (let i = 0; i < contracts.length; i++) {
+      const c = contracts[i];
       const meta = metaById.get(i);
-      if (!meta || !meta.symbol) return;
-      out.push({ contract: c, name: meta.name, symbol: meta.symbol, decimals: meta.decimals, logo: meta.logo, raw: balMap.get(c.toLowerCase()) ?? 0n });
-    });
+      if (!meta || !meta.symbol) continue;
+      /*
+       * Jeton AJOUTÉ par l'utilisateur dont l'indexeur ignore les décimales :
+       * lues sur le contrat. Illisibles → écarté (jamais 0, qui afficherait et
+       * enverrait en unités brutes).
+       */
+      const decimals = meta.decimals ?? (await readDecimalsOnChain(url, c));
+      if (decimals == null) continue;
+      out.push({ contract: c, name: meta.name, symbol: meta.symbol, decimals, logo: meta.logo, raw: balMap.get(c.toLowerCase()) ?? 0n });
+    }
     return out;
   } catch {
     return [];

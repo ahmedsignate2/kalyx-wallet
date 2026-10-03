@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sanitizeSecrets } from './secretDetector';
+import { isDecoySession, onDecoyChange } from './sessionMode';
 
 export interface StoredTicket {
   id: string; // Format KX-YYYYMMDD-XXXXX
@@ -93,6 +94,9 @@ export const safeAsyncStorage = {
   },
 };
 
+/** Sortie de la session leurre : la prochaine relecture ne garde rien de la mémoire. */
+let dropMemoryOnHydrate = false;
+
 export const useTicketHistoryStore = create<TicketHistoryState>()(
   persist(
     (set, get) => ({
@@ -150,12 +154,27 @@ export const useTicketHistoryStore = create<TicketHistoryState>()(
     }),
     {
       name: 'nova-support-tickets',
-      storage: createJSONStorage(() => safeAsyncStorage),
+      /*
+       * Session LEURRE (code de contrainte) : rien n'est lu ni écrit — les
+       * tickets réels (problèmes, adresses) trahiraient l'autre portefeuille,
+       * et « Effacer » ne doit pas toucher au vrai historique.
+       */
+      storage: createJSONStorage(() => ({
+        getItem: (k: string) => (isDecoySession() ? Promise.resolve(null) : safeAsyncStorage.getItem(k)),
+        setItem: (k: string, v: string) => (isDecoySession() ? Promise.resolve() : safeAsyncStorage.setItem(k, v)),
+        removeItem: (k: string) => (isDecoySession() ? Promise.resolve() : safeAsyncStorage.removeItem(k)),
+      })),
       /*
        * Tickets écrits par une version précédente, sans masquage : nettoyés
        * par une MIGRATION — elle seule est réécrite sur le disque (un `merge`
        * ne nettoyait que la mémoire, le clair restait stocké).
        */
+      merge: (persisted, current) => {
+        const stored = (persisted as { tickets?: StoredTicket[] } | undefined)?.tickets;
+        const drop = dropMemoryOnHydrate;
+        dropMemoryOnHydrate = false;
+        return { ...current, tickets: stored ?? (drop ? [] : current.tickets) };
+      },
       version: 1,
       migrate: (persisted) => {
         const tickets = ((persisted as { tickets?: StoredTicket[] } | undefined)?.tickets ?? []).map((tk) => ({
@@ -169,3 +188,17 @@ export const useTicketHistoryStore = create<TicketHistoryState>()(
     }
   )
 );
+
+onDecoyChange((on) => {
+  if (on) {
+    useTicketHistoryStore.setState({ tickets: [] }); // écriture neutralisée : la session est déjà leurre
+    return;
+  }
+  /*
+   * Sortie : la relecture REMPLACE la mémoire (tickets du leurre compris),
+   * même sans vrai historique — et sans `setState`, qui écrirait une liste
+   * vide par-dessus le vrai historique.
+   */
+  dropMemoryOnHydrate = true;
+  void useTicketHistoryStore.persist.rehydrate();
+});

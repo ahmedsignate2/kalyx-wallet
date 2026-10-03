@@ -4,6 +4,7 @@
  * sert qu'à le SIGNALER ailleurs — la pastille « Revenir sur … » de l'accueil.
  */
 import { create } from 'zustand';
+import { dappHost } from '../src/domain/web/dappHost';
 
 interface BrowserPresence {
   /** Page laissée ouverte, ou null si le navigateur n'est pas en arrière-plan. */
@@ -19,5 +20,5 @@ export const useBrowserPresence = create<BrowserPresence>((set) => ({
 }));
 
 export function hostOf(url: string): string {
-  return url.replace(/^[a-z]+:\/\//i, '').split(/[/?#]/)[0] || url;
+  return dappHost(url) || url; // identifiants (« a.com@evil.com ») retirés : le vrai hôte
 }

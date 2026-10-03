@@ -3,6 +3,7 @@ import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { sound } from "../lib/sound";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { decimalSeparator } from '../src';
 import { View, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +24,7 @@ import { watchConfirmation } from '../lib/txWatch';
 import { friendlyTxError } from '../lib/txError';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
+import { toast } from '../lib/toast';
 import { space, SCREEN_MARGIN, radius, springs } from '../ui/tokens';
 import { useWallet, type SwapStatus, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
@@ -94,6 +96,22 @@ function SwapInner() {
   // Jeton « Tu donnes » choisi sur un AUTRE réseau : on bascule, puis on le sélectionne dès que sa liste est là.
   const pendingFrom = useRef<{ chainId: string; address: string } | null>(null);
   const pendingTo = useRef<{ chainId: string; address: string } | null>(null);
+  /** Destination choisie dont la liste n'est pas encore là : pas de devis tant qu'elle n'est pas appliquée. */
+  const [awaitingTo, setAwaitingTo] = useState(false);
+  // Liste qui n'arrive jamais (réseau muet) : le devis n'est pas bloqué pour toujours.
+  useEffect(() => {
+    if (!awaitingTo) return;
+    const id = setTimeout(() => {
+      if (!pendingTo.current) return;
+      pendingTo.current = null;
+      setAwaitingTo(false);
+      toast.error(t('errNetworkOffline'));
+    }, 15_000);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awaitingTo]);
+  /** `params.to` appliqué UNE fois : il ne doit plus écraser un choix fait ensuite. */
+  const paramToApplied = useRef(false);
   const account = useWallet((s) => s.account);
   const executeSwap = useWallet((s) => s.executeSwap);
   const chain = getAdapter(activeChain).config;
@@ -263,12 +281,18 @@ function SwapInner() {
   // Destination choisie avant que la liste de son réseau soit chargée : appliquée à son arrivée.
   useEffect(() => {
     const p = pendingTo.current;
-    if (!p || p.chainId !== toChain) return;
-    const idx = toTokens.findIndex((tk) => tk.address.toLowerCase() === p.address.toLowerCase());
-    if (idx >= 0) {
-      setTo(idx);
+    if (p && p.chainId !== toChain) {
+      // Réseau d'arrivée changé depuis : ce choix n'a plus d'objet.
       pendingTo.current = null;
+      setAwaitingTo(false);
+      return;
     }
+    if (!p || !toTokens.length) return;
+    const idx = toTokens.findIndex((tk) => tk.address.toLowerCase() === p.address.toLowerCase());
+    pendingTo.current = null;
+    setAwaitingTo(false);
+    if (idx >= 0) setTo(idx);
+    else toast.error(t('errInvalidToken')); // liste chargée sans lui : dit, jamais remplacé en silence
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toChain, toTokens.length]);
 
@@ -277,9 +301,12 @@ function SwapInner() {
   // Arrivée depuis une fiche token ou le marché : le token demandé en destination.
   useEffect(() => {
     const sym = String(params.to ?? '').toLowerCase();
-    if (!sym) return;
+    if (!sym || paramToApplied.current) return;
     const idx = toTokens.findIndex((tk) => tk.symbol.toLowerCase() === sym);
-    if (idx >= 0) setTo(idx);
+    if (idx >= 0) {
+      setTo(idx);
+      paramToApplied.current = true;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.to, toTokens.length]);
   const isBridge = toChain !== activeChain;
@@ -524,7 +551,7 @@ function SwapInner() {
 
   const onConfirm = async (unlock: Unlock) => {
     if (!quote) return;
-    if (stale) throw new Error(t('quoteStale')); // devenu périmé pendant la saisie du code
+    if (stale) throw new Error(t('errQuoteExpired')); // devenu périmé pendant la saisie du code
     setStep(t('preparing'));
     sound.send();
     try {
@@ -568,7 +595,7 @@ function SwapInner() {
     ? quote.durationSec < 60 ? fill(t('durSeconds'), { n: String(quote.durationSec) }) : fill(t('durMinutes'), { n: String(Math.round(quote.durationSec / 60)) })
     : '';
   const routeSentence = routeTitle ? `${routeTitle}${routeDuration ? ` · ${routeDuration}` : ''}. ` : null;
-  const slippagePct = `${(Number(slippage) * 100).toFixed(1).replace('.', ',')} %`;
+  const slippagePct = `${(Number(slippage) * 100).toFixed(1).replace('.', decimalSeparator())} %`;
   const [advanced, setAdvanced] = useState(false);
   const [review, setReview] = useState(false);
 
@@ -641,7 +668,7 @@ function SwapInner() {
         <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[3] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {advanced ? (
             <Rise style={{ flexDirection: 'row', gap: space[2] }}>
-              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', ',')} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
+              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', decimalSeparator())} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
             </Rise>
           ) : null}
 
@@ -703,7 +730,7 @@ function SwapInner() {
                 {routeDuration ? <Text variant="caption" tone="secondary">{routeDuration}</Text> : null}
               </View>
               <RouteRow label={t('minReceived')} value={`${formatTokenAmount(quote.toAmountMin, quote.toToken.decimals)} ${toTok.symbol}`} />
-              <RouteRow label={t('kalyxFee')} value={`${((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', ',')} %`} />
+              <RouteRow label={t('kalyxFee')} value={`${((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', decimalSeparator())} %`} />
               <RouteRow label={t('networkFee')} value={quote.gasCostUsd > 0 ? `≈ ${formatFiat(quote.gasCostUsd)} $` : quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : '—'} />
               {impact != null && impactLevel !== 'none' ? <Text variant="caption" tone={impactLevel === 'danger' ? 'danger' : 'warning'} tabular>{t('priceImpact').replace('{impact}', impact.toFixed(2))}</Text> : null}
               {stale ? <Text variant="caption" tone="warning">{t('quoteStale')}</Text> : null}
@@ -727,7 +754,7 @@ function SwapInner() {
           />
           <AmountKeypad value={amount} onChange={(v) => { setSliderPct(null); setAmount(v); reset(); stopCountdown(); }} maxDecimals={Math.min(fromTok.decimals, 8)} />
           {!quote ? (
-            <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading} disabled={!amount || Number(amount) <= 0} />
+            <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading || awaitingTo} disabled={!amount || Number(amount) <= 0 || awaitingTo} />
           ) : stale ? (
             <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading} />
           ) : (
@@ -750,13 +777,13 @@ function SwapInner() {
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('networkFee')}</Text><Text variant="caption" tabular>{quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : ''}{quote.gasCostUsd > 0 ? ` (≈ ${formatFiat(quote.gasCostUsd)} $)` : quote.gasCostNative > 0n ? '' : '—'}</Text></View>
               <Divider />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', ',')} %</Text></View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', decimalSeparator())} %</Text></View>
             </Surface>
-            <Text variant="caption" tone="secondary">{routeSentence}{t("slippageTolerance")}{(quote.slippage * 100).toFixed(1).replace('.', ',')} %.</Text>
+            <Text variant="caption" tone="secondary">{routeSentence}{t("slippageTolerance")}{(quote.slippage * 100).toFixed(1).replace('.', decimalSeparator())} %.</Text>
             {stale ? (
               // Devis périmé : on le renouvelle, on ne signe pas un prix qui n'a plus cours.
               <>
-                <Text variant="caption" tone="warning">{t('quoteStale')}</Text>
+                <Text variant="caption" tone="warning">{t('errQuoteExpired')}</Text>
                 <Button label={t('getQuote')} onPress={() => { setReview(false); onQuote(); }} loading={loading} />
               </>
             ) : impactLevel === 'danger' ? (
@@ -807,11 +834,19 @@ function SwapInner() {
              * à son arrivée — on ne bascule plus en silence sur le premier jeton
              * (on aurait échangé vers autre chose que ce qui a été choisi).
              */
+            paramToApplied.current = true; // un choix explicite prime sur le lien d'arrivée
             if (idx >= 0) {
               pendingTo.current = null;
+              setAwaitingTo(false);
               setTo(idx);
+            } else if (list.length) {
+              // Liste déjà là sans ce jeton : on le dit tout de suite.
+              pendingTo.current = null;
+              setAwaitingTo(false);
+              toast.error(t('errInvalidToken'));
             } else {
               pendingTo.current = { chainId, address: token.address };
+              setAwaitingTo(true);
             }
           }
           reset();

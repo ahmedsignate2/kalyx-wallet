@@ -130,7 +130,11 @@ export function ConfirmUnlock({
   };
 
 
+  // Feuille fermée (Annuler, fond) : plus aucune action ne part, même déclenchée juste avant.
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
   const run = async (unlock: Unlock) => {
+    if (!visibleRef.current) return;
     const viaBio = 'biometric' in unlock;
     const attempt = ++attemptRef.current;
     const startedAt = Date.now();
@@ -141,7 +145,18 @@ export function ConfirmUnlock({
     try {
       if (viaBio) {
         let timer: ReturnType<typeof setTimeout> | undefined;
-        const operation = perform(unlock)
+        /*
+         * Clé lue POUR CETTE demande (et elle seule) : le délai de garde de
+         * l'invite s'arrête — signature et diffusion qui suivent ne sont pas bornées.
+         */
+        const tracked: Unlock = {
+          ...unlock,
+          onUnlocked: () => {
+            if (timer) clearTimeout(timer);
+            timer = undefined;
+          },
+        } as Unlock;
+        const operation = perform(tracked)
           .then(() => {
             console.log('[KALYX-AUTH][ConfirmUnlock] perform:resolved', {
               attempt,

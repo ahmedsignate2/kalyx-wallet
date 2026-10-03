@@ -11,7 +11,8 @@ import { IsMyAddress } from '../ui/IsMyAddress';
 import { useWhitelist } from '../lib/whitelistStore';
 import Svg, { Circle } from 'react-native-svg';
 import { fetchApprovalCandidates } from '../src/domain/security/goplus';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIsWatchOnly } from '../ui/WatchOnlyGate';
 import { View, ScrollView } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,11 +66,16 @@ export default function SecurityCenter() {
   const sessions = useWalletConnect((s) => s.sessions);
   const disconnect = useWalletConnect((s) => s.disconnect);
 
+  const watchOnly = useIsWatchOnly();
   const [approvals, setApprovals] = useState<ApprovalItem[] | null>(null);
   const [approvalsIncomplete, setApprovalsIncomplete] = useState(false);
   const [target, setTarget] = useState<ApprovalItem | null>(null);
 
+  /** Génération : une réponse lente de l'ancien réseau ou compte n'écrase plus la liste (la révocation viserait un autre réseau). */
+  const approvalsGen = useRef(0);
   const loadApprovals = useCallback(async () => {
+    const gen = ++approvalsGen.current;
+    const current = () => gen === approvalsGen.current;
     if (!account) return;
     const adapter = getAdapter(activeChain);
     if (!(adapter instanceof EvmChainAdapter)) return setApprovals([]);
@@ -79,9 +85,11 @@ export default function SecurityCenter() {
         chain.evmChainId ? fetchApprovalCandidates(chain.evmChainId, account.address) : Promise.resolve(null),
       ]);
       const report = await adapter.getApprovalsReport(account.address, tokens, candidates);
+      if (!current()) return;
       setApprovals(report.items);
       setApprovalsIncomplete(report.incomplete);
     } catch {
+      if (!current()) return;
       setApprovals([]);
       setApprovalsIncomplete(true);
     }
@@ -163,7 +171,8 @@ export default function SecurityCenter() {
                     left={<TokenIcon symbol={a.symbol} logo={a.logo} seed={a.token} size={36} />}
                     title={`${a.symbol} → ${shortAddress(a.spender)}`}
                     subtitle={isUnlimited(a.allowance) ? t("unlimitedAmount") : t("upToAmount").replace('{amount}', `${formatTokenAmount(a.allowance, a.decimals)} ${a.symbol}`)}
-                    right={<Chip label={t("revoke")} onPress={() => setTarget(a)} />}
+                    // Adresse suivie : rien à signer — pas de « Révoquer » qui finirait en refus après le code.
+                    right={watchOnly ? undefined : <Chip label={t("revoke")} onPress={() => setTarget(a)} />}
                   />
                   {i < approvals.length - 1 ? <Divider inset={64} /> : null}
                 </React.Fragment>

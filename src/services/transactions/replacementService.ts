@@ -29,6 +29,8 @@ export interface OriginalEvmTx {
   maxPriorityFeePerGas?: bigint | null;
   gasPrice?: bigint | null;
   chainId: number;
+  /** Déjà incluse dans un bloc : plus rien à remplacer (son nonce est consommé). */
+  mined?: boolean;
 }
 
 /**
@@ -48,7 +50,12 @@ export function calculateReplacementGas(
 
   if (isEip1559) {
     const oldMaxFee = originalGas.maxFeePerGas ?? originalGas.gasPrice ?? 1_000_000_000n;
-    const oldPriorityFee = originalGas.maxPriorityFeePerGas ?? 1_000_000_000n;
+    /*
+     * Originale LEGACY (gasPrice seul) remplacée en EIP-1559 : pour le nœud,
+     * son pourboire vaut tout son gasPrice. Partir de 1 gwei donnait un
+     * pourboire inférieur, refusé « replacement transaction underpriced ».
+     */
+    const oldPriorityFee = originalGas.maxPriorityFeePerGas ?? originalGas.gasPrice ?? 1_000_000_000n;
 
     // Minimum +20 % par rapport à l'originale
     const minMaxFee = (oldMaxFee * 120n) / 100n;
@@ -123,14 +130,16 @@ export function buildSpeedUpTx(
 export function buildCancelTx(
   original: OriginalEvmTx,
   walletAddress: string,
-  calculatedGas: CalculatedReplacementGas
+  calculatedGas: CalculatedReplacementGas,
+  /** Limite estimée (rollups : la part L1 compte en gaz) ; 21 000 par défaut. */
+  gasLimit: bigint = 21000n,
 ): RawTxRequest {
   return {
     to: walletAddress,
     value: 0n,
     data: '0x',
     nonce: original.nonce,
-    gasLimit: 21000n, // Envoi natif standard à 0 de valeur
+    gasLimit,
     chainId: original.chainId,
     maxFeePerGas: calculatedGas.maxFeePerGas,
     maxPriorityFeePerGas: calculatedGas.maxPriorityFeePerGas,
@@ -161,6 +170,7 @@ export async function fetchOriginalEvmTx(
         maxPriorityFeePerGas: tx.maxPriorityFeePerGas,
         gasPrice: tx.gasPrice,
         chainId: Number(tx.chainId ?? adapter.config.evmChainId ?? 1),
+        mined: tx.blockNumber != null,
       };
     }
   } catch {

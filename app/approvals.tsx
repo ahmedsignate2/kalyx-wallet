@@ -81,6 +81,7 @@ function ApprovalsInner() {
     const current = () => gen === loadGen.current;
     if (!account || !isEvm) {
       setItems([]);
+      setLoading(false); // un chargement EVM en vol ne le remettra plus (il n'est plus courant)
       return;
     }
     // Autre réseau ou compte : l'ancienne liste n'est plus sélectionnable (un simple rechargement la garde).

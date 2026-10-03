@@ -1,11 +1,9 @@
 import { ethers } from 'ethers';
 import { formatAmount } from '../../domain/validation/amount';
+import { trimDecimalZeros } from '../../domain/validation/format';
 
 /** Montant exact (entiers, aucune perte au-delà de 2⁵³), sans zéros de fin : « 1 », « 0.5 ». */
-const exact = (raw: bigint, decimals: number) => {
-  const s = formatAmount(raw, decimals);
-  return s.includes('.') ? s.replace(/\.?0+$/, '') : s;
-};
+const exact = (raw: bigint, decimals: number) => trimDecimalZeros(formatAmount(raw, decimals));
 
 export interface SimulationResult {
   isSafe: boolean;

@@ -85,10 +85,11 @@ interface TcState {
   openLink: (text: string) => Promise<string | null>;
   approveConnect: (unlock: Unlock) => Promise<void>;
   rejectConnect: () => Promise<void>;
-  approveTx: (unlock: Unlock) => Promise<string>;
-  rejectTx: () => Promise<void>;
-  approveSignData: (unlock: Unlock) => Promise<void>;
-  rejectSignData: () => Promise<void>;
+  /** `expected` : identité (`pendingKey`) de la demande MONTRÉE — une autre n'est jamais signée ni refusée à sa place. */
+  approveTx: (unlock: Unlock, expected?: string) => Promise<string>;
+  rejectTx: (expected?: string) => Promise<void>;
+  approveSignData: (unlock: Unlock, expected?: string) => Promise<void>;
+  rejectSignData: (expected?: string) => Promise<void>;
   disconnect: (clientId: string) => Promise<void>;
   /** Appel du pont JS d'une page du navigateur intégré. */
   jsCall: (host: string, call: TcJsCall) => Promise<void>;
@@ -153,6 +154,26 @@ async function fetchManifest(url: string): Promise<DappManifest | null> {
     clearTimeout(timer);
   }
 }
+
+/**
+ * Identité STABLE d'une demande : l'objet est remplacé quand son émulation
+ * arrive, et sa position change quand la file bouge (déconnexion, autre dApp).
+ * Retirer « la première » faisait sauter la demande d'une AUTRE dApp, restée
+ * sans réponse.
+ */
+export function pendingKey(p: TcPending): string {
+  if (p.kind === 'connect') return `connect:${p.js ? `${p.js.host}:${p.js.callId}` : p.link.clientId}`;
+  return `${p.kind}:${p.session.clientId}:${p.requestId}`;
+}
+const without = (queue: TcPending[], p: TcPending) => queue.filter((x) => pendingKey(x) !== pendingKey(p));
+const stillQueued = (queue: TcPending[], p: TcPending) => queue.some((x) => pendingKey(x) === pendingKey(p));
+/** La demande visée : celle dont l'identité est attendue (où qu'elle soit), sinon la tête. */
+const target = (queue: TcPending[], expected?: string) => (expected ? queue.find((x) => pendingKey(x) === expected) : queue[0]);
+/** Compte ACTIF, cherché par son index HD (et non par sa position dans la liste). */
+const activeStored = () => {
+  const w = useWallet.getState();
+  return w.accounts.find((a) => a.index === w.activeAccountIndex);
+};
 
 export const useTonConnect = create<TcState>((set, get) => {
   /** Une connexion par pont, pour toutes ses sessions. */
@@ -313,7 +334,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       if (p?.kind !== 'connect') return;
       const w = useWallet.getState();
       const chain = tonChain();
-      const stored = w.accounts[w.activeAccountIndex];
+      const stored = activeStored();
       const address = addressForChain(stored, chain);
       if (!address || !stored?.tonPublicKey) throw new Error('tcNoTonAccount');
       const keyPair = newSessionKeyPair();
@@ -344,7 +365,7 @@ export const useTonConnect = create<TcState>((set, get) => {
         connectedAt: Date.now(),
       };
       const sessions = [...get().sessions.filter((s) => s.clientId !== session.clientId), session];
-      set({ sessions, queue: get().queue.slice(1) });
+      set({ sessions, queue: without(get().queue, p) });
       await persist(sessions);
       relisten();
     },
@@ -352,7 +373,7 @@ export const useTonConnect = create<TcState>((set, get) => {
     rejectConnect: async () => {
       const p = get().queue[0];
       if (p?.kind !== 'connect') return;
-      set({ queue: get().queue.slice(1) });
+      set({ queue: without(get().queue, p) });
       const event = { event: 'connect_error', id: await nextEventId(), payload: { code: TC_ERROR.USER_REJECTS, message: 'User declined the connection' } };
       if (p.js) {
         jsResolve(p.js.host, p.js.callId, event);
@@ -362,8 +383,8 @@ export const useTonConnect = create<TcState>((set, get) => {
       await sendTo(p.link.bridge, newSessionKeyPair(), p.link.clientId, event).catch(() => {});
     },
 
-    approveTx: async (unlock) => {
-      const p = get().queue[0];
+    approveTx: async (unlock, expected) => {
+      const p = target(get().queue, expected);
       console.log('[KALYX-TC] approveTx:start', { pending: p?.kind ?? null, emulation: p?.kind === 'tx' ? (p.draft?.emulation ? 'ok' : p.error ? `erreur: ${p.error}` : 'aucune') : null });
       if (p?.kind !== 'tx') throw new Error('tcNothingPending');
       await (await import('../whitelistStore')).assertDappAllowed(); // liste blanche en vigueur : pas de transaction de dApp
@@ -372,7 +393,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       if (w.activeWalletId !== session.walletId) throw new Error('tcWrongWallet');
       // Le compte ACTIF doit être celui dont l'adresse a été partagée (le principal, seul à avoir TON).
       const chain = listChains({ includeTestnets: true }).find((c) => c.id === session.chainId);
-      if (!chain || addressForChain(w.accounts[w.activeAccountIndex], chain) !== session.address) throw new Error('tcWrongAccount');
+      if (!chain || addressForChain(activeStored(), chain) !== session.address) throw new Error('tcWrongAccount');
       /*
        * Jamais à l'aveugle : sans émulation MONTRÉE, seuls les envois simples
        * de TON (ce que l'écran affiche en entier) sont signables. Un transfert
@@ -385,28 +406,30 @@ export const useTonConnect = create<TcState>((set, get) => {
       // État relu au moment de signer : le seqno a pu bouger depuis l'affichage.
       const draft = await adapter.prepareDappTransfer(session.address, p.tx);
       const signed = await withTonSigner(session.chainId, unlock, (signer) => adapter.signDappTransfer(draft, signer));
+      // Demande retirée pendant la signature (la dApp s'est déconnectée) : rien n'est diffusé.
+      if (!stillQueued(get().queue, p)) throw new Error('tcNothingPending');
       await adapter.broadcastDapp(signed);
-      set({ queue: get().queue.slice(1) });
+      set({ queue: without(get().queue, p) });
       await replyTx(p, { result: signed.boc, id: p.requestId }).catch(() => {});
       return signed.txid;
     },
 
-    rejectTx: async () => {
-      const p = get().queue[0];
+    rejectTx: async (expected) => {
+      const p = target(get().queue, expected);
       if (p?.kind !== 'tx') return;
-      set({ queue: get().queue.slice(1) });
+      set({ queue: without(get().queue, p) });
       await replyTx(p, { error: { code: TC_ERROR.USER_REJECTS, message: 'User declined the transaction' }, id: p.requestId }).catch(() => {});
     },
 
-    approveSignData: async (unlock) => {
+    approveSignData: async (unlock, expected) => {
       await (await import('../whitelistStore')).assertDappAllowed(); // liste blanche : aucune signature de dApp
-      const p = get().queue[0];
+      const p = target(get().queue, expected);
       if (p?.kind !== 'signData') throw new Error('tcNothingPending');
       const { session, payload } = p;
       const w = useWallet.getState();
       if (w.activeWalletId !== session.walletId) throw new Error('tcWrongWallet');
       const chain = listChains({ includeTestnets: true }).find((c) => c.id === session.chainId);
-      if (!chain || addressForChain(w.accounts[w.activeAccountIndex], chain) !== session.address) throw new Error('tcWrongAccount');
+      if (!chain || addressForChain(activeStored(), chain) !== session.address) throw new Error('tcWrongAccount');
       /*
        * Règles de la spécification, appliquées AVANT la clé : un réseau
        * différent de celui du portefeuille, ou une adresse de signature
@@ -427,15 +450,17 @@ export const useTonConnect = create<TcState>((set, get) => {
       const timestamp = Math.floor(Date.now() / 1000);
       const digest = signDataDigest(payload, me, domain, timestamp);
       const signature = await withTonSigner(session.chainId, unlock, async (signer) => base64.encode(ed25519.sign(digest, signer.secretKey.subarray(0, 32))));
-      set({ queue: get().queue.slice(1) });
+      // Demande retirée pendant la saisie du code (dApp déconnectée) : rien n'est envoyé.
+      if (!stillQueued(get().queue, p)) throw new Error('tcNothingPending');
+      set({ queue: without(get().queue, p) });
       console.log('[KALYX-TC] signData:signé', { type: payload.type, domain });
       await replyTx(p, { result: { signature, address: me.toRawString(), timestamp, domain, payload }, id: p.requestId }).catch(() => {});
     },
 
-    rejectSignData: async () => {
-      const p = get().queue[0];
+    rejectSignData: async (expected) => {
+      const p = target(get().queue, expected);
       if (p?.kind !== 'signData') return;
-      set({ queue: get().queue.slice(1) });
+      set({ queue: without(get().queue, p) });
       await replyTx(p, { error: { code: TC_ERROR.USER_REJECTS, message: 'User declined the request' }, id: p.requestId }).catch(() => {});
     },
 

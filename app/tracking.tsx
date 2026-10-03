@@ -16,6 +16,7 @@
  * ou annuler en attente, « Terminé » une fois le sort fixé.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIsWatchOnly } from '../ui/WatchOnlyGate';
 import { View, ScrollView, Linking, ActivityIndicator } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -231,8 +232,10 @@ export default function TrackingScreen() {
   const done = () => (router.canGoBack() ? router.back() : router.replace('/home'));
 
   /* ── Accélérer / annuler (EVM) ─────────────────────────────────────────── */
+  const watchOnly = useIsWatchOnly();
   const canReplace = (() => {
-    if (!chain) return false;
+    // Adresse suivie : aucune clé pour accélérer ou annuler — l'action finirait en refus après le code.
+    if (!chain || watchOnly) return false;
     const a = findAdapterV2(chain.id);
     return !!a?.capabilities.accelerate && !!a?.capabilities.cancel;
   })();
@@ -272,11 +275,22 @@ export default function TrackingScreen() {
         setReplacementSheetVisible(false);
         return;
       }
+      // Déjà confirmée : plus rien à remplacer — on le dit au lieu d'un échec « nonce too low ».
+      if (orig.mined) {
+        toast.info(t('errTxAlreadyConfirmed'));
+        setReplacementSheetVisible(false);
+        return;
+      }
       const feeData = await adapter.getFeeData().catch(() => null);
-      const gasLimit = action === 'cancel' ? 21000n : orig.gasLimit;
+      // Annulation : limite ESTIMÉE (rollups : 21 000 refusés), 21 000 en plancher.
+      let gasLimit = orig.gasLimit;
+      if (action === 'cancel') {
+        const est = await adapter.estimateGasFor({ from: walletAddress, to: walletAddress, value: 0n }).catch(() => 0n);
+        gasLimit = est > 21000n ? est : 21000n;
+      }
       const gas = calculateReplacementGas(orig, { maxFeePerGas: feeData?.maxFeePerGas, maxPriorityFeePerGas: feeData?.maxPriorityFeePerGas, gasPrice: feeData?.gasPrice }, gasLimit);
       setReplacementGas(gas);
-      setPreparedTx(action === 'speedUp' ? buildSpeedUpTx(orig, gas) : buildCancelTx(orig, walletAddress, gas));
+      setPreparedTx(action === 'speedUp' ? buildSpeedUpTx(orig, gas) : buildCancelTx(orig, walletAddress, gas, gasLimit));
     } catch (err) {
       console.warn('Error preparing replacement', err);
       toast.error(t('replacementError'));

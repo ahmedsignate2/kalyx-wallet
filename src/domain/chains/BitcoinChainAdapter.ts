@@ -347,7 +347,7 @@ export class BitcoinChainAdapter implements ChainAdapter {
    */
   async bumpBitcoinFee(
     from: string,
-    previous: { to: string; target: bigint; feeRate: number; inputs: Utxo[] },
+    previous: { to: string; target: bigint; feeRate: number; inputs: Utxo[]; fee?: bigint },
     signer: { privateKey: Uint8Array; publicKey: Uint8Array },
     opts?: { speed?: FeeSpeed },
   ): Promise<BtcSendResult> {
@@ -368,8 +368,16 @@ export class BitcoinChainAdapter implements ChainAdapter {
     }
 
     const total = previous.inputs.reduce((sum, u) => sum + BigInt(u.value), 0n);
+    // BIP-125 : au moins les frais de l'originale + 1 sat/vB de la nouvelle taille (voir BitcoinAdapterV2).
+    // Frais d'origine inconnus : estimés au taux d'origine sur la taille d'origine (jamais 0, qui annulerait la règle).
+    const prevFee = previous.fee ?? BigInt(Math.ceil(previous.feeRate * estimateVsize(previous.inputs.length, [destKind, CHANGE_KIND])));
+    const minFee = (vs: number) => {
+      const byRate = BigInt(Math.ceil(vs * feeRate));
+      const floor = prevFee + BigInt(Math.ceil(vs));
+      return byRate > floor ? byRate : floor;
+    };
     const vsize = estimateVsize(previous.inputs.length, [destKind, CHANGE_KIND]);
-    const fee = BigInt(Math.ceil(vsize * feeRate));
+    const fee = minFee(vsize);
     if (total < previous.target + fee) {
       throw new WalletError(
         'INSUFFICIENT_FUNDS',
@@ -383,7 +391,7 @@ export class BitcoinChainAdapter implements ChainAdapter {
     } else {
       // Monnaie devenue poussière : elle part en frais, comme à l'envoi initial.
       const vsizeNoChange = estimateVsize(previous.inputs.length, [destKind]);
-      const feeNoChange = BigInt(Math.ceil(vsizeNoChange * feeRate));
+      const feeNoChange = minFee(vsizeNoChange); // sans monnaie, les frais d'origine ne suffisent plus
       if (total < previous.target + feeNoChange) {
         throw new WalletError(
           'INSUFFICIENT_FUNDS',

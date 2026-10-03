@@ -33,6 +33,9 @@ interface AiChatHistoryState {
   deleteSession: (id: string) => void;
 }
 
+/** Sortie de la session leurre : la prochaine relecture ne garde rien de la mémoire. */
+let dropChatMemoryOnHydrate = false;
+
 export const useAiChatHistoryStore = create<AiChatHistoryState>()(
   persist(
     (set, get) => ({
@@ -102,11 +105,23 @@ export const useAiChatHistoryStore = create<AiChatHistoryState>()(
         setItem: (k: string, v: string) => (isDecoySession() ? Promise.resolve() : AsyncStorage.setItem(k, v)),
         removeItem: (k: string) => (isDecoySession() ? Promise.resolve() : AsyncStorage.removeItem(k)),
       })),
+      merge: (persisted, current) => {
+        const stored = persisted as Partial<Pick<AiChatHistoryState, 'sessions' | 'activeSessionId'>> | undefined;
+        const drop = dropChatMemoryOnHydrate;
+        dropChatMemoryOnHydrate = false;
+        if (stored) return { ...current, ...stored };
+        return drop ? { ...current, sessions: [], activeSessionId: null } : current;
+      },
     }
   )
 );
 
 onDecoyChange((on) => {
-  if (on) useAiChatHistoryStore.setState({ sessions: [], activeSessionId: null });
-  else void useAiChatHistoryStore.persist.rehydrate();
+  if (on) {
+    useAiChatHistoryStore.setState({ sessions: [], activeSessionId: null }); // écriture neutralisée en leurre
+    return;
+  }
+  // Sortie : la relecture remplace la mémoire (discussions du leurre comprises), sans rien écrire.
+  dropChatMemoryOnHydrate = true;
+  void useAiChatHistoryStore.persist.rehydrate();
 });

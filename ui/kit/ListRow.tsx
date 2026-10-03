@@ -5,6 +5,7 @@
  * la couleur n'est jamais la seule info, §2.4).
  */
 import React from 'react';
+import { decimalSeparator } from '../../src';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { Pressable as RNPressable } from 'react-native';
 import { Text } from './Text';
@@ -74,7 +75,7 @@ export function TokenRow({
           <Text variant="body" tabular numberOfLines={1}>{hidden ? '••••' : fiat ?? '—'}</Text>
           {showChange && !hidden ? (
             <Text variant="caption" tone={up ? 'up' : 'down'} tabular>
-              {up ? '↑ +' : '↓ −'}{Math.abs(changePct).toFixed(1).replace('.', ',')} %
+              {up ? '↑ +' : '↓ −'}{Math.abs(changePct).toFixed(1).replace('.', decimalSeparator())} %
             </Text>
           ) : null}
         </View>

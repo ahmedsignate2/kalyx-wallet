@@ -208,8 +208,8 @@ function ReceiveInner() {
         </View>
 
         <View style={{ flexDirection: 'row', gap: space[2] }}>
-          <Button label={t("actionCopy")} icon="copy" variant="primary" style={{ flex: 1 }} onPress={copy} />
-          <Button label={t("share")} icon="share" variant="secondary" style={{ flex: 1 }} onPress={share} />
+          <Button label={t("actionCopy")} icon="copy" variant="primary" style={{ flex: 1 }} onPress={copy} disabled={!address} />
+          <Button label={t("share")} icon="share" variant="secondary" style={{ flex: 1 }} onPress={share} disabled={!address} />
         </View>
       </ScrollView>
       <SafeModal

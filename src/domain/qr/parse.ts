@@ -100,6 +100,14 @@ export type QrResult =
   | { kind: 'url'; url: string }
   | { kind: 'invalid'; raw: string };
 
+function safeDecode(x: string): string {
+  try {
+    return decodeURIComponent(x);
+  } catch {
+    return x;
+  }
+}
+
 /** Découpe la query string `a=1&b=2` d'une URI en dictionnaire décodé. */
 function parseQuery(q: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -107,8 +115,9 @@ function parseQuery(q: string): Record<string, string> {
   for (const pair of q.split('&')) {
     const eq = pair.indexOf('=');
     if (eq < 0) continue;
-    const k = decodeURIComponent(pair.slice(0, eq));
-    const v = decodeURIComponent(pair.slice(eq + 1));
+    // Un « % » mal formé (« Remise 100% ») ne fait pas planter la lecture : la valeur reste telle quelle.
+    const k = safeDecode(pair.slice(0, eq));
+    const v = safeDecode(pair.slice(eq + 1));
     if (k) out[k] = v;
   }
   return out;
@@ -230,6 +239,12 @@ function parseEthereumUri(body: string): QrResult {
     };
   }
   if (!isValidEvmAddress(addrRaw)) return { kind: 'invalid', raw: `ethereum:${body}` };
+  /*
+   * Une FONCTION autre qu'un transfert valide (`/approve`, `/transfer` sans
+   * destinataire) n'est pas un paiement : la traiter comme un envoi natif
+   * enverrait de l'ETH au CONTRAT du jeton. Refusée.
+   */
+  if (fn) return { kind: 'invalid', raw: `ethereum:${body}` };
 
   // value = wei (EIP-681). Conversion en pièce native décimale.
   const wei = parseEip681Number(query.value);
