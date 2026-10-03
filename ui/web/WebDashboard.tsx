@@ -14,6 +14,7 @@ import { InteractiveChart } from '../InteractiveChart';
 import { useTelegramBiometric } from './telegramBiometric';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAsync } from './useAsync';
+import { FlowEmbedContext } from './flowEmbed';
 import { AgentPanel, AgentSetup, PROVIDER_LABELS } from './AgentPanel';
 import { MarketPanel } from './MarketPanel';
 import { WEB_FONTS, useWebFonts, useWebPalette, webLocale } from './webTheme';
@@ -578,8 +579,9 @@ function FlowHost({ narrow, onDismiss, children }: { narrow: boolean; onDismiss:
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, alignItems: 'center', justifyContent: 'center', padding: spacing(3) }}>
       <Pressable onPress={onDismiss} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' }} />
-      <View style={{ width: '100%', maxWidth: 480, flex: 1, maxHeight: 860, borderRadius: radii.xl, overflow: 'hidden' }}>
-        {children}
+      {/* Panneau à la hauteur de son contenu (plafonné) : plus de grand vide sous une courte liste. */}
+      <View style={{ width: '100%', maxWidth: 520, maxHeight: '92%', borderRadius: radii.xl, overflow: 'hidden' }}>
+        <FlowEmbedContext.Provider value>{children}</FlowEmbedContext.Provider>
       </View>
     </View>
   );
@@ -639,7 +641,17 @@ function Dashboard() {
   // 3 actions → onglets Tokens / NFT / Activité), identique mobile et desktop.
   const homeFlow = (
     <>
-      <MobileHero data={heroData} chain={chain} address={address} large={!narrow} />
+      {narrow ? (
+        <MobileHero data={heroData} chain={chain} address={address} large={false} />
+      ) : (
+        /* Ordinateur : la répartition par réseau occupe la place à droite du solde (vide jusqu'ici). */
+        <View style={{ flexDirection: 'row', gap: 32, alignItems: 'flex-start' }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <MobileHero data={heroData} chain={chain} address={address} large />
+          </View>
+          {width >= 1180 ? <AllocationPanel worth={worth} /> : null}
+        </View>
+      )}
       <MobileTrend data={heroData} chain={chain} />
       {actionRow}
       <MobileAssets data={heroData} chain={chain} address={address} onReceive={() => openSheet('receive')} />
@@ -690,6 +702,8 @@ function Dashboard() {
   // le mobile : pas de cartes empilées, hero sans carte, onglets soulignés.
   const rail = width < 1100;
   const showMarketRail = width >= 1320 && tab === 'home';
+  // Réglages sur deux colonnes dès qu'il y a la place (connexion à gauche, préférences à droite).
+  const twoColSettings = width >= 1280;
   const desktopContent = (
     <View style={{ flex: 1, minWidth: 0 }}>
       <View style={{ flex: 1, paddingHorizontal: 36, paddingTop: 24, gap: 24 }}>
@@ -701,8 +715,19 @@ function Dashboard() {
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             <CrossFade id={tab} style={{ flexDirection: 'row', gap: 40, alignItems: 'flex-start' }}>
-              <View style={{ flex: 1, minWidth: 0, maxWidth: tab === 'home' ? 760 : tab === 'settings' ? 680 : 960, gap: tab === 'home' ? 28 : 24 }}>
-                {tab === 'home' ? homeFlow : tab === 'market' ? <MarketPanel /> : settingsFlow}
+              {/*
+                Largeurs d'ORDINATEUR : la colonne était bridée (760 / 680 / 960 px)
+                quelle que soit la fenêtre — un tiers de l'écran restait vide sur
+                un 1440 px, la moitié sur un 1920 px. Elle suit maintenant la
+                place disponible, avec un plafond de lisibilité.
+              */}
+              <View style={{ flex: 1, minWidth: 0, maxWidth: tab === 'home' ? (showMarketRail ? 1100 : 980) : 1240, gap: tab === 'home' ? 28 : 24 }}>
+                {tab === 'home' ? homeFlow : tab === 'market' ? <MarketPanel wide={width >= 1000} /> : twoColSettings ? (
+                  <View style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-start' }}>
+                    <View style={{ flex: 1, minWidth: 0, gap: 24 }}><SecurityPanel /></View>
+                    <View style={{ flex: 1.3, minWidth: 0, gap: 24 }}><SettingsPanel /></View>
+                  </View>
+                ) : settingsFlow}
               </View>
               {showMarketRail ? (
                 <View style={{ width: 380, gap: 14 }}>
@@ -765,6 +790,43 @@ function Dashboard() {
 }
 
 /* --------------------------------------------------------------------- Panels */
+
+/** Répartition de la valeur par réseau (ordinateur) : les 5 premiers, en part du total. */
+function AllocationPanel({ worth }: { worth: { data: NetWorth | null; loading: boolean } }) {
+  const t = useT();
+  const tw = useWebT();
+  const P = useWebPalette();
+  const fiat = useSettings((s) => s.fiat);
+  const total = worth.data?.total ?? 0;
+  const slices = (worth.data?.slices ?? []).filter((x) => x.value > 0).sort((a, b) => b.value - a.value).slice(0, 5);
+  return (
+    <View style={{ width: 300, gap: 12, paddingTop: 6 }}>
+      <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted, letterSpacing: 1, textTransform: 'uppercase' }}>{t('allocation')}</Text>
+      {worth.loading && !worth.data ? (
+        <SkeletonRows count={3} flat />
+      ) : !slices.length || total <= 0 ? (
+        <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.muted }}>{tw('allocationEmpty')}</Text>
+      ) : (
+        slices.map((sl) => {
+          const pct = (sl.value / total) * 100;
+          return (
+            <View key={sl.chain.id} style={{ gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ChainAvatar chain={sl.chain} size={18} />
+                <Text style={{ flex: 1, fontFamily: WEB_FONTS.body, fontSize: 13, color: P.text }} numberOfLines={1}>{sl.chain.name}</Text>
+                <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted, fontVariant: ['tabular-nums'] }}>{formatPercent(pct, 1)}</Text>
+                <Text style={{ width: 96, textAlign: 'right', fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 13, color: P.text, fontVariant: ['tabular-nums'] }} numberOfLines={1}>{formatFiatAmount(sl.value, fiat)}</Text>
+              </View>
+              <View style={{ height: 4, borderRadius: 2, backgroundColor: P.divider, overflow: 'hidden' }}>
+                <View style={{ width: `${Math.max(2, Math.min(100, pct))}%`, height: 4, borderRadius: 2, backgroundColor: P.accent }} />
+              </View>
+            </View>
+          );
+        })
+      )}
+    </View>
+  );
+}
 
 /** Style « verre » (fond très légèrement teinté + bordure fine) plutôt qu'un
  *  aplat gris à bordure épaisse — donne de la profondeur par calques au lieu
