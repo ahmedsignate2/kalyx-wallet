@@ -24,6 +24,7 @@
  *     sans le relire. L'utilisateur saisit lui-même la destination.
  */
 import { APP_ROUTES_MAP } from './aiAppMap';
+import { dappHost } from '../src/domain/web/dappHost';
 
 /** Écrans qu'une action ne doit JAMAIS ouvrir, quoi que demande le modèle. */
 const FORBIDDEN_ROUTES = [
@@ -95,8 +96,19 @@ export function parseProposedActions(reply: string): { text: string; actions: Pr
     // Navigateur : https uniquement (ni javascript:, ni http:, ni schéma d'app).
     if (params.url !== undefined && !/^https:\/\/[^\s]+$/i.test(params.url)) delete params.url;
 
+    let label = typeof raw.label === 'string' && raw.label.trim() ? raw.label.trim().slice(0, 60) : config.description;
+    /*
+     * Le libellé vient du modèle — donc, par injection, d'une page ou d'un texte
+     * tiers (« Ouvrir Uniswap » vers un site d'hameçonnage). Le VRAI domaine
+     * est accolé, calculé ici : c'est lui que l'utilisateur lit avant d'appuyer.
+     */
+    if (params.url) {
+      const host = dappHost(params.url);
+      if (!host) delete params.url;
+      else label = `${label} · ${host}`;
+    }
     actions.push({
-      label: typeof raw.label === 'string' && raw.label.trim() ? raw.label.trim().slice(0, 60) : config.description,
+      label,
       route: config.route,
       params,
     });

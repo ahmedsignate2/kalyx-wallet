@@ -27,6 +27,7 @@ import { utf8ToBytes } from '@noble/hashes/utils';
 import {
   payAccountsFor,
   checkPayAction,
+  checkPayPayload,
   decideNoOption,
   needsCollect,
   preselectOption,
@@ -715,6 +716,9 @@ async function signPayAction(action: PayAction, unlock: Unlock): Promise<string>
     throw new Error('Paramètres de paiement illisibles');
   }
   const args = Array.isArray(parsed) ? parsed : [parsed];
+  // Le CONTENU aussi : un paiement n'a besoin ni d'autorisation illimitée à un tiers, ni d'ordre de place de marché.
+  const content = checkPayPayload(method, args);
+  if (!content.ok) throw new PayActionRefused(content.reason, content.detail);
   const w = useWallet.getState();
 
   switch (method as PayMethod) {

@@ -144,7 +144,9 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
 
   useEffect(() => { if (toChain !== activeChain) fetchTokens(toChain); }, [toChain, activeChain, fetchTokens]);
 
-  const reset = () => { setQuote(null); setError(null); setStale(false); };
+  /** Génération de devis : tout changement (montant, jetons, slippage) rend caduc un devis encore en route. */
+  const quoteGen = useRef(0);
+  const reset = () => { quoteGen.current += 1; setQuote(null); setError(null); setStale(false); };
 
   const fromTok = fromTokens[from] ?? fromTokens[0];
   const toTokens = tokensByChain[toChain] ?? [];
@@ -236,7 +238,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       raw = parseAmount(amount, fromTok.decimals).raw;
     } catch (e) {
       stopCountdown(); reset();
-      setError(isWalletError(e) ? e.message : t('amountInvalid'));
+      setError(isWalletError(e) ? webErrorText(e, tw, t as never) : t('amountInvalid'));
       return;
     }
     if (!opts.auto) {
@@ -245,6 +247,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       if (pre) { stopCountdown(); setError(pre); return; }
       setLoading(true);
     }
+    const gen = quoteGen.current;
     try {
       const targetAddress = addressForChain(accounts, toChain) || address;
       const q = await getBestQuote({
@@ -253,10 +256,13 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
         fromTokenInfo: { symbol: fromTok.symbol, decimals: fromTok.decimals, logo: fromTok.logo },
         toTokenInfo: { symbol: toTok.symbol, decimals: toTok.decimals, logo: toTok.logo },
       });
+      // Paramètres changés pendant la requête : ce devis ne correspond plus à l'écran.
+      if (gen !== quoteGen.current) return;
       if (!q) { setError(t('noRoute')); stopCountdown(); return; }
       setError(null); setStale(false); setQuote(q);
       if (!countdownInterval.current) startCountdown();
     } catch (e) {
+      if (gen !== quoteGen.current) return;
       if (opts.auto) setStale(true);
       else { setError(webErrorText(e, tw, t as never)); stopCountdown(); }
     } finally {
@@ -275,6 +281,11 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
         const allowance = await adapter.getAllowance(q.fromToken.address, address, q.approvalAddress).catch(() => 0n);
         if (allowance < q.fromAmount) {
           setStep(t('stApproving'));
+          // USDT (Ethereum) refuse `approve(montant)` sur une autorisation non nulle : remise à zéro d'abord, comme l'app.
+          if (allowance > 0n) {
+            const resetHash = await request('eth_sendTransaction', [{ from: address, to: q.fromToken.address, value: '0x0', data: encodeErc20Approve(q.approvalAddress, 0n) }]);
+            await adapter.waitForTx(resetHash);
+          }
           const approveHash = await request('eth_sendTransaction', [{ from: address, to: q.fromToken.address, value: '0x0', data: encodeErc20Approve(q.approvalAddress, q.fromAmount) }]);
           setStep(t('stApprovalWait'));
           await adapter.waitForTx(approveHash);

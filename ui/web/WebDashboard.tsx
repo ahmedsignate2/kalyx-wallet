@@ -963,7 +963,9 @@ function MobileHero({ data, chain, address, large }: { data: HeroData; chain: Ch
   // un tap sur l'œil le révèle à nouveau.
   const idle = useIdle(120_000, true);
   const tabHidden = useTabHidden();
-  useEffect(() => { if (idle || tabHidden) setHidden(true); }, [idle, tabHidden]);
+  // Telegram avec biométrie : c'est SON verrou qui masque — sans ce `lock`, l'inactivité n'y masquait jamais le solde.
+  const tgLock = tg.lock;
+  useEffect(() => { if (idle || tabHidden) { setHidden(true); tgLock(); } }, [idle, tabHidden, tgLock]);
   const isHidden = tg.available ? !tg.unlocked : hidden;
   const onToggleHidden = () => {
     if (tg.available) {
