@@ -246,7 +246,7 @@ function broadcastChainChanged(wallet: IWeb3Wallet, kalyxId: string): void {
   if (chainBroadcastTimer) clearTimeout(chainBroadcastTimer);
   chainBroadcastTimer = setTimeout(() => {
     chainBroadcastTimer = null;
-    const chain = evmChains().find((c) => c.kalyxId === kalyxId);
+    const chain = evmChains(true).find((c) => c.kalyxId === kalyxId);
     if (!chain) return;
     const sessions = Object.values(wallet.getActiveSessions?.() ?? {}) as any[];
     const now = Math.floor(Date.now() / 1000);
@@ -262,14 +262,31 @@ function broadcastChainChanged(wallet: IWeb3Wallet, kalyxId: string): void {
   }, 800);
 }
 
-function evmChains(): EvmChain[] {
-  return listChains()
+function evmChains(includeTestnets = false): EvmChain[] {
+  return listChains({ includeTestnets })
     .filter((c) => c.family === 'evm' && c.evmChainId)
     .map((c) => ({ caip: `eip155:${c.evmChainId}`, kalyxId: c.id, evmChainId: c.evmChainId! }));
 }
 
 // CAIP-2 des réseaux non-EVM (WalletConnect). Solana mainnet + Bitcoin mainnet.
 export const SOLANA_CAIP = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+/** Solana Devnet : partagé seulement quand les réseaux de test sont affichés. */
+export const SOLANA_DEVNET_CAIP = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1';
+
+/**
+ * Le réseau de la demande fait-il partie de ceux que l'utilisateur a accordés à
+ * cette session ? Un site ne peut pas viser un réseau qu'on ne lui a pas
+ * partagé (un réseau de test, notamment, n'est partagé que s'il est affiché).
+ */
+function sessionHasChain(wallet: any, topic: string, caip: unknown): boolean {
+  if (typeof caip !== 'string') return false;
+  const ns = caip.split(':')[0];
+  const session = wallet?.getActiveSessions?.()[topic];
+  const n = session?.namespaces?.[ns];
+  if (!n) return false;
+  const chains: string[] = n.chains ?? ((n.accounts ?? []) as string[]).map((a) => String(a).split(':').slice(0, 2).join(':'));
+  return chains.includes(caip);
+}
 export const BTC_CAIP = 'bip122:000000000019d6689c085ae165831e93';
 
 
@@ -444,7 +461,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       if (method === 'wallet_switchEthereumChain' || method === 'wallet_addEthereumChain') {
         const raw = request?.params?.request?.params?.[0]?.chainId;
         const wanted = typeof raw === 'string' ? parseInt(raw, 16) : Number(raw);
-        const target = evmChains().find((c) => c.evmChainId === wanted);
+        const target = evmChains(true).find((c) => c.evmChainId === wanted);
         const session = sessions[request.topic];
         const allowed = target && (session?.namespaces?.eip155?.chains ?? []).includes(target.caip);
         if (target && allowed) {
@@ -558,7 +575,10 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     // Biométrie ou PIN ; lève si refusée → l'UI affiche l'erreur, aucune session.
     // Lecture seule : l'adresse suivie n'est PAS celle de l'utilisateur, on ne la présente pas comme telle.
     await wstate.verifyConnect(unlock);
-    const chains = evmChains();
+    // Réseaux de test : partagés seulement si l'utilisateur les affiche dans l'app.
+    const testnets = useSettings.getState().showTestnets === true;
+    const chains = evmChains(testnets);
+    const solCaips = testnets ? [SOLANA_CAIP, SOLANA_DEVNET_CAIP] : [SOLANA_CAIP];
     const evmAddress = acct.evmAddress;
     const supportedNamespaces: Record<string, unknown> = {};
     if (evmAddress) {
@@ -572,10 +592,10 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     // Solana (namespace WalletConnect « solana »).
     if (acct.solAddress) {
       supportedNamespaces.solana = {
-        chains: [SOLANA_CAIP],
+        chains: solCaips,
         methods: solMethods,
         events: ['accountsChanged'],
-        accounts: [`${SOLANA_CAIP}:${acct.solAddress}`],
+        accounts: solCaips.map((c) => `${c}:${acct.solAddress}`),
       };
     }
     // Bitcoin (namespace « bip122 »).
@@ -637,7 +657,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     const p = params.request.params;
     
     
-    const chain = evmChains().find((c) => c.caip === params.chainId);
+    const chain = evmChains(true).find((c) => c.caip === params.chainId);
     const w = useWallet.getState();
 
     try {
@@ -649,6 +669,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
        */
       if (!/getAccounts|getAccountAddresses|requestAccounts/i.test(method)) await (await import('./whitelistStore')).assertDappAllowed();
       assertSessionAccount(wallet, topic, params.chainId);
+      if (!sessionHasChain(wallet, topic, params.chainId)) throw new Error('Réseau de la requête non supporté');
       // Expirée (le tableau de bord a déjà rendu la main à l'utilisateur) : jamais signée en retard.
       const expiry = Number(params.request?.expiryTimestamp);
       if (Number.isFinite(expiry) && expiry > 0 && Date.now() / 1000 > expiry) {
@@ -699,7 +720,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         const txStr = pSafe.transaction ?? pSafe[0]?.transaction ?? (typeof pSafe === 'string' ? pSafe : undefined);
         if (typeof txStr !== 'string') throw new Error('Expected String');
         const signed = await w.signSolanaTransaction(unlock, txStr);
-        const sig = await submitSolanaSigned(ensureBase64(signed));
+        const sig = await submitSolanaSigned(ensureBase64(signed), undefined, { chainId: params.chainId === SOLANA_DEVNET_CAIP ? 'solana-devnet' : 'solana' });
         result = { signature: sig };
       } else if (method === 'solana_signAllTransactions') {
         const pSafe: any = p || {};

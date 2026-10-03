@@ -24,7 +24,7 @@ import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon, type IconName } from './icon';
 import { fonts, radii, spacing, useTheme } from './theme';
 import { useTokenStore } from '../lib/tokenStore';
-import { assertSessionAccount, useWalletConnect } from '../lib/walletconnect';
+import { assertSessionAccount, useWalletConnect, SOLANA_DEVNET_CAIP } from '../lib/walletconnect';
 import { useLocked } from '../lib/lockState';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { accountDisplayName } from '../lib/walletNames';
@@ -182,7 +182,11 @@ export function WalletConnectHost() {
     if (!request) return null;
     const method: string = request.params?.request?.method ?? '';
     const p: any[] = request.params?.request?.params ?? []; // eslint-disable-line @typescript-eslint/no-explicit-any
-    const chain = listChains().find((c) => c.family === 'evm' && `eip155:${c.evmChainId}` === request.params?.chainId);
+    // Réseau de la demande, réseaux de test compris : la fiche dit « Sepolia » ou « Solana Devnet », jamais rien.
+    const caip: string = request.params?.chainId ?? '';
+    const chain = listChains({ includeTestnets: true }).find((c) =>
+      c.family === 'evm' ? `eip155:${c.evmChainId}` === caip : c.family === 'solana' && caip.startsWith('solana:') ? c.id === (caip === SOLANA_DEVNET_CAIP ? 'solana-devnet' : 'solana') : false,
+    );
     const peer = sessions.find((s) => s.topic === request.topic);
 
     let kind: 'siwe' | 'message' | 'typedData' | 'tx' | 'solanaTx' | 'btcAccounts' | 'btcTransfer' | 'btcPsbt' | 'other' = 'other';

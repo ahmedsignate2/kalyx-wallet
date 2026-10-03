@@ -10,6 +10,7 @@ import QRCode from 'react-native-qrcode-svg';
 import Svg, { Rect, Defs, LinearGradient as SvgGradient, RadialGradient, Stop } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
 import { KalyxLogo } from '../KalyxLogo';
+import { NovaSwitch } from '../nova';
 import { InteractiveChart } from '../InteractiveChart';
 import { useTelegramBiometric } from './telegramBiometric';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,12 +21,12 @@ import { MarketPanel } from './MarketPanel';
 import { WEB_FONTS, useWebFonts, useWebPalette, webLocale } from './webTheme';
 import { useWebT, type WebKey } from './webI18n';
 import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useTelegramClosingConfirmation, useIdle, useTabHidden, tgHaptic } from './platform';
-import { toRaw, encodeErc20Transfer } from './evmEncode';
-import { useTokenLogo } from './tokenLogos';
 import { FadeInUp, CrossFade, useCountUp, Pop, KalyxSpinner, KalyxSuccessPulse, reducedMotion } from './motion';
-import { Text as KText, Button, Sheet, Surface, ListRow, Divider, LogoImage } from '../kit';
+import { Text as KText, Button, Sheet, Surface, Divider, LogoImage } from '../kit';
 import { ReceiveScreen } from './ReceiveScreen';
 import { SendFlow } from './SendFlow';
+import { WebTokens } from './WebTokens';
+import { WebActivity } from './WebActivity';
 import { SwapScreen } from './SwapScreen';
 import { Sidebar, TopBar, SectionTitle } from './DesktopChrome';
 import { MobileHeader, NetworkPill, ActionRow, PeriodChips, SegmentTabs, MobileEmptyState, FloatingDock, DOCK_CLEARANCE } from './MobileChrome';
@@ -35,34 +36,26 @@ import { Icon, type IconName } from '../icon';
 import { fonts, radii, spacing, useTheme } from '../theme';
 import { useWebConnect, type WebConnectError } from '../../lib/webConnect';
 import { toast } from '../../lib/toast';
-import { useSettings, useT, useActivityT, fiatSymbol, FIATS } from '../../lib/settingsStore';
+import { useSettings, useT, fiatSymbol, FIATS } from '../../lib/settingsStore';
 import { useContacts } from '../../lib/contactsStore';
 import { useRecentRecipients } from '../../lib/recentRecipientsStore';
 import { LANGUAGES } from '../../lib/i18n';
 import {
   getAdapter,
   listChains,
-  getErc20Tokens,
   getNfts,
   getMarketChartPoints,
-  getTokenPrices,
-  getPrices,
-  formatTokenAmount,
-  formatAmount,
-  trimDecimalZeros,
   formatPercent,
   chainIconUrl,
-  humanizeTx,
-  type Erc20Token,
   type NftItem,
   type Balance,
-  type TxSummary,
   type ChainConfig,
   type ChainFamily,
   type ChartPoint,
-  type HumanTx,
 } from '../../src';
-import { webErrorText, webErrorKey } from './webErrors';
+import { webErrorKey } from './webErrors';
+import { usePortfolioStore, snapshotKey } from '../../lib/portfolio';
+import { addressForChain, chainOf, useWebPortfolioAccount } from './webAccounts';
 
 function short(a: string) {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
@@ -84,30 +77,6 @@ function formatFiatAmount(amount: number, fiat: string): string {
   }
 }
 
-/** Couleur déterministe (HSL) dérivée d'une chaîne — même adresse de contrat
- *  → toujours la même couleur, différente d'un token à l'autre (au lieu du
- *  même cercle gris vide pour tous les tokens sans logo). */
-function hashColor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return `hsl(${h % 360}, 55%, 45%)`;
-}
-
-/** Avatar de token sans logo officiel : 2 lettres sur fond coloré unique
- *  (dérivé de l'adresse du contrat) plutôt qu'un cercle gris vide anonyme. */
-function TokenAvatar({ uri: primary, label, seed, size = 32, chainId }: { uri?: string; label: string; seed: string; size?: number; chainId?: string }) {
-  const [failed, setFailed] = useState(false);
-  // Repli sur la liste curée LI.FI du réseau quand la source principale n'a pas de logo.
-  const uri = useTokenLogo(chainId ?? '', chainId ? seed : undefined, primary);
-  if (!uri || failed) {
-    return (
-      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: hashColor(seed), alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: size * 0.36, color: '#fff', fontFamily: fonts.bold }}>{(label || '?').slice(0, 2).toUpperCase()}</Text>
-      </View>
-    );
-  }
-  return <LogoImage uri={uri} size={size} onError={() => setFailed(true)} />;
-}
 
 /** Icône de réseau avec repli AUTO sur cercle lettré : chainIconUrl() renvoie
  *  volontairement `undefined` pour certains réseaux (doc : « → cercle lettré
@@ -146,7 +115,8 @@ function ago(ts: number, lang = 'fr'): string {
 
 /** Config d'une chaîne Kalyx par son id (repli Ethereum). */
 function chainById(id: string | null): ChainConfig {
-  const all = listChains();
+  // Réseaux de test compris : sinon « sepolia » retombait silencieusement sur Ethereum.
+  const all = listChains({ includeTestnets: true });
   return all.find((c) => c.id === id) ?? all.find((c) => c.id === 'ethereum')!;
 }
 
@@ -492,63 +462,52 @@ interface NetWorth {
   slices: ChainWorth[];
 }
 
-/** Agrège la valeur de TOUTES les chaînes connectées (une source unique pour le
- *  total, le donut de répartition et la watchlist). Prix natifs en un seul appel. */
+/**
+ * Valeur du portefeuille : LE MÊME portefeuille agrégé que l'app (lib/portfolio)
+ * — natifs, ERC-20, SPL, jettons, prix de secours DefiLlama, jetons non
+ * vérifiés exclus. Le tableau de bord recalculait tout seul, sans les jetons
+ * Solana ni le tri anti-spam : le total différait de celui du téléphone.
+ * Les réseaux de test n'y entrent jamais (ils se lisent à part).
+ */
 function useNetWorth(): { data: NetWorth | null; loading: boolean } {
   const accounts = useWebConnect((s) => s.accounts);
   const fiat = useSettings((s) => s.fiat);
   const rev = useWebConnect((s) => s.rev);
-  const key = accounts.map((a) => `${a.chainId}:${a.address}`).join(',');
-  return useAsync<NetWorth>(async () => {
-    if (!accounts.length) return { total: 0, change24h: 0, slices: [] };
-    const entries = accounts.map((a) => ({ acc: a, chain: chainById(a.chainId) }));
-    const ids = [...new Set(entries.map((e) => e.chain.coingeckoId).filter(Boolean))] as string[];
-    /*
-     * LES PRIX N'ATTENDENT PLUS, ET RIEN NE LES ATTEND.
-     *
-     * Ils étaient récupérés avec `await` AVANT la moindre lecture de solde : un
-     * CoinGecko lent ou limité en débit retardait tout l'écran, alors qu'un prix
-     * ne sert qu'à convertir un solde déjà connu. Même défaut, même correction que
-     * dans le magasin de portefeuille de l'app mobile.
-     */
-    const pricesP = getPrices(ids, fiat).catch(
-      () => ({}) as Record<string, { price: number; change24h: number }>,
-    );
-    const slices = await Promise.all(
-      entries.map(async ({ acc, chain }): Promise<ChainWorth> => {
-        let native = 0;
-        let change24h = 0;
-        let tokens = 0;
-        let price = 0;
-        try {
-          // Le solde part tout de suite ; les prix arrivent en parallèle.
-          const [bal, prices] = await Promise.all([getAdapter(chain.id).getBalance(acc.address), pricesP]);
-          const p = chain.coingeckoId ? prices[chain.coingeckoId] : undefined;
-          price = p?.price ?? 0;
-          native = (Number(bal.raw) / 10 ** bal.decimals) * price;
-          change24h = p?.change24h ?? 0;
-        } catch {
-          /* réseau indisponible : chaîne à 0 */
-        }
-        if (chain.family === 'evm' && chain.coingeckoPlatform) {
-          try {
-            const tks = await getErc20Tokens(chain, acc.address);
-            if (tks.length) {
-              const tp = await getTokenPrices(chain.coingeckoPlatform, tks.map((t) => t.contract), fiat);
-              tokens = tks.reduce((s, t) => s + (Number(t.raw) / 10 ** t.decimals) * (tp[t.contract.toLowerCase()] ?? 0), 0);
-            }
-          } catch {
-            /* pas de clé / indispo : tokens à 0 */
-          }
-        }
-        return { chain, address: acc.address, price, native, tokens, value: native + tokens, change24h };
-      }),
-    );
-    const total = slices.reduce((s, x) => s + x.value, 0);
-    const nativeSum = slices.reduce((s, x) => s + x.native, 0);
-    const change24h = nativeSum > 0 ? slices.reduce((s, x) => s + x.change24h * x.native, 0) / nativeSum : 0;
-    return { total, change24h, slices };
-  }, [key, fiat], [rev]);
+  const acct = useWebPortfolioAccount();
+  const holdings = usePortfolioStore((s) => s.holdings);
+  const total = usePortfolioStore((s) => s.total);
+  const pnlPct = usePortfolioStore((s) => s.pnl24hPct);
+  const at = usePortfolioStore((s) => s.at);
+  const loading = usePortfolioStore((s) => s.loading);
+  const pfKey = usePortfolioStore((s) => s.key);
+  const firstRev = useRef(rev);
+  useEffect(() => {
+    if (!acct) return;
+    const pf = usePortfolioStore.getState();
+    // Après une signature (rev change) : la fraîcheur ne compte plus, les soldes ont bougé.
+    pf.hydrate(acct, fiat).then(() => pf.refresh(acct, fiat, { force: rev !== firstRev.current }));
+  }, [acct, fiat, rev]);
+  const expectedKey = acct ? snapshotKey(acct, fiat) : null;
+  const data = useMemo<NetWorth | null>(() => {
+    if (!acct || pfKey !== expectedKey) return null;
+    const byChain = new Map<string, ChainWorth>();
+    for (const h of holdings) {
+      const chain = chainOf(h.chainId);
+      if (!chain || chain.testnet || !h.verified) continue;
+      const cur = byChain.get(chain.id) ?? { chain, address: addressForChain(accounts, chain.id), price: 0, native: 0, tokens: 0, value: 0, change24h: 0 };
+      if (h.kind === 'native') {
+        cur.price = h.price;
+        cur.native += h.fiat;
+        cur.change24h = h.change24h ?? 0;
+      } else cur.tokens += h.fiat;
+      cur.value = cur.native + cur.tokens;
+      byChain.set(chain.id, cur);
+    }
+    return { total, change24h: pnlPct ?? 0, slices: [...byChain.values()].sort((x, y) => y.value - x.value) };
+    // `at` : un nouveau passage du même cliché recalcule aussi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holdings, total, pnlPct, at, pfKey, expectedKey, accounts]);
+  return { data, loading: loading && !data };
 }
 
 type MobileTab = 'home' | 'market' | 'agent' | 'settings';
@@ -603,6 +562,14 @@ function Dashboard() {
   };
   const chain = useMemo(() => chainById(selected), [selected]);
   const address = useMemo(() => accounts.find((a) => a.chainId === selected)?.address ?? '', [accounts, selected]);
+  // Réseaux de test masqués alors qu'on en regardait un : retour au premier réseau principal.
+  const showTestnets = useSettings((s) => s.showTestnets);
+  const setChain = useWebConnect((s) => s.setChain);
+  useEffect(() => {
+    if (showTestnets || !chain.testnet) return;
+    const main = accounts.find((a) => !chainById(a.chainId).testnet);
+    if (main) setChain(main.chainId);
+  }, [showTestnets, chain.testnet, accounts, setChain]);
   const worth = useNetWorth();
   // Téléphone : dock + un onglet à la fois ; ordinateur : barre latérale +
   // colonne de contenu. Envoyer / Recevoir / Swap : mêmes parcours plein écran.
@@ -844,7 +811,6 @@ function Card({ children }: { children: React.ReactNode }) {
 }
 
 
-
 /** État vide soigné (icône + titre + sous-titre), centré — jamais de détail
  *  technique (clé API manquante, etc.) exposé à l'utilisateur. Remplit aussi
  *  l'espace d'un onglet court au lieu d'un petit encart en haut d'un grand vide. */
@@ -924,7 +890,6 @@ function SkeletonRows({ count = 4, flat }: { count?: number; flat?: boolean }) {
 }
 
 
-
 const PERIOD_KEYS: { k: string; l: 'periodDay' | 'periodWeek' | 'periodMonth' | 'periodYear' | 'periodAll' }[] = [
   { k: '1', l: 'periodDay' },
   { k: '7', l: 'periodWeek' },
@@ -987,7 +952,6 @@ function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null
 type HeroData = ReturnType<typeof useHeroData>;
 
 
-
 /** Carte « Tendance » (graphique + sélecteur de période). */
 /** Date du point scrubbé — heure pour la période 24 h, date sinon (même
  *  convention que l'écran token de l'app mobile). */
@@ -997,7 +961,6 @@ function formatScrubDate(ts: number, days: string): string {
   if (days === '365' || days === 'max') return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
 }
-
 
 
 /* ------------------------------------------------- Accueil mobile (maquette) */
@@ -1184,97 +1147,13 @@ function MobileAssets({ data, chain, address, onReceive }: { data: HeroData; cha
       <SegmentTabs tabs={tabs} value={tab} onChange={setTab} />
       <CrossFade id={tab}>
         {tab === 'tokens' ? (
-          <MobileTokenList data={data} chain={chain} address={address} onReceive={onReceive} />
+          <WebTokens chain={chain} onReceive={onReceive} />
         ) : tab === 'nft' ? (
           isEvm ? <NftsPanel chain={chain} address={address} flat /> : <MobileEmptyState icon="nft" title={tw('noNft')} subtitle={tw('nftEvmOnly')} />
         ) : (
-          <HistoryPanel chain={chain} address={address} flat />
+          <WebActivity onReceive={onReceive} />
         )}
       </CrossFade>
-    </View>
-  );
-}
-
-/** Ligne d'actif à plat (avatar 36, symbole + nom, montant + valeur fiat). */
-function MobileAssetRow({ avatar, title, subtitle, amount, value, divider, onPress }: { avatar: React.ReactNode; title: string; subtitle: string; amount: string; value?: string; divider: boolean; onPress?: () => void }) {
-  const P = useWebPalette();
-  return (
-    <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: divider ? 1 : 0, borderTopColor: P.divider, opacity: pressed ? 0.7 : 1 })}>
-      {avatar}
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '600', fontSize: 14, color: P.text }} numberOfLines={1}>{title}</Text>
-        <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted }} numberOfLines={1}>{subtitle}</Text>
-      </View>
-      <View style={{ alignItems: 'flex-end', gap: 2 }}>
-        <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 14, color: P.text, fontVariant: ['tabular-nums'] }} numberOfLines={1}>{amount}</Text>
-        {value ? <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted }} numberOfLines={1}>{value}</Text> : null}
-      </View>
-    </Pressable>
-  );
-}
-
-/** Actif natif en première ligne (données déjà chargées par useHeroData —
- *  aucun appel réseau en plus), puis les tokens ERC-20 vérifiés. */
-function MobileTokenList({ data, chain, address, onReceive }: { data: HeroData; chain: ChainConfig; address: string; onReceive: () => void }) {
-  const tw = useWebT();
-  const fiat = useSettings((s) => s.fiat);
-  const rev = useWebConnect((s) => s.rev);
-  const isEvm = chain.family === 'evm';
-  const { bal, price } = data;
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const { data: erc, loading } = useAsync<{ tokens: Erc20Token[]; prices: Record<string, number> }>(async () => {
-    if (!isEvm) return { tokens: [], prices: {} };
-    const tokens = await getErc20Tokens(chain, address);
-    const prices = chain.coingeckoPlatform && tokens.length ? await getTokenPrices(chain.coingeckoPlatform, tokens.map((tk) => tk.contract), fiat) : {};
-    return { tokens, prices };
-  }, [chain.id, address, fiat, isEvm], [rev]);
-
-  const nativeAmount = bal ? Number(bal.raw) / 10 ** bal.decimals : 0;
-  const hasNative = bal != null && bal.raw !== 0n;
-  const prices = erc?.prices ?? {};
-  const rows = (erc?.tokens ?? [])
-    .map((tk) => ({ tk, value: (Number(tk.raw) / 10 ** tk.decimals) * (prices[tk.contract.toLowerCase()] ?? 0) }))
-    .filter(({ tk, value }) => tk.logo || value > 0)
-    .sort((a, b) => b.value - a.value);
-
-  if (bal == null && loading) return <SkeletonRows flat count={3} />;
-  if (!hasNative && rows.length === 0) {
-    return (
-      <MobileEmptyState
-        icon="wallet"
-        title={tw('noTokensYet')}
-        subtitle={tw('noTokensBody', { chain: chain.name })}
-        action={{ label: tw('receiveFunds'), onPress: onReceive }}
-      />
-    );
-  }
-  const sym = fiatSymbol(fiat);
-  return (
-    <View>
-      {hasNative ? (
-        <MobileAssetRow
-          avatar={<ChainAvatar chain={chain} size={36} />}
-          title={chain.nativeSymbol}
-          subtitle={chain.name}
-          amount={`${formatTokenAmount(bal!.raw, bal!.decimals)} ${chain.nativeSymbol}`}
-          value={price ? formatFiatAmount(nativeAmount * price, fiat) : undefined}
-          divider={false}
-        />
-      ) : null}
-      {rows.map(({ tk, value }, i) => (
-        <View key={tk.contract}>
-          <TokenRow
-            token={tk}
-            value={value}
-            sym={sym}
-            chain={chain}
-            divider={hasNative || i > 0}
-            expanded={expanded === tk.contract}
-            onToggle={() => setExpanded((cur) => (cur === tk.contract ? null : tk.contract))}
-          />
-        </View>
-      ))}
-      {loading ? <View style={{ paddingTop: 12 }}><Skeleton h={12} w={140} /></View> : null}
     </View>
   );
 }
@@ -1304,7 +1183,8 @@ function NetworkSelector({ vertical, onSelected }: { vertical: boolean; onSelect
   const selected = useWebConnect((s) => s.selected);
   const setChain = useWebConnect((s) => s.setChain);
   const [q, setQ] = useState('');
-  const chains = useMemo(() => accounts.map((a) => chainById(a.chainId)), [accounts]);
+  const showTestnets = useSettings((s) => s.showTestnets);
+  const chains = useMemo(() => accounts.map((a) => chainById(a.chainId)).filter((c) => showTestnets || !c.testnet), [accounts, showTestnets]);
   // Onglets réduits aux familles réellement présentes dans la session : si le
   // portefeuille n'a pas d'adresse Bitcoin, bip122 n'y est pas, donc pas d'onglet.
   const families = useMemo(() => WEB_FAMILY_ORDER.filter((f) => chains.some((c) => c.family === f)), [chains]);
@@ -1434,6 +1314,8 @@ function SettingsPanel() {
   const setFiat = useSettings((s) => s.setFiat);
   const themePref = useSettings((s) => s.themePref);
   const setThemePref = useSettings((s) => s.setThemePref);
+  const showTestnets = useSettings((s) => s.showTestnets);
+  const setFlag = useSettings((s) => s.setFlag);
   const aiEnabled = useAiStore((s) => s.isEnabled);
   const aiProvider = useAiStore((s) => s.provider);
   const aiModel = useAiStore((s) => s.customModel);
@@ -1504,6 +1386,19 @@ function SettingsPanel() {
       ) : null}
       {divider}
 
+      {/* Réseaux de test : soldes et envois à part (jamais dans le total), comme dans l'app. */}
+      <Pressable onPress={() => setFlag('showTestnets', !showTestnets)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(0.75) }}>
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="developer" size={18} color={colors.textMuted} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[typography.bodyStrong, { fontSize: 14 }]}>{t('testnetToggleTitle')}</Text>
+          <Text style={[typography.muted, { fontSize: 12 }]}>{t('testnetToggleBody')}</Text>
+        </View>
+        <NovaSwitch value={showTestnets} onValueChange={(v) => setFlag('showTestnets', v)} />
+      </Pressable>
+      {divider}
+
       {row({ icon: 'sparkles', label: tw('aiAgent'), value: aiValue, section: 'ai' })}
       {open === 'ai' ? (
         <View style={{ gap: spacing(1), marginTop: spacing(0.5), marginBottom: spacing(1) }}>
@@ -1553,129 +1448,6 @@ function SettingsPanel() {
   );
 }
 
-
-
-
-
-
-/** Ligne d'un token ERC-20 : dépliable pour révéler le contrat et un envoi
- *  dédié (encode `transfer(address,uint256)`, signé côté téléphone). */
-function TokenRow({
-  token, value, sym, chain, divider, expanded, onToggle,
-}: {
-  token: Erc20Token; value: number; sym: string; chain: ChainConfig; divider: boolean; expanded: boolean; onToggle: () => void;
-}) {
-  const t = useT();
-  const tw = useWebT();
-  const { colors, typography } = useTheme();
-  const request = useWebConnect((s) => s.request);
-  const contacts = useContacts((s) => s.contacts);
-  const [to, setTo] = useState('');
-  const [amount, setAmount] = useState('');
-  const [showContacts, setShowContacts] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const balStr = formatTokenAmount(token.raw, token.decimals);
-  const matchedContact = contacts.find((c) => c.address.toLowerCase() === to.trim().toLowerCase());
-
-  const onSend = async () => {
-    setErr(null); setMsg(null);
-    if (!/^0x[a-fA-F0-9]{40}$/.test(to.trim())) { setErr(tw('invalidEvmAddress')); return; }
-    const raw = amount.replace(',', '.').trim();
-    if (!/^\d*\.?\d+$/.test(raw) || !(parseFloat(raw) > 0)) { setErr(t("errInvalidAmount")); return; }
-    setBusy(true);
-    setMsg(tw('approveInApp'));
-    try {
-      const raw2 = toRaw(raw, token.decimals);
-      const data = encodeErc20Transfer(to.trim(), raw2);
-      const hash = await request('eth_sendTransaction', [{ to: token.contract, value: '0x0', data }]);
-      setMsg(tw('txSent', { hash: short(hash) }));
-      setTo(''); setAmount('');
-    } catch (e) {
-      // Jamais le message brut (« REQUEST_EXPIRED », « Non connecté ») : la phrase traduite de l'entonnoir commun.
-      setErr(webErrorText(e, tw, t as never));
-      setMsg(null);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <View style={{ borderTopWidth: divider ? 1 : 0, borderTopColor: colors.glassBorder }}>
-      <Pressable onPress={onToggle} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25) }}>
-        <TokenAvatar uri={token.logo} label={token.symbol} seed={token.contract} size={32} chainId={chain.id} />
-        <View style={{ flex: 1 }}>
-          <Text style={typography.bodyStrong}>{token.symbol}</Text>
-          <Text style={typography.muted} numberOfLines={1}>{token.name}</Text>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{balStr}</Text>
-          {value > 0 ? <Text style={typography.muted}>{sym}{value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text> : null}
-        </View>
-      </Pressable>
-
-      {expanded ? (
-        <View style={{ paddingBottom: spacing(1.5), gap: spacing(1) }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1) }}>
-            <Text style={[typography.muted, { flex: 1 }]} numberOfLines={1}>{short(token.contract)}</Text>
-            <Pressable onPress={() => { Clipboard.setStringAsync(token.contract); toast.success(tw('contractCopied')); }} hitSlop={6} style={{ marginRight: spacing(1) }}>
-              <Icon name="copy" size={14} color={colors.textMuted} />
-            </Pressable>
-            {chain.explorerUrl ? (
-              <Pressable onPress={() => Linking.openURL(`${chain.explorerUrl}/token/${token.contract}`)} hitSlop={6}>
-                <Icon name="forward" size={14} color={colors.textMuted} />
-              </Pressable>
-            ) : null}
-          </View>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={typography.muted}>{t("aiSend")}{token.symbol}</Text>
-            {contacts.length ? (
-              <Pressable onPress={() => setShowContacts((v) => !v)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Icon name="contacts" size={13} color={colors.accent} />
-                <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{t("addressBook")}</Text>
-              </Pressable>
-            ) : null}
-          </View>
-          {showContacts && contacts.length ? (
-            <View style={{ backgroundColor: colors.bgElevated, borderRadius: radii.md, borderWidth: 1, borderColor: colors.glassBorder, overflow: 'hidden' }}>
-              <ScrollView style={{ maxHeight: 160 }}>
-                {contacts.map((c) => (
-                  <Pressable key={c.id} onPress={() => { setTo(c.address); setShowContacts(false); }} style={({ pressed }) => ({ paddingHorizontal: spacing(1.25), paddingVertical: spacing(1), backgroundColor: pressed ? colors.glass : 'transparent' })}>
-                    <Text style={typography.bodyStrong} numberOfLines={1}>{c.name}</Text>
-                    <Text style={typography.muted} numberOfLines={1}>{short(c.address)}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          ) : null}
-          <TextInput value={to} onChangeText={setTo} placeholder="0x…" placeholderTextColor={colors.textMuted} autoCapitalize="none" style={{ color: colors.text, fontSize: 14, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1) }} />
-          {matchedContact ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -spacing(0.5) }}>
-              <Icon name="check" size={12} color={colors.up} />
-              <Text style={{ color: colors.up, fontSize: 12, fontFamily: fonts.medium }}>{matchedContact.name}</Text>
-            </View>
-          ) : null}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={typography.muted}>{tw('amountOf', { symbol: token.symbol })}</Text>
-            {/* MAX = le solde EXACT en notation de saisie (« 1234.5 »), pas l'affichage groupé et arrondi (« 1 234,5 »), refusé par le contrôle. */}
-            <Pressable onPress={() => setAmount(trimDecimalZeros(formatAmount(token.raw, token.decimals)))} hitSlop={6}>
-              <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{tw('balanceMax', { balance: balStr })}</Text>
-            </Pressable>
-          </View>
-          <TextInput value={amount} onChangeText={setAmount} placeholder="0.0" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={{ color: colors.text, fontSize: 14, backgroundColor: colors.bgElevated, borderRadius: radii.md, padding: spacing(1) }} />
-          <Pressable onPress={onSend} disabled={busy} style={({ pressed }) => ({ alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.2), opacity: pressed || busy ? 0.7 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
-            <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{busy ? tw('waitingApp') : t("aiSend")}</Text>
-          </Pressable>
-          {msg ? <Text style={{ color: colors.accent }}>{msg}</Text> : null}
-          {err ? <Text style={{ color: colors.danger }}>{err}</Text> : null}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
 function NftsPanel({ chain, address, flat }: { chain: ChainConfig; address: string; flat?: boolean }) {
   const t = useT();
   const tw = useWebT();
@@ -1710,153 +1482,6 @@ function NftsPanel({ chain, address, flat }: { chain: ChainConfig; address: stri
           </View>
         </Pressable>
       ))}
-    </View>
-  );
-}
-
-function toneColor(tone: HumanTx['tone'], colors: ReturnType<typeof useTheme>['colors']): string {
-  return tone === 'up' ? colors.up : tone === 'down' ? colors.text : tone === 'danger' ? colors.danger : colors.textMuted;
-}
-
-type TxFilter = 'all' | 'in' | 'out' | 'swap' | 'other';
-
-/** Libellé de jour : Aujourd'hui / Hier / date locale. */
-function dayLabel(ts: number, today: string, yesterday: string): string {
-  const d = new Date(ts * 1000);
-  const now = new Date();
-  const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-  if (sameDay(d, now)) return today;
-  const y = new Date(now); y.setDate(now.getDate() - 1);
-  if (sameDay(d, y)) return yesterday;
-  return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
-}
-
-function txKind(tx: TxSummary, h: HumanTx): TxFilter {
-  if (h.icon === 'exchange' || tx.type === 'swap' || String(tx.type ?? '').toUpperCase() === 'SWAP') return 'swap';
-  if (tx.direction === 'in') return 'in';
-  if (tx.direction === 'out' && (h.icon === 'send' || h.icon === 'receive')) return 'out';
-  return 'other';
-}
-
-/** Historique humanisé (humanizeTx, partagé avec l'app) : groupé par jour,
- *  filtres Reçus / Envoyés / Swaps, détail en feuille (hash, adresses, explorateur),
- *  pagination « Voir plus ». Les transferts entrants à 0 (spam) sont masqués. */
-function HistoryPanel({ chain, address, flat }: { chain: ChainConfig; address: string; flat?: boolean }) {
-  const t = useT();
-  const tw = useWebT();
-  /*
-   * Le dictionnaire de l'app, pas celui du web : les phrases d'activité vivent
-   * dans `lib/i18n` et `useActivityT` lit le même réglage de langue. Les
-   * dupliquer dans `webI18n` aurait créé deux vérités à maintenir pour un texte
-   * identique.
-   */
-  const activityT = useActivityT();
-  const { colors, typography } = useTheme();
-  const rev = useWebConnect((s) => s.rev);
-  const { data, loading } = useAsync<TxSummary[]>(() => getAdapter(chain.id).getHistory(address), [chain.id, address], [rev]);
-  const [filter, setFilter] = useState<TxFilter>('all');
-  const [limit, setLimit] = useState(15);
-  const [detail, setDetail] = useState<{ tx: TxSummary; h: HumanTx } | null>(null);
-  if (loading) return <SkeletonRows count={5} flat={flat} />;
-  const rows = (data ?? [])
-    .map((tx) => ({ tx, h: humanizeTx(tx, { t: activityT, nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals }) }))
-    .filter(({ h }) => !h.spam);
-  if (!rows.length) {
-    const empty = { title: tw('noActivity'), subtitle: tw('noActivityBody') };
-    return flat ? <MobileEmptyState icon="history" {...empty} /> : <EmptyState icon="history" {...empty} />;
-  }
-  const filtered = filter === 'all' ? rows : rows.filter(({ tx, h }) => txKind(tx, h) === filter);
-  const shown = filtered.slice(0, limit);
-  const groups: { label: string; items: typeof shown }[] = [];
-  for (const r of shown) {
-    const label = dayLabel(r.tx.timestamp, tw('todayLabel'), tw('yesterday'));
-    const g = groups[groups.length - 1];
-    if (g && g.label === label) g.items.push(r); else groups.push({ label, items: [r] });
-  }
-  const filters: { k: TxFilter; l: string }[] = [
-    { k: 'all', l: tw('filterAll') }, { k: 'in', l: tw('filterReceived') }, { k: 'out', l: tw('filterSent') }, { k: 'swap', l: tw('filterSwaps') },
-  ];
-  const iconBg = (tone: HumanTx['tone']) => (tone === 'up' ? colors.up : tone === 'danger' ? colors.danger : colors.text) + '14';
-  const Wrap = flat ? View : Card;
-  const status = (tx: TxSummary) => (tx.status === 'failed' ? tw('txFailed') : tx.status === 'pending' ? tw('txPending') : tw('txSuccess'));
-  const explorerTx = detail && chain.explorerUrl ? `${chain.explorerUrl}/tx/${detail.tx.hash}` : null;
-  const copy = async (v: string, msg: string) => { await Clipboard.setStringAsync(v); toast.success(msg); };
-
-  return (
-    <View style={{ gap: spacing(1.25) }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-        {filters.map((f) => {
-          const on = f.k === filter;
-          return (
-            <Pressable key={f.k} onPress={() => { setFilter(f.k); setLimit(15); }} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: radii.pill, backgroundColor: on ? colors.text + '14' : 'transparent', borderWidth: 1, borderColor: on ? colors.text + '22' : colors.text + '10' }}>
-              <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: on ? fonts.semibold : fonts.medium, fontSize: 12 }}>{f.l}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-      {filtered.length === 0 ? <Text style={[typography.muted, { paddingVertical: spacing(2), textAlign: 'center' }]}>{tw('noMatch')}</Text> : null}
-      <Wrap>
-        {groups.map((g, gi) => (
-          <View key={g.label}>
-            <Text style={{ color: colors.textFaint, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', paddingTop: gi > 0 ? spacing(1.5) : 0, paddingBottom: spacing(0.5) }}>{g.label}</Text>
-            {g.items.map(({ tx, h }, i) => (
-              <View key={tx.hash}>
-                <Pressable
-                  onPress={() => setDetail({ tx, h })}
-                  style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder, opacity: pressed ? 0.6 : 1 })}
-                >
-                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: iconBg(h.tone), alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name={h.failed ? 'errorCircle' : h.icon} size={17} color={h.failed ? colors.danger : toneColor(h.tone, colors)} />
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={typography.bodyStrong} numberOfLines={1}>{h.title}</Text>
-                    <Text style={typography.muted} numberOfLines={1}>{h.subtitle ?? short(tx.hash)} · {new Date(tx.timestamp * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    {h.amount ? <Text style={{ color: toneColor(h.tone, colors), fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }} numberOfLines={1}>{h.amount}</Text> : null}
-                    {h.fiat ? <Text style={[typography.muted, { fontSize: 12 }]} numberOfLines={1}>{h.fiat}</Text> : null}
-                  </View>
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        ))}
-      </Wrap>
-      {filtered.length > limit ? (
-        <Pressable onPress={() => setLimit((l) => l + 15)} style={({ pressed }) => ({ alignSelf: 'center', paddingVertical: spacing(1), paddingHorizontal: spacing(2), borderRadius: radii.pill, borderWidth: 1, borderColor: colors.text + '14', opacity: pressed ? 0.6 : 1 })}>
-          <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{tw('showMore')}</Text>
-        </Pressable>
-      ) : null}
-
-      <Sheet visible={!!detail} onClose={() => setDetail(null)}>
-        {detail ? (
-          <>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: iconBg(detail.h.tone), alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={detail.h.failed ? 'errorCircle' : detail.h.icon} size={20} color={detail.h.failed ? colors.danger : toneColor(detail.h.tone, colors)} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <KText variant="title2">{detail.h.title}</KText>
-                {detail.h.amount ? <KText variant="body" tabular style={{ color: toneColor(detail.h.tone, colors) }}>{detail.h.amount}{detail.h.fiat ? `  ·  ${detail.h.fiat}` : ''}</KText> : null}
-              </View>
-            </View>
-            <Surface padded={false}>
-              <ListRow title={tw('txStatus')} right={<KText variant="body" tone={detail.tx.status === 'failed' ? 'danger' : detail.tx.status === 'pending' ? 'warning' : 'up'}>{status(detail.tx)}</KText>} />
-              <Divider inset={16} />
-              <ListRow title={tw('txDate')} right={<KText variant="body">{new Date(detail.tx.timestamp * 1000).toLocaleString()}</KText>} />
-              <Divider inset={16} />
-              <ListRow title={t('labelNetwork')} right={<KText variant="body">{chain.name}</KText>} />
-              <Divider inset={16} />
-              <ListRow title={tw('txFrom')} subtitle={short(detail.tx.from)} onPress={() => copy(detail.tx.from, t('addressCopied'))} right={<Icon name="copy" size={14} color={colors.textMuted} />} />
-              <Divider inset={16} />
-              <ListRow title={tw('txTo')} subtitle={short(detail.tx.to)} onPress={() => copy(detail.tx.to, t('addressCopied'))} right={<Icon name="copy" size={14} color={colors.textMuted} />} />
-              <Divider inset={16} />
-              <ListRow title={tw('txHash')} subtitle={short(detail.tx.hash)} onPress={() => copy(detail.tx.hash, tw('hashCopied'))} right={<Icon name="copy" size={14} color={colors.textMuted} />} />
-            </Surface>
-            {explorerTx ? <Button label={tw('openExplorer')} variant="secondary" size="md" onPress={() => { const w = (globalThis as { open?: (u: string, target?: string, features?: string) => unknown }).open; w?.(explorerTx, '_blank', 'noopener,noreferrer'); }} /> : null}
-          </>
-        ) : null}
-      </Sheet>
     </View>
   );
 }

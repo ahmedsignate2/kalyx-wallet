@@ -30,6 +30,8 @@ const SESSION_TTL = 30 * 60 * 1000;
 
 // CAIP-2 des réseaux non-EVM (mêmes valeurs que côté wallet mobile).
 const SOLANA_CAIP = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+/** Solana Devnet : le téléphone ne le partage que si l'utilisateur affiche les réseaux de test. */
+const SOLANA_DEVNET_CAIP = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1';
 const BTC_CAIP = 'bip122:000000000019d6689c085ae165831e93';
 
 type Status = 'idle' | 'connecting' | 'connected' | 'error';
@@ -160,8 +162,9 @@ function silenceBenignWebLogs() {
   }
 }
 
+/** Réseaux de test compris : proposés en option, le téléphone décide de les partager. */
 function evmCaips(): string[] {
-  return listChains().filter((c) => c.family === 'evm' && c.evmChainId).map((c) => `eip155:${c.evmChainId}`);
+  return listChains({ includeTestnets: true }).filter((c) => c.family === 'evm' && c.evmChainId).map((c) => `eip155:${c.evmChainId}`);
 }
 
 /** account WC (« eip155:1:0x… », « solana:…:… », « bip122:…:… ») → chaîne Kalyx. */
@@ -170,13 +173,14 @@ function wcToKalyx(acc: string): ConnAccount | null {
   const ns = p[0];
   const addr = p[p.length - 1];
   if (!addr) return null;
-  const all = listChains();
+  const all = listChains({ includeTestnets: true });
   if (ns === 'eip155') {
     const c = all.find((x) => x.family === 'evm' && x.evmChainId === Number(p[1]));
     return c ? { chainId: c.id, address: addr } : null;
   }
   if (ns === 'solana') {
-    const c = all.find((x) => x.family === 'solana');
+    const id = `${p[0]}:${p[1]}` === SOLANA_DEVNET_CAIP ? 'solana-devnet' : 'solana';
+    const c = all.find((x) => x.id === id);
     return c ? { chainId: c.id, address: addr } : null;
   }
   if (ns === 'bip122') {
@@ -204,8 +208,8 @@ function collect(namespaces: Record<string, { accounts?: string[] }> | undefined
 
 /** ID de chaîne Kalyx → CAIP WalletConnect (pour forwarder une requête). */
 function kalyxToCaip(kalyxChainId: string): string {
-  const c = listChains().find((x) => x.id === kalyxChainId);
-  if (c?.family === 'solana') return SOLANA_CAIP;
+  const c = listChains({ includeTestnets: true }).find((x) => x.id === kalyxChainId);
+  if (c?.family === 'solana') return c.id === 'solana-devnet' ? SOLANA_DEVNET_CAIP : SOLANA_CAIP;
   if (c?.family === 'bitcoin') return BTC_CAIP;
   return `eip155:${c?.evmChainId ?? 1}`;
 }
@@ -313,7 +317,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
         requiredNamespaces: { eip155: { methods: [], chains: ['eip155:1'], events: [] } },
         optionalNamespaces: {
           eip155: { methods: evmMethods, chains: evmCaips(), events: evmEvents },
-          solana: { methods: ['solana_getAccounts', 'solana_signTransaction'], chains: [SOLANA_CAIP], events: ['accountsChanged'] },
+          solana: { methods: ['solana_getAccounts', 'solana_signTransaction'], chains: [SOLANA_CAIP, SOLANA_DEVNET_CAIP], events: ['accountsChanged'] },
           // `bitcoin_sendTransfer` : montant en satoshis, annoncé seulement par les versions du téléphone qui le lisent ainsi.
           bip122: { methods: ['getAccountAddresses', 'getAccounts', 'sendTransfer', 'bitcoin_sendTransfer'], chains: [BTC_CAIP], events: [] },
         },
