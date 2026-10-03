@@ -2,7 +2,7 @@ import { radius } from '../ui/tokens';
 import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
 import { Pressable as KPressable, Halo } from '../ui/kit';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Animated, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import { Orbit, Rise, Stardust } from '../ui/nova';
 import { router, Stack } from 'expo-router';
@@ -12,9 +12,8 @@ import { PinPad } from '../ui/PinPad';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useDriveFlow } from '../lib/googleDrive';
-import { useWallet } from '../lib/walletStore';
+import { useWallet, pinLockRemainingMs } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
-import { lockRemainingMs } from '../src';
 import { flushPendingIntent } from '../lib/paymentIntent';
 import { isBiometricAvailable } from '../lib/biometrics';
 
@@ -47,7 +46,8 @@ export default function Unlock() {
    * une attente.
    */
   const [now, setNow] = useState(() => Date.now());
-  const lockedMs = lockRemainingMs(failedAttempts, Math.min(lastFailedAt, now), now);
+  // Même règle que le portefeuille (horloge du téléphone ET chronomètre interne) ; `now` fait seulement retourner le décompte.
+  const lockedMs = useMemo(() => pinLockRemainingMs(), [now, failedAttempts, lastFailedAt]); // eslint-disable-line react-hooks/exhaustive-deps
   const locked = lockedMs > 0;
   useEffect(() => {
     if (!locked) return;
