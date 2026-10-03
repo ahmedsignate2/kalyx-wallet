@@ -320,7 +320,20 @@ async function contractQuote(
       const v = BigInt(hex);
       if (v > 0n && p.id !== 'lido-steth') amountOut = v; // stETH est rebasing : l'utilisateur voit ~1:1
     } catch {
-      /* 1:1 par défaut */
+      /*
+       * Ratio illisible : 1:1 n'est juste que pour stETH. Pour un jeton à ratio
+       * (sAVAX…), annoncer 1:1 gonflait ce qui serait reçu — on le dit plutôt.
+       */
+      if (p.id === 'benqi-savax') {
+        // Lecture sans dépendre du solde : sAVAX.getSharesByPooledAvax(montant) (vue).
+        try {
+          const shares = BigInt(await evm(p).callContract(tx.to, `0xf1ee8d92${amount.toString(16).padStart(64, '0')}`));
+          if (shares <= 0n) throw new Error('ratio nul');
+          amountOut = shares;
+        } catch {
+          throw new SwapError('PROVIDER_UNAVAILABLE', 'Taux de conversion sAVAX illisible pour le moment.');
+        }
+      }
     }
   }
 
@@ -362,6 +375,7 @@ async function lifiQuote(p: EarnProtocol, action: EarnAction, amount: bigint, ac
     fromAmount: amount,
     fromAddress: from,
     toAddress: from,
+    toToken: lifiToken(p, tokenOut.address),
   });
   if (!check.ok) throw new SwapError('PROVIDER_UNAVAILABLE', `Devis refusé : ${check.reason}`);
 
@@ -443,6 +457,21 @@ async function executeEvm(p: EarnProtocol, q: EarnQuote, unlock: Unlock, onStatu
     const allowance = await adapter.getAllowance(q.tokenIn.address, owner, q.approvalAddress);
     if (allowance < q.amountIn) {
       onStatus?.('approving');
+      /*
+       * USDT (Ethereum) et quelques jetons anciens refusent `approve(montant)`
+       * tant que l'autorisation courante n'est pas nulle : remise à zéro
+       * d'abord, comme pour l'échange. Seul ce cas (autorisation non nulle et
+       * insuffisante) paie une transaction de plus.
+       */
+      if (allowance > 0n) {
+        const resetHash = await store.sendRawTxOn(
+          unlock,
+          p.chainId,
+          { to: q.tokenIn.address, data: adapter.buildApproveData(q.approvalAddress, 0n), value: 0n, chainId: q.tx.chainId },
+          { appFlow: true },
+        );
+        await adapter.waitForTx(resetHash);
+      }
       const approveReq: RawTxRequest = {
         to: q.tokenIn.address,
         data: adapter.buildApproveData(q.approvalAddress, q.amountIn),

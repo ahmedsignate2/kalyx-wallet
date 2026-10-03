@@ -235,6 +235,7 @@ export {
   caip10,
   parseCaip2,
   checkPayAction,
+  checkPayPayload,
   PAY_EVM_CHAIN_IDS,
   PAY_ALLOWED_METHODS,
   type PayMethod,

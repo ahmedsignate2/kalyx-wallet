@@ -73,6 +73,8 @@ export interface SwapExpectation {
   fromAddress: string;
   /** Adresse qui reçoit, au format de la chaîne d'arrivée. */
   toAddress: string;
+  /** Jeton d'arrivée choisi (EVM, hex) : un devis vers un autre jeton est refusé. */
+  toToken?: string;
 }
 
 export type SwapQuoteRefusal =
@@ -105,6 +107,9 @@ export function checkSwapQuote(q: SwapQuote, e: SwapExpectation): { ok: true } |
     if (!contract || q.tx.to.toLowerCase() !== contract) return { ok: false, reason: 'UNKNOWN_CONTRACT' };
     if (q.approvalAddress && q.approvalAddress.toLowerCase() !== contract) return { ok: false, reason: 'UNKNOWN_SPENDER' };
     if (!sameToken(q.fromToken.address, e.fromToken)) return { ok: false, reason: 'WRONG_TOKEN' };
+    // Jeton d'ARRIVÉE aussi : un devis vers un autre jeton (même symbole, autre contrat) ferait signer autre chose que le choix affiché.
+    const isHex = (a?: string) => !!a && /^0x[0-9a-fA-F]{40}$/.test(a);
+    if (isHex(e.toToken) && isHex(q.toToken?.address) && !sameToken(q.toToken.address, e.toToken!)) return { ok: false, reason: 'WRONG_TOKEN' };
     const recv = receiverHex(e.toAddress);
     if (!recv || !q.tx.data.toLowerCase().includes(recv)) return { ok: false, reason: 'RECEIVER_MISSING' };
     return { ok: true };
@@ -122,5 +127,11 @@ export function checkSwapQuote(q: SwapQuote, e: SwapExpectation): { ok: true } |
   // Solana : la transaction doit être payée (et donc signée en premier) par nous.
   const d = describeSolanaTransaction(q.tx.data, e.fromAddress);
   if (!d || d.feePayer !== e.fromAddress) return { ok: false, reason: 'NOT_OUR_TX' };
+  /*
+   * Un autre signataire dont la signature MANQUE : la transaction ne partirait
+   * qu'au moment où ce tiers le déciderait, notre signature en poche. Un
+   * échange se signe seul (ou arrive déjà co-signé par le service de pont).
+   */
+  if (d.signaturesPresent.some((present, i) => i > 0 && !present)) return { ok: false, reason: 'NOT_OUR_TX' };
   return { ok: true };
 }

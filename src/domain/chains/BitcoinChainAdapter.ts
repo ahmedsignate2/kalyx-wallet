@@ -60,7 +60,7 @@ interface RawUtxo {
 
 interface AddressStats {
   chain_stats?: { funded_txo_sum?: number; spent_txo_sum?: number; tx_count?: number };
-  mempool_stats?: { tx_count?: number };
+  mempool_stats?: { tx_count?: number; funded_txo_sum?: number; spent_txo_sum?: number };
 }
 
 export class BitcoinChainAdapter implements ChainAdapter {
@@ -112,8 +112,17 @@ export class BitcoinChainAdapter implements ChainAdapter {
     const stats = (await this.fetchJson(`/address/${address}`)) as AddressStats;
     const funded = BigInt(stats.chain_stats?.funded_txo_sum ?? 0);
     const spent = BigInt(stats.chain_stats?.spent_txo_sum ?? 0);
+    /*
+     * Mempool compris : sans lui, un envoi tout juste parti laissait le solde
+     * intact jusqu'au bloc suivant (et « reçu » n'apparaissait qu'à la
+     * confirmation). Ce qui est DÉPENSABLE reste décidé par les UTXO confirmés
+     * (`confirmedUtxos`, MAX, frais).
+     */
+    const memFunded = BigInt(stats.mempool_stats?.funded_txo_sum ?? 0);
+    const memSpent = BigInt(stats.mempool_stats?.spent_txo_sum ?? 0);
+    const total = funded - spent + memFunded - memSpent;
     return {
-      raw: funded - spent, // solde confirmé en satoshis
+      raw: total > 0n ? total : 0n, // satoshis, mempool compris
       decimals: this.config.nativeDecimals,
       symbol: this.config.nativeSymbol,
     };

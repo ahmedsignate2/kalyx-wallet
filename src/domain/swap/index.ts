@@ -186,6 +186,7 @@ export async function getBestQuote(params: RouteParams): Promise<SwapQuote | nul
         fromAmount: amount,
         fromAddress: params.fromAddress,
         toAddress: params.toAddress,
+        toToken: params.toToken,
       });
       if (!c.ok) errors.push(new SwapError('PROVIDER_UNAVAILABLE', `Devis ${q.toolName} refusé : ${c.reason}`));
       return c.ok;

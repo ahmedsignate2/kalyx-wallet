@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { kvGet, kvSet, kvDel } from './kv';
+import { kvGet, kvSet, kvDel, KV_DEVICE_ONLY } from './kv';
 import { copilotLog } from './copilotLogger';
 
 export type AiProvider = 'deepseek' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'openrouter' | 'together' | 'huggingface' | 'custom';
@@ -56,7 +56,10 @@ export const useAiStore = create<AiState>((set) => ({
   },
 
   setApiKey: async (key, provider, customUrl, customModel) => {
-    await kvSet('ai_api_key', key);
+    // Clé d'API : cet appareil seulement (jamais restaurée d'une sauvegarde sur un autre). Effacer
+    // d'abord : une mise à jour garderait l'accessibilité de l'ancienne entrée.
+    await kvDel('ai_api_key').catch(() => {});
+    await kvSet('ai_api_key', key, KV_DEVICE_ONLY);
     await kvSet('ai_provider', provider);
     if (customUrl) await kvSet('ai_custom_url', customUrl); else await kvDel('ai_custom_url');
     if (customModel) await kvSet('ai_custom_model', customModel); else await kvDel('ai_custom_model');
