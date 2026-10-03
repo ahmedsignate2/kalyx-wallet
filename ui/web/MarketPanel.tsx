@@ -58,7 +58,7 @@ function MiniSparkline({ values, up, width = 64, height = 28 }: { values: number
   );
 }
 
-export function MarketPanel() {
+export function MarketPanel({ wide }: { wide?: boolean } = {}) {
   const t = useT();
   const tw = useWebT();
   const TABS: { key: MarketOrder; label: string }[] = [
@@ -141,6 +141,45 @@ export function MarketPanel() {
           <CrossFade id={tab} style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg }}>
             {rows.length === 0 ? (
               <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(3) }]}>{tw('marketLoading')}</Text>
+            ) : wide ? (
+              /*
+               * ORDINATEUR : un vrai tableau. La ligne de téléphone étirée sur
+               * 960 px laissait un trou entre le nom et la courbe ; ici chaque
+               * colonne a sa place (rang, actif, prix, 24 h, courbe 7 jours).
+               */
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2), paddingHorizontal: spacing(2), paddingVertical: spacing(1.25) }}>
+                  <Text style={[typography.muted, { width: 28, fontSize: 12 }]}>#</Text>
+                  <Text style={[typography.muted, { flex: 2, fontSize: 12 }]}>{tw('colAsset')}</Text>
+                  <Text style={[typography.muted, { flex: 1, fontSize: 12, textAlign: 'right' }]}>{tw('colPrice')}</Text>
+                  <Text style={[typography.muted, { flex: 1, fontSize: 12, textAlign: 'right' }]}>{tw('col24h')}</Text>
+                  <Text style={[typography.muted, { width: 160, fontSize: 12, textAlign: 'right' }]}>{tw('col7d')}</Text>
+                </View>
+                {rows.map((m, i) => {
+                  const up = m.change24h >= 0;
+                  return (
+                    <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2), paddingHorizontal: spacing(2), paddingVertical: spacing(1.25), borderTopWidth: 1, borderTopColor: colors.glassBorder }}>
+                      <Text style={[typography.muted, { width: 28, fontVariant: ['tabular-nums'] }]}>{i + 1}</Text>
+                      <View style={{ flex: 2, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
+                        <CoinAvatar uri={m.image} label={m.symbol} size={32} />
+                        <Text style={typography.bodyStrong} numberOfLines={1}>{m.name}</Text>
+                        <Text style={typography.muted} numberOfLines={1}>{m.symbol?.toUpperCase()}</Text>
+                      </View>
+                      <Text style={{ flex: 1, textAlign: 'right', color: colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }} numberOfLines={1}>
+                        {fmtPrice(m.price, fiat, sym)}
+                      </Text>
+                      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                        <Text style={{ color: up ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13, backgroundColor: (up ? colors.up : colors.down) + '1f', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.pill, overflow: 'hidden' }}>
+                          {`${up ? '+' : ''}${formatPercent(m.change24h)}`}
+                        </Text>
+                      </View>
+                      <View style={{ width: 160, alignItems: 'flex-end' }}>
+                        <MiniSparkline values={m.sparkline} up={up} width={140} height={32} />
+                      </View>
+                    </View>
+                  );
+                })}
+              </>
             ) : (
               rows.map((m, i) => {
                 const up = m.change24h >= 0;

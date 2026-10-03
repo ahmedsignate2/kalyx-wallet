@@ -11,6 +11,7 @@ import { View, ScrollView, Share, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { LogoImage, Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl } from '../kit';
+import { useFlowRootStyle, useFlowScrollStyle } from './flowEmbed';
 import { useTheme } from '../theme';
 import { space, SCREEN_MARGIN, radius } from '../tokens';
 import { useT } from '../../lib/settingsStore';
@@ -23,6 +24,8 @@ type Fam = 'evm' | 'solana' | 'bitcoin';
 export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose: () => void }) {
   const t = useT();
   const { colors } = useTheme();
+  const flowRoot = useFlowRootStyle(colors.bg);
+  const flowScroll = useFlowScrollStyle();
   const accounts = useWebConnect((s) => s.accounts);
   const peerName = useWebConnect((s) => s.peerName);
 
@@ -61,12 +64,12 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
   const share = () => Share.share({ message: address }).catch(copy);
 
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg, zIndex: 20 }}>
+    <View style={flowRoot}>
       <View style={{ paddingHorizontal: SCREEN_MARGIN, height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t('back')} tone="ghost" onPress={onClose} />
         <Text variant="title2" style={{ flex: 1 }}>{t('receive')}</Text>
       </View>
-      <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: space[6], gap: space[5] }}>
+      <ScrollView style={flowScroll} contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: space[6], gap: space[5] }}>
         {networks.length > 1 ? (
           <SegmentedControl
             items={networks.map((n) => ({ key: n.chain.family as Fam, label: n.chain.name }))}
