@@ -66,6 +66,8 @@ export interface ExplainInput {
   connectedChainId?: number;
   /** Valeur native envoyée par la transaction (wei) : montrée même quand la simulation manque. */
   txValue?: bigint;
+  /** Simulation EN COURS : son absence n'est pas encore un manque (pas d'avertissement provisoire). */
+  simulating?: boolean;
   /** Décimales du natif (18 par défaut). */
   nativeDecimals?: number;
 }
@@ -228,7 +230,7 @@ export function explainRequest(input: ExplainInput): SignExplanation {
      * Simulation ABSENTE ou en échec : les effets ne sont pas connus. La valeur
      * native qui part est montrée quand même, et le risque n'est plus « aucun ».
      */
-    if ((!sim || sim.error) && (input.txValue ?? 0n) > 0n) {
+    if (!input.simulating && (!sim || sim.error) && (input.txValue ?? 0n) > 0n) {
       const amount = `${formatDecimalString(formatUnits(input.txValue!, input.nativeDecimals ?? 18))} ${input.nativeSymbol ?? ''}`.trim();
       if (!lose.length) lose.push(amount);
       risk = worst(risk, 'warning');

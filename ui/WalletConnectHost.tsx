@@ -442,6 +442,7 @@ export function WalletConnectHost() {
       connectedChainId: chain?.evmChainId,
       txValue: tx?.value,
       nativeDecimals: chain?.nativeDecimals,
+      simulating,
       t: exT,
     });
     const explanation = accountMismatch

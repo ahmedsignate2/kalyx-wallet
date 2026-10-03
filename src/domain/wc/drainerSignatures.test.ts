@@ -38,3 +38,27 @@ describe('signatures « drainer » : jamais présentées comme bénignes', () =>
     expect(ex.lose[0]).toContain('5');
   });
 });
+
+describe('signatures : ni faux négatif, ni fausse alarme', () => {
+  const MAX256 = (2n ** 256n - 1n).toString();
+  it('un `details` factice ne masque pas un `value` illimité', () => {
+    const t = summarizeTypedData({ domain: { name: 'Token' }, primaryType: 'Permit', message: { spender: '0xbad', value: MAX256, deadline: '1', details: { amount: '1' } } });
+    expect(t?.unlimited).toBe(true);
+  });
+  it('permis DAI avec allowed: 1 → illimité ; révocation (allowed: false) → pas de danger', () => {
+    expect(summarizeTypedData({ primaryType: 'Permit', domain: { name: 'Dai' }, message: { spender: '0xbad', allowed: 1, expiry: 99 } })?.unlimited).toBe(true);
+    const revoke = summarizeTypedData({ primaryType: 'Permit', domain: { name: 'Dai' }, message: { spender: '0xx', allowed: false, expiry: 0 } });
+    expect(explainRequest({ kind: 'typedData', typed: revoke }).risk).not.toBe('danger');
+  });
+  it('entrée nulle dans details : pas de plantage', () => {
+    expect(() => summarizeTypedData({ primaryType: 'PermitBatch', message: { details: [null], spender: '0x1' } })).not.toThrow();
+  });
+  it('ordre de DEX (CoW, 1inch) : pas classé comme ordre NFT', () => {
+    const t = summarizeTypedData({ domain: { name: 'Gnosis Protocol' }, primaryType: 'Order', message: { sellToken: '0xa', buyToken: '0xb' } });
+    expect(t?.order).toBe(false);
+    expect(explainRequest({ kind: 'typedData', typed: t }).reasons).not.toContain('exTypedNftOrder');
+  });
+  it('simulation en cours : pas d’avertissement provisoire', () => {
+    expect(explainRequest({ kind: 'tx', simulation: null, simulating: true, txValue: 10n ** 18n }).risk).toBe('none');
+  });
+});

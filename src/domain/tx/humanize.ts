@@ -114,6 +114,8 @@ export interface HumanizeCtx {
    * par n'importe qui avait le même symbole que le vrai et passait pour légitime.
    */
   verifiedContracts?: Set<string>;
+  /** Symboles vérifiés PAR CHAÎNE (`chaîne:SYMBOLE`), pour repérer une imitation sur la même chaîne. */
+  verifiedChainSymbols?: Set<string>;
   /** Contre-valeur d'un montant (symbole, montant humain) → chaîne formatée, ou undefined. */
   fiatOf?: (symbol: string, amount: number) => string | undefined;
   /** Symbole d'un token connu (portefeuille), par réseau et adresse. */
@@ -136,11 +138,16 @@ export function humanizeTx(tx: TxSummary, ctx: HumanizeCtx): HumanTx {
   const type = (tx.type ?? '').toUpperCase();
   const inbound = tx.direction === 'in';
   const isToken = !!tx.asset && tx.asset.toUpperCase() !== (native?.symbol ?? ctx.nativeSymbol).toUpperCase();
-  const unverified =
-    isToken &&
-    (tx.contract && ctx.verifiedContracts
-      ? !ctx.verifiedContracts.has(`${tx.chain}:${tx.contract.toLowerCase()}`)
-      : !!ctx.verifiedSymbols && !ctx.verifiedSymbols.has(symbol.toUpperCase()));
+  /*
+   * Contrat connu et vérifié → légitime. Contrat DIFFÉRENT d'un jeton vérifié
+   * de même symbole sur la même chaîne → imitation. Sinon (autre chaîne, jeton
+   * entièrement dépensé), on retombe sur le symbole, comme avant.
+   */
+  const contractKey = tx.contract ? `${tx.chain}:${tx.contract.toLowerCase()}` : null;
+  const impostor =
+    !!contractKey && !!ctx.verifiedContracts && !ctx.verifiedContracts.has(contractKey) && !!ctx.verifiedChainSymbols?.has(`${tx.chain}:${symbol.toUpperCase()}`);
+  const knownGood = !!contractKey && !!ctx.verifiedContracts?.has(contractKey);
+  const unverified = isToken && !knownGood && (impostor || (!!ctx.verifiedSymbols && !ctx.verifiedSymbols.has(symbol.toUpperCase())));
   const amountNum = Number(tx.value) / 10 ** decimals;
   const fiat = !unverified && ctx.fiatOf ? ctx.fiatOf(symbol, amountNum) : undefined;
 
