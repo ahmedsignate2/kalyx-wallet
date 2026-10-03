@@ -59,6 +59,34 @@ export interface EvmPayload {
   gasPrice?: bigint;
 }
 
+/*
+ * PLANCHER DE NONCE LOCAL. Le nonce « pending » vient du nœud qui répond : si
+ * un premier envoi est parti par un autre nœud (repli RPC) et n'y est pas
+ * encore visible, le second reprenait LE MÊME nonce et était refusé
+ * (« replacement underpriced ») ou remplaçait le premier. Après une diffusion
+ * acceptée, le nonce suivant est retenu quelques minutes — assez pour la
+ * propagation, pas assez pour bloquer longtemps derrière une transaction perdue.
+ */
+const NONCE_FLOOR_TTL_MS = 120_000;
+const nonceFloor = new Map<string, { next: number; at: number }>();
+const floorKey = (chainId: number, sender: string) => `${chainId}:${sender.toLowerCase()}`;
+/** Nonce à utiliser : celui du nœud, sauf si un envoi récent de CETTE session est déjà plus loin. */
+export function applyNonceFloor(chainId: number, sender: string, rpcNonce: number, now = Date.now()): number {
+  const f = nonceFloor.get(floorKey(chainId, sender));
+  if (!f || now - f.at > NONCE_FLOOR_TTL_MS) return rpcNonce;
+  return Math.max(rpcNonce, f.next);
+}
+export function noteBroadcastNonce(chainId: number, sender: string, nonce: number, now = Date.now()): void {
+  const k = floorKey(chainId, sender);
+  const f = nonceFloor.get(k);
+  const live = f && now - f.at <= NONCE_FLOOR_TTL_MS ? f.next : 0;
+  nonceFloor.set(k, { next: Math.max(nonce + 1, live), at: now });
+}
+/** Tests. */
+export function clearNonceFloor(): void {
+  nonceFloor.clear();
+}
+
 /** Gaz d'un transfert de la pièce native vers un compte ordinaire. */
 const NATIVE_TRANSFER_GAS = 21_000n;
 /** Gaz d'un `transfer` ERC-20, avant estimation. */
@@ -169,7 +197,7 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
 
     // Solde natif lu EN PARALLÈLE (contrôle « montant + frais » plus bas) ; illisible → null, le nœud tranchera.
     const nativeBalance = this.v1.getBalance(sender).then((b) => b.raw).catch(() => null);
-    const [nonce, fee, gasLimit, onchainDecimals] = await Promise.all([
+    const [rpcNonce, fee, gasLimit, onchainDecimals] = await Promise.all([
       this.v1.getNonce(sender),
       this.v1.getFeeData(),
       this.estimateGas(sender, txTo, value, data, isToken),
@@ -209,6 +237,7 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
       fees = { gasPrice };
     }
 
+    const nonce = applyNonceFloor(chainId, sender, rpcNonce);
     const payload: EvmPayload = { to: txTo, value, data, nonce, gasLimit, chainId, ...fees };
     const feeCost = (fees.maxFeePerGas ?? fees.gasPrice ?? 0n) * gasLimit;
 
@@ -297,7 +326,9 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
   }
 
   async broadcastSend(signed: SignedSend<EvmPayload>): Promise<BroadcastOutcome> {
-    return { txid: await this.v1.broadcast(signed.raw) };
+    const txid = await this.v1.broadcast(signed.raw);
+    noteBroadcastNonce(signed.draft.payload.chainId, signed.draft.from, signed.draft.payload.nonce);
+    return { txid };
   }
 
   async waitForTx(txid: string): Promise<TxState> {

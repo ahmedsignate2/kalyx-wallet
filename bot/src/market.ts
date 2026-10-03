@@ -78,16 +78,25 @@ export async function getPrices(env: Env, ids: string[], fiat = 'usd'): Promise<
   return out;
 }
 
+/** Format de nombres de la langue de la personne (il n'y avait que fr et en : « 1,234.56 » en allemand). */
+function locale(lang: string): string {
+  try {
+    return Intl.NumberFormat.supportedLocalesOf([lang]).length ? lang : 'en-US';
+  } catch {
+    return 'en-US';
+  }
+}
+
 export function fmtFiat(v: number, fiat = 'usd', lang = 'en'): string {
   try {
-    return new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US', { style: 'currency', currency: fiat.toUpperCase(), maximumFractionDigits: v < 1 ? 6 : 2 }).format(v);
+    return new Intl.NumberFormat(locale(lang), { style: 'currency', currency: fiat.toUpperCase(), maximumFractionDigits: v < 1 ? 6 : 2 }).format(v);
   } catch {
     return `${v} ${fiat.toUpperCase()}`;
   }
 }
 export function fmtCompact(v: number, lang = 'en'): string {
   try {
-    return new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US', { notation: 'compact', maximumFractionDigits: 1, style: 'currency', currency: 'USD' }).format(v);
+    return new Intl.NumberFormat(locale(lang), { notation: 'compact', maximumFractionDigits: 1, style: 'currency', currency: 'USD' }).format(v);
   } catch {
     return String(v);
   }

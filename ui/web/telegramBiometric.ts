@@ -7,7 +7,7 @@
  * solde). Aucune clé, aucune signature n'est jamais impliquée ici — ça reste
  * le rôle exclusif du téléphone Kalyx (WalletConnect).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadTelegramWebApp, type TelegramBiometricManager } from './platform';
 
 export function useTelegramBiometric() {
@@ -46,8 +46,20 @@ export function useTelegramBiometric() {
       setUnlocked(true); // hors Telegram / pas de biométrie : pas de verrou à faire respecter
       return;
     }
-    bm.authenticate({ reason }, (success) => setUnlocked(!!success));
+    const auth = () => bm.authenticate({ reason }, (success) => setUnlocked(!!success));
+    if (bm.isAccessGranted) return auth();
+    /*
+     * Accès biométrique REFUSÉ (ou jamais accordé) : `authenticate` échouait à
+     * chaque appui et le solde restait masqué pour toujours. On redemande ;
+     * refusé encore, c'est un simple masque d'affichage, comme hors Telegram.
+     */
+    try {
+      bm.requestAccess({ reason }, (granted) => (granted ? auth() : setUnlocked(true)));
+    } catch {
+      setUnlocked(true);
+    }
   };
 
-  return { available, biometricType, unlocked, unlock, lock: () => setUnlocked(false) };
+  const lock = useCallback(() => setUnlocked(false), []);
+  return { available, biometricType, unlocked, unlock, lock };
 }

@@ -197,7 +197,7 @@ export { signerFromSeed, signerFromEvmPrivateKey, signerFromRawKey, addressFromR
 export { withSigner, wipeSigner, assertCurve } from './domain/chains/v2/signer';
 export { capabilities, NO_CAPABILITIES } from './domain/chains/v2/capabilities';
 export { EvmAdapterV2, type EvmPayload } from './domain/chains/v2/EvmAdapterV2';
-export { SolanaAdapterV2, type SolanaPayload } from './domain/chains/v2/SolanaAdapterV2';
+export { SolanaAdapterV2, SOL_RENT_EXEMPT_MIN, type SolanaPayload } from './domain/chains/v2/SolanaAdapterV2';
 /*
  * TON : squelette qui refuse tout. Volontairement PAS dans le registre v2 —
  * exporté pour que le travail à venir soit visible, pas pour être appelé.
@@ -235,6 +235,7 @@ export {
   caip10,
   parseCaip2,
   checkPayAction,
+  checkPayPayload,
   PAY_EVM_CHAIN_IDS,
   PAY_ALLOWED_METHODS,
   type PayMethod,

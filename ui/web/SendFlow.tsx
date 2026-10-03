@@ -40,6 +40,7 @@ import {
   getAdapter, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount, trimDecimalZeros, formatAmount, formatFiat,
   getPrices, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
   estimateGasReserve, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, type FeeOptions, simulateSendTransaction, type SimulationResult,
+  WalletError, SOL_RENT_EXEMPT_MIN,
   type ChainConfig,
 } from '../../src';
 import { buildTransferMessage, encodeLength } from '../../src/domain/chains/solTx';
@@ -51,6 +52,9 @@ import { KalyxSpinner } from './motion';
 import { addressForChain, chainOf, useWebPortfolioAccount } from './webAccounts';
 
 type Step = 0 | 1 | 2 | 3 | 4;
+
+/** Frais de base d'une signature Solana (lamports). */
+const SOL_BASE_FEE = 5_000n;
 
 /** Transaction Solana « legacy » NON signée : 1 signature vide + message. */
 function unsignedSolanaTx(message: Uint8Array): string {
@@ -125,12 +129,17 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
     if (!isEns) return setEns({ status: 'idle', address: null });
     setEns({ status: 'resolving', address: null });
     const name = to.trim();
+    // Réponse d'un nom PRÉCÉDENT ignorée : sans cela, l'adresse de « alice.eth » pouvait s'appliquer à « alicе.eth » tapé ensuite.
+    let alive = true;
     const timer = setTimeout(() => {
       resolveEnsName(name)
-        .then((a) => setEns(a ? { status: 'found', address: a } : { status: 'notfound', address: null }))
-        .catch(() => setEns({ status: 'notfound', address: null }));
+        .then((a) => alive && setEns(a ? { status: 'found', address: a } : { status: 'notfound', address: null }))
+        .catch(() => alive && setEns({ status: 'notfound', address: null }));
     }, 400);
-    return () => clearTimeout(timer);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
   }, [to, isEns]);
   const recipient = isEns ? ens.address ?? '' : to.trim();
   const recipientOk = !!recipient && validAddress(recipient);
@@ -243,6 +252,27 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
     }
     if (family === 'solana') {
       const sol = getAdapter(chain.id) as SolanaChainAdapter;
+      /*
+       * Loyer minimal, dit AVANT la signature comme dans l'app : sinon le code
+       * était saisi sur le téléphone pour une transaction que le réseau refuse.
+       * Un solde illisible ne bloque rien (le nœud tranchera).
+       */
+      if (!token) {
+        const [fromBal, toBal] = await Promise.all([
+          sol.getBalance(senderAddress).then((b) => b.raw).catch(() => null),
+          sol.getBalance(recipient).then((b) => b.raw).catch(() => null),
+        ]);
+        if (toBal === 0n && amountRaw < SOL_RENT_EXEMPT_MIN) throw new WalletError('SOL_RENT_RECIPIENT', 'Destinataire sans compte : montant sous le loyer minimal');
+        const rest = fromBal != null ? fromBal - amountRaw - SOL_BASE_FEE : null;
+        if (rest != null && rest > 0n && rest < SOL_RENT_EXEMPT_MIN) {
+          const all = fromBal! - SOL_BASE_FEE;
+          const max = all - SOL_RENT_EXEMPT_MIN;
+          throw new WalletError('SOL_RENT_SENDER', 'Reste sous le loyer minimal', {
+            max: formatInputAmount(max > 0n ? max : 0n, 9),
+            all: formatInputAmount(all > 0n ? all : 0n, 9),
+          });
+        }
+      }
       const latest = await sol.rpc<{ value?: { blockhash?: string } }>('getLatestBlockhash', [{ commitment: 'finalized' }]);
       const recentBlockhash = latest?.value?.blockhash;
       if (!recentBlockhash) throw new UserFacingError(tw('blockhashUnavailable'));
@@ -300,11 +330,17 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
       try {
         if (a instanceof EvmChainAdapter) {
           setStage('included');
-          await a.waitForTx(hash);
+          /*
+           * Le REÇU, pas seulement l'inclusion : une transaction revertée est
+           * incluse aussi (frais payés, rien envoyé) et s'affichait « confirmée ».
+           */
+          const receipt = await a.waitForReceipt(hash);
+          if (!alive) return;
+          if (receipt?.status === 0) return setStage('failed');
         }
         if (alive) setStage('confirmed');
       } catch {
-        if (alive) setStage('failed');
+        // Délai d'attente dépassé : la transaction peut encore passer — on reste sur « incluse… », pas « échec ».
       }
     })();
     return () => { alive = false; };

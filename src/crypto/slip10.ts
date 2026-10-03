@@ -28,18 +28,31 @@ function ser32(value: number): Uint8Array {
  * décalage durci : `[44, 501, 0, 0]` pour `m/44'/501'/0'/0'`.
  */
 export function deriveEd25519(seed: Uint8Array, segments: number[]): { key: Uint8Array; chainCode: Uint8Array } {
+  // Chaque tampon intermédiaire (clés parentes, sorties HMAC) est remis à zéro dès qu'il ne sert plus :
+  // seul le résultat final reste en mémoire.
   const I = hmac(sha512, ED25519_SEED, seed);
   let key = I.slice(0, 32);
   let chainCode = I.slice(32);
-  for (const seg of segments) {
-    if (!Number.isInteger(seg) || seg < 0 || seg >= HARDENED) throw new Error('SLIP-0010 : segment de chemin invalide');
-    const data = new Uint8Array(37); // 0x00 || key(32) || ser32(index)
-    data[0] = 0x00;
-    data.set(key, 1);
-    data.set(ser32(seg + HARDENED), 33);
-    const In = hmac(sha512, chainCode, data);
-    key = In.slice(0, 32);
-    chainCode = In.slice(32);
+  I.fill(0);
+  try {
+    for (const seg of segments) {
+      if (!Number.isInteger(seg) || seg < 0 || seg >= HARDENED) throw new Error('SLIP-0010 : segment de chemin invalide');
+      const data = new Uint8Array(37); // 0x00 || key(32) || ser32(index)
+      data[0] = 0x00;
+      data.set(key, 1);
+      data.set(ser32(seg + HARDENED), 33);
+      const In = hmac(sha512, chainCode, data);
+      data.fill(0);
+      key.fill(0);
+      chainCode.fill(0);
+      key = In.slice(0, 32);
+      chainCode = In.slice(32);
+      In.fill(0);
+    }
+  } catch (e) {
+    key.fill(0);
+    chainCode.fill(0);
+    throw e;
   }
   return { key, chainCode };
 }

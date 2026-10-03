@@ -70,7 +70,7 @@ export function DeepLinks() {
       if (!w.isUnlocked) {
         // Rejouée par `app/unlock.tsx`, après l'accueil — cf. paymentIntent.
         setPendingIntent(result);
-        toast.info(translate(useSettings.getState().language, 'payQueuedUnlock'));
+        toast.info(translate(useSettings.getState().language, result.kind === 'url' ? 'linkQueuedUnlock' : 'payQueuedUnlock'));
         return;
       }
       void runQrIntent(result);
@@ -140,7 +140,8 @@ export function DeepLinks() {
       }
       if (/(^|\/\/)browse\b/i.test(url)) {
         const target = extractBrowseUrl(url);
-        if (target) router.navigate({ pathname: '/browser', params: { url: target } });
+        // Par `act` : app verrouillée → mise en attente jusqu'au code (la page ne se charge pas derrière l'écran de verrouillage).
+        if (target) act({ kind: 'url', url: target });
       }
     };
     Linking.getInitialURL().then((u) => handle(u, true));
