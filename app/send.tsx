@@ -37,7 +37,7 @@ import { useWallet, type Unlock } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { useRecentRecipients, type RecipientFamily } from '../lib/recentRecipientsStore';
 import { useContacts } from '../lib/contactsStore';
-import { usePortfolioStore, splitHoldings, type Holding } from '../lib/portfolio';
+import { usePortfolioStore, splitHoldings, useTestnetBalances, testnetHoldings, type Holding } from '../lib/portfolio';
 import { notifyAndLog } from '../lib/notificationCenter';
 import { technicalLogger } from '../lib/technicalLogger';
 import { haptic } from '../lib/haptics';
@@ -161,9 +161,17 @@ function SendInner() {
     const st = accounts.find((a) => a.index === wallet.activeAccountIndex) ?? accounts[0];
     if (!st) return;
     const a = { evmAddress: st.evmAddress, solAddress: st.solAddress, btcAddress: st.btcAddress, tonPublicKey: st.tonPublicKey, tonVersion: st.tonVersion };
-    pf.hydrate(a, fiat, { includeTestnets: showTestnets }).then(() => pf.refresh(a, fiat, { includeTestnets: showTestnets, force: true }));
+    // Le portefeuille agrégé reste celui du réseau principal (accueil, total) ;
+    // les réseaux de test se lisent à part et s'ajoutent à la liste ci-dessous.
+    pf.hydrate(a, fiat).then(() => pf.refresh(a, fiat, { force: true }));
+    if (showTestnets) void useTestnetBalances.getState().refresh(a, { force: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet.activeAccountIndex, fiat, showTestnets]);
+  const testnetBals = useTestnetBalances((s) => s.balances);
+  const sendable = useMemo(
+    () => (showTestnets ? [...pf.holdings.filter((h) => !getAdapter(h.chainId).config.testnet), ...testnetHoldings(testnetBals)] : pf.holdings),
+    [pf.holdings, testnetBals, showTestnets],
+  );
   const [inFiat, setInFiat] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
@@ -807,7 +815,7 @@ function SendInner() {
       <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[5], flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         {/* ── 0. Quoi envoyer (agrégé multi-chaîne) ── */}
         {step === 0 ? (() => {
-          const { main, small } = splitHoldings(pf.holdings);
+          const { main, small } = splitHoldings(sendable);
           const q = search.trim().toLowerCase();
           const list = [...main, ...small].filter((h) => {
             const isTestnet = getAdapter(h.chainId).config.testnet === true;
@@ -836,7 +844,7 @@ function SendInner() {
                         chainId={h.chainId}
                         address={h.contract ?? h.chainId}
                         balance={`${formatTokenAmount(h.raw, h.decimals)} ${h.symbol}`}
-                        fiat={h.price > 0 ? `${formatFiat(h.fiat)} ${sym}` : undefined}
+                        fiat={h.price > 0 ? `${formatFiat(h.fiat)} ${sym}` : getAdapter(h.chainId).config.testnet ? t('testnetNoValue') : undefined}
                         onPress={() => {
                           haptic.light();
                           setPicked(h);

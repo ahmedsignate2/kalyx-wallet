@@ -27,9 +27,10 @@ export function friendlySolanaSimError(err: unknown, logs: string[]): string {
 export async function submitSolanaSigned(
   signedBase64: string,
   onStatus?: (s: SolanaSubmitStatus) => void,
-  opts: { confirmTimeoutMs?: number } = {},
+  opts: { confirmTimeoutMs?: number; chainId?: string } = {},
 ): Promise<string> {
-  const rpc = getAdapter('solana') as SolanaChainAdapter;
+  // Le réseau de la transaction (Devnet compris) : diffusée ailleurs, elle serait refusée.
+  const rpc = getAdapter(opts.chainId ?? 'solana') as SolanaChainAdapter;
 
   onStatus?.('sending');
   const sim = await rpc.rpc<{ value?: { err?: unknown; logs?: string[] } }>('simulateTransaction', [

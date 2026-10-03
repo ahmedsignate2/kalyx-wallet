@@ -126,6 +126,7 @@ async function clearMemory(): Promise<void> {
     import('./debugJournal').then((m) => m.clearJournal()),
     import('./earn/earnStore').then((m) => m.useEarn.setState({ positions: [], balances: { underlying: {}, gas: {} } } as never)),
     import('./portfolio/portfolioStore').then((m) => m.usePortfolioStore.setState({ holdings: [], total: 0, pnl24h: null, pnl24hPct: null, at: 0, key: null, loading: false } as never)),
+    import('./portfolio/testnetBalances').then((m) => m.useTestnetBalances.setState({ key: null, balances: [], failed: [], at: 0, loading: false })),
     import('./browserPresence').then((m) => m.useBrowserPresence.getState().clear()),
     import('./technicalLogger').then((m) => m.clearTechnicalLogs()),
   ];

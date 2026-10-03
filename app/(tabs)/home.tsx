@@ -42,6 +42,7 @@ import { useWallet } from '../../lib/walletStore';
 import { addressForChain } from '../../lib/accountAddress';
 import { accountDisplayName } from '../../lib/walletNames';
 import { useSettings, useT, useActivityT, fiatSymbol } from '../../lib/settingsStore';
+import { TestnetSection } from '../../ui/TestnetSection';
 import { useNotifCenter, unreadCount } from '../../lib/notificationCenter';
 import { usePortfolioStore, splitHoldings, verifiedSymbols, verifiedContracts, verifiedChainSymbols, portfolioHistory, peekPortfolioHistory, loadNftReport, PERIODS, type NftReport, type Period, type Holding, type ChainNft } from '../../lib/portfolio';
 import { useContacts } from '../../lib/contactsStore';
@@ -148,6 +149,9 @@ export default function Home() {
       return !v;
     });
   const [refreshing, setRefreshing] = useState(false);
+  /** Incrémenté à chaque « tirer pour rafraîchir » : les soldes de test suivent le geste. */
+  const [refreshTick, setRefreshTick] = useState(0);
+  const showTestnets = useSettings((s) => s.showTestnets);
   const [showHidden, setShowHidden] = useState(false);
   const [nfts, setNfts] = useState<ChainNft[] | null>(null);
   /** Ce qui n'a pas répondu à la dernière lecture : on le dit, au lieu d'afficher « aucun NFT ». */
@@ -316,6 +320,7 @@ export default function Home() {
      */
     haptic.selection();
     setRefreshing(true);
+    setRefreshTick((n) => n + 1);
     try {
       /*
        * L'historique se rafraîchit AUSSI, et en parallèle du portefeuille : le
@@ -443,6 +448,7 @@ export default function Home() {
   const greeting = t(hour < 5 ? 'greeting_night' : hour < 12 ? 'greeting_morning' : hour < 18 ? 'greeting_afternoon' : hour < 22 ? 'greeting_evening' : 'greeting_night');
   const initialLoading = pf.loading && pf.at === 0;
   const { main, small, hidden: unverified } = splitHoldings(pf.holdings);
+  const testnetSection = showTestnets && acct ? <TestnetSection acct={acct} hidden={hidden} refreshTick={refreshTick} /> : null;
   /*
    * LISTES BORNÉES. Une grosse adresse (suivie en lecture seule, par exemple)
    * détient des centaines de jetons et de NFT : tout rendre d'un coup — chaque
@@ -699,7 +705,8 @@ export default function Home() {
           <TextTabs items={[{ key: 'tokens', label: t("tabTokens") }, { key: 'nft', label: t("tabNft") }, { key: 'activity', label: t("tabActivity") }]} value={tab} onChange={setTab} />
 
           {tab === 'tokens' ? (
-            initialLoading ? (
+            <>
+            {initialLoading ? (
               <Surface padded={false} style={{ borderRadius: 26 }}>
                 {[0, 1, 2].map((i) => (
                   <View key={i} style={{ height: 64, flexDirection: 'row', alignItems: 'center', gap: space[3], paddingHorizontal: space[4] }}>
@@ -710,10 +717,13 @@ export default function Home() {
                 ))}
               </Surface>
             ) : pf.holdings.length === 0 ? (
+              <>
               <Surface>
                 <EmptyState icon="receive" title={t("emptyTokensTitle")} body={t("emptyTokensBody")} actionLabel={t("actionReceive")} onAction={() => router.push('/receive')} />
                 {pf.error ? <Text variant="caption" tone="warning" style={{ textAlign: 'center' }}>{pf.error}</Text> : null}
               </Surface>
+              {testnetSection}
+              </>
             ) : (
               <>
                 <Surface padded={false} style={{ borderRadius: 26 }}>
@@ -787,6 +797,8 @@ export default function Home() {
                     ) : null}
                   </View>
                 ) : null}
+                {/* Réseaux de test : à part, sans valeur, seulement s'ils sont affichés. */}
+                {testnetSection}
                 {pf.error ? <Text variant="caption" tone="warning" style={{ textAlign: 'center' }}>{t("updateFailed")}{new Date(pf.at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</Text> : null}
                 {/* Répartition : où est l'argent, par actif ou par réseau, aux couleurs de chacun. */}
                 {!hidden ? (
@@ -798,7 +810,8 @@ export default function Home() {
                 {/* Le marché vit ici (plus d'onglet) : hausses / baisses du jour, puis l'écran complet. */}
                 <MarketPanel />
               </>
-            )
+            )}
+            </>
           ) : tab === 'nft' ? (
             <View style={{ gap: space[3] }}>
             {nfts === null ? (

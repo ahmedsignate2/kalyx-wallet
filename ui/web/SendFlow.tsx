@@ -23,7 +23,7 @@ import React, { useContext, useCallback, useEffect, useMemo, useState } from 're
 import { View, ScrollView, Pressable as RNPressable, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { base64 } from '@scure/base';
-import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, type TxStage } from '../kit';
+import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage } from '../kit';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
 import { space, SCREEN_MARGIN, radius } from '../tokens';
@@ -33,7 +33,7 @@ import { webErrorText } from './webErrors';
 import { useRecentRecipients, type RecipientFamily } from '../../lib/recentRecipientsStore';
 import { useContacts } from '../../lib/contactsStore';
 import { useWebConnect } from '../../lib/webConnect';
-import { usePortfolioStore, splitHoldings, type Holding } from '../../lib/portfolio';
+import { usePortfolioStore, splitHoldings, useTestnetBalances, testnetHoldings, type Holding } from '../../lib/portfolio';
 import { submitSolanaSigned } from '../../lib/solanaSubmit';
 import { toast } from '../../lib/toast';
 import {
@@ -94,9 +94,17 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
   const pfAccount = useWebPortfolioAccount();
   useEffect(() => {
     if (!pfAccount) return;
-    pf.hydrate(pfAccount, fiat, { includeTestnets: showTestnets }).then(() => pf.refresh(pfAccount, fiat, { includeTestnets: showTestnets, force: true }));
+    // Le portefeuille agrégé reste celui du réseau principal ; les réseaux de test se lisent à part.
+    pf.hydrate(pfAccount, fiat).then(() => pf.refresh(pfAccount, fiat, { force: true }));
+    if (showTestnets) void useTestnetBalances.getState().refresh(pfAccount, { force: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pfAccount, fiat, showTestnets]);
+  const testnetBals = useTestnetBalances((s) => s.balances);
+  const sendable = useMemo(
+    () => (showTestnets ? [...pf.holdings.filter((h) => !chainOf(h.chainId)?.testnet), ...testnetHoldings(testnetBals)] : pf.holdings),
+    [pf.holdings, testnetBals, showTestnets],
+  );
+  const [environment, setEnvironment] = useState<'mainnet' | 'testnet'>('mainnet');
 
   const chain = (picked ? chainOf(picked.chainId) : undefined) ?? initialChain;
   const family = chain.family as RecipientFamily;
@@ -164,7 +172,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
   // ── Solde, prix, frais (estimation — le téléphone fixe les frais réels) ──
   const balance = picked?.raw ?? null;
   const price = picked?.price ?? 0;
-  const nativeHolding = pf.holdings.find((h) => h.kind === 'native' && h.chainId === chain.id) ?? null;
+  const nativeHolding = sendable.find((h) => h.kind === 'native' && h.chainId === chain.id) ?? null;
   const [nativeBal, setNativeBal] = useState<bigint | null>(null);
   const [nativePrice, setNativePrice] = useState(0);
   const [feeOptions, setFeeOptions] = useState<FeeOptions | null>(null);
@@ -287,7 +295,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
       const signed = pick<string>(res, ['transaction']) ?? (typeof res === 'string' ? res : undefined);
       if (!signed) throw new UserFacingError(tw('phoneNoSignedTx'));
       // Simulation + diffusion + attente de confirmation : même chemin que l'app.
-      return submitSolanaSigned(signed);
+      return submitSolanaSigned(signed, undefined, { chainId: chain.id });
     }
     /*
      * Montant en SATOSHIS, par `bitcoin_sendTransfer` : seules les versions du
@@ -314,7 +322,8 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
       setStage(family === 'solana' ? 'confirmed' : 'sent');
       addRecent(recipient, family);
       toast.success(t('sendTitle'), `${formatTokenAmount(amountRaw, decimals)} ${symbol}`);
-      pf.refresh(pfAccount!, fiat, { includeTestnets: showTestnets, force: true }).catch(() => {});
+      if (chain.testnet) void useTestnetBalances.getState().refresh(pfAccount!, { force: true });
+      else pf.refresh(pfAccount!, fiat, { force: true }).catch(() => {});
     } catch (e) {
       // Le message brut d'ethers, du RPC ou de WalletConnect n'a pas de langue :
       // il passe par le même entonnoir que l'app pour être traduit par son code.
@@ -392,12 +401,14 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
   const explorerTx = hash && chain.explorerUrl ? `${chain.explorerUrl}/tx/${hash}` : null;
 
   // Étape 0 : vérifiés uniquement (main + petits soldes), jamais les « masqués » (spam).
-  const { main, small } = splitHoldings(pf.holdings);
+  const { main, small } = splitHoldings(sendable);
   const q = search.trim().toLowerCase();
   const list = [...main, ...small].filter((h) => {
     const c = chainOf(h.chainId);
     // Jettons TON : la signature par le téléphone (WalletConnect) ne couvre pas TON.
-    return h.raw > 0n && h.kind !== 'jetton' && !!c && !!c.testnet === showTestnets && !!addressForChain(accounts, h.chainId) &&
+    // Réseau de test : seulement s'il a été partagé par le téléphone (sinon il refuserait la demande).
+    const shared = c?.testnet ? accounts.some((a) => a.chainId === h.chainId) : !!addressForChain(accounts, h.chainId);
+    return h.raw > 0n && h.kind !== 'jetton' && !!c && !!c.testnet === (environment === 'testnet') && shared &&
       (!q || h.symbol.toLowerCase().includes(q) || h.name.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
   });
 
@@ -426,7 +437,8 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
         {step === 0 ? (
           <>
             <Input placeholder={tw('searchAssetPlaceholder')} value={search} onChangeText={setSearch} autoCapitalize="none" />
-            {pf.loading && pf.holdings.length === 0 ? (
+            {showTestnets ? <SegmentedControl items={[{ key: 'mainnet', label: t('tabMainnet') }, { key: 'testnet', label: t('tabTestnet') }]} value={environment} onChange={setEnvironment} /> : null}
+            {pf.loading && pf.holdings.length === 0 && environment === 'mainnet' ? (
               <Surface padded={false}>{[0, 1, 2].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center', gap: space[2] }}><Skeleton width="55%" /><Skeleton width="30%" height={12} /></View>)}</Surface>
             ) : list.length === 0 ? (
               <Surface><EmptyState icon="send" title={q ? t('emptySearchTitle') : t('emptySendTitle')} body={q ? undefined : t('emptySendBody')} actionLabel={q ? undefined : t('receive')} onAction={q ? undefined : onReceive} /></Surface>
@@ -440,7 +452,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
                       logo={h.kind === 'native' ? chainIconUrl(h.chainId) : h.logo}
                       address={h.contract ?? h.chainId}
                       balance={`${formatTokenAmount(h.raw, h.decimals)} ${h.symbol}`}
-                      fiat={h.price > 0 ? `${formatFiat(h.fiat)} ${sym}` : undefined}
+                      fiat={h.price > 0 ? `${formatFiat(h.fiat)} ${sym}` : chainOf(h.chainId)?.testnet ? t('testnetNoValue') : undefined}
                       onPress={() => { setPicked(h); setAmount(''); setTo(''); setAddressError(null); setAmountError(null); setStep(1); }}
                     />
                     {i < list.length - 1 ? <Divider inset={68} /> : null}
