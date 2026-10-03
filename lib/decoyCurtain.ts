@@ -28,14 +28,15 @@ const K_DECOY_BOOT = 'kalyx.decoyBoot';
 const DECOY_BOOT_TTL_MS = 60_000;
 
 type Restarter = () => Promise<void> | void;
+/**
+ * Redémarrage du JavaScript (`reloadAppAsync` d'Expo, en développement comme en
+ * production). Lu directement sur l'objet natif : la fonction exportée par
+ * `expo` ne fait RIEN — en silence — quand il manque, et un faux redémarrage
+ * laisserait les vraies données en mémoire.
+ */
 function restarter(): Restarter | null {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const U = require('expo-updates') as { isEnabled?: boolean; reloadAsync?: () => Promise<void> };
-    if (U?.isEnabled && U.reloadAsync) return () => U.reloadAsync!();
-  } catch {
-    /* pas de module */
-  }
+  const native = (globalThis as { expo?: { reloadAppAsync?: (reason: string) => Promise<void> } }).expo;
+  if (typeof native?.reloadAppAsync === 'function') return () => native.reloadAppAsync!('kalyx-decoy');
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { DevSettings } = require('react-native') as { DevSettings?: { reload?: () => void } };

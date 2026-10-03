@@ -4,14 +4,12 @@
  * Voie STANDALONE (`@walletconnect/pay`), pas WalletKit. La voie WalletKit
  * aurait imposé de migrer `web3wallet` → `walletkit`, c'est-à-dire de réécrire
  * `lib/walletconnect.ts`, qui porte toutes nos méthodes de signature et
- * fonctionne. Concentrer deux risques juste avant un build qu'aucune OTA ne
- * pourra corriger n'avait pas de sens. La migration WalletKit reste à décider
+ * fonctionne. Concentrer deux risques dans un même build n'avait pas de sens. La migration WalletKit reste à décider
  * pour ses propres raisons.
  *
  * LE SDK EST UN MODULE NATIF (Yttrium, embarqué par
  * `@walletconnect/react-native-compat` ≥ 2.25). Il n'existe donc PAS tant que
- * l'app n'a pas été reconstruite, et aucune mise à jour OTA ne pourra
- * l'apporter. Il est chargé paresseusement et de façon gardée — comme la
+ * l'app n'a pas été reconstruite. Il est chargé paresseusement et de façon gardée — comme la
  * caméra — pour qu'une absence de module natif dégrade la fonction au lieu de
  * faire tomber l'app au démarrage.
  *
@@ -50,8 +48,7 @@ const PAY_APP_ID = (process.env.EXPO_PUBLIC_WALLETCONNECT_PAY_ID ?? '').trim();
  * `{"fontFamily":"poppins","fontSize":15,"inputRadius":24,"buttonRadius":24}`.
  *
  * Constante et non variable d'environnement : ce n'est ni un secret ni une
- * valeur qui varie par build, et la garder dans le code la rend modifiable par
- * une simple mise à jour OTA.
+ * valeur qui varie par build.
  */
 const PAY_THEME_VARIABLES =
   'eyJmb250RmFtaWx5IjoicG9wcGlucyIsImZvbnRTaXplIjoxNSwiaW5wdXRSYWRpdXMiOjI0LCJidXR0b25SYWRpdXMiOjI0fQ';

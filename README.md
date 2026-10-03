@@ -602,8 +602,7 @@ kalyx-wallet/
 ├── TERMS.md
 ├── CONTRIBUTING.md
 ├── ANDROID_GUIDE.md
-├── MOBILE_SETUP.md
-└── HANDOFF.md
+└── MOBILE_SETUP.md
 ```
 
 ---
@@ -776,7 +775,6 @@ Le nombre exact de tests n'est volontairement pas figé dans ce README afin d'é
 - PRIVACY.md
 - TERMS.md
 - CONTRIBUTING.md
-- HANDOFF.md
 
 ---
 

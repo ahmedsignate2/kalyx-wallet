@@ -61,7 +61,6 @@ tests FR/EN/DE sur chaque écran · RTL (`I18nManager`).
 Button (4 variantes), IconButton, HoldButton, ListRow, TokenRow, TokenIcon, AddressGlyph,
 AmountDisplay (chiffres roulants), AmountKeypad, Input, SegmentedControl, Chip, Badge de risque,
 Sheet (@gorhom/bottom-sheet), Toast, Skeleton, Chart, EmptyState, Halo.
-**Design Lab** : écran caché (7 taps sur la version, dev only) montrant tous les composants.
 
 ## 10. Stack visuelle
 reanimated 3 · gesture-handler · @shopify/react-native-skia · @gorhom/bottom-sheet ·
@@ -71,15 +70,14 @@ react-native-keychain.
 ## 11. Méthode
 Un écran à la fois : spec → construction → capture → critique → checklist verte
 (sombre/clair · FR/EN/DE · 360 dp · 5 états · haptique · réduire les animations · 60 fps ·
-lecteur d'écran · tests · Design Lab).
+lecteur d'écran · tests).
 
 ## 12. Feuille de route
 - [x] **0 — Direction** : nom (Kalyx), couleurs/typo (tokens). [ ] prototype du glyphe.
 - [x] **1 — Fondations** : `ui/tokens.ts`, `ui/theme.ts` re-basé, General Sans embarquée,
       Phosphor (`ui/icon.tsx`), kit `ui/kit/` (Pressable, Text, Button ×4, IconButton, HoldButton,
       Surface/Divider, ListRow/TokenRow, TokenIcon monogramme, AddressGlyph, AmountDisplay
-      roulant, Chip/RiskBadge, SegmentedControl, Input, Skeleton, EmptyState, Halo statique),
-      Design Lab (`app/design-lab.tsx`, 7 taps sur la version, dev only).
+      roulant, Chip/RiskBadge, SegmentedControl, Input, Skeleton, EmptyState, Halo statique).
       [ ] 4 icônes maison · [ ] Skia (halo respirant, particules, chart) → rebuild natif.
 - [x] **2 — Accueil** (2026-09-11) : `app/home.tsx` sur `lib/portfolio/` (agrégé multi-chaîne
       natifs + ERC-20 Alchemy + SPL, cache AsyncStorage → affichage instantané puis refresh

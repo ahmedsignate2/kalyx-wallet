@@ -1,5 +1,5 @@
 import { NovaCard, Orbit } from '../../ui/nova';
-import React, { useRef } from 'react';
+import React from 'react';
 import { View, Text, Linking } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
@@ -71,17 +71,6 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
     router.push({ pathname: '/legal', params: { doc: 'terms' } });
   };
 
-  // Secret Dev Taps on version: 7 taps opens /design-lab
-  const taps = useRef(0);
-  const onVersionTap = () => {
-    if (!__DEV__) return;
-    taps.current += 1;
-    if (taps.current >= 7) {
-      taps.current = 0;
-      router.push('/design-lab');
-    }
-  };
-
   return (
     <PremiumScreen>
       <ScreenHeader
@@ -105,15 +94,9 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
           Kalyx Wallet
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <KPressable
-            onPress={onVersionTap}
-            hitSlop={8}
-            accessibilityLabel={`${t('legalAppVersion')} ${appVersion}`}
-          >
-            <Text style={typography.muted}>
-              {t('legalAppVersion')} v{appVersion}
-            </Text>
-          </KPressable>
+          <Text style={typography.muted}>
+            {t('legalAppVersion')} v{appVersion}
+          </Text>
           {IS_BETA ? (
             <View
               style={{

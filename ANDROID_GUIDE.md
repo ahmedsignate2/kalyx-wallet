@@ -71,7 +71,7 @@ C'est le plus direct si tu es sur un PC/Mac.
 
 Ensuite, pour recharger le code sans recompiler :
 ```bash
-npm start        # = expo start --dev-client
+npm start        # = expo start
 ```
 
 ### 🔵 Chemin B — PAS d'Android Studio / tu es sur Termux ou Linux minimal

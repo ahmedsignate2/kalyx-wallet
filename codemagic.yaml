@@ -25,7 +25,7 @@ workflows:
       node: 20
       java: 17
       vars:
-        EAS_PROFILE: development # ou "production" pour l'AAB Play Store
+        EAS_PROFILE: preview # ou "production" pour l'AAB Play Store
         EAS_NO_VCS: "1"
     cache:
       cache_paths:
