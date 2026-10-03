@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { STORES, DIRECT_APK_URL, type StoreEntry } from '../lib/stores';
 import { RELEASE_LATEST_URL, SOURCE_URL } from '../lib/links';
+import { useRelayText } from './relay-i18n';
 
 type Status = 'detecting' | 'redirecting' | 'manual';
 
@@ -18,6 +19,7 @@ export function DownloadRelay() {
   const [store, setStore] = useState<StoreEntry | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isDirectApk, setIsDirectApk] = useState(false);
+  const tx = useRelayText();
 
   useEffect(() => {
     const ua = navigator.userAgent.toLowerCase();
@@ -45,15 +47,15 @@ export function DownloadRelay() {
     <div className="mt-8 flex flex-col items-center gap-5">
       <p className="text-mist">
         {isIOS
-          ? 'Kalyx arrive bientôt sur iOS.'
+          ? tx.iosSoon
           : status === 'manual'
-            ? 'Le téléchargement ne s’est pas lancé automatiquement — choisis une option :'
-            : 'Redirection…'}
+            ? tx.manual
+            : tx.redirecting}
       </p>
 
       {store && status === 'manual' && (
         <a href={store.deepLink} className="inline-flex h-12 items-center rounded-full bg-paper px-6 text-sm font-medium text-ink">
-          Ouvrir {store.label}
+          {tx.openStore(store.label)}
         </a>
       )}
 
@@ -64,19 +66,19 @@ export function DownloadRelay() {
           </a>
         ))}
         <a href={DIRECT_APK_URL} download className="text-sm text-mist underline underline-offset-4 hover:text-paper">
-          Télécharger l’APK Android directement
+          {tx.directApk}
         </a>
       </div>
 
       {isDirectApk && status === 'manual' && (
-        <p className="max-w-xs text-xs text-mist/70">Ton appareil n’a pas encore de store Kalyx détecté — voici l’APK direct en attendant.</p>
+        <p className="max-w-xs text-xs text-mist/70">{tx.noStore}</p>
       )}
 
       <p className="max-w-sm text-xs leading-relaxed text-mist/60">
-        Vérifie le fichier : l’empreinte SHA-256 et le certificat de signature sont publiés avec chaque version sur{' '}
-        <a href={RELEASE_LATEST_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-paper">GitHub Releases</a>
+        {tx.verify}{' '}
+        <a href={RELEASE_LATEST_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-paper">{tx.releases}</a>
         {' · '}
-        <a href={SOURCE_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-paper">code source</a>.
+        <a href={SOURCE_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-paper">{tx.source}</a>.
       </p>
     </div>
   );
