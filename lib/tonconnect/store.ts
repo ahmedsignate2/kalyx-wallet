@@ -16,7 +16,7 @@ import Constants from 'expo-constants';
 import { create } from 'zustand';
 import { base64, hex } from '@scure/base';
 import { ed25519 } from '@noble/curves/ed25519';
-import { kvDel, kvGet, kvSet } from '../kv';
+import { KV_DEVICE_ONLY, kvDel, kvGet, kvSet } from '../kv';
 import { useWallet, type Unlock } from '../walletStore';
 import { addressForChain } from '../accountAddress';
 import { technicalLogger } from '../technicalLogger';
@@ -137,7 +137,8 @@ async function sendTo(bridge: string, keyPair: SessionKeyPair, dappClientId: str
 
 async function persist(sessions: TcSession[]): Promise<void> {
   await kvSet(INDEX_KEY, JSON.stringify(sessions.map((s) => s.clientId)));
-  await Promise.all(sessions.map((s) => kvSet(sessionKey(s.clientId), JSON.stringify(s))));
+  // Session = clé secrète de chiffrement : cet appareil seulement, jamais dans une sauvegarde.
+  await Promise.all(sessions.map((s) => kvSet(sessionKey(s.clientId), JSON.stringify(s), KV_DEVICE_ONLY)));
 }
 
 const listeners = new Map<string, BridgeListener>();
@@ -260,7 +261,7 @@ export const useTonConnect = create<TcState>((set, get) => {
     if (!session) return;
     if (m.eventId) {
       session.lastEventId = m.eventId;
-      void kvSet(sessionKey(session.clientId), JSON.stringify(session)).catch(() => {});
+      void kvSet(sessionKey(session.clientId), JSON.stringify(session), KV_DEVICE_ONLY).catch(() => {});
     }
     let req: { method?: string; params?: unknown[]; id?: string | number };
     try {

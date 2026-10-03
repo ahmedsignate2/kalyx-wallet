@@ -101,6 +101,9 @@ function patchAsyncStorage(): void {
   if (typeof multiGet === 'function') {
     S.multiGet = (...a: unknown[]) => (isDecoySession() ? Promise.resolve((a[0] as string[]).map((k) => [k, null])) : multiGet.apply(AsyncStorage, a));
   }
+  // Même les NOMS des clés trahiraient le vrai historique (aucun appelant aujourd'hui : verrou préventif).
+  const allKeys = S.getAllKeys;
+  if (typeof allKeys === 'function') S.getAllKeys = (...a: unknown[]) => (isDecoySession() ? Promise.resolve([]) : allKeys.apply(AsyncStorage, a));
 }
 
 /** REPLI (app sans redémarrage) : les magasins connus vidés de la mémoire. */
