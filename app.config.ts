@@ -14,8 +14,8 @@ const schemes = ['kalyx', ...(googleScheme ? [googleScheme] : [])];
 
 /**
  * Version par profil de build : `EAS_BUILD_PROFILE` est fourni par EAS
- * pendant `eas build` (et par le workflow GitHub Actions, cf.
- * .github/workflows/eas-build-release.yml) — jamais présent en dehors d'un
+ * pendant `eas build` (et par le workflow EAS, cf.
+ * .eas/workflows/release-production.yml) — jamais présent en dehors d'un
  * build, donc `expo start` en local reste en 0.1.0 par défaut.
  * `production` et `production-apk` (Galaxy Store) → 1.0.0 ; le reste
  * (development, preview) → 0.1.0, réservé aux testeurs.
