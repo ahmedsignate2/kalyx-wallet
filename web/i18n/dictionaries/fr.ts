@@ -6,7 +6,7 @@ const fr = {
   meta: {
     title: 'Kalyx Wallet — Portefeuille crypto non-custodial, multi-chaînes',
     description:
-      'Vos clés restent sur votre téléphone. Bitcoin, Ethereum, Solana et 64 réseaux, chaque signature expliquée avant de signer. Gratuit, sans compte.',
+      'Vos clés restent sur votre téléphone. Bitcoin, Ethereum, TON, Solana et 65 réseaux, chaque signature expliquée avant de signer. Gratuit, sans compte.',
   },
   nav: {
     how: 'Comment ça marche',
@@ -44,7 +44,7 @@ const fr = {
     line1: 'La souveraineté',
     line2: 'de vos actifs.',
     line3: 'Sans compromis.',
-    sub: 'Gérez Bitcoin, Ethereum et Solana en toute liberté. Vos clés privées ne quittent jamais votre téléphone.',
+    sub: 'Gérez Bitcoin, Ethereum, TON et Solana en toute liberté. Vos clés privées ne quittent jamais votre téléphone.',
     cta: 'Télécharger l’APK',
     ctaSecondary: 'Découvrir la sécurité',
     chips: ['Non-custodial', 'AES-256-GCM', 'Zéro télémétrie', 'Multi-chaînes', 'IA en option (BYOK)'],
@@ -54,18 +54,18 @@ const fr = {
   networks: {
     label: 'Réseaux supportés',
     walletconnect: 'Interopérable avec WalletConnect (Reown)',
-    soon: 'TON arrive : les adresses et la dérivation de clé sont déjà écrites et testées.',
+    soon: 'TON, au complet : jettons, noms .ton, TON Connect, échanges STON.fi et staking Tonstakers.',
   },
   how: {
     kicker: 'Comment ça marche',
     title: 'Un wallet,',
     titleEm: 'pas un labyrinthe.',
-    lead: 'Cinq écrans de l’application, tels qu’ils sont aujourd’hui. Pas de maquette : ce sont de vraies captures.',
+    lead: 'Six écrans de l’application, tels qu’ils sont aujourd’hui — rendus depuis son code, avec un portefeuille de démonstration.',
     steps: [
       {
         title: 'Un solde. Toutes vos chaînes.',
-        text: 'Bitcoin, Ethereum et ses Layer 2, Solana : 64 réseaux agrégés en un seul chiffre, une seule courbe. Le solde s’affiche depuis le cache avant même que le réseau réponde.',
-        value: '64',
+        text: 'Bitcoin, Ethereum et ses Layer 2, Solana : 65 réseaux agrégés en un seul chiffre, une seule courbe. Le solde s’affiche depuis le cache avant même que le réseau réponde.',
+        value: '65',
         label: 'réseaux',
       },
       {
@@ -76,13 +76,13 @@ const fr = {
       },
       {
         title: 'Swap sans quitter l’app.',
-        text: 'Jupiter sur Solana, LI.FI et Relay sur les chaînes EVM et d’une chaîne à l’autre. La route est écrite en une phrase, l’impact sur le prix est annoncé avant de confirmer.',
-        value: '3',
+        text: 'Jupiter sur Solana, LI.FI et Relay sur les chaînes EVM et d’une chaîne à l’autre. La route est écrite en une phrase, l’impact sur le prix est annoncé avant de confirmer. Et STON.fi sur TON.',
+        value: '4',
         label: 'routeurs, vous signez vous-même',
       },
       {
         title: 'Faire travailler ce qui dort.',
-        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade. Vous déposez depuis votre wallet, vous retirez quand vous voulez. Kalyx ne prend rien au passage.',
+        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers. Vous déposez depuis votre wallet, vous retirez quand vous voulez. Kalyx ne prend rien au passage.',
         value: '0 %',
         label: 'de frais Kalyx sur Earn',
       },
@@ -92,6 +92,12 @@ const fr = {
         value: '1',
         label: 'phrase par signature',
       },
+      {
+        title: 'Sur l’ordinateur, et dans Telegram.',
+        text: 'Le tableau de bord app.kalyxwallet.com et la mini-app Telegram affichent soldes, tokens, NFT et marché, et préparent vos envois et échanges. Ils ne détiennent aucune clé : chaque signature se valide sur votre téléphone, par WalletConnect.',
+        value: '0',
+        label: 'clé hors de votre téléphone',
+      }
     ],
   },
   lose: {
@@ -157,6 +163,27 @@ const fr = {
       waits: ['aucune attente', '30 s', '1 min', '5 min', '15 min', '1 h'],
       closing: 'Et si un jour vous perdez le téléphone : vos douze mots, sur leur papier, recréent tout sur un autre.',
     },
+    s4: {
+      kicker: 'La liste blanche',
+      title: 'Il connaît votre code. Pas votre patience.',
+      text: 'Activez la liste blanche : les envois ne partent plus que vers les adresses choisies et vers vos propres comptes. Même avec votre code, un voleur ne peut rien changer dans l’heure.',
+      rows: [
+        ['Adresse ajoutée', 'utilisable dans 24 h'],
+        ['Désactiver la protection', 'effectif dans 24 h'],
+        ['Envoi vers une inconnue', 'bloqué'],
+      ],
+      closing: 'Un voleur pressé repart les mains vides.',
+    },
+    s5: {
+      kicker: 'La contrainte',
+      title: 'On vous force à ouvrir l’app.',
+      text: 'Tapez votre code de contrainte : Kalyx s’ouvre normalement, sur un portefeuille leurre. Vos vrais portefeuilles, contacts et notifications restent invisibles — rien n’indique qu’ils existent.',
+      rows: [
+        ['Votre code', 'vos vrais portefeuilles'],
+        ['Code de contrainte', 'le portefeuille leurre'],
+      ],
+      closing: 'La biométrie se coupe tant qu’il existe : un visage ouvrirait toujours les vrais.',
+    },
     footer1: 'Tout cela tourne',
     footerEm: 'sur votre téléphone',
     footer2: '. Kalyx n’a pas de serveur qui voit vos clés, votre adresse IP ne nous est jamais envoyée, aucun SDK d’analyse ne regarde par-dessus votre épaule.',
@@ -187,7 +214,7 @@ const fr = {
       { value: '0,3 %', label: 'sur un swap via LI.FI', note: 'EVM et d’une chaîne à l’autre. C’est la seule rémunération de Kalyx.' },
       { value: '0,3 %', label: 'sur un swap TON via STON.fi', note: 'Échanges sur TON (TON, USD₮, jettons). Même taux que LI.FI.' },
       { value: '0 %', label: 'sur un swap Solana via Jupiter', note: 'Aucune commission ajoutée à la route.' },
-      { value: '0 %', label: 'sur Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade : rien prélevé au dépôt ni au retrait.' },
+      { value: '0 %', label: 'sur Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers : rien prélevé au dépôt ni au retrait.' },
       { value: '0 €', label: 'd’abonnement, pour toujours', note: 'Pas de version « pro », pas de fonctionnalité derrière un péage.' },
     ],
     p1a: 'Avant chaque signature, les frais réseau sont affichés',

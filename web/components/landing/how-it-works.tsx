@@ -10,12 +10,13 @@ import type { Dict } from '../../i18n';
 /*
  * Écrans de l'app actuelle, rendus depuis son code (thème Nova, portefeuille de
  * démonstration — aucune donnée réelle), et vrais chiffres :
- *  - 63 réseaux = 67 configs dans src/domain/chains/configs.ts − 4 testnets
+ *  - 65 réseaux = listChains() hors testnets (62 EVM + Bitcoin, Solana, TON)
  *  - Envoyer en 4 étapes : app/send.tsx (StepBar), maintien 1,2 s (durations.holdToSend)
- *  - Swap : Jupiter (Solana), LI.FI et Relay (EVM, cross-chain) — src/domain/swap
- *  - Earn : 6 protocoles — src/domain/earn/catalog.ts ; 0 % de frais (EARN_FEE)
+ *  - Swap : Jupiter (Solana), LI.FI et Relay (EVM, cross-chain), STON.fi (TON) — src/domain/swap
+ *  - Earn : protocoles de src/domain/earn/catalog.ts ; 0 % de frais (EARN_FEE)
+ *  - Web / Telegram : ui/web (tableau de bord, aucune clé — signatures par WalletConnect)
  */
-const SCREENS = ['/screens/home.jpg', '/screens/send.jpg', '/screens/swap.jpg', '/screens/earn.jpg', '/screens/browser.jpg'];
+const SCREENS = ['/screens/home.jpg', '/screens/send.jpg', '/screens/swap.jpg', '/screens/earn.jpg', '/screens/browser.jpg', '/screens/web.jpg'];
 
 export function HowItWorks({ t }: { t: Dict }) {
   const reduce = useReducedMotion();
