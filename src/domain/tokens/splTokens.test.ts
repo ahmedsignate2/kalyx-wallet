@@ -101,3 +101,25 @@ describe('mergeTokenAccounts', () => {
     expect(mergeTokenAccounts([], [])).toEqual([]);
   });
 });
+
+describe('capSplTokens', () => {
+  const { capSplTokens } = require('./splTokens');
+  const { KNOWN_MINTS } = require('./splTokens');
+  it('garde les connus d’abord, puis borne', () => {
+    const knownMint = Object.keys(KNOWN_MINTS)[0];
+    const many = Array.from({ length: 150 }, (_, i) => ({ mint: `m${i}`, raw: BigInt(1000 - i), decimals: 0 }));
+    const out = capSplTokens([...many, { mint: knownMint, raw: 1n, decimals: 6 }], 100);
+    expect(out).toHaveLength(100);
+    expect(out[0].mint).toBe(knownMint);
+  });
+});
+
+describe('capSplTokens — décimales', () => {
+  const { capSplTokens } = require('./splTokens');
+  it('compare des montants en unités, pas des bruts', () => {
+    const spam = Array.from({ length: 3 }, (_, i) => ({ mint: `s${i}`, raw: 10n ** 12n, decimals: 9 })); // 1 000 unités
+    const real = { mint: 'r', raw: 5n * 10n ** 9n, decimals: 6 }; // 5 000 unités
+    expect(capSplTokens([...spam, real], 2)[0].mint).toBe('r');
+  });
+});
+

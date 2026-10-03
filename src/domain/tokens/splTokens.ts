@@ -19,11 +19,11 @@ const CG = 'https://assets.coingecko.com/coins/images';
 
 /** Mints SPL répandus (mainnet). */
 export const KNOWN_MINTS: Record<string, KnownMint> = {
-  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: { symbol: 'USDC', name: 'USD Coin', logo: `${CG}/6319/small/usdc.png` },
-  Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB: { symbol: 'USDT', name: 'Tether USD', logo: `${CG}/325/small/Tether.png` },
-  JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN: { symbol: 'JUP', name: 'Jupiter', logo: `${CG}/34188/small/jup.png` },
-  DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263: { symbol: 'BONK', name: 'Bonk', logo: `${CG}/28600/small/bonk.jpg` },
-  EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm: { symbol: 'WIF', name: 'dogwifhat', logo: `${CG}/33566/small/dogwifhat.jpg` },
+  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: { symbol: 'USDC', name: 'USD Coin', logo: `${CG}/6319/large/usdc.png` },
+  Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB: { symbol: 'USDT', name: 'Tether USD', logo: `${CG}/325/large/Tether.png` },
+  JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN: { symbol: 'JUP', name: 'Jupiter', logo: `${CG}/34188/large/jup.png` },
+  DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263: { symbol: 'BONK', name: 'Bonk', logo: `${CG}/28600/large/bonk.jpg` },
+  EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm: { symbol: 'WIF', name: 'dogwifhat', logo: `${CG}/33566/large/dogwifhat.jpg` },
   J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn: { symbol: 'JitoSOL', name: 'Jito Staked SOL' },
   mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So: { symbol: 'mSOL', name: 'Marinade Staked SOL' },
   '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R': { symbol: 'RAY', name: 'Raydium' },
@@ -113,4 +113,22 @@ export function mergeTokenAccounts(...lists: SplToken[][]): SplToken[] {
     for (const t of list) if (!byMint.has(t.mint)) byMint.set(t.mint, t);
   }
   return [...byMint.values()].sort((a, b) => (b.raw > a.raw ? 1 : b.raw < a.raw ? -1 : 0));
+}
+
+/** Jetons SPL gardés au plus : une grosse adresse en a des milliers (dont beaucoup de poussière). */
+export const MAX_SPL_TOKENS = 100;
+
+/**
+ * Borne la liste : les jetons CONNUS d'abord (USDC, USDT, JUP…), puis les plus
+ * gros soldes bruts. Sans borne, une adresse avec des milliers de comptes de
+ * jetons envoyait des milliers de mints à la recherche de métadonnées et de
+ * prix, et l'accueil s'effondrait.
+ */
+export function capSplTokens(tokens: SplToken[], max = MAX_SPL_TOKENS): SplToken[] {
+  if (tokens.length <= max) return tokens;
+  const known = tokens.filter((t) => KNOWN_MINTS[t.mint]);
+  // Montant EN UNITÉS (raw / 10^décimales) : comparer des bruts favorisait les jetons à 9 décimales.
+  const units = (t: SplToken) => Number(t.raw) / 10 ** t.decimals;
+  const rest = tokens.filter((t) => !KNOWN_MINTS[t.mint]).sort((a, b) => units(b) - units(a));
+  return [...known, ...rest].slice(0, max);
 }

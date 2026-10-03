@@ -1,3 +1,4 @@
+import { NovaCard, Orbit } from '../../ui/nova';
 import React, { useRef } from 'react';
 import { View, Text, Linking } from 'react-native';
 import { router } from 'expo-router';
@@ -84,13 +85,15 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
   return (
     <PremiumScreen>
       <ScreenHeader
-        title={t('legalTitle')}
         onBack={onBack ? onBack : () => router.back()}
       />
 
       {/* Identité de l'application */}
       <View style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1) }}>
-        <KalyxLogo size={80} />
+        <View style={{ width: 110, height: 110, alignItems: 'center', justifyContent: 'center' }}>
+          <View pointerEvents="none" style={{ position: 'absolute', left: 55, top: 55 }}><Orbit cx={0} cy={0} r={70} /></View>
+          <KalyxLogo size={80} />
+        </View>
         <Text
           style={{
             color: colors.text,
@@ -136,7 +139,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
       </View>
 
       {/* Section 1 : Éditeur de l'application */}
-      <GlassCard style={{ gap: spacing(1.25), overflow: 'hidden' }}>
+      <NovaCard delay={50} style={{ gap: spacing(1.25), overflow: 'hidden' }}>
         <Text
           style={[
             typography.caption,
@@ -245,10 +248,10 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
             {t('legalAppTypeValue')}
           </Text>
         </View>
-      </GlassCard>
+      </NovaCard>
 
       {/* Section 2 : Hébergement */}
-      <GlassCard style={{ gap: spacing(0.75), overflow: 'hidden' }}>
+      <NovaCard delay={100} style={{ gap: spacing(0.75), overflow: 'hidden' }}>
         <Text
           style={[
             typography.caption,
@@ -260,10 +263,10 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
         <Text style={[typography.body, { color: colors.text, lineHeight: 20, flexWrap: 'wrap' }]}>
           {hostingDisplay}
         </Text>
-      </GlassCard>
+      </NovaCard>
 
       {/* Section 3 : Documents & Liens réglementaires */}
-      <GlassCard style={{ overflow: 'hidden' }}>
+      <NovaCard delay={150} style={{ overflow: 'hidden' }}>
         <ListRow
           left={<Icon name="security" size={20} color={colors.textSecondary} />}
           title={t('legalPrivacyPolicy')}
@@ -315,7 +318,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
           right={<Icon name="chevron" size={18} tone="faint" />}
           onPress={openX}
         />
-      </GlassCard>
+      </NovaCard>
 
       {/* Footer & Mentions Droits réservés */}
       <View style={{ paddingVertical: spacing(1), alignItems: 'center' }}>

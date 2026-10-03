@@ -18,6 +18,7 @@
  * nommé son wallet « Portefeuille 2 » le verra suivre la langue : c'est le
  * compromis assumé, et il est invisible puisque le texte est le même en français.
  */
+import { shortAddress } from '../src/domain/validation/poisoning';
 import type { WalletMeta, StoredAccount } from './secureStore';
 
 /**
@@ -25,7 +26,7 @@ import type { WalletMeta, StoredAccount } from './secureStore';
  * vers `lib/i18n`, qui charge `react-native` et n'est donc pas chargeable dans
  * l'environnement de test. Les écrans passent simplement leur `useT()`.
  */
-type T = (key: 'walletDefaultMain' | 'walletDefaultN' | 'walletDefaultKey' | 'accountDefaultMain' | 'accountDefaultN') => string;
+type T = (key: 'walletDefaultMain' | 'walletDefaultN' | 'walletDefaultKey' | 'watchNameDefault' | 'accountDefaultMain' | 'accountDefaultN') => string;
 
 /** Libellés générés par les versions précédentes, en français uniquement. */
 const LEGACY = [
@@ -50,11 +51,24 @@ function isCustom(label: string | undefined): boolean {
 }
 
 /**
+ * Rang d'un portefeuille pour son nom par défaut : parmi les portefeuilles À
+ * CLÉ seulement (une adresse suivie en tête de liste ne prend pas le nom
+ * « principal », et ne décale pas les numéros des autres).
+ */
+export function walletPosition(wallets: readonly WalletMeta[], id: string): number {
+  return wallets.filter((w) => w.type !== 'watch').findIndex((w) => w.id === id);
+}
+
+/**
  * Nom affiché d'un wallet. `position` est son rang dans la liste (0-indexé) :
  * il ne sert qu'à numéroter les noms par défaut.
  */
 export function walletDisplayName(w: WalletMeta, position: number, t: T): string {
   if (isCustom(w.label)) return w.label;
+  // Une adresse suivie n'est jamais « Portefeuille principal », même en tête de liste.
+  if (w.type === 'watch') {
+    return t('watchNameDefault').replace('{n}', shortAddress(w.watchAddress ?? '', 6, 4)).trim();
+  }
   if (position === 0) return t('walletDefaultMain');
   const key = w.type === 'privateKey' ? 'walletDefaultKey' : 'walletDefaultN';
   return t(key).replace('{n}', String(position + 1));

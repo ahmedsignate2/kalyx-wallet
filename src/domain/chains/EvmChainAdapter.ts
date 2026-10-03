@@ -1,5 +1,5 @@
 import { fetchAnkrHistory } from './ankr';
-import { parseAlchemyTransfers } from './alchemy';
+import { parseAlchemyHistory, alchemyTransfersBody } from './alchemy';
 /**
  * Adapter EVM (Ethereum / BNB Chain / Polygon / testnets).
  *
@@ -28,7 +28,7 @@ import type {
 } from './types';
 import type { TxParsed, TxSummary } from './types';
 import { deriveEvmAccount } from '../../crypto/hd';
-import { APPROVAL_TOPIC, addressTopic, spendersFromLogs, type ApprovalItem } from '../approvals/approvals';
+import { APPROVAL_TOPIC, addressTopic, spendersFromLogs, type ApprovalItem, type ApprovalCandidate } from '../approvals/approvals';
 import { normalizeEvmAddress } from '../validation/address';
 import { parseAmount } from '../validation/amount';
 import { WalletError } from '../errors';
@@ -58,6 +58,11 @@ const READ_RETRIES = 2;
 const READ_BACKOFF_MS = 300;
 
 const RPC_TIMEOUT_MS = 8_000;
+
+/** Réseaux OP Stack : frais L1 en plus du gaz (voir `l1FeeUpperBound`). */
+const OP_STACK_CHAINS = new Set(['base', 'optimism', 'mode', 'zora', 'ink', 'soneium', 'unichain', 'worldchain', 'lisk', 'fraxtal', 'superseed', 'swell', 'blast', 'bob', 'base-sepolia']);
+const OP_GAS_ORACLE = '0x420000000000000000000000000000000000000F';
+const GAS_ORACLE_IFACE = new Interface(['function getL1FeeUpperBound(uint256) view returns (uint256)']);
 
 export class EvmChainAdapter implements ChainAdapter {
   readonly config: ChainConfig;
@@ -121,6 +126,19 @@ export class EvmChainAdapter implements ChainAdapter {
   }
 
   /**
+   * Reçu d'une transaction, SANS attendre : `null` tant qu'elle n'est pas dans
+   * un bloc. Donne ce que l'écran de suivi affichait en « ~ » : les frais
+   * RÉELLEMENT payés (gaz consommé × prix effectif), et le verdict d'exécution.
+   */
+  async getReceiptInfo(hash: string): Promise<{ status: 'success' | 'failed'; fee: bigint; blockNumber: number; timestamp?: number } | null> {
+    const r = await this.call((p) => p.getTransactionReceipt(hash), 'eth_getTransactionReceipt');
+    if (!r) return null;
+    const fee = r.fee ?? r.gasUsed * (r.gasPrice ?? 0n);
+    const block = await this.call((p) => p.getBlock(r.blockNumber), 'eth_getBlockByNumber').catch(() => null);
+    return { status: r.status === 0 ? 'failed' : 'success', fee, blockNumber: r.blockNumber, ...(block ? { timestamp: block.timestamp } : {}) };
+  }
+
+  /**
    * Historique du compte, chaque ligne ESTAMPILLÉE de sa chaîne.
    *
    * L'estampillage se fait ici et nulle part ailleurs : les analyseurs lisent la
@@ -130,85 +148,59 @@ export class EvmChainAdapter implements ChainAdapter {
    * décimales d'après le réseau affiché.
    */
   async getHistory(address: string): Promise<TxSummary[]> {
-    return (await this.fetchHistory(address)).map((tx) => ({ ...tx, chain: this.config.id }));
+    const txs = await this.fetchHistory(address);
+    await this.fillMissingTimestamps(txs);
+    return txs.map(({ block: _b, ...tx }) => ({ ...tx, chain: this.config.id }));
+  }
+
+  /**
+   * Date des transactions rendues SANS horodatage : lue sur le bloc (une
+   * requête par bloc distinct, 40 au plus). Alchemy ne renvoie pas
+   * `blockTimestamp` sur Avalanche : toute l'activité s'affichait au
+   * « 1er janvier 1970 ». Un bloc illisible laisse la date à 0 — l'export la
+   * laisse alors vide plutôt que d'inventer.
+   */
+  private async fillMissingTimestamps(txs: TxParsed[]): Promise<void> {
+    const blocks = [...new Set(txs.filter((t) => !t.timestamp && t.block).map((t) => t.block!))].slice(0, 40);
+    if (!blocks.length) return;
+    const times = new Map<number, number>();
+    await Promise.all(
+      blocks.map(async (n) => {
+        const b = await this.call((p) => p.getBlock(n), 'eth_getBlockByNumber').catch(() => null);
+        if (b?.timestamp) times.set(n, Number(b.timestamp));
+      }),
+    );
+    for (const t of txs) if (!t.timestamp && t.block && times.has(t.block)) t.timestamp = times.get(t.block)!;
+    txs.sort((a, b) => b.timestamp - a.timestamp);
   }
 
   /** Historique brut : Alchemy, puis Etherscan V2, puis les clones. */
   private async fetchHistory(address: string): Promise<TxParsed[]> {
     const owner = normalizeEvmAddress(address);
 
-    // 0. Alchemy (si supporté)
-    const alchemyNetworks: Record<string, string> = {
-      ethereum: 'eth-mainnet',
-      base: 'base-mainnet',
-      polygon: 'polygon-mainnet',
-      arbitrum: 'arb-mainnet',
-      optimism: 'opt-mainnet',
-    };
-    
-
-    const alchemyNet = alchemyNetworks[this.config.id];
-    if (ALCHEMY_KEY && alchemyNet) {
+    /*
+     * 0. Alchemy, sur TOUT réseau servi par Alchemy (son URL est en tête des
+     * RPC quand la clé existe) — et non plus sur une liste figée de cinq. Un
+     * réseau qui ne connaît pas `getAssetTransfers` répond par une erreur, et
+     * l'on passe aux replis.
+     */
+    const alchemyUrl = this.config.rpcUrls.find((u) => u.includes('.g.alchemy.com/v2/'));
+    if (alchemyUrl) {
       try {
-        const alchemyTxs = await withRetry(async () => {
-          const res = await withTimeout(
-            fetch(`https://${alchemyNet}.g.alchemy.com/v2/${ALCHEMY_KEY}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'alchemy_getAssetTransfers',
-                params: [{
-                  fromBlock: '0x0',
-                  toBlock: 'latest',
-                  toAddress: owner,
-                  category: ['external', 'erc20'],
-                  withMetadata: true,
-                }],
-              }),
-            }),
-            RPC_TIMEOUT_MS,
-            () => new Error('timeout')
-          );
-          const json = await res.json();
-          if (json && json.result) {
-            const received = parseAlchemyTransfers(json, owner);
-            
-            // Fetch sent transfers too
-            const resSent = await fetch(`https://${alchemyNet}.g.alchemy.com/v2/${ALCHEMY_KEY}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 2,
-                method: 'alchemy_getAssetTransfers',
-                params: [{
-                  fromBlock: '0x0',
-                  toBlock: 'latest',
-                  fromAddress: owner,
-                  category: ['external', 'erc20'],
-                  withMetadata: true,
-                }],
-              }),
-            });
-            const jsonSent = await resSent.json();
-            const sent = jsonSent && jsonSent.result ? parseAlchemyTransfers(jsonSent, owner) : [];
-            
-            const allTxs = [...received, ...sent].sort((a, b) => b.timestamp - a.timestamp);
-            const unique = [];
-            const seen = new Set();
-            for (const tx of allTxs) {
-              if (!seen.has(tx.hash)) {
-                seen.add(tx.hash);
-                unique.push(tx);
-              }
-            }
-            return unique;
-          }
-          throw new Error('Alchemy invalid format');
+        return await withRetry(async () => {
+          const ask = async (side: 'from' | 'to', id: number) => {
+            const res = await withTimeout(
+              fetch(alchemyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: alchemyTransfersBody(owner, side, this.config.id, id) }),
+              RPC_TIMEOUT_MS,
+              () => new Error('timeout'),
+            );
+            const json = await res.json();
+            if (!json?.result) throw new Error(`Alchemy: ${json?.error?.message ?? res.status}`);
+            return json;
+          };
+          const [received, sent] = await Promise.all([ask('to', 1), ask('from', 2)]);
+          return parseAlchemyHistory([received, sent], owner);
         }, 2, 1000);
-        return alchemyTxs;
       } catch (e) {
         console.warn('Alchemy fallback:', e);
       }
@@ -337,8 +329,36 @@ export class EvmChainAdapter implements ChainAdapter {
 
   /** Paliers de frais Lent/Normal/Rapide pour un `gasLimit` (défaut = transfert natif). */
   async getFeeOptions(gasLimit: bigint = NATIVE_TRANSFER_GAS): Promise<FeeOptions> {
-    const fee = await this.call((p) => p.getFeeData());
-    return computeFeeTiers(fee, gasLimit);
+    const [fee, l1] = await Promise.all([
+      this.call((p) => p.getFeeData()),
+      // Taille approximative d'une transaction signée : envoi natif, ou appel de jeton.
+      this.l1FeeUpperBound(gasLimit > NATIVE_TRANSFER_GAS ? 180 : 120),
+    ]);
+    const tiers = computeFeeTiers(fee, gasLimit);
+    if (l1 === 0n) return tiers;
+    return {
+      slow: { ...tiers.slow, costWei: tiers.slow.costWei + l1 },
+      normal: { ...tiers.normal, costWei: tiers.normal.costWei + l1 },
+      fast: { ...tiers.fast, costWei: tiers.fast.costWei + l1 },
+    };
+  }
+
+  /**
+   * FRAIS L1 d'un rollup OP Stack (Base, Optimism…) : la publication de la
+   * transaction sur Ethereum, prélevée EN PLUS du gaz. Ils n'étaient comptés
+   * nulle part : « Max » sur Base proposait tout le solde moins le gaz, et le
+   * nœud refusait la transaction faute de quoi payer ces frais. Plafond fourni
+   * par l'oracle du réseau ; 0 hors OP Stack ou si l'oracle ne répond pas.
+   */
+  async l1FeeUpperBound(txBytes: number): Promise<bigint> {
+    if (!OP_STACK_CHAINS.has(this.config.id)) return 0n;
+    try {
+      const data = GAS_ORACLE_IFACE.encodeFunctionData('getL1FeeUpperBound', [txBytes]);
+      const ret = await this.call((p) => p.call({ to: OP_GAS_ORACLE, data }));
+      return GAS_ORACLE_IFACE.decodeFunctionResult('getL1FeeUpperBound', ret)[0] as bigint;
+    } catch {
+      return 0n;
+    }
   }
 
   /**
@@ -445,6 +465,19 @@ export class EvmChainAdapter implements ChainAdapter {
 
   // --- Support des transactions de contrat (swap/approbation ERC-20) ---
 
+  /** Heure du dernier bloc (ms) — une horloge que le téléphone ne peut pas avancer. */
+  async getLatestBlockTime(): Promise<number> {
+    const b = await this.call((p) => p.getBlock('latest'), 'eth_getBlockByNumber');
+    if (!b || typeof b.timestamp !== 'number') throw new Error('Bloc illisible');
+    return b.timestamp * 1000;
+  }
+
+  /** allowance STRICTE : lève si la réponse est vide ou illisible (jamais un faux « 0 = déjà révoquée »). */
+  async getAllowanceStrict(token: string, owner: string, spender: string): Promise<bigint> {
+    const data = ERC20.encodeFunctionData('allowance', [owner, spender]);
+    return strictUint(await this.call((p) => p.call({ to: token, data })), 'Autorisation illisible');
+  }
+
   /** Allowance ERC-20 (combien `spender` peut dépenser des tokens de `owner`). */
   async getAllowance(token: string, owner: string, spender: string): Promise<bigint> {
     const data = ERC20.encodeFunctionData('allowance', [owner, spender]);
@@ -456,15 +489,29 @@ export class EvmChainAdapter implements ChainAdapter {
     }
   }
 
-  /** Solde d'un token ERC-20 pour une adresse. */
-  async getTokenBalance(token: string, owner: string): Promise<bigint> {
+  /** Réponse brute de `balanceOf` (l'erreur RPC remonte). */
+  private balanceOfRaw(token: string, owner: string): Promise<string> {
     const data = ERC20.encodeFunctionData('balanceOf', [owner]);
-    const result = await this.call((p) => p.call({ to: token, data }));
+    return this.call((p) => p.call({ to: token, data }));
+  }
+
+  /** Solde d'un token ERC-20 pour une adresse (réponse illisible → 0 ; voir la version stricte). */
+  async getTokenBalance(token: string, owner: string): Promise<bigint> {
+    const result = await this.balanceOfRaw(token, owner);
     try {
       return BigInt(result);
     } catch {
       return 0n;
     }
+  }
+
+  /**
+   * balanceOf STRICT : lève si la réponse est vide (`0x`, contrat absent) ou
+   * illisible — là où `getTokenBalance` rend 0. Pour tout ce qui décide d'un
+   * montant (swap) : un faux 0 refuserait l'échange sur un compte plein.
+   */
+  async getTokenBalanceStrict(token: string, owner: string): Promise<bigint> {
+    return strictUint(await this.balanceOfRaw(token, owner), 'Solde du jeton illisible');
   }
 
   /**
@@ -497,7 +544,8 @@ export class EvmChainAdapter implements ChainAdapter {
    */
   async sendContractTx(req: RawTxRequest, from: string, privateKey: string): Promise<string> {
     const wallet = new Wallet(privateKey);
-    const needFee = !req.gasPrice && !req.maxFeePerGas;
+    // Frais du réseau lus aussi quand la demande donne un maximum SANS pourboire : c'est lui qui fixe le pourboire.
+    const needFee = (!req.gasPrice && !req.maxFeePerGas) || (!!req.maxFeePerGas && req.maxPriorityFeePerGas == null);
     const [nonce, feeData] = await Promise.all([
       req.nonce != null ? Promise.resolve(req.nonce) : this.call((p) => p.getTransactionCount(from, 'pending')),
       needFee ? this.call((p) => p.getFeeData()) : Promise.resolve(null),
@@ -510,6 +558,8 @@ export class EvmChainAdapter implements ChainAdapter {
     const estimate = () =>
       this.call((p) => p.estimateGas({ from, to: req.to, data: req.data ?? '0x', value: req.value ?? 0n }));
     let lastErr: unknown;
+    /** Un refus du contrat à N'IMPORTE QUEL essai : c'est un refus, même si le dernier a buté sur le réseau. */
+    let anyRevert = false;
     // Jusqu'à 3 essais : un revert « missing revert data » juste après un approve
     // vient souvent d'un nœud en retard (allowance pas encore visible), pas du contrat.
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -528,6 +578,7 @@ export class EvmChainAdapter implements ChainAdapter {
           throw new WalletError('INSUFFICIENT_FUNDS', `Solde en ${this.config.nativeSymbol} insuffisant pour payer les frais réseau.`);
         }
         const isRevert = code === 'CALL_EXCEPTION' || msg.includes('revert') || msg.includes('exceeds allowance') || msg.includes('transfer amount exceeds');
+        if (isRevert) anyRevert = true;
         if (!isRevert && gasLimit) {
           lastErr = undefined; // RPC muet, gasLimit fourni : on continue avec.
           break;
@@ -539,6 +590,8 @@ export class EvmChainAdapter implements ChainAdapter {
       // Revert persistant. Si le provider (LI.FI/Relay) a fourni un gasLimit, il a
       // lui-même simulé la tx : on lui fait confiance plutôt que de bloquer sur un
       // nœud capricieux. Sinon on refuse d'envoyer une tx vouée à l'échec.
+      // RPC muet (pas un refus du contrat) : l'erreur réseau telle quelle, jamais « refusé par le contrat ».
+      if (!gasLimit && !anyRevert) throw lastErr;
       if (!gasLimit) {
         throw new WalletError(
           'CALL_EXCEPTION',
@@ -564,7 +617,13 @@ export class EvmChainAdapter implements ChainAdapter {
         ...common,
         type: 2 as const,
         maxFeePerGas: req.maxFeePerGas,
-        maxPriorityFeePerGas: req.maxPriorityFeePerGas ?? req.maxFeePerGas,
+        /*
+         * Pourboire absent de la demande (dApp) : celui du RÉSEAU, plafonné au
+         * maximum. Reprendre le maximum entier donnait toute la marge au
+         * validateur — près de deux fois les frais attendus.
+         */
+        // Réseau illisible : l'ancien comportement (le maximum), jamais un pourboire fixe que certains réseaux refusent (Polygon).
+        maxPriorityFeePerGas: req.maxPriorityFeePerGas ?? minBig(feeData?.maxPriorityFeePerGas ?? req.maxFeePerGas, req.maxFeePerGas),
       };
     } else if (feeData?.maxFeePerGas) {
       txReq = {
@@ -578,8 +637,18 @@ export class EvmChainAdapter implements ChainAdapter {
     }
 
     const raw = await wallet.signTransaction(txReq);
-    const res = await this.call((p) => p.broadcastTransaction(raw), 'eth_sendRawTransaction');
-    return res.hash;
+    try {
+      const res = await this.call((p) => p.broadcastTransaction(raw), 'eth_sendRawTransaction');
+      return res.hash;
+    } catch (e) {
+      /*
+       * Échec APRÈS signature, pendant la diffusion : le nœud a peut-être reçu
+       * la transaction. Marqué pour que l'appelant ne la présente pas comme
+       * « non envoyée » (un nouvel essai paierait deux fois).
+       */
+      if (e && typeof e === 'object') (e as { afterSign?: boolean }).afterSign = true;
+      throw e;
+    }
   }
 
   /** L'adresse est-elle un CONTRAT (code non vide) ? Best-effort : false si RPC muet. */
@@ -590,6 +659,11 @@ export class EvmChainAdapter implements ChainAdapter {
     } catch {
       return false;
     }
+  }
+
+  /** `eth_estimateGas` brut (lève si le nœud refuse). */
+  async estimateGasFor(tx: { from: string; to: string; value?: bigint; data?: string }): Promise<bigint> {
+    return this.call((p) => p.estimateGas({ from: tx.from, to: tx.to, value: tx.value ?? 0n, data: tx.data ?? '0x' }), 'eth_estimateGas');
   }
 
   /**
@@ -621,7 +695,13 @@ export class EvmChainAdapter implements ChainAdapter {
 
   /** Attend la confirmation d'une transaction (1 bloc). */
   async waitForTx(hash: string): Promise<void> {
-    await this.call((p) => p.waitForTransaction(hash, 1, 120_000));
+    /*
+     * ethers rend le reçu SANS lever quand l'exécution a échoué (revert) : la
+     * transaction est incluse, les frais payés, rien n'a eu lieu. Tous les
+     * appelants (envoi, échange, Earn, autorisations) l'annonçaient « réussie ».
+     */
+    const receipt = await this.call((p) => p.waitForTransaction(hash, 1, 120_000));
+    if (receipt && receipt.status === 0) throw new WalletError('TX_FAILED', 'Transaction incluse mais exécution échouée (revert)');
   }
 
   /**
@@ -654,40 +734,79 @@ export class EvmChainAdapter implements ChainAdapter {
    * NB : couvre les tokens DÉTENUS (les seuls qui peuvent être vidés). Une
    * couverture exhaustive (tokens à solde nul) demanderait un indexeur.
    */
-  async getApprovals(
+  /**
+   * Autorisations ACTIVES du propriétaire, avec un verdict d'exhaustivité.
+   *
+   * `candidates` (GoPlus) dit OÙ regarder ; à défaut, on fouille les logs
+   * `Approval` token par token. Dans les deux cas le montant est RELU sur la
+   * chaîne : une autorisation déjà révoquée ou consommée n'est pas montrée.
+   *
+   * `incomplete` : au moins une vérification n'a pas pu se faire (RPC qui
+   * refuse la plage de `getLogs`, appel échoué). L'écran ne doit alors PAS
+   * dire « aucune approbation » — c'est ce qu'il affirmait jusqu'ici, sans
+   * avoir rien lu, sur la plupart des réseaux.
+   */
+  async getApprovalsReport(
     owner: string,
     tokens: { contract: string; symbol: string; decimals: number; logo?: string }[],
-  ): Promise<ApprovalItem[]> {
+    candidates: ApprovalCandidate[] | null,
+  ): Promise<{ items: ApprovalItem[]; incomplete: boolean }> {
     const addr = normalizeEvmAddress(owner);
-    const ownerT = addressTopic(addr);
+    let incomplete = false;
+    type Pair = { token: string; symbol: string; decimals: number; logo?: string; spender: string; spenderName?: string; risky?: boolean };
+    const pairs: Pair[] = [];
+    const logoOf = new Map(tokens.map((t) => [t.contract.toLowerCase(), t.logo]));
+    if (candidates) {
+      for (const c of candidates) pairs.push({ ...c, logo: logoOf.get(c.token.toLowerCase()) });
+    } else {
+      const ownerT = addressTopic(addr);
+      await Promise.all(
+        tokens.map(async (tk) => {
+          try {
+            const logs = await this.call((p) => p.getLogs({ address: tk.contract, topics: [APPROVAL_TOPIC, ownerT], fromBlock: 0, toBlock: 'latest' }));
+            for (const spender of spendersFromLogs(logs).slice(0, 20)) pairs.push({ ...tk, token: tk.contract, spender });
+          } catch {
+            incomplete = true; // plage refusée par le RPC : ce token n'a pas été vérifié
+          }
+        }),
+      );
+    }
+    const seen = new Set<string>();
     const results: ApprovalItem[] = [];
-
     await Promise.all(
-      tokens.map(async (tk) => {
+      pairs.map(async (pr) => {
+        const key = `${pr.token.toLowerCase()}:${pr.spender.toLowerCase()}`;
+        if (seen.has(key)) return;
+        seen.add(key);
         try {
-          const logs = await this.call((p) =>
-            p.getLogs({ address: tk.contract, topics: [APPROVAL_TOPIC, ownerT], fromBlock: 0, toBlock: 'latest' }),
-          );
-          const spenders = spendersFromLogs(logs).slice(0, 20); // borne de sûreté
-          for (const spender of spenders) {
-            try {
-              const data = ERC20.encodeFunctionData('allowance', [addr, spender]);
-              const ret = await this.call((p) => p.call({ to: tk.contract, data }));
-              const allowance = ERC20.decodeFunctionResult('allowance', ret)[0] as bigint;
-              if (allowance > 0n) {
-                results.push({ token: tk.contract, symbol: tk.symbol, decimals: tk.decimals, logo: tk.logo, spender, allowance });
-              }
-            } catch {
-              /* spender ignoré (appel échoué) */
-            }
+          const data = ERC20.encodeFunctionData('allowance', [addr, pr.spender]);
+          const ret = await this.call((p) => p.call({ to: pr.token, data }));
+          const allowance = ERC20.decodeFunctionResult('allowance', ret)[0] as bigint;
+          if (allowance > 0n) {
+            results.push({
+              token: pr.token,
+              symbol: pr.symbol,
+              decimals: pr.decimals,
+              logo: pr.logo,
+              spender: pr.spender,
+              allowance,
+              ...(pr.spenderName ? { spenderName: pr.spenderName } : {}),
+              ...(pr.risky ? { risky: true } : {}),
+            });
           }
         } catch {
-          /* token ignoré (limite de plage getLogs du RPC, etc.) */
+          incomplete = true;
         }
       }),
     );
-    // Illimitées d'abord, puis par montant décroissant.
-    return results.sort((a, b) => (b.allowance > a.allowance ? 1 : b.allowance < a.allowance ? -1 : 0));
+    // Contrats douteux d'abord, puis illimitées, puis par montant décroissant.
+    results.sort((a, b) => Number(!!b.risky) - Number(!!a.risky) || (b.allowance > a.allowance ? 1 : b.allowance < a.allowance ? -1 : 0));
+    return { items: results, incomplete };
+  }
+
+  /** Compatibilité : la liste seule, par les logs. */
+  async getApprovals(owner: string, tokens: { contract: string; symbol: string; decimals: number; logo?: string }[]): Promise<ApprovalItem[]> {
+    return (await this.getApprovalsReport(owner, tokens, null)).items;
   }
 }
 
@@ -708,3 +827,11 @@ const ERC20 = new Interface([
   'function allowance(address owner, address spender) view returns (uint256)',
   'function balanceOf(address owner) view returns (uint256)',
 ]);
+
+/** Entier non signé d'une réponse `eth_call` ; lève si elle est vide (`0x`) ou illisible. */
+function strictUint(result: unknown, message: string): bigint {
+  if (typeof result !== 'string' || !/^0x[0-9a-fA-F]+$/.test(result)) throw new Error(message);
+  return BigInt(result);
+}
+
+const minBig = (a: bigint, b: bigint) => (a < b ? a : b);

@@ -20,6 +20,8 @@
  */
 import { BACKUP_KDF, encryptSecret, decryptSecret, type EncryptedVault } from '../../security/vault';
 import { validateMnemonic } from '../../crypto/mnemonic';
+import { classifyRecoveryPhrase } from '../keys/recoveryPhrase';
+import { isWalletError } from '../errors';
 
 /**
  * Version 2 : la liste des portefeuilles.
@@ -40,6 +42,33 @@ export interface BackupWallet {
   keyFamily?: 'evm' | 'bitcoin' | 'solana';
   /** Phrase BIP-39, ou clé privée hexadécimale selon `type`. */
   secret: string;
+  /**
+   * Comptes dérivés de la phrase : numéro et nom, rien de secret. Sans eux, une
+   * restauration ne recréait que le compte n°1 — les autres existaient
+   * toujours, mais l'utilisateur ne les voyait plus. Absent des anciennes
+   * sauvegardes : on restaure alors le compte n°1 seulement.
+   */
+  accounts?: BackupAccount[];
+}
+
+export interface BackupAccount {
+  index: number;
+  label: string;
+}
+
+/** Liste de comptes lue dans une sauvegarde : bornée et vérifiée, jamais prise telle quelle. */
+export function sanitizeBackupAccounts(raw: unknown): BackupAccount[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const seen = new Set<number>();
+  const out: BackupAccount[] = [];
+  for (const a of raw.slice(0, 100)) {
+    const index = (a as { index?: unknown })?.index;
+    if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index > 999 || seen.has(index)) continue;
+    seen.add(index);
+    const label = (a as { label?: unknown }).label;
+    out.push({ index, label: typeof label === 'string' ? label.slice(0, 64) : '' });
+  }
+  return out.length ? out.sort((x, y) => x.index - y.index) : undefined;
 }
 
 export interface BackupEnvelope {
@@ -81,6 +110,7 @@ export async function createWalletsBackup(wallets: readonly BackupWallet[], pass
     label: w.label,
     type: w.type,
     ...(w.keyFamily ? { keyFamily: w.keyFamily } : {}),
+    ...(w.accounts?.length ? { accounts: sanitizeBackupAccounts(w.accounts) } : {}),
     // Une phrase est normalisée ; une clé privée ne doit PAS l'être — la casse
     // d'un hexadécimal est indifférente mais l'espace, lui, n'y a rien à faire.
     secret: w.type === 'seed' ? w.secret.trim().toLowerCase().replace(/\s+/g, ' ') : w.secret.trim(),
@@ -146,8 +176,9 @@ export async function restoreBackup(
   let plain: string;
   try {
     plain = await decryptSecret(env.vault, password);
-  } catch {
-    return { error: 'WRONG_PASSWORD' };
+  } catch (e) {
+    // Paramètres hors limites ou coffre incomplet : fichier abîmé, pas un mauvais mot de passe.
+    return { error: isWalletError(e) && e.code === 'VAULT_CORRUPTED' ? 'CORRUPTED' : 'WRONG_PASSWORD' };
   }
 
   /*
@@ -179,7 +210,14 @@ export async function restoreBackup(
      * restaurer deux portefeuilles sur trois en silence laisserait l'utilisateur
      * croire qu'il a tout récupéré. Mieux vaut un échec visible.
      */
-    if (type === 'seed' && !validateMnemonic(w.secret)) return { error: 'CORRUPTED' };
+    /*
+     * PHRASE TON ACCEPTÉE. L'export écrit une phrase TON comme `'seed'` (la
+     * restauration la reclasse d'après la phrase elle-même) — mais ce contrôle
+     * n'acceptait que le BIP-39 : une seule phrase TON rendait TOUTE la
+     * sauvegarde « corrompue », et l'utilisateur perdait l'accès à ses autres
+     * portefeuilles avec elle.
+     */
+    if (type === 'seed' && classifyRecoveryPhrase(w.secret) === null) return { error: 'CORRUPTED' };
     wallets.push({
       label: typeof w.label === 'string' ? w.label : '',
       type,
@@ -187,8 +225,10 @@ export async function restoreBackup(
         ? { keyFamily: w.keyFamily }
         : {}),
       secret: w.secret,
+      ...(sanitizeBackupAccounts((w as { accounts?: unknown }).accounts) ? { accounts: sanitizeBackupAccounts((w as { accounts?: unknown }).accounts) } : {}),
     });
   }
 
-  return { wallets, mnemonic: wallets.find((w) => w.type === 'seed')?.secret };
+  // Phrase « principale » : BIP-39 de préférence (elle ouvre toutes les chaînes, une phrase TON n'ouvre que TON).
+  return { wallets, mnemonic: (wallets.find((w) => w.type === 'seed' && classifyRecoveryPhrase(w.secret) === 'bip39') ?? wallets.find((w) => w.type === 'seed'))?.secret };
 }

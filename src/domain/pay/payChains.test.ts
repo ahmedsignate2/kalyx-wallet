@@ -3,6 +3,7 @@ import {
   caip10,
   parseCaip2,
   checkPayAction,
+  checkPayPayload,
   PAY_EVM_CHAIN_IDS,
   PAY_ALLOWED_METHODS,
 } from './payChains';
@@ -121,5 +122,40 @@ describe('les refus portent un CODE, jamais une phrase', () => {
   it('le détail accompagne le code, sans le remplacer', () => {
     expect(checkPayAction({ chainId: 'eip155:1', method: 'eth_sign' }).detail).toBe('eth_sign');
     expect(checkPayAction({ chainId: 'eip155:999999', method: 'personal_sign' }).detail).toBe('999999');
+  });
+});
+
+describe('checkPayPayload', () => {
+  const MAX = 'f'.repeat(64);
+  const addr = (a: string) => a.replace(/^0x/, '').toLowerCase().padStart(64, '0');
+  const approve = (spender: string, amt: string) => `0x095ea7b3${addr(spender)}${amt}`;
+  const PERMIT2 = '0x000000000022D473030F116dDEE9F6B43aC78BA3';
+  const EVIL = '0x1111111111111111111111111111111111111111';
+
+  it('accepte l’approbation illimitée du contrat Permit2 (étape normale)', () => {
+    expect(checkPayPayload('eth_sendTransaction', [{ to: EVIL, data: approve(PERMIT2, MAX) }]).ok).toBe(true);
+  });
+  it('refuse une approbation illimitée à un tiers', () => {
+    const r = checkPayPayload('eth_sendTransaction', [{ to: EVIL, data: approve(EVIL, MAX) }]);
+    expect(r).toEqual({ ok: false, reason: 'RISKY_APPROVAL', detail: EVIL });
+  });
+  it('accepte une approbation bornée', () => {
+    expect(checkPayPayload('eth_sendTransaction', [{ to: EVIL, data: approve(EVIL, (1000n).toString(16).padStart(64, '0')) }]).ok).toBe(true);
+  });
+  it('refuse setApprovalForAll', () => {
+    const data = `0xa22cb465${addr(EVIL)}${'1'.padStart(64, '0')}`;
+    expect(checkPayPayload('eth_sendTransaction', [{ to: EVIL, data }]).ok).toBe(false);
+  });
+  it('refuse un Permit2 illimité signé', () => {
+    const typed = {
+      domain: { name: 'Permit2', chainId: 1, verifyingContract: PERMIT2 },
+      primaryType: 'PermitSingle',
+      types: { PermitSingle: [], PermitDetails: [] },
+      message: { details: { token: EVIL, amount: (2n ** 160n - 1n).toString(), expiration: '0', nonce: '0' }, spender: EVIL, sigDeadline: '9999999999' },
+    };
+    expect(checkPayPayload('eth_signTypedData_v4', ['0xabc', JSON.stringify(typed)]).ok).toBe(false);
+  });
+  it('laisse passer personal_sign', () => {
+    expect(checkPayPayload('personal_sign', ['0x00']).ok).toBe(true);
   });
 });

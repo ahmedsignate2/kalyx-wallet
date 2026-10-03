@@ -8,8 +8,10 @@
  * Google est déjà déconnecté avant la saisie. Un mot de passe faux se retente
  * sans le recontacter. Phrase → même flux de sécurisation que l'import (PIN).
  */
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
+import { usePendingRestore } from '../lib/pendingRestore';
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, TextInput, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Button, Surface, ScreenHeader } from '../ui/kit';
@@ -20,11 +22,15 @@ import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
+import { friendlyTxError } from '../lib/txError';
 import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
 import { PinPromptModal } from '../ui/PinPromptModal';
-import { restoreBackup, type BackupError, type BackupWallet } from '../src';
+import { classifyRecoveryPhrase, isWalletError, restoreBackup, type BackupError, type BackupWallet } from '../src';
+import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 
 export default function RestoreDriveScreen() {
+  // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
+  useNoScreenCapture('restore-drive');
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -94,7 +100,6 @@ export default function RestoreDriveScreen() {
       return;
     }
     setPwd('');
-    flow.reset();
     /*
      * CORRECTION D'UNE PERTE DE FONDS.
      *
@@ -110,16 +115,24 @@ export default function RestoreDriveScreen() {
      *    restauré à côté, sans jamais toucher à l'existant.
      */
     if (hasWallet) {
+      // Le flux reste ouvert : un code annulé ramène à la sauvegarde, pas à un écran vide.
       setPendingWallets(r.wallets);
       return;
     }
+    flow.reset();
     /*
      * Premier lancement : le flux d'installation ne sait recevoir qu'UNE phrase.
      * On lui donne la première, et les autres sont ajoutées juste après, une fois
      * le code créé — sinon elles seraient silencieusement perdues.
      */
-    const first = r.wallets.find((w) => w.type === 'seed') ?? r.wallets[0];
-    setPendingWallets(r.wallets.filter((w) => w !== first));
+    // Une phrase BIP-39 de préférence pour le portefeuille principal : elle ouvre
+    // toutes les chaînes, alors qu'une phrase TON n'ouvre que TON.
+    const first =
+      r.wallets.find((w) => w.type === 'seed' && classifyRecoveryPhrase(w.secret) === 'bip39') ??
+      r.wallets.find((w) => w.type === 'seed') ??
+      r.wallets[0];
+    // Hors de cet écran : `set-pin` les ajoute avec le code qu'on va créer (voir lib/pendingRestore).
+    usePendingRestore.getState().set(r.wallets.filter((w) => w !== first), first.accounts ?? []);
     setImportedDraft(first.secret);
     router.push('/set-pin');
   }
@@ -130,11 +143,14 @@ export default function RestoreDriveScreen() {
     try {
       const added = await importWallets(pendingWallets, pin);
       setPendingWallets(null);
+      flow.reset();
       toast.success(t('backupRestoredCount').replace('{count}', String(added)));
       router.replace('/wallets');
-    } catch {
-      // PIN refusé (ou phrase invalide) : on secoue, l'existant est intact.
-      setPinError((n) => n + 1);
+    } catch (e) {
+      // Code refusé : on secoue. Toute autre erreur (stockage, sauvegarde) est DITE —
+      // la prendre pour un mauvais code faisait retaper le bon code sans fin.
+      if (isWalletError(e) && (e.code === 'WRONG_PIN' || e.code === 'INVALID_PIN')) setPinError((n) => n + 1);
+      else toast.error(friendlyTxError(e, t as never));
     } finally {
       setPinBusy(false);
     }
@@ -142,7 +158,7 @@ export default function RestoreDriveScreen() {
 
   const dateLabel = (iso: string) => new Date(iso).toLocaleDateString(language, { day: 'numeric', month: 'long', year: 'numeric' });
   const errorText =
-    flow.error === 'not_configured' ? t('driveNotConfigured') : flow.error === 'denied' || flow.error === 'timeout' ? t('driveCancelled') : flow.error;
+    flow.error === 'not_configured' ? t('driveNotConfigured') : flow.error === 'denied' || flow.error === 'timeout' ? t('driveCancelled') : flow.error ? t('driveFailed') : null;
 
   return (
     <>
@@ -157,7 +173,7 @@ export default function RestoreDriveScreen() {
         onSubmit={addAlongside}
         onCancel={() => setPendingWallets(null)}
       />
-      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid style={{ flex: 1, backgroundColor: colors.bg }}>
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: SCREEN_MARGIN, paddingTop: insets.top + space[3], paddingBottom: insets.bottom + space[6], gap: space[4] }}
           keyboardShouldPersistTaps="handled"
@@ -250,7 +266,7 @@ export default function RestoreDriveScreen() {
             </FadeInUp>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </>
   );
 }

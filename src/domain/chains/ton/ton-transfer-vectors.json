@@ -1,0 +1,187 @@
+{
+ "code": {
+  "v5r1": {
+   "boc": "te6cckECFAEAAoEAART/APSkE/S88sgLAQIBIAINAgFIAwQC3NAg10nBIJFbj2Mg1wsfIIIQZXh0br0hghBzaW50vbCSXwPgghBleHRuuo60gCDXIQHQdNch+kAw+kT4KPpEMFi9kVvg7UTQgQFB1yH0BYMH9A5voTGRMOGAQNchcH/bPOAxINdJgQKAuZEw4HDiEA8CASAFDAIBIAYJAgFuBwgAGa3OdqJoQCDrkOuF/8AAGa8d9qJoQBDrkOuFj8ACAUgKCwAXsyX7UTQcdch1wsfgABGyYvtRNDXCgCAAGb5fD2omhAgKDrkPoCwBAvIOAR4g1wsfghBzaWduuvLgin8PAeaO8O2i7fshgwjXIgKDCNcjIIAg1yHTH9Mf0x/tRNDSANMfINMf0//XCgAK+QFAzPkQmiiUXwrbMeHywIffArNQB7Dy0IRRJbry4IVQNrry4Ib4I7vy0IgikvgA3gGkf8jKAMsfAc8Wye1UIJL4D95w2zzYEAP27aLt+wL0BCFukmwhjkwCIdc5MHCUIccAs44tAdcoIHYeQ2wg10nACPLgkyDXSsAC8uCTINcdBscSwgBSMLDy0InXTNc5MAGk6GwShAe78uCT10rAAPLgk+1V4tIAAcAAkVvg69csCBQgkXCWAdcsCBwS4lIQseMPINdKERITAJYB+kAB+kT4KPpEMFi68uCR7UTQgQFB1xj0BQSdf8jKAEAEgwf0U/Lgi44UA4MH9Fvy4Iwi1woAIW4Bs7Dy0JDiyFADzxYS9ADJ7VQAcjDXLAgkji0h8uCS0gDtRNDSAFETuvLQj1RQMJExnAGBAUDXIdcKAPLgjuLIygBYzxbJ7VST8sCN4gAQk1vbMeHXTNC01sNe",
+   "hash": "20834b7b72b112147e1b2fb457b84e74d1a30f04f737d4f62a668e9552d2b72f",
+   "depth": 6
+  },
+  "v4r2": {
+   "boc": "te6cckECFAEAAtQAART/APSkE/S88sgLAQIBIAIPAgFIAwYC5tAB0NMDIXGwkl8E4CLXScEgkl8E4ALTHyGCEHBsdWe9IoIQZHN0cr2wkl8F4AP6QDAg+kQByMoHy//J0O1E0IEBQNch9AQwXIEBCPQKb6Exs5JfB+AF0z/IJYIQcGx1Z7qSODDjDQOCEGRzdHK6kl8G4w0EBQB4AfoA9AQw+CdvIjBQCqEhvvLgUIIQcGx1Z4MesXCAGFAEywUmzxZY+gIZ9ADLaRfLH1Jgyz8gyYBA+wAGAIpQBIEBCPRZMO1E0IEBQNcgyAHPFvQAye1UAXKwjiOCEGRzdHKDHrFwgBhQBcsFUAPPFiP6AhPLassfyz/JgED7AJJfA+ICASAHDgIBIAgNAgFYCQoAPbKd+1E0IEBQNch9AQwAsjKB8v/ydABgQEI9ApvoTGACASALDAAZrc52omhAIGuQ64X/wAAZrx32omhAEGuQ64WPwAARuMl+1E0NcLH4AFm9JCtvaiaECAoGuQ+gIYRw1AgIR6STfSmRDOaQPp/5g3gSgBt4EBSJhxWfMYQE+PKDCNcYINMf0x/THwL4I7vyZO1E0NMf0x/T//QE0VFDuvKhUVG68qIF+QFUEGT5EPKj+AAkpMjLH1JAyx9SMMv/UhD0AMntVPgPAdMHIcAAn2xRkyDXSpbTB9QC+wDoMOAhwAHjACHAAuMAAcADkTDjDQOkyMsfEssfy/8QERITAG7SB/oA1NQi+QAFyMoHFcv/ydB3dIAYyMsFywIizxZQBfoCFMtrEszMyXP7AMhAFIEBCPRR8qcCAHCBAQjXGPoA0z/IVCBHgQEI9FHyp4IQbm90ZXB0gBjIywXLAlAGzxZQBPoCFMtqEssfyz/Jc/sAAgBsgQEI1xj6ANM/MFIkgQEI9Fnyp4IQZHN0cnB0gBjIywXLAlAFzxZQA/oCE8tqyx8Syz/Jc/sAAAr0AMntVAj45Sg=",
+   "hash": "feb5ff6820e2ff0d9483e7e0d62c817d846789fb4ae580c878866d959dabd5c0",
+   "depth": 7
+  },
+  "v3r2": {
+   "boc": "te6cckEBAQEAcQAA3v8AIN0gggFMl7ohggEznLqxn3Gw7UTQ0x/THzHXC//jBOCk8mCDCNcYINMf0x/TH/gjE7vyY+1E0NMf0x/T/9FRMrryoVFEuvKiBPkBVBBV+RDyo/gAkyDXSpbTB9QC+wDo0QGkyMsfyx/L/8ntVBC9ba0=",
+   "hash": "84dafa449f98a6987789ba232358072bc0f76dc4524002a5d0918b9a75d2d599",
+   "depth": 0
+  }
+ },
+ "transfers": [
+  {
+   "name": "W5 · premier envoi (déploiement) · commentaire",
+   "version": "v5r1",
+   "seqno": 0,
+   "deploy": true,
+   "validUntil": 1790000000,
+   "sendMode": 3,
+   "messages": [
+    {
+     "to": "UQASqG7n7N5SiJ1PAf1yA74qC2QYyDH7IV5uFJQEFXWoy7-s",
+     "amount": "100000000",
+     "bounce": false,
+     "comment": "Kalyx test"
+    }
+   ],
+   "publicKey": "c6d2c947e552974c9f739fd7a02652519b8eef8cb9eef7867ac2e8f85777f244",
+   "keySource": "BIP-39 standard → chemin Tonkeeper",
+   "from": "UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw",
+   "boc": "te6cckECGQEAA3QAA+eIAWm2jY70SlVWWHgIPAltrcsyMTpUif8M5BpP3lbIR+heEY5tLO3P///iLVYncAAAAAARwHNtKzFzcOISaqHWJyPpv69EDEjdYHcozAk+k/fKK+gTQXAbLayv87HwFHkEpk7SelMsE5SSaQ91E0wptuhYFAEVFgEU/wD0pBP0vPLICwICASADDgIBSAQFAtzQINdJwSCRW49jINcLHyCCEGV4dG69IYIQc2ludL2wkl8D4IIQZXh0brqOtIAg1yEB0HTXIfpAMPpE+Cj6RDBYvZFb4O1E0IEBQdch9AWDB/QOb6ExkTDhgEDXIXB/2zzgMSDXSYECgLmRMOBw4hEQAgEgBg0CASAHCgIBbggJABmtznaiaEAg65Drhf/AABmvHfaiaEAQ65DrhY/AAgFICwwAF7Ml+1E0HHXIdcLH4AARsmL7UTQ1woAgABm+Xw9qJoQICg65D6AsAQLyDwEeINcLH4IQc2lnbrry4Ip/EAHmjvDtou37IYMI1yICgwjXIyCAINch0x/TH9Mf7UTQ0gDTHyDTH9P/1woACvkBQMz5EJoolF8K2zHh8sCH3wKzUAew8tCEUSW68uCFUDa68uCG+CO78tCIIpL4AN4BpH/IygDLHwHPFsntVCCS+A/ecNs82BED9u2i7fsC9AQhbpJsIY5MAiHXOTBwlCHHALOOLQHXKCB2HkNsINdJwAjy4JMg10rAAvLgkyDXHQbHEsIAUjCw8tCJ10zXOTABpOhsEoQHu/Lgk9dKwADy4JPtVeLSAAHAAJFb4OvXLAgUIJFwlgHXLAgcEuJSELHjDyDXShITFACWAfpAAfpE+Cj6RDBYuvLgke1E0IEBQdcY9AUEnX/IygBABIMH9FPy4IuOFAODB/Rb8uCMItcKACFuAbOw8tCQ4shQA88WEvQAye1UAHIw1ywIJI4tIfLgktIA7UTQ0gBRE7ry0I9UUDCRMZwBgQFA1yHXCgDy4I7iyMoAWM8Wye1Uk/LAjeIAEJNb2zHh10zQAFGAAAAAP///iONpZKPyqUumT7nP69ATKSjNx3fGXPd7wz1hdHwru/kiIAIKDsPIbQMXGAAAAIRCAAlUN3P2bylETqeA/rkB3xUFsgxkGP2QrzcKSgIKutRloC+vCAAAAAAAAAAAAAAAAAAAAAAAAEthbHl4IHRlc3TzO7tT",
+   "hash": "b92b363627ae04f2f28ea9ce9dbaeeb83d12e6658f32915fb8dd76b1cdbcca3e"
+  },
+  {
+   "name": "W5 · deux destinataires · commentaire long",
+   "version": "v5r1",
+   "seqno": 7,
+   "deploy": false,
+   "validUntil": 1790000123,
+   "sendMode": 3,
+   "messages": [
+    {
+     "to": "EQDMBkk9Sy_VbIibduiag1jtbXPUmXv8DUdFvFfqSu-2q_KL",
+     "amount": "2500000000",
+     "bounce": true
+    },
+    {
+     "to": "UQASqG7n7N5SiJ1PAf1yA74qC2QYyDH7IV5uFJQEFXWoy7-s",
+     "amount": "1",
+     "bounce": false,
+     "comment": "Paiement Kalyx — facture 2026-0042 · détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail détail "
+    }
+   ],
+   "publicKey": "f6c450a16bb1c514e22f1977e390a3025599aa1e7b00068a6aacf2119484c1bd",
+   "keySource": "@ton/crypto mnemonic.spec.ts (vecteur officiel)",
+   "from": "UQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53h3h",
+   "boc": "te6cckECCQEAAhgAAeWIAaRZwqrUxrObuXBd0rkrgQIgsiKLzPa1jgIRYGG58HO8A5tLO3P///iLVYnf2AAAAD1SFqDZAeAbtg7aeMUh33JVziqaEKQKiHeFq5mrJx9/V6VHoBRsqzNpIijuOCBpjXo+3K7Vpvnxbo9KRJj+pYgZAQIKDsPIbQMCBQIKDsPIbQMDBAAAAGhiAGYDJJ6ll+q2RE27dE1BrHa2uepMvf4Go6LeK/Uld9tVpKgXyAAAAAAAAAAAAAAAAAAAAWJCAAlUN3P2bylETqeA/rkB3xUFsgxkGP2QrzcKSgIKutRliAgAAAAAAAAAAAAAAAABBgH+AAAAAFBhaWVtZW50IEthbHl4IOKAlCBmYWN0dXJlIDIwMjYtMDA0MiDCtyBkw6l0YWlsIGTDqXRhaWwgZMOpdGFpbCBkw6l0YWlsIGTDqXRhaWwgZMOpdGFpbCBkw6l0YWlsIGTDqXRhaWwgZMOpdGFpbCBkw6l0YWlsIGTDqQcB/nRhaWwgZMOpdGFpbCBkw6l0YWlsIGTDqXRhaWwgZMOpdGFpbCBkw6l0YWlsIGTDqXRhaWwgZMOpdGFpbCBkw6l0YWlsIGTDqXRhaWwgZMOpdGFpbCBkw6l0YWlsIGTDqXRhaWwgZMOpdGFpbCBkw6l0YWlsIGTDqXRhaWwgZMMIADypdGFpbCBkw6l0YWlsIGTDqXRhaWwgZMOpdGFpbCCTBqqt",
+   "hash": "2c01b555707fab8cf1b124458557facee96c451737116be5f251c3661d4f30d0"
+  },
+  {
+   "name": "W5 · réseau de test",
+   "version": "v5r1",
+   "seqno": 3,
+   "deploy": false,
+   "testnet": true,
+   "validUntil": 1790000456,
+   "sendMode": 3,
+   "messages": [
+    {
+     "to": "0QBU5_p6nqj9oL1G_BO6YvH7YU17VJEKQwAQYy7PeOMOAFg4",
+     "amount": "50000000",
+     "bounce": false
+    }
+   ],
+   "publicKey": "f6c450a16bb1c514e22f1977e390a3025599aa1e7b00068a6aacf2119484c1bd",
+   "keySource": "@ton/crypto mnemonic.spec.ts (vecteur officiel)",
+   "from": "0QC2w3H-ofk4DSeQynfr5fUiDdiVjxYoi8PGzW9Zd7X-sz0t",
+   "boc": "te6cckEBBAEAtwAB5YgBbYbj/UPycBpPIZTv18vqRBuxKx4sUReHjZresu9r/WYDm0s7c////+tViepAAAAAHBeS6eSqjMCTfa3Hfc1zH6efVoz6D/Dv6y5YRC3r/tEY+qbhiAt6aR/yY2IKFiAeoI43UZWuprY6DGqxilq1tB0BAgoOw8htAwIDAAAAaEIAKnP9PU9UftBeo34J3TF4/bCmvapIhSGACDGXZ7xxhwAgF9eEAAAAAAAAAAAAAAAAAADlG1ZK",
+   "hash": "1f75a20353018ac12fc42c1b920236f190f9556ab9e033975c434e57e160e794"
+  },
+  {
+   "name": "W5 · tout le solde (mode 128)",
+   "version": "v5r1",
+   "seqno": 12,
+   "deploy": false,
+   "validUntil": 1790000789,
+   "sendMode": 128,
+   "messages": [
+    {
+     "to": "UQASqG7n7N5SiJ1PAf1yA74qC2QYyDH7IV5uFJQEFXWoy7-s",
+     "amount": "0",
+     "bounce": false
+    }
+   ],
+   "publicKey": "c6d2c947e552974c9f739fd7a02652519b8eef8cb9eef7867ac2e8f85777f244",
+   "keySource": "BIP-39 standard → chemin Tonkeeper",
+   "from": "UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw",
+   "boc": "te6cckEBBAEAswAB5YgBabaNjvRKVVZYeAg8CW2tyzIxOlSJ/wzkGk/eVshH6F4Dm0s7c///+ItVifSoAAAAZGBTraGKW4wUEQ7m4Dkk2VYM1kttWrv+Cbm/ZFWP9e/kjingBxAdJ0APG+WXv/4Akv9RHkaUCNxRLNL9x0BmogEBAgoOw8htggIDAAAAYEIACVQ3c/ZvKUROp4D+uQHfFQWyDGQY/ZCvNwpKAgq61GWAAAAAAAAAAAAAAAAAAO/7TQI=",
+   "hash": "48853370105a5251fcba7edaee902d13de419aa5569ba3f6eec9fcae9009e26e"
+  },
+  {
+   "name": "v4R2 · premier envoi (déploiement) · commentaire",
+   "version": "v4r2",
+   "seqno": 0,
+   "deploy": true,
+   "validUntil": 1790001000,
+   "sendMode": 3,
+   "messages": [
+    {
+     "to": "UQASqG7n7N5SiJ1PAf1yA74qC2QYyDH7IV5uFJQEFXWoy7-s",
+     "amount": "123456789",
+     "bounce": false,
+     "comment": "Kalyx v4"
+    }
+   ],
+   "publicKey": "f6c450a16bb1c514e22f1977e390a3025599aa1e7b00068a6aacf2119484c1bd",
+   "keySource": "@ton/crypto mnemonic.spec.ts (vecteur officiel)",
+   "from": "UQAYZ-rchbaHK4IUkCvcyl3V8spcAnO8IBRCNvS3are-CbyQ",
+   "boc": "te6cckECFwEAA7gAA+OIADDP1bkLbQ5XBCkgV7mUu6vllLgE53hAKIRt6W7Vb3wSEYyds0Icc8qbryAbxeAoXvQvuMcpkF3XTXP7Ne3psQuY092LEac21ZNw4IKzHNaal7waEISI8mAyTP5nJ5R4+YDFNTRi7VYn7QAAAAAAAHABFRYBFP8A9KQT9LzyyAsCAgEgAxACAUgEBwLm0AHQ0wMhcbCSXwTgItdJwSCSXwTgAtMfIYIQcGx1Z70ighBkc3RyvbCSXwXgA/pAMCD6RAHIygfL/8nQ7UTQgQFA1yH0BDBcgQEI9ApvoTGzkl8H4AXTP8glghBwbHVnupI4MOMNA4IQZHN0crqSXwbjDQUGAHgB+gD0BDD4J28iMFAKoSG+8uBQghBwbHVngx6xcIAYUATLBSbPFlj6Ahn0AMtpF8sfUmDLPyDJgED7AAYAilAEgQEI9Fkw7UTQgQFA1yDIAc8W9ADJ7VQBcrCOI4IQZHN0coMesXCAGFAFywVQA88WI/oCE8tqyx/LP8mAQPsAkl8D4gIBIAgPAgEgCQ4CAVgKCwA9sp37UTQgQFA1yH0BDACyMoHy//J0AGBAQj0Cm+hMYAIBIAwNABmtznaiaEAga5Drhf/AABmvHfaiaEAQa5DrhY/AABG4yX7UTQ1wsfgAWb0kK29qJoQICga5D6AhhHDUCAhHpJN9KZEM5pA+n/mDeBKAG3gQFImHFZ8xhAT48oMI1xgg0x/TH9MfAvgju/Jk7UTQ0x/TH9P/9ATRUUO68qFRUbryogX5AVQQZPkQ8qP4ACSkyMsfUkDLH1Iwy/9SEPQAye1U+A8B0wchwACfbFGTINdKltMH1AL7AOgw4CHAAeMAIcAC4wABwAORMOMNA6TIyx8Syx/L/xESExQAbtIH+gDU1CL5AAXIygcVy//J0Hd0gBjIywXLAiLPFlAF+gIUy2sSzMzJc/sAyEAUgQEI9FHypwIAcIEBCNcY+gDTP8hUIEeBAQj0UfKnghBub3RlcHSAGMjLBcsCUAbPFlAE+gIUy2oSyx/LP8lz+wACAGyBAQjXGPoA0z8wUiSBAQj0WfKnghBkc3RycHSAGMjLBcsCUAXPFlAD+gITy2rLHxLLP8lz+wAACvQAye1UAFEAAAAAKamjF/bEUKFrscUU4i8Zd+OQowJVmaoeewAGimqs8hGUhMG9QACAQgAJVDdz9m8pRE6ngP65Ad8VBbIMZBj9kK83CkoCCrrUZaA63mioAAAAAAAAAAAAAAAAAAAAAABLYWx5eCB2NOa0jiQ=",
+   "hash": "56d8b5eadbc591cdcfbb00b7647066c3aa6d31210b04febd3c9404ea46d05d41"
+  },
+  {
+   "name": "v4R2 · quatre destinataires",
+   "version": "v4r2",
+   "seqno": 42,
+   "deploy": false,
+   "validUntil": 1790002000,
+   "sendMode": 3,
+   "messages": [
+    {
+     "to": "UQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53h3h",
+     "amount": "1000",
+     "bounce": false
+    },
+    {
+     "to": "UQDbuUzGbucJ6xkeLjr5O5s7A2u8xp-3DlxCbO8Lm3kwoXLR",
+     "amount": "1001",
+     "bounce": false,
+     "comment": "n°1"
+    },
+    {
+     "to": "UQDCteULTD5Rloi7FCvfMMo7gVP5-479zUTs4dfhVbwg0Ezk",
+     "amount": "1002",
+     "bounce": false
+    },
+    {
+     "to": "UQASqG7n7N5SiJ1PAf1yA74qC2QYyDH7IV5uFJQEFXWoy7-s",
+     "amount": "1003",
+     "bounce": false,
+     "comment": "n°3"
+    }
+   ],
+   "publicKey": "c6d2c947e552974c9f739fd7a02652519b8eef8cb9eef7867ac2e8f85777f244",
+   "keySource": "BIP-39 standard → chemin Tonkeeper",
+   "from": "UQDOTGWodYYyrTkfGPECR7I9_B1-3BbF6Wzvgp0FIomdctqZ",
+   "boc": "te6cckECBQEAAVoABOeIAZyYy1DrDGVacj4x4gSPZHv4Ov24LYvS2d8FOgpFEzrkB+9V7cN/YRI05btSjqXB5YkKjsU3I9gQQ2KdRdaWIielG4FJm1+vXQ+Pe/B8PvMfjZTi6+X406gHp8FOcBhioGFNTRi7VYoagAAAAVAAGBgYHAECAwQAZEIAaRZwqrUxrObuXBd0rkrgQIgsiKLzPa1jgIRYGG58HO8QH0AAAAAAAAAAAAAAAAAAAHRCAG3cpmM3c4T1jI8XHXydzZ2Btd5jT9uHLiE2d4XNvJhQkB9IAAAAAAAAAAAAAAAAAAAAAABuwrAxAGRCAGFa8oWmHyjLRF2KFe+YZR3Aqfz9x37monZw6/Cq3hBoEB9QAAAAAAAAAAAAAAAAAAB0QgAJVDdz9m8pRE6ngP65Ad8VBbIMZBj9kK83CkoCCrrUZZAfWAAAAAAAAAAAAAAAAAAAAAAAbsKwMzhX4Nk=",
+   "hash": "8a95bac88dca287609070206bc07288da1168e39ab9a2b48740ec0c16bdea151"
+  },
+  {
+   "name": "v3R2 · premier envoi (déploiement)",
+   "version": "v3r2",
+   "seqno": 0,
+   "deploy": true,
+   "validUntil": 1790003000,
+   "sendMode": 3,
+   "messages": [
+    {
+     "to": "EQDMBkk9Sy_VbIibduiag1jtbXPUmXv8DUdFvFfqSu-2q_KL",
+     "amount": "999",
+     "bounce": true
+    }
+   ],
+   "publicKey": "c6d2c947e552974c9f739fd7a02652519b8eef8cb9eef7867ac2e8f85777f244",
+   "keySource": "BIP-39 standard → chemin Tonkeeper",
+   "from": "UQDQGmFYcDpYloyZVEQ8yg9d_uQ5GVL-U6wtD10z66STZ2-b",
+   "boc": "te6cckECBAEAAUUAA+GIAaA0wrDgdLEtGTKoiHmUHrv9yHIypfynWFoeumfXSSbOEZy0Bi9F6wjQWn8ebO7IvM4C4oPHifO1uqcj7BDvSbOsjLw63jpuNccrbeuZce+N4NXNLdnru1mYb18Rh/H0mKHFNTRi7VYo5wAAAAAAcAECAwDe/wAg3SCCAUyXuiGCATOcurGfcbDtRNDTH9MfMdcL/+ME4KTyYIMI1xgg0x/TH9Mf+CMTu/Jj7UTQ0x/TH9P/0VEyuvKhUUS68qIE+QFUEFX5EPKj+ACTINdKltMH1AL7AOjRAaTIyx/LH8v/ye1UAFAAAAAAKamjF8bSyUflUpdMn3Of16AmUlGbju+Mue73hnrC6PhXd/JEAGRiAGYDJJ6ll+q2RE27dE1BrHa2uepMvf4Go6LeK/Uld9tVkB84AAAAAAAAAAAAAAAAANp6Vso=",
+   "hash": "7b5c6451ba69b85e66bc1e81e4b0f3848ae526ef9b936ba2b9a60a6cca3dd868"
+  }
+ ]
+}

@@ -1,6 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
-import { Stack } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { attachPriceCacheStorage } from '../src';
+import React, { useEffect, useRef, useState } from 'react';
+import { journal } from '../lib/debugJournal';
+import { JournalProbe } from '../ui/JournalProbe';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Stack, router, usePathname } from 'expo-router';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { OfflineBanner } from '../ui/OfflineBanner';
@@ -21,6 +25,7 @@ import { useWalletConnect } from '../lib/walletconnect';
 import { useFonts } from 'expo-font';
 import { RootErrorBoundary, ErrorScreen } from '../ui/ErrorBoundary';
 import { WalletConnectHost } from '../ui/WalletConnectHost';
+import { TonConnectHost } from '../ui/TonConnectHost';
 import { WebDashboard } from '../ui/web/WebDashboard';
 import { ToastHost } from '../ui/ToastHost';
 import { AutoLock } from '../ui/AutoLock';
@@ -42,6 +47,12 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   console.error('[Kalyx] Expo Router ErrorBoundary :', error?.message, error?.stack);
   return <ErrorScreen error={error} onRetry={retry} />;
 }
+
+/** Écrans de la barre d'onglets : entre eux, un fondu (voir plus bas). */
+
+/** Écrans ouverts app verrouillée : le code, et des pages sans aucune donnée du portefeuille. */
+// `/journal` : si c'est le déverrouillage qui casse, sa trace doit rester lisible (lignes filtrées, sans secret).
+const LOCKED_ALLOWED = new Set(['/', '/unlock', '/legal', '/faq', '/about', '/journal']);
 
 export default function RootLayout() {
   const { mode, colors } = useTheme();
@@ -74,7 +85,40 @@ export default function RootLayout() {
    */
   const storeReady = useWallet((s) => s.ready);
   const hasWallet = useWallet((s) => s.hasWallet);
+  const isUnlocked = useWallet((s) => s.isUnlocked);
+  const pathname = usePathname();
+  /*
+   * GARDE GLOBALE DU VERROUILLAGE. Elle ne vivait que dans `app/index.tsx` : un
+   * lien profond (`kalyx://history`, `kalyx://wallets`…) ouvrait l'écran
+   * directement, SANS passer par l'index — historique et soldes lisibles, et
+   * suppression d'un portefeuille possible, app verrouillée. Tant qu'un
+   * portefeuille existe et n'est pas déverrouillé, seuls l'écran de code et
+   * des pages sans donnée restent accessibles.
+   */
+  useEffect(() => {
+    if (!storeReady || !hasWallet || isUnlocked) return;
+    if (!LOCKED_ALLOWED.has(pathname)) router.replace('/unlock');
+  }, [storeReady, hasWallet, isUnlocked, pathname]);
   const [opening, setOpening] = useState<'wait' | 'splash' | 'done'>('wait');
+  const [bootError, setBootError] = useState(false);
+  /** Session demandée au lancement (leurre ou réelle) : un nouvel essai rouvre LA MÊME. */
+  const bootDecoyId = useRef<string | null>(null);
+  const retrying = useRef(false);
+  const retryBoot = () => {
+    if (retrying.current) return; // double appui : un seul démarrage à la fois
+    retrying.current = true;
+    setBootError(false);
+    const id = bootDecoyId.current;
+    const run = id ? useWallet.getState().bootDecoy(id) : useWallet.getState().bootstrap();
+    void run
+      .catch((e) => {
+        console.error('[Kalyx] démarrage a échoué (nouvel essai) :', e);
+        setBootError(true);
+      })
+      .finally(() => {
+        retrying.current = false;
+      });
+  };
   useEffect(() => {
     if (!storeReady || opening !== 'wait') return;
     setOpening(hasWallet ? 'splash' : 'done');
@@ -148,28 +192,44 @@ export default function RootLayout() {
     // on ne bootstrap pas les stores du wallet mobile.
     if (Platform.OS === 'web') return;
     console.log('[Kalyx] _layout: démarrage bootstrap');
+    // Cache des prix, marchés et courbes relu du disque : l'app ne rouvre plus sur du vide.
+    void attachPriceCacheStorage(AsyncStorage);
     (async () => {
       try {
-        await bootstrap();
+        /*
+         * Démarrage EN SESSION LEURRE (code de contrainte) : marqueur lu AVANT
+         * tout chargement — le pare-feu est actif, et les chargements qui
+         * suivent ne lisent rien des vraies données.
+         */
+        const decoyId = await (await import('../lib/decoyCurtain')).consumeDecoyBoot();
+        bootDecoyId.current = decoyId ?? null;
+        if (decoyId) await useWallet.getState().bootDecoy(decoyId);
+        else await bootstrap();
         console.log('[Kalyx] bootstrap OK');
       } catch (e) {
+        /*
+         * Stockage illisible au lancement : sans cela `ready` ne passait jamais
+         * à vrai et l'app restait sur un fond vide, sans message ni issue.
+         */
         console.error('[Kalyx] bootstrap a échoué :', e);
+        setBootError(true);
       }
-      try {
-        await loadSettings();
-        await loadCustomTokens();
-        await loadContacts();
-        await loadNotifs();
-        await loadCustomChains();
-        await loadPendingBtc();
-        await loadPriceAlerts();
-        await loadRecents();
-        await loadTokenPrefs();
-        await loadAiState();
-        await loadDriveFlow();
-        console.log('[Kalyx] loadSettings OK');
-      } catch (e) {
-        console.error('[Kalyx] loadSettings a échoué :', e);
+      /*
+       * Chargements INDÉPENDANTS : un seul en échec (fichier corrompu) n'empêche
+       * plus les autres — contacts, réseaux, alertes… — de se charger.
+       */
+      const loads: [string, () => Promise<unknown> | unknown][] = [
+        ['settings', loadSettings], ['customTokens', loadCustomTokens], ['contacts', loadContacts],
+        ['notifs', loadNotifs], ['customChains', loadCustomChains], ['pendingBtc', loadPendingBtc],
+        ['priceAlerts', loadPriceAlerts], ['recents', loadRecents], ['tokenPrefs', loadTokenPrefs],
+        ['ai', loadAiState], ['driveFlow', loadDriveFlow],
+      ];
+      for (const [name, load] of loads) {
+        try {
+          await load();
+        } catch (e) {
+          console.error(`[Kalyx] chargement « ${name} » a échoué :`, e);
+        }
       }
       try {
         await initWalletConnect();
@@ -208,7 +268,12 @@ export default function RootLayout() {
           chaque pixel non peint laissait voir ce presque-noir. En thème clair,
           c'est un flash brutal ; en thème sombre, un clignotement de teinte.
         */}
-        <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        <View
+          style={{ flex: 1, backgroundColor: colors.bg }}
+          // Journal : chaque toucher (position, écran), y compris ceux qui n'atteignent aucun bouton.
+          onTouchEnd={(e) => journal('touch', `toucher (${Math.round(e.nativeEvent.pageX)}, ${Math.round(e.nativeEvent.pageY)}) sur ${pathname}`)}
+        >
+          <JournalProbe />
           <OfflineBanner />
         <Stack
           screenOptions={{
@@ -240,8 +305,17 @@ export default function RootLayout() {
             // avec l'ouverture de l'app qu'on vient d'allonger.
             animationDuration: 280,
           }}
-        />
+        >
+          {/*
+            ONGLETS : un seul écran de pile, `(tabs)`, qui contient les quatre
+            onglets (voir `app/(tabs)/_layout.tsx`). On y arrive en fondu —
+            depuis le déverrouillage ou la création du wallet — et non en
+            poussée latérale, qui découvrait le fond sur le bord.
+          */}
+          <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 220 }} />
+        </Stack>
         <WalletConnectHost />
+        <TonConnectHost />
         <ToastHost />
         <AutoLock />
         <PrivacyScreen />
@@ -249,13 +323,30 @@ export default function RootLayout() {
         <PriceAlertWatcher />
         <DeepLinks />
         <FloatingAiAssistant />
-        {opening === 'wait' ? (
+        {bootError && !storeReady ? (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, zIndex: 101, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 }]}>
+            <Text style={{ color: colors.text, fontSize: 16, textAlign: 'center' }}>{t('bootFailed')}</Text>
+            <Pressable onPress={retryBoot} accessibilityRole="button" style={{ paddingVertical: 12, paddingHorizontal: 24, borderRadius: 999, backgroundColor: colors.primary }}>
+              <Text style={{ color: colors.onPrimary, fontSize: 15 }}>{t('retry')}</Text>
+            </Pressable>
+          </View>
+        ) : opening === 'wait' ? (
           // Simple fond du thème : le temps de savoir s'il existe un wallet.
           // Surtout pas de roue de chargement — elle ferait exactement le trou
           // qu'on vient de supprimer.
           <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, zIndex: 100 }]} pointerEvents="none" />
         ) : opening === 'splash' ? (
           <Splash onFinish={() => setOpening('done')} />
+        ) : null}
+        {/*
+          RIDEAU DE VERROUILLAGE, dans le MÊME rendu que l'écran visé. La
+          redirection vers l'écran de code (effet plus haut) n'arrive qu'après
+          un premier affichage : sans ce rideau, un écran protégé ouvert par un
+          lien ou par le bouton retour se dessinait une fraction de seconde, avec
+          les données restées en mémoire. Il bloque aussi les appuis.
+        */}
+        {storeReady && hasWallet && !isUnlocked && !LOCKED_ALLOWED.has(pathname) ? (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, zIndex: 1000 }]} pointerEvents="auto" />
         ) : null}
         </View>
       </SafeAreaProvider>

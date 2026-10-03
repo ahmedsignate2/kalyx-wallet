@@ -11,7 +11,7 @@
  *  - Solana : la transaction du devis est signée par le téléphone puis diffusée
  *             ici (simulation → envoi → confirmation, comme l'app).
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { View, ScrollView, Pressable as RNPressable } from 'react-native';
 import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState } from '../kit';
 import { SuccessModal } from '../SuccessModal';
@@ -24,11 +24,14 @@ import { useTokenStore, type Tok } from '../../lib/tokenStore';
 import { useWebConnect } from '../../lib/webConnect';
 import { submitSolanaSigned } from '../../lib/solanaSubmit';
 import { UserFacingError, friendlyTxError } from '../../lib/txError';
+import { webErrorText } from './webErrors';
 import {
   getAdapter, getErc20Tokens, getBestQuote, parseAmount, formatTokenAmount, formatInputAmount, formatFiat, isWalletError,
   NATIVE_TOKEN, estimateGasReserve, type GasReserve, type SwapQuote, EvmChainAdapter, SolanaChainAdapter, type ChainConfig,
+  decimalSeparator,
 } from '../../src';
 import { encodeErc20Approve, hexQuantity } from './evmEncode';
+import { FlowEmbedContext, useFlowRootStyle, useFlowScrollStyle } from './flowEmbed';
 import { useWebT } from './webI18n';
 import { KalyxSpinner } from './motion';
 import { addressForChain, chainOf } from './webAccounts';
@@ -52,6 +55,9 @@ function pick<T>(o: unknown, keys: string[]): T | undefined {
 
 export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfig; onClose: () => void }) {
   const { colors } = useTheme();
+  const flowRoot = useFlowRootStyle(colors.bg);
+  const flowScroll = useFlowScrollStyle();
+  const embedded = useContext(FlowEmbedContext);
   const t = useT();
   const tw = useWebT();
   const request = useWebConnect((s) => s.request);
@@ -142,7 +148,9 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
 
   useEffect(() => { if (toChain !== activeChain) fetchTokens(toChain); }, [toChain, activeChain, fetchTokens]);
 
-  const reset = () => { setQuote(null); setError(null); setStale(false); };
+  /** Génération de devis : tout changement (montant, jetons, slippage) rend caduc un devis encore en route. */
+  const quoteGen = useRef(0);
+  const reset = () => { quoteGen.current += 1; setQuote(null); setError(null); setStale(false); };
 
   const fromTok = fromTokens[from] ?? fromTokens[0];
   const toTokens = tokensByChain[toChain] ?? [];
@@ -234,7 +242,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       raw = parseAmount(amount, fromTok.decimals).raw;
     } catch (e) {
       stopCountdown(); reset();
-      setError(isWalletError(e) ? e.message : t('amountInvalid'));
+      setError(isWalletError(e) ? webErrorText(e, tw, t as never) : t('amountInvalid'));
       return;
     }
     if (!opts.auto) {
@@ -243,6 +251,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       if (pre) { stopCountdown(); setError(pre); return; }
       setLoading(true);
     }
+    const gen = quoteGen.current;
     try {
       const targetAddress = addressForChain(accounts, toChain) || address;
       const q = await getBestQuote({
@@ -251,12 +260,15 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
         fromTokenInfo: { symbol: fromTok.symbol, decimals: fromTok.decimals, logo: fromTok.logo },
         toTokenInfo: { symbol: toTok.symbol, decimals: toTok.decimals, logo: toTok.logo },
       });
+      // Paramètres changés pendant la requête : ce devis ne correspond plus à l'écran.
+      if (gen !== quoteGen.current) return;
       if (!q) { setError(t('noRoute')); stopCountdown(); return; }
       setError(null); setStale(false); setQuote(q);
       if (!countdownInterval.current) startCountdown();
     } catch (e) {
+      if (gen !== quoteGen.current) return;
       if (opts.auto) setStale(true);
-      else { setError(friendlyTxError(e, t as never)); stopCountdown(); }
+      else { setError(webErrorText(e, tw, t as never)); stopCountdown(); }
     } finally {
       if (!opts.auto) setLoading(false);
     }
@@ -273,6 +285,11 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
         const allowance = await adapter.getAllowance(q.fromToken.address, address, q.approvalAddress).catch(() => 0n);
         if (allowance < q.fromAmount) {
           setStep(t('stApproving'));
+          // USDT (Ethereum) refuse `approve(montant)` sur une autorisation non nulle : remise à zéro d'abord, comme l'app.
+          if (allowance > 0n) {
+            const resetHash = await request('eth_sendTransaction', [{ from: address, to: q.fromToken.address, value: '0x0', data: encodeErc20Approve(q.approvalAddress, 0n) }]);
+            await adapter.waitForTx(resetHash);
+          }
           const approveHash = await request('eth_sendTransaction', [{ from: address, to: q.fromToken.address, value: '0x0', data: encodeErc20Approve(q.approvalAddress, q.fromAmount) }]);
           setStep(t('stApprovalWait'));
           await adapter.waitForTx(approveHash);
@@ -296,8 +313,15 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
     throw new UserFacingError(tw('swapIncompatible', { type: q.tx.type }));
   };
 
+  /** Une seule exécution à la fois (deux clics pendant la fermeture de la feuille = deux envois). */
+  const confirmingRef = useRef(false);
   const onConfirm = async () => {
-    if (!quote) return;
+    if (!quote || confirmingRef.current) return;
+    if (stale) {
+      setError(t('errQuoteExpired')); // devis périmé : jamais envoyé au téléphone
+      return;
+    }
+    confirmingRef.current = true;
     setConfirming(true);
     setStep(t('preparing'));
     try {
@@ -307,8 +331,9 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       setSuccess({ hash, summary, isBridge });
     } catch (e) {
       setStale(true);
-      setError(friendlyTxError(e, t as never));
+      setError(webErrorText(e, tw, t as never));
     } finally {
+      confirmingRef.current = false;
       setStep(null);
       setConfirming(false);
     }
@@ -344,7 +369,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
   );
 
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg, zIndex: 20 }}>
+    <View style={flowRoot}>
       <View style={{ paddingHorizontal: SCREEN_MARGIN, height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t('back')} tone="ghost" onPress={onClose} />
         <Text variant="title2" style={{ flex: 1 }}>{isBridge ? t('bridgeAction') : t('swapAction')}</Text>
@@ -358,7 +383,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       ) : !fromTok || !toTok ? (
         <View style={{ padding: SCREEN_MARGIN, gap: space[3] }}><Skeleton height={110} /><Skeleton height={110} /></View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: space[6], gap: space[3] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView style={flowScroll} contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: space[6], gap: space[3] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <TokenBlock
             label={t('youGive')}
             tok={fromTok}
@@ -406,11 +431,11 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
           </RNPressable>
           {advanced ? (
             <View style={{ flexDirection: 'row', gap: space[2] }}>
-              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', ',')} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
+              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', decimalSeparator())} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
             </View>
           ) : null}
 
-          <AmountKeypad value={amount} onChange={(v) => { setAmount(v); reset(); stopCountdown(); }} maxDecimals={Math.min(fromTok.decimals, 8)} />
+          <AmountKeypad value={amount} onChange={(v) => { setAmount(v); reset(); stopCountdown(); }} maxDecimals={Math.min(fromTok.decimals, 8)} compact={embedded} />
           {!quote ? (
             <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading} disabled={!amount || Number(amount) <= 0} />
           ) : stale ? (
@@ -435,11 +460,16 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('networkFee')}</Text><Text variant="caption" tabular>{quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : ''}{quote.gasCostUsd > 0 ? ` (≈ ${formatFiat(quote.gasCostUsd)} $)` : quote.gasCostNative > 0n ? '' : '—'}</Text></View>
               <Divider />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', ',')} %</Text></View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', decimalSeparator())} %</Text></View>
             </Surface>
-            <Text variant="caption" tone="secondary">{routeSentence}{t('slippageTolerance')}{(quote.slippage * 100).toFixed(1).replace('.', ',')} %.</Text>
+            <Text variant="caption" tone="secondary">{routeSentence}{t('slippageTolerance')}{(quote.slippage * 100).toFixed(1).replace('.', decimalSeparator())} %.</Text>
             <Text variant="caption" tone="tertiary">{tw('signOnPhoneNote')}</Text>
-            {impactLevel === 'danger' ? (
+            {stale ? (
+              <>
+                <Text variant="caption" tone="warning">{t('errQuoteExpired')}</Text>
+                <Button label={t('getQuote')} onPress={() => { setReview(false); onQuote(); }} loading={loading} />
+              </>
+            ) : impactLevel === 'danger' ? (
               <>
                 <Text variant="caption" tone="danger">{t('highPriceImpactWarning')}</Text>
                 <HoldButton label={t('holdToConfirm')} danger icon="exchange" onComplete={() => { setReview(false); void onConfirm(); }} />
@@ -480,10 +510,21 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
               if (idx >= 0) setFrom(idx);
             }
           } else {
-            setToChain(chainId);
             const list = tokensByChain[chainId] ?? [];
             const idx = list.findIndex((tk) => tk.address.toLowerCase() === token.address.toLowerCase());
-            setTo(Math.max(0, idx));
+            if (idx < 0) {
+              /*
+               * Jeton absent de la liste de ce réseau (pas encore chargée) : la
+               * destination reste celle d'avant — jamais un autre jeton choisi
+               * en silence — et on le dit (après `reset`, qui efface l'erreur).
+               */
+              reset();
+              stopCountdown();
+              setError(t('errInvalidToken'));
+              return;
+            }
+            setToChain(chainId);
+            setTo(idx);
           }
           reset();
           stopCountdown();

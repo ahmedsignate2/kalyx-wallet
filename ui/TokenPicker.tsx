@@ -1,17 +1,20 @@
 import { Pressable as KPressable } from './kit';
+import { SafeModal } from './kit/SafeModal';
 import { useT } from "../lib/settingsStore";
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, Image, Modal, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Image, Modal, FlatList, Platform, ActivityIndicator, StyleSheet } from 'react-native';
 import { fonts, radii, spacing, useTheme } from './theme';
 import { haptic } from '../lib/haptics';
 import { Icon } from './icon';
 import { TokenIcon } from './kit/TokenIcon';
-import { getAdapter, listChains } from '../src';
+import { getAdapter, getAdapterV2, listChains } from '../src';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { useWallet } from '../lib/walletStore';
+import { addressForChain } from '../lib/accountAddress';
 import { formatAmount, formatTokenAmount, sortMarkets, type MarketCoin } from '../src';
 import { useSettings } from '../lib/settingsStore';
 import { loadMarkets } from './MarketPanel';
+import { KeyboardAvoid } from './KeyboardAvoid';
 
 /** Onglets du sélecteur : mes jetons (soldes > 0), tendances (hausses du jour), top 100 (capitalisation). */
 type PickerTab = 'all' | 'mine' | 'trending' | 'top';
@@ -50,19 +53,28 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
   const fetchTokens = useTokenStore(s => s.fetchTokens);
   const tokensByChain = useTokenStore(s => s.tokensByChain);
   const loading = useTokenStore(s => s.loading);
-  const walletAccount = useWallet(s => s.account);
-  const accountAddress = address ?? walletAccount?.address;
+  // Adresse du compte actif SUR LA CHAÎNE CHOISIE dans le sélecteur (une adresse 0x ne lit pas des soldes Solana).
+  const activeSt = useWallet(s => s.accounts.find(a => a.index === s.activeAccountIndex) ?? s.accounts[0]);
+  const accountAddress = address ?? (addressForChain(activeSt, getAdapter(selectedChain).config) || undefined);
   const account = useMemo(() => (accountAddress ? { address: accountAddress } : undefined), [accountAddress]);
 
-  const chains = useMemo(() => listChains({ includeTestnets: false }).filter(c => c.family === 'evm' || c.family === 'solana'), []);
+  // TON : échanges STON.fi (jetton ↔ jetton sur TON uniquement).
+  const chains = useMemo(() => listChains({ includeTestnets: false }).filter(c => c.family === 'evm' || c.family === 'solana' || c.family === 'ton'), []);
 
   useEffect(() => {
+    /*
+     * Soldes de CETTE chaîne et de CE compte uniquement : la liste repart de
+     * zéro, et une réponse arrivée après un changement est ignorée — sinon la
+     * ligne MATIC affichait le solde ETH, et « Mes jetons » ceux d'un autre réseau.
+     */
+    setHeldTokens({});
+    let alive = true;
     if (visible && account?.address) {
       fetchTokens(selectedChain);
       
       // 1. Fetch native balance for selectedChain
       getAdapter(selectedChain).getBalance(account.address).then(b => {
-        setHeldTokens(prev => ({
+        alive && setHeldTokens(prev => ({
           ...prev,
           ['0x0000000000000000000000000000000000000000']: b.raw,
           ['0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee']: b.raw,
@@ -77,7 +89,15 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
         adapter.getSplTokens(account.address).then((tokens: any[]) => {
           const map: Record<string, bigint> = {};
           tokens.forEach(t => map[t.mint.toLowerCase()] = t.raw);
-          setHeldTokens(prev => ({ ...prev, ...map }));
+          alive && setHeldTokens(prev => ({ ...prev, ...map }));
+        }).catch(() => {});
+      }
+      if (adapter.config.family === 'ton') {
+        // Jettons détenus, indexés par adresse brute du maître (même forme que la liste STON.fi).
+        getAdapterV2(selectedChain).listTokens?.(account.address).then((tokens) => {
+          const map: Record<string, bigint> = {};
+          tokens.forEach((t) => { map[String(t.id).toLowerCase()] = t.raw; });
+          alive && setHeldTokens(prev => ({ ...prev, ...map }));
         }).catch(() => {});
       }
       if (adapter.config.family === 'evm') {
@@ -85,11 +105,14 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
            src.getErc20Tokens(adapter.config, account.address).then((tokens: any[]) => {
               const map: Record<string, bigint> = {};
               tokens.forEach((t: any) => { map[t.contract.toLowerCase()] = t.raw; });
-              setHeldTokens(prev => ({ ...prev, ...map }));
+              alive && setHeldTokens(prev => ({ ...prev, ...map }));
            }).catch(() => {});
         });
       }
     }
+    return () => {
+      alive = false;
+    };
   }, [visible, selectedChain, fetchTokens, account]);
 
   const rawTokens = tokensByChain[selectedChain] ?? [];
@@ -165,10 +188,10 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <SafeModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <KPressable noScale haptic="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onClose} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ height: '85%', backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' }}>
+        <KeyboardAvoid style={{ height: '85%', backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' }}>
         <View style={{ padding: spacing(2), borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(1.5) }}>
             <Text style={{ color: colors.text, fontFamily: fonts.extrabold, fontSize: 20 }}>{t("tokenSelect")}</Text>
@@ -261,8 +284,8 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
             }
           />
         )}
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
       </View>
-    </Modal>
+    </SafeModal>
   );
 }

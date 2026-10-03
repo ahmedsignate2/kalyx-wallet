@@ -11,7 +11,7 @@
  * grammaire d'appui sans être touchés un par un.
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, ViewStyle, StyleProp, Image, Animated, TextInput as RNTextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ViewStyle, StyleProp, Animated, TextInput as RNTextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, StatusBar } from 'react-native';
@@ -19,7 +19,14 @@ import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient, R
 import { Dimensions } from 'react-native';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
 import { Icon, type IconName } from './icon';
-import { Pressable as KPressable } from './kit';
+import { Pressable as KPressable, LogoImage } from './kit';
+import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { springs } from './tokens';
+import { useScreenEntrance } from './nova';
+import { useReduceMotion } from '../lib/reduceMotion';
+import { haptic } from '../lib/haptics';
+import { KeyboardAvoid } from './KeyboardAvoid';
+import { formatPercent } from '../src';
 
 const PREMIUM_W = Dimensions.get('window').width;
 
@@ -35,25 +42,30 @@ function useThemeStyles() {
 export function PremiumScreen({
   children,
   footer,
+  tabBarSpace,
   refreshControl,
 }: {
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /** Laisse la place de la barre d'onglets (dessinée par le navigateur d'onglets). */
+  tabBarSpace?: boolean;
   /** Élément <RefreshControl> pour le « balayer vers le bas pour rafraîchir ». */
   refreshControl?: React.ComponentProps<typeof ScrollView>['refreshControl'];
 }) {
   const insets = useSafeAreaInsets();
   const topPadding = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : insets.top + 8;
   const { theme } = useThemeStyles();
+  const entrance = useScreenEntrance();
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       {/* Clavier-aware : le contenu remonte au-dessus du clavier et reste défilable. */}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid style={{ flex: 1 }}>
+        <Reanimated.View style={[{ flex: 1 }, entrance]}>
         <ScrollView
           contentContainerStyle={{
             paddingTop: topPadding,
             paddingHorizontal: spacing(2.5),
-            paddingBottom: insets.bottom + (footer ? 120 : spacing(5)),
+            paddingBottom: insets.bottom + (footer || tabBarSpace ? 120 : spacing(5)),
             flexGrow: 1,
             gap: spacing(2.5),
           }}
@@ -64,7 +76,8 @@ export function PremiumScreen({
         >
           {children}
         </ScrollView>
-      </KeyboardAvoidingView>
+        </Reanimated.View>
+      </KeyboardAvoid>
       {footer}
     </View>
   );
@@ -395,13 +408,7 @@ export function RemoteIcon({
       </View>
     );
   }
-  return (
-    <Image
-      source={{ uri }}
-      onError={() => setFailed(true)}
-      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: theme.colors.surface1 }}
-    />
-  );
+  return <LogoImage uri={uri} size={size} onError={() => setFailed(true)} style={{ backgroundColor: theme.colors.surface1 }} />;
 }
 
 export function GradientAvatar({ label }: { label: string }) {
@@ -437,7 +444,7 @@ export function ListRow({
   const { theme, styles } = useThemeStyles();
   const content = (
     <View style={[styles.listItem, divider ? styles.divider : null]}>
-      {left}
+      {discIcon(left, theme.colors)}
       <View style={{ flex: 1 }}>
         <Text style={theme.typography.bodyStrong}>{title}</Text>
         {subtitle ? <Text style={theme.typography.muted}>{subtitle}</Text> : null}
@@ -446,6 +453,21 @@ export function ListRow({
     </View>
   );
   return onPress ? <PressableScale onPress={onPress}>{content}</PressableScale> : content;
+}
+
+/**
+ * Une icône nue passée en `left` est posée dans un disque Orbite — la même
+ * forme que les disques d'action de l'accueil. Une icône colorée exprès
+ * (danger, or…) garde sa couleur ; tout autre élément passe tel quel.
+ */
+export function discIcon(left: React.ReactNode, colors: { surface2: string; text: string }): React.ReactNode {
+  if (!React.isValidElement(left) || left.type !== Icon) return left;
+  const props = left.props as { name: IconName; color?: string };
+  return (
+    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name={props.name} size={18} color={props.color ?? colors.text} />
+    </View>
+  );
 }
 
 /** Mini-graphe (react-native-svg). */
@@ -582,7 +604,7 @@ export function MarketRow({
   const content = (
     <View style={[styles.listItem, divider ? styles.divider : null]}>
       {imageUri ? (
-        <Image source={{ uri: imageUri }} style={{ width: 42, height: 42, borderRadius: 21 }} />
+        <LogoImage uri={imageUri} size={42} />
       ) : (
         <Avatar label={icon} color={color} />
       )}
@@ -596,8 +618,9 @@ export function MarketRow({
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={{ color: theme.colors.text, fontFamily: fonts.semibold }}>{price}</Text>
         <Text style={{ color: c, fontSize: 13 }}>
+          {/* Même format que l'accueil (« +2,4 % ») : le Marché affichait « +2.40% ». */}
           {up ? '+' : ''}
-          {change.toFixed(2)}%
+          {formatPercent(change, 1)}
         </Text>
       </View>
     </View>
@@ -613,6 +636,54 @@ export interface NavItem {
 }
 
 /** Bottom nav : 4 items + bouton central surélevé (FAB). */
+/**
+ * Onglet de la barre du bas. L'onglet actif S'ANIME à l'arrivée sur l'écran :
+ * l'icône monte et rebondit, un point de lumière s'allume dessous. La barre est
+ * redessinée par chaque écran : c'est donc exactement le moment où l'on vient
+ * de changer d'onglet — l'animation dit « tu es ici ». Rien si l'utilisateur a
+ * demandé au système de réduire les animations.
+ */
+function NavTab({ item, on }: { item: NavItem; on: boolean }) {
+  const { theme } = useThemeStyles();
+  const { colors } = theme;
+  const reduce = useReduceMotion();
+  // 0 = inactif, 1 = actif. La barre reste montée d'un onglet à l'autre : l'onglet
+  // quitté s'éteint pendant que le nouveau s'allume, les deux mouvements se voient.
+  const p = useSharedValue(on ? 1 : 0);
+  useEffect(() => {
+    p.value = reduce ? (on ? 1 : 0) : withSpring(on ? 1 : 0, on ? springs.bouncy : springs.snappy);
+  }, [on, reduce, p]);
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -2 * p.value }, { scale: 1 + 0.1 * p.value }],
+  }));
+  const pillStyle = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ scaleX: 0.3 + 0.7 * p.value }, { scaleY: 0.6 + 0.4 * p.value }] }));
+  const dotStyle = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ scale: p.value }] }));
+  return (
+    <KPressable
+      onPress={() => {
+        if (on) return;
+        haptic.selection();
+        item.onPress();
+      }}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: on }}
+      accessibilityLabel={item.label}
+      style={{ flex: 1, alignItems: 'center', gap: 3 }}
+    >
+      <View style={{ width: 52, height: 30, alignItems: 'center', justifyContent: 'center' }}>
+        <Reanimated.View style={[StyleSheet.absoluteFill, { borderRadius: 15, backgroundColor: colors.surface3 }, pillStyle]} />
+        <Reanimated.View style={iconStyle}>
+          <Icon name={item.icon} size={22} color={on ? colors.primary : colors.textTertiary} />
+        </Reanimated.View>
+      </View>
+      <Text numberOfLines={1} style={{ fontSize: 11, color: on ? colors.text : colors.textTertiary, fontFamily: fonts.semibold }}>
+        {item.label}
+      </Text>
+      <Reanimated.View style={[{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.primary, marginTop: -1 }, dotStyle]} />
+    </KPressable>
+  );
+}
+
 export function BottomNav({
   items,
   active,
@@ -627,24 +698,7 @@ export function BottomNav({
   const { colors } = theme;
   const left = items.slice(0, 2);
   const right = items.slice(2, 4);
-  const renderItem = (it: NavItem) => {
-    const on = it.key === active;
-    return (
-      <KPressable
-        key={it.key}
-        onPress={it.onPress}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: on }}
-        accessibilityLabel={it.label}
-        style={{ flex: 1, alignItems: 'center', gap: 3 }}
-      >
-        <Icon name={it.icon} size={22} color={on ? colors.primary : colors.textTertiary} />
-        <Text numberOfLines={1} style={{ fontSize: 11, color: on ? colors.text : colors.textTertiary, fontFamily: fonts.semibold }}>
-          {it.label}
-        </Text>
-      </KPressable>
-    );
-  };
+  const renderItem = (it: NavItem) => <NavTab key={it.key} item={it} on={it.key === active} />;
   return (
     <View style={[styles.navWrap, { paddingBottom: insets.bottom || spacing(1.5) }]}>
       <View style={styles.navBar}>

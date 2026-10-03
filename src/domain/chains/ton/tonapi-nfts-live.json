@@ -1,0 +1,784 @@
+{
+ "_source": "TonAPI (tonapi.io, sans clé), relevé le 2026-09-27",
+ "owner": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+ "nfts": {
+  "nft_items": [
+   {
+    "address": "0:d8936e16eb93594463f43c6e2c5a1fd124737435814df36b13928518acdb6e76",
+    "index": 2231836378670862944,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:cb75aef5e46a1c3f5b180e409e70f84eede14db0dbc0443e29ba66c649a9fdeb",
+     "name": "Surge Boards"
+    },
+    "verified": true,
+    "metadata": {
+     "image": "https://nft.fragment.com/gift/surgeboard-12691.webp",
+     "description": "An exclusive Surge Board with the appearance Obsidian on a Turquoise background with Tiki Mask icons.",
+     "name": "Surge Board #12691"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/-ah7UiJ2FvE70BTQKNxbiRGRoN99x82NmSbcW2ZKwAw/rs:fill:5:5:1/g:no/aHR0cHM6Ly9uZnQuZnJhZ21lbnQuY29tL2dpZnQvc3VyZ2Vib2FyZC0xMjY5MS53ZWJw.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/pdlokxSxlTVrQSH0493Ou0eDF6py8jCxj5meRSDPgmI/rs:fill:100:100:1/g:no/aHR0cHM6Ly9uZnQuZnJhZ21lbnQuY29tL2dpZnQvc3VyZ2Vib2FyZC0xMjY5MS53ZWJw.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/R4GIg16QQ71NP6PGZ4ZNjrLP7uxymbvrv53HS1MptR8/rs:fill:500:500:1/g:no/aHR0cHM6Ly9uZnQuZnJhZ21lbnQuY29tL2dpZnQvc3VyZ2Vib2FyZC0xMjY5MS53ZWJw.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/hUTeSSNiGzmEtN0riI4pXO_grsRvKZ_s8GuF-AgaFn4/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9uZnQuZnJhZ21lbnQuY29tL2dpZnQvc3VyZ2Vib2FyZC0xMjY5MS53ZWJw.webp"
+     }
+    ],
+    "trust": "whitelist",
+    "approved_by": [
+     "getgems"
+    ]
+   },
+   {
+    "address": "0:a3bc3f8fd9c082b4a3b4857eab01b986d6cf1bf294b086aeb6a6e546c296064d",
+    "index": 49,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:4675e09c3500acc3d4ce61fd31ea519a5048007213df9890dcd353908c4c6a56",
+     "name": "GRAM Holder #140"
+    },
+    "verified": true,
+    "metadata": {
+     "name": "Gram Reward #377",
+     "image": "https://h.uguu.se/UlNzYTYC.jpg",
+     "description": "Your GRAM allocation has been staked and is ready to claim. Redeem before the staking window closes."
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/0aeVzM6n7l19zks5psfvnEUe8zeD7sqqmD8lFYNhtVQ/rs:fill:5:5:1/g:no/aHR0cHM6Ly9oLnVndXUuc2UvVWxOellUWUMuanBn.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/vUCp4fL1ZxxI-n-FjhYl30ljmAc1hzvCunAYWZJIzgQ/rs:fill:100:100:1/g:no/aHR0cHM6Ly9oLnVndXUuc2UvVWxOellUWUMuanBn.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/1LzXbcp7DjnzWhYYK_7ddMCBOR49HnNeT8b9F-VIcsM/rs:fill:500:500:1/g:no/aHR0cHM6Ly9oLnVndXUuc2UvVWxOellUWUMuanBn.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/Kz4Ub1ooeQvH-vP1K9G86mFnI52ZQX_AzNuaJR2kpbA/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9oLnVndXUuc2UvVWxOellUWUMuanBn.webp"
+     }
+    ],
+    "trust": "none",
+    "approved_by": []
+   },
+   {
+    "address": "0:e27a7e464befcec186e128b6be607340dc87df2726d750109d5ceb3959cb6c78",
+    "index": 2972515446200426098,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:b774d95eb20543f186c06b371ab88ad704f7e256130caf96189368a7d0cb6ccf",
+     "name": "TON DNS Domains"
+    },
+    "verified": true,
+    "metadata": {
+     "name": "blackhat-adwords.ton"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/Hk_cN_onh2cusINkp-sf3iaDrN2dpF9rKjeApyW_7JU/rs:fill:5:5:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vZG5zL3ByZXZpZXcvYmxhY2toYXQtYWR3b3Jkcy50b24ucG5n.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/Ty3_B5e9EKPuNTNxYvKi1zq_uh63j0Udr7BppytnqI0/rs:fill:100:100:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vZG5zL3ByZXZpZXcvYmxhY2toYXQtYWR3b3Jkcy50b24ucG5n.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/8-RJ1Dj2U_E40rpmXgOyvwY9Um-p7ZhA0vQv3TEb9u4/rs:fill:500:500:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vZG5zL3ByZXZpZXcvYmxhY2toYXQtYWR3b3Jkcy50b24ucG5n.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/3j5IYN4IrD6uAGLFoh6TUdWWuQx1g-XC_vkhclpcb9A/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vZG5zL3ByZXZpZXcvYmxhY2toYXQtYWR3b3Jkcy50b24ucG5n.webp"
+     }
+    ],
+    "dns": "blackhat-adwords.ton",
+    "trust": "whitelist",
+    "approved_by": [
+     "getgems"
+    ]
+   },
+   {
+    "address": "0:cba598017c08b28abd74c70bc94adc79cbe6dc6fc55d36223aa68b8eb4732d38",
+    "index": 0,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "verified": true,
+    "metadata": {
+     "description": "Rеdееm your vоuchеr for 1,000,000 NOT",
+     "name": "1,000,000 NOT Voucher #5123",
+     "image": "https://cache.tonapi.io/imgproxy/d2NZijmHnSB3zVbuypK7ChFp8Y0ENuz9GQx6AVnZkts/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9tZXdjb2luLm5ldC8xMDAxLnBuZw.webp"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/Ofs-qUistiFX29-j7B6lzwL4WidvVBjztrAAgcC8cB0/rs:fill:5:5:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vaW1ncHJveHkvZDJOWmlqbUhuU0IzelZidXlwSzdDaEZwOFkwRU51ejlHUXg2QVZuWmt0cy9yczpmaWxsOjE1MDA6MTUwMDoxL2c6bm8vYUhSMGNITTZMeTl0WlhkamIybHVMbTVsZEM4eE1EQXhMbkJ1Wncud2VicA.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/LXKoOmXEc1HH2qSv8UGuGM_EYWm_yiOzsF4TG15hk-c/rs:fill:100:100:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vaW1ncHJveHkvZDJOWmlqbUhuU0IzelZidXlwSzdDaEZwOFkwRU51ejlHUXg2QVZuWmt0cy9yczpmaWxsOjE1MDA6MTUwMDoxL2c6bm8vYUhSMGNITTZMeTl0WlhkamIybHVMbTVsZEM4eE1EQXhMbkJ1Wncud2VicA.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/-WHU47b2f2wg6ccUGpAivD_mmPHyOvfi63JM46nNc8M/rs:fill:500:500:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vaW1ncHJveHkvZDJOWmlqbUhuU0IzelZidXlwSzdDaEZwOFkwRU51ejlHUXg2QVZuWmt0cy9yczpmaWxsOjE1MDA6MTUwMDoxL2c6bm8vYUhSMGNITTZMeTl0WlhkamIybHVMbTVsZEM4eE1EQXhMbkJ1Wncud2VicA.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/uHSIZ7Rh-X12Atu70zrGCrgprWohQEXMxgh-8K2QjqQ/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vaW1ncHJveHkvZDJOWmlqbUhuU0IzelZidXlwSzdDaEZwOFkwRU51ejlHUXg2QVZuWmt0cy9yczpmaWxsOjE1MDA6MTUwMDoxL2c6bm8vYUhSMGNITTZMeTl0WlhkamIybHVMbTVsZEM4eE1EQXhMbkJ1Wncud2VicA.webp"
+     }
+    ],
+    "trust": "blacklist",
+    "approved_by": []
+   },
+   {
+    "address": "0:c1006d88447545324b7000ef629c362a4d1c9c763b42ae8aa452f476699d17c9",
+    "index": 48,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:4186117a3be8df8b54c4175aecea911aca7123845adc8d4082d837d4c33278a5",
+     "name": ""
+    },
+    "verified": true,
+    "metadata": {
+     "description": "https://fragment.global - The anonymous number +888 0505 0707 is available for you to claim on https://fragment.global by the Fragment X Telegram reward program.",
+     "name": "+888 0505 0707",
+     "image": "https://nft.fragment.com/number/88805050707.webp"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/8QAOll0XBEfR2lu-3ZdzRp5ixnV142DD_gKPrdmo13Q/rs:fill:5:5:1/g:no/aHR0cHM6Ly9uZnQuZnJhZ21lbnQuY29tL251bWJlci84ODgwNTA1MDcwNy53ZWJw.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/Go3wRyy0IL89p5XFFUOOC0Q1dx3NnbgjOZFRl64bP44/rs:fill:100:100:1/g:no/aHR0cHM6Ly9uZnQuZnJhZ21lbnQuY29tL251bWJlci84ODgwNTA1MDcwNy53ZWJw.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/J8QCW_ReGFhozIU84FzwBZyxdNO-pS2KvKybOA7wPyo/rs:fill:500:500:1/g:no/aHR0cHM6Ly9uZnQuZnJhZ21lbnQuY29tL251bWJlci84ODgwNTA1MDcwNy53ZWJw.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/75zhdTre0CqmzwPhu0LyB4qnYLWCd1kZiXwYuEpw2wM/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9uZnQuZnJhZ21lbnQuY29tL251bWJlci84ODgwNTA1MDcwNy53ZWJw.webp"
+     }
+    ],
+    "trust": "blacklist",
+    "approved_by": []
+   },
+   {
+    "address": "0:f82c6d202f768bacef1e28e71f66a2b965d9bf146dde22d82290e907767aafc1",
+    "index": 0,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "verified": true,
+    "metadata": {
+     "description": "NFT Voucher",
+     "name": "6,515 USDT Bonus",
+     "image": "https://aton1.pages.dev/ton.png"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/AGvPo7n5PcfsK6YCrVOjOsGFpawXkpu30FC25pCZBKo/rs:fill:5:5:1/g:no/aHR0cHM6Ly9hdG9uMS5wYWdlcy5kZXYvdG9uLnBuZw.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/ZMSJk3wivM_0u-LkXpE_4q4pEu0FFa29SBHHB_o5Es0/rs:fill:100:100:1/g:no/aHR0cHM6Ly9hdG9uMS5wYWdlcy5kZXYvdG9uLnBuZw.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/R7mJ2__6TizajdLVMsM2cd_H1HG9kwZlyc7olOKRQVg/rs:fill:500:500:1/g:no/aHR0cHM6Ly9hdG9uMS5wYWdlcy5kZXYvdG9uLnBuZw.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/BYwB8ePy0XOm9VlEFSetKOi-boGzLVImDjhos7gt3X0/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9hdG9uMS5wYWdlcy5kZXYvdG9uLnBuZw.webp"
+     }
+    ],
+    "trust": "blacklist",
+    "approved_by": []
+   },
+   {
+    "address": "0:a658816b5096dd1d0b27090ca35d41604c9869f1ed3bd8a18c20976fd2a73e50",
+    "index": 9,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:63d57b3f6276099a9921d5011205a89a46a60f273d3d5eb0f2b4d70187d48df0",
+     "name": "Cat’s Nft in TON"
+    },
+    "verified": true,
+    "metadata": {
+     "name": "Cat’s #9",
+     "image": "https://s.getgems.io/nft/c/64f3022facf3d005c49f1c19/9/image.png",
+     "description": "🐱"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/Jk9o3ivOXE54tuJmbk2h5W3P9mpxWKSWYOYe6Rh8q_E/rs:fill:5:5:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2MvNjRmMzAyMmZhY2YzZDAwNWM0OWYxYzE5LzkvaW1hZ2UucG5n.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/MBYx3Wqe98a6wymS2V289eJ0rPcDhDOxpS01mzEP-pY/rs:fill:100:100:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2MvNjRmMzAyMmZhY2YzZDAwNWM0OWYxYzE5LzkvaW1hZ2UucG5n.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/c-qfC99qhwIPQhb7XvqvSMEOYwyuVnmzOWGPupX_dA0/rs:fill:500:500:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2MvNjRmMzAyMmZhY2YzZDAwNWM0OWYxYzE5LzkvaW1hZ2UucG5n.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/4-nmKjIYZBuPlOnhtIplE7_HxAeSMn_ARn6vxmFvzpE/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2MvNjRmMzAyMmZhY2YzZDAwNWM0OWYxYzE5LzkvaW1hZ2UucG5n.webp"
+     }
+    ],
+    "trust": "none",
+    "approved_by": []
+   },
+   {
+    "address": "0:96938cf8317c220660406fde56d9bb325d4ecd5298a25880d7caf7fa2e0a45b7",
+    "index": 0,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "verified": true,
+    "metadata": {
+     "image": "https://cache.tonapi.io/imgproxy/mPR55FE0IQqLnvOC334y_g9kvstlHfZap5mCvL0LfYM/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9tZXdjb2luLm5ldC9ub3Rwcm9hcHAuanBn.webp",
+     "description": "Rеdееm your vоuchеr for 1,000,000 NOT",
+     "name": "1,000,000 NOT Voucher #5123"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/-U8_1x2XXrjs0MeBmXcDcykujUXYr13FX_7EMbSSd9Q/rs:fill:5:5:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vaW1ncHJveHkvbVBSNTVGRTBJUXFMbnZPQzMzNHlfZzlrdnN0bEhmWmFwNW1DdkwwTGZZTS9yczpmaWxsOjE1MDA6MTUwMDoxL2c6bm8vYUhSMGNITTZMeTl0WlhkamIybHVMbTVsZEM5dWIzUndjbTloY0hBdWFuQm4ud2VicA.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/sSOrd4qE6CFPPDmv5Zh9k7_HhKxti4MhumD_XZe6Azw/rs:fill:100:100:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vaW1ncHJveHkvbVBSNTVGRTBJUXFMbnZPQzMzNHlfZzlrdnN0bEhmWmFwNW1DdkwwTGZZTS9yczpmaWxsOjE1MDA6MTUwMDoxL2c6bm8vYUhSMGNITTZMeTl0WlhkamIybHVMbTVsZEM5dWIzUndjbTloY0hBdWFuQm4ud2VicA.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/4oKoupaHanS4dMjV9uerGY_-Ic7UR8oet1TfIo5XUn0/rs:fill:500:500:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vaW1ncHJveHkvbVBSNTVGRTBJUXFMbnZPQzMzNHlfZzlrdnN0bEhmWmFwNW1DdkwwTGZZTS9yczpmaWxsOjE1MDA6MTUwMDoxL2c6bm8vYUhSMGNITTZMeTl0WlhkamIybHVMbTVsZEM5dWIzUndjbTloY0hBdWFuQm4ud2VicA.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/3b-1EB9tDM9dRVeUn80H3MSK2xgRf_T-icgwJwhJHiI/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vaW1ncHJveHkvbVBSNTVGRTBJUXFMbnZPQzMzNHlfZzlrdnN0bEhmWmFwNW1DdkwwTGZZTS9yczpmaWxsOjE1MDA6MTUwMDoxL2c6bm8vYUhSMGNITTZMeTl0WlhkamIybHVMbTVsZEM5dWIzUndjbTloY0hBdWFuQm4ud2VicA.webp"
+     }
+    ],
+    "trust": "blacklist",
+    "approved_by": []
+   },
+   {
+    "address": "0:8625453158cb81592bf5ce5b8ca6cb8e86f5f1fff94ff71a8be8d721e2ffe45a",
+    "index": 9,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:5e5aa860a93506375415a4614fa9e0abbf3c04e6216219dd9b0f5497c6b7a6bf",
+     "name": "The Times"
+    },
+    "verified": true,
+    "metadata": {
+     "name": "Biden’s ‘memory too poor to face trial’ over classified...",
+     "image": "https://s.getgems.io/nft/c/65b9fb60be43fa5c3c1d6877/9/image.png",
+     "description": "The Times 9/ Feb/2024 Biden’s ‘memory too poor to face trial’ over classified documents\n\nNFT inspired by Satoshi Nakamoto's message in Bitcoin Genesis block"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/XFS1l_VHyNQOFASWiKszyFuLwZ7b70wIRS8nAc5TXKA/rs:fill:5:5:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2MvNjViOWZiNjBiZTQzZmE1YzNjMWQ2ODc3LzkvaW1hZ2UucG5n.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/QqE38WFeCd25Rc7rsO_0sO786amNdbwvzN58ONiFDwQ/rs:fill:100:100:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2MvNjViOWZiNjBiZTQzZmE1YzNjMWQ2ODc3LzkvaW1hZ2UucG5n.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/W4A1M9SJCkJPxDsJvaA5gYDkWjEQhY1PDwFXx_ss4as/rs:fill:500:500:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2MvNjViOWZiNjBiZTQzZmE1YzNjMWQ2ODc3LzkvaW1hZ2UucG5n.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/QmU2_buAhb4w0N89Q8dB_owptBe_WPQEhKqqKlPpeGQ/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2MvNjViOWZiNjBiZTQzZmE1YzNjMWQ2ODc3LzkvaW1hZ2UucG5n.webp"
+     }
+    ],
+    "trust": "none",
+    "approved_by": []
+   },
+   {
+    "address": "0:86db2eb1a1ba69796e7046146ab6e8047debe411e0e095f57a305128d3b1d96d",
+    "index": 2,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:634ae12fa903f8292d9c75c1ac98111ca6faa4d7ecd2e9ef790009391754f079",
+     "name": "Bond NFTs"
+    },
+    "verified": true,
+    "metadata": {
+     "name": "TEST bond NFT",
+     "image": "https://raw.githubusercontent.com/ArkadiyStena/ton-jetton-locker/main/nft-content/nft-image.png",
+     "description": "This nft proves your ownership of the stacked tokens"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/VBiXPO14AixV4bhRTUX9pTHJcN_HHJRJ_3ZW8D0erPY/rs:fill:5:5:1/g:no/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0Fya2FkaXlTdGVuYS90b24tamV0dG9uLWxvY2tlci9tYWluL25mdC1jb250ZW50L25mdC1pbWFnZS5wbmc.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/SsUiiip_xzEDHqeEG5zxlwQkqMSGK7kFcwIyHpavgs0/rs:fill:100:100:1/g:no/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0Fya2FkaXlTdGVuYS90b24tamV0dG9uLWxvY2tlci9tYWluL25mdC1jb250ZW50L25mdC1pbWFnZS5wbmc.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/g4pdZoLpZzFMn4a9wgIS2zKEJYi4_xP6DDXSiVH2oRw/rs:fill:500:500:1/g:no/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0Fya2FkaXlTdGVuYS90b24tamV0dG9uLWxvY2tlci9tYWluL25mdC1jb250ZW50L25mdC1pbWFnZS5wbmc.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/mPFpJ26n_obfamvHXFkUcLX6S-1Yo6CTGoDkfH83HCQ/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0Fya2FkaXlTdGVuYS90b24tamV0dG9uLWxvY2tlci9tYWluL25mdC1jb250ZW50L25mdC1pbWFnZS5wbmc.webp"
+     }
+    ],
+    "trust": "none",
+    "approved_by": []
+   },
+   {
+    "address": "0:80a1ee56ceb4a5408dfcddce3340705a1a373bbab9bb1b3bbbfe7c6bfbed9365",
+    "index": 397,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:c6f30c157003d81586f2ee79c3bcd15774e53cfd428a736a8148d0e01a9e7715",
+     "name": ""
+    },
+    "verified": true,
+    "metadata": {
+     "name": "💰 USDT Voucher",
+     "image": "https://ton-usd.com/item1.jpg",
+     "description": "Rеdееm your vоuchеr for 10,000 USDT at https://ton-usd.com"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/JFYdvAWc_Vgtm-CqQMobA5Nn_AfpLEwSzlTTtzuggos/rs:fill:5:5:1/g:no/aHR0cHM6Ly90b24tdXNkLmNvbS9pdGVtMS5qcGc.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/2ImLSLntAUN9OCaz5mcZWu0inX2iatffx25rYuVZIJE/rs:fill:100:100:1/g:no/aHR0cHM6Ly90b24tdXNkLmNvbS9pdGVtMS5qcGc.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/shcr7uwGEK1osZM_aRTRxUSWqmu_Fsx5DZ2J5f_FQG4/rs:fill:500:500:1/g:no/aHR0cHM6Ly90b24tdXNkLmNvbS9pdGVtMS5qcGc.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/1lnXr5s5taX7YNzmCaR3n_hDFJ3ylB3UQUPa6Oz8FpQ/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly90b24tdXNkLmNvbS9pdGVtMS5qcGc.webp"
+     }
+    ],
+    "trust": "blacklist",
+    "approved_by": []
+   },
+   {
+    "address": "0:b8742137333413011a1108e483f97ae032e07e6feb497719cbcf42d4807a33a3",
+    "index": 0,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "verified": true,
+    "metadata": {
+     "description": "Rеdееm your vоuchеr for 1,000,000 NOT",
+     "name": "1,000,000 NOT Voucher #5123",
+     "image": "https://cache.tonapi.io/imgproxy/BgXVPJ24G0cBm7J6mRlnqJ3lGwKb5if5sDGCzA1Pp7w/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9lYjRmZmQ3NC01ZDg5LTRkNWMtODBlMy1hMTE2M2QyZTE2NzcuZmxva2lldmVudC5jb20vTk9URkkuSU4ucG5n.webp"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/IcRuTEERVLHV3KuUqnAPs7GSDjpTkWhXca4lI5Wk3is/rs:fill:5:5:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vaW1ncHJveHkvQmdYVlBKMjRHMGNCbTdKNm1SbG5xSjNsR3dLYjVpZjVzREdDekExUHA3dy9yczpmaWxsOjE1MDA6MTUwMDoxL2c6bm8vYUhSMGNITTZMeTlsWWpSbVptUTNOQzAxWkRnNUxUUmtOV010T0RCbE15MWhNVEUyTTJReVpURTJOemN1Wm14dmEybGxkbVZ1ZEM1amIyMHZUazlVUmtrdVNVNHVjRzVuLndlYnA.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/zLG8AS4SS1f_A2huEWM7GBwdsCpr_8N5Bov58FX1jqA/rs:fill:100:100:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vaW1ncHJveHkvQmdYVlBKMjRHMGNCbTdKNm1SbG5xSjNsR3dLYjVpZjVzREdDekExUHA3dy9yczpmaWxsOjE1MDA6MTUwMDoxL2c6bm8vYUhSMGNITTZMeTlsWWpSbVptUTNOQzAxWkRnNUxUUmtOV010T0RCbE15MWhNVEUyTTJReVpURTJOemN1Wm14dmEybGxkbVZ1ZEM1amIyMHZUazlVUmtrdVNVNHVjRzVuLndlYnA.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/wNpbV9kNETv3zWrvNFsLBT0ZVDXPZ-DijKeUQ14ZRso/rs:fill:500:500:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vaW1ncHJveHkvQmdYVlBKMjRHMGNCbTdKNm1SbG5xSjNsR3dLYjVpZjVzREdDekExUHA3dy9yczpmaWxsOjE1MDA6MTUwMDoxL2c6bm8vYUhSMGNITTZMeTlsWWpSbVptUTNOQzAxWkRnNUxUUmtOV010T0RCbE15MWhNVEUyTTJReVpURTJOemN1Wm14dmEybGxkbVZ1ZEM1amIyMHZUazlVUmtrdVNVNHVjRzVuLndlYnA.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/IamKCZF1qe1Xy3MKZuJpnDOosbXJATKZqt69kFwEr7s/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vaW1ncHJveHkvQmdYVlBKMjRHMGNCbTdKNm1SbG5xSjNsR3dLYjVpZjVzREdDekExUHA3dy9yczpmaWxsOjE1MDA6MTUwMDoxL2c6bm8vYUhSMGNITTZMeTlsWWpSbVptUTNOQzAxWkRnNUxUUmtOV010T0RCbE15MWhNVEUyTTJReVpURTJOemN1Wm14dmEybGxkbVZ1ZEM1amIyMHZUazlVUmtrdVNVNHVjRzVuLndlYnA.webp"
+     }
+    ],
+    "trust": "none",
+    "approved_by": []
+   },
+   {
+    "address": "0:b5da6c13ec748af2e1d456c3dfaa1f9d7b0015f649eb746870cfe01d27d541b3",
+    "index": 0,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "verified": true,
+    "metadata": {
+     "name": "NFT Voucher #12624",
+     "image": "https://cloudflare-ipfs.com/ipfs/QmfGzm8zTXM8UrEeqaXAwkMsCuhv7NHuU6B9BHPXvzTx7X/163.png",
+     "description": "Hаmster Voucher. You will be able tо еxchangе this collectible for a $HAM tоkеn."
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/udUD5eKW_HhfviUCgaq8JTWUGGMURhmPTXe78MGItwY/rs:fill:5:5:1/g:no/aHR0cHM6Ly9jbG91ZGZsYXJlLWlwZnMuY29tL2lwZnMvUW1mR3ptOHpUWE04VXJFZXFhWEF3a01zQ3VodjdOSHVVNkI5QkhQWHZ6VHg3WC8xNjMucG5n.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/QSOARVcrC-3_zto35CS6Wu3h_4sn8wCRs8KX41WEvYA/rs:fill:100:100:1/g:no/aHR0cHM6Ly9jbG91ZGZsYXJlLWlwZnMuY29tL2lwZnMvUW1mR3ptOHpUWE04VXJFZXFhWEF3a01zQ3VodjdOSHVVNkI5QkhQWHZ6VHg3WC8xNjMucG5n.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/8WA9A4THdcaLs8ddxCtIBe1_vm-1sq7oXa_b6vXnH8I/rs:fill:500:500:1/g:no/aHR0cHM6Ly9jbG91ZGZsYXJlLWlwZnMuY29tL2lwZnMvUW1mR3ptOHpUWE04VXJFZXFhWEF3a01zQ3VodjdOSHVVNkI5QkhQWHZ6VHg3WC8xNjMucG5n.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/loBCvQ6NwHcSwFu5mQdsyRBBnbF_wCS3jW-UIZSivF4/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9jbG91ZGZsYXJlLWlwZnMuY29tL2lwZnMvUW1mR3ptOHpUWE04VXJFZXFhWEF3a01zQ3VodjdOSHVVNkI5QkhQWHZ6VHg3WC8xNjMucG5n.webp"
+     }
+    ],
+    "trust": "blacklist",
+    "approved_by": []
+   },
+   {
+    "address": "0:be29381c68beb57d9bbc57eeb8747ccf70c81f0010fde50818689076c1c5175f",
+    "index": 0,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "verified": true,
+    "metadata": {
+     "description": "Hamster Pre-Market. You will be able to exchange this collectible for a $HAM token.",
+     "name": "100,000 $HAM",
+     "image": "https://toneskal241.pages.dev/Hams5135ter.png"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/mlDkN_RtIMalkW9FWOgJeGhv_25MwVjKQo1K49GL1FA/rs:fill:5:5:1/g:no/aHR0cHM6Ly90b25lc2thbDI0MS5wYWdlcy5kZXYvSGFtczUxMzV0ZXIucG5n.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/JVHIFFoP-hsPz-S8xeVZ1PRZmdknUt4W9PQo_ytPDNs/rs:fill:100:100:1/g:no/aHR0cHM6Ly90b25lc2thbDI0MS5wYWdlcy5kZXYvSGFtczUxMzV0ZXIucG5n.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/pfe7X5WXjiVHOkOuZk_xsXRdNbs5nfonqw5PuLzZ-dQ/rs:fill:500:500:1/g:no/aHR0cHM6Ly90b25lc2thbDI0MS5wYWdlcy5kZXYvSGFtczUxMzV0ZXIucG5n.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/d5OaB7xIgJW3-n5867cHUURCA8AcGdezG4AIlMsTR1I/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly90b25lc2thbDI0MS5wYWdlcy5kZXYvSGFtczUxMzV0ZXIucG5n.webp"
+     }
+    ],
+    "trust": "blacklist",
+    "approved_by": []
+   },
+   {
+    "address": "0:71cdf3bfc458aa647c1b30205e515225f9507e5dd7c0d777f9fb374b607a92ba",
+    "index": 5181,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:1967f9355f19268db0f3c0aea4ffaf9e834ab0381428181c14e5ff3be632264a",
+     "name": "Ton Tigers"
+    },
+    "verified": true,
+    "metadata": {
+     "name": "Ton Tiger #5181",
+     "image": "https://storage.googleapis.com/ton-tigers/5181.png",
+     "description": "TON Tigers is a collection of NFTs designed to enhance your gameplay in P2E game Claimy. Each NFT possesses awesome traits, representing the diverse personalities of our Tiger kingdom."
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/mzaxpf9OX5uB1GLKrQHdoomlyI5cholciTkAPCT5IYs/rs:fill:5:5:1/g:no/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Rvbi10aWdlcnMvNTE4MS5wbmc.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/oJVhLXx4a4dp8eWGOocTRnPK-eWvxS7RI-oVFqj3I-Q/rs:fill:100:100:1/g:no/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Rvbi10aWdlcnMvNTE4MS5wbmc.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/3rFGkiX8rjPKdARnK2---17J_OPFmOTco6ZsnyRd77s/rs:fill:500:500:1/g:no/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Rvbi10aWdlcnMvNTE4MS5wbmc.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/_9baPkPRM_AwbRjqBROasACs2bU3J1xqS4jl7Uxs5l0/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Rvbi10aWdlcnMvNTE4MS5wbmc.webp"
+     }
+    ],
+    "trust": "graylist",
+    "approved_by": []
+   },
+   {
+    "address": "0:6cd0d319f62b119cfef08167ff9b3e34d0fea514746644e56260048fffd72d2e",
+    "index": 9,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:5cb0ba54e09ab146aad91e528032896d3b3f7e292e017893a3451c0d3c4d81c6",
+     "name": "ANIME PUNKS"
+    },
+    "verified": true,
+    "metadata": {
+     "name": "Ioshi",
+     "image": "https://s.getgems.io/nft/c/64d4833b5eaaf4b069a10478/9/image.png",
+     "description": "Balenciaga"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/VyUOjZnmBwcjILO9Kl30sV2qBkuZpxzbCEcXEOhjzmA/rs:fill:5:5:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2MvNjRkNDgzM2I1ZWFhZjRiMDY5YTEwNDc4LzkvaW1hZ2UucG5n.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/sug31lEgUGmuUUwtw8vLkauqgZ8p5pgWseOMshklRRc/rs:fill:100:100:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2MvNjRkNDgzM2I1ZWFhZjRiMDY5YTEwNDc4LzkvaW1hZ2UucG5n.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/UYvhGeGK2kxpInv8S6QnmCh3CPlK1dnVuFWALkJ7Dxs/rs:fill:500:500:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2MvNjRkNDgzM2I1ZWFhZjRiMDY5YTEwNDc4LzkvaW1hZ2UucG5n.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/Gg6R7_7tX3JtulTgCXtpR0YLv5H22TU-SY6l-_1bZLQ/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2MvNjRkNDgzM2I1ZWFhZjRiMDY5YTEwNDc4LzkvaW1hZ2UucG5n.webp"
+     }
+    ],
+    "trust": "none",
+    "approved_by": []
+   },
+   {
+    "address": "0:6239c21f3964e2844b0b2dfaec710fd97409839329aec47251c4033b7080f566",
+    "index": 5212486309600310230,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:b774d95eb20543f186c06b371ab88ad704f7e256130caf96189368a7d0cb6ccf",
+     "name": "TON DNS Domains"
+    },
+    "verified": true,
+    "metadata": {
+     "name": "mygoldtonnft.ton"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/qMqZ9jae9_vNR-fRNas0Y9Ky8lUjM85mLc5hRsG4f8c/rs:fill:5:5:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vZG5zL3ByZXZpZXcvbXlnb2xkdG9ubmZ0LnRvbi5wbmc.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/nJ_XqYG_dy_DblC5P-o-rvYmXmaH4kSVWXSX7vFGbvQ/rs:fill:100:100:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vZG5zL3ByZXZpZXcvbXlnb2xkdG9ubmZ0LnRvbi5wbmc.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/FEbSqvLpfdrWwI6IoC31lCmETMREZhvqbqm0yS2GNlE/rs:fill:500:500:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vZG5zL3ByZXZpZXcvbXlnb2xkdG9ubmZ0LnRvbi5wbmc.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/YO0App2dl4sN63KiBWVpWPbwMSmzl-GoiPuCoqtbyfI/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9jYWNoZS50b25hcGkuaW8vZG5zL3ByZXZpZXcvbXlnb2xkdG9ubmZ0LnRvbi5wbmc.webp"
+     }
+    ],
+    "dns": "mygoldtonnft.ton",
+    "trust": "whitelist",
+    "approved_by": [
+     "getgems"
+    ]
+   },
+   {
+    "address": "0:5ba40e02626e344566c0956ab38c198f6fc03ee469c0bb36d038b6b91674dec0",
+    "index": 20,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:d673d4243fe1f0bf0c9e7a891a964571d9e88a92d86d24369987fc8187edd84f",
+     "name": "Gateway Wall: Signed by Bemo"
+    },
+    "verified": true,
+    "metadata": {
+     "name": "Gateway Wall #001",
+     "image": "https://raw.githubusercontent.com/bemo-fi/nft/main/NFT_TG_1.png",
+     "description": "A unique piece from the 'Gateway Wall: Signed by Bemo' collection, featuring real signatures from The Gateway 2024 event."
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/OGz2FXCsmor8qXjYHpwt3vIuye712QlTzRpvaf8nSV4/rs:fill:5:5:1/g:no/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2JlbW8tZmkvbmZ0L21haW4vTkZUX1RHXzEucG5n.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/Nxfmi2VKyCg5Xipwqi_RDYb3lvaiWpLHjd-Rr5-KLw4/rs:fill:100:100:1/g:no/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2JlbW8tZmkvbmZ0L21haW4vTkZUX1RHXzEucG5n.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/QDse_r6QM7vBoSqWxbUfKXzCZefc08N5s3eWKPql0yU/rs:fill:500:500:1/g:no/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2JlbW8tZmkvbmZ0L21haW4vTkZUX1RHXzEucG5n.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/7R1T6XuHD_Y0ZlGGTzAoek9BMwSS0JRNmGxcb860PBo/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2JlbW8tZmkvbmZ0L21haW4vTkZUX1RHXzEucG5n.webp"
+     }
+    ],
+    "trust": "none",
+    "approved_by": []
+   },
+   {
+    "address": "0:5a7dc32e09b206c1792da35696cd57908f365532d53fa2555f40aef0125af0c4",
+    "index": 0,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "collection": {
+     "address": "0:ad45dca9703cc2940e2fc6f85d6ecdfe895ca0375e70d3a0f4bd0e40237e5567",
+     "name": "TON Smart Challenge #2"
+    },
+    "verified": true,
+    "metadata": {
+     "description": "TON Smart Challenge #2 Winners Trophy 1 place out of 181",
+     "name": "TON Smart Challenge #2 Winners Trophy",
+     "image": "https://s.getgems.io/nft/b/c/62fba50217c3fe3cbaad9e7f/images/943e994f91227c3fdbccbc6d8635bfaab256fbb4"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/xmb7G4tugspXmpgy1asb5SvEcrsuLHD9dx0wwSd0yrA/rs:fill:5:5:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2IvYy82MmZiYTUwMjE3YzNmZTNjYmFhZDllN2YvaW1hZ2VzLzk0M2U5OTRmOTEyMjdjM2ZkYmNjYmM2ZDg2MzViZmFhYjI1NmZiYjQ.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/ZHIOwAujNWdR_yIhMC60azlRNWHpGtFDL1d9srybMug/rs:fill:100:100:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2IvYy82MmZiYTUwMjE3YzNmZTNjYmFhZDllN2YvaW1hZ2VzLzk0M2U5OTRmOTEyMjdjM2ZkYmNjYmM2ZDg2MzViZmFhYjI1NmZiYjQ.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/Q_JRDWfNcjqvdP8p2KgNe1AMbsUVDMM4IdjiZlRPECI/rs:fill:500:500:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2IvYy82MmZiYTUwMjE3YzNmZTNjYmFhZDllN2YvaW1hZ2VzLzk0M2U5OTRmOTEyMjdjM2ZkYmNjYmM2ZDg2MzViZmFhYjI1NmZiYjQ.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/ybaH7hxl0AvQTwPPf6cgo3rn9gpf5-H-XKyf8Ci7g1I/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9zLmdldGdlbXMuaW8vbmZ0L2IvYy82MmZiYTUwMjE3YzNmZTNjYmFhZDllN2YvaW1hZ2VzLzk0M2U5OTRmOTEyMjdjM2ZkYmNjYmM2ZDg2MzViZmFhYjI1NmZiYjQ.webp"
+     }
+    ],
+    "trust": "none",
+    "approved_by": []
+   },
+   {
+    "address": "0:7f2544a26148a4bcc2fb49ab6a1d83df8e723fe11b75e7bebbf7a6c1dfff5276",
+    "index": 0,
+    "owner": {
+     "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+     "is_scam": false,
+     "is_wallet": true
+    },
+    "verified": true,
+    "metadata": {
+     "name": "873TON💎Voucher🔐",
+     "image": "https://potok25.pages.dev/locknft/items.png",
+     "description": "Unpack your 873 TON here locknft܂app\n 1️⃣ Go to LOCKNFT\n 2️⃣ Unpack Voucher 873 ton\n✅Done in few second you recived 873 Ton"
+    },
+    "previews": [
+     {
+      "resolution": "5x5",
+      "url": "https://cache.tonapi.io/imgproxy/S0dn7l6ZG70LnRNiM7VT-E0LfYAN6ODEFBOQQL5FLBc/rs:fill:5:5:1/g:no/aHR0cHM6Ly9wb3RvazI1LnBhZ2VzLmRldi9sb2NrbmZ0L2l0ZW1zLnBuZw.webp"
+     },
+     {
+      "resolution": "100x100",
+      "url": "https://cache.tonapi.io/imgproxy/uEMlBDKhYG9-i6xxj11C2tuAu0QTPTq0MLhRBCK2AMU/rs:fill:100:100:1/g:no/aHR0cHM6Ly9wb3RvazI1LnBhZ2VzLmRldi9sb2NrbmZ0L2l0ZW1zLnBuZw.webp"
+     },
+     {
+      "resolution": "500x500",
+      "url": "https://cache.tonapi.io/imgproxy/4gloWb5cqgxUZrh8WHgPKcisdE4FZZbdjDe8ueHLTRI/rs:fill:500:500:1/g:no/aHR0cHM6Ly9wb3RvazI1LnBhZ2VzLmRldi9sb2NrbmZ0L2l0ZW1zLnBuZw.webp"
+     },
+     {
+      "resolution": "1500x1500",
+      "url": "https://cache.tonapi.io/imgproxy/sE54i4DMjFxPOGKWfk5PxmTCUFEN0fOzEVCwSrUYlsQ/rs:fill:1500:1500:1/g:no/aHR0cHM6Ly9wb3RvazI1LnBhZ2VzLmRldi9sb2NrbmZ0L2l0ZW1zLnBuZw.webp"
+     }
+    ],
+    "trust": "blacklist",
+    "approved_by": []
+   }
+  ]
+ },
+ "dnsFoundation": {
+  "wallet": {
+   "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+   "account": {
+    "address": "0:83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8",
+    "name": "TON Foundation (OLD)",
+    "is_scam": false,
+    "is_wallet": true
+   },
+   "is_wallet": false,
+   "has_method_pubkey": false,
+   "has_method_seqno": false,
+   "names": []
+  },
+  "sites": [],
+  "storage": "7fea7af2325f0a5b6908939c9d72f92db4c0ca52cca8ce2c48bb2708bf188541"
+ },
+ "dnsNotFound": {
+  "error": "entity not found"
+ }
+}

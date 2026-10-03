@@ -14,15 +14,16 @@ import { InteractiveChart } from '../InteractiveChart';
 import { useTelegramBiometric } from './telegramBiometric';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAsync } from './useAsync';
+import { FlowEmbedContext } from './flowEmbed';
 import { AgentPanel, AgentSetup, PROVIDER_LABELS } from './AgentPanel';
 import { MarketPanel } from './MarketPanel';
-import { WEB_FONTS, useWebFonts, useWebPalette } from './webTheme';
+import { WEB_FONTS, useWebFonts, useWebPalette, webLocale } from './webTheme';
 import { useWebT, type WebKey } from './webI18n';
 import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useTelegramClosingConfirmation, useIdle, useTabHidden, tgHaptic } from './platform';
 import { toRaw, encodeErc20Transfer } from './evmEncode';
 import { useTokenLogo } from './tokenLogos';
 import { FadeInUp, CrossFade, useCountUp, Pop, KalyxSpinner, KalyxSuccessPulse, reducedMotion } from './motion';
-import { Text as KText, Button, Sheet, Surface, ListRow, Divider } from '../kit';
+import { Text as KText, Button, Sheet, Surface, ListRow, Divider, LogoImage } from '../kit';
 import { ReceiveScreen } from './ReceiveScreen';
 import { SendFlow } from './SendFlow';
 import { SwapScreen } from './SwapScreen';
@@ -47,6 +48,9 @@ import {
   getTokenPrices,
   getPrices,
   formatTokenAmount,
+  formatAmount,
+  trimDecimalZeros,
+  formatPercent,
   chainIconUrl,
   humanizeTx,
   type Erc20Token,
@@ -58,6 +62,7 @@ import {
   type ChartPoint,
   type HumanTx,
 } from '../../src';
+import { webErrorText, webErrorKey } from './webErrors';
 
 function short(a: string) {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
@@ -73,7 +78,7 @@ const GOLD = '#C89B5C';
  *  correctement les autres devises (symbole avant pour $, £…). */
 function formatFiatAmount(amount: number, fiat: string): string {
   try {
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+    return new Intl.NumberFormat(webLocale(), { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
   } catch {
     return `${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${fiat.toUpperCase()}`;
   }
@@ -101,7 +106,7 @@ function TokenAvatar({ uri: primary, label, seed, size = 32, chainId }: { uri?: 
       </View>
     );
   }
-  return <Image source={{ uri }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+  return <LogoImage uri={uri} size={size} onError={() => setFailed(true)} />;
 }
 
 /** Icône de réseau avec repli AUTO sur cercle lettré : chainIconUrl() renvoie
@@ -120,7 +125,7 @@ function ChainAvatar({ chain, size = 20 }: { chain: ChainConfig; size?: number }
       </View>
     );
   }
-  return <Image source={{ uri }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.glass }} />;
+  return <LogoImage uri={uri} size={size} onError={() => setFailed(true)} style={{ backgroundColor: colors.glass }} />;
 }
 
 /** Horodatage relatif court (ts en secondes). */
@@ -239,8 +244,8 @@ function SigningModal() {
         </Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>
           {phase === 'await'
-            ? tw('signAwaitBody', { label })
-            : detail ?? ''}
+            ? pending.slow ? tw('signAwaitSlow') : tw('signAwaitBody', { label })
+            : pending.expired ? tw('signExpired') : (webErrorKey(detail) ? tw(webErrorKey(detail)!) : detail) ?? ''}
         </Text>
         {phase === 'await' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(0.5) }}>
@@ -574,8 +579,9 @@ function FlowHost({ narrow, onDismiss, children }: { narrow: boolean; onDismiss:
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, alignItems: 'center', justifyContent: 'center', padding: spacing(3) }}>
       <Pressable onPress={onDismiss} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' }} />
-      <View style={{ width: '100%', maxWidth: 480, flex: 1, maxHeight: 860, borderRadius: radii.xl, overflow: 'hidden' }}>
-        {children}
+      {/* Panneau à la hauteur de son contenu (plafonné) : plus de grand vide sous une courte liste. */}
+      <View style={{ width: '100%', maxWidth: 520, maxHeight: '92%', borderRadius: radii.xl, overflow: 'hidden' }}>
+        <FlowEmbedContext.Provider value>{children}</FlowEmbedContext.Provider>
       </View>
     </View>
   );
@@ -635,7 +641,17 @@ function Dashboard() {
   // 3 actions → onglets Tokens / NFT / Activité), identique mobile et desktop.
   const homeFlow = (
     <>
-      <MobileHero data={heroData} chain={chain} address={address} large={!narrow} />
+      {narrow ? (
+        <MobileHero data={heroData} chain={chain} address={address} large={false} />
+      ) : (
+        /* Ordinateur : la répartition par réseau occupe la place à droite du solde (vide jusqu'ici). */
+        <View style={{ flexDirection: 'row', gap: 32, alignItems: 'flex-start' }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <MobileHero data={heroData} chain={chain} address={address} large />
+          </View>
+          {width >= 1180 ? <AllocationPanel worth={worth} /> : null}
+        </View>
+      )}
       <MobileTrend data={heroData} chain={chain} />
       {actionRow}
       <MobileAssets data={heroData} chain={chain} address={address} onReceive={() => openSheet('receive')} />
@@ -686,6 +702,8 @@ function Dashboard() {
   // le mobile : pas de cartes empilées, hero sans carte, onglets soulignés.
   const rail = width < 1100;
   const showMarketRail = width >= 1320 && tab === 'home';
+  // Réglages sur deux colonnes dès qu'il y a la place (connexion à gauche, préférences à droite).
+  const twoColSettings = width >= 1280;
   const desktopContent = (
     <View style={{ flex: 1, minWidth: 0 }}>
       <View style={{ flex: 1, paddingHorizontal: 36, paddingTop: 24, gap: 24 }}>
@@ -697,8 +715,19 @@ function Dashboard() {
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             <CrossFade id={tab} style={{ flexDirection: 'row', gap: 40, alignItems: 'flex-start' }}>
-              <View style={{ flex: 1, minWidth: 0, maxWidth: tab === 'home' ? 760 : tab === 'settings' ? 680 : 960, gap: tab === 'home' ? 28 : 24 }}>
-                {tab === 'home' ? homeFlow : tab === 'market' ? <MarketPanel /> : settingsFlow}
+              {/*
+                Largeurs d'ORDINATEUR : la colonne était bridée (760 / 680 / 960 px)
+                quelle que soit la fenêtre — un tiers de l'écran restait vide sur
+                un 1440 px, la moitié sur un 1920 px. Elle suit maintenant la
+                place disponible, avec un plafond de lisibilité.
+              */}
+              <View style={{ flex: 1, minWidth: 0, maxWidth: tab === 'home' ? (showMarketRail ? 1100 : 980) : 1240, gap: tab === 'home' ? 28 : 24 }}>
+                {tab === 'home' ? homeFlow : tab === 'market' ? <MarketPanel wide={width >= 1000} /> : twoColSettings ? (
+                  <View style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-start' }}>
+                    <View style={{ flex: 1, minWidth: 0, gap: 24 }}><SecurityPanel /></View>
+                    <View style={{ flex: 1.3, minWidth: 0, gap: 24 }}><SettingsPanel /></View>
+                  </View>
+                ) : settingsFlow}
               </View>
               {showMarketRail ? (
                 <View style={{ width: 380, gap: 14 }}>
@@ -761,6 +790,43 @@ function Dashboard() {
 }
 
 /* --------------------------------------------------------------------- Panels */
+
+/** Répartition de la valeur par réseau (ordinateur) : les 5 premiers, en part du total. */
+function AllocationPanel({ worth }: { worth: { data: NetWorth | null; loading: boolean } }) {
+  const t = useT();
+  const tw = useWebT();
+  const P = useWebPalette();
+  const fiat = useSettings((s) => s.fiat);
+  const total = worth.data?.total ?? 0;
+  const slices = (worth.data?.slices ?? []).filter((x) => x.value > 0).sort((a, b) => b.value - a.value).slice(0, 5);
+  return (
+    <View style={{ width: 300, gap: 12, paddingTop: 6 }}>
+      <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted, letterSpacing: 1, textTransform: 'uppercase' }}>{t('allocation')}</Text>
+      {worth.loading && !worth.data ? (
+        <SkeletonRows count={3} flat />
+      ) : !slices.length || total <= 0 ? (
+        <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.muted }}>{tw('allocationEmpty')}</Text>
+      ) : (
+        slices.map((sl) => {
+          const pct = (sl.value / total) * 100;
+          return (
+            <View key={sl.chain.id} style={{ gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ChainAvatar chain={sl.chain} size={18} />
+                <Text style={{ flex: 1, fontFamily: WEB_FONTS.body, fontSize: 13, color: P.text }} numberOfLines={1}>{sl.chain.name}</Text>
+                <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted, fontVariant: ['tabular-nums'] }}>{formatPercent(pct, 1)}</Text>
+                <Text style={{ width: 96, textAlign: 'right', fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 13, color: P.text, fontVariant: ['tabular-nums'] }} numberOfLines={1}>{formatFiatAmount(sl.value, fiat)}</Text>
+              </View>
+              <View style={{ height: 4, borderRadius: 2, backgroundColor: P.divider, overflow: 'hidden' }}>
+                <View style={{ width: `${Math.max(2, Math.min(100, pct))}%`, height: 4, borderRadius: 2, backgroundColor: P.accent }} />
+              </View>
+            </View>
+          );
+        })
+      )}
+    </View>
+  );
+}
 
 /** Style « verre » (fond très légèrement teinté + bordure fine) plutôt qu'un
  *  aplat gris à bordure épaisse — donne de la profondeur par calques au lieu
@@ -908,8 +974,14 @@ function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null
   const today = worth.data?.change24h ?? 0;
   const todayUp = today >= 0;
   const slice = worth.data?.slices.find((s) => s.chain.id === chain.id);
-  const nativeChange = slice?.change24h ?? 0;
-  const price = slice?.price ?? (values.length ? values[values.length - 1] : 0);
+  /*
+   * Prix et variation de l'actif natif. Sans solde, la tranche du portefeuille
+   * porte un prix NUL : l'écran affichait « — » et « +0 % » à côté d'un graphique
+   * bien réel. Repli sur le graphique (variation exacte sur 24 h seulement).
+   */
+  const sliceOk = !!slice && slice.price > 0;
+  const nativeChange: number | null = sliceOk ? slice!.change24h ?? 0 : days === '1' && values.length > 1 ? pct : null;
+  const price = sliceOk ? slice!.price : values.length ? values[values.length - 1] : 0;
   return { sym, days, setDays, bal, points, loading, values, pct, up, total, today, todayUp, nativeChange, price };
 }
 type HeroData = ReturnType<typeof useHeroData>;
@@ -933,7 +1005,7 @@ function formatScrubDate(ts: number, days: string): string {
 /** « 1,84 » + « € » séparés pour afficher le symbole plus petit et grisé. */
 function formatFiatParts(amount: number, fiat: string): { number: string; symbol: string } {
   try {
-    const parts = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).formatToParts(amount);
+    const parts = new Intl.NumberFormat(webLocale(), { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).formatToParts(amount);
     const symbol = parts.filter((p) => p.type === 'currency').map((p) => p.value).join('');
     const number = parts.filter((p) => p.type !== 'currency' && p.type !== 'literal').map((p) => p.value).join('');
     return { number: number || amount.toFixed(2), symbol: symbol || fiatSymbol(fiat) };
@@ -960,7 +1032,9 @@ function MobileHero({ data, chain, address, large }: { data: HeroData; chain: Ch
   // un tap sur l'œil le révèle à nouveau.
   const idle = useIdle(120_000, true);
   const tabHidden = useTabHidden();
-  useEffect(() => { if (idle || tabHidden) setHidden(true); }, [idle, tabHidden]);
+  // Telegram avec biométrie : c'est SON verrou qui masque — sans ce `lock`, l'inactivité n'y masquait jamais le solde.
+  const tgLock = tg.lock;
+  useEffect(() => { if (idle || tabHidden) { setHidden(true); tgLock(); } }, [idle, tabHidden, tgLock]);
   const isHidden = tg.available ? !tg.unlocked : hidden;
   const onToggleHidden = () => {
     if (tg.available) {
@@ -1017,7 +1091,7 @@ function MobileHero({ data, chain, address, large }: { data: HeroData; chain: Ch
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name={todayUp ? 'send' : 'receive'} size={12} color={changeColor} weight="bold" />
             <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '500', fontSize: 13, color: changeColor }}>
-              {`${todayUp ? '+' : '-'}${formatFiatAmount(Math.abs(absChange), fiat)} · ${todayUp ? '+' : '-'}${Math.abs(today).toFixed(2)} % ${t('today')}`}
+              {`${todayUp ? '+' : '-'}${formatFiatAmount(Math.abs(absChange), fiat)} · ${todayUp ? '+' : '-'}${formatPercent(Math.abs(today))} ${t('today')}`}
             </Text>
           </View>
         ) : null}
@@ -1052,7 +1126,7 @@ function MobileTrend({ data, chain }: { data: HeroData; chain: ChainConfig }) {
   const [w, setW] = useState(0);
   if (!chain.coingeckoId) return null;
   const lineColor = up ? P.up : P.down;
-  const changeColor = nativeChange >= 0 ? P.up : P.down;
+  const changeColor = nativeChange == null ? P.muted : nativeChange >= 0 ? P.up : P.down;
   return (
     <View style={{ gap: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1062,7 +1136,7 @@ function MobileTrend({ data, chain }: { data: HeroData; chain: ChainConfig }) {
             {`${formatFiatAmount(scrub.v, fiat)} · ${formatScrubDate(scrub.t, days)}`}
           </Text>
         ) : values.length ? (
-          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 12, color: lineColor }}>{`${up ? '+' : ''}${pct.toFixed(2)} %`}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 12, color: lineColor }}>{`${up ? '+' : ''}${formatPercent(pct)}`}</Text>
         ) : null}
       </View>
       {loading && !values.length ? (
@@ -1085,7 +1159,7 @@ function MobileTrend({ data, chain }: { data: HeroData; chain: ChainConfig }) {
         </View>
         <View style={{ alignItems: 'flex-end', gap: 2 }}>
           <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 14, color: P.text, fontVariant: ['tabular-nums'] }}>{price ? formatFiatAmount(price, fiat) : '—'}</Text>
-          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: changeColor }}>{`${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)} % · 24 h`}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: changeColor }}>{nativeChange == null ? '— · 24 h' : `${nativeChange >= 0 ? '+' : ''}${formatPercent(nativeChange)} · 24 h`}</Text>
         </View>
       </View>
     </View>
@@ -1519,7 +1593,8 @@ function TokenRow({
       setMsg(tw('txSent', { hash: short(hash) }));
       setTo(''); setAmount('');
     } catch (e) {
-      setErr(e instanceof Error ? e.message : tw('rejectedOrFailed'));
+      // Jamais le message brut (« REQUEST_EXPIRED », « Non connecté ») : la phrase traduite de l'entonnoir commun.
+      setErr(webErrorText(e, tw, t as never));
       setMsg(null);
     } finally {
       setBusy(false);
@@ -1584,7 +1659,8 @@ function TokenRow({
           ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={typography.muted}>{tw('amountOf', { symbol: token.symbol })}</Text>
-            <Pressable onPress={() => setAmount(balStr)} hitSlop={6}>
+            {/* MAX = le solde EXACT en notation de saisie (« 1234.5 »), pas l'affichage groupé et arrondi (« 1 234,5 »), refusé par le contrôle. */}
+            <Pressable onPress={() => setAmount(trimDecimalZeros(formatAmount(token.raw, token.decimals)))} hitSlop={6}>
               <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{tw('balanceMax', { balance: balStr })}</Text>
             </Pressable>
           </View>

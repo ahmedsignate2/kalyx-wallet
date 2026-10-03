@@ -106,5 +106,19 @@ export function formatFiat(v: number, decimals = 2): string {
 /** Pourcentage : 2 décimales, sans zéros inutiles (3.50 → 3.5, 12.00 → 12). */
 export function formatPercent(v: number, decimals = 2): string {
   if (!Number.isFinite(v)) return '—';
-  return `${v.toFixed(decimals).replace(/\.?0+$/, '')} %`;
+  // Séparateur de la langue : « 3.58 % » s'affichait en français au lieu de « 3,58 % ».
+  // Zéros retirés APRÈS la virgule seulement : l'ancienne regex rongeait aussi
+  // l'entier (« 100 » → « 1 % », « 20.00 » → « 2 % »).
+  const fixed = v.toFixed(decimals);
+  const trimmed = fixed.includes('.') ? fixed.replace(/0+$/, '').replace(/\.$/, '') : fixed;
+  return `${trimmed.replace('.', DECIMAL_SEP)} %`;
+}
+
+/**
+ * Zéros de fin d'une PARTIE DÉCIMALE retirés (« 1.2500 » → « 1.25 »,
+ * « 3.000 » → « 3 »). Un entier reste intact : « 100 » ne devient pas « 1 »,
+ * ce que faisait `/\.?0+$/` appliqué à `toFixed(0)` (jeton à 0 décimale).
+ */
+export function trimDecimalZeros(s: string): string {
+  return s.includes('.') ? s.replace(/\.?0+$/, '') : s;
 }

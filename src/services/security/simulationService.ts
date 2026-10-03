@@ -1,4 +1,9 @@
 import { ethers } from 'ethers';
+import { formatAmount } from '../../domain/validation/amount';
+import { trimDecimalZeros } from '../../domain/validation/format';
+
+/** Montant exact (entiers, aucune perte au-delà de 2⁵³), sans zéros de fin : « 1 », « 0.5 ». */
+const exact = (raw: bigint, decimals: number) => trimDecimalZeros(formatAmount(raw, decimals));
 
 export interface SimulationResult {
   isSafe: boolean;
@@ -252,7 +257,8 @@ export async function simulateSolanaTransaction(params: {
     // Fail-safe silencieux
   }
 
-  const formattedAmount = (Number(params.amount) / Math.pow(10, params.tokenDecimals)).toString();
+  // En entier (formatUnits) : Number() perdait des chiffres au-delà de 2⁵³ unités.
+  const formattedAmount = exact(params.amount, params.tokenDecimals);
 
   return {
     isSafe: warningLevel === 'none',
@@ -273,7 +279,7 @@ export async function simulateSolanaTransaction(params: {
  * Point d'entrée universel pour la simulation de transfert (EVM, Solana, Bitcoin).
  */
 export async function simulateSendTransaction(params: {
-  family: 'evm' | 'solana' | 'bitcoin';
+  family: 'evm' | 'solana' | 'bitcoin' | 'ton';
   from: string;
   to: string;
   amount: bigint;
@@ -307,8 +313,13 @@ export async function simulateSendTransaction(params: {
     });
   }
 
-  // Bitcoin : transfert standard UTXO
-  const formattedAmount = (Number(params.amount) / 1e8).toString();
+  /*
+   * Bitcoin et TON : pas de simulation, transfert natif standard. Montant formaté
+   * avec les décimales DU JETON : il était divisé par 10^8 en dur, ce qui aurait
+   * affiché un transfert TON (9 décimales) dix fois trop grand.
+   */
+  const formattedAmount =
+    exact(params.amount, params.family === 'bitcoin' ? 8 : params.tokenDecimals);
   return {
     isSafe: true,
     warningLevel: 'none',

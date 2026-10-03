@@ -3,7 +3,7 @@
  * état du déverrouillage biométrique. Persistées localement.
  */
 import { create } from 'zustand';
-import { setNumberLocale, type ActivityTranslate } from '../src';
+import { setNumberLocale, type ActivityTranslate, type ExplainT } from '../src';
 import { saveSettings, loadSettings } from './secureStore';
 import { translate, type Lang, type Key, detectInitialLanguage, resolveLanguage, applyRTL, isRtl, USER_LANGUAGE_KEY } from './i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -274,6 +274,18 @@ export function useT(): (key: Key) => string {
  * valeur — un nom de contact contenant `$` corromprait la phrase.
  */
 export function useActivityT(): ActivityTranslate {
+  const lang = useSettings((s) => s.language);
+  return (key, params) => {
+    let out = translate(lang, key as Key);
+    if (params) {
+      for (const [k, v] of Object.entries(params)) out = out.split(`{${k}}`).join(v);
+    }
+    return out;
+  };
+}
+
+/** Traducteur de la fenêtre de signature (`explainRequest`) : même substitution `{param}`. */
+export function useExplainT(): ExplainT {
   const lang = useSettings((s) => s.language);
   return (key, params) => {
     let out = translate(lang, key as Key);

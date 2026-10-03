@@ -9,6 +9,7 @@ import type { ChainAdapter, ChainConfig } from './types';
 import { EvmChainAdapter } from './EvmChainAdapter';
 import { BitcoinChainAdapter } from './BitcoinChainAdapter';
 import { SolanaChainAdapter } from './SolanaChainAdapter';
+import { TonChainAdapter } from './TonChainAdapter';
 import { ALL_CHAINS } from './configs';
 
 /** Fabrique l'adapter correspondant à la famille de la config. */
@@ -20,6 +21,9 @@ function createAdapter(config: ChainConfig): ChainAdapter {
       return new BitcoinChainAdapter(config);
     case 'solana':
       return new SolanaChainAdapter(config);
+    case 'ton':
+      // Lecture seule ; l'envoi TON passe par l'interface v2.
+      return new TonChainAdapter(config);
     default:
       throw new Error(`Famille de chaîne non supportée: ${config.family}`);
   }

@@ -27,6 +27,7 @@ import { utf8ToBytes } from '@noble/hashes/utils';
 import {
   payAccountsFor,
   checkPayAction,
+  checkPayPayload,
   decideNoOption,
   needsCollect,
   preselectOption,
@@ -34,6 +35,8 @@ import {
   formatTokenAmount,
   type PayMethod,
   type PayRefusal,
+  WalletError,
+  shortAddress,
 } from '../src';
 
 /** Identifiant public du projet Pay, fourni au build (secret EAS). */
@@ -325,6 +328,12 @@ interface PayState {
   failure: PayFailure | null;
   /** Détail technique éventuel (méthode refusée, message du service). */
   detail: string | null;
+  /**
+   * L'erreur elle-même, pour que l'écran la TRADUISE (réseau coupé, fonds
+   * insuffisants, refus…) : son message brut, souvent en français ou tiré du
+   * SDK, s'affichait tel quel dans toutes les langues.
+   */
+  error: unknown;
 
   /** Compte qui paie, et son adresse EVM. Renseigné dès le premier chargement. */
   payer: { index: number; evmAddress: string } | null;
@@ -377,6 +386,7 @@ const EMPTY = {
   result: null,
   failure: null,
   detail: null,
+  error: null,
   payer: null,
   collectedIds: [],
   settledChain: null,
@@ -497,7 +507,7 @@ export const usePay = create<PayState>((set, get) => ({
        */
       set({ phase: 'choosing', options, selected: preselectOption(options.options, get().collectedIds) });
     } catch (e) {
-      set({ phase: 'error', failure: 'FAILED', detail: e instanceof Error ? e.message : null });
+      set({ phase: 'error', failure: 'FAILED', detail: e instanceof Error ? e.message : null, error: e });
     }
   },
 
@@ -568,7 +578,24 @@ export const usePay = create<PayState>((set, get) => ({
     }
 
     set({ phase: 'signing', failure: null, detail: null });
+    // Compte actif d'avant : rendu à la fin, succès ou échec (les sessions dApp en dépendent).
+    const previousIndex = useWallet.getState().activeAccountIndex;
     try {
+      /*
+       * Le compte qui SIGNE est celui pour lequel les options ont été
+       * calculées (`payer`), pas forcément l'actif : on y bascule avant de
+       * signer — le coffre signe toujours avec le compte actif. Portefeuille
+       * changé entre-temps : refus plutôt qu'un paiement depuis un autre compte.
+       */
+      const payer = get().payer;
+      if (payer) {
+        const w = useWallet.getState();
+        const acct = w.accounts.find((a) => a.index === payer.index);
+        if (!acct || acct.evmAddress.toLowerCase() !== payer.evmAddress.toLowerCase()) {
+          throw new WalletError('WRONG_ACCOUNT', 'payeur introuvable dans le portefeuille actif', { address: shortAddress(payer.evmAddress) });
+        }
+        if (w.activeAccountIndex !== payer.index) w.setActiveAccount(payer.index);
+      }
       const actions = await c.getRequiredPaymentActions({
         paymentId: options.paymentId,
         optionId: selected.id,
@@ -606,7 +633,11 @@ export const usePay = create<PayState>((set, get) => ({
         phase: 'error',
         failure: refused ? 'ACTION_REFUSED' : 'FAILED',
         detail: refused ? refused.code : e instanceof Error ? e.message : null,
+        error: e,
       });
+    } finally {
+      const w = useWallet.getState();
+      if (w.activeAccountIndex !== previousIndex && w.accounts.some((a) => a.index === previousIndex)) w.setActiveAccount(previousIndex);
     }
   },
 
@@ -685,28 +716,35 @@ async function signPayAction(action: PayAction, unlock: Unlock): Promise<string>
     throw new Error('Paramètres de paiement illisibles');
   }
   const args = Array.isArray(parsed) ? parsed : [parsed];
+  // Le CONTENU aussi : un paiement n'a besoin ni d'autorisation illimitée à un tiers, ni d'ordre de place de marché.
+  const content = checkPayPayload(method, args);
+  if (!content.ok) throw new PayActionRefused(content.reason, content.detail);
   const w = useWallet.getState();
 
   switch (method as PayMethod) {
     case 'personal_sign': {
+      await (await import('./whitelistStore')).assertDappAllowed(); // un message signé peut autoriser un paiement
       // `personal_sign` reçoit [message, adresse] ; l'ordre peut être inversé
       // selon l'émetteur, on retient ce qui n'est pas notre adresse.
-      const me = (w.account?.address ?? '').toLowerCase();
+      // Adresse EVM du compte actif (celle qui signe) — pas l'adresse du réseau affiché.
+      const me = (w.accounts.find((a) => a.index === w.activeAccountIndex)?.evmAddress ?? '').toLowerCase();
       const message = args.find((a) => typeof a === 'string' && a.toLowerCase() !== me) as string | undefined;
       if (typeof message !== 'string') throw new Error('Message à signer absent');
       return w.signMessage(unlock, message);
     }
     case 'eth_signTypedData_v4': {
+      await (await import('./whitelistStore')).assertDappAllowed(); // liste blanche : le paiement irait à une adresse hors liste
       const raw = args.find((a) => typeof a === 'object' || (typeof a === 'string' && a.trim().startsWith('{')));
       const typed = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (!typed || typeof typed !== 'object') throw new Error('Données typées absentes');
-      return w.signTypedData(unlock, typed as Parameters<typeof w.signTypedData>[1]);
+      return w.signTypedData(unlock, typed as Parameters<typeof w.signTypedData>[1], check.evmChainId);
     }
     case 'eth_sendTransaction': {
+      await (await import('./whitelistStore')).assertDappAllowed();
       const tx = args[0] as { to?: string; data?: string; value?: string } | undefined;
       if (!tx?.to) throw new Error('Transaction de paiement incomplète');
       const chain = evmChainIdToKalyx(check.evmChainId!);
-      if (!chain) throw new Error(`Réseau ${check.evmChainId} non configuré dans le portefeuille`);
+      if (!chain) throw new WalletError('NOT_SUPPORTED', `Réseau ${check.evmChainId} non configuré dans le portefeuille`);
       return w.sendRawTxOn(unlock, chain, {
         to: tx.to,
         data: tx.data ?? '0x',

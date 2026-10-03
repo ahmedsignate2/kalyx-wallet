@@ -1,10 +1,19 @@
 import { haptic } from "../lib/haptics";
+import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
+import { useReduceMotion } from '../lib/reduceMotion';
 import { sound } from "../lib/sound";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { decimalSeparator } from '../src';
 import { View, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { swapTokenTint, withAlpha } from '../lib/tokenColors';
+import { SnapSlider } from '../ui/SnapSlider';
+import { availableFrom, freshRaw } from '../lib/swapBalance';
+import { beginSwap, useSwapBalances } from '../lib/useSwapBalances';
+import { CHAIN_LOGO_SVG } from '../src/domain/chains/chainLogos.generated';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState, Pressable as KPressable } from '../ui/kit';
 import { BridgeProgress } from '../ui/BridgeProgress';
@@ -15,12 +24,17 @@ import { watchConfirmation } from '../lib/txWatch';
 import { friendlyTxError } from '../lib/txError';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
+import { toast } from '../lib/toast';
 import { space, SCREEN_MARGIN, radius, springs } from '../ui/tokens';
 import { useWallet, type SwapStatus, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
+import { fill } from '../lib/i18n';
+import { Rise, GOLD } from '../ui/nova';
 import {
   getAdapter,
+  withTimeout,
   getErc20Tokens,
+  getAdapterV2,
   getBestQuote,
   parseAmount,
   formatTokenAmount,
@@ -31,12 +45,13 @@ import {
   NATIVE_TOKEN,
   listChains,
   estimateGasReserve,
+  STONFI_TON_RESERVE,
+  type ChainAdapter,
   type GasReserve,
   type SwapQuote,
-  EvmChainAdapter,
-  SolanaChainAdapter,
 } from '../src';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
+import { usePortfolioStore } from '../lib/portfolio';
 import { TokenPicker } from '../ui/TokenPicker';
 
 /** Durée de validité d'un devis avant auto-actualisation (s). */
@@ -50,6 +65,17 @@ const STATUS_KEY = {
   confirming: 'stConfirming',
 } as const;
 
+/**
+ * Réserve de natif pour un ÉCHANGE. Sur TON, STON.fi fait joindre ~0,3 TON de
+ * gas au message (l'essentiel revient en excédent) : la réserve d'un envoi
+ * simple (0,01 TON) laissait « Max » proposer un montant que le portefeuille ne
+ * pouvait pas payer, et l'échange échouait à la simulation.
+ */
+function swapGasReserve(adapter: ChainAdapter): Promise<GasReserve> {
+  if (adapter.config.family === 'ton') return Promise.resolve({ raw: STONFI_TON_RESERVE, live: false });
+  return estimateGasReserve(adapter);
+}
+
 function isNativeTokenAddress(address?: string): boolean {
   if (!address) return false;
   const a = address.toLowerCase();
@@ -61,14 +87,31 @@ function isNativeTokenAddress(address?: string): boolean {
   );
 }
 
-export default function Swap() {
-  const { colors } = useTheme();
+function SwapInner() {
+  const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
   const activeChain = useWallet((s) => s.activeChain);
   const setActiveChain = useWallet((s) => s.setActiveChain);
   // Jeton « Tu donnes » choisi sur un AUTRE réseau : on bascule, puis on le sélectionne dès que sa liste est là.
   const pendingFrom = useRef<{ chainId: string; address: string } | null>(null);
+  const pendingTo = useRef<{ chainId: string; address: string } | null>(null);
+  /** Destination choisie dont la liste n'est pas encore là : pas de devis tant qu'elle n'est pas appliquée. */
+  const [awaitingTo, setAwaitingTo] = useState(false);
+  // Liste qui n'arrive jamais (réseau muet) : le devis n'est pas bloqué pour toujours.
+  useEffect(() => {
+    if (!awaitingTo) return;
+    const id = setTimeout(() => {
+      if (!pendingTo.current) return;
+      pendingTo.current = null;
+      setAwaitingTo(false);
+      toast.error(t('errNetworkOffline'));
+    }, 15_000);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awaitingTo]);
+  /** `params.to` appliqué UNE fois : il ne doit plus écraser un choix fait ensuite. */
+  const paramToApplied = useRef(false);
   const account = useWallet((s) => s.account);
   const executeSwap = useWallet((s) => s.executeSwap);
   const chain = getAdapter(activeChain).config;
@@ -80,7 +123,8 @@ export default function Swap() {
   useEffect(() => {
     fetchTokens(activeChain);
   }, [activeChain, fetchTokens]);
-  const available = !chain.testnet && (chain.family === 'evm' || chain.family === 'solana');
+  // TON : échanges STON.fi, sur TON seulement (src/domain/swap/stonfi.ts).
+  const available = !chain.testnet && (chain.family === 'evm' || chain.family === 'solana' || chain.family === 'ton');
 
   const [from, setFrom] = useState(0);
   const [to, setTo] = useState(1);
@@ -94,24 +138,39 @@ export default function Swap() {
   const [stale, setStale] = useState(false);
   const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const [nativeBalance, setNativeBalance] = useState<bigint | null>(null);
-  const [selectedTokenBalance, setSelectedTokenBalance] = useState<bigint | null>(null);
   /**
    * Réserve de gas DYNAMIQUE (estimée sur le RPC du réseau actif) : ce qu'on
    * garde de natif pour que la tx passe. `null` = pas encore chargée.
    */
   const [gasReserve, setGasReserve] = useState<GasReserve | null>(null);
+  /** Estimation sans réponse après 8 s : « Disponible » propose de réessayer. */
+  const [gasSlow, setGasSlow] = useState(false);
+  const [gasNonce, setGasNonce] = useState(0);
   useEffect(() => {
     let cancelled = false;
     setGasReserve(null);
-    estimateGasReserve(getAdapter(activeChain)).then((r) => {
-      if (!cancelled) setGasReserve(r);
-    });
+    setGasSlow(false);
+    /*
+     * L'estimation n'est JAMAIS remplacée par le repli bas au bout d'un délai :
+     * elle s'applique dès qu'elle arrive, même tard. Passé 8 s, on propose
+     * seulement de relancer (RPC de frais suspendu) au lieu d'un « … » sans fin.
+     */
+    const slow = setTimeout(() => {
+      if (!cancelled) setGasSlow(true);
+    }, 8000);
+    swapGasReserve(getAdapter(activeChain))
+      .then((r: GasReserve) => {
+        if (!cancelled) setGasReserve(r);
+      })
+      .catch(() => {
+        if (!cancelled) setGasSlow(true);
+      })
+      .finally(() => clearTimeout(slow));
     return () => {
       cancelled = true;
+      clearTimeout(slow);
     };
-  }, [activeChain]);
-  const reserveRaw = gasReserve?.raw ?? 0n;
+  }, [activeChain, gasNonce]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,54 +178,57 @@ export default function Swap() {
   // Succès : hash + résumé (capturés avant reset) pour l'écran animé.
   const [success, setSuccess] = useState<{ hash: string; summary: string; isBridge?: boolean; fromChain?: string; toChain?: string } | null>(null);
   const [held, setHeld] = useState<Tok[]>([]);
+  /** Branché plus bas sur useSwapBalances (déclaré après le choix du jeton source). */
+  const seedHeldRef = useRef<{ seed: (chainId: string, owner: string, list: { token: string; raw: bigint }[], gen: number) => void; gen: () => number }>({ seed: () => {}, gen: () => 0 });
   const params = useLocalSearchParams<{ contract?: string; to?: string }>();
-
-  // Récupère le solde natif de la chaîne active
-  useEffect(() => {
-    let cancelled = false;
-    if (!account?.address) {
-      setNativeBalance(null);
-      return;
-    }
-    getAdapter(activeChain)
-      .getBalance(account.address)
-      .then((b) => {
-        if (!cancelled) setNativeBalance(b.raw);
-      })
-      .catch(() => {
-        if (!cancelled) setNativeBalance(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeChain, account?.address]);
 
   // Tokens réellement détenus sur la chaîne active → swappables même hors liste curée.
   useEffect(() => {
     let cancelled = false;
     setHeld([]);
     if (!account?.address) return;
+    const chainId = activeChain;
+    const owner = account.address;
+    const genAtLoad = seedHeldRef.current.gen();
+    const loaded = (list: Tok[]) => {
+      if (cancelled) return;
+      setHeld(list);
+      // Leurs soldes s'affichent tout de suite (tenus pour vieux : une lecture directe suit).
+      seedHeldRef.current.seed(
+        chainId,
+        owner,
+        list.flatMap((tk) => {
+          const bal = (tk as Tok & { balance?: bigint }).balance;
+          return typeof bal === 'bigint' ? [{ token: tk.address, raw: bal }] : [];
+        }),
+        genAtLoad,
+      );
+    };
 
     if (chain.family === 'evm') {
       getErc20Tokens(chain, account.address)
         .then((detected) => {
-          if (!cancelled)
-            setHeld(detected.map((tk) => ({ symbol: tk.symbol, address: tk.contract, decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
+          loaded(detected.map((tk) => ({ symbol: tk.symbol, address: tk.contract, decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
         })
-        .catch(() => {
-          if (!cancelled) setHeld([]);
-        });
+        .catch(() => loaded([]));
+    } else if (chain.family === 'ton') {
+      // Jettons détenus, par adresse brute du maître (même forme que la liste STON.fi).
+      getAdapterV2(activeChain)
+        .listTokens?.(account.address)
+        .then((detected) => {
+          loaded(detected.map((tk) => ({ symbol: tk.symbol, address: String(tk.id), decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
+        })
+        .catch(() => loaded([]));
     } else if (chain.family === 'solana') {
       const adapter = getAdapter(activeChain) as any;
       if (adapter.getSplTokens) {
         adapter.getSplTokens(account.address)
           .then((detected: any[]) => {
-            if (!cancelled)
-              setHeld(detected.map((tk) => ({ symbol: tk.symbol, address: tk.mint, decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
+            loaded(detected.map((tk) => ({ symbol: tk.symbol, address: tk.mint, decimals: tk.decimals, logo: tk.logo, balance: tk.raw })));
           })
-          .catch(() => {});
-      }
-    }
+          .catch(() => loaded([]));
+      } else loaded([]);
+    } else loaded([]);
 
     return () => {
       cancelled = true;
@@ -215,111 +277,136 @@ export default function Swap() {
 
   const fromTok = fromTokens[from] ?? fromTokens[0];
   const toTokens = tokensByChain[toChain] ?? [];
+
+  // Destination choisie avant que la liste de son réseau soit chargée : appliquée à son arrivée.
+  useEffect(() => {
+    const p = pendingTo.current;
+    if (p && p.chainId !== toChain) {
+      // Réseau d'arrivée changé depuis : ce choix n'a plus d'objet.
+      pendingTo.current = null;
+      setAwaitingTo(false);
+      return;
+    }
+    if (!p || !toTokens.length) return;
+    const idx = toTokens.findIndex((tk) => tk.address.toLowerCase() === p.address.toLowerCase());
+    pendingTo.current = null;
+    setAwaitingTo(false);
+    if (idx >= 0) setTo(idx);
+    else toast.error(t('errInvalidToken')); // liste chargée sans lui : dit, jamais remplacé en silence
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toChain, toTokens.length]);
+
   const toTok = toTokens[to] ?? toTokens[0];
 
   // Arrivée depuis une fiche token ou le marché : le token demandé en destination.
   useEffect(() => {
     const sym = String(params.to ?? '').toLowerCase();
-    if (!sym) return;
+    if (!sym || paramToApplied.current) return;
     const idx = toTokens.findIndex((tk) => tk.symbol.toLowerCase() === sym);
-    if (idx >= 0) setTo(idx);
+    if (idx >= 0) {
+      setTo(idx);
+      paramToApplied.current = true;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.to, toTokens.length]);
   const isBridge = toChain !== activeChain;
   const flip = useSharedValue(0);
   const flipStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${flip.value * 180}deg` }] }));
-
-  // Récupère le solde du token sélectionné s'il n'est pas natif
-  useEffect(() => {
-    let cancelled = false;
-    if (!account?.address || !fromTok) {
-      setSelectedTokenBalance(null);
-      return;
-    }
-    if (isNativeTokenAddress(fromTok.address)) {
-      setSelectedTokenBalance(null);
-      return;
-    }
-    const heldTok = held.find((t) => t.address.toLowerCase() === fromTok.address.toLowerCase());
-    if (heldTok) {
-      setSelectedTokenBalance((heldTok as any).balance ?? 0n);
-      return;
-    }
-    const adapter = getAdapter(activeChain);
-    if (adapter instanceof EvmChainAdapter) {
-      adapter
-        .getTokenBalance(fromTok.address, account.address)
-        .then((b) => {
-          if (!cancelled) setSelectedTokenBalance(b);
-        })
-        .catch(() => {
-          if (!cancelled) setSelectedTokenBalance(0n);
-        });
-    } else if (adapter instanceof SolanaChainAdapter) {
-      adapter
-        .getSplTokens(account.address)
-        .then((tokens) => {
-          if (!cancelled) {
-            const found = tokens.find((t) => t.mint.toLowerCase() === fromTok.address.toLowerCase());
-            setSelectedTokenBalance(found ? found.raw : 0n);
-          }
-        })
-        .catch(() => {
-          if (!cancelled) setSelectedTokenBalance(0n);
-        });
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [activeChain, account?.address, fromTok?.address, held]);
+  /*
+   * INVERSION EN ORBITE : les deux cartes échangent leur place en tournant
+   * l'une autour de l'autre — celle du haut passe par la droite, l'autre par
+   * la gauche, en se rétrécissant au croisement. L'état est inversé tout de
+   * suite ; chaque carte part de l'ancienne place de l'autre et revient à la
+   * sienne. Distance = hauteur d'une carte + l'écart, mesurée.
+   */
+  const reduceMotion = useReduceMotion();
+  const orbit = useSharedValue(1);
+  const [blockH, setBlockH] = useState(0);
+  const dist = blockH + space[2];
+  const topOrbitStyle = useAnimatedStyle(() => {
+    const k = Math.sin(orbit.value * Math.PI);
+    return { zIndex: 2, transform: [{ translateY: dist * (1 - orbit.value) }, { translateX: 34 * k }, { scale: 1 - 0.08 * k }] };
+  });
+  const bottomOrbitStyle = useAnimatedStyle(() => {
+    const k = Math.sin(orbit.value * Math.PI);
+    return { zIndex: 1, transform: [{ translateY: -dist * (1 - orbit.value) }, { translateX: -34 * k }, { scale: 1 - 0.08 * k }], opacity: 1 - 0.25 * k };
+  });
 
   const onFlip = () => {
     if (isBridge) return;
     haptic.heavy();
+    // Un montant tiré d'un cran (« Max » de l'ancien jeton) ne vaut rien pour l'autre : effacé.
+    if (sliderPct != null) setAmount('');
+    setSliderPct(null);
     setFrom(to);
     setTo(from);
     reset();
     stopCountdown();
     flip.value = 0;
     flip.value = withSpring(1, springs.snappy);
+    if (!reduceMotion && blockH > 0) {
+      orbit.value = 0;
+      orbit.value = withSpring(1, { damping: 17, stiffness: 150, mass: 0.9 });
+    }
   };
 
-  const getTokenBalance = (): bigint => {
-    if (!fromTok) return 0n;
-    if (isNativeTokenAddress(fromTok.address)) {
-      return nativeBalance ?? 0n;
-    }
-    if (selectedTokenBalance != null) {
-      return selectedTokenBalance;
-    }
-    const heldTok = held.find((t) => t.address.toLowerCase() === fromTok.address.toLowerCase());
-    return heldTok ? (heldTok as any).balance ?? 0n : 0n;
+  const owner = account?.address;
+  const srcNative = !!fromTok && isNativeTokenAddress(fromTok.address);
+  /** Confirmation ou exécution en cours : rafraîchissements suspendus. */
+  const pausedRef = useRef(false);
+  const sb = useSwapBalances({ chainId: activeChain, owner, srcToken: fromTok?.address ?? null, srcNative, pausedRef });
+  // Le hook dépend de `fromTok`, lui-même tiré de la liste détenue : d'où ce relais par ref.
+  seedHeldRef.current = { seed: sb.seedHeld, gen: sb.currentGen };
+  const { srcEntry, gasEntry, swapPending } = sb;
+  /** Lecture du solde en échec : « Disponible » propose de réessayer. */
+  const balanceError = srcEntry?.status === 'error' || (srcNative && !gasReserve && gasSlow);
+  const retryBalance = () => {
+    sb.retry(); // déjà en vol : sans effet
+    if (srcNative && !gasReserve) setGasNonce((n) => n + 1);
   };
-
   /**
    * Solde DISPONIBLE pour l'échange : solde brut moins la réserve de gas si
-   * le token source est la monnaie native. Les raccourcis (MAX, 50 %) et la
-   * validation travaillent sur cette valeur, jamais sur le solde brut.
+   * le jeton source est la monnaie native ; null tant que l'un des deux est
+   * inconnu. Les raccourcis (Max, curseur) et la validation n'utilisent que lui.
    */
-  const getAvailable = (): bigint => {
-    if (!fromTok) return 0n;
-    const raw = getTokenBalance();
-    if (!isNativeTokenAddress(fromTok.address)) return raw;
-    return raw > reserveRaw ? raw - reserveRaw : 0n;
-  };
+  const availableOrNull = (): bigint | null => (fromTok ? availableFrom(srcEntry, srcNative, gasReserve?.raw ?? null) : null);
+  const getAvailable = (): bigint => availableOrNull() ?? 0n;
 
+  const [sliderPct, setSliderPct] = useState<number | null>(null);
+  /** Disponible pas encore lu : le curseur attend (un cran calculé sur 0 restait faux). */
+  const balanceUnknown = swapPending || availableOrNull() == null;
   const setPercent = (pct: bigint) => {
     if (!fromTok) return;
     const avail = getAvailable();
     setAmount(avail > 0n ? formatInputAmount((avail * pct) / 100n, fromTok.decimals) : '0');
   };
-  const onMax = () => setPercent(100n);
-  const onHalf = () => setPercent(50n);
+  const onMax = () => {
+    if (balanceUnknown) return; // pas de « Max » calculé sur un solde pas encore lu
+    setSliderPct(100);
+    setPercent(100n);
+    reset();
+    stopCountdown();
+  };
+  /*
+   * Changer de jeton source ou de réseau EFFACE le cran : l'ancienne part ne
+   * vaut rien pour l'autre jeton, et ses soldes ne sont pas encore relus.
+   */
+  const sliderPctRef = useRef(sliderPct);
+  sliderPctRef.current = sliderPct;
+  useEffect(() => {
+    // Un montant tiré d'un cran (« Max » de l'ancien jeton) n'a plus de sens : on l'efface aussi.
+    if (sliderPctRef.current != null) {
+      setAmount('');
+      reset(); // le devis portait sur l'ancien montant
+      stopCountdown();
+    }
+    setSliderPct(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromTok?.address, activeChain, account?.address]);
 
   // Auto-refresh du devis : en PAUSE pendant la confirmation/exécution (sinon
   // la fenêtre PIN se fermait au milieu de la saisie) et STOPPÉ après une erreur
   // (sinon on spammait l'API toutes les 15 s sans route).
-  const pausedRef = useRef(false);
   useEffect(() => {
     pausedRef.current = confirming || step !== null;
   }, [confirming, step]);
@@ -346,11 +433,33 @@ export default function Swap() {
   /** Vérifications locales AVANT tout appel réseau (messages immédiats et précis). */
   const preflight = async (raw: bigint): Promise<string | null> => {
     if (!isBridge && fromTok.address.toLowerCase() === toTok.address.toLowerCase()) return t('swapTwoTokens');
-    const bal = getTokenBalance();
-    // Réserve : celle du state, ou ré-estimée à la volée si pas encore chargée.
-    const reserve = gasReserve?.raw ?? (await estimateGasReserve(getAdapter(activeChain))).raw;
+    // Échange précédent pas encore abouti : les soldes du réseau ne sont pas fiables.
+    if (swapPending) return t('errSwapPending');
+    /*
+     * LISTE BLANCHE : un échange ne peut pas vider le portefeuille vers un faux
+     * jeton, car la destination n'est choisie QUE dans la liste curée du réseau
+     * (TokenPicker, `toTokens`). Si ce choix s'élargit un jour (jeton collé,
+     * recherche), il faudra y appliquer assertDappAllowed comme ailleurs.
+     */
+    // Solde inconnu, en erreur ou lu il y a plus de 30 s : relu avant de juger les fonds (jamais pris pour 0).
+    let bal = freshRaw(srcEntry, Date.now());
+    if (bal == null) {
+      try {
+        bal = await sb.readSrc(); // partage une lecture déjà en vol ; bornée à 15 s
+      } catch {
+        // Jamais de devis sur un solde qu'on n'a pas pu lire (l'indexeur peut être en retard).
+        return t('errBalanceUnreadable');
+      }
+    }
+    // Réserve : celle du state, ou ré-estimée à la volée (8 s au plus) ; inestimable → le devis tranchera.
+    let reserve: bigint;
+    try {
+      reserve = gasReserve?.raw ?? (await withTimeout(swapGasReserve(getAdapter(activeChain)), 8000, () => new Error('timeout'))).raw;
+    } catch {
+      return null;
+    }
     const reserveStr = `${formatTokenAmount(reserve, chain.nativeDecimals)} ${chain.nativeSymbol}`;
-    if (isNativeTokenAddress(fromTok.address)) {
+    if (srcNative) {
       // Deux cas distincts : pas même de quoi payer le gas / montant trop grand une fois le gas réservé.
       if (bal < reserve) return t('errGasBelowMinimum').replace('{amount}', reserveStr);
       if (raw > bal - reserve) return t('errAboveAvailable').replace('{amount}', reserveStr);
@@ -358,7 +467,8 @@ export default function Swap() {
       if (raw > bal) return t('errInsufficientFunds');
       // Token SPL/ERC-20 : le natif du wallet doit couvrir le gas estimé.
       try {
-        const native = nativeBalance ?? (await getAdapter(activeChain).getBalance(account!.address)).raw;
+        // Natif lu il y a plus de 30 s : relu, comme le solde du jeton (lecture bornée à 15 s).
+        const native = freshRaw(gasEntry, Date.now()) ?? (await sb.readGas());
         if (native < reserve) return t('errNeedNativeForGas').replace('{amount}', reserveStr);
       } catch {
         /* réseau muet : on laisse le devis trancher */
@@ -376,7 +486,7 @@ export default function Swap() {
     } catch (e) {
       stopCountdown();
       reset();
-      setError(isWalletError(e) ? e.message : t('amountInvalid'));
+      setError(isWalletError(e) && /décimales/.test(e.message) ? t('errTooManyDecimals').replace('{max}', String(fromTok.decimals)) : t('amountInvalid'));
       return;
     }
     if (!opts.auto) {
@@ -397,6 +507,7 @@ export default function Swap() {
       if (toFamily === 'solana') targetAddress = storedAccount?.solAddress ?? '';
       else if (toFamily === 'bitcoin') targetAddress = storedAccount?.btcAddress ?? '';
       else if (toFamily === 'evm') targetAddress = storedAccount?.evmAddress ?? account.address;
+      else if (toFamily === 'ton') targetAddress = account.address; // TON → TON : même adresse
 
       const q = await getBestQuote({
         fromChainId: activeChain,
@@ -440,19 +551,29 @@ export default function Swap() {
 
   const onConfirm = async (unlock: Unlock) => {
     if (!quote) return;
+    if (stale) throw new Error(t('errQuoteExpired')); // devenu périmé pendant la saisie du code
     setStep(t('preparing'));
     sound.send();
     try {
       const hash = await executeSwap(quote, unlock, (s) => setStep(t(STATUS_KEY[s])));
+      usePortfolioStore.getState().invalidate();
       haptic.success();
       sound.success();
       const summary = `${amount} ${fromTok.symbol} → ≈ ${formatTokenAmount(quote.toAmount, quote.toToken.decimals)} ${toTok.symbol}`;
       stopCountdown();
       reset();
       setAmount('');
+      setSliderPct(null);
       setSuccess({ hash, summary, isBridge, fromChain: activeChain, toChain: toChain });
       notifyAndLog('tx', isBridge ? t('bridgeSent') : t('swapExecuted'), summary);
-      void watchConfirmation(activeChain, hash, summary);
+      /*
+       * Soldes du réseau mis de côté jusqu'à l'ISSUE de l'échange (le nœud rend
+       * encore ceux d'avant) ; relus dès qu'il est confirmé, échoué ou expiré.
+       */
+      const settle = beginSwap(activeChain, owner);
+      void watchConfirmation(activeChain, hash, summary)
+        .then((st) => settle(st === 'confirmed' || st === 'failed' || st === 'expired'))
+        .catch(() => settle(false)); // suivi en échec : le plafond de 3 min libérera
     } catch (e) {
       // Devis probablement invalide après un échec (prix, blockhash, nonce) : on
       // l'invalide pour forcer un nouveau devis avant toute nouvelle tentative.
@@ -465,22 +586,29 @@ export default function Swap() {
   const toChainCfg = getAdapter(toChain).config;
   const impact = quote && quote.fromAmountUsd > 0 ? ((quote.toAmountUsd - quote.fromAmountUsd) / quote.fromAmountUsd) * 100 : null;
   const impactLevel: 'none' | 'warning' | 'danger' = impact == null ? 'none' : impact <= -10 ? 'danger' : impact <= -3 ? 'warning' : 'none';
-  const routeSentence = quote
-    ? `Via ${quote.toolName}${isBridge ? ` de ${fromChainCfg.name} vers ${toChainCfg.name}` : ` sur ${fromChainCfg.name}`}${quote.durationSec > 0 ? `, environ ${quote.durationSec < 60 ? `${quote.durationSec} secondes` : `${Math.round(quote.durationSec / 60)} min`}` : ''}.`
+  const routeTitle = quote
+    ? isBridge
+      ? fill(t('swapRouteBridge'), { tool: quote.toolName, from: fromChainCfg.name, to: toChainCfg.name })
+      : fill(t('swapRouteOn'), { tool: quote.toolName, chain: fromChainCfg.name })
     : null;
+  const routeDuration = quote && quote.durationSec > 0
+    ? quote.durationSec < 60 ? fill(t('durSeconds'), { n: String(quote.durationSec) }) : fill(t('durMinutes'), { n: String(Math.round(quote.durationSec / 60)) })
+    : '';
+  const routeSentence = routeTitle ? `${routeTitle}${routeDuration ? ` · ${routeDuration}` : ''}. ` : null;
+  const slippagePct = `${(Number(slippage) * 100).toFixed(1).replace('.', decimalSeparator())} %`;
   const [advanced, setAdvanced] = useState(false);
   const [review, setReview] = useState(false);
 
-  const TokenBlock = ({ label, tok, chainId, value, onPick, right, muted }: { label: string; tok: Tok | undefined; chainId: string; value: string; onPick: () => void; right?: React.ReactNode; muted?: boolean }) => (
-    <Surface level={2} style={{ gap: space[2] }}>
+  const TokenBlock = ({ label, tok, chainId, value, onPick, right, bottom, muted }: { label: string; tok: Tok | undefined; chainId: string; value: string; onPick: () => void; right?: React.ReactNode; bottom?: React.ReactNode; muted?: boolean }) => (
+    <View style={{ gap: space[2], padding: 18, borderRadius: 26, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text variant="caption" tone="secondary">{label}</Text>
         {right}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ flex: 1, fontSize: 36, lineHeight: 42, color: muted ? colors.textSecondary : colors.text }}>{value || '0'}</Text>
-        <KPressable onPress={onPick} accessibilityLabel={`Choisir le token ${label}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: 6, paddingLeft: 6, paddingRight: 10, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
-          {tok ? <TokenIcon symbol={tok.symbol} logo={tok.logo} seed={tok.address} size={28} /> : <Skeleton width={28} height={28} round />}
+        <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ flex: 1, fontSize: 44, lineHeight: 50, letterSpacing: -1.2, color: muted ? colors.textTertiary : colors.text }}>{value || '0'}</Text>
+        <KPressable onPress={onPick} accessibilityLabel={`${label} : ${tok?.symbol ?? ''}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], height: 46, paddingLeft: 6, paddingRight: 12, borderRadius: 23, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border }}>
+          {tok ? <TokenIcon symbol={tok.symbol} logo={tok.logo} seed={tok.address} size={32} /> : <Skeleton width={32} height={32} round />}
           <View>
             <Text variant="body">{tok?.symbol ?? '…'}</Text>
             <Text variant="micro" tone="tertiary">{getAdapter(chainId).config.name}</Text>
@@ -488,16 +616,46 @@ export default function Swap() {
           <Icon name="caretDown" size={14} tone="muted" />
         </KPressable>
       </View>
-    </Surface>
+      {bottom}
+    </View>
   );
+
+  const RouteRow = ({ label, value, tone }: { label: string; value: string; tone?: 'danger' | 'warning' }) => (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space[3] }}>
+      <Text variant="caption" tone="secondary">{label}</Text>
+      <Text variant="caption" tabular tone={tone} style={{ flexShrink: 1, textAlign: 'right' }}>{value}</Text>
+    </View>
+  );
+
+  /*
+   * FOND DU SWAP : la couleur de ce qu'on donne en haut, de ce qu'on reçoit en
+   * bas. L'écran dit l'échange avant même qu'on lise les symboles, et il change
+   * de lumière quand on change de jeton ou qu'on inverse.
+   */
+  const fromTint = swapTokenTint(fromTok?.symbol, activeChain, CHAIN_LOGO_SVG);
+  const toTint = swapTokenTint(toTok?.symbol, toChain, CHAIN_LOGO_SVG);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {fromTint || toTint ? (
+        <Animated.View key={`${fromTint}-${toTint}`} entering={FadeIn.duration(450)} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <LinearGradient
+            colors={[withAlpha(fromTint ?? colors.bg, mode === 'dark' ? 0.24 : 0.14), withAlpha(fromTint ?? colors.bg, 0), withAlpha(toTint ?? colors.bg, 0), withAlpha(toTint ?? colors.bg, mode === 'dark' ? 0.2 : 0.12)]}
+            locations={[0, 0.42, 0.62, 1]}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+        </Animated.View>
+      ) : null}
       <Stack.Screen options={{ headerShown: false }} />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
         <Text variant="title2" style={{ flex: 1 }}>{isBridge ? t('bridgeAction') : t('swapAction')}</Text>
         {quote && countdown > 0 && !stale ? <CountdownRing progress={countdown / QUOTE_TTL_S} /> : null}
+        {available && account ? (
+          <KPressable onPress={() => setAdvanced((v) => !v)} accessibilityLabel={fill(t('slippageChip'), { pct: slippagePct })} style={{ paddingHorizontal: 12, height: 34, justifyContent: 'center', borderRadius: 17, backgroundColor: advanced ? colors.surface2 : colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+            <Text variant="caption" tone="secondary">{fill(t('slippageChip'), { pct: slippagePct })}</Text>
+          </KPressable>
+        ) : null}
       </View>
 
       {!available || !account ? (
@@ -508,66 +666,95 @@ export default function Swap() {
         <View style={{ padding: SCREEN_MARGIN, gap: space[3] }}><Skeleton height={110} /><Skeleton height={110} /></View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[3] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {/* Tu donnes */}
-          <TokenBlock
-            label={t("youGive")}
-            tok={fromTok}
-            chainId={activeChain}
-            value={amount}
-            onPick={() => setPickerState({ visible: true, side: 'from' })}
-            right={
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                <Text variant="caption" tone="secondary" tabular>{t('availableLabel')} : {formatTokenAmount(getAvailable(), fromTok.decimals)}</Text>
-                <Chip label={t("chipMax")} onPress={() => { onMax(); reset(); stopCountdown(); }} />
-              </View>
-            }
-          />
+          {advanced ? (
+            <Rise style={{ flexDirection: 'row', gap: space[2] }}>
+              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', decimalSeparator())} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
+            </Rise>
+          ) : null}
 
-          {/* Inversion : tourne de 180° avec le ressort Vif */}
-          <View style={{ alignItems: 'center', marginVertical: -space[4], zIndex: 2 }}>
-            <Animated.View style={flipStyle}>
-              <KPressable onPress={onFlip} disabled={isBridge} accessibilityLabel="Inverser les tokens" style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.4 : 1 }}>
-                <Icon name="convert" size={18} />
-              </KPressable>
-            </Animated.View>
+          {/* Les deux cartes, et le disque d'inversion posé à cheval entre elles. */}
+          <View style={{ gap: space[2] }}>
+            <Rise style={{ zIndex: 2 }}>
+              <Animated.View style={topOrbitStyle} onLayout={(e) => setBlockH(Math.round(e.nativeEvent.layout.height))}>
+              <TokenBlock
+                label={t("youGive")}
+                tok={fromTok}
+                chainId={activeChain}
+                value={amount}
+                onPick={() => setPickerState({ visible: true, side: 'from' })}
+                /*
+                 * « Disponible · Max » EN HAUT, face au libellé : en bas de la
+                 * carte, il passait sous le disque d'inversion posé à cheval.
+                 */
+                right={
+                  swapPending ? (
+                    <Text variant="caption" tone="secondary" numberOfLines={1}>{t('availableLabel')} : {t('swapPendingShort')}</Text>
+                  ) : (
+                    <KPressable onPress={balanceError ? retryBalance : onMax} hitSlop={8} accessibilityLabel={balanceError ? t('retry') : t("chipMax")}>
+                      <Text variant="caption" tone="secondary" tabular numberOfLines={1}>{t('availableLabel')} : {balanceError ? '—' : balanceUnknown ? '…' : formatTokenAmount(getAvailable(), fromTok.decimals)} · <Text variant="caption" style={{ color: GOLD }}>{balanceError ? t('retry') : t("chipMax")}</Text></Text>
+                    </KPressable>
+                  )
+                }
+                bottom={<Text variant="caption" tone="secondary" tabular>{quote && quote.fromAmountUsd > 0 ? `≈ ${formatFiat(quote.fromAmountUsd)} $` : ' '}</Text>}
+              />
+              </Animated.View>
+            </Rise>
+            <Rise delay={70}>
+              <Animated.View style={bottomOrbitStyle}>
+              <TokenBlock
+                label={t("youReceive")}
+                tok={toTok}
+                chainId={toChain}
+                value={quote ? formatTokenAmount(quote.toAmount, quote.toToken.decimals) : ''}
+                muted={!quote}
+                onPick={() => setPickerState({ visible: true, side: 'to' })}
+                bottom={<Text variant="caption" tone="secondary" tabular>{quote && quote.toAmountUsd > 0 ? `≈ ${formatFiat(quote.toAmountUsd)} $` : ' '}</Text>}
+              />
+              </Animated.View>
+            </Rise>
+            <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 5, alignItems: 'center', justifyContent: 'center' }}>
+              <Animated.View style={flipStyle}>
+                <KPressable onPress={onFlip} disabled={isBridge} overshoot haptic="light" accessibilityLabel={t('swapFlip')} style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary, borderWidth: 4, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.5 : 1 }}>
+                  <Icon name="convert" size={22} color={colors.onPrimary} />
+                </KPressable>
+              </Animated.View>
+            </View>
           </View>
 
-          {/* Tu reçois */}
-          <TokenBlock
-            label={t("youReceive")}
-            tok={toTok}
-            chainId={toChain}
-            value={quote ? formatTokenAmount(quote.toAmount, quote.toToken.decimals) : ''}
-            muted={!quote}
-            onPick={() => setPickerState({ visible: true, side: 'to' })}
-            right={quote && quote.toAmountUsd > 0 ? <Text variant="caption" tone="secondary" tabular>≈ {formatFiat(quote.toAmountUsd)} $</Text> : null}
-          />
-
-          {/* Route en une phrase + impact */}
+          {/* La route, en carte : par où passe l'échange, ce qu'il coûte, ce qu'on reçoit au pire. */}
           {quote ? (
-            <View style={{ gap: space[1] }}>
-              <Text variant="caption" tone="secondary">{routeSentence}</Text>
-              {impact != null ? <Text variant="caption" tone={impactLevel === 'danger' ? 'danger' : impactLevel === 'warning' ? 'warning' : 'secondary'} tabular>{t('priceImpact').replace('{impact}', impact.toFixed(2))}</Text> : null}
+            <Rise delay={120} style={{ gap: space[3], padding: space[4], borderRadius: 22, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: stale ? colors.warning : colors.up }} />
+                <Text variant="body" numberOfLines={2} style={{ flex: 1 }}>{routeTitle}</Text>
+                {routeDuration ? <Text variant="caption" tone="secondary">{routeDuration}</Text> : null}
+              </View>
+              <RouteRow label={t('minReceived')} value={`${formatTokenAmount(quote.toAmountMin, quote.toToken.decimals)} ${toTok.symbol}`} />
+              <RouteRow label={t('kalyxFee')} value={`${((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', decimalSeparator())} %`} />
+              <RouteRow label={t('networkFee')} value={quote.gasCostUsd > 0 ? `≈ ${formatFiat(quote.gasCostUsd)} $` : quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : '—'} />
+              {impact != null && impactLevel !== 'none' ? <Text variant="caption" tone={impactLevel === 'danger' ? 'danger' : 'warning'} tabular>{t('priceImpact').replace('{impact}', impact.toFixed(2))}</Text> : null}
               {stale ? <Text variant="caption" tone="warning">{t('quoteStale')}</Text> : null}
-            </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                <Icon name="security" size={15} color={colors.up} />
+                <Text variant="micro" tone="secondary" style={{ flex: 1 }}>{t('swapGuarded')}</Text>
+              </View>
+            </Rise>
           ) : null}
           {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
           {isNativeTokenAddress(fromTok.address) ? <Text variant="micro" tone="tertiary">{t('gasReserve')} : {gasReserve ? `≈ ${formatTokenAmount(gasReserve.raw, chain.nativeDecimals)} ${chain.nativeSymbol}${gasReserve.live ? '' : ' (est.)'}` : '…'}</Text> : null}
 
-          {/* Réglage avancé replié : slippage */}
-          <KPressable onPress={() => setAdvanced((v) => !v)} style={{ paddingVertical: space[1] }}>
-            <Text variant="caption" tone="secondary">{advanced ? t("hideAdvancedSettings") : t("advancedSettingsSlippage").replace('{slippage}', (Number(slippage) * 100).toFixed(1))}</Text>
-          </KPressable>
-          {advanced ? (
-            <View style={{ flexDirection: 'row', gap: space[2] }}>
-              {['0.001', '0.005', '0.01', '0.03'].map((v) => <Chip key={v} label={`${(Number(v) * 100).toFixed(1).replace('.', ',')} %`} selected={slippage === v} onPress={() => { setSlippage(v); reset(); stopCountdown(); }} />)}
-            </View>
-          ) : null}
-
           {/* Clavier maison + action */}
-          <AmountKeypad value={amount} onChange={(v) => { setAmount(v); reset(); stopCountdown(); }} maxDecimals={Math.min(fromTok.decimals, 8)} />
+          {/* Curseur à crans : « la moitié », « tout » au pouce ; le clavier pour un montant précis. */}
+          <SnapSlider
+            value={sliderPct}
+            disabled={balanceUnknown}
+            accent={fromTint}
+            maxLabel={t('chipMax')}
+            onChange={(p) => { setSliderPct(p); setPercent(BigInt(p)); reset(); stopCountdown(); }}
+          />
+          <AmountKeypad value={amount} onChange={(v) => { setSliderPct(null); setAmount(v); reset(); stopCountdown(); }} maxDecimals={Math.min(fromTok.decimals, 8)} />
           {!quote ? (
-            <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading} disabled={!amount || Number(amount) <= 0} />
+            <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading || awaitingTo} disabled={!amount || Number(amount) <= 0 || awaitingTo} />
           ) : stale ? (
             <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading} />
           ) : (
@@ -590,10 +777,16 @@ export default function Swap() {
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('networkFee')}</Text><Text variant="caption" tabular>{quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : ''}{quote.gasCostUsd > 0 ? ` (≈ ${formatFiat(quote.gasCostUsd)} $)` : quote.gasCostNative > 0n ? '' : '—'}</Text></View>
               <Divider />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', ',')} %</Text></View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', decimalSeparator())} %</Text></View>
             </Surface>
-            <Text variant="caption" tone="secondary">{routeSentence}{t("slippageTolerance")}{(quote.slippage * 100).toFixed(1).replace('.', ',')} %.</Text>
-            {impactLevel === 'danger' ? (
+            <Text variant="caption" tone="secondary">{routeSentence}{t("slippageTolerance")}{(quote.slippage * 100).toFixed(1).replace('.', decimalSeparator())} %.</Text>
+            {stale ? (
+              // Devis périmé : on le renouvelle, on ne signe pas un prix qui n'a plus cours.
+              <>
+                <Text variant="caption" tone="warning">{t('errQuoteExpired')}</Text>
+                <Button label={t('getQuote')} onPress={() => { setReview(false); onQuote(); }} loading={loading} />
+              </>
+            ) : impactLevel === 'danger' ? (
               <>
                 <Text variant="caption" tone="danger">{t("highPriceImpactWarning")}</Text>
                 <HoldButton label={t("holdToConfirm")} danger icon="exchange" onComplete={() => { setReview(false); setConfirming(true); }} />
@@ -636,7 +829,25 @@ export default function Swap() {
             setToChain(chainId);
             const list = tokensByChain[chainId] ?? [];
             const idx = list.findIndex((tk) => tk.address.toLowerCase() === token.address.toLowerCase());
-            setTo(Math.max(0, idx));
+            /*
+             * Liste pas encore chargée : le jeton choisi est retenu et appliqué
+             * à son arrivée — on ne bascule plus en silence sur le premier jeton
+             * (on aurait échangé vers autre chose que ce qui a été choisi).
+             */
+            paramToApplied.current = true; // un choix explicite prime sur le lien d'arrivée
+            if (idx >= 0) {
+              pendingTo.current = null;
+              setAwaitingTo(false);
+              setTo(idx);
+            } else if (list.length) {
+              // Liste déjà là sans ce jeton : on le dit tout de suite.
+              pendingTo.current = null;
+              setAwaitingTo(false);
+              toast.error(t('errInvalidToken'));
+            } else {
+              pendingTo.current = { chainId, address: token.address };
+              setAwaitingTo(true);
+            }
           }
           reset();
           stopCountdown();
@@ -651,3 +862,6 @@ export default function Swap() {
     </View>
   );
 }
+
+// Lecture seule : rien à signer ici (ui/WatchOnlyGate).
+export default withWatchOnlyGate(SwapInner);

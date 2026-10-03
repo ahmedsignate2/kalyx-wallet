@@ -23,6 +23,9 @@ const schemes = ['kalyx', ...(googleScheme ? [googleScheme] : [])];
 const BUILD_PROFILE = process.env.EAS_BUILD_PROFILE ?? '';
 const APP_VERSION = BUILD_PROFILE.startsWith('production') ? '1.0.0' : '0.1.0';
 
+/** Runtime natif, partagé par le build et les OTA — voir `runtimeVersion` plus bas. */
+export const NATIVE_RUNTIME = 'native-2026.09.28b';
+
 const config: ExpoConfig = {
   name: 'Kalyx Wallet',
   slug: 'kalyx-wallet',
@@ -53,20 +56,27 @@ const config: ExpoConfig = {
     fallbackToCacheTimeout: 0,
   },
   /*
-   * EMPREINTE, et surtout PAS `appVersion`.
+   * RUNTIME EXPLICITE, et non plus l'empreinte calculée (27/09).
    *
-   * Une OTA ne doit jamais atterrir sur un binaire incompatible : si le JS
-   * appelle un module natif absent de l'APK installé, l'app plante au lancement
-   * et l'utilisateur n'a plus que la réinstallation pour s'en sortir. La
-   * politique `fingerprint` hache le projet natif, donc une mise à jour n'est
-   * proposée qu'aux binaires réellement capables de l'exécuter.
+   * Les builds se font désormais sur le serveur, plus sur EAS (quota épuisé),
+   * alors que les mises à jour OTA sont calculées ailleurs : deux empreintes
+   * calculées dans deux environnements peuvent diverger, et l'OTA ne redescend
+   * alors jamais — en silence. Un numéro fixe, partagé par le build et l'OTA,
+   * supprime ce décalage.
    *
-   * `appVersion` serait un piège ici en plus : APP_VERSION vaut '0.1.0' en
-   * preview et '1.0.0' en production (voir plus haut), et `autoIncrement` est
-   * actif sur production — chaque changement de version orphelinerait les
+   * Le risque que l'empreinte évitait reste réel : changer le natif SANS
+   * changer ce numéro enverrait du JavaScript qui appelle un module absent de
+   * l'APK installé, et l'app planterait au lancement. D'où
+   * `scripts/check-native-runtime.mjs`, exécuté en CI : il recalcule
+   * l'empreinte native et échoue si elle a changé alors que ce numéro est resté
+   * le même. Pour un nouveau natif : incrémenter NATIVE_RUNTIME, lancer
+   * `node scripts/check-native-runtime.mjs --record`, puis rebuilder l'APK.
+   *
+   * Pas `appVersion` : APP_VERSION diffère entre preview et production et
+   * s'incrémente seul en production — chaque changement orphelinerait les
    * installations existantes.
    */
-  runtimeVersion: { policy: 'fingerprint' },
+  runtimeVersion: NATIVE_RUNTIME,
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.kalyx.wallet',
@@ -74,9 +84,6 @@ const config: ExpoConfig = {
     // apple-app-site-association servi par le site, cf. web/public/.well-known).
     associatedDomains: ['applinks:kalyxwallet.com'],
     infoPlist: {
-      // Ledger Nano X en Bluetooth (transport @ledgerhq BLE).
-      NSBluetoothAlwaysUsageDescription:
-        'Kalyx utilise le Bluetooth pour se connecter à un portefeuille matériel Ledger.',
       /*
        * Lève le plafond de 60 fps d'iOS sur les écrans ProMotion : sans ce
        * drapeau, une app React Native reste bridée à 60 quel que soit l'écran.
@@ -94,7 +101,8 @@ const config: ExpoConfig = {
        * Le routage correspondant vit dans `lib/paymentIntent`.
        */
       CFBundleURLTypes: [
-        { CFBundleURLSchemes: [...schemes, 'wc', 'ethereum', 'bitcoin', 'solana'] },
+        // `ton` : factures TON Pay (ton://transfer/…) ; `tc` : lien TON Connect unifié, obligatoire (spec deeplinks).
+        { CFBundleURLSchemes: [...schemes, 'wc', 'ethereum', 'bitcoin', 'solana', 'ton', 'tc'] },
       ],
     },
   },
@@ -110,11 +118,8 @@ const config: ExpoConfig = {
     // La protection anti-capture d'écran sur les écrans sensibles se branche
     // au niveau natif / via expo-screen-capture (cf. app/backup.tsx), sans
     // permission manifeste.
-    // Pas de bloc `permissions` ici : CAMERA (expo-camera) et BLUETOOTH_SCAN/
-    // CONNECT (react-native-ble-plx, cf. plugins) sont déjà déclarées — avec
-    // leur rationale/flags corrects — par leurs plugins respectifs. Les
-    // redéclarer ici doublonnait BLUETOOTH_SCAN SANS `neverForLocation`,
-    // risquant d'annuler ce flag dans le manifeste fusionné.
+    // Pas de bloc `permissions` ici : CAMERA est déclarée par le plugin
+    // expo-camera, avec sa justification. Aucune permission Bluetooth.
     // Deep links système : WalletConnect et les trois URI de paiement (cf. iOS).
     intentFilters: [
       {
@@ -126,6 +131,8 @@ const config: ExpoConfig = {
           { scheme: 'ethereum' },
           { scheme: 'bitcoin' },
           { scheme: 'solana' },
+          { scheme: 'ton' },
+          { scheme: 'tc' },
         ],
         category: ['BROWSABLE', 'DEFAULT'],
       },
@@ -142,6 +149,8 @@ const config: ExpoConfig = {
         data: [
           { scheme: 'https', host: 'kalyxwallet.com', pathPrefix: '/wc' },
           { scheme: 'https', host: 'kalyxwallet.com', pathPrefix: '/pay' },
+          // TON Connect : lien universel déclaré dans la liste officielle des wallets TON.
+          { scheme: 'https', host: 'kalyxwallet.com', pathPrefix: '/ton-connect' },
         ],
         category: ['BROWSABLE', 'DEFAULT'],
       },
@@ -189,15 +198,9 @@ const config: ExpoConfig = {
           'Kalyx accède à une photo que tu choisis pour y lire un QR code de paiement. Aucune autre image n’est lue.',
       },
     ],
-    // Ledger BLE (react-native-ble-plx) — actif au prochain rebuild EAS.
-    // `neverForLocation: true` : le scan Bluetooth sert UNIQUEMENT à trouver un
-    // Ledger, jamais à géolocaliser. Sans ce flag, le plugin ajoute
-    // ACCESS_FINE/COARSE_LOCATION (sans plafond de SDK) — contraire à la
-    // politique « zéro télémétrie » de Kalyx et signalé par les revues stores
-    // (Google Play en particulier) comme une permission de localisation
-    // injustifiée. Avec le flag, la permission est limitée à Android ≤ 11 et
-    // BLUETOOTH_SCAN porte `usesPermissionFlags="neverForLocation"`.
-    ['react-native-ble-plx', { isBackgroundEnabled: false, neverForLocation: true }],
+    // Plus de plugin Bluetooth : la prise en charge Ledger n'a jamais été écrite, et
+    // le module ne faisait que demander BLUETOOTH_SCAN/CONNECT (et, sous Android ≤ 11,
+    // la localisation) pour rien — permissions que les revues des stores reprochent.
     // Durcissement Android : voir plugins/withAndroidNoBackup.js.
     './plugins/withAndroidNoBackup.js',
   ],

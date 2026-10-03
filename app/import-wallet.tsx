@@ -1,17 +1,21 @@
-import { ScreenHeader, SENSITIVE_INPUT_PROPS, Pressable as KPressable } from '../ui/kit';
+import { ScreenHeader, SENSITIVE_INPUT_PROPS, Pressable as KPressable, Text as KText } from '../ui/kit';
+import { PinPromptModal } from '../ui/PinPromptModal';
+import { IconDisc, Orbit, Pills, Rise, SectionLabel } from '../ui/nova';
+import { fill } from '../lib/i18n';
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { router, Stack } from 'expo-router';
 import { Card, Button, Title, Muted } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
-import { useWallet } from '../lib/walletStore';
-import { useT } from '../lib/settingsStore';
+import { useWallet, phraseKindForImport } from '../lib/walletStore';
+import { useT, useSettings } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import { toast } from '../lib/toast';
 import {
-  validateMnemonic,
+  isWalletError,
   restoreBackup,
   type BackupError,
   parseImportedKey,
@@ -21,12 +25,17 @@ import {
   groupAddress,
   type KeyFamily,
   type KeyParseError,
+  unknownWords,
+  type BackupWallet,
 } from '../src';
 import { isDriveConfigured } from '../lib/googleDrive';
+import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 
 type Mode = 'phrase' | 'key' | 'backup';
 
 export default function ImportWallet() {
+  // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
+  useNoScreenCapture('import-wallet');
   const { colors, typography } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
@@ -53,7 +62,12 @@ export default function ImportWallet() {
   const [text, setText] = useState('');
   const [pwd, setPwd] = useState(''); // mot de passe de sauvegarde (mode backup)
   const [label, setLabel] = useState('');
-  const [pin, setPin] = useState('');
+  const pinLength = useSettings((st) => st.pinLength);
+  /** Fenêtre PIN ouverte : tout a été vérifié, il ne reste qu'à chiffrer. */
+  const [askPin, setAskPin] = useState(false);
+  const [pinError, setPinError] = useState(0);
+  /** Sauvegarde déjà déchiffrée (avant le PIN), prête à importer. */
+  const [restored, setRestored] = useState<BackupWallet[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Famille retenue quand la clé collée peut servir plusieurs réseaux. */
@@ -70,7 +84,13 @@ export default function ImportWallet() {
    */
   const parsed = useMemo(() => (mode === 'key' && text.trim() ? parseImportedKey(text) : null), [mode, text]);
   const candidates = parsed?.ok ? parsed.key.families : [];
-  const chosen: KeyFamily | null = family ?? (candidates.length === 1 ? candidates[0] : null);
+  /*
+   * Le choix ne vaut que s'il s'applique à la clé ACTUELLE : choisi pour une
+   * clé hex puis gardé pour un WIF collé ensuite, il importait le WIF comme
+   * graine Solana — une adresse qui ne détient pas les fonds.
+   */
+  const chosen: KeyFamily | null =
+    family && candidates.includes(family) ? family : candidates.length === 1 ? candidates[0] : null;
   const derived = useMemo(() => {
     if (!parsed?.ok || !chosen) return null;
     try {
@@ -102,56 +122,92 @@ export default function ImportWallet() {
 
   const switchMode = (m: Mode) => {
     setMode(m);
+    setRestored(null);
     setError(null);
     setText('');
     setPwd('');
     setFamily(null);
   };
 
-  const onImport = async () => {
+  /*
+   * VÉRIFIER D'ABORD, DEMANDER LE CODE ENSUITE. Le code se tapait dans un
+   * champ texte avec le reste ; il se tape désormais sur le pavé Kalyx, et
+   * seulement quand tout le reste est valable — un code saisi pour rien, suivi
+   * de « phrase invalide », est une frustration évitable.
+   */
+  const onContinue = async () => {
     setError(null);
-    if (pin.length < 6) {
-      setError(t('enterAppPinEncrypt'));
-      return;
-    }
-    setBusy(true);
-    try {
-      if (mode === 'phrase') {
-        if (!validateMnemonic(text)) { setError(t('invalidPhraseSimple')); return; }
-        await importWallet(text, pin, label);
-      } else if (mode === 'key') {
-        if (!parsed) { setError(t('keyErrUnrecognised')); return; }
-        if (!parsed.ok) { setError(parseErrorText(parsed.error)); return; }
-        // Plusieurs réseaux possibles et aucun choisi : on ne devine pas.
-        if (!chosen) { setError(t('keyErrFamilyRequired')); return; }
-        await importPrivateKey(text, pin, label, chosen);
-      } else {
-        /*
-          Sauvegarde chiffrée : déchiffre, puis importe TOUS les portefeuilles
-          qu'elle contient. Elle n'en restaurait qu'un — sans rien signaler, donc
-          sans que l'utilisateur puisse s'apercevoir de ce qui manquait.
-        */
+    if (mode === 'phrase') {
+      /*
+        Même règle que le magasin : une phrase Tonkeeper est RECONNUE — elle
+        s'ouvre si un réseau TON est configuré, sinon un message l'explique au
+        lieu de « phrase invalide ».
+      */
+      try {
+        phraseKindForImport(text);
+      } catch (e) {
+        setError(isWalletError(e) && e.code === 'INVALID_MNEMONIC' ? t('invalidPhraseSimple') : friendlyTxError(e, t as never));
+        return;
+      }
+    } else if (mode === 'key') {
+      if (!parsed) { setError(t('keyErrUnrecognised')); return; }
+      if (!parsed.ok) { setError(parseErrorText(parsed.error)); return; }
+      // Plusieurs réseaux possibles et aucun choisi : on ne devine pas.
+      if (!chosen) { setError(t('keyErrFamilyRequired')); return; }
+    } else {
+      /*
+        Sauvegarde chiffrée : déchiffrée AVANT le code, pour qu'un mauvais mot
+        de passe se dise tout de suite. Elle importe ensuite TOUS les
+        portefeuilles qu'elle contient — elle n'en restaurait qu'un, sans rien
+        signaler.
+      */
+      setBusy(true);
+      try {
         const r = await restoreBackup(text, pwd);
         if (r.error || !r.wallets?.length) {
           setError(r.error ? backupErrorText(r.error) : t('invalidBackup'));
           return;
         }
-        const added = await importWallets(r.wallets, pin);
+        setRestored(r.wallets);
+      } finally {
+        setBusy(false);
+      }
+    }
+    setAskPin(true);
+  };
+
+  const runImport = async (pin: string) => {
+    setBusy(true);
+    try {
+      if (mode === 'phrase') {
+        await importWallet(text, pin, label); // lance aussi la recherche des comptes 2, 3… (magasin)
+      } else if (mode === 'key') {
+        if (!parsed?.ok || !chosen) return;
+        await importPrivateKey(text, pin, label, chosen);
+      } else {
+        if (!restored) return;
+        const added = await importWallets(restored, pin);
         toast.success(t('backupRestoredCount').replace('{count}', String(added)));
       }
+      setAskPin(false);
       router.replace('/home');
     } catch (e) {
-      setError(friendlyTxError(e));
+      // Seul un PIN faux fait secouer le pavé ; le reste est dit en clair, traduit.
+      if (isWalletError(e) && e.code === 'WRONG_PIN') setPinError((n) => n + 1);
+      else {
+        setAskPin(false);
+        setError(friendlyTxError(e, t as never));
+      }
     } finally {
       setBusy(false);
     }
   };
 
+  const words = mode === 'phrase' && text.trim() ? text.trim().split(/\s+/) : [];
+  const bad = mode === 'phrase' ? unknownWords(text) : [];
+
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoid style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
         contentContainerStyle={{
           padding: spacing(3),
@@ -162,34 +218,25 @@ export default function ImportWallet() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-      <ScreenHeader title={t('importWalletT')} />
-      <Muted>{t('walletsCohabit')}</Muted>
+      <ScreenHeader />
+      {/* Héros : le disque « importer » dans son orbite, le titre, ce qui se passe. */}
+      <View style={{ alignItems: 'center', gap: spacing(1.5), paddingBottom: spacing(1) }}>
+        <View style={{ width: 84, height: 84, alignItems: 'center', justifyContent: 'center' }}>
+          <View pointerEvents="none" style={{ position: 'absolute', left: 42, top: 42 }}><Orbit cx={0} cy={0} r={60} /></View>
+          <IconDisc name="import" size={76} />
+        </View>
+        <Rise delay={80}><Text style={[typography.title, { textAlign: 'center' }]}>{t('importWalletT')}</Text></Rise>
+        <Rise delay={150}><Text style={[typography.muted, { textAlign: 'center', maxWidth: 320 }]}>{t('walletsCohabit')}</Text></Rise>
+      </View>
 
       {/* Sélecteur Phrase / Clé privée / Sauvegarde */}
-      <View style={{ flexDirection: 'row', gap: spacing(0.75), marginVertical: spacing(1) }}>
-        {(['phrase', 'key', 'backup'] as Mode[]).map((m) => {
-          const active = mode === m;
-          return (
-            <KPressable
-              key={m}
-              onPress={() => switchMode(m)}
-              style={{
-                flex: 1,
-                paddingVertical: spacing(1.25),
-                borderRadius: 12,
-                alignItems: 'center',
-                backgroundColor: active ? colors.primary : colors.surface1,
-                borderWidth: 1,
-                borderColor: active ? colors.primary : colors.border,
-              }}
-            >
-              <Text style={{ color: active ? colors.onPrimary : colors.text, fontFamily: typography.bodyStrong.fontFamily, fontSize: 13 }}>
-                {m === 'phrase' ? t('tabPhrase') : m === 'key' ? t('privateKeyLabel') : t('backupTitle')}
-              </Text>
-            </KPressable>
-          );
-        })}
-      </View>
+      <Rise delay={200} style={{ alignItems: 'center' }}>
+        <Pills<Mode>
+          items={(['phrase', 'key', 'backup'] as Mode[]).map((m) => ({ key: m, label: m === 'phrase' ? t('tabPhrase') : m === 'key' ? t('privateKeyLabel') : t('backupTitle') }))}
+          value={mode}
+          onChange={switchMode}
+        />
+      </Rise>
 
       {mode === 'phrase' ? (
         <Muted>{t('phraseModeHint')}</Muted>
@@ -205,7 +252,14 @@ export default function ImportWallet() {
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>{mode === 'phrase' ? t('recoveryPhrase') : mode === 'key' ? t('privateKeyLabel') : t('backupContent')}</Text>
-          <KPressable onPress={async () => setText((await Clipboard.getStringAsync()).trim())}>
+          <KPressable
+            onPress={async () => {
+              const clip = (await Clipboard.getStringAsync()).trim();
+              setText(clip);
+              // Phrase ou clé privée : effacée du presse-papier dès qu'elle est dans le champ.
+              if (clip) void Clipboard.setStringAsync('').catch(() => {});
+            }}
+          >
             <Text style={{ color: colors.primary, fontFamily: typography.bodyStrong.fontFamily }}>{t('paste')}</Text>
           </KPressable>
         </View>
@@ -227,6 +281,21 @@ export default function ImportWallet() {
           style={{ minHeight: mode === 'key' ? 44 : 100, color: colors.text, fontSize: mode === 'backup' ? 12 : 16, textAlignVertical: 'top' }}
         />
       </Card>
+
+      {/* Chaque mot tapé apparaît en pastille ; un mot hors liste BIP-39 est souligné en rouge. */}
+      {words.length > 0 ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {words.map((w, i) => {
+            const ok = !bad.includes(w.toLowerCase());
+            return (
+              <Rise key={`${w}-${i}`} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.surface2, borderBottomWidth: 2, borderBottomColor: ok ? 'transparent' : colors.danger }}>
+                <KText variant="caption" tone={ok ? 'secondary' : 'danger'}>{i + 1}. {w}</KText>
+              </Rise>
+            );
+          })}
+        </View>
+      ) : null}
+      {bad.length > 0 ? <KText variant="caption" tone="danger">{bad.length === 1 ? fill(t('bip39BadOne'), { word: bad[0] }) : fill(t('bip39BadMany'), { count: String(bad.length) })}</KText> : null}
 
       {/*
         CE QU'ON A RECONNU, ET OÙ ÇA MÈNE. Une clé peut être parfaitement valide
@@ -303,14 +372,20 @@ export default function ImportWallet() {
         <Text style={typography.muted}>{t('nameOptional')}</Text>
         <TextInput value={label} onChangeText={setLabel} placeholder={t('namePlaceholderImport')} placeholderTextColor={colors.textSecondary} style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
       </Card>
-      <Card>
-        <Text style={typography.muted}>{t('appPin')}</Text>
-        <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry maxLength={12} style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }} />
-      </Card>
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       <View style={{ height: spacing(1) }} />
-      <Button label={busy ? t('importing') : t('importAction')} loading={busy} onPress={onImport} />
+      <Button label={busy ? t('importing') : t('importAction')} loading={busy} disabled={!text.trim() || bad.length > 0} onPress={onContinue} />
       </ScrollView>
-    </KeyboardAvoidingView>
+      <PinPromptModal
+        visible={askPin}
+        title={t('appPin')}
+        subtitle={t('enterAppPinEncrypt')}
+        expectedLength={pinLength}
+        busy={busy}
+        errorSignal={pinError}
+        onSubmit={runImport}
+        onCancel={() => setAskPin(false)}
+      />
+    </KeyboardAvoid>
   );
 }

@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import React from 'react';
 
-/** Smartphone 9/19.2 avec la vraie capture de l'app (`public/app-screenshot.jpg`). */
+/** Smartphone 9/19.2 avec l'écran d'accueil de l'app, rendu depuis son code (`public/app-screenshot.jpg`). */
 export function PhoneMock({ className = '', alt }: { className?: string; alt: string }) {
   return (
     <div className={`relative w-72 select-none sm:w-80 ${className}`}>

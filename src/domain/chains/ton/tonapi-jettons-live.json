@@ -1,0 +1,306 @@
+{
+ "_source": "TonAPI via kalyx-ton-proxy, relevé le 2026-09-27",
+ "owner": "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs",
+ "jettons": {
+  "balances": [
+   {
+    "balance": "2000000000",
+    "price": {
+     "prices": {
+      "EUR": 0
+     },
+     "diff_24h": {
+      "EUR": "0.00%"
+     },
+     "diff_7d": {
+      "EUR": "0.00%"
+     },
+     "diff_30d": {
+      "EUR": "0.00%"
+     }
+    },
+    "wallet_address": {
+     "address": "0:b15ba3aeeb20d36ce36bc2d72933ad6109ac7c76d7bf8d670633735996b5b3c9",
+     "is_scam": false,
+     "is_wallet": false
+    },
+    "jetton": {
+     "address": "0:e4e76d820ebbde2e1186a75e217f8069f09193b5b4a7dac672daeded228a1191",
+     "name": "Tethe USD",
+     "symbol": "USDT-GARN",
+     "decimals": 9,
+     "image": "https://cache.tonapi.io/imgproxy/YBsz7T62BCFiQrbO-zbtjODyrFbPQgm6g9YPRn3cXno/rs:fill:200:200:1/g:no/aHR0cHM6Ly9pLnBvc3RpbWcuY2MvYzR4Y013RlcvSU1HLTA1OTQuanBn.webp",
+     "verification": "none",
+     "score": 0,
+     "description": "767"
+    }
+   },
+   {
+    "balance": "1060",
+    "price": {
+     "prices": {
+      "EUR": 0.8765498300339932
+     },
+     "diff_24h": {
+      "EUR": "−0.09%"
+     },
+     "diff_7d": {
+      "EUR": "+0.62%"
+     },
+     "diff_30d": {
+      "EUR": "+1.90%"
+     }
+    },
+    "wallet_address": {
+     "address": "0:e655d099d9200bbf27c20d594f2ebd21a0f854c608cd16d4c0c5e9b3f55fc2e7",
+     "is_scam": false,
+     "is_wallet": false
+    },
+    "jetton": {
+     "address": "0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe",
+     "name": "Tether USD",
+     "symbol": "USD₮",
+     "decimals": 6,
+     "image": "https://cache.tonapi.io/imgproxy/T3PB4s7oprNVaJkwqbGg54nexKE0zzKhcrPv8jcWYzU/rs:fill:200:200:1/g:no/aHR0cHM6Ly90ZXRoZXIudG8vaW1hZ2VzL2xvZ29DaXJjbGUucG5n.webp",
+     "verification": "whitelist",
+     "score": 100,
+     "description": "Tether Token for Tether USD"
+    }
+   },
+   {
+    "balance": "32622887",
+    "price": {
+     "prices": {
+      "EUR": 1.0641878810729741
+     },
+     "diff_24h": {
+      "EUR": "+10.03%"
+     },
+     "diff_7d": {
+      "EUR": "+16.85%"
+     },
+     "diff_30d": {
+      "EUR": "+19.09%"
+     }
+    },
+    "wallet_address": {
+     "address": "0:f0b59af8fd3ba74b3dc2e2c352dc3ab76a823b364b332ed54b9af87bf8588aa0",
+     "is_scam": false,
+     "is_wallet": false
+    },
+    "jetton": {
+     "address": "0:729c13b6df2c07cbf0a06ab63d34af454f3d320ec1bcd8fb5c6d24d0806a17c2",
+     "name": "jUSDT",
+     "symbol": "jUSDT",
+     "decimals": 6,
+     "image": "https://cache.tonapi.io/imgproxy/CwB_AmfxXaRx6D2SB22UgGJJu-P49hbxhjTnxv5Ruek/rs:fill:200:200:1/g:no/aHR0cHM6Ly9icmlkZ2UudG9uLm9yZy90b2tlbi8xLzB4ZGFjMTdmOTU4ZDJlZTUyM2EyMjA2MjA2OTk0NTk3YzEzZDgzMWVjNy5wbmc.webp",
+     "verification": "whitelist",
+     "score": 100,
+     "description": "USDT transferred from Ethereum via bridge.ton.org. Token address in Ethereum: 0xdAC17F958D2ee523a2206206994597C13D831ec7"
+    }
+   },
+   {
+    "balance": "43988317111756",
+    "price": {
+     "prices": {
+      "EUR": 0.0004510292587861661
+     },
+     "diff_24h": {
+      "EUR": "+1.83%"
+     },
+     "diff_7d": {
+      "EUR": "+7.31%"
+     },
+     "diff_30d": {
+      "EUR": "+20.76%"
+     }
+    },
+    "wallet_address": {
+     "address": "0:30ac164579d336bd0f4a8002ce829af3af0492da734481a4700df297f1c97eb5",
+     "is_scam": false,
+     "is_wallet": false
+    },
+    "jetton": {
+     "address": "0:2f956143c461769579baef2e32cc2d7bc18283f40d20bb03e432cd603ac33ffc",
+     "name": "Notcoin",
+     "symbol": "NOT",
+     "decimals": 9,
+     "image": "https://cache.tonapi.io/imgproxy/4KCMNm34jZLXt0rqeFm4rH-BK4FoK76EVX9r0cCIGDg/rs:fill:200:200:1/g:no/aHR0cHM6Ly9jZG4uam9pbmNvbW11bml0eS54eXovY2xpY2tlci9ub3RfbG9nby5wbmc.webp",
+     "verification": "whitelist",
+     "score": 98
+    }
+   },
+   {
+    "balance": "2000000000",
+    "price": {
+     "prices": {
+      "EUR": 0
+     },
+     "diff_24h": {
+      "EUR": "0.00%"
+     },
+     "diff_7d": {
+      "EUR": "0.00%"
+     },
+     "diff_30d": {
+      "EUR": "0.00%"
+     }
+    },
+    "wallet_address": {
+     "address": "0:b1f43e7cd43db22d09a30c5668ac8eaab191014558dcbe79ba53a374c1c24567",
+     "is_scam": false,
+     "is_wallet": false
+    },
+    "jetton": {
+     "address": "0:121ac305410a6afbb04ba9e10b786e841cec856bc5d7a8b762f04c80403da980",
+     "name": "Tethe USD",
+     "symbol": "USDT-TON",
+     "decimals": 9,
+     "image": "https://cache.tonapi.io/imgproxy/YBsz7T62BCFiQrbO-zbtjODyrFbPQgm6g9YPRn3cXno/rs:fill:200:200:1/g:no/aHR0cHM6Ly9pLnBvc3RpbWcuY2MvYzR4Y013RlcvSU1HLTA1OTQuanBn.webp",
+     "verification": "blacklist",
+     "score": 0,
+     "description": "6698"
+    }
+   },
+   {
+    "balance": "1000000000",
+    "price": {
+     "prices": {
+      "EUR": 0
+     },
+     "diff_24h": {
+      "EUR": "0.00%"
+     },
+     "diff_7d": {
+      "EUR": "0.00%"
+     },
+     "diff_30d": {
+      "EUR": "0.00%"
+     }
+    },
+    "wallet_address": {
+     "address": "0:3240ec0e91f46678e16b690f8f8abc2e2819e84ea89f55547d20c969aa99c783",
+     "is_scam": false,
+     "is_wallet": false
+    },
+    "jetton": {
+     "address": "0:f229aced5d9be10f2d197488c497007a20785d64344fbd840f612d88817d9f27",
+     "name": "Tether USDT",
+     "symbol": "USD₮",
+     "decimals": 9,
+     "image": "https://cache.tonapi.io/imgproxy/bt67Tjmld3Lw-L1vUluQEOG0X_0TysojxSwDvYgwRAE/rs:fill:200:200:1/g:no/aHR0cHM6Ly9hcGkudG9uc2Nhbi5jb20vYXBpL2ltYWdlcy9hNmI3OTc0YTMxNDBhMTkxNmEzOGUyNjllZDA3YzdhZA.webp",
+     "verification": "blacklist",
+     "score": 0
+    }
+   }
+  ]
+ },
+ "events": [
+  {
+   "event_id": "b2241a5b561c1b4cf2952d037f662fd62103b57ff972781cb05789de41d2b92d",
+   "timestamp": 1790506438,
+   "is_scam": false,
+   "in_progress": false,
+   "ext_msg_hash": "f796aed92a5b56d0cdf5bf1944971417cbc9eaf41fd8d4ed998a2061482a46d6",
+   "actions": [
+    {
+     "type": "JettonTransfer",
+     "status": "ok",
+     "JettonTransfer": {
+      "sender": {
+       "address": "0:dd7465a0f8fbd4f5e6ae8f493a60b987c46ec4504be7e3c7e90e9454aebe936c",
+       "is_scam": false,
+       "is_wallet": true
+      },
+      "recipient": {
+       "address": "0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe",
+       "name": "Tether USD",
+       "is_scam": false,
+       "is_wallet": false
+      },
+      "senders_wallet": "0:dddf71f8f588819803afe95160b987b77aef8dc1a6b3a9aa7cd50608cc1a6541",
+      "recipients_wallet": "0:b15ba3aeeb20d36ce36bc2d72933ad6109ac7c76d7bf8d670633735996b5b3c9",
+      "amount": "2000000000",
+      "jetton": {
+       "address": "0:e4e76d820ebbde2e1186a75e217f8069f09193b5b4a7dac672daeded228a1191",
+       "name": "Tethe USD",
+       "symbol": "USDT-GARN",
+       "decimals": 9,
+       "image": "https://cache.tonapi.io/imgproxy/YBsz7T62BCFiQrbO-zbtjODyrFbPQgm6g9YPRn3cXno/rs:fill:200:200:1/g:no/aHR0cHM6Ly9pLnBvc3RpbWcuY2MvYzR4Y013RlcvSU1HLTA1OTQuanBn.webp",
+       "verification": "none",
+       "score": 0,
+       "description": "767"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "event_id": "3a9c2f0dd3c4800b76d82713b6c7b4c45fb3c8cfbfd6c9dea85d35c5dc823ad1",
+   "timestamp": 1790488442,
+   "is_scam": false,
+   "in_progress": false,
+   "ext_msg_hash": "7cc730f2fc464215d86346437ea0419b674ec9d6cffbf24ad7f547d0a48df702",
+   "actions": [
+    {
+     "type": "TonTransfer",
+     "status": "ok",
+     "TonTransfer": {
+      "sender": {
+       "address": "0:4828b5e449b2078f9c029a593f73f1abd7d1cde293fcaecf665c5ed2101340d0",
+       "is_scam": false,
+       "is_wallet": true
+      },
+      "recipient": {
+       "address": "0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe",
+       "name": "Tether USD",
+       "is_scam": false,
+       "is_wallet": false
+      },
+      "amount": 629062,
+      "comment": "Garden Guard"
+     }
+    }
+   ]
+  },
+  {
+   "event_id": "d4b570a5e149be5ca231beef5c8ef58e62fa287e90a4c7ea84841858b39805a1",
+   "timestamp": 1790408143,
+   "is_scam": false,
+   "in_progress": false,
+   "ext_msg_hash": "d0a4ef4d33f1d350154be86242f102ce71841e80115509cebe598debaaee9a1c",
+   "actions": [
+    {
+     "type": "JettonTransfer",
+     "status": "ok",
+     "JettonTransfer": {
+      "sender": {
+       "address": "0:0195a5586604ce237e517721df51a832427507e63d4c1d80e55e051228a79e86",
+       "is_scam": false,
+       "is_wallet": true
+      },
+      "recipient": {
+       "address": "0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe",
+       "name": "Tether USD",
+       "is_scam": false,
+       "is_wallet": false
+      },
+      "senders_wallet": "0:ff638320a821e497e033a4af5299f0198a3116ef479061fc14ef2db9955cacfc",
+      "recipients_wallet": "0:253ae2939cb514c9f9f649e172eed57fde08d1b87141f1a30dd12f8ffd72ba67",
+      "amount": "13810095670",
+      "jetton": {
+       "address": "0:dcfe7ae6e6839509540cf06449e6afe1af58e0a4d423b06908184faecedb76eb",
+       "name": "Ecorpay",
+       "symbol": "ECOR",
+       "decimals": 9,
+       "image": "https://cache.tonapi.io/imgproxy/AXYwDAEgBpmqE97p7oD9hziO9YXc3kpsKp8O5Uti5f0/rs:fill:200:200:1/g:no/aHR0cHM6Ly9paW1nLnN1L3MvMDQvdGhfQXhGNlI0TUxXRFlycGJ6TlJ1aWNCQUM3THMxRWN0eXY0dlY4bmQzMS5wbmc.webp",
+       "verification": "whitelist",
+       "score": 82,
+       "description": "Ecorpay token"
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

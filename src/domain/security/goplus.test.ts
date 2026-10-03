@@ -4,7 +4,7 @@ describe('GoPlus — parseAddressSecurity', () => {
   it('signale un contrat malveillant', () => {
     const r = parseAddressSecurity({ result: { malicious_contract: '1', phishing_activities: '0' } });
     expect(r.level).toBe('danger');
-    expect(r.reasons).toContain('Contrat malveillant signalé');
+    expect(r.reasons).toContain('gpMaliciousContract'); // une CLÉ, traduite à l'affichage
   });
   it('ok quand aucun drapeau', () => {
     expect(parseAddressSecurity({ result: { malicious_contract: '0' } })).toEqual({ level: 'ok', reasons: [] });
@@ -24,7 +24,7 @@ describe('GoPlus — parseTokenSecurity (honeypot)', () => {
   it('détecte un honeypot (clé en minuscules)', () => {
     const r = parseTokenSecurity({ result: { [C.toLowerCase()]: { is_honeypot: '1' } } }, C);
     expect(r.level).toBe('danger');
-    expect(r.reasons[0]).toMatch(/Honeypot/);
+    expect(r.reasons[0]).toBe('gpHoneypot');
   });
   it('ok si token sain', () => {
     expect(parseTokenSecurity({ result: { [C.toLowerCase()]: { is_honeypot: '0' } } }, C).level).toBe('ok');

@@ -1,4 +1,5 @@
 import { APP_ROUTES_MAP } from '../../lib/aiAppMap';
+import { SafeModal } from '../../ui/kit/SafeModal';
 import { parseProposedActions } from '../../lib/aiActions';
 import { formatDiagnosticContext } from '../../lib/diagnosticContext';
 import React, { useState, useEffect, useRef } from 'react';
@@ -6,6 +7,7 @@ import { KeyboardAvoidingView, Platform, View, TextInput, ScrollView, Modal, Fla
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, IconButton, Skeleton, Chip, Pressable as KPressable } from '../../ui/kit';
 import { space, radius } from '../../ui/tokens';
+import { GOLD, IconDisc, Orbit, Pulse, Rise, TypingDots } from '../../ui/nova';
 import { useTheme } from '../../ui/theme';
 import { useAiStore } from '../../lib/aiStore';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
@@ -28,6 +30,8 @@ import { haptic } from '../../lib/haptics';
 import { openTelegramTicket, normalizeSupportTicket, getClientEnvironmentInfo, generateTicketId } from '../../lib/telegramSupport';
 import { useTicketHistoryStore } from '../../lib/ticketHistoryStore';
 import { detectSensitiveSecrets, sanitizeSecrets } from '../../lib/secretDetector';
+import { knownTxHashes } from '../../lib/knownTxHashes';
+import { kalyxDocsPrompt } from '../../lib/kalyxDocs';
 import { technicalLogger, getFormattedTechnicalLogs } from '../../lib/technicalLogger';
 
 function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
@@ -48,14 +52,14 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
     }
   }, [normalizedTicket]);
 
-  const secretCheck = detectSensitiveSecrets(normalizedTicket);
+  const secretCheck = detectSensitiveSecrets(normalizedTicket, knownTxHashes());
 
   const ticketIdMatch = normalizedTicket.match(/• ID\s*:\s*([^\n]+)/i);
   const ticketId = ticketIdMatch ? ticketIdMatch[1].trim() : null;
 
   const handleExport = async () => {
     setErrorWarning(null);
-    const check = detectSensitiveSecrets(normalizedTicket);
+    const check = detectSensitiveSecrets(normalizedTicket, knownTxHashes());
     if (check.hasSecret) {
       setErrorWarning(check.warningMessage || t('aiSupportSecretAlert'));
       return;
@@ -72,7 +76,7 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
 
   const handleCopy = async () => {
     setErrorWarning(null);
-    const check = detectSensitiveSecrets(normalizedTicket);
+    const check = detectSensitiveSecrets(normalizedTicket, knownTxHashes());
     if (check.hasSecret) {
       setErrorWarning(check.warningMessage || t('aiSupportSecretAlert'));
       return;
@@ -262,7 +266,7 @@ export function AiChatModal({ visible, onClose, context }: { visible: boolean, o
       ? t('aiWelcomeBrowser')
       : t('aiWelcomeWallet');
 
-  function buildSystemPrompt(ctx: any) {
+  function buildSystemPrompt(ctx: any, question = '') {
     const currentChainConfig = getAdapter(activeChain)?.config;
     const currentNetworkName = currentChainConfig?.name || 'Sepolia';
 
@@ -386,13 +390,21 @@ renvoyé.` : `Tu n'as AUCUN outil : l'utilisateur ne les a pas activés. Répond
 avec le contexte et les logs déjà fournis, et ne prétends jamais avoir consulté
 une source externe.`}`;
 
+    /*
+     * DOCUMENTATION KALYX OFFICIELLE (lib/kalyxDocs.ts) : FAQ, pages du site,
+     * confidentialité, conditions, mentions légales — intégrées à l'app, dans
+     * la langue de l'utilisateur. Cherchée ICI avec la question, et jointe :
+     * marche avec tous les fournisseurs, sans outil, sans appel ni coût.
+     */
+    const docsBlock = kalyxDocsPrompt(question, (language || 'fr') as never);
+
     if (ctx.screen === 'browser') {
-      return `${base}\n\nNAVIGATION ACTIVE (dApp) :\n- URL : ${ctx.url || 'Page vierge'}\n- Titre : ${ctx.title || 'Inconnu'}\n\nVérifie la réputation de l'URL, préviens contre le phishing et réponds aux questions sur la dApp.`;
+      return `${base}${docsBlock}\n\nNAVIGATION ACTIVE (dApp) :\n- URL : ${ctx.url || 'Page vierge'}\n- Titre : ${ctx.title || 'Inconnu'}\n\nVérifie la réputation de l'URL, préviens contre le phishing et réponds aux questions sur la dApp.`;
     }
     if (ctx.screen === 'wallet') {
-      return `${base}\n\nDONNÉES DU PORTEFEUILLE :\n- Valeur totale : ${ctx.totalUsd} $\n- Actifs détenus : \n${ctx.tokensSummary?.length ? ctx.tokensSummary.join('\n') : 'Aucun token'}\n\nPERFORMANCES ET P&L (24h) :\n- Variation 24h : ${ctx.pnl24h !== undefined ? (ctx.pnl24h >= 0 ? '+' : '') + ctx.pnl24h.toFixed(2) + ' $ (' + (ctx.pnl24hPct >= 0 ? '+' : '') + ctx.pnl24hPct.toFixed(2) + ' %)' : 'Inconnue'}\n- Meilleur performer : ${ctx.topGainer || 'Aucun'}\n- Pire performer : ${ctx.topLoser || 'Aucun'}\nLORSQUE l'utilisateur demande un bilan ou ses performances, réponds en 2 à 3 phrases percutantes sans jargon lourd (ex: 'Sur les dernières 24h, ton portefeuille est à +5.2% (+0.08 $), principalement porté par ta position BTC.').\n\nSAUVEGARDE ET SÉCURITÉ :\n- Sauvegarde cloud active : ${ctx.hasCloudBackup ? 'OUI' : 'NON'}\n- Approbations actives : ${ctx.activeApprovalsCount || 0}\n\nRéponds directement aux questions sur la gestion, la sécurité ou la répartition de ces fonds.`;
+      return `${base}${docsBlock}\n\nDONNÉES DU PORTEFEUILLE :\n- Valeur totale : ${ctx.totalUsd} $\n- Actifs détenus : \n${ctx.tokensSummary?.length ? ctx.tokensSummary.join('\n') : 'Aucun token'}\n\nPERFORMANCES ET P&L (24h) :\n- Variation 24h : ${ctx.pnl24h !== undefined ? (ctx.pnl24h >= 0 ? '+' : '') + ctx.pnl24h.toFixed(2) + ' $ (' + (ctx.pnl24hPct >= 0 ? '+' : '') + ctx.pnl24hPct.toFixed(2) + ' %)' : 'Inconnue'}\n- Meilleur performer : ${ctx.topGainer || 'Aucun'}\n- Pire performer : ${ctx.topLoser || 'Aucun'}\nLORSQUE l'utilisateur demande un bilan ou ses performances, réponds en 2 à 3 phrases percutantes sans jargon lourd (ex: 'Sur les dernières 24h, ton portefeuille est à +5.2% (+0.08 $), principalement porté par ta position BTC.').\n\nSAUVEGARDE ET SÉCURITÉ :\n- Sauvegarde cloud active : ${ctx.hasCloudBackup ? 'OUI' : 'NON'}\n- Approbations actives : ${ctx.activeApprovalsCount || 0}\n\nRéponds directement aux questions sur la gestion, la sécurité ou la répartition de ces fonds.`;
     }
-    return base;
+    return base + docsBlock;
   }
 
   const sendMessage = async (userMsgOverride?: string) => {
@@ -400,7 +412,7 @@ une source externe.`}`;
     if (!msgToSend || !apiKey) return;
     
     // Contrôle de sécurité client : blocage immédiat si clé privée ou seed phrase
-    const secretCheck = detectSensitiveSecrets(msgToSend);
+    const secretCheck = detectSensitiveSecrets(msgToSend, knownTxHashes());
     if (secretCheck.hasSecret) {
       setInput('');
       addMessageToActive({ sender: 'user', text: sanitizeSecrets(msgToSend) });
@@ -455,16 +467,22 @@ une source externe.`}`;
           console.warn('[CopilotContext] Échec de la consultation on-chain:', error instanceof Error ? error.message : 'erreur inconnue');
         }
       }
-      const SYSTEM_PROMPT = buildSystemPrompt(context);
+      const SYSTEM_PROMPT = buildSystemPrompt(context, msgToSend);
       copilotLog(traceId, 'context.ready', { systemPromptChars: SYSTEM_PROMPT.length, historyMessages: messages.length });
       
-      // Mapper les messages pour l'API
-      let apiMessages = messages.map(m => ({ role: m.sender, content: m.text }));
-      apiMessages.push({ role: 'user', content: msgToSend });
-      
-      if (apiMessages.length > 0 && apiMessages[0].role === 'assistant') {
-        apiMessages = apiMessages.slice(1);
-      }
+      /*
+       * HISTORIQUE BORNÉ. Toute la conversation repartait à chaque message, en
+       * plus de ~24 000 caractères de consignes et de contexte : au troisième
+       * échange, Groq répondait 413 (« trop volumineux ») à chaque fois. Les 12
+       * derniers messages suffisent à suivre une conversation.
+       */
+      const toApi = (list: typeof messages, keep: number) => {
+        let out = list.slice(-keep).map((m) => ({ role: m.sender, content: m.text.length > 1500 ? `${m.text.slice(0, 1500)}…` : m.text }));
+        out.push({ role: 'user', content: msgToSend });
+        while (out.length > 0 && out[0].role === 'assistant') out = out.slice(1);
+        return out;
+      };
+      const apiMessages = toApi(messages, 12);
 
       const { url, headers, model } = buildAiRequestParams(provider, apiKey, customUrl, customModel);
       let body: any = { model, messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...apiMessages] };
@@ -491,6 +509,24 @@ une source externe.`}`;
 
       let res = await requestAi(url, headers, body);
       let data = await res.json().catch(() => ({}));
+      /*
+       * REQUÊTE TROP VOLUMINEUSE (413, ou dépassement de contexte) : une seconde
+       * tentative COMPACTE — les consignes (en tête du prompt) sont gardées, le
+       * contexte de fin (journal, extraits de documentation) est coupé, et
+       * seuls les 4 derniers messages partent. L'utilisateur reçoit une réponse
+       * au lieu d'une erreur.
+       */
+      const tooLarge = res.status === 413 || (res.status === 400 && /context|too large|too long|maximum|tokens/i.test(JSON.stringify(data).slice(0, 600)));
+      if (tooLarge) {
+        copilotLog(traceId, 'request.too_large.retry', { status: res.status, systemPromptChars: SYSTEM_PROMPT.length });
+        const compactSystem = SYSTEM_PROMPT.slice(0, 9000);
+        const compactMessages = toApi(messages, 4);
+        body = provider === 'anthropic'
+          ? { ...body, system: compactSystem, messages: compactMessages }
+          : { ...body, messages: [{ role: 'system', content: compactSystem }, ...compactMessages] };
+        res = await requestAi(url, headers, body);
+        data = await res.json().catch(() => ({}));
+      }
       const toolCalls = data?.choices?.[0]?.message?.tool_calls;
       if (res.ok && provider !== 'anthropic' && Array.isArray(toolCalls) && toolCalls.length > 0) {
         copilotLog(traceId, 'tools.received', { count: toolCalls.length, names: toolCalls.map((call: { function?: { name?: string } }) => call.function?.name) });
@@ -568,15 +604,22 @@ une source externe.`}`;
   ];
 
   return (
-    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+    <SafeModal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <KPressable noScale haptic="none" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={onClose} accessibilityLabel={t('aiClose')} />
-        <View style={{ height: '88%', backgroundColor: colors.surface2, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, overflow: 'hidden' }}>
-          {/* En-tête */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[3], paddingTop: space[3], paddingBottom: space[2] }}>
-            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2], paddingLeft: space[2] }}>
-              <Icon name="sparkles" size={18} />
-              <Text variant="title2">{t('aiTitle')}</Text>
+        <View style={{ height: '90%', backgroundColor: colors.bg, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderWidth: 1, borderBottomWidth: 0, borderColor: colors.border, overflow: 'hidden' }}>
+          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.surface3, marginTop: space[2] }} />
+          {/* En-tête : l'étoile d'or, le nom, et un point qui dit que l'assistant est là. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[3], paddingTop: space[2], paddingBottom: space[2], borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[3], paddingLeft: space[1] }}>
+              <IconDisc name="sparkles" tone="gold" size={38} />
+              <View>
+                <Text variant="body">{t('aiTitle')}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Pulse size={6} color={colors.up} />
+                  <Text variant="micro" tone="tertiary">{loading ? t('aiStatusThinking') : 'Kalyx'}</Text>
+                </View>
+              </View>
             </View>
             <IconButton icon="history" label={t('aiRecentChats')} tone={showHistory ? 'surface' : 'ghost'} onPress={() => setShowHistory((v) => !v)} />
             <IconButton icon="add" label={t('aiNewChat')} tone="ghost" onPress={() => { createNewSession(); setShowHistory(false); }} />
@@ -601,9 +644,10 @@ une source externe.`}`;
             <>
               {messages.length === 0 ? (
                 /* État d'accueil au centre */
-                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space[8], gap: space[3] }}>
-                  <View style={{ width: 64, height: 64, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name="sparkles" size={28} />
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space[6], gap: space[3] }}>
+                  <View style={{ width: 96, height: 96, alignItems: 'center', justifyContent: 'center', marginBottom: space[2] }}>
+                    <View pointerEvents="none" style={{ position: 'absolute', left: 48, top: 48 }}><Orbit cx={0} cy={0} r={70} /></View>
+                    <IconDisc name="sparkles" tone="gold" size={84} />
                   </View>
                   <Text variant="title2" style={{ textAlign: 'center' }}>{profileName ? t('aiGreetingName').replace('{name}', profileName) : t('aiGreeting')}</Text>
                   <Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center' }}>{greeting}</Text>
@@ -621,6 +665,17 @@ une source externe.`}`;
                             .replace('{cost}', `${formatFiat(ethGas.fiatTransfer)} ${fiatSymbol(ethGas.fiat)}`)}
                     </Text>
                   ) : null}
+                  {/* Quatre questions pour démarrer, en cartes : plus lisibles qu'une rangée de puces. */}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], marginTop: space[3], width: '100%' }}>
+                    {SUGGESTIONS.map((sg, i) => (
+                      <Rise key={sg.label} delay={120 + i * 60} style={{ width: '48.5%' }}>
+                        <KPressable onPress={() => sendMessage(sg.label)} haptic="light" accessibilityLabel={sg.label} style={{ minHeight: 92, padding: space[3], gap: space[2], borderRadius: 20, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+                          <IconDisc name={sg.icon} size={32} />
+                          <Text variant="caption" numberOfLines={3}>{sg.label}</Text>
+                        </KPressable>
+                      </Rise>
+                    ))}
+                  </View>
                 </View>
               ) : (
                 <ScrollView ref={scrollViewRef} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: space[4], paddingVertical: space[3], gap: space[2] }} keyboardShouldPersistTaps="handled" onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}>
@@ -631,7 +686,7 @@ une source externe.`}`;
                     const textWithoutTicket = ticketMatch ? m.text.replace(ticketRegex, '').trim() : m.text;
 
                     return (
-                      <View
+                      <Rise
                         key={i}
                         style={{
                           alignSelf: mine ? 'flex-end' : 'flex-start',
@@ -640,6 +695,12 @@ une source externe.`}`;
                           gap: space[2],
                         }}
                       >
+                        {!mine && textWithoutTicket && (i === 0 || messages[i - 1]?.sender === 'user') ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Icon name="sparkles" size={13} color={GOLD} />
+                            <Text variant="micro" tone="tertiary">{t('aiTitle')}</Text>
+                          </View>
+                        ) : null}
                         {textWithoutTicket ? (
                           <View
                             style={{
@@ -649,9 +710,9 @@ une source externe.`}`;
                               borderColor: colors.border,
                               paddingHorizontal: space[3],
                               paddingVertical: space[2],
-                              borderRadius: 18,
-                              borderBottomRightRadius: mine ? 6 : 18,
-                              borderBottomLeftRadius: mine ? 18 : 6,
+                              borderRadius: 20,
+                              borderBottomRightRadius: mine ? 6 : 20,
+                              borderBottomLeftRadius: mine ? 20 : 6,
                             }}
                           >
                             <Text
@@ -701,15 +762,15 @@ une source externe.`}`;
                         {ticketMatch ? (
                           <TicketSupportCard ticketContent={ticketMatch[1].trim()} />
                         ) : null}
-                      </View>
+                      </Rise>
                     );
                   })}
                   {loading ? (
-                    <View style={{ alignSelf: 'flex-start', width: '60%', gap: space[1], padding: space[3], backgroundColor: colors.surface1, borderRadius: 18, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: colors.border }}>
+                    <View style={{ alignSelf: 'flex-start', maxWidth: '80%', gap: space[2], padding: space[3], backgroundColor: colors.surface1, borderRadius: 20, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: colors.border }}>
+                      <TypingDots />
                       <Text variant="caption" tone="secondary">
                         {copilotStatus === 'searching_web' ? t('aiStatusWebSearch').replace('{query}', currentSearchQuery ?? '') : copilotStatus === 'analyzing_sources' ? t('aiStatusReadingSources') : copilotStatus === 'generating' ? t('aiStatusWriting') : t('aiStatusThinking')}
                       </Text>
-                      <Skeleton width="100%" height={12} /><Skeleton width="70%" height={12} />
                     </View>
                   ) : null}
                 </ScrollView>
@@ -717,11 +778,13 @@ une source externe.`}`;
 
               {/* Suggestions + saisie */}
               <View style={{ paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: insets.bottom + space[3], gap: space[3], borderTopWidth: 1, borderTopColor: colors.border }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: space[2] }}>
-                  {SUGGESTIONS.map((sg) => <Chip key={sg.label} label={sg.label} icon={sg.icon} onPress={() => sendMessage(sg.label)} />)}
-                </ScrollView>
+                {messages.length > 0 ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: space[2] }}>
+                    {SUGGESTIONS.map((sg) => <Chip key={sg.label} label={sg.label} icon={sg.icon} onPress={() => sendMessage(sg.label)} />)}
+                  </ScrollView>
+                ) : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                  <View style={{ flex: 1, minHeight: 48, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, paddingHorizontal: space[4], justifyContent: 'center' }}>
+                  <View style={{ flex: 1, minHeight: 50, borderRadius: 25, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, paddingHorizontal: space[4], justifyContent: 'center' }}>
                     <TextInput
                       value={input}
                       onChangeText={setInput}
@@ -733,7 +796,7 @@ une source externe.`}`;
                       style={{ color: colors.text, fontSize: 15, lineHeight: 20, fontFamily: 'GeneralSans-Medium', paddingVertical: 12, maxHeight: 100 }}
                     />
                   </View>
-                  <KPressable onPress={() => sendMessage()} disabled={!input.trim() || loading} accessibilityLabel={t('aiSend')} style={{ width: 48, height: 48, borderRadius: radius.round, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: !input.trim() || loading ? 0.4 : 1 }}>
+                  <KPressable onPress={() => sendMessage()} disabled={!input.trim() || loading} accessibilityLabel={t('aiSend')} style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: !input.trim() || loading ? 0.4 : 1 }}>
                     <Icon name="send" size={20} color={colors.onPrimary} />
                   </KPressable>
                 </View>
@@ -742,6 +805,6 @@ une source externe.`}`;
           )}
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </SafeModal>
   );
 }

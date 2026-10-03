@@ -5,6 +5,7 @@
  */
 import { withTimeout } from '../chains/net';
 import type { ChainConfig } from '../chains/types';
+import { isSpamNft } from './nftSpam';
 
 const TIMEOUT = 12_000;
 
@@ -14,6 +15,8 @@ export interface NftItem {
   name: string;
   collection: string;
   image: string;
+  /** Page de l'explorateur, quand la chaîne n'a pas le format `/token/{contrat}?a={id}` (TON). */
+  url?: string;
 }
 
 interface RawNft {
@@ -22,6 +25,23 @@ interface RawNft {
   tokenId?: string;
   name?: string;
   image?: { cachedUrl?: string; thumbnailUrl?: string; pngUrl?: string; originalUrl?: string };
+}
+
+/**
+ * URL affichable par React Native : `ipfs://` passe par une passerelle, et un
+ * SVG (les Basenames, beaucoup de noms on-chain) est converti en PNG — `Image`
+ * ne décode pas le SVG et laissait une case vide.
+ */
+export function displayableImage(url: string): string {
+  let u = url.trim();
+  if (!u) return '';
+  if (u.startsWith('http://')) u = `https://${u.slice(7)}`;
+  if (u.startsWith('ipfs://')) u = `https://ipfs.io/ipfs/${u.slice(7).replace(/^ipfs\//, '')}`;
+  if (u.startsWith('data:image/svg') || /\.svg(?:[?#]|$)/i.test(u)) {
+    if (u.startsWith('data:')) return '';
+    return `https://wsrv.nl/?url=${encodeURIComponent(u.replace(/^https?:\/\//, ''))}&output=png&w=500&h=500&fit=contain`;
+  }
+  return /^https:\/\//.test(u) || u.startsWith('data:image/') ? u : '';
 }
 
 export function parseNfts(json: unknown): NftItem[] {
@@ -37,14 +57,21 @@ export function parseNfts(json: unknown): NftItem[] {
       tokenId: String(n?.tokenId ?? ''),
       name: n?.name || n?.contract?.name || (n?.tokenId ? `#${n.tokenId}` : 'NFT'),
       collection: n?.contract?.name || n?.collection?.name || '',
-      image:
+      image: displayableImage(
         n?.image?.cachedUrl ||
-        n?.image?.thumbnailUrl ||
         n?.image?.pngUrl ||
+        n?.image?.thumbnailUrl ||
         n?.image?.originalUrl ||
         '',
+      ),
+      named: !!(n?.name || n?.contract?.name),
     }))
-    .filter((n) => n.contract && n.image); // on n'affiche que les NFT avec image
+    // Sans image, un NFT reste montré (case avec icône) s'il a au moins un nom :
+    // un Basename tout juste frappé n'a parfois pas encore d'aperçu chez Alchemy.
+    .filter((n) => n.contract && (n.image || n.named))
+    // `isSpam` d'Alchemy en laisse passer : mêmes règles de nom que sur Solana.
+    .filter((n) => !isSpamNft({ name: n.name, collection: n.collection }))
+    .map(({ named: _named, ...n }) => n);
 }
 
 /** Dérive l'URL NFT API depuis l'URL RPC Alchemy (v2 -> nft/v3). */
@@ -58,8 +85,7 @@ function nftBaseUrl(chain: ChainConfig): string | undefined {
 export async function getNfts(chain: ChainConfig, address: string): Promise<NftItem[]> {
   const base = nftBaseUrl(chain);
   if (!base) return [];
-  try {
-    const res = await withTimeout(
+  const res = await withTimeout(
       // Pas de `excludeFilters[]=SPAM` ni `spamConfidenceLevel` : réservés au plan
       // payant Alchemy (403 sinon). Le spam est écarté côté client via `isSpam`
       // (cf. parseNfts). pageSize=100 (max) pour dépasser les airdrops spam.
@@ -67,8 +93,12 @@ export async function getNfts(chain: ChainConfig, address: string): Promise<NftI
       TIMEOUT,
       () => new Error('timeout'),
     );
-    return parseNfts(await res.json());
-  } catch {
-    return [];
-  }
+  /*
+   * Un réseau que l'API NFT ne couvre pas répond 4xx : ce n'est pas une panne,
+   * il n'y a simplement rien à lire là. Une panne (5xx, délai) REMONTE : avant,
+   * elle devenait une liste vide et l'écran affirmait « aucun NFT ».
+   */
+  if (res.status >= 400 && res.status < 500 && res.status !== 429) return [];
+  if (!res.ok) throw new Error(`Alchemy NFT ${res.status}`);
+  return parseNfts(await res.json());
 }

@@ -9,8 +9,11 @@
  * Drive est confié au flux persistant `useDriveFlow` (lib/googleDrive.ts), qui
  * survit au retour de Google et au redémarrage de l'app.
  */
+import { NovaHero } from '../ui/nova';
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
+import { passwordStrength, MIN_BACKUP_LEVEL } from '../src/security/passwordStrength';
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, KeyboardAvoidingView, Platform, Share, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Platform, Share, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Button, Surface, Input, ScreenHeader, Divider } from '../ui/kit';
@@ -22,23 +25,20 @@ import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
 import { createWalletsBackup } from '../src';
 import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
+import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 
 type Target = 'drive' | 'file';
 
-function strengthOf(pwd: string): { level: 0 | 1 | 2 | 3; key: 'strengthWeak' | 'strengthMedium' | 'strengthStrong' } {
-  if (pwd.length < 8) return { level: pwd.length === 0 ? 0 : 1, key: 'strengthWeak' };
-  const varied = /[A-Z]/.test(pwd) && /\d/.test(pwd) && /[^A-Za-z0-9]/.test(pwd);
-  if (pwd.length >= 12 && varied) return { level: 3, key: 'strengthStrong' };
-  return { level: 2, key: 'strengthMedium' };
-}
-
 export default function CloudBackupScreen() {
+  // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
+  useNoScreenCapture('cloud-backup');
   const { colors } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
   const exportAllWallets = useWallet((s) => s.exportAllWallets);
   // Nombre de portefeuilles réellement emportés, pour le DIRE après coup.
-  const walletCount = useWallet((s) => s.wallets.length);
+  // Les adresses suivies n'ont pas de secret : elles ne partent pas dans la sauvegarde.
+  const walletCount = useWallet((s) => s.wallets.filter((w) => w.type !== 'watch').length);
   const activeWalletId = useWallet((s) => s.activeWalletId);
   const wallets = useWallet((s) => s.wallets);
   const isPk = wallets.find((w) => w.id === activeWalletId)?.type === 'privateKey';
@@ -62,15 +62,16 @@ export default function CloudBackupScreen() {
   // Un flux Drive terminé (succès ou erreur) est acquitté quand on quitte l'écran.
   useEffect(() => () => { if (flow.status === 'done' || flow.status === 'error') flow.reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const strength = strengthOf(pwd);
+  const strength = passwordStrength(pwd);
   const mismatch = confirm.length > 0 && pwd !== confirm;
-  const canSubmit = pwd.length >= 8 && confirm.length > 0 && !mismatch;
+  // Un mot de passe faible n'est plus accepté : c'est la seule protection du fichier.
+  const canSubmit = strength.level >= MIN_BACKUP_LEVEL && confirm.length > 0 && !mismatch;
 
   const driveBusy = flow.kind === 'save' && (flow.status === 'auth' || flow.status === 'working');
   const driveDone = flow.kind === 'save' && flow.status === 'done';
   const driveError =
     flow.kind === 'save' && flow.status === 'error'
-      ? flow.error === 'not_configured' ? t('driveNotConfigured') : flow.error === 'denied' || flow.error === 'timeout' ? t('driveCancelled') : flow.error
+      ? flow.error === 'not_configured' ? t('driveNotConfigured') : flow.error === 'denied' || flow.error === 'timeout' ? t('driveCancelled') : t('driveFailed')
       : null;
   const checkBusy = flow.kind === 'check' && (flow.status === 'auth' || flow.status === 'working');
   const checkResult = flow.kind === 'check' && flow.status === 'done' ? flow.checkResult : undefined;
@@ -111,7 +112,9 @@ export default function CloudBackupScreen() {
       void flow.start({ kind: 'save', blob });
       return;
     }
-    await Share.share({ message: blob, title: t('backupShareTitle') });
+    const res = await Share.share({ message: blob, title: t('backupShareTitle') });
+    // Feuille de partage fermée sans rien enregistrer (iOS le dit) : aucune sauvegarde n'existe, on ne l'annonce pas.
+    if (res.action === Share.dismissedAction) return;
     markEncryptedBackup('file');
     setFileDone(true);
   };
@@ -148,26 +151,28 @@ export default function CloudBackupScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid style={{ flex: 1, backgroundColor: colors.bg }}>
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: SCREEN_MARGIN, paddingTop: insets.top + space[3], paddingBottom: insets.bottom + space[8], gap: space[5] }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* 1. Titre + une phrase */}
+          {/* 1. Héros + ce que la sauvegarde emporte */}
           <View style={{ gap: space[2] }}>
-            <ScreenHeader title={t('encBackup')} />
-            <Text variant="bodySecondary" tone="secondary">{t('backupOneLiner')}</Text>
+            <ScreenHeader />
+            <NovaHero icon="share" tone="gold" title={t('encBackup')} subtitle={t('backupOneLiner')} />
             {/*
               COMBIEN de portefeuilles la sauvegarde emporte. Elle n'en prenait
               qu'un sans le dire ; annoncer le nombre est ce qui permet de repérer
               une sauvegarde incomplète avant d'avoir besoin d'elle.
             */}
-            <Text variant="caption" tone="secondary">{coversLabel}</Text>
+            <View style={{ alignSelf: 'center', paddingHorizontal: 14, height: 32, borderRadius: 16, justifyContent: 'center', backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+              <Text variant="caption" tone="secondary">{coversLabel}</Text>
+            </View>
           </View>
 
           {/* 2. Formulaire */}
-          <Surface style={{ gap: space[4] }}>
+          <Surface style={{ gap: space[4], borderRadius: 24 }}>
             <View style={{ gap: space[2] }}>
               <Input
                 label={t('backupPassword')}
@@ -182,7 +187,7 @@ export default function CloudBackupScreen() {
               <View style={{ flexDirection: 'row', gap: space[1], alignItems: 'center' }}>{bar}</View>
               {pwd.length > 0 ? (
                 <Text variant="caption" tone={strength.level >= 3 ? 'up' : strength.level === 2 ? 'warning' : 'danger'}>
-                  {t(strength.key)}{pwd.length >= 8 && pwd.length < 12 ? ` · ${t('pwdRecommend12')}` : ''}
+                  {strength.level < MIN_BACKUP_LEVEL ? `${t(strength.key)} · ${t('pwdRuleHint')}` : t(strength.key)}
                 </Text>
               ) : null}
             </View>
@@ -201,7 +206,7 @@ export default function CloudBackupScreen() {
           </Surface>
 
           {/* 3. Statut réel */}
-          <Surface style={{ gap: space[3] }}>
+          <Surface style={{ gap: space[3], borderRadius: 24 }}>
             {driveBusy ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
                 <ActivityIndicator color={colors.text} />
@@ -243,7 +248,7 @@ export default function CloudBackupScreen() {
           onDone={() => setConfirming(false)}
           onCancel={() => setConfirming(false)}
         />
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </>
   );
 }

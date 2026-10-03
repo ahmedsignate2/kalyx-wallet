@@ -23,6 +23,8 @@ import { validateAiKey } from '../../lib/aiValidator';
 import { PROVIDER_DEFAULTS } from '../../lib/aiConfig';
 import { serializeCopilotContext } from '../../lib/copilotContext';
 import { useT, useSettings } from '../../lib/settingsStore';
+import { maskSecretsOnly } from '../../lib/secretDetector';
+import { knownTxHashes } from '../../lib/knownTxHashes';
 import { toast } from '../../lib/toast';
 import { useWebT, type WebKey } from './webI18n';
 import { useWebCopilotContext } from './webCopilotContext';
@@ -116,7 +118,8 @@ export function AgentSetup() {
         {tw('activateAgentBody')}
       </Text>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ width: '100%', maxWidth: 400 }} contentContainerStyle={{ flexDirection: 'row', gap: spacing(0.75), justifyContent: 'center', marginTop: spacing(1), paddingHorizontal: spacing(1) }}>
+      {/* Sur plusieurs lignes : en défilement horizontal, les derniers fournisseurs étaient coupés sans indice qu'il y en avait d'autres. */}
+      <View style={{ width: '100%', maxWidth: 420, flexDirection: 'row', flexWrap: 'wrap', gap: spacing(0.75), justifyContent: 'center', marginTop: spacing(1), paddingHorizontal: spacing(1) }}>
         {PROVIDERS.map((p) => {
           const on = p === provider;
           return (
@@ -125,7 +128,7 @@ export function AgentSetup() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       <View style={{ width: '100%', maxWidth: 340, flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, paddingHorizontal: spacing(1.25), marginTop: spacing(1) }}>
         <TextInput
@@ -141,7 +144,7 @@ export function AgentSetup() {
           // champ (ce n'est pas un mot de passe de compte, juste une clé API
           // BYOK stockée localement) — le bandeau recouvrait le clavier mobile.
           textContentType="oneTimeCode"
-          style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 14, paddingVertical: spacing(1.25) }}
+          style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 14, fontFamily: fonts.regular, paddingVertical: spacing(1.25) }}
         />
         <Pressable onPress={() => setShowKey((v) => !v)} hitSlop={6}>
           <Icon name={showKey ? 'eyeOff' : 'eye'} size={17} color={colors.textMuted} />
@@ -149,7 +152,7 @@ export function AgentSetup() {
       </View>
       {PROVIDER_DEFAULTS[provider]?.helperUrl ? (
         <Pressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[provider].helperUrl!)}>
-          <Text style={{ color: colors.accent, fontSize: 12, textDecorationLine: 'underline' }}>{tw('getFreeKey')}</Text>
+          <Text style={{ color: colors.accent, fontSize: 12, fontFamily: fonts.medium, textDecorationLine: 'underline' }}>{tw('getFreeKey')}</Text>
         </Pressable>
       ) : null}
 
@@ -161,7 +164,7 @@ export function AgentSetup() {
             placeholder={tw('apiUrlPlaceholder')}
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
-            style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
+            style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13, fontFamily: fonts.regular }}
           />
         ) : null}
         {/* L'accès aux modèles varie par compte, pas juste par fournisseur
@@ -173,7 +176,7 @@ export function AgentSetup() {
           placeholder={provider === 'custom' ? tw('modelNamePlaceholder') : tw('modelOptional', { model: PROVIDER_DEFAULTS[provider]?.model ?? '' })}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="none"
-          style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
+          style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13, fontFamily: fonts.regular }}
         />
       </View>
       {err ? <Text style={{ color: colors.danger, fontSize: 12, textAlign: 'center' }}>{err}</Text> : null}
@@ -272,6 +275,7 @@ function MessageBubble({ m, onCopy, live, tight, first }: { m: { id: string; sen
 function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: string; worth: { data: { total: number; slices: { chain: ChainConfig; address: string; native: number; tokens: number; value: number; price: number; change24h: number }[] } | null } }) {
   const { colors, typography } = useTheme();
   const tw = useWebT();
+  const t = useT();
   const language = useSettings((s) => s.language);
   const disableAi = useAiStore((s) => s.disableAi);
   const provider = useAiStore((s) => s.provider);
@@ -299,9 +303,16 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     const q = text.trim();
     if (!q || busy) return;
     setInput('');
-    addMessageToActive({ sender: 'user', text: q });
+    /*
+     * Secret dans le message (clé, phrase, WIF, xprv, champ « pin: »…) : MASQUÉ
+     * avant l'envoi au fournisseur d'IA et dans l'historique, et on le dit. Un
+     * hash de transaction connu reste lisible ; la question part quand même.
+     */
+    const masked = maskSecretsOnly(q, knownTxHashes());
+    addMessageToActive({ sender: 'user', text: masked });
+    if (masked !== q) addMessageToActive({ sender: 'assistant', text: t('copilotSecretMasked') });
     setBusy(true);
-    const transcript = [...messages.slice(-8), { sender: 'user', text: q }]
+    const transcript = [...messages.slice(-8), { sender: 'user', text: masked }]
       .map((m) => `${m.sender === 'user' ? tw('you') : tw('copilot')} : ${m.text}`)
       .join('\n');
     let ctx = '{}';
@@ -310,10 +321,18 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     } catch {
       /* contexte refusé par le filtre anti-secret : on continue sans */
     }
-    const r = await askAi(transcript, buildWebSystem(language, ctx));
-    setBusy(false);
+    // Une exception imprévue (réseau, fournisseur) laissait la saisie bloquée en « réflexion » pour toujours.
+    let reply: string;
+    try {
+      const r = await askAi(transcript, buildWebSystem(language, ctx));
+      reply = 'text' in r ? r.text : `⚠ ${r.error}`;
+    } catch (e) {
+      reply = `⚠ ${e instanceof Error && e.message ? e.message : tw('unexpectedError')}`;
+    } finally {
+      setBusy(false);
+    }
     lastAnswerAt.current = Date.now();
-    addMessageToActive({ sender: 'assistant', text: 'text' in r ? r.text : `⚠ ${r.error}` });
+    addMessageToActive({ sender: 'assistant', text: reply });
   };
 
   const copyAnswer = async (text: string) => {

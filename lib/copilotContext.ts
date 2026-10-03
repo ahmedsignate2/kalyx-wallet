@@ -1,10 +1,11 @@
 import { useWallet } from './walletStore';
+import { addressForChain } from './accountAddress';
 import { useSettings } from './settingsStore';
 import { useBrowserStore } from './browserStore';
 import { useDappActivity } from './dappActivity';
 import { usePortfolioStore } from './portfolio/portfolioStore';
 import { useHistoryStore } from './historyStore';
-import { getAdapter, listChains, type ChainFamily } from '../src';
+import { getAdapter, listChains, trimDecimalZeros, type ChainFamily } from '../src';
 import { technicalLogger, getRecentTechnicalLogs } from './technicalLogger';
 
 export interface CopilotWalletContext {
@@ -34,7 +35,8 @@ function formatAmount(raw: bigint, decimals: number): string {
   const value = negative ? -raw : raw;
   const digits = value.toString().padStart(decimals + 1, '0');
   const split = digits.length - decimals;
-  return `${negative ? '-' : ''}${digits.slice(0, split)}.${digits.slice(split)}`.replace(/\.?0+$/, '');
+  if (decimals === 0) return `${negative ? '-' : ''}${digits}`; // pas de « 100. »
+  return trimDecimalZeros(`${negative ? '-' : ''}${digits.slice(0, split)}.${digits.slice(split)}`);
 }
 
 /**
@@ -80,7 +82,7 @@ export function getCopilotContextSnapshot(): CopilotWalletContext {
       }),
     recentActivity: [
       ...listChains({ includeTestnets: settings.showTestnets }).flatMap((network) => {
-        const address = network.family === 'solana' ? account?.solAddress : network.family === 'bitcoin' ? account?.btcAddress : account?.evmAddress;
+        const address = addressForChain(account, network);
         if (!address) return [];
         return history.getCached(network.id, address).map((tx) => ({
           id: tx.hash,

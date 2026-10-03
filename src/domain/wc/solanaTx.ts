@@ -107,6 +107,26 @@ function byteCandidates(input: string | Uint8Array): Uint8Array[] {
   return out;
 }
 
+/**
+ * Octets et encodage de la transaction, avec la MÊME règle que la description :
+ * le premier encodage (base64, puis base58) qui donne une transaction lisible.
+ * La signature devinait l'encodage d'après les caractères : une chaîne base58
+ * de longueur multiple de 4 passait pour du base64, était décodée de travers —
+ * et ce qui était SIGNÉ pouvait différer de ce qui était DÉCRIT.
+ */
+export function solanaTxDecode(input: string): { bytes: Uint8Array; encoding: 'base64' | 'base58' } | null {
+  const s = input.trim();
+  try {
+    const b = base64.decode(s);
+    if (describeBytes(b)) return { bytes: b, encoding: 'base64' };
+  } catch { /* pas du base64 */ }
+  try {
+    const b = base58.decode(s);
+    if (describeBytes(b)) return { bytes: b, encoding: 'base58' };
+  } catch { /* pas du base58 */ }
+  return null;
+}
+
 /** Décode le MESSAGE (sans les signatures). */
 export function parseSolanaMessage(bytes: Uint8Array): {
   version: 'legacy' | 0;

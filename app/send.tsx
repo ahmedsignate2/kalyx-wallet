@@ -8,12 +8,25 @@
  *     devise, simulation « ton solde passera de A à B », MAINTENIR pour envoyer.
  *  4. Suivi : Envoyée → Incluse → Confirmée, on peut quitter (notification).
  */
+import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
+import { fill } from '../lib/i18n';
+import { usePaidAddresses } from '../lib/historySpam';
+import { sameAddress } from '../lib/txAuditProbe';
+import { holdingLabel } from '../lib/holdingLabel';
+import { SendResult } from '../ui/SendResult';
+import { RecipientFacts } from '../ui/RecipientFacts';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { View, ScrollView, Image } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { holdingIcon } from '../ui/kit/useFallbackLogo';
+import { KeyboardAvoid } from '../ui/KeyboardAvoid';
+import { friendlyTxError } from '../lib/txError';
+
+/** Refus de la préparation qui sont CERTAINS : affichés sous le montant, avant le code. */
+const PRECHECK_BLOCKING = new Set(['SOL_RENT_SENDER', 'SOL_RENT_RECIPIENT', 'INSUFFICIENT_FUNDS', 'AMOUNT_TOO_SMALL', 'INSUFFICIENT_GAS', 'MEMO_REQUIRED', 'INVALID_ADDRESS', 'INVALID_AMOUNT', 'PREVIOUS_TX_PENDING']);
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
+import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, HoldRing, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { ContactPicker } from '../ui/ContactPicker';
@@ -27,22 +40,23 @@ import { useContacts } from '../lib/contactsStore';
 import { usePortfolioStore, splitHoldings, type Holding } from '../lib/portfolio';
 import { notifyAndLog } from '../lib/notificationCenter';
 import { technicalLogger } from '../lib/technicalLogger';
-import { friendlyTxError } from '../lib/txError';
 import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
 import {
-  getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isWalletAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount,
+  getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isWalletAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount, trimDecimalZeros,
   formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
-  estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter,
-  findAdapterV2, transferFeeFor, amountAfterTransferFee,
+  estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, TonAdapterV2, JETTON_TRANSFER_TON, normalizeTonDomain,
+  findAdapterV2, getAdapterV2, isValidTonAddress, transferFeeFor, amountAfterTransferFee,
   type FeeOptions, type FeeSpeed, type FeeQuotes, type TransferFeeConfig,
   simulateSendTransaction, type SimulationResult,
 } from '../src';
+import { addressForChain } from '../lib/accountAddress';
+import { useHistoryStore } from '../lib/historyStore';
 import { AntiDrainerBanner } from '../src/components/security/AntiDrainerBanner';
 
 type Step = 0 | 1 | 2 | 3 | 4;
 
-export default function Send() {
+function SendInner() {
   const t = useT();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -51,13 +65,13 @@ export default function Send() {
   const sym = fiatSymbol(fiat);
   const wallet = useWallet();
   const { account, activeChain, accounts } = wallet;
-  const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; symbol?: string; decimals?: string; chain?: string; references?: string; memo?: string; payee?: string; note?: string }>();
+  const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; jetton?: string; exp?: string; symbol?: string; decimals?: string; chain?: string; references?: string; memo?: string; payee?: string; note?: string }>();
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const pf = usePortfolioStore();
 
   // « Quoi envoyer » (étape 0) : depuis l'accueil, on choisit le TOKEN et la chaîne
   // en découle. Depuis la page d'un token (params), on saute cette étape.
-  const presetToken = !!(params.contract || params.mint || params.chain);
+  const presetToken = !!(params.contract || params.mint || params.jetton || params.chain);
   /**
    * Demande de paiement complète : destinataire ET montant fournis par le lien.
    *
@@ -80,7 +94,7 @@ export default function Send() {
 
   const targetChainId = picked?.chainId ?? (params.chain && hasChain(String(params.chain)) ? String(params.chain) : activeChain);
   const chain = getAdapter(targetChainId).config;
-  const family = chain.family as RecipientFamily;
+  const family: RecipientFamily = chain.family;
 
   useEffect(() => {
     if (targetChainId !== activeChain) {
@@ -89,12 +103,8 @@ export default function Send() {
   }, [targetChainId, activeChain, setActiveChain]);
 
   const activeSt = accounts.find((a) => a.index === wallet.activeAccountIndex) ?? accounts[0];
-  const senderAddress = useMemo(() => {
-    if (!activeSt) return '';
-    if (family === 'bitcoin') return activeSt.btcAddress;
-    if (family === 'solana') return activeSt.solAddress ?? '';
-    return activeSt.evmAddress;
-  }, [activeSt, family]);
+  // La fonction unique : sans elle, un envoi TON serait parti de l'adresse EVM.
+  const senderAddress = useMemo(() => addressForChain(activeSt, chain), [activeSt, chain]);
 
   const recents = useRecentRecipients((s) => s.recents).filter((r) => r.family === family);
   const addRecent = useRecentRecipients((s) => s.add);
@@ -104,12 +114,15 @@ export default function Send() {
   const token = picked
     ? picked.kind === 'erc20' ? { kind: 'erc20' as const, contract: picked.contract!, symbol: picked.symbol, decimals: picked.decimals }
       : picked.kind === 'spl' ? { kind: 'spl' as const, mint: picked.contract!, symbol: picked.symbol, decimals: picked.decimals }
+      : picked.kind === 'jetton' ? { kind: 'jetton' as const, master: picked.contract!, symbol: picked.symbol, decimals: picked.decimals }
       : null
     : params.contract
       ? { kind: 'erc20' as const, contract: String(params.contract), symbol: String(params.symbol ?? 'TOKEN'), decimals: decimalsParam }
       : params.mint
         ? { kind: 'spl' as const, mint: String(params.mint), symbol: String(params.symbol ?? 'TOKEN'), decimals: decimalsParam }
-        : null;
+        : params.jetton
+          ? { kind: 'jetton' as const, master: String(params.jetton), symbol: String(params.symbol ?? 'TOKEN'), decimals: decimalsParam }
+          : null;
   const symbol = token ? token.symbol : chain.nativeSymbol;
   const decimals = token ? token.decimals : chain.nativeDecimals;
   const isNativeSend = !token;
@@ -147,27 +160,52 @@ export default function Send() {
   useEffect(() => {
     const st = accounts.find((a) => a.index === wallet.activeAccountIndex) ?? accounts[0];
     if (!st) return;
-    const a = { evmAddress: st.evmAddress, solAddress: st.solAddress, btcAddress: st.btcAddress };
-    pf.hydrate(a, fiat).then(() => pf.refresh(a, fiat, { includeTestnets: showTestnets, force: true }));
+    const a = { evmAddress: st.evmAddress, solAddress: st.solAddress, btcAddress: st.btcAddress, tonPublicKey: st.tonPublicKey, tonVersion: st.tonVersion };
+    pf.hydrate(a, fiat, { includeTestnets: showTestnets }).then(() => pf.refresh(a, fiat, { includeTestnets: showTestnets, force: true }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet.activeAccountIndex, fiat, showTestnets]);
   const [inFiat, setInFiat] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
+  // Vérification de l'envoi par la chaîne (sans clé) avant le récapitulatif.
+  const [checking, setChecking] = useState(false);
   const [pickContact, setPickContact] = useState(false);
+  /*
+   * COMMENTAIRE saisi par l'utilisateur, quand la chaîne en porte un. Les
+   * plateformes d'échange l'exigent pour attribuer un dépôt TON : sans champ, un
+   * dépôt partait sans propriétaire. Un lien de paiement qui fixe déjà le mémo
+   * garde la main — l'écran l'affiche sans le rendre modifiable.
+   */
+  const [comment, setComment] = useState('');
+  const memoCapable = !!findAdapterV2(targetChainId)?.capabilities.memo;
+  const memo = params.memo ? String(params.memo) : comment.trim() || undefined;
 
   // ── Adresse valide selon la famille ──
-  const validAddress = useCallback((a: string) => (family === 'evm' ? isValidEvmAddress(a) : family === 'solana' ? isValidSolanaAddress(a) : isValidBtcAddress(a)), [family]);
+  /*
+   * Une validation PAR FAMILLE, sans cas par défaut. Le ternaire précédent
+   * retombait sur Bitcoin : une adresse TON aurait été jugée selon la règle
+   * Bitcoin — donc refusée, ou pire, une adresse Bitcoin acceptée pour TON.
+   */
+  const validAddress = useCallback((a: string) => {
+    switch (family) {
+      case 'evm': return isValidEvmAddress(a);
+      case 'solana': return isValidSolanaAddress(a);
+      case 'bitcoin': return isValidBtcAddress(a);
+      case 'ton': return isValidTonAddress(a, { testnet: !!chain.testnet });
+    }
+  }, [family, chain.testnet]);
 
-  // ── ENS ──
-  const isEns = family === 'evm' && looksLikeEnsName(to.trim());
+  // ── Noms : ENS sur EVM, TON DNS (« kalyx.ton ») sur TON ──
+  const tonDomain = family === 'ton' ? normalizeTonDomain(to) : null;
+  const isEns = (family === 'evm' && looksLikeEnsName(to.trim())) || !!tonDomain;
   const [ens, setEns] = useState<{ status: 'idle' | 'resolving' | 'found' | 'notfound'; address: string | null }>({ status: 'idle', address: null });
   useEffect(() => {
     if (!isEns) return setEns({ status: 'idle', address: null });
     setEns({ status: 'resolving', address: null });
     const name = to.trim();
     const timer = setTimeout(() => {
-      resolveEnsName(name)
+      const ton = tonDomain ? findAdapterV2(targetChainId) : null;
+      (ton instanceof TonAdapterV2 ? ton.resolveDomain(tonDomain!) : resolveEnsName(name))
         .then((a) => {
           const cleaned = a ? cleanAddressInput(a) : null;
           setEns(cleaned ? { status: 'found', address: cleaned } : { status: 'notfound', address: null });
@@ -175,15 +213,21 @@ export default function Send() {
         .catch(() => setEns({ status: 'notfound', address: null }));
     }, 400);
     return () => clearTimeout(timer);
-  }, [to, isEns]);
+  }, [to, isEns, tonDomain, targetChainId]);
   const recipient = isEns ? ens.address ?? '' : to.trim();
   const recipientOk = !!recipient && validAddress(recipient);
 
   // ── Confiance : mes comptes + récents + contacts ──
-  const known = useMemo(() => [...accounts.flatMap((a) => [a.evmAddress, a.solAddress ?? '', a.btcAddress]).filter(Boolean), ...recents.map((r) => r.address), ...contacts.map((c) => c.address)], [accounts, recents, contacts]);
+  // Mes adresses sur CE réseau aussi (TON se calcule) : s'envoyer à soi-même n'est pas « une adresse jamais utilisée ».
+  const paid = usePaidAddresses();
+  const known = useMemo(() => [...accounts.flatMap((a) => [a.evmAddress, a.solAddress ?? '', a.btcAddress, addressForChain(a, chain)]).filter(Boolean), ...recents.map((r) => r.address), ...contacts.map((c) => c.address), ...paid], [accounts, recents, contacts, chain, paid]);
   const poisoning = recipientOk ? detectPoisoning(recipient, known) : null;
+  // Pour l'audit IA : ce que l'appareil sait de CE destinataire exact.
+  const sameAddr = (a: string) => sameAddress(a, recipient); // TON : EQ… / UQ… / 0:… sont la même adresse
+  const isOwnRecipient = recipientOk && accounts.some((a) => [a.evmAddress, a.solAddress ?? '', a.btcAddress, addressForChain(a, chain)].some(sameAddr));
+  const paidBefore = recipientOk && (paid.some(sameAddr) || recents.some((r) => sameAddr(r.address)));
   const isKnown = recipientOk && known.some((k) => k.toLowerCase() === recipient.toLowerCase());
-  const contactName = contacts.find((c) => c.address.toLowerCase() === recipient.toLowerCase())?.name;
+  const contactName = contacts.find((c) => sameAddress(c.address, recipient))?.name;
   const [isContract, setIsContract] = useState(false);
   /** Destinataire Solana qui n'est pas une clé publique : PDA / compte de jeton. */
   const isSolanaPda = family === 'solana' && recipientOk && !isWalletAddress(recipient);
@@ -209,6 +253,8 @@ export default function Send() {
   const [tokenFee, setTokenFee] = useState<TransferFeeConfig | null>(null);
   const [speed, setSpeed] = useState<FeeSpeed>('normal');
   const [reserve, setReserve] = useState<bigint>(0n);
+  /** Jetton TON : coût RÉEL (émulé), distinct du TON joint au message qu'il faut avoir. */
+  const [jettonFee, setJettonFee] = useState<bigint | null>(null);
   useEffect(() => {
     setBalance(picked?.raw ?? null);
     setPrice(picked?.price ?? 0);
@@ -216,6 +262,7 @@ export default function Send() {
     setNativePrice(0);
     setFeeOptions(null);
     setReserve(0n);
+    setJettonFee(null);
     setAmountError(null);
 
     if (!senderAddress) return;
@@ -246,6 +293,21 @@ export default function Send() {
         if (!alive) return;
         setBalance(list.find((x) => x.mint === token.mint)?.raw ?? 0n);
         setPrice(tp[token.mint.toLowerCase()] ?? 0);
+      } else if (token.kind === 'jetton') {
+        const ton = findAdapterV2(targetChainId);
+        const list = ton instanceof TonAdapterV2 ? await ton.jettons(senderAddress, fiat).catch(() => []) : [];
+        if (!alive) return;
+        const held = list.find((x) => x.master === token.master.toLowerCase());
+        setBalance(held?.raw ?? 0n);
+        setPrice(held?.verification === 'whitelist' ? held.price : 0);
+        // Le message emporte ce TON pour le gaz (l'excédent revient) : il faut l'avoir.
+        setReserve(JETTON_TRANSFER_TON);
+        // Coût réel, émulé sur un envoi à soi-même : c'est lui qu'on affiche.
+        if (ton instanceof TonAdapterV2 && held && held.raw > 0n) {
+          ton.prepareSend(senderAddress, { to: senderAddress, amount: 1n, token: { id: held.master, symbol: held.symbol, decimals: held.decimals } })
+            .then((d) => alive && setJettonFee(d.fee))
+            .catch(() => {});
+        }
       }
       /*
        * PALIERS DE FRAIS — une seule demande, quelle que soit la chaîne.
@@ -260,7 +322,7 @@ export default function Send() {
       const v2 = findAdapterV2(targetChainId);
       if (v2?.capabilities.feeTiers && v2.quoteFees) {
         const ref = token
-          ? { id: token.kind === 'spl' ? token.mint : token.contract, symbol, decimals }
+          ? { id: token.kind === 'spl' ? token.mint : token.kind === 'jetton' ? token.master : token.contract, symbol, decimals }
           : null;
         v2.quoteFees(senderAddress, { to: recipientOk ? recipient : senderAddress, amount: 1n, token: ref })
           .then((q: FeeQuotes) => {
@@ -292,10 +354,13 @@ export default function Send() {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [senderAddress, targetChainId, fiat, params.contract, params.mint, picked?.id]);
+  }, [senderAddress, targetChainId, fiat, params.contract, params.mint, params.jetton, picked?.id]);
 
   // Frais en natif (unité brute) : palier EVM choisi, sinon réserve dynamique.
-  const feeRaw = feeOptions ? feeOptions[speed].costWei : reserve;
+  // Ce qu'il faut AVOIR en natif pour envoyer, et ce que l'envoi COÛTE : identiques,
+  // sauf pour un jetton TON (0,05 TON joints, l'excédent revient).
+  const gasRequired = feeOptions ? feeOptions[speed].costWei : reserve;
+  const feeRaw = token?.kind === 'jetton' && jettonFee != null ? jettonFee : gasRequired;
   let feeFiat = 0;
   if (family === 'bitcoin') {
     const feeInBtc = Number(feeRaw) / 1e8;
@@ -309,7 +374,7 @@ export default function Send() {
 
   // ── Montant ──
   const amountNum = Number(amount) || 0;
-  const tokenAmountStr = inFiat ? (price > 0 ? (amountNum / price).toFixed(Math.min(decimals, 8)).replace(/\.?0+$/, '') : '0') : amount;
+  const tokenAmountStr = inFiat ? (price > 0 ? trimDecimalZeros((amountNum / price).toFixed(Math.min(decimals, 8))) : '0') : amount;
   let amountRaw = 0n;
   try {
     amountRaw = tokenAmountStr ? parseAmount(tokenAmountStr, decimals).raw : 0n;
@@ -323,13 +388,49 @@ export default function Send() {
   const available = balance != null ? (isNativeSend ? (balance > feeRaw ? balance - feeRaw : 0n) : balance) : 0n;
   const overBalance = balance != null && amountRaw > available;
   const hasEnteredAmount = parseFloat(amount || '0') > 0;
-  const notEnoughGas = hasEnteredAmount && nativeBal != null && nativeBal < feeRaw;
+  const notEnoughGas = hasEnteredAmount && nativeBal != null && nativeBal < gasRequired;
   const approxVal = feeFiat > 0 ? `${formatFiat(feeFiat)} ${sym}` : `${formatAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`;
-  const missingFeeText = t('aboutApprox').replace('{amount}', approxVal);
+  const missingFeeText = t('aboutApprox').replace('{amount}', gasRequired === feeRaw ? approxVal : `${formatAmount(gasRequired, chain.nativeDecimals)} ${chain.nativeSymbol}`);
 
-  const setMax = () => {
+  /*
+   * BITCOIN : les frais dépendent des pièces retenues, donc du MONTANT. Le devis
+   * plus haut part d'un montant fictif (1 sat, une seule entrée) ; sans ce
+   * recalcul, le récapitulatif annonçait moins de frais que l'envoi réel n'en
+   * prélevait dès que le paiement demandait plusieurs pièces.
+   */
+  useEffect(() => {
+    if (family !== 'bitcoin' || !recipientOk || amountRaw <= 0n) return;
+    const v2 = findAdapterV2(targetChainId);
+    if (!v2?.quoteFees) return;
+    let alive = true;
+    const timer = setTimeout(() => {
+      v2.quoteFees!(senderAddress, { to: recipient, amount: amountRaw, token: null })
+        .then((q: FeeQuotes) => {
+          if (!alive) return;
+          const tier = (x: (typeof q)['slow']) => ({ maxFeePerGas: 0n, maxPriorityFeePerGas: 0n, costWei: x.cost });
+          setFeeOptions({ slow: tier(q.slow), normal: tier(q.normal), fast: tier(q.fast) });
+        })
+        .catch(() => {});
+    }, 400);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [family, recipientOk, recipient, amountRaw, targetChainId, senderAddress]);
+
+  const setMax = async () => {
     haptic.light();
     setAmountError(null);
+    // Bitcoin : le vrai maximum paie les frais de TOUTES les pièces dépensées.
+    const btc = family === 'bitcoin' && !token ? (findAdapterV2(targetChainId) as { maxSendable?: (f: string, to: string, sp: FeeSpeed) => Promise<{ amount: bigint }> } | undefined) : undefined;
+    if (btc?.maxSendable) {
+      const m = await btc.maxSendable(senderAddress, recipientOk ? recipient : senderAddress, speed).catch(() => null);
+      if (m) {
+        setInFiat(false);
+        setAmount(m.amount > 0n ? formatInputAmount(m.amount, decimals) : '0');
+        return;
+      }
+    }
     if (balance != null && balance > 0n && available === 0n) {
       setAmount('0');
       // Aucun message rouge affiché si le montant est à 0
@@ -418,7 +519,9 @@ export default function Send() {
        */
       const payExtras = {
         references: params.references ? String(params.references).split(',').filter(Boolean) : undefined,
-        memo: params.memo ? String(params.memo) : undefined,
+        memo,
+        // Échéance d'une facture TON Pay : inscrite dans le message, refusée par la chaîne au-delà.
+        expiresAt: params.exp ? Number(params.exp) : undefined,
       };
       const gas = {
         ...(feeOptions
@@ -430,21 +533,38 @@ export default function Send() {
         speed,
         ...payExtras,
       };
+      /*
+       * Le coffre envoie sur le réseau ACTIF ; l'écran affiche `targetChainId`.
+       * Ils sont alignés par un effet — s'ils ne l'étaient pas (bascule refusée,
+       * course), un envoi « sur Base » partirait sur Ethereum avec la même
+       * adresse. On refuse plutôt que de deviner.
+       */
+      if (useWallet.getState().activeChain !== targetChainId) throw new Error(t('errNetworkMismatch'));
       const h =
-        token?.kind === 'spl' ? await wallet.sendSolToken(recipient, tokenAmountStr, { mint: token.mint, decimals: token.decimals }, unlock, payExtras)
+        token?.kind === 'jetton' ? await wallet.sendJetton(recipient, tokenAmountStr, { master: token.master, decimals: token.decimals }, unlock, { memo, expiresAt: payExtras.expiresAt })
+        : token?.kind === 'spl' ? await wallet.sendSolToken(recipient, tokenAmountStr, { mint: token.mint, decimals: token.decimals }, unlock, payExtras)
         : token?.kind === 'erc20' ? await wallet.sendToken(recipient, tokenAmountStr, { contract: token.contract, decimals: token.decimals }, unlock, gas)
         : await wallet.signAndSend(recipient, tokenAmountStr, unlock, gas);
       setHash(h);
       setStage('sent');
+      // Les soldes et l'activité affichés ne sont plus justes : le prochain écran les redemande.
+      pf.invalidate();
+      if (senderAddress) useHistoryStore.getState().markStale(chain.id, senderAddress);
       technicalLogger.logTx('step_4_broadcast_success', { txHash: h, symbol, chain: chain.name });
       addRecent(recipient, family);
       const dest = contactName ?? (isEns ? to.trim() : shortAddress(recipient));
-      notifyAndLog('tx', t("sendTitle"), t('sendSuccessMsg').replace('${formatTokenAmount(amountRaw, decimals)}', formatTokenAmount(amountRaw, decimals)).replace('${symbol}', symbol).replace('${dest}', dest));
+      notifyAndLog('tx', t("sendTitle"), fill(t('sendSuccessMsg'), { amount: formatTokenAmount(amountRaw, decimals), symbol: symbol, dest: dest }));
       haptic.success();
     } catch (e) {
       technicalLogger.logTx('step_4_broadcast_failed', { error: e instanceof Error ? e.message : String(e), chain: chain.name }, true);
-      if (isWalletError(e) && e.code === 'WRONG_PIN') throw e;
-      throw new Error(friendlyTxError(e));
+      /*
+       * L'ERREUR D'ORIGINE, relayée telle quelle : c'est ConfirmUnlock qui la
+       * traduit (avec la langue). La traduire ici puis relancer une Error nue
+       * la faisait retraduire à partir de sa phrase — qui ne correspondait plus
+       * à rien : « Transaction échouée. Réessaie » à chaque fois, le vrai motif
+       * perdu (loyer Solana, solde, mémo…).
+       */
+      throw e;
     }
   };
 
@@ -467,6 +587,14 @@ export default function Send() {
             if (s?.confirmationStatus) setStage('included');
             if (s?.confirmationStatus === 'confirmed' || s?.confirmationStatus === 'finalized') break;
           }
+        } else if (chain.family === 'ton') {
+          /*
+           * TON : l'adaptateur retrouve la transaction par le hachage normalisé
+           * du message et lit ses phases — pas de « diffusé donc réussi ». Un
+           * envoi sauté faute de fonds, ou expiré, est un échec.
+           */
+          const st = await getAdapterV2(activeChain).waitForTx(hash);
+          if (st.status !== 'confirmed') throw new Error(st.status === 'failed' ? st.reason ?? 'failed' : st.status);
         } else {
           return; // Bitcoin : pas de suivi in-app (v1)
         }
@@ -474,7 +602,7 @@ export default function Send() {
           setStage('confirmed');
           technicalLogger.logTx('step_4_confirmed', { txHash: hash, chain: chain.name });
           haptic.success();
-          notifyAndLog('tx', t("sendConfirmTitle"), t('confirmSuccessMsg').replace('${formatTokenAmount(amountRaw, decimals)}', formatTokenAmount(amountRaw, decimals)).replace('${symbol}', symbol).replace('${contactName ?? shortAddress(recipient)}', contactName ?? shortAddress(recipient)));
+          notifyAndLog('tx', t("sendConfirmTitle"), fill(t('confirmSuccessMsg'), { amount: formatTokenAmount(amountRaw, decimals), symbol: symbol, dest: contactName ?? shortAddress(recipient) }));
         }
       } catch (err) {
         technicalLogger.logTx('step_4_confirmation_failed', { txHash: hash, error: String(err), chain: chain.name }, true);
@@ -487,26 +615,66 @@ export default function Send() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, hash]);
 
-  const goStep2 = () => {
+  /** Destinataire refusé par la liste blanche : on propose de l'y ajouter (utilisable après 24 h). */
+  const [wlBlocked, setWlBlocked] = useState(false);
+  /**
+   * Contrôles du DESTINATAIRE (adresse valide, pas sosie, liste blanche). Rend
+   * vrai s'il passe ; sinon l'erreur est affichée à l'étape 1. Appelé par
+   * `goStep2` ET par `goStep3` : un lien de paiement prérempli entre à l'étape
+   * 2 sans passer par l'étape 1.
+   */
+  const recipientGate = async (): Promise<boolean> => {
     setAddressError(null);
+    setWlBlocked(false);
     if (!recipientOk) {
       technicalLogger.logTx('step_1_address_invalid', { input: to, isEns, chain: chain.name }, true);
-      const fam = family === 'evm' ? t("errNeedEvmAddress") : family === 'solana' ? t("errNeedSolAddress") : t("errNeedBtcAddress");
-      return setAddressError(isEns && ens.status === 'resolving' ? t("errResolvingEns") : isEns ? t("errEnsNotFound") : t('errNeedAddressFull').replace('${symbol}', symbol).replace('${chain.name}', chain.name).replace('${fam}', fam));
+      const fam = family === 'evm' ? t("errNeedEvmAddress") : family === 'solana' ? t("errNeedSolAddress") : family === 'ton' ? t("errNeedTonAddress") : t("errNeedBtcAddress");
+      setAddressError(isEns && ens.status === 'resolving' ? t(tonDomain ? 'resolvingName' : 'errResolvingEns') : isEns ? t(tonDomain ? 'errNameNotFound' : 'errEnsNotFound') : fill(t('errNeedAddressFull'), { symbol: symbol, chain: chain.name, fam: fam }));
+      return false;
     }
     if (poisoning) {
       technicalLogger.logTx('step_1_address_poisoning_blocked', { recipient, chain: chain.name }, true);
-      return; // bloquant, message déjà affiché
+      return false; // bloquant, message déjà affiché
     }
+    /*
+     * LISTE BLANCHE vérifiée DÈS le destinataire : refusé, on le dit tout de
+     * suite (et non après le montant et le code). Le verrou du magasin, avant
+     * signature, reste le dernier rempart.
+     */
+    try {
+      await (await import('../lib/whitelistStore')).assertRecipientAllowed(recipient);
+    } catch (e) {
+      if (isWalletError(e) && (e.code === 'NOT_WHITELISTED' || e.code === 'WHITELIST_PENDING')) {
+        setWlBlocked(e.code === 'NOT_WHITELISTED');
+        setAddressError(friendlyTxError(e, t as never));
+        return false;
+      }
+      // Liste illisible ou réseau muet : le verrou d'envoi tranchera.
+    }
+    return true;
+  };
+  const goStep2 = async () => {
+    if (!(await recipientGate())) return;
     technicalLogger.logTx('step_1_address_validated', { recipient, isEns, chain: chain.name });
     haptic.light();
     setAmountError(null);
     setStep(2);
   };
-  const goStep3 = () => {
+  const goStep3 = async () => {
+    if (checking) return; // double appui pendant le contrôle du destinataire
     setAmountError(null);
+    // Destinataire contrôlé ici aussi (lien prérempli) : refusé → retour à l'étape 1, où l'erreur s'affiche.
+    setChecking(true);
+    const recipientOk2 = await recipientGate().finally(() => setChecking(false));
+    if (!recipientOk2) {
+      setStep(1);
+      return;
+    }
     if (amountRaw <= 0n) return setAmountError(t("errEnterAmount"));
-    if (overBalance) return setAmountError(`Tu possèdes ${formatTokenAmount(balance ?? 0n, decimals)} ${symbol}${isNativeSend ? ` (frais réservés : ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol})` : ''}.`);
+    if (overBalance) {
+      const held = `${formatTokenAmount(balance ?? 0n, decimals)} ${symbol}`;
+      return setAmountError(isNativeSend ? t('sendOverBalanceFee').replace('{amount}', held).replace('{fee}', `${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`) : t('sendOverBalance').replace('{amount}', held));
+    }
     if (notEnoughGas) {
       technicalLogger.logTx('step_2_not_enough_gas', { chain: chain.name, feeRaw: feeRaw.toString() }, true);
       return; // bloquant, message déjà affiché — même convention que l'empoisonnement
@@ -522,7 +690,44 @@ export default function Send() {
       if (isNativeSend) getAdapter(targetChainId).buildTransfer({ to: recipient, amount: tokenAmountStr });
     } catch (e) {
       technicalLogger.logTx('step_2_buildTransfer_failed', { error: isWalletError(e) ? e.message : String(e), chain: chain.name }, true);
-      return setAmountError(isWalletError(e) ? e.message : t("errInvalidAmount"));
+      /*
+       * L'ADRESSE, PAS LE MONTANT. Un lien de paiement saute l'étape du
+       * destinataire : une adresse au checksum faux arrivait jusqu'ici, et
+       * l'écran disait « Montant invalide » — l'utilisateur corrigeait un
+       * montant juste. On le ramène au destinataire avec la vraie raison.
+       */
+      if (isWalletError(e) && e.code === 'INVALID_ADDRESS') {
+        setStep(1);
+        setAddressError(t('errInvalidAddress'));
+        return;
+      }
+      return setAmountError(isWalletError(e) && /décimales/.test(e.message) ? t('errTooManyDecimals').replace('{max}', String(decimals)) : t("errInvalidAmount"));
+    }
+    /*
+     * LA CHAÎNE EST CONSULTÉE ICI, AVANT LE CODE. Les refus certains — loyer
+     * minimal Solana, solde Bitcoin insuffisant une fois les pièces choisies,
+     * montant sous le seuil de poussière, commentaire exigé — n'arrivaient
+     * qu'APRÈS le PIN et ses secondes de déchiffrement : on tapait son code pour
+     * apprendre qu'il fallait changer le montant, encore et encore. La
+     * préparation ne demande aucune clé : on la fait maintenant, et le message
+     * chiffré s'affiche sous le montant. Un réseau muet ne bloque rien : la
+     * vérification se refera à l'envoi.
+     */
+    const v2 = isNativeSend && (family === 'solana' || family === 'bitcoin' || family === 'ton') ? findAdapterV2(targetChainId) : undefined;
+    if (v2?.prepareSend) {
+      setChecking(true);
+      try {
+        const draft = await v2.prepareSend(senderAddress, { to: recipient, amount: amountRaw, token: null, speed, memo });
+        if (draft.warnings.some((w) => w.code === 'MEMO_REQUIRED')) return setAmountError(t('errMemoRequired'));
+      } catch (e) {
+        if (isWalletError(e) && PRECHECK_BLOCKING.has(e.code)) {
+          technicalLogger.logTx('step_2_precheck_refused', { code: e.code, chain: chain.name }, true);
+          return setAmountError(friendlyTxError(e, t));
+        }
+        // Réseau indisponible ou erreur inattendue : on laisse l'envoi trancher.
+      } finally {
+        setChecking(false);
+      }
     }
     haptic.light();
     setStep(3);
@@ -546,7 +751,7 @@ export default function Send() {
     // avant leur chargement produirait une erreur qui disparaîtrait ensuite.
     if (isNativeSend && !feeOptions) return;
     autoAdvanced.current = true;
-    goStep3();
+    void goStep3();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPrefilledPayment, step, balance, amountRaw, isNativeSend, feeOptions]);
 
@@ -567,6 +772,13 @@ export default function Send() {
   if (!account) return null;
   const destLabel = contactName ?? (isEns ? to.trim() : null);
   const afterBalance = balance != null ? balance - amountRaw - (isNativeSend ? feeRaw : 0n) : null;
+  /*
+   * Vitesse de frais changée AU RÉCAPITULATIF, après le contrôle de solde de
+   * `goStep3` (« Max » puis « rapide ») : montant + frais dépassent le solde.
+   * L'aperçu affichait 0 et l'envoi échouait après le code ; c'est dit ici et
+   * l'envoi est bloqué.
+   */
+  const overBalanceAfterFee = (isNativeSend && afterBalance != null && afterBalance < 0n) || (!isNativeSend && notEnoughGas);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -576,10 +788,11 @@ export default function Send() {
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => { setAddressError(null); setAmountError(null); (step === 0 || step === 4 || (step === 1 && presetToken) ? router.back() : setStep((s) => (s - 1) as Step)); }} />
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <Text variant="title2">{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : (t('headerSendToken').replace('${symbol}', symbol) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
+            {/* Le titre rétrécit (une ligne) : long (« Vérifie avant d'envoyer »), il poussait la pastille du réseau sur le compteur d'étapes. */}
+            <Text variant="title2" numberOfLines={1} style={{ flexShrink: 1 }}>{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : step === 3 ? t("verifyBeforeSendTitle") : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
             {step > 0 && chainIconUrl(chain.id) ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: 12, backgroundColor: colors.surface2 }}>
-                <Image source={{ uri: chainIconUrl(chain.id) }} style={{ width: 14, height: 14, borderRadius: 7 }} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: 12, backgroundColor: colors.surface2, flexShrink: 0 }}>
+                <LogoImage uri={chainIconUrl(chain.id)!} size={14} />
                 <Text variant="micro" tone="secondary">{chain.name}</Text>
               </View>
             ) : null}
@@ -589,6 +802,8 @@ export default function Send() {
         {step > 0 ? <StepBar step={step} total={4} /> : null}
       </View>
 
+      {/* Le clavier ne recouvre plus l'adresse, le montant, le mémo ni « Continuer » (Android bord à bord). */}
+      <KeyboardAvoid style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[5], flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         {/* ── 0. Quoi envoyer (agrégé multi-chaîne) ── */}
         {step === 0 ? (() => {
@@ -613,8 +828,12 @@ export default function Send() {
                     <React.Fragment key={h.id}>
                       <TokenRow
                         symbol={h.symbol}
-                        name={`${h.symbol} sur ${getAdapter(h.chainId).config.name}`}
-                        logo={h.kind === 'native' ? chainIconUrl(h.chainId) : h.logo}
+                        name={holdingLabel(h.symbol, getAdapter(h.chainId).config.name, [h.name])}
+                        {...(() => {
+                          const ic = holdingIcon(h, getAdapter(h.chainId).config, chainIconUrl(h.chainId));
+                          return { logo: ic.logo, chainBadge: ic.badge };
+                        })()}
+                        chainId={h.chainId}
                         address={h.contract ?? h.chainId}
                         balance={`${formatTokenAmount(h.raw, h.decimals)} ${h.symbol}`}
                         fiat={h.price > 0 ? `${formatFiat(h.fiat)} ${sym}` : undefined}
@@ -674,7 +893,7 @@ export default function Send() {
               */}
               <Chip label={t("chipContacts")} icon="contacts" onPress={() => setPickContact(true)} />
             </View>
-            {isEns && ens.status === 'resolving' ? <Text variant="caption" tone="secondary">{t("resolvingEns")}</Text> : null}
+            {isEns && ens.status === 'resolving' ? <Text variant="caption" tone="secondary">{t(tonDomain ? 'resolvingName' : 'resolvingEns')}</Text> : null}
 
             {poisoning ? (
               <Surface style={{ borderColor: colors.danger, gap: space[2] }}>
@@ -697,7 +916,15 @@ export default function Send() {
               jeton se copie aussi facilement que celle d'un portefeuille.
             */}
             {isSolanaPda ? <Text variant="caption" tone="warning">{t('solanaPdaWarning')}</Text> : null}
-            {contactName ? <Text variant="caption" tone="secondary">{t("contactLabel").replace("${contactName}", contactName)}</Text> : null}
+            {contactName ? <Text variant="caption" tone="secondary">{fill(t('contactLabel'), { contact: contactName })}</Text> : null}
+
+            {memoCapable && !params.memo ? (
+              <View style={{ gap: space[1] }}>
+                <Text variant="caption" tone="secondary">{t('commentLabel')}</Text>
+                <Input placeholder={t('commentPlaceholder')} value={comment} onChangeText={setComment} autoCapitalize="none" maxLength={120} />
+                {family === 'ton' ? <Text variant="caption" tone="tertiary">{t('commentHint')}</Text> : null}
+              </View>
+            ) : null}
 
             {recents.length > 0 ? (
               <View style={{ gap: space[2] }}>
@@ -713,8 +940,11 @@ export default function Send() {
               </View>
             ) : null}
             {addressError ? <Text variant="caption" tone="danger">{addressError}</Text> : null}
+            {wlBlocked ? (
+              <Button label={t('wlAddFromSend')} variant="secondary" icon="security" onPress={() => router.push({ pathname: '/whitelist', params: { address: recipient } })} />
+            ) : null}
             <View style={{ flex: 1 }} />
-            <Button label={t("actionContinue")} onPress={goStep2} disabled={!recipientOk || !!poisoning} />
+            <Button label={t("actionContinue")} onPress={() => void goStep2()} disabled={!recipientOk || !!poisoning} />
           </FadeInUp>
         ) : null}
 
@@ -723,7 +953,7 @@ export default function Send() {
           <FadeInUp style={{ flex: 1, gap: space[5] }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
               <AddressGlyph address={recipient} size={28} />
-              <Text variant="caption" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>{t("labelTo")}{destLabel ?? shortAddress(recipient)}</Text>
+              <Text variant="caption" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>{t("labelTo")} {destLabel ?? shortAddress(recipient)}</Text>
             </View>
             <KPressable onPress={() => price > 0 && setInFiat((v) => !v)} accessibilityLabel={t("a11yToggleCurrency")} style={{ paddingVertical: space[4] }}>
               <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit tone={overBalance ? 'danger' : 'primary'}>
@@ -750,164 +980,210 @@ export default function Send() {
             {amountError && hasEnteredAmount ? <Text variant="caption" tone="danger">{amountError}</Text> : null}
             <View style={{ flex: 1 }} />
             <AmountKeypad value={amount} onChange={(v) => { setAmount(v); setAmountError(null); }} maxDecimals={inFiat ? 2 : Math.min(decimals, 8)} />
-            <Button label={t("verify")} onPress={goStep3} disabled={amountRaw <= 0n} />
+            <Button label={t("verify")} onPress={() => void goStep3()} loading={checking} disabled={amountRaw <= 0n || checking} />
+          </FadeInUp>
+        ) : null}
+
+        {/*
+          ── 3. Récapitulatif, plein écran (Nova) ──
+          C'était une feuille : le montant s'y lisait en petit, au milieu de la
+          liste. Le récapitulatif est le dernier regard avant que l'argent parte,
+          il mérite l'écran entier — le montant en grand, le destinataire avec
+          ses quatre derniers caractères en clair, puis l'anneau à maintenir.
+        */}
+        {step === 3 ? (
+          <FadeInUp style={{ flex: 1, gap: space[4] }}>
+            <View style={{ alignItems: 'center', gap: 6, paddingTop: space[2] }}>
+              <Text variant="micro" tone="secondary" style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>{t('sendYouSend')}</Text>
+              <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 52, lineHeight: 58, textAlign: 'center' }}>
+                {formatTokenAmount(amountRaw, decimals)} <Text variant="title2" tone="secondary">{symbol}</Text>
+              </Text>
+              {price > 0 ? <Text variant="bodySecondary" tone="secondary" tabular>≈ {formatFiat(fiatOfAmount)} {sym}</Text> : null}
+            </View>
+            {/* Ce qu'on sait du destinataire, en clair, avant de signer. */}
+            <RecipientFacts
+              to={recipient}
+              chainId={targetChainId}
+              from={senderAddress}
+              facts={{ contactName, ownAccount: isOwnRecipient, paidBefore, lookalikeOf: poisoning?.lookalike, isContract }}
+            />
+            <Surface padded={false} style={{ borderRadius: 26 }}>
+              {/*
+                CE QUE LE LIEN ANNONCE, en tête et non dans un toast qui disparaît.
+                Bénéficiaire et motif sont écrits par l'émetteur du lien : affichés,
+                jamais vérifiés — mais c'est la seule chose qui permet à
+                l'utilisateur de reconnaître ce qu'il paie.
+              */}
+              {payeeLabel ? (
+                <>
+                  <ListRow title={t('payRequestFrom')} right={<Text variant="body">{payeeLabel}</Text>} />
+                  <Divider inset={16} />
+                </>
+              ) : null}
+              {noteLabel ? (
+                <>
+                  <ListRow title={t('labelReason')} right={<Text variant="body">{noteLabel}</Text>} />
+                  <Divider inset={16} />
+                </>
+              ) : null}
+              {memoLabel ? (
+                <>
+                  {/* Le mémo part ON-CHAIN, contrairement aux deux précédents. */}
+                  <ListRow title={t('labelOnChainMemo')} right={<Text variant="body">{memoLabel}</Text>} />
+                  <Divider inset={16} />
+                </>
+              ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[4] }}>
+                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                  <AddressGlyph address={recipient} size={34} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                  <Text variant="body" numberOfLines={1}>{destLabel ?? t("labelRecipient")}</Text>
+                  <Text variant="caption" tone="secondary" numberOfLines={1} style={{ fontFamily: 'monospace' }}>
+                    {recipient.slice(0, 6)}…<Text variant="caption" style={{ fontFamily: 'monospace', color: colors.text }}>{recipient.slice(-4)}</Text>
+                  </Text>
+                </View>
+                {/* Le badge « Premier envoi / Contact connu » faisait doublon avec la fiche Destinataire au-dessus. */}
+              </View>
+              <Divider inset={76} />
+              <ListRow title={t("labelNetwork")} right={<Text variant="body">{chain.name}</Text>} />
+              <Divider inset={16} />
+              <ListRow title={t("labelNetworkFee")} subtitle={feeOptions ? `${speed === 'slow' ? t("feeSlow") : speed === 'fast' ? t("feeFast") : t("feeNormal")} · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}` : `${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? t('aboutApprox').replace('{amount}', `${formatFiat(feeFiat)} ${sym}`) : '—'}</Text>} />
+              {/*
+                Le jeton lui-même prélève : on montre ce qui ARRIVERA, pas seulement
+                ce qui part. C'est le seul endroit où l'utilisateur peut encore
+                renoncer en connaissance de cause.
+              */}
+              {transferFeeRaw > 0n ? (
+                <ListRow
+                  title={t('tokenTransferFee')}
+                  subtitle={`${formatTokenAmount(transferFeeRaw, decimals)} ${symbol}`}
+                  right={<Text variant="body" tabular>{`${t('recipientGets')} ${formatTokenAmount(amountAfterTransferFee(amountRaw, tokenFee), decimals)} ${symbol}`}</Text>}
+                />
+              ) : null}
+            </Surface>
+            {feeOptions ? (
+              <View style={{ flexDirection: 'row', gap: space[2] }}>
+                {(['slow', 'normal', 'fast'] as FeeSpeed[]).map((s) => <Chip key={s} label={s === 'slow' ? t("feeSlow") : s === 'normal' ? t("feeNormal") : t("feeFast")} selected={speed === s} onPress={() => setSpeed(s)} />)}
+              </View>
+            ) : null}
+            {overBalanceAfterFee ? (
+              <Text variant="caption" tone="danger">
+                {isNativeSend ? t('errInsufficientFunds') : t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText)}
+              </Text>
+            ) : null}
+            {afterBalance != null ? (
+              <Text variant="bodySecondary" tone="secondary">{fill(t('balanceUpdatePreview'), { symbol: symbol, before: formatTokenAmount(balance!, decimals), after: formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals) })}</Text>
+            ) : null}
+            {/* Frais qui écrasent le montant (2 € envoyés, 5 € de frais) : le dire avant la signature. */}
+            {feeFiat > 0 && fiatOfAmount > 0 && feeFiat > fiatOfAmount * 0.5 ? (
+              <Text variant="caption" tone="warning">{t('sendHighFee').replace('{pct}', String(Math.round((feeFiat / fiatOfAmount) * 100)))}</Text>
+            ) : null}
+            {family === 'evm' ? <Text variant="caption" tone="warning">{fill(t('checkNetworkWarning'), { chain: chain.name })}</Text> : null}
+            {!isKnown ? <Text variant="caption" tone="warning">{fill(t('firstTimeWarning'), { end: recipient.slice(-4) })}</Text> : null}
+
+            {/*
+              LES DEUX GARDE-FOUS QUI MANQUAIENT ICI.
+          
+              L'empoisonnement d'adresse et la PDA Solana n'étaient signalés qu'à
+              l'étape 1, et `goStep2` en était le SEUL blocage. Or un lien de paiement
+              prérempli démarre à l'étape 2 et rejoint directement le récapitulatif :
+              il ne passait donc par aucun des deux. Un QR menant à une adresse
+              sosie, ou à un compte de jeton Solana, arrivait ici sans un mot.
+          
+              Le récapitulatif est le seul point que TOUS les chemins traversent.
+              C'est donc ici que le garde-fou doit vivre, en plus de l'étape 1.
+            */}
+            {poisoning ? (
+              <Surface style={{ borderColor: colors.danger, gap: space[2] }}>
+                <Text variant="body" tone="danger">{t("suspiciousAddressTitle")}</Text>
+                <Text variant="caption" tone="secondary">{t("suspiciousAddressBody")}</Text>
+                <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
+                  <AddressGlyph address={poisoning.lookalike} size={28} />
+                  <Text variant="caption" tone="secondary" style={{ flex: 1 }}>{groupAddress(poisoning.lookalike)}</Text>
+                </View>
+              </Surface>
+            ) : null}
+            {isSolanaPda ? <Text variant="caption" tone="danger">{t('solanaPdaWarning')}</Text> : null}
+            <AntiDrainerBanner loading={isSimulating} simulation={simResult} />
+            {simResult?.warningLevel === 'critical' ? (
+              <KPressable
+                onPress={() => setForceSendChecked((v) => !v)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: space[2],
+                  paddingVertical: space[1],
+                }}
+              >
+                <View
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 4,
+                    borderWidth: 1.5,
+                    borderColor: forceSendChecked ? colors.danger : colors.border,
+                    backgroundColor: forceSendChecked ? colors.danger : 'transparent',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {forceSendChecked ? <Icon name="check" size={14} color="#FFFFFF" /> : null}
+                </View>
+                <Text variant="caption" tone="danger" style={{ flex: 1 }}>
+                  {t('antiDrainerForceSendConfirm')}
+                </Text>
+              </KPressable>
+            ) : null}
           </FadeInUp>
         ) : null}
 
         {/* ── 4. Suivi ── */}
         {step === 4 ? (
           <>
+            {/* Le moment de l'envoi : orbite, comète d'or, puis célébration à la confirmation. */}
+            <SendResult stage={stage} amount={`${formatTokenAmount(amountRaw, decimals)} ${symbol}`} dest={`${t('towards')} ${destLabel ?? shortAddress(recipient)} · ${chain.name}`} />
             <Surface style={{ gap: space[4] }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-                <AddressGlyph address={recipient} size={44} />
-                <View style={{ flex: 1 }}>
-                  <Text variant="title2" tabular>{formatTokenAmount(amountRaw, decimals)} {symbol}</Text>
-                  <Text variant="caption" tone="secondary">{t('towards')} {destLabel ?? shortAddress(recipient)} · {chain.name}</Text>
-                </View>
-              </View>
-              <Divider />
               <TxSteps stage={stage} />
               {stage === 'failed' ? <Text variant="caption" tone="danger">{t("txFailedMsg")}</Text> : null}
             </Surface>
             <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t("canLeaveScreenInfo")}</Text>
             {hash ? <Button label={t('trackTransaction')} variant="secondary" size="md" onPress={() => router.push({ pathname: '/tracking', params: { hash, chainId: chain.id } })} /> : null}
             <View style={{ flex: 1 }} />
-            <Button label={t("actionDone")} onPress={() => router.replace('/home')} />
+            <Button label={t("actionDone")} onPress={() => router.dismissTo('/home')} />
           </>
         ) : null}
       </ScrollView>
-
-      {/* ── 3. Récapitulatif (sheet) ── */}
-      <Sheet visible={step === 3 && !confirming} onClose={() => setStep(2)}>
-        <Text variant="title2">{t("verifyBeforeSendTitle")}</Text>
-        <Surface padded={false}>
-          {/*
-            CE QUE LE LIEN ANNONCE, en tête et non dans un toast qui disparaît.
-            Bénéficiaire et motif sont écrits par l'émetteur du lien : affichés,
-            jamais vérifiés — mais c'est la seule chose qui permet à
-            l'utilisateur de reconnaître ce qu'il paie.
-          */}
-          {payeeLabel ? (
-            <>
-              <ListRow title={t('payRequestFrom')} right={<Text variant="body">{payeeLabel}</Text>} />
-              <Divider inset={16} />
-            </>
-          ) : null}
-          {noteLabel ? (
-            <>
-              <ListRow title={t('labelReason')} right={<Text variant="body">{noteLabel}</Text>} />
-              <Divider inset={16} />
-            </>
-          ) : null}
-          {memoLabel ? (
-            <>
-              {/* Le mémo part ON-CHAIN, contrairement aux deux précédents. */}
-              <ListRow title={t('labelOnChainMemo')} right={<Text variant="body">{memoLabel}</Text>} />
-              <Divider inset={16} />
-            </>
-          ) : null}
-          <ListRow left={<AddressGlyph address={recipient} size={40} />} title={destLabel ?? t("labelRecipient")} subtitle={groupAddress(recipient)} />
-          <Divider inset={68} />
-          <ListRow title={t("txLabelAmount")} right={<View style={{ alignItems: 'flex-end' }}><Text variant="body" tabular>{formatTokenAmount(amountRaw, decimals)} {symbol}</Text>{price > 0 ? <Text variant="caption" tone="secondary" tabular>≈ {formatFiat(fiatOfAmount)} {sym}</Text> : null}</View>} />
-          <Divider inset={16} />
-          <ListRow title={t("labelNetwork")} right={<Text variant="body">{chain.name}</Text>} />
-          <Divider inset={16} />
-          <ListRow title={t("labelNetworkFee")} subtitle={feeOptions ? `${speed === 'slow' ? t("feeSlow") : speed === 'fast' ? t("feeFast") : t("feeNormal")} · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}` : `${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? `environ ${formatFiat(feeFiat)} ${sym}` : '—'}</Text>} />
-          {/*
-            Le jeton lui-même prélève : on montre ce qui ARRIVERA, pas seulement
-            ce qui part. C'est le seul endroit où l'utilisateur peut encore
-            renoncer en connaissance de cause.
-          */}
-          {transferFeeRaw > 0n ? (
-            <ListRow
-              title={t('tokenTransferFee')}
-              subtitle={`${formatTokenAmount(transferFeeRaw, decimals)} ${symbol}`}
-              right={<Text variant="body" tabular>{`${t('recipientGets')} ${formatTokenAmount(amountAfterTransferFee(amountRaw, tokenFee), decimals)} ${symbol}`}</Text>}
-            />
-          ) : null}
-        </Surface>
-        {feeOptions ? (
-          <View style={{ flexDirection: 'row', gap: space[2] }}>
-            {(['slow', 'normal', 'fast'] as FeeSpeed[]).map((s) => <Chip key={s} label={s === 'slow' ? t("feeSlow") : s === 'normal' ? t("feeNormal") : t("feeFast")} selected={speed === s} onPress={() => setSpeed(s)} />)}
-          </View>
-        ) : null}
-        {afterBalance != null ? (
-          <Text variant="bodySecondary" tone="secondary">{t("balanceUpdatePreview").replace("${symbol}", symbol).replace("${formatTokenAmount(balance!, decimals)}", formatTokenAmount(balance!, decimals)).replace("${formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals)}", formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals))}</Text>
-        ) : null}
-        {family === 'evm' ? <Text variant="caption" tone="warning">{t("checkNetworkWarning").replace("${chain.name}", chain.name)}</Text> : null}
-        {!isKnown ? <Text variant="caption" tone="warning">{t("firstTimeWarning").replace("${recipient.slice(-4)}", recipient.slice(-4))}</Text> : null}
-
-        {/*
-          LES DEUX GARDE-FOUS QUI MANQUAIENT ICI.
-          
-          L'empoisonnement d'adresse et la PDA Solana n'étaient signalés qu'à
-          l'étape 1, et `goStep2` en était le SEUL blocage. Or un lien de paiement
-          prérempli démarre à l'étape 2 et rejoint directement le récapitulatif :
-          il ne passait donc par aucun des deux. Un QR menant à une adresse
-          sosie, ou à un compte de jeton Solana, arrivait ici sans un mot.
-          
-          Le récapitulatif est le seul point que TOUS les chemins traversent.
-          C'est donc ici que le garde-fou doit vivre, en plus de l'étape 1.
-        */}
-        {poisoning ? (
-          <Surface style={{ borderColor: colors.danger, gap: space[2] }}>
-            <Text variant="body" tone="danger">{t("suspiciousAddressTitle")}</Text>
-            <Text variant="caption" tone="secondary">{t("suspiciousAddressBody")}</Text>
-            <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
-              <AddressGlyph address={poisoning.lookalike} size={28} />
-              <Text variant="caption" tone="secondary" style={{ flex: 1 }}>{groupAddress(poisoning.lookalike)}</Text>
-            </View>
-          </Surface>
-        ) : null}
-        {isSolanaPda ? <Text variant="caption" tone="danger">{t('solanaPdaWarning')}</Text> : null}
-        <AntiDrainerBanner loading={isSimulating} simulation={simResult} />
-        {simResult?.warningLevel === 'critical' ? (
-          <KPressable
-            onPress={() => setForceSendChecked((v) => !v)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: space[2],
-              paddingVertical: space[1],
-            }}
-          >
-            <View
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: 4,
-                borderWidth: 1.5,
-                borderColor: forceSendChecked ? colors.danger : colors.border,
-                backgroundColor: forceSendChecked ? colors.danger : 'transparent',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {forceSendChecked ? <Icon name="check" size={14} color="#FFFFFF" /> : null}
-            </View>
-            <Text variant="caption" tone="danger" style={{ flex: 1 }}>
-              {t('antiDrainerForceSendConfirm')}
-            </Text>
-          </KPressable>
-        ) : null}
-        <HoldButton
-          label={t("holdToSend")}
-          onComplete={() => setConfirming(true)}
-          /*
-            ET ILS BLOQUENT. Les afficher sans empêcher l'envoi ne servirait à
-            rien pour une PDA : les fonds y sont définitivement perdus, il n'y a
-            pas de cas légitime à couvrir. L'adresse sosie bloque aussi, par
-            cohérence avec l'étape 1 qui la bloquait déjà.
-          */
-          disabled={
-            isSimulating ||
-            !!poisoning ||
-            isSolanaPda ||
-            (simResult?.warningLevel === 'critical' && !forceSendChecked)
-          }
-          danger={simResult?.warningLevel === 'critical'}
-        />
-      </Sheet>
+      {/*
+        L'ANNEAU « MAINTENIR POUR ENVOYER » EST FIXÉ EN BAS, hors du défilement :
+        au bout du récapitulatif, il passait sous la barre système dès que le
+        contenu dépassait l'écran (« Maintenir pour envoyer » coupé). Seul le
+        récapitulatif défile au-dessus — comme Phantom et Rainbow.
+      */}
+      {step === 3 ? (
+        <View style={{ alignItems: 'center', paddingTop: space[2], paddingBottom: insets.bottom + space[3], backgroundColor: colors.bg }}>
+          <HoldRing
+            hint={t("holdToSend")}
+            holdingHint={t('holdKeepGoing')}
+            onComplete={() => setConfirming(true)}
+            /*
+              ET ILS BLOQUENT. Les afficher sans empêcher l'envoi ne servirait à
+              rien pour une PDA : les fonds y sont définitivement perdus, il n'y a
+              pas de cas légitime à couvrir. L'adresse sosie bloque aussi, par
+              cohérence avec l'étape 1 qui la bloquait déjà.
+            */
+            disabled={
+              isSimulating ||
+              overBalanceAfterFee ||
+              !!poisoning ||
+              isSolanaPda ||
+              (simResult?.warningLevel === 'critical' && !forceSendChecked)
+            }
+            danger={simResult?.warningLevel === 'critical'}
+          />
+        </View>
+      ) : null}
+      </KeyboardAvoid>
 
       {/*
         Filtré sur la famille de la chaîne active : proposer un contact Bitcoin
@@ -925,13 +1201,32 @@ export default function Send() {
 
       <ConfirmUnlock
         visible={confirming}
-        title={t('sendConfirmUnlockTitle').replace('${formatTokenAmount(amountRaw, decimals)}', formatTokenAmount(amountRaw, decimals)).replace('${symbol}', symbol)}
-        subtitle={t('sendConfirmUnlockSubtitle').replace('${destLabel ?? shortAddress(recipient)}', destLabel ?? shortAddress(recipient)).replace('${chain.name}', chain.name)}
+        title={fill(t('sendConfirmUnlockTitle'), { amount: formatTokenAmount(amountRaw, decimals), symbol: symbol })}
+        subtitle={fill(t('sendConfirmUnlockSubtitle'), { dest: destLabel ?? shortAddress(recipient), chain: chain.name })}
         perform={perform}
         onDone={() => { setConfirming(false); setStep(4); }}
         onCancel={() => setConfirming(false)}
-        aiContext={{ to: recipient, value: tokenAmountStr, method: 'transfer' }}
+        aiContext={{
+          to: recipient,
+          value: `${formatTokenAmount(amountRaw, decimals)} ${symbol}`,
+          method: 'transfer',
+          network: chain.name,
+          chainId: targetChainId,
+          from: senderAddress,
+          fiatValue: price > 0 ? `${formatFiat(fiatOfAmount)} ${sym}` : undefined,
+          memo,
+          recipient: {
+            contactName,
+            ownAccount: isOwnRecipient,
+            paidBefore: paidBefore,
+            lookalikeOf: poisoning?.lookalike,
+            isContract,
+          },
+        }}
       />
     </View>
   );
 }
+
+// Lecture seule : rien à signer ici (ui/WatchOnlyGate).
+export default withWatchOnlyGate(SendInner);

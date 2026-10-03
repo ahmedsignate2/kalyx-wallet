@@ -15,7 +15,18 @@ import { fonts, radii, spacing, useTheme } from '../theme';
 import { useT, useSettings, fiatSymbol } from '../../lib/settingsStore';
 import { useWebT } from './webI18n';
 import { CrossFade } from './motion';
-import { getMarkets, sortMarkets, searchCoins, formatFiat, type MarketCoin, type SearchCoin, type MarketOrder } from '../../src';
+import { webLocale } from './webTheme';
+
+/** Cours au format de la langue choisie (même convention que le solde au-dessus). */
+function fmtPrice(price: number, fiat: string, sym: string): string {
+  const digits = price >= 100 ? 0 : price >= 1 ? 2 : 6;
+  try {
+    return new Intl.NumberFormat(webLocale(), { style: 'currency', currency: fiat.toUpperCase(), maximumFractionDigits: digits, minimumFractionDigits: digits === 6 ? 2 : digits }).format(price);
+  } catch {
+    return `${sym}${price.toFixed(digits)}`;
+  }
+}
+import { getMarkets, sortMarkets, searchCoins, formatFiat, formatPercent, type MarketCoin, type SearchCoin, type MarketOrder } from '../../src';
 
 /** Icône distante avec repli lettré (même principe que ChainAvatar, mais
  *  générique — les jetons du marché n'ont pas de ChainConfig). */
@@ -47,7 +58,7 @@ function MiniSparkline({ values, up, width = 64, height = 28 }: { values: number
   );
 }
 
-export function MarketPanel() {
+export function MarketPanel({ wide }: { wide?: boolean } = {}) {
   const t = useT();
   const tw = useWebT();
   const TABS: { key: MarketOrder; label: string }[] = [
@@ -130,6 +141,45 @@ export function MarketPanel() {
           <CrossFade id={tab} style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg }}>
             {rows.length === 0 ? (
               <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(3) }]}>{tw('marketLoading')}</Text>
+            ) : wide ? (
+              /*
+               * ORDINATEUR : un vrai tableau. La ligne de téléphone étirée sur
+               * 960 px laissait un trou entre le nom et la courbe ; ici chaque
+               * colonne a sa place (rang, actif, prix, 24 h, courbe 7 jours).
+               */
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2), paddingHorizontal: spacing(2), paddingVertical: spacing(1.25) }}>
+                  <Text style={[typography.muted, { width: 28, fontSize: 12 }]}>#</Text>
+                  <Text style={[typography.muted, { flex: 2, fontSize: 12 }]}>{tw('colAsset')}</Text>
+                  <Text style={[typography.muted, { flex: 1, fontSize: 12, textAlign: 'right' }]}>{tw('colPrice')}</Text>
+                  <Text style={[typography.muted, { flex: 1, fontSize: 12, textAlign: 'right' }]}>{tw('col24h')}</Text>
+                  <Text style={[typography.muted, { width: 160, fontSize: 12, textAlign: 'right' }]}>{tw('col7d')}</Text>
+                </View>
+                {rows.map((m, i) => {
+                  const up = m.change24h >= 0;
+                  return (
+                    <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2), paddingHorizontal: spacing(2), paddingVertical: spacing(1.25), borderTopWidth: 1, borderTopColor: colors.glassBorder }}>
+                      <Text style={[typography.muted, { width: 28, fontVariant: ['tabular-nums'] }]}>{i + 1}</Text>
+                      <View style={{ flex: 2, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing(1.25) }}>
+                        <CoinAvatar uri={m.image} label={m.symbol} size={32} />
+                        <Text style={typography.bodyStrong} numberOfLines={1}>{m.name}</Text>
+                        <Text style={typography.muted} numberOfLines={1}>{m.symbol?.toUpperCase()}</Text>
+                      </View>
+                      <Text style={{ flex: 1, textAlign: 'right', color: colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }} numberOfLines={1}>
+                        {fmtPrice(m.price, fiat, sym)}
+                      </Text>
+                      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                        <Text style={{ color: up ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13, backgroundColor: (up ? colors.up : colors.down) + '1f', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.pill, overflow: 'hidden' }}>
+                          {`${up ? '+' : ''}${formatPercent(m.change24h)}`}
+                        </Text>
+                      </View>
+                      <View style={{ width: 160, alignItems: 'flex-end' }}>
+                        <MiniSparkline values={m.sparkline} up={up} width={140} height={32} />
+                      </View>
+                    </View>
+                  );
+                })}
+              </>
             ) : (
               rows.map((m, i) => {
                 const up = m.change24h >= 0;
@@ -143,10 +193,10 @@ export function MarketPanel() {
                     <MiniSparkline values={m.sparkline} up={up} />
                     <View style={{ alignItems: 'flex-end', minWidth: 74 }}>
                       <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }} numberOfLines={1}>
-                        {`${sym}${m.price.toLocaleString(undefined, { maximumFractionDigits: m.price >= 100 ? 0 : 2 })}`}
+                        {fmtPrice(m.price, fiat, sym)}
                       </Text>
                       <Text style={{ color: up ? colors.up : colors.down, fontSize: 12, fontFamily: fonts.medium }}>
-                        {`${up ? '+' : ''}${m.change24h.toFixed(2)} %`}
+                        {`${up ? '+' : ''}${formatPercent(m.change24h)}`}
                       </Text>
                     </View>
                   </View>

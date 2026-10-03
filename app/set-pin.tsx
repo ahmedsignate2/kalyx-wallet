@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Switch, Animated, ActivityIndicator, Platform, StatusBar } from 'react-native';
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
+import { usePendingRestore } from '../lib/pendingRestore';
+import { View, Text, Switch, Animated, ActivityIndicator, Platform, StatusBar, useWindowDimensions } from 'react-native';
+import { Orbit, Rise, Stardust } from '../ui/nova';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinPad } from '../ui/PinPad';
@@ -9,6 +12,7 @@ import { Pressable as KPressable } from '../ui/kit';
 import { radius, space } from '../ui/tokens';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
+import { toast } from '../lib/toast';
 import { useSettings, useT } from '../lib/settingsStore';
 import { checkPin, PIN_MIN } from '../src';
 import { isBiometricAvailable } from '../lib/biometrics';
@@ -28,9 +32,12 @@ import { haptic } from '../lib/haptics';
  * de non-correspondance, secousse et retour à l'étape 1.
  */
 export default function SetPin() {
+  // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
+  useNoScreenCapture('set-pin');
   const { colors } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
   const shake = useRef(new Animated.Value(0)).current;
   const confirmDraft = useWallet((s) => s.confirmDraft);
   /** Brouillon venu d'un import : le texte de naissance change (§12.1). */
@@ -88,8 +95,34 @@ export default function SetPin() {
     }
     setBusy(true);
     try {
-      await confirmDraft(firstPin, { enableBiometric: useBio });
+      // Sauvegarde restaurée : ses comptes sont listés, pas de recherche réseau.
+      // Seulement si la sauvegarde LISTE les comptes du portefeuille principal (anciennes sauvegardes : non).
+      const fromBackup = usePendingRestore.getState().primaryAccounts.length > 0;
+      await confirmDraft(firstPin, { enableBiometric: useBio, discover: !fromBackup });
       useSettings.getState().setPinLength(firstPin.length); // ronds exacts au déverrouillage
+      /*
+       * Restauration d'une sauvegarde à PLUSIEURS portefeuilles : les autres sont
+       * ajoutés maintenant, avec ce code. Ils étaient perdus en silence.
+       */
+      /*
+       * Comptes du portefeuille principal (sauvegarde restaurée) : recréés avec
+       * ce code. Un échec ici ne doit pas bloquer l'entrée dans le portefeuille.
+       */
+      const primaryAccounts = usePendingRestore.getState().primaryAccounts;
+      if (primaryAccounts.length) {
+        await useWallet.getState().restoreAccounts(useWallet.getState().activeWalletId, primaryAccounts, firstPin).catch(() => toast.error(t('failed'), t('restorePartial')));
+      }
+      const extra = usePendingRestore.getState().wallets;
+      if (!extra.length) usePendingRestore.getState().clear();
+      if (extra.length) {
+        usePendingRestore.getState().clear();
+        try {
+          const added = await useWallet.getState().importWallets(extra, firstPin);
+          toast.success(t('backupRestoredCount').replace('{count}', String(added + 1)));
+        } catch {
+          toast.error(t('failed'), t('restorePartial'));
+        }
+      }
       // Naissance du wallet (§12.1) avant l'accueil : c'est le moment où
       // l'utilisateur apprend à reconnaître son glyphe.
       router.replace({ pathname: '/wallet-born', params: wasImport ? { mode: 'import' } : {} });
@@ -122,6 +155,7 @@ export default function SetPin() {
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: topPadding, justifyContent: 'space-between' }}>
       {/* Pas de barre d'en-tête native (elle affichait une flèche ← en doublon). */}
       <Stack.Screen options={{ headerShown: false }} />
+      <Stardust width={winW} height={winH} count={12} />
 
       {/* ── HAUT : header unique (retour à gauche, langue à droite) + titre ── */}
       <View>
@@ -147,14 +181,14 @@ export default function SetPin() {
           </KPressable>
         </View>
 
-        <View style={{ paddingHorizontal: 24, marginTop: 8 }}>
+        <Rise key={step} style={{ paddingHorizontal: 24, marginTop: 8 }}>
           <Text style={{ fontSize: 24, fontFamily: fonts.bold, color: colors.text, letterSpacing: -0.3, marginBottom: 8 }}>
             {step === 'create' ? t('choosePinTitle') : t('confirmPinTitle')}
           </Text>
           <Text style={{ fontSize: 14, fontFamily: fonts.regular, color: colors.textSecondary, marginBottom: 12 }}>
             {step === 'create' ? t('choosePinSub') : t('confirmPinSub')}
           </Text>
-        </View>
+        </Rise>
 
         {/* Ligne biométrie : conteneur dédié + marge basse nette → jamais sur l'anneau. */}
         {step === 'create' && bioAvailable ? (
@@ -168,6 +202,9 @@ export default function SetPin() {
       {/* ── MILIEU : anneau centré, prend tout l'espace restant ── */}
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <Animated.View style={{ transform: [{ translateX: shake }] }}>
+          <View pointerEvents="none" style={{ position: 'absolute', left: 52, top: 52 }}>
+            <Orbit cx={0} cy={0} r={86} />
+          </View>
           <KalyxRing size={104} progress={progress} error={!!errSignal} />
         </Animated.View>
         <View style={{ height: 22, justifyContent: 'center', marginTop: 8 }}>

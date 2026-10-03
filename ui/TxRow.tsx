@@ -1,4 +1,4 @@
-import { Pressable as KPressable } from './kit';
+import { Pressable as KPressable, LogoImage } from './kit';
 /**
  * Ligne de transaction « premium », partagée entre l'Historique et l'accueil :
  * - logo de la crypto (au lieu d'une icône grise) + pastille de direction
@@ -11,7 +11,7 @@ import { Pressable as KPressable } from './kit';
  * - `expanded` : détail replié (adresses from/to copiables + explorateur).
  */
 import React from 'react';
-import { Image, Linking, Text, View } from 'react-native';
+import { Linking, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { PressableScale } from './premium';
 import { Icon } from './icon';
@@ -29,12 +29,14 @@ export function txDate(ts: number, t?: (k: any) => string): string {
   if (!ts) return '';
   const d = new Date(ts * 1000);
   const now = new Date();
-  const days = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  // Jours CALENDAIRES (minuit à minuit), pas tranches de 24 h : avant-hier soir n'est pas « hier ».
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOf(now) - startOf(d)) / 86400000);
   const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   const day =
-    days <= 0 && now.getDate() === d.getDate()
+    days <= 0
       ? (t ? t('txToday') : 'Today')
-      : days <= 1
+      : days === 1
         ? (t ? t('txYesterday') : 'Yesterday')
         : d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
   return `${day} · ${hm}`;
@@ -90,7 +92,7 @@ export function TxRow({
       {/* Logo + pastille de direction */}
       <View style={{ width: 42, height: 42 }}>
         {logoUri ? (
-          <Image source={{ uri: logoUri }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface2 }} />
+          <LogoImage uri={logoUri} size={42} style={{ backgroundColor: colors.surface2 }} />
         ) : (
           <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name={inbound ? 'receive' : 'send'} size={19} color={dirColor} />

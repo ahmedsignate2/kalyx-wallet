@@ -1,5 +1,5 @@
 import { base58, base64 } from '@scure/base';
-import { describeSolanaTransaction, parseSolanaMessage } from './solanaTx';
+import { describeSolanaTransaction, parseSolanaMessage, solanaTxDecode } from './solanaTx';
 
 /* Encodeur minimal du format Solana (miroir du décodeur), pour fabriquer des fixtures. */
 function compact(n: number): number[] {
@@ -105,5 +105,29 @@ describe('describeSolanaTransaction — emplacements de signature', () => {
       b58(7),
     )!;
     expect(d.signaturesPresent).toEqual([false]);
+  });
+});
+
+describe('Encodage : le même octet décrit et signé', () => {
+  it('une transaction base58 de longueur multiple de 4 n’est plus prise pour du base64', () => {
+    // On fait varier une donnée d'instruction jusqu'à obtenir la forme piège.
+    let found = false;
+    for (let i = 0; i < 200 && !found; i++) {
+      const bytes = base64.decode(buildTx({ version: 'legacy', keys: [key(7), key(8), base58.decode(SYSTEM)], ixs: [{ program: 2, accounts: [0, 1], data: Array.from({ length: i % 12 }, (_, k) => k + i) }] }));
+      const b58s = base58.encode(bytes);
+      if (b58s.length % 4 !== 0 || !/^[a-zA-Z0-9+/]*$/.test(b58s)) continue;
+      found = true;
+      const d = solanaTxDecode(b58s)!;
+      expect(d.encoding).toBe('base58');
+      expect(Buffer.from(d.bytes).equals(Buffer.from(bytes))).toBe(true);
+      expect(describeSolanaTransaction(b58s)).not.toBeNull();
+    }
+    expect(found).toBe(true);
+  });
+
+  it('base64 reste lu en base64 ; illisible = null', () => {
+    const tx = buildTx({ version: 'legacy', keys: [key(7), base58.decode(SYSTEM)], ixs: [{ program: 1, accounts: [0], data: [2] }] });
+    expect(solanaTxDecode(tx)?.encoding).toBe('base64');
+    expect(solanaTxDecode('pas-une-transaction')).toBeNull();
   });
 });

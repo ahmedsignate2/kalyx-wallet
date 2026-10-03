@@ -114,6 +114,13 @@ describe('EvmAdapterV2 — prepareSend', () => {
     expect(d.token?.symbol).toBe('USDC');
   });
 
+  it('jeton : décimales relues sur le contrat — incohérentes, l’envoi est refusé avant signature', async () => {
+    const dec = (n: number) => ({ ...baseProvider, estimateGas: async () => 55_000n, call: async () => '0x' + n.toString(16).padStart(64, '0') });
+    const req = { to: DEST, amount: 1_000_000n, token: { id: USDC, symbol: 'USDC', decimals: 6 } };
+    await expect(stub(ETHEREUM, dec(6)).prepareSend(account.address, req)).resolves.toBeTruthy();
+    await expect(stub(ETHEREUM, dec(18)).prepareSend(account.address, req)).rejects.toMatchObject({ code: 'INVALID_AMOUNT' });
+  });
+
   it('chaîne legacy : gasPrice, et pas de champs 1559', async () => {
     const a = stub(BNB, {
       ...baseProvider,

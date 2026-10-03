@@ -143,3 +143,45 @@ describe('cloudBackup — compatibilité v1', () => {
     expect((await restoreBackup(JSON.stringify(v1), 'pw')).error).toBe('CORRUPTED');
   });
 });
+
+describe('Sauvegarde contenant une phrase TON', () => {
+  // Phrase Tonkeeper officielle (vecteur @ton/crypto) : PAS une phrase BIP-39.
+  const TON = require('../chains/ton/tonkeeper-vectors.json').keys[0].phrase as string;
+  const M = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
+  it('se restaure entièrement (elle rendait toute la sauvegarde « corrompue »)', async () => {
+    const list: BackupWallet[] = [
+      { label: 'TON', type: 'seed', secret: TON },
+      { label: 'Principal', type: 'seed', secret: M },
+    ];
+    const r = await restoreBackup(await createWalletsBackup(list, 'pw'), 'pw');
+    expect(r.error).toBeUndefined();
+    expect(r.wallets).toEqual(list);
+    // La phrase « principale » reste la BIP-39, même listée après la phrase TON.
+    expect(r.mnemonic).toBe(M);
+  });
+});
+
+describe('cloudBackup — comptes de chaque portefeuille', () => {
+  it('les comptes (numéro + nom) font l’aller-retour ; sans eux, rien n’est inventé', async () => {
+    const blob = await createWalletsBackup(
+      [
+        { label: 'Principal', type: 'seed', secret: M1, accounts: [{ index: 0, label: '' }, { index: 1, label: 'Épargne' }, { index: 3, label: 'Jeux' }] },
+        { label: 'Second', type: 'seed', secret: M2 },
+      ],
+      'pw',
+    );
+    const r = await restoreBackup(blob, 'pw');
+    expect(r.wallets?.[0].accounts).toEqual([{ index: 0, label: '' }, { index: 1, label: 'Épargne' }, { index: 3, label: 'Jeux' }]);
+    expect(r.wallets?.[1].accounts).toBeUndefined();
+  });
+
+  it('entrées invalides d’une sauvegarde écartées (index hors bornes, doublons, types)', async () => {
+    const { sanitizeBackupAccounts } = await import('./cloudBackup');
+    expect(sanitizeBackupAccounts([{ index: 1, label: 'a' }, { index: 1, label: 'b' }, { index: -1 }, { index: 1.5 }, { index: 5000 }, 'x', { index: 2, label: 42 }])).toEqual([
+      { index: 1, label: 'a' },
+      { index: 2, label: '' },
+    ]);
+    expect(sanitizeBackupAccounts('pas une liste')).toBeUndefined();
+  });
+});

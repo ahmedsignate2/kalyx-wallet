@@ -10,7 +10,12 @@ import { Pressable as KPressable } from './kit';
  * - eth_sendTransaction → destinataire, montant natif, réseau.
  * Les données brutes restent accessibles via « Détails techniques ».
  */
-import { base58 } from '@scure/base';
+import { SafeModal } from './kit/SafeModal';
+import { signMessageParam } from '../lib/dappProvider';
+import { solanaMessageBytes } from '../lib/solanaMessage';
+import { dappHost } from '../src/domain/web/dappHost';
+import { bitcoinMessageParam, btcTransferParams, solanaMessageParam } from '../lib/messageParams';
+import { bytesToHex } from '@noble/hashes/utils';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, ScrollView, Image, StyleSheet } from 'react-native';
 import { GlassCard, ErrorBox, GradientAvatar } from './premium';
@@ -19,10 +24,11 @@ import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon, type IconName } from './icon';
 import { fonts, radii, spacing, useTheme } from './theme';
 import { useTokenStore } from '../lib/tokenStore';
-import { useWalletConnect } from '../lib/walletconnect';
+import { assertSessionAccount, useWalletConnect } from '../lib/walletconnect';
+import { useLocked } from '../lib/lockState';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { accountDisplayName } from '../lib/walletNames';
-import { useT, useSettings } from '../lib/settingsStore';
+import { useT, useSettings, useExplainT } from '../lib/settingsStore';
 import { sound } from '../lib/sound';
 import {
   hexToText,
@@ -37,27 +43,32 @@ import {
   explainRequest,
   describeSolanaTransaction,
   getTokenMetadata,
+  summarizePsbt,
+  formatTokenAmount,
+  isWalletError,
+  type PsbtSummary,
   type RiskAssessment,
   type Simulation,
 } from '../src';
 import { SignSheet } from './SignSheet';
 import { Interface } from 'ethers';
 
+/** Hôte RÉEL de l'URL déclarée (identifiants et chemins piégés compris). */
 function hostOf(url: string) {
-  return url.replace(/^[a-z]+:\/\//i, '').split('/')[0] || url;
+  return dappHost(url) || url;
 }
 
 function Overlay({ children, onCancel }: { children: React.ReactNode, onCancel?: () => void }) {
   const { colors } = useTheme();
   return (
-    <Modal transparent animationType="fade" onRequestClose={onCancel}>
+    <SafeModal transparent animationType="fade" onRequestClose={onCancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <KPressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onCancel} />
         <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
           {children}
         </View>
       </View>
-    </Modal>
+    </SafeModal>
   );
 }
 
@@ -101,7 +112,8 @@ function SecBanner({ risk, phish }: { risk: RiskAssessment | 'loading' | null; p
             <Icon name="warning" size={18} color={colors.danger} />
             <Text style={{ color: colors.danger, fontFamily: fonts.bold, flex: 1 }}>{t('riskDetected')}</Text>
           </View>
-          {risk.reasons.map((r) => <Text key={r} style={{ color: colors.text, fontSize: 13 }}>• {r}</Text>)}
+          {/* Raisons GoPlus : des CLÉS (`gp…`), traduites ici. */}
+          {risk.reasons.map((r) => <Text key={r} style={{ color: colors.text, fontSize: 13 }}>• {/^gp[A-Z]/.test(r) ? t(r as never) : r}</Text>)}
         </View>
       ) : risk && risk.level === 'ok' ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -131,23 +143,11 @@ function DappHeader({ name, url, icon }: { name: string; url: string; icon?: str
   );
 }
 
-/** Texte d'un message à signer : base58 (Solana), hex 0x (EVM) ou texte brut. Jamais ne lève. */
-function decodeMessageText(raw: string, base58First: boolean): string {
-  if (!raw) return '';
-  try {
-    if (base58First) {
-      const bytes = base58.decode(raw);
-      const txt = new TextDecoder().decode(bytes);
-      if (/^[\x20-\x7E\u00A0-\uFFFF\s]*$/.test(txt)) return txt;
-    }
-  } catch { /* pas du base58 */ }
-  if (raw.startsWith('0x')) return hexToText(raw) ?? raw;
-  return raw;
-}
-
 export function WalletConnectHost() {
   const { colors, typography } = useTheme();
   const t = useT();
+  const exT = useExplainT();
+  const locked = useLocked();
   const proposal = useWalletConnect((s) => s.proposal);
   const request = useWalletConnect((s) => s.request);
   const sessions = useWalletConnect((s) => s.sessions);
@@ -164,7 +164,8 @@ export function WalletConnectHost() {
   const [shareIndex, setShareIndex] = useState(activeAccountIndex);
   // Le compte actif peut changer pendant qu'une proposition est ouverte.
   useEffect(() => { setShareIndex(activeAccountIndex); }, [activeAccountIndex]);
-  const reduceRef = useRef<string | null>(null);
+  /** Calldata « approve réduit », liée à l'identifiant de LA demande pour laquelle elle a été calculée. */
+  const reduceRef = useRef<{ id: number; data: string } | null>(null);
   // Autorisations granulaires accordées au site (cases à la connexion).
   const [allowTx, setAllowTx] = useState(true);
   const [allowSign, setAllowSign] = useState(true);
@@ -185,7 +186,7 @@ export function WalletConnectHost() {
     const peer = sessions.find((s) => s.topic === request.topic);
 
     let kind: 'siwe' | 'message' | 'typedData' | 'tx' | 'solanaTx' | 'btcAccounts' | 'btcTransfer' | 'btcPsbt' | 'other' = 'other';
-    let btc: { to?: string; sats?: bigint; inputs?: number; broadcast?: boolean } | null = null;
+    let btc: { to?: string; sats?: bigint; inputs?: number; broadcast?: boolean; psbt?: PsbtSummary | null } | null = null;
     let messageText: string | null = null;
     // Les dApps envoient les paramètres soit en tableau ([{…}]), soit en objet ({…}).
     const p0: any = Array.isArray(p) ? p[0] : p; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -196,27 +197,40 @@ export function WalletConnectHost() {
     let tx: { to?: string; value: bigint; dataBytes: number; data?: string } | null = null;
 
     if (method === 'personal_sign' || method === 'eth_sign') {
-      const hex = method === 'personal_sign' ? p[0] : p[1];
+      const hex = signMessageParam(method, p);
       text = typeof hex === 'string' ? (hexToText(hex) ?? (hex.startsWith('0x') ? null : hex)) : null;
       siwe = text ? parseSiwe(text) : null;
       kind = siwe ? 'siwe' : 'message';
       messageText = text;
     } else if (method === 'solana_signMessage' || method === 'bitcoin_signMessage' || method === 'signMessage') {
-      // Solana : message en base58 (spec) ; Bitcoin : texte UTF-8.
-      const raw = p0?.message ?? p0?.msg ?? (typeof p0 === 'string' ? p0 : '');
-      messageText = decodeMessageText(String(raw ?? ''), method === 'solana_signMessage');
+      // Lu et décodé comme à la signature (lib/messageParams, lib/solanaMessage) : on montre ce qui sera signé.
+      if (method === 'solana_signMessage') {
+        const { bytes, text: decoded } = solanaMessageBytes(solanaMessageParam(p) ?? '');
+        // Octets binaires : montrés en hex, jamais sous l'apparence d'un texte.
+        messageText = decoded ?? `0x${bytesToHex(bytes)}`;
+      } else {
+        messageText = bitcoinMessageParam(p) ?? '';
+      }
       kind = 'message';
     } else if (method === 'getAccountAddresses' || method === 'bitcoin_getAccountAddresses' || method === 'bitcoin_getAccounts' || method === 'getAccounts') {
       kind = 'btcAccounts';
-    } else if (method === 'sendTransfer' || method === 'bitcoin_sendTransfer' || method === 'bitcoin_sendTransaction') {
-      const to = p0?.recipientAddress ?? p0?.recipient ?? p0?.to;
+    } else if (method === 'sendTransfer' || method === 'bitcoin_sendTransfer' || method === 'bitcoin_sendTransaction' || method === 'sendTransaction') {
+      // Même lecture que l'envoi (lib/messageParams) : l'écran montre ce qui partira.
+      const { to, amount } = btcTransferParams(p);
       let sats: bigint | undefined;
-      try { sats = p0?.amount != null ? BigInt(String(p0.amount)) : undefined; } catch { sats = undefined; }
-      btc = { to: typeof to === 'string' ? to : undefined, sats };
+      try { sats = amount != null && /^\d+$/.test(String(amount).trim()) ? BigInt(String(amount).trim()) : undefined; } catch { sats = undefined; }
+      btc = { to, sats };
       kind = 'btcTransfer';
     } else if (method === 'signPsbt' || method === 'bitcoin_signPsbt') {
       const inputs = Array.isArray(p0?.signInputs) ? p0.signInputs.length : Array.isArray(p0?.inputsToSign) ? p0.inputsToSign.length : undefined;
-      btc = { inputs, broadcast: p0?.broadcast === true };
+      /*
+       * Le PSBT est DÉCODÉ : destinataires, montant qui part, frais. Sans ça, la
+       * fenêtre ne disait que « N entrées à signer » — une dApp pouvait faire
+       * signer l'envoi de tout le solde sans que rien ne le montre.
+       */
+      const raw = p0?.psbt ?? (Array.isArray(p) ? p.filter((x) => typeof x === 'string').pop() : typeof p === 'string' ? p : undefined);
+      const own = useWallet.getState().accounts.map((a) => a.btcAddress).filter(Boolean);
+      btc = { inputs, broadcast: p0?.broadcast === true, psbt: typeof raw === 'string' ? summarizePsbt(raw, own) : null };
       kind = 'btcPsbt';
     } else if (method.startsWith('eth_signTypedData')) {
       typed = summarizeTypedData(p[1]);
@@ -268,7 +282,11 @@ export function WalletConnectHost() {
     (async () => {
       const d = info.decoded;
       const meta = d && (d.kind === 'transfer' || d.kind === 'approve') ? await getTokenMetadata(info.chain!, d.token).catch(() => null) : null;
-      const s = await simulateTx(info.chain!, { from: account.address, to: info.tx!.to, value: info.tx!.value, data: info.tx!.data }, meta ? { symbol: meta.symbol, decimals: meta.decimals } : undefined);
+      // Le compte qui SIGNERA (compte actif, adresse EVM) — pas l'adresse du réseau affiché.
+      const w = useWallet.getState();
+      const from = w.accounts.find((a) => a.index === w.activeAccountIndex)?.evmAddress ?? '';
+      if (!from) { if (alive) setSim(null); return; }
+      const s = await simulateTx(info.chain!, { from, to: info.tx!.to, value: info.tx!.value, data: info.tx!.data }, meta ? { symbol: meta.symbol, decimals: meta.decimals } : undefined);
       if (alive) setSim(s);
     })();
     return () => {
@@ -313,6 +331,9 @@ export function WalletConnectHost() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, proposal]);
+
+  // App verrouillée : aucune fenêtre par-dessus l'écran de code. La demande reste en attente et s'affiche au déverrouillage.
+  if (locked) return null;
 
   if (proposal) {
     const meta = proposal.params?.proposer?.metadata ?? {};
@@ -388,7 +409,19 @@ export function WalletConnectHost() {
     const { kind, siwe, typed, tx, chain, peer, phishing, decoded, verify } = info;
     const simulating = sim === 'loading';
     const simulation = sim && sim !== 'loading' ? sim : null;
-    const explanation = explainRequest({
+    /*
+     * Compte de la session ≠ compte actif : dit AVANT le code, pas après.
+     * Signer est alors bloqué (le coffre refuserait de toute façon).
+     */
+    let accountMismatch: string | null = null;
+    try {
+      assertSessionAccount(useWalletConnect.getState().wallet, request.topic, request.params?.chainId);
+    } catch (e) {
+      // Message construit ici (pas `friendlyTxError`, qui journalise à chaque rendu).
+      const address = isWalletError(e) ? e.meta?.address : undefined;
+      accountMismatch = address ? t('errWrongAccountAddr').replace('{address}', String(address)) : t('errWrongAccount');
+    }
+    const baseExplanation = explainRequest({
       kind,
       method: info.method,
       domain: peer?.url ? hostOf(peer.url) : undefined,
@@ -406,14 +439,25 @@ export function WalletConnectHost() {
       addressRisk: risk && risk !== 'loading' ? risk : null,
       phishingSite: phishSite,
       nativeSymbol: chain?.nativeSymbol,
+      connectedChainId: chain?.evmChainId,
+      txValue: tx?.value,
+      nativeDecimals: chain?.nativeDecimals,
+      simulating,
+      t: exT,
     });
+    const explanation = accountMismatch
+      ? { ...baseExplanation, risk: 'danger' as const, reasons: [accountMismatch, ...baseExplanation.reasons] }
+      : baseExplanation;
     const rawJson = JSON.stringify(request.params?.request?.params ?? {}, null, 2).slice(0, 1600);
 
     // « Réduire au montant exact » : approve illimité → montant issu de la simulation
     // (ce que le routeur va prélever) ; sans simulation, on ne devine pas.
     const reducible = decoded?.kind === 'approve' && decoded.unlimited;
     const reducedAmount = simulation?.changes.find((c) => c.direction === 'out' && c.contract && decoded?.kind === 'approve' && c.contract.toLowerCase() === decoded.token.toLowerCase())?.rawAmount;
-    const [overrideData, setOverride] = [reduceRef.current, (v: string | null) => (reduceRef.current = v)];
+    const reqId: number | undefined = request?.id;
+    // Jamais appliquée à une autre demande que la sienne (échec, file qui avance).
+    const overrideData = reduceRef.current && reduceRef.current.id === reqId ? reduceRef.current.data : null;
+    const setOverride = (v: string | null) => (reduceRef.current = v && reqId != null ? { id: reqId, data: v } : null);
     const onReduce = () => {
       if (!reducible || !reducedAmount || decoded?.kind !== 'approve') return;
       const data = new Interface(['function approve(address,uint256)']).encodeFunctionData('approve', [decoded.spender, BigInt(reducedAmount)]);
@@ -422,8 +466,11 @@ export function WalletConnectHost() {
     };
 
     const perform = async (unlock: Unlock) => {
-      await approveRequest(unlock, overrideData ?? undefined);
-      setOverride(null);
+      try {
+        await approveRequest(unlock, overrideData ?? undefined);
+      } finally {
+        setOverride(null); // la file avance aussi en cas d'échec
+      }
       sound.success();
     };
     const reject = () => {
@@ -431,6 +478,13 @@ export function WalletConnectHost() {
       setOverride(null);
       rejectRequest().catch(() => {});
     };
+
+    // Adresse qui SIGNE, selon la famille de la demande — pas celle du réseau affiché dans l'app.
+    const signerAcct = accounts.find((a) => a.index === useWallet.getState().activeAccountIndex);
+    const signerAddress =
+      kind === 'solanaTx' || request?.params?.request?.method?.startsWith('solana_') ? signerAcct?.solAddress
+      : kind.startsWith('btc') || request?.params?.request?.method?.startsWith('bitcoin_') ? signerAcct?.btcAddress
+      : signerAcct?.evmAddress;
 
     return (
       <>
@@ -441,10 +495,10 @@ export function WalletConnectHost() {
           explanation={explanation}
           simulating={simulating}
           network={chain?.name}
-          address={account?.address}
+          address={signerAddress}
           raw={rawJson}
           onReject={reject}
-          onSign={() => setConfirming(true)}
+          onSign={() => { if (!accountMismatch) setConfirming(true); }}
           onReduceApproval={reducible && reducedAmount ? onReduce : undefined}
           signLabel={kind === 'siwe' ? t("wcSignConnect") : kind === 'tx' || kind === 'btcTransfer' || kind === 'btcPsbt' ? t("wcSignConfirm") : kind === 'btcAccounts' ? t('allow') : t("wcSign")}
         />
@@ -455,7 +509,14 @@ export function WalletConnectHost() {
           perform={perform}
           onDone={() => setConfirming(false)}
           onCancel={() => setConfirming(false)}
-          aiContext={tx ? { to: tx.to ?? '', value: tx.value.toString(), method: info.method, url: peer?.url } : undefined}
+          aiContext={tx ? {
+            to: tx.to ?? '',
+            // Montant lisible : le modèle recevait des wei bruts.
+            value: `${formatTokenAmount(tx.value, 18)} ${chain?.nativeSymbol ?? ''}`.trim(),
+            method: `${info.method} — ${explanation.title}: ${explanation.headline}`,
+            network: chain?.name,
+            url: peer?.url,
+          } : undefined}
         />
       </>
     );

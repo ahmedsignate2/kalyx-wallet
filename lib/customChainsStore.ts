@@ -11,6 +11,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   registerChain,
+  listChains,
   unregisterChain,
   serializeNetworks,
   parseNetworksBackup,
@@ -64,7 +65,8 @@ export function buildCustomChain(input: CustomChainInput): ChainConfig {
 interface CustomChainsState {
   chains: ChainConfig[];
   load: () => Promise<void>;
-  add: (input: CustomChainInput) => { ok: boolean; error?: string };
+  /** `error` est une CLÉ de traduction ; `detail` complète `netErrBuiltin`. */
+  add: (input: CustomChainInput) => { ok: boolean; error?: string; detail?: string };
   remove: (id: string) => void;
   /** Sérialise les réseaux perso pour sauvegarde (partage/fichier). */
   exportBackup: () => string;
@@ -92,21 +94,24 @@ export const useCustomChains = create<CustomChainsState>((set, get) => ({
 
   add: (input) => {
     const family = input.family ?? 'evm';
-    if (!input.name.trim() || !input.nativeSymbol.trim()) return { ok: false, error: 'Nom et symbole requis.' };
+    if (!input.name.trim() || !input.nativeSymbol.trim()) return { ok: false, error: 'netErrNameSymbol' };
     // Le Chain ID n'est exigé que pour l'EVM : hors EVM, l'identité vient du nom.
     if (family === 'evm' && (!Number.isInteger(input.evmChainId) || input.evmChainId <= 0)) {
-      return { ok: false, error: 'Chain ID invalide.' };
+      return { ok: false, error: 'netErrChainId' };
     }
-    if (!/^https:\/\//i.test(input.rpcUrl.trim())) return { ok: false, error: 'RPC : URL https requise.' };
+    // Un réseau INTÉGRÉ porte déjà ce Chain ID : un doublon « perso » pourrait l'imiter (faux soldes, autre RPC).
+    const builtin = family === 'evm' ? listChains({ includeTestnets: true }).find((c) => c.evmChainId === input.evmChainId && !c.id.startsWith('custom-')) : undefined;
+    if (builtin) return { ok: false, error: 'netErrBuiltin', detail: builtin.name };
+    if (!/^https:\/\//i.test(input.rpcUrl.trim())) return { ok: false, error: 'netErrHttps' };
     if (
       input.nativeDecimals !== undefined &&
       (!Number.isInteger(input.nativeDecimals) || input.nativeDecimals < 0 || input.nativeDecimals > 36)
     ) {
-      return { ok: false, error: 'Décimales : entier entre 0 et 36.' };
+      return { ok: false, error: 'netErrDecimals' };
     }
     const config = buildCustomChain(input);
     if (get().chains.some((c) => c.id === config.id)) {
-      return { ok: false, error: family === 'evm' ? 'Ce Chain ID existe déjà.' : 'Ce nom de réseau existe déjà.' };
+      return { ok: false, error: 'netErrExists' };
     }
     registerChain(config);
     const chains = [...get().chains, config];
@@ -132,7 +137,9 @@ export const useCustomChains = create<CustomChainsState>((set, get) => ({
     const { chains: incoming, error } = parseNetworksBackup(text);
     if (error) return { ok: false, added: 0, skipped: 0, error };
     const existing = new Set(get().chains.map((c) => c.id));
-    const toAdd = incoming.filter((c) => !existing.has(c.id));
+    // Jamais un doublon d'un réseau intégré, même depuis une sauvegarde.
+    const builtinIds = new Set(listChains({ includeTestnets: true }).filter((c) => !c.id.startsWith('custom-') && c.evmChainId).map((c) => c.evmChainId));
+    const toAdd = incoming.filter((c) => !existing.has(c.id) && !(c.family === 'evm' && builtinIds.has(c.evmChainId)));
     toAdd.forEach((c) => registerChain(c)); // actifs immédiatement dans le registre
     const chains = [...get().chains, ...toAdd];
     set({ chains });

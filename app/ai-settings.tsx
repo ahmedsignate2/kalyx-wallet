@@ -1,19 +1,18 @@
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { Button, Chip, Input, ScreenHeader, Pressable as KPressable, Text as KText } from '../ui/kit';
+import { GOLD, IconDisc, NovaCard, NovaHero, NovaSwitch, Rise, SectionLabel } from '../ui/nova';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, Alert, ActivityIndicator, Switch } from 'react-native';
+import { View, Alert, Linking } from 'react-native';
 import { router } from 'expo-router';
-import { useTheme, fonts, radii, spacing } from '../ui/theme';
+import { spacing } from '../ui/theme';
 import { useSettings } from '../lib/settingsStore';
 import { useT } from '../lib/settingsStore';
-import { PremiumScreen, GlassCard, ListRow, IconButton } from '../ui/premium';
+import { PremiumScreen } from '../ui/premium';
 import { Icon } from '../ui/icon';
 import { useAiStore, AiProvider } from '../lib/aiStore';
 import { validateAiKey } from '../lib/aiValidator';
 import { PROVIDER_DEFAULTS } from '../lib/aiConfig';
-import { Linking } from 'react-native';
 
 export default function AiSettings() {
-  const { colors, typography } = useTheme();
   const t = useT();
   const aiToolsEnabled = useSettings((st) => st.aiToolsEnabled);
   const setAiToolsEnabled = useSettings((st) => st.setAiToolsEnabled);
@@ -58,158 +57,79 @@ export default function AiSettings() {
     Alert.alert(t('aiDisabledTitle'), t('aiDisabledBody'));
   };
 
-  return (
-    <PremiumScreen
-    >
-      <ScreenHeader />
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing(2) }}>
-        <IconButton icon="chevron" onPress={() => router.back()} />
-        <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.text, marginLeft: spacing(2) }}>{t('copilotByok')}</Text>
-      </View>
-      <ScrollView contentContainerStyle={{ padding: spacing(2), gap: spacing(2) }}>
-        <Text style={[typography.body, { marginBottom: spacing(1) }]}>
-          {t('aiByokIntro')}
-        </Text>
+  const canSave = !loading && !!inputKey.trim();
+  const providerLabel = (p: string) => (p === 'openai' ? 'OpenAI' : p === 'deepseek' ? 'DeepSeek' : p === 'openrouter' ? 'OpenRouter' : p === 'huggingface' ? 'Hugging Face' : p.charAt(0).toUpperCase() + p.slice(1));
 
-        <Text style={[typography.body, { color: colors.textSecondary }]}>{t('aiProvider')}</Text>
+  /*
+   * THÈME NOVA, comme les autres écrans secondaires : un seul en-tête (il y en
+   * avait deux, avec deux flèches retour), le héros, puis des cartes. Plus de
+   * ScrollView imbriqué dans celui de l'écran : le clavier et le défilement
+   * sont gérés une seule fois, par PremiumScreen.
+   */
+  return (
+    <PremiumScreen>
+      <ScreenHeader fallback="/settings" />
+      <NovaHero icon="sparkles" tone="gold" title={t('copilotByok')} subtitle={t('aiByokIntro')} />
+
+      {isEnabled ? (
+        <NovaCard delay={120} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+          <IconDisc name="check" size={36} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <KText variant="body" tone="up">{t('aiActiveTitle')}</KText>
+            <KText variant="caption" tone="secondary">{t('aiActiveDesc')}</KText>
+          </View>
+        </NovaCard>
+      ) : null}
+
+      <SectionLabel>{t('aiProvider')}</SectionLabel>
+      <Rise delay={160}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
           {(Object.keys(PROVIDER_DEFAULTS) as AiProvider[]).map((p) => (
-            <KPressable
-              key={p}
-              onPress={() => setSelectedProvider(p)}
-              style={{
-                width: '31%',
-                alignItems: 'center',
-                paddingVertical: spacing(1.5),
-                borderRadius: radii.md,
-                borderWidth: 1,
-                borderColor: selectedProvider === p ? colors.primary : colors.border,
-                backgroundColor: selectedProvider === p ? colors.primary + '20' : colors.surface1,
-              }}
-            >
-              <Text style={{ fontFamily: fonts.semibold, color: selectedProvider === p ? colors.primary : colors.text }}>
-                {p.charAt(0).toUpperCase() + p.slice(1)}
-              </Text>
-            </KPressable>
+            <Chip key={p} label={providerLabel(p)} selected={selectedProvider === p} onPress={() => setSelectedProvider(p)} />
           ))}
         </View>
+      </Rise>
 
-        <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing(1) }]}>{t('aiApiKey')}</Text>
-        <TextInput
-          style={{
-            backgroundColor: colors.surface1,
-            borderColor: colors.border,
-            borderWidth: 1,
-            borderRadius: radii.md,
-            padding: spacing(2),
-            color: colors.text,
-            fontFamily: fonts.medium,
-          }}
-          placeholder="Ex: sk-..."
-          placeholderTextColor={colors.textTertiary}
-          value={inputKey}
-          onChangeText={setInputKey}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {PROVIDER_DEFAULTS[selectedProvider]?.helperUrl && (
-          <KPressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[selectedProvider].helperUrl!)} style={{ alignSelf: 'flex-start', marginTop: 4 }}>
-            <Text style={[typography.body, { color: colors.primary, fontSize: 13, textDecorationLine: 'underline' }]}>{t('aiFreeKeyHelp')}</Text>
+      <NovaCard delay={200} style={{ gap: spacing(1.5) }}>
+        <Input label={t('aiApiKey')} placeholder="sk-…" value={inputKey} onChangeText={setInputKey} secureTextEntry sensitive />
+        {PROVIDER_DEFAULTS[selectedProvider]?.helperUrl ? (
+          <KPressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[selectedProvider].helperUrl!)} hitSlop={8} style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name="forward" size={14} color={GOLD} />
+            <KText variant="caption" style={{ color: GOLD }}>{t('aiFreeKeyHelp')}</KText>
           </KPressable>
-        )}
+        ) : null}
+        {selectedProvider === 'custom' ? (
+          <>
+            <Input label={t('aiApiUrl')} placeholder="https://api.together.xyz/v1/chat/completions" value={customUrl} onChangeText={setCustomUrl} autoCapitalize="none" autoCorrect={false} keyboardType="url" />
+            <Input label={t('aiModelName')} placeholder="qwen-2.5-72b · gemini-1.5-pro" value={customModel} onChangeText={setCustomModel} autoCapitalize="none" autoCorrect={false} />
+          </>
+        ) : null}
+      </NovaCard>
 
-        {selectedProvider === 'custom' && (
-          <View style={{ gap: spacing(1.5), marginTop: spacing(1) }}>
-            <Text style={[typography.body, { color: colors.textSecondary }]}>{t('aiApiUrl')}</Text>
-            <TextInput
-              style={{ backgroundColor: colors.surface1, borderColor: colors.border, borderWidth: 1, borderRadius: radii.md, padding: spacing(1.5), color: colors.text, fontFamily: fonts.medium }}
-              placeholder="Ex: https://api.together.xyz/v1/chat/completions"
-              placeholderTextColor={colors.textTertiary}
-              value={customUrl}
-              onChangeText={setCustomUrl}
-              autoCapitalize="none"
-            />
-            <Text style={[typography.body, { color: colors.textSecondary }]}>{t('aiModelName')}</Text>
-            <TextInput
-              style={{ backgroundColor: colors.surface1, borderColor: colors.border, borderWidth: 1, borderRadius: radii.md, padding: spacing(1.5), color: colors.text, fontFamily: fonts.medium }}
-              placeholder="Ex: qwen-2.5-72b ou gemini-1.5-pro"
-              placeholderTextColor={colors.textTertiary}
-              value={customModel}
-              onChangeText={setCustomModel}
-              autoCapitalize="none"
-            />
+      <View style={{ gap: spacing(1.25) }}>
+        <Button label={t('aiTestAndActivate')} onPress={() => void handleSaveAndActivate()} loading={loading} disabled={!canSave} />
+        {isEnabled ? <Button label={t('aiDisable')} variant="destructive" onPress={() => void handleDisable()} /> : null}
+      </View>
+
+      {/*
+        OUTILS DE L'ASSISTANT — opt-in strict, et l'avertissement dit pourquoi.
+        Tant que c'est désactivé, les outils ne sont même pas ANNONCÉS au
+        modèle : un modèle qui ne les connaît pas ne peut pas les appeler.
+        Visible seulement si une clé IA est configurée : proposer d'outiller un
+        assistant inactif n'aurait aucun sens.
+      */}
+      {isEnabled ? (
+        <NovaCard delay={240} style={{ gap: spacing(1.25) }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <KText variant="body">{t('aiToolsTitle')}</KText>
+              <KText variant="caption" tone="secondary">{t('aiToolsDesc')}</KText>
+            </View>
+            <NovaSwitch value={aiToolsEnabled} onValueChange={setAiToolsEnabled} />
           </View>
-        )}
-
-        <View style={{ marginTop: spacing(2), gap: spacing(1.5) }}>
-          <KPressable
-            onPress={handleSaveAndActivate}
-            disabled={loading || !inputKey.trim()}
-            style={{
-              backgroundColor: colors.primary,
-              padding: spacing(2),
-              borderRadius: radii.pill,
-              alignItems: 'center',
-              opacity: (loading || !inputKey.trim()) ? 0.7 : 1,
-            }}
-          >
-            {loading ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: 16 }}>{t('aiTestAndActivate')}</Text>}
-          </KPressable>
-
-          {isEnabled && (
-            <KPressable
-              onPress={handleDisable}
-              style={{
-                backgroundColor: colors.danger + '20',
-                padding: spacing(2),
-                borderRadius: radii.pill,
-                alignItems: 'center',
-                borderWidth: 1,
-                borderColor: colors.danger,
-              }}
-            >
-              <Text style={{ color: colors.danger, fontFamily: fonts.bold, fontSize: 16 }}>{t('aiDisable')}</Text>
-            </KPressable>
-          )}
-        </View>
-
-        {isEnabled && (
-          <GlassCard style={{ marginTop: spacing(3) }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginBottom: spacing(1) }}>
-              <Icon name="check" size={20} color={colors.up} />
-              <Text style={{ color: colors.up, fontFamily: fonts.bold, fontSize: 16 }}>{t('aiActiveTitle')}</Text>
-            </View>
-            <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: fonts.medium, lineHeight: 20 }}>
-              {t('aiActiveDesc')}
-            </Text>
-          </GlassCard>
-        )}
-
-        {/*
-          OUTILS DE L'ASSISTANT — opt-in strict, et l'avertissement dit pourquoi.
-          Tant que c'est désactivé, les outils ne sont même pas ANNONCÉS au
-          modèle : un modèle qui ne les connaît pas ne peut pas les appeler.
-          Visible seulement si une clé IA est configurée : proposer d'outiller un
-          assistant inactif n'aurait aucun sens.
-        */}
-        {isEnabled && (
-          <GlassCard style={{ marginTop: spacing(2) }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 15 }}>{t('aiToolsTitle')}</Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: fonts.medium, lineHeight: 19 }}>
-                  {t('aiToolsDesc')}
-                </Text>
-              </View>
-              <Switch value={aiToolsEnabled} onValueChange={setAiToolsEnabled} />
-            </View>
-            <Text style={{ color: colors.warning, fontSize: 12, fontFamily: fonts.medium, lineHeight: 18, marginTop: spacing(1.25) }}>
-              {t('aiToolsWarn')}
-            </Text>
-          </GlassCard>
-        )}
-      </ScrollView>
+          <KText variant="caption" tone="warning">{t('aiToolsWarn')}</KText>
+        </NovaCard>
+      ) : null}
     </PremiumScreen>
   );
 }

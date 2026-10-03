@@ -87,6 +87,54 @@ export interface TxSummary {
   asset?: string;
   decimals?: number; // e.g. "SWAP", "TRANSFER", "NFT"
   description?: string; // Texte lisible fourni par l'indexeur (ex: Helius)
+  /**
+   * TON : hachage NORMALISÉ (hex) du message externe qui a déclenché cette
+   * transaction. C'est l'identifiant rendu juste après un envoi — et il diffère
+   * du hachage de la transaction (`hash`). Sans lui, l'écran de suivi cherchait
+   * l'un sous le nom de l'autre et restait sur « en attente » après une
+   * transaction confirmée.
+   */
+  messageHash?: string;
+  /**
+   * Adresse du TOKEN transféré (contrat ERC-20/721, mint SPL, maître de jetton
+   * TON). Le symbole seul ne suffit pas à juger un token : n'importe qui peut
+   * déployer un « USDT ». C'est sur elle que le filtre anti-spam se fonde.
+   */
+  contract?: string;
+  /** Identifiant d'un NFT transféré. */
+  tokenId?: string;
+  /**
+   * Tous les mouvements d'une même transaction, quand il y en a plusieurs : un
+   * swap sort un token et en fait entrer un autre. Sans eux, l'une des deux
+   * jambes disparaissait (dédoublonnage par hachage) et un échange se lisait
+   * comme un simple envoi.
+   */
+  legs?: TxLeg[];
+  /**
+   * Transaction SIGNÉE par le propriétaire (il en est l'expéditeur). Un faux
+   * token peut émettre un « transfert depuis toi » sans ta signature : c'est
+   * ainsi que « EṬH » ou « UṢDC » apparaissent comme des envois. `undefined`
+   * quand la source ne permet pas de le savoir.
+   */
+  byOwner?: boolean;
+  /**
+   * Numéro de bloc, seulement quand l'indexeur n'a pas fourni d'horodatage :
+   * l'adaptateur s'en sert pour retrouver la date (sinon « 1er janvier 1970 »).
+   */
+  block?: number;
+}
+
+/** Un mouvement de valeur à l'intérieur d'une transaction. */
+export interface TxLeg {
+  direction: 'in' | 'out';
+  value: bigint;
+  /** Symbole ; absent pour la monnaie native du réseau. */
+  asset?: string;
+  decimals?: number;
+  contract?: string;
+  tokenId?: string;
+  /** NFT (ERC-721/1155). */
+  nft?: boolean;
 }
 
 /**

@@ -1,6 +1,9 @@
 import { create } from 'zustand';
+import { maskSecretsOnly } from './secretDetector';
+import { knownTxHashes } from './knownTxHashes';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isDecoySession, onDecoyChange } from './sessionMode';
 
 export interface ChatMessage {
   id: string;
@@ -29,6 +32,9 @@ interface AiChatHistoryState {
   addMessageToActive: (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   deleteSession: (id: string) => void;
 }
+
+/** Sortie de la session leurre : la prochaine relecture ne garde rien de la mémoire. */
+let dropChatMemoryOnHydrate = false;
 
 export const useAiChatHistoryStore = create<AiChatHistoryState>()(
   persist(
@@ -59,6 +65,8 @@ export const useAiChatHistoryStore = create<AiChatHistoryState>()(
 
         const fullMsg: ChatMessage = {
           ...msg,
+          // Jamais de secret en clair dans l'historique persistant, quel que soit l'écran appelant.
+          text: maskSecretsOnly(msg.text, knownTxHashes()),
           id: Math.random().toString(36).substring(7),
           timestamp: Date.now(),
         };
@@ -70,7 +78,7 @@ export const useAiChatHistoryStore = create<AiChatHistoryState>()(
             // Si c'est le premier message de l'utilisateur, on génère le titre
             const title =
               s.messages.length === 0 && msg.sender === 'user'
-                ? msg.text.slice(0, 30) + (msg.text.length > 30 ? '...' : '')
+                ? fullMsg.text.slice(0, 30) + (fullMsg.text.length > 30 ? '...' : '')
                 : s.title;
 
             return {
@@ -91,7 +99,29 @@ export const useAiChatHistoryStore = create<AiChatHistoryState>()(
     }),
     {
       name: 'kalyx-ai-chat-history',
-      storage: createJSONStorage(() => AsyncStorage),
+      // Session leurre : lectures vides, écritures ignorées (les vraies conversations restent intactes).
+      storage: createJSONStorage(() => ({
+        getItem: (k: string) => (isDecoySession() ? Promise.resolve(null) : AsyncStorage.getItem(k)),
+        setItem: (k: string, v: string) => (isDecoySession() ? Promise.resolve() : AsyncStorage.setItem(k, v)),
+        removeItem: (k: string) => (isDecoySession() ? Promise.resolve() : AsyncStorage.removeItem(k)),
+      })),
+      merge: (persisted, current) => {
+        const stored = persisted as Partial<Pick<AiChatHistoryState, 'sessions' | 'activeSessionId'>> | undefined;
+        const drop = dropChatMemoryOnHydrate;
+        dropChatMemoryOnHydrate = false;
+        if (stored) return { ...current, ...stored };
+        return drop ? { ...current, sessions: [], activeSessionId: null } : current;
+      },
     }
   )
 );
+
+onDecoyChange((on) => {
+  if (on) {
+    useAiChatHistoryStore.setState({ sessions: [], activeSessionId: null }); // écriture neutralisée en leurre
+    return;
+  }
+  // Sortie : la relecture remplace la mémoire (discussions du leurre comprises), sans rien écrire.
+  dropChatMemoryOnHydrate = true;
+  void useAiChatHistoryStore.persist.rehydrate();
+});

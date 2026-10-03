@@ -38,6 +38,8 @@ import {
   type EarnPosition,
   type EarnTx,
   type RawTxRequest,
+  WalletError,
+  checkSwapQuote,
 } from '../../src';
 import type { Unlock } from '../walletStore';
 import { useWallet } from '../walletStore';
@@ -318,7 +320,20 @@ async function contractQuote(
       const v = BigInt(hex);
       if (v > 0n && p.id !== 'lido-steth') amountOut = v; // stETH est rebasing : l'utilisateur voit ~1:1
     } catch {
-      /* 1:1 par défaut */
+      /*
+       * Ratio illisible : 1:1 n'est juste que pour stETH. Pour un jeton à ratio
+       * (sAVAX…), annoncer 1:1 gonflait ce qui serait reçu — on le dit plutôt.
+       */
+      if (p.id === 'benqi-savax') {
+        // Lecture sans dépendre du solde : sAVAX.getSharesByPooledAvax(montant) (vue).
+        try {
+          const shares = BigInt(await evm(p).callContract(tx.to, `0xf1ee8d92${amount.toString(16).padStart(64, '0')}`));
+          if (shares <= 0n) throw new Error('ratio nul');
+          amountOut = shares;
+        } catch {
+          throw new SwapError('PROVIDER_UNAVAILABLE', 'Taux de conversion sAVAX illisible pour le moment.');
+        }
+      }
     }
   }
 
@@ -353,6 +368,16 @@ async function lifiQuote(p: EarnProtocol, action: EarnAction, amount: bigint, ac
     isEarn: true, // 0 % Kalyx sur TOUT Earn (dépôt comme retrait) — les 0,3 % ne concernent que Swap/Bridge
   });
   if (!q) throw new SwapError('NO_ROUTE', `Aucune route pour ${tokenIn.symbol} → ${tokenOut.symbol}`);
+  // Même contrôle que l'échange (src/domain/swap/guard.ts) : contrat LI.FI officiel, bon montant, retour vers nous.
+  const check = checkSwapQuote(q, {
+    fromEvmChainId: p.chainId === 'solana' ? undefined : chain,
+    fromToken: lifiToken(p, tokenIn.address),
+    fromAmount: amount,
+    fromAddress: from,
+    toAddress: from,
+    toToken: lifiToken(p, tokenOut.address),
+  });
+  if (!check.ok) throw new SwapError('PROVIDER_UNAVAILABLE', `Devis refusé : ${check.reason}`);
 
   let tx: EarnTx;
   if (q.tx.type === 'solana') tx = { type: 'solana', data: q.tx.data };
@@ -408,7 +433,7 @@ async function executeSolana(q: EarnQuote, unlock: Unlock, onStatus?: (s: EarnSt
   const store = useWallet.getState();
   onStatus?.('sending');
   // Signature avec blockhash rafraîchi (le devis LI.FI peut dater de >60 s).
-  const signed = await store.signSolanaTransaction(unlock, q.tx.data, true);
+  const signed = await store.signSolanaTransaction(unlock, q.tx.data, true, { appFlow: true });
   // Simulation obligatoire → envoi → confirmation (partagé avec le swap).
   return submitSolanaSigned(signed, onStatus);
 }
@@ -424,7 +449,7 @@ async function executeEvm(p: EarnProtocol, q: EarnQuote, unlock: Unlock, onStatu
   const gasBal = await adapter.getBalance(owner).then((b) => b.raw).catch(() => -1n);
   const needNative = (q.tx.value ?? 0n) + (q.gasNative > 0n ? q.gasNative : 0n);
   if (gasBal >= 0n && gasBal < needNative) {
-    throw new Error(`Solde en ${adapter.config.nativeSymbol} insuffisant pour payer les frais réseau.`);
+    throw new WalletError('INSUFFICIENT_GAS', `Solde en ${adapter.config.nativeSymbol} insuffisant pour payer les frais réseau.`);
   }
 
   // 1) Approve exact si l'allowance actuelle est insuffisante (jamais d'approve infini).
@@ -432,13 +457,28 @@ async function executeEvm(p: EarnProtocol, q: EarnQuote, unlock: Unlock, onStatu
     const allowance = await adapter.getAllowance(q.tokenIn.address, owner, q.approvalAddress);
     if (allowance < q.amountIn) {
       onStatus?.('approving');
+      /*
+       * USDT (Ethereum) et quelques jetons anciens refusent `approve(montant)`
+       * tant que l'autorisation courante n'est pas nulle : remise à zéro
+       * d'abord, comme pour l'échange. Seul ce cas (autorisation non nulle et
+       * insuffisante) paie une transaction de plus.
+       */
+      if (allowance > 0n) {
+        const resetHash = await store.sendRawTxOn(
+          unlock,
+          p.chainId,
+          { to: q.tokenIn.address, data: adapter.buildApproveData(q.approvalAddress, 0n), value: 0n, chainId: q.tx.chainId },
+          { appFlow: true },
+        );
+        await adapter.waitForTx(resetHash);
+      }
       const approveReq: RawTxRequest = {
         to: q.tokenIn.address,
         data: adapter.buildApproveData(q.approvalAddress, q.amountIn),
         value: 0n,
         chainId: q.tx.chainId,
       };
-      const approveHash = await store.sendRawTxOn(unlock, p.chainId, approveReq);
+      const approveHash = await store.sendRawTxOn(unlock, p.chainId, approveReq, { appFlow: true });
       onStatus?.('approvalWait');
       await adapter.waitForTx(approveHash);
       // Le reçu est là, mais un nœud public peut encore servir l'ancienne allowance :
@@ -458,7 +498,7 @@ async function executeEvm(p: EarnProtocol, q: EarnQuote, unlock: Unlock, onStatu
     // Après un approve, l'estimation initiale (faite sans allowance) est fausse → on laisse le réseau ré-estimer.
     gasLimit: q.approvalAddress ? undefined : q.tx.gasLimit,
   };
-  const hash = await store.sendRawTxOn(unlock, p.chainId, req);
+  const hash = await store.sendRawTxOn(unlock, p.chainId, req, { appFlow: true });
 
   // 3) Confirmation (1 bloc). waitForTx lève si la tx a revert.
   onStatus?.('confirming');

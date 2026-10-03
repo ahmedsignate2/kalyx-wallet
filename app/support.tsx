@@ -1,9 +1,14 @@
 /**
  * « Soutenez-nous » : Kalyx est un wallet non-custodial, gratuit, sans pub ni
  * revente de données, développé en indépendant. Cette page explique POURQUOI
- * soutenir et propose des dons en crypto (BTC/SOL/ETH). Aucune adresse ne quitte
+ * soutenir et propose des dons en crypto (BTC/ETH/SOL/TON). Aucune adresse ne quitte
  * l'app : ce sont des adresses de RÉCEPTION publiques codées ici.
+ *
+ * TON : le nom `kalyxwallet.ton` est MONTRÉ, l'adresse se copie (elle marche
+ * dans tous les wallets, même ceux qui ne résolvent pas les noms). Vérifié le
+ * 28/09 : `kalyxwallet.ton` résout exactement vers cette adresse.
  */
+import { IconDisc, NovaCard, NovaHero, SectionLabel, SettingRow } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import React, { useState } from 'react';
 import { View, Text } from 'react-native';
@@ -22,7 +27,9 @@ const CRYPTO = [
   { key: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', address: 'bc1qkalyxyueng23j7elpqrk4pcp3thp94u6cs5rkn' },
   { key: 'ethereum', name: 'Ethereum (EVM)', symbol: 'ETH', address: '0x7411b6a0b4df0f3a0bab9fe2c5d5cb47ddbdb69b' },
   { key: 'solana', name: 'Solana', symbol: 'SOL', address: 'KALYXiXBdhzuEyFuPx9EdoqyaiUcrBTT9k66v4C13jz' },
-] as const;
+  // Propriétaire de kalyxwallet.ton (W5, forme non rebondissante, réseau principal).
+  { key: 'ton', name: 'TON', symbol: 'TON', address: 'UQBapKtQghRx5Wh1WpscDbNNH9kLIpdd89rSxMU5EJCmVBrU', domain: 'kalyxwallet.ton' },
+] as const satisfies readonly { key: string; name: string; symbol: string; address: string; domain?: string }[];
 
 export default function Support() {
   const { colors, typography } = useTheme();
@@ -47,41 +54,37 @@ export default function Support() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Hero */}
-      <View style={{ alignItems: 'center', gap: spacing(1.25), marginBottom: spacing(1) }}>
+      <NovaHero title={t('supportKalyxHero')} subtitle={t('supportIntro')}>
         <KalyxLogo size={72} />
-        <Text style={{ color: colors.text, fontSize: 24, fontFamily: fonts.extrabold, textAlign: 'center' }}>{t('supportKalyxHero')}</Text>
-        <Text style={[typography.muted, { textAlign: 'center' }]}>{t('supportIntro')}</Text>
-      </View>
+      </NovaHero>
 
       {/* Pourquoi nous soutenir */}
-      <GlassCard>
+      <NovaCard delay={140}>
         {REASONS.map((r, i) => (
           <View key={r.title} style={{ flexDirection: 'row', gap: spacing(1.5), alignItems: 'flex-start', paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
-            <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name={r.icon} size={18} color={colors.primary} />
-            </View>
+            <IconDisc name={r.icon} tone="gold" />
             <View style={{ flex: 1 }}>
               <Text style={typography.bodyStrong}>{r.title}</Text>
               <Text style={typography.muted}>{r.text}</Text>
             </View>
           </View>
         ))}
-      </GlassCard>
+      </NovaCard>
 
       {/* Crypto */}
-      <Text style={[typography.section, { marginTop: spacing(1.5) }]}>{t('inCrypto')}</Text>
-      {CRYPTO.map((c) => {
+      <SectionLabel>{t('inCrypto')}</SectionLabel>
+      {CRYPTO.map((c, ci) => {
         const open = openQr === c.key;
         return (
-          <GlassCard key={c.key} style={{ gap: spacing(1.25) }}>
+          <NovaCard key={c.key} delay={200 + ci * 50} style={{ gap: spacing(1.25) }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
               <RemoteIcon uri={chainIconUrl(c.key)} label={c.symbol} size={38} />
               <View style={{ flex: 1 }}>
                 <Text style={typography.bodyStrong}>{c.name}</Text>
-                <Text style={typography.muted}>{c.symbol}</Text>
+                <Text style={typography.muted}>{'domain' in c ? `${c.symbol} · ${c.domain}` : c.symbol}</Text>
               </View>
-              <KPressable onPress={() => setOpenQr(open ? null : c.key)} hitSlop={8} style={{ padding: 6 }}>
-                <Icon name="scan" size={20} color={open ? colors.primary : colors.textSecondary} />
+              <KPressable onPress={() => setOpenQr(open ? null : c.key)} hitSlop={8} accessibilityLabel="QR">
+                <IconDisc name="scan" tone={open ? 'gold' : undefined} size={36} />
               </KPressable>
             </View>
 
@@ -97,27 +100,13 @@ export default function Support() {
                 </View>
               </View>
             ) : null}
-          </GlassCard>
+          </NovaCard>
         );
       })}
 
-      <GlassCard style={{ padding: spacing(1.5), flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing(1) }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), flex: 1 }}>
-          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="support" size={18} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.text, fontSize: 14, fontFamily: fonts.semibold }}>{t('supportHistoryTitle')}</Text>
-            <Text style={[typography.micro, { color: colors.textSecondary }]}>{t('supportDiagnosticSubtitle')}</Text>
-          </View>
-        </View>
-        <KPressable
-          onPress={() => router.push('/support-history')}
-          style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.sm, backgroundColor: colors.primary }}
-        >
-          <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 12 }}>{t('supportHistoryDetails')}</Text>
-        </KPressable>
-      </GlassCard>
+      <NovaCard delay={320}>
+        <SettingRow icon="support" title={t('supportHistoryTitle')} hint={t('supportDiagnosticSubtitle')} onPress={() => router.push('/support-history')} />
+      </NovaCard>
 
       <Text style={[typography.muted, { textAlign: 'center', marginTop: spacing(1), marginBottom: spacing(2) }]}>
         {t('thanksHeartfelt')}

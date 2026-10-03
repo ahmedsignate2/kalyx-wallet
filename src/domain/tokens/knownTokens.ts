@@ -54,6 +54,13 @@ export const KNOWN_ERC20_BY_CHAIN: Record<number, string[]> = {
     '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', // WETH
     '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f', // WBTC
   ],
+  // BNB Smart Chain
+  56: [
+    '0x55d398326f99059fF775485246999027B3197955', // USDT
+    '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', // USDC
+    '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', // WBNB
+    '0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3', // DAI
+  ],
 };
 
 /** Contrats connus pour un evmChainId (liste vide si réseau non couvert). */

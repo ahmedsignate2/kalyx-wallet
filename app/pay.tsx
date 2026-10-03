@@ -7,6 +7,7 @@
  * dans une WebView : ses champs évoluent sans nous prévenir, et une copie
  * native empêcherait de payer le jour où elle diverge.
  */
+import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -22,6 +23,7 @@ import { usePay, payAmountText, type PayOption } from '../lib/walletconnectPay';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { technicalLogger } from '../lib/technicalLogger';
+import { friendlyTxError, UserFacingError } from '../lib/txError';
 import {
   formatTokenAmount,
   formatNumber,
@@ -32,6 +34,7 @@ import {
   needsCollect,
   payEligibleHoldings,
   payCoverageLines,
+  isWalletError,
 } from '../src';
 import { useWallet } from '../lib/walletStore';
 import { usePortfolioStore } from '../lib/portfolio';
@@ -39,7 +42,7 @@ import { usePortfolioStore } from '../lib/portfolio';
 /** Domaines autorisés dans la WebView de capture. */
 const COLLECT_HOST = 'pay.walletconnect.com';
 
-export default function PayScreen() {
+function PayScreenInner() {
   const t = useT();
   // `mode` sert à accorder le formulaire hébergé au thème actif de l'app.
   const { colors, mode } = useTheme();
@@ -82,6 +85,7 @@ export default function PayScreen() {
         : failure === 'INFO_NOT_ENOUGH'
           ? t('payInfoSentTitle')
           : t('payFailed');
+  const payError = usePay((s) => s.error);
   const failureBody = (() => {
     switch (failure) {
       case 'UNAVAILABLE':
@@ -120,7 +124,8 @@ export default function PayScreen() {
       case 'ACTION_REFUSED':
         return `${t('payActionRefused')}${detail ? ` (${detail})` : ''}`;
       case 'FAILED':
-        return detail ?? t('payFailedBody');
+        // Traduit d'après l'erreur réelle ; le message brut reste dessous, en petit.
+        return payError ? friendlyTxError(payError, t) : t('payFailedBody');
       default:
         return undefined;
     }
@@ -334,7 +339,7 @@ export default function PayScreen() {
           </Surface>
 
           {/* UN SEUL bouton, et il ramène à l'accueil : il n'y a plus rien à faire ici. */}
-          <Button label={t('done')} onPress={() => router.replace('/home')} />
+          <Button label={t('done')} onPress={() => router.dismissTo('/home')} />
         </ScrollView>
       </View>
     );
@@ -409,6 +414,9 @@ export default function PayScreen() {
               Diagnostic copiable : zéro option a plusieurs causes que cet écran
               ne distingue pas, et sans données on en reste aux hypothèses.
             */}
+            {failure === 'FAILED' && detail ? (
+              <Text variant="micro" tone="tertiary" selectable numberOfLines={3} style={{ textAlign: 'center' }}>{detail}</Text>
+            ) : null}
             <Button
               label={t('payCopyDiagnostic')}
               variant="ghost"
@@ -552,7 +560,11 @@ export default function PayScreen() {
           // `confirm` ne lève pas : elle publie l'erreur dans le magasin. On la
           // relaie, parce que ConfirmUnlock distingue un PIN faux d'un échec
           // d'exécution à partir de ce qui est LEVÉ.
-          if (r.phase === 'error') throw new Error(r.detail ?? t('payFailed'));
+          if (r.phase === 'error') {
+            // Un code PIN faux doit rester reconnaissable ; le reste est traduit.
+            if (isWalletError(r.error)) throw r.error;
+            throw new UserFacingError(r.failure === 'ACTION_REFUSED' ? t('payActionRefused') : friendlyTxError(r.error ?? new Error(r.detail ?? ''), t));
+          }
         }}
         onDone={() => setAsking(false)}
         onCancel={() => setAsking(false)}
@@ -560,3 +572,6 @@ export default function PayScreen() {
     </View>
   );
 }
+
+// Lecture seule : rien à signer ni à recevoir à son nom ici (ui/WatchOnlyGate).
+export default withWatchOnlyGate(PayScreenInner);

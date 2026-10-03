@@ -1,4 +1,7 @@
 import { base58, base64, hex } from '@scure/base';
+import { isDecoySession } from './sessionMode';
+import { solanaTxDecode } from '../src/domain/wc/solanaTx';
+import { signMessageParam } from './dappProvider';
 import { utf8ToBytes } from '@noble/hashes/utils';
 /**
  * WalletConnect (Reown) — Kalyx est le WALLET auquel les dApps se connectent.
@@ -13,9 +16,11 @@ import { utf8ToBytes } from '@noble/hashes/utils';
 import { Platform, AppState, Linking } from 'react-native';
 import { create } from 'zustand';
 import { technicalLogger } from './technicalLogger';
+import { useSettings } from './settingsStore';
+import { fill, translate, type Key } from './i18n';
 import { useWallet, type Unlock } from './walletStore';
 import { notify } from './notifications';
-import { listChains, getAdapter, WcConnectError, type RawTxRequest } from '../src';
+import { listChains, getAdapter, getAdapterV2, withSigner, assertCurve, WcConnectError, isValidEvmAddress, shortAddress, WalletError, type RawTxRequest } from '../src';
 import { handleSmartError } from './errorHandler';
 import { submitSolanaSigned } from './solanaSubmit';
 import type { IWeb3Wallet } from '@walletconnect/web3wallet';
@@ -25,11 +30,12 @@ import type { IWeb3Wallet } from '@walletconnect/web3wallet';
 
 import { VersionedTransaction } from '@solana/web3.js';
 import { Transaction as BtcTransaction } from '@scure/btc-signer';
+import { bitcoinMessageParam, btcFromSats, btcTransferParams, solanaMessageParam } from './messageParams';
 function extractSolanaSignature(tx: string, address: string): string {
   try {
-    const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(tx) && tx.length % 4 === 0;
-    const bytes = isBase64 ? base64.decode(tx) : base58.decode(tx);
-    const vtx = VersionedTransaction.deserialize(bytes);
+    const decoded = solanaTxDecode(tx);
+    if (!decoded) return tx;
+    const vtx = VersionedTransaction.deserialize(decoded.bytes);
     const idx = vtx.message.staticAccountKeys.findIndex(k => k.toBase58() === address);
     if (idx >= 0 && vtx.signatures[idx]) {
       return base58.encode(vtx.signatures[idx]);
@@ -41,38 +47,48 @@ function extractSolanaSignature(tx: string, address: string): string {
 }
 
 /** Spec WalletConnect Solana : `transaction` (signée, sérialisée) est renvoyée en BASE64. */
+/** Deux calldatas `approve(spender, …)` vers le même bénéficiaire ? */
+function sameApproveSpender(original: string, override: string): boolean {
+  const APPROVE = '0x095ea7b3';
+  // ≥ 138 : un approve peut porter un suffixe après ses arguments (attribution) ; seul le bénéficiaire compte.
+  const spender = (d: string) => (d.toLowerCase().startsWith(APPROVE) && d.length >= 138 ? d.slice(10, 74).toLowerCase() : null);
+  const a = spender(original);
+  return a !== null && a === spender(override);
+}
+
 function ensureBase64(tx: string): string {
-  const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(tx) && tx.length % 4 === 0;
-  if (isBase64) return tx;
-  try {
-    return base64.encode(base58.decode(tx));
-  } catch {
-    return tx;
-  }
+  // Encodage reconnu par la LECTURE de la transaction, pas deviné d'après les caractères.
+  const decoded = solanaTxDecode(tx);
+  if (!decoded) return tx;
+  return decoded.encoding === 'base64' ? tx : base64.encode(decoded.bytes);
 }
 
 /** Méthodes qui exigent une décision de l'utilisateur ; tout le reste est répondu automatiquement. */
 const SIGNING_METHODS = new Set([
   'personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v3', 'eth_signTypedData_v4', 'eth_sendTransaction', 'eth_signTransaction',
   'solana_signTransaction', 'solana_signAllTransactions', 'solana_signMessage', 'solana_signAndSendTransaction',
-  'bitcoin_signMessage', 'signMessage', 'bitcoin_signPsbt', 'signPsbt', 'bitcoin_sendTransaction', 'sendTransfer', 'bitcoin_sendTransfer',
+  'bitcoin_signMessage', 'signMessage', 'bitcoin_signPsbt', 'signPsbt', 'bitcoin_sendTransaction', 'sendTransfer', 'bitcoin_sendTransfer', 'sendTransaction',
   'bitcoin_getAccounts', 'getAccountAddresses', 'bitcoin_getAccountAddresses', 'getAccounts',
 ]);
 
-const METHOD_LABELS: Record<string, string> = {
-  eth_sendTransaction: 'Transaction à signer',
-  personal_sign: 'Signature de message',
-  eth_sign: 'Signature de message',
-  eth_signTypedData: 'Signature de données',
-  eth_signTypedData_v4: 'Signature de données',
-  solana_signTransaction: 'Transaction Solana à signer',
-  solana_signAllTransactions: 'Transactions Solana à signer',
-  solana_signMessage: 'Signature de message',
-  bitcoin_sendTransfer: 'Transaction Bitcoin à signer',
-  bitcoin_sendTransaction: 'Transaction Bitcoin à signer',
-  bitcoin_signPsbt: 'Transaction Bitcoin (PSBT) à signer',
-  bitcoin_signMessage: 'Signature de message',
+/** Libellé (clé de traduction) d'une demande, pour la notification. */
+const METHOD_LABELS: Record<string, Key> = {
+  eth_sendTransaction: 'wcReqTx',
+  personal_sign: 'wcReqMessage',
+  eth_sign: 'wcReqMessage',
+  eth_signTypedData: 'wcReqTyped',
+  eth_signTypedData_v4: 'wcReqTyped',
+  solana_signTransaction: 'wcReqSolTx',
+  solana_signAllTransactions: 'wcReqSolTx',
+  solana_signMessage: 'wcReqMessage',
+  bitcoin_sendTransfer: 'wcReqBtcTx',
+  bitcoin_sendTransaction: 'wcReqBtcTx',
+  bitcoin_signPsbt: 'wcReqBtcTx',
+  bitcoin_signMessage: 'wcReqMessage',
 };
+
+/** Texte de notification dans la langue de l'utilisateur (lue à l'envoi ; c'était du français pour tous). */
+const tr = (key: Key, vars: Record<string, string> = {}) => fill(translate(useSettings.getState().language, key), vars);
 
 /** Notifie une demande entrante (proposition/requête) quand l'app n'est PAS au
  *  premier plan — appuyer sur la notification rouvre Kalyx, où la fenêtre de
@@ -83,6 +99,42 @@ function notifyIncoming(title: string, body: string) {
 }
 
 const PROJECT_ID = process.env.EXPO_PUBLIC_WALLETCONNECT_ID || '';
+
+/**
+ * DÉCONNEXION QUI ABOUTIT TOUJOURS DE NOTRE CÔTÉ.
+ *
+ * `disconnectSession` passe par le relais : session déjà expirée là-bas, réseau
+ * coupé, et il levait — la session restait enregistrée, la liste ne bougeait
+ * pas, « Déconnecter » semblait ne rien faire. On prévient la dApp si on peut
+ * (8 s au plus), puis on SUPPRIME la session et son appairage localement quoi
+ * qu'il arrive.
+ */
+async function forceDisconnect(w: IWeb3Wallet | null, topic: string): Promise<void> {
+  if (!w) return;
+  const reason = sdkUtils?.getSdkError('USER_DISCONNECTED') ?? { code: 6000, message: 'User disconnected' };
+  const pairingTopic: string | undefined = (w.getActiveSessions()?.[topic] as any)?.pairingTopic;
+  try {
+    await Promise.race([
+      w.disconnectSession({ topic, reason: reason as never }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
+    ]);
+    console.log('[KALYX-WC] disconnect:ok', { topic: topic.slice(0, 8) });
+  } catch (e) {
+    console.warn('[KALYX-WC] disconnect:relay-failed, suppression locale', { topic: topic.slice(0, 8), error: e instanceof Error ? e.message : String(e) });
+    try {
+      await (w as any).engine?.signClient?.session?.delete?.(topic, reason);
+    } catch {
+      /* déjà absente */
+    }
+  }
+  if (pairingTopic) {
+    try {
+      await (w as any).core?.pairing?.disconnect?.({ topic: pairingTopic });
+    } catch {
+      /* appairage déjà fermé */
+    }
+  }
+}
 
 // Utilitaires SDK chargés à l'init (import dynamique).
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -161,15 +213,53 @@ function returnToDapp(wallet: IWeb3Wallet, topic: string): void {
   }
 }
 
-/** Prévient toutes les sessions EVM que le réseau actif a changé dans l'app. */
-function broadcastChainChanged(wallet: IWeb3Wallet, kalyxId: string): void {
-  const chain = evmChains().find((c) => c.kalyxId === kalyxId);
-  if (!chain) return;
-  const sessions = wallet.getActiveSessions?.() ?? {};
-  for (const s of Object.values(sessions) as any[]) {
-    if (!(s?.namespaces?.eip155?.chains ?? []).includes(chain.caip)) continue;
-    wallet.emitSessionEvent({ topic: s.topic, event: { name: 'chainChanged', data: chain.evmChainId }, chainId: chain.caip }).catch(() => {});
+/**
+ * Rouvre la connexion au relais si elle est tombée.
+ *
+ * « FAILED TO PUBLISH PAYLOAD … tag:1110 ». Le tag 1110 est `wc_sessionEvent` :
+ * l'événement « réseau changé » envoyé aux dApps. Chaque échec arrivait 60 s
+ * pile après un changement de réseau — le délai de publication : le message
+ * attendait un relais dont la connexion était morte (app passée en arrière-plan,
+ * réseau mobile qui change), jamais rétablie. On la rétablit avant d'envoyer,
+ * et au retour au premier plan.
+ */
+async function ensureRelay(wallet: IWeb3Wallet): Promise<void> {
+  const relayer = (wallet as any)?.core?.relayer as { connected?: boolean; transportOpen?: () => Promise<void>; restartTransport?: () => Promise<void> } | undefined;
+  if (!relayer || relayer.connected !== false) return;
+  try {
+    await relayer.transportOpen?.();
+  } catch {
+    await relayer.restartTransport?.().catch(() => {});
   }
+}
+
+let chainBroadcastTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Prévient les sessions EVM que le réseau actif a changé dans l'app.
+ *
+ * REGROUPÉ : plusieurs changements rapprochés (swap, navigateur, sélecteur)
+ * n'envoient que le DERNIER réseau, une fois le relais joignable. Les sessions
+ * expirées sont ignorées — publier vers elles ne peut qu'échouer.
+ */
+function broadcastChainChanged(wallet: IWeb3Wallet, kalyxId: string): void {
+  if (chainBroadcastTimer) clearTimeout(chainBroadcastTimer);
+  chainBroadcastTimer = setTimeout(() => {
+    chainBroadcastTimer = null;
+    const chain = evmChains().find((c) => c.kalyxId === kalyxId);
+    if (!chain) return;
+    const sessions = Object.values(wallet.getActiveSessions?.() ?? {}) as any[];
+    const now = Math.floor(Date.now() / 1000);
+    const targets = sessions.filter((s) => (s?.namespaces?.eip155?.chains ?? []).includes(chain.caip) && !(typeof s?.expiry === 'number' && s.expiry <= now));
+    if (!targets.length) return;
+    void ensureRelay(wallet).then(() => {
+      for (const s of targets) {
+        wallet.emitSessionEvent({ topic: s.topic, event: { name: 'chainChanged', data: chain.evmChainId }, chainId: chain.caip }).catch((e: unknown) => {
+          technicalLogger.logSys('WalletConnect chainChanged non publié', { error: e instanceof Error ? e.message.slice(0, 120) : String(e) });
+        });
+      }
+    });
+  }, 800);
 }
 
 function evmChains(): EvmChain[] {
@@ -218,6 +308,8 @@ interface WcState {
   disconnect: (topic: string) => Promise<void>;
   /** Coupe TOUTES les sessions actives (ex. au verrouillage de Kalyx). */
   disconnectAll: () => Promise<void>;
+  /** Coupe les sessions qui utilisent l'une de ces adresses (portefeuille supprimé). */
+  disconnectAddresses: (addresses: string[]) => Promise<void>;
   refresh: () => void;
 }
 
@@ -238,6 +330,32 @@ function activeAccount() {
   return s.accounts.find((a) => a.index === s.activeAccountIndex) ?? s.accounts[0];
 }
 
+/**
+ * Le compte qui signerait est-il celui que la dApp connaît ? Une session se noue
+ * avec UN compte (choisi à la connexion) ; si l'utilisateur a changé de compte
+ * ou de portefeuille depuis, signer avec l'actif produirait une signature d'un
+ * compte jamais partagé. Refus clair, avec l'adresse attendue.
+ */
+export function assertSessionAccount(wallet: any, topic: string, chainId: unknown): void {
+  const ns = typeof chainId === 'string' ? chainId.split(':')[0] : '';
+  const session = wallet?.getActiveSessions?.()[topic];
+  const shared: string[] = ((session?.namespaces?.[ns]?.accounts ?? []) as string[]).map((a) => String(a).split(':').pop() ?? '');
+  if (!shared.length) return;
+  const w = useWallet.getState();
+  const acct = w.accounts.find((a) => a.index === w.activeAccountIndex);
+  const mine = ns === 'eip155' ? acct?.evmAddress : ns === 'solana' ? acct?.solAddress : ns === 'bip122' ? acct?.btcAddress : undefined;
+  if (!mine) return;
+  const same = ns === 'eip155' ? (a: string) => a.toLowerCase() === mine.toLowerCase() : (a: string) => a === mine;
+  if (!shared.some(same)) throw new WalletError('WRONG_ACCOUNT', 'compte actif ≠ compte de la session', { address: shortAddress(shared[0]) });
+}
+
+/** Retire LA demande traitée (par identifiant, pas la tête de file à l'aveugle) ; rend la file restante. */
+function advanceQueue(id: number): any[] {
+  const q = useWalletConnect.getState().requestQueue.filter((r: any) => r.id !== id);
+  useWalletConnect.setState({ requestQueue: q, request: q[0] ?? null });
+  return q;
+}
+
 export const useWalletConnect = create<WcState>((set, get) => ({
   configured: PROJECT_ID.length > 0,
   ready: false,
@@ -248,6 +366,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   request: null,
 
   init: async () => {
+    console.log('[KALYX-WC] init', { projectId: PROJECT_ID ? 'présent' : 'ABSENT', ready: !!get().wallet, initializing: _wcInitializing });
     if (!PROJECT_ID || get().wallet || _wcInitializing) return;
     _wcInitializing = true;
     try {
@@ -280,11 +399,22 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     })) as IWeb3Wallet;
 
     w.on('session_proposal', (proposal: any) => {
+      // Session leurre : une dApp (même déjà appairée au vrai portefeuille) n'est pas présentée.
+      if (isDecoySession()) return;
       set({ proposal });
       const name = proposal?.params?.proposer?.metadata?.name;
-      notifyIncoming('Kalyx · Connexion demandée', name ? `${name} veut se connecter à votre portefeuille` : 'Un site veut se connecter à votre portefeuille');
+      notifyIncoming(tr('notifWcConnectTitle'), name ? tr('notifWcConnectBody', { name }) : tr('notifWcConnectBodyUnknown'));
     });
     w.on('session_request', async (request: any) => {
+      // Session leurre : les vraies dApps ne reçoivent rien d'elle (refus silencieux, rien en file).
+      if (isDecoySession()) {
+        try {
+          await w.respondSessionRequest({ topic: request?.topic, response: { id: request?.id, jsonrpc: '2.0', error: { code: 4001, message: 'User rejected' } } });
+        } catch {
+          /* rien */
+        }
+        return;
+      }
       console.log('\n[WC-IN] === SESSION_REQUEST RECEIVED ===');
       console.log('[WC-IN] ID:', request?.id);
       console.log('[WC-IN] Topic:', request?.topic);
@@ -301,7 +431,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
             response: {
               id: request.id,
               jsonrpc: '2.0',
-              error: { code: 5100, message: 'Invalid session / Session expirée' }
+              error: { code: 5100, message: 'Invalid or expired session' }
             }
           });
         } catch (e) {
@@ -332,7 +462,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       if (!SIGNING_METHODS.has(method)) {
         // Lecture / capacités : réponse immédiate, sans écran. Inconnue : erreur JSON-RPC standard.
         const acct = activeAccount();
-        const evmAddress = acct?.evmAddress ?? useWallet.getState().account?.address;
+        // Adresse EVM seulement : sans elle, aucun compte (jamais l'adresse Solana/TON du réseau affiché).
+        const evmAddress = acct?.evmAddress;
         const caip: string = request?.params?.chainId ?? '';
         const evmId = caip.startsWith('eip155:') ? Number(caip.slice(7)) : undefined;
         let response: any;
@@ -344,17 +475,33 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         await w.respondSessionRequest({ topic: request.topic, response: { id: request.id, jsonrpc: '2.0', ...response } }).catch(() => {});
         return;
       }
+      /*
+       * TRANSACTION SANS DESTINATAIRE VALIDE refusée dès l'arrivée, comme dans le
+       * navigateur : un `to` absent devient un DÉPLOIEMENT de contrat (le `data`
+       * part comme code), un `to` malformé n'a rien à faire devant l'utilisateur.
+       */
+      if (method === 'eth_sendTransaction' && !isValidEvmAddress(String(request?.params?.request?.params?.[0]?.to ?? ''))) {
+        await w.respondSessionRequest({
+          topic: request.topic,
+          response: { id: request.id, jsonrpc: '2.0', error: { code: 4200, message: 'Transaction without a valid recipient (contract deployment) is not supported' } },
+        }).catch(() => {});
+        return;
+      }
       const q = [...get().requestQueue, request];
       set({ requestQueue: q, request: q[0] });
       const topic: string | undefined = request?.topic;
       const peer = topic ? w.getActiveSessions()?.[topic]?.peer?.metadata?.name : undefined;
-      const label = METHOD_LABELS[method] ?? 'Signature demandée';
-      notifyIncoming('Kalyx · Action à valider', peer ? `${label} · ${peer}` : `${label} — appuyez pour ouvrir`);
+      const label = tr(METHOD_LABELS[method] ?? 'wcReqGeneric');
+      notifyIncoming(tr('notifWcActionTitle'), peer ? `${label} · ${peer}` : tr('notifWcActionOpen', { label }));
     });
     w.on('session_delete', () => get().refresh());
     // Réseau changé dans Kalyx → événement chainChanged vers les dApps connectées.
     useWallet.subscribe((state, prev) => {
       if (state.activeChain !== prev.activeChain) broadcastChainChanged(w, state.activeChain);
+    });
+    // Retour au premier plan : connexion au relais rétablie, pour les demandes entrantes comme pour nos envois.
+    AppState.addEventListener('change', (st) => {
+      if (st === 'active') void ensureRelay(w);
     });
     set({ wallet: w, ready: true });
     get().refresh();
@@ -364,16 +511,23 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   },
 
   pair: async (uri) => {
+    // Session leurre : pas de nouvelle connexion (elle se mêlerait aux vraies) — un échec réseau ordinaire.
+    if (isDecoySession()) throw new WalletError('RPC_UNAVAILABLE', 'Relais indisponible');
     const normalized = uri.trim();
     if (!normalized.startsWith('wc:')) throw new Error('URI WalletConnect invalide');
+    console.log('[KALYX-WC] pair:start', { walletReady: !!get().wallet });
     if (!get().wallet) await get().init();
     const wallet = get().wallet;
+    console.log('[KALYX-WC] pair:after-init', { walletReady: !!wallet });
     if (!wallet) throw new Error('WalletConnect n’est pas configuré');
     await wallet.pair({ uri: normalized });
+    console.log('[KALYX-WC] pair:done (en attente de la proposition du site)');
   },
 
   approveProposal: async (unlock, perms, accountIndex) => {
+    if (isDecoySession()) throw new WalletError('RPC_UNAVAILABLE', 'Relais indisponible');
     const { wallet, proposal } = get();
+    console.log('[KALYX-WC] approve:start', { wallet: !!wallet, proposal: !!proposal, sdkUtils: !!sdkUtils });
     if (!wallet || !proposal || !sdkUtils) return;
     const p = perms ?? { tx: true, sign: true };
     // Méthodes autorisées selon les cases cochées (lecture toujours accordée via
@@ -384,7 +538,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       ...(p.sign ? ['personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v3', 'eth_signTypedData_v4'] : []),
     ];
     const solMethods = ['solana_getAccounts', ...(p.tx ? ['solana_signTransaction', 'solana_signAllTransactions', 'solana_signAndSendTransaction'] : []), ...(p.sign ? ['solana_signMessage'] : [])];
-    const btcMethods = ['getAccountAddresses', 'getAccounts', ...(p.tx ? ['signPsbt', 'sendTransaction', 'sendTransfer'] : []), ...(p.sign ? ['signMessage'] : [])];
+    const btcMethods = ['getAccountAddresses', 'getAccounts', ...(p.tx ? ['signPsbt', 'sendTransfer', 'sendTransaction', 'bitcoin_sendTransfer'] : []), ...(p.sign ? ['signMessage'] : [])];
     const wstate = useWallet.getState();
     /*
      * Compte partagé avec la dApp. Choisi par l'utilisateur à la connexion
@@ -394,23 +548,29 @@ export const useWalletConnect = create<WcState>((set, get) => ({
      */
     const wanted = accountIndex ?? wstate.activeAccountIndex;
     const acct = wstate.accounts.find((a) => a.index === wanted) ?? wstate.accounts[0];
-    const address = acct?.evmAddress ?? wstate.account?.address;
-    if (!address) throw new WcConnectError('NO_ACCOUNT');
+    /*
+     * Chaque espace de noms reçoit SON adresse. Avant, un portefeuille sans
+     * adresse EVM (clé Solana importée) s'annonçait en eip155 avec son adresse
+     * Solana ; désormais il se connecte en Solana seulement.
+     */
+    if (!acct?.evmAddress && !acct?.solAddress && !acct?.btcAddress) throw new WcConnectError('NO_ACCOUNT');
     // Exige l'identité dès la connexion (parité avec le navigateur dApps intégré).
     // Biométrie ou PIN ; lève si refusée → l'UI affiche l'erreur, aucune session.
-    await wstate.verifyUnlock(unlock);
+    // Lecture seule : l'adresse suivie n'est PAS celle de l'utilisateur, on ne la présente pas comme telle.
+    await wstate.verifyConnect(unlock);
     const chains = evmChains();
-    const evmAddress = acct?.evmAddress || address;
-    const supportedNamespaces: Record<string, unknown> = {
-      eip155: {
+    const evmAddress = acct.evmAddress;
+    const supportedNamespaces: Record<string, unknown> = {};
+    if (evmAddress) {
+      supportedNamespaces.eip155 = {
         chains: chains.map((c) => c.caip),
         methods: evmMethods,
         events: ['chainChanged', 'accountsChanged'],
         accounts: chains.map((c) => `${c.caip}:${evmAddress}`),
-      },
-    };
+      };
+    }
     // Solana (namespace WalletConnect « solana »).
-    if (acct?.solAddress) {
+    if (acct.solAddress) {
       supportedNamespaces.solana = {
         chains: [SOLANA_CAIP],
         methods: solMethods,
@@ -419,7 +579,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       };
     }
     // Bitcoin (namespace « bip122 »).
-    if (acct?.btcAddress) {
+    if (acct.btcAddress) {
       supportedNamespaces.bip122 = {
         chains: [BTC_CAIP],
         methods: btcMethods,
@@ -482,14 +642,40 @@ export const useWalletConnect = create<WcState>((set, get) => ({
 
     try {
       let result: any;
-      if (method === 'personal_sign') result = await w.signMessage(unlock, p[0]);
-      else if (method === 'eth_sign') result = await w.signMessage(unlock, p[1]);
+      /*
+       * Liste blanche en vigueur : TOUTE signature de dApp est refusée — y compris
+       * un simple message, qui peut autoriser un transfert (transaction Safe,
+       * ordre hors chaîne). Seule la lecture des comptes reste possible.
+       */
+      if (!/getAccounts|getAccountAddresses|requestAccounts/i.test(method)) await (await import('./whitelistStore')).assertDappAllowed();
+      assertSessionAccount(wallet, topic, params.chainId);
+      // Expirée (le tableau de bord a déjà rendu la main à l'utilisateur) : jamais signée en retard.
+      const expiry = Number(params.request?.expiryTimestamp);
+      if (Number.isFinite(expiry) && expiry > 0 && Date.now() / 1000 > expiry) {
+        throw new WalletError('REQUEST_EXPIRED', 'demande expirée avant approbation');
+      }
+      if (method === 'personal_sign' || method === 'eth_sign') result = await w.signMessage(unlock, signMessageParam(method, p));
       else if (method.startsWith('eth_signTypedData')) {
         const data = typeof p[1] === 'string' ? JSON.parse(p[1]) : p[1];
-        result = await w.signTypedData(unlock, data);
+        // Réseau de la REQUÊTE (eip155:<id>) : un domain.chainId différent est refusé par le coffre.
+        const reqChain = typeof params.chainId === 'string' && params.chainId.startsWith('eip155:') ? Number(params.chainId.slice(7)) : undefined;
+        result = await w.signTypedData(unlock, data, reqChain);
       } else if (method === 'eth_sendTransaction') {
         if (!chain) throw new Error('Réseau de la requête non supporté');
         const tx = p[0];
+        // Défense en profondeur (déjà refusé à l'arrivée) : jamais de déploiement ni d'adresse malformée.
+        if (typeof tx?.to !== 'string' || !isValidEvmAddress(tx.to)) throw new Error('Destinataire de la transaction invalide');
+        // Préparée pour un autre compte que celui qui signerait : refus plutôt qu'envoi depuis le mauvais compte.
+        const signer = w.accounts.find((a) => a.index === w.activeAccountIndex)?.evmAddress ?? '';
+        if (typeof tx?.from === 'string' && signer && tx.from.toLowerCase() !== signer.toLowerCase()) throw new WalletError('WRONG_ACCOUNT', 'from ≠ compte actif', { address: shortAddress(tx.from) });
+        /*
+         * « Approve réduit » : accepté seulement en remplacement d'un approve
+         * vers le MÊME bénéficiaire. Toute autre calldata (demande différente
+         * de celle pour laquelle il a été calculé) est refusée.
+         */
+        if (overrideData != null && !sameApproveSpender(String(tx.data ?? ''), overrideData)) {
+          throw new Error('Montant réduit inapplicable à cette demande');
+        }
         const req: RawTxRequest = {
           to: tx.to,
           data: overrideData ?? tx.data ?? '0x',
@@ -523,21 +709,14 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         const solAddr = activeAccount()?.solAddress;
         result = { signatures: res.map(r => extractSolanaSignature(r, solAddr || '')), transactions: res.map(ensureBase64) };
       } else if (method === 'solana_signMessage') {
-        const pSafe: any = p || {};
-        let msg = pSafe.message ?? pSafe.msg ?? pSafe.signMessage;
-        if (!msg && Array.isArray(pSafe)) {
-          msg = pSafe[0]?.message ?? pSafe[0]?.msg ?? pSafe[0];
-        }
-        if (!msg && typeof pSafe === 'string') msg = pSafe;
+        const msg = solanaMessageParam(p);
         if (typeof msg !== 'string') throw new Error('Expected String');
         const res = await w.signSolanaMessage(unlock, msg);
         const sig = typeof res === 'object' && res.signature ? res.signature : res;
         result = { signature: sig };
       } else if (method === 'bitcoin_signMessage' || method === 'signMessage') {
         const pSafe: any = p || {};
-        let msg = pSafe.message || pSafe[0]?.message;
-        if (!msg && Array.isArray(pSafe)) msg = pSafe.filter(x => typeof x === 'string').pop();
-        if (!msg && typeof pSafe === 'string') msg = pSafe;
+        const msg = bitcoinMessageParam(p);
         if (typeof msg !== 'string') throw new Error('Expected String');
         /*
          * PROTOCOLE DE SIGNATURE — la cause des « Invalid signature length ».
@@ -623,30 +802,40 @@ export const useWalletConnect = create<WcState>((set, get) => ({
           txid = await (getAdapter('bitcoin') as any).broadcastHex(signed.hex);
         }
         result = txid ? { psbt: resStr, txid } : { psbt: resStr };
-      } else if (method === 'bitcoin_getAccounts' || method === 'getAccountAddresses' || method === 'bitcoin_getAccountAddresses') {
+      } else if (method === 'bitcoin_getAccounts' || method === 'getAccounts' || method === 'getAccountAddresses' || method === 'bitcoin_getAccountAddresses') {
+        /*
+         * PAR LE COFFRE. Ce chemin relisait la PHRASE complète (`revealPhrase`)
+         * et dérivait la graine ici, sans jamais l'effacer — hors du seul
+         * module autorisé à la toucher. `deriveSigner` fait la même dérivation
+         * (compte actif, BIP-84) et efface graine et clé après usage.
+         */
         const btcModule = await import('../src/crypto/btc');
-        const mnemonicModule = await import('../src/crypto/mnemonic');
-        const activeWallet = w.wallets.find(x => x.id === w.activeWalletId);
-        if (!activeWallet || activeWallet.type === 'privateKey') throw new Error('Bitcoin accounts not available for PK wallet');
-        const secret = mnemonicModule.mnemonicToSeedSync(await w.revealPhrase(unlock));
-        const derived = btcModule.deriveBtcAccount(secret, w.account?.index || 0);
-        result = [{ address: derived.address, publicKey: derived.publicKey.replace(/^0x/, ''), path: `m/84'/0'/0'/0/${w.account?.index || 0}`, intention: 'payment', purpose: 'payment' }];
-      } else if (method === 'bitcoin_sendTransaction' || method === 'sendTransfer') {
-        // Build, sign, broadcast and return txid
-        const pSafe: any = p || {};
-        const to = pSafe.recipientAddress || pSafe.recipient || pSafe.to || pSafe[0]?.recipientAddress || pSafe[0]?.recipient || pSafe[0]?.to || pSafe[0];
-        const amountStr = String(pSafe.amount || pSafe[0]?.amount || pSafe[1] || 0);
-        if (!to || typeof to !== 'string') throw new Error('Expected String for recipientAddress');
+        const index = w.account?.index || 0;
+        const publicKey = await withSigner(await w.deriveSigner(getAdapterV2('bitcoin'), unlock), async (s) => {
+          assertCurve(s, 'secp256k1');
+          return new Uint8Array(s.publicKey);
+        });
+        result = [{ address: btcModule.p2wpkhAddress(publicKey), publicKey: hex.encode(publicKey), path: `m/84'/0'/0'/0/${index}`, intention: 'payment', purpose: 'payment' }];
+      } else if (method === 'bitcoin_sendTransaction' || method === 'sendTransfer' || method === 'bitcoin_sendTransfer' || method === 'sendTransaction') {
+        // Même lecture que la fenêtre de confirmation (lib/messageParams).
+        const { to, amount } = btcTransferParams(p);
+        if (!to) throw new Error('Expected String for recipientAddress');
+        /*
+         * Montant en SATOSHIS (spec WalletConnect Bitcoin), entier — comme
+         * l'affiche la fenêtre de confirmation. Il était lu en BTC : « 100000 »
+         * montré « 100000 sats » envoyait 100000 BTC.
+         */
+        const amountStr = btcFromSats(amount);
+        await (await import('./whitelistStore')).assertRecipientAllowed(to);
         const adapter = getAdapter('bitcoin');
-        
         const btcModule = await import('../src/crypto/btc');
-        const mnemonicModule = await import('../src/crypto/mnemonic');
-        const secret = mnemonicModule.mnemonicToSeedSync(await w.revealPhrase(unlock));
-        const btcSigner = btcModule.deriveBtcSigner(secret, w.account?.index || 0);
-        
-        const txid = await (adapter as any).sendBitcoin(btcSigner.address, to, amountStr, {
-          privateKey: btcSigner.privateKey,
-          publicKey: btcSigner.publicKey,
+        // Clé dérivée par le coffre, effacée après la signature (même en cas d'erreur).
+        const txid = await withSigner(await w.deriveSigner(getAdapterV2('bitcoin'), unlock), (s) => {
+          assertCurve(s, 'secp256k1');
+          return (adapter as any).sendBitcoin(btcModule.p2wpkhAddress(s.publicKey), to, amountStr, {
+            privateKey: s.privateKey,
+            publicKey: s.publicKey,
+          });
         });
         result = { txid };
       } else {
@@ -658,23 +847,32 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       console.log('[WC-SUCCESS] Result payload:', JSON.stringify(result, null, 2));
       console.log('[WC-SUCCESS] =====================================\n');
 
-      await wallet.respondSessionRequest({ topic, response: { id, jsonrpc: '2.0', result } });
-      const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
+      /*
+       * L'action est FAITE (signée, diffusée) : la file avance d'abord. Un relais
+       * tombé au moment de répondre ne doit ni afficher « échec » ni laisser la
+       * même demande à l'écran — la réapprouver rediffuserait la transaction.
+       */
+      const q = advanceQueue(id);
+      try {
+        await wallet.respondSessionRequest({ topic, response: { id, jsonrpc: '2.0', result } });
+      } catch (respondErr) {
+        console.warn('[WC] réponse non transmise à la dApp (action déjà effectuée)', respondErr);
+      }
       if (q.length === 0) returnToDapp(wallet, topic);
+      return;
     } catch (e) {
       console.error('\n[WC-ERROR] === RESPONDING WITH ERROR ===');
       console.error('[WC-ERROR] Method:', method);
       console.error('[WC-ERROR] Error object:', e);
       console.error('[WC-ERROR] Error message:', e instanceof Error ? e.message : 'Unknown error');
       console.error('[WC-ERROR] ===============================\n');
+      advanceQueue(id);
       if (wallet && sdkUtils) {
-        await wallet.respondSessionRequest({
-          topic,
-          response: { id, jsonrpc: '2.0', error: { code: 5000, message: errorText(e) } },
-        });
+        await wallet
+          .respondSessionRequest({ topic, response: { id, jsonrpc: '2.0', error: { code: 5000, message: errorText(e) } } })
+          .catch((respondErr: unknown) => console.warn('[WC] refus non transmis à la dApp', respondErr));
       }
       handleSmartError(e);
-      const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
       throw e;
     }
   },
@@ -682,38 +880,51 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   rejectRequest: async () => {
     const { wallet, requestQueue } = get();
     const request = requestQueue[0];
-    if (wallet && request && sdkUtils) {
-      console.log('\n[WC-REJECT] === USER REJECTED REQUEST ===');
-      console.log('[WC-REJECT] ID:', request.id);
-      console.log('[WC-REJECT] Method:', request?.params?.request?.method);
-      console.log('[WC-REJECT] =================================\n');
-      await wallet.respondSessionRequest({
-        topic: request.topic,
-        response: { id: request.id, jsonrpc: '2.0', error: sdkUtils.getSdkError('USER_REJECTED') },
-      });
+    if (!request) return; // double appui : déjà refusée
+    // La fenêtre se ferme d'abord : une session expirée ne la laisse plus bloquée.
+    const q = advanceQueue(request.id);
+    if (wallet && sdkUtils) {
+      console.log('[WC-REJECT]', request.id, request?.params?.request?.method);
+      await wallet
+        .respondSessionRequest({
+          topic: request.topic,
+          response: { id: request.id, jsonrpc: '2.0', error: sdkUtils.getSdkError('USER_REJECTED') },
+        })
+        .catch((e: unknown) => console.warn('[WC] refus non transmis à la dApp', e));
     }
-    const q = get().requestQueue.slice(1); set({ requestQueue: q, request: q[0] ?? null });
-    if (q.length === 0) if (wallet) returnToDapp(wallet, request.topic);
+    if (q.length === 0 && wallet) returnToDapp(wallet, request.topic);
   },
 
   disconnect: async (topic) => {
-    if (sdkUtils) await get().wallet?.disconnectSession({ topic, reason: sdkUtils.getSdkError('USER_DISCONNECTED') });
+    if (isDecoySession()) return; // jamais toucher aux vraies connexions depuis le leurre
+    await forceDisconnect(get().wallet, topic);
+    get().refresh();
+  },
+
+  disconnectAddresses: async (addresses) => {
+    if (isDecoySession()) return;
+    const w = get().wallet;
+    if (!w || !addresses.length) return;
+    const mine = new Set(addresses.map((a) => a.toLowerCase()));
+    const hit = Object.values(w.getActiveSessions()).filter((s: any) =>
+      Object.values(s.namespaces ?? {}).some((ns: any) => (ns.accounts ?? []).some((acc: string) => mine.has(String(acc).split(':').pop()!.toLowerCase()))),
+    );
+    await Promise.all(hit.map((s: any) => forceDisconnect(w, s.topic)));
     get().refresh();
   },
 
   disconnectAll: async () => {
+    if (isDecoySession()) return;
     const w = get().wallet;
-    if (!w || !sdkUtils) return;
+    if (!w) return;
     const active = w.getActiveSessions();
-    await Promise.all(
-      Object.values(active).map((s: any) =>
-        w.disconnectSession({ topic: s.topic, reason: sdkUtils!.getSdkError('USER_DISCONNECTED') }).catch(() => {}),
-      ),
-    );
+    await Promise.all(Object.values(active).map((s: any) => forceDisconnect(w, s.topic)));
     get().refresh();
   },
 
   refresh: () => {
+    // Session leurre : les vraies sessions ne sont jamais listées.
+    if (isDecoySession()) return set({ sessions: [] });
     const w = get().wallet;
     if (!w) return;
     const active = w.getActiveSessions();

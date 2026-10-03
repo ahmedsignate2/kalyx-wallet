@@ -16,7 +16,7 @@
  * le ressort posé, on ramène silencieusement la position au cycle central —
  * même image à l'écran, prêt pour le prochain roulement.
  */
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
 import { Text, type TextVariant } from './Text';
@@ -33,21 +33,33 @@ const canon = (d: number) => CYCLE + d;
 export type RollDirection = 'up' | 'down' | 'none';
 
 function Digit({
-  value, height, width, delay, variant, direction,
+  value, height, width, delay, variant, direction, intro, fontSize,
 }: {
   value: number;
   height: number;
   width: number;
   delay: number;
   variant: TextVariant;
+  /** Taille réduite pour les très grands montants (sinon celle de la variante). */
+  fontSize?: number;
   direction: RollDirection;
+  /** Révélation : le chiffre part du cycle du bas et fait un tour complet avant de se poser. */
+  intro?: { delay: number };
 }) {
-  const y = useSharedValue(-canon(value) * height);
-  const shown = useRef(value);
   const reduced = useReducedMotion();
+  const y = useSharedValue(intro && !reduced ? -value * height : -canon(value) * height);
+  const shown = useRef(value);
+  useEffect(() => {
+    if (!intro || reduced) return;
+    // Un tour complet (dix crans vers le haut), ressort un peu plus ample.
+    y.value = withDelay(intro.delay, withSpring(-canon(value) * height, { damping: 20, stiffness: 70, mass: 1 }));
+    // Au montage seulement : la suite passe par le roulement normal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const from = shown.current;
+    if (intro && from === value) return; // le premier rendu appartient à la révélation
     shown.current = value;
     const rest = -canon(value) * height;
     if (reduced || direction === 'none' || from === value) {
@@ -76,7 +88,7 @@ function Digit({
     <View style={{ height, width, overflow: 'hidden' }}>
       <Animated.View style={style}>
         {STRIP.map((d, i) => (
-          <Text key={i} variant={variant} tabular style={{ height, lineHeight: height, textAlign: 'center' }}>
+          <Text key={i} variant={variant} tabular style={{ height, lineHeight: height, textAlign: 'center', ...(fontSize ? { fontSize } : null) }}>
             {d}
           </Text>
         ))}
@@ -90,7 +102,7 @@ function Digit({
  * séparateurs (espace, virgule, point) sont rendus tels quels.
  */
 export function AmountDisplay({
-  value, variant = 'balance', suffix, prefix, direction = 'none',
+  value, variant = 'balance', suffix, prefix, direction = 'none', reveal,
 }: {
   value: string;
   variant?: TextVariant;
@@ -103,16 +115,36 @@ export function AmountDisplay({
    * (première apparition, changement de devise).
    */
   direction?: RollDirection;
+  /**
+   * RÉVÉLATION (première apparition du solde après déverrouillage) : chaque
+   * chiffre fait un tour complet et se pose, de gauche à droite.
+   */
+  reveal?: boolean;
 }) {
   const { typography } = useTheme();
-  const t = typography[variant] as { fontSize: number; lineHeight?: number };
+  const base = typography[variant] as { fontSize: number; lineHeight?: number };
+  /*
+   * TRÈS GRANDS MONTANTS (« 10 952 303 473,96 ») : la taille se réduit pour
+   * TENIR dans la largeur disponible (mesurée), sinon la fin du solde sortait
+   * de l'écran. Largeur estimée à taille pleine : 0,6 em par chiffre, 0,3 em
+   * par séparateur, le suffixe à demi-taille.
+   */
+  const [avail, setAvail] = useState(0);
+  const digitsN = value.replace(/\D/g, '').length;
+  const sepN = value.length - digitsN;
+  const fullW = base.fontSize * (digitsN * 0.6 + sepN * 0.3 + (suffix ? suffix.length * 0.3 + 0.5 : 0) + (prefix ? prefix.length * 0.6 : 0)) + (suffix ? 6 : 0);
+  const fit = avail > 0 && fullW > avail ? Math.max(0.35, avail / fullW) : 1;
+  const fontSize = base.fontSize * fit;
+  const t = { fontSize, lineHeight: base.lineHeight ? base.lineHeight * fit : undefined };
   const height = t.lineHeight ?? Math.round(t.fontSize * 1.1);
   // Largeur d'un chiffre tabulaire ≈ 0,6 em pour General Sans.
   const width = Math.round(t.fontSize * 0.6);
+  const sized = fit < 1 ? fontSize : undefined;
   const chars = useMemo(() => value.split(''), [value]);
   const digitCount = chars.filter((c) => /\d/.test(c)).length;
   let seen = 0;
   return (
+    <View onLayout={(e) => setAvail(e.nativeEvent.layout.width)} style={{ alignSelf: 'stretch' }}>
     <View style={{ flexDirection: 'row', alignItems: 'flex-end' }} accessibilityLabel={`${prefix ?? ''}${value}${suffix ? ' ' + suffix : ''}`}>
       {prefix ? <Text variant={variant}>{prefix}</Text> : null}
       {chars.map((c, i) => {
@@ -120,15 +152,16 @@ export function AmountDisplay({
           const idx = seen++;
           // Décalage : le chiffre le plus à droite part en premier.
           const delay = (digitCount - 1 - idx) * 20;
-          return <Digit key={`d${i}`} value={Number(c)} height={height} width={width} delay={delay} variant={variant} direction={direction} />;
+          return <Digit key={`d${i}`} value={Number(c)} height={height} width={width} delay={delay} variant={variant} fontSize={sized} direction={direction} intro={reveal ? { delay: 120 + idx * 70 } : undefined} />;
         }
         return (
-          <Text key={`s${i}`} variant={variant} style={{ height, lineHeight: height }}>
+          <Text key={`s${i}`} variant={variant} style={{ height, lineHeight: height, ...(sized ? { fontSize: sized } : null) }}>
             {c}
           </Text>
         );
       })}
       {suffix ? <Text variant={variant} tone="secondary" style={{ marginLeft: 6, fontSize: t.fontSize * 0.5, lineHeight: height }}>{suffix}</Text> : null}
+    </View>
     </View>
   );
 }

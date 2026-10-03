@@ -131,7 +131,13 @@ export function formatTonAddress(
   const full = Uint8Array.from([...body, (crc >> 8) & 0xff, crc & 0xff]);
   // base64url par défaut : c'est la forme que la spécification demande et celle
   // qui traverse une URL sans être réécrite.
-  return opts.urlSafe === false ? base64.encode(full) : base64urlnopad.encode(full) + '==';
+  //
+  // SANS remplissage : 36 octets font exactement 48 caractères. On ajoutait
+  // `==`, ce qui donnait 50 caractères qu'aucun portefeuille n'accepte — et les
+  // tests ne le voyaient pas, parce qu'ils relisaient l'adresse avec notre
+  // propre analyse, tolérante au remplissage, au lieu de la comparer à une
+  // adresse réelle. C'est désormais le cas (`tonWallet.test.ts`).
+  return opts.urlSafe === false ? base64.encode(full) : base64urlnopad.encode(full);
 }
 
 /** Forme brute `workchain:hachageHexadécimal`, celle que les API attendent. */
@@ -161,5 +167,17 @@ export function parseRawTonAddress(input: string): Pick<TonAddress, 'workchain' 
 export function isValidTonAddress(input: string, opts: { testnet?: boolean } = {}): boolean {
   const parsed = parseTonAddress(input) ?? (parseRawTonAddress(input) ? { testnet: false } : null);
   if (!parsed) return false;
-  return !!opts.testnet === !!parsed.testnet;
+  /*
+   * UN SEUL REFUS : une adresse marquée « réseau de test » sur le réseau
+   * principal — c'est elle qui ferait envoyer de vrais fonds à une adresse
+   * copiée d'un environnement de test.
+   *
+   * L'inverse n'est PAS refusé. L'analogie avec Bitcoin ne tient pas : sur
+   * Bitcoin, une adresse du réseau principal désigne un autre compte sur le
+   * réseau de test ; sur TON, les octets de l'adresse sont IDENTIQUES sur les
+   * deux réseaux, le drapeau n'est qu'une indication d'affichage. Le refuser
+   * bloquait, sur le réseau de test, les écritures `UQ…`/`EQ…` et même les
+   * adresses brutes — qui ne portent aucun réseau — sans rien protéger.
+   */
+  return !!opts.testnet || !parsed.testnet;
 }

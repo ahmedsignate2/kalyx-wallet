@@ -41,15 +41,63 @@ export type WalletErrorCode =
    * Dans les deux cas les fonds n'ont pas bougé, et c'est ce qu'il faut dire.
    */
   | 'TX_EXPIRED'
-  | 'NOT_SUPPORTED';
+  /**
+   * La destination EXIGE un commentaire (plateforme d'échange) et il est vide :
+   * sans lui, le dépôt arriverait sans propriétaire et les fonds seraient perdus.
+   */
+  | 'MEMO_REQUIRED'
+  | 'NOT_SUPPORTED'
+  /** Trop de codes faux : le coffre refuse d'essayer pendant un moment. */
+  | 'LOCKED_OUT'
+  /** Solde natif insuffisant pour les frais réseau (le montant lui-même suffirait). */
+  | 'INSUFFICIENT_GAS'
+  /** Portefeuille importé par clé privée : aucune phrase à montrer ni sauvegarder. */
+  | 'NO_RECOVERY_PHRASE'
+  /** Liste blanche active : ce destinataire n'y figure pas. */
+  | 'NOT_WHITELISTED'
+  /** Liste blanche : destinataire ajouté, encore dans son délai de sûreté de 24 h. */
+  | 'WHITELIST_PENDING'
+  /** Liste blanche en vigueur : dApps et export des secrets fermés (désactivation : 24 h). */
+  | 'WHITELIST_LOCKED'
+  /** Portefeuille en lecture seule : aucune clé, rien ne peut être signé. */
+  | 'WATCH_ONLY'
+  /** Supprimer ce portefeuille ne laisserait que des lectures seules : plus aucun coffre pour le code. */
+  | 'LAST_KEY_WALLET'
+  /** Adresse à suivre invalide ou non prise en charge (détail dans le message : watch.<raison>). */
+  | 'INVALID_WATCH_ADDRESS'
+  /** Transaction à accélérer introuvable, déjà confirmée ou trop ancienne. */
+  | 'BUMP_NOT_FOUND'
+  /** Diffusée, mais pas confirmée dans le délai : elle peut encore passer. */
+  | 'TX_UNCONFIRMED'
+  /** Solana : le destinataire n'a pas de compte et le montant ne couvre pas le loyer minimal. */
+  | 'SOL_RENT_RECIPIENT'
+  /** Solana : l'envoi laisserait un reste entre 0 et le loyer minimal. */
+  | 'SOL_RENT_SENDER'
+  /** L'émulation d'un échange prévoit un échec (prix ou réserve changés) : rien n'est signé. */
+  | 'SWAP_SIMULATION_FAILED'
+  /** La dApp demande de signer avec un AUTRE compte que le compte actif (changé depuis la connexion). */
+  | 'WRONG_ACCOUNT'
+  /** Demande dApp arrivée à expiration avant d'être approuvée : rien n'est signé. */
+  | 'REQUEST_EXPIRED'
+  /** Accélérer/annuler une transaction déjà confirmée : il n'y a plus rien à remplacer. */
+  | 'TX_ALREADY_CONFIRMED'
+  /** TON : un envoi précédent n'est pas encore inclus (un seul message par seqno). */
+  | 'PREVIOUS_TX_PENDING';
 
 export class WalletError extends Error {
   readonly code: WalletErrorCode;
+  /**
+   * Valeurs du message affiché (montants, symbole) : « tu peux envoyer au plus
+   * 0,0005 SOL » dit quoi corriger, « reste sous le loyer minimal » non. Jamais
+   * de secret ici.
+   */
+  readonly meta?: Record<string, string>;
 
-  constructor(code: WalletErrorCode, message: string) {
+  constructor(code: WalletErrorCode, message: string, meta?: Record<string, string>) {
     super(message);
     this.name = 'WalletError';
     this.code = code;
+    if (meta) this.meta = meta;
     // Restaure la chaîne de prototype (cible ES avec transpilation).
     Object.setPrototypeOf(this, WalletError.prototype);
   }

@@ -19,6 +19,7 @@ import { isValidEvmAddress, normalizeEvmAddress } from '../../validation/address
 import { erc20TransferData } from '../../tokens/transfer';
 import { getErc20Tokens } from '../../tokens/alchemyTokens';
 import { WalletError } from '../../errors';
+import { formatInputAmount } from '../../validation/format';
 import {
   calculateReplacementGas,
   fetchOriginalEvmTx,
@@ -56,6 +57,34 @@ export interface EvmPayload {
   maxFeePerGas?: bigint;
   maxPriorityFeePerGas?: bigint;
   gasPrice?: bigint;
+}
+
+/*
+ * PLANCHER DE NONCE LOCAL. Le nonce « pending » vient du nœud qui répond : si
+ * un premier envoi est parti par un autre nœud (repli RPC) et n'y est pas
+ * encore visible, le second reprenait LE MÊME nonce et était refusé
+ * (« replacement underpriced ») ou remplaçait le premier. Après une diffusion
+ * acceptée, le nonce suivant est retenu quelques minutes — assez pour la
+ * propagation, pas assez pour bloquer longtemps derrière une transaction perdue.
+ */
+const NONCE_FLOOR_TTL_MS = 120_000;
+const nonceFloor = new Map<string, { next: number; at: number }>();
+const floorKey = (chainId: number, sender: string) => `${chainId}:${sender.toLowerCase()}`;
+/** Nonce à utiliser : celui du nœud, sauf si un envoi récent de CETTE session est déjà plus loin. */
+export function applyNonceFloor(chainId: number, sender: string, rpcNonce: number, now = Date.now()): number {
+  const f = nonceFloor.get(floorKey(chainId, sender));
+  if (!f || now - f.at > NONCE_FLOOR_TTL_MS) return rpcNonce;
+  return Math.max(rpcNonce, f.next);
+}
+export function noteBroadcastNonce(chainId: number, sender: string, nonce: number, now = Date.now()): void {
+  const k = floorKey(chainId, sender);
+  const f = nonceFloor.get(k);
+  const live = f && now - f.at <= NONCE_FLOOR_TTL_MS ? f.next : 0;
+  nonceFloor.set(k, { next: Math.max(nonce + 1, live), at: now });
+}
+/** Tests. */
+export function clearNonceFloor(): void {
+  nonceFloor.clear();
 }
 
 /** Gaz d'un transfert de la pièce native vers un compte ordinaire. */
@@ -138,6 +167,18 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
 
   // ── Envoi ──────────────────────────────────────────────────────────────────
 
+  /** `decimals()` du contrat, ou null si illisible (fonction absente, RPC en panne). */
+  private async readDecimals(contract: string): Promise<number | null> {
+    try {
+      const raw = await this.v1.callContract(contract, '0x313ce567');
+      if (!/^0x[0-9a-fA-F]{1,64}$/.test(raw)) return null;
+      const n = Number(BigInt(raw));
+      return n <= 255 ? n : null;
+    } catch {
+      return null;
+    }
+  }
+
   async prepareSend(from: string, request: SendRequest): Promise<SendDraft<EvmPayload>> {
     const sender = normalizeEvmAddress(from);
     if (!this.validateAddress(request.to)) {
@@ -154,11 +195,23 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
     const value = isToken ? 0n : request.amount;
     const data = isToken ? erc20TransferData(request.to, request.amount) : '0x';
 
-    const [nonce, fee, gasLimit] = await Promise.all([
+    // Solde natif lu EN PARALLÈLE (contrôle « montant + frais » plus bas) ; illisible → null, le nœud tranchera.
+    const nativeBalance = this.v1.getBalance(sender).then((b) => b.raw).catch(() => null);
+    const [rpcNonce, fee, gasLimit, onchainDecimals] = await Promise.all([
       this.v1.getNonce(sender),
       this.v1.getFeeData(),
       this.estimateGas(sender, txTo, value, data, isToken),
+      isToken ? this.readDecimals(txTo) : Promise.resolve(null),
     ]);
+    /*
+     * DÉCIMALES RELUES SUR LE CONTRAT. Le montant brut est calculé avec les
+     * décimales que l'écran connaît (indexeur, lien, liste) : fausses, « 10 »
+     * affiché partirait comme 10 × 10¹² unités, ou l'inverse. Solana le refuse
+     * de lui-même (`transferChecked`) ; ici rien ne le faisait.
+     */
+    if (onchainDecimals !== null && onchainDecimals !== request.token!.decimals) {
+      throw new WalletError('INVALID_AMOUNT', `Décimales du jeton incohérentes (${request.token!.decimals} ≠ ${onchainDecimals} sur le contrat)`);
+    }
 
     /*
      * Le palier choisi n'est appliqué QUE si la chaîne propose l'EIP-1559.
@@ -184,8 +237,26 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
       fees = { gasPrice };
     }
 
+    const nonce = applyNonceFloor(chainId, sender, rpcNonce);
     const payload: EvmPayload = { to: txTo, value, data, nonce, gasLimit, chainId, ...fees };
     const feeCost = (fees.maxFeePerGas ?? fees.gasPrice ?? 0n) * gasLimit;
+
+    /*
+     * Solde natif ≥ montant (envoi natif) + frais maximum, vérifié AVANT de
+     * signer. Sans cela, « tout envoyer » partait signé et revenait du nœud en
+     * « insufficient funds for gas * price + value », illisible. Une lecture de
+     * solde impossible ne bloque pas : le nœud tranchera.
+     */
+    const native = await nativeBalance;
+    if (native != null && native < value + feeCost) {
+      // Envoi de JETON : c'est le natif des frais qui manque — « réduis le montant » n'aiderait pas.
+      if (isToken) throw new WalletError('INSUFFICIENT_GAS', `${this.config.nativeSymbol} insuffisant pour les frais réseau.`);
+      throw new WalletError('INSUFFICIENT_FUNDS', `Solde ${this.config.nativeSymbol} insuffisant (frais inclus).`, {
+        have: formatInputAmount(native, this.config.nativeDecimals),
+        fee: formatInputAmount(feeCost, this.config.nativeDecimals),
+        symbol: this.config.nativeSymbol,
+      });
+    }
 
     const warnings: SendDraft<EvmPayload>['warnings'] = [];
     // Destinataire qui est un contrat : légitime (multisig, pont), mais assez
@@ -255,7 +326,9 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
   }
 
   async broadcastSend(signed: SignedSend<EvmPayload>): Promise<BroadcastOutcome> {
-    return { txid: await this.v1.broadcast(signed.raw) };
+    const txid = await this.v1.broadcast(signed.raw);
+    noteBroadcastNonce(signed.draft.payload.chainId, signed.draft.from, signed.draft.payload.nonce);
+    return { txid };
   }
 
   async waitForTx(txid: string): Promise<TxState> {
@@ -311,11 +384,26 @@ export class EvmAdapterV2 implements ChainAdapterV2<EvmPayload> {
     if (normalizeEvmAddress(original.from) !== sender) {
       throw new WalletError('NOT_SUPPORTED', 'Cette transaction vient d’un autre compte.');
     }
+    // Déjà dans un bloc : un remplacement serait refusé (« nonce too low »).
+    if (original.mined) throw new WalletError('TX_ALREADY_CONFIRMED', 'Transaction déjà confirmée');
 
     const fee = await this.v1.getFeeData();
-    // Une annulation ne fait rien : 21 000 suffisent, inutile de reprendre la
-    // limite de l'originale, qui pouvait être bien plus grande.
-    const gasLimit = toSelf ? NATIVE_TRANSFER_GAS : original.gasLimit;
+    /*
+     * Annulation : envoi à soi-même de valeur nulle. 21 000 sur une chaîne
+     * classique ; sur un rollup qui compte la part L1 en gaz (Arbitrum),
+     * 21 000 sont refusés (« intrinsic gas too low ») — la limite est donc
+     * ESTIMÉE, 21 000 restant le plancher.
+     */
+    let gasLimit = original.gasLimit;
+    if (toSelf) {
+      gasLimit = NATIVE_TRANSFER_GAS;
+      try {
+        const est = await this.v1.estimateGasFor({ from: sender, to: sender, value: 0n });
+        if (est > gasLimit) gasLimit = est;
+      } catch {
+        /* estimation indisponible : le plancher reste */
+      }
+    }
     const gas = calculateReplacementGas(original, fee, gasLimit);
 
     const payload: EvmPayload = {
