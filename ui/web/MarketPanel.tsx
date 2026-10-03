@@ -15,7 +15,18 @@ import { fonts, radii, spacing, useTheme } from '../theme';
 import { useT, useSettings, fiatSymbol } from '../../lib/settingsStore';
 import { useWebT } from './webI18n';
 import { CrossFade } from './motion';
-import { getMarkets, sortMarkets, searchCoins, formatFiat, type MarketCoin, type SearchCoin, type MarketOrder } from '../../src';
+import { webLocale } from './webTheme';
+
+/** Cours au format de la langue choisie (même convention que le solde au-dessus). */
+function fmtPrice(price: number, fiat: string, sym: string): string {
+  const digits = price >= 100 ? 0 : price >= 1 ? 2 : 6;
+  try {
+    return new Intl.NumberFormat(webLocale(), { style: 'currency', currency: fiat.toUpperCase(), maximumFractionDigits: digits, minimumFractionDigits: digits === 6 ? 2 : digits }).format(price);
+  } catch {
+    return `${sym}${price.toFixed(digits)}`;
+  }
+}
+import { getMarkets, sortMarkets, searchCoins, formatFiat, formatPercent, type MarketCoin, type SearchCoin, type MarketOrder } from '../../src';
 
 /** Icône distante avec repli lettré (même principe que ChainAvatar, mais
  *  générique — les jetons du marché n'ont pas de ChainConfig). */
@@ -143,10 +154,10 @@ export function MarketPanel() {
                     <MiniSparkline values={m.sparkline} up={up} />
                     <View style={{ alignItems: 'flex-end', minWidth: 74 }}>
                       <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }} numberOfLines={1}>
-                        {`${sym}${m.price.toLocaleString(undefined, { maximumFractionDigits: m.price >= 100 ? 0 : 2 })}`}
+                        {fmtPrice(m.price, fiat, sym)}
                       </Text>
                       <Text style={{ color: up ? colors.up : colors.down, fontSize: 12, fontFamily: fonts.medium }}>
-                        {`${up ? '+' : ''}${m.change24h.toFixed(2)} %`}
+                        {`${up ? '+' : ''}${formatPercent(m.change24h)}`}
                       </Text>
                     </View>
                   </View>
