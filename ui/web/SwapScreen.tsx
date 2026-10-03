@@ -11,7 +11,7 @@
  *  - Solana : la transaction du devis est signée par le téléphone puis diffusée
  *             ici (simulation → envoi → confirmation, comme l'app).
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { View, ScrollView, Pressable as RNPressable } from 'react-native';
 import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState } from '../kit';
 import { SuccessModal } from '../SuccessModal';
@@ -31,6 +31,7 @@ import {
   decimalSeparator,
 } from '../../src';
 import { encodeErc20Approve, hexQuantity } from './evmEncode';
+import { FlowEmbedContext, useFlowRootStyle, useFlowScrollStyle } from './flowEmbed';
 import { useWebT } from './webI18n';
 import { KalyxSpinner } from './motion';
 import { addressForChain, chainOf } from './webAccounts';
@@ -54,6 +55,9 @@ function pick<T>(o: unknown, keys: string[]): T | undefined {
 
 export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfig; onClose: () => void }) {
   const { colors } = useTheme();
+  const flowRoot = useFlowRootStyle(colors.bg);
+  const flowScroll = useFlowScrollStyle();
+  const embedded = useContext(FlowEmbedContext);
   const t = useT();
   const tw = useWebT();
   const request = useWebConnect((s) => s.request);
@@ -365,7 +369,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
   );
 
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg, zIndex: 20 }}>
+    <View style={flowRoot}>
       <View style={{ paddingHorizontal: SCREEN_MARGIN, height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t('back')} tone="ghost" onPress={onClose} />
         <Text variant="title2" style={{ flex: 1 }}>{isBridge ? t('bridgeAction') : t('swapAction')}</Text>
@@ -379,7 +383,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       ) : !fromTok || !toTok ? (
         <View style={{ padding: SCREEN_MARGIN, gap: space[3] }}><Skeleton height={110} /><Skeleton height={110} /></View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: space[6], gap: space[3] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView style={flowScroll} contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: space[6], gap: space[3] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <TokenBlock
             label={t('youGive')}
             tok={fromTok}
@@ -431,7 +435,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
             </View>
           ) : null}
 
-          <AmountKeypad value={amount} onChange={(v) => { setAmount(v); reset(); stopCountdown(); }} maxDecimals={Math.min(fromTok.decimals, 8)} />
+          <AmountKeypad value={amount} onChange={(v) => { setAmount(v); reset(); stopCountdown(); }} maxDecimals={Math.min(fromTok.decimals, 8)} compact={embedded} />
           {!quote ? (
             <Button label={t('getQuote')} onPress={() => onQuote()} loading={loading} disabled={!amount || Number(amount) <= 0} />
           ) : stale ? (

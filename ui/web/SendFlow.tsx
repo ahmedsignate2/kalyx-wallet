@@ -19,7 +19,7 @@
  * Les frais réseau affichés sont une estimation — c'est le téléphone qui les fixe.
  */
 import { fill } from '../../lib/i18n';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, Pressable as RNPressable, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { base64 } from '@scure/base';
@@ -47,6 +47,7 @@ import { buildTransferMessage, encodeLength } from '../../src/domain/chains/solT
 import { buildSplTransferMessage } from '../../src/domain/chains/solSpl';
 import { AntiDrainerBanner } from '../../src/components/security/AntiDrainerBanner';
 import { encodeErc20Transfer, hexQuantity } from './evmEncode';
+import { FlowEmbedContext, useFlowRootStyle, useFlowScrollStyle } from './flowEmbed';
 import { useWebT } from './webI18n';
 import { KalyxSpinner } from './motion';
 import { addressForChain, chainOf, useWebPortfolioAccount } from './webAccounts';
@@ -74,6 +75,9 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
   const t = useT();
   const tw = useWebT();
   const { colors, typography } = useTheme();
+  const flowRoot = useFlowRootStyle(colors.bg);
+  const flowScroll = useFlowScrollStyle();
+  const embedded = useContext(FlowEmbedContext);
   const fiat = useSettings((s) => s.fiat);
   const showTestnets = useSettings((s) => s.showTestnets);
   const sym = fiatSymbol(fiat);
@@ -398,7 +402,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
   });
 
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg, zIndex: 20 }}>
+    <View style={flowRoot}>
       {/* En-tête + barre de progression */}
       <View style={{ paddingHorizontal: SCREEN_MARGIN }}>
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
@@ -417,7 +421,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
         {step > 0 ? <StepBar step={step} total={4} /> : null}
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: space[6], gap: space[5], flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+      <ScrollView style={flowScroll} contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: space[6], gap: space[5], flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         {/* ── 0. Quoi envoyer (agrégé multi-chaîne) ── */}
         {step === 0 ? (
           <>
@@ -547,7 +551,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
             {notEnoughGas ? <Text variant="caption" tone="danger">{t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText)}</Text> : null}
             {amountError && hasEnteredAmount ? <Text variant="caption" tone="danger">{amountError}</Text> : null}
             <View style={{ flex: 1 }} />
-            <AmountKeypad value={amount} onChange={(v) => { setAmount(v); setAmountError(null); }} maxDecimals={inFiat ? 2 : Math.min(decimals, 8)} />
+            <AmountKeypad value={amount} onChange={(v) => { setAmount(v); setAmountError(null); }} maxDecimals={inFiat ? 2 : Math.min(decimals, 8)} compact={embedded} />
             <Button label={t('verify')} onPress={goStep3} disabled={amountRaw <= 0n} />
           </>
         ) : null}
