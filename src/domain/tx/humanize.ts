@@ -108,6 +108,12 @@ export interface HumanizeCtx {
   nameOf?: (address: string) => string | undefined;
   /** Symboles des tokens VÉRIFIÉS : un token entrant hors de cette liste = airdrop spam probable. */
   verifiedSymbols?: Set<string>;
+  /**
+   * Contrats VÉRIFIÉS (`chaîne:adresse` en minuscules). Prioritaire sur le
+   * symbole quand la transaction porte son contrat : un faux « USDC » déployé
+   * par n'importe qui avait le même symbole que le vrai et passait pour légitime.
+   */
+  verifiedContracts?: Set<string>;
   /** Contre-valeur d'un montant (symbole, montant humain) → chaîne formatée, ou undefined. */
   fiatOf?: (symbol: string, amount: number) => string | undefined;
   /** Symbole d'un token connu (portefeuille), par réseau et adresse. */
@@ -130,7 +136,11 @@ export function humanizeTx(tx: TxSummary, ctx: HumanizeCtx): HumanTx {
   const type = (tx.type ?? '').toUpperCase();
   const inbound = tx.direction === 'in';
   const isToken = !!tx.asset && tx.asset.toUpperCase() !== (native?.symbol ?? ctx.nativeSymbol).toUpperCase();
-  const unverified = isToken && !!ctx.verifiedSymbols && !ctx.verifiedSymbols.has(symbol.toUpperCase());
+  const unverified =
+    isToken &&
+    (tx.contract && ctx.verifiedContracts
+      ? !ctx.verifiedContracts.has(`${tx.chain}:${tx.contract.toLowerCase()}`)
+      : !!ctx.verifiedSymbols && !ctx.verifiedSymbols.has(symbol.toUpperCase()));
   const amountNum = Number(tx.value) / 10 ** decimals;
   const fiat = !unverified && ctx.fiatOf ? ctx.fiatOf(symbol, amountNum) : undefined;
 

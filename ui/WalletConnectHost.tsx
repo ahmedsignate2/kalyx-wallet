@@ -440,6 +440,8 @@ export function WalletConnectHost() {
       phishingSite: phishSite,
       nativeSymbol: chain?.nativeSymbol,
       connectedChainId: chain?.evmChainId,
+      txValue: tx?.value,
+      nativeDecimals: chain?.nativeDecimals,
       t: exT,
     });
     const explanation = accountMismatch

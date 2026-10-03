@@ -563,6 +563,10 @@ export function splitSmall(holdings: Holding[], threshold = 1): { main: Holding[
   const r = splitHoldings(holdings, threshold);
   return { main: r.main, small: r.small };
 }
+/** Contrats des tokens vérifiés, `chaîne:adresse` en minuscules (un symbole se copie, une adresse non). */
+export function verifiedContracts(holdings: Holding[]): Set<string> {
+  return new Set(holdings.filter((h) => h.verified && h.contract).map((h) => `${h.chainId}:${h.contract!.toLowerCase()}`));
+}
 /** Symboles des tokens vérifiés (pour classer l'activité). */
 export function verifiedSymbols(holdings: Holding[]): Set<string> {
   return new Set(holdings.filter((h) => h.verified).map((h) => h.symbol.toUpperCase()));

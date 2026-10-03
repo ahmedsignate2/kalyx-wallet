@@ -50,11 +50,12 @@ export function parseTokenBalances(json: unknown): { contract: string; raw: bigi
 /** Parse alchemy_getTokenMetadata. */
 export function parseTokenMetadata(json: unknown): TokenMeta | null {
   const r = (json as { result?: { name?: string; symbol?: string; decimals?: number; logo?: string } })?.result;
-  if (!r) return null;
+  // Décimales absentes (`null`) : métadonnées INCONNUES — jamais 0, qui afficherait et enverrait en unités brutes.
+  if (!r || typeof r.decimals !== 'number') return null;
   return {
     name: r.name ?? '',
     symbol: r.symbol ?? '',
-    decimals: typeof r.decimals === 'number' ? r.decimals : 0,
+    decimals: r.decimals,
     logo: r.logo ?? undefined,
   };
 }
