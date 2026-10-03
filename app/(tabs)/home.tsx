@@ -43,7 +43,7 @@ import { addressForChain } from '../../lib/accountAddress';
 import { accountDisplayName } from '../../lib/walletNames';
 import { useSettings, useT, useActivityT, fiatSymbol } from '../../lib/settingsStore';
 import { useNotifCenter, unreadCount } from '../../lib/notificationCenter';
-import { usePortfolioStore, splitHoldings, verifiedSymbols, portfolioHistory, peekPortfolioHistory, loadNftReport, PERIODS, type NftReport, type Period, type Holding, type ChainNft } from '../../lib/portfolio';
+import { usePortfolioStore, splitHoldings, verifiedSymbols, verifiedContracts, portfolioHistory, peekPortfolioHistory, loadNftReport, PERIODS, type NftReport, type Period, type Holding, type ChainNft } from '../../lib/portfolio';
 import { useContacts } from '../../lib/contactsStore';
 import { haptic } from '../../lib/haptics';
 import { toast } from '../../lib/toast';
@@ -451,6 +451,7 @@ export default function Home() {
    */
   const shownTokens = showSmall ? [...main, ...small] : main;
   const vSymbols = verifiedSymbols(pf.holdings);
+  const vContracts = verifiedContracts(pf.holdings);
   const priceBySymbol = new Map(pf.holdings.filter((h) => h.verified && h.price > 0).map((h) => [h.symbol.toUpperCase(), h.price]));
   const nameOf = (a: string) => {
     const l = a.toLowerCase();
@@ -473,6 +474,7 @@ export default function Home() {
     nativeOf: nativeOfChain,
     nameOf,
     verifiedSymbols: vSymbols,
+    verifiedContracts: vContracts,
     spamOf,
     fiatOf: (symbol: string, amount: number) => {
       const p = priceBySymbol.get(symbol.toUpperCase());

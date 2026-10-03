@@ -246,8 +246,13 @@ export function parseLifiError(status: number, json: unknown): SwapError {
 
 /** L'erreur vient-elle de la config des frais intégrateur (→ réessayer sans fee) ? */
 function isFeeConfigError(e: SwapError): boolean {
-  const m = e.message.toLowerCase();
-  return m.includes('integrator') || m.includes('fee');
+  /*
+   * La configuration des frais INTÉGRATEUR seulement. « fee » seul attrapait
+   * « montant trop faible pour couvrir les frais » : on redemandait alors un
+   * devis SANS frais Kalyx — latence doublée et frais perdus.
+   */
+  if (e.code === 'AMOUNT_BELOW_MINIMUM' || e.code === 'AMOUNT_ABOVE_MAXIMUM' || e.code === 'NO_LIQUIDITY') return false;
+  return /integrator|fee ?(config|recipient|percent|percentage|bps)|invalid fee/i.test(e.message);
 }
 
 async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQuote | null> {

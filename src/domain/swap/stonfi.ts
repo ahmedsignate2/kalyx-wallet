@@ -266,6 +266,18 @@ export async function getStonfiQuote(p: StonfiQuoteParams, fetchImpl: typeof fet
     throw new SwapError('NO_ROUTE', 'STON.fi : aucune route');
   }
   if (BigInt(j.offer_units ?? '0') !== p.fromAmount) throw new SwapError('PROVIDER_UNAVAILABLE', 'STON.fi : montant du devis incohérent');
+  /*
+   * PROTECTION DE GLISSEMENT vérifiée ICI, pas confiée au serveur : le minimum
+   * reçu doit valoir au moins `ask × (1 − glissement)` (1 point de base de
+   * tolérance d'arrondi). Un minimum à 1 (API compromise) laissait l'échange
+   * se faire « sandwicher » jusqu'à presque rien.
+   */
+  const ask = BigInt(j.ask_units ?? '0');
+  const minAsk = BigInt(j.min_ask_units);
+  const bps = BigInt(Math.ceil(slippage * 10_000)) + 1n;
+  if (ask <= 0n || minAsk <= 0n || minAsk > ask || minAsk * 10_000n < ask * (10_000n - bps)) {
+    throw new SwapError('PROVIDER_UNAVAILABLE', 'STON.fi : minimum reçu incohérent avec le glissement choisi');
+  }
   const router = raw(j.router_address);
   if (!STONFI_ROUTERS.has(router) || j.router?.major_version !== 2 || raw(j.router?.pton_master_address ?? STONFI_TON) !== PTON_V2_1_MASTER) {
     throw new SwapError('PROVIDER_UNAVAILABLE', 'STON.fi : routeur non reconnu');

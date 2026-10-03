@@ -64,6 +64,10 @@ export interface ExplainInput {
   t?: ExplainT;
   /** Chain ID EVM du réseau CONNECTÉ, pour repérer une signature EIP-712 destinée à un autre. */
   connectedChainId?: number;
+  /** Valeur native envoyée par la transaction (wei) : montrée même quand la simulation manque. */
+  txValue?: bigint;
+  /** Décimales du natif (18 par défaut). */
+  nativeDecimals?: number;
 }
 
 function fmtChange(c: AssetChange): string {
@@ -98,7 +102,8 @@ export type ExplainKey =
   | 'exTitleSolTx' | 'exSolUnreadableHeadline' | 'exSolUnreadableDetail' | 'exSolUnreadable' | 'exSolSponsored'
   | 'exSolSwap' | 'exSolStaking' | 'exSolNft' | 'exSolTransfer' | 'exSolProgram' | 'exSolProgramKnown'
   | 'exSolInstructions' | 'exSolSwapDetail' | 'exSolUnknownProgram' | 'exTitleSwap'
-  | 'exTitleRequest' | 'exOtherHeadline' | 'exOtherDetail' | 'exUnknownMethod' | 'exTypedChainMismatch';
+  | 'exTitleRequest' | 'exOtherHeadline' | 'exOtherDetail' | 'exUnknownMethod' | 'exTypedChainMismatch'
+  | 'exTypedNftOrder' | 'exTxNoSimulationValue';
 
 export type ExplainT = (key: ExplainKey, params?: Record<string, string>) => string;
 
@@ -197,6 +202,14 @@ export function explainRequest(input: ExplainInput): SignExplanation {
         lose: [], receive: [], risk, reasons, holdToSign: risk === 'danger', canReduceApproval,
       };
     }
+    /*
+     * ORDRE DE PLACE DE MARCHÉ : la signature suffit à céder les NFT ou jetons
+     * listés à qui l'exécute — le drain NFT classique (liste à 0). Jamais « sans risque ».
+     */
+    if (t?.order) {
+      risk = worst(risk, 'danger');
+      reasons.push(tr('exTypedNftOrder'));
+    }
     const forName = t?.name ? ` (${t.name})` : '';
     return {
       title: tr('exTitleSignature'),
@@ -211,6 +224,16 @@ export function explainRequest(input: ExplainInput): SignExplanation {
     const d = input.decoded;
     const sim = input.simulation;
     const lose = (sim?.changes ?? []).filter((c) => c.direction === 'out').map(fmtChange);
+    /*
+     * Simulation ABSENTE ou en échec : les effets ne sont pas connus. La valeur
+     * native qui part est montrée quand même, et le risque n'est plus « aucun ».
+     */
+    if ((!sim || sim.error) && (input.txValue ?? 0n) > 0n) {
+      const amount = `${formatDecimalString(formatUnits(input.txValue!, input.nativeDecimals ?? 18))} ${input.nativeSymbol ?? ''}`.trim();
+      if (!lose.length) lose.push(amount);
+      risk = worst(risk, 'warning');
+      reasons.push(tr('exTxNoSimulationValue', { amount }));
+    }
     const receive = (sim?.changes ?? []).filter((c) => c.direction === 'in').map(fmtChange);
     const approvals = sim?.approvals ?? [];
 
