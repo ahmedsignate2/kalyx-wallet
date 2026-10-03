@@ -136,6 +136,13 @@ export function parseConnectLink(text: string): ParsedConnectLink | null {
   }
   if (typeof request?.manifestUrl !== 'string' || !/^https:\/\/[^\s]+$/.test(request.manifestUrl)) return null;
   if (!Array.isArray(request.items) || !request.items.some((i) => i?.name === 'ton_addr')) return null;
+  /*
+   * ton_proof demandé : sa charge doit être un TEXTE borné. Sinon la connexion
+   * échouait APRÈS le code (signature impossible), ou partait sans la preuve
+   * que la dApp a demandée.
+   */
+  const proof = request.items.find((i) => i?.name === 'ton_proof') as { payload?: unknown } | undefined;
+  if (proof && (typeof proof.payload !== 'string' || proof.payload.length > 512)) return null;
   const ret = p.get('ret') ?? undefined;
   return { clientId, request, bridge: bridgeForLink(link), ret };
 }

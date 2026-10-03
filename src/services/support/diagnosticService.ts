@@ -297,9 +297,11 @@ export async function exportDiagnosticReport(): Promise<DiagnosticExportResult> 
   const Sharing = getSharingModule();
   const Clipboard = getClipboardModule();
 
+  // Rapport complet, gardé hors du `try` : en cas d'échec du partage, c'est LUI qui part au presse-papier.
+  let jsonString: string | null = null;
   try {
     const data = await collectDiagnosticData();
-    let jsonString = JSON.stringify(data, null, 2);
+    jsonString = JSON.stringify(data, null, 2);
 
     // Contrôle absolu d'intégrité et sécurité
     const secretCheck = detectSensitiveSecrets(jsonString);
@@ -337,14 +339,12 @@ export async function exportDiagnosticReport(): Promise<DiagnosticExportResult> 
         fileUri,
       };
     } else {
-      // Fallback presse-papier
+      // Fallback presse-papier — « copié » seulement s'il l'a vraiment été.
       if (Clipboard && typeof Clipboard.setStringAsync === 'function') {
         await Clipboard.setStringAsync(jsonString);
+        return { success: true, method: 'clipboard' };
       }
-      return {
-        success: true,
-        method: 'clipboard',
-      };
+      return { success: false, method: 'clipboard', error: 'Ni partage ni presse-papier disponibles' };
     }
   } catch (err: any) {
     // Si une exception survient pendant l'écriture de fichier ou le partage, tentative ultime vers le presse-papier
@@ -356,12 +356,11 @@ export async function exportDiagnosticReport(): Promise<DiagnosticExportResult> 
         error: err?.message,
       };
       if (Clipboard && typeof Clipboard.setStringAsync === 'function') {
-        await Clipboard.setStringAsync(JSON.stringify(basicInfo, null, 2));
+        // Le rapport COMPLET s'il a pu être construit ; sinon un résumé — et alors l'échec est annoncé.
+        await Clipboard.setStringAsync(jsonString ?? JSON.stringify(basicInfo, null, 2));
+        if (jsonString) return { success: true, method: 'clipboard' };
       }
-      return {
-        success: true,
-        method: 'clipboard',
-      };
+      return { success: false, method: 'clipboard', error: err?.message || 'Export error' };
     } catch {
       return {
         success: false,
