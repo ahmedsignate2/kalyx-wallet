@@ -47,10 +47,6 @@ Les clés sont générées et gardées **sur le téléphone, et nulle part aille
 
 <img src="docs/screenshots/14-web-dashboard.jpg" width="820" />
 
-<div align="center">
-  <img src="docs/demo.gif" width="300" alt="Démo Kalyx Wallet" />
-</div>
-
 ---
 
 ## 🛡️ Sécurité en un coup d'œil
