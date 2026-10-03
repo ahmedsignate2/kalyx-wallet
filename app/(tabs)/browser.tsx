@@ -562,7 +562,7 @@ export default function Browser() {
     if (pending.kind === 'sign') return explainRequest({ kind: pending.siwe ? 'siwe' : 'message', domain: pending.origin, siwe: pending.siwe, siweMismatch: !!pending.siwe && siweDomainMismatch(pending.siwe.domain, `https://${pending.origin}`), messageText: pending.text, addressRisk, phishingSite: phishSite, t: exT });
     if (pending.kind === 'typedData') return explainRequest({ kind: 'typedData', domain: pending.origin, typed: pending.summary, tokenSymbol: permitToken?.symbol ?? null, tokenDecimals: permitToken?.decimals ?? null, addressRisk, phishingSite: phishSite, connectedChainId: chain.evmChainId, t: exT });
     const decoded = decodeTx({ to: pending.raw.to, value: pending.raw.value, data: pending.raw.data });
-    return explainRequest({ kind: 'tx', domain: pending.origin, decoded, simulation: sim && sim !== 'loading' ? sim : null, addressRisk, phishingSite: phishSite, nativeSymbol: chain.nativeSymbol, t: exT });
+    return explainRequest({ kind: 'tx', domain: pending.origin, decoded, simulation: sim && sim !== 'loading' ? sim : null, addressRisk, phishingSite: phishSite, nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals, txValue: pending.kind === 'tx' ? pending.value : undefined, simulating: sim === 'loading', t: exT });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending, sim, risk, phishSite, permitToken, exT]);
 
@@ -575,6 +575,11 @@ export default function Browser() {
       await useWallet.getState().verifyConnect(unlock);
       connected.current.add(connKey(pending.origin, tb?.incognito));
       respondPending(pending, [evmAddress]);
+      /*
+       * Demande RÉPONDUE : libérée avant l'animation (la feuille reste affichée).
+       * Une signature demandée aussitôt connecté (SIWE) ne doit pas recevoir -32002.
+       */
+      if (pendingRef.current === pending) pendingRef.current = null;
       deliverTo(pending.origin, pending.tabId, emitJs('accountsChanged', [evmAddress]));
       deliverTo(pending.origin, pending.tabId, emitJs('connect', { chainId: chainIdHex }));
       if (!tb?.incognito) {

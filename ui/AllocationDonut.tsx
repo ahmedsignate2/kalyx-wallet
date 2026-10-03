@@ -10,6 +10,7 @@
  * - centre du donut = valeur totale (chiffres tabulaires).
  */
 import React from 'react';
+import { decimalSeparator } from '../src';
 import { View, Text } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { fonts, spacing, useTheme } from './theme';
@@ -112,7 +113,7 @@ export function AllocationDonut({
               {s.label}
             </Text>
             <Text style={{ fontSize: 13, fontFamily: fonts.semibold, color: colors.text, fontVariant: ['tabular-nums'] }}>
-              {((s.value / total) * 100).toFixed(1).replace('.', ',')} %
+              {((s.value / total) * 100).toFixed(1).replace('.', decimalSeparator())} %
             </Text>
             {formatValue ? (
               <Text style={{ fontSize: 13, fontFamily: fonts.regular, color: colors.textSecondary, fontVariant: ['tabular-nums'], minWidth: 64, textAlign: 'right' }}>

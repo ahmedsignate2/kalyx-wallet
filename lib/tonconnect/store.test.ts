@@ -65,6 +65,7 @@ jest.mock('../../src', () => {
   return { ...actual, getAdapterV2: () => ton };
 });
 
+import { clearTonInFlight } from '../../src/domain/chains/v2/TonAdapterV2';
 import { useTonConnect } from './store';
 import { decryptMessage, encryptMessage, newSessionKeyPair } from '../../src/domain/tonconnect/sessionCrypto';
 import { tonProofDigest, tonProofMessage } from '../../src/domain/tonconnect/tonProof';
@@ -79,6 +80,9 @@ const read = (i: number) => JSON.parse(decryptMessage(base64.decode(sent[i].body
 beforeAll(() => {
   global.fetch = (async () => ({ ok: true, json: async () => MANIFEST })) as never;
 });
+
+// La chaîne simulée ne fait pas avancer le seqno : on oublie les envois en vol entre deux cas.
+beforeEach(() => clearTonInFlight());
 
 describe('TON Connect, du QR à la transaction', () => {
   it('connexion : ton_addr + ton_proof valides, sur le pont de Tonkeeper', async () => {

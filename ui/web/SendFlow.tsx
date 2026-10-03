@@ -29,6 +29,7 @@ import { useTheme } from '../theme';
 import { space, SCREEN_MARGIN, radius } from '../tokens';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { UserFacingError, friendlyTxError } from '../../lib/txError';
+import { webErrorText } from './webErrors';
 import { useRecentRecipients, type RecipientFamily } from '../../lib/recentRecipientsStore';
 import { useContacts } from '../../lib/contactsStore';
 import { useWebConnect } from '../../lib/webConnect';
@@ -283,7 +284,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
     } catch (e) {
       // Le message brut d'ethers, du RPC ou de WalletConnect n'a pas de langue :
       // il passe par le même entonnoir que l'app pour être traduit par son code.
-      setSendError(friendlyTxError(e, t as never));
+      setSendError(webErrorText(e, tw, t as never));
       setStep(3);
     } finally {
       setConfirming(false);

@@ -11,6 +11,7 @@ import { useT } from "../lib/settingsStore";
  *     signer = maintenir 2 s.
  * Composant de PRÉSENTATION : le parent fournit l'explication et gère l'action.
  */
+import { dappHost } from '../src/domain/web/dappHost';
 import React, { useState } from 'react';
 import { View, ScrollView, Image } from 'react-native';
 import { Text, Button, HoldButton, Surface, Divider, RiskBadge, AddressGlyph, Sheet, Skeleton, Pressable, Pressable as KPressable } from './kit';
@@ -50,7 +51,8 @@ export function SignSheet({
   const t = useT();
   const { colors } = useTheme();
   const [showRaw, setShowRaw] = useState(false);
-  const host = peer?.url ? peer.url.replace(/^[a-z]+:\/\//i, '').split('/')[0] : '';
+  // Hôte RÉEL (src/domain/web/dappHost) : « a.com@evil.com », « evil.com/@a.com » → evil.com.
+  const host = dappHost(peer?.url ?? '');
   const danger = explanation?.risk === 'danger';
   const verified = verify?.validation === 'VALID';
   const badDomain = verify?.validation === 'INVALID' || verify?.isScam;
@@ -69,9 +71,9 @@ export function SignSheet({
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
         {peer?.icon ? <Image source={{ uri: peer.icon }} style={{ width: 44, height: 44, borderRadius: radius.input, backgroundColor: colors.surface3 }} /> : <View style={{ width: 44, height: 44, borderRadius: radius.input, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}><Icon name="dapps" size={22} tone="muted" /></View>}
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text variant="body" numberOfLines={1}>{peer?.name ?? 'Application'}</Text>
+          <Text variant="body" numberOfLines={1}>{peer?.name ?? t('appGeneric')}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text variant="caption" tone={badDomain ? 'danger' : 'secondary'} numberOfLines={1} style={{ flexShrink: 1 }}>{host || 'domaine inconnu'}</Text>
+            <Text variant="caption" tone={badDomain ? 'danger' : 'secondary'} numberOfLines={1} style={{ flexShrink: 1 }}>{host || t('unknownDomain')}</Text>
             {verified ? <Icon name="check" size={14} color={colors.textSecondary} /> : null}
           </View>
         </View>

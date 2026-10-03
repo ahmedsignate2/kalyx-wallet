@@ -544,7 +544,8 @@ export class EvmChainAdapter implements ChainAdapter {
    */
   async sendContractTx(req: RawTxRequest, from: string, privateKey: string): Promise<string> {
     const wallet = new Wallet(privateKey);
-    const needFee = !req.gasPrice && !req.maxFeePerGas;
+    // Frais du réseau lus aussi quand la demande donne un maximum SANS pourboire : c'est lui qui fixe le pourboire.
+    const needFee = (!req.gasPrice && !req.maxFeePerGas) || (!!req.maxFeePerGas && req.maxPriorityFeePerGas == null);
     const [nonce, feeData] = await Promise.all([
       req.nonce != null ? Promise.resolve(req.nonce) : this.call((p) => p.getTransactionCount(from, 'pending')),
       needFee ? this.call((p) => p.getFeeData()) : Promise.resolve(null),
@@ -616,7 +617,13 @@ export class EvmChainAdapter implements ChainAdapter {
         ...common,
         type: 2 as const,
         maxFeePerGas: req.maxFeePerGas,
-        maxPriorityFeePerGas: req.maxPriorityFeePerGas ?? req.maxFeePerGas,
+        /*
+         * Pourboire absent de la demande (dApp) : celui du RÉSEAU, plafonné au
+         * maximum. Reprendre le maximum entier donnait toute la marge au
+         * validateur — près de deux fois les frais attendus.
+         */
+        // Réseau illisible : l'ancien comportement (le maximum), jamais un pourboire fixe que certains réseaux refusent (Polygon).
+        maxPriorityFeePerGas: req.maxPriorityFeePerGas ?? minBig(feeData?.maxPriorityFeePerGas ?? req.maxFeePerGas, req.maxFeePerGas),
       };
     } else if (feeData?.maxFeePerGas) {
       txReq = {
@@ -652,6 +659,11 @@ export class EvmChainAdapter implements ChainAdapter {
     } catch {
       return false;
     }
+  }
+
+  /** `eth_estimateGas` brut (lève si le nœud refuse). */
+  async estimateGasFor(tx: { from: string; to: string; value?: bigint; data?: string }): Promise<bigint> {
+    return this.call((p) => p.estimateGas({ from: tx.from, to: tx.to, value: tx.value ?? 0n, data: tx.data ?? '0x' }), 'eth_estimateGas');
   }
 
   /**
@@ -815,3 +827,5 @@ function strictUint(result: unknown, message: string): bigint {
   if (typeof result !== 'string' || !/^0x[0-9a-fA-F]+$/.test(result)) throw new Error(message);
   return BigInt(result);
 }
+
+const minBig = (a: bigint, b: bigint) => (a < b ? a : b);

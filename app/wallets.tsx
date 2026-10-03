@@ -111,7 +111,7 @@ export default function Wallets() {
                 >
                   <IconDisc name="sign" size={34} />
                 </KPressable>
-                <KPressable onPress={() => onRemove(w.id, w.label)} hitSlop={10} accessibilityLabel={t('deleteAction')}>
+                <KPressable onPress={() => onRemove(w.id, walletDisplayName(w, walletPosition(wallets, w.id), t))} hitSlop={10} accessibilityLabel={t('deleteAction')}>
                   <IconDisc name="close" tone="danger" size={34} />
                 </KPressable>
               </Card>

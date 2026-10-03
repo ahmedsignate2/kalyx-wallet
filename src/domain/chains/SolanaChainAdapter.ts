@@ -439,8 +439,13 @@ export class SolanaChainAdapter implements ChainAdapter {
       await new Promise((r) => setTimeout(r, CONFIRM_POLL_MS));
     }
 
+    /*
+     * Délai d'attente écoulé SANS preuve d'abandon (blockhash encore valide, ou
+     * hauteur inconnue) : la transaction peut encore passer. « Expirée »
+     * invitait à renvoyer — et les deux pouvaient être incluses.
+     */
     throw new WalletError(
-      'TX_EXPIRED',
+      'TX_UNCONFIRMED',
       'Transaction non confirmée dans le délai imparti. Vérifie l\'explorateur avant de réessayer.',
     );
   }

@@ -23,7 +23,7 @@ import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { friendlyTxError } from '../lib/txError';
 
 /** Refus de la préparation qui sont CERTAINS : affichés sous le montant, avant le code. */
-const PRECHECK_BLOCKING = new Set(['SOL_RENT_SENDER', 'SOL_RENT_RECIPIENT', 'INSUFFICIENT_FUNDS', 'AMOUNT_TOO_SMALL', 'INSUFFICIENT_GAS', 'MEMO_REQUIRED', 'INVALID_ADDRESS', 'INVALID_AMOUNT']);
+const PRECHECK_BLOCKING = new Set(['SOL_RENT_SENDER', 'SOL_RENT_RECIPIENT', 'INSUFFICIENT_FUNDS', 'AMOUNT_TOO_SMALL', 'INSUFFICIENT_GAS', 'MEMO_REQUIRED', 'INVALID_ADDRESS', 'INVALID_AMOUNT', 'PREVIOUS_TX_PENDING']);
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, HoldRing, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
@@ -661,9 +661,12 @@ function SendInner() {
     setStep(2);
   };
   const goStep3 = async () => {
+    if (checking) return; // double appui pendant le contrôle du destinataire
     setAmountError(null);
     // Destinataire contrôlé ici aussi (lien prérempli) : refusé → retour à l'étape 1, où l'erreur s'affiche.
-    if (!(await recipientGate())) {
+    setChecking(true);
+    const recipientOk2 = await recipientGate().finally(() => setChecking(false));
+    if (!recipientOk2) {
       setStep(1);
       return;
     }
@@ -775,7 +778,7 @@ function SendInner() {
    * L'aperçu affichait 0 et l'envoi échouait après le code ; c'est dit ici et
    * l'envoi est bloqué.
    */
-  const overBalanceAfterFee = isNativeSend && afterBalance != null && afterBalance < 0n;
+  const overBalanceAfterFee = (isNativeSend && afterBalance != null && afterBalance < 0n) || (!isNativeSend && notEnoughGas);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -1065,7 +1068,9 @@ function SendInner() {
               </View>
             ) : null}
             {overBalanceAfterFee ? (
-              <Text variant="caption" tone="danger">{t('errInsufficientFunds')}</Text>
+              <Text variant="caption" tone="danger">
+                {isNativeSend ? t('errInsufficientFunds') : t('notEnoughGasForFee').replace('{symbol}', chain.nativeSymbol).replace('{details}', missingFeeText)}
+              </Text>
             ) : null}
             {afterBalance != null ? (
               <Text variant="bodySecondary" tone="secondary">{fill(t('balanceUpdatePreview'), { symbol: symbol, before: formatTokenAmount(balance!, decimals), after: formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals) })}</Text>

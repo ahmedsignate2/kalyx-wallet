@@ -16,6 +16,8 @@ import { useWallet } from '../lib/walletStore';
 import { isBiometricAvailable } from '../lib/biometrics';
 import { ensureNotifPermission, notificationsAvailable, notify } from '../lib/notifications';
 import { toast } from '../lib/toast';
+import { friendlyTxError } from '../lib/txError';
+import { isWalletError } from '../src';
 
 function Ico({ n }: { n: IconName }) {
   return <IconDisc name={n} />;
@@ -95,8 +97,12 @@ export default function Settings() {
   const onToggleBio = async (on: boolean) => {
     if (on) setAskPin(true);
     else {
-      await disableBiometric();
-      setBiometricEnabled(false);
+      try {
+        await disableBiometric();
+        setBiometricEnabled(false);
+      } catch (e) {
+        toast.error(friendlyTxError(e, t as never)); // l'interrupteur reste juste : rien n'a changé
+      }
     }
   };
   const confirmEnableBio = async (pin: string) => {
@@ -105,8 +111,14 @@ export default function Settings() {
       await enableBiometric(pin);
       setBiometricEnabled(true);
       setAskPin(false);
-    } catch {
-      setBioErr((n) => n + 1); // PIN refusé → secousse dans le pop-up
+    } catch (e) {
+      // Code refusé → secousse. Tout autre refus (code de contrainte défini, biométrie refusée,
+      // trop d'essais) est DIT : sinon on retapait le bon code sans jamais savoir pourquoi.
+      if (isWalletError(e) && e.code === 'WRONG_PIN') setBioErr((n) => n + 1);
+      else {
+        setAskPin(false);
+        toast.error(friendlyTxError(e, t as never));
+      }
     } finally {
       setBioBusy(false);
     }

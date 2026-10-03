@@ -82,8 +82,10 @@ export function utf8Decode(b: Uint8Array): string {
     if (c < 0x80) cp = c;
     else if (c >= 0xc0 && c < 0xe0) cp = ((c & 0x1f) << 6) | (b[i++] & 0x3f);
     else if (c >= 0xe0 && c < 0xf0) cp = ((c & 0x0f) << 12) | ((b[i++] & 0x3f) << 6) | (b[i++] & 0x3f);
-    else if (c >= 0xf0) cp = ((c & 0x07) << 18) | ((b[i++] & 0x3f) << 12) | ((b[i++] & 0x3f) << 6) | (b[i++] & 0x3f);
+    else if (c >= 0xf0 && c < 0xf5) cp = ((c & 0x07) << 18) | ((b[i++] & 0x3f) << 12) | ((b[i++] & 0x3f) << 6) | (b[i++] & 0x3f);
     else cp = 0xfffd;
+    // Octet invalide ou point de code hors Unicode : « � » au lieu d'une exception (le message entier était perdu).
+    if (!(cp >= 0 && cp <= 0x10ffff) || (cp >= 0xd800 && cp <= 0xdfff)) cp = 0xfffd;
     out += String.fromCodePoint(cp);
   }
   return out;

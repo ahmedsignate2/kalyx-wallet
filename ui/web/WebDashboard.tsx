@@ -47,6 +47,8 @@ import {
   getTokenPrices,
   getPrices,
   formatTokenAmount,
+  formatAmount,
+  trimDecimalZeros,
   chainIconUrl,
   humanizeTx,
   type Erc20Token,
@@ -58,6 +60,7 @@ import {
   type ChartPoint,
   type HumanTx,
 } from '../../src';
+import { webErrorText, webErrorKey } from './webErrors';
 
 function short(a: string) {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
@@ -240,7 +243,7 @@ function SigningModal() {
         <Text style={[typography.muted, { textAlign: 'center' }]}>
           {phase === 'await'
             ? pending.slow ? tw('signAwaitSlow') : tw('signAwaitBody', { label })
-            : pending.expired ? tw('signExpired') : detail ?? ''}
+            : pending.expired ? tw('signExpired') : (webErrorKey(detail) ? tw(webErrorKey(detail)!) : detail) ?? ''}
         </Text>
         {phase === 'await' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(0.5) }}>
@@ -1519,7 +1522,8 @@ function TokenRow({
       setMsg(tw('txSent', { hash: short(hash) }));
       setTo(''); setAmount('');
     } catch (e) {
-      setErr(e instanceof Error ? e.message : tw('rejectedOrFailed'));
+      // Jamais le message brut (« REQUEST_EXPIRED », « Non connecté ») : la phrase traduite de l'entonnoir commun.
+      setErr(webErrorText(e, tw, t as never));
       setMsg(null);
     } finally {
       setBusy(false);
@@ -1584,7 +1588,8 @@ function TokenRow({
           ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={typography.muted}>{tw('amountOf', { symbol: token.symbol })}</Text>
-            <Pressable onPress={() => setAmount(balStr)} hitSlop={6}>
+            {/* MAX = le solde EXACT en notation de saisie (« 1234.5 »), pas l'affichage groupé et arrondi (« 1 234,5 »), refusé par le contrôle. */}
+            <Pressable onPress={() => setAmount(trimDecimalZeros(formatAmount(token.raw, token.decimals)))} hitSlop={6}>
               <Text style={{ color: colors.accent, fontFamily: fonts.semibold, fontSize: 12 }}>{tw('balanceMax', { balance: balStr })}</Text>
             </Pressable>
           </View>

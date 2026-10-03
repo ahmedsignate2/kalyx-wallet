@@ -20,6 +20,7 @@ import { addressForChain } from '../lib/accountAddress';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { submitSolanaSigned } from '../lib/solanaSubmit';
+import { friendlyTxError } from '../lib/txError';
 import { base64 } from '@scure/base';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import {
@@ -213,8 +214,22 @@ export default function SolanaRequestScreen() {
           const signed = await signSolanaTransaction(unlock, transaction);
           const decoded = solanaTxDecode(signed);
           if (!decoded) throw new Error(t('solReqFailed'));
-          const sig = await submitSolanaSigned(base64.encode(decoded.bytes));
-          toast.success(t('sendTitle'), shortAddress(sig));
+          /*
+           * Simulation et ENVOI attendus ici (rapides, et un refus certain —
+           * fonds, loyer — doit s'afficher comme un échec, pas après un succès).
+           * Seule l'attente de confirmation passe en arrière-plan : la fenêtre
+           * (15 s sous biométrie) n'annonce pas d'échec pour un paiement qui passe.
+           */
+          let resolveSent!: () => void;
+          const sent = new Promise<void>((r) => (resolveSent = r));
+          const done = submitSolanaSigned(base64.encode(decoded.bytes), (st) => {
+            if (st !== 'sending') resolveSent(); // diffusée : la suite n'est que l'attente du réseau
+          });
+          await Promise.race([sent, done.then(() => undefined)]);
+          void done.then(
+            (sig) => toast.success(t('sendTitle'), shortAddress(sig)),
+            (e) => toast.error(friendlyTxError(e, t as never)),
+          );
         }}
         onDone={() => {
           setAsking(false);

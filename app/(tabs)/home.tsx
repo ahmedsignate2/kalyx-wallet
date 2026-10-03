@@ -13,6 +13,8 @@
 import { useIsWatchOnly } from '../../ui/WatchOnlyGate';
 import { fill } from '../../lib/i18n';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { decimalSeparator } from '../../src';
+import { isDecoySession } from '../../lib/sessionMode';
 import { View, RefreshControl, Alert, Image, useWindowDimensions } from 'react-native';
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -41,7 +43,7 @@ import { addressForChain } from '../../lib/accountAddress';
 import { accountDisplayName } from '../../lib/walletNames';
 import { useSettings, useT, useActivityT, fiatSymbol } from '../../lib/settingsStore';
 import { useNotifCenter, unreadCount } from '../../lib/notificationCenter';
-import { usePortfolioStore, splitHoldings, verifiedSymbols, portfolioHistory, peekPortfolioHistory, loadNftReport, PERIODS, type NftReport, type Period, type Holding, type ChainNft } from '../../lib/portfolio';
+import { usePortfolioStore, splitHoldings, verifiedSymbols, verifiedContracts, verifiedChainSymbols, portfolioHistory, peekPortfolioHistory, loadNftReport, PERIODS, type NftReport, type Period, type Holding, type ChainNft } from '../../lib/portfolio';
 import { useContacts } from '../../lib/contactsStore';
 import { haptic } from '../../lib/haptics';
 import { toast } from '../../lib/toast';
@@ -169,7 +171,7 @@ export default function Home() {
     if (!acct) return;
     pf.hydrate(acct, fiat).then(() => pf.refresh(acct, fiat));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [acct?.evmAddress, acct?.solAddress, fiat]);
+  }, [acct?.evmAddress, acct?.solAddress, acct?.btcAddress, acct?.tonPublicKey, fiat]); // toutes les adresses de la clé du cliché
 
   // Solde masqué : mémorisé.
   useEffect(() => {
@@ -341,6 +343,8 @@ export default function Home() {
   // Avertissements uniques (bêta, appareil rooté, réseaux perso à restaurer).
   useEffect(() => {
     if (isDeviceCompromised()) toast.warning(t("deviceInsecureTitle"), t("deviceInsecureDesc"));
+    // Session leurre : ni lecture ni écriture de ces marqueurs (le rappel des réseaux perso appartient au vrai portefeuille).
+    if (isDecoySession()) return;
     AsyncStorage.getItem('nova.betaSeen').then((seen) => {
       const next = () =>
         AsyncStorage.getItem('nova.promptRestoreNetworks').then((v) => {
@@ -447,6 +451,8 @@ export default function Home() {
    */
   const shownTokens = showSmall ? [...main, ...small] : main;
   const vSymbols = verifiedSymbols(pf.holdings);
+  const vContracts = verifiedContracts(pf.holdings);
+  const vChainSymbols = verifiedChainSymbols(pf.holdings);
   const priceBySymbol = new Map(pf.holdings.filter((h) => h.verified && h.price > 0).map((h) => [h.symbol.toUpperCase(), h.price]));
   const nameOf = (a: string) => {
     const l = a.toLowerCase();
@@ -469,6 +475,8 @@ export default function Home() {
     nativeOf: nativeOfChain,
     nameOf,
     verifiedSymbols: vSymbols,
+    verifiedContracts: vContracts,
+    verifiedChainSymbols: vChainSymbols,
     spamOf,
     fiatOf: (symbol: string, amount: number) => {
       const p = priceBySymbol.get(symbol.toUpperCase());
@@ -549,7 +557,7 @@ export default function Home() {
           <Text variant="body" tabular numberOfLines={1}>{formatFiat(pf.total)} {sym}</Text>
           {pf.pnl24hPct != null ? (
             <Text variant="caption" tone={pnlUp ? 'up' : 'down'} tabular>
-              {pnlUp ? '+' : '−'}{Math.abs(pf.pnl24hPct).toFixed(1).replace('.', ',')} %
+              {pnlUp ? '+' : '−'}{Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %
             </Text>
           ) : null}
         </Animated.View>
@@ -655,7 +663,7 @@ export default function Home() {
               <Text variant="caption" tone="secondary">{fmtDate(scrub.t, period, locale)}</Text>
             ) : hidden || initialLoading ? null : pf.pnl24h != null ? (
               <Text variant="caption" tone={pnlUp ? 'up' : 'down'} tabular>
-                {pnlUp ? '↑ +' : '↓ −'}{formatFiat(Math.abs(pf.pnl24h))} {sym} · {t("today")}{pf.pnl24hPct != null ? ` (${pnlUp ? '+' : '−'}${Math.abs(pf.pnl24hPct).toFixed(1).replace('.', ',')} %)` : ''}
+                {pnlUp ? '↑ +' : '↓ −'}{formatFiat(Math.abs(pf.pnl24h))} {sym} · {t("today")}{pf.pnl24hPct != null ? ` (${pnlUp ? '+' : '−'}${Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %)` : ''}
               </Text>
             ) : (
               <Text variant="caption" tone="tertiary">{pf.fromCache ? t("updating") : ' '}</Text>

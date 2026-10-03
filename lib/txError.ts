@@ -95,6 +95,8 @@ const WALLET_ERROR_KEYS: Record<string, Key> = {
   SWAP_SIMULATION_FAILED: 'errSwapSimulationFailed',
   WRONG_ACCOUNT: 'errWrongAccount',
   REQUEST_EXPIRED: 'wcErrRequestExpired',
+  TX_ALREADY_CONFIRMED: 'errTxAlreadyConfirmed',
+  PREVIOUS_TX_PENDING: 'errPreviousTxPending',
 };
 
 /**

@@ -80,7 +80,16 @@ export function HoldRing({
     }, 180 - p * 125);
   };
 
+  // État COURANT, lu à la fin du maintien : il a pu changer pendant le geste.
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
   const fire = () => {
+    if (disabledRef.current) {
+      // Bloqué PENDANT le maintien (simulation critique, adresse sosie) : rien ne part.
+      cancel();
+      progress.value = withSpring(0, springs.standard);
+      return;
+    }
     holding.current = false;
     stopTicks();
     setIsHolding(false);
@@ -116,6 +125,11 @@ export function HoldRing({
     if (progress.value < 1) progress.value = withSpring(0, springs.standard);
   };
   useEffect(() => stopTicks, []);
+  // Bloqué, ou passé en mode danger (maintien plus long) pendant le geste : le maintien repart de zéro.
+  useEffect(() => {
+    if (holding.current) cancel();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disabled, danger]);
 
   const ringProps = useAnimatedProps(() => ({ strokeDashoffset: CIRC * (1 - progress.value) }));
   const core = useAnimatedStyle(() => ({ transform: [{ scale: reduced ? 1 : 0.94 + progress.value * 0.06 }] }));

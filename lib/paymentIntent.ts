@@ -114,8 +114,8 @@ async function jettonParams(params: Record<string, string>, intent: SendIntent, 
   return params;
 }
 
-/** Chaîne Kalyx sur laquelle ce contenu doit être traité. */
-function targetChainFor(result: QrResult): string {
+/** Chaîne Kalyx sur laquelle ce contenu doit être traité ; null si le lien vise un réseau que Kalyx ne connaît pas. */
+function targetChainFor(result: QrResult): string | null {
   const activeChain = useWallet.getState().activeChain;
   const fam = qrTargetFamily(result);
   if (fam === 'bitcoin') return 'bitcoin';
@@ -130,7 +130,12 @@ function targetChainFor(result: QrResult): string {
   if (fam !== 'evm') return activeChain;
   const currentIsEvm = getAdapter(activeChain).config.family === 'evm';
   if (result.kind === 'ethereum-uri' && result.chainId) {
-    return kalyxChainIdForEvm(result.chainId, listChains()) ?? (currentIsEvm ? activeChain : 'ethereum');
+    /*
+     * Réseau DEMANDÉ par le lien, réseaux de test compris. Inconnu : on refuse
+     * — retomber sur le réseau actif ou sur Ethereum faisait payer en vrai ETH
+     * une facture émise pour un autre réseau (Sepolia, chaîne non prise en charge).
+     */
+    return kalyxChainIdForEvm(result.chainId, listChains({ includeTestnets: true }));
   }
   return currentIsEvm ? activeChain : 'ethereum';
 }
@@ -262,6 +267,10 @@ export async function runQrIntent(result: QrResult, opts?: { replace?: boolean }
   }
 
   const chainId = targetChainFor(result);
+  if (!chainId) {
+    toast.error(tr('payNetworkUnknown'), result.kind === 'ethereum-uri' ? `Chain ID ${result.chainId}` : undefined);
+    return;
+  }
   if (chainId !== useWallet.getState().activeChain) useWallet.getState().setActiveChain(chainId);
 
   let params: Record<string, string>;

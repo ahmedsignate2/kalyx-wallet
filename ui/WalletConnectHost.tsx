@@ -13,6 +13,7 @@ import { Pressable as KPressable } from './kit';
 import { SafeModal } from './kit/SafeModal';
 import { signMessageParam } from '../lib/dappProvider';
 import { solanaMessageBytes } from '../lib/solanaMessage';
+import { dappHost } from '../src/domain/web/dappHost';
 import { bitcoinMessageParam, btcTransferParams, solanaMessageParam } from '../lib/messageParams';
 import { bytesToHex } from '@noble/hashes/utils';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -52,8 +53,9 @@ import {
 import { SignSheet } from './SignSheet';
 import { Interface } from 'ethers';
 
+/** Hôte RÉEL de l'URL déclarée (identifiants et chemins piégés compris). */
 function hostOf(url: string) {
-  return url.replace(/^[a-z]+:\/\//i, '').split('/')[0] || url;
+  return dappHost(url) || url;
 }
 
 function Overlay({ children, onCancel }: { children: React.ReactNode, onCancel?: () => void }) {
@@ -438,6 +440,9 @@ export function WalletConnectHost() {
       phishingSite: phishSite,
       nativeSymbol: chain?.nativeSymbol,
       connectedChainId: chain?.evmChainId,
+      txValue: tx?.value,
+      nativeDecimals: chain?.nativeDecimals,
+      simulating,
       t: exT,
     });
     const explanation = accountMismatch

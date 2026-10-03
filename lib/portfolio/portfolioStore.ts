@@ -111,7 +111,22 @@ const STALE_MS = 45_000;
  * par une phrase TON n'a PAS d'adresse EVM : avec la seule adresse EVM, tous ces
  * portefeuilles auraient partagé le même cache, « kalyx.portfolio..eur ».
  */
-const accountKey = (a: PortfolioAccount, fiat: string) => `kalyx.portfolio.${(a.evmAddress || `ton:${a.tonPublicKey ?? ''}`).toLowerCase()}.${fiat}`;
+/*
+ * TOUTES les adresses du compte entrent dans la clé. Avec l'adresse EVM ou, à
+ * défaut, la clé TON, tous les portefeuilles sans EVM ni TON (adresse Solana ou
+ * Bitcoin suivie, clé importée) partageaient « kalyx.portfolio.ton:.<devise> » :
+ * passer de l'un à l'autre montrait le solde, les jetons et la courbe du
+ * précédent — et les mélangeait à la première panne d'un réseau.
+ */
+const accountKey = (a: PortfolioAccount, fiat: string) => {
+  const parts = [
+    a.evmAddress ? a.evmAddress.toLowerCase() : '',
+    a.solAddress ? `sol:${a.solAddress}` : '',
+    a.btcAddress ? `btc:${a.btcAddress.toLowerCase()}` : '',
+    a.tonPublicKey ? `ton:${a.tonPublicKey.toLowerCase()}` : '',
+  ].filter(Boolean);
+  return `kalyx.portfolio.${parts.join('|') || 'none'}.${fiat}`;
+};
 
 /*
  * UNE seule clé pour lire et pour écrire. `hydrate` lisait « …eur » quand
@@ -437,6 +452,10 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
   return all.sort((a, b) => b.fiat - a.fiat || b.amount - a.amount);
 }
 
+/** Génération du dernier rafraîchissement demandé, et le compte qu'il charge. */
+let refreshGen = 0;
+let loadingKey: string | null = null;
+
 export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   holdings: [],
   total: 0,
@@ -454,6 +473,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   hydrate: async (acct, fiat, opts) => {
     const key = snapshotKey(acct, fiat, opts?.includeTestnets === true);
     if (get().key === key) return;
+    // Autre compte : tout chargement en vol pour l'ancien devient caduc (son résultat ne s'affichera plus).
+    if (loadingKey !== key) {
+      refreshGen += 1;
+      loadingKey = null;
+      set({ loading: false });
+    }
     try {
       const json = await AsyncStorage.getItem(key);
       const snap = json ? deserialize(json) : null;
@@ -468,10 +493,15 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const includeTestnets = opts?.includeTestnets === true;
     const key = snapshotKey(acct, fiat, includeTestnets);
     const s = get();
-    if (s.loading) return;
+    // Déjà en cours POUR CE compte : rien à faire. Pour un autre (changement de
+    // compte pendant le chargement) : on relance, et l'ancien résultat sera ignoré.
+    if (s.loading && loadingKey === key) return;
     // L'âge du CLICHÉ décide, qu'il vienne du disque ou du réseau : un cliché
     // relu du disque il y a dix secondes n'a pas à être redemandé.
     if (!opts?.force && !s.invalidated && s.key === key && Date.now() - s.at < STALE_MS) return;
+    const gen = ++refreshGen;
+    loadingKey = key;
+    const latest = () => gen === refreshGen;
     set({ loading: true, error: null, invalidated: false });
     // `loading` suffit : l'ambiance Synchronisation en est DÉRIVÉE par
     // lib/auraBinding.ts. Ce store n'a pas à connaître le halo, il n'émet que
@@ -482,11 +512,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       const diag: PortfolioDiag = { at: Date.now(), ms: 0, erc20: {}, nativesFailed: [], prices: { asked: 0, got: 0, fx: 0 }, holdings: 0 };
       // Un réseau muet garde ses actifs du cliché précédent : jamais de solde qui disparaît.
       const holdings = carryOver(s.key === key ? before : [], await loadHoldings(acct, fiat, includeTestnets, failed, diag), failed);
-      usePortfolioDiag.getState().set({ ...diag, ms: Date.now() - diag.at, holdings: holdings.length, alchemyKey: ALCHEMY_KEY.length });
       const snap: Snapshot = { holdings, ...summarize(holdings), at: Date.now() };
+      AsyncStorage.setItem(key, serialize(snap)).catch(() => {}); // le cliché reste juste pour SON compte
+      if (!latest()) return; // un autre compte a été demandé depuis : ce résultat n'est plus affiché
+      usePortfolioDiag.getState().set({ ...diag, ms: Date.now() - diag.at, holdings: holdings.length, alchemyKey: ALCHEMY_KEY.length });
       set({ ...snap, key, fromCache: false, loading: false });
       if (didReceive(before, holdings)) aura.pulse('receive');
-      AsyncStorage.setItem(key, serialize(snap)).catch(() => {});
       // Résumé pour l'assistant IA (ancien store, conservé pour compatibilité).
       useLegacyPortfolio.getState().setPortfolio(
         snap.total,
@@ -495,6 +526,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         snap.pnl24hPct ?? undefined,
       );
     } catch (e) {
+      if (!latest()) return;
       usePortfolioDiag.getState().set({ at: Date.now(), ms: 0, error: e instanceof Error ? `${e.name}: ${e.message}` : String(e), erc20: {}, nativesFailed: [], prices: { asked: 0, got: 0, fx: 0 }, holdings: 0 });
       set({ loading: false, error: e instanceof Error ? e.message : 'Réseau indisponible' });
       aura.pulse('error');
@@ -530,6 +562,14 @@ export function splitHoldings(holdings: Holding[], threshold = 1): { main: Holdi
 export function splitSmall(holdings: Holding[], threshold = 1): { main: Holding[]; small: Holding[] } {
   const r = splitHoldings(holdings, threshold);
   return { main: r.main, small: r.small };
+}
+/** Contrats des tokens vérifiés, `chaîne:adresse` en minuscules (un symbole se copie, une adresse non). */
+export function verifiedContracts(holdings: Holding[]): Set<string> {
+  return new Set(holdings.filter((h) => h.verified && h.contract).map((h) => `${h.chainId}:${h.contract!.toLowerCase()}`));
+}
+/** Symboles vérifiés par chaîne, `chaîne:SYMBOLE` (un même symbole, autre contrat, même chaîne = imitation). */
+export function verifiedChainSymbols(holdings: Holding[]): Set<string> {
+  return new Set(holdings.filter((h) => h.verified && h.contract).map((h) => `${h.chainId}:${h.symbol.toUpperCase()}`));
 }
 /** Symboles des tokens vérifiés (pour classer l'activité). */
 export function verifiedSymbols(holdings: Holding[]): Set<string> {

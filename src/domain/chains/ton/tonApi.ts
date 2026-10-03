@@ -114,7 +114,15 @@ export class TonApiClient {
     const r = await this.call('GET', `/v2/accounts/${seg(address)}`);
     if (r.status !== 200 || !r.json) throw new WalletError('RPC_UNAVAILABLE', `TonAPI : compte illisible (HTTP ${r.status})`);
     const j = r.json;
-    const status = (['active', 'uninit', 'frozen', 'nonexist'].includes(j.status) ? j.status : 'uninit') as TonAccountStatus;
+    /*
+     * Statut INCONNU (réponse dégradée, schéma changé) : erreur, et non
+     * « non initialisé » — ce dernier faisait envoyer sans rebond (bounce=false)
+     * vers un contrat actif, et un dépôt refusé n'était jamais rendu.
+     */
+    if (!['active', 'uninit', 'frozen', 'nonexist'].includes(j.status)) {
+      throw new WalletError('RPC_UNAVAILABLE', 'TonAPI : état du compte illisible');
+    }
+    const status = j.status as TonAccountStatus;
     const version = (j.interfaces as string[] | null)?.map((i) => INTERFACES[i]).find(Boolean);
     const state: TonAccountState & { memoRequired?: boolean } = {
       status,
@@ -225,7 +233,9 @@ export class TonApiClient {
     const domain = normalizeTonDomain(name);
     if (!domain) return null;
     const r = await this.call('GET', `/v2/dns/${domain}/resolve`);
-    if (r.status === 404 || (r.status >= 400 && r.status < 500)) return null;
+    // « N'existe pas » seulement pour un refus qui le DIT (404, requête invalide) ; trop de requêtes,
+    // accès refusé au proxy… sont une indisponibilité (« réessaie »), pas un nom inconnu.
+    if (r.status === 404 || r.status === 400 || r.status === 422) return null;
     if (r.status !== 200) throw new WalletError('RPC_UNAVAILABLE', `TonAPI : résolution impossible (HTTP ${r.status})`);
     return parseDnsWallet(r.json, testnet);
   }

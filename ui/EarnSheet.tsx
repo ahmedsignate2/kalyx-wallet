@@ -158,6 +158,10 @@ export function EarnSheet({
         try {
           const m = await maxDeposit(p, acct, underlyingBal);
           setAmountStr(formatInputAmount(m, tokenIn.decimals));
+        } catch (e) {
+          // Frais du dépôt maximal non estimables : on le dit (l'erreur était perdue, le bouton ne faisait rien).
+          setError(friendlyTxError(e, t as never));
+          return;
         } finally {
           setMaxing(false);
         }

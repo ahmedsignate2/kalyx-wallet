@@ -78,7 +78,11 @@ export type WalletErrorCode =
   /** La dApp demande de signer avec un AUTRE compte que le compte actif (changé depuis la connexion). */
   | 'WRONG_ACCOUNT'
   /** Demande dApp arrivée à expiration avant d'être approuvée : rien n'est signé. */
-  | 'REQUEST_EXPIRED';
+  | 'REQUEST_EXPIRED'
+  /** Accélérer/annuler une transaction déjà confirmée : il n'y a plus rien à remplacer. */
+  | 'TX_ALREADY_CONFIRMED'
+  /** TON : un envoi précédent n'est pas encore inclus (un seul message par seqno). */
+  | 'PREVIOUS_TX_PENDING';
 
 export class WalletError extends Error {
   readonly code: WalletErrorCode;
