@@ -124,7 +124,16 @@ export function HoldButton({
     el.style?.setProperty?.('-webkit-touch-callout', 'none');
     const block = (e: { preventDefault: () => void }) => e.preventDefault();
     for (const type of ['contextmenu', 'selectstart', 'dragstart']) el.addEventListener(type, block);
-    return () => { for (const type of ['contextmenu', 'selectstart', 'dragstart']) el.removeEventListener?.(type, block); };
+    /*
+     * Android Chrome : le seul moyen sûr d'empêcher la sélection au doigt (et
+     * la barre « Copier · Tout sélectionner ») est d'annuler le comportement
+     * par défaut du toucher. Le maintien n'en souffre pas : il suit les
+     * événements de pointeur, qui continuent d'arriver.
+     */
+    el.addEventListener('touchstart', block, { passive: false });
+    return () => {
+      for (const type of ['contextmenu', 'selectstart', 'dragstart', 'touchstart']) el.removeEventListener?.(type, block);
+    };
   }, []);
   /** Styles web : ni sélection, ni bulle « Copier » (iOS), ni geste de défilement sur le bouton. */
   const webNoSelect = Platform.OS === 'web'
