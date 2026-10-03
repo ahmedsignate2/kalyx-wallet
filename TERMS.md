@@ -1,28 +1,58 @@
 # Conditions d'utilisation — Kalyx Wallet
 
-_Dernière mise à jour : 27 septembre 2026_
+_Dernière mise à jour : 3 octobre 2026_
 
-> Généré depuis `lib/legalText.ts` (source unique). Le texte de l'application fait foi.
+> Généré par `scripts/gen-legal-md.mjs` depuis `web/content/terms.ts` (source unique, aussi affichée par l'app et le site). Le français fait foi.
 
-Éditeur : **KALYX (Entreprise individuelle de Ahamed Signate)** · SIRET 130 046 865 00015 · Contact : support@kalyxwallet.com ou Telegram @kalyxntw (https://t.me/kalyxntw)
+Éditeur : **KALYX (Entreprise individuelle de Ahamed Signate)** · SIREN 130 046 865 · Contact : support@kalyxwallet.com ou Telegram @kalyxntw (https://t.me/kalyxntw)
 
-## 1. Version bêta
-Kalyx Wallet est actuellement en phase de test (bêta). Le logiciel peut contenir des bugs. N'y conserve pas de sommes importantes et privilégie les réseaux de test ou de petits montants tant que la version stable et l'audit de sécurité ne sont pas publiés.
+## 1. Phase de version bêta & tests
+Kalyx Wallet est actuellement en phase de test et d'amélioration continue (version bêta). Bien que conçue selon les standards de sécurité les plus stricts, l'application peut contenir des anomalies logicielles imprévues.
+Il est fortement recommandé de ne pas y stocker des montants disproportionnés et d'effectuer vos premiers tests sur des réseaux de test (testnets) ou avec des sommes modérées tant qu'une version finalisée et les rapports d'audits formels ne sont pas rendus publics.
 
-## 2. Tu es seul responsable de tes clés
-Kalyx est non-custodial : TU es seul détenteur et responsable de ta phrase de récupération. Si tu la perds, personne — ni toi, ni l'éditeur — ne pourra restaurer l'accès à tes fonds. Ne la partage avec personne, ne la stocke pas en ligne.
+## 2. Responsabilité exclusive de vos clés privées
+Kalyx Wallet est une application strictement non-custodial : VOUS êtes le seul et unique détenteur de votre phrase de récupération secrète (seed phrase) et de vos clés privées.
+Si vous égarez votre phrase secrète, personne — ni l'éditeur (KALYX / Ahamed Signate), ni aucun support technique — n'a le pouvoir technique de restaurer l'accès à votre portefeuille ou de récupérer vos fonds.
+Il est formellement déconseillé de prendre une capture d'écran de votre phrase, de l'enregistrer dans un gestionnaire de cloud ou de la transmettre à un tiers sous quelque prétexte que ce soit.
 
-## 3. Risques liés aux crypto-actifs
-Les crypto-actifs sont volatils et les transactions sur blockchain sont IRRÉVERSIBLES. Une erreur d'adresse, de réseau ou une signature accordée à un contrat malveillant peut entraîner une perte définitive. Ne copie jamais une adresse depuis ton historique : des escrocs y glissent des adresses sosies (empoisonnement d'adresse). Les outils d'analyse (GoPlus, anti-phishing, filtre anti-spam, détection des sosies) réduisent le risque sans le supprimer.
+## 3. Risques inhérents aux crypto-actifs & irréversibilité
+L'utilisation des technologies de registres distribués (blockchains) comporte des risques significatifs :
+• Volatilité : Le cours des actifs numériques fluctue de manière imprévisible.
+• Irréversibilité : Une fois validée par les validateurs d'un réseau, une transaction blockchain ne peut être ni annulée, ni modifiée, ni remboursée.
+• Erreurs de saisie : Tout envoi vers une mauvaise adresse ou sur un réseau incompatible peut entraîner la perte irrémédiable de l'actif concerné.
+• Smart contracts malveillants : Bien que Kalyx intègre des vérifications avant signature (GoPlus Security, simulation Alchemy, WalletConnect Verify) pour inspecter les adresses, contrats et sites, aucune analyse préventive ne peut garantir l'absence totale de vulnérabilités sur les protocoles tiers.
 
-## 4. Aucune garantie
-L'application est fournie « en l'état », sans garantie d'aucune sorte. Dans les limites permises par la loi, KALYX (Entreprise individuelle de Ahamed Signate) décline toute responsabilité pour les pertes de fonds, bugs, indisponibilités de réseau, ou actes de services et sites tiers (swap, bridge, staking, dApps, paiements marchands).
+## 4. Absence de garantie (« En l'état »)
+L'application est fournie « en l'état » (as-is), sans garantie expresse ou implicite d'aucune sorte quant à sa disponibilité continue, son adéquation à un usage particulier ou l'absence d'erreurs.
+Dans toute la mesure permise par le droit applicable, KALYX (Entreprise individuelle de Ahamed Signate) décline toute responsabilité pour toute perte financière directe ou indirecte découlant d'une défaillance du réseau blockchain, d'un bug de protocole, d'une congestion de réseau ou d'un piratage résultant d'une négligence dans la garde des clés privées.
 
-## 5. Services tiers
-Les échanges, bridges, protocoles de staking et de rendement, dApps et paiements marchands sont opérés par des tiers indépendants. Kalyx ne fait que faciliter l'interaction ; il n'endosse pas et ne contrôle pas ces services.
+## 5. Gratuité & frais
+Kalyx Wallet est gratuit. Les frais de réseau (gas) sont payés aux validateurs de chaque blockchain, jamais à Kalyx. Sur les échanges et ponts (Swap / Bridge), une commission de service de 0,3 % est incluse dans le devis et affichée avant toute signature ; aucune commission n'est prélevée sur Gagner (staking et prêt) ni sur les envois.
 
-## 6. Pas de conseil financier
-Kalyx ne fournit aucun conseil en investissement. Les rendements affichés (Earn, staking) sont ceux annoncés par les protocoles, variables et non garantis. Tu es responsable du respect des lois et obligations fiscales de ton pays de résidence.
+## 6. Gagner : staking & prêt
+L'onglet Gagner donne accès à des protocoles tiers (Lido, Rocket Pool, Benqi, Jito, Marinade, Aave, staking TON…). Les rendements affichés sont des estimations publiées par des tiers, susceptibles de varier ou de devenir négatifs. Ces protocoles comportent des risques propres (failles de contrats, perte d'ancrage, délais de retrait, sanctions de validateurs) que Kalyx ne contrôle pas et ne garantit pas.
 
-## 7. Modifications & droit applicable
-Ces conditions peuvent être modifiées. Le droit applicable est le droit français. Pour toute question : support@kalyxwallet.com ou Telegram @kalyxntw (https://t.me/kalyxntw).
+## 7. Protections de sécurité & limites
+La liste blanche, le code de contrainte, l'analyse des signatures, la détection d'arnaques et la simulation des transactions réduisent les risques sans pouvoir les supprimer. Elles reposent sur des données publiques et des services tiers pouvant être incomplets ou indisponibles. Le portefeuille leurre doit contenir des fonds réels pour rester crédible ; ces fonds sont exposés comme tout autre portefeuille.
+
+## 8. Tableau de bord web, Telegram & Copilote IA
+Le tableau de bord web et la mini-app Telegram sont des interfaces de consultation : toute opération est signée dans l'app, sur votre téléphone. Le bot Telegram fournit des informations publiques (cours, gas, analyses) à titre indicatif. Le Copilote IA s'appuie sur un fournisseur que vous choisissez, avec votre propre clé : ses réponses peuvent être inexactes, ne constituent pas un conseil, et il ne peut jamais signer à votre place.
+
+## 9. Services & Protocoles tiers décentralisés
+Les échanges de jetons (swaps), ponts inter-chaînes (bridges) et dApps accessibles via le navigateur intégré sont exécutés par des tiers et des contrats intelligents autonomes (notamment le protocole d'agrégation LI.FI, Uniswap, Raydium, etc.).
+Kalyx Wallet n'agit qu'en tant qu'interface cliente facilitant la signature locale par l'utilisateur. Kalyx ne contrôle pas, n'administre pas et n'endosse pas les services tiers ainsi contactés.
+
+## 10. Absence de conseil financier ou d'investissement
+Aucun contenu, notification, cours de prix ou devis affiché dans l'application Kalyx Wallet ne constitue un conseil en investissement, une recommandation financière ou une incitation à négocier des crypto-actifs.
+Vous demeurez seul responsable du respect des obligations légales, réglementaires et fiscales en vigueur dans votre juridiction de résidence fiscale.
+
+## 11. Droit applicable & Juridiction compétente
+Les présentes conditions sont régies et interprétées conformément au droit français. Tout litige relatif à leur interprétation ou à leur exécution fera l'objet d'une tentative de résolution amiable préalable avant toute saisine des tribunaux compétents du ressort de la cour d'appel compétente.
+
+## 12. Mentions légales & Coordonnées
+Éditeur : KALYX (Ahamed Signate)
+Statut légal : Entrepreneur individuel
+SIREN : 130 046 865 — Code APE : 62.01Z
+Contact assistance & conformité : support@kalyxwallet.com
+Canal officiel Telegram : https://t.me/kalyxntw
+Le détail complet de ces mentions (éditeur, hébergeur) figure sur la page dédiée « Mentions légales ».
