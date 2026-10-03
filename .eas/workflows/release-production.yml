@@ -1,0 +1,37 @@
+# Build de production (APK) sur EAS, puis publication automatique sur le dépôt
+# public de releases (ahmedsignate2/kalyx-wallet-release) dès la fin du build.
+#
+# Déclenchement :
+#   - pousser sur la branche `release` (ex. : git push origin main:release) ;
+#   - ou à la main : npx eas-cli workflow:run release-production.yml
+#
+# Pré-requis (une fois) sur expo.dev → projet kalyx-wallet :
+#   - Project settings → GitHub : dépôt ahmedsignate2/kalyx-wallet relié ;
+#   - Environment variables → « production » : GH_RELEASE_TOKEN (Secret),
+#     jeton GitHub fine-grained, Contents: Read and write sur kalyx-wallet-release.
+
+name: Release production (APK)
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ['release']
+
+jobs:
+  build_android:
+    name: Build APK production
+    type: build
+    params:
+      platform: android
+      profile: production-apk
+
+  publish_release:
+    name: Publier la release
+    needs: [build_android]
+    environment: production
+    env:
+      BUILD_ID: ${{ needs.build_android.outputs.build_id }}
+    steps:
+      - uses: eas/checkout
+      - name: Publier sur kalyx-wallet-release
+        run: node scripts/publish-release.mjs
