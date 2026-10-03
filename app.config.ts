@@ -23,9 +23,6 @@ const schemes = ['kalyx', ...(googleScheme ? [googleScheme] : [])];
 const BUILD_PROFILE = process.env.EAS_BUILD_PROFILE ?? '';
 const APP_VERSION = BUILD_PROFILE.startsWith('production') ? '1.0.0' : '0.1.0';
 
-/** Runtime natif, partagé par le build et les OTA — voir `runtimeVersion` plus bas. */
-export const NATIVE_RUNTIME = 'native-2026.09.28b';
-
 const config: ExpoConfig = {
   name: 'Kalyx Wallet',
   slug: 'kalyx-wallet',
@@ -42,41 +39,6 @@ const config: ExpoConfig = {
     backgroundColor: '#06070D',
     resizeMode: 'contain',
   },
-  /*
-   * Mises à jour à distance (OTA) — permet de pousser du JS sans rebuild.
-   *
-   * `fallbackToCacheTimeout: 0` : l'app démarre IMMÉDIATEMENT sur le bundle
-   * qu'elle a déjà, et cherche la mise à jour en arrière-plan. Bloquer le
-   * lancement sur un appel réseau contredirait la doctrine (« rien ne bloque »)
-   * et rendrait l'app inutilisable hors ligne.
-   */
-  updates: {
-    url: 'https://u.expo.dev/47cb06bd-ee7d-442d-b000-05abb945b599',
-    checkAutomatically: 'ON_LOAD',
-    fallbackToCacheTimeout: 0,
-  },
-  /*
-   * RUNTIME EXPLICITE, et non plus l'empreinte calculée (27/09).
-   *
-   * Les builds se font désormais sur le serveur, plus sur EAS (quota épuisé),
-   * alors que les mises à jour OTA sont calculées ailleurs : deux empreintes
-   * calculées dans deux environnements peuvent diverger, et l'OTA ne redescend
-   * alors jamais — en silence. Un numéro fixe, partagé par le build et l'OTA,
-   * supprime ce décalage.
-   *
-   * Le risque que l'empreinte évitait reste réel : changer le natif SANS
-   * changer ce numéro enverrait du JavaScript qui appelle un module absent de
-   * l'APK installé, et l'app planterait au lancement. D'où
-   * `scripts/check-native-runtime.mjs`, exécuté en CI : il recalcule
-   * l'empreinte native et échoue si elle a changé alors que ce numéro est resté
-   * le même. Pour un nouveau natif : incrémenter NATIVE_RUNTIME, lancer
-   * `node scripts/check-native-runtime.mjs --record`, puis rebuilder l'APK.
-   *
-   * Pas `appVersion` : APP_VERSION diffère entre preview et production et
-   * s'incrémente seul en production — chaque changement orphelinerait les
-   * installations existantes.
-   */
-  runtimeVersion: NATIVE_RUNTIME,
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.kalyx.wallet',
@@ -87,8 +49,7 @@ const config: ExpoConfig = {
       /*
        * Lève le plafond de 60 fps d'iOS sur les écrans ProMotion : sans ce
        * drapeau, une app React Native reste bridée à 60 quel que soit l'écran.
-       * Il n'a d'effet qu'au build — et il change l'empreinte, donc il ne
-       * s'ajoute QU'au moment où l'on reconstruit, jamais entre deux OTA.
+       * Il n'a d'effet qu'au build.
        */
       CADisableMinimumFrameDuration: true,
       /*

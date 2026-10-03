@@ -5,7 +5,7 @@
  *
  *  - SANS `aura` : une lumière décorative qui respire lentement. C'est ce qu'il
  *    était jusqu'ici, et ce qu'il reste sur les écrans où il n'est qu'un décor
- *    (fiche token, Design Lab, splash).
+ *    (fiche token, splash).
  *
  *  - AVEC `aura` : il DEVIENT l'Aura, l'unique indicateur d'état de l'app
  *    (docs/08 §3). Il ne respire plus « parce que c'est joli » : sa respiration

@@ -75,14 +75,14 @@ signature, fuite de donnée · **P2** fonctionnement, confort.
 
 | # | Élément | Prio | Statut | Notes |
 |---|---|---|---|---|
-| E1 | Mises à jour OTA non signées | P0 | ⚠️ accepté | Signature testée puis **refusée** (28/09) : aucun secret à conserver, publication EAS classique. Risque résiduel : un accès au compte Expo permet de pousser du code. Parade : double authentification Expo, `EXPO_TOKEN` jamais exposé. |
+| E1 | Mises à jour OTA non signées | P0 | ✅ | Supprimé : l'app ne reçoit plus de mise à jour à distance (`expo-updates` retiré). Tout changement de code passe par un nouveau build. |
 | E2 | Variables `EXPO_PUBLIC_` (aucun secret) | P0 | ✅ | Clé Helius retirée. **À faire par toi :** révoquer l'ancienne clé. |
 | E3 | Historique git (secrets, fichiers privés) | P0 | ✅ 🛡️ | Historique réécrit ; `scripts/check-repo-files.mjs` en CI. |
 | E4 | Dépendances (`npm audit`) | P1 | ⚠️ | 5 alertes, toutes via `@walletconnect/web3wallet` (voir A5). |
 | E5 | Proxy TON (Worker) | P1 | ✅ | Liste blanche stricte, aucun journal. À redéployer par toi. |
 | E6 | Bot Telegram | P2 | ✅ | Webhook signé. Déployé depuis kalyx-wallet. |
 | E7 | Tableau de bord web (`ui/web`, `web/`) | P1 | ⬜ | |
-| E8 | Runtime natif / OTA incompatible | P1 | ✅ 🛡️ | `scripts/check-native-runtime.mjs`. |
+| E8 | Runtime natif / OTA incompatible | P1 | ✅ | Sans objet : plus d'OTA. |
 
 ---
 
@@ -90,7 +90,6 @@ signature, fuite de donnée · **P2** fonctionnement, confort.
 
 En place :
 - `scripts/check-repo-files.mjs` : aucun fichier interdit dans le dépôt.
-- `scripts/check-native-runtime.mjs` : natif changé ⇒ runtime incrémenté.
 - CI « Anti-log de secret » : pas de `console.log` de phrase ou de clé dans `src/`.
 - Tests : blocage du PIN, jeton de page, actions de l'assistant, décodage PSBT / Solana, fenêtres de signature traduites.
 

@@ -65,8 +65,8 @@ describe('requiredCollectFields', () => {
 describe('isPayAvailable', () => {
   it('faux sans module natif : le paiement se retire au lieu d\'échouer', () => {
     /*
-     * Le SDK repose sur un module natif (Yttrium) qu'aucune mise à jour OTA ne
-     * peut apporter. Sur une installation antérieure au build qui l'embarque,
+     * Le SDK repose sur un module natif (Yttrium), présent seulement
+     * dans les builds qui l'embarquent. Sur une installation antérieure au build qui l'embarque,
      * la fonction doit simplement ne pas se proposer — pas faire tomber l'app
      * au démarrage, comme le ferait un import statique.
      */

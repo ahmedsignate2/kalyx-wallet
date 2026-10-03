@@ -4,20 +4,7 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "development": {
-      "channel": "development",
-      "environment": "development",
-      "developmentClient": true,
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      },
-      "env": {
-        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "800218617528-bhm4gfbcggo3bvisgnebf4djj7d8r9jg.apps.googleusercontent.com"
-      }
-    },
     "preview": {
-      "channel": "preview",
       "environment": "preview",
       "distribution": "internal",
       "android": {
@@ -28,7 +15,6 @@
       }
     },
     "production": {
-      "channel": "production",
       "autoIncrement": true,
       "environment": "production",
       "android": {

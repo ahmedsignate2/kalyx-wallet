@@ -251,8 +251,7 @@ de ne pas retomber dans « diffusé donc réussi », l'hypothèse qui faisait af
 > pour notre code TON, code des contrats compris. Jest charge `@ton/core` en
 > CommonJS sans transformation.
 >
-> Le point 2 ci-dessous (empreinte) s'applique : `package.json` a changé. Les OTA
-> étaient déjà coupées depuis `6f75bfc` ; tout part dans le même build.
+> Les dépendances changent : tout part dans le même build.
 
 
 L'écosystème officiel est `@ton/core`, `@ton/crypto` et `@ton/ton`. Deux points
@@ -262,9 +261,8 @@ L'écosystème officiel est `@ton/core`, `@ton/crypto` et `@ton/ton`. Deux point
    obligé à ajouter une transformation dans `jest.config.js`. Si les paquets TON
    le sont aussi, il faudra les ajouter au même motif — qui est ANCRÉ, et dont
    l'ancrage est précisément ce qui manquait la première fois.
-2. **L'empreinte.** Ajouter une dépendance modifie `package.json`, donc
-   l'empreinte, donc coupe les OTA vers les APK déjà installés. À grouper avec
-   un build, jamais entre deux mises à jour.
+2. **Le build.** Une dépendance native n'existe qu'après reconstruction de
+   l'APK : à livrer avec un build.
 
 ---
 

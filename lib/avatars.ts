@@ -8,7 +8,7 @@
  *  - `flat` : pictogrammes Phosphor sur fond de couleur, dans la ligne des
  *             icônes de l'app.
  *
- * Les stickers 3D sont une exception VOULUE au §19 de docs/08-FINITION.md
+ * Les stickers 3D sont une exception VOULUE aux règles de finition (pas d'emoji d'interface)
  * (« illustrations 3D : hors identité »), limitée aux avatars de profil :
  * décision produit du 2026-09-27.
  *

@@ -32,12 +32,6 @@ jobs:
       - name: Tests
         run: npm test -- --ci --runInBand
 
-      # Runtime natif explicite (app.config.ts) : échoue si le natif a changé
-      # sans que NATIVE_RUNTIME soit incrémenté — une OTA ferait planter les APK
-      # installés.
-      - name: Garde du runtime natif
-        run: node scripts/check-native-runtime.mjs
-
   # Garde-fou anti-fuite de secret : échoue si un console.log de seed/clé
   # est introduit dans le code source.
   secret-log-guard:
