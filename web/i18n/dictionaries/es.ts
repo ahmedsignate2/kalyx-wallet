@@ -4,7 +4,7 @@ const es: Dict = {
   meta: {
     title: 'Kalyx Wallet — Monedero cripto no custodial y multicadena',
     description:
-      'Tus claves se quedan en tu teléfono. Bitcoin, Ethereum, Solana y 64 redes, cada firma explicada antes de firmar. Gratis, sin cuenta.',
+      'Tus claves se quedan en tu teléfono. Bitcoin, Ethereum, TON, Solana y 65 redes, cada firma explicada antes de firmar. Gratis, sin cuenta.',
   },
   nav: {
     how: 'Cómo funciona',
@@ -41,7 +41,7 @@ const es: Dict = {
     line1: 'La soberanía',
     line2: 'de tus activos.',
     line3: 'Sin concesiones.',
-    sub: 'Gestiona Bitcoin, Ethereum y Solana con total libertad. Tus claves privadas nunca salen de tu teléfono.',
+    sub: 'Gestiona Bitcoin, Ethereum, TON y Solana con total libertad. Tus claves privadas nunca salen de tu teléfono.',
     cta: 'Descargar el APK',
     ctaSecondary: 'Descubrir la seguridad',
     chips: ['No custodial', 'AES-256-GCM', 'Cero telemetría', 'Multicadena', 'IA opcional (BYOK)'],
@@ -51,18 +51,18 @@ const es: Dict = {
   networks: {
     label: 'Redes compatibles',
     walletconnect: 'Interoperable con WalletConnect (Reown)',
-    soon: 'TON está en camino: las direcciones y la derivación de claves ya están escritas y probadas.',
+    soon: 'TON, completo: jettons, nombres .ton, TON Connect, intercambios en STON.fi y staking con Tonstakers.',
   },
   how: {
     kicker: 'Cómo funciona',
     title: 'Un monedero,',
     titleEm: 'no un laberinto.',
-    lead: 'Cinco pantallas de la aplicación, tal como son hoy. Sin maquetas: son capturas reales.',
+    lead: 'Seis pantallas de la app, tal como son hoy, renderizadas desde su código con una cartera de demostración.',
     steps: [
       {
         title: 'Un saldo. Todas tus cadenas.',
-        text: 'Bitcoin, Ethereum y sus Layer 2, Solana: 64 redes agregadas en una sola cifra, una sola curva. El saldo aparece desde la caché antes de que la red responda.',
-        value: '64',
+        text: 'Bitcoin, Ethereum y sus Layer 2, Solana: 65 redes agregadas en una sola cifra, una sola curva. El saldo aparece desde la caché antes de que la red responda.',
+        value: '65',
         label: 'redes',
       },
       {
@@ -73,13 +73,13 @@ const es: Dict = {
       },
       {
         title: 'Swap sin salir de la app.',
-        text: 'Jupiter en Solana, LI.FI y Relay en cadenas EVM y entre cadenas. La ruta se escribe en una frase y el impacto en el precio se anuncia antes de confirmar.',
-        value: '3',
+        text: 'Jupiter en Solana, LI.FI y Relay en cadenas EVM y entre cadenas. La ruta se escribe en una frase y el impacto en el precio se anuncia antes de confirmar. Y STON.fi en TON.',
+        value: '4',
         label: 'enrutadores, firmas tú mismo',
       },
       {
         title: 'Poner a trabajar lo que duerme.',
-        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade. Depositas desde tu monedero y retiras cuando quieras. Kalyx no se queda con nada.',
+        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers. Depositas desde tu monedero y retiras cuando quieras. Kalyx no se queda con nada.',
         value: '0 %',
         label: 'de comisión Kalyx en Earn',
       },
@@ -89,6 +89,12 @@ const es: Dict = {
         value: '1',
         label: 'frase por firma',
       },
+      {
+        title: 'En el ordenador y en Telegram.',
+        text: 'El panel app.kalyxwallet.com y la mini app de Telegram muestran saldos, tokens, NFT y mercado, y preparan tus envíos e intercambios. No guardan ninguna clave: cada firma se aprueba en tu teléfono, mediante WalletConnect.',
+        value: '0',
+        label: 'claves fuera de tu teléfono',
+      }
     ],
   },
   lose: {
@@ -154,6 +160,27 @@ const es: Dict = {
       waits: ['sin espera', '30 s', '1 min', '5 min', '15 min', '1 h'],
       closing: 'Y si un día pierdes el teléfono: tus doce palabras, en su papel, lo recrean todo en otro.',
     },
+    s4: {
+      kicker: 'La lista blanca',
+      title: 'Conoce tu PIN. No tu paciencia.',
+      text: 'Activa la lista blanca: los envíos solo van a las direcciones elegidas y a tus propias cuentas. Incluso con tu PIN, un ladrón no puede cambiar nada en menos de una hora.',
+      rows: [
+        ['Dirección añadida', 'utilizable en 24 h'],
+        ['Desactivar la protección', 'efectivo en 24 h'],
+        ['Envío a una desconocida', 'bloqueado'],
+      ],
+      closing: 'Un ladrón con prisa se va con las manos vacías.',
+    },
+    s5: {
+      kicker: 'La coacción',
+      title: 'Te obligan a abrir la app.',
+      text: 'Introduce tu código de coacción: Kalyx se abre con normalidad en una cartera señuelo. Tus carteras reales, contactos y notificaciones quedan invisibles; nada indica que existan.',
+      rows: [
+        ['Tu PIN', 'tus carteras reales'],
+        ['Código de coacción', 'la cartera señuelo'],
+      ],
+      closing: 'La biometría se desactiva mientras exista: una cara siempre abriría las reales.',
+    },
     footer1: 'Todo esto funciona',
     footerEm: 'en tu teléfono',
     footer2: '. Kalyx no tiene ningún servidor que vea tus claves, tu dirección IP nunca se nos envía y ningún SDK de análisis mira por encima de tu hombro.',
@@ -184,7 +211,7 @@ const es: Dict = {
       { value: '0,3 %', label: 'en un swap vía LI.FI', note: 'EVM y entre cadenas. Es el único ingreso de Kalyx.' },
       { value: '0,3 %', label: 'en un swap TON vía STON.fi', note: 'Intercambios en TON (TON, USD₮, jettons). Misma tasa que LI.FI.' },
       { value: '0 %', label: 'en un swap en Solana vía Jupiter', note: 'Ninguna comisión añadida a la ruta.' },
-      { value: '0 %', label: 'en Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: nada retenido al depositar ni al retirar.' },
+      { value: '0 %', label: 'en Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers: nada retenido al depositar ni al retirar.' },
       { value: '0 €', label: 'de suscripción, para siempre', note: 'Sin versión «pro», sin funciones tras un peaje.' },
     ],
     p1a: 'Antes de cada firma, las comisiones de red se muestran',
@@ -243,15 +270,15 @@ const es: Dict = {
     notice: 'El texto siguiente está redactado en francés; solo la versión francesa tiene valor legal.',
     privacyTitle: 'Política de privacidad',
     privacyIntro: 'En Kalyx, tu privacidad no es una opción: es la base de la arquitectura. Así protegemos tus datos: negándonos a recogerlos.',
-    privacyMeta: ['Actualizado: 28 de septiembre de 2026', 'Kalyx', 'Derecho francés y RGPD'],
+    privacyMeta: ['Actualizado: 3 de octubre de 2026', 'Kalyx', 'Derecho francés y RGPD'],
     privacyContact: '¿Una pregunta sobre tus datos?',
     termsTitle: 'Condiciones generales de uso',
     termsIntro: 'Lee atentamente estas condiciones antes de usar Kalyx Wallet. Definen el marco de uso responsable y las particularidades del modelo no custodial.',
-    termsMeta: ['Revisión: 5 de julio de 2026', 'Versión beta', 'Modelo no custodial'],
+    termsMeta: ['Revisión: 3 de octubre de 2026', 'Versión beta', 'Modelo no custodial'],
     termsContact: '¿Necesitas aclaraciones?',
     mentionsTitle: 'Aviso legal',
     mentionsIntro: 'De acuerdo con el artículo 6 de la ley francesa n.º 2004-575 del 21 de junio de 2004 para la confianza en la economía digital (LCEN), esta es la identidad del editor de este sitio y de su proveedor de alojamiento.',
-    mentionsMeta: ['Actualizado: 16 de septiembre de 2026', 'Kalyx', 'LCEN — Editor y alojamiento'],
+    mentionsMeta: ['Actualizado: 3 de octubre de 2026', 'Kalyx', 'LCEN — Editor y alojamiento'],
     mentionsContact: '¿Tienes una pregunta sobre el editor o el alojamiento?',
     contactText: 'Escríbenos cualquier pregunta sobre seguridad, cumplimiento o las condiciones.',
   },

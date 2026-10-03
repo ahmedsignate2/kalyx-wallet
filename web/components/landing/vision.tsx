@@ -56,7 +56,7 @@ export function Vision({ t }: { t: Dict }) {
         </div>
 
         <Reveal className="mt-16 grid grid-cols-2 gap-6 border-t border-ink/15 pt-8 sm:mt-20 sm:grid-cols-4 sm:gap-8 sm:pt-10 md:text-center">
-          {['63', '15', '65', '0'].map((v, i) => ({ v, l: t.vision.stats[i] })).map((s) => (
+          {['65', '15', '190+', '0'].map((v, i) => ({ v, l: t.vision.stats[i] })).map((s) => (
             <div key={s.l}>
               <p className="font-display text-4xl font-light leading-none sm:text-5xl">{s.v}</p>
               <p className="mt-2 text-sm text-ink/60">{s.l}</p>

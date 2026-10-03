@@ -13,9 +13,9 @@ export interface FaqSectionDef {
 const qa = (...n: number[]) => n.map((i) => ({ q: `faqQ${i}` as Key, a: `faqA${i}` as Key }));
 
 export const FAQ_SECTIONS: FaqSectionDef[] = [
-  { title: 'faqSecWallet', items: qa(1, 2, 3, 4, 22) },
-  { title: 'security', items: qa(5, 6, 7, 8, 19, 20) },
-  { title: 'transactions', items: qa(9, 10, 11, 12) },
-  { title: 'faqSecDapps', items: qa(13, 14, 15, 16) },
-  { title: 'network', items: qa(17, 18, 21) },
+  { title: 'faqSecWallet', items: qa(1, 2, 3, 4, 23, 26, 22) },
+  { title: 'security', items: qa(5, 6, 7, 8, 27, 24, 25, 19, 20) },
+  { title: 'transactions', items: qa(9, 10, 11, 12, 28, 30) },
+  { title: 'faqSecDapps', items: qa(13, 14, 15, 16, 29, 31) },
+  { title: 'network', items: qa(32, 17, 18, 21) },
 ];

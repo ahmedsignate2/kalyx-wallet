@@ -31,25 +31,45 @@ Il est formellement déconseillé de prendre une capture d'écran de votre phras
 Dans toute la mesure permise par le droit applicable, KALYX (Entreprise individuelle de Ahamed Signate) décline toute responsabilité pour toute perte financière directe ou indirecte découlant d'une défaillance du réseau blockchain, d'un bug de protocole, d'une congestion de réseau ou d'un piratage résultant d'une négligence dans la garde des clés privées.`,
   },
   {
+    id: 'frais',
+    title: '5. Gratuité & frais',
+    body: `Kalyx Wallet est gratuit. Les frais de réseau (gas) sont payés aux validateurs de chaque blockchain, jamais à Kalyx. Sur les échanges et ponts (Swap / Bridge), une commission de service de 0,3 % est incluse dans le devis et affichée avant toute signature ; aucune commission n'est prélevée sur Gagner (staking et prêt) ni sur les envois.`,
+  },
+  {
+    id: 'earn',
+    title: '6. Gagner : staking & prêt',
+    body: `L'onglet Gagner donne accès à des protocoles tiers (Lido, Rocket Pool, Benqi, Jito, Marinade, Aave, staking TON…). Les rendements affichés sont des estimations publiées par des tiers, susceptibles de varier ou de devenir négatifs. Ces protocoles comportent des risques propres (failles de contrats, perte d'ancrage, délais de retrait, sanctions de validateurs) que Kalyx ne contrôle pas et ne garantit pas.`,
+  },
+  {
+    id: 'protections',
+    title: '7. Protections de sécurité & limites',
+    body: `La liste blanche, le code de contrainte, l'analyse des signatures, la détection d'arnaques et la simulation des transactions réduisent les risques sans pouvoir les supprimer. Elles reposent sur des données publiques et des services tiers pouvant être incomplets ou indisponibles. Le portefeuille leurre doit contenir des fonds réels pour rester crédible ; ces fonds sont exposés comme tout autre portefeuille.`,
+  },
+  {
+    id: 'web',
+    title: '8. Tableau de bord web, Telegram & Copilote IA',
+    body: `Le tableau de bord web et la mini-app Telegram sont des interfaces de consultation : toute opération est signée dans l'app, sur votre téléphone. Le bot Telegram fournit des informations publiques (cours, gas, analyses) à titre indicatif. Le Copilote IA s'appuie sur un fournisseur que vous choisissez, avec votre propre clé : ses réponses peuvent être inexactes, ne constituent pas un conseil, et il ne peut jamais signer à votre place.`,
+  },
+  {
     id: 'tiers',
-    title: '5. Services & Protocoles tiers décentralisés',
+    title: '9. Services & Protocoles tiers décentralisés',
     body: `Les échanges de jetons (swaps), ponts inter-chaînes (bridges) et dApps accessibles via le navigateur intégré sont exécutés par des tiers et des contrats intelligents autonomes (notamment le protocole d'agrégation LI.FI, Uniswap, Raydium, etc.).
 Kalyx Wallet n'agit qu'en tant qu'interface cliente facilitant la signature locale par l'utilisateur. Kalyx ne contrôle pas, n'administre pas et n'endosse pas les services tiers ainsi contactés.`,
   },
   {
     id: 'conseil',
-    title: '6. Absence de conseil financier ou d\'investissement',
+    title: '10. Absence de conseil financier ou d\'investissement',
     body: `Aucun contenu, notification, cours de prix ou devis affiché dans l'application Kalyx Wallet ne constitue un conseil en investissement, une recommandation financière ou une incitation à négocier des crypto-actifs.
 Vous demeurez seul responsable du respect des obligations légales, réglementaires et fiscales en vigueur dans votre juridiction de résidence fiscale.`,
   },
   {
     id: 'droit',
-    title: '7. Droit applicable & Juridiction compétente',
+    title: '11. Droit applicable & Juridiction compétente',
     body: `Les présentes conditions sont régies et interprétées conformément au droit français. Tout litige relatif à leur interprétation ou à leur exécution fera l'objet d'une tentative de résolution amiable préalable avant toute saisine des tribunaux compétents du ressort de la cour d'appel compétente.`,
   },
   {
     id: 'editeur',
-    title: '8. Mentions légales & Coordonnées',
+    title: '12. Mentions légales & Coordonnées',
     body: `Éditeur : KALYX (Ahamed Signate)
 Statut légal : Entrepreneur individuel
 SIREN : 130 046 865 — Code APE : 62.01Z

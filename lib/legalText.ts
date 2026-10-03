@@ -24,8 +24,8 @@ import { sections as PRIVACY_EN_SRC } from '../web/content/privacy.en';
 import { sections as TERMS_EN_SRC } from '../web/content/terms.en';
 import { sections as MENTIONS_EN_SRC } from '../web/content/mentions.en';
 
-export const LEGAL_UPDATED = '28 septembre 2026';
-export const LEGAL_UPDATED_EN = 'September 28, 2026';
+export const LEGAL_UPDATED = '3 octobre 2026';
+export const LEGAL_UPDATED_EN = 'October 3, 2026';
 export const LEGAL_PUBLISHER = LEGAL_CONSTANTS.COMPANY_NAME;
 export const LEGAL_COUNTRY = 'France';
 export const LEGAL_CONTACT = `${LEGAL_CONSTANTS.CONTACT_EMAIL} ou Telegram @kalyxntw (${LEGAL_CONSTANTS.TELEGRAM_URL})`;

@@ -27,7 +27,10 @@ Il n'y a aucun compte utilisateur à créer. Aucune régie publicitaire ni trace
 • L'historique de navigation dApps et les favoris
 • Les préférences d'affichage et la devise de référence
 • Le journal local des transactions et notifications
-Vous pouvez à tout moment effacer l'intégralité de ces données en désinstallant ou réinitialisant l'application.`,
+Vous pouvez à tout moment effacer l'intégralité de ces données en désinstallant ou réinitialisant l'application.
+• Les réglages de sécurité : liste blanche d'adresses, code de contrainte (portefeuille leurre), délais de verrouillage
+• Les adresses suivies en lecture seule, les alertes de prix et les sessions WalletConnect / TON Connect
+• Les conversations avec le Copilote IA et l'historique des tickets de support`,
   },
   {
     id: 'tiers',
@@ -50,25 +53,48 @@ Vous pouvez à tout moment effacer l'intégralité de ces données en désinstal
 Chacun de ces tiers applique sa propre politique de confidentialité. Le navigateur Web3 intégré permet d'accéder à des dApps autonomes appliquant leurs propres règles d'usage.`,
   },
   {
+    id: 'web',
+    title: '5. Tableau de bord web & mini-app Telegram',
+    body: `Le tableau de bord app.kalyxwallet.com (dans un navigateur ou dans Telegram) ne détient aucune clé : il se relie à l'app de votre téléphone par WalletConnect et chaque signature est validée sur le téléphone.
+• Il reçoit les adresses PUBLIQUES que votre téléphone partage pendant la session, et interroge les mêmes services publics que l'app (§ précédent) pour afficher soldes et activité.
+• Vos préférences et, si vous l'activez, votre clé d'API du Copilote sont stockées dans votre navigateur, chiffrées (AES-256-GCM, clé non exportable).
+• Dans Telegram, le SDK officiel des mini-apps est chargé ; Telegram peut alors connaître l'usage de la mini-app selon sa propre politique. Dans un navigateur classique, aucun script tiers n'est chargé et la session se ferme après 30 minutes d'inactivité.
+• Le site est hébergé par Cloudflare, qui traite l'adresse IP pour acheminer les pages.`,
+  },
+  {
+    id: 'bot',
+    title: '6. Bot Telegram Kalyx',
+    body: `Le bot Telegram Kalyx ne demande ni ne reçoit jamais de clé ni de phrase. Pour fonctionner, il conserve dans une base Cloudflare (D1) :
+• votre identifiant Telegram et la langue choisie ;
+• les alertes de prix que vous créez (actif, seuil, sens, état).
+Les commandes de prix, de gas et d'analyse de token interrogent des services publics (CoinGecko, DefiLlama, Binance, GoPlus, nœuds publics) sans transmettre votre identité. Une limitation de débit utilise un compteur temporaire (quelques minutes). Vous pouvez supprimer vos alertes à tout moment (/alerts), et demander l'effacement complet de vos données à support@kalyxwallet.com.`,
+  },
+  {
+    id: 'droits',
+    title: '7. Vos droits (RGPD)',
+    body: `Les seules données personnelles que l'éditeur peut détenir sont celles du bot Telegram (§ précédent) et les messages que vous adressez volontairement au support. Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et d'opposition, ainsi que du droit d'introduire une réclamation auprès de la CNIL (cnil.fr). Pour les exercer : support@kalyxwallet.com. Les données de l'application, elles, ne quittent pas votre appareil : vous en gardez l'entière maîtrise.`,
+  },
+  {
     id: 'notifications',
-    title: '5. Notifications & alertes',
+    title: '8. Notifications & alertes',
     body: `Toutes les notifications générées par Kalyx Wallet sont strictement locales (générées au niveau du système d'exploitation de votre téléphone). Aucun serveur distant de notification push n'est sollicité, ce qui garantit qu'aucun jeton d'appareil (device push token) n'est jamais transmis à un tiers.`,
   },
   {
     id: 'securite',
-    title: '6. Mesures de sécurité cryptographiques',
+    title: '9. Mesures de sécurité cryptographiques',
     body: `La phrase de récupération est chiffrée en AES-256-GCM avec une clé dérivée de votre code PIN (scrypt), puis stockée dans le stockage sécurisé du système (Keychain iOS / Keystore Android).
 L'application dispose d'un verrouillage automatique dès la mise en veille, d'un écran de garde anti-capture d'écran et d'un ralentisseur anti brute-force sur le code PIN.
-Bien que ces défenses soient à l'état de l'art, aucun système informatique n'est inviolable : il est impératif de conserver votre phrase de récupération écrite sur papier hors ligne.`,
+Bien que ces défenses soient à l'état de l'art, aucun système informatique n'est inviolable : il est impératif de conserver votre phrase de récupération écrite sur papier hors ligne.
+Protections supplémentaires, toutes locales : liste blanche des destinataires (24 h avant qu'une adresse ajoutée ou une désactivation prenne effet), code de contrainte ouvrant un portefeuille leurre, copie biométrique de la phrase gardée par le système (empreinte ou visage exigé), explication et simulation des signatures avant validation, confirmation avant qu'un site change de réseau. La sauvegarde chiffrée utilise un mot de passe distinct du PIN (scrypt + AES-256-GCM).`,
   },
   {
     id: 'mineurs',
-    title: '7. Protection des mineurs',
+    title: '10. Protection des mineurs',
     body: `L'application Kalyx Wallet n'est pas destinée aux personnes de moins de 16 ans. Nous ne sollicitons ni ne conservons sciemment aucune information relative à des mineurs.`,
   },
   {
     id: 'hosting',
-    title: '8. Mentions légales & Hébergement (LCEN)',
+    title: '11. Mentions légales & Hébergement (LCEN)',
     body: `Conformément à l'article 6 de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique (LCEN) :
 • Éditeur : KALYX (Ahamed Signate)
 • Statut : Entrepreneur individuel
@@ -80,7 +106,7 @@ Le détail complet de ces mentions figure sur la page dédiée « Mentions léga
   },
   {
     id: 'contact',
-    title: '9. Évolution de la politique & Contact',
+    title: '12. Évolution de la politique & Contact',
     body: `La présente politique de confidentialité peut être révisée pour refléter l'évolution des fonctionnalités ou du cadre réglementaire. La date de mise à jour fait foi. Pour toute demande relative à la protection des données ou pour signaler un problème de sécurité : support@kalyxwallet.com ou sur Telegram @kalyxntw.`,
   },
 ];

@@ -54,6 +54,7 @@ const CHAINS: { name: string; icon: React.ReactNode }[] = [
   { name: 'Sei', icon: <ChainRasterIcon slug="sei" alt="" /> },
   { name: 'Bitcoin', icon: <BitcoinIcon /> },
   { name: 'Solana', icon: <SolanaIcon /> },
+  { name: 'TON', icon: <TonIcon /> },
 ];
 
 const WALLETCONNECT_BLUE = '#3B99FC';
@@ -83,13 +84,8 @@ export function Networks({ t }: { t: Dict }) {
       </div>
 
       {/*
-        TON EST ANNONCÉ « À VENIR », PAS DANS LA RANGÉE.
-
-        La rangée au-dessus liste ce qui fonctionne aujourd'hui ; y glisser TON
-        laisserait croire qu'on peut y recevoir des fonds, alors que l'adaptateur
-        n'est pas enregistré et que la dérivation attend d'être confrontée à une
-        vraie adresse Tonkeeper. Un site qui promet plus que l'application est le
-        même défaut qu'un écran qui décrit faux ses propres capacités.
+        TON est pris en charge (adaptateur enregistré, dérivation vérifiée contre
+        Tonkeeper) : il rejoint la rangée, et cette ligne détaille ce qui marche.
       */}
       <Reveal
         className="mx-auto mt-5 flex max-w-page items-center justify-center gap-2 text-xs text-mist"

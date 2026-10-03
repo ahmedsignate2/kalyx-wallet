@@ -86,6 +86,19 @@ const W = () => useWallet.getState();
 const codeOf = async (p: Promise<unknown>) => p.then(() => 'OK', (e: { code?: string; message?: string }) => `${e.code ?? ''}|${e.message ?? ''}`);
 
 
+
+/*
+ * « 31 s plus tard » : l'horloge du téléphone ET le chronomètre monotone
+ * avancent (le portefeuille mesure l'attente avec les deux).
+ */
+let monoOffset = 0;
+const realPerfNow = performance.now.bind(performance);
+performance.now = () => realPerfNow() + monoOffset;
+function wait31s() {
+  monoOffset += 31_000;
+  useWallet.setState({ lastFailedAt: Date.now() - 31_000 });
+}
+
 describe('Code PIN : le compteur protège AUSSI les confirmations (phrase, clé, envoi)', () => {
   it('six erreurs sur « Révéler la phrase » bloquent — même avec le bon code ensuite', async () => {
     W().setImportedDraft(art.phrase);
@@ -99,7 +112,7 @@ describe('Code PIN : le compteur protège AUSSI les confirmations (phrase, clé,
   });
 
   it('une réussite après l’attente remet le compteur à zéro ; un échec au déverrouillage ne compte qu’UNE fois', async () => {
-    useWallet.setState({ lastFailedAt: Date.now() - 31_000 });
+    wait31s();
     expect(await W().revealPhrase({ pin: PIN })).toBe(art.phrase);
     expect(W().failedAttempts).toBe(0);
     expect(await codeOf(W().unlockWithPin('000111'))).toMatch(/^WRONG_PIN\|/);
@@ -109,11 +122,30 @@ describe('Code PIN : le compteur protège AUSSI les confirmations (phrase, clé,
   it('la tentative est écrite comme ratée AVANT la vérification (app tuée pendant scrypt = essai compté)', async () => {
     const before = W().failedAttempts;
     mockLockWrites.length = 0;
-    useWallet.setState({ lastFailedAt: Date.now() - 31_000 });
+    wait31s();
     await W().revealPhrase({ pin: PIN });
     expect(mockLockWrites[0][0]).toBe(before + 1); // écrit d'abord comme échec…
     expect(mockLockWrites[mockLockWrites.length - 1]).toEqual([0, 0]); // …puis effacé, code bon
     await codeOf(W().unlockWithPin('000111')); // remet l'état attendu par la suite
+  });
+
+  it('avancer l’heure du téléphone ne lève pas l’attente : le chronomètre monotone la garde', async () => {
+    const before = W().failedAttempts;
+    for (let i = before; i < 6; i++) {
+      wait31s();
+      await codeOf(W().unlockWithPin('000111'));
+    }
+    // Heure système avancée d'une heure, chronomètre inchangé : toujours bloqué.
+    useWallet.setState({ lastFailedAt: Date.now() - 3_600_000 });
+    expect(await codeOf(W().unlockWithPin(PIN))).toMatch(/^LOCKED_OUT\|/);
+    // Le temps passe vraiment : débloqué.
+    wait31s();
+    expect(await codeOf(W().unlockWithPin('000111'))).toMatch(/^WRONG_PIN\|/);
+    wait31s();
+    monoOffset += 3_600_000;
+    useWallet.setState({ lastFailedAt: Date.now() - 3_600_000 });
+    await W().revealPhrase({ pin: PIN });
+    await codeOf(W().unlockWithPin('000111'));
   });
 
   it('changer de PIN avec un ancien code faux compte comme une erreur', async () => {

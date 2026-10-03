@@ -432,7 +432,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
                   <React.Fragment key={h.id}>
                     <TokenRow
                       symbol={h.symbol}
-                      name={`${h.symbol} sur ${chainOf(h.chainId)?.name ?? h.chainId}`}
+                      name={`${h.symbol} · ${chainOf(h.chainId)?.name ?? h.chainId}`}
                       logo={h.kind === 'native' ? chainIconUrl(h.chainId) : h.logo}
                       address={h.contract ?? h.chainId}
                       balance={`${formatTokenAmount(h.raw, h.decimals)} ${h.symbol}`}
