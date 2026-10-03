@@ -19,7 +19,7 @@
  * même pour tout le monde, la voie d'accès change.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable as RNPressable, View } from 'react-native';
+import { Platform, Pressable as RNPressable, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, withSpring, runOnJS, Easing, cancelAnimation } from 'react-native-reanimated';
 import { Text } from './Text';
 import { Icon, type IconName } from '../icon';
@@ -107,6 +107,30 @@ export function HoldButton({
 
   useEffect(() => stopTicks, []);
 
+  /*
+   * NAVIGATEUR (site, mini-app Telegram). Un appui long y déclenche le menu
+   * du système : sélection du libellé, loupe, « Copier », aperçu. Le
+   * navigateur annule alors l'appui (pointercancel), le maintien s'arrête au
+   * milieu, et l'utilisateur croit devoir copier quelque chose. On coupe ces
+   * gestes sur CE bouton seulement : pas de menu contextuel, pas de
+   * sélection, pas de défilement ni de zoom qui volerait le doigt.
+   */
+  const node = useRef<View>(null);
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const el = node.current as unknown as { addEventListener?: (t: string, f: (e: { preventDefault: () => void }) => void, o?: object) => void; removeEventListener?: (t: string, f: (e: { preventDefault: () => void }) => void) => void; style?: { setProperty?: (k: string, v: string) => void } } | null;
+    if (!el?.addEventListener) return;
+    // Bulle « Copier / Partager » d'iOS : propriété propre à Safari, posée à la main (héritée par le libellé).
+    el.style?.setProperty?.('-webkit-touch-callout', 'none');
+    const block = (e: { preventDefault: () => void }) => e.preventDefault();
+    for (const type of ['contextmenu', 'selectstart', 'dragstart']) el.addEventListener(type, block);
+    return () => { for (const type of ['contextmenu', 'selectstart', 'dragstart']) el.removeEventListener?.(type, block); };
+  }, []);
+  /** Styles web : ni sélection, ni bulle « Copier » (iOS), ni geste de défilement sur le bouton. */
+  const webNoSelect = Platform.OS === 'web'
+    ? ({ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', touchAction: 'none', WebkitTapHighlightColor: 'transparent' } as object)
+    : null;
+
   const fill = useAnimatedStyle(() => ({ width: progress.value * width }));
   /** Compression : le bouton résiste de plus en plus, puis se relâche. */
   const squeeze = useAnimatedStyle(() =>
@@ -118,13 +142,14 @@ export function HoldButton({
   const Layer = ({ color }: { color: string }) => (
     <View style={{ width: width || '100%', height: BUTTON_HEIGHT, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2] }}>
       <Icon name={icon} size={20} color={color} />
-      <Text variant="body" style={{ color }}>{label}</Text>
+      <Text variant="body" selectable={false} style={{ color }}>{label}</Text>
     </View>
   );
 
   return (
     <Animated.View style={squeeze}>
       <RNPressable
+        ref={node}
         onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
         onPressIn={start}
         onPressOut={cancel}
@@ -139,7 +164,7 @@ export function HoldButton({
          */
         accessibilityActions={[{ name: 'activate', label: t('pinValidate') }]}
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'activate' && !disabled) fire(); }}
-        style={{ height: BUTTON_HEIGHT, borderRadius: radius.button, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', opacity: disabled ? 0.4 : 1 }}
+        style={[{ height: BUTTON_HEIGHT, borderRadius: radius.button, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', opacity: disabled ? 0.4 : 1 }, webNoSelect]}
       >
         <Layer color={colors.text} />
         {/* Lumière + libellé inversé, découpés par la progression */}
