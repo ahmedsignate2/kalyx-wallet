@@ -847,8 +847,29 @@ function lockRemainingNow(): number {
     useWallet.setState({ lastFailedAt: now });
     void saveLockState(st.failedAttempts, now).catch(() => {});
   }
-  return lockRemainingMs(st.failedAttempts, Math.min(st.lastFailedAt, now), now);
+  const wall = lockRemainingMs(st.failedAttempts, Math.min(st.lastFailedAt, now), now);
+  /*
+   * HORLOGE MONOTONE, en plus de celle du téléphone. Avancer l'heure système
+   * effaçait l'attente : l'échec semblait vieux d'une heure. Pour un échec
+   * survenu pendant CETTE exécution, l'attente se mesure aussi au chronomètre
+   * interne, que les réglages ne touchent pas. (Après un redémarrage, seule
+   * l'heure système reste : aucune horloge monotone ne survit sans module natif.)
+   */
+  const mono = monoFail && monoFail.attempts === st.failedAttempts ? lockRemainingMs(st.failedAttempts, monoFail.at, monoNow()) : 0;
+  return Math.max(wall, mono);
 }
+
+/** Attente avant le prochain essai de code (écran de déverrouillage) — même règle que le portefeuille. */
+export function pinLockRemainingMs(): number {
+  return lockRemainingNow();
+}
+
+function monoNow(): number {
+  const p = (globalThis as { performance?: { now?: () => number } }).performance;
+  return typeof p?.now === 'function' ? p.now() : Date.now();
+}
+/** Dernier échec de code observé pendant cette exécution, daté au chronomètre monotone. */
+let monoFail: { attempts: number; at: number } | null = null;
 
 /**
  * Clé privée EVM prête à signer, quelle que soit l'origine du wallet actif :
@@ -2574,3 +2595,9 @@ export const useWallet = create<WalletState>((set, get) => ({
     });
   },
 }));
+
+// Chaque nouvel échec de code est daté AUSSI au chronomètre monotone (voir `lockRemainingNow`).
+useWallet.subscribe((s, prev) => {
+  if (s.failedAttempts > prev.failedAttempts) monoFail = { attempts: s.failedAttempts, at: monoNow() };
+  else if (s.failedAttempts === 0) monoFail = null;
+});

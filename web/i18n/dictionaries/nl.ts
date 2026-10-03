@@ -4,7 +4,7 @@ const nl: Dict = {
   meta: {
     title: 'Kalyx Wallet — Non-custodial multi-chain cryptowallet',
     description:
-      'Je sleutels blijven op je telefoon. Bitcoin, Ethereum, Solana en 64 netwerken, elke handtekening uitgelegd vóór je tekent. Gratis, zonder account.',
+      'Je sleutels blijven op je telefoon. Bitcoin, Ethereum, TON, Solana en 65 netwerken, elke handtekening uitgelegd vóór je tekent. Gratis, zonder account.',
   },
   nav: {
     how: 'Hoe het werkt',
@@ -41,7 +41,7 @@ const nl: Dict = {
     line1: 'De soevereiniteit',
     line2: 'over je bezit.',
     line3: 'Zonder compromis.',
-    sub: 'Beheer Bitcoin, Ethereum en Solana in alle vrijheid. Je privésleutels verlaten je telefoon nooit.',
+    sub: 'Beheer Bitcoin, Ethereum, TON en Solana in alle vrijheid. Je privésleutels verlaten je telefoon nooit.',
     cta: 'APK downloaden',
     ctaSecondary: 'Ontdek de beveiliging',
     chips: ['Non-custodial', 'AES-256-GCM', 'Nul telemetrie', 'Multi-chain', 'AI optioneel (BYOK)'],
@@ -51,18 +51,18 @@ const nl: Dict = {
   networks: {
     label: 'Ondersteunde netwerken',
     walletconnect: 'Interoperabel met WalletConnect (Reown)',
-    soon: 'TON komt: adressen en sleutelafleiding zijn al geschreven en getest.',
+    soon: 'TON, compleet: jettons, .ton-namen, TON Connect, swaps via STON.fi en staking met Tonstakers.',
   },
   how: {
     kicker: 'Hoe het werkt',
     title: 'Een wallet,',
     titleEm: 'geen doolhof.',
-    lead: 'Vijf schermen van de app, zoals ze vandaag zijn. Geen mock-ups: dit zijn echte schermafbeeldingen.',
+    lead: 'Zes schermen van de app, zoals ze vandaag zijn — gerenderd uit de code, met een demowallet.',
     steps: [
       {
         title: 'Eén saldo. Al je chains.',
-        text: 'Bitcoin, Ethereum en zijn Layer 2’s, Solana: 64 netwerken samengevat in één getal, één curve. Het saldo verschijnt uit de cache nog vóór het netwerk antwoordt.',
-        value: '64',
+        text: 'Bitcoin, Ethereum en zijn Layer 2’s, Solana: 65 netwerken samengevat in één getal, één curve. Het saldo verschijnt uit de cache nog vóór het netwerk antwoordt.',
+        value: '65',
         label: 'netwerken',
       },
       {
@@ -73,13 +73,13 @@ const nl: Dict = {
       },
       {
         title: 'Swap zonder de app te verlaten.',
-        text: 'Jupiter op Solana, LI.FI en Relay op EVM-chains en tussen chains. De route staat in één zin, de prijsimpact wordt vóór bevestiging gemeld.',
-        value: '3',
+        text: 'Jupiter op Solana, LI.FI en Relay op EVM-chains en tussen chains. De route staat in één zin, de prijsimpact wordt vóór bevestiging gemeld. En STON.fi op TON.',
+        value: '4',
         label: 'routers, je tekent zelf',
       },
       {
         title: 'Laat werken wat stilstaat.',
-        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade. Je stort vanuit je wallet en neemt op wanneer je wilt. Kalyx neemt onderweg niets.',
+        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers. Je stort vanuit je wallet en neemt op wanneer je wilt. Kalyx neemt onderweg niets.',
         value: '0 %',
         label: 'Kalyx-kosten op Earn',
       },
@@ -89,6 +89,12 @@ const nl: Dict = {
         value: '1',
         label: 'zin per handtekening',
       },
+      {
+        title: 'Op je computer, en in Telegram.',
+        text: 'Het dashboard app.kalyxwallet.com en de Telegram-mini-app tonen saldi, tokens, NFT’s en de markt, en bereiden verzendingen en swaps voor. Ze bewaren geen sleutel: elke handtekening keur je goed op je telefoon, via WalletConnect.',
+        value: '0',
+        label: 'sleutels buiten je telefoon',
+      }
     ],
   },
   lose: {
@@ -154,6 +160,27 @@ const nl: Dict = {
       waits: ['geen wachttijd', '30 s', '1 min', '5 min', '15 min', '1 u'],
       closing: 'En als je de telefoon ooit verliest: je twaalf woorden, op hun papier, zetten alles opnieuw op een andere.',
     },
+    s4: {
+      kicker: 'De whitelist',
+      title: 'Hij kent je pincode. Niet je geduld.',
+      text: 'Zet de whitelist aan: verzendingen gaan alleen nog naar gekozen adressen en naar je eigen accounts. Zelfs met je pincode kan een dief binnen het uur niets veranderen.',
+      rows: [
+        ['Adres toegevoegd', 'bruikbaar over 24 u'],
+        ['Bescherming uitzetten', 'actief over 24 u'],
+        ['Verzenden naar onbekend adres', 'geblokkeerd'],
+      ],
+      closing: 'Een dief met haast gaat met lege handen weg.',
+    },
+    s5: {
+      kicker: 'Onder dwang',
+      title: 'Je wordt gedwongen de app te openen.',
+      text: 'Typ je dwangcode: Kalyx opent gewoon, met een lokwallet. Je echte wallets, contacten en meldingen blijven onzichtbaar — niets verraadt dat ze bestaan.',
+      rows: [
+        ['Je pincode', 'je echte wallets'],
+        ['Dwangcode', 'de lokwallet'],
+      ],
+      closing: 'Biometrie staat uit zolang hij bestaat: een gezicht zou altijd de echte openen.',
+    },
     footer1: 'Dit alles draait',
     footerEm: 'op je telefoon',
     footer2: '. Kalyx heeft geen server die je sleutels ziet, je IP-adres wordt nooit naar ons gestuurd, geen analytics-SDK kijkt over je schouder mee.',
@@ -184,7 +211,7 @@ const nl: Dict = {
       { value: '0,3 %', label: 'op een swap via LI.FI', note: 'EVM en tussen chains. Dit is de enige inkomstenbron van Kalyx.' },
       { value: '0,3 %', label: 'op een TON-swap via STON.fi', note: 'Swaps op TON (TON, USD₮, jettons). Zelfde tarief als LI.FI.' },
       { value: '0 %', label: 'op een Solana-swap via Jupiter', note: 'Geen commissie toegevoegd aan de route.' },
-      { value: '0 %', label: 'op Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: niets ingehouden bij storting of opname.' },
+      { value: '0 %', label: 'op Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers: niets ingehouden bij storting of opname.' },
       { value: '€ 0', label: 'abonnement, voor altijd', note: 'Geen “pro”-versie, geen functie achter een tolpoort.' },
     ],
     p1a: 'Vóór elke handtekening worden de netwerkkosten getoond',
@@ -243,15 +270,15 @@ const nl: Dict = {
     notice: 'De onderstaande tekst is in het Frans opgesteld; alleen de Franse versie is juridisch bindend.',
     privacyTitle: 'Privacybeleid',
     privacyIntro: 'Bij Kalyx is je privacy geen optie: het is de basis van de architectuur. Zo beschermen we je gegevens — door ze niet te verzamelen.',
-    privacyMeta: ['Bijgewerkt: 28 september 2026', 'Kalyx', 'Frans recht en AVG'],
+    privacyMeta: ['Bijgewerkt: 3 oktober 2026', 'Kalyx', 'Frans recht en AVG'],
     privacyContact: 'Een vraag over je gegevens?',
     termsTitle: 'Algemene gebruiksvoorwaarden',
     termsIntro: 'Lees deze voorwaarden aandachtig voordat je Kalyx Wallet gebruikt. Ze bepalen het kader voor verantwoord gebruik en de bijzonderheden van het non-custodial model.',
-    termsMeta: ['Herzien: 5 juli 2026', 'Bètaversie', 'Non-custodial model'],
+    termsMeta: ['Herzien: 3 oktober 2026', 'Bètaversie', 'Non-custodial model'],
     termsContact: 'Verduidelijking nodig?',
     mentionsTitle: 'Wettelijke vermeldingen',
     mentionsIntro: 'Overeenkomstig artikel 6 van de Franse wet nr. 2004-575 van 21 juni 2004 voor vertrouwen in de digitale economie (LCEN), hier de identiteit van de uitgever van deze site en van de hostingprovider.',
-    mentionsMeta: ['Bijgewerkt: 16 september 2026', 'Kalyx', 'LCEN — Uitgever & hosting'],
+    mentionsMeta: ['Bijgewerkt: 3 oktober 2026', 'Kalyx', 'LCEN — Uitgever & hosting'],
     mentionsContact: 'Een vraag over de uitgever of de hosting?',
     contactText: 'Schrijf ons met elke vraag over beveiliging, naleving of de voorwaarden.',
   },

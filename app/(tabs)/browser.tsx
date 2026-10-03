@@ -21,6 +21,7 @@ import { signMessageParam } from '../../lib/dappProvider';
 import { buildTonJsBridge, parseTcJsMessage } from '../../src/domain/tonconnect/jsBridge';
 import { useTonConnect, tcJsHost, tcDeviceInfo } from '../../lib/tonconnect/store';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fill } from '../../lib/i18n';
 import { View, TextInput, ScrollView, Share, Alert, Switch, Image, useWindowDimensions, Linking } from 'react-native';
 import { Stack, useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -348,6 +349,9 @@ export default function Browser() {
    */
   const connKey = (origin: string, incognito?: boolean) => (incognito ? `incognito:${origin}` : origin);
   const [pending, setPendingState] = useState<Pending | null>(null);
+  /** Changement de réseau demandé par un site : il touche TOUTE l'app, donc il se confirme. */
+  const [switchReq, setSwitchReq] = useState<{ tabId: string; id: number; origin: string; targetId: string; want: number } | null>(null);
+  const switchReqRef = useRef<{ tabId: string; id: number; origin: string; targetId: string; want: number } | null>(null);
   /*
    * UNE demande à la fois, lue sans attendre un rendu. Une seconde demande
    * remplaçait la première sans lui répondre (la dApp restait bloquée), et la
@@ -484,10 +488,18 @@ export default function Browser() {
           const want = Number((params[0] as { chainId?: string })?.chainId ?? '0x0');
           const target = listChains().find((c) => c.family === 'evm' && c.evmChainId === want);
           if (!target) return respond(id, null, { code: 4902, message: t('networkNotSupported') });
-          updateTab(tabId, { chainId: target.id });
-          setActiveChain(target.id);
-          respond(id, null);
-          inject(emitJs('chainChanged', '0x' + want.toString(16)));
+          // Déjà sur ce réseau : rien à changer, rien à demander.
+          if (target.id === (tb?.chainId ?? activeChain)) return respond(id, null);
+          /*
+           * CONFIRMATION. Le réseau actif est celui de toute l'app (soldes,
+           * envois) : un site connecté le changeait sans rien demander — un
+           * envoi suivant pouvait partir sur un réseau que l'utilisateur
+           * n'avait pas choisi.
+           */
+          if (switchReqRef.current) return respond(id, null, { code: -32002, message: 'Request already pending. Please wait.' });
+          const req = { tabId, id, origin: reqOrigin, targetId: target.id, want };
+          switchReqRef.current = req;
+          setSwitchReq(req);
           return;
         }
         const isSigning = method === 'personal_sign' || method === 'eth_sign' || method.startsWith('eth_signTypedData') || method === 'eth_sendTransaction';
@@ -611,6 +623,17 @@ export default function Browser() {
     }
     closePending(pending);
     setRememberSite(false);
+  };
+  const answerSwitch = (ok: boolean) => {
+    const r = switchReqRef.current;
+    switchReqRef.current = null;
+    setSwitchReq(null);
+    if (!r) return;
+    if (!ok) return deliverTo(r.origin, r.tabId, respondJs(r.id, null, { code: 4001, message: t('refuse') }));
+    updateTab(r.tabId, { chainId: r.targetId });
+    setActiveChain(r.targetId);
+    deliverTo(r.origin, r.tabId, respondJs(r.id, null));
+    deliverTo(r.origin, r.tabId, emitJs('chainChanged', '0x' + r.want.toString(16)));
   };
   const deny = () => {
     if (pending) {
@@ -1064,6 +1087,26 @@ export default function Browser() {
               );
             })}
         </ScrollView>
+      </Sheet>
+
+      {/* Changement de réseau demandé par un site connecté */}
+      <Sheet visible={!!switchReq} onClose={() => answerSwitch(false)}>
+        {switchReq ? (() => {
+          const target = listChains().find((c) => c.id === switchReq.targetId);
+          return (
+            <View style={{ gap: space[3] }}>
+              <View style={{ alignItems: 'center', gap: space[2], paddingVertical: space[2] }}>
+                <DappLogo host={switchReq.origin} size={48} />
+                <Text variant="title2" style={{ textAlign: 'center' }}>{t('switchNetworkTitle')}</Text>
+                <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>{fill(t('switchNetworkBody'), { site: switchReq.origin, from: chain.name, to: target?.name ?? '' })}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: space[2] }}>
+                <Button label={t('refuse')} variant="secondary" size="lg" style={{ flex: 1 }} onPress={() => answerSwitch(false)} />
+                <Button label={t('switchNetworkConfirm')} size="lg" style={{ flex: 1 }} onPress={() => answerSwitch(true)} />
+              </View>
+            </View>
+          );
+        })() : null}
       </Sheet>
 
       {/* Demande de connexion EIP-1193 */}

@@ -43,22 +43,26 @@ export default function Menu() {
 
       {/* Profil : l'avatar dans son orbite, comme le halo de l'accueil. */}
       <Rise>
-      <KPressable onPress={() => router.push('/settings')}>
         <GlassCard>
+          {/*
+            Deux gestes CÔTE À CÔTE, jamais imbriqués : un bouton dans un bouton
+            n'est pas atteignable par un lecteur d'écran (et le web le refuse).
+            L'avatar change l'avatar ; le reste de la carte mène aux réglages.
+          */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
-            {/* L'avatar a son propre geste : le reste de la carte mène aux réglages. */}
             <KPressable onPress={() => setPickAvatar(true)} hitSlop={6} accessibilityLabel={t('a11yChangeAvatar')} style={{ width: 60, height: 60, alignItems: 'center', justifyContent: 'center' }}>
               <View pointerEvents="none" style={{ position: 'absolute', left: 30, top: 30 }}><Orbit cx={0} cy={0} r={38} /></View>
               <WalletAvatar size={56} />
             </KPressable>
-            <View style={{ flex: 1 }}>
-              <Text style={typography.bodyStrong}>{profileName || t('yourProfile')}</Text>
-              <Text style={typography.muted}>{t('profile')} · {t('settings')}</Text>
-            </View>
-            {chev}
+            <KPressable onPress={() => router.push('/settings')} accessibilityRole="button" style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
+              <View style={{ flex: 1 }}>
+                <Text style={typography.bodyStrong}>{profileName || t('yourProfile')}</Text>
+                <Text style={typography.muted}>{t('profile')} · {t('settings')}</Text>
+              </View>
+              {chev}
+            </KPressable>
           </View>
         </GlassCard>
-      </KPressable>
       </Rise>
 
       {/* Raccourcis : les quatre destinations les plus fréquentes, en disques. */}

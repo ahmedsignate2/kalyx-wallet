@@ -77,3 +77,19 @@ export function useWebPalette(): WebPalette {
     down: colors.down,
   };
 }
+
+/**
+ * Format de nombres du tableau de bord : celui de la LANGUE CHOISIE. Les
+ * montants étaient formatés en français partout (« 0,00 € ») pendant que le
+ * marché suivait le navigateur (« €97,210 ») — deux conventions sur un écran.
+ */
+export function webLocale(): string {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const lang: string = require('../../lib/settingsStore').useSettings.getState().language ?? 'en';
+  const tag = lang === 'zh' ? 'zh-CN' : lang;
+  try {
+    return Intl.NumberFormat.supportedLocalesOf([tag]).length ? tag : 'en';
+  } catch {
+    return 'en';
+  }
+}

@@ -13,7 +13,8 @@ Contact : support@kalyxwallet.com.`,
   {
     id: 'hebergement',
     title: '2. Hébergement',
-    body: `Le site est hébergé par Cloudflare, Inc. — 101 Townsend St, San Francisco, CA 94107, États-Unis — téléphone : +1 (888) 993-5273.`,
+    body: `Le site est hébergé par Cloudflare, Inc. — 101 Townsend St, San Francisco, CA 94107, États-Unis — téléphone : +1 (888) 993-5273.
+Le tableau de bord app.kalyxwallet.com, le relais TON et le bot Telegram Kalyx (Cloudflare Workers et base D1) sont hébergés par la même société.`,
   },
   {
     id: 'nature',
@@ -23,7 +24,8 @@ Contact : support@kalyxwallet.com.`,
   {
     id: 'propriete',
     title: '4. Propriété intellectuelle',
-    body: `L'ensemble des éléments du site kalyxwallet.com (textes, structure, identité visuelle, marque « Kalyx ») est la propriété de KALYX, sauf mention contraire. Toute reproduction sans autorisation préalable est interdite.`,
+    body: `L'ensemble des éléments du site kalyxwallet.com (textes, structure, identité visuelle, marque « Kalyx ») est la propriété de KALYX, sauf mention contraire. Toute reproduction sans autorisation préalable est interdite.
+Le code source de Kalyx Wallet est consultable (source-available) mais n'est pas open source : sa réutilisation, sa modification et sa redistribution sont soumises à autorisation écrite (fichier LICENSE du dépôt). Les bibliothèques tierces restent régies par leurs propres licences.`,
   },
   {
     id: 'contact',

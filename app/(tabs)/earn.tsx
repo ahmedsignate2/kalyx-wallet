@@ -339,11 +339,12 @@ function OpportunityCard({ p, apy, available, price, fiat, onPress }: { p: EarnP
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
           <RemoteIcon uri={p.logo} label={p.name} size={42} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={typography.bodyStrong} numberOfLines={2}>{p.name} · {p.underlying.symbol} → {p.receipt.symbol}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            {/* Nom puis conversion sur deux lignes nettes : « Rocket Pool · ETH → rETH » se coupait au milieu. */}
+            <Text style={typography.bodyStrong} numberOfLines={1}>{p.name}</Text>
+            {/* La nature (staking / prêt) est déjà dite par le filtre et par le bouton (« Staker », « Prêter ») : ici, ce qu'on donne et reçoit. */}
+            <Text style={typography.muted} numberOfLines={1}>{p.underlying.symbol} → {p.receipt.symbol}</Text>
+            <View style={{ marginTop: 2 }}>
               <ChainTag chainId={p.chainId} />
-              <Text style={{ color: colors.textTertiary }}>·</Text>
-              <Text style={typography.muted}>{p.kind === 'staking' ? t('earnStakingKind') : t('earnLendingKind')}</Text>
             </View>
           </View>
           <ApyBadge apy={apy} size="lg" />

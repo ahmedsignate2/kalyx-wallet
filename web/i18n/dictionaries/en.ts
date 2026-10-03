@@ -4,7 +4,7 @@ const en: Dict = {
   meta: {
     title: 'Kalyx Wallet — Non-custodial, multi-chain crypto wallet',
     description:
-      'Your keys stay on your phone. Bitcoin, Ethereum, Solana and 64 networks, every signature explained before you sign. Free, no account.',
+      'Your keys stay on your phone. Bitcoin, Ethereum, TON, Solana and 65 networks, every signature explained before you sign. Free, no account.',
   },
   nav: {
     how: 'How it works',
@@ -41,7 +41,7 @@ const en: Dict = {
     line1: 'Sovereignty',
     line2: 'over your assets.',
     line3: 'No compromise.',
-    sub: 'Manage Bitcoin, Ethereum and Solana freely. Your private keys never leave your phone.',
+    sub: 'Manage Bitcoin, Ethereum, TON and Solana freely. Your private keys never leave your phone.',
     cta: 'Download the APK',
     ctaSecondary: 'See the security',
     chips: ['Non-custodial', 'AES-256-GCM', 'Zero telemetry', 'Multi-chain', 'Optional AI (BYOK)'],
@@ -51,18 +51,18 @@ const en: Dict = {
   networks: {
     label: 'Supported networks',
     walletconnect: 'Interoperable with WalletConnect (Reown)',
-    soon: 'TON is coming: addresses and key derivation are already written and tested.',
+    soon: 'TON, in full: jettons, .ton names, TON Connect, STON.fi swaps and Tonstakers staking.',
   },
   how: {
     kicker: 'How it works',
     title: 'A wallet,',
     titleEm: 'not a maze.',
-    lead: 'Five screens of the app, as they are today. No mock-ups: these are real screenshots.',
+    lead: 'Six screens of the app, as they are today — rendered from its code, with a demo wallet.',
     steps: [
       {
         title: 'One balance. All your chains.',
-        text: 'Bitcoin, Ethereum and its Layer 2s, Solana: 64 networks aggregated into one number, one curve. The balance shows from cache before the network even answers.',
-        value: '64',
+        text: 'Bitcoin, Ethereum and its Layer 2s, Solana: 65 networks aggregated into one number, one curve. The balance shows from cache before the network even answers.',
+        value: '65',
         label: 'networks',
       },
       {
@@ -73,13 +73,13 @@ const en: Dict = {
       },
       {
         title: 'Swap without leaving the app.',
-        text: 'Jupiter on Solana, LI.FI and Relay on EVM chains and across chains. The route is written in one sentence, the price impact is announced before you confirm.',
-        value: '3',
+        text: 'Jupiter on Solana, LI.FI and Relay on EVM chains and across chains. The route is written in one sentence, the price impact is announced before you confirm. And STON.fi on TON.',
+        value: '4',
         label: 'routers, you sign yourself',
       },
       {
         title: 'Put idle assets to work.',
-        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade. You deposit from your wallet, you withdraw whenever you want. Kalyx takes nothing on the way.',
+        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers. You deposit from your wallet, you withdraw whenever you want. Kalyx takes nothing on the way.',
         value: '0%',
         label: 'Kalyx fee on Earn',
       },
@@ -89,6 +89,12 @@ const en: Dict = {
         value: '1',
         label: 'sentence per signature',
       },
+      {
+        title: 'On your computer, and in Telegram.',
+        text: 'The app.kalyxwallet.com dashboard and the Telegram mini app show balances, tokens, NFTs and the market, and prepare your sends and swaps. They hold no key: every signature is approved on your phone, through WalletConnect.',
+        value: '0',
+        label: 'keys off your phone',
+      }
     ],
   },
   lose: {
@@ -154,6 +160,27 @@ const en: Dict = {
       waits: ['no wait', '30 s', '1 min', '5 min', '15 min', '1 h'],
       closing: 'And if one day you lose the phone: your twelve words, on their paper, recreate everything on another one.',
     },
+    s4: {
+      kicker: 'The whitelist',
+      title: 'They know your PIN. Not your patience.',
+      text: 'Turn on the whitelist: sends only go to the addresses you chose and to your own accounts. Even with your PIN, a thief cannot change anything within the hour.',
+      rows: [
+        ['Address added', 'usable in 24 h'],
+        ['Turning protection off', 'effective in 24 h'],
+        ['Send to an unknown address', 'blocked'],
+      ],
+      closing: 'A thief in a hurry leaves empty-handed.',
+    },
+    s5: {
+      kicker: 'Under duress',
+      title: 'Someone forces you to open the app.',
+      text: 'Type your duress code: Kalyx opens normally, on a decoy wallet. Your real wallets, contacts and notifications stay invisible — nothing hints that they exist.',
+      rows: [
+        ['Your PIN', 'your real wallets'],
+        ['Duress code', 'the decoy wallet'],
+      ],
+      closing: 'Biometrics turn off while it exists: a face would always open the real ones.',
+    },
     footer1: 'All of this runs',
     footerEm: 'on your phone',
     footer2: '. Kalyx has no server that sees your keys, your IP address is never sent to us, no analytics SDK looks over your shoulder.',
@@ -184,7 +211,7 @@ const en: Dict = {
       { value: '0.3%', label: 'on a swap via LI.FI', note: 'EVM and cross-chain. This is Kalyx’s only revenue.' },
       { value: '0.3%', label: 'on a TON swap via STON.fi', note: 'Swaps on TON (TON, USD₮, jettons). Same rate as LI.FI.' },
       { value: '0%', label: 'on a Solana swap via Jupiter', note: 'No commission added to the route.' },
-      { value: '0%', label: 'on Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: nothing taken on deposit or withdrawal.' },
+      { value: '0%', label: 'on Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers: nothing taken on deposit or withdrawal.' },
       { value: '€0', label: 'subscription, forever', note: 'No “pro” tier, no feature behind a paywall.' },
     ],
     p1a: 'Before every signature, network fees are shown',
@@ -243,15 +270,15 @@ const en: Dict = {
     notice: 'The text below is written in French; only the French version is legally binding.',
     privacyTitle: 'Privacy policy',
     privacyIntro: 'At Kalyx, your privacy is not an option: it is the foundation of the architecture. Here is how we protect your data, by refusing to collect it.',
-    privacyMeta: ['Updated: 28 September 2026', 'Kalyx', 'French law and GDPR'],
+    privacyMeta: ['Updated: 3 October 2026', 'Kalyx', 'French law and GDPR'],
     privacyContact: 'A question about your data?',
     termsTitle: 'Terms of use',
     termsIntro: 'Read these terms carefully before using Kalyx Wallet. They define the framework of responsible use and the specifics of the non-custodial model.',
-    termsMeta: ['Revised: 5 July 2026', 'Beta version', 'Non-custodial model'],
+    termsMeta: ['Revised: 3 October 2026', 'Beta version', 'Non-custodial model'],
     termsContact: 'Need clarification?',
     mentionsTitle: 'Legal notice',
     mentionsIntro: 'Under Article 6 of French law n° 2004-575 of 21 June 2004 for confidence in the digital economy (LCEN), here is the identity of this site’s publisher and its host.',
-    mentionsMeta: ['Updated: 16 September 2026', 'Kalyx', 'LCEN — Publisher & host'],
+    mentionsMeta: ['Updated: 3 October 2026', 'Kalyx', 'LCEN — Publisher & host'],
     mentionsContact: 'A question about the publisher or hosting?',
     contactText: 'Write to us with any question about security, compliance or the terms.',
   },

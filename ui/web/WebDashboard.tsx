@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAsync } from './useAsync';
 import { AgentPanel, AgentSetup, PROVIDER_LABELS } from './AgentPanel';
 import { MarketPanel } from './MarketPanel';
-import { WEB_FONTS, useWebFonts, useWebPalette } from './webTheme';
+import { WEB_FONTS, useWebFonts, useWebPalette, webLocale } from './webTheme';
 import { useWebT, type WebKey } from './webI18n';
 import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useTelegramClosingConfirmation, useIdle, useTabHidden, tgHaptic } from './platform';
 import { toRaw, encodeErc20Transfer } from './evmEncode';
@@ -49,6 +49,7 @@ import {
   formatTokenAmount,
   formatAmount,
   trimDecimalZeros,
+  formatPercent,
   chainIconUrl,
   humanizeTx,
   type Erc20Token,
@@ -76,7 +77,7 @@ const GOLD = '#C89B5C';
  *  correctement les autres devises (symbole avant pour $, £…). */
 function formatFiatAmount(amount: number, fiat: string): string {
   try {
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+    return new Intl.NumberFormat(webLocale(), { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
   } catch {
     return `${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${fiat.toUpperCase()}`;
   }
@@ -911,8 +912,14 @@ function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null
   const today = worth.data?.change24h ?? 0;
   const todayUp = today >= 0;
   const slice = worth.data?.slices.find((s) => s.chain.id === chain.id);
-  const nativeChange = slice?.change24h ?? 0;
-  const price = slice?.price ?? (values.length ? values[values.length - 1] : 0);
+  /*
+   * Prix et variation de l'actif natif. Sans solde, la tranche du portefeuille
+   * porte un prix NUL : l'écran affichait « — » et « +0 % » à côté d'un graphique
+   * bien réel. Repli sur le graphique (variation exacte sur 24 h seulement).
+   */
+  const sliceOk = !!slice && slice.price > 0;
+  const nativeChange: number | null = sliceOk ? slice!.change24h ?? 0 : days === '1' && values.length > 1 ? pct : null;
+  const price = sliceOk ? slice!.price : values.length ? values[values.length - 1] : 0;
   return { sym, days, setDays, bal, points, loading, values, pct, up, total, today, todayUp, nativeChange, price };
 }
 type HeroData = ReturnType<typeof useHeroData>;
@@ -936,7 +943,7 @@ function formatScrubDate(ts: number, days: string): string {
 /** « 1,84 » + « € » séparés pour afficher le symbole plus petit et grisé. */
 function formatFiatParts(amount: number, fiat: string): { number: string; symbol: string } {
   try {
-    const parts = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).formatToParts(amount);
+    const parts = new Intl.NumberFormat(webLocale(), { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).formatToParts(amount);
     const symbol = parts.filter((p) => p.type === 'currency').map((p) => p.value).join('');
     const number = parts.filter((p) => p.type !== 'currency' && p.type !== 'literal').map((p) => p.value).join('');
     return { number: number || amount.toFixed(2), symbol: symbol || fiatSymbol(fiat) };
@@ -1022,7 +1029,7 @@ function MobileHero({ data, chain, address, large }: { data: HeroData; chain: Ch
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name={todayUp ? 'send' : 'receive'} size={12} color={changeColor} weight="bold" />
             <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '500', fontSize: 13, color: changeColor }}>
-              {`${todayUp ? '+' : '-'}${formatFiatAmount(Math.abs(absChange), fiat)} · ${todayUp ? '+' : '-'}${Math.abs(today).toFixed(2)} % ${t('today')}`}
+              {`${todayUp ? '+' : '-'}${formatFiatAmount(Math.abs(absChange), fiat)} · ${todayUp ? '+' : '-'}${formatPercent(Math.abs(today))} ${t('today')}`}
             </Text>
           </View>
         ) : null}
@@ -1057,7 +1064,7 @@ function MobileTrend({ data, chain }: { data: HeroData; chain: ChainConfig }) {
   const [w, setW] = useState(0);
   if (!chain.coingeckoId) return null;
   const lineColor = up ? P.up : P.down;
-  const changeColor = nativeChange >= 0 ? P.up : P.down;
+  const changeColor = nativeChange == null ? P.muted : nativeChange >= 0 ? P.up : P.down;
   return (
     <View style={{ gap: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1067,7 +1074,7 @@ function MobileTrend({ data, chain }: { data: HeroData; chain: ChainConfig }) {
             {`${formatFiatAmount(scrub.v, fiat)} · ${formatScrubDate(scrub.t, days)}`}
           </Text>
         ) : values.length ? (
-          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 12, color: lineColor }}>{`${up ? '+' : ''}${pct.toFixed(2)} %`}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 12, color: lineColor }}>{`${up ? '+' : ''}${formatPercent(pct)}`}</Text>
         ) : null}
       </View>
       {loading && !values.length ? (
@@ -1090,7 +1097,7 @@ function MobileTrend({ data, chain }: { data: HeroData; chain: ChainConfig }) {
         </View>
         <View style={{ alignItems: 'flex-end', gap: 2 }}>
           <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 14, color: P.text, fontVariant: ['tabular-nums'] }}>{price ? formatFiatAmount(price, fiat) : '—'}</Text>
-          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: changeColor }}>{`${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)} % · 24 h`}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: changeColor }}>{nativeChange == null ? '— · 24 h' : `${nativeChange >= 0 ? '+' : ''}${formatPercent(nativeChange)} · 24 h`}</Text>
         </View>
       </View>
     </View>
