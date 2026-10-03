@@ -164,10 +164,19 @@ function fmtDeadline(v: unknown): string | null {
  * pour vider un portefeuille d'un coup.
  */
 function grants(m: Record<string, any>): { token?: unknown; amount?: unknown; expiration?: unknown }[] {
-  const list = (v: unknown) => (Array.isArray(v) ? v : v && typeof v === 'object' ? [v] : []) as Record<string, any>[];
-  const out = [...list(m.details), ...list(m.permitted)].map((g) => ({ token: g.token, amount: g.amount ?? g.value, expiration: g.expiration }));
-  return out.length ? out : [{ token: m.token, amount: m.value ?? m.amount, expiration: undefined }];
+  const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
+  const list = (v: unknown) => (Array.isArray(v) ? v.filter(isObj) : isObj(v) ? [v] : []);
+  const nested = [...list(m.details), ...list(m.permitted)].map((g) => ({ token: g.token, amount: g.amount ?? g.value, expiration: g.expiration }));
+  /*
+   * Le montant À PLAT compte TOUJOURS : un champ `details` factice (hors des
+   * types signés) ne doit pas masquer un `value` illimité, qui seul fait foi
+   * pour un Permit ERC-2612.
+   */
+  return [...nested, { token: m.token, amount: m.value ?? m.amount, expiration: undefined }];
 }
+
+/** Booléen EIP-712 : toute valeur « vraie » est encodée 1 (`true`, 1, "1", "true"). */
+const truthy = (v: unknown) => v === true || v === 1 || v === '1' || (typeof v === 'string' && v.toLowerCase() === 'true') || (typeof v === 'bigint' && v !== 0n);
 
 /** Le plus fort des montants (un seul illimité suffit), et l'échéance la plus lointaine. */
 function worstGrant(m: Record<string, any>): { amount: bigint | null; token?: string; expiry: unknown } {
@@ -185,8 +194,11 @@ function worstGrant(m: Record<string, any>): { amount: bigint | null; token?: st
     if (e != null && (cur == null || e > cur)) expiry = g.expiration;
   }
   // Permis DAI : `allowed: true` = autorisation ILLIMITÉE, `expiry: 0` = sans fin.
-  if (m.allowed === true) amount = 2n ** 256n - 1n;
-  if (m.allowed !== undefined && asBigInt(m.expiry) === 0n) expiry = NO_EXPIRY;
+  // Révocation (`allowed: false`) : rien d'illimité ni d'éternel — c'est elle qui réduit le risque.
+  if (truthy(m.allowed)) {
+    amount = 2n ** 256n - 1n;
+    if (asBigInt(m.expiry) === 0n) expiry = NO_EXPIRY;
+  }
   return { amount, token, expiry };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -238,7 +250,15 @@ export function summarizeTypedData(raw: unknown): TypedDataSummary | null {
   const primary = String(out.primaryType ?? '');
   out.permit2 = domain.name === 'Permit2' || /^Permit(Single|Batch|TransferFrom|WitnessTransferFrom)$/.test(primary);
   // Ordres NFT : Seaport (OrderComponents, offer/consideration), Blur et consorts (Order, BulkOrder).
-  out.order = /order/i.test(primary) || (Array.isArray(m.offer) && Array.isArray(m.consideration));
+  /*
+   * PLACES DE MARCHÉ NFT seulement — un ordre de DEX (CoW, 1inch, 0x) ou de
+   * marché de prédiction est routinier : l'alarmer apprendrait à ignorer le rouge.
+   * Seaport : offer/consideration ; Blur, LooksRare : leur domaine EIP-712.
+   */
+  out.order =
+    (Array.isArray(m.offer) && Array.isArray(m.consideration)) ||
+    /^(seaport|blur exchange|looksrareprotocol|looksrare)$/i.test(String(domain.name ?? '')) ||
+    /^(OrderComponents|BulkOrder|MakerOrder|Maker)$/.test(primary);
   const worst = worstGrant(m);
   const token = m.token ?? nested.token ?? worst.token ?? (primary === 'Permit' && !out.permit2 ? domain.verifyingContract : undefined);
   if (typeof token === 'string') out.token = token;

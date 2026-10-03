@@ -267,10 +267,11 @@ export async function getStonfiQuote(p: StonfiQuoteParams, fetchImpl: typeof fet
   }
   if (BigInt(j.offer_units ?? '0') !== p.fromAmount) throw new SwapError('PROVIDER_UNAVAILABLE', 'STON.fi : montant du devis incohérent');
   /*
-   * PROTECTION DE GLISSEMENT vérifiée ICI, pas confiée au serveur : le minimum
-   * reçu doit valoir au moins `ask × (1 − glissement)` (1 point de base de
-   * tolérance d'arrondi). Un minimum à 1 (API compromise) laissait l'échange
-   * se faire « sandwicher » jusqu'à presque rien.
+   * COHÉRENCE du devis : le minimum reçu doit valoir au moins
+   * `ask × (1 − glissement)` (1 point de base d'arrondi). Un minimum à 1, sans
+   * rapport avec le glissement choisi, est refusé. Ce n'est PAS une garantie de
+   * prix contre une API qui mentirait aussi sur `ask` : seule une référence
+   * indépendante le permettrait.
    */
   const ask = BigInt(j.ask_units ?? '0');
   const minAsk = BigInt(j.min_ask_units);
