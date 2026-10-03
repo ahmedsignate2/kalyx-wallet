@@ -320,10 +320,18 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     } catch {
       /* contexte refusé par le filtre anti-secret : on continue sans */
     }
-    const r = await askAi(transcript, buildWebSystem(language, ctx));
-    setBusy(false);
+    // Une exception imprévue (réseau, fournisseur) laissait la saisie bloquée en « réflexion » pour toujours.
+    let reply: string;
+    try {
+      const r = await askAi(transcript, buildWebSystem(language, ctx));
+      reply = 'text' in r ? r.text : `⚠ ${r.error}`;
+    } catch (e) {
+      reply = `⚠ ${e instanceof Error && e.message ? e.message : tw('unexpectedError')}`;
+    } finally {
+      setBusy(false);
+    }
     lastAnswerAt.current = Date.now();
-    addMessageToActive({ sender: 'assistant', text: 'text' in r ? r.text : `⚠ ${r.error}` });
+    addMessageToActive({ sender: 'assistant', text: reply });
   };
 
   const copyAnswer = async (text: string) => {

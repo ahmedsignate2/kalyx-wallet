@@ -36,7 +36,8 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
       if (!c) continue;
       const fam = c.family as Fam;
       const cur = byFam.get(fam);
-      const preferred = c.id === chain.id || (!cur && !c.testnet);
+      // Réseau affiché d'abord ; sinon le principal plutôt qu'un réseau de test (une adresse Bitcoin de test `tb1…` n'est pas une adresse de réception réelle).
+      const preferred = c.id === chain.id || (!!cur && cur.chain.id !== chain.id && !!cur.chain.testnet && !c.testnet);
       if (!cur || preferred) byFam.set(fam, { chain: c, address: a.address });
     }
     return [...byFam.values()];

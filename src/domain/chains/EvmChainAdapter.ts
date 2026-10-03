@@ -695,7 +695,13 @@ export class EvmChainAdapter implements ChainAdapter {
 
   /** Attend la confirmation d'une transaction (1 bloc). */
   async waitForTx(hash: string): Promise<void> {
-    await this.call((p) => p.waitForTransaction(hash, 1, 120_000));
+    /*
+     * ethers rend le reçu SANS lever quand l'exécution a échoué (revert) : la
+     * transaction est incluse, les frais payés, rien n'a eu lieu. Tous les
+     * appelants (envoi, échange, Earn, autorisations) l'annonçaient « réussie ».
+     */
+    const receipt = await this.call((p) => p.waitForTransaction(hash, 1, 120_000));
+    if (receipt && receipt.status === 0) throw new WalletError('TX_FAILED', 'Transaction incluse mais exécution échouée (revert)');
   }
 
   /**
