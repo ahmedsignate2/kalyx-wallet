@@ -4,7 +4,7 @@ const it: Dict = {
   meta: {
     title: 'Kalyx Wallet — Wallet crypto non-custodial e multi-chain',
     description:
-      'Le tue chiavi restano sul tuo telefono. Bitcoin, Ethereum, Solana e 64 reti, ogni firma spiegata prima di firmare. Gratis, senza account.',
+      'Le tue chiavi restano sul tuo telefono. Bitcoin, Ethereum, TON, Solana e 65 reti, ogni firma spiegata prima di firmare. Gratis, senza account.',
   },
   nav: {
     how: 'Come funziona',
@@ -41,7 +41,7 @@ const it: Dict = {
     line1: 'La sovranità',
     line2: 'dei tuoi asset.',
     line3: 'Senza compromessi.',
-    sub: 'Gestisci Bitcoin, Ethereum e Solana in piena libertà. Le tue chiavi private non lasciano mai il tuo telefono.',
+    sub: 'Gestisci Bitcoin, Ethereum, TON e Solana in piena libertà. Le tue chiavi private non lasciano mai il tuo telefono.',
     cta: 'Scarica l’APK',
     ctaSecondary: 'Scopri la sicurezza',
     chips: ['Non-custodial', 'AES-256-GCM', 'Zero telemetria', 'Multi-chain', 'IA opzionale (BYOK)'],
@@ -51,18 +51,18 @@ const it: Dict = {
   networks: {
     label: 'Reti supportate',
     walletconnect: 'Interoperabile con WalletConnect (Reown)',
-    soon: 'TON sta arrivando: indirizzi e derivazione delle chiavi sono già scritti e testati.',
+    soon: 'TON, al completo: jetton, nomi .ton, TON Connect, swap su STON.fi e staking con Tonstakers.',
   },
   how: {
     kicker: 'Come funziona',
     title: 'Un wallet,',
     titleEm: 'non un labirinto.',
-    lead: 'Cinque schermate dell’app, così come sono oggi. Nessun mockup: sono schermate reali.',
+    lead: 'Sei schermate dell’app, così come sono oggi — generate dal suo codice, con un wallet dimostrativo.',
     steps: [
       {
         title: 'Un saldo. Tutte le tue chain.',
-        text: 'Bitcoin, Ethereum e i suoi Layer 2, Solana: 64 reti aggregate in una sola cifra, una sola curva. Il saldo compare dalla cache prima ancora che la rete risponda.',
-        value: '64',
+        text: 'Bitcoin, Ethereum e i suoi Layer 2, Solana: 65 reti aggregate in una sola cifra, una sola curva. Il saldo compare dalla cache prima ancora che la rete risponda.',
+        value: '65',
         label: 'reti',
       },
       {
@@ -73,13 +73,13 @@ const it: Dict = {
       },
       {
         title: 'Swap senza uscire dall’app.',
-        text: 'Jupiter su Solana, LI.FI e Relay sulle chain EVM e tra chain diverse. La rotta è scritta in una frase, l’impatto sul prezzo è annunciato prima di confermare.',
-        value: '3',
+        text: 'Jupiter su Solana, LI.FI e Relay sulle chain EVM e tra chain diverse. La rotta è scritta in una frase, l’impatto sul prezzo è annunciato prima di confermare. E STON.fi su TON.',
+        value: '4',
         label: 'router, firmi tu stesso',
       },
       {
         title: 'Far lavorare ciò che dorme.',
-        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade. Depositi dal tuo wallet, prelevi quando vuoi. Kalyx non trattiene nulla.',
+        text: 'Aave v3, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers. Depositi dal tuo wallet, prelevi quando vuoi. Kalyx non trattiene nulla.',
         value: '0 %',
         label: 'di commissione Kalyx su Earn',
       },
@@ -89,6 +89,12 @@ const it: Dict = {
         value: '1',
         label: 'frase per firma',
       },
+      {
+        title: 'Sul computer, e in Telegram.',
+        text: 'La dashboard app.kalyxwallet.com e la mini app di Telegram mostrano saldi, token, NFT e mercato, e preparano invii e swap. Non detengono alcuna chiave: ogni firma si approva sul telefono, tramite WalletConnect.',
+        value: '0',
+        label: 'chiavi fuori dal telefono',
+      }
     ],
   },
   lose: {
@@ -154,6 +160,27 @@ const it: Dict = {
       waits: ['nessuna attesa', '30 s', '1 min', '5 min', '15 min', '1 h'],
       closing: 'E se un giorno perdi il telefono: le tue dodici parole, sul loro foglio, ricreano tutto su un altro.',
     },
+    s4: {
+      kicker: 'La whitelist',
+      title: 'Conosce il tuo PIN. Non la tua pazienza.',
+      text: 'Attiva la whitelist: gli invii vanno solo agli indirizzi scelti e ai tuoi account. Anche con il tuo PIN, un ladro non può cambiare nulla entro un’ora.',
+      rows: [
+        ['Indirizzo aggiunto', 'utilizzabile tra 24 h'],
+        ['Disattivare la protezione', 'effettivo tra 24 h'],
+        ['Invio a uno sconosciuto', 'bloccato'],
+      ],
+      closing: 'Un ladro di fretta se ne va a mani vuote.',
+    },
+    s5: {
+      kicker: 'La coercizione',
+      title: 'Ti costringono ad aprire l’app.',
+      text: 'Digita il codice di coercizione: Kalyx si apre normalmente, su un wallet esca. I tuoi wallet reali, contatti e notifiche restano invisibili — nulla indica che esistano.',
+      rows: [
+        ['Il tuo PIN', 'i wallet reali'],
+        ['Codice di coercizione', 'il wallet esca'],
+      ],
+      closing: 'La biometria si disattiva finché esiste: un volto aprirebbe sempre quelli reali.',
+    },
     footer1: 'Tutto questo gira',
     footerEm: 'sul tuo telefono',
     footer2: '. Kalyx non ha alcun server che veda le tue chiavi, il tuo indirizzo IP non ci viene mai inviato, nessun SDK di analisi guarda da sopra la tua spalla.',
@@ -184,7 +211,7 @@ const it: Dict = {
       { value: '0,3 %', label: 'su uno swap via LI.FI', note: 'EVM e tra chain. È l’unica entrata di Kalyx.' },
       { value: '0,3 %', label: 'su uno swap TON tramite STON.fi', note: 'Scambi su TON (TON, USD₮, jetton). Stessa commissione di LI.FI.' },
       { value: '0 %', label: 'su uno swap Solana via Jupiter', note: 'Nessuna commissione aggiunta alla rotta.' },
-      { value: '0 %', label: 'su Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade: nulla trattenuto al deposito né al prelievo.' },
+      { value: '0 %', label: 'su Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers: nulla trattenuto al deposito né al prelievo.' },
       { value: '0 €', label: 'di abbonamento, per sempre', note: 'Nessuna versione «pro», nessuna funzione dietro un pedaggio.' },
     ],
     p1a: 'Prima di ogni firma, le commissioni di rete sono mostrate',

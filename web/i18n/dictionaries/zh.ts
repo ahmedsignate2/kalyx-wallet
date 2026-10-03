@@ -3,7 +3,7 @@ import type { Dict } from './fr';
 const zh: Dict = {
   meta: {
     title: 'Kalyx Wallet — 非托管、多链加密货币钱包',
-    description: '你的密钥只留在你的手机上。Bitcoin、Ethereum、Solana 与 64 条网络，每一次签名都在签署前解释清楚。免费，无需账户。',
+    description: '你的密钥只留在你的手机上。Bitcoin、Ethereum、TON、Solana 与 65 条网络，每一次签名都在签署前解释清楚。免费，无需账户。',
   },
   nav: {
     how: '运作方式',
@@ -40,7 +40,7 @@ const zh: Dict = {
     line1: '你的资产，',
     line2: '你的主权。',
     line3: '毫不妥协。',
-    sub: '自由管理 Bitcoin、Ethereum 与 Solana。你的私钥永远不会离开你的手机。',
+    sub: '自由管理 Bitcoin、Ethereum、TON 与 Solana。你的私钥永远不会离开你的手机。',
     cta: '下载 APK',
     ctaSecondary: '了解安全',
     chips: ['非托管', 'AES-256-GCM', '零遥测', '多链', '可选 AI（BYOK）'],
@@ -50,18 +50,18 @@ const zh: Dict = {
   networks: {
     label: '支持的网络',
     walletconnect: '与 WalletConnect（Reown）互操作',
-    soon: 'TON 即将支持：地址与密钥派生已编写并通过测试。',
+    soon: '完整支持 TON：Jetton、.ton 域名、TON Connect、STON.fi 兑换与 Tonstakers 质押。',
   },
   how: {
     kicker: '运作方式',
     title: '是钱包，',
     titleEm: '不是迷宫。',
-    lead: '应用的五个界面，正是今天的样子。没有效果图：都是真实截图。',
+    lead: '应用当下的六个界面——由其代码渲染，使用演示钱包。',
     steps: [
       {
         title: '一个余额。你的所有链。',
-        text: 'Bitcoin、Ethereum 及其 Layer 2、Solana：64 条网络汇聚成一个数字、一条曲线。余额在网络响应之前就从缓存中显示。',
-        value: '64',
+        text: 'Bitcoin、Ethereum 及其 Layer 2、Solana：65 条网络汇聚成一个数字、一条曲线。余额在网络响应之前就从缓存中显示。',
+        value: '65',
         label: '条网络',
       },
       {
@@ -72,13 +72,13 @@ const zh: Dict = {
       },
       {
         title: '不离开应用即可兑换。',
-        text: 'Solana 上用 Jupiter，EVM 链及跨链用 LI.FI 与 Relay。路径用一句话写明，价格影响在确认前告知。',
-        value: '3',
+        text: 'Solana 上用 Jupiter，EVM 链及跨链用 LI.FI 与 Relay。路径用一句话写明，价格影响在确认前告知。 以及 TON 上的 STON.fi。',
+        value: '4',
         label: '个路由，由你亲自签名',
       },
       {
         title: '让闲置的资产工作。',
-        text: 'Aave v3、Lido、Rocket Pool、Benqi、Jito、Marinade。从钱包存入，随时取出。Kalyx 中途分文不取。',
+        text: 'Aave v3、Lido、Rocket Pool、Benqi、Jito、Marinade, Tonstakers。从钱包存入，随时取出。Kalyx 中途分文不取。',
         value: '0%',
         label: 'Earn 的 Kalyx 费用',
       },
@@ -88,6 +88,12 @@ const zh: Dict = {
         value: '1',
         label: '句话对应一次签名',
       },
+      {
+        title: '在电脑上，也在 Telegram 里。',
+        text: 'app.kalyxwallet.com 面板和 Telegram 小程序显示余额、代币、NFT 与行情，并准备转账和兑换。它们不保存任何密钥：每次签名都通过 WalletConnect 在你的手机上确认。',
+        value: '0',
+        label: '手机之外的密钥',
+      }
     ],
   },
   lose: {
@@ -153,6 +159,27 @@ const zh: Dict = {
       waits: ['无需等待', '30 秒', '1 分钟', '5 分钟', '15 分钟', '1 小时'],
       closing: '哪天手机丢了：纸上的十二个词，能在另一台手机上重建一切。',
     },
+    s4: {
+      kicker: '白名单',
+      title: '他知道你的 PIN，却没有你的耐心。',
+      text: '开启白名单：转账只会发往你选定的地址和你自己的账户。即使知道 PIN，小偷在一小时内也改不了任何设置。',
+      rows: [
+        ['新增地址', '24 小时后可用'],
+        ['关闭保护', '24 小时后生效'],
+        ['转给陌生地址', '已阻止'],
+      ],
+      closing: '心急的小偷只能空手而归。',
+    },
+    s5: {
+      kicker: '胁迫之下',
+      title: '有人逼你打开应用。',
+      text: '输入胁迫码：Kalyx 会正常打开一个诱饵钱包。你的真实钱包、联系人和通知都不可见——毫无迹象表明它们存在。',
+      rows: [
+        ['你的 PIN', '真实钱包'],
+        ['胁迫码', '诱饵钱包'],
+      ],
+      closing: '只要胁迫码存在，生物识别就会关闭：一张脸总会打开真实钱包。',
+    },
     footer1: '这一切都运行在',
     footerEm: '你的手机上',
     footer2: '。Kalyx 没有任何能看到你密钥的服务器，你的 IP 地址从不发送给我们，也没有任何分析 SDK 在你身后窥视。',
@@ -183,7 +210,7 @@ const zh: Dict = {
       { value: '0.3%', label: '通过 LI.FI 兑换', note: 'EVM 及跨链。这是 Kalyx 唯一的收入。' },
       { value: '0.3%', label: '通过 STON.fi 的 TON 兑换', note: 'TON 上的兑换（TON、USD₮、Jetton）。与 LI.FI 相同的费率。' },
       { value: '0%', label: '通过 Jupiter 在 Solana 上兑换', note: '路径中不附加任何佣金。' },
-      { value: '0%', label: 'Earn', note: 'Aave、Lido、Rocket Pool、Benqi、Jito、Marinade：存入与取出均不收取分毫。' },
+      { value: '0%', label: 'Earn', note: 'Aave、Lido、Rocket Pool、Benqi、Jito、Marinade, Tonstakers：存入与取出均不收取分毫。' },
       { value: '0 €', label: '订阅费，永远', note: '没有“专业版”，没有付费墙后的功能。' },
     ],
     p1a: '每次签名前，网络费都',
