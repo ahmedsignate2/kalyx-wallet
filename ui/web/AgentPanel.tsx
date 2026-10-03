@@ -118,7 +118,8 @@ export function AgentSetup() {
         {tw('activateAgentBody')}
       </Text>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ width: '100%', maxWidth: 400 }} contentContainerStyle={{ flexDirection: 'row', gap: spacing(0.75), justifyContent: 'center', marginTop: spacing(1), paddingHorizontal: spacing(1) }}>
+      {/* Sur plusieurs lignes : en défilement horizontal, les derniers fournisseurs étaient coupés sans indice qu'il y en avait d'autres. */}
+      <View style={{ width: '100%', maxWidth: 420, flexDirection: 'row', flexWrap: 'wrap', gap: spacing(0.75), justifyContent: 'center', marginTop: spacing(1), paddingHorizontal: spacing(1) }}>
         {PROVIDERS.map((p) => {
           const on = p === provider;
           return (
@@ -127,7 +128,7 @@ export function AgentSetup() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       <View style={{ width: '100%', maxWidth: 340, flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, paddingHorizontal: spacing(1.25), marginTop: spacing(1) }}>
         <TextInput
@@ -143,7 +144,7 @@ export function AgentSetup() {
           // champ (ce n'est pas un mot de passe de compte, juste une clé API
           // BYOK stockée localement) — le bandeau recouvrait le clavier mobile.
           textContentType="oneTimeCode"
-          style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 14, paddingVertical: spacing(1.25) }}
+          style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 14, fontFamily: fonts.regular, paddingVertical: spacing(1.25) }}
         />
         <Pressable onPress={() => setShowKey((v) => !v)} hitSlop={6}>
           <Icon name={showKey ? 'eyeOff' : 'eye'} size={17} color={colors.textMuted} />
@@ -151,7 +152,7 @@ export function AgentSetup() {
       </View>
       {PROVIDER_DEFAULTS[provider]?.helperUrl ? (
         <Pressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[provider].helperUrl!)}>
-          <Text style={{ color: colors.accent, fontSize: 12, textDecorationLine: 'underline' }}>{tw('getFreeKey')}</Text>
+          <Text style={{ color: colors.accent, fontSize: 12, fontFamily: fonts.medium, textDecorationLine: 'underline' }}>{tw('getFreeKey')}</Text>
         </Pressable>
       ) : null}
 
@@ -163,7 +164,7 @@ export function AgentSetup() {
             placeholder={tw('apiUrlPlaceholder')}
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
-            style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
+            style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13, fontFamily: fonts.regular }}
           />
         ) : null}
         {/* L'accès aux modèles varie par compte, pas juste par fournisseur
@@ -175,7 +176,7 @@ export function AgentSetup() {
           placeholder={provider === 'custom' ? tw('modelNamePlaceholder') : tw('modelOptional', { model: PROVIDER_DEFAULTS[provider]?.model ?? '' })}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="none"
-          style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13 }}
+          style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13, fontFamily: fonts.regular }}
         />
       </View>
       {err ? <Text style={{ color: colors.danger, fontSize: 12, textAlign: 'center' }}>{err}</Text> : null}
