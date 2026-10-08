@@ -31,6 +31,18 @@ describe('transactionsToCsv', () => {
     expect(row).toContain('0.0'); // montant 0
   });
 
+  it('neutralise les formules (jeton spam nommé « =HYPERLINK(…) »)', () => {
+    const csv = transactionsToCsv([tx({ asset: '=HYPERLINK("http://x","clic")', from: '@SUM(A1)', to: '+1+1' })], ctx);
+    const row = csv.split('\r\n')[1];
+    expect(row).toContain(`"'=HYPERLINK(""http://x"",""clic"")"`);
+    expect(row).toContain("'@SUM(A1)");
+    expect(row).toContain("'+1+1");
+    // Un vrai nombre négatif reste un nombre ; un « - » suivi de texte est neutralisé.
+    const neg = transactionsToCsv([tx({ asset: '-2+3', from: '-12.5' })], ctx).split('\r\n')[1];
+    expect(neg).toContain("'-2+3");
+    expect(neg).toContain(',-12.5,');
+  });
+
   it('échappe les champs contenant une virgule/guillemet', () => {
     const csv = transactionsToCsv([tx({ from: 'a,b' })], { ...ctx, chainName: 'Base "L2"' });
     const row = csv.split('\r\n')[1];

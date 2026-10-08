@@ -12,6 +12,7 @@ const CODES: Record<string, WebKey> = {
   REQUEST_EXPIRED: 'signExpired',
   NOT_CONNECTED: 'webNotConnected',
   SESSION_LOST: 'webSessionLost',
+  UNSUPPORTED_CHAIN: 'webUnsupportedChain',
 };
 
 /** Clé web d'un code de lib/webConnect, ou null. */
