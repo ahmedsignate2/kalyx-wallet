@@ -34,8 +34,16 @@ export interface CsvContext {
 const HEADER = ['Date (UTC)', 'Réseau', 'Sens', 'Montant', 'Actif', 'De', 'Vers', 'Statut', 'Hash', 'Lien'];
 
 function esc(v: string): string {
+  /*
+   * INJECTION DE FORMULE. Le nom d'un jeton vient de son contrat : un jeton
+   * spam peut s'appeler « =HYPERLINK(…) ». Ouvert dans Excel ou Sheets, ce
+   * champ deviendrait une formule. Un champ qui commence par = + @ (ou une
+   * tabulation, un retour chariot, un « - » qui n'est pas un nombre) est donc
+   * préfixé d'une apostrophe : il reste du texte.
+   */
+  if (/^[=+@\t\r]/.test(v) || (v.startsWith('-') && !/^-\d+([.,]\d+)?$/.test(v))) v = `'${v}`;
   // Échappe si le champ contient une virgule, un guillemet ou un saut de ligne.
-  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
 const SENS: Record<TxSummary['direction'], string> = { in: 'Reçu', out: 'Envoyé', self: 'Interne' };

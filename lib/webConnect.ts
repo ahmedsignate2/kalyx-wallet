@@ -211,7 +211,13 @@ function kalyxToCaip(kalyxChainId: string): string {
   const c = listChains({ includeTestnets: true }).find((x) => x.id === kalyxChainId);
   if (c?.family === 'solana') return c.id === 'solana-devnet' ? SOLANA_DEVNET_CAIP : SOLANA_CAIP;
   if (c?.family === 'bitcoin') return BTC_CAIP;
-  return `eip155:${c?.evmChainId ?? 1}`;
+  /*
+   * Réseau inconnu ou sans identifiant EVM : on REFUSE. L'ancien repli sur
+   * « eip155:1 » envoyait la demande sur Ethereum mainnet au lieu du réseau
+   * choisi — exactement le genre d'erreur qu'un portefeuille ne doit pas faire.
+   */
+  if (c?.family !== 'evm' || !c.evmChainId) throw new Error('UNSUPPORTED_CHAIN'); // code : traduit à l'affichage (ui/web/webErrors)
+  return `eip155:${c.evmChainId}`;
 }
 
 export const useWebConnect = create<WebConnectState>((set, get) => ({
@@ -353,6 +359,9 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
   request: async (method, params) => {
     const { topic, selected } = get();
     if (!client || !topic || !selected) throw new Error('NOT_CONNECTED'); // code : traduit à l'affichage (ui/web/webErrors)
+    // Le réseau choisi doit être l'un de ceux que le téléphone a partagés.
+    if (!get().accounts.some((a) => a.chainId === selected)) throw new Error('UNSUPPORTED_CHAIN');
+    const caip = kalyxToCaip(selected);
     // Garde-fou anti-« session zombie » : si le téléphone a laissé tomber la
     // session (verrouillage ancien, relance de l'app…), le web pouvait rester
     // « connecté » et la requête partait dans le vide. On vérifie d'abord que la
@@ -385,7 +394,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
     });
     try {
       const res = await Promise.race([
-        client.request<string>({ topic, chainId: kalyxToCaip(selected), request: { method, params }, expiry: REQ_EXPIRY_S }),
+        client.request<string>({ topic, chainId: caip, request: { method, params }, expiry: REQ_EXPIRY_S }),
         timeout,
       ]);
       // Signé sur le téléphone : succès auto-fermant + retour au tableau de bord à jour.

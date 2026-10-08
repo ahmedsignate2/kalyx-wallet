@@ -42,7 +42,9 @@ if (!TOKEN) {
 // 1. Le build EAS
 let build;
 try {
-  const out = execFileSync('npx', ['--yes', 'eas-cli@latest', 'build:view', BUILD_ID, '--json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+  // Le jeton GitHub n'est PAS transmis à eas-cli (téléchargé à la volée) : il n'en a pas besoin.
+  const { GH_RELEASE_TOKEN: _omit, ...env } = process.env;
+  const out = execFileSync('npx', ['--yes', 'eas-cli@latest', 'build:view', BUILD_ID, '--json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], env });
   build = JSON.parse(out.slice(out.indexOf('{')));
 } catch (e) {
   fail(`Lecture du build ${BUILD_ID} impossible sur EAS : ${e.message}`);
@@ -91,14 +93,16 @@ const created = await gh(`https://api.github.com/repos/${REPO}/releases`, {
       '',
       'Vérification : `sha256sum -c kalyx-wallet.apk.sha256`',
     ].join('\n'),
+    // BROUILLON d'abord : la release ne devient « la dernière » (celle que sert
+    // kalyxwallet.com/download) qu'une fois l'APK et son empreinte envoyés.
+    draft: true,
     prerelease: false,
-    make_latest: 'true',
   }),
 });
 if (!created.ok) {
   if (created.status === 401 || created.status === 403) fail(`GitHub refuse le jeton (HTTP ${created.status}) : vérifier que GH_RELEASE_TOKEN a Contents: Read and write sur ${REPO}.`);
   if (created.status === 404) fail(`Dépôt ${REPO} introuvable pour ce jeton (HTTP 404).`);
-  if (created.status === 422) fail(`La release ${tag} existe déjà (HTTP 422) : ce build a déjà été publié.`);
+  if (created.status === 422) fail(`La release ${tag} existe déjà (HTTP 422), publiée ou en brouillon : ce build a déjà été envoyé.`);
   fail(`Création de la release refusée (HTTP ${created.status}) : ${created.text.slice(0, 300)}`);
 }
 const uploadBase = created.json.upload_url.replace(/\{.*$/, '');
@@ -108,7 +112,14 @@ for (const [name, data, type] of [
   ['kalyx-wallet.apk.sha256', Buffer.from(shaLine), 'text/plain'],
 ]) {
   const up = await gh(`${uploadBase}?name=${encodeURIComponent(name)}`, { method: 'POST', headers: { 'Content-Type': type }, body: data });
-  if (!up.ok) fail(`Envoi de ${name} refusé (HTTP ${up.status}) : ${up.text.slice(0, 300)}. La release ${tag} existe sans ce fichier — la supprimer avant de relancer.`);
+  if (!up.ok) fail(`Envoi de ${name} refusé (HTTP ${up.status}) : ${up.text.slice(0, 300)}. La release ${tag} reste en brouillon (le téléchargement public n'a pas changé) — supprimer ce brouillon avant de relancer.`);
   console.log(`✓ ${name} envoyé`);
 }
-console.log(`\n✓ Release publiée : ${created.json.html_url}\n`);
+// Les deux fichiers sont là : publication, et elle devient la dernière.
+const pub = await gh(`https://api.github.com/repos/${REPO}/releases/${created.json.id}`, {
+  method: 'PATCH',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ draft: false, make_latest: 'true' }),
+});
+if (!pub.ok) fail(`Publication du brouillon ${tag} refusée (HTTP ${pub.status}) : ${pub.text.slice(0, 300)}. Les fichiers sont envoyés : publier le brouillon à la main sur GitHub.`);
+console.log(`\n✓ Release publiée : ${pub.json.html_url}\n`);
