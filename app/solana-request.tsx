@@ -11,7 +11,7 @@ import { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, Button, Surface, ListRow, IconButton, Skeleton, EmptyState } from '../ui/kit';
+import { Text, Button, ListRow, IconButton, Skeleton, EmptyState, Card } from '../ui/kit';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN } from '../ui/tokens';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
@@ -31,7 +31,7 @@ import {
   shortAddress,
   type TxRequestIdentity,
   type SolanaTxDescription,
-  type TxRequestRefusal,
+  type TxRequestRefusal
 } from '../src';
 
 export default function SolanaRequestScreen() {
@@ -153,32 +153,32 @@ export default function SolanaRequestScreen() {
         contentContainerStyle={{ padding: SCREEN_MARGIN, gap: space[4], paddingBottom: insets.bottom + space[6] }}
       >
         {loading ? (
-          <Surface>
+          <Card>
             <View style={{ gap: space[2] }}>
               <Skeleton width="55%" />
               <Skeleton width="80%" height={12} />
             </View>
-          </Surface>
+          </Card>
         ) : null}
 
         {error ? (
-          <Surface>
+          <Card>
             <EmptyState icon="warning" title={t('solReqRefused')} body={error} actionLabel={t('back')} onAction={close} />
-          </Surface>
+          </Card>
         ) : null}
 
         {!loading && !error ? (
           <>
-            <Surface>
+            <Card>
               <View style={{ gap: space[2] }}>
                 <Text variant="caption" tone="secondary">{t('payMerchant')}</Text>
                 <Text variant="title2">{identity?.label ?? t('solReqUnknownMerchant')}</Text>
                 {message ? <Text variant="body" tone="secondary">{message}</Text> : null}
               </View>
-            </Surface>
+            </Card>
 
             {/* CE QUE LA TRANSACTION FAIT, décodé par nous et non annoncé par le serveur. */}
-            <Surface padded={false}>
+            <Card padded={false}>
               <ListRow title={t('solReqAction')} subtitle={description?.action ?? '—'} />
               <ListRow
                 title={t('solReqPrograms')}
@@ -186,7 +186,7 @@ export default function SolanaRequestScreen() {
               />
               <ListRow title={t('solReqInstructions')} subtitle={String(description?.instructions ?? 0)} />
               <ListRow title={t('solReqFeePayer')} subtitle={shortAddress(description?.feePayer ?? '')} />
-            </Surface>
+            </Card>
 
             {/*
               Programmes non reconnus : on le DIT au lieu d'afficher une liste

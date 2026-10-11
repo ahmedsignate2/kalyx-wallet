@@ -13,7 +13,7 @@ import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ScreenCapture from 'expo-screen-capture';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { Text, Button, IconButton, Surface, EmptyState, Pressable as KPressable } from '../ui/kit';
+import { Text, Button, IconButton, EmptyState, Pressable as KPressable, Card } from '../ui/kit';
 import { FlowDots, Rise } from '../ui/nova';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
@@ -46,7 +46,7 @@ export default function Backup() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + 48, paddingHorizontal: SCREEN_MARGIN }}>
         <Stack.Screen options={{ headerShown: false }} />
-        <Surface><EmptyState icon="phrase" title={t('sessionExpired')} body={t('noPhraseToShow')} actionLabel={t('startOver')} onAction={() => router.replace('/welcome')} /></Surface>
+        <Card><EmptyState icon="phrase" title={t('sessionExpired')} body={t('noPhraseToShow')} actionLabel={t('startOver')} onAction={() => router.replace('/welcome')} /></Card>
       </View>
     );
   }
@@ -77,7 +77,7 @@ export default function Backup() {
           onPressOut={() => setHeld(false)}
           accessibilityLabel={t('holdToReveal')}
         >
-          <Surface style={{ flexDirection: 'row', gap: space[3] }}>
+          <Card style={{ flexDirection: 'row', gap: space[3] }}>
             {cols.map((col, c) => (
               <View key={c} style={{ flex: 1, gap: space[2] }}>
                 {col.map((w, i) => {
@@ -94,7 +94,7 @@ export default function Backup() {
                 })}
               </View>
             ))}
-          </Surface>
+          </Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[1], marginTop: space[2] }}>
             <Icon name={held ? 'eye' : 'eyeOff'} size={14} tone="muted" />
             <Text variant="caption" tone="secondary">{held ? t('releaseToHide') : `${t('holdToReveal')} · ${t('makeSureNobody')}`}</Text>

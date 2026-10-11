@@ -6,9 +6,8 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import { Button, Input, ScreenHeader, Text as KText } from '../ui/kit';
-import { NovaCard, NovaHero } from '../ui/nova';
-import { PremiumScreen } from '../ui/premium';
+import { Button, Input, ScreenHeader, Text as KText, Card, Screen } from '../ui/kit';
+import { NovaHero } from '../ui/nova';
 import { Icon } from '../ui/icon';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -54,10 +53,10 @@ export default function WatchWallet() {
   };
 
   return (
-    <PremiumScreen>
+    <Screen>
       <ScreenHeader />
       <NovaHero icon="eye" title={t('watchTitle')} subtitle={t('watchHint')} />
-      <NovaCard delay={120} style={{ gap: spacing(1.5) }}>
+      <Card rise delay={120} style={{ gap: spacing(1.5) }}>
         <Input
           value={address}
           onChangeText={(v) => {
@@ -70,18 +69,18 @@ export default function WatchWallet() {
           error={shownError}
         />
         <Input value={label} onChangeText={setLabel} placeholder={t('walletNamePlaceholder')} maxLength={32} />
-      </NovaCard>
+      </Card>
       {parsed?.ok ? (
-        <NovaCard delay={0} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+        <Card rise delay={0} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
           <Icon name="eye" size={20} color={colors.textSecondary} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <KText variant="body" numberOfLines={1} ellipsizeMode="middle">{parsed.address}</KText>
             <KText variant="caption" tone="secondary">{FAMILY[parsed.family]} · {t('watchBadge')}</KText>
           </View>
           <Icon name="check" size={20} color={colors.up} />
-        </NovaCard>
+        </Card>
       ) : null}
       <Button label={t('watchAddBtn')} icon="eye" loading={busy} disabled={!address.trim()} onPress={() => void onAdd()} />
-    </PremiumScreen>
+    </Screen>
   );
 }

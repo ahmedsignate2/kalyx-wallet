@@ -5,17 +5,15 @@ import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GlassCard, ErrorBox } from '../ui/premium';
-import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet, phraseKindForImport } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
 import { useT, useSettings } from '../lib/settingsStore';
 import { isWalletError, unknownWords } from '../src';
-import { Text as KText, SENSITIVE_INPUT_PROPS, Pressable as KPressable } from '../ui/kit';
+import { Text as KText, SENSITIVE_INPUT_PROPS, Pressable as KPressable, Button, Card, Notice } from '../ui/kit';
 import { PinPromptModal } from '../ui/PinPromptModal';
-import { radius } from '../ui/tokens';
+import { radius, fontSize, radii } from '../ui/tokens';
 import { Orbit, Rise } from '../ui/nova';
 import { fill } from '../lib/i18n';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
@@ -153,7 +151,7 @@ export default function Import() {
           <View style={{ alignItems: 'center', marginTop: 12 }}>
             <View style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}>
               <View pointerEvents="none" style={{ position: 'absolute', left: 32, top: 32 }}><Orbit cx={0} cy={0} r={46} /></View>
-              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 60, height: 60, borderRadius: radii.full, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
                 <Icon name="import" size={26} color={colors.primary} />
               </View>
             </View>
@@ -161,7 +159,7 @@ export default function Import() {
             <Rise delay={160}><Text style={[typography.muted, { textAlign: 'center', marginBottom: 20 }]}>{t('pastePhraseHint')}</Text></Rise>
           </View>
 
-          <GlassCard>
+          <Card variant="glass">
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(1) }}>
               <Text style={typography.muted}>{wordCount > 0 ? `${wordCount} ${t('wordsWord')}` : t('recoveryPhrase')}</Text>
               <KPressable onPress={paste} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
@@ -177,16 +175,16 @@ export default function Import() {
               multiline
               // Phrase de récupération : jamais apprise par le clavier (§7.3).
               {...SENSITIVE_INPUT_PROPS}
-              style={{ minHeight: 120, color: colors.text, fontSize: 16, textAlignVertical: 'top', fontFamily: fonts.medium }}
+              style={{ minHeight: 120, color: colors.text, fontSize: fontSize.lg, textAlignVertical: 'top', fontFamily: fonts.medium }}
             />
-          </GlassCard>
+          </Card>
 
           {words.length > 0 ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing(1.5) }}>
               {words.map((w, i) => {
                 const ok = !bad.includes(w.toLowerCase());
                 return (
-                  <Rise key={`${w}-${i}`} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.surface2, borderBottomWidth: 2, borderBottomColor: ok ? 'transparent' : colors.danger }}>
+                  <Rise key={`${w}-${i}`} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.sm, backgroundColor: colors.surface2, borderBottomWidth: 2, borderBottomColor: ok ? 'transparent' : colors.danger }}>
                     <KText variant="caption" tone={ok ? 'secondary' : 'danger'}>{i + 1}. {w}</KText>
                   </Rise>
                 );
@@ -194,7 +192,7 @@ export default function Import() {
             </View>
           ) : null}
           {bad.length > 0 ? <View style={{ marginTop: spacing(1) }}><KText variant="caption" tone="danger">{bad.length === 1 ? fill(t('bip39BadOne'), { word: bad[0] }) : fill(t('bip39BadMany'), { count: String(bad.length) })}</KText></View> : null}
-          {error ? <View style={{ marginTop: spacing(1.5) }}><ErrorBox message={error} /></View> : null}
+          {error ? <View style={{ marginTop: spacing(1.5) }}><Notice message={error} /></View> : null}
 
           {/* Espace flexible : le bouton reste calé en bas */}
           <View style={{ flex: 1 }} />

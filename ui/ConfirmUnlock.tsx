@@ -24,7 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KalyxLogo } from './KalyxLogo';
 import { PinPad } from './PinPad';
 import { Icon } from './icon';
-import { fonts, radii, spacing, useTheme } from './theme';
+import { fonts, radii, spacing, useTheme, fontSize } from './theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import type { Unlock } from '../lib/walletStore';
@@ -265,7 +265,7 @@ export function ConfirmUnlock({
             home indicator iOS) pour que la rangée « 0 » du pavé reste visible ;
             défilable pour ne jamais tronquer le pavé sur un petit écran. */}
         <ScrollView
-          style={{ maxHeight: '92%', backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl }}
+          style={{ maxHeight: '92%', backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl }}
           contentContainerStyle={{
             paddingTop: spacing(3),
             paddingBottom: insets.bottom + spacing(3),
@@ -295,43 +295,43 @@ export function ConfirmUnlock({
               <Text style={{ color: colors.danger, fontFamily: fonts.medium, textAlign: 'center', marginBottom: spacing(1) }}>
                 {error}
               </Text>
-              <KPressable onPress={onCancel} hitSlop={8} style={{ paddingVertical: 10, paddingHorizontal: 24, borderRadius: radii.pill, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
-                <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.semibold }}>{t('closeWord') || t("aiClose")}</Text>
+              <KPressable onPress={onCancel} hitSlop={8} style={{ paddingVertical: 10, paddingHorizontal: 24, borderRadius: radii.full, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+                <Text style={{ color: colors.text, fontSize: fontSize.base, fontFamily: fonts.semibold }}>{t('closeWord') || t("aiClose")}</Text>
               </KPressable>
             </View>
           ) : (
             <>
 
               {aiStore.isEnabled && aiContext && !aiRequested ? (
-                <KPressable onPress={() => void startAudit()} style={{ width: '90%', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 8 }}>
-                  <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{t('aiAuditRun')}</Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: 11, fontFamily: fonts.medium, marginTop: 2 }}>{t('aiAuditRunNote')}</Text>
+                <KPressable onPress={() => void startAudit()} style={{ width: '90%', padding: 10, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, marginBottom: 8 }}>
+                  <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{t('aiAuditRun')}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: fontSize.xxs, fontFamily: fonts.medium, marginTop: 2 }}>{t('aiAuditRunNote')}</Text>
                 </KPressable>
               ) : null}
               {aiStore.isEnabled && aiContext && aiRequested && (
                 // « Sûr » n'est JAMAIS affiché en vert : l'IA n'a vu qu'une adresse et un montant.
-                <View style={{ width: '90%', backgroundColor: colors.surface2, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? colors.danger : aiAnalysis.riskLevel === 'WARNING' ? colors.warning : colors.border) : colors.border, marginBottom: 8 }}>
-                  <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13, marginBottom: 4 }}>
+                <View style={{ width: '90%', backgroundColor: colors.surface2, padding: 12, borderRadius: radii.md, borderWidth: 1, borderColor: aiAnalysis ? (aiAnalysis.riskLevel === 'DANGER' ? colors.danger : aiAnalysis.riskLevel === 'WARNING' ? colors.warning : colors.border) : colors.border, marginBottom: 8 }}>
+                  <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: fontSize.sm, marginBottom: 4 }}>
                     {analyzing ? (probing ? t('aiAuditProbing') : t("aiAuditInProgress")) : (aiAnalysis ? `${t('aiAuditLabel')} ${t(`aiRisk${aiAnalysis.riskLevel}` as const)}` : t("aiAuditUndetermined"))}
                   </Text>
                   {/* Échec : la raison, puis de quoi réessayer — jamais un encadré muet. */}
                   {!analyzing && aiError ? (
                     <>
-                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.medium }}>{aiError}</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, fontFamily: fonts.medium }}>{aiError}</Text>
                       <KPressable onPress={() => void startAudit()} hitSlop={8} style={{ marginTop: 6 }}>
-                        <Text style={{ color: colors.primary, fontSize: 12, fontFamily: fonts.semibold }}>{t('aiAuditRun')}</Text>
+                        <Text style={{ color: colors.primary, fontSize: fontSize.xs, fontFamily: fonts.semibold }}>{t('aiAuditRun')}</Text>
                       </KPressable>
                     </>
                   ) : null}
                   {!analyzing && aiAnalysis && (
                     <>
-                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.medium }}>{aiAnalysis.explanation}</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, fontFamily: fonts.medium }}>{aiAnalysis.explanation}</Text>
                       {aiAnalysis.threats && aiAnalysis.threats.length > 0 && (
-                        <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4, fontFamily: fonts.semibold }}>{aiAnalysis.threats.join(', ')}</Text>
+                        <Text style={{ color: colors.danger, fontSize: fontSize.xs, marginTop: 4, fontFamily: fonts.semibold }}>{aiAnalysis.threats.join(', ')}</Text>
                       )}
                       {/* Ce que l'analyse a reçu : l'utilisateur voit sur quoi repose l'avis. */}
                       {facts.length > 0 ? (
-                        <Text style={{ color: colors.textTertiary, fontSize: 11, marginTop: 6, fontFamily: fonts.medium }}>
+                        <Text style={{ color: colors.textTertiary, fontSize: fontSize.xxs, marginTop: 6, fontFamily: fonts.medium }}>
                           {t('aiFactsTitle')} {facts.map((f) => factLabel(f, t, language)).join(' · ')}
                         </Text>
                       ) : null}
@@ -357,7 +357,7 @@ export function ConfirmUnlock({
 
               {canValidateManually ? (
                 <KPressable onPress={() => run({ pin })} hitSlop={8}>
-                  <Text style={{ color: colors.primary, fontSize: 16, fontFamily: fonts.semibold }}>{t('validate')}</Text>
+                  <Text style={{ color: colors.primary, fontSize: fontSize.lg, fontFamily: fonts.semibold }}>{t('validate')}</Text>
                 </KPressable>
               ) : null}
 
@@ -365,10 +365,10 @@ export function ConfirmUnlock({
                 <KPressable
                   onPress={() => run({ biometric: true })}
                   hitSlop={8}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 14, borderRadius: radii.full, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}
                 >
                   <Icon name="security" size={18} color={colors.primary} />
-                  <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.semibold }}>{t('useBiometry')}</Text>
+                  <Text style={{ color: colors.primary, fontSize: fontSize.sm, fontFamily: fonts.semibold }}>{t('useBiometry')}</Text>
                 </KPressable>
               ) : null}
             </>
@@ -376,7 +376,7 @@ export function ConfirmUnlock({
 
           {phase !== 'error' ? (
             <KPressable onPress={cancel} hitSlop={8}>
-              <Text style={{ color: colors.textSecondary, fontSize: 15 }}>{t('cancel')}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: fontSize.base }}>{t('cancel')}</Text>
             </KPressable>
           ) : null}
         </ScrollView>

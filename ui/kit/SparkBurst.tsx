@@ -7,7 +7,7 @@
 import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
-import { BRAND_GOLD } from '../tokens';
+import { BRAND_GOLD, radii } from '../tokens';
 import { useReduceMotion } from '../../lib/reduceMotion';
 
 const GOLD = BRAND_GOLD.light;
@@ -21,7 +21,7 @@ function Spark({ dx, dy, size, color, delay }: { dx: number; dy: number; size: n
     opacity: 1 - p.value,
     transform: [{ translateX: dx * p.value }, { translateY: dy * p.value }, { scale: 1 - 0.8 * p.value }],
   }));
-  return <Animated.View style={[{ position: 'absolute', left: -size / 2, top: -size / 2, width: size, height: size, borderRadius: size / 2, backgroundColor: color }, s]} />;
+  return <Animated.View style={[{ position: 'absolute', left: -size / 2, top: -size / 2, width: size, height: size, borderRadius: radii.full, backgroundColor: color }, s]} />;
 }
 
 /**

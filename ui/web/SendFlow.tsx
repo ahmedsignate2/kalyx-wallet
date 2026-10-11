@@ -23,10 +23,10 @@ import React, { useContext, useCallback, useEffect, useEffectEvent, useMemo, use
 import { View, ScrollView, Pressable as RNPressable, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { base64 } from '@scure/base';
-import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage } from '../kit';
+import { LogoImage, Text, Button, IconButton, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, Sheet, HoldButton, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Card, Checkbox } from '../kit';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
-import { space, SCREEN_MARGIN, radius } from '../tokens';
+import { space, SCREEN_MARGIN, radius, radii } from '../tokens';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { UserFacingError } from '../../lib/txError';
 import { webErrorText } from './webErrors';
@@ -37,11 +37,32 @@ import { usePortfolioStore, splitHoldings, useTestnetBalances, testnetHoldings, 
 import { submitSolanaSigned } from '../../lib/solanaSubmit';
 import { toast } from '../../lib/toast';
 import {
-  getAdapter, isValidEvmAddress, isValidSolanaAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount, trimDecimalZeros, formatAmount, formatFiat,
-  getPrices, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
-  estimateGasReserve, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, type FeeOptions, simulateSendTransaction, type SimulationResult,
-  WalletError, SOL_RENT_EXEMPT_MIN,
-  type ChainConfig,
+  getAdapter,
+  isValidEvmAddress,
+  isValidSolanaAddress,
+  isValidBtcAddress,
+  parseAmount,
+  formatTokenAmount,
+  formatInputAmount,
+  trimDecimalZeros,
+  formatAmount,
+  formatFiat,
+  getPrices,
+  looksLikeEnsName,
+  resolveEnsName,
+  detectPoisoning,
+  groupAddress,
+  shortAddress,
+  estimateGasReserve,
+  chainIconUrl,
+  EvmChainAdapter,
+  SolanaChainAdapter,
+  type FeeOptions,
+  simulateSendTransaction,
+  type SimulationResult,
+  WalletError,
+  SOL_RENT_EXEMPT_MIN,
+  type ChainConfig
 } from '../../src';
 import { buildTransferMessage, encodeLength } from '../../src/domain/chains/solTx';
 import { buildSplTransferMessage } from '../../src/domain/chains/solSpl';
@@ -425,7 +446,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             <Text variant="title2">{step === 0 ? t('aiSend') : step === 4 ? t('headerTracking') : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
             {step > 0 && chainIconUrl(chain.id) ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: 12, backgroundColor: colors.surface2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: radii.full, backgroundColor: colors.surface2 }}>
                 <LogoImage uri={chainIconUrl(chain.id)!} size={14} />
                 <Text variant="micro" tone="secondary">{chain.name}</Text>
               </View>
@@ -443,11 +464,11 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
             <Input placeholder={tw('searchAssetPlaceholder')} value={search} onChangeText={setSearch} autoCapitalize="none" />
             {showTestnets ? <SegmentedControl items={[{ key: 'mainnet', label: t('tabMainnet') }, { key: 'testnet', label: t('tabTestnet') }]} value={environment} onChange={setEnvironment} /> : null}
             {pf.loading && pf.holdings.length === 0 && environment === 'mainnet' ? (
-              <Surface padded={false}>{[0, 1, 2].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center', gap: space[2] }}><Skeleton width="55%" /><Skeleton width="30%" height={12} /></View>)}</Surface>
+              <Card padded={false}>{[0, 1, 2].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center', gap: space[2] }}><Skeleton width="55%" /><Skeleton width="30%" height={12} /></View>)}</Card>
             ) : list.length === 0 ? (
-              <Surface><EmptyState icon="send" title={q ? t('emptySearchTitle') : t('emptySendTitle')} body={q ? undefined : t('emptySendBody')} actionLabel={q ? undefined : t('receive')} onAction={q ? undefined : onReceive} /></Surface>
+              <Card><EmptyState icon="send" title={q ? t('emptySearchTitle') : t('emptySendTitle')} body={q ? undefined : t('emptySendBody')} actionLabel={q ? undefined : t('receive')} onAction={q ? undefined : onReceive} /></Card>
             ) : (
-              <Surface padded={false}>
+              <Card padded={false}>
                 {list.map((h, i) => (
                   <React.Fragment key={h.id}>
                     <TokenRow
@@ -462,7 +483,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
                     {i < list.length - 1 ? <Divider inset={68} /> : null}
                   </React.Fragment>
                 ))}
-              </Surface>
+              </Card>
             )}
           </>
         ) : null}
@@ -470,7 +491,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
         {/* ── 1. Destinataire ── */}
         {step === 1 ? (
           <>
-            <Surface level={2} style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[3] }}>
+            <Card level={2} style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[3] }}>
               {recipientOk ? <AddressGlyph address={recipient} size={40} /> : <View style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}><Icon name="profile" size={18} tone="faint" /></View>}
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text variant="caption" tone="secondary">{t('labelTo')}</Text>
@@ -493,35 +514,35 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
                 )}
               </View>
               {to ? <IconButton icon="close" label={t('keypadErase')} tone="ghost" onPress={() => setTo('')} /> : null}
-            </Surface>
+            </Card>
             <View style={{ flexDirection: 'row', gap: space[2] }}>
               <Chip label={t('chipPaste')} icon="copy" onPress={paste} />
               {contacts.length ? <Chip label={t('chipContacts')} icon="contacts" selected={showContacts} onPress={() => setShowContacts((v) => !v)} /> : null}
             </View>
             {showContacts && contacts.length ? (
-              <Surface padded={false}>
+              <Card padded={false}>
                 {contacts.slice(0, 8).map((c, i) => (
                   <React.Fragment key={c.id}>
                     <ListRow left={<AddressGlyph address={c.address} size={36} />} title={c.name} subtitle={groupAddress(c.address)} onPress={() => { setTo(c.address); setShowContacts(false); }} />
                     {i < Math.min(contacts.length, 8) - 1 ? <Divider inset={64} /> : null}
                   </React.Fragment>
                 ))}
-              </Surface>
+              </Card>
             ) : null}
             {isEns && ens.status === 'resolving' ? <Text variant="caption" tone="secondary">{t('resolvingEns')}</Text> : null}
 
             {poisoning ? (
-              <Surface style={{ borderColor: colors.danger, gap: space[2] }}>
+              <Card style={{ borderColor: colors.danger, gap: space[2] }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}><Icon name="alert" size={18} color={colors.danger} /><Text variant="body" tone="danger">{t('suspiciousAddressTitle')}</Text></View>
                 <Text variant="bodySecondary" tone="secondary">{t('suspiciousAddressBody')}</Text>
                 <View style={{ flexDirection: 'row', gap: space[2] }}><AddressGlyph address={poisoning.lookalike} size={28} /><Text variant="caption" tone="secondary" style={{ flex: 1 }}>{groupAddress(poisoning.lookalike)}</Text></View>
                 <View style={{ flexDirection: 'row', gap: space[2] }}><AddressGlyph address={recipient} size={28} /><Text variant="caption" tone="danger" style={{ flex: 1 }}>{groupAddress(recipient)}</Text></View>
-              </Surface>
+              </Card>
             ) : recipientOk && !isKnown ? (
-              <Surface style={{ borderColor: colors.warning, gap: space[1] }}>
+              <Card style={{ borderColor: colors.warning, gap: space[1] }}>
                 <Text variant="body" tone="warning">{t('neverSentWarning')}</Text>
                 <Text variant="bodySecondary" tone="secondary">{t('checkEndWarning')}<Text variant="body">…{recipient.slice(-4)}</Text></Text>
-              </Surface>
+              </Card>
             ) : null}
             {isContract ? <Text variant="caption" tone="warning">{t('contractAddressWarning')}</Text> : null}
             {contactName ? <Text variant="caption" tone="secondary">{fill(t('contactLabel'), { contact: contactName })}</Text> : null}
@@ -529,14 +550,14 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
             {recents.length > 0 ? (
               <View style={{ gap: space[2] }}>
                 <Text variant="caption" tone="secondary">{t('recents')}</Text>
-                <Surface padded={false}>
+                <Card padded={false}>
                   {recents.slice(0, 5).map((r, i) => (
                     <React.Fragment key={r.address}>
                       <ListRow left={<AddressGlyph address={r.address} size={36} />} title={contacts.find((c) => c.address.toLowerCase() === r.address.toLowerCase())?.name ?? shortAddress(r.address)} subtitle={groupAddress(r.address)} onPress={() => setTo(r.address)} />
                       {i < Math.min(recents.length, 5) - 1 ? <Divider inset={64} /> : null}
                     </React.Fragment>
                   ))}
-                </Surface>
+                </Card>
               </View>
             ) : null}
             {addressError ? <Text variant="caption" tone="danger">{addressError}</Text> : null}
@@ -556,9 +577,12 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
               <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit tone={overBalance ? 'danger' : 'primary'}>
                 {amount || '0'} <Text variant="title2" tone="secondary">{inFiat ? sym : symbol}</Text>
               </Text>
-              <Text variant="caption" tone="secondary" tabular>
-                {price > 0 ? (inFiat ? `≈ ${tokenAmountStr || '0'} ${symbol}` : `≈ ${formatFiat(fiatOfAmount)} ${sym}`) : ' '}{price > 0 ? '  ⇅' : ''}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                <Text variant="caption" tone="secondary" tabular>
+                  {price > 0 ? (inFiat ? `≈ ${tokenAmountStr || '0'} ${symbol}` : `≈ ${formatFiat(fiatOfAmount)} ${sym}`) : ' '}
+                </Text>
+                {price > 0 ? <Icon name="arrowsDownUp" size={14} color={colors.textSecondary} /> : null}
+              </View>
             </RNPressable>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               {balance == null ? <Skeleton width={160} /> : <Text variant="caption" tone="secondary" tabular>{t('balanceLabel')} : {formatTokenAmount(balance, decimals)} {symbol}</Text>}
@@ -575,7 +599,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
         {/* ── 4. Suivi ── */}
         {step === 4 ? (
           <>
-            <Surface style={{ gap: space[4] }}>
+            <Card style={{ gap: space[4] }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
                 <AddressGlyph address={recipient} size={44} />
                 <View style={{ flex: 1 }}>
@@ -597,7 +621,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
                   </Text>
                 </View>
               )}
-            </Surface>
+            </Card>
             {hash ? <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t('canLeaveScreenInfo')}</Text> : null}
             {explorerTx ? <Button label={t('trackTransaction')} variant="secondary" size="md" onPress={() => { const w = (globalThis as { open?: (u: string, target?: string, features?: string) => unknown }).open; w?.(explorerTx, '_blank', 'noopener,noreferrer'); }} /> : null}
             <View style={{ flex: 1 }} />
@@ -609,7 +633,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
       {/* ── 3. Récapitulatif (sheet) ── */}
       <Sheet visible={step === 3 && !confirming} onClose={() => setStep(2)}>
         <Text variant="title2">{t('verifyBeforeSendTitle')}</Text>
-        <Surface padded={false}>
+        <Card padded={false}>
           <ListRow left={<AddressGlyph address={recipient} size={40} />} title={destLabel ?? t('labelRecipient')} subtitle={groupAddress(recipient)} />
           <Divider inset={68} />
           <ListRow title={t('txLabelAmount')} right={<View style={{ alignItems: 'flex-end' }}><Text variant="body" tabular>{formatTokenAmount(amountRaw, decimals)} {symbol}</Text>{price > 0 ? <Text variant="caption" tone="secondary" tabular>≈ {formatFiat(fiatOfAmount)} {sym}</Text> : null}</View>} />
@@ -617,7 +641,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
           <ListRow title={t('labelNetwork')} right={<Text variant="body">{chain.name}</Text>} />
           <Divider inset={16} />
           <ListRow title={t('labelNetworkFee')} subtitle={`${tw('feeEstimate')} · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? `environ ${formatFiat(feeFiat)} ${sym}` : '—'}</Text>} />
-        </Surface>
+        </Card>
         {afterBalance != null ? (
           <Text variant="bodySecondary" tone="secondary">{fill(t('balanceUpdatePreview'), { symbol: symbol, before: formatTokenAmount(balance!, decimals), after: formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals) })}</Text>
         ) : null}
@@ -625,12 +649,9 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
         {!isKnown ? <Text variant="caption" tone="warning">{fill(t('firstTimeWarning'), { end: recipient.slice(-4) })}</Text> : null}
         <AntiDrainerBanner loading={isSimulating} simulation={simResult} />
         {simResult?.warningLevel === 'critical' ? (
-          <RNPressable onPress={() => setForceSendChecked((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: space[1] }}>
-            <View style={{ width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: forceSendChecked ? colors.danger : colors.border, backgroundColor: forceSendChecked ? colors.danger : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-              {forceSendChecked ? <Icon name="check" size={14} color="#FFFFFF" /> : null}
-            </View>
-            <Text variant="caption" tone="danger" style={{ flex: 1 }}>{t('antiDrainerForceSendConfirm')}</Text>
-          </RNPressable>
+          <View style={{ paddingVertical: space[1] }}>
+            <Checkbox tone="danger" size={20} checked={forceSendChecked} onChange={setForceSendChecked} label={<Text variant="caption" tone="danger">{t('antiDrainerForceSendConfirm')}</Text>} />
+          </View>
         ) : null}
         {sendError ? <Text variant="caption" tone="danger">{sendError}</Text> : null}
         <Text variant="caption" tone="tertiary">{tw('signOnPhoneNote')}</Text>

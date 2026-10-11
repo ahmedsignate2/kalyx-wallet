@@ -1,4 +1,4 @@
-import { radius } from '../ui/tokens';
+import { radius, fontSize } from '../ui/tokens';
 import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
 import { Pressable as KPressable, Halo } from '../ui/kit';
@@ -167,8 +167,8 @@ export default function Unlock() {
       <View style={{ flex: 1, paddingTop: insets.top + spacing(3), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3), alignItems: 'center' }}>
         {/* En-tête compact : titre, sous-titre, biométrie */}
         <Rise style={{ alignItems: 'center', gap: spacing(1.25) }}>
-          <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
-          <Text style={{ color: error && !locked ? colors.danger : colors.textSecondary, fontSize: 14, textAlign: 'center' }}>{subtitle}</Text>
+          <Text style={{ color: colors.text, fontSize: fontSize.xxl, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
+          <Text style={{ color: error && !locked ? colors.danger : colors.textSecondary, fontSize: fontSize.md, textAlign: 'center' }}>{subtitle}</Text>
           {/*
             Le retour d'appui était un changement d'OPACITÉ (0.6), ce que le
             §3.2 interdit explicitement : c'est le scale qui dit « touché ».
@@ -181,7 +181,7 @@ export default function Unlock() {
               style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing(0.5), paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}
             >
               <Icon name="security" size={18} color={colors.primary} />
-              <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.semibold }}>{t('biometrics')}</Text>
+              <Text style={{ color: colors.primary, fontSize: fontSize.sm, fontFamily: fonts.semibold }}>{t('biometrics')}</Text>
             </KPressable>
           ) : null}
         </Rise>
@@ -204,7 +204,7 @@ export default function Unlock() {
           <View style={{ height: 24, justifyContent: 'center' }}>
             {complete ? (
               <KPressable onPress={() => submit(pin)} disabled={busy || locked} hitSlop={8} haptic="light" accessibilityLabel={t('unlockBtn')}>
-                <Text style={{ color: colors.primary, fontSize: 16, fontFamily: fonts.semibold }}>
+                <Text style={{ color: colors.primary, fontSize: fontSize.lg, fontFamily: fonts.semibold }}>
                   {busy ? t('verifying') : t('unlockBtn')}
                 </Text>
               </KPressable>

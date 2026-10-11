@@ -11,11 +11,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput, Linking, Animated, Easing } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Text as KText, Button, Sheet, Surface, ListRow, Divider } from '../kit';
+import { Text as KText, Button, Sheet, ListRow, Divider, Card } from '../kit';
 import { FadeInUp, KalyxSpinner, useTypewriter } from './motion';
 import { WEB_FONTS } from './webTheme';
 import { Icon, type IconName } from '../icon';
-import { fonts, radii, spacing, useTheme } from '../theme';
+import { fonts, radii, spacing, useTheme, fontSize } from '../theme';
 import { useAiStore, type AiProvider } from '../../lib/aiStore';
 import { useAiChatHistoryStore } from '../../lib/aiChatHistoryStore';
 import { askAi } from '../../lib/aiAsk';
@@ -110,10 +110,10 @@ export function AgentSetup() {
 
   return (
     <View style={{ alignItems: 'center', paddingVertical: spacing(4), paddingHorizontal: spacing(2), gap: spacing(1.5) }}>
-      <View style={{ width: 64, height: 64, borderRadius: radii.lg, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 64, height: 64, borderRadius: radii.xl, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center' }}>
         <Icon name="sparkles" size={30} color={GOLD} />
       </View>
-      <Text style={{ color: colors.text, fontSize: 19, fontFamily: fonts.bold, textAlign: 'center' }}>{tw('activateAgent')}</Text>
+      <Text style={{ color: colors.text, fontSize: fontSize.xl, fontFamily: fonts.bold, textAlign: 'center' }}>{tw('activateAgent')}</Text>
       <Text style={[typography.muted, { textAlign: 'center', maxWidth: 320 }]}>
         {tw('activateAgentBody')}
       </Text>
@@ -123,8 +123,8 @@ export function AgentSetup() {
         {PROVIDERS.map((p) => {
           const on = p === provider;
           return (
-            <Pressable key={p} onPress={() => setProvider(p)} style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.pill, backgroundColor: on ? colors.accent : colors.text + '08', borderWidth: 1, borderColor: on ? colors.accent : colors.text + '12' }}>
-              <Text style={{ color: on ? colors.onPrimary : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }} numberOfLines={1}>{p === 'custom' ? tw('providerOther') : PROVIDER_LABELS[p]}</Text>
+            <Pressable key={p} onPress={() => setProvider(p)} style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.full, backgroundColor: on ? colors.accent : colors.text + '08', borderWidth: 1, borderColor: on ? colors.accent : colors.text + '12' }}>
+              <Text style={{ color: on ? colors.onPrimary : colors.textMuted, fontFamily: fonts.semibold, fontSize: fontSize.sm }} numberOfLines={1}>{p === 'custom' ? tw('providerOther') : PROVIDER_LABELS[p]}</Text>
             </Pressable>
           );
         })}
@@ -144,7 +144,7 @@ export function AgentSetup() {
           // champ (ce n'est pas un mot de passe de compte, juste une clé API
           // BYOK stockée localement) — le bandeau recouvrait le clavier mobile.
           textContentType="oneTimeCode"
-          style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 14, fontFamily: fonts.regular, paddingVertical: spacing(1.25) }}
+          style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: fontSize.md, fontFamily: fonts.regular, paddingVertical: spacing(1.25) }}
         />
         <Pressable onPress={() => setShowKey((v) => !v)} hitSlop={6}>
           <Icon name={showKey ? 'eyeOff' : 'eye'} size={17} color={colors.textMuted} />
@@ -152,7 +152,7 @@ export function AgentSetup() {
       </View>
       {PROVIDER_DEFAULTS[provider]?.helperUrl ? (
         <Pressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[provider].helperUrl!)}>
-          <Text style={{ color: colors.accent, fontSize: 12, fontFamily: fonts.medium, textDecorationLine: 'underline' }}>{tw('getFreeKey')}</Text>
+          <Text style={{ color: colors.accent, fontSize: fontSize.xs, fontFamily: fonts.medium, textDecorationLine: 'underline' }}>{tw('getFreeKey')}</Text>
         </Pressable>
       ) : null}
 
@@ -164,7 +164,7 @@ export function AgentSetup() {
             placeholder={tw('apiUrlPlaceholder')}
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
-            style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13, fontFamily: fonts.regular }}
+            style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: fontSize.sm, fontFamily: fonts.regular }}
           />
         ) : null}
         {/* L'accès aux modèles varie par compte, pas juste par fournisseur
@@ -176,12 +176,12 @@ export function AgentSetup() {
           placeholder={provider === 'custom' ? tw('modelNamePlaceholder') : tw('modelOptional', { model: PROVIDER_DEFAULTS[provider]?.model ?? '' })}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="none"
-          style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: 13, fontFamily: fonts.regular }}
+          style={{ color: colors.text, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.md, padding: spacing(1.25), fontSize: fontSize.sm, fontFamily: fonts.regular }}
         />
       </View>
-      {err ? <Text style={{ color: colors.danger, fontSize: 12, textAlign: 'center' }}>{err}</Text> : null}
+      {err ? <Text style={{ color: colors.danger, fontSize: fontSize.xs, textAlign: 'center' }}>{err}</Text> : null}
 
-      <Pressable onPress={onSave} disabled={busy || !key.trim()} style={({ pressed }) => ({ width: '100%', maxWidth: 340, marginTop: spacing(1), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.pill, paddingVertical: spacing(1.3), opacity: pressed || busy || !key.trim() ? 0.7 : 1 })}>
+      <Pressable onPress={onSave} disabled={busy || !key.trim()} style={({ pressed }) => ({ width: '100%', maxWidth: 340, marginTop: spacing(1), alignItems: 'center', backgroundColor: colors.accent, borderRadius: radii.full, paddingVertical: spacing(1.3), opacity: pressed || busy || !key.trim() ? 0.7 : 1 })}>
         {busy ? <KalyxSpinner size={20} /> : <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold }}>{tw('saveAndEnable')}</Text>}
       </Pressable>
     </View>
@@ -201,11 +201,11 @@ function RichText({ text, color, bold, mono }: { text: string; color: string; bo
         const parts = body.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
         return (
           <View key={i} style={{ flexDirection: 'row', paddingLeft: bullet ? 4 : 0 }}>
-            {bullet ? <Text style={{ color: GOLD, fontSize: 14, lineHeight: 20, marginRight: 6 }}>•</Text> : null}
-            <Text style={{ color, fontSize: 14, lineHeight: 20, flexShrink: 1 }}>
+            {bullet ? <Text style={{ color: GOLD, fontSize: fontSize.md, lineHeight: 20, marginRight: 6 }}>•</Text> : null}
+            <Text style={{ color, fontSize: fontSize.md, lineHeight: 20, flexShrink: 1 }}>
               {parts.map((p, j) => {
                 if (p.startsWith('**') && p.endsWith('**')) return <Text key={j} style={{ fontFamily: bold }}>{p.slice(2, -2)}</Text>;
-                if (p.startsWith('`') && p.endsWith('`')) return <Text key={j} style={{ fontFamily: mono, fontSize: 13 }}>{p.slice(1, -1)}</Text>;
+                if (p.startsWith('`') && p.endsWith('`')) return <Text key={j} style={{ fontFamily: mono, fontSize: fontSize.sm }}>{p.slice(1, -1)}</Text>;
                 return <Text key={j}>{p}</Text>;
               })}
             </Text>
@@ -232,7 +232,7 @@ function TypingDots({ color }: { color: string }) {
   return (
     <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center', height: 20 }}>
       {dots.map((v, i) => (
-        <Animated.View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color, opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }), transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }] }} />
+        <Animated.View key={i} style={{ width: 6, height: 6, borderRadius: radii.xs, backgroundColor: color, opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }), transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }] }} />
       ))}
     </View>
   );
@@ -253,15 +253,15 @@ function MessageBubble({ m, onCopy, live, tight, first }: { m: { id: string; sen
           </View>
         ) : null}
         <View style={{ flexShrink: 1 }}>
-          <View style={{ backgroundColor: user ? colors.accent : colors.text + '08', borderWidth: user ? 0 : 1, borderColor: colors.text + '12', borderRadius: radii.lg, paddingVertical: 12, paddingHorizontal: 16 }}>
+          <View style={{ backgroundColor: user ? colors.accent : colors.text + '08', borderWidth: user ? 0 : 1, borderColor: colors.text + '12', borderRadius: radii.xl, paddingVertical: 12, paddingHorizontal: 16 }}>
             {user
-              ? <Text style={{ color: colors.onPrimary, fontSize: 14, lineHeight: 20 }}>{m.text}</Text>
+              ? <Text style={{ color: colors.onPrimary, fontSize: fontSize.md, lineHeight: 20 }}>{m.text}</Text>
               : <RichText text={shown} color={colors.text} bold={fonts.bold} mono={WEB_FONTS.mono} />}
           </View>
           {!user ? (
             <Pressable onPress={() => onCopy(m.text)} hitSlop={6} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 6, opacity: pressed ? 0.5 : 1 })}>
               <Icon name="copy" size={11} color={colors.textFaint} />
-              <Text style={{ color: colors.textFaint, fontSize: 11 }}>{tw('copyAnswer')}</Text>
+              <Text style={{ color: colors.textFaint, fontSize: fontSize.xxs }}>{tw('copyAnswer')}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -346,7 +346,7 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
   };
 
   const iconBtn = (name: IconName, onPress: () => void, label: string) => (
-    <Pressable key={name} onPress={onPress} hitSlop={8} accessibilityLabel={label} style={({ pressed }) => ({ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', opacity: pressed ? 0.6 : 1 })}>
+    <Pressable key={name} onPress={onPress} hitSlop={8} accessibilityLabel={label} style={({ pressed }) => ({ width: 30, height: 30, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', opacity: pressed ? 0.6 : 1 })}>
       <Icon name={name} size={14} color={colors.textMuted} />
     </Pressable>
   );
@@ -356,8 +356,8 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     // dimensionné à l'espace disponible — le chat gère son propre scroll.
     <View style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: radii.pill, backgroundColor: GOLD + '1A', borderWidth: 1, borderColor: GOLD + '33' }}>
-          <Text style={{ color: GOLD, fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.5 }}>{`BETA · BYOK · ${provider.toUpperCase()}`}</Text>
+        <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: radii.full, backgroundColor: GOLD + '1A', borderWidth: 1, borderColor: GOLD + '33' }}>
+          <Text style={{ color: GOLD, fontFamily: fonts.bold, fontSize: fontSize.xxs, letterSpacing: 0.5 }}>{`BETA · BYOK · ${provider.toUpperCase()}`}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 6 }}>
           {iconBtn('add', () => createNewSession(), tw('newChat'))}
@@ -375,20 +375,20 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
               <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: GOLD + '33', alignItems: 'center', justifyContent: 'center', marginBottom: spacing(1) }}>
                 <Icon name="sparkles" size={22} color={GOLD} />
               </View>
-              <Text style={{ color: colors.text, fontSize: 17, fontFamily: fonts.bold, marginBottom: 3 }}>{tw('kalyxIntelligence')}</Text>
-              <Text style={[typography.muted, { textAlign: 'center', maxWidth: 280, marginBottom: spacing(1.25), fontSize: 13 }]}>
+              <Text style={{ color: colors.text, fontSize: fontSize.lg, fontFamily: fonts.bold, marginBottom: 3 }}>{tw('kalyxIntelligence')}</Text>
+              <Text style={[typography.muted, { textAlign: 'center', maxWidth: 280, marginBottom: spacing(1.25), fontSize: fontSize.sm }]}>
                 {tw('kalyxIntelligenceBody')}
               </Text>
               <View style={{ width: '100%', gap: spacing(0.75) }}>
                 {SUGGESTIONS.map((s) => (
                   <View key={s.title}>
-                    <Pressable onPress={() => send(tw(s.prompt))} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'flex-start', gap: spacing(1), padding: spacing(1.25), borderRadius: radii.lg, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: pressed ? GOLD + '55' : colors.text + '12', transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+                    <Pressable onPress={() => send(tw(s.prompt))} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'flex-start', gap: spacing(1), padding: spacing(1.25), borderRadius: radii.xl, backgroundColor: colors.text + '08', borderWidth: 1, borderColor: pressed ? GOLD + '55' : colors.text + '12', transform: [{ scale: pressed ? 0.98 : 1 }] })}>
                       <View style={{ width: 30, height: 30, borderRadius: radii.md, backgroundColor: s.color + '1A', alignItems: 'center', justifyContent: 'center' }}>
                         <Icon name={s.icon} size={15} color={s.color} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{tw(s.title)}</Text>
-                        <Text style={[typography.muted, { fontSize: 11, marginTop: 1 }]}>{tw(s.description)}</Text>
+                        <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{tw(s.title)}</Text>
+                        <Text style={[typography.muted, { fontSize: fontSize.xxs, marginTop: 1 }]}>{tw(s.description)}</Text>
                       </View>
                       <Icon name="chevron" size={14} color={colors.textFaint} />
                     </Pressable>
@@ -415,7 +415,7 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
               <View style={{ width: 22, height: 22, borderRadius: radii.sm, backgroundColor: GOLD + '22', alignItems: 'center', justifyContent: 'center' }}>
                 <Icon name="sparkles" size={11} color={GOLD} />
               </View>
-              <View style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg, paddingHorizontal: spacing(1.5), paddingVertical: spacing(1) }}>
+              <View style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.xl, paddingHorizontal: spacing(1.5), paddingVertical: spacing(1) }}>
                 <TypingDots color={colors.textMuted} />
               </View>
             </View>
@@ -424,16 +424,16 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
       </ScrollView>
 
       <View style={{ paddingTop: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.pill }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.full }}>
           <TextInput
             value={input}
             onChangeText={setInput}
             onSubmitEditing={() => send(input)}
             placeholder={tw('askAgentPlaceholder')}
             placeholderTextColor={colors.textMuted}
-            style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', paddingHorizontal: spacing(1.75), paddingVertical: spacing(1.1), fontSize: 14 }}
+            style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', paddingHorizontal: spacing(1.75), paddingVertical: spacing(1.1), fontSize: fontSize.md }}
           />
-          <Pressable onPress={() => send(input)} disabled={busy || !input.trim()} style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, marginRight: 4, backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center', opacity: busy || !input.trim() ? 0.4 : 1, transform: [{ scale: pressed ? 0.92 : 1 }] })}>
+          <Pressable onPress={() => send(input)} disabled={busy || !input.trim()} style={({ pressed }) => ({ width: 36, height: 36, borderRadius: radii.full, marginRight: 4, backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center', opacity: busy || !input.trim() ? 0.4 : 1, transform: [{ scale: pressed ? 0.92 : 1 }] })}>
             <Icon name="forward" size={15} color="#171310" />
           </Pressable>
         </View>
@@ -443,7 +443,7 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
       <Sheet visible={historyOpen} onClose={() => setHistoryOpen(false)}>
         <KText variant="title2">{tw('chatHistory')}</KText>
         {sessions.length === 0 ? <KText variant="bodySecondary" tone="secondary">{tw('noChats')}</KText> : (
-          <Surface padded={false}>
+          <Card padded={false}>
             {sessions.map((sess, i) => (
               <React.Fragment key={sess.id}>
                 <ListRow
@@ -459,7 +459,7 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
                 {i < sessions.length - 1 ? <Divider inset={16} /> : null}
               </React.Fragment>
             ))}
-          </Surface>
+          </Card>
         )}
         <Button label={tw('newChat')} variant="secondary" size="md" onPress={() => { createNewSession(); setHistoryOpen(false); }} />
       </Sheet>

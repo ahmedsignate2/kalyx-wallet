@@ -35,7 +35,7 @@ import { useRecentRecipients } from '../lib/recentRecipientsStore';
 import { useTokenPrefs } from '../lib/tokenPrefsStore';
 import { DeepLinks } from '../ui/DeepLinks';
 import { Splash } from '../ui/Splash';
-import { useTheme } from '../ui/theme';
+import { useTheme, fontSize, radii } from '../ui/theme';
 
 console.log('[Kalyx] _layout.tsx chargé');
 
@@ -316,9 +316,9 @@ export default function RootLayout() {
         <FloatingAiAssistant />
         {bootError && !storeReady ? (
           <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, zIndex: 101, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 }]}>
-            <Text style={{ color: colors.text, fontSize: 16, textAlign: 'center' }}>{t('bootFailed')}</Text>
-            <Pressable onPress={retryBoot} accessibilityRole="button" style={{ paddingVertical: 12, paddingHorizontal: 24, borderRadius: 999, backgroundColor: colors.primary }}>
-              <Text style={{ color: colors.onPrimary, fontSize: 15 }}>{t('retry')}</Text>
+            <Text style={{ color: colors.text, fontSize: fontSize.lg, textAlign: 'center' }}>{t('bootFailed')}</Text>
+            <Pressable onPress={retryBoot} accessibilityRole="button" style={{ paddingVertical: 12, paddingHorizontal: 24, borderRadius: radii.full, backgroundColor: colors.primary }}>
+              <Text style={{ color: colors.onPrimary, fontSize: fontSize.base }}>{t('retry')}</Text>
             </Pressable>
           </View>
         ) : opening === 'wait' ? (

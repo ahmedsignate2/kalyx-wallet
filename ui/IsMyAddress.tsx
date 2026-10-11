@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { Input, Pressable as KPressable, Text } from './kit';
 import { Icon } from './icon';
 import { useTheme } from './theme';
-import { fontFamily } from './tokens';
+import { fontFamily, radii } from './tokens';
 import { useT } from '../lib/settingsStore';
 import { useWallet } from '../lib/walletStore';
 import { loadAccountsStrict, type StoredAccount } from '../lib/secureStore';
@@ -77,7 +77,7 @@ export function IsMyAddress() {
   const walletLabel = match && wallets.length > 1 && wPos >= 0 ? walletDisplayName(wallets[wPos], walletPosition(wallets, wallets[wPos].id), t) : null;
   const who = account ? `${walletLabel ? `${walletLabel} · ` : ''}${accountDisplayName(account, t)}` : '';
   return (
-    <View style={{ gap: 10, padding: 16, borderRadius: 24, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+    <View style={{ gap: 10, padding: 16, borderRadius: radii.xl, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
       <Text variant="body" style={{ fontFamily: fontFamily.semibold }}>{t('isMyAddressTitle')}</Text>
       <Text variant="caption" tone="secondary">{t('isMyAddressHint')}</Text>
       <Input value={value} onChangeText={setValue} placeholder="0x… · bc1… · UQ…" sensitive />

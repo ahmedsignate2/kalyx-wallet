@@ -1,15 +1,14 @@
-import { NovaCard, NovaHero } from '../ui/nova';
+import { NovaHero } from '../ui/nova';
 import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable, Avatar, Card, Screen, SkeletonRow } from '../ui/kit';
 import { fetchApprovalCandidates } from '../src/domain/security/goplus';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, ScrollView, RefreshControl } from 'react-native';
 import { Stack } from 'expo-router';
 import * as Linking from 'expo-linking';
-import { PremiumScreen, GlassCard, SkeletonRow, Avatar } from '../ui/premium';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
-import { fonts, spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme, fontSize, radii } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
@@ -22,7 +21,7 @@ import {
   getErc20Tokens,
   formatTokenAmount,
   isUnlimited,
-  type ApprovalItem,
+  type ApprovalItem
 } from '../src';
 
 function shorten(a: string) {
@@ -210,31 +209,31 @@ function ApprovalsInner() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <PremiumScreen>
+      <Screen>
       <ScreenHeader />
       <NovaHero icon="security" title={t('spendApprovals')} subtitle={t('approvalsIntro').replace('{chain}', chain.name)} />
 
       {!isEvm ? (
-        <GlassCard>
+        <Card variant="glass">
           <Text style={typography.muted}>{t('approvalsEvmOnly')}</Text>
-        </GlassCard>
+        </Card>
       ) : (
         <ScrollView
           refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />}
           contentContainerStyle={{ gap: spacing(1.5), paddingBottom: spacing(4) }}
         >
           {items == null ? (
-            <GlassCard>{[0, 1, 2].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>
+            <Card variant="glass">{[0, 1, 2].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</Card>
           ) : items.length === 0 && incomplete ? (
-            <GlassCard>
+            <Card variant="glass">
               <View style={{ alignItems: 'center', paddingVertical: spacing(3), gap: spacing(1) }}>
                 <Icon name="warning" size={30} color={colors.warning} />
                 <Text style={typography.bodyStrong}>{t('approvalsNotChecked')}</Text>
                 <Text style={[typography.muted, { textAlign: 'center' }]}>{t('approvalsIncomplete')}</Text>
               </View>
-            </GlassCard>
+            </Card>
           ) : items.length === 0 ? (
-            <GlassCard>
+            <Card variant="glass">
               <View style={{ alignItems: 'center', paddingVertical: spacing(3), gap: spacing(1) }}>
                 <Icon name="check" size={30} color={colors.up} />
                 <Text style={typography.bodyStrong}>{t('noActiveApprovals')}</Text>
@@ -242,21 +241,21 @@ function ApprovalsInner() {
                   {t('nothingToRevoke')}
                 </Text>
               </View>
-            </GlassCard>
+            </Card>
           ) : (
             <>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), justifyContent: 'center' }}>
-              <KPressable disabled={busy} onPress={() => setSelected(new Set(items.map(keyOf).filter((k) => !inFlight.has(k))))} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: colors.surface2 }}>
-                <Text style={{ color: colors.text, fontSize: 13, fontFamily: fonts.semibold }}>{t('selectAllApprovals')}</Text>
+              <KPressable disabled={busy} onPress={() => setSelected(new Set(items.map(keyOf).filter((k) => !inFlight.has(k))))} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.md, backgroundColor: colors.surface2 }}>
+                <Text style={{ color: colors.text, fontSize: fontSize.sm, fontFamily: fonts.semibold }}>{t('selectAllApprovals')}</Text>
               </KPressable>
               {items.some((x) => isUnlimited(x.allowance)) ? (
-                <KPressable disabled={busy} onPress={() => setSelected(new Set(items.filter((x) => isUnlimited(x.allowance)).map(keyOf).filter((k) => !inFlight.has(k))))} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: colors.surface2 }}>
-                  <Text style={{ color: colors.text, fontSize: 13, fontFamily: fonts.semibold }}>{t('selectUnlimitedApprovals')}</Text>
+                <KPressable disabled={busy} onPress={() => setSelected(new Set(items.filter((x) => isUnlimited(x.allowance)).map(keyOf).filter((k) => !inFlight.has(k))))} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.md, backgroundColor: colors.surface2 }}>
+                  <Text style={{ color: colors.text, fontSize: fontSize.sm, fontFamily: fonts.semibold }}>{t('selectUnlimitedApprovals')}</Text>
                 </KPressable>
               ) : null}
               {selected.size ? (
-                <KPressable disabled={busy} onPress={() => setSelected(new Set())} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14 }}>
-                  <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{t('clearSelection')}</Text>
+                <KPressable disabled={busy} onPress={() => setSelected(new Set())} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.md }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm }}>{t('clearSelection')}</Text>
                 </KPressable>
               ) : null}
             </View>
@@ -264,7 +263,7 @@ function ApprovalsInner() {
               const unlimited = isUnlimited(it.allowance);
               const flying = inFlight.has(keyOf(it)); // révocation envoyée, pas encore minée
               return (
-                <NovaCard key={`${it.token}-${it.spender}`} delay={Math.min(idx, 8) * 50} style={unlimited ? { borderColor: 'rgba(255,77,94,0.35)' } : undefined}>
+                <Card rise key={`${it.token}-${it.spender}`} delay={Math.min(idx, 8) * 50} style={unlimited ? { borderColor: 'rgba(255,77,94,0.35)' } : undefined}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
                     <KPressable
                       onPress={() => toggle(it)}
@@ -273,12 +272,12 @@ function ApprovalsInner() {
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: selected.has(keyOf(it)) }}
                       accessibilityLabel={`${t('revoke')} ${it.symbol}`}
-                      style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: selected.has(keyOf(it)) ? colors.danger : colors.border, backgroundColor: selected.has(keyOf(it)) ? colors.danger : 'transparent', alignItems: 'center', justifyContent: 'center' }}
+                      style={{ width: 24, height: 24, borderRadius: radii.md, borderWidth: 2, borderColor: selected.has(keyOf(it)) ? colors.danger : colors.border, backgroundColor: selected.has(keyOf(it)) ? colors.danger : 'transparent', alignItems: 'center', justifyContent: 'center' }}
                     >
                       {selected.has(keyOf(it)) ? <Icon name="check" size={14} color={colors.onPrimary} /> : null}
                     </KPressable>
                     {it.logo ? (
-                      <Image source={{ uri: it.logo }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                      <Image source={{ uri: it.logo }} style={{ width: 40, height: 40, borderRadius: radii.lg }} />
                     ) : (
                       <Avatar label={it.symbol.slice(0, 1)} color={colors.surface2} />
                     )}
@@ -290,11 +289,11 @@ function ApprovalsInner() {
                       style={{
                         paddingHorizontal: 10,
                         paddingVertical: 5,
-                        borderRadius: 12,
+                        borderRadius: radii.md,
                         backgroundColor: unlimited ? 'rgba(255,92,92,0.15)' : colors.surface2,
                       }}
                     >
-                      <Text style={{ color: unlimited ? colors.danger : colors.textSecondary, fontSize: 12, fontFamily: fonts.semibold }}>
+                      <Text style={{ color: unlimited ? colors.danger : colors.textSecondary, fontSize: fontSize.xs, fontFamily: fonts.semibold }}>
                         {unlimited ? `∞ ${t('unlimitedLabel')}` : `${formatTokenAmount(it.allowance, it.decimals)}`}
                       </Text>
                     </View>
@@ -323,12 +322,12 @@ function ApprovalsInner() {
                   <KPressable
                     onPress={() => setTargets([it])}
                     disabled={busy}
-                    style={{ marginTop: spacing(1.5), alignItems: 'center', justifyContent: 'center', height: 46, borderRadius: 23, backgroundColor: 'rgba(255,77,94,0.10)' }}
+                    style={{ marginTop: spacing(1.5), alignItems: 'center', justifyContent: 'center', height: 46, borderRadius: radii.full, backgroundColor: 'rgba(255,77,94,0.10)' }}
                   >
                     <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>{t('revoke')}</Text>
                   </KPressable>
                   )}
-                </NovaCard>
+                </Card>
               );
             })}
             </>
@@ -339,7 +338,7 @@ function ApprovalsInner() {
           ) : null}
           {items && items.length > 0 && chain.explorerUrl ? (
             <KPressable onPress={() => Linking.openURL(chain.explorerUrl!)} style={{ alignSelf: 'center', paddingVertical: spacing(1) }}>
-              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{t('revokeIsTx')}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm }}>{t('revokeIsTx')}</Text>
             </KPressable>
           ) : null}
         </ScrollView>
@@ -350,9 +349,9 @@ function ApprovalsInner() {
           onPress={() => setTargets(selectedItems)}
           disabled={busy}
           accessibilityRole="button"
-          style={{ marginTop: spacing(1), height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.danger, opacity: busy ? 0.7 : 1 }}
+          style={{ marginTop: spacing(1), height: 52, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.danger, opacity: busy ? 0.7 : 1 }}
         >
-          <Text style={{ color: '#fff', fontFamily: fonts.semibold, fontSize: 15 }}>
+          <Text style={{ color: '#fff', fontFamily: fonts.semibold, fontSize: fontSize.base }}>
             {busy && progress ? fill(t('revokeProgress'), { done: String(Math.min(progress.done + 1, progress.total)), total: String(progress.total) }) : fill(t('revokeSelected'), { count: String(selectedItems.length) })}
           </Text>
         </KPressable>
@@ -375,7 +374,7 @@ function ApprovalsInner() {
           setTargets(null);
         }}
       />
-    </PremiumScreen>
+    </Screen>
     </>
   );
 }

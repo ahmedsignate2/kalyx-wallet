@@ -7,9 +7,8 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Input, ScreenHeader, Text } from '../ui/kit';
-import { NovaCard, NovaHero } from '../ui/nova';
-import { PremiumScreen } from '../ui/premium';
+import { Button, Input, ScreenHeader, Text, Card, Screen } from '../ui/kit';
+import { NovaHero } from '../ui/nova';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { spacing } from '../ui/theme';
 import { useT } from '../lib/settingsStore';
@@ -68,12 +67,12 @@ export default function DuressScreen() {
   );
 
   return (
-    <PremiumScreen>
+    <Screen>
       <ScreenHeader />
       <NovaHero icon="security" title={t('duressTitle')} subtitle={t('duressHint')} />
       {active && !replacing ? (
         <>
-          <NovaCard delay={80} style={{ gap: spacing(1) }}>
+          <Card rise delay={80} style={{ gap: spacing(1) }}>
             <Text variant="body">{t('duressActive')}</Text>
             <Text variant="caption" tone="secondary">{t('duressFund')}</Text>
             {accounts[0] ? (
@@ -91,19 +90,19 @@ export default function DuressScreen() {
                   ))}
               </View>
             ) : null}
-          </NovaCard>
+          </Card>
           <Button label={t('duressReplace')} variant="secondary" onPress={() => setReplacing(true)} />
           <Button label={t('duressRemove')} variant="ghost" onPress={() => setAskRemove(true)} />
         </>
       ) : active === null ? null : (
-        <NovaCard delay={80} style={{ gap: spacing(1.5) }}>
+        <Card rise delay={80} style={{ gap: spacing(1.5) }}>
           {pinInput(mainPin, setMainPin, t('duressMainPin'))}
           {pinInput(pin1, setPin1, t('duressNewPin'))}
           {pinInput(pin2, setPin2, t('duressConfirmPin'))}
           <Text variant="caption" tone="secondary">{t('duressBioOff')}</Text>
           {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
           <Button label={t('duressSetup')} icon="security" loading={busy} disabled={mainPin.length < 6 || pin1.length < 6 || pin2.length < 6} onPress={() => void onSetup()} />
-        </NovaCard>
+        </Card>
       )}
       <ConfirmUnlock
         visible={askRemove}
@@ -115,6 +114,6 @@ export default function DuressScreen() {
         onDone={() => setAskRemove(false)}
         onCancel={() => setAskRemove(false)}
       />
-    </PremiumScreen>
+    </Screen>
   );
 }

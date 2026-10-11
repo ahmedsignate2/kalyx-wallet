@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Text } from './kit';
 import { Icon, type IconName } from './icon';
-import { useTheme } from './theme';
+import { useTheme, radii } from './theme';
 import { fontFamily } from './tokens';
 import { useSettings, useT } from '../lib/settingsStore';
 import { auditFacts, type TxAuditFact, type TxRecipientFacts } from '../lib/aiTxAudit';
@@ -45,7 +45,7 @@ export function RecipientFacts({ to, chainId, from, facts }: { to: string; chain
   const list = auditFacts({ to, value: '', recipient: { ...facts, probe: probe ?? undefined } });
   const color = (tone: Tone) => (tone === 'danger' ? colors.danger : tone === 'warning' ? colors.warning : tone === 'up' ? colors.up : colors.textSecondary);
   return (
-    <View style={{ gap: 8, padding: 14, borderRadius: 22, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+    <View style={{ gap: 8, padding: 14, borderRadius: radii.xl, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Text variant="micro" tone="secondary" style={{ letterSpacing: 1.2, textTransform: 'uppercase', flex: 1 }}>{t('recipientFactsTitle')}</Text>
         {probe === null ? <ActivityIndicator size="small" color={colors.textTertiary} /> : null}
@@ -55,7 +55,7 @@ export function RecipientFacts({ to, chainId, from, facts }: { to: string; chain
           const tone = TONE[f.kind];
           const c = color(tone);
           return (
-            <View key={`${f.kind}-${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, height: 28, borderRadius: 14, borderWidth: 1, borderColor: tone === 'neutral' ? colors.border : c + '55', backgroundColor: tone === 'neutral' ? colors.surface2 : c + '18' }}>
+            <View key={`${f.kind}-${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, height: 28, borderRadius: radii.full, borderWidth: 1, borderColor: tone === 'neutral' ? colors.border : c + '55', backgroundColor: tone === 'neutral' ? colors.surface2 : c + '18' }}>
               <Icon name={ICON[tone]} size={13} color={c} />
               <Text variant="caption" style={{ color: tone === 'neutral' ? colors.textSecondary : c, fontFamily: fontFamily.semibold }}>{factLabel(f, t, language)}</Text>
             </View>

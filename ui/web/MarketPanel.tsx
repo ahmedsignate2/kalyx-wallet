@@ -4,14 +4,13 @@
  * getMarkets/sortMarkets/searchCoins/formatFiat (src/domain/prices/
  * coingecko.ts), 100 % fetch, aucune dépendance native. Seule la présentation
  * est propre au web, pour rester visuellement cohérente avec le reste du
- * dashboard (Card/useTheme de ui/theme.ts, pas ui/premium.tsx qui a son
- * propre système de thème séparé).
+ * dashboard (useTheme de ui/theme.ts, composants de ui/kit).
  */
 import { memo, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, Image, TextInput } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
 import { Icon } from '../icon';
-import { fonts, radii, spacing, useTheme } from '../theme';
+import { fonts, fontSize, radii, spacing, useTheme } from '../theme';
 import { useT, useSettings, fiatSymbol } from '../../lib/settingsStore';
 import { useWebT } from './webI18n';
 import { CrossFade } from './motion';
@@ -35,12 +34,12 @@ function CoinAvatar({ uri, label, size = 32 }: { uri?: string; label: string; si
   const [failed, setFailed] = useState(false);
   if (!uri || failed) {
     return (
-      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: size, height: size, borderRadius: radii.full, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontSize: size * 0.4, color: colors.text, fontFamily: fonts.bold }}>{(label || '?').slice(0, 1).toUpperCase()}</Text>
       </View>
     );
   }
-  return <Image source={{ uri }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.glass }} />;
+  return <Image source={{ uri }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: radii.full, backgroundColor: colors.glass }} />;
 }
 
 /** Mini-tendance décorative (non interactive) en fond de ligne de marché. */
@@ -86,7 +85,7 @@ const WideRow = memo(function WideRow({ coin: m, rank, fiat, sym }: RowProps) {
         {fmtPrice(m.price, fiat, sym)}
       </Text>
       <View style={{ flex: 1, alignItems: 'flex-end' }}>
-        <Text style={{ color: up ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: 13, backgroundColor: (up ? colors.up : colors.down) + '1f', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.pill, overflow: 'hidden' }}>
+        <Text style={{ color: up ? colors.up : colors.down, fontFamily: fonts.semibold, fontSize: fontSize.sm, backgroundColor: (up ? colors.up : colors.down) + '1f', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full, overflow: 'hidden' }}>
           {`${up ? '+' : ''}${formatPercent(m.change24h)}`}
         </Text>
       </View>
@@ -113,7 +112,7 @@ const CompactRow = memo(function CompactRow({ coin: m, rank, fiat, sym }: RowPro
         <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'] }} numberOfLines={1}>
           {fmtPrice(m.price, fiat, sym)}
         </Text>
-        <Text style={{ color: up ? colors.up : colors.down, fontSize: 12, fontFamily: fonts.medium }}>
+        <Text style={{ color: up ? colors.up : colors.down, fontSize: fontSize.xs, fontFamily: fonts.medium }}>
           {`${up ? '+' : ''}${formatPercent(m.change24h)}`}
         </Text>
       </View>
@@ -159,7 +158,7 @@ export function MarketPanel({ wide }: { wide?: boolean } = {}) {
 
   return (
     <View style={{ gap: spacing(1.5) }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.pill, paddingHorizontal: spacing(1.25) }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.full, paddingHorizontal: spacing(1.25) }}>
         <Icon name="search" size={15} color={colors.textMuted} />
         <TextInput
           value={query}
@@ -167,12 +166,12 @@ export function MarketPanel({ wide }: { wide?: boolean } = {}) {
           placeholder={tw('marketSearchPlaceholder')}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="none"
-          style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 14, paddingVertical: spacing(1) }}
+          style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: fontSize.md, paddingVertical: spacing(1) }}
         />
       </View>
 
       {searchMode ? (
-        <View style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg }}>
+        <View style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.xl }}>
           {searching && results.length === 0 ? (
             <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>{t('searching')}</Text>
           ) : results.length === 0 ? (
@@ -196,14 +195,14 @@ export function MarketPanel({ wide }: { wide?: boolean } = {}) {
             {TABS.map((tb) => {
               const on = tb.key === tab;
               return (
-                <Pressable key={tb.key} onPress={() => setTab(tb.key)} style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.pill, backgroundColor: on ? colors.accent : colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}>
-                  <Text style={{ color: on ? colors.onPrimary : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 }}>{tb.label}</Text>
+                <Pressable key={tb.key} onPress={() => setTab(tb.key)} style={{ paddingHorizontal: spacing(1.5), paddingVertical: spacing(0.75), borderRadius: radii.full, backgroundColor: on ? colors.accent : colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}>
+                  <Text style={{ color: on ? colors.onPrimary : colors.textMuted, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{tb.label}</Text>
                 </Pressable>
               );
             })}
           </View>
 
-          <CrossFade id={tab} style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg }}>
+          <CrossFade id={tab} style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.xl }}>
             {rows.length === 0 ? (
               <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(3) }]}>{tw('marketLoading')}</Text>
             ) : wide ? (
@@ -214,11 +213,11 @@ export function MarketPanel({ wide }: { wide?: boolean } = {}) {
                */
               <>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2), paddingHorizontal: spacing(2), paddingVertical: spacing(1.25) }}>
-                  <Text style={[typography.muted, { width: 28, fontSize: 12 }]}>#</Text>
-                  <Text style={[typography.muted, { flex: 2, fontSize: 12 }]}>{tw('colAsset')}</Text>
-                  <Text style={[typography.muted, { flex: 1, fontSize: 12, textAlign: 'right' }]}>{tw('colPrice')}</Text>
-                  <Text style={[typography.muted, { flex: 1, fontSize: 12, textAlign: 'right' }]}>{tw('col24h')}</Text>
-                  <Text style={[typography.muted, { width: 160, fontSize: 12, textAlign: 'right' }]}>{tw('col7d')}</Text>
+                  <Text style={[typography.muted, { width: 28, fontSize: fontSize.xs }]}>#</Text>
+                  <Text style={[typography.muted, { flex: 2, fontSize: fontSize.xs }]}>{tw('colAsset')}</Text>
+                  <Text style={[typography.muted, { flex: 1, fontSize: fontSize.xs, textAlign: 'right' }]}>{tw('colPrice')}</Text>
+                  <Text style={[typography.muted, { flex: 1, fontSize: fontSize.xs, textAlign: 'right' }]}>{tw('col24h')}</Text>
+                  <Text style={[typography.muted, { width: 160, fontSize: fontSize.xs, textAlign: 'right' }]}>{tw('col7d')}</Text>
                 </View>
                 {rows.map((m, i) => <WideRow key={m.id} coin={m} rank={i + 1} fiat={fiat} sym={sym} />)}
               </>
@@ -226,7 +225,7 @@ export function MarketPanel({ wide }: { wide?: boolean } = {}) {
               rows.map((m, i) => <CompactRow key={m.id} coin={m} rank={i + 1} fiat={fiat} sym={sym} />)
             )}
           </CrossFade>
-          <Text style={[typography.muted, { textAlign: 'center', fontSize: 12 }]}>{tw('marketSource')}</Text>
+          <Text style={[typography.muted, { textAlign: 'center', fontSize: fontSize.xs }]}>{tw('marketSource')}</Text>
         </>
       )}
     </View>

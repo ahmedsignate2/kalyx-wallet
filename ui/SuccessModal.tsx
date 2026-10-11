@@ -4,12 +4,12 @@ import { Animated, Linking, Pressable, Text, View } from 'react-native';
 import { Icon } from './icon';
 import Svg, { Circle, Path, G } from 'react-native-svg';
 
-import { Button } from './components';
-import { fonts, radii, spacing, useTheme } from './theme';
+import { fonts, radii, spacing, useTheme, fontSize } from './theme';
 import { useT } from '../lib/settingsStore';
 import { haptic } from '../lib/haptics';
 import { buildExplorerTxUrl } from '../src';
 import { sound } from '../lib/sound';
+import { Button } from './kit';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedG = Animated.createAnimatedComponent(G);
@@ -70,8 +70,8 @@ export function SuccessModal({
         <View
           style={{
             backgroundColor: colors.bg,
-            borderTopLeftRadius: radii.xl,
-            borderTopRightRadius: radii.xl,
+            borderTopLeftRadius: radii.xxl,
+            borderTopRightRadius: radii.xxl,
             padding: spacing(3),
             paddingBottom: spacing(5),
             alignItems: 'center',
@@ -105,7 +105,7 @@ export function SuccessModal({
           <Text style={[typography.title, { textAlign: 'center' }]}>{title}</Text>
           {message ? <Text style={[typography.muted, { textAlign: 'center' }]}>{message}</Text> : null}
           {short ? (
-            <Text style={{ color: colors.textTertiary, fontSize: 13, fontVariant: ['tabular-nums'] }} selectable>
+            <Text style={{ color: colors.textTertiary, fontSize: fontSize.sm, fontVariant: ['tabular-nums'] }} selectable>
               {short}
             </Text>
           ) : null}

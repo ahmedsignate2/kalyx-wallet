@@ -1,9 +1,8 @@
 import { NovaHero, Pulse, Rise } from '../ui/nova';
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable, Card, Screen } from '../ui/kit';
 import { Text, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
-import { Screen, Card } from '../ui/components';
-import { spacing, useTheme } from '../ui/theme';
+import { spacing, useTheme, fontSize } from '../ui/theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { LANGUAGES } from '../lib/i18n';
 
@@ -14,7 +13,7 @@ export default function Language() {
   const setLanguage = useSettings((s) => s.setLanguage);
 
   return (
-    <Screen>
+    <Screen layout="form">
       <ScreenHeader />
       <NovaHero icon="language" title={t('language')} />
       <ScrollView contentContainerStyle={{ gap: spacing(1), paddingVertical: spacing(1) }}>
@@ -28,17 +27,16 @@ export default function Language() {
                 router.back();
               }}
             >
-              <Card
+              <Card padding="xl" gap="md"
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border,
-                  borderRadius: 22,
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-                  <Text style={{ fontSize: 22 }}>{l.flag}</Text>
+                  <Text style={{ fontSize: fontSize.xxl }}>{l.flag}</Text>
                   <Text style={typography.body}>{l.name}</Text>
                 </View>
                 {active ? <Pulse size={8} /> : null}

@@ -26,13 +26,13 @@ import { friendlyTxError } from '../lib/txError';
 const PRECHECK_BLOCKING = new Set(['SOL_RENT_SENDER', 'SOL_RENT_RECIPIENT', 'INSUFFICIENT_FUNDS', 'AMOUNT_TOO_SMALL', 'INSUFFICIENT_GAS', 'MEMO_REQUIRED', 'INVALID_ADDRESS', 'INVALID_AMOUNT', 'PREVIOUS_TX_PENDING']);
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { LogoImage, Text, Button, IconButton, Surface, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, HoldRing, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable } from '../ui/kit';
+import { LogoImage, Text, Button, IconButton, Divider, ListRow, TokenRow, AddressGlyph, AmountKeypad, StepBar, HoldRing, TxSteps, Chip, Skeleton, Input, EmptyState, SegmentedControl, type TxStage, Pressable as KPressable, Card, Checkbox } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { ContactPicker } from '../ui/ContactPicker';
 import { FadeInUp } from '../ui/FadeInUp';
 import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
+import { space, SCREEN_MARGIN, radius, radii } from '../ui/tokens';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { useRecentRecipients, type RecipientFamily } from '../lib/recentRecipientsStore';
@@ -42,12 +42,45 @@ import { notifyAndLog } from '../lib/notificationCenter';
 import { technicalLogger } from '../lib/technicalLogger';
 import { haptic } from '../lib/haptics';
 import {
-  getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isWalletAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount, trimDecimalZeros,
-  formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
-  estimateGasReserve, getPrices, getTokenPrices, chainIconUrl, EvmChainAdapter, SolanaChainAdapter, TonAdapterV2, JETTON_TRANSFER_TON, normalizeTonDomain,
-  findAdapterV2, getAdapterV2, isValidTonAddress, transferFeeFor, amountAfterTransferFee,
-  type FeeOptions, type FeeSpeed, type FeeQuotes, type TransferFeeConfig,
-  simulateSendTransaction, type SimulationResult,
+  getAdapter,
+  hasChain,
+  isWalletError,
+  isValidEvmAddress,
+  isValidSolanaAddress,
+  isWalletAddress,
+  isValidBtcAddress,
+  parseAmount,
+  formatTokenAmount,
+  formatInputAmount,
+  trimDecimalZeros,
+  formatAmount,
+  formatFiat,
+  getCustomTokens,
+  looksLikeEnsName,
+  resolveEnsName,
+  detectPoisoning,
+  groupAddress,
+  shortAddress,
+  estimateGasReserve,
+  getPrices,
+  getTokenPrices,
+  chainIconUrl,
+  EvmChainAdapter,
+  SolanaChainAdapter,
+  TonAdapterV2,
+  JETTON_TRANSFER_TON,
+  normalizeTonDomain,
+  findAdapterV2,
+  getAdapterV2,
+  isValidTonAddress,
+  transferFeeFor,
+  amountAfterTransferFee,
+  type FeeOptions,
+  type FeeSpeed,
+  type FeeQuotes,
+  type TransferFeeConfig,
+  simulateSendTransaction,
+  type SimulationResult
 } from '../src';
 import { addressForChain } from '../lib/accountAddress';
 import { useHistoryStore } from '../lib/historyStore';
@@ -814,7 +847,7 @@ function SendInner() {
             {/* Le titre rétrécit (une ligne) : long (« Vérifie avant d'envoyer »), il poussait la pastille du réseau sur le compteur d'étapes. */}
             <Text variant="title2" numberOfLines={1} style={{ flexShrink: 1 }}>{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : step === 3 ? t("verifyBeforeSendTitle") : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
             {step > 0 && chainIconUrl(chain.id) ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: 12, backgroundColor: colors.surface2, flexShrink: 0 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 24, borderRadius: radii.full, backgroundColor: colors.surface2, flexShrink: 0 }}>
                 <LogoImage uri={chainIconUrl(chain.id)!} size={14} />
                 <Text variant="micro" tone="secondary">{chain.name}</Text>
               </View>
@@ -842,11 +875,11 @@ function SendInner() {
               <Input placeholder="usdc, arbitrum…" value={search} onChangeText={setSearch} autoCapitalize="none" />
               {showTestnets ? <SegmentedControl items={[{ key: 'mainnet', label: t("tabMainnet") }, { key: 'testnet', label: t("tabTestnet") }]} value={environment} onChange={setEnvironment} /> : null}
               {pf.loading && pf.holdings.length === 0 ? (
-                <Surface padded={false}>{[0, 1, 2].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center', gap: space[2] }}><Skeleton width="55%" /><Skeleton width="30%" height={12} /></View>)}</Surface>
+                <Card padded={false}>{[0, 1, 2].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center', gap: space[2] }}><Skeleton width="55%" /><Skeleton width="30%" height={12} /></View>)}</Card>
               ) : list.length === 0 ? (
-                <Surface><EmptyState icon="send" title={q ? t("emptySearchTitle") : t("emptySendTitle")} body={q ? undefined : t("emptySendBody")} actionLabel={q ? undefined : t("receive")} onAction={q ? undefined : () => router.replace('/receive')} /></Surface>
+                <Card><EmptyState icon="send" title={q ? t("emptySearchTitle") : t("emptySendTitle")} body={q ? undefined : t("emptySendBody")} actionLabel={q ? undefined : t("receive")} onAction={q ? undefined : () => router.replace('/receive')} /></Card>
               ) : (
-                <Surface padded={false}>
+                <Card padded={false}>
                   {list.map((h, i) => (
                     <React.Fragment key={h.id}>
                       <TokenRow
@@ -873,7 +906,7 @@ function SendInner() {
                       {i < list.length - 1 ? <Divider inset={68} /> : null}
                     </React.Fragment>
                   ))}
-                </Surface>
+                </Card>
               )}
             </>
           );
@@ -889,7 +922,7 @@ function SendInner() {
         {/* ── 1. Destinataire ── */}
         {step === 1 ? (
           <FadeInUp style={{ flex: 1, gap: space[5] }}>
-            <Surface level={2} style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[3] }}>
+            <Card level={2} style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[3] }}>
               {recipientOk ? <AddressGlyph address={recipient} size={40} /> : <View style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}><Icon name="profile" size={18} tone="faint" /></View>}
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text variant="caption" tone="secondary">{t("labelTo")}</Text>
@@ -905,7 +938,7 @@ function SendInner() {
                 </KPressable>
               </View>
               {to ? <IconButton icon="close" label={t("keypadErase")} tone="ghost" onPress={() => setTo('')} /> : null}
-            </Surface>
+            </Card>
             <View style={{ flexDirection: 'row', gap: space[2] }}>
               <Chip label={t("chipPaste")} icon="copy" onPress={paste} />
               <Chip label={t("chipScan")} icon="scan" onPress={() => router.push('/scan')} />
@@ -919,17 +952,17 @@ function SendInner() {
             {isEns && ens.status === 'resolving' ? <Text variant="caption" tone="secondary">{t(tonDomain ? 'resolvingName' : 'resolvingEns')}</Text> : null}
 
             {poisoning ? (
-              <Surface style={{ borderColor: colors.danger, gap: space[2] }}>
+              <Card style={{ borderColor: colors.danger, gap: space[2] }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}><Icon name="alert" size={18} color={colors.danger} /><Text variant="body" tone="danger">{t("suspiciousAddressTitle")}</Text></View>
                 <Text variant="bodySecondary" tone="secondary">{t("suspiciousAddressBody")}</Text>
                 <View style={{ flexDirection: 'row', gap: space[2] }}><AddressGlyph address={poisoning.lookalike} size={28} /><Text variant="caption" tone="secondary" style={{ flex: 1 }}>{groupAddress(poisoning.lookalike)}</Text></View>
                 <View style={{ flexDirection: 'row', gap: space[2] }}><AddressGlyph address={recipient} size={28} /><Text variant="caption" tone="danger" style={{ flex: 1 }}>{groupAddress(recipient)}</Text></View>
-              </Surface>
+              </Card>
             ) : recipientOk && !isKnown ? (
-              <Surface style={{ borderColor: colors.warning, gap: space[1] }}>
+              <Card style={{ borderColor: colors.warning, gap: space[1] }}>
                 <Text variant="body" tone="warning">{t("neverSentWarning")}</Text>
                 <Text variant="bodySecondary" tone="secondary">{t("checkEndWarning")}<Text variant="body">…{recipient.slice(-4)}</Text></Text>
-              </Surface>
+              </Card>
             ) : null}
             {isContract ? <Text variant="caption" tone="warning">{t("contractAddressWarning")}</Text> : null}
             {/*
@@ -952,14 +985,14 @@ function SendInner() {
             {recents.length > 0 ? (
               <View style={{ gap: space[2] }}>
                 <Text variant="caption" tone="secondary">{t("recents")}</Text>
-                <Surface padded={false}>
+                <Card padded={false}>
                   {recents.slice(0, 5).map((r, i) => (
                     <React.Fragment key={r.address}>
                       <ListRow left={<AddressGlyph address={r.address} size={36} />} title={contacts.find((c) => c.address.toLowerCase() === r.address.toLowerCase())?.name ?? shortAddress(r.address)} subtitle={groupAddress(r.address)} onPress={() => setTo(r.address)} />
                       {i < Math.min(recents.length, 5) - 1 ? <Divider inset={64} /> : null}
                     </React.Fragment>
                   ))}
-                </Surface>
+                </Card>
               </View>
             ) : null}
             {addressError ? <Text variant="caption" tone="danger">{addressError}</Text> : null}
@@ -1021,7 +1054,7 @@ function SendInner() {
           <FadeInUp style={{ flex: 1, gap: space[4] }}>
             <View style={{ alignItems: 'center', gap: 6, paddingTop: space[2] }}>
               <Text variant="micro" tone="secondary" style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>{t('sendYouSend')}</Text>
-              <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 52, lineHeight: 58, textAlign: 'center' }}>
+              <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
                 {formatTokenAmount(amountRaw, decimals)} <Text variant="title2" tone="secondary">{symbol}</Text>
               </Text>
               {price > 0 ? <Text variant="bodySecondary" tone="secondary" tabular>≈ {formatFiat(fiatOfAmount)} {sym}</Text> : null}
@@ -1033,7 +1066,7 @@ function SendInner() {
               from={senderAddress}
               facts={{ contactName, ownAccount: isOwnRecipient, paidBefore, lookalikeOf: poisoning?.lookalike, isContract }}
             />
-            <Surface padded={false} style={{ borderRadius: 26 }}>
+            <Card padded={false}>
               {/*
                 CE QUE LE LIEN ANNONCE, en tête et non dans un toast qui disparaît.
                 Bénéficiaire et motif sont écrits par l'émetteur du lien : affichés,
@@ -1060,7 +1093,7 @@ function SendInner() {
                 </>
               ) : null}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[4] }}>
-                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 48, height: 48, borderRadius: radii.full, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
                   <AddressGlyph address={recipient} size={34} />
                 </View>
                 <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
@@ -1087,7 +1120,7 @@ function SendInner() {
                   right={<Text variant="body" tabular>{`${t('recipientGets')} ${formatTokenAmount(amountAfterTransferFee(amountRaw, tokenFee), decimals)} ${symbol}`}</Text>}
                 />
               ) : null}
-            </Surface>
+            </Card>
             {feeOptions ? (
               <View style={{ flexDirection: 'row', gap: space[2] }}>
                 {(['slow', 'normal', 'fast'] as FeeSpeed[]).map((s) => <Chip key={s} label={s === 'slow' ? t("feeSlow") : s === 'normal' ? t("feeNormal") : t("feeFast")} selected={speed === s} onPress={() => setSpeed(s)} />)}
@@ -1121,45 +1154,27 @@ function SendInner() {
               C'est donc ici que le garde-fou doit vivre, en plus de l'étape 1.
             */}
             {poisoning ? (
-              <Surface style={{ borderColor: colors.danger, gap: space[2] }}>
+              <Card style={{ borderColor: colors.danger, gap: space[2] }}>
                 <Text variant="body" tone="danger">{t("suspiciousAddressTitle")}</Text>
                 <Text variant="caption" tone="secondary">{t("suspiciousAddressBody")}</Text>
                 <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
                   <AddressGlyph address={poisoning.lookalike} size={28} />
                   <Text variant="caption" tone="secondary" style={{ flex: 1 }}>{groupAddress(poisoning.lookalike)}</Text>
                 </View>
-              </Surface>
+              </Card>
             ) : null}
             {isSolanaPda ? <Text variant="caption" tone="danger">{t('solanaPdaWarning')}</Text> : null}
             <AntiDrainerBanner loading={isSimulating} simulation={simResult} />
             {simResult?.warningLevel === 'critical' ? (
-              <KPressable
-                onPress={() => setForceSendChecked((v) => !v)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: space[2],
-                  paddingVertical: space[1],
-                }}
-              >
-                <View
-                  style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: 4,
-                    borderWidth: 1.5,
-                    borderColor: forceSendChecked ? colors.danger : colors.border,
-                    backgroundColor: forceSendChecked ? colors.danger : 'transparent',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {forceSendChecked ? <Icon name="check" size={14} color="#FFFFFF" /> : null}
-                </View>
-                <Text variant="caption" tone="danger" style={{ flex: 1 }}>
-                  {t('antiDrainerForceSendConfirm')}
-                </Text>
-              </KPressable>
+              <View style={{ paddingVertical: space[1] }}>
+                <Checkbox
+                  tone="danger"
+                  size={20}
+                  checked={forceSendChecked}
+                  onChange={setForceSendChecked}
+                  label={<Text variant="caption" tone="danger">{t('antiDrainerForceSendConfirm')}</Text>}
+                />
+              </View>
             ) : null}
           </FadeInUp>
         ) : null}
@@ -1169,10 +1184,10 @@ function SendInner() {
           <>
             {/* Le moment de l'envoi : orbite, comète d'or, puis célébration à la confirmation. */}
             <SendResult stage={stage} amount={`${formatTokenAmount(amountRaw, decimals)} ${symbol}`} dest={`${t('towards')} ${destLabel ?? shortAddress(recipient)} · ${chain.name}`} />
-            <Surface style={{ gap: space[4] }}>
+            <Card style={{ gap: space[4] }}>
               <TxSteps stage={stage} />
               {stage === 'failed' ? <Text variant="caption" tone="danger">{t("txFailedMsg")}</Text> : null}
-            </Surface>
+            </Card>
             <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t("canLeaveScreenInfo")}</Text>
             {hash ? <Button label={t('trackTransaction')} variant="secondary" size="md" onPress={() => router.push({ pathname: '/tracking', params: { hash, chainId: chain.id } })} /> : null}
             <View style={{ flex: 1 }} />

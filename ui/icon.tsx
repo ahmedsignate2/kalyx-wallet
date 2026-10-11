@@ -89,6 +89,7 @@ import { DetectiveIcon } from 'phosphor-react-native/src/icons/Detective';
 import { DesktopIcon } from 'phosphor-react-native/src/icons/Desktop';
 import { BroomIcon } from 'phosphor-react-native/src/icons/Broom';
 import { SquaresFourIcon } from 'phosphor-react-native/src/icons/SquaresFour';
+import { SquareIcon } from 'phosphor-react-native/src/icons/Square';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
 import { LightbulbIcon } from 'phosphor-react-native/src/icons/Lightbulb';
 import { XLogoIcon } from 'phosphor-react-native/src/icons/XLogo';
@@ -117,7 +118,9 @@ export type IconName =
   | 'xLogo' | 'telegramLogo' | 'githubLogo' | 'gear'
   | 'image'
   // Glyphes texte remplacés (↑/↓ des variations, ↗ lien externe, ⇅ bascule, ✗ refus)
-  | 'trendUp' | 'trendDown' | 'arrowUpRight' | 'arrowsDownUp' | 'cross' | 'backspace';
+  | 'trendUp' | 'trendDown' | 'arrowUpRight' | 'arrowsDownUp' | 'cross' | 'backspace'
+  // Cadre du compteur d'onglets (le nombre est posé dessus)
+  | 'tabFrame';
 
 const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   home: { icon: HouseIcon },
@@ -206,6 +209,7 @@ const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   arrowsDownUp: { icon: ArrowsDownUpIcon },
   cross: { icon: XIcon },
   backspace: { icon: BackspaceIcon },
+  tabFrame: { icon: SquareIcon },
 };
 
 export function Icon({

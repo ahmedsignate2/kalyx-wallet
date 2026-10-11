@@ -1,6 +1,6 @@
 import { NovaHero, Pills, Pulse, SectionLabel } from '../ui/nova';
 import { fill } from '../lib/i18n';
-import { ScreenHeader, IconButton, Pressable as KPressable, Button, Checkbox, SegmentedControl, Text as KText } from '../ui/kit';
+import { ScreenHeader, IconButton, Pressable as KPressable, Button, Checkbox, SegmentedControl, Text as KText, Card, RemoteIcon, Screen, Input } from '../ui/kit';
 import { SafeModal } from '../ui/kit/SafeModal';
 import { ExplainSheet } from '../components/ai/ExplainSheet';
 import { useMemo, useRef, useState } from 'react';
@@ -8,9 +8,7 @@ import { probeRpcChainId } from '../src/domain/chains/customNetworks';
 import { View, Text, ScrollView, TextInput, KeyboardAvoidingView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Screen, Card, Muted } from '../ui/components';
-import { SearchBar, RemoteIcon } from '../ui/premium';
-import { fonts, spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme, fontSize } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { listChains, chainIconUrl, customChainId, CUSTOM_FAMILIES, DEFAULT_DECIMALS, type ChainFamily } from '../src';
@@ -34,7 +32,7 @@ const FAMILY_TABS: ChainFamily[] = ['evm', 'bitcoin', 'solana', 'ton'];
 /** Symbole suggéré par famille, pour ne pas laisser le champ vide. */
 const DEFAULT_SYMBOLS: Record<ChainFamily, string> = { evm: 'ETH', bitcoin: 'BTC', solana: 'SOL', ton: 'TON' };
 import { useCustomChains, type CustomChainInput } from '../lib/customChainsStore';
-import { space } from '../ui/tokens';
+import { space, radii } from '../ui/tokens';
 
 export default function Networks() {
   const { colors, typography } = useTheme();
@@ -139,10 +137,9 @@ export default function Networks() {
         accessibilityState={{ selected: active }}
         accessibilityLabel={c.name}
       >
-        <Card
+        <Card padding="xl" gap="md"
           style={{
             borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border,
-            borderRadius: 22,
             paddingVertical: spacing(1.75),
             flexDirection: 'row',
             alignItems: 'center',
@@ -153,11 +150,11 @@ export default function Networks() {
             <RemoteIcon uri={chainIconUrl(c.id)} label={c.name} size={36} />
             <View>
               <Text style={typography.body}>{c.name}</Text>
-              <Muted>
+              <KText variant="label">
                 {c.nativeSymbol}
                 {c.evmChainId ? ` · Chain ${c.evmChainId}` : ''}
                 {c.testnet ? ` · ${t('testnet')}` : ''}
-              </Muted>
+              </KText>
             </View>
           </View>
           {/* Expliquer ce réseau (Copilot) — sans changer de réseau. */}
@@ -177,7 +174,7 @@ export default function Networks() {
   };
 
   return (
-    <Screen>
+    <Screen layout="form">
       <ScreenHeader
         right={<IconButton icon="add" label={t("addNetwork")} tone="ghost" onPress={() => { setFormError(null); setAddOpen(true); }} />}
       />
@@ -185,7 +182,7 @@ export default function Networks() {
 
       {all.length > 6 ? (
         <View style={{ marginTop: spacing(1) }}>
-          <SearchBar value={query} onChangeText={setQuery} placeholder={t('searchNetwork')} />
+          <Input icon="search" value={query} onChangeText={setQuery} placeholder={t('searchNetwork')} />
         </View>
       ) : null}
 
@@ -217,8 +214,8 @@ export default function Networks() {
             plutôt qu'un onglet muet — un vide ne se distingue pas d'un bogue.
           */
           q ? (
-            <Card>
-              <Muted>{t('noNetworkMatch').replace('{q}', query)}</Muted>
+            <Card padding="xl" gap="md">
+              <KText variant="label">{t('noNetworkMatch').replace('{q}', query)}</KText>
             </Card>
           ) : family === 'ton' ? (
             /*
@@ -226,7 +223,7 @@ export default function Networks() {
               vide ne dirait pas pourquoi. On l'explique, et on offre le réglage
               ici même plutôt que d'envoyer l'utilisateur le chercher.
             */
-            <Card style={{ gap: spacing(1) }}>
+            <Card padding="xl" gap="md" style={{ gap: spacing(1) }}>
               <Text style={typography.section}>{t('tonTestnetTitle')}</Text>
               <Text style={typography.muted}>{t('tonTestnetBody')}</Text>
               {!showTestnets ? (
@@ -234,8 +231,8 @@ export default function Networks() {
               ) : null}
             </Card>
           ) : (
-            <Card>
-              <Muted>{t('noNetworkMatch').replace('{q}', FAMILY_LABELS[family])}</Muted>
+            <Card padding="xl" gap="md">
+              <KText variant="label">{t('noNetworkMatch').replace('{q}', FAMILY_LABELS[family])}</KText>
             </Card>
           )
         ) : (
@@ -250,8 +247,8 @@ export default function Networks() {
             {testnets.length > 0 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), marginTop: spacing(2) }}>
                 <SectionLabel>{t('testNetworks')}</SectionLabel>
-                <View style={{ backgroundColor: colors.warning + '22', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                  <Text style={{ color: colors.warning, fontSize: 10, fontFamily: fonts.bold }}>{t('noRealFunds')}</Text>
+                <View style={{ backgroundColor: colors.warning + '22', borderRadius: radii.xs, paddingHorizontal: 6, paddingVertical: 2 }}>
+                  <Text style={{ color: colors.warning, fontSize: fontSize.xxs, fontFamily: fonts.bold }}>{t('noRealFunds')}</Text>
                 </View>
               </View>
             ) : null}
@@ -265,7 +262,7 @@ export default function Networks() {
       <ExplainSheet visible={!!explain} onClose={() => setExplain(null)} subject={explain ? { kind: 'network', name: explain.name, logo: chainIconUrl(explain.id), seed: explain.id } : null} />
       <SafeModal visible={addOpen} transparent animationType="slide" onRequestClose={closeAdd}>
         <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
-          <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing(2.5), gap: spacing(1.25) }}>
+          <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), gap: spacing(1.25) }}>
             <Text style={typography.section}>{t("addNetwork")}</Text>
             {/*
               La FAMILLE d'abord : elle décide des champs suivants. Sans ce
@@ -319,7 +316,7 @@ export default function Networks() {
                     keyboardType={numeric ? 'number-pad' : key === 'rpcUrl' || key === 'explorerUrl' ? 'url' : 'default'}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    style={{ color: colors.text, backgroundColor: colors.surface2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}
+                    style={{ color: colors.text, backgroundColor: colors.surface2, borderRadius: radii.md, paddingHorizontal: 14, paddingVertical: 12 }}
                   />
                 </View>
               );

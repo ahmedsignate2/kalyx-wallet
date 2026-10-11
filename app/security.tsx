@@ -16,11 +16,11 @@ import { useIsWatchOnly } from '../ui/WatchOnlyGate';
 import { View, ScrollView } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, Surface, Divider, ListRow, TokenIcon, Skeleton, Chip, Pressable, ScreenHeader } from '../ui/kit';
+import { Text, Divider, ListRow, TokenIcon, Skeleton, Chip, Pressable, ScreenHeader, Card } from '../ui/kit';
 import { Icon, type IconName } from '../ui/icon';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
+import { space, SCREEN_MARGIN, radius, radii } from '../ui/tokens';
 import { useWallet, useBackupStale, type Unlock } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { useWalletConnect } from '../lib/walletconnect';
@@ -141,7 +141,7 @@ export default function SecurityCenter() {
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + space[2], paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[5] }} showsVerticalScrollIndicator={false}>
         <ScreenHeader fallback="/menu" />
         <NovaHero title={t('security')} subtitle={allDone ? t('allGood') : t('pointsToFix')}>
-          <View style={{ width: 80, height: 80, alignItems: 'center', justifyContent: 'center', borderRadius: 40, backgroundColor: colors.surface1 }}>
+          <View style={{ width: 80, height: 80, alignItems: 'center', justifyContent: 'center', borderRadius: radii.full, backgroundColor: colors.surface1 }}>
             <Svg width={80} height={80} style={{ position: 'absolute' }}>
               <Circle cx={40} cy={40} r={R} stroke={colors.surface3} strokeWidth={6} fill="none" />
               <Circle cx={40} cy={40} r={R} stroke={allDone ? colors.up : GOLD} strokeWidth={6} fill="none" strokeLinecap="round" strokeDasharray={`${C * (checks.length ? score / checks.length : 0)} ${C}`} transform="rotate(-90 40 40)" />
@@ -150,7 +150,7 @@ export default function SecurityCenter() {
           </View>
         </NovaHero>
 
-        <Surface padded={false}>
+        <Card padded={false}>
           <Check ok={backupVerified} icon="phrase" title={backupVerified ? t("recoveryPhraseVerified") : t("recoveryPhrase")} body={backupVerified ? t("recoveryPhraseVerifiedMsg") : t("recoveryPhraseNotVerifiedMsg")} actionLabel={t("verify")} onAction={() => router.push('/reveal-phrase')} />
           <Divider inset={68} />
           <Check ok={encryptedBackupDone} icon="share" title={backupStale ? t('encBackupStaleTitle') : t('encBackup')} body={backupStale ? t('encBackupStaleMsg') : encryptedBackupDone ? t('encBackupDoneMsg') : t('encBackupTodoMsg')} actionLabel={backupStale ? t('updateBackupBtn') : t('createBackupBtn')} onAction={() => router.push('/cloud-backup')} />
@@ -158,12 +158,12 @@ export default function SecurityCenter() {
           <Check ok={biometric} icon="security" title={biometric ? t("biometricsEnabled") : t("biometrics")} body={biometric ? t("biometricsEnabledMsg") : t("biometricsDisabledMsg")} actionLabel={t("enable")} onAction={() => router.push('/settings')} />
           <Divider inset={68} />
           <Check ok={autoLock > 0 && autoLock <= 15} icon="lock" title={t("autoLock")} body={autoLock > 0 ? t('autoLockEnabledMsg').replace('{min}', String(autoLock)) : t("autoLockDisabledMsg")} actionLabel={t("configure")} onAction={() => router.push('/settings')} />
-        </Surface>
+        </Card>
 
         {/* Approbations */}
         <View style={{ gap: space[2] }}>
           <SectionLabel>{`${t("approvedContracts")} · ${chain.name}`}</SectionLabel>
-          <Surface padded={false}>
+          <Card padded={false}>
             {approvals === null ? (
               [0, 1].map((i) => <View key={i} style={{ height: 64, paddingHorizontal: space[4], justifyContent: 'center', gap: space[2] }}><Skeleton width="60%" /><Skeleton width="40%" height={12} /></View>)
             ) : approvals.length === 0 && approvalsIncomplete ? (
@@ -184,7 +184,7 @@ export default function SecurityCenter() {
                 </React.Fragment>
               ))
             )}
-          </Surface>
+          </Card>
         </View>
 
         {/* Vérifier qu'une adresse est bien à soi (avant de la partager). */}
@@ -192,7 +192,7 @@ export default function SecurityCenter() {
 
         {/* Code de contrainte : un second code qui ouvre un portefeuille leurre. */}
         <Pressable onPress={() => router.push('/duress')} accessibilityRole="button" accessibilityLabel={t('duressTitle')}>
-          <Surface>
+          <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
               <Icon name="lock" size={20} color={colors.textSecondary} />
               <View style={{ flex: 1, gap: 2 }}>
@@ -201,12 +201,12 @@ export default function SecurityCenter() {
               </View>
               <Icon name="chevron" size={16} color={colors.textTertiary} />
             </View>
-          </Surface>
+          </Card>
         </Pressable>
 
         {/* Liste blanche des destinataires (anti-vol : ajouts et désactivation différés de 24 h). */}
         <Pressable onPress={() => router.push('/whitelist')} accessibilityRole="button" accessibilityLabel={t('wlTitle')}>
-          <Surface>
+          <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
               <Icon name="security" size={20} color={wlOn ? colors.up : colors.textSecondary} />
               <View style={{ flex: 1, gap: 2 }}>
@@ -215,13 +215,13 @@ export default function SecurityCenter() {
               </View>
               <Icon name="chevron" size={16} color={colors.textTertiary} />
             </View>
-          </Surface>
+          </Card>
         </Pressable>
 
         {/* Sessions WalletConnect */}
         <View style={{ gap: space[2] }}>
           <SectionLabel>{t("connectedSites")}</SectionLabel>
-          <Surface padded={false}>
+          <Card padded={false}>
             {sessions.length === 0 ? (
               <View style={{ padding: space[4] }}><Text variant="bodySecondary" tone="secondary">{t("noConnectedSites")}</Text></View>
             ) : (
@@ -232,7 +232,7 @@ export default function SecurityCenter() {
                 </React.Fragment>
               ))
             )}
-          </Surface>
+          </Card>
         </View>
 
         <Pressable onPress={() => router.push('/settings')} style={{ alignSelf: 'center', paddingVertical: space[2] }}>

@@ -1,5 +1,5 @@
-import { NovaCard, NovaHero, NovaSwitch, SectionLabel, SettingRow } from '../ui/nova';
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { NovaHero, SectionLabel, SettingRow } from '../ui/nova';
+import { ScreenHeader, Pressable as KPressable, Button, Card, Notice, Screen, Switch } from '../ui/kit';
 import { probeRpcChainId } from '../src/domain/chains/customNetworks';
 import { useState } from 'react';
 import { View, Text, TextInput, ScrollView, Share, Platform } from 'react-native';
@@ -7,10 +7,8 @@ import { usePortfolioDiag, diagText } from '../lib/portfolio/diagnostics';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, router } from 'expo-router';
 import Constants from 'expo-constants';
-import { PremiumScreen, ErrorBox } from '../ui/premium';
-import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
-import { fonts, spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme, fontSize, radii } from '../ui/theme';
 import { useCustomChains, type CustomChainInput } from '../lib/customChainsStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { useNotifCenter } from '../lib/notificationCenter';
@@ -88,67 +86,67 @@ export default function Developer() {
       autoCapitalize="none"
       autoCorrect={false}
       keyboardType={kbd ?? 'default'}
-      style={{ color: colors.text, fontSize: 15, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: spacing(1.5), paddingVertical: spacing(1.25) }}
+      style={{ color: colors.text, fontSize: fontSize.base, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, paddingHorizontal: spacing(1.5), paddingVertical: spacing(1.25) }}
     />
   );
 
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <PremiumScreen>
+      <Screen>
       <ScreenHeader />
       <NovaHero icon="developer" title={t('developer')} subtitle={t('developerSub')} />
       <ScrollView contentContainerStyle={{ gap: spacing(2), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Infos build */}
         <View style={{ gap: spacing(1) }}>
           {/* Journal de diagnostic : tout ce que l'app a fait (lib/debugJournal.ts). */}
-          <NovaCard delay={100}>
+          <Card rise delay={100}>
             <SettingRow icon="history" tone="gold" title={t('journalTitle')} onPress={() => router.push('/journal')} />
-          </NovaCard>
+          </Card>
           <SectionLabel>{t('appSection')}</SectionLabel>
-          <NovaCard>
+          <Card rise>
             <Row label={t('versionWord')} value={`v${Constants.expoConfig?.version ?? '0.0.1'}`} colors={colors} typography={typography} />
             <Row label={t('environment')} value={__DEV__ ? t('developmentEnv') : t('productionEnv')} colors={colors} typography={typography} divider />
-          </NovaCard>
+          </Card>
         </View>
 
         {/* Dernier chargement des soldes, réseau par réseau : l'erreur RÉELLE de l'appareil. */}
         <View style={{ gap: spacing(1) }}>
           <SectionLabel>{t('diagBalances')}</SectionLabel>
-          <NovaCard>
-            <Text selectable style={[typography.muted, { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 11 }]}>
+          <Card rise>
+            <Text selectable style={[typography.muted, { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: fontSize.xxs }]}>
               {diag ? diagText(diag) : t('diagNone')}
             </Text>
-          </NovaCard>
-          {diag ? <Button label={t('diagShare')} variant="ghost" onPress={() => void Share.share({ message: diagText(diag) })} /> : null}
+          </Card>
+          {diag ? <Button label={t('diagShare')} variant="outline" onPress={() => void Share.share({ message: diagText(diag) })} /> : null}
         </View>
 
         {/* Réseaux de test (séparés du mainnet) */}
         <View style={{ gap: spacing(1) }}>
           <SectionLabel>{t('testNetworks')}</SectionLabel>
-          <NovaCard>
-            <SettingRow icon="networks" title={t('enableTestnets')} hint={t('testnetsHint')} right={<NovaSwitch value={showTestnets} onValueChange={(v) => setFlag('showTestnets', v)} />} />
-          </NovaCard>
+          <Card rise>
+            <SettingRow icon="networks" title={t('enableTestnets')} hint={t('testnetsHint')} right={<Switch value={showTestnets} onValueChange={(v) => setFlag('showTestnets', v)} />} />
+          </Card>
         </View>
 
         {/* Services */}
         <View style={{ gap: spacing(1) }}>
           <SectionLabel>{t('configuredServices')}</SectionLabel>
-          <NovaCard>
+          <Card rise>
             {SERVICES.map((s, i) => (
               <View key={s.name} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
                 <Text style={typography.body}>{s.name}</Text>
                 <Icon name={s.present ? 'check' : 'close'} size={17} color={s.present ? colors.up : colors.danger} />
               </View>
             ))}
-          </NovaCard>
+          </Card>
         </View>
 
         {/* Réseaux personnalisés */}
         <View style={{ gap: spacing(1) }}>
           <SectionLabel>{t('customNetworks')}</SectionLabel>
           {chains.length > 0 ? (
-            <NovaCard>
+            <Card rise>
               {chains.map((c, i) => (
                 <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
                   <View style={{ flex: 1 }}>
@@ -160,32 +158,32 @@ export default function Developer() {
                   </KPressable>
                 </View>
               ))}
-            </NovaCard>
+            </Card>
           ) : null}
-          <NovaCard style={{ gap: spacing(1) }}>
+          <Card rise style={{ gap: spacing(1) }}>
             {input(form.name, (v) => setForm({ ...form, name: v }), t('networkNamePh'))}
             {input(chainIdStr, setChainIdStr, t('chainIdPh'), 'number-pad')}
             {input(form.nativeSymbol, (v) => setForm({ ...form, nativeSymbol: v }), t('symbolPh'))}
             {input(form.rpcUrl, (v) => setForm({ ...form, rpcUrl: v }), t('rpcPh'), 'url')}
             {input(form.explorerUrl ?? '', (v) => setForm({ ...form, explorerUrl: v }), t('explorerPh'), 'url')}
-            {error ? <ErrorBox message={error} /> : null}
+            {error ? <Notice message={error} /> : null}
             <Button label={t('addNetwork')} onPress={() => void onAdd()} loading={checking} />
-          </NovaCard>
+          </Card>
 
           {/* Sauvegarde portable des réseaux (survit à une réinstallation) */}
           <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>{t('customNetworksNote')}</Text>
           <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
             <KPressable onPress={onExport} style={{ flex: 1 }}>
-              <NovaCard style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1) }}>
+              <Card rise style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1) }}>
                 <Icon name="share" size={17} color={colors.primary} />
                 <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('backupWord')}</Text>
-              </NovaCard>
+              </Card>
             </KPressable>
             <KPressable onPress={onImport} style={{ flex: 1 }}>
-              <NovaCard style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1) }}>
+              <Card rise style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1) }}>
                 <Icon name="copy" size={17} color={colors.primary} />
                 <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('restoreWord')}</Text>
-              </NovaCard>
+              </Card>
             </KPressable>
           </View>
         </View>
@@ -193,12 +191,12 @@ export default function Developer() {
         {/* Maintenance */}
         <View style={{ gap: spacing(1) }}>
           <SectionLabel>{t('maintenance')}</SectionLabel>
-          <NovaCard>
+          <Card rise>
             <SettingRow icon="refresh" title={t('clearNotifCenter')} onPress={() => { clearNotifs(); toast.info(t('notifCenterCleared')); }} />
-          </NovaCard>
+          </Card>
         </View>
       </ScrollView>
-    </PremiumScreen>
+    </Screen>
     </>
   );
 }

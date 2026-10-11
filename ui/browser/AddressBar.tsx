@@ -14,7 +14,7 @@ import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reani
 import { LogoImage, Text, AddressGlyph, Pressable as KPressable } from '../kit';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
-import { radius, space } from '../tokens';
+import { radius, space, radii } from '../tokens';
 import { chainIconUrl } from '../../src';
 
 /** Sépare « app.uniswap.org » → { sub: 'app.', root: 'uniswap.org' }. */
@@ -73,7 +73,7 @@ export function AddressBar({
             <KPressable onPress={onAccount} hitSlop={8} accessibilityLabel={t("addressBarConnect")} style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
               <AddressGlyph address={address} size={26} background={!danger} />
               {chainIconUrl(chainId) ? (
-                <View style={{ position: 'absolute', right: 0, bottom: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: colors.surface1, borderWidth: 1.5, borderColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                <View style={{ position: 'absolute', right: 0, bottom: 0, width: 16, height: 16, borderRadius: radii.full, backgroundColor: colors.surface1, borderWidth: 1.5, borderColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                   <LogoImage uri={chainIconUrl(chainId)!} size={10} style={{ opacity: 0.9 }} />
                 </View>
               ) : null}

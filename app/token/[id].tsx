@@ -1,23 +1,19 @@
-import { LogoImage, ScreenHeader, Pressable as KPressable, Button, TokenIcon, Skeleton } from '../../ui/kit';
+import { LogoImage, ScreenHeader, Pressable as KPressable, Button, TokenIcon, Skeleton, Card, Screen } from '../../ui/kit';
 import { fill } from '../../lib/i18n';
 import { SafeModal } from '../../ui/kit/SafeModal';
 import React, { useEffect, useState } from 'react';
 import { View, Text, useWindowDimensions, TextInput, KeyboardAvoidingView, Linking } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import {
-  PremiumScreen,
-  GlassCard,
-} from '../../ui/premium';
 import { Halo } from '../../ui/kit/Halo';
-import { ActionDisc, GOLD, NovaCard, Orbit, Pills, Rise, SectionLabel } from '../../ui/nova';
+import { ActionDisc, GOLD, Orbit, Pills, Rise, SectionLabel } from '../../ui/nova';
 import { Aurora } from '../../ui/Aurora';
 import { tokenTint } from '../../lib/tokenColors';
 import { CHAIN_LOGO_SVG } from '../../src/domain/chains/chainLogos.generated';
 import { TxRow } from '../../ui/TxRow';
 import { InteractiveChart } from '../../ui/InteractiveChart';
 import { Icon } from '../../ui/icon';
-import { fonts, spacing, useTheme } from '../../ui/theme';
+import { fonts, spacing, useTheme, fontSize, radii } from '../../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { toast } from '../../lib/toast';
 import { useWallet } from '../../lib/walletStore';
@@ -39,7 +35,7 @@ import {
   assessToken,
   formatPercent,
   formatNumber,
-  shortAddress,
+  shortAddress
 } from '../../src';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -79,7 +75,7 @@ function compactNumber(v: number): string {
 function StatTile({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
   const { colors, typography } = useTheme();
   return (
-    <View style={{ flexBasis: wide ? '100%' : '48%', flexGrow: 1, padding: spacing(1.75), borderRadius: 20, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, gap: 4 }}>
+    <View style={{ flexBasis: wide ? '100%' : '48%', flexGrow: 1, padding: spacing(1.75), borderRadius: radii.lg, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, gap: 4 }}>
       <Text style={typography.muted} numberOfLines={1}>{label}</Text>
       <Text style={[typography.bodyStrong, { fontVariant: ['tabular-nums'] }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
     </View>
@@ -325,7 +321,7 @@ export default function TokenDetail() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <PremiumScreen>
+      <Screen>
       {/* Aurore aux couleurs de l'actif, ou de son réseau (ETH sur Base : bleu Base). */}
       <View pointerEvents="none" style={{ position: 'absolute', top: -60, left: -20, right: -20, height: 520 }}>
         <Aurora height={520} mood={detail ? (up ? 'up' : 'down') : 'flat'} tint={accent} />
@@ -361,11 +357,11 @@ export default function TokenDetail() {
       />
 
       {failed ? (
-        <GlassCard>
+        <Card variant="glass">
           <Text style={typography.bodyStrong}>{t("failedLoadTokenTitle")}</Text>
           <Text style={typography.muted}>{t("failedLoadTokenDesc")}</Text>
           <Text onPress={loadDetail} style={{ color: colors.primary, fontFamily: fonts.bold, marginTop: spacing(1) }}>{t("actionRetry")}</Text>
-        </GlassCard>
+        </Card>
       ) : (
         <>
           {/* Identité : logo du jeton (pastille réseau), nom, symbole · réseau. */}
@@ -387,14 +383,14 @@ export default function TokenDetail() {
               <Skeleton width={180} height={44} />
             ) : (
               <Text style={typography.hero} numberOfLines={1} adjustsFontSizeToFit>
-                {money(shownPrice, shownPrice >= 100 ? 0 : 2)} <Text style={{ color: colors.textSecondary, fontSize: 24 }}>{fiatSym}</Text>
+                {money(shownPrice, shownPrice >= 100 ? 0 : 2)} <Text style={{ color: colors.textSecondary, fontSize: fontSize.h3 }}>{fiatSym}</Text>
               </Text>
             )}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
               {changeShown != null ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: 28, borderRadius: 14, gap: 4, backgroundColor: changeUp ? 'rgba(52,199,123,0.14)' : 'rgba(255,92,92,0.14)' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: 28, borderRadius: radii.full, gap: 4, backgroundColor: changeUp ? 'rgba(52,199,123,0.14)' : 'rgba(255,92,92,0.14)' }}>
                   <Icon name={changeUp ? 'trendUp' : 'trendDown'} size={15} color={changeUp ? colors.up : colors.down} weight="bold" />
-                  <Text style={{ color: changeUp ? colors.up : colors.down, fontFamily: fonts.bold, fontSize: 14, fontVariant: ['tabular-nums'] }}>
+                  <Text style={{ color: changeUp ? colors.up : colors.down, fontFamily: fonts.bold, fontSize: fontSize.md, fontVariant: ['tabular-nums'] }}>
                     {changeUp ? '+' : '−'}{formatPercent(Math.abs(changeShown))}
                   </Text>
                 </View>
@@ -434,9 +430,9 @@ export default function TokenDetail() {
           {owned.length > 0 ? (
             <>
               <SectionLabel>{t('yourBalance')}</SectionLabel>
-              <NovaCard tint={accent}>
-                <Text style={[typography.hero, { fontSize: 34, lineHeight: 40 }]} numberOfLines={1} adjustsFontSizeToFit>
-                  {money(ownedTotal, 2)} <Text style={{ color: colors.textSecondary, fontSize: 20 }}>{fiatSym}</Text>
+              <Card rise tint={accent}>
+                <Text style={[typography.hero, { fontSize: fontSize.h1, lineHeight: 40 }]} numberOfLines={1} adjustsFontSizeToFit>
+                  {money(ownedTotal, 2)} <Text style={{ color: colors.textSecondary, fontSize: fontSize.xxl }}>{fiatSym}</Text>
                 </Text>
                 {owned.map((h: Holding, i) => (
                   <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingTop: spacing(1.5), marginTop: i === 0 ? spacing(1.5) : 0, borderTopWidth: i === 0 ? 1 : 0, borderTopColor: colors.border }}>
@@ -448,7 +444,7 @@ export default function TokenDetail() {
                     <Text style={[typography.body, { fontVariant: ['tabular-nums'] }]}>{money(h.fiat, 2)} {fiatSym}</Text>
                   </View>
                 ))}
-              </NovaCard>
+              </Card>
             </>
           ) : null}
 
@@ -468,7 +464,7 @@ export default function TokenDetail() {
 
           {/* Jeton : réseau, contrat (copiable), décimales, explorateur — et la sécurité, en badge. */}
           <SectionLabel>{t('tokenDetailsTitle')}</SectionLabel>
-          <NovaCard tint={accent} padded={false}>
+          <Card rise tint={accent} padded={false}>
             <InfoRow label={labelOf(t('networkLabel'))} right={
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 {networkLogo ? <LogoImage uri={networkLogo} size={18} /> : null}
@@ -486,9 +482,9 @@ export default function TokenDetail() {
             {decimals != null ? <InfoRow divider label={labelOf(t('decimalsLabel'))} right={<Text style={typography.body}>{decimals}</Text>} /> : null}
             <InfoRow divider label={t('securityTitle')} right={
               risk ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, height: 26, borderRadius: 13, backgroundColor: risk.level === 'danger' ? 'rgba(255,92,92,0.14)' : 'rgba(52,199,123,0.14)' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, height: 26, borderRadius: radii.full, backgroundColor: risk.level === 'danger' ? 'rgba(255,92,92,0.14)' : 'rgba(52,199,123,0.14)' }}>
                   <Icon name={risk.level === 'danger' ? 'warning' : 'check'} size={13} color={risk.level === 'danger' ? colors.danger : colors.up} />
-                  <Text style={{ color: risk.level === 'danger' ? colors.danger : colors.up, fontFamily: fonts.semibold, fontSize: 13 }}>{risk.level === 'danger' ? t('securityRisk') : t('securitySafe')}</Text>
+                  <Text style={{ color: risk.level === 'danger' ? colors.danger : colors.up, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{risk.level === 'danger' ? t('securityRisk') : t('securitySafe')}</Text>
                 </View>
               ) : (
                 <Text style={[typography.muted, { flexShrink: 1, textAlign: 'right' }]} numberOfLines={2}>{t('securityUnavailable')}</Text>
@@ -497,7 +493,7 @@ export default function TokenDetail() {
             {explorerHref ? (
               <InfoRow divider label={t('viewOnExplorer')} onPress={() => Linking.openURL(explorerHref).catch(() => {})} a11y={t('viewOnExplorer')} right={<Icon name="chevron" size={16} color={colors.textSecondary} />} />
             ) : null}
-          </NovaCard>
+          </Card>
           {risk?.level === 'danger' && risk.reasons.length > 0 ? (
             <Text style={[typography.muted, { color: colors.danger, marginTop: -spacing(1) }]}>{risk.reasons.map((r) => t(r as never) || r).join(' · ')} · {t('goplusAnalysis')}</Text>
           ) : null}
@@ -506,14 +502,14 @@ export default function TokenDetail() {
           {detail?.description ? (
             <>
               <SectionLabel>{fill(t('aboutTokenTitle'), { name: detail.name })}</SectionLabel>
-              <NovaCard tint={accent}>
+              <Card rise tint={accent}>
                 <Text numberOfLines={aboutExpanded ? undefined : 5} style={[typography.muted, { lineHeight: 21 }]}>{detail.description}</Text>
                 {detail.description.length > 320 ? (
                   <KPressable onPress={() => setAboutExpanded((v) => !v)} hitSlop={8} accessibilityLabel={aboutExpanded ? t('readLess') : t('readMore')}>
                     <Text style={{ color: GOLD, marginTop: spacing(1), fontFamily: fonts.semibold }}>{aboutExpanded ? t("readLess") : t("readMore")}</Text>
                   </KPressable>
                 ) : null}
-              </NovaCard>
+              </Card>
             </>
           ) : null}
 
@@ -521,11 +517,11 @@ export default function TokenDetail() {
           {activity !== null ? (
             <>
               <SectionLabel>{t('tokenActivityTitle')}</SectionLabel>
-              <NovaCard tint={accent} padded={activityError || activity.length === 0}>
+              <Card rise tint={accent} padded={activityError || activity.length === 0}>
                 {activityError ? <Text style={typography.muted}>{t("activityUnavailable")}</Text> : activity.length === 0 ? <Text style={typography.muted}>{t("noTxFound")}</Text> : (
                   activity.map((tx, i) => <TxRow key={tx.hash} tx={tx} symbol={detail?.symbol ?? id ?? ''} decimals={tx.decimals ?? decimals ?? chain?.nativeDecimals ?? 18} logoUri={tokenLogo} price={detail?.price} fiatSymbol={fiatSym} divider={i > 0} explorerUrl={chain?.explorerUrl} />)
                 )}
-              </NovaCard>
+              </Card>
             </>
           ) : null}
         </>
@@ -544,8 +540,8 @@ export default function TokenDetail() {
           onPress={() => setAlertOpen(false)}
         >
           {/* Absorbe les taps pour qu'ils ne ferment pas la feuille. */}
-          <KPressable noScale haptic="none" style={{ backgroundColor: colors.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: spacing(2.5), gap: spacing(1.75) }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+          <KPressable noScale haptic="none" style={{ backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl, padding: spacing(2.5), gap: spacing(1.75) }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: radii.full, backgroundColor: colors.border }} />
             <Text style={typography.section}>{t('priceAlertTitle')}{(detail?.symbol || id || '').toUpperCase()}</Text>
 
             <View style={{ flexDirection: 'row', gap: spacing(1) }}>
@@ -558,7 +554,7 @@ export default function TokenDetail() {
                     accessibilityRole="radio"
                     accessibilityState={{ selected: on }}
                     accessibilityLabel={d === 'above' ? t('alertAbove') : t('alertBelow')}
-                    style={{ flex: 1, paddingVertical: spacing(1.25), borderRadius: 12, alignItems: 'center', backgroundColor: on ? colors.primary : colors.surface1, borderWidth: 1, borderColor: on ? colors.primary : colors.border }}
+                    style={{ flex: 1, paddingVertical: spacing(1.25), borderRadius: radii.md, alignItems: 'center', backgroundColor: on ? colors.primary : colors.surface1, borderWidth: 1, borderColor: on ? colors.primary : colors.border }}
                   >
                     <Text style={{ color: on ? colors.onPrimary : colors.text, fontFamily: fonts.semibold }}>{d === 'above' ? t("alertAbove") : t("alertBelow")}</Text>
                   </KPressable>
@@ -566,8 +562,8 @@ export default function TokenDetail() {
               })}
             </View>
 
-            <View style={{ backgroundColor: colors.surface2, borderRadius: 14, paddingHorizontal: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-              <TextInput value={alertTarget} onChangeText={setAlertTarget} keyboardType="decimal-pad" placeholder={t("targetPricePlaceholder")} placeholderTextColor={colors.textSecondary} style={{ flex: 1, color: colors.text, fontSize: 20, paddingVertical: spacing(1.5) }} />
+            <View style={{ backgroundColor: colors.surface2, borderRadius: radii.md, paddingHorizontal: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+              <TextInput value={alertTarget} onChangeText={setAlertTarget} keyboardType="decimal-pad" placeholder={t("targetPricePlaceholder")} placeholderTextColor={colors.textSecondary} style={{ flex: 1, color: colors.text, fontSize: fontSize.xxl, paddingVertical: spacing(1.5) }} />
               <Text style={{ color: colors.textSecondary, fontFamily: fonts.semibold }}>{fiatSymbol(fiat)}</Text>
             </View>
 
@@ -577,7 +573,7 @@ export default function TokenDetail() {
         </KPressable>
         </KeyboardAvoidingView>
       </SafeModal>
-    </PremiumScreen>
+    </Screen>
     </>
   );
 }

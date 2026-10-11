@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { View, Image } from 'react-native';
 import { Pressable, Text } from '../kit';
 import { useTheme } from '../theme';
-import { space } from '../tokens';
+import { space, radii } from '../tokens';
 
 export function faviconUrl(host: string): string {
   return `https://www.google.com/s2/favicons?domain=${host}&sz=128`;
@@ -14,20 +14,20 @@ export function DappLogo({ host, size = 32 }: { host: string; size?: number }) {
   const [failed, setFailed] = useState(false);
   if (!host || failed) {
     return (
-      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: size, height: size, borderRadius: radii.full, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}>
         <Text variant="caption">{(host || '?').slice(0, 1).toUpperCase()}</Text>
       </View>
     );
   }
   // Découpé en ROND et posé directement sur la tuile : plus de « tuile dans la tuile » (fond d'origine du logo).
-  return <Image source={{ uri: faviconUrl(host) }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+  return <Image source={{ uri: faviconUrl(host) }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: radii.full }} />;
 }
 
 export function DappTile({ host, label, onPress, width = 88 }: { host: string; label: string; onPress: () => void; width?: number | `${number}%` }) {
   const { colors } = useTheme();
   return (
     <Pressable onPress={onPress} accessibilityLabel={label} style={{ width, alignItems: 'center', gap: space[1] }}>
-      <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <View style={{ width: 58, height: 58, borderRadius: radii.full, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <DappLogo host={host} />
       </View>
       <Text variant="caption" numberOfLines={2} style={{ textAlign: 'center', maxWidth: '100%', minHeight: 32, paddingHorizontal: 2 }}>{label}</Text>

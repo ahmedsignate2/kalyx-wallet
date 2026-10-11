@@ -8,19 +8,17 @@ import { withWatchOnlyGate } from '../../ui/WatchOnlyGate';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, Text, View } from 'react-native';
 import { Stack, useFocusEffect } from 'expo-router';
-import { GlassCard, RemoteIcon, SkeletonRow, PressableScale } from '../../ui/premium';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView } from 'react-native';
-import { Button } from '../../ui/components';
 import { CountUp } from '../../ui/CountUp';
 import { FadeInUp } from '../../ui/FadeInUp';
 import { Icon } from '../../ui/icon';
 import { EarnSheet } from '../../ui/EarnSheet';
 import { TonStakingSheet } from '../../ui/TonStakingSheet';
 import { loadStaking, type StakingInfo } from '../../lib/ton/staking';
-import { Pressable as KPressable } from '../../ui/kit';
+import { Pressable as KPressable, Button, Card, RemoteIcon, SkeletonRow } from '../../ui/kit';
 import { Orbit, Pills, Rise, GOLD } from '../../ui/nova';
-import { fonts, radii, spacing, useTheme } from '../../ui/theme';
+import { fonts, radii, space, spacing, useTheme, fontSize } from '../../ui/theme';
 import { useWallet } from '../../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { useEarn, selectPositions, sumPositions, priceOf, type EarnAccount, type EarnPositionView } from '../../lib/earn';
@@ -34,9 +32,9 @@ const money = formatFiat;
 function ApyBadge({ apy, size = 'md' }: { apy: number | null; size?: 'md' | 'lg' }) {
   const { colors } = useTheme();
   const t = useT();
-  if (apy === null) return <Text style={{ color: colors.textTertiary, fontFamily: fonts.medium, fontSize: 12 }}>{t('earnApyUnavailable')}</Text>;
+  if (apy === null) return <Text style={{ color: colors.textTertiary, fontFamily: fonts.medium, fontSize: fontSize.xs }}>{t('earnApyUnavailable')}</Text>;
   return (
-    <View style={{ backgroundColor: 'rgba(74,155,114,0.14)', paddingHorizontal: size === 'lg' ? 12 : 8, paddingVertical: size === 'lg' ? 6 : 3, borderRadius: radii.pill }}>
+    <View style={{ backgroundColor: 'rgba(74,155,114,0.14)', paddingHorizontal: size === 'lg' ? 12 : 8, paddingVertical: size === 'lg' ? 6 : 3, borderRadius: radii.full }}>
       <Text style={{ color: colors.up, fontFamily: fonts.bold, fontSize: size === 'lg' ? 16 : 13, fontVariant: ['tabular-nums'] }}>{formatPercent(apy)}</Text>
     </View>
   );
@@ -48,7 +46,7 @@ function ChainTag({ chainId }: { chainId: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
       <RemoteIcon uri={chainIconUrl(chainId)} label={cfg.name} size={14} />
-      <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: fonts.regular }}>{cfg.name}</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm, fontFamily: fonts.regular }}>{cfg.name}</Text>
     </View>
   );
 }
@@ -147,34 +145,34 @@ function EarnScreenInner() {
         <Rise style={{ paddingVertical: spacing(1), gap: 4 }}>
           <View pointerEvents="none" style={{ position: 'absolute', right: 40, top: 50 }}>
             <Orbit cx={0} cy={0} r={70} />
-            <View style={{ position: 'absolute', left: -5, top: -5, width: 10, height: 10, borderRadius: 5, backgroundColor: GOLD, opacity: 0.9 }} />
+            <View style={{ position: 'absolute', left: -5, top: -5, width: 10, height: 10, borderRadius: radii.full, backgroundColor: GOLD, opacity: 0.9 }} />
           </View>
-          <Text style={[typography.muted, { fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' }]}>{t('earnTotal')}</Text>
+          <Text style={[typography.muted, { fontSize: fontSize.xxs, letterSpacing: 1.2, textTransform: 'uppercase' }]}>{t('earnTotal')}</Text>
           {initialLoading ? (
-            <Text style={[typography.hero, { fontSize: 46, lineHeight: 52 }]}>…</Text>
+            <Text style={typography.hero}>…</Text>
           ) : (
-            <CountUp value={totalFiat} format={(v) => `${money(v)} ${fiatSymbol(fiat)}`} style={[typography.hero, { fontSize: 46, lineHeight: 52, letterSpacing: -1.5 }]} />
+            <CountUp value={totalFiat} format={(v) => `${money(v)} ${fiatSymbol(fiat)}`} style={typography.hero} />
           )}
-          <Text style={{ color: colors.up, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'], fontSize: 14 }}>
+          <Text style={{ color: colors.up, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'], fontSize: fontSize.md }}>
             {initialLoading ? '…' : `+${money(yearlyFiat)} ${fiatSymbol(fiat)}`} <Text style={{ color: colors.textTertiary, fontFamily: fonts.regular }}>· {t('earnYearly')}</Text>
           </Text>
         </Rise>
 
         {/* Échec de chargement : le DIRE, au lieu de listes vides qui feraient croire à zéro position. */}
         {earn.error && !earn.loading ? (
-          <GlassCard>
+          <Card variant="glass">
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
               <Icon name="alert" size={20} color={colors.warning} />
               <Text style={[typography.muted, { flex: 1 }]}>{t('earnLoadFailed')}</Text>
             </View>
             <View style={{ height: spacing(1.5) }} />
-            <Button label={t('retry')} variant="ghost" onPress={onRefresh} />
-          </GlassCard>
+            <Button label={t('retry')} variant="outline" onPress={onRefresh} />
+          </Card>
         ) : null}
 
         {/* Mes positions */}
         {initialLoading ? (
-          <GlassCard>{[0, 1].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>
+          <Card variant="glass">{[0, 1].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</Card>
         ) : positions.length > 0 ? (
           <View style={{ gap: spacing(1.5) }}>
             <Text style={typography.section}>{t('earnPositions')}</Text>
@@ -197,15 +195,15 @@ function EarnScreenInner() {
           </ScrollView>
 
           {initialLoading ? (
-            <GlassCard>{[0, 1, 2].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</GlassCard>
+            <Card variant="glass">{[0, 1, 2].map((i) => <SkeletonRow key={i} divider={i > 0} />)}</Card>
           ) : listed.length === 0 ? (
-            <GlassCard>
+            <Card variant="glass">
               <View style={{ alignItems: 'center', paddingVertical: spacing(2), gap: spacing(1.5) }}>
                 <Icon name="staking" size={32} color={colors.textSecondary} />
                 <Text style={[typography.muted, { textAlign: 'center' }]}>{t('earnNoEligible')}</Text>
-                <Button label={t('earnNoEligibleCta')} variant="ghost" onPress={() => setFilter('all')} />
+                <Button label={t('earnNoEligibleCta')} variant="outline" onPress={() => setFilter('all')} />
               </View>
-            </GlassCard>
+            </Card>
           ) : (
             listed.map((p, i) => (
               <FadeInUp key={p.id} delay={Math.min(i, 8) * 45}>
@@ -240,7 +238,7 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
   const depositLabel = isStaking ? t('earnStake') : t('earnDeposit');
 
   return (
-    <GlassCard>
+    <Card variant="glass">
       {/* Rangée 1 : identité (nom complet, jamais tronqué à 4 lettres) */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
         <RemoteIcon uri={p.logo} label={p.name} size={42} />
@@ -266,7 +264,7 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
         pastille d'APY et les deux boutons, il était réduit à un « … » orphelin.
       */}
       {pv.yearlyFiat > 0 ? (
-        <Text style={[typography.muted, { fontSize: 13, textAlign: 'right', marginTop: 2, color: colors.up }]} numberOfLines={1}>
+        <Text style={[typography.muted, { fontSize: fontSize.sm, textAlign: 'right', marginTop: 2, color: colors.up }]} numberOfLines={1}>
           {pv.yearlyFiat >= 0.01 ? `+${money(pv.yearlyFiat)} ${fiatSymbol(fiat)} ${t('earnPerYear')}` : t('earnUnderCentYear').replace('{sym}', fiatSymbol(fiat))}
         </Text>
       ) : null}
@@ -291,14 +289,14 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
               minWidth: 78,
               height: 34,
               paddingHorizontal: 12,
-              borderRadius: radii.pill,
+              borderRadius: radii.full,
               backgroundColor: colors.surface2,
               borderWidth: 1,
               borderColor: colors.border,
             }}
           >
             <Icon name="send" size={13} color={colors.text} />
-            <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>
+            <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>
               {withdrawLabel}
             </Text>
           </KPressable>
@@ -315,18 +313,18 @@ function PositionCard({ pv, fiat, onDeposit, onWithdraw }: { pv: EarnPositionVie
               minWidth: 78,
               height: 34,
               paddingHorizontal: 14,
-              borderRadius: radii.pill,
+              borderRadius: radii.full,
               backgroundColor: colors.primary,
             }}
           >
             <Icon name="add" size={13} color={colors.onPrimary} />
-            <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: 13 }}>
+            <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: fontSize.sm }}>
               {depositLabel}
             </Text>
           </KPressable>
         </View>
       </View>
-    </GlassCard>
+    </Card>
   );
 }
 
@@ -337,15 +335,19 @@ function OpportunityCard({ p, apy, available, price, fiat, onPress }: { p: EarnP
   const availNum = Number(formatAmount(available, p.underlying.decimals));
   const has = available > 0n;
   return (
-    <PressableScale onPress={onPress}>
-      <GlassCard>
+    <KPressable onPress={onPress}>
+      <Card variant="glass">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
           <RemoteIcon uri={p.logo} label={p.name} size={42} />
           <View style={{ flex: 1, minWidth: 0 }}>
             {/* Nom puis conversion sur deux lignes nettes : « Rocket Pool · ETH → rETH » se coupait au milieu. */}
             <Text style={typography.bodyStrong} numberOfLines={1}>{p.name}</Text>
             {/* La nature (staking / prêt) est déjà dite par le filtre et par le bouton (« Staker », « Prêter ») : ici, ce qu'on donne et reçoit. */}
-            <Text style={typography.muted} numberOfLines={1}>{p.underlying.symbol} → {p.receipt.symbol}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }} accessible accessibilityLabel={`${p.underlying.symbol}, ${p.receipt.symbol}`}>
+              <Text style={typography.muted} numberOfLines={1}>{p.underlying.symbol}</Text>
+              <Icon name="forward" size={12} tone="muted" />
+              <Text style={[typography.muted, { flexShrink: 1 }]} numberOfLines={1}>{p.receipt.symbol}</Text>
+            </View>
             <View style={{ marginTop: 2 }}>
               <ChainTag chainId={p.chainId} />
             </View>
@@ -362,12 +364,12 @@ function OpportunityCard({ p, apy, available, price, fiat, onPress }: { p: EarnP
             {has && price > 0 ? <Text style={{ color: colors.textTertiary }}> (≈ {money(availNum * price)} {fiatSymbol(fiat)})</Text> : null}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ color: colors.primary, fontFamily: fonts.semibold, fontSize: 14 }}>{p.kind === 'staking' ? t('earnStake') : t('earnDeposit')}</Text>
+            <Text style={{ color: colors.primary, fontFamily: fonts.semibold, fontSize: fontSize.md }}>{p.kind === 'staking' ? t('earnStake') : t('earnDeposit')}</Text>
             <Icon name="chevron" size={16} color={colors.primary} />
           </View>
         </View>
-      </GlassCard>
-    </PressableScale>
+      </Card>
+    </KPressable>
   );
 }
 
@@ -406,7 +408,7 @@ function TonStakingCard() {
   const tsTon = info.tsTon?.raw ?? 0n;
   const inTon = info.tsTonInTon ? Number(formatAmount(tsTon, 9)) * info.tsTonInTon : null;
   return (
-    <GlassCard>
+    <Card variant="glass">
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
         <RemoteIcon uri={chainIconUrl(info.chainId)} label="TON" size={40} />
         <View style={{ flex: 1 }}>
@@ -425,10 +427,10 @@ function TonStakingCard() {
       ) : null}
       <View style={{ flexDirection: 'row', gap: spacing(1), marginTop: spacing(1.5) }}>
         <View style={{ flex: 1 }}><Button label={t('stkStake')} onPress={() => setAction('stake')} /></View>
-        {tsTon > 0n ? <View style={{ flex: 1 }}><Button label={t('stkUnstake')} variant="ghost" onPress={() => setAction('unstake')} /></View> : null}
+        {tsTon > 0n ? <View style={{ flex: 1 }}><Button label={t('stkUnstake')} variant="outline" onPress={() => setAction('unstake')} /></View> : null}
       </View>
       {action ? <TonStakingSheet info={info} action={action} onClose={() => setAction(null)} onDone={() => { setAction(null); setReloadNonce((n) => n + 1); }} /> : null}
-    </GlassCard>
+    </Card>
   );
 }
 

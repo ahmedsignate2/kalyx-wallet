@@ -1,7 +1,12 @@
 /**
- * Button Kalyx — 4 variantes (§9) : principal (Lumière, h 56, rayon 18),
- * secondaire (Orbite, rayon 12), discret (texte seul), destructif.
- * États : normal, pressé (scale), désactivé, chargement. Zéro dégradé, zéro ombre.
+ * Button Kalyx — LE bouton de l'app. 5 variantes (§9) : principal (Lumière),
+ * secondaire (Orbite), contour (trait seul), discret (texte seul), destructif.
+ * États, tous gérés ici et nulle part ailleurs :
+ *  - pressé      : scale du kit + dépassement au relâchement (jamais d'opacité) ;
+ *  - désactivé   : aucune réaction, contraste réduit, annoncé au lecteur d'écran ;
+ *  - « pas encore » : tapable, explique pourquoi ;
+ *  - chargement / réussite : la forme ne bouge pas, seul le contenu change.
+ * Zéro dégradé, zéro ombre.
  */
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
@@ -71,7 +76,7 @@ function NotYetHint({ text, seq }: { text: string; seq: number }) {
   );
 }
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
 
 /** Durée d'un cycle de brillance : un éclat court, puis une longue attente. */
 const SHEEN_CYCLE = 3800;
@@ -183,11 +188,11 @@ export function Button({
       disabled={off}
       // Dépassement au relâchement : la sensation de matière (§6.2). Pas sur
       // les variantes discrètes, qui sont du texte.
-      overshoot={variant === 'primary' || variant === 'secondary'}
+      overshoot={variant === 'primary' || variant === 'secondary' || variant === 'outline'}
       // On ACTIONNE un bouton, on ne le choisit pas (§5).
       haptic="light"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled: !!disabled, busy: !!loading }}
+      accessibilityState={{ disabled: !!disabled, busy: !!busy }}
       accessibilityHint={notYet ? notYetHint : undefined}
       style={[
         {
@@ -202,7 +207,7 @@ export function Button({
           // « Interdit » s'efface ; « pas encore » reste lisible, car il invite
           // à être tapé pour obtenir son explication.
           opacity: disabled ? 0.4 : notYet ? 0.55 : 1,
-          borderWidth: variant === 'secondary' ? 1 : 0,
+          borderWidth: variant === 'secondary' || variant === 'outline' ? 1 : 0,
           borderColor: colors.border,
         },
         style,

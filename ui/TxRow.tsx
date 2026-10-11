@@ -12,9 +12,8 @@ import { Pressable as KPressable, LogoImage } from './kit';
  */
 import { Linking, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { PressableScale } from './premium';
 import { Icon } from './icon';
-import { fonts, spacing, useTheme } from './theme';
+import { fonts, spacing, useTheme, fontSize, radii } from './theme';
 import { useEnsName } from '../lib/useEns';
 import { useT } from '../lib/settingsStore';
 import type { Key } from '../lib/i18n';
@@ -94,7 +93,7 @@ export function TxRow({
         {logoUri ? (
           <LogoImage uri={logoUri} size={42} style={{ backgroundColor: colors.surface2 }} />
         ) : (
-          <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 42, height: 42, borderRadius: radii.full, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name={inbound ? 'receive' : 'send'} size={19} color={dirColor} />
           </View>
         )}
@@ -105,7 +104,7 @@ export function TxRow({
             bottom: -3,
             width: 18,
             height: 18,
-            borderRadius: 9,
+            borderRadius: radii.full,
             backgroundColor: inbound ? colors.up : colors.surface2,
             borderWidth: 2,
             borderColor: colors.bg,
@@ -124,7 +123,7 @@ export function TxRow({
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
             <Icon name={failed ? 'close' : 'check'} size={11} color={failed ? colors.danger : colors.textTertiary} />
-            <Text style={{ fontSize: 11, fontFamily: fonts.semibold, color: failed ? colors.danger : colors.textTertiary }}>
+            <Text style={{ fontSize: fontSize.xxs, fontFamily: fonts.semibold, color: failed ? colors.danger : colors.textTertiary }}>
               {failed ? t('txFailed') : t('txConfirmed')}
             </Text>
           </View>
@@ -142,7 +141,7 @@ export function TxRow({
           <Text style={{ color: colors.textSecondary, fontFamily: fonts.semibold }}>{t("txInteraction")}</Text>
         )}
         {fiat != null && fiatSymbol && tx.value > 0n ? (
-          <Text style={{ fontSize: 12, color: colors.textSecondary, fontVariant: ['tabular-nums'] }}>
+          <Text style={{ fontSize: fontSize.xs, color: colors.textSecondary, fontVariant: ['tabular-nums'] }}>
             ≈ {money(fiat)} {fiatSymbol}
           </Text>
         ) : null}
@@ -152,7 +151,7 @@ export function TxRow({
 
   return (
     <View>
-      {onPress ? <PressableScale onPress={onPress}>{row}</PressableScale> : row}
+      {onPress ? <KPressable onPress={onPress}>{row}</KPressable> : row}
       {expanded ? (
         <View style={{ paddingBottom: spacing(1.5), gap: spacing(0.75) }}>
           <AddrLine label={t('txFrom')} addr={tx.from} />
@@ -169,7 +168,7 @@ export function TxRow({
                   Linking.openURL(url).catch(() => {});
                 }
               }}
-              style={{ color: colors.primary, fontFamily: fonts.semibold, fontSize: 13 }}
+              style={{ color: colors.primary, fontFamily: fonts.semibold, fontSize: fontSize.sm }}
             >
               {t('txViewExplorer')}
             </Text>
@@ -190,13 +189,13 @@ function AddrLine({ label, addr }: { label: string; addr: string }) {
       onPress={() => Clipboard.setStringAsync(addr)}
       style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}
     >
-      <Text style={[typography.muted, { width: 24, fontSize: 13 }]}>{label}</Text>
+      <Text style={[typography.muted, { width: 24, fontSize: fontSize.sm }]}>{label}</Text>
       {ensName ? (
-        <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.semibold }} numberOfLines={1}>
+        <Text style={{ color: colors.primary, fontSize: fontSize.sm, fontFamily: fonts.semibold }} numberOfLines={1}>
           {ensName}
         </Text>
       ) : null}
-      <Text style={{ color: ensName ? colors.textSecondary : colors.text, fontSize: 13, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>
+      <Text style={{ color: ensName ? colors.textSecondary : colors.text, fontSize: fontSize.sm, fontFamily: fonts.medium, fontVariant: ['tabular-nums'] }}>
         {shortAddr(addr)}
       </Text>
       <Icon name="copy" size={13} tone="muted" />

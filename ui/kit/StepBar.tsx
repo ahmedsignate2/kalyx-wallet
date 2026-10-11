@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { springs } from '../tokens';
+import { springs, radii } from '../tokens';
 
 export function StepBar({ step, total }: { step: number; total: number }) {
   const { colors } = useTheme();
@@ -13,7 +13,7 @@ export function StepBar({ step, total }: { step: number; total: number }) {
   }, [step, total, p]);
   const style = useAnimatedStyle(() => ({ transform: [{ scaleX: p.value }] }));
   return (
-    <View style={{ height: 3, borderRadius: 2, backgroundColor: colors.surface3, overflow: 'hidden' }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: total, now: step }}>
+    <View style={{ height: 3, borderRadius: radii.full, backgroundColor: colors.surface3, overflow: 'hidden' }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: total, now: step }}>
       <Animated.View style={[{ height: 3, width: '100%', transformOrigin: 'left', backgroundColor: colors.primary }, style]} />
     </View>
   );

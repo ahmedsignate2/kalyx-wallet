@@ -8,15 +8,14 @@
  * décoratif — l'or n'est qu'un point, le blanc n'est que le halo — et
  * « Réduire les animations » coupe tout mouvement autonome sans rien cacher.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useLoopActive } from './useLoopActive';
-import { Switch, View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
-  type SharedValue,
   withDelay,
   withRepeat,
   withSequence,
@@ -24,12 +23,13 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
-import { useTheme } from './theme';
+import { useTheme, radii } from './theme';
 import { Icon, type IconName } from './icon';
 import { Text, Pressable as KPressable } from './kit';
+import { Rise, useEntranceDone } from './kit/entrance';
 import { BRAND_GOLD, springs, fontFamily } from './tokens';
 import { useReduceMotion } from '../lib/reduceMotion';
-import { mixHex, withAlpha } from '../lib/tokenColors';
+import { withAlpha } from '../lib/tokenColors';
 
 export const GOLD = BRAND_GOLD.light;
 
@@ -111,46 +111,7 @@ export function Stardust({ width, height, count = 18 }: { width: number; height:
 }
 
 export { SparkBurst } from './kit/SparkBurst';
-
-/* ------------------------------------------------------------------ */
-/* Fin d'entrée : le style animé est retiré une fois l'animation jouée   */
-/* ------------------------------------------------------------------ */
-
-/**
- * `true` une fois l'animation d'entrée terminée (`ms` après le montage).
- *
- * ÉCRAN NOIR DU MENU. Les onglets sont gelés quand on les quitte
- * (`freezeOnBlur`). À leur retour, React réapplique les props de son dernier
- * rendu — et pour un style animé, ce rendu porte la valeur du montage :
- * opacité 0. L'animation, finie, ne se rejoue pas : l'écran entier, ou le haut
- * du Menu (profil et quatre disques), restait noir. Une fois l'entrée jouée, le
- * composant se redessine SANS style animé : ce que React réapplique alors est
- * l'état visible.
- */
-function useEntranceDone(ms: number, reduce: boolean, p: SharedValue<number>): boolean {
-  const [done, setDone] = useState(false);
-  useEffect(() => {
-    /*
-     * LA VALEUR EST FORCÉE À 1, pas seulement le style retiré. Une entrée
-     * interrompue (écran gelé, accueil occupé à charger) laissait la valeur à
-     * mi-chemin, et le moteur d'animation la réappliquait : les disques
-     * Envoyer / Recevoir / Swap / Gagner restaient à demi transparents, comme
-     * désactivés. Fini ou interrompu, l'élément termine pleinement visible.
-     */
-    const settle = () => {
-      cancelAnimation(p);
-      p.value = 1;
-      setDone(true);
-    };
-    if (reduce) {
-      settle();
-      return;
-    }
-    const id = setTimeout(settle, ms);
-    return () => clearTimeout(id);
-  }, [ms, reduce, p]);
-  return done;
-}
+export { Rise, useScreenEntrance } from './kit/entrance';
 
 /* ------------------------------------------------------------------ */
 /* Disque d'action                                                     */
@@ -181,7 +142,7 @@ export function ActionDisc({ icon, label, onPress, tone = 'default', index = 0, 
   return (
     <Animated.View style={[{ flex: 1, opacity: disabled ? 0.4 : 1 }, done ? null : rise]}>
       <KPressable onPress={onPress} disabled={disabled} haptic="light" overshoot accessibilityRole="button" accessibilityLabel={label} style={{ alignItems: 'center', gap: 8 }}>
-        <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: bg, borderWidth: tone === 'primary' ? 0 : 1, borderColor: tone === 'gold' ? (mode === 'dark' ? 'rgba(221,181,101,0.45)' : BRAND_GOLD.deep) : colors.border, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 58, height: 58, borderRadius: radii.full, backgroundColor: bg, borderWidth: tone === 'primary' ? 0 : 1, borderColor: tone === 'gold' ? (mode === 'dark' ? 'rgba(221,181,101,0.45)' : BRAND_GOLD.deep) : colors.border, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={icon} size={23} color={ink} />
         </View>
         <Text variant="caption" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontFamily: fontFamily.semibold }}>{label}</Text>
@@ -206,7 +167,7 @@ export function Pills<K extends string>({ items, value, onChange, accent }: { it
             onPress={() => onChange(it.key)}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
-            style={{ height: 34, minWidth: 46, paddingHorizontal: 12, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? (accent ? withAlpha(accent, 0.2) : colors.surface2) : 'transparent', borderWidth: 1, borderColor: on ? (accent ? withAlpha(accent, 0.45) : colors.border) : 'transparent' }}
+            style={{ height: 34, minWidth: 46, paddingHorizontal: 12, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? (accent ? withAlpha(accent, 0.2) : colors.surface2) : 'transparent', borderWidth: 1, borderColor: on ? (accent ? withAlpha(accent, 0.45) : colors.border) : 'transparent' }}
           >
             <Text variant="caption" tone={on ? 'primary' : 'tertiary'} style={{ fontFamily: fontFamily.semibold }}>{it.label}</Text>
           </KPressable>
@@ -227,7 +188,7 @@ function TabLabel({ label, on, onPress }: { label: string; on: boolean; onPress:
   return (
     <KPressable onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected: on }} style={{ alignItems: 'center', gap: 6, paddingVertical: 4 }}>
       <Text variant="title2" style={{ color: on ? colors.text : colors.textTertiary }}>{label}</Text>
-      <Animated.View style={[{ width: 4, height: 4, borderRadius: 2, backgroundColor: GOLD }, dot]} />
+      <Animated.View style={[{ width: 4, height: 4, borderRadius: radii.full, backgroundColor: GOLD }, dot]} />
     </KPressable>
   );
 }
@@ -239,23 +200,6 @@ export function TextTabs<K extends string>({ items, value, onChange }: { items: 
       {items.map((it) => <TabLabel key={it.key} label={it.label} on={it.key === value} onPress={() => onChange(it.key)} />)}
     </View>
   );
-}
-
-/* ------------------------------------------------------------------ */
-/* Montée à l'entrée                                                   */
-/* ------------------------------------------------------------------ */
-
-/** Monte de 18 px en apparaissant, ressort « Standard ». Utilisable sans liste. */
-export function Rise({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
-  const reduce = useReduceMotion();
-  const p = useSharedValue(reduce ? 1 : 0);
-  useEffect(() => {
-    if (reduce) { p.value = 1; return; }
-    p.value = withDelay(delay, withSpring(1, springs.gentle));
-  }, [delay, reduce, p]);
-  const s = useAnimatedStyle(() => ({ opacity: Math.min(1, p.value * 1.4), transform: [{ translateY: (1 - p.value) * 18 }] }));
-  const done = useEntranceDone(delay + 1400, reduce, p);
-  return <Animated.View style={[done ? null : s, style]}>{children}</Animated.View>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -292,7 +236,7 @@ function FlowDot({ on, done }: { on: boolean; done: boolean }) {
     p.value = reduce ? (on ? 1 : 0) : withSpring(on ? 1 : 0, springs.standard);
   }, [on, reduce, p]);
   const s = useAnimatedStyle(() => ({ width: 6 + p.value * 16 }));
-  return <Animated.View style={[{ height: 6, borderRadius: 3, backgroundColor: on || done ? GOLD : colors.surface3 }, s]} />;
+  return <Animated.View style={[{ height: 6, borderRadius: radii.full, backgroundColor: on || done ? GOLD : colors.surface3 }, s]} />;
 }
 
 /** Trois points, l'étape en cours s'allonge en or. */
@@ -342,21 +286,6 @@ export function ScreenOrbit({ top }: { top: number }) {
   );
 }
 
-/**
- * Entrée d'écran : le contenu monte de 14 px en apparaissant, une seule fois.
- * Rend `undefined` une fois l'entrée jouée (voir `useEntranceDone`).
- */
-export function useScreenEntrance() {
-  const reduce = useReduceMotion();
-  const p = useSharedValue(reduce ? 1 : 0);
-  useEffect(() => {
-    if (reduce) { p.value = 1; return; }
-    p.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
-  }, [reduce, p]);
-  const style = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateY: (1 - p.value) * 14 }] }));
-  const done = useEntranceDone(900, reduce, p);
-  return done ? undefined : style;
-}
 
 /* ------------------------------------------------------------------ */
 /* Trois points qui respirent : quelqu'un écrit                        */
@@ -372,7 +301,7 @@ function TypingDot({ delay }: { delay: number }) {
     return () => cancelAnimation(p);
   }, [delay, reduce, p]);
   const s = useAnimatedStyle(() => ({ opacity: 0.35 + p.value * 0.65, transform: [{ translateY: -3 * p.value }] }));
-  return <Animated.View style={[{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.textSecondary }, s]} />;
+  return <Animated.View style={[{ width: 7, height: 7, borderRadius: radii.full, backgroundColor: colors.textSecondary }, s]} />;
 }
 
 export function TypingDots() {
@@ -408,23 +337,6 @@ export function NovaHero({ icon, title, subtitle, tone = 'default', children, co
   );
 }
 
-/** Carte Nova : Nuit, arrondi 24, trait fin. `delay` la fait monter en cascade. */
-export function NovaCard({ children, delay = 0, style, padded = true, tint }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle>; padded?: boolean; /** Couleur de l'actif : la carte en est très légèrement teintée (fiche token). */ tint?: string | null }) {
-  const { colors, mode } = useTheme();
-  const bg = tint && mode === 'dark' ? mixHex(colors.surface1, tint, 0.07) : colors.surface1;
-  return (
-    <Rise delay={delay} style={[{ borderRadius: 24, backgroundColor: bg, borderWidth: 1, borderColor: tint ? withAlpha(tint, 0.16) : colors.border, borderTopColor: tint ? withAlpha(tint, 0.32) : colors.rim, padding: padded ? 16 : 0, overflow: 'hidden' }, style]}>
-      {children}
-    </Rise>
-  );
-}
-
-/** Interrupteur aux couleurs Nova : piste or quand il est allumé. */
-export function NovaSwitch({ value, onValueChange, disabled }: { value: boolean; onValueChange: (v: boolean) => void; disabled?: boolean }) {
-  const { colors } = useTheme();
-  return <Switch value={value} onValueChange={onValueChange} disabled={disabled} trackColor={{ false: colors.surface3, true: 'rgba(221,181,101,0.55)' }} thumbColor={value ? GOLD : '#C9CCD6'} ios_backgroundColor={colors.surface3} />;
-}
-
 /**
  * Ligne de réglage : disque d'icône, titre, indication, puis ce qu'on veut à
  * droite (interrupteur, chevron, valeur). `divider` trace le trait au-dessus.
@@ -453,9 +365,9 @@ export function OptionPill({ label, selected, onPress }: { label: string; select
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       accessibilityLabel={label}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, height: 38, paddingHorizontal: 14, borderRadius: 19, borderWidth: 1, borderColor: selected ? 'rgba(221,181,101,0.55)' : colors.border, backgroundColor: selected ? colors.surface2 : 'transparent' }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, height: 38, paddingHorizontal: 14, borderRadius: radii.full, borderWidth: 1, borderColor: selected ? 'rgba(221,181,101,0.55)' : colors.border, backgroundColor: selected ? colors.surface2 : 'transparent' }}
     >
-      {selected ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: GOLD }} /> : null}
+      {selected ? <View style={{ width: 6, height: 6, borderRadius: radii.full, backgroundColor: GOLD }} /> : null}
       <Text variant="caption" style={{ fontFamily: fontFamily.semibold, color: selected ? colors.text : colors.textSecondary }}>{label}</Text>
     </KPressable>
   );

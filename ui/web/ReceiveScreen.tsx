@@ -10,10 +10,10 @@ import { useMemo, useState } from 'react';
 import { View, ScrollView, Share, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
-import { LogoImage, Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl } from '../kit';
+import { LogoImage, Text, Button, IconButton, AddressGlyph, SegmentedControl, Card } from '../kit';
 import { useFlowRootStyle, useFlowScrollStyle } from './flowEmbed';
 import { useTheme } from '../theme';
-import { space, SCREEN_MARGIN, radius } from '../tokens';
+import { space, SCREEN_MARGIN, radius, fontSize } from '../tokens';
 import { useT } from '../../lib/settingsStore';
 import { useWebConnect } from '../../lib/webConnect';
 import { toast } from '../../lib/toast';
@@ -79,7 +79,7 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
         ) : null}
         {selFam === 'evm' ? <Text variant="caption" tone="secondary">{t('evmDescription')}</Text> : null}
 
-        <Surface style={{ alignItems: 'center', gap: space[4], paddingVertical: space[6] }}>
+        <Card style={{ alignItems: 'center', gap: space[4], paddingVertical: space[6] }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             {chainIconUrl(sel.id) ? <LogoImage uri={chainIconUrl(sel.id)!} size={22} /> : null}
             <Text variant="body">{sel.name}</Text>
@@ -105,13 +105,13 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
             tabular
             selectable
             accessibilityLabel={fill(t('a11yAddress'), { address: address })}
-            style={{ fontSize: 13, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', color: colors.text, textAlign: 'center', lineHeight: 20, paddingHorizontal: 16, flexShrink: 1 }}
+            style={{ fontSize: fontSize.sm, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', color: colors.text, textAlign: 'center', lineHeight: 20, paddingHorizontal: 16, flexShrink: 1 }}
           >
             {address}
           </Text>
           {peerName ? <Text variant="caption" tone="secondary">{peerName}</Text> : null}
           {sel.testnet ? <Text variant="bodySecondary" tone="warning">{t('testnetWarning')}</Text> : null}
-        </Surface>
+        </Card>
 
         <View style={{ gap: space[2] }}>
           <Text variant="bodySecondary" tone="secondary">{hint}</Text>

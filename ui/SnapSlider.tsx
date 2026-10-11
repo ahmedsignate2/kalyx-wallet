@@ -15,7 +15,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Text } from './kit';
 import { useTheme } from './theme';
-import { BRAND_GOLD, fontFamily } from './tokens';
+import { BRAND_GOLD, fontFamily, radii } from './tokens';
 import { haptic } from '../lib/haptics';
 
 const SNAPS = [0, 25, 50, 75, 100];
@@ -144,14 +144,14 @@ export function SnapSlider({ value, onChange, accent, maxLabel, disabled }: { va
         accessibilityState={{ disabled: !!disabled }}
         accessibilityValue={{ min: 0, max: 100, now: value ?? 0 }}
       >
-        <View pointerEvents="none" style={{ height: 6, borderRadius: 3, backgroundColor: colors.surface3, marginHorizontal: THUMB / 2 }} />
+        <View pointerEvents="none" style={{ height: 6, borderRadius: radii.full, backgroundColor: colors.surface3, marginHorizontal: THUMB / 2 }} />
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, width: w, height: 6, overflow: 'hidden' }, fillClip]}>
-          <Animated.View style={[{ width: w, height: 6, borderRadius: 3, backgroundColor: tint, opacity: 0.85 }, fillContent]} />
+          <Animated.View style={[{ width: w, height: 6, borderRadius: radii.full, backgroundColor: tint, opacity: 0.85 }, fillContent]} />
         </Animated.View>
         {/* Crans */}
         {w
           ? SNAPS.map((s) => (
-              <View key={s} pointerEvents="none" style={{ position: 'absolute', left: THUMB / 2 + (s / 100) * track - 2, width: 4, height: 4, borderRadius: 2, backgroundColor: (value ?? -1) >= s ? colors.bg : colors.textTertiary }} />
+              <View key={s} pointerEvents="none" style={{ position: 'absolute', left: THUMB / 2 + (s / 100) * track - 2, width: 4, height: 4, borderRadius: radii.full, backgroundColor: (value ?? -1) >= s ? colors.bg : colors.textTertiary }} />
             ))
           : null}
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, width: THUMB, height: THUMB, borderRadius: THUMB / 2, backgroundColor: colors.primary, borderWidth: 3, borderColor: tint, shadowColor: tint, shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }, elevation: 6 }, thumbStyle]} />

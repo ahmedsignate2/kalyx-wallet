@@ -5,7 +5,7 @@
 import { friendlyTxError } from '../lib/txError';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Sheet, Text, Button, Input, Surface, SegmentedControl } from './kit';
+import { Sheet, Text, Button, Input, SegmentedControl, Card } from './kit';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon } from './icon';
 import { useTheme } from './theme';
@@ -83,14 +83,14 @@ export function TonStakingSheet({ info, action, onClose, onDone }: { info: Staki
         </>
       ) : (
         <>
-          <Surface style={{ gap: space[2] }}>
+          <Card style={{ gap: space[2] }}>
             <Text variant="caption" tone="secondary">{t('tcLeaves')}</Text>
             <Text variant="body" tabular>{formatTokenAmount(e ? e.risk.ton : stake ? raw + TONSTAKERS_STAKE_RESERVE : TONSTAKERS_UNSTAKE_TON, 9)} TON</Text>
             {e?.risk.jettons.map((j, i) => <Text key={i} variant="body" tabular>{formatTokenAmount(j.amount, j.decimals)} {j.symbol}</Text>)}
             {receive ? <Text variant="body">{t('stkReceive').replace('{amount}', receive)}</Text> : null}
             {e ? <Text variant="caption" tone="secondary">{t('labelNetworkFee')} · {formatTokenAmount(e.fee, 9)} TON</Text> : null}
             <Text variant="caption" tone="tertiary">{e ? t('tcSimulated') : t('tcNoSimulation')}</Text>
-          </Surface>
+          </Card>
           {e?.failed ? (
             <View style={{ flexDirection: 'row', gap: space[2] }}>
               <Icon name="alert" size={18} color={colors.danger} />

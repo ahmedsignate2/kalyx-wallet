@@ -1,16 +1,14 @@
 import { IconDisc, NovaHero, Pulse, Rise } from '../ui/nova';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { canDiscover, runDiscovery, useDiscovering } from '../lib/runDiscovery';
-import { AddressGlyph } from '../ui/kit';
+import { AddressGlyph, Button, Card, Screen, Text as KText, ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Screen, Card, Button, Muted } from '../ui/components';
-import { spacing, useTheme } from '../ui/theme';
+import { spacing, useTheme, fontSize, radii } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { accountDisplayName } from '../lib/walletNames';
 import { useT } from '../lib/settingsStore';
@@ -65,7 +63,7 @@ export default function Accounts() {
 
   const insets = useSafeAreaInsets();
   return (
-    <Screen>
+    <Screen layout="form">
       <ScreenHeader />
       <NovaHero icon="accounts" title={t('accounts')} subtitle={t('allDerived')} />
 
@@ -80,14 +78,14 @@ export default function Accounts() {
           const active = a.index === activeAccountIndex;
           if (editing === a.index) {
             return (
-              <Card key={a.index} style={{ gap: spacing(1) }}>
+              <Card padding="xl" gap="md" key={a.index} style={{ gap: spacing(1) }}>
                 <TextInput
                   value={editLabel}
                   onChangeText={setEditLabel}
                   autoFocus
                   placeholder={t('accountNamePlaceholder')}
                   placeholderTextColor={colors.textSecondary}
-                  style={{ color: colors.text, fontSize: 16 }}
+                  style={{ color: colors.text, fontSize: fontSize.lg }}
                 />
                 <View style={{ flexDirection: 'row', gap: spacing(1) }}>
                   <Button
@@ -109,22 +107,22 @@ export default function Accounts() {
               accessibilityState={{ selected: active }}
               accessibilityLabel={accountDisplayName(a, t)}
             >
-              <Card
+              <Card padding="xl" gap="md"
                 style={{
                   borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border,
-                  borderRadius: 24,
+                  borderRadius: radii.xl,
                   gap: spacing(1.5),
                   flexDirection: 'row',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                 }}
               >
-                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 44, height: 44, borderRadius: radii.full, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
                   <AddressGlyph address={a.evmAddress} size={32} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={typography.body}>{accountDisplayName(a, t)}</Text>
-                  <Muted>{shorten(a.evmAddress)}</Muted>
+                  <KText variant="label">{shorten(a.evmAddress)}</KText>
                 </View>
                 {/* Emoji ✏️ et « ✓ » texte remplacés : interdits (§19) et sans
                     libellé pour le lecteur d'écran. */}
@@ -148,19 +146,19 @@ export default function Accounts() {
       </View>
 
       {adding ? (
-        <Card style={{ marginTop: spacing(1), gap: spacing(1) }}>
+        <Card padding="xl" gap="md" style={{ marginTop: spacing(1), gap: spacing(1) }}>
           <Text style={typography.muted}>{t('nameOptional')}</Text>
           <TextInput
             value={newLabel}
             onChangeText={setNewLabel}
             placeholder={t('accountNameExample')}
             placeholderTextColor={colors.textSecondary}
-            style={{ color: colors.text, fontSize: 16 }}
+            style={{ color: colors.text, fontSize: fontSize.lg }}
           />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
             {SUGGESTIONS.map((s) => (
               <KPressable key={s} onPress={() => setNewLabel(s)} hitSlop={8} accessibilityLabel={s}>
-                <Text style={{ color: colors.primary, fontSize: 13 }}>{s}</Text>
+                <Text style={{ color: colors.primary, fontSize: fontSize.sm }}>{s}</Text>
               </KPressable>
             ))}
           </View>
@@ -170,16 +168,16 @@ export default function Accounts() {
             onChangeText={setPin}
             keyboardType="number-pad"
             secureTextEntry
-            style={{ color: colors.text, fontSize: 20, letterSpacing: 6 }}
+            style={{ color: colors.text, fontSize: fontSize.xxl, letterSpacing: 6 }}
           />
           {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
           <Button label={busy ? t('creating') : t('createAccount')} loading={busy} onPress={onAdd} />
         </Card>
       ) : (
         <>
-        <KPressable onPress={() => setAdding(true)} haptic="light" style={{ marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), padding: spacing(2), borderRadius: 24, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border }}>
+        <KPressable onPress={() => setAdding(true)} haptic="light" style={{ marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), padding: spacing(2), borderRadius: radii.xl, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border }}>
           <IconDisc name="add" tone="gold" />
-          <Text style={{ color: colors.text, fontFamily: 'GeneralSans-Semibold', fontSize: 15 }}>{t('addAccountPlus').replace(/^[+＋]\s*/, '')}</Text>
+          <Text style={{ color: colors.text, fontFamily: 'GeneralSans-Semibold', fontSize: fontSize.base }}>{t('addAccountPlus').replace(/^[+＋]\s*/, '')}</Text>
         </KPressable>
         {discoverable ? (
           <KPressable
@@ -187,11 +185,11 @@ export default function Accounts() {
             disabled={discoverAt !== null}
             haptic="light"
             accessibilityLabel={t('discoverTitle')}
-            style={{ marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), padding: spacing(2), borderRadius: 24, borderWidth: 1, borderColor: colors.border, opacity: discoverAt !== null ? 0.6 : 1 }}
+            style={{ marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), padding: spacing(2), borderRadius: radii.xl, borderWidth: 1, borderColor: colors.border, opacity: discoverAt !== null ? 0.6 : 1 }}
           >
             <IconDisc name="search" tone="gold" />
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={{ color: colors.text, fontFamily: 'GeneralSans-Semibold', fontSize: 15 }}>{t('discoverTitle')}</Text>
+              <Text style={{ color: colors.text, fontFamily: 'GeneralSans-Semibold', fontSize: fontSize.base }}>{t('discoverTitle')}</Text>
               <Text style={typography.muted}>{discoverAt !== null ? t('discoverProgress').replace('{n}', String(discoverAt + 1)) /* indice HD 1 = « Compte 2 » */ : t('discoverHint')}</Text>
             </View>
           </KPressable>

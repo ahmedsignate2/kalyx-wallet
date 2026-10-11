@@ -14,10 +14,10 @@ import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ScreenCapture from 'expo-screen-capture';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { ScreenHeader, Text, Button, Input, Surface, Pressable as KPressable } from '../ui/kit';
+import { ScreenHeader, Text, Button, Input, Pressable as KPressable, Card } from '../ui/kit';
 import { PinPromptModal } from '../ui/PinPromptModal';
 import { Icon } from '../ui/icon';
-import { useTheme } from '../ui/theme';
+import { useTheme, radii } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { FlowDots, IconDisc, Orbit, Rise, SparkBurst, Stardust } from '../ui/nova';
 import { useWallet } from '../lib/walletStore';
@@ -96,7 +96,7 @@ export default function CreateWallet() {
             onPressOut={() => setHeld(false)}
             accessibilityLabel={t('holdToReveal')}
           >
-            <Surface style={{ flexDirection: 'row', gap: space[3], borderRadius: 26 }}>
+            <Card style={{ flexDirection: 'row', gap: space[3], borderRadius: radii.xl }}>
               {cols.map((col, c) => (
                 <View key={c} style={{ flex: 1, gap: space[2] }}>
                   {col.map((w, i) => {
@@ -113,7 +113,7 @@ export default function CreateWallet() {
                   })}
                 </View>
               ))}
-            </Surface>
+            </Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[1], marginTop: space[2] }}>
               <Icon name={held ? 'eye' : 'eyeOff'} size={14} tone="muted" />
               <Text variant="caption" tone="secondary">{held ? t('releaseToHide') : t('holdToReveal')}</Text>

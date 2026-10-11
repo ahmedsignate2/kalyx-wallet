@@ -43,11 +43,10 @@ import { useT } from '../lib/settingsStore';
 import type { Key } from '../lib/i18n';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { haptic } from '../lib/haptics';
-import { durations, springs, BRAND_GOLD } from './tokens';
+import { durations, springs, BRAND_GOLD, radii, fontFamily } from './tokens';
 import { useTheme } from './theme';
 import { Icon, type IconName } from './icon';
 import { Pressable as KPressable, Text } from './kit';
-import { fontFamily } from './tokens';
 import { KalyxLogo } from './KalyxLogo';
 
 export type MainTab = 'home' | 'browser' | 'earn' | 'menu';
@@ -100,7 +99,7 @@ function NavItem({ icon, label, on }: { icon: IconName; label: string; on: boole
       <Reanimated.View style={iconStyle}>
         <Icon name={icon} size={22} color={on ? colors.text : colors.textTertiary} />
       </Reanimated.View>
-      <Text variant="micro" numberOfLines={1} style={{ fontFamily: on ? fontFamily.semibold : fontFamily.medium, fontSize: 10.5, letterSpacing: 0.1, color: on ? colors.text : colors.textTertiary }}>{label}</Text>
+      <Text variant="micro" numberOfLines={1} style={{ fontFamily: on ? fontFamily.semibold : fontFamily.medium, letterSpacing: 0.1, color: on ? colors.text : colors.textTertiary }}>{label}</Text>
     </View>
   );
 }
@@ -131,10 +130,10 @@ function FanAction({ i, open, cx, cy, label, icon, tone, onPress }: { i: number;
   return (
     <Reanimated.View style={[{ position: 'absolute', left: cx + dx - 40, top: cy + dy - 28, width: 80, alignItems: 'center' }, style]}>
       <KPressable onPress={onPress} haptic="light" accessibilityRole="button" accessibilityLabel={label} hitSlop={6} style={{ alignItems: 'center', gap: 6 }}>
-        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderWidth: tone === 'primary' ? 0 : 1, borderColor: tone === 'gold' ? 'rgba(221,181,101,0.5)' : 'rgba(255,255,255,0.12)' }}>
+        <View style={{ width: 56, height: 56, borderRadius: radii.full, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderWidth: tone === 'primary' ? 0 : 1, borderColor: tone === 'gold' ? 'rgba(221,181,101,0.5)' : 'rgba(255,255,255,0.12)' }}>
           <Icon name={icon} size={23} color={ink} />
         </View>
-        <Text variant="micro" numberOfLines={1} style={{ color: colors.text, fontFamily: fontFamily.semibold, fontSize: 11.5 }}>{label}</Text>
+        <Text variant="micro" numberOfLines={1} style={{ color: colors.text, fontFamily: fontFamily.semibold }}>{label}</Text>
       </KPressable>
     </Reanimated.View>
   );
@@ -268,7 +267,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
           {slot ? (
             <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 7, width: glowW, transformOrigin: 'left', height: NAV_H - 14, borderRadius: (NAV_H - 14) / 2, backgroundColor: dark ? 'rgba(242,244,250,0.075)' : 'rgba(6,7,13,0.05)', overflow: 'hidden' }, glowStyle]}>
               {/* Filet d'or au pied de l'onglet actif. */}
-              <View style={{ position: 'absolute', bottom: 0, left: '30%', right: '30%', height: 2, borderRadius: 1, backgroundColor: GOLD }} />
+              <View style={{ position: 'absolute', bottom: 0, left: '30%', right: '30%', height: 2, borderRadius: radii.full, backgroundColor: GOLD }} />
             </Reanimated.View>
           ) : null}
           {TABS.slice(0, 2).map((it) => (

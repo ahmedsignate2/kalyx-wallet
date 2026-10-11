@@ -25,7 +25,7 @@ import { Text, Button, Halo, Pressable, Checkbox, Pressable as KPressable } from
 import { KalyxLogoIgnite } from '../ui/KalyxLogo';
 import { Icon, type IconName } from '../ui/icon';
 import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, radius, BRAND_GOLD } from '../ui/tokens';
+import { space, SCREEN_MARGIN, radius, BRAND_GOLD, fontSize, radii } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { haptic } from '../lib/haptics';
@@ -215,13 +215,13 @@ export default function Welcome() {
             <KalyxLogoIgnite size={84} reduced={reduced} delay={IGNITE.delay} stagger={IGNITE.stagger} alive />
           </Animated.View>
           <Animated.View style={[{ alignItems: 'center', width: '100%', marginTop: space[4] }, nameStyle]}>
-            <Text variant="title1" style={{ fontSize: 34, lineHeight: 40, letterSpacing: 1.5 }}>Kalyx</Text>
+            <Text variant="title1" style={{ fontSize: fontSize.h1, lineHeight: 40, letterSpacing: 1.5 }}>Kalyx</Text>
           </Animated.View>
           <Animated.View style={[{ alignItems: 'center', width: '100%' }, taglineStyle]}>
             <Text
               variant="bodySecondary"
               tone="secondary"
-              style={{ marginTop: space[2], textAlign: 'center', maxWidth: 300, fontSize: 15, lineHeight: 22 }}
+              style={{ marginTop: space[2], textAlign: 'center', maxWidth: 300, fontSize: fontSize.base, lineHeight: 22 }}
             >
               {t('tagline')}
             </Text>
@@ -240,7 +240,7 @@ export default function Welcome() {
           figée, au premier affichage uniquement — jamais au re-rendu.
         */}
         {showProps ? (
-          <View style={{ gap: space[3], marginBottom: space[4], padding: space[3], borderRadius: 24, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+          <View style={{ gap: space[3], marginBottom: space[4], padding: space[3], borderRadius: radii.xl, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
             {PROPS.map((p, i) => (
               <Argument key={p.title} {...p} delay={BEAT.props + i * STAGGER} reduced={reduced} />
             ))}

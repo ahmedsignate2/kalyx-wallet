@@ -1,13 +1,13 @@
 import { FlowDots, NovaHero } from '../ui/nova';
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable, Screen } from '../ui/kit';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
-import { Screen } from '../ui/components';
 import { PinPad, PIN_GAP, PIN_KEY } from '../ui/PinPad';
 import { KalyxRing } from '../ui/KalyxRing';
-import { fonts, spacing, useTheme } from '../ui/theme';
+import { fonts, fontSize, space, spacing, useTheme } from '../ui/theme';
+import { Icon } from '../ui/icon';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
@@ -141,7 +141,7 @@ export default function ChangePin() {
   const canNext = !busy && step !== 'confirm' && pin.length >= PIN_MIN;
 
   return (
-    <Screen>
+    <Screen layout="form">
       <ScreenHeader fallback="/menu" right={<FlowDots step={step === 'old' ? 1 : step === 'new' ? 2 : 3} />} />
       {/* Héros Nova : le disque dans son orbite est l'anneau de saisie. Le titre remonte à chaque étape. */}
       <NovaHero key={step} title={title} subtitle={hint}>
@@ -166,15 +166,18 @@ export default function ChangePin() {
           {busy ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={{ color: colors.textSecondary, fontSize: 15, fontFamily: fonts.medium }}>{t('verifying')}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: fontSize.base, fontFamily: fonts.medium }}>{t('verifying')}</Text>
             </View>
           ) : canNext ? (
             <KPressable onPress={step === 'old' ? () => void onOldNext() : onNewNext} hitSlop={8} haptic="light" accessibilityLabel={t('continueWord')}>
-              <Text style={{ color: colors.primary, fontSize: 16, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
+              <Text style={{ color: colors.primary, fontSize: fontSize.lg, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
             </KPressable>
           ) : step === 'confirm' ? (
             <KPressable onPress={restart} hitSlop={8} accessibilityLabel={t('startOver')}>
-              <Text style={{ color: colors.textSecondary, fontSize: 15, fontFamily: fonts.medium }}>{'‹'} {t('startOver')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
+                <Icon name="caretLeft" size={16} color={colors.textSecondary} />
+                <Text style={{ color: colors.textSecondary, fontSize: fontSize.base, fontFamily: fonts.medium }}>{t('startOver')}</Text>
+              </View>
             </KPressable>
           ) : null}
         </View>

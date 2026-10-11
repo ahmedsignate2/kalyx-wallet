@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, Button, IconButton, Surface, Chip, EmptyState } from '../ui/kit';
+import { Text, Button, IconButton, Chip, EmptyState, Card } from '../ui/kit';
 import { FlowDots, Rise } from '../ui/nova';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN } from '../ui/tokens';
@@ -64,18 +64,18 @@ export default function Verify() {
         <FlowDots step={2} />
       </View>
       {!draft ? (
-        <View style={{ padding: SCREEN_MARGIN }}><Surface><EmptyState icon="phrase" title={t('sessionExpired')} actionLabel={t('startOver')} onAction={() => router.replace('/welcome')} /></Surface></View>
+        <View style={{ padding: SCREEN_MARGIN }}><Card><EmptyState icon="phrase" title={t('sessionExpired')} actionLabel={t('startOver')} onAction={() => router.replace('/welcome')} /></Card></View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[4], flexGrow: 1 }}>
           <Text variant="bodySecondary" tone="secondary">{t('selectRightWord')}</Text>
           {challenge.map((c, i) => (
             <Rise key={c.position} delay={80 + i * 90}>
-            <Surface style={{ gap: space[3] }}>
+            <Card style={{ gap: space[3] }}>
               <Text variant="caption" tone="secondary">{t('wordNo')} {c.position}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
                 {c.options.map((opt) => <Chip key={opt} label={opt} selected={answers[c.position] === opt} onPress={() => setAnswers((a) => ({ ...a, [c.position]: opt }))} />)}
               </View>
-            </Surface>
+            </Card>
             </Rise>
           ))}
           <View style={{ flex: 1 }} />

@@ -1,14 +1,13 @@
-import { IconDisc, NovaCard, NovaHero } from '../ui/nova';
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { IconDisc, NovaHero } from '../ui/nova';
+import { ScreenHeader, Pressable as KPressable, Button, Card, Screen } from '../ui/kit';
 import { getAdapter } from '../src';
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
 import { copySecret, clearSecret } from '../lib/secureClipboard';
-import { Screen, Card, Button } from '../ui/components';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
-import { spacing, useTheme } from '../ui/theme';
+import { spacing, useTheme, fontSize, radii } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
@@ -40,13 +39,13 @@ export default function RevealPrivateKey() {
 
   if (pk) {
     return (
-      <Screen>
+      <Screen layout="form">
       <ScreenHeader />
         {/* Le RÉSEAU de la clé : une phrase donne une clé différente par famille (EVM, Bitcoin, Solana). */}
         <NovaHero icon="copy" tone="gold" title={isPk ? t('yourPrivateKey') : `${t('yourPrivateKey')} · ${chainName}`} subtitle={t('pkWarningBody')} />
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
-          <Card style={{ borderRadius: 24 }}>
-            <Text selectable style={[typography.body, { fontFamily: 'monospace', fontSize: 14, lineHeight: 22, letterSpacing: 0.3 }]}>{pk}</Text>
+          <Card padding="xl" gap="md" style={{ borderRadius: radii.xl }}>
+            <Text selectable style={[typography.body, { fontFamily: 'monospace', fontSize: fontSize.md, lineHeight: 22, letterSpacing: 0.3 }]}>{pk}</Text>
           </Card>
           <KPressable
             onPress={async () => {
@@ -54,7 +53,7 @@ export default function RevealPrivateKey() {
               toast.success(t('copied'), t('pkCopiedBody'));
             }}
             haptic="light"
-            style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: spacing(1.5), paddingHorizontal: 18, height: 44, borderRadius: 22, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}
+            style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: spacing(1.5), paddingHorizontal: 18, height: 44, borderRadius: radii.full, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}
           >
             <Icon name="copy" size={16} color={colors.text} />
             <Text style={{ color: colors.text, fontFamily: typography.bodyStrong.fontFamily }}>{t('copyKey')}</Text>
@@ -62,7 +61,7 @@ export default function RevealPrivateKey() {
           <View
             style={{
               backgroundColor: 'rgba(255,181,71,0.08)',
-              borderRadius: 18,
+              borderRadius: radii.lg,
               padding: spacing(1.5),
               flexDirection: 'row',
               gap: 10,
@@ -78,13 +77,13 @@ export default function RevealPrivateKey() {
   }
 
   return (
-    <Screen>
+    <Screen layout="form">
       <ScreenHeader />
       <NovaHero icon="copy" tone="gold" title={t('revealPrivateKeyTitle')} subtitle={isPk ? t('pkImportedConfirm') : t('confirmIdentityPk')} />
-      <NovaCard delay={160} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+      <Card rise delay={160} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
         <IconDisc name="eyeOff" />
         <Text style={[typography.muted, { flex: 1 }]}>{t('nobodyElseSee')}</Text>
-      </NovaCard>
+      </Card>
       <View style={{ flex: 1 }} />
       <Button label={t('revealAction')} onPress={() => setConfirming(true)} />
 

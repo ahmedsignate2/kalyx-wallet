@@ -1,12 +1,11 @@
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable, Button, Card, Screen, Text as KText } from '../ui/kit';
 import { ActionDisc, NovaHero, Pulse, Rise, SectionLabel } from '../ui/nova';
 import { DappLogo } from '../ui/browser/DappTile';
 import { useEffect, useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { fonts, spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme, fontSize, radii } from '../ui/theme';
 import { useWalletConnect } from '../lib/walletconnect';
 import { useTonConnect } from '../lib/tonconnect/store';
 import { looksLikeTonConnect } from '../src/domain/tonconnect/connectLink';
@@ -47,10 +46,10 @@ export default function WalletConnectScreen() {
 
   if (!configured) {
     return (
-      <Screen>
+      <Screen layout="form">
       <ScreenHeader />
-        <Title>WalletConnect</Title>
-        <Muted>{t('wcNotConfigured')}</Muted>
+        <KText variant="heading">WalletConnect</KText>
+        <KText variant="label">{t('wcNotConfigured')}</KText>
       </Screen>
     );
   }
@@ -88,7 +87,7 @@ export default function WalletConnectScreen() {
   const onPaste = async () => setUri(await Clipboard.getStringAsync());
 
   return (
-    <Screen scroll>
+    <Screen layout="form" scroll>
       <ScreenHeader />
       <NovaHero icon="walletconnect" title="WalletConnect" subtitle={t('wcIntro')} />
 
@@ -99,11 +98,11 @@ export default function WalletConnectScreen() {
         <View style={{ flex: 2 }} />
       </View>
 
-      <Card>
+      <Card padding="xl" gap="md">
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>{t('wcLink')}</Text>
         </View>
-        <TextInput value={uri} onChangeText={setUri} placeholder="wc:…" placeholderTextColor={colors.textSecondary} autoCapitalize="none" autoCorrect={false} style={{ color: colors.text, fontSize: 14, paddingVertical: spacing(1) }} />
+        <TextInput value={uri} onChangeText={setUri} placeholder="wc:…" placeholderTextColor={colors.textSecondary} autoCapitalize="none" autoCorrect={false} style={{ color: colors.text, fontSize: fontSize.md, paddingVertical: spacing(1) }} />
       </Card>
       <Button label={busy ? t('connecting') : t('connect')} loading={busy || !ready} onPress={onConnect} />
 
@@ -111,19 +110,19 @@ export default function WalletConnectScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing(1) }}>
           <SectionLabel>{t('wcSessions')}</SectionLabel>
           {sessions.length > 1 ? (
-            <Text onPress={() => disconnectAll()} style={{ color: colors.danger, fontFamily: fonts.semibold, fontSize: 13 }}>{t('disconnectAll')}</Text>
+            <Text onPress={() => disconnectAll()} style={{ color: colors.danger, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{t('disconnectAll')}</Text>
           ) : null}
         </View>
         {sessions.length === 0 ? (
-          <Muted>{t('noWcSessions')}</Muted>
+          <KText variant="label">{t('noWcSessions')}</KText>
         ) : (
           sessions.map((s) => (
             <Rise key={s.topic}>
-            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), borderRadius: 22 }}>
+            <Card padding="xl" gap="md" style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
               <SessionLogo url={s.url} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={typography.body} numberOfLines={1}>{s.name}</Text>
-                <Muted>{s.url.replace(/^https?:\/\//, '')}</Muted>
+                <KText variant="label">{s.url.replace(/^https?:\/\//, '')}</KText>
               </View>
               <DangerPill label={t('disconnect')} onPress={() => disconnect(s.topic)} />
             </Card>
@@ -134,15 +133,15 @@ export default function WalletConnectScreen() {
         {/* Apps TON connectées par TON Connect */}
         <View style={{ marginTop: spacing(2) }}><SectionLabel>{t('tcConnectedApps')}</SectionLabel></View>
         {tonSessions.length === 0 ? (
-          <Muted>{t('tcNoApps')}</Muted>
+          <KText variant="label">{t('tcNoApps')}</KText>
         ) : (
           tonSessions.map((s) => (
             <Rise key={s.clientId}>
-            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), borderRadius: 22 }}>
+            <Card padding="xl" gap="md" style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
               <SessionLogo url={s.manifest.url} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={typography.body} numberOfLines={1}>{s.manifest.name}</Text>
-                <Muted>{s.manifest.url.replace(/^https:\/\//, '')}</Muted>
+                <KText variant="label">{s.manifest.url.replace(/^https:\/\//, '')}</KText>
               </View>
               <DangerPill label={t('tcDisconnect')} onPress={() => void disconnectTon(s.clientId)} />
             </Card>
@@ -153,15 +152,15 @@ export default function WalletConnectScreen() {
         {/* dApps connectées via le navigateur intégré */}
         <View style={{ marginTop: spacing(2) }}><SectionLabel>{t('browserDapps')}</SectionLabel></View>
         {connections.length === 0 ? (
-          <Muted>{t('noBrowserDapps')}</Muted>
+          <KText variant="label">{t('noBrowserDapps')}</KText>
         ) : (
           connections.map((c) => (
             <Rise key={c.host}>
-            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), borderRadius: 22 }}>
+            <Card padding="xl" gap="md" style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
               <SessionLogo url={`https://${c.host}`} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={typography.body} numberOfLines={1}>{c.title || c.host}</Text>
-                <Muted>{c.host} · {ago(c.at)}</Muted>
+                <KText variant="label">{c.host} · {ago(c.at)}</KText>
               </View>
               <DangerPill label={t('forget')} onPress={() => removeConnection(c.host)} />
             </Card>
@@ -173,14 +172,14 @@ export default function WalletConnectScreen() {
         {signatures.length > 0 ? (
           <>
             <View style={{ marginTop: spacing(2) }}><SectionLabel>{t('recentSignatures')}</SectionLabel></View>
-            <Card style={{ gap: 0 }}>
+            <Card padding="xl" gap="md" style={{ gap: 0 }}>
               {signatures.slice(0, 20).map((s, i) => (
                 <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing(1), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
                   <View style={{ flex: 1 }}>
                     <Text style={typography.body} numberOfLines={1}>{SIG_LABEL[s.kind]}</Text>
-                    <Muted>{s.host}</Muted>
+                    <KText variant="label">{s.host}</KText>
                   </View>
-                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{ago(s.at)}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs }}>{ago(s.at)}</Text>
                 </View>
               ))}
             </Card>
@@ -197,9 +196,9 @@ function SessionLogo({ url }: { url: string }) {
   let host = '';
   try { host = new URL(url).host; } catch { host = url.replace(/^https?:\/\//, '').split('/')[0]; }
   return (
-    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: 44, height: 44, borderRadius: radii.full, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
       <DappLogo host={host} size={30} />
-      <View style={{ position: 'absolute', right: -1, bottom: -1, padding: 2, borderRadius: 8, backgroundColor: colors.surface1 }}>
+      <View style={{ position: 'absolute', right: -1, bottom: -1, padding: 2, borderRadius: radii.sm, backgroundColor: colors.surface1 }}>
         <Pulse size={8} color={colors.up} />
       </View>
     </View>
@@ -210,8 +209,8 @@ function SessionLogo({ url }: { url: string }) {
 function DangerPill({ label, onPress }: { label: string; onPress: () => void }) {
   const { colors } = useTheme();
   return (
-    <KPressable onPress={onPress} haptic="light" accessibilityLabel={label} style={{ paddingHorizontal: 12, height: 34, borderRadius: 17, justifyContent: 'center', backgroundColor: 'rgba(255,77,94,0.10)' }}>
-      <Text style={{ color: colors.danger, fontFamily: fonts.semibold, fontSize: 13 }}>{label}</Text>
+    <KPressable onPress={onPress} haptic="light" accessibilityLabel={label} style={{ paddingHorizontal: 12, height: 34, borderRadius: radii.full, justifyContent: 'center', backgroundColor: 'rgba(255,77,94,0.10)' }}>
+      <Text style={{ color: colors.danger, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{label}</Text>
     </KPressable>
   );
 }

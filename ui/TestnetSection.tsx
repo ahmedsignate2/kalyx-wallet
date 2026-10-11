@@ -8,8 +8,8 @@
 import React, { useEffect } from 'react';
 import { Alert, View } from 'react-native';
 import { router } from 'expo-router';
-import { Text, Surface, Divider, TokenRow, Pressable as KPressable } from './kit';
-import { space } from './tokens';
+import { Text, Divider, TokenRow, Pressable as KPressable, Card } from './kit';
+import { space, radii } from './tokens';
 import { useT } from '../lib/settingsStore';
 import { fill } from '../lib/i18n';
 import { useWallet } from '../lib/walletStore';
@@ -42,7 +42,7 @@ export function TestnetSection({ acct, hidden, refreshTick }: { acct: PortfolioA
         <Text variant="micro" tone="tertiary">{t('testnetSectionNote')}</Text>
       </View>
       {balances.length > 0 ? (
-        <Surface padded={false} style={{ borderRadius: 26 }}>
+        <Card padded={false} style={{ borderRadius: radii.xl }}>
           {balances.map((b, i) => {
             const amount = `${formatTokenAmount(b.raw, b.chain.nativeDecimals)} ${b.chain.nativeSymbol}`;
             return (
@@ -62,13 +62,13 @@ export function TestnetSection({ acct, hidden, refreshTick }: { acct: PortfolioA
               </React.Fragment>
             );
           })}
-        </Surface>
+        </Card>
       ) : (
-        <Surface>
+        <Card>
           <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>
             {loading && at === 0 ? '…' : t('testnetNoBalance')}
           </Text>
-        </Surface>
+        </Card>
       )}
       {failed.length > 0 ? (
         <KPressable onPress={() => void useTestnetBalances.getState().refresh(acct, { force: true })} style={{ alignSelf: 'center', paddingVertical: space[1] }}>

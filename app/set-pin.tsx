@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { usePendingRestore } from '../lib/pendingRestore';
-import { View, Text, Switch, Animated, ActivityIndicator, Platform, StatusBar, useWindowDimensions } from 'react-native';
+import { View, Text, Animated, ActivityIndicator, Platform, StatusBar, useWindowDimensions } from 'react-native';
 import { Orbit, Rise, Stardust } from '../ui/nova';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinPad } from '../ui/PinPad';
 import { KalyxRing } from '../ui/KalyxRing';
 import { Icon } from '../ui/icon';
-import { Pressable as KPressable } from '../ui/kit';
-import { radius, space } from '../ui/tokens';
+import { Pressable as KPressable, Switch } from '../ui/kit';
+import { radius, space, fontSize } from '../ui/tokens';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { toast } from '../lib/toast';
@@ -182,10 +182,10 @@ export default function SetPin() {
         </View>
 
         <Rise key={step} style={{ paddingHorizontal: 24, marginTop: 8 }}>
-          <Text style={{ fontSize: 24, fontFamily: fonts.bold, color: colors.text, letterSpacing: -0.3, marginBottom: 8 }}>
+          <Text style={{ fontSize: fontSize.h3, fontFamily: fonts.bold, color: colors.text, letterSpacing: -0.3, marginBottom: 8 }}>
             {step === 'create' ? t('choosePinTitle') : t('confirmPinTitle')}
           </Text>
-          <Text style={{ fontSize: 14, fontFamily: fonts.regular, color: colors.textSecondary, marginBottom: 12 }}>
+          <Text style={{ fontSize: fontSize.md, fontFamily: fonts.regular, color: colors.textSecondary, marginBottom: 12 }}>
             {step === 'create' ? t('choosePinSub') : t('confirmPinSub')}
           </Text>
         </Rise>
@@ -193,7 +193,7 @@ export default function SetPin() {
         {/* Ligne biométrie : conteneur dédié + marge basse nette → jamais sur l'anneau. */}
         {step === 'create' && bioAvailable ? (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 24, marginBottom: 24 }}>
-            <Text style={{ color: colors.text, fontSize: 14, fontFamily: fonts.medium }}>{t('biometricUnlock')}</Text>
+            <Text style={{ color: colors.text, fontSize: fontSize.md, fontFamily: fonts.medium }}>{t('biometricUnlock')}</Text>
             <Switch value={useBio} onValueChange={setUseBio} />
           </View>
         ) : null}
@@ -208,7 +208,7 @@ export default function SetPin() {
           <KalyxRing size={104} progress={progress} error={!!errSignal} />
         </Animated.View>
         <View style={{ height: 22, justifyContent: 'center', marginTop: 8 }}>
-          {error ? <Text style={{ color: colors.danger, textAlign: 'center', fontFamily: fonts.medium, fontSize: 13 }}>{error}</Text> : null}
+          {error ? <Text style={{ color: colors.danger, textAlign: 'center', fontFamily: fonts.medium, fontSize: fontSize.sm }}>{error}</Text> : null}
         </View>
       </View>
 
@@ -229,15 +229,15 @@ export default function SetPin() {
           {busy ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
               <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={{ color: colors.textSecondary, fontSize: 15, fontFamily: fonts.medium }}>{t('creating')}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: fontSize.base, fontFamily: fonts.medium }}>{t('creating')}</Text>
             </View>
           ) : step === 'create' && canContinue ? (
             <KPressable onPress={onContinue} hitSlop={8} haptic="light" accessibilityLabel={t('continueWord')}>
-              <Text style={{ color: colors.primary, fontSize: 16, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
+              <Text style={{ color: colors.primary, fontSize: fontSize.lg, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
             </KPressable>
           ) : step === 'confirm' ? (
             <KPressable onPress={restart} hitSlop={8} accessibilityLabel={t('startOver')}>
-              <Text style={{ color: colors.textSecondary, fontSize: 15, fontFamily: fonts.medium }}>{'\u2039'} {t('startOver')}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: fontSize.base, fontFamily: fonts.medium }}>{'\u2039'} {t('startOver')}</Text>
             </KPressable>
           ) : null}
         </View>

@@ -8,7 +8,7 @@ import { translate } from "../lib/i18n";
  */
 import React from 'react';
 import { Text, ScrollView } from 'react-native';
-import { fonts } from './theme';
+import { fonts, fontSize, radii } from './theme';
 
 interface Props {
   children: React.ReactNode;
@@ -64,10 +64,10 @@ export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => 
       style={{ flex: 1, backgroundColor: '#07090F' }}
       contentContainerStyle={{ padding: 24, paddingTop: 72 }}
     >
-      <Text style={{ color: '#FF5C5C', fontSize: 22, fontFamily: fonts.extrabold, marginBottom: 12 }}>
+      <Text style={{ color: '#FF5C5C', fontSize: fontSize.xxl, fontFamily: fonts.extrabold, marginBottom: 12 }}>
         {crashTitle()}
       </Text>
-      <Text style={{ color: '#F5F7FA', fontSize: 15, marginBottom: 16 }}>
+      <Text style={{ color: '#F5F7FA', fontSize: fontSize.base, marginBottom: 16 }}>
         {error?.message || String(error)}
       </Text>
       {onRetry ? (
@@ -76,7 +76,7 @@ export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => 
           style={{
             alignSelf: 'flex-start',
             backgroundColor: '#7C5CFF',
-            borderRadius: 999,
+            borderRadius: radii.full,
             paddingVertical: 10,
             paddingHorizontal: 20,
             marginBottom: 20,
@@ -86,7 +86,7 @@ export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => 
         </KPressable>
       ) : null}
       {__DEV__ && error?.stack ? (
-        <Text selectable style={{ color: '#8A93A6', fontSize: 12, fontFamily: 'monospace' }}>
+        <Text selectable style={{ color: '#8A93A6', fontSize: fontSize.xs, fontFamily: 'monospace' }}>
           {error.stack}
         </Text>
       ) : null}

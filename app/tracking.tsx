@@ -22,9 +22,9 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSpring, withTiming, cancelAnimation } from 'react-native-reanimated';
-import { ScreenHeader, Text, Button, Surface, ListRow, Divider, Sheet, TokenIcon, Pressable as KPressable } from '../ui/kit';
+import { ScreenHeader, Text, Button, ListRow, Divider, Sheet, TokenIcon, Pressable as KPressable, Card } from '../ui/kit';
 import { Icon } from '../ui/icon';
-import { useTheme } from '../ui/theme';
+import { useTheme, textSize, radii } from '../ui/theme';
 import { space, radius, SCREEN_MARGIN, springs } from '../ui/tokens';
 import { useT, useActivityT, fiatSymbol, useSettings } from '../lib/settingsStore';
 import { useReduceMotion } from '../lib/reduceMotion';
@@ -47,7 +47,7 @@ import {
   getPrices,
   type CalculatedReplacementGas,
   type RawTxRequest,
-  type TxSummary,
+  type TxSummary
 } from '../src';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useHistoryStore, useHistoryCache, cacheKey } from '../lib/historyStore';
@@ -81,12 +81,12 @@ function StatusBadge({ status }: { status: Status }) {
     <View style={{ width: 72, height: 72, alignItems: 'center', justifyContent: 'center' }}>
       {waiting ? (
         <>
-          <View style={{ position: 'absolute', width: 72, height: 72, borderRadius: 36, borderWidth: 3, borderColor: colors.surface3 }} />
-          <Reanimated.View style={[{ position: 'absolute', width: 72, height: 72, borderRadius: 36, borderWidth: 3, borderColor: 'transparent', borderTopColor: colors.text }, ring]} />
+          <View style={{ position: 'absolute', width: 72, height: 72, borderRadius: radii.full, borderWidth: 3, borderColor: colors.surface3 }} />
+          <Reanimated.View style={[{ position: 'absolute', width: 72, height: 72, borderRadius: radii.full, borderWidth: 3, borderColor: 'transparent', borderTopColor: colors.text }, ring]} />
           <Icon name="clock" size={26} color={colors.textSecondary} />
         </>
       ) : (
-        <Reanimated.View style={[{ width: 72, height: 72, borderRadius: 36, backgroundColor: tint, alignItems: 'center', justifyContent: 'center' }, mark]}>
+        <Reanimated.View style={[{ width: 72, height: 72, borderRadius: radii.full, backgroundColor: tint, alignItems: 'center', justifyContent: 'center' }, mark]}>
           <Icon name={status === 'success' ? 'checkmark' : 'close'} size={34} color={colors.bg} />
         </Reanimated.View>
       )}
@@ -318,7 +318,7 @@ export default function TrackingScreen() {
           {h ? (
             <View style={{ alignItems: 'center', gap: 2 }}>
               <Text variant="caption" tone="secondary">{h.label}</Text>
-              {h.amount ? <Text style={{ fontSize: 30, lineHeight: 38, fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] }} numberOfLines={1} adjustsFontSizeToFit>{h.amount}</Text> : null}
+              {h.amount ? <Text style={{ ...textSize('h2'), fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] }} numberOfLines={1} adjustsFontSizeToFit>{h.amount}</Text> : null}
               {h.amountAlt ? <Text variant="body" tone="secondary" tabular>{h.amountAlt}</Text> : null}
               {h.fiat ? <Text variant="caption" tone="tertiary" tabular>{h.fiat}</Text> : null}
             </View>
@@ -326,7 +326,7 @@ export default function TrackingScreen() {
         </View>
 
         {/* 2. Détails, une seule carte */}
-        <Surface padded={false}>
+        <Card padded={false}>
           <ListRow
             title={t('labelNetwork')}
             right={
@@ -386,7 +386,7 @@ export default function TrackingScreen() {
               />
             </>
           ) : null}
-        </Surface>
+        </Card>
 
         {chain?.family === 'bitcoin' && !final ? <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>{t('estTimeRange')}</Text> : null}
 
@@ -417,7 +417,7 @@ export default function TrackingScreen() {
             <ActivityIndicator size="small" color={colors.textSecondary} />
           </View>
         ) : replacementGas && preparedTx && chain ? (
-          <Surface padded={false}>
+          <Card padded={false}>
             <ListRow title={t('nonceLabel')} right={<Text variant="body" tabular>#{preparedTx.nonce}</Text>} />
             <Divider inset={16} />
             <ListRow
@@ -432,7 +432,7 @@ export default function TrackingScreen() {
             />
             <Divider inset={16} />
             <ListRow title={t('estimatedExtraFee')} right={<Text variant="caption" tone="warning" tabular>+{formatTokenAmount(replacementGas.extraCostWei, chain.nativeDecimals)} {chain.nativeSymbol}</Text>} />
-          </Surface>
+          </Card>
         ) : null}
         <View style={{ gap: space[3], marginTop: space[2] }}>
           <Button

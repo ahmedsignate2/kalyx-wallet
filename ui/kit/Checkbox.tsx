@@ -21,7 +21,7 @@ const CHECK = 'M4 8.5 L7 11.5 L12.5 5';
 const CHECK_LEN = 16; // longueur approx. du tracé, pour le dessin progressif
 
 export function Checkbox({
-  checked, onChange, label, shake = 0, size = 22,
+  checked, onChange, label, shake = 0, size = 22, tone = 'default',
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
@@ -30,8 +30,12 @@ export function Checkbox({
   /** Incrémenter cette valeur fait trembler la case (attirer l'attention). */
   shake?: number;
   size?: number;
+  /** `danger` : consentement à un risque (envoi malgré une alerte). */
+  tone?: 'default' | 'danger';
 }) {
   const { colors } = useTheme();
+  const fill = tone === 'danger' ? colors.danger : colors.primary;
+  const ink = tone === 'danger' ? '#FFFFFF' : colors.onPrimary;
   const reduced = useReducedMotion();
   const on = useSharedValue(checked ? 1 : 0);
   const shakeV = useSharedValue(0);
@@ -56,8 +60,8 @@ export function Checkbox({
   }, [shake, shakeV, reduced]);
 
   const boxStyle = useAnimatedStyle(() => ({
-    backgroundColor: on.value > 0.5 ? colors.primary : 'transparent',
-    borderColor: on.value > 0.5 ? colors.primary : colors.border,
+    backgroundColor: on.value > 0.5 ? fill : 'transparent',
+    borderColor: on.value > 0.5 ? fill : colors.border,
     transform: [{ scale: 1 + on.value * 0.06 }, { translateX: shakeV.value * 6 }],
   }));
   const checkProps = useAnimatedProps(() => ({ strokeDashoffset: CHECK_LEN * (1 - on.value) }));
@@ -81,7 +85,7 @@ export function Checkbox({
         <Svg width={size * 0.78} height={size * 0.78} viewBox="0 0 17 17">
           <AnimatedPath
             d={CHECK}
-            stroke={colors.onPrimary}
+            stroke={ink}
             strokeWidth={2.2}
             strokeLinecap="round"
             strokeLinejoin="round"

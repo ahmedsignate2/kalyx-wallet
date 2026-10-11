@@ -1,11 +1,10 @@
-import { GOLD, NovaCard, NovaHero, Rise } from '../ui/nova';
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { GOLD, NovaHero, Rise } from '../ui/nova';
+import { ScreenHeader, Pressable as KPressable, Card, Screen } from '../ui/kit';
 import { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { Stack } from 'expo-router';
-import { PremiumScreen } from '../ui/premium';
 import { Icon, type IconName } from '../ui/icon';
-import { fonts, spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme, fontSize, radii } from '../ui/theme';
 import { useNotifCenter, type NotifType } from '../lib/notificationCenter';
 import { useT } from '../lib/settingsStore';
 
@@ -33,37 +32,37 @@ export default function Notifications() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <PremiumScreen>
+      <Screen>
       <ScreenHeader
         right={items.length > 0 ? (
-          <KPressable onPress={clear} haptic="light" accessibilityLabel={t('clearAll')} style={{ paddingHorizontal: 12, height: 34, borderRadius: 17, justifyContent: 'center', backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: fonts.semibold }}>{t('clearAll')}</Text>
+          <KPressable onPress={clear} haptic="light" accessibilityLabel={t('clearAll')} style={{ paddingHorizontal: 12, height: 34, borderRadius: radii.full, justifyContent: 'center', backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+            <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm, fontFamily: fonts.semibold }}>{t('clearAll')}</Text>
           </KPressable>
         ) : undefined}
       />
       <NovaHero icon="bell" tone="gold" title={t('notifications')} subtitle={items.length === 0 ? t('notifEmptyHint') : undefined} />
 
       {items.length === 0 ? (
-        <NovaCard delay={160} style={{ alignItems: 'center', paddingVertical: spacing(3) }}>
+        <Card rise delay={160} style={{ alignItems: 'center', paddingVertical: spacing(3) }}>
           <Text style={typography.bodyStrong}>{t('noNotifications')}</Text>
-        </NovaCard>
+        </Card>
       ) : (
-        <NovaCard delay={140} padded={false} style={{ paddingHorizontal: spacing(2) }}>
+        <Card rise delay={140} padded={false} style={{ paddingHorizontal: spacing(2) }}>
           {items.map((n, i) => (
             <Rise key={n.id} delay={Math.min(i, 10) * 40} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.5), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
-              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 42, height: 42, borderRadius: radii.full, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
                 <Icon name={ICON[n.type]} size={19} color={n.type === 'tx' ? colors.up : GOLD} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={typography.bodyStrong} numberOfLines={1}>{n.title}</Text>
                 {n.body ? <Text style={typography.muted} numberOfLines={2}>{n.body}</Text> : null}
               </View>
-              <Text style={{ color: colors.textTertiary, fontSize: 12 }}>{ago(n.at)}</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs }}>{ago(n.at)}</Text>
             </Rise>
           ))}
-        </NovaCard>
+        </Card>
       )}
-    </PremiumScreen>
+    </Screen>
     </>
   );
 }

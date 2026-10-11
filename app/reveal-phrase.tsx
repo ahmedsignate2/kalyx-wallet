@@ -1,10 +1,9 @@
-import { IconDisc, NovaCard, NovaHero, Rise } from '../ui/nova';
+import { IconDisc, NovaHero, Rise } from '../ui/nova';
 import { router } from 'expo-router';
-import { ScreenHeader } from '../ui/kit';
+import { ScreenHeader, Button, Card, Screen } from '../ui/kit';
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
-import { Screen, Card, Button } from '../ui/components';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
@@ -34,11 +33,11 @@ export default function RevealPhrase() {
 
   if (words) {
     return (
-      <Screen>
+      <Screen layout="form">
       <ScreenHeader />
         <NovaHero icon="phrase" tone="gold" title={t('yourRecoveryPhrase')} subtitle={t('dontShareScreenshotBlocked')} />
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
-        <Card style={{ borderRadius: 26 }}>
+        <Card padding="xl" gap="md" style={{ borderRadius: radii.xl }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>
             {words.map((w, i) => (
               <Rise
@@ -77,13 +76,13 @@ export default function RevealPhrase() {
   }
 
   return (
-    <Screen>
+    <Screen layout="form">
       <ScreenHeader />
       <NovaHero icon="phrase" tone="gold" title={t('revealPhraseTitle')} subtitle={t('confirmIdentityPhrase')} />
-      <NovaCard delay={160} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+      <Card rise delay={160} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
         <IconDisc name="eyeOff" />
         <Text style={[typography.muted, { flex: 1 }]}>{t('nobodyElseSee')}</Text>
-      </NovaCard>
+      </Card>
       <View style={{ flex: 1 }} />
       <Button label={t('revealAction')} onPress={() => setConfirming(true)} />
 

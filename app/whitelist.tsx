@@ -5,9 +5,8 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { Button, Input, ScreenHeader, Text, Pressable as KPressable } from '../ui/kit';
-import { NovaCard, NovaHero } from '../ui/nova';
-import { PremiumScreen } from '../ui/premium';
+import { Button, Input, ScreenHeader, Text, Pressable as KPressable, Card, Screen } from '../ui/kit';
+import { NovaHero } from '../ui/nova';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
 import { spacing, useTheme } from '../ui/theme';
@@ -56,11 +55,11 @@ export default function WhitelistScreen() {
   };
 
   return (
-    <PremiumScreen>
+    <Screen>
       <ScreenHeader />
       <NovaHero icon="security" title={t('wlTitle')} subtitle={t('wlHint')} />
 
-      <NovaCard delay={80} style={{ gap: spacing(1.5) }}>
+      <Card rise delay={80} style={{ gap: spacing(1.5) }}>
         {wl.enabled ? (
           <>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -80,17 +79,17 @@ export default function WhitelistScreen() {
         ) : (
           <Button label={t('wlEnable')} icon="security" onPress={() => setPending({ kind: 'enable' })} />
         )}
-      </NovaCard>
+      </Card>
 
-      <NovaCard delay={140} style={{ gap: spacing(1.5) }}>
+      <Card rise delay={140} style={{ gap: spacing(1.5) }}>
         <Text variant="body">{t('wlAdd')}</Text>
         <Input value={address} onChangeText={setAddress} placeholder="0x… · bc1… · Solana · UQ…" autoCapitalize="none" autoCorrect={false} />
         <Input value={label} onChangeText={setLabel} placeholder={t('wlLabelPh')} maxLength={32} />
         {wl.enabled ? <Text variant="caption" tone="secondary">{t('wlAddHintDelay')}</Text> : null}
         <Button label={t('wlAdd')} icon="add" disabled={address.trim().length < 20} onPress={() => setPending({ kind: 'add', address: address.trim(), label })} />
-      </NovaCard>
+      </Card>
 
-      <NovaCard delay={200} style={{ gap: spacing(1) }}>
+      <Card rise delay={200} style={{ gap: spacing(1) }}>
         {wl.entries.length === 0 ? (
           <Text variant="caption" tone="secondary">{t('wlEmpty')}</Text>
         ) : (
@@ -118,7 +117,7 @@ export default function WhitelistScreen() {
             );
           })
         )}
-      </NovaCard>
+      </Card>
 
       <ConfirmUnlock
         visible={pending != null}
@@ -128,6 +127,6 @@ export default function WhitelistScreen() {
         onDone={() => setPending(null)}
         onCancel={() => setPending(null)}
       />
-    </PremiumScreen>
+    </Screen>
   );
 }

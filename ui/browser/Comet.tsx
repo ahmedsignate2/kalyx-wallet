@@ -11,7 +11,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { springs } from '../tokens';
+import { springs, radii } from '../tokens';
 import type { Ticker } from '../../lib/ticker';
 
 export function Comet({ progress, active = true }: { /** 0..1 ; 0 ou 1 = masquée. */ progress: Ticker; /** Faux : comète masquée (page nouvel onglet). */ active?: boolean }) {
@@ -34,7 +34,7 @@ export function Comet({ progress, active = true }: { /** 0..1 ; 0 ou 1 = masqué
   return (
     <View pointerEvents="none" style={{ height: 2, width: '100%' }} onLayout={(e) => { width.value = e.nativeEvent.layout.width; }}>
       <Animated.View style={[{ position: 'absolute', left: 0, top: 0, height: 2, width: '100%', transformOrigin: 'left', backgroundColor: colors.primary }, line]} />
-      <Animated.View style={[{ position: 'absolute', left: 0, top: -3, marginLeft: -6, width: 12, height: 8, borderRadius: 6, backgroundColor: halo.stops[1], shadowColor: '#FFFFFF', shadowOpacity: 0.9, shadowRadius: 6, elevation: 6 }, tip]} />
+      <Animated.View style={[{ position: 'absolute', left: 0, top: -3, marginLeft: -6, width: 12, height: 8, borderRadius: radii.full, backgroundColor: halo.stops[1], shadowColor: '#FFFFFF', shadowOpacity: 0.9, shadowRadius: 6, elevation: 6 }, tip]} />
     </View>
   );
 }

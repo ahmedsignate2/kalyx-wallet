@@ -22,23 +22,22 @@ import { buildTonJsBridge, parseTcJsMessage } from '../../src/domain/tonconnect/
 import { useTonConnect, tcJsHost, tcDeviceInfo } from '../../lib/tonconnect/store';
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { fill } from '../../lib/i18n';
-import { View, TextInput, ScrollView, Share, Alert, Switch, useWindowDimensions, Linking } from 'react-native';
+import { View, TextInput, ScrollView, Share, Alert, useWindowDimensions, Linking } from 'react-native';
 import { Stack, useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
-import { Text, Button, IconButton, Surface, Divider, ListRow, Sheet, Chip, EmptyState, Input, Pressable as KPressable } from '../../ui/kit';
+import { Text, Button, IconButton, Divider, ListRow, Sheet, Chip, EmptyState, Input, Pressable as KPressable, Card, RemoteIcon, Switch, Checkbox } from '../../ui/kit';
 import { Icon } from '../../ui/icon';
 import { SignSheet } from '../../ui/SignSheet';
 import { ConfirmUnlock } from '../../ui/ConfirmUnlock';
 import { AddressBar, splitHost } from '../../ui/browser/AddressBar';
 import { useTabBar } from '../../ui/tabs';
-import { RemoteIcon } from '../../ui/premium';
 import { Comet } from '../../ui/browser/Comet';
 import { createTicker, useTicker } from '../../lib/ticker';
 import { DappTile, DappLogo, siteName } from '../../ui/browser/DappTile';
 import { useTheme } from '../../ui/theme';
-import { space, SCREEN_MARGIN, radius, springs } from '../../ui/tokens';
+import { space, SCREEN_MARGIN, radius, radii, springs, fontSize } from '../../ui/tokens';
 import { Orbit, Rise, TextTabs } from '../../ui/nova';
 import { haptic } from '../../lib/haptics';
 import { sound } from '../../lib/sound';
@@ -57,8 +56,24 @@ import { looksLikeTonConnect } from '../../src/domain/tonconnect/connectLink';
 import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../../lib/browserPrefs';
 import { buildInjectedProvider, parseDappMessage, respondJs, emitJs, rpcProxy, READONLY_METHODS, type DappRequest } from '../../lib/dappProvider';
 import {
-  getAdapter, formatTokenAmount, listChains, hexToText, parseSiwe, siweDomainMismatch, summarizeTypedData, assessAddress, isPhishingSite,
-  decodeTx, simulateTx, explainRequest, getTokenMetadata, chainIconUrl, isValidEvmAddress, type RawTxRequest, type RiskAssessment, type Simulation,
+  getAdapter,
+  formatTokenAmount,
+  listChains,
+  hexToText,
+  parseSiwe,
+  siweDomainMismatch,
+  summarizeTypedData,
+  assessAddress,
+  isPhishingSite,
+  decodeTx,
+  simulateTx,
+  explainRequest,
+  getTokenMetadata,
+  chainIconUrl,
+  isValidEvmAddress,
+  type RawTxRequest,
+  type RiskAssessment,
+  type Simulation
 } from '../../src';
 import { useHistoryStore } from '../../lib/historyStore';
 import { useKeyboardHeight } from '../../ui/useKeyboardHeight';
@@ -676,7 +691,7 @@ export default function Browser() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, padding: SCREEN_MARGIN, paddingTop: insets.top + 48, justifyContent: 'center' }}>
         <Stack.Screen options={{ headerShown: false }} />
-        <Surface><EmptyState icon="dapps" title={t('browserUnavailableTitle')} body={t('browserUnavailableMsg')} actionLabel={t('back')} onAction={() => router.back()} /></Surface>
+        <Card><EmptyState icon="dapps" title={t('browserUnavailableTitle')} body={t('browserUnavailableMsg')} actionLabel={t('back')} onAction={() => router.back()} /></Card>
       </View>
     );
   }
@@ -696,7 +711,7 @@ export default function Browser() {
    */
   const NewTabPage = () => {
     const cat = VERIFIED_DAPPS.find((c) => c.category === category) ?? VERIFIED_DAPPS[0];
-    const card = { borderRadius: 26, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border } as const;
+    const card = { borderRadius: radii.xl, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border } as const;
     return (
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, padding: SCREEN_MARGIN, paddingTop: space[3], paddingBottom: space[10], gap: space[5] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {/* En-tête : le titre, et la même orbite que l'accueil, en petit, en haut à droite. */}
@@ -763,7 +778,7 @@ export default function Browser() {
         {activeTab.url ? (
           blocked ? (
             <View style={{ flex: 1, justifyContent: 'center', padding: SCREEN_MARGIN }}>
-              <Surface style={{ gap: space[3], alignItems: 'center', borderWidth: 1, borderColor: colors.danger }}>
+              <Card style={{ gap: space[3], alignItems: 'center', borderWidth: 1, borderColor: colors.danger }}>
                 <Icon name="warning" size={32} color={colors.danger} />
                 <Text variant="title2" style={{ textAlign: 'center' }}>{t('siteBlockedTitle')}</Text>
                 <Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center' }}>
@@ -778,11 +793,11 @@ export default function Browser() {
                     if (origin) setBypassedHosts((prev) => new Set(prev).add(origin));
                   }}
                 />
-              </Surface>
+              </Card>
             </View>
           ) : webError ? (
             <View style={{ flex: 1, justifyContent: 'center', padding: SCREEN_MARGIN }}>
-              <Surface style={{ gap: space[3], alignItems: 'center' }}>
+              <Card style={{ gap: space[3], alignItems: 'center' }}>
                 <Icon name="warning" size={28} color={colors.warning} />
                 <Text variant="title2" style={{ textAlign: 'center' }}>{t('cannotOpenPage')}</Text>
                 <Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center' }}>
@@ -791,7 +806,7 @@ export default function Browser() {
                 <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }} numberOfLines={2}>{webError}</Text>
                 <Button label={t('retry')} icon="refresh" onPress={() => { setWebError(null); progress.set(0); }} />
                 <Button label={t('backToHome')} variant="secondary" onPress={goHome} />
-              </Surface>
+              </Card>
             </View>
           ) : <WebViewAny
             key={`${activeTab.id}:${activeTab.desktop ? 'd' : 'm'}`}
@@ -885,7 +900,7 @@ export default function Browser() {
               <IconButton icon="close" label={t('cancel')} tone="ghost" onPress={() => { setEditing(false); setInput(''); }} />
               <View style={{ flex: 1, height: 48, borderRadius: radius.round, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.textSecondary, flexDirection: 'row', alignItems: 'center', paddingHorizontal: space[4], gap: space[2] }}>
                 <Icon name="search" size={15} tone="muted" />
-                <TextInput autoFocus value={input} onChangeText={setInput} onSubmitEditing={() => go(input)} placeholder={t('searchOrEnterUrl')} placeholderTextColor={colors.textTertiary} autoCapitalize="none" autoCorrect={false} keyboardType="url" returnKeyType="go" selectTextOnFocus style={{ flex: 1, color: colors.text, fontSize: 16, fontFamily: 'GeneralSans-Medium', paddingVertical: 0 }} />
+                <TextInput autoFocus value={input} onChangeText={setInput} onSubmitEditing={() => go(input)} placeholder={t('searchOrEnterUrl')} placeholderTextColor={colors.textTertiary} autoCapitalize="none" autoCorrect={false} keyboardType="url" returnKeyType="go" selectTextOnFocus style={{ flex: 1, color: colors.text, fontSize: fontSize.lg, fontFamily: 'GeneralSans-Medium', paddingVertical: 0 }} />
                 {input ? <KPressable onPress={() => setInput('')} hitSlop={8} accessibilityLabel={t('cancel')}><Icon name="close" size={14} tone="muted" /></KPressable> : null}
               </View>
               <IconButton icon="scan" label={t('scanQr')} tone="ghost" onPress={() => router.push('/scan')} />
@@ -908,7 +923,9 @@ export default function Browser() {
                 onAccount={() => setConnSheet(true)}
               />
               <KPressable onPress={() => setSwitcher(true)} accessibilityLabel={`${tabs.length} ${t('tabs')}`} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+                  {/* Le carré Phosphor occupe ~75 % de sa boîte : 32 donne le cadre de 24 d'origine. */}
+                  <View style={{ position: 'absolute' }}><Icon name="tabFrame" size={32} weight="bold" /></View>
                   <Text variant="micro" tabular>{tabs.length}</Text>
                 </View>
               </KPressable>
@@ -936,7 +953,7 @@ export default function Browser() {
               <KPressable key={tb.id} onPress={() => { setActiveId(tb.id); setSwitcher(false); }} accessibilityLabel={tb.title || host || t('newTab')} style={{ width: w }}>
                 <View style={{ height: w * 0.75, borderRadius: radius.container, backgroundColor: tb.incognito ? colors.bg : colors.surface1, borderWidth: on ? 2 : 1, borderColor: on ? colors.text : tb.incognito ? colors.textSecondary : colors.border, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                   {host ? <DappLogo host={host} size={40} /> : <Icon name={tb.incognito ? 'incognito' : 'add'} size={28} tone="faint" />}
-                  <KPressable onPress={() => closeTab(tb.id)} hitSlop={8} accessibilityLabel={t('closeTab')} style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}>
+                  <KPressable onPress={() => closeTab(tb.id)} hitSlop={8} accessibilityLabel={t('closeTab')} style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: radii.full, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}>
                     <Icon name="close" size={14} />
                   </KPressable>
                 </View>
@@ -1160,18 +1177,13 @@ export default function Browser() {
           </View>
         ) : null}
 
-        <Surface style={{ padding: space[3], borderRadius: radius.container, gap: space[2] }}>
+        <Card style={{ padding: space[3], borderRadius: radius.container, gap: space[2] }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}><Icon name="checkmark" size={14} color={colors.up} weight="bold" /><Text variant="caption" tone="secondary" style={{ flex: 1 }}>{t('canSeeAddress')}</Text></View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}><Icon name="checkmark" size={14} color={colors.up} weight="bold" /><Text variant="caption" tone="secondary" style={{ flex: 1 }}>{t('canProposeTx')}</Text></View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}><Icon name="lock" size={14} color={colors.textSecondary} weight="bold" /><Text variant="caption" tone="secondary" style={{ flex: 1 }}>{t('cannotMove')}</Text></View>
           <Divider />
-          <KPressable onPress={() => setRememberSite((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: rememberSite ? colors.text : colors.border, backgroundColor: rememberSite ? colors.text : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-              {rememberSite ? <Icon name="check" size={14} color={colors.bg} /> : null}
-            </View>
-            <Text variant="body">{t('rememberSite')}</Text>
-          </KPressable>
-        </Surface>
+          <Checkbox checked={rememberSite} onChange={setRememberSite} label={<Text variant="body">{t('rememberSite')}</Text>} />
+        </Card>
 
         <View style={{ flexDirection: 'row', gap: space[2], marginTop: space[2] }}>
           <Button label={t('refuse')} variant="secondary" size="lg" style={{ flex: 1 }} onPress={deny} />

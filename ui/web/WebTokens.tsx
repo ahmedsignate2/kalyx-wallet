@@ -8,7 +8,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Text, Surface, Divider, TokenRow, TokenIcon, Chip, Skeleton, Pressable } from '../kit';
+import { Text, Divider, TokenRow, TokenIcon, Chip, Skeleton, Pressable, Card } from '../kit';
 import { space } from '../tokens';
 import { useT, useSettings, fiatSymbol } from '../../lib/settingsStore';
 import { fill } from '../../lib/i18n';
@@ -83,14 +83,14 @@ export function WebTokens({ chain, onReceive }: { chain: ChainConfig; onReceive:
       </View>
 
       {empty ? (
-        <Surface padded={false}>
+        <Card padded={false}>
           {[0, 1, 2].map((i) => (
             <View key={i} style={{ height: 64, flexDirection: 'row', alignItems: 'center', gap: space[3], paddingHorizontal: space[4] }}>
               <Skeleton width={40} height={40} round />
               <View style={{ flex: 1, gap: space[2] }}><Skeleton width="50%" /><Skeleton width="30%" height={12} /></View>
             </View>
           ))}
-        </Surface>
+        </Card>
       ) : shown.length === 0 && hidden.length === 0 && small.length === 0 ? (
         <MobileEmptyState
           icon="wallet"
@@ -100,7 +100,7 @@ export function WebTokens({ chain, onReceive }: { chain: ChainConfig; onReceive:
         />
       ) : (
         <>
-          {shown.length > 0 ? <Surface padded={false}>{shown.map(row)}</Surface> : null}
+          {shown.length > 0 ? <Card padded={false}>{shown.map(row)}</Card> : null}
           {small.length > 0 ? (
             <Pressable onPress={() => setShowSmall((v) => !v)} style={{ alignSelf: 'center', paddingVertical: space[1] }}>
               <Text variant="caption" tone="secondary">{showSmall ? t('hideSmallBalances') : fill(t('showSmallBalances'), { count: String(small.length) })}</Text>
@@ -112,7 +112,7 @@ export function WebTokens({ chain, onReceive }: { chain: ChainConfig; onReceive:
                 <Text variant="caption" tone="tertiary">{showHidden ? t('hideUnverifiedTokens') : fill(t('showUnverifiedTokens'), { count: String(hidden.length) })}</Text>
               </Pressable>
               {showHidden ? (
-                <Surface padded={false} style={{ opacity: 0.75 }}>
+                <Card padded={false} style={{ opacity: 0.75 }}>
                   {hidden.map((h, i) => (
                     <React.Fragment key={h.id}>
                       <View style={{ minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: space[3], paddingHorizontal: space[4] }}>
@@ -126,7 +126,7 @@ export function WebTokens({ chain, onReceive }: { chain: ChainConfig; onReceive:
                       {i < hidden.length - 1 ? <Divider inset={68} /> : null}
                     </React.Fragment>
                   ))}
-                </Surface>
+                </Card>
               ) : null}
             </View>
           ) : null}
@@ -140,7 +140,7 @@ export function WebTokens({ chain, onReceive }: { chain: ChainConfig; onReceive:
             <Text variant="micro" tone="tertiary">{t('testnetSectionNote')}</Text>
           </View>
           {sharedTestnets.length > 0 ? (
-            <Surface padded={false}>
+            <Card padded={false}>
               {sharedTestnets.map((b, i) => (
                 <React.Fragment key={b.chain.id}>
                   <TokenRow
@@ -156,13 +156,13 @@ export function WebTokens({ chain, onReceive }: { chain: ChainConfig; onReceive:
                   {i < sharedTestnets.length - 1 ? <Divider inset={68} /> : null}
                 </React.Fragment>
               ))}
-            </Surface>
+            </Card>
           ) : (
-            <Surface>
+            <Card>
               <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>
                 {accounts.some((a) => chainOf(a.chainId)?.testnet) ? t('testnetNoBalance') : t('testnetNotShared')}
               </Text>
-            </Surface>
+            </Card>
           )}
         </View>
       ) : null}

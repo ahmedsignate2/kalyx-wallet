@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { TextInput, View, type TextInputProps } from 'react-native';
 import { Text } from './Text';
+import { Icon, type IconName } from '../icon';
 import { useTheme } from '../theme';
 import { radius, space } from '../tokens';
 
@@ -31,14 +32,15 @@ export const SENSITIVE_INPUT_PROPS = {
   importantForAutofill: 'no',
 } as const satisfies Partial<TextInputProps>;
 
-export function Input({ label, error, right, style, editable = true, sensitive, ...rest }: TextInputProps & { label?: string; error?: string | null; right?: React.ReactNode; /** Secret ou adresse : coupe apprentissage, suggestions et remplissage auto. */ sensitive?: boolean }) {
+export function Input({ label, error, icon, right, style, editable = true, sensitive, ...rest }: TextInputProps & { label?: string; error?: string | null; /** Icône de tête (loupe d'un champ de recherche…). */ icon?: IconName; right?: React.ReactNode; /** Secret ou adresse : coupe apprentissage, suggestions et remplissage auto. */ sensitive?: boolean }) {
   const { colors, typography } = useTheme();
   const [focused, setFocused] = useState(false);
   const border = error ? colors.danger : focused ? colors.textSecondary : colors.border;
   return (
     <View style={{ gap: space[1] }}>
       {label ? <Text variant="caption" tone="secondary">{label}</Text> : null}
-      <View style={{ minHeight: 52, borderRadius: radius.input, backgroundColor: colors.surface2, borderWidth: 1, borderColor: border, flexDirection: 'row', alignItems: 'center', paddingHorizontal: space[4], opacity: editable ? 1 : 0.5 }}>
+      <View style={{ minHeight: 52, borderRadius: radius.input, backgroundColor: colors.surface2, borderWidth: 1, borderColor: border, flexDirection: 'row', alignItems: 'center', gap: icon ? space[2] : 0, paddingHorizontal: space[4], opacity: editable ? 1 : 0.5 }}>
+        {icon ? <Icon name={icon} size={18} tone="muted" /> : null}
         <TextInput
           {...(sensitive ? SENSITIVE_INPUT_PROPS : null)}
           {...rest}
