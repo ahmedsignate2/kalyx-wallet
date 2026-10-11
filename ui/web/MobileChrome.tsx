@@ -192,7 +192,7 @@ export function FloatingDock({ tab, onChange, onSwapPress, labels }: { tab: Dock
         <Pressable
           onPress={onSwapPress}
           style={({ pressed }) => ({
-            width: 52, height: 52, borderRadius: radii.xl, marginTop: -30,
+            width: 52, height: 52, borderRadius: radii.full, marginTop: -30,
             backgroundColor: P.accent, borderWidth: 3, borderColor: P.bg,
             alignItems: 'center', justifyContent: 'center',
             // Ombre portée + léger halo laiton : le bouton « flotte » au-dessus du dock.

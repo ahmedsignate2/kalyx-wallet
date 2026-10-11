@@ -10,6 +10,7 @@
  * puis mise à jour en silence. 5 états : chargement (skeleton), normal, vide,
  * erreur (bandeau), hors ligne (OfflineBanner global).
  */
+import { useNetwork } from '../../lib/networkStore';
 import { useIsWatchOnly } from '../../ui/WatchOnlyGate';
 import { fill } from '../../lib/i18n';
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
@@ -101,6 +102,7 @@ const NFT_PAGE = 12;
 export default function Home() {
   const { colors } = useTheme();
   const t = useT();
+  const online = useNetwork((s) => s.online);
   const activityT = useActivityT();
   const insets = useSafeAreaInsets();
   const { width: windowW } = useWindowDimensions();
@@ -736,7 +738,8 @@ export default function Home() {
               <>
               <Card>
                 <EmptyState icon="receive" title={t("emptyTokensTitle")} body={t("emptyTokensBody")} actionLabel={t("actionReceive")} onAction={() => router.push('/receive')} />
-                {pf.error ? <Text variant="caption" tone="warning" style={{ textAlign: 'center' }}>{t('errNetworkOffline')}</Text> : null}
+                {/* Hors ligne → « réseau injoignable » ; sinon un échec de lecture (RPC, chaîne) : ne pas accuser le réseau. */}
+                {pf.error ? <Text variant="caption" tone="warning" style={{ textAlign: 'center' }}>{t(online ? 'balancesLoadFailed' : 'errNetworkOffline')}</Text> : null}
               </Card>
               {testnetSection}
               </>
