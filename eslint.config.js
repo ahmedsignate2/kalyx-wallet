@@ -1,10 +1,10 @@
 /**
  * ESLint (flat config) — règles des hooks React en ERREUR, sans exception.
  *
- * Paquets attendus en devDependencies (non installés dans ce dépôt) :
- *   eslint >= 9, eslint-plugin-react-hooks >= 6 (connaît `useEffectEvent`),
- *   typescript-eslint >= 8.
- * Puis : `npm run lint`.
+ * Paquets (devDependencies) : eslint 9, typescript-eslint 8,
+ * eslint-plugin-react-hooks 7 (connaît `useEffectEvent`). `npm run lint` :
+ * 0 erreur exigée ; les avertissements (any, variables inutilisées) restent
+ * visibles sans bloquer.
  */
 const tseslint = require('typescript-eslint');
 const reactHooks = require('eslint-plugin-react-hooks');
@@ -36,7 +36,7 @@ module.exports = [
       'react-hooks': reactHooks,
       '@typescript-eslint': tseslint.plugin,
     },
-    // Des directives historiques visent `import/first` et `no-var-requires` (hors de cette config).
+    // Des directives historiques visent `no-var-requires` (hors de cette config).
     linterOptions: { reportUnusedDisableDirectives: 'off' },
     rules: {
       'react-hooks/rules-of-hooks': 'error',

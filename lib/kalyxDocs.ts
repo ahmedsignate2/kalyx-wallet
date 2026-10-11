@@ -96,6 +96,7 @@ const STOP = new Set(
  */
 function terms(q: string): string[] {
   const parts = norm(q).split(/[\s.,;:!?'"«»“”()[\]{}…\-–—/\\|<>*+=~`^%$#@&]+/);
+  // eslint-disable-next-line no-control-regex -- filtre volontaire des caractères de contrôle
   return [...new Set(parts.filter((w) => !STOP.has(w) && (w.length >= 3 || /[^\x00-\x7f]/.test(w))))];
 }
 

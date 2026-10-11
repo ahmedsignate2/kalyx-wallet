@@ -66,7 +66,6 @@ jest.mock('./walletNames', () => ({ isLegacyDefaultName: () => false }));
 
 const mockActivity = new Map<string, 'used' | 'empty' | 'unknown'>();
 jest.mock('./accountActivity', () => ({ probeAccountActivity: async (a: { evmAddress: string }) => mockActivity.get(a.evmAddress) ?? 'empty' }));
-// eslint-disable-next-line import/first
 import { useWallet } from './walletStore';
 
 const PIN = '482917';

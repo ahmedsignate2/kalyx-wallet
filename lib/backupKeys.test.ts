@@ -71,19 +71,12 @@ jest.mock('./whitelistStore', () => ({
   whitelistActions: { noteNewWallet: async () => {}, wipe: async () => {} },
 }));
 
-// eslint-disable-next-line import/first
 import { useWallet, expectRestoredBackup, useLiveBackupDigest } from './walletStore';
-// eslint-disable-next-line import/first
 import { backupDigest } from './backupDigest';
-// eslint-disable-next-line import/first
 import { buildSyncFile, isAutoSyncKeysReady, noteBackupChange, sealWalletSecret, setupAutoSyncKeys, teardownAutoSyncKeys, useBackupKeys } from './backupKeys';
-// eslint-disable-next-line import/first
 import { BACKUP_KEY_VAULT_ID, loadVault, rollbackPinChange } from './secureStore';
-// eslint-disable-next-line import/first
 import { setDecoySession } from './sessionMode';
-// eslint-disable-next-line import/first
 import { decryptSecret } from '../src/security/vault';
-// eslint-disable-next-line import/first
 import { restoreBackup } from '../src/domain/backup/cloudBackup';
 
 jest.setTimeout(60_000);

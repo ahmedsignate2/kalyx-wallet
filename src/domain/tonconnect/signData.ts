@@ -80,6 +80,7 @@ export function encodeDnsName(domain: string): string {
   if (!d) return '\0';
   const labels = d.split('.');
   for (const l of labels) {
+    // eslint-disable-next-line no-control-regex -- filtre volontaire des caractères de contrôle
     if (!l || l.length > 63 || /[\x00-\x20]/.test(l) || /[^\x21-\x7e]/.test(l)) throw new Error('Nom de domaine invalide');
   }
   const out = labels.reverse().map((l) => `${l}\0`).join('');
