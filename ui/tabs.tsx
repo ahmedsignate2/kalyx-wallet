@@ -181,8 +181,12 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
     left.value = withSpring(l, goingRight ? trail : lead);
     right.value = withSpring(r, goingRight ? lead : trail);
   }, [activeIdx, slot, glowW, reduce, left, right]);
-  // Translation + étirement (pas de left/width animés) : au repos, l'échelle vaut 1.
-  const glowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: left.value }, { scaleX: Math.max(8, right.value - left.value) / Math.max(1, glowW) }] }));
+  /*
+   * left/width animés et non scaleX : la pilule est en position absolue (aucun
+   * voisin à remettre en page, coût négligeable), et un scaleX étirait ses bouts
+   * arrondis en ellipses — et le filet d'or avec — pendant tout le trajet.
+   */
+  const glowStyle = useAnimatedStyle(() => ({ left: left.value, width: Math.max(8, right.value - left.value) }));
 
   /* ORBE : respiration lente du cercle d'or, éventail à l'appui. */
   const breath = useSharedValue(0);
@@ -265,7 +269,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
             style={{ position: 'absolute', left: 0, right: 0, top: 0, height: NAV_H / 2 }}
           />
           {slot ? (
-            <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 7, width: glowW, transformOrigin: 'left', height: NAV_H - 14, borderRadius: (NAV_H - 14) / 2, backgroundColor: dark ? 'rgba(242,244,250,0.075)' : 'rgba(6,7,13,0.05)', overflow: 'hidden' }, glowStyle]}>
+            <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', top: 7, height: NAV_H - 14, borderRadius: (NAV_H - 14) / 2, backgroundColor: dark ? 'rgba(242,244,250,0.075)' : 'rgba(6,7,13,0.05)', overflow: 'hidden' }, glowStyle]}>
               {/* Filet d'or au pied de l'onglet actif. */}
               <View style={{ position: 'absolute', bottom: 0, left: '30%', right: '30%', height: 2, borderRadius: radii.full, backgroundColor: GOLD }} />
             </Reanimated.View>

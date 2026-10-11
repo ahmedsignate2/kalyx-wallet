@@ -847,6 +847,7 @@ const en = {
   // — Approvals —
   errorTitle: "Error",
   cannotLoadApprovals: "Unable to load the approvals.",
+  balancesLoadFailed: "Some balances could not be refreshed. Pull down to try again.",
   revokeSent: "Revocation sent",
   spendApprovals: "Spending approvals",
   approvalsIntro:
@@ -3002,6 +3003,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "Scanner à nouveau",
     errorTitle: "Erreur",
     cannotLoadApprovals: "Impossible de charger les approbations.",
+    balancesLoadFailed: "Certains soldes n'ont pas pu être mis à jour. Tire vers le bas pour réessayer.",
     revokeSent: "Révocation envoyée",
     spendApprovals: "Autorisations de dépense",
     approvalsIntro:
@@ -5056,6 +5058,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "Escanear de nuevo",
     errorTitle: "Error",
     cannotLoadApprovals: "No se pueden cargar las aprobaciones.",
+    balancesLoadFailed: "Algunos saldos no se pudieron actualizar. Desliza hacia abajo para reintentar.",
     revokeSent: "Revocación enviada",
     spendApprovals: "Aprobaciones de gasto",
     approvalsIntro:
@@ -7203,6 +7206,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "Ler novamente",
     errorTitle: "Erro",
     cannotLoadApprovals: "Não é possível carregar as aprovações.",
+    balancesLoadFailed: "Alguns saldos não puderam ser atualizados. Puxe para baixo para tentar de novo.",
     revokeSent: "Revogação enviada",
     spendApprovals: "Aprovações de gasto",
     approvalsIntro:
@@ -9337,6 +9341,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "Erneut scannen",
     errorTitle: "Fehler",
     cannotLoadApprovals: "Freigaben können nicht geladen werden.",
+    balancesLoadFailed: "Einige Guthaben konnten nicht aktualisiert werden. Zum Wiederholen nach unten ziehen.",
     revokeSent: "Widerruf gesendet",
     spendApprovals: "Ausgabefreigaben",
     approvalsIntro:
@@ -11474,6 +11479,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "Scansiona di nuovo",
     errorTitle: "Errore",
     cannotLoadApprovals: "Impossibile caricare le approvazioni.",
+    balancesLoadFailed: "Alcuni saldi non sono stati aggiornati. Trascina verso il basso per riprovare.",
     revokeSent: "Revoca inviata",
     spendApprovals: "Approvazioni di spesa",
     approvalsIntro:
@@ -13600,6 +13606,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "Opnieuw scannen",
     errorTitle: "Fout",
     cannotLoadApprovals: "Kan de goedkeuringen niet laden.",
+    balancesLoadFailed: "Sommige saldi konden niet worden bijgewerkt. Trek omlaag om het opnieuw te proberen.",
     revokeSent: "Intrekking verzonden",
     spendApprovals: "Uitgavegoedkeuringen",
     approvalsIntro:
@@ -15750,6 +15757,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "Skanuj ponownie",
     errorTitle: "Błąd",
     cannotLoadApprovals: "Nie można załadować zatwierdzeń.",
+    balancesLoadFailed: "Nie udało się odświeżyć niektórych sald. Pociągnij w dół, aby spróbować ponownie.",
     revokeSent: "Wysłano żądanie cofnięcia",
     spendApprovals: "Zgody na wydatki",
     approvalsIntro:
@@ -17889,6 +17897,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "Tekrar tara",
     errorTitle: "Hata",
     cannotLoadApprovals: "Onaylar yüklenemiyor.",
+    balancesLoadFailed: "Bazı bakiyeler güncellenemedi. Yeniden denemek için aşağı çek.",
     revokeSent: "İptal talebi gönderildi",
     spendApprovals: "Harcama onayları",
     approvalsIntro:
@@ -20038,6 +20047,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "Сканировать снова",
     errorTitle: "Ошибка",
     cannotLoadApprovals: "Не удалось загрузить разрешения.",
+    balancesLoadFailed: "Не удалось обновить некоторые балансы. Потяните вниз, чтобы повторить.",
     revokeSent: "Отзыв отправлен",
     spendApprovals: "Разрешения на расходы",
     approvalsIntro:
@@ -22200,6 +22210,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "مسح مرة أخرى",
     errorTitle: "خطأ",
     cannotLoadApprovals: "تعذّر تحميل الموافقات.",
+    balancesLoadFailed: "تعذّر تحديث بعض الأرصدة. اسحب للأسفل لإعادة المحاولة.",
     revokeSent: "تم إرسال الإلغاء",
     spendApprovals: "موافقات الإنفاق",
     approvalsIntro:
@@ -24344,6 +24355,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "फिर से स्कैन करें",
     errorTitle: "त्रुटि",
     cannotLoadApprovals: "स्वीकृतियां लोड नहीं हो सकीं।",
+    balancesLoadFailed: "कुछ बैलेंस अपडेट नहीं हो सके। फिर से कोशिश करने के लिए नीचे खींचें।",
     revokeSent: "रद्द करना भेजा गया",
     spendApprovals: "खर्च स्वीकृतियां",
     approvalsIntro:
@@ -26484,6 +26496,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "重新扫描",
     errorTitle: "错误",
     cannotLoadApprovals: "无法加载授权。",
+    balancesLoadFailed: "部分余额未能刷新。下拉重试。",
     revokeSent: "已发送撤销请求",
     spendApprovals: "支出授权",
     approvalsIntro: "你已授权在 {chain} 上花费你代币的合约。撤销你不再使用的。",
@@ -28593,6 +28606,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "もう一度スキャン",
     errorTitle: "エラー",
     cannotLoadApprovals: "承認を読み込めません。",
+    balancesLoadFailed: "一部の残高を更新できませんでした。下に引いて再試行してください。",
     revokeSent: "取り消しを送信しました",
     spendApprovals: "支出承認",
     approvalsIntro:
@@ -30734,6 +30748,7 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     scanAgain: "다시 스캔",
     errorTitle: "오류",
     cannotLoadApprovals: "승인을 불러올 수 없습니다.",
+    balancesLoadFailed: "일부 잔액을 새로 고치지 못했습니다. 아래로 당겨 다시 시도하세요.",
     revokeSent: "취소 요청 보냄",
     spendApprovals: "지출 승인",
     approvalsIntro:
