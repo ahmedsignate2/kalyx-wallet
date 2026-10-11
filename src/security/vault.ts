@@ -46,7 +46,8 @@ export const BACKUP_KDF = { N: 1 << 15, r: 8, p: 1, dkLen: 32 };
  */
 const KDF_BOUNDS = { minLogN: 10, maxLogN: 17, maxR: 8, maxP: 2 };
 
-function assertKdfParams(v: { N: unknown; r: unknown; p: unknown }): void {
+/** Exportée pour la sauvegarde v3 : mêmes bornes pour ses clés emballées. */
+export function assertKdfParams(v: { N: unknown; r: unknown; p: unknown }): void {
   const { N, r, p } = v;
   const ok =
     typeof N === 'number' && Number.isInteger(N) &&
@@ -56,7 +57,8 @@ function assertKdfParams(v: { N: unknown; r: unknown; p: unknown }): void {
   if (!ok) throw new WalletError('VAULT_CORRUPTED', 'Paramètres de dérivation hors limites');
 }
 
-async function deriveKey(
+/** Exportée pour la sauvegarde v3 : même dérivation (NFKC, scrypt, 32 octets). */
+export async function deriveKey(
   pin: string,
   salt: Uint8Array,
   params: { N: number; r: number; p: number },

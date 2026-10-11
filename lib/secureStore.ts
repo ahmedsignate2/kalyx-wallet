@@ -29,7 +29,22 @@ const K_CONTACTS = 'nova.contacts'; // carnet d'adresses (non sensible)
  * (nova.vault / nova.accounts / nova.bioSeed) → aucune migration destructive :
  * le portefeuille existant reste intact. Les autres wallets sont suffixés.
  */
-const vaultKey = (id: string) => (id === 'primary' ? 'nova.vault' : `nova.vault.${id}`);
+const vaultKey = (id: string) =>
+  id === BACKUP_KEY_VAULT_ID ? K_BACKUP_BDK : id === 'primary' ? 'nova.vault' : `nova.vault.${id}`;
+
+/*
+ * CLÉ DES SECRETS DE LA SAUVEGARDE AUTOMATIQUE (BDK, lib/backupKeys.ts), chiffrée
+ * par le PIN EXACTEMENT comme un coffre : même format, mêmes fonctions, et
+ * surtout le MÊME journal de changement de PIN. Rangée à part, elle aurait pu
+ * rester sous l'ancien PIN après un changement interrompu — la synchro aurait
+ * alors cessé de sceller les nouveaux portefeuilles sans que rien ne le dise.
+ *
+ * Son identifiant contient `@`, qu'aucun identifiant de portefeuille ne
+ * contient (`primary`, `w…` alphanumérique) : aucune collision possible avec un
+ * vrai coffre, et sa clé de stockage n'est pas de la forme `nova.vault.<id>`.
+ */
+export const BACKUP_KEY_VAULT_ID = '@backup-bdk';
+const K_BACKUP_BDK = 'kalyx.backupKeys.bdk';
 const accountsKey = (id: string) => (id === 'primary' ? 'nova.accounts' : `nova.accounts.${id}`);
 const bioKey = (id: string) => (id === 'primary' ? 'nova.bioSeed' : `nova.bioSeed.${id}`);
 /** Copie biométrique PROTÉGÉE par l'OS (nouveau schéma) et son témoin, lisible sans invite. */
@@ -457,6 +472,12 @@ export async function commitPinChange(
     throw e;
   }
   await clearPinChangeJournal();
+}
+
+/** Efface la BDK sous PIN (désactivation de la synchro). Attend un journal en cours, comme un coffre. */
+export async function wipeBackupKeyVault(): Promise<void> {
+  await settlePendingPinChange();
+  await kvDel(K_BACKUP_BDK, base);
 }
 
 /** Supprime un portefeuille précis (coffre + comptes + biométrie). */

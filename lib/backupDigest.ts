@@ -98,3 +98,41 @@ export function isBackupStale(
   if (saved.backupDigest === null) return true;
   return saved.backupDigest !== current;
 }
+
+/** Un portefeuille tel qu'une SAUVEGARDE le décrit (sous-ensemble de `BackupWallet`, sans le secret). */
+export interface ShapeWallet {
+  label?: string;
+  type?: 'seed' | 'privateKey' | 'tonPhrase' | 'watch';
+  keyFamily?: string;
+  accounts?: readonly DigestAccount[] | null;
+}
+
+/**
+ * FORME d'un ensemble de portefeuilles : l'empreinte SANS les identifiants.
+ *
+ * Sert à une seule question : « l'état local est-il exactement ce que la
+ * sauvegarde restaurée contenait ? ». Les identifiants internes ne sont pas dans
+ * le fichier (ils sont recréés à la restauration) ; on compare donc le reste —
+ * type, famille, nom, comptes. Une phrase TON se compare comme une phrase : la
+ * sauvegarde l'écrit `seed` et la restauration la reclasse.
+ *
+ * Indépendante de l'ordre (lignes triées). Un portefeuille sans comptes connus
+ * compte comme son compte n°1 sans nom : c'est ce que la restauration recrée
+ * d'une sauvegarde qui ne listait pas ses comptes.
+ */
+export function backupShape(wallets: readonly ShapeWallet[]): string {
+  const rows = wallets
+    .filter((w) => w.type !== 'watch')
+    .map((w) => {
+      const type = w.type === 'privateKey' ? 'privateKey' : 'seed';
+      const accounts = w.accounts?.length ? w.accounts : [{ index: 0, label: '' }];
+      return JSON.stringify([
+        type,
+        type === 'privateKey' ? w.keyFamily ?? 'evm' : '',
+        (w.label ?? '').trim(),
+        [...accounts].map((a) => [a.index, a.label ?? '']).sort((a, b) => (a[0] as number) - (b[0] as number)),
+      ]);
+    })
+    .sort();
+  return bytesToHex(sha256(utf8ToBytes(`${VERSION}-shape:${JSON.stringify(rows)}`)));
+}
