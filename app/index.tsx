@@ -12,7 +12,7 @@
  * coffre. Aucune animation ici — l'allumage a déjà eu lieu, le rejouer serait
  * un tic (doctrine §1 : une animation répond à une action).
  */
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useWallet } from '../lib/walletStore';

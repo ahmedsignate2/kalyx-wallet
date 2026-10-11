@@ -5,8 +5,7 @@ import { Pressable as KPressable } from './kit';
  * de la galerie — c'est la fiche que Phantom montre au tap.
  */
 import { SafeModal } from './kit/SafeModal';
-import React from 'react';
-import { Image, Linking, Modal, ScrollView, Text, View } from 'react-native';
+import { Image, Linking, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { GlassCard } from './premium';

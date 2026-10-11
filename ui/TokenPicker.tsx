@@ -1,8 +1,8 @@
 import { Pressable as KPressable } from './kit';
 import { SafeModal } from './kit/SafeModal';
 import { useT } from "../lib/settingsStore";
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, Image, Modal, FlatList, Platform, ActivityIndicator, StyleSheet } from 'react-native';
+import { useState, useMemo, useEffect } from 'react';
+import { View, Text, TextInput, FlatList, ActivityIndicator } from 'react-native';
 import { fonts, radii, spacing, useTheme } from './theme';
 import { haptic } from '../lib/haptics';
 import { Icon } from './icon';
@@ -11,7 +11,7 @@ import { getAdapter, getAdapterV2, listChains } from '../src';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { useWallet } from '../lib/walletStore';
 import { addressForChain } from '../lib/accountAddress';
-import { formatAmount, formatTokenAmount, sortMarkets, type MarketCoin } from '../src';
+import { formatTokenAmount, sortMarkets, type MarketCoin } from '../src';
 import { useSettings } from '../lib/settingsStore';
 import { loadMarkets } from './MarketPanel';
 import { KeyboardAvoid } from './KeyboardAvoid';
@@ -31,7 +31,7 @@ interface TokenPickerProps {
 
 export function TokenPicker({ visible, onClose, onSelect, initialChainId, address }: TokenPickerProps) {
   const t = useT();
-  const { colors, typography } = useTheme();
+  const { colors } = useTheme();
   const [search, setSearch] = useState('');
   const [selectedChain, setSelectedChain] = useState(initialChainId);
   const [tab, setTab] = useState<PickerTab>('all');

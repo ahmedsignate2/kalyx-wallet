@@ -1,14 +1,14 @@
 import { IconDisc, NovaCard, NovaHero } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { getAdapter } from '../src';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
 import { copySecret, clearSecret } from '../lib/secureClipboard';
-import { Screen, Card, Button, Title, Muted } from '../ui/components';
+import { Screen, Card, Button } from '../ui/components';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
-import { radii, spacing, useTheme } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';

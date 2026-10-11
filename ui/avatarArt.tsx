@@ -4,7 +4,7 @@
  * `WalletAvatar` montre l'avatar d'un portefeuille — l'actif par défaut —, et
  * `AvatarPicker` permet d'en choisir un autre, dans l'un des deux styles.
  */
-import React, { memo, useState } from 'react';
+import { memo, useState } from 'react';
 import { Image, View, type ImageSourcePropType } from 'react-native';
 import type { Icon as PhosphorIcon } from 'phosphor-react-native';
 import { RocketLaunchIcon } from 'phosphor-react-native/src/icons/RocketLaunch';

@@ -1,5 +1,5 @@
 /** Petit hook data-fetching partagé par les panneaux du dashboard web. */
-import { useEffect, useRef, useState, type DependencyList } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, type DependencyList } from 'react';
 
 /**
  * Charge une donnée asynchrone.
@@ -21,6 +21,8 @@ export function useAsync<T>(fn: () => Promise<T>, identity: DependencyList, refr
   const [state, setState] = useState<{ data: T | null; loading: boolean }>({ data: null, loading: true });
   // Sérialisation de l'identité : on compare des valeurs, pas des références.
   const key = JSON.stringify(identity.map((d) => (typeof d === 'bigint' ? String(d) : d)));
+  const refreshKey = JSON.stringify(refresh.map((d) => (typeof d === 'bigint' ? String(d) : d)));
+  const load = useEffectEvent(() => fn());
   const lastKey = useRef(key);
   // Le sujet a changé : on oublie la valeur AVANT le rendu, pas dans un effet,
   // sinon l'écran montre une fois la donnée de l'ancien sujet.
@@ -31,11 +33,10 @@ export function useAsync<T>(fn: () => Promise<T>, identity: DependencyList, refr
   useEffect(() => {
     let alive = true;
     setState((s) => ({ ...s, loading: true }));
-    fn()
+    load()
       .then((d) => { if (alive) setState({ data: d, loading: false }); })
       .catch(() => { if (alive) setState((s) => ({ data: s.data, loading: false })); });
     return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, ...refresh]);
+  }, [key, refreshKey]);
   return state;
 }

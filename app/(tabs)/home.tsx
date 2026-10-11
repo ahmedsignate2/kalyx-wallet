@@ -12,7 +12,7 @@
  */
 import { useIsWatchOnly } from '../../ui/WatchOnlyGate';
 import { fill } from '../../lib/i18n';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { decimalSeparator } from '../../src';
 import { isDecoySession } from '../../lib/sessionMode';
 import { View, RefreshControl, Alert, Image, useWindowDimensions } from 'react-native';
@@ -50,7 +50,7 @@ import { haptic } from '../../lib/haptics';
 import { toast } from '../../lib/toast';
 import { isDeviceCompromised } from '../../lib/deviceSecurity';
 import { IS_BETA } from '../../lib/appStage';
-import { getAdapter, listChains, nativeOfChain, chainNameOf, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type ChartPoint, type NftItem } from '../../src';
+import { getAdapter, nativeOfChain, chainNameOf, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type ChartPoint, type NftItem } from '../../src';
 import {
   useHistoryStore,
   useHistoryCache,
@@ -60,6 +60,7 @@ import {
   type HistoryChain,
 } from '../../lib/historyStore';
 import { useSpamOf, useHistoryChains } from '../../lib/historySpam';
+import { useShallow } from 'zustand/react/shallow';
 
 const HIDE_KEY = 'kalyx.hideBalance';
 const SMALL_KEY = 'kalyx.showSmallBalances';
@@ -131,7 +132,7 @@ export default function Home() {
     'Tout': t('periodAll'),
   };
 
-  const pf = usePortfolioStore();
+  const pf = usePortfolioStore(useShallow((s) => ({ at: s.at, error: s.error, fromCache: s.fromCache, holdings: s.holdings, key: s.key, loading: s.loading, pnl24h: s.pnl24h, pnl24hPct: s.pnl24hPct, total: s.total })));
   const [hidden, setHidden] = useState(false);
   const [tab, setTab] = useState<Tab>('tokens');
   const [period, setPeriod] = useState<Period>('1S');
@@ -171,11 +172,18 @@ export default function Home() {
   const parked = useBrowserPresence((s) => s.parked);
 
   // Cache d'abord (instantané), puis réseau.
-  useEffect(() => {
+  const loadPortfolio = useEffectEvent(() => {
     if (!acct) return;
-    pf.hydrate(acct, fiat).then((current) => { if (current) void pf.refresh(acct, fiat); });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [acct?.evmAddress, acct?.solAddress, acct?.btcAddress, acct?.tonPublicKey, fiat]); // toutes les adresses de la clé du cliché
+    const store = usePortfolioStore.getState();
+    store.hydrate(acct, fiat).then((current) => { if (current) void store.refresh(acct, fiat); });
+  });
+  const evmAddress = acct?.evmAddress;
+  const solAddress = acct?.solAddress;
+  const btcAddress = acct?.btcAddress;
+  const tonPublicKey = acct?.tonPublicKey;
+  useEffect(() => {
+    loadPortfolio();
+  }, [evmAddress, solAddress, btcAddress, tonPublicKey, fiat]); // toutes les adresses de la clé du cliché
 
   // Solde masqué : mémorisé.
   useEffect(() => {
@@ -190,27 +198,30 @@ export default function Home() {
   };
 
   // Courbe de valeur pour la période.
+  const pfKey = pf.key;
+  const pfAt = pf.at;
+  const loadCurve = useEffectEvent((key: string) => portfolioHistory(pf.holdings, fiat, period, key));
+  const hasHoldings = pf.holdings.length > 0;
   useEffect(() => {
     let alive = true;
-    if (!pf.key || pf.holdings.length === 0) {
+    if (!pfKey || !hasHoldings) {
       setPoints([]);
       return;
     }
-    const known = peekPortfolioHistory(pf.key, period);
+    const known = peekPortfolioHistory(pfKey, period);
     if (known) {
       setPoints(known);
       return;
     }
     setChartLoading(true);
-    portfolioHistory(pf.holdings, fiat, period, pf.key)
+    loadCurve(pfKey)
       .then((p) => alive && setPoints(p))
       .catch(() => alive && setPoints([]))
       .finally(() => alive && setChartLoading(false));
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pf.key, pf.at, period, fiat]);
+  }, [pfKey, pfAt, period, fiat, hasHoldings]);
 
   /*
    * ACTIVITÉ RÉCENTE — CACHE D'ABORD, RÉSEAU ENSUITE.
@@ -284,17 +295,17 @@ export default function Home() {
    */
   const nftsRead = useRef<{ key: string; at: number } | null>(null);
   const nftKey = acct ? `${acct.evmAddress}|${acct.solAddress ?? ''}|${acct.tonPublicKey ?? ''}` : '';
+  const readNfts = useEffectEvent(() => (acct ? loadNftReport(acct) : null));
   useEffect(() => {
-    if (tab !== 'nft' || !acct) return;
+    if (tab !== 'nft' || !nftKey) return;
     const last = nftsRead.current;
     if (last && last.key === nftKey && Date.now() - last.at < 60_000) return;
     if (last?.key !== nftKey) setNfts(null);
     nftsRead.current = { key: nftKey, at: Date.now() };
     let alive = true;
-    loadNftReport(acct).then((r) => alive && applyNftReport(r)).catch(() => alive && setNfts((cur) => cur ?? []));
+    readNfts()?.then((r) => alive && applyNftReport(r)).catch(() => alive && setNfts((cur) => cur ?? []));
     return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, nftKey]);
+  }, [tab, nftKey, applyNftReport]);
 
   const retryNfts = useCallback(() => {
     if (!acct) return;
@@ -328,7 +339,7 @@ export default function Home() {
        * sans jamais être redemandée.
        */
       await Promise.all([
-        pf.refresh(acct, fiat, { force: true }),
+        usePortfolioStore.getState().refresh(acct, fiat, { force: true }),
         ...historyChains.map((chain) => {
           const address = historyAddressFor(chain);
           return address ? fetchHistory(chain.id, address, { force: true }).catch(() => {}) : Promise.resolve();
@@ -342,11 +353,10 @@ export default function Home() {
     } finally {
       setRefreshing(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [acct, fiat, tab, nftKey, historyChains, historyAddressFor]);
+  }, [acct, fiat, tab, nftKey, historyChains, historyAddressFor, fetchHistory, applyNftReport]);
 
   // Avertissements uniques (bêta, appareil rooté, réseaux perso à restaurer).
-  useEffect(() => {
+  const showStartupNotices = useEffectEvent(() => {
     if (isDeviceCompromised()) toast.warning(t("deviceInsecureTitle"), t("deviceInsecureDesc"));
     // Session leurre : ni lecture ni écriture de ces marqueurs (le rappel des réseaux perso appartient au vrai portefeuille).
     if (isDecoySession()) return;
@@ -365,6 +375,9 @@ export default function Home() {
         { text: t("actionUnderstood"), onPress: () => { AsyncStorage.setItem('nova.betaSeen', '1'); void next(); } },
       ]);
     });
+  });
+  useEffect(() => {
+    showStartupNotices();
   }, []);
 
   /*
@@ -723,7 +736,7 @@ export default function Home() {
               <>
               <Surface>
                 <EmptyState icon="receive" title={t("emptyTokensTitle")} body={t("emptyTokensBody")} actionLabel={t("actionReceive")} onAction={() => router.push('/receive')} />
-                {pf.error ? <Text variant="caption" tone="warning" style={{ textAlign: 'center' }}>{pf.error}</Text> : null}
+                {pf.error ? <Text variant="caption" tone="warning" style={{ textAlign: 'center' }}>{t('errNetworkOffline')}</Text> : null}
               </Surface>
               {testnetSection}
               </>

@@ -10,7 +10,7 @@
  * Couleur par gravité : rouge = danger (liste noire, sosie), ambre = à vérifier
  * (première fois, adresse neuve, contrat), vert = connu.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Text } from './kit';
 import { Icon, type IconName } from './icon';

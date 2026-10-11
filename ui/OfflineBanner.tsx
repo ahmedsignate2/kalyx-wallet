@@ -12,7 +12,6 @@
  * est toujours là. C'est aussi la fin d'un texte codé en dur en français sur
  * une app qui parle 15 langues.
  */
-import React from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from './kit';

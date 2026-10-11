@@ -13,7 +13,6 @@
  * dans un historique —, la pastille d'action en bas à droite, le réseau en haut
  * à gauche. Une ligne suspecte (spam) est estompée et dit pourquoi.
  */
-import React from 'react';
 import { View } from 'react-native';
 import { ListRow } from './ListRow';
 import { Text } from './Text';

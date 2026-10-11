@@ -34,7 +34,6 @@ import { assertCurve, type ChainSigner, type SignerCurve } from './signer';
 import type {
   BroadcastOutcome,
   ChainAdapterV2,
-  DraftWarning,
   FeeQuotes,
   PendingRef,
   SendDraft,

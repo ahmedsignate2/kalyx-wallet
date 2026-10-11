@@ -5,9 +5,9 @@
  * positions, prix. Actions : `EarnSheet` (devis → confirmation → exécution).
  */
 import { withWatchOnlyGate } from '../../ui/WatchOnlyGate';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, Text, View } from 'react-native';
-import { Stack, router, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import { GlassCard, RemoteIcon, SkeletonRow, PressableScale } from '../../ui/premium';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView } from 'react-native';
@@ -23,8 +23,9 @@ import { Orbit, Pills, Rise, GOLD } from '../../ui/nova';
 import { fonts, radii, spacing, useTheme } from '../../ui/theme';
 import { useWallet } from '../../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
-import { useEarn, selectPositions, sumPositions, priceOf, safeNum, type EarnAccount, type EarnPositionView } from '../../lib/earn';
+import { useEarn, selectPositions, sumPositions, priceOf, type EarnAccount, type EarnPositionView } from '../../lib/earn';
 import { EARN_CATALOG, getAdapter, chainIconUrl, formatTokenAmount, formatAmount, formatFiat, formatPercent, type EarnProtocol, type EarnAction } from '../../src';
+import { useShallow } from 'zustand/react/shallow';
 
 type Filter = 'mine' | 'all' | 'staking' | 'lending';
 
@@ -57,8 +58,8 @@ function EarnScreenInner() {
   const t = useT();
   const insets = useSafeAreaInsets();
   const fiat = useSettings((s) => s.fiat);
-  const wallet = useWallet();
-  const earn = useEarn();
+  const wallet = useWallet(useShallow((s) => ({ accounts: s.accounts, activeAccountIndex: s.activeAccountIndex })));
+  const earn = useEarn(useShallow((s) => ({ apys: s.apys, balances: s.balances, error: s.error, loadedFor: s.loadedFor, loading: s.loading, positions: s.positions, prices: s.prices, refreshBalances: s.refreshBalances })));
 
   const acct = useMemo<EarnAccount | null>(() => {
     const a = wallet.accounts.find((x) => x.index === wallet.activeAccountIndex) ?? wallet.accounts[0];
@@ -77,14 +78,16 @@ function EarnScreenInner() {
     if (!acct) return;
     setRefreshing(true);
     try {
-      await earn.refresh(acct, fiat, { force: true });
+      await useEarn.getState().refresh(acct, fiat, { force: true });
     } finally {
       setRefreshing(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [acct, fiat]);
 
-  const positions = useMemo(() => selectPositions(earn), [earn.positions, earn.prices, earn.apys]); // eslint-disable-line react-hooks/exhaustive-deps
+  const positions = useMemo(
+    () => selectPositions({ positions: earn.positions, prices: earn.prices, apys: earn.apys }),
+    [earn.positions, earn.prices, earn.apys],
+  );
   const { total: totalFiat, yearly: yearlyFiat } = sumPositions(positions);
 
   // Protocoles utilisables par ce compte (pas de Solana pour un wallet clé privée).

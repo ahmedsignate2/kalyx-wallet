@@ -21,7 +21,7 @@ import { MarketPanel } from './MarketPanel';
 import { WEB_FONTS, useWebFonts, useWebPalette, webLocale } from './webTheme';
 import { useWebT, type WebKey } from './webI18n';
 import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useTelegramClosingConfirmation, useIdle, useTabHidden, tgHaptic } from './platform';
-import { FadeInUp, CrossFade, useCountUp, Pop, KalyxSpinner, KalyxSuccessPulse, reducedMotion } from './motion';
+import { CrossFade, useCountUp, Pop, KalyxSpinner, KalyxSuccessPulse, reducedMotion } from './motion';
 import { Text as KText, Button, Sheet, Surface, Divider, LogoImage } from '../kit';
 import { ReceiveScreen } from './ReceiveScreen';
 import { SendFlow } from './SendFlow';
@@ -121,16 +121,12 @@ function chainById(id: string | null): ChainConfig {
 }
 
 export function WebDashboard() {
-  const t = useT();
-  const { colors } = useTheme();
   const status = useWebConnect((s) => s.status);
   const init = useWebConnect((s) => s.init);
   const loadAiState = useAiStore((s) => s.loadInitialState);
   const loadSettings = useSettings((s) => s.load);
   const loadContacts = useContacts((s) => s.load);
   const loadRecents = useRecentRecipients((s) => s.load);
-  const { width } = useWindowDimensions();
-  const narrow = width < 760;
   const P = useWebPalette();
   const tw = useWebT();
   useWebFonts();
@@ -486,7 +482,6 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
   const holdings = usePortfolioStore((s) => s.holdings);
   const total = usePortfolioStore((s) => s.total);
   const pnlPct = usePortfolioStore((s) => s.pnl24hPct);
-  const at = usePortfolioStore((s) => s.at);
   const loading = usePortfolioStore((s) => s.loading);
   const pfKey = usePortfolioStore((s) => s.key);
   const firstRev = useRef(rev);
@@ -513,9 +508,7 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
       byChain.set(chain.id, cur);
     }
     return { total, change24h: pnlPct ?? 0, slices: [...byChain.values()].sort((x, y) => y.value - x.value) };
-    // `at` : un nouveau passage du même cliché recalcule aussi.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [holdings, total, pnlPct, at, pfKey, expectedKey, accounts]);
+  }, [acct, holdings, total, pnlPct, pfKey, expectedKey, accounts]);
   return { data, loading: loading && !data };
 }
 
@@ -810,7 +803,6 @@ function AllocationPanel({ worth }: { worth: { data: NetWorth | null; loading: b
  *  thème sombre → un voile blanc à 3 % ; quasi-noir en clair → un voile noir
  *  à 3 % — s'adapte aux deux thèmes sans dupliquer la logique. */
 function Card({ children }: { children: React.ReactNode }) {
-  const t = useT();
   const { colors } = useTheme();
   return (
     <View style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg, padding: spacing(2) }}>
@@ -840,7 +832,6 @@ function EmptyState({ icon, title, subtitle }: { icon: IconName; title: string; 
 /** Effet « shimmer » (bande de lumière qui balaie) plutôt qu'un simple pouls
  *  d'opacité — plus fluide, façon skeleton des apps fintech modernes. */
 function Skeleton({ w = '100%', h, r = 8, style }: { w?: number | string; h: number; r?: number; style?: object }) {
-  const t = useT();
   const { colors } = useTheme();
   const gradId = `shimmer-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const [width, setWidth] = useState(0);
@@ -879,7 +870,6 @@ function Skeleton({ w = '100%', h, r = 8, style }: { w?: number | string; h: num
 
 /** Lignes de chargement (icône ronde + 2 barres + valeur), pour tokens/historique. */
 function SkeletonRows({ count = 4, flat }: { count?: number; flat?: boolean }) {
-  const t = useT();
   const { colors } = useTheme();
   const Wrap = flat ? View : Card;
   return (
@@ -1257,7 +1247,6 @@ function NetworkSelector({ vertical, onSelected }: { vertical: boolean; onSelect
 
 /** Panneau Sécurité : met en avant le modèle « le téléphone est le coffre-fort ». */
 function SecurityPanel() {
-  const t = useT();
   const tw = useWebT();
   const language = useSettings((s) => s.language);
   const { colors, typography } = useTheme();
@@ -1378,10 +1367,10 @@ function SettingsPanel() {
       ) : null}
       {divider}
 
-      {row({ icon: 'currency', label: tw('currency'), value: `${curFiat.symbol} ${curFiat.name}`, section: 'fiat' })}
+      {row({ icon: 'currency', label: tw('currency'), value: `${curFiat.symbol} ${t(curFiat.nameKey)}`, section: 'fiat' })}
       {open === 'fiat' ? (
         <View style={{ gap: spacing(0.5), marginTop: spacing(0.5), marginBottom: spacing(1) }}>
-          {FIATS.map((f) => option(f.code === fiat, () => { setFiat(f.code); setOpen(null); }, <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 14, width: 34 }}>{f.symbol}</Text>, f.name, f.code))}
+          {FIATS.map((f) => option(f.code === fiat, () => { setFiat(f.code); setOpen(null); }, <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 14, width: 34 }}>{f.symbol}</Text>, t(f.nameKey), f.code))}
         </View>
       ) : null}
       {divider}
@@ -1458,7 +1447,6 @@ function SettingsPanel() {
 }
 
 function NftsPanel({ chain, address, flat }: { chain: ChainConfig; address: string; flat?: boolean }) {
-  const t = useT();
   const tw = useWebT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);

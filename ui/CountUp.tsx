@@ -3,7 +3,7 @@
  * l'ancienne valeur vers la nouvelle (~600 ms, easing natif d'Animated).
  * Utilisé pour le solde total (signature fintech premium).
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Text, type StyleProp, type TextStyle } from 'react-native';
 
 export function CountUp({

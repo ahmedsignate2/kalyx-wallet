@@ -1,6 +1,6 @@
 import { Pressable as KPressable } from '../../ui/kit';
 import { ConfirmUnlock } from '../../ui/ConfirmUnlock';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, Alert } from 'react-native';
 import { router, Stack } from 'expo-router';
 import Constants from 'expo-constants';
@@ -12,6 +12,7 @@ import { spacing, useTheme } from '../../ui/theme';
 import { useSettings, useT } from '../../lib/settingsStore';
 import { useWallet } from '../../lib/walletStore';
 import { ActionDisc, IconDisc, Orbit, Rise, SectionLabel } from '../../ui/nova';
+import { useShallow } from 'zustand/react/shallow';
 
 function Ico({ n, tone }: { n: IconName; tone?: 'gold' | 'danger' }) {
   return <IconDisc name={n} tone={tone} />;
@@ -22,7 +23,7 @@ export default function Menu() {
   const { colors, typography } = useTheme();
   const t = useT();
   const aiEnabled = useAiStore((s) => s.isEnabled);
-  const { profileName, uiMode, setUiMode } = useSettings();
+  const { profileName, uiMode, setUiMode } = useSettings(useShallow((s) => ({ profileName: s.profileName, uiMode: s.uiMode, setUiMode: s.setUiMode })));
   const reset = useWallet((s) => s.reset);
   const activeWalletId = useWallet((s) => s.activeWalletId);
   const [pickAvatar, setPickAvatar] = useState(false);

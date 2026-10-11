@@ -10,8 +10,8 @@
  */
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { usePendingRestore } from '../lib/pendingRestore';
-import React, { useEffect, useState } from 'react';
-import { View, TextInput, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import { useEffect, useEffectEvent, useState } from 'react';
+import { View, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Button, Surface, ScreenHeader } from '../ui/kit';
@@ -27,6 +27,7 @@ import { useDriveFlow, isDriveConfigured, rememberRestored } from '../lib/google
 import { PinPromptModal } from '../ui/PinPromptModal';
 import { classifyRecoveryPhrase, isWalletError, restoreBackup, type BackupError, type BackupWallet } from '../src';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
+import { useShallow } from 'zustand/react/shallow';
 
 export default function RestoreDriveScreen() {
   // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
@@ -40,7 +41,7 @@ export default function RestoreDriveScreen() {
   const importWallets = useWallet((s) => s.importWallets);
   const hasWallet = useWallet((s) => s.hasWallet);
 
-  const flow = useDriveFlow();
+  const flow = useDriveFlow(useShallow((s) => ({ error: s.error, kind: s.kind, reset: s.reset, restoreResult: s.restoreResult, start: s.start, status: s.status })));
   const [askPassword, setAskPassword] = useState(false);
   const [pwd, setPwd] = useState('');
   const [pwdError, setPwdError] = useState<string | null>(null);
@@ -57,10 +58,12 @@ export default function RestoreDriveScreen() {
   const isRestore = flow.kind === 'restore';
 
   // À l'arrivée : si aucun flux de restauration n'est en cours ou terminé, on lance Google.
-  useEffect(() => {
+  const startIfIdle = useEffectEvent(() => {
     if (!configured) return;
     if (!isRestore || flow.status === 'idle') void flow.start({ kind: 'restore' });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    startIfIdle();
   }, []);
 
   const leave = () => {

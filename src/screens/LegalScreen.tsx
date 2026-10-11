@@ -1,10 +1,9 @@
 import { NovaCard, Orbit } from '../../ui/nova';
-import React from 'react';
 import { View, Text, Linking } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { ScreenHeader, Pressable as KPressable } from '../../ui/kit';
-import { PremiumScreen, GlassCard, ListRow } from '../../ui/premium';
+import { PremiumScreen, ListRow } from '../../ui/premium';
 import { KalyxLogo } from '../../ui/KalyxLogo';
 import { Icon } from '../../ui/icon';
 import { spacing, useTheme, fonts } from '../../ui/theme';

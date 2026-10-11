@@ -6,8 +6,8 @@ import { useT } from "../lib/settingsStore";
  * signale une erreur via `errorSignal` (secousse + reset).
  */
 import { SafeModal } from './kit/SafeModal';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KalyxLogo } from './KalyxLogo';
 import { PinPad } from './PinPad';

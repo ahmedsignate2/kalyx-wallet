@@ -8,7 +8,7 @@
  * détail d'un NFT…) restait donc affichée par-dessus, avec ses données. Toutes
  * les modales de l'app passent par ici ; elles réapparaissent au déverrouillage.
  */
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Modal, type ModalProps } from 'react-native';
 import { useLocked } from '../../lib/lockState';
 import { journal } from '../../lib/debugJournal';

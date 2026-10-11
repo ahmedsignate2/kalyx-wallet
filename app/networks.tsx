@@ -3,9 +3,9 @@ import { fill } from '../lib/i18n';
 import { ScreenHeader, IconButton, Pressable as KPressable, Button, Checkbox, SegmentedControl, Text as KText } from '../ui/kit';
 import { SafeModal } from '../ui/kit/SafeModal';
 import { ExplainSheet } from '../components/ai/ExplainSheet';
-import React, { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { probeRpcChainId } from '../src/domain/chains/customNetworks';
-import { View, Text, ScrollView, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text, ScrollView, TextInput, KeyboardAvoidingView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Card, Muted } from '../ui/components';
@@ -34,8 +34,7 @@ const FAMILY_TABS: ChainFamily[] = ['evm', 'bitcoin', 'solana', 'ton'];
 /** Symbole suggéré par famille, pour ne pas laisser le champ vide. */
 const DEFAULT_SYMBOLS: Record<ChainFamily, string> = { evm: 'ETH', bitcoin: 'BTC', solana: 'SOL', ton: 'TON' };
 import { useCustomChains, type CustomChainInput } from '../lib/customChainsStore';
-import { space, radius } from '../ui/tokens';
-import { Icon } from '../ui/icon';
+import { space } from '../ui/tokens';
 
 export default function Networks() {
   const { colors, typography } = useTheme();

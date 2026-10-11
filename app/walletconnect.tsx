@@ -1,8 +1,8 @@
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { ActionDisc, NovaHero, Pulse, Rise, SectionLabel } from '../ui/nova';
 import { DappLogo } from '../ui/browser/DappTile';
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { Screen, Card, Button, Title, Muted } from '../ui/components';

@@ -6,7 +6,7 @@
  */
 import { GOLD } from '../../ui/nova';
 import { useLocked } from '../../lib/lockState';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ import { Icon } from '../../ui/icon';
 import { useTheme } from '../../ui/theme';
 import { radius } from '../../ui/tokens';
 import { useT } from '../../lib/settingsStore';
+import { useShallow } from 'zustand/react/shallow';
 
 const TAB_PATHS = ['/', '/home', '/market', '/earn'];
 const BROWSER = '/browser';
@@ -33,7 +34,7 @@ export function FloatingAiAssistant() {
   const closeChat = useAiStore((s) => s.closeChat);
   const pathname = usePathname();
   const { totalUsd, tokensSummary, pnl24h, pnl24hPct, topGainer, topLoser } = usePortfolio();
-  const { currentUrl, currentTitle } = useBrowserStore();
+  const { currentUrl, currentTitle } = useBrowserStore(useShallow((s) => ({ currentUrl: s.currentUrl, currentTitle: s.currentTitle })));
   const [collapsed, setCollapsed] = useState(false);
   const locked = useLocked();
 

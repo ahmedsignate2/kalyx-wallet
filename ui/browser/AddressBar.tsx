@@ -9,7 +9,6 @@ import { useT } from "../../lib/settingsStore";
  *  - Jamais teintée par le site. Seul état spécial : Danger (rouge + alerte).
  *  - Onglet privé : fond Encre, fine bordure Brume, icône Detective.
  */
-import React from 'react';
 import { View } from 'react-native';
 import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 import { LogoImage, Text, AddressGlyph, Pressable as KPressable } from '../kit';

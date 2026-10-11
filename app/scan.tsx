@@ -11,9 +11,9 @@
  */
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, Easing, StyleSheet, Dimensions } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import { requireOptionalNativeModule } from 'expo-modules-core';
@@ -161,7 +161,6 @@ async function readQrFromImage(): Promise<ImageQrResult> {
 }
 
 export default function Scan() {
-  const t = useT();
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -199,7 +198,7 @@ function Scanner() {
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) requestPermission();
-  }, [permission]);
+  }, [permission, requestPermission]);
 
   const onScan = (raw: string) => {
     if (locked.current || !raw) return;
@@ -315,7 +314,6 @@ function PasteOnly() {
 /** Cadre de scan animé (ligne qui balaie). */
 function ScanFrame() {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const t = useT();
   const size = Math.min(Dimensions.get('window').width * 0.7, 280);
   const y = useRef(new Animated.Value(0)).current;
@@ -328,7 +326,7 @@ function ScanFrame() {
     );
     loop.start();
     return () => loop.stop();
-  }, []);
+  }, [y]);
   return (
     <View style={styles.overlay} pointerEvents="none">
       <View style={{ width: size, height: size, borderRadius: radii.lg, borderWidth: 2, borderColor: colors.primary + '88', overflow: 'hidden' }}>
@@ -352,7 +350,6 @@ function ScanFrame() {
 
 function ToolButton({ icon, label, active, onPress }: { icon: IconName; label: string; active?: boolean; onPress: () => void }) {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   return (
     <KPressable onPress={onPress} style={styles.tool}>
       <View style={[styles.toolCircle, { backgroundColor: active ? colors.primary : 'rgba(255,255,255,0.12)' }]}>
@@ -366,7 +363,6 @@ function ToolButton({ icon, label, active, onPress }: { icon: IconName; label: s
 /** Fiche de confirmation : montre TOUJOURS ce qui a été scanné avant d'agir. */
 function ResultSheet({ result, onAct, onRescan }: { result: QrResult; onAct: (r: QrResult) => void; onRescan: () => void }) {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const t = useT();
   const d = describeQr(result, t);
   return (

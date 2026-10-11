@@ -5,7 +5,6 @@
  * déjà dans les 15 langues (`txSent`, `includedInBlock`, `txConfirmed`,
  * `txFailed`). Un utilisateur japonais voyait « Incluse dans un bloc ».
  */
-import React from 'react';
 import { View } from 'react-native';
 import { Text } from './Text';
 import { Icon } from '../icon';

@@ -1,0 +1,24 @@
+{
+  "name": "kalyx-wallet-promo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Film promotionnel Kalyx Wallet, composition Remotion 9:16 de 60 secondes.",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "score": "node scripts/generate-score.mjs",
+    "render": "remotion render src/index.ts KalyxWalletPromo out/kalyx-wallet-promo.mp4 --codec h264 --crf 18",
+    "render:preview": "remotion still src/index.ts KalyxWalletPromo out/preview.png --frame=1800"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.532",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.532"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.0",
+    "@types/react": "19.2.0",
+    "typescript": "6.0.3"
+  }
+}

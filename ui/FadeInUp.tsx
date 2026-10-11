@@ -53,8 +53,7 @@ export function FadeInUp({
       Animated.timing(op, { toValue: 1, duration: duration.base, delay, useNativeDriver: true }),
       Animated.timing(y, { toValue: 0, duration: duration.base, delay, easing: easing.out, useNativeDriver: true }),
     ]).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reduceMotion]);
+  }, [reduceMotion, op, y, delay]);
 
   return (
     <Animated.View style={[style, { opacity: op, transform: [{ translateY: y }] }]}>{children}</Animated.View>

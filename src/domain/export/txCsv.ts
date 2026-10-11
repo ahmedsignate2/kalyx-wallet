@@ -29,9 +29,21 @@ export interface CsvContext {
    * 10^18 au lieu de 10^8.
    */
   chainOf?: (chain: string) => ChainMeta | undefined;
+  /** Libellés dans la langue de l'utilisateur ; sans eux, le français. */
+  labels?: CsvLabels;
 }
 
-const HEADER = ['Date (UTC)', 'Réseau', 'Sens', 'Montant', 'Actif', 'De', 'Vers', 'Statut', 'Hash', 'Lien'];
+/** Textes du fichier : en-tête, sens et statut de chaque ligne. */
+export interface CsvLabels {
+  header: readonly [string, string, string, string, string, string, string, string, string, string];
+  directions: Record<TxSummary['direction'], string>;
+  statuses: Record<TxSummary['status'], string>;
+  swap: string;
+  approval: string;
+  contractCall: string;
+}
+
+const HEADER = ['Date (UTC)', 'Réseau', 'Sens', 'Montant', 'Actif', 'De', 'Vers', 'Statut', 'Hash', 'Lien'] as const;
 
 function esc(v: string): string {
   /*
@@ -61,12 +73,22 @@ const STATUT: Record<TxSummary['status'], string> = {
   pending: 'En attente',
 };
 
+const FR_LABELS: CsvLabels = {
+  header: HEADER,
+  directions: SENS,
+  statuses: STATUT,
+  swap: 'Échange',
+  approval: 'Approbation',
+  contractCall: 'Interaction contrat',
+};
+
 /** Une ligne CSV pour une transaction. */
 function rowFor(tx: TxSummary, ctx: CsvContext): string {
   // Date inconnue (indexeur sans horodatage) : case VIDE, jamais « 1970-01-01 ».
   const date = new Date((tx.timestamp || 0) * 1000);
   const dateStr = !tx.timestamp || Number.isNaN(date.getTime()) ? '' : date.toISOString().replace('T', ' ').slice(0, 19);
 
+  const L = ctx.labels ?? FR_LABELS;
   const meta = ctx.chainOf?.(tx.chain);
   const name = meta?.name ?? ctx.chainName;
   const explorerUrl = meta?.explorerUrl ?? ctx.explorerUrl;
@@ -79,7 +101,7 @@ function rowFor(tx: TxSummary, ctx: CsvContext): string {
   let symbol = tx.asset ?? meta?.nativeSymbol ?? ctx.nativeSymbol;
   const decimals = tx.decimals ?? meta?.nativeDecimals ?? ctx.nativeDecimals;
   let amount = formatAmount(tx.value, decimals);
-  let sens = SENS[tx.direction];
+  let sens = L.directions[tx.direction];
   /*
    * NATURE DE L'OPÉRATION, comme dans l'écran d'activité (src/domain/tx/humanize.ts).
    * Un NFT sortait en « 1 ? » (collection sans nom), un appel de contrat à 0 en
@@ -87,15 +109,15 @@ function rowFor(tx: TxSummary, ctx: CsvContext): string {
    */
   const type = (tx.type ?? '').toUpperCase();
   if (type === 'NFT') {
-    sens = `${tx.direction === 'in' ? 'Reçu' : 'Envoyé'} (NFT)`;
+    sens = `${tx.direction === 'in' ? L.directions.in : L.directions.out} (NFT)`;
     amount = tx.value > 1n ? tx.value.toString() : '1';
     symbol = `${tx.asset && tx.asset !== '?' ? tx.asset : 'NFT'}${tx.tokenId ? ` #${tx.tokenId}` : ''}`;
   } else if (type === 'SWAP') {
-    sens = 'Échange';
+    sens = L.swap;
   } else if (type === 'APPROVE' || type === 'APPROVAL') {
-    sens = 'Approbation';
+    sens = L.approval;
   } else if (tx.value === 0n && tx.direction !== 'in' && type !== 'TRANSFER') {
-    sens = 'Interaction contrat';
+    sens = L.contractCall;
     amount = '0';
   }
   const link = explorerUrl ? `${explorerUrl.replace(/\/$/, '')}/tx/${tx.hash}` : '';
@@ -107,7 +129,7 @@ function rowFor(tx: TxSummary, ctx: CsvContext): string {
     symbol,
     tx.from,
     tx.to,
-    STATUT[tx.status] ?? '',
+    L.statuses[tx.status] ?? '',
     tx.hash,
     link,
   ]
@@ -117,6 +139,6 @@ function rowFor(tx: TxSummary, ctx: CsvContext): string {
 
 /** CSV complet (en-tête + lignes). Vide (juste l'en-tête) si aucune transaction. */
 export function transactionsToCsv(txs: TxSummary[], ctx: CsvContext): string {
-  const lines = [HEADER.join(','), ...txs.map((tx) => rowFor(tx, ctx))];
+  const lines = [(ctx.labels ?? FR_LABELS).header.map(esc).join(','), ...txs.map((tx) => rowFor(tx, ctx))];
   return lines.join('\r\n');
 }

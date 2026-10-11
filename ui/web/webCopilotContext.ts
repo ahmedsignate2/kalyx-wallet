@@ -92,5 +92,5 @@ export function useWebCopilotContext(chain: ChainConfig, address: string, worth:
       },
     };
     return snapshot;
-  }, [chain, history, worth.data]);
+  }, [chain, history, worth.data, activityT]);
 }

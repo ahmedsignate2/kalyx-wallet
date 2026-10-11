@@ -4,8 +4,8 @@ import { Text } from '../../../ui/kit';
 import { Icon } from '../../../ui/icon';
 import { useTheme } from '../../../ui/theme';
 import { useT } from '../../../lib/settingsStore';
-import { space, radius } from '../../../ui/tokens';
 import type { Key } from '../../../lib/i18n';
+import { space, radius } from '../../../ui/tokens';
 import type { SimulationResult } from '../../services/security/simulationService';
 
 interface Props {
@@ -34,7 +34,7 @@ export const AntiDrainerBanner: React.FC<Props> = ({ simulation, loading }) => {
     if (msg === 'antiDrainerNonInteractiveContract') {
       return t('antiDrainerNonInteractiveContract');
     }
-    return t(msg as any) || msg;
+    return t(msg as Key) || msg;
   };
 
   if (loading) {

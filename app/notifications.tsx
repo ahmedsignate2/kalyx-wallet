@@ -1,9 +1,9 @@
 import { GOLD, NovaCard, NovaHero, Rise } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
-import React, { useEffect } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { useEffect } from 'react';
+import { View, Text } from 'react-native';
 import { Stack } from 'expo-router';
-import { PremiumScreen, GlassCard } from '../ui/premium';
+import { PremiumScreen } from '../ui/premium';
 import { Icon, type IconName } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useNotifCenter, type NotifType } from '../lib/notificationCenter';

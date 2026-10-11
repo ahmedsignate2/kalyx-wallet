@@ -1,9 +1,9 @@
 /** Tuile de dApp uniforme (56 × 56, rayon 16, fond Nuit, logo 32) + label d'une ligne. Monogramme si le logo manque. */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Image } from 'react-native';
 import { Pressable, Text } from '../kit';
 import { useTheme } from '../theme';
-import { radius, space } from '../tokens';
+import { space } from '../tokens';
 
 export function faviconUrl(host: string): string {
   return `https://www.google.com/s2/favicons?domain=${host}&sz=128`;

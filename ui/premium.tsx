@@ -10,13 +10,12 @@
  * `Pressable` du kit, pour que les écrans qui en dépendent héritent de la
  * grammaire d'appui sans être touchés un par un.
  */
-import React, { useEffect, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, ViewStyle, StyleProp, Animated, TextInput as RNTextInput } from 'react-native';
+import React, { memo, useEffect, useMemo, useRef } from 'react';
+import { View, Text, ScrollView, FlatList, StyleSheet, ViewStyle, StyleProp, Animated, TextInput as RNTextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, StatusBar } from 'react-native';
-import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient, RadialGradient, Rect } from 'react-native-svg';
-import { Dimensions } from 'react-native';
+import Svg, { Polyline, Path, Defs, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 import { fonts, radii, spacing, useTheme, type Theme, type ThemeMode } from './theme';
 import { Icon, type IconName } from './icon';
 import { Pressable as KPressable, LogoImage } from './kit';
@@ -28,7 +27,6 @@ import { haptic } from '../lib/haptics';
 import { KeyboardAvoid } from './KeyboardAvoid';
 import { formatPercent } from '../src';
 
-const PREMIUM_W = Dimensions.get('window').width;
 
 /** Halo violet doux et statique en haut d'écran (lumière d'ambiance premium). */
 /* Styles dépendant du thème : créés une fois par mode puis réutilisés. */
@@ -79,6 +77,88 @@ export function PremiumScreen({
         </Reanimated.View>
       </KeyboardAvoid>
       {footer}
+    </View>
+  );
+}
+
+/**
+ * Variante virtualisée de PremiumScreen : même habillage, mais le défilement
+ * est une FlatList, pour les longues listes (seules les lignes visibles sont
+ * montées). Les contenus au-dessus et au-dessous de la liste passent par
+ * `header` / `footer` ; l'espacement entre eux reprend le `gap` de PremiumScreen.
+ */
+export function PremiumList<T>({
+  header,
+  listFooter,
+  tabBarSpace,
+  ...list
+}: Omit<React.ComponentProps<typeof FlatList<T>>, 'ListHeaderComponent' | 'ListFooterComponent' | 'contentContainerStyle'> & {
+  header?: React.ReactNode;
+  listFooter?: React.ReactNode;
+  tabBarSpace?: boolean;
+}) {
+  const insets = useSafeAreaInsets();
+  const topPadding = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : insets.top + 8;
+  const { theme } = useThemeStyles();
+  const entrance = useScreenEntrance();
+  const gap = spacing(2.5);
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+      <KeyboardAvoid style={{ flex: 1 }}>
+        <Reanimated.View style={[{ flex: 1 }, entrance]}>
+          <FlatList<T>
+            {...list}
+            ListHeaderComponent={header ? <View style={{ gap, paddingBottom: gap }}>{header}</View> : null}
+            ListFooterComponent={listFooter ? <View style={{ gap, paddingTop: gap }}>{listFooter}</View> : null}
+            contentContainerStyle={{
+              paddingTop: topPadding,
+              paddingHorizontal: spacing(2.5),
+              paddingBottom: insets.bottom + (tabBarSpace ? 120 : spacing(5)),
+              flexGrow: 1,
+            }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+          />
+        </Reanimated.View>
+      </KeyboardAvoid>
+    </View>
+  );
+}
+
+/**
+ * Un tronçon de GlassCard pour une ligne de liste virtualisée : la carte est
+ * reconstituée par ses lignes (bords haut/bas arrondis sur la première et la
+ * dernière), puisqu'une FlatList ne peut pas envelopper ses cellules.
+ */
+export function GlassCardCell({ first, last, children }: { first: boolean; last: boolean; children: React.ReactNode }) {
+  const { theme, styles } = useThemeStyles();
+  const pad = spacing(2.25);
+  return (
+    <View
+      style={[
+        styles.glass,
+        {
+          borderTopWidth: first ? 1 : 0,
+          borderBottomWidth: last ? 1 : 0,
+          borderTopLeftRadius: first ? radii.xl : 0,
+          borderTopRightRadius: first ? radii.xl : 0,
+          borderBottomLeftRadius: last ? radii.xl : 0,
+          borderBottomRightRadius: last ? radii.xl : 0,
+          paddingTop: first ? pad : 0,
+          paddingBottom: last ? pad : 0,
+        },
+      ]}
+    >
+      {first ? (
+        <LinearGradient
+          colors={theme.gradients.sheen}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 32 }}
+        />
+      ) : null}
+      {children}
     </View>
   );
 }
@@ -267,7 +347,7 @@ export function CircleAction({
   /** Grisé mais tappable (ex. fonctionnalité « bientôt » qui s'explique au tap). */
   dimmed?: boolean;
 }) {
-  const { theme, styles } = useThemeStyles();
+  const { theme } = useThemeStyles();
   return (
     <KPressable
       onPress={onPress}
@@ -470,8 +550,8 @@ export function discIcon(left: React.ReactNode, colors: { surface2: string; text
   );
 }
 
-/** Mini-graphe (react-native-svg). */
-export function Sparkline({
+/** Mini-graphe (react-native-svg). Les points ne sont recalculés que si la série change. */
+export const Sparkline = memo(function Sparkline({
   data,
   color,
   width = 88,
@@ -482,24 +562,27 @@ export function Sparkline({
   width?: number;
   height?: number;
 }) {
-  if (data.length < 2) return <View style={{ width, height }} />;
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-  const pad = 3;
-  const points = data
-    .map((v, i) => {
-      const x = (i / (data.length - 1)) * (width - pad * 2) + pad;
-      const y = height - pad - ((v - min) / range) * (height - pad * 2);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(' ');
+  const points = useMemo(() => {
+    if (data.length < 2) return null;
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    const pad = 3;
+    return data
+      .map((v, i) => {
+        const x = (i / (data.length - 1)) * (width - pad * 2) + pad;
+        const y = height - pad - ((v - min) / range) * (height - pad * 2);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+  }, [data, width, height]);
+  if (!points) return <View style={{ width, height }} />;
   return (
     <Svg width={width} height={height}>
       <Polyline points={points} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
     </Svg>
   );
-}
+});
 
 /** Graphique de prix (courbe + aire dégradée) — react-native-svg. */
 export function PriceChart({
@@ -575,18 +658,7 @@ export function SegmentedTabs({
   );
 }
 
-export function MarketRow({
-  icon,
-  color,
-  imageUri,
-  name,
-  symbol,
-  price,
-  change,
-  spark,
-  divider,
-  onPress,
-}: {
+type MarketRowProps = {
   icon: string;
   color: string;
   imageUri?: string;
@@ -597,7 +669,37 @@ export function MarketRow({
   spark: number[];
   divider?: boolean;
   onPress?: () => void;
-}) {
+};
+
+/*
+ * Comparaison ciblée : une ligne du Marché ne se redessine que si ce qu'elle
+ * affiche change. `onPress` est comparé par identité : l'appelant doit le
+ * garder stable (useCallback) pour profiter de la mémoïsation.
+ */
+const sameMarketRow = (a: MarketRowProps, b: MarketRowProps) =>
+  a.price === b.price &&
+  a.change === b.change &&
+  a.spark === b.spark &&
+  a.name === b.name &&
+  a.symbol === b.symbol &&
+  a.imageUri === b.imageUri &&
+  a.icon === b.icon &&
+  a.color === b.color &&
+  a.divider === b.divider &&
+  a.onPress === b.onPress;
+
+export const MarketRow = memo(function MarketRow({
+  icon,
+  color,
+  imageUri,
+  name,
+  symbol,
+  price,
+  change,
+  spark,
+  divider,
+  onPress,
+}: MarketRowProps) {
   const { theme, styles } = useThemeStyles();
   const up = change >= 0;
   const c = up ? theme.colors.up : theme.colors.down;
@@ -626,7 +728,7 @@ export function MarketRow({
     </View>
   );
   return onPress ? <PressableScale onPress={onPress}>{content}</PressableScale> : content;
-}
+}, sameMarketRow);
 
 export interface NavItem {
   key: string;

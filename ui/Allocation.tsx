@@ -11,7 +11,7 @@
  * sur la fiche de l'actif. Rien n'est inventé : un actif sans valeur connue ne
  * compte pas.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
 import { Text } from './kit';

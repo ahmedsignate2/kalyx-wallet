@@ -2,9 +2,9 @@
  * AddressGlyph — l'étoile unique d'une adresse (§2.9), rendue en SVG
  * (`react-native-svg`, déjà dans le build ; la version Skia viendra avec le halo).
  */
-import React, { useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
-import Animated, { useAnimatedProps, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedProps, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { glyphFor, starPath } from '../../src';
 import { useTheme } from '../theme';

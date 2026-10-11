@@ -1,10 +1,8 @@
 import { NovaHero, Pulse, Rise } from '../ui/nova';
-import { Icon } from '../ui/icon';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
-import React from 'react';
 import { Text, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
-import { Screen, Card, Title } from '../ui/components';
+import { Screen, Card } from '../ui/components';
 import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { LANGUAGES } from '../lib/i18n';

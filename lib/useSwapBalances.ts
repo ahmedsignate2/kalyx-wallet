@@ -85,7 +85,6 @@ export function useSwapBalances(opts: {
     lastGen.current = gen;
     setBalances((b) => Object.fromEntries(Object.entries(b).filter(([k]) => !k.startsWith(scope))));
     refreshRef.current(true); // vidé : relu sans attendre le prochain sondage
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gen, scope]);
   const srcKey = srcToken ? swapBalanceKey(chainId, owner, srcNative ? 'native' : srcToken) : '';
   /** Le natif paie aussi le gas d'un échange de jeton. */

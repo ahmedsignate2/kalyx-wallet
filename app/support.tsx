@@ -10,15 +10,15 @@
  */
 import { IconDisc, NovaCard, NovaHero, SectionLabel, SettingRow } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
-import { PremiumScreen, GlassCard, RemoteIcon } from '../ui/premium';
+import { PremiumScreen, RemoteIcon } from '../ui/premium';
 import { KalyxLogo } from '../ui/KalyxLogo';
 import { Icon, type IconName } from '../ui/icon';
-import { fonts, radii, spacing, useTheme } from '../ui/theme';
+import { radii, spacing, useTheme } from '../ui/theme';
 import { toast } from '../lib/toast';
 import { useT } from '../lib/settingsStore';
 import { chainIconUrl } from '../src';

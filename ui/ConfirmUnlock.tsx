@@ -18,8 +18,8 @@ import { Pressable as KPressable } from './kit';
  * `perform({biometric:true})`.
  */
 import { SafeModal } from './kit/SafeModal';
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, ScrollView, Text, View, StyleSheet } from 'react-native';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KalyxLogo } from './KalyxLogo';
 import { PinPad } from './PinPad';
@@ -28,11 +28,12 @@ import { fonts, radii, spacing, useTheme } from './theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import type { Unlock } from '../lib/walletStore';
-import { auditFacts, auditTransaction, type TxAuditContext, type TxAuditFact, type TxAuditResult } from "../lib/aiTxAudit";
+import { auditFacts, auditTransaction, type TxAuditContext, type TxAuditResult } from "../lib/aiTxAudit";
 import { probeRecipient } from "../lib/txAuditProbe";
 import { factLabel } from "./auditFactLabel";
 import { useAiStore } from "../lib/aiStore";
 import { isWalletError } from '../src';
+import { useShallow } from 'zustand/react/shallow';
 
 export function ConfirmUnlock({
   visible,
@@ -59,7 +60,7 @@ export function ConfirmUnlock({
   const t = useT();
   const insets = useSafeAreaInsets();
   const bioEnabled = useSettings((s) => s.biometricEnabled);
-  const { language } = useSettings();
+  const { language } = useSettings(useShallow((s) => ({ language: s.language })));
   const pinLength = useSettings((s) => s.pinLength);
   const [phase, setPhase] = useState<'working' | 'pin' | 'error'>('working');
   const [pin, setPin] = useState('');
@@ -67,7 +68,7 @@ export function ConfirmUnlock({
   const [errSignal, setErrSignal] = useState(0);
   const attemptRef = useRef(0);
 
-  const aiStore = useAiStore();
+  const aiStore = useAiStore(useShallow((s) => ({ isEnabled: s.isEnabled, provider: s.provider })));
   const [aiAnalysis, setAiAnalysis] = useState<TxAuditResult | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -232,8 +233,7 @@ export function ConfirmUnlock({
   };
 
   // À l'ouverture : biométrie auto si activée, sinon PIN d'emblée.
-  useEffect(() => {
-    if (!visible) return;
+  const onOpen = useEffectEvent(() => {
     attemptRef.current += 1;
     console.log('[KALYX-AUTH][ConfirmUnlock] visible', { title, bioEnabled });
     setPin('');
@@ -243,7 +243,9 @@ export function ConfirmUnlock({
     } else {
       setPhase('pin');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    if (visible) onOpen();
   }, [visible]);
 
   const cancel = () => {
@@ -253,7 +255,6 @@ export function ConfirmUnlock({
 
   if (!visible) return null;
 
-  const working = phase === 'working';
   const canValidateManually = !pinLength && pin.length >= 6;
 
   return (

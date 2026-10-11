@@ -1,10 +1,10 @@
 import { IconDisc, NovaCard, NovaHero, Rise } from '../ui/nova';
 import { router } from 'expo-router';
 import { ScreenHeader } from '../ui/kit';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
-import { Screen, Card, Button, Title, Muted } from '../ui/components';
+import { Screen, Card, Button } from '../ui/components';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';

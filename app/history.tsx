@@ -30,6 +30,7 @@ import { useContacts } from '../lib/contactsStore';
 import { usePortfolioStore } from '../lib/portfolio';
 import { useSpamOf, useHistoryChains } from '../lib/historySpam';
 import { useT, useActivityT, useSettings, fiatSymbol } from '../lib/settingsStore';
+import { csvLabels } from '../lib/csvLabels';
 import { toast } from '../lib/toast';
 import { haptic } from '../lib/haptics';
 import {
@@ -173,14 +174,14 @@ export default function History() {
   }, [rows, chains]);
 
   const q = query.trim().toLowerCase();
-  const matches = (r: Row) => {
+  const matches = useCallback((r: Row) => {
     if (!q) return true;
     const hay = [r.h.label, r.h.title, r.h.subtitle, r.tx.asset, r.tx.hash, r.tx.from, r.tx.to, chainNameOf(r.tx.chain), ...(r.tx.legs ?? []).map((l) => l.asset)]
       .filter(Boolean)
       .join(' ')
       .toLowerCase();
     return hay.includes(q);
-  };
+  }, [q]);
   const visible = useMemo(
     () =>
       rows.filter((r) => {
@@ -191,9 +192,7 @@ export default function History() {
         if (filter === 'swap' && (r.tx.type ?? '').toUpperCase() !== 'SWAP') return false;
         return matches(r);
       }),
-    // `matches` ne dépend que de `q`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, onlyChain, filter, q],
+    [rows, onlyChain, filter, matches],
   );
   const sections = useMemo(
     () =>
@@ -214,6 +213,7 @@ export default function History() {
       nativeDecimals: chain.nativeDecimals,
       explorerUrl: chain.explorerUrl,
       chainOf: chainMetaOf,
+      labels: csvLabels(t),
     });
     try {
       await Share.share({ message: csv, title: 'kalyx-history.csv' });

@@ -1,5 +1,5 @@
 /** Carte « Est-ce mon adresse ? » (écran Sécurité). Logique : lib/isMyAddress.ts. */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Input, Pressable as KPressable, Text } from './kit';
 import { Icon } from './icon';

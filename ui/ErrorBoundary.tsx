@@ -7,7 +7,7 @@ import { translate } from "../lib/i18n";
  * Purement UI — ne touche pas au moteur crypto.
  */
 import React from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { Text, ScrollView } from 'react-native';
 import { fonts } from './theme';
 
 interface Props {

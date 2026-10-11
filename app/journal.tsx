@@ -5,7 +5,7 @@
  * casse, c'est là qu'il faut pouvoir lire la trace. Lignes déjà filtrées :
  * aucune phrase, aucune clé, adresses raccourcies.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, FlatList, Share, Alert } from 'react-native';
 import { Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -22,10 +22,11 @@ export default function JournalScreen() {
   const t = useT();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const [tick, setTick] = useState(0);
+  // Le journal est un tableau muté sur place : chaque nouvelle ligne force un rendu.
+  const [, setTick] = useState(0);
   useEffect(() => subscribeJournal(() => setTick((n) => n + 1)), []);
   // Plus récent en haut ; 1 500 lignes affichées, tout est copié.
-  const data = useMemo(() => journalLines().slice(-1500).reverse(), [tick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const data = journalLines().slice(-1500).reverse();
 
   const btn = (label: string, onPress: () => void, danger = false) => (
     <KPressable onPress={onPress} accessibilityLabel={label} style={{ flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: danger ? colors.danger : colors.border, alignItems: 'center' }}>

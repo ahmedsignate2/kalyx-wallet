@@ -22,12 +22,14 @@
  * le kit superposerait un second scale au premier. C'est le cas que la doctrine
  * prévoit explicitement pour AmountKeypad et HoldButton.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
 import Reanimated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { haptic } from '../lib/haptics';
 import { KalyxRing } from './KalyxRing';
-import { fonts, radii, spacing, useTheme } from './theme';
+import { fonts, spacing, useTheme } from './theme';
+import { Icon } from './icon';
+import { useT } from '../lib/settingsStore';
 import { radius, springs, durations } from './tokens';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -81,6 +83,7 @@ export function PinPad({
   ringLength?: number;
 }) {
   const { colors } = useTheme();
+  const t = useT();
   const shake = useRef(new Animated.Value(0)).current;
   const cap = expectedLength ? Math.min(expectedLength, maxLength) : maxLength;
 
@@ -101,11 +104,11 @@ export function PinPad({
    * sinon le code partait après « Annuler », ou complet après un retour arrière.
    */
   const submitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cancelSubmit = () => {
+  const cancelSubmit = useCallback(() => {
     if (submitTimer.current) clearTimeout(submitTimer.current);
     submitTimer.current = null;
-  };
-  useEffect(() => cancelSubmit, []);
+  }, []);
+  useEffect(() => cancelSubmit, [cancelSubmit]);
   const press = (digit: string) => {
     if (disabled || value.length >= cap) return;
     haptic.selection();
@@ -135,7 +138,7 @@ export function PinPad({
         </Animated.View>
       )}
 
-      {/* Pavé numérique (3 colonnes ; ⌫ aligné sous le 0) */}
+      {/* Pavé numérique (3 colonnes ; effacement aligné sous le 0) */}
       <View style={{ width: keySize * 3 + PIN_GAP * 2, flexDirection: 'row', flexWrap: 'wrap', gap: PIN_GAP, justifyContent: 'center' }}>
         {KEYS.map((k) => (
           <Key key={k} label={k} onPress={() => press(k)} disabled={disabled} size={keySize} />
@@ -146,9 +149,11 @@ export function PinPad({
           onPress={back}
           disabled={disabled || !value.length}
           hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={t('keypadErase')}
           style={({ pressed }) => ({ width: keySize, height: keySize, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : value.length ? 1 : 0.3 })}
         >
-          <Text style={{ color: colors.text, fontSize: 30 }}>⌫</Text>
+          <Icon name="backspace" size={30} color={colors.text} />
         </Pressable>
       </View>
     </View>

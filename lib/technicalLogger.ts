@@ -349,8 +349,8 @@ export function recordTechnicalLog(category: string, message: string, details?: 
   const cat = (['RPC', 'TX', 'WALLET', 'DAPP', 'SYS'].includes(category.toUpperCase())
     ? category.toUpperCase()
     : 'SYS') as LogEntry['category'];
-  const isErr = typeof details === 'object' && details && (details as any).error;
-  technicalLogger.log(cat, message, typeof details === 'object' ? (details as Record<string, any>) : { info: String(details ?? '') }, !!isErr);
+  const isErr = typeof details === 'object' && details && (details as { error?: unknown }).error;
+  technicalLogger.log(cat, message, typeof details === 'object' ? (details as Record<string, unknown>) : { info: String(details ?? '') }, !!isErr);
 }
 
 export function getRecentTechnicalLogs(limit = 25): string[] {

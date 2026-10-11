@@ -1,5 +1,5 @@
 import { useAiStore } from './aiStore';
-import { buildAiRequestParams } from './aiConfig';
+import { aiLanguageDirective, aiLanguageName, buildAiRequestParams } from './aiConfig';
 import { toast } from './toast';
 import { recordTechnicalLog } from './technicalLogger';
 import { friendlyTxError } from './txError';
@@ -35,21 +35,23 @@ export async function analyzeErrorWithAi(errorMessage: string, lang = 'en'): Pro
   
   try {
     const prompt = `Tu es un expert Web3. Un utilisateur a rencontré cette erreur blockchain / transaction : "${errorMessage}". 
-Explique le problème en UNE seule phrase simple et claire, rédigée dans la langue de code ISO « ${lang} », et donne UNE recommandation courte pour le résoudre.
-Sois direct, n'utilise pas de markdown complexe.`;
+Explique le problème en UNE seule phrase simple et claire, rédigée en ${aiLanguageName(lang)}, et donne UNE recommandation courte pour le résoudre.
+Sois direct, n'utilise pas de markdown complexe.
+
+${aiLanguageDirective(lang)}`;
 
     const { url, headers, model } = buildAiRequestParams(store.provider, store.apiKey!, store.customUrl, store.customModel);
     
-    let body: any = { 
-      model, 
+    const body = {
+      model,
       max_tokens: 60,
-      messages: [{ role: 'user', content: prompt }] 
+      messages: [{ role: 'user', content: prompt }],
     };
 
     const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
     const data = await res.json();
     
-    let reply = store.provider === 'anthropic' ? data.content?.[0]?.text : data.choices?.[0]?.message?.content;
+    const reply = store.provider === 'anthropic' ? data.content?.[0]?.text : data.choices?.[0]?.message?.content;
     return reply || null;
   } catch (e) {
     console.error('[AI Error Translator] Failed:', e);

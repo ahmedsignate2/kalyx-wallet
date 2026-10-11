@@ -1,11 +1,11 @@
 import { GOLD, NovaCard, NovaHero, Rise, SectionLabel } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
-import { PremiumScreen, GlassCard } from '../ui/premium';
+import { PremiumScreen } from '../ui/premium';
 import { Icon } from '../ui/icon';
-import { fonts, spacing, useTheme } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useT } from '../lib/settingsStore';
 import { FAQ_SECTIONS } from '../lib/faqContent';
 

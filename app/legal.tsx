@@ -1,15 +1,15 @@
 import { NovaCard, NovaHero, Pills } from '../ui/nova';
 import { ScreenHeader } from '../ui/kit';
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { useState } from 'react';
+import { View, Text, ScrollView } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { PremiumScreen, GlassCard, SegmentedTabs } from '../ui/premium';
+import { PremiumScreen } from '../ui/premium';
 import { spacing, useTheme } from '../ui/theme';
 import { useT, useSettings } from '../lib/settingsStore';
 import { legalFor, type LegalSection } from '../lib/legalText';
 
 export default function Legal() {
-  const { colors, typography } = useTheme();
+  const { typography } = useTheme();
   const t = useT();
   const { doc } = useLocalSearchParams<{ doc?: string }>();
   const [tab, setTab] = useState(doc === 'terms' ? 'terms' : 'privacy');

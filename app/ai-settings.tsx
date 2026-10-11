@@ -1,6 +1,6 @@
 import { Button, Chip, Input, ScreenHeader, Pressable as KPressable, Text as KText } from '../ui/kit';
 import { GOLD, IconDisc, NovaCard, NovaHero, NovaSwitch, Rise, SectionLabel } from '../ui/nova';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Alert, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { spacing } from '../ui/theme';
@@ -11,12 +11,13 @@ import { Icon } from '../ui/icon';
 import { useAiStore, AiProvider } from '../lib/aiStore';
 import { validateAiKey } from '../lib/aiValidator';
 import { PROVIDER_DEFAULTS, formatAiError } from '../lib/aiConfig';
+import { useShallow } from 'zustand/react/shallow';
 
 export default function AiSettings() {
   const t = useT();
   const aiToolsEnabled = useSettings((st) => st.aiToolsEnabled);
   const setAiToolsEnabled = useSettings((st) => st.setAiToolsEnabled);
-  const { isEnabled, provider, apiKey, setApiKey, disableAi, loadInitialState } = useAiStore();
+  const { isEnabled, provider, apiKey, setApiKey, disableAi, loadInitialState } = useAiStore(useShallow((s) => ({ isEnabled: s.isEnabled, provider: s.provider, apiKey: s.apiKey, setApiKey: s.setApiKey, disableAi: s.disableAi, loadInitialState: s.loadInitialState })));
   
   const [selectedProvider, setSelectedProvider] = useState<AiProvider>(provider);
   const [inputKey, setInputKey] = useState(apiKey || '');

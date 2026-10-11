@@ -12,7 +12,7 @@
  */
 import { NovaHero, ScreenOrbit } from '../ui/nova';
 import { Icon } from '../ui/icon';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,7 +28,6 @@ import {
   EmptyState,
   AddressGlyph,
   Chip,
-  Pressable as KPressable,
 } from '../ui/kit';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN } from '../ui/tokens';
@@ -49,6 +48,7 @@ import {
   isValidTonAddress,
   type AddressFamily,
 } from '../src';
+import { useShallow } from 'zustand/react/shallow';
 
 // TON : le carnet ne dépend d'aucun réseau, on accepte les deux écritures (`testnet: true`).
 const CHECKS = { evm: isValidEvmAddress, solana: isValidSolanaAddress, bitcoin: isValidBtcAddress, ton: (a: string) => isValidTonAddress(a, { testnet: true }) };
@@ -128,7 +128,7 @@ export default function Contacts() {
   const insets = useSafeAreaInsets();
   const { pick } = useLocalSearchParams<{ pick?: string }>();
   const pickMode = pick === '1';
-  const { contacts, add, update, remove } = useContacts();
+  const { contacts, add, update, remove } = useContacts(useShallow((s) => ({ contacts: s.contacts, add: s.add, update: s.update, remove: s.remove })));
 
   const [query, setQuery] = useState('');
   const [form, setForm] = useState<null | { id?: string; name: string; address: string }>(null);

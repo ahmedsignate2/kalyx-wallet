@@ -15,7 +15,6 @@ import {
   FetchRequest,
   Interface,
   type TransactionResponse,
-  type FeeData,
 } from 'ethers';
 import type {
   Account,
@@ -35,7 +34,7 @@ import { WalletError } from '../errors';
 import { tryInOrder, withTimeout, withRetry } from './net';
 import { parseTxList } from './etherscan';
 import { computeFeeTiers, type FeeOptions } from './gas';
-import { ETHERSCAN_V2_API, EXPLORER_API_KEY, COVALENT_API_KEY, ALCHEMY_KEY } from './configs';
+import { ETHERSCAN_V2_API, EXPLORER_API_KEY, COVALENT_API_KEY } from './configs';
 import { parseCovalentTxList } from './covalent';
 import { technicalLogger } from '../../../lib/technicalLogger';
 

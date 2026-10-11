@@ -144,8 +144,9 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
     return e.detail ? `${phrase} (${e.detail})` : phrase;
   }
 
-  const errMsg = typeof e === 'object' && e ? (e as any)?.shortMessage || (e as any)?.message || 'Transaction error' : String(e);
-  recordTechnicalLog('TX_ERROR', errMsg, typeof e === 'object' && e ? { code: (e as any)?.code, status: (e as any)?.status } : undefined);
+  const raw = typeof e === 'object' && e ? (e as { shortMessage?: string; message?: string; code?: unknown; status?: unknown }) : null;
+  const errMsg = raw ? raw.shortMessage || raw.message || 'Transaction error' : String(e);
+  recordTechnicalLog('TX_ERROR', errMsg, raw ? { code: raw.code, status: raw.status } : undefined);
   // Jamais de levée ICI : `null` ou une erreur à références circulaires faisaient planter le gestionnaire d'erreurs lui-même.
   console.error('[txError] Raw error interceptée:', safeDump(e));
   // Message déjà traduit par l'appelant : on le rend tel quel, sans le soumettre

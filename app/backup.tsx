@@ -7,7 +7,7 @@ import { useT } from "../lib/settingsStore";
  * réécrit en français codé en dur, alors que des traductions existaient déjà.
  * Sauter la sauvegarde = bandeau permanent sur l'accueil + point dans Sécurité.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ScrollView, Platform } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

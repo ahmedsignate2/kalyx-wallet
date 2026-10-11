@@ -218,7 +218,7 @@ function RichText({ text, color, bold, mono }: { text: string; color: string; bo
 
 /** Trois points qui ondulent pendant que le modèle répond. */
 function TypingDots({ color }: { color: string }) {
-  const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
+  const dots = useRef([new Animated.Value(0), new Animated.Value(0), new Animated.Value(0)]).current;
   useEffect(() => {
     const anims = dots.map((v, i) => Animated.loop(Animated.sequence([
       Animated.delay(i * 140),
@@ -228,8 +228,7 @@ function TypingDots({ color }: { color: string }) {
     ])));
     anims.forEach((a) => a.start());
     return () => anims.forEach((a) => a.stop());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [dots]);
   return (
     <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center', height: 20 }}>
       {dots.map((v, i) => (
@@ -239,7 +238,7 @@ function TypingDots({ color }: { color: string }) {
   );
 }
 
-function MessageBubble({ m, onCopy, live, tight, first }: { m: { id: string; sender: 'user' | 'assistant'; text: string }; onCopy: (t: string) => void; live?: boolean; tight?: boolean; first?: boolean }) {
+function MessageBubble({ m, onCopy, live, tight, first }: { m: { id: string; sender: 'user' | 'assistant'; text: string; isError?: boolean }; onCopy: (t: string) => void; live?: boolean; tight?: boolean; first?: boolean }) {
   const { colors } = useTheme();
   const tw = useWebT();
   const user = m.sender === 'user';
@@ -249,8 +248,8 @@ function MessageBubble({ m, onCopy, live, tight, first }: { m: { id: string; sen
     <FadeInUp distance={10} duration={320} style={{ marginTop: first ? 0 : tight ? 8 : 16 }}>
       <View style={{ flexDirection: 'row', gap: 8, maxWidth: '88%', alignSelf: user ? 'flex-end' : 'flex-start' }}>
         {!user ? (
-          <View style={{ width: 22, height: 22, borderRadius: radii.sm, backgroundColor: GOLD + '22', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
-            <Icon name="sparkles" size={11} color={GOLD} />
+          <View style={{ width: 22, height: 22, borderRadius: radii.sm, backgroundColor: (m.isError ? colors.danger : GOLD) + '22', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+            {m.isError ? <Icon name="alert" size={11} color={colors.danger} /> : <Icon name="sparkles" size={11} color={GOLD} />}
           </View>
         ) : null}
         <View style={{ flexShrink: 1 }}>
@@ -323,16 +322,22 @@ function AgentChat({ chain, address, worth }: { chain: ChainConfig; address: str
     }
     // Une exception imprévue (réseau, fournisseur) laissait la saisie bloquée en « réflexion » pour toujours.
     let reply: string;
+    let isError = false;
     try {
       const r = await askAi(transcript, buildWebSystem(language, ctx));
-      reply = 'text' in r ? r.text : `⚠ ${r.error}`;
+      if ('text' in r) reply = r.text;
+      else {
+        reply = r.error;
+        isError = true;
+      }
     } catch (e) {
-      reply = `⚠ ${e instanceof Error && e.message ? e.message : tw('unexpectedError')}`;
+      reply = e instanceof Error && e.message ? e.message : tw('unexpectedError');
+      isError = true;
     } finally {
       setBusy(false);
     }
     lastAnswerAt.current = Date.now();
-    addMessageToActive({ sender: 'assistant', text: reply });
+    addMessageToActive({ sender: 'assistant', text: reply, isError });
   };
 
   const copyAnswer = async (text: string) => {

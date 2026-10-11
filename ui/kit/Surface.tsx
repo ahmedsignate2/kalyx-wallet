@@ -3,7 +3,6 @@
  * rayon 22, bordure Trait. Une seule carte par GROUPE, jamais par ligne.
  * Zéro ombre : la profondeur vient des niveaux.
  */
-import React from 'react';
 import { View, type ViewProps } from 'react-native';
 import { useTheme } from '../theme';
 import { radius, space } from '../tokens';

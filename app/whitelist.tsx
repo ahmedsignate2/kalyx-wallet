@@ -2,7 +2,7 @@
  * LISTE BLANCHE DES DESTINATAIRES (écran Sécurité → Liste blanche).
  * Règles : src/domain/security/whitelist.ts ; état et verrou : lib/whitelistStore.ts.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Button, Input, ScreenHeader, Text, Pressable as KPressable } from '../ui/kit';

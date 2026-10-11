@@ -1,6 +1,6 @@
 import { Button, Input, ScreenHeader, Text as KText, TokenIcon } from '../ui/kit';
 import { NovaCard, NovaHero } from '../ui/nova';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { PremiumScreen } from '../ui/premium';

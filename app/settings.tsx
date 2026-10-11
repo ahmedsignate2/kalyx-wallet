@@ -1,66 +1,30 @@
-import { IconDisc, NovaCard, NovaSwitch, OptionPill, Orbit, SectionLabel, SettingRow } from '../ui/nova';
+import { NovaCard, NovaSwitch, OptionPill, Orbit, SectionLabel, SettingRow } from '../ui/nova';
 import { WalletAvatar, AvatarPicker } from '../ui/avatarArt';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Switch, Alert } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, TextInput, Alert } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
-import { PremiumScreen, GlassCard, ListRow, Chip, SectionHeader } from '../ui/premium';
+import { PremiumScreen } from '../ui/premium';
 import { PinPromptModal } from '../ui/PinPromptModal';
-import { Icon, type IconName } from '../ui/icon';
+import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useSettings, useT, FIATS } from '../lib/settingsStore';
-import { LANGUAGES } from '../lib/i18n';
+import { LANGUAGES, fill } from '../lib/i18n';
 import { useWallet } from '../lib/walletStore';
 import { isBiometricAvailable } from '../lib/biometrics';
 import { ensureNotifPermission, notificationsAvailable, notify } from '../lib/notifications';
 import { toast } from '../lib/toast';
 import { friendlyTxError } from '../lib/txError';
 import { isWalletError } from '../src';
-
-function Ico({ n }: { n: IconName }) {
-  return <IconDisc name={n} />;
-}
-const chevron = <Icon name="chevron" size={18} tone="faint" />;
-
-function OptionButton({ label, selected, onPress, icon }: { label: string; selected: boolean; onPress: () => void; icon?: IconName }) {
-  const { colors } = useTheme();
-  return (
-    <KPressable
-      onPress={onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
-      accessibilityLabel={label}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing(0.75),
-        minHeight: 38,
-        paddingHorizontal: spacing(1.25),
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: selected ? colors.primary : colors.border,
-        backgroundColor: selected ? colors.primary : 'transparent',
-      }}
-    >
-      {/* Coche si sélectionné, sinon l'icône de l'option — jamais les deux, pour
-          ne pas élargir le bouton selon son état. */}
-      {selected ? (
-        <Icon name="checkmark" size={15} color={colors.onPrimary} />
-      ) : icon ? (
-        <Icon name={icon} size={15} color={colors.text} />
-      ) : null}
-      <Text style={{ color: selected ? colors.onPrimary : colors.text, fontFamily: fonts.semibold }}>{label}</Text>
-    </KPressable>
-  );
-}
+import { useShallow } from 'zustand/react/shallow';
 
 export default function Settings() {
   const { colors, typography } = useTheme();
   const t = useT();
   const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled, themePref, setThemePref, notifTx, notifPrice, setNotifPref, autoLockMinutes, setAutoLockMinutes, privacyGuard, setPrivacyGuard } =
-    useSettings();
+    useSettings(useShallow((s) => ({ profileName: s.profileName, setProfileName: s.setProfileName, language: s.language, fiat: s.fiat, setFiat: s.setFiat, biometricEnabled: s.biometricEnabled, setBiometricEnabled: s.setBiometricEnabled, themePref: s.themePref, setThemePref: s.setThemePref, notifTx: s.notifTx, notifPrice: s.notifPrice, setNotifPref: s.setNotifPref, autoLockMinutes: s.autoLockMinutes, setAutoLockMinutes: s.setAutoLockMinutes, privacyGuard: s.privacyGuard, setPrivacyGuard: s.setPrivacyGuard })));
   const enableBiometric = useWallet((s) => s.enableBiometric);
   const disableBiometric = useWallet((s) => s.disableBiometric);
   const reset = useWallet((s) => s.reset);
@@ -203,10 +167,10 @@ export default function Settings() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1), paddingBottom: spacing(1.5) }}>
           {([
             { label: t('immediate'), m: 0 },
-            { label: '1 min', m: 1 },
-            { label: '3 min', m: 3 },
-            { label: '5 min', m: 5 },
-            { label: '15 min', m: 15 },
+            { label: fill(t('minutesShort'), { n: 1 }), m: 1 },
+            { label: fill(t('minutesShort'), { n: 3 }), m: 3 },
+            { label: fill(t('minutesShort'), { n: 5 }), m: 5 },
+            { label: fill(t('minutesShort'), { n: 15 }), m: 15 },
             { label: t('never'), m: -1 },
           ] as const).map((o) => (
             <OptionPill key={o.m} label={o.label} selected={autoLockMinutes === o.m} onPress={() => setAutoLockMinutes(o.m)} />

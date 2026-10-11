@@ -6,7 +6,7 @@ import { useT } from "../../lib/settingsStore";
  */
 import { SafeModal } from './SafeModal';
 import React from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { radius, space } from '../tokens';

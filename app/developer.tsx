@@ -1,13 +1,13 @@
 import { NovaCard, NovaHero, NovaSwitch, SectionLabel, SettingRow } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { probeRpcChainId } from '../src/domain/chains/customNetworks';
-import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, Share, Switch, Platform } from 'react-native';
+import { useState } from 'react';
+import { View, Text, TextInput, ScrollView, Share, Platform } from 'react-native';
 import { usePortfolioDiag, diagText } from '../lib/portfolio/diagnostics';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, router } from 'expo-router';
 import Constants from 'expo-constants';
-import { PremiumScreen, GlassCard, ErrorBox } from '../ui/premium';
+import { PremiumScreen, ErrorBox } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';

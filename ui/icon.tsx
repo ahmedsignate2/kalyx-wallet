@@ -6,7 +6,6 @@
  * à changer. Les 4 icônes maison (Envoyer, Recevoir, Swap, Signer) viendront
  * remplacer `send`/`receive`/`exchange`/`sign` quand elles seront dessinées.
  */
-import React from 'react';
 import type { Icon as PhosphorIcon, IconWeight } from 'phosphor-react-native';
 /*
  * UNE IMPORTATION PAR ICÔNE, pas le point d'entrée du paquet.
@@ -99,6 +98,7 @@ import { GearSixIcon } from 'phosphor-react-native/src/icons/GearSix';
 import { TrendUpIcon } from 'phosphor-react-native/src/icons/TrendUp';
 import { TrendDownIcon } from 'phosphor-react-native/src/icons/TrendDown';
 import { ArrowUpRightIcon } from 'phosphor-react-native/src/icons/ArrowUpRight';
+import { BackspaceIcon } from 'phosphor-react-native/src/icons/Backspace';
 import { useTheme } from './theme';
 
 export type IconName =
@@ -117,7 +117,7 @@ export type IconName =
   | 'xLogo' | 'telegramLogo' | 'githubLogo' | 'gear'
   | 'image'
   // Glyphes texte remplacés (↑/↓ des variations, ↗ lien externe, ⇅ bascule, ✗ refus)
-  | 'trendUp' | 'trendDown' | 'arrowUpRight' | 'arrowsDownUp' | 'cross';
+  | 'trendUp' | 'trendDown' | 'arrowUpRight' | 'arrowsDownUp' | 'cross' | 'backspace';
 
 const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   home: { icon: HouseIcon },
@@ -205,6 +205,7 @@ const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   arrowUpRight: { icon: ArrowUpRightIcon },
   arrowsDownUp: { icon: ArrowsDownUpIcon },
   cross: { icon: XIcon },
+  backspace: { icon: BackspaceIcon },
 };
 
 export function Icon({

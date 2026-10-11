@@ -28,7 +28,10 @@ export function toPortfolioAccount(accounts: ConnAccount[]): PortfolioAccount | 
 
 export function useWebPortfolioAccount(): PortfolioAccount | null {
   const accounts = useWebConnect((s) => s.accounts);
-  const key = accounts.map((a) => `${a.chainId}:${a.address}`).join(',');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  return useMemo(() => toPortfolioAccount(accounts), [key]);
+  // Mémoïsé sur les adresses elles-mêmes : une nouvelle liste aux mêmes comptes garde le même objet.
+  const fam = (f: string) => accounts.find((a) => chainOf(a.chainId)?.family === f)?.address;
+  const evmAddress = fam('evm');
+  const solAddress = fam('solana');
+  const btcAddress = fam('bitcoin');
+  return useMemo(() => (evmAddress ? { evmAddress, solAddress, btcAddress } : null), [evmAddress, solAddress, btcAddress]);
 }

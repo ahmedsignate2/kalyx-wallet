@@ -2,11 +2,10 @@ import { radius } from '../ui/tokens';
 import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
 import { Pressable as KPressable, Halo } from '../ui/kit';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, StyleSheet, useWindowDimensions } from 'react-native';
 import { Orbit, Rise, Stardust } from '../ui/nova';
 import { router, Stack } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinPad } from '../ui/PinPad';
 import { Icon } from '../ui/icon';
@@ -18,7 +17,7 @@ import { flushPendingIntent } from '../lib/paymentIntent';
 import { isBiometricAvailable } from '../lib/biometrics';
 
 export default function Unlock() {
-  const { colors, gradients } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { width: winW, height: winH } = useWindowDimensions();
   const t = useT();
@@ -45,9 +44,9 @@ export default function Unlock() {
    * désactivé après la fin de l'attente. Tic chaque seconde tant qu'il y a
    * une attente.
    */
-  const [now, setNow] = useState(() => Date.now());
-  // Même règle que le portefeuille (horloge du téléphone ET chronomètre interne) ; `now` fait seulement retourner le décompte.
-  const lockedMs = useMemo(() => pinLockRemainingMs(), [now, failedAttempts, lastFailedAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [, setNow] = useState(() => Date.now());
+  // Même règle que le portefeuille (horloge du téléphone ET chronomètre interne) ; le tic de `setNow` fait seulement retourner le décompte.
+  const lockedMs = pinLockRemainingMs();
   const locked = lockedMs > 0;
   useEffect(() => {
     if (!locked) return;
@@ -101,7 +100,7 @@ export default function Unlock() {
         }
       }
     },
-    [unlockWithBiometrics, goHome],
+    [unlockWithBiometrics, goHome, t],
   );
 
   useEffect(() => {
@@ -132,7 +131,7 @@ export default function Unlock() {
         setBusy(false);
       }
     },
-    [unlockWithPin, setPinLength, goHome, biometricEnabled, healBiometric],
+    [unlockWithPin, setPinLength, goHome, biometricEnabled, healBiometric, t],
   );
 
   const onChange = (v: string) => {

@@ -1,6 +1,5 @@
 import { NovaCard, NovaHero } from '../ui/nova';
 import { ScreenHeader } from '../ui/kit';
-import React from 'react';
 import { Text, ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
 import { PremiumScreen } from '../ui/premium';

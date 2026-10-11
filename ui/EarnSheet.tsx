@@ -9,8 +9,8 @@ import { Pressable as KPressable } from './kit';
  * Réutilisée par l'écran Earn et les onglets Staking/DeFi du portefeuille.
  */
 import { SafeModal } from './kit/SafeModal';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, View } from 'react-native';
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from './components';
 import { RemoteIcon, ErrorBox } from './premium';
@@ -25,6 +25,7 @@ import { haptic } from '../lib/haptics';
 import { notifyAndLog } from '../lib/notificationCenter';
 import { useEarn, priceOf, quote as earnQuote, execute as earnExecute, maxDeposit, nativeReserve, type EarnStatus, type EarnAccount } from '../lib/earn';
 import { getAdapter, parseAmount, formatTokenAmount, formatInputAmount, formatNumber, formatFiat, formatPercent, formatAmount, isNative, type EarnProtocol, type EarnAction, type EarnQuote } from '../src';
+import { useShallow } from 'zustand/react/shallow';
 
 const STATUS_KEY: Record<EarnStatus, 'earnQuoting' | 'stApproving' | 'stApprovalWait' | 'stSending' | 'stConfirming'> = {
   quoting: 'earnQuoting',
@@ -61,8 +62,8 @@ export function EarnSheet({
   const t = useT();
   const insets = useSafeAreaInsets();
   const fiat = useSettings((s) => s.fiat);
-  const wallet = useWallet();
-  const earn = useEarn();
+  const wallet = useWallet(useShallow((s) => ({ accounts: s.accounts, activeAccountIndex: s.activeAccountIndex })));
+  const earn = useEarn(useShallow((s) => ({ apys: s.apys, balances: s.balances, positions: s.positions, prices: s.prices })));
 
   const acct = useMemo<EarnAccount | null>(() => {
     const a = wallet.accounts.find((x) => x.index === wallet.activeAccountIndex) ?? wallet.accounts[0];
@@ -98,17 +99,24 @@ export function EarnSheet({
   }, [visible, protocol?.id, action]);
 
   // Réserve de gas/rent pour un dépôt natif (SOL/ETH/AVAX) : connue AVANT la saisie.
+  const fetchReserve = useEffectEvent(() => {
+    if (!visible || !protocol || !acct || action !== 'deposit' || !isNative(protocol.underlying)) return null;
+    const bal = earn.balances.underlying[protocol.id] ?? 0n;
+    return nativeReserve(protocol, acct, bal);
+  });
+  const protocolId = protocol?.id;
+  const evmAddress = acct?.evmAddress;
+  const solAddress = acct?.solAddress;
   useEffect(() => {
     let cancelled = false;
     setReserve(0n);
-    if (!visible || !protocol || !acct || action !== 'deposit' || !isNative(protocol.underlying)) return;
-    const bal = earn.balances.underlying[protocol.id] ?? 0n;
-    nativeReserve(protocol, acct, bal)
+    const pending = fetchReserve();
+    if (!pending) return;
+    pending
       .then((r) => { if (!cancelled) setReserve(r); })
       .catch(() => {});
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, protocol?.id, action, acct?.evmAddress, acct?.solAddress]);
+  }, [visible, protocolId, action, evmAddress, solAddress]);
 
   if (!protocol || !acct) return null;
   const p = protocol;

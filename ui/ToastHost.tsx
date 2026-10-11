@@ -26,7 +26,7 @@
  * l'app. C'est une adoption structurelle, pas un détail de bandeau, et le §9
  * (home morphing) en aura besoin de toute façon : à décider là.
  */
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 import { AccessibilityInfo, Platform, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -71,7 +71,7 @@ export function ToastHost() {
   const v = useSharedValue(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  const present = useEffectEvent(() => {
     if (!current) return;
     const conf = CONF[current.type];
     conf.feel?.();
@@ -88,13 +88,16 @@ export function ToastHost() {
       // On laisse la sortie se jouer avant de céder la place au suivant.
       setTimeout(hide, durations.fade);
     }, readingTime(current));
-
+  });
+  // `current.id` : un nouveau bandeau rejoue, un simple re-rendu non.
+  const currentId = current?.id;
+  useEffect(() => {
+    if (currentId == null) return;
+    present();
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-    // `current.id` : un nouveau bandeau rejoue, un simple re-rendu non.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.id, reduced]);
+  }, [currentId, reduced]);
 
   const dismiss = () => {
     if (timer.current) clearTimeout(timer.current);

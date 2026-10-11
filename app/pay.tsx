@@ -8,7 +8,7 @@
  * native empêcherait de payer le jour où elle diverge.
  */
 import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,6 +39,7 @@ import {
 } from '../src';
 import { useWallet } from '../lib/walletStore';
 import { usePortfolioStore } from '../lib/portfolio';
+import { useShallow } from 'zustand/react/shallow';
 
 /** Domaines autorisés dans la WebView de capture. */
 const COLLECT_HOST = 'pay.walletconnect.com';
@@ -67,7 +68,7 @@ function PayScreenInner() {
     recheck,
     confirm,
     reset,
-  } = usePay();
+  } = usePay(useShallow((s) => ({ phase: s.phase, options: s.options, selected: s.selected, collectUrl: s.collectUrl, result: s.result, failure: s.failure, detail: s.detail, payer: s.payer, collectedIds: s.collectedIds, settledChain: s.settledChain, open: s.open, select: s.select, collected: s.collected, recheck: s.recheck, confirm: s.confirm, reset: s.reset })));
 
   /*
    * LA TRADUCTION SE FAIT ICI, à partir d'un code. Le magasin portait des
@@ -161,12 +162,14 @@ function PayScreenInner() {
   const otherAccounts = useMemo(() => accounts.filter((a) => a.index !== payer?.index), [accounts, payer?.index]);
   const [asking, setAsking] = useState(false);
 
+  const openLink = useEffectEvent((link: string) => {
+    void open(link, { theme: mode === 'light' ? 'light' : 'dark' });
+  });
   useEffect(() => {
     const link = params.link ? String(params.link) : '';
-    if (link) void open(link, { theme: mode === 'light' ? 'light' : 'dark' });
+    if (link) openLink(link);
     return () => reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.link]);
+  }, [params.link, reset]);
 
   const info = options?.info;
   const expiresIn = useMemo(() => {

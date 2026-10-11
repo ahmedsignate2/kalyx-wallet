@@ -10,7 +10,7 @@ import { buildAiRequestParams, extractProviderErrorDetail, aiErrorFromHttp, form
 export interface ValidationResult { success: boolean; code?: AiErrorCode; status?: number; detail?: string; error?: string; }
 
 function failure(err: AiError): ValidationResult {
-  const lang = useSettings.getState().language || 'fr';
+  const lang = useSettings.getState().language || 'en';
   return { success: false, code: err.code, status: err.status, detail: err.detail, error: formatAiError((k) => translate(lang, k), err) };
 }
 
@@ -28,12 +28,7 @@ export async function validateAiKey(
     const { url, headers, model } = buildAiRequestParams(provider, trimmedKey, customUrl, customModel);
     
     // Test minimal payload
-    const body: any = { max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] };
-    if (provider === 'anthropic') {
-      body.model = model;
-    } else {
-      body.model = model;
-    }
+    const body = { model, max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] };
 
     console.log('[AI Validator] Envoi de la requête vers:', url);
     const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -52,7 +47,7 @@ export async function validateAiKey(
 
     console.log('[AI Validator] Test ping réussi avec succès (200 OK)');
     return { success: true };
-  } catch (err: any) {
+  } catch {
     return failure({ code: 'network' });
   }
 }

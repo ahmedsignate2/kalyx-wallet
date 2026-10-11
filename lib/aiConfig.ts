@@ -208,6 +208,21 @@ export function aiLanguageName(lang: string | undefined | null): string {
   return AI_LANGUAGE_NAMES[(lang ?? 'en') as Lang] ?? AI_LANGUAGE_NAMES.en;
 }
 
+/**
+ * Consigne de langue IMPÉRATIVE, en anglais (compris de tous les modèles). Les
+ * consignes, la documentation et les journaux joints sont en français : sans
+ * elle, des modèles répondaient en français à un utilisateur coréen.
+ */
+export function aiLanguageDirective(lang: string | undefined | null): string {
+  const name = aiLanguageName(lang);
+  return `LANGUAGE (mandatory): write your whole answer in ${name}, the language currently selected in the app — whatever the language of these instructions, of the documentation, of the logs or of the user's message. Never answer in French unless the selected language is French. Keep Web3 terms (wallet, swap, staking, gas, NFT, DeFi, seed phrase…) and token or network names as they are.`;
+}
+
+/** Ajoute la consigne de langue à la fin d'un prompt système (là où elle pèse le plus). */
+export function withAiLanguage(system: string, lang: string | undefined | null): string {
+  return `${system}\n\n${aiLanguageDirective(lang)}`;
+}
+
 /** Extrait le message d'erreur d'une réponse JSON de fournisseur IA — les
  *  formats varient (OpenAI/Groq/DeepSeek : error.message ; Gemini : error.message
  *  aussi mais parfois un tableau ; Anthropic : error.message). */

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { View, Text, TextInput, Platform, StatusBar, StyleSheet } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GlassCard, ErrorBox } from '../ui/premium';
@@ -30,7 +29,7 @@ import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 export default function Import() {
   // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
   useNoScreenCapture('import');
-  const { colors, typography, gradients } = useTheme();
+  const { colors, typography } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
   const setImportedDraft = useWallet((s) => s.setImportedDraft);

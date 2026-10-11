@@ -12,9 +12,8 @@
  * captures d'écran restent possibles pendant l'usage normal. Activable dans
  * Réglages (privacyGuard, activé par défaut).
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppState, type AppStateStatus, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { KalyxLogo } from './KalyxLogo';
 import { fonts, useTheme } from './theme';
 import { useSettings } from '../lib/settingsStore';
@@ -32,7 +31,7 @@ try {
 const TAG = 'nova-privacy-guard';
 
 export function PrivacyScreen() {
-  const { colors, gradients } = useTheme();
+  const { colors } = useTheme();
   const guard = useSettings((s) => s.privacyGuard);
   const [covered, setCovered] = useState(false);
 
