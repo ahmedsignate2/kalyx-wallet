@@ -77,6 +77,8 @@ const WALLET_ERROR_KEYS: Record<string, Key> = {
   TX_EXPIRED: 'errTxExpired',
   TX_FAILED: 'errTxFailedOnChain',
   VAULT_CORRUPTED: 'errVaultCorrupted',
+  // `as never` : clé fournie à lib/i18n.ts séparément (lot de traductions en attente).
+  VAULT_MISSING: 'errBackupVaultMissing',
   WALLET_ALREADY_EXISTS: 'errWalletExists',
   WRONG_PIN: 'errWrongPin',
   LOCKED_OUT: 'errLockedOut',

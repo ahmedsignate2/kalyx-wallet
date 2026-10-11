@@ -23,7 +23,7 @@ import { useWallet } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { friendlyTxError } from '../lib/txError';
-import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
+import { useDriveFlow, isDriveConfigured, rememberRestored } from '../lib/googleDrive';
 import { PinPromptModal } from '../ui/PinPromptModal';
 import { classifyRecoveryPhrase, isWalletError, restoreBackup, type BackupError, type BackupWallet } from '../src';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
@@ -100,6 +100,9 @@ export default function RestoreDriveScreen() {
       return;
     }
     setPwd('');
+    // Cette version Drive est désormais connue ici : la remplacer plus tard depuis
+    // ce téléphone ne demandera pas de confirmation (s'il a au moins autant de portefeuilles).
+    rememberRestored(flow.restoreResult);
     /*
      * CORRECTION D'UNE PERTE DE FONDS.
      *

@@ -375,6 +375,7 @@ ${technicalLogger.getCondensedLogs(60, currentNetworkName)}
 CONTEXTE TEMPS RÉEL (ALLOWLIST PUBLIQUE) :
 ${serializeCopilotContext()}
 Utilise uniquement ces données présentes. N'invente jamais un solde, une transaction ou une raison d'échec. Ce contexte ne contient volontairement aucune seed, clé privée, PIN ou secret.
+Sauvegarde (champ sec) : une date encryptedBackupAt dit qu'une sauvegarde chiffrée a été faite, PAS qu'elle contient tout. Si sec.backupStale vaut true, elle ne couvre pas les derniers portefeuilles, comptes ou noms : ne dis jamais que tout est sauvegardé, invite à la refaire.
 ${aiToolsEnabled ? `OUTILS (MESURE SEULE, ET ILS COÛTENT) :
 Si l'historique local est vide ou insuffisant pour répondre à une question de
 transaction, utilise ${FETCH_WALLET_HISTORY_TOOL.name} avant de répondre.

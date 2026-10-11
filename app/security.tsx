@@ -21,7 +21,7 @@ import { Icon, type IconName } from '../ui/icon';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
-import { useWallet, type Unlock } from '../lib/walletStore';
+import { useWallet, useBackupStale, type Unlock } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { useWalletConnect } from '../lib/walletconnect';
 import { toast } from '../lib/toast';
@@ -60,7 +60,14 @@ export default function SecurityCenter() {
   useEffect(() => {
     void import('../lib/whitelistStore').then((m) => m.loadWhitelist());
   }, []);
-  const encryptedBackupDone = useSettings((s) => s.encryptedBackupAt !== null);
+  const encryptedBackupExists = useSettings((s) => s.encryptedBackupAt !== null);
+  /*
+   * Une sauvegarde qui ne contient plus tous les portefeuilles (créé, importé,
+   * supprimé, compte ajouté ou renommé depuis) n'est pas « faite » : le point
+   * reste ouvert, avec son propre message, tant qu'elle n'est pas refaite.
+   */
+  const backupStale = useBackupStale();
+  const encryptedBackupDone = encryptedBackupExists && !backupStale;
   const biometric = useSettings((s) => s.biometricEnabled);
   const autoLock = useSettings((s) => s.autoLockMinutes);
   const sessions = useWalletConnect((s) => s.sessions);
@@ -147,7 +154,7 @@ export default function SecurityCenter() {
         <Surface padded={false}>
           <Check ok={backupVerified} icon="phrase" title={backupVerified ? t("recoveryPhraseVerified") : t("recoveryPhrase")} body={backupVerified ? t("recoveryPhraseVerifiedMsg") : t("recoveryPhraseNotVerifiedMsg")} actionLabel={t("verify")} onAction={() => router.push('/reveal-phrase')} />
           <Divider inset={68} />
-          <Check ok={encryptedBackupDone} icon="share" title={t('encBackup')} body={encryptedBackupDone ? t('encBackupDoneMsg') : t('encBackupTodoMsg')} actionLabel={t('createBackupBtn')} onAction={() => router.push('/cloud-backup')} />
+          <Check ok={encryptedBackupDone} icon="share" title={backupStale ? t('encBackupStaleTitle') : t('encBackup')} body={backupStale ? t('encBackupStaleMsg') : encryptedBackupDone ? t('encBackupDoneMsg') : t('encBackupTodoMsg')} actionLabel={backupStale ? t('updateBackupBtn') : t('createBackupBtn')} onAction={() => router.push('/cloud-backup')} />
           <Divider inset={68} />
           <Check ok={biometric} icon="security" title={biometric ? t("biometricsEnabled") : t("biometrics")} body={biometric ? t("biometricsEnabledMsg") : t("biometricsDisabledMsg")} actionLabel={t("enable")} onAction={() => router.push('/settings')} />
           <Divider inset={68} />

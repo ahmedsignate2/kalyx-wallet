@@ -90,9 +90,13 @@ export function DeepLinks() {
             if (useWallet.getState().isUnlocked) router.push('/cloud-backup');
             else useDriveFlow.getState().setReturnTo('/cloud-backup');
           }
-        } else if (f.kind === 'save' && f.status === 'error') {
-          toast.error(translate(lang, 'driveCancelled'), f.error ?? undefined);
-          if (coldStart) {
+        } else if (f.kind === 'save' && (f.status === 'error' || f.status === 'conflict')) {
+          // Conflit (sauvegarde plus complète ou d'un autre appareil) : la décision se prend sur l'écran
+          // de sauvegarde, pas dans un toast. Erreur réseau : la sauvegarde est gardée pour « Réessayer ».
+          if (f.status === 'error') {
+            toast.error(translate(lang, f.error === 'network' ? 'networkError' : 'driveCancelled'), f.error === 'network' ? undefined : f.error ?? undefined);
+          }
+          if (coldStart || f.status === 'conflict') {
             if (useWallet.getState().isUnlocked) router.push('/cloud-backup');
             else useDriveFlow.getState().setReturnTo('/cloud-backup');
           }

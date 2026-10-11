@@ -76,15 +76,20 @@ export type RedirectResult = { code: string } | { error: string };
 /**
  * Lit la redirection `com.googleusercontent.apps.…:/oauth2redirect?code=…&state=…`.
  * Renvoie null si l'URL n'est pas une redirection OAuth (autre deep link).
+ *
+ * `state` est contrôlé AVANT `error` : sinon n'importe quel lien forgé
+ * `…:/oauth2redirect?error=x` était cru et annulait le flux en cours. Un état
+ * inattendu donne toujours `state_mismatch`, que l'appelant IGNORE sans
+ * toucher à la session en attente (le vrai retour de Google peut encore venir).
  */
 export function parseRedirect(url: string, expected: { clientId: string; state: string }): RedirectResult | null {
   const prefix = redirectUriFor(expected.clientId);
   if (!url.startsWith(prefix)) return null;
   const q = url.slice(url.indexOf('?') + 1);
   const params = new URLSearchParams(url.includes('?') ? q : '');
+  if (params.get('state') !== expected.state) return { error: 'state_mismatch' };
   const error = params.get('error');
   if (error) return { error };
-  if (params.get('state') !== expected.state) return { error: 'state_mismatch' };
   const code = params.get('code');
   if (!code) return { error: 'missing_code' };
   return { code };

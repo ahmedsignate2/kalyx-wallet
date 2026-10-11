@@ -1,7 +1,8 @@
 /**
  * CARTE D'ACTION de l'accueil — le point de sécurité le plus important qui
  * reste à régler, et UN seul à la fois (une pile de bannières se lit comme du
- * bruit) : pas de sauvegarde chiffrée, puis biométrie coupée (seulement si le
+ * bruit) : pas de sauvegarde chiffrée (ou une sauvegarde périmée : un
+ * portefeuille, un compte ou un nom changé depuis), puis biométrie coupée (seulement si le
  * téléphone en a une). La phrase non vérifiée a déjà sa bannière sur l'accueil :
  * la répéter ici ferait deux alertes pour la même chose. Écartée d'un geste, elle revient au bout de sept jours :
  * un rappel, pas un harcèlement. Rien quand tout est fait.
@@ -17,6 +18,7 @@ import { useTheme } from './theme';
 import { fontFamily } from './tokens';
 import { useSettings, useT } from '../lib/settingsStore';
 import { isBiometricAvailable } from '../lib/biometrics';
+import { useBackupStale } from '../lib/walletStore';
 
 const SNOOZE_MS = 7 * 24 * 3600 * 1000;
 const key = (id: string) => `kalyx.nudge.${id}`;
@@ -27,6 +29,8 @@ export function HomeNudge() {
   const { colors } = useTheme();
   const t = useT();
   const encrypted = useSettings((s) => s.encryptedBackupAt !== null);
+  /** Sauvegarde qui ne contient plus tous les portefeuilles : à REFAIRE, même rang que « à faire ». */
+  const stale = useBackupStale();
   const biometric = useSettings((s) => s.biometricEnabled);
   /** id → écartée ? ; une carte dont l'état n'est pas encore relu n'est pas affichée. */
   const [snoozed, setSnoozed] = useState<Record<string, boolean>>({});
@@ -44,6 +48,11 @@ export function HomeNudge() {
 
   const all: Nudge[] = [
     ...(!encrypted ? [{ id: 'backup', icon: 'share' as IconName, title: t('encBackup'), body: t('encBackupTodoMsg'), cta: t('createBackupBtn'), go: () => router.push('/cloud-backup') }] : []),
+    /*
+     * Id DISTINCT de « backup » : avoir écarté le rappel « crée ta sauvegarde »
+     * ne doit pas taire celui-ci, qui parle d'un nouveau portefeuille non couvert.
+     */
+    ...(encrypted && stale ? [{ id: 'backupStale', icon: 'share' as IconName, title: t('encBackupStaleTitle'), body: t('encBackupStaleMsg'), cta: t('updateBackupBtn'), go: () => router.push('/cloud-backup') }] : []),
     ...(!biometric && bioAvailable ? [{ id: 'bio', icon: 'security' as IconName, title: t('biometrics'), body: t('biometricsDisabledMsg'), cta: t('enable'), go: () => router.push('/settings') }] : []),
   ];
   const ids = all.map((n) => n.id).join(',');

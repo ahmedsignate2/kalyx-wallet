@@ -23,6 +23,12 @@ export type WalletErrorCode =
   | 'INVALID_PIN'
   | 'WRONG_PIN'
   | 'VAULT_CORRUPTED'
+  /**
+   * Sauvegarde refusée : un portefeuille à secret n'a pas de coffre sur cet
+   * appareil. L'exporter quand même donnerait une sauvegarde incomplète
+   * annoncée réussie.
+   */
+  | 'VAULT_MISSING'
   /** Tentative d'exécuter le flux de PREMIER lancement alors qu'un wallet existe. */
   | 'WALLET_ALREADY_EXISTS'
   /** L'utilisateur a refusé ou annulé la demande biométrique du système. */

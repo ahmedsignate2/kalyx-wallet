@@ -64,6 +64,12 @@ interface SettingsState {
   encryptedBackupAt: string | null;
   /** ISO de la dernière sauvegarde Google Drive réussie, null sinon. */
   driveBackupAt: string | null;
+  /**
+   * Empreinte de ce que contient la dernière sauvegarde chiffrée (lib/backupDigest.ts) :
+   * sans elle, la date seule disait « sauvegardé » même après un nouveau portefeuille.
+   * `null` avec une date = sauvegarde antérieure à cette version, ou de contenu inconnu.
+   */
+  backupDigest: string | null;
   /** Phrase de récupération vérifiée (3 mots) — critère du centre de sécurité. */
   backupVerified: boolean;
 
@@ -83,7 +89,8 @@ interface SettingsState {
   setSoundEnabled: (on: boolean) => void;
   setAiToolsEnabled: (on: boolean) => void;
   setHapticsEnabled: (on: boolean) => void;
-  markEncryptedBackup: (kind?: 'file' | 'drive') => void;
+  /** `digest` : empreinte du contenu sauvegardé ; absent, prise auprès de walletStore. */
+  markEncryptedBackup: (kind?: 'file' | 'drive', digest?: string | null) => void;
   /** Date constatée sur Drive (vérification en ligne) : écrase la mémoire locale. */
   setDriveBackupAt: (iso: string) => void;
   setBackupVerified: (on: boolean) => void;
@@ -91,7 +98,7 @@ interface SettingsState {
 
 type Persisted = Pick<
   SettingsState,
-  | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'aiToolsEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt' | 'driveBackupAt'
+  | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'aiToolsEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt' | 'driveBackupAt' | 'backupDigest'
 >;
 
 /*
@@ -134,6 +141,7 @@ function write(s: Persisted) {
     hapticsEnabled: s.hapticsEnabled,
     encryptedBackupAt: s.encryptedBackupAt,
     driveBackupAt: s.driveBackupAt,
+    backupDigest: s.backupDigest,
     backupVerified: s.backupVerified,
   });
 }
@@ -159,6 +167,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   hapticsEnabled: true,
   encryptedBackupAt: null,
   driveBackupAt: null,
+  backupDigest: null,
   backupVerified: false,
 
   load: async () => {
@@ -186,6 +195,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       hapticsEnabled: s?.hapticsEnabled !== false,
       encryptedBackupAt: typeof s?.encryptedBackupAt === 'string' ? s.encryptedBackupAt : null,
       driveBackupAt: typeof s?.driveBackupAt === 'string' ? s.driveBackupAt : null,
+      backupDigest: typeof s?.backupDigest === 'string' ? s.backupDigest : null,
       backupVerified: s?.backupVerified === true,
     };
     // Changements faits pendant le chargement : réappliqués sur le disque lu, puis écrits.
@@ -210,14 +220,32 @@ export const useSettings = create<SettingsState>((set, get) => ({
     set({ hapticsEnabled: on });
     persist({ hapticsEnabled: on });
   },
+  /*
+   * L'empreinte n'est PAS touchée ici : la vérification en ligne prouve qu'un
+   * fichier existe sur Drive, pas ce qu'il contient. Poser l'empreinte courante
+   * déclarerait à jour une sauvegarde peut-être ancienne, rien qu'en la
+   * consultant. Sans sauvegarde connue avant (réinstallation), l'empreinte reste
+   * `null` : « à vérifier », l'utilisateur est invité à la refaire une fois.
+   */
   setDriveBackupAt: (iso) => {
     const patch = { driveBackupAt: iso, encryptedBackupAt: get().encryptedBackupAt ?? iso };
     set(patch);
     persist(patch);
   },
-  markEncryptedBackup: (kind = 'file') => {
+  markEncryptedBackup: (kind = 'file', digest) => {
     const now = new Date().toISOString();
-    const patch = kind === 'drive' ? { encryptedBackupAt: now, driveBackupAt: now } : { encryptedBackupAt: now };
+    // `require` différé : walletStore importe ce module (même raison que dans setFlag).
+    // Empreinte introuvable : `null`, donc « à vérifier » — jamais un faux « à jour ».
+    let backupDigest: string | null = null;
+    if (digest !== undefined) backupDigest = digest;
+    else {
+      try {
+        backupDigest = (require('./walletStore') as typeof import('./walletStore')).backupDigestToRecord();
+      } catch {
+        backupDigest = null;
+      }
+    }
+    const patch = kind === 'drive' ? { encryptedBackupAt: now, driveBackupAt: now, backupDigest } : { encryptedBackupAt: now, backupDigest };
     set(patch);
     persist(patch);
   },
@@ -349,7 +377,7 @@ export function fiatSymbol(code: string): string {
  * Masqués en mémoire seulement : le pare-feu d'écriture empêche de toute façon
  * de réécrire `nova.settings` pendant la session.
  */
-const DECOY_MASK: Partial<SettingsState> = { encryptedBackupAt: null, driveBackupAt: null, backupVerified: false, profileName: '' };
+const DECOY_MASK: Partial<SettingsState> = { encryptedBackupAt: null, driveBackupAt: null, backupDigest: null, backupVerified: false, profileName: '' };
 onDecoyChange((on) => {
   if (on) useSettings.setState(DECOY_MASK);
 });
