@@ -163,7 +163,7 @@ function SendInner() {
     const a = { evmAddress: st.evmAddress, solAddress: st.solAddress, btcAddress: st.btcAddress, tonPublicKey: st.tonPublicKey, tonVersion: st.tonVersion };
     // Le portefeuille agrégé reste celui du réseau principal (accueil, total) ;
     // les réseaux de test se lisent à part et s'ajoutent à la liste ci-dessous.
-    pf.hydrate(a, fiat).then(() => pf.refresh(a, fiat, { force: true }));
+    pf.hydrate(a, fiat).then((current) => { if (current) void pf.refresh(a, fiat, { force: true }); });
     if (showTestnets) void useTestnetBalances.getState().refresh(a, { force: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet.activeAccountIndex, fiat, showTestnets]);
@@ -211,16 +211,22 @@ function SendInner() {
     if (!isEns) return setEns({ status: 'idle', address: null });
     setEns({ status: 'resolving', address: null });
     const name = to.trim();
+    // Réponse d'un nom PRÉCÉDENT ignorée : sans cela, l'adresse de « alice.eth » pouvait s'appliquer à « alicе.eth » tapé ensuite.
+    let alive = true;
     const timer = setTimeout(() => {
       const ton = tonDomain ? findAdapterV2(targetChainId) : null;
       (ton instanceof TonAdapterV2 ? ton.resolveDomain(tonDomain!) : resolveEnsName(name))
         .then((a) => {
+          if (!alive) return;
           const cleaned = a ? cleanAddressInput(a) : null;
           setEns(cleaned ? { status: 'found', address: cleaned } : { status: 'notfound', address: null });
         })
-        .catch(() => setEns({ status: 'notfound', address: null }));
+        .catch(() => alive && setEns({ status: 'notfound', address: null }));
     }, 400);
-    return () => clearTimeout(timer);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
   }, [to, isEns, tonDomain, targetChainId]);
   const recipient = isEns ? ens.address ?? '' : to.trim();
   const recipientOk = !!recipient && validAddress(recipient);
@@ -243,7 +249,13 @@ function SendInner() {
     setIsContract(false);
     if (!recipientOk || family !== 'evm') return;
     const a = getAdapter(targetChainId);
-    if (a instanceof EvmChainAdapter) a.isContract(recipient).then(setIsContract);
+    if (!(a instanceof EvmChainAdapter)) return;
+    // Réponse d'un destinataire PRÉCÉDENT ignorée ; échec RPC = « pas un contrat » (pas de rejet non géré).
+    let alive = true;
+    a.isContract(recipient)
+      .then((c) => alive && setIsContract(c))
+      .catch(() => alive && setIsContract(false));
+    return () => { alive = false; };
   }, [recipient, recipientOk, family, targetChainId]);
 
   // ── Solde, prix, frais ──

@@ -70,6 +70,16 @@ describe('Diagnostic Service', () => {
       expect(masked).not.toContain('super_secret_token_value');
     });
 
+    it('masks Infura /v3/ key, opaque path tokens and credentials', () => {
+      const infura = 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161';
+      expect(maskRpcUrl(infura)).toBe('https://mainnet.infura.io/v3/[REDACTED]');
+      const qn = 'https://falling-cool-sky.quiknode.pro/0123456789abcdef0123456789abcdef01234567/';
+      expect(maskRpcUrl(qn)).toBe('https://falling-cool-sky.quiknode.pro/[REDACTED]/');
+      expect(maskRpcUrl('https://user:hunter2@rpc.example.com/eth')).toBe('https://[REDACTED]@rpc.example.com/eth');
+      // Un RPC public sans clé reste lisible pour le diagnostic.
+      expect(maskRpcUrl('https://cloudflare-eth.com/v1/mainnet')).toBe('https://cloudflare-eth.com/v1/mainnet');
+    });
+
     it('returns empty string if url is empty', () => {
       expect(maskRpcUrl('')).toBe('');
     });

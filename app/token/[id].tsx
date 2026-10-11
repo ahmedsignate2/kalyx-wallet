@@ -199,18 +199,21 @@ export default function TokenDetail() {
     const stored = state.accounts.find((a) => a.index === state.activeAccountIndex);
     if (!stored) return;
     const acct = { evmAddress: stored.evmAddress, solAddress: stored.solAddress, btcAddress: stored.btcAddress, tonPublicKey: stored.tonPublicKey, tonVersion: stored.tonVersion };
-    portfolio.hydrate(acct, fiat).then(() => portfolio.refresh(acct, fiat));
+    portfolio.hydrate(acct, fiat).then((current) => { if (current) void portfolio.refresh(acct, fiat); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account?.address, fiat]);
 
   useEffect(() => {
     if (!id) return;
+    // Période changée (1J → 1S…) avant la réponse : l'ancienne courbe est ignorée.
+    let alive = true;
     setLoadingChart(true);
     const days = CHART_PERIODS.find((p) => p.key === period)?.days ?? '7';
     getMarketChartPoints(id, fiat, days)
-      .then(setChart)
-      .catch(() => setChart([]))
-      .finally(() => setLoadingChart(false));
+      .then((pts) => alive && setChart(pts))
+      .catch(() => alive && setChart([]))
+      .finally(() => alive && setLoadingChart(false));
+    return () => { alive = false; };
   }, [id, period, fiat]);
 
   useEffect(() => {

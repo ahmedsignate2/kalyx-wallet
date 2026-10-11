@@ -95,7 +95,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
   useEffect(() => {
     if (!pfAccount) return;
     // Le portefeuille agrégé reste celui du réseau principal ; les réseaux de test se lisent à part.
-    pf.hydrate(pfAccount, fiat).then(() => pf.refresh(pfAccount, fiat, { force: true }));
+    pf.hydrate(pfAccount, fiat).then((current) => { if (current) void pf.refresh(pfAccount, fiat, { force: true }); });
     if (showTestnets) void useTestnetBalances.getState().refresh(pfAccount, { force: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pfAccount, fiat, showTestnets]);

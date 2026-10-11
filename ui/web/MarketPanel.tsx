@@ -83,10 +83,12 @@ export function MarketPanel({ wide }: { wide?: boolean } = {}) {
     const q = query.trim();
     if (!q) { setResults([]); setSearching(false); return; }
     setSearching(true);
+    // Résultats d'une requête PRÉCÉDENTE ignorés : une réponse tardive ne remplace pas celle de la saisie courante.
+    let alive = true;
     const id = setTimeout(() => {
-      searchCoins(q).then((r) => { setResults(r); setSearching(false); }).catch(() => setSearching(false));
+      searchCoins(q).then((r) => { if (alive) { setResults(r); setSearching(false); } }).catch(() => alive && setSearching(false));
     }, 300);
-    return () => clearTimeout(id);
+    return () => { alive = false; clearTimeout(id); };
   }, [query]);
 
   const searchMode = query.trim().length > 0;

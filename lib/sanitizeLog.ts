@@ -141,15 +141,43 @@ export function stripUrlSecrets(input: string): string {
 /** Secrets HEXADÉCIMAUX : clé 32 octets (64) et clé/graine 64 octets (128). */
 export const HEX_SECRET_RE = /\b(?:0x)?(?:[a-fA-F0-9]{128}|[a-fA-F0-9]{64})\b/g;
 
-export const sanitizeLog = (raw: string): string => {
+/** Hashes connus : liste, ou fonction appelée seulement si une valeur candidate apparaît. */
+export type KnownHashes = Iterable<string> | (() => Iterable<string>);
+
+/**
+ * Remplaçant des valeurs de forme « hash/clé » : un hash de transaction CONNU
+ * (historique local, cf. `lib/knownTxHashes.ts`) est raccourci (`0xabcd…1234`),
+ * toute autre valeur masquée. Une clé privée a exactement la forme d'un hash :
+ * seule l'appartenance à NOTRE historique les distingue, jamais la forme.
+ * La liste n'est lue qu'au premier candidat, et une seule fois.
+ */
+function knownOrMask(knownHashes: KnownHashes): (mask: string) => (m: string) => string {
+  let known: Set<string> | null = null;
+  const norm = (h: string) => h.toLowerCase().replace(/^0x/, '');
+  return (mask) => (m) => {
+    if (!known) {
+      try {
+        known = new Set(Array.from(typeof knownHashes === 'function' ? knownHashes() : knownHashes, norm));
+      } catch {
+        known = new Set(); // historique illisible : on masque tout
+      }
+    }
+    if (!known.has(norm(m))) return mask;
+    return `${m.slice(0, m.startsWith('0x') ? 6 : 4)}…${m.slice(-4)}`;
+  };
+}
+
+export const sanitizeLog = (raw: string, knownHashes: KnownHashes = []): string => {
   if (!raw || typeof raw !== 'string') return '';
   let clean = raw;
+  const orMask = knownOrMask(knownHashes);
 
   // 1. Phrase de récupération : d'abord, c'est le secret le plus grave.
   clean = maskBip39Runs(clean);
 
-  // 2. Clés privées hexadécimales (64 chars hexadécimaux avec ou sans 0x)
-  clean = clean.replace(HEX_SECRET_RE, '[CLÉ_PRIVÉE_MASQUÉE]');
+  // 2. Clés privées hexadécimales (64 chars hexadécimaux avec ou sans 0x) —
+  //    sauf hash de transaction CONNU, raccourci (même forme, mais pas un secret).
+  clean = clean.replace(HEX_SECRET_RE, orMask('[CLÉ_PRIVÉE_MASQUÉE]'));
 
   // 3. Clés étendues BIP-32 (xprv/yprv/zprv) : elles dérivent TOUT le wallet.
   clean = clean.replace(/\b[xyz]prv[1-9A-HJ-NP-Za-km-z]{50,120}\b/g, '[CLÉ_ÉTENDUE_MASQUÉE]');
@@ -158,7 +186,8 @@ export const sanitizeLog = (raw: string): string => {
   clean = clean.replace(/\b[5KLc][1-9A-HJ-NP-Za-km-z]{50,51}\b/g, '[CLÉ_WIF_MASQUÉE]');
 
   // 5. Clés privées Solana base58 (environ 80 à 90 caractères Base58)
-  clean = clean.replace(/\b[1-9A-HJ-NP-Za-km-z]{80,90}\b/g, '[CLÉ_SOL_MASQUÉE]');
+  //    (une signature Solana CONNUE a la même forme : raccourcie, comme en 2).
+  clean = clean.replace(/\b[1-9A-HJ-NP-Za-km-z]{80,90}\b/g, orMask('[CLÉ_SOL_MASQUÉE]'));
 
   /*
    * 6. Paramètres sensibles par leur NOM.
