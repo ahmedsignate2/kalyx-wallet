@@ -5,7 +5,7 @@
 import { useAiStore } from './aiStore';
 import { useSettings } from './settingsStore';
 import { translate } from './i18n';
-import { buildAiRequestParams, extractProviderErrorDetail, aiErrorFromHttp, aiLanguageName, formatAiError, type AiError, type AiErrorCode } from './aiConfig';
+import { buildAiRequestParams, extractProviderErrorDetail, aiErrorFromHttp, aiLanguageName, formatAiError, withAiLanguage, type AiError, type AiErrorCode } from './aiConfig';
 import { copilotError, copilotLog, newCopilotTraceId } from './copilotLogger';
 
 export async function askAi(prompt: string, system?: string): Promise<{ text: string } | { error: string; code: AiErrorCode }> {
@@ -20,10 +20,12 @@ export async function askAi(prompt: string, system?: string): Promise<{ text: st
     copilotLog(traceId, 'ask.rejected', { reason: 'disabled_or_missing_key' });
     return fail({ code: 'no_key' });
   }
-  const sys = system ?? `Tu es Kalyx Copilot, assistant d'un wallet crypto. Réponds TOUJOURS dans la langue de l'utilisateur : ${aiLanguageName(lang)}, même si cette consigne est en français. Langage simple, tutoiement (ou son équivalent naturel dans cette langue), direct, sobre, sans jargon ni emoji, sans conseil d'investissement. Sois concis (2 à 3 phrases max).
+  const base = system ?? `Tu es Kalyx Copilot, assistant d'un wallet crypto. Réponds TOUJOURS dans la langue de l'utilisateur : ${aiLanguageName(lang)}, même si cette consigne est en français. Langage simple, tutoiement (ou son équivalent naturel dans cette langue), direct, sobre, sans jargon ni emoji, sans conseil d'investissement. Sois concis (2 à 3 phrases max).
 Règles produit impératives : Kalyx est un wallet 100 % non-custodial et décentralisé. Il n'y a AUCUN serveur de compte, AUCUNE session utilisateur distante, et AUCUNE base de données gérée par l'équipe. Interdiction formelle de prétendre que l'équipe va vérifier un compte ou une session. Kalyx propose une sauvegarde chiffrée optionnelle (fichier ou dossier privé Google Drive), chiffrée sur l'appareil avec un mot de passe que personne ne peut récupérer ; aucune synchronisation automatique de compte.
 RÈGLE ANTI-HALLUCINATION : N'invente jamais de concepts ou termes inexistants (ex: interdiction d'inventer "session WebConnect", "mise à jour distante de compte"). Base-toi uniquement sur des faits techniques réels.
 RÈGLE DE SÉCURITÉ ABSOLUE : Tu ne dois JAMAIS accepter, répéter, ni inclure dans un message ou un ticket de support une clé privée, une seed phrase (mots de récupération) ou un mot de passe. Si le message contient de tels éléments, refuse formellement et avertis l'utilisateur de les supprimer.`;
+  // Toujours en dernier, y compris derrière une consigne fournie par l'appelant.
+  const sys = withAiLanguage(base, lang);
   try {
     const { url, headers, model } = buildAiRequestParams(provider, apiKey, customUrl, customModel);
     const body: Record<string, unknown> =

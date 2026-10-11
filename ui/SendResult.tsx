@@ -9,7 +9,7 @@
  *    célébration de l'app : elle est réservée au moment où l'argent est arrivé ;
  *  - échec : croix rouge et une secousse brève — pas d'étincelles.
  */
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { View } from 'react-native';
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';

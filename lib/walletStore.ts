@@ -17,9 +17,8 @@ import { formatExportedKey } from '../src/domain/keys/exportKey';
 import { deriveBtcSigner, deriveSolanaSigner, discoverAccountIndexes, normalizeAddressCase, parseWatchAddress, revokeCalldata, runRevokeBatch, type RevokeOutcome } from '../src';
 import { base64, base58, hex } from '@scure/base';
 import { ed25519 } from '@noble/curves/ed25519';
-import { secp256k1 } from '@noble/curves/secp256k1';
 import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex, concatBytes, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
+import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { create } from 'zustand';
 import { Wallet, getBytes, isHexString } from 'ethers';
 import {
@@ -36,7 +35,6 @@ import {
   type FeeSpeed,
   mnemonicToSeedSync,
   deriveEvmAccount,
-  evmAccountFromPrivateKey,
   normalizeEvmPrivateKey,
   deriveBtcAccount,
   deriveSolanaAccount,
@@ -62,7 +60,6 @@ import {
   SolanaChainAdapter,
   NATIVE_TOKEN,
   parseAmount,
-  erc20TransferData,
   type Account,
   type MnemonicStrength,
   type SwapQuote,
@@ -137,7 +134,6 @@ const K_ACTIVE_CHAIN = 'kalyx.activeChain';
 const K_ACTIVE_WALLET = 'kalyx.activeWallet';
 const K_ACTIVE_ACCOUNT = 'kalyx.activeAccount';
 import { VersionedTransaction, Keypair } from '@solana/web3.js';
-import * as btcLib from '@scure/btc-signer';
 
 export const DEFAULT_CHAIN = 'ethereum'; // mainnet par défaut (les testnets sont cachés/optionnels)
 
@@ -2179,7 +2175,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       const signedTxStr = await get().signSolanaTransaction(unlock, quote.tx.data, true, { appFlow: true }); // échange construit par l'app
       return submitSolanaSigned(signedTxStr, (st) => onStatus?.(st === 'sending' ? 'swapping' : 'confirming'));
     } else {
-      throw new Error(`Swap impossible: type de transaction (${(quote.tx as any).type}) incompatible avec le réseau actif`);
+      throw new Error(`Swap impossible: type de transaction (${(quote.tx as { type?: string }).type}) incompatible avec le réseau actif`);
     }
   },
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { usePendingRestore } from '../lib/pendingRestore';
 import { View, Text, Switch, Animated, ActivityIndicator, Platform, StatusBar, useWindowDimensions } from 'react-native';

@@ -7,7 +7,7 @@
  * le portefeuille, vidage du solde, échec prévisible). Sans émulation, on le
  * dit, et on montre les montants bruts.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, ScrollView, View } from 'react-native';
 import { Sheet, Text, Button, Surface } from './kit';
 import { ConfirmUnlock } from './ConfirmUnlock';

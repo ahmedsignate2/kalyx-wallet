@@ -3,7 +3,7 @@
  * Logique : parseWatchAddress (src/domain/wallet/watchAddress) et
  * `addWatchWallet` (lib/walletStore). Ici : saisie, aperçu de la famille, erreurs précises.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { Button, Input, ScreenHeader, Text as KText } from '../ui/kit';

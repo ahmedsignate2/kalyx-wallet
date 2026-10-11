@@ -6,11 +6,10 @@
  */
 import { IconDisc, NovaCard, NovaHero } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
-import React from 'react';
 import { View, Text, Share } from 'react-native';
 import { Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { PremiumScreen, GlassCard } from '../ui/premium';
+import { PremiumScreen } from '../ui/premium';
 import { Button } from '../ui/components';
 import { Icon, type IconName } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';

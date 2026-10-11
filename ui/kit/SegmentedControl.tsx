@@ -2,7 +2,7 @@
  * SegmentedControl — l'indicateur glisse sous l'option choisie (ressort Vif),
  * haptique « selection » (§3.3). Pas de carte par option : un seul rail Orbite.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Pressable as RNPressable } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Text } from './Text';

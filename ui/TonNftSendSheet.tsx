@@ -3,7 +3,7 @@
  * facultatif, puis le bilan ÉMULÉ — le NFT qui part, les frais — avant le code.
  */
 import { friendlyTxError } from '../lib/txError';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Sheet, Text, Button, Input, Surface } from './kit';

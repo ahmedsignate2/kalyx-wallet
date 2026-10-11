@@ -15,7 +15,7 @@
  * transaction est en attente ; et les actions dépendent de l'état — accélérer
  * ou annuler en attente, « Terminé » une fois le sort fixé.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useIsWatchOnly } from '../ui/WatchOnlyGate';
 import { View, ScrollView, Linking, ActivityIndicator } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
@@ -175,7 +175,6 @@ export default function TrackingScreen() {
       if (!finalRef.current) void pollRef.current();
     }, 12_000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chain?.id, activeHash]);
   // Retour haptique au DÉNOUEMENT vu en direct, pas à l'ouverture d'une transaction déjà réglée.
   const prevStatus = useRef<Status>(status);
@@ -207,7 +206,6 @@ export default function TrackingScreen() {
     () => (tx && chain ? humanizeTx({ ...tx, status: status === 'failed' ? 'failed' : tx.status }, { t: activityT, nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals, nativeOf: nativeOfChain, fiatOf }) : null),
     [tx, chain, activityT, fiatOf, status],
   );
-  const logo = tx ? holdings.find((x) => x.chainId === tx.chain && (tx.contract ? x.contract?.toLowerCase() === tx.contract.toLowerCase() : x.kind === 'native'))?.logo : undefined;
 
   const counterparty = tx ? (tx.direction === 'in' ? tx.from : tx.to) : '';
   const when = receipt?.timestamp ?? (tx && tx.timestamp > 0 ? tx.timestamp : undefined);

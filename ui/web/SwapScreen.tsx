@@ -11,9 +11,9 @@
  *  - Solana : la transaction du devis est signée par le téléphone puis diffusée
  *             ici (simulation → envoi → confirmation, comme l'app).
  */
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { View, ScrollView, Pressable as RNPressable } from 'react-native';
-import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, CountdownRing, Skeleton, EmptyState } from '../kit';
+import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, TickerCountdownRing, Skeleton, EmptyState } from '../kit';
 import { SuccessModal } from '../SuccessModal';
 import { TokenPicker } from '../TokenPicker';
 import { Icon } from '../icon';
@@ -23,7 +23,7 @@ import { useT } from '../../lib/settingsStore';
 import { useTokenStore, type Tok } from '../../lib/tokenStore';
 import { useWebConnect } from '../../lib/webConnect';
 import { submitSolanaSigned } from '../../lib/solanaSubmit';
-import { UserFacingError, friendlyTxError } from '../../lib/txError';
+import { UserFacingError } from '../../lib/txError';
 import { webErrorText } from './webErrors';
 import {
   getAdapter, getErc20Tokens, getBestQuote, parseAmount, formatTokenAmount, formatInputAmount, formatFiat, isWalletError,
@@ -35,8 +35,10 @@ import { FlowEmbedContext, useFlowRootStyle, useFlowScrollStyle } from './flowEm
 import { useWebT } from './webI18n';
 import { KalyxSpinner } from './motion';
 import { addressForChain, chainOf } from './webAccounts';
+import { createTicker, useTicker } from '../../lib/ticker';
 
 const QUOTE_TTL_S = 30;
+const isPositive = (v: number) => v > 0;
 
 function isNativeTokenAddress(address?: string): boolean {
   if (!address) return false;
@@ -83,7 +85,8 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [pickerState, setPickerState] = useState<{ visible: boolean; side: 'from' | 'to' }>({ visible: false, side: 'from' });
   const [slippage, setSlippage] = useState('0.005');
-  const [countdown, setCountdown] = useState(0);
+  const [countdown] = useState(() => createTicker(0));
+  const countdownActive = useTicker(countdown, isPositive);
   const [stale, setStale] = useState(false);
   const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -131,19 +134,20 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       }
     }
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChain, address]);
+  }, [activeChain, chain, address]);
 
   const curated = tokensByChain[activeChain] ?? [];
   const curatedAddrs = new Set(curated.map((tk) => tk.address.toLowerCase()));
   const fromTokens = [...curated, ...held.filter((tk) => !curatedAddrs.has(tk.address.toLowerCase()))];
 
-  useEffect(() => {
+  const applyPendingFrom = useEffectEvent(() => {
     const p = pendingFrom.current;
     if (!p || p.chainId !== activeChain) return;
     const idx = fromTokens.findIndex((tk) => tk.address.toLowerCase() === p.address.toLowerCase());
     if (idx >= 0) { setFrom(idx); pendingFrom.current = null; }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    applyPendingFrom();
   }, [activeChain, fromTokens.length]);
 
   useEffect(() => { if (toChain !== activeChain) fetchTokens(toChain); }, [toChain, activeChain, fetchTokens]);
@@ -158,26 +162,27 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
   const isBridge = toChain !== activeChain;
   const [flipped, setFlipped] = useState(false);
 
+  const fromTokAddr = fromTok?.address;
   useEffect(() => {
     let cancelled = false;
-    if (!address || !fromTok || isNativeTokenAddress(fromTok.address)) { setSelectedTokenBalance(null); return; }
-    const heldTok = held.find((h) => h.address.toLowerCase() === fromTok.address.toLowerCase()) as (Tok & { balance?: bigint }) | undefined;
+    if (!address || !fromTokAddr || isNativeTokenAddress(fromTokAddr)) { setSelectedTokenBalance(null); return; }
+    const heldTok = held.find((h) => h.address.toLowerCase() === fromTokAddr.toLowerCase()) as (Tok & { balance?: bigint }) | undefined;
     if (heldTok) { setSelectedTokenBalance(heldTok.balance ?? 0n); return; }
     const adapter = getAdapter(activeChain);
     if (adapter instanceof EvmChainAdapter) {
-      adapter.getTokenBalance(fromTok.address, address).then((b) => { if (!cancelled) setSelectedTokenBalance(b); }).catch(() => { if (!cancelled) setSelectedTokenBalance(0n); });
+      adapter.getTokenBalance(fromTokAddr, address).then((b) => { if (!cancelled) setSelectedTokenBalance(b); }).catch(() => { if (!cancelled) setSelectedTokenBalance(0n); });
     } else if (adapter instanceof SolanaChainAdapter) {
       adapter.getSplTokens(address).then((tokens) => {
-        if (!cancelled) { const found = tokens.find((x) => x.mint.toLowerCase() === fromTok.address.toLowerCase()); setSelectedTokenBalance(found ? found.raw : 0n); }
+        if (!cancelled) { const found = tokens.find((x) => x.mint.toLowerCase() === fromTokAddr.toLowerCase()); setSelectedTokenBalance(found ? found.raw : 0n); }
       }).catch(() => { if (!cancelled) setSelectedTokenBalance(0n); });
     }
     return () => { cancelled = true; };
-  }, [activeChain, address, fromTok?.address, held]);
+  }, [activeChain, address, fromTokAddr, held]);
 
   const stopCountdown = () => {
     if (countdownInterval.current) clearInterval(countdownInterval.current);
     countdownInterval.current = null;
-    setCountdown(0);
+    countdown.set(0);
   };
   const onFlip = () => {
     if (isBridge) return;
@@ -206,13 +211,12 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
   useEffect(() => { pausedRef.current = confirming || step !== null; }, [confirming, step]);
   const startCountdown = () => {
     stopCountdown();
-    setCountdown(QUOTE_TTL_S);
+    countdown.set(QUOTE_TTL_S);
     countdownInterval.current = setInterval(() => {
       if (pausedRef.current) return;
-      setCountdown((c) => {
-        if (c <= 1) { void onQuote({ auto: true }); return QUOTE_TTL_S; }
-        return c - 1;
-      });
+      const expired = countdown.get() <= 1;
+      countdown.set(expired ? QUOTE_TTL_S : countdown.get() - 1);
+      if (expired) void onQuote({ auto: true });
     }, 1000);
   };
 
@@ -373,7 +377,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
       <View style={{ paddingHorizontal: SCREEN_MARGIN, height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t('back')} tone="ghost" onPress={onClose} />
         <Text variant="title2" style={{ flex: 1 }}>{isBridge ? t('bridgeAction') : t('swapAction')}</Text>
-        {quote && countdown > 0 && !stale ? <CountdownRing progress={countdown / QUOTE_TTL_S} /> : null}
+        {quote && countdownActive && !stale ? <TickerCountdownRing ticker={countdown} total={QUOTE_TTL_S} /> : null}
       </View>
 
       {!available ? (

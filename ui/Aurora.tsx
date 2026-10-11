@@ -10,9 +10,10 @@
  * Discrète par construction : opacités basses, mouvements lents (14 à 22 s).
  * « Réduire les animations » la fige, sans l'éteindre.
  */
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { View, useWindowDimensions } from 'react-native';
-import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import { useLoopActive } from './useLoopActive';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { useTheme } from './theme';
 import { useReduceMotion } from '../lib/reduceMotion';
@@ -21,11 +22,15 @@ type Blob = { id: string; color: string; size: number; x: number; y: number; dx:
 
 function Nappe({ b, reduce }: { b: Blob; reduce: boolean }) {
   const t = useSharedValue(0);
+  const active = useLoopActive();
   useEffect(() => {
     if (reduce) return;
-    t.value = withRepeat(withTiming(1, { duration: b.period, easing: Easing.inOut(Easing.sin) }), -1, true);
+    if (!active) { cancelAnimation(t); return; }
+    // Reprise : retour doux au départ, puis l'aller-retour complet.
+    const loop = withRepeat(withTiming(1, { duration: b.period, easing: Easing.inOut(Easing.sin) }), -1, true);
+    t.value = t.value === 0 ? loop : withSequence(withTiming(0, { duration: 400 }), loop);
     return () => cancelAnimation(t);
-  }, [reduce, b.period, t]);
+  }, [reduce, active, b.period, t]);
   const style = useAnimatedStyle(() => ({
     transform: [{ translateX: b.dx * t.value }, { translateY: b.dy * t.value }, { scale: 1 + 0.12 * t.value }],
     opacity: b.opacity * (0.75 + 0.25 * t.value),

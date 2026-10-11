@@ -20,7 +20,7 @@ export { AmountKeypad } from './AmountKeypad';
 export { StepBar } from './StepBar';
 export { Sheet } from './Sheet';
 export { TxSteps, type TxStage } from './TxSteps';
-export { CountdownRing } from './CountdownRing';
+export { CountdownRing, TickerCountdownRing } from './CountdownRing';
 export { ActivityRow } from './ActivityRow';
 export { ScreenHeader } from './ScreenHeader';
 export { SparkBurst } from './SparkBurst';

@@ -10,7 +10,6 @@ import { Pressable as KPressable, LogoImage } from './kit';
  *   historique : 1 appel API par tx, intenable en rate-limit gratuit) ;
  * - `expanded` : détail replié (adresses from/to copiables + explorateur).
  */
-import React from 'react';
 import { Linking, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { PressableScale } from './premium';
@@ -18,6 +17,7 @@ import { Icon } from './icon';
 import { fonts, spacing, useTheme } from './theme';
 import { useEnsName } from '../lib/useEns';
 import { useT } from '../lib/settingsStore';
+import type { Key } from '../lib/i18n';
 import { formatTokenAmount, formatAmount, type TxSummary, formatFiat, buildExplorerTxUrl } from '../src';
 
 function shortAddr(a: string) {
@@ -25,7 +25,7 @@ function shortAddr(a: string) {
 }
 
 /** Date relative localisée : « Today · 18:49 », « Yesterday · 09:12 », « 02 Jul · 18:49 ». */
-export function txDate(ts: number, t?: (k: any) => string): string {
+export function txDate(ts: number, t?: (k: Key) => string): string {
   if (!ts) return '';
   const d = new Date(ts * 1000);
   const now = new Date();

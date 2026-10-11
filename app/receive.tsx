@@ -7,8 +7,8 @@
 import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { fill } from '../lib/i18n';
 import { SafeModal } from '../ui/kit/SafeModal';
-import React, { useCallback, useMemo, useState } from 'react';
-import { View, ScrollView, Share, Modal, Platform } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { View, ScrollView, Share, Platform } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -31,7 +31,6 @@ type Fam = ChainFamily;
 
 function ReceiveInner() {
   const t = useT();
-  const language = useSettings((st) => st.language);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const accounts = useWallet((s) => s.accounts);

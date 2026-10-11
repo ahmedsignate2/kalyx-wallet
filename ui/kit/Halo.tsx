@@ -20,8 +20,8 @@
  *
  * `mood` : hausse = plus lumineux, frange chaude ; baisse = plus faible, froid.
  */
-import React, { useEffect, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { useEffect } from 'react';
+import { useForeground } from '../useLoopActive';
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, RadialGradient, Stop, Circle, Rect } from 'react-native-svg';
 import { useTheme } from '../theme';
@@ -64,21 +64,10 @@ const PULSE: Record<AuraPulse, { scale: number; opacity: number }> = {
 /**
  * Cycle de respiration. Sur le thread UI, donc insensible à la charge
  * JavaScript. `amplitude` module l'intensité pour les couches larges.
+ *
+ * En arrière-plan, la respiration est mise en pause (§3.7) et repart de la
+ * valeur affichée au retour (§4.2).
  */
-/**
- * L'app est-elle au premier plan ? Une respiration qui tourne en arrière-plan
- * consomme de la batterie pour rien, et le §3.7 demande explicitement de la
- * mettre en pause. Elle repart de la valeur affichée au retour (§4.2).
- */
-function useForeground(): boolean {
-  const [active, setActive] = useState(AppState.currentState === 'active');
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (s: AppStateStatus) => setActive(s === 'active'));
-    return () => sub.remove();
-  }, []);
-  return active;
-}
-
 function useAuraStyle(amplitude: number, isAura: boolean) {
   const ambient = useAura((s) => (isAura ? s.ambient : 'rest'));
   const event = useAura((s) => (isAura ? s.event : null));
@@ -113,9 +102,11 @@ function useAuraStyle(amplitude: number, isAura: boolean) {
     breath.value = withRepeat(withTiming(1, { duration: cfg.period, easing: Easing.inOut(Easing.sin) }), -1, true);
   }, [breath, floor, cfg.period, cfg.floor, ambient, reduced, foreground]);
 
+  const pulseSeq = event?.seq;
+  const pulseKind = event?.kind;
   useEffect(() => {
-    if (!event) return;
-    const p = PULSE[event.kind];
+    if (pulseSeq == null || !pulseKind) return;
+    const p = PULSE[pulseKind];
     if (reduced) {
       // Pas d'échelle : un bref changement d'opacité suffit à marquer le coup.
       pulseOpacity.value = withSequence(
@@ -128,7 +119,7 @@ function useAuraStyle(amplitude: number, isAura: boolean) {
     pulseOpacity.value = withSequence(withTiming(p.opacity, { duration: durations.micro }), withTiming(0, { duration: durations.burst / 2 }));
     // `event.seq` et non `event` : une impulsion identique qui se répète doit
     // rejouer, un simple re-rendu ne doit pas.
-  }, [event?.seq, event?.kind, pulseScale, pulseOpacity, reduced]);
+  }, [pulseSeq, pulseKind, pulseScale, pulseOpacity, reduced]);
 
   return useAnimatedStyle(() => ({
     transform: [{ scale: 1 + breath.value * cfg.scale * amplitude + pulseScale.value * amplitude }],

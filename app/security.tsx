@@ -29,7 +29,6 @@ import { haptic } from '../lib/haptics';
 import { getAdapter, getErc20Tokens, revokeCalldata, isUnlimited, formatTokenAmount, shortAddress, EvmChainAdapter, type ApprovalItem } from '../src';
 
 function Check({ ok, icon, title, body, actionLabel, onAction }: { ok: boolean | null; icon: IconName; title: string; body: string; actionLabel?: string; onAction?: () => void }) {
-  const t = useT();
   const { colors } = useTheme();
   const color = ok === null ? colors.textTertiary : ok ? colors.up : colors.warning;
   return (

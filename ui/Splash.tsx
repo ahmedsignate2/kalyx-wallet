@@ -16,7 +16,7 @@
  * 100 % Animated (transform/opacity, useNativeDriver) : un seul driver `progress`
  * pilote toutes les particules → fluide, aucune dépendance native ajoutée.
  */
-import React, { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { KalyxLogoIgnite } from './KalyxLogo';
@@ -41,7 +41,6 @@ const BAR_H = 2;
 /** De combien le logo est remonté par rapport au centre de l'écran. */
 export const SPLASH_LOGO_LIFT = (STACK_GAP + WORD_LINE + WORD_GAP + BAR_H) / 2;
 // Couleurs du halo (ui/tokens.ts) : blanc, glacier, frange chaude — pas de violet (§2).
-const PARTICLE_COLORS = ['#FFFFFF', '#CFE3FF', '#FFD9B8', '#E6EEFF'];
 
 interface P {
   x0: number;
@@ -94,7 +93,7 @@ function Particle({ p, progress }: { p: P; progress: Animated.Value }) {
 }
 
 export function Splash({ onFinish }: { onFinish: () => void }) {
-  const { mode, colors, gradients } = useTheme();
+  const { mode, colors } = useTheme();
   const progress = useRef(new Animated.Value(0)).current; // convergence des particules
   const logoIn = useRef(new Animated.Value(0)).current; // condensation du logo
   const wordOp = useRef(new Animated.Value(0)).current;

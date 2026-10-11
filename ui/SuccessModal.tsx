@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { SafeModal } from './kit/SafeModal';
-import { Animated, Linking, Modal, Pressable, Text, View } from 'react-native';
+import { Animated, Linking, Pressable, Text, View } from 'react-native';
 import { Icon } from './icon';
 import Svg, { Circle, Path, G } from 'react-native-svg';
 

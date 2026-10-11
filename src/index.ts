@@ -137,7 +137,7 @@ export { decodeTx, isRiskyTx, type DecodedTx } from './domain/tx/decodeTx';
 // Alertes de prix (logique de déclenchement)
 export { alertTriggered, type PriceAlert } from './domain/alerts/priceAlerts';
 // Export CSV des transactions
-export { transactionsToCsv, type CsvContext } from './domain/export/txCsv';
+export { transactionsToCsv, type CsvContext, type CsvLabels } from './domain/export/txCsv';
 // Export manuel chiffré de la seed
 export {
   createBackup,
@@ -325,9 +325,6 @@ export { glyphFor, starPath, GLYPH_PALETTE, type AddressGlyphSpec } from './doma
 
 // Earn — moteur stake / lend (catalogue vérifié, encodeurs ABI, APY)
 export * from './domain/earn';
-
-// DeFi / Staking — classification des tokens détenus
-export { classifyToken, type DefiKind, type DefiPosition } from './domain/defi/registry';
 
 // ENS — résolution de noms Ethereum (forward / reverse / avatar)
 export {

@@ -5,7 +5,7 @@
  * En session leurre, cet écran se présente comme « non configuré » (hasDuress
  * faux) : rien ne trahit l'existence du vrai réglage.
  */
-import React, { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Button, Input, ScreenHeader, Text } from '../ui/kit';
 import { NovaCard, NovaHero } from '../ui/nova';
@@ -32,14 +32,14 @@ export default function DuressScreen() {
   const [askRemove, setAskRemove] = useState(false);
   const [replacing, setReplacing] = useState(false);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     const on = await useWallet.getState().hasDuress();
     setActive(on);
     setAccounts(on ? await useWallet.getState().duressAccounts() : []);
-  };
+  }, []);
   useEffect(() => {
     void refresh();
-  }, []);
+  }, [refresh]);
 
   const onSetup = async () => {
     setError(null);

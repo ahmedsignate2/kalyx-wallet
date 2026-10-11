@@ -7,7 +7,7 @@
  * masquée tant que le doigt n'est pas posé dessus — comme à la création
  * du premier wallet.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ScrollView, useWindowDimensions } from 'react-native';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { router, Stack } from 'expo-router';

@@ -994,7 +994,7 @@ const de: Dict = {
   noActivityBody: 'Deine letzten Transaktionen erscheinen hier.',
   allocationEmpty: 'Noch nichts zu verteilen. Deine Guthaben erscheinen hier nach dem Laden.',
   total: 'Gesamt',
-  watchlist: 'Watchlist',
+  watchlist: 'Beobachtungsliste',
   watchlistUnavailable: 'Watchlist nicht verfügbar (Preise nicht geladen).',
   mainAccount: 'Hauptkonto',
   addressOf: '{symbol}-Adresse · {chain}',
@@ -1420,7 +1420,7 @@ const nl: Dict = {
   noActivityBody: 'Je recente transacties verschijnen hier.',
   allocationEmpty: 'Nog niets te verdelen. Je saldi verschijnen hier zodra ze geladen zijn.',
   total: 'Totaal',
-  watchlist: 'Watchlist',
+  watchlist: 'Volglijst',
   watchlistUnavailable: 'Watchlist niet beschikbaar (prijzen niet geladen).',
   mainAccount: 'Hoofdaccount',
   addressOf: '{symbol}-adres · {chain}',
@@ -1820,7 +1820,7 @@ const tr: Dict = {
   currentNetwork: 'Mevcut ağ',
   trustLine: 'İmzalar Kalyx\'inde doğrulanır',
   showBalancePrompt: 'Kalyx bakiyeni göster',
-  trend: 'Trend',
+  trend: 'Eğilim',
   trendOf: '{name} trendi',
   noPriceData: 'Fiyat verisi yok.',
   priceOf: '{symbol} fiyatı',
@@ -1885,7 +1885,7 @@ const tr: Dict = {
   balanceMax: 'Bakiye {balance} · Maks',
   waitingApp: 'Uygulama bekleniyor…',
   txSent: 'İşlem gönderildi: {hash}',
-  marketTop: 'Top',
+  marketTop: 'En iyiler',
   marketSearchPlaceholder: 'Kripto veya token ara…',
   colAsset: "Varlık",
   colPrice: "Fiyat",
@@ -3221,6 +3221,9 @@ const ko: Dict = {
 };
 
 const DICT: Record<Lang, Dict> = { en, fr, es, pt, de, it, nl, pl, tr, ru, ar, hi, zh, ja, ko };
+
+/** Dictionnaires bruts, pour le test de parité des langues. */
+export const WEB_DICTIONARIES: Readonly<Record<Lang, Readonly<Dict>>> = DICT;
 
 export function translateWeb(lang: Lang, key: WebKey, vars?: Record<string, string | number>): string {
   let s = DICT[lang]?.[key] ?? en[key];

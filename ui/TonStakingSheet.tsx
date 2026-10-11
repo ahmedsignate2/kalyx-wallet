@@ -3,7 +3,7 @@
  * avant le code — ce qui sort, ce qui revient, les frais réels.
  */
 import { friendlyTxError } from '../lib/txError';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import { Sheet, Text, Button, Input, Surface, SegmentedControl } from './kit';
 import { ConfirmUnlock } from './ConfirmUnlock';

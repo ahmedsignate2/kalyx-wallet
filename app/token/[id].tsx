@@ -1,15 +1,13 @@
 import { LogoImage, ScreenHeader, Pressable as KPressable, Button, TokenIcon, Skeleton } from '../../ui/kit';
 import { fill } from '../../lib/i18n';
 import { SafeModal } from '../../ui/kit/SafeModal';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, useWindowDimensions, TextInput, KeyboardAvoidingView, Linking } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import {
   PremiumScreen,
   GlassCard,
-  SegmentedTabs,
-  CircleAction,
 } from '../../ui/premium';
 import { Halo } from '../../ui/kit/Halo';
 import { ActionDisc, GOLD, NovaCard, Orbit, Pills, Rise, SectionLabel } from '../../ui/nova';
@@ -43,6 +41,7 @@ import {
   formatNumber,
   shortAddress,
 } from '../../src';
+import { useShallow } from 'zustand/react/shallow';
 
 const money = formatFiat;
 function compact(v: number): string {
@@ -103,14 +102,14 @@ export default function TokenDetail() {
   const { colors, typography } = useTheme();
   const { id, chain: chainParam } = useLocalSearchParams<{ id: string; chain?: string }>();
   const t = useT();
-  const { fiat, language, favorites } = useSettings();
+  const { fiat, language, favorites } = useSettings(useShallow((s) => ({ fiat: s.fiat, language: s.language, favorites: s.favorites })));
   const toggleFavorite = useSettings((s) => s.toggleFavorite);
   const isFav = !!id && favorites.includes(id);
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const account = useWallet((s) => s.account);
   const accounts = useWallet((s) => s.accounts);
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
-  const portfolio = usePortfolioStore();
+  const portfolio = usePortfolioStore(useShallow((s) => ({ holdings: s.holdings })));
 
   const [detail, setDetail] = useState<CoinDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(true);
@@ -199,8 +198,8 @@ export default function TokenDetail() {
     const stored = state.accounts.find((a) => a.index === state.activeAccountIndex);
     if (!stored) return;
     const acct = { evmAddress: stored.evmAddress, solAddress: stored.solAddress, btcAddress: stored.btcAddress, tonPublicKey: stored.tonPublicKey, tonVersion: stored.tonVersion };
-    portfolio.hydrate(acct, fiat).then((current) => { if (current) void portfolio.refresh(acct, fiat); });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const pf = usePortfolioStore.getState();
+    pf.hydrate(acct, fiat).then((current) => { if (current) void pf.refresh(acct, fiat); });
   }, [account?.address, fiat]);
 
   useEffect(() => {
@@ -216,6 +215,13 @@ export default function TokenDetail() {
     return () => { alive = false; };
   }, [id, period, fiat]);
 
+  const hasHolding = !!holding;
+  const holdingContract = holding?.contract;
+  const holdingKind = holding?.kind;
+  const holdingSymbol = holding?.symbol;
+  const heldEvmContract = chain?.family === 'evm'
+    ? portfolio.holdings.find((h) => h.coingeckoId === id && h.contract)?.contract
+    : undefined;
   useEffect(() => {
     if (!chain) return;
     const stored = accounts.find((a) => a.index === activeAccountIndex) ?? accounts[0];
@@ -224,28 +230,27 @@ export default function TokenDetail() {
     let alive = true;
     setActivity(null);
     setActivityError(false);
-    const isNative = !holding?.contract && (holding?.kind === 'native' || !holding);
+    const isNative = !holdingContract && (holdingKind === 'native' || !hasHolding);
     getAdapter(chain.id).getHistory(address)
       .then((txs) => {
         if (!alive) return;
-        const symbol = (holding?.symbol ?? detail?.symbol ?? chain.nativeSymbol).toUpperCase();
+        const symbol = (holdingSymbol ?? detail?.symbol ?? chain.nativeSymbol).toUpperCase();
         const filtered = txs.filter((tx) => isNative
           ? !tx.asset || tx.asset.toUpperCase() === 'NATIVE' || tx.asset.toUpperCase() === symbol
           : tx.asset?.toUpperCase() === symbol);
         setActivity(filtered.slice(0, 4));
       })
       .catch(() => alive && (setActivityError(true), setActivity([])));
-    const held = portfolio.holdings.find((h) => h.coingeckoId === id && h.contract && chain.family === 'evm');
     // Pas de position détenue, mais le contrat est connu via la plateforme CoinGecko
     // du marché (`marketContract`) : on peut quand même afficher l'analyse de sécurité.
-    const contractToAssess = held?.contract ?? marketContract;
+    const contractToAssess = heldEvmContract ?? marketContract;
     if (contractToAssess && chain.evmChainId) {
       assessToken(chain.evmChainId, contractToAssess).then((r) => alive && setRisk(r)).catch(() => {});
     } else {
       setRisk(null);
     }
     return () => { alive = false; };
-  }, [chain?.id, accounts, activeAccountIndex, detail?.symbol, holding?.contract, holding?.kind, holding?.symbol, marketContract]);
+  }, [chain, accounts, activeAccountIndex, detail?.symbol, hasHolding, holdingContract, holdingKind, holdingSymbol, heldEvmContract, marketContract]);
 
   // La couleur reflète toujours la variation affichée (24 h), jamais une
   // tendance d'une période différente du sélecteur.
@@ -260,11 +265,6 @@ export default function TokenDetail() {
   const networkLogo = chain ? chainIconUrl(chain.id) : undefined;
   const assetName = detail?.name ?? (loadingDetail ? '…' : id ?? '');
   const networkName = chain?.name;
-  // Une fiche liée à une position doit distinguer les L2 qui partagent l'actif
-  // ETH avec Ethereum mainnet. On évite seulement le doublon « Bitcoin · Bitcoin ».
-  const displayTitle = networkName && assetName !== networkName
-    ? `${assetName} · ${networkName}`
-    : assetName;
   const displaySymbol = detail?.symbol
     ? `${detail.symbol}${networkName ? ` · ${networkName}` : ''}`
     : '';

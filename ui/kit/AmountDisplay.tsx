@@ -16,7 +16,7 @@
  * le ressort posé, on ramène silencieusement la position au cycle central —
  * même image à l'écran, prêt pour le prochain roulement.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, useReducedMotion } from 'react-native-reanimated';
 import { Text, type TextVariant } from './Text';
@@ -49,17 +49,20 @@ function Digit({
   const reduced = useReducedMotion();
   const y = useSharedValue(intro && !reduced ? -value * height : -canon(value) * height);
   const shown = useRef(value);
-  useEffect(() => {
+  const hasIntro = !!intro;
+  const playIntro = useEffectEvent(() => {
     if (!intro || reduced) return;
     // Un tour complet (dix crans vers le haut), ressort un peu plus ample.
     y.value = withDelay(intro.delay, withSpring(-canon(value) * height, { damping: 20, stiffness: 70, mass: 1 }));
-    // Au montage seulement : la suite passe par le roulement normal.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  // Au montage seulement : la suite passe par le roulement normal.
+  useEffect(() => {
+    playIntro();
   }, []);
 
   useEffect(() => {
     const from = shown.current;
-    if (intro && from === value) return; // le premier rendu appartient à la révélation
+    if (hasIntro && from === value) return; // le premier rendu appartient à la révélation
     shown.current = value;
     const rest = -canon(value) * height;
     if (reduced || direction === 'none' || from === value) {
@@ -81,7 +84,7 @@ function Digit({
         if (finished) y.value = rest;
       }),
     );
-  }, [value, height, delay, reduced, direction, y]);
+  }, [value, height, delay, reduced, direction, y, hasIntro]);
 
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
   return (

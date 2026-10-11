@@ -1,7 +1,7 @@
 import { FlowDots, NovaHero } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Screen } from '../ui/components';

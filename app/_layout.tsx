@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { attachPriceCacheStorage } from '../src';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { JournalProbe } from '../ui/JournalProbe';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, router, usePathname } from 'expo-router';
@@ -9,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import { OfflineBanner } from '../ui/OfflineBanner';
 import { FloatingAiAssistant } from '../components/ai/FloatingAiAssistant';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useWallet } from '../lib/walletStore';
 import { useAuraBinding } from '../lib/auraBinding';
 import { useAiStore } from '../lib/aiStore';
@@ -227,7 +228,7 @@ export default function RootLayout() {
         console.error('[Kalyx] WalletConnect init a échoué :', e);
       }
     })();
-  }, [bootstrap, loadSettings, loadCustomTokens, loadContacts, loadNotifs, loadCustomChains, loadPriceAlerts, loadRecents, loadTokenPrefs, initWalletConnect, loadAiState]);
+  }, [bootstrap, loadSettings, loadCustomTokens, loadContacts, loadNotifs, loadCustomChains, loadPriceAlerts, loadRecents, loadTokenPrefs, initWalletConnect, loadAiState, loadPendingBtc, loadDriveFlow]);
 
   if (!fontsLoaded) return null;
 
@@ -236,17 +237,20 @@ export default function RootLayout() {
   if (Platform.OS === 'web') {
     return (
       <RootErrorBoundary>
-        <SafeAreaProvider>
-          <StatusBar style="light" />
-          <WebDashboard />
-          <ToastHost />
-    </SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <SafeAreaProvider>
+            <StatusBar style="light" />
+            <WebDashboard />
+            <ToastHost />
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
       </RootErrorBoundary>
     );
   }
 
   return (
     <RootErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         {/* Icônes de statut claires sur thème sombre, et inversement. */}
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
@@ -337,6 +341,7 @@ export default function RootLayout() {
         ) : null}
         </View>
       </SafeAreaProvider>
+      </GestureHandlerRootView>
     </RootErrorBoundary>
   );
 }

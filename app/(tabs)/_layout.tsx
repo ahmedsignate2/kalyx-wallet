@@ -8,7 +8,6 @@
  * immédiat, avec son défilement et son état. `freezeOnBlur` coupe le rendu des
  * onglets cachés ; le navigateur y garde sa page ouverte sans rechargement.
  */
-import React from 'react';
 import { Tabs } from 'expo-router/tabs';
 import { Easing } from 'react-native';
 import { AppTabBar } from '../../ui/tabs';

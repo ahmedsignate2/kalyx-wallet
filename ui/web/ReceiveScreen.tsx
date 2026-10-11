@@ -6,7 +6,7 @@
  * famille d'adresse : EVM / Solana / Bitcoin).
  */
 import { fill } from '../../lib/i18n';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, ScrollView, Share, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';

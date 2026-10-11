@@ -7,7 +7,7 @@
  * - Mode célébration (burst animation)
  * - Mode erreur (contraction avec couleur rouge)
  */
-import React, { useEffect, useRef, ReactNode } from 'react';
+import { useEffect, useRef, ReactNode } from 'react';
 import { Animated, View, StyleSheet, Easing } from 'react-native';
 import Svg, { Rect, G } from 'react-native-svg';
 import { duration, spring } from './motion';
@@ -23,7 +23,6 @@ export interface KalyxRingProps {
 }
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
-const AnimatedG = Animated.createAnimatedComponent(G);
 
 export function KalyxRing({
   size = 120,

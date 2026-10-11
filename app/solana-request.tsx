@@ -7,7 +7,7 @@
  * qu'elle fait avant de proposer de signer, et refuser tout ce qui ne tient pas
  * debout — payeur qui n'est pas nous, signature d'un tiers exigée.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -80,12 +80,15 @@ export default function SolanaRequestScreen() {
     [t],
   );
 
+  const messageFor = useEffectEvent((reason?: TxRequestRefusal | 'UNAVAILABLE') =>
+    reason === 'UNAVAILABLE' ? t('solReqUnavailable') : refusalText(reason),
+  );
   useEffect(() => {
     let alive = true;
     void (async () => {
       const me = solAddress;
       if (!url || !me) {
-        setError(t('solReqUnavailable'));
+        setError(messageFor('UNAVAILABLE'));
         setLoading(false);
         return;
       }
@@ -99,7 +102,7 @@ export default function SolanaRequestScreen() {
       const payload = await fetchTxRequestPayload(url, me);
       if (!alive) return;
       if (!payload) {
-        setError(t('solReqFailed'));
+        setError(messageFor());
         setLoading(false);
         return;
       }
@@ -114,7 +117,7 @@ export default function SolanaRequestScreen() {
          * refus en français dans le domaine : ils sortaient en français quelle
          * que soit la langue choisie. Même faute que dans le magasin de Pay.
          */
-        setError(refusalText(check.reason));
+        setError(messageFor(check.reason));
         setLoading(false);
         return;
       }
@@ -127,7 +130,6 @@ export default function SolanaRequestScreen() {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, solAddress]);
 
   return (

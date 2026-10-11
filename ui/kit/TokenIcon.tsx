@@ -2,7 +2,7 @@
  * TokenIcon — image du token ; si elle manque ou échoue : MONOGRAMME
  * (initiale + couleur tirée du hash du contrat). Jamais d'image cassée (§2.8).
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Text } from './Text';
 import { LogoImage } from './LogoImage';

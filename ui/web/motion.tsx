@@ -4,7 +4,7 @@
  * fondu au changement d'onglet, halo respirant. Toutes respectent
  * `prefers-reduced-motion` (durée 0).
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Animated, Easing, View, type StyleProp, type ViewStyle } from 'react-native';
 import { KalyxLogo } from '../KalyxLogo';
 
@@ -62,9 +62,10 @@ export function useCountUp(target: number | null, duration = 700): number | null
   const [shown, setShown] = useState<number | null>(target);
   const from = useRef<number>(target ?? 0);
   const v = useRef(new Animated.Value(0)).current;
+  const isBlank = useEffectEvent(() => shown == null);
   useEffect(() => {
     if (target == null) { setShown(null); return; }
-    if (reducedMotion() || shown == null) { from.current = target; setShown(target); return; }
+    if (reducedMotion() || isBlank()) { from.current = target; setShown(target); return; }
     const start = from.current;
     if (start === target) return;
     v.setValue(0);
@@ -72,8 +73,7 @@ export function useCountUp(target: number | null, duration = 700): number | null
     const anim = Animated.timing(v, { toValue: 1, duration, easing: EASE_OUT, useNativeDriver: false });
     anim.start(({ finished }) => { if (finished) { from.current = target; setShown(target); } });
     return () => { v.removeListener(id); anim.stop(); from.current = target; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target, duration]);
+  }, [target, duration, v]);
   return shown;
 }
 

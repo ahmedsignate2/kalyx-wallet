@@ -10,7 +10,7 @@
  *  - export CSV (téléchargé par le navigateur) ;
  *  - détail en feuille : statut, date, réseau, adresses, hash, explorateur.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { View, ScrollView, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Text, Surface, Divider, Chip, Input, SegmentedControl, ActivityRow, Skeleton, Sheet, ListRow, Button, Pressable } from '../kit';
@@ -18,6 +18,7 @@ import { Icon } from '../icon';
 import { useTheme } from '../theme';
 import { space } from '../tokens';
 import { useT, useActivityT, useSettings, fiatSymbol } from '../../lib/settingsStore';
+import { csvLabels } from '../../lib/csvLabels';
 import { useHistoryStore, useHistoryCache, cacheKey } from '../../lib/historyStore';
 import { usePortfolioStore } from '../../lib/portfolio';
 import { useContacts } from '../../lib/contactsStore';
@@ -96,15 +97,14 @@ export function WebActivity({ onReceive }: { onReceive: () => void }) {
   }, [shared, holdingKey, cachedKey]);
   const targetKey = targets.map((x) => `${x.chain.id}:${x.address}`).join(',');
 
-  const load = useCallback(async (force: boolean) => {
+  const load = useEffectEvent(async (force: boolean) => {
     await Promise.all(targets.map((x) => fetchHistory(x.chain.id, x.address, { force }).catch(() => {})));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetKey, fetchHistory]);
+  });
   // `rev` change après chaque signature : l'activité est relue sans attendre.
   useEffect(() => {
     setAttempted(false);
     void load(rev > 0).finally(() => setAttempted(true));
-  }, [load, rev]);
+  }, [targetKey, rev]);
 
   const loading = useHistoryStore((s) => targets.some((x) => s.loading[cacheKey(x.chain.id, x.address)] === true));
 
@@ -194,6 +194,7 @@ export function WebActivity({ onReceive }: { onReceive: () => void }) {
       nativeDecimals: first?.nativeDecimals ?? 18,
       explorerUrl: first?.explorerUrl,
       chainOf: chainMetaOf,
+      labels: csvLabels(t),
     });
     if (downloadText('kalyx-history.csv', csv)) return;
     void Clipboard.setStringAsync(csv).then(() => toast.success(t('copied'))).catch(() => toast.error(t('exportFailed')));

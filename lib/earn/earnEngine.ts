@@ -44,6 +44,8 @@ import {
 import type { Unlock } from '../walletStore';
 import { useWallet } from '../walletStore';
 import { submitSolanaSigned } from '../solanaSubmit';
+import { fill, translate } from '../i18n';
+import { useSettings } from '../settingsStore';
 
 export interface EarnAccount {
   evmAddress: string;
@@ -348,7 +350,7 @@ async function contractQuote(
     gasNative,
     gasUsd: 0,
     feeUsd: 0,
-    routeLabel: p.kind === 'lending' ? 'Contrat Aave v3 (direct)' : `Contrat ${p.name} (direct)`,
+    routeLabel: fill(translate(useSettings.getState().language, 'earnRouteDirect'), { name: p.kind === 'lending' ? 'Aave v3' : p.name }),
     tx: { ...tx, gasLimit },
   };
 }

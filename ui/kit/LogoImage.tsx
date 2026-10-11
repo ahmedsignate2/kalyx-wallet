@@ -5,7 +5,7 @@
  * Tout écran qui affiche une URL susceptible de venir de `chainIconUrl` passe
  * par ici : un <Image> nu ne sait pas lire « kalyx-chain:… » et resterait vide.
  */
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Image, View, type ImageStyle, type StyleProp } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { embeddedChainLogo } from '../../src';

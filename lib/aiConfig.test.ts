@@ -1,4 +1,4 @@
-import { AI_ERROR_KEYS, aiErrorCodeFromStatus, aiErrorFromHttp, aiLanguageName, formatAiError, type AiErrorCode } from './aiConfig';
+import { AI_ERROR_KEYS, aiErrorCodeFromStatus, aiErrorFromHttp, aiLanguageDirective, aiLanguageName, formatAiError, withAiLanguage, type AiErrorCode } from './aiConfig';
 
 // Traducteur factice : renvoie la clé, avec un gabarit {status} pour la clé qui en a un.
 const tr = (k: string) => ((k as string) === 'aiErrorUnknownStatus' ? 'unknown {status}' : `[${k as string}]`);
@@ -44,5 +44,22 @@ describe('aiLanguageName', () => {
   it("retombe sur l'anglais pour une langue inconnue ou absente", () => {
     expect(aiLanguageName('sv')).toBe('English');
     expect(aiLanguageName(undefined)).toBe('English');
+  });
+});
+
+describe('aiLanguageDirective', () => {
+  it("impose la langue active de l'app, nommée en clair", () => {
+    expect(aiLanguageDirective('ko')).toContain('Korean');
+    expect(aiLanguageDirective('de')).toContain('German');
+    expect(aiLanguageDirective('ko')).toMatch(/mandatory/i);
+  });
+  it("retombe sur l'anglais, jamais sur le français", () => {
+    expect(aiLanguageDirective(undefined)).toContain('English');
+    expect(aiLanguageDirective('sv')).toContain('English');
+  });
+  it('se place après toute consigne fournie, même en français', () => {
+    const sys = withAiLanguage('Tu es Kalyx Copilot. Réponds en français.', 'ja');
+    expect(sys.startsWith('Tu es Kalyx Copilot.')).toBe(true);
+    expect(sys.endsWith(aiLanguageDirective('ja'))).toBe(true);
   });
 });

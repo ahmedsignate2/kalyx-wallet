@@ -1,21 +1,20 @@
 import { NovaCard, NovaHero, NovaSwitch, SettingRow } from '../ui/nova';
 import { ScreenHeader } from '../ui/kit';
-import React from 'react';
-import { View, Text, Switch, ScrollView } from 'react-native';
+import { ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
-import { PremiumScreen, GlassCard } from '../ui/premium';
-import { Icon, type IconName } from '../ui/icon';
-import { spacing, useTheme } from '../ui/theme';
+import { PremiumScreen } from '../ui/premium';
+import { type IconName } from '../ui/icon';
+import { spacing } from '../ui/theme';
 import { useSettings, useT } from '../lib/settingsStore';
+import { useShallow } from 'zustand/react/shallow';
 
 /**
  * Modules & fonctions : active/désactive des capacités optionnelles de Kalyx.
  * Chaque bascule agit vraiment sur l'app (pas de placeholder).
  */
 export default function Extensions() {
-  const { colors, typography } = useTheme();
   const t = useT();
-  const { securityScan, uiMode, setFlag, setUiMode } = useSettings();
+  const { securityScan, uiMode, setFlag, setUiMode } = useSettings(useShallow((s) => ({ securityScan: s.securityScan, uiMode: s.uiMode, setFlag: s.setFlag, setUiMode: s.setUiMode })));
 
   const modules: { icon: IconName; title: string; sub: string; value: boolean; onChange: (v: boolean) => void }[] = [
     {

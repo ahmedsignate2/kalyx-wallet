@@ -2,22 +2,20 @@ import { GOLD, IconDisc, NovaHero, Pulse, Rise } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, TextInput, Alert, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import { Screen, Card, Button, Title, Muted } from '../ui/components';
+import { Screen, Card, Button } from '../ui/components';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { walletDisplayName, walletPosition } from '../lib/walletNames';
-import { useT, useSettings } from '../lib/settingsStore';
+import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
-import { friendlyTxError } from '../lib/txError';
 import { WalletAvatar, AvatarPicker } from '../ui/avatarArt';
 
 export default function Wallets() {
   const { colors, typography } = useTheme();
   const t = useT();
-  const language = useSettings((st) => st.language);
   const wallets = useWallet((s) => s.wallets);
   const activeWalletId = useWallet((s) => s.activeWalletId);
   const setActiveWallet = useWallet((s) => s.setActiveWallet);

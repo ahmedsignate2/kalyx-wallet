@@ -12,9 +12,9 @@ import { useT } from "../lib/settingsStore";
  * Composant de PRÉSENTATION : le parent fournit l'explication et gère l'action.
  */
 import { dappHost } from '../src/domain/web/dappHost';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, ScrollView, Image } from 'react-native';
-import { Text, Button, HoldButton, Surface, Divider, RiskBadge, AddressGlyph, Sheet, Skeleton, Pressable, Pressable as KPressable } from './kit';
+import { Text, Button, HoldButton, Surface, Divider, RiskBadge, AddressGlyph, Sheet, Skeleton, Pressable as KPressable } from './kit';
 import { Icon } from './icon';
 import { useTheme } from './theme';
 import { space, radius } from './tokens';

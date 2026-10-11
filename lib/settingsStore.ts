@@ -11,14 +11,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isDecoySession, onDecoyChange } from './sessionMode';
 
 export const FIATS = [
-  { code: 'eur', symbol: '€', name: 'Euro' },
-  { code: 'usd', symbol: '$', name: 'US Dollar' },
-  { code: 'gbp', symbol: '£', name: 'British Pound' },
-  { code: 'chf', symbol: 'CHF', name: 'Swiss Franc' },
-  { code: 'jpy', symbol: '¥', name: 'Japanese Yen' },
-  { code: 'cad', symbol: 'C$', name: 'Canadian Dollar' },
-  { code: 'aud', symbol: 'A$', name: 'Australian Dollar' },
-] as const;
+  { code: 'eur', symbol: '€', nameKey: 'fiatEur' },
+  { code: 'usd', symbol: '$', nameKey: 'fiatUsd' },
+  { code: 'gbp', symbol: '£', nameKey: 'fiatGbp' },
+  { code: 'chf', symbol: 'CHF', nameKey: 'fiatChf' },
+  { code: 'jpy', symbol: '¥', nameKey: 'fiatJpy' },
+  { code: 'cad', symbol: 'C$', nameKey: 'fiatCad' },
+  { code: 'aud', symbol: 'A$', nameKey: 'fiatAud' },
+] as const satisfies readonly { code: string; symbol: string; nameKey: Key }[];
 
 export type UiMode = 'beginner' | 'expert';
 /** Apparence : suivre l'OS, ou forcer sombre/clair. */

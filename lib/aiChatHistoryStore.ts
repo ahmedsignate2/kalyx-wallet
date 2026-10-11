@@ -15,6 +15,8 @@ export interface ChatMessage {
    * d'elle-même : l'assistant suggère, l'utilisateur décide (cf. lib/aiActions).
    */
   action?: { label: string; route: string; params: Record<string, string> };
+  /** Réponse d'échec (clé absente, fournisseur injoignable) : signalée par une icône, pas par un emoji. */
+  isError?: boolean;
 }
 
 export interface ChatSession {
@@ -36,6 +38,15 @@ interface AiChatHistoryState {
 /** Sortie de la session leurre : la prochaine relecture ne garde rien de la mémoire. */
 let dropChatMemoryOnHydrate = false;
 
+/**
+ * Discussion sans titre : l'écran affiche « Nouvelle discussion » dans la
+ * langue de l'utilisateur. Les sessions déjà enregistrées portent ce titre en
+ * français.
+ */
+export function isUntitledSession(title: string): boolean {
+  return !title || title === 'Nouvelle discussion';
+}
+
 export const useAiChatHistoryStore = create<AiChatHistoryState>()(
   persist(
     (set, get) => ({
@@ -46,7 +57,7 @@ export const useAiChatHistoryStore = create<AiChatHistoryState>()(
         const newId = Date.now().toString();
         const newSession: ChatSession = {
           id: newId,
-          title: 'Nouvelle discussion',
+          title: '',
           updatedAt: Date.now(),
           messages: [],
         };
@@ -60,7 +71,7 @@ export const useAiChatHistoryStore = create<AiChatHistoryState>()(
       setActiveSession: (id) => set({ activeSessionId: id }),
 
       addMessageToActive: (msg) => {
-        const { activeSessionId, sessions, createNewSession } = get();
+        const { activeSessionId, createNewSession } = get();
         const currentId = activeSessionId || createNewSession();
 
         const fullMsg: ChatMessage = {

@@ -15,7 +15,7 @@ import { sameAddress } from '../lib/txAuditProbe';
 import { holdingLabel } from '../lib/holdingLabel';
 import { SendResult } from '../ui/SendResult';
 import { RecipientFacts } from '../ui/RecipientFacts';
-import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useEffectEvent, useMemo, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { holdingIcon } from '../ui/kit/useFallbackLogo';
@@ -41,7 +41,6 @@ import { usePortfolioStore, splitHoldings, useTestnetBalances, testnetHoldings, 
 import { notifyAndLog } from '../lib/notificationCenter';
 import { technicalLogger } from '../lib/technicalLogger';
 import { haptic } from '../lib/haptics';
-import { toast } from '../lib/toast';
 import {
   getAdapter, hasChain, isWalletError, isValidEvmAddress, isValidSolanaAddress, isWalletAddress, isValidBtcAddress, parseAmount, formatTokenAmount, formatInputAmount, trimDecimalZeros,
   formatAmount, formatFiat, getCustomTokens, looksLikeEnsName, resolveEnsName, detectPoisoning, groupAddress, shortAddress,
@@ -53,8 +52,26 @@ import {
 import { addressForChain } from '../lib/accountAddress';
 import { useHistoryStore } from '../lib/historyStore';
 import { AntiDrainerBanner } from '../src/components/security/AntiDrainerBanner';
+import { useShallow } from 'zustand/react/shallow';
 
 type Step = 0 | 1 | 2 | 3 | 4;
+
+const cleanAddressInput = (str: string): string | null => {
+  const trimmed = (str ?? '').trim();
+  if (
+    !trimmed ||
+    trimmed.includes('Exception') ||
+    trimmed.includes('Error') ||
+    trimmed.includes('java.') ||
+    trimmed.includes('at com.') ||
+    trimmed.includes('\n') ||
+    trimmed.includes('\r') ||
+    trimmed.length > 120
+  ) {
+    return null;
+  }
+  return trimmed;
+};
 
 function SendInner() {
   const t = useT();
@@ -63,11 +80,11 @@ function SendInner() {
   const fiat = useSettings((s) => s.fiat);
   const showTestnets = useSettings((s) => s.showTestnets);
   const sym = fiatSymbol(fiat);
-  const wallet = useWallet();
+  const wallet = useWallet(useShallow((s) => ({ account: s.account, activeChain: s.activeChain, accounts: s.accounts, activeAccountIndex: s.activeAccountIndex, sendJetton: s.sendJetton, sendSolToken: s.sendSolToken, sendToken: s.sendToken, signAndSend: s.signAndSend })));
   const { account, activeChain, accounts } = wallet;
   const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; jetton?: string; exp?: string; symbol?: string; decimals?: string; chain?: string; references?: string; memo?: string; payee?: string; note?: string }>();
   const setActiveChain = useWallet((s) => s.setActiveChain);
-  const pf = usePortfolioStore();
+  const pf = usePortfolioStore(useShallow((s) => ({ holdings: s.holdings, hydrate: s.hydrate, invalidate: s.invalidate, loading: s.loading, refresh: s.refresh })));
 
   // « Quoi envoyer » (étape 0) : depuis l'accueil, on choisit le TOKEN et la chaîne
   // en découle. Depuis la page d'un token (params), on saute cette étape.
@@ -127,23 +144,6 @@ function SendInner() {
   const decimals = token ? token.decimals : chain.nativeDecimals;
   const isNativeSend = !token;
 
-  const cleanAddressInput = (str: string): string | null => {
-    const trimmed = (str ?? '').trim();
-    if (
-      !trimmed ||
-      trimmed.includes('Exception') ||
-      trimmed.includes('Error') ||
-      trimmed.includes('java.') ||
-      trimmed.includes('at com.') ||
-      trimmed.includes('\n') ||
-      trimmed.includes('\r') ||
-      trimmed.length > 120
-    ) {
-      return null;
-    }
-    return trimmed;
-  };
-
   const [to, setTo] = useState(cleanAddressInput(String(params.to ?? '')) ?? '');
   const [amount, setAmount] = useState(String(params.amount ?? ''));
   // Retour du scanner / des contacts : les params changent, on les applique.
@@ -157,7 +157,7 @@ function SendInner() {
     if (params.amount) setAmount(String(params.amount));
   }, [params.amount]);
   // Étape 0 : le portefeuille agrégé doit être chargé (cache d'abord).
-  useEffect(() => {
+  const loadPortfolio = useEffectEvent(() => {
     const st = accounts.find((a) => a.index === wallet.activeAccountIndex) ?? accounts[0];
     if (!st) return;
     const a = { evmAddress: st.evmAddress, solAddress: st.solAddress, btcAddress: st.btcAddress, tonPublicKey: st.tonPublicKey, tonVersion: st.tonVersion };
@@ -165,7 +165,9 @@ function SendInner() {
     // les réseaux de test se lisent à part et s'ajoutent à la liste ci-dessous.
     pf.hydrate(a, fiat).then((current) => { if (current) void pf.refresh(a, fiat, { force: true }); });
     if (showTestnets) void useTestnetBalances.getState().refresh(a, { force: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    loadPortfolio();
   }, [wallet.activeAccountIndex, fiat, showTestnets]);
   const testnetBals = useTestnetBalances((s) => s.balances);
   const sendable = useMemo(
@@ -275,7 +277,7 @@ function SendInner() {
   const [reserve, setReserve] = useState<bigint>(0n);
   /** Jetton TON : coût RÉEL (émulé), distinct du TON joint au message qu'il faut avoir. */
   const [jettonFee, setJettonFee] = useState<bigint | null>(null);
-  useEffect(() => {
+  const loadSendCosts = useEffectEvent((isAlive: () => boolean) => {
     setBalance(picked?.raw ?? null);
     setPrice(picked?.price ?? 0);
     setNativeBal(picked?.kind === 'native' ? picked.raw : null);
@@ -286,7 +288,6 @@ function SendInner() {
     setAmountError(null);
 
     if (!senderAddress) return;
-    let alive = true;
     const a = getAdapter(targetChainId);
     (async () => {
       const [nat, res, np] = await Promise.all([
@@ -294,7 +295,7 @@ function SendInner() {
         estimateGasReserve(a).then((r) => r.raw).catch(() => 0n),
         chain.coingeckoId ? getPrices([chain.coingeckoId], fiat).then((p) => p[chain.coingeckoId!]?.price ?? 0).catch(() => 0) : Promise.resolve(0),
       ]);
-      if (!alive) return;
+      if (!isAlive()) return;
       setNativeBal(nat);
       setReserve(res);
       setNativePrice(np);
@@ -304,19 +305,19 @@ function SendInner() {
       } else if (token.kind === 'erc20' && family === 'evm') {
         const [t] = await getCustomTokens(chain, senderAddress, [token.contract]).catch(() => [] as { raw: bigint }[]);
         const tp = chain.coingeckoPlatform ? await getTokenPrices(chain.coingeckoPlatform, [token.contract], fiat).catch(() => ({} as Record<string, number>)) : {};
-        if (!alive) return;
+        if (!isAlive()) return;
         setBalance(t?.raw ?? 0n);
         setPrice(tp[token.contract.toLowerCase()] ?? 0);
       } else if (token.kind === 'spl' && a instanceof SolanaChainAdapter) {
         const list = await a.getSplTokens(senderAddress).catch(() => []);
         const tp = await getTokenPrices('solana', [token.mint], fiat).catch(() => ({} as Record<string, number>));
-        if (!alive) return;
+        if (!isAlive()) return;
         setBalance(list.find((x) => x.mint === token.mint)?.raw ?? 0n);
         setPrice(tp[token.mint.toLowerCase()] ?? 0);
       } else if (token.kind === 'jetton') {
         const ton = findAdapterV2(targetChainId);
         const list = ton instanceof TonAdapterV2 ? await ton.jettons(senderAddress, fiat).catch(() => []) : [];
-        if (!alive) return;
+        if (!isAlive()) return;
         const held = list.find((x) => x.master === token.master.toLowerCase());
         setBalance(held?.raw ?? 0n);
         setPrice(held?.verification === 'whitelist' ? held.price : 0);
@@ -325,7 +326,7 @@ function SendInner() {
         // Coût réel, émulé sur un envoi à soi-même : c'est lui qu'on affiche.
         if (ton instanceof TonAdapterV2 && held && held.raw > 0n) {
           ton.prepareSend(senderAddress, { to: senderAddress, amount: 1n, token: { id: held.master, symbol: held.symbol, decimals: held.decimals } })
-            .then((d) => alive && setJettonFee(d.fee))
+            .then((d) => isAlive() && setJettonFee(d.fee))
             .catch(() => {});
         }
       }
@@ -346,7 +347,7 @@ function SendInner() {
           : null;
         v2.quoteFees(senderAddress, { to: recipientOk ? recipient : senderAddress, amount: 1n, token: ref })
           .then((q: FeeQuotes) => {
-            if (!alive) return;
+            if (!isAlive()) return;
             // `FeeOptions` attend la forme EVM : `costWei` porte le coût, les
             // deux autres champs ne servent qu'au palier EVM, qui les relit.
             const tier = (t: (typeof q)['slow']) => {
@@ -365,15 +366,18 @@ function SendInner() {
 
       // Frais PRÉLEVÉS PAR LE JETON (Token-2022) : propre à Solana.
       if (a instanceof SolanaChainAdapter && token?.kind === 'spl') {
-        a.getTransferFeeConfig(token.mint).then((c) => alive && setTokenFee(c)).catch(() => {});
+        a.getTransferFeeConfig(token.mint).then((c) => isAlive() && setTokenFee(c)).catch(() => {});
       } else {
         setTokenFee(null);
       }
     })();
+  });
+  useEffect(() => {
+    let alive = true;
+    loadSendCosts(() => alive);
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [senderAddress, targetChainId, fiat, params.contract, params.mint, params.jetton, picked?.id]);
 
   // Frais en natif (unité brute) : palier EVM choisi, sinon réserve dynamique.
@@ -584,9 +588,8 @@ function SendInner() {
   };
 
   // Suivi : attente de confirmation (EVM 1 bloc ; Solana poll ; BTC = envoyée).
-  useEffect(() => {
+  const trackConfirmation = useEffectEvent((isAlive: () => boolean) => {
     if (step !== 4 || !hash) return;
-    let alive = true;
     const a = getAdapter(activeChain);
     (async () => {
       try {
@@ -594,7 +597,7 @@ function SendInner() {
           setStage('included');
           await a.waitForTx(hash);
         } else if (a instanceof SolanaChainAdapter) {
-          for (let i = 0; i < 40 && alive; i++) {
+          for (let i = 0; i < 40 && isAlive(); i++) {
             await new Promise((r) => setTimeout(r, 2000));
             const st = await a.rpc<{ value?: ({ err?: unknown; confirmationStatus?: string } | null)[] }>('getSignatureStatuses', [[hash]]).catch(() => null);
             const s = st?.value?.[0];
@@ -613,7 +616,7 @@ function SendInner() {
         } else {
           return; // Bitcoin : pas de suivi in-app (v1)
         }
-        if (alive) {
+        if (isAlive()) {
           setStage('confirmed');
           technicalLogger.logTx('step_4_confirmed', { txHash: hash, chain: chain.name });
           haptic.success();
@@ -621,13 +624,16 @@ function SendInner() {
         }
       } catch (err) {
         technicalLogger.logTx('step_4_confirmation_failed', { txHash: hash, error: String(err), chain: chain.name }, true);
-        if (alive) setStage('failed');
+        if (isAlive()) setStage('failed');
       }
     })();
+  });
+  useEffect(() => {
+    let alive = true;
+    trackConfirmation(() => alive);
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, hash]);
 
   /** Destinataire refusé par la liste blanche : on propose de l'y ajouter (utilisable après 24 h). */
@@ -759,6 +765,9 @@ function SendInner() {
    * l'information utile.
    */
   const autoAdvanced = useRef(false);
+  const advance = useEffectEvent(() => {
+    void goStep3();
+  });
   useEffect(() => {
     if (!isPrefilledPayment || autoAdvanced.current) return;
     if (step !== 2 || balance == null || amountRaw <= 0n) return;
@@ -766,8 +775,7 @@ function SendInner() {
     // avant leur chargement produirait une erreur qui disparaîtrait ensuite.
     if (isNativeSend && !feeOptions) return;
     autoAdvanced.current = true;
-    void goStep3();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    advance();
   }, [isPrefilledPayment, step, balance, amountRaw, isNativeSend, feeOptions]);
 
   const paste = async () => {

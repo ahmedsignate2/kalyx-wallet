@@ -1,6 +1,6 @@
 /** Vérification (§4.9) — retrouver 3 mots au hasard, pas les 12. Succès → `backupVerified`. */
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

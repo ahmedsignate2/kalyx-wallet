@@ -14,8 +14,9 @@
  *    les deux secondes le banaliserait. La géométrie est partagée pour que les
  *    deux versions ne puissent jamais diverger.
  */
-import React, { useEffect, useId } from 'react';
-import Animated, { Easing, useAnimatedProps, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withRepeat, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import { useEffect, useId } from 'react';
+import { useLoopActive } from './useLoopActive';
+import Animated, { Easing, cancelAnimation, useAnimatedProps, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withRepeat, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Stop, G, Rect, Circle } from 'react-native-svg';
 import { springs, BRAND_GOLD } from './tokens';
 
@@ -150,12 +151,13 @@ export function KalyxLogoIgnite({
     bloom.value = withDelay(delay, withSpring(1, springs.gentle));
   }, [core, bloom, reduced, delay]);
 
+  const visible = useLoopActive();
   useEffect(() => {
-    if (!alive || reduced) { wave.value = 0; sway.value = 0; return; }
+    if (!alive || reduced || !visible) { cancelAnimation(wave); cancelAnimation(sway); wave.value = 0; sway.value = 0; return; }
     // Boucle NON inversée : l'onde tourne toujours dans le même sens.
     wave.value = withRepeat(withTiming(1, { duration: 4200, easing: Easing.linear }), -1, false);
     sway.value = withRepeat(withTiming(1, { duration: 5500, easing: Easing.inOut(Easing.sin) }), -1, true);
-  }, [alive, reduced, wave, sway]);
+  }, [alive, reduced, visible, wave, sway]);
 
   /*
    * Le soleil s'ouvre : il part légèrement plus petit et pivoté d'un huitième

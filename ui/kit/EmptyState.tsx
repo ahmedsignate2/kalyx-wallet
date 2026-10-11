@@ -1,5 +1,4 @@
 /** EmptyState — un écran vide invite à une action (§6). Icône, phrase, bouton. */
-import React from 'react';
 import { View } from 'react-native';
 import { Text } from './Text';
 import { Button } from './Button';

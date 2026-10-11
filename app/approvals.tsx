@@ -2,14 +2,14 @@ import { NovaCard, NovaHero } from '../ui/nova';
 import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { fetchApprovalCandidates } from '../src/domain/security/goplus';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, ScrollView, RefreshControl } from 'react-native';
 import { Stack } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { PremiumScreen, GlassCard, SkeletonRow, Avatar } from '../ui/premium';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
-import { fonts, radii, spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
@@ -28,6 +28,8 @@ import {
 function shorten(a: string) {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
+
+const keyOf = (it: { token: string; spender: string }) => `${it.token.toLowerCase()}-${it.spender.toLowerCase()}`;
 
 function ApprovalsInner() {
   const { colors, typography } = useTheme();
@@ -49,7 +51,6 @@ function ApprovalsInner() {
    * carte = elle seule), UNE confirmation, puis une transaction par
    * autorisation (store.revokeApprovals). La progression reste à l'écran.
    */
-  const keyOf = (it: { token: string; spender: string }) => `${it.token.toLowerCase()}-${it.spender.toLowerCase()}`;
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const toggle = (it: ApprovalItem) =>
     setSelected((cur) => {
@@ -127,7 +128,7 @@ function ApprovalsInner() {
     } finally {
       if (current()) setLoading(false);
     }
-  }, [account, activeChain, chain, isEvm, evmOwner]);
+  }, [account, activeChain, chain, isEvm, evmOwner, t]);
 
   useEffect(() => {
     load();

@@ -9,6 +9,7 @@
  * « Réduire les animations » coupe tout mouvement autonome sans rien cacher.
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { useLoopActive } from './useLoopActive';
 import { Switch, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
@@ -44,12 +45,19 @@ export const GOLD = BRAND_GOLD.light;
 export function Orbit({ cx, cy, r = 150, style }: { cx: number; cy: number; r?: number; style?: StyleProp<ViewStyle> }) {
   const { mode } = useTheme();
   const reduce = useReduceMotion();
+  const active = useLoopActive();
   const rot = useSharedValue(0);
   useEffect(() => {
     if (reduce) { rot.value = 0; return; }
-    rot.value = withRepeat(withTiming(360, { duration: 40000, easing: Easing.linear }), -1, false);
+    if (!active) { cancelAnimation(rot); return; }
+    // Reprise à l'angle affiché : on finit le tour en cours, puis les tours repartent de 0 (même position visuelle que 360).
+    const from = rot.value % 360;
+    rot.value = withSequence(
+      withTiming(360, { duration: ((360 - from) / 360) * 40000, easing: Easing.linear }),
+      withRepeat(withSequence(withTiming(0, { duration: 0 }), withTiming(360, { duration: 40000, easing: Easing.linear })), -1, false),
+    );
     return () => cancelAnimation(rot);
-  }, [reduce, rot]);
+  }, [reduce, active, rot]);
   const size = (r + 70) * 2;
   const spin = useAnimatedStyle(() => ({ transform: [{ rotate: `${rot.value}deg` }] }));
   const ink = mode === 'dark' ? '242,244,250' : '6,7,13';
@@ -256,12 +264,13 @@ export function Rise({ delay = 0, children, style }: { delay?: number; children:
 
 export function Pulse({ size = 10, color = GOLD }: { size?: number; color?: string }) {
   const reduce = useReduceMotion();
+  const active = useLoopActive();
   const p = useSharedValue(0);
   useEffect(() => {
-    if (reduce) return;
+    if (reduce || !active) { cancelAnimation(p); p.value = 0; return; }
     p.value = withRepeat(withSequence(withTiming(1, { duration: 1400 }), withTiming(0, { duration: 0 })), -1, false);
     return () => cancelAnimation(p);
-  }, [reduce, p]);
+  }, [reduce, active, p]);
   const ring = useAnimatedStyle(() => ({ opacity: 0.55 * (1 - p.value), transform: [{ scale: 1 + p.value * 2.4 }] }));
   return (
     <View style={{ width: size, height: size }}>

@@ -18,7 +18,7 @@
  * (« Confirmer ») déclenche donc directement `onComplete` : le geste reste le
  * même pour tout le monde, la voie d'accès change.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable as RNPressable, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, withSpring, runOnJS, Easing, cancelAnimation } from 'react-native-reanimated';
 import { Text } from './Text';
@@ -59,9 +59,9 @@ export function HoldButton({
 
   const total = danger ? Math.max(durationMs, 2000) : durationMs;
 
-  const stopTicks = () => {
+  const stopTicks = useCallback(() => {
     if (tick.current) { clearTimeout(tick.current); tick.current = null; }
-  };
+  }, []);
 
   /**
    * Ticks qui se rapprochent : l'écart va de ~180 ms au début à ~55 ms à la fin.
@@ -105,7 +105,7 @@ export function HoldButton({
     if (progress.value < 1) progress.value = withSpring(0, springs.standard);
   };
 
-  useEffect(() => stopTicks, []);
+  useEffect(() => stopTicks, [stopTicks]);
 
   /*
    * NAVIGATEUR (site, mini-app Telegram). Un appui long y déclenche le menu
@@ -140,7 +140,9 @@ export function HoldButton({
     ? ({ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', touchAction: 'none', WebkitTapHighlightColor: 'transparent' } as object)
     : null;
 
-  const fill = useAnimatedStyle(() => ({ width: progress.value * width }));
+  // Découpe par translations (calque décalé, contenu contre-décalé) : aucune largeur animée.
+  const fill = useAnimatedStyle(() => ({ transform: [{ translateX: (progress.value - 1) * width }] }));
+  const fillContent = useAnimatedStyle(() => ({ transform: [{ translateX: (1 - progress.value) * width }] }));
   /** Compression : le bouton résiste de plus en plus, puis se relâche. */
   const squeeze = useAnimatedStyle(() =>
     reduced ? {} : { transform: [{ scale: 1 - progress.value * 0.03 }] },
@@ -177,8 +179,10 @@ export function HoldButton({
       >
         <Layer color={colors.text} />
         {/* Lumière + libellé inversé, découpés par la progression */}
-        <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, bottom: 0, overflow: 'hidden', backgroundColor: fillBg }, fill]}>
-          <Layer color={fillFg} />
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, bottom: 0, width, overflow: 'hidden', backgroundColor: fillBg }, fill]}>
+          <Animated.View style={fillContent}>
+            <Layer color={fillFg} />
+          </Animated.View>
         </Animated.View>
       </RNPressable>
       {burst ? <SparkBurst burstKey={burst} radius={70} /> : null}

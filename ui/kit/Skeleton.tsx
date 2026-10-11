@@ -1,5 +1,5 @@
 /** Skeleton — au lieu d'un spinner (§5 polish). Pulsation douce Orbite ↔ Crépuscule. */
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming, useReducedMotion } from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { radius } from '../tokens';

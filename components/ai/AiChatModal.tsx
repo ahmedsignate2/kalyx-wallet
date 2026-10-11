@@ -2,18 +2,18 @@ import { APP_ROUTES_MAP } from '../../lib/aiAppMap';
 import { SafeModal } from '../../ui/kit/SafeModal';
 import { parseProposedActions } from '../../lib/aiActions';
 import { formatDiagnosticContext } from '../../lib/diagnosticContext';
-import React, { useState, useEffect, useRef } from 'react';
-import { KeyboardAvoidingView, Platform, View, TextInput, ScrollView, Modal, FlatList } from 'react-native';
+import { useState, useEffect, useEffectEvent, useRef } from 'react';
+import { KeyboardAvoidingView, Platform, View, TextInput, ScrollView, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, IconButton, Skeleton, Chip, Pressable as KPressable } from '../../ui/kit';
+import { Text, IconButton, Chip, Pressable as KPressable } from '../../ui/kit';
 import { space, radius } from '../../ui/tokens';
 import { GOLD, IconDisc, Orbit, Pulse, Rise, TypingDots } from '../../ui/nova';
 import { useTheme } from '../../ui/theme';
 import { useAiStore } from '../../lib/aiStore';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { formatFiat } from '../../src/domain/validation/format';
-import { buildAiRequestParams, aiErrorFromHttp, aiLanguageName, formatAiError } from '../../lib/aiConfig';
-import { useAiChatHistoryStore } from '../../lib/aiChatHistoryStore';
+import { buildAiRequestParams, aiErrorFromHttp, aiLanguageDirective, aiLanguageName, formatAiError, withAiLanguage } from '../../lib/aiConfig';
+import { useAiChatHistoryStore, isUntitledSession } from '../../lib/aiChatHistoryStore';
 import { useGasTracker } from '../../lib/gasTrackerStore';
 import { Icon, type IconName } from '../../ui/icon';
 import { router } from 'expo-router';
@@ -32,7 +32,8 @@ import { useTicketHistoryStore } from '../../lib/ticketHistoryStore';
 import { detectSensitiveSecrets, sanitizeSecrets } from '../../lib/secretDetector';
 import { knownTxHashes } from '../../lib/knownTxHashes';
 import { kalyxDocsPrompt } from '../../lib/kalyxDocs';
-import { technicalLogger, getFormattedTechnicalLogs } from '../../lib/technicalLogger';
+import { technicalLogger } from '../../lib/technicalLogger';
+import { useShallow } from 'zustand/react/shallow';
 
 function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
   const { colors } = useTheme();
@@ -61,14 +62,14 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
     setErrorWarning(null);
     const check = detectSensitiveSecrets(normalizedTicket, knownTxHashes());
     if (check.hasSecret) {
-      setErrorWarning(check.warningMessage || t('aiSupportSecretAlert'));
+      setErrorWarning(t('secretTicketWarning'));
       return;
     }
     setIsOpening(true);
     try {
       await openTelegramTicket(normalizedTicket);
     } catch (e) {
-      setErrorWarning(e instanceof Error ? e.message : t('aiSupportOpenTelegramError'));
+      setErrorWarning(t('aiSupportOpenTelegramError'));
     } finally {
       setIsOpening(false);
     }
@@ -78,7 +79,7 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
     setErrorWarning(null);
     const check = detectSensitiveSecrets(normalizedTicket, knownTxHashes());
     if (check.hasSecret) {
-      setErrorWarning(check.warningMessage || t('aiSupportSecretAlert'));
+      setErrorWarning(t('secretTicketWarning'));
       return;
     }
     try {
@@ -151,7 +152,7 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
         >
           <Icon name="alert" size={16} color={colors.danger} />
           <Text variant="caption" tone="danger" style={{ flex: 1 }}>
-            {errorWarning || secretCheck.warningMessage}
+            {errorWarning || t('secretTicketWarning')}
           </Text>
         </View>
       ) : null}
@@ -209,24 +210,25 @@ export function AiChatModal({ visible, onClose, context }: { visible: boolean, o
   const { colors } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
-  const { provider, apiKey, customUrl, customModel, copilotStatus, currentSearchQuery, setCopilotStatus } = useAiStore();
-  const { profileName, language, fiat, aiToolsEnabled } = useSettings();
+  const { provider, apiKey, customUrl, customModel, copilotStatus, currentSearchQuery, setCopilotStatus } = useAiStore(useShallow((s) => ({ provider: s.provider, apiKey: s.apiKey, customUrl: s.customUrl, customModel: s.customModel, copilotStatus: s.copilotStatus, currentSearchQuery: s.currentSearchQuery, setCopilotStatus: s.setCopilotStatus })));
+  const { profileName, language, fiat, aiToolsEnabled } = useSettings(useShallow((s) => ({ profileName: s.profileName, language: s.language, fiat: s.fiat, aiToolsEnabled: s.aiToolsEnabled })));
   const activeChain = useWallet((s) => s.activeChain);
   const accounts = useWallet((s) => s.accounts);
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
-  const { ethGas, fetchGas } = useGasTracker();
+  const { ethGas, fetchGas } = useGasTracker(useShallow((s) => ({ ethGas: s.ethGas, fetchGas: s.fetchGas })));
   // Les frais sont exprimés dans la devise de l'utilisateur, pas en dollars.
-  useEffect(() => { if (visible) fetchGas(fiat); }, [visible, fiat]);
+  useEffect(() => { if (visible) fetchGas(fiat); }, [visible, fiat, fetchGas]);
   
-  const { sessions, activeSessionId, createNewSession, setActiveSession, addMessageToActive, deleteSession } = useAiChatHistoryStore();
+  const { sessions, activeSessionId, createNewSession, setActiveSession, addMessageToActive, deleteSession } = useAiChatHistoryStore(useShallow((s) => ({ sessions: s.sessions, activeSessionId: s.activeSessionId, createNewSession: s.createNewSession, setActiveSession: s.setActiveSession, addMessageToActive: s.addMessageToActive, deleteSession: s.deleteSession })));
   
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const initialPrompt = useAiStore((s) => s.initialPrompt);
+  const sendInitialPrompt = useEffectEvent((prompt: string) => sendMessage(prompt));
   useEffect(() => {
     if (visible && initialPrompt) {
        setInput(initialPrompt);
-       setTimeout(() => sendMessage(initialPrompt), 200);
+       setTimeout(() => sendInitialPrompt(initialPrompt), 200);
        useAiStore.getState().closeChat();
        useAiStore.setState({ initialPrompt: null });
     }
@@ -258,7 +260,7 @@ export function AiChatModal({ visible, onClose, context }: { visible: boolean, o
     if (visible && !activeSessionId) {
       createNewSession();
     }
-  }, [visible, activeSessionId]);
+  }, [visible, activeSessionId, createNewSession]);
 
   // Accueil (session vide) : rendu au CENTRE, pas de bulle injectée dans l'historique.
   const greeting =
@@ -397,7 +399,7 @@ une source externe.`}`;
      * la langue de l'utilisateur. Cherchée ICI avec la question, et jointe :
      * marche avec tous les fournisseurs, sans outil, sans appel ni coût.
      */
-    const docsBlock = kalyxDocsPrompt(question, (language || 'fr') as never);
+    const docsBlock = kalyxDocsPrompt(question, (language || 'en') as never);
 
     if (ctx.screen === 'browser') {
       return `${base}${docsBlock}\n\nNAVIGATION ACTIVE (dApp) :\n- URL : ${ctx.url || 'Page vierge'}\n- Titre : ${ctx.title || 'Inconnu'}\n\nVérifie la réputation de l'URL, préviens contre le phishing et réponds aux questions sur la dApp.`;
@@ -468,7 +470,7 @@ une source externe.`}`;
           console.warn('[CopilotContext] Échec de la consultation on-chain:', error instanceof Error ? error.message : 'erreur inconnue');
         }
       }
-      const SYSTEM_PROMPT = buildSystemPrompt(context, msgToSend);
+      const SYSTEM_PROMPT = withAiLanguage(buildSystemPrompt(context, msgToSend), language);
       copilotLog(traceId, 'context.ready', { systemPromptChars: SYSTEM_PROMPT.length, historyMessages: messages.length });
       
       /*
@@ -520,7 +522,8 @@ une source externe.`}`;
       const tooLarge = res.status === 413 || (res.status === 400 && /context|too large|too long|maximum|tokens/i.test(JSON.stringify(data).slice(0, 600)));
       if (tooLarge) {
         copilotLog(traceId, 'request.too_large.retry', { status: res.status, systemPromptChars: SYSTEM_PROMPT.length });
-        const compactSystem = SYSTEM_PROMPT.slice(0, 9000);
+        // La coupe retire la fin du prompt : la consigne de langue repart en tête.
+        const compactSystem = `${aiLanguageDirective(language)}\n\n${SYSTEM_PROMPT.slice(0, 9000)}`;
         const compactMessages = toApi(messages, 4);
         body = provider === 'anthropic'
           ? { ...body, system: compactSystem, messages: compactMessages }
@@ -637,7 +640,7 @@ une source externe.`}`;
               ListEmptyComponent={<Text variant="bodySecondary" tone="secondary">{t('aiNoChats')}</Text>}
               renderItem={({ item }) => (
                 <KPressable onPress={() => { setActiveSession(item.id); setShowHistory(false); }} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 52, gap: space[2], borderRadius: radius.input, paddingHorizontal: space[2], backgroundColor: item.id === activeSessionId ? colors.surface3 : 'transparent' }}>
-                  <Text variant="body" numberOfLines={1} style={{ flex: 1 }}>{item.title}</Text>
+                  <Text variant="body" numberOfLines={1} style={{ flex: 1 }}>{isUntitledSession(item.title) ? t('copilotNewChat') : item.title}</Text>
                   <KPressable onPress={() => deleteSession(item.id)} hitSlop={8} accessibilityLabel={t('aiDelete')}><Icon name="close" size={14} tone="faint" /></KPressable>
                 </KPressable>
               )}

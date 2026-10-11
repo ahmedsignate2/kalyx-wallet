@@ -4,10 +4,9 @@
  */
 import { IconDisc, NovaCard, NovaHero, Rise } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
-import React from 'react';
 import { View, Text } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { PremiumScreen, GlassCard } from '../ui/premium';
+import { PremiumScreen } from '../ui/premium';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme } from '../ui/theme';
 import { usePriceAlerts } from '../lib/priceAlertsStore';

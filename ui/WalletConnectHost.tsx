@@ -16,12 +16,12 @@ import { solanaMessageBytes } from '../lib/solanaMessage';
 import { dappHost } from '../src/domain/web/dappHost';
 import { bitcoinMessageParam, btcTransferParams, solanaMessageParam } from '../lib/messageParams';
 import { bytesToHex } from '@noble/hashes/utils';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, View, Text, ScrollView, Image, StyleSheet } from 'react-native';
-import { GlassCard, ErrorBox, GradientAvatar } from './premium';
+import React, { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { View, Text, Image } from 'react-native';
+import { GlassCard, GradientAvatar } from './premium';
 import { Button } from './components';
 import { ConfirmUnlock } from './ConfirmUnlock';
-import { Icon, type IconName } from './icon';
+import { Icon } from './icon';
 import { fonts, radii, spacing, useTheme } from './theme';
 import { useTokenStore } from '../lib/tokenStore';
 import { assertSessionAccount, useWalletConnect, SOLANA_DEVNET_CAIP } from '../lib/walletconnect';
@@ -278,10 +278,9 @@ export function WalletConnectHost() {
   }, [request, sessions, t]);
 
   // Simulation (transactions uniquement).
-  useEffect(() => {
+  const simulate = useEffectEvent((isAlive: () => boolean) => {
     setSim(null);
     if (!info || info.kind !== 'tx' || !info.tx || !info.chain || !account) return;
-    let alive = true;
     setSim('loading');
     (async () => {
       const d = info.decoded;
@@ -289,18 +288,21 @@ export function WalletConnectHost() {
       // Le compte qui SIGNERA (compte actif, adresse EVM) — pas l'adresse du réseau affiché.
       const w = useWallet.getState();
       const from = w.accounts.find((a) => a.index === w.activeAccountIndex)?.evmAddress ?? '';
-      if (!from) { if (alive) setSim(null); return; }
+      if (!from) { if (isAlive()) setSim(null); return; }
       const s = await simulateTx(info.chain!, { from, to: info.tx!.to, value: info.tx!.value, data: info.tx!.data }, meta ? { symbol: meta.symbol, decimals: meta.decimals } : undefined);
-      if (alive) setSim(s);
+      if (isAlive()) setSim(s);
     })();
+  });
+  useEffect(() => {
+    let alive = true;
+    simulate(() => alive);
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request]);
 
   // Token d'un Permit / Permit2 : symbole et décimales, pour ne jamais afficher « tes Permit2 ».
-  useEffect(() => {
+  const resolvePermitToken = useEffectEvent((isAlive: () => boolean) => {
     setPermitToken(null);
     const addr = info?.typed?.token;
     if (!info || info.kind !== 'typedData' || !addr) return;
@@ -308,35 +310,39 @@ export function WalletConnectHost() {
     if (!chain) return;
     const local = (useTokenStore.getState().tokensByChain[chain.id] ?? []).find((tk) => tk.address.toLowerCase() === addr.toLowerCase());
     if (local) { setPermitToken({ symbol: local.symbol, decimals: local.decimals }); return; }
+    getTokenMetadata(chain, addr).then((m) => { if (isAlive() && m) setPermitToken({ symbol: m.symbol, decimals: m.decimals }); }).catch(() => {});
+  });
+  useEffect(() => {
     let alive = true;
-    getTokenMetadata(chain, addr).then((m) => { if (alive && m) setPermitToken({ symbol: m.symbol, decimals: m.decimals }); }).catch(() => {});
+    resolvePermitToken(() => alive);
     return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request]);
 
   // Analyse de sécurité GoPlus (désactivable via Extensions → Analyse de sécurité).
-  useEffect(() => {
+  const scanRequest = useEffectEvent((isAlive: () => boolean) => {
     setRisk(null);
     setPhishSite(false);
     if (!useSettings.getState().securityScan) return;
-    // Verdict d'une demande PRÉCÉDENTE ignoré : un « sûr » tardif de A ne doit jamais masquer le « danger » de B.
-    let alive = true;
     if (proposal) {
       const url = proposal.params?.proposer?.metadata?.url;
-      if (url) isPhishingSite(url).then((p) => alive && setPhishSite(p)).catch(() => {});
-      return () => { alive = false; };
+      if (url) isPhishingSite(url).then((p) => isAlive() && setPhishSite(p)).catch(() => {});
+      return;
     }
     if (!info) return;
     const cid = info.chain?.evmChainId ?? 1;
     if (info.kind === 'tx' && info.tx?.to) {
       setRisk('loading');
-      assessAddress(cid, info.tx.to).then((r) => alive && setRisk(r)).catch(() => alive && setRisk(null));
+      assessAddress(cid, info.tx.to).then((r) => isAlive() && setRisk(r)).catch(() => isAlive() && setRisk(null));
     } else if (info.kind === 'typedData' && info.typed?.verifyingContract) {
       setRisk('loading');
-      assessAddress(cid, info.typed.verifyingContract).then((r) => alive && setRisk(r)).catch(() => alive && setRisk(null));
+      assessAddress(cid, info.typed.verifyingContract).then((r) => isAlive() && setRisk(r)).catch(() => isAlive() && setRisk(null));
     }
+  });
+  // Verdict d'une demande PRÉCÉDENTE ignoré : un « sûr » tardif de A ne doit jamais masquer le « danger » de B.
+  useEffect(() => {
+    let alive = true;
+    scanRequest(() => alive);
     return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, proposal]);
 
   // App verrouillée : aucune fenêtre par-dessus l'écran de code. La demande reste en attente et s'affiche au déverrouillage.

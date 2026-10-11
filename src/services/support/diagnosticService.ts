@@ -181,9 +181,9 @@ export async function testRpcEndpoint(
       latencyMs,
       blockNumber,
     };
-  } catch (err: any) {
+  } catch (err) {
     const latencyMs = Date.now() - start;
-    const isTimeout = err?.name === 'AbortError' || latencyMs >= timeoutMs;
+    const isTimeout = (err instanceof Error && err.name === 'AbortError') || latencyMs >= timeoutMs;
     return {
       chainId,
       name,
@@ -191,7 +191,7 @@ export async function testRpcEndpoint(
       rpcUrlMasked: masked,
       status: isTimeout ? 'timeout' : 'error',
       latencyMs,
-      error: err?.message || 'Network error',
+      error: (err instanceof Error && err.message) || 'Network error',
     };
   }
 }

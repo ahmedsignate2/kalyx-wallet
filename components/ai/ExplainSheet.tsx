@@ -3,12 +3,11 @@
  * Copilot une explication simple (3 points) d'un token ou d'un réseau.
  * Sans clé API : invite à l'ajouter. Squelette pendant la génération.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { Text, Button, Sheet, Skeleton, TokenIcon } from '../../ui/kit';
 import { Icon } from '../../ui/icon';
-import { useTheme } from '../../ui/theme';
 import { space } from '../../ui/tokens';
 import { askAi } from '../../lib/aiAsk';
 import { aiLanguageName } from '../../lib/aiConfig';
@@ -16,28 +15,33 @@ import { useAiStore } from '../../lib/aiStore';
 import { useT, useSettings } from '../../lib/settingsStore';
 
 export function ExplainSheet({ visible, onClose, subject }: { visible: boolean; onClose: () => void; subject: { kind: 'token' | 'network'; name: string; symbol?: string; logo?: string; seed?: string } | null }) {
-  const { colors } = useTheme();
   const t = useT();
   const language = useSettings((s) => s.language);
   const enabled = useAiStore((s) => s.isEnabled);
   const [state, setState] = useState<{ loading: boolean; text?: string; error?: string }>({ loading: false });
 
-  useEffect(() => {
-    if (!visible || !subject) return;
-    let alive = true;
-    setState({ loading: true });
+  const explain = useEffectEvent(() => {
+    if (!subject) return null;
     const prompt =
       subject.kind === 'token'
         ? `Explique très simplement l'utilité, les fondamentaux et les risques de ${subject.name}${subject.symbol ? ` (${subject.symbol})` : ''} en 3 points concis, pour un débutant. Réponds en ${aiLanguageName(language)}.`
         : `Explique très simplement ce qu'est le réseau ${subject.name} (à quoi il sert, ses avantages, ses risques et frais typiques) en 3 points concis, pour un débutant. Réponds en ${aiLanguageName(language)}.`;
-    askAi(prompt).then((r) => {
+    return askAi(prompt);
+  });
+  const subjectName = subject?.name;
+  const subjectKind = subject?.kind;
+  useEffect(() => {
+    if (!visible || !subjectKind) return;
+    let alive = true;
+    setState({ loading: true });
+    explain()?.then((r) => {
       if (!alive) return;
       setState('error' in r ? { loading: false, error: r.error } : { loading: false, text: r.text });
     });
     return () => {
       alive = false;
     };
-  }, [visible, subject?.name, subject?.kind, language]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [visible, subjectName, subjectKind, language]);
 
   return (
     <Sheet visible={visible} onClose={onClose}>

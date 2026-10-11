@@ -21,8 +21,8 @@
 import { NovaHero } from '../ui/nova';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { passwordStrength, MIN_BACKUP_LEVEL } from '../src/security/passwordStrength';
-import React, { useEffect, useState } from 'react';
-import { View, ScrollView, Platform, Share, ActivityIndicator, Switch } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, ScrollView, Share, ActivityIndicator, Switch } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Button, Surface, Input, ScreenHeader, Divider } from '../ui/kit';
@@ -49,6 +49,7 @@ import {
 } from '../lib/backupSync';
 import { setupAutoSyncKeys } from '../lib/backupKeys';
 import { isDecoySession } from '../lib/sessionMode';
+import { useShallow } from 'zustand/react/shallow';
 
 type Target = 'drive' | 'file';
 
@@ -69,7 +70,7 @@ export default function CloudBackupScreen() {
   const driveBackupAt = useSettings((s) => s.driveBackupAt);
   const markEncryptedBackup = useSettings((s) => s.markEncryptedBackup);
 
-  const flow = useDriveFlow();
+  const flow = useDriveFlow(useShallow((s) => ({ canRetry: s.canRetry, checkResult: s.checkResult, confirmOverwrite: s.confirmOverwrite, conflict: s.conflict, error: s.error, kind: s.kind, reset: s.reset, retrySave: s.retrySave, start: s.start, status: s.status })));
   const driveOn = isDriveConfigured();
 
   const [pwd, setPwd] = useState('');
@@ -332,7 +333,7 @@ function AutoSyncSection({
   const { colors } = useTheme();
   const t = useT();
   const sync = useBackupSync();
-  const flow = useDriveFlow();
+  const flow = useDriveFlow(useShallow((s) => ({ error: s.error, kind: s.kind, status: s.status })));
   const pinLength = useSettings((s) => s.pinLength);
 
   /** L'utilisateur a demandé l'activation DEPUIS cet écran (mot de passe en main). */

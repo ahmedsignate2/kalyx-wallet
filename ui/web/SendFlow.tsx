@@ -19,7 +19,7 @@
  * Les frais réseau affichés sont une estimation — c'est le téléphone qui les fixe.
  */
 import { fill } from '../../lib/i18n';
-import React, { useContext, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { View, ScrollView, Pressable as RNPressable, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { base64 } from '@scure/base';
@@ -28,7 +28,7 @@ import { Icon } from '../icon';
 import { useTheme } from '../theme';
 import { space, SCREEN_MARGIN, radius } from '../tokens';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
-import { UserFacingError, friendlyTxError } from '../../lib/txError';
+import { UserFacingError } from '../../lib/txError';
 import { webErrorText } from './webErrors';
 import { useRecentRecipients, type RecipientFamily } from '../../lib/recentRecipientsStore';
 import { useContacts } from '../../lib/contactsStore';
@@ -51,6 +51,7 @@ import { FlowEmbedContext, useFlowRootStyle, useFlowScrollStyle } from './flowEm
 import { useWebT } from './webI18n';
 import { KalyxSpinner } from './motion';
 import { addressForChain, chainOf, useWebPortfolioAccount } from './webAccounts';
+import { useShallow } from 'zustand/react/shallow';
 
 type Step = 0 | 1 | 2 | 3 | 4;
 
@@ -90,14 +91,14 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
   const [search, setSearch] = useState('');
 
   // ── 0. Portefeuille agrégé (même store que l'app : tous réseaux, spam exclu) ──
-  const pf = usePortfolioStore();
+  const pf = usePortfolioStore(useShallow((s) => ({ holdings: s.holdings, loading: s.loading, refresh: s.refresh })));
   const pfAccount = useWebPortfolioAccount();
   useEffect(() => {
     if (!pfAccount) return;
     // Le portefeuille agrégé reste celui du réseau principal ; les réseaux de test se lisent à part.
-    pf.hydrate(pfAccount, fiat).then((current) => { if (current) void pf.refresh(pfAccount, fiat, { force: true }); });
+    const store = usePortfolioStore.getState();
+    store.hydrate(pfAccount, fiat).then((current) => { if (current) void store.refresh(pfAccount, fiat, { force: true }); });
     if (showTestnets) void useTestnetBalances.getState().refresh(pfAccount, { force: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pfAccount, fiat, showTestnets]);
   const testnetBals = useTestnetBalances((s) => s.balances);
   const sendable = useMemo(
@@ -177,23 +178,26 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
   const [nativePrice, setNativePrice] = useState(0);
   const [feeOptions, setFeeOptions] = useState<FeeOptions | null>(null);
   const [reserve, setReserve] = useState<bigint>(0n);
-  useEffect(() => {
+  const loadNetworkCosts = useEffectEvent((isAlive: () => boolean) => {
     setFeeOptions(null);
     setReserve(0n);
     setNativeBal(nativeHolding?.raw ?? null);
     setNativePrice(nativeHolding?.price ?? 0);
     if (!picked || !senderAddress) return;
-    let alive = true;
     const a = getAdapter(chain.id);
-    a.getBalance(senderAddress).then((b) => alive && setNativeBal(b.raw)).catch(() => {});
+    a.getBalance(senderAddress).then((b) => isAlive() && setNativeBal(b.raw)).catch(() => {});
     if (!nativeHolding?.price && chain.coingeckoId) {
-      getPrices([chain.coingeckoId], fiat).then((p) => alive && setNativePrice(p[chain.coingeckoId!]?.price ?? 0)).catch(() => {});
+      getPrices([chain.coingeckoId], fiat).then((p) => isAlive() && setNativePrice(p[chain.coingeckoId!]?.price ?? 0)).catch(() => {});
     }
-    estimateGasReserve(a).then((r) => alive && setReserve(r.raw)).catch(() => {});
-    if (a instanceof EvmChainAdapter) a.getFeeOptions(token ? 65_000n : undefined).then((f) => alive && setFeeOptions(f)).catch(() => {});
+    estimateGasReserve(a).then((r) => isAlive() && setReserve(r.raw)).catch(() => {});
+    if (a instanceof EvmChainAdapter) a.getFeeOptions(token ? 65_000n : undefined).then((f) => isAlive() && setFeeOptions(f)).catch(() => {});
+  });
+  const pickedId = picked?.id;
+  useEffect(() => {
+    let alive = true;
+    loadNetworkCosts(() => alive);
     return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picked?.id, chain.id, senderAddress, fiat]);
+  }, [pickedId, chain.id, senderAddress, fiat]);
   const feeRaw = feeOptions ? feeOptions.normal.costWei : reserve;
   const feeFiat = Number(formatAmount(feeRaw, chain.nativeDecimals)) * nativePrice;
 

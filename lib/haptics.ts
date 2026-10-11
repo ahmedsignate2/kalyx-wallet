@@ -43,8 +43,6 @@ void load();
 
 // ─── API publique ────────────────────────────────────────────────────────────
 
-function noop() { /* no-op quand haptique indisponible ou désactivé */ }
-
 async function run(fn: (h: typeof import('expo-haptics')) => Promise<void>) {
   if (reduceMotionEnabled()) return;
   try {

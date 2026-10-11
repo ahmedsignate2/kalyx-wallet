@@ -3,7 +3,6 @@
  * `variant` choisit taille/interligne/graisse ; `tone` la couleur de rôle.
  * Le solde limite la taille système à ×1,3 ; le texte courant n'a pas de limite.
  */
-import React from 'react';
 import { Text as RNText, type TextProps } from 'react-native';
 import { useTheme } from '../theme';
 import { BALANCE_MAX_FONT_SCALE, tabularNums } from '../tokens';

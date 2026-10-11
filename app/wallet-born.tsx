@@ -15,7 +15,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Pressable as RNPressable, useWindowDimensions } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
 import { Text, Button, AddressGlyph, Halo } from '../ui/kit';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, springs } from '../ui/tokens';

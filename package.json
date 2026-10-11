@@ -10,6 +10,7 @@
     "ios": "expo run:ios",
     "test": "jest",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint app components lib src ui",
     "web": "expo start --web",
     "build:web": "expo export -p web",
     "gen:chain-logos": "node --no-warnings scripts/gen-chain-logos.mjs"

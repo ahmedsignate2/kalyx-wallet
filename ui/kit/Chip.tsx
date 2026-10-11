@@ -2,7 +2,6 @@
  * Chip / Badge — rayon 8, texte « micro » ou « caption ». Badge de risque (§4.7) :
  * neutre (« Aucun risque détecté », jamais en vert), attention (orange), danger (rouge).
  */
-import React from 'react';
 import { View } from 'react-native';
 import { Pressable } from './Pressable';
 import { Text } from './Text';

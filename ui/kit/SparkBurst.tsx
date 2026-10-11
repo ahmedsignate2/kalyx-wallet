@@ -4,7 +4,7 @@
  * or : les couleurs du halo, rien d'autre. Rien n'est dessiné avec « réduire
  * les animations » : le succès reste porté par l'haptique et le texte.
  */
-import React, { useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 import { BRAND_GOLD } from '../tokens';

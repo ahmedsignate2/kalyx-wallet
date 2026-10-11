@@ -1,4 +1,3 @@
-import { ethers } from 'ethers';
 import { EvmChainAdapter, type RawTxRequest } from '../../domain/chains/EvmChainAdapter';
 import type { Unlock } from '../../../lib/walletStore';
 

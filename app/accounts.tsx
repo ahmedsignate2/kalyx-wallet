@@ -1,20 +1,19 @@
-import { GOLD, IconDisc, NovaHero, Pulse, Rise } from '../ui/nova';
+import { IconDisc, NovaHero, Pulse, Rise } from '../ui/nova';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { canDiscover, runDiscovery, useDiscovering } from '../lib/runDiscovery';
 import { AddressGlyph } from '../ui/kit';
-import { Icon } from '../ui/icon';
 import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Screen, Card, Button, Title, Muted } from '../ui/components';
-import { radii, spacing, useTheme } from '../ui/theme';
+import { Screen, Card, Button, Muted } from '../ui/components';
+import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { accountDisplayName } from '../lib/walletNames';
-import { useT, useSettings } from '../lib/settingsStore';
+import { useT } from '../lib/settingsStore';
 
 function shorten(a: string) {
   return `${a.slice(0, 8)}…${a.slice(-6)}`;
@@ -23,7 +22,6 @@ function shorten(a: string) {
 export default function Accounts() {
   const { colors, typography } = useTheme();
   const t = useT();
-  const language = useSettings((st) => st.language);
   // Noms suggérés (style Revolut) proposés à la création.
   const SUGGESTIONS = [t('sugTrading'), t('sugDefi'), t('sugSavings'), t('sugAccount2')];
   const accounts = useWallet((s) => s.accounts);

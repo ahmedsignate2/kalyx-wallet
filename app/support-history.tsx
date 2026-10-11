@@ -1,9 +1,9 @@
 import { IconDisc, NovaCard, NovaHero } from '../ui/nova';
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { useState } from 'react';
+import { View, Text, Alert, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
-import { PremiumScreen, GlassCard } from '../ui/premium';
+import { PremiumScreen } from '../ui/premium';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, radii, useTheme } from '../ui/theme';
 import { useT } from '../lib/settingsStore';
@@ -59,8 +59,8 @@ export default function SupportHistoryScreen() {
       } else {
         toast.error(t('diagnosticError'), result.error);
       }
-    } catch (err: any) {
-      toast.error(t('diagnosticError'), err?.message);
+    } catch (err) {
+      toast.error(t('diagnosticError'), err instanceof Error ? err.message : undefined);
     } finally {
       setIsExporting(false);
     }
