@@ -137,6 +137,14 @@ function SwapInner() {
   const [countdown, setCountdown] = useState(0);
   const [stale, setStale] = useState(false);
   const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Valeur courante du compteur, lue par l'intervalle (un updater setState doit rester pur).
+  const countdownRef = useRef(0);
+  /*
+   * Génération du devis : incrémentée à chaque requête ET à chaque reset() (montant,
+   * jeton, réseau, glissement changés). Un devis en vol d'une génération dépassée
+   * est jeté : jamais de devis affiché (ni confirmable) pour un autre montant.
+   */
+  const quoteGen = useRef(0);
 
   /**
    * Réserve de gas DYNAMIQUE (estimée sur le RPC du réseau actif) : ce qu'on
@@ -269,6 +277,7 @@ function SwapInner() {
 
 
   const reset = () => {
+    quoteGen.current += 1; // tout devis encore en vol devient caduc
     setQuote(null);
     setConfirming(false);
     setError(null);
@@ -413,20 +422,20 @@ function SwapInner() {
   const stopCountdown = () => {
     if (countdownInterval.current) clearInterval(countdownInterval.current);
     countdownInterval.current = null;
+    countdownRef.current = 0;
     setCountdown(0);
   };
   const startCountdown = () => {
     stopCountdown();
+    countdownRef.current = QUOTE_TTL_S;
     setCountdown(QUOTE_TTL_S);
     countdownInterval.current = setInterval(() => {
       if (pausedRef.current) return; // on gèle le compteur tant qu'on confirme
-      setCountdown((c) => {
-        if (c <= 1) {
-          void onQuote({ auto: true });
-          return QUOTE_TTL_S;
-        }
-        return c - 1;
-      });
+      // Devis relancé HORS de l'updater : le mode strict peut appeler un updater deux fois (double devis).
+      const expired = countdownRef.current <= 1;
+      countdownRef.current = expired ? QUOTE_TTL_S : countdownRef.current - 1;
+      setCountdown(countdownRef.current);
+      if (expired) void onQuote({ auto: true });
     }, 1000);
   };
 
@@ -489,9 +498,13 @@ function SwapInner() {
       setError(isWalletError(e) && /décimales/.test(e.message) ? t('errTooManyDecimals').replace('{max}', String(fromTok.decimals)) : t('amountInvalid'));
       return;
     }
+    if (!opts.auto) reset();
+    // Génération de CETTE requête : une plus récente, ou un reset(), la rend caduque.
+    const gen = ++quoteGen.current;
+    const latest = () => gen === quoteGen.current;
     if (!opts.auto) {
-      reset();
       const pre = await preflight(raw);
+      if (!latest()) return; // montant ou jeton changé pendant les vérifications
       if (pre) {
         stopCountdown();
         setError(pre);
@@ -521,6 +534,7 @@ function SwapInner() {
         fromTokenInfo: { symbol: fromTok.symbol, decimals: fromTok.decimals, logo: fromTok.logo },
         toTokenInfo: { symbol: toTok.symbol, decimals: toTok.decimals, logo: toTok.logo },
       });
+      if (!latest()) return; // devis d'un ancien montant/jeton : jamais affiché
       if (!q) {
         setError(t('noRoute'));
         stopCountdown();
@@ -532,6 +546,7 @@ function SwapInner() {
       if (!countdownInterval.current) startCountdown();
     } catch (e) {
       console.warn('[swap] devis impossible :', e instanceof Error ? e.message : e);
+      if (!latest()) return; // échec d'une requête dépassée : rien à signaler
       if (opts.auto) {
         // Le devis affiché reste utilisable mais peut être dépassé : on le signale sans le retirer.
         setStale(true);

@@ -319,20 +319,23 @@ export function WalletConnectHost() {
     setRisk(null);
     setPhishSite(false);
     if (!useSettings.getState().securityScan) return;
+    // Verdict d'une demande PRÉCÉDENTE ignoré : un « sûr » tardif de A ne doit jamais masquer le « danger » de B.
+    let alive = true;
     if (proposal) {
       const url = proposal.params?.proposer?.metadata?.url;
-      if (url) isPhishingSite(url).then(setPhishSite).catch(() => {});
-      return;
+      if (url) isPhishingSite(url).then((p) => alive && setPhishSite(p)).catch(() => {});
+      return () => { alive = false; };
     }
     if (!info) return;
     const cid = info.chain?.evmChainId ?? 1;
     if (info.kind === 'tx' && info.tx?.to) {
       setRisk('loading');
-      assessAddress(cid, info.tx.to).then(setRisk).catch(() => setRisk(null));
+      assessAddress(cid, info.tx.to).then((r) => alive && setRisk(r)).catch(() => alive && setRisk(null));
     } else if (info.kind === 'typedData' && info.typed?.verifyingContract) {
       setRisk('loading');
-      assessAddress(cid, info.typed.verifyingContract).then(setRisk).catch(() => setRisk(null));
+      assessAddress(cid, info.typed.verifyingContract).then((r) => alive && setRisk(r)).catch(() => alive && setRisk(null));
     }
+    return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, proposal]);
 

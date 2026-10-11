@@ -70,11 +70,18 @@ export default function Market() {
       return;
     }
     setSearching(true);
+    // Résultats d'une requête PRÉCÉDENTE ignorés : « bit » ne doit pas remplacer « bitcoin » s'il répond plus tard.
+    let alive = true;
     const id = setTimeout(async () => {
-      setResults(await searchCoins(q));
+      const r = await searchCoins(q);
+      if (!alive) return;
+      setResults(r);
       setSearching(false);
     }, 300);
-    return () => clearTimeout(id);
+    return () => {
+      alive = false;
+      clearTimeout(id);
+    };
   }, [query]);
 
   const searchMode = query.trim().length > 0;

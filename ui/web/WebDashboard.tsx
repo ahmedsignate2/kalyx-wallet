@@ -485,7 +485,7 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
     if (!acct) return;
     const pf = usePortfolioStore.getState();
     // Après une signature (rev change) : la fraîcheur ne compte plus, les soldes ont bougé.
-    pf.hydrate(acct, fiat).then(() => pf.refresh(acct, fiat, { force: rev !== firstRev.current }));
+    pf.hydrate(acct, fiat).then((current) => { if (current) void pf.refresh(acct, fiat, { force: rev !== firstRev.current }); });
   }, [acct, fiat, rev]);
   const expectedKey = acct ? snapshotKey(acct, fiat) : null;
   const data = useMemo<NetWorth | null>(() => {

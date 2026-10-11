@@ -51,6 +51,31 @@ describe('cliché du portefeuille', () => {
   });
 });
 
+describe('changement de compte pendant la lecture du cliché', () => {
+  const AsyncStorage = jest.requireMock('@react-native-async-storage/async-storage').default;
+  const acctB = { evmAddress: '0xDeF', btcAddress: 'bc1p' } as never;
+
+  it('une lecture tardive du compte A n’écrase pas le compte B', async () => {
+    store.set(snapshotKey(acct, 'eur'), JSON.stringify(snap));
+    store.set(snapshotKey(acctB, 'eur'), JSON.stringify({ ...snap, total: 7 }));
+    // Lecture du compte A retenue jusqu'à ce qu'on la libère.
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const spy = jest.spyOn(AsyncStorage, 'getItem').mockImplementationOnce(async (k: unknown) => {
+      await gate;
+      return store.get(k as string) ?? null;
+    });
+    const slowA = usePortfolioStore.getState().hydrate(acct, 'eur');
+    expect(await usePortfolioStore.getState().hydrate(acctB, 'eur')).toBe(true);
+    release();
+    // Dépassé : l'appelant ne doit PAS enchaîner un refresh(A) qui annulerait celui de B.
+    expect(await slowA).toBe(false);
+    spy.mockRestore();
+    expect(usePortfolioStore.getState().key).toBe(snapshotKey(acctB, 'eur'));
+    expect(usePortfolioStore.getState().total).toBe(7);
+  });
+});
+
 describe('réseau muet : les actifs ne disparaissent pas', () => {
   const { carryOver } = require('./portfolioStore');
   const h = (chainId: string, kind: string, id: string, fiat: number) => ({ id, chainId, kind, fiat, amount: fiat, raw: 1n, verified: true });

@@ -101,9 +101,14 @@ export interface DiagnosticExportResult {
 export function maskRpcUrl(url: string): string {
   if (!url) return '';
   try {
-    // Masquer les segments ressemblant à des clés d'API (Alchemy, Infura, etc.)
+    // Masquer les segments ressemblant à des clés d'API : Alchemy `/v2/…`,
+    // Infura `/v3/…` (32 hex, que `/v2/` seul laissait passer), et tout segment
+    // long et opaque (QuickNode, Ankr…), comme `stripUrlSecrets` ; identifiants
+    // `user:mot@` aussi.
     return url
-      .replace(/\/v2\/[a-zA-Z0-9_-]{16,}/g, '/v2/[REDACTED]')
+      .replace(/^(https?:\/\/)[^/@\s]*@/i, '$1[REDACTED]@')
+      .replace(/\/(v\d+)\/[a-zA-Z0-9_-]{16,}/g, '/$1/[REDACTED]')
+      .replace(/\/[A-Za-z0-9_-]{20,}(?=\/|$|[?#])/g, '/[REDACTED]')
       .replace(/([?&](?:api[_-]?key|key|token)=)[^&]+/gi, '$1[REDACTED]');
   } catch {
     return 'https://[RPC_MASKED]';

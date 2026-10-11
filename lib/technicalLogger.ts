@@ -1,5 +1,13 @@
 import { sanitizeLog } from './sanitizeLog';
 
+/*
+ * Hashes de transaction de l'historique : laissés lisibles (raccourcis) dans le
+ * journal, toute autre valeur de même forme reste masquée. `require` différé :
+ * `knownTxHashes` importe ce module, et l'historique n'est lu que si un
+ * candidat apparaît.
+ */
+const knownHashes = () => (require('./knownTxHashes') as typeof import('./knownTxHashes')).knownTxHashes();
+
 export interface LogEntry {
   timestamp: string;
   category: 'RPC' | 'TX' | 'WALLET' | 'DAPP' | 'SYS';
@@ -105,14 +113,14 @@ class TechnicalLogger {
   ) {
     const now = new Date();
     const timestamp = now.toTimeString().split(' ')[0]; // HH:MM:SS
-    const cleanMessage = sanitizeLog(String(message || ''));
+    const cleanMessage = sanitizeLog(String(message || ''), knownHashes);
 
     let cleanDetails: Record<string, any> | undefined;
     if (details !== undefined && details !== null) {
       try {
-        cleanDetails = JSON.parse(sanitizeLog(JSON.stringify(details)));
+        cleanDetails = JSON.parse(sanitizeLog(JSON.stringify(details), knownHashes));
       } catch {
-        cleanDetails = { info: sanitizeLog(String(details)) };
+        cleanDetails = { info: sanitizeLog(String(details), knownHashes) };
       }
     }
 

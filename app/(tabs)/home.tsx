@@ -173,7 +173,7 @@ export default function Home() {
   // Cache d'abord (instantané), puis réseau.
   useEffect(() => {
     if (!acct) return;
-    pf.hydrate(acct, fiat).then(() => pf.refresh(acct, fiat));
+    pf.hydrate(acct, fiat).then((current) => { if (current) void pf.refresh(acct, fiat); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [acct?.evmAddress, acct?.solAddress, acct?.btcAddress, acct?.tonPublicKey, fiat]); // toutes les adresses de la clé du cliché
 

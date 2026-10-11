@@ -3,7 +3,8 @@
  * état du déverrouillage biométrique. Persistées localement.
  */
 import { create } from 'zustand';
-import { setNumberLocale, type ActivityTranslate, type ExplainT } from '../src';
+import { useCallback } from 'react';
+import { setNumberLocale, getAdapter, hasChain, type ActivityTranslate, type ExplainT } from '../src';
 import { saveSettings, loadSettings } from './secureStore';
 import { translate, type Lang, type Key, detectInitialLanguage, resolveLanguage, applyRTL, isRtl, USER_LANGUAGE_KEY } from './i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -88,12 +89,31 @@ interface SettingsState {
   setBackupVerified: (on: boolean) => void;
 }
 
-function persist(
-  s: Pick<
-    SettingsState,
-    | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'aiToolsEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt' | 'driveBackupAt'
-  >,
-) {
+type Persisted = Pick<
+  SettingsState,
+  | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'aiToolsEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt' | 'driveBackupAt'
+>;
+
+/*
+ * Changements faits AVANT la fin de `load()` (ex. unlock.tsx → setPinLength).
+ * Écrire à ce moment-là enregistrait `{ ...get() }`, c'est-à-dire les valeurs
+ * PAR DÉFAUT, par-dessus les vrais réglages du disque. On ne garde donc que le
+ * changement lui-même : `load()` le réapplique sur les valeurs lues, puis
+ * écrit. Si `load()` échoue, rien n'est écrit — l'état mémoire suit l'utilisateur,
+ * le disque reste intact (perdre un réglage vaut mieux que les écraser tous).
+ */
+let pending: Partial<Persisted> | null = null;
+
+function persist(patch: Partial<Persisted>) {
+  const cur = useSettings.getState();
+  if (!cur.loaded) {
+    pending = { ...pending, ...patch };
+    return;
+  }
+  write({ ...cur, ...patch });
+}
+
+function write(s: Persisted) {
   void saveSettings({
     profileName: s.profileName,
     language: s.language,
@@ -145,9 +165,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
     const s = await loadSettings();
     const stored = (s?.language as string) || (await AsyncStorage.getItem(USER_LANGUAGE_KEY).catch(() => null));
     const language = await resolveLanguage(stored);
-    setNumberLocale(language);
-    set({
-      loaded: true,
+    const fromDisk: Persisted = {
       profileName: (s?.profileName as string) ?? '',
       language,
       fiat: (s?.fiat as string) ?? 'eur',
@@ -169,98 +187,120 @@ export const useSettings = create<SettingsState>((set, get) => ({
       encryptedBackupAt: typeof s?.encryptedBackupAt === 'string' ? s.encryptedBackupAt : null,
       driveBackupAt: typeof s?.driveBackupAt === 'string' ? s.driveBackupAt : null,
       backupVerified: s?.backupVerified === true,
-    });
+    };
+    // Changements faits pendant le chargement : réappliqués sur le disque lu, puis écrits.
+    const queued = pending;
+    pending = null;
+    const next = { ...fromDisk, ...queued };
+    setNumberLocale(next.language);
+    set({ loaded: true, ...next });
+    if (queued) write(next);
     if (isDecoySession()) set(DECOY_MASK);
   },
 
   setSoundEnabled: (on) => {
     set({ soundEnabled: on });
-    persist({ ...get(), soundEnabled: on });
+    persist({ soundEnabled: on });
   },
   setAiToolsEnabled: (on) => {
     set({ aiToolsEnabled: on });
-    persist({ ...get(), aiToolsEnabled: on });
+    persist({ aiToolsEnabled: on });
   },
   setHapticsEnabled: (on) => {
     set({ hapticsEnabled: on });
-    persist({ ...get(), hapticsEnabled: on });
+    persist({ hapticsEnabled: on });
   },
   setDriveBackupAt: (iso) => {
     const patch = { driveBackupAt: iso, encryptedBackupAt: get().encryptedBackupAt ?? iso };
     set(patch);
-    persist({ ...get(), ...patch });
+    persist(patch);
   },
   markEncryptedBackup: (kind = 'file') => {
     const now = new Date().toISOString();
     const patch = kind === 'drive' ? { encryptedBackupAt: now, driveBackupAt: now } : { encryptedBackupAt: now };
     set(patch);
-    persist({ ...get(), ...patch });
+    persist(patch);
   },
   setBackupVerified: (on) => {
     set({ backupVerified: on });
-    persist({ ...get(), backupVerified: on });
+    persist({ backupVerified: on });
   },
 
   setProfileName: (name) => {
     set({ profileName: name });
-    persist({ ...get(), profileName: name });
+    persist({ profileName: name });
   },
   setLanguage: (language) => {
     setNumberLocale(language);
     applyRTL(isRtl(language));
     set({ language });
-    persist({ ...get(), language });
+    persist({ language });
     AsyncStorage.setItem(USER_LANGUAGE_KEY, language).catch(() => {});
   },
   setFiat: (fiat) => {
     set({ fiat });
-    persist({ ...get(), fiat });
+    persist({ fiat });
   },
   setBiometricEnabled: (biometricEnabled) => {
     set({ biometricEnabled });
-    persist({ ...get(), biometricEnabled });
+    persist({ biometricEnabled });
   },
   setUiMode: (uiMode) => {
     set({ uiMode });
-    persist({ ...get(), uiMode });
+    persist({ uiMode });
   },
   setThemePref: (themePref) => {
     set({ themePref });
-    persist({ ...get(), themePref });
+    persist({ themePref });
   },
   toggleFavorite: (coinId) => {
+    // Avant `load()`, la liste en mémoire est vide : basculer ici remplacerait les favoris enregistrés.
+    if (!get().loaded) return;
     const cur = get().favorites;
     const favorites = cur.includes(coinId) ? cur.filter((id) => id !== coinId) : [...cur, coinId];
     set({ favorites });
-    persist({ ...get(), favorites });
+    persist({ favorites });
   },
   setPinLength: (pinLength) => {
-    if (pinLength === get().pinLength) return;
+    // « Inchangé » n'a de sens qu'une fois les réglages lus (avant, c'est la valeur par défaut).
+    if (get().loaded && pinLength === get().pinLength) return;
     set({ pinLength });
-    persist({ ...get(), pinLength });
+    persist({ pinLength });
   },
   setNotifPref: (key, on) => {
     set({ [key]: on } as Pick<SettingsState, 'notifTx' | 'notifPrice'>);
-    persist({ ...get(), [key]: on });
+    persist({ [key]: on } as Partial<Persisted>);
   },
   setFlag: (key, on) => {
     set({ [key]: on } as Pick<SettingsState, 'securityScan' | 'showTestnets'>);
-    persist({ ...get(), [key]: on });
+    persist({ [key]: on } as Partial<Persisted>);
+    // Testnets masqués alors que le réseau actif en est un : retour au réseau par
+    // défaut (comme customChainsStore.remove), sinon il resterait actif mais
+    // invisible dans le sélecteur. `require` différé : walletStore importe ce module.
+    if (key === 'showTestnets' && !on) {
+      const { useWallet, DEFAULT_CHAIN } = require('./walletStore') as typeof import('./walletStore');
+      const w = useWallet.getState();
+      if (hasChain(w.activeChain) && getAdapter(w.activeChain).config.testnet) w.setActiveChain(DEFAULT_CHAIN);
+    }
   },
   setAutoLockMinutes: (min) => {
     set({ autoLockMinutes: min });
-    persist({ ...get(), autoLockMinutes: min });
+    persist({ autoLockMinutes: min });
   },
   setPrivacyGuard: (privacyGuard) => {
     set({ privacyGuard });
-    persist({ ...get(), privacyGuard });
+    persist({ privacyGuard });
   },
 }));
 
-/** Hook de traduction lié à la langue courante. */
+/**
+ * Hook de traduction lié à la langue courante. Fonction STABLE tant que la
+ * langue ne change pas : une nouvelle à chaque rendu invalidait tous les
+ * useMemo/useCallback qui en dépendent.
+ */
 export function useT(): (key: Key) => string {
   const lang = useSettings((s) => s.language);
-  return (key: Key) => translate(lang, key);
+  return useCallback((key: Key) => translate(lang, key), [lang]);
 }
 
 /**
@@ -277,25 +317,25 @@ export function useT(): (key: Key) => string {
  */
 export function useActivityT(): ActivityTranslate {
   const lang = useSettings((s) => s.language);
-  return (key, params) => {
+  return useCallback<ActivityTranslate>((key, params) => {
     let out = translate(lang, key as Key);
     if (params) {
       for (const [k, v] of Object.entries(params)) out = out.split(`{${k}}`).join(v);
     }
     return out;
-  };
+  }, [lang]);
 }
 
 /** Traducteur de la fenêtre de signature (`explainRequest`) : même substitution `{param}`. */
 export function useExplainT(): ExplainT {
   const lang = useSettings((s) => s.language);
-  return (key, params) => {
+  return useCallback<ExplainT>((key, params) => {
     let out = translate(lang, key as Key);
     if (params) {
       for (const [k, v] of Object.entries(params)) out = out.split(`{${k}}`).join(v);
     }
     return out;
-  };
+  }, [lang]);
 }
 
 export function fiatSymbol(code: string): string {

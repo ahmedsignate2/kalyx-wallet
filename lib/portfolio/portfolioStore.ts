@@ -86,7 +86,12 @@ interface PortfolioState extends Snapshot {
   key: string | null;
   fromCache: boolean;
   error: string | null;
-  hydrate: (acct: PortfolioAccount, fiat: string, opts?: { includeTestnets?: boolean }) => Promise<void>;
+  /**
+   * Lit le dernier cliché du compte. Rend `false` si un AUTRE compte a été
+   * demandé entre-temps : l'appelant ne doit alors pas enchaîner de `refresh`
+   * (il annulerait celui du compte désormais affiché).
+   */
+  hydrate: (acct: PortfolioAccount, fiat: string, opts?: { includeTestnets?: boolean }) => Promise<boolean>;
   refresh: (acct: PortfolioAccount, fiat: string, opts?: { force?: boolean; includeTestnets?: boolean }) => Promise<void>;
   /** Vrai après un envoi : le prochain `refresh` ignore la fraîcheur. */
   invalidated: boolean;
@@ -455,6 +460,8 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
 /** Génération du dernier rafraîchissement demandé, et le compte qu'il charge. */
 let refreshGen = 0;
 let loadingKey: string | null = null;
+/** Dernier compte demandé (hydrate OU refresh) : une lecture disque tardive d'un autre compte est ignorée. */
+let wantedKey: string | null = null;
 
 export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   holdings: [],
@@ -472,7 +479,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
 
   hydrate: async (acct, fiat, opts) => {
     const key = snapshotKey(acct, fiat, opts?.includeTestnets === true);
-    if (get().key === key) return;
+    wantedKey = key;
+    if (get().key === key) return true;
     // Autre compte : tout chargement en vol pour l'ancien devient caduc (son résultat ne s'affichera plus).
     if (loadingKey !== key) {
       refreshGen += 1;
@@ -481,17 +489,22 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }
     try {
       const json = await AsyncStorage.getItem(key);
+      // Un autre compte a été demandé pendant la lecture, ou ce compte est déjà
+      // chargé (refresh plus rapide) : ce cliché n'a plus à s'afficher.
+      if (wantedKey !== key || get().key === key) return wantedKey === key;
       const snap = json ? deserialize(json) : null;
       if (snap) set({ ...snap, key, fromCache: true, error: null });
       else set({ holdings: [], total: 0, pnl24h: null, pnl24hPct: null, at: 0, key, fromCache: false });
     } catch {
-      set({ key });
+      if (wantedKey === key && get().key !== key) set({ key });
     }
+    return wantedKey === key;
   },
 
   refresh: async (acct, fiat, opts) => {
     const includeTestnets = opts?.includeTestnets === true;
     const key = snapshotKey(acct, fiat, includeTestnets);
+    wantedKey = key;
     const s = get();
     // Déjà en cours POUR CE compte : rien à faire. Pour un autre (changement de
     // compte pendant le chargement) : on relance, et l'ancien résultat sera ignoré.
