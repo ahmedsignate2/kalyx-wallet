@@ -503,13 +503,8 @@ function SendInner() {
   }, [step, recipient, amountRaw, symbol, decimals, family, senderAddress, targetChainId, chain.evmChainId, chain.id]);
 
   const perform = async (unlock: Unlock) => {
-    technicalLogger.logTx('step_3_signing_start', {
-      symbol,
-      amount: tokenAmountStr,
-      recipient,
-      chain: chain.name,
-      speed,
-    });
+    // Ni montant ni destinataire : ce journal part dans les tickets et le contexte du Copilot.
+    technicalLogger.logTx('step_3_signing_start', { symbol, chain: chain.name, speed });
     try {
       // `speed` accompagne toujours le palier : Bitcoin n'a pas de « prix du
       // gaz », c'est le palier lui-même que l'adapter traduit en sat/vB.
@@ -635,13 +630,13 @@ function SendInner() {
     setAddressError(null);
     setWlBlocked(false);
     if (!recipientOk) {
-      technicalLogger.logTx('step_1_address_invalid', { input: to, isEns, chain: chain.name }, true);
+      technicalLogger.logTx('step_1_address_invalid', { inputLength: to.trim().length, isEns, chain: chain.name }, true);
       const fam = family === 'evm' ? t("errNeedEvmAddress") : family === 'solana' ? t("errNeedSolAddress") : family === 'ton' ? t("errNeedTonAddress") : t("errNeedBtcAddress");
       setAddressError(isEns && ens.status === 'resolving' ? t(tonDomain ? 'resolvingName' : 'errResolvingEns') : isEns ? t(tonDomain ? 'errNameNotFound' : 'errEnsNotFound') : fill(t('errNeedAddressFull'), { symbol: symbol, chain: chain.name, fam: fam }));
       return false;
     }
     if (poisoning) {
-      technicalLogger.logTx('step_1_address_poisoning_blocked', { recipient, chain: chain.name }, true);
+      technicalLogger.logTx('step_1_address_poisoning_blocked', { chain: chain.name }, true);
       return false; // bloquant, message déjà affiché
     }
     /*
@@ -663,7 +658,7 @@ function SendInner() {
   };
   const goStep2 = async () => {
     if (!(await recipientGate())) return;
-    technicalLogger.logTx('step_1_address_validated', { recipient, isEns, chain: chain.name });
+    technicalLogger.logTx('step_1_address_validated', { isEns, chain: chain.name });
     haptic.light();
     setAmountError(null);
     setStep(2);

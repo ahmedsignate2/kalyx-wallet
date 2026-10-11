@@ -3,7 +3,7 @@ import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
 import { Pressable as KPressable, Halo } from '../ui/kit';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Animated, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
+import { View, Text, Animated, StyleSheet, useWindowDimensions } from 'react-native';
 import { Orbit, Rise, Stardust } from '../ui/nova';
 import { router, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -168,10 +168,7 @@ export default function Unlock() {
       <View style={{ flex: 1, paddingTop: insets.top + spacing(3), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3), alignItems: 'center' }}>
         {/* En-tête compact : titre, sous-titre, biométrie */}
         <Rise style={{ alignItems: 'center', gap: spacing(1.25) }}>
-          {/* Appui long (2 s) sur le titre : journal de diagnostic, lisible même quand le déverrouillage casse. */}
-          <Pressable onLongPress={() => router.push('/journal')} delayLongPress={2000} accessible={false}>
-            <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
-          </Pressable>
+          <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
           <Text style={{ color: error && !locked ? colors.danger : colors.textSecondary, fontSize: 14, textAlign: 'center' }}>{subtitle}</Text>
           {/*
             Le retour d'appui était un changement d'OPACITÉ (0.6), ce que le

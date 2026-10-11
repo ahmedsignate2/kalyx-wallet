@@ -189,5 +189,9 @@ export const sanitizeLog = (raw: string): string => {
   // 9. Adresses Bitcoin (bech32 et hérité)
   clean = clean.replace(/\b((?:bc1|tb1)[a-z0-9]{20,60})\b/g, (addr) => `${addr.slice(0, 6)}...${addr.slice(-4)}`);
 
+  // 10. Adresses TON « amicales » (48 caractères base64url : EQ…, UQ…, kQ…, 0Q…).
+  //     Ni hex ni Base58 : aucune règle ci-dessus ne les reconnaissait.
+  clean = clean.replace(/(?<![A-Za-z0-9_+/-])([EUk0]Q[A-Za-z0-9_+/-]{46})(?![A-Za-z0-9_+/=-])/g, (addr) => `${addr.slice(0, 6)}...${addr.slice(-4)}`);
+
   return clean;
 };

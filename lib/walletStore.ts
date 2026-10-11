@@ -97,6 +97,7 @@ import {
   disableBiometricSeed,
   readBiometricSeed,
   readLegacyBiometricSeed,
+  purgeLegacyBiometricSeed,
   isBiometricSeedGated,
   hasBiometricSeed,
   saveWalletsList,
@@ -445,6 +446,19 @@ async function backfillOtherWallets(wallets: WalletMeta[], activeId: string, rea
     } catch (e) {
       technicalLogger.logSys('Backfill of another wallet failed', { error: e instanceof Error ? e.message : String(e) });
     }
+  }
+}
+
+/**
+ * Supprime les anciennes copies biométriques EN CLAIR de tous les portefeuilles.
+ * Appelé après un déverrouillage réussi (et après le rattrapage qui les lit) :
+ * le portefeuille d'authentification retrouve une copie protégée via
+ * `healBiometric` ; les autres repassent au PIN pour signer.
+ */
+async function purgeLegacyBiometricCopies(wallets: WalletMeta[]): Promise<void> {
+  for (const w of wallets) {
+    if (w.type === 'watch') continue;
+    await purgeLegacyBiometricSeed(w.id);
   }
 }
 
@@ -1302,7 +1316,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       void backfillOtherWallets(get().wallets, activeWalletId, async (id) => {
         const vault = await loadVault(id);
         return vault ? decryptSecret(vault, pin) : null;
-      });
+      }).then(() => purgeLegacyBiometricCopies(get().wallets)).catch(() => {});
     } catch (e) {
       // Code faux pour les vrais coffres : est-ce le code de CONTRAINTE ?
       if (isWalletError(e) && e.code === 'WRONG_PIN' && (await enterDecoy(pin, failedAttempts, lastFailedAt))) return;
@@ -1405,7 +1419,11 @@ export const useWallet = create<WalletState>((set, get) => ({
     aura.pulse('unlock');
     // Secrets biométriques des autres portefeuilles, déjà autorisés par ce geste.
     // Sans invite : seules les anciennes copies se lisent ainsi ; les autres attendront le PIN.
-    void backfillOtherWallets(get().wallets, activeWalletId, (id) => readLegacyBiometricSeed(id));
+    void backfillOtherWallets(get().wallets, activeWalletId, (id) => readLegacyBiometricSeed(id))
+      // Lues une dernière fois ci-dessus, les copies en clair des AUTRES portefeuilles disparaissent.
+      // Celle du portefeuille d'authentification est remplacée par la migration (si le geste a été accepté).
+      .then(() => purgeLegacyBiometricCopies(get().wallets.filter((w) => w.id !== authId)))
+      .catch(() => {});
   },
 
   verifyPin: async (pin) => {
@@ -2525,10 +2543,11 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   disableBiometric: async () => {
-    const { wallets, activeWalletId } = get();
-    // Lecture seule active : la copie peut être sur n'importe quel portefeuille à clé — toutes effacées.
-    const ids = isWatchWallet(wallets, activeWalletId) ? wallets.filter((w) => w.type !== 'watch').map((w) => w.id) : [activeWalletId];
-    for (const id of ids) await disableBiometricSeed(id);
+    // TOUS les portefeuilles à clé : une copie protégée oubliée sur un portefeuille
+    // inactif resterait lisible au geste alors que l'utilisateur a coupé la biométrie.
+    for (const w of get().wallets) {
+      if (w.type !== 'watch') await disableBiometricSeed(w.id);
+    }
   },
 
   healBiometric: async (pin) => {

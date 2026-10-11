@@ -6,7 +6,7 @@ import { useDappActivity } from './dappActivity';
 import { usePortfolioStore } from './portfolio/portfolioStore';
 import { useHistoryStore } from './historyStore';
 import { getAdapter, listChains, trimDecimalZeros, type ChainFamily } from '../src';
-import { technicalLogger, getRecentTechnicalLogs } from './technicalLogger';
+import { technicalLogger } from './technicalLogger';
 
 export interface CopilotWalletContext {
   activeNetwork: { id: string; name: string; chainId: number | string; isTestnet: boolean; family: ChainFamily };
@@ -162,7 +162,9 @@ export function serializeCopilotContext(snapshot = getCopilotContextSnapshot()):
       s: tx.status,
       d: tx.timestamp,
     })),
-    l: getRecentTechnicalLogs(30),
+    // Journal CONDENSÉ (étape, réseau, statut) et non les `details` bruts en JSON :
+    // un fournisseur d'IA tiers n'a pas à recevoir montants ni identifiants.
+    l: technicalLogger.getCondensedLogs(30).split('\n').filter(Boolean),
     w: {
       u: snapshot.browser.activeUrl,
       d: snapshot.browser.domain,
