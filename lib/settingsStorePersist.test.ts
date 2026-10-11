@@ -13,6 +13,7 @@ const mockSetActiveChain = jest.fn();
 let mockActive = 'sepolia';
 jest.mock('./walletStore', () => ({
   DEFAULT_CHAIN: 'ethereum',
+  backupDigestToRecord: () => 'digest-courant',
   useWallet: { getState: () => ({ activeChain: mockActive, setActiveChain: mockSetActiveChain }) },
 }));
 jest.mock('../src', () => ({
@@ -54,5 +55,17 @@ describe('settingsStore — aucune écriture avant la fin de load()', () => {
     useSettings.getState().setFlag('showTestnets', false);
     useSettings.getState().setFlag('showTestnets', true);
     expect(mockSetActiveChain).not.toHaveBeenCalled();
+  });
+
+  it('une sauvegarde réussie enregistre l’empreinte de son contenu ; une vérification Drive ne la touche pas', () => {
+    mockSave.mockClear();
+    useSettings.getState().markEncryptedBackup('file');
+    expect(useSettings.getState().backupDigest).toBe('digest-courant');
+    expect(mockSave.mock.calls[0][0]).toMatchObject({ backupDigest: 'digest-courant' });
+    // Constater une date sur Drive ne dit rien du contenu : l'empreinte reste celle connue.
+    useSettings.getState().setDriveBackupAt('2026-10-11T10:00:00Z');
+    expect(useSettings.getState().backupDigest).toBe('digest-courant');
+    useSettings.getState().markEncryptedBackup('drive', 'digest-explicite');
+    expect(useSettings.getState()).toMatchObject({ backupDigest: 'digest-explicite', driveBackupAt: expect.any(String) });
   });
 });

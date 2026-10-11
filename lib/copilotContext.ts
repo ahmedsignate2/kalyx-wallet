@@ -1,4 +1,4 @@
-import { useWallet } from './walletStore';
+import { useWallet, backupStaleNow } from './walletStore';
 import { addressForChain } from './accountAddress';
 import { useSettings } from './settingsStore';
 import { useBrowserStore } from './browserStore';
@@ -20,6 +20,13 @@ export interface CopilotWalletContext {
     phraseVerified: boolean;
     encryptedBackupAt: string | null;
     driveBackupAt: string | null;
+    /**
+     * Une sauvegarde existe mais ne contient plus tous les portefeuilles
+     * (créé, importé, supprimé, compte ou nom changé depuis) : la date seule ne
+     * suffit pas à dire « sauvegardé ». Facultatif : le contexte web (lecture
+     * seule) ne connaît pas l'état de sauvegarde du téléphone.
+     */
+    backupStale?: boolean;
     biometrics: boolean;
     autoLockMinutes: number;
     privacyGuard: boolean;
@@ -116,6 +123,7 @@ export function getCopilotContextSnapshot(): CopilotWalletContext {
       phraseVerified: settings.backupVerified === true,
       encryptedBackupAt: settings.encryptedBackupAt ?? null,
       driveBackupAt: settings.driveBackupAt ?? null,
+      backupStale: backupStaleNow(),
       biometrics: settings.biometricEnabled === true,
       autoLockMinutes: Number(settings.autoLockMinutes ?? 0),
       privacyGuard: settings.privacyGuard === true,
@@ -170,7 +178,9 @@ export function serializeCopilotContext(snapshot = getCopilotContextSnapshot()):
       d: snapshot.browser.domain,
       p: snapshot.browser.isPhishingBlocked,
     },
-    // sec : phraseVerified, encryptedBackupAt (fichier ou Drive), driveBackupAt, biometrics, autoLockMinutes, privacyGuard
+    // sec : phraseVerified, encryptedBackupAt (fichier ou Drive), driveBackupAt,
+    // backupStale (sauvegarde à refaire : une date présente ne veut PAS dire « tout est sauvegardé »),
+    // biometrics, autoLockMinutes, privacyGuard
     sec: snapshot.security,
   };
   scan(compact, 'compact');

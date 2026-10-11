@@ -118,6 +118,7 @@ import { KV_DEVICE_ONLY, kvGet, kvSet, kvDel } from './kv';
 import { isDecoySession, setDecoySession } from './sessionMode';
 import { aura } from './aura';
 import { isLegacyDefaultName } from './walletNames';
+import { backupDigest, isBackupStale } from './backupDigest';
 import { useSettings } from './settingsStore';
 import { usePendingBtc } from './pendingBtc';
 
@@ -1616,9 +1617,18 @@ export const useWallet = create<WalletState>((set, get) => ({
      */
     await proveIdentity(unlock);
     const out: BackupWallet[] = [];
+    const exportedAccounts: Record<string, StoredAccount[]> = {};
     for (const w of wallets) {
+      // Adresse suivie : aucun secret, rien à sauvegarder (elle n'a jamais eu de coffre).
+      if (w.type === 'watch') continue;
       const vault = await loadVault(w.id);
-      if (!vault) continue; // coffre absent : on ne fabrique pas un secret vide
+      /*
+       * Portefeuille à secret SANS coffre : on ne fabrique pas un secret vide,
+       * mais on ne le saute plus en silence non plus. Le sauter rendait une
+       * sauvegarde incomplète, annoncée réussie — l'utilisateur découvrait le
+       * trou en restaurant. Mieux vaut un export refusé, qui se voit.
+       */
+      if (!vault) throw new WalletError('VAULT_MISSING', `Coffre absent pour un portefeuille à secret (${w.type ?? 'seed'}) : sauvegarde incomplète refusée`);
       /*
        * Biométrie : pas de PIN pour déchiffrer — on lisait avec un code VIDE et
        * l'export échouait à chaque fois. Chaque coffre biométrique est lu à la
@@ -1640,9 +1650,11 @@ export const useWallet = create<WalletState>((set, get) => ({
         ...(w.type === 'privateKey' ? { keyFamily: w.keyFamily ?? 'evm' } : {}),
         secret,
         // Comptes (numéro + nom) : sans eux, la restauration ne recréait que le compte n°1.
-        accounts: (w.id === activeWalletId ? get().accounts : (await loadAccounts(w.id)) ?? []).map((a) => ({ index: a.index, label: a.label ?? '' })),
+        accounts: (exportedAccounts[w.id] = w.id === activeWalletId ? get().accounts : (await loadAccounts(w.id)) ?? []).map((a) => ({ index: a.index, label: a.label ?? '' })),
       });
     }
+    // Empreinte de CE QUI VIENT D'ÊTRE EXPORTÉ, reprise quand la sauvegarde aboutit (voir `backupDigestToRecord`).
+    lastExportDigest = backupDigest(wallets, exportedAccounts);
     return out;
   },
 
@@ -2620,3 +2632,75 @@ useWallet.subscribe((s, prev) => {
   if (s.failedAttempts > prev.failedAttempts) monoFail = { attempts: s.failedAttempts, at: monoNow() };
   else if (s.failedAttempts === 0) monoFail = null;
 });
+
+/*
+ * ── EMPREINTE DE SAUVEGARDE (voir lib/backupDigest.ts) ──
+ *
+ * L'empreinte COURANTE est tenue à jour ici, hors de l'interface : les comptes
+ * des portefeuilles non actifs ne sont qu'en stockage (lecture asynchrone), et
+ * le centre de sécurité, l'accueil et le Copilot ont besoin d'une réponse
+ * immédiate. Recalculée à chaque changement de portefeuilles ou de comptes ;
+ * `null` tant qu'elle n'est pas connue, et toujours en session leurre (le
+ * leurre n'a pas de sauvegarde, et rien ne doit en parler).
+ */
+export const useLiveBackupDigest = create<{ digest: string | null }>(() => ({ digest: null }));
+let liveDigestGen = 0;
+
+async function digestOf(wallets: readonly WalletMeta[], activeWalletId: string, activeAccounts: readonly StoredAccount[]): Promise<string> {
+  const accounts: Record<string, readonly StoredAccount[]> = {};
+  for (const w of wallets) {
+    if (w.type === 'watch') continue;
+    accounts[w.id] = (w.id === activeWalletId ? activeAccounts : await loadAccounts(w.id)) ?? [];
+  }
+  return backupDigest(wallets, accounts);
+}
+
+function refreshLiveBackupDigest() {
+  const gen = ++liveDigestGen;
+  const { wallets, activeWalletId, accounts } = useWallet.getState();
+  if (isDecoySession()) {
+    useLiveBackupDigest.setState({ digest: null });
+    return;
+  }
+  digestOf(wallets, activeWalletId, accounts)
+    // Génération : un calcul lent (lecture des comptes) ne remplace pas un plus récent.
+    .then((digest) => {
+      if (gen === liveDigestGen && !isDecoySession()) useLiveBackupDigest.setState({ digest });
+    })
+    .catch(() => {
+      if (gen === liveDigestGen) useLiveBackupDigest.setState({ digest: null });
+    });
+}
+
+useWallet.subscribe((s, prev) => {
+  if (s.wallets !== prev.wallets || s.accounts !== prev.accounts || s.activeWalletId !== prev.activeWalletId) refreshLiveBackupDigest();
+});
+
+/** Empreinte du dernier export complet (mémoire seulement : perdue au redémarrage, c'est voulu). */
+let lastExportDigest: string | null = null;
+
+/**
+ * Empreinte à enregistrer avec la sauvegarde qui vient de réussir : celle du
+ * CONTENU exporté s'il est connu (un portefeuille ajouté entre l'export et la
+ * fin de l'envoi n'y est pas), sinon l'empreinte courante — retour de Drive
+ * après un redémarrage de l'app, par exemple. `null` si rien n'est connu :
+ * la sauvegarde sera alors traitée comme « à vérifier ».
+ */
+export function backupDigestToRecord(): string | null {
+  if (isDecoySession()) return null;
+  return lastExportDigest ?? useLiveBackupDigest.getState().digest;
+}
+
+/** Sauvegarde chiffrée connue mais périmée (portefeuille, compte ou nom changé depuis). */
+export function useBackupStale(): boolean {
+  const live = useLiveBackupDigest((s) => s.digest);
+  const at = useSettings((s) => s.encryptedBackupAt);
+  const saved = useSettings((s) => s.backupDigest);
+  return isBackupStale({ encryptedBackupAt: at, backupDigest: saved }, live);
+}
+
+/** Même réponse, hors composant (contexte du Copilot). */
+export function backupStaleNow(): boolean {
+  const s = useSettings.getState();
+  return isBackupStale({ encryptedBackupAt: s.encryptedBackupAt ?? null, backupDigest: s.backupDigest ?? null }, useLiveBackupDigest.getState().digest);
+}

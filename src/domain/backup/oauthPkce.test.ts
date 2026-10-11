@@ -51,6 +51,13 @@ describe('oauthPkce', () => {
     expect(parseRedirect('kalyx://browse?url=https://x', { clientId: CLIENT, state: 's1' })).toBeNull();
   });
 
+  it('contrôle l’état AVANT l’erreur : un lien forgé ne peut pas annuler le flux', () => {
+    const base = redirectUriFor(CLIENT);
+    expect(parseRedirect(`${base}?error=access_denied&state=forge`, { clientId: CLIENT, state: 's1' })).toEqual({ error: 'state_mismatch' });
+    expect(parseRedirect(`${base}?error=access_denied`, { clientId: CLIENT, state: 's1' })).toEqual({ error: 'state_mismatch' });
+    expect(parseRedirect(`${base}?state=s1`, { clientId: CLIENT, state: 's1' })).toEqual({ error: 'missing_code' });
+  });
+
   it('échange le code sans secret client', () => {
     const body = new URLSearchParams(tokenRequestBody(CLIENT, 'c0de', 'verif'));
     expect(body.get('grant_type')).toBe('authorization_code');

@@ -38,10 +38,8 @@ export default function CloudBackupScreen() {
   const exportAllWallets = useWallet((s) => s.exportAllWallets);
   // Nombre de portefeuilles réellement emportés, pour le DIRE après coup.
   // Les adresses suivies n'ont pas de secret : elles ne partent pas dans la sauvegarde.
+  // Les portefeuilles à clé privée y partent aussi (exportAllWallets) : l'écran ne les bloque plus.
   const walletCount = useWallet((s) => s.wallets.filter((w) => w.type !== 'watch').length);
-  const activeWalletId = useWallet((s) => s.activeWalletId);
-  const wallets = useWallet((s) => s.wallets);
-  const isPk = wallets.find((w) => w.id === activeWalletId)?.type === 'privateKey';
 
   const language = useSettings((s) => s.language);
   const encryptedBackupAt = useSettings((s) => s.encryptedBackupAt);
@@ -60,7 +58,11 @@ export default function CloudBackupScreen() {
   const [savedCount, setSavedCount] = useState<number | null>(null);
 
   // Un flux Drive terminé (succès ou erreur) est acquitté quand on quitte l'écran.
-  useEffect(() => () => { if (flow.status === 'done' || flow.status === 'error') flow.reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Quitter l'écran sur un conflit ou une erreur, c'est abandonner : reset() efface aussi le blob chiffré gardé.
+  useEffect(() => () => {
+    const { status } = useDriveFlow.getState();
+    if (status === 'done' || status === 'error' || status === 'conflict') useDriveFlow.getState().reset();
+  }, []);
 
   const strength = passwordStrength(pwd);
   const mismatch = confirm.length > 0 && pwd !== confirm;
@@ -71,12 +73,34 @@ export default function CloudBackupScreen() {
   const driveDone = flow.kind === 'save' && flow.status === 'done';
   const driveError =
     flow.kind === 'save' && flow.status === 'error'
-      ? flow.error === 'not_configured' ? t('driveNotConfigured') : flow.error === 'denied' || flow.error === 'timeout' ? t('driveCancelled') : t('driveFailed')
+      ? flow.error === 'not_configured' ? t('driveNotConfigured')
+        : flow.error === 'denied' || flow.error === 'timeout' ? t('driveCancelled')
+        : flow.error === 'verify' ? t('driveVerifyFailed')
+        : t('driveFailed')
       : null;
+  // Coupure réseau : le blob chiffré est gardé, on réessaie sans redemander le mot de passe.
+  const canRetry = flow.kind === 'save' && flow.status === 'error' && flow.canRetry;
+  const conflict = flow.kind === 'save' && flow.status === 'conflict' ? flow.conflict : null;
   const checkBusy = flow.kind === 'check' && (flow.status === 'auth' || flow.status === 'working');
   const checkResult = flow.kind === 'check' && flow.status === 'done' ? flow.checkResult : undefined;
 
   const dateLabel = (iso: string) => new Date(iso).toLocaleString(language, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  /*
+    REMPLACER UNE SAUVEGARDE PLUS RICHE OU VENUE D'AILLEURS se demande. Un
+    téléphone à un portefeuille écrasait sans un mot la sauvegarde à trois
+    portefeuilles d'un autre ; on dit ce qu'il y a en ligne, et d'où ça vient.
+  */
+  const conflictText = conflict
+    ? (conflict.sameDevice
+        ? t('driveConflictSame')
+        : conflict.remoteCount === undefined
+          ? t('driveConflictOtherNoCount')
+          : t('driveConflictOther'))
+        .replace('{count}', String(conflict.remoteCount ?? '?'))
+        .replace('{local}', String(conflict.localCount))
+        .replace('{date}', dateLabel(conflict.modifiedTime))
+    : null;
 
   /*
     CE QUE LA SAUVEGARDE EMPORTE, annoncé avant de la créer. Elle n'emportait
@@ -138,16 +162,6 @@ export default function CloudBackupScreen() {
     />
   ));
 
-  if (isPk) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + space[3], paddingHorizontal: SCREEN_MARGIN, gap: space[3] }}>
-        <Stack.Screen options={{ headerShown: false }} />
-        <ScreenHeader title={t('encBackup')} />
-        <Text tone="secondary">{t('pkNoBackup')}</Text>
-      </View>
-    );
-  }
-
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -208,9 +222,22 @@ export default function CloudBackupScreen() {
           {/* 3. Statut réel */}
           <Surface style={{ gap: space[3], borderRadius: 24 }}>
             {driveBusy ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-                <ActivityIndicator color={colors.text} />
-                <Text tone="secondary" style={{ flex: 1 }}>{flow.status === 'auth' ? t('driveConnect') : t('driveSaving')}</Text>
+              <View style={{ gap: space[2] }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+                  <ActivityIndicator color={colors.text} />
+                  <Text tone="secondary" style={{ flex: 1 }}>{flow.status === 'auth' ? t('driveConnect') : t('driveSaving')}</Text>
+                </View>
+                {/* Revenu de Google sans finir : abandonner efface la session et le blob chiffré en attente. */}
+                {flow.status === 'auth' ? <Button label={t('cancel')} variant="ghost" onPress={flow.reset} /> : null}
+              </View>
+            ) : conflict ? (
+              <View style={{ gap: space[3] }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
+                  <Icon name="warning" size={18} color={colors.warning} />
+                  <Text style={{ flex: 1 }}>{conflictText}</Text>
+                </View>
+                <Button label={t('driveReplace')} variant="secondary" onPress={() => void flow.confirmOverwrite()} />
+                <Button label={t('cancel')} variant="ghost" onPress={flow.reset} />
               </View>
             ) : (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
@@ -221,8 +248,9 @@ export default function CloudBackupScreen() {
               </View>
             )}
             {driveError ? <Text variant="caption" tone="danger">{driveError}</Text> : null}
+            {canRetry ? <Button label={t('driveTryAgain')} variant="secondary" onPress={() => void flow.retrySave()} /> : null}
             {fileDone ? <Text variant="caption" tone="up">{t('backupCreated')}</Text> : null}
-            {driveOn && !driveBusy ? (
+            {driveOn && !driveBusy && !conflict ? (
               <>
                 <Divider />
                 <Button label={checkBusy ? t('driveSearching') : t('driveCheck')} variant="ghost" onPress={() => flow.start({ kind: 'check' })} disabled={checkBusy} />
@@ -233,7 +261,7 @@ export default function CloudBackupScreen() {
           {/* 4. Actions */}
           <View style={{ gap: space[3] }}>
             {driveOn ? (
-              <Button label={t('driveSave')} onPress={() => submit('drive')} disabled={!canSubmit || driveBusy} />
+              <Button label={t('driveSave')} onPress={() => submit('drive')} disabled={!canSubmit || driveBusy || !!conflict} />
             ) : null}
             <Button label={t('exportLocalFile')} variant={driveOn ? 'secondary' : 'primary'} onPress={() => submit('file')} disabled={!canSubmit} />
             <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t('restoreHint')}</Text>
