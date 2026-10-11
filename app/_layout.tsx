@@ -50,7 +50,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 /** Écrans ouverts app verrouillée : le code, et des pages sans aucune donnée du portefeuille. */
 // `/journal` : si c'est le déverrouillage qui casse, sa trace doit rester lisible (lignes filtrées, sans secret).
-const LOCKED_ALLOWED = new Set(['/', '/unlock', '/legal', '/faq', '/about', '/journal']);
+const LOCKED_ALLOWED = new Set(['/', '/unlock', '/legal', '/faq', '/about', '/licenses', '/journal']);
 
 export default function RootLayout() {
   const { mode, colors } = useTheme();

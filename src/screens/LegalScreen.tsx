@@ -11,6 +11,7 @@ import { spacing, useTheme, fonts } from '../../ui/theme';
 import { useT } from '../../lib/settingsStore';
 import { LEGAL_CONSTANTS } from '../constants/legal';
 import { IS_BETA } from '../../lib/appStage';
+import { REOWN_NOTICE } from '../constants/thirdPartyLicenses';
 
 function getApplicationModule(): any {
   try {
@@ -272,6 +273,14 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
         />
         <ListRow
           divider
+          left={<Icon name="about" size={20} color={colors.textSecondary} />}
+          title={t('thirdPartyLicenses')}
+          subtitle="WalletConnect · Reown"
+          right={<Icon name="chevron" size={18} tone="faint" />}
+          onPress={() => router.push('/licenses')}
+        />
+        <ListRow
+          divider
           left={<Icon name="dapps" size={20} color={colors.textSecondary} />}
           title={t('legalWebsite')}
           subtitle="kalyxwallet.com"
@@ -312,6 +321,14 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
           ]}
         >
           © 2026 {LEGAL_CONSTANTS.COMPANY_NAME}. {t('legalRightsReserved')}
+        </Text>
+        <Text
+          style={[
+            typography.muted,
+            { textAlign: 'center', fontSize: 11, lineHeight: 16, marginTop: 4, flexWrap: 'wrap' },
+          ]}
+        >
+          {REOWN_NOTICE}
         </Text>
       </View>
     </PremiumScreen>
