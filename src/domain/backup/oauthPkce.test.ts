@@ -7,6 +7,9 @@ import {
   redirectUriFor,
   reversedClientScheme,
   tokenRequestBody,
+  refreshRequestBody,
+  parseTokenResponse,
+  isRefreshRejected,
   DRIVE_APPDATA_SCOPE,
 } from './oauthPkce';
 
@@ -63,5 +66,39 @@ describe('oauthPkce', () => {
     expect(body.get('grant_type')).toBe('authorization_code');
     expect(body.get('code_verifier')).toBe('verif');
     expect(body.get('client_secret')).toBeNull();
+  });
+
+  it('accès hors ligne seulement sur demande, portée inchangée', () => {
+    const s = createPkceSession();
+    const plain = new URL(buildAuthUrl(CLIENT, s)).searchParams;
+    expect(plain.get('access_type')).toBeNull();
+    expect(plain.get('prompt')).toBe('select_account');
+    const off = new URL(buildAuthUrl(CLIENT, s, { offline: true })).searchParams;
+    expect(off.get('access_type')).toBe('offline');
+    expect(off.get('prompt')).toBe('consent');
+    expect(off.get('scope')).toBe(DRIVE_APPDATA_SCOPE);
+  });
+
+  it('rafraîchit sans secret client', () => {
+    const body = new URLSearchParams(refreshRequestBody(CLIENT, 'r3fr'));
+    expect(body.get('grant_type')).toBe('refresh_token');
+    expect(body.get('refresh_token')).toBe('r3fr');
+    expect(body.get('client_id')).toBe(CLIENT);
+    expect(body.get('client_secret')).toBeNull();
+  });
+
+  it('lit la réponse de jeton sans rien supposer du refresh_token', () => {
+    expect(parseTokenResponse({ access_token: 'a', refresh_token: 'r' })).toEqual({ accessToken: 'a', refreshToken: 'r' });
+    expect(parseTokenResponse({ access_token: 'a' })).toEqual({ accessToken: 'a' });
+    expect(parseTokenResponse({ access_token: 'a', refresh_token: '' })).toEqual({ accessToken: 'a' });
+    expect(parseTokenResponse({ error: 'x' })).toBeNull();
+    expect(parseTokenResponse(null)).toBeNull();
+  });
+
+  it('distingue un refus définitif du refresh_token', () => {
+    expect(isRefreshRejected(400, 'invalid_grant')).toBe(true);
+    expect(isRefreshRejected(401, undefined)).toBe(true);
+    expect(isRefreshRejected(400, 'invalid_request')).toBe(false);
+    expect(isRefreshRejected(503, undefined)).toBe(false);
   });
 });

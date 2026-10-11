@@ -19,7 +19,7 @@ import { Icon } from '../ui/icon';
 import { FadeInUp } from '../ui/FadeInUp';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
-import { useWallet } from '../lib/walletStore';
+import { useWallet, expectRestoredBackup, cancelRestoredBackup } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { friendlyTxError } from '../lib/txError';
@@ -64,6 +64,7 @@ export default function RestoreDriveScreen() {
   }, []);
 
   const leave = () => {
+    cancelRestoredBackup(); // restauration abandonnée : rien ne sera déclaré « à jour »
     flow.reset();
     router.replace(hasWallet ? '/wallets' : '/welcome');
   };
@@ -123,6 +124,13 @@ export default function RestoreDriveScreen() {
       return;
     }
     flow.reset();
+    /*
+     * App VIDE : une fois tout restauré (code créé, comptes et autres
+     * portefeuilles ajoutés par `set-pin`), l'état local SERA cette sauvegarde —
+     * elle sera marquée à jour à ce moment-là, pas avant. Restaurée à côté de
+     * portefeuilles existants (branche ci-dessus), elle reste à mettre à jour.
+     */
+    expectRestoredBackup(r.wallets);
     /*
      * Premier lancement : le flux d'installation ne sait recevoir qu'UNE phrase.
      * On lui donne la première, et les autres sont ajoutées juste après, une fois

@@ -32,6 +32,7 @@ import { toast } from '../lib/toast';
 import { useSettings } from '../lib/settingsStore';
 import { translate } from '../lib/i18n';
 import { useDriveFlow } from '../lib/googleDrive';
+import { onAutoSyncAuthorized } from '../lib/backupSync';
 import { useWallet } from '../lib/walletStore';
 import { useSettings as useSettingsStore } from '../lib/settingsStore';
 import { router } from 'expo-router';
@@ -83,7 +84,23 @@ export function DeepLinks() {
       if (await useDriveFlow.getState().handleRedirect(url)) {
         const f = useDriveFlow.getState();
         const lang = useSettingsStore.getState().language;
-        if (f.kind === 'save' && f.status === 'done') {
+        if (f.kind === 'sync') {
+          /*
+           * Autorisation hors ligne de la synchro automatique (activation ou
+           * reconnexion). Le refresh_token est déjà dans le trousseau ;
+           * le moteur reprend la main (une synchro déjà active renvoie tout de
+           * suite). L'activation se termine sur l'écran de sauvegarde (PIN) :
+           * on y retourne si l'app a été relancée par le retour de Google.
+           */
+          if (f.status === 'done') void onAutoSyncAuthorized();
+          else if (f.status === 'error') {
+            toast.error(translate(lang, f.error === 'no_refresh_token' ? 'autoSyncNoRefresh' : 'driveCancelled'));
+          }
+          if (coldStart) {
+            if (useWallet.getState().isUnlocked) router.push('/cloud-backup');
+            else useDriveFlow.getState().setReturnTo('/cloud-backup');
+          }
+        } else if (f.kind === 'save' && f.status === 'done') {
           toast.success(translate(lang, 'driveSaved'));
           // Si l'app a été relancée par le retour de Google, l'écran de sauvegarde n'est plus là : on y retourne.
           if (coldStart) {

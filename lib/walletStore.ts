@@ -82,7 +82,7 @@ import {
   type RecoveryPhraseKind,
   type ChainConfig,
 } from '../src';
-import { technicalLogger } from './technicalLogger';
+import { technicalLogger, recordTechnicalLog } from './technicalLogger';
 import { addressForChain } from './accountAddress';
 import { isRevokeInFlight, markRevokeSent, useRevokeState } from './revokeState';
 import { buildAddressIndex, lookupAddress } from './isMyAddress';
@@ -106,6 +106,7 @@ import {
   loadLockState,
   commitPinChange,
   rollbackPinChange,
+  BACKUP_KEY_VAULT_ID,
   wipeWallet,
   wipeAll,
   type StoredAccount,
@@ -118,7 +119,8 @@ import { KV_DEVICE_ONLY, kvGet, kvSet, kvDel } from './kv';
 import { isDecoySession, setDecoySession } from './sessionMode';
 import { aura } from './aura';
 import { isLegacyDefaultName } from './walletNames';
-import { backupDigest, isBackupStale } from './backupDigest';
+import { backupDigest, backupShape, isBackupStale } from './backupDigest';
+import { dropSealedSecret, noteBackupChange, sealWalletSecret, wipeAutoSyncOnReset } from './backupKeys';
 import { useSettings } from './settingsStore';
 import { usePendingBtc } from './pendingBtc';
 
@@ -714,6 +716,7 @@ async function searchPrepared(p: PreparedDiscovery, onProgress?: (i: number) => 
   // Rien écrit : portefeuille changé ou illisible (à relancer) — ou tout était déjà là (rien de neuf).
   if (!written) return sameWallet && !added.length ? { added: [], uncertain: res.uncertain } : { added: [], uncertain: res.uncertain, aborted: true };
   await dropSupersededWatch(written, p.walletId);
+  await noteBackupChange('accounts-discovered'); // comptes ajoutés : ils partent dans la sauvegarde
   return { added, uncertain: res.uncertain };
 }
 
@@ -1086,6 +1089,69 @@ function canonicalMnemonic(m: string): string {
   return m.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+/**
+ * Export de TOUS les portefeuilles à secret, chacun avec son identifiant.
+ *
+ * `exportAllWallets` n'en rend que le contenu ; l'activation de la sauvegarde
+ * automatique (lib/backupKeys.ts) a besoin de l'identifiant pour sceller chaque
+ * secret sous son nom — le retrouver par la position dans la liste serait faux
+ * dès qu'un portefeuille est ajouté ou retiré pendant l'export.
+ */
+export async function exportWalletsWithIds(unlock: Unlock): Promise<{ id: string; wallet: BackupWallet }[]> {
+  assertNotDecoy(); // session leurre : ni export (il remplacerait la vraie sauvegarde), ni changement de code
+  await (await import('./whitelistStore')).assertSecretsExportable();
+  const { wallets, activeWalletId } = useWallet.getState();
+  /*
+   * Le PIN est vérifié UNE FOIS, sur le portefeuille actif (ou, s'il est en lecture seule, un portefeuille à clé) : tous les coffres
+   * partagent le même code, et redemander à chaque itération n'ajouterait
+   * aucune sécurité — seulement des occasions d'échouer à moitié.
+   */
+  await proveIdentity(unlock);
+  const out: { id: string; wallet: BackupWallet }[] = [];
+  const exportedAccounts: Record<string, StoredAccount[]> = {};
+  for (const w of wallets) {
+    // Adresse suivie : aucun secret, rien à sauvegarder (elle n'a jamais eu de coffre).
+    if (w.type === 'watch') continue;
+    const vault = await loadVault(w.id);
+    /*
+     * Portefeuille à secret SANS coffre : on ne fabrique pas un secret vide,
+     * mais on ne le saute plus en silence non plus. Le sauter rendait une
+     * sauvegarde incomplète, annoncée réussie — l'utilisateur découvrait le
+     * trou en restaurant. Mieux vaut un export refusé, qui se voit.
+     */
+    if (!vault) throw new WalletError('VAULT_MISSING', `Coffre absent pour un portefeuille à secret (${w.type ?? 'seed'}) : sauvegarde incomplète refusée`);
+    /*
+     * Biométrie : pas de PIN pour déchiffrer — on lisait avec un code VIDE et
+     * l'export échouait à chaque fois. Chaque coffre biométrique est lu à la
+     * place ; un portefeuille qui n'en a pas oblige à passer par le code.
+     */
+    let secret: string;
+    if ('pin' in unlock) {
+      secret = await decryptSecret(vault, unlock.pin);
+    } else {
+      const bio = await readBiometricSeed(w.id, biometricPrompt());
+      if (!bio) throw new WalletError('BIOMETRIC_NOT_SET', 'Portefeuille sans coffre biométrique : utiliser le code');
+      secret = bio;
+    }
+    out.push({
+      id: w.id,
+      wallet: {
+        label: w.label ?? '',
+        // Une phrase TON part comme `'seed'` : la restauration la reclasse d'après
+        // la phrase elle-même (`classifyRecoveryPhrase`), sans champ de plus.
+        type: w.type === 'privateKey' ? 'privateKey' : 'seed',
+        ...(w.type === 'privateKey' ? { keyFamily: w.keyFamily ?? 'evm' } : {}),
+        secret,
+        // Comptes (numéro + nom) : sans eux, la restauration ne recréait que le compte n°1.
+        accounts: (exportedAccounts[w.id] = w.id === activeWalletId ? useWallet.getState().accounts : (await loadAccounts(w.id)) ?? []).map((a) => ({ index: a.index, label: a.label ?? '' })),
+      },
+    });
+  }
+  // Empreinte de CE QUI VIENT D'ÊTRE EXPORTÉ, reprise quand la sauvegarde aboutit (voir `backupDigestToRecord`).
+  lastExportDigest = backupDigest(wallets, exportedAccounts);
+  return out;
+}
+
 export const useWallet = create<WalletState>((set, get) => ({
   ready: false,
   hasWallet: false,
@@ -1184,11 +1250,16 @@ export const useWallet = create<WalletState>((set, get) => ({
     });
   },
 
-  newDraft: (strength = 128) => set({ draftMnemonic: generateMnemonic(strength), draftWasImported: false }),
+  newDraft: (strength = 128) => {
+    cancelRestoredBackup(); // nouvelle phrase : on ne restaure plus
+    set({ draftMnemonic: generateMnemonic(strength), draftWasImported: false });
+  },
 
   setImportedDraft: (mnemonic) => {
     const m = canonicalMnemonic(mnemonic);
     phraseKindForImport(m); // refus traduit : phrase invalide, ou TON pas encore disponible
+    // Brouillon étranger à la sauvegarde attendue (autre import, restauration abandonnée) : plus rien à attendre.
+    if (restoreBaseline && !restoreBaseline.expected.has(secretFingerprint('seed', m))) cancelRestoredBackup();
     set({ draftMnemonic: m, draftWasImported: true });
   },
 
@@ -1259,6 +1330,9 @@ export const useWallet = create<WalletState>((set, get) => ({
     useSettings.getState().setBiometricEnabled(biometricOn);
     const wallets: WalletMeta[] = [{ id, label: '', avatar: randomAvatarId(), ...(kind === 'ton' ? { type: 'tonPhrase' as const } : {}) }];
     await saveWalletsListSafe(wallets);
+    noteRestoredSecret('seed', m); // restauration attendue : ce secret en fait-il partie ?
+    // Synchro automatique déjà active (cas rare au premier lancement) : le secret est scellé tant qu'il est en main.
+    await sealWalletSecret(id, wallets[0].type, m, pin);
     // Une phrase TON n'a d'adresse que sur TON : on ouvre directement sur ce réseau.
     const chain = kind === 'ton' ? firstChainOfFamily('ton') : get().activeChain;
     set({
@@ -1483,6 +1557,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       rememberActive(activeWalletId, idx);
     }
     await dropSupersededWatch([created], activeWalletId);
+    await noteBackupChange('account-added');
   },
 
   renameAccount: (index, label) => {
@@ -1490,7 +1565,9 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!name) return;
     // Affiché tout de suite ; écrit à son tour (jamais par-dessus une recherche ou un ajout en cours).
     set({ accounts: get().accounts.map((a) => (a.index === index ? { ...a, label: name } : a)) });
-    void updateAccounts(get().activeWalletId, (list) => list.map((a) => (a.index === index ? { ...a, label: name } : a))).catch(() => {});
+    void updateAccounts(get().activeWalletId, (list) => list.map((a) => (a.index === index ? { ...a, label: name } : a)))
+      .then(() => noteBackupChange('account-renamed')) // le nom part dans la sauvegarde
+      .catch(() => {});
   },
 
   createWallet: async (pin, label) => {
@@ -1505,6 +1582,9 @@ export const useWallet = create<WalletState>((set, get) => ({
     const wallets = [...get().wallets, { id, label: label?.trim() || '', avatar: randomAvatarId() }];
     await saveWalletsListSafe(wallets);
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, account: toAccount(accounts, 0, get().activeChain) });
+    noteRestoredSecret('seed', m); // une phrase neuve n'est dans aucune sauvegarde : restauration attendue annulée
+    // Sauvegarde automatique : scellé MAINTENANT (le PIN et la phrase sont en main). Ne lève jamais.
+    await sealWalletSecret(id, 'seed', m, pin);
     // Liste blanche active : ce portefeuille ne sera « à toi » (destinataire libre) qu'après 24 h.
     void (await import('./whitelistStore')).whitelistActions.noteNewWallet(id).catch(() => {});
     rememberActive(id, 0);
@@ -1523,6 +1603,9 @@ export const useWallet = create<WalletState>((set, get) => ({
     const meta: WalletMeta = { id, label: label?.trim() || '', avatar: randomAvatarId(), ...(kind === 'ton' ? { type: 'tonPhrase' as const } : {}) };
     const wallets = [...get().wallets, meta];
     await saveWalletsListSafe(wallets);
+    noteRestoredSecret('seed', m); // restauration attendue : ce secret en fait-il partie ?
+    // Sauvegarde automatique : scellé tant que la phrase est en main. Ne lève jamais.
+    await sealWalletSecret(id, meta.type, m, pin);
     // Une phrase TON n'a d'adresse que sur TON : on bascule sur ce réseau.
     const chain = kind === 'ton' ? firstChainOfFamily('ton') : get().activeChain;
     set({ wallets, activeWalletId: id, accounts, activeAccountIndex: 0, activeChain: chain, account: toAccount(accounts, 0, chain) });
@@ -1587,6 +1670,9 @@ export const useWallet = create<WalletState>((set, get) => ({
       { id, label: label?.trim() || '', type: 'privateKey', keyFamily: chosen, avatar: randomAvatarId() },
     ];
     await saveWalletsListSafe(wallets);
+    noteRestoredSecret('privateKey', stored); // restauration attendue : ce secret en fait-il partie ?
+    // Sauvegarde automatique : la clé, telle que rangée au coffre (comme l'export manuel). Ne lève jamais.
+    await sealWalletSecret(id, 'privateKey', stored, pin);
     // Le réseau actif doit appartenir à la famille de la clé, sinon le compte
     // n'aurait pas d'adresse à montrer.
     const chain =
@@ -1606,57 +1692,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     await dropSupersededWatch(accounts, id);
   },
 
-  exportAllWallets: async (unlock) => {
-    assertNotDecoy(); // session leurre : ni export (il remplacerait la vraie sauvegarde), ni changement de code
-    await (await import('./whitelistStore')).assertSecretsExportable();
-    const { wallets, activeWalletId } = get();
-    /*
-     * Le PIN est vérifié UNE FOIS, sur le portefeuille actif (ou, s'il est en lecture seule, un portefeuille à clé) : tous les coffres
-     * partagent le même code, et redemander à chaque itération n'ajouterait
-     * aucune sécurité — seulement des occasions d'échouer à moitié.
-     */
-    await proveIdentity(unlock);
-    const out: BackupWallet[] = [];
-    const exportedAccounts: Record<string, StoredAccount[]> = {};
-    for (const w of wallets) {
-      // Adresse suivie : aucun secret, rien à sauvegarder (elle n'a jamais eu de coffre).
-      if (w.type === 'watch') continue;
-      const vault = await loadVault(w.id);
-      /*
-       * Portefeuille à secret SANS coffre : on ne fabrique pas un secret vide,
-       * mais on ne le saute plus en silence non plus. Le sauter rendait une
-       * sauvegarde incomplète, annoncée réussie — l'utilisateur découvrait le
-       * trou en restaurant. Mieux vaut un export refusé, qui se voit.
-       */
-      if (!vault) throw new WalletError('VAULT_MISSING', `Coffre absent pour un portefeuille à secret (${w.type ?? 'seed'}) : sauvegarde incomplète refusée`);
-      /*
-       * Biométrie : pas de PIN pour déchiffrer — on lisait avec un code VIDE et
-       * l'export échouait à chaque fois. Chaque coffre biométrique est lu à la
-       * place ; un portefeuille qui n'en a pas oblige à passer par le code.
-       */
-      let secret: string;
-      if ('pin' in unlock) {
-        secret = await decryptSecret(vault, unlock.pin);
-      } else {
-        const bio = await readBiometricSeed(w.id, biometricPrompt());
-        if (!bio) throw new WalletError('BIOMETRIC_NOT_SET', 'Portefeuille sans coffre biométrique : utiliser le code');
-        secret = bio;
-      }
-      out.push({
-        label: w.label ?? '',
-        // Une phrase TON part comme `'seed'` : la restauration la reclasse d'après
-        // la phrase elle-même (`classifyRecoveryPhrase`), sans champ de plus.
-        type: w.type === 'privateKey' ? 'privateKey' : 'seed',
-        ...(w.type === 'privateKey' ? { keyFamily: w.keyFamily ?? 'evm' } : {}),
-        secret,
-        // Comptes (numéro + nom) : sans eux, la restauration ne recréait que le compte n°1.
-        accounts: (exportedAccounts[w.id] = w.id === activeWalletId ? get().accounts : (await loadAccounts(w.id)) ?? []).map((a) => ({ index: a.index, label: a.label ?? '' })),
-      });
-    }
-    // Empreinte de CE QUI VIENT D'ÊTRE EXPORTÉ, reprise quand la sauvegarde aboutit (voir `backupDigestToRecord`).
-    lastExportDigest = backupDigest(wallets, exportedAccounts);
-    return out;
-  },
+  exportAllWallets: async (unlock) => (await exportWalletsWithIds(unlock)).map((e) => e.wallet),
 
   importWallets: async (list, pin) => {
     assertNotDecoy(); // session leurre : jamais d'écriture sur les vrais portefeuilles
@@ -1717,6 +1753,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       return [...byIndex.values()].sort((a, b) => a.index - b.index);
     });
     if (accounts) await dropSupersededWatch(accounts, walletId);
+    await noteBackupChange('accounts-restored');
   },
 
   discoverAccounts: async (walletId, unlock, opts = {}) => {
@@ -1787,6 +1824,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     const wallets = get().wallets.map((w) => (w.id === id ? { ...w, label: name } : w));
     await saveWalletsListSafe(wallets);
     set({ wallets });
+    await noteBackupChange('wallet-renamed'); // le nom part dans la sauvegarde
   },
 
   setWalletAvatar: async (id, avatar) => {
@@ -1816,6 +1854,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     ]);
     await wipeWallet(id);
     await saveWalletsListSafe(wallets);
+    // Son secret scellé part avec lui : la prochaine sauvegarde automatique ne le contiendra plus.
+    await dropSealedSecret(id);
     if (get().activeWalletId === id) {
       // Le suivant peut ne servir qu'une famille (clé importée, adresse suivie) : réseau ajusté.
       // Un seul `set` : jamais un état où l'actif est le portefeuille supprimé.
@@ -2487,6 +2527,23 @@ export const useWallet = create<WalletState>((set, get) => ({
       before.push({ id: w.id, vault });
       after.push({ id: w.id, vault: await encryptSecret(m, newPin) });
     }
+    /*
+     * BDK DE LA SAUVEGARDE AUTOMATIQUE : chiffrée par le PIN, elle suit le
+     * changement DANS LE MÊME JOURNAL que les coffres. À part, une app tuée
+     * entre les deux la laisserait sous l'ancien PIN : plus aucun nouveau
+     * portefeuille ne serait scellé. Illisible avec l'ancien PIN : on ne la
+     * touche pas (le scellement échouera, et l'invite à réactiver le dira).
+     */
+    const bdkVault = await loadVault(BACKUP_KEY_VAULT_ID).catch(() => null);
+    if (bdkVault) {
+      try {
+        const k = await decryptSecret(bdkVault, oldPin);
+        before.push({ id: BACKUP_KEY_VAULT_ID, vault: bdkVault });
+        after.push({ id: BACKUP_KEY_VAULT_ID, vault: await encryptSecret(k, newPin) });
+      } catch {
+        recordTechnicalLog('WALLET', 'Backup key not re-encrypted on PIN change', { error: 'unreadable' });
+      }
+    }
     await commitPinChange(before, after);
   },
 
@@ -2602,6 +2659,9 @@ export const useWallet = create<WalletState>((set, get) => ({
       new Promise((r) => setTimeout(r, 10_000)),
     ]);
     await wipeAll(get().wallets);
+    // Sauvegarde automatique : clés locales effacées, moteur remis à zéro (jeton Google révoqué par lui).
+    await wipeAutoSyncOnReset();
+    cancelRestoredBackup(); // une restauration attendue appartenait à l'ancienne vie de l'app
     // Le leurre part avec le reste.
     const duress = await loadDuressMeta();
     if (duress) await wipeWallet(duress.id).catch(() => {});
@@ -2646,13 +2706,104 @@ useWallet.subscribe((s, prev) => {
 export const useLiveBackupDigest = create<{ digest: string | null }>(() => ({ digest: null }));
 let liveDigestGen = 0;
 
-async function digestOf(wallets: readonly WalletMeta[], activeWalletId: string, activeAccounts: readonly StoredAccount[]): Promise<string> {
+async function digestOf(wallets: readonly WalletMeta[], activeWalletId: string, activeAccounts: readonly StoredAccount[]): Promise<{ digest: string; shape: string }> {
   const accounts: Record<string, readonly StoredAccount[]> = {};
   for (const w of wallets) {
     if (w.type === 'watch') continue;
     accounts[w.id] = (w.id === activeWalletId ? activeAccounts : await loadAccounts(w.id)) ?? [];
   }
-  return backupDigest(wallets, accounts);
+  return { digest: backupDigest(wallets, accounts), shape: backupShape(wallets.map((w) => ({ ...w, accounts: accounts[w.id] }))) };
+}
+
+/*
+ * RESTAURATION AU PREMIER LANCEMENT : la sauvegarde restaurée EST l'état local.
+ *
+ * Sans cela, une restauration depuis Drive laissait l'app sans sauvegarde
+ * connue (ou « à refaire »), alors que tout ce qu'elle contient vient
+ * précisément de cette sauvegarde. Mais le constat ne se fait qu'une fois la
+ * restauration TERMINÉE — elle s'étale sur plusieurs étapes (`confirmDraft`,
+ * comptes, autres portefeuilles, dans `set-pin`) — et seulement si l'app était
+ * VIDE avant : restaurée à côté de portefeuilles existants, la sauvegarde en
+ * contient moins que le local, elle reste « à mettre à jour ».
+ *
+ * On retient donc la FORME de la sauvegarde (types, noms, comptes — pas les
+ * identifiants, recréés) ; dès que l'empreinte courante est calculée sur un
+ * état de même forme, la sauvegarde est marquée à jour avec CETTE empreinte. Un
+ * état qui n'y arrive jamais (portefeuille en double ignoré, restauration
+ * partielle, nom perdu) n'est jamais déclaré à jour : c'est le côté sûr. Délai
+ * borné : passé, l'attente est oubliée.
+ */
+const RESTORE_BASELINE_TTL = 15 * 60_000;
+/*
+ * La FORME seule ne suffit pas : abandonner la restauration puis créer ou
+ * importer une AUTRE phrase de même forme (un portefeuille, sans nom) aurait
+ * déclaré « à jour » une sauvegarde qui ne la contient pas. On retient donc
+ * aussi les empreintes (sha256) des SECRETS de la sauvegarde, et celles des
+ * secrets réellement ajoutés depuis : les deux ensembles doivent être égaux.
+ * Ces empreintes ne quittent jamais la mémoire (ni stockage, ni journal).
+ */
+let restoreBaseline: { shape: string; expected: Set<string>; added: Set<string>; until: number } | null = null;
+
+/**
+ * Empreinte d'un secret, sous la forme que la sauvegarde et le coffre lui
+ * donnent tous deux : phrase normalisée ; clé hexadécimale en minuscules (la
+ * casse n'y change rien). Une clé dans un autre format (WIF…) est prise telle
+ * quelle : si elle diffère du coffre, la sauvegarde reste « à mettre à jour »,
+ * le côté sûr.
+ */
+function secretFingerprint(type: 'seed' | 'privateKey', secret: string): string {
+  let norm = type === 'seed' ? secret.trim().toLowerCase().replace(/\s+/g, ' ') : secret.trim();
+  if (type === 'privateKey' && /^(0x)?[0-9a-f]+$/i.test(norm)) norm = norm.toLowerCase().replace(/^0x/, '');
+  return bytesToHex(sha256(utf8ToBytes(`${type}:${norm}`)));
+}
+
+/** À appeler APRÈS le déchiffrement réussi d'une sauvegarde, AVANT de la restaurer. */
+export function expectRestoredBackup(list: readonly BackupWallet[]): void {
+  // Des portefeuilles existent déjà (ou session leurre) : la sauvegarde ne sera pas « l'état local ».
+  if (isDecoySession() || useWallet.getState().wallets.length > 0) {
+    restoreBaseline = null;
+    return;
+  }
+  restoreBaseline = {
+    shape: backupShape(list),
+    expected: new Set(list.map((w) => secretFingerprint(w.type, w.secret))),
+    added: new Set(),
+    until: Date.now() + RESTORE_BASELINE_TTL,
+  };
+}
+
+/** Restauration abandonnée (sortie de l'écran, autre brouillon, réinitialisation) : plus rien à attendre. */
+export function cancelRestoredBackup(): void {
+  restoreBaseline = null;
+}
+
+/**
+ * Secret ajouté au coffre pendant une restauration attendue. Un secret qui
+ * n'est pas dans la sauvegarde l'annule : l'état local ne sera plus jamais
+ * égal à la sauvegarde.
+ */
+function noteRestoredSecret(type: 'seed' | 'privateKey', secret: string): void {
+  if (!restoreBaseline) return;
+  const fp = secretFingerprint(type, secret);
+  if (!restoreBaseline.expected.has(fp)) {
+    restoreBaseline = null;
+    return;
+  }
+  restoreBaseline.added.add(fp);
+}
+
+function settleRestoreBaseline(digest: string, shape: string): void {
+  const b = restoreBaseline;
+  if (!b) return;
+  if (Date.now() > b.until) {
+    restoreBaseline = null;
+    return;
+  }
+  if (shape !== b.shape) return;
+  // Mêmes secrets, ni plus ni moins (doublons de la sauvegarde ignorés à l'import : ensemble contre ensemble).
+  if (b.added.size !== b.expected.size || [...b.expected].some((fp) => !b.added.has(fp))) return;
+  restoreBaseline = null;
+  useSettings.getState().markEncryptedBackup('drive', digest);
 }
 
 function refreshLiveBackupDigest() {
@@ -2664,8 +2815,11 @@ function refreshLiveBackupDigest() {
   }
   digestOf(wallets, activeWalletId, accounts)
     // Génération : un calcul lent (lecture des comptes) ne remplace pas un plus récent.
-    .then((digest) => {
-      if (gen === liveDigestGen && !isDecoySession()) useLiveBackupDigest.setState({ digest });
+    .then(({ digest, shape }) => {
+      if (gen === liveDigestGen && !isDecoySession()) {
+        useLiveBackupDigest.setState({ digest });
+        settleRestoreBaseline(digest, shape);
+      }
     })
     .catch(() => {
       if (gen === liveDigestGen) useLiveBackupDigest.setState({ digest: null });
@@ -2678,6 +2832,7 @@ useWallet.subscribe((s, prev) => {
 
 /** Empreinte du dernier export complet (mémoire seulement : perdue au redémarrage, c'est voulu). */
 let lastExportDigest: string | null = null;
+
 
 /**
  * Empreinte à enregistrer avec la sauvegarde qui vient de réussir : celle du

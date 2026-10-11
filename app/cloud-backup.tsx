@@ -8,12 +8,21 @@
  * La confirmation biométrique/PIN ne fait que révéler + chiffrer (rapide). L'envoi
  * Drive est confié au flux persistant `useDriveFlow` (lib/googleDrive.ts), qui
  * survit au retour de Google et au redémarrage de l'app.
+ *
+ * Bloc 5 — SYNCHRONISATION AUTOMATIQUE (lib/backupSync.ts). L'activation
+ * réutilise le mot de passe du formulaire (même exigence de robustesse), ouvre
+ * Google en accès hors ligne, PUIS demande le PIN (PinPromptModal) : le PIN
+ * n'est donc jamais gardé en mémoire pendant l'aller-retour dans le navigateur.
+ * Si l'app a été relancée par le retour de Google, le mot de passe saisi est
+ * perdu (jamais persisté) : l'écran dit « Google est connecté, termine
+ * l'activation » et redemande mot de passe puis PIN, sans repasser par Google.
+ * Le flux manuel ci-dessus reste disponible tel quel.
  */
 import { NovaHero } from '../ui/nova';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { passwordStrength, MIN_BACKUP_LEVEL } from '../src/security/passwordStrength';
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, Platform, Share, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Platform, Share, ActivityIndicator, Switch } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Button, Surface, Input, ScreenHeader, Divider } from '../ui/kit';
@@ -24,8 +33,22 @@ import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
 import { createWalletsBackup } from '../src';
-import { useDriveFlow, isDriveConfigured } from '../lib/googleDrive';
+import { useDriveFlow, isDriveConfigured, clearSyncAuthPending } from '../lib/googleDrive';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
+import { PinPromptModal } from '../ui/PinPromptModal';
+import { isWalletError } from '../src';
+import type { ConflictInfo } from '../src/domain/backup/drive';
+import {
+  useBackupSync,
+  startAutoSyncAuth,
+  enableAutoSync,
+  disableAutoSync,
+  syncBackupNow,
+  replaceRemoteOnConflict,
+  dismissSyncConflict,
+} from '../lib/backupSync';
+import { setupAutoSyncKeys } from '../lib/backupKeys';
+import { isDecoySession } from '../lib/sessionMode';
 
 type Target = 'drive' | 'file';
 
@@ -91,16 +114,12 @@ export default function CloudBackupScreen() {
     téléphone à un portefeuille écrasait sans un mot la sauvegarde à trois
     portefeuilles d'un autre ; on dit ce qu'il y a en ligne, et d'où ça vient.
   */
-  const conflictText = conflict
-    ? (conflict.sameDevice
-        ? t('driveConflictSame')
-        : conflict.remoteCount === undefined
-          ? t('driveConflictOtherNoCount')
-          : t('driveConflictOther'))
-        .replace('{count}', String(conflict.remoteCount ?? '?'))
-        .replace('{local}', String(conflict.localCount))
-        .replace('{date}', dateLabel(conflict.modifiedTime))
-    : null;
+  const describeConflict = (c: ConflictInfo) =>
+    (c.sameDevice ? t('driveConflictSame') : c.remoteCount === undefined ? t('driveConflictOtherNoCount') : t('driveConflictOther'))
+      .replace('{count}', String(c.remoteCount ?? '?'))
+      .replace('{local}', String(c.localCount))
+      .replace('{date}', dateLabel(c.modifiedTime));
+  const conflictText = conflict ? describeConflict(conflict) : null;
 
   /*
     CE QUE LA SAUVEGARDE EMPORTE, annoncé avant de la créer. Elle n'emportait
@@ -266,6 +285,17 @@ export default function CloudBackupScreen() {
             <Button label={t('exportLocalFile')} variant={driveOn ? 'secondary' : 'primary'} onPress={() => submit('file')} disabled={!canSubmit} />
             <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t('restoreHint')}</Text>
           </View>
+
+          {/* 5. Synchronisation automatique */}
+          {driveOn && !isDecoySession() ? (
+            <AutoSyncSection
+              password={pwd}
+              passwordOk={canSubmit}
+              onActivated={() => { setPwd(''); setConfirm(''); }}
+              describeConflict={describeConflict}
+              dateLabel={dateLabel}
+            />
+          ) : null}
         </ScrollView>
 
         <ConfirmUnlock
@@ -278,5 +308,206 @@ export default function CloudBackupScreen() {
         />
       </KeyboardAvoid>
     </>
+  );
+}
+
+/*
+ * Synchronisation automatique. Ne connaît aucun secret au-delà de l'instant de
+ * l'activation : le mot de passe vient du formulaire, le PIN de la feuille, et
+ * les deux partent aussitôt dans setupAutoSyncKeys (lib/backupKeys.ts).
+ */
+function AutoSyncSection({
+  password,
+  passwordOk,
+  onActivated,
+  describeConflict,
+  dateLabel,
+}: {
+  password: string;
+  passwordOk: boolean;
+  onActivated: () => void;
+  describeConflict: (c: ConflictInfo) => string;
+  dateLabel: (iso: string) => string;
+}) {
+  const { colors } = useTheme();
+  const t = useT();
+  const sync = useBackupSync();
+  const flow = useDriveFlow();
+  const pinLength = useSettings((s) => s.pinLength);
+
+  /** L'utilisateur a demandé l'activation DEPUIS cet écran (mot de passe en main). */
+  const [wanted, setWanted] = useState(false);
+  const [askPin, setAskPin] = useState(false);
+  const [pinBusy, setPinBusy] = useState(false);
+  const [pinError, setPinError] = useState(0);
+  const [hint, setHint] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const authBusy = flow.kind === 'sync' && (flow.status === 'auth' || flow.status === 'working');
+  const authError = flow.kind === 'sync' && flow.status === 'error' ? flow.error : null;
+
+  // Retour de Google réussi (refresh_token rangé) : place au PIN.
+  useEffect(() => {
+    if (wanted && sync.authorized && !sync.enabled && !askPin) setAskPin(true);
+  }, [wanted, sync.authorized, sync.enabled, askPin]);
+
+  // Reconnexion d'une synchro active : l'autorisation n'est pas « à terminer », elle n'est pas orpheline.
+  useEffect(() => {
+    if (sync.enabled && sync.authorized) void clearSyncAuthPending();
+  }, [sync.enabled, sync.authorized]);
+
+  // Retour de Google en échec (refus, pas de refresh_token) : la synchro reste désactivée.
+  useEffect(() => {
+    if (authError) setWanted(false);
+  }, [authError]);
+
+  const begin = () => {
+    setHint(null);
+    // Même exigence que la sauvegarde manuelle : c'est la seule protection du fichier en ligne.
+    if (!passwordOk) {
+      setHint(t('autoSyncNeedPassword'));
+      return;
+    }
+    setWanted(true);
+    // Déjà autorisé (app relancée par le retour de Google, ou réactivation) : pas de second passage chez Google.
+    if (sync.authorized) setAskPin(true);
+    else void startAutoSyncAuth();
+  };
+
+  /*
+   * Activation abandonnée après le retour de Google (PIN annulé, clés non
+   * préparées) : le refresh_token ne doit pas rester orphelin dans le
+   * trousseau. disableAutoSync le révoque et le purge (et efface les clés via
+   * les crochets). Jamais quand la synchro tourne déjà (réactivation).
+   */
+  const abandon = () => {
+    setAskPin(false);
+    setWanted(false);
+    if (!sync.enabled) {
+      setBusy(true);
+      void disableAutoSync().then(clearSyncAuthPending).finally(() => setBusy(false));
+    }
+  };
+
+  const finish = async (pin: string) => {
+    setPinBusy(true);
+    try {
+      await setupAutoSyncKeys(password, pin);
+    } catch (e) {
+      setPinBusy(false);
+      if (isWalletError(e) && (e.code === 'WRONG_PIN' || e.code === 'INVALID_PIN')) {
+        setPinError((n) => n + 1);
+        return;
+      }
+      abandon();
+      setHint(t('driveFailed'));
+      return;
+    }
+    setAskPin(false);
+    setPinBusy(false);
+    setWanted(false);
+    onActivated();
+    try {
+      await enableAutoSync(); // premier envoi compris ; son issue s'affiche dans le statut
+      await clearSyncAuthPending(); // activation aboutie : le refresh_token n'est plus orphelin
+    } catch {
+      // Plus de refresh_token entre-temps : rien ne doit rester activé à moitié (les crochets effacent les clés).
+      await disableAutoSync();
+      setHint(t('autoSyncNoRefresh'));
+    }
+  };
+
+  const toggle = (on: boolean) => {
+    if (on) {
+      begin();
+      return;
+    }
+    setBusy(true);
+    setWanted(false);
+    void disableAutoSync().finally(() => setBusy(false));
+  };
+
+  const errorText = (code: string | null) =>
+    code === 'verify' ? t('driveVerifyFailed')
+      : code === 'RESEAL_REQUIRED' ? t('autoSyncReseal')
+      : t('autoSyncError');
+
+  // Statut en une ligne (rien de sensible : état, date, code d'erreur).
+  let line: { tone: 'up' | 'secondary' | 'warning' | 'danger'; text: string } | null = null;
+  if (sync.enabled) {
+    if (sync.status === 'syncing') line = { tone: 'secondary', text: t('autoSyncSyncing') };
+    else if (sync.status === 'pending') line = { tone: 'secondary', text: t('autoSyncPending') };
+    else if (sync.status === 'reconnect') line = { tone: 'warning', text: t('autoSyncReconnect') };
+    else if (sync.status === 'error') line = { tone: 'danger', text: errorText(sync.error) };
+    else if (sync.lastSyncAt) line = { tone: 'up', text: t('autoSyncOk').replace('{date}', dateLabel(sync.lastSyncAt)) };
+  } else if (sync.authorized && !wanted) {
+    // Autorisation obtenue mais activation interrompue (redémarrage) : on la termine ici.
+    line = { tone: 'warning', text: t('autoSyncFinish') };
+  }
+
+  const switchOn = sync.enabled || wanted || authBusy;
+
+  return (
+    <Surface style={{ gap: space[3], borderRadius: 24 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="body" style={{ fontWeight: '600' }}>{t('autoSyncTitle')}</Text>
+          <Text variant="caption" tone="secondary">{t('autoSyncExplain')}</Text>
+        </View>
+        {authBusy || busy || sync.status === 'syncing' ? <ActivityIndicator color={colors.text} /> : null}
+        <Switch value={switchOn} onValueChange={toggle} disabled={busy || authBusy || pinBusy} />
+      </View>
+
+      {authBusy ? <Text variant="caption" tone="secondary">{t('driveConnect')}</Text> : null}
+      {authError ? (
+        <Text variant="caption" tone="danger">
+          {authError === 'no_refresh_token' ? t('autoSyncNoRefresh') : authError === 'not_configured' ? t('driveNotConfigured') : t('driveCancelled')}
+        </Text>
+      ) : null}
+      {hint ? <Text variant="caption" tone="danger">{hint}</Text> : null}
+
+      {sync.enabled && sync.status === 'conflict' && sync.conflict ? (
+        // Même décision que le flux manuel : jamais d'écrasement sans l'accord de l'utilisateur.
+        <View style={{ gap: space[3] }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
+            <Icon name="warning" size={18} color={colors.warning} />
+            <Text style={{ flex: 1 }}>{describeConflict(sync.conflict)}</Text>
+          </View>
+          <Button label={t('driveReplace')} variant="secondary" onPress={() => void replaceRemoteOnConflict()} />
+          <Button label={t('cancel')} variant="ghost" onPress={dismissSyncConflict} />
+        </View>
+      ) : line ? (
+        <Text variant="caption" tone={line.tone}>{line.text}</Text>
+      ) : null}
+
+      {sync.enabled && sync.status === 'reconnect' ? (
+        // Bouton explicite : le navigateur ne s'ouvre jamais tout seul.
+        <Button label={t('autoSyncReconnectBtn')} variant="secondary" onPress={() => void startAutoSyncAuth()} disabled={authBusy} />
+      ) : null}
+      {sync.enabled && sync.status === 'error' && sync.error === 'RESEAL_REQUIRED' ? (
+        <Button label={t('autoSyncReactivate')} variant="secondary" onPress={begin} disabled={pinBusy} />
+      ) : null}
+      {sync.enabled && (sync.status === 'error' || sync.status === 'pending' || sync.status === 'ok') && sync.error !== 'RESEAL_REQUIRED' ? (
+        <Button label={t('autoSyncNow')} variant="ghost" onPress={() => void syncBackupNow()} />
+      ) : null}
+      {!sync.enabled && sync.authorized && !wanted ? (
+        <>
+          <Button label={t('autoSyncFinishBtn')} variant="secondary" onPress={begin} disabled={busy} />
+          {/* Renoncer : révoque et purge l'autorisation Google obtenue. */}
+          <Button label={t('cancel')} variant="ghost" onPress={abandon} disabled={busy} />
+        </>
+      ) : null}
+
+      <PinPromptModal
+        visible={askPin}
+        title={t('appPin')}
+        subtitle={t('autoSyncPinSub')}
+        expectedLength={pinLength}
+        busy={pinBusy}
+        errorSignal={pinError}
+        onSubmit={(pin) => void finish(pin)}
+        onCancel={abandon}
+      />
+    </Surface>
   );
 }

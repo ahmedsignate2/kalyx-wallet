@@ -28,6 +28,16 @@
  * reposerait sur un état périmé. La confirmation est liée à la version vue
  * (id + date) : si un autre appareil réécrit entre-temps, on redemande.
  *
+ * SYNCHRONISATION AUTOMATIQUE (lib/backupSync.ts) — l'unique exception au
+ * « pas de refresh_token ». L'intention `sync` demande un accès hors ligne ;
+ * le refresh_token obtenu va DIRECTEMENT dans le trousseau (appareil seul,
+ * jamais AsyncStorage, jamais zustand, jamais un journal). Le jeton d'accès de
+ * l'échange n'est PAS révoqué : chez Google, révoquer un jeton révoque toute
+ * l'autorisation, refresh_token compris. Pour la même raison, tant qu'un
+ * refresh_token est conservé, les flux manuels laissent leur jeton d'accès
+ * expirer seul (~1 h, gardé en mémoire uniquement) au lieu de le révoquer :
+ * sinon une simple vérification manuelle couperait la synchro.
+ *
  * Prérequis : EXPO_PUBLIC_GOOGLE_CLIENT_ID (client OAuth Android/iOS, .env.example)
  * + schéma inversé déclaré dans app.config.ts + « Activer le schéma d'URI
  * personnalisé » coché sur le client dans la console Google.
@@ -40,11 +50,16 @@ import {
   createPkceSession,
   GOOGLE_REVOKE_URL,
   GOOGLE_TOKEN_URL,
+  isRefreshRejected,
   parseRedirect,
+  parseTokenResponse,
+  refreshRequestBody,
   tokenRequestBody,
+  type TokenResponse,
 } from '../src/domain/backup/oauthPkce';
 import {
   downloadBackup,
+  DriveError,
   DriveVerifyError,
   findBackup,
   isTransientError,
@@ -57,6 +72,8 @@ import {
 } from '../src/domain/backup/drive';
 import { useSettings } from './settingsStore';
 import { getDeviceId } from './deviceId';
+import { kvDel, kvGet, kvSet, KV_DEVICE_ONLY } from './kv';
+import { isDecoySession } from './sessionMode';
 
 export const GOOGLE_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '').trim();
 
@@ -68,7 +85,18 @@ export function isDriveConfigured(): boolean {
 export class GoogleAuthError extends Error {
   constructor(
     message: string,
-    readonly code: 'not_configured' | 'cancelled' | 'timeout' | 'denied' | 'exchange_failed',
+    readonly code:
+      | 'not_configured'
+      | 'cancelled'
+      | 'timeout'
+      | 'denied'
+      | 'exchange_failed'
+      /** Activation de la synchro : Google n'a pas délivré de refresh_token. */
+      | 'no_refresh_token'
+      /** refresh_token refusé (révoqué, expiré) : reconnexion requise. */
+      | 'invalid_grant'
+      /** Rafraîchissement refusé pour une autre raison (requête invalide). */
+      | 'refresh_failed',
   ) {
     super(message);
     this.name = 'GoogleAuthError';
@@ -79,28 +107,35 @@ export class GoogleAuthError extends Error {
 /* Jeton éphémère                                                      */
 /* ------------------------------------------------------------------ */
 
-async function exchangeCode(clientId: string, code: string, verifier: string): Promise<string> {
+async function exchangeCodeFull(clientId: string, code: string, verifier: string): Promise<TokenResponse> {
   const res = await fetch(GOOGLE_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: tokenRequestBody(clientId, code, verifier),
   });
-  const data = (await res.json().catch(() => ({}))) as { access_token?: string; error?: string };
-  if (!res.ok || !data.access_token) {
-    throw new GoogleAuthError(`Échange du code impossible (${data.error ?? res.status}).`, 'exchange_failed');
-  }
-  return data.access_token;
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  const tok = res.ok ? parseTokenResponse(data) : null;
+  if (!tok) throw new GoogleAuthError(`Échange du code impossible (${data.error ?? res.status}).`, 'exchange_failed');
+  return tok;
 }
 
-/** Révocation côté Google : le jeton ne vaut plus rien, même s'il fuitait. Jamais bloquant. */
-async function revoke(token: string): Promise<void> {
+async function exchangeCode(clientId: string, code: string, verifier: string): Promise<string> {
+  return (await exchangeCodeFull(clientId, code, verifier)).accessToken;
+}
+
+/**
+ * Révocation côté Google : le jeton ne vaut plus rien, même s'il fuitait. Jamais
+ * bloquant. ATTENTION : révoquer un jeton (d'accès ou de rafraîchissement)
+ * révoque toute l'autorisation de l'app pour ce compte.
+ */
+export async function revokeToken(token: string, fetchFn: typeof fetch = fetch): Promise<void> {
   try {
-    await fetch(`${GOOGLE_REVOKE_URL}?token=${encodeURIComponent(token)}`, {
+    await fetchFn(`${GOOGLE_REVOKE_URL}?token=${encodeURIComponent(token)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
   } catch {
-    /* hors ligne : le jeton expire seul en ~1 h ; il n'a été conservé nulle part */
+    /* hors ligne : un jeton d'accès expire seul en ~1 h ; il n'a été conservé nulle part */
   }
 }
 
@@ -112,15 +147,119 @@ async function withToken<T>(code: string, verifier: string, fn: (token: string) 
   } finally {
     const t = token;
     token = null;
-    await revoke(t);
+    // Synchro active : révoquer ce jeton révoquerait AUSSI le refresh_token (même
+    // autorisation chez Google). On le laisse expirer seul — il n'existe qu'en mémoire.
+    if (!(await hasRefreshToken())) await revokeToken(t);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Accès hors ligne (synchro automatique)                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Clé du refresh_token dans le trousseau. Appareil seul, déverrouillé : jamais
+ * dans une sauvegarde iCloud/Google, jamais ailleurs (ni AsyncStorage, ni zustand).
+ */
+const REFRESH_KEY = 'kalyx.drive.refreshToken';
+
+export function loadRefreshToken(): Promise<string | null> {
+  return kvGet(REFRESH_KEY, KV_DEVICE_ONLY).catch(() => null);
+}
+
+export async function hasRefreshToken(): Promise<boolean> {
+  return !!(await loadRefreshToken());
+}
+
+async function saveRefreshToken(token: string): Promise<void> {
+  await kvSet(REFRESH_KEY, token, KV_DEVICE_ONLY);
+}
+
+/**
+ * Témoin « autorisé, activation à terminer » (AsyncStorage : un horodatage,
+ * rien de secret). Posé avec le refresh_token, effacé quand l'activation
+ * aboutit. S'il survit plus de 15 min (PIN annulé, app tuée, échec), le
+ * refresh_token est ORPHELIN : synchro inactive, mais sa présence empêche les
+ * flux manuels de révoquer leur jeton. `load()` le révoque et le purge alors.
+ */
+const SYNC_AUTH_PENDING_KEY = 'kalyx.drive.syncAuthPending';
+export const SYNC_AUTH_PENDING_TTL_MS = 15 * 60_000;
+
+/** Pur : le témoin d'activation (horodatage brut) est-il expiré ? Illisible = expiré. */
+export function isSyncAuthOrphan(raw: string | null, now: number): boolean {
+  if (raw === null) return false;
+  const at = Number(raw);
+  return !Number.isFinite(at) || now - at > SYNC_AUTH_PENDING_TTL_MS || now < at - 60_000;
+}
+
+/** L'activation de la synchro a abouti (clés prêtes, synchro active) : le refresh_token n'est plus orphelin. */
+export async function clearSyncAuthPending(): Promise<void> {
+  await AsyncStorage.removeItem(SYNC_AUTH_PENDING_KEY).catch(() => {});
+}
+
+/** Clé d'état de lib/backupSync.ts (STATE_KEY) — lue ici sans l'importer (pas de cycle). */
+const SYNC_STATE_KEY = 'kalyx.backupSync.state';
+async function isAutoSyncPersistedEnabled(): Promise<boolean> {
+  try {
+    return (JSON.parse((await AsyncStorage.getItem(SYNC_STATE_KEY)) ?? 'null') as { enabled?: unknown } | null)?.enabled === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Purge un refresh_token orphelin (témoin expiré) : révocation non bloquante puis effacement. */
+export async function purgeOrphanSyncAuth(now: number): Promise<void> {
+  if (isDecoySession()) return;
+  const raw = await AsyncStorage.getItem(SYNC_AUTH_PENDING_KEY).catch(() => null);
+  if (!isSyncAuthOrphan(raw, now)) return;
+  // Synchro ACTIVE (reconnexion app tuée avant que l'écran n'efface le témoin) : le
+  // jeton est légitime. Lecture de l'état persisté par lib/backupSync.ts (sans secret).
+  if (await isAutoSyncPersistedEnabled()) {
+    await clearSyncAuthPending();
+    return;
+  }
+  const rt = await loadRefreshToken();
+  await purgeRefreshToken();
+  await clearSyncAuthPending();
+  if (rt) await revokeToken(rt);
+}
+
+/** Efface le refresh_token du trousseau (sans le révoquer : voir `revokeToken`). */
+export async function purgeRefreshToken(): Promise<void> {
+  await kvDel(REFRESH_KEY, KV_DEVICE_ONLY).catch(() => {});
+}
+
+/**
+ * refresh_token → jeton d'accès frais (≈ 1 h), à garder en mémoire le temps
+ * d'UN envoi. Erreurs :
+ *  - GoogleAuthError `invalid_grant` : autorisation révoquée/expirée → reconnexion ;
+ *  - DriveError 429/5xx ou TypeError (réseau) : passagères → réessai plus tard ;
+ *  - GoogleAuthError `refresh_failed` : toute autre réponse.
+ */
+export async function refreshAccessToken(refreshToken: string, fetchFn: typeof fetch = fetch): Promise<string> {
+  const res = await fetchFn(GOOGLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: refreshRequestBody(GOOGLE_CLIENT_ID, refreshToken),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (res.ok) {
+    const tok = parseTokenResponse(data);
+    if (tok) return tok.accessToken;
+  }
+  if (isRefreshRejected(res.status, data.error)) {
+    throw new GoogleAuthError(`Autorisation Google refusée (${data.error ?? res.status}).`, 'invalid_grant');
+  }
+  if (res.status === 429 || res.status >= 500) throw new DriveError(`Google : rafraîchissement indisponible (HTTP ${res.status}).`, res.status);
+  throw new GoogleAuthError(`Rafraîchissement impossible (${data.error ?? res.status}).`, 'refresh_failed');
 }
 
 /* ------------------------------------------------------------------ */
 /* Flux persistant                                                     */
 /* ------------------------------------------------------------------ */
 
-export type DriveIntent = { kind: 'save'; blob: string } | { kind: 'restore' } | { kind: 'check' };
+/** `sync` : autorisation hors ligne pour la synchro automatique (lib/backupSync.ts). */
+export type DriveIntent = { kind: 'save'; blob: string } | { kind: 'restore' } | { kind: 'check' } | { kind: 'sync' };
 type DriveKind = DriveIntent['kind'];
 
 /** Session PKCE en attente du retour de Google. Le blob n'y est plus : il vit sous SAVE_KEY. */
@@ -190,13 +329,22 @@ async function writeSave(rec: PendingSave): Promise<void> {
   await AsyncStorage.setItem(SAVE_KEY, JSON.stringify(rec));
 }
 
-async function readKnown(): Promise<KnownRemote | null> {
+/** Dernière version Drive écrite/restaurée ici — partagée entre envois manuels et synchro automatique. */
+export async function readKnown(): Promise<KnownRemote | null> {
   try {
     const k = JSON.parse((await AsyncStorage.getItem(KNOWN_KEY)) ?? 'null') as KnownRemote | null;
     return k && typeof k.id === 'string' && typeof k.rev === 'number' ? k : null;
   } catch {
     return null;
   }
+}
+
+export async function writeKnown(k: KnownRemote): Promise<void> {
+  await AsyncStorage.setItem(KNOWN_KEY, JSON.stringify({ id: k.id, rev: k.rev } satisfies KnownRemote));
+}
+
+export async function forgetKnown(): Promise<void> {
+  await AsyncStorage.removeItem(KNOWN_KEY).catch(() => {});
 }
 
 /**
@@ -216,7 +364,7 @@ export const useDriveFlow = create<DriveFlowState>((set, get) => {
     const pending: Pending = { verifier: session.verifier, state: session.state, kind, createdAt: Date.now() };
     await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(pending));
     set({ status: 'auth', kind, error: null, conflict: null, canRetry: false, restoreResult: undefined, checkResult: undefined });
-    await Linking.openURL(buildAuthUrl(GOOGLE_CLIENT_ID, session));
+    await Linking.openURL(buildAuthUrl(GOOGLE_CLIENT_ID, session, { offline: kind === 'sync' }));
   };
 
   /** Envoi gardé + vérifié. Le blob n'est effacé qu'après succès ou erreur définitive. */
@@ -239,7 +387,7 @@ export const useDriveFlow = create<DriveFlowState>((set, get) => {
         return;
       }
       await AsyncStorage.removeItem(SAVE_KEY);
-      await AsyncStorage.setItem(KNOWN_KEY, JSON.stringify({ id: r.id, rev: r.rev } satisfies KnownRemote));
+      await writeKnown(r);
       // Source de vérité locale (centre de sécurité, Copilot, écran de sauvegarde) : posée ICI,
       // une fois le fichier VÉRIFIÉ sur Drive — pas dans un écran qui peut ne plus exister.
       useSettings.getState().markEncryptedBackup('drive');
@@ -254,6 +402,31 @@ export const useDriveFlow = create<DriveFlowState>((set, get) => {
       await AsyncStorage.removeItem(SAVE_KEY).catch(() => {});
       set({ status: 'error', error: e instanceof DriveVerifyError ? 'verify' : e instanceof Error ? e.message : String(e), canRetry: false });
     }
+  };
+
+  /**
+   * Fin de l'autorisation hors ligne. Le refresh_token passe de la réponse au
+   * trousseau sans transiter par un état. S'il manque (Google ne l'a pas
+   * délivré), on n'invente rien : échec explicite `no_refresh_token`, et
+   * l'autorisation partielle est révoquée pour ne rien laisser derrière.
+   */
+  const runSyncAuth = async (code: string, verifier: string) => {
+    if (isDecoySession()) {
+      set({ status: 'error', error: 'denied' });
+      return;
+    }
+    let tok: TokenResponse | null = await exchangeCodeFull(GOOGLE_CLIENT_ID, code, verifier);
+    const { accessToken, refreshToken } = tok;
+    tok = null;
+    if (!refreshToken) {
+      await revokeToken(accessToken);
+      set({ status: 'error', error: 'no_refresh_token' });
+      return;
+    }
+    // Le jeton d'accès n'est PAS révoqué (cela révoquerait le refresh_token) : il est oublié ici.
+    await AsyncStorage.setItem(SYNC_AUTH_PENDING_KEY, String(Date.now()));
+    await saveRefreshToken(refreshToken);
+    set({ status: 'done', error: null });
   };
 
   /** Relance l'OAuth pour le blob gardé, avec un éventuel changement (acceptation). */
@@ -287,6 +460,8 @@ export const useDriveFlow = create<DriveFlowState>((set, get) => {
         set({ status: 'error', kind: intent.kind, error: 'not_configured' });
         return;
       }
+      // Session leurre : aucune autorisation hors ligne (rien ne doit être écrit dans le trousseau).
+      if (intent.kind === 'sync' && isDecoySession()) return;
       if (intent.kind === 'save') await writeSave({ blob: intent.blob, createdAt: Date.now() });
       await openAuth(intent.kind);
     },
@@ -303,7 +478,9 @@ export const useDriveFlow = create<DriveFlowState>((set, get) => {
       let pending: Pending;
       try {
         pending = JSON.parse(raw) as Pending;
-        if (pending.kind !== 'save' && pending.kind !== 'restore' && pending.kind !== 'check') throw new Error('format');
+        if (pending.kind !== 'save' && pending.kind !== 'restore' && pending.kind !== 'check' && pending.kind !== 'sync') {
+          throw new Error('format');
+        }
       } catch {
         await AsyncStorage.removeItem(PENDING_KEY);
         return false;
@@ -332,6 +509,10 @@ export const useDriveFlow = create<DriveFlowState>((set, get) => {
         return true;
       }
       try {
+        if (kind === 'sync') {
+          await runSyncAuth(parsed.code, pending.verifier);
+          return true;
+        }
         if (kind === 'restore') {
           const result = await withToken(parsed.code, pending.verifier, async (token) => {
             const info = await findBackup(token);
@@ -354,6 +535,8 @@ export const useDriveFlow = create<DriveFlowState>((set, get) => {
     },
 
     load: async () => {
+      // Autorisation de synchro jamais terminée (PIN annulé, app tuée…) : refresh_token orphelin purgé.
+      await purgeOrphanSyncAuth(Date.now()).catch(() => {});
       // Session PKCE expirée (OAuth abandonné, app tuée) : purgée, avec le blob qu'elle attendait.
       const rawPending = await AsyncStorage.getItem(PENDING_KEY);
       if (rawPending) {
