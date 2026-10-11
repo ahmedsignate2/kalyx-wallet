@@ -60,9 +60,10 @@ export function TokenRow({
   /** Réseau du jeton : sert à retrouver un logo manquant dans la liste du réseau. */ chainId?: string;
   /** Logo du réseau en pastille. */ chainBadge?: string | null;
 }) {
+  const { colors } = useTheme();
   const up = (changePct ?? 0) >= 0;
   const resolvedLogo = useFallbackLogo(chainId, address, logo);
-  // Une variation qui s'arrondit à 0,0 % n'apprend rien : « ↓ −0,0 % » n'est plus affiché.
+  // Une variation qui s'arrondit à 0,0 % n'apprend rien : « −0,0 % » n'est plus affiché.
   const showChange = changePct != null && Math.abs(changePct) >= 0.05;
   return (
     <ListRow
@@ -74,9 +75,12 @@ export function TokenRow({
         <View style={{ alignItems: 'flex-end' }}>
           <Text variant="body" tabular numberOfLines={1}>{hidden ? '••••' : fiat ?? '—'}</Text>
           {showChange && !hidden ? (
-            <Text variant="caption" tone={up ? 'up' : 'down'} tabular>
-              {up ? '↑ +' : '↓ −'}{Math.abs(changePct).toFixed(1).replace('.', decimalSeparator())} %
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name={up ? 'trendUp' : 'trendDown'} size={14} color={up ? colors.up : colors.down} />
+              <Text variant="caption" tone={up ? 'up' : 'down'} tabular>
+                {up ? '+' : '−'}{Math.abs(changePct).toFixed(1).replace('.', decimalSeparator())} %
+              </Text>
+            </View>
           ) : null}
         </View>
       }

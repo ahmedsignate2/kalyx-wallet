@@ -1,3 +1,4 @@
+import { aiLanguageName } from './aiConfig';
 /**
  * Audit IA d'une transaction, à la demande (bouton de la fenêtre de confirmation).
  *
@@ -213,7 +214,7 @@ export async function auditTransaction(
   const system = [
     'You are the Web3 security reviewer built into a crypto wallet. You review a transaction BEFORE it is signed.',
     'Reply ONLY with a valid JSON object, no markdown, no surrounding text: {"riskLevel":"SAFE"|"WARNING"|"DANGER","explanation":"...","threats":["..."]}.',
-    `"explanation": one or two short sentences in the language "${language || 'fr'}", addressed to the user. "threats": short items in that language, empty list if none.`,
+    `"explanation": one or two short sentences in the language "${aiLanguageName(language || 'en')}", addressed to the user. "threats": short items in that language, empty list if none.`,
     'Base your verdict ONLY on the facts given; "Verified facts" are reliable. Never claim an address is flagged unless the facts say so, and do not invent threats.',
     'FAMILIAR IS NOT TRUSTED: a contact or an address already paid only rules out a typo or a lookalike; it says nothing about who controls it (the user may have paid a scammer before). Never write that the recipient is trustworthy, legitimate or safe — at most that nothing points to a mistake or a known threat.',
     'Never call a contact, an own account or an already-paid address "unknown". A plain transfer to such an address with no red flag is SAFE.',

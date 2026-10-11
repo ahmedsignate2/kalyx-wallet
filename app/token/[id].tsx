@@ -392,9 +392,10 @@ export default function TokenDetail() {
             )}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
               {changeShown != null ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: 28, borderRadius: 14, backgroundColor: changeUp ? 'rgba(52,199,123,0.14)' : 'rgba(255,92,92,0.14)' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: 28, borderRadius: 14, gap: 4, backgroundColor: changeUp ? 'rgba(52,199,123,0.14)' : 'rgba(255,92,92,0.14)' }}>
+                  <Icon name={changeUp ? 'trendUp' : 'trendDown'} size={15} color={changeUp ? colors.up : colors.down} weight="bold" />
                   <Text style={{ color: changeUp ? colors.up : colors.down, fontFamily: fonts.bold, fontSize: 14, fontVariant: ['tabular-nums'] }}>
-                    {changeUp ? '↑ +' : '↓ −'}{formatPercent(Math.abs(changeShown))}
+                    {changeUp ? '+' : '−'}{formatPercent(Math.abs(changeShown))}
                   </Text>
                 </View>
               ) : null}

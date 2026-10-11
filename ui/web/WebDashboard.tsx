@@ -185,6 +185,15 @@ export function WebDashboard() {
   );
 }
 
+/** Détail d'une demande de signature : les CODES de lib/webConnect sont traduits,
+ *  un message brut du SDK passe tel quel (diagnostic). */
+function signDetailText(detail: string | undefined, tw: (k: WebKey) => string): string {
+  if (detail === 'SIGNED_ON_PHONE') return tw('signOkDetail');
+  if (detail === 'SIGN_FAILED') return tw('signFailedDetail');
+  const key = webErrorKey(detail);
+  return key ? tw(key) : detail ?? '';
+}
+
 /** Popup plein écran « Signature requise — ouvrez Kalyx ». Piloté par `pending`
  *  du store : s'affiche dès qu'une action est envoyée au téléphone, se referme
  *  seul au succès (retour au tableau de bord), reste sur erreur pour explication. */
@@ -214,8 +223,8 @@ function SigningModal() {
         </Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>
           {phase === 'await'
-            ? pending.slow ? tw('signAwaitSlow') : tw('signAwaitBody', { label })
-            : pending.expired ? tw('signExpired') : (webErrorKey(detail) ? tw(webErrorKey(detail)!) : detail) ?? ''}
+            ? pending.slow ? tw('signAwaitSlow') : tw('signAwaitBody', { label: tw(label) })
+            : pending.expired ? tw('signExpired') : signDetailText(detail, tw)}
         </Text>
         {phase === 'await' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(0.5) }}>

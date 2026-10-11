@@ -12,6 +12,7 @@
 import { create } from 'zustand';
 import SignClient from '@walletconnect/sign-client';
 import { listChains } from '../src';
+import type { WebKey } from '../ui/web/webI18n';
 
 const PROJECT_ID = process.env.EXPO_PUBLIC_WALLETCONNECT_ID || '';
 
@@ -44,7 +45,7 @@ export interface ConnAccount {
 
 /** Demande de signature en cours, pilotant le popup « ouvrez Kalyx ». */
 export interface PendingSign {
-  label: string; // ex. « Transaction à signer »
+  label: SignLabelKey; // clé webI18n, ex. 'signLblTx' (traduite à l'affichage)
   phase: 'await' | 'ok' | 'err';
   detail?: string;
   /** Plus de 2 min sans réponse : la demande reste ouverte sur le téléphone. */
@@ -53,20 +54,28 @@ export interface PendingSign {
   expired?: boolean;
 }
 
-/** Libellé lisible d'une méthode WalletConnect (pour le popup de signature). */
-const METHOD_LABELS: Record<string, string> = {
-  eth_sendTransaction: 'Transaction à signer',
-  personal_sign: 'Signature de message',
-  eth_sign: 'Signature de message',
-  eth_signTypedData: 'Signature de données',
-  eth_signTypedData_v4: 'Signature de données',
-  solana_signTransaction: 'Transaction Solana à signer',
-  solana_signAllTransactions: 'Transactions Solana à signer',
-  solana_signMessage: 'Signature de message',
-  bitcoin_sendTransfer: 'Transaction Bitcoin à signer',
-  bitcoin_sendTransaction: 'Transaction Bitcoin à signer',
-  bitcoin_signPsbt: 'Transaction Bitcoin (PSBT) à signer',
-  bitcoin_signMessage: 'Signature de message',
+/**
+ * Libellé d'une méthode WalletConnect (popup de signature), sous forme de CLÉ
+ * du dictionnaire web : la phrase était écrite ici en français et s'affichait
+ * telle quelle dans les quinze langues. Le tableau de bord la traduit (`tw`).
+ */
+export type SignLabelKey = Extract<
+  WebKey,
+  'signLblTx' | 'signLblMessage' | 'signLblData' | 'signLblSolTx' | 'signLblSolTxs' | 'signLblBtcTx' | 'signLblBtcPsbt' | 'signLblGeneric'
+>;
+const METHOD_LABELS: Record<string, SignLabelKey> = {
+  eth_sendTransaction: 'signLblTx',
+  personal_sign: 'signLblMessage',
+  eth_sign: 'signLblMessage',
+  eth_signTypedData: 'signLblData',
+  eth_signTypedData_v4: 'signLblData',
+  solana_signTransaction: 'signLblSolTx',
+  solana_signAllTransactions: 'signLblSolTxs',
+  solana_signMessage: 'signLblMessage',
+  bitcoin_sendTransfer: 'signLblBtcTx',
+  bitcoin_sendTransaction: 'signLblBtcTx',
+  bitcoin_signPsbt: 'signLblBtcPsbt',
+  bitcoin_signMessage: 'signLblMessage',
 };
 
 /**
@@ -373,7 +382,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
       throw new Error('SESSION_LOST'); // code : traduit à l'affichage (ui/web/webErrors)
     }
     // Popup « Signature requise — ouvrez Kalyx » tant que le téléphone n'a pas répondu.
-    const label = METHOD_LABELS[method] ?? 'Signature demandée';
+    const label = METHOD_LABELS[method] ?? 'signLblGeneric';
     set({ pending: { label, phase: 'await' } });
     // La requête part vers l'app Kalyx, qui affiche la demande + signe avec PIN/bio.
     /*
@@ -398,7 +407,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
         timeout,
       ]);
       // Signé sur le téléphone : succès auto-fermant + retour au tableau de bord à jour.
-      set({ pending: { label, phase: 'ok', detail: 'Validé sur votre téléphone' }, rev: get().rev + 1, lastActivity: Date.now() });
+      set({ pending: { label, phase: 'ok', detail: 'SIGNED_ON_PHONE' }, rev: get().rev + 1, lastActivity: Date.now() });
       setTimeout(() => set({ rev: get().rev + 1 }), 4000); // 2e passe (inclusion bloc)
       setTimeout(() => { if (get().pending?.phase === 'ok') set({ pending: null }); }, 2500);
       return res;
@@ -410,7 +419,7 @@ export const useWebConnect = create<WebConnectState>((set, get) => ({
         get().reset();
       }
       const expired = e instanceof Error && e.message === 'REQUEST_EXPIRED';
-      set({ pending: { label, phase: 'err', expired, detail: e instanceof Error ? e.message : 'Refusé ou échoué' } });
+      set({ pending: { label, phase: 'err', expired, detail: e instanceof Error ? e.message : 'SIGN_FAILED' } });
       throw e;
     } finally {
       clearTimeout(slowTimer);

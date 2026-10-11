@@ -136,6 +136,7 @@ function bytesToHexToken(): string {
 
 export default function Browser() {
   const t = useT();
+  const language = useSettings((s) => s.language);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const kbHeight = useKeyboardHeight();
@@ -976,7 +977,7 @@ export default function Browser() {
           <ListRow left={<Icon name="incognito" size={20} />} title={t('privateTab')} subtitle={t('nothingRemembered')} onPress={() => newTab(true)} />
           <ListRow left={<Icon name="appearance" size={20} />} title={t('darkSites')} right={<Switch value={forceDark} onValueChange={(v) => { setForceDark(v); saveForceDark(v); }} />} />
           <ListRow left={<Icon name="search" size={20} />} title={t('searchEngine')} subtitle={ENGINES.find((e) => e.key === engine)?.label} onPress={() => { const i = ENGINES.findIndex((e) => e.key === engine); const n = ENGINES[(i + 1) % ENGINES.length].key; setEngine(n); saveEngine(n); }} />
-          <ListRow left={<Icon name="history" size={20} />} title={t('history')} subtitle={`${recents.length} site${recents.length > 1 ? 's' : ''}`} onPress={() => { setMenu(false); goHome(); }} />
+          <ListRow left={<Icon name="history" size={20} />} title={t('history')} subtitle={t(new Intl.PluralRules(language).select(recents.length) === 'one' ? 'browserSitesOne' : 'browserSitesOther').replace('{count}', String(recents.length))} onPress={() => { setMenu(false); goHome(); }} />
           <View style={{ height: space[3] }} />
           <ListRow
             left={<Icon name="broom" size={20} color={colors.danger} />}
@@ -985,7 +986,7 @@ export default function Browser() {
             style={{ minHeight: 56 }}
             onPress={() => {
               setMenu(false);
-              Alert.alert(`${t('clearData')} ?`, t('clearDataConfirmMsg'), [
+              Alert.alert(t('clearDataConfirmTitle'), t('clearDataConfirmMsg'), [
                 { text: t('cancel'), style: 'cancel' },
                 {
                   text: t('clearData'),
@@ -1157,9 +1158,9 @@ export default function Browser() {
         ) : null}
 
         <Surface style={{ padding: space[3], borderRadius: radius.container, gap: space[2] }}>
-          <Text variant="caption" tone="secondary">{t('canSeeAddress')}</Text>
-          <Text variant="caption" tone="secondary">{t('canProposeTx')}</Text>
-          <Text variant="caption" tone="secondary">{t('cannotMove')}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}><Icon name="checkmark" size={14} color={colors.up} weight="bold" /><Text variant="caption" tone="secondary" style={{ flex: 1 }}>{t('canSeeAddress')}</Text></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}><Icon name="checkmark" size={14} color={colors.up} weight="bold" /><Text variant="caption" tone="secondary" style={{ flex: 1 }}>{t('canProposeTx')}</Text></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}><Icon name="lock" size={14} color={colors.textSecondary} weight="bold" /><Text variant="caption" tone="secondary" style={{ flex: 1 }}>{t('cannotMove')}</Text></View>
           <Divider />
           <KPressable onPress={() => setRememberSite((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: rememberSite ? colors.text : colors.border, backgroundColor: rememberSite ? colors.text : 'transparent', alignItems: 'center', justifyContent: 'center' }}>

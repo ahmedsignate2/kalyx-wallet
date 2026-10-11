@@ -42,7 +42,7 @@ export default function PriceAlerts() {
             return (
               <Rise key={a.id} delay={Math.min(i, 10) * 40} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.5), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
                 <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: up ? 'rgba(60,217,138,0.10)' : 'rgba(255,99,99,0.10)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: up ? colors.up : colors.down, fontSize: 16, fontFamily: fonts.bold }}>{up ? '↑' : '↓'}</Text>
+                  <Icon name={up ? 'trendUp' : 'trendDown'} size={18} color={up ? colors.up : colors.down} weight="bold" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={typography.bodyStrong}>{a.symbol.toUpperCase()}</Text>

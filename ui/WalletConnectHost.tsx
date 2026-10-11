@@ -354,7 +354,10 @@ export function WalletConnectHost() {
             <PermRow on fixed label={t('permSeeLabel')} />
             <PermRow on={allowTx} onToggle={() => setAllowTx((v) => !v)} label={t('permTxLabel')} />
             <PermRow on={allowSign} onToggle={() => setAllowSign((v) => !v)} label={t('permSignLabel')} />
-            <Text style={[typography.muted, { marginTop: spacing(0.75) }]}>{t('cannotMove')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(0.75) }}>
+              <Icon name="lock" size={14} color={colors.textSecondary} weight="bold" />
+              <Text style={[typography.muted, { flex: 1 }]}>{t('cannotMove')}</Text>
+            </View>
           </View>
           {/*
             CHOIX DU COMPTE — n'existait pas : la dApp recevait toujours le

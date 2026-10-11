@@ -96,6 +96,9 @@ import { XLogoIcon } from 'phosphor-react-native/src/icons/XLogo';
 import { TelegramLogoIcon } from 'phosphor-react-native/src/icons/TelegramLogo';
 import { GithubLogoIcon } from 'phosphor-react-native/src/icons/GithubLogo';
 import { GearSixIcon } from 'phosphor-react-native/src/icons/GearSix';
+import { TrendUpIcon } from 'phosphor-react-native/src/icons/TrendUp';
+import { TrendDownIcon } from 'phosphor-react-native/src/icons/TrendDown';
+import { ArrowUpRightIcon } from 'phosphor-react-native/src/icons/ArrowUpRight';
 import { useTheme } from './theme';
 
 export type IconName =
@@ -112,7 +115,9 @@ export type IconName =
   | 'sign' | 'back' | 'caretDown' | 'checkmark' | 'lock' | 'alert' | 'errorCircle' | 'clock'
   | 'incognito' | 'desktop' | 'broom' | 'tabs' | 'caretLeft' | 'bulb'
   | 'xLogo' | 'telegramLogo' | 'githubLogo' | 'gear'
-  | 'image';
+  | 'image'
+  // Glyphes texte remplacés (↑/↓ des variations, ↗ lien externe, ⇅ bascule, ✗ refus)
+  | 'trendUp' | 'trendDown' | 'arrowUpRight' | 'arrowsDownUp' | 'cross';
 
 const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   home: { icon: HouseIcon },
@@ -195,6 +200,11 @@ const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   // Même glyphe que `nft` : c'est une image dans les deux cas, et « nft »
   // ne veut rien dire sur un bouton « lire une image ».
   image: { icon: ImageIcon },
+  trendUp: { icon: TrendUpIcon },
+  trendDown: { icon: TrendDownIcon },
+  arrowUpRight: { icon: ArrowUpRightIcon },
+  arrowsDownUp: { icon: ArrowsDownUpIcon },
+  cross: { icon: XIcon },
 };
 
 export function Icon({

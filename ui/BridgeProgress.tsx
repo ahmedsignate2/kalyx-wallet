@@ -45,9 +45,9 @@ export function BridgeProgress({ visible, hash, summary, fromChainId, toChainId,
   }, [visible, hash, fromChainId, toChainId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const steps: { key: Stage; label: string }[] = [
-    { key: 'departure', label: `Départ · ${from?.name ?? ''}` },
-    { key: 'bridging', label: 'Pont en cours' },
-    { key: 'arrived', label: `Arrivée · ${to?.name ?? ''}` },
+    { key: 'departure', label: t('bridgeStepDeparture').replace('{chain}', from?.name ?? '') },
+    { key: 'bridging', label: t('bridgeStepBridging') },
+    { key: 'arrived', label: t('bridgeStepArrival').replace('{chain}', to?.name ?? '') },
   ];
   const reached = stage === 'failed' ? 2 : steps.findIndex((s) => s.key === stage) + 1;
 

@@ -40,7 +40,6 @@ function aave(
   aToken: string,
   llamaPool: string,
 ): EarnProtocol {
-  const chainLabel = chainId.charAt(0).toUpperCase() + chainId.slice(1);
   return {
     id: `aave-v3-${chainId}-${underlying.symbol.toLowerCase()}`,
     kind: 'lending',
@@ -59,7 +58,7 @@ function aave(
     logo: ICON('aave-v3'),
     url: `https://app.aave.com/?marketName=proto_${chainId === 'ethereum' ? 'mainnet' : chainId}_v3`,
     contract: AAVE_V3_POOL[chainId],
-    withdrawNote: `Retrait instantané sur ${chainLabel}, sans période de blocage.`,
+    withdrawNote: 'earnNoteAaveInstant', // clé i18n ; {chain} remplacé par l'UI
   };
 }
 
@@ -78,7 +77,7 @@ export const EARN_CATALOG: EarnProtocol[] = [
     logo: ICON('lido'),
     url: 'https://stake.lido.fi',
     contract: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
-    withdrawNote: 'Sortie instantanée par échange stETH → ETH (léger écart de prix possible).',
+    withdrawNote: 'earnNoteLidoSwap',
   },
   {
     id: 'rocket-pool-reth',
@@ -92,7 +91,7 @@ export const EARN_CATALOG: EarnProtocol[] = [
     apy: { source: 'defillama', pool: 'd4b3c522-6127-4b89-bedf-83641cdcd2eb' },
     logo: ICON('rocket-pool'),
     url: 'https://stake.rocketpool.net',
-    withdrawNote: 'Entrée et sortie par échange ETH ↔ rETH (meilleure route DEX).',
+    withdrawNote: 'earnNoteRethSwap',
   },
   {
     id: 'benqi-savax',
@@ -107,7 +106,7 @@ export const EARN_CATALOG: EarnProtocol[] = [
     logo: ICON('benqi-staked-avax'),
     url: 'https://staking.benqi.fi',
     contract: '0x2b2c81e08f1af8835a78bb2a90ae924ace0ea4be',
-    withdrawNote: 'Sortie instantanée par échange sAVAX → AVAX (le retrait natif Benqi prend 15 jours).',
+    withdrawNote: 'earnNoteSavaxSwap',
   },
   {
     id: 'jito-jitosol',
@@ -121,7 +120,7 @@ export const EARN_CATALOG: EarnProtocol[] = [
     apy: { source: 'defillama', pool: '0e7d0722-9054-4907-8593-567b353c0900' },
     logo: ICON('jito-liquid-staking'),
     url: 'https://www.jito.network/staking',
-    withdrawNote: 'Entrée et sortie instantanées via Jupiter.',
+    withdrawNote: 'earnNoteJupiter',
   },
   {
     id: 'marinade-msol',
@@ -135,7 +134,7 @@ export const EARN_CATALOG: EarnProtocol[] = [
     apy: { source: 'defillama', pool: 'b3f93865-5ec8-4662-90a0-11808e0aa2bd' },
     logo: ICON('marinade-liquid-staking'),
     url: 'https://marinade.finance',
-    withdrawNote: 'Entrée et sortie instantanées via Jupiter.',
+    withdrawNote: 'earnNoteJupiter',
   },
 
   // ─── Lending (Aave v3) — aTokens vérifiés via Pool.getReserveData ──

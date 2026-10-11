@@ -1,8 +1,18 @@
 
 import type { AiProvider } from './aiStore';
-import { buildAiRequestParams, mapAiErrorToMessage, extractProviderErrorDetail } from './aiConfig';
+import { translate } from './i18n';
+import { useSettings } from './settingsStore';
+import { buildAiRequestParams, extractProviderErrorDetail, aiErrorFromHttp, formatAiError, type AiError, type AiErrorCode } from './aiConfig';
 
-export interface ValidationResult { success: boolean; error?: string; }
+/** `code` : cause stable, que l'écran retraduit lui-même avec t().
+ *  `error` : même cause déjà traduite dans la langue courante, gardée pour les
+ *  appelants qui l'affichent telle quelle (AgentPanel web). */
+export interface ValidationResult { success: boolean; code?: AiErrorCode; status?: number; detail?: string; error?: string; }
+
+function failure(err: AiError): ValidationResult {
+  const lang = useSettings.getState().language || 'fr';
+  return { success: false, code: err.code, status: err.status, detail: err.detail, error: formatAiError((k) => translate(lang, k), err) };
+}
 
 export async function validateAiKey(
   provider: AiProvider,
@@ -12,7 +22,7 @@ export async function validateAiKey(
 ): Promise<ValidationResult> {
   console.log('[AI Validator] Démarrage du test ping pour le provider:', provider);
   const trimmedKey = apiKey.trim();
-  if (!trimmedKey) return { success: false, error: 'Clé API vide.' };
+  if (!trimmedKey) return failure({ code: 'empty_key' });
 
   try {
     const { url, headers, model } = buildAiRequestParams(provider, trimmedKey, customUrl, customModel);
@@ -37,12 +47,12 @@ export async function validateAiKey(
       } catch {
         /* corps non-JSON (page d'erreur HTML, etc.) : pas de détail à afficher */
       }
-      return { success: false, error: mapAiErrorToMessage(res.status, detail) };
+      return failure(aiErrorFromHttp(res.status, detail));
     }
 
     console.log('[AI Validator] Test ping réussi avec succès (200 OK)');
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: 'Impossible de joindre le serveur. Vérifiez votre connexion Internet.' };
+    return failure({ code: 'network' });
   }
 }

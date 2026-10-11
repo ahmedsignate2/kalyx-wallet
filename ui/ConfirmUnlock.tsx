@@ -121,7 +121,7 @@ export function ConfirmUnlock({
       ctx = { ...aiContext, recipient: { ...aiContext.recipient, probe } };
     }
     setAuditedCtx(ctx);
-    const out = await auditTransaction(ctx, language || 'fr', { timeout: t('aiAuditTimeout'), unreadable: t('aiAuditUnreadable') }, AI_AUDIT_TIMEOUT_MS);
+    const out = await auditTransaction(ctx, language || 'en', { timeout: t('aiAuditTimeout'), unreadable: t('aiAuditUnreadable') }, AI_AUDIT_TIMEOUT_MS);
     if (runId !== auditRun.current) return;
     console.log('[AI Audit] done', out.ok ? { riskLevel: out.result.riskLevel } : { error: out.error.slice(0, 120) });
     if (out.ok) setAiAnalysis(out.result);

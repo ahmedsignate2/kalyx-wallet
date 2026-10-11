@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { SafeModal } from './kit/SafeModal';
-import { Animated, Linking, Modal, Text, View } from 'react-native';
+import { Animated, Linking, Modal, Pressable, Text, View } from 'react-native';
+import { Icon } from './icon';
 import Svg, { Circle, Path, G } from 'react-native-svg';
 
 import { Button } from './components';
@@ -109,7 +110,10 @@ export function SuccessModal({
             </Text>
           ) : null}
           {hash && explorerUrl ? (
-            <Text
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={t('viewOnExplorer')}
+              hitSlop={8}
               onPress={async () => {
                 const url = buildExplorerTxUrl(explorerUrl, hash);
                 try {
@@ -120,10 +124,11 @@ export function SuccessModal({
                   Linking.openURL(url).catch(() => {});
                 }
               }}
-              style={{ color: colors.primary, fontFamily: fonts.semibold }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
             >
-              {t('viewOnExplorer')} ↗
-            </Text>
+              <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('viewOnExplorer')}</Text>
+              <Icon name="arrowUpRight" size={14} color={colors.primary} weight="bold" />
+            </Pressable>
           ) : null}
 
           <View style={{ alignSelf: 'stretch', marginTop: spacing(1) }}>

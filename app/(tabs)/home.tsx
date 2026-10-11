@@ -668,9 +668,12 @@ export default function Home() {
             {scrub ? (
               <Text variant="caption" tone="secondary">{fmtDate(scrub.t, period, locale)}</Text>
             ) : hidden || initialLoading ? null : pf.pnl24h != null ? (
-              <Text variant="caption" tone={pnlUp ? 'up' : 'down'} tabular>
-                {pnlUp ? '↑ +' : '↓ −'}{formatFiat(Math.abs(pf.pnl24h))} {sym} · {t("today")}{pf.pnl24hPct != null ? ` (${pnlUp ? '+' : '−'}${Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %)` : ''}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Icon name={pnlUp ? 'trendUp' : 'trendDown'} size={14} color={pnlUp ? colors.up : colors.down} />
+                <Text variant="caption" tone={pnlUp ? 'up' : 'down'} tabular>
+                {pnlUp ? '+' : '−'}{formatFiat(Math.abs(pf.pnl24h))} {sym} · {t("today")}{pf.pnl24hPct != null ? ` (${pnlUp ? '+' : '−'}${Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %)` : ''}
+                </Text>
+              </View>
             ) : (
               <Text variant="caption" tone="tertiary">{pf.fromCache ? t("updating") : ' '}</Text>
             )}

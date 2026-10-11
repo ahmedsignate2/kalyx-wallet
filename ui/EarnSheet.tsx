@@ -388,7 +388,7 @@ export function EarnSheet({
                   {p.withdrawNote ? (
                     <View style={{ marginTop: spacing(1.5), flexDirection: 'row', gap: spacing(1), alignItems: 'flex-start' }}>
                       <Icon name="info" size={16} color={colors.textTertiary} />
-                      <Text style={[typography.muted, { flex: 1, fontSize: 13 }]}>{p.withdrawNote}</Text>
+                      <Text style={[typography.muted, { flex: 1, fontSize: 13 }]}>{t(p.withdrawNote as never).replace('{chain}', chain.name)}</Text>
                     </View>
                   ) : null}
                   {gasShort ? <View style={{ marginTop: spacing(1.5) }}><ErrorBox message={t('earnLowGas').replace('{symbol}', chain.nativeSymbol)} /></View> : null}
