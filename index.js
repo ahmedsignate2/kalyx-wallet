@@ -6,6 +6,12 @@ import './polyfills';
 //    alertes, premier/arrière-plan — installé avant tout le reste.
 require('./lib/debugJournal').installJournal();
 
+// 1 ter) Moniteur réseau (Développeur → Réseau) : un seul patch de fetch, qui
+//    ne garde qu'hôte, méthode, statut, durée, taille — et ne casse jamais une
+//    requête. Puis les RPC épinglés (lecture différée, jamais bloquante).
+require('./lib/netMonitor').installNetMonitor();
+require('./lib/rpcOverridesStore').loadRpcOverrides();
+
 // 2) Logs de démarrage + capture des erreurs JS non gérées (visibles via
 //    logcat / la console Metro), pour ne plus avoir de fermeture silencieuse.
 console.log('[Kalyx] index.js : démarrage');

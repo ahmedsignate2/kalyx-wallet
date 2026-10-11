@@ -8,6 +8,7 @@
  */
 
 import { useSettings } from './settingsStore';
+import { Platform } from 'react-native';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 
 let audioInitialized = false;
@@ -18,7 +19,11 @@ async function initAudio() {
   audioInitialized = true;
   try {
     await setAudioModeAsync({
-      playsInSilentMode: true, // Forcer le son même en mode silencieux
+      // iOS : le commutateur silencieux est respecté (un wallet ne sonne pas en réunion).
+      // Android n'a pas d'équivalent : comportement inchangé.
+      playsInSilentMode: Platform.OS !== 'ios',
+      // Un son d'état ne coupe jamais la musique ou un podcast en cours.
+      interruptionMode: 'mixWithOthers',
     });
   } catch {}
 }

@@ -103,6 +103,27 @@ class TechnicalLogger {
    * risque, seulement la capacité à comprendre.
    */
   private readonly MAX_LOGS = 300;
+  /** Abonnés (Développeur → Console) : présents seulement tant que l'écran est ouvert. */
+  private listeners = new Set<() => void>();
+
+  /** Abonnement aux nouvelles entrées ; renvoie le désabonnement. */
+  public subscribe(fn: () => void): () => void {
+    this.listeners.add(fn);
+    return () => {
+      this.listeners.delete(fn);
+    };
+  }
+
+  private emit(): void {
+    if (this.listeners.size === 0) return;
+    for (const l of this.listeners) {
+      try {
+        l();
+      } catch {
+        /* un abonné cassé ne casse pas le journal */
+      }
+    }
+  }
 
   public log(
     category: LogEntry['category'],
@@ -140,6 +161,7 @@ class TechnicalLogger {
     if (this.logs.length > this.MAX_LOGS) {
       this.logs.shift();
     }
+    this.emit();
   }
 
   public logRpc(method: string, status?: number | string, error?: string, details?: Record<string, any>) {
@@ -339,6 +361,7 @@ class TechnicalLogger {
 
   public clear() {
     this.logs = [];
+    this.emit();
   }
 }
 
@@ -363,4 +386,50 @@ export function getFormattedTechnicalLogs(limit = 25): string {
 
 export function clearTechnicalLogs(): void {
   technicalLogger.clear();
+}
+
+/* ------------------------------------------------------------------ */
+/* Export de diagnostic (Développeur → Export)                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Adresses publiques RACCOURCIES (`0x1234…abcd`) : EVM, Bitcoin (bech32 et
+ * héritées), TON, Solana. Une adresse complète relie un rapport à un
+ * portefeuille ; le début et la fin suffisent au diagnostic.
+ */
+export function shortenAddresses(input: string): string {
+  const short = (m: string, keep: number) => `${m.slice(0, keep)}…${m.slice(-4)}`;
+  return input
+    .replace(/\b0x[a-fA-F0-9]{40}\b/g, (m) => short(m, 6))
+    .replace(/\b(?:bc1|tb1)[02-9ac-hj-np-z]{25,87}\b/gi, (m) => short(m, 6))
+    .replace(/\b(?:EQ|UQ|kQ|0Q)[A-Za-z0-9_-]{46}\b/g, (m) => short(m, 4))
+    .replace(/\b[13mn2][1-9A-HJ-NP-Za-km-z]{25,34}\b/g, (m) => short(m, 4))
+    .replace(/\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/g, (m) => (/[0-9]/.test(m) && /[A-Za-z]/.test(m) ? short(m, 4) : m));
+}
+
+/**
+ * Prépare l'export JSON : sérialisé, puis repassé par `sanitizeLog` (phrases,
+ * clés, champs sensibles, URL à jeton), adresses raccourcies, et enfin
+ * `detectSensitiveSecrets` en dernier rempart. Si un secret est encore
+ * détecté, l'export est BLOQUÉ (`blocked: true`, texte vide) plutôt que
+ * partagé.
+ */
+export function buildDiagnosticExport(payload: unknown): { text: string; blocked: boolean } {
+  let raw: string;
+  try {
+    raw = JSON.stringify(payload, (_k, v) => (typeof v === 'bigint' ? `${v}n` : v), 2);
+  } catch {
+    return { text: '', blocked: true };
+  }
+  // `sanitizeLog` retire aussi les secrets des URL (`stripUrlSecrets`).
+  const clean = shortenAddresses(sanitizeLog(raw, knownHashes));
+  const { detectSensitiveSecrets } = require('./secretDetector') as typeof import('./secretDetector');
+  let known: Iterable<string> = [];
+  try {
+    known = knownHashes();
+  } catch {
+    known = [];
+  }
+  if (detectSensitiveSecrets(clean, known).hasSecret) return { text: '', blocked: true };
+  return { text: clean, blocked: false };
 }

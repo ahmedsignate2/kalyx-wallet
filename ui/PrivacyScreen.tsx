@@ -11,9 +11,15 @@
  * Choix volontaire : FLAG_SECURE est RETIRÉ dès que l'app est active, donc les
  * captures d'écran restent possibles pendant l'usage normal. Activable dans
  * Réglages (privacyGuard, activé par défaut).
+ *
+ * iOS : on ne bascule PAS prevent/allowScreenCaptureAsync à chaque passage
+ * « inactive » — sur iOS, cette bascule provoquait un flash / écran noir
+ * pendant la feuille Face ID (qui rend l'app « inactive »). À la place, la
+ * protection native du sélecteur d'apps (flou posé par le système hors
+ * premier plan) est activée UNE fois. Android inchangé.
  */
 import { useEffect, useState } from 'react';
-import { AppState, type AppStateStatus, StyleSheet, Text, View } from 'react-native';
+import { AppState, type AppStateStatus, Platform, StyleSheet, Text, View } from 'react-native';
 import { KalyxLogo } from './KalyxLogo';
 import { fonts, useTheme, fontSize } from './theme';
 import { useSettings } from '../lib/settingsStore';
@@ -36,15 +42,30 @@ export function PrivacyScreen() {
   const [covered, setCovered] = useState(false);
 
   useEffect(() => {
+    if (Platform.OS === 'ios') {
+      // Une seule activation : iOS floute lui-même la vignette hors premier plan.
+      if (guard) ScreenCapture?.enableAppSwitcherProtectionAsync?.(0.9).catch(() => {});
+      else ScreenCapture?.disableAppSwitcherProtectionAsync?.().catch(() => {});
+    }
+  }, [guard]);
+
+  useEffect(() => {
     if (!guard) {
       // Garde désactivée : on s'assure que la capture est autorisée + pas de voile.
-      ScreenCapture?.allowScreenCaptureAsync?.(TAG).catch(() => {});
+      if (Platform.OS !== 'ios') ScreenCapture?.allowScreenCaptureAsync?.(TAG).catch(() => {});
       setCovered(false);
       return;
     }
 
     const apply = (state: AppStateStatus) => {
       const active = state === 'active';
+      // iOS : « inactive » survient aussi pendant Face ID, une alerte système ou
+      // le centre de contrôle — le flou natif couvre déjà le sélecteur d'apps ;
+      // le voile n'apparaît donc qu'en arrière-plan, sans bascule de capture.
+      if (Platform.OS === 'ios') {
+        setCovered(state === 'background');
+        return;
+      }
       setCovered(!active);
       // FLAG_SECURE seulement hors premier plan → vignette « récents » masquée,
       // captures d'écran autorisées pendant l'usage normal.
@@ -56,7 +77,8 @@ export function PrivacyScreen() {
     const sub = AppState.addEventListener('change', apply);
     return () => {
       sub.remove();
-      ScreenCapture?.allowScreenCaptureAsync?.(TAG).catch(() => {}); // ne pas laisser FLAG_SECURE actif
+      // ne pas laisser FLAG_SECURE actif
+      if (Platform.OS !== 'ios') ScreenCapture?.allowScreenCaptureAsync?.(TAG).catch(() => {});
     };
   }, [guard]);
 

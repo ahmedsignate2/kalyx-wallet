@@ -17,6 +17,7 @@ import { useSettings, useT } from '../lib/settingsStore';
 import { checkPin, PIN_MIN } from '../src';
 import { isBiometricAvailable } from '../lib/biometrics';
 import { haptic } from '../lib/haptics';
+import { ensureInstallMarker } from '../lib/installMarker';
 
 /**
  * Création du PIN en 2 étapes sur le PinPad premium.
@@ -98,6 +99,9 @@ export default function SetPin() {
       // Sauvegarde restaurée : ses comptes sont listés, pas de recherche réseau.
       // Seulement si la sauvegarde LISTE les comptes du portefeuille principal (anciennes sauvegardes : non).
       const fromBackup = usePendingRestore.getState().primaryAccounts.length > 0;
+      // Portefeuille créé PAR cette installation : témoin posé (lib/installMarker),
+      // pour qu'un prochain lancement ne le prenne pas pour un reste de trousseau.
+      await ensureInstallMarker();
       await confirmDraft(firstPin, { enableBiometric: useBio, discover: !fromBackup });
       useSettings.getState().setPinLength(firstPin.length); // ronds exacts au déverrouillage
       /*
@@ -154,7 +158,9 @@ export default function SetPin() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: topPadding, justifyContent: 'space-between' }}>
       {/* Pas de barre d'en-tête native (elle affichait une flèche ← en doublon). */}
-      <Stack.Screen options={{ headerShown: false }} />
+      {/* Geste de retour iOS coupé pendant la création du portefeuille (`busy`) :
+          un balayage abandonnait l'écran au milieu de l'écriture du coffre. */}
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: !busy }} />
       <Stardust width={winW} height={winH} count={12} />
 
       {/* ── HAUT : header unique (retour à gauche, langue à droite) + titre ── */}

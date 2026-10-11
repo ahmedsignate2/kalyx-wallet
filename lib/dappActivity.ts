@@ -41,14 +41,50 @@ interface DappActivityState {
    * resté monté le retire de ses sites connectés en mémoire — sinon la page
    * ouverte gardait le compte et pouvait encore demander des signatures.
    */
-  revoked: { host: string; n: number } | null;
+  /** Hôtes révoqués depuis le dernier signal (une LISTE : « tout oublier » en retire plusieurs dans le même rendu). */
+  revoked: { hosts: string[]; n: number } | null;
   load: () => Promise<void>;
   addConnection: (c: Omit<DappConnection, 'at'>) => void;
+  /**
+   * Oublie un site : retiré des connexions ET de la mémoire de reconnexion, et
+   * `revoked` prévient le navigateur monté, qui le retire de ses connexions
+   * actives (onglets normal et privé) et envoie `disconnect` à la page ouverte.
+   */
   removeConnection: (host: string) => void;
+  removeConnections: (hosts: readonly string[]) => void;
   addSignature: (s: Omit<SigEntry, 'at'>) => void;
   remember: (host: string) => void;
   isRemembered: (host: string) => boolean;
   clear: () => void;
+}
+
+/** Un site connu de l'écran « Sites connectés » : connecté, mémorisé, ou les deux. */
+export interface KnownSite {
+  host: string;
+  url: string;
+  title: string;
+  /** Dernière connexion (absente pour un site seulement mémorisé). */
+  at?: number;
+  /** Reconnexion silencieuse (sans PIN) autorisée. */
+  remembered: boolean;
+  /** Dernière signature / transaction demandée par ce site. */
+  lastSignatureAt?: number;
+}
+
+/** Fusionne connexions et sites mémorisés (un site par hôte), les plus récents d'abord. */
+export function knownSites(connections: DappConnection[], remembered: string[], signatures: SigEntry[] = []): KnownSite[] {
+  const lastSig = new Map<string, number>();
+  for (const s of signatures) lastSig.set(s.host, Math.max(lastSig.get(s.host) ?? 0, s.at));
+  const out = new Map<string, KnownSite>();
+  for (const c of connections) {
+    if (!c.host || out.has(c.host)) continue;
+    out.set(c.host, { host: c.host, url: c.url, title: c.title || c.host, at: c.at, remembered: remembered.includes(c.host), lastSignatureAt: lastSig.get(c.host) });
+  }
+  for (const h of remembered) {
+    if (!h || out.has(h)) continue;
+    out.set(h, { host: h, url: `https://${h}`, title: h, remembered: true, lastSignatureAt: lastSig.get(h) });
+  }
+  return [...out.values()].sort((a, b) => (b.at ?? 0) - (a.at ?? 0));
 }
 
 export const useDappActivity = create<DappActivityState>((set, get) => ({
@@ -90,10 +126,19 @@ export const useDappActivity = create<DappActivityState>((set, get) => ({
     void AsyncStorage.setItem(CONN_KEY, JSON.stringify(connections)).catch(() => {});
   },
 
-  removeConnection: (host) => {
-    const connections = get().connections.filter((x) => x.host !== host);
-    const remembered = get().remembered.filter((h) => h !== host);
-    set({ connections, remembered, revoked: { host, n: (get().revoked?.n ?? 0) + 1 } });
+  removeConnection: (host) => get().removeConnections([host]),
+
+  /*
+   * Un seul `set` pour tous les hôtes : appeler removeConnection en boucle
+   * remplaçait `revoked` à chaque tour, et le navigateur (rendu regroupé) ne
+   * déconnectait que le DERNIER — les autres gardaient l'accès au compte.
+   */
+  removeConnections: (hosts) => {
+    if (hosts.length === 0) return;
+    const drop = new Set(hosts);
+    const connections = get().connections.filter((x) => !drop.has(x.host));
+    const remembered = get().remembered.filter((h) => !drop.has(h));
+    set({ connections, remembered, revoked: { hosts: [...drop], n: (get().revoked?.n ?? 0) + 1 } });
     void AsyncStorage.setItem(CONN_KEY, JSON.stringify(connections)).catch(() => {});
     void AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify(remembered)).catch(() => {});
   },

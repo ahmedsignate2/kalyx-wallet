@@ -12,7 +12,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { fonts, spacing, useTheme, fontSize, radii } from '../ui/theme';
-import { useT } from '../lib/settingsStore';
+import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { clearJournal, formatLine, journalLines, journalText, subscribeJournal, type JournalLine } from '../lib/debugJournal';
 
@@ -22,6 +22,8 @@ export default function JournalScreen() {
   const t = useT();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  // Interrupteur (Développeur → Environnement) : coupé, plus rien n'est enregistré.
+  const journalOn = useSettings((s) => s.debugJournalEnabled);
   // Le journal est un tableau muté sur place : chaque nouvelle ligne force un rendu.
   const [, setTick] = useState(0);
   useEffect(() => subscribeJournal(() => setTick((n) => n + 1)), []);
@@ -39,6 +41,7 @@ export default function JournalScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenHeader title={`${t('journalTitle')} (${journalLines().length})`} />
       <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: spacing(1) }}>{t('journalHint')}</Text>
+      {!journalOn ? <Text style={{ color: colors.warning, fontSize: fontSize.xs, marginBottom: spacing(1) }}>{t('dxJournalOff')}</Text> : null}
       <View style={{ flexDirection: 'row', gap: spacing(1), marginBottom: spacing(1) }}>
         {btn(t('journalCopy'), () => {
           void Clipboard.setStringAsync(journalText()).then(() => toast.success(t('journalCopied')));

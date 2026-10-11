@@ -11,6 +11,8 @@ import {
   parseTokenResponse,
   isRefreshRejected,
   DRIVE_APPDATA_SCOPE,
+  isGoogleClientId,
+  selectGoogleClientId,
 } from './oauthPkce';
 
 const CLIENT = '1234567890-abcdefg.apps.googleusercontent.com';
@@ -100,5 +102,33 @@ describe('oauthPkce', () => {
     expect(isRefreshRejected(401, undefined)).toBe(true);
     expect(isRefreshRejected(400, 'invalid_request')).toBe(false);
     expect(isRefreshRejected(503, undefined)).toBe(false);
+  });
+});
+
+describe('selectGoogleClientId', () => {
+  const ANDROID = '111-android.apps.googleusercontent.com';
+  const IOS = '222-ios.apps.googleusercontent.com';
+
+  it('prend le client iOS sur iOS, le client Android ailleurs', () => {
+    expect(selectGoogleClientId('ios', { ios: IOS, android: ANDROID })).toBe(IOS);
+    expect(selectGoogleClientId('android', { ios: IOS, android: ANDROID })).toBe(ANDROID);
+  });
+
+  it("sans ID iOS, iOS ne retombe JAMAIS sur le client Android (Google refuserait la redirection)", () => {
+    expect(selectGoogleClientId('ios', { android: ANDROID })).toBe('');
+    expect(selectGoogleClientId('ios', { ios: '  ', android: ANDROID })).toBe('');
+  });
+
+  it('écarte un ID mal formé et rogne les espaces', () => {
+    expect(selectGoogleClientId('android', { android: 'pas-un-id' })).toBe('');
+    expect(selectGoogleClientId('android', { android: ` ${ANDROID}\n` })).toBe(ANDROID);
+    expect(isGoogleClientId('.apps.googleusercontent.com')).toBe(false);
+  });
+
+  it('chaque client a sa propre redirection (schéma inversé distinct)', () => {
+    const url = buildAuthUrl(IOS, createPkceSession());
+    expect(new URL(url).searchParams.get('client_id')).toBe(IOS);
+    expect(new URL(url).searchParams.get('redirect_uri')).toBe('com.googleusercontent.apps.222-ios:/oauth2redirect');
+    expect(new URLSearchParams(refreshRequestBody(IOS, 'rt')).get('client_id')).toBe(IOS);
   });
 });

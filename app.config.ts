@@ -2,14 +2,16 @@ import type { ExpoConfig } from 'expo/config';
 
 /**
  * Sauvegarde Google Drive (lib/googleDrive.ts) : Google redirige vers le schéma
- * « ID client inversé » du client OAuth Android/iOS. Déclaré seulement si
- * EXPO_PUBLIC_GOOGLE_CLIENT_ID est fourni au build (cf. .env.example).
+ * « ID client inversé » du client OAuth. Un client Google de type Android ne
+ * sert QUE sur Android ; iOS exige son propre client (type iOS, lié au bundle
+ * com.kalyx.wallet) → EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID. Chaque schéma n'est
+ * déclaré que si l'ID correspondant est fourni au build (cf. .env.example).
  */
-const GOOGLE_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '').trim();
 const GOOGLE_SUFFIX = '.apps.googleusercontent.com';
-const googleScheme = GOOGLE_CLIENT_ID.endsWith(GOOGLE_SUFFIX)
-  ? `com.googleusercontent.apps.${GOOGLE_CLIENT_ID.slice(0, -GOOGLE_SUFFIX.length)}`
-  : null;
+const reversedScheme = (id: string): string | null =>
+  id.endsWith(GOOGLE_SUFFIX) ? `com.googleusercontent.apps.${id.slice(0, -GOOGLE_SUFFIX.length)}` : null;
+const googleScheme = reversedScheme((process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '').trim());
+const googleIosScheme = reversedScheme((process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '').trim());
 const schemes = ['kalyx', ...(googleScheme ? [googleScheme] : [])];
 
 /**
@@ -22,6 +24,10 @@ const schemes = ['kalyx', ...(googleScheme ? [googleScheme] : [])];
  */
 const BUILD_PROFILE = process.env.EAS_BUILD_PROFILE ?? '';
 const APP_VERSION = BUILD_PROFILE.startsWith('production') ? '1.0.0' : '0.1.0';
+
+/** Motif Face ID montré par iOS à la première demande. */
+const FACE_ID_TEXT =
+  'Kalyx utilise Face ID pour déverrouiller ton portefeuille et confirmer tes opérations sensibles.';
 
 const config: ExpoConfig = {
   name: 'Kalyx Wallet',
@@ -63,7 +69,19 @@ const config: ExpoConfig = {
        */
       CFBundleURLTypes: [
         // `ton` : factures TON Pay (ton://transfer/…) ; `tc` : lien TON Connect unifié, obligatoire (spec deeplinks).
-        { CFBundleURLSchemes: [...schemes, 'wc', 'ethereum', 'bitcoin', 'solana', 'ton', 'tc'] },
+        {
+          CFBundleURLSchemes: [
+            ...schemes,
+            // Retour OAuth Google du client iOS (absent tant que l'ID iOS n'est pas fourni).
+            ...(googleIosScheme ? [googleIosScheme] : []),
+            'wc',
+            'ethereum',
+            'bitcoin',
+            'solana',
+            'ton',
+            'tc',
+          ],
+        },
       ],
     },
   },
@@ -121,8 +139,13 @@ const config: ExpoConfig = {
     "expo-status-bar",
     "expo-font",
     'expo-router',
-    'expo-secure-store',
-    'expo-local-authentication',
+    /*
+     * Textes iOS (NSFaceIDUsageDescription) : sans option, iOS affichait le
+     * texte anglais par défaut d'Expo. Les deux plugins écrivent la MÊME clé ;
+     * le texte est identique pour qu'aucun ordre d'application ne l'emporte.
+     */
+    ['expo-secure-store', { faceIDPermission: FACE_ID_TEXT }],
+    ['expo-local-authentication', { faceIDPermission: FACE_ID_TEXT }],
     'expo-localization',
     // Bloque tout trafic HTTP en clair au niveau OS (déjà le comportement par
     // défaut depuis Android 9/API 28, rendu explicite ici) : tous les RPC et
@@ -139,6 +162,9 @@ const config: ExpoConfig = {
       {
         cameraPermission:
           'Kalyx utilise la caméra pour scanner les QR codes : adresses de paiement et connexions WalletConnect.',
+        // Le scanner ne filme pas : ni NSMicrophoneUsageDescription (iOS) ni RECORD_AUDIO (Android).
+        microphonePermission: false,
+        recordAudioAndroid: false,
       },
     ],
     /*
@@ -157,6 +183,8 @@ const config: ExpoConfig = {
       {
         photosPermission:
           'Kalyx accède à une photo que tu choisis pour y lire un QR code de paiement. Aucune autre image n’est lue.',
+        // Aucune vidéo : pas de micro (iOS), RECORD_AUDIO bloquée (Android).
+        microphonePermission: false,
       },
     ],
     // Plus de plugin Bluetooth : la prise en charge Ledger n'a jamais été écrite, et

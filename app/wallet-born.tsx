@@ -72,7 +72,8 @@ export default function WalletBorn() {
 
   return (
     <RNPressable onPress={go} style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Stack.Screen options={{ headerShown: false }} />
+      {/* Portefeuille déjà créé : revenir au PIN par balayage n'a plus de sens. */}
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
       <Stardust width={winW} height={winH} count={16} />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SCREEN_MARGIN, gap: space[5] }}>
         <View style={{ alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>

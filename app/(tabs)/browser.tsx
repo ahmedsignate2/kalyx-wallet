@@ -31,7 +31,7 @@ import { Text, Button, IconButton, Divider, ListRow, Sheet, Chip, EmptyState, In
 import { Icon } from '../../ui/icon';
 import { SignSheet } from '../../ui/SignSheet';
 import { ConfirmUnlock } from '../../ui/ConfirmUnlock';
-import { AddressBar, splitHost } from '../../ui/browser/AddressBar';
+import { AddressBar, shieldLook } from '../../ui/browser/AddressBar';
 import { useTabBar } from '../../ui/tabs';
 import { Comet } from '../../ui/browser/Comet';
 import { createTicker, useTicker } from '../../lib/ticker';
@@ -46,7 +46,7 @@ import { useTokenStore } from '../../lib/tokenStore';
 import { useSettings, useT, useExplainT } from '../../lib/settingsStore';
 import { toast } from '../../lib/toast';
 import { loadRecents, pushRecent, clearRecents, loadFavorites, toggleFavorite, type RecentDapp } from '../../lib/recentDapps';
-import { useDappActivity } from '../../lib/dappActivity';
+import { useDappActivity, knownSites } from '../../lib/dappActivity';
 import { technicalLogger } from '../../lib/technicalLogger';
 import { useBrowserStore } from '../../lib/browserStore';
 import { saveTabs, loadTabs } from '../../lib/browserTabs';
@@ -54,7 +54,9 @@ import { useBrowserPresence } from '../../lib/browserPresence';
 import { useWalletConnect } from '../../lib/walletconnect';
 import { looksLikeTonConnect } from '../../src/domain/tonconnect/connectLink';
 import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../../lib/browserPrefs';
-import { buildInjectedProvider, parseDappMessage, respondJs, emitJs, rpcProxy, READONLY_METHODS, type DappRequest } from '../../lib/dappProvider';
+import { buildInjectedProvider, parseDappMessage, respondJs, emitJs, rpcProxy, RpcProxyError, READONLY_METHODS, type DappRequest } from '../../lib/dappProvider';
+import { phishingSiteStatus, type PhishingVerdict } from '../../src/domain/security/goplus';
+import { catalogEntry, dappCompat, isLookalike, lookalikeOf, siteShield, type DappCompat } from '../../src/domain/web/dappCatalog';
 import {
   getAdapter,
   formatTokenAmount,
@@ -118,22 +120,11 @@ function originOf(url: string): string {
 /** Hôtes du catalogue vérifié : seuls à recevoir la coche « vérifié » dans les demandes de signature. */
 const VERIFIED_HOSTS = new Set(VERIFIED_DAPPS.flatMap((c) => c.items.map((d) => d.host)));
 
-const SAFE_ROOTS = ['uniswap', 'opensea', 'aave', 'pancakeswap', 'lido', 'ens', 'curve', '1inch', 'compound', 'blur', 'rarible', 'jup', 'morpho', 'magiceden', 'across', 'stargate', 'jumper', 'rocketpool', 'jito', 'eigenlayer'];
-function isLookalike(host: string): boolean {
-  const root = splitHost(host).root.split('.')[0].toLowerCase();
-  if (SAFE_ROOTS.includes(root)) return false;
-  return SAFE_ROOTS.some((r) => Math.abs(r.length - root.length) <= 1 && r !== root && (root.includes(r) || r.includes(root) || levenshtein1(r, root)));
-}
-function levenshtein1(a: string, b: string): boolean {
-  if (Math.abs(a.length - b.length) > 1) return false;
-  let i = 0, j = 0, diff = 0;
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) { i++; j++; continue; }
-    if (++diff > 1) return false;
-    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
-  }
-  return diff + (a.length - i) + (b.length - j) <= 1;
-}
+/* Sosies (« uniswapp.org ») : `isLookalike` vient du catalogue (src/domain/web/dappCatalog.ts), même règle qu'avant. */
+
+/** Pastille de compatibilité d'une dApp du catalogue. */
+const COMPAT_KEY: Record<DappCompat, string> = { evm: 'dappCompatEvm', ton: 'dappCompatTon', walletconnect: 'dappCompatWalletConnect' };
+
 function normalizeUrl(raw?: string | null): string | null {
   if (typeof raw !== 'string') return null;
   const s = raw.trim();
@@ -235,9 +226,19 @@ export default function Browser() {
   const favRef = useRef<RecentDapp[]>([]);
   const applyRecents = (l: RecentDapp[]) => { recentsRef.current = l; setRecents(l); };
   const applyFav = (l: RecentDapp[]) => { favRef.current = l; setFavorites(l); };
-  const [dangerHosts, setDangerHosts] = useState<Record<string, boolean>>({});
+  /*
+   * Verdict GoPlus par hôte, pour la session. `unknown` (GoPlus injoignable,
+   * quota, réponse illisible) n'est PAS « sûr » : affiché « non analysé » et
+   * retenté au prochain chargement de page — il était mémorisé comme sûr.
+   */
+  const [dangerHosts, setDangerHosts] = useState<Record<string, PhishingVerdict>>({});
   const dangerHostsRef = useRef(dangerHosts);
   dangerHostsRef.current = dangerHosts;
+  const scanInFlight = useRef<Set<string>>(new Set());
+  /** Incrémenté à chaque chargement de page : relance l'analyse d'un hôte resté « non analysé ». */
+  const [loadSeq, setLoadSeq] = useState(0);
+  const securityScan = useSettings((s) => s.securityScan);
+  const [shieldSheet, setShieldSheet] = useState(false);
   // Sites signalés que l'utilisateur a choisi d'ouvrir malgré l'avertissement (cette session seulement).
   const [bypassedHosts, setBypassedHosts] = useState<ReadonlySet<string>>(() => new Set());
   const loadActivity = useDappActivity((s) => s.load);
@@ -296,12 +297,20 @@ export default function Browser() {
     if (u) openDeepLink(u);
   }, [urlParam]);
 
-  // Site dangereux (GoPlus) — vérifié une fois par hôte.
+  // Site dangereux (GoPlus) — verdict définitif (sûr / signalé) gardé pour la session ; « non analysé » retenté.
+  const scanSite = useCallback((host: string) => {
+    const known = dangerHostsRef.current[host];
+    if (!host || known === 'safe' || known === 'phishing' || scanInFlight.current.has(host) || !useSettings.getState().securityScan) return;
+    scanInFlight.current.add(host);
+    phishingSiteStatus(`https://${host}`)
+      .then((v) => { setDangerHosts((d) => ({ ...d, [host]: v })); if (v === 'phishing') haptic.warning(); })
+      .finally(() => scanInFlight.current.delete(host));
+  }, []);
   useEffect(() => {
-    if (!origin || origin in dangerHostsRef.current || !useSettings.getState().securityScan) return;
-    isPhishingSite(`https://${origin}`).then((bad) => { setDangerHosts((d) => ({ ...d, [origin]: bad })); if (bad) haptic.warning(); }).catch(() => setDangerHosts((d) => ({ ...d, [origin]: false })));
-  }, [origin]);
-  const danger = !!origin && (dangerHosts[origin] === true || isLookalike(origin));
+    if (origin) scanSite(origin);
+  }, [origin, loadSeq, securityScan, scanSite]);
+  const danger = !!origin && (dangerHosts[origin] === 'phishing' || isLookalike(origin));
+  const shield = origin ? siteShield(origin, dangerHosts[origin], securityScan) : undefined;
   // Site signalé : la page n'est même pas chargée (aucun script exécuté) tant que l'utilisateur ne passe pas outre.
   const blocked = danger && !!origin && !bypassedHosts.has(origin);
 
@@ -417,10 +426,13 @@ export default function Browser() {
   const revoked = useDappActivity((s) => s.revoked);
   useEffect(() => {
     if (!revoked) return;
-    connected.current.delete(connKey(revoked.host, false));
-    connected.current.delete(connKey(revoked.host, true));
+    for (const host of revoked.hosts) {
+      connected.current.delete(connKey(host, false));
+      connected.current.delete(connKey(host, true));
+    }
     const tab = tabsRef.current.find((x) => x.id === activeRef.current);
-    if (tab?.url && originOf(tab.url) === revoked.host) {
+    const activeHost = tab?.url ? originOf(tab.url) : null;
+    if (activeHost && revoked.hosts.includes(activeHost)) {
       inject(emitJs('accountsChanged', []));
       inject(emitJs('disconnect', {}));
     }
@@ -498,7 +510,7 @@ export default function Browser() {
         if (method === 'eth_requestAccounts' || method === 'wallet_requestPermissions') {
           if (isConnected && addr) return respond(id, method === 'eth_requestAccounts' ? [addr] : [{ parentCapability: 'eth_accounts' }]);
           // Reconnexion silencieuse d'un site mémorisé — jamais s'il est signalé depuis.
-          const reqDanger = dangerHostsRef.current[reqOrigin] === true || isLookalike(reqOrigin);
+          const reqDanger = dangerHostsRef.current[reqOrigin] === 'phishing' || isLookalike(reqOrigin);
           if (addr && !tb?.incognito && !reqDanger && useDappActivity.getState().isRemembered(reqOrigin)) {
             connected.current.add(connKey(reqOrigin, false));
             inject(emitJs('accountsChanged', [addr]));
@@ -560,7 +572,8 @@ export default function Browser() {
         if (READONLY_METHODS.has(method)) return respond(id, await rpcProxy(chain.rpcUrls, method, params));
         respond(id, null, { code: -32601, message: `${t('methodNotSupported')}${method}` });
       } catch (e) {
-        respond(id, null, { code: -32603, message: e instanceof Error ? e.message.slice(0, 160) : t('internalError') });
+        // Erreur JSON-RPC du nœud (ex. « execution reverted ») : son code est relayé tel quel.
+        respond(id, null, { code: e instanceof RpcProxyError ? e.code : -32603, message: e instanceof Error ? e.message.slice(0, 160) : t('internalError') });
       }
     },
     [evmAddress, watchOnly, chain, chainIdHex, respond, inject, activeChain, setPending, t],
@@ -754,12 +767,19 @@ export default function Browser() {
           </ScrollView>
           {/* Trois par ligne : à deux colonnes, la carte laissait un grand vide à droite. */}
           <View style={[card, { flexDirection: 'row', flexWrap: 'wrap', rowGap: space[4], paddingVertical: space[4], paddingHorizontal: space[2] }]}>
-            {cat.items.map((d) => <DappTile key={d.host} host={d.host} label={d.name} width="33.33%" onPress={() => go(d.url, d.name)} />)}
+            {cat.items.map((d) => <DappTile key={d.host} host={d.host} label={d.name} width="33.33%" badge={dappCompat(d).map((c) => t(COMPAT_KEY[c] as never)).join(' · ')} onPress={() => go(d.url, d.name)} />)}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
             <Icon name="security" size={14} color={colors.up} />
             <Text variant="caption" tone="secondary" style={{ flex: 1, fontFamily: 'GeneralSans-Regular' }}>{t('verifiedDappsMsg')}</Text>
           </View>
+          {/* Aucun fournisseur Solana injecté : une dApp Solana se connecte seulement par un lien WalletConnect. */}
+          {cat.items.some((d) => dappCompat(d).includes('walletconnect')) ? (
+            <KPressable onPress={() => setLinkSheet(true)} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
+              <Icon name="walletconnect" size={14} tone="muted" />
+              <Text variant="caption" tone="secondary" style={{ flex: 1, fontFamily: 'GeneralSans-Regular' }}>{t('dappCompatWalletConnectHelp')}</Text>
+            </KPressable>
+          ) : null}
         </Rise>
       </ScrollView>
     );
@@ -815,6 +835,7 @@ export default function Browser() {
             originWhitelist={['https://*', 'about:blank']}
             onShouldStartLoadWithRequest={onShouldStart}
             onLoadProgress={(e: { nativeEvent: { progress: number } }) => progress.set(e.nativeEvent.progress)}
+            onLoadStart={() => setLoadSeq((n) => n + 1)}
             onError={(e: { nativeEvent?: { description?: string; code?: number } }) => {
               const errDesc = e.nativeEvent?.description || `${t('networkError')}${e.nativeEvent?.code ? ` (${e.nativeEvent.code})` : ''}`;
               setWebError(errDesc);
@@ -921,6 +942,8 @@ export default function Browser() {
                 onPress={() => { compact.value = withSpring(0, springs.standard); setInput(activeTab.url ?? ''); setEditing(true); }}
                 onLongPress={() => { if (activeTab.url) { Clipboard.setStringAsync(activeTab.url); haptic.light(); toast.success(t('linkCopied'), origin); } }}
                 onAccount={() => setConnSheet(true)}
+                shield={shield}
+                onShield={() => setShieldSheet(true)}
               />
               <KPressable onPress={() => setSwitcher(true)} accessibilityLabel={`${tabs.length} ${t('tabs')}`} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
                 <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
@@ -992,6 +1015,7 @@ export default function Browser() {
               <Divider />
             </>
           ) : null}
+          <ListRow left={<Icon name="security" size={20} />} title={t('connectedSitesTitle')} subtitle={t('connectedSitesSub')} onPress={() => { setMenu(false); router.push('/connected-sites'); }} />
           <ListRow left={<Icon name="walletconnect" size={20} />} title={t('browserConnectLink')} subtitle={t('browserConnectLinkSub')} onPress={() => { setMenu(false); setLinkSheet(true); }} />
           <ListRow left={<Icon name="add" size={20} />} title={t('newTab')} onPress={() => newTab(false)} />
           <ListRow left={<Icon name="incognito" size={20} />} title={t('privateTab')} subtitle={t('nothingRemembered')} onPress={() => newTab(true)} />
@@ -1014,7 +1038,9 @@ export default function Browser() {
                   onPress: () => {
                     clearRecents();
                     applyRecents([]);
-                    connections.forEach((c) => removeConnection(c.host));
+                    // Sites seulement MÉMORISÉS compris : ils se reconnectaient encore sans PIN.
+                    const st = useDappActivity.getState();
+                    knownSites(st.connections, st.remembered).forEach((c) => removeConnection(c.host));
                     connected.current.clear();
                     toast.success(t('dataCleared'));
                   },
@@ -1023,6 +1049,52 @@ export default function Browser() {
             }}
           />
         </View>
+      </Sheet>
+
+      {/* Sécurité du site : appui sur le bouclier de la barre d'adresse */}
+      <Sheet visible={shieldSheet} onClose={() => setShieldSheet(false)}>
+        {origin && shield ? (() => {
+          const entry = catalogEntry(origin);
+          const verdict = dangerHosts[origin];
+          const mimics = lookalikeOf(origin);
+          const look = shieldLook(shield);
+          const tone = shield === 'flagged' ? colors.danger : shield === 'verified' ? colors.up : colors.textSecondary;
+          const goplusKey = !securityScan ? 'siteSecGoplusOff' : verdict === 'phishing' ? 'siteSecGoplusFlagged' : verdict === 'safe' ? 'siteSecGoplusClean' : 'siteSecGoplusUnknown';
+          const row = (icon: React.ComponentProps<typeof Icon>['name'], color: string, title: string, body: string) => (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3], paddingVertical: space[2] }}>
+              <Icon name={icon} size={18} color={color} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="body" style={{ fontWeight: '600' }}>{title}</Text>
+                <Text variant="caption" tone="secondary">{body}</Text>
+              </View>
+            </View>
+          );
+          return (
+            <View style={{ gap: space[2] }}>
+              <Text variant="title2">{t('siteSecurityTitle')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], paddingVertical: space[1] }}>
+                <DappLogo host={origin} size={40} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="body" numberOfLines={1} style={{ fontWeight: '600' }}>{origin}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Icon name={look.icon} size={13} color={tone} />
+                    <Text variant="caption" style={{ color: tone }}>{t(look.labelKey as never)}</Text>
+                  </View>
+                </View>
+              </View>
+              <Divider />
+              {row(entry ? 'check' : 'info', entry ? colors.up : colors.textSecondary, t('siteSecCatalog'),
+                entry ? `${fill(t('siteSecCatalogYes'), { name: entry.name })} · ${dappCompat(entry).map((c) => t(COMPAT_KEY[c] as never)).join(' · ')}` : t('siteSecCatalogNo'))}
+              {row(verdict === 'phishing' ? 'warning' : 'security', verdict === 'phishing' ? colors.danger : verdict === 'safe' ? colors.textSecondary : colors.textTertiary, t('siteSecGoplus'), t(goplusKey as never))}
+              {row(mimics ? 'warning' : 'checkmark', mimics ? colors.danger : colors.textSecondary, t('siteSecLookalikeTitle'),
+                mimics ? fill(t('siteSecLookalike'), { name: mimics }) : t('siteSecNoLookalike'))}
+              {securityScan && verdict !== 'safe' && verdict !== 'phishing' ? (
+                <Button label={t('retry')} icon="refresh" variant="secondary" size="md" onPress={() => scanSite(origin)} />
+              ) : null}
+              <Text variant="caption" tone="tertiary">{t('siteSecNote')}</Text>
+            </View>
+          );
+        })() : null}
       </Sheet>
 
       {/* Connexion par lien : WalletConnect ou TON Connect, la page reste ouverte */}

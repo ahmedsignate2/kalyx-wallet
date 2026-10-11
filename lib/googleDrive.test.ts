@@ -5,6 +5,7 @@
 const mem = new Map<string, string>();
 const keychain = new Map<string, string>();
 jest.mock('expo-linking', () => ({ openURL: jest.fn() }));
+jest.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {
