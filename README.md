@@ -302,6 +302,7 @@ Il n'y a **pas de mise à jour à distance (OTA)** : tout changement passe par u
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribuer |
 | [docs/](docs/) | Conception : cahier des charges, architecture, sécurité, réseaux, TON, design, carte d'audit |
 | [bot/README.md](bot/README.md) · [ton-proxy/README.md](ton-proxy/README.md) | Services Cloudflare |
+| [docs/vente/](docs/vente/README.md) | Vente : dossier de vente, audit de propriété intellectuelle, annonce, modèle de licence en marque blanche |
 
 ---
 
@@ -321,9 +322,9 @@ Ne transmettez **jamais** une phrase de récupération, une clé privée, un PIN
 **Licence propriétaire, code source consultable** ([LICENSE](LICENSE)) :
 - lecture, clonage, build local et recherche en sécurité : **autorisés** ;
 - usage commercial, redistribution, revente, forks publics, réutilisation de la marque : **interdits** sans accord écrit ;
-- **acquisition** du projet ou **licence commerciale** : possibles — Telegram [@kalyxntw](https://t.me/kalyxntw), X [@kalyxntw](https://x.com/kalyxntw), support@kalyxwallet.com.
+- **acquisition** du projet ou **licence commerciale** : possibles — Telegram [@kalyxntw](https://t.me/kalyxntw), X [@kalyxntw](https://x.com/kalyxntw), support@kalyxwallet.com. Documents : [docs/vente/](docs/vente/README.md).
 
-Les bibliothèques tierces restent soumises à leurs propres licences.
+Les bibliothèques tierces restent soumises à leurs propres licences. WalletConnect : « Portions © 2025 Reown, Inc. All Rights Reserved » (licence reproduite dans l'app, écran Licences tierces).
 
 ## 👤 À propos
 
