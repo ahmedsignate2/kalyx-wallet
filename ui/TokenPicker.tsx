@@ -115,7 +115,8 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
     };
   }, [visible, selectedChain, fetchTokens, account]);
 
-  const rawTokens = tokensByChain[selectedChain] ?? [];
+  // Tableau stable : un `?? []` neuf à chaque rendu relançait le useMemo de filtrage à chaque fois.
+  const rawTokens = useMemo(() => tokensByChain[selectedChain] ?? [], [tokensByChain, selectedChain]);
   const isLoading = loading[selectedChain] && rawTokens.length === 0;
 
   const filteredTokens = useMemo(() => {

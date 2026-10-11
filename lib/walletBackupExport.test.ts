@@ -40,9 +40,7 @@ jest.mock('./solanaSubmit', () => ({ submitSolanaSigned: jest.fn() }));
 jest.mock('./technicalLogger', () => ({ technicalLogger: { log: () => {} }, recordTechnicalLog: () => {} }));
 jest.mock('./walletNames', () => ({ isLegacyDefaultName: () => false }));
 
-// eslint-disable-next-line import/first
 import { useWallet, useLiveBackupDigest, backupDigestToRecord } from './walletStore';
-// eslint-disable-next-line import/first
 import { backupDigest } from './backupDigest';
 
 const PIN = '482917';

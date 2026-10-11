@@ -127,6 +127,7 @@ const day = (unix: number) => new Date(unix * 1000).toISOString().slice(0, 10);
  * section « Verified facts » et obtenir un verdict SAFE.
  */
 function untrusted(v: string, max = 200): string {
+  // eslint-disable-next-line no-control-regex -- filtre volontaire des caractères de contrôle
   const one = v.replace(/[\r\n\u2028\u2029]+/g, ' ').replace(/[\u0000-\u001f\u007f]/g, '').trim();
   return JSON.stringify(one.length > max ? `${one.slice(0, max)}…` : one);
 }

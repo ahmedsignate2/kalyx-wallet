@@ -22,7 +22,6 @@ jest.mock('../src', () => ({
   getAdapter: (id: string) => ({ config: { testnet: id === 'sepolia' } }),
 }));
 
-// eslint-disable-next-line import/first
 import { useSettings } from './settingsStore';
 
 describe('settingsStore — aucune écriture avant la fin de load()', () => {
