@@ -360,6 +360,16 @@ export async function readBiometricSeed(id: string, prompt?: string): Promise<st
   return readLegacyBiometricSeed(id);
 }
 
+/**
+ * Efface l'ANCIENNE copie en clair (schéma d'avant `requireAuthentication`).
+ * Lisible sans aucun geste par tout code exécuté dans l'app : elle ne doit pas
+ * survivre au premier déverrouillage. La copie protégée, elle, n'est pas touchée.
+ */
+export async function purgeLegacyBiometricSeed(id: string): Promise<void> {
+  await kvDel(bioKey(id), base).catch(() => {});
+  await kvDel(bioKey(id), bioGated).catch(() => {});
+}
+
 /** Ancienne copie en clair, sans invite. Rend null si absente, jamais d'exception. */
 export async function readLegacyBiometricSeed(id: string): Promise<string | null> {
   try {

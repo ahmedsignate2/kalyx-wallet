@@ -6,8 +6,12 @@
  *  - les erreurs JavaScript non rattrapées et les promesses rejetées ;
  *  - les alertes (titre) et le bouton choisi ;
  *  - les passages premier plan / arrière-plan ;
- *  - (branchés depuis app/_layout.tsx) chaque écran, chaque toucher, les
- *    appuis sur les boutons du kit, les changements d'état du coffre.
+ *  - (branchés depuis app/_layout.tsx) chaque écran, les appuis sur les
+ *    boutons du kit, les changements d'état du coffre.
+ *
+ * JAMAIS la position des touchers : sur un pavé à grille fixe, une suite de
+ * coordonnées redonne le code. Les lignes `touch` des anciennes versions
+ * sont effacées au chargement.
  *
  * ZÉRO SECRET. Chaque ligne passe par `sanitizeLog` (phrases BIP-39, clés
  * hexadécimales et Base58, champs sensibles) AVANT d'être gardée, et n'est
@@ -22,7 +26,7 @@ import { Alert, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sanitizeLog } from './sanitizeLog';
 
-export type JournalKind = 'log' | 'info' | 'warn' | 'error' | 'crash' | 'nav' | 'touch' | 'press' | 'alert' | 'app' | 'state';
+export type JournalKind = 'log' | 'info' | 'warn' | 'error' | 'crash' | 'nav' | 'press' | 'alert' | 'app' | 'state';
 
 export interface JournalLine {
   t: number;
@@ -131,8 +135,14 @@ export function installJournal(): void {
   AsyncStorage.getItem(STORE_KEY)
     .then((raw) => {
       if (!raw) return;
-      const prev = JSON.parse(raw) as JournalLine[];
-      if (!Array.isArray(prev) || prev.length === 0) return;
+      const parsed = JSON.parse(raw) as JournalLine[];
+      if (!Array.isArray(parsed)) return;
+      // Anciennes versions : coordonnées des touchers (pavé du code compris) — supprimées, disque compris.
+      const prev = parsed.filter((l) => l && (l.k as string) !== 'touch');
+      if (prev.length !== parsed.length) {
+        AsyncStorage.setItem(STORE_KEY, JSON.stringify(prev.slice(-MAX_STORED))).catch(() => {});
+      }
+      if (prev.length === 0) return;
       const mark: JournalLine = { t: Date.now(), k: 'app', m: '——— nouvelle session (lignes ci-dessus : session précédente) ———' };
       lines = [...prev, mark, ...lines].slice(-MAX_MEMORY);
       for (const l of listeners) l();

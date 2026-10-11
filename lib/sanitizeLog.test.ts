@@ -63,4 +63,13 @@ describe('autres secrets', () => {
     expect(out).not.toContain(addr);
     expect(out).toContain('0xbbbb...bbbb');
   });
+
+  it('raccourcit aussi une adresse TON (base64url, 48 caractères)', () => {
+    const ton = 'UQBapKtQghRx5Wh1WpscDbNNH9kLIpdd89rSxMU5EJCmVBrU';
+    const testnet = 'kQCx' + 'a_-B'.repeat(11);
+    const out = sanitizeLog(`to=${ton} puis ${testnet}.`);
+    expect(out).not.toContain(ton);
+    expect(out).not.toContain(testnet);
+    expect(out).toContain('UQBapK...VBrU');
+  });
 });

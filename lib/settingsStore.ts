@@ -7,6 +7,7 @@ import { setNumberLocale, type ActivityTranslate, type ExplainT } from '../src';
 import { saveSettings, loadSettings } from './secureStore';
 import { translate, type Lang, type Key, detectInitialLanguage, resolveLanguage, applyRTL, isRtl, USER_LANGUAGE_KEY } from './i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isDecoySession, onDecoyChange } from './sessionMode';
 
 export const FIATS = [
   { code: 'eur', symbol: '€', name: 'Euro' },
@@ -169,6 +170,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       driveBackupAt: typeof s?.driveBackupAt === 'string' ? s.driveBackupAt : null,
       backupVerified: s?.backupVerified === true,
     });
+    if (isDecoySession()) set(DECOY_MASK);
   },
 
   setSoundEnabled: (on) => {
@@ -299,3 +301,16 @@ export function useExplainT(): ExplainT {
 export function fiatSymbol(code: string): string {
   return FIATS.find((f) => f.code === code)?.symbol ?? code.toUpperCase();
 }
+
+/**
+ * Session LEURRE : les réglages sont lus (langue, thème…), mais l'état de
+ * sauvegarde et le nom de profil appartiennent aux VRAIS portefeuilles. Un
+ * « sauvegarde faite le 3 octobre » sur un leurre créé hier le trahirait.
+ * Masqués en mémoire seulement : le pare-feu d'écriture empêche de toute façon
+ * de réécrire `nova.settings` pendant la session.
+ */
+const DECOY_MASK: Partial<SettingsState> = { encryptedBackupAt: null, driveBackupAt: null, backupVerified: false, profileName: '' };
+onDecoyChange((on) => {
+  if (on) useSettings.setState(DECOY_MASK);
+});
+

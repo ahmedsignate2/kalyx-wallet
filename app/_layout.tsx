@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { attachPriceCacheStorage } from '../src';
 import React, { useEffect, useRef, useState } from 'react';
-import { journal } from '../lib/debugJournal';
 import { JournalProbe } from '../ui/JournalProbe';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, router, usePathname } from 'expo-router';
@@ -28,7 +27,6 @@ import { WebDashboard } from '../ui/web/WebDashboard';
 import { ToastHost } from '../ui/ToastHost';
 import { AutoLock } from '../ui/AutoLock';
 import { PrivacyScreen } from '../ui/PrivacyScreen';
-import { CopilotSheet } from '../ui/CopilotSheet';
 import { useDriveFlow } from '../lib/googleDrive';
 import { PriceAlertWatcher } from '../ui/PriceAlertWatcher';
 import { usePriceAlerts } from '../lib/priceAlertsStore';
@@ -49,8 +47,9 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 /** Écrans de la barre d'onglets : entre eux, un fondu (voir plus bas). */
 
 /** Écrans ouverts app verrouillée : le code, et des pages sans aucune donnée du portefeuille. */
-// `/journal` : si c'est le déverrouillage qui casse, sa trace doit rester lisible (lignes filtrées, sans secret).
-const LOCKED_ALLOWED = new Set(['/', '/unlock', '/legal', '/faq', '/about', '/licenses', '/journal']);
+// `/journal` n'y est PAS : il montre l'activité de l'app (écrans, URL de dApps, erreurs) et se partage ;
+// il ne s'ouvre qu'une fois le coffre déverrouillé.
+const LOCKED_ALLOWED = new Set(['/', '/unlock', '/legal', '/faq', '/about', '/licenses']);
 
 export default function RootLayout() {
   const { mode, colors } = useTheme();
@@ -261,8 +260,6 @@ export default function RootLayout() {
         */}
         <View
           style={{ flex: 1, backgroundColor: colors.bg }}
-          // Journal : chaque toucher (position, écran), y compris ceux qui n'atteignent aucun bouton.
-          onTouchEnd={(e) => journal('touch', `toucher (${Math.round(e.nativeEvent.pageX)}, ${Math.round(e.nativeEvent.pageY)}) sur ${pathname}`)}
         >
           <JournalProbe />
           <OfflineBanner />
@@ -310,7 +307,6 @@ export default function RootLayout() {
         <ToastHost />
         <AutoLock />
         <PrivacyScreen />
-        <CopilotSheet />
         <PriceAlertWatcher />
         <DeepLinks />
         <FloatingAiAssistant />

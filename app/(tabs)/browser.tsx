@@ -100,6 +100,9 @@ function originOf(url: string): string {
   return m ? m[1].toLowerCase() : '';
 }
 /** Domaines dApp reconnus (sosies → suspect). */
+/** Hôtes du catalogue vérifié : seuls à recevoir la coche « vérifié » dans les demandes de signature. */
+const VERIFIED_HOSTS = new Set(VERIFIED_DAPPS.flatMap((c) => c.items.map((d) => d.host)));
+
 const SAFE_ROOTS = ['uniswap', 'opensea', 'aave', 'pancakeswap', 'lido', 'ens', 'curve', '1inch', 'compound', 'blur', 'rarible', 'jup', 'morpho', 'magiceden', 'across', 'stargate', 'jumper', 'rocketpool', 'jito', 'eigenlayer'];
 function isLookalike(host: string): boolean {
   const root = splitHost(host).root.split('.')[0].toLowerCase();
@@ -213,6 +216,10 @@ export default function Browser() {
   const applyRecents = (l: RecentDapp[]) => { recentsRef.current = l; setRecents(l); };
   const applyFav = (l: RecentDapp[]) => { favRef.current = l; setFavorites(l); };
   const [dangerHosts, setDangerHosts] = useState<Record<string, boolean>>({});
+  const dangerHostsRef = useRef(dangerHosts);
+  dangerHostsRef.current = dangerHosts;
+  // Sites signalés que l'utilisateur a choisi d'ouvrir malgré l'avertissement (cette session seulement).
+  const [bypassedHosts, setBypassedHosts] = useState<ReadonlySet<string>>(() => new Set());
   const loadActivity = useDappActivity((s) => s.load);
   const connections = useDappActivity((s) => s.connections);
   const removeConnection = useDappActivity((s) => s.removeConnection);
@@ -274,6 +281,8 @@ export default function Browser() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [origin]);
   const danger = !!origin && (dangerHosts[origin] === true || isLookalike(origin));
+  // Site signalé : la page n'est même pas chargée (aucun script exécuté) tant que l'utilisateur ne passe pas outre.
+  const blocked = danger && !!origin && !bypassedHosts.has(origin);
 
   // ── Navigation ──
   const searchUrl = (q: string) => (ENGINES.find((e) => e.key === engine) ?? ENGINES[0]).url(q);
@@ -469,7 +478,9 @@ export default function Browser() {
         if (method === 'wallet_getPermissions') return respond(id, isConnected ? [{ parentCapability: 'eth_accounts' }] : []);
         if (method === 'eth_requestAccounts' || method === 'wallet_requestPermissions') {
           if (isConnected && addr) return respond(id, method === 'eth_requestAccounts' ? [addr] : [{ parentCapability: 'eth_accounts' }]);
-          if (addr && !tb?.incognito && useDappActivity.getState().isRemembered(reqOrigin)) {
+          // Reconnexion silencieuse d'un site mémorisé — jamais s'il est signalé depuis.
+          const reqDanger = dangerHostsRef.current[reqOrigin] === true || isLookalike(reqOrigin);
+          if (addr && !tb?.incognito && !reqDanger && useDappActivity.getState().isRemembered(reqOrigin)) {
             connected.current.add(connKey(reqOrigin, false));
             inject(emitJs('accountsChanged', [addr]));
             inject(emitJs('connect', { chainId: chainIdHex }));
@@ -746,7 +757,26 @@ export default function Browser() {
       {/* Contenu : UNE WebView (onglet actif) ou la page nouvel onglet */}
       <View style={{ flex: 1 }}>
         {activeTab.url ? (
-          webError ? (
+          blocked ? (
+            <View style={{ flex: 1, justifyContent: 'center', padding: SCREEN_MARGIN }}>
+              <Surface style={{ gap: space[3], alignItems: 'center', borderWidth: 1, borderColor: colors.danger }}>
+                <Icon name="warning" size={32} color={colors.danger} />
+                <Text variant="title2" style={{ textAlign: 'center' }}>{t('siteBlockedTitle')}</Text>
+                <Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center' }}>
+                  {fill(t('siteBlockedBody'), { host: origin ?? '' })}
+                </Text>
+                <Button label={t('siteBlockedLeave')} icon="caretLeft" onPress={goHome} />
+                <Button
+                  label={t('siteBlockedContinue')}
+                  variant="secondary"
+                  onPress={() => {
+                    haptic.warning();
+                    if (origin) setBypassedHosts((prev) => new Set(prev).add(origin));
+                  }}
+                />
+              </Surface>
+            </View>
+          ) : webError ? (
             <View style={{ flex: 1, justifyContent: 'center', padding: SCREEN_MARGIN }}>
               <Surface style={{ gap: space[3], alignItems: 'center' }}>
                 <Icon name="warning" size={28} color={colors.warning} />
@@ -1149,7 +1179,9 @@ export default function Browser() {
       <SignSheet
         visible={!!pending && pending.kind !== 'connect' && !signConfirm}
         peer={pending ? { name: activeTab.title || pending.origin, url: `https://${pending.origin}` } : null}
-        verify={danger || phishSite ? { validation: 'INVALID', isScam: true } : { validation: 'VALID' }}
+        // Coche « vérifié » réservée au catalogue : « non signalé » ne veut pas dire « sûr »
+        // (analyse désactivée, échouée, ou site simplement inconnu).
+        verify={danger || phishSite ? { validation: 'INVALID', isScam: true } : pending && VERIFIED_HOSTS.has(pending.origin) ? { validation: 'VALID' } : { validation: 'UNKNOWN' }}
         explanation={explanation}
         simulating={sim === 'loading'}
         network={chain.name}
