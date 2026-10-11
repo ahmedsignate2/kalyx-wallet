@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import { Text, Button, Surface, Sheet, Divider } from './kit';
+import { Text, Button, Sheet, Divider, Card } from './kit';
 import { Icon } from './icon';
 import { useTheme } from './theme';
 import { space, radius } from './tokens';
@@ -57,7 +57,7 @@ export function BridgeProgress({ visible, hash, summary, fromChainId, toChainId,
     <Sheet visible={visible} onClose={onClose}>
       <Text variant="title2">{stage === 'arrived' ? t('bridgeCompleted') : stage === 'failed' ? t('bridgeFailed') : t('bridgeInProgress')}</Text>
       {summary ? <Text variant="bodySecondary" tone="secondary">{summary}</Text> : null}
-      <Surface style={{ gap: space[3] }}>
+      <Card style={{ gap: space[3] }}>
         {steps.map((s, i) => {
           const done = i < reached;
           const failedHere = stage === 'failed' && i === 1;
@@ -70,7 +70,7 @@ export function BridgeProgress({ visible, hash, summary, fromChainId, toChainId,
             </View>
           );
         })}
-      </Surface>
+      </Card>
       <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t('bridgeDurationHint')}</Text>
       {from?.explorerUrl && hash ? <Button label={t('sourceTransaction')} variant="secondary" size="md" onPress={() => router.push({ pathname: '/browser', params: { url: `${from.explorerUrl}/tx/${hash}` } })} /> : null}
       {to?.explorerUrl && destHash ? <Button label={t('destinationTransaction')} variant="secondary" size="md" onPress={() => router.push({ pathname: '/browser', params: { url: `${to.explorerUrl}/tx/${destHash}` } })} /> : null}

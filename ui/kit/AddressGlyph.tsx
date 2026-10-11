@@ -8,7 +8,7 @@ import Animated, { useAnimatedProps, useAnimatedStyle, useReducedMotion, useShar
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { glyphFor, starPath } from '../../src';
 import { useTheme } from '../theme';
-import { springs, durations } from '../tokens';
+import { springs, durations, radii } from '../tokens';
 import { useT } from '../../lib/settingsStore';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -48,7 +48,7 @@ export function AddressGlyph({
   const d = useMemo(() => starPath(spec, c, c, r), [spec, c, r]);
   const id = useMemo(() => `g${address.slice(-8)}`, [address]);
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: background ? colors.surface2 : 'transparent', alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={t('glyphA11y')}>
+    <View style={{ width: size, height: size, borderRadius: radii.full, backgroundColor: background ? colors.surface2 : 'transparent', alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={t('glyphA11y')}>
       <Animated.View style={starStyle}>
       <Svg width={size} height={size}>
         <Defs>

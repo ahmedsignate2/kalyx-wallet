@@ -9,7 +9,7 @@
  * Le module caméra natif n'est actif qu'après un rebuild EAS : sans lui, on
  * bascule sur un repli « coller depuis le presse-papiers » (aucun crash).
  */
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable, Button } from '../ui/kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, Easing, StyleSheet, Dimensions } from 'react-native';
@@ -18,9 +18,8 @@ import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import { NATIVE_MODULE } from '../lib/nativeModules';
-import { Button } from '../ui/components';
 import { Icon, type IconName } from '../ui/icon';
-import { fonts, radii, spacing, useTheme } from '../ui/theme';
+import { fonts, radii, spacing, useTheme, fontSize } from '../ui/theme';
 import { toast } from '../lib/toast';
 import { useT } from '../lib/settingsStore';
 import { parseQr, describeQr, type QrResult } from '../src';
@@ -231,7 +230,7 @@ function Scanner() {
     return (
       <View style={[styles.center, { backgroundColor: colors.bg, padding: spacing(3) }]}>
         <Icon name="scan" size={48} color={colors.primary} />
-        <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 18, marginTop: spacing(2), textAlign: 'center' }}>
+        <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: fontSize.xl, marginTop: spacing(2), textAlign: 'center' }}>
           {t('allowCamera')}
         </Text>
         <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: spacing(1) }}>
@@ -298,7 +297,7 @@ function PasteOnly() {
         <ScreenHeader title={t('scanQrTitle')} />
       </View>
       <Icon name="scan" size={48} color={colors.textSecondary} />
-      <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 18, marginTop: spacing(2), textAlign: 'center' }}>
+      <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: fontSize.xl, marginTop: spacing(2), textAlign: 'center' }}>
         {t('cameraUnavailable')}
       </Text>
       <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: spacing(1) }}>
@@ -329,7 +328,7 @@ function ScanFrame() {
   }, [y]);
   return (
     <View style={styles.overlay} pointerEvents="none">
-      <View style={{ width: size, height: size, borderRadius: radii.lg, borderWidth: 2, borderColor: colors.primary + '88', overflow: 'hidden' }}>
+      <View style={{ width: size, height: size, borderRadius: radii.xl, borderWidth: 2, borderColor: colors.primary + '88', overflow: 'hidden' }}>
         <Animated.View
           style={{
             height: 2,
@@ -355,7 +354,7 @@ function ToolButton({ icon, label, active, onPress }: { icon: IconName; label: s
       <View style={[styles.toolCircle, { backgroundColor: active ? colors.primary : 'rgba(255,255,255,0.12)' }]}>
         <Icon name={icon} size={22} color="#fff" />
       </View>
-      <Text style={{ color: '#fff', fontSize: 12, marginTop: 4, opacity: 0.85 }}>{label}</Text>
+      <Text style={{ color: '#fff', fontSize: fontSize.xs, marginTop: 4, opacity: 0.85 }}>{label}</Text>
     </KPressable>
   );
 }
@@ -370,13 +369,13 @@ function ResultSheet({ result, onAct, onRescan }: { result: QrResult; onAct: (r:
       <View style={[styles.sheet, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {d.danger ? <Icon name="warning" size={20} color={colors.warning} /> : <Icon name="check" size={20} color={colors.up} />}
-          <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 16 }}>{d.title}</Text>
+          <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: fontSize.lg }}>{d.title}</Text>
         </View>
-        <Text selectable style={{ color: colors.textSecondary, marginTop: spacing(1), fontSize: 13 }}>
+        <Text selectable style={{ color: colors.textSecondary, marginTop: spacing(1), fontSize: fontSize.sm }}>
           {d.detail}
         </Text>
         {d.danger && result.kind === 'url' ? (
-          <Text style={{ color: colors.warning, fontSize: 12, marginTop: spacing(1) }}>
+          <Text style={{ color: colors.warning, fontSize: fontSize.xs, marginTop: spacing(1) }}>
             {t('verifyUrlWarning')}
           </Text>
         ) : null}
@@ -400,9 +399,9 @@ const styles = StyleSheet.create({
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   toolbar: { position: 'absolute', bottom: 48, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 40 },
   tool: { alignItems: 'center' },
-  toolCircle: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  toolCircle: { width: 52, height: 52, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center' },
   sheetWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing(2) },
-  sheet: { borderRadius: radii.lg, borderWidth: 1, padding: spacing(2.5) },
-  btnGhost: { flex: 1, borderWidth: 1, borderRadius: radii.pill, paddingVertical: spacing(1.5), alignItems: 'center' },
-  btnPrimary: { flex: 1, borderRadius: radii.pill, paddingVertical: spacing(1.5), alignItems: 'center' },
+  sheet: { borderRadius: radii.xl, borderWidth: 1, padding: spacing(2.5) },
+  btnGhost: { flex: 1, borderWidth: 1, borderRadius: radii.full, paddingVertical: spacing(1.5), alignItems: 'center' },
+  btnPrimary: { flex: 1, borderRadius: radii.full, paddingVertical: spacing(1.5), alignItems: 'center' },
 });

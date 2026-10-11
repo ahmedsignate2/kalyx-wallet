@@ -9,7 +9,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Image, ScrollView, View } from 'react-native';
-import { Sheet, Text, Button, Surface } from './kit';
+import { Sheet, Text, Button, Card } from './kit';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon } from './icon';
 import { useTheme } from './theme';
@@ -98,7 +98,7 @@ function TonAccessNotice({ mainIndex, message }: { mainIndex: number; message: s
   const t = useT();
   const { colors } = useTheme();
   return (
-    <Surface style={{ borderColor: colors.warning, gap: space[3] }}>
+    <Card style={{ borderColor: colors.warning, gap: space[3] }}>
       <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
         <Icon name="alert" size={18} color={colors.warning} />
         <Text variant="bodySecondary" style={{ flex: 1 }}>{mainIndex >= 0 ? message : t('tcNoTonForWallet')}</Text>
@@ -106,7 +106,7 @@ function TonAccessNotice({ mainIndex, message }: { mainIndex: number; message: s
       {mainIndex >= 0 ? (
         <Button label={t('tcUseMainAccount')} variant="secondary" onPress={() => { haptic.selection(); useWallet.getState().setActiveAccount(mainIndex); }} />
       ) : null}
-    </Surface>
+    </Card>
   );
 }
 
@@ -172,19 +172,19 @@ function TxSheet({ p }: { p: Extract<TcPending, { kind: 'tx' }> }) {
       <Text variant="title2" style={{ textAlign: 'center' }}>{t('tcTxTitle').replace('{name}', p.session.manifest.name)}</Text>
 
       {e?.risk.allBalance ? (
-        <Surface style={{ borderColor: colors.danger, flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
+        <Card style={{ borderColor: colors.danger, flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
           <Icon name="alert" size={18} color={colors.danger} />
           <Text variant="body" tone="danger" style={{ flex: 1 }}>{t('tcAllBalance')}</Text>
-        </Surface>
+        </Card>
       ) : null}
       {e?.failed ? (
-        <Surface style={{ borderColor: colors.danger, flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
+        <Card style={{ borderColor: colors.danger, flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
           <Icon name="alert" size={18} color={colors.danger} />
           <Text variant="body" tone="danger" style={{ flex: 1 }}>{t('tcWillFail')}</Text>
-        </Surface>
+        </Card>
       ) : null}
 
-      <Surface style={{ gap: space[2] }}>
+      <Card style={{ gap: space[2] }}>
         <Text variant="caption" tone="secondary">{t('tcLeaves')}</Text>
         <Text variant="body" tabular>{formatTokenAmount(tonOut, 9)} TON</Text>
         {e?.risk.jettons.map((j, i) => (
@@ -197,15 +197,18 @@ function TxSheet({ p }: { p: Extract<TcPending, { kind: 'tx' }> }) {
         <Text variant="caption" tone="tertiary">
           {loading ? t('tcSimulating') : e ? t('tcSimulated') : t('tcNoSimulation')}
         </Text>
-      </Surface>
+      </Card>
 
-      <Surface style={{ gap: space[1] }}>
+      <Card style={{ gap: space[1] }}>
         {p.tx.messages.map((m, i) => (
-          <Text key={i} variant="caption" tone="secondary" numberOfLines={1}>
-            → {shortAddress(m.to)} · {formatTokenAmount(m.amount, 9)} TON{payloadLabel(m.payload, t)}{m.init ? ' · deploy' : ''}
-          </Text>
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
+            <Icon name="forward" size={12} tone="muted" />
+            <Text variant="caption" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>
+              {shortAddress(m.to)} · {formatTokenAmount(m.amount, 9)} TON{payloadLabel(m.payload, t)}{m.init ? ' · deploy' : ''}
+            </Text>
+          </View>
         ))}
-      </Surface>
+      </Card>
 
       {blind ? <Text variant="caption" tone="danger">{t('tcCannotVerify')}</Text> : null}
       {wrongWallet ? <Text variant="caption" tone="danger">{t('tcWrongWallet')}</Text> : null}
@@ -262,16 +265,16 @@ function SignDataSheet({ p }: { p: Extract<TcPending, { kind: 'signData' }> }) {
       <DappHeader name={p.session.manifest.name} domain={dappHost(p.session.manifest.url)} icon={p.session.manifest.iconUrl} />
       <Text variant="title2" style={{ textAlign: 'center' }}>{t('tcSignDataTitle').replace('{name}', p.session.manifest.name)}</Text>
       {p.payload.type === 'text' ? (
-        <Surface style={{ maxHeight: 220 }}>
+        <Card style={{ maxHeight: 220 }}>
           <ScrollView nestedScrollEnabled>
             <Text variant="body" selectable style={{ fontFamily: 'monospace' }}>{p.payload.text}</Text>
           </ScrollView>
-        </Surface>
+        </Card>
       ) : (
-        <Surface style={{ borderColor: colors.warning, flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
+        <Card style={{ borderColor: colors.warning, flexDirection: 'row', gap: space[2], alignItems: 'center' }}>
           <Icon name="alert" size={18} color={colors.warning} />
           <Text variant="body" tone="warning" style={{ flex: 1 }}>{t('tcSignDataUnknown')}</Text>
-        </Surface>
+        </Card>
       )}
       <Text variant="caption" tone="secondary">{t('tcSignDataNote')}</Text>
       {wrongNetwork ? <Text variant="caption" tone="danger">{t('tcSignDataWrongNetwork')}</Text> : null}

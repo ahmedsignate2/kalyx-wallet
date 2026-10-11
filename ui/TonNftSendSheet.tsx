@@ -6,7 +6,7 @@ import { friendlyTxError } from '../lib/txError';
 import { useState } from 'react';
 import { View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Sheet, Text, Button, Input, Surface } from './kit';
+import { Sheet, Text, Button, Input, Card } from './kit';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon } from './icon';
 import { useTheme } from './theme';
@@ -54,14 +54,14 @@ export function TonNftSendSheet({ chainId, nftAddress, name, onClose, onSent }: 
         </>
       ) : (
         <>
-          <Surface style={{ gap: space[2] }}>
+          <Card style={{ gap: space[2] }}>
             <Text variant="caption" tone="secondary">{t('nftSendRecipient')}</Text>
             <Text variant="body">{plan.name ? `${plan.name} · ${shortAddress(plan.to)}` : shortAddress(plan.to)}</Text>
             <Text variant="caption" tone="secondary">{t('tcLeaves')}</Text>
             <Text variant="body">{e ? t('tcNfts').replace('{count}', String(e.risk.nfts || 1)) : '1 NFT'}</Text>
             {e ? <Text variant="caption" tone="secondary">{t('labelNetworkFee')} · {formatTokenAmount(e.fee, 9)} TON</Text> : null}
             <Text variant="caption" tone="tertiary">{e ? t('tcSimulated') : t('tcNoSimulation')}</Text>
-          </Surface>
+          </Card>
           {e?.failed ? (
             <View style={{ flexDirection: 'row', gap: space[2] }}>
               <Icon name="alert" size={18} color={colors.danger} />

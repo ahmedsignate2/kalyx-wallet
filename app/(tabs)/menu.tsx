@@ -1,10 +1,9 @@
-import { Pressable as KPressable } from '../../ui/kit';
+import { Pressable as KPressable, Card, Screen, ListRow, SegmentedControl } from '../../ui/kit';
 import { ConfirmUnlock } from '../../ui/ConfirmUnlock';
 import { useState } from 'react';
 import { View, Text, Alert } from 'react-native';
 import { router, Stack } from 'expo-router';
 import Constants from 'expo-constants';
-import { PremiumScreen, GlassCard, ListRow, SegmentedTabs } from '../../ui/premium';
 import { WalletAvatar, AvatarPicker } from '../../ui/avatarArt';
 import { Icon, type IconName } from '../../ui/icon';
 import { useAiStore } from '../../lib/aiStore';
@@ -38,13 +37,13 @@ export default function Menu() {
     ]);
 
   return (
-    <PremiumScreen tabBarSpace>
+    <Screen tabBarSpace>
       <Stack.Screen options={{ headerShown: false }} />
       <Text style={typography.title}>{t('menu')}</Text>
 
       {/* Profil : l'avatar dans son orbite, comme le halo de l'accueil. */}
       <Rise>
-        <GlassCard>
+        <Card variant="glass">
           {/*
             Deux gestes CÔTE À CÔTE, jamais imbriqués : un bouton dans un bouton
             n'est pas atteignable par un lecteur d'écran (et le web le refuse).
@@ -63,7 +62,7 @@ export default function Menu() {
               {chev}
             </KPressable>
           </View>
-        </GlassCard>
+        </Card>
       </Rise>
 
       {/* Raccourcis : les quatre destinations les plus fréquentes, en disques. */}
@@ -76,18 +75,18 @@ export default function Menu() {
 
       {/* Wallets */}
       <SectionLabel>{t('menuSecWallets')}</SectionLabel>
-      <GlassCard>
-        <ListRow left={<Ico n="wallets" />} title={t('myWallets')} subtitle={t('myWalletsSub')} right={chev} onPress={() => router.push('/wallets')} />
-        <ListRow divider left={<Ico n="import" />} title={t('importWalletT')} right={chev} onPress={() => router.push('/import-wallet')} />
-        <ListRow divider left={<Ico n="create" />} title={t('createWalletT')} right={chev} onPress={() => router.push('/create-wallet')} />
-      </GlassCard>
+      <Card variant="glass" padded={false}>
+        <ListRow wrap left={<Ico n="wallets" />} title={t('myWallets')} subtitle={t('myWalletsSub')} right={chev} onPress={() => router.push('/wallets')} />
+        <ListRow wrap divider left={<Ico n="import" />} title={t('importWalletT')} right={chev} onPress={() => router.push('/import-wallet')} />
+        <ListRow wrap divider left={<Ico n="create" />} title={t('createWalletT')} right={chev} onPress={() => router.push('/create-wallet')} />
+      </Card>
 
       {/* Mode d'interface (différenciateur Kalyx) */}
-      <GlassCard>
+      <Card variant="glass">
         <Text style={typography.muted}>{t('uiMode')}</Text>
         <View style={{ marginTop: spacing(1) }}>
-          <SegmentedTabs
-            active={uiMode}
+          <SegmentedControl
+            value={uiMode}
             onChange={(k) => setUiMode(k as 'beginner' | 'expert')}
             items={[
               { key: 'beginner', label: t('beginnerMode') },
@@ -98,66 +97,66 @@ export default function Menu() {
         <Text style={[typography.muted, { marginTop: spacing(1) }]}>
           {expert ? t('expertModeHint') : t('beginnerModeHint')}
         </Text>
-      </GlassCard>
+      </Card>
 
       {/* Compte & réseaux */}
       <SectionLabel>{t('menuSecConnections')}</SectionLabel>
-      <GlassCard>
-        <ListRow left={<Ico n="accounts" />} title={t('accounts')} right={chev} onPress={() => router.push('/accounts')} />
-        <ListRow divider left={<Ico n="networks" />} title={t('networks')} right={chev} onPress={() => router.push('/networks')} />
-        <ListRow divider left={<Ico n="dapps" />} title={t('dappBrowser')} subtitle={t('dappBrowserSub')} right={chev} onPress={() => router.navigate('/browser')} />
-        <ListRow divider left={<Ico n="walletconnect" />} title="WalletConnect" subtitle={t('connectedApps')} right={chev} onPress={() => router.push('/walletconnect')} />
-        <ListRow divider left={<Ico n="security" />} title={t('approvals')} subtitle={t('approvalsSub')} right={chev} onPress={() => router.push('/approvals')} />
-        <ListRow divider left={<Ico n="contacts" />} title={t('contacts')} right={chev} onPress={() => router.push('/contacts')} />
-        <ListRow divider left={<Ico n="history" />} title={t("activity")} subtitle={t("allTransactions")} right={chev} onPress={() => router.push('/history')} />
-        {aiEnabled ? <ListRow divider left={<Ico n="sparkles" />} title={t("assistant")} subtitle={t("assistantSubtitle")} right={chev} onPress={() => useAiStore.getState().openChat()} /> : null}
-      </GlassCard>
+      <Card variant="glass" padded={false}>
+        <ListRow wrap left={<Ico n="accounts" />} title={t('accounts')} right={chev} onPress={() => router.push('/accounts')} />
+        <ListRow wrap divider left={<Ico n="networks" />} title={t('networks')} right={chev} onPress={() => router.push('/networks')} />
+        <ListRow wrap divider left={<Ico n="dapps" />} title={t('dappBrowser')} subtitle={t('dappBrowserSub')} right={chev} onPress={() => router.navigate('/browser')} />
+        <ListRow wrap divider left={<Ico n="walletconnect" />} title="WalletConnect" subtitle={t('connectedApps')} right={chev} onPress={() => router.push('/walletconnect')} />
+        <ListRow wrap divider left={<Ico n="security" />} title={t('approvals')} subtitle={t('approvalsSub')} right={chev} onPress={() => router.push('/approvals')} />
+        <ListRow wrap divider left={<Ico n="contacts" />} title={t('contacts')} right={chev} onPress={() => router.push('/contacts')} />
+        <ListRow wrap divider left={<Ico n="history" />} title={t("activity")} subtitle={t("allTransactions")} right={chev} onPress={() => router.push('/history')} />
+        {aiEnabled ? <ListRow wrap divider left={<Ico n="sparkles" />} title={t("assistant")} subtitle={t("assistantSubtitle")} right={chev} onPress={() => useAiStore.getState().openChat()} /> : null}
+      </Card>
 
       {/* Préférences */}
       <SectionLabel>{t('menuSecPreferences')}</SectionLabel>
-      <GlassCard>
-        <ListRow left={<Ico n="language" />} title={t('language')} right={chev} onPress={() => router.push('/language')} />
-        <ListRow divider left={<Ico n="currency" />} title={t('currency')} right={chev} onPress={() => router.push('/settings')} />
-        <ListRow divider left={<Ico n="appearance" />} title={t('appearance')} right={chev} onPress={() => router.push('/settings')} />
-        <ListRow divider left={<Ico n="notifications" />} title={t('notifications')} right={chev} onPress={() => router.push('/notifications')} />
-      </GlassCard>
+      <Card variant="glass" padded={false}>
+        <ListRow wrap left={<Ico n="language" />} title={t('language')} right={chev} onPress={() => router.push('/language')} />
+        <ListRow wrap divider left={<Ico n="currency" />} title={t('currency')} right={chev} onPress={() => router.push('/settings')} />
+        <ListRow wrap divider left={<Ico n="appearance" />} title={t('appearance')} right={chev} onPress={() => router.push('/settings')} />
+        <ListRow wrap divider left={<Ico n="notifications" />} title={t('notifications')} right={chev} onPress={() => router.push('/notifications')} />
+      </Card>
 
       {/* Sécurité */}
       <SectionLabel>{t('security')}</SectionLabel>
-      <GlassCard>
-        <ListRow left={<Ico n="security" />} title={t('security')} subtitle={t("securityCenter")} right={chev} onPress={() => router.push('/security')} />
-        <ListRow divider left={<Ico n="bell" />} title={t('priceAlerts')} subtitle={t('priceAlertsSub')} right={chev} onPress={() => router.push('/price-alerts')} />
-        <ListRow divider left={<Ico n="pin" />} title={t('changePin')} right={chev} onPress={() => router.push('/change-pin')} />
-        <ListRow divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chev} onPress={() => router.push('/reveal-phrase')} />
-        <ListRow divider left={<Ico n="copy" />} title={t('revealPrivateKey')} right={chev} onPress={() => router.push('/reveal-private-key')} />
-        <ListRow divider left={<Ico n="share" />} title={t('encBackup')} subtitle={t('encBackupSub')} right={chev} onPress={() => router.push('/cloud-backup')} />
-      </GlassCard>
+      <Card variant="glass" padded={false}>
+        <ListRow wrap left={<Ico n="security" />} title={t('security')} subtitle={t("securityCenter")} right={chev} onPress={() => router.push('/security')} />
+        <ListRow wrap divider left={<Ico n="bell" />} title={t('priceAlerts')} subtitle={t('priceAlertsSub')} right={chev} onPress={() => router.push('/price-alerts')} />
+        <ListRow wrap divider left={<Ico n="pin" />} title={t('changePin')} right={chev} onPress={() => router.push('/change-pin')} />
+        <ListRow wrap divider left={<Ico n="phrase" />} title={t('revealPhrase')} right={chev} onPress={() => router.push('/reveal-phrase')} />
+        <ListRow wrap divider left={<Ico n="copy" />} title={t('revealPrivateKey')} right={chev} onPress={() => router.push('/reveal-private-key')} />
+        <ListRow wrap divider left={<Ico n="share" />} title={t('encBackup')} subtitle={t('encBackupSub')} right={chev} onPress={() => router.push('/cloud-backup')} />
+      </Card>
 
       {/* Avancé (mode expert) */}
       {expert ? (
-        <GlassCard>
-          <ListRow left={<Ico n="developer" />} title={t('developer')} subtitle={t('developerSub')} right={chev} onPress={() => router.push('/developer')} />
-          <ListRow divider left={<Ico n="extensions" />} title={t('extensions')} subtitle={t('extensionsSub')} right={chev} onPress={() => router.push('/extensions')} />
-        </GlassCard>
+        <Card variant="glass" padded={false}>
+          <ListRow wrap left={<Ico n="developer" />} title={t('developer')} subtitle={t('developerSub')} right={chev} onPress={() => router.push('/developer')} />
+          <ListRow wrap divider left={<Ico n="extensions" />} title={t('extensions')} subtitle={t('extensionsSub')} right={chev} onPress={() => router.push('/extensions')} />
+        </Card>
       ) : null}
 
       {/* Inviter des amis + soutenir + suggestions */}
       <SectionLabel>{t('menuSecCommunity')}</SectionLabel>
-      <GlassCard>
-        <ListRow left={<Ico n="gift" tone="gold" />} title={t('inviteFriends')} subtitle={t('inviteFriendsSub')} right={chev} onPress={() => router.push('/invite')} />
-        <ListRow divider left={<Ico n="star" />} title={t('supportUs')} subtitle={t('supportUsSub')} right={chev} onPress={() => router.push('/support')} />
-        <ListRow divider left={<Ico n="bulb" />} title={t('suggestFeature')} subtitle={t('suggestFeatureSub')} right={chev} onPress={() => router.push('/feature-request')} />
-      </GlassCard>
+      <Card variant="glass" padded={false}>
+        <ListRow wrap left={<Ico n="gift" tone="gold" />} title={t('inviteFriends')} subtitle={t('inviteFriendsSub')} right={chev} onPress={() => router.push('/invite')} />
+        <ListRow wrap divider left={<Ico n="star" />} title={t('supportUs')} subtitle={t('supportUsSub')} right={chev} onPress={() => router.push('/support')} />
+        <ListRow wrap divider left={<Ico n="bulb" />} title={t('suggestFeature')} subtitle={t('suggestFeatureSub')} right={chev} onPress={() => router.push('/feature-request')} />
+      </Card>
 
       {/* Aide */}
       <SectionLabel>{t('menuSecHelp')}</SectionLabel>
-      <GlassCard>
-        <ListRow left={<Ico n="faq" />} title={t('faq')} right={chev} onPress={() => router.push('/faq')} />
-        <ListRow divider left={<Ico n="support" />} title={t('supportHistoryTitle')} subtitle={t('supportDiagnosticSubtitle')} right={chev} onPress={() => router.push('/support-history')} />
-        <ListRow divider left={<Ico n="about" />} title={t('legalTitle')} subtitle={`Kalyx · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chev} onPress={() => router.push('/about')} />
-      </GlassCard>
+      <Card variant="glass" padded={false}>
+        <ListRow wrap left={<Ico n="faq" />} title={t('faq')} right={chev} onPress={() => router.push('/faq')} />
+        <ListRow wrap divider left={<Ico n="support" />} title={t('supportHistoryTitle')} subtitle={t('supportDiagnosticSubtitle')} right={chev} onPress={() => router.push('/support-history')} />
+        <ListRow wrap divider left={<Ico n="about" />} title={t('legalTitle')} subtitle={`Kalyx · v${Constants.expoConfig?.version ?? '0.0.1'}`} right={chev} onPress={() => router.push('/about')} />
+      </Card>
 
-      <ListRow left={<Ico n="reset" tone="danger" />} title={t('resetWallet')} right={<Icon name="chevron" size={18} color={colors.danger} />} onPress={onReset} />
+      <ListRow wrap style={{ paddingHorizontal: 0 }} left={<Ico n="reset" tone="danger" />} title={t('resetWallet')} right={<Icon name="chevron" size={18} color={colors.danger} />} onPress={onReset} />
       <AvatarPicker walletId={activeWalletId} visible={pickAvatar} onClose={() => setPickAvatar(false)} />
       <ConfirmUnlock
         visible={confirmReset}
@@ -169,6 +168,6 @@ export default function Menu() {
         }}
         onCancel={() => setConfirmReset(false)}
       />
-    </PremiumScreen>
+    </Screen>
   );
 }

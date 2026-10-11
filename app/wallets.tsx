@@ -1,12 +1,11 @@
 import { GOLD, IconDisc, NovaHero, Pulse, Rise } from '../ui/nova';
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable, Button, Card, Screen } from '../ui/kit';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
 import { useState } from 'react';
 import { View, Text, TextInput, Alert, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import { Screen, Card, Button } from '../ui/components';
-import { fonts, spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme, fontSize, radii } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { walletDisplayName, walletPosition } from '../lib/walletNames';
 import { useT } from '../lib/settingsStore';
@@ -49,7 +48,7 @@ export default function Wallets() {
   };
 
   return (
-    <Screen>
+    <Screen layout="form">
       <ScreenHeader />
       <NovaHero icon="wallets" title={t('myWallets')} subtitle={t('eachWalletOwnPhrase')} />
 
@@ -63,8 +62,8 @@ export default function Wallets() {
           const active = w.id === activeWalletId;
           if (editing === w.id) {
             return (
-              <Card key={w.id} style={{ gap: spacing(1) }}>
-                <TextInput value={editLabel} onChangeText={setEditLabel} autoFocus placeholder={t('walletNamePlaceholder')} placeholderTextColor={colors.textSecondary} style={{ color: colors.text, fontSize: 16 }} />
+              <Card padding="xl" gap="md" key={w.id} style={{ gap: spacing(1) }}>
+                <TextInput value={editLabel} onChangeText={setEditLabel} autoFocus placeholder={t('walletNamePlaceholder')} placeholderTextColor={colors.textSecondary} style={{ color: colors.text, fontSize: fontSize.lg }} />
                 <Button label={t('saveAction')} onPress={() => { renameWallet(w.id, editLabel); setEditing(null); }} />
               </Card>
             );
@@ -77,7 +76,7 @@ export default function Wallets() {
               accessibilityState={{ selected: active }}
               accessibilityLabel={walletDisplayName(w, walletPosition(wallets, w.id), t)}
             >
-              <Card style={{ borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Card padding="xl" gap="md" style={{ borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border, borderRadius: radii.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <KPressable onPress={() => setAvatarFor(w.id)} hitSlop={6} accessibilityLabel={t('a11yChangeAvatar')} style={{ marginRight: spacing(1.5) }}>
                   <WalletAvatar walletId={w.id} size={44} />
                 </KPressable>
@@ -86,13 +85,13 @@ export default function Wallets() {
                   {w.type === 'watch' ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                       <Icon name="eye" size={12} color={colors.textSecondary} />
-                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.semibold }}>{t('watchBadge')}</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, fontFamily: fonts.semibold }}>{t('watchBadge')}</Text>
                     </View>
                   ) : null}
                   {active ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                       <Pulse size={7} />
-                      <Text style={{ color: GOLD, fontSize: 13, fontFamily: fonts.semibold }}>{t('activeLabel')}</Text>
+                      <Text style={{ color: GOLD, fontSize: fontSize.sm, fontFamily: fonts.semibold }}>{t('activeLabel')}</Text>
                     </View>
                   ) : null}
                 </View>
@@ -121,13 +120,13 @@ export default function Wallets() {
 
       <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
         <View style={{ flex: 1 }}>
-          <Button label={t('importAction')} variant="ghost" onPress={() => router.push('/import-wallet')} />
+          <Button label={t('importAction')} variant="outline" onPress={() => router.push('/import-wallet')} />
         </View>
         <View style={{ flex: 1 }}>
           <Button label={t('createAction')} onPress={() => router.push('/create-wallet')} />
         </View>
       </View>
-      <Button label={t('watchAction')} variant="ghost" onPress={() => router.push('/watch-wallet')} />
+      <Button label={t('watchAction')} variant="outline" onPress={() => router.push('/watch-wallet')} />
       {avatarFor ? <AvatarPicker walletId={avatarFor} visible onClose={() => setAvatarFor(null)} /> : null}
       <ConfirmUnlock
         visible={removing !== null}

@@ -1,9 +1,8 @@
-import { Button, Input, ScreenHeader, Text as KText, TokenIcon } from '../ui/kit';
-import { NovaCard, NovaHero } from '../ui/nova';
+import { Button, Input, ScreenHeader, Text as KText, TokenIcon, Card, Screen } from '../ui/kit';
+import { NovaHero } from '../ui/nova';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import { PremiumScreen } from '../ui/premium';
 import { Icon } from '../ui/icon';
 import { spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -56,19 +55,19 @@ export default function AddToken() {
    */
   if (!isEvm) {
     return (
-      <PremiumScreen>
+      <Screen>
         <ScreenHeader />
         <NovaHero icon="add" title={t('addToken')} subtitle={t('evmOnlyToken')} />
         <Button label={t('networks')} variant="secondary" icon="networks" onPress={() => router.push('/networks')} />
-      </PremiumScreen>
+      </Screen>
     );
   }
 
   return (
-    <PremiumScreen>
+    <Screen>
       <ScreenHeader />
       <NovaHero icon="add" title={t('addToken')} subtitle={t('pasteContractOn').replace('{chain}', chain.name)} />
-      <NovaCard delay={140}>
+      <Card rise delay={140}>
         <Input
           value={contract}
           onChangeText={(v) => {
@@ -82,17 +81,17 @@ export default function AddToken() {
           onSubmitEditing={() => void onCheck()}
           returnKeyType="search"
         />
-      </NovaCard>
+      </Card>
 
       {meta ? (
-        <NovaCard delay={0} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+        <Card rise delay={0} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
           <TokenIcon symbol={meta.symbol} seed={contract.trim()} size={44} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <KText variant="body" numberOfLines={1}>{meta.name}</KText>
             <KText variant="caption" tone="secondary">{meta.symbol} · {meta.decimals} {t('decimalsWord')} · {chain.name}</KText>
           </View>
           <Icon name="check" size={20} color={colors.up} />
-        </NovaCard>
+        </Card>
       ) : null}
 
       {/* Dans le défilement (et non en pied fixe) : le clavier ne le recouvre jamais. */}
@@ -101,6 +100,6 @@ export default function AddToken() {
       ) : (
         <Button label={t('verifyToken')} loading={checking} disabled={!contract.trim()} onPress={() => void onCheck()} />
       )}
-    </PremiumScreen>
+    </Screen>
   );
 }

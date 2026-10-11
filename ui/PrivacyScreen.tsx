@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import { AppState, type AppStateStatus, StyleSheet, Text, View } from 'react-native';
 import { KalyxLogo } from './KalyxLogo';
-import { fonts, useTheme } from './theme';
+import { fonts, useTheme, fontSize } from './theme';
 import { useSettings } from '../lib/settingsStore';
 
 // Module natif : présent dans le build (déjà utilisé par app/backup.tsx).
@@ -69,7 +69,7 @@ export function PrivacyScreen() {
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
         <KalyxLogo size={96} />
-        <Text style={{ color: colors.text, fontSize: 28, fontFamily: fonts.extrabold, letterSpacing: 1 }}>Kalyx</Text>
+        <Text style={{ color: colors.text, fontSize: fontSize.h2, fontFamily: fonts.extrabold, letterSpacing: 1 }}>Kalyx</Text>
       </View>
     </View>
   );

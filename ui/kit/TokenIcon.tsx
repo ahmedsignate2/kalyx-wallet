@@ -8,6 +8,7 @@ import { Text } from './Text';
 import { LogoImage } from './LogoImage';
 import { glyphFor } from '../../src';
 import { useTheme } from '../theme';
+import { radii } from '../tokens';
 
 export function TokenIcon({ symbol, logo, seed, size = 40, badge }: { symbol: string; logo?: string | null; /** Contrat/mint : détermine la couleur du monogramme. */ seed?: string; size?: number; /** Logo du RÉSEAU, en pastille dans le coin (ETH sur Base, USDC sur BNB…). */ badge?: string | null }) {
   const { colors } = useTheme();
@@ -17,7 +18,7 @@ export function TokenIcon({ symbol, logo, seed, size = 40, badge }: { symbol: st
     logo && !failed ? (
       <LogoImage uri={logo} size={size} onError={() => setFailed(true)} style={{ backgroundColor: colors.surface2 }} />
     ) : (
-      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: size, height: size, borderRadius: radii.full, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
         <Text variant={size >= 40 ? 'body' : 'caption'} style={{ color: '#0B0D16', fontSize: size * 0.42, lineHeight: size * 0.5 }}>{(symbol || '?').slice(0, 1).toUpperCase()}</Text>
       </View>
     );

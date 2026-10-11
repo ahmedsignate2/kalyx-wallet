@@ -13,11 +13,11 @@ import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
-import { LogoImage, Text, Button, IconButton, Surface, AddressGlyph, SegmentedControl, Pressable as KPressable } from '../ui/kit';
+import { LogoImage, Text, Button, IconButton, AddressGlyph, SegmentedControl, Pressable as KPressable, Card } from '../ui/kit';
 import { Orbit, Rise } from '../ui/nova';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
+import { space, SCREEN_MARGIN, radius, fontSize, radii } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { addressForChain } from '../lib/accountAddress';
 import { accountDisplayName } from '../lib/walletNames';
@@ -130,7 +130,7 @@ function ReceiveInner() {
               flexDirection: 'row',
               alignItems: 'center',
               gap: 8,
-              borderRadius: 20,
+              borderRadius: radii.lg,
               backgroundColor: 'rgba(255,255,255,0.05)',
               paddingVertical: 8,
               paddingHorizontal: 14,
@@ -146,7 +146,7 @@ function ReceiveInner() {
           <Text variant="caption" tone="secondary">{t("evmDescription")}</Text>
         ) : null}
 
-        <Surface style={{ alignItems: 'center', gap: space[4], paddingVertical: space[6], borderRadius: 26 }}>
+        <Card style={{ alignItems: 'center', gap: space[4], paddingVertical: space[6], borderRadius: radii.xl }}>
           {selected && environment === 'mainnet' ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             {chainIconUrl(selected.id) ? <LogoImage uri={chainIconUrl(selected.id)!} size={22} /> : null}
             <Text variant="body">{selected.name}</Text>
@@ -186,7 +186,7 @@ function ReceiveInner() {
             selectable
             accessibilityLabel={fill(t('a11yAddress'), { address: address })}
             style={{
-              fontSize: 13,
+              fontSize: fontSize.sm,
               fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
               color: colors.text,
               textAlign: 'center',
@@ -199,7 +199,7 @@ function ReceiveInner() {
           </Text>
           <Text variant="caption" tone="secondary">{accountDisplayName(stored, t)}</Text>
           {isTestnet ? <Text variant="bodySecondary" tone="warning">{t("testnetWarning")}</Text> : null}
-        </Surface>
+        </Card>
 
         <View style={{ gap: space[2] }}>
           <Text variant="bodySecondary" tone="secondary">{hint}</Text>
@@ -226,13 +226,13 @@ function ReceiveInner() {
             style={{
               maxHeight: '75%',
               backgroundColor: colors.bg,
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
+              borderTopLeftRadius: radii.xxl,
+              borderTopRightRadius: radii.xxl,
               padding: SCREEN_MARGIN,
               gap: space[3],
             }}
           >
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: radii.full, backgroundColor: colors.border }} />
             <Text variant="title2">{t("chooseTestnetTitle")}</Text>
             <ScrollView contentContainerStyle={{ gap: space[2] }}>
               {networks.map((network) => {
@@ -252,7 +252,7 @@ function ReceiveInner() {
                       alignItems: 'center',
                       gap: space[2],
                       padding: space[3],
-                      borderRadius: 14,
+                      borderRadius: radii.md,
                       backgroundColor: selectedNetwork ? colors.surface2 : colors.surface1,
                       borderWidth: selectedNetwork ? 1 : 0,
                       borderColor: colors.primary,

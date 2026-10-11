@@ -11,7 +11,7 @@ import { Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
-import { fonts, spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme, fontSize, radii } from '../ui/theme';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { clearJournal, formatLine, journalLines, journalText, subscribeJournal, type JournalLine } from '../lib/debugJournal';
@@ -29,8 +29,8 @@ export default function JournalScreen() {
   const data = journalLines().slice(-1500).reverse();
 
   const btn = (label: string, onPress: () => void, danger = false) => (
-    <KPressable onPress={onPress} accessibilityLabel={label} style={{ flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: danger ? colors.danger : colors.border, alignItems: 'center' }}>
-      <Text style={{ color: danger ? colors.danger : colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{label}</Text>
+    <KPressable onPress={onPress} accessibilityLabel={label} style={{ flex: 1, paddingVertical: 10, borderRadius: radii.md, borderWidth: 1, borderColor: danger ? colors.danger : colors.border, alignItems: 'center' }}>
+      <Text style={{ color: danger ? colors.danger : colors.text, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{label}</Text>
     </KPressable>
   );
 
@@ -38,7 +38,7 @@ export default function JournalScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top, paddingHorizontal: spacing(2) }}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenHeader title={`${t('journalTitle')} (${journalLines().length})`} />
-      <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: spacing(1) }}>{t('journalHint')}</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: spacing(1) }}>{t('journalHint')}</Text>
       <View style={{ flexDirection: 'row', gap: spacing(1), marginBottom: spacing(1) }}>
         {btn(t('journalCopy'), () => {
           void Clipboard.setStringAsync(journalText()).then(() => toast.success(t('journalCopied')));
@@ -67,7 +67,7 @@ export default function JournalScreen() {
               style={{
                 color: tone === 'danger' ? colors.danger : tone === 'warning' ? colors.warning : tone === 'primary' ? colors.primary : colors.text,
                 fontFamily: 'monospace',
-                fontSize: 11,
+                fontSize: fontSize.xxs,
                 lineHeight: 15,
                 paddingVertical: 2,
                 borderBottomWidth: 0.5,

@@ -1,4 +1,4 @@
-import { Pressable as KPressable } from './kit';
+import { Pressable as KPressable, Avatar, Button, Card } from './kit';
 /**
  * Fenêtres globales WalletConnect : proposition de session + requête à signer.
  * Monté à la racine pour capter les événements quel que soit l'écran.
@@ -18,11 +18,9 @@ import { bitcoinMessageParam, btcTransferParams, solanaMessageParam } from '../l
 import { bytesToHex } from '@noble/hashes/utils';
 import React, { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { View, Text, Image } from 'react-native';
-import { GlassCard, GradientAvatar } from './premium';
-import { Button } from './components';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon } from './icon';
-import { fonts, radii, spacing, useTheme } from './theme';
+import { fonts, radii, spacing, useTheme, fontSize } from './theme';
 import { useTokenStore } from '../lib/tokenStore';
 import { assertSessionAccount, useWalletConnect, SOLANA_DEVNET_CAIP } from '../lib/walletconnect';
 import { useLocked } from '../lib/lockState';
@@ -48,7 +46,7 @@ import {
   isWalletError,
   type PsbtSummary,
   type RiskAssessment,
-  type Simulation,
+  type Simulation
 } from '../src';
 import { SignSheet } from './SignSheet';
 import { Interface } from 'ethers';
@@ -64,7 +62,7 @@ function Overlay({ children, onCancel }: { children: React.ReactNode, onCancel?:
     <SafeModal transparent animationType="fade" onRequestClose={onCancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <KPressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onCancel} />
-        <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
+        <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
           {children}
         </View>
       </View>
@@ -81,10 +79,10 @@ function PermRow({ on, onToggle, label, fixed }: { on: boolean; onToggle?: () =>
       disabled={fixed}
       style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(0.5) }}
     >
-      <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primary : 'transparent', alignItems: 'center', justifyContent: 'center', opacity: fixed ? 0.7 : 1 }}>
+      <View style={{ width: 22, height: 22, borderRadius: radii.xs, borderWidth: 2, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primary : 'transparent', alignItems: 'center', justifyContent: 'center', opacity: fixed ? 0.7 : 1 }}>
         {on ? <Icon name="check" size={14} color={colors.onPrimary} /> : null}
       </View>
-      <Text style={{ color: colors.text, flex: 1, fontSize: 14 }}>{label}</Text>
+      <Text style={{ color: colors.text, flex: 1, fontSize: fontSize.md }}>{label}</Text>
     </KPressable>
   );
 }
@@ -98,7 +96,7 @@ function SecBanner({ risk, phish }: { risk: RiskAssessment | 'loading' | null; p
       {phish ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.danger + '1E', borderWidth: 1, borderColor: colors.danger + '66', borderRadius: radii.md, padding: spacing(1.5) }}>
           <Icon name="warning" size={18} color={colors.danger} />
-          <Text style={{ color: colors.text, flex: 1, fontSize: 13 }}>{t('phishingWarning')}</Text>
+          <Text style={{ color: colors.text, flex: 1, fontSize: fontSize.sm }}>{t('phishingWarning')}</Text>
         </View>
       ) : null}
       {risk === 'loading' ? (
@@ -113,12 +111,12 @@ function SecBanner({ risk, phish }: { risk: RiskAssessment | 'loading' | null; p
             <Text style={{ color: colors.danger, fontFamily: fonts.bold, flex: 1 }}>{t('riskDetected')}</Text>
           </View>
           {/* Raisons GoPlus : des CLÉS (`gp…`), traduites ici. */}
-          {risk.reasons.map((r) => <Text key={r} style={{ color: colors.text, fontSize: 13 }}>• {/^gp[A-Z]/.test(r) ? t(r as never) : r}</Text>)}
+          {risk.reasons.map((r) => <Text key={r} style={{ color: colors.text, fontSize: fontSize.sm }}>• {/^gp[A-Z]/.test(r) ? t(r as never) : r}</Text>)}
         </View>
       ) : risk && risk.level === 'ok' ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Icon name="check" size={15} color={colors.up} />
-          <Text style={{ color: colors.up, fontSize: 13, fontFamily: fonts.semibold }}>{t('noKnownRisk')}</Text>
+          <Text style={{ color: colors.up, fontSize: fontSize.sm, fontFamily: fonts.semibold }}>{t('noKnownRisk')}</Text>
         </View>
       ) : null}
     </>
@@ -133,7 +131,7 @@ function DappHeader({ name, url, icon }: { name: string; url: string; icon?: str
       {icon ? (
         <Image source={{ uri: icon }} style={{ width: 44, height: 44, borderRadius: radii.md, backgroundColor: colors.surface1 }} />
       ) : (
-        <GradientAvatar label={(name || '?').slice(0, 1).toUpperCase()} />
+        <Avatar label={(name || '?').slice(0, 1).toUpperCase()} />
       )}
       <View style={{ flex: 1 }}>
         <Text style={typography.bodyStrong}>{name || 'dApp'}</Text>
@@ -353,7 +351,7 @@ export function WalletConnectHost() {
     return (
       <Overlay onCancel={() => { setConfirming(false); rejectProposal().catch(()=>{}); }}>
         <Text style={typography.title}>{t('dappConnection')}</Text>
-        <GlassCard>
+        <Card variant="glass">
           <DappHeader name={meta.name ?? 'dApp'} url={meta.url ?? ''} icon={meta.icons?.[0]} />
           <View style={{ marginTop: spacing(1.5), gap: spacing(0.25) }}>
             <Text style={[typography.muted, { marginBottom: spacing(0.5) }]}>{t('permHeader')}</Text>
@@ -385,9 +383,9 @@ export function WalletConnectHost() {
                       accessibilityRole="radio"
                       accessibilityState={{ selected: on }}
                       accessibilityLabel={accountDisplayName(a, t)}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, paddingHorizontal: spacing(1.25), borderRadius: radii.pill, borderWidth: 1, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primary : 'transparent' }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, paddingHorizontal: spacing(1.25), borderRadius: radii.full, borderWidth: 1, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primary : 'transparent' }}
                     >
-                      <Text style={{ color: on ? colors.onPrimary : colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>
+                      <Text style={{ color: on ? colors.onPrimary : colors.text, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>
                         {accountDisplayName(a, t)}
                       </Text>
                     </KPressable>
@@ -396,13 +394,13 @@ export function WalletConnectHost() {
               </View>
             </View>
           ) : null}
-        </GlassCard>
+        </Card>
 
         <SecBanner risk={null} phish={phishSite} />
         <Text style={typography.muted}>{t('connectNeedsConfirm')}</Text>
         <View style={{ flexDirection: 'row', gap: spacing(1.5) }}>
           <View style={{ flex: 1 }}>
-            <Button label={t('refuse')} variant="ghost" onPress={() => { setConfirming(false); rejectProposal().catch(() => {}); }} />
+            <Button label={t('refuse')} variant="outline" onPress={() => { setConfirming(false); rejectProposal().catch(() => {}); }} />
           </View>
           <View style={{ flex: 1 }}>
             <Button label={t('connect')} onPress={() => setConfirming(true)} />

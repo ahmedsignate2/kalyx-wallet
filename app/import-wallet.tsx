@@ -1,4 +1,4 @@
-import { ScreenHeader, SENSITIVE_INPUT_PROPS, Pressable as KPressable, Text as KText } from '../ui/kit';
+import { ScreenHeader, SENSITIVE_INPUT_PROPS, Pressable as KPressable, Text as KText, Button, Card } from '../ui/kit';
 import { PinPromptModal } from '../ui/PinPromptModal';
 import { IconDisc, Orbit, Pills, Rise } from '../ui/nova';
 import { fill } from '../lib/i18n';
@@ -8,8 +8,7 @@ import { View, Text, TextInput, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { Card, Button, Muted } from '../ui/components';
-import { spacing, useTheme } from '../ui/theme';
+import { spacing, useTheme, fontSize, radii } from '../ui/theme';
 import { useWallet, phraseKindForImport } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
@@ -26,7 +25,7 @@ import {
   type KeyFamily,
   type KeyParseError,
   unknownWords,
-  type BackupWallet,
+  type BackupWallet
 } from '../src';
 import { isDriveConfigured } from '../lib/googleDrive';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
@@ -239,17 +238,17 @@ export default function ImportWallet() {
       </Rise>
 
       {mode === 'phrase' ? (
-        <Muted>{t('phraseModeHint')}</Muted>
+        <KText variant="label">{t('phraseModeHint')}</KText>
       ) : mode === 'key' ? (
-        <Muted>{t('keyModeHint')}</Muted>
+        <KText variant="label">{t('keyModeHint')}</KText>
       ) : (
         <>
-          <Muted>{t('backupModeHint')}</Muted>
-          {isDriveConfigured() ? <Button label={t('driveRestore')} variant="ghost" onPress={() => router.push('/restore-drive')} /> : null}
+          <KText variant="label">{t('backupModeHint')}</KText>
+          {isDriveConfigured() ? <Button label={t('driveRestore')} variant="outline" onPress={() => router.push('/restore-drive')} /> : null}
         </>
       )}
 
-      <Card>
+      <Card padding="xl" gap="md">
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={typography.muted}>{mode === 'phrase' ? t('recoveryPhrase') : mode === 'key' ? t('privateKeyLabel') : t('backupContent')}</Text>
           <KPressable
@@ -288,7 +287,7 @@ export default function ImportWallet() {
           {words.map((w, i) => {
             const ok = !bad.includes(w.toLowerCase());
             return (
-              <Rise key={`${w}-${i}`} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.surface2, borderBottomWidth: 2, borderBottomColor: ok ? 'transparent' : colors.danger }}>
+              <Rise key={`${w}-${i}`} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.sm, backgroundColor: colors.surface2, borderBottomWidth: 2, borderBottomColor: ok ? 'transparent' : colors.danger }}>
                 <KText variant="caption" tone={ok ? 'secondary' : 'danger'}>{i + 1}. {w}</KText>
               </Rise>
             );
@@ -304,7 +303,7 @@ export default function ImportWallet() {
         complète. Montrer l'adresse laisse la vérification à celui qui sait.
       */}
       {mode === 'key' && parsed ? (
-        <Card>
+        <Card padding="xl" gap="md">
           {!parsed.ok ? (
             <Text style={{ color: colors.danger }}>{parseErrorText(parsed.error)}</Text>
           ) : (
@@ -327,9 +326,9 @@ export default function ImportWallet() {
                           onPress={() => setFamily(f)}
                           accessibilityRole="radio"
                           accessibilityState={{ selected: on }}
-                          style={{ minHeight: 36, paddingHorizontal: spacing(1.25), justifyContent: 'center', borderRadius: 999, borderWidth: 1, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primary : 'transparent' }}
+                          style={{ minHeight: 36, paddingHorizontal: spacing(1.25), justifyContent: 'center', borderRadius: radii.full, borderWidth: 1, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primary : 'transparent' }}
                         >
-                          <Text style={{ color: on ? colors.onPrimary : colors.text, fontFamily: typography.bodyStrong.fontFamily, fontSize: 13 }}>
+                          <Text style={{ color: on ? colors.onPrimary : colors.text, fontFamily: typography.bodyStrong.fontFamily, fontSize: fontSize.sm }}>
                             {familyLabel(f)}
                           </Text>
                         </KPressable>
@@ -341,7 +340,7 @@ export default function ImportWallet() {
               {derived ? (
                 <View style={{ marginTop: spacing(1.5) }}>
                   <Text style={typography.muted}>{t('keyDerivedAddress')}</Text>
-                  <Text style={{ color: colors.text, fontSize: 13 }}>{groupAddress(derived)}</Text>
+                  <Text style={{ color: colors.text, fontSize: fontSize.sm }}>{groupAddress(derived)}</Text>
                   <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>{t('keyCheckAddress')}</Text>
                   {/*
                     WIF NON COMPRESSÉ : un AVERTISSEMENT, plus un refus. La clé
@@ -351,7 +350,7 @@ export default function ImportWallet() {
                     empêcher l'import.
                   */}
                   {chosen === 'bitcoin' && parsed.ok && parsed.key.compressed === false ? (
-                    <Text style={{ color: colors.warning, fontSize: 12, marginTop: spacing(0.75) }}>
+                    <Text style={{ color: colors.warning, fontSize: fontSize.xs, marginTop: spacing(0.75) }}>
                       {t('keyErrWifUncompressed')}
                     </Text>
                   ) : null}
@@ -363,14 +362,14 @@ export default function ImportWallet() {
       ) : null}
 
       {mode === 'backup' ? (
-        <Card>
+        <Card padding="xl" gap="md">
           <Text style={typography.muted}>{t('backupPassword')}</Text>
-          <TextInput value={pwd} onChangeText={setPwd} placeholder={t('backupPasswordPlaceholder')} placeholderTextColor={colors.textSecondary} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+          <TextInput value={pwd} onChangeText={setPwd} placeholder={t('backupPasswordPlaceholder')} placeholderTextColor={colors.textSecondary} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: fontSize.lg, paddingVertical: spacing(1) }} />
         </Card>
       ) : null}
-      <Card>
+      <Card padding="xl" gap="md">
         <Text style={typography.muted}>{t('nameOptional')}</Text>
-        <TextInput value={label} onChangeText={setLabel} placeholder={t('namePlaceholderImport')} placeholderTextColor={colors.textSecondary} style={{ color: colors.text, fontSize: 16, paddingVertical: spacing(1) }} />
+        <TextInput value={label} onChangeText={setLabel} placeholder={t('namePlaceholderImport')} placeholderTextColor={colors.textSecondary} style={{ color: colors.text, fontSize: fontSize.lg, paddingVertical: spacing(1) }} />
       </Card>
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       <View style={{ height: spacing(1) }} />

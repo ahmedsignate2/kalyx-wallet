@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import { Text, Surface, Divider, TokenIcon, Pressable } from './kit';
+import { Text, Divider, TokenIcon, Pressable, Card } from './kit';
 import { space } from './tokens';
 import { Icon } from './icon';
 import { useTheme } from './theme';
@@ -50,7 +50,7 @@ export function MarketPanel() {
           <Text variant="caption" tone="secondary">{t('seeAllMarket')}</Text>
         </Pressable>
       </View>
-      <Surface padded={false}>
+      <Card padded={false}>
         {rows.map((m, i) => (
           <React.Fragment key={m.id}>
             <Pressable noScale onPress={() => router.push(`/token/${m.id}`)}>
@@ -77,7 +77,7 @@ export function MarketPanel() {
             {i < rows.length - 1 ? <Divider inset={60} /> : null}
           </React.Fragment>
         ))}
-      </Surface>
+      </Card>
     </View>
   );
 }

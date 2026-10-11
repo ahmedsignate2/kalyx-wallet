@@ -1,10 +1,9 @@
-import { NovaCard, NovaHero, Pills } from '../ui/nova';
-import { ScreenHeader } from '../ui/kit';
+import { NovaHero, Pills } from '../ui/nova';
+import { ScreenHeader, Card, Screen } from '../ui/kit';
 import { useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { PremiumScreen } from '../ui/premium';
-import { spacing, useTheme } from '../ui/theme';
+import { spacing, useTheme, fontSize } from '../ui/theme';
 import { useT, useSettings } from '../lib/settingsStore';
 import { legalFor, type LegalSection } from '../lib/legalText';
 
@@ -20,7 +19,7 @@ export default function Legal() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <PremiumScreen>
+      <Screen>
       <ScreenHeader />
       <NovaHero icon="about" title={t('legalNotice')} subtitle={`${t('lastUpdated')} ${legal.updated}`} />
       <View style={{ alignItems: 'center' }}>
@@ -35,13 +34,13 @@ export default function Legal() {
       </View>
       <ScrollView contentContainerStyle={{ gap: spacing(1.5), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
         {sections.map((s, i) => (
-          <NovaCard key={`${tab}-${s.title}`} delay={Math.min(i, 6) * 50} style={{ gap: spacing(0.75) }}>
+          <Card rise key={`${tab}-${s.title}`} delay={Math.min(i, 6) * 50} style={{ gap: spacing(0.75) }}>
             <Text style={typography.bodyStrong}>{s.title}</Text>
-            <Text style={[typography.muted, { fontSize: 14, lineHeight: 21 }]}>{s.body}</Text>
-          </NovaCard>
+            <Text style={[typography.muted, { fontSize: fontSize.md, lineHeight: 21 }]}>{s.body}</Text>
+          </Card>
         ))}
       </ScrollView>
-    </PremiumScreen>
+    </Screen>
     </>
   );
 }

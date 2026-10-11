@@ -6,7 +6,7 @@ import { useState, useEffect, useEffectEvent, useRef } from 'react';
 import { KeyboardAvoidingView, Platform, View, TextInput, ScrollView, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, IconButton, Chip, Pressable as KPressable } from '../../ui/kit';
-import { space, radius } from '../../ui/tokens';
+import { space, radius, fontSize, radii } from '../../ui/tokens';
 import { GOLD, IconDisc, Orbit, Pulse, Rise, TypingDots } from '../../ui/nova';
 import { useTheme } from '../../ui/theme';
 import { useAiStore } from '../../lib/aiStore';
@@ -108,7 +108,7 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 28, height: 28, borderRadius: radii.full, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="telegramLogo" size={16} color={colors.primary} />
           </View>
           <View>
@@ -132,7 +132,7 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
           borderColor: colors.border,
         }}
       >
-        <Text variant="caption" tone="secondary" selectable style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', fontSize: 12, lineHeight: 18 }}>
+        <Text variant="caption" tone="secondary" selectable style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', fontSize: fontSize.xs, lineHeight: 18 }}>
           {normalizedTicket}
         </Text>
       </View>
@@ -176,7 +176,7 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
           }}
         >
           <Icon name={copied ? 'checkmark' : 'copy'} size={16} color={copied ? colors.up : colors.text} />
-          <Text variant="body" style={{ fontWeight: '600', color: copied ? colors.up : colors.text, fontSize: 13 }}>
+          <Text variant="body" style={{ fontWeight: '600', color: copied ? colors.up : colors.text, fontSize: fontSize.sm }}>
             {copied ? t('aiSupportCopied') : t('aiSupportCopy')}
           </Text>
         </KPressable>
@@ -197,7 +197,7 @@ function TicketSupportCard({ ticketContent }: { ticketContent: string }) {
           }}
         >
           <Icon name="telegramLogo" size={16} color={secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary} />
-          <Text variant="body" style={{ fontWeight: '600', color: secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary, fontSize: 13 }}>
+          <Text variant="body" style={{ fontWeight: '600', color: secretCheck.hasSecret ? colors.textTertiary : colors.onPrimary, fontSize: fontSize.sm }}>
             {t('aiSupportSendTelegram')}
           </Text>
         </KPressable>
@@ -613,7 +613,7 @@ une source externe.`}`;
       <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <KPressable noScale haptic="none" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={onClose} accessibilityLabel={t('aiClose')} />
         <View style={{ height: '90%', backgroundColor: colors.bg, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderWidth: 1, borderBottomWidth: 0, borderColor: colors.border, overflow: 'hidden' }}>
-          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.surface3, marginTop: space[2] }} />
+          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: radii.full, backgroundColor: colors.surface3, marginTop: space[2] }} />
           {/* En-tête : l'étoile d'or, le nom, et un point qui dit que l'assistant est là. */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingHorizontal: space[3], paddingTop: space[2], paddingBottom: space[2], borderBottomWidth: 1, borderBottomColor: colors.border }}>
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[3], paddingLeft: space[1] }}>
@@ -674,7 +674,7 @@ une source externe.`}`;
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], marginTop: space[3], width: '100%' }}>
                     {SUGGESTIONS.map((sg, i) => (
                       <Rise key={sg.label} delay={120 + i * 60} style={{ width: '48.5%' }}>
-                        <KPressable onPress={() => sendMessage(sg.label)} haptic="light" accessibilityLabel={sg.label} style={{ minHeight: 92, padding: space[3], gap: space[2], borderRadius: 20, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+                        <KPressable onPress={() => sendMessage(sg.label)} haptic="light" accessibilityLabel={sg.label} style={{ minHeight: 92, padding: space[3], gap: space[2], borderRadius: radii.lg, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
                           <IconDisc name={sg.icon} size={32} />
                           <Text variant="caption" numberOfLines={3}>{sg.label}</Text>
                         </KPressable>
@@ -715,7 +715,7 @@ une source externe.`}`;
                               borderColor: colors.border,
                               paddingHorizontal: space[3],
                               paddingVertical: space[2],
-                              borderRadius: 20,
+                              borderRadius: radii.lg,
                               borderBottomRightRadius: mine ? 6 : 20,
                               borderBottomLeftRadius: mine ? 20 : 6,
                             }}
@@ -724,7 +724,7 @@ une source externe.`}`;
                               variant="bodySecondary"
                               style={{
                                 color: mine ? colors.onPrimary : colors.text,
-                                fontSize: 15,
+                                fontSize: fontSize.base,
                                 lineHeight: 20,
                               }}
                               selectable
@@ -771,7 +771,7 @@ une source externe.`}`;
                     );
                   })}
                   {loading ? (
-                    <View style={{ alignSelf: 'flex-start', maxWidth: '80%', gap: space[2], padding: space[3], backgroundColor: colors.surface1, borderRadius: 20, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: colors.border }}>
+                    <View style={{ alignSelf: 'flex-start', maxWidth: '80%', gap: space[2], padding: space[3], backgroundColor: colors.surface1, borderRadius: radii.lg, borderBottomLeftRadius: radii.xs, borderWidth: 1, borderColor: colors.border }}>
                       <TypingDots />
                       <Text variant="caption" tone="secondary">
                         {copilotStatus === 'searching_web' ? t('aiStatusWebSearch').replace('{query}', currentSearchQuery ?? '') : copilotStatus === 'analyzing_sources' ? t('aiStatusReadingSources') : copilotStatus === 'generating' ? t('aiStatusWriting') : t('aiStatusThinking')}
@@ -789,7 +789,7 @@ une source externe.`}`;
                   </ScrollView>
                 ) : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                  <View style={{ flex: 1, minHeight: 50, borderRadius: 25, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, paddingHorizontal: space[4], justifyContent: 'center' }}>
+                  <View style={{ flex: 1, minHeight: 50, borderRadius: radii.xl, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, paddingHorizontal: space[4], justifyContent: 'center' }}>
                     <TextInput
                       value={input}
                       onChangeText={setInput}
@@ -798,10 +798,10 @@ une source externe.`}`;
                       placeholderTextColor={colors.textTertiary}
                       returnKeyType="send"
                       multiline
-                      style={{ color: colors.text, fontSize: 15, lineHeight: 20, fontFamily: 'GeneralSans-Medium', paddingVertical: 12, maxHeight: 100 }}
+                      style={{ color: colors.text, fontSize: fontSize.base, lineHeight: 20, fontFamily: 'GeneralSans-Medium', paddingVertical: 12, maxHeight: 100 }}
                     />
                   </View>
-                  <KPressable onPress={() => sendMessage()} disabled={!input.trim() || loading} accessibilityLabel={t('aiSend')} style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: !input.trim() || loading ? 0.4 : 1 }}>
+                  <KPressable onPress={() => sendMessage()} disabled={!input.trim() || loading} accessibilityLabel={t('aiSend')} style={{ width: 50, height: 50, borderRadius: radii.full, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: !input.trim() || loading ? 0.4 : 1 }}>
                     <Icon name="send" size={20} color={colors.onPrimary} />
                   </KPressable>
                 </View>

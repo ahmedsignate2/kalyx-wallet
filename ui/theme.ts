@@ -14,7 +14,7 @@
  */
 import { useColorScheme } from 'react-native';
 import { useSettings } from '../lib/settingsStore';
-import { dark, light, halo, fontFamily, tabularNums, type, space, radius, springs, durations, type Palette } from './tokens';
+import { dark, light, halo, fontFamily, type, space, spaces, radii, radius, fontSize, lineHeight, textSize, fontWeight, springs, durations, type Palette } from './tokens';
 
 export type ThemeMode = 'dark' | 'light';
 
@@ -22,10 +22,10 @@ export type ThemeMode = 'dark' | 'light';
 /* Constantes indépendantes du thème                                   */
 /* ------------------------------------------------------------------ */
 
-/** Rayons hérités → hiérarchie de la bible (chip 8 / input 12 / conteneur 22 / sheet 28). */
-export const radii = { sm: radius.chip, md: radius.input, lg: radius.container, xl: radius.sheet, pill: radius.round } as const;
-
-/** Grille de 4 : `spacing(n)` = n × 8 (multiples de la grille). Préférer `space` des tokens. */
+/**
+ * @deprecated Grille héritée : `spacing(n)` = n × 8. Préférer `spaces` / `space`
+ * des tokens dans tout nouveau code ; les écrans existants migrent au fil de l'eau.
+ */
 export const spacing = (n: number) => n * 8;
 
 /** Graisses General Sans. `extrabold`/`brand*` hérités → Bold (une seule famille, §2.5). */
@@ -39,7 +39,7 @@ export const fonts = {
   brandStrong: fontFamily.bold,
 } as const;
 
-export { space, radius, springs, durations, halo };
+export { space, spaces, radii, radius, fontSize, lineHeight, textSize, fontWeight, springs, durations, halo };
 
 /* ------------------------------------------------------------------ */
 /* Couleurs : tokens + alias hérités                                   */
@@ -94,23 +94,30 @@ function buildTheme(mode: ThemeMode) {
   };
 
   const typography = {
-    // ── Bible ──
+    // ── Variantes de l'échelle (celles du <Text> du kit) ──
     balance: { ...type.balance, color: colors.text },
+    display: { ...type.display, color: colors.text },
     title1: { ...type.title1, color: colors.text },
+    heading: { ...type.heading, color: colors.text },
     title2: { ...type.title2, color: colors.text },
     body: { ...type.body, color: colors.text },
+    bodyStrong: { ...type.bodyStrong, color: colors.text },
     bodySecondary: { ...type.bodySecondary, color: colors.textSecondary },
+    label: { ...type.label, color: colors.textSecondary },
     caption: { ...type.caption, color: colors.textSecondary },
+    small: { ...type.small, color: colors.textSecondary },
     micro: { ...type.micro, color: colors.textTertiary },
-    // ── Hérités (mappés) ──
+    // ── Alias hérités : mêmes styles sous l'ancien nom ──
+    /** @deprecated → `balance`. */
     hero: { ...type.balance, color: colors.text },
-    display: { fontSize: 34, lineHeight: 40, fontFamily: fontFamily.semibold, letterSpacing: -0.8, fontVariant: tabularNums, color: colors.text },
-    title: { ...type.title1, fontSize: 24, lineHeight: 30, color: colors.text },
+    /** @deprecated → `heading`. */
+    title: { ...type.heading, color: colors.text },
+    /** @deprecated → `title2`. */
     section: { ...type.title2, color: colors.text },
-    bodyStrong: { ...type.body, fontFamily: fontFamily.semibold, color: colors.text },
-    muted: { ...type.bodySecondary, fontSize: 14, lineHeight: 20, color: colors.textSecondary },
-    mono: { ...type.caption, fontVariant: tabularNums, color: colors.text },
-    money: { ...type.body, fontFamily: fontFamily.semibold, fontVariant: tabularNums, color: colors.text },
+    /** @deprecated → `label`. */
+    muted: { ...type.label, color: colors.textSecondary },
+    mono: { ...type.caption, fontVariant: type.balance.fontVariant, color: colors.text },
+    money: { ...type.bodyStrong, fontVariant: type.balance.fontVariant, color: colors.text },
   } as const;
 
   /** Ombres : SUPPRIMÉES (§2.4). Conservé pour l'API héritée — objet vide. */

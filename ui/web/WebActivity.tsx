@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { View, ScrollView, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Text, Surface, Divider, Chip, Input, SegmentedControl, ActivityRow, Skeleton, Sheet, ListRow, Button, Pressable } from '../kit';
+import { Text, Divider, Chip, Input, SegmentedControl, ActivityRow, Skeleton, Sheet, ListRow, Button, Pressable, Card } from '../kit';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
 import { space } from '../tokens';
@@ -27,8 +27,18 @@ import { knownCounterparties, spamReason, type SpamCtx } from '../../src/domain/
 import { useWebConnect } from '../../lib/webConnect';
 import { toast } from '../../lib/toast';
 import {
-  humanizeTx, groupByDay, formatFiat, chainNameOf, chainMetaOf, chainIconUrl, nativeOfChain, transactionsToCsv, shortAddress,
-  type TxSummary, type HumanTx, type ChainConfig,
+  humanizeTx,
+  groupByDay,
+  formatFiat,
+  chainNameOf,
+  chainMetaOf,
+  chainIconUrl,
+  nativeOfChain,
+  transactionsToCsv,
+  shortAddress,
+  type TxSummary,
+  type HumanTx,
+  type ChainConfig
 } from '../../src';
 import { MobileEmptyState } from './MobileChrome';
 import { useWebT } from './webI18n';
@@ -242,13 +252,13 @@ export function WebActivity({ onReceive }: { onReceive: () => void }) {
   return (
     <View style={{ gap: space[3] }}>
       {poisoned ? (
-        <Surface style={{ borderColor: colors.danger, gap: space[1] }}>
+        <Card style={{ borderColor: colors.danger, gap: space[1] }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             <Icon name="alert" size={18} color={colors.danger} />
             <Text variant="body" tone="danger" style={{ flex: 1 }}>{t('histPoisonTitle')}</Text>
           </View>
           <Text variant="caption" tone="secondary">{t('histPoisonBody')}</Text>
-        </Surface>
+        </Card>
       ) : null}
       <Input placeholder={t('histSearch')} value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} autoCapitalize="none" />
       <SegmentedControl
@@ -276,7 +286,7 @@ export function WebActivity({ onReceive }: { onReceive: () => void }) {
         groups.map((g) => (
           <View key={g.label} style={{ gap: space[1] }}>
             <Text variant="micro" tone="tertiary" style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>{g.label}</Text>
-            <Surface padded={false}>{g.items.map((r, i) => renderRow(r, i === g.items.length - 1))}</Surface>
+            <Card padded={false}>{g.items.map((r, i) => renderRow(r, i === g.items.length - 1))}</Card>
           </View>
         ))
       )}
@@ -302,7 +312,7 @@ export function WebActivity({ onReceive }: { onReceive: () => void }) {
       {hiddenShown.length > 0 ? (
         <View style={{ gap: space[2] }}>
           <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t('histHiddenNote')}</Text>
-          <Surface padded={false} style={{ opacity: 0.75 }}>{hiddenShown.map((r, i) => renderRow(r, i === hiddenShown.length - 1))}</Surface>
+          <Card padded={false} style={{ opacity: 0.75 }}>{hiddenShown.map((r, i) => renderRow(r, i === hiddenShown.length - 1))}</Card>
         </View>
       ) : null}
 
@@ -311,7 +321,7 @@ export function WebActivity({ onReceive }: { onReceive: () => void }) {
           <>
             <Text variant="title2">{detail.h.title}</Text>
             {detail.h.amount ? <Text variant="body" tabular>{detail.h.amount}{detail.h.fiat ? `  ·  ${detail.h.fiat}` : ''}</Text> : null}
-            <Surface padded={false}>
+            <Card padded={false}>
               <ListRow title={tw('txStatus')} right={<Text variant="body" tone={detail.tx.status === 'failed' ? 'danger' : detail.tx.status === 'pending' ? 'warning' : 'up'}>{status(detail.tx)}</Text>} />
               <Divider inset={16} />
               <ListRow title={tw('txDate')} right={<Text variant="body">{new Date(detail.tx.timestamp * 1000).toLocaleString(locale)}</Text>} />
@@ -323,7 +333,7 @@ export function WebActivity({ onReceive }: { onReceive: () => void }) {
               <ListRow title={tw('txTo')} subtitle={shortAddress(detail.tx.to)} onPress={() => copy(detail.tx.to, t('addressCopied'))} right={<Icon name="copy" size={14} color={colors.textTertiary} />} />
               <Divider inset={16} />
               <ListRow title={tw('txHash')} subtitle={shortAddress(detail.tx.hash)} onPress={() => copy(detail.tx.hash, tw('hashCopied'))} right={<Icon name="copy" size={14} color={colors.textTertiary} />} />
-            </Surface>
+            </Card>
             {explorerTx ? (
               <Button label={tw('openExplorer')} variant="secondary" onPress={() => { const w = (globalThis as { open?: (u: string, target?: string, features?: string) => unknown }).open; w?.(explorerTx, '_blank', 'noopener,noreferrer'); }} />
             ) : null}

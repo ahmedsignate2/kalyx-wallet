@@ -1,12 +1,11 @@
-import { Button, Chip, Input, ScreenHeader, Pressable as KPressable, Text as KText } from '../ui/kit';
-import { GOLD, IconDisc, NovaCard, NovaHero, NovaSwitch, Rise, SectionLabel } from '../ui/nova';
+import { Button, Chip, Input, ScreenHeader, Pressable as KPressable, Text as KText, Card, Screen, Switch } from '../ui/kit';
+import { GOLD, IconDisc, NovaHero, Rise, SectionLabel } from '../ui/nova';
 import { useState, useEffect } from 'react';
 import { View, Alert, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { spacing } from '../ui/theme';
 import { useSettings } from '../lib/settingsStore';
 import { useT } from '../lib/settingsStore';
-import { PremiumScreen } from '../ui/premium';
 import { Icon } from '../ui/icon';
 import { useAiStore, AiProvider } from '../lib/aiStore';
 import { validateAiKey } from '../lib/aiValidator';
@@ -70,18 +69,18 @@ export default function AiSettings() {
    * sont gérés une seule fois, par PremiumScreen.
    */
   return (
-    <PremiumScreen>
+    <Screen>
       <ScreenHeader fallback="/settings" />
       <NovaHero icon="sparkles" tone="gold" title={t('copilotByok')} subtitle={t('aiByokIntro')} />
 
       {isEnabled ? (
-        <NovaCard delay={120} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+        <Card rise delay={120} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
           <IconDisc name="check" size={36} />
           <View style={{ flex: 1, gap: 2 }}>
             <KText variant="body" tone="up">{t('aiActiveTitle')}</KText>
             <KText variant="caption" tone="secondary">{t('aiActiveDesc')}</KText>
           </View>
-        </NovaCard>
+        </Card>
       ) : null}
 
       <SectionLabel>{t('aiProvider')}</SectionLabel>
@@ -93,7 +92,7 @@ export default function AiSettings() {
         </View>
       </Rise>
 
-      <NovaCard delay={200} style={{ gap: spacing(1.5) }}>
+      <Card rise delay={200} style={{ gap: spacing(1.5) }}>
         <Input label={t('aiApiKey')} placeholder="sk-…" value={inputKey} onChangeText={setInputKey} secureTextEntry sensitive />
         {PROVIDER_DEFAULTS[selectedProvider]?.helperUrl ? (
           <KPressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[selectedProvider].helperUrl!)} hitSlop={8} style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -107,7 +106,7 @@ export default function AiSettings() {
             <Input label={t('aiModelName')} placeholder="qwen-2.5-72b · gemini-1.5-pro" value={customModel} onChangeText={setCustomModel} autoCapitalize="none" autoCorrect={false} />
           </>
         ) : null}
-      </NovaCard>
+      </Card>
 
       <View style={{ gap: spacing(1.25) }}>
         <Button label={t('aiTestAndActivate')} onPress={() => void handleSaveAndActivate()} loading={loading} disabled={!canSave} />
@@ -122,17 +121,17 @@ export default function AiSettings() {
         assistant inactif n'aurait aucun sens.
       */}
       {isEnabled ? (
-        <NovaCard delay={240} style={{ gap: spacing(1.25) }}>
+        <Card rise delay={240} style={{ gap: spacing(1.25) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
             <View style={{ flex: 1, gap: 4 }}>
               <KText variant="body">{t('aiToolsTitle')}</KText>
               <KText variant="caption" tone="secondary">{t('aiToolsDesc')}</KText>
             </View>
-            <NovaSwitch value={aiToolsEnabled} onValueChange={setAiToolsEnabled} />
+            <Switch value={aiToolsEnabled} onValueChange={setAiToolsEnabled} />
           </View>
           <KText variant="caption" tone="warning">{t('aiToolsWarn')}</KText>
-        </NovaCard>
+        </Card>
       ) : null}
-    </PremiumScreen>
+    </Screen>
   );
 }

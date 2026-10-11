@@ -1,19 +1,8 @@
 import { memo, useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { Text, Image, RefreshControl } from 'react-native';
 import { Stack, router } from 'expo-router';
-import {
-  PremiumList,
-  GlassCard,
-  GlassCardCell,
-  SearchBar,
-  SegmentedTabs,
-  MarketRow,
-  ListRow,
-  Avatar,
-  SkeletonRow
-} from '../ui/premium';
-import { EmptyState, ScreenHeader } from '../ui/kit';
-import { spacing, useTheme } from '../ui/theme';
+import { EmptyState, ScreenHeader, Avatar, Card, CardCell, Input, ListRow, MarketRow, ScreenList, SegmentedControl, SkeletonRow } from '../ui/kit';
+import { radii, spacing, useTheme } from '../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { getMarkets, getMarketsByIds, sortMarkets, searchCoins, type MarketCoin, type SearchCoin, formatFiat } from '../src';
 import { useShallow } from 'zustand/react/shallow';
@@ -34,7 +23,7 @@ const CoinRow = memo(
     const { colors } = useTheme();
     const open = useCallback(() => router.push(`/token/${coin.id}`), [coin.id]);
     return (
-      <GlassCardCell first={first} last={last}>
+      <CardCell first={first} last={last}>
         <MarketRow
           divider={!first}
           icon={coin.symbol.slice(0, 1)}
@@ -47,7 +36,7 @@ const CoinRow = memo(
           spark={coin.sparkline}
           onPress={open}
         />
-      </GlassCardCell>
+      </CardCell>
     );
   },
   (a, b) => a.coin === b.coin && a.fiat === b.fiat && a.first === b.first && a.last === b.last,
@@ -151,7 +140,7 @@ export default function Market() {
   const showList = !searchMode && !favEmpty && base.length > 0;
 
   return (
-    <PremiumList
+    <ScreenList
       data={showList ? base : []}
       keyExtractor={keyOf}
       renderItem={renderCoin}
@@ -165,9 +154,9 @@ export default function Market() {
         <>
           <Stack.Screen options={{ headerShown: false }} />
           <ScreenHeader title={t('market')} fallback="/home" />
-          <SearchBar value={query} onChangeText={setQuery} placeholder={t('searchCrypto')} />
+          <Input icon="search" value={query} onChangeText={setQuery} placeholder={t('searchCrypto')} />
           {searchMode ? (
-            <GlassCard>
+            <Card variant="glass">
               {searching && results.length === 0 ? (
                 <Text style={[typography.muted, { textAlign: 'center', paddingVertical: spacing(2) }]}>{t('searching')}</Text>
               ) : results.length === 0 ? (
@@ -176,10 +165,12 @@ export default function Market() {
                 results.map((c, i) => (
                   <ListRow
                     key={c.id}
+                    wrap
                     divider={i > 0}
+                    style={{ paddingHorizontal: 0 }}
                     left={
                       c.thumb ? (
-                        <Image source={{ uri: c.thumb }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+                        <Image source={{ uri: c.thumb }} style={{ width: 36, height: 36, borderRadius: radii.full }} />
                       ) : (
                         <Avatar label={c.symbol.slice(0, 1)} color={colors.surface2} />
                       )
@@ -191,18 +182,18 @@ export default function Market() {
                   />
                 ))
               )}
-            </GlassCard>
+            </Card>
           ) : (
             <>
-              <SegmentedTabs items={tabs} active={tab} onChange={setTab} />
+              <SegmentedControl items={tabs} value={tab} onChange={setTab} />
               {favEmpty ? (
-                <GlassCard>
+                <Card variant="glass">
                   <EmptyState icon="star" title={t('favorites')} body={t('favoritesEmpty')} />
-                </GlassCard>
+                </Card>
               ) : base.length === 0 ? (
-                <GlassCard>
+                <Card variant="glass">
                   {[0, 1, 2, 3, 4].map((i) => <SkeletonRow key={i} divider={i > 0} />)}
-                </GlassCard>
+                </Card>
               ) : null}
             </>
           )}

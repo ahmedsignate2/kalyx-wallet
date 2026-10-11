@@ -4,15 +4,13 @@
  * l'app. On n'affiche donc aucun « code de parrainage » (ce serait un mécanisme
  * factice sans backend d'attribution).
  */
-import { IconDisc, NovaCard, NovaHero } from '../ui/nova';
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { IconDisc, NovaHero } from '../ui/nova';
+import { ScreenHeader, Pressable as KPressable, Button, Card, Screen } from '../ui/kit';
 import { View, Text, Share } from 'react-native';
 import { Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { PremiumScreen } from '../ui/premium';
-import { Button } from '../ui/components';
 import { Icon, type IconName } from '../ui/icon';
-import { fonts, spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme, radii } from '../ui/theme';
 import { toast } from '../lib/toast';
 import { useT } from '../lib/settingsStore';
 import { DOWNLOAD_URL } from '../lib/appLinks';
@@ -46,12 +44,12 @@ export default function Invite() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <PremiumScreen>
+      <Screen>
       <ScreenHeader />
       <NovaHero icon="gift" tone="gold" title={t('discoverKalyx')} subtitle={t('shareWithFriends')} />
 
       {/* Pourquoi ils vont aimer */}
-      <NovaCard delay={140}>
+      <Card rise delay={140}>
         {REASONS.map((r, i) => (
           <View
             key={r.text}
@@ -68,9 +66,9 @@ export default function Invite() {
             <Text style={[typography.body, { flex: 1 }]}>{r.text}</Text>
           </View>
         ))}
-      </NovaCard>
+      </Card>
 
-      <KPressable onPress={copyLink} haptic="light" style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, height: 42, borderRadius: 21, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+      <KPressable onPress={copyLink} haptic="light" style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, height: 42, borderRadius: radii.full, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
         <Icon name="copy" size={15} color={colors.text} />
         <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{t('copyLink')}</Text>
       </KPressable>
@@ -78,7 +76,7 @@ export default function Invite() {
       <View style={{ flex: 1 }} />
       <Button label={t('shareKalyx')} onPress={onShare} />
       <View style={{ height: spacing(2) }} />
-    </PremiumScreen>
+    </Screen>
     </>
   );
 }

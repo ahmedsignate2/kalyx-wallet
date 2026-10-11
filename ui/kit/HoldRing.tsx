@@ -25,7 +25,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { Text } from './Text';
 import { Icon, type IconName } from '../icon';
 import { useTheme } from '../theme';
-import { durations, springs } from '../tokens';
+import { durations, springs, radii } from '../tokens';
 import { useT } from '../../lib/settingsStore';
 import { haptic } from '../../lib/haptics';
 import { SparkBurst } from './SparkBurst';
@@ -148,7 +148,7 @@ export function HoldRing({
       <View style={{ width: SIZE, height: SIZE }}>
         <Animated.View
           pointerEvents="none"
-          style={[{ position: 'absolute', left: SIZE / 2 - 80, top: SIZE / 2 - 80, width: 160, height: 160, borderRadius: 80, backgroundColor: '#CFE3FF' }, flashStyle]}
+          style={[{ position: 'absolute', left: SIZE / 2 - 80, top: SIZE / 2 - 80, width: 160, height: 160, borderRadius: radii.full, backgroundColor: '#CFE3FF' }, flashStyle]}
         />
         <RNPressable
           onPressIn={start}

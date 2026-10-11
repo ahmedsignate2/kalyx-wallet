@@ -1,8 +1,7 @@
-import { NovaCard, NovaHero, SettingRow } from '../ui/nova';
-import { ScreenHeader } from '../ui/kit';
+import { NovaHero, SettingRow } from '../ui/nova';
+import { ScreenHeader, Card, Screen } from '../ui/kit';
 import { Linking } from 'react-native';
 import { Stack } from 'expo-router';
-import { PremiumScreen } from '../ui/premium';
 import { useT } from '../lib/settingsStore';
 
 export default function FeatureRequestScreen() {
@@ -17,16 +16,16 @@ export default function FeatureRequestScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <PremiumScreen>
+      <Screen>
         <ScreenHeader />
         <NovaHero icon="bulb" tone="gold" title={t('communityTitle')} subtitle={t('communityDesc')} />
 
         {/* Liens communautaires */}
-        <NovaCard delay={140}>
+        <Card rise delay={140}>
           <SettingRow icon="xLogo" title={t('followOnX')} hint="@kalyxntw" onPress={() => openUrl('https://x.com/kalyxntw')} />
           <SettingRow divider icon="telegramLogo" title={t('joinTelegram')} hint="t.me/kalyxntw" onPress={() => openUrl('https://t.me/kalyxntw')} />
-        </NovaCard>
-      </PremiumScreen>
+        </Card>
+      </Screen>
     </>
   );
 }

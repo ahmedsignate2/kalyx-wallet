@@ -21,7 +21,7 @@ import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { KalyxLogoIgnite } from './KalyxLogo';
 import { Halo } from './kit/Halo';
-import { splashParticles, splashSweep, BRAND_GOLD } from './tokens';
+import { splashParticles, splashSweep, BRAND_GOLD, radii } from './tokens';
 import { fonts, useTheme } from './theme';
 
 const { width: W } = Dimensions.get('window');
@@ -196,7 +196,7 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
               transform: [{ scaleX: wordOp.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] }) }],
               width: 150,
               height: BAR_H,
-              borderRadius: 2,
+              borderRadius: radii.xs,
               shadowColor: BRAND_GOLD.light,
               shadowOpacity: 0.9,
               shadowRadius: 8,
@@ -207,7 +207,7 @@ export function Splash({ onFinish }: { onFinish: () => void }) {
               colors={['transparent', BRAND_GOLD.light, BRAND_GOLD.deep, 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={{ flex: 1, borderRadius: 2 }}
+              style={{ flex: 1, borderRadius: radii.xs }}
             />
           </Animated.View>
         </View>

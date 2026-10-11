@@ -10,7 +10,6 @@ import QRCode from 'react-native-qrcode-svg';
 import Svg, { Rect, Defs, LinearGradient as SvgGradient, RadialGradient, Stop } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
 import { KalyxLogo } from '../KalyxLogo';
-import { NovaSwitch } from '../nova';
 import { InteractiveChart } from '../InteractiveChart';
 import { useTelegramBiometric } from './telegramBiometric';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +21,7 @@ import { WEB_FONTS, useWebFonts, useWebPalette, webLocale } from './webTheme';
 import { useWebT, type WebKey } from './webI18n';
 import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useTelegramClosingConfirmation, useIdle, useTabHidden, tgHaptic } from './platform';
 import { CrossFade, useCountUp, Pop, KalyxSpinner, KalyxSuccessPulse, reducedMotion } from './motion';
-import { Text as KText, Button, Sheet, Surface, Divider, LogoImage } from '../kit';
+import { Text as KText, Button, Sheet, Divider, LogoImage, Card, Switch } from '../kit';
 import { ReceiveScreen } from './ReceiveScreen';
 import { SendFlow } from './SendFlow';
 import { WebTokens } from './WebTokens';
@@ -33,7 +32,7 @@ import { MobileHeader, NetworkPill, ActionRow, PeriodChips, SegmentTabs, MobileE
 import { useAiStore } from '../../lib/aiStore';
 import { PROVIDER_DEFAULTS } from '../../lib/aiConfig';
 import { Icon, type IconName } from '../icon';
-import { fonts, radii, spacing, useTheme } from '../theme';
+import { fonts, radii, spacing, useTheme, fontSize } from '../theme';
 import { useWebConnect, type WebConnectError } from '../../lib/webConnect';
 import { toast } from '../../lib/toast';
 import { useSettings, useT, fiatSymbol, FIATS } from '../../lib/settingsStore';
@@ -51,7 +50,7 @@ import {
   type Balance,
   type ChainConfig,
   type ChainFamily,
-  type ChartPoint,
+  type ChartPoint
 } from '../../src';
 import { webErrorKey } from './webErrors';
 import { usePortfolioStore, snapshotKey } from '../../lib/portfolio';
@@ -204,8 +203,8 @@ function SigningModal() {
   const accent = phase === 'ok' ? colors.up : phase === 'err' ? colors.danger : colors.accent;
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, backgroundColor: 'rgba(4,6,12,0.72)', alignItems: 'center', justifyContent: 'center', padding: spacing(3) }}>
-      <View style={{ width: '100%', maxWidth: 380, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.lg, padding: spacing(3), alignItems: 'center', gap: spacing(1.25) }}>
-        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: accent + '22', alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: '100%', maxWidth: 380, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.xl, padding: spacing(3), alignItems: 'center', gap: spacing(1.25) }}>
+        <View style={{ width: 56, height: 56, borderRadius: radii.xxl, backgroundColor: accent + '22', alignItems: 'center', justifyContent: 'center' }}>
           {phase === 'await' ? (
             <KalyxSpinner size={30} />
           ) : phase === 'ok' ? (
@@ -214,7 +213,7 @@ function SigningModal() {
             <Icon name="warning" size={28} color={accent} />
           )}
         </View>
-        <Text style={{ color: colors.text, fontSize: 19, fontFamily: fonts.bold, textAlign: 'center' }}>
+        <Text style={{ color: colors.text, fontSize: fontSize.xl, fontFamily: fonts.bold, textAlign: 'center' }}>
           {phase === 'ok' ? tw('signApproved') : phase === 'err' ? tw('signRejected') : tw('signRequired')}
         </Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>
@@ -225,13 +224,13 @@ function SigningModal() {
         {phase === 'await' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing(0.5) }}>
             <Icon name="bell" size={14} color={colors.textMuted} />
-            <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>
+            <Text style={{ color: colors.textMuted, fontSize: fontSize.xs, textAlign: 'center' }}>
               {tw('signNotifHint')}
             </Text>
           </View>
         ) : null}
         {phase !== 'await' ? (
-          <Pressable onPress={dismiss} style={({ pressed }) => ({ marginTop: spacing(1), alignSelf: 'stretch', alignItems: 'center', backgroundColor: phase === 'ok' ? colors.accent : 'transparent', borderWidth: 1, borderColor: phase === 'ok' ? colors.accent : colors.glassBorder, borderRadius: radii.pill, paddingVertical: spacing(1.2), opacity: pressed ? 0.7 : 1 })}>
+          <Pressable onPress={dismiss} style={({ pressed }) => ({ marginTop: spacing(1), alignSelf: 'stretch', alignItems: 'center', backgroundColor: phase === 'ok' ? colors.accent : 'transparent', borderWidth: 1, borderColor: phase === 'ok' ? colors.accent : colors.glassBorder, borderRadius: radii.full, paddingVertical: spacing(1.2), opacity: pressed ? 0.7 : 1 })}>
             <Text style={{ color: phase === 'ok' ? colors.onPrimary : colors.text, fontFamily: fonts.semibold }}>{t("aiClose")}</Text>
           </Pressable>
         ) : null}
@@ -280,7 +279,7 @@ function ConnectView() {
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing(3) }}>
       <View style={{ alignItems: 'center', gap: spacing(2), maxWidth: 420 }}>
         <KalyxLogo size={72} />
-        <Text style={{ color: colors.text, fontSize: 28, fontFamily: fonts.extrabold, textAlign: 'center' }}>
+        <Text style={{ color: colors.text, fontSize: fontSize.h2, fontFamily: fonts.extrabold, textAlign: 'center' }}>
           {tw('connectTitle')}
         </Text>
         <Text style={[typography.muted, { textAlign: 'center' }]}>
@@ -311,20 +310,20 @@ function ConnectView() {
               <>
                 <Pressable
                   onPress={() => openInKalyx(uri)}
-                  style={({ pressed }) => ({ alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1), backgroundColor: GOLD, borderRadius: radii.pill, paddingVertical: spacing(1.5), opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] })}
+                  style={({ pressed }) => ({ alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1), backgroundColor: GOLD, borderRadius: radii.full, paddingVertical: spacing(1.5), opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] })}
                 >
                   <Icon name="walletconnect" size={20} color="#171310" />
-                  <Text style={{ color: '#171310', fontFamily: fonts.bold, fontSize: 16 }}>{tw('openInKalyx')}</Text>
+                  <Text style={{ color: '#171310', fontFamily: fonts.bold, fontSize: fontSize.lg }}>{tw('openInKalyx')}</Text>
                 </Pressable>
-                <Text style={[typography.muted, { textAlign: 'center', fontSize: 13 }]}>{tw('sameDeviceHint')}</Text>
+                <Text style={[typography.muted, { textAlign: 'center', fontSize: fontSize.sm }]}>{tw('sameDeviceHint')}</Text>
                 <Pressable onPress={() => setShowQr((v) => !v)} hitSlop={8}>
-                  <Text style={{ color: colors.textMuted, fontSize: 12, textDecorationLine: 'underline' }}>{showQr ? tw('hideQr') : tw('showQr')}</Text>
+                  <Text style={{ color: colors.textMuted, fontSize: fontSize.xs, textDecorationLine: 'underline' }}>{showQr ? tw('hideQr') : tw('showQr')}</Text>
                 </Pressable>
               </>
             ) : null}
             {!isPhone || showQr ? (
               <>
-                <View style={{ backgroundColor: '#fff', padding: spacing(2), borderRadius: radii.lg }}>
+                <View style={{ backgroundColor: '#fff', padding: spacing(2), borderRadius: radii.xl }}>
                   <QRCode value={uri} size={220} />
                 </View>
                 <Text style={[typography.muted, { textAlign: 'center' }]}>
@@ -334,11 +333,11 @@ function ConnectView() {
             ) : null}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), width: '100%' }}>
               <View style={{ flex: 1, height: 1, backgroundColor: colors.glassBorder }} />
-              <Text style={{ color: colors.textMuted, fontSize: 12 }}>{tw('or')}</Text>
+              <Text style={{ color: colors.textMuted, fontSize: fontSize.xs }}>{tw('or')}</Text>
               <View style={{ flex: 1, height: 1, backgroundColor: colors.glassBorder }} />
             </View>
             <CopyUriButton uri={uri} />
-            <Text style={[typography.muted, { textAlign: 'center', fontSize: 12 }]}>
+            <Text style={[typography.muted, { textAlign: 'center', fontSize: fontSize.xs }]}>
               {tw('pasteHint')}
             </Text>
           </View>
@@ -348,14 +347,14 @@ function ConnectView() {
             disabled={status === 'connecting'}
             style={({ pressed }) => ({
               flexDirection: 'row', alignItems: 'center', gap: spacing(1),
-              backgroundColor: colors.accent, borderRadius: radii.pill,
+              backgroundColor: colors.accent, borderRadius: radii.full,
               paddingVertical: spacing(1.5), paddingHorizontal: spacing(3),
               opacity: pressed || status === 'connecting' ? 0.7 : 1, marginTop: spacing(1),
               transform: [{ scale: pressed ? 0.96 : 1 }],
             })}
           >
             {status === 'connecting' ? <KalyxSpinner size={20} /> : <Icon name="walletconnect" size={20} color={colors.onPrimary} />}
-            <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: 16 }}>
+            <Text style={{ color: colors.onPrimary, fontFamily: fonts.bold, fontSize: fontSize.lg }}>
               {status === 'connecting' ? t('connecting') : tw('connectKalyx')}
             </Text>
           </Pressable>
@@ -368,7 +367,7 @@ function ConnectView() {
 
         <Pressable onPress={() => setInstallOpen(true)} hitSlop={8} style={({ pressed }) => ({ marginTop: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: 6, opacity: pressed ? 0.6 : 1 })}>
           <Icon name="import" size={14} color={GOLD} />
-          <Text style={{ color: GOLD, fontFamily: fonts.semibold, fontSize: 13, textDecorationLine: 'underline' }}>{tw('noAppYet')}</Text>
+          <Text style={{ color: GOLD, fontFamily: fonts.semibold, fontSize: fontSize.sm, textDecorationLine: 'underline' }}>{tw('noAppYet')}</Text>
         </Pressable>
       </View>
 
@@ -394,26 +393,26 @@ function InstallSheet({ visible, onClose }: { visible: boolean; onClose: () => v
   return (
     <Sheet visible={visible} onClose={onClose}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: GOLD + '1F', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 44, height: 44, borderRadius: radii.full, backgroundColor: GOLD + '1F', alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="security" size={22} color={GOLD} />
         </View>
         <KText variant="title2" style={{ flex: 1 }}>{tw('installTitle')}</KText>
       </View>
       <KText variant="bodySecondary" tone="secondary">{tw('installWhy')}</KText>
       <KText variant="caption" tone="secondary" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>{tw('installStepsTitle')}</KText>
-      <Surface padded={false}>
+      <Card padded={false}>
         {steps.map((st, i) => (
           <React.Fragment key={i}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing(1.5), padding: spacing(1.5) }}>
-              <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: '#171310', fontFamily: fonts.bold, fontSize: 13 }}>{i + 1}</Text>
+              <View style={{ width: 26, height: 26, borderRadius: radii.full, backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#171310', fontFamily: fonts.bold, fontSize: fontSize.sm }}>{i + 1}</Text>
               </View>
               <Text style={[typography.body, { flex: 1, color: colors.text }]}>{st}</Text>
             </View>
             {i < steps.length - 1 ? <Divider inset={16} /> : null}
           </React.Fragment>
         ))}
-      </Surface>
+      </Card>
       <Button label={tw('installCta')} icon="import" onPress={open} />
       <KText variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{tw('installNote')}</KText>
     </Sheet>
@@ -437,12 +436,12 @@ function CopyUriButton({ uri }: { uri: string }) {
       onPress={copy}
       style={({ pressed }) => ({
         flexDirection: 'row', alignItems: 'center', gap: spacing(1),
-        borderRadius: radii.pill, borderWidth: 1, borderColor: copied ? colors.up : colors.glassBorder,
+        borderRadius: radii.full, borderWidth: 1, borderColor: copied ? colors.up : colors.glassBorder,
         paddingVertical: spacing(1), paddingHorizontal: spacing(2.5), opacity: pressed ? 0.7 : 1,
       })}
     >
       <Icon name={copied ? 'check' : 'copy'} size={16} color={copied ? colors.up : colors.textMuted} />
-      <Text style={{ color: copied ? colors.up : colors.text, fontFamily: fonts.semibold, fontSize: 14 }}>
+      <Text style={{ color: copied ? colors.up : colors.text, fontFamily: fonts.semibold, fontSize: fontSize.md }}>
         {copied ? tw('linkCopied') : tw('copyConnectLink')}
       </Text>
     </Pressable>
@@ -523,10 +522,10 @@ function ActionSheet({ title, onClose, children }: { title: string; onClose: () 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bgDeep, zIndex: 20 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), padding: spacing(2), borderBottomWidth: 1, borderBottomColor: colors.glassBorder }}>
-        <Pressable onPress={onClose} hitSlop={8} style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.glass }}>
+        <Pressable onPress={onClose} hitSlop={8} style={{ width: 32, height: 32, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.glass }}>
           <Icon name="back" size={16} color={colors.text} />
         </Pressable>
-        <Text style={{ color: colors.text, fontSize: 17, fontFamily: fonts.bold }}>{title}</Text>
+        <Text style={{ color: colors.text, fontSize: fontSize.lg, fontFamily: fonts.bold }}>{title}</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: spacing(2), gap: spacing(2) }}>{children}</ScrollView>
     </View>
@@ -541,7 +540,7 @@ function FlowHost({ narrow, onDismiss, children }: { narrow: boolean; onDismiss:
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, alignItems: 'center', justifyContent: 'center', padding: spacing(3) }}>
       <Pressable onPress={onDismiss} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' }} />
       {/* Panneau à la hauteur de son contenu (plafonné) : plus de grand vide sous une courte liste. */}
-      <View style={{ width: '100%', maxWidth: 520, maxHeight: '92%', borderRadius: radii.xl, overflow: 'hidden' }}>
+      <View style={{ width: '100%', maxWidth: 520, maxHeight: '92%', borderRadius: radii.xxl, overflow: 'hidden' }}>
         <FlowEmbedContext.Provider value>{children}</FlowEmbedContext.Provider>
       </View>
     </View>
@@ -770,11 +769,11 @@ function AllocationPanel({ worth }: { worth: { data: NetWorth | null; loading: b
   const slices = (worth.data?.slices ?? []).filter((x) => x.value > 0).sort((a, b) => b.value - a.value).slice(0, 5);
   return (
     <View style={{ width: 300, gap: 12, paddingTop: 6 }}>
-      <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted, letterSpacing: 1, textTransform: 'uppercase' }}>{t('allocation')}</Text>
+      <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: P.muted, letterSpacing: 1, textTransform: 'uppercase' }}>{t('allocation')}</Text>
       {worth.loading && !worth.data ? (
         <SkeletonRows count={3} flat />
       ) : !slices.length || total <= 0 ? (
-        <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.muted }}>{tw('allocationEmpty')}</Text>
+        <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.sm, color: P.muted }}>{tw('allocationEmpty')}</Text>
       ) : (
         slices.map((sl) => {
           const pct = (sl.value / total) * 100;
@@ -782,12 +781,12 @@ function AllocationPanel({ worth }: { worth: { data: NetWorth | null; loading: b
             <View key={sl.chain.id} style={{ gap: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <ChainAvatar chain={sl.chain} size={18} />
-                <Text style={{ flex: 1, fontFamily: WEB_FONTS.body, fontSize: 13, color: P.text }} numberOfLines={1}>{sl.chain.name}</Text>
-                <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted, fontVariant: ['tabular-nums'] }}>{formatPercent(pct, 1)}</Text>
-                <Text style={{ width: 96, textAlign: 'right', fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 13, color: P.text, fontVariant: ['tabular-nums'] }} numberOfLines={1}>{formatFiatAmount(sl.value, fiat)}</Text>
+                <Text style={{ flex: 1, fontFamily: WEB_FONTS.body, fontSize: fontSize.sm, color: P.text }} numberOfLines={1}>{sl.chain.name}</Text>
+                <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: P.muted, fontVariant: ['tabular-nums'] }}>{formatPercent(pct, 1)}</Text>
+                <Text style={{ width: 96, textAlign: 'right', fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: fontSize.sm, color: P.text, fontVariant: ['tabular-nums'] }} numberOfLines={1}>{formatFiatAmount(sl.value, fiat)}</Text>
               </View>
-              <View style={{ height: 4, borderRadius: 2, backgroundColor: P.divider, overflow: 'hidden' }}>
-                <View style={{ width: `${Math.max(2, Math.min(100, pct))}%`, height: 4, borderRadius: 2, backgroundColor: P.accent }} />
+              <View style={{ height: 4, borderRadius: radii.full, backgroundColor: P.divider, overflow: 'hidden' }}>
+                <View style={{ width: `${Math.max(2, Math.min(100, pct))}%`, height: 4, borderRadius: radii.xs, backgroundColor: P.accent }} />
               </View>
             </View>
           );
@@ -797,19 +796,6 @@ function AllocationPanel({ worth }: { worth: { data: NetWorth | null; loading: b
   );
 }
 
-/** Style « verre » (fond très légèrement teinté + bordure fine) plutôt qu'un
- *  aplat gris à bordure épaisse — donne de la profondeur par calques au lieu
- *  d'empiler des boîtes dures. `colors.text` sert de base : quasi-blanc en
- *  thème sombre → un voile blanc à 3 % ; quasi-noir en clair → un voile noir
- *  à 3 % — s'adapte aux deux thèmes sans dupliquer la logique. */
-function Card({ children }: { children: React.ReactNode }) {
-  const { colors } = useTheme();
-  return (
-    <View style={{ backgroundColor: colors.text + '08', borderWidth: 1, borderColor: colors.text + '12', borderRadius: radii.lg, padding: spacing(2) }}>
-      {children}
-    </View>
-  );
-}
 
 
 /** État vide soigné (icône + titre + sous-titre), centré — jamais de détail
@@ -819,10 +805,10 @@ function EmptyState({ icon, title, subtitle }: { icon: IconName; title: string; 
   const { colors, typography } = useTheme();
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', gap: spacing(1), paddingVertical: spacing(6), minHeight: 220 }}>
-      <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.glass, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 52, height: 52, borderRadius: radii.full, backgroundColor: colors.glass, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={icon} size={24} color={colors.textMuted} />
       </View>
-      <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 15 }}>{title}</Text>
+      <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: fontSize.base }}>{title}</Text>
       <Text style={[typography.muted, { textAlign: 'center', maxWidth: 260 }]}>{subtitle}</Text>
     </View>
   );
@@ -1034,7 +1020,7 @@ function MobileHero({ data, chain, address, large }: { data: HeroData; chain: Ch
       </View>
       <View style={{ gap: 8, alignItems: 'flex-start' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.muted }}>{t('totalValue')}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.sm, color: P.muted }}>{t('totalValue')}</Text>
           <Pressable onPress={onToggleHidden} hitSlop={8}>
             <Icon name={isHidden ? 'eyeOff' : tg.available ? (tg.biometricType === 'face' ? 'security' : 'lock') : 'eye'} size={14} color={P.faint} />
           </Pressable>
@@ -1052,7 +1038,7 @@ function MobileHero({ data, chain, address, large }: { data: HeroData; chain: Ch
         {parts != null && !isHidden ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name={todayUp ? 'send' : 'receive'} size={12} color={changeColor} weight="bold" />
-            <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '500', fontSize: 13, color: changeColor }}>
+            <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '500', fontSize: fontSize.sm, color: changeColor }}>
               {`${todayUp ? '+' : '-'}${formatFiatAmount(Math.abs(absChange), fiat)} · ${todayUp ? '+' : '-'}${formatPercent(Math.abs(today))} ${t('today')}`}
             </Text>
           </View>
@@ -1060,15 +1046,15 @@ function MobileHero({ data, chain, address, large }: { data: HeroData; chain: Ch
         <View style={{ gap: 10, marginTop: 10 }}>
           {address ? (
             <View style={{ flexDirection: 'row' }}>
-              <Pressable onPress={copyAddress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 10, opacity: pressed ? 0.7 : 1 })}>
-                <Text style={{ fontFamily: WEB_FONTS.mono, fontSize: 12, color: P.muted }}>{short(address)}</Text>
+              <Pressable onPress={copyAddress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, borderRadius: radii.full, paddingVertical: 6, paddingHorizontal: 10, opacity: pressed ? 0.7 : 1 })}>
+                <Text style={{ fontFamily: WEB_FONTS.mono, fontSize: fontSize.xs, color: P.muted }}>{short(address)}</Text>
                 <Pop trigger={copied}><Icon name={copied ? 'check' : 'copy'} size={14} color={copied ? P.up : P.muted} /></Pop>
               </Pressable>
             </View>
           ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="security" size={14} color={P.accent} />
-            <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: P.muted }}>{tw('trustLine')}</Text>
+            <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: P.muted }}>{tw('trustLine')}</Text>
           </View>
         </View>
       </View>
@@ -1094,11 +1080,11 @@ function MobileTrend({ data, chain }: { data: HeroData; chain: ChainConfig }) {
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <PeriodChips options={PERIODS} value={days} onChange={setDays} />
         {scrub ? (
-          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 12, color: P.text }} numberOfLines={1}>
+          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: fontSize.xs, color: P.text }} numberOfLines={1}>
             {`${formatFiatAmount(scrub.v, fiat)} · ${formatScrubDate(scrub.t, days)}`}
           </Text>
         ) : values.length ? (
-          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 12, color: lineColor }}>{`${up ? '+' : ''}${formatPercent(pct)}`}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: fontSize.xs, color: lineColor }}>{`${up ? '+' : ''}${formatPercent(pct)}`}</Text>
         ) : null}
       </View>
       {loading && !values.length ? (
@@ -1109,19 +1095,19 @@ function MobileTrend({ data, chain }: { data: HeroData; chain: ChainConfig }) {
         </View>
       ) : (
         <View style={{ height: 130, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.muted }}>{tw('noPriceData')}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.sm, color: P.muted }}>{tw('noPriceData')}</Text>
         </View>
       )}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: P.divider }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: P.surfaceHi, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          <View style={{ width: 22, height: 22, borderRadius: radii.full, backgroundColor: P.surfaceHi, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             <ChainAvatar chain={chain} size={14} />
           </View>
-          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 13, color: P.text2 }}>{tw('priceOf', { symbol: chain.nativeSymbol })}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.sm, color: P.text2 }}>{tw('priceOf', { symbol: chain.nativeSymbol })}</Text>
         </View>
         <View style={{ alignItems: 'flex-end', gap: 2 }}>
-          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: 14, color: P.text, fontVariant: ['tabular-nums'] }}>{price ? formatFiatAmount(price, fiat) : '—'}</Text>
-          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: 12, color: changeColor }}>{nativeChange == null ? '— · 24 h' : `${nativeChange >= 0 ? '+' : ''}${formatPercent(nativeChange)} · 24 h`}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: fontSize.md, color: P.text, fontVariant: ['tabular-nums'] }}>{price ? formatFiatAmount(price, fiat) : '—'}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: changeColor }}>{nativeChange == null ? '— · 24 h' : `${nativeChange >= 0 ? '+' : ''}${formatPercent(nativeChange)} · 24 h`}</Text>
         </View>
       </View>
     </View>
@@ -1206,7 +1192,7 @@ function NetworkSelector({ vertical, onSelected }: { vertical: boolean; onSelect
         style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing(1.25), paddingVertical: spacing(1), borderRadius: radii.md, backgroundColor: colors.glass, borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
       >
         <ChainAvatar chain={c} size={20} />
-        <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.semibold, fontSize: 13, flex: vertical ? 1 : 0 }} numberOfLines={1}>{c.name}</Text>
+        <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.semibold, fontSize: fontSize.sm, flex: vertical ? 1 : 0 }} numberOfLines={1}>{c.name}</Text>
         {on && vertical ? <Icon name="check" size={14} color={colors.accent} /> : null}
       </Pressable>
     );
@@ -1214,9 +1200,9 @@ function NetworkSelector({ vertical, onSelected }: { vertical: boolean; onSelect
   return (
     <View style={{ gap: spacing(1) }}>
       {chains.length > 6 ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.pill, paddingHorizontal: spacing(1.25) }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.full, paddingHorizontal: spacing(1.25) }}>
           <Icon name="search" size={15} color={colors.textMuted} />
-          <TextInput value={q} onChangeText={setQ} placeholder={t("searchNetwork")} placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: 13, paddingVertical: spacing(0.85) }} />
+          <TextInput value={q} onChangeText={setQ} placeholder={t("searchNetwork")} placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.text, backgroundColor: 'transparent', fontSize: fontSize.sm, paddingVertical: spacing(0.85) }} />
         </View>
       ) : null}
       {/* Onglets masqués pendant une recherche : celle-ci porte sur tout, les
@@ -1226,8 +1212,8 @@ function NetworkSelector({ vertical, onSelected }: { vertical: boolean; onSelect
           {families.map((f) => {
             const on = f === shownFamily;
             return (
-              <Pressable key={f} onPress={() => setFamily(f)} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: radii.pill, backgroundColor: on ? colors.text + '14' : 'transparent', borderWidth: 1, borderColor: on ? colors.text + '22' : colors.text + '10' }}>
-                <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: on ? fonts.semibold : fonts.medium, fontSize: 12 }}>{WEB_FAMILY_LABELS[f]}</Text>
+              <Pressable key={f} onPress={() => setFamily(f)} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: radii.full, backgroundColor: on ? colors.text + '14' : 'transparent', borderWidth: 1, borderColor: on ? colors.text + '22' : colors.text + '10' }}>
+                <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: on ? fonts.semibold : fonts.medium, fontSize: fontSize.xs }}>{WEB_FAMILY_LABELS[f]}</Text>
               </Pressable>
             );
           })}
@@ -1261,9 +1247,9 @@ function SecurityPanel() {
     { label: tw('thisSite'), value: tw('readOnly') },
   ];
   return (
-    <Card>
+    <Card variant="glass">
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.up + '22', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 36, height: 36, borderRadius: radii.full, backgroundColor: colors.up + '22', alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="security" size={19} color={colors.up} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -1277,7 +1263,7 @@ function SecurityPanel() {
           <View key={g.label} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
             <Icon name="check" size={15} color={colors.up} />
             <Text style={[typography.muted, { flex: 1 }]}>{g.label}</Text>
-            <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12 }}>{g.value}</Text>
+            <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: fontSize.xs }}>{g.value}</Text>
           </View>
         ))}
       </View>
@@ -1285,14 +1271,14 @@ function SecurityPanel() {
       <View style={{ height: 1, backgroundColor: colors.glassBorder, marginVertical: spacing(1.5) }} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={typography.muted}>{tw('lastActivity')}</Text>
-        <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12 }}>{ago(Math.floor(lastActivity / 1000), language)}</Text>
+        <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: fontSize.xs }}>{ago(Math.floor(lastActivity / 1000), language)}</Text>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing(0.5) }}>
         <Text style={typography.muted}>{tw('sharedNetworks')}</Text>
-        <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12 }}>{accounts.length}</Text>
+        <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: fontSize.xs }}>{accounts.length}</Text>
       </View>
 
-      <Pressable onPress={disconnect} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', borderRadius: radii.pill, paddingVertical: spacing(1.1), borderWidth: 1, borderColor: colors.danger + '66', opacity: pressed ? 0.6 : 1 })}>
+      <Pressable onPress={disconnect} style={({ pressed }) => ({ marginTop: spacing(1.5), alignItems: 'center', borderRadius: radii.full, paddingVertical: spacing(1.1), borderWidth: 1, borderColor: colors.danger + '66', opacity: pressed ? 0.6 : 1 })}>
         <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>{tw('disconnectDevice')}</Text>
       </Pressable>
     </Card>
@@ -1332,7 +1318,7 @@ function SettingsPanel() {
       onPress={() => { setOpen(open === opts.section ? null : opts.section); setAiEdit(false); }}
       style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(0.75) }}
     >
-      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 36, height: 36, borderRadius: radii.full, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={opts.icon} size={18} color={colors.textMuted} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -1351,18 +1337,18 @@ function SettingsPanel() {
       style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing(1.25), paddingVertical: spacing(0.85), borderRadius: radii.md, backgroundColor: on ? colors.glass : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.glassBorder }}
     >
       {left}
-      <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.medium, fontSize: 13, flex: 1 }}>{label}</Text>
+      <Text style={{ color: on ? colors.text : colors.textMuted, fontFamily: fonts.medium, fontSize: fontSize.sm, flex: 1 }}>{label}</Text>
       {on ? <Icon name="check" size={14} color={colors.accent} /> : null}
     </Pressable>
   );
   const divider = <View style={{ height: 1, backgroundColor: colors.glassBorder }} />;
 
   return (
-    <Card>
+    <Card variant="glass">
       {row({ icon: 'language', label: tw('language'), value: `${curLang.flag} ${curLang.name}`, section: 'lang' })}
       {open === 'lang' ? (
         <View style={{ gap: spacing(0.5), marginTop: spacing(0.5), marginBottom: spacing(1) }}>
-          {LANGUAGES.map((l) => option(l.code === language, () => { setLanguage(l.code); setOpen(null); }, <Text style={{ fontSize: 16 }}>{l.flag}</Text>, l.name, l.code))}
+          {LANGUAGES.map((l) => option(l.code === language, () => { setLanguage(l.code); setOpen(null); }, <Text style={{ fontSize: fontSize.lg }}>{l.flag}</Text>, l.name, l.code))}
         </View>
       ) : null}
       {divider}
@@ -1370,7 +1356,7 @@ function SettingsPanel() {
       {row({ icon: 'currency', label: tw('currency'), value: `${curFiat.symbol} ${t(curFiat.nameKey)}`, section: 'fiat' })}
       {open === 'fiat' ? (
         <View style={{ gap: spacing(0.5), marginTop: spacing(0.5), marginBottom: spacing(1) }}>
-          {FIATS.map((f) => option(f.code === fiat, () => { setFiat(f.code); setOpen(null); }, <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 14, width: 34 }}>{f.symbol}</Text>, t(f.nameKey), f.code))}
+          {FIATS.map((f) => option(f.code === fiat, () => { setFiat(f.code); setOpen(null); }, <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: fontSize.md, width: 34 }}>{f.symbol}</Text>, t(f.nameKey), f.code))}
         </View>
       ) : null}
       {divider}
@@ -1386,14 +1372,14 @@ function SettingsPanel() {
 
       {/* Réseaux de test : soldes et envois à part (jamais dans le total), comme dans l'app. */}
       <Pressable onPress={() => setFlag('showTestnets', !showTestnets)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(0.75) }}>
-        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 36, height: 36, borderRadius: radii.full, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="developer" size={18} color={colors.textMuted} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[typography.bodyStrong, { fontSize: 14 }]}>{t('testnetToggleTitle')}</Text>
-          <Text style={[typography.muted, { fontSize: 12 }]}>{t('testnetToggleBody')}</Text>
+          <Text style={[typography.bodyStrong, { fontSize: fontSize.md }]}>{t('testnetToggleTitle')}</Text>
+          <Text style={[typography.muted, { fontSize: fontSize.xs }]}>{t('testnetToggleBody')}</Text>
         </View>
-        <NovaSwitch value={showTestnets} onValueChange={(v) => setFlag('showTestnets', v)} />
+        <Switch value={showTestnets} onValueChange={(v) => setFlag('showTestnets', v)} />
       </Pressable>
       {divider}
 
@@ -1404,11 +1390,11 @@ function SettingsPanel() {
             <AgentSetup />
           ) : (
             <View style={{ flexDirection: 'row', gap: spacing(1) }}>
-              <Pressable onPress={() => setAiEdit(true)} style={({ pressed }) => ({ flex: 1, alignItems: 'center', borderRadius: radii.pill, paddingVertical: spacing(1.1), borderWidth: 1, borderColor: colors.glassBorder, backgroundColor: colors.glass, opacity: pressed ? 0.6 : 1 })}>
-                <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: 13 }}>{tw('aiChangeKey')}</Text>
+              <Pressable onPress={() => setAiEdit(true)} style={({ pressed }) => ({ flex: 1, alignItems: 'center', borderRadius: radii.full, paddingVertical: spacing(1.1), borderWidth: 1, borderColor: colors.glassBorder, backgroundColor: colors.glass, opacity: pressed ? 0.6 : 1 })}>
+                <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{tw('aiChangeKey')}</Text>
               </Pressable>
-              <Pressable onPress={() => { disableAi(); toast.info(tw('aiDisabled')); }} style={({ pressed }) => ({ flex: 1, alignItems: 'center', borderRadius: radii.pill, paddingVertical: spacing(1.1), borderWidth: 1, borderColor: colors.danger + '66', opacity: pressed ? 0.6 : 1 })}>
-                <Text style={{ color: colors.danger, fontFamily: fonts.semibold, fontSize: 13 }}>{tw('aiDisable')}</Text>
+              <Pressable onPress={() => { disableAi(); toast.info(tw('aiDisabled')); }} style={({ pressed }) => ({ flex: 1, alignItems: 'center', borderRadius: radii.full, paddingVertical: spacing(1.1), borderWidth: 1, borderColor: colors.danger + '66', opacity: pressed ? 0.6 : 1 })}>
+                <Text style={{ color: colors.danger, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{tw('aiDisable')}</Text>
               </Pressable>
             </View>
           )}
@@ -1417,28 +1403,28 @@ function SettingsPanel() {
       {divider}
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(0.75) }}>
-        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 36, height: 36, borderRadius: radii.full, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={platform === 'telegram' ? 'telegramLogo' : 'security'} size={18} color={colors.textMuted} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={typography.muted}>{platform === 'telegram' ? tw('telegramMode') : tw('webMode')}</Text>
-          <Text style={[typography.bodyStrong, { fontSize: 13 }]}>{platform === 'telegram' ? tw('telegramModeOn') : tw('webModeBody')}</Text>
+          <Text style={[typography.bodyStrong, { fontSize: fontSize.sm }]}>{platform === 'telegram' ? tw('telegramModeOn') : tw('webModeBody')}</Text>
         </View>
       </View>
       {divider}
 
       {/* Textes légaux : mêmes pages que le site vitrine, dans la langue active. */}
-      <Text style={{ color: colors.textFaint, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', paddingTop: spacing(1.25), paddingBottom: spacing(0.5) }}>{tw('legalSection')}</Text>
+      <Text style={{ color: colors.textFaint, fontFamily: fonts.semibold, fontSize: fontSize.xxs, letterSpacing: 0.6, textTransform: 'uppercase', paddingTop: spacing(1.25), paddingBottom: spacing(0.5) }}>{tw('legalSection')}</Text>
       {([['terms', tw('termsOfUse'), 'phrase'], ['privacy', tw('privacyPolicy'), 'security'], ['mentions', tw('legalNotice'), 'about']] as const).map(([slug, label, icon]) => (
         <Pressable
           key={slug}
           onPress={() => { const w = (globalThis as { open?: (u: string, target?: string, features?: string) => unknown }).open; w?.(`https://kalyxwallet.com/${language}/${slug}/`, '_blank', 'noopener,noreferrer'); }}
           style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), paddingVertical: spacing(0.85), opacity: pressed ? 0.6 : 1 })}
         >
-          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 36, height: 36, borderRadius: radii.full, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name={icon} size={17} color={colors.textMuted} />
           </View>
-          <Text style={[typography.bodyStrong, { flex: 1, fontSize: 14 }]}>{label}</Text>
+          <Text style={[typography.bodyStrong, { flex: 1, fontSize: fontSize.md }]}>{label}</Text>
           <Icon name="forward" size={14} color={colors.textFaint} />
         </Pressable>
       ))}
@@ -1474,7 +1460,7 @@ function NftsPanel({ chain, address, flat }: { chain: ChainConfig; address: stri
         >
           <Image source={{ uri: n.image }} style={{ width: '100%', aspectRatio: 1, backgroundColor: colors.glassStrong }} resizeMode="cover" />
           <View style={{ padding: spacing(1) }}>
-            <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12 }} numberOfLines={1}>{n.name}</Text>
+            <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: fontSize.xs }} numberOfLines={1}>{n.name}</Text>
             {n.collection && !isRawAddress(n.collection) ? <Text style={typography.muted} numberOfLines={1}>{n.collection}</Text> : null}
           </View>
         </Pressable>

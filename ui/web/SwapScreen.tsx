@@ -13,7 +13,7 @@
  */
 import React, { useContext, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { View, ScrollView, Pressable as RNPressable } from 'react-native';
-import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, TickerCountdownRing, Skeleton, EmptyState } from '../kit';
+import { Text, Button, IconButton, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, TickerCountdownRing, Skeleton, EmptyState, Card } from '../kit';
 import { SuccessModal } from '../SuccessModal';
 import { TokenPicker } from '../TokenPicker';
 import { Icon } from '../icon';
@@ -26,9 +26,22 @@ import { submitSolanaSigned } from '../../lib/solanaSubmit';
 import { UserFacingError } from '../../lib/txError';
 import { webErrorText } from './webErrors';
 import {
-  getAdapter, getErc20Tokens, getBestQuote, parseAmount, formatTokenAmount, formatInputAmount, formatFiat, isWalletError,
-  NATIVE_TOKEN, estimateGasReserve, type GasReserve, type SwapQuote, EvmChainAdapter, SolanaChainAdapter, type ChainConfig,
-  decimalSeparator,
+  getAdapter,
+  getErc20Tokens,
+  getBestQuote,
+  parseAmount,
+  formatTokenAmount,
+  formatInputAmount,
+  formatFiat,
+  isWalletError,
+  NATIVE_TOKEN,
+  estimateGasReserve,
+  type GasReserve,
+  type SwapQuote,
+  EvmChainAdapter,
+  SolanaChainAdapter,
+  type ChainConfig,
+  decimalSeparator
 } from '../../src';
 import { encodeErc20Approve, hexQuantity } from './evmEncode';
 import { FlowEmbedContext, useFlowRootStyle, useFlowScrollStyle } from './flowEmbed';
@@ -353,13 +366,13 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
   const [review, setReview] = useState(false);
 
   const TokenBlock = ({ label, tok, chainId, value, onPick, right, muted }: { label: string; tok: Tok | undefined; chainId: string; value: string; onPick: () => void; right?: React.ReactNode; muted?: boolean }) => (
-    <Surface level={2} style={{ gap: space[2] }}>
+    <Card level={2} style={{ gap: space[2] }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text variant="caption" tone="secondary">{label}</Text>
         {right}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ flex: 1, fontSize: 36, lineHeight: 42, color: muted ? colors.textSecondary : colors.text }}>{value || '0'}</Text>
+        <Text variant="display" tabular numberOfLines={1} adjustsFontSizeToFit style={{ flex: 1, color: muted ? colors.textSecondary : colors.text }}>{value || '0'}</Text>
         <RNPressable onPress={onPick} accessibilityLabel={tw('chooseToken', { label })} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: 6, paddingLeft: 6, paddingRight: 10, borderRadius: radius.round, backgroundColor: pressed ? colors.surface3 : colors.surface1, borderWidth: 1, borderColor: colors.border })}>
           {tok ? <TokenIcon symbol={tok.symbol} logo={tok.logo} seed={tok.address} size={28} /> : <Skeleton width={28} height={28} round />}
           <View>
@@ -369,7 +382,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
           <Icon name="caretDown" size={14} tone="muted" />
         </RNPressable>
       </View>
-    </Surface>
+    </Card>
   );
 
   return (
@@ -382,7 +395,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
 
       {!available ? (
         <View style={{ padding: SCREEN_MARGIN }}>
-          <Surface><EmptyState icon="exchange" title={t('swapUnavailable')} body={t('swapUnavailableHint')} /></Surface>
+          <Card><EmptyState icon="exchange" title={t('swapUnavailable')} body={t('swapUnavailableHint')} /></Card>
         </View>
       ) : !fromTok || !toTok ? (
         <View style={{ padding: SCREEN_MARGIN, gap: space[3] }}><Skeleton height={110} /><Skeleton height={110} /></View>
@@ -455,7 +468,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
         {quote && fromTok && toTok ? (
           <>
             <Text variant="title2">{isBridge ? t('verifyBridgeTitle') : t('verifySwapTitle')}</Text>
-            <Surface level={1} padded={false}>
+            <Card level={1} padded={false}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('youGive')}</Text><Text variant="body" tone="down" tabular>− {amount} {fromTok.symbol}</Text></View>
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('youReceiveEstimated')}</Text><Text variant="body" tone="up" tabular>+ {formatTokenAmount(quote.toAmount, quote.toToken.decimals)} {toTok.symbol}</Text></View>
@@ -465,7 +478,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('networkFee')}</Text><Text variant="caption" tabular>{quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : ''}{quote.gasCostUsd > 0 ? ` (≈ ${formatFiat(quote.gasCostUsd)} $)` : quote.gasCostNative > 0n ? '' : '—'}</Text></View>
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', decimalSeparator())} %</Text></View>
-            </Surface>
+            </Card>
             <Text variant="caption" tone="secondary">{routeSentence}{t('slippageTolerance')}{(quote.slippage * 100).toFixed(1).replace('.', decimalSeparator())} %.</Text>
             <Text variant="caption" tone="tertiary">{tw('signOnPhoneNote')}</Text>
             {stale ? (

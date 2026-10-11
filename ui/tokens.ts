@@ -124,18 +124,68 @@ export const fontFamily = {
   bold: 'GeneralSans-Bold',
 } as const;
 
+/** Graisses : sur Android, la graisse EST la famille (voir ci-dessus). */
+export const fontWeight = fontFamily;
+
 /** Chiffres à largeur fixe : les montants s'alignent au pixel. */
 export const tabularNums: NonNullable<TextStyle['fontVariant']> = ['tabular-nums'];
 
-/** Échelle typographique (taille / interligne / graisse / approche). */
+/**
+ * ÉCHELLE DES TAILLES — les seules tailles de police de l'app. Une taille qui
+ * n'est pas ici n'existe pas : on prend la plus proche, on n'en invente pas.
+ */
+export const fontSize = {
+  xxs: 11,
+  xs: 12,
+  sm: 13,
+  md: 14,
+  base: 15,
+  lg: 16,
+  xl: 18,
+  xxl: 20,
+  h3: 24,
+  h2: 28,
+  h1: 34,
+  display: 48,
+} as const;
+export type FontSizeToken = keyof typeof fontSize;
+
+/** Interligne associé à chaque taille (≈ ×1,3 en texte courant, plus serré en titre). */
+export const lineHeight: Record<FontSizeToken, number> = {
+  xxs: 14,
+  xs: 16,
+  sm: 18,
+  md: 20,
+  base: 20,
+  lg: 22,
+  xl: 24,
+  xxl: 26,
+  h3: 30,
+  h2: 34,
+  h1: 40,
+  display: 52,
+};
+
+/** Taille + interligne d'un cran de l'échelle, à étaler dans un style. */
+export const textSize = (k: FontSizeToken) => ({ fontSize: fontSize[k], lineHeight: lineHeight[k] });
+
+/**
+ * Styles de texte (taille / interligne / graisse / approche), tous bâtis sur
+ * l'échelle ci-dessus. Ce sont les variantes du `<Text>` du kit.
+ */
 export const type = {
-  balance: { fontSize: 48, lineHeight: 52, fontFamily: fontFamily.semibold, letterSpacing: -1.5, fontVariant: tabularNums },
-  title1: { fontSize: 28, lineHeight: 34, fontFamily: fontFamily.semibold, letterSpacing: -0.6 },
-  title2: { fontSize: 20, lineHeight: 26, fontFamily: fontFamily.semibold, letterSpacing: -0.3 },
-  body: { fontSize: 16, lineHeight: 22, fontFamily: fontFamily.medium, letterSpacing: 0 },
-  bodySecondary: { fontSize: 15, lineHeight: 20, fontFamily: fontFamily.regular, letterSpacing: 0 },
-  caption: { fontSize: 13, lineHeight: 18, fontFamily: fontFamily.medium, letterSpacing: 0 },
-  micro: { fontSize: 11, lineHeight: 14, fontFamily: fontFamily.semibold, letterSpacing: 0.2 },
+  balance: { ...textSize('display'), fontFamily: fontWeight.semibold, letterSpacing: -1.5, fontVariant: tabularNums },
+  display: { ...textSize('h1'), fontFamily: fontWeight.semibold, letterSpacing: -0.8, fontVariant: tabularNums },
+  title1: { ...textSize('h2'), fontFamily: fontWeight.semibold, letterSpacing: -0.6 },
+  heading: { ...textSize('h3'), fontFamily: fontWeight.semibold, letterSpacing: -0.6 },
+  title2: { ...textSize('xxl'), fontFamily: fontWeight.semibold, letterSpacing: -0.3 },
+  body: { ...textSize('lg'), fontFamily: fontWeight.medium, letterSpacing: 0 },
+  bodyStrong: { ...textSize('lg'), fontFamily: fontWeight.semibold, letterSpacing: 0 },
+  bodySecondary: { ...textSize('base'), fontFamily: fontWeight.regular, letterSpacing: 0 },
+  label: { ...textSize('md'), fontFamily: fontWeight.regular, letterSpacing: 0 },
+  caption: { ...textSize('sm'), fontFamily: fontWeight.medium, letterSpacing: 0 },
+  small: { ...textSize('xs'), fontFamily: fontWeight.medium, letterSpacing: 0 },
+  micro: { ...textSize('xxs'), fontFamily: fontWeight.semibold, letterSpacing: 0.2 },
 } as const;
 
 /** Le solde ne doit pas casser la mise en page avec la taille système. */
@@ -146,7 +196,19 @@ export const BALANCE_MAX_FONT_SCALE = 1.3;
 /* ------------------------------------------------------------------ */
 
 export const space = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40, 14: 56, 18: 72 } as const;
-export const SCREEN_MARGIN = 20;
+
+/** Les mêmes crans, nommés : `spaces.md` se lit mieux que `space[3]` dans un écran. */
+export const spaces = {
+  xxs: 2,
+  xs: space[1],
+  sm: space[2],
+  md: space[3],
+  lg: space[4],
+  xl: space[5],
+  xxl: space[6],
+  xxxl: space[8],
+} as const;
+export const SCREEN_MARGIN = spaces.xl;
 export const TOKEN_ROW_HEIGHT = 64;
 export const TOUCH_MIN = 48;
 
@@ -154,13 +216,25 @@ export const TOUCH_MIN = 48;
 /* Rayons — hiérarchiques                                              */
 /* ------------------------------------------------------------------ */
 
+/** L'échelle : les seuls rayons de l'app. `full` = pilule ou cercle (côté ÷ 2 inutile). */
+export const radii = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 20,
+  xl: 24,
+  xxl: 28,
+  full: 999,
+} as const;
+
+/** Le même rayon, nommé par son rôle. */
 export const radius = {
-  chip: 8, // chips, badges
-  input: 12, // inputs, boutons secondaires
-  button: 20, // bouton principal (hauteur 58) — Nova
-  container: 24, // conteneurs — Nova
-  sheet: 28, // bottom sheets (haut)
-  round: 999, // avatars, glyphes
+  chip: radii.sm, // chips, badges
+  input: radii.md, // inputs, boutons secondaires
+  button: radii.lg, // bouton principal (hauteur 58) — Nova
+  container: radii.xl, // conteneurs — Nova
+  sheet: radii.xxl, // bottom sheets (haut)
+  round: radii.full, // avatars, glyphes
 } as const;
 export const BUTTON_HEIGHT = 58;
 

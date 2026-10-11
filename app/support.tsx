@@ -8,14 +8,13 @@
  * dans tous les wallets, même ceux qui ne résolvent pas les noms). Vérifié le
  * 28/09 : `kalyxwallet.ton` résout exactement vers cette adresse.
  */
-import { IconDisc, NovaCard, NovaHero, SectionLabel, SettingRow } from '../ui/nova';
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { IconDisc, NovaHero, SectionLabel, SettingRow } from '../ui/nova';
+import { ScreenHeader, Pressable as KPressable, Card, RemoteIcon, Screen } from '../ui/kit';
 import { useState } from 'react';
 import { View, Text } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
-import { PremiumScreen, RemoteIcon } from '../ui/premium';
 import { KalyxLogo } from '../ui/KalyxLogo';
 import { Icon, type IconName } from '../ui/icon';
 import { radii, spacing, useTheme } from '../ui/theme';
@@ -48,7 +47,7 @@ export default function Support() {
   };
 
   return (
-    <PremiumScreen>
+    <Screen>
       <ScreenHeader />
       {/* En-tête masqué → le dégradé remonte jusqu'en haut (pas de bandeau noir) */}
       <Stack.Screen options={{ headerShown: false }} />
@@ -59,7 +58,7 @@ export default function Support() {
       </NovaHero>
 
       {/* Pourquoi nous soutenir */}
-      <NovaCard delay={140}>
+      <Card rise delay={140}>
         {REASONS.map((r, i) => (
           <View key={r.title} style={{ flexDirection: 'row', gap: spacing(1.5), alignItems: 'flex-start', paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
             <IconDisc name={r.icon} tone="gold" />
@@ -69,14 +68,14 @@ export default function Support() {
             </View>
           </View>
         ))}
-      </NovaCard>
+      </Card>
 
       {/* Crypto */}
       <SectionLabel>{t('inCrypto')}</SectionLabel>
       {CRYPTO.map((c, ci) => {
         const open = openQr === c.key;
         return (
-          <NovaCard key={c.key} delay={200 + ci * 50} style={{ gap: spacing(1.25) }}>
+          <Card rise key={c.key} delay={200 + ci * 50} style={{ gap: spacing(1.25) }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
               <RemoteIcon uri={chainIconUrl(c.key)} label={c.symbol} size={38} />
               <View style={{ flex: 1 }}>
@@ -89,28 +88,28 @@ export default function Support() {
             </View>
 
             <KPressable onPress={() => copy(c.address, `${t('addressLabel')} ${c.symbol}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), backgroundColor: colors.surface2, borderRadius: radii.md, padding: spacing(1.25), overflow: 'hidden' }}>
-              <Text selectable style={[typography.mono, { flex: 1, minWidth: 0, fontSize: 12.5 }]} numberOfLines={1} ellipsizeMode="middle">{c.address}</Text>
+              <Text selectable style={[typography.mono, { flex: 1, minWidth: 0 }]} numberOfLines={1} ellipsizeMode="middle">{c.address}</Text>
               <Icon name="copy" size={16} color={colors.primary} />
             </KPressable>
 
             {open ? (
               <View style={{ alignItems: 'center', paddingVertical: spacing(1) }}>
-                <View style={{ backgroundColor: '#fff', padding: spacing(1.5), borderRadius: 14 }}>
+                <View style={{ backgroundColor: '#fff', padding: spacing(1.5), borderRadius: radii.md }}>
                   <QRCode value={c.address} size={168} />
                 </View>
               </View>
             ) : null}
-          </NovaCard>
+          </Card>
         );
       })}
 
-      <NovaCard delay={320}>
+      <Card rise delay={320}>
         <SettingRow icon="support" title={t('supportHistoryTitle')} hint={t('supportDiagnosticSubtitle')} onPress={() => router.push('/support-history')} />
-      </NovaCard>
+      </Card>
 
       <Text style={[typography.muted, { textAlign: 'center', marginTop: spacing(1), marginBottom: spacing(2) }]}>
         {t('thanksHeartfelt')}
       </Text>
-    </PremiumScreen>
+    </Screen>
   );
 }

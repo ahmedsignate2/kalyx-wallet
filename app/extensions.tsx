@@ -1,8 +1,7 @@
-import { NovaCard, NovaHero, NovaSwitch, SettingRow } from '../ui/nova';
-import { ScreenHeader } from '../ui/kit';
+import { NovaHero, SettingRow } from '../ui/nova';
+import { ScreenHeader, Card, Screen, Switch } from '../ui/kit';
 import { ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
-import { PremiumScreen } from '../ui/premium';
 import { type IconName } from '../ui/icon';
 import { spacing } from '../ui/theme';
 import { useSettings, useT } from '../lib/settingsStore';
@@ -36,17 +35,17 @@ export default function Extensions() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <PremiumScreen>
+      <Screen>
       <ScreenHeader />
       <NovaHero icon="extensions" title={t('extensions')} subtitle={t('extensionsIntro')} />
       <ScrollView contentContainerStyle={{ gap: spacing(1.5), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
-        <NovaCard delay={120}>
+        <Card rise delay={120}>
           {modules.map((m, i) => (
-            <SettingRow key={m.title} divider={i > 0} icon={m.icon} tone={m.value ? 'gold' : undefined} title={m.title} hint={m.sub} right={<NovaSwitch value={m.value} onValueChange={m.onChange} />} />
+            <SettingRow key={m.title} divider={i > 0} icon={m.icon} tone={m.value ? 'gold' : undefined} title={m.title} hint={m.sub} right={<Switch value={m.value} onValueChange={m.onChange} />} />
           ))}
-        </NovaCard>
+        </Card>
       </ScrollView>
-    </PremiumScreen>
+    </Screen>
     </>
   );
 }

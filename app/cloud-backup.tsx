@@ -22,14 +22,14 @@ import { NovaHero } from '../ui/nova';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { passwordStrength, MIN_BACKUP_LEVEL } from '../src/security/passwordStrength';
 import { useEffect, useState } from 'react';
-import { View, ScrollView, Share, ActivityIndicator, Switch } from 'react-native';
+import { View, ScrollView, Share, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, Button, Surface, Input, ScreenHeader, Divider } from '../ui/kit';
+import { Text, Button, Input, ScreenHeader, Divider, Card, Switch } from '../ui/kit';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
+import { space, SCREEN_MARGIN, radius, radii } from '../ui/tokens';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
 import { createWalletsBackup } from '../src';
@@ -45,7 +45,7 @@ import {
   disableAutoSync,
   syncBackupNow,
   replaceRemoteOnConflict,
-  dismissSyncConflict,
+  dismissSyncConflict
 } from '../lib/backupSync';
 import { setupAutoSyncKeys } from '../lib/backupKeys';
 import { isDecoySession } from '../lib/sessionMode';
@@ -178,7 +178,7 @@ export default function CloudBackupScreen() {
   const bar = [1, 2, 3].map((i) => (
     <View
       key={i}
-      style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: strength.level >= i ? (strength.level === 1 ? colors.danger : strength.level === 2 ? colors.warning : colors.up) : colors.surface3 }}
+      style={{ flex: 1, height: 4, borderRadius: radii.full, backgroundColor: strength.level >= i ? (strength.level === 1 ? colors.danger : strength.level === 2 ? colors.warning : colors.up) : colors.surface3 }}
     />
   ));
 
@@ -200,13 +200,13 @@ export default function CloudBackupScreen() {
               qu'un sans le dire ; annoncer le nombre est ce qui permet de repérer
               une sauvegarde incomplète avant d'avoir besoin d'elle.
             */}
-            <View style={{ alignSelf: 'center', paddingHorizontal: 14, height: 32, borderRadius: 16, justifyContent: 'center', backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+            <View style={{ alignSelf: 'center', paddingHorizontal: 14, height: 32, borderRadius: radii.full, justifyContent: 'center', backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
               <Text variant="caption" tone="secondary">{coversLabel}</Text>
             </View>
           </View>
 
           {/* 2. Formulaire */}
-          <Surface style={{ gap: space[4], borderRadius: 24 }}>
+          <Card style={{ gap: space[4], borderRadius: radii.xl }}>
             <View style={{ gap: space[2] }}>
               <Input
                 label={t('backupPassword')}
@@ -237,10 +237,10 @@ export default function CloudBackupScreen() {
               error={mismatch ? t('pwdMismatch') : null}
             />
             {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
-          </Surface>
+          </Card>
 
           {/* 3. Statut réel */}
-          <Surface style={{ gap: space[3], borderRadius: 24 }}>
+          <Card style={{ gap: space[3], borderRadius: radii.xl }}>
             {driveBusy ? (
               <View style={{ gap: space[2] }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
@@ -276,7 +276,7 @@ export default function CloudBackupScreen() {
                 <Button label={checkBusy ? t('driveSearching') : t('driveCheck')} variant="ghost" onPress={() => flow.start({ kind: 'check' })} disabled={checkBusy} />
               </>
             ) : null}
-          </Surface>
+          </Card>
 
           {/* 4. Actions */}
           <View style={{ gap: space[3] }}>
@@ -449,7 +449,7 @@ function AutoSyncSection({
   const switchOn = sync.enabled || wanted || authBusy;
 
   return (
-    <Surface style={{ gap: space[3], borderRadius: 24 }}>
+    <Card style={{ gap: space[3], borderRadius: radii.xl }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="body" style={{ fontWeight: '600' }}>{t('autoSyncTitle')}</Text>
@@ -509,6 +509,6 @@ function AutoSyncSection({
         onSubmit={(pin) => void finish(pin)}
         onCancel={abandon}
       />
-    </Surface>
+    </Card>
   );
 }

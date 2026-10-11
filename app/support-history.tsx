@@ -1,11 +1,10 @@
-import { IconDisc, NovaCard, NovaHero } from '../ui/nova';
+import { IconDisc, NovaHero } from '../ui/nova';
 import { useState } from 'react';
 import { View, Text, Alert, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
-import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
-import { PremiumScreen } from '../ui/premium';
+import { ScreenHeader, Pressable as KPressable, Card, Screen } from '../ui/kit';
 import { Icon } from '../ui/icon';
-import { fonts, spacing, radii, useTheme } from '../ui/theme';
+import { fonts, spacing, radii, useTheme, fontSize } from '../ui/theme';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { haptic } from '../lib/haptics';
@@ -96,17 +95,17 @@ export default function SupportHistoryScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <PremiumScreen>
+      <Screen>
         <ScreenHeader />
         <NovaHero icon="support" title={t('supportHistoryTitle')} subtitle={t('supportDiagnosticSubtitle')} />
 
         {/* Action : Export Diagnostic Système */}
-        <NovaCard delay={50} style={{ padding: spacing(1.75), overflow: 'hidden' }}>
+        <Card rise delay={50} style={{ padding: spacing(1.75), overflow: 'hidden' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing(1.5) }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.25), flex: 1, minWidth: 0 }}>
               <IconDisc name="share" tone="gold" />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.bold }} numberOfLines={1}>
+                <Text style={{ color: colors.text, fontSize: fontSize.base, fontFamily: fonts.bold }} numberOfLines={1}>
                   {t('diagnosticExportButton')}
                 </Text>
                 <Text style={[typography.micro, { color: colors.textSecondary }]} numberOfLines={1}>
@@ -138,16 +137,16 @@ export default function SupportHistoryScreen() {
               )}
             </KPressable>
           </View>
-        </NovaCard>
+        </Card>
 
           {/* Liste des tickets ou État vide */}
           {tickets.length === 0 ? (
-            <NovaCard delay={100} style={{ padding: spacing(3), alignItems: 'center', gap: spacing(1) }}>
+            <Card rise delay={100} style={{ padding: spacing(3), alignItems: 'center', gap: spacing(1) }}>
               <Icon name="support" size={32} color={colors.textSecondary} />
               <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
                 {t('supportHistoryEmpty')}
               </Text>
-            </NovaCard>
+            </Card>
           ) : (
             <View style={{ gap: spacing(1.5) }}>
               {tickets.map((ticket: StoredTicket) => {
@@ -155,7 +154,7 @@ export default function SupportHistoryScreen() {
                 const isExpanded = expandedTicketId === ticket.id;
 
                 return (
-                  <NovaCard delay={150}
+                  <Card rise delay={150}
                     key={ticket.id}
                     style={{
                       padding: spacing(1.75),
@@ -184,7 +183,7 @@ export default function SupportHistoryScreen() {
                             alignSelf: 'flex-start',
                           }}
                         >
-                          <Text style={{ color: colors.primary, fontFamily: fonts.bold, fontSize: 13 }}>
+                          <Text style={{ color: colors.primary, fontFamily: fonts.bold, fontSize: fontSize.sm }}>
                             {ticket.id}
                           </Text>
                         </View>
@@ -207,7 +206,7 @@ export default function SupportHistoryScreen() {
                           <Text
                             style={{
                               color: isCopied ? colors.success : colors.primary,
-                              fontSize: 11,
+                              fontSize: fontSize.xxs,
                               fontFamily: fonts.semibold,
                             }}
                           >
@@ -216,17 +215,17 @@ export default function SupportHistoryScreen() {
                         </KPressable>
                       </View>
 
-                      <Text style={{ color: colors.textSecondary, fontSize: 11, fontFamily: fonts.regular }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: fontSize.xxs, fontFamily: fonts.regular }}>
                         {formatTicketDate(ticket.createdAt)}
                       </Text>
                     </View>
 
                     {/* Ligne Problème */}
                     <View style={{ gap: 2 }}>
-                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.medium }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, fontFamily: fonts.medium }}>
                         {t('supportHistoryProblem')}
                       </Text>
-                      <Text style={{ color: colors.text, fontSize: 14, fontFamily: fonts.semibold }} numberOfLines={isExpanded ? undefined : 2}>
+                      <Text style={{ color: colors.text, fontSize: fontSize.md, fontFamily: fonts.semibold }} numberOfLines={isExpanded ? undefined : 2}>
                         {ticket.problem}
                       </Text>
                     </View>
@@ -234,7 +233,7 @@ export default function SupportHistoryScreen() {
                     {/* Ligne Réseau */}
                     {ticket.network ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                        <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fonts.medium }}>
+                        <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, fontFamily: fonts.medium }}>
                           {t('supportHistoryNetwork')}
                         </Text>
                         <View
@@ -245,7 +244,7 @@ export default function SupportHistoryScreen() {
                             backgroundColor: colors.surface2,
                           }}
                         >
-                          <Text style={{ color: colors.text, fontSize: 12, fontFamily: fonts.medium }}>
+                          <Text style={{ color: colors.text, fontSize: fontSize.xs, fontFamily: fonts.medium }}>
                             {ticket.network}
                           </Text>
                         </View>
@@ -255,10 +254,10 @@ export default function SupportHistoryScreen() {
                     {/* Ligne Erreur détectée */}
                     {ticket.detectedError && !/^(?:Non déterminée|Inconnue|N\/A|\.\.\.)$/i.test(ticket.detectedError) ? (
                       <View style={{ gap: 2 }}>
-                        <Text style={{ color: colors.danger, fontSize: 12, fontFamily: fonts.medium }}>
+                        <Text style={{ color: colors.danger, fontSize: fontSize.xs, fontFamily: fonts.medium }}>
                           {t('supportHistoryDetectedError')}
                         </Text>
-                        <Text style={{ color: colors.danger, fontSize: 13, fontFamily: fonts.medium }} numberOfLines={isExpanded ? undefined : 2}>
+                        <Text style={{ color: colors.danger, fontSize: fontSize.sm, fontFamily: fonts.medium }} numberOfLines={isExpanded ? undefined : 2}>
                           {ticket.detectedError}
                         </Text>
                       </View>
@@ -277,7 +276,7 @@ export default function SupportHistoryScreen() {
                         <Text
                           style={{
                             color: colors.textSecondary,
-                            fontSize: 11,
+                            fontSize: fontSize.xxs,
                             fontFamily: fonts.regular,
                             lineHeight: 16,
                           }}
@@ -296,11 +295,11 @@ export default function SupportHistoryScreen() {
                         paddingVertical: 2,
                       }}
                     >
-                      <Text style={{ color: colors.primary, fontSize: 12, fontFamily: fonts.medium }}>
+                      <Text style={{ color: colors.primary, fontSize: fontSize.xs, fontFamily: fonts.medium }}>
                         {isExpanded ? t('supportHistoryHideDetails') : t('supportHistoryDetails')}
                       </Text>
                     </KPressable>
-                  </NovaCard>
+                  </Card>
                 );
               })}
 
@@ -316,13 +315,13 @@ export default function SupportHistoryScreen() {
                 }}
               >
                 <Icon name="broom" size={16} color={colors.textSecondary} />
-                <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: fonts.medium }}>
+                <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm, fontFamily: fonts.medium }}>
                   {t('supportHistoryClear')}
                 </Text>
               </KPressable>
             </View>
           )}
-      </PremiumScreen>
+      </Screen>
     </>
   );
 }

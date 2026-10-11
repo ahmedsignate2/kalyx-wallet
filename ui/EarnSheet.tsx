@@ -1,4 +1,4 @@
-import { Pressable as KPressable } from './kit';
+import { Pressable as KPressable, Button, Notice, RemoteIcon } from './kit';
 /**
  * EarnSheet — feuille de dépôt / retrait pour un protocole Earn.
  *
@@ -12,12 +12,10 @@ import { SafeModal } from './kit/SafeModal';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button } from './components';
-import { RemoteIcon, ErrorBox } from './premium';
 import { Icon } from './icon';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { SuccessModal } from './SuccessModal';
-import { fonts, radii, spacing, useTheme } from './theme';
+import { fonts, radii, spacing, useTheme, fontSize } from './theme';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
@@ -250,7 +248,7 @@ export function EarnSheet({
   const Row = ({ label, value, tone }: { label: string; value: string; tone?: 'up' | 'muted' }) => (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing(0.75) }}>
       <Text style={typography.muted}>{label}</Text>
-      <Text style={{ fontFamily: fonts.semibold, fontSize: 14, color: tone === 'up' ? colors.up : tone === 'muted' ? colors.textSecondary : colors.text, fontVariant: ['tabular-nums'] }}>
+      <Text style={{ fontFamily: fonts.semibold, fontSize: fontSize.md, color: tone === 'up' ? colors.up : tone === 'muted' ? colors.textSecondary : colors.text, fontVariant: ['tabular-nums'] }}>
         {value}
       </Text>
     </View>
@@ -266,9 +264,9 @@ export function EarnSheet({
           <KPressable noScale haptic="none" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={onClose} />
           {/* Feuille : colonne bornée (maxHeight) ; en-tête fixe + contenu défilable
               (flexShrink) → le bouton principal n'est jamais rogné. */}
-          <View style={{ backgroundColor: colors.surface2, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, paddingHorizontal: spacing(2.5), paddingTop: spacing(2), paddingBottom: Math.max(insets.bottom, 16) + 12, maxHeight: '85%', flexShrink: 1 }}>
+          <View style={{ backgroundColor: colors.surface2, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl, paddingHorizontal: spacing(2.5), paddingTop: spacing(2), paddingBottom: Math.max(insets.bottom, 16) + 12, maxHeight: '85%', flexShrink: 1 }}>
             {/* Poignée */}
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing(2) }} />
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: radii.full, backgroundColor: colors.border, marginBottom: spacing(2) }} />
 
             {/* En-tête */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), marginBottom: spacing(2.5) }}>
@@ -291,11 +289,11 @@ export function EarnSheet({
               {step === 'input' ? (
                 <>
                   {/* Saisie */}
-                  <View style={{ backgroundColor: colors.surface1, borderColor: colors.border, borderWidth: 1, borderRadius: radii.lg, padding: spacing(2) }}>
+                  <View style={{ backgroundColor: colors.surface1, borderColor: colors.border, borderWidth: 1, borderRadius: radii.xl, padding: spacing(2) }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <TextInput
                         ref={inputRef}
-                        style={{ flex: 1, fontSize: 34, fontFamily: fonts.bold, color: parseError || insufficient ? colors.danger : colors.text, padding: 0, fontVariant: ['tabular-nums'] }}
+                        style={{ flex: 1, fontSize: fontSize.h1, fontFamily: fonts.bold, color: parseError || insufficient ? colors.danger : colors.text, padding: 0, fontVariant: ['tabular-nums'] }}
                         placeholder="0"
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="decimal-pad"
@@ -307,7 +305,7 @@ export function EarnSheet({
                           setError(null);
                         }}
                       />
-                      <Text style={{ fontSize: 20, fontFamily: fonts.semibold, color: colors.textSecondary, marginLeft: spacing(1) }}>{tokenIn.symbol}</Text>
+                      <Text style={{ fontSize: fontSize.xxl, fontFamily: fonts.semibold, color: colors.textSecondary, marginLeft: spacing(1) }}>{tokenIn.symbol}</Text>
                     </View>
                     <Text style={[typography.muted, { marginTop: spacing(0.5) }]}>
                       {priceIn > 0 && amountNum > 0 ? `≈ ${money(inFiat)} ${fiatSymbol(fiat)}` : ' '}
@@ -325,9 +323,9 @@ export function EarnSheet({
                           key={n}
                           onPress={() => setPercent(n)}
                           disabled={depositable <= 0n || maxing}
-                          style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: radii.pill, backgroundColor: n === 100 ? colors.primary : colors.surface2, opacity: depositable <= 0n ? 0.4 : 1 }}
+                          style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: radii.full, backgroundColor: n === 100 ? colors.primary : colors.surface2, opacity: depositable <= 0n ? 0.4 : 1 }}
                         >
-                          <Text style={{ fontFamily: fonts.semibold, fontSize: 12, color: n === 100 ? colors.onPrimary : colors.text }}>{n === 100 ? t('earnMax') : `${n}%`}</Text>
+                          <Text style={{ fontFamily: fonts.semibold, fontSize: fontSize.xs, color: n === 100 ? colors.onPrimary : colors.text }}>{n === 100 ? t('earnMax') : `${n}%`}</Text>
                         </KPressable>
                       ))}
                     </View>
@@ -335,14 +333,14 @@ export function EarnSheet({
 
                   {/* Messages */}
                   <View style={{ marginTop: spacing(2), gap: spacing(1) }}>
-                    {insufficient ? <ErrorBox message={t('earnInsufficient')} /> : null}
+                    {insufficient ? <Notice message={t('earnInsufficient')} /> : null}
                     {belowGasMin ? (
-                      <ErrorBox message={t('errGasBelowMinimum').replace('{amount}', `${fmt(reserve, tokenIn.decimals)} ${tokenIn.symbol}`)} />
+                      <Notice message={t('errGasBelowMinimum').replace('{amount}', `${fmt(reserve, tokenIn.decimals)} ${tokenIn.symbol}`)} />
                     ) : reserveShort ? (
-                      <ErrorBox message={t('errAboveAvailable').replace('{amount}', `${fmt(reserve, tokenIn.decimals)} ${tokenIn.symbol}`)} />
+                      <Notice message={t('errAboveAvailable').replace('{amount}', `${fmt(reserve, tokenIn.decimals)} ${tokenIn.symbol}`)} />
                     ) : null}
-                    {noGas ? <ErrorBox tone="warning" message={t('earnLowGas').replace('{symbol}', chain.nativeSymbol)} /> : null}
-                    {error ? <ErrorBox message={error} /> : null}
+                    {noGas ? <Notice tone="warning" message={t('earnLowGas').replace('{symbol}', chain.nativeSymbol)} /> : null}
+                    {error ? <Notice message={error} /> : null}
                   </View>
 
                   {/* Info rendement */}
@@ -363,11 +361,11 @@ export function EarnSheet({
               ) : q ? (
                 <>
                   {/* Aperçu du devis */}
-                  <View style={{ backgroundColor: colors.surface1, borderColor: colors.border, borderWidth: 1, borderRadius: radii.lg, padding: spacing(2) }}>
+                  <View style={{ backgroundColor: colors.surface1, borderColor: colors.border, borderWidth: 1, borderRadius: radii.xl, padding: spacing(2) }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                       <View>
                         <Text style={typography.muted}>{isDeposit ? t('earnDeposit') : t('earnWithdraw')}</Text>
-                        <Text style={typography.display}>{fmt(q.amountIn, q.tokenIn.decimals)} <Text style={{ fontSize: 20, color: colors.textSecondary }}>{q.tokenIn.symbol}</Text></Text>
+                        <Text style={typography.display}>{fmt(q.amountIn, q.tokenIn.decimals)} <Text style={{ fontSize: fontSize.xxl, color: colors.textSecondary }}>{q.tokenIn.symbol}</Text></Text>
                       </View>
                       <Icon name="forward" size={22} color={colors.textTertiary} />
                       <View style={{ alignItems: 'flex-end' }}>
@@ -396,12 +394,12 @@ export function EarnSheet({
                   {p.withdrawNote ? (
                     <View style={{ marginTop: spacing(1.5), flexDirection: 'row', gap: spacing(1), alignItems: 'flex-start' }}>
                       <Icon name="info" size={16} color={colors.textTertiary} />
-                      <Text style={[typography.muted, { flex: 1, fontSize: 13 }]}>{t(p.withdrawNote as never).replace('{chain}', chain.name)}</Text>
+                      <Text style={[typography.muted, { flex: 1, fontSize: fontSize.sm }]}>{t(p.withdrawNote as never).replace('{chain}', chain.name)}</Text>
                     </View>
                   ) : null}
-                  {gasShort ? <View style={{ marginTop: spacing(1.5) }}><ErrorBox message={t('earnLowGas').replace('{symbol}', chain.nativeSymbol)} /></View> : null}
-                  {highFee ? <View style={{ marginTop: spacing(1.5) }}><ErrorBox tone="warning" message={t('earnHighFee')} /></View> : null}
-                  {error ? <View style={{ marginTop: spacing(1.5) }}><ErrorBox message={error} /></View> : null}
+                  {gasShort ? <View style={{ marginTop: spacing(1.5) }}><Notice message={t('earnLowGas').replace('{symbol}', chain.nativeSymbol)} /></View> : null}
+                  {highFee ? <View style={{ marginTop: spacing(1.5) }}><Notice tone="warning" message={t('earnHighFee')} /></View> : null}
+                  {error ? <View style={{ marginTop: spacing(1.5) }}><Notice message={error} /></View> : null}
 
                   <View style={{ marginTop: spacing(3), gap: spacing(1.5) }}>
                     <Button label={isDeposit ? t('earnConfirmDeposit') : t('earnConfirmWithdraw')} disabled={gasShort} onPress={() => { haptic.medium(); setUnlockVisible(true); }} />

@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text, Pressable as KPressable } from './kit';
 import { IconDisc } from './nova';
 import { Icon, type IconName } from './icon';
-import { useTheme } from './theme';
+import { useTheme, radii } from './theme';
 import { fontFamily } from './tokens';
 import { useSettings, useT } from '../lib/settingsStore';
 import { isBiometricAvailable } from '../lib/biometrics';
@@ -85,12 +85,12 @@ export function HomeNudge() {
     setSnoozed((s) => ({ ...s, [n.id]: true }));
   };
   return (
-    <View style={{ flexDirection: 'row', gap: 12, padding: 14, borderRadius: 22, backgroundColor: colors.surface1, borderWidth: 1, borderColor: 'rgba(255,181,71,0.28)' }}>
+    <View style={{ flexDirection: 'row', gap: 12, padding: 14, borderRadius: radii.xl, backgroundColor: colors.surface1, borderWidth: 1, borderColor: 'rgba(255,181,71,0.28)' }}>
       <IconDisc name={n.icon} tone="gold" size={40} />
       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
         <Text variant="body" style={{ fontFamily: fontFamily.semibold }}>{n.title}</Text>
         <Text variant="caption" tone="secondary">{n.body}</Text>
-        <KPressable onPress={n.go} haptic="light" hitSlop={8} accessibilityRole="button" accessibilityLabel={n.cta} style={{ alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 14, height: 32, borderRadius: 16, justifyContent: 'center', backgroundColor: colors.primary }}>
+        <KPressable onPress={n.go} haptic="light" hitSlop={8} accessibilityRole="button" accessibilityLabel={n.cta} style={{ alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 14, height: 32, borderRadius: radii.full, justifyContent: 'center', backgroundColor: colors.primary }}>
           <Text variant="caption" style={{ color: colors.onPrimary, fontFamily: fontFamily.semibold }}>{n.cta}</Text>
         </KPressable>
       </View>

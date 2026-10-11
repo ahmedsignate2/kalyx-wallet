@@ -15,7 +15,7 @@ import { availableFrom, freshRaw } from '../lib/swapBalance';
 import { beginSwap, useSwapBalances } from '../lib/useSwapBalances';
 import { CHAIN_LOGO_SVG } from '../src/domain/chains/chainLogos.generated';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Text, Button, IconButton, Surface, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, TickerCountdownRing, Skeleton, EmptyState, Pressable as KPressable } from '../ui/kit';
+import { Text, Button, IconButton, Divider, TokenIcon, AmountKeypad, Chip, Sheet, HoldButton, TickerCountdownRing, Skeleton, EmptyState, Pressable as KPressable, Card } from '../ui/kit';
 import { BridgeProgress } from '../ui/BridgeProgress';
 import { SuccessModal } from '../ui/SuccessModal';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
@@ -25,7 +25,7 @@ import { friendlyTxError } from '../lib/txError';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { toast } from '../lib/toast';
-import { space, SCREEN_MARGIN, springs } from '../ui/tokens';
+import { space, SCREEN_MARGIN, springs, radii } from '../ui/tokens';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { fill } from '../lib/i18n';
@@ -47,7 +47,7 @@ import {
   STONFI_TON_RESERVE,
   type ChainAdapter,
   type GasReserve,
-  type SwapQuote,
+  type SwapQuote
 } from '../src';
 import { useTokenStore, type Tok } from '../lib/tokenStore';
 import { usePortfolioStore } from '../lib/portfolio';
@@ -625,14 +625,14 @@ function SwapInner() {
   const [review, setReview] = useState(false);
 
   const TokenBlock = ({ label, tok, chainId, value, onPick, right, bottom, muted }: { label: string; tok: Tok | undefined; chainId: string; value: string; onPick: () => void; right?: React.ReactNode; bottom?: React.ReactNode; muted?: boolean }) => (
-    <View style={{ gap: space[2], padding: 18, borderRadius: 26, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+    <Card gap="sm">
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text variant="caption" tone="secondary">{label}</Text>
         {right}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ flex: 1, fontSize: 44, lineHeight: 50, letterSpacing: -1.2, color: muted ? colors.textTertiary : colors.text }}>{value || '0'}</Text>
-        <KPressable onPress={onPick} accessibilityLabel={`${label} : ${tok?.symbol ?? ''}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], height: 46, paddingLeft: 6, paddingRight: 12, borderRadius: 23, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border }}>
+        <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ flex: 1, color: muted ? colors.textTertiary : colors.text }}>{value || '0'}</Text>
+        <KPressable onPress={onPick} accessibilityLabel={`${label} : ${tok?.symbol ?? ''}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], height: 46, paddingLeft: 6, paddingRight: 12, borderRadius: radii.full, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border }}>
           {tok ? <TokenIcon symbol={tok.symbol} logo={tok.logo} seed={tok.address} size={32} /> : <Skeleton width={32} height={32} round />}
           <View>
             <Text variant="body">{tok?.symbol ?? '…'}</Text>
@@ -642,7 +642,7 @@ function SwapInner() {
         </KPressable>
       </View>
       {bottom}
-    </View>
+    </Card>
   );
 
   const RouteRow = ({ label, value, tone }: { label: string; value: string; tone?: 'danger' | 'warning' }) => (
@@ -677,7 +677,7 @@ function SwapInner() {
         <Text variant="title2" style={{ flex: 1 }}>{isBridge ? t('bridgeAction') : t('swapAction')}</Text>
         {quote && countdownActive && !stale ? <TickerCountdownRing ticker={countdown} total={QUOTE_TTL_S} /> : null}
         {available && account ? (
-          <KPressable onPress={() => setAdvanced((v) => !v)} accessibilityLabel={fill(t('slippageChip'), { pct: slippagePct })} style={{ paddingHorizontal: 12, height: 34, justifyContent: 'center', borderRadius: 17, backgroundColor: advanced ? colors.surface2 : colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+          <KPressable onPress={() => setAdvanced((v) => !v)} accessibilityLabel={fill(t('slippageChip'), { pct: slippagePct })} style={{ paddingHorizontal: 12, height: 34, justifyContent: 'center', borderRadius: radii.full, backgroundColor: advanced ? colors.surface2 : colors.surface1, borderWidth: 1, borderColor: colors.border }}>
             <Text variant="caption" tone="secondary">{fill(t('slippageChip'), { pct: slippagePct })}</Text>
           </KPressable>
         ) : null}
@@ -685,7 +685,7 @@ function SwapInner() {
 
       {!available || !account ? (
         <View style={{ padding: SCREEN_MARGIN }}>
-          <Surface><EmptyState icon="exchange" title={t('swapUnavailable')} body={t('swapUnavailableHint')} /></Surface>
+          <Card><EmptyState icon="exchange" title={t('swapUnavailable')} body={t('swapUnavailableHint')} /></Card>
         </View>
       ) : !fromTok || !toTok ? (
         <View style={{ padding: SCREEN_MARGIN, gap: space[3] }}><Skeleton height={110} /><Skeleton height={110} /></View>
@@ -739,7 +739,7 @@ function SwapInner() {
             </Rise>
             <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 5, alignItems: 'center', justifyContent: 'center' }}>
               <Animated.View style={flipStyle}>
-                <KPressable onPress={onFlip} disabled={isBridge} overshoot haptic="light" accessibilityLabel={t('swapFlip')} style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary, borderWidth: 4, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.5 : 1 }}>
+                <KPressable onPress={onFlip} disabled={isBridge} overshoot haptic="light" accessibilityLabel={t('swapFlip')} style={{ width: 54, height: 54, borderRadius: radii.full, backgroundColor: colors.primary, borderWidth: 4, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center', opacity: isBridge ? 0.5 : 1 }}>
                   <Icon name="convert" size={22} color={colors.onPrimary} />
                 </KPressable>
               </Animated.View>
@@ -748,9 +748,9 @@ function SwapInner() {
 
           {/* La route, en carte : par où passe l'échange, ce qu'il coûte, ce qu'on reçoit au pire. */}
           {quote ? (
-            <Rise delay={120} style={{ gap: space[3], padding: space[4], borderRadius: 22, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+            <Card delay={120} gap="md">
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: stale ? colors.warning : colors.up }} />
+                <View style={{ width: 8, height: 8, borderRadius: radii.full, backgroundColor: stale ? colors.warning : colors.up }} />
                 <Text variant="body" numberOfLines={2} style={{ flex: 1 }}>{routeTitle}</Text>
                 {routeDuration ? <Text variant="caption" tone="secondary">{routeDuration}</Text> : null}
               </View>
@@ -763,7 +763,7 @@ function SwapInner() {
                 <Icon name="security" size={15} color={colors.up} />
                 <Text variant="micro" tone="secondary" style={{ flex: 1 }}>{t('swapGuarded')}</Text>
               </View>
-            </Rise>
+            </Card>
           ) : null}
           {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
           {isNativeTokenAddress(fromTok.address) ? <Text variant="micro" tone="tertiary">{t('gasReserve')} : {gasReserve ? `≈ ${formatTokenAmount(gasReserve.raw, chain.nativeDecimals)} ${chain.nativeSymbol}${gasReserve.live ? '' : ' (est.)'}` : '…'}</Text> : null}
@@ -793,7 +793,7 @@ function SwapInner() {
         {quote && fromTok && toTok ? (
           <>
             <Text variant="title2">{isBridge ? t("verifyBridgeTitle") : t("verifySwapTitle")}</Text>
-            <Surface level={1} padded={false}>
+            <Card level={1} padded={false}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t("youGive")}</Text><Text variant="body" tone="down" tabular>− {amount} {fromTok.symbol}</Text></View>
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t("youReceiveEstimated")}</Text><Text variant="body" tone="up" tabular>+ {formatTokenAmount(quote.toAmount, quote.toToken.decimals)} {toTok.symbol}</Text></View>
@@ -803,7 +803,7 @@ function SwapInner() {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('networkFee')}</Text><Text variant="caption" tabular>{quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : ''}{quote.gasCostUsd > 0 ? ` (≈ ${formatFiat(quote.gasCostUsd)} $)` : quote.gasCostNative > 0n ? '' : '—'}</Text></View>
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', decimalSeparator())} %</Text></View>
-            </Surface>
+            </Card>
             <Text variant="caption" tone="secondary">{routeSentence}{t("slippageTolerance")}{(quote.slippage * 100).toFixed(1).replace('.', decimalSeparator())} %.</Text>
             {stale ? (
               // Devis périmé : on le renouvelle, on ne signe pas un prix qui n'a plus cours.

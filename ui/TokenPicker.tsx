@@ -3,7 +3,7 @@ import { SafeModal } from './kit/SafeModal';
 import { useT } from "../lib/settingsStore";
 import { useState, useMemo, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, ActivityIndicator } from 'react-native';
-import { fonts, radii, spacing, useTheme } from './theme';
+import { fonts, radii, spacing, useTheme, fontSize } from './theme';
 import { haptic } from '../lib/haptics';
 import { Icon } from './icon';
 import { TokenIcon } from './kit/TokenIcon';
@@ -170,15 +170,15 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
           <TokenIcon symbol={item.symbol} logo={item.logo} seed={item.address} size={32} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 16 }}>{item.symbol}</Text>
-          <Text style={{ color: colors.textSecondary, fontFamily: fonts.medium, fontSize: 12 }}>{item.name || item.symbol}</Text>
+          <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: fontSize.lg }}>{item.symbol}</Text>
+          <Text style={{ color: colors.textSecondary, fontFamily: fonts.medium, fontSize: fontSize.xs }}>{item.name || item.symbol}</Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           {balance != null && balance > 0n ? (
             <Text style={{ color: colors.text, fontFamily: fonts.semibold }}>{formatTokenAmount(balance, item.decimals)}</Text>
           ) : null}
           {mk ? (
-            <Text style={{ color: mk.change24h >= 0 ? colors.up : colors.down, fontFamily: fonts.medium, fontSize: 12 }}>
+            <Text style={{ color: mk.change24h >= 0 ? colors.up : colors.down, fontFamily: fonts.medium, fontSize: fontSize.xs }}>
               {mk.change24h >= 0 ? '+' : ''}{mk.change24h.toFixed(1)} % · 24 h
             </Text>
           ) : null}
@@ -191,10 +191,10 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
     <SafeModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <KPressable noScale haptic="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onClose} />
-        <KeyboardAvoid style={{ height: '85%', backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' }}>
+        <KeyboardAvoid style={{ height: '85%', backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl, overflow: 'hidden' }}>
         <View style={{ padding: spacing(2), borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(1.5) }}>
-            <Text style={{ color: colors.text, fontFamily: fonts.extrabold, fontSize: 20 }}>{t("tokenSelect")}</Text>
+            <Text style={{ color: colors.text, fontFamily: fonts.extrabold, fontSize: fontSize.xxl }}>{t("tokenSelect")}</Text>
             <KPressable onPress={onClose} hitSlop={10}>
               <Icon name="close" size={24} color={colors.textSecondary} />
             </KPressable>
@@ -206,7 +206,7 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
               onChangeText={setSearch}
               placeholder={t("tokenSearchPlaceholder")}
               placeholderTextColor={colors.textSecondary}
-              style={{ flex: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 15, marginLeft: spacing(1) }}
+              style={{ flex: 1, color: colors.text, fontFamily: fonts.medium, fontSize: fontSize.base, marginLeft: spacing(1) }}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -233,13 +233,13 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
                     alignItems: 'center',
                     paddingVertical: spacing(0.75),
                     paddingHorizontal: spacing(1.25),
-                    borderRadius: radii.pill,
+                    borderRadius: radii.full,
                     backgroundColor: active ? colors.primary : colors.surface1,
                     borderWidth: 1,
                     borderColor: active ? colors.primary : colors.border,
                   }}
                 >
-                  <Text style={{ color: active ? colors.onPrimary : colors.text, fontFamily: fonts.semibold, fontSize: 14 }}>
+                  <Text style={{ color: active ? colors.onPrimary : colors.text, fontFamily: fonts.semibold, fontSize: fontSize.md }}>
                     {item.name}
                   </Text>
                 </KPressable>
@@ -256,9 +256,9 @@ export function TokenPicker({ visible, onClose, onSelect, initialChainId, addres
                 <KPressable
                   key={it.key}
                   onPress={() => { haptic.selection(); setTab(it.key); }}
-                  style={{ paddingVertical: spacing(0.75), paddingHorizontal: spacing(1.25), borderRadius: radii.pill, backgroundColor: active ? colors.surface2 : 'transparent' }}
+                  style={{ paddingVertical: spacing(0.75), paddingHorizontal: spacing(1.25), borderRadius: radii.full, backgroundColor: active ? colors.surface2 : 'transparent' }}
                 >
-                  <Text style={{ color: active ? colors.text : colors.textSecondary, fontFamily: fonts.semibold, fontSize: 13 }}>{it.label}</Text>
+                  <Text style={{ color: active ? colors.text : colors.textSecondary, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{it.label}</Text>
                 </KPressable>
               );
             })}
