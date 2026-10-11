@@ -38,11 +38,16 @@
  * expirer seul (~1 h, gardé en mémoire uniquement) au lieu de le révoquer :
  * sinon une simple vérification manuelle couperait la synchro.
  *
- * Prérequis : EXPO_PUBLIC_GOOGLE_CLIENT_ID (client OAuth Android/iOS, .env.example)
+ * Prérequis : EXPO_PUBLIC_GOOGLE_CLIENT_ID (client OAuth Android) et, pour iOS,
+ * EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID (client OAuth iOS) — cf. .env.example —
  * + schéma inversé déclaré dans app.config.ts + « Activer le schéma d'URI
  * personnalisé » coché sur le client dans la console Google.
  */
+// Navigateur système via Linking.openURL (pas d'expo-web-browser : aucune
+// dépendance ajoutée). Sur iOS, Safari s'ouvre hors de l'app puis revient par
+// le schéma inversé du client iOS.
 import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import {
@@ -50,10 +55,12 @@ import {
   createPkceSession,
   GOOGLE_REVOKE_URL,
   GOOGLE_TOKEN_URL,
+  isGoogleClientId,
   isRefreshRejected,
   parseRedirect,
   parseTokenResponse,
   refreshRequestBody,
+  selectGoogleClientId,
   tokenRequestBody,
   type TokenResponse,
 } from '../src/domain/backup/oauthPkce';
@@ -75,11 +82,20 @@ import { getDeviceId } from './deviceId';
 import { kvDel, kvGet, kvSet, KV_DEVICE_ONLY } from './kv';
 import { isDecoySession } from './sessionMode';
 
-export const GOOGLE_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '').trim();
+/**
+ * Client de CETTE plateforme (Platform.select ios / default) : autorisation,
+ * échange, rafraîchissement et lecture de la redirection l'utilisent tous. La
+ * révocation (`revokeToken`) ne prend que le jeton. '' si l'ID manque (iOS
+ * sans client iOS) → `not_configured`.
+ */
+export const GOOGLE_CLIENT_ID = selectGoogleClientId(Platform.OS, {
+  ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  android: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+});
 
-/** Vrai si l'app a été configurée (et donc construite) avec un client Google. */
+/** Vrai si l'app a été configurée (et donc construite) avec un client Google pour cette plateforme. */
 export function isDriveConfigured(): boolean {
-  return GOOGLE_CLIENT_ID.endsWith('.apps.googleusercontent.com');
+  return isGoogleClientId(GOOGLE_CLIENT_ID);
 }
 
 export class GoogleAuthError extends Error {
@@ -237,6 +253,8 @@ export async function purgeRefreshToken(): Promise<void> {
  *  - GoogleAuthError `refresh_failed` : toute autre réponse.
  */
 export async function refreshAccessToken(refreshToken: string, fetchFn: typeof fetch = fetch): Promise<string> {
+  // Sans client pour cette plateforme : erreur propre, le refresh_token n'est PAS purgé.
+  if (!isDriveConfigured()) throw new GoogleAuthError('Google Drive non configuré', 'not_configured');
   const res = await fetchFn(GOOGLE_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

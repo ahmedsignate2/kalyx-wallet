@@ -59,7 +59,7 @@ export async function tryInOrder<I, T>(
   op: (item: I) => Promise<T>,
   opts: { timeoutMs: number; /** Clé de mémoire de santé (ex. l'id de chaîne) : les RPC en panne passent en dernier. */ key?: string },
 ): Promise<T> {
-  const order = opts.key ? orderByHealth(opts.key, items.length) : items.map((_, i) => i);
+  const order = opts.key ? rpcTryOrder(opts.key, items.length) : items.map((_, i) => i);
   for (const i of order) {
     const item = items[i];
     try {
@@ -123,6 +123,74 @@ function markHealthy(key: string, i: number): void {
 export function resetRpcHealth(): void {
   failedAt.clear();
   lastGood.clear();
+}
+
+/* ------------------------------------------------------------------ */
+/* Épinglage (écran Développeur) et lecture de la santé                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * RPC ÉPINGLÉ par l'utilisateur (Développeur → Réseaux), par clé de santé
+ * (`evm:ethereum`, `sol:solana`, `btc:bitcoin`) : index dans `rpcUrls`.
+ * Posé par lib/rpcOverridesStore.ts, qui seul connaît les URL ; ce module
+ * ne voit que des index.
+ *
+ * L'algorithme de santé n'est PAS modifié : l'épingle s'applique APRÈS lui, et
+ * seulement si le RPC épinglé n'est pas en pénalité — un RPC épinglé en panne
+ * ne doit pas faire attendre un timeout complet à chaque appel.
+ */
+const pinned = new Map<string, number>();
+
+export function setRpcPin(key: string, index: number | null): void {
+  if (index === null || !Number.isInteger(index) || index < 0) pinned.delete(key);
+  else pinned.set(key, index);
+}
+
+export function getRpcPin(key: string): number | null {
+  return pinned.get(key) ?? null;
+}
+
+/** Tests : oublier les épingles. */
+export function resetRpcPins(): void {
+  pinned.clear();
+}
+
+function inCooldown(key: string, i: number, now = Date.now()): boolean {
+  const t = failedAt.get(`${key}:${i}`);
+  return t !== undefined && now - t < RPC_COOLDOWN_MS;
+}
+
+/** Ordre d'essai effectif : santé d'abord (inchangée), puis l'épingle en tête si elle est saine. */
+export function rpcTryOrder(key: string, count: number): number[] {
+  const order = orderByHealth(key, count);
+  const pin = pinned.get(key);
+  if (pin === undefined || pin >= count || inCooldown(key, pin)) return order;
+  return [pin, ...order.filter((i) => i !== pin)];
+}
+
+export type RpcHealthState = 'good' | 'failed' | 'unknown';
+
+/**
+ * État de santé, en lecture seule, pour l'affichage : `good` = dernier RPC qui
+ * a répondu, `failed` = en pénalité (échec il y a moins d'une minute),
+ * `unknown` = rien de récent. Aucune URL ici : des index.
+ */
+export function rpcHealthSnapshot(key: string, count: number): { index: number; state: RpcHealthState; failedAgoMs?: number; rank: number; pinned: boolean }[] {
+  const now = Date.now();
+  const order = rpcTryOrder(key, count);
+  const good = lastGood.get(key);
+  const pin = pinned.get(key);
+  return Array.from({ length: count }, (_, i) => {
+    const t = failedAt.get(`${key}:${i}`);
+    const failed = t !== undefined && now - t < RPC_COOLDOWN_MS;
+    return {
+      index: i,
+      state: (failed ? 'failed' : i === good ? 'good' : 'unknown') as RpcHealthState,
+      ...(failed ? { failedAgoMs: now - (t as number) } : {}),
+      rank: order.indexOf(i),
+      pinned: pin === i,
+    };
+  });
 }
 
 /**

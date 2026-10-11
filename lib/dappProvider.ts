@@ -33,21 +33,82 @@ export const READONLY_METHODS = new Set([
   'eth_syncing',
 ]);
 
-/** POST JSON-RPC vers le premier RPC qui répond (fallbacks). */
-export async function rpcProxy(rpcUrls: string[], method: string, params: unknown[]): Promise<unknown> {
-  let lastError: unknown = new Error('Aucun RPC disponible');
+/** Erreur JSON-RPC propre, relayée telle quelle à la dApp (code EIP-1193 / JSON-RPC). */
+export class RpcProxyError extends Error {
+  readonly code: number;
+  readonly data?: unknown;
+  constructor(code: number, message: string, data?: unknown) {
+    super(message);
+    this.name = 'RpcProxyError';
+    this.code = code;
+    this.data = data;
+  }
+}
+
+/** Délai maximal d'un appel au nœud (par RPC essayé). */
+export const RPC_PROXY_TIMEOUT_MS = 10_000;
+
+/**
+ * Relais JSON-RPC vers le premier RPC qui répond (fallbacks).
+ *
+ * - LECTURE SEULE uniquement : toute méthode hors `READONLY_METHODS` est refusée
+ *   ici même (-32601), quel que soit l'appelant — pas seulement par le navigateur.
+ * - Délai par RPC (AbortController) : un nœud muet ne bloque plus la dApp.
+ * - `res.ok` vérifié ; réponse illisible ou sans `result` = nœud suivant.
+ * - Une ERREUR JSON-RPC du nœud (ex. « execution reverted ») est une vraie
+ *   réponse : relayée telle quelle (code, message, data), sans essayer ailleurs.
+ */
+export async function rpcProxy(
+  rpcUrls: string[],
+  method: string,
+  params: unknown[],
+  opts: { timeoutMs?: number; fetcher?: typeof fetch } = {},
+): Promise<unknown> {
+  if (!READONLY_METHODS.has(method)) throw new RpcProxyError(-32601, `Méthode non relayée : ${method}`);
+  const timeoutMs = opts.timeoutMs ?? RPC_PROXY_TIMEOUT_MS;
+  const doFetch = opts.fetcher ?? fetch;
+  let lastError: RpcProxyError = new RpcProxyError(-32603, 'Aucun RPC disponible');
   for (const url of rpcUrls) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
-      const res = await fetch(url, {
+      const res = await doFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params: Array.isArray(params) ? params : [] }),
+        signal: ctrl.signal,
       });
-      const json = (await res.json()) as { result?: unknown; error?: { message?: string; code?: number } };
-      if (json.error) throw Object.assign(new Error(json.error.message ?? 'Erreur RPC'), { code: json.error.code });
+      if (!res.ok) {
+        lastError = new RpcProxyError(-32603, `RPC indisponible (HTTP ${res.status})`);
+        continue;
+      }
+      const json = (await res.json()) as { result?: unknown; error?: { message?: unknown; code?: unknown; data?: unknown } } | null;
+      if (json && typeof json === 'object' && json.error) {
+        const code = typeof json.error.code === 'number' ? json.error.code : -32603;
+        const message = typeof json.error.message === 'string' ? json.error.message.slice(0, 300) : 'Erreur RPC';
+        /*
+         * Erreur d'EXÉCUTION (revert d'un eth_call / eth_estimateGas) : c'est la
+         * réponse, la même sur tous les nœuds — relayée telle quelle. Toute autre
+         * erreur (limite de débit -32005, « header not found », nœud en retard…)
+         * est propre à CE nœud : on essaie le suivant, comme avant.
+         */
+        const execution = code === 3 || (/revert/i.test(message) && json.error.data !== undefined);
+        if (execution) throw new RpcProxyError(code, message, json.error.data);
+        lastError = new RpcProxyError(code, message, json.error.data);
+        continue;
+      }
+      if (!json || typeof json !== 'object' || !('result' in json)) {
+        lastError = new RpcProxyError(-32603, 'Réponse RPC illisible');
+        continue;
+      }
       return json.result;
     } catch (e) {
-      lastError = e;
+      if (e instanceof RpcProxyError) throw e;
+      lastError = ctrl.signal.aborted
+        ? new RpcProxyError(-32603, `RPC sans réponse (${Math.round(timeoutMs / 1000)} s)`)
+        : new RpcProxyError(-32603, 'RPC injoignable');
+    } finally {
+      clearTimeout(timer);
     }
   }
   throw lastError;

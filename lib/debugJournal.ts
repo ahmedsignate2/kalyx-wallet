@@ -38,6 +38,18 @@ const MAX_MEMORY = 3000;
 const MAX_STORED = 1500;
 const MAX_LINE = 1200;
 const STORE_KEY = 'kalyx.debugJournal.v1';
+/**
+ * Copie de l'interrupteur « Journal de diagnostic » (la vérité est dans
+ * settingsStore → `debugJournalEnabled`). Lue ICI au démarrage, parce que le
+ * journal s'installe bien avant que les réglages soient chargés : sans elle,
+ * tout le début de session serait enregistré malgré l'interrupteur coupé.
+ */
+const ENABLED_KEY = 'kalyx.debugJournal.enabled';
+
+/** Interrupteur : coupé, plus rien n'est enregistré (ni en mémoire, ni sur disque). */
+let enabled = true;
+/** Instant d'installation : les lignes de CETTE session, si l'interrupteur se révèle coupé, sont jetées. */
+let installedAt = 0;
 
 let lines: JournalLine[] = [];
 let installed = false;
@@ -63,7 +75,7 @@ function stringify(v: unknown): string {
 }
 
 function scheduleSave(): void {
-  if (saveTimer) return;
+  if (saveTimer || !enabled) return;
   saveTimer = setTimeout(() => {
     saveTimer = null;
     AsyncStorage.setItem(STORE_KEY, JSON.stringify(lines.slice(-MAX_STORED))).catch(() => {});
@@ -72,6 +84,7 @@ function scheduleSave(): void {
 
 export function journal(k: JournalKind, ...parts: unknown[]): void {
   if (isDecoySession()) return; // session leurre : rien n'est consigné (le journal trahirait les deux coffres)
+  if (!enabled) return; // interrupteur coupé : rien n'est consigné
   if (inJournal) return;
   inJournal = true;
   try {
@@ -116,6 +129,37 @@ export function clearJournal(): void {
   for (const l of listeners) l();
 }
 
+export function isJournalEnabled(): boolean {
+  return enabled;
+}
+
+/**
+ * Active ou coupe le journal. Coupé : aucune ligne n'est plus enregistrée, la
+ * sauvegarde en attente est annulée. Les lignes déjà présentes restent
+ * lisibles (et effaçables) dans l'écran Journal.
+ * `persist` : recopie l'état pour le prochain démarrage (jamais en session leurre).
+ */
+export function setJournalEnabled(on: boolean, persist = true): void {
+  if (!on && saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  if (on && !enabled) {
+    enabled = true;
+    journal('app', 'journal activé');
+  } else if (!on && enabled) {
+    enabled = false;
+  }
+  if (persist && !isDecoySession()) void AsyncStorage.setItem(ENABLED_KEY, on ? '1' : '0').catch(() => {});
+  for (const l of listeners) {
+    try {
+      l();
+    } catch {
+      /* ignoré */
+    }
+  }
+}
+
 const pad = (n: number, w = 2) => String(n).padStart(w, '0');
 export function formatLine(l: JournalLine): string {
   const d = new Date(l.t);
@@ -130,6 +174,22 @@ export function journalText(): string {
 export function installJournal(): void {
   if (installed) return;
   installed = true;
+  installedAt = Date.now();
+
+  // Interrupteur coupé lors d'une session précédente : les lignes déjà prises
+  // depuis l'installation (quelques millisecondes) sont jetées, rien n'est écrit.
+  AsyncStorage.getItem(ENABLED_KEY)
+    .then((v) => {
+      if (v !== '0') return;
+      enabled = false;
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+      }
+      lines = lines.filter((l) => l.t < installedAt);
+      for (const l of listeners) l();
+    })
+    .catch(() => {});
 
   // Lignes de la session précédente (plantage, redémarrage) : remises en tête.
   AsyncStorage.getItem(STORE_KEY)
@@ -144,7 +204,7 @@ export function installJournal(): void {
       }
       if (prev.length === 0) return;
       const mark: JournalLine = { t: Date.now(), k: 'app', m: '——— nouvelle session (lignes ci-dessus : session précédente) ———' };
-      lines = [...prev, mark, ...lines].slice(-MAX_MEMORY);
+      lines = [...prev, ...(enabled ? [mark] : []), ...lines].slice(-MAX_MEMORY);
       for (const l of listeners) l();
     })
     .catch(() => {});

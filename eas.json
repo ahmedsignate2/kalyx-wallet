@@ -30,12 +30,28 @@
       "android": {
         "buildType": "apk"
       }
+    },
+    "preview-ios": {
+      "extends": "preview",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "ios-sim": {
+      "extends": "preview",
+      "ios": {
+        "simulator": true
+      }
     }
   },
   "submit": {
     "production": {
       "android": {
         "track": "internal"
+      },
+      "ios": {
+        "ascAppId": "A_REMPLIR_ID_app_App_Store_Connect",
+        "appleTeamId": "A_REMPLIR_TEAM_ID_APPLE"
       }
     }
   }

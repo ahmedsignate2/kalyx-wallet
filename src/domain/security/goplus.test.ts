@@ -44,3 +44,28 @@ describe('GoPlus — parsePhishingSite', () => {
     expect(parsePhishingSite({})).toBe(false);
   });
 });
+
+describe('GoPlus — phishingSiteStatus (trois états)', () => {
+  const { parsePhishingSiteStatus, phishingSiteStatus } = jest.requireActual('./goplus') as typeof import('./goplus');
+  const res = (status: number, body: unknown) => ({ ok: status >= 200 && status < 300, status, json: async () => body }) as unknown as Response;
+
+  it('parse : phishing / safe / unknown', () => {
+    expect(parsePhishingSiteStatus({ code: 1, result: { phishing_site: 1 } })).toBe('phishing');
+    expect(parsePhishingSiteStatus({ code: 1, result: { phishing_site: 0 } })).toBe('safe');
+    expect(parsePhishingSiteStatus({ code: 4029, message: 'limit' })).toBe('unknown');
+    expect(parsePhishingSiteStatus({ code: 1 })).toBe('unknown');
+    expect(parsePhishingSiteStatus({})).toBe('unknown');
+    expect(parsePhishingSiteStatus(null)).toBe('unknown');
+  });
+  it('une erreur réseau donne unknown, jamais safe', async () => {
+    await expect(phishingSiteStatus('https://x.io', (async () => { throw new Error('offline'); }) as typeof fetch)).resolves.toBe('unknown');
+  });
+  it('un HTTP 429/500 donne unknown', async () => {
+    await expect(phishingSiteStatus('https://x.io', (async () => res(429, { code: 1, result: { phishing_site: 0 } })) as typeof fetch)).resolves.toBe('unknown');
+    await expect(phishingSiteStatus('https://x.io', (async () => res(500, {})) as typeof fetch)).resolves.toBe('unknown');
+  });
+  it('une réponse valide est relue', async () => {
+    await expect(phishingSiteStatus('https://x.io', (async () => res(200, { code: 1, result: { phishing_site: 0 } })) as typeof fetch)).resolves.toBe('safe');
+    await expect(phishingSiteStatus('https://x.io', (async () => res(200, { code: 1, result: { phishing_site: '1' } })) as typeof fetch)).resolves.toBe('phishing');
+  });
+});

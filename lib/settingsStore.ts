@@ -72,6 +72,11 @@ interface SettingsState {
   backupDigest: string | null;
   /** Phrase de récupération vérifiée (3 mots) — critère du centre de sécurité. */
   backupVerified: boolean;
+  /**
+   * Journal de diagnostic (lib/debugJournal.ts) — Développeur. ACTIVÉ par
+   * défaut ; coupé, plus rien n'est enregistré.
+   */
+  debugJournalEnabled: boolean;
 
   load: () => Promise<void>;
   setProfileName: (name: string) => void;
@@ -94,11 +99,12 @@ interface SettingsState {
   /** Date constatée sur Drive (vérification en ligne) : écrase la mémoire locale. */
   setDriveBackupAt: (iso: string) => void;
   setBackupVerified: (on: boolean) => void;
+  setDebugJournalEnabled: (on: boolean) => void;
 }
 
 type Persisted = Pick<
   SettingsState,
-  | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'aiToolsEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt' | 'driveBackupAt' | 'backupDigest'
+  | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'aiToolsEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt' | 'driveBackupAt' | 'backupDigest' | 'debugJournalEnabled'
 >;
 
 /*
@@ -143,6 +149,7 @@ function write(s: Persisted) {
     driveBackupAt: s.driveBackupAt,
     backupDigest: s.backupDigest,
     backupVerified: s.backupVerified,
+    debugJournalEnabled: s.debugJournalEnabled,
   });
 }
 
@@ -169,6 +176,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   driveBackupAt: null,
   backupDigest: null,
   backupVerified: false,
+  debugJournalEnabled: true,
 
   load: async () => {
     const s = await loadSettings();
@@ -197,6 +205,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
       driveBackupAt: typeof s?.driveBackupAt === 'string' ? s.driveBackupAt : null,
       backupDigest: typeof s?.backupDigest === 'string' ? s.backupDigest : null,
       backupVerified: s?.backupVerified === true,
+      // Défaut ACTIVÉ : seul un `false` explicite le coupe.
+      debugJournalEnabled: s?.debugJournalEnabled !== false,
     };
     // Changements faits pendant le chargement : réappliqués sur le disque lu, puis écrits.
     const queued = pending;
@@ -204,6 +214,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
     const next = { ...fromDisk, ...queued };
     setNumberLocale(next.language);
     set({ loaded: true, ...next });
+    applyJournalSwitch(next.debugJournalEnabled, true);
     if (queued) write(next);
     if (isDecoySession()) set(DECOY_MASK);
   },
@@ -252,6 +263,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setBackupVerified: (on) => {
     set({ backupVerified: on });
     persist({ backupVerified: on });
+  },
+  setDebugJournalEnabled: (on) => {
+    set({ debugJournalEnabled: on });
+    persist({ debugJournalEnabled: on });
+    applyJournalSwitch(on, true);
   },
 
   setProfileName: (name) => {
@@ -364,6 +380,18 @@ export function useExplainT(): ExplainT {
     }
     return out;
   }, [lang]);
+}
+
+/**
+ * Répercute l'interrupteur sur le journal (et sa copie de démarrage).
+ * `require` différé : le journal importe react-native, inutile ailleurs.
+ */
+function applyJournalSwitch(on: boolean, persistMirror: boolean): void {
+  try {
+    (require('./debugJournal') as typeof import('./debugJournal')).setJournalEnabled(on, persistMirror);
+  } catch {
+    /* journal indisponible (tests) */
+  }
 }
 
 export function fiatSymbol(code: string): string {

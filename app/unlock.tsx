@@ -15,6 +15,8 @@ import { useWallet, pinLockRemainingMs } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { flushPendingIntent } from '../lib/paymentIntent';
 import { isBiometricAvailable } from '../lib/biometrics';
+import { detectReinstall } from '../lib/installMarker';
+import { recordTechnicalLog } from '../lib/technicalLogger';
 
 export default function Unlock() {
   const { colors } = useTheme();
@@ -48,6 +50,20 @@ export default function Unlock() {
   // Même règle que le portefeuille (horloge du téléphone ET chronomètre interne) ; le tic de `setNow` fait seulement retourner le décompte.
   const lockedMs = pinLockRemainingMs();
   const locked = lockedMs > 0;
+  /*
+   * iOS : le trousseau survit à la désinstallation (lib/installMarker). Une
+   * réinstallation détectée est seulement JOURNALISÉE pour l'instant — aucun
+   * effacement automatique (risque de perte de fonds) ; un écran futur
+   * proposera à l'utilisateur de garder ou de retirer ces portefeuilles.
+   */
+  useEffect(() => {
+    detectReinstall()
+      .then((reinstalled) => {
+        if (reinstalled) recordTechnicalLog('WALLET', 'Réinstallation iOS probable : portefeuilles retrouvés dans le trousseau, données locales absentes');
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!locked) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -148,7 +164,8 @@ export default function Unlock() {
   return (
     <Animated.View style={{ flex: 1, backgroundColor: colors.bg, opacity: screenOp }}>
       {/* Plein écran : pas de barre d'en-tête vide. */}
-      <Stack.Screen options={{ headerShown: false }} />
+      {/* Écran de verrouillage : aucun balayage iOS ne doit le contourner. */}
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
       {/* `gradients.screen` rend une couleur unie (flat()) : une View suffit,
           et le §2.2 ne tolère aucun dégradé décoratif. */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />

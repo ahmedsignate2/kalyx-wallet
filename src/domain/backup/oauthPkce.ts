@@ -27,6 +27,25 @@ export const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 export const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 export const GOOGLE_REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 
+const GOOGLE_CLIENT_SUFFIX = '.apps.googleusercontent.com';
+
+/** Vrai si `clientId` a la forme d'un ID client OAuth Google. */
+export function isGoogleClientId(clientId: string): boolean {
+  return clientId.length > GOOGLE_CLIENT_SUFFIX.length && clientId.endsWith(GOOGLE_CLIENT_SUFFIX);
+}
+
+/**
+ * Client OAuth à utiliser selon la plateforme. Google lie chaque client
+ * « installé » à UNE plateforme : le client Android (package + empreinte) est
+ * refusé sur iOS, qui exige un client de type iOS (bundle ID) — et inversement.
+ * Aucun repli croisé : sans ID iOS, iOS renvoie '' (→ `not_configured`), plutôt
+ * qu'un flux que Google rejetterait à la redirection.
+ */
+export function selectGoogleClientId(os: string, ids: { ios?: string; android?: string }): string {
+  const id = ((os === 'ios' ? ids.ios : ids.android) ?? '').trim();
+  return isGoogleClientId(id) ? id : '';
+}
+
 /** Base64url sans padding (RFC 4648 §5). */
 export function base64url(bytes: Uint8Array): string {
   let bin = '';
@@ -40,9 +59,8 @@ export function base64url(bytes: Uint8Array): string {
  * `123-abc.apps.googleusercontent.com` → `com.googleusercontent.apps.123-abc`.
  */
 export function reversedClientScheme(clientId: string): string {
-  const suffix = '.apps.googleusercontent.com';
-  if (!clientId.endsWith(suffix)) throw new Error('ID client Google invalide (attendu *.apps.googleusercontent.com)');
-  return `com.googleusercontent.apps.${clientId.slice(0, -suffix.length)}`;
+  if (!clientId.endsWith(GOOGLE_CLIENT_SUFFIX)) throw new Error('ID client Google invalide (attendu *.apps.googleusercontent.com)');
+  return `com.googleusercontent.apps.${clientId.slice(0, -GOOGLE_CLIENT_SUFFIX.length)}`;
 }
 
 export function redirectUriFor(clientId: string): string {

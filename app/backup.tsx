@@ -8,7 +8,7 @@ import { useT } from "../lib/settingsStore";
  * Sauter la sauvegarde = bandeau permanent sur l'accueil + point dans Sécurité.
  */
 import { useEffect, useState } from 'react';
-import { View, ScrollView, Platform } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ScreenCapture from 'expo-screen-capture';
@@ -66,7 +66,8 @@ export default function Backup() {
         <Text variant="body">{t('seedOwnershipWarning').replace('{n}', String(words.length))}</Text>
         <Text variant="bodySecondary" tone="secondary">
           {words.length} {t('wordsInOrderHint')} {t('backupWarning')}
-          {Platform.OS === 'android' ? t('screenshotBlocked') : ''}
+          {/* Android (FLAG_SECURE) comme iOS (expo-screen-capture) bloquent la capture ici. */}
+          {t('screenshotBlocked')}
         </Text>
 
         {/* Grille masquée tant que le doigt n'est pas dessus */}

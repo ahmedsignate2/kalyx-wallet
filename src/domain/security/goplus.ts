@@ -58,11 +58,32 @@ export function parsePhishingSite(json: unknown): boolean {
   return String(r?.phishing_site) === '1';
 }
 
-async function getJson(path: string): Promise<unknown> {
+/**
+ * Verdict anti-phishing d'un site, à TROIS états. `unknown` = GoPlus n'a pas pu
+ * répondre (réseau, quota, réponse illisible) : ce n'est PAS « sûr ». L'appelant
+ * ne le mémorise pas comme un verdict définitif et réessaie au chargement suivant.
+ */
+export type PhishingVerdict = 'safe' | 'phishing' | 'unknown';
+
+/** Réponse GoPlus → verdict. Un `code` d'erreur ou un `result` absent = `unknown`, jamais `safe`. */
+export function parsePhishingSiteStatus(json: unknown): PhishingVerdict {
+  const j = json as { code?: number | string; result?: { phishing_site?: number | string } } | null;
+  if (!j || typeof j !== 'object') return 'unknown';
+  if (j.code !== undefined && Number(j.code) !== 1) return 'unknown';
+  const v = j.result?.phishing_site;
+  if (String(v) === '1') return 'phishing';
+  if (String(v) === '0') return 'safe';
+  return 'unknown';
+}
+
+async function getJson(path: string, fetcher: typeof fetch = fetch): Promise<unknown> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const res = (await Promise.race([
-    fetch(`${BASE}${path}`),
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT)),
-  ])) as Response;
+    fetcher(`${BASE}${path}`),
+    new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), TIMEOUT); }),
+  ]).finally(() => clearTimeout(timer))) as Response;
+  // 429 / 5xx : pas une réponse exploitable (la lire comme « rien de signalé » serait faux).
+  if (!res.ok) throw new Error(`GoPlus HTTP ${res.status}`);
   return res.json();
 }
 
@@ -84,7 +105,23 @@ export async function assessToken(chainId: number, contract: string): Promise<Ri
   }
 }
 
-/** True si GoPlus signale l'URL comme site de phishing. */
+/**
+ * Verdict anti-phishing à trois états (voir `PhishingVerdict`). Jamais d'exception :
+ * toute erreur donne `unknown`. `fetcher` : injectable pour les tests.
+ */
+export async function phishingSiteStatus(url: string, fetcher: typeof fetch = fetch): Promise<PhishingVerdict> {
+  try {
+    return parsePhishingSiteStatus(await getJson(`/phishing_site?url=${encodeURIComponent(url)}`, fetcher));
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * True si GoPlus signale l'URL comme site de phishing. `false` veut dire « non
+ * signalé » (y compris quand l'analyse a échoué) — jamais « sûr ». Pour
+ * distinguer l'échec, utiliser `phishingSiteStatus`.
+ */
 export async function isPhishingSite(url: string): Promise<boolean> {
   try {
     return parsePhishingSite(await getJson(`/phishing_site?url=${encodeURIComponent(url)}`));
