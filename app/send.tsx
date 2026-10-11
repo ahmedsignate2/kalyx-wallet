@@ -974,9 +974,12 @@ function SendInner() {
               <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit tone={overBalance ? 'danger' : 'primary'}>
                 {amount || '0'} <Text variant="title2" tone="secondary">{inFiat ? sym : symbol}</Text>
               </Text>
-              <Text variant="caption" tone="secondary" tabular>
-                {price > 0 ? (inFiat ? `≈ ${tokenAmountStr || '0'} ${symbol}` : `≈ ${formatFiat(fiatOfAmount)} ${sym}`) : ' '}{price > 0 ? '  ⇅' : ''}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                <Text variant="caption" tone="secondary" tabular>
+                  {price > 0 ? (inFiat ? `≈ ${tokenAmountStr || '0'} ${symbol}` : `≈ ${formatFiat(fiatOfAmount)} ${sym}`) : ' '}
+                </Text>
+                {price > 0 ? <Icon name="arrowsDownUp" size={14} color={colors.textSecondary} /> : null}
+              </View>
             </KPressable>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               {balance == null ? <Skeleton width={160} /> : <Text variant="caption" tone="secondary" tabular>{t("balanceLabel")} : {formatTokenAmount(balance, decimals)} {symbol}</Text>}

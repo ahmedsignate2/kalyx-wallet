@@ -17,6 +17,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Linking } from 'react-native';
 import { Text, Button, Surface, ListRow, IconButton, Skeleton, EmptyState, Chip, Pressable as KPressable } from '../ui/kit';
 import { useTheme } from '../ui/theme';
+import { Icon } from '../ui/icon';
 import { space, SCREEN_MARGIN } from '../ui/tokens';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { usePay, payAmountText, type PayOption } from '../lib/walletconnectPay';
@@ -366,7 +367,7 @@ function PayScreenInner() {
           needsInfo ? (
             <Chip label={t('payInfoRequired')} selected={false} onPress={() => select(o, mode === 'light' ? 'light' : 'dark')} />
           ) : (
-            <Text variant="caption" tone={active ? 'primary' : 'secondary'}>{active ? '✓' : ''}</Text>
+            active ? <Icon name="checkmark" size={16} color={colors.text} weight="bold" /> : null
           )
         }
         onPress={() => select(o, mode === 'light' ? 'light' : 'dark')}

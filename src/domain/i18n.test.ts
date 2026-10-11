@@ -1,4 +1,4 @@
-import { detectInitialLanguage, resolveLanguage, applyRTL, isRtl, translate, type Lang, type Key } from '../../lib/i18n';
+import { detectInitialLanguage, resolveLanguage, applyRTL, isRtl, translate, ALL_KEYS, LANGUAGES, RAW_DICTIONARIES, type Lang, type Key } from '../../lib/i18n';
 import * as Localization from 'expo-localization';
 import { I18nManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -49,10 +49,13 @@ describe('Language detection & RTL initialization', () => {
     expect(I18nManager.forceRTL).toHaveBeenCalledWith(false);
   });
 
-  test('falls back to fr on unsupported language', () => {
-    (Localization.getLocales as jest.Mock).mockReturnValue([{ languageCode: 'xx' }]);
+  test('falls back to en on unsupported language (e.g. Swedish, Vietnamese)', () => {
+    for (const code of ['sv', 'vi', 'xx']) {
+      (Localization.getLocales as jest.Mock).mockReturnValue([{ languageCode: code }]);
+      expect(detectInitialLanguage()).toBe('en');
+    }
     const lang = detectInitialLanguage();
-    expect(lang).toBe('fr');
+    expect(lang).toBe('en');
     expect(I18nManager.allowRTL).toHaveBeenCalledWith(false);
   });
 
@@ -210,5 +213,37 @@ describe('Newly added features localization', () => {
   test('RTL languages return proper text', () => {
     const arTicket = translate('ar', 'aiSupportCardTitle');
     expect(arTicket).toBe('تذكرة الدعم');
+  });
+});
+
+describe('Dictionary completeness', () => {
+  const reference = [...ALL_KEYS].sort();
+
+  test('the 15 languages are all present', () => {
+    expect(Object.keys(RAW_DICTIONARIES).sort()).toEqual(LANGUAGES.map((l) => l.code).sort());
+  });
+
+  test.each(LANGUAGES.map((l) => l.code))('%s has exactly the English keys, none empty', (lang) => {
+    const dict = RAW_DICTIONARIES[lang];
+    const keys = Object.keys(dict).sort();
+    const missing = reference.filter((k) => !(k in dict));
+    const extra = keys.filter((k) => !(ALL_KEYS as string[]).includes(k));
+    expect({ lang, missing, extra }).toEqual({ lang, missing: [], extra: [] });
+    const empty = keys.filter((k) => {
+      const v = dict[k as Key];
+      return typeof v !== 'string' || v.trim().length === 0;
+    });
+    expect({ lang, empty }).toEqual({ lang, empty: [] });
+  });
+
+  test('no emoji in any translated string (icons come from ui/icon.tsx)', () => {
+    const emoji = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{FE0F}]/u;
+    const offenders: string[] = [];
+    for (const { code } of LANGUAGES) {
+      for (const [k, v] of Object.entries(RAW_DICTIONARIES[code])) {
+        if (typeof v === 'string' && emoji.test(v)) offenders.push(`${code}.${k}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

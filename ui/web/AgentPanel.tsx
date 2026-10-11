@@ -20,7 +20,7 @@ import { useAiStore, type AiProvider } from '../../lib/aiStore';
 import { useAiChatHistoryStore } from '../../lib/aiChatHistoryStore';
 import { askAi } from '../../lib/aiAsk';
 import { validateAiKey } from '../../lib/aiValidator';
-import { PROVIDER_DEFAULTS } from '../../lib/aiConfig';
+import { PROVIDER_DEFAULTS, aiLanguageName } from '../../lib/aiConfig';
 import { serializeCopilotContext } from '../../lib/copilotContext';
 import { useT, useSettings } from '../../lib/settingsStore';
 import { maskSecretsOnly } from '../../lib/secretDetector';
@@ -49,7 +49,7 @@ const SUGGESTIONS: { title: WebKey; description: WebKey; prompt: WebKey; icon: I
 
 function buildWebSystem(lang: string, context: string): string {
   return `Tu es Kalyx Copilot, l'assistant intégré de Kalyx Wallet, un wallet crypto 100 % non-custodial.
-Réponds dans la langue « ${lang} », en tutoyant, simple, direct, sobre, sans emoji, sans conseil d'investissement. 2 à 5 phrases, sauf explication technique demandée.
+Réponds TOUJOURS dans la langue de l'utilisateur : ${aiLanguageName(lang)} (jamais en français si ce n'est pas sa langue), en tutoyant, simple, direct, sobre, sans emoji, sans conseil d'investissement. 2 à 5 phrases, sauf explication technique demandée.
 
 Tu réponds ici depuis le TABLEAU DE BORD WEB (fenêtre lecture seule connectée au téléphone via WalletConnect) — pas depuis l'app mobile elle-même.
 

@@ -12,7 +12,7 @@ import { useTheme } from '../../ui/theme';
 import { useAiStore } from '../../lib/aiStore';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
 import { formatFiat } from '../../src/domain/validation/format';
-import { buildAiRequestParams, mapAiErrorToMessage } from '../../lib/aiConfig';
+import { buildAiRequestParams, aiErrorFromHttp, aiLanguageName, formatAiError } from '../../lib/aiConfig';
 import { useAiChatHistoryStore } from '../../lib/aiChatHistoryStore';
 import { useGasTracker } from '../../lib/gasTrackerStore';
 import { Icon, type IconName } from '../../ui/icon';
@@ -274,11 +274,11 @@ export function AiChatModal({ visible, onClose, context }: { visible: boolean, o
 
 CONTEXTE UTILISATEUR :
 - Prénom : ${profileName || "l'utilisateur"}
-- Langue de l'application : ${language || 'fr'}
+- Langue de l'utilisateur : ${aiLanguageName(language)}
 - Réseau actif actuel : ${currentNetworkName}
 
 CONSIGNES DE COMMUNICATION :
-1. Réponds STRICTEMENT dans la langue de l'application (${language || 'fr'}).
+1. Réponds STRICTEMENT en ${aiLanguageName(language)}, la langue de l'utilisateur — même si ces consignes, la documentation ou les exemples ci-dessous sont en français.
 2. Sois direct, factuel et concis : 2 à 3 phrases percutantes par réponse maximum.
 3. Supprime tout ton surjoué, formules creuses de service client ou surabondance d'emojis. Parle comme un développeur / expert crypto sobre.
 4. Ne demande JAMAIS l'adresse ou les soldes : tu as déjà accès à ses données publiques dans le contexte ci-dessous.
@@ -403,7 +403,7 @@ une source externe.`}`;
       return `${base}${docsBlock}\n\nNAVIGATION ACTIVE (dApp) :\n- URL : ${ctx.url || 'Page vierge'}\n- Titre : ${ctx.title || 'Inconnu'}\n\nVérifie la réputation de l'URL, préviens contre le phishing et réponds aux questions sur la dApp.`;
     }
     if (ctx.screen === 'wallet') {
-      return `${base}${docsBlock}\n\nDONNÉES DU PORTEFEUILLE :\n- Valeur totale : ${ctx.totalUsd} $\n- Actifs détenus : \n${ctx.tokensSummary?.length ? ctx.tokensSummary.join('\n') : 'Aucun token'}\n\nPERFORMANCES ET P&L (24h) :\n- Variation 24h : ${ctx.pnl24h !== undefined ? (ctx.pnl24h >= 0 ? '+' : '') + ctx.pnl24h.toFixed(2) + ' $ (' + (ctx.pnl24hPct >= 0 ? '+' : '') + ctx.pnl24hPct.toFixed(2) + ' %)' : 'Inconnue'}\n- Meilleur performer : ${ctx.topGainer || 'Aucun'}\n- Pire performer : ${ctx.topLoser || 'Aucun'}\nLORSQUE l'utilisateur demande un bilan ou ses performances, réponds en 2 à 3 phrases percutantes sans jargon lourd (ex: 'Sur les dernières 24h, ton portefeuille est à +5.2% (+0.08 $), principalement porté par ta position BTC.').\n\nSAUVEGARDE ET SÉCURITÉ :\n- Sauvegarde cloud active : ${ctx.hasCloudBackup ? 'OUI' : 'NON'}\n- Approbations actives : ${ctx.activeApprovalsCount || 0}\n\nRéponds directement aux questions sur la gestion, la sécurité ou la répartition de ces fonds.`;
+      return `${base}${docsBlock}\n\nDONNÉES DU PORTEFEUILLE :\n- Valeur totale : ${ctx.totalUsd} $\n- Actifs détenus : \n${ctx.tokensSummary?.length ? ctx.tokensSummary.join('\n') : 'Aucun token'}\n\nPERFORMANCES ET P&L (24h) :\n- Variation 24h : ${ctx.pnl24h !== undefined ? (ctx.pnl24h >= 0 ? '+' : '') + ctx.pnl24h.toFixed(2) + ' $ (' + (ctx.pnl24hPct >= 0 ? '+' : '') + ctx.pnl24hPct.toFixed(2) + ' %)' : 'Inconnue'}\n- Meilleur performer : ${ctx.topGainer || 'Aucun'}\n- Pire performer : ${ctx.topLoser || 'Aucun'}\nLORSQUE l'utilisateur demande un bilan ou ses performances, réponds en 2 à 3 phrases percutantes sans jargon lourd, dans la langue de l'utilisateur (exemple de ton, à ne pas recopier en français : 'Sur les dernières 24h, ton portefeuille est à +5.2% (+0.08 $), principalement porté par ta position BTC.').\n\nSAUVEGARDE ET SÉCURITÉ :\n- Sauvegarde cloud active : ${ctx.hasCloudBackup ? 'OUI' : 'NON'}\n- Approbations actives : ${ctx.activeApprovalsCount || 0}\n\nRéponds directement aux questions sur la gestion, la sécurité ou la répartition de ces fonds.`;
     }
     return base + docsBlock;
   }
@@ -562,12 +562,13 @@ une source externe.`}`;
       let rawReply = '';
       if (!res.ok) {
          const providerMsg = data?.error?.message || data?.message || '';
-         const customMsg = res.status === 429
-           ? 'Kalyx est très sollicité, réessaie dans quelques secondes.'
-           : typeof mapAiErrorToMessage === 'function' ? mapAiErrorToMessage(res.status) : 'Erreur IA';
+         // Le 429 a déjà eu sa nouvelle tentative (requestAi) : message d'attente
+         // dédié. Sinon, code d'erreur traduit avec t(), puis le message brut du
+         // fournisseur en diagnostic (non traduit : c'est le sien).
+         const customMsg = res.status === 429 ? t('aiErrorRateLimit') : formatAiError(t, aiErrorFromHttp(res.status));
          rawReply = res.status === 429
            ? customMsg
-           : `${customMsg}\n\n*(Provider: ${providerMsg || res.statusText || 'Erreur interne'})*`;
+           : `${customMsg}\n\n*(${t('aiErrorProviderDetail').replace('{detail}', providerMsg || res.statusText || t('aiErrorInternal'))})*`;
       } else {
          setCopilotStatus('generating');
          rawReply = provider === 'anthropic' ? data.content?.[0]?.text : data.choices?.[0]?.message?.content;

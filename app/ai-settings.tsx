@@ -10,7 +10,7 @@ import { PremiumScreen } from '../ui/premium';
 import { Icon } from '../ui/icon';
 import { useAiStore, AiProvider } from '../lib/aiStore';
 import { validateAiKey } from '../lib/aiValidator';
-import { PROVIDER_DEFAULTS } from '../lib/aiConfig';
+import { PROVIDER_DEFAULTS, formatAiError } from '../lib/aiConfig';
 
 export default function AiSettings() {
   const t = useT();
@@ -42,7 +42,9 @@ export default function AiSettings() {
         Alert.alert(t('success'), t('aiSuccessConnected'));
         router.back();
       } else {
-        Alert.alert(t('aiConnectionFailed'), check.error || t('aiErrorInternal'));
+        // Retraduit depuis le CODE avec t() : le texte suit la langue de l'écran,
+        // jamais une phrase figée par la couche réseau.
+        Alert.alert(t('aiConnectionFailed'), check.code ? formatAiError(t, { code: check.code, status: check.status, detail: check.detail }) : t('aiErrorInternal'));
       }
     } catch (e) {
       Alert.alert(t('aiConnectionFailed'), e instanceof Error ? e.message : t('aiErrorInternal'));

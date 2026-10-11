@@ -293,7 +293,7 @@ export default function Networks() {
             </View>
             {(
               [
-                ['name', t('networkName'), form.family === 'solana' ? 'Solana (mon RPC)' : 'Arbitrum Sepolia'],
+                ['name', t('networkName'), form.family === 'solana' ? t('networkNamePlaceholderSolana') : 'Arbitrum Sepolia'],
                 ['rpcUrl', t('rpcUrl'), 'https://…'],
                 // Le Chain ID n'existe que sur l'EVM : l'afficher ailleurs
                 // demanderait à l'utilisateur d'inventer une valeur.

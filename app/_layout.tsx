@@ -148,7 +148,7 @@ export default function RootLayout() {
     // Empêche la traduction auto du navigateur (Google Traduction réécrit les
     // nœuds texte et casse React : « Failed to execute removeChild »).
     const el = doc.documentElement as unknown as { setAttribute: (k: string, v: string) => void; lang: string };
-    el.lang = 'fr';
+    el.lang = useSettings.getState().language || 'en';
     el.setAttribute('translate', 'no');
     // Le CSS de +html.tsx est ignoré par l'export web (`output: 'single'`) : on
     // l'injecte donc au runtime. Objectifs : (1) plus AUCUN débordement/scroll

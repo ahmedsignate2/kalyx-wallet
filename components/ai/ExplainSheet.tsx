@@ -11,6 +11,7 @@ import { Icon } from '../../ui/icon';
 import { useTheme } from '../../ui/theme';
 import { space } from '../../ui/tokens';
 import { askAi } from '../../lib/aiAsk';
+import { aiLanguageName } from '../../lib/aiConfig';
 import { useAiStore } from '../../lib/aiStore';
 import { useT, useSettings } from '../../lib/settingsStore';
 
@@ -27,8 +28,8 @@ export function ExplainSheet({ visible, onClose, subject }: { visible: boolean; 
     setState({ loading: true });
     const prompt =
       subject.kind === 'token'
-        ? `Explique très simplement l'utilité, les fondamentaux et les risques de ${subject.name}${subject.symbol ? ` (${subject.symbol})` : ''} en 3 points concis, en langue ${language || 'fr'}, pour un débutant.`
-        : `Explique très simplement ce qu'est le réseau ${subject.name} (à quoi il sert, ses avantages, ses risques et frais typiques) en 3 points concis, en langue ${language || 'fr'}, pour un débutant.`;
+        ? `Explique très simplement l'utilité, les fondamentaux et les risques de ${subject.name}${subject.symbol ? ` (${subject.symbol})` : ''} en 3 points concis, pour un débutant. Réponds en ${aiLanguageName(language)}.`
+        : `Explique très simplement ce qu'est le réseau ${subject.name} (à quoi il sert, ses avantages, ses risques et frais typiques) en 3 points concis, pour un débutant. Réponds en ${aiLanguageName(language)}.`;
     askAi(prompt).then((r) => {
       if (!alive) return;
       setState('error' in r ? { loading: false, error: r.error } : { loading: false, text: r.text });

@@ -149,7 +149,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
               KALYX
             </Text>
             <Text style={[typography.micro, { color: colors.textSecondary, textAlign: 'right', marginTop: 2, flexWrap: 'wrap', flexShrink: 1 }]}>
-              Entrepreneur individuel : Ahamed Signate
+              {t('legalSoleTraderName').replace('{name}', 'Ahamed Signate')}
             </Text>
           </View>
         </View>
