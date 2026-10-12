@@ -47,7 +47,7 @@ export function Intro() {
 }
 
 export function Grain() {
-  return <div aria-hidden className="grain pointer-events-none fixed -inset-[50%] z-[90] opacity-[0.07] mix-blend-overlay" />;
+  return <div aria-hidden className="grain pointer-events-none fixed -inset-[8%] z-[90] opacity-[0.07] mix-blend-overlay will-change-transform" />;
 }
 
 const CLICKABLE = 'a, button, [role="button"], summary, label, input, select, textarea';
@@ -56,6 +56,7 @@ export function Cursor() {
   const [enabled, setEnabled] = useState(false);
   const [hover, setHover] = useState(false);
   const [down, setDown] = useState(false);
+  const hovering = useRef(false);
   const x = useMotionValue(-100);
   const y = useMotionValue(-100);
   const ringX = useSpring(x, { stiffness: 420, damping: 34, mass: 0.5 });
@@ -70,7 +71,12 @@ export function Cursor() {
       if (e.pointerType !== 'mouse') return;
       x.set(e.clientX);
       y.set(e.clientY);
-      setHover(!!(e.target as Element | null)?.closest?.(CLICKABLE));
+      // État React seulement s'il change : pas de re-rendu à chaque mouvement (120 Hz).
+      const over = !!(e.target as Element | null)?.closest?.(CLICKABLE);
+      if (over !== hovering.current) {
+        hovering.current = over;
+        setHover(over);
+      }
     };
     const press = () => setDown(true);
     const release = () => setDown(false);
