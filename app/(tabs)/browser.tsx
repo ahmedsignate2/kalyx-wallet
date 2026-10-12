@@ -21,7 +21,7 @@ import { signMessageParam } from '../../lib/dappProvider';
 import { buildTonJsBridge, parseTcJsMessage } from '../../src/domain/tonconnect/jsBridge';
 import { useTonConnect, tcJsHost, tcDeviceInfo } from '../../lib/tonconnect/store';
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
-import { fill } from '../../lib/i18n';
+import { fill, isPluralOne } from '../../lib/i18n';
 import { View, TextInput, ScrollView, Share, Alert, useWindowDimensions, Linking } from 'react-native';
 import { Stack, useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -79,6 +79,7 @@ import {
 } from '../../src';
 import { useHistoryStore } from '../../lib/historyStore';
 import { useKeyboardHeight } from '../../ui/useKeyboardHeight';
+import { goBack } from '../../lib/nav';
 
 // WebView = module natif : require dynamique pour ne pas crasher avant rebuild.
 let WebViewComp: React.ComponentType<Record<string, unknown>> | null = null;
@@ -368,7 +369,9 @@ export default function Browser() {
       }
       return true;
     }
-    if (/^(intent|market|tel|sms|mailto|file|javascript):/i.test(u) || /^[a-z][a-z0-9+.-]*:\/\//i.test(u)) {
+    // Jamais transmis au système : `javascript:` s'exécuterait, `file:`/`data:` ouvriraient du contenu local ou forgé.
+    if (/^\s*(javascript|file|data|blob|vbscript):/i.test(u)) return false;
+    if (/^(intent|market|tel|sms|mailto):/i.test(u) || /^[a-z][a-z0-9+.-]*:\/\//i.test(u)) {
       const scheme = u.split(':')[0];
       Alert.alert(t('openOtherAppTitle'), t('openOtherAppMsg').replace('{scheme}', scheme), [
         { text: t('deny'), style: 'cancel' },
@@ -704,7 +707,7 @@ export default function Browser() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, padding: SCREEN_MARGIN, paddingTop: insets.top + 48, justifyContent: 'center' }}>
         <Stack.Screen options={{ headerShown: false }} />
-        <Card><EmptyState icon="dapps" title={t('browserUnavailableTitle')} body={t('browserUnavailableMsg')} actionLabel={t('back')} onAction={() => router.back()} /></Card>
+        <Card><EmptyState icon="dapps" title={t('browserUnavailableTitle')} body={t('browserUnavailableMsg')} actionLabel={t('back')} onAction={() => goBack()} /></Card>
       </View>
     );
   }
@@ -928,7 +931,7 @@ export default function Browser() {
             </>
           ) : (
             <>
-              <IconButton icon="caretLeft" label={t('previousPage')} tone="ghost" disabled={!activeTab.url && tabs.length === 1} onPress={() => (activeTab.canBack ? webref.current?.goBack() : activeTab.url ? goHome() : router.back())} />
+              <IconButton icon="caretLeft" label={t('previousPage')} tone="ghost" disabled={!activeTab.url && tabs.length === 1} onPress={() => (activeTab.canBack ? webref.current?.goBack() : activeTab.url ? goHome() : goBack())} />
               <AddressBar
                 host={origin}
                 secure={!!activeTab.url?.startsWith('https://')}
@@ -1021,7 +1024,7 @@ export default function Browser() {
           <ListRow left={<Icon name="incognito" size={20} />} title={t('privateTab')} subtitle={t('nothingRemembered')} onPress={() => newTab(true)} />
           <ListRow left={<Icon name="appearance" size={20} />} title={t('darkSites')} right={<Switch value={forceDark} onValueChange={(v) => { setForceDark(v); saveForceDark(v); }} />} />
           <ListRow left={<Icon name="search" size={20} />} title={t('searchEngine')} subtitle={ENGINES.find((e) => e.key === engine)?.label} onPress={() => { const i = ENGINES.findIndex((e) => e.key === engine); const n = ENGINES[(i + 1) % ENGINES.length].key; setEngine(n); saveEngine(n); }} />
-          <ListRow left={<Icon name="history" size={20} />} title={t('history')} subtitle={t(new Intl.PluralRules(language).select(recents.length) === 'one' ? 'browserSitesOne' : 'browserSitesOther').replace('{count}', String(recents.length))} onPress={() => { setMenu(false); goHome(); }} />
+          <ListRow left={<Icon name="history" size={20} />} title={t('history')} subtitle={t(isPluralOne(language, recents.length) ? 'browserSitesOne' : 'browserSitesOther').replace('{count}', String(recents.length))} onPress={() => { setMenu(false); goHome(); }} />
           <View style={{ height: space[3] }} />
           <ListRow
             left={<Icon name="broom" size={20} color={colors.danger} />}

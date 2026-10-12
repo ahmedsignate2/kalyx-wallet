@@ -1,9 +1,9 @@
 import { IconDisc, NovaHero, Rise } from '../ui/nova';
 import { router } from 'expo-router';
 import { ScreenHeader, Button, Card, Screen } from '../ui/kit';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import * as ScreenCapture from 'expo-screen-capture';
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { radii, spacing, useTheme } from '../ui/theme';
 import { useWallet, type Unlock } from '../lib/walletStore';
@@ -18,12 +18,7 @@ export default function RevealPhrase() {
   const [confirming, setConfirming] = useState(false);
   const [words, setWords] = useState<string[] | null>(null);
 
-  useEffect(() => {
-    ScreenCapture.preventScreenCaptureAsync('reveal').catch(() => {});
-    return () => {
-      ScreenCapture.allowScreenCaptureAsync('reveal').catch(() => {});
-    };
-  }, []);
+  useNoScreenCapture('reveal');
 
   // Révèle via biométrie ou PIN (ConfirmUnlock) ; LÈVE pour laisser la feuille gérer.
   const perform = async (unlock: Unlock) => {

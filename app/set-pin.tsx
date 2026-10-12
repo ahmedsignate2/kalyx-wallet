@@ -158,9 +158,9 @@ export default function SetPin() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: topPadding, justifyContent: 'space-between' }}>
       {/* Pas de barre d'en-tête native (elle affichait une flèche ← en doublon). */}
-      {/* Geste de retour iOS coupé pendant la création du portefeuille (`busy`) :
-          un balayage abandonnait l'écran au milieu de l'écriture du coffre. */}
-      <Stack.Screen options={{ headerShown: false, gestureEnabled: !busy }} />
+      {/* Geste de retour iOS coupé : un balayage abandonnait l'écran au milieu de
+          l'écriture du coffre, ou entre les deux saisies du code. Le bouton retour reste. */}
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
       <Stardust width={winW} height={winH} count={12} />
 
       {/* ── HAUT : header unique (retour à gauche, langue à droite) + titre ── */}

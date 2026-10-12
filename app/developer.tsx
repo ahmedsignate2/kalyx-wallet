@@ -40,6 +40,7 @@ import { useRpcOverrides, displayRpcUrl, healthKeyOf, counterpartChain, applyPin
 import { technicalLogger, formatCondensedLog, buildDiagnosticExport, type LogEntry } from '../lib/technicalLogger';
 import { netEntries, subscribeNet, hostStats, clearNetEntries, type NetEntry } from '../lib/netMonitor';
 import { journalLines, formatLine } from '../lib/debugJournal';
+import { goBack } from '../lib/nav';
 
 type Tab = 'env' | 'networks' | 'console' | 'traffic' | 'state' | 'export';
 type Colors = ReturnType<typeof useTheme>['colors'];
@@ -135,7 +136,7 @@ export default function Developer() {
         subtitle={tx('dxUnlockSub')}
         perform={(unlock) => useWallet.getState().verifyUnlock(unlock)}
         onDone={() => setAuthed(true)}
-        onCancel={() => router.back()}
+        onCancel={() => goBack()}
       />
     </>
   );

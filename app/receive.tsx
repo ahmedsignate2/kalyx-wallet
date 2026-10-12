@@ -9,7 +9,7 @@ import { fill } from '../lib/i18n';
 import { SafeModal } from '../ui/kit/SafeModal';
 import { useCallback, useMemo, useState } from 'react';
 import { View, ScrollView, Share, Platform } from 'react-native';
-import { router, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
@@ -26,6 +26,7 @@ import { useCustomChains } from '../lib/customChainsStore';
 import { haptic } from '../lib/haptics';
 import { toast } from '../lib/toast';
 import { getAdapter, listChains, chainIconUrl, type ChainFamily } from '../src';
+import { goBack } from '../lib/nav';
 
 type Fam = ChainFamily;
 
@@ -106,7 +107,7 @@ function ReceiveInner() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => router.back()} />
+        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => goBack()} />
         <Text variant="title2" style={{ flex: 1 }}>{t("receive")}</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[5] }}>

@@ -6,12 +6,12 @@ import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
 import { useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
-import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, useTheme, fontSize, radii } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { accountDisplayName } from '../lib/walletNames';
 import { useT } from '../lib/settingsStore';
+import { goBack } from '../lib/nav';
 
 function shorten(a: string) {
   return `${a.slice(0, 8)}…${a.slice(-6)}`;
@@ -53,7 +53,7 @@ export default function Accounts() {
       setPin('');
       setNewLabel('');
       setAdding(false);
-      router.back();
+      goBack();
     } catch (e) {
       setError(isWalletError(e) ? friendlyTxError(e, t) : t('failed'));
     } finally {

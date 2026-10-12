@@ -15,6 +15,7 @@ import { scryptAsync } from '@noble/hashes/scrypt';
 import { utf8ToBytes, bytesToUtf8, bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { getRandomBytes } from '../crypto/random';
 import { WalletError } from '../domain/errors';
+import { yieldToUi } from '../crypto/yieldToUi';
 
 export interface EncryptedVault {
   v: 1;
@@ -63,6 +64,7 @@ export async function deriveKey(
   salt: Uint8Array,
   params: { N: number; r: number; p: number },
 ): Promise<Uint8Array> {
+  await yieldToUi();
   return scryptAsync(utf8ToBytes(pin.normalize('NFKC')), salt, {
     N: params.N,
     r: params.r,

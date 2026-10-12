@@ -33,7 +33,7 @@ import {
   type SendRequest,
   type BitcoinPendingContext,
   type FeeSpeed,
-  mnemonicToSeedSync,
+  mnemonicToSeed,
   deriveEvmAccount,
   normalizeEvmPrivateKey,
   deriveBtcAccount,
@@ -373,7 +373,7 @@ interface WalletState {
  * calculée UNE fois et effacée aussitôt. Sans TON : seul le compte 0 en a un.
  */
 async function deriveStoredAccountsAsync(mnemonic: string, indexes: number[]): Promise<StoredAccount[]> {
-  const seed = mnemonicToSeedSync(mnemonic);
+  const seed = await mnemonicToSeed(mnemonic);
   try {
     const out: StoredAccount[] = [];
     for (const index of indexes) {
@@ -397,10 +397,20 @@ function publicAccountFromSeed(seed: Uint8Array, index: number, label: string): 
   };
 }
 
-function deriveStoredAccount(mnemonic: string, index: number, label: string): StoredAccount {
-  const seed = mnemonicToSeedSync(mnemonic);
+/** Compte complet d'un indice (TON pour le compte 0), graine déjà calculée par l'appelant. */
+function accountFromSeed(mnemonic: string, seed: Uint8Array, index: number, label: string): StoredAccount {
+  return { ...publicAccountFromSeed(seed, index, label), ...(index === 0 ? tonFields(mnemonic, seed) : {}) };
+}
+
+/*
+ * PBKDF2 (2048 tours) en ASYNCHRONE : la variante synchrone gelait l'interface
+ * 1 à 3 s sur Hermes iOS (création, import, ajout de compte, signature), avant
+ * même que l'indicateur d'attente ne s'affiche.
+ */
+async function deriveStoredAccount(mnemonic: string, index: number, label: string): Promise<StoredAccount> {
+  const seed = await mnemonicToSeed(mnemonic);
   try {
-    return { ...publicAccountFromSeed(seed, index, label), ...(index === 0 ? tonFields(mnemonic, seed) : {}) };
+    return accountFromSeed(mnemonic, seed, index, label);
   } finally {
     seed.fill(0);
   }
@@ -462,7 +472,7 @@ async function purgeLegacyBiometricCopies(wallets: WalletMeta[]): Promise<void> 
 }
 
 /** Comptes initiaux d'un portefeuille ouvert par une phrase, selon sa sorte. */
-function accountsForPhrase(mnemonic: string, kind: RecoveryPhraseKind): StoredAccount[] {
+async function accountsForPhrase(mnemonic: string, kind: RecoveryPhraseKind): Promise<StoredAccount[]> {
   if (kind === 'ton') {
     /*
      * Phrase TON : une seule clé, un seul compte, et AUCUNE adresse hors TON. Pas
@@ -471,7 +481,7 @@ function accountsForPhrase(mnemonic: string, kind: RecoveryPhraseKind): StoredAc
      */
     return [{ index: 0, label: '', evmAddress: '', btcAddress: '', ...tonFields(mnemonic) }];
   }
-  return [deriveStoredAccount(mnemonic, 0, '')];
+  return [await deriveStoredAccount(mnemonic, 0, '')];
 }
 
 /** Un réseau TON est-il configuré ? C'est la seule condition pour ouvrir une phrase TON. */
@@ -910,7 +920,7 @@ async function revealEvmSigningKey(
   }
   const secret = await revealMnemonic(activeWalletId, unlock);
   if (isPrivateKeyWallet(wallets, activeWalletId)) return normalizeEvmPrivateKey(secret);
-  const seed = mnemonicToSeedSync(secret);
+  const seed = await mnemonicToSeed(secret);
   try {
     return deriveEvmAccount(seed, accountIndex).privateKey;
   } finally {
@@ -970,7 +980,7 @@ async function backfillPhraseAccountsRaw(
   const needSol = accounts.some((a) => !a.solAddress);
   const needTon = accounts.some((a) => a.index === 0 && !a.tonPublicKey);
   if (accounts.length === 0 || (!needSol && !needTon)) return accounts;
-  const seed = mnemonicToSeedSync(mnemonic);
+  const seed = await mnemonicToSeed(mnemonic);
   try {
     const ton = needTon ? tonFields(mnemonic, seed) : {};
     const updated = accounts.map((a) => ({
@@ -1030,7 +1040,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
     return m;
   }
   const vault = await loadVault(id);
-  if (!vault) throw new Error('Aucun coffre');
+  if (!vault) throw new WalletError('VAULT_MISSING', 'Aucun coffre');
   /*
    * LE COMPTEUR DE TENTATIVES EST ICI, pas seulement sur l'écran de
    * déverrouillage. Toutes les confirmations par PIN passent par cette fonction
@@ -1289,7 +1299,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     assertValidPin(pin);
     const id = 'primary';
     const kind = phraseKindForImport(m);
-    const accounts = accountsForPhrase(m, kind);
+    const accounts = await accountsForPhrase(m, kind);
     await saveVault(id, await encryptSecret(m, pin));
     await saveAccounts(id, accounts);
     /*
@@ -1436,7 +1446,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     const old = await loadDuressMeta();
     const id = newWalletId(); // identifiant ordinaire : rien ne le distingue d'un vrai portefeuille
     const m = generateMnemonic(128);
-    const accounts = [deriveStoredAccount(m, 0, '')];
+    const accounts = [await deriveStoredAccount(m, 0, '')];
     await saveVault(id, await encryptSecret(m, duressPin));
     await saveAccounts(id, accounts);
     await kvSet(K_DURESS, JSON.stringify({ id, label: '', avatar: randomAvatarId() }), KV_DEVICE_ONLY);
@@ -1541,11 +1551,17 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
     const mnemonic = await revealMnemonic(activeWalletId, unlock);
     let created: StoredAccount | null = null;
-    const updated = await updateAccounts(activeWalletId, (accounts) => {
-      const nextIndex = accounts.reduce((max, a) => Math.max(max, a.index), -1) + 1;
-      created = deriveStoredAccount(mnemonic, nextIndex, label?.trim() || '');
-      return [...accounts, created];
-    });
+    const seed = await mnemonicToSeed(mnemonic);
+    let updated: StoredAccount[] | null;
+    try {
+      updated = await updateAccounts(activeWalletId, (accounts) => {
+        const nextIndex = accounts.reduce((max, a) => Math.max(max, a.index), -1) + 1;
+        created = accountFromSeed(mnemonic, seed, nextIndex, label?.trim() || '');
+        return [...accounts, created];
+      });
+    } finally {
+      seed.fill(0);
+    }
     if (!updated || !created) throw new Error('Comptes illisibles');
     const idx = (created as StoredAccount).index;
     if (get().activeWalletId === activeWalletId) {
@@ -1572,7 +1588,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     await proveIdentity({ pin });
     const m = generateMnemonic(128);
     const id = newWalletId();
-    const accounts = [deriveStoredAccount(m, 0, '')];
+    const accounts = [await deriveStoredAccount(m, 0, '')];
     await saveVault(id, await encryptSecret(m, pin));
     await saveAccounts(id, accounts);
     const wallets = [...get().wallets, { id, label: label?.trim() || '', avatar: randomAvatarId() }];
@@ -1593,7 +1609,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     const kind = phraseKindForImport(m);
     await proveIdentity({ pin }); // vérifie le PIN
     const id = newWalletId();
-    const accounts = accountsForPhrase(m, kind);
+    const accounts = await accountsForPhrase(m, kind);
     await saveVault(id, await encryptSecret(m, pin));
     await saveAccounts(id, accounts);
     const meta: WalletMeta = { id, label: label?.trim() || '', avatar: randomAvatarId(), ...(kind === 'ton' ? { type: 'tonPhrase' as const } : {}) };
@@ -1735,19 +1751,26 @@ export const useWallet = create<WalletState>((set, get) => ({
     // Une clé privée ou une phrase TON n'ont qu'un compte : rien à recréer.
     if (!isBip39Wallet(get().wallets, walletId) || !list.length) return;
     const mnemonic = await revealMnemonic(walletId, { pin });
-    const accounts = await updateAccounts(walletId, (existing) => {
-      const byIndex = new Map(existing.map((a) => [a.index, a]));
-      for (const { index, label } of list) {
-        const have = byIndex.get(index);
-        if (have) {
-          // Compte déjà là (le n°1, créé à l'import) : on lui rend seulement son nom.
-          if (label && !have.label) byIndex.set(index, { ...have, label });
-        } else {
-          byIndex.set(index, deriveStoredAccount(mnemonic, index, label));
+    // Graine calculée UNE fois : elle l'était pour chaque compte recréé (N × PBKDF2).
+    const seed = await mnemonicToSeed(mnemonic);
+    let accounts: StoredAccount[] | null;
+    try {
+      accounts = await updateAccounts(walletId, (existing) => {
+        const byIndex = new Map(existing.map((a) => [a.index, a]));
+        for (const { index, label } of list) {
+          const have = byIndex.get(index);
+          if (have) {
+            // Compte déjà là (le n°1, créé à l'import) : on lui rend seulement son nom.
+            if (label && !have.label) byIndex.set(index, { ...have, label });
+          } else {
+            byIndex.set(index, accountFromSeed(mnemonic, seed, index, label));
+          }
         }
-      }
-      return [...byIndex.values()].sort((a, b) => a.index - b.index);
-    });
+        return [...byIndex.values()].sort((a, b) => a.index - b.index);
+      });
+    } finally {
+      seed.fill(0);
+    }
     if (accounts) await dropSupersededWatch(accounts, walletId);
     await noteBackupChange('accounts-restored');
   },
@@ -2010,7 +2033,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       return { curve: 'ed25519', secretKey: key.seed, publicKey: key.publicKey };
     }
 
-    const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
+    const seed = await mnemonicToSeed(await revealMnemonic(activeWalletId, unlock));
     try {
       return signerFromSeed(family, seed, account.index);
     } finally {
@@ -2577,7 +2600,7 @@ export const useWallet = create<WalletState>((set, get) => ({
      */
     const family = chainConfig(get().activeChain).family;
     if (family === 'ton') throw new WalletError('NOT_SUPPORTED', 'Pas de clé privée TON exportable : utiliser la phrase');
-    const seed = mnemonicToSeedSync(await revealMnemonic(activeWalletId, unlock));
+    const seed = await mnemonicToSeed(await revealMnemonic(activeWalletId, unlock));
     // Graine et clé dérivée effacées une fois la chaîne d'export formée (comme `deriveSigner`).
     try {
       if (family === 'bitcoin') {
@@ -2601,9 +2624,17 @@ export const useWallet = create<WalletState>((set, get) => ({
     const mnemonic = await revealMnemonic(id, { pin });
     try {
       await enableBiometricSeed(id, mnemonic, biometricPrompt());
-    } catch {
-      // Geste refusé ou annulé à l'écriture : rien n'est activé, et on le dit.
-      throw new WalletError('BIOMETRIC_REFUSED', 'Biometric request refused');
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      console.warn('[KALYX-VAULT] biometric:enable-failed', { error: detail.slice(0, 200) });
+      /*
+       * Seul Android demande le geste à l'écriture : là, une annulation est un
+       * refus. iOS n'affiche rien en écrivant ; un échec y vient du système
+       * (NSFaceIDUsageDescription absent du binaire, Face ID non configuré,
+       * trousseau) et « Authentification annulée » mentait.
+       */
+      if (/cancel/i.test(detail)) throw new WalletError('BIOMETRIC_REFUSED', 'Biometric request refused');
+      throw new WalletError('NOT_SUPPORTED', detail, { reason: 'biometricUnavailable' });
     }
   },
 

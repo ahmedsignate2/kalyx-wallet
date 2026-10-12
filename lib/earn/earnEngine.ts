@@ -416,7 +416,7 @@ export async function quote(
   acct: EarnAccount,
   opts: { all?: boolean } = {},
 ): Promise<EarnQuote> {
-  if (amount <= 0n) throw new Error('Montant invalide');
+  if (amount <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant invalide');
   const route = action === 'deposit' ? p.deposit : p.withdraw;
   if (route.via === 'none') throw new Error(route.reason);
   if (route.via === 'contract') return contractQuote(p, action, amount, acct, { all: !!opts.all });

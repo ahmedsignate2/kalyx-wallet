@@ -17,7 +17,8 @@ import { dappHost } from '../src/domain/web/dappHost';
 import { bitcoinMessageParam, btcTransferParams, solanaMessageParam } from '../lib/messageParams';
 import { bytesToHex } from '@noble/hashes/utils';
 import React, { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon } from './icon';
 import { fonts, radii, spacing, useTheme, fontSize } from './theme';
@@ -58,11 +59,14 @@ function hostOf(url: string) {
 
 function Overlay({ children, onCancel }: { children: React.ReactNode, onCancel?: () => void }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  // iOS : Approuver / Refuser passaient sous l'indicateur d'accueil.
+  const bottom = Platform.OS === 'ios' ? Math.max(spacing(4), insets.bottom + spacing(2)) : spacing(4);
   return (
     <SafeModal transparent animationType="fade" onRequestClose={onCancel}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <KPressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onCancel} />
-        <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl, padding: spacing(2.5), paddingBottom: spacing(4), gap: spacing(1.5) }}>
+        <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl, padding: spacing(2.5), paddingBottom: bottom, gap: spacing(1.5) }}>
           {children}
         </View>
       </View>

@@ -33717,8 +33717,42 @@ export function fill(text: string, vars: Record<string, string | number>): strin
   return text.replace(/\{([a-zA-Z_]+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
 }
 
+/**
+ * Vrai si `n` (entier) prend la forme « un » de la langue. Hermes iOS n'expose
+ * pas `Intl.PluralRules` (`new` sur undefined fait planter le rendu) : repli
+ * sur les règles CLDR des langues livrées, réduites à un / autre.
+ */
+export function isPluralOne(lang: string, n: number): boolean {
+  try {
+    if (typeof Intl !== 'undefined' && typeof Intl.PluralRules === 'function') {
+      return new Intl.PluralRules(lang).select(n) === 'one';
+    }
+  } catch {
+    /* locale inconnue du moteur : repli ci-dessous */
+  }
+  switch (lang) {
+    case 'zh':
+    case 'ja':
+    case 'ko':
+      return false;
+    case 'fr':
+    case 'pt':
+    case 'hi':
+      return n === 0 || n === 1;
+    case 'ru':
+      return n % 10 === 1 && n % 100 !== 11;
+    default:
+      return n === 1;
+  }
+}
+
 /** Toutes les clés (référence : l’anglais). Pour les tests de cohérence des traductions. */
 export const ALL_KEYS = Object.keys(en) as Key[];
+
+/** Vrai si `s` est une clé de traduction (message d'erreur levé sous forme de clé). */
+export function isTranslationKey(s: string): s is Key {
+  return Object.prototype.hasOwnProperty.call(en, s);
+}
 
 /**
  * Dictionnaires bruts, SANS le repli anglais de `translate()`. Pour le test de

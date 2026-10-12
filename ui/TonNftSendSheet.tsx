@@ -17,6 +17,7 @@ import { haptic } from '../lib/haptics';
 import { UserFacingError } from '../lib/txError';
 import { planNftSend, sendNft, type NftSendPlan } from '../lib/ton/nftSend';
 import { formatTokenAmount, shortAddress } from '../src';
+import { isTranslationKey } from '../lib/i18n';
 
 export function TonNftSendSheet({ chainId, nftAddress, name, onClose, onSent }: { chainId: string; nftAddress: string; name: string; onClose: () => void; onSent: () => void }) {
   const t = useT();
@@ -80,7 +81,8 @@ export function TonNftSendSheet({ chainId, nftAddress, name, onClose, onSent }: 
           try {
             await sendNft(plan!, unlock);
           } catch (err) {
-            throw err instanceof Error && !(err as { code?: string }).code ? new UserFacingError(err.message) : err;
+            // Clé de traduction (refus préparé) : traduite ; erreur réseau brute : friendlyTxError (dans ConfirmUnlock).
+            throw err instanceof Error && !(err as { code?: string }).code && isTranslationKey(err.message) ? new UserFacingError(t(err.message as never)) : err;
           }
           haptic.success();
           toast.success(t('txSent'));

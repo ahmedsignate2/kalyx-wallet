@@ -3,7 +3,7 @@ import { ScreenHeader, Pressable as KPressable, Button, Card, Screen } from '../
 import { getAdapter } from '../src';
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import * as ScreenCapture from 'expo-screen-capture';
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { copySecret, clearSecret } from '../lib/secureClipboard';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
@@ -23,10 +23,9 @@ export default function RevealPrivateKey() {
   const chainName = getAdapter(useWallet.getState().activeChain).config.name;
   const [pk, setPk] = useState<string | null>(null);
 
+  useNoScreenCapture('reveal-pk');
   useEffect(() => {
-    ScreenCapture.preventScreenCaptureAsync('reveal-pk').catch(() => {});
     return () => {
-      ScreenCapture.allowScreenCaptureAsync('reveal-pk').catch(() => {});
       // En quittant l'écran, la clé ne reste pas dans le presse-papier.
       void clearSecret();
     };

@@ -76,12 +76,13 @@ export function Orbit({ cx, cy, r = 150, style }: { cx: number; cy: number; r?: 
 /* Poussière d'étoiles : particules qui montent lentement (onboarding)  */
 /* ------------------------------------------------------------------ */
 
-function Mote({ x, size, delay, dur, h, color }: { x: number; size: number; delay: number; dur: number; h: number; color: string }) {
+function Mote({ x, size, delay, dur, h, color, active }: { x: number; size: number; delay: number; dur: number; h: number; color: string; active: boolean }) {
   const p = useSharedValue(0);
   useEffect(() => {
+    if (!active) { cancelAnimation(p); return; }
     p.value = withDelay(delay, withRepeat(withTiming(1, { duration: dur, easing: Easing.linear }), -1, false));
     return () => cancelAnimation(p);
-  }, [delay, dur, p]);
+  }, [delay, dur, p, active]);
   const s = useAnimatedStyle(() => ({
     opacity: p.value < 0.15 ? p.value / 0.15 * 0.8 : p.value > 0.8 ? (1 - p.value) / 0.2 * 0.8 : 0.8,
     transform: [{ translateY: h - p.value * h * 1.1 }, { translateX: Math.sin(p.value * Math.PI * 2) * 8 }],
@@ -92,6 +93,8 @@ function Mote({ x, size, delay, dur, h, color }: { x: number; size: number; dela
 /** Quelques points de lumière qui dérivent vers le haut. Rien si « réduire les animations ». */
 export function Stardust({ width, height, count = 18 }: { width: number; height: number; count?: number }) {
   const reduce = useReduceMotion();
+  // Jusqu'à 22 boucles par écran : arrêtées dès que l'écran est recouvert ou l'app en arrière-plan.
+  const active = useLoopActive();
   const motes = useMemo(() => {
     const palette = ['#FFFFFF', '#CFE3FF', '#FFD9B8', GOLD];
     return Array.from({ length: count }, (_, i) => ({
@@ -105,7 +108,7 @@ export function Stardust({ width, height, count = 18 }: { width: number; height:
   if (reduce || !width || !height) return null;
   return (
     <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, width, height }}>
-      {motes.map((m, i) => <Mote key={i} {...m} h={height} />)}
+      {motes.map((m, i) => <Mote key={i} {...m} h={height} active={active} />)}
     </View>
   );
 }
@@ -291,25 +294,26 @@ export function ScreenOrbit({ top }: { top: number }) {
 /* Trois points qui respirent : quelqu'un écrit                        */
 /* ------------------------------------------------------------------ */
 
-function TypingDot({ delay }: { delay: number }) {
+function TypingDot({ delay, active }: { delay: number; active: boolean }) {
   const { colors } = useTheme();
   const reduce = useReduceMotion();
   const p = useSharedValue(0);
   useEffect(() => {
-    if (reduce) return;
+    if (reduce || !active) { cancelAnimation(p); return; }
     p.value = withDelay(delay, withRepeat(withSequence(withTiming(1, { duration: 380 }), withTiming(0, { duration: 380 })), -1, false));
     return () => cancelAnimation(p);
-  }, [delay, reduce, p]);
+  }, [delay, reduce, p, active]);
   const s = useAnimatedStyle(() => ({ opacity: 0.35 + p.value * 0.65, transform: [{ translateY: -3 * p.value }] }));
   return <Animated.View style={[{ width: 7, height: 7, borderRadius: radii.full, backgroundColor: colors.textSecondary }, s]} />;
 }
 
 export function TypingDots() {
+  const active = useLoopActive();
   return (
     <View style={{ flexDirection: 'row', gap: 5, alignItems: 'center', height: 14 }}>
-      <TypingDot delay={0} />
-      <TypingDot delay={140} />
-      <TypingDot delay={280} />
+      <TypingDot delay={0} active={active} />
+      <TypingDot delay={140} active={active} />
+      <TypingDot delay={280} active={active} />
     </View>
   );
 }

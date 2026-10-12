@@ -86,6 +86,7 @@ import { addressForChain } from '../lib/accountAddress';
 import { useHistoryStore } from '../lib/historyStore';
 import { AntiDrainerBanner } from '../src/components/security/AntiDrainerBanner';
 import { useShallow } from 'zustand/react/shallow';
+import { goBack } from '../lib/nav';
 
 type Step = 0 | 1 | 2 | 3 | 4;
 
@@ -551,7 +552,20 @@ function SendInner() {
     };
   }, [step, recipient, amountRaw, symbol, decimals, family, senderAddress, targetChainId, chain.evmChainId, chain.id]);
 
-  const perform = async (unlock: Unlock) => {
+  /*
+   * Une diffusion partie ne s'annule pas : fermer la feuille pendant l'envoi
+   * laissait l'écran sur l'étape 3, et un nouvel appui long renvoyait le même
+   * montant. Un envoi en cours est donc réutilisé, jamais relancé, et sa
+   * réussite mène au suivi même si la feuille a été fermée entre-temps.
+   */
+  const inFlight = useRef<Promise<void> | null>(null);
+  const perform = (unlock: Unlock): Promise<void> => {
+    if (inFlight.current) return inFlight.current;
+    const run = broadcast(unlock).finally(() => { inFlight.current = null; });
+    inFlight.current = run;
+    return run;
+  };
+  const broadcast = async (unlock: Unlock) => {
     // Ni montant ni destinataire : ce journal part dans les tickets et le contexte du Copilot.
     technicalLogger.logTx('step_3_signing_start', { symbol, chain: chain.name, speed });
     try {
@@ -599,6 +613,8 @@ function SendInner() {
         : await wallet.signAndSend(recipient, tokenAmountStr, unlock, gas);
       setHash(h);
       setStage('sent');
+      setConfirming(false);
+      setStep(4);
       // Les soldes et l'activité affichés ne sont plus justes : le prochain écran les redemande.
       pf.invalidate();
       if (senderAddress) useHistoryStore.getState().markStale(chain.id, senderAddress);
@@ -842,7 +858,7 @@ function SendInner() {
       {/* En-tête + barre de progression */}
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN }}>
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => { setAddressError(null); setAmountError(null); (step === 0 || step === 4 || (step === 1 && presetToken) ? router.back() : setStep((s) => (s - 1) as Step)); }} />
+          <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => { setAddressError(null); setAmountError(null); (step === 0 || step === 4 || (step === 1 && presetToken) ? goBack() : setStep((s) => (s - 1) as Step)); }} />
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             {/* Le titre rétrécit (une ligne) : long (« Vérifie avant d'envoyer »), il poussait la pastille du réseau sur le compteur d'étapes. */}
             <Text variant="title2" numberOfLines={1} style={{ flexShrink: 1 }}>{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : step === 3 ? t("verifyBeforeSendTitle") : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>

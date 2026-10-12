@@ -19,6 +19,7 @@ import { planStake, planUnstake, sendStaking, type StakingInfo } from '../lib/to
 import { TONSTAKERS_STAKE_RESERVE, TONSTAKERS_UNSTAKE_TON, type UnstakeMode } from '../src/domain/chains/ton/tonstakers';
 import type { DappDraft } from '../src/domain/chains/v2/TonAdapterV2';
 import { formatAmount, formatTokenAmount, parseAmount } from '../src';
+import { isTranslationKey } from '../lib/i18n';
 
 export function TonStakingSheet({ info, action, onClose, onDone }: { info: StakingInfo; action: 'stake' | 'unstake'; onClose: () => void; onDone: () => void }) {
   const t = useT();
@@ -109,7 +110,8 @@ export function TonStakingSheet({ info, action, onClose, onDone }: { info: Staki
           try {
             await sendStaking(info.chainId, draft!, unlock);
           } catch (err) {
-            throw err instanceof Error && !(err as { code?: string }).code ? new UserFacingError(err.message) : err;
+            // Clé de traduction (refus préparé) : traduite ; erreur réseau brute : friendlyTxError (dans ConfirmUnlock).
+            throw err instanceof Error && !(err as { code?: string }).code && isTranslationKey(err.message) ? new UserFacingError(t(err.message as never)) : err;
           }
           usePortfolioStore.getState().invalidate();
           haptic.success();

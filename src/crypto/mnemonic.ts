@@ -13,6 +13,7 @@ import {
   entropyToMnemonic as scureEntropyToMnemonic,
 } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
+import { yieldToUi } from './yieldToUi';
 
 /** 128 bits = 12 mots, 256 bits = 24 mots. */
 export type MnemonicStrength = 128 | 256;
@@ -32,6 +33,7 @@ export async function mnemonicToSeed(
   mnemonic: string,
   passphrase = '',
 ): Promise<Uint8Array> {
+  await yieldToUi();
   return scureToSeed(normalize(mnemonic), passphrase);
 }
 

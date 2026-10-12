@@ -70,7 +70,7 @@ export function trackDiscovery(walletId: string, run: Run, opts: { announce?: bo
       })
       .catch((e) => {
         if (!unlocked) reject(e); // code faux, biométrie refusée… : à la fenêtre de confirmation
-        else toast.error(tr('discoverTitle'), friendlyTxError(e));
+        else toast.error(tr('discoverTitle'), friendlyTxError(e, tr as never));
       })
       .finally(() => {
         if (live()) setAt(walletId, null);

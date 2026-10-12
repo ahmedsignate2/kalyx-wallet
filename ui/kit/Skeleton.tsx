@@ -1,7 +1,8 @@
 /** Skeleton — au lieu d'un spinner (§5 polish). Pulsation douce Orbite ↔ Crépuscule. */
 import { useEffect } from 'react';
 import { View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming, useReducedMotion } from 'react-native-reanimated';
+import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming, useReducedMotion } from 'react-native-reanimated';
+import { useLoopActive } from '../useLoopActive';
 import { useTheme } from '../theme';
 import { radius, spaces } from '../tokens';
 
@@ -9,9 +10,12 @@ export function Skeleton({ width = '100%', height = 16, round }: { width?: numbe
   const { colors } = useTheme();
   const v = useSharedValue(0);
   const reduced = useReducedMotion();
+  const active = useLoopActive();
   useEffect(() => {
-    v.value = reduced ? 0.5 : withRepeat(withTiming(1, { duration: 900 }), -1, true);
-  }, [v, reduced]);
+    if (reduced || !active) { cancelAnimation(v); v.value = 0.5; return; }
+    v.value = withRepeat(withTiming(1, { duration: 900 }), -1, true);
+    return () => cancelAnimation(v);
+  }, [v, reduced, active]);
   const style = useAnimatedStyle(() => ({ opacity: 0.5 + v.value * 0.5 }));
   return <Animated.View style={[{ width, height, borderRadius: round ? radius.round : radius.chip, backgroundColor: colors.surface3 }, style]} />;
 }

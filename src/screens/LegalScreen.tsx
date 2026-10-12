@@ -10,6 +10,7 @@ import { useT } from '../../lib/settingsStore';
 import { LEGAL_CONSTANTS } from '../constants/legal';
 import { IS_BETA } from '../../lib/appStage';
 import { REOWN_NOTICE } from '../constants/thirdPartyLicenses';
+import { goBack } from '../../lib/nav';
 
 function getApplicationModule(): any {
   try {
@@ -73,7 +74,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
   return (
     <Screen>
       <ScreenHeader
-        onBack={onBack ? onBack : () => router.back()}
+        onBack={onBack ? onBack : () => goBack()}
       />
 
       {/* Identité de l'application */}
