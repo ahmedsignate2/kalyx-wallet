@@ -107,12 +107,18 @@ export default function Unlock() {
         goHome();
       } catch (e) {
         // Refus/annulation → silencieux (l'utilisateur saisit son PIN).
-        // Au TAP manuel, on affiche la vraie cause (ex. « à réactiver dans Réglages »).
+        // Au TAP manuel, on affiche la cause — sans alarmer quand elle se répare d'elle-même.
         const msg = e instanceof Error ? e.message : '';
-        console.warn('[KALYX-UNLOCK] biometrics:failed', { manual, code: (e as { code?: string })?.code ?? null, msg });
-        if (manual && !/refus|annul|cancel/i.test(msg)) {
-          // Jamais le message brut (souvent anglais, technique) : une erreur connue est traduite par son code.
-          setError(/configur/i.test(msg) ? t('bioReactivate') : isWalletError(e) ? friendlyTxError(e, t as never) : t('bioUnavailable'));
+        const code = isWalletError(e) ? e.code : null;
+        console.warn('[KALYX-UNLOCK] biometrics:failed', { manual, code, msg });
+        if (manual && code !== 'BIOMETRIC_REFUSED' && !/refus|annul|cancel/i.test(msg)) {
+          /*
+           * Jamais le message brut (souvent anglais, technique) : une erreur connue
+           * est traduite par son code. Entrée biométrique absente, invalidée
+           * (empreinte ajoutée) ou dépassée (code changé) : ce n'est PAS « biométrie
+           * non activée » — un déverrouillage par code la rétablit (healBiometric).
+           */
+          setError(code === 'BIOMETRIC_NOT_SET' ? t('bioUsePinOnce') : isWalletError(e) ? friendlyTxError(e, t as never) : t('bioUnavailable'));
         }
       }
     },
@@ -135,8 +141,8 @@ export default function Unlock() {
       try {
         await unlockWithPin(code);
         setPinLength(code.length); // mémorise la longueur (option 3 au prochain coup)
-        // Migration douce : si la biométrie est activée mais son secret manque (ancien
-        // schéma gated illisible sur ce build), on le ré-enregistre au format fiable.
+        // Biométrie activée : PIN biométrique réécrit s'il manque (ancien schéma par
+        // portefeuille, clé invalidée, code changé) — seul moment où l'on a le code.
         if (biometricEnabled) void healBiometric(code).catch(() => {});
         goHome();
       } catch (e) {
