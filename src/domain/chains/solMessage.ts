@@ -9,7 +9,7 @@
  */
 import { utf8ToBytes } from '@noble/hashes/utils';
 import { base58 } from '@scure/base';
-import { encodeLength } from './solTx';
+import { encodeLength } from './solEncoding';
 
 export interface AccountMeta {
   pubkey: string; // base58
