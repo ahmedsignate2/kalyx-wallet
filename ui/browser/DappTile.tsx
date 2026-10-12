@@ -6,7 +6,7 @@
  * pour les dApps du catalogue, monogramme neutre pour les autres.
  */
 import { View } from 'react-native';
-import { Pressable, Text } from '../kit';
+import { Monogram, Pressable, Text } from '../kit';
 import { useTheme } from '../theme';
 import { space, radii } from '../tokens';
 import { catalogEntry } from '../../src/domain/web/dappCatalog';
@@ -22,12 +22,7 @@ export function DappLogo({ host, size = 32 }: { host: string; size?: number }) {
   const { colors } = useTheme();
   const entry = catalogEntry(host);
   const label = entry ? entry.icon.monogram : monogramOf(host);
-  const fontSize = Math.max(8, Math.round(size * (label.length > 1 ? 0.36 : 0.46)));
-  return (
-    <View style={{ width: size, height: size, borderRadius: radii.full, backgroundColor: entry ? entry.icon.color : colors.surface3, alignItems: 'center', justifyContent: 'center' }}>
-      <Text variant="caption" style={{ fontSize, lineHeight: Math.round(fontSize * 1.2), color: entry ? '#FFFFFF' : colors.text, fontWeight: '600' }}>{label}</Text>
-    </View>
-  );
+  return <Monogram label={label} size={size} bg={entry ? entry.icon.color : colors.surface3} fg={entry ? '#FFFFFF' : colors.text} />;
 }
 
 export function DappTile({ host, label, onPress, width = 88, badge }: { host: string; label: string; onPress: () => void; width?: number | `${number}%`; /** Pastille de compatibilité (« EVM », « TON », « via WalletConnect »). */ badge?: string }) {
