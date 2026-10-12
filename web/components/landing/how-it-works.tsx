@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ChapterHead } from './chapter';
 import { EASE } from './motion';
 import type { Dict } from '../../i18n';
+import { useReducedMotionSafe } from './reduced-motion';
 
 /*
  * Écrans de l'app actuelle, rendus depuis son code (thème Nova, portefeuille de
@@ -19,7 +20,7 @@ import type { Dict } from '../../i18n';
 const SCREENS = ['/screens/home.jpg', '/screens/send.jpg', '/screens/swap.jpg', '/screens/earn.jpg', '/screens/browser.jpg', '/screens/web.jpg'];
 
 export function HowItWorks({ t }: { t: Dict }) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   const [active, setActive] = useState(0);
   const steps = t.how.steps.map((s, i) => ({ ...s, screen: SCREENS[i] }));
 

@@ -4,12 +4,13 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Globe, Menu, X } from 'lucide-react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { EASE } from './motion';
 import { Mark } from './mark';
 import { LOCALES, LOCALE_NAMES, STORAGE_KEY, type Dict, type Locale } from '../../i18n';
 import { APK_URL } from '../../lib/apk';
 import { WEB_APP_URL } from '../../lib/links';
+import { useReducedMotionSafe } from './reduced-motion';
 
 /** Sélecteur de langue : mémorise le choix, puis ouvre la même page dans l'autre langue. */
 function LanguageSwitcher({ lang, label, className = '' }: { lang: Locale; label: string; className?: string }) {
@@ -47,7 +48,7 @@ function LanguageSwitcher({ lang, label, className = '' }: { lang: Locale; label
 
 export function Nav({ t, lang }: { t: Dict; lang: Locale }) {
   const [open, setOpen] = useState(false);
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   const links = [
     { href: `/${lang}/#fonctionnement`, label: t.nav.how },
     { href: `/${lang}/#voler`, label: t.nav.security },

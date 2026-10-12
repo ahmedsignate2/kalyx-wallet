@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ChapterHead } from './chapter';
 import { Item, Stagger } from './motion';
 import type { Dict } from '../../i18n';
+import { useReducedMotionSafe } from './reduced-motion';
 
 /*
  * Vérifié dans le code :
@@ -16,7 +17,7 @@ import type { Dict } from '../../i18n';
 const WORDS = ['ocean', 'planet', 'silent', 'orbit', 'north', 'garden', 'river', 'pulse', 'velvet', 'cradle', 'mirror', 'fossil'];
 
 export function NeverLose({ t }: { t: Dict }) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   const [held, setHeld] = useState(false);
 
   return (

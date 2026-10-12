@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
+import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import type { Dict } from '../../i18n';
+import { useReducedMotionSafe } from './reduced-motion';
 
 /**
  * Ouverture du film. Une phrase de récupération (12 mots BIP-39, exemple) apparaît
@@ -30,7 +31,7 @@ function Word({ word, index, progress }: { word: string; index: number; progress
 }
 
 export function Opening({ t }: { t: Dict }) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
 
@@ -42,7 +43,7 @@ export function Opening({ t }: { t: Dict }) {
 
   if (reduce) {
     return (
-      <section className="px-5 pt-32 sm:px-8">
+      <section id="ouverture" className="px-5 pt-32 sm:px-8">
         <p className="mx-auto max-w-3xl text-center font-display text-4xl font-light text-paper">{t.opening.title}</p>
         <p className="mx-auto mt-4 max-w-md text-center font-light text-mist">{t.opening.sub}</p>
       </section>
@@ -50,11 +51,13 @@ export function Opening({ t }: { t: Dict }) {
   }
 
   return (
-    <section ref={ref} aria-label="Ouverture" className="relative h-[260vh]">
+    <section id="ouverture" ref={ref} aria-label="Ouverture" className="relative h-[260vh]">
       <div className="sticky top-0 flex h-svh items-center justify-center overflow-hidden px-5">
         {/* Titre d'ouverture */}
         <motion.div style={{ opacity: titleOpacity, y: titleY }} className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center">
-          <p className="font-display text-[2.6rem] font-light leading-none tracking-[-0.02em] text-paper sm:text-7xl lg:text-8xl">{t.opening.title}</p>
+          {/* Avec le prisme 3D, le titre est peint DANS la scène (la gemme le réfracte) : celui-ci
+              devient transparent mais reste dans la page, pour les lecteurs d'écran et la mise en page. */}
+          <p data-prism-title className="font-display text-[2.6rem] font-light leading-none tracking-[-0.02em] text-paper transition-opacity duration-700 sm:text-7xl lg:text-8xl [[data-prism=on]_&]:opacity-0">{t.opening.title}</p>
           <p className="mx-auto mt-5 max-w-md px-4 text-base font-light text-mist sm:text-lg">{t.opening.sub}</p>
         </motion.div>
 

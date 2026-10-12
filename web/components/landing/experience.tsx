@@ -5,7 +5,6 @@ import {
   motion,
   useAnimationFrame,
   useMotionValue,
-  useReducedMotion,
   useScroll,
   useSpring,
   useTransform,
@@ -13,6 +12,7 @@ import {
 } from 'framer-motion';
 import { Mark } from './mark';
 import { TILT_SPRING } from './motion';
+import { useReducedMotionSafe } from './reduced-motion';
 
 /*
  * La « finition » du film : ce qui sépare une page soignée d'une expérience.
@@ -118,7 +118,7 @@ export function Cursor() {
 
 /** Le contenu est attiré par la souris (30 % de l'écart), puis revient en ressort. */
 export function Magnetic({ children, strength = 0.3 }: { children: React.ReactNode; strength?: number }) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   const ref = useRef<HTMLSpanElement>(null);
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
@@ -189,7 +189,7 @@ function MarqueeRow({ items, baseVelocity }: { items: readonly string[]; baseVel
 }
 
 export function Marquee({ items, label }: { items: readonly string[]; label: string }) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   if (reduce) {
     return (
       <section aria-label={label} className="px-5 py-16 text-center">

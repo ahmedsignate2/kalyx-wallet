@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { motion, useMotionTemplate, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from 'framer-motion';
+import { motion, useMotionTemplate, useMotionValue, useScroll, useSpring, useTransform } from 'framer-motion';
 import { ArrowDown, Download } from 'lucide-react';
 import { PhoneMock } from './phone-mock';
 import { EASE, TILT_SPRING } from './motion';
@@ -9,6 +9,7 @@ import { BitcoinIcon, SolanaIcon, TonIcon } from './networks';
 import { Magnetic } from './experience';
 import type { Dict } from '../../i18n';
 import { APK_URL } from '../../lib/apk';
+import { useReducedMotionSafe } from './reduced-motion';
 
 /* Chaque chip (t.hero.chips) correspond à une fonctionnalité réellement implémentée (cf. never-stolen.tsx). */
 
@@ -35,7 +36,7 @@ const enter = (i: number) => ({
 });
 
 export function Hero({ t }: { t: Dict }) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   const section = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   // Valeurs animées hors React : la bascule suit le pointeur à 60 i/s sans re-rendu.
