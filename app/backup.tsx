@@ -8,10 +8,10 @@ import { useT } from "../lib/settingsStore";
  * Sauter la sauvegarde = bandeau permanent sur l'accueil + point dans Sécurité.
  */
 import { useEffect, useState } from 'react';
-import { View, ScrollView } from 'react-native';
+import { View, ScrollView, Platform } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as ScreenCapture from 'expo-screen-capture';
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Text, Button, IconButton, EmptyState, Pressable as KPressable, Card } from '../ui/kit';
 import { FlowDots, Rise } from '../ui/nova';
@@ -20,6 +20,7 @@ import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius, durations } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { haptic } from '../lib/haptics';
+import { goBack } from '../lib/nav';
 
 export default function Backup() {
   const t = useT();
@@ -30,12 +31,7 @@ export default function Backup() {
   const [seen, setSeen] = useState(false);
   const reveal = useSharedValue(0);
 
-  useEffect(() => {
-    ScreenCapture.preventScreenCaptureAsync('seed').catch(() => {});
-    return () => {
-      ScreenCapture.allowScreenCaptureAsync('seed').catch(() => {});
-    };
-  }, []);
+  useNoScreenCapture('seed');
   useEffect(() => {
     reveal.value = withTiming(held ? 1 : 0, { duration: durations.fade });
   }, [held, reveal]);
@@ -58,7 +54,7 @@ export default function Backup() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => router.back()} />
+        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => goBack('/welcome')} />
         <Text variant="title2" style={{ flex: 1 }}>{t('yourRecoveryPhrase')}</Text>
         <FlowDots step={1} />
       </View>
@@ -66,8 +62,8 @@ export default function Backup() {
         <Text variant="body">{t('seedOwnershipWarning').replace('{n}', String(words.length))}</Text>
         <Text variant="bodySecondary" tone="secondary">
           {words.length} {t('wordsInOrderHint')} {t('backupWarning')}
-          {/* Android (FLAG_SECURE) comme iOS (expo-screen-capture) bloquent la capture ici. */}
-          {t('screenshotBlocked')}
+          {/* Android bloque la capture ici (FLAG_SECURE) ; iOS non, cf. lib/useNoScreenCapture.ts. */}
+          {Platform.OS === 'android' ? t('screenshotBlocked') : ''}
         </Text>
 
         {/* Grille masquée tant que le doigt n'est pas dessus */}

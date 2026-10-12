@@ -37,6 +37,7 @@ try {
 const TAG = 'nova-privacy-guard';
 
 export function PrivacyScreen() {
+  if (__DEV__) return null;
   const { colors } = useTheme();
   const guard = useSettings((s) => s.privacyGuard);
   const [covered, setCovered] = useState(false);

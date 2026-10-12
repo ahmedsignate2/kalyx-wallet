@@ -2,7 +2,6 @@ import { Button, Chip, Input, ScreenHeader, Pressable as KPressable, Text as KTe
 import { GOLD, IconDisc, NovaHero, Rise, SectionLabel } from '../ui/nova';
 import { useState, useEffect } from 'react';
 import { View, Alert, Linking } from 'react-native';
-import { router } from 'expo-router';
 import { spacing } from '../ui/theme';
 import { useSettings } from '../lib/settingsStore';
 import { useT } from '../lib/settingsStore';
@@ -11,6 +10,7 @@ import { useAiStore, AiProvider } from '../lib/aiStore';
 import { validateAiKey } from '../lib/aiValidator';
 import { PROVIDER_DEFAULTS, formatAiError } from '../lib/aiConfig';
 import { useShallow } from 'zustand/react/shallow';
+import { goBack } from '../lib/nav';
 
 export default function AiSettings() {
   const t = useT();
@@ -40,7 +40,7 @@ export default function AiSettings() {
       if (check.success) {
         await setApiKey(inputKey, selectedProvider, customUrl, customModel);
         Alert.alert(t('success'), t('aiSuccessConnected'));
-        router.back();
+        goBack();
       } else {
         // Retraduit depuis le CODE avec t() : le texte suit la langue de l'écran,
         // jamais une phrase figée par la couche réseau.

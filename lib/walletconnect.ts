@@ -436,7 +436,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       console.log('[WC-IN] ID:', request?.id);
       console.log('[WC-IN] Topic:', request?.topic);
       console.log('[WC-IN] Method:', request?.params?.request?.method);
-      console.log('[WC-IN] Params:', JSON.stringify(request?.params?.request?.params, null, 2));
+      // Jamais le contenu : messages à signer et données typées finissaient dans le journal exportable.
+      console.log('[WC-IN] Params count:', Array.isArray(request?.params?.request?.params) ? request.params.request.params.length : typeof request?.params?.request?.params);
       console.log('[WC-IN] ==================================\n');
 
       const sessions = w.getActiveSessions();

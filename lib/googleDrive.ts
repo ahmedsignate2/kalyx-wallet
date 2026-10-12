@@ -81,6 +81,7 @@ import { useSettings } from './settingsStore';
 import { getDeviceId } from './deviceId';
 import { kvDel, kvGet, kvSet, KV_DEVICE_ONLY } from './kv';
 import { isDecoySession } from './sessionMode';
+import { isExpoGoIos } from './expoGo';
 
 /**
  * Client de CETTE plateforme (Platform.select ios / default) : autorisation,
@@ -95,7 +96,7 @@ export const GOOGLE_CLIENT_ID = selectGoogleClientId(Platform.OS, {
 
 /** Vrai si l'app a été configurée (et donc construite) avec un client Google pour cette plateforme. */
 export function isDriveConfigured(): boolean {
-  return isGoogleClientId(GOOGLE_CLIENT_ID);
+  return isGoogleClientId(GOOGLE_CLIENT_ID) && !isExpoGoIos();
 }
 
 export class GoogleAuthError extends Error {

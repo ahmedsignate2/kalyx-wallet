@@ -3,7 +3,6 @@ import { ScreenHeader, Pressable as KPressable, Screen } from '../ui/kit';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
 import { PinPad, PIN_GAP, PIN_KEY } from '../ui/PinPad';
 import { KalyxRing } from '../ui/KalyxRing';
 import { fonts, fontSize, space, spacing, useTheme } from '../ui/theme';
@@ -13,6 +12,7 @@ import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { friendlyTxError } from '../lib/txError';
 import { checkPin, isWalletError, PIN_MAX, PIN_MIN } from '../src';
+import { goBack } from '../lib/nav';
 
 /**
  * Changement de PIN en 3 étapes : ancien code → nouveau → confirmation.
@@ -109,7 +109,7 @@ export default function ChangePin() {
       await changePin(oldPin, newPin);
       useSettings.getState().setPinLength(newPin.length); // ronds exacts au déverrouillage
       toast.success(t('pinChanged'), t('pinChangedBody'));
-      router.back();
+      goBack('/menu');
     } catch (e) {
       setBusy(false);
       if (isWalletError(e) && e.code === 'WRONG_PIN') {

@@ -29,6 +29,8 @@ import {
   type ChartPeriod,
   type ChartPoint,
   formatFiat,
+  billionSuffix,
+  decimalSeparator,
   formatTokenAmount,
   getAdapter,
   chainIconUrl,
@@ -41,9 +43,10 @@ import { useShallow } from 'zustand/react/shallow';
 
 const money = formatFiat;
 function compact(v: number): string {
-  if (v >= 1e12) return `${(v / 1e12).toFixed(2)} T`;
-  if (v >= 1e9) return `${(v / 1e9).toFixed(2)} Md`;
-  if (v >= 1e6) return `${(v / 1e6).toFixed(2)} M`;
+  const f = (x: number) => x.toFixed(2).replace('.', decimalSeparator());
+  if (v >= 1e12) return `${f(v / 1e12)} T`;
+  if (v >= 1e9) return `${f(v / 1e9)} ${billionSuffix()}`;
+  if (v >= 1e6) return `${f(v / 1e6)} M`;
   return money(v, 0);
 }
 
@@ -52,10 +55,17 @@ function formatScrubDate(ts: number, period: string): string {
   const d = new Date(ts);
   const pad = (n: number) => String(n).padStart(2, '0');
   const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const lang = useSettings.getState().language;
+  const local = (o: Intl.DateTimeFormatOptions, fb: string) => {
+    try {
+      return d.toLocaleDateString(lang, o);
+    } catch {
+      return fb;
+    }
+  };
   const dm = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
-  if (period === '24h') return `${dm} · ${hm}`;
-  if (period === '7j' || period === '1m') return `${dm} · ${hm}`;
-  return `${dm}/${d.getFullYear()}`;
+  if (period === '24h' || period === '7j' || period === '1m') return `${local({ day: '2-digit', month: '2-digit' }, dm)} · ${hm}`;
+  return local({ day: '2-digit', month: '2-digit', year: 'numeric' }, `${dm}/${d.getFullYear()}`);
 }
 
 /** Libellé seul, sans « : » ni emplacement (« Market cap: » → « Market cap »). */
@@ -66,7 +76,7 @@ function labelOf(s: string): string {
 /** Grand nombre sans devise : 19,8 M, 120 Md. */
 function compactNumber(v: number): string {
   if (v >= 1e12) return `${formatNumber(v / 1e12)} T`;
-  if (v >= 1e9) return `${formatNumber(v / 1e9)} Md`;
+  if (v >= 1e9) return `${formatNumber(v / 1e9)} ${billionSuffix()}`;
   if (v >= 1e6) return `${formatNumber(v / 1e6)} M`;
   return formatNumber(v);
 }

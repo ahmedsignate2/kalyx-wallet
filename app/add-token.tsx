@@ -9,6 +9,7 @@ import { useWallet } from '../lib/walletStore';
 import { useCustomTokens } from '../lib/customTokensStore';
 import { useT } from '../lib/settingsStore';
 import { getAdapter, getTokenMetadata, isValidEvmAddress, type TokenMeta } from '../src';
+import { goBack } from '../lib/nav';
 
 export default function AddToken() {
   const { colors } = useTheme();
@@ -46,7 +47,7 @@ export default function AddToken() {
 
   const onAdd = () => {
     add(activeChain, contract.trim());
-    router.back();
+    goBack();
   };
 
   /*

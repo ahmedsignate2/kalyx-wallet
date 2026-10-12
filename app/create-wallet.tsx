@@ -12,7 +12,7 @@ import { View, ScrollView, useWindowDimensions } from 'react-native';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as ScreenCapture from 'expo-screen-capture';
+import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { ScreenHeader, Text, Button, Input, Pressable as KPressable, Card } from '../ui/kit';
 import { PinPromptModal } from '../ui/PinPromptModal';
@@ -42,14 +42,7 @@ export default function CreateWallet() {
   const [held, setHeld] = useState(false);
   const [seen, setSeen] = useState(false);
 
-  useEffect(() => {
-    if (phrase) {
-      ScreenCapture.preventScreenCaptureAsync('create').catch(() => {});
-      return () => {
-        ScreenCapture.allowScreenCaptureAsync('create').catch(() => {});
-      };
-    }
-  }, [phrase]);
+  useNoScreenCapture('create', !!phrase);
 
   // Masque des mots : levé tant que le doigt est posé sur la grille.
   const reveal = useSharedValue(0);

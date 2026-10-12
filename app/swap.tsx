@@ -574,7 +574,15 @@ function SwapInner() {
   }, []);
 
 
-  const onConfirm = async (unlock: Unlock) => {
+  // Un échange en cours n'est jamais relancé (feuille fermée puis rouverte pendant la diffusion).
+  const inFlight = useRef<Promise<void> | null>(null);
+  const onConfirm = (unlock: Unlock): Promise<void> => {
+    if (inFlight.current) return inFlight.current;
+    const run = executeConfirmed(unlock).finally(() => { inFlight.current = null; });
+    inFlight.current = run;
+    return run;
+  };
+  const executeConfirmed = async (unlock: Unlock) => {
     if (!quote) return;
     if (stale) throw new Error(t('errQuoteExpired')); // devenu périmé pendant la saisie du code
     setStep(t('preparing'));
@@ -587,6 +595,7 @@ function SwapInner() {
       const summary = `${amount} ${fromTok.symbol} → ≈ ${formatTokenAmount(quote.toAmount, quote.toToken.decimals)} ${toTok.symbol}`;
       stopCountdown();
       reset();
+      setConfirming(false);
       setAmount('');
       setSliderPct(null);
       setSuccess({ hash, summary, isBridge, fromChain: activeChain, toChain: toChain });

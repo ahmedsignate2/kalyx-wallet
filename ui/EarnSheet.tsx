@@ -388,7 +388,7 @@ export function EarnSheet({
                       tone="muted"
                     />
                     <Row label={t('earnKalyxFee')} value={kalyxFeeLabel} tone="up" />
-                    {q.feeUsd > 0 ? <Row label={t('earnRouteFee')} value={`≈ ${q.feeUsd.toFixed(2)} $`} tone="muted" /> : null}
+                    {q.feeUsd > 0 ? <Row label={t('earnRouteFee')} value={`≈ ${money(q.feeUsd)} $`} tone="muted" /> : null}
                   </View>
 
                   {p.withdrawNote ? (

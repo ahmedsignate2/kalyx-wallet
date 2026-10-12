@@ -5,7 +5,6 @@
  */
 import { useState } from 'react';
 import { View } from 'react-native';
-import { router } from 'expo-router';
 import { Button, Input, ScreenHeader, Text as KText, Card, Screen } from '../ui/kit';
 import { NovaHero } from '../ui/nova';
 import { Icon } from '../ui/icon';
@@ -15,6 +14,7 @@ import { useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
 import { toast } from '../lib/toast';
 import { isWalletError, parseWatchAddress, type WatchAddressError } from '../src';
+import { goBack } from '../lib/nav';
 
 const FAMILY = { evm: 'EVM', bitcoin: 'Bitcoin', solana: 'Solana' } as const;
 const ERR_KEY: Record<Exclude<WatchAddressError, 'EMPTY'>, 'watchErrUnknown' | 'watchErrChecksum' | 'watchErrTon'> = {
@@ -43,10 +43,10 @@ export default function WatchWallet() {
     setBusy(true);
     try {
       await addWatchWallet(parsed.address, label);
-      router.back();
+      goBack();
     } catch (e) {
       if (isWalletError(e) && e.code === 'WALLET_ALREADY_EXISTS') setError(t('watchErrExists'));
-      else toast.error(t('watchTitle'), friendlyTxError(e));
+      else toast.error(t('watchTitle'), friendlyTxError(e, t as never));
     } finally {
       setBusy(false);
     }

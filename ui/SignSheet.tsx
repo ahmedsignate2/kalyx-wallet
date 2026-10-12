@@ -53,9 +53,10 @@ export function SignSheet({
   const [showRaw, setShowRaw] = useState(false);
   // Hôte RÉEL (src/domain/web/dappHost) : « a.com@evil.com », « evil.com/@a.com » → evil.com.
   const host = dappHost(peer?.url ?? '');
-  const danger = explanation?.risk === 'danger';
   const verified = verify?.validation === 'VALID';
   const badDomain = verify?.validation === 'INVALID' || verify?.isScam;
+  // Domaine usurpé ou signalé : signer exige le même appui long qu'un risque élevé.
+  const danger = explanation?.risk === 'danger' || !!badDomain;
 
   return (
     <Sheet visible={visible} onClose={onReject}>

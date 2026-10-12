@@ -22,8 +22,14 @@ import { formatUnits } from 'ethers';
  * Le fiat (`formatFiat`) garde toujours « , » + espaces (convention de l'app).
  */
 let DECIMAL_SEP = '.';
+let BILLION = 'B';
 export function setNumberLocale(lang: string): void {
   DECIMAL_SEP = ['fr', 'de', 'es', 'pt', 'it', 'nl', 'pl', 'tr', 'ru'].includes(lang) ? ',' : '.';
+  BILLION = lang === 'fr' ? 'Md' : 'B';
+}
+/** Suffixe compact du milliard : « Md » en français, « B » ailleurs. */
+export function billionSuffix(): string {
+  return BILLION;
 }
 export function decimalSeparator(): string {
   return DECIMAL_SEP;
@@ -51,7 +57,7 @@ export function formatDecimalString(s: string, opts: { compact?: boolean; maxFra
 
   if (int !== '0') {
     const n = Number(int);
-    if (opts.compact && n >= 1_000_000_000) return `${sign}${(n / 1e9).toFixed(2).replace(/\.?0+$/, '')} Md`;
+    if (opts.compact && n >= 1_000_000_000) return `${sign}${(n / 1e9).toFixed(2).replace(/\.?0+$/, '')} ${BILLION}`;
     if (opts.compact && n >= 1_000_000) return `${sign}${(n / 1e6).toFixed(2).replace(/\.?0+$/, '')} M`;
     const maxFrac = opts.maxFrac ?? (n >= 1_000_000 ? 2 : MAX_FRAC_LARGE);
     const frac = trimZeros(fracRaw.slice(0, maxFrac));

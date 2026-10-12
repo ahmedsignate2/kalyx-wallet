@@ -6,7 +6,6 @@ import { ExplainSheet } from '../components/ai/ExplainSheet';
 import { useMemo, useRef, useState } from 'react';
 import { probeRpcChainId } from '../src/domain/chains/customNetworks';
 import { View, Text, ScrollView, TextInput, KeyboardAvoidingView } from 'react-native';
-import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, spacing, useTheme, fontSize } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
@@ -33,6 +32,7 @@ const FAMILY_TABS: ChainFamily[] = ['evm', 'bitcoin', 'solana', 'ton'];
 const DEFAULT_SYMBOLS: Record<ChainFamily, string> = { evm: 'ETH', bitcoin: 'BTC', solana: 'SOL', ton: 'TON' };
 import { useCustomChains, type CustomChainInput } from '../lib/customChainsStore';
 import { space, radii } from '../ui/tokens';
+import { goBack } from '../lib/nav';
 
 export default function Networks() {
   const { colors, typography } = useTheme();
@@ -86,7 +86,7 @@ export default function Networks() {
 
   const choose = (id: string) => {
     setActiveChain(id);
-    router.back();
+    goBack();
   };
 
   const [probing, setProbing] = useState(false);

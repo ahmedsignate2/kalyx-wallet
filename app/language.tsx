@@ -1,10 +1,10 @@
 import { NovaHero, Pulse, Rise } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable, Card, Screen } from '../ui/kit';
 import { Text, ScrollView, View } from 'react-native';
-import { router } from 'expo-router';
 import { spacing, useTheme, fontSize } from '../ui/theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { LANGUAGES } from '../lib/i18n';
+import { goBack } from '../lib/nav';
 
 export default function Language() {
   const { colors, typography } = useTheme();
@@ -24,7 +24,7 @@ export default function Language() {
             <KPressable
               onPress={() => {
                 setLanguage(l.code);
-                router.back();
+                goBack();
               }}
             >
               <Card padding="xl" gap="md"

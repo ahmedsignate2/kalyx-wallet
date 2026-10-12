@@ -117,8 +117,11 @@ function detailedWalletKey(code: string, meta: Record<string, string>): Key | nu
   if (code === 'WRONG_ACCOUNT' && meta.address) return 'errWrongAccountAddr';
   if (code === 'WHITELIST_PENDING' && meta.hours) return 'errWhitelistPendingHours';
   if (code === 'NOT_SUPPORTED' && meta.reason === 'duressBiometric') return 'duressBioOff';
+  if (code === 'NOT_SUPPORTED' && meta.reason === 'biometricUnavailable') return 'bioUnavailable';
   return null;
 }
+
+const EXPECTED_CODES = new Set(['BIOMETRIC_REFUSED', 'WRONG_PIN', 'NOT_SUPPORTED']);
 
 const fillMeta = (s: string, meta: Record<string, string> | undefined) => s.replace(/\{(\w+)\}/g, (m, k) => meta?.[k] ?? m);
 
@@ -148,7 +151,9 @@ export function friendlyTxError(e: unknown, t?: TFn): string {
   const errMsg = raw ? raw.shortMessage || raw.message || 'Transaction error' : String(e);
   recordTechnicalLog('TX_ERROR', errMsg, raw ? { code: raw.code, status: raw.status } : undefined);
   // Jamais de levée ICI : `null` ou une erreur à références circulaires faisaient planter le gestionnaire d'erreurs lui-même.
-  console.error('[txError] Raw error interceptée:', safeDump(e));
+  // Refus attendus (Face ID annulé, mauvais PIN, fonction absente sur cette chaîne) : pas d'écran rouge en dev.
+  const expected = typeof raw?.code === 'string' && EXPECTED_CODES.has(raw.code);
+  (expected ? console.warn : console.error)('[txError] Raw error interceptée:', safeDump(e));
   // Message déjà traduit par l'appelant : on le rend tel quel, sans le soumettre
   // aux devinettes qui suivent. Il est passé par le journal juste au-dessus.
   if (e instanceof UserFacingError) return e.message;

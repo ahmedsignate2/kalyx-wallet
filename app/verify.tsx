@@ -13,6 +13,7 @@ import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { haptic } from '../lib/haptics';
 import { createBackupChallenge, verifyBackupChallenge } from '../src';
+import { goBack } from '../lib/nav';
 
 export default function Verify() {
   // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
@@ -57,9 +58,9 @@ export default function Verify() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => router.back()} />
+        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => goBack('/welcome')} />
         <Text variant="title2" style={{ flex: 1 }}>{t('verifyBackup')}</Text>
         <FlowDots step={2} />
       </View>

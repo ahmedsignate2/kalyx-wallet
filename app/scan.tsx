@@ -229,6 +229,10 @@ function Scanner() {
   if (!permission.granted) {
     return (
       <View style={[styles.center, { backgroundColor: colors.bg, padding: spacing(3) }]}>
+        {/* Caméra refusée : sans en-tête, iOS (aucun retour système) laissait l'écran sans issue. */}
+        <View style={{ position: 'absolute', top: insets.top, left: 12, right: 12 }}>
+          <ScreenHeader title={t('scanQrTitle')} />
+        </View>
         <Icon name="scan" size={48} color={colors.primary} />
         <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: fontSize.xl, marginTop: spacing(2), textAlign: 'center' }}>
           {t('allowCamera')}
@@ -268,7 +272,7 @@ function Scanner() {
       <ScanFrame />
 
       {/* Barre d'outils bas */}
-      <View style={styles.toolbar}>
+      <View style={[styles.toolbar, { bottom: insets.bottom + 48 }]}>
         <ToolButton icon={torch ? 'flash' : 'flashOff'} label={t('torchLabel')} active={torch} onPress={() => setTorch((v) => !v)} />
         <ToolButton icon="copy" label={t('paste')} onPress={paste} />
         <ToolButton icon="image" label={t('scanFromImage')} onPress={fromImage} />
@@ -364,8 +368,9 @@ function ResultSheet({ result, onAct, onRescan }: { result: QrResult; onAct: (r:
   const { colors } = useTheme();
   const t = useT();
   const d = describeQr(result, t);
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.sheetWrap}>
+    <View style={[styles.sheetWrap, { paddingBottom: insets.bottom + spacing(2) }]}>
       <View style={[styles.sheet, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {d.danger ? <Icon name="warning" size={20} color={colors.warning} /> : <Icon name="check" size={20} color={colors.up} />}

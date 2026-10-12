@@ -7,21 +7,21 @@ import { getAdapter, SolanaChainAdapter, WalletError } from '../src';
 
 export type SolanaSubmitStatus = 'sending' | 'confirming';
 
-export function friendlySolanaSimError(err: unknown, logs: string[]): string {
+/*
+ * Erreur TYPÉE, traduite par friendlyTxError dans la langue de l'utilisateur.
+ * Les phrases françaises renvoyées ici s'affichaient telles quelles dans les
+ * quinze langues (ou retombaient sur « Transaction échouée »).
+ */
+export function solanaSimError(err: unknown, logs: string[]): Error {
   const logsStr = logs.join('\n');
   const errStr = JSON.stringify(err ?? '');
   const m = logsStr.match(/insufficient lamports (\d+), need (\d+)/);
-  if (m) {
-    const missing = (Number(m[2]) - Number(m[1])) / 1e9;
-    return `Solde SOL insuffisant : il manque ${missing.toFixed(4)} SOL (frais + rent).`;
-  }
-  if (errStr.includes('InsufficientFundsForRent')) return 'Solde SOL insuffisant pour le rent (gardez ≥ 0,01 SOL).';
-  if (/0x1771|slippage|exceeds desired slippage|SlippageToleranceExceeded/i.test(logsStr + errStr)) {
-    return 'Le prix a bougé (slippage dépassé). Demandez un nouveau devis.';
-  }
-  if (/blockhash/i.test(errStr + logsStr)) return 'Devis expiré. Demandez un nouveau devis.';
-  if (/insufficient funds|Insufficient/i.test(logsStr)) return 'Solde insuffisant pour cet échange (montant + frais).';
-  return `Simulation refusée par Solana : ${errStr.slice(0, 100)}`;
+  if (m) return new WalletError('INSUFFICIENT_FUNDS', `missing ${((Number(m[2]) - Number(m[1])) / 1e9).toFixed(4)} SOL (fees + rent)`);
+  if (errStr.includes('InsufficientFundsForRent')) return new WalletError('SOL_RENT_SENDER', 'InsufficientFundsForRent');
+  if (/0x1771|slippage|exceeds desired slippage|SlippageToleranceExceeded/i.test(logsStr + errStr)) return new Error('slippage exceeded');
+  if (/blockhash/i.test(errStr + logsStr)) return new Error('blockhash not found');
+  if (/insufficient funds|Insufficient/i.test(logsStr)) return new WalletError('INSUFFICIENT_FUNDS', 'insufficient funds (amount + fees)');
+  return new WalletError('SWAP_SIMULATION_FAILED', `Solana simulation refused: ${errStr.slice(0, 100)}`);
 }
 
 export async function submitSolanaSigned(
@@ -37,7 +37,7 @@ export async function submitSolanaSigned(
     signedBase64,
     { encoding: 'base64', commitment: 'processed' },
   ]);
-  if (sim?.value?.err) throw new Error(friendlySolanaSimError(sim.value.err, sim.value.logs ?? []));
+  if (sim?.value?.err) throw solanaSimError(sim.value.err, sim.value.logs ?? []);
 
   const hash = await rpc.rpc<string>('sendTransaction', [signedBase64, { encoding: 'base64', maxRetries: 3 }]);
   // `WalletError` et non `Error` nu : le code est ce qui permet de traduire.

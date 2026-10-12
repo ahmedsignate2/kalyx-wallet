@@ -5,8 +5,10 @@
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useSettings } from './settingsStore';
 import { translate } from './i18n';
+import { isExpoGoIos } from './expoGo';
 
 export async function isBiometricAvailable(): Promise<boolean> {
+  if (isExpoGoIos()) return false;
   const hasHardware = await LocalAuthentication.hasHardwareAsync();
   const enrolled = await LocalAuthentication.isEnrolledAsync();
   return hasHardware && enrolled;
