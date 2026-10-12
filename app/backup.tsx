@@ -81,7 +81,7 @@ export default function Backup() {
                   const n = c * half + i + 1;
                   return (
                     <Rise key={n} delay={120 + (n - 1) * 45} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], height: 40, paddingHorizontal: space[3], borderRadius: radius.input, backgroundColor: colors.surface2 }}>
-                      <Text variant="caption" tone="tertiary" tabular style={{ width: 22 }}>{n}</Text>
+                      <Text variant="caption" tone="tertiary" tabular maxFontSizeMultiplier={1.2} style={{ width: 22 }}>{n}</Text>
                       <View style={{ flex: 1, justifyContent: 'center' }}>
                         <Animated.View style={wordsStyle}><Text variant="body">{w}</Text></Animated.View>
                         <Animated.View style={[{ position: 'absolute', left: 0 }, maskStyle]}><Text variant="body" tone="tertiary">••••••</Text></Animated.View>

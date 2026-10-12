@@ -1,11 +1,12 @@
 import { radius, fontSize } from '../ui/tokens';
 import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
-import { Pressable as KPressable, Halo } from '../ui/kit';
+import { Pressable as KPressable, Halo, Sheet, HoldButton, Button } from '../ui/kit';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, StyleSheet, useWindowDimensions } from 'react-native';
 import { Orbit, Rise, Stardust } from '../ui/nova';
 import { router, Stack } from 'expo-router';
+import { useResetToHome } from '../lib/nav';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinPad } from '../ui/PinPad';
 import { Icon } from '../ui/icon';
@@ -14,11 +15,13 @@ import { useDriveFlow } from '../lib/googleDrive';
 import { useWallet, pinLockRemainingMs } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { flushPendingIntent } from '../lib/paymentIntent';
-import { isBiometricAvailable } from '../lib/biometrics';
-import { detectReinstall } from '../lib/installMarker';
+import { isBiometricAvailable, isBiometricLockedOut } from '../lib/biometrics';
+import { acknowledgeReinstall, detectReinstall } from '../lib/installMarker';
 import { recordTechnicalLog } from '../lib/technicalLogger';
 
 export default function Unlock() {
+  // Pile vidée jusqu'aux onglets : un replace('/home') empilait un second jeu d'onglets sous lequel le balayage iOS revenait.
+  const resetToHome = useResetToHome();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { width: winW, height: winH } = useWindowDimensions();
@@ -26,6 +29,7 @@ export default function Unlock() {
   const unlockWithPin = useWallet((s) => s.unlockWithPin);
   const unlockWithBiometrics = useWallet((s) => s.unlockWithBiometrics);
   const healBiometric = useWallet((s) => s.healBiometric);
+  const wipeForgottenCode = useWallet((s) => s.wipeForgottenCode);
   const failedAttempts = useWallet((s) => s.failedAttempts);
   const lastFailedAt = useWallet((s) => s.lastFailedAt);
   const biometricEnabled = useSettings((s) => s.biometricEnabled);
@@ -38,6 +42,15 @@ export default function Unlock() {
   const [busy, setBusy] = useState(false);
   const [bioAvailable, setBioAvailable] = useState(false);
   const [errSignal, setErrSignal] = useState(0);
+  /*
+   * ISSUE DE SECOURS. Code oublié = portefeuilles inaccessibles pour toujours,
+   * et sur iOS le trousseau survit même à la désinstallation : l'écran de code
+   * revenait sans fin. `reinstall` : proposé UNE fois après une réinstallation
+   * détectée ; `wipe` : la confirmation (maintien) avant d'effacer.
+   */
+  const [rescue, setRescue] = useState<'reinstall' | 'wipe' | null>(null);
+  const [wiping, setWiping] = useState(false);
+  const [wipeError, setWipeError] = useState<string | null>(null);
   const screenOp = useRef(new Animated.Value(1)).current;
 
   /*
@@ -51,18 +64,47 @@ export default function Unlock() {
   const lockedMs = pinLockRemainingMs();
   const locked = lockedMs > 0;
   /*
-   * iOS : le trousseau survit à la désinstallation (lib/installMarker). Une
-   * réinstallation détectée est seulement JOURNALISÉE pour l'instant — aucun
-   * effacement automatique (risque de perte de fonds) ; un écran futur
-   * proposera à l'utilisateur de garder ou de retirer ces portefeuilles.
+   * iOS : le trousseau survit à la désinstallation (lib/installMarker). Jamais
+   * d'effacement automatique (un AsyncStorage vidé pour une autre raison
+   * détruirait l'unique copie d'un coffre) : on DEMANDE, une fois — garder
+   * (code connu) ou effacer et restaurer avec la phrase.
    */
   useEffect(() => {
     detectReinstall()
       .then((reinstalled) => {
-        if (reinstalled) recordTechnicalLog('WALLET', 'Réinstallation iOS probable : portefeuilles retrouvés dans le trousseau, données locales absentes');
+        if (!reinstalled) return;
+        recordTechnicalLog('WALLET', 'Réinstallation iOS probable : portefeuilles retrouvés dans le trousseau, données locales absentes');
+        setRescue('reinstall');
       })
       .catch(() => {});
   }, []);
+
+  // « Garder » ou feuille fermée : la question ne revient plus (proposée une fois).
+  const keepWallets = useCallback(() => {
+    setRescue(null);
+    void acknowledgeReinstall();
+  }, []);
+
+  /*
+   * Effacement SANS déverrouillage, même bloqué par les essais : c'est l'issue
+   * quand le code est perdu. Il ne lit rien — il détruit (walletStore,
+   * `wipeForgottenCode`) — et l'écran dit la même chose quoi qu'il y ait derrière.
+   */
+  const wipeEverything = useCallback(async () => {
+    if (wiping) return;
+    setWiping(true);
+    setWipeError(null);
+    try {
+      await wipeForgottenCode();
+      await acknowledgeReinstall();
+      setRescue(null);
+      router.replace('/welcome');
+    } catch (e) {
+      console.warn('[KALYX-UNLOCK] forgotten-code:wipe-failed', { error: e instanceof Error ? e.message.slice(0, 120) : 'unknown' });
+      setWipeError(t('forgotCodeWipeFailed'));
+      setWiping(false);
+    }
+  }, [wiping, wipeForgottenCode, t]);
 
   useEffect(() => {
     if (!locked) return;
@@ -81,7 +123,7 @@ export default function Unlock() {
       const back = useDriveFlow.getState().returnTo;
       if (back) {
         useDriveFlow.getState().setReturnTo(null);
-        router.replace('/home');
+        resetToHome();
         router.push(back);
         // Rejouée ici aussi : un lien de paiement est une action que
         // l'utilisateur vient de faire, elle passe devant la reprise du flux
@@ -90,12 +132,12 @@ export default function Unlock() {
         flushPendingIntent();
         return;
       }
-      router.replace('/home');
+      resetToHome();
       // Lien de paiement reçu pendant que l'app était verrouillée : c'est la
       // raison pour laquelle l'utilisateur vient de déverrouiller.
       flushPendingIntent();
     });
-  }, [screenOp]);
+  }, [screenOp, resetToHome]);
 
   // UNE seule demande d'empreinte : la lecture du coffre biométrique
   // (SecureStore requireAuthentication) EST déjà le prompt de l'OS. On
@@ -111,6 +153,15 @@ export default function Unlock() {
         const msg = e instanceof Error ? e.message : '';
         const code = isWalletError(e) ? e.code : null;
         console.warn('[KALYX-UNLOCK] biometrics:failed', { manual, code, msg });
+        /*
+         * Verrouillage SYSTÈME (trop d'échecs Face ID / Touch ID) : le trousseau
+         * le rend comme une annulation, et le bouton ne faisait plus rien, sans
+         * un mot. Sondé sans invite ; dit aussi au lancement, sinon on le cherche.
+         */
+        if (code === 'BIOMETRIC_REFUSED' && (await isBiometricLockedOut())) {
+          setError(t('bioLockedOut'));
+          return;
+        }
         if (manual && code !== 'BIOMETRIC_REFUSED' && !/refus|annul|cancel/i.test(msg)) {
           /*
            * Jamais le message brut (souvent anglais, technique) : une erreur connue
@@ -233,8 +284,29 @@ export default function Unlock() {
               </KPressable>
             ) : null}
           </View>
+          {/* Toujours offert, même bloqué : c'est l'issue quand le code est perdu. */}
+          <KPressable onPress={() => { setWipeError(null); setRescue('wipe'); }} disabled={busy} hitSlop={8} haptic="light" accessibilityRole="button">
+            <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm, fontFamily: fonts.medium }}>{t('forgotCode')}</Text>
+          </KPressable>
         </View>
       </View>
+
+      <Sheet visible={rescue === 'reinstall'} onClose={keepWallets} showWhenLocked>
+        <Text style={{ color: colors.text, fontSize: fontSize.lg, fontFamily: fonts.bold }}>{t('reinstallFoundTitle')}</Text>
+        <Text style={{ color: colors.textSecondary, fontSize: fontSize.base }}>{t('reinstallFoundBody')}</Text>
+        <Button label={t('reinstallKeep')} onPress={keepWallets} />
+        <Button label={t('reinstallWipe')} variant="outline" onPress={() => { setWipeError(null); setRescue('wipe'); }} />
+      </Sheet>
+
+      {/* Pas de fermeture au fond pendant l'effacement : il irait au bout sans écran pour le dire. */}
+      <Sheet visible={rescue === 'wipe'} onClose={() => setRescue(null)} dismissable={!wiping} showWhenLocked>
+        <Text style={{ color: colors.text, fontSize: fontSize.lg, fontFamily: fonts.bold }}>{t('forgotCodeTitle')}</Text>
+        <Text style={{ color: colors.textSecondary, fontSize: fontSize.base }}>{t('forgotCodeBody')}</Text>
+        {wipeError ? <Text style={{ color: colors.danger, fontSize: fontSize.sm, fontFamily: fonts.medium }}>{wipeError}</Text> : null}
+        {/* Maintien long (niveau Danger) plutôt qu'un appui : un geste qu'on ne fait pas par mégarde. */}
+        <HoldButton label={wiping ? t('forgotCodeWiping') : t('forgotCodeHold')} danger icon="reset" disabled={wiping} onComplete={() => void wipeEverything()} />
+        <Button label={t('cancel')} variant="ghost" disabled={wiping} onPress={() => setRescue(null)} />
+      </Sheet>
     </Animated.View>
   );
 }

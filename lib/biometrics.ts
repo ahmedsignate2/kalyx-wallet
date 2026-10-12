@@ -3,6 +3,7 @@
  * Fine couche au-dessus d'expo-local-authentication.
  */
 import * as LocalAuthentication from 'expo-local-authentication';
+import { Platform } from 'react-native';
 import { useSettings } from './settingsStore';
 import { translate } from './i18n';
 import { isExpoGoIos } from './expoGo';
@@ -12,6 +13,29 @@ export async function isBiometricAvailable(): Promise<boolean> {
   const hasHardware = await LocalAuthentication.hasHardwareAsync();
   const enrolled = await LocalAuthentication.isEnrolledAsync();
   return hasHardware && enrolled;
+}
+
+/**
+ * Biométrie VERROUILLÉE par le système (trop d'échecs Face ID / Touch ID) ?
+ * Sondage SANS invite, à faire après un refus : le trousseau rend alors la
+ * même erreur qu'une annulation, et l'écran restait muet — le bouton ne
+ * faisait plus rien. iOS : en verrouillage, `isEnrolledAsync` reste vrai
+ * (il tolère explicitement le lockout) alors que le niveau retombe sous
+ * « biométrique » : c'est cette différence qui le trahit. Android ne la montre
+ * pas (le niveau ne bouge pas) : faux, on n'invente jamais un verrouillage.
+ */
+export async function isBiometricLockedOut(): Promise<boolean> {
+  if (Platform.OS !== 'ios' || isExpoGoIos()) return false;
+  try {
+    const [hasHardware, enrolled, level] = await Promise.all([
+      LocalAuthentication.hasHardwareAsync(),
+      LocalAuthentication.isEnrolledAsync(),
+      LocalAuthentication.getEnrolledLevelAsync(),
+    ]);
+    return hasHardware && enrolled && level < LocalAuthentication.SecurityLevel.BIOMETRIC_WEAK;
+  } catch {
+    return false;
+  }
 }
 
 /** Demande l'authentification. Renvoie true si l'utilisateur réussit. */

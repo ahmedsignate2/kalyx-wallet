@@ -11,6 +11,7 @@
  * dont `responseText` grandit à chaque morceau reçu (`onprogress`), à travers
  * `SseParser`. Reconnexion avec attente croissante, reprise au dernier id.
  */
+import { AppState } from 'react-native';
 import { SseParser, parseBridgeMessage } from '../../src/domain/tonconnect/sse';
 
 export interface BridgeMessage {
@@ -20,6 +21,23 @@ export interface BridgeMessage {
 }
 
 const MAX_BACKOFF_MS = 30_000;
+
+/*
+ * Écoutes en cours, relancées au retour au premier plan. iOS suspend l'app en
+ * arrière-plan et coupe le flux SSE sans que le XMLHttpRequest ne le signale
+ * (ni erreur ni fin) : au retour, l'écoute semblait vivante mais ne recevait
+ * plus rien — la demande de la dApp n'apparaissait jamais. On remplace donc la
+ * connexion, en reprenant au dernier identifiant reçu (rien n'est perdu).
+ */
+const live = new Set<BridgeListener>();
+let appStateHooked = false;
+function hookAppState(): void {
+  if (appStateHooked) return;
+  appStateHooked = true;
+  AppState.addEventListener('change', (st) => {
+    if (st === 'active') for (const l of [...live]) l.restart();
+  });
+}
 
 export class BridgeListener {
   private xhr: XMLHttpRequest | null = null;
@@ -36,11 +54,21 @@ export class BridgeListener {
 
   start(): void {
     this.stopped = false;
+    live.add(this);
+    hookAppState();
     this.connect();
+  }
+
+  /** Ferme la connexion (peut-être morte sans le savoir) et en ouvre une neuve. */
+  restart(): void {
+    this.stop();
+    this.attempt = 0;
+    this.start();
   }
 
   stop(): void {
     this.stopped = true;
+    live.delete(this);
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     this.xhr?.abort();

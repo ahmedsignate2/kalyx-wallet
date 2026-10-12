@@ -16,7 +16,7 @@
 import { ScreenOrbit } from '../ui/nova';
 import { journal } from '../lib/debugJournal';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, SectionList, RefreshControl, Share, ScrollView } from 'react-native';
+import { View, SectionList, RefreshControl, ScrollView } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, IconButton, Divider, Chip, Skeleton, EmptyState, ActivityRow, Pressable, Input, SegmentedControl, Card } from '../ui/kit';
@@ -32,6 +32,7 @@ import { useSpamOf, useHistoryChains } from '../lib/historySpam';
 import { useT, useActivityT, useSettings, fiatSymbol } from '../lib/settingsStore';
 import { csvLabels } from '../lib/csvLabels';
 import { toast } from '../lib/toast';
+import { shareCsvFile } from '../lib/csvFile';
 import { haptic } from '../lib/haptics';
 import {
   getAdapter,
@@ -216,7 +217,8 @@ export default function History() {
       labels: csvLabels(t),
     });
     try {
-      await Share.share({ message: csv, title: 'kalyx-history.csv' });
+      // Vrai fichier .csv (tableurs, « Enregistrer dans Fichiers »), plus un bloc de texte.
+      await shareCsvFile(csv, 'kalyx-history.csv');
     } catch {
       toast.error(t('exportFailed'));
     }

@@ -26,6 +26,7 @@ import { translate } from './i18n';
 import { useSettings } from './settingsStore';
 import { useWallet } from './walletStore';
 import { useWalletConnect } from './walletconnect';
+import { isWcPairingUri } from '../src/domain/qr/deeplink';
 import { usePortfolioStore } from './portfolio/portfolioStore';
 import {
   parseQr,
@@ -211,7 +212,7 @@ async function sendParamsFor(
  * Agit sur un contenu analysé. Rien n'est signé ni envoyé : on amène toujours
  * l'utilisateur sur un écran de confirmation, prérempli.
  */
-export async function runQrIntent(result: QrResult, opts?: { replace?: boolean }): Promise<void> {
+export async function runQrIntent(result: QrResult, opts?: { replace?: boolean; /** Vient du scanner (pas d'un lien) : pas de retour vers la dApp après connexion. */ fromScan?: boolean }): Promise<void> {
   const tr = t();
   /*
    * `replace` depuis le scanner : revenir en arrière doit ramener à l'écran
@@ -220,9 +221,19 @@ export async function runQrIntent(result: QrResult, opts?: { replace?: boolean }
   const go = opts?.replace ? router.replace : router.push;
 
   if (result.kind === 'walletconnect') {
+    /*
+     * Lien « reviens, une demande t'attend » (sans symKey) : rien à appairer.
+     * Le client est seulement démarré s'il ne l'est pas (démarrage à froid) :
+     * la demande arrive alors par le relais et s'affiche d'elle-même.
+     */
+    if (!isWcPairingUri(result.uri)) {
+      const wc = useWalletConnect.getState();
+      if (!wc.wallet) void wc.init().catch(() => {});
+      return;
+    }
     useWalletConnect
       .getState()
-      .pair(result.uri)
+      .pair(result.uri, { returnAfterApproval: !opts?.fromScan })
       .catch((e) => toast.error(tr('connectionFailed'), e instanceof Error ? e.message : undefined));
     go('/walletconnect');
     return;

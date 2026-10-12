@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSFaceIDUsageDescription": "Kalyx는 지갑 잠금을 해제하고 중요한 작업을 확인하기 위해 Face ID를 사용합니다.",
+    "NSCameraUsageDescription": "Kalyx는 QR 코드(결제 주소 및 WalletConnect 연결)를 스캔하기 위해 카메라를 사용합니다.",
+    "NSPhotoLibraryUsageDescription": "Kalyx는 사용자가 선택한 사진에서 결제 QR 코드를 읽기 위해서만 해당 사진에 접근합니다. 다른 이미지는 읽지 않습니다.",
+    "NSMicrophoneUsageDescription": "Kalyx는 절대 소리를 녹음하지 않으며, 이 권한을 요청하지도 않습니다."
+  }
+}

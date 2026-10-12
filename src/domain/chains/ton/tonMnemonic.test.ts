@@ -3,12 +3,17 @@ import { hex } from '@scure/base';
 import {
   tonWords,
   isValidTonMnemonic,
+  isValidTonMnemonicAsync,
   tonMnemonicNeedsPassword,
   tonSeedFromMnemonic,
+  tonSeedFromMnemonicAsync,
   TON_MNEMONIC_WORDS,
 } from './tonMnemonic';
 import { wordlist } from '@scure/bip39/wordlists/english';
 import VECTORS from './tonkeeper-vectors.json';
+
+// Variantes asynchrones : 100 000 tours de PBKDF2 découpés en tranches qui rendent la main — lent sous une suite chargée.
+jest.setTimeout(30_000);
 
 /**
  * Phrase de 24 mots quelconque. Elle n'a aucune raison d'être une phrase TON
@@ -148,5 +153,27 @@ describe('tonMnemonicNeedsPassword', () => {
   /** Une phrase valide sans mot de passe n'en attend pas : les deux s'excluent. */
   it('une phrase valide sans mot de passe n’en réclame pas', () => {
     for (const k of official) expect(tonMnemonicNeedsPassword(k.phrase)).toBe(false);
+  });
+});
+
+describe('variantes asynchrones — mêmes octets que les synchrones', () => {
+  it.each(official.map((k) => [k.phrase.split(' ').slice(0, 3).join(' '), k]))(
+    'tonSeedFromMnemonicAsync rend la graine officielle de « %s… »',
+    async (_, k) => {
+      expect(hex.encode(await tonSeedFromMnemonicAsync(k.phrase))).toBe(k.seed);
+    },
+  );
+
+  it('tonSeedFromMnemonicAsync = tonSeedFromMnemonic, avec et sans mot de passe', async () => {
+    expect(hex.encode(await tonSeedFromMnemonicAsync(WORDS24))).toBe(hex.encode(tonSeedFromMnemonic(WORDS24)));
+    expect(hex.encode(await tonSeedFromMnemonicAsync(WORDS24, 'secret'))).toBe(hex.encode(tonSeedFromMnemonic(WORDS24, 'secret')));
+    await expect(tonSeedFromMnemonicAsync('   ')).rejects.toThrow();
+  });
+
+  it('isValidTonMnemonicAsync = isValidTonMnemonic', async () => {
+    for (const p of [...official.map((k) => k.phrase), both12.phrase, plainBip39, VECTORS.invalid[0], '', 'un deux trois']) {
+      expect(await isValidTonMnemonicAsync(p)).toBe(isValidTonMnemonic(p));
+    }
+    expect(await isValidTonMnemonicAsync(official[0].phrase, 'secret')).toBe(isValidTonMnemonic(official[0].phrase, 'secret'));
   });
 });

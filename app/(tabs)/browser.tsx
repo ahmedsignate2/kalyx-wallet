@@ -22,7 +22,7 @@ import { buildTonJsBridge, parseTcJsMessage } from '../../src/domain/tonconnect/
 import { useTonConnect, tcJsHost, tcDeviceInfo } from '../../lib/tonconnect/store';
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { fill, isPluralOne } from '../../lib/i18n';
-import { View, TextInput, ScrollView, Share, Alert, useWindowDimensions, Linking } from 'react-native';
+import { View, TextInput, ScrollView, Share, Alert, useWindowDimensions, Linking, Platform } from 'react-native';
 import { Stack, useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -360,9 +360,31 @@ export default function Browser() {
   };
 
   // ── Sécurité de navigation ──
-  const onShouldStart = useCallback((req: { url: string; navigationType?: string }) => {
+  /*
+   * La liste blanche de la WebView est « * » : tout ce qui n'y figure pas partait
+   * directement en Linking.openURL SANS passer par ce filtre (react-native-webview,
+   * WebViewShared). Sur iOS, canOpenURL est faux pour les schémas non déclarés :
+   * metamask:/tg:/mailto: étaient ignorés en silence, et http:// filait vers Safari.
+   * C'est donc ICI que tout est trié.
+   */
+  const onShouldStart = useCallback((req: { url: string; navigationType?: string; isTopFrame?: boolean }) => {
     const u = req.url;
-    if (/^https?:\/\//i.test(u) || u === 'about:blank') {
+    // iOS appelle aussi ce filtre pour les iframes (captcha, widgets) : jamais d'alerte ni d'app externe pour eux.
+    if (req.isTopFrame === false) return /^(https:|about:|blob:)/i.test(u);
+    if (/^http:\/\//i.test(u)) {
+      // Pas de page en clair : on recharge la même adresse en https (si ce n'est pas déjà l'adresse courante, sinon boucle).
+      const secure = u.replace(/^http:\/\//i, 'https://');
+      const id = activeRef.current;
+      const cur = tabsRef.current.find((x) => x.id === id)?.url;
+      if (secure !== cur) {
+        // Même effet qu'updateTab, par les seules références stables (le filtre reste mémoïsé).
+        const next = tabsRef.current.map((x) => (x.id === id ? { ...x, url: secure } : x));
+        tabsRef.current = next;
+        setTabsState(next);
+      }
+      return false;
+    }
+    if (/^https:\/\//i.test(u) || /^about:(blank|srcdoc)$/i.test(u)) {
       if (/\.apk(\?|$)/i.test(u)) {
         Alert.alert(t('downloadBlockedTitle'), t('downloadBlockedMsg'), [{ text: t('understood') }]);
         return false;
@@ -370,8 +392,9 @@ export default function Browser() {
       return true;
     }
     // Jamais transmis au système : `javascript:` s'exécuterait, `file:`/`data:` ouvriraient du contenu local ou forgé.
-    if (/^\s*(javascript|file|data|blob|vbscript):/i.test(u)) return false;
-    if (/^(intent|market|tel|sms|mailto):/i.test(u) || /^[a-z][a-z0-9+.-]*:\/\//i.test(u)) {
+    if (/^\s*(javascript|file|data|blob|vbscript|about):/i.test(u)) return false;
+    // Tout autre schéma (metamask:, tg:, mailto:, itms-apps:…) : l'utilisateur confirme avant de quitter l'app.
+    if (/^[a-z][a-z0-9+.-]*:/i.test(u)) {
       const scheme = u.split(':')[0];
       Alert.alert(t('openOtherAppTitle'), t('openOtherAppMsg').replace('{scheme}', scheme), [
         { text: t('deny'), style: 'cancel' },
@@ -835,7 +858,8 @@ export default function Browser() {
             key={`${activeTab.id}:${activeTab.desktop ? 'd' : 'm'}`}
             ref={(r: WV | null) => { webref.current = r; }}
             source={{ uri: activeTab.url }}
-            originWhitelist={['https://*', 'about:blank']}
+            // « * » : chaque navigation passe par onShouldStart (voir plus haut), seul filtre.
+            originWhitelist={['*']}
             onShouldStartLoadWithRequest={onShouldStart}
             onLoadProgress={(e: { nativeEvent: { progress: number } }) => progress.set(e.nativeEvent.progress)}
             onLoadStart={() => setLoadSeq((n) => n + 1)}
@@ -863,6 +887,10 @@ export default function Browser() {
               const top = recentsRef.current[0];
               if (!activeTab.incognito && host && !(top && top.host === host)) pushRecent({ url: nav.url, host, title: siteName(host) }, recentsRef.current).then(applyRecents);
             }}
+            // iOS tue le processus web en mémoire basse : page blanche figée sans ce rechargement.
+            onContentProcessDidTerminate={() => webref.current?.reload()}
+            // Vidéos lues dans la page (sinon iOS force le plein écran).
+            allowsInlineMediaPlayback
             allowsBackForwardNavigationGestures
             pullToRefreshEnabled
             setSupportMultipleWindows={false}
@@ -999,7 +1027,12 @@ export default function Browser() {
           {activeTab.url ? (
             <>
               <ListRow left={<Icon name={isFav ? 'starFilled' : 'star'} size={20} />} title={isFav ? t('removedFromFavorites') : t('addedToFavorites')} onPress={() => { setMenu(false); toggleCurrentFav(); }} />
-              <ListRow left={<Icon name="share" size={20} />} title={t('share')} onPress={() => { setMenu(false); Share.share({ message: activeTab.url! }).catch(() => {}); }} />
+              <ListRow left={<Icon name="share" size={20} />} title={t('share')} onPress={() => {
+                  setMenu(false);
+                  // iOS : la feuille de partage présentée pendant la fermeture du menu n'apparaît pas — on attend la fin de l'animation.
+                  const url = activeTab.url!;
+                  setTimeout(() => { Share.share({ message: url }).catch(() => {}); }, Platform.OS === 'ios' ? 450 : 0);
+                }} />
               <ListRow left={<Icon name="search" size={20} />} title={t('searchInPage')} onPress={() => { setMenu(false); setFindSheet(true); }} />
               <ListRow left={<Icon name="desktop" size={20} />} title={t('desktopVersion')} right={<Switch value={activeTab.desktop} onValueChange={(v) => updateTab(activeTab.id, { desktop: v })} />} />
               <ListRow left={<Icon name="walletconnect" size={20} />} title={t('siteConnection')} subtitle={siteConn ? `${t('connected')} · ${chain.name}` : t('notConnected')} onPress={() => { setMenu(false); setConnSheet(true); }} />

@@ -13,9 +13,11 @@ import { utf8ToBytes } from '@noble/hashes/utils';
  * les modules natifs, l'app ne crashe pas — WalletConnect reste simplement inactif.
  * La signature est déléguée au walletStore (la clé reste isolée).
  */
-import { Platform, AppState, Linking } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import { create } from 'zustand';
 import { technicalLogger } from './technicalLogger';
+import { returnToDappOrHint } from './dappReturn';
+import { wcReturnUrl } from '../src/domain/web/returnUrl';
 import { useSettings } from './settingsStore';
 import { fill, translate, type Key } from './i18n';
 import { useWallet, type Unlock } from './walletStore';
@@ -202,15 +204,30 @@ function errorText(e: unknown): string {
   return String(e);
 }
 
-/** Après une réponse, rend la main à la dApp mobile qui a déclaré un lien de retour (recommandation WalletConnect). */
-function returnToDapp(wallet: IWeb3Wallet, topic: string): void {
+/**
+ * Après une réponse, rend la main à la dApp mobile qui a déclaré un lien de
+ * retour (recommandation WalletConnect).
+ *
+ * Le lien est CONTRÔLÉ : il vient de la dApp, et l'ouvrir tel quel laissait
+ * n'importe quel site renvoyer l'utilisateur, juste après une signature, vers
+ * une page de son choix. Lien web : même domaine que `metadata.url` seulement ;
+ * lien d'application : jamais http(s)/javascript/data/file (returnUrl.ts).
+ * Sans lien sûr, iOS affiche « c'est fait, retourne dans ton navigateur ».
+ */
+/** L'appairage en cours vient d'un lien profond (voir `pair`). */
+let returnAfterApproval = false;
+
+function returnToDapp(meta: { url?: string; redirect?: { native?: string; universal?: string } } | undefined, hint = true): void {
+  returnToDappOrHint(wcReturnUrl(meta?.redirect, meta?.url), hint);
+}
+function returnToDappOfSession(wallet: IWeb3Wallet, topic: string, hint = true): void {
+  let meta: { url?: string; redirect?: { native?: string; universal?: string } } | undefined;
   try {
-    const r = wallet.getActiveSessions()?.[topic]?.peer?.metadata?.redirect as { native?: string; universal?: string } | undefined;
-    const url = r?.native || r?.universal;
-    if (url) Linking.openURL(url).catch(() => {});
+    meta = wallet.getActiveSessions()?.[topic]?.peer?.metadata as typeof meta;
   } catch {
-    /* pas de lien de retour : l'utilisateur revient lui-même */
+    meta = undefined; // session déjà fermée : pas de lien, seulement l'indication
   }
+  returnToDapp(meta, hint);
 }
 
 /**
@@ -230,6 +247,17 @@ async function ensureRelay(wallet: IWeb3Wallet): Promise<void> {
     await relayer.transportOpen?.();
   } catch {
     await relayer.restartTransport?.().catch(() => {});
+  }
+}
+
+/** Relance inconditionnelle du transport (connexion possiblement morte sans le savoir). */
+async function restartRelay(wallet: IWeb3Wallet): Promise<void> {
+  const relayer = (wallet as any)?.core?.relayer as { restartTransport?: () => Promise<void> } | undefined;
+  try {
+    await relayer?.restartTransport?.();
+  } catch {
+    // Hors ligne (restartTransport lève) : le client se reconnectera seul au retour du réseau.
+    await ensureRelay(wallet).catch(() => {});
   }
 }
 
@@ -307,7 +335,8 @@ interface WcState {
   request: any | null;
 
   init: () => Promise<void>;
-  pair: (uri: string) => Promise<void>;
+  /** `returnAfterApproval` : appairage venu d'un LIEN (dApp sur ce téléphone) — on y revient après l'approbation. */
+  pair: (uri: string, opts?: { returnAfterApproval?: boolean }) => Promise<void>;
   /** Autorisations accordées au site : `tx` (proposer des transactions),
    *  `sign` (demander des signatures de message). La lecture (adresses/soldes)
    *  est inhérente à la connexion. Par défaut : tout autorisé. */
@@ -517,9 +546,27 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     useWallet.subscribe((state, prev) => {
       if (state.activeChain !== prev.activeChain) broadcastChainChanged(w, state.activeChain);
     });
-    // Retour au premier plan : connexion au relais rétablie, pour les demandes entrantes comme pour nos envois.
+    /*
+     * Retour au premier plan : connexion au relais rétablie, pour les demandes
+     * entrantes comme pour nos envois.
+     *
+     * Après plus de 25 s en arrière-plan, iOS a suspendu l'app et coupé le
+     * WebSocket SANS que le client le sache : `connected` reste vrai, et
+     * ensureRelay ne faisait rien. Les demandes de la dApp n'arrivaient plus
+     * (« la signature ne s'affiche pas »). On relance donc le transport sans
+     * condition — restartTransport ferme puis rouvre la connexion (core 2.x).
+     */
+    let backgroundSince = 0;
     AppState.addEventListener('change', (st) => {
-      if (st === 'active') void ensureRelay(w);
+      if (st === 'background') {
+        backgroundSince = Date.now();
+        return;
+      }
+      if (st !== 'active') return;
+      const long = backgroundSince > 0 && Date.now() - backgroundSince > 25_000;
+      backgroundSince = 0;
+      if (long) void restartRelay(w);
+      else void ensureRelay(w);
     });
     set({ wallet: w, ready: true });
     get().refresh();
@@ -528,7 +575,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     }
   },
 
-  pair: async (uri) => {
+  pair: async (uri, opts) => {
     // Session leurre : pas de nouvelle connexion (elle se mêlerait aux vraies) — un échec réseau ordinaire.
     if (isDecoySession()) throw new WalletError('RPC_UNAVAILABLE', 'Relais indisponible');
     const normalized = uri.trim();
@@ -538,6 +585,12 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     const wallet = get().wallet;
     console.log('[KALYX-WC] pair:after-init', { walletReady: !!wallet });
     if (!wallet) throw new Error('WalletConnect n’est pas configuré');
+    /*
+     * Scanné depuis un ordinateur : après l'approbation, il n'y a rien vers quoi
+     * « revenir » — basculer vers l'app mobile de la dApp ou afficher « retourne
+     * dans ton navigateur » serait faux. Seul un lien ouvert sur ce téléphone y donne droit.
+     */
+    returnAfterApproval = !!opts?.returnAfterApproval;
     await wallet.pair({ uri: normalized });
     console.log('[KALYX-WC] pair:done (en attente de la proposition du site)');
   },
@@ -638,6 +691,9 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       throw new WcConnectError('REJECTED_BY_RELAY', detail.slice(0, 160));
     }
     set({ proposal: null });
+    // Connexion faite : la dApp mobile qui a ouvert Kalyx attend qu'on lui rende la main.
+    if (returnAfterApproval) returnToDapp(proposal.params?.proposer?.metadata);
+    returnAfterApproval = false;
     get().refresh();
   },
 
@@ -880,7 +936,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       } catch (respondErr) {
         console.warn('[WC] réponse non transmise à la dApp (action déjà effectuée)', respondErr);
       }
-      if (q.length === 0) returnToDapp(wallet, topic);
+      if (q.length === 0) returnToDappOfSession(wallet, topic);
       return;
     } catch (e) {
       console.error('\n[WC-ERROR] === RESPONDING WITH ERROR ===');
@@ -914,7 +970,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         })
         .catch((e: unknown) => console.warn('[WC] refus non transmis à la dApp', e));
     }
-    if (q.length === 0 && wallet) returnToDapp(wallet, request.topic);
+    // Refus : retour tenté, mais pas de « c'est fait » (ce serait faux).
+    if (q.length === 0 && wallet) returnToDappOfSession(wallet, request.topic, false);
   },
 
   disconnect: async (topic) => {

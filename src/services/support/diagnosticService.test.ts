@@ -45,6 +45,7 @@ jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: 'file:///mock-documents/',
   cacheDirectory: 'file:///mock-cache/',
   writeAsStringAsync: jest.fn().mockResolvedValue(undefined),
+  deleteAsync: jest.fn().mockResolvedValue(undefined),
   EncodingType: {
     UTF8: 'utf8',
   },
@@ -199,21 +200,23 @@ describe('Diagnostic Service', () => {
 
       expect(result.success).toBe(true);
       expect(result.method).toBe('sharing');
-      expect(result.fileUri).toBe('file:///mock-documents/nova_diagnostic.json');
+      expect(result.fileUri).toBe('file:///mock-cache/nova_diagnostic.json');
 
       expect(FileSystem.writeAsStringAsync).toHaveBeenCalledWith(
-        'file:///mock-documents/nova_diagnostic.json',
+        'file:///mock-cache/nova_diagnostic.json',
         expect.stringContaining('"name": "Kalyx"'),
         { encoding: 'utf8' }
       );
 
       expect(Sharing.shareAsync).toHaveBeenCalledWith(
-        'file:///mock-documents/nova_diagnostic.json',
+        'file:///mock-cache/nova_diagnostic.json',
         expect.objectContaining({
           mimeType: 'application/json',
           dialogTitle: 'Kalyx Diagnostic Report',
         })
       );
+      // Rapport en cache (pas dans la sauvegarde iCloud), supprimé après le partage.
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith('file:///mock-cache/nova_diagnostic.json', { idempotent: true });
     });
 
     it('falls back to clipboard when expo-sharing is not available', async () => {

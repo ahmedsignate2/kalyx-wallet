@@ -55,6 +55,25 @@ function queryParam(url: string, key: string): string | null {
   }
 }
 
+/**
+ * URI WalletConnect d'APPAIRAGE : elle porte la clé symétrique (`symKey`).
+ *
+ * Une dApp qui attend une signature rouvre le portefeuille avec
+ * `wc:<topic>@2?requestId=…&sessionTopic=…` — sans clé : ce n'est pas une
+ * nouvelle connexion, seulement « reviens au premier plan, une demande
+ * t'attend ». La passer à `pair()` échouait et affichait « connexion échouée »
+ * alors que tout allait bien.
+ */
+export function isWcPairingUri(uri: string): boolean {
+  if (!/^wc:/i.test(uri)) return false;
+  const q = uri.indexOf('?');
+  if (q < 0) return false;
+  return uri
+    .slice(q + 1)
+    .split('&')
+    .some((kv) => /^symKey=[0-9a-f]+$/i.test(kv));
+}
+
 /** Extrait une URI WalletConnect d'un lien (directe ou via `?uri=`). */
 export function extractWcUri(url: string): string | null {
   if (url.startsWith('wc:')) return decodeURIComponent(url);

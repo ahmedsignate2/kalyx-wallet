@@ -40,6 +40,7 @@ import { sha512 } from '@noble/hashes/sha2';
 import { pbkdf2 } from '@noble/hashes/pbkdf2';
 import { utf8ToBytes } from '@noble/hashes/utils';
 import { wordlist } from '@scure/bip39/wordlists/english';
+import { pbkdf2Yielding } from '../../../crypto/pbkdf2Yielding';
 
 /** Sel de la dérivation de clé. */
 const SALT_KEYSTORE = 'TON default seed';
@@ -75,9 +76,18 @@ function mnemonicToEntropy(words: string[], password = ''): Uint8Array {
   return hmac(sha512, utf8ToBytes(words.join(' ')), utf8ToBytes(password));
 }
 
+/** Itérations du contrôle de validité (`is_basic_seed`) : `max(1, 100000/256)` = 390. */
+const BASIC_SEED_ITERATIONS = Math.max(1, Math.floor(ITERATIONS / 256));
+
 /** `is_basic_seed` de tonlib : itérations `max(1, 100000/256)`, premier octet nul. */
 function isBasicSeed(entropy: Uint8Array): boolean {
-  const h = pbkdf2(sha512, entropy, utf8ToBytes(SALT_SEED_VERSION), { c: Math.max(1, Math.floor(ITERATIONS / 256)), dkLen: 64 });
+  const h = pbkdf2(sha512, entropy, utf8ToBytes(SALT_SEED_VERSION), { c: BASIC_SEED_ITERATIONS, dkLen: 64 });
+  return h[0] === 0;
+}
+
+/** `isBasicSeed`, sans figer l'interface (cf. `pbkdf2Yielding`). Même résultat. */
+async function isBasicSeedAsync(entropy: Uint8Array): Promise<boolean> {
+  const h = await pbkdf2Yielding(sha512, entropy, utf8ToBytes(SALT_SEED_VERSION), { c: BASIC_SEED_ITERATIONS, dkLen: 64 });
   return h[0] === 0;
 }
 
@@ -116,6 +126,22 @@ export function isValidTonMnemonic(mnemonic: string, password = ''): boolean {
 }
 
 /**
+ * `isValidTonMnemonic`, sans figer l'interface. Même réponse, toujours : c'est
+ * elle qui choisit la dérivation (`tonKeyKindAsync`), donc l'adresse.
+ */
+export async function isValidTonMnemonicAsync(mnemonic: string, password = ''): Promise<boolean> {
+  const words = tonWords(mnemonic);
+  if (words.length === 0 || !words.every((w) => WORDS.has(w))) return false;
+  if (password.length > 0 && !tonMnemonicNeedsPassword(mnemonic)) return false;
+  const entropy = mnemonicToEntropy(words, password);
+  try {
+    return await isBasicSeedAsync(entropy);
+  } finally {
+    entropy.fill(0);
+  }
+}
+
+/**
  * Graine ed25519 de 32 octets pour cette phrase.
  *
  * Ne valide PAS la phrase : la validation est un choix d'écran — on peut vouloir
@@ -123,6 +149,7 @@ export function isValidTonMnemonic(mnemonic: string, password = ''): boolean {
  * refuser et laisser l'utilisateur sans accès. L'appelant tranche.
  */
 export function tonSeedFromMnemonic(mnemonic: string, password = ''): Uint8Array {
+  // Variante SYNCHRONE : tests et outils. L'app passe par `tonSeedFromMnemonicAsync`.
   const words = tonWords(mnemonic);
   if (words.length === 0) throw new Error('Phrase TON vide');
   const entropy = mnemonicToEntropy(words, password);
@@ -134,5 +161,28 @@ export function tonSeedFromMnemonic(mnemonic: string, password = ''): Uint8Array
     // Intermédiaires effacés : seule la copie rendue survit (et l'appelant l'efface).
     entropy.fill(0);
     seed.fill(0);
+  }
+}
+
+/**
+ * `tonSeedFromMnemonic`, sans figer l'interface — c'est celle de l'app.
+ *
+ * Les 100 000 tours de PBKDF2-SHA512 prenaient plusieurs secondes sur Hermes
+ * iOS, fil JS bloqué, à CHAQUE signature d'un portefeuille à phrase TON. Même
+ * algorithme, mêmes octets (vecteurs officiels dans les tests), mais le calcul
+ * cède la main à l'interface par tranches.
+ */
+export async function tonSeedFromMnemonicAsync(mnemonic: string, password = ''): Promise<Uint8Array> {
+  const words = tonWords(mnemonic);
+  if (words.length === 0) throw new Error('Phrase TON vide');
+  const entropy = mnemonicToEntropy(words, password);
+  let seed: Uint8Array | undefined;
+  try {
+    seed = await pbkdf2Yielding(sha512, entropy, utf8ToBytes(SALT_KEYSTORE), { c: ITERATIONS, dkLen: 64 });
+    // Les 32 PREMIERS octets, et seulement eux.
+    return seed.slice(0, 32);
+  } finally {
+    entropy.fill(0);
+    seed?.fill(0);
   }
 }

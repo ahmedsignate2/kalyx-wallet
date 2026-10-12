@@ -123,7 +123,8 @@ function EarnScreenInner() {
       <ScrollView
         style={{ flex: 1, width: '100%' }}
         contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 120, gap: spacing(2.5) }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textSecondary} colors={[colors.textSecondary]} />}
+        // Spinner décalé de la zone sûre : sans cela il naissait sous la Dynamic Island.
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} progressViewOffset={insets.top} tintColor={colors.textSecondary} colors={[colors.textSecondary]} />}
         showsVerticalScrollIndicator={false}
       >
         {/* En-tête */}

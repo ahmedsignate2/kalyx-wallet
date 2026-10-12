@@ -23,6 +23,7 @@ import { AppState, type AppStateStatus, Platform, StyleSheet, Text, View } from 
 import { KalyxLogo } from './KalyxLogo';
 import { fonts, useTheme, fontSize } from './theme';
 import { useSettings } from '../lib/settingsStore';
+import { holdAppSwitcherProtection } from '../lib/useNoScreenCapture';
 
 // Module natif : présent dans le build (déjà utilisé par app/backup.tsx).
 // Import gardé pour ne jamais crasher si absent (avant un rebuild).
@@ -51,11 +52,11 @@ function PrivacyGuard() {
   const [covered, setCovered] = useState(false);
 
   useEffect(() => {
-    if (Platform.OS === 'ios') {
-      // Une seule activation : iOS floute lui-même la vignette hors premier plan.
-      if (guard) ScreenCapture?.enableAppSwitcherProtectionAsync?.(0.9).catch(() => {});
-      else ScreenCapture?.disableAppSwitcherProtectionAsync?.().catch(() => {});
-    }
+    // Une seule activation : iOS floute lui-même la vignette hors premier plan.
+    // Par le compteur PARTAGÉ (lib/useNoScreenCapture.ts) : couper la garde ne
+    // retire plus le flou qu'un écran de secret encore ouvert a demandé.
+    if (Platform.OS !== 'ios' || !guard) return;
+    return holdAppSwitcherProtection();
   }, [guard]);
 
   useEffect(() => {

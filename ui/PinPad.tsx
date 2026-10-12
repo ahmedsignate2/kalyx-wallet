@@ -194,7 +194,9 @@ function Key({ label, onPress, disabled, size = KEY }: { label: string; onPress:
           style,
         ]}
       >
-        <Text style={{ color: colors.text, fontSize: Math.round(size * 0.39), fontFamily: fonts.semibold }}>{label}</Text>
+        {/* Touche de taille FIXE : sans plafond, le Dynamic Type maximal faisait
+            déborder le chiffre du disque. 1,2 garde un gain lisible. */}
+        <Text maxFontSizeMultiplier={1.2} style={{ color: colors.text, fontSize: Math.round(size * 0.39), fontFamily: fonts.semibold }}>{label}</Text>
       </Reanimated.View>
     </Pressable>
   );

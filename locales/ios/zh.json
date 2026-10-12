@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSFaceIDUsageDescription": "Kalyx 使用面容 ID 解锁你的钱包并确认你的敏感操作。",
+    "NSCameraUsageDescription": "Kalyx 使用相机扫描二维码：收款地址和 WalletConnect 连接。",
+    "NSPhotoLibraryUsageDescription": "Kalyx 仅读取你选择的一张照片，用于识别其中的付款二维码。不会读取任何其他图片。",
+    "NSMicrophoneUsageDescription": "Kalyx 从不录制声音；也从不请求此权限。"
+  }
+}

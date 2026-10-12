@@ -13,7 +13,7 @@ import { Sheet, Text, Button, Card, RemoteIcon } from './kit';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon } from './icon';
 import { useTheme } from './theme';
-import { space, radius } from './tokens';
+import { space, radius, monoFont } from './tokens';
 import { useTonConnect, pendingKey, type TcPending } from '../lib/tonconnect/store';
 import { dappHost } from '../src/domain/web/dappHost';
 import { useWallet } from '../lib/walletStore';
@@ -267,7 +267,7 @@ function SignDataSheet({ p }: { p: Extract<TcPending, { kind: 'signData' }> }) {
       {p.payload.type === 'text' ? (
         <Card style={{ maxHeight: 220 }}>
           <ScrollView nestedScrollEnabled>
-            <Text variant="body" selectable style={{ fontFamily: 'monospace' }}>{p.payload.text}</Text>
+            <Text variant="body" selectable style={{ fontFamily: monoFont }}>{p.payload.text}</Text>
           </ScrollView>
         </Card>
       ) : (

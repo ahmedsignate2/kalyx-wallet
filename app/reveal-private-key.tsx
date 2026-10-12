@@ -2,12 +2,13 @@ import { IconDisc, NovaHero } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable, Button, Card, Screen } from '../ui/kit';
 import { getAdapter } from '../src';
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { AppState, Platform, View, Text, ScrollView } from 'react-native';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { copySecret, clearSecret } from '../lib/secureClipboard';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
 import { spacing, useTheme, fontSize, radii } from '../ui/theme';
+import { monoFont } from '../ui/tokens';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
@@ -23,7 +24,14 @@ export default function RevealPrivateKey() {
   const chainName = getAdapter(useWallet.getState().activeChain).config.name;
   const [pk, setPk] = useState<string | null>(null);
 
-  useNoScreenCapture('reveal-pk');
+  useNoScreenCapture('reveal-pk', true, { screenshotWarning: true });
+  // Hors premier plan, la clé quitte l'écran : elle ne réapparaît pas au retour avant le voile.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st !== 'active') setPk(null);
+    });
+    return () => sub.remove();
+  }, []);
   useEffect(() => {
     return () => {
       // En quittant l'écran, la clé ne reste pas dans le presse-papier.
@@ -40,11 +48,14 @@ export default function RevealPrivateKey() {
     return (
       <Screen layout="form">
       <ScreenHeader />
+        {/* iOS ne bloque PAS la capture (lib/useNoScreenCapture.ts) : l'avertissement ne le prétend pas. */}
         {/* Le RÉSEAU de la clé : une phrase donne une clé différente par famille (EVM, Bitcoin, Solana). */}
-        <NovaHero icon="copy" tone="gold" title={isPk ? t('yourPrivateKey') : `${t('yourPrivateKey')} · ${chainName}`} subtitle={t('pkWarningBody')} />
+        <NovaHero icon="copy" tone="gold" title={isPk ? t('yourPrivateKey') : `${t('yourPrivateKey')} · ${chainName}`} subtitle={Platform.OS === 'ios' ? t('pkWarningBodyNoCapture') : t('pkWarningBody')} />
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
           <Card padding="xl" gap="md" style={{ borderRadius: radii.xl }}>
-            <Text selectable style={[typography.body, { fontFamily: 'monospace', fontSize: fontSize.md, lineHeight: 22, letterSpacing: 0.3 }]}>{pk}</Text>
+            {/* PAS `selectable` : le menu système copiait la clé sans passer par
+                copySecret (ni effacement du presse-papier, ni bandeau). */}
+            <Text style={[typography.body, { fontFamily: monoFont, fontSize: fontSize.md, lineHeight: 22, letterSpacing: 0.3 }]}>{pk}</Text>
           </Card>
           <KPressable
             onPress={async () => {

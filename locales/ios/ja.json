@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSFaceIDUsageDescription": "Kalyx は Face ID を使用して、ウォレットのロックを解除し、重要な操作を確認します。",
+    "NSCameraUsageDescription": "Kalyx はカメラを使用して QR コード（支払いアドレスと WalletConnect 接続）を読み取ります。",
+    "NSPhotoLibraryUsageDescription": "Kalyx は、あなたが選んだ写真から支払い用 QR コードを読み取るためだけにアクセスします。他の画像は読み取りません。",
+    "NSMicrophoneUsageDescription": "Kalyx が音声を録音することはありません。この許可が求められることもありません。"
+  }
+}

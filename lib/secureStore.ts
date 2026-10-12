@@ -202,6 +202,15 @@ export async function loadAccounts(id: string): Promise<StoredAccount[] | null> 
  * Lève si l'OS refuse l'écriture (geste annulé) : rien n'est alors activé.
  */
 export async function enableBiometricSeed(id: string, mnemonic: string, prompt?: string): Promise<void> {
+  /*
+   * Ancienne copie protégée effacée AVANT d'écrire : invalidée (Face ID
+   * réinitialisé), iOS la garde, l'ajout tombe sur « déjà présente » et la mise
+   * à jour de cette entrée morte échoue — la copie ne serait jamais réécrite.
+   * Témoin d'abord, échecs de suppression ignorés (même raison que
+   * `writeBiometricPin`, lib/biometricPin.ts).
+   */
+  await kvDel(bioFlagKey(id), base).catch(() => {});
+  await kvDel(bioGatedKey(id), gatedOpts()).catch(() => {});
   await kvSet(bioGatedKey(id), mnemonic, gatedOpts(prompt));
   await kvSet(bioFlagKey(id), '1', base);
   // L'ancienne copie en clair disparaît dès que la protégée existe.

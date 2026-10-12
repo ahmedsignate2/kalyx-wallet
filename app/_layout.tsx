@@ -95,6 +95,25 @@ export default function RootLayout() {
   /** Session demandée au lancement (leurre ou réelle) : un nouvel essai rouvre LA MÊME. */
   const bootDecoyId = useRef<string | null>(null);
   const retrying = useRef(false);
+  /*
+   * Chargements de démarrage en ÉCHEC (réglages, contacts…, WalletConnect),
+   * rejoués par « Réessayer ». Seul le coffre l'était : un stockage illisible
+   * au lancement fait souvent échouer les autres en même temps, et l'app
+   * repartait ensuite sans réglages ni contacts jusqu'au prochain lancement.
+   * Ceux qui ont réussi ne sont PAS rejoués (WalletConnect s'initialiserait deux fois).
+   */
+  const failedLoads = useRef<Map<string, () => Promise<unknown> | unknown>>(new Map());
+  const runLoads = async (loads: [string, () => Promise<unknown> | unknown][]) => {
+    for (const [name, load] of loads) {
+      try {
+        await load();
+        failedLoads.current.delete(name);
+      } catch (e) {
+        failedLoads.current.set(name, load);
+        console.error(`[Kalyx] chargement « ${name} » a échoué :`, e);
+      }
+    }
+  };
   const retryBoot = () => {
     if (retrying.current) return; // double appui : un seul démarrage à la fois
     retrying.current = true;
@@ -106,6 +125,8 @@ export default function RootLayout() {
         console.error('[Kalyx] démarrage a échoué (nouvel essai) :', e);
         setBootError(true);
       })
+      // Après le coffre, comme au lancement : la session (leurre ou réelle) est fixée.
+      .then(() => runLoads([...failedLoads.current]))
       .finally(() => {
         retrying.current = false;
       });
@@ -215,18 +236,7 @@ export default function RootLayout() {
         ['priceAlerts', loadPriceAlerts], ['recents', loadRecents], ['tokenPrefs', loadTokenPrefs],
         ['ai', loadAiState], ['driveFlow', loadDriveFlow],
       ];
-      for (const [name, load] of loads) {
-        try {
-          await load();
-        } catch (e) {
-          console.error(`[Kalyx] chargement « ${name} » a échoué :`, e);
-        }
-      }
-      try {
-        await initWalletConnect();
-      } catch (e) {
-        console.error('[Kalyx] WalletConnect init a échoué :', e);
-      }
+      await runLoads([...loads, ['walletConnect', initWalletConnect]]);
     })();
   }, [bootstrap, loadSettings, loadCustomTokens, loadContacts, loadNotifs, loadCustomChains, loadPriceAlerts, loadRecents, loadTokenPrefs, initWalletConnect, loadAiState, loadPendingBtc, loadDriveFlow]);
 
@@ -304,7 +314,7 @@ export default function RootLayout() {
             depuis le déverrouillage ou la création du wallet — et non en
             poussée latérale, qui découvrait le fond sur le bord.
           */}
-          <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 220 }} />
+          <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 220, gestureEnabled: false }} />
         </Stack>
         <WalletConnectHost />
         <TonConnectHost />

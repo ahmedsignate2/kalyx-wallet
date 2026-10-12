@@ -9,6 +9,7 @@ import { translate } from "../lib/i18n";
 import React from 'react';
 import { Text, ScrollView } from 'react-native';
 import { fonts, fontSize, radii } from './theme';
+import { monoFont } from './tokens';
 
 interface Props {
   children: React.ReactNode;
@@ -86,7 +87,7 @@ export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => 
         </KPressable>
       ) : null}
       {__DEV__ && error?.stack ? (
-        <Text selectable style={{ color: '#8A93A6', fontSize: fontSize.xs, fontFamily: 'monospace' }}>
+        <Text selectable style={{ color: '#8A93A6', fontSize: fontSize.xs, fontFamily: monoFont }}>
           {error.stack}
         </Text>
       ) : null}

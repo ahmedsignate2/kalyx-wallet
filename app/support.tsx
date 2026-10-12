@@ -19,8 +19,8 @@
 import { IconDisc, NovaHero, SectionLabel, SettingRow } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable, Card, RemoteIcon, Screen, Button, Chip } from '../ui/kit';
 import { useState } from 'react';
-import { View, Text, Alert, Linking } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { View, Text, Alert, Linking, Platform } from 'react-native';
+import { Stack, router, Redirect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { KalyxLogo } from '../ui/KalyxLogo';
@@ -39,7 +39,19 @@ const GITHUB_PAGE = LEGAL_CONSTANTS.GITHUB_URL.replace(/\.git$/, '');
 
 const TON_RESOLVE_TIMEOUT_MS = 8000;
 
-export default function Support() {
+/*
+ * iOS : PAS d'écran de dons. Règle App Store 3.1.1 — un « pourboire » au
+ * développeur doit passer par l'achat intégré ; un appel au don en crypto fait
+ * refuser l'app. L'entrée du menu est masquée sur iOS (app/(tabs)/menu.tsx) ;
+ * si un lien (kalyx://support) mène quand même ici, retour à l'accueil.
+ * Android inchangé.
+ */
+export default function SupportRoute() {
+  if (Platform.OS === 'ios') return <Redirect href="/home" />;
+  return <Support />;
+}
+
+function Support() {
   const { colors, typography } = useTheme();
   const t = useT();
   const [openQr, setOpenQr] = useState<string | null>(null);

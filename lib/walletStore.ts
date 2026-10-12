@@ -15,6 +15,8 @@ import { Address as TonCoreAddress, Cell as TonCell } from '@ton/core';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import { formatExportedKey } from '../src/domain/keys/exportKey';
 import { deriveBtcSigner, deriveSolanaSigner, discoverAccountIndexes, normalizeAddressCase, parseWatchAddress, revokeCalldata, runRevokeBatch, type RevokeOutcome } from '../src';
+// Variantes asynchrones : PBKDF2 TON (100 000 tours) sans figer l'interface.
+import { resolveTonKeyAsync, tonPublicKeyFromPhraseAsync } from '../src/domain/chains/ton/tonKeys';
 import { base64, base58, hex } from '@scure/base';
 import { ed25519 } from '@noble/curves/ed25519';
 import { sha256 } from '@noble/hashes/sha256';
@@ -72,7 +74,6 @@ import {
   type KeyFamily,
   type BackupWallet,
   classifyRecoveryPhrase,
-  resolveTonKey,
   tonPublicKeyFromPhrase,
   TON_DEFAULT_WALLET_VERSION,
   TON_BIP39_PATH,
@@ -106,6 +107,8 @@ import {
   BACKUP_KEY_VAULT_ID,
   wipeWallet,
   wipeAll,
+  saveContacts,
+  saveRecentRecipients,
   type StoredAccount,
   type WalletMeta,
 } from './secureStore';
@@ -141,8 +144,13 @@ export const DEFAULT_CHAIN = 'ethereum'; // mainnet par défaut (les testnets so
 /**
  * `onUnlocked` (biométrie) : appelé quand la clé de CETTE demande a été lue —
  * la fenêtre qui l'a lancée arrête alors son délai de garde de l'invite.
+ *
+ * `isCancelled` (biométrie) : interrogé JUSTE APRÈS la lecture, avant de rendre
+ * le secret. Vrai = la fenêtre a abandonné la demande (délai de garde écoulé,
+ * feuille fermée) : un Face ID réussi trop tard ne doit plus rien signer en
+ * silence, alors que l'utilisateur a peut-être relancé par code (double envoi).
  */
-export type Unlock = { pin: string } | { biometric: true; onUnlocked?: () => void };
+export type Unlock = { pin: string } | { biometric: true; onUnlocked?: () => void; isCancelled?: () => boolean };
 /** Frais de gas EIP-1559 choisis par l'utilisateur (palier Lent/Normal/Rapide). */
 /**
  * Frais choisis par l'utilisateur.
@@ -367,6 +375,13 @@ interface WalletState {
   healBiometric: (pin: string) => Promise<void>;
   /** Efface TOUS les portefeuilles : exige le code (ou la biométrie), comme toute action irréversible. */
   reset: (unlock: Unlock) => Promise<void>;
+  /**
+   * CODE OUBLIÉ : efface tout de cet appareil SANS déverrouillage — l'issue de
+   * secours de l'écran de code (et d'une réinstallation iOS). Aucune preuve
+   * d'identité, aucune lecture de coffre : rien n'est révélé, seul ce qui est
+   * détruit l'est. Restauration ensuite par la phrase de récupération.
+   */
+  wipeForgottenCode: () => Promise<void>;
 }
 
 /**
@@ -437,6 +452,19 @@ function tonFields(mnemonic: string, bip39Seed?: Uint8Array): Pick<StoredAccount
 }
 
 /**
+ * `tonFields` sans figer l'interface : pour une phrase TON (sans graine BIP-39),
+ * la dérivation native coûte 100 000 tours de PBKDF2. Mêmes champs, même repli.
+ */
+async function tonFieldsAsync(mnemonic: string): Promise<Pick<StoredAccount, 'tonPublicKey' | 'tonVersion'>> {
+  try {
+    return { tonPublicKey: bytesToHex(await tonPublicKeyFromPhraseAsync(mnemonic)), tonVersion: TON_DEFAULT_WALLET_VERSION };
+  } catch (e) {
+    technicalLogger.logSys('TON: public key derivation failed', { error: e instanceof Error ? e.message : String(e) });
+    return {};
+  }
+}
+
+/**
  * Rattrapage des AUTRES portefeuilles à phrase BIP-39, après un déverrouillage.
  *
  * Le rattrapage ne visait que le portefeuille actif : basculer ensuite sur un
@@ -480,7 +508,7 @@ async function accountsForPhrase(mnemonic: string, kind: RecoveryPhraseKind): Pr
      * de dérivation BIP-39 de cette phrase : elle donnerait des adresses qu'aucun
      * autre portefeuille ne montre pour elle.
      */
-    return [{ index: 0, label: '', evmAddress: '', btcAddress: '', ...tonFields(mnemonic) }];
+    return [{ index: 0, label: '', evmAddress: '', btcAddress: '', ...(await tonFieldsAsync(mnemonic)) }];
   }
   return [await deriveStoredAccount(mnemonic, 0, '')];
 }
@@ -687,6 +715,21 @@ async function authWalletFor(unlock: Unlock): Promise<string> {
  * Annulée (ou refusée par l'OS) → BIOMETRIC_REFUSED, l'entrée reste ;
  * clé invalidée → BIOMETRIC_NOT_SET (témoin déjà effacé : réécrit au prochain PIN).
  */
+/**
+ * Clé biométrique lue pour CETTE demande : la fenêtre arrête son délai de garde,
+ * puis — si elle a abandonné entre-temps — le secret n'est PAS rendu. Levée en
+ * BIOMETRIC_REFUSED (`reason: 'cancelled'`) : partout, un refus biométrique est
+ * un abandon silencieux, sans message d'erreur alarmant.
+ */
+function biometricRead(unlock: Unlock): void {
+  if (!('biometric' in unlock)) return;
+  unlock.onUnlocked?.();
+  if (unlock.isCancelled?.()) {
+    console.log('[KALYX-VAULT] reveal:biometric-abandoned');
+    throw new WalletError('BIOMETRIC_REFUSED', 'Biometric request abandoned by the caller', { reason: 'cancelled' });
+  }
+}
+
 async function readBiometricPin(prompt: string = biometricPrompt()): Promise<string> {
   let pin: string | null;
   try {
@@ -751,7 +794,7 @@ async function multiVaultReader(unlock: Unlock, ids: string[]): Promise<(id: str
   }
   if (await hasBiometricPin()) {
     const pin = await readBiometricPin(); // LA seule invite
-    unlock.onUnlocked?.();
+    biometricRead(unlock);
     return (_id, vault) => decryptWithBiometricPin(vault, pin);
   }
   if (ids.length > 1) {
@@ -1100,7 +1143,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
       const vault = await loadVault(id);
       if (!vault) throw new WalletError('VAULT_MISSING', 'Aucun coffre');
       const pin = await readBiometricPin();
-      unlock.onUnlocked?.(); // clé lue POUR CETTE demande : la fenêtre arrête son délai de garde
+      biometricRead(unlock); // clé lue POUR CETTE demande ; abandonnée entre-temps → rien n'est rendu
       return decryptWithBiometricPin(vault, pin);
     }
     /*
@@ -1121,7 +1164,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
       }
       console.log('[KALYX-VAULT] reveal:biometric-gated', { found: !!m });
       if (!m) throw new WalletError('BIOMETRIC_NOT_SET', 'Biometric key invalidated for this wallet');
-      unlock.onUnlocked?.(); // clé lue POUR CETTE demande : la fenêtre arrête son délai de garde
+      biometricRead(unlock); // clé lue POUR CETTE demande ; abandonnée entre-temps → rien n'est rendu
       return m;
     }
     /*
@@ -1147,7 +1190,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
     const m = await readLegacyBiometricSeed(id);
     console.log('[KALYX-VAULT] reveal:biometric-secret', { found: !!m });
     if (!m) throw new WalletError('BIOMETRIC_NOT_SET', 'No biometric vault for this wallet');
-    unlock.onUnlocked?.();
+    biometricRead(unlock);
     return m;
   }
   const vault = await loadVault(id);
@@ -2162,7 +2205,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
     if (family === 'ton') {
       if (account.index !== 0) throw new WalletError('NOT_SUPPORTED', 'import.TON_FIRST_ACCOUNT');
-      const key = resolveTonKey(await revealMnemonic(activeWalletId, unlock));
+      const key = await resolveTonKeyAsync(await revealMnemonic(activeWalletId, unlock));
       /*
        * La clé dérivée doit être celle dont on affiche l'adresse. Si elles
        * divergeaient, on signerait pour un autre compte que celui montré.
@@ -2883,7 +2926,89 @@ export const useWallet = create<WalletState>((set, get) => ({
       draftWasImported: false,
     });
   },
+
+  wipeForgottenCode: async () => {
+    /*
+     * Ni `isUnlocked` ni preuve d'identité exigés, et le blocage anti-essais
+     * n'est PAS consulté : c'est précisément quand on ne peut plus ouvrir
+     * l'app qu'il faut cette issue. Elle ne donne rien à un voleur — elle
+     * détruit, elle ne lit pas. Le journal ne dit ni combien de portefeuilles,
+     * ni s'il y avait un leurre.
+     */
+    console.log('[KALYX-VAULT] forgotten-code:wipe');
+    /*
+     * Session leurre : le pare-feu de lib/kv.ts ignorerait EN SILENCE chaque
+     * effacement des vraies clés — « tout effacé » aurait menti, et le
+     * résultat aurait différé selon le code tapé avant. On en sort d'abord :
+     * le même geste a le même effet, quoi qu'il y ait derrière.
+     */
+    if (isDecoySession()) setDecoySession(false);
+    // Connexions coupées d'abord, 10 s au plus (un relais injoignable ne bloque pas l'issue de secours).
+    let stopGuard = () => {};
+    await Promise.race([
+      import('./sessionReset').then((m) => m.disconnectEverything()).catch(() => {}),
+      new Promise<void>((r) => {
+        const id = setTimeout(r, 10_000);
+        stopGuard = () => clearTimeout(id);
+      }),
+    ]);
+    stopGuard();
+    // Liste RELUE du trousseau en plus de la mémoire : app verrouillée, celle-ci peut être incomplète.
+    const stored = await loadWalletsList().catch(() => [] as WalletMeta[]);
+    const all = [...get().wallets, ...stored.filter((w) => !get().wallets.some((x) => x.id === w.id))];
+    // LÈVE si le trousseau refuse : rien ne prétend alors que tout est parti (compteur intact, plus bas).
+    await wipeAll(all);
+    const duress = await loadDuressMeta();
+    if (duress) await wipeWallet(duress.id).catch(() => {});
+    await kvDel(K_DURESS, KV_DEVICE_ONLY).catch(() => {});
+    await clearBiometricPin().catch(() => {});
+    // Sauvegarde automatique : clés locales et vault de la clé de sauvegarde effacés, jeton Google révoqué.
+    await wipeAutoSyncOnReset().catch(() => {});
+    cancelRestoredBackup();
+    await import('./whitelistStore').then((m) => m.whitelistActions.wipe()).catch(() => {});
+    void import('./runDiscovery').then((m) => m.clearDiscoveries()).catch(() => {});
+    forgetActive();
+    /*
+     * Ce qui SURVIT à une désinstallation iOS (trousseau) et dit à qui était
+     * l'appareil : carnet d'adresses, destinataires récents, nom de profil.
+     * La langue, le thème, la devise restent : ils ne disent rien et évitent
+     * de rouvrir l'app dans une langue inattendue.
+     */
+    await quietly(() => saveContacts([]));
+    await quietly(() => saveRecentRecipients([]));
+    await quietly(() => import('./contactsStore').then((m) => m.useContacts.getState().load()));
+    await quietly(() => import('./recentRecipientsStore').then((m) => m.useRecentRecipients.getState().load()));
+    const st = useSettings.getState();
+    await quietly(() => st.setBiometricEnabled(false));
+    await quietly(() => st.setProfileName?.(''));
+    await quietly(() => st.setPinLength?.(0));
+    await quietly(() => st.setBackupVerified?.(false));
+    // Plus aucun coffre à protéger : le compteur d'essais repart de zéro pour le PROCHAIN code.
+    await saveLockState(0, 0).catch(() => {});
+    set({
+      hasWallet: false,
+      isUnlocked: false,
+      wallets: [],
+      activeWalletId: 'primary',
+      accounts: [],
+      activeAccountIndex: 0,
+      account: null,
+      draftMnemonic: null,
+      draftWasImported: false,
+      failedAttempts: 0,
+      lastFailedAt: 0,
+    });
+  },
 }));
+
+/** Étape de nettoyage accessoire : un échec (même synchrone) n'arrête pas l'effacement. */
+async function quietly(step: () => unknown): Promise<void> {
+  try {
+    await step();
+  } catch {
+    /* étape suivante */
+  }
+}
 
 // Chaque nouvel échec de code est daté AUSSI au chronomètre monotone (voir `lockRemainingNow`).
 useWallet.subscribe((s, prev) => {

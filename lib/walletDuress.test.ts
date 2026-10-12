@@ -78,6 +78,9 @@ jest.mock('./walletNames', () => ({ isLegacyDefaultName: () => false }));
 
 import { useWallet } from './walletStore';
 
+// Chiffrement et dérivations RÉELS (scrypt, PBKDF2) : un test dépassait 5 s quand toute la suite tourne en parallèle.
+jest.setTimeout(30_000);
+
 const PIN = '482917';
 const DURESS = '135790';
 const art = VECTORS.keys.find((k) => k.phrase.endsWith(' art'))!;

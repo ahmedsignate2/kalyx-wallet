@@ -600,8 +600,14 @@ export default function Home() {
              Indicateur DISCRET : c'est l'Aura qui porte l'information de
              synchronisation (§10.4), le spinner système n'est là que pour le
              retour tactile du geste pendant qu'on tire.
+
+             `progressViewOffset` (iOS ET Android en RN 0.86) : le spinner naissait
+             sous la barre d'état opaque / la Dynamic Island. On le décale de la
+             zone sûre plutôt que de passer par contentInset + contentOffset, qui
+             décalerait l'origine du défilement lue par l'en-tête compact et le
+             halo (interpolations sur `y`).
           */
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textTertiary} colors={[colors.textTertiary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} progressViewOffset={insets.top} tintColor={colors.textTertiary} colors={[colors.textTertiary]} />
         }
         showsVerticalScrollIndicator={false}
       >

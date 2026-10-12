@@ -62,8 +62,9 @@ export default function DuressScreen() {
     }
   };
 
+  // `sensitive` : ni trousseau iOS ni suggestion de code SMS pour un PIN (ui/kit/Input).
   const pinInput = (value: string, set: (v: string) => void, ph: string) => (
-    <Input value={value} onChangeText={(v) => set(v.replace(/\D/g, '').slice(0, 12))} placeholder={ph} keyboardType="number-pad" secureTextEntry />
+    <Input value={value} onChangeText={(v) => set(v.replace(/\D/g, '').slice(0, 12))} placeholder={ph} keyboardType="number-pad" secureTextEntry sensitive />
   );
 
   return (

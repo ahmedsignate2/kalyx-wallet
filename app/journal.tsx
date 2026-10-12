@@ -12,6 +12,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader, Pressable as KPressable } from '../ui/kit';
 import { fonts, spacing, useTheme, fontSize, radii } from '../ui/theme';
+import { monoFont } from '../ui/tokens';
 import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { clearJournal, formatLine, journalLines, journalText, subscribeJournal, type JournalLine } from '../lib/debugJournal';
@@ -69,7 +70,7 @@ export default function JournalScreen() {
               selectable
               style={{
                 color: tone === 'danger' ? colors.danger : tone === 'warning' ? colors.warning : tone === 'primary' ? colors.primary : colors.text,
-                fontFamily: 'monospace',
+                fontFamily: monoFont,
                 fontSize: fontSize.xxs,
                 lineHeight: 15,
                 paddingVertical: 2,

@@ -47,10 +47,21 @@ export async function hasBiometricPin(): Promise<boolean> {
 /**
  * Écrit le PIN sous protection biométrique, puis le témoin. Android demande le
  * geste à l'écriture ; iOS non. LÈVE si l'OS refuse : rien n'est alors activé
- * (le témoin n'est écrit qu'après l'entrée).
+ * (le témoin n'est écrit qu'après l'entrée, et l'ancienne entrée est déjà partie).
  */
 export async function writeBiometricPin(pin: string, prompt?: string): Promise<void> {
   if (isDecoySession()) return;
+  /*
+   * Effacée AVANT d'écrire. iOS : une entrée `.biometryCurrentSet` invalidée
+   * (Face ID réinitialisé) RESTE dans le trousseau ; l'ajout tombe alors sur
+   * « déjà présente » et expo-secure-store tente une mise à jour de cette entrée
+   * morte, qui échoue — la biométrie n'était plus jamais rétablie
+   * (`healBiometric` avale l'erreur). Témoin d'abord : si l'écriture échoue
+   * ensuite, rien n'annonce une entrée absente. Échecs de suppression ignorés
+   * (rien à effacer).
+   */
+  await kvDel(K_BIO_PIN_FLAG, KV_DEVICE_ONLY).catch(() => {});
+  await kvDel(K_BIO_PIN, gatedOpts()).catch(() => {});
   await kvSet(K_BIO_PIN, pin, gatedOpts(prompt));
   await kvSet(K_BIO_PIN_FLAG, '1', KV_DEVICE_ONLY);
 }
