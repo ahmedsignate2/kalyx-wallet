@@ -10,7 +10,7 @@
  * la seule chose qui brille est le halo derrière le solde et les moments où
  * l'argent bouge. Pas de violet, pas de bleu roi, pas d'orange, pas de vert acide.
  */
-import type { TextStyle } from 'react-native';
+import { Platform, type TextStyle } from 'react-native';
 
 /* ------------------------------------------------------------------ */
 /* Couleurs                                                            */
@@ -126,6 +126,13 @@ export const fontFamily = {
 
 /** Graisses : sur Android, la graisse EST la famille (voir ci-dessus). */
 export const fontWeight = fontFamily;
+
+/**
+ * Police à chasse fixe (adresses, clés, journaux techniques). `'monospace'`
+ * n'existe PAS sur iOS : le texte retombait sur la police système
+ * proportionnelle, sans avertissement. Menlo est livrée avec iOS.
+ */
+export const monoFont = Platform.select({ ios: 'Menlo', default: 'monospace' });
 
 /** Chiffres à largeur fixe : les montants s'alignent au pixel. */
 export const tabularNums: NonNullable<TextStyle['fontVariant']> = ['tabular-nums'];

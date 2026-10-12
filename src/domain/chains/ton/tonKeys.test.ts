@@ -18,8 +18,11 @@
 import { hex } from '@scure/base';
 import { validateMnemonic } from '../../../crypto/mnemonic';
 import { isValidTonMnemonic } from './tonMnemonic';
-import { resolveTonKey, tonKeyKind, TON_BIP39_PATH } from './tonKeys';
+import { resolveTonKey, resolveTonKeyAsync, tonKeyKind, tonKeyKindAsync, tonPublicKeyFromPhraseAsync, TON_BIP39_PATH } from './tonKeys';
 import VECTORS from './tonkeeper-vectors.json';
+
+// Variantes asynchrones : 100 000 tours de PBKDF2 découpés en tranches qui rendent la main — lent sous une suite chargée.
+jest.setTimeout(30_000);
 
 describe('resolveTonKey — même clé que Tonkeeper', () => {
   it.each(VECTORS.keys.map((k) => [`${k.kind} · ${k.phrase.split(' ').slice(0, 3).join(' ')}…`, k]))('%s', (_, k) => {
@@ -65,5 +68,26 @@ describe('phrases invalides', () => {
   it.each(VECTORS.invalid.map((p) => [p.split(' ').slice(-2).join(' '), p]))('« …%s » est refusée', (_, p) => {
     expect(tonKeyKind(p)).toBeNull();
     expect(() => resolveTonKey(p)).toThrow();
+  });
+});
+
+/*
+ * Variantes asynchrones — celles de l'app (signature, import). Elles doivent
+ * rendre EXACTEMENT les mêmes octets que les vecteurs : une divergence ferait
+ * signer pour une autre adresse que celle affichée.
+ */
+describe('resolveTonKeyAsync — mêmes clés que la variante synchrone et que Tonkeeper', () => {
+  it.each(VECTORS.keys.map((k) => [`${k.kind} · ${k.phrase.split(' ').slice(0, 3).join(' ')}…`, k]))('%s', async (_, k) => {
+    expect(await tonKeyKindAsync(k.phrase)).toBe(k.kind);
+    const key = await resolveTonKeyAsync(k.phrase);
+    expect(key.kind).toBe(k.kind);
+    expect(hex.encode(key.seed)).toBe(k.seed);
+    expect(hex.encode(key.publicKey)).toBe(k.publicKey);
+    expect(hex.encode(await tonPublicKeyFromPhraseAsync(k.phrase))).toBe(k.publicKey);
+  });
+
+  it.each(VECTORS.invalid.map((p) => [p.split(' ').slice(-2).join(' '), p]))('« …%s » est refusée', async (_, p) => {
+    expect(await tonKeyKindAsync(p)).toBeNull();
+    await expect(resolveTonKeyAsync(p)).rejects.toThrow();
   });
 });

@@ -63,6 +63,7 @@ export function ConfirmUnlock({
   const { language } = useSettings(useShallow((s) => ({ language: s.language })));
   const pinLength = useSettings((s) => s.pinLength);
   const [phase, setPhase] = useState<'working' | 'pin' | 'error'>('working');
+  const [committed, setCommitted] = useState(false);
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [errSignal, setErrSignal] = useState(0);
@@ -142,10 +143,21 @@ export function ConfirmUnlock({
     const unlockMode = viaBio ? 'biometric' : 'pin';
     console.log('[KALYX-AUTH][ConfirmUnlock] attempt:start', { attempt, unlockMode, title });
     setPhase('working');
+    // Code saisi : le secret est lu tout de suite. Geste : à la lecture (onUnlocked).
+    setCommitted(!viaBio);
     setError(null);
     try {
       if (viaBio) {
         let timer: ReturnType<typeof setTimeout> | undefined;
+        /*
+         * Tentative ABANDONNÉE (délai de garde écoulé, feuille fermée, nouvelle
+         * tentative) : l'invite système, elle, reste ouverte. Sans ce drapeau, un
+         * Face ID réussi après coup signait et diffusait en silence — et
+         * l'utilisateur, qui voyait une erreur, pouvait relancer par code :
+         * double envoi. Le coffre le consulte juste après la lecture biométrique
+         * (lib/walletStore.ts, `isCancelled`) et ne rend alors aucun secret.
+         */
+        let abandoned = false;
         /*
          * Clé lue POUR CETTE demande (et elle seule) : le délai de garde de
          * l'invite s'arrête — signature et diffusion qui suivent ne sont pas bornées.
@@ -155,7 +167,9 @@ export function ConfirmUnlock({
           onUnlocked: () => {
             if (timer) clearTimeout(timer);
             timer = undefined;
+            setCommitted(true);
           },
+          isCancelled: () => abandoned || attempt !== attemptRef.current || !visibleRef.current,
         } as Unlock;
         const operation = perform(tracked)
           .then(() => {
@@ -185,6 +199,7 @@ export function ConfirmUnlock({
                   elapsedMs: Date.now() - startedAt,
                   timeoutMs: 15_000,
                 });
+                abandoned = true; // avant le message : un geste tardif ne rendra plus rien
                 reject(new Error(t("authBiometricExpired")));
               }, 15_000);
             }),
@@ -257,7 +272,14 @@ export function ConfirmUnlock({
     if (visible) onOpen();
   }, [visible]);
 
+  /*
+   * Secret LU, signature et diffusion en cours : « Annuler » fermait la feuille
+   * mais l'envoi partait quand même (puis « envoyé » s'affichait). Une fois le
+   * coffre ouvert, l'opération va à son terme : on ne propose plus d'annuler.
+   */
+  const signing = phase === 'working' && committed;
   const cancel = () => {
+    if (signing) return;
     attemptRef.current += 1;
     onCancel();
   };
@@ -383,7 +405,7 @@ export function ConfirmUnlock({
             </>
           )}
 
-          {phase !== 'error' ? (
+          {phase !== 'error' && !signing ? (
             <KPressable onPress={cancel} hitSlop={8}>
               <Text style={{ color: colors.textSecondary, fontSize: fontSize.base }}>{t('cancel')}</Text>
             </KPressable>

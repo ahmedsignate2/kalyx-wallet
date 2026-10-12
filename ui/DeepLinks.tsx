@@ -46,6 +46,19 @@ import {
 } from '../src';
 import { runQrIntent, setPendingIntent } from '../lib/paymentIntent';
 
+/** Exécute `fn` dès que l'état du portefeuille est connu (coffre lu). */
+function whenWalletReady(fn: () => void): void {
+  if (useWallet.getState().ready) {
+    fn();
+    return;
+  }
+  const unsub = useWallet.subscribe((st) => {
+    if (!st.ready) return;
+    unsub();
+    fn();
+  });
+}
+
 export function DeepLinks() {
   useEffect(() => {
     /** Exécute maintenant, ou met en attente si le portefeuille est verrouillé. */
@@ -118,7 +131,20 @@ export function DeepLinks() {
             else useDriveFlow.getState().setReturnTo('/cloud-backup');
           }
         } else if (f.kind === 'restore') {
-          router.replace('/restore-drive');
+          /*
+           * Restauration : même règle que les autres retours. Portefeuille
+           * existant mais VERROUILLÉ → l'écran attend le code (returnTo, rejoué
+           * par app/unlock.tsx) ; l'ouvrir directement importait des
+           * portefeuilles derrière l'écran de verrouillage. Sans portefeuille
+           * (premier lancement), rien à déverrouiller : on y va.
+           * Démarrage à froid : on attend que le coffre soit lu pour trancher.
+           */
+          whenWalletReady(() => {
+            const w = useWallet.getState();
+            if (w.isUnlocked || !w.hasWallet) router.replace('/restore-drive');
+            // Type de returnTo limité à '/cloud-backup' dans lib/googleDrive.ts (hors périmètre) : app/unlock.tsx pousse la route telle quelle.
+            else useDriveFlow.getState().setReturnTo('/restore-drive' as never);
+          });
         } else if (f.status === 'error') {
           toast.error(translate(lang, 'driveCancelled'), f.error ?? undefined);
         }

@@ -1,8 +1,8 @@
 import { IconDisc, NovaHero, Rise } from '../ui/nova';
 import { router } from 'expo-router';
 import { ScreenHeader, Button, Card, Screen } from '../ui/kit';
-import { useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AppState, Platform, View, Text, ScrollView } from 'react-native';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { radii, spacing, useTheme } from '../ui/theme';
@@ -18,7 +18,18 @@ export default function RevealPhrase() {
   const [confirming, setConfirming] = useState(false);
   const [words, setWords] = useState<string[] | null>(null);
 
-  useNoScreenCapture('reveal');
+  useNoScreenCapture('reveal', true, { screenshotWarning: true });
+  /*
+   * Hors premier plan (sélecteur d'apps, Face ID d'une autre app, verrouillage)
+   * les mots quittent la mémoire de l'écran : au retour, ils ne réapparaissent
+   * pas une fraction de seconde avant le voile — il faudra les redemander.
+   */
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st !== 'active') setWords(null);
+    });
+    return () => sub.remove();
+  }, []);
 
   // Révèle via biométrie ou PIN (ConfirmUnlock) ; LÈVE pour laisser la feuille gérer.
   const perform = async (unlock: Unlock) => {
@@ -30,7 +41,8 @@ export default function RevealPhrase() {
     return (
       <Screen layout="form">
       <ScreenHeader />
-        <NovaHero icon="phrase" tone="gold" title={t('yourRecoveryPhrase')} subtitle={t('dontShareScreenshotBlocked')} />
+        {/* iOS ne bloque PAS la capture (lib/useNoScreenCapture.ts) : on ne le prétend pas. */}
+        <NovaHero icon="phrase" tone="gold" title={t('yourRecoveryPhrase')} subtitle={Platform.OS === 'ios' ? t('dontShareNoCapture') : t('dontShareScreenshotBlocked')} />
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
         <Card padding="xl" gap="md" style={{ borderRadius: radii.xl }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(1) }}>

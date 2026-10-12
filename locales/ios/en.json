@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSFaceIDUsageDescription": "Kalyx uses Face ID to unlock your wallet and confirm your sensitive operations.",
+    "NSCameraUsageDescription": "Kalyx uses the camera to scan QR codes: payment addresses and WalletConnect connections.",
+    "NSPhotoLibraryUsageDescription": "Kalyx opens a photo you choose to read a payment QR code from it. No other image is read.",
+    "NSMicrophoneUsageDescription": "Kalyx never records audio; this permission is never requested."
+  }
+}

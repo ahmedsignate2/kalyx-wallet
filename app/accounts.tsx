@@ -1,7 +1,7 @@
 import { IconDisc, NovaHero, Pulse, Rise } from '../ui/nova';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { canDiscover, runDiscovery, useDiscovering } from '../lib/runDiscovery';
-import { AddressGlyph, Button, Card, Screen, Text as KText, ScreenHeader, Pressable as KPressable } from '../ui/kit';
+import { AddressGlyph, Button, Card, Screen, Text as KText, ScreenHeader, Pressable as KPressable, SENSITIVE_INPUT_PROPS } from '../ui/kit';
 import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
 import { useState } from 'react';
@@ -168,6 +168,9 @@ export default function Accounts() {
             onChangeText={setPin}
             keyboardType="number-pad"
             secureTextEntry
+            // Code de l'app, pas un mot de passe de site : sans cela iOS proposait
+            // les mots de passe du trousseau et d'enregistrer le PIN.
+            {...SENSITIVE_INPUT_PROPS}
             style={{ color: colors.text, fontSize: fontSize.xxl, letterSpacing: 6 }}
           />
           {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}

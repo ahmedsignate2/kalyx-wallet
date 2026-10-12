@@ -26,6 +26,7 @@ import { Stack, router } from 'expo-router';
 import Constants from 'expo-constants';
 import { Icon } from '../ui/icon';
 import { fonts, spacing, useTheme, fontSize, radii } from '../ui/theme';
+import { monoFont } from '../ui/tokens';
 import { useCustomChains } from '../lib/customChainsStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { useNotifCenter } from '../lib/notificationCenter';
@@ -45,7 +46,8 @@ import { goBack } from '../lib/nav';
 type Tab = 'env' | 'networks' | 'console' | 'traffic' | 'state' | 'export';
 type Colors = ReturnType<typeof useTheme>['colors'];
 type Typo = ReturnType<typeof useTheme>['typography'];
-const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+// Police à chasse fixe partagée (ui/tokens) : 'monospace' n'existe pas sur iOS.
+const MONO = monoFont;
 
 /** Réglages NON sensibles montrés dans l'inspecteur et l'export (liste blanche). */
 const SETTINGS_WHITELIST = [

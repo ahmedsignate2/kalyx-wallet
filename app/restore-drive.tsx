@@ -14,7 +14,7 @@ import { useEffect, useEffectEvent, useState } from 'react';
 import { View, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, Button, ScreenHeader, Card } from '../ui/kit';
+import { Text, Button, ScreenHeader, Card, SENSITIVE_INPUT_PROPS } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { FadeInUp } from '../ui/FadeInUp';
 import { useTheme } from '../ui/theme';
@@ -268,7 +268,9 @@ export default function RestoreDriveScreen() {
                     setPwdError(null);
                   }}
                   secureTextEntry
-                  autoCapitalize="none"
+                  // Mot de passe de CHIFFREMENT de la sauvegarde : iOS ne doit ni
+                  // proposer le trousseau ni offrir de l'y enregistrer.
+                  {...SENSITIVE_INPUT_PROPS}
                   autoFocus
                   placeholder="••••••••"
                   placeholderTextColor={colors.textTertiary}

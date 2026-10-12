@@ -25,9 +25,31 @@ const schemes = ['kalyx', ...(googleScheme ? [googleScheme] : [])];
 const BUILD_PROFILE = process.env.EAS_BUILD_PROFILE ?? '';
 const APP_VERSION = BUILD_PROFILE.startsWith('production') ? '1.0.0' : '0.1.0';
 
+/*
+ * Textes d'autorisation iOS (Info.plist). Texte de BASE en anglais : c'est
+ * celui que voit un appareil dont la langue n'a pas de traduction. Les
+ * traductions des 15 langues de l'app (dont le français, au tutoiement) sont
+ * dans `locales/ios/<langue>.json`, section `ios`, déclarées plus bas sous
+ * `locales` : Expo les écrit en `<langue>.lproj/InfoPlist.strings` au prebuild.
+ * Toute modification d'un texte ici se reporte dans les 15 fichiers.
+ * (Pas de guillemet droit dans ces fichiers : Expo ne les échappe pas.)
+ */
 /** Motif Face ID montré par iOS à la première demande. */
-const FACE_ID_TEXT =
-  'Kalyx utilise Face ID pour déverrouiller ton portefeuille et confirmer tes opérations sensibles.';
+const FACE_ID_TEXT = 'Kalyx uses Face ID to unlock your wallet and confirm your sensitive operations.';
+const CAMERA_TEXT = 'Kalyx uses the camera to scan QR codes: payment addresses and WalletConnect connections.';
+const PHOTOS_TEXT = 'Kalyx opens a photo you choose to read a payment QR code from it. No other image is read.';
+/*
+ * Micro : Kalyx n'enregistre JAMAIS de son et ne demande jamais cette
+ * autorisation. Mais expo-camera, expo-image-picker et expo-audio embarquent du
+ * code natif lié au micro (AVAudioSession / AVCaptureDevice audio) : sans
+ * NSMicrophoneUsageDescription, App Store Connect rejette le binaire
+ * (ITMS-90683). `microphonePermission: false` SUPPRIMAIT la clé — d'où un texte
+ * honnête plutôt qu'une absence.
+ */
+const MICROPHONE_TEXT = 'Kalyx never records audio; this permission is never requested.';
+
+/** Fichiers de traduction des textes iOS ci-dessus (une entrée par langue de l'app). */
+const IOS_LOCALES = ['en', 'fr', 'es', 'pt', 'de', 'it', 'nl', 'pl', 'tr', 'ru', 'ar', 'hi', 'ja', 'ko'] as const;
 
 const config: ExpoConfig = {
   name: 'Kalyx Wallet',
@@ -40,6 +62,15 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'automatic',
   backgroundColor: '#06070D',
   icon: './assets/icon.png',
+  /*
+   * Traductions des textes d'autorisation iOS (cf. FACE_ID_TEXT…). Le chinois
+   * de l'app est le chinois SIMPLIFIÉ : dossier `zh-Hans.lproj`, celui qu'iOS
+   * cherche pour un appareil en chinois simplifié.
+   */
+  locales: {
+    ...Object.fromEntries(IOS_LOCALES.map((lang) => [lang, `./locales/ios/${lang}.json`])),
+    'zh-Hans': './locales/ios/zh.json',
+  },
   splash: {
     image: './assets/splash.png',
     backgroundColor: '#06070D',
@@ -59,6 +90,12 @@ const config: ExpoConfig = {
        * Il n'a d'effet qu'au build.
        */
       CADisableMinimumFrameDuration: true,
+      /*
+       * Recommandé par Expo avec `locales` : laisse iOS et ses frameworks
+       * localiser l'app dans la langue de l'appareil, y compris les textes
+       * d'autorisation traduits.
+       */
+      CFBundleAllowMixedLocalizations: true,
       /*
        * Deep links. Kalyx se déclare pour WalletConnect (`wc:`) et pour les
        * trois formats d'URI de paiement : `ethereum:` (EIP-681),
@@ -100,6 +137,13 @@ const config: ExpoConfig = {
     // permission manifeste.
     // Pas de bloc `permissions` ici : CAMERA est déclarée par le plugin
     // expo-camera, avec sa justification. Aucune permission Bluetooth.
+    //
+    // RECORD_AUDIO BLOQUÉE (tools:node="remove") : Kalyx n'enregistre jamais de
+    // son. Ce blocage était un effet de bord de `microphonePermission: false`
+    // dans expo-image-picker ; ce champ porte désormais un texte iOS (cf.
+    // MICROPHONE_TEXT), qui fait AJOUTER RECORD_AUDIO par le plugin : le
+    // blocage est donc déclaré ici, explicitement, et l'emporte.
+    blockedPermissions: ['android.permission.RECORD_AUDIO'],
     // Deep links système : WalletConnect et les trois URI de paiement (cf. iOS).
     intentFilters: [
       {
@@ -161,10 +205,10 @@ const config: ExpoConfig = {
     [
       'expo-camera',
       {
-        cameraPermission:
-          'Kalyx utilise la caméra pour scanner les QR codes : adresses de paiement et connexions WalletConnect.',
-        // Le scanner ne filme pas : ni NSMicrophoneUsageDescription (iOS) ni RECORD_AUDIO (Android).
-        microphonePermission: false,
+        cameraPermission: CAMERA_TEXT,
+        // Le scanner ne filme pas. iOS : texte honnête (cf. MICROPHONE_TEXT),
+        // l'autorisation n'est jamais demandée. Android : pas de RECORD_AUDIO.
+        microphonePermission: MICROPHONE_TEXT,
         recordAudioAndroid: false,
       },
     ],
@@ -182,10 +226,31 @@ const config: ExpoConfig = {
     [
       'expo-image-picker',
       {
-        photosPermission:
-          'Kalyx accède à une photo que tu choisis pour y lire un QR code de paiement. Aucune autre image n’est lue.',
-        // Aucune vidéo : pas de micro (iOS), RECORD_AUDIO bloquée (Android).
-        microphonePermission: false,
+        photosPermission: PHOTOS_TEXT,
+        // Aucune vidéo, donc jamais de micro. iOS : texte honnête (cf.
+        // MICROPHONE_TEXT). Android : RECORD_AUDIO reste bloquée, par
+        // `android.blockedPermissions` (ce plugin l'ajouterait sinon).
+        microphonePermission: MICROPHONE_TEXT,
+      },
+    ],
+    /*
+      expo-audio : seulement des sons d'état courts, app au premier plan
+      (lib/sound.ts). Son plugin n'était pas déclaré, ce qui n'empêchait pas son
+      code natif d'enregistrement d'être lié (cf. MICROPHONE_TEXT).
+      - `enableBackgroundPlayback: false` : sinon le plugin ajoute
+        UIBackgroundModes `audio` (iOS — refusé en revue sans lecture en
+        arrière-plan réelle) et un service de premier plan FOREGROUND_SERVICE /
+        MEDIA_PLAYBACK (Android). Valeur par défaut : true.
+      - `enableBackgroundRecording: false` : jamais d'enregistrement.
+      - `recordAudioAndroid: false` : pas de RECORD_AUDIO (par défaut : true).
+    */
+    [
+      'expo-audio',
+      {
+        microphonePermission: MICROPHONE_TEXT,
+        recordAudioAndroid: false,
+        enableBackgroundPlayback: false,
+        enableBackgroundRecording: false,
       },
     ],
     // Plus de plugin Bluetooth : la prise en charge Ledger n'a jamais été écrite, et

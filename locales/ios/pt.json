@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSFaceIDUsageDescription": "A Kalyx usa o Face ID para desbloquear a tua carteira e confirmar as tuas operações sensíveis.",
+    "NSCameraUsageDescription": "A Kalyx usa a câmara para ler códigos QR: endereços de pagamento e ligações WalletConnect.",
+    "NSPhotoLibraryUsageDescription": "A Kalyx acede a uma foto que escolhes para ler nela um código QR de pagamento. Nenhuma outra imagem é lida.",
+    "NSMicrophoneUsageDescription": "A Kalyx nunca grava som; esta autorização nunca é pedida."
+  }
+}

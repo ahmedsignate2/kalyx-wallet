@@ -233,7 +233,19 @@ function PayScreenInner() {
            * navigateur système : les suivre dans cette WebView sortirait
            * l'utilisateur du formulaire sans moyen d'y revenir.
            */
+          /*
+           * « * » : sinon `blob:`/`about:srcdoc` (hors liste blanche par défaut)
+           * partaient en Linking.openURL sans passer par le filtre ci-dessous.
+           */
+          originWhitelist={['*']}
           onShouldStartLoadWithRequest={(req) => {
+            /*
+             * SOUS-CADRES : sur iOS ce filtre voit aussi les iframes (captcha,
+             * 3-D Secure de la banque), hébergés ailleurs. Les renvoyer vers
+             * Safari cassait le paiement : ils restent dans la page s'ils sont
+             * chiffrés. Android n'appelle ce filtre que pour le cadre principal.
+             */
+            if (req.isTopFrame === false) return /^(?:https|about|blob):/i.test(req.url);
             /*
              * LES SCHÉMAS INTERNES PASSENT. On refusait tout ce qui n'était pas
              * `https://`, donc aussi `about:blank` et `blob:` — que les pages à

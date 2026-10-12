@@ -324,7 +324,12 @@ export async function exportDiagnosticReport(): Promise<DiagnosticExportResult> 
       canShare = false;
     }
 
-    const docDir = FileSystem?.documentDirectory || FileSystem?.cacheDirectory;
+    /*
+     * CACHE, pas documentDirectory : celui-ci est sauvegardé dans iCloud (et
+     * visible dans Fichiers si le partage de documents est activé). Un rapport
+     * technique n'a rien à y faire — et il restait là pour toujours.
+     */
+    const docDir = FileSystem?.cacheDirectory;
 
     if (canShare && docDir && FileSystem?.writeAsStringAsync) {
       const fileUri = `${docDir}nova_diagnostic.json`;
@@ -332,11 +337,16 @@ export async function exportDiagnosticReport(): Promise<DiagnosticExportResult> 
         encoding: FileSystem.EncodingType?.UTF8 ?? 'utf8',
       });
 
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'application/json',
-        dialogTitle: 'Kalyx Diagnostic Report',
-        UTI: 'public.json',
-      });
+      try {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/json',
+          dialogTitle: 'Kalyx Diagnostic Report',
+          UTI: 'public.json',
+        });
+      } finally {
+        // Partagé (ou abandonné) : la copie locale ne sert plus. Échec de suppression sans conséquence (cache).
+        await FileSystem.deleteAsync?.(fileUri, { idempotent: true }).catch(() => {});
+      }
 
       return {
         success: true,

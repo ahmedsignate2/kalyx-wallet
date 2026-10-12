@@ -29,6 +29,7 @@ import {
 } from '../src';
 import { isDriveConfigured } from '../lib/googleDrive';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
+import { useResetToHome } from '../lib/nav';
 
 type Mode = 'phrase' | 'key' | 'backup';
 
@@ -37,6 +38,8 @@ export default function ImportWallet() {
   useNoScreenCapture('import-wallet');
   const { colors, typography } = useTheme();
   const t = useT();
+  // Fin de l'import : pile vidée jusqu'aux onglets, sans en empiler un second jeu (lib/nav).
+  const goHome = useResetToHome();
   const insets = useSafeAreaInsets();
   const importWallet = useWallet((s) => s.importWallet);
   const importWallets = useWallet((s) => s.importWallets);
@@ -189,7 +192,7 @@ export default function ImportWallet() {
         toast.success(t('backupRestoredCount').replace('{count}', String(added)));
       }
       setAskPin(false);
-      router.replace('/home');
+      goHome();
     } catch (e) {
       // Seul un PIN faux fait secouer le pavé ; le reste est dit en clair, traduit.
       if (isWalletError(e) && e.code === 'WRONG_PIN') setPinError((n) => n + 1);
@@ -364,7 +367,8 @@ export default function ImportWallet() {
       {mode === 'backup' ? (
         <Card padding="xl" gap="md">
           <Text style={typography.muted}>{t('backupPassword')}</Text>
-          <TextInput value={pwd} onChangeText={setPwd} placeholder={t('backupPasswordPlaceholder')} placeholderTextColor={colors.textSecondary} secureTextEntry autoCapitalize="none" style={{ color: colors.text, fontSize: fontSize.lg, paddingVertical: spacing(1) }} />
+          {/* Mot de passe de chiffrement : ni trousseau iOS ni enregistrement proposé. */}
+          <TextInput value={pwd} onChangeText={setPwd} placeholder={t('backupPasswordPlaceholder')} placeholderTextColor={colors.textSecondary} secureTextEntry {...SENSITIVE_INPUT_PROPS} style={{ color: colors.text, fontSize: fontSize.lg, paddingVertical: spacing(1) }} />
         </Card>
       ) : null}
       <Card padding="xl" gap="md">

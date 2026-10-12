@@ -29,9 +29,9 @@
  * test (voir `tonKeys.test.ts`).
  */
 import { ed25519 } from '@noble/curves/ed25519';
-import { mnemonicToSeedSync, validateMnemonic } from '../../../crypto/mnemonic';
+import { mnemonicToSeed, mnemonicToSeedSync, validateMnemonic } from '../../../crypto/mnemonic';
 import { deriveEd25519 } from '../../../crypto/slip10';
-import { isValidTonMnemonic, tonSeedFromMnemonic } from './tonMnemonic';
+import { isValidTonMnemonic, isValidTonMnemonicAsync, tonSeedFromMnemonic, tonSeedFromMnemonicAsync } from './tonMnemonic';
 
 /** Chemin SLIP-0010 d'une phrase BIP-39 sur TON — celui de Tonkeeper. */
 export const TON_BIP39_PATH = "m/44'/607'/0'";
@@ -65,6 +65,8 @@ export function tonKeyKind(phrase: string): TonKeyKind | null {
  * la correspondance qu'on garantit ici.
  */
 export function resolveTonKey(phrase: string, bip39Seed?: Uint8Array): TonKey {
+  // Variante SYNCHRONE (tests, outils) : sur une phrase TON, 100 000 tours de
+  // PBKDF2 fil bloqué. L'app signe et dérive avec `resolveTonKeyAsync`.
   const kind = tonKeyKind(phrase);
   if (kind === 'ton') {
     const seed = tonSeedFromMnemonic(phrase);
@@ -100,3 +102,39 @@ export function tonPublicKeyFromPhrase(phrase: string, bip39Seed?: Uint8Array): 
   return key.publicKey;
 }
 
+
+/** `tonKeyKind`, sans figer l'interface. Même réponse, dans le même ordre (TON d'abord). */
+export async function tonKeyKindAsync(phrase: string): Promise<TonKeyKind | null> {
+  if (await isValidTonMnemonicAsync(phrase)) return 'ton';
+  if (validateMnemonic(phrase)) return 'bip39';
+  return null;
+}
+
+/**
+ * `resolveTonKey`, sans figer l'interface : c'est celle des chemins de
+ * signature et de dérivation de l'app. Mêmes règles, mêmes octets.
+ */
+export async function resolveTonKeyAsync(phrase: string, bip39Seed?: Uint8Array): Promise<TonKey> {
+  const kind = await tonKeyKindAsync(phrase);
+  if (kind === 'ton') {
+    const seed = await tonSeedFromMnemonicAsync(phrase);
+    return { kind, seed, publicKey: ed25519.getPublicKey(seed) };
+  }
+  if (kind === 'bip39') {
+    const seed64 = bip39Seed ?? (await mnemonicToSeed(phrase));
+    try {
+      const { key } = deriveEd25519(seed64, [44, 607, 0]);
+      return { kind, seed: key, publicKey: ed25519.getPublicKey(key) };
+    } finally {
+      if (!bip39Seed) seed64.fill(0);
+    }
+  }
+  throw new Error('Phrase invalide : ni phrase TON ni phrase BIP-39');
+}
+
+/** `tonPublicKeyFromPhrase`, sans figer l'interface. La graine est effacée avant de rendre la main. */
+export async function tonPublicKeyFromPhraseAsync(phrase: string, bip39Seed?: Uint8Array): Promise<Uint8Array> {
+  const key = await resolveTonKeyAsync(phrase, bip39Seed);
+  key.seed.fill(0);
+  return key.publicKey;
+}

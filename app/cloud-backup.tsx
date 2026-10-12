@@ -22,7 +22,9 @@ import { NovaHero } from '../ui/nova';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { passwordStrength, MIN_BACKUP_LEVEL } from '../src/security/passwordStrength';
 import { useEffect, useState } from 'react';
-import { View, ScrollView, Share, ActivityIndicator } from 'react-native';
+import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { shareBackupFile, purgeStaleBackupFiles } from '../lib/backupFile';
+import { toast } from '../lib/toast';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Button, Input, ScreenHeader, Divider, Card, Switch } from '../ui/kit';
@@ -79,7 +81,14 @@ export default function CloudBackupScreen() {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileDone, setFileDone] = useState(false);
+  /** Sauvegarde chiffrée prête, à partager dès la fenêtre de confirmation fermée. */
+  const [fileBlob, setFileBlob] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState<number | null>(null);
+
+  // Fichier de sauvegarde resté en cache d'un export précédent (Android le garde exprès, cf. lib/backupFile).
+  useEffect(() => {
+    purgeStaleBackupFiles();
+  }, []);
 
   // Un flux Drive terminé (succès ou erreur) est acquitté quand on quitte l'écran.
   // Quitter l'écran sur un conflit ou une erreur, c'est abandonner : reset() efface aussi le blob chiffré gardé.
@@ -156,12 +165,38 @@ export default function CloudBackupScreen() {
       void flow.start({ kind: 'save', blob });
       return;
     }
-    const res = await Share.share({ message: blob, title: t('backupShareTitle') });
-    // Feuille de partage fermée sans rien enregistrer (iOS le dit) : aucune sauvegarde n'existe, on ne l'annonce pas.
-    if (res.action === Share.dismissedAction) return;
-    markEncryptedBackup('file');
-    setFileDone(true);
+    /*
+     * Partage lancé APRÈS la fermeture de la fenêtre de confirmation (effet
+     * ci-dessous) : présentée par-dessus une modale qui se ferme, la feuille
+     * de partage iOS disparaissait avec elle. Et `perform` n'attend pas le
+     * partage : iOS ne rend parfois jamais la main (activité ouverte puis
+     * annulée), ce qui figeait la confirmation.
+     */
+    setFileBlob(blob);
   };
+
+  useEffect(() => {
+    if (confirming || !fileBlob) return;
+    const blob = fileBlob;
+    // Le temps que la modale de confirmation finisse de se fermer (iOS refuse deux présentations simultanées).
+    // L'état est vidé DANS le minuteur : vidé avant, le nouveau rendu annulait ce minuteur et le partage ne partait jamais.
+    const timer = setTimeout(() => {
+      setFileBlob(null);
+      shareBackupFile(blob, t('backupShareTitle'))
+        .then((r) => {
+          /*
+           * « Faite » seulement si une copie existe HORS de l'app. Fermer la
+           * feuille, ou choisir « Copier » (presse-papiers, éphémère), n'en
+           * crée aucune : l'annoncer donnerait une fausse confiance.
+           */
+          if (r !== 'shared') return;
+          markEncryptedBackup('file');
+          setFileDone(true);
+        })
+        .catch(() => toast.error(t('exportFailed')));
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [confirming, fileBlob, markEncryptedBackup, t]);
 
   // ── Statut réel : une seule carte, un seul état ──
   const driveDate = checkResult ?? driveBackupAt; // la vérification en ligne prime sur la mémoire locale

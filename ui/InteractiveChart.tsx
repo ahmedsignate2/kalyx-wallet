@@ -141,17 +141,35 @@ export function InteractiveChart({
         runOnJS(emit)(idx);
       }
     };
-    return Gesture.Pan()
-      .minDistance(0)
-      // Le doigt peut sortir du graphique sans perdre le scrub.
-      .shouldCancelWhenOutside(false)
-      .onBegin((e) => track(e.x))
-      .onUpdate((e) => track(e.x))
-      .onFinalize(() => {
-        if (scrubIdx.value === -1) return;
-        scrubIdx.value = -1;
-        runOnJS(emit)(-1);
-      });
+    const release = () => {
+      'worklet';
+      if (scrubIdx.value === -1) return;
+      scrubIdx.value = -1;
+      runOnJS(emit)(-1);
+    };
+    /*
+     * `minDistance(0)` activait le scrub au premier contact : un défilement
+     * vertical de l'écran commencé sur le graphique était capté par lui, et la
+     * page ne défilait plus. Deux façons d'entrer en scrub désormais :
+     *  - glisser HORIZONTALEMENT (8 px) — un départ vertical laisse la main au
+     *    défilement ;
+     *  - appui maintenu (200 ms, doigt immobile) puis glisser dans n'importe
+     *    quel sens — le geste « je pose le doigt pour lire un point ».
+     * La remise à zéro est dans `onEnd` (gestes ACTIVÉS seulement) et non
+     * `onFinalize` : dans la course, le geste perdant finit aussi, et aurait
+     * effacé le point que le gagnant vient de poser.
+     */
+    const scrub = () =>
+      Gesture.Pan()
+        // Le doigt peut sortir du graphique sans perdre le scrub.
+        .shouldCancelWhenOutside(false)
+        .onStart((e) => track(e.x))
+        .onUpdate((e) => track(e.x))
+        .onEnd(release);
+    return Gesture.Race(
+      scrub().activeOffsetX([-8, 8]).failOffsetY([-8, 8]),
+      scrub().activateAfterLongPress(200),
+    );
   }, [emit, scrubIdx, xs, plotWidth]);
 
   // Nouvelle série (autre période) pendant un glissement : le point montré n'existe plus — on le relâche.

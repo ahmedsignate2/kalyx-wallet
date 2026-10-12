@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSFaceIDUsageDescription": "Kalyx, cüzdanının kilidini açmak ve hassas işlemlerini onaylamak için Face ID kullanır.",
+    "NSCameraUsageDescription": "Kalyx, QR kodlarını taramak için kamerayı kullanır: ödeme adresleri ve WalletConnect bağlantıları.",
+    "NSPhotoLibraryUsageDescription": "Kalyx, ödeme QR kodunu okumak için yalnızca seçtiğin fotoğrafa erişir. Başka hiçbir görsel okunmaz.",
+    "NSMicrophoneUsageDescription": "Kalyx asla ses kaydetmez; bu izin hiçbir zaman istenmez."
+  }
+}

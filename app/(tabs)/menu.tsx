@@ -1,7 +1,7 @@
 import { Pressable as KPressable, Card, Screen, ListRow, SegmentedControl } from '../../ui/kit';
 import { ConfirmUnlock } from '../../ui/ConfirmUnlock';
 import { useState } from 'react';
-import { View, Text, Alert } from 'react-native';
+import { View, Text, Alert, Platform } from 'react-native';
 import { router, Stack } from 'expo-router';
 import Constants from 'expo-constants';
 import { WalletAvatar, AvatarPicker } from '../../ui/avatarArt';
@@ -145,7 +145,10 @@ export default function Menu() {
       <SectionLabel>{t('menuSecCommunity')}</SectionLabel>
       <Card variant="glass" padded={false}>
         <ListRow wrap left={<Ico n="gift" tone="gold" />} title={t('inviteFriends')} subtitle={t('inviteFriendsSub')} right={chev} onPress={() => router.push('/invite')} />
-        <ListRow wrap divider left={<Ico n="star" />} title={t('supportUs')} subtitle={t('supportUsSub')} right={chev} onPress={() => router.push('/support')} />
+        {/* Dons : absents sur iOS (App Store 3.1.1, pourboires hors achat intégré refusés) — cf. app/support.tsx. */}
+        {Platform.OS !== 'ios' ? (
+          <ListRow wrap divider left={<Ico n="star" />} title={t('supportUs')} subtitle={t('supportUsSub')} right={chev} onPress={() => router.push('/support')} />
+        ) : null}
         <ListRow wrap divider left={<Ico n="bulb" />} title={t('suggestFeature')} subtitle={t('suggestFeatureSub')} right={chev} onPress={() => router.push('/feature-request')} />
       </Card>
 

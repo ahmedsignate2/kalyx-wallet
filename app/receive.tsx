@@ -8,7 +8,7 @@ import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { fill } from '../lib/i18n';
 import { SafeModal } from '../ui/kit/SafeModal';
 import { useCallback, useMemo, useState } from 'react';
-import { View, ScrollView, Share, Platform } from 'react-native';
+import { View, ScrollView, Share } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -17,7 +17,7 @@ import { LogoImage, Text, Button, IconButton, AddressGlyph, SegmentedControl, Pr
 import { Orbit, Rise } from '../ui/nova';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, radius, fontSize, radii } from '../ui/tokens';
+import { space, SCREEN_MARGIN, radius, fontSize, radii, monoFont } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { addressForChain } from '../lib/accountAddress';
 import { accountDisplayName } from '../lib/walletNames';
@@ -188,7 +188,7 @@ function ReceiveInner() {
             accessibilityLabel={fill(t('a11yAddress'), { address: address })}
             style={{
               fontSize: fontSize.sm,
-              fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+              fontFamily: monoFont,
               color: colors.text,
               textAlign: 'center',
               lineHeight: 20,

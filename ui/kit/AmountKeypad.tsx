@@ -174,9 +174,10 @@ export function AmountKeypad({
               onPressIn={k === '⌫' ? startHold : undefined}
               onPressOut={k === '⌫' ? stopHold : undefined}
               disabled={disabled}
+              // Hauteur FIXE : le chiffre plafonne à 1,2× (Dynamic Type) pour y tenir.
               height={compact ? 44 : 56}
             >
-              {k === '⌫' ? <Icon name="back" size={22} /> : <Text variant="title1" tabular>{k === '.' ? sep : k}</Text>}
+              {k === '⌫' ? <Icon name="back" size={22} /> : <Text variant="title1" tabular maxFontSizeMultiplier={1.2}>{k === '.' ? sep : k}</Text>}
             </KeyBase>
           ))}
         </View>

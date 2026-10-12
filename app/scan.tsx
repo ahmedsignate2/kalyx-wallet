@@ -12,7 +12,7 @@
 import { ScreenHeader, Pressable as KPressable, Button } from '../ui/kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, Easing, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Animated, Easing, StyleSheet, Dimensions, Linking, Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -99,9 +99,15 @@ async function pickQrFromGallery(): Promise<ImageQrResult> {
    * L'autorisation est demandée au moment du geste, pas au lancement : c'est la
    * recommandation d'Android, et c'est le seul moment où le motif est évident
    * pour l'utilisateur.
+   *
+   * Sauf sur iOS : depuis iOS 14, le sélecteur système (PHPicker) tourne hors
+   * de l'app et ne demande AUCUNE autorisation. La réclamer quand même affichait
+   * un « accès à toutes tes photos » inutile, et un refus bloquait le choix.
    */
-  const perm = await pickerMod.requestMediaLibraryPermissionsAsync().catch(() => null);
-  if (!perm?.granted) return { kind: 'denied' };
+  if (Platform.OS !== 'ios') {
+    const perm = await pickerMod.requestMediaLibraryPermissionsAsync().catch(() => null);
+    if (!perm?.granted) return { kind: 'denied' };
+  }
   const res = await pickerMod
     .launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -179,7 +185,7 @@ export default function Scan() {
  */
 function useQrAction() {
   return (r: QrResult) => {
-    void runQrIntent(r, { replace: true });
+    void runQrIntent(r, { replace: true, fromScan: true });
   };
 }
 
@@ -241,7 +247,16 @@ function Scanner() {
           {t('cameraNeedReason')}
         </Text>
         <View style={{ height: spacing(3) }} />
-        <Button label={t('allow')} onPress={requestPermission} />
+        {/*
+          Refus définitif (canAskAgain faux) : le système ne réaffiche plus la
+          demande, « Autoriser » ne faisait donc rien. Seuls les Réglages
+          peuvent rendre l'accès.
+        */}
+        {permission.canAskAgain ? (
+          <Button label={t('allow')} onPress={requestPermission} />
+        ) : (
+          <Button label={t('openDeviceSettings')} onPress={() => void Linking.openSettings()} />
+        )}
         <KPressable onPress={paste} style={{ marginTop: spacing(2) }}>
           <Text style={{ color: colors.primary, fontFamily: fonts.semibold }}>{t('pasteFromClipboard')}</Text>
         </KPressable>

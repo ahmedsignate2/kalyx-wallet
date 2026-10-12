@@ -1,4 +1,4 @@
-import { extractWcUri, extractPaymentUri, extractBrowseUrl, extractPayLink } from './deeplink';
+import { extractWcUri, extractPaymentUri, extractBrowseUrl, extractPayLink, isWcPairingUri } from './deeplink';
 
 const BTC = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
 const EVM = '0x742d35cc6634c0532925a3b844bc454e4438f44e';
@@ -123,5 +123,25 @@ describe('extractPayLink', () => {
     expect(extractPayLink('bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')).toBeNull();
     expect(extractPayLink('wc:topic@2?symKey=ab')).toBeNull();
     expect(extractPayLink('kalyx://pay?uri=bitcoin%3Abc1q')).toBeNull();
+  });
+});
+
+describe('isWcPairingUri — appairage seulement avec la clé symétrique', () => {
+  it.each([
+    'wc:topic@2?relay-protocol=irn&symKey=ab12',
+    'wc:topic@2?symKey=AB12&relay-protocol=irn&expiryTimestamp=1',
+  ])('%s → appairage', (u) => {
+    expect(isWcPairingUri(u)).toBe(true);
+  });
+  it.each([
+    // Retour au premier plan demandé par la dApp pour une signature : pas de clé.
+    'wc:topic@2?requestId=1700000000000123',
+    'wc:topic@2?requestId=1&sessionTopic=abc',
+    'wc:topic@2',
+    'wc:topic@2?symKey=',
+    'wc:topic@2?xsymKey=ab',
+    'https://evil.com/?symKey=ab',
+  ])('%s → pas un appairage', (u) => {
+    expect(isWcPairingUri(u)).toBe(false);
   });
 });

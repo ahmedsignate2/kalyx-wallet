@@ -11,12 +11,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { radius, space, radii } from '../tokens';
 
-export function Sheet({ visible, onClose, children, dismissable = true }: { visible: boolean; onClose: () => void; children: React.ReactNode; dismissable?: boolean }) {
+export function Sheet({ visible, onClose, children, dismissable = true, showWhenLocked }: { visible: boolean; onClose: () => void; children: React.ReactNode; dismissable?: boolean; /** Voir SafeModal. */ showWhenLocked?: boolean }) {
   const t = useT();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   return (
-    <SafeModal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={dismissable ? onClose : undefined}>
+    <SafeModal visible={visible} showWhenLocked={showWhenLocked} transparent animationType="slide" statusBarTranslucent onRequestClose={dismissable ? onClose : undefined}>
       <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={dismissable ? onClose : undefined} accessibilityLabel={t("aiClose")} />
         <View style={{ backgroundColor: colors.surface2, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, maxHeight: '85%', flexShrink: 1, paddingBottom: Math.max(insets.bottom, 16) + 12 }}>

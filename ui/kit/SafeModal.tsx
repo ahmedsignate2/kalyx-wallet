@@ -8,10 +8,14 @@
  * détail d'un NFT…) restait donc affichée par-dessus, avec ses données. Toutes
  * les modales de l'app passent par ici ; elles réapparaissent au déverrouillage.
  */
-import { useEffect, useRef } from 'react';
-import { Modal, type ModalProps } from 'react-native';
+import { createContext, useContext, useEffect, useId, useRef, useSyncExternalStore } from 'react';
+import { Modal, Platform, type ModalProps } from 'react-native';
 import { useLocked } from '../../lib/lockState';
 import { journal } from '../../lib/debugJournal';
+import { modalDismissed, modalHasTurn, requestModal, subscribeModalGate, withdrawModal } from '../../lib/modalGate';
+
+/** Vrai à l'intérieur d'une fenêtre : une fenêtre imbriquée n'attend pas son tour. */
+const InsideModal = createContext(false);
 
 /** `visible` absent = visible (défaut de React Native) ; seul `false` ferme. */
 export function modalWanted(visible: boolean | undefined): boolean {
@@ -23,9 +27,9 @@ export function modalShown(visible: boolean | undefined, locked: boolean): boole
   return modalWanted(visible) && !locked;
 }
 
-export function SafeModal(props: ModalProps & { journalName?: string }) {
+export function SafeModal(props: ModalProps & { journalName?: string; /** Fenêtre de l'écran de code lui-même (« Code oublié ? ») : affichée app verrouillée. */ showWhenLocked?: boolean }) {
   const locked = useLocked();
-  const { journalName, ...modal } = props;
+  const { journalName, showWhenLocked, ...modal } = props;
   /*
    * `visible` ABSENT = visible, comme la `Modal` de React Native. Plusieurs
    * fenêtres (confirmation par PIN, demande de PIN, succès, détail NFT…) sont
@@ -42,5 +46,33 @@ export function SafeModal(props: ModalProps & { journalName?: string }) {
     was.current = wanted;
     journal('state', `fenêtre${journalName ? ` « ${journalName} »` : ''} : ${wanted ? (locked ? 'MASQUÉE (app verrouillée)' : 'affichée') : 'fermée'}`);
   }, [wanted, locked, journalName]);
-  return <Modal {...modal} visible={modalShown(modal.visible, locked)} />;
+  /*
+   * iOS : une fenêtre de PREMIER NIVEAU attend que la précédente ait fini de
+   * se fermer (lib/modalGate.ts) — sinon UIKit ignore la présentation et
+   * l'écran reste bloqué. Android empile les fenêtres sans souci.
+   */
+  const id = useId();
+  const nested = useContext(InsideModal);
+  const gated = Platform.OS === 'ios' && !nested;
+  const shown = modalShown(modal.visible, locked && !showWhenLocked);
+  useEffect(() => {
+    if (!gated) return;
+    if (shown) requestModal(id);
+    else withdrawModal(id);
+  }, [gated, shown, id]);
+  useEffect(() => () => withdrawModal(id), [id]);
+  const turn = useSyncExternalStore(subscribeModalGate, () => modalHasTurn(id));
+  const { onDismiss, children } = modal;
+  return (
+    <Modal
+      {...modal}
+      visible={shown && (!gated || turn)}
+      onDismiss={() => {
+        modalDismissed(id);
+        onDismiss?.();
+      }}
+    >
+      <InsideModal.Provider value>{children}</InsideModal.Provider>
+    </Modal>
+  );
 }

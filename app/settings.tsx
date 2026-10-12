@@ -3,7 +3,7 @@ import { WalletAvatar, AvatarPicker } from '../ui/avatarArt';
 import { ScreenHeader, Pressable as KPressable, Card, Screen, Switch } from '../ui/kit';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, Alert } from 'react-native';
+import { View, Text, TextInput, Alert, Linking } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { PinPromptModal } from '../ui/PinPromptModal';
@@ -52,7 +52,17 @@ export default function Settings() {
     const ok = await ensureNotifPermission();
     setNotifOn(ok);
     if (ok) void notify(t('notifEnabledTitle'), t('notifEnabledBody'));
-    else toast.warning(t('notifications'), t('notifDenied'));
+    else {
+      /*
+       * Refus déjà donné : iOS ne repose JAMAIS la question, l'interrupteur ne
+       * pouvait donc plus rien faire. Seuls les Réglages du système rendent
+       * l'autorisation : on y mène directement.
+       */
+      Alert.alert(t('notifications'), t('notifDenied'), [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('openDeviceSettings'), onPress: () => void Linking.openSettings() },
+      ]);
+    }
   };
 
   const langName = LANGUAGES.find((l) => l.code === language)?.name ?? language;

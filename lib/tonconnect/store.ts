@@ -38,6 +38,8 @@ import { buildTonProof, tonAddrReply } from '../../src/domain/tonconnect/tonProo
 import { parseSendTransaction, TC_ERROR, TC_MAX_MESSAGES, type DappTransaction } from '../../src/domain/tonconnect/requests';
 import { tonWalletStateInitBoc } from '../../src/domain/chains/ton/tonTransfer';
 import type { DappDraft } from '../../src/domain/chains/v2/TonAdapterV2';
+import { returnToDappOrHint } from '../dappReturn';
+import { tonReturnUrl } from '../../src/domain/web/returnUrl';
 import { pageMatchesManifest, tcEmitJs, tcResolveJs, validConnectRequest, type TcJsCall } from '../../src/domain/tonconnect/jsBridge';
 
 export interface TcSession {
@@ -52,6 +54,8 @@ export interface TcSession {
   chainId: string;
   connectedAt: number;
   lastEventId?: string;
+  /** Paramètre `ret` du lien de connexion, BRUT : revalidé (tonReturnUrl) à chaque usage. */
+  ret?: string;
 }
 
 export type TcPending =
@@ -247,6 +251,10 @@ export const useTonConnect = create<TcState>((set, get) => {
   /** Répond à la dApp d'une demande de transaction, par son transport. */
   const replyTx = (p: Extract<TcPending, { kind: 'tx' | 'signData' }>, payload: unknown) =>
     p.session.bridge === JS_BRIDGE ? Promise.resolve(p.jsCallId !== undefined && jsResolve(hostOfSession(p.session), p.jsCallId, payload)) : respond(p.session, payload);
+  /** Après la réponse : retour vers la dApp (lien `ret` de sa connexion, revalidé). Rien pour le navigateur intégré. */
+  const backToDapp = (p: Extract<TcPending, { kind: 'tx' | 'signData' }>, hint: boolean) => {
+    if (p.session.bridge !== JS_BRIDGE) returnToDappOrHint(tonReturnUrl(p.session.ret, p.session.manifest.url), hint);
+  };
 
   const remove = async (clientId: string) => {
     const sessions = get().sessions.filter((s) => s.clientId !== clientId);
@@ -364,11 +372,18 @@ export const useTonConnect = create<TcState>((set, get) => {
         address,
         chainId: chain.id,
         connectedAt: Date.now(),
+        ...(p.js || !p.link.ret ? {} : { ret: p.link.ret }),
       };
       const sessions = [...get().sessions.filter((s) => s.clientId !== session.clientId), session];
       set({ sessions, queue: without(get().queue, p) });
       await persist(sessions);
       relisten();
+      /*
+       * `ret` était lu puis ignoré : la dApp mobile qui avait ouvert Kalyx
+       * attendait qu'on lui rende la main. Lien validé contre le domaine du
+       * manifeste ; le navigateur intégré (pont JS) n'a rien à quitter.
+       */
+      if (!p.js) returnToDappOrHint(tonReturnUrl(p.link.ret, p.manifest.url));
     },
 
     rejectConnect: async () => {
@@ -382,6 +397,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       }
       // Réponse d'une clé jetable : la dApp sait que l'utilisateur a refusé.
       await sendTo(p.link.bridge, newSessionKeyPair(), p.link.clientId, event).catch(() => {});
+      returnToDappOrHint(tonReturnUrl(p.link.ret, p.manifest.url), false);
     },
 
     approveTx: async (unlock, expected) => {
@@ -412,6 +428,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       await adapter.broadcastDapp(signed);
       set({ queue: without(get().queue, p) });
       await replyTx(p, { result: signed.boc, id: p.requestId }).catch(() => {});
+      backToDapp(p, true);
       return signed.txid;
     },
 
@@ -420,6 +437,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       if (p?.kind !== 'tx') return;
       set({ queue: without(get().queue, p) });
       await replyTx(p, { error: { code: TC_ERROR.USER_REJECTS, message: 'User declined the transaction' }, id: p.requestId }).catch(() => {});
+      backToDapp(p, false);
     },
 
     approveSignData: async (unlock, expected) => {
@@ -456,6 +474,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       set({ queue: without(get().queue, p) });
       console.log('[KALYX-TC] signData:signé', { type: payload.type, domain });
       await replyTx(p, { result: { signature, address: me.toRawString(), timestamp, domain, payload }, id: p.requestId }).catch(() => {});
+      backToDapp(p, true);
     },
 
     rejectSignData: async (expected) => {
@@ -463,6 +482,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       if (p?.kind !== 'signData') return;
       set({ queue: without(get().queue, p) });
       await replyTx(p, { error: { code: TC_ERROR.USER_REJECTS, message: 'User declined the request' }, id: p.requestId }).catch(() => {});
+      backToDapp(p, false);
     },
 
     disconnect: async (clientId) => {

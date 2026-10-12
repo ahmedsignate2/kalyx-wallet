@@ -17,7 +17,8 @@ import { SendResult } from '../ui/SendResult';
 import { RecipientFacts } from '../ui/RecipientFacts';
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
+import { usePreventRemove } from 'expo-router/react-navigation';
 import { holdingIcon } from '../ui/kit/useFallbackLogo';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { friendlyTxError } from '../lib/txError';
@@ -32,7 +33,7 @@ import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { ContactPicker } from '../ui/ContactPicker';
 import { FadeInUp } from '../ui/FadeInUp';
 import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, radius, radii } from '../ui/tokens';
+import { space, SCREEN_MARGIN, radius, radii, monoFont } from '../ui/tokens';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { useRecentRecipients, type RecipientFamily } from '../lib/recentRecipientsStore';
@@ -116,6 +117,7 @@ function SendInner() {
   const sym = fiatSymbol(fiat);
   const wallet = useWallet(useShallow((s) => ({ account: s.account, activeChain: s.activeChain, accounts: s.accounts, activeAccountIndex: s.activeAccountIndex, sendJetton: s.sendJetton, sendSolToken: s.sendSolToken, sendToken: s.sendToken, signAndSend: s.signAndSend })));
   const { account, activeChain, accounts } = wallet;
+  const navigation = useNavigation();
   const params = useLocalSearchParams<{ to?: string; amount?: string; contract?: string; mint?: string; jetton?: string; exp?: string; symbol?: string; decimals?: string; chain?: string; references?: string; memo?: string; payee?: string; note?: string }>();
   const setActiveChain = useWallet((s) => s.setActiveChain);
   const pf = usePortfolioStore(useShallow((s) => ({ holdings: s.holdings, hydrate: s.hydrate, invalidate: s.invalidate, loading: s.loading, refresh: s.refresh })));
@@ -841,6 +843,27 @@ function SendInner() {
     }
   };
 
+  /*
+   * RETOUR : à l'étape 0, au suivi (4) ou depuis la page d'un token (1), on
+   * quitte l'envoi ; sinon on recule d'UNE étape. Le geste retour iOS (bord
+   * gauche) et le retour matériel Android faisaient toujours quitter l'écran :
+   * destinataire et montant saisis étaient perdus. `usePreventRemove` les fait
+   * passer par le même chemin que le bouton.
+   */
+  const leavesOnBack = step === 0 || step === 4 || (step === 1 && presetToken);
+  const stepBack = () => {
+    setAddressError(null);
+    setAmountError(null);
+    setStep((s) => (s > 0 ? ((s - 1) as Step) : s));
+  };
+  usePreventRemove(!leavesOnBack, ({ data }) => {
+    // Seuls le geste / le retour reculent d'une étape. Tout autre retrait
+    // (verrouillage auto qui remplace l'écran, `dismissAll`…) doit passer :
+    // le bloquer laisserait l'app ouverte sur l'envoi après le verrou.
+    if (data.action.type === 'GO_BACK' || (data.action.type === 'POP' && ((data.action.payload as { count?: number } | undefined)?.count ?? 1) === 1)) stepBack();
+    else navigation.dispatch(data.action);
+  });
+
   if (!account) return null;
   const destLabel = contactName ?? (isEns ? to.trim() : null);
   const afterBalance = balance != null ? balance - amountRaw - (isNativeSend ? feeRaw : 0n) : null;
@@ -858,7 +881,7 @@ function SendInner() {
       {/* En-tête + barre de progression */}
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN }}>
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => { setAddressError(null); setAmountError(null); (step === 0 || step === 4 || (step === 1 && presetToken) ? goBack() : setStep((s) => (s - 1) as Step)); }} />
+          <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (leavesOnBack ? goBack() : stepBack())} />
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             {/* Le titre rétrécit (une ligne) : long (« Vérifie avant d'envoyer »), il poussait la pastille du réseau sur le compteur d'étapes. */}
             <Text variant="title2" numberOfLines={1} style={{ flexShrink: 1 }}>{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : step === 3 ? t("verifyBeforeSendTitle") : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
@@ -1114,8 +1137,8 @@ function SendInner() {
                 </View>
                 <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
                   <Text variant="body" numberOfLines={1}>{destLabel ?? t("labelRecipient")}</Text>
-                  <Text variant="caption" tone="secondary" numberOfLines={1} style={{ fontFamily: 'monospace' }}>
-                    {recipient.slice(0, 6)}…<Text variant="caption" style={{ fontFamily: 'monospace', color: colors.text }}>{recipient.slice(-4)}</Text>
+                  <Text variant="caption" tone="secondary" numberOfLines={1} style={{ fontFamily: monoFont }}>
+                    {recipient.slice(0, 6)}…<Text variant="caption" style={{ fontFamily: monoFont, color: colors.text }}>{recipient.slice(-4)}</Text>
                   </Text>
                 </View>
                 {/* Le badge « Premier envoi / Contact connu » faisait doublon avec la fiche Destinataire au-dessus. */}

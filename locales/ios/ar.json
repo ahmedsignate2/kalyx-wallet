@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSFaceIDUsageDescription": "يستخدم Kalyx خاصية Face ID لفتح قفل محفظتك وتأكيد عملياتك الحساسة.",
+    "NSCameraUsageDescription": "يستخدم Kalyx الكاميرا لمسح رموز QR: عناوين الدفع واتصالات WalletConnect.",
+    "NSPhotoLibraryUsageDescription": "يصل Kalyx إلى صورة تختارها أنت لقراءة رمز QR للدفع منها. لا تُقرأ أي صورة أخرى.",
+    "NSMicrophoneUsageDescription": "لا يسجّل Kalyx أي صوت أبدًا؛ ولا يُطلب هذا الإذن أبدًا."
+  }
+}

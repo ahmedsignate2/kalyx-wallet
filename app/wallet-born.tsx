@@ -13,7 +13,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { View, Pressable as RNPressable, useWindowDimensions } from 'react-native';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
 import { Text, Button, AddressGlyph, Halo } from '../ui/kit';
@@ -22,6 +22,7 @@ import { space, SCREEN_MARGIN, springs } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { aura } from '../lib/aura';
+import { useResetToHome } from '../lib/nav';
 import { haptic } from '../lib/haptics';
 import { Orbit, SparkBurst, Stardust } from '../ui/nova';
 
@@ -67,7 +68,8 @@ export default function WalletBorn() {
     opacity: Math.min(1, halo.value * 1.5),
   }));
 
-  const go = () => router.replace('/home');
+  // Pile vidée : l'onboarding ne doit plus être joignable par balayage (lib/nav).
+  const go = useResetToHome();
   const address = account?.address ?? '';
 
   return (

@@ -2,7 +2,8 @@ import { LogoImage, ScreenHeader, Pressable as KPressable, Button, TokenIcon, Sk
 import { fill } from '../../lib/i18n';
 import { SafeModal } from '../../ui/kit/SafeModal';
 import React, { useEffect, useState } from 'react';
-import { View, Text, useWindowDimensions, TextInput, KeyboardAvoidingView, Linking } from 'react-native';
+import { View, Text, useWindowDimensions, TextInput, KeyboardAvoidingView, Linking, Platform, InputAccessoryView, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Halo } from '../../ui/kit/Halo';
@@ -104,8 +105,12 @@ function InfoRow({ label, right, divider, onPress, a11y }: { label: string; righ
   return onPress ? <KPressable noScale onPress={onPress} accessibilityLabel={a11y ?? label}>{body}</KPressable> : body;
 }
 
+/** Lien entre le champ « prix cible » et sa barre « OK » (iOS). */
+const PRICE_ALERT_ACCESSORY = 'price-alert-target';
+
 export default function TokenDetail() {
   const { colors, typography } = useTheme();
+  const insets = useSafeAreaInsets();
   const { id, chain: chainParam } = useLocalSearchParams<{ id: string; chain?: string }>();
   const t = useT();
   const { fiat, language, favorites } = useSettings(useShallow((s) => ({ fiat: s.fiat, language: s.language, favorites: s.favorites })));
@@ -550,7 +555,8 @@ export default function TokenDetail() {
           onPress={() => setAlertOpen(false)}
         >
           {/* Absorbe les taps pour qu'ils ne ferment pas la feuille. */}
-          <KPressable noScale haptic="none" style={{ backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl, padding: spacing(2.5), gap: spacing(1.75) }}>
+          {/* Bas de feuille au-dessus de l'indicateur d'accueil (zone sûre). */}
+          <KPressable noScale haptic="none" style={{ backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl, padding: spacing(2.5), paddingBottom: spacing(2.5) + insets.bottom, gap: spacing(1.75) }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: radii.full, backgroundColor: colors.border }} />
             <Text style={typography.section}>{t('priceAlertTitle')}{(detail?.symbol || id || '').toUpperCase()}</Text>
 
@@ -573,7 +579,7 @@ export default function TokenDetail() {
             </View>
 
             <View style={{ backgroundColor: colors.surface2, borderRadius: radii.md, paddingHorizontal: spacing(1.5), flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-              <TextInput value={alertTarget} onChangeText={setAlertTarget} keyboardType="decimal-pad" placeholder={t("targetPricePlaceholder")} placeholderTextColor={colors.textSecondary} style={{ flex: 1, color: colors.text, fontSize: fontSize.xxl, paddingVertical: spacing(1.5) }} />
+              <TextInput value={alertTarget} onChangeText={setAlertTarget} keyboardType="decimal-pad" inputAccessoryViewID={Platform.OS === 'ios' ? PRICE_ALERT_ACCESSORY : undefined} placeholder={t("targetPricePlaceholder")} placeholderTextColor={colors.textSecondary} style={{ flex: 1, color: colors.text, fontSize: fontSize.xxl, paddingVertical: spacing(1.5) }} />
               <Text style={{ color: colors.textSecondary, fontFamily: fonts.semibold }}>{fiatSymbol(fiat)}</Text>
             </View>
 
@@ -582,6 +588,21 @@ export default function TokenDetail() {
           </KPressable>
         </KPressable>
         </KeyboardAvoidingView>
+        {/*
+          Le pavé decimal-pad d'iOS n'a NI touche Retour NI moyen de se fermer :
+          il recouvrait « Créer l'alerte » et seul un tap sur le fond (qui ferme
+          la feuille) le faisait partir. Barre « OK » au-dessus du pavé. Android
+          a sa touche de validation et le bouton retour.
+        */}
+        {Platform.OS === 'ios' ? (
+          <InputAccessoryView nativeID={PRICE_ALERT_ACCESSORY}>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing(2), paddingVertical: spacing(1), backgroundColor: colors.surface2, borderTopWidth: 1, borderTopColor: colors.border }}>
+              <KPressable noScale haptic="none" onPress={() => Keyboard.dismiss()} accessibilityRole="button" accessibilityLabel={t('done')} hitSlop={8}>
+                <Text style={{ color: colors.primary, fontFamily: fonts.semibold, fontSize: fontSize.md }}>{t('done')}</Text>
+              </KPressable>
+            </View>
+          </InputAccessoryView>
+        ) : null}
       </SafeModal>
     </Screen>
     </>

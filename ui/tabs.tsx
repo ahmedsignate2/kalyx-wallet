@@ -22,7 +22,7 @@
  */
 import { useEffect, useEffectEvent, useState } from 'react';
 import { useForeground } from './useLoopActive';
-import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Platform, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import type { BottomTabBarProps } from 'expo-router/tabs';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -99,7 +99,8 @@ function NavItem({ icon, label, on }: { icon: IconName; label: string; on: boole
       <Reanimated.View style={iconStyle}>
         <Icon name={icon} size={22} color={on ? colors.text : colors.textTertiary} />
       </Reanimated.View>
-      <Text variant="micro" numberOfLines={1} style={{ fontFamily: on ? fontFamily.semibold : fontFamily.medium, letterSpacing: 0.1, color: on ? colors.text : colors.textTertiary }}>{label}</Text>
+      {/* Barre de hauteur FIXE (NAV_H) : libellé plafonné à 1,2× sous Dynamic Type. */}
+      <Text variant="micro" numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ fontFamily: on ? fontFamily.semibold : fontFamily.medium, letterSpacing: 0.1, color: on ? colors.text : colors.textTertiary }}>{label}</Text>
     </View>
   );
 }
@@ -133,7 +134,8 @@ function FanAction({ i, open, cx, cy, label, icon, tone, onPress }: { i: number;
         <View style={{ width: 56, height: 56, borderRadius: radii.full, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderWidth: tone === 'primary' ? 0 : 1, borderColor: tone === 'gold' ? 'rgba(221,181,101,0.5)' : 'rgba(255,255,255,0.12)' }}>
           <Icon name={icon} size={23} color={ink} />
         </View>
-        <Text variant="micro" numberOfLines={1} style={{ color: colors.text, fontFamily: fontFamily.semibold }}>{label}</Text>
+        {/* Colonne de 80 px posée sur l'arc : libellé plafonné à 1,2× (Dynamic Type). */}
+        <Text variant="micro" numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ color: colors.text, fontFamily: fontFamily.semibold }}>{label}</Text>
       </KPressable>
     </Reanimated.View>
   );
@@ -243,45 +245,55 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
         au toucher sur Android.
       */}
       <Reanimated.View pointerEvents={hidden ? 'none' : 'box-none'} style={[{ position: 'absolute', left: 16, right: 16, bottom, paddingTop: ORB_LIFT }, dockStyle]}>
+        {/*
+          Ombre et rognage sur DEUX vues : sur iOS, `overflow: 'hidden'` rogne
+          aussi l'ombre de la vue qui le porte — la barre n'en avait aucune.
+          La vue externe porte l'ombre (iOS seulement) ; l'interne, inchangée,
+          rogne le reflet et garde l'`elevation` : Android reste identique.
+        */}
         <View
           onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}
-          style={{
-            height: NAV_H,
-            borderRadius: NAV_H / 2,
-            backgroundColor: dark ? 'rgba(12,14,22,0.97)' : 'rgba(255,255,255,0.97)',
-            borderWidth: 1,
-            borderColor: dark ? 'rgba(255,255,255,0.08)' : colors.border,
-            borderTopColor: dark ? 'rgba(221,181,101,0.28)' : 'rgba(184,134,58,0.25)',
-            flexDirection: 'row',
-            alignItems: 'center',
-            overflow: 'hidden',
-            shadowColor: '#000',
-            shadowOpacity: dark ? 0.5 : 0.12,
-            shadowRadius: 24,
-            shadowOffset: { width: 0, height: 10 },
-            elevation: 16,
-          }}
+          style={Platform.OS === 'ios' ? { borderRadius: NAV_H / 2, shadowColor: '#000', shadowOpacity: dark ? 0.5 : 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 10 } } : undefined}
         >
-          {/* Reflet du verre : la lumière tombe d'en haut. */}
-          <LinearGradient
-            pointerEvents="none"
-            colors={dark ? ['rgba(255,255,255,0.07)', 'rgba(255,255,255,0)'] : ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']}
-            style={{ position: 'absolute', left: 0, right: 0, top: 0, height: NAV_H / 2 }}
-          />
-          {slot ? (
-            <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', top: 7, height: NAV_H - 14, borderRadius: (NAV_H - 14) / 2, backgroundColor: dark ? 'rgba(242,244,250,0.075)' : 'rgba(6,7,13,0.05)', overflow: 'hidden' }, glowStyle]}>
-              {/* Filet d'or au pied de l'onglet actif. */}
-              <View style={{ position: 'absolute', bottom: 0, left: '30%', right: '30%', height: 2, borderRadius: radii.full, backgroundColor: GOLD }} />
-            </Reanimated.View>
-          ) : null}
-          {TABS.slice(0, 2).map((it) => (
-            <TabButton key={it.key} it={it} active={active} t={t} onPress={() => navigation.navigate(it.key)} />
-          ))}
-          {/* Place de l'orbe (dessiné au-dessus, en relief). */}
-          <View style={{ flex: 1 }} />
-          {TABS.slice(2).map((it) => (
-            <TabButton key={it.key} it={it} active={active} t={t} onPress={() => navigation.navigate(it.key)} />
-          ))}
+          <View
+            style={{
+              height: NAV_H,
+              borderRadius: NAV_H / 2,
+              backgroundColor: dark ? 'rgba(12,14,22,0.97)' : 'rgba(255,255,255,0.97)',
+              borderWidth: 1,
+              borderColor: dark ? 'rgba(255,255,255,0.08)' : colors.border,
+              borderTopColor: dark ? 'rgba(221,181,101,0.28)' : 'rgba(184,134,58,0.25)',
+              flexDirection: 'row',
+              alignItems: 'center',
+              overflow: 'hidden',
+              shadowColor: '#000',
+              shadowOpacity: dark ? 0.5 : 0.12,
+              shadowRadius: 24,
+              shadowOffset: { width: 0, height: 10 },
+              elevation: 16,
+            }}
+          >
+            {/* Reflet du verre : la lumière tombe d'en haut. */}
+            <LinearGradient
+              pointerEvents="none"
+              colors={dark ? ['rgba(255,255,255,0.07)', 'rgba(255,255,255,0)'] : ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']}
+              style={{ position: 'absolute', left: 0, right: 0, top: 0, height: NAV_H / 2 }}
+            />
+            {slot ? (
+              <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', top: 7, height: NAV_H - 14, borderRadius: (NAV_H - 14) / 2, backgroundColor: dark ? 'rgba(242,244,250,0.075)' : 'rgba(6,7,13,0.05)', overflow: 'hidden' }, glowStyle]}>
+                {/* Filet d'or au pied de l'onglet actif. */}
+                <View style={{ position: 'absolute', bottom: 0, left: '30%', right: '30%', height: 2, borderRadius: radii.full, backgroundColor: GOLD }} />
+              </Reanimated.View>
+            ) : null}
+            {TABS.slice(0, 2).map((it) => (
+              <TabButton key={it.key} it={it} active={active} t={t} onPress={() => navigation.navigate(it.key)} />
+            ))}
+            {/* Place de l'orbe (dessiné au-dessus, en relief). */}
+            <View style={{ flex: 1 }} />
+            {TABS.slice(2).map((it) => (
+              <TabButton key={it.key} it={it} active={active} t={t} onPress={() => navigation.navigate(it.key)} />
+            ))}
+          </View>
         </View>
 
         {/* ── L'ORBE ── */}
@@ -297,16 +309,19 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
           >
             {/* Cercle d'or qui respire autour de l'orbe. */}
             <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', width: ORB + 12, height: ORB + 12, borderRadius: (ORB + 12) / 2, borderWidth: 1.5, borderColor: GOLD }, ringStyle]} />
-            <View style={{ width: ORB, height: ORB, borderRadius: ORB / 2, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(221,181,101,0.55)', alignItems: 'center', justifyContent: 'center', backgroundColor: dark ? '#10131D' : '#FFFFFF', shadowColor: GOLD, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }, elevation: 18 }}>
-              <LinearGradient pointerEvents="none" colors={dark ? ['rgba(221,181,101,0.22)', 'rgba(221,181,101,0)'] : ['rgba(221,181,101,0.3)', 'rgba(221,181,101,0)']} style={StyleSheet.absoluteFill} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} />
-              <Reanimated.View style={orbIconStyle}>
-                <Reanimated.View style={logoStyle}>
-                  <KalyxLogo size={34} />
+            {/* Même séparation ombre / rognage que la barre (iOS) : la lueur d'or n'était pas dessinée. */}
+            <View style={Platform.OS === 'ios' ? { borderRadius: ORB / 2, shadowColor: GOLD, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 0 } } : undefined}>
+              <View style={{ width: ORB, height: ORB, borderRadius: ORB / 2, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(221,181,101,0.55)', alignItems: 'center', justifyContent: 'center', backgroundColor: dark ? '#10131D' : '#FFFFFF', shadowColor: GOLD, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }, elevation: 18 }}>
+                <LinearGradient pointerEvents="none" colors={dark ? ['rgba(221,181,101,0.22)', 'rgba(221,181,101,0)'] : ['rgba(221,181,101,0.3)', 'rgba(221,181,101,0)']} style={StyleSheet.absoluteFill} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} />
+                <Reanimated.View style={orbIconStyle}>
+                  <Reanimated.View style={logoStyle}>
+                    <KalyxLogo size={34} />
+                  </Reanimated.View>
                 </Reanimated.View>
-              </Reanimated.View>
-              <Reanimated.View pointerEvents="none" style={[{ position: 'absolute' }, closeStyle]}>
-                <Icon name="close" size={24} color={colors.text} />
-              </Reanimated.View>
+                <Reanimated.View pointerEvents="none" style={[{ position: 'absolute' }, closeStyle]}>
+                  <Icon name="close" size={24} color={colors.text} />
+                </Reanimated.View>
+              </View>
             </View>
           </KPressable>
         </View>
