@@ -13,8 +13,8 @@ import { useT } from "../lib/settingsStore";
  */
 import { dappHost } from '../src/domain/web/dappHost';
 import { useState } from 'react';
-import { View, ScrollView, Image } from 'react-native';
-import { Text, Button, HoldButton, Divider, RiskBadge, AddressGlyph, Sheet, Skeleton, Pressable as KPressable, Card } from './kit';
+import { View, ScrollView } from 'react-native';
+import { Text, Button, HoldButton, Divider, RiskBadge, AddressGlyph, Sheet, Skeleton, Pressable as KPressable, Card, RemoteIcon } from './kit';
 import { Icon } from './icon';
 import { useTheme } from './theme';
 import { space, radius } from './tokens';
@@ -70,7 +70,7 @@ export function SignSheet({
 
       {/* 1. Qui demande */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        {peer?.icon ? <Image source={{ uri: peer.icon }} style={{ width: 44, height: 44, borderRadius: radius.input, backgroundColor: colors.surface3 }} /> : <View style={{ width: 44, height: 44, borderRadius: radius.input, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}><Icon name="dapps" size={22} tone="muted" /></View>}
+        {peer?.icon ? <RemoteIcon uri={peer.icon} label={peer.name ?? '?'} size={44} radius={radius.input} /> : <View style={{ width: 44, height: 44, borderRadius: radius.input, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}><Icon name="dapps" size={22} tone="muted" /></View>}
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text variant="body" numberOfLines={1}>{peer?.name ?? t('appGeneric')}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>

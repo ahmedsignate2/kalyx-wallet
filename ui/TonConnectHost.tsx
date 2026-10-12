@@ -8,8 +8,8 @@
  * dit, et on montre les montants bruts.
  */
 import { useEffect, useState } from 'react';
-import { Image, ScrollView, View } from 'react-native';
-import { Sheet, Text, Button, Card } from './kit';
+import { ScrollView, View } from 'react-native';
+import { Sheet, Text, Button, Card, RemoteIcon } from './kit';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon } from './icon';
 import { useTheme } from './theme';
@@ -66,7 +66,7 @@ function DappHeader({ name, domain, icon }: { name: string; domain: string; icon
   return (
     <View style={{ alignItems: 'center', gap: space[2] }}>
       {icon ? (
-        <Image source={{ uri: icon }} style={{ width: 56, height: 56, borderRadius: radius.input, backgroundColor: colors.surface3 }} />
+        <RemoteIcon uri={icon} label={name} size={56} radius={radius.input} />
       ) : (
         <View style={{ width: 56, height: 56, borderRadius: radius.input, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="dapps" size={26} tone="muted" />
