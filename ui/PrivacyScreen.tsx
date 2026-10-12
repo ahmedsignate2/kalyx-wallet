@@ -36,8 +36,16 @@ try {
 // Tag dédié (indépendant de celui de la sauvegarde de seed).
 const TAG = 'nova-privacy-guard';
 
+/*
+ * En développement (Expo Go, rechargements fréquents) le voile gênait plus qu'il
+ * ne protégeait : il n'est monté qu'en production. Le test est fait ICI, dans un
+ * composant sans hook — un `return` avant les hooks enfreignait leurs règles.
+ */
 export function PrivacyScreen() {
-  if (__DEV__) return null;
+  return __DEV__ ? null : <PrivacyGuard />;
+}
+
+function PrivacyGuard() {
   const { colors } = useTheme();
   const guard = useSettings((s) => s.privacyGuard);
   const [covered, setCovered] = useState(false);

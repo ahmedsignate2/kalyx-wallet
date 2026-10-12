@@ -1,4 +1,4 @@
-import { Pressable as KPressable, Avatar, Button, Card } from './kit';
+import { Pressable as KPressable, Avatar, Button, Card, RemoteIcon } from './kit';
 /**
  * Fenêtres globales WalletConnect : proposition de session + requête à signer.
  * Monté à la racine pour capter les événements quel que soit l'écran.
@@ -17,7 +17,7 @@ import { dappHost } from '../src/domain/web/dappHost';
 import { bitcoinMessageParam, btcTransferParams, solanaMessageParam } from '../lib/messageParams';
 import { bytesToHex } from '@noble/hashes/utils';
 import React, { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
-import { View, Text, Image, Platform } from 'react-native';
+import { View, Text, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmUnlock } from './ConfirmUnlock';
 import { Icon } from './icon';
@@ -129,11 +129,11 @@ function SecBanner({ risk, phish }: { risk: RiskAssessment | 'loading' | null; p
 
 /** En-tête dApp : logo (ou avatar), nom, domaine. */
 function DappHeader({ name, url, icon }: { name: string; url: string; icon?: string }) {
-  const { colors, typography } = useTheme();
+  const { typography } = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
       {icon ? (
-        <Image source={{ uri: icon }} style={{ width: 44, height: 44, borderRadius: radii.md, backgroundColor: colors.surface1 }} />
+        <RemoteIcon uri={icon} label={name || '?'} size={44} radius={radii.md} />
       ) : (
         <Avatar label={(name || '?').slice(0, 1).toUpperCase()} />
       )}

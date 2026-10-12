@@ -1,9 +1,9 @@
 import { NovaHero } from '../ui/nova';
 import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
-import { ScreenHeader, Pressable as KPressable, Avatar, Card, Screen, SkeletonRow } from '../ui/kit';
+import { ScreenHeader, Pressable as KPressable, Avatar, Card, Screen, SkeletonRow, RemoteIcon } from '../ui/kit';
 import { fetchApprovalCandidates } from '../src/domain/security/goplus';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Image, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { Stack } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
@@ -277,9 +277,9 @@ function ApprovalsInner() {
                       {selected.has(keyOf(it)) ? <Icon name="check" size={14} color={colors.onPrimary} /> : null}
                     </KPressable>
                     {it.logo ? (
-                      <Image source={{ uri: it.logo }} style={{ width: 40, height: 40, borderRadius: radii.lg }} />
+                      <RemoteIcon uri={it.logo} label={it.symbol} size={40} radius={radii.lg} />
                     ) : (
-                      <Avatar label={it.symbol.slice(0, 1)} color={colors.surface2} />
+                      <Avatar label={it.symbol.slice(0, 1)} />
                     )}
                     <View style={{ flex: 1 }}>
                       <Text style={typography.bodyStrong}>{it.symbol}</Text>

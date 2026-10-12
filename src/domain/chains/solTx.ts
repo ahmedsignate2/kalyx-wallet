@@ -11,25 +11,13 @@
 import { ed25519 } from '@noble/curves/ed25519';
 import { base58, base64 } from '@scure/base';
 import { buildTransactionMessage, memoIx, referenceKeys, type Instruction } from './solMessage';
+import { encodeLength } from './solEncoding';
+
+// Réexporté : les appelants et tests existants l'importent depuis ce module.
+export { encodeLength };
 
 const SYSTEM_TRANSFER_INDEX = 2; // enum d'instruction System : Transfer
 
-/** Encodage compact-u16 (shortvec) des longueurs de tableaux Solana. */
-export function encodeLength(len: number): number[] {
-  const out: number[] = [];
-  let rem = len;
-  for (;;) {
-    let elem = rem & 0x7f;
-    rem >>>= 7;
-    if (rem === 0) {
-      out.push(elem);
-      break;
-    }
-    elem |= 0x80;
-    out.push(elem);
-  }
-  return out;
-}
 
 function u32le(value: number): number[] {
   return [value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff];
