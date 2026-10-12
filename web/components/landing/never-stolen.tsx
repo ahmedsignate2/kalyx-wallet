@@ -24,7 +24,7 @@ function Address({ head, mid, tail, danger }: { head: string; mid: string; tail:
 export function NeverStolen({ t }: { t: Dict }) {
   const s = t.stolen;
   return (
-    <section id="voler" className="scroll-mt-16 bg-ink/75 px-5 py-20 sm:px-8 sm:py-24 lg:py-32">
+    <section id="voler" className="scroll-mt-16 bg-ink/75 [[data-prism=on]_&]:bg-transparent px-5 py-20 sm:px-8 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-page">
         <ChapterHead
           numeral="III"
@@ -40,7 +40,7 @@ export function NeverStolen({ t }: { t: Dict }) {
 
         <Stagger className="mt-16 grid gap-5 md:grid-cols-2 lg:mt-20 lg:grid-cols-3" gap={0.12}>
           {/* Scène 1 — le sosie */}
-          <Item as="article" tilt className="flex flex-col rounded-[2rem] bg-ink-2 p-7 sm:p-8">
+          <Item as="article" tilt className="flex flex-col rounded-[2rem] border border-bone/10 bg-ink-2 p-7 sm:p-8 [[data-prism=on]_&]:bg-ink-2/85">
             <p className="font-display text-sm text-sage">{s.scene} 1 · {s.s1.kicker}</p>
             <h3 className="mt-3 font-display text-2xl leading-tight text-paper">{s.s1.title}</h3>
             <p className="mt-3 text-sm font-light leading-relaxed text-mist">{s.s1.text}</p>
@@ -61,7 +61,7 @@ export function NeverStolen({ t }: { t: Dict }) {
           </Item>
 
           {/* Scène 2 — la signature traduite */}
-          <Item as="article" tilt className="flex flex-col rounded-[2rem] bg-ink-2 p-7 sm:p-8">
+          <Item as="article" tilt className="flex flex-col rounded-[2rem] border border-bone/10 bg-ink-2 p-7 sm:p-8 [[data-prism=on]_&]:bg-ink-2/85">
             <p className="font-display text-sm text-sage">{s.scene} 2 · {s.s2.kicker}</p>
             <h3 className="mt-3 font-display text-2xl leading-tight text-paper">{s.s2.title}</h3>
             <p className="mt-3 text-sm font-light leading-relaxed text-mist">{s.s2.text}</p>
@@ -85,7 +85,7 @@ export function NeverStolen({ t }: { t: Dict }) {
           </Item>
 
           {/* Scène 3 — le téléphone volé */}
-          <Item as="article" tilt className="flex flex-col rounded-[2rem] bg-ink-2 p-7 sm:p-8">
+          <Item as="article" tilt className="flex flex-col rounded-[2rem] border border-bone/10 bg-ink-2 p-7 sm:p-8 [[data-prism=on]_&]:bg-ink-2/85">
             <p className="font-display text-sm text-sage">{s.scene} 3 · {s.s3.kicker}</p>
             <h3 className="mt-3 font-display text-2xl leading-tight text-paper">{s.s3.title}</h3>
             <p className="mt-3 text-sm font-light leading-relaxed text-mist">{s.s3.text}</p>
@@ -103,7 +103,7 @@ export function NeverStolen({ t }: { t: Dict }) {
           </Item>
           {/* Scènes 4 et 5 — liste blanche (lib/whitelistStore, 24 h) et code de contrainte (app/duress.tsx) */}
           {([['4', s.s4], ['5', s.s5]] as const).map(([n, sc]) => (
-            <Item key={n} as="article" tilt className="flex flex-col rounded-[2rem] bg-ink-2 p-7 sm:p-8">
+            <Item key={n} as="article" tilt className="flex flex-col rounded-[2rem] border border-bone/10 bg-ink-2 p-7 sm:p-8 [[data-prism=on]_&]:bg-ink-2/85">
               <p className="font-display text-sm text-sage">{s.scene} {n} · {sc.kicker}</p>
               <h3 className="mt-3 font-display text-2xl leading-tight text-paper">{sc.title}</h3>
               <p className="mt-3 text-sm font-light leading-relaxed text-mist">{sc.text}</p>
