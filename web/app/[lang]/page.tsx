@@ -14,6 +14,7 @@ import { Vision } from '../../components/landing/vision';
 import { Download } from '../../components/landing/download';
 import { Footer } from '../../components/landing/footer';
 import { Crystal3D } from '../../components/landing/crystal';
+import { Cursor, Grain, Intro, Marquee } from '../../components/landing/experience';
 import { getDictionary, isLocale } from '../../i18n';
 
 /** Le site est un film en chapitres : ouverture, prologue, six chapitres, épilogue — dans la langue de la route. */
@@ -23,13 +24,17 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
   const t = getDictionary(lang);
   return (
     <div className="min-h-screen">
+      <Intro />
       <Crystal3D />
+      <Grain />
+      <Cursor />
       <Nav t={t} lang={lang} />
       <ChapterRail t={t} />
       <main>
         <Opening t={t} />
         <Hero t={t} />
         <Networks t={t} />
+        <Marquee items={t.hero.chips} label={t.hero.keyPoints} />
         <HowItWorks t={t} />
         <NeverLose t={t} />
         <NeverStolen t={t} />

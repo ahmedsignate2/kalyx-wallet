@@ -6,6 +6,7 @@ import { ArrowDown, Download } from 'lucide-react';
 import { PhoneMock } from './phone-mock';
 import { EASE, TILT_SPRING } from './motion';
 import { BitcoinIcon, SolanaIcon, TonIcon } from './networks';
+import { Magnetic } from './experience';
 import type { Dict } from '../../i18n';
 import { APK_URL } from '../../lib/apk';
 
@@ -115,21 +116,25 @@ export function Hero({ t }: { t: Dict }) {
           </motion.p>
 
           <motion.div {...(reduce ? {} : enter(5))} className="mt-9 flex flex-col gap-3 sm:flex-row md:justify-center">
-            <a
-              href={APK_URL}
-              download
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-paper px-6 text-sm font-medium text-ink transition-[background-color,transform] duration-200 ease-editorial hover:bg-bone active:scale-[0.97]"
-            >
-              <Download className="h-4 w-4" />
-              {t.hero.cta}
-            </a>
-            <a
-              href="#voler"
-              className="group inline-flex h-12 items-center justify-center gap-2 rounded-full border border-bone/20 px-6 text-sm font-medium text-paper transition-colors duration-200 hover:border-bone/50"
-            >
-              {t.hero.ctaSecondary}
-              <ArrowDown className="h-4 w-4 transition-transform duration-300 ease-editorial group-hover:translate-y-0.5" />
-            </a>
+            <Magnetic>
+              <a
+                href={APK_URL}
+                download
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-paper px-6 text-sm font-medium text-ink transition-[background-color,transform] duration-200 ease-editorial hover:bg-bone active:scale-[0.97]"
+              >
+                <Download className="h-4 w-4" />
+                {t.hero.cta}
+              </a>
+            </Magnetic>
+            <Magnetic>
+              <a
+                href="#voler"
+                className="group inline-flex h-12 items-center justify-center gap-2 rounded-full border border-bone/20 px-6 text-sm font-medium text-paper transition-colors duration-200 hover:border-bone/50"
+              >
+                {t.hero.ctaSecondary}
+                <ArrowDown className="h-4 w-4 transition-transform duration-300 ease-editorial group-hover:translate-y-0.5" />
+              </a>
+            </Magnetic>
           </motion.div>
 
           <ul className="mt-9 flex flex-wrap gap-2 md:justify-center" aria-label={t.hero.keyPoints}>
