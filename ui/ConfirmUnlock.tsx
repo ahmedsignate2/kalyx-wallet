@@ -19,7 +19,7 @@ import { Pressable as KPressable } from './kit';
  */
 import { SafeModal } from './kit/SafeModal';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KalyxLogo } from './KalyxLogo';
 import { PinPad } from './PinPad';
@@ -27,7 +27,7 @@ import { Icon } from './icon';
 import { fonts, radii, spacing, useTheme, fontSize } from './theme';
 import { useSettings, useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
-import type { Unlock } from '../lib/walletStore';
+import { useWallet, type Unlock } from '../lib/walletStore';
 import { auditFacts, auditTransaction, type TxAuditContext, type TxAuditResult } from "../lib/aiTxAudit";
 import { probeRecipient } from "../lib/txAuditProbe";
 import { factLabel } from "./auditFactLabel";
@@ -201,6 +201,15 @@ export function ConfirmUnlock({
         unlockMode,
         elapsedMs: Date.now() - startedAt,
       });
+      /*
+       * Code juste + biométrie activée : PIN biométrique réécrit s'il manque
+       * (ancien schéma, code changé) — sinon le prochain geste échouerait.
+       * iOS seulement : l'écriture y est silencieuse ; sur Android elle exige un
+       * geste, laissé à l'écran de déverrouillage plutôt qu'après une opération.
+       */
+      if ('pin' in unlock && bioEnabled && Platform.OS === 'ios') {
+        void useWallet.getState().healBiometric(unlock.pin).catch(() => {});
+      }
       onDone();
     } catch (e) {
       if (attempt !== attemptRef.current) return;

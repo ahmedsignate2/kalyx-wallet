@@ -111,6 +111,7 @@ import {
 } from './secureStore';
 import { randomAvatarId } from './avatars';
 import { authenticate, biometricPrompt } from './biometrics';
+import { biometricWriteIsSilent, clearBiometricPin, hasBiometricPin, readBiometricPinRaw, writeBiometricPin } from './biometricPin';
 import { submitSolanaSigned } from './solanaSubmit';
 import { KV_DEVICE_ONLY, kvGet, kvSet, kvDel } from './kv';
 import { isDecoySession, setDecoySession } from './sessionMode';
@@ -657,19 +658,107 @@ async function dropSupersededWatch(newAccounts: StoredAccount[], supersededBy?: 
 }
 
 /**
- * Coffre à utiliser pour CE mode de preuve. Biométrie : la copie protégée est
- * rangée par portefeuille — si l'actif est une lecture seule, on prend un
- * portefeuille à clé qui EN A une (sinon le premier, et l'échec renverra au code).
+ * Coffre à utiliser pour CE mode de preuve.
+ *
+ * Biométrie, schéma actuel (PIN biométrique, lib/biometricPin.ts) : le geste
+ * rend le PIN, qui ouvre N'IMPORTE QUEL coffre — l'actif s'il en a un, sinon le
+ * premier portefeuille à clé. Changer de portefeuille actif ne casse plus rien.
+ *
+ * Ancien schéma (copie PAR portefeuille, en attente de migration) : l'actif s'il
+ * a sa copie, sinon un portefeuille à clé qui en a une (sinon l'actif, et
+ * l'échec renverra au code). On prenait l'actif même SANS copie : « biométrie
+ * non activée » dès que l'utilisateur avait changé de portefeuille.
  */
 async function authWalletFor(unlock: Unlock): Promise<string> {
   const { wallets, activeWalletId } = useWallet.getState();
   const id = authWalletId(wallets, activeWalletId);
-  if (!('biometric' in unlock) || id === activeWalletId) return id;
+  if (!('biometric' in unlock)) return id;
+  if (await hasBiometricPin()) return id;
+  if (await hasBiometricSeed(id)) return id;
   for (const w of wallets) {
     if (w.type === 'watch') continue;
     if (await hasBiometricSeed(w.id)) return w.id; // protégée ou ancienne copie
   }
   return id;
+}
+
+/**
+ * Lit le PIN biométrique : UNE invite du système.
+ * Annulée (ou refusée par l'OS) → BIOMETRIC_REFUSED, l'entrée reste ;
+ * clé invalidée → BIOMETRIC_NOT_SET (témoin déjà effacé : réécrit au prochain PIN).
+ */
+async function readBiometricPin(prompt: string = biometricPrompt()): Promise<string> {
+  let pin: string | null;
+  try {
+    pin = await readBiometricPinRaw(prompt);
+  } catch (e) {
+    console.log('[KALYX-VAULT] bio-pin:refused', { error: e instanceof Error ? e.message.slice(0, 120) : 'unknown' });
+    throw new WalletError('BIOMETRIC_REFUSED', 'Biometric request refused');
+  }
+  if (!pin) {
+    console.log('[KALYX-VAULT] bio-pin:invalidated');
+    throw new WalletError('BIOMETRIC_NOT_SET', 'Biometric key invalidated', { reason: 'invalidated' });
+  }
+  return pin;
+}
+
+/**
+ * Déchiffre un coffre avec le PIN rendu par la biométrie.
+ *
+ * Un refus (WRONG_PIN) n'est PAS une tentative de code : personne n'a tapé ce
+ * PIN, et l'attaquant ne choisit pas ce que le trousseau rend. Il veut dire que
+ * l'entrée ne correspond plus aux coffres (code changé sans elle) : elle est
+ * effacée comme une clé invalidée, et le compteur anti-bruteforce n'est PAS touché.
+ */
+async function decryptWithBiometricPin(vault: EncryptedVault, pin: string): Promise<string> {
+  try {
+    return await decryptSecret(vault, pin);
+  } catch (e) {
+    if (isWalletError(e) && e.code === 'WRONG_PIN') {
+      console.log('[KALYX-VAULT] bio-pin:stale');
+      await clearBiometricPin().catch(() => {});
+      throw new WalletError('BIOMETRIC_NOT_SET', 'Biometric PIN out of date', { reason: 'stale' });
+    }
+    throw e;
+  }
+}
+
+/** Supprime les copies biométriques PAR portefeuille (ancien schéma), remplacées par le PIN biométrique. */
+async function purgePerWalletBiometric(wallets: WalletMeta[]): Promise<void> {
+  const ids = new Set(['primary', ...wallets.filter((w) => w.type !== 'watch').map((w) => w.id)]);
+  for (const id of ids) await disableBiometricSeed(id).catch(() => {});
+}
+
+/**
+ * Lecteur de secrets pour une opération sur PLUSIEURS coffres, identité prouvée
+ * UNE fois :
+ *  - PIN : vérifié (et compté) une fois, puis le même PIN pour chaque coffre ;
+ *  - PIN biométrique : UN geste, puis le chemin PIN pour chaque coffre ;
+ *  - ancien schéma (une copie par portefeuille) avec plus d'un coffre : refus
+ *    IMMÉDIAT, avant toute invite (BIOMETRIC_NOT_SET, reason `pinRequired`) —
+ *    on enchaînait un geste par portefeuille, et ceux qui n'avaient pas de copie
+ *    échouaient au bout du compte. L'interface propose alors le code.
+ */
+async function multiVaultReader(unlock: Unlock, ids: string[]): Promise<(id: string, vault: EncryptedVault) => Promise<string>> {
+  if ('pin' in unlock) {
+    await proveIdentity(unlock);
+    const pin = unlock.pin;
+    return (_id, vault) => decryptSecret(vault, pin);
+  }
+  if (!ids.length) {
+    await proveIdentity(unlock); // rien à ouvrir : la preuve d'identité reste exigée
+    return () => Promise.reject(new WalletError('VAULT_MISSING', 'Aucun coffre'));
+  }
+  if (await hasBiometricPin()) {
+    const pin = await readBiometricPin(); // LA seule invite
+    unlock.onUnlocked?.();
+    return (_id, vault) => decryptWithBiometricPin(vault, pin);
+  }
+  if (ids.length > 1) {
+    throw new WalletError('BIOMETRIC_NOT_SET', 'Biometrics cannot open several wallets yet: use the code', { reason: 'pinRequired' });
+  }
+  // Un seul coffre, ancien schéma : sa propre copie, une seule invite.
+  return (id) => revealMnemonic(id, unlock);
 }
 
 const DISCOVERY_MAX = 20;
@@ -1004,6 +1093,20 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
   console.log('[KALYX-VAULT] reveal:start', { walletId: id, mode: 'biometric' in unlock ? 'biometric' : 'pin' });
   if ('biometric' in unlock) {
     /*
+     * PIN BIOMÉTRIQUE (schéma actuel) : un geste rend le PIN, qui ouvre ce coffre
+     * comme le chemin PIN — quel que soit le portefeuille.
+     */
+    if (await hasBiometricPin()) {
+      const vault = await loadVault(id);
+      if (!vault) throw new WalletError('VAULT_MISSING', 'Aucun coffre');
+      const pin = await readBiometricPin();
+      unlock.onUnlocked?.(); // clé lue POUR CETTE demande : la fenêtre arrête son délai de garde
+      return decryptWithBiometricPin(vault, pin);
+    }
+    /*
+     * ANCIEN SCHÉMA (copie par portefeuille), gardé pour la migration : remplacé
+     * par le PIN biométrique au prochain déverrouillage par code (`healBiometric`).
+     *
      * Copie PROTÉGÉE par l'OS : c'est la lecture elle-même qui affiche l'invite
      * (une seule). Annulée → repli sur le PIN ; clé invalidée → idem, et la copie
      * sera réécrite au prochain PIN (`healBiometric`).
@@ -1020,6 +1123,14 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
       if (!m) throw new WalletError('BIOMETRIC_NOT_SET', 'Biometric key invalidated for this wallet');
       unlock.onUnlocked?.(); // clé lue POUR CETTE demande : la fenêtre arrête son délai de garde
       return m;
+    }
+    /*
+     * Aucune copie (PIN biométrique effacé après un changement de code, ou
+     * jamais écrit) : on le dit AVANT l'invite. Sinon l'utilisateur posait le
+     * doigt pour rien, puis on lui demandait quand même le code.
+     */
+    if (!(await hasBiometricSeed(id))) {
+      throw new WalletError('BIOMETRIC_NOT_SET', 'No biometric vault for this wallet');
     }
     // Ancienne copie en clair : invite de l'app, PUIS lecture (migrée ensuite, cf. unlockWithBiometrics).
     const ok = await authenticate();
@@ -1108,11 +1219,13 @@ export async function exportWalletsWithIds(unlock: Unlock): Promise<{ id: string
   await (await import('./whitelistStore')).assertSecretsExportable();
   const { wallets, activeWalletId } = useWallet.getState();
   /*
-   * Le PIN est vérifié UNE FOIS, sur le portefeuille actif (ou, s'il est en lecture seule, un portefeuille à clé) : tous les coffres
-   * partagent le même code, et redemander à chaque itération n'ajouterait
-   * aucune sécurité — seulement des occasions d'échouer à moitié.
+   * L'identité est prouvée UNE FOIS (code vérifié, ou UN geste qui rend le PIN
+   * biométrique) : tous les coffres partagent le même code, et redemander à
+   * chaque itération n'ajouterait aucune sécurité — seulement des invites en
+   * cascade et des occasions d'échouer à moitié. Ancien schéma biométrique avec
+   * plusieurs coffres : refus immédiat, sans invite (l'écran propose le code).
    */
-  await proveIdentity(unlock);
+  const readSecret = await multiVaultReader(unlock, wallets.filter((w) => w.type !== 'watch').map((w) => w.id));
   const out: { id: string; wallet: BackupWallet }[] = [];
   const exportedAccounts: Record<string, StoredAccount[]> = {};
   for (const w of wallets) {
@@ -1126,19 +1239,7 @@ export async function exportWalletsWithIds(unlock: Unlock): Promise<{ id: string
      * trou en restaurant. Mieux vaut un export refusé, qui se voit.
      */
     if (!vault) throw new WalletError('VAULT_MISSING', `Coffre absent pour un portefeuille à secret (${w.type ?? 'seed'}) : sauvegarde incomplète refusée`);
-    /*
-     * Biométrie : pas de PIN pour déchiffrer — on lisait avec un code VIDE et
-     * l'export échouait à chaque fois. Chaque coffre biométrique est lu à la
-     * place ; un portefeuille qui n'en a pas oblige à passer par le code.
-     */
-    let secret: string;
-    if ('pin' in unlock) {
-      secret = await decryptSecret(vault, unlock.pin);
-    } else {
-      const bio = await readBiometricSeed(w.id, biometricPrompt());
-      if (!bio) throw new WalletError('BIOMETRIC_NOT_SET', 'Portefeuille sans coffre biométrique : utiliser le code');
-      secret = bio;
-    }
+    const secret = await readSecret(w.id, vault);
     out.push({
       id: w.id,
       wallet: {
@@ -1324,15 +1425,18 @@ export const useWallet = create<WalletState>((set, get) => ({
      * portefeuille est quand même créé, simplement sans biométrie (activable
      * plus tard dans les réglages).
      */
+    // Restes d'une vie précédente (le trousseau iOS survit à la désinstallation) : effacés dans tous les cas.
+    await disableBiometricSeed(id).catch(() => {});
+    await clearBiometricPin().catch(() => {});
     let biometricOn = !!opts?.enableBiometric;
     if (biometricOn) {
       try {
-        await enableBiometricSeed(id, m, biometricPrompt());
+        await writeBiometricPin(pin, biometricPrompt());
       } catch {
         biometricOn = false;
-        await disableBiometricSeed(id).catch(() => {});
+        await clearBiometricPin().catch(() => {});
       }
-    } else await disableBiometricSeed(id).catch(() => {});
+    }
     useSettings.getState().setBiometricEnabled(biometricOn);
     const wallets: WalletMeta[] = [{ id, label: '', avatar: randomAvatarId(), ...(kind === 'ton' ? { type: 'tonPhrase' as const } : {}) }];
     await saveWalletsListSafe(wallets);
@@ -1456,7 +1560,8 @@ export const useWallet = create<WalletState>((set, get) => ({
      * portefeuilles — sous la contrainte, on présenterait le visage de la
      * victime et le code de contrainte ne servirait à rien.
      */
-    for (const w of get().wallets) await disableBiometricSeed(w.id).catch(() => {});
+    await clearBiometricPin().catch(() => {});
+    await purgePerWalletBiometric(get().wallets);
     useSettings.getState().setBiometricEnabled(false);
   },
 
@@ -1477,6 +1582,43 @@ export const useWallet = create<WalletState>((set, get) => ({
   unlockWithBiometrics: async () => {
     const { activeWalletId } = get();
     console.log('[KALYX-VAULT] unlockWithBiometrics:start');
+    if (await hasBiometricPin()) {
+      /*
+       * PIN BIOMÉTRIQUE : UN geste rend le PIN ; le coffre d'authentification
+       * (l'actif, ou le premier à clé) se déchiffre comme au code, et les AUTRES
+       * portefeuilles sont rattrapés avec ce même PIN, sans autre invite.
+       */
+      const authId = authWalletId(get().wallets, activeWalletId);
+      const vault = await loadVault(authId);
+      if (!vault) throw new WalletError('VAULT_MISSING', 'Aucun coffre');
+      let pin: string | null = await readBiometricPin();
+      const secret = await decryptWithBiometricPin(vault, pin);
+      const accounts = authId === activeWalletId && isBip39Wallet(get().wallets, activeWalletId)
+        ? await backfillPhraseAccounts(activeWalletId, secret, get().accounts)
+        : get().accounts;
+      set({
+        isUnlocked: true,
+        accounts,
+        account: toAccount(accounts, get().activeAccountIndex, get().activeChain),
+      });
+      aura.pulse('unlock');
+      const bioPin = pin;
+      pin = null;
+      void backfillOtherWallets(get().wallets, activeWalletId, async (id) => {
+        const v = await loadVault(id);
+        return v ? decryptSecret(v, bioPin) : null;
+      })
+        // Copies en clair héritées (lot 1) et copies par portefeuille : le PIN biométrique les remplace.
+        .then(() => purgeLegacyBiometricCopies(get().wallets))
+        .then(() => purgePerWalletBiometric(get().wallets))
+        .catch(() => {});
+      return;
+    }
+    /*
+     * ANCIEN SCHÉMA (copie par portefeuille). Il rend la PHRASE, pas le PIN : la
+     * migration vers le PIN biométrique est impossible ici ; elle se fait au
+     * prochain déverrouillage par code (`healBiometric`).
+     */
     const authId = await authWalletFor({ biometric: true });
     const legacy = !(await isBiometricSeedGated(authId));
     const secret = await revealMnemonic(authId, { biometric: true });
@@ -2563,7 +2705,23 @@ export const useWallet = create<WalletState>((set, get) => ({
         recordTechnicalLog('WALLET', 'Backup key not re-encrypted on PIN change', { error: 'unreadable' });
       }
     }
+    /*
+     * PIN BIOMÉTRIQUE : il deviendrait faux. Effacé AVANT l'écriture des coffres,
+     * dans le même flux : quoi qu'il arrive ensuite (échec, remise par le
+     * journal, app tuée), aucune entrée biométrique ne survit avec un code qui
+     * ne correspond à aucun coffre. Réécrit plus bas si c'est sans geste (iOS),
+     * sinon au prochain déverrouillage par code (`healBiometric`).
+     */
+    const hadBioPin = await hasBiometricPin();
+    await clearBiometricPin();
     await commitPinChange(before, after);
+    /*
+     * iOS écrit l'entrée protégée SANS invite : réécrite tout de suite, après le
+     * journal effacé (tous les coffres sont alors sous le nouveau code). Android
+     * exigerait un geste inattendu au milieu du changement de code : on attend
+     * le prochain déverrouillage par code. Échec : même chose, sans bruit.
+     */
+    if (hadBioPin && biometricWriteIsSilent()) await writeBiometricPin(newPin, biometricPrompt()).catch(() => {});
   },
 
   revealPhrase: async (unlock) => {
@@ -2620,13 +2778,14 @@ export const useWallet = create<WalletState>((set, get) => ({
   enableBiometric: async (pin) => {
     // Code de contrainte configuré : la biométrie le contournerait (elle ouvre toujours les vrais portefeuilles).
     if (!isDecoySession() && (await loadDuressMeta())) throw new WalletError('NOT_SUPPORTED', 'duress.BIOMETRIC', { reason: 'duressBiometric' });
-    const id = authWalletId(get().wallets, get().activeWalletId);
-    const mnemonic = await revealMnemonic(id, { pin });
+    // PIN vérifié (et compté) AVANT d'être confié au trousseau : jamais un code faux sous biométrie.
+    await proveIdentity({ pin });
     try {
-      await enableBiometricSeed(id, mnemonic, biometricPrompt());
+      await writeBiometricPin(pin, biometricPrompt());
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       console.warn('[KALYX-VAULT] biometric:enable-failed', { error: detail.slice(0, 200) });
+      await clearBiometricPin().catch(() => {});
       /*
        * Seul Android demande le geste à l'écriture : là, une annulation est un
        * refus. iOS n'affiche rien en écrivant ; un échec y vient du système
@@ -2636,23 +2795,34 @@ export const useWallet = create<WalletState>((set, get) => ({
       if (/cancel/i.test(detail)) throw new WalletError('BIOMETRIC_REFUSED', 'Biometric request refused');
       throw new WalletError('NOT_SUPPORTED', detail, { reason: 'biometricUnavailable' });
     }
+    // Une seule entrée biométrique : les copies par portefeuille (ancien schéma) disparaissent.
+    await purgePerWalletBiometric(get().wallets);
   },
 
   disableBiometric: async () => {
-    // TOUS les portefeuilles à clé : une copie protégée oubliée sur un portefeuille
-    // inactif resterait lisible au geste alors que l'utilisateur a coupé la biométrie.
-    for (const w of get().wallets) {
-      if (w.type !== 'watch') await disableBiometricSeed(w.id);
-    }
+    // L'entrée unique ET toutes les anciennes copies par portefeuille : une copie
+    // oubliée resterait lisible au geste alors que l'utilisateur a coupé la biométrie.
+    await clearBiometricPin();
+    await purgePerWalletBiometric(get().wallets);
   },
 
   healBiometric: async (pin) => {
+    /*
+     * MIGRATION et réparation, après un déverrouillage PAR CODE avec la
+     * biométrie activée : c'est le seul moment où l'on a le PIN (un geste de
+     * l'ancien schéma rend la phrase, pas le code). Entrée absente, invalidée
+     * (empreinte ajoutée) ou effacée par un changement de code → réécrite ;
+     * les copies par portefeuille sont alors supprimées.
+     */
     if (isDecoySession()) return;
-    const id = authWalletId(get().wallets, get().activeWalletId);
-    if (await isBiometricSeedGated(id)) return; // copie protégée en place, rien à faire
-    // Copie absente, invalidée ou encore en clair → réécrite au schéma protégé via le PIN.
-    const mnemonic = await revealMnemonic(id, { pin });
-    await enableBiometricSeed(id, mnemonic, biometricPrompt());
+    if (await loadDuressMeta()) return; // biométrie interdite avec un code de contrainte
+    if (await hasBiometricPin()) {
+      await purgePerWalletBiometric(get().wallets);
+      return;
+    }
+    await proveIdentity({ pin }); // jamais un code faux sous biométrie
+    await writeBiometricPin(pin, biometricPrompt()); // Android : geste demandé ; refusé → anciennes copies gardées
+    await purgePerWalletBiometric(get().wallets);
   },
 
   reset: async (unlock) => {
@@ -2686,6 +2856,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       new Promise((r) => setTimeout(r, 10_000)),
     ]);
     await wipeAll(get().wallets);
+    await clearBiometricPin().catch(() => {}); // l'entrée biométrique unique part avec les coffres
     // Sauvegarde automatique : clés locales effacées, moteur remis à zéro (jeton Google révoqué par lui).
     await wipeAutoSyncOnReset();
     cancelRestoredBackup(); // une restauration attendue appartenait à l'ancienne vie de l'app
