@@ -24,7 +24,7 @@ function Address({ head, mid, tail, danger }: { head: string; mid: string; tail:
 export function NeverStolen({ t }: { t: Dict }) {
   const s = t.stolen;
   return (
-    <section id="voler" className="scroll-mt-16 bg-ink px-5 py-20 sm:px-8 sm:py-24 lg:py-32">
+    <section id="voler" className="scroll-mt-16 bg-ink/75 px-5 py-20 sm:px-8 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-page">
         <ChapterHead
           numeral="III"

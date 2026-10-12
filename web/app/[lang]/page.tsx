@@ -13,6 +13,7 @@ import { Fees } from '../../components/landing/fees';
 import { Vision } from '../../components/landing/vision';
 import { Download } from '../../components/landing/download';
 import { Footer } from '../../components/landing/footer';
+import { Crystal3D } from '../../components/landing/crystal';
 import { getDictionary, isLocale } from '../../i18n';
 
 /** Le site est un film en chapitres : ouverture, prologue, six chapitres, épilogue — dans la langue de la route. */
@@ -22,6 +23,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
   const t = getDictionary(lang);
   return (
     <div className="min-h-screen">
+      <Crystal3D />
       <Nav t={t} lang={lang} />
       <ChapterRail t={t} />
       <main>
