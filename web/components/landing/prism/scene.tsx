@@ -29,46 +29,84 @@ const PAPER = '#f3efe6';
 
 // ---------------------------------------------------------------- chorégraphie
 
-/** Pose de la scène pour un moment du film. `x` en fraction de la demi-largeur visible. */
-type Pose = { x: number; y: number; scale: number; ring: number; cage: number; tilt: number; glow: number };
+/**
+ * Pose de la scène pour un moment du film. `x` en fraction de la demi-largeur visible.
+ * Chaque chapitre est aussi un MONDE : couleur de fond, lumière d'accent, néons
+ * verticaux derrière la gemme (avec leur reflet au sol) et mode clair (papier).
+ */
+type Pose = {
+  x: number;
+  y: number;
+  scale: number;
+  ring: number;
+  cage: number;
+  tilt: number;
+  glow: number;
+  /** Néons verticaux derrière la gemme, 0..1. */
+  bars: number;
+  /** Sol réfléchissant sous la gemme, 0..1. */
+  floor: number;
+  /** Monde clair (papier) : textes peints à l'encre, 0..1. */
+  light: number;
+  bg: THREE.Color;
+  accent: THREE.Color;
+};
+
+const NUMERIC = ['x', 'y', 'scale', 'ring', 'cage', 'tilt', 'glow', 'bars', 'floor', 'light'] as const;
+
+type PoseSpec = Omit<Pose, 'bg' | 'accent' | 'bars' | 'floor' | 'light'> & Partial<Pick<Pose, 'bars' | 'floor' | 'light'>> & { bg: string; accent: string };
+const pose = (p: PoseSpec): Pose => ({ bars: 0, floor: 0, light: 0, ...p, bg: new THREE.Color(p.bg), accent: new THREE.Color(p.accent) });
 
 const POSES: Record<string, Pose> = {
-  // Au-dessus du titre : seule la pointe le réfracte, le titre reste lisible.
-  open: { x: 0, y: 0.13, scale: 0.92, ring: 2.35, cage: 0, tilt: 0.35, glow: 1 },
-  words: { x: 0, y: 0, scale: 0.72, ring: 3.1, cage: 0, tilt: 0.9, glow: 0.55 },
-  prologue: { x: 0.5, y: 0.02, scale: 0.95, ring: 1.75, cage: 0, tilt: 0.5, glow: 1 },
-  fonctionnement: { x: -0.55, y: 0, scale: 0.78, ring: 2.1, cage: 0, tilt: 1.1, glow: 0.7 },
-  perdre: { x: 0, y: 0, scale: 0.8, ring: 2, cage: 0, tilt: 0.6, glow: 0.6 },
-  voler: { x: 0.52, y: 0, scale: 0.86, ring: 1.4, cage: 1, tilt: 0.2, glow: 1 },
-  copilote: { x: -0.52, y: 0, scale: 0.8, ring: 2.2, cage: 0.15, tilt: 0.8, glow: 0.8 },
-  frais: { x: 0.55, y: 0, scale: 0.7, ring: 2.4, cage: 0, tilt: 1.2, glow: 0.6 },
-  vision: { x: 0, y: 0, scale: 0.8, ring: 2.2, cage: 0, tilt: 0.6, glow: 0.6 },
-  telecharger: { x: 0, y: 0.06, scale: 1.05, ring: 1.9, cage: 0, tilt: 0.4, glow: 1 },
+  // Nuit : la gemme au-dessus du titre, seule sa pointe le réfracte (titre lisible).
+  open: pose({ x: 0, y: 0.13, scale: 0.92, ring: 2.35, cage: 0, tilt: 0.35, glow: 1, bg: '#060807', accent: SAGE }),
+  // Les douze mots : une nuit bleutée, irisée.
+  words: pose({ x: 0, y: 0, scale: 0.72, ring: 3.1, cage: 0, tilt: 0.9, glow: 0.55, bars: 0.12, bg: '#06070c', accent: '#8ea2ff' }),
+  // Fin de l'ouverture : la caméra PLONGE dans le cristal, l'écran n'est plus que réfraction.
+  dive: pose({ x: 0, y: 0, scale: 3.4, ring: 4.2, cage: 0, tilt: 0.2, glow: 1, bars: 0.3, bg: '#0a0c0b', accent: '#cfeedd' }),
+  // Studio : néons sauge derrière la gemme, sol miroir — la gemme comme un produit.
+  prologue: pose({ x: 0.5, y: 0.02, scale: 0.95, ring: 1.75, cage: 0, tilt: 0.5, glow: 1, bars: 1, floor: 1, bg: '#070a08', accent: SAGE }),
+  fonctionnement: pose({ x: -0.55, y: 0, scale: 0.78, ring: 2.1, cage: 0, tilt: 1.1, glow: 0.7, bars: 0.35, floor: 0.6, bg: '#080b0a', accent: SAGE }),
+  /*
+   * Trajectoire : la gemme ne change de BORD que derrière une section opaque (papier) ou
+   * des cartes (voler) — jamais en travers d'un texte.
+   * « Ne jamais la perdre » et « Vision » gardent leur fond PAPIER opaque : un monde clair
+   * se mélangeait, au fil du défilement, sous les textes clairs des sections voisines
+   * (contraste ~1:1). Derrière, la scène reste sombre : jamais de bascule clair/sombre.
+   */
+  perdre: pose({ x: -0.88, y: 0.3, scale: 0.5, ring: 2, cage: 0, tilt: 0.6, glow: 0.5, bg: '#080b0a', accent: SAGE }),
+  // « Ne jamais se faire voler » : alerte rouge, la cage se referme.
+  voler: pose({ x: 0.9, y: 0, scale: 0.86, ring: 1.4, cage: 1, tilt: 0.2, glow: 1, bars: 1, floor: 1, bg: '#120304', accent: '#ff2b2b' }),
+  // Le copilote : eau turquoise.
+  // Chapitres en tableau : la gemme et ses néons se rangent au bord, le texte reste net.
+  copilote: pose({ x: -0.96, y: 0.04, scale: 0.55, ring: 2.2, cage: 0.15, tilt: 0.8, glow: 0.8, bars: 0.7, floor: 0.7, bg: '#03100f', accent: '#3fd6c8' }),
+  // Les frais : l'or.
+  frais: pose({ x: -0.96, y: 0.04, scale: 0.55, ring: 2.4, cage: 0, tilt: 1.2, glow: 0.7, bars: 0.7, floor: 0.7, bg: '#0e0a03', accent: '#f0b54a' }),
+  vision: pose({ x: -0.96, y: 0.28, scale: 0.5, ring: 2.2, cage: 0, tilt: 0.6, glow: 0.5, bg: '#0e0a03', accent: '#f0b54a' }),
+  // Épilogue : retour à la nuit, le studio sauge.
+  telecharger: pose({ x: 0, y: 0.06, scale: 1.05, ring: 1.9, cage: 0, tilt: 0.4, glow: 1, bars: 0.6, floor: 1, bg: '#060807', accent: SAGE }),
 };
 
 type Anchor = { at: number; pose: Pose };
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const ease = (v: number) => v * v * (3 - 2 * v);
+const smoothstep01 = (a: number, b: number, v: number) => ease(clamp01((v - a) / (b - a)));
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 
 function mixPose(a: Pose, b: Pose, t: number): Pose {
-  return {
-    x: mix(a.x, b.x, t),
-    y: mix(a.y, b.y, t),
-    scale: mix(a.scale, b.scale, t),
-    ring: mix(a.ring, b.ring, t),
-    cage: mix(a.cage, b.cage, t),
-    tilt: mix(a.tilt, b.tilt, t),
-    glow: mix(a.glow, b.glow, t),
-  };
+  const out = { ...a, bg: new THREE.Color().lerpColors(a.bg, b.bg, t), accent: new THREE.Color().lerpColors(a.accent, b.accent, t) };
+  for (const k of NUMERIC) out[k] = mix(a[k], b[k], t);
+  return out;
 }
+
+const clonePose = (p: Pose): Pose => ({ ...p, bg: p.bg.clone(), accent: p.accent.clone() });
 
 /**
  * Repères du film en coordonnées de document (centre de l'écran), mesurés au
  * redimensionnement seulement : la boucle d'image ne lit que `scrollY`.
  */
-function measureAnchors(): { anchors: Anchor[]; titleEnd: number } {
+function measureAnchors(reduce: boolean): { anchors: Anchor[]; titleEnd: number } {
   const vh = window.innerHeight;
   const anchors: Anchor[] = [{ at: vh / 2, pose: POSES.open }];
   let titleEnd = vh * 0.2;
@@ -77,7 +115,18 @@ function measureAnchors(): { anchors: Anchor[]; titleEnd: number } {
     const top = opening.getBoundingClientRect().top + window.scrollY;
     const run = Math.max(1, opening.offsetHeight - vh);
     titleEnd = top + run * 0.08;
-    anchors.push({ at: top + run * 0.45 + vh / 2, pose: POSES.words });
+    if (!reduce) anchors.push({ at: top + run * 0.45 + vh / 2, pose: POSES.words });
+    /*
+     * Plongée dans le cristal : un éclair entre la légende (effacée à 100 % de la course)
+     * et l'arrivée du prologue — la gemme rejoint sa place au prologue avant que son texte
+     * n'atteigne le milieu de l'écran. Pas de plongée en mode réduit (ouverture courte) :
+     * un saut d'échelle n'a rien à y faire.
+     */
+    if (!reduce && opening.offsetHeight > vh * 1.2) {
+      anchors.push({ at: top + run * 0.95 + vh / 2, pose: POSES.words });
+      anchors.push({ at: top + run + vh * 0.5, pose: POSES.dive });
+      anchors.push({ at: top + run + vh * 0.85, pose: POSES.prologue });
+    }
   }
   for (const id of ['prologue', 'fonctionnement', 'perdre', 'voler', 'copilote', 'frais', 'vision', 'telecharger']) {
     const el = document.getElementById(id);
@@ -171,29 +220,65 @@ uniform sampler2D uText;
 uniform float uFade;
 uniform float uTime;
 uniform vec3 uInk;
-uniform vec3 uSage;
 uniform vec3 uPaper;
+uniform vec3 uBg;
+uniform vec3 uAccent;
+uniform float uBars;
+uniform float uFloor;
+uniform float uLight;
 uniform float uAspect;
 uniform vec2 uGem;
 uniform float uGemSize;
 uniform sampler2D uWords;
 varying vec2 vUv;
+
+// Néons verticaux : un cœur fin et éclatant, un halo large ; trois tubes autour de la gemme.
+float neon(vec2 q) {
+  float s = 0.0;
+  // Gemme rangée au bord : seul le tube EXTÉRIEUR reste, les autres passeraient sous le texte.
+  float side = smoothstep(0.5, 0.8, abs(uGem.x) / (0.5 * uAspect));
+  float outward = uGem.x >= 0.0 ? 1.0 : -1.0;
+  for (int i = -1; i <= 1; i++) {
+    float fi = float(i);
+    float x = uGem.x + fi * uGemSize * 1.55;
+    float d = abs(q.x - x);
+    float w = (1.0 - 0.35 * abs(fi)) * mix(1.0, fi == outward ? 1.0 : 0.0, side);
+    float a = d / 0.0045;
+    float b = d / 0.045;
+    s += w * (exp(-a * a) * 0.9 + exp(-b * b) * 0.2);
+  }
+  // Ils naissent et meurent autour de la gemme (haut et bas en fondu).
+  return s * smoothstep(0.38, 0.05, abs(q.y - uGem.y - uGemSize * 0.4));
+}
+
 void main() {
   vec2 p = (vUv - 0.5) * vec2(uAspect, 1.0);
-  // Fond : encre et halo sauge à peine perceptible.
-  float halo = exp(-dot(p, p) * 2.2);
+  vec2 g = p - uGem;
+  float r2 = dot(g, g) / (uGemSize * uGemSize);
+  // Valeurs LINÉAIRES (converties en sRGB à la sortie).
+  vec3 col = uBg;
+  // Halo de la couleur du monde autour de la gemme.
+  col += uAccent * exp(-r2 * 0.35) * mix(0.05, 0.02, uLight);
+  // Sol : sous la gemme, un plan qui assombrit et REFLÈTE les néons.
+  float horizon = uGem.y - uGemSize * 1.25;
+  float below = smoothstep(horizon + 0.01, horizon - 0.02, p.y) * uFloor;
+  vec2 mirrored = vec2(p.x, 2.0 * horizon - p.y);
+  float n = neon(p) * (1.0 - below);
+  float reflection = neon(mirrored) * below * 0.32 * exp(-(horizon - p.y) * 6.0);
+  col = mix(col, col * mix(0.55, 0.88, uLight), below * 0.8);
+  col += uAccent * (n + reflection) * uBars * mix(1.0, 0.25, uLight);
+  // Ligne d'horizon, très fine.
+  float hy = (p.y - horizon) / 0.0025; // pas de pow() sur une base négative (indéfini en GLSL)
+  col += uAccent * exp(-hy * hy) * 0.12 * uFloor * smoothstep(0.9, 0.1, abs(g.x));
   // LES DOUZE MOTS VIVENT DANS LE CRISTAL : peints juste derrière la gemme (et nulle
   // part ailleurs), ils n'apparaissent qu'à travers le verre, décomposés en éclats.
-  vec2 g = p - uGem;
   vec2 wuv = g / (uGemSize * 2.0) + 0.5;
   wuv.y += uTime * 0.012; // ils défilent lentement, comme une phrase qu'on relit
   float words = texture2D(uWords, fract(wuv)).a;
-  float r2 = dot(g, g) / (uGemSize * uGemSize);
-  float inside = exp(-r2 * 10.0); // éteint au bord de la gemme : hors du verre, on ne lit rien
-  float box = exp(-r2 * 0.9);
-  // Valeurs LINÉAIRES : converties en sRGB à la sortie, elles éclairciraient vite le fond.
-  vec3 col = uInk + uSage * (halo * 0.012) + mix(uSage, uPaper, 0.5) * box * 0.018 + uPaper * words * inside * 0.9;
-  col = mix(col, uPaper, texture2D(uText, vUv).a * uFade);
+  float inside = exp(-r2 * 10.0);
+  vec3 ink = mix(uPaper, uInk, uLight); // à l'encre dans les mondes clairs
+  col = mix(col, ink, words * inside * 0.9);
+  col = mix(col, ink, texture2D(uText, vUv).a * uFade);
   gl_FragColor = vec4(col, 1.0);
   #include <colorspace_fragment>
 }
@@ -269,8 +354,12 @@ function Backdrop({ title, state }: { title: string; state: React.MutableRefObje
       uFade: { value: 1 },
       uTime: { value: 0 },
       uInk: { value: new THREE.Color(INK) },
-      uSage: { value: new THREE.Color(SAGE) },
       uPaper: { value: new THREE.Color(PAPER) },
+      uBg: { value: new THREE.Color(INK) },
+      uAccent: { value: new THREE.Color(SAGE) },
+      uBars: { value: 0 },
+      uFloor: { value: 0 },
+      uLight: { value: 0 },
       uAspect: { value: 1 },
       uGem: { value: new THREE.Vector2() },
       uGemSize: { value: 0.2 },
@@ -331,6 +420,13 @@ function Backdrop({ title, state }: { title: string; state: React.MutableRefObje
     const gp = state.current.gemScreen;
     uniforms.uGem.value.set(gp.x * 0.5 * uniforms.uAspect.value, gp.y * 0.5);
     uniforms.uGemSize.value = state.current.gemRadius;
+    const w = state.current.world;
+    uniforms.uBg.value.copy(w.bg);
+    uniforms.uAccent.value.copy(w.accent);
+    // Téléphone : la colonne de texte occupe toute la largeur — pas de néons derrière.
+    uniforms.uBars.value = size.width < size.height ? 0 : w.bars;
+    uniforms.uFloor.value = w.floor;
+    uniforms.uLight.value = w.light;
   });
 
   return (
@@ -345,7 +441,7 @@ function Backdrop({ title, state }: { title: string; state: React.MutableRefObje
 
 // ---------------------------------------------------------------- gemme et éclats
 
-type SceneState = { pose: Pose; titleFade: number; pointer: THREE.Vector2; reduce: boolean; /** Position de la gemme à l'écran, -1..1. */ gemScreen: THREE.Vector2; /** Rayon apparent de la gemme, en hauteurs d'écran. */ gemRadius: number };
+type SceneState = { pose: Pose; /** Pose lissée, partagée par la gemme et le fond. */ world: Pose; titleFade: number; pointer: THREE.Vector2; reduce: boolean; /** Position de la gemme à l'écran, -1..1. */ gemScreen: THREE.Vector2; /** Rayon apparent de la gemme, en hauteurs d'écran. */ gemRadius: number; gemPos: THREE.Vector3; gemScale: number };
 
 type Quality = { samples: number; resolution: number };
 
@@ -357,33 +453,16 @@ function Gem({ state, quality, coarse }: { state: React.MutableRefObject<SceneSt
   const shards = useRef<(THREE.Mesh | null)[]>([]);
   const ring = useRef<THREE.Mesh>(null);
   const halo = useRef<THREE.PointLight>(null);
-  const { viewport, camera } = useThree();
-  const cur = useRef<Pose>({ ...POSES.open });
   const tmp = useMemo(() => ({ a: new THREE.Vector3(), b: new THREE.Vector3(), e: new THREE.Euler() }), []);
 
   useFrame(({ clock }, dt) => {
     const s = state.current;
     const t = s.reduce ? 8 : clock.elapsedTime;
-    // Lissage exponentiel selon le temps écoulé : même vitesse à 60 et à 120 Hz.
-    const k = s.reduce ? 1 : 1 - Math.exp(-dt * 3.2);
-    const c = cur.current;
-    const target = s.pose;
-    (Object.keys(c) as (keyof Pose)[]).forEach((key) => {
-      c[key] += (target[key] - c[key]) * k;
-    });
-
-    const vp = viewport.getCurrentViewport(camera, tmp.a.set(0, 0, 0));
-    const narrow = vp.width < vp.height; // téléphone en portrait : la gemme reste centrée
+    const c = s.world; // lissé par <World>, monté avant le fond et la gemme
     const g = group.current;
     if (g) {
-      // Sur téléphone, le texte occupe toute la largeur : quand la pose est « de côté »
-      // (chapitre avec une maquette), la gemme descend vers la maquette, sous le texte.
-      g.position.set(narrow ? 0 : c.x * (vp.width / 2), c.y * vp.height - (narrow ? 0.24 * vp.height * Math.min(1, Math.abs(c.x) * 2) : 0), 0);
-      const sc = c.scale * (narrow ? Math.min(1, vp.width / 3.4) : 1);
-      g.scale.setScalar(sc);
-      tmp.b.copy(g.position).project(camera);
-      s.gemScreen.set(tmp.b.x, tmp.b.y);
-      s.gemRadius = sc / vp.height; // rayon 1 de la gemme, rapporté à la hauteur visible
+      g.position.copy(s.gemPos);
+      g.scale.setScalar(s.gemScale);
       // La souris incline la scène, avec retenue.
       const kr = s.reduce ? 1 : 1 - Math.exp(-dt * 2.5);
       g.rotation.x += (s.pointer.y * 0.18 - g.rotation.x) * kr;
@@ -398,9 +477,14 @@ function Gem({ state, quality, coarse }: { state: React.MutableRefObject<SceneSt
       ring.current.rotation.x = Math.PI / 2 - c.tilt * 0.55;
       ring.current.rotation.z = t * 0.05;
       ring.current.scale.setScalar(c.ring);
-      (ring.current.material as THREE.MeshBasicMaterial).opacity = 0.16 * (1 - c.cage) * c.glow;
+      const rm = ring.current.material as THREE.MeshBasicMaterial;
+      rm.opacity = 0.16 * (1 - c.cage) * c.glow;
+      rm.color.copy(c.accent);
     }
-    if (halo.current) halo.current.intensity = 6 + 10 * c.glow;
+    if (halo.current) {
+      halo.current.intensity = 6 + 10 * c.glow;
+      halo.current.color.copy(c.accent);
+    }
 
     // Éclats : orbite inclinée ↔ cage icosaédrique.
     for (let i = 0; i < 12; i++) {
@@ -471,6 +555,44 @@ function Gem({ state, quality, coarse }: { state: React.MutableRefObject<SceneSt
   );
 }
 
+/**
+ * Lisse la pose du monde vers la cible, AVANT le fond et la gemme (ordre de montage =
+ * ordre des useFrame) : sinon le fond dessinait le monde de l'image précédente — en mode
+ * réduit (une image par défilement), il gardait l'ancien monde jusqu'au défilement suivant.
+ */
+function World({ state }: { state: React.MutableRefObject<SceneState> }) {
+  const { viewport, camera } = useThree();
+  const origin = useMemo(() => new THREE.Vector3(), []);
+  const proj = useMemo(() => new THREE.Vector3(), []);
+  useFrame((_, dt) => {
+    const s = state.current;
+    // Lissage exponentiel selon le temps écoulé : même vitesse à 60 et à 120 Hz.
+    const k = s.reduce ? 1 : 1 - Math.exp(-dt * 3.2);
+    const c = s.world;
+    const target = s.pose;
+    for (const key of NUMERIC) c[key] += (target[key] - c[key]) * k;
+    c.bg.lerp(target.bg, k);
+    c.accent.lerp(target.accent, k);
+    // Place de la gemme (lue par le fond ET la gemme, dans la même image).
+    const vp = viewport.getCurrentViewport(camera, origin.set(0, 0, 0));
+    const narrow = vp.width < vp.height; // téléphone en portrait : la gemme reste centrée
+    // Sur téléphone, le texte occupe toute la largeur : quand la pose est « de côté »
+    // (chapitre avec une maquette), la gemme descend vers la maquette, sous le texte.
+    // Téléphone, chapitre « au bord » (tableaux) : petite gemme rangée dans un coin, sous le texte.
+    const side = narrow ? smoothstep01(0.6, 0.85, Math.abs(c.x)) : 0;
+    s.gemPos.set(
+      narrow ? Math.sign(c.x) * vp.width * 0.36 * side : c.x * (vp.width / 2),
+      c.y * vp.height - (narrow ? 0.24 * vp.height * Math.min(1, Math.abs(c.x) * 2) + 0.14 * vp.height * side : 0),
+      0,
+    );
+    s.gemScale = c.scale * (narrow ? Math.min(1, vp.width / 3.4) * mix(1, 0.5, side) : 1);
+    proj.copy(s.gemPos).project(camera);
+    s.gemScreen.set(proj.x, proj.y);
+    s.gemRadius = s.gemScale / vp.height; // rayon 1 de la gemme, rapporté à la hauteur visible
+  });
+  return null;
+}
+
 /** Studio lumineux procédural : rendu UNE fois dans une carte d'environnement. */
 function Studio() {
   return (
@@ -497,16 +619,16 @@ function Driver({ state }: { state: React.MutableRefObject<SceneState> }) {
     let anchors: Anchor[] = [];
     let titleEnd = 1;
     let paused = false;
-    // Sections OPAQUES (papier) : quand l'une couvre tout l'écran, la scène est invisible —
-    // on cesse de la calculer (batterie, chaleur), et on reprend en la quittant.
-    const covers = ['perdre', 'vision'].map((id) => document.getElementById(id)).filter((e): e is HTMLElement => !!e);
+    // Pied de page OPAQUE : quand il couvre tout l'écran, la scène est invisible —
+    // on cesse de la calculer (batterie, chaleur), et on reprend en le quittant.
+    const covers = [document.querySelector('footer')].filter((e): e is HTMLElement => !!e);
     const read = () => {
       const center = window.scrollY + window.innerHeight / 2;
       state.current.pose = poseAt(anchors, center);
       state.current.titleFade = 1 - ease(clamp01(window.scrollY / Math.max(1, titleEnd)));
       const hidden = covers.some((el) => {
         const r = el.getBoundingClientRect();
-        return r.top <= 0 && r.bottom >= window.innerHeight;
+        return r.top <= window.innerHeight * 0.15; // pied de page qui occupe presque tout l'écran
       });
       if (hidden !== paused) {
         paused = hidden;
@@ -515,7 +637,7 @@ function Driver({ state }: { state: React.MutableRefObject<SceneState> }) {
       invalidate();
     };
     const measure = () => {
-      ({ anchors, titleEnd } = measureAnchors());
+      ({ anchors, titleEnd } = measureAnchors(state.current.reduce));
       read();
     };
     const onPointer = (e: PointerEvent) => {
@@ -566,7 +688,7 @@ const TIERS = [
 export default function PrismScene({ title }: { title: string }) {
   const reduce = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
   const coarse = useMemo(() => window.matchMedia('(pointer: coarse)').matches, []);
-  const state = useRef<SceneState>({ pose: { ...POSES.open }, titleFade: 1, pointer: new THREE.Vector2(), reduce, gemScreen: new THREE.Vector2(), gemRadius: 0.2 });
+  const state = useRef<SceneState>({ pose: clonePose(POSES.open), world: clonePose(POSES.open), titleFade: 1, pointer: new THREE.Vector2(), reduce, gemScreen: new THREE.Vector2(), gemRadius: 0.2, gemPos: new THREE.Vector3(), gemScale: 1 });
   const wrap = useRef<HTMLDivElement>(null);
   // Plafond : jamais plus de pixels que l'écran n'en a (un écran ×1 ne rend pas en ×2).
   const screenDpr = window.devicePixelRatio || 1;
@@ -622,6 +744,7 @@ export default function PrismScene({ title }: { title: string }) {
           />
         )}
         <Driver state={state} />
+        <World state={state} />
         <Studio />
         <Backdrop title={title} state={state} />
         <Gem state={state} quality={quality} coarse={coarse} />

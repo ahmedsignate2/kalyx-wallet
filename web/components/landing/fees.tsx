@@ -12,7 +12,7 @@ import type { Dict } from '../../i18n';
  */
 export function Fees({ t }: { t: Dict }) {
   return (
-    <section id="frais" className="scroll-mt-16 bg-ink-2/80 px-5 py-20 sm:px-8 sm:py-24 lg:py-32">
+    <section id="frais" className="scroll-mt-16 bg-ink-2/80 [[data-prism=on]_&]:bg-transparent px-5 py-20 sm:px-8 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-page">
         <ChapterHead
           numeral="V"

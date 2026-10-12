@@ -8,7 +8,7 @@ import { RELEASES_URL, SOURCE_URL } from '../../lib/links';
 
 export function Download({ t }: { t: Dict }) {
   return (
-    <section id="telecharger" className="scroll-mt-16 bg-ink/75 px-5 py-20 sm:px-8 sm:py-24 lg:py-36">
+    <section id="telecharger" className="scroll-mt-16 bg-ink/75 [[data-prism=on]_&]:bg-transparent px-5 py-20 sm:px-8 sm:py-24 lg:py-36">
       <div className="mx-auto max-w-page text-center">
         <p className="mb-6 flex items-center justify-center gap-3 text-xs uppercase tracking-[0.22em] text-sage">
           <Rule className="w-8 bg-sage" />

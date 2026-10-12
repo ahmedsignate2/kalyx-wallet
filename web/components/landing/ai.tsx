@@ -12,7 +12,7 @@ import type { Dict } from '../../i18n';
  */
 export function Ai({ t }: { t: Dict }) {
   return (
-    <section id="copilote" className="scroll-mt-16 bg-ink/75 px-5 py-20 sm:px-8 sm:py-24 lg:py-32">
+    <section id="copilote" className="scroll-mt-16 bg-ink/75 [[data-prism=on]_&]:bg-transparent px-5 py-20 sm:px-8 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-page">
         <ChapterHead
           numeral="IV"
