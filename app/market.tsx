@@ -1,8 +1,8 @@
 import { memo, useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
-import { Text, Image, RefreshControl } from 'react-native';
+import { Text, RefreshControl } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { EmptyState, ScreenHeader, Avatar, Card, CardCell, Input, ListRow, MarketRow, ScreenList, SegmentedControl, SkeletonRow } from '../ui/kit';
-import { radii, spacing, useTheme } from '../ui/theme';
+import { EmptyState, ScreenHeader, Avatar, RemoteIcon, Card, CardCell, Input, ListRow, MarketRow, ScreenList, SegmentedControl, SkeletonRow } from '../ui/kit';
+import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { getMarkets, getMarketsByIds, sortMarkets, searchCoins, type MarketCoin, type SearchCoin, formatFiat } from '../src';
 import { useShallow } from 'zustand/react/shallow';
@@ -170,9 +170,9 @@ export default function Market() {
                     style={{ paddingHorizontal: 0 }}
                     left={
                       c.thumb ? (
-                        <Image source={{ uri: c.thumb }} style={{ width: 36, height: 36, borderRadius: radii.full }} />
+                        <RemoteIcon uri={c.thumb} label={c.symbol} size={36} />
                       ) : (
-                        <Avatar label={c.symbol.slice(0, 1)} color={colors.surface2} />
+                        <Avatar label={c.symbol.slice(0, 1)} />
                       )
                     }
                     title={c.name}
