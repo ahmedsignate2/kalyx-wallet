@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring, type Variants } from 'framer-motion';
+import { motion, useMotionTemplate, useMotionValue, useSpring, type Variants } from 'framer-motion';
+import { useReducedMotionSafe } from './reduced-motion';
 
 /**
  * Vocabulaire d'animation du site (éditorial : lent, sans rebond, une seule courbe).
@@ -32,7 +33,7 @@ export function Reveal({
   as?: 'div' | 'p' | 'li' | 'h2' | 'article';
   style?: React.CSSProperties;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   const Tag = motion[as];
   if (reduce) {
     const Plain = as;
@@ -67,7 +68,7 @@ export function Stagger({
   gap?: number;
   as?: 'div' | 'ol' | 'ul';
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   const Tag = motion[as];
   if (reduce) {
     const Plain = as;
@@ -151,7 +152,7 @@ export function Item({
   lift?: boolean;
   tilt?: boolean;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   const Tag = motion[as];
   if (reduce) {
     const Plain = as;
@@ -177,7 +178,7 @@ export function Item({
 
 /** Filet horizontal qui se trace ; `className` porte la couleur et la largeur. */
 export function Rule({ className = '', delay = 0 }: { className?: string; delay?: number }) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   if (reduce) return <span className={`h-px ${className}`} />;
   return (
     <motion.span

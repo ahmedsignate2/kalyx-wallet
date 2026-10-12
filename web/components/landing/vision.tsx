@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
+import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { ChapterHead } from './chapter';
 import { Reveal } from './motion';
 import type { Dict } from '../../i18n';
+import { useReducedMotionSafe } from './reduced-motion';
 
 /*
  * Le manifeste, tiré de docs/07-DIFFERENCIATION.md et docs/DESIGN.md §0. Chiffres :
@@ -24,7 +25,7 @@ function Line({ text, index, n, progress }: { text: string; index: number; n: nu
 
 export function Vision({ t }: { t: Dict }) {
   const LINES = t.vision.lines;
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start 0.75', 'end 0.45'] });
 

@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { motion, useReducedMotion, useScroll, useSpring } from 'framer-motion';
+import { motion, useScroll, useSpring } from 'framer-motion';
 import { Reveal, Rule } from './motion';
 import type { Dict } from '../../i18n';
+import { useReducedMotionSafe } from './reduced-motion';
 
 /** Les chapitres du film, dans l'ordre. `id` = ancre de section. */
 export const CHAPTERS = [
@@ -73,7 +74,7 @@ export function ChapterHead({
  */
 export function ChapterRail({ t }: { t: Dict }) {
   const [active, setActive] = useState<string>(CHAPTERS[0].id);
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 26 });
 
