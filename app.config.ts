@@ -47,11 +47,12 @@ const config: ExpoConfig = {
   },
   ios: {
     supportsTablet: false,
-    bundleIdentifier: 'com.kalyx.wallet',
+    bundleIdentifier: "app.star5788.gorilla9158",
     // Universal Link WalletConnect : https://kalyxwallet.com/wc?uri=… (fichier
     // apple-app-site-association servi par le site, cf. web/public/.well-known).
     associatedDomains: ['applinks:kalyxwallet.com'],
     infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
       /*
        * Lève le plafond de 60 fps d'iOS sur les écrans ProMotion : sans ce
        * drapeau, une app React Native reste bridée à 60 quel que soit l'écran.
