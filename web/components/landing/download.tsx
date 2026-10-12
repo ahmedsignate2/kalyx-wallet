@@ -1,6 +1,7 @@
 import React from 'react';
 import { Download as DownloadIcon, Send } from 'lucide-react';
 import { Reveal, Rule } from './motion';
+import { Magnetic } from './experience';
 import type { Dict } from '../../i18n';
 import { APK_URL } from '../../lib/apk';
 import { RELEASES_URL, SOURCE_URL } from '../../lib/links';
@@ -21,23 +22,27 @@ export function Download({ t }: { t: Dict }) {
           {t.download.sub}
         </Reveal>
         <Reveal delay={0.3} className="mx-auto mt-10 flex w-full max-w-sm flex-col items-stretch justify-center gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
-          <a
-            href={APK_URL}
-            download
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-paper px-7 text-sm font-medium text-ink transition-[background-color,transform] duration-200 ease-editorial hover:bg-bone active:scale-[0.97]"
-          >
-            <DownloadIcon className="h-4 w-4" />
-            {t.download.cta}
-          </a>
-          <a
-            href="https://t.me/kalyxntw"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-bone/20 px-6 text-sm font-medium text-paper transition-colors hover:border-bone/50"
-          >
-            <Send className="h-4 w-4" />
-            {t.download.telegram}
-          </a>
+          <Magnetic>
+            <a
+              href={APK_URL}
+              download
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-paper px-7 text-sm font-medium text-ink transition-[background-color,transform] duration-200 ease-editorial hover:bg-bone active:scale-[0.97]"
+            >
+              <DownloadIcon className="h-4 w-4" />
+              {t.download.cta}
+            </a>
+          </Magnetic>
+          <Magnetic>
+            <a
+              href="https://t.me/kalyxntw"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-bone/20 px-6 text-sm font-medium text-paper transition-colors hover:border-bone/50"
+            >
+              <Send className="h-4 w-4" />
+              {t.download.telegram}
+            </a>
+          </Magnetic>
         </Reveal>
         <p className="mt-5 text-xs text-mist/70">{t.download.note}</p>
         <p className="mx-auto mt-4 max-w-md text-xs leading-relaxed text-mist/70">
