@@ -90,3 +90,7 @@ expo-env.d.ts
 *.txt
 # Licences d'assets tiers : doivent rester dans le dépôt.
 !assets/**/LICENSE*.txt
+credentials.json
+*.p12
+*.mobileprovision
+*.pem

@@ -50,9 +50,10 @@ export function HowItWorks({ t }: { t: Dict }) {
                       <motion.div
                         key={steps[active].screen}
                         className="absolute inset-0"
-                        initial={reduce ? false : { opacity: 0, scale: 1.03 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={reduce ? undefined : { opacity: 0 }}
+                        style={{ transformPerspective: 900 }}
+                        initial={reduce ? false : { opacity: 0, rotateY: 35, scale: 0.96 }}
+                        animate={{ opacity: 1, rotateY: 0, scale: 1 }}
+                        exit={reduce ? undefined : { opacity: 0, rotateY: -35, scale: 0.96 }}
                         transition={{ duration: 0.7, ease: EASE }}
                       >
                         <Image src={steps[active].screen} alt="" fill sizes="(min-width: 1536px) 320px, (min-width: 1280px) 288px, 240px" className="object-cover object-top" />
