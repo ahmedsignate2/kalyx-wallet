@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { motion, useReducedMotion, type Variants } from 'framer-motion';
+import { motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring, type Variants } from 'framer-motion';
 
 /**
  * Vocabulaire d'animation du site (éditorial : lent, sans rebond, une seule courbe).
@@ -86,23 +86,83 @@ export function Stagger({
   );
 }
 
-/** `lift` : léger soulèvement au survol (via framer, car il pilote déjà `transform`). */
+/** Ressort des bascules 3D : suit la souris sans traîner, se pose sans rebond visible. */
+export const TILT_SPRING = { stiffness: 170, damping: 20, mass: 0.6 } as const;
+
+/**
+ * Carte qui s'incline en 3D vers la souris, avec un reflet qui glisse sur sa surface.
+ * Souris uniquement : au doigt, l'inclinaison gênerait le défilement.
+ */
+export function Tilt({ children, className = '', max = 7 }: { children: React.ReactNode; className?: string; max?: number }) {
+  const rx = useMotionValue(0);
+  const ry = useMotionValue(0);
+  const gx = useMotionValue(50);
+  const gy = useMotionValue(50);
+  const shine = useMotionValue(0);
+  const rotateX = useSpring(rx, TILT_SPRING);
+  const rotateY = useSpring(ry, TILT_SPRING);
+  const opacity = useSpring(shine, TILT_SPRING);
+  const glare = useMotionTemplate`radial-gradient(circle at ${gx}% ${gy}%, rgba(243, 239, 230, 0.09), transparent 60%)`;
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.pointerType !== 'mouse') return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;
+    const py = (e.clientY - r.top) / r.height;
+    ry.set((px - 0.5) * 2 * max);
+    rx.set(-(py - 0.5) * 2 * max);
+    gx.set(px * 100);
+    gy.set(py * 100);
+    shine.set(1);
+  }
+  function onPointerLeave() {
+    rx.set(0);
+    ry.set(0);
+    shine.set(0);
+  }
+
+  return (
+    <motion.div
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
+      style={{ rotateX, rotateY, transformPerspective: 1100, transformStyle: 'preserve-3d' }}
+      className={`relative h-full will-change-transform ${className}`}
+    >
+      {children}
+      <motion.span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit]" style={{ background: glare, opacity }} />
+    </motion.div>
+  );
+}
+
+/**
+ * `lift` : léger soulèvement au survol (via framer, car il pilote déjà `transform`).
+ * `tilt` : la carte s'incline en 3D vers la souris (`className` passe sur la carte inclinée).
+ */
 export function Item({
   children,
   className = '',
   as = 'div',
   lift = false,
+  tilt = false,
 }: {
   children: React.ReactNode;
   className?: string;
   as?: 'div' | 'li' | 'article';
   lift?: boolean;
+  tilt?: boolean;
 }) {
   const reduce = useReducedMotion();
   const Tag = motion[as];
   if (reduce) {
     const Plain = as;
     return <Plain className={className}>{children}</Plain>;
+  }
+  if (tilt) {
+    return (
+      <Tag variants={fadeUp} className="h-full">
+        <Tilt className={className}>{children}</Tilt>
+      </Tag>
+    );
   }
   return (
     <Tag
