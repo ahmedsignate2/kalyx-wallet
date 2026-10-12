@@ -197,13 +197,30 @@ export function Crystal3D() {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const coarse = window.matchMedia('(pointer: coarse)').matches;
     // Résolution de rendu : le shader coûte par pixel. Adaptée en continu à la machine.
-    let quality = coarse ? 0.5 : 0.75;
+    /*
+     * Résolution dynamique : on vise la fréquence RÉELLE de l'écran (60, 120 Hz…) à la
+     * plus haute définition tenable. `quality` = fraction de la définition native
+     * (densité d'écran jusqu'à 3×, donc net jusqu'aux écrans 4K/8K). Si les images
+     * arrivent à l'heure pendant ~1,5 s, on monte d'un cran ; si elles traînent, on
+     * redescend et ce palier devient le plafond pour ne pas osciller.
+     */
+    const MIN_Q = 0.3;
+    let quality = coarse ? 0.55 : 0.7;
+    let ceiling = 1;
+    let budget = 1000 / 60; // affiné à la fréquence mesurée
+    const deltas: number[] = [];
+    let windowSum = 0;
+    let windowCount = 0;
+    let goodWindows = 0;
+    let justRaised = false;
+
     const target = { x: 0, y: 0 };
     const mouse = { x: 0, y: 0 };
-    const state = { morph: 0, cx: 0.5, fade: 0.6 };
+    const state = { morph: 0, cx: 0.5, cy: 0.5, fade: 0.6 };
+    let scroll = { morph: 0, cx: 0.5, cy: 0.5, fade: 0.6, scale: 1 };
 
     function resize() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
       const w = Math.max(1, Math.round(window.innerWidth * dpr * quality));
       const h = Math.max(1, Math.round(window.innerHeight * dpr * quality));
       if (canvas!.width !== w || canvas!.height !== h) {
@@ -215,6 +232,7 @@ export function Crystal3D() {
 
     // Où en est le film : avancement global (métamorphose) et présence du prologue
     // (le cristal se range derrière le téléphone, à droite, et s'illumine).
+    // Lu au défilement seulement : jamais de mesure de mise en page dans la boucle d'image.
     function readScroll() {
       const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
       const progress = clamp01(window.scrollY / max);
@@ -226,7 +244,7 @@ export function Crystal3D() {
         heroIn = smooth(clamp01(1 - Math.abs(mid) / window.innerHeight));
       }
       const wide = window.innerWidth >= 1024;
-      return {
+      scroll = {
         morph: progress * 6,
         cx: wide ? 0.5 + 0.22 * heroIn : 0.5,
         cy: wide ? 0.5 : 0.5 - 0.14 * heroIn, // WebGL : y vers le haut ; sur mobile, le téléphone est en bas
@@ -243,39 +261,70 @@ export function Crystal3D() {
 
     let raf = 0;
     let last = performance.now();
-    let slow = 0;
     const start = last;
 
-    function draw(now: number) {
-      const s = readScroll();
-      const k = reduce ? 1 : 0.06;
-      state.morph += (s.morph - state.morph) * k;
-      state.cx += (s.cx - state.cx) * k;
-      state.fade += (s.fade - state.fade) * k;
-      mouse.x += (target.x - mouse.x) * 0.05;
-      mouse.y += (target.y - mouse.y) * 0.05;
+    function draw(now: number, dt: number) {
+      // Lissage exponentiel en fonction du temps écoulé : même vitesse à 60 et à 120 Hz.
+      const k = reduce ? 1 : 1 - Math.exp(-dt * 3.6);
+      const km = 1 - Math.exp(-dt * 3);
+      state.morph += (scroll.morph - state.morph) * k;
+      state.cx += (scroll.cx - state.cx) * k;
+      state.cy += (scroll.cy - state.cy) * k;
+      state.fade += (scroll.fade - state.fade) * k;
+      mouse.x += (target.x - mouse.x) * km;
+      mouse.y += (target.y - mouse.y) * km;
       gl!.uniform2f(uRes, canvas!.width, canvas!.height);
       gl!.uniform1f(uTime, reduce ? 12 : (now - start) / 1000);
       gl!.uniform2f(uMouse, mouse.x, mouse.y);
       gl!.uniform1f(uMorph, state.morph);
-      gl!.uniform2f(uCenter, state.cx, s.cy);
-      gl!.uniform1f(uScale, s.scale);
+      gl!.uniform2f(uCenter, state.cx, state.cy);
+      gl!.uniform1f(uScale, scroll.scale);
       gl!.uniform1f(uFade, state.fade);
       gl!.drawArrays(gl!.TRIANGLES, 0, 3);
     }
 
-    function loop(now: number) {
-      // Images trop lentes plusieurs fois de suite : on baisse la résolution (plancher 0,35).
-      const dt = now - last;
-      last = now;
-      if (dt > 24) slow++;
-      else slow = Math.max(0, slow - 1);
-      if (slow > 30 && quality > 0.36) {
-        quality = Math.max(0.35, quality - 0.1);
-        slow = 0;
-        resize();
+    function setQuality(q: number) {
+      quality = Math.max(MIN_Q, Math.min(ceiling, q));
+      resize();
+    }
+
+    function adapt(dtMs: number) {
+      // 1) Fréquence de l'écran : médiane des 30 premières images.
+      if (deltas.length < 30) {
+        deltas.push(dtMs);
+        if (deltas.length === 30) {
+          const sorted = [...deltas].sort((a, b) => a - b);
+          budget = sorted[15];
+        }
+        return;
       }
-      draw(now);
+      // 2) Fenêtres de 12 images : à l'heure → on monte ; en retard → on descend.
+      windowSum += dtMs;
+      windowCount++;
+      if (windowCount < 12) return;
+      const avg = windowSum / windowCount;
+      windowSum = 0;
+      windowCount = 0;
+      if (avg > budget * 1.2) {
+        if (justRaised) ceiling = quality / 1.15; // le dernier palier ne tenait pas
+        setQuality(quality * 0.85);
+        goodWindows = 0;
+        justRaised = false;
+      } else if (avg < budget * 1.06) {
+        justRaised = false;
+        if (++goodWindows >= (budget < 10 ? 12 : 6) && quality < ceiling) {
+          setQuality(quality * 1.15);
+          goodWindows = 0;
+          justRaised = true;
+        }
+      }
+    }
+
+    function loop(now: number) {
+      const dtMs = Math.min(100, now - last);
+      last = now;
+      adapt(dtMs);
+      draw(now, dtMs / 1000);
       raf = requestAnimationFrame(loop);
     }
 
@@ -287,9 +336,18 @@ export function Crystal3D() {
       }
     }
 
-    const redraw = () => draw(performance.now());
+    const redraw = () => {
+      readScroll();
+      draw(performance.now(), 1);
+    };
+    const onResize = () => {
+      resize();
+      readScroll();
+    };
     resize();
-    window.addEventListener('resize', resize);
+    readScroll();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', readScroll, { passive: true });
     if (reduce) {
       redraw();
       window.addEventListener('resize', redraw);
@@ -302,7 +360,8 @@ export function Crystal3D() {
 
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener('resize', resize);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', readScroll);
       window.removeEventListener('resize', redraw);
       window.removeEventListener('scroll', redraw);
       window.removeEventListener('pointermove', onPointer);
@@ -314,5 +373,5 @@ export function Crystal3D() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} aria-hidden className="pointer-events-none fixed inset-0 -z-10 h-full w-full" />;
+  return <canvas ref={canvasRef} aria-hidden className="pointer-events-none fixed inset-0 -z-10 h-full w-full [transform:translateZ(0)]" />;
 }

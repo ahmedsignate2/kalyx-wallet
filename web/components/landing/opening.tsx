@@ -19,10 +19,10 @@ function Word({ word, index, progress }: { word: string; index: number; progress
   // Chaque mot se relève comme une carte posée à plat, puis le voile le repousse en profondeur.
   const rotateX = useTransform(progress, [start, start + 0.06, 0.62, 0.74], [-80, 0, 0, 24]);
   const z = useTransform(progress, [0.62, 0.74], [0, -60]);
-  const blur = useTransform(progress, [0.6, 0.74], [0, 6]);
-  const filter = useTransform(blur, (b) => `blur(${b}px)`);
+  // Plus de flou animé (filtre recalculé à chaque image) : le voile passe par l'opacité,
+  // le recul en profondeur et la bascule, tous composités par la carte graphique.
   return (
-    <motion.li style={{ opacity, y, z, rotateX, filter, transformPerspective: 700, transformOrigin: '50% 100%' }} className="flex items-baseline gap-3 border-b border-bone/10 py-2 sm:py-3">
+    <motion.li style={{ opacity, y, z, rotateX, transformPerspective: 700, transformOrigin: '50% 100%' }} className="flex items-baseline gap-3 border-b border-bone/10 py-2 sm:py-3">
       <span className="w-6 font-display text-sm text-mist/60">{String(index + 1).padStart(2, '0')}</span>
       <span className="font-display text-xl text-paper sm:text-3xl">{word}</span>
     </motion.li>
