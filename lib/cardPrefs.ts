@@ -8,6 +8,8 @@
  *                   réseau par défaut de l'émetteur s'il ne le prend pas) ;
  *  - `configured` : la carte est configurée — l'écran s'ouvre directement sur
  *                   elle, sans repasser par le choix initial ;
+ *  - `account`    : compte on-chain de la carte (Gnosis Pay : son Safe), vérifié
+ *                   par lib/cardAccount ; sert au solde et à la recharge native ;
  *  - `last4`      : 4 derniers chiffres saisis PAR L'UTILISATEUR, mémo visuel
  *                   facultatif. Jamais le numéro complet ni le CVV : ceux-là
  *                   restent chez l'émetteur.
@@ -21,7 +23,7 @@ export const CARD_THEMES: readonly CardTheme[] = ['holo', 'noir', 'creme'];
 
 const K = 'kalyx.card.prefs';
 
-type Saved = { theme: CardTheme; issuer: CardIssuerId | null; chain: string | null; configured: boolean; last4: string | null };
+type Saved = { theme: CardTheme; issuer: CardIssuerId | null; chain: string | null; configured: boolean; last4: string | null; account: string | null };
 
 type State = Saved & {
   loaded: boolean;
@@ -35,6 +37,8 @@ type State = Saved & {
   editSetup: () => void;
   /** Mémo : exactement 4 chiffres, ou `null` pour l'effacer. */
   setLast4: (v: string | null) => void;
+  /** Compte on-chain de la carte (déjà vérifié), ou `null` pour le délier. */
+  setAccount: (a: string | null) => void;
   load: () => Promise<void>;
 };
 
@@ -44,7 +48,7 @@ export function cleanLast4(v: string | null | undefined): string | null {
   return d.length === 4 ? d : null;
 }
 
-const pick = (s: State): Saved => ({ theme: s.theme, issuer: s.issuer, chain: s.chain, configured: s.configured, last4: s.last4 });
+const pick = (s: State): Saved => ({ theme: s.theme, issuer: s.issuer, chain: s.chain, configured: s.configured, last4: s.last4, account: s.account });
 
 export const useCardPrefs = create<State>((set, get) => {
   const persist = () => {
@@ -56,13 +60,15 @@ export const useCardPrefs = create<State>((set, get) => {
     chain: null,
     configured: false,
     last4: null,
+    account: null,
     loaded: false,
     setTheme: (theme) => {
       set({ theme });
       persist();
     },
     setIssuer: (issuer) => {
-      set({ issuer, chain: cardChainFor(cardIssuer(issuer), get().chain) });
+      // Le compte relié appartient à l'émetteur d'avant : on ne le garde pas.
+      set({ issuer, chain: cardChainFor(cardIssuer(issuer), get().chain), ...(issuer !== get().issuer ? { account: null } : {}) });
       persist();
     },
     setChain: (chain) => {
@@ -83,6 +89,10 @@ export const useCardPrefs = create<State>((set, get) => {
       set({ last4: cleanLast4(v) });
       persist();
     },
+    setAccount: (account) => {
+      set({ account });
+      persist();
+    },
     load: async () => {
       if (get().loaded) return;
       try {
@@ -95,6 +105,7 @@ export const useCardPrefs = create<State>((set, get) => {
           chain: issuer ? cardChainFor(cardIssuer(issuer), v.chain) : null,
           configured: !!v.configured && !!issuer,
           last4: cleanLast4(v.last4),
+          account: typeof v.account === 'string' && /^0x[0-9a-fA-F]{40}$/.test(v.account) ? v.account : null,
           loaded: true,
         });
       } catch {
