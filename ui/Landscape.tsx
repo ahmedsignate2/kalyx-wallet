@@ -156,7 +156,7 @@ function Layer({ scrollY, speed, height, pull = true, children }: { scrollY?: Sh
 /* Le paysage                                                          */
 /* ------------------------------------------------------------------ */
 
-export const Landscape = memo(function Landscape({ width, height, phase, scrollY, sunAt, veil }: { width: number; height: number; phase: SkyPhase; scrollY?: SharedValue<number>; /** Hauteur de l'astre (fraction de `height`) : un paysage plein écran le pose sur l'horizon, loin du texte. */ sunAt?: number; /** Voile sombre sur le bas : ce qui est posé sur les collines (courbe, périodes) garde son contraste. */ veil?: boolean }) {
+export const Landscape = memo(function Landscape({ width, height, phase, scrollY, sunAt, veil, balanceGlow }: { width: number; height: number; phase: SkyPhase; scrollY?: SharedValue<number>; /** Hauteur de l'astre (fraction de `height`) : un paysage plein écran le pose sur l'horizon, loin du texte. */ sunAt?: number; /** Voile sombre sur le bas : ce qui est posé sur les collines (courbe, périodes) garde son contraste. */ veil?: boolean; /** Halo chaud derrière le solde (en haut à gauche), plus présent en Nuit. */ balanceGlow?: number }) {
   const sc = SCENES[phase];
   const reduce = useReduceMotion();
   const active = useLoopActive();
@@ -190,6 +190,17 @@ export const Landscape = memo(function Landscape({ width, height, phase, scrollY
             </LinearGradient>
           </Defs>
           <Rect x={0} y={0} width={width} height={height} fill="url(#ls-sky)" />
+          {balanceGlow ? (
+            <>
+              <Defs>
+                <RadialGradient id="ls-bal" cx="28%" cy="30%" rx="62%" ry="34%">
+                  <Stop offset="0" stopColor={sc.glow} stopOpacity={balanceGlow} />
+                  <Stop offset="1" stopColor={sc.glow} stopOpacity={0} />
+                </RadialGradient>
+              </Defs>
+              <Rect x={0} y={0} width={width} height={height} fill="url(#ls-bal)" />
+            </>
+          ) : null}
           {starList.map((s, i) => <Circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#FFFFFF" opacity={phase === 'night' ? s.o : s.o * 0.45} />)}
         </Svg>
       </Layer>

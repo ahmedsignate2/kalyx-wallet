@@ -25,12 +25,12 @@ import { Platform, type TextStyle } from 'react-native';
  */
 export const dark = {
   bg: '#0B0B10', // Nuit
-  surface1: '#14151C', // conteneurs
-  surface2: '#1C1D26', // sheets, inputs
-  surface3: '#262732', // pressé, survol, disques
-  border: 'rgba(255,244,230,0.07)',
+  surface1: '#17171F', // conteneurs (un cran au-dessus de la Nuit : jamais « noir plat »)
+  surface2: '#1F1F2A', // sheets, inputs
+  surface3: '#2A2A37', // pressé, survol, disques
+  border: 'rgba(255,244,230,0.09)',
   /** Liseré du HAUT des cartes : la lumière d'en haut accroche l'arête, la carte prend du volume. */
-  rim: 'rgba(255,244,230,0.13)',
+  rim: 'rgba(255,244,230,0.17)',
   text: '#F5F1EA',
   textSecondary: '#A29D95',
   textTertiary: '#6E6A63',

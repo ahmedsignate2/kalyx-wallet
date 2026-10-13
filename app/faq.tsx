@@ -22,7 +22,7 @@ export default function Faq() {
       <Stack.Screen options={{ headerShown: false }} />
       <Screen>
       <ScreenHeader />
-      <NovaHero icon="faq" title={t('faq')} />
+      <NovaHero align="left" title={t('faq')} />
       <ScrollView contentContainerStyle={{ gap: spacing(2), paddingBottom: spacing(4) }} showsVerticalScrollIndicator={false}>
         {FAQ.map((section, si) => (
           <View key={section.title} style={{ gap: spacing(1.25) }}>

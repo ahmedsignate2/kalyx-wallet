@@ -78,10 +78,14 @@ export type KPressableProps = Omit<PressableProps, 'style'> & {
   haptic?: PressHaptic;
   /** Dépassement au relâchement : boutons uniquement (§6.2). */
   overshoot?: boolean;
+  /** Échelle pendant l'appui (0,96 par défaut ; 0,94 pour les grosses tuiles, plus « enfoncées »). */
+  pressScale?: number;
+  /** Opacité d'ombre au repos : pendant l'appui elle se resserre (l'élément se pose sur la page). */
+  pressShadow?: number;
 };
 
 export function Pressable({
-  style, noScale, haptic: hapticKind = 'selection', overshoot, onPressIn, onPressOut, disabled, children, ...rest
+  style, noScale, haptic: hapticKind = 'selection', overshoot, pressScale = PRESS_SCALE, pressShadow, onPressIn, onPressOut, disabled, children, ...rest
 }: KPressableProps) {
   const pressed = useSharedValue(0);
   const reduced = useReducedMotion();
@@ -89,7 +93,11 @@ export function Pressable({
   const animated = useAnimatedStyle(() => {
     if (noScale) return {};
     if (reduced) return { opacity: 1 - Math.max(0, pressed.value) * 0.3 };
-    return { transform: [{ scale: 1 - pressed.value * (1 - PRESS_SCALE) }] };
+    const p = Math.max(0, pressed.value);
+    return {
+      transform: [{ scale: 1 - pressed.value * (1 - pressScale) }],
+      ...(pressShadow !== undefined ? { shadowOpacity: pressShadow * (1 - 0.6 * p), shadowRadius: 14 - 8 * p } : null),
+    };
   });
 
   const inH = useCallback<NonNullable<PressableProps['onPressIn']>>(

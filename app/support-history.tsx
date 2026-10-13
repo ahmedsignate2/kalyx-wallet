@@ -97,7 +97,7 @@ export default function SupportHistoryScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <Screen>
         <ScreenHeader />
-        <NovaHero icon="support" title={t('supportHistoryTitle')} subtitle={t('supportDiagnosticSubtitle')} />
+        <NovaHero align="left" title={t('supportHistoryTitle')} subtitle={t('supportDiagnosticSubtitle')} />
 
         {/* Action : Export Diagnostic Système */}
         <Card rise delay={50} style={{ padding: spacing(1.75), overflow: 'hidden' }}>
