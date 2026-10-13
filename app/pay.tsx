@@ -216,7 +216,7 @@ function PayScreenInner() {
         <Stack.Screen options={{ headerShown: false }} />
         <ScreenDunes />
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: SCREEN_MARGIN, height: 48 }}>
-          <IconButton icon="back" label={t('back')} tone="ghost" onPress={close} />
+          <IconButton icon="back" label={t('back')} tone="glass" onPress={close} />
         </View>
         {/*
           CE QUI PART, ET CHEZ QUI. L'utilisateur s'apprête à saisir son nom
@@ -408,7 +408,7 @@ function PayScreenInner() {
           gap: space[2],
         }}
       >
-        <IconButton icon="back" label={t('back')} tone="ghost" onPress={close} />
+        <IconButton icon="back" label={t('back')} tone="glass" onPress={close} />
         <Text variant="title2">{t('qrPayTitle')}</Text>
       </View>
 

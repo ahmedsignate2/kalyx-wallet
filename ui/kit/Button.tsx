@@ -167,17 +167,18 @@ export function Button({
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
 }) {
-  const { colors } = useTheme();
+  const { colors, mode, elevation } = useTheme();
   const [hintSeq, setHintSeq] = useState(0);
   const off = disabled || loading || success;
   /** Occupé : la forme ne change pas, seul son contenu est remplacé. */
   const busy = loading || success;
   const height = size === 'lg' ? BUTTON_HEIGHT : size === 'md' ? 44 : 36;
-  const r = size === 'lg' ? radius.button : radius.input;
+  // Pilule pour le grand bouton (comme la maquette), rayon de champ pour les petits.
+  const r = size === 'lg' ? height / 2 : radius.input;
 
   const bg =
     variant === 'primary' ? colors.primary
-    : variant === 'secondary' ? colors.surface2
+    : variant === 'secondary' ? colors.surface1
     : variant === 'destructive' ? colors.danger
     : 'transparent';
   const fg = variant === 'primary' ? colors.onPrimary : variant === 'destructive' ? '#FFFFFF' : colors.text;
@@ -210,9 +211,20 @@ export function Button({
           borderWidth: variant === 'secondary' || variant === 'outline' ? 1 : 0,
           borderColor: colors.border,
         },
+        /*
+         * PROFONDEUR (Crème) : le bouton principal a une ombre d'encre, le
+         * secondaire l'ombre douce des cartes. En Nuit, rien : la lumière du
+         * bouton crème suffit à le détacher.
+         */
+        mode === 'light' && !disabled && variant === 'primary' ? { shadowColor: colors.primary, shadowOpacity: 0.24, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4 } : null,
+        mode === 'light' && !disabled && variant === 'secondary' ? elevation : null,
         style,
       ]}
     >
+      {/* Reflet du haut : la lumière accroche le bouton, il prend du volume. */}
+      {variant === 'primary' || variant === 'destructive' ? (
+        <View pointerEvents="none" style={{ position: 'absolute', left: 1, right: 1, top: 1, height: height / 2, borderTopLeftRadius: r, borderTopRightRadius: r, backgroundColor: mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)' }} />
+      ) : null}
       {sheen && !off ? <Sheen color={fg} radius={r} /> : null}
       {/*
         Le libellé reste TOUJOURS monté, seulement rendu invisible pendant le
@@ -222,7 +234,7 @@ export function Button({
       */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], opacity: busy ? 0 : 1 }}>
         {icon ? <Icon name={icon} size={size === 'sm' || dense ? 16 : 20} color={fg} /> : null}
-        <Text variant={size === 'sm' || dense ? 'caption' : 'body'} style={{ color: fg }} numberOfLines={1}>{label}</Text>
+        <Text variant={size === 'sm' || dense ? 'caption' : 'bodyStrong'} style={{ color: fg }} numberOfLines={1}>{label}</Text>
       </View>
       {busy ? (
         <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
@@ -247,8 +259,21 @@ export function Button({
 }
 
 /** Bouton icône rond (48 × 48, zone tactile minimale §2.6). */
-export function IconButton({ icon, onPress, label, tone = 'surface', disabled }: { icon: IconName; onPress?: () => void; /** Label lecteur d'écran — obligatoire (§8). */ label: string; tone?: 'surface' | 'ghost' | 'primary'; disabled?: boolean }) {
-  const { colors } = useTheme();
+export function IconButton({ icon, onPress, label, tone = 'surface', disabled }: { icon: IconName; onPress?: () => void; /** Label lecteur d'écran — obligatoire (§8). */ label: string; tone?: 'surface' | 'ghost' | 'primary' | 'glass'; disabled?: boolean }) {
+  const { colors, mode, elevation } = useTheme();
+  if (tone === 'glass') {
+    /*
+     * VERRE : un disque de 40 px (surface claire, liseré, ombre douce en Crème)
+     * dans une zone tactile de 48 — le bouton retour des écrans, comme la maquette.
+     */
+    return (
+      <Pressable onPress={onPress} disabled={disabled} accessibilityLabel={label} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.4 : 1 }}>
+        <View style={[{ width: 40, height: 40, borderRadius: 20, backgroundColor: mode === 'dark' ? 'rgba(255,244,230,0.08)' : 'rgba(255,251,245,0.85)', borderWidth: 1, borderColor: colors.border, borderTopColor: colors.rim, alignItems: 'center', justifyContent: 'center' }, mode === 'dark' ? null : elevation]}>
+          <Icon name={icon} size={20} color={colors.text} />
+        </View>
+      </Pressable>
+    );
+  }
   const bg = tone === 'primary' ? colors.primary : tone === 'surface' ? colors.surface2 : 'transparent';
   const fg = tone === 'primary' ? colors.onPrimary : colors.text;
   return (

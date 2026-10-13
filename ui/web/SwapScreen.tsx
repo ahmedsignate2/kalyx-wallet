@@ -388,7 +388,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
   return (
     <View style={flowRoot}>
       <View style={{ paddingHorizontal: SCREEN_MARGIN, height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <IconButton icon="back" label={t('back')} tone="ghost" onPress={onClose} />
+        <IconButton icon="back" label={t('back')} tone="glass" onPress={onClose} />
         <Text variant="title2" style={{ flex: 1 }}>{isBridge ? t('bridgeAction') : t('swapAction')}</Text>
         {quote && countdownActive && !stale ? <TickerCountdownRing ticker={countdown} total={QUOTE_TTL_S} /> : null}
       </View>

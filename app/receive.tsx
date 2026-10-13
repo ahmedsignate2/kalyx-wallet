@@ -108,7 +108,7 @@ function ReceiveInner() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenDunes />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => goBack()} />
+        <IconButton icon="back" label={t("back")} tone="glass" onPress={() => goBack()} />
         <Text variant="title2" style={{ flex: 1 }}>{t("receive")}</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[5] }}>

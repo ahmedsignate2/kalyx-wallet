@@ -13,7 +13,7 @@ import { useT } from '../../lib/settingsStore';
 export function Chip({ label, selected, onPress, icon }: { label: string; selected?: boolean; onPress?: () => void; icon?: IconName }) {
   const { colors } = useTheme();
   const inner = (
-    <View style={{ height: 32, paddingHorizontal: space[3], borderRadius: radius.chip, backgroundColor: selected ? colors.primary : colors.surface2, borderWidth: 1, borderColor: selected ? colors.primary : colors.border, flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
+    <View style={{ height: 34, paddingHorizontal: space[4], borderRadius: radius.round, backgroundColor: selected ? colors.primary : colors.surface2, borderWidth: 1, borderColor: selected ? colors.primary : colors.border, flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
       {icon ? <Icon name={icon} size={14} color={selected ? colors.onPrimary : colors.text} /> : null}
       <Text variant="caption" style={{ color: selected ? colors.onPrimary : colors.text }}>{label}</Text>
     </View>

@@ -131,7 +131,7 @@ function EarnScreenInner() {
         {/* En-tête */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), minHeight: 48 }}>
           {/* Hors de la barre d'onglets : on y arrive par la tuile « Gagner », on en repart par ici. */}
-          <IconButton icon="back" label={t('back')} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/home'))} />
+          <IconButton icon="back" label={t('back')} tone="glass" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/home'))} />
           <View style={{ flex: 1 }}>
             <Text style={typography.title}>{t('earnTitle')}</Text>
           </View>

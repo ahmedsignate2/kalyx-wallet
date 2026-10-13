@@ -147,7 +147,7 @@ export default function SolanaRequestScreen() {
           gap: space[2],
         }}
       >
-        <IconButton icon="back" label={t('back')} tone="ghost" onPress={close} />
+        <IconButton icon="back" label={t('back')} tone="glass" onPress={close} />
         <Text variant="title2">{t('qrSolanaTxRequest')}</Text>
       </View>
 
