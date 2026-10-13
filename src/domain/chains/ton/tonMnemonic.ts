@@ -41,6 +41,7 @@ import { pbkdf2 } from '@noble/hashes/pbkdf2';
 import { utf8ToBytes } from '@noble/hashes/utils';
 import { wordlist } from '@scure/bip39/wordlists/english';
 import { pbkdf2Yielding } from '../../../crypto/pbkdf2Yielding';
+import { withKdf } from '../../../crypto/kdfBackend';
 
 /** Sel de la dérivation de clé. */
 const SALT_KEYSTORE = 'TON default seed';
@@ -87,7 +88,8 @@ function isBasicSeed(entropy: Uint8Array): boolean {
 
 /** `isBasicSeed`, sans figer l'interface (cf. `pbkdf2Yielding`). Même résultat. */
 async function isBasicSeedAsync(entropy: Uint8Array): Promise<boolean> {
-  const h = await pbkdf2Yielding(sha512, entropy, utf8ToBytes(SALT_SEED_VERSION), { c: BASIC_SEED_ITERATIONS, dkLen: 64 });
+  const salt = utf8ToBytes(SALT_SEED_VERSION);
+  const h = await withKdf((b) => b.pbkdf2Sha512(entropy, salt, BASIC_SEED_ITERATIONS, 64), () => pbkdf2Yielding(sha512, entropy, salt, { c: BASIC_SEED_ITERATIONS, dkLen: 64 }));
   return h[0] === 0;
 }
 
@@ -178,7 +180,9 @@ export async function tonSeedFromMnemonicAsync(mnemonic: string, password = ''):
   const entropy = mnemonicToEntropy(words, password);
   let seed: Uint8Array | undefined;
   try {
-    seed = await pbkdf2Yielding(sha512, entropy, utf8ToBytes(SALT_KEYSTORE), { c: ITERATIONS, dkLen: 64 });
+    // Natif si disponible (100 000 tours : instantané au lieu de plusieurs secondes), sinon par tranches.
+    const salt = utf8ToBytes(SALT_KEYSTORE);
+    seed = await withKdf((b) => b.pbkdf2Sha512(entropy, salt, ITERATIONS, 64), () => pbkdf2Yielding(sha512, entropy, salt, { c: ITERATIONS, dkLen: 64 }));
     // Les 32 PREMIERS octets, et seulement eux.
     return seed.slice(0, 32);
   } finally {

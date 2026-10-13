@@ -202,6 +202,8 @@ const config: ExpoConfig = {
     ['expo-secure-store', { faceIDPermission: FACE_ID_TEXT }],
     ['expo-local-authentication', { faceIDPermission: FACE_ID_TEXT }],
     'expo-localization',
+    // Calcul natif de scrypt / PBKDF2 (lib/nativeKdf) : le plugin relève la cible iOS au minimum du module si besoin.
+    'react-native-quick-crypto',
     // Bloque tout trafic HTTP en clair au niveau OS (déjà le comportement par
     // défaut depuis Android 9/API 28, rendu explicite ici) : tous les RPC et
     // API (marché, backend) doivent être en https:// ou wss://.

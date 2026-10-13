@@ -20,7 +20,7 @@
  */
 import { gcm } from '@noble/ciphers/aes';
 import { utf8ToBytes, bytesToUtf8, bytesToHex, hexToBytes } from '@noble/hashes/utils';
-import { BACKUP_KDF, decryptSecret, assertKdfParams, deriveKey, type EncryptedVault } from '../../security/vault';
+import { backupKdf, decryptSecret, assertKdfParams, deriveKey, type EncryptedVault } from '../../security/vault';
 import { getRandomBytes } from '../../crypto/random';
 import { validateMnemonic } from '../../crypto/mnemonic';
 import { classifyRecoveryPhrase } from '../keys/recoveryPhrase';
@@ -180,7 +180,7 @@ export function newBackupId(): string {
 }
 
 /**
- * Emballe `bdk‖mk` sous le mot de passe (scrypt BACKUP_KDF, puis AES-256-GCM).
+ * Emballe `bdk‖mk` sous le mot de passe (scrypt `backupKdf()`, puis AES-256-GCM).
  *
  * C'est le SEUL scrypt de la v3 : il ne se refait que lorsque le mot de passe
  * change, pas à chaque sauvegarde.
@@ -190,7 +190,8 @@ export async function wrapBackupKeys(keys: BackupKeys, password: string): Promis
   assertKey(keys.mk);
   const salt = getRandomBytes(16);
   const nonce = getRandomBytes(12);
-  const kek = await deriveKey(password, salt, BACKUP_KDF);
+  const kdf = await backupKdf(); // renforcé si le calcul est natif (src/security/vault)
+  const kek = await deriveKey(password, salt, kdf);
   const pt = new Uint8Array(2 * KEY_LEN);
   pt.set(keys.bdk, 0);
   pt.set(keys.mk, KEY_LEN);
@@ -202,7 +203,7 @@ export async function wrapBackupKeys(keys: BackupKeys, password: string): Promis
     kek.fill(0);
     pt.fill(0);
   }
-  return { kdf: 'scrypt', N: BACKUP_KDF.N, r: BACKUP_KDF.r, p: BACKUP_KDF.p, salt: bytesToHex(salt), nonce: bytesToHex(nonce), ct: bytesToHex(ct) };
+  return { kdf: 'scrypt', N: kdf.N, r: kdf.r, p: kdf.p, salt: bytesToHex(salt), nonce: bytesToHex(nonce), ct: bytesToHex(ct) };
 }
 
 /**

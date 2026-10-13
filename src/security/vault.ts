@@ -16,6 +16,7 @@ import { utf8ToBytes, bytesToUtf8, bytesToHex, hexToBytes } from '@noble/hashes/
 import { getRandomBytes } from '../crypto/random';
 import { WalletError } from '../domain/errors';
 import { yieldToUi } from '../crypto/yieldToUi';
+import { kdfBackend, withKdf } from '../crypto/kdfBackend';
 
 export interface EncryptedVault {
   v: 1;
@@ -36,6 +37,42 @@ const DEFAULT_KDF = { N: 1 << 14, r: 8, p: 1, dkLen: 32 };
 // Mesuré sur mobile : 2^17 peut ne jamais rendre la main sur certains
 // appareils. Les paramètres restent stockés dans chaque export.
 export const BACKUP_KDF = { N: 1 << 15, r: 8, p: 1, dkLen: 32 };
+
+/*
+ * RÉGLAGES RENFORCÉS, quand le calcul est natif (src/crypto/kdfBackend).
+ *
+ * Le natif fait le même scrypt 10 à 30 fois plus vite que Hermes : une partie
+ * de ce gain est rendue à la SÉCURITÉ (chaque essai d'un attaquant coûte
+ * d'autant plus), le reste à la vitesse. Réglés pour les téléphones d'ENTRÉE
+ * DE GAMME : mémoire par calcul = 128 × N × r octets.
+ *  - code PIN : 2^15 → 32 Mo, deux fois plus coûteux qu'avant. Le code lui-même
+ *    est surtout protégé par le trousseau du téléphone et le blocage après
+ *    plusieurs essais ; inutile d'alourdir le déverrouillage.
+ *  - mot de passe de sauvegarde : 2^16 → 64 Mo, deux fois plus coûteux. Ce
+ *    fichier peut quitter le téléphone : c'est là que la difficulté compte.
+ *    Pas 2^17 (128 Mo) : refusé ou tué sur des appareils à 2-3 Go de mémoire,
+ *    et 15 à 30 s si le fichier doit s'ouvrir là où le natif manque (web).
+ * Chaque coffre et chaque sauvegarde porte SES réglages : les anciens
+ * s'ouvrent toujours. Sans moteur natif, on garde les réglages d'avant.
+ */
+export const PIN_KDF_NATIVE = { N: 1 << 15, r: 8, p: 1, dkLen: 32 };
+export const BACKUP_KDF_NATIVE = { N: 1 << 16, r: 8, p: 1, dkLen: 32 };
+
+/** Réglages du coffre PIN pour un NOUVEAU chiffrement. */
+export async function pinKdf(): Promise<{ N: number; r: number; p: number; dkLen: number }> {
+  return (await kdfBackend()) ? PIN_KDF_NATIVE : DEFAULT_KDF;
+}
+
+/** Réglages d'une NOUVELLE sauvegarde (mot de passe). */
+export async function backupKdf(): Promise<{ N: number; r: number; p: number; dkLen: number }> {
+  return (await kdfBackend()) ? BACKUP_KDF_NATIVE : BACKUP_KDF;
+}
+
+/** Un coffre chiffré avec des réglages plus faibles que ceux d'aujourd'hui (à rechiffrer au prochain déverrouillage). */
+export async function vaultNeedsUpgrade(vault: { N: number; r: number; p: number }): Promise<boolean> {
+  const k = await pinKdf();
+  return vault.N < k.N && vault.r <= k.r;
+}
 
 /**
  * BORNES des paramètres scrypt LUS dans un coffre ou une sauvegarde.
@@ -64,23 +101,36 @@ export async function deriveKey(
   salt: Uint8Array,
   params: { N: number; r: number; p: number },
 ): Promise<Uint8Array> {
-  await yieldToUi();
-  return scryptAsync(utf8ToBytes(pin.normalize('NFKC')), salt, {
-    N: params.N,
-    r: params.r,
-    p: params.p,
-    dkLen: DEFAULT_KDF.dkLen,
-    // scrypt rend la main tous les `asyncTick` ms pour ne pas figer l'UI.
-    asyncTick: 120,
-  });
+  const password = utf8ToBytes(pin.normalize('NFKC'));
+  try {
+    return await withKdf(
+      // Natif : même scrypt, hors du fil JavaScript.
+      (b) => b.scrypt(password, salt, { N: params.N, r: params.r, p: params.p, dkLen: DEFAULT_KDF.dkLen }),
+      async () => {
+        await yieldToUi();
+        return scryptAsync(password, salt, {
+          N: params.N,
+          r: params.r,
+          p: params.p,
+          dkLen: DEFAULT_KDF.dkLen,
+          // scrypt rend la main tous les `asyncTick` ms pour ne pas figer l'UI.
+          asyncTick: 120,
+        });
+      },
+    );
+  } finally {
+    password.fill(0);
+  }
 }
 
 /** Chiffre un secret (seed) sous le PIN. Sel + nonce aléatoires à chaque appel. */
 export async function encryptSecret(
   plaintext: string,
   pin: string,
-  kdf: { N: number; r: number; p: number } = DEFAULT_KDF,
+  kdfParams?: { N: number; r: number; p: number },
 ): Promise<EncryptedVault> {
+  // Sans réglage imposé : ceux du jour (renforcés si le calcul est natif).
+  const kdf = kdfParams ?? (await pinKdf());
   const salt = getRandomBytes(16);
   const nonce = getRandomBytes(12);
   const key = await deriveKey(pin, salt, kdf);

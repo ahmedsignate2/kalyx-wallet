@@ -467,7 +467,44 @@ export async function settlePendingPinChange(): Promise<void> {
  * écrits, journal effacé. Une écriture qui échoue remet les anciens ; une app
  * tuée entre-temps les retrouve au lancement.
  */
-export async function commitPinChange(
+/*
+ * VERROU D'ÉCRITURE DES COFFRES. Le rechiffrement en fond d'un coffre aux
+ * réglages renforcés (`upgradeVaultIfUnchanged`) ne doit JAMAIS s'intercaler
+ * dans un changement de code ou une suppression : il réécrirait un coffre sous
+ * l'ancien code après le changement, ou ressusciterait le coffre d'un
+ * portefeuille supprimé. Ces opérations passent une à une.
+ */
+let vaultChain: Promise<unknown> = Promise.resolve();
+function withVaultWrite<T>(fn: () => Promise<T>): Promise<T> {
+  const run = vaultChain.then(fn, fn);
+  vaultChain = run.catch(() => {});
+  return run;
+}
+
+/**
+ * Remplace un coffre par sa version RECHIFFRÉE (même secret, même code,
+ * réglages plus forts) — seulement s'il n'a pas bougé depuis sa lecture et
+ * qu'aucun changement de code n'est en attente. Rend `false` sinon : rien
+ * n'est écrit, le coffre d'origine reste valable.
+ */
+export function upgradeVaultIfUnchanged(id: string, read: EncryptedVault, next: EncryptedVault): Promise<boolean> {
+  return withVaultWrite(async () => {
+    if (await kvGet(K_PIN_CHANGE, base).catch(() => 'unknown')) return false;
+    const cur = await loadVault(id);
+    if (!cur || cur.ct !== read.ct || cur.salt !== read.salt || cur.nonce !== read.nonce) return false;
+    await writeVault(id, next);
+    return true;
+  });
+}
+
+export function commitPinChange(
+  before: { id: string; vault: EncryptedVault }[],
+  after: { id: string; vault: EncryptedVault }[],
+): Promise<void> {
+  return withVaultWrite(() => commitPinChangeNow(before, after));
+}
+
+async function commitPinChangeNow(
   before: { id: string; vault: EncryptedVault }[],
   after: { id: string; vault: EncryptedVault }[],
 ): Promise<void> {
@@ -490,10 +527,12 @@ export async function wipeBackupKeyVault(): Promise<void> {
 }
 
 /** Supprime un portefeuille précis (coffre + comptes + biométrie). */
-export async function wipeWallet(id: string): Promise<void> {
-  // Un coffre supprimé pendant que le journal attend reviendrait à sa remise.
-  await settlePendingPinChange();
-  await wipeWalletKeys(id);
+export function wipeWallet(id: string): Promise<void> {
+  return withVaultWrite(async () => {
+    // Un coffre supprimé pendant que le journal attend reviendrait à sa remise.
+    await settlePendingPinChange();
+    await wipeWalletKeys(id);
+  });
 }
 
 async function wipeWalletKeys(id: string): Promise<void> {
@@ -508,12 +547,14 @@ async function wipeWalletKeys(id: string): Promise<void> {
 }
 
 /** Réinitialisation totale (tous les portefeuilles + la liste). */
-export async function wipeAll(list: WalletMeta[]): Promise<void> {
-  // Tout disparaît : un changement de PIN en attente n'a plus rien à remettre.
-  await clearPinChangeJournal();
-  await Promise.all([
-    ...list.map((w) => wipeWalletKeys(w.id)),
-    wipeWalletKeys('primary'),
-    kvDel(K_WALLETS, base),
-  ]);
+export function wipeAll(list: WalletMeta[]): Promise<void> {
+  return withVaultWrite(async () => {
+    // Tout disparaît : un changement de PIN en attente n'a plus rien à remettre.
+    await clearPinChangeJournal();
+    await Promise.all([
+      ...list.map((w) => wipeWalletKeys(w.id)),
+      wipeWalletKeys('primary'),
+      kvDel(K_WALLETS, base),
+    ]);
+  });
 }
