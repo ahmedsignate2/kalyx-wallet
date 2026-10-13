@@ -25,14 +25,13 @@ import { StatusBar } from 'expo-status-bar';
 import { Text, Button, Pressable, Checkbox, Pressable as KPressable } from '../ui/kit';
 import { Landscape } from '../ui/Landscape';
 import { KalyxLogoIgnite } from '../ui/KalyxLogo';
-import { type IconName } from '../ui/icon';
-import { useTheme, OnSky } from '../ui/theme';
-import { space, SCREEN_MARGIN, fontSize, radii, skyPhaseAt } from '../ui/tokens';
+import { Icon, type IconName } from '../ui/icon';
+import { useTheme, OnSky, skyColors as sky } from '../ui/theme';
+import { space, SCREEN_MARGIN, fontSize, fontFamily, radii, skyPhaseAt, type ActionTint } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { haptic } from '../lib/haptics';
 import { isDriveConfigured } from '../lib/googleDrive';
-import { IconDisc } from '../ui/nova';
 
 /** Rythme de l'entrée, en millisecondes depuis l'ouverture de l'écran. */
 /*
@@ -53,7 +52,8 @@ const CEREMONY_SCALE = 1.45;
 const STAGGER = 95;
 
 /** Un argument, avec son propre décalage d'entrée. */
-function Argument({ icon, title, sub, delay, reduced }: { icon: IconName; title: string; sub: string; delay: number; reduced: boolean }) {
+function Argument({ icon, tint, title, sub, delay, reduced }: { icon: IconName; tint: ActionTint; title: string; sub: string; delay: number; reduced: boolean }) {
+  const { tints } = useTheme();
   const v = useSharedValue(reduced ? 1 : 0);
   useEffect(() => {
     if (reduced) { v.value = 1; return; }
@@ -62,9 +62,12 @@ function Argument({ icon, title, sub, delay, reduced }: { icon: IconName; title:
   const style = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ translateY: (1 - v.value) * 14 }] }));
   return (
     <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[3] }, style]}>
-      <IconDisc name={icon} size={38} />
+      {/* Carré teinté du sujet, comme la maquette. */}
+      <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: tints[tint].bg, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={22} color={tints[tint].ink} />
+      </View>
       <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="body">{title}</Text>
+        <Text variant="bodyStrong">{title}</Text>
         <Text variant="caption" tone="secondary" style={{ lineHeight: 18 }}>{sub}</Text>
       </View>
     </Animated.View>
@@ -136,10 +139,10 @@ export default function Welcome() {
 
   /** Les arguments ne s'affichent que s'il reste la place : les actions passent avant. */
   const showProps = winH >= 760;
-  const PROPS: { icon: IconName; title: string; sub: string }[] = [
-    { icon: 'security', title: t('propNonCustodial'), sub: t('propNonCustodialSub') },
-    { icon: 'exchange', title: t('propSwap'), sub: t('propSwapSub') },
-    { icon: 'nft', title: t('propTokens'), sub: t('propTokensSub') },
+  const PROPS: { icon: IconName; tint: ActionTint; title: string; sub: string }[] = [
+    { icon: 'security', tint: 'send', title: t('propNonCustodial'), sub: t('propNonCustodialSub') },
+    { icon: 'exchange', tint: 'swap', title: t('propSwap'), sub: t('propSwapSub') },
+    { icon: 'nft', tint: 'receive', title: t('propTokens'), sub: t('propTokensSub') },
   ];
 
   /** Garde le consentement obligatoire, sans jamais présenter un bouton mort. */
@@ -176,19 +179,18 @@ export default function Welcome() {
           instant, et le tout redescend à sa taille normale quand le nom monte.
         */}
         <OnSky>
-        <View onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.y + e.nativeEvent.layout.height); setHeroH((c) => (c === h ? c : h)); }} style={{ flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center', paddingBottom: space[6] }}>
-          <Animated.View style={ceremonyStyle} pointerEvents="none">
-            <KalyxLogoIgnite size={84} reduced={reduced} delay={IGNITE.delay} stagger={IGNITE.stagger} alive />
-          </Animated.View>
-          <Animated.View style={[{ alignItems: 'center', width: '100%', marginTop: space[4] }, nameStyle]}>
-            <Text variant="title1" style={{ fontSize: fontSize.h1, lineHeight: 40, letterSpacing: 1.5 }}>Kalyx</Text>
-          </Animated.View>
-          <Animated.View style={[{ alignItems: 'center', width: '100%' }, taglineStyle]}>
-            <Text
-              variant="bodySecondary"
-              tone="secondary"
-              style={{ marginTop: space[2], textAlign: 'center', maxWidth: 300, fontSize: fontSize.base, lineHeight: 22 }}
-            >
+        <View onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.y + e.nativeEvent.layout.height); setHeroH((c) => (c === h ? c : h)); }} style={{ flex: 1, minHeight: 0, justifyContent: 'flex-start', paddingTop: space[6], paddingBottom: space[6] }}>
+          {/* Comme la maquette : le logo et le nom en haut à gauche, le slogan en grand dessous. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+            <Animated.View style={ceremonyStyle} pointerEvents="none">
+              <KalyxLogoIgnite size={46} reduced={reduced} delay={IGNITE.delay} stagger={IGNITE.stagger} alive />
+            </Animated.View>
+            <Animated.View style={nameStyle}>
+              <Text variant="title1" style={{ fontSize: fontSize.h1, lineHeight: 40, letterSpacing: 0.5 }}>Kalyx</Text>
+            </Animated.View>
+          </View>
+          <Animated.View style={[{ width: '100%' }, taglineStyle]}>
+            <Text style={{ marginTop: space[5], maxWidth: 320, fontSize: fontSize.h2, lineHeight: 36, fontFamily: fontFamily.semibold, color: sky.text, letterSpacing: -0.4 }}>
               {t('tagline')}
             </Text>
           </Animated.View>

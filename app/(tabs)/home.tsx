@@ -547,7 +547,7 @@ export default function Home() {
         Il reste visible quand le solde est masqué : il ne dit rien du montant
         (le graphique, lui, disparaît).
       */}
-      <Landscape width={screenW} height={(heroH || insets.top + 380) + 40} phase={phase} scrollY={scrollY} />
+      <Landscape width={screenW} height={(heroH || insets.top + 380) + 40} phase={phase} scrollY={scrollY} sunAt={0.55} veil />
       {/*
         Sur le ciel, la barre d'état est claire quel que soit le thème ; dès que
         l'en-tête compact (fond de l'app) la recouvre, elle reprend la teinte du
