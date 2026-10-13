@@ -13,7 +13,9 @@ import {
   entropyToMnemonic as scureEntropyToMnemonic,
 } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
+import { utf8ToBytes } from '@noble/hashes/utils';
 import { yieldToUi } from './yieldToUi';
+import { withKdf } from './kdfBackend';
 
 /** 128 bits = 12 mots, 256 bits = 24 mots. */
 export type MnemonicStrength = 128 | 256;
@@ -33,8 +35,27 @@ export async function mnemonicToSeed(
   mnemonic: string,
   passphrase = '',
 ): Promise<Uint8Array> {
-  await yieldToUi();
-  return scureToSeed(normalize(mnemonic), passphrase);
+  const m = normalize(mnemonic);
+  return withKdf(
+    /*
+     * Natif : la graine BIP-39 telle que @scure la calcule — PBKDF2-HMAC-SHA512,
+     * 2 048 tours, mot de passe = la phrase en NFKD, sel = « mnemonic » +
+     * phrase secrète en NFKD (BIP-39). L'auto-test du moteur compare à @scure.
+     */
+    async (b) => {
+      if (!validateMnemonic(m)) return scureToSeed(m, passphrase); // même erreur que @scure pour une phrase invalide
+      const pw = utf8ToBytes(m.normalize('NFKD'));
+      try {
+        return await b.pbkdf2Sha512(pw, utf8ToBytes(('mnemonic' + passphrase).normalize('NFKD')), 2048, 64);
+      } finally {
+        pw.fill(0);
+      }
+    },
+    async () => {
+      await yieldToUi();
+      return scureToSeed(m, passphrase);
+    },
+  );
 }
 
 /** Variante synchrone (utile en test / hors chemin UI critique). */

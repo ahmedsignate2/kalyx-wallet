@@ -36,6 +36,14 @@ import { useTokenPrefs } from '../lib/tokenPrefsStore';
 import { DeepLinks } from '../ui/DeepLinks';
 import { Splash } from '../ui/Splash';
 import { useTheme, fontSize, radii } from '../ui/theme';
+import { installNativeKdf } from '../lib/nativeKdf';
+
+/*
+ * Calcul natif de scrypt / PBKDF2 (déverrouillage, sauvegardes, graines) :
+ * installé AVANT tout rendu, pour que le premier déverrouillage en profite.
+ * Auto-testé contre @noble ; sans module natif, rien ne change (lib/nativeKdf).
+ */
+installNativeKdf();
 
 console.log('[Kalyx] _layout.tsx chargé');
 

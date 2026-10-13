@@ -107,6 +107,7 @@ import {
   BACKUP_KEY_VAULT_ID,
   wipeWallet,
   wipeAll,
+  upgradeVaultIfUnchanged,
   saveContacts,
   saveRecentRecipients,
   type StoredAccount,
@@ -118,6 +119,7 @@ import { biometricWriteIsSilent, clearBiometricPin, hasBiometricPin, readBiometr
 import { submitSolanaSigned } from './solanaSubmit';
 import { KV_DEVICE_ONLY, kvGet, kvSet, kvDel } from './kv';
 import { isDecoySession, setDecoySession } from './sessionMode';
+import { vaultNeedsUpgrade } from '../src/security/vault';
 import { aura } from './aura';
 import { isLegacyDefaultName } from './walletNames';
 import { backupDigest, backupShape, isBackupStale } from './backupDigest';
@@ -753,9 +755,37 @@ async function readBiometricPin(prompt: string = biometricPrompt()): Promise<str
  * l'entrée ne correspond plus aux coffres (code changé sans elle) : elle est
  * effacée comme une clé invalidée, et le compteur anti-bruteforce n'est PAS touché.
  */
-async function decryptWithBiometricPin(vault: EncryptedVault, pin: string): Promise<string> {
+/**
+ * COFFRE RENFORCÉ AU FIL DE L'EAU. Un coffre chiffré avec les réglages d'avant
+ * (scrypt 2^14) est rechiffré, EN FOND, avec ceux d'aujourd'hui (2^15 quand le
+ * calcul est natif) dès qu'il vient d'être ouvert : le secret et le code sont
+ * en main, et l'utilisateur n'a rien à faire. Jamais pendant un changement de
+ * code ni sur un coffre qui a bougé (secureStore.upgradeVaultIfUnchanged) ;
+ * un échec laisse simplement l'ancien coffre, toujours valable.
+ */
+const upgrading = new Set<string>();
+function upgradeVaultLater(id: string, vault: EncryptedVault, secret: string, pin: string): void {
+  if (isDecoySession() || upgrading.has(id)) return;
+  upgrading.add(id);
+  void (async () => {
+    try {
+      if (!(await vaultNeedsUpgrade(vault))) return;
+      const next = await encryptSecret(secret, pin);
+      const done = await upgradeVaultIfUnchanged(id, vault, next);
+      console.log('[KALYX-VAULT] upgrade', { walletId: id, done, N: next.N });
+    } catch {
+      // Ancien coffre conservé : il s'ouvre toujours.
+    } finally {
+      upgrading.delete(id);
+    }
+  })();
+}
+
+async function decryptWithBiometricPin(vault: EncryptedVault, pin: string, id?: string): Promise<string> {
   try {
-    return await decryptSecret(vault, pin);
+    const secret = await decryptSecret(vault, pin);
+    if (id) upgradeVaultLater(id, vault, secret, pin);
+    return secret;
   } catch (e) {
     if (isWalletError(e) && e.code === 'WRONG_PIN') {
       console.log('[KALYX-VAULT] bio-pin:stale');
@@ -1187,7 +1217,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
       if (!vault) throw new WalletError('VAULT_MISSING', 'Aucun coffre');
       const pin = await readBiometricPin();
       biometricRead(unlock); // clé lue POUR CETTE demande ; abandonnée entre-temps → rien n'est rendu
-      return decryptWithBiometricPin(vault, pin);
+      return decryptWithBiometricPin(vault, pin, id);
     }
     /*
      * ANCIEN SCHÉMA (copie par portefeuille), gardé pour la migration : remplacé
@@ -1261,6 +1291,7 @@ async function revealMnemonic(id: string, unlock: Unlock): Promise<string> {
   try {
     const secret = await decryptSecret(vault, unlock.pin);
     console.log('[KALYX-VAULT] reveal:pin-ok');
+    upgradeVaultLater(id, vault, secret, unlock.pin);
     useWallet.setState({ failedAttempts: 0, lastFailedAt: 0 });
     await saveLockState(0, 0);
     return secret;
