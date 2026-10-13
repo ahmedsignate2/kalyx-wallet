@@ -6,8 +6,11 @@
  * l'écran quitté était détruit, l'arrivant remonté de zéro (listes, graphiques,
  * lectures du cache) pendant l'animation — d'où les saccades et les instants de
  * fond nu. Ici chaque onglet est monté une fois puis GARDÉ : y revenir est
- * immédiat, avec son défilement et son état. `freezeOnBlur` coupe le rendu des
- * onglets cachés ; le navigateur y garde sa page ouverte sans rechargement.
+ * immédiat, avec son défilement et son état ; le navigateur y garde sa page
+ * ouverte sans rechargement.
+ *
+ * Sans `freezeOnBlur` : avec le glissement entre onglets, un onglet restait
+ * parfois gelé à son retour sur iOS — page blanche jusqu'à repartir et revenir.
  */
 import { Tabs } from 'expo-router/tabs';
 import { Easing } from 'react-native';
@@ -25,7 +28,6 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         lazy: true,
-        freezeOnBlur: true,
         sceneStyle: { backgroundColor: colors.bg },
         // Glissement court + fondu : l'onglet d'arrivée vient du côté où il est dans la barre.
         animation: reduce ? 'none' : 'shift',

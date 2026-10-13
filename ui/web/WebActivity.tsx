@@ -220,6 +220,7 @@ export function WebActivity({ onReceive }: { onReceive: () => void }) {
         networkIcon={onlyChain ? undefined : chainIconUrl(r.tx.chain)}
         tokenLogo={logoOf(r.tx)}
         tokenSeed={r.tx.contract}
+        chainId={r.tx.chain}
         pendingLabel={t('txPending')}
         spamText={r.h.spamReason ? t(SPAM_TEXT[r.h.spamReason]) : undefined}
         onPress={() => setDetail(r)}

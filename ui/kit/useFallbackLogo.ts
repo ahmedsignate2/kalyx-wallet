@@ -8,7 +8,7 @@
  */
 import { useEffect } from 'react';
 import { useTokenStore } from '../../lib/tokenStore';
-import { findAdapterV2 } from '../../src';
+import { chainIconUrl, findAdapterV2 } from '../../src';
 
 export function useFallbackLogo(chainId: string | undefined, address: string | undefined, primary?: string | null): string | undefined {
   const fetchTokens = useTokenStore((s) => s.fetchTokens);
@@ -40,4 +40,16 @@ export function holdingIcon(
   if (h.kind !== 'native') return { logo: h.logo, badge: chainLogo };
   const awayFromHome = chain.nativeSymbol === 'ETH' && h.chainId !== 'ethereum';
   return { logo: h.logo || chainLogo, badge: awayFromHome ? chainLogo : null };
+}
+
+/**
+ * Logo de la PIÈCE NATIVE d'un réseau quand le prix (CoinGecko) n'en a pas
+ * donné : le logo embarqué du réseau d'origine. BTC prend celui de Bitcoin,
+ * SOL celui de Solana ; l'ETH d'une L2 prend celui d'Ethereum, jamais le carré
+ * de Base. Avant, ces lignes retombaient sur une lettre (« B », « S »).
+ */
+export function nativeCoinLogo(chainId: string | undefined): string | undefined {
+  if (!chainId) return undefined;
+  const sym = findAdapterV2(chainId)?.config.nativeSymbol;
+  return chainIconUrl(sym === 'ETH' ? 'ethereum' : chainId);
 }

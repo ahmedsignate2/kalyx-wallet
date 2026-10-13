@@ -281,15 +281,13 @@ export default function RootLayout() {
           screenOptions={{
             headerShown: false, // chaque écran dessine son en-tête (ui/kit/ScreenHeader)
             /*
-               Les écrans quittés restaient MONTÉS et continuaient de rendre :
-               le halo qui respire, les éclats qui dérivent, l'onde du logo…
-               Toutes ces boucles s'accumulaient au fil de la navigation et se
-               disputaient les images pendant la transition — d'où les
-               micro-saccades. `freezeOnBlur` suspend le rendu d'un écran qui
-               n'a plus le focus, ce que le §3.7 demandait déjà (« pause quand
-               l'écran n'a pas le focus »).
+               PAS DE `freezeOnBlur` (il était activé). Il gelait le rendu React
+               des écrans quittés, mais sur iOS un écran restait parfois GELÉ en
+               revenant dessus — retour rapide, ou retour pendant la transition :
+               écran tout blanc jusqu'à un nouvel aller-retour. Il n'apportait
+               presque rien : les boucles d'animation (halo, paysage, éclats)
+               tournent sur le fil UI de Reanimated, que le gel n'arrête pas.
             */
-            freezeOnBlur: true,
             headerStyle: { backgroundColor: colors.bg },
             headerTintColor: colors.text,
             headerShadowVisible: false,

@@ -23,6 +23,7 @@ import { View } from 'react-native';
 import { ListRow } from './ListRow';
 import { Text } from './Text';
 import { TokenIcon } from './TokenIcon';
+import { nativeCoinLogo, useFallbackLogo } from './useFallbackLogo';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
 import { radius } from '../tokens';
@@ -39,6 +40,7 @@ export function ActivityRow({
   networkIcon,
   tokenLogo,
   tokenSeed,
+  chainId,
   pendingLabel,
   spamText,
   onPress,
@@ -53,6 +55,8 @@ export function ActivityRow({
   tokenLogo?: string | null;
   /** Contrat du token : couleur stable du monogramme quand le logo manque. */
   tokenSeed?: string;
+  /** Réseau de la ligne : logo de repli (liste du réseau, ou pièce native). */
+  chainId?: string;
   /** « En attente », traduit par l'écran (ce composant n'a pas de langue). */
   pendingLabel?: string;
   /** Raison du masquage, traduite, pour une ligne spam affichée. */
@@ -65,12 +69,15 @@ export function ActivityRow({
   const tone = tint ? tints[tint] : null;
   const amountColor = h.tone === 'danger' ? colors.danger : h.tone === 'up' && !muted ? colors.up : muted ? colors.textTertiary : colors.text;
   const badgeColor = h.tone === 'danger' ? colors.danger : h.tone === 'up' ? colors.up : colors.textSecondary;
+  // Logo connu, sinon celui de la liste du réseau (jeton) ou du réseau d'origine (pièce native) : la lettre en dernier.
+  const listed = useFallbackLogo(chainId, tokenSeed, tokenLogo);
+  const logo = listed ?? (!tokenSeed ? nativeCoinLogo(chainId) : undefined);
   const useToken = !!h.symbol && (h.icon === 'send' || h.icon === 'receive' || h.icon === 'exchange' || h.icon === 'alert');
 
   const left = (
     <View style={{ opacity: muted ? 0.5 : 1 }}>
       {useToken ? (
-        <TokenIcon symbol={h.symbol!} logo={tokenLogo ?? undefined} seed={tokenSeed} size={40} />
+        <TokenIcon symbol={h.symbol!} logo={logo} seed={tokenSeed} size={40} />
       ) : (
         <View style={{ width: 40, height: 40, borderRadius: radius.round, backgroundColor: tone ? tone.bg : colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={h.icon} size={18} color={h.tone === 'danger' ? colors.danger : tone ? tone.ink : colors.text} />
