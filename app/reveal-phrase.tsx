@@ -39,7 +39,7 @@ export default function RevealPhrase() {
 
   if (words) {
     return (
-      <Screen layout="form">
+      <Screen scene="top" layout="form">
       <ScreenHeader />
         {/* iOS ne bloque PAS la capture (lib/useNoScreenCapture.ts) : on ne le prétend pas. */}
         <NovaHero icon="phrase" tone="gold" title={t('yourRecoveryPhrase')} subtitle={Platform.OS === 'ios' ? t('dontShareNoCapture') : t('dontShareScreenshotBlocked')} />
@@ -83,7 +83,7 @@ export default function RevealPhrase() {
   }
 
   return (
-    <Screen layout="form">
+    <Screen scene="top" layout="form">
       <ScreenHeader />
       <NovaHero icon="phrase" tone="gold" title={t('revealPhraseTitle')} subtitle={t('confirmIdentityPhrase')} />
       <Card rise delay={160} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>

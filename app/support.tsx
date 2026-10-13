@@ -118,7 +118,7 @@ function Support() {
   };
 
   return (
-    <Screen>
+    <Screen scene="top">
       <ScreenHeader />
       {/* En-tête masqué → le dégradé remonte jusqu'en haut (pas de bandeau noir) */}
       <Stack.Screen options={{ headerShown: false }} />

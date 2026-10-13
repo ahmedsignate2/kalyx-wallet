@@ -8,7 +8,8 @@
  * du premier wallet.
  */
 import { useEffect, useState } from 'react';
-import { View, ScrollView } from 'react-native';
+import { View, ScrollView, useWindowDimensions } from 'react-native';
+import { SceneDunes } from '../ui/Landscape';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { Stack } from 'expo-router';
 import { useResetToHome } from '../lib/nav';
@@ -20,7 +21,7 @@ import { PinPromptModal } from '../ui/PinPromptModal';
 import { Icon } from '../ui/icon';
 import { useTheme, radii } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
-import { FlowDots, IconDisc, Rise, ScreenOrbit, SparkBurst } from '../ui/nova';
+import { FlowDots, HeroOrb, Rise, SparkBurst } from '../ui/nova';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
@@ -28,7 +29,8 @@ import { haptic } from '../lib/haptics';
 import { isWalletError } from '../src';
 
 export default function CreateWallet() {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
+  const { width: winW, height: winH } = useWindowDimensions();
   const t = useT();
   // Fin du parcours : pile vidée jusqu'aux onglets, sans en empiler un second jeu (lib/nav).
   const goHome = useResetToHome();
@@ -124,16 +126,16 @@ export default function CreateWallet() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScreenOrbit top={insets.top + 56} />
+      <SceneDunes width={winW} height={insets.top + Math.min(300, winH * 0.36)} mode={mode} />
       {/* Clavier ouvert (nom du portefeuille) : le bouton « Créer » reste visible, le reste défile. */}
       <KeyboardAvoid style={{ flex: 1 }}>
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + space[4], gap: space[4] }}>
         <ScreenHeader right={<FlowDots step={1} total={2} />} />
 
-        {/* Héros : le disque « créer » au centre de son orbite, qui naît puis tourne. */}
+        {/* Héros : l'orbe « créer », d'où jaillit une gerbe d'éclats. */}
         <View style={{ alignItems: 'center', gap: space[3], paddingVertical: space[4] }}>
-          <View style={{ width: 88, height: 88, alignItems: 'center', justifyContent: 'center' }}>
-            <IconDisc name="create" tone="gold" size={80} />
+          <View style={{ width: 96, height: 96, alignItems: 'center', justifyContent: 'center' }}>
+            <HeroOrb icon="create" size={72} />
             <SparkBurst burstKey="born" count={24} radius={60} />
           </View>
           <Rise delay={80}><Text variant="title1" style={{ textAlign: 'center' }}>{t('createWalletT')}</Text></Rise>

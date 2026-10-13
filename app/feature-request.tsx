@@ -16,7 +16,7 @@ export default function FeatureRequestScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <Screen>
+      <Screen scene="top">
         <ScreenHeader />
         <NovaHero icon="bulb" tone="gold" title={t('communityTitle')} subtitle={t('communityDesc')} />
 

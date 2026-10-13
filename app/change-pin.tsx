@@ -141,7 +141,7 @@ export default function ChangePin() {
   const canNext = !busy && step !== 'confirm' && pin.length >= PIN_MIN;
 
   return (
-    <Screen layout="form">
+    <Screen scene="top" layout="form">
       <ScreenHeader fallback="/menu" right={<FlowDots step={step === 'old' ? 1 : step === 'new' ? 2 : 3} />} />
       {/* Héros Nova : le disque dans son orbite est l'anneau de saisie. Le titre remonte à chaque étape. */}
       <NovaHero key={step} title={title} subtitle={hint}>

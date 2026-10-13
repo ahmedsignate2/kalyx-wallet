@@ -12,19 +12,21 @@
  * retrouvé, afin que l'utilisateur reconnaisse immédiatement ce qu'il récupère.
  */
 import React, { useEffect, useState } from 'react';
-import { View, Pressable as RNPressable } from 'react-native';
+import { View, Pressable as RNPressable, useWindowDimensions } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { Landscape } from '../ui/Landscape';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
 import { Text, Button, AddressGlyph, Halo } from '../ui/kit';
-import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, springs } from '../ui/tokens';
+import { useTheme, OnSky } from '../ui/theme';
+import { space, SCREEN_MARGIN, springs, skyPhaseAt } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { aura } from '../lib/aura';
 import { useResetToHome } from '../lib/nav';
 import { haptic } from '../lib/haptics';
-import { ScreenOrbit, SparkBurst } from '../ui/nova';
+import { SparkBurst } from '../ui/nova';
 
 /** Rythme, en ms : le glyphe d'abord, le sens ensuite. */
 const BEAT = { glyph: 120, title: 760, body: 960, action: 1200 } as const;
@@ -41,6 +43,7 @@ function Fade({ delay, children, reduced }: { delay: number; children: React.Rea
 
 export default function WalletBorn() {
   const { colors } = useTheme();
+  const { width: winW, height: winH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const t = useT();
   const reduced = useReducedMotion();
@@ -75,7 +78,10 @@ export default function WalletBorn() {
     <RNPressable onPress={go} style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Portefeuille déjà créé : revenir au PIN par balayage n'a plus de sens. */}
       <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
-      <ScreenOrbit top={insets.top + 56} />
+      {/* Le premier regard sur son wallet se fait dans le ciel de l'accueil, à son heure. */}
+      <Landscape width={winW} height={winH} phase={skyPhaseAt(new Date().getHours())} sunAt={0.7} />
+      <StatusBar style="light" />
+      <OnSky>
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SCREEN_MARGIN, gap: space[5] }}>
         <View style={{ alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
           <Animated.View style={[{ position: 'absolute' }, haloStyle]} pointerEvents="none">
@@ -98,10 +104,14 @@ export default function WalletBorn() {
           </Text>
         </Fade>
       </View>
+      </OnSky>
       <View style={{ paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + space[5] }}>
-        <Fade delay={BEAT.action} reduced={reduced}>
-          <Button label={t('continueToWallet')} onPress={go} />
-        </Fade>
+        {/* Sur la dune la plus sombre : le bouton du ciel (crème), lisible dans les deux thèmes. */}
+        <OnSky>
+          <Fade delay={BEAT.action} reduced={reduced}>
+            <Button label={t('continueToWallet')} onPress={go} />
+          </Fade>
+        </OnSky>
       </View>
     </RNPressable>
   );

@@ -53,7 +53,7 @@ export default function WatchWallet() {
   };
 
   return (
-    <Screen>
+    <Screen scene="top">
       <ScreenHeader />
       <NovaHero icon="eye" title={t('watchTitle')} subtitle={t('watchHint')} />
       <Card rise delay={120} style={{ gap: spacing(1.5) }}>

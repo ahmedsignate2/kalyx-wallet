@@ -46,7 +46,7 @@ export default function RevealPrivateKey() {
 
   if (pk) {
     return (
-      <Screen layout="form">
+      <Screen scene="top" layout="form">
       <ScreenHeader />
         {/* iOS ne bloque PAS la capture (lib/useNoScreenCapture.ts) : l'avertissement ne le prétend pas. */}
         {/* Le RÉSEAU de la clé : une phrase donne une clé différente par famille (EVM, Bitcoin, Solana). */}
@@ -87,7 +87,7 @@ export default function RevealPrivateKey() {
   }
 
   return (
-    <Screen layout="form">
+    <Screen scene="top" layout="form">
       <ScreenHeader />
       <NovaHero icon="copy" tone="gold" title={t('revealPrivateKeyTitle')} subtitle={isPk ? t('pkImportedConfirm') : t('confirmIdentityPk')} />
       <Card rise delay={160} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
