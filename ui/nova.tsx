@@ -206,7 +206,7 @@ export function ActionTile({ icon, label, tint, onPress, index = 0, disabled, pr
         disabled={disabled}
         haptic="light"
         overshoot
-        pressScale={0.94}
+        pressScale={0.93}
         pressShadow={shadowBase}
         accessibilityRole="button"
         accessibilityLabel={label}

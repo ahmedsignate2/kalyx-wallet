@@ -21,7 +21,7 @@ import { Platform, StyleSheet, View, type LayoutChangeEvent } from 'react-native
 import type { BottomTabBarProps } from 'expo-router/tabs';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Reanimated, { interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Reanimated, { Easing, cancelAnimation, interpolate, useAnimatedProps, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { create } from 'zustand';
 import { useT } from '../lib/settingsStore';
 import type { Key } from '../lib/i18n';
@@ -32,6 +32,10 @@ import { useTheme } from './theme';
 import { Icon, type IconName } from './icon';
 import { Pressable as KPressable, Text } from './kit';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
+
+const AnimatedCircle = Reanimated.createAnimatedComponent(Circle);
+/** Délai de l'appui long du bouton central : l'anneau de progression le remplit exactement. */
+const LONG_PRESS_MS = 320;
 
 export type MainTab = 'home' | 'browser' | 'activity' | 'menu';
 
@@ -77,7 +81,7 @@ function NavItem({ icon, label, on }: { icon: IconName; label: string; on: boole
   useEffect(() => {
     p.value = reduce ? (on ? 1 : 0) : withSpring(on ? 1 : 0, springs.snappy);
   }, [on, reduce, p]);
-  const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.06 * p.value }] }));
+  const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.1 * p.value }, { translateY: -1.5 * p.value }] }));
   return (
     <View style={{ alignItems: 'center', gap: 3 }}>
       <Reanimated.View style={iconStyle}>
@@ -176,6 +180,22 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   useEffect(() => {
     closeFan();
   }, [activeIdx]);
+  /*
+   * APPUI LONG VISIBLE : pendant qu'on garde le doigt sur le bouton central, un
+   * anneau pêche se remplit autour de lui ; plein, l'éventail s'ouvre (avec sa
+   * vibration). On voit le geste arriver au lieu de le deviner.
+   */
+  const hold = useSharedValue(0);
+  const RING_R = ORB / 2 + 3;
+  const RING_C = 2 * Math.PI * RING_R;
+  const ringProps = useAnimatedProps(() => ({ strokeDashoffset: RING_C * (1 - hold.value), strokeOpacity: hold.value > 0.02 ? 1 : 0 }));
+  const holdStart = () => {
+    if (reduce || fanOpen) return;
+    cancelAnimation(hold);
+    hold.value = 0;
+    hold.value = withTiming(1, { duration: LONG_PRESS_MS, easing: Easing.linear });
+  };
+  const holdEnd = () => { cancelAnimation(hold); hold.value = withTiming(0, { duration: 160 }); };
   const scrimStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, open.value) }));
   const orbIconStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${open.value * 90}deg` }] }));
   const swapIconStyle = useAnimatedStyle(() => ({ opacity: 1 - Math.min(1, open.value) }));
@@ -230,7 +250,10 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
             }}
           >
             {slot ? (
-              <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 8, height: NAV_H - 16, width: pillW, borderRadius: radii.lg, backgroundColor: colors.surface2 }, pillStyle]} />
+              <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 8, height: NAV_H - 16, width: pillW, borderRadius: radii.lg, backgroundColor: colors.surface2, alignItems: 'center' }, pillStyle]}>
+                {/* Trait de lumière au pied de l'onglet actif : il glisse avec la pastille. */}
+                <View style={{ position: 'absolute', bottom: 3, width: 16, height: 3, borderRadius: radii.full, backgroundColor: colors.warm }} />
+              </Reanimated.View>
             ) : null}
             {TABS.slice(0, 2).map((it) => (
               <TabButton key={it.key} it={it} active={active} t={t} onPress={() => navigation.navigate(it.key)} />
@@ -246,11 +269,28 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
         {/* ── LE BOUTON SWAP ── */}
         <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: -ORB_RING, alignItems: 'center' }}>
           <View style={{ width: ORB + ORB_RING * 2, height: ORB + ORB_RING * 2, borderRadius: radii.full, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+            {/* L'anneau de progression de l'appui long (au-dessus de la découpe du fond). */}
+            <Svg width={ORB + ORB_RING * 2} height={ORB + ORB_RING * 2} style={StyleSheet.absoluteFill} pointerEvents="none">
+              <AnimatedCircle
+                cx={(ORB + ORB_RING * 2) / 2}
+                cy={(ORB + ORB_RING * 2) / 2}
+                r={RING_R}
+                fill="none"
+                stroke="#F6A57C"
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeDasharray={[RING_C, RING_C]}
+                transform={`rotate(-90 ${(ORB + ORB_RING * 2) / 2} ${(ORB + ORB_RING * 2) / 2})`}
+                animatedProps={ringProps}
+              />
+            </Svg>
             <View style={Platform.OS === 'ios' ? { borderRadius: ORB / 2, shadowColor: dark ? '#000' : '#1E1C2A', shadowOpacity: dark ? 0.45 : 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } } : undefined}>
               <KPressable
                 onPress={() => (fanOpen ? setFan(false) : router.push('/swap'))}
-                onLongPress={() => setFan(!fanOpen)}
-                delayLongPress={320}
+                onLongPress={() => { holdEnd(); setFan(!fanOpen); }}
+                onPressIn={holdStart}
+                onPressOut={holdEnd}
+                delayLongPress={LONG_PRESS_MS}
                 haptic="light"
                 overshoot
                 accessibilityRole="button"
