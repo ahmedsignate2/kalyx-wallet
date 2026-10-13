@@ -28,6 +28,14 @@ export interface CardIssuer {
   chains: readonly string[];
   /** Le fonctionnement en une phrase : clé i18n. */
   modelKey: 'cardModelSafe' | 'cardModelTopUp' | 'cardModelVirtual';
+  /**
+   * Réseaux Kalyx (identifiants de src/domain/chains) sur lesquels la page de
+   * l'émetteur s'ouvre et où l'on montre le solde prêt à dépenser. Le premier
+   * est celui par défaut.
+   */
+  chainIds: readonly string[];
+  /** Stablecoins comptés comme « prêts à dépenser » (symboles). */
+  stables: readonly string[];
 }
 
 const entry = (host: string): CatalogDapp => {
@@ -38,13 +46,28 @@ const entry = (host: string): CatalogDapp => {
 
 export const CARD_ISSUERS: readonly CardIssuer[] = [
   // Dépense des stablecoins depuis un Safe à soi, sans recharge préalable.
-  { id: 'gnosispay', dapp: entry('app.gnosispay.com'), regions: ['eu', 'uk'], chains: ['Gnosis'], modelKey: 'cardModelSafe' },
+  { id: 'gnosispay', dapp: entry('app.gnosispay.com'), regions: ['eu', 'uk'], chains: ['Gnosis'], modelKey: 'cardModelSafe', chainIds: ['gnosis'], stables: ['EURE', 'USDC', 'USDC.E', 'USDCE', 'GBPE'] },
   // Recharge depuis le portefeuille sur plusieurs réseaux EVM.
-  { id: 'holyheld', dapp: entry('app.holyheld.com'), regions: ['eu'], chains: ['Ethereum', 'Base', 'Arbitrum', 'Optimism', 'Polygon'], modelKey: 'cardModelTopUp' },
+  { id: 'holyheld', dapp: entry('app.holyheld.com'), regions: ['eu'], chains: ['Ethereum', 'Base', 'Arbitrum', 'Optimism', 'Polygon'], modelKey: 'cardModelTopUp', chainIds: ['base', 'arbitrum', 'optimism', 'polygon', 'ethereum'], stables: ['USDC', 'USDC.E', 'USDT', 'EURC'] },
   // Carte virtuelle, surtout aux États-Unis ; Solana par WalletConnect.
-  { id: 'spritz', dapp: entry('app.spritz.finance'), regions: ['us'], chains: ['Ethereum', 'Base', 'Polygon', 'Arbitrum', 'Solana'], modelKey: 'cardModelVirtual' },
+  { id: 'spritz', dapp: entry('app.spritz.finance'), regions: ['us'], chains: ['Ethereum', 'Base', 'Polygon', 'Arbitrum', 'Solana'], modelKey: 'cardModelVirtual', chainIds: ['base', 'polygon', 'arbitrum', 'ethereum'], stables: ['USDC', 'USDC.E', 'USDT'] },
 ];
 
 export function cardIssuer(id: string | null | undefined): CardIssuer {
   return CARD_ISSUERS.find((i) => i.id === id) ?? CARD_ISSUERS[0];
+}
+
+/** Réseau d'ouverture : celui choisi s'il est pris en charge par l'émetteur, sinon son réseau par défaut. */
+export function cardChainFor(issuer: CardIssuer, preferred: string | null | undefined): string {
+  return preferred && issuer.chainIds.includes(preferred) ? preferred : issuer.chainIds[0];
+}
+
+/** Total « prêt à dépenser » : les stablecoins VÉRIFIÉS de l'émetteur, sur ce réseau. */
+export function spendableOn<H extends { chainId: string; symbol: string; amount: number; verified?: boolean }>(
+  holdings: readonly H[],
+  issuer: CardIssuer,
+  chainId: string,
+): { total: number; parts: H[] } {
+  const parts = holdings.filter((h) => h.chainId === chainId && h.verified !== false && issuer.stables.includes(h.symbol.toUpperCase()) && h.amount > 0);
+  return { total: parts.reduce((s, h) => s + h.amount, 0), parts };
 }

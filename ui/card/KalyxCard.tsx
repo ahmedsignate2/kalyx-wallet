@@ -45,6 +45,7 @@ export function KalyxCard({
   issuerName,
   backText,
   label,
+  last4,
   width: widthProp,
 }: {
   theme: CardTheme;
@@ -56,6 +57,8 @@ export function KalyxCard({
   backText: string;
   /** Mention sous le logo (« Carte crypto »), traduite. */
   label: string;
+  /** Mémo saisi par l'utilisateur (4 chiffres) : seul fragment de numéro jamais affiché. */
+  last4?: string | null;
   width?: number;
 }) {
   const { width: screenW } = useWindowDimensions();
@@ -109,7 +112,10 @@ export function KalyxCard({
             </View>
             {issuerName ? <Text style={{ color: skin.sub, fontFamily: fontFamily.semibold, fontSize: 12 }} numberOfLines={1}>{issuerName}</Text> : null}
           </View>
-          <Chip colors={skin.chip} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Chip colors={skin.chip} />
+            {last4 ? <Text tabular style={{ color: skin.ink, fontFamily: fontFamily.semibold, fontSize: 17, letterSpacing: 2 }}>•••• {last4}</Text> : null}
+          </View>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
             <View style={{ flexShrink: 1 }}>
               <Text style={{ color: skin.sub, fontFamily: fontFamily.medium, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' }}>{label}</Text>

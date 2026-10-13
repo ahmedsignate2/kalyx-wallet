@@ -40,6 +40,7 @@ import { LogoImage, Text, IconButton, Divider, TokenRow, TokenIcon, AmountDispla
 import { WalletAvatar } from '../../ui/avatarArt';
 import { KalyxLogo } from '../../ui/KalyxLogo';
 import { ActionTile, Pills, TextTabs } from '../../ui/nova';
+import { CardShortcut } from '../../ui/card/CardShortcut';
 import { TonNftSendSheet } from '../../ui/TonNftSendSheet';
 import { useBrowserPresence, hostOf } from '../../lib/browserPresence';
 import { useWallet } from '../../lib/walletStore';
@@ -774,6 +775,8 @@ export default function Home() {
 
         {/* Le point de sécurité le plus important qui reste à régler (un seul à la fois). */}
         <HomeNudge />
+        {/* La carte à un toucher (onglet Carte), juste sous les gestes de l'argent. */}
+        <CardShortcut />
 
         {/* ── Tokens · NFT · Activité ── */}
         <View style={{ gap: space[3] }}>
