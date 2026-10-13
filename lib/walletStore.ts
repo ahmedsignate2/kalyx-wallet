@@ -121,7 +121,7 @@ import { isDecoySession, setDecoySession } from './sessionMode';
 import { aura } from './aura';
 import { isLegacyDefaultName } from './walletNames';
 import { backupDigest, backupShape, isBackupStale } from './backupDigest';
-import { dropSealedSecret, noteBackupChange, sealWalletSecret, wipeAutoSyncOnReset } from './backupKeys';
+import { dropSealedSecret, noteBackupChange, sealWalletSecret, wipeAutoSyncOnReset, withSealBatch } from './backupKeys';
 import { useSettings } from './settingsStore';
 import { usePendingBtc } from './pendingBtc';
 
@@ -918,7 +918,50 @@ async function enterDecoy(pin: string, prevFailed: number, prevAt: number): Prom
 }
 
 /** Prouve l'identité (code ou biométrie) sans rien signer : le secret lu est aussitôt jeté. */
+/**
+ * Recrée les comptes listés par une sauvegarde, à partir de la phrase EN MAIN.
+ * `restoreAccounts` la lit dans le coffre (un scrypt) ; `importWallets`, qui
+ * vient de l'écrire, la passe directement.
+ */
+async function restoreAccountsFrom(walletId: string, mnemonic: string, list: readonly { index: number; label: string }[]): Promise<void> {
+  if (!isBip39Wallet(useWallet.getState().wallets, walletId) || !list.length) return;
+  // Graine calculée UNE fois : elle l'était pour chaque compte recréé (N × PBKDF2).
+  const seed = await mnemonicToSeed(mnemonic);
+  let accounts: StoredAccount[] | null;
+  try {
+    accounts = await updateAccounts(walletId, (existing) => {
+      const byIndex = new Map(existing.map((a) => [a.index, a]));
+      for (const { index, label } of list) {
+        const have = byIndex.get(index);
+        if (have) {
+          // Compte déjà là (le n°1, créé à l'import) : on lui rend seulement son nom.
+          if (label && !have.label) byIndex.set(index, { ...have, label });
+        } else {
+          byIndex.set(index, accountFromSeed(mnemonic, seed, index, label));
+        }
+      }
+      return [...byIndex.values()].sort((a, b) => a.index - b.index);
+    });
+  } finally {
+    seed.fill(0);
+  }
+  if (accounts) await dropSupersededWatch(accounts, walletId);
+  await noteBackupChange('accounts-restored');
+}
+
+/**
+ * PIN DÉJÀ PROUVÉ pendant un import groupé (restauration d'une sauvegarde).
+ *
+ * Chaque preuve est un scrypt (plusieurs secondes sur téléphone) : `importWallets`
+ * prouvait le code une fois, puis CHAQUE portefeuille importé le reprouvait — le
+ * même code, déjà vérifié, à quelques secondes d'intervalle. Posé par
+ * `importWallets` après sa propre preuve, retiré à la fin (finally). Seul ce code
+ * exact en est dispensé : un autre code passe par la vérification complète.
+ */
+let provenPin: string | null = null;
+
 async function proveIdentity(unlock: Unlock): Promise<void> {
+  if (provenPin !== null && 'pin' in unlock && unlock.pin === provenPin) return;
   await revealMnemonic(await authWalletFor(unlock), unlock);
 }
 
@@ -1894,8 +1937,6 @@ export const useWallet = create<WalletState>((set, get) => ({
   importWallets: async (list, pin) => {
     assertNotDecoy(); // session leurre : jamais d'écriture sur les vrais portefeuilles
     assertValidPin(pin);
-    // Code vérifié D'ABORD (et compté) : faux, il échouait en silence sur chaque coffre avant d'être refusé.
-    if (get().wallets.length) await proveIdentity({ pin });
     /*
      * DOUBLON IGNORÉ, comparé par le secret. Restaurer par-dessus une
      * installation existante créerait sinon deux portefeuilles identiques, que
@@ -1905,28 +1946,49 @@ export const useWallet = create<WalletState>((set, get) => ({
     // Empreintes seulement : les secrets eux-mêmes ne restent pas réunis en mémoire le temps de l'import.
     const fingerprint = (secret: string) => bytesToHex(sha256(utf8ToBytes(secret)));
     const known = new Set<string>();
-    for (const existing of get().wallets) {
-      const vault = await loadVault(existing.id);
-      if (!vault) continue;
-      try {
-        known.add(fingerprint(await decryptSecret(vault, pin)));
-      } catch {
-        // Coffre illisible avec ce PIN : on ne peut rien conclure, on continue.
+    if (get().wallets.length) {
+      /*
+       * Code vérifié D'ABORD (et compté) : faux, il échouait en silence sur
+       * chaque coffre avant d'être refusé. Cette preuve déchiffre le coffre du
+       * portefeuille d'authentification : son secret sert aussi au dédoublonnage
+       * (il était déchiffré une seconde fois dans la boucle ci-dessous).
+       */
+      const authId = await authWalletFor({ pin });
+      known.add(fingerprint(await revealMnemonic(authId, { pin })));
+      for (const existing of get().wallets) {
+        if (existing.id === authId) continue;
+        const vault = await loadVault(existing.id);
+        if (!vault) continue;
+        try {
+          known.add(fingerprint(await decryptSecret(vault, pin)));
+        } catch {
+          // Coffre illisible avec ce PIN : on ne peut rien conclure, on continue.
+        }
       }
     }
     let added = 0;
-    for (const w of list) {
-      const fp = fingerprint(w.secret);
-      if (known.has(fp)) continue;
-      known.add(fp); // deux fois le même dans la sauvegarde : un seul portefeuille
+    // Code prouvé (ou premier portefeuille : c'est lui qui le fixe) : les imports qui suivent ne le reprouvent pas.
+    provenPin = pin;
+    try {
+      // Un seul déchiffrement de la clé de sauvegarde pour tous les sceaux de l'import.
+      await withSealBatch(async () => {
+        for (const w of list) {
+          const fp = fingerprint(w.secret);
+          if (known.has(fp)) continue;
+          known.add(fp); // deux fois le même dans la sauvegarde : un seul portefeuille
 
-      if (w.type === 'privateKey') {
-        await get().importPrivateKey(w.secret, pin, w.label, w.keyFamily ?? 'evm');
-      } else {
-        await get().importWallet(w.secret, pin, w.label, { discover: false });
-        if (w.accounts?.length) await get().restoreAccounts(get().activeWalletId, w.accounts, pin);
-      }
-      added += 1;
+          if (w.type === 'privateKey') {
+            await get().importPrivateKey(w.secret, pin, w.label, w.keyFamily ?? 'evm');
+          } else {
+            await get().importWallet(w.secret, pin, w.label, { discover: false });
+            // La phrase est EN MAIN : la relire dans le coffre qu'on vient d'écrire coûtait un scrypt de plus.
+            if (w.accounts?.length) await restoreAccountsFrom(get().activeWalletId, canonicalMnemonic(w.secret), w.accounts);
+          }
+          added += 1;
+        }
+      });
+    } finally {
+      provenPin = null;
     }
     return added;
   },
@@ -1935,29 +1997,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     assertNotDecoy(); // session leurre : jamais d'écriture sur les vrais portefeuilles
     // Une clé privée ou une phrase TON n'ont qu'un compte : rien à recréer.
     if (!isBip39Wallet(get().wallets, walletId) || !list.length) return;
-    const mnemonic = await revealMnemonic(walletId, { pin });
-    // Graine calculée UNE fois : elle l'était pour chaque compte recréé (N × PBKDF2).
-    const seed = await mnemonicToSeed(mnemonic);
-    let accounts: StoredAccount[] | null;
-    try {
-      accounts = await updateAccounts(walletId, (existing) => {
-        const byIndex = new Map(existing.map((a) => [a.index, a]));
-        for (const { index, label } of list) {
-          const have = byIndex.get(index);
-          if (have) {
-            // Compte déjà là (le n°1, créé à l'import) : on lui rend seulement son nom.
-            if (label && !have.label) byIndex.set(index, { ...have, label });
-          } else {
-            byIndex.set(index, accountFromSeed(mnemonic, seed, index, label));
-          }
-        }
-        return [...byIndex.values()].sort((a, b) => a.index - b.index);
-      });
-    } finally {
-      seed.fill(0);
-    }
-    if (accounts) await dropSupersededWatch(accounts, walletId);
-    await noteBackupChange('accounts-restored');
+    await restoreAccountsFrom(walletId, await revealMnemonic(walletId, { pin }), list);
   },
 
   discoverAccounts: async (walletId, unlock, opts = {}) => {
