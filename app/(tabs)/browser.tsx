@@ -285,18 +285,46 @@ export default function Browser() {
   }, [activeId, compact, progress]);
 
   // Deep-link : /browser?url=…
-  const { url: urlParam } = useLocalSearchParams<{ url?: string }>();
+  /*
+   * `chain` : réseau EVM sur lequel ouvrir CET onglet (l'onglet Carte ouvre son
+   * émetteur sur le réseau de paiement choisi, sans changer celui de l'app).
+   * `n` : jeton d'appel, pour qu'un second appel à la même URL soit pris en compte.
+   */
+  const { url: urlParam, chain: chainParam, n: navNonce } = useLocalSearchParams<{ url?: string; chain?: string; n?: string }>();
   // Barre d'onglets sur la page « nouvel onglet » seulement : une dApp ouverte a tout l'écran.
   const showTabBar = !activeTab.url && !editing;
   useFocusEffect(useCallback(() => {
     useTabBar.getState().setHidden(!showTabBar);
     return () => useTabBar.getState().setHidden(false);
   }, [showTabBar]));
-  const openDeepLink = useEffectEvent((u: string) => updateTab(activeRef.current, { url: u }));
+  /*
+   * Lien entrant. Un onglet (non privé) déjà ouvert sur le MÊME site est
+   * réutilisé tel quel : sa page, sa session et son défilement sont gardés
+   * (c'est ce qui évite de « tout perdre » en revenant sur l'émetteur de sa
+   * carte). Sinon, un nouvel onglet — l'onglet en cours n'est plus écrasé.
+   */
+  const openDeepLink = useEffectEvent((u: string, chain?: string) => {
+    const host = originOf(u);
+    const evm = chain && listChains().some((c) => c.id === chain && c.family === 'evm') ? chain : undefined;
+    const existing = tabsRef.current.find((x) => !x.incognito && x.url && originOf(x.url) === host);
+    if (existing) {
+      if (evm && existing.chainId !== evm) updateTab(existing.id, { chainId: evm });
+      setActiveId(existing.id);
+      return;
+    }
+    const cur = tabsRef.current.find((x) => x.id === activeRef.current);
+    if (cur && !cur.url && !cur.incognito) {
+      updateTab(cur.id, { url: u, ...(evm ? { chainId: evm } : {}) });
+      return;
+    }
+    const tabItem = mkTab(evm ?? useWallet.getState().activeChain, u);
+    setTabs((ts) => [...ts, tabItem]);
+    setActiveId(tabItem.id);
+  });
   useEffect(() => {
     const u = urlParam ? normalizeUrl(String(urlParam)) : null;
-    if (u) openDeepLink(u);
-  }, [urlParam]);
+    if (u) openDeepLink(u, chainParam ? String(chainParam) : undefined);
+  }, [urlParam, chainParam, navNonce]);
 
   // Site dangereux (GoPlus) — verdict définitif (sûr / signalé) gardé pour la session ; « non analysé » retenté.
   const scanSite = useCallback((host: string) => {
@@ -893,6 +921,15 @@ export default function Browser() {
             onContentProcessDidTerminate={() => webref.current?.reload()}
             // Vidéos lues dans la page (sinon iOS force le plein écran).
             allowsInlineMediaPlayback
+            /*
+             * SESSIONS PERSISTANTES : stockage local, cache et cookies (tiers
+             * compris, sur Android) gardés d'une ouverture de l'app à l'autre —
+             * on reste connecté à l'émetteur de sa carte, à ses dApps. Un onglet
+             * privé (incognito) n'en garde rien.
+             */
+            domStorageEnabled
+            cacheEnabled
+            thirdPartyCookiesEnabled
             allowsBackForwardNavigationGestures
             pullToRefreshEnabled
             setSupportMultipleWindows={false}
