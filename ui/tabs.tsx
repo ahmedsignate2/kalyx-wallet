@@ -3,12 +3,14 @@
  *
  *   Accueil · Explorer · ( ⇄ ) · Activité · Réglages
  *
- *  1. Une barre FLOTTANTE aux coins arrondis, de la matière du thème (papier
- *     Crème avec une ombre douce, ou Nuit avec un liseré de lumière).
- *  2. L'onglet actif est posé dans une pastille qui GLISSE d'un onglet à
- *     l'autre au ressort ; son icône passe à l'encre, son libellé en gras.
- *  3. Au centre, le bouton SWAP en relief : un disque d'encre cerclé du fond,
- *     qui dépasse de la barre. Un appui ouvre l'échange ; un appui LONG ouvre
+ *  1. Une barre ANCRÉE au bas de l'écran, pleine largeur, coins du haut
+ *     arrondis : de la matière du thème (papier Crème avec une ombre douce
+ *     vers le haut, ou Nuit avec un liseré de lumière). Rien ne défile
+ *     dessous, le contenu s'arrête net à son bord.
+ *  2. L'onglet actif est posé sur un disque doux (pêche) qui GLISSE d'un
+ *     onglet à l'autre au ressort ; son icône s'allume, son libellé en gras.
+ *  3. Au centre, le bouton SWAP en relief : un disque d'encre cerclé de la
+ *     matière de la barre, comme une bosse qui en sort. Un appui ouvre l'échange ; un appui LONG ouvre
  *     l'éventail des quatre gestes de l'argent (Envoyer, Recevoir, Swap,
  *     Scanner), chacun à sa teinte, au-dessus du pouce.
  *
@@ -47,12 +49,14 @@ export const useTabBar = create<{ hidden: boolean; setHidden: (h: boolean) => vo
 
 /** Or de la marque (logo) : exporté pour les écrans qui le citent encore. */
 export const GOLD = BRAND_GOLD.light;
-const NAV_H = 70;
+const NAV_H = 64;
 /** Diamètre du bouton central, et de combien il dépasse au-dessus de la barre. */
-const ORB = 60;
-const ORB_LIFT = 18;
-/** Anneau du fond autour du bouton central : il « découpe » la barre. */
+const ORB = 56;
+const ORB_LIFT = 16;
+/** Rebord de la matière de la barre autour du bouton central : la « bosse ». */
 const ORB_RING = 5;
+/** Disque de l'onglet actif. */
+const DOT = 38;
 
 const TABS: { key: MainTab; icon: IconName; label: (t: (k: Key) => string) => string }[] = [
   { key: 'home', icon: 'home', label: (t) => t('navHome') },
@@ -75,17 +79,19 @@ const FAN_R = 132;
 const FAN_ANGLES = [-158, -116, -64, -22].map((d) => (d * Math.PI) / 180);
 
 function NavItem({ icon, label, on }: { icon: IconName; label: string; on: boolean }) {
-  const { colors } = useTheme();
+  const { colors, mode, tints } = useTheme();
+  // En Nuit l'icône active prend la lueur pêche ; en Crème, l'encre sur le disque pastel.
+  const onInk = mode === 'dark' ? tints.send.ink : colors.text;
   const reduce = useReduceMotion();
   const p = useSharedValue(on ? 1 : 0);
   useEffect(() => {
     p.value = reduce ? (on ? 1 : 0) : withSpring(on ? 1 : 0, springs.snappy);
   }, [on, reduce, p]);
-  const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.1 * p.value }, { translateY: -1.5 * p.value }] }));
+  const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.08 * p.value }] }));
   return (
-    <View style={{ alignItems: 'center', gap: 3 }}>
-      <Reanimated.View style={iconStyle}>
-        <Icon name={icon} size={22} color={on ? colors.text : colors.textTertiary} />
+    <View style={{ alignItems: 'center', gap: 2 }}>
+      <Reanimated.View style={[{ width: DOT, height: DOT, alignItems: 'center', justifyContent: 'center' }, iconStyle]}>
+        <Icon name={icon} size={22} color={on ? onInk : colors.textTertiary} />
       </Reanimated.View>
       {/* Barre de hauteur FIXE (NAV_H) : libellé plafonné à 1,2× sous Dynamic Type. */}
       <Text variant="micro" numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ fontFamily: on ? fontFamily.bold : fontFamily.medium, letterSpacing: 0.1, color: on ? colors.text : colors.textTertiary }}>{label}</Text>
@@ -134,7 +140,7 @@ function FanAction({ i, open, cx, cy, label, icon, tint, onPress }: { i: number;
 
 export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const t = useT();
-  const { colors, mode } = useTheme();
+  const { colors, mode, tints } = useTheme();
   const insets = useSafeAreaInsets();
   const reduce = useReduceMotion();
   const hidden = useTabBar((s) => s.hidden);
@@ -144,8 +150,8 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const [w, setW] = useState(0);
   const slot = w / 5;
   const dark = mode === 'dark';
-  const bottom = Math.max(insets.bottom, 12) + 6;
-  const pillW = Math.max(0, Math.min(76, slot - 4));
+  const padB = Math.max(insets.bottom, 8);
+  const pillW = DOT;
 
   const y = useSharedValue(hidden ? 1 : 0);
   useEffect(() => {
@@ -204,7 +210,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   // Taille de l'écran (calque de l'éventail) : le centre du bouton s'en déduit.
   const [layer, setLayer] = useState({ w: 0, h: 0 });
   const orbCx = layer.w / 2;
-  const orbCy = layer.h - bottom - NAV_H - ORB_LIFT + ORB / 2 - 14;
+  const orbCy = layer.h - padB - NAV_H - ORB_LIFT + ORB / 2 - 14;
 
   const go = (fn: () => void) => () => {
     setFan(false);
@@ -225,7 +231,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
         s'arrêtait à la barre laissait le haut du bouton hors limites, donc mort
         au toucher sur Android.
       */}
-      <Reanimated.View pointerEvents={hidden ? 'none' : 'box-none'} style={[{ position: 'absolute', left: 14, right: 14, bottom, paddingTop: ORB_LIFT }, dockStyle]}>
+      <Reanimated.View pointerEvents={hidden ? 'none' : 'box-none'} style={[{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: ORB_LIFT }, dockStyle]}>
         {/*
           Ombre et rognage sur DEUX vues : sur iOS, `overflow: 'hidden'` rogne
           aussi l'ombre de la vue qui le porte. L'externe porte l'ombre (iOS),
@@ -233,16 +239,17 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
         */}
         <View
           onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}
-          style={Platform.OS === 'ios' ? { borderRadius: radii.xxl, shadowColor: dark ? '#000' : '#5A3A18', shadowOpacity: dark ? 0.5 : 0.14, shadowRadius: 22, shadowOffset: { width: 0, height: 10 } } : undefined}
+          style={Platform.OS === 'ios' ? { borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl, shadowColor: dark ? '#000' : '#5A3A18', shadowOpacity: dark ? 0.5 : 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: -4 } } : undefined}
         >
           <View
             style={{
-              height: NAV_H,
-              borderRadius: radii.xxl,
+              height: NAV_H + padB,
+              paddingBottom: padB,
+              borderTopLeftRadius: radii.xxl,
+              borderTopRightRadius: radii.xxl,
               backgroundColor: colors.surface1,
-              borderWidth: 1,
-              borderColor: colors.border,
-              borderTopColor: colors.rim,
+              borderTopWidth: 1,
+              borderTopColor: dark ? colors.rim : colors.border,
               flexDirection: 'row',
               alignItems: 'center',
               overflow: 'hidden',
@@ -250,10 +257,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
             }}
           >
             {slot ? (
-              <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 8, height: NAV_H - 16, width: pillW, borderRadius: radii.lg, backgroundColor: colors.surface2, alignItems: 'center' }, pillStyle]}>
-                {/* Trait de lumière au pied de l'onglet actif : il glisse avec la pastille. */}
-                <View style={{ position: 'absolute', bottom: 3, width: 16, height: 3, borderRadius: radii.full, backgroundColor: colors.warm }} />
-              </Reanimated.View>
+              <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: (NAV_H - DOT - 16) / 2 + 1, height: DOT, width: DOT, borderRadius: radii.full, backgroundColor: tints.send.bg }, pillStyle]} />
             ) : null}
             {TABS.slice(0, 2).map((it) => (
               <TabButton key={it.key} it={it} active={active} t={t} onPress={() => navigation.navigate(it.key)} />
@@ -268,7 +272,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
 
         {/* ── LE BOUTON SWAP ── */}
         <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: -ORB_RING, alignItems: 'center' }}>
-          <View style={{ width: ORB + ORB_RING * 2, height: ORB + ORB_RING * 2, borderRadius: radii.full, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: ORB + ORB_RING * 2, height: ORB + ORB_RING * 2, borderRadius: radii.full, backgroundColor: colors.surface1, alignItems: 'center', justifyContent: 'center' }}>
             {/* L'anneau de progression de l'appui long (au-dessus de la découpe du fond). */}
             <Svg width={ORB + ORB_RING * 2} height={ORB + ORB_RING * 2} style={StyleSheet.absoluteFill} pointerEvents="none">
               <AnimatedCircle
