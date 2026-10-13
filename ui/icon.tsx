@@ -100,6 +100,8 @@ import { TrendUpIcon } from 'phosphor-react-native/src/icons/TrendUp';
 import { TrendDownIcon } from 'phosphor-react-native/src/icons/TrendDown';
 import { ArrowUpRightIcon } from 'phosphor-react-native/src/icons/ArrowUpRight';
 import { BackspaceIcon } from 'phosphor-react-native/src/icons/Backspace';
+import type { ReactNode } from 'react';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { useTheme } from './theme';
 
 export type IconName =
@@ -120,7 +122,9 @@ export type IconName =
   // Glyphes texte remplacés (↑/↓ des variations, ↗ lien externe, ⇅ bascule, ✗ refus)
   | 'trendUp' | 'trendDown' | 'arrowUpRight' | 'arrowsDownUp' | 'cross' | 'backspace'
   // Cadre du compteur d'onglets (le nombre est posé dessus)
-  | 'tabFrame';
+  | 'tabFrame'
+  // Onglets de la barre du bas (glyphes maison, voir LINE)
+  | 'tabHome' | 'tabExplore' | 'tabActivity' | 'tabSettings';
 
 const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   home: { icon: HouseIcon },
@@ -200,6 +204,11 @@ const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   telegramLogo: { icon: TelegramLogoIcon },
   githubLogo: { icon: GithubLogoIcon },
   gear: { icon: GearSixIcon },
+  // Dessinés dans LINE ; l'entrée Phosphor ne sert que de repli typé.
+  tabHome: { icon: HouseIcon },
+  tabExplore: { icon: GlobeIcon },
+  tabActivity: { icon: ListIcon },
+  tabSettings: { icon: GearSixIcon },
   // Même glyphe que `nft` : c'est une image dans les deux cas, et « nft »
   // ne veut rien dire sur un bouton « lire une image ».
   image: { icon: ImageIcon },
@@ -210,6 +219,30 @@ const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   cross: { icon: XIcon },
   backspace: { icon: BackspaceIcon },
   tabFrame: { icon: SquareIcon },
+};
+
+/*
+ * GLYPHES DE NAVIGATION — dessinés pour Kalyx, pas tirés d'un set.
+ *
+ * Ce sont les icônes qu'on touche sans les lire : retour, fermer, partager,
+ * chercher, la cloche, le scanner, et les quatre onglets. Un seul trait
+ * (1,75 sur une grille de 24, bouts et angles ARRONDIS), un peu plus présent
+ * que le « regular » de Phosphor : elles tiennent l'en-tête sans disque autour,
+ * comme sur la maquette, et restent nettes posées sur le paysage.
+ */
+const STROKE = 1.75;
+const LINE: Partial<Record<IconName, (c: string) => ReactNode>> = {
+  back: () => <Path d="M14.5 5.5 8 12l6.5 6.5" />,
+  close: () => <Path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />,
+  share: () => <Path d="M12 14.5V3.5M8 7.25 12 3.5l4 3.75M8.5 10.5H7A2 2 0 0 0 5 12.5V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6.5a2 2 0 0 0-2-2h-1.5" />,
+  search: () => <><Circle cx={10.75} cy={10.75} r={6.25} /><Path d="M15.5 15.5 20 20" /></>,
+  bell: () => <Path d="M6 16.75V11a6 6 0 0 1 12 0v5.75l1.5 1.75h-15L6 16.75ZM10 21h4" />,
+  scan: () => <Path d="M4 8.5v-2A2.5 2.5 0 0 1 6.5 4h2M15.5 4h2A2.5 2.5 0 0 1 20 6.5v2M20 15.5v2a2.5 2.5 0 0 1-2.5 2.5h-2M8.5 20h-2A2.5 2.5 0 0 1 4 17.5v-2M7.5 12h9" />,
+  more: (c) => <><Circle cx={12} cy={5.5} r={1.4} fill={c} stroke="none" /><Circle cx={12} cy={12} r={1.4} fill={c} stroke="none" /><Circle cx={12} cy={18.5} r={1.4} fill={c} stroke="none" /></>,
+  tabHome: () => <Path d="M4 10.25 12 3.75l8 6.5v8.75a1.5 1.5 0 0 1-1.5 1.5H15v-5.25a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5.25H5.5A1.5 1.5 0 0 1 4 19v-8.75Z" />,
+  tabExplore: () => <><Circle cx={12} cy={12} r={8.75} /><Path d="M15.6 8.4 13.5 13.5 8.4 15.6l2.1-5.1 5.1-2.1Z" /></>,
+  tabActivity: (c) => <><Path d="M9.5 6.5H20M9.5 12H20M9.5 17.5H20" /><Circle cx={5} cy={6.5} r={1.25} fill={c} stroke="none" /><Circle cx={5} cy={12} r={1.25} fill={c} stroke="none" /><Circle cx={5} cy={17.5} r={1.25} fill={c} stroke="none" /></>,
+  tabSettings: () => <><Path d="M18.86 10.61L21.13 10.9V13.1L18.86 13.39L17.83 15.87L19.24 17.68L17.68 19.24L15.87 17.83L13.39 18.86L13.1 21.13H10.9L10.61 18.86L8.13 17.83L6.32 19.24L4.76 17.68L6.17 15.87L5.14 13.39L2.87 13.1V10.9L5.14 10.61L6.17 8.13L4.76 6.32L6.32 4.76L8.13 6.17L10.61 5.14L10.9 2.87H13.1L13.39 5.14L15.87 6.17L17.68 4.76L19.24 6.32L17.83 8.13Z" /><Circle cx={12} cy={12} r={3} /></>,
 };
 
 export function Icon({
@@ -229,6 +262,15 @@ export function Icon({
 }) {
   const { colors } = useTheme();
   const toneColor = tone === 'muted' ? colors.textSecondary : tone === 'faint' ? colors.textTertiary : colors.text;
+  const c = color ?? toneColor;
+  const line = LINE[name];
+  if (line) {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round">
+        {line(c)}
+      </Svg>
+    );
+  }
   const entry = MAP[name];
   const Cmp = entry.icon;
   return <Cmp size={size} color={color ?? toneColor} weight={weight ?? entry.weight ?? 'regular'} />;

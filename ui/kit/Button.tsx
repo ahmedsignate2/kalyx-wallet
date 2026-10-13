@@ -260,17 +260,16 @@ export function Button({
 
 /** Bouton icône rond (48 × 48, zone tactile minimale §2.6). */
 export function IconButton({ icon, onPress, label, tone = 'surface', disabled }: { icon: IconName; onPress?: () => void; /** Label lecteur d'écran — obligatoire (§8). */ label: string; tone?: 'surface' | 'ghost' | 'primary' | 'glass'; disabled?: boolean }) {
-  const { colors, mode, elevation } = useTheme();
+  const { colors } = useTheme();
   if (tone === 'glass') {
     /*
-     * VERRE : un disque de 40 px (surface claire, liseré, ombre douce en Crème)
-     * dans une zone tactile de 48 — le bouton retour des écrans, comme la maquette.
+     * NU : le glyphe seul, sans disque, comme la maquette — le trait maison
+     * (ui/icon, 1,75) tient tout seul. Zone tactile de 48, glyphe calé à
+     * gauche pour s'aligner sur le titre et les marges de l'écran.
      */
     return (
-      <Pressable onPress={onPress} disabled={disabled} accessibilityLabel={label} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.4 : 1 }}>
-        <View style={[{ width: 40, height: 40, borderRadius: 20, backgroundColor: mode === 'dark' ? 'rgba(255,244,230,0.08)' : 'rgba(255,251,245,0.85)', borderWidth: 1, borderColor: colors.border, borderTopColor: colors.rim, alignItems: 'center', justifyContent: 'center' }, mode === 'dark' ? null : elevation]}>
-          <Icon name={icon} size={20} color={colors.text} />
-        </View>
+      <Pressable onPress={onPress} disabled={disabled} accessibilityLabel={label} style={{ width: 48, height: 48, marginLeft: -12, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.4 : 1 }}>
+        <Icon name={icon} size={26} color={colors.text} />
       </Pressable>
     );
   }
