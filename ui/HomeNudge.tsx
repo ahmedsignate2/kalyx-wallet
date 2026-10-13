@@ -84,18 +84,23 @@ export function HomeNudge() {
     AsyncStorage.setItem(key(n.id), String(Date.now())).catch(() => {});
     setSnoozed((s) => ({ ...s, [n.id]: true }));
   };
+  /*
+   * UN BANDEAU D'UNE LIGNE, pas une carte : le rappel reste visible sans casser
+   * le rythme de l'accueil. L'explication complète est lue par le lecteur
+   * d'écran (indice) et affichée sur l'écran où mène le bandeau.
+   */
   return (
-    <View style={{ flexDirection: 'row', gap: 12, padding: 14, borderRadius: radii.xl, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
-      <IconDisc name={n.icon} tone="gold" size={40} />
-      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-        <Text variant="body" style={{ fontFamily: fontFamily.semibold }}>{n.title}</Text>
-        <Text variant="caption" tone="secondary">{n.body}</Text>
-        <KPressable onPress={n.go} haptic="light" hitSlop={8} accessibilityRole="button" accessibilityLabel={n.cta} style={{ alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 14, height: 32, borderRadius: radii.full, justifyContent: 'center', backgroundColor: colors.primary }}>
-          <Text variant="caption" style={{ color: colors.onPrimary, fontFamily: fontFamily.semibold }}>{n.cta}</Text>
-        </KPressable>
-      </View>
-      <KPressable onPress={dismiss} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('close')}>
-        <Icon name="close" size={16} color={colors.textTertiary} />
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 10, paddingRight: 6, height: 56, borderRadius: radii.lg, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+      <KPressable onPress={n.go} haptic="light" accessibilityRole="button" accessibilityLabel={`${n.title} · ${n.cta}`} accessibilityHint={n.body} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, height: 56 }}>
+        <IconDisc name={n.icon} tone="gold" size={34} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text variant="caption" numberOfLines={1} style={{ fontFamily: fontFamily.semibold, color: colors.text }}>{n.title}</Text>
+          <Text variant="small" numberOfLines={1} style={{ color: colors.warm, fontFamily: fontFamily.semibold }}>{n.cta}</Text>
+        </View>
+        <Icon name="chevron" size={14} color={colors.warm} />
+      </KPressable>
+      <KPressable onPress={dismiss} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('close')} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="close" size={14} color={colors.textTertiary} />
       </KPressable>
     </View>
   );

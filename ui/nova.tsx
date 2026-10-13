@@ -24,7 +24,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
 import { useTheme, useAppTheme, radii } from './theme';
 import { Icon, type IconName } from './icon';
 import { Text, Pressable as KPressable } from './kit';
@@ -183,14 +183,43 @@ export function ActionTile({ icon, label, tint, onPress, index = 0, disabled }: 
   const rise = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - p.value) * 16 }, { scale: 0.92 + 0.08 * p.value }] }));
   const done = useEntranceDone(80 + index * 50 + 1200, reduce, p);
   const tone = tints[tint];
-  // En Nuit la teinte est translucide : posée sur la surface, pas sur le ciel qui transparaîtrait.
-  const bg = mode === 'dark' ? colors.surface1 : tone.bg;
+  const dark = mode === 'dark';
+  const gid = `tile-${tint}-${mode}`;
+  /*
+   * MATIÈRE : un dégradé vertical (lumière en haut, teinte en bas) donne du
+   * volume, l'icône est posée dans une PASTILLE pleine de la couleur du geste
+   * (elle se voit d'un coup d'œil, comme les icônes de la maquette), et une
+   * ombre teintée détache la tuile du ciel. À l'appui, la tuile s'enfonce
+   * (échelle du kit) et son ombre se resserre.
+   */
   return (
     <Animated.View style={[{ flex: 1, opacity: disabled ? 0.4 : 1 }, done ? null : rise]}>
-      <KPressable onPress={onPress} disabled={disabled} haptic="light" overshoot accessibilityRole="button" accessibilityLabel={label} style={[{ height: 78, borderRadius: radii.lg, backgroundColor: bg, borderWidth: 1, borderColor: mode === 'dark' ? colors.border : 'rgba(255,255,255,0.7)', borderTopColor: mode === 'dark' ? colors.rim : 'rgba(255,255,255,0.95)' }, elevation]}>
-        <View style={{ flex: 1, borderRadius: radii.lg, backgroundColor: mode === 'dark' ? tone.bg : 'transparent', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-          <Icon name={icon} size={22} color={tone.ink} />
-          <Text variant="small" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.3} style={{ fontFamily: fontFamily.semibold, color: mode === 'dark' ? colors.text : '#2A241C' }}>{label}</Text>
+      <KPressable
+        onPress={onPress}
+        disabled={disabled}
+        haptic="light"
+        overshoot
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        style={[
+          { height: 84, borderRadius: radii.lg, backgroundColor: dark ? colors.surface1 : tone.bg, borderWidth: 1, borderColor: dark ? colors.border : 'rgba(255,255,255,0.75)', borderTopColor: dark ? colors.rim : '#FFFFFF' },
+          dark ? null : { ...elevation, shadowColor: tone.ink, shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+        ]}
+      >
+        <View style={{ flex: 1, borderRadius: radii.lg, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+          <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
+            <Defs>
+              <SvgLinearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={dark ? '#FFFFFF' : '#FFFFFF'} stopOpacity={dark ? 0.04 : 0.75} />
+                <Stop offset="1" stopColor={dark ? tone.ink : tone.bg} stopOpacity={dark ? 0.16 : 0} />
+              </SvgLinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${gid})`} />
+          </Svg>
+          <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: tone.ink, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={icon} size={18} color={dark ? '#16131F' : '#FFFFFF'} />
+          </View>
+          <Text variant="small" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.3} style={{ fontFamily: fontFamily.semibold, color: dark ? colors.text : '#2A241C' }}>{label}</Text>
         </View>
       </KPressable>
     </Animated.View>

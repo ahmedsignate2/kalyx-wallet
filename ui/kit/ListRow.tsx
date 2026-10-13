@@ -11,6 +11,7 @@ import { Pressable as RNPressable } from 'react-native';
 import { Text } from './Text';
 import { useFallbackLogo } from './useFallbackLogo';
 import { TokenIcon } from './TokenIcon';
+import { Sparkline } from './MarketRow';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
 import { space, TOKEN_ROW_HEIGHT, radii } from '../tokens';
@@ -59,7 +60,7 @@ export function ListRow({ left, title, subtitle, right, onPress, chevron, divide
 }
 
 export function TokenRow({
-  symbol, name, logo, address, balance, fiat, changePct, onPress, hidden, chainId, chainBadge,
+  symbol, name, logo, address, balance, fiat, changePct, onPress, hidden, chainId, chainBadge, spark,
 }: {
   symbol: string; name: string; logo?: string | null; address?: string;
   /** Solde formaté (« 1.42 ETH »). */ balance: string;
@@ -67,6 +68,7 @@ export function TokenRow({
   changePct?: number | null; onPress?: () => void; hidden?: boolean;
   /** Réseau du jeton : sert à retrouver un logo manquant dans la liste du réseau. */ chainId?: string;
   /** Logo du réseau en pastille. */ chainBadge?: string | null;
+  /** Cours sur 7 jours : une mini-courbe entre le nom et la valeur (comme la maquette). */ spark?: number[];
 }) {
   const { colors } = useTheme();
   const up = (changePct ?? 0) >= 0;
@@ -80,6 +82,8 @@ export function TokenRow({
       title={name}
       subtitle={hidden ? '••••' : balance}
       right={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+        {spark && spark.length > 1 && !hidden ? <Sparkline data={spark} color={spark[spark.length - 1] >= spark[0] ? colors.up : colors.down} width={56} height={26} /> : null}
         <View style={{ alignItems: 'flex-end' }}>
           <Text variant="body" tabular numberOfLines={1}>{hidden ? '••••' : fiat ?? '—'}</Text>
           {showChange && !hidden ? (
@@ -90,6 +94,7 @@ export function TokenRow({
               </Text>
             </View>
           ) : null}
+        </View>
         </View>
       }
     />

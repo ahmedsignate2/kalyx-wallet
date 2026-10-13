@@ -1,4 +1,5 @@
-import { radius, radii, fontSize, skyPhaseAt } from '../ui/tokens';
+import { radius, radii, fontSize } from '../ui/tokens';
+import { useSkyPhase } from '../ui/sky';
 import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
 import { Pressable as KPressable, Sheet, HoldButton, Button } from '../ui/kit';
@@ -44,6 +45,8 @@ export default function Unlock() {
   const [busy, setBusy] = useState(false);
   /** Haut de la feuille du clavier (mesuré) : le ciel s'arrête dessous. */
   const [sheetY, setSheetY] = useState(0);
+  /** Le ciel du moment (lever et coucher réels), tenu à jour. */
+  const phase = useSkyPhase();
   /* Barre d'état claire sur le ciel tant que l'écran est affiché (pas sous l'écran suivant). */
   const [focused, setFocused] = useState(true);
   useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false); }, []));
@@ -238,7 +241,7 @@ export default function Unlock() {
         la porte, on voit déjà le paysage qu'on va retrouver. Barre d'état claire
         dessus ; le clavier du code est sur la feuille, en dessous.
       */}
-      <Landscape width={winW} height={(sheetY || insets.top + 210) + 32} phase={skyPhaseAt(new Date().getHours())} />
+      <Landscape width={winW} height={(sheetY || insets.top + 210) + 32} phase={phase} />
       {focused ? <StatusBar style="light" /> : null}
       <View style={{ flex: 1, paddingTop: insets.top + spacing(3), alignItems: 'center' }}>
         {/* En-tête compact, posé sur le ciel : titre, sous-titre, biométrie */}
