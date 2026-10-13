@@ -13,13 +13,13 @@
  *   - une ligne = un verbe, une contrepartie, un montant — lisible d'un coup d'œil ;
  *   - la liste est virtualisée (SectionList) : fluide même avec des centaines de lignes.
  */
-import { ScreenOrbit } from '../ui/nova';
+import { OptionPill, ScreenOrbit } from '../ui/nova';
 import { journal } from '../lib/debugJournal';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, SectionList, RefreshControl, ScrollView } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, IconButton, Divider, Chip, Skeleton, EmptyState, ActivityRow, Pressable, Input, SegmentedControl, Card } from '../ui/kit';
+import { Text, IconButton, Divider, Chip, Skeleton, EmptyState, ActivityRow, Pressable, Input, Card } from '../ui/kit';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, radius, SCREEN_MARGIN } from '../ui/tokens';
@@ -257,16 +257,19 @@ export default function History({ inTab = false }: { inTab?: boolean } = {}) {
         </Card>
       ) : null}
       <Input value={query} onChangeText={setQuery} placeholder={t('histSearch')} autoCapitalize="none" autoCorrect={false} right={query ? <IconButton icon="close" label={t('actionCancel')} tone="ghost" onPress={() => setQuery('')} /> : <Icon name="search" size={18} tone="muted" />} />
-      <SegmentedControl
-        items={[
+      {/* Filtres en pilules, comme la maquette : le choisi passe à l'encre. */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space[2] }} style={{ marginHorizontal: -SCREEN_MARGIN }} accessibilityRole="radiogroup">
+        <View style={{ width: SCREEN_MARGIN - space[2] }} />
+        {([
           { key: 'all', label: t('filterAll') },
           { key: 'in', label: t('filterReceived') },
           { key: 'out', label: t('filterSent') },
           { key: 'swap', label: t('filterSwaps') },
-        ]}
-        value={filter}
-        onChange={(k) => { haptic.selection(); setFilter(k); }}
-      />
+        ] as { key: Filter; label: string }[]).map((it) => (
+          <OptionPill key={it.key} label={it.label} selected={filter === it.key} onPress={() => { haptic.selection(); setFilter(it.key); }} />
+        ))}
+        <View style={{ width: SCREEN_MARGIN - space[2] }} />
+      </ScrollView>
       {presentChains.length > 1 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space[2] }} style={{ marginHorizontal: -SCREEN_MARGIN }}>
           <View style={{ width: SCREEN_MARGIN - space[2] }} />

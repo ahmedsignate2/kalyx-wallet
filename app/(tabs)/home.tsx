@@ -30,13 +30,15 @@ import { Icon } from '../../ui/icon';
 import { useTheme, OnSky, skyColors as sky } from '../../ui/theme';
 import { Landscape } from '../../ui/Landscape';
 import { StatusBar } from 'expo-status-bar';
-import { space, SCREEN_MARGIN, radius, radii, skyPhaseAt, fontFamily } from '../../ui/tokens';
+import { space, SCREEN_MARGIN, radius, radii, fontFamily } from '../../ui/tokens';
+import { useSkyPhase } from '../../ui/sky';
 import { FadeInUp } from '../../ui/FadeInUp';
 import { cascadeDelay } from '../../ui/motion';
 import { holdingLabel } from '../../lib/holdingLabel';
 import { holdingIcon } from '../../ui/kit/useFallbackLogo';
 import { LogoImage, Text, IconButton, Divider, TokenRow, TokenIcon, AmountDisplay, Skeleton, EmptyState, ActivityRow, Pressable as KPressable, Card } from '../../ui/kit';
 import { WalletAvatar } from '../../ui/avatarArt';
+import { KalyxLogo } from '../../ui/KalyxLogo';
 import { ActionTile, Pills, TextTabs } from '../../ui/nova';
 import { TonNftSendSheet } from '../../ui/TonNftSendSheet';
 import { useBrowserPresence, hostOf } from '../../lib/browserPresence';
@@ -52,7 +54,7 @@ import { haptic } from '../../lib/haptics';
 import { toast } from '../../lib/toast';
 import { isDeviceCompromised } from '../../lib/deviceSecurity';
 import { IS_BETA } from '../../lib/appStage';
-import { getAdapter, nativeOfChain, chainNameOf, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type ChartPoint, type NftItem } from '../../src';
+import { getAdapter, getMarketsByIds, nativeOfChain, chainNameOf, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type ChartPoint, type NftItem } from '../../src';
 import {
   useHistoryStore,
   useHistoryCache,
@@ -169,6 +171,21 @@ export default function Home() {
     setNfts((cur) => [...r.nfts, ...(cur ?? []).filter((n) => down.has(n.chainId))]);
     setNftIssues({ failed: r.failed, unavailable: r.unavailable, nothingAnswered: r.asked > 0 && r.failed.length + r.unavailable.length === r.asked });
   }, []);
+  /*
+   * MINI-COURBES (7 jours) des jetons détenus, comme la maquette : UNE requête
+   * pour tous (getMarketsByIds, mise en cache), relancée seulement si la liste
+   * des actifs change. En échec, les lignes restent sans courbe.
+   */
+  const [sparks, setSparks] = useState<Record<string, number[]>>({});
+  const sparkIds = useMemo(() => [...new Set(pf.holdings.filter((h) => h.verified && h.coingeckoId).map((h) => h.coingeckoId!))].sort().join(','), [pf.holdings]);
+  useEffect(() => {
+    if (!sparkIds) return;
+    let alive = true;
+    getMarketsByIds(fiat, sparkIds.split(','))
+      .then((list) => { if (alive) setSparks(Object.fromEntries(list.filter((m) => m.sparkline.length > 1).map((m) => [m.id, m.sparkline]))); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [sparkIds, fiat]);
   const [openNft, setOpenNft] = useState<ChainNft | null>(null);
   const [sendNft, setSendNft] = useState<ChainNft | null>(null);
   const contacts = useContacts((s) => s.contacts);
@@ -423,8 +440,8 @@ export default function Home() {
   const statusBgStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP) }));
   /** Hauteur du paysage : jusqu'au milieu des tuiles d'action (mesuré). */
   const [heroH, setHeroH] = useState(0);
-  /** Le ciel change avec l'heure : relu à chaque retour sur l'accueil. */
-  const [phase, setPhase] = useState(() => skyPhaseAt(new Date().getHours()));
+  /** Le ciel suit le vrai soleil du jour, et change en direct (ui/sky). */
+  const phase = useSkyPhase();
   const [focused, setFocused] = useState(true);
   const [overSky, setOverSky] = useState(true);
   useAnimatedReaction(
@@ -433,7 +450,6 @@ export default function Home() {
   );
   useFocusEffect(useCallback(() => {
     setFocused(true);
-    setPhase(skyPhaseAt(new Date().getHours()));
     return () => setFocused(false);
   }, []));
   /*
@@ -618,20 +634,12 @@ export default function Home() {
         {/* Tout ce qui est posé sur le ciel se dessine pour lui (texte crème, verre). */}
         <OnSky>
         <View style={{ gap: space[6] }}>
-        {/* ── En-tête : compte ▾ · réseau ▾ · notifications · scanner (le menu est dans la barre) ── */}
+        {/* ── En-tête, comme la maquette : la marque à gauche ; réseau, notifications, scanner et avatar à droite ── */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <KPressable onPress={() => router.push('/accounts')} accessibilityLabel={t("a11ySwitchAccount")} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[3], height: 48, paddingRight: space[1] }}>
-            <View style={{ width: 42, height: 42, borderRadius: radii.full, borderWidth: 1, borderColor: sky.border, backgroundColor: sky.surface1, alignItems: 'center', justifyContent: 'center' }}>
-              <WalletAvatar size={32} />
-            </View>
-            <View style={{ flexShrink: 1, minWidth: 0 }}>
-              <Text variant="micro" tone="secondary" numberOfLines={1}>{greeting}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0 }}>{accountDisplayName(stored, t)}</Text>
-                <Icon name="caretDown" size={12} tone="muted" />
-              </View>
-            </View>
-          </KPressable>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2], minWidth: 0 }} accessible accessibilityRole="header" accessibilityLabel="Kalyx">
+            <KalyxLogo size={28} />
+            <Text variant="title2" numberOfLines={1} style={{ letterSpacing: 0.3 }}>Kalyx</Text>
+          </View>
           {/* Réseau actif (Envoyer / Swap / dApps) : un tap ouvre le sélecteur. */}
           <KPressable
             onPress={() => router.push('/networks')}
@@ -654,11 +662,23 @@ export default function Home() {
             {/* Scanner : seule porte d'entrée pour connecter une dApp ou la webapp par QR. */}
             <IconButton icon="scan" label={t("scanQr")} tone="ghost" onPress={() => router.push('/scan')} />
           </View>
+          {/* L'avatar du compte : il ouvre le choix du compte. */}
+          <KPressable onPress={() => router.push('/accounts')} accessibilityLabel={t("a11ySwitchAccount")} style={{ width: 40, height: 40, borderRadius: radii.full, borderWidth: 1.5, borderColor: sky.rim, backgroundColor: sky.surface1, alignItems: 'center', justifyContent: 'center' }}>
+            <WalletAvatar size={32} />
+          </KPressable>
         </View>
+
+        {/* Salutation en grand : l'heure du jour, puis le nom du compte (un tap change de compte). */}
+        <KPressable noScale onPress={() => router.push('/accounts')} accessibilityLabel={t("a11ySwitchAccount")} style={{ marginBottom: -space[3] }}>
+          <Text variant="heading" numberOfLines={1}>{greeting},</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text variant="heading" numberOfLines={1} style={{ flexShrink: 1, minWidth: 0 }}>{accountDisplayName(stored, t)}</Text>
+            <Icon name="caretDown" size={14} tone="muted" />
+          </View>
+        </KPressable>
 
         {/* ── Solde, posé sur le ciel ── */}
         <Animated.View style={[{ gap: space[1] }, bigBalanceStyle]}>
-          <Text variant="caption" tone="secondary" style={{ fontFamily: fontFamily.semibold }}>{t('homeTotalBalance')}</Text>
           <KPressable onLongPress={toggleHidden} delayLongPress={350} accessibilityLabel={hidden ? t("a11yHiddenBalance") : t("a11yVisibleBalance")}>
             {initialLoading ? (
               <Skeleton width={220} height={52} />
@@ -790,6 +810,7 @@ export default function Home() {
                         balance={`${formatTokenAmount(h.raw, h.decimals)} ${h.symbol}`}
                         fiat={h.price > 0 ? `${formatFiat(h.fiat)} ${sym}` : undefined}
                         changePct={h.change24h}
+                        spark={h.coingeckoId ? sparks[h.coingeckoId] : undefined}
                         hidden={hidden}
                         onPress={() => openHolding(h)}
                       />

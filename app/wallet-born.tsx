@@ -20,7 +20,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
 import { Text, Button, AddressGlyph, Halo } from '../ui/kit';
 import { useTheme, OnSky } from '../ui/theme';
-import { space, SCREEN_MARGIN, springs, skyPhaseAt } from '../ui/tokens';
+import { space, SCREEN_MARGIN, springs } from '../ui/tokens';
+import { useSkyPhase } from '../ui/sky';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { aura } from '../lib/aura';
@@ -44,6 +45,7 @@ function Fade({ delay, children, reduced }: { delay: number; children: React.Rea
 export default function WalletBorn() {
   const { colors } = useTheme();
   const { width: winW, height: winH } = useWindowDimensions();
+  const phase = useSkyPhase();
   const insets = useSafeAreaInsets();
   const t = useT();
   const reduced = useReducedMotion();
@@ -79,7 +81,7 @@ export default function WalletBorn() {
       {/* Portefeuille déjà créé : revenir au PIN par balayage n'a plus de sens. */}
       <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
       {/* Le premier regard sur son wallet se fait dans le ciel de l'accueil, à son heure. */}
-      <Landscape width={winW} height={winH} phase={skyPhaseAt(new Date().getHours())} sunAt={0.7} />
+      <Landscape width={winW} height={winH} phase={phase} sunAt={0.7} />
       <StatusBar style="light" />
       <OnSky>
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SCREEN_MARGIN, gap: space[5] }}>

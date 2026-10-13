@@ -27,7 +27,8 @@ import { Landscape } from '../ui/Landscape';
 import { KalyxLogoIgnite } from '../ui/KalyxLogo';
 import { Icon, type IconName } from '../ui/icon';
 import { useTheme, OnSky, skyColors as sky } from '../ui/theme';
-import { space, SCREEN_MARGIN, fontSize, fontFamily, radii, skyPhaseAt, type ActionTint } from '../ui/tokens';
+import { space, SCREEN_MARGIN, fontSize, fontFamily, radii, type ActionTint } from '../ui/tokens';
+import { useSkyPhase } from '../ui/sky';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { haptic } from '../lib/haptics';
@@ -80,7 +81,7 @@ export default function Welcome() {
   const { width: winW, height: winH } = useWindowDimensions();
   /** Bas du ciel (mesuré) : la feuille des actions monte dessus. */
   const [heroH, setHeroH] = useState(0);
-  const phase = skyPhaseAt(new Date().getHours());
+  const phase = useSkyPhase();
   /*
    * Barre d'état claire sur le ciel, SEULEMENT tant que l'écran est affiché :
    * resté monté sous l'écran suivant, son <StatusBar> (le dernier monté gagne)
