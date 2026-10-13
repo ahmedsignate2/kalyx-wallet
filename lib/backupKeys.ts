@@ -202,12 +202,42 @@ export async function isAutoSyncKeysReady(): Promise<boolean> {
  * BDK déchiffrée par le PIN. À l'appelant de l'effacer (`fill(0)`) dès le
  * scellement fait : elle ne doit pas survivre à l'opération.
  */
+/*
+ * LOT DE SCELLEMENTS : une restauration importe plusieurs portefeuilles d'affilée,
+ * et chacun déchiffrait la clé de sauvegarde (un scrypt, plusieurs secondes)
+ * pour sceller son secret. Pendant un lot, elle est déchiffrée UNE fois puis
+ * gardée en mémoire, liée au code ET au coffre exacts (un coffre remplacé entre
+ * deux, ou un autre code, refont le calcul), et effacée à la fin du lot.
+ */
+let batchDepth = 0;
+let batchBdk: { pin: string; ct: string; bdk: Uint8Array } | null = null;
+
+export async function withSealBatch<T>(fn: () => Promise<T>): Promise<T> {
+  batchDepth += 1;
+  try {
+    return await fn();
+  } finally {
+    batchDepth -= 1;
+    if (batchDepth === 0 && batchBdk) {
+      batchBdk.bdk.fill(0);
+      batchBdk = null;
+    }
+  }
+}
+
 async function loadBdk(pin: string): Promise<Uint8Array> {
   const vault = await loadVault(BACKUP_KEY_VAULT_ID);
   if (!vault) throw new Error('BDK_MISSING');
+  // Copie : l'appelant efface la sienne (fill(0)) après usage.
+  if (batchDepth > 0 && batchBdk && batchBdk.pin === pin && batchBdk.ct === vault.ct) return batchBdk.bdk.slice();
   const h = await decryptSecret(vault, pin);
   if (h.length !== 64) throw new Error('BDK_CORRUPTED');
-  return hexToBytes(h);
+  const bdk = hexToBytes(h);
+  if (batchDepth > 0) {
+    batchBdk?.bdk.fill(0);
+    batchBdk = { pin, ct: vault.ct, bdk: bdk.slice() };
+  }
+  return bdk;
 }
 
 /** Type de secret tel que la sauvegarde l'écrit : une phrase TON part comme une phrase (comme l'export manuel). */
