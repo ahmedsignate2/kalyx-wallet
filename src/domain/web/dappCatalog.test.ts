@@ -11,7 +11,7 @@ describe('Catalogue des dApps', () => {
       expect(d.icon.color).toMatch(/^#[0-9A-F]{6}$/i);
     }
     expect(new Set(DAPP_CATALOG.map((d) => d.host)).size).toBe(DAPP_CATALOG.length);
-    expect(DAPP_CATEGORIES).toEqual(['Swap', 'Lending', 'Staking', 'NFT', 'Bridges']);
+    expect(DAPP_CATEGORIES).toEqual(['Swap', 'Lending', 'Staking', 'NFT', 'Bridges', 'Cards']);
   });
   it('Solana seul : via WalletConnect, jamais de connexion directe promise', () => {
     for (const name of ['Jupiter', 'Jito', 'Marinade']) {
