@@ -315,6 +315,14 @@ export default function RootLayout() {
             poussée latérale, qui découvrait le fond sur le bord.
           */}
           <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 220, gestureEnabled: false }} />
+          {/*
+            LES GESTES DE L'ARGENT montent du bas, comme une feuille posée sur
+            l'accueil (et y redescendent au retour) : on sent qu'on ouvre une
+            action, pas qu'on change de page. Le balayage vers le bas les ferme.
+          */}
+          <Stack.Screen name="send" options={{ animation: 'slide_from_bottom', animationDuration: 320, gestureDirection: 'vertical' }} />
+          <Stack.Screen name="receive" options={{ animation: 'slide_from_bottom', animationDuration: 320, gestureDirection: 'vertical' }} />
+          <Stack.Screen name="swap" options={{ animation: 'slide_from_bottom', animationDuration: 320, gestureDirection: 'vertical' }} />
         </Stack>
         <WalletConnectHost />
         <TonConnectHost />

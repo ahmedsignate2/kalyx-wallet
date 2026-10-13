@@ -17,7 +17,7 @@ import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useStat
 import { decimalSeparator } from '../../src';
 import { isDecoySession } from '../../lib/sessionMode';
 import { View, RefreshControl, Alert, Image, useWindowDimensions } from 'react-native';
-import Animated, { interpolate, runOnJS, useAnimatedReaction, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from 'react-native-reanimated';
+import Animated, { FadeInDown, interpolate, runOnJS, useAnimatedReaction, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, Extrapolation } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -466,6 +466,18 @@ export default function Home() {
   }, [reveal, pf.loading, pf.at, hidden]);
   const prevTotal = useRef(pf.total);
   useEffect(() => { prevTotal.current = pf.total; }, [pf.total]);
+  /*
+   * ENTRÉE DU SOLDE : la première fois qu'il apparaît dans la session, il se
+   * pose (échelle 0,94 → 1, fondu) au ressort, en même temps que ses chiffres
+   * roulent. Une seule fois : revenir sur l'accueil ne la rejoue pas.
+   */
+  const reduceMotion = useReducedMotion();
+  const balEnter = useSharedValue(balanceRevealed || reduceMotion ? 1 : 0);
+  const balReady = !(pf.loading && pf.at === 0);
+  useEffect(() => {
+    if (balReady && balEnter.value === 0) balEnter.value = withSpring(1, { damping: 18, stiffness: 160 });
+  }, [balReady, balEnter]);
+  const balEnterStyle = useAnimatedStyle(() => ({ opacity: 0.15 + 0.85 * balEnter.value, transform: [{ scale: 0.94 + 0.06 * balEnter.value }] }));
 
   /*
    * Tous les hooks AVANT ce retour : l'accueil reste monté dans les onglets, et
@@ -687,7 +699,9 @@ export default function Home() {
             ) : scrub ? (
               <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.35}>{formatFiat(shownValue)} <Text variant="title2" tone="secondary">{sym}</Text></Text>
             ) : (
-              <AmountDisplay value={formatFiat(pf.total)} suffix={sym} direction={rollDir} reveal={reveal} />
+              <Animated.View style={[{ transformOrigin: 'left center' }, balEnterStyle]}>
+                <AmountDisplay value={formatFiat(pf.total)} suffix={sym} direction={rollDir} reveal={reveal} />
+              </Animated.View>
             )}
           </KPressable>
           <View style={{ height: 28, justifyContent: 'center', alignItems: 'flex-start', marginTop: space[1] }}>
@@ -764,6 +778,7 @@ export default function Home() {
         <View style={{ gap: space[3] }}>
           <TextTabs items={[{ key: 'tokens', label: t("tabTokens") }, { key: 'nft', label: t("tabNft") }, { key: 'activity', label: t("tabActivity") }]} value={tab} onChange={setTab} />
 
+          <Animated.View key={tab} entering={reduceMotion ? undefined : FadeInDown.duration(240)} style={{ gap: space[3] }}>
           {tab === 'tokens' ? (
             <>
             {initialLoading ? (
@@ -955,6 +970,7 @@ export default function Home() {
               </KPressable>
             </>
           )}
+          </Animated.View>
         </View>
           </View>
         </View>
