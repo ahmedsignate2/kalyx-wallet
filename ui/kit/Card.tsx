@@ -81,7 +81,7 @@ function useDepth(style: StyleProp<ViewStyle>, cardStyle: ViewStyle) {
   for (const [k, v] of Object.entries(flat)) (LAYOUT_KEYS.has(k) ? outer : inner)[k] = v;
   const sized = outer.height !== undefined || outer.flex !== undefined || outer.flexGrow !== undefined || outer.minHeight !== undefined;
   return {
-    outer: [outer, { borderRadius: (inner.borderRadius as number | undefined) ?? cardStyle.borderRadius, backgroundColor: (inner.backgroundColor as string | undefined) ?? cardStyle.backgroundColor, shadowColor: dark ? '#000000' : '#5A3A18', shadowOpacity: dark ? 0.45 : 0.07, shadowRadius: dark ? 20 : 16, shadowOffset: { width: 0, height: dark ? 10 : 6 }, elevation: dark ? 6 : 2 }] as StyleProp<ViewStyle>,
+    outer: [outer, { borderRadius: (inner.borderRadius as number | undefined) ?? cardStyle.borderRadius, backgroundColor: (inner.backgroundColor as string | undefined) ?? cardStyle.backgroundColor, shadowColor: dark ? '#000000' : '#5A3A18', shadowOpacity: dark ? 0.45 : 0.09, shadowRadius: dark ? 20 : 18, shadowOffset: { width: 0, height: dark ? 10 : 8 }, elevation: dark ? 6 : 2 }] as StyleProp<ViewStyle>,
     inner: [cardStyle, inner, sized ? { flexGrow: 1 } : null] as StyleProp<ViewStyle>,
   };
 }

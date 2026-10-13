@@ -563,7 +563,7 @@ export default function Home() {
         Il reste visible quand le solde est masqué : il ne dit rien du montant
         (le graphique, lui, disparaît).
       */}
-      <Landscape width={screenW} height={(heroH || insets.top + 380) + 40} phase={phase} scrollY={scrollY} sunAt={0.55} veil />
+      <Landscape width={screenW} height={(heroH || insets.top + 380) + 40} phase={phase} scrollY={scrollY} sunAt={0.55} veil balanceGlow={mode === 'dark' ? 0.32 : 0.18} />
       {/*
         Sur le ciel, la barre d'état est claire quel que soit le thème ; dès que
         l'en-tête compact (fond de l'app) la recouvre, elle reprend la teinte du
@@ -633,7 +633,7 @@ export default function Home() {
       >
         {/* Tout ce qui est posé sur le ciel se dessine pour lui (texte crème, verre). */}
         <OnSky>
-        <View style={{ gap: space[6] }}>
+        <View style={{ gap: space[5], marginBottom: -space[2] }}>
         {/* ── En-tête, comme la maquette : la marque à gauche ; réseau, notifications, scanner et avatar à droite ── */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2], minWidth: 0 }} accessible accessibilityRole="header" accessibilityLabel="Kalyx">
@@ -710,10 +710,10 @@ export default function Home() {
         {/* ── Graphique + périodes ── */}
         <View style={{ gap: space[3] }}>
           {points.length > 1 && !hidden ? (
-            <InteractiveChart points={points} color={mood === 'down' ? '#FFC9BF' : '#FFF1DC'} width={chartWidth} height={110} onScrub={(p) => { if (p && scrub?.t !== p.t) haptic.selection(); setScrub(p); }} />
+            <InteractiveChart points={points} color={mood === 'down' ? '#FFC9BF' : '#FFF1DC'} width={chartWidth} height={96} onScrub={(p) => { if (p && scrub?.t !== p.t) haptic.selection(); setScrub(p); }} />
           ) : (
-            <View style={{ height: 110, alignItems: 'center', justifyContent: 'center' }}>
-              {chartLoading || initialLoading ? <Skeleton width="100%" height={110} /> : <Text variant="caption" tone="tertiary">{hidden ? ' ' : t("noHistoryYet")}</Text>}
+            <View style={{ height: 96, alignItems: 'center', justifyContent: 'center' }}>
+              {chartLoading || initialLoading ? <Skeleton width="100%" height={96} /> : <Text variant="caption" tone="tertiary">{hidden ? ' ' : t("noHistoryYet")}</Text>}
             </View>
           )}
           <Pills items={PERIODS.map((p) => ({ key: p, label: periodLabels[p] || p }))} value={period} onChange={setPeriod} />
@@ -726,10 +726,10 @@ export default function Home() {
           LA FEUILLE : les tuiles d'action sont à cheval sur le bord du ciel,
           puis tout le reste monte sur un fond plein aux coins arrondis.
         */}
-        <View style={{ marginHorizontal: -SCREEN_MARGIN, minHeight: windowH }} onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.y + 39); setHeroH((cur) => (cur === h ? cur : h)); }}>
-          <View pointerEvents="none" style={{ position: 'absolute', top: 39, left: 0, right: 0, bottom: -(insets.bottom + 120), backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl }} />
+        <View style={{ marginHorizontal: -SCREEN_MARGIN, minHeight: windowH }} onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.y + 46); setHeroH((cur) => (cur === h ? cur : h)); }}>
+          <View pointerEvents="none" style={{ position: 'absolute', top: 46, left: 0, right: 0, bottom: -(insets.bottom + 120), backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl }} />
           <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: SCREEN_MARGIN }}>
-            <ActionTile index={0} tint="send" icon="send" label={t("actionSend")} onPress={() => router.push('/send')} />
+            <ActionTile index={0} primary tint="send" icon="send" label={t("actionSend")} onPress={() => router.push('/send')} />
             <ActionTile index={1} tint="receive" icon="receive" label={t("actionReceive")} onPress={() => router.push('/receive')} />
             <ActionTile index={2} tint="swap" icon="exchange" label={t("actionSwap")} onPress={() => router.push('/swap')} />
             <ActionTile index={3} tint="earn" icon="staking" label={t("actionEarn")} onPress={() => router.navigate('/earn')} />

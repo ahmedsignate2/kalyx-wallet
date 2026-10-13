@@ -31,6 +31,7 @@ import { durations, springs, radii, fontFamily, BRAND_GOLD, type ActionTint } fr
 import { useTheme } from './theme';
 import { Icon, type IconName } from './icon';
 import { Pressable as KPressable, Text } from './kit';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 
 export type MainTab = 'home' | 'browser' | 'activity' | 'menu';
 
@@ -257,15 +258,30 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
                 accessibilityLabel={fanOpen ? t('close') : t('actionSwap')}
                 accessibilityActions={[{ name: 'longpress', label: `${t('actionSend')} · ${t('actionReceive')} · ${t('scan')}` }]}
                 onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'longpress') setFan(!fanOpen); }}
-                style={{ width: ORB, height: ORB, borderRadius: ORB / 2, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', elevation: 16 }}
+                style={{ width: ORB, height: ORB, borderRadius: ORB / 2, backgroundColor: dark ? '#F6A57C' : colors.primary, alignItems: 'center', justifyContent: 'center', elevation: 16 }}
               >
+                {/* Anneau pêche → lavande (le crépuscule de la marque) et reflet du haut. */}
+                <Svg width={ORB} height={ORB} style={StyleSheet.absoluteFill} pointerEvents="none">
+                  <Defs>
+                    <SvgLinearGradient id="orb-ring" x1="0" y1="0" x2="1" y2="1">
+                      <Stop offset="0" stopColor="#FFD2B0" />
+                      <Stop offset="1" stopColor="#9C83EC" />
+                    </SvgLinearGradient>
+                    <SvgLinearGradient id="orb-sheen" x1="0" y1="0" x2="0" y2="1">
+                      <Stop offset="0" stopColor="#FFFFFF" stopOpacity={dark ? 0.35 : 0.14} />
+                      <Stop offset="0.55" stopColor="#FFFFFF" stopOpacity={0} />
+                    </SvgLinearGradient>
+                  </Defs>
+                  <Circle cx={ORB / 2} cy={ORB / 2} r={ORB / 2 - 1} fill="url(#orb-sheen)" />
+                  <Circle cx={ORB / 2} cy={ORB / 2} r={ORB / 2 - 1.25} fill="none" stroke="url(#orb-ring)" strokeWidth={2.5} />
+                </Svg>
                 <Reanimated.View style={orbIconStyle}>
                   <Reanimated.View style={swapIconStyle}>
-                    <Icon name="exchange" size={25} color={colors.onPrimary} />
+                    <Icon name="exchange" size={25} color={dark ? '#16131F' : '#F6A57C'} />
                   </Reanimated.View>
                 </Reanimated.View>
                 <Reanimated.View pointerEvents="none" style={[{ position: 'absolute' }, closeStyle]}>
-                  <Icon name="close" size={24} color={colors.onPrimary} />
+                  <Icon name="close" size={24} color={dark ? '#16131F' : '#F6A57C'} />
                 </Reanimated.View>
               </KPressable>
             </View>

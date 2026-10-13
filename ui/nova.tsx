@@ -171,8 +171,8 @@ export function ActionDisc({ icon, label, onPress, tone = 'default', index = 0, 
  * en Crème avec une ombre douce, lueur translucide en Nuit. L'icône et le mot
  * sont DANS la tuile — une cible de 76 px de haut, on ne la rate pas du pouce.
  */
-export function ActionTile({ icon, label, tint, onPress, index = 0, disabled }: { icon: IconName; label: string; tint: ActionTint; onPress: () => void; index?: number; disabled?: boolean }) {
-  const { tints, elevation, mode, colors } = useAppTheme();
+export function ActionTile({ icon, label, tint, onPress, index = 0, disabled, primary }: { icon: IconName; label: string; tint: ActionTint; onPress: () => void; index?: number; disabled?: boolean; /** Le geste principal : tuile PLEINE de sa couleur (une seule par rangée). */ primary?: boolean }) {
+  const { tints, mode, colors } = useAppTheme();
   const reduce = useReduceMotion();
   const p = useSharedValue(reduce ? 1 : 0);
   useEffect(() => {
@@ -184,14 +184,21 @@ export function ActionTile({ icon, label, tint, onPress, index = 0, disabled }: 
   const done = useEntranceDone(80 + index * 50 + 1200, reduce, p);
   const tone = tints[tint];
   const dark = mode === 'dark';
-  const gid = `tile-${tint}-${mode}`;
+  const gid = `tile-${tint}-${mode}-${primary ? 'p' : 's'}`;
   /*
-   * MATIÈRE : un dégradé vertical (lumière en haut, teinte en bas) donne du
-   * volume, l'icône est posée dans une PASTILLE pleine de la couleur du geste
-   * (elle se voit d'un coup d'œil, comme les icônes de la maquette), et une
-   * ombre teintée détache la tuile du ciel. À l'appui, la tuile s'enfonce
-   * (échelle du kit) et son ombre se resserre.
+   * TROIS NIVEAUX DE MATIÈRE :
+   *  - un dégradé vertical (lumière en haut, teinte en bas) et un reflet d'un
+   *    pixel sur l'arête haute : la tuile a du volume ;
+   *  - l'icône dans une PASTILLE pleine de la couleur du geste ;
+   *  - une ombre teintée qui SE RESSERRE à l'appui (échelle 0,94) : la tuile
+   *    s'enfonce dans la page.
+   * Le geste principal (Envoyer) est une tuile PLEINE de sa couleur, icône et
+   * libellé clairs : la hiérarchie se lit avant le texte.
    */
+  const shadowBase = dark ? 0.5 : primary ? 0.32 : 0.2;
+  const bg = primary ? tone.ink : dark ? colors.surface2 : tone.bg;
+  /** Encre sur la tuile pleine : en Nuit la teinte est claire (pêche), le texte passe au sombre. */
+  const onPrimary = dark ? '#1A1420' : '#FFFFFF';
   return (
     <Animated.View style={[{ flex: 1, opacity: disabled ? 0.4 : 1 }, done ? null : rise]}>
       <KPressable
@@ -199,27 +206,38 @@ export function ActionTile({ icon, label, tint, onPress, index = 0, disabled }: 
         disabled={disabled}
         haptic="light"
         overshoot
+        pressScale={0.94}
+        pressShadow={shadowBase}
         accessibilityRole="button"
         accessibilityLabel={label}
-        style={[
-          { height: 84, borderRadius: radii.lg, backgroundColor: dark ? colors.surface1 : tone.bg, borderWidth: 1, borderColor: dark ? colors.border : 'rgba(255,255,255,0.75)', borderTopColor: dark ? colors.rim : '#FFFFFF' },
-          dark ? null : { ...elevation, shadowColor: tone.ink, shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
-        ]}
+        style={{
+          height: 92,
+          borderRadius: radii.xl,
+          backgroundColor: bg,
+          borderWidth: 1,
+          borderColor: primary ? 'rgba(255,255,255,0.25)' : dark ? colors.border : 'rgba(255,255,255,0.75)',
+          borderTopColor: primary ? 'rgba(255,255,255,0.55)' : dark ? colors.rim : '#FFFFFF',
+          shadowColor: dark ? '#000000' : tone.ink,
+          shadowOpacity: shadowBase,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: dark ? 8 : 7 },
+          elevation: primary ? 7 : 4,
+        }}
       >
-        <View style={{ flex: 1, borderRadius: radii.lg, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+        <View style={{ flex: 1, borderRadius: radii.xl, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
             <Defs>
               <SvgLinearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={dark ? '#FFFFFF' : '#FFFFFF'} stopOpacity={dark ? 0.04 : 0.75} />
-                <Stop offset="1" stopColor={dark ? tone.ink : tone.bg} stopOpacity={dark ? 0.16 : 0} />
+                <Stop offset="0" stopColor="#FFFFFF" stopOpacity={primary ? 0.28 : dark ? 0.06 : 0.8} />
+                <Stop offset="1" stopColor={primary ? '#000000' : dark ? tone.ink : tone.bg} stopOpacity={primary ? 0.12 : dark ? 0.2 : 0} />
               </SvgLinearGradient>
             </Defs>
             <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${gid})`} />
           </Svg>
-          <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: tone.ink, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={icon} size={18} color={dark ? '#16131F' : '#FFFFFF'} />
+          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: primary ? onPrimary : tone.ink, alignItems: 'center', justifyContent: 'center', shadowColor: tone.ink, shadowOpacity: primary || dark ? 0 : 0.35, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } }}>
+            <Icon name={icon} size={19} color={primary ? tone.ink : dark ? '#16131F' : '#FFFFFF'} />
           </View>
-          <Text variant="small" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.3} style={{ fontFamily: fontFamily.semibold, color: dark ? colors.text : '#2A241C' }}>{label}</Text>
+          <Text variant="small" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.3} style={{ fontFamily: fontFamily.semibold, color: primary ? onPrimary : dark ? colors.text : '#2A241C' }}>{label}</Text>
         </View>
       </KPressable>
     </Animated.View>
@@ -301,7 +319,7 @@ export function TextTabs<K extends string>({ items, value, onChange, variant = '
   return (
     <View accessibilityRole="tablist" style={{ flexDirection: 'row', alignSelf: 'stretch', padding: 4, borderRadius: radii.full, backgroundColor: colors.surface2 }}>
       {cur ? (
-        <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 4, left: 0, bottom: 4, borderRadius: radii.full, backgroundColor: mode === 'dark' ? colors.surface3 : colors.surface1 }, mode === 'dark' ? null : elevation, pill]} />
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 4, left: 0, bottom: 4, borderRadius: radii.full, backgroundColor: mode === 'dark' ? colors.surface3 : colors.surface1, borderWidth: 1, borderColor: mode === 'dark' ? colors.border : 'rgba(255,255,255,0.9)', borderTopColor: mode === 'dark' ? colors.rim : '#FFFFFF' }, mode === 'dark' ? { shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 } : elevation, pill]} />
       ) : null}
       {items.map((it) => {
         const on = it.key === value;
@@ -406,7 +424,8 @@ export function IconDisc({ name, tone = 'default', size = 36, tint }: { name: Ic
   const bg = tone === 'danger' ? (mode === 'dark' ? 'rgba(255,77,94,0.14)' : '#F9DCDC') : t ? t.bg : colors.surface2;
   const ink = tone === 'danger' ? colors.danger : t ? t.ink : colors.text;
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+    // Carré aux coins doux (comme la maquette), plus un disque.
+    <View style={{ width: size, height: size, borderRadius: Math.round(size * 0.32), backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
       <Icon name={name} size={Math.round(size * 0.5)} color={ink} />
     </View>
   );
@@ -498,8 +517,16 @@ export function HeroOrb({ icon, size = 76, danger }: { icon: IconName; size?: nu
  * de disque gris : la même matière que l'accueil, sur chaque écran secondaire. `children` remplace la
  * tuile (anneau de score, avatar, logo).
  */
-export function NovaHero({ icon, title, subtitle, tone = 'default', children, compact }: { icon?: IconName; title: string; subtitle?: string; tone?: 'default' | 'gold' | 'danger'; children?: React.ReactNode; /** Tuile réduite, pour un écran fixe qui manque de hauteur. */ compact?: boolean }) {
+export function NovaHero({ icon, title, subtitle, tone = 'default', children, compact, align = 'center' }: { icon?: IconName; title: string; subtitle?: string; tone?: 'default' | 'gold' | 'danger'; children?: React.ReactNode; /** Tuile réduite, pour un écran fixe qui manque de hauteur. */ compact?: boolean; /** `left` : grand titre aligné à gauche, sans orbe (écrans de lecture : FAQ, tickets — comme la maquette). */ align?: 'center' | 'left' }) {
   const box = compact ? 56 : 76;
+  if (align === 'left') {
+    return (
+      <View style={{ gap: 6, paddingTop: 4, paddingBottom: 6 }}>
+        <Rise><Text variant="display" style={{ letterSpacing: -0.6 }}>{title}</Text></Rise>
+        {subtitle ? <Rise delay={80}><Text variant="bodySecondary" tone="secondary" style={{ lineHeight: 21 }}>{subtitle}</Text></Rise> : null}
+      </View>
+    );
+  }
   return (
     <View style={{ alignItems: 'center', gap: compact ? 6 : 10, paddingTop: compact ? 0 : 4, paddingBottom: compact ? 4 : 8 }}>
       {children ? (
