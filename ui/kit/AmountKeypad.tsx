@@ -177,7 +177,7 @@ export function AmountKeypad({
               // Hauteur FIXE : le chiffre plafonne à 1,2× (Dynamic Type) pour y tenir.
               height={compact ? 44 : 56}
             >
-              {k === '⌫' ? <Icon name="back" size={22} /> : <Text variant="title1" tabular maxFontSizeMultiplier={1.2}>{k === '.' ? sep : k}</Text>}
+              {k === '⌫' ? <Icon name="backspace" size={22} /> : <Text variant="title1" tabular maxFontSizeMultiplier={1.2}>{k === '.' ? sep : k}</Text>}
             </KeyBase>
           ))}
         </View>

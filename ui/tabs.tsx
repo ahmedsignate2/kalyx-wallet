@@ -59,10 +59,10 @@ const ORB_RING = 5;
 const DOT = 38;
 
 const TABS: { key: MainTab; icon: IconName; label: (t: (k: Key) => string) => string }[] = [
-  { key: 'home', icon: 'home', label: (t) => t('navHome') },
-  { key: 'browser', icon: 'dapps', label: (t) => t('navExplore') },
-  { key: 'activity', icon: 'history', label: (t) => t('activity') },
-  { key: 'menu', icon: 'gear', label: (t) => t('settings') },
+  { key: 'home', icon: 'tabHome', label: (t) => t('navHome') },
+  { key: 'browser', icon: 'tabExplore', label: (t) => t('navExplore') },
+  { key: 'activity', icon: 'tabActivity', label: (t) => t('activity') },
+  { key: 'menu', icon: 'tabSettings', label: (t) => t('settings') },
 ];
 /** Cinq emplacements : deux onglets, le bouton central, deux onglets. */
 const slotOf = (tabIdx: number) => (tabIdx < 2 ? tabIdx : tabIdx + 1);
